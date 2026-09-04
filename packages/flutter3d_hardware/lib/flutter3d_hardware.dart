@@ -8,10 +8,15 @@
 ///
 /// Two rules hold it in shape, and both are checked rather than intended:
 ///
-///  * no `flutter_gpu` import anywhere in this package, ever —
-///    `flutter3d_hardware/test/no_backend_test.dart`;
-///  * no `dart:ui` either, apart from one member on [GraphicsDevice] that has
-///    to name it. The reason is written where the exception is.
+///  * no `flutter_gpu` import anywhere in this package, ever, and none in its
+///    pubspec either — `tool/structure.dart`'s "the hardware layer names no
+///    graphics API" rule. It was a `no_backend_test.dart` in this package
+///    until the arrangement rules moved into that scanner, and the citation
+///    outlived the file;
+///  * no `dart:ui` and no `package:flutter/` either, apart from the files
+///    named in that same rule's `hardwareMayUseFlutter` — one member on
+///    [GraphicsDevice] has to name it, and the reason is written where the
+///    exception is.
 ///
 /// When a second backend arrives, this package does not change. A translation
 /// file appears in the new backend, and that is all.

@@ -61,6 +61,21 @@ double atlasDistance(
   return nearest * range;
 }
 
+/// The debug encoding from `surface.glsl`: red is how wide the penumbra came
+/// out against the widest allowed, green is how far away the blocker was
+/// against the light's range, blue is zero — reserved for the fragments where
+/// the search found nothing at all.
+Vector3 _penumbraDebug(
+  double radius,
+  double blocker,
+  double maxRadius,
+  double range,
+) => Vector3(
+  (radius / math.max(maxRadius, 1e-6)).clamp(0.0, 1.0),
+  (blocker / range).clamp(0.0, 1.0),
+  0.0,
+);
+
 /// `PointShadowFactor`: how lit a point is by the light that owns the atlas.
 double pointShadowFactor(
   ShaderBindings b,
@@ -169,9 +184,33 @@ double pointShadowFactor(
   // by it would come back NaN rather than merely wrong.
   final tanHalf = math.max(slotEntry.z, 1e-4);
 
+  // `params2.w`, the debug channel: paint the penumbra estimate into the
+  // surface buffer instead of the normal.
+  //
+  // **Transcribed rather than left to the two GPU backends**, which is the
+  // point of this rasteriser existing. The quantity that settles an argument
+  // about contact hardening never leaves this function, and it was readable on
+  // Impeller and on WebGL and silently absent here — so a developer debugging
+  // it headlessly, on the backend that needs no device, read the ordinary
+  // surface buffer as the penumbra estimate. That is the exact failure this
+  // channel was added to end.
+  final debug = params2.w > 0.5;
+
   double radius;
   if (lightRadius <= 0.0) {
     radius = minRadius;
+    if (debug) {
+      // The centre tap, for the reason the GLSL gives where it does the same:
+      // an unfilled channel clamps −1 to zero, which is the same green as a
+      // blocker touching the surface — the most alarming answer available, and
+      // a whole theory was once built on it.
+      c.debugSurface = _penumbraDebug(
+        radius,
+        atlasDistance(b, u, vv, 0.0, 0.0, tileX, tileY, range, inset),
+        maxRadius,
+        range,
+      );
+    }
   } else {
     // The blocker search runs at the widest penumbra allowed: a blocker
     // outside that circle cannot widen the result, and searching narrower
@@ -199,7 +238,13 @@ double pointShadowFactor(
       count += 1.0;
     }
     // Nothing in front of this fragment anywhere in the search.
-    if (count < 0.5) return 1.0;
+    if (count < 0.5) {
+      // Blue, which is a different answer from "found something very close" —
+      // and telling those two apart is most of the question the channel exists
+      // to answer.
+      if (debug) c.debugSurface = Vector3(0.0, 0.0, 1.0);
+      return 1.0;
+    }
     final blocker = math.max(sum / count, 1e-4);
     final worldWidth =
         lightRadius * math.max(receiver - blocker, 0.0) / blocker;
@@ -210,6 +255,9 @@ double pointShadowFactor(
       minRadius,
       maxRadius,
     );
+    if (debug) {
+      c.debugSurface = _penumbraDebug(radius, blocker, maxRadius, range);
+    }
   }
 
   double tap(double ox, double oy) {

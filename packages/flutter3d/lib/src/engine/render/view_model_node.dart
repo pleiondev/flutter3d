@@ -16,9 +16,12 @@ import 'render_node.dart';
 /// and the encoder offers no way to end a pass — the same rule that already
 /// governs the shadow and post passes.
 ///
-/// its own pass rather than the scene pass, and that is the
-/// whole reason the stage exists: a weapon held at arm's length shares no
-/// depth with the world, or every doorway would slice the barrel off.
+/// **It cannot simply be a second `RenderView`.** Every view shares one depth
+/// buffer, so a weapon held at arm's length shares no depth with the world:
+/// every doorway would slice the barrel off, and the model would be buried the
+/// moment the player walked up to a wall. Its own pass with the depth cleared
+/// is what puts it reliably in front, and that is the whole reason the stage
+/// exists.
 final class ViewModelNode extends RenderNode {
   ViewModelNode({required this.scene, required this.camera});
 
@@ -27,6 +30,10 @@ final class ViewModelNode extends RenderNode {
   Scene scene;
 
   /// Usually around 55 degrees against the world camera's 90.
+  ///
+  /// The narrow field of view is the point rather than a detail. The main
+  /// camera is wide enough to see a room, and a model rendered at that angle a
+  /// few centimetres from the eye is grotesquely distorted at the edges.
   CameraNode camera;
 
   @override

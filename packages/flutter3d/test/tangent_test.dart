@@ -65,6 +65,32 @@ void main() {
       expect(identical(mesh.convertedTo(VertexLayout.standard), mesh), isTrue);
     });
 
+    test('generating tangents lands on the layout that is named for it', () {
+      // `positionNormalTexcoordTangent` was a public constant nothing in the
+      // repository referenced — a layout no stage declares, which reads as a
+      // promise nobody keeps. It is not: it is the shape a UV-mapped mesh has
+      // the moment tangents are generated for it, and this is what says so.
+      //
+      // Mutation: dropping `tangent` from the constant's attribute list, or
+      // appending it anywhere but last in `withGeneratedTangents`, fails the
+      // name comparison.
+      final mesh = CuboidShape()
+          .build(layout: VertexLayout.standard)
+          .convertedTo(VertexLayout.positionNormalTexcoord)
+          .withGeneratedTangents();
+
+      expect(
+        mesh.layout.attributes.map((VertexAttribute a) => a.name),
+        VertexLayout.positionNormalTexcoordTangent.attributes.map(
+          (VertexAttribute a) => a.name,
+        ),
+      );
+      expect(
+        mesh.layout.floatsPerVertex,
+        VertexLayout.positionNormalTexcoordTangent.floatsPerVertex,
+      );
+    });
+
     test('dropping an attribute keeps the rest intact', () {
       final full = CuboidShape().build(layout: VertexLayout.standard);
       final reduced = full.convertedTo(VertexLayout.positionNormal);

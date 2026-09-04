@@ -237,6 +237,23 @@ final class RenderSettings {
   /// readback of it, and the composite exposes with what the meter answered a
   /// frame or two ago, adapted at the settings' rate.
   final AutoExposureSettings autoExposure;
+  /// Draws the scene's triangles as lines.
+  ///
+  /// **Two of the three backends decline it**, which is the one thing a caller
+  /// has to know before reaching for it. It is a polygon
+  /// mode, and OpenGL ES has no `glPolygonMode` — so the WebGL backend and the
+  /// software rasteriser both answer false to
+  /// `GraphicsDevice.supportsWireframe`, and the engine declines the setting on
+  /// their behalf rather than sending a request they would refuse mid-frame.
+  /// Only Impeller draws it.
+  ///
+  /// A declined frame is a solid model and no exception, so the frame says so
+  /// instead: [FrameResult.wireframeDeclined] is true exactly when this was
+  /// asked for and could not be given. Ask that rather than the picture.
+  ///
+  /// Making it work everywhere is not a backend's to invent: lines from a
+  /// triangle list need an index buffer built for them, which is geometry work
+  /// in this package rather than a translation in a backend.
   final bool wireframe;
   final bool backfaceCulling;
 

@@ -461,6 +461,7 @@ final class CpuEncoder implements CommandEncoder {
 
       context.coord.setValues(x + 0.5, y + 0.5, z, iw);
       context.surface = null;
+      context.debugSurface = null;
       final colour = pipeline.fragment.run(interpolated, bindings, context);
       if (colour == null) continue;
       if (stencil != null) _stencilWrite(stencil, index, stencilState, op);
@@ -881,6 +882,7 @@ final class CpuEncoder implements CommandEncoder {
         // to it would see the next fragment's values.
         context.coord.setValues(px, py, z, iw);
         context.surface = null;
+        context.debugSurface = null;
         final colour = pipeline.fragment.run(interpolated, bindings, context);
         if (colour == null) continue;
         if (stencil != null) _stencilWrite(stencil, index, stencilState, op);

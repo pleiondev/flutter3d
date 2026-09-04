@@ -164,9 +164,9 @@ void main() {
     // **One number, two legal ranges, and neither was written down.** The
     // cascade pass clamped to 256–4096 and the cube atlas to 128–1024, in two
     // files, as literals — which reads as one of them being a typo. It is not:
-    // the cube atlas holds six faces of four lights side by side, so the tile
-    // size that gives a cascade a 4096-pixel texture would give the atlas a
-    // 24,576-pixel one.
+    // the cube atlas holds six faces of `Renderer.kShadowedLights` lights side
+    // by side, so the tile size that gives a cascade a 4096-pixel texture would
+    // give the atlas a 24,576-pixel one.
     expect(
       ShadowSettings.maxCubeTile * 6,
       lessThanOrEqualTo(ShadowSettings.maxResolution * 6 ~/ 2),
@@ -188,6 +188,34 @@ void main() {
     expect(
       settings.resolution,
       greaterThanOrEqualTo(ShadowSettings.minCubeTile),
+    );
+  });
+
+  test('the atlas the doc quotes is the atlas the constants make', () {
+    // **The figures in `cubeResolution`'s doc comment are recountable here.**
+    // They were written when the atlas had four rows, and raising
+    // `kShadowedLights` to six left "the atlas holds twenty-four" standing
+    // twenty-three lines above "the atlas holds thirty-six" — two sentences
+    // about the same texture that cannot both be used. Prose cannot be made to
+    // fail; this can.
+    //
+    // Mutation: `kShadowedLights = 4` fails every expectation below, which is
+    // exactly the edit that made the prose wrong and nothing noticed.
+    const settings = ShadowSettings();
+    expect(
+      6 * Renderer.kShadowedLights,
+      36,
+      reason: 'the doc says the atlas holds thirty-six faces',
+    );
+    expect(
+      settings.cubeResolution * 6,
+      3072,
+      reason: 'the doc says the default atlas is 3072 across',
+    );
+    expect(
+      settings.cubeResolution * Renderer.kShadowedLights,
+      3072,
+      reason: 'the doc says it is square at the default, which needs six rows',
     );
   });
 }

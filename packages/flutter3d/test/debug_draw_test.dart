@@ -4,7 +4,9 @@ import 'dart:typed_data';
 import 'package:flutter3d/src/engine/geometry/geometry.dart';
 import 'package:flutter3d/src/engine/render/debug_draw.dart';
 import 'package:flutter3d/src/engine/render/debug_draw_gizmos.dart';
+import 'package:flutter3d/src/engine/scene/camera_node.dart';
 import 'package:flutter3d/src/engine/scene/projection.dart';
+import 'package:flutter3d/src/engine/scene/scene.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart';
 
@@ -298,6 +300,50 @@ void main() {
       expect(ends.az, -3.0);
       expect(ends.bx, 1.0);
       expect(ends.bz, -9.0);
+    });
+  });
+
+  group('camera frustums over a scene', () {
+    // **`addFrustum` was covered; the option that reaches it was not.** Every
+    // scene in this repository holds one camera, and the one camera is always
+    // the one being rendered — which the overlay skips, because drawing the
+    // frustum of the camera you are looking through outlines the screen. So
+    // `DebugDrawOptions.cameraFrustums` could be switched on anywhere in the
+    // tree and draw nothing, and no picture and no test would differ. The
+    // second camera below is the only one in the repository.
+    Scene twoCameras() {
+      final scene = Scene(name: 'two eyes');
+      scene.root
+        ..add(CameraNode(name: 'eye')..setPosition(0.0, 0.0, 4.0))
+        ..add(CameraNode(name: 'watcher')..setPosition(6.0, 2.0, 0.0));
+      return scene;
+    }
+
+    test('every camera but the one being looked through', () {
+      // Mutation: dropping the `identical(camera, activeCamera)` guard draws
+      // twenty-four lines instead of twelve; dropping the whole
+      // `options.cameraFrustums` branch draws none.
+      final scene = twoCameras();
+      final draw = DebugDraw()
+        ..buildForScene(
+          scene,
+          const DebugDrawOptions(cameraFrustums: true),
+          activeCamera: scene.cameras.first,
+        );
+
+      expect(draw.lineCount, 12, reason: 'one frustum, twelve edges');
+    });
+
+    test('and none of them when the option is off', () {
+      final scene = twoCameras();
+      final draw = DebugDraw()
+        ..buildForScene(
+          scene,
+          const DebugDrawOptions(),
+          activeCamera: scene.cameras.first,
+        );
+
+      expect(draw.isEmpty, isTrue);
     });
   });
 }

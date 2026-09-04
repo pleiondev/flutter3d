@@ -68,7 +68,17 @@ Vector3 decodeOctahedral(double ex, double ey) {
 /// Called from the same place that writes colour, so a surface cannot be lit
 /// into the frame without also describing itself — which is the failure that
 /// leaves a screen-space effect reflecting whatever was in the buffer before.
+///
+/// A debug pass takes the buffer over rather than getting one of its own, the
+/// way the GLSL does: the surface buffer already has an attachment, a viewer
+/// and a golden, and a second one would need all three built before it could
+/// answer anything.
 void writeSurface(FragmentContext c, Vector3 normal, double roughness) {
+  final debug = c.debugSurface;
+  if (debug != null) {
+    c.surface = Vector4(debug.x, debug.y, debug.z, c.coord.z);
+    return;
+  }
   final encoded = encodeOctahedral(normal);
   c.surface = Vector4(
     encoded.x,

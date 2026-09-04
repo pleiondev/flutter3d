@@ -7,7 +7,10 @@
 /// - **This package names no graphics API.** It depends on `flutter3d_hardware` and
 ///   nothing below it, so an application chooses a backend package
 ///   today — and hands it to `Renderer.create`. That is checked, not intended:
-///   `tool/structure.dart`'s "the hardware layer names no graphics API" rule.
+///   `tool/structure.dart`'s "the engine names no backend" rule, which scans
+///   this package's `lib/`. The rule named here until now — "the hardware
+///   layer names no graphics API" — scans `flutter3d_hardware` and says
+///   nothing whatever about this file's claim.
 /// - `geometry`, `scene`, `assets` and `render/key_sort` need no device at all,
 ///   which is what lets bounds, culling, framing, picking, decoding and sorting
 ///   be unit tested without one.
