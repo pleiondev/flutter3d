@@ -23,8 +23,7 @@ dependencies:
   # backend: `flutter3d` names no graphics API at all, which is what lets an
   # application choose one — `flutter3d_impeller` today — and what would let a WebGL
   # backend exist without touching the engine.
-  flutter3d_hardware: ^0.4.0
-
+  flutter3d_hardware: ^0.4.2
   vector_math: ^2.2.0
 
 dev_dependencies:

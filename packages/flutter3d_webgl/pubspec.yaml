@@ -23,8 +23,7 @@ dependencies:
   flutter:
     sdk: flutter
 
-  flutter3d_hardware: ^0.4.0
-
+  flutter3d_hardware: ^0.4.2
   # Browser APIs through static JS interop. `dart:html` and `dart:web_gl` are
   # the legacy path and are not available under Wasm.
   web: ^1.1.0

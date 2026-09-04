@@ -37,8 +37,7 @@ dependencies:
   flutter_gpu:
     sdk: flutter
 
-  flutter3d_hardware: ^0.4.0
-
+  flutter3d_hardware: ^0.4.2
 
 dev_dependencies:
   # Not flutter3d_conformance, though this backend is the one it exists for.

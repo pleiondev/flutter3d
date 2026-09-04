@@ -18,7 +18,7 @@ dependencies:
     sdk: flutter
 
   # Both halves, which is the entire point of this package existing.
-  flutter3d: ^0.4.0
+  flutter3d: ^0.4.3
   flutter3d_particles: ^0.4.0
   flutter3d_game: ^0.4.0
 

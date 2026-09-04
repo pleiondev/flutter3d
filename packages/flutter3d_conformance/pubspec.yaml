@@ -24,7 +24,7 @@ dependencies:
   # them take it as a dev dependency of their own.
   flutter_test:
     sdk: flutter
-  flutter3d_hardware: ^0.4.0
+  flutter3d_hardware: ^0.4.2
   vector_math: ^2.2.0
   # The list of entry points a bundle must answer to.
   flutter3d_shaders: ^0.4.0

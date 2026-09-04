@@ -19,7 +19,7 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  flutter3d_hardware: ^0.4.0
+  flutter3d_hardware: ^0.4.2
   vector_math: ^2.2.0
 
 dev_dependencies:
