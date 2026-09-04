@@ -12,6 +12,15 @@ abstract final class ShooterActions {
   /// ones.
   static const GameAction fire = GameAction('fire');
 
+  /// The other trigger, for a weapon that has one.
+  ///
+  /// **Its own action rather than a modifier on [fire]**, for the reason [fire]
+  /// is its own action rather than a member of the engine's list: a player
+  /// binds the two separately, and a pad puts them on two triggers that are
+  /// both held at once. A weapon with one trigger simply never answers it —
+  /// see `Arsenal.canFireAlternate`.
+  static const GameAction altFire = GameAction('altFire');
+
   /// Held to crouch. Released to stand, if there is room to.
   ///
   /// This game's own rather than the engine's, for the reason the whole file

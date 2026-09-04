@@ -31,6 +31,7 @@ final class AmmoType {
   /// and in code without a registry in between.
   final String name;
 
+
   /// The starting weapon never runs out, so it is always something to fall back
   /// to. A player stranded with no weapon at all is a player reloading a save.
   static const AmmoType none = AmmoType('none');
@@ -58,6 +59,7 @@ final class WeaponDef {
   const WeaponDef({
     required this.name,
     required this.behaviour,
+    this.alternate,
     required this.ammo,
     required this.damage,
     required this.shotsPerSecond,
@@ -79,6 +81,24 @@ final class WeaponDef {
   });
 
   final String name;
+
+  /// The other trigger, or null for a weapon with one.
+  ///
+  /// **A whole [WeaponDef] rather than a handful of overrides**, so an
+  /// alternate fire is described exactly as a weapon is: its own behaviour, its
+  /// own ammunition and cost, its own damage, spread, range and falloff. A
+  /// shotgun whose second trigger fires both barrels differs from the first in
+  /// four numbers and a cooldown, and expressing that as a list of nullable
+  /// overrides would have been four ways to get it half-written.
+  ///
+  /// The alternate's own [alternate] is not read. Two triggers is what a
+  /// weapon has; a third is a weapon.
+  ///
+  /// **One cooldown, shared.** [Arsenal] puts the weapon on cooldown whichever
+  /// trigger fired it, because it is one weapon in one pair of hands. A game
+  /// that wants a grenade launcher whose barrel reloads independently of its
+  /// tube has two weapons and a slot each, which is what the slots are for.
+  final WeaponDef? alternate;
 
   /// How far the sight jumps on each shot, in radians.
   ///

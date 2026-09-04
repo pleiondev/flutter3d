@@ -516,12 +516,27 @@ final class GameSimulation {
     if (slot != null) arsenal.selectSlot(slot);
 
     final shot = this.shot;
-    if (shot != null &&
-        arsenal.wantsToFire(
-          held: input.held(ShooterActions.fire),
-          pressed: input.pressed(ShooterActions.fire),
-        )) {
-      final weapon = arsenal.fire();
+    // **The main trigger first, and only one of the two fires in a step.** They
+    // share a cooldown because they share a weapon, so a player holding both
+    // gets the primary — which is the one they are more likely to have meant,
+    // and the one a pad's two triggers make easy to press together by mistake.
+    final wantsMain = arsenal.wantsToFire(
+      held: input.held(ShooterActions.fire),
+      pressed: input.pressed(ShooterActions.fire),
+    );
+    final wantsAlternate =
+        !wantsMain &&
+        arsenal.wantsToFireAlternate(
+          held: input.held(ShooterActions.altFire),
+          pressed: input.pressed(ShooterActions.altFire),
+        );
+
+    // **No early return, and that is not style.** The fall-back below runs on
+    // every step the trigger is idle, including the steps nothing was fired on
+    // and the steps a game has no `shot` to fire with — an arsenal left holding
+    // an empty weapon is the bug it exists to prevent.
+    if (shot != null && (wantsMain || wantsAlternate)) {
+      final weapon = arsenal.fire(alternate: wantsAlternate);
       if (weapon != null) {
         _fire(shot, weapon);
         // After the shot has left. A burst climbs because this is applied ten

@@ -211,11 +211,25 @@ final class Arsenal {
   }
 
   /// Whether pulling the trigger right now would fire.
-  bool get canFire =>
-      !isEmpty &&
+  bool get canFire => _couldFire(isEmpty ? null : current);
+
+  /// The same question of the other trigger. False for a weapon with one.
+  ///
+  /// A second getter rather than `canFire({bool alternate})`, because turning
+  /// a published getter into a method is a change every caller has to make and
+  /// this package would rather never ask.
+  bool get canFireAlternate =>
+      _couldFire(isEmpty ? null : current.alternate);
+
+  /// Whether [weapon] could be fired from this arsenal right now.
+  ///
+  /// Takes the definition rather than reading [current], so both triggers ask
+  /// the same question and the answer cannot drift between them.
+  bool _couldFire(WeaponDef? weapon) =>
+      weapon != null &&
       _cooldown <= 0.0 &&
-      (current.ammo == AmmoType.none ||
-          ammoOf(current.ammo) >= current.ammoPerShot);
+      (weapon.ammo == AmmoType.none ||
+          ammoOf(weapon.ammo) >= weapon.ammoPerShot);
 
   /// Whether the trigger being [held] should fire this step.
   ///
@@ -224,10 +238,24 @@ final class Arsenal {
   bool wantsToFire({required bool held, required bool pressed}) =>
       !isEmpty && (current.automatic ? held : pressed);
 
-  /// Spends a shot. Returns the weapon fired, or null when it could not.
-  WeaponDef? fire() {
-    if (!canFire) return null;
-    final weapon = current;
+  /// The same question of the other trigger.
+  ///
+  /// False for a weapon with one, so a game may bind the action unconditionally
+  /// and a weapon that has no alternate simply never answers it.
+  bool wantsToFireAlternate({required bool held, required bool pressed}) {
+    final other = isEmpty ? null : current.alternate;
+    return other != null && (other.automatic ? held : pressed);
+  }
+
+  /// Spends a shot. Returns the definition fired, or null when it could not.
+  ///
+  /// **What comes back is the alternate's own [WeaponDef] when [alternate] is
+  /// asked for**, not the weapon holding it — so everything downstream, from
+  /// the shot to the recoil to the sound, reads the numbers of the trigger
+  /// that was actually pulled without being told which it was.
+  WeaponDef? fire({bool alternate = false}) {
+    final weapon = alternate ? (isEmpty ? null : current.alternate) : current;
+    if (!_couldFire(weapon) || weapon == null) return null;
     if (weapon.ammo != AmmoType.none) {
       _ammo[weapon.ammo] = ammoOf(weapon.ammo) - weapon.ammoPerShot;
     }

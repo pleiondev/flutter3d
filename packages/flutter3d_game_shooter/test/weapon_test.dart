@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter3d_game_shooter/flutter3d_game_shooter.dart';
 import 'package:flutter3d_game_shooter/sample.dart';
 import 'package:flutter3d_physics/flutter3d_physics.dart';
+import 'package:flutter3d_sim/flutter3d_sim.dart' show InputState;
 import 'package:flutter3d_sim/src/physics/layers.dart';
 import 'package:flutter3d_sim/src/save/game_random.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -537,6 +538,124 @@ void main() {
       // twice by a class this package has never heard of.
       expect(shot.hits, hasLength(2));
       expect(behaviour.deliveries, 1);
+    });
+  });
+
+  group('the other trigger', () {
+    const alternate = WeaponDef(
+      name: 'both barrels',
+      behaviour: HitscanBehaviour(),
+      ammo: AmmoType.shells,
+      ammoPerShot: 2,
+      damage: 40.0,
+      shotsPerSecond: 1.0,
+    );
+    const twinned = WeaponDef(
+      name: 'shotgun',
+      behaviour: HitscanBehaviour(),
+      ammo: AmmoType.shells,
+      damage: 11.0,
+      shotsPerSecond: 2.0,
+      alternate: alternate,
+    );
+
+    Arsenal held({int shells = 10}) => Arsenal(
+      slots: <WeaponDef>[twinned],
+      ammo: <AmmoType, int>{AmmoType.shells: shells},
+    )..selectSlot(0);
+
+    test('spends its own cost and answers its own definition', () {
+      final arsenal = held();
+
+      final fired = arsenal.fire(alternate: true);
+
+      expect(fired?.name, 'both barrels');
+      expect(arsenal.ammoOf(AmmoType.shells), 8, reason: 'two shells, not one');
+    });
+
+    test('and shares the weapon cooldown, because it shares the weapon', () {
+      final arsenal = held()..fire(alternate: true);
+
+      expect(arsenal.canFire, isFalse);
+      expect(arsenal.canFireAlternate, isFalse);
+    });
+
+    test('is refused on its own cost rather than on the main one', () {
+      // One shell left: the main trigger fires, the alternate cannot.
+      final arsenal = held(shells: 1);
+
+      expect(arsenal.canFire, isTrue);
+      expect(arsenal.canFireAlternate, isFalse);
+      expect(arsenal.fire(alternate: true), isNull);
+      expect(
+        arsenal.ammoOf(AmmoType.shells),
+        1,
+        reason: 'a refused shot spent something',
+      );
+    });
+
+    test('and a weapon with one trigger never has a second', () {
+      final arsenal = sampleArsenal()..selectSlot(1);
+
+      expect(arsenal.canFireAlternate, isFalse);
+      expect(arsenal.fire(alternate: true), isNull);
+      expect(
+        arsenal.wantsToFireAlternate(held: true, pressed: true),
+        isFalse,
+        reason: 'a game may bind the action for every weapon',
+      );
+    });
+  });
+
+  group('falling back from an empty weapon', () {
+    // **Nothing covered this**, which is how a restructure of the firing block
+    // silently skipped it: the fall-back sits after the shot, and an early
+    // return added to that method walks straight past it.
+
+    test('happens on a step nothing was fired on', () {
+      final arsenal = Arsenal(
+        slots: <WeaponDef>[Weapons.fists, Weapons.pistol],
+        ammo: <AmmoType, int>{AmmoType.bullets: 0},
+      )..selectSlot(1);
+      expect(arsenal.canFire, isFalse, reason: 'the pistol is dry');
+
+      arsenal.fallBackIfEmpty();
+
+      expect(arsenal.current.name, Weapons.fists.name);
+    });
+
+    test('and through a step of a game with nothing to fire with', () {
+      // **Driven through the simulation, because the arsenal's own method was
+      // never the thing at risk.** What broke was the step walking past the
+      // call, and only a step can catch that.
+      //
+      // Mutation: put `if (shot == null) return;` back at the top of
+      // `_weapon`. The dry pistol stays in hand.
+      final world = CollisionWorld()
+        ..addBox(Vector3(0.0, -0.5, 0.0), Vector3(20.0, 1.0, 20.0))
+        ..update();
+      final inventory = Inventory(
+        arsenal: Arsenal(
+          slots: <WeaponDef>[Weapons.fists, Weapons.pistol],
+          ammo: <AmmoType, int>{AmmoType.bullets: 0},
+        )..selectSlot(1),
+      );
+      final sim = GameSimulation(
+        random: GameRandom(1),
+        player: Player(
+          body: CharacterController(
+            world: world,
+            position: Vector3(0.0, 0.9, 0.0),
+          ),
+          inventory: inventory,
+        ),
+        collision: world,
+        input: InputState(),
+      );
+
+      sim.step(1.0 / 60.0);
+
+      expect(inventory.arsenal.current.name, Weapons.fists.name);
     });
   });
 }
