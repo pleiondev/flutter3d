@@ -38,7 +38,7 @@ The demos are built with `--wasm` now. dart2wasm compiles the simulation to WebA
 
 ## What it runs at now
 
-The shooter's own counter reads **53 fps with no dropped frames** in the crypt, against 15–30 before these two changes. This game has no counter on screen. What it has is a lap clock that keeps real time, three AI drivers that hold their line, and a car that answers the wheel.
+The shooter's own counter read **53 fps with no dropped frames** in the crypt, against 15–30 before these two changes — one machine, one reading, with the browser and the date unrecorded, so it is the size of the change and not a figure to reproduce. This game has no counter on screen. What it has is a lap clock that keeps real time, three AI drivers that hold their line, and a car that answers the wheel.
 
 <div class="note">
 <p>Both fixes came out of a shadow investigation, not a performance one. The memory was measured while chasing a straight edge in a teapot's shadow, and nobody had thought to ask what a cube atlas costs when its tile comes from a setting named for the sun.</p>
@@ -51,6 +51,8 @@ The shooter's own counter reads **53 fps with no dropped frames** in the crypt, 
   <div><dt>S or ↓</dt><dd>Brake, and reverse once stopped</dd></div>
   <div><dt>A D or ← →</dt><dd>Steer. The lock falls away with speed, which is <code>steerFalloff</code></dd></div>
   <div><dt>Space</dt><dd>Handbrake</dd></div>
+  <div><dt>T, or the pad's north face</dt><dd>Change tyres — the pit stop, and the one control that repairs a damaged car. A verb the car has rather than a screen, so it rebinds like any other</dd></div>
+  <div><dt>R</dt><dd>Race the season again, once it is over. Gated on that deliberately: a key that throws away four won circuits mid-lap is worse than no key</dd></div>
 </dl>
 
 Click the frame first: the keyboard goes to whatever was clicked last, and a platform view takes the focus when you click it.
@@ -71,7 +73,7 @@ const int kShadowCascades = 3;  const int kShadowCascades = 2;
 const int kShadowResolution = 2048;  const int kShadowResolution = 1024;
 ```
 
-`SceneSurface` reads those instead of naming numbers, which is the third copy of that widget in this repository and the point at which it should become a package. It has not, because the three differ in exactly one place and a package whose only parameter is the thing each caller sets differently has moved an argument rather than removed a duplicate.
+`SceneSurface` reads those instead of naming numbers. It used to be the third copy of that widget in this repository, and the argument for leaving it copied was that the three differed in exactly one place. That argument did not survive: the widget is `flutter3d_session`'s now — `packages/flutter3d_session/lib/src/scene_surface.dart`, re-exported through `flutter3d_app` — and the place the three differ is a constant each application passes in. See [assembling an application](/core/session/).
 
 ## Building it yourself
 

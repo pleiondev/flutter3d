@@ -41,23 +41,23 @@ final renderer = Renderer.create(device: device);
 | Backend | Runs on | Entry point | Status |
 |---|---|---|---|
 | **`flutter3d_impeller`** | `flutter_gpu` — Metal on Apple platforms, Vulkan elsewhere | `GpuRenderBackend.create()` | The production one. Everything in these docs runs on it |
-| **`flutter3d_webgl`** | WebGL2, in the browser | `WebGlDevice` | Runs the shooter and the platformer. Slower, at a fixed resolution |
+| **`flutter3d_webgl`** | WebGL2, in the browser | `WebGlDevice` | Runs all three games. Slower, at a fixed resolution |
 | **`flutter3d_cpu`** | Nothing. It rasterises in Dart | `CpuDevice()` | Complete for the golden set. A dev dependency of every game |
 
 Each exists for a different reason, and none of them is a fallback for another.
 
 **`flutter3d_impeller`** is the real one. Nothing else in the stack names `flutter_gpu`, which is the property that package exists to hold.
 
-**`flutter3d_webgl`** is how you find out whether the HAL is a seam or a description of Impeller. A fake backend can only confirm that an interface is *callable*, never that it is *implementable*. Two of the three games run on it, at a fixed internal resolution and a lower frame rate; [the platformer](/platformer/demo/) and [the shooter](/shooter/demo/) are embedded in these docs. [The racing game](/racing/demo/) renders and is too slow to drive, which is an open problem rather than a portability one.
+**`flutter3d_webgl`** is how you find out whether the HAL is a seam or a description of Impeller. A fake backend can only confirm that an interface is *callable*, never that it is *implementable*. All three games run on it, at a fixed internal resolution and a lower frame rate, and all three are embedded in these docs. [The racing game](/racing/demo/) was the last of them: it drew the circuit at well under a frame a second for months, and what was wrong was a cube shadow atlas sized from the sun's setting rather than anything about the seam.
 
-Its shaders are GLSL ES 3.00 generated from `flutter3d_shaders`, and nothing checks that the generated file is current. That is the same bargain the compiled Impeller bundle makes, and it has already cost one silent failure.
+Its shaders are GLSL ES 3.00 generated from `flutter3d_shaders`. Nothing checked that the generated file was current for a long time, and it cost two silent failures — a uniform member the browser's copy had never heard of, and a sky shader from before the sky was rewritten. `tool/ci.sh` regenerates it and fails on the diff now, and the compiled Impeller bundle, which cannot be diffed, is held by a freshness rule instead.
 
 **`flutter3d_cpu`** is the one that makes the agreement mean something. Two hardware backends agreeing proves less than it looks like: both are driven by a C API and both rasterise on a GPU, so an assumption shared by graphics hardware would be invisible to the pair of them. This one shares nothing with either, no driver, no shading language, no command buffer. It is also what makes thirty-nine golden scenes checkable in a headless run, and what caught three bugs that every simulation test passed.
 
 Any new backend has to pass `flutter3d_conformance` before it counts as one.
 
 <div class="note">
-<p>Writing a fourth one is a documented job rather than an archaeology exercise: <a href="/core/backends/"><strong>Writing a HAL backend</strong></a> covers the whole contract, the ten semantics that appear in no signature, the conformance suite you can run before compiling a single shader, and the twenty-six shader entry points your bundle has to answer to.</p>
+<p>Writing a fourth one is a documented job rather than an archaeology exercise: <a href="/core/backends/"><strong>Writing a HAL backend</strong></a> covers the whole contract, the ten semantics that appear in no signature, the conformance suite you can run before compiling a single shader, and the thirty-seven shader entry points your bundle has to answer to.</p>
 </div>
 
 ### What the HAL actually names
@@ -88,7 +88,7 @@ Plus `PassEncoder` (state, bindings, draws), `PassState` as one value, the enums
 Two rules in `tool/structure.dart` hold the boundary: `the hardware layer names no graphics API` refuses a `flutter_gpu` import anywhere in the HAL, and `the engine names no backend` refuses one in `flutter3d` — and refuses the *dependency* too, which the import scan alone would miss. The HAL also refuses `dart:ui`, apart from one member on `GraphicsDevice` that has to name it, and the reason is written beside the exemption.
 
 <div class="note">
-<p>The compiled shader bundle is still an asset of <code>flutter3d</code>, and that is a known wrinkle rather than a decision. A bundle is one backend's output, so it belongs with the backend that reads it; the GLSL it is built from is shared in <code>flutter3d_shaders</code>. Moving it is a question about where shader sources live, worth answering on its own rather than as a side effect.</p>
+<p>The compiled shader bundle is an asset of <code>flutter3d_impeller</code>, which is where it belongs: a bundle is one backend's output, and the backend that reads it is the one that ships it. The GLSL it is built from is shared, in <code>flutter3d_shaders</code>, because the other two backends compile from the same sources. It used to sit in <code>flutter3d</code>, which made the engine carry one backend's build output.</p>
 </div>
 
 <div class="why">

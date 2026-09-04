@@ -3,6 +3,28 @@
 The smallest flutter3d application. Open a device, build a scene, render it
 into a widget — the whole engine is behind these seventy lines.
 
+Three dependencies, and the second one is the point: `flutter3d` draws and
+names no graphics API, so something has to say which backend draws for it.
+`flutter3d_backend` is that something — it picks Impeller or WebGL2 by
+conditional import and falls back to the software rasteriser at run time, which
+is why the code below says `openDevice()` and not `GpuRenderBackend.create()`.
+
+```yaml
+dependencies:
+  flutter:
+    sdk: flutter
+
+  flutter3d: ^0.4.0
+  flutter3d_backend: ^0.4.0
+  vector_math: ^2.2.0
+```
+
+The compiled shader bundle rides inside `flutter3d_impeller`, which
+`flutter3d_backend` brings with it, so there is nothing to build and no asset to
+declare. On macOS, set `FLTEnableFlutterGPU` and `FLTEnableImpeller` in
+`macos/Runner/Info.plist`, or the app draws through the software fallback and
+says so on the console.
+
 ```dart
 import 'package:flutter/material.dart' hide Material;
 import 'package:flutter3d/flutter3d.dart';

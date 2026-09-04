@@ -40,6 +40,6 @@ layer with collision, navigation, positional audio, and gamepad and touch
 input. Three example games — shooter, platformer, racing — each built on its
 genre package: [`flutter3d_game_shooter`](../flutter3d_game_shooter),
 [`flutter3d_game_platformer`](../flutter3d_game_platformer),
-[`flutter3d_game_racing`](../flutter3d_game_racing). A new game starts from
-[`apps/flutter3d_template_app`](../../apps/flutter3d_template_app).
+[`flutter3d_game_racing`](../flutter3d_game_racing). A new game starts from the
+editor's scaffold, which writes one from a template: <https://flutter3d.pleion.dev/first-project/>.
 Documentation: <https://flutter3d.pleion.dev>.

@@ -63,13 +63,23 @@ On Android the key is `io.flutter.embedding.android.EnableFlutterGPU` in `Androi
 <p><code>flutter create</code> generates <code>MACOSX_DEPLOYMENT_TARGET = 10.15</code> and current Xcode will not build it. Raise it to 12.0 in <code>macos/Runner.xcodeproj/project.pbxproj</code>.</p>
 </div>
 
-## Build the shader bundle {.step}
+## The shader bundle {.step}
+
+Nothing to build. The compiled bundle rides inside `flutter3d_impeller`: the package's `.pubignore` takes back the repository's `*.shaderbundle` exclusion, so the published archive carries one, and the backend loads it from `packages/flutter3d_impeller/assets/shaders/flutter3d.shaderbundle` without your project declaring an asset of its own. You installed it three blocks ago.
+
+Two cases do want the builder. A checkout of this repository has no bundle at all — it is generated and gitignored — so it is built once and again after every SDK change:
 
 ```bash
-(cd ../flutter3d/packages/flutter3d_impeller && ./tool/build_shaders.sh)
+(cd packages/flutter3d_impeller && ./tool/build_shaders.sh)
 ```
 
-Generated, gitignored, and tied to the Flutter version. Run it again after every SDK change, or shaders that used to load stop loading.
+And a package of your own that adds shaders, a lighting model the engine does not ship, builds its own bundle into itself from its own root:
+
+```bash
+dart run flutter3d_impeller:build_shaders
+```
+
+The format is tied to the Flutter version, which is why a `flutter upgrade` can stop shaders loading. A hosted install answers that by upgrading `flutter3d_impeller` to a version built against the new SDK; a checkout answers it by running the script again.
 
 ## Open a device and create a renderer {.step}
 

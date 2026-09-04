@@ -156,11 +156,11 @@ Thirty-five lines, all of them `export`. It changes nothing about how the five r
 
 What is deliberately not behind it: `flutter3d`, `flutter3d_bridge`, `flutter3d_game` and a genre package. Those say what a scene looks like and what kind of game this is, and a facade cannot choose a genre for an application.
 
-## Where two applications have not caught up
+## Where one application has not caught up
 
-The three demo games import `flutter3d_app`. `apps/flutter3d_editor` and `apps/flutter3d_template_app` do not: they name `flutter3d_impeller` and `flutter3d_session` directly and open their device with `GpuRenderBackend.create()`, the way [the tutorial](/core/tutorial/) does.
+The three demo games import `flutter3d_app`, and so does `apps/flutter3d_template_app`: the scaffold names `flutter3d_app` in its pubspec and opens its device through `openDevice`, which picks Impeller or WebGL for the build and falls back to the software rasteriser at run time when flutter_gpu will not start — the pattern this page teaches, including the fallback. It also names `flutter3d_session` directly, which the barrel re-exports; a second dependency on a package you are already getting is a line to delete, not a different arrangement.
 
-For the editor that is defensible, since it is desktop-only and there is no backend to choose between. For the scaffold it is a gap rather than a second valid pattern, and the more expensive of the two: a project copied from it today gets the older wiring, which is exactly the copying this page exists to stop. `apps/flutter3d_demo_dungeon` is the one to read for the pattern described here. If you are starting a new project, copy the scaffold for its shape and this page for its wiring.
+`apps/flutter3d_editor` is the one that does not: it names `flutter3d_impeller` and opens its device with `GpuRenderBackend.create()`, the way [the tutorial](/core/tutorial/) does. That is defensible where it is, since the editor is desktop-only and there is no backend to choose between — but it is the reason the editor cannot be the thing you copy. Copy the scaffold, which is what it is for.
 
 ## Next
 

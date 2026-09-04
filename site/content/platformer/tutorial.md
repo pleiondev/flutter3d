@@ -12,7 +12,7 @@ Fourteen steps. The engine underneath is the one the [shooter tutorial](/shooter
 <li>Ice, mud and conveyor floors; one-way platforms, springs, crumbling ledges and breakable blocks</li>
 <li>Coins, checkpoints, hazards, a kill plane and patrolling enemies you can stomp</li>
 <li>A follow camera that gets out of walls, kicks on landing and cuts on death</li>
-<li>An animated model with eighteen clips driven by a pure function</li>
+<li>A rigged model whose clip is chosen by a pure function — eight of them, and a box when there is no model at all</li>
 </ul>
 </div>
 
@@ -145,6 +145,7 @@ The `surface` word on a brush is the whole of the ice mechanic in the document. 
 
 <div class="note">
 <p>The textures, the level and the model this page names are not shipped as a starter kit; the real ones live in the demo at <code>apps/flutter3d_demo_platformer/assets/</code>, including <code>textures/moss_*.png</code> and <code>ice_*.png</code>, <code>levels/ascent.json</code> and the runner model <code>models/penguin.glb</code>. Point your paths there, or at your own files. The box-runner fallback below means the game runs before any of them exist.</p>
+<p>One level is where a tutorial stops; the demo ships five, chained by each document's <code>"next"</code> — <code>first_steps</code>, <code>ascent</code>, <code>cisterns</code>, <code>foundry</code>, <code>spire</code> — with no list of them in its Dart at all. <code>levelNext</code> in the step below is the whole of the mechanism.</p>
 </div>
 
 ## Load the level, and spawn into it {.step}
@@ -232,6 +233,7 @@ _sim = PlatformerSimulation(
   mechanisms: mechanisms,
   dynamics: dynamics,
   actors: actors,
+  random: _random,             // the same GameRandom the ActorSystem rolls
   levelNext: loaded.level.next,
   killPlane: -20.0,
 );
@@ -336,7 +338,7 @@ _runnerDrop = runner.body.halfExtents.y - asset.localBounds.min.y;
 
 ## Dress the runner, and let the clips drive themselves {.step}
 
-A box now, the model when it arrives — the game is playable either way, and a missing asset should not be the difference between playing and staring at an error.
+A box now, the model when it arrives — the game is playable either way, and a missing asset should not be the difference between playing and staring at an error. The demo ships `penguin.glb`, which has geometry and no clips at all, so what it actually shows is the box replaced by a model that stands still; a rigged file makes the rest of this step do something. `RunnerClips` names the eight the game asks for — idle, walk, run, jump, falling, landing, duck and death — and `crossFadeToNamed` on a player that has none of them is what the `null` check below is for.
 
 ```dart
 SceneNode _boxRunner(GraphicsDevice device, Scene scene, Runner runner) {
@@ -352,11 +354,13 @@ SceneNode _boxRunner(GraphicsDevice device, Scene scene, Runner runner) {
 
 Future<void> _dressRunner(GraphicsDevice device, Scene scene, Runner runner) async {
   final document = await decodeModelInIsolate(
-    ModelLoadRequest(source: const BundleAssetSource('assets/models/hero.glb')),
+    ModelLoadRequest(
+      source: const BundleAssetSource('assets/models/penguin.glb'),
+    ),
   );
   final asset = await ModelAsset.fromDocument(document,
       device: device,
-      name: 'hero');
+      name: 'runner');
   if (!mounted) return;
 
   final instance = asset.instantiate(scene, name: 'runner');
@@ -499,7 +503,7 @@ return renderer.device.present(frame.frame);
 
 <div class="why">
 <p>This level is 120 m by 260 m, and one shadow map over that spends its resolution on ground the camera cannot see. Three cascades put the nearest one around the camera instead; the numbers are under <a href="/core/rendering/#cascades">cascades</a>.</p>
-<p>1024 instead of the default 2048, because the atlas is <code>resolution × cascades</code> wide: three cascades at the default would be a six-thousand-pixel HDR texture and a hundred megabytes, on the machine that already had to be taught not to allocate its frame targets late. Three tiles of 1024 cover about forty metres each, four centimetres of world per texel against the old fourteen.</p>
+<p>1024 is the default, and it is written out here because the pairing is the decision: the atlas is <code>resolution × cascades</code> wide, so three tiles of 1024 is 3072 × 1024 and about 25 MB, while three of 2048 would be a six-thousand-pixel HDR texture and a hundred megabytes on the machine that already had to be taught not to allocate its frame targets late. Three tiles of 1024 cover about forty metres each, four centimetres of world per texel against the fourteen a single map over the whole level would give.</p>
 </div>
 
 ## Test the whole thing without a device {.step}
@@ -523,9 +527,15 @@ test('the ascent can be run to its exit', () {
 And draw one frame in a test through the software backend, because there are failures a simulation test cannot see:
 
 ```dart
+import 'package:flutter3d_cpu/testing.dart';   // a dev dependency
+
 test('a frame renders', () {
-  final device = CpuRenderBackend();      // flutter3d_cpu, a dev dependency
-  final renderer = Renderer.create(device: device, /* ... */);
+  final it = cpuTestDevice(width: 320, height: 180);
+  final renderer = Renderer.create(
+    device: it.device,
+    fallbackAlbedo: it.albedo,
+    fallbackNormal: it.normal,
+  );
   final frame = renderer.render(width: 320, height: 180, scene: scene,
       views: <RenderView>[view], settings: const RenderSettings());
   expect(frame.drawCalls, greaterThan(0));

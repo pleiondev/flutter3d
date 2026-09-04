@@ -42,7 +42,7 @@ sequenceDiagram
     O-->>R: scene HDR (+ optional surface buffer)
     R->>B: bright pass, then a chain of half-size blurs
     B-->>R: bloom
-    R->>C: tonemap, exposure, sRGB encode, fog, reflections, occlusion, grading
+    R->>C: tonemap, exposure, sRGB encode, occlusion, grading
     C-->>F: swapchain texture
 ```
 
@@ -260,7 +260,7 @@ const ShadowSettings(
 {{golden shadow-teapot | The teapot under a low sun: cascaded directional shadows, PCF 3×3, no bloom.}}
 
 <div class="warn">
-<p>The atlas is <code>resolution × cascades</code> wide. Three cascades at the default 2048 is a six-thousand-pixel HDR texture and about a hundred megabytes. A game usually wants a <em>smaller tile and cascades</em> rather than a large tile without them: three tiles of 1024 cover a level far better than one of 4096.</p>
+<p>The atlas is <code>resolution × cascades</code> wide and eight bytes a pixel. The default is three cascades of 1024 — 3072 × 1024, about 25 MB — and the trap it exists to avoid is raising the count without lowering the tile: three of 2048 is a six-thousand-pixel HDR texture and about a hundred megabytes for a picture only a little better. A game wants <em>cascades and a smaller tile</em>, not a large tile without them: three tiles of 1024 cover a level far better than one of 4096.</p>
 </div>
 
 Cascades add no passes and no extra samplers. They share one texture and the fragment shader binds the same slot.
@@ -344,16 +344,18 @@ The shaders write it either way, a pipeline may declare more outputs than its ta
 
 ```dart
 const ReflectionSettings(
-  enabled: true,
+  enabled: true,     // the only field this differs from the defaults in
   steps: 24,         // ray march length
-  stride: 2.0,
-  thickness: 0.5,    // depth tolerance for a hit
-  intensity: 0.6,
+  stride: 0.18,      // world metres a step advances
+  thickness: 0.006,  // depth tolerance for a hit, in window depth
+  intensity: 0.7,
   debugOnly: false,
 )
 ```
 
 SSR reads the surface buffer, so turning it on implies filling one.
+
+`thickness` is in *window* depth, where the whole range is 0…1 — half of it accepts almost any depth difference as a hit, which is the smear the field exists to prevent — and `stride` is in world metres, so a stride of 2 marches straight over anything thin. Both are the kind of number that looks harmless in an example and is an order of magnitude out, which is why the block above is the declared defaults with nothing changed but `enabled`.
 
 ## Ambient occlusion
 
@@ -382,7 +384,7 @@ FogSettings(
 )
 ```
 
-Applied in the composite pass, in linear space, before the encode. A level document can carry its own `fogColor` and `fogDensity`, which is how the games get theirs.
+Applied by every lit shader as it writes the HDR target — `ApplyFog` in `lib/color.glsl`, called from `WriteSurface` — in linear space, before the tone map. It is not a post pass, which is the difference that matters to an extension: a shader that writes the frame directly writes the fog with it, so a lighting model of your own gets fog for free and a post pass of your own does not. A level document can carry its own `fogColor` and `fogDensity`, which is how the games get theirs.
 
 ## Sky
 
@@ -488,12 +490,12 @@ The parts worth reaching for when a frame looks wrong.
 |---|---|
 | `DebugDrawOptions` | Bounds, vertex normals, light gizmos, world axes and camera frusta, all drawn in **one** call |
 | `RenderSettings.highlighted` | Outlines a list of nodes, typically whatever picking last selected |
-| `RenderSettings.wireframe` | Geometry without shading |
+| `RenderSettings.wireframe` | Geometry without shading. Impeller only: neither the WebGL nor the software backend has a polygon mode, and a frame that asked for it comes back with `FrameResult.wireframeDeclined` set rather than filled triangles |
 | `showShadowMap` / `showSurfaceBuffer` | Composites a buffer instead of the scene |
 | Timeline spans | `dart:developer` spans around every frame phase |
 | The frame panel | UI / raster / render / submit timings next to draw, pipeline-switch and cull counts |
 
-{{golden debug-overlay | Bounds, normals, light gizmos, world axes and the camera frustum, drawn in one call over the scene.}}
+{{golden debug-overlay | Bounds, light gizmos and world axes, drawn in one call over the scene.}}
 
 ## Picking by pixel
 

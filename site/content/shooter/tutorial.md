@@ -38,7 +38,7 @@ dev_dependencies:
   flutter3d_cpu: ^0.4.0
 ```
 
-Set `FLTEnableFlutterGPU` and `FLTEnableImpeller` in `macos/Runner/Info.plist`, and build the shader bundle. Both are covered in the [quickstart](/quickstart/).
+Set `FLTEnableFlutterGPU` and `FLTEnableImpeller` in `macos/Runner/Info.plist`. That is the whole of the setup: the shader bundle rides inside `flutter3d_impeller` and is loaded from there, so a project installed from pub.dev has nothing to build. The [quickstart](/quickstart/) covers the plist keys, and its bundle step is for the checkout it opens with.
 
 <div class="warn">
 <p>The versions come from <a href="https://pub.dev/publishers/pleion.dev/packages">pub.dev</a>. Working against a checkout instead — for engine changes of your own — means swapping each line for a <code>path:</code> into it. <a href="/first-project/">Your first project</a> covers the deployment-target trap that lives beside the pubspec.</p>

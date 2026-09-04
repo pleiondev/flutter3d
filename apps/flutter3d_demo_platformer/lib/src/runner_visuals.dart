@@ -109,10 +109,14 @@ final class RunnerVisuals {
       final previous = node;
       asset = loaded;
       node = instance.root;
-      // **The line three stages of this game were waiting for.** The player has
-      // always been built by `instantiate` when the model has clips; the penguin
-      // had none, so it was thrown away and nobody noticed. This one has
-      // eighteen.
+      // **The line three stages of this game were waiting for.** The player is
+      // built by `instantiate` when the model has clips, and thrown away when
+      // it has none — which is what happened silently for as long as the
+      // player was not kept. The shipped penguin still has no clips, so this is
+      // null for it; `RunnerClips` names the eight a rigged runner would drive,
+      // and `runner_looks_test.dart` asserts them against `hero.glb` in the
+      // engine's fixtures, because asserting them against the penguin would
+      // assert nothing.
       animation = instance.player;
       modelFloor = loaded.localBounds.min.y;
       facing = modelFacing;

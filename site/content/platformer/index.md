@@ -195,6 +195,8 @@ void step(double dt) {
 
 What the two share is the *order*, and it is documented in both because it is the part that is easy to get wrong and impossible to see.
 
+`random` is required, and the constructor asserts that any `ActorSystem` handed to it rolls the identical `GameRandom`. Two generators is the failure it exists to stop: the dice a simulation writes into its save were its own while the dice deciding what the enemies did were the actor system's, so a restored run replayed against a seed nothing was rolling from.
+
 ```dart
 final sim = PlatformerSimulation(
   runner: runner,
@@ -204,7 +206,9 @@ final sim = PlatformerSimulation(
   mechanisms: mechanisms,
   dynamics: dynamics,
   actors: actors,
-  levelNext: level.next,
+  random: random,           // the same GameRandom the ActorSystem rolls
+  lives: 3,                 // -1, the default, is an endless run
+  levelNext: level.next,    // what the chain of five is made of
   killPlane: -20.0,
 );
 ```
@@ -212,6 +216,8 @@ final sim = PlatformerSimulation(
 <div class="note">
 <p><code>killPlane</code> is something a platformer needs and a shooter does not: a shooter's floor is continuous, and a platformer's floor is the interesting part. Without it a player who misses a jump falls at terminal velocity for ever and the game looks hung rather than lost.</p>
 </div>
+
+`lives` and `levelNext` are the two fields that make a *run* rather than a level. `lives` defaults to −1, which is endless; a game that sets it counts down and ends the run at zero. `levelNext` is whatever the level document's `"next"` said, and the application follows it — which is how the demo ships five levels and no list of them anywhere in its Dart. **First Steps** teaches one verb a room, **Ascent** is the long one the game is named after, **Cisterns** makes water the hazard, **Foundry** takes the floor away under you, and **Spire** is ten flights over a drop with something following you up. A game that kept its own order of levels would have two orders, and the second one is always the wrong one; lives, deaths, elapsed time and coins are what the application carries across the boundary.
 
 ## Events, per step
 

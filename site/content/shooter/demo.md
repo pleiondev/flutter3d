@@ -30,7 +30,8 @@ description: The shooter, built against the WebGL2 backend and running in this p
   <div><dt>Shift</dt><dd>Sprint</dd></div>
   <div><dt>M</dt><dd>The automap: what you have walked, with the fight running underneath</dd></div>
   <div><dt>R</dt><dd>Restart, once the run is over</dd></div>
-  <div><dt>F</dt><dd>Toggles the fog, which is also a before-and-after measurement</dd></div>
+  <div><dt>G</dt><dd>Toggles the fog, which is also a before-and-after measurement: the far wall the fog exists to hide appears and disappears in place</dd></div>
+  <div><dt>C, or the right stick's click</dt><dd>Crouch. The body has been able to since the package was written — it shrinks, it walks slower, it refuses to stand under something — and for a long time nothing on any device asked it to</dd></div>
 </dl>
 
 ## What else is in the crypt
@@ -57,9 +58,9 @@ Sound, pointer capture and saved settings were all listed here as missing. All t
 
 | | |
 |---|---|
-| **Frame rate** | 53 fps with no dropped frames on the WebAssembly build, against 60 on Impeller. It was 15–30 before `--wasm` and before the cube atlas stopped being sized from the cascade's resolution. The crypt is the heavier of the two demos: more lights, more shadow casters, particles on every torch, a second pass for the view model |
+| **Frame rate** | The game's own counter read 53 fps with no dropped frames on the WebAssembly build, against 60 on Impeller, and 15–30 before `--wasm` and before the cube atlas stopped being sized from the cascade's resolution. Read once, off one machine, from the on-screen counter: the machine, the browser and the date were not written down, so it is the shape of the change rather than a figure anybody can reproduce. The crypt is the heavier of the two demos: more lights, more shadow casters, particles on every torch, a second pass for the view model |
 | **Fixed resolution** | 1280×720 internally, stretched by CSS. A `WebGlDevice` owns its canvas and a WebGL canvas resets its drawing buffer when resized |
-| **Download** | About 55 MB |
+| **Download** | About 55 MB on a first load, read off the deployed build the same way and with the same caveat |
 
 <div class="why">
 <p>The frame rate is the honest number and it is worth reading rather than apologising for. Nothing here is optimised for this backend: the render list, the pass order and the shadow atlas are all sized for a discrete GPU, and the composite path blits a 720p frame to a canvas the browser then composites again. What the demo demonstrates is that the <em>seam</em> holds — that an engine written against a HAL runs on a backend it was not written for, not that WebGL2 is where this engine is fastest.</p>
