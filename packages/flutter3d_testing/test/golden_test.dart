@@ -20,7 +20,8 @@ const int _width = 40;
 const int _height = 32;
 
 /// A wall of one colour, filling the view.
-FrameBuilder _wall(Vector4 colour) => (GraphicsDevice device) {
+FrameBuilder _wall(Vector4 colour) => (FrameRequest request) {
+  final device = request.device;
   final scene = Scene();
   scene.add(
     MeshNode(

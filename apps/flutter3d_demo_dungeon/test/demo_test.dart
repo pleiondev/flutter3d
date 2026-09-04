@@ -140,7 +140,7 @@ void main() {
     final file = DemoFile(
       appName: 'dungeon-test',
       storage: _MemoryStorage(),
-      onIssue: issues.add,
+      onIssue: (Issue issue) => issues.add(issue.message),
     );
 
     expect(

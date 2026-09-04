@@ -59,9 +59,9 @@ void main() {
     test('reaches its three stops', () {
       final sky = _plain().colour;
 
-      expect(sky(Vector3(0.0, 1.0, 0.0)).z, closeTo(1.0, 1e-6));
-      expect(sky(Vector3(1.0, 0.0, 0.0)).x, closeTo(0.5, 1e-6));
-      expect(sky(Vector3(0.0, -1.0, 0.0)).x, closeTo(0.0, 1e-6));
+      expect(sky(SkyLook.at(Vector3(0.0, 1.0, 0.0))).z, closeTo(1.0, 1e-6));
+      expect(sky(SkyLook.at(Vector3(1.0, 0.0, 0.0))).x, closeTo(0.5, 1e-6));
+      expect(sky(SkyLook.at(Vector3(0.0, -1.0, 0.0))).x, closeTo(0.0, 1e-6));
     });
 
     test('leaves the horizon flat rather than ramping straight off it', () {
@@ -73,7 +73,7 @@ void main() {
       final sky = _plain().colour;
       double towardsZenith(double degrees) {
         final radians = degrees * math.pi / 180.0;
-        final blue = sky(Vector3(math.cos(radians), math.sin(radians), 0.0)).z;
+        final blue = sky(SkyLook.at(Vector3(math.cos(radians), math.sin(radians), 0.0))).z;
         // The gradient runs 0.5 (horizon) to 1.0 (zenith) in blue.
         return (blue - 0.5) / 0.5;
       }
@@ -103,9 +103,9 @@ void main() {
         glowStrength: 0.5,
       ).colour;
 
-      final into = sky(Vector3(1.0, 0.0, 0.0));
-      final across = sky(Vector3(0.0, 0.0, 1.0));
-      final away = sky(Vector3(-1.0, 0.0, 0.0));
+      final into = sky(SkyLook.at(Vector3(1.0, 0.0, 0.0)));
+      final across = sky(SkyLook.at(Vector3(0.0, 0.0, 1.0)));
+      final away = sky(SkyLook.at(Vector3(-1.0, 0.0, 0.0)));
 
       expect(into.x, greaterThan(0.6));
       expect(across.x, closeTo(0.2, 1e-6));
@@ -185,7 +185,7 @@ void main() {
       final colours = _colours(mesh);
       final sky = _plain().colour;
       for (var i = 0; i < positions.length; i++) {
-        final expected = sky(positions[i].normalized());
+        final expected = sky(SkyLook.at(positions[i].normalized()));
         expect(colours[i].x, closeTo(expected.x, 1e-5));
         expect(colours[i].y, closeTo(expected.y, 1e-5));
         expect(colours[i].z, closeTo(expected.z, 1e-5));

@@ -31,7 +31,7 @@ extension _ObjMaterials on ObjLoader {
         );
       } else {
         try {
-          final bytes = await resolveUri(path);
+          final bytes = await resolveUri(AssetRequest(path));
           baseColorTexture = TextureBinding(imageIndex: images.length);
           images.add(EncodedImage(bytes: bytes, name: path));
         } catch (error) {
@@ -76,7 +76,7 @@ extension _ObjMaterials on ObjLoader {
 
     for (final library in libraries) {
       try {
-        final bytes = await resolveUri(library);
+        final bytes = await resolveUri(AssetRequest(library));
         result.addAll(
           parseMtl(
             utf8.decode(bytes, allowMalformed: true),

@@ -325,7 +325,9 @@ final class Runner
   /// The third clause is why this is a predicate and not a mask. With a mask
   /// the sides of a one-way platform stay solid, and a player sprinting past
   /// one stops dead on an invisible lip at chest height.
-  bool _countsAsSolid(Collider other, Vector3 normal) {
+  bool _countsAsSolid(SweptContact contact) {
+    final other = contact.other;
+    final normal = contact.normal;
     if (other.layer & PlatformerLayers.oneWay == 0) return true;
     if (_dropping > 0.0) return false;
     return normal.y > 0.5 && body.velocity.y <= 0.0;

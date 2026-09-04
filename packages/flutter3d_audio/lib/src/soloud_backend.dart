@@ -25,10 +25,34 @@ import 'backend.dart';
 /// must not start. Dart's function types are structural, so an application
 /// passing that one to this is the same type — the duplication costs a line
 /// and buys a dependency not taken.
-typedef IssueSink = void Function(String issue);
+/// What this package is reporting.
+///
+/// **One object rather than a bare string, so this can grow.** A function type
+/// is frozen the day it is published: adding a severity, or which subsystem
+/// spoke, means widening `void Function(String)` and breaking every sink
+/// anybody has written. Adding a field here does not.
+final class AudioIssue {
+  const AudioIssue(this.message);
+
+  /// What went wrong, in a sentence a person can read.
+  final String message;
+
+  @override
+  String toString() => message;
+}
+
+/// **Named apart from `flutter3d_game`'s on purpose.** This package depends on
+/// nothing of ours — not the engine, not the simulation — so that a program can
+/// take the sound without the rest, and there is nowhere to put a shared type
+/// that would not give that up. Two identical `typedef`s were interchangeable
+/// and cost nothing; two identical *classes* are not, and a program importing
+/// both would have to prefix one of them at every use. So this one carries its
+/// own name and its own vocabulary, which is what the packages being uncoupled
+/// actually means.
+typedef AudioIssueSink = void Function(AudioIssue issue);
 
 final class SoLoudBackend implements AudioBackend {
-  SoLoudBackend({SoLoud? soloud, IssueSink? onIssue})
+  SoLoudBackend({SoLoud? soloud, AudioIssueSink? onIssue})
     : _soloud = soloud ?? SoLoud.instance,
       onIssue = onIssue ?? _printIssue;
 
@@ -41,9 +65,9 @@ final class SoLoudBackend implements AudioBackend {
   /// the session and the only record of it was a console line stripped out of
   /// the build a player runs. Every storage path in `flutter3d_screens` threads one
   /// of these; audio was the layer that did not.
-  final IssueSink onIssue;
+  final AudioIssueSink onIssue;
 
-  static void _printIssue(String issue) =>
+  static void _printIssue(AudioIssue issue) =>
       debugPrint('flutter3d_audio: $issue');
 
   final Map<String, AudioSource> _sources = <String, AudioSource>{};
@@ -109,7 +133,7 @@ final class SoLoudBackend implements AudioBackend {
       // is worth saying out loud, because silence is what a sound that works
       // and a sound that failed to decode look like from the outside.
       _failed.add(asset);
-      onIssue('could not load "$asset": $error');
+      onIssue(AudioIssue('could not load "$asset": $error'));
       return;
     }
     _sources[asset] = source;
@@ -126,9 +150,9 @@ final class SoLoudBackend implements AudioBackend {
     } catch (error) {
       if (!_filterRefused) {
         _filterRefused = true;
-        onIssue(
+        onIssue(AudioIssue(
           'no low-pass filter on this platform, walls only quieten: $error',
-        );
+        ));
       }
     }
   }
@@ -170,9 +194,9 @@ final class SoLoudBackend implements AudioBackend {
           _kOpenCutoff * math.pow(_kWallCutoff / _kOpenCutoff, clamped);
     } catch (error) {
       _filterRefused = true;
-      onIssue(
+      onIssue(AudioIssue(
         'the low-pass filter refused a voice, walls only quieten: $error',
-      );
+      ));
     }
   }
 
@@ -202,7 +226,7 @@ final class SoLoudBackend implements AudioBackend {
       if (muffle > 0.0) _applyMuffle(handle, muffle);
       return handle;
     } catch (error) {
-      onIssue('could not play "$asset": $error');
+      onIssue(AudioIssue('could not play "$asset": $error'));
       return null;
     }
   }
@@ -229,7 +253,7 @@ final class SoLoudBackend implements AudioBackend {
         ..setPan(handle, pan)
         ..setRelativePlaySpeed(handle, rate);
     } catch (error) {
-      onIssue('could not update a voice: $error');
+      onIssue(AudioIssue('could not update a voice: $error'));
     }
     _applyMuffle(handle, muffle);
   }
@@ -242,7 +266,7 @@ final class SoLoudBackend implements AudioBackend {
     try {
       _soloud.stop(handle);
     } catch (error) {
-      onIssue('could not stop a voice: $error');
+      onIssue(AudioIssue('could not stop a voice: $error'));
     }
   }
 
@@ -254,7 +278,7 @@ final class SoLoudBackend implements AudioBackend {
       // Not alive, which is the answer that lets the scene forget it. Saying
       // "yes" here would keep a dead handle being updated every frame for the
       // life of the level.
-      onIssue('could not ask about a voice: $error');
+      onIssue(AudioIssue('could not ask about a voice: $error'));
       return false;
     }
   }

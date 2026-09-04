@@ -41,7 +41,8 @@ void main() {
         // looked for.
         bloom: BloomSettings(enabled: false),
       ),
-      build: (GraphicsDevice device) {
+      build: (FrameRequest request) {
+  final device = request.device;
         final scene = Scene();
 
         // A wall in the z = 0 plane, wide enough that the cube face the light

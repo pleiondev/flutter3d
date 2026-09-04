@@ -2,7 +2,7 @@ import 'dart:convert';
 
 // One type is all this file wants out of the game layer.
 import 'package:flutter3d_game/flutter3d_game.dart'
-    show GameConfig, IssueSink, printIssue;
+    show GameConfig, Issue, IssueSink, printIssue;
 
 import 'storage/storage.dart';
 
@@ -60,12 +60,12 @@ final class SettingsFile {
         // anywhere, so a player whose bindings had just been silently reset
         // had nothing to report. `SaveFile.read` got this right next door and
         // says so in its own comment; the lesson did not cross the file.
-        onIssue('settings: the document is not an object, using defaults');
+        onIssue(Issue('settings: the document is not an object, using defaults'));
         return GameConfig();
       }
       return GameConfig.fromJson(json);
     } catch (error) {
-      onIssue('settings: could not be read, using defaults ($error)');
+      onIssue(Issue('settings: could not be read, using defaults ($error)'));
       return GameConfig();
     }
   }

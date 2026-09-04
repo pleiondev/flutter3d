@@ -117,7 +117,8 @@ Future<ModelDocument> _decode(Uint8List bytes, String path) {
 /// Reads sibling files relative to the model, the way the decoders expect.
 AssetUriResolver fileUriResolverFor(String modelPath) {
   final directory = File(modelPath).parent.path;
-  return (uri) async {
+  return (request) async {
+    final uri = request.uri;
     if (uri.startsWith('data:')) return decodeDataUri(uri);
     final file = File('$directory/${Uri.decodeComponent(uri)}');
     if (!file.existsSync()) {

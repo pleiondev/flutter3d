@@ -128,7 +128,9 @@ void paintSky(MeshData mesh, SkyColour colour) {
   }
 
   final stride = mesh.layout.floatsPerVertex;
-  final direction = Vector3.zero();
+  // One instance for the whole mesh; see [SkyLook].
+  final look = SkyLook();
+  final direction = look.direction;
   for (var base = 0; base < mesh.vertices.length; base += stride) {
     direction.setValues(
       mesh.vertices[base + position],
@@ -145,7 +147,7 @@ void paintSky(MeshData mesh, SkyColour colour) {
       direction.setValues(0.0, 0.0, 1.0);
     }
 
-    final rgba = colour(direction);
+    final rgba = colour(look);
     mesh.vertices[base + offset] = rgba.x;
     mesh.vertices[base + offset + 1] = rgba.y;
     mesh.vertices[base + offset + 2] = rgba.z;

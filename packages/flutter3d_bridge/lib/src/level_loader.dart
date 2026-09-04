@@ -32,7 +32,11 @@ export 'loaded_level.dart';
 /// beside it and in nobody's bundle. Without this the crypt draws in flat grey
 /// in the one program whose whole job is to show somebody what their level
 /// looks like.
-typedef AssetBytes = Future<ByteData> Function(String path);
+/// Takes the engine's [AssetRequest] rather than a bare path, and takes the
+/// engine's rather than one of its own: a game reading a texture and a decoder
+/// reading a sibling file are the same question asked one level apart, and two
+/// request types would be two places to add the same field to.
+typedef AssetBytes = Future<ByteData> Function(AssetRequest request);
 
 /// How a level's own document is found.
 ///
@@ -41,7 +45,17 @@ typedef AssetBytes = Future<ByteData> Function(String path);
 /// [AssetBytes] already lets it reach. Without this, [LevelLoader.load] is
 /// only ever the bundle, and anything else has to skip it and call
 /// [LevelLoader.build] with a document it decoded itself.
-typedef DocumentText = Future<String> Function(String path);
+typedef DocumentText = Future<String> Function(AssetRequest request);
+
+/// The Flutter asset bundle as a [DocumentText]. The default when a caller
+/// names none — an adapter rather than `rootBundle.loadString` directly,
+/// because the callback carries a request now and the bundle takes a string.
+Future<String> _bundleDocument(AssetRequest request) =>
+    rootBundle.loadString(request.uri);
+
+/// The Flutter asset bundle as an [AssetBytes]. See [_bundleDocument].
+Future<ByteData> _bundleAsset(AssetRequest request) =>
+    rootBundle.load(request.uri);
 
 final class LevelLoader {
   const LevelLoader();
@@ -64,14 +78,14 @@ final class LevelLoader {
     AssetBytes? readAsset,
     DocumentText? readDocument,
   }) async {
-    final read = readDocument ?? rootBundle.loadString;
+    final read = readDocument ?? _bundleDocument;
     final level = Level.fromJson(
-      jsonDecode(await read(assetPath)) as Map<String, Object?>,
+      jsonDecode(await read(AssetRequest(assetPath))) as Map<String, Object?>,
     );
     final (visibility, issue) = await _sidecarVisibility(assetPath, read);
     final (lightmap, lightmapIssue) = await _sidecarLightmap(
       assetPath,
-      readAsset ?? rootBundle.load,
+      readAsset ?? _bundleAsset,
     );
     return build(
       level,
@@ -100,7 +114,7 @@ final class LevelLoader {
         : '$assetPath.lightmap.bin';
     final ByteData bytes;
     try {
-      bytes = await read(path);
+      bytes = await read(AssetRequest(path));
     } catch (_) {
       return (null, null);
     }
@@ -138,7 +152,7 @@ final class LevelLoader {
         : '$assetPath.visibility.json';
     final String text;
     try {
-      text = await read(path);
+      text = await read(AssetRequest(path));
     } catch (_) {
       return (null, null);
     }
@@ -312,7 +326,7 @@ final class LevelLoader {
         textures[path] = await _upload(
           device,
           path,
-          readAsset ?? rootBundle.load,
+          readAsset ?? _bundleAsset,
           loadIssues,
         );
       }
@@ -562,7 +576,7 @@ final class LevelLoader {
     List<LevelIssue> issues,
   ) async {
     try {
-      final bytes = await read(path);
+      final bytes = await read(AssetRequest(path));
       // Mipmapped: a level's walls and floors are the surfaces most often seen
       // small and at a glancing angle, which is exactly where a single level
       // crawls as the camera moves.

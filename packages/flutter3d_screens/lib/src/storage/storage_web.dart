@@ -1,4 +1,4 @@
-import 'package:flutter3d_game/flutter3d_game.dart' show IssueSink, printIssue;
+import 'package:flutter3d_game/flutter3d_game.dart' show Issue, IssueSink, printIssue;
 import 'package:web/web.dart' as web;
 
 import 'storage.dart';
@@ -41,7 +41,7 @@ final class WebStorage implements Storage {
     } catch (error) {
       // Private browsing, or storage disabled by policy. Neither is a reason to
       // refuse to start the game.
-      onIssue('storage: could not read $name ($error)');
+      onIssue(Issue('storage: could not read $name ($error)'));
       return null;
     }
   }
@@ -54,7 +54,7 @@ final class WebStorage implements Storage {
     } catch (error) {
       // A quota that has run out is the usual one, and it arrives as an
       // exception rather than as a return value.
-      onIssue('storage: could not write $name ($error)');
+      onIssue(Issue('storage: could not write $name ($error)'));
       return false;
     }
   }
@@ -64,7 +64,7 @@ final class WebStorage implements Storage {
     try {
       web.window.localStorage.removeItem(_key(name));
     } catch (error) {
-      onIssue('storage: could not clear $name ($error)');
+      onIssue(Issue('storage: could not clear $name ($error)'));
     }
   }
 }

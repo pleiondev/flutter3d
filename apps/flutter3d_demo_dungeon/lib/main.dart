@@ -107,9 +107,9 @@ class _GameScreenState extends State<GameScreen>
     onIssue: _sayIssue,
   );
 
-  void _sayIssue(String issue) {
-    printIssue(issue);
-    _effects.say(issue);
+  void _sayIssue(Issue reported) {
+    printIssue(reported);
+    _effects.say(reported.message);
   }
 
   late final GameConfig _config;

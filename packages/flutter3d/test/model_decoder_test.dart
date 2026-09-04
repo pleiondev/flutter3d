@@ -88,8 +88,8 @@ final class _GreedyDecoder implements ModelDecoder {
 }
 
 /// No siblings: this format has none, and asking for one is a test bug.
-Future<Uint8List> _noSiblings(String uri) async =>
-    throw StateError('nothing here asks for a sibling file, but $uri was');
+Future<Uint8List> _noSiblings(AssetRequest request) async =>
+    throw StateError('nothing here asks for a sibling file, but ${request.uri} was');
 
 Uint8List _toyBytes() => Uint8List.fromList(<int>[0x54, 0x4F, 0x59, 0x21]);
 

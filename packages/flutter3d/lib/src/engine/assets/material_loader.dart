@@ -4,9 +4,9 @@ import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 
 import '../render/lighting_model.dart';
 import '../render/material.dart';
+import 'asset_resolver.dart';
 import 'asset_source.dart';
 import 'fmat/fmat.dart';
-import 'gltf/gltf.dart' show AssetUriResolver;
 import 'material_document.dart';
 import 'surface_material.dart';
 import 'texture_upload.dart';
@@ -105,7 +105,7 @@ Future<Material> bindMaterial(
     if (!cache.containsKey(key)) {
       Uint8List? bytes;
       try {
-        bytes = await resolveUri(document.images[index]);
+        bytes = await resolveUri(AssetRequest(document.images[index]));
       } catch (_) {
         bytes = null;
       }

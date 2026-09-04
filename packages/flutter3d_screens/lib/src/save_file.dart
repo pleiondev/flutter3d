@@ -1,7 +1,7 @@
 import 'dart:convert';
 
 import 'package:flutter3d_game/flutter3d_game.dart'
-    show IssueSink, Snapshot, SnapshotFormatException, printIssue;
+    show Issue, IssueSink, Snapshot, SnapshotFormatException, printIssue;
 
 import 'settings_file.dart';
 import 'storage/storage.dart';
@@ -71,13 +71,13 @@ final class SaveFile {
       // object, a half-written file, a save from a build that named its keys
       // differently — went back as "no save" without a word anywhere.
       if (json is! Map<String, Object?>) {
-        onIssue('save: the document is not an object, starting fresh');
+        onIssue(Issue('save: the document is not an object, starting fresh'));
         return null;
       }
       final level = json['level'];
       final run = json['run'];
       if (level is! String || run is! Map<String, Object?>) {
-        onIssue('save: no level and run in it, starting fresh');
+        onIssue(Issue('save: no level and run in it, starting fresh'));
         return null;
       }
       // A save with no version in it was written by a build that had the
@@ -98,10 +98,10 @@ final class SaveFile {
       // discard a run the player can still open by going back to the build
       // that wrote it. Saying which is which is the whole point of refusing
       // rather than misreading.
-      onIssue('save: ${error.message}, starting fresh');
+      onIssue(Issue('save: ${error.message}, starting fresh'));
       return null;
     } catch (error) {
-      onIssue('save: could not be read, starting fresh ($error)');
+      onIssue(Issue('save: could not be read, starting fresh ($error)'));
       return null;
     }
   }

@@ -53,7 +53,8 @@ final class BundleAssetSource extends AssetSource {
   AssetUriResolver get resolveUri {
     final slash = assetPath.lastIndexOf('/');
     final directory = slash < 0 ? '' : assetPath.substring(0, slash);
-    return (uri) async {
+    return (request) async {
+      final uri = request.uri;
       if (uri.startsWith('data:')) return decodeDataUri(uri);
       final data = await rootBundle.load('$directory/${_safeRelative(uri)}');
       return data.buffer.asUint8List(data.offsetInBytes, data.lengthInBytes);
@@ -77,7 +78,8 @@ final class FileAssetSource extends AssetSource {
   @override
   AssetUriResolver get resolveUri {
     final directory = File(path).parent.path;
-    return (uri) async {
+    return (request) async {
+      final uri = request.uri;
       if (uri.startsWith('data:')) return decodeDataUri(uri);
       final relative = _safeRelative(uri);
       final file = File('$directory/$relative');

@@ -365,8 +365,8 @@ v 0 1 0
 usemtl red
 f 1 2 3
 '''),
-        resolveUri: (uri) async {
-          expect(uri, 'palette.mtl');
+        resolveUri: (request) async {
+          expect(request.uri, 'palette.mtl');
           return Uint8List.fromList(utf8.encode(mtl));
         },
       );

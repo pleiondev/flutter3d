@@ -6,6 +6,24 @@
 /// times a step and a game steps sixty times a second. An indirect call there
 /// is the kind of thing that is cheap until it is not, and the plan that asked
 /// for it asked for this number too.
+///
+/// ## What the context object cost
+///
+/// The filter took `(Collider, Vector3)` until it was widened to one
+/// [SweptContact], so that a field could be added to it later without breaking
+/// every filter anybody had written. That is not free, and this is what it came
+/// to on one machine, three runs each, microseconds per step with a trivial
+/// filter installed:
+///
+///     two positional arguments   1.932
+///     a `late`-field context     1.997   (+3.4%)
+///     the context as it is now   1.953   (+1.1%)
+///
+/// Half the cost was `late`. A `late` field carries an is-it-initialised check
+/// on every read, and a filter reads both fields on every contact; the object
+/// now holds a nullable behind a non-null getter and a vector it copies into,
+/// and neither is checked. The remaining one percent is the object itself, and
+/// it buys the ability to tell a filter something new without a major version.
 library;
 
 import 'package:flutter3d_physics/flutter3d_physics.dart';
@@ -59,11 +77,11 @@ void main() {
   // Warm, then measure: the first thousand steps are the JIT's.
   _run();
   final without = _run();
-  _run(filter: (Collider other, Vector3 normal) => true);
-  final trivial = _run(filter: (Collider other, Vector3 normal) => true);
+  _run(filter: (SweptContact c) => true);
+  final trivial = _run(filter: (SweptContact c) => true);
   final oneWay = _run(
-    filter: (Collider other, Vector3 normal) =>
-        other.layer & (1 << 6) == 0 || normal.y > 0.5,
+    filter: (SweptContact c) =>
+        c.other.layer & (1 << 6) == 0 || c.normal.y > 0.5,
   );
 
   // ignore: avoid_print

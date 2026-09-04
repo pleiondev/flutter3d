@@ -30,7 +30,7 @@ Future<Speakers?> openSpeakers({
   Mixer? mixer,
   int maxVoices = 24,
   double Function(Vector3 from, Vector3 to)? occlusion,
-  IssueSink? onIssue,
+  AudioIssueSink? onIssue,
 }) async {
   final backend = SoLoudBackend(onIssue: onIssue);
   try {
@@ -39,9 +39,12 @@ Future<Speakers?> openSpeakers({
     // Through the sink as well, so a game that routes its issues to the screen
     // can say "no sound" rather than leaving the player to work it out. The
     // print stays because the default sink is one.
-    (onIssue ?? debugPrint)(
-      'audio: could not start SoLoud, playing silent ($error)',
-    );
+    const message = 'audio: could not start SoLoud, playing silent';
+    if (onIssue != null) {
+      onIssue(const AudioIssue(message));
+    } else {
+      debugPrint('$message ($error)');
+    }
     return null;
   }
 

@@ -28,8 +28,32 @@ final class StepPhase {
   String toString() => 'StepPhase($name)';
 }
 
+/// What a [StepSystem] is told about the step it is running inside.
+///
+/// **One object rather than a parameter list, so this can grow.** A function
+/// type is frozen the moment it is published: widening
+/// `void Function(double dt)` to pass anything else — the step's index, the
+/// events buffer, the phase it is in — is a breaking change for every system
+/// anybody has written. Adding a field here is not.
+///
+/// **Reused between calls, never held.** One instance per [StepSystems], its
+/// fields rewritten before each call, because a step runs several phases sixty
+/// times a second and a fresh object per call would be an allocation on a path
+/// this package refuses to allocate on. A system that keeps one keeps a
+/// reference to whatever the next phase writes into it — copy what you need.
+final class StepContext {
+  StepContext._();
+
+  /// Seconds this step advances the world by. Fixed; see [FixedStep].
+  double dt = 0.0;
+
+  /// Which phase is running. A system registered for two phases can tell them
+  /// apart without being registered twice with two closures.
+  StepPhase phase = const StepPhase('');
+}
+
 /// Work an application adds to a step it does not own.
-typedef StepSystem = void Function(double dt);
+typedef StepSystem = void Function(StepContext step);
 
 /// Systems an application adds to a genre's step, by phase.
 ///
@@ -111,10 +135,16 @@ final class StepSystems {
   void run(StepPhase phase, double dt) {
     final list = _byPhase[phase.name];
     if (list == null || list.isEmpty) return;
+    _context
+      ..dt = dt
+      ..phase = phase;
     for (final registration in List<SystemRegistration>.of(list)) {
-      registration.system(dt);
+      registration.system(_context);
     }
   }
+
+  /// The scratch handed to every system. See [StepContext].
+  final StepContext _context = StepContext._();
 
   /// What is registered for [phase], in the order it will run. For tests and
   /// for a diagnostic overlay that answers "what is running in this step".

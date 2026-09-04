@@ -790,7 +790,7 @@ void main() {
           shape: CollisionBox(_playerHalf),
           position: Vector3(0.0, 0.9, -3.0),
           tuning: const MovementTuning(floorSnapLength: 0.5),
-        )..solidFilter = (Collider other, Vector3 normal) => other != refused;
+        )..solidFilter = (SweptContact c) => c.other != refused;
 
         var stoodOnIt = 0;
         for (var i = 0; i < 90; i++) {

@@ -2,10 +2,33 @@ import 'dart:math' as math;
 
 import 'package:vector_math/vector_math.dart';
 
-/// The colour of the sky in [direction], which is a unit vector.
+/// The colour of the sky in the direction asked about.
+typedef SkyColour = Vector4 Function(SkyLook look);
+
+/// Where a [SkyColour] is being asked to look.
 ///
-/// Normalised before the call so an implementation cannot forget to.
-typedef SkyColour = Vector4 Function(Vector3 direction);
+/// **One object rather than a bare vector, so this can grow.** A function type
+/// is frozen the day it is published: telling a sky what time it is, or where
+/// the sun is, means widening `Vector4 Function(Vector3)` and breaking every
+/// sky anybody has written. Adding a field here does not.
+///
+/// **Reused between calls, never held.** Painting a dome asks this once per
+/// vertex and a per-pixel sky would ask it far more often, so the caller keeps
+/// one and rewrites it; [direction] is scratch inside scratch. Read it, do not
+/// keep it. `paintSky` is where the one instance lives.
+final class SkyLook {
+  SkyLook();
+
+  /// One look, allocated. For a caller that asks once — a game tinting its fog
+  /// or picking a light off the sky — rather than for a loop over a mesh.
+  SkyLook.at(Vector3 direction) {
+    this.direction.setFrom(direction);
+  }
+
+  /// A unit vector. Normalised before the call, so an implementation cannot
+  /// forget to.
+  final Vector3 direction = Vector3.zero();
+}
 
 /// The cheapest description of a sky that still reads as one: three stops and a
 /// scattering lobe around the sun.
@@ -51,8 +74,8 @@ final class SkyGradient {
   final double glowStrength;
 
   /// The gradient as a [SkyColour], ready for `paintSky`.
-  SkyColour get colour => (Vector3 direction) {
-    final y = direction.y.clamp(-1.0, 1.0);
+  SkyColour get colour => (SkyLook look) {
+    final y = look.direction.y.clamp(-1.0, 1.0);
     final far = y >= 0.0 ? zenith : nadir;
     // Smoothstep rather than linear, so the band near the horizon is wide.
     // Half of what anybody notices about a sky happens in the first fifteen
@@ -60,7 +83,7 @@ final class SkyGradient {
     // nobody looks at.
     final t = y.abs() * y.abs() * (3.0 - 2.0 * y.abs());
 
-    final towards = direction.dot(directionToSun);
+    final towards = look.direction.dot(directionToSun);
     final lobe = towards <= 0.0
         ? 0.0
         : glowStrength * math.pow(towards, glowExponent).toDouble();

@@ -264,7 +264,7 @@ final class FixtureVisuals {
         name: path,
       );
     } catch (error) {
-      onIssue('level: could not load model "$path": $error');
+      onIssue(Issue('level: could not load model "$path": $error'));
       return null;
     }
   }

@@ -66,8 +66,8 @@ void main() {
       final world = _room();
       _platform(world);
       final body = _body(world)
-        ..solidFilter = (Collider other, Vector3 normal) =>
-            other.layer & _thin == 0 || normal.y > 0.5;
+        ..solidFilter = (SweptContact c) =>
+            c.other.layer & _thin == 0 || c.normal.y > 0.5;
 
       // Twenty metres a second, which reaches nine: the platform's underside
       // is at 3.9 and the first draft of this jumped to 3.9 exactly and proved
@@ -95,8 +95,8 @@ void main() {
       final world = _room();
       _platform(world);
       final body = _body(world, y: 8.0)
-        ..solidFilter = (Collider other, Vector3 normal) =>
-            other.layer & _thin == 0 || normal.y > 0.5;
+        ..solidFilter = (SweptContact c) =>
+            c.other.layer & _thin == 0 || c.normal.y > 0.5;
 
       _run(body, 120);
 
@@ -120,8 +120,8 @@ void main() {
         ),
       );
       final body = _body(world, y: 3.0)
-        ..solidFilter = (Collider other, Vector3 normal) =>
-            other.layer & _thin == 0 || normal.y > 0.5;
+        ..solidFilter = (SweptContact c) =>
+            c.other.layer & _thin == 0 || c.normal.y > 0.5;
       body.position.setValues(-6.0, 3.0, 0.0);
 
       _run(body, 120, wish: Vector3(1.0, 0.0, 0.0));
@@ -150,8 +150,7 @@ void main() {
         ),
       );
       final body = _body(world, y: 4.0)
-        ..solidFilter = (Collider other, Vector3 normal) =>
-            other.layer & _thin == 0;
+        ..solidFilter = (SweptContact c) => c.other.layer & _thin == 0;
       body.velocity.y = 0.0;
 
       final startedAt = body.position.clone();
@@ -170,7 +169,7 @@ void main() {
       // The body reports itself standing on a floor it is falling through.
       final world = _room();
       final body = _body(world)
-        ..solidFilter = (Collider other, Vector3 normal) => false;
+        ..solidFilter = (SweptContact c) => false;
 
       _run(body, 5);
 
@@ -188,8 +187,7 @@ void main() {
       final world = _room();
       _platform(world, y: 2.0);
       final ghost = _body(world, y: 6.0)
-        ..solidFilter = (Collider other, Vector3 normal) =>
-            other.layer & _thin == 0;
+        ..solidFilter = (SweptContact c) => c.other.layer & _thin == 0;
       final solid = CharacterController(
         world: world,
         position: Vector3(0.0, 6.0, 0.0),

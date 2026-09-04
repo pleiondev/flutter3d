@@ -526,7 +526,8 @@ class _EditorScreenState extends State<EditorScreen>
   ///
   /// Off the disk rather than out of a bundle, because the bundle belongs to
   /// this editor and the file belongs to the game.
-  Future<ByteData> _readAsset(String path) async {
+  Future<ByteData> _readAsset(AssetRequest request) async {
+    final path = request.uri;
     final root = _ready?.assetRoot;
     if (root == null) throw StateError('no application around $path');
     return ByteData.sublistView(await File('$root/$path').readAsBytes());

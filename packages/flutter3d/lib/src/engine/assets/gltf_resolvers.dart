@@ -11,7 +11,8 @@ import 'gltf/glb_container.dart';
 /// because a `.gltf` file's `uri` fields are percent-encoded relative paths that
 /// must not be handed to the filesystem verbatim.
 AssetUriResolver fileUriResolver(String baseDirectory) {
-  return (String uri) async {
+  return (AssetRequest request) async {
+    final uri = request.uri;
     if (uri.startsWith('data:')) return decodeDataUri(uri);
 
     final relative = Uri.decodeComponent(uri);
@@ -35,7 +36,8 @@ AssetUriResolver fileUriResolver(String baseDirectory) {
 /// Resolves asset URIs against the Flutter asset bundle.
 AssetUriResolver assetUriResolver(String baseAssetPath, {AssetBundle? bundle}) {
   final source = bundle ?? rootBundle;
-  return (String uri) async {
+  return (AssetRequest request) async {
+    final uri = request.uri;
     if (uri.startsWith('data:')) return decodeDataUri(uri);
 
     final relative = Uri.decodeComponent(uri);

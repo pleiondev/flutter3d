@@ -1,7 +1,7 @@
 import 'dart:convert';
 
 import 'package:flutter3d_game/flutter3d_game.dart'
-    show Demo, DemoFormatException, IssueSink, printIssue;
+    show Demo, DemoFormatException, Issue, IssueSink, printIssue;
 
 import 'save_file.dart';
 import 'storage/storage.dart';
@@ -48,15 +48,15 @@ final class DemoFile {
     try {
       final json = jsonDecode(text);
       if (json is! Map<String, Object?>) {
-        onIssue('demo: the document is not an object');
+        onIssue(Issue('demo: the document is not an object'));
         return null;
       }
       return Demo.fromJson(json);
     } on DemoFormatException catch (error) {
-      onIssue('demo: ${error.message}');
+      onIssue(Issue('demo: ${error.message}'));
       return null;
     } catch (error) {
-      onIssue('demo: could not be read ($error)');
+      onIssue(Issue('demo: could not be read ($error)'));
       return null;
     }
   }

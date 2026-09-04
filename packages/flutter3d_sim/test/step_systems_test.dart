@@ -50,10 +50,27 @@ void main() {
     // `tool/structure.dart` names the file when it does.
     final systems = StepSystems();
     var seen = 0.0;
-    systems.add(StepPhase.begin, (dt) => seen = dt);
+    systems.add(StepPhase.begin, (step) => seen = step.dt);
 
     systems.run(StepPhase.begin, 1 / 60);
     expect(seen, 1 / 60);
+  });
+
+  test('and which phase it is running in', () {
+    // The field the old shape could not have carried. `void Function(double)`
+    // was frozen the day it was published: a system registered for two phases
+    // had to be registered twice, with two closures, to tell them apart.
+    final systems = StepSystems();
+    final phases = <String>[];
+    void note(StepContext step) => phases.add(step.phase.name);
+
+    systems
+      ..add(StepPhase.begin, note)
+      ..add(StepPhase.end, note)
+      ..run(StepPhase.begin, 1 / 60)
+      ..run(StepPhase.end, 1 / 60);
+
+    expect(phases, <String>[StepPhase.begin.name, StepPhase.end.name]);
   });
 
   group('the order systems run in', () {

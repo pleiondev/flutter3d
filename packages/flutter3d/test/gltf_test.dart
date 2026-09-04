@@ -878,15 +878,15 @@ void main() {
     test('refuses to escape the base directory', () async {
       final resolve = fileUriResolver(kSamples);
       await expectLater(
-        resolve('../../../etc/passwd'),
+        resolve(const AssetRequest('../../../etc/passwd')),
         throwsA(isA<ArgumentError>()),
       );
-      await expectLater(resolve('/etc/passwd'), throwsA(isA<ArgumentError>()));
+      await expectLater(resolve(const AssetRequest('/etc/passwd')), throwsA(isA<ArgumentError>()));
     });
 
     test('percent-decodes ordinary relative paths', () async {
       final resolve = fileUriResolver('$kSamples/cube');
-      final bytes = await resolve('Cube.bin');
+      final bytes = await resolve(const AssetRequest('Cube.bin'));
       expect(bytes, isNotEmpty);
     });
   });

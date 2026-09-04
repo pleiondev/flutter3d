@@ -127,8 +127,8 @@ class _GameScreenState extends State<GameScreen>
   /// word is indistinguishable from never having set them.
   late final SettingsFile _settingsFile = SettingsFile(
     appName: 'platformer',
-    onIssue: (String issue) {
-      printIssue(issue);
+    onIssue: (Issue reported) {
+      printIssue(reported);
       // The same line the levels and the save file talk on, and it outlives
       // this frame for the same reason: nothing has started yet, and `_sayFor`
       // only counts down once the ticker runs.
@@ -248,8 +248,8 @@ class _GameScreenState extends State<GameScreen>
   /// know saw the title card and assumed they had imagined saving.
   late final SaveFile _saveFile = SaveFile(
     appName: 'platformer',
-    onIssue: (String issue) {
-      printIssue(issue);
+    onIssue: (Issue reported) {
+      printIssue(reported);
       // Said on screen, through the same line the levels talk on. It outlives
       // this frame because the run has not started yet: `_sayFor` counts down
       // from the first tick, so the message is up while the title card is.

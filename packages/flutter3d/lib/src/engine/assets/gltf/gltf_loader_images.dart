@@ -33,7 +33,7 @@ extension _GltfImages on GltfLoader {
           bytes = decodeDataUri(uri);
         } else if (resolveUri != null) {
           try {
-            bytes = await resolveUri(uri);
+            bytes = await resolveUri(AssetRequest(uri));
           } catch (error) {
             warnings.add('images[$i] could not load "$uri": $error');
           }

@@ -14,10 +14,26 @@ import 'package:flutter/foundation.dart' show debugPrint;
 ///
 /// The default is what the code did before — print it and carry on — so that
 /// nothing regresses for a caller that has not thought about it yet.
-typedef IssueSink = void Function(String issue);
+/// What a library is reporting.
+///
+/// **One object rather than a bare string, so this can grow.** A function type
+/// is frozen the day it is published: adding a severity, or which subsystem
+/// spoke, means widening `void Function(String)` and breaking every sink
+/// anybody has written. Adding a field here does not.
+final class Issue {
+  const Issue(this.message);
+
+  /// What went wrong, in a sentence a person can read.
+  final String message;
+
+  @override
+  String toString() => message;
+}
+
+typedef IssueSink = void Function(Issue issue);
 
 /// Prints and carries on: the behaviour every one of these sites had.
-void printIssue(String issue) => debugPrint(issue);
+void printIssue(Issue issue) => debugPrint(issue.message);
 
 /// Collects issues instead of printing them.
 ///
@@ -32,7 +48,7 @@ final class IssueLog {
   bool get isNotEmpty => issues.isNotEmpty;
 
   /// Pass this where an [IssueSink] is wanted.
-  void add(String issue) => issues.add(issue);
+  void add(Issue issue) => issues.add(issue.message);
 
   /// Everything said so far, as one block, or null when nothing was.
   String? get summary => issues.isEmpty ? null : issues.join('\n');

@@ -84,7 +84,7 @@ void main() {
         _level(albedo: 'assets/textures/gone.png'),
         device: device,
         registry: registry,
-        readAsset: (String path) async => throw StateError('no such asset'),
+        readAsset: (AssetRequest request) async => throw StateError('no such asset'),
       );
 
       expect(loaded.issues, hasLength(1));
@@ -102,7 +102,7 @@ void main() {
       _level(albedo: 'assets/textures/wall.png'),
       device: device,
       registry: registry,
-      readAsset: (String path) async => _onePixelPng(),
+      readAsset: (AssetRequest request) async => _onePixelPng(),
     );
 
     expect(
@@ -124,7 +124,8 @@ void main() {
         'levels/wall.level.json',
         device: device,
         registry: registry,
-        readDocument: (String path) async {
+        readDocument: (AssetRequest request) async {
+          final path = request.uri;
           read.add(path);
           // Only the document is there; a reader that answered every path
           // with it would hand the loader a level where it expects a
@@ -236,13 +237,15 @@ void main() {
         'levels/wall.level.json',
         device: device,
         registry: registry,
-        readDocument: (String path) async {
+        readDocument: (AssetRequest request) async {
+          final path = request.uri;
           if (path != 'levels/wall.level.json') {
             throw StateError('no such document: $path');
           }
           return jsonEncode(_levelJson());
         },
-        readAsset: (String path) async {
+        readAsset: (AssetRequest request) async {
+          final path = request.uri;
           asked.add(path);
           throw StateError('no such asset: $path');
         },

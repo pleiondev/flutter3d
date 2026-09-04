@@ -17,7 +17,46 @@ import 'collider.dart';
 /// Called from inside the sweep loop, which is the hottest loop in a game, so
 /// the argument is a function rather than an object with a method and the
 /// null case costs one comparison.
-typedef ContactFilter = bool Function(Collider other, Vector3 normal);
+typedef ContactFilter = bool Function(SweptContact contact);
+
+/// What a [ContactFilter] is told about the contact it is judging.
+///
+/// **One object rather than two parameters, so this can grow.** A function type
+/// is frozen the day it is published: widening
+/// `bool Function(Collider, Vector3)` to pass the contact point, or how far
+/// along the sweep it happened, breaks every filter anybody has written.
+/// Adding a field here does not.
+///
+/// **Reused between calls, never held**, which is the same rule [SweepHit]
+/// keeps and for the same reason: this is judged from inside the sweep loop,
+/// several times a step, sixty times a second, and a fresh object per contact
+/// would be an allocation on the hottest path in a game. One instance per
+/// world, its fields rewritten before each call. [normal] is scratch inside
+/// scratch — read it, do not keep it. `tool/filter_cost.dart` is what says
+/// this costs nothing, and it is run when this changes.
+final class SweptContact {
+  SweptContact();
+
+  /// What was touched.
+  ///
+  /// Nullable behind a non-null getter rather than `late`, and that is a
+  /// measurement rather than a style: a `late` field carries an
+  /// is-it-initialised check on **every read**, and this is read once or twice
+  /// per contact in the sweep loop. `tool/filter_cost.dart` put the two shapes
+  /// a percent and a half apart.
+  Collider get other => _other!;
+  Collider? _other;
+
+  /// Points from the surface towards the body, and is axis-aligned like every
+  /// normal here. Scratch inside scratch: read it, do not keep it.
+  final Vector3 normal = Vector3.zero();
+
+  /// Points this at one contact. Called by the world, not by a filter.
+  void set(Collider other, Vector3 normal) {
+    _other = other;
+    this.normal.setFrom(normal);
+  }
+}
 
 /// Where a swept shape first touched something.
 ///

@@ -88,6 +88,10 @@ final class CollisionWorld {
   final Vector3 _queryMax = Vector3.zero();
   final Vector3 _candidateNormal = Vector3.zero();
 
+  /// The scratch handed to a [ContactFilter]. One per world, rewritten before
+  /// each call; see [SweptContact] for why it is not allocated per contact.
+  final SweptContact _contact = SweptContact();
+
   /// The planes of whichever solid is being tested right now, four doubles
   /// each. Grown if a shape ever asks for more; never shrunk.
   Float64List _planes = Float64List(CollisionShape.boundsPlaneCount * 4);
@@ -393,7 +397,10 @@ final class CollisionWorld {
     // way the surface faces, and that is not known until the plane walk has
     // found which face was crossed.
     // A caller that only wants to skip whole colliders has [mask] already.
-    if (allow != null && !allow(other, _candidateNormal)) return;
+    if (allow != null) {
+      _contact.set(other, _candidateNormal);
+      if (!allow(_contact)) return;
+    }
 
     out.fraction = t;
     out.normal.setFrom(_candidateNormal);
@@ -658,7 +665,10 @@ final class CollisionWorld {
         _planes[base + 1],
         _planes[base + 2],
       );
-      if (allow != null && !allow(other, _pushNormal)) return;
+      if (allow != null) {
+        _contact.set(other, _pushNormal);
+        if (!allow(_contact)) return;
+      }
       corrected = true;
       _ask(_directionOf(_pushNormal), shallowest);
     }

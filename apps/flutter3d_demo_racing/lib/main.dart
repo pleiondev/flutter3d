@@ -310,9 +310,9 @@ class _RaceScreenState extends State<RaceScreen>
   /// every binding in silence.
   late final SettingsFile _settingsFile = SettingsFile(
     appName: 'racing',
-    onIssue: (String issue) {
-      printIssue(issue);
-      _issue = issue;
+    onIssue: (Issue reported) {
+      printIssue(reported);
+      _issue = reported.message;
     },
   );
 

@@ -71,6 +71,10 @@ final class CharacterController {
   /// monster does not walk through a wall because the player can.
   ContactFilter? solidFilter;
 
+  /// The scratch this controller hands its own [solidFilter] when it asks
+  /// directly rather than through a sweep. See [SweptContact].
+  final SweptContact _contact = SweptContact();
+
   /// Half the body's bounding box: radius in X and Z, half the height in Y.
   Vector3 get halfExtents => shape.boundsHalfExtents;
 
@@ -269,7 +273,9 @@ final class CharacterController {
         // upward is which way a body grows: a one-way platform overhead is not
         // in the way of standing up, for the same reason it is not in the way
         // of jumping.
-        if (solidFilter == null || solidFilter!(other, _up)) return false;
+        if (solidFilter == null) return false;
+        _contact.set(other, _up);
+        if (solidFilter!(_contact)) return false;
       }
     }
 

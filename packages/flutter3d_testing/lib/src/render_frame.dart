@@ -16,7 +16,20 @@ typedef FrameSubject = ({Scene scene, CameraNode camera});
 typedef RenderedFrame = ({Uint8List pixels, int width, int height});
 
 /// Builds the subject, given the device its meshes have to be uploaded to.
-typedef FrameBuilder = FrameSubject Function(GraphicsDevice device);
+typedef FrameBuilder = FrameSubject Function(FrameRequest request);
+
+/// What a [FrameBuilder] is told about the frame it is building.
+///
+/// One object rather than a bare device, so that telling a builder the size it
+/// is drawing at, or which backend it is on, does not break every builder
+/// anybody has written. See `AssetRequest` in the engine for the same shape and
+/// the same reason.
+final class FrameRequest {
+  const FrameRequest(this.device);
+
+  /// Where meshes and textures have to be uploaded.
+  final GraphicsDevice device;
+}
 
 /// One frame, drawn with no GPU, as RGBA bytes.
 ///
@@ -41,7 +54,7 @@ Future<RenderedFrame> renderFrame({
   Vector4? clearColor,
 }) async {
   final kit = cpuTestDevice(width: width, height: height);
-  final subject = build(kit.device);
+  final subject = build(FrameRequest(kit.device));
 
   // The renderer is built here rather than by the caller, and by the caller in
   // `cpuTestDevice`'s own documentation, because the reason that helper stops

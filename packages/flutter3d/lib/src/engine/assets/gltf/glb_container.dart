@@ -150,7 +150,7 @@ final class GlbContainer {
           'Pass resolveUri to load .gltf files with external buffers.',
         );
       }
-      result.add(await resolveUri(uri));
+      result.add(await resolveUri(AssetRequest(uri)));
     }
     return result;
   }

@@ -128,7 +128,8 @@ void main() {
         'levels/rooms.json',
         device: device,
         registry: registry,
-        readDocument: (String path) async => path.endsWith('.visibility.json')
+        readDocument: (AssetRequest r) async =>
+            r.uri.endsWith('.visibility.json')
             ? '{"version": 1, "cellSize": 2.0}'
             : jsonEncode(_rooms().toJson()),
       );

@@ -1,7 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
-import 'package:flutter3d_game/flutter3d_game.dart' show IssueSink, printIssue;
+import 'package:flutter3d_game/flutter3d_game.dart' show Issue, IssueSink, printIssue;
 
 import 'atomic_write.dart';
 import 'storage.dart';
@@ -101,7 +101,7 @@ final class FileStorage implements Storage {
       );
       return path == null ? null : Directory(path);
     } catch (error) {
-      onIssue('storage: no directory on this platform ($error)');
+      onIssue(Issue('storage: no directory on this platform ($error)'));
       return null;
     }
   }
@@ -118,7 +118,7 @@ final class FileStorage implements Storage {
       if (file == null || !file.existsSync()) return null;
       return file.readAsStringSync();
     } catch (error) {
-      onIssue('storage: could not read $name ($error)');
+      onIssue(Issue('storage: could not read $name ($error)'));
       return null;
     }
   }
@@ -136,7 +136,7 @@ final class FileStorage implements Storage {
       writeFileAtomicallySync(file.path, contents);
       return true;
     } catch (error) {
-      onIssue('storage: could not write $name ($error)');
+      onIssue(Issue('storage: could not write $name ($error)'));
       return false;
     }
   }
@@ -147,7 +147,7 @@ final class FileStorage implements Storage {
       final file = _file(name);
       if (file != null && file.existsSync()) file.deleteSync();
     } catch (error) {
-      onIssue('storage: could not clear $name ($error)');
+      onIssue(Issue('storage: could not clear $name ($error)'));
     }
   }
 }

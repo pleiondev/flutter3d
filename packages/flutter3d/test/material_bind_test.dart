@@ -67,7 +67,8 @@ void main() {
       final material = await bindMaterial(
         _document(),
         device: device,
-        resolveUri: (uri) async => buildKtx2(vkFormat: VkFormat.bc7UNormBlock),
+        resolveUri: (request) async =>
+            buildKtx2(vkFormat: VkFormat.bc7UNormBlock),
       );
 
       expect(material.extraTextures.keys, <String>[
@@ -99,8 +100,9 @@ void main() {
     final material = await bindMaterial(
       _document(),
       device: device,
-      resolveUri: (uri) async =>
-          uri == 'ramp.ktx2' ? throw StateError('not there') : buildKtx2(),
+      resolveUri: (request) async => request.uri == 'ramp.ktx2'
+          ? throw StateError('not there')
+          : buildKtx2(),
       warnings: warnings,
     );
 
