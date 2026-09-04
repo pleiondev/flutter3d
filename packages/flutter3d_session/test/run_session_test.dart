@@ -297,6 +297,44 @@ void main() {
     });
   });
 
+  group('starting over', () {
+    test('goes back to the first level, not the one that failed', () async {
+      // **The difference from `restart`, and the reason this exists.** A level
+      // that will not read is the usual reason a player wants out, and
+      // restarting there opens the same broken document again — for ever. The
+      // crypt's failure screen had no way out at all until this landed.
+      //
+      // Mutation: make `startOver` load the current asset the way `restart`
+      // does and `opened` ends `['two', 'two']`, which is the dead end.
+      final game = _game()..broken.add('two');
+      game.saves.write('two', const Snapshot(<String, Object?>{}));
+      await game.load('two');
+      expect(game.status, isA<RunFailed<_Level>>());
+
+      await game.startOver();
+
+      expect(game.opened, <String>['two', 'one']);
+      expect(game.status, isA<RunPlaying<_Level>>());
+    });
+
+    test('and throws the save and the carried state away together', () async {
+      // Mutation: drop the `startFresh()` call — the save goes and `freshened`
+      // does not move, which is what the platformer's hand-written pair of
+      // lines did: a new run beginning with the lives and the elapsed time of
+      // the one just abandoned.
+      final game = _game();
+      await game.begin();
+      game.save();
+      final before = game.freshened;
+      expect(game.saves.read(), isNotNull);
+
+      await game.startOver();
+
+      expect(game.saves.read(), isNull);
+      expect(game.freshened, before + 1);
+    });
+  });
+
   group('watching', () {
     test('reports a change once, not on every step', () async {
       // A finished run stays finished for every frame afterwards, so a status

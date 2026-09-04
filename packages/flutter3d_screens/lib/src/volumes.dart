@@ -19,6 +19,29 @@ const List<AudioBus> settableBuses = <AudioBus>[
   AudioBus.sfx,
 ];
 
+/// The buses [sounds] actually reaches, in the order [settableBuses] lists.
+///
+/// **The other half of the mistake [settableBuses] was written to end.** One
+/// list stopped a game from applying a volume the panel offered; it did not
+/// stop a game from *offering* a volume nothing in it plays. The crypt and the
+/// circuit have no music — every one of their sounds takes `SoundDef`'s
+/// default bus — and both showed a Music slider that moved, was written to
+/// disk, was applied to the mixer, and changed nothing a player could hear.
+///
+/// Derived from the bank rather than listed per game, so the slider comes back
+/// by itself on the day one of them gets a soundtrack, and cannot be left
+/// behind on the day one loses it.
+///
+/// [AudioBus.master] is always here: it is the volume of everything, and a game
+/// with any sound at all has something for it to turn down.
+List<AudioBus> busesIn(Iterable<SoundDef> sounds) {
+  final used = sounds.map((SoundDef sound) => sound.bus).toSet();
+  return <AudioBus>[
+    for (final bus in settableBuses)
+      if (bus == AudioBus.master || used.contains(bus)) bus,
+  ];
+}
+
 /// Copies every saved volume into [mixer].
 ///
 /// Called when the settings are loaded and again whenever one changes, which is

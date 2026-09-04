@@ -250,6 +250,26 @@ abstract base class RunSession<L> {
     await load(here);
   }
 
+  /// Throws the run away and starts the game again from [firstLevel].
+  ///
+  /// **Not [restart]**, and the difference is the whole point of it: [restart]
+  /// reloads the level that is up, and the reason a player reaches for this is
+  /// usually that the level that is up will not load. Restarting there reads
+  /// the same broken document again, for ever.
+  ///
+  /// [begin] already does this on the one path it can see — a save naming a
+  /// level that has been renamed away — but a level that exists and throws
+  /// halfway through is a content mistake it cannot detect, and until this
+  /// existed the only way out of one was to close the application. The
+  /// platformer had written the half of it that clears the save; without
+  /// [startFresh] beside it the lives and the elapsed time of the abandoned
+  /// run followed the player into the new one.
+  Future<void> startOver() async {
+    saves.clear();
+    startFresh();
+    await load(firstLevel);
+  }
+
   /// Moves on if the level said there is somewhere to move on to.
   ///
   /// Call once per frame. Does nothing until the run is won, and nothing twice.

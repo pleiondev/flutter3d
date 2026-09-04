@@ -34,6 +34,13 @@ final class LevelMaterial {
   final Vector4 baseColor;
   final double roughness;
   final double metallic;
+
+  /// How brightly the surface glows in its own [baseColor]. Zero is not lit.
+  ///
+  /// A strength rather than a colour, because a surface that emits light in
+  /// some other colour than the one it is painted is a thing no level here has
+  /// wanted, and a second colour is a second value to keep in step. The bridge
+  /// turns it into the renderer's emissive factor and strength.
   final double emissive;
   final double texelsPerMetre;
 

@@ -40,7 +40,11 @@ Bindings _defaults() =>
   GameConfig config,
   List<String> opened,
 })
-_overlay({bool canOpen = true, bool padConnected = true}) {
+_overlay({
+  bool canOpen = true,
+  bool padConnected = true,
+  List<AudioBus> buses = settableBuses,
+}) {
   final config = GameConfig();
   final opened = <String>[];
   final settings = SettingsCubit(
@@ -63,6 +67,7 @@ _overlay({bool canOpen = true, bool padConnected = true}) {
               defaultBindings: _defaults,
               opening: () => opened.add('opening'),
               canOpen: canOpen,
+              buses: buses,
             ),
           ],
         ),
@@ -185,5 +190,28 @@ void main() {
       tester.widget<SettingsPanel>(find.byType(SettingsPanel)).padConnected,
       isFalse,
     );
+  });
+
+  testWidgets('and the sliders it was given are the sliders it hands on', (
+    WidgetTester tester,
+  ) async {
+    // **The link the three games actually use.** None of them talks to
+    // `SettingsPanel`; each passes `busesIn` of its own bank to this widget,
+    // so an overlay that forwarded `settableBuses` instead would put the
+    // Music slider back over a game with no music and nothing would notice —
+    // the panel's own test passes `buses` to the panel directly.
+    //
+    // Mutation: forward `settableBuses` here rather than [buses] and this
+    // fails; before it existed, the whole screens suite stayed green.
+    final it = _overlay(buses: const <AudioBus>[AudioBus.master, AudioBus.sfx]);
+    await tester.pumpWidget(it.widget);
+    it.settings.show();
+    await tester.pumpAndSettle();
+
+    expect(
+      tester.widget<SettingsPanel>(find.byType(SettingsPanel)).buses,
+      const <AudioBus>[AudioBus.master, AudioBus.sfx],
+    );
+    expect(find.text('music'), findsNothing);
   });
 }

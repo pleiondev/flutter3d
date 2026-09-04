@@ -34,6 +34,7 @@ import 'src/run_cubit.dart';
 import 'src/runner_looks.dart';
 import 'src/runner_visuals.dart';
 import 'src/screen_cubit.dart';
+import 'src/sounds.dart';
 import 'src/soundtrack.dart';
 import 'src/title_card.dart';
 
@@ -116,7 +117,24 @@ class _GameScreenState extends State<GameScreen>
   /// here that only somebody looking at the screen can settle.
   static const double _modelFacing = 0.0;
 
-  final SettingsFile _settingsFile = SettingsFile(appName: 'platformer');
+  /// **A settings document that will not read used to reset every binding in
+  /// silence.** `SettingsFile` takes the console by default, which is a place
+  /// no player looks, and this game was the last of the three still leaving it
+  /// there — its own `SaveFile` next door had been saying so on screen for a
+  /// while. A truncated write or a hand edit that lost a brace costs a player
+  /// every rebinding and every volume they had set, and losing them without a
+  /// word is indistinguishable from never having set them.
+  late final SettingsFile _settingsFile = SettingsFile(
+    appName: 'platformer',
+    onIssue: (String issue) {
+      printIssue(issue);
+      // The same line the levels and the save file talk on, and it outlives
+      // this frame for the same reason: nothing has started yet, and `_sayFor`
+      // only counts down once the ticker runs.
+      _said = 'Your settings could not be read. Starting with the defaults.';
+      _sayFor = 6.0;
+    },
+  );
   late final GameConfig _config;
 
   final InputState _input = InputState();
@@ -488,7 +506,14 @@ class _GameScreenState extends State<GameScreen>
     GameAction.sprint,
     PlatformerActions.dash,
     PlatformerActions.dropThrough,
-    GameAction.use,
+    // **`use` is not here, and it used to be.** Nothing in this game reads it:
+    // `GameAction.use` is a shooter's verb — doors, lifts, buttons and notes —
+    // and the only consumer in the repository is the shooter simulation. E and
+    // F are still bound to it by the shared default table, so the row was live
+    // in every sense except the one that matters: a player could rebind it,
+    // the binding was written to disk, and the key did nothing in any level.
+    // That is the one row in the panel a player cannot tell apart from a
+    // rebind that failed to take.
   ];
 
   /// Puts the accessibility settings where they take effect.
@@ -670,10 +695,12 @@ class _GameScreenState extends State<GameScreen>
   /// Not [_restart], which reloads the level that has just failed: the saved
   /// level is the usual reason a run cannot be resumed, so the only thing that
   /// helps is throwing the save away and going back to the first one.
-  void _startOver() {
-    _saveFile.clear();
-    unawaited(_run.load(_firstLevel));
-  }
+  ///
+  /// `RunSession.startOver` rather than the two lines this used to be: those
+  /// cleared the save and loaded the first level, and left `_carried` alone —
+  /// so the lives and the elapsed time of the run being thrown away arrived in
+  /// the new one. The shared version calls `startFresh` between the two.
+  void _startOver() => unawaited(_run.startOver());
 
   void _onTick(Duration _) {
     // The ticker's argument is the frame's scheduled time, not the present;
@@ -1077,6 +1104,8 @@ class _GameScreenState extends State<GameScreen>
                   // the one with nowhere to go next, which the document says
                   // and this widget must not guess at.
                   finale: sim.nextLevel == null,
+                  // So the end of a run asks for something this build can do.
+                  touch: Playing.touch,
                 ),
               // Above the drag layer on purpose: a widget higher in the stack
               // takes the pointers that land on it, so a thumb on the stick is
@@ -1093,6 +1122,13 @@ class _GameScreenState extends State<GameScreen>
                     TouchAction(GameAction.jump, 'jump'),
                   ],
                 ),
+              // The way back in on a device that has neither R nor a pad.
+              // Above the stick, because a finished run has nothing left to
+              // jump over and the stick is where a thumb already rests; above
+              // the HUD, which is an `IgnorePointer` and takes no touch at all;
+              // and below the settings overlay, so the gear still opens.
+              if (Playing.touch && _screen.state.started && _runIsOver)
+                TapToRestart(onRestart: _restart),
               if (!_screen.state.started)
                 TitleCard(
                   prompt: Playing.touch
@@ -1108,6 +1144,10 @@ class _GameScreenState extends State<GameScreen>
               SettingsOverlay(
                 settings: _settings,
                 mixer: _audio.mixer,
+                // Only the sliders this game's own sounds can be heard through.
+                // `busesIn` reads the bank, so a soundtrack arriving one day brings
+                // its slider with it and nobody has to remember.
+                buses: busesIn(Sounds.all),
                 bindings: _devices.bindings,
                 config: _config,
                 padConnected: _pad.isConnected,

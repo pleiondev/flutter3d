@@ -190,6 +190,25 @@ void main() {
     );
   });
 
+  test('and its README says how to make Impeller actually start', () {
+    // **The failure this stops is a silent one.** Without the two Info.plist
+    // keys `flutter_gpu` refuses, `flutter3d_backend.openDevice` catches that
+    // and opens the software rasteriser instead, and the project runs and
+    // draws — so a new author's first impression of the engine's speed is the
+    // fallback's, with nothing on screen to say so. There is no `macos/` until
+    // `flutter create` writes one, so the README is the only place this can be
+    // said.
+    //
+    // Mutation: drop either key from `readmeFor` and this fails; both are
+    // needed, and a reader who adds one of them gets the same silent fallback.
+    final readme = _text(_project(), 'README.md');
+
+    expect(readme, contains('FLTEnableFlutterGPU'));
+    expect(readme, contains('FLTEnableImpeller'));
+    // And the sentence that turns the console line into an explanation.
+    expect(readme, contains('Impeller would not start'));
+  });
+
   group('the pubspec', () {
     test('is the project\'s name, not the template\'s', () {
       expect(

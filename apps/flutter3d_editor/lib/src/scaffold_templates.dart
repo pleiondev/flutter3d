@@ -1,6 +1,6 @@
 /// The two files every scaffolded project gets that no template ships: a
-/// `pubspec.yaml` pointing at this checkout's packages, and a `README.md`
-/// explaining what was just written.
+/// `pubspec.yaml` naming the published packages, and a `README.md` explaining
+/// what was just written.
 ///
 /// Split out of `scaffold.dart` because these are boilerplate text and not
 /// part of what decides *what* gets written where — `Template`, `projectAt`
@@ -97,11 +97,33 @@ flutter run -d macos --dart-define=level=<this directory>/assets/levels/first.js
 ```sh
 flutter create --platforms=macos .   # adds the platform folders, leaves the rest
 flutter pub get
-flutter run -d macos
 ```
 
 `flutter create` adds the platform folders to what is already here and leaves
 `pubspec.yaml`, `lib/` and `test/` alone.
+
+**Then add two keys to the `macos/Runner/Info.plist` it just wrote**, inside
+the top-level `<dict>`:
+
+```xml
+<key>FLTEnableFlutterGPU</key>
+<true/>
+<key>FLTEnableImpeller</key>
+<true/>
+```
+
+Flutter GPU is enabled per application rather than per channel, and Impeller is
+not yet the default renderer on macOS. Nothing can write these for you: there
+is no `macos/` directory until `flutter create` makes one. **Skipping them does
+not fail** — the game opens and draws, through the Dart software rasteriser,
+because that is what `flutter3d_backend` falls back to when Impeller will not
+start. The only sign is a line in the console beginning
+`flutter3d_backend: Impeller would not start`, and a frame rate that is the
+fallback's rather than the engine's. If you see that line, these keys are why.
+
+```sh
+flutter run -d macos
+```
 
 **Use the same Flutter the checkout uses.** A different one writes a macOS
 project targeting an older system than the packages support, and the build then

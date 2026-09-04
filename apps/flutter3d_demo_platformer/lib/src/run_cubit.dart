@@ -20,6 +20,7 @@ final class RunCubit extends Cubit<RunStatus<LevelReady>> {
 
   Future<bool> begin() => run.begin();
   Future<void> restart() => run.restart();
+  Future<void> startOver() => run.startOver();
   Future<void> advance() => run.advance();
   Future<void> load(String asset) => run.load(asset);
   void observe() => run.observe();

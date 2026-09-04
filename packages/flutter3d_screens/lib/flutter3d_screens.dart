@@ -32,5 +32,6 @@ export 'src/settings_overlay.dart';
 export 'src/settings_panel.dart';
 export 'src/status_screens.dart';
 export 'src/storage/storage.dart';
+export 'src/tap_to_restart.dart';
 export 'src/touch_platform.dart';
 export 'src/volumes.dart';

@@ -49,6 +49,45 @@ void main() {
     expect(mixer.volumeOf(AudioBus.master), closeTo(before, 1e-9));
   });
 
+  group('busesIn', () {
+    test('drops a bus nothing in the game plays on', () {
+      // **The same mistake facing the other way.** One list stopped a game
+      // applying a volume the panel offered; nothing stopped a game offering a
+      // volume nothing plays. The crypt and the circuit each showed a Music
+      // slider that moved, saved and applied — over a game with no music in it.
+      //
+      // Mutation: return `settableBuses` unchanged and the slider comes back.
+      const sfxOnly = <SoundDef>[
+        SoundDef(name: 'shot', asset: 'a.ogg'),
+        SoundDef(name: 'door', asset: 'b.ogg'),
+      ];
+
+      expect(busesIn(sfxOnly), <AudioBus>[AudioBus.master, AudioBus.sfx]);
+    });
+
+    test('and keeps one the game does play on', () {
+      // Mutation: match on the bus's identity rather than its name and the
+      // platformer's soundtrack stops being found — `AudioBus` is a value.
+      const withMusic = <SoundDef>[
+        SoundDef(name: 'shot', asset: 'a.ogg'),
+        SoundDef(name: 'theme', asset: 'b.ogg', bus: AudioBus.music),
+      ];
+
+      expect(busesIn(withMusic), <AudioBus>[
+        AudioBus.master,
+        AudioBus.music,
+        AudioBus.sfx,
+      ]);
+    });
+
+    test('and leaves the master for a game with no sound at all', () {
+      // Master is the volume of everything, including whatever a game plays
+      // without a `SoundDef` — and a panel with no sliders at all reads as a
+      // panel that failed to build.
+      expect(busesIn(const <SoundDef>[]), <AudioBus>[AudioBus.master]);
+    });
+  });
+
   test('and the master bus is one of them', () {
     // Named rather than assumed: a list that lost the master would leave a
     // player with no way to turn the game down at all.

@@ -47,6 +47,49 @@ void main() {
     expect((it.race.state as RaceFailed).error, same(error));
   });
 
+  test('and a circuit that would not read says which file it was', () {
+    // **The screen showed the thrown object and nothing else.** Every failure
+    // that is not the graphics device is a content mistake in one of two
+    // generated documents, and "FormatException: Unexpected character" on a
+    // black screen names neither the circuit nor the half of it. `asset` is
+    // also what `main.dart` switches on to decide between the renderer's own
+    // screen and the one that names a file and offers the season again.
+    //
+    // Mutation: drop the `asset:` argument at the circuit's catch in
+    // `_loadCircuit` and this is null — which is the screen with no filename
+    // and no way out, and it reads as a device failure besides.
+    final it = _game();
+
+    it.race.failed(Exception('bad json'), asset: 'assets/tracks/ring.json');
+
+    expect((it.race.state as RaceFailed).asset, 'assets/tracks/ring.json');
+    // And the device half stays as it was: nothing to name.
+    it.race.failed(Exception('no device'));
+    expect((it.race.state as RaceFailed).asset, isNull);
+  });
+
+  test('startOver() goes back to the first circuit from anywhere', () {
+    // **The transition this game did not have.** A completed season is a
+    // caption over a race that keeps running, and a circuit that will not read
+    // is a screen with nothing on it; neither had a way back, because there is
+    // no `restart` here — the other two games get one from `RunSession`, and a
+    // season is not one.
+    //
+    // Mutation: leave `_current` alone in `startOver` and the season restarts
+    // on the circuit it was stuck on, which for a broken document reads the
+    // same broken document again for ever.
+    final it = _game();
+    it.race.ready();
+    final second = it.race.finish()!;
+    it.race.moveOn(second);
+    it.race.failed(Exception('bad json'), asset: second.track);
+
+    it.race.startOver();
+
+    expect(it.race.circuit.name, Season.first.name);
+    expect(it.race.state, isA<RaceLoading>());
+  });
+
   group('finishing a circuit', () {
     test('with another circuit to come, says which', () {
       final it = _game();

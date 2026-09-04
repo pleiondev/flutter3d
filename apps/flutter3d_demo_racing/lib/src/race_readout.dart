@@ -102,3 +102,39 @@ class RaceReadout {
 
 /// A lap, to the thousandth, and `--:--.---` when nobody has driven one.
 String formatLapTime(double seconds) => clockText(seconds, thousandths: true);
+
+/// What is written across the middle of the screen this frame, or nothing.
+///
+/// **Two things want that one line, and the precedence has to be written
+/// down somewhere a test can read it.** [betweenCircuits] is the end of a
+/// race — the next circuit's name, or that the season is over — and it wins,
+/// because a car put back on the road half a second before the flag is not
+/// what the driver is waiting to be told.
+///
+/// [justRespawned] is the second, and it is here because it was nowhere:
+/// `RacerProgress.respawnedThisStep` says in its own doc that it exists "for a
+/// sound or a caption", the simulation has been setting it since it was
+/// written, and the only readers were tests. Picking a car up, turning it round
+/// and setting it down elsewhere is the most violent thing this simulation does
+/// to a driver, and in silence it reads as the game losing its place rather
+/// than as a rule being applied.
+String? raceNotice({
+  required String? betweenCircuits,
+  bool justRespawned = false,
+}) => betweenCircuits ?? (justRespawned ? 'Back on the track' : null);
+
+/// The end of the season, and what to press to race it again.
+///
+/// **This was two words and no way to act on them.** The last race keeps
+/// running under the caption for ever — nothing here calls `moveOn` after the
+/// final circuit — and the key handler had no restart in it at all, so a
+/// driver who had won five circuits was finished with the game whether they
+/// wanted to be or not. Both ends of the sentence are here rather than in the
+/// widget so the wording and the control cannot drift apart, and so a test can
+/// read it without a window.
+///
+/// [touch] because a handset has no R and no way to say so: the tap layer the
+/// screen mounts on exactly the same condition is what this names.
+String seasonCompleteNotice({required bool touch}) => touch
+    ? 'Season complete — tap to race it again'
+    : 'Season complete — press R to race it again';

@@ -71,6 +71,26 @@ void main() {
     }
   });
 
+  testWidgets('and a game with no music is not offered a music slider', (
+    WidgetTester tester,
+  ) async {
+    // **The other direction of the same mistake.** The crypt and the circuit
+    // have no sound on the music bus at all, and both showed a Music slider a
+    // player could move, that was saved, that was applied to the mixer, and
+    // that changed nothing they could hear. What the caller passes is
+    // `busesIn` of its own bank, so this cannot drift from what a game plays.
+    //
+    // Mutation: ignore `buses` and read `settableBuses` in the build. The
+    // slider comes back over a game with nothing to put through it.
+    await tester.pumpWidget(
+      _panel(buses: const <AudioBus>[AudioBus.master, AudioBus.sfx]),
+    );
+
+    expect(find.text('master'), findsOneWidget);
+    expect(find.text('sfx'), findsOneWidget);
+    expect(find.text('music'), findsNothing);
+  });
+
   testWidgets('a gamepad number shows what it is set to', (
     WidgetTester tester,
   ) async {
@@ -270,6 +290,7 @@ Widget _panel({
   void Function(GameAction? action)? onRebind,
   VoidCallback? onResetControls,
   bool writeFailed = false,
+  List<AudioBus>? buses,
 }) => MaterialApp(
   home: Scaffold(
     body: SettingsPanel(
@@ -288,6 +309,7 @@ Widget _panel({
       onRebind: onRebind ?? (GameAction? action) {},
       onResetControls: onResetControls ?? () {},
       writeFailed: writeFailed,
+      buses: buses ?? settableBuses,
     ),
   ),
 );

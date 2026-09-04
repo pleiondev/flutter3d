@@ -50,10 +50,21 @@ final class RaceOver extends RaceStatus {
 
 /// A circuit would not read, or the device it is drawn through would not
 /// open. Both land here: either way there is nothing on screen to race.
+///
+/// **[asset] is what tells the two apart**, and the screen needs to: a device
+/// that will not open is the engine's problem and its screen carries the
+/// shader-bundle sentence, while a circuit that will not read is a content
+/// mistake and the only useful thing to say is which file. This carried
+/// neither for a while — the screen printed the thrown object on black, with
+/// no filename, no explanation and nothing to press.
 final class RaceFailed extends RaceStatus {
-  const RaceFailed(this.error);
+  const RaceFailed(this.error, {this.asset});
 
   final Object error;
+
+  /// The circuit document that would not read, or null when the failure was
+  /// the graphics device rather than a file.
+  final String? asset;
 }
 
 /// How far into the season the player has got, and what to say about it.
@@ -90,8 +101,25 @@ final class RaceProgress {
   /// The circuit in [current] has been read and is ready to draw.
   void ready() => _emit(Racing(_current));
 
-  /// It would not read, or the device under it would not open.
-  void failed(Object error) => _emit(RaceFailed(error));
+  /// It would not read, or the device under it would not open. [asset] names
+  /// the document in the first case and is left out in the second.
+  void failed(Object error, {String? asset}) =>
+      _emit(RaceFailed(error, asset: asset));
+
+  /// Throws the season away and starts it again at the first circuit.
+  ///
+  /// **The one transition this class did not have**, and the two places that
+  /// wanted it were the ends of the game: a season that is complete keeps
+  /// running under a caption, and a circuit that will not read is a screen
+  /// with nothing on it to press. Neither had a way back, because there is no
+  /// `restart` here either — the other two games get one from `RunSession`,
+  /// and a season is not one.
+  ///
+  /// Loading is still the screen's: this only says where the season is.
+  void startOver() {
+    _current = Season.first;
+    _emit(const RaceLoading());
+  }
 
   /// The circuit in [current] has been won. Decides what comes next but does
   /// not load it — [moveOn] does that once the screen's own pause at the
@@ -132,9 +160,11 @@ final class RaceCubit extends Cubit<RaceStatus> {
   Circuit get circuit => progress.current;
 
   void ready() => progress.ready();
-  void failed(Object error) => progress.failed(error);
+  void failed(Object error, {String? asset}) =>
+      progress.failed(error, asset: asset);
   Circuit? finish() => progress.finish();
   void moveOn(Circuit next) => progress.moveOn(next);
+  void startOver() => progress.startOver();
 
   @override
   Future<void> close() {
