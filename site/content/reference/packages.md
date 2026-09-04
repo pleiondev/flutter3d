@@ -49,7 +49,7 @@ It is how thirty-nine golden scenes are checkable with no GPU in the room, and i
 ### `flutter3d_conformance`
 The suite any fourth backend would have to pass before it counted as one, plus the cross-backend comparison with per-scene budgets.
 
-Two tiers, and the split is a correction. The library said it was shader-free as a whole, and that stopped being true the day a check needed a pipeline: five of the twelve now link stages and draw. `coreChecks` is what runs on clears, uploads and readback alone, so a backend can ask it before compiling a single shader; `shaderChecks` is the rest. A backend that believed the old promise would have met five failures it could do nothing about yet.
+Two tiers, and the split is a correction. The library said it was shader-free as a whole, and that stopped being true the day a check needed a pipeline: twenty of the twenty-eight now link stages and draw. `coreChecks` is what runs on clears, uploads and readback alone, so a backend can ask it before compiling a single shader; `shaderChecks` is the rest. A backend that believed the old promise would have met twenty failures it could do nothing about yet.
 
 → [Writing a HAL backend](/core/backends/)
 
@@ -115,9 +115,9 @@ There is no package for this. The rules about how the repository is arranged (wh
 dart run tool/structure.dart
 ```
 
-Twenty-three rules, under a second, no `pub get` and no device: every one of them reads source text. They were a `boundaries_test.dart` in each package until thirteen packages of twenty-one turned out to have none, all thirteen clean and not one of them checked. A runner that walks `packages/` covers a package the day it exists.
+Twenty-six rules, under a second, no `pub get` and no device: every one of them reads source text. They were a `boundaries_test.dart` in each package until thirteen packages of twenty-one turned out to have none, all thirteen clean and not one of them checked. A runner that walks `packages/` covers a package the day it exists.
 
-The detectors prove they fire before a single file is scanned, and a broken detector stops the run rather than letting twenty-three green scans be reported behind it. See [Testing](/reference/testing/).
+The detectors prove they fire before a single file is scanned, and a broken detector stops the run rather than letting twenty-six green scans be reported behind it. See [Testing](/reference/testing/).
 
 ## Assembling an application
 
@@ -191,7 +191,7 @@ The shooter, and a headless test that plays it to the exit.
 The platformer: third person, two jumps and a dash, and no line of the engine changed to allow it. Short enough to read in one sitting, which the dungeon's 898 lines are not.
 
 ### `apps/flutter3d_demo_racing`
-An arcade racer: one circuit, a car that can be made to slide, and a lap time to beat. Renders on Impeller; the WebGL backend draws it too but not fast enough to drive, which its [demo page](/racing/demo/) says plainly.
+An arcade racer: one circuit, a car that can be made to slide, and a lap time to beat. Runs on Impeller and, since the cube shadow atlas got its own resolution, in a browser too — its [demo page](/racing/demo/) keeps the hunt that took it there.
 
 ### `apps/flutter3d_editor`
 The fourth application and the first that is not a game: opens a level document with the same `LevelLoader` the games use, and lets somebody fly around it, move what's in it, and write it back. → [The level editor](/core/editor/)

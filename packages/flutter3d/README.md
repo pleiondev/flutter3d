@@ -85,7 +85,8 @@ What works today:
 - a **scene graph**: `SceneNode` with version stamps instead of dirty flags,
   `CameraNode` + `Projection`, `LightNode`, an orbit camera driven by gestures;
 - frustum culling, draw-call sorting with the pipeline as the high-order key,
-  a pipeline cache, 4x MSAA, depth testing, wireframe, linear-space shading with
+  a pipeline cache, 4x MSAA, depth testing, wireframe (Impeller only — see
+  `RenderSettings.wireframe`), linear-space shading with
   tone mapping (Khronos PBR Neutral) and exposure;
 - **observability**: a line-based debug overlay (bounds, vertex normals, light
   gizmos, world axes, camera frusta) drawn in one call, `dart:developer` Timeline
@@ -98,7 +99,7 @@ What works today:
   `CUBICSPLINE` with authored tangents), slerped rotations, an `AnimationPlayer`
   with play/pause/seek/speed and once/loop/ping-pong, and the decoded node
   hierarchy rebuilt on instantiation so an animated parent carries its subtree;
-- 682 tests — geometry, projection, scene, sorting, debug draw, intersections,
+- 822 tests — geometry, projection, scene, sorting, debug draw, intersections,
   raycasting, animation, skinning, lighting, tangents, render targets, BVH, LOD,
   glTF, OBJ and `.f3d` — all without a GPU.
 
@@ -106,9 +107,12 @@ What works today:
 
 ```bash
 # 1. Build the shader bundle (required after any Flutter SDK change).
-#    It lands in assets/shaders/, an asset of this package, so a dependent
-#    application loads it as packages/flutter3d/assets/shaders/... without
-#    declaring anything. Generated, so it is not in the repository.
+#    It lands in packages/flutter3d_impeller/assets/shaders/, an asset of that
+#    package rather than this one, so a dependent application loads it as
+#    packages/flutter3d_impeller/assets/shaders/flutter3d.shaderbundle —
+#    the string GpuRenderBackend.defaultBundleAsset holds — without declaring
+#    anything. Generated, so it is not in the repository; the published package
+#    carries a built one, so this step is for a checkout.
 (cd ../flutter3d_impeller && ./tool/build_shaders.sh)
 
 # 2. Build the demo's own bundle, which it loads at runtime rather than links.
@@ -295,20 +299,7 @@ either does not start or silently renders nothing. Worth keeping to hand.
 ## Layout
 
 ```
-shaders/
-  mesh.vert                     vertex shader (this is what defines the vertex layout!)
-  mesh_skinned.vert             the skinned stage: a second layout is a second shader
-  debug_line.vert               vertex shader for the debug overlay's own layout
-  lib/color.glsl                colour space, varyings and output, no uniforms
-  lib/surface.glsl              the material and lighting interface shared by models
-  lib/material_maps.glsl        the texture maps, included only by shaders that sample them
-  lighting/*.frag               one shader per lighting model, plus debug_line.frag
-  lighting/shadow_depth.frag    the shadow pass: depth, nothing else
-  lib/shadow.glsl               PCF lookup, included only by models that shadow
-  post/*.frag                   bloom chain and the composite pass
-  post/fullscreen.vert          the one triangle every post pass draws
-  flutter3d.shaderbundle.json   bundle manifest
-tool/bench/bench.dart           the AOT benchmark behind ARCHITECTURE.md §14
+tool/bench/                     the AOT benchmarks behind ARCHITECTURE.md §14
 tool/convert_asset.dart         glTF / GLB / OBJ -> .f3d, run offline
 lib/src/engine/geometry/        CPU geometry, knows nothing about the GPU
 lib/src/engine/animation/       clips, tracks, sampling, the player
@@ -317,10 +308,17 @@ lib/src/engine/scene/           scene graph, cameras, lights, orbit, raycasting
 lib/src/engine/render/          renderer, render list, materials, sorting, debug draw
 lib/src/engine/assets/          glTF, OBJ and .f3d decoders, isolate loading, cache
 example/lib/                    the demo, and the frame capture hook
-test/                           682 tests, all runnable without a GPU
+test/                           822 tests, all runnable without a GPU
 ```
 
-This package is one of twenty-three; see the [repository README](../../README.md)
+The GLSL is not here. Every shader this package draws with lives in
+[`packages/flutter3d_shaders`](../flutter3d_shaders) — the vertex stages that
+define the layouts, one fragment shader per lighting model, the shadow and sky
+stages, the post chain and the headers they share — because an extension package
+includes those headers and would otherwise depend on the whole engine to reach
+them.
+
+This package is one of twenty-four; see the [repository README](../../README.md)
 for how the game layer, the backends and the genre templates sit around it.
 
 The scene layer holds a `MeshGeometry`, not a `GpuMesh`. Bounds, culling, framing
@@ -336,7 +334,7 @@ compilation. A material graph assembled while the game runs is
 therefore impossible: every lighting model is a separate pre-built shader,
 and every shader is a separate `RenderPipeline`.
 
-Hence the pipeline cache, the shared GLSL header (`shaders/lib/surface.glsl`) that
+Hence the pipeline cache, the shared GLSL header (`flutter3d_shaders/shaders/lib/surface.glsl`) that
 guarantees an identical uniform block across permutations, and tolerance for
 missing uniform members — a shader that does not read `light_direction` loses it
 from reflection. The cost is visible: the bundle grew from 12.5 KB with one shader
@@ -351,7 +349,7 @@ per light count. Verified rather than assumed: `vec4 lights[8]` survives into th
 compiled Metal struct, and reflection reports the block at its std140 size with
 the array's base offset intact. Individual elements are not reflected, so the
 whole array is written from that base — correct because the std140 stride for a
-`vec4` array is a flat 16 bytes. The probe is kept in `shaders/spike_array.frag`
+`vec4` array is a flat 16 bytes. The probe is kept in `flutter3d_shaders/shaders/spike_array.frag`
 for the next SDK bump. The payoff is measurable: a capture with three lights and
 one with a single light both report **one** pipeline.
 
@@ -367,6 +365,6 @@ layer with collision, navigation, positional audio, and gamepad and touch
 input. Three example games — shooter, platformer, racing — each built on its
 genre package: [`flutter3d_game_shooter`](../flutter3d_game_shooter),
 [`flutter3d_game_platformer`](../flutter3d_game_platformer),
-[`flutter3d_game_racing`](../flutter3d_game_racing). A new game starts from
-[`apps/flutter3d_template_app`](../../apps/flutter3d_template_app).
+[`flutter3d_game_racing`](../flutter3d_game_racing). A new game starts from the
+editor's scaffold, which writes one from a template: <https://flutter3d.pleion.dev/first-project/>.
 Documentation: <https://flutter3d.pleion.dev>.

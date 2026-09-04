@@ -14,7 +14,7 @@ They are grouped by what you see, because that is what you have when you go look
 |---|---|
 | `Failed to initialize ShaderLibrary: Flutter GPU must be enabled via the Flutter GPU manifest setting` | Flutter GPU is enabled **per application**, not just per channel. Set `FLTEnableFlutterGPU` to `true` in `macos/Runner/Info.plist`, or pass `--enable-flutter-gpu`. On Android the key is `io.flutter.embedding.android.EnableFlutterGPU` in `AndroidManifest.xml` |
 | `Failed to initialize ShaderLibrary: Flutter GPU requires the Impeller rendering backend` | Impeller is not the default renderer on macOS yet. Without `FLTEnableImpeller` set to `true` in `Info.plist`, the app only works through `flutter run --enable-impeller` and double-clicking the built `.app` fails |
-| Shaders stop loading after `flutter upgrade` | The shader bundle format is tied to the Flutter version. Re-run `tool/build_shaders.sh` |
+| Shaders stop loading after `flutter upgrade` | The shader bundle format is tied to the Flutter version. In a checkout, re-run both builders — `flutter3d_impeller/tool/build_shaders.sh` for the bundle every application links and `flutter3d/example/tool/build_shaders.sh` for the one the demo loads. Installed from pub.dev there is nothing of yours to rebuild: the bundle ships inside `flutter3d_impeller`, so upgrade that package to a version built against your SDK. An extension carrying shaders of its own runs `dart run flutter3d_impeller:build_shaders` from its own root |
 | `MACOSX_DEPLOYMENT_TARGET is set to 10.15, but the range of supported deployment target versions is 12.0 to 27.0.x` | `flutter create` generates 10.15 and current Xcode will not build it. Raise it to 12.0 in `macos/Runner.xcodeproj/project.pbxproj` |
 
 ## Nothing appears

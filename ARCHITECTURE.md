@@ -266,7 +266,7 @@ the saves and the collision world.
 
 ### 3.3 Rules that are scanned, not remembered
 
-`tool/structure.dart` walks `packages/` and `apps/` and enforces twenty-three rules in
+`tool/structure.dart` walks `packages/` and `apps/` and enforces twenty-six rules in
 under a second, as the first step of CI. They cover the *arrangement* of the code
 — who imports what, what a name says, where a thing may live — while anything
 about what the code *does* stays a test.
@@ -861,11 +861,15 @@ Changing any of these breaks a backend, and that is the bar for changing them.
   by `identical`. A loaded library lives as long as the device — there is no
   release, and `loadShaders` says why — so an application whose shaders change
   loads one bundle and refreshes it.
-- **The eighteen enums in `formats.dart`**, plus `SamplerOptions`,
+- **The twenty enums in `formats.dart`**, plus `SamplerOptions`,
   `RenderTargetSpec`, `TextureAllocator` and `RenderTargetPool`. Their value names
   are load-bearing beyond the package: the Impeller translation asserts each maps
   to the flutter_gpu value of the *same name*, which catches a mapping that swapped
-  two entries.
+  two entries. That argument reaches eighteen of them; `DepthRange` and
+  `FramebufferOrigin` describe the machine rather than a flutter_gpu type, so
+  nothing maps them. They are promised for the other reason — §7.2 has the engine
+  ask `depthRange` and `framebufferOrigin` before it projects or reads a frame
+  back, and a query is worth nothing if its answers can be renamed underneath it.
 - **`PassState` and the `setState` extension**, which no backend implements
   anything for. `setState` is statically dispatched over `PassEncoder` and built
   only from types already listed, so a backend gets it free and cannot get it
@@ -1631,8 +1635,8 @@ entities a game defines.
 |---|---|
 | Style | `dart format` |
 | Analysis | `flutter analyze` clean across the workspace, no warnings |
-| Unit tests | **3394 tests** across 24 packages and 5 applications |
-| Structure rules | 23, `dart run tool/structure.dart`, the first CI step |
+| Unit tests | **3473 tests** across 24 packages and 5 applications |
+| Structure rules | 26, `dart run tool/structure.dart`, the first CI step |
 | CI | GitHub Actions over `tool/ci.sh`, on `ubuntu-latest`, with no graphics card |
 
 **Golden render tests.** 39 scenes against **three independent reference sets** —
@@ -1699,7 +1703,7 @@ pass turned its input over. The view built to check the atlas cancelled the very
 error it was pointed at and agreed with Impeller to the pixel for six sessions.
 
 What holds it now is `flutter3d_webgl/test/cross_backend_test.dart`: a budget per
-scene, all thirty-nine of them between 0.01% and 0.37%, measured rather than
+scene, all thirty-nine of them between 0.01% and 0.42%, measured rather than
 rounded — a budget far above what was observed has stopped watching. A scene
 this backend has yet to record carries a provisional ceiling instead, and says
 so; there are none today.
@@ -1736,35 +1740,52 @@ budgets, for which there is neither a profiler nor a stored baseline.
 
 ## 14. Performance characteristics
 
-Measured with `tool/bench/bench.dart` compiled through `dart compile exe` — the
-same AOT pipeline a release build uses — on macOS arm64. Frame budget: 16.6 ms at
-60 Hz, 8.3 ms at 120 Hz.
+Compiled through `dart compile exe` — the same AOT pipeline a release build uses.
+Frame budget: 16.6 ms at 60 Hz, 8.3 ms at 120 Hz.
+
+The per-frame rows were re-measured on **2026-09-04, Dart 3.13.0 AOT, Apple M3
+Pro, macOS 27**, three runs with a spread under 5%, from
+`tool/bench/bench_frame_math.dart`. That suite has its own `main` because the
+aggregate `tool/bench/bench.dart` no longer AOT-compiles: it pulls in the
+geometry and asset benchmarks, those reach `MeshGeometry` and through it the
+hardware layer, and `GraphicsDevice` names a Flutter type — so the whole binary
+fails on `FilterQuality isn't a type` and takes the numbers down with it. The
+loading and navigation rows are from the last run that did compile, and are
+marked as such: a measurement nobody can re-run is a measurement nobody can
+contradict, which is the argument for splitting the suite rather than for
+trusting the rows.
 
 | Operation | Time | Per unit |
 |---|---|---|
-| OBJ teapot, full load with smooth normals | 5.39 ms | 2387 ns/triangle |
-| GLB `BoxTextured`, full load | 14.8 µs | — |
-| `SphereShape.build`, 33k vertices | 888 µs | 26.8 ns/vertex |
-| `MeshData.transformed` | 545 µs | 16.4 ns/vertex |
-| Frustum cull, 50k bounding spheres | 728 µs | 14.6 ns/object |
-| Sort 50k draws, `sortPackedKeys` | 1.26 ms | 25.1 ns |
-| Sort 40 draws (what a plain scene reaches) | 3.4 µs | — |
-| Compose 50k world matrices | 778 µs | 15.6 ns/node |
-| Navigation wave on a cell change | 0.65 ms | on `crypt.json` |
-| Navigation mesh bake at load | 73 ms | 55×96 cells |
+| OBJ teapot, full load with smooth normals | 5.39 ms † | 2387 ns/triangle |
+| GLB `BoxTextured`, full load | 14.8 µs † | — |
+| `SphereShape.build`, 33k vertices | 888 µs † | 26.8 ns/vertex |
+| `MeshData.transformed` | 545 µs † | 16.4 ns/vertex |
+| Frustum cull, 50k bounding spheres | 0.69 ms | 13.8 ns/object |
+| Sort 50k draws, closure comparator | 11.2 ms | 224 ns |
+| Sort 50k draws, `sortPackedKeys` | 1.00 ms | 20.1 ns |
+| Sort 40 draws (what a plain scene reaches) | 2.7 µs | — |
+| Compose 50k world matrices | 0.73 ms | 14.6 ns/node |
+| Navigation wave on a cell change | 0.65 ms † | on `crypt.json` |
+| Navigation mesh bake at load | 73 ms † | 55×96 cells |
+
+† From the aggregate suite, before it stopped compiling ahead of time. Not
+re-measured on the date above.
 
 Two of these numbers are the reason parts of the architecture look the way they do.
 
-**Sorting 50k draws took 13.2 ms with a closure comparator** — three quarters of a
+**Sorting 50k draws takes 11.2 ms with a closure comparator** — two thirds of a
 frame — and looks like the ideal candidate for native code. A radix sort **in the
-same Dart** brings it to 1.26 ms. The problem was asymptotics and data layout, not
+same Dart** brings it to 1.00 ms. The problem was asymptotics and data layout, not
 the language, and a naive comparison sort in C would be slower than a radix sort in
-Dart.
+Dart. Packing the payload into the key and handing the result to `Int64List.sort`
+gets 10.4 ms, which is the measurement that settles which half of the change did
+the work: it was the algorithm, not the boxing.
 
 **A binary format is 360× faster than text**, which no parser rewrite closes. That
 is why `.f3d` exists.
 
-Everything else already fits: 14.6 ns per culled object and 15.6 ns per node are
+Everything else already fits: 13.8 ns per culled object and 14.6 ns per node are
 numbers Dart AOT handles fine, because `Float32List` and `Int64List` compile to
 plain memory access with no boxing. A realistic gain from rewriting such loops in C
 is 2–4× through SIMD, not an order of magnitude — so **there is no FFI in this
@@ -1838,7 +1859,7 @@ nothing beyond it casts — a level whose far end matters visually wants the
 number raised, and pays for it in texels.
 
 **The web backend draws all thirty-nine golden scenes the way Impeller does**,
-between 0.01% and 0.37% of pixels differing by more than 8 per channel — the
+between 0.01% and 0.42% of pixels differing by more than 8 per channel — the
 silhouette's worth of disagreement two rasterisers always have. Two of those
 numbers fell when the minification filter learned to read a sampler's
 `mipFilter`: `particles-textured`, the one scene whose subject is a mip chain,
@@ -1861,8 +1882,14 @@ is pinned about them is their settings and their shader, not their picture.
 
 **No convex hulls or triangle-mesh collision shapes**, and no joints.
 
-**No shader or asset hot reload**, no levelled logging, no console or cvars, and no
-crash reporting.
+**No asset hot reload**, no levelled logging, no console or cvars, and no crash
+reporting. Shaders are the half of that which closed: the editor takes a
+`.f3dshaders` bundle on `--dart-define=shaders=`, polls its modification time and
+refreshes the loaded library in place — `LoadedShaderLibrary` keeps the identity
+of every handle already handed out, so the renderer relinks its pipelines on the
+next frame and nothing has to be rebuilt. A bundle that will not load keeps the
+previous shaders and says so in the bar, which is the ordinary case in an editing
+loop. See `apps/flutter3d_editor/lib/src/shader_watch.dart`.
 
 **No asset streaming**, no load priorities and no cancellation. Streaming is only
 needed for open worlds, and there is no such scenario here.
@@ -1967,16 +1994,18 @@ rather than a flag.
 
 ## 16. Distribution
 
-**Published on 2026-08-29**: all twenty-three packages are on pub.dev at 0.4.0
-under the [pleion.dev](https://pub.dev/publishers/pleion.dev/packages)
-publisher. `publish_to: none` — "the one line between prepared and on the
+**Published on 2026-08-29**: every package of that day — twenty-three of them —
+went to pub.dev at 0.4.0 under the
+[pleion.dev](https://pub.dev/publishers/pleion.dev/packages) publisher, and
+`flutter3d_sim` followed when the simulation was split out of the game layer, so
+the workspace's twenty-four are all published now. `publish_to: none` — "the one line between prepared and on the
 internet" — came out of the packages that day; the workspace root, the
 applications and the example apps keep theirs, being repository-only by design.
 
 - **Licence: MIT**, `Copyright (c) 2026 Dmitrii Zolotov`. One `LICENSE` at the root
   and a copy in every package, because pub wants the file inside the archive.
 - `LICENSE`, `CHANGELOG.md`, `README.md`, `repository:` and `homepage:` in all
-  twenty-three packages.
+  twenty-four packages.
 - **`dart format` is a CI step**, second in the order and reported by
   `tool/ci.sh`. It was this document's claimed style for a year with nothing
   checking it, and 637 files of 874 did not match — Dart 3.7 changed the

@@ -1,28 +1,28 @@
 ---
-description: Three independent golden sets, mutation-checking every new test, determinism and snapshots, and why only about thirty of 3394 tests need a GPU.
+description: Three independent golden sets, mutation-checking every new test, determinism and snapshots, and why only about thirty of 3473 tests need a GPU.
 ---
 
 # Testing
 
-3394 tests across 24 packages and five applications, counted the same way the `the document says how many tests there are` rule does: a scan of every `test(`/`testWidgets(` call. The rule holds `ARCHITECTURE.md` §13, the README and this page to the answer — the README went on saying 1242 across thirteen packages for as long as nothing compared it with anything. About thirty need a GPU; the [architecture](/core/architecture/) is what keeps the number that low.
+3473 tests across 24 packages and five applications, counted the same way the `the document says how many tests there are` rule does: a scan of every `test(`/`testWidgets(` call. The rule holds `ARCHITECTURE.md` §13, the README and this page to the answer — the README went on saying 1242 across thirteen packages for as long as nothing compared it with anything. About thirty need a GPU; the [architecture](/core/architecture/) is what keeps the number that low.
 
 | Package | Tests | | Package | Tests |
 |---|---|---|---|---|
-| `flutter3d` | 795 | | `flutter3d_particles` | 68 |
-| `flutter3d_sim` | 386 | | `pad_input` | 59 |
-| `flutter3d_game_shooter` | 291 | | `flutter3d_audio` | 55 |
-| `apps/flutter3d_editor` | 202 | | `flutter3d_bridge` | 54 |
-| `flutter3d_game_racing` | 193 | | `flutter3d_webgl` | 53 |
-| `apps/flutter3d_demo_platformer` | 193 | | `flutter3d_hardware` | 52 |
-| `flutter3d_game_platformer` | 190 | | `flutter3d_impeller` | 51 |
-| `flutter3d_cpu` | 153 | | `flutter3d_session` | 32 |
+| `flutter3d` | 822 | | `flutter3d_game` | 69 |
+| `flutter3d_sim` | 389 | | `pad_input` | 59 |
+| `flutter3d_game_shooter` | 291 | | `flutter3d_bridge` | 58 |
+| `apps/flutter3d_editor` | 203 | | `flutter3d_audio` | 55 |
+| `apps/flutter3d_demo_platformer` | 194 | | `flutter3d_webgl` | 53 |
+| `flutter3d_game_racing` | 193 | | `flutter3d_hardware` | 53 |
+| `flutter3d_game_platformer` | 190 | | `flutter3d_impeller` | 53 |
+| `flutter3d_cpu` | 163 | | `flutter3d_session` | 34 |
 | `flutter3d_physics` | 137 | | `pointer_lock` | 28 |
-| `apps/flutter3d_demo_racing` | 122 | | `flutter3d_testing` | 7 |
-| `flutter3d_screens` | 112 | | `apps/flutter3d_template_app` | 4 |
-| `apps/flutter3d_demo_dungeon` | 72 | | `flutter3d_backend` | 2 |
-| `flutter3d_game` | 69 | | `flutter3d_shaders` | 1 |
+| `apps/flutter3d_demo_racing` | 131 | | `flutter3d_testing` | 7 |
+| `flutter3d_screens` | 120 | | `apps/flutter3d_template_app` | 4 |
+| `apps/flutter3d_demo_dungeon` | 78 | | `flutter3d_backend` | 2 |
+| `flutter3d_particles` | 73 | | `flutter3d_shaders` | 1 |
 
-The rows sum to 3381 rather than 3394: the remaining 13 live in `packages/*/example/test`, which the count includes and this table does not.
+The rows sum to 3460 rather than 3473: the remaining 13 live in `packages/*/example/test`, which the count includes and this table does not.
 
 `flutter3d_app` and `flutter3d_samples` are not in the table and have no `test/` at all. One is a barrel of thirty-five `export` lines and the other is test data with two path constants over it; what there is to check about them is structural, and other packages' decoder tests are what exercise the samples. `flutter3d_conformance` is missing for a different reason: it is invoked as a script harness rather than through `flutter test`, so it does not surface in a grep of `test(` calls either. See below for what that cost once.
 
@@ -137,7 +137,7 @@ import 'package:flutter3d_screens/testing.dart';        // creditGaps
 <p>A package cannot import another package's <code>test/</code>, which is why there were two copies rather than one. <code>lib/testing.dart</code> is what a package can import.</p>
 </div>
 
-`cpuTestDevice` stops short of building the `Renderer`, deliberately: `flutter3d_cpu` must not depend on `flutter3d`. A backend that could not be compiled without the engine would not be an implementation of an interface, it would be part of the engine. That is a rule, and one of the twenty-three checks it.
+`cpuTestDevice` stops short of building the `Renderer`, deliberately: `flutter3d_cpu` must not depend on `flutter3d`. A backend that could not be compiled without the engine would not be an implementation of an interface, it would be part of the engine. That is a rule, and one of the twenty-six checks it.
 
 ## Play the game in a test
 
@@ -166,7 +166,15 @@ test('the crypt can be finished', () {
 
 ```dart
 test('a frame renders', () {
-  final renderer = Renderer.create(device: CpuDevice(/* ... */));
+  // cpuTestDevice, not `CpuDevice(...)`: the device needs a width, a height and
+  // a shader library, and the renderer needs the two fallback textures beside
+  // it. That is the fifteen lines this helper replaced in eight files.
+  final it = cpuTestDevice(width: 320, height: 180);
+  final renderer = Renderer.create(
+    device: it.device,
+    fallbackAlbedo: it.albedo,
+    fallbackNormal: it.normal,
+  );
   final frame = renderer.render(width: 320, height: 180, scene: scene,
       views: <RenderView>[view], settings: const RenderSettings());
   expect(frame.drawCalls, greaterThan(0));
@@ -181,7 +189,7 @@ They ask how the code is *arranged*: who imports what, what a name says, where a
 dart run tool/structure.dart
 ```
 
-Twenty-three rules, under a second. Nothing they read needs `pub get`, a shader bundle or a device, so finding out in minute four that a package imports a genre was finding out late what was knowable in second one.
+Twenty-six rules, under a second. Nothing they read needs `pub get`, a shader bundle or a device, so finding out in minute four that a package imports a genre was finding out late what was knowable in second one.
 
 | Rule | What it refuses |
 |---|---|
@@ -197,7 +205,7 @@ Twenty-three rules, under a second. Nothing they read needs `pub get`, a shader 
 | `every exemption names a file that is there` | An allowlist entry whose file has moved, or whose case only resolves on macOS |
 | `the compiled shader bundle is not older than its sources` | A bundle built before the GLSL was edited, which fails as `failed to bind texture` rather than as a shader behaving oddly |
 
-Ten more check the lists against the workspace, every pubspec's floors and sibling constraints, a package for a dependency on an application, the applications for a silenced `print` and for the flag that turns the GPU on, the Impeller runners — conformance and the surface probe — for rot, and four numbers that go stale on their own: the test count, the golden scene count, the structure-rule count and the publishing order, each compared against the tree. A number in prose is a number nobody recounts, so the counting rules read this site's pages too.
+Fifteen more check the lists against the workspace, every pubspec's floors and sibling constraints, a package for a dependency on an application, a simulation package for an import of Flutter, the applications for a silenced `print` and for the flag that turns the GPU on, the Impeller runners — conformance and the surface probe — for rot, every picture this site shows for a golden that is actually recorded, the publishing order for a package it forgot, and five numbers that go stale on their own: the test count, the golden scene count, the structure-rule count, the number of checks the conformance suite says it runs, and the number of enums the hardware layer promises not to rename — each compared against the tree. A number in prose is a number nobody recounts, so the counting rules read this site's pages too, and the sentence you are reading is one of them: the rule counts the table above and requires the rest to be the rest.
 
 <div class="why">
 <p>These were a <code>boundaries_test.dart</code> in each package, and thirteen packages of twenty-one had none: all thirteen clean, and not one of them checked. A runner that walks <code>packages/</code> itself covers a package the day it exists rather than the day somebody remembers to add a file to it.</p>
