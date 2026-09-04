@@ -13,6 +13,7 @@ library;
 
 import 'package:flutter3d_demo_racing/src/effects.dart';
 import 'package:flutter3d_demo_racing/src/reactions.dart';
+import 'package:flutter3d_demo_racing/src/sounds.dart';
 import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:flutter3d_game_racing/flutter3d_game_racing.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -182,14 +183,35 @@ void main() {
     expect(reaction.bursts.single.effect, same(Effects.sparks));
   });
 
+  test('and is heard as well as seen', () {
+    // **`bump.wav` was declared, generated, shipped and preloaded, and played
+    // by nothing.** A barrier at speed damaged the car, threw sparks and put a
+    // number on the HUD in silence, which reads as the car going through the
+    // wall rather than into it.
+    //
+    // Mutation: drop the `heard.add` beside the sparks. The sparks still fly
+    // and the test above still passes, which is exactly how this went unheard.
+    final reaction = Reactions().listen(_race(track, 1), <VehicleController>[
+      _Car(impactThisStep: 8.0, at: Vector3(3.0, 1.0, 0.0)),
+    ]);
+
+    expect(reaction.heard.single.sound, same(Sounds.bump));
+    // At the contact patch, with the sparks: a bump panned at the roof of the
+    // car is a bump half a metre from where the driver saw it.
+    expect(reaction.heard.single.at, reaction.bursts.single.at);
+  });
+
   test('and leaning on one does not', () {
     // A car merely resting against a barrier through a corner is not a crash,
-    // and a shower of sparks down every long right-hander would be.
+    // and a shower of sparks down every long right-hander would be. Nor is it
+    // a bang: the sound has to be as quiet as the sparks are dark, or a long
+    // corner taken against the wall is a car crashing sixty times a second.
     final reaction = Reactions().listen(_race(track, 1), <VehicleController>[
       _Car(impactThisStep: 0.4),
     ]);
 
     expect(reaction.bursts, isEmpty);
+    expect(reaction.heard, isEmpty);
   });
 
   test('and the smoke comes off the tyres, not the roof', () {

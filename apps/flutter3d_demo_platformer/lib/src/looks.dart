@@ -171,7 +171,18 @@ final class PlatformerLooks implements FixtureAppearance {
     );
     // Brighter once it is yours, so it reads across a room and not only up
     // close, where a colour change is easy to miss mid-jump.
-    final glow = reached ? 0.85 : 0.30;
-    material.emissive.setValues(glow, glow, glow);
+    //
+    // **The strength, not the factor**, since a level material's `emissive`
+    // began arriving as a strength over the base colour rather than being
+    // dropped on the floor. Setting the factor here and leaving the 0.3 that
+    // `fallbackFor` asks for standing multiplies the two, and the post got
+    // dimmer the brighter it was told to be. The factor follows the colour
+    // that was just written, so a green checkpoint glows green.
+    material.emissive.setValues(
+      material.baseColor.x,
+      material.baseColor.y,
+      material.baseColor.z,
+    );
+    material.emissiveStrength = reached ? 0.85 : 0.30;
   }
 }

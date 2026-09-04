@@ -5,6 +5,7 @@ import 'dart:typed_data';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_game/flutter3d_game.dart';
+import 'package:vector_math/vector_math.dart';
 
 import 'loaded_level.dart';
 import 'visibility_culler.dart';
@@ -170,6 +171,22 @@ final class LevelLoader {
   /// it was baked from walls without holes in them, and a hole is a line of
   /// sight it does not know about. Textures are the ones the level loaded
   /// with, so nothing is fetched.
+  ///
+  /// **And the baked light goes with them, over the whole level.** This is the
+  /// half nothing had written down. [load] passes `BrushGeometry.build` a
+  /// [LightmapLayout] and every planned face gets its place in the atlas;
+  /// there is no layout here, so every rebuilt vertex carries the neutral
+  /// texel and every wall in the level falls back to direct light plus flat
+  /// ambient — not only the wall the rocket went through. In the crypt that is
+  /// the first rocket into any wall changing the light in every room at once.
+  ///
+  /// It cannot simply be passed through. A layout is keyed by *brush index*,
+  /// and a breach replaces one brush with up to six pieces in its place, so
+  /// every index after the hole shifts and the surviving faces would read
+  /// somebody else's texels — a wrong bake looks like a bug and a missing one
+  /// looks like a limit. Carrying it through a cut needs the pieces to
+  /// remember which face of which original brush they came off, which is
+  /// `Breaches`' knowledge and not this method's.
   void rebuildBrushes(
     LoadedLevel loaded, {
     required GraphicsDevice device,
@@ -433,6 +450,18 @@ final class LevelLoader {
       baseColor: source.baseColor,
       roughness: source.roughness,
       metallic: source.metallic,
+      // A level material's `emissive` is a strength, not a colour: the surface
+      // glows in the base colour it already has, that much. A separate
+      // emissive colour would be a second value an author has to keep in step
+      // with the first, and everything that has reached for the key so far —
+      // the platformer's hazard "lit from inside", its checkpoints, its exit —
+      // wanted exactly the tint it had already written.
+      emissive: Vector3(
+        source.baseColor.x,
+        source.baseColor.y,
+        source.baseColor.z,
+      ),
+      emissiveStrength: source.emissive,
     );
     if (!source.hasMaps) return material;
 

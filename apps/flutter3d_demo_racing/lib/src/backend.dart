@@ -16,11 +16,18 @@ export 'package:flutter3d_app/flutter3d_app.dart';
 
 /// 960×540 in a browser, lower than the other two demos.
 ///
-/// It does not go far enough. This scene runs at well under one frame a second
-/// in a browser, and dropping to 480×270 with a single 512 shadow tile changed
-/// nothing measurable, so the cost is not fill rate. Until it is found, the
-/// browser build of this game renders correctly and is not playable; the desktop
-/// build is.
+/// **This used to say the browser build was not playable**, and to say the
+/// cost had not been found. It has been. Dropping to 480×270 with a single 512
+/// shadow tile changed nothing measurable, which read as a dead end and was
+/// the clue: a smaller frame buys back fill rate and touches nothing a frame
+/// *allocates*. The cube shadow atlas was sized from
+/// `ShadowSettings.resolution` — the number a game picks for the sun — so this
+/// game's 1024 made two 201 MB atlases on a platform where a tab has less.
+/// `ShadowSettings.cubeResolution` is its own number now, defaulting to 512,
+/// and the demos are built with `--wasm`. The circuit drives in a browser.
+///
+/// What is left of the original reason to keep this smaller than the other two
+/// demos is fill rate, which is real and which this still buys.
 ///
 /// Read only when [kFixedResolution].
 const int kRenderWidth = 960;

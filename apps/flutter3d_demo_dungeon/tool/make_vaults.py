@@ -71,6 +71,17 @@ def build():
     k.pillar((-5.0, 2.5, -4.0), size=(1.2, 5.0, 1.2))
     k.pillar((5.0, 2.5, -4.0), size=(1.2, 5.0, 1.2))
     k.pickup("health", (0.0, 0.8, -4.0), amount=25)
+    # The sensor, beside the health, in the one room that can teach it: three
+    # ways out, and something moving down two of them. Thirty seconds of
+    # seeing the runners through the walls is long enough to pick a wing.
+    #
+    # **Here rather than in vaults.json**, which is where it was put the first
+    # time and why it is being put back: this document is generated, so a
+    # pickup hand-edited into it survives exactly until the next regeneration.
+    # It did not survive one. The sensor is the only power-up the renderer
+    # reads rather than the simulation, and with no level handing one out the
+    # x-ray stage had never run in a shipped frame.
+    k.pickup("sensor", (2.0, 0.8, -4.0), amount=30)
 
     # The door that wants both. It is the first thing seen on arriving, which
     # is the crypt's lesson used rather than taught again.

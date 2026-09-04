@@ -52,9 +52,14 @@ void main() {
   });
 
   test('and what is owed is owed, which is the point here', () {
-    // **Not empty, unlike the other two games.** Both of those ended up with
-    // everything CC0 or generated; this one ships a CC BY model, so the screen
-    // is a condition of shipping rather than a courtesy.
+    // **Not empty.** This game ships a CC BY model, so the screen is a
+    // condition of shipping rather than a courtesy.
+    //
+    // This used to say "unlike the other two games", and half of that was
+    // never true: the crypt's ten entries are all CC0 or generated, but the
+    // platformer ships `penguin.glb` and `coin.glb` under CC BY 4.0 and owes
+    // exactly what this game owes. Two of three, not one — and a comment that
+    // says a sister game has no obligation is the kind that gets believed.
     expect(
       Credits.owed,
       isNotEmpty,

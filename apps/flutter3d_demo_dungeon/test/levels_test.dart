@@ -204,6 +204,36 @@ void main() {
     }
   });
 
+  test('and somewhere on the chain a sensor is handed out', () {
+    // **The x-ray had never been drawn in a shipped frame.** `RenderSettings
+    // .xray` is switched on by `_inventory.hasSensor` and by nothing else, so
+    // a chain with no sensor pickup on it means a whole render stage — the
+    // silhouettes of whatever walks behind a wall — that no player has ever
+    // seen and no run has ever exercised.
+    //
+    // It was handed out once. The pickup was written into `vaults.json`
+    // directly, and that document is generated: the next regeneration wrote it
+    // out again without the line, and nothing noticed for four merges. It is
+    // in `make_vaults.py` now, and this is what notices.
+    //
+    // Mutation: drop the `k.pickup("sensor", ...)` call from `make_vaults.py`
+    // and regenerate — this fails, where before nothing did.
+    final sensors = <String>[
+      for (final step in _chain())
+        for (final entity in step.level.entities)
+          if (entity.type == 'pickup' && entity.properties['gives'] == 'sensor')
+            step.path,
+    ];
+
+    expect(
+      sensors,
+      isNotEmpty,
+      reason:
+          'no level gives a sensor, so RenderSettings.xray is dead code in '
+          'the shipped game',
+    );
+  });
+
   test('and every locked door has its key somewhere on the same level', () {
     // **The failure a chain makes possible.** Keys do not carry between levels
     // — deliberately, because a player arriving at the second level holding the

@@ -24,6 +24,7 @@ class Hud extends StatelessWidget {
     this.behind = false,
     this.lost = 0.0,
     this.finale = false,
+    this.touch = false,
   });
 
   final int coins;
@@ -70,6 +71,15 @@ class Hud extends StatelessWidget {
   /// four hundred metres of climbing was a note about the mouse pointer, and
   /// nothing ever said the game was over or who made it.
   final bool finale;
+
+  /// Whether the player has fingers rather than a keyboard.
+  ///
+  /// **Only the sentence at the end of a run turns on it**, and it has to:
+  /// this screen told every player to press R, and a handset has no R and no
+  /// pad. The answer is passed in rather than read from `Playing`, so this
+  /// widget can be pumped both ways in a test — `flutter_test` reports itself
+  /// as Android, and a widget that asked would only ever be seen one way.
+  final bool touch;
 
   @override
   Widget build(BuildContext context) {
@@ -129,7 +139,13 @@ class Hud extends StatelessWidget {
               child: Center(child: _Banner(message!)),
             ),
           if (state == RunState.finished && finale)
-            Ending(coins: coins, deaths: deaths, elapsed: elapsed, lost: lost)
+            Ending(
+              coins: coins,
+              deaths: deaths,
+              elapsed: elapsed,
+              lost: lost,
+              touch: touch,
+            )
           else if (state == RunState.finished)
             Center(
               child: _Results(
@@ -148,7 +164,9 @@ class Hud extends StatelessWidget {
                 coins: coins,
                 deaths: deaths,
                 elapsed: elapsed,
-                subtitle: 'Press R to start again.',
+                subtitle: touch
+                    ? 'Tap to start again.'
+                    : 'Press R to start again.',
                 lost: lost,
               ),
             )
@@ -176,12 +194,16 @@ class Ending extends StatelessWidget {
     required this.deaths,
     required this.elapsed,
     this.lost = 0.0,
+    this.touch = false,
   });
 
   final int coins;
   final int deaths;
   final double elapsed;
   final double lost;
+
+  /// Whether the player has fingers rather than a keyboard. See [Hud.touch].
+  final bool touch;
 
   @override
   Widget build(BuildContext context) {
@@ -233,7 +255,9 @@ class Ending extends StatelessWidget {
                 ),
                 const SizedBox(height: 22),
                 Text(
-                  'Press R to climb it again.',
+                  touch
+                      ? 'Tap to climb it again.'
+                      : 'Press R to climb it again.',
                   style: TextStyle(
                     color: Colors.white.withValues(alpha: 0.75),
                     fontSize: 14,

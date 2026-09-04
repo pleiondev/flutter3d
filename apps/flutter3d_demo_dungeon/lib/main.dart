@@ -26,19 +26,27 @@ import 'src/hud.dart';
 import 'src/layers.dart';
 import 'src/reactions.dart';
 import 'src/run_cubit.dart';
+import 'src/shooter_keys.dart';
 import 'src/sounds.dart';
 import 'src/soundtrack.dart';
 import 'src/staging.dart';
 import 'src/weapon_models.dart';
 
-/// The game, as far as it goes: a room to stand in and a camera to look around
-/// with.
+/// The game: five levels of a crypt, the things in them, and a run that
+/// carries what the player is holding from one to the next.
 ///
 /// Deliberately thin. Everything that could live in a package does — the
 /// renderer in `flutter3d`, the clock and the input in `flutter3d_game`, the
-/// pointer capture in `pointer_lock` — and what is left here is the part that
-/// is specific to this game. Right now that is a handful of boxes, because the
-/// level format does not exist yet.
+/// level documents and their validator in `flutter3d_sim`, the shooter's rules
+/// in `flutter3d_game_shooter`, the settings and the save in
+/// `flutter3d_screens`, the pointer capture in `pointer_lock` — and what is
+/// left here is the part that is specific to this game.
+///
+/// **This doc used to say "a handful of boxes, because the level format does
+/// not exist yet".** It said so long after `assets/levels/crypt.json` was the
+/// first thing this file loads. The README points a reader at this file as the
+/// worked example, so a comment here that describes a prototype is read as the
+/// engine's own account of what it can do.
 ///
 /// What this proves, which no unit test can: that the fixed step, the captured
 /// mouse and the renderer agree with each other at 60 Hz on a real device.
@@ -123,6 +131,11 @@ class _GameScreenState extends State<GameScreen>
     // `InputSource` can name a pointer button, offering the row is a promise
     // the table cannot keep.
     GameAction.use,
+    // **`crouch` is here, and it never was.** The body has crouched since the
+    // package was written — it shrinks, it walks slower, it refuses to stand
+    // under something — and nothing on any device asked it to, so the panel
+    // listing every verb a player can move was listing every verb but one.
+    ShooterActions.crouch,
   ];
   late final DesktopInput _devices;
   late final PadInput _pad;
@@ -162,18 +175,18 @@ class _GameScreenState extends State<GameScreen>
   LoadedLevel? get _loaded => _level?.loaded;
   CharacterController? get _body => _level?.staged.player.body;
 
-  /// Everything, loaded. Pickups arrive in a later stage and will replace
-  /// this; until they do, a launcher nobody can find is a launcher nobody can
-  /// test.
+  /// Who the player is, once there is a body to be.
+  Player? get _player => _level?.staged.player;
+  GameSimulation? get _sim => _level?.staged.sim;
+
   /// Everything the player is carrying: health, armour, weapons, ammunition,
   /// keys and whatever power-up is running. One object rather than four fields,
   /// so a pickup has somewhere to give something to and the HUD has one thing
   /// to read — and so it can hang off the player's collider, which is how a
   /// locked door asks what the body in front of it holds.
-  /// Who the player is, once there is a body to be.
-  Player? get _player => _level?.staged.player;
-  GameSimulation? get _sim => _level?.staged.sim;
-
+  ///
+  /// Owned by the run rather than by this screen, because it is the thing a
+  /// level change must *not* reset.
   Inventory get _inventory => _run.inventory;
 
   /// Everything a document in this game's levels may name.
@@ -184,8 +197,8 @@ class _GameScreenState extends State<GameScreen>
 
   final ParticleSystem _particles = ParticleSystem(capacity: 3000);
 
-  /// The pistol, not the fists: the game starts with both, and a shooter that
-  /// opens on empty hands looks unfinished.
+  /// The weapon in the player's hands, drawn over the world.
+  ///
   /// Assigned in `initState`, once there is a device to upload its models to.
   ///
   /// A field initializer used to do it, back when a mesh could reach the
@@ -325,20 +338,26 @@ class _GameScreenState extends State<GameScreen>
     // left stick for walking already.
     _pad = PadInput(
       state: _input,
-      bindings:
-          (PadInput.knowsPad(_devices.bindings)
-                ? _devices.bindings
-                : PadInput.addDefaultsTo(_devices.bindings))
-            ..bind(
-              InputSource.pad(PadButton.triggerRight.id),
-              ShooterActions.fire,
-            )
-            ..bind(
-              InputSource.pad(PadButton.shoulderRight.id),
-              ShooterActions.fire,
-            ),
+      bindings: PadInput.knowsPad(_devices.bindings)
+          ? _devices.bindings
+          : PadInput.addDefaultsTo(_devices.bindings),
       slotButtons: PadInput.dpadSlots,
     );
+    // The genre's own, into whatever table came back — a fresh one or a saved
+    // one. `fire` cannot be rebound (see [_rebindable]) so it is simply
+    // written every launch; `crouch` can, so a table that already says
+    // something about crouching keeps what the player said, the same way
+    // `knowsPad` leaves a saved table's rebindings alone above.
+    if (_devices.bindings.sourcesFor(ShooterActions.crouch).isEmpty) {
+      addShooterKeysTo(_devices.bindings);
+    } else {
+      _devices.bindings
+        ..bind(InputSource.pad(PadButton.triggerRight.id), ShooterActions.fire)
+        ..bind(
+          InputSource.pad(PadButton.shoulderRight.id),
+          ShooterActions.fire,
+        );
+    }
     _loop = GameLoop(input: _input, onStep: _step, drainLook: _drainLook)
       ..recorders.add(_rewind.recorder);
 
@@ -720,13 +739,11 @@ class _GameScreenState extends State<GameScreen>
   static const String _firstLevel = 'assets/levels/crypt.json';
 
   /// The table this game ships with, for the panel's way back.
+  ///
+  /// The genre's own two go on last — see [addShooterKeysTo], and the crouch
+  /// that nothing had ever bound.
   static Bindings _defaultBindings() =>
-      PadInput.addDefaultsTo(DesktopInput.defaultBindings())
-        ..bind(InputSource.pad(PadButton.triggerRight.id), ShooterActions.fire)
-        ..bind(
-          InputSource.pad(PadButton.shoulderRight.id),
-          ShooterActions.fire,
-        );
+      addShooterKeysTo(PadInput.addDefaultsTo(DesktopInput.defaultBindings()));
 
   /// The pointer goes back and the keys are let go, before a panel is shown.
   ///
@@ -775,10 +792,11 @@ class _GameScreenState extends State<GameScreen>
   /// What the player has already told the operating system.
   ///
   /// **The whole of this game's accessibility settings, and deliberately.** The
-  /// crypt has no settings screen — no volumes, no bindings, nothing — so an
-  /// in-game slider would mean building one. What it can do without any of that
-  /// is honour the answer the player has already given their system, which is
-  /// the answer they would rather not give twice.
+  /// crypt's own panel carries volumes, bindings and a dead zone, and none of
+  /// those is this: reduced motion and high contrast are answers a player has
+  /// already given their system, and the answer they would rather not give
+  /// twice. This doc said the panel did not exist at all, for a while after it
+  /// did — see [SettingsOverlay] at the bottom of [build].
   ///
   /// Only the flashes read it. This is a first-person game and its camera has no
   /// rig to shake, so the full-screen white on every hit is the only thing here
@@ -1022,7 +1040,14 @@ class _GameScreenState extends State<GameScreen>
             _levelArrived(level);
             _beginDemo(asset, level);
           case RunPlaying<LevelReady>(outcome: RunOutcome.lost):
-            _effects.say('You died. Press R to try again.');
+            // What the player is told to do has to be something they can do:
+            // on a handset there is no R, and the tap layer below the touch
+            // controls is the way back in.
+            _effects.say(
+              Playing.touch
+                  ? 'You died. Tap to try again.'
+                  : 'You died. Press R to try again.',
+            );
             _endDemo();
             _startKillcam();
           case RunPlaying<LevelReady>(:final level, outcome: RunOutcome.won):
@@ -1057,7 +1082,18 @@ class _GameScreenState extends State<GameScreen>
     if (renderer == null) return RendererFailure(error: _initError);
 
     if (run is RunFailed<LevelReady>) {
-      return LevelLoadFailed(asset: run.asset, error: run.error);
+      // **The way out, which this screen had not been given.** Of the three
+      // games this is the one with a save, so a level that will not read is
+      // the one dead end a player cannot walk out of: the keyboard handler
+      // lives further down this method and never mounts, so no key is read,
+      // and R would reload the same broken document anyway. The save that
+      // names the previous level is thrown away with the run, or the next
+      // launch resumes into the same corridor.
+      return LevelLoadFailed(
+        asset: run.asset,
+        error: run.error,
+        onStartOver: () => unawaited(_run.startOver()),
+      );
     }
 
     if (loaded == null || body == null) {
@@ -1089,12 +1125,22 @@ class _GameScreenState extends State<GameScreen>
             unawaited(_run.restart());
             return KeyEventResult.handled;
           }
-          // F toggles the fog in place. A before-and-after has to come from
+          // G toggles the fog in place. A before-and-after has to come from
           // one process at one camera position, which is exactly what the
           // measurement I threw away did not have.
+          //
+          // **G rather than F, which is where this used to be.** The default
+          // bindings put `use` on both E *and* F, and this branch does not
+          // report the key as handled — so a player who reached for F to open
+          // a door opened it and turned the level's fog off at the same time,
+          // and the far wall the fog exists to hide appeared and disappeared
+          // with every doorway. G is bound to nothing in the table and is not
+          // a weapon slot, so a measurement toggle is only ever a measurement
+          // toggle.
           if (event is KeyDownEvent &&
-              event.logicalKey == LogicalKeyboardKey.keyF) {
+              event.logicalKey == LogicalKeyboardKey.keyG) {
             setState(() => _fogOn = !_fogOn);
+            return KeyEventResult.handled;
           }
           // M shows the map the run has drawn so far. The game keeps running
           // underneath, as it did in the games this one is drawn from: a map
@@ -1141,15 +1187,22 @@ class _GameScreenState extends State<GameScreen>
                 view: _view,
                 onBeforeFrame: _placeCamera,
                 settings: () => RenderSettings(
-                  // Off until the surface buffer carries roughness. Without it
-                  // the shader reflects off rough stone as readily as off a wet
-                  // floor, and the walls light up instead of the floor.
+                  // Off, and for one reason rather than the two written here
+                  // before. Rough stone is no longer the problem: the surface
+                  // buffer carries perceptual roughness in its blue channel
+                  // and `reflections.frag` fades the march out over it, so the
+                  // walls stopped lighting up and the floor kept its streak.
                   //
-                  // Off for a second reason too: the march tests only the
-                  // front-most depth, so a ray passing behind a wall counts as
-                  // hitting it and picks up whatever is drawn at that pixel — a
-                  // highlight straight through solid stone. It needs a
-                  // view-space test, not a depth-space one.
+                  // What is left is the hit test. The march has only the
+                  // front-most depth to compare against, and it compares in
+                  // *window* depth, which is not linear: near the camera
+                  // `thickness` is a few centimetres of stone, and far from it
+                  // the same number is metres, so a ray that passes well
+                  // behind a distant wall still counts as landing on it and
+                  // paints whatever is drawn at that pixel — a highlight
+                  // through solid rock, in the room the crypt is least able
+                  // to afford it. A view-space difference would fix it; until
+                  // then this stays off rather than shipping the artefact.
                   reflections: const ReflectionSettings(),
                   // Straight from the document. A crypt without fog is a crypt
                   // with a visible far wall, and the far wall is the thing an
@@ -1223,9 +1276,19 @@ class _GameScreenState extends State<GameScreen>
                     TouchAction(ShooterActions.fire, 'fire'),
                   ],
                 ),
+              // Above the stick in turn, and only once the run is over: R and
+              // a pad's Start were the whole of the way back in, and a phone
+              // has neither. Over the stick because the stick is what a thumb
+              // would land on otherwise, and a dead body does not walk.
+              if (Playing.touch && _runIsOver)
+                TapToRestart(onRestart: () => unawaited(_run.restart())),
               SettingsOverlay(
                 settings: _settings,
                 mixer: _audio.mixer,
+                // Only the sliders this game's own sounds can be heard through.
+                // `busesIn` reads the bank, so a soundtrack arriving one day brings
+                // its slider with it and nobody has to remember.
+                buses: busesIn(Sounds.all),
                 bindings: _devices.bindings,
                 config: _config,
                 padConnected: _pad.isConnected,

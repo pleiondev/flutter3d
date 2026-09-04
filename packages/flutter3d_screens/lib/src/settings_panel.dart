@@ -26,6 +26,7 @@ class SettingsPanel extends StatelessWidget {
     required this.onResetControls,
     this.credits,
     this.writeFailed = false,
+    this.buses = settableBuses,
   });
 
   /// Whether the last attempt to save these settings was refused.
@@ -73,13 +74,22 @@ class SettingsPanel extends StatelessWidget {
   /// nothing to declare passes nothing.
   final Widget? credits;
 
+  /// Which volumes this game has to offer.
+  ///
   /// **Music was missing here**, and a commit message claimed it was not. The
   /// mixer has had the bus since the soundtrack landed and the application was
   /// already restoring its saved volume; the panel simply never offered it, so
   /// the one slider a player reaches for first was the one that did not exist.
   /// The list lives in `volumes.dart` now, beside the call that applies them —
   /// see [settableBuses] for the day these two disagreed.
-  static const List<AudioBus> _buses = settableBuses;
+  ///
+  /// **And then it was offered by games that have none**, which is the same
+  /// mistake facing the other way: a slider a player moves, that is saved and
+  /// applied, and that nothing in the game can be heard through. A caller who
+  /// hands `busesIn(itsOwnBank)` gets the sliders its sounds can reach and no
+  /// others; the default is every bus, for a caller that has not thought about
+  /// it, which is what this always did.
+  final List<AudioBus> buses;
 
   /// A dead zone above this is a controller with a hole in the middle of it.
   ///
@@ -111,7 +121,7 @@ class SettingsPanel extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 18),
-                for (final bus in _buses) ...<Widget>[
+                for (final bus in buses) ...<Widget>[
                   SettingsHeading(bus.name),
                   Slider(
                     value: mixer.volumeOf(bus),

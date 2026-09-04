@@ -23,6 +23,8 @@ Widget _hud({
   Set<String> keys = const <String>{},
   String? message,
   double textScale = 1.0,
+  bool touch = false,
+  bool finale = false,
 }) => MediaQuery(
   data: MediaQueryData(textScaler: TextScaler.linear(textScale)),
   child: MaterialApp(
@@ -36,6 +38,8 @@ Widget _hud({
       levelName: 'First Steps',
       keys: keys,
       message: message,
+      touch: touch,
+      finale: finale,
     ),
   ),
 );
@@ -85,6 +89,27 @@ void main() {
     expect(find.text('Out of lives'), findsOneWidget);
     expect(find.textContaining('Press R'), findsOneWidget);
     expect(find.text('First Steps'), findsNothing);
+  });
+
+  testWidgets('and on a handset it asks for something a handset has', (
+    WidgetTester tester,
+  ) async {
+    // **A phone has no R and no pad**, and both endings told the player to
+    // press one — the one instruction in the game that cannot be followed.
+    // The tap it now asks for is `TapToRestart`, mounted over this HUD by
+    // `main.dart` on exactly the same condition.
+    //
+    // Mutation: ignore `touch` in either branch and the sentence goes back to
+    // naming a key the device does not have.
+    await tester.pumpWidget(_hud(state: RunState.lost, lives: 0, touch: true));
+    expect(find.textContaining('Press R'), findsNothing);
+    expect(find.textContaining('Tap'), findsOneWidget);
+
+    await tester.pumpWidget(
+      _hud(state: RunState.finished, finale: true, touch: true),
+    );
+    expect(find.textContaining('Press R'), findsNothing);
+    expect(find.textContaining('Tap to climb it again'), findsOneWidget);
   });
 
   testWidgets('what the level says reaches the player', (

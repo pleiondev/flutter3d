@@ -5,6 +5,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'settings_cubit.dart';
 import 'settings_panel.dart';
+import 'volumes.dart';
 
 /// The gear, and the panel it opens. The mouse twin of `settingsKeys`.
 ///
@@ -37,6 +38,7 @@ class SettingsOverlay extends StatelessWidget {
     required this.opening,
     this.credits,
     this.canOpen = true,
+    this.buses = settableBuses,
   });
 
   final SettingsCubit settings;
@@ -66,6 +68,10 @@ class SettingsOverlay extends StatelessWidget {
 
   /// What the game owes the people whose work it ships, if anything.
   final Widget? credits;
+
+  /// Which volume sliders this game has any use for. See [SettingsPanel.buses];
+  /// a game passes `busesIn` of its own sound bank.
+  final List<AudioBus> buses;
 
   /// Whether the gear is offered at all. False on a screen that carries the
   /// same settings itself: the platformer's title card, where a stray gear has
@@ -116,6 +122,7 @@ class SettingsOverlay extends StatelessWidget {
           bindings: bindings,
           config: config,
           padConnected: padConnected,
+          buses: buses,
           actions: actions,
           waitingFor: state.waitingFor,
           credits: credits,

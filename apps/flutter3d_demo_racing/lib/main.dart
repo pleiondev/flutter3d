@@ -17,7 +17,8 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart' hide Material;
 import 'package:flutter/scheduler.dart';
-import 'package:flutter/services.dart' show rootBundle;
+import 'package:flutter/services.dart'
+    show KeyDownEvent, LogicalKeyboardKey, rootBundle;
 import 'package:flutter3d/flutter3d.dart' hide Material;
 import 'package:flutter3d_audio/flutter3d_audio.dart';
 import 'package:flutter3d_bridge/flutter3d_bridge.dart';
@@ -190,14 +191,39 @@ class _RaceScreenState extends State<RaceScreen>
   /// Read from [_raceCubit] rather than held here: a [RaceOver] status is
   /// exactly "a circuit and what, if anything, comes after it", which is
   /// this line and nothing more.
-  String? get _notice {
-    final status = _raceCubit.state;
-    return switch (status) {
+  ///
+  /// The precedence between the two is `raceNotice`, in `race_readout.dart`,
+  /// so that it can be asserted without a window. A caption rather than a
+  /// sound for the respawn because there is no asset for one — nothing
+  /// `tool/make_sounds.py` writes would do.
+  String? get _notice => raceNotice(
+    betweenCircuits: switch (_raceCubit.state) {
       RaceOver(:final next) =>
-        next == null ? 'Season complete' : '${next.title} next',
+        next == null
+            ? seasonCompleteNotice(touch: Playing.touch)
+            : '${next.title} next',
       _ => null,
-    };
-  }
+    },
+    justRespawned: _respawnFor > 0.0,
+  );
+
+  /// Whether the season has been finished and the last race is only still
+  /// running because nothing stops it.
+  ///
+  /// What R and the tap layer are gated on. `RaceOver` with somewhere to go
+  /// next is not this: the screen is already on its way to the next circuit,
+  /// and a restart offered for that second and a half throws away four won
+  /// circuits by accident.
+  bool get _seasonIsOver => switch (_raceCubit.state) {
+    RaceOver(:final next) => next == null,
+    _ => false,
+  };
+
+  /// How long the respawn caption stays up.
+  ///
+  /// Two seconds, on the wall clock like [_celebrateFor] and for the same
+  /// reason: it is something being read, not something being driven.
+  double _respawnFor = 0.0;
 
   /// How long the record line goes on saying it has just been beaten.
   ///
@@ -624,7 +650,11 @@ class _RaceScreenState extends State<RaceScreen>
       _raceCubit.ready();
     } catch (error, stack) {
       debugPrint('circuit: $error\n$stack');
-      if (mounted) _raceCubit.failed(error);
+      // With the document's name: every failure here is a content mistake in
+      // one of two files written by one script, and the screen this reaches
+      // used to print the thrown object alone. "FormatException: Unexpected
+      // character" over black names neither the circuit nor the half of it.
+      if (mounted) _raceCubit.failed(error, asset: _circuit.track);
     }
   }
 
@@ -655,9 +685,37 @@ class _RaceScreenState extends State<RaceScreen>
     await Future<void>.delayed(_pauseBetweenCircuits);
     if (!mounted) return;
 
-    // Everything that belonged to the circuit just raced. The voices are
-    // stopped rather than dropped: a car that is no longer in the world still
-    // has an engine running in the mixer.
+    _leaveCircuit();
+    // Leaves the circuit that was just won and starts reading `next` — which
+    // is also what clears [_notice], by moving the status out of `RaceOver`.
+    _raceCubit.moveOn(next);
+    await _loadCircuit(device);
+  }
+
+  /// Throws the season away and races it again from the first circuit.
+  ///
+  /// **The way back into a game that had none.** The other two games each
+  /// offer R and a pad's Start once a run is over; this one's key handler was
+  /// two lines with no restart in it, so a completed season was a caption over
+  /// a race that keeps running for ever, and a circuit that would not read was
+  /// a screen with nothing on it to press. Both ends reach here.
+  ///
+  /// No pause, unlike [_moveOn]: nobody asked for this by winning, they asked
+  /// for it by pressing something, and a game that waits two seconds after a
+  /// keypress reads as one that missed it.
+  Future<void> _startOver() async {
+    final device = _device;
+    if (device == null) return;
+    _leaveCircuit();
+    _raceCubit.startOver();
+    await _loadCircuit(device);
+  }
+
+  /// Puts down everything that belonged to the circuit being left.
+  ///
+  /// The voices are stopped rather than dropped: a car that is no longer in
+  /// the world still has an engine running in the mixer.
+  void _leaveCircuit() {
     for (final voice in _voices) {
       voice.stop();
     }
@@ -667,10 +725,6 @@ class _RaceScreenState extends State<RaceScreen>
     _carLift.clear();
     _carDraw.clear();
     _ghostCar = null;
-
-    // Leaves the circuit that was just won and starts reading `next` — which
-    // is also what clears [_notice], by moving the status out of `RaceOver`.
-    _raceCubit.moveOn(next);
 
     setState(() {
       // An empty scene rather than none: the surface has to keep drawing
@@ -683,8 +737,6 @@ class _RaceScreenState extends State<RaceScreen>
       _chase = null;
       _ai = null;
     });
-
-    await _loadCircuit(device);
   }
 
   /// Decodes and uploads the car every car on the grid is drawn from.
@@ -748,6 +800,7 @@ class _RaceScreenState extends State<RaceScreen>
       _celebrateFor = (_celebrateFor - dt).clamp(0.0, 4.0);
     }
     if (_refusedFor > 0.0) _refusedFor = (_refusedFor - dt).clamp(0.0, 2.0);
+    if (_respawnFor > 0.0) _respawnFor = (_respawnFor - dt).clamp(0.0, 2.0);
 
     // **What the loop accepted, not what the clock said.** A frame longer than
     // the loop's own limit is a window that was dragged or a laptop that was
@@ -792,8 +845,15 @@ class _RaceScreenState extends State<RaceScreen>
     // What this step looks like, decided by something a test can call and
     // performed here. Per car: a rival locking up in front is as worth seeing
     // as the player doing it.
-    for (final shown in _reactions.listen(race, _cars).bursts) {
+    final reaction = _reactions.listen(race, _cars);
+    for (final shown in reaction.bursts) {
       _particles.burst(shown.effect, shown.at, direction: shown.direction);
+    }
+    // Here rather than in `_listen`, which reads flags once a frame: a bump is
+    // an event and not a state, and it has to sound at the moment its sparks
+    // are thrown or it arrives after the car has bounced off.
+    for (final heard in reaction.heard) {
+      _audio.play(heard.sound, heard.at);
     }
     if (race.progress[0].finishedThisStep) _finishedHere();
   }
@@ -944,6 +1004,7 @@ class _RaceScreenState extends State<RaceScreen>
     if (player.checkpointThisStep) {
       _audio.play(Sounds.checkpoint, _ears.position);
     }
+    if (player.respawnedThisStep) _respawnFor = 2.0;
 
     // Along the camera's own forward rather than through a yaw: `aimAt` reads
     // an angle as a first-person camera's, and a chase camera is not one.
@@ -987,8 +1048,23 @@ class _RaceScreenState extends State<RaceScreen>
   Widget build(BuildContext context) => BlocBuilder<RaceCubit, RaceStatus>(
     bloc: _raceCubit,
     builder: (BuildContext context, RaceStatus status) {
-      if (status is RaceFailed) return DidNotStart(status.error);
-      return _screen();
+      // **Which failure it was decides which screen**, and this used to show
+      // one for both: `DidNotStart(error)`, printing the thrown object on
+      // black with no filename, no explanation and nothing to press. A device
+      // that will not open is the engine's own screen — it carries the
+      // shader-bundle sentence, which is the most useful thing anybody has put
+      // on it. A circuit that will not read is a content mistake, so the
+      // screen names the file and offers the season again from the top.
+      return switch (status) {
+        RaceFailed(:final String asset, :final error) => LevelLoadFailed(
+          asset: asset,
+          error: error,
+          onStartOver: () => unawaited(_startOver()),
+          startOverLabel: 'Start the season again',
+        ),
+        RaceFailed(:final error) => RendererFailure(error: error),
+        _ => _screen(),
+      };
     },
   );
 
@@ -1023,6 +1099,19 @@ class _RaceScreenState extends State<RaceScreen>
             opening: _input.clear,
           );
           if (settingsSay != null) return settingsSay;
+          // R, once the season is over and not before. The other two games
+          // put a restart on this key and this one had none at all, so a
+          // driver who had won five circuits was left with a caption over a
+          // race that keeps running. Gated on [_seasonIsOver] rather than
+          // offered always, because a key that throws away four won circuits
+          // mid-lap is worse than no key: R is not bound to anything a car
+          // does, and a hand looking for the handbrake is one row away.
+          if (_seasonIsOver &&
+              event is KeyDownEvent &&
+              event.logicalKey == LogicalKeyboardKey.keyR) {
+            unawaited(_startOver());
+            return KeyEventResult.handled;
+          }
           return _devices.handleKeyEvent(event);
         },
         child: Stack(
@@ -1081,9 +1170,23 @@ class _RaceScreenState extends State<RaceScreen>
                 brake: Drive.brake,
                 handbrake: Drive.handbrake,
               ),
+            // Over the wheel and the pedals, and only once the season is
+            // done: R is what a keyboard presses here and a handset has none.
+            // Over them rather than beside them because a finished season has
+            // nothing left to steer, and the pedals are where a thumb already
+            // is.
+            if (Playing.touch && _seasonIsOver && !_settings.state.isOpen)
+              TapToRestart(
+                onRestart: () => unawaited(_startOver()),
+                label: 'Tap to race the season again',
+              ),
             SettingsOverlay(
               settings: _settings,
               mixer: _audio.mixer,
+              // Only the sliders this game's own sounds can be heard through.
+              // `busesIn` reads the bank, so a soundtrack arriving one day brings
+              // its slider with it and nobody has to remember.
+              buses: busesIn(Sounds.all),
               bindings: _devices.bindings,
               config: _config,
               // Asked, not assumed. This said `false` while the same widget in
