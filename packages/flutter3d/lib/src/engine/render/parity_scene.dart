@@ -113,19 +113,23 @@ enum ParityScene {
   /// is one GPU backend against the other.
   torchNearWall,
 
-  /// The same room with more torches in it than the atlas has rows.
+  /// The same room with six torches: every row of the cube atlas occupied.
   ///
-  /// **Four rows, six lights, and which four get them is decided per frame.**
-  /// [torchNearWall] deliberately has one light so that its number answers one
-  /// question; this one asks the other. A light that loses its row keeps
-  /// lighting and stops casting, and the row it gives up is refilled by a
-  /// neighbour — so the two backends have to agree not only about how a face is
-  /// sampled but about *which* row each light is reading, on a frame where the
-  /// answer has just changed.
+  /// **Six lights and six rows, which is a full atlas and not a contended
+  /// one — and the name is now half wrong.** It was built when
+  /// `Renderer.kShadowedLights` was four: four rows, six lights, and which four
+  /// got them decided per frame, so the fixture asked whether the two backends
+  /// agree about *which* row each light reads on a frame where the answer has
+  /// just changed. Raising the constant to six gave every torch a row and took
+  /// that question out of the picture without anyone editing this scene.
   ///
-  /// That is the arrangement the crypt is in every time the player walks down
-  /// its hall, and no fixture had ever been in it: every other point-shadow
-  /// scene here has one light and three spare rows.
+  /// What it still does, and what nothing else here does: six simultaneous cube
+  /// rows compared across backends. Every other point-shadow scene has one
+  /// light, so a bug in how rows are written or read independently shows up
+  /// only here. The contention itself — a light that keeps lighting and stops
+  /// casting, its row refilled by a neighbour — is uncovered until a fixture
+  /// carries more casters than the atlas has rows again, which is a golden
+  /// re-record on three backends rather than an edit.
   torchesRunningOut,
 
   /// The plain scene with the composite look turned all the way up.

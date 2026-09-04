@@ -88,19 +88,27 @@ const String _kAoTextureSlot = 'ao_texture';
 
 /// Draws a [Scene] through one or more [RenderView]s.
 ///
-/// Still not a frame graph: one pass, one target, no post-processing. What it does
-/// have is the structure the rest depends on — a scene it does not own, views it
-/// does not assume, a culled and sorted render list, and a pipeline cache.
-/// A scene drawn on top of the world, through its own camera.
+/// **A frame graph, compiled once per frame.** Every pass is a node that
+/// declares what it reads and what it writes — the two cube shadow atlases and
+/// the cascade, the reflection probes, the scene itself, object ids,
+/// screen-space reflections, the exposure meter, ambient occlusion, bloom and
+/// the composite — and [FrameGraph] derives the order from those declarations,
+/// culls whatever nothing consumes, and hands each surviving pass its targets.
+/// Registration order is the version chain: nothing here carries a priority
+/// number, which is the whole reason the graph replaced the list of `if`s that
+/// came before it.
 ///
-/// The first-person weapon, and nothing else so far. It cannot simply be a
-/// second [RenderView]: every view shares one depth buffer, so a weapon held
-/// close to the eye would be buried the moment the player walked up to a wall.
-/// Its own pass with the depth cleared is what puts it reliably in front.
+/// **What it does not own is as much of the shape as what it does.** The scene
+/// is handed in, the views are handed in, and an application extends the frame
+/// rather than editing it: [addNode] registers a pass of its own — in either
+/// [FramePhase] — and [addContributor] draws inside the scene's pass. What the
+/// renderer does own is the machinery of a frame: a culled and sorted render
+/// list, the shadow slot allocator, the render target pool, and the pipeline
+/// cache whose size [FrameResult.pipelines] reports so a permutation cannot
+/// creep in where a uniform belonged.
 ///
-/// A narrow field of view comes with it, and is the point rather than a detail.
-/// The main camera is wide enough to see a room, and a model rendered at that
-/// angle a few centimetres from the eye is grotesquely distorted at the edges.
+/// One [GraphicsDevice], injected, is the whole of what it knows about a
+/// backend — see [device].
 final class Renderer implements RenderServices {
   Renderer._({
     required this.device,
@@ -168,7 +176,19 @@ final class Renderer implements RenderServices {
 
   T addContributor<T extends PassContributor>(T c) => contributors.add(c);
 
-  T addNode<T extends RenderNode>(T node) => nodes.add(node);
+  /// Registers a pass of an application's own, in [phase].
+  ///
+  /// **The phase belongs here rather than only on [nodes].** This is the method
+  /// the render-node seam is documented in terms of, and it took no phase — so
+  /// the one thing [FramePhase] exists to make sayable could only be said by
+  /// reaching past this to `renderer.nodes.add(node, phase: …)`. A caller who
+  /// did not know that got the [FramePhase.overlay] default, which is the
+  /// arrangement `FramePhase.present` was added because it silently fails:
+  /// the pass runs, costs its time, and the composite overwrites it.
+  T addNode<T extends RenderNode>(
+    T node, {
+    FramePhase phase = FramePhase.overlay,
+  }) => nodes.add(node, phase: phase);
 
   bool removeContributor(PassContributor c) => contributors.remove(c);
 
@@ -1109,7 +1129,8 @@ final class Renderer implements RenderServices {
       ShadowSettings.maxCubeTile,
     );
     if (_cubeShadow != null && _cubeShadowTile == tile) return;
-    // A six-by-four grid of square tiles: the face across, the light down.
+    // A grid of square tiles six faces across and [kShadowedLights] rows down:
+    // the face across, the light down.
     // Square because a ninety-degree frustum is square, and any other aspect
     // would stretch one axis of every face.
     final width = tile * 6;
@@ -2250,10 +2271,10 @@ final class Renderer implements RenderServices {
     _shadowCascades[2] = 1.0;
 
     // Which point lights get a row of the atlas, decided by relevance rather
-    // than by the order they happen to sit in the scene list. Four is now a
-    // limit on how many can be shadowed *at once*, not on how many a level may
-    // contain: a fifth torch takes a row as soon as it matters more than one of
-    // the four, and gives it back when it stops.
+    // than by the order they happen to sit in the scene list.
+    // [kShadowedLights] is a limit on how many can be shadowed *at once*, not
+    // on how many a level may contain: the seventh torch takes a row as soon as
+    // it matters more than one of the six, and gives it back when it stops.
     //
     // Every row is decided before any of the atlas is drawn, because one pass
     // draws all of them: a pass per light would clear the rows already there.

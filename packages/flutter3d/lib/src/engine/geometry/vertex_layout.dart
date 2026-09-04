@@ -66,6 +66,17 @@ final class VertexLayout {
     normal,
     texcoord,
   ]);
+
+  /// What [positionNormalTexcoord] becomes under `withGeneratedTangents`.
+  ///
+  /// **A description of geometry, not a contract with a stage.** No vertex
+  /// shader in this engine declares these four `in` variables — every lit stage
+  /// reads [standard] or [skinned] — so a mesh left in this layout cannot be
+  /// bound to one. It is the shape a UV-mapped mesh has after tangents are
+  /// generated and before the colour attribute is added, which is what makes it
+  /// worth a name: `withGeneratedTangents` builds exactly this list when it is
+  /// handed a mesh without tangents, and the name saves the caller from
+  /// spelling it out to pass as its `target`.
   static const VertexLayout positionNormalTexcoordTangent = VertexLayout([
     position,
     normal,

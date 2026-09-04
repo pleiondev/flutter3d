@@ -61,6 +61,21 @@ double atlasDistance(
   return nearest * range;
 }
 
+/// The debug encoding from `surface.glsl`: red is how wide the penumbra came
+/// out against the widest allowed, green is how far away the blocker was
+/// against the light's range, blue is zero — reserved for the fragments where
+/// the search found nothing at all.
+Vector3 _penumbraDebug(
+  double radius,
+  double blocker,
+  double maxRadius,
+  double range,
+) => Vector3(
+  (radius / math.max(maxRadius, 1e-6)).clamp(0.0, 1.0),
+  (blocker / range).clamp(0.0, 1.0),
+  0.0,
+);
+
 /// `PointShadowFactor`: how lit a point is by the light that owns the atlas.
 double pointShadowFactor(
   ShaderBindings b,
@@ -169,24 +184,33 @@ double pointShadowFactor(
   // by it would come back NaN rather than merely wrong.
   final tanHalf = math.max(slotEntry.z, 1e-4);
 
-  // `-1` for "nothing was measured", the sentinel `PointShadowPenumbra` uses,
-  // and the reason it uses one: the debug encoding clamps a blocker distance
-  // into a colour, where a zero would read as a blocker touching the surface —
-  // the most alarming answer available, and a false one.
-  final debugging = params2.w > 0.5;
-  var blocker = -1.0;
+  // `params2.w`, the debug channel: paint the penumbra estimate into the
+  // surface buffer instead of the normal.
+  //
+  // **Transcribed rather than left to the two GPU backends**, which is the
+  // point of this rasteriser existing. The quantity that settles an argument
+  // about contact hardening never leaves this function, and it was readable on
+  // Impeller and on WebGL and silently absent here — so a developer debugging
+  // it headlessly, on the backend that needs no device, read the ordinary
+  // surface buffer as the penumbra estimate. That is the exact failure this
+  // channel was added to end.
+  final debug = params2.w > 0.5;
 
   double radius;
   if (lightRadius <= 0.0) {
-    // The GLSL takes the centre tap here unconditionally, to report a distance
-    // the atlas really returned rather than the sentinel. **This asks first**,
-    // which is the one departure: a tap costs a rasteriser real time, and
-    // nothing reads the answer unless the flag is on. Nothing observable
-    // differs — the value is written to the debug channel and nowhere else.
-    if (debugging) {
-      blocker = atlasDistance(b, u, vv, 0.0, 0.0, tileX, tileY, range, inset);
-    }
     radius = minRadius;
+    if (debug) {
+      // The centre tap, for the reason the GLSL gives where it does the same:
+      // an unfilled channel clamps −1 to zero, which is the same green as a
+      // blocker touching the surface — the most alarming answer available, and
+      // a whole theory was once built on it.
+      c.debugSurface = _penumbraDebug(
+        radius,
+        atlasDistance(b, u, vv, 0.0, 0.0, tileX, tileY, range, inset),
+        maxRadius,
+        range,
+      );
+    }
   } else {
     // The blocker search runs at the widest penumbra allowed: a blocker
     // outside that circle cannot widen the result, and searching narrower
@@ -213,47 +237,28 @@ double pointShadowFactor(
       sum += stored;
       count += 1.0;
     }
-    // Nothing in front of this fragment anywhere in the search. The early
-    // return the GLSL writes as a negative radius, kept as one here so the
-    // debug channel below can tell it apart from a blocker very close by —
-    // which is most of what the channel is for.
+    // Nothing in front of this fragment anywhere in the search.
     if (count < 0.5) {
-      radius = -1.0;
-    } else {
-      blocker = math.max(sum / count, 1e-4);
-      final worldWidth =
-          lightRadius * math.max(receiver - blocker, 0.0) / blocker;
-      // `2 * r` is the span of a right-angled frustum at distance r; in general
-      // it is `2 * r * tan(θ/2)`. A narrower cone covers less world per tile,
-      // so the same width is a larger fraction of it.
-      radius = (worldWidth / (2.0 * receiver * tanHalf)).clamp(
-        minRadius,
-        maxRadius,
-      );
+      // Blue, which is a different answer from "found something very close" —
+      // and telling those two apart is most of the question the channel exists
+      // to answer.
+      if (debug) c.debugSurface = Vector3(0.0, 0.0, 1.0);
+      return 1.0;
+    }
+    final blocker = math.max(sum / count, 1e-4);
+    final worldWidth =
+        lightRadius * math.max(receiver - blocker, 0.0) / blocker;
+    // `2 * r` is the span of a right-angled frustum at distance r; in general
+    // it is `2 * r * tan(θ/2)`. A narrower cone covers less world per tile, so
+    // the same width is a larger fraction of it.
+    radius = (worldWidth / (2.0 * receiver * tanHalf)).clamp(
+      minRadius,
+      maxRadius,
+    );
+    if (debug) {
+      c.debugSurface = _penumbraDebug(radius, blocker, maxRadius, range);
     }
   }
-
-  // `RenderSettings.showPointShadowDebug`, transcribed from surface.glsl:629.
-  // Red is how wide the penumbra came out against the widest allowed, green how
-  // far the blocker was against the light's range, blue where the search found
-  // nothing at all. It takes the surface buffer over rather than getting an
-  // attachment of its own — see [FragmentContext.debugSurface].
-  //
-  // This backend had the flag and not the picture: the setting reached the
-  // uniform, the composite switched to the surface buffer, and what came up was
-  // the ordinary octahedral normals. A plausible picture read as an answer,
-  // which is worse than a blank one.
-  if (debugging) {
-    c.debugSurface = radius < 0.0
-        ? Vector3(0.0, 0.0, 1.0)
-        : Vector3(
-            (radius / math.max(maxRadius, 1e-6)).clamp(0.0, 1.0),
-            (blocker / range).clamp(0.0, 1.0),
-            0.0,
-          );
-  }
-
-  if (radius < 0.0) return 1.0;
 
   double tap(double ox, double oy) {
     final stored = atlasDistance(b, u, vv, ox, oy, tileX, tileY, range, inset);

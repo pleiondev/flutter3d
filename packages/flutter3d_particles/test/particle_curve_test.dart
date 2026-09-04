@@ -388,4 +388,110 @@ void main() {
       expect(particle.velocity.z, 2.0);
     });
   });
+
+  // **Both of these had never run.** Every other affector and emitter in the
+  // package is exercised somewhere; `ParticleWind` and `DriftEmitter` were
+  // exported, documented — "a draught or the wake of an explosion", "smoke and
+  // dust" — and reached by nothing in any package, application or test. A game
+  // reaching for either would have been the first caller.
+
+  group('the wind', () {
+    test('accelerates every particle the same way, whatever it was doing', () {
+      // The property that separates it from gravity: an arbitrary direction,
+      // added to whatever velocity the particle already carries.
+      //
+      // Mutation: `+=` to `=` in `ParticleWind.apply` drops the particle's own
+      // velocity and the first three expectations fail.
+      final wind = ParticleWind(Vector3(2.0, -1.0, 0.5));
+      final particle = _at(Vector3.zero())..velocity.setValues(1.0, 1.0, 1.0);
+
+      wind.apply(particle, 0.5);
+
+      expect(particle.velocity.x, closeTo(1.0 + 1.0, 1e-12));
+      expect(particle.velocity.y, closeTo(1.0 - 0.5, 1e-12));
+      expect(particle.velocity.z, closeTo(1.0 + 0.25, 1e-12));
+    });
+
+    test('holds its own copy of the vector it was handed', () {
+      // The `.clone()` in the constructor. Without it a caller who reused the
+      // vector — the obvious thing to do while tuning an effect — would
+      // silently retune every wind built from it.
+      //
+      // Mutation: dropping the `.clone()` makes the second expectation read
+      // the mutated vector and fail.
+      final source = Vector3(1.0, 0.0, 0.0);
+      final wind = ParticleWind(source);
+      source.setValues(100.0, 0.0, 0.0);
+
+      final particle = _at(Vector3.zero());
+      wind.apply(particle, 1.0);
+
+      expect(particle.velocity.x, 1.0);
+    });
+
+    test('scales with dt, so the frame rate does not change the motion', () {
+      final wind = ParticleWind(Vector3(0.0, 3.0, 0.0));
+      final once = _at(Vector3.zero());
+      wind.apply(once, 1.0 / 30.0);
+
+      final twice = _at(Vector3.zero());
+      wind.apply(twice, 1.0 / 60.0);
+      wind.apply(twice, 1.0 / 60.0);
+
+      expect(twice.velocity.y, closeTo(once.velocity.y, 1e-12));
+    });
+  });
+
+  group('the drift emitter', () {
+    test('sends everything up, with a sideways wander at birth', () {
+      // "Straight up, slowly" — so the vertical speed is inside the speed
+      // range and always positive, and the sideways components are inside the
+      // spread and not all the same, or a column would be a line.
+      //
+      // Mutation: swapping `speed` and `spread` in `emit` — the transposition
+      // this shape invites — sends the column sideways and fails the first
+      // expectation for most of the five hundred.
+      const emitter = DriftEmitter(
+        speed: Range(0.3, 1.0),
+        spread: Range(-0.3, 0.3),
+      );
+      final random = math.Random(11);
+      final origin = Vector3(4.0, 5.0, 6.0);
+
+      var sawWander = false;
+      for (var i = 0; i < 500; i++) {
+        final particle = Particle();
+        emitter.emit(particle, origin, Vector3(1.0, 0.0, 0.0), random);
+
+        expect(particle.position, origin, reason: 'a point emitter, not a box');
+        expect(particle.velocity.y, inInclusiveRange(0.3, 1.0));
+        expect(particle.velocity.x, inInclusiveRange(-0.3, 0.3));
+        expect(particle.velocity.z, inInclusiveRange(-0.3, 0.3));
+        if (particle.velocity.x.abs() > 0.15) sawWander = true;
+      }
+      expect(
+        sawWander,
+        isTrue,
+        reason: 'a spread of zero would satisfy the bounds too',
+      );
+    });
+
+    test('ignores the direction the burst was fired along', () {
+      // Smoke rises whichever way the emitter was aimed, which is the whole
+      // difference between this and `ConeEmitter`.
+      const emitter = DriftEmitter(
+        speed: Range.exact(0.7),
+        spread: Range.exact(0.0),
+      );
+      final particle = Particle();
+      emitter.emit(
+        particle,
+        Vector3.zero(),
+        Vector3(0.0, 0.0, -1.0),
+        math.Random(3),
+      );
+
+      expect(particle.velocity, Vector3(0.0, 0.7, 0.0));
+    });
+  });
 }

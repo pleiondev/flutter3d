@@ -13,7 +13,11 @@
 ///
 ///  * no `flutter_gpu` import anywhere in this package, ever, and no dependency
 ///    on a backend in its pubspec either — the second because importing nothing
-///    and depending on everything would pass a scan of the imports alone;
+///    and depending on everything would pass a scan of the imports alone. Held
+///    by `tool/structure.dart`'s "the hardware layer names no graphics API"
+///    rule. It was a `no_backend_test.dart` in this package until the
+///    arrangement rules moved into that scanner, and the citation outlived the
+///    file by long enough to be quoted in three places;
 ///  * no `dart:ui` and no `package:flutter/` either, apart from the files
 ///    `hardwareMayUseFlutter` names. The reason is written where each exception
 ///    is.

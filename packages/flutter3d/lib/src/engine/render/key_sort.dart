@@ -33,11 +33,22 @@ const int kRadixThreshold = 96;
 /// [counts] is an optional reusable 256-entry histogram, so a caller sorting every
 /// frame allocates nothing.
 ///
-/// Measured on 50 000 entries (Dart 3.12 AOT, Apple Silicon): a comparison sort
-/// with a closure comparator over an index list took 12.5 ms, packing the payload
-/// into the key and calling `Int64List.sort` took 11.0 ms, and this took 0.89 ms.
-/// That 14x is why the render list does not need native code — the original cost
-/// was the algorithm and the indirection, not the language.
+/// Measured on 50 000 entries, on 2026-09-04, by
+/// `tool/bench/bench_frame_math.dart` run through `dart compile exe` — Dart
+/// 3.13.0 AOT, Apple M3 Pro, macOS 27: a comparison sort with a closure
+/// comparator over an index list took 11.4 ms, packing the payload into the key
+/// and calling `Int64List.sort` took 10.3 ms, and this took 0.99 ms. That 11x
+/// is why the render list does not need native code — the original cost was the
+/// algorithm and the indirection, not the language.
+///
+/// **The date is half of the number.** What stood here before was 12.5, 11.0
+/// and 0.89 ms against "Dart 3.12 AOT, Apple Silicon" and no date, so a reader
+/// could not tell a measurement that still holds from one taken on an SDK the
+/// repository has since left. The documents quoted this same benchmark at a
+/// different pair of figures again, and with no date on either set there was no
+/// way to tell which run superseded which. A number a design decision rests on
+/// is re-measured, with the day it was taken, rather than adjusted until it
+/// reads well.
 void sortPackedKeys(
   Int64List buffer,
   Int64List scratch,

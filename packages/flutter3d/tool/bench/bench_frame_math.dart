@@ -9,6 +9,27 @@ import 'package:vector_math/vector_math.dart';
 
 import 'bench_util.dart';
 
+/// Runs this suite on its own:
+///
+///     dart compile exe tool/bench/bench_frame_math.dart -o /tmp/bench_frame
+///     /tmp/bench_frame
+///
+/// **Its own entry point because `bench.dart` no longer AOT-compiles.** The
+/// aggregate binary pulls in the geometry and asset suites, which reach
+/// `MeshGeometry` and through it the hardware layer, and `GraphicsDevice` names
+/// a Flutter type — so the whole of it fails on `dart:ui is not available on
+/// this platform` and takes these numbers down with it. This suite reaches only
+/// `key_sort.dart` and `bvh.dart`, neither of which knows a device, so it still
+/// compiles the way the figures it produces were taken.
+///
+/// That matters more than a convenience: `kRadixThreshold`,
+/// `RenderList.bvhThreshold` and the decision that this engine ships no native
+/// sorting code are all quoted from this suite, and a measurement nobody can
+/// re-run is a measurement nobody can contradict.
+void main() async {
+  await benchFrameMath();
+}
+
 /// Culling, sorting and matrix maths at the scale a frame actually does them.
 Future<void> benchFrameMath() async {
   print('');

@@ -1,9 +1,12 @@
 /// Sort keys for the draw list, stored the way the platform can store them.
 ///
 /// The native form packs a key and its payload into one 63-bit integer and
-/// radix-sorts the result: measured at 0.89 ms for 50 000 draws against 12.5 ms
-/// for a comparison sort with a closure comparator, which is a quarter of a
-/// frame and the reason this engine needs no native code for sorting.
+/// radix-sorts the result: 0.99 ms for 50 000 draws against 11.4 ms for a
+/// comparison sort with a closure comparator, which is two thirds of a 60 Hz
+/// frame and the reason this engine needs no native code for sorting. The run
+/// those come from — the day, the SDK and the machine — is written once, on
+/// `sortPackedKeys` in `key_sort.dart`, rather than here too: two copies of it
+/// drift apart, and a reader then has to guess which is the later one.
 ///
 /// That packing cannot exist on the web. Dart compiles `int` to a JavaScript
 /// number there, so integers are exact only to 2^53, and a 63-bit packed key

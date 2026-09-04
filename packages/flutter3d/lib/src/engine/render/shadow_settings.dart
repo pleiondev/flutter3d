@@ -254,18 +254,19 @@ final class ShadowSettings {
   /// **The cube atlas no longer reads this**, and the arithmetic of why is
   /// worth the paragraph. It used to: the same number was clamped to
   /// [minCubeTile]–[maxCubeTile] and used for a cube tile as well. A game
-  /// asking for a 1024 sun therefore got a cube atlas six tiles across and four
-  /// rows down of the same size — 6144 × 4096 texels of `r16g16b16a16Float`,
-  /// **201 MB**, and there are two of them, the movers and the bake. Four
-  /// hundred megabytes of video memory for shadows nobody asked to be that
-  /// sharp, on a platform where the whole browser tab has less.
+  /// asking for a 1024 sun therefore got a cube atlas six tiles across and
+  /// `Renderer.kShadowedLights` rows down of the same size — at six rows,
+  /// 6144 × 6144 texels of `r16g16b16a16Float`, **302 MB**, and there are two
+  /// of them, the movers and the bake. Six hundred megabytes of video memory
+  /// for shadows nobody asked to be that sharp, on a platform where the whole
+  /// browser tab has less.
   ///
   /// So a cube tile is [cubeResolution] now, with its own default, and one
   /// number no longer sets a budget six times larger than the one it is named
   /// for.
   final int resolution;
 
-  /// Edge length of **one cube face**, of which the atlas holds twenty-four.
+  /// Edge length of **one cube face**, of which the atlas holds thirty-six.
   ///
   /// Separate from [resolution] because the two buy very different amounts of
   /// picture for the same texels. A cascade tile covers the part of a level the

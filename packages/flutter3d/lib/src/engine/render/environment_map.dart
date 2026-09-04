@@ -292,10 +292,3 @@ List<ByteData> _convolve(
   }
   return out;
 }
-
-/// Six faces and a chain, ready for [GraphicsDevice.createCubeTextureFromPixels].
-typedef PrefilteredEnvironment = ({
-  List<ByteData> faces,
-  List<List<ByteData>> mipLevels,
-  int size,
-});

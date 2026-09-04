@@ -399,10 +399,10 @@ final List<GoldenScene> kGoldenScenes = <GoldenScene>[
     pointShadow: true,
   ),
 
-  // Four casters, four rows. The single-caster golden above passes whether the
-  // atlas holds one row or four, so it said nothing while three of the four
-  // rows were being cleared away; this scene is the one that fails when they
-  // are.
+  // Four casters in an atlas with rows to spare. The single-caster golden above
+  // passes whether the atlas holds one row or six, so it said nothing while
+  // three of the rows were being cleared away; this scene is the one that fails
+  // when they are.
   //
   // The atlas rather than the lit image, because four lights around a model
   // fill in each other's shadows — the lit view of a three-row loss is a
@@ -483,14 +483,19 @@ final List<GoldenScene> kGoldenScenes = <GoldenScene>[
     groundDrop: 2.5,
   ),
 
-  // Six casters for four rows, which is the case the allocator exists for.
+  // Six casters, which was two more rows than the atlas had when this was
+  // recorded and is exactly as many as it has now.
   //
-  // Until it existed the rows went to the first four point lights in scene
-  // order, so a level with five torches had one that could not cast a shadow
-  // anywhere, ever. Now the rows go to whichever four look largest from the
-  // camera. This scene is only meaningful if relevance and scene order pick
-  // *different* sets — check that when re-recording, because if they agree the
-  // golden passes either way and pins nothing.
+  // Until the allocator existed the rows went to the first four point lights in
+  // scene order, so a level with five torches had one that could not cast a
+  // shadow anywhere, ever. Now the rows go to whichever look largest from the
+  // camera — and `Renderer.kShadowedLights` is six, so all six of these get one
+  // and the ranking has nothing to decide. **The scene no longer pins what its
+  // name says it pins**: it is a full atlas rather than a contended one, and
+  // raising the caster count past six is a re-record of this golden in every
+  // set. When that happens, check that relevance and scene order pick
+  // *different* sets — if they agree the golden passes either way and pins
+  // nothing.
   const GoldenScene(
     name: 'cube-shadow-crowded',
     source: 'Teapot',

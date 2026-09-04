@@ -76,6 +76,17 @@ final class FragmentContext {
   /// A debug pass takes the surface buffer over rather than getting one of its
   /// own: that buffer already has an attachment, a viewer and a golden, and a
   /// second one would need all three built before it could answer anything.
+  /// `g_debug_surface` and `g_debug_surface_on`, as one nullable.
+  ///
+  /// Where a debug pass leaves the picture it wants shown instead of the
+  /// normal. The GLSL declares a pair of globals in `color.glsl` and writes
+  /// them from `surface.glsl`, which is included afterwards; a field here is
+  /// the same reach, since the two functions share nothing else. Null is the
+  /// GLSL's `g_debug_surface_on == false`.
+  ///
+  /// Read at the moment the surface buffer is written, which happens after the
+  /// lighting loop has run — so the value is there by then, exactly as it is
+  /// on a device.
   Vector3? debugSurface;
 }
 

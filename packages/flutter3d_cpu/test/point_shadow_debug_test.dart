@@ -1,37 +1,50 @@
-/// `RenderSettings.showPointShadowDebug`, drawn on the software rasteriser.
+/// The penumbra estimate, painted into the surface buffer, without a GPU.
 ///
 ///     flutter test test/point_shadow_debug_test.dart
 ///
-/// **A flag that did nothing here, and did not say so.** The setting reaches
-/// `PointShadow.params2.w` on every backend; `lib/surface.glsl` reads it and
-/// takes the surface buffer over with the penumbra estimate — red for how wide
-/// the kernel came out, green for how far the blocker was, blue where the
-/// search found nothing. This backend's transcription of that function skipped
-/// the branch, so the composite dutifully switched to the surface buffer and
-/// showed the ordinary octahedral normals: a plausible picture, and the worst
-/// possible answer from a diagnostic, because a reader takes a radius off it.
+/// `RenderSettings.showPointShadowDebug` exists because two explanations for a
+/// collapsing contact-hardening estimate were argued from the finished picture
+/// and both turned out wrong: the quantity that settles it never leaves the
+/// shadow lookup. Impeller and WebGL painted it; this rasteriser packed the
+/// flag into `params2.w`, never read it, and drew the ordinary surface buffer —
+/// so the backend that needs no device, and is therefore the one a headless
+/// session reaches for, answered a plausible picture that was not the estimate.
+/// That is the exact failure mode the channel was added to end.
 ///
-/// The channel exists because two explanations for a collapsed estimate were
-/// argued from the finished picture and both were wrong. A backend that shows
-/// a different picture from the one the argument is about is that failure
-/// again, one level down.
+/// What is asserted is a *difference*, not a colour: the debug view and the
+/// plain surface view must not be the same picture. A brightness threshold
+/// would pass on the day the channel stopped being written and the normals
+/// happened to land in range.
 library;
 
 import 'package:flutter3d/flutter3d.dart';
+import 'package:flutter3d/parity_scene.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter3d_cpu/testing.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart';
 
-const int _width = 64;
-const int _height = 48;
+const int _width = 96;
+const int _height = 72;
 
-/// A floor, a blocker above it, and a point light above that.
+({CpuDevice device, Renderer renderer}) _engine() {
+  final it = cpuTestDevice(width: _width, height: _height);
+  return (
+    device: it.device,
+    renderer: Renderer.create(
+      device: it.device,
+      fallbackAlbedo: it.albedo,
+      fallbackNormal: it.normal,
+    ),
+  );
+}
+
+/// A floor, a torch above it, and a slab held in the light.
 ///
-/// The blocker is held clear of the floor so there is both shadow to measure a
-/// penumbra in and lit floor beyond it, where the eight-tap search finds
-/// nothing and the channel answers blue.
-({Scene scene, CameraNode camera}) _room() {
+/// The slab is clear of the floor for the reason `cube-shadow-gap` is: a caster
+/// resting on its receiver leaves the penumbra no room to open, and a debug
+/// view of an estimate that is everywhere at its floor says nothing.
+({Scene scene, CameraNode camera}) _room({bool castsShadow = true}) {
   final scene = Scene();
   final device = CpuDevice(
     width: 4,
@@ -51,91 +64,96 @@ const int _height = 48;
 
   scene
     ..add(block(Vector3(40.0, 1.0, 40.0), Vector3(0.0, -0.5, 0.0), 'floor'))
-    ..add(block(Vector3(2.0, 0.4, 2.0), Vector3(0.0, 2.5, 0.0), 'blocker'))
+    ..add(block(Vector3(1.2, 0.4, 1.2), Vector3(0.0, 2.6, 0.0), 'slab'))
     ..add(
       LightNode(
         type: LightType.point,
         intensity: 60.0,
         range: 20.0,
-        castsShadow: true,
-        name: 'lamp',
+        castsShadow: castsShadow,
+        name: 'torch',
       )..setPosition(0.0, 7.0, 0.0),
     );
 
   final camera = CameraNode()
-    ..setPosition(0.0, 8.0, -10.0)
+    ..setPosition(0.0, 9.0, -11.0)
     ..lookAt(Vector3(0.0, 0.0, 0.5));
   return (scene: scene, camera: camera);
 }
 
-/// The frame, as RGBA bytes.
-Future<List<int>> _frame({required bool debug}) async {
-  final it = cpuTestDevice(width: _width, height: _height);
-  final renderer = Renderer.create(
-    device: it.device,
-    fallbackAlbedo: it.albedo,
-    fallbackNormal: it.normal,
-  );
-  final room = _room();
-  final result = renderer.render(
+/// The frame the composite hands back, as the parity grid reads it.
+Future<List<int>> _grid(
+  ({Scene scene, CameraNode camera}) room, {
+  required RenderSettings settings,
+}) async {
+  final engine = _engine();
+  final frame = engine.renderer.render(
     width: _width,
     height: _height,
     scene: room.scene,
     views: <RenderView>[RenderView(camera: room.camera)],
-    settings: RenderSettings(
-      bloom: const BloomSettings(enabled: false),
-      // A radius of its own, so the contact-hardening search actually runs —
-      // with it at zero the estimate is the fixed kernel and the green channel
-      // has nothing to report.
-      shadows: const ShadowSettings(pointLightRadius: 0.4),
-      showPointShadowDebug: debug,
-    ),
+    settings: settings,
   );
-  final pixels = await it.device.readPixels(result.frame);
-  expect(pixels, isNotNull, reason: 'the frame could not be read back');
-  return pixels!.buffer.asUint8List();
+  final pixels = await engine.device.readPixels(frame.frame);
+  expect(pixels, isNotNull);
+  return parityGrid(pixels!.buffer.asUint8List(), _width, _height);
 }
 
-/// How many pixels are mostly one channel, by that channel's index.
-List<int> _dominant(List<int> pixels) {
-  final counts = <int>[0, 0, 0];
-  for (var at = 0; at < pixels.length; at += 4) {
-    final r = pixels[at];
-    final g = pixels[at + 1];
-    final b = pixels[at + 2];
-    final most = r >= g && r >= b ? 0 : (g >= b ? 1 : 2);
-    if (<int>[r, g, b][most] > 60) counts[most]++;
-  }
-  return counts;
-}
+RenderSettings _settings({
+  bool debug = false,
+  bool surface = false,
+  double lightRadius = 0.0,
+}) => RenderSettings(
+  bloom: const BloomSettings(enabled: false),
+  shadows: ShadowSettings(pointLightRadius: lightRadius),
+  showSurfaceBuffer: surface,
+  showPointShadowDebug: debug,
+);
 
 void main() {
-  test('the flag shows the penumbra estimate and not the normals', () async {
-    // The three colours the channel is defined in terms of. Blue is the one
-    // worth naming: it marks where the search found nothing at all, which is a
-    // different answer from "found a blocker touching the surface" and is the
-    // distinction the whole diagnostic exists to draw. An octahedral normal
-    // buffer of a floor seen from above is red and green and has no blue in it,
-    // so blue is also what tells the two pictures apart.
-    //
-    // Mutation: delete the `if (debugging)` block in
-    // `cpu_shaders_shadow_point.dart` — the surface buffer comes back as
-    // normals, there is no blue, and this fails. Delete the `debugSurface`
-    // branch in `writeSurface` and it fails the same way, which is the other
-    // half of the same wire.
-    final debug = await _frame(debug: true);
-    final plain = await _frame(debug: false);
+  test('the estimate is a different picture from the surface buffer', () async {
+    // Mutation: drop the `if (debug)` writes in
+    // `cpu_shaders_shadow_point.dart`, or the `c.debugSurface` branch in
+    // `writeSurface`, and the two grids come back identical — which is the
+    // state this backend shipped in.
+    final room = _room();
+    final surface = await _grid(room, settings: _settings(surface: true));
+    final estimate = await _grid(room, settings: _settings(debug: true));
 
-    expect(debug, isNot(equals(plain)), reason: 'the flag changed nothing');
-
-    final counts = _dominant(debug);
     expect(
-      counts[2],
-      greaterThan(100),
-      reason:
-          'no fragment reported "the search found nothing", which is what the '
-          'lit floor beyond the blocker is: the surface buffer is showing '
-          'something other than the estimate',
+      estimate,
+      isNot(surface),
+      reason: 'the debug view drew the ordinary surface buffer',
     );
+  });
+
+  test('and so it is with a light wide enough to search for blockers', () async {
+    // The other branch. A radius above zero runs the blocker search, so the
+    // estimate comes from a measured penumbra rather than from the floor of the
+    // clamp; a transcription that filled the channel in only one of the two
+    // would pass the test above and fail here.
+    final room = _room();
+    final surface = await _grid(
+      room,
+      settings: _settings(surface: true, lightRadius: 0.3),
+    );
+    final estimate = await _grid(
+      room,
+      settings: _settings(debug: true, lightRadius: 0.3),
+    );
+
+    expect(estimate, isNot(surface));
+  });
+
+  test('a light that casts nothing writes no estimate at all', () async {
+    // The channel belongs to the shadow lookup, and a lookup that never runs
+    // must leave the buffer as the geometry wrote it. Without this, the test
+    // above would also pass for a transcription that painted the channel from
+    // somewhere unrelated to the shadow.
+    final dark = _room(castsShadow: false);
+    final surface = await _grid(dark, settings: _settings(surface: true));
+    final estimate = await _grid(dark, settings: _settings(debug: true));
+
+    expect(estimate, surface);
   });
 }

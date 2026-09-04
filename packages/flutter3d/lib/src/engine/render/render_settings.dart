@@ -12,7 +12,6 @@ export 'auto_exposure.dart';
 export 'frame_result.dart';
 export 'shadow_settings.dart';
 
-/// Scene-wide shading knobs that are not per-material.
 /// Screen-space reflections.
 ///
 /// Off by default: it costs a full-screen pass and the surface buffer that
@@ -68,6 +67,26 @@ final class ReflectionSettings {
 /// average of two octahedral normals encodes no normal — so the antialiasing of
 /// the entire frame changes with it. That is measured and written down here
 /// rather than discovered by a reviewer who blames the occlusion for the edges.
+/// Nothing has yet paid that price in a shipped frame: no golden and no
+/// application in this repository turns the effect on.
+///
+/// **One backend draws it in a check; the other two only prove it links.** The
+/// software rasteriser's `flutter3d_cpu/test/ssao_test.dart` is the only place
+/// in the tree where the occlusion is compared against a picture — an inside
+/// corner darker than a flat wall, the sky occluding nothing, and off being
+/// exactly off. What Impeller and WebGL have is that the shader compiles into
+/// the bundle and that `('FullscreenVertex', 'Ssao')` links, in
+/// `flutter3d_webgl/test/engine_parity_test.dart`, which says nothing about
+/// what it darkens: the two GPU transcriptions of this march have never been
+/// compared to anything, or to each other.
+///
+/// Said here rather than left for a reader to work out, because the choices
+/// that make the software pass an oracle — the twelve kernel taps written out
+/// as a table on both sides, the rotation picked from the parity of the pixel,
+/// the bias in metres — were argued from the GLSL and are only as good as that
+/// reading. Closing it is a `ParityScene` and a golden recorded on three
+/// backends, one of which needs a device; that is a decision about the golden
+/// sets rather than an edit here.
 final class AmbientOcclusionSettings {
   const AmbientOcclusionSettings({
     this.enabled = false,
@@ -165,6 +184,23 @@ final class XraySettings {
   static final vm.Vector3 _defaultColor = vm.Vector3(1.0, 0.32, 0.08);
 }
 
+/// Scene-wide shading knobs that are not per-material.
+///
+/// **One value passed to `Renderer.render`, and nothing here is state.** A
+/// caller builds the settings for a frame and hands them over; the renderer
+/// keeps no copy of them, which is what lets a debug view be switched on for
+/// one frame and off for the next without anything having to be switched back.
+/// What does cross a frame boundary is measured rather than remembered from
+/// here — the exposure meter, and what it answers is [autoExposure]'s to
+/// explain. [copyWith] is how a frame is derived
+/// from the last one — and every field belongs in it, which
+/// `test/render_settings_test.dart` is there to insist on, having caught seven
+/// that did not.
+///
+/// That first line used to sit at the top of the file, above
+/// [ReflectionSettings] and separated from this class by four others — so the
+/// most-used type in the public API had no doc comment at all, and the summary
+/// written for it introduced something else.
 final class RenderSettings {
   const RenderSettings({
     this.specular = 1.0,
@@ -237,6 +273,24 @@ final class RenderSettings {
   /// readback of it, and the composite exposes with what the meter answered a
   /// frame or two ago, adapted at the settings' rate.
   final AutoExposureSettings autoExposure;
+
+  /// Draws the scene's triangles as lines.
+  ///
+  /// **Two of the three backends decline it**, which is the one thing a caller
+  /// has to know before reaching for it. It is a polygon
+  /// mode, and OpenGL ES has no `glPolygonMode` — so the WebGL backend and the
+  /// software rasteriser both answer false to
+  /// `GraphicsDevice.supportsWireframe`, and the engine declines the setting on
+  /// their behalf rather than sending a request they would refuse mid-frame.
+  /// Only Impeller draws it.
+  ///
+  /// A declined frame is a solid model and no exception, so the frame says so
+  /// instead: [FrameResult.wireframeDeclined] is true exactly when this was
+  /// asked for and could not be given. Ask that rather than the picture.
+  ///
+  /// Making it work everywhere is not a backend's to invent: lines from a
+  /// triangle list need an index buffer built for them, which is geometry work
+  /// in this package rather than a translation in a backend.
   final bool wireframe;
   final bool backfaceCulling;
 
@@ -367,11 +421,14 @@ final class RenderSettings {
 
   /// This one with some fields replaced.
   ///
-  /// **Every field, and that is the whole point of the test beside it.** Six
+  /// **Every field, and that is the whole point of the test beside it.** Seven
   /// were missing here — `surfaceBuffer`, `showSurfaceBuffer`, `showShadowMap`,
-  /// `showPointShadowDebug`, `reflections` and `fog` — so calling `copyWith` to
-  /// change the exposure silently switched reflections and fog back off and
-  /// turned three debug views off with them. A `copyWith` that drops a field is
+  /// `showStaticShadowMap`, `showPointShadowDebug`, `reflections` and `fog` —
+  /// so calling `copyWith` to change the exposure silently switched reflections
+  /// and fog back off and turned four debug views off with them. Six were
+  /// found at once; the seventh went on being dropped for as long as this file
+  /// watched the other six, and took an audit to find. A `copyWith` that drops
+  /// a field is
   /// a peculiarly quiet bug: it does exactly what was asked *and* something
   /// else, and the something else looks like the feature never worked.
   ///

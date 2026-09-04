@@ -15,6 +15,7 @@ library;
 
 import 'package:flutter3d/src/engine/render/debug_draw.dart';
 import 'package:flutter3d/src/engine/render/renderer.dart';
+import 'package:flutter3d/src/engine/render/sky_settings.dart';
 import 'package:flutter3d/src/engine/scene/scene_node.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart';
@@ -33,6 +34,7 @@ void main() {
       highlighted: highlighted,
       tonemap: false,
       bloom: const BloomSettings(enabled: false, intensity: 0.125),
+      look: const LookSettings(contrast: 1.25),
       shadows: const ShadowSettings(enabled: false, resolution: 256),
       surfaceBuffer: true,
       showSurfaceBuffer: true,
@@ -40,7 +42,9 @@ void main() {
       showStaticShadowMap: true,
       showPointShadowDebug: true,
       reflections: const ReflectionSettings(enabled: true),
+      ambientOcclusion: const AmbientOcclusionSettings(enabled: true),
       fog: FogSettings(color: Vector3(0.1, 0.2, 0.3), density: 0.05),
+      sky: const SkySettings(enabled: true),
       anisotropy: 8,
       autoExposure: const AutoExposureSettings(enabled: true),
       xray: XraySettings(color: Vector3(0.9, 0.1, 0.1), layerMask: 4),
@@ -56,6 +60,15 @@ void main() {
     expect(copy.highlighted, same(original.highlighted));
     expect(copy.tonemap, original.tonemap);
     expect(copy.bloom, same(original.bloom));
+    expect(
+      copy.look,
+      same(original.look),
+      reason:
+          'look, ambientOcclusion and sky were the three this round trip '
+          'never looked at: the doc above and on `copyWith` both said every '
+          'field, and an eighth dropped one would have been any of these '
+          'three without a word from here',
+    );
     expect(copy.shadows, same(original.shadows));
     expect(
       copy.surfaceBuffer,
@@ -93,7 +106,13 @@ void main() {
       same(original.reflections),
       reason: 'reflections was one of the six',
     );
+    expect(
+      copy.ambientOcclusion,
+      same(original.ambientOcclusion),
+      reason: 'see look, above',
+    );
     expect(copy.fog, same(original.fog), reason: 'fog was one of the six');
+    expect(copy.sky, same(original.sky), reason: 'see look, above');
     expect(
       copy.anisotropy,
       original.anisotropy,
@@ -164,9 +183,9 @@ void main() {
     // **One number, two legal ranges, and neither was written down.** The
     // cascade pass clamped to 256–4096 and the cube atlas to 128–1024, in two
     // files, as literals — which reads as one of them being a typo. It is not:
-    // the cube atlas holds six faces of four lights side by side, so the tile
-    // size that gives a cascade a 4096-pixel texture would give the atlas a
-    // 24,576-pixel one.
+    // the cube atlas holds six faces of `Renderer.kShadowedLights` lights side
+    // by side, so the tile size that gives a cascade a 4096-pixel texture would
+    // give the atlas a 24,576-pixel one.
     expect(
       ShadowSettings.maxCubeTile * 6,
       lessThanOrEqualTo(ShadowSettings.maxResolution * 6 ~/ 2),
@@ -188,6 +207,34 @@ void main() {
     expect(
       settings.resolution,
       greaterThanOrEqualTo(ShadowSettings.minCubeTile),
+    );
+  });
+
+  test('the atlas the doc quotes is the atlas the constants make', () {
+    // **The figures in `cubeResolution`'s doc comment are recountable here.**
+    // They were written when the atlas had four rows, and raising
+    // `kShadowedLights` to six left "the atlas holds twenty-four" standing
+    // twenty-three lines above "the atlas holds thirty-six" — two sentences
+    // about the same texture that cannot both be used. Prose cannot be made to
+    // fail; this can.
+    //
+    // Mutation: `kShadowedLights = 4` fails every expectation below, which is
+    // exactly the edit that made the prose wrong and nothing noticed.
+    const settings = ShadowSettings();
+    expect(
+      6 * Renderer.kShadowedLights,
+      36,
+      reason: 'the doc says the atlas holds thirty-six faces',
+    );
+    expect(
+      settings.cubeResolution * 6,
+      3072,
+      reason: 'the doc says the default atlas is 3072 across',
+    );
+    expect(
+      settings.cubeResolution * Renderer.kShadowedLights,
+      3072,
+      reason: 'the doc says it is square at the default, which needs six rows',
     );
   });
 }

@@ -1,5 +1,10 @@
+import 'dart:typed_data';
+
 import 'package:flutter3d/src/engine/render/frame_graph.dart';
 import 'package:flutter3d/src/engine/render/render_node.dart';
+import 'package:flutter3d/src/engine/render/renderer.dart';
+import 'package:flutter3d_hardware/flutter3d_hardware.dart';
+import 'package:flutter3d_hardware/testing.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 /// A node that throws if it is ever asked to draw.
@@ -99,5 +104,42 @@ void main() {
 
     expect(compiled.order, isEmpty);
     expect(compiled.culled.map((n) => n.name), <String>['ignored']);
+  });
+
+  group('the registry a renderer hands out', () {
+    test('Renderer.addNode puts a node in the phase it names', () {
+      // **The seam's own method could not say `present`.** `Renderer.addNode`
+      // took no phase, so the one thing `FramePhase` exists to make sayable
+      // was reachable only by going around it — `renderer.nodes.add(node,
+      // phase: …)` — and every caller who used the documented method got the
+      // overlay default. That is the arrangement `FramePhase.present` was
+      // added because it fails silently: the composite overwrites the pass,
+      // which ran and cost its time.
+      //
+      // Mutation: dropping `phase: phase` from `Renderer.addNode`'s body puts
+      // the node back in the overlay list and both expectations fail.
+      final device = FakeBackend();
+      final texel = device.createTextureFromPixels(
+        width: 1,
+        height: 1,
+        format: TextureFormat.r8g8b8a8UNormInt,
+        pixels: ByteData(4),
+      )!;
+      final renderer = Renderer.create(
+        device: device,
+        fallbackAlbedo: texel,
+        fallbackNormal: texel,
+      )..addNode(const ThrowingNode('decal'));
+      renderer.addNode(const ThrowingNode('grade'), phase: FramePhase.present);
+
+      expect(
+        renderer.nodes.of(FramePhase.present).map((RenderNode n) => n.name),
+        <String>['grade'],
+      );
+      expect(
+        renderer.nodes.of(FramePhase.overlay).map((RenderNode n) => n.name),
+        <String>['decal'],
+      );
+    });
   });
 }
