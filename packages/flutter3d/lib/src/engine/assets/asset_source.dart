@@ -10,7 +10,29 @@ import 'gltf/gltf.dart';
 /// A sendable *description* rather than a resolver closure, because that is what
 /// crosses an isolate boundary: the background isolate reconstructs the resolver
 /// from this instead of receiving a callback that closes over the asset bundle.
-sealed class AssetSource {
+///
+/// **Open, and without a registry.** A game whose assets live somewhere this
+/// package has never heard of — inside an archive, behind a network cache, in a
+/// database — writes its own source and passes it. Sealing said the engine has
+/// the full list of places an asset can be, which was never true.
+///
+/// A registry was the obvious way to open it and is the wrong one here, for the
+/// reason [ModelLoadRequest.decoders] is written down at length: decoding runs
+/// on a background isolate, statics are not shared across isolates in Dart, and
+/// a registry filled at startup in the main isolate is empty in the one that
+/// does the reading. It would work in a test and fail in the application. So a
+/// source travels with the request exactly as a decoder does — which means it
+/// must be **sendable**: a plain object holding plain data. A source that
+/// closes over a texture, a device or a port cannot cross and will say so at
+/// run time.
+///
+/// `base`: extend it, do not implement it, so a member added here later is
+/// inherited rather than missing.
+///
+/// A subclass owes [key], [read] and [resolveUri]. [key] is the cache key, so
+/// two sources naming the same file must agree on it and two naming different
+/// files must not collide — prefix it the way the two below do.
+abstract base class AssetSource {
   const AssetSource();
 
   /// Stable identity, used as the cache key.

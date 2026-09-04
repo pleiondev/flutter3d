@@ -204,4 +204,52 @@ void main() {
       expect(documents, hasLength(3));
     });
   });
+
+  group('a source a game writes', () {
+    // Sealed said the engine has the full list of places an asset can be. An
+    // archive, a network cache and a database are all places a game keeps its
+    // models, and none of the two shipped here is one.
+
+    test('is read and resolves its siblings like the built-in ones', () async {
+      final document = await decodeModel(
+        const ModelLoadRequest(source: _InMemorySource()),
+      );
+
+      expect(document.nodes, isNotEmpty);
+    });
+
+    test('and is sendable, which is what a registry could not have been',
+        () async {
+      // The isolate path sends the whole request. A registry filled in the
+      // main isolate is empty in this one — the failure `ModelLoadRequest`
+      // documents, and the reason a source travels rather than being looked
+      // up. If this source could not cross, this throws.
+      final document = await decodeModelInIsolate(
+        const ModelLoadRequest(source: _InMemorySource()),
+      );
+
+      expect(document.nodes, isNotEmpty);
+    });
+  });
+}
+
+/// A model held in the test rather than on disk, written as a game would write
+/// a source of its own: plain data, no closures, nothing that cannot be sent.
+final class _InMemorySource extends AssetSource {
+  const _InMemorySource();
+
+  @override
+  String get key => 'memory:cube.obj';
+
+  @override
+  Future<Uint8List> read() async => Uint8List.fromList(
+    utf8.encode(
+      'v 0 0 0\nv 1 0 0\nv 0 1 0\nf 1 2 3\n',
+    ),
+  );
+
+  @override
+  AssetUriResolver get resolveUri =>
+      (AssetRequest request) async =>
+          throw StateError('nothing here has a sibling, but $request was');
 }

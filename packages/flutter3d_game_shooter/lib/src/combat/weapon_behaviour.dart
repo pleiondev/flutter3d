@@ -59,9 +59,27 @@ final class WeaponShot {
 /// rate and spread get adjusted by feel hundreds of times, and putting them in
 /// subclasses would mean a rebuild per tweak and a class per gun. Behaviour is
 /// polymorphic; tuning is not.
-sealed class WeaponBehaviour {
+/// **Open, and `base` rather than sealed.** Sealing said this package has the
+/// full list of ways a shot can arrive, which is not a claim a template gets to
+/// make: a beam that charges, a shot that arcs, a spell that seeks are all ways
+/// a game written on this delivers a weapon, and none of the three below is
+/// one. A game extends this and writes its own [deliver]; nothing here
+/// switches over the type, which is why opening it costs nothing.
+///
+/// `base` so that a member added here later is inherited rather than missing —
+/// see [Shape] in the engine for the same reasoning. A game's behaviour is
+/// `final class MyBeam extends WeaponBehaviour`.
+///
+/// [deliver] is handed the whole [WeaponShot]: the world, the hitscan, the
+/// projectile system, where the shot came from and where it is pointed. That
+/// is deliberately everything the three below need between them, so a
+/// behaviour written outside this package is not held to a narrower seam than
+/// the ones inside it.
+abstract base class WeaponBehaviour {
   const WeaponBehaviour();
 
+  /// Puts this shot into the world. Called once per trigger pull, inside the
+  /// step, with [WeaponShot.hits] ready to be filled.
   void deliver(WeaponShot shot);
 }
 

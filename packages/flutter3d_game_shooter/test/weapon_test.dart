@@ -501,4 +501,69 @@ void main() {
       expect(<AmmoType, int>{cells: 1}[const AmmoType('cells')], 1);
     });
   });
+
+  group('a delivery a game invents', () {
+    // Sealed said this package has the full list of ways a shot can arrive.
+    // A beam that charges, a shot that arcs and a spell that seeks are all
+    // ways a game delivers a weapon, and none of the three shipped here is
+    // one. Nothing switches over the type, so opening it cost nothing.
+
+    test('is handed the same shot the built-in ones are', () {
+      final world = CollisionWorld()
+        ..addBox(Vector3(0.0, 0.0, -4.0), Vector3(4.0, 4.0, 1.0))
+        ..update();
+      final random = GameRandom(3);
+      final shot = WeaponShot(
+        world: world,
+        hitscan: Hitscan(world: world, random: random),
+        projectiles: ProjectileSystem(world: world),
+      );
+      final behaviour = _TwiceOver();
+
+      shot.begin(
+        const WeaponDef(
+          name: 'coil',
+          behaviour: _TwiceOver(),
+          ammo: AmmoType.bullets,
+          damage: 10.0,
+          shotsPerSecond: 2.0,
+        ),
+        Vector3.zero(),
+        Vector3(0.0, 0.0, -1.0),
+      );
+      behaviour.deliver(shot);
+
+      // Two rays down one line: what the built-in hitscan does once, done
+      // twice by a class this package has never heard of.
+      expect(shot.hits, hasLength(2));
+      expect(behaviour.deliveries, 1);
+    });
+  });
+}
+
+/// A weapon behaviour written the way a game would write one.
+///
+/// Fires the ordinary hitscan twice, which is not something any of the three
+/// built-in deliveries can be configured into.
+final class _TwiceOver extends WeaponBehaviour {
+  const _TwiceOver();
+
+  static int deliveriesMade = 0;
+
+  int get deliveries => deliveriesMade;
+
+  @override
+  void deliver(WeaponShot shot) {
+    deliveriesMade += 1;
+    for (var i = 0; i < 2; i++) {
+      shot.hits.addAll(
+        shot.hitscan.fire(
+          shot.weapon,
+          shot.origin,
+          shot.aim,
+          ignore: shot.shooter,
+        ),
+      );
+    }
+  }
 }
