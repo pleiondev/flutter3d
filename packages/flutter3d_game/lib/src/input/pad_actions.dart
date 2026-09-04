@@ -165,6 +165,15 @@ final class PadInput {
 
   final Vector2 _look = Vector2.zero();
 
+  /// The only handle a [PadStickUse] gets on this pad.
+  ///
+  /// An adapter rather than `implements PadStickTarget` on this class: a use is
+  /// given the two things a stick can mean and the one number the second needs,
+  /// and nothing about bindings, triggers or slots. Handing it the pad itself
+  /// would make every public member of this class part of the contract a
+  /// third-party stick use is written against.
+  late final PadStickTarget _target = _StickTarget(this);
+
   bool _wasConnected = false;
 
   bool get isSupported => pad.isSupported;
@@ -292,26 +301,8 @@ final class PadInput {
       ..setSetting('pad.deadzone.trigger', pad.deadzone.trigger);
   }
 
-  void _routeStick(PadStickUse use, double x, double y, double dt) {
-    switch (use) {
-      case PadStickUse.ignored:
-        break;
-      case PadStickUse.move:
-        // Y is negated because a pad reports positive downwards — Apple's
-        // convention and the browser's, which the device package passes on
-        // unchanged rather than flipping where a reader cannot see it. Forward
-        // is positive here, so the flip happens in the open.
-        state.setStickAxis(x, -y);
-      case PadStickUse.look:
-        // Not negated: the mouse also reports positive downwards, and the
-        // camera subtracts. A stick that agreed with the mouse about x and
-        // disagreed about y would be a bug nobody could find by reading.
-        _look.setValues(
-          _look.x + x * routes.lookRate * dt,
-          _look.y + y * routes.lookRate * dt,
-        );
-    }
-  }
+  void _routeStick(PadStickUse use, double x, double y, double dt) =>
+      use.route(_target, x, y, dt);
 
   /// A control that has a magnitude as well as a bit.
   void _analogue(GameAction action, double magnitude) {
@@ -361,12 +352,12 @@ final class PadInput {
     _holding.clear();
     _speaking.clear();
     _look.setZero();
-    // Only if the pad was the one writing it. A game whose stick is routed to
-    // nothing has never touched the axis and must not start now.
-    if (routes.leftStick == PadStickUse.move ||
-        routes.rightStick == PadStickUse.move) {
-      state.setStickAxis(0.0, 0.0);
-    }
+    // Each use releases whatever it writes, and a use that writes nothing
+    // outside the frame releases nothing — which is how a game whose stick is
+    // routed to nothing goes on never having touched the axis. Both sticks are
+    // asked; two sticks that both move clear the same axis twice, harmlessly.
+    routes.leftStick.letGo(_target);
+    routes.rightStick.letGo(_target);
   }
 
   /// Marks an entry in [_holding] that came from an axis rather than a button,
@@ -376,4 +367,21 @@ final class PadInput {
   /// Stands in for "this button is down and selects a slot", which holds no
   /// action and must never be released as one.
   static const GameAction _slotSentinel = GameAction('');
+}
+
+/// [PadStickTarget] over one [PadInput].
+final class _StickTarget implements PadStickTarget {
+  const _StickTarget(this._pad);
+
+  final PadInput _pad;
+
+  @override
+  void setStickAxis(double x, double y) => _pad.state.setStickAxis(x, y);
+
+  @override
+  void addLook(double dx, double dy) =>
+      _pad._look.setValues(_pad._look.x + dx, _pad._look.y + dy);
+
+  @override
+  double get lookRate => _pad.routes.lookRate;
 }

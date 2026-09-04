@@ -44,6 +44,31 @@ final class FakePad extends GamepadPlatform {
 Gamepad _bare(FakePad fake) =>
     Gamepad(platform: fake, deadzone: const Deadzone(stick: 0.0, trigger: 0.0));
 
+/// A fourth stick use, written the way a game would write one.
+///
+/// Nothing in `flutter3d_game` knows this exists, which is the point: it is
+/// routed because a use carries its own [PadStickUse.route], not because
+/// something in the package has a case for it.
+final class _LeanStick extends PadStickUse {
+  double roll = 0.0;
+  double pitch = 0.0;
+
+  @override
+  String get name => 'lean';
+
+  @override
+  void route(PadStickTarget to, double x, double y, double dt) {
+    roll = x;
+    pitch = y;
+  }
+
+  @override
+  void letGo(PadStickTarget of) {
+    roll = 0.0;
+    pitch = 0.0;
+  }
+}
+
 void main() {
   const dash = GameAction('dash');
   const throttle = GameAction('throttle');
@@ -95,6 +120,67 @@ void main() {
       ).tick(1 / 60);
 
       expect(input.moveAxis.x, 0.0);
+    });
+  });
+
+  group('a stick use written outside this package', () {
+    // The three built in are instances rather than cases, so a game can add a
+    // fourth. Before that they were an enum switched over in one method: a game
+    // could not say its stick leans the ship, and adding a value to say so
+    // broke every `switch` in every game already shipped.
+    //
+    // `_LeanStick` below is exactly what a game would write, and it is written
+    // in a test file on purpose — if this compiles here it compiles there.
+
+    test('is routed, with no case in this package knowing it exists', () {
+      final fake = FakePad()..state.setAxis(PadAxis.leftStickX, 0.5);
+      final lean = _LeanStick();
+      PadInput(
+        state: InputState(),
+        pad: _bare(fake),
+        routes: PadRoutes(leftStick: lean, rightStick: PadStickUse.ignored),
+      ).tick(1 / 60);
+
+      expect(lean.roll, closeTo(0.5, 1e-9));
+    });
+
+    test('is asked to let go with the rest of the pad', () {
+      // What `letGo` is for: a use that writes somewhere outliving the frame
+      // has to clear it, and only a use that was writing may. The built-in
+      // `move` does; `look` does not, because its delta dies with the frame.
+      final fake = FakePad()..state.setAxis(PadAxis.leftStickX, 1.0);
+      final lean = _LeanStick();
+      final pad = PadInput(
+        state: InputState(),
+        pad: _bare(fake),
+        routes: PadRoutes(leftStick: lean, rightStick: PadStickUse.ignored),
+      )..tick(1 / 60);
+
+      expect(lean.roll, closeTo(1.0, 1e-9));
+      fake.state.connected = false;
+      pad.tick(1 / 60);
+      expect(lean.roll, 0.0, reason: 'the pad went away and the roll stayed');
+    });
+
+    test('gets the deflection the device reported, unflipped', () {
+      // Whether y wants negating depends on what the use means, so the engine
+      // does not decide it. A pad reports positive downwards; this asserts the
+      // use is handed that, rather than something already turned over for it.
+      final fake = FakePad()..state.setAxis(PadAxis.leftStickY, -1.0);
+      final lean = _LeanStick();
+      PadInput(
+        state: InputState(),
+        pad: _bare(fake),
+        routes: PadRoutes(leftStick: lean, rightStick: PadStickUse.ignored),
+      ).tick(1 / 60);
+
+      expect(lean.pitch, closeTo(-1.0, 1e-9));
+    });
+
+    test('and the three built in still answer to their names', () {
+      expect(PadStickUse.move.name, 'move');
+      expect('${PadStickUse.look}', 'PadStickUse.look');
+      expect(PadStickUse.ignored.name, 'ignored');
     });
   });
 

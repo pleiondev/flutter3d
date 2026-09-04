@@ -24,7 +24,18 @@ import 'package:vector_math/vector_math.dart';
 /// Negating Y would mirror the image and, because mirroring reverses triangle
 /// orientation on screen, make backface culling discard exactly the faces meant
 /// to be visible.
-sealed class Projection {
+///
+/// **Open, and it was sealed for no reason this file could name.** A sealed type
+/// is a promise that the engine has the full list, which is worth making when
+/// something switches over it — nothing here ever did, because the matrix maths
+/// is polymorphic and that was the whole design. What sealing bought was a
+/// closed set; what it cost was that nobody outside this package could write a
+/// projection. A skewed one for a portal is the case that made the point.
+///
+/// A subclass owes [toMatrix], [near] and [far], and owes them in this file's
+/// depth convention: `[0, 1]`, +Y up, Y not flipped. Everything above is the
+/// contract, not a description of the two below.
+abstract class Projection {
   const Projection();
 
   /// Builds the projection matrix for a given viewport aspect ratio.

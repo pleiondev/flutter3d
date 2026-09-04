@@ -3,17 +3,118 @@ import 'package:pad_input/pad_input.dart';
 
 import '../config/game_config.dart';
 
+/// What a [PadStickUse] is allowed to do with a deflection.
+///
+/// Narrow on purpose. A stick use gets the two things a stick has ever meant
+/// here and the one number it needs to mean the second of them, and nothing
+/// else about the pad, the bindings or the frame — so a use written outside
+/// this package cannot reach past its own job.
+abstract interface class PadStickTarget {
+  /// Movement, in the simulation's units, forward positive.
+  ///
+  /// The caller has already flipped what the device reports; see
+  /// [PadStickUse.move].
+  void setStickAxis(double x, double y);
+
+  /// Adds to this frame's view turn, in the mouse's units.
+  void addLook(double dx, double dy);
+
+  /// How far the view turns per second at full deflection. [PadRoutes.lookRate].
+  double get lookRate;
+}
+
 /// What a stick's two axes are for.
-enum PadStickUse {
+///
+/// **Open, and opening the list alone would have been useless.** This was an
+/// enum of three, switched over in one method — so a game could not say its
+/// stick leans the ship, and adding a value to say so broke every `switch` in
+/// every game already shipped. Opening only the vocabulary would have left an
+/// open list with a closed interpreter: a game could name its use and nothing
+/// would know how to run it.
+///
+/// So the interpretation moved onto the value. A use *is* what it does with a
+/// deflection, and a game's own use brings its own [route] — which is why the
+/// three below are instances rather than cases, and why there is no `switch`
+/// left to break.
+abstract class PadStickUse {
+  const PadStickUse();
+
+  /// For logs and error messages. Not persisted: what a stick is for is a
+  /// property of the genre, written in code, and never read back from a file.
+  String get name;
+
+  /// Applies one frame's deflection, already dead-zoned, in `-1..1`.
+  ///
+  /// `y` is what the device reported: positive downwards, which is Apple's
+  /// convention and the browser's. Whether that wants negating depends on what
+  /// the use means, so it is left for the use to decide rather than flipped
+  /// where a reader cannot see it.
+  void route(PadStickTarget to, double x, double y, double dt);
+
+  /// Returns whatever this use writes to neutral, when the pad is let go of.
+  ///
+  /// Default: nothing. A use that only accumulates into the frame's own look
+  /// delta has nothing to release, because the delta is cleared with the pad.
+  /// Override it when the use writes somewhere that outlives the frame.
+  void letGo(PadStickTarget of) {}
+
+  @override
+  String toString() => 'PadStickUse.$name';
+
   /// Nothing. A racing game's left stick steers through [PadAxisPair] instead,
   /// and its right stick does not exist.
-  ignored,
+  static const PadStickUse ignored = _IgnoredStick();
 
   /// Movement, through [InputState.setStickAxis].
-  move,
+  static const PadStickUse move = _MoveStick();
 
   /// Turning the view, integrated over time — see [PadRoutes.lookRate].
-  look,
+  static const PadStickUse look = _LookStick();
+}
+
+final class _IgnoredStick extends PadStickUse {
+  const _IgnoredStick();
+
+  @override
+  String get name => 'ignored';
+
+  @override
+  void route(PadStickTarget to, double x, double y, double dt) {}
+}
+
+final class _MoveStick extends PadStickUse {
+  const _MoveStick();
+
+  @override
+  String get name => 'move';
+
+  @override
+  void route(PadStickTarget to, double x, double y, double dt) {
+    // Y is negated because a pad reports positive downwards. Forward is
+    // positive in the simulation, so the flip happens in the open.
+    to.setStickAxis(x, -y);
+  }
+
+  /// The axis outlives the frame, so letting go of the pad has to clear it —
+  /// and only a stick that was writing it may, since a game whose stick is
+  /// routed to nothing has never touched the axis and must not start now.
+  @override
+  void letGo(PadStickTarget of) => of.setStickAxis(0.0, 0.0);
+}
+
+final class _LookStick extends PadStickUse {
+  const _LookStick();
+
+  @override
+  String get name => 'look';
+
+  @override
+  void route(PadStickTarget to, double x, double y, double dt) {
+    // Not negated: the mouse also reports positive downwards, and the camera
+    // subtracts. A stick that agreed with the mouse about x and disagreed
+    // about y would be a bug nobody could find by reading.
+    to.addLook(x * to.lookRate * dt, y * to.lookRate * dt);
+  }
 }
 
 /// A signed axis routed to two actions, one per direction.
