@@ -25,12 +25,26 @@ final class VehicleInput {
   /// Whether the driver is spending boost, if the car has any.
   bool boost = false;
 
+  /// How much of the air is already out of the way, from nought to one.
+  ///
+  /// **A slipstream is less drag, and drag is the car's business**, so what
+  /// arrives here is how sheltered the car is and not a force. One means the
+  /// air ahead is completely still, which nothing produces; the simulation
+  /// fills it from how close and how directly behind another car this one is.
+  ///
+  /// On the input rather than on [VehicleController] because that interface
+  /// answers questions about the car and this is something being done to it —
+  /// and because a recorded lap replays through the same object, so a ghost
+  /// driven in somebody's wake is driven in it again.
+  double shelter = 0.0;
+
   void reset() {
     throttle = 0.0;
     brake = 0.0;
     steer = 0.0;
     handbrake = false;
     boost = false;
+    shelter = 0.0;
   }
 
   void setFrom(VehicleInput other) {
@@ -39,6 +53,7 @@ final class VehicleInput {
     steer = other.steer;
     handbrake = other.handbrake;
     boost = other.boost;
+    shelter = other.shelter;
   }
 }
 

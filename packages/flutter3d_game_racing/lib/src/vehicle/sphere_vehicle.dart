@@ -216,7 +216,7 @@ final class SphereVehicle implements VehicleController {
     if (_grounded) {
       _applyTires(dt, limit, forwardSpeed);
     }
-    _applyGravityAndDrag(dt);
+    _applyGravityAndDrag(dt, input);
     _rollAndHold(dt);
     _move(dt);
     _holdInsideBarrier();
@@ -520,7 +520,7 @@ final class SphereVehicle implements VehicleController {
     );
   }
 
-  void _applyGravityAndDrag(double dt) {
+  void _applyGravityAndDrag(double dt, VehicleInput input) {
     if (_grounded) {
       // Down the slope, not down the world: the part of gravity that would push
       // the car into the road is held by the road.
@@ -538,7 +538,11 @@ final class SphereVehicle implements VehicleController {
 
     final speedNow = speed;
     if (speedNow > 0.0) {
-      velocity.addScaled(velocity, -tuning.airDrag * speedNow * dt);
+      // Sheltered air is air already moving with the car in front, so it
+      // pushes back less. Linear in the shelter rather than in the speed,
+      // because what a driver feels is the tow rather than the arithmetic.
+      final drag = tuning.airDrag * (1.0 - input.shelter * tuning.slipstream);
+      velocity.addScaled(velocity, -drag * speedNow * dt);
     }
   }
 

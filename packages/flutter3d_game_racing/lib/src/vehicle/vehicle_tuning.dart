@@ -16,6 +16,7 @@ final class VehicleTuning {
     this.holdSpeed = 0.7,
     this.holdSlope = 1.2,
     this.airDrag = 0.0006,
+    this.slipstream = 0.34,
     this.maxSteer = 0.62,
     this.steerFalloff = 26.0,
     this.wheelBase = 2.7,
@@ -55,6 +56,17 @@ final class VehicleTuning {
   /// Drag per unit of speed squared. What gives the car a top speed without one
   /// having to be enforced.
   final double airDrag;
+
+  /// How much of the air drag a car in a perfect tow escapes, from nought to
+  /// one.
+  ///
+  /// **A third, and that is a decision rather than a measurement.** A real
+  /// slipstream is worth more than that and would make the tow irresistible:
+  /// on a circuit where the cars are close, anything above about a half turns
+  /// every straight into a rubber band and the driver in front cannot defend.
+  /// A third is enough to be felt on a long straight and not enough to hand
+  /// the place over.
+  final double slipstream;
 
   /// How hard a coasting car slows down, in metres per second squared.
   ///

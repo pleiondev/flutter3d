@@ -656,4 +656,40 @@ void main() {
       expect(first.z, second.z);
     });
   });
+
+  group('the slipstream', () {
+    // Named in this file's own comments as the thing that was missing: the
+    // exit of the last corner stops mattering when a tow can hand the place
+    // back on the straight.
+
+    test('a sheltered car keeps more of its speed than a bare one', () {
+      double coastFrom(double shelter) {
+        final it = onFlat();
+        final input = VehicleInput()..shelter = shelter;
+        it.car.placeAt(it.car.position, 0.0, trackDistance: 0.0);
+        it.car.velocity.setValues(0.0, 0.0, -60.0);
+        for (var i = 0; i < 120; i++) {
+          it.car.step(1 / 60, input);
+        }
+        return it.car.speed;
+      }
+
+      final bare = coastFrom(0.0);
+      final towed = coastFrom(1.0);
+
+      expect(towed, greaterThan(bare));
+      // And by the amount the tuning says, not by an arbitrary one: a third of
+      // the drag is escaped at a perfect tow.
+      expect(towed - bare, greaterThan(0.05));
+    });
+
+    test('and a car with nothing in front of it is not sheltered', () {
+      final input = VehicleInput();
+      expect(input.shelter, 0.0);
+
+      input.shelter = 0.5;
+      input.reset();
+      expect(input.shelter, 0.0, reason: 'a stale tow survived the reset');
+    });
+  });
 }

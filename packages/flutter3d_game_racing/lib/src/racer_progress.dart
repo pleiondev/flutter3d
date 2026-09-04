@@ -40,6 +40,29 @@ final class RacerProgress {
   /// How long the car has been racing.
   double totalTime = 0.0;
 
+  /// How long each sector of the current lap took, for the sectors finished.
+  ///
+  /// **A sector is the stretch between two checkpoints**, which the track
+  /// already carries — so this needs nothing authored that a circuit did not
+  /// already have. The last entry of a completed lap is the run from the final
+  /// checkpoint to the line.
+  ///
+  /// Cleared when a lap begins. What a driver compares against is
+  /// [bestSectors], which is not.
+  final List<double> sectorTimes = <double>[];
+
+  /// The quickest each sector has been driven in, or null before it has been.
+  ///
+  /// **Per sector rather than per lap, and that is the whole point of having
+  /// them.** A lap time says a driver was two tenths off; a sector time says
+  /// where. The ghost was unreadable without this: it showed a car ahead or
+  /// behind and nothing about which corner lost it.
+  ///
+  /// Kept across laps and across a whole race, so the comparison is against
+  /// the best this driver has managed here rather than against the lap they
+  /// happen to be on.
+  final List<double?> bestSectors = <double?>[];
+
   /// The time this car finished at, or null while it is still going.
   double? finishedAt;
 

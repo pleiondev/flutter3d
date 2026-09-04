@@ -131,3 +131,32 @@ final class RaceFinished extends GameEvent {
   @override
   String get name => 'race finished';
 }
+
+/// A sector was finished.
+///
+/// One per stretch between checkpoints, plus one for the run from the last
+/// checkpoint to the line — so a circuit with three checkpoints reports four
+/// of these a lap.
+///
+/// **Carries the comparison as well as the time**, because a split a caller
+/// has to compute is a split every caller computes differently: against the
+/// lap so far, against the session, against the record. [delta] is against
+/// this driver's own best for this sector, which is the one a driver is
+/// actually chasing.
+final class SectorCompleted extends RacerEvent {
+  const SectorCompleted(super.racer, this.sector, this.time, this.delta);
+
+  /// Which sector, counting from nought at the line.
+  final int sector;
+
+  /// How long it took, in simulated seconds.
+  final double time;
+
+  /// How much slower than this driver's best for this sector, or null when
+  /// there was no best to compare against — which is every sector of a first
+  /// lap. Negative is quicker, and quicker is what has just become the best.
+  final double? delta;
+
+  @override
+  String get name => 'sector $sector in $time (car ${racer.index})';
+}

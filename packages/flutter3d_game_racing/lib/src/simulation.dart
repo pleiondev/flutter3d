@@ -130,6 +130,7 @@ final class RacingSimulation {
     _world.index(dt);
 
     for (var i = 0; i < vehicles.length; i++) {
+      inputs[i].shelter = _shelterFor(i);
       vehicles[i].step(dt, racing ? inputs[i] : _revvingOnly(inputs[i]));
       if (!racing) {
         // Held on the line. The wheels have turned, which is the point of
@@ -309,7 +310,73 @@ final class RacingSimulation {
         _swept(previous, moved, checkpoints[racer.nextCheckpoint], length)) {
       racer.nextCheckpoint += 1;
       events.add(CheckpointPassed(racer));
+      _closeSector(racer);
     }
+  }
+
+  /// How much of the air ahead of car [index] is already out of the way.
+  ///
+  /// **Read off the track rather than off the world**, because a tow is a
+  /// thing that happens along a straight and the track's own distance is what
+  /// says whether a car is *behind* another rather than merely near it. A car
+  /// alongside is not sheltered by the one it is passing, and a world-space
+  /// distance cannot tell the two apart at all.
+  ///
+  /// Falls off with distance and with how far across the road the two are,
+  /// which is what makes a driver line up behind rather than sit beside. Zero
+  /// beyond [slipstreamReach], so most of the field costs nothing to ask
+  /// about.
+  double _shelterFor(int index) {
+    if (!race.mode.countsProgress) return 0.0;
+    final mine = race.progress[index];
+    var best = 0.0;
+    for (var other = 0; other < race.progress.length; other++) {
+      if (other == index) continue;
+      final ahead = race.progress[other];
+      final gap = ahead.progressAlong(race.track.length) -
+          mine.progressAlong(race.track.length);
+      if (gap <= 0.0 || gap > slipstreamReach) continue;
+
+      // Directly behind is worth all of it; a car's width off line is worth
+      // none. Linear, because a driver reads the effect rather than the curve.
+      final across = (ahead.lateral - mine.lateral).abs();
+      if (across > slipstreamWidth) continue;
+
+      final shelter =
+          (1.0 - gap / slipstreamReach) * (1.0 - across / slipstreamWidth);
+      if (shelter > best) best = shelter;
+    }
+    return best;
+  }
+
+  /// How far behind a car the tow reaches, in metres along the track.
+  ///
+  /// Forty is about four car lengths, which is where a driver stops feeling it
+  /// and starts having to commit to the move.
+  static const double slipstreamReach = 40.0;
+
+  /// How far across the road the tow reaches, in metres.
+  static const double slipstreamWidth = 3.0;
+
+  /// Closes the sector that has just ended, and says how it went.
+  ///
+  /// **Measured from the lap clock rather than from a stopwatch of its own**,
+  /// so the sectors of a lap add up to the lap: a sector timed separately
+  /// drifts from the lap by a step's worth of rounding every time, and a set of
+  /// splits that does not sum to the time above it is a set nobody trusts.
+  void _closeSector(RacerProgress racer) {
+    final done = racer.sectorTimes.fold<double>(0.0, (double a, double b) => a + b);
+    final took = racer.lapTime - done;
+    final index = racer.sectorTimes.length;
+    racer.sectorTimes.add(took);
+
+    while (racer.bestSectors.length <= index) {
+      racer.bestSectors.add(null);
+    }
+    final best = racer.bestSectors[index];
+    if (best == null || took < best) racer.bestSectors[index] = took;
+
+    events.add(SectorCompleted(racer, index, took, best == null ? null : took - best));
   }
 
   /// Crossing the finish line, which only counts having been all the way round.
@@ -329,6 +396,10 @@ final class RacingSimulation {
       return;
     }
 
+    // The run from the last checkpoint to the line, closed before the lap
+    // time is taken and the clock reset.
+    _closeSector(racer);
+
     racer.lap += 1;
     racer.nextCheckpoint = 0;
     racer.lastLap = racer.lapTime;
@@ -340,6 +411,7 @@ final class RacingSimulation {
       events.add(BestLapSet(racer));
     }
     racer.lapTime = 0.0;
+    racer.sectorTimes.clear();
 
     if (race.mode.endsAfterLaps && racer.lap >= race.laps) {
       racer.finishedAt = race.elapsed;
