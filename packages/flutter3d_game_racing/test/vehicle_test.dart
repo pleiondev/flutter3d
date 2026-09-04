@@ -596,7 +596,7 @@ void main() {
         it.sim.step(1 / 60);
 
         highest = math.max(highest, it.car.position.y);
-        if (it.race.progress[0].respawnedThisStep) returned += 1;
+        returned += it.sim.events.drain().whereType<Respawned>().length;
         // The floor's top is at -5, and the car rides half a metre above it.
         if (it.car.grounded &&
             (it.car.position.y - (-5.0 + 0.55)).abs() < 0.2) {

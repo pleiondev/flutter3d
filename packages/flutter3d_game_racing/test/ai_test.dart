@@ -104,8 +104,10 @@ void main() {
       for (var step = 0; step < steps; step++) {
         it.driver.drive(it.cars_[0], it.simulation.inputs[0]);
         it.simulation.step(1 / 60);
-        if (it.race.progress[0].respawnedThisStep) respawns += 1;
-        if (it.race.progress[0].lapCompletedThisStep) laps += 1;
+        for (final event in it.simulation.events.drain()) {
+          if (event is Respawned) respawns += 1;
+          if (event is LapCompleted) laps += 1;
+        }
       }
 
       expect(laps, greaterThanOrEqualTo(1));

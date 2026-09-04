@@ -60,7 +60,9 @@ final class SettingsFile {
         // anywhere, so a player whose bindings had just been silently reset
         // had nothing to report. `SaveFile.read` got this right next door and
         // says so in its own comment; the lesson did not cross the file.
-        onIssue(Issue('settings: the document is not an object, using defaults'));
+        onIssue(
+          Issue('settings: the document is not an object, using defaults'),
+        );
         return GameConfig();
       }
       return GameConfig.fromJson(json);

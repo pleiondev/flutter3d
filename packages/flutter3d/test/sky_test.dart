@@ -73,7 +73,9 @@ void main() {
       final sky = _plain().colour;
       double towardsZenith(double degrees) {
         final radians = degrees * math.pi / 180.0;
-        final blue = sky(SkyLook.at(Vector3(math.cos(radians), math.sin(radians), 0.0))).z;
+        final blue = sky(
+          SkyLook.at(Vector3(math.cos(radians), math.sin(radians), 0.0)),
+        ).z;
         // The gradient runs 0.5 (horizon) to 1.0 (zenith) in blue.
         return (blue - 0.5) / 0.5;
       }

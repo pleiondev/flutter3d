@@ -143,7 +143,7 @@ void main() {
     it.driveFor(
       120.0,
       watch: () {
-        if (it.player.respawnedThisStep) respawns += 1;
+        respawns += it.simulation.events.drain().whereType<Respawned>().length;
         if (it.player.offRoad) offRoadSteps += 1;
       },
     );
@@ -215,7 +215,10 @@ void main() {
       it.driveFor(
         120.0,
         watch: () {
-          if (it.player.respawnedThisStep) respawns += 1;
+          respawns += it.simulation.events
+              .drain()
+              .whereType<Respawned>()
+              .length;
           if (it.player.offRoad) offRoadSteps += 1;
         },
       );
@@ -274,9 +277,12 @@ void main() {
           it.driveFor(
             120.0,
             watch: () {
-              if (it.player.respawnedThisStep) respawns += 1;
+              // One drain for both counters: draining twice in the same
+              // callback would give the second one whatever the first left.
+              final events = it.simulation.events.drain();
+              respawns += events.whereType<Respawned>().length;
+              passed += events.whereType<CheckpointPassed>().length;
               if (it.player.offRoad) offRoadSteps += 1;
-              if (it.player.checkpointThisStep) passed += 1;
             },
           );
 
@@ -325,7 +331,10 @@ void main() {
             }
             it.simulation.step(_dt);
             for (var i = 0; i < kFieldSize; i++) {
-              if (it.race.progress[i].respawnedThisStep) respawns[i] += 1;
+              for (final Respawned e
+                  in it.simulation.events.drain().whereType<Respawned>()) {
+                respawns[e.racer.index] += 1;
+              }
             }
           }
 
@@ -356,7 +365,10 @@ void main() {
     it.driveFor(
       120.0,
       watch: () {
-        if (it.player.checkpointThisStep) passed += 1;
+        passed += it.simulation.events
+            .drain()
+            .whereType<CheckpointPassed>()
+            .length;
       },
     );
 

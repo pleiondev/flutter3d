@@ -999,10 +999,7 @@ class _GameScreenState extends State<GameScreen>
     // is right for as long as nobody restarts and wrong from the first R. The
     // run owns it now, along with the clock, and `startFresh` empties both.
     if (events.any((GameEvent e) => e is ShotFired)) _weaponView.recoil();
-    _run.run.crawl.step(
-      dt,
-      killed: events.whereType<ActorDied>().length,
-    );
+    _run.run.crawl.step(dt, killed: events.whereType<ActorDied>().length);
 
     final body = player.body;
     _weaponView.step(

@@ -168,8 +168,7 @@ void main() {
       // Mutation: drop `allow: solidFilter` from the sweep in `_probeGround`.
       // The body reports itself standing on a floor it is falling through.
       final world = _room();
-      final body = _body(world)
-        ..solidFilter = (SweptContact c) => false;
+      final body = _body(world)..solidFilter = (SweptContact c) => false;
 
       _run(body, 5);
 

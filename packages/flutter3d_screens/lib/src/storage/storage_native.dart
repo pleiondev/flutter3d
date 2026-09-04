@@ -1,7 +1,8 @@
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
-import 'package:flutter3d_game/flutter3d_game.dart' show Issue, IssueSink, printIssue;
+import 'package:flutter3d_game/flutter3d_game.dart'
+    show Issue, IssueSink, printIssue;
 
 import 'atomic_write.dart';
 import 'storage.dart';

@@ -881,7 +881,10 @@ void main() {
         resolve(const AssetRequest('../../../etc/passwd')),
         throwsA(isA<ArgumentError>()),
       );
-      await expectLater(resolve(const AssetRequest('/etc/passwd')), throwsA(isA<ArgumentError>()));
+      await expectLater(
+        resolve(const AssetRequest('/etc/passwd')),
+        throwsA(isA<ArgumentError>()),
+      );
     });
 
     test('percent-decodes ordinary relative paths', () async {

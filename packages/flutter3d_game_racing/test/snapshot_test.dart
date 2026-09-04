@@ -192,11 +192,10 @@ void main() {
     loaded.simulation.step(_step);
 
     expect(
-      loaded.player.checkpointThisStep,
-      isFalse,
-      reason: 'it passed a checkpoint it had already passed',
+      loaded.simulation.events.drain(),
+      isEmpty,
+      reason: 'a restored car reported passing what it had already passed',
     );
-    expect(loaded.player.lapCompletedThisStep, isFalse);
     expect(
       loaded.player.wrongWay,
       isFalse,
@@ -229,10 +228,7 @@ void main() {
     final saved = roundTrip(it.simulation.save());
     final loaded = Race()..simulation.restore(saved);
 
-    expect(loaded.player.lapCompletedThisStep, isFalse);
-    expect(loaded.player.checkpointThisStep, isFalse);
-    expect(loaded.player.respawnedThisStep, isFalse);
-    expect(loaded.simulation.finishedThisStep, isFalse);
+    expect(loaded.simulation.events.drain(), isEmpty);
   });
 
   test('a saved race says which format it is in', () {

@@ -150,7 +150,7 @@ void main() {
     );
     expect(
       game,
-      contains('finishedThisStep'),
+      contains('RacerFinished'),
       reason: 'the finish line is crossed and the game does not notice',
     );
     expect(

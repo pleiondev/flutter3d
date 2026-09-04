@@ -81,11 +81,7 @@ final class Reactions {
   final Vector3 _right = Vector3.zero();
 
   /// Everything this step is worth showing.
-  Reaction listen(
-    GameSimulation sim,
-    Player player,
-    List<GameEvent> events,
-  ) {
+  Reaction listen(GameSimulation sim, Player player, List<GameEvent> events) {
     final bursts = <Shown>[];
     final lingering = <Lingering>[];
     var flash = false;

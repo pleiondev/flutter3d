@@ -72,9 +72,7 @@ final class _Run {
         input.release(action);
       }
       final events = staged.sim.events.drain();
-      hits.addAll(
-        events.whereType<ShotLanded>().map((ShotLanded e) => e.hit),
-      );
+      hits.addAll(events.whereType<ShotLanded>().map((ShotLanded e) => e.hit));
       final reaction = reactions.listen(staged.sim, staged.player, events);
       shown.addAll(reaction.bursts);
       lingering.addAll(reaction.lingering);
@@ -150,9 +148,7 @@ void main() {
     final reaction = run.reactions.listen(
       run.staged.sim,
       run.staged.player,
-      <GameEvent>[
-        ShotFired(weapon: Weapons.pistol, from: Vector3.zero()),
-      ],
+      <GameEvent>[ShotFired(weapon: Weapons.pistol, from: Vector3.zero())],
     );
 
     expect(reaction.flash, isFalse);

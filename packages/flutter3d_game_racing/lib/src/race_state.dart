@@ -46,13 +46,6 @@ final class RaceState {
   /// The whole race clock, in simulated seconds.
   double elapsed = 0.0;
 
-  /// True on the step the countdown moved from one whole second to the next,
-  /// which is when a light goes out and a beep plays.
-  bool countdownTickThisStep = false;
-
-  /// True on the step the lights went out.
-  bool startedThisStep = false;
-
   /// Where this car is running, counting from one.
   ///
   /// Ranked on laps and metres together, so a car half a lap ahead is ahead
@@ -122,8 +115,6 @@ final class RaceState {
   }
 
   void clearStepFlags() {
-    countdownTickThisStep = false;
-    startedThisStep = false;
     for (final racer in progress) {
       racer.clearStepFlags();
     }

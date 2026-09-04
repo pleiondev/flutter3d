@@ -185,7 +185,6 @@ final class GameSimulation {
   String? get nextLevel => _exitNext ?? levelNext;
   String? _exitNext;
 
-
   /// Where that shot started — the eye, not the muzzle.
   final Vector3 firedFrom = Vector3.zero();
 
@@ -196,8 +195,6 @@ final class GameSimulation {
   /// and need to know how loud it was. What the *game* gets is [ShotFired],
   /// which carries the same weapon and cannot be confused for state.
   WeaponDef? _firedThisStep;
-
-
 
   /// What this level has been worth so far.
   ///
@@ -269,8 +266,6 @@ final class GameSimulation {
       }
     }
   }
-
-
 
   /// Where the entities live.
   ///
@@ -443,7 +438,7 @@ final class GameSimulation {
           if (target is! Damageable) continue;
           if (identical(target, player)) {
             target.applyDamage(entry.value, from: firedBy);
-              continue;
+            continue;
           }
           target.applyDamage(entry.value * scale, from: firedBy);
         }

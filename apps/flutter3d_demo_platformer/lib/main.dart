@@ -820,11 +820,7 @@ class _GameScreenState extends State<GameScreen>
   /// widget needs a device, a renderer and a window to ask about — and this
   /// game shipped mute, and then shipped without a particle for a collected
   /// coin, with nothing red either time.
-  void _react(
-    PlatformerSimulation sim,
-    Runner runner,
-    List<GameEvent> events,
-  ) {
+  void _react(PlatformerSimulation sim, Runner runner, List<GameEvent> events) {
     final camera = _followCamera;
 
     for (final Heard heard in _soundtrack.listen(sim, runner, events)) {

@@ -50,27 +50,6 @@ final class RacerProgress {
 
   // --- what happened on this step, for a sound or a caption ------------------
 
-  /// A lap was completed. The lap time it was completed in is [lastLap].
-  bool lapCompletedThisStep = false;
-
-  /// That lap was the quickest so far.
-  bool bestLapThisStep = false;
-
-  /// A checkpoint was passed.
-  bool checkpointThisStep = false;
-
-  /// The car started going the wrong way, as opposed to still going it.
-  bool wrongWayStartedThisStep = false;
-
-  /// The car left the racing surface.
-  bool leftRoadThisStep = false;
-
-  /// The car was put back on the track.
-  bool respawnedThisStep = false;
-
-  /// This car crossed the line for the last time.
-  bool finishedThisStep = false;
-
   /// How long the lap just completed took.
   double lastLap = 0.0;
 
@@ -113,13 +92,5 @@ final class RacerProgress {
     clearStepFlags();
   }
 
-  void clearStepFlags() {
-    lapCompletedThisStep = false;
-    bestLapThisStep = false;
-    checkpointThisStep = false;
-    wrongWayStartedThisStep = false;
-    leftRoadThisStep = false;
-    respawnedThisStep = false;
-    finishedThisStep = false;
-  }
+  void clearStepFlags() {}
 }

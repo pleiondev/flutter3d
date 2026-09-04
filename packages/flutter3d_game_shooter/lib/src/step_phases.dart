@@ -39,7 +39,7 @@ abstract final class ShooterPhases {
   /// reason `publish` exists.
   static const StepPhase afterWorld = StepPhase('afterWorld');
 
-  /// A shot fired this step is in `firedThisStep` and has been heard.
+  /// A shot fired this step has been reported as `ShotFired` and has been heard.
   ///
   /// Before the actors think, so a rule that reacts to a shot is acting on the
   /// same step the monsters are.

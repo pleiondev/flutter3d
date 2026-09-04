@@ -214,7 +214,9 @@ void _vanishing() {
       sim.step(_dt);
       room.input.endStep();
       said.addAll(
-        sim.events.drain().whereType<LevelSaid>().map((LevelSaid e) => e.message),
+        sim.events.drain().whereType<LevelSaid>().map(
+          (LevelSaid e) => e.message,
+        ),
       );
     }
 

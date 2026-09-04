@@ -150,9 +150,11 @@ final class SoLoudBackend implements AudioBackend {
     } catch (error) {
       if (!_filterRefused) {
         _filterRefused = true;
-        onIssue(AudioIssue(
-          'no low-pass filter on this platform, walls only quieten: $error',
-        ));
+        onIssue(
+          AudioIssue(
+            'no low-pass filter on this platform, walls only quieten: $error',
+          ),
+        );
       }
     }
   }
@@ -194,9 +196,11 @@ final class SoLoudBackend implements AudioBackend {
           _kOpenCutoff * math.pow(_kWallCutoff / _kOpenCutoff, clamped);
     } catch (error) {
       _filterRefused = true;
-      onIssue(AudioIssue(
-        'the low-pass filter refused a voice, walls only quieten: $error',
-      ));
+      onIssue(
+        AudioIssue(
+          'the low-pass filter refused a voice, walls only quieten: $error',
+        ),
+      );
     }
   }
 

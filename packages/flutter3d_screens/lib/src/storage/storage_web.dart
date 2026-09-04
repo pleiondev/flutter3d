@@ -1,4 +1,5 @@
-import 'package:flutter3d_game/flutter3d_game.dart' show Issue, IssueSink, printIssue;
+import 'package:flutter3d_game/flutter3d_game.dart'
+    show Issue, IssueSink, printIssue;
 import 'package:web/web.dart' as web;
 
 import 'storage.dart';

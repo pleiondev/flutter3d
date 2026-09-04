@@ -159,7 +159,7 @@ void main() {
         it,
         seconds: 40.0,
         watch: () {
-          if (it.player.lapCompletedThisStep) laps += 1;
+          laps += it.simulation.events.drain().whereType<LapCompleted>().length;
         },
       );
 
@@ -212,7 +212,10 @@ void main() {
         it,
         seconds: 12.0,
         watch: () {
-          if (it.player.checkpointThisStep) passed += 1;
+          passed += it.simulation.events
+              .drain()
+              .whereType<CheckpointPassed>()
+              .length;
         },
       );
 
@@ -240,13 +243,28 @@ void main() {
       expect(it.player.wrongWay, isFalse);
 
       turnAround(it);
-      driveRound(it, seconds: 6.0, backwards: true);
+      it.simulation.events.clear();
+      var announced = 0;
+      driveRound(
+        it,
+        seconds: 6.0,
+        backwards: true,
+        watch: () {
+          announced += it.simulation.events
+              .drain()
+              .whereType<WentWrongWay>()
+              .length;
+        },
+      );
 
       expect(it.player.wrongWay, isTrue);
+      // **Once, not once a step.** The flag this replaces could only say
+      // "started this step" and a test could only ask about the last one;
+      // counting is what actually says a warning does not flash.
       expect(
-        it.player.wrongWayStartedThisStep,
-        isFalse,
-        reason: 'it started some steps ago, and only the first one is news',
+        announced,
+        1,
+        reason: 'it was announced on every step it kept going backwards',
       );
     });
 
@@ -295,7 +313,7 @@ void main() {
       );
       it.simulation.step(_step);
 
-      expect(it.player.respawnedThisStep, isTrue);
+      expect(it.simulation.events.drain().whereType<Respawned>(), isNotEmpty);
       expect(it.vehicles[0].position.y, greaterThan(-10.0));
       expect(it.vehicles[0].speed, 0.0);
     });
@@ -383,8 +401,10 @@ void main() {
         seconds: 5.0,
         throttle: 1.0,
         watch: () {
-          if (it.race.countdownTickThisStep) ticks += 1;
-          if (it.race.startedThisStep) starts += 1;
+          for (final event in it.simulation.events.drain()) {
+            if (event is CountdownTicked) ticks += 1;
+            if (event is RaceStarted) starts += 1;
+          }
         },
       );
 

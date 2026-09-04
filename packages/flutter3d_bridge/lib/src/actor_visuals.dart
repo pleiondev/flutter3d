@@ -201,7 +201,9 @@ final class ActorVisuals {
     } catch (error) {
       // A missing or broken model leaves every actor that wanted it a capsule,
       // which is a level somebody can still play through and report.
-      onIssue(Issue('actors: could not load $path, staying a capsule ($error)'));
+      onIssue(
+        Issue('actors: could not load $path, staying a capsule ($error)'),
+      );
       return null;
     }
   }

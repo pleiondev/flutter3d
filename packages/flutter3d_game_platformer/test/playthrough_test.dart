@@ -308,8 +308,7 @@ void main() {
       // filling up is exactly why nobody noticed.
       //
       // Mutation: drop `mechanisms?.publish()` from `PlatformerSimulation.step`.
-      final run = _Run()
-        ..run(180, until: (_Run r) => r.taken.isNotEmpty);
+      final run = _Run()..run(180, until: (_Run r) => r.taken.isNotEmpty);
 
       expect(run.taken, hasLength(1));
       expect(run.taken.single.name, 'first coin');

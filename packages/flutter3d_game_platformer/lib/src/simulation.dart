@@ -169,11 +169,6 @@ final class PlatformerSimulation {
   /// say the same things and are kept for now, because programs read them.
   final GameEvents events = GameEvents();
 
-
-
-
-
-
   /// Damage a second from standing against an enemy.
   ///
   /// A rate rather than a lump, exactly as a hazard's is, and for the same

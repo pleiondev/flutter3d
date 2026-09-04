@@ -103,11 +103,7 @@ final class Soundtrack {
   final Set<Mechanism> _running = <Mechanism>{};
 
   /// Called once per simulation step, in order.
-  Sounding listen(
-    GameSimulation sim,
-    Player player,
-    List<GameEvent> events,
-  ) {
+  Sounding listen(GameSimulation sim, Player player, List<GameEvent> events) {
     final once = <Heard>[];
     final loops = <Sustained>[];
     final at = player.body.position;

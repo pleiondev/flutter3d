@@ -229,11 +229,9 @@ void main() {
         reason: 'the door opened for somebody with no key',
       );
       run.heard.addAll(
-        run.soundtrack
-            .listen(run.staged.sim, run.staged.player, <GameEvent>[
-              MechanismUsed(outcome),
-            ])
-            .once,
+        run.soundtrack.listen(run.staged.sim, run.staged.player, <GameEvent>[
+          MechanismUsed(outcome),
+        ]).once,
       );
 
       expect(run.names, contains('locked'));

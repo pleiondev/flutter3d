@@ -84,7 +84,8 @@ void main() {
         _level(albedo: 'assets/textures/gone.png'),
         device: device,
         registry: registry,
-        readAsset: (AssetRequest request) async => throw StateError('no such asset'),
+        readAsset: (AssetRequest request) async =>
+            throw StateError('no such asset'),
       );
 
       expect(loaded.issues, hasLength(1));

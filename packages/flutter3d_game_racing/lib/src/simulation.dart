@@ -98,8 +98,6 @@ final class RacingSimulation {
   /// read in the order they happened rather than by walking the grid.
   final GameEvents events = GameEvents();
 
-  bool finishedThisStep = false;
-
   /// Advances one fixed step.
   ///
   /// The order, and why each piece is where it is:
@@ -122,7 +120,6 @@ final class RacingSimulation {
   ///     where they went.
   void step(double dt) {
     race.clearStepFlags();
-    finishedThisStep = false;
 
     if (race.phase == RacePhase.finished) return;
 
@@ -169,7 +166,6 @@ final class RacingSimulation {
     race.countdown -= dt;
     final after = race.countdown.ceil();
     if (after != before) {
-      race.countdownTickThisStep = true;
       events.add(CountdownTicked(after));
     }
 
@@ -177,7 +173,6 @@ final class RacingSimulation {
 
     race.countdown = 0.0;
     race.phase = RacePhase.running;
-    race.startedThisStep = true;
     events.add(const RaceStarted());
     return true;
   }
@@ -262,7 +257,6 @@ final class RacingSimulation {
     final wasOffRoad = racer.offRoad;
     racer.offRoad = racer.lateral.abs() > track.widthAt(current) / 2.0;
     if (racer.offRoad && !wasOffRoad) {
-      racer.leftRoadThisStep = true;
       events.add(LeftTheRoad(racer));
     }
 
@@ -293,7 +287,6 @@ final class RacingSimulation {
 
     final wrong = _backwards[index] > 12.0;
     if (wrong && !racer.wrongWay) {
-      racer.wrongWayStartedThisStep = true;
       events.add(WentWrongWay(racer));
     }
     racer.wrongWay = wrong;
@@ -313,7 +306,6 @@ final class RacingSimulation {
     while (racer.nextCheckpoint < checkpoints.length &&
         _swept(previous, moved, checkpoints[racer.nextCheckpoint], length)) {
       racer.nextCheckpoint += 1;
-      racer.checkpointThisStep = true;
       events.add(CheckpointPassed(racer));
     }
   }
@@ -338,24 +330,20 @@ final class RacingSimulation {
     racer.lap += 1;
     racer.nextCheckpoint = 0;
     racer.lastLap = racer.lapTime;
-    racer.lapCompletedThisStep = true;
     events.add(LapCompleted(racer));
 
     final best = racer.bestLap;
     if (best == null || racer.lastLap < best) {
       racer.bestLap = racer.lastLap;
-      racer.bestLapThisStep = true;
       events.add(BestLapSet(racer));
     }
     racer.lapTime = 0.0;
 
     if (race.mode == RaceMode.race && racer.lap >= race.laps) {
       racer.finishedAt = race.elapsed;
-      racer.finishedThisStep = true;
       events.add(RacerFinished(racer));
       if (race.progress.every((RacerProgress other) => other.finished)) {
         race.phase = RacePhase.finished;
-        finishedThisStep = true;
         events.add(const RaceFinished());
       }
     }
@@ -401,8 +389,7 @@ final class RacingSimulation {
     racer
       ..s = _previousS[index]
       ..offRoad = false
-      ..wrongWay = false
-      ..respawnedThisStep = true;
+      ..wrongWay = false;
     events.add(Respawned(racer));
 
     // No `reindex` here, unlike the platformer's revive. That one runs at the
@@ -489,7 +476,6 @@ final class RacingSimulation {
     // `WorldStep.afterRestore`, which is the whole tail and is what the other
     // two genres were already calling.
     _world.afterRestore();
-    finishedThisStep = false;
   }
 
   static void _restoreDoubles(Object? from, List<double> into) {

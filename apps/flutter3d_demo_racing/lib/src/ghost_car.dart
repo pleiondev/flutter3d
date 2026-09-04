@@ -91,8 +91,8 @@ final class GhostKeeper {
   /// It lives here rather than in the game's step for the reason this whole
   /// file exists: a ghost that nothing calls is a ghost nobody sees, and a
   /// method can be tested where four lines inside a widget cannot.
-  bool stepped(RacerProgress player, VehicleController car) {
-    final record = player.lapCompletedThisStep && finished(player.lastLap);
+  bool stepped(RacerProgress player, VehicleController car, bool lapped) {
+    final record = lapped && finished(player.lastLap);
     watch(player.lapTime, car);
     return record;
   }

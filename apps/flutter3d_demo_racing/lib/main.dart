@@ -868,6 +868,12 @@ class _RaceScreenState extends State<RaceScreen>
     _readPitStop();
     _driveTheRest(simulation, race);
     simulation.step(stepSeconds);
+    // Drained once, here, and kept for the frame. `_listen` runs before the
+    // step and so reads the step before it — which is exactly what the
+    // per-step flags it replaces did, since those were cleared at the top of
+    // `step`. Draining anywhere else would give one reader half of what
+    // happened and the other reader the rest.
+    _lastStep = simulation.events.drain();
 
     // Where the step left each car, kept beside where the step before left it,
     // so the frames drawn between the two have something to blend. Here rather
@@ -886,7 +892,12 @@ class _RaceScreenState extends State<RaceScreen>
     // definition, and it used to take the place of a record that stood from
     // another evening. The keeper compares against the disk now, and says when
     // the disk changed.
-    if (_ghosts.stepped(race.progress[0], _cars[0])) _celebrateFor = 4.0;
+    final lapped = _lastStep.whereType<LapCompleted>().any(
+      (LapCompleted event) => event.isPlayer,
+    );
+    if (_ghosts.stepped(race.progress[0], _cars[0], lapped)) {
+      _celebrateFor = 4.0;
+    }
 
     // What this step looks like, decided by something a test can call and
     // performed here. Per car: a rival locking up in front is as worth seeing
@@ -901,7 +912,11 @@ class _RaceScreenState extends State<RaceScreen>
     for (final heard in reaction.heard) {
       _audio.play(heard.sound, heard.at);
     }
-    if (race.progress[0].finishedThisStep) _finishedHere();
+    if (_lastStep.whereType<RacerFinished>().any(
+      (RacerFinished event) => event.isPlayer,
+    )) {
+      _finishedHere();
+    }
   }
 
   /// What the pad means to a screen rather than to the car.
@@ -1041,27 +1056,34 @@ class _RaceScreenState extends State<RaceScreen>
   ///
   /// Read from the same flags the display reads, once, after the steps: a sound
   /// played from inside a step is a sound played several times on a slow frame.
+  /// What the last simulated step reported. See where it is drained.
+  List<GameEvent> _lastStep = const <GameEvent>[];
+
   void _listen(RaceState race) {
     for (var i = 0; i < _voices.length && i < race.progress.length; i++) {
       _voices[i].update(offRoad: race.progress[i].offRoad);
     }
 
-    final player = race.progress[0];
-    if (race.countdownTickThisStep) {
-      _audio.play(
-        race.countdown > 0.0 ? Sounds.count : Sounds.go,
-        _ears.position,
-      );
+    // A best lap and the lap it was are two events now, so the "best instead
+    // of lap" choice is made here rather than by an else.
+    final best = _lastStep.whereType<BestLapSet>().any((e) => e.isPlayer);
+    for (final GameEvent event in _lastStep) {
+      switch (event) {
+        case CountdownTicked():
+          _audio.play(
+            event.remaining > 0 ? Sounds.count : Sounds.go,
+            _ears.position,
+          );
+        case BestLapSet(isPlayer: true):
+          _audio.play(Sounds.best, _ears.position);
+        case LapCompleted(isPlayer: true) when !best:
+          _audio.play(Sounds.lap, _ears.position);
+        case CheckpointPassed(isPlayer: true):
+          _audio.play(Sounds.checkpoint, _ears.position);
+        case Respawned(isPlayer: true):
+          _respawnFor = 2.0;
+      }
     }
-    if (player.bestLapThisStep) {
-      _audio.play(Sounds.best, _ears.position);
-    } else if (player.lapCompletedThisStep) {
-      _audio.play(Sounds.lap, _ears.position);
-    }
-    if (player.checkpointThisStep) {
-      _audio.play(Sounds.checkpoint, _ears.position);
-    }
-    if (player.respawnedThisStep) _respawnFor = 2.0;
 
     // Along the camera's own forward rather than through a yaw: `aimAt` reads
     // an angle as a first-person camera's, and a chase camera is not one.

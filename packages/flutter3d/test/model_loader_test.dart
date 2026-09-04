@@ -86,7 +86,10 @@ void main() {
         resolve(const AssetRequest('../../../etc/passwd')),
         throwsA(isA<ArgumentError>()),
       );
-      await expectLater(resolve(const AssetRequest('/etc/passwd')), throwsA(isA<ArgumentError>()));
+      await expectLater(
+        resolve(const AssetRequest('/etc/passwd')),
+        throwsA(isA<ArgumentError>()),
+      );
       await expectLater(
         resolve(const AssetRequest('https://example.com/x.bin')),
         throwsA(isA<ArgumentError>()),
@@ -97,7 +100,9 @@ void main() {
       final resolve = const FileAssetSource(
         '$kSamples/nowhere.gltf',
       ).resolveUri;
-      final bytes = await resolve(const AssetRequest('data:application/octet-stream;base64,AQID'));
+      final bytes = await resolve(
+        const AssetRequest('data:application/octet-stream;base64,AQID'),
+      );
       expect(bytes, <int>[1, 2, 3]);
     });
   });

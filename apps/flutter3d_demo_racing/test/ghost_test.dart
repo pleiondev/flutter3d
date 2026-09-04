@@ -247,14 +247,12 @@ void main() {
       for (var step = 0; step * (1 / 60.0) < seconds; step++) {
         player.lapTime = step / 60.0;
         car.position.setValues(from + player.lapTime * 20.0, 0.0, 0.0);
-        keeper.stepped(player, car);
+        keeper.stepped(player, car, false);
       }
       player
         ..lastLap = seconds
-        ..lapTime = 0.0
-        ..lapCompletedThisStep = true
-        ..bestLapThisStep = best;
-      keeper.stepped(player, car);
+        ..lapTime = 0.0;
+      keeper.stepped(player, car, true);
       return keeper;
     }
 
@@ -359,21 +357,19 @@ void main() {
         player.lapTime = step / 60.0;
         car.position.setValues(player.lapTime * 20.0, 0.0, 0.0);
         expect(
-          keeper.stepped(player, car),
+          keeper.stepped(player, car, false),
           isFalse,
           reason: 'a record was announced mid-lap',
         );
       }
       player
         ..lastLap = 4.0
-        ..lapTime = 0.0
-        ..lapCompletedThisStep = true;
+        ..lapTime = 0.0;
 
-      expect(keeper.stepped(player, car), isTrue);
+      expect(keeper.stepped(player, car, true), isTrue);
 
-      player.lapCompletedThisStep = false;
       expect(
-        keeper.stepped(player, car),
+        keeper.stepped(player, car, false),
         isFalse,
         reason: 'it went on announcing the same record',
       );
@@ -390,14 +386,13 @@ void main() {
       for (var step = 0; step * (1 / 60.0) < 6.0; step++) {
         player.lapTime = step / 60.0;
         car.position.setValues(500.0 + player.lapTime * 20.0, 0.0, 0.0);
-        keeper.stepped(player, car);
+        keeper.stepped(player, car, false);
       }
       player
         ..lastLap = 6.0
-        ..lapTime = 0.0
-        ..lapCompletedThisStep = true;
+        ..lapTime = 0.0;
 
-      expect(keeper.stepped(player, car), isFalse);
+      expect(keeper.stepped(player, car, true), isFalse);
       expect(keeper.record, closeTo(4.0, 1e-3));
     });
   });
