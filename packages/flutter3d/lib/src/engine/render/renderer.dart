@@ -1872,7 +1872,12 @@ final class Renderer implements RenderServices {
     pass.bindIndexBuffer(_identityIndices(3), IndexType.int32, 3);
 
     draw.textures.forEach((slot, texture) {
-      pass.bindTexture(draw.fragment, slot, texture, sampler: draw.sampler);
+      pass.bindTexture(
+        draw.fragment,
+        slot,
+        texture,
+        sampler: draw.samplerFor(slot),
+      );
     });
     draw.uniforms.forEach((block, members) {
       pass.bindUniformBlock(draw.fragment, block, members);

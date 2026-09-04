@@ -249,8 +249,9 @@ goldenCountExempt = <String, Map<String, String>>{
         'the six the atlas appeared in, restated in each generated shader',
   },
   'packages/flutter3d_webgl/test/cross_backend_test.dart': <String, String>{
-    'Six scenes were in the second group':
-        'the six that disagreed by whole percents',
+    'Seven scenes have been in the second group':
+        'the seven that disagreed by whole percents, counted across the life '
+        'of this backend rather than today',
     'the three scenes that were exactly': 'the three that were exactly zero',
   },
   // ARCHITECTURE.md's four are the same species, written up rather than in

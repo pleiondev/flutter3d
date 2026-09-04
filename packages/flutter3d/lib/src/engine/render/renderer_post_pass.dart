@@ -175,7 +175,17 @@ extension _PostPasses on Renderer {
     // rather than of the shader. Without it the taps landed at the pixel
     // mirrored about the middle of the frame on every backend but the browser.
     final viewProjection = toFramebufferOrigin(
-      _viewProjection(view.camera, aspect),
+      // **Not depth-range adjusted, and that is the whole of a bug this pass
+      // carried on one backend.** `_viewProjection` applies `toDepthRange`,
+      // which maps clip depth to `[-1, 1]` where the device wants it — and
+      // what this pass compares against is `gl_FragCoord.z`, the *window*
+      // depth, which is `[0, 1]` on every API there is. On a backend whose
+      // range is `[0, 1]` the two agree by accident; on one whose range is
+      // `[-1, 1]` the shader reconstructed every world point from a depth the
+      // inverse matrix did not expect and then compared it against a number
+      // from the other convention. The camera's own matrix is already in the
+      // engine's `[0, 1]`, which is the convention the buffer is written in.
+      view.camera.viewProjection(aspect),
       device.framebufferOrigin,
     );
     final inverse = vm.Matrix4.copy(viewProjection)..invert();
@@ -239,7 +249,17 @@ extension _PostPasses on Renderer {
     // against a vertically mirrored buffer is what made this effect look like
     // it did not work.
     final viewProjection = toFramebufferOrigin(
-      _viewProjection(view.camera, aspect),
+      // **Not depth-range adjusted, and that is the whole of a bug this pass
+      // carried on one backend.** `_viewProjection` applies `toDepthRange`,
+      // which maps clip depth to `[-1, 1]` where the device wants it — and
+      // what this pass compares against is `gl_FragCoord.z`, the *window*
+      // depth, which is `[0, 1]` on every API there is. On a backend whose
+      // range is `[0, 1]` the two agree by accident; on one whose range is
+      // `[-1, 1]` the shader reconstructed every world point from a depth the
+      // inverse matrix did not expect and then compared it against a number
+      // from the other convention. The camera's own matrix is already in the
+      // engine's `[0, 1]`, which is the convention the buffer is written in.
+      view.camera.viewProjection(aspect),
       device.framebufferOrigin,
     );
     final inverse = vm.Matrix4.copy(viewProjection)..invert();

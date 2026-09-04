@@ -161,6 +161,7 @@ final class FullscreenDraw {
     this.textures = const <String, TextureHandle>{},
     this.uniforms = const <String, Map<String, Float32List>>{},
     this.sampler = SamplerOptions.linearClamp,
+    this.samplers = const <String, SamplerOptions>{},
     this.loadAction = LoadAction.dontCare,
   });
 
@@ -172,8 +173,21 @@ final class FullscreenDraw {
   /// makes the triangle somebody else's problem.
   final ShaderHandle fragment;
 
-  /// Slot name to texture, bound with [sampler].
+  /// Slot name to texture, bound with [samplerFor].
   final Map<String, TextureHandle> textures;
+
+  /// Slots that want something other than [sampler], by name.
+  ///
+  /// **Because one draw can read two kinds of texture.** The reflection pass
+  /// samples the scene, which is colour and wants filtering, and the surface
+  /// buffer, which is an octahedral normal and a depth and must not be
+  /// filtered at all — and a single sampler for the draw could serve one of
+  /// them or the other. It served the wrong one for as long as the pass has
+  /// existed; see [sampler].
+  final Map<String, SamplerOptions> samplers;
+
+  /// How [slot] is sampled: its own entry in [samplers], or [sampler].
+  SamplerOptions samplerFor(String slot) => samplers[slot] ?? sampler;
 
   /// Uniform block name, to member name, to the data for that member.
   ///
@@ -183,9 +197,16 @@ final class FullscreenDraw {
   final Map<String, Map<String, Float32List>> uniforms;
 
   /// Clamped and linear by default: a post pass reading outside its source
-  /// would otherwise wrap the far edge onto the near one. An effect reading a
-  /// buffer of *data* rather than colour wants
-  /// [SamplerOptions.nearestClamp] — see the surface buffer.
+  /// would otherwise wrap the far edge onto the near one.
+  ///
+  /// **An effect reading a buffer of *data* rather than colour wants
+  /// [SamplerOptions.nearestClamp], and two of them were not asking for it.**
+  /// The surface buffer holds an octahedral normal in `rg` and a window depth
+  /// in `a`; the average of two octahedral normals is not the encoding of any
+  /// normal, which is the sentence `ssao.frag` opens with to explain why
+  /// reading that buffer switches multisampling off — and the pass that says
+  /// it was itself sampling the buffer bilinearly. Per-slot overrides live in
+  /// [samplers].
   final SamplerOptions sampler;
 
   /// Discarding by default, because nothing under a full-screen pass survives
