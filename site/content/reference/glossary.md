@@ -94,7 +94,7 @@ A level is JSON. These are its parts, and a game reads all of them through `Leve
   <div><dt>Golden</dt><dd>A reference image a scene is compared against. Three independent sets, Impeller, software and WebGL2, each held to zero differing pixels against its own</dd></div>
   <div><dt>Parity fixture</dt><dd>One scene drawn by two backends and compared as a grid of average brightness. Answers "do these two draw the same picture", which a golden cannot</dd></div>
   <div><dt>Conformance</dt><dd>The suite a backend has to pass before it counts as one. Split in two: what needs no shaders, and the rest</dd></div>
-  <div><dt>Structure rule</dt><dd>One of twenty-seven scans in <code>tool/structure.dart</code>. They read source text and hold the architecture: that a genre package stays out of another genre, that the documents' numbers are true</dd></div>
+  <div><dt>Structure rule</dt><dd>One of twenty-eight scans in <code>tool/structure.dart</code>. They read source text and hold the architecture: that a genre package stays out of another genre, that the documents' numbers are true</dd></div>
 </dl>
 
 ## Next

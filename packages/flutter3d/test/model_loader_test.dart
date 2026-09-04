@@ -218,18 +218,20 @@ void main() {
       expect(document.nodes, isNotEmpty);
     });
 
-    test('and is sendable, which is what a registry could not have been',
-        () async {
-      // The isolate path sends the whole request. A registry filled in the
-      // main isolate is empty in this one — the failure `ModelLoadRequest`
-      // documents, and the reason a source travels rather than being looked
-      // up. If this source could not cross, this throws.
-      final document = await decodeModelInIsolate(
-        const ModelLoadRequest(source: _InMemorySource()),
-      );
+    test(
+      'and is sendable, which is what a registry could not have been',
+      () async {
+        // The isolate path sends the whole request. A registry filled in the
+        // main isolate is empty in this one — the failure `ModelLoadRequest`
+        // documents, and the reason a source travels rather than being looked
+        // up. If this source could not cross, this throws.
+        final document = await decodeModelInIsolate(
+          const ModelLoadRequest(source: _InMemorySource()),
+        );
 
-      expect(document.nodes, isNotEmpty);
-    });
+        expect(document.nodes, isNotEmpty);
+      },
+    );
   });
 }
 
@@ -242,11 +244,8 @@ final class _InMemorySource extends AssetSource {
   String get key => 'memory:cube.obj';
 
   @override
-  Future<Uint8List> read() async => Uint8List.fromList(
-    utf8.encode(
-      'v 0 0 0\nv 1 0 0\nv 0 1 0\nf 1 2 3\n',
-    ),
-  );
+  Future<Uint8List> read() async =>
+      Uint8List.fromList(utf8.encode('v 0 0 0\nv 1 0 0\nv 0 1 0\nf 1 2 3\n'));
 
   @override
   AssetUriResolver get resolveUri =>

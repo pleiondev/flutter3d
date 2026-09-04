@@ -260,8 +260,10 @@ final class RacingSimulation {
       events.add(LeftTheRoad(racer));
     }
 
-    if (!racing || racer.finished || race.mode == RaceMode.freeRoam) {
-      if (race.mode == RaceMode.freeRoam) racer.totalTime += dt;
+    if (!racing || racer.finished || !race.mode.countsProgress) {
+      // The clock still runs where nothing else does, so a session has a
+      // length even when no lap is being counted.
+      if (!race.mode.countsProgress) racer.totalTime += dt;
       return;
     }
 
@@ -339,7 +341,7 @@ final class RacingSimulation {
     }
     racer.lapTime = 0.0;
 
-    if (race.mode == RaceMode.race && racer.lap >= race.laps) {
+    if (race.mode.endsAfterLaps && racer.lap >= race.laps) {
       racer.finishedAt = race.elapsed;
       events.add(RacerFinished(racer));
       if (race.progress.every((RacerProgress other) => other.finished)) {

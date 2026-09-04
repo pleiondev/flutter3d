@@ -351,3 +351,190 @@ List<File> dartFilesIn(Directory dir) {
 String relative(File file, Directory dir) => file.path
     .substring(dir.path.length + 1)
     .replaceAll(Platform.pathSeparator, '/');
+
+/// Enums a published package may keep, and why each is machinery.
+///
+/// **The rule this feeds refuses an enum in a published package**, because a
+/// published enum is a closed list somebody else's `switch` is written against:
+/// adding a value to it is a breaking change, and for a package whose whole
+/// purpose is that other people build on it, that is the wrong shape by
+/// default. The audit that produced this table is `doc/boundary-0.5.0.md`.
+///
+/// What survives is machinery: a set that is finite, ours, and complete — the
+/// backends' mirror of `flutter_gpu`, a document key the engine has to
+/// understand to act on, a state the whole repository is built around. Content
+/// — what a weapon fires, what a monster is doing, where an asset lives — is
+/// not on this list, and four such enums were opened rather than added to it.
+///
+/// A file's entry names each enum and says why. An enum that appears in a
+/// published package without a reason here fails the rule, which is the point:
+/// the next one has to be argued for rather than typed.
+const Map<String, Map<String, String>>
+boundaryEnumExempt = <String, Map<String, String>>{
+  'flutter3d/lib/src/engine/assets/gltf/gltf_accessor_type.dart':
+      <String, String>{
+        'GltfComponentType':
+            "the glTF specification's own component types. The set is the "
+            "format's, and a file that names a fifth is not a glTF file",
+        'GltfAccessorType':
+            "the same specification's accessor types, for the same reason",
+      },
+  'flutter3d/lib/src/engine/assets/gltf/gltf_primitive_mode.dart':
+      <String, String>{
+        'GltfPrimitiveMode':
+            "the glTF specification's seven primitive modes, numbered by the "
+            'format',
+      },
+  'flutter3d/lib/src/engine/assets/surface_material.dart': <String, String>{
+    'SurfaceAlphaMode':
+        "glTF's three alpha modes. A decoder for another format maps onto "
+        'these; it does not add to them',
+    'TextureWrap':
+        'the three wrap modes glTF names, which are also the three every '
+        'GPU sampler has',
+  },
+  'flutter3d/lib/src/engine/render/material.dart': <String, String>{
+    'MaterialAlphaMode':
+        'the engine side of SurfaceAlphaMode, and a fourth would need a '
+        'pipeline the shaders do not have',
+  },
+  'flutter3d/lib/src/engine/animation/animation_track.dart': <String, String>{
+    'AnimationInterpolation':
+        "glTF's three interpolations; the sampler implements exactly these",
+    'AnimationPath':
+        'the four channel targets glTF defines. A fifth is not a thing the '
+        'format can express',
+  },
+  'flutter3d/lib/src/engine/animation/animation_target.dart': <String, String>{
+    'AnimationWrap':
+        'how a clip ends. Each value is a branch in the sampler, so a fifth '
+        'is code rather than a name',
+  },
+  'flutter3d/lib/src/engine/scene/light_node.dart': <String, String>{
+    'LightType':
+        'the three the lit shaders have code for. A fourth kind of light is '
+        'a shader, not a value',
+  },
+  'flutter3d/lib/src/engine/scene/mesh_node.dart': <String, String>{
+    'ShadowCastingMode':
+        "the engine side of the level document's ShadowCasting, which is "
+        'closed for the reason that one is',
+  },
+  'flutter3d/lib/src/engine/render/render_node.dart': <String, String>{
+    'FramePhase':
+        "the renderer's own passes, in the order it runs them. A phase it "
+        'does not run is not a phase',
+  },
+  'flutter3d/lib/src/engine/render/render_view.dart': <String, String>{
+    'SortMode':
+        'the orders the renderer knows how to sort in. Each is code in the '
+        'sort, not a label',
+  },
+  'flutter3d/lib/src/engine/render/composite_mix.dart': <String, String>{
+    'CompositeView':
+        'which buffer the composite shows. Each value is a branch in a '
+        'shader that ships compiled',
+  },
+  'flutter3d/lib/src/engine/render/resource_desc.dart': <String, String>{
+    'ResourceOrigin':
+        'where a frame resource comes from, which the frame graph switches '
+        'on to allocate it',
+  },
+  'flutter3d/lib/src/engine/render/shadow_settings.dart': <String, String>{
+    'ShadowCasterFaces':
+        'which faces go into the shadow map. Three ways to set cull state, '
+        'and there is no fourth',
+  },
+  'flutter3d/lib/src/engine/render/parity_scene.dart': <String, String>{
+    'ParityScene':
+        'names the fixtures this repository compares across backends. '
+        'Adding one is recording three golden sets, which is not something '
+        'a caller does',
+  },
+  'flutter3d/lib/src/engine/assets/model_loader.dart': <String, String>{
+    'ModelFormat':
+        'names the three decoders this package ships, plus auto. A format it '
+        'does not ship never reaches this switch: a game supplies a '
+        "ModelDecoder on the request and that decoder's own `handles` picks "
+        'it, before any of these are consulted. Adding a value here means '
+        'adding a decoder to this package',
+  },
+  'flutter3d/lib/src/engine/assets/obj/obj_loader.dart': <String, String>{
+    'ObjNormals':
+        'what to do when an OBJ has no normals. Smooth or flat, and there '
+        'is no third answer the decoder could give',
+  },
+  'flutter3d_physics/lib/src/collider.dart': <String, String>{
+    'ColliderKind':
+        'the four the solver has paths for. A fifth kind is a solver '
+        'change, not a value',
+  },
+  'flutter3d_physics/lib/src/collision_wedge.dart': <String, String>{
+    'WedgeUphill':
+        'which way a wedge rises. Four directions on a grid, and geometry '
+        'has no fifth',
+  },
+  'flutter3d_sim/lib/src/level/brush.dart': <String, String>{
+    'ShadowCasting':
+        'a level document key. The engine has to understand it to act on '
+        'it, so a document naming a mode this build does not know is a '
+        'document it cannot draw — see doc/boundary-0.5.0.md',
+  },
+  'flutter3d_sim/lib/src/level/level_light.dart': <String, String>{
+    'LevelLightType':
+        "the document's spelling of LightType, closed for the reason that "
+        'one is',
+  },
+  'flutter3d_sim/lib/src/level/level_issue.dart': <String, String>{
+    'LevelIssueSeverity':
+        'how badly a level is wrong. Three, and the validator decides what '
+        'to do with each',
+  },
+  'flutter3d_sim/lib/src/world/mover.dart': <String, String>{
+    'MoverState':
+        'where a moving platform is in its cycle, which its own step '
+        'drives. A game does not put it in a state the step cannot leave',
+  },
+  'flutter3d_sim/lib/src/loop/run_outcome.dart': <String, String>{
+    'RunOutcome':
+        'playing, won, lost. The vocabulary all three games and every '
+        'screen are built on, and the same set RunStatus is sealed around',
+  },
+  'flutter3d_game_shooter/lib/src/simulation.dart': <String, String>{
+    'GameState':
+        'whether this simulation is running, over, or finished. Pausing and '
+        "cutscenes belong to the application; these three are the step's "
+        'own',
+  },
+  'flutter3d_game_platformer/lib/src/simulation.dart': <String, String>{
+    'RunState': 'the same three the shooter has, in this genre',
+  },
+  'flutter3d_game_racing/lib/src/race_phase.dart': <String, String>{
+    'RacePhase':
+        'countdown, running, finished. The lights, the race and the end of '
+        'it, driven by this package',
+  },
+};
+
+/// Whole packages whose enums are all machinery, and the one reason each time.
+///
+/// Three packages mirror something they do not own — `flutter_gpu`'s pipeline
+/// state, the gamepad the platform reports, the pointer lock the browser has —
+/// and every value in them exists because the thing on the other side has it.
+/// A third-party backend or platform implementation is obliged to handle all of
+/// them, which is the definition of a set that is finite and not ours to grow
+/// on a whim. Listing them one at a time would be the same sentence twenty-five
+/// times.
+///
+/// Adding a value to one of these is still a breaking change and is still
+/// recorded as one; see `doc/boundary-0.5.0.md`.
+const Map<String, String> boundaryEnumPackageExempt = <String, String>{
+  'flutter3d_hardware':
+      'mirrors flutter_gpu. Every value is one the graphics API has, and a '
+      'third-party backend must handle each of them',
+  'pad_input':
+      'mirrors what a gamepad platform reports. The buttons and axes are the '
+      "device's, not this package's",
+  'pointer_lock':
+      "mirrors the platform's pointer lock, which has exactly these states",
+};

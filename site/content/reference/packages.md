@@ -115,9 +115,9 @@ There is no package for this. The rules about how the repository is arranged (wh
 dart run tool/structure.dart
 ```
 
-Twenty-seven rules, under a second, no `pub get` and no device: every one of them reads source text. They were a `boundaries_test.dart` in each package until thirteen packages of twenty-one turned out to have none, all thirteen clean and not one of them checked. A runner that walks `packages/` covers a package the day it exists.
+Twenty-eight rules, under a second, no `pub get` and no device: every one of them reads source text. They were a `boundaries_test.dart` in each package until thirteen packages of twenty-one turned out to have none, all thirteen clean and not one of them checked. A runner that walks `packages/` covers a package the day it exists.
 
-The detectors prove they fire before a single file is scanned, and a broken detector stops the run rather than letting twenty-seven green scans be reported behind it. See [Testing](/reference/testing/).
+The detectors prove they fire before a single file is scanned, and a broken detector stops the run rather than letting twenty-eight green scans be reported behind it. See [Testing](/reference/testing/).
 
 ## Assembling an application
 

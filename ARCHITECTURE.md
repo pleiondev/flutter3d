@@ -266,7 +266,7 @@ the saves and the collision world.
 
 ### 3.3 Rules that are scanned, not remembered
 
-`tool/structure.dart` walks `packages/` and `apps/` and enforces twenty-seven rules in
+`tool/structure.dart` walks `packages/` and `apps/` and enforces twenty-eight rules in
 under a second, as the first step of CI. They cover the *arrangement* of the code
 — who imports what, what a name says, where a thing may live — while anything
 about what the code *does* stays a test.
@@ -1636,7 +1636,7 @@ entities a game defines.
 | Style | `dart format` |
 | Analysis | `flutter analyze` clean across the workspace, no warnings |
 | Unit tests | **3565 tests** across 24 packages and 5 applications |
-| Structure rules | 27, `dart run tool/structure.dart`, the first CI step |
+| Structure rules | 28, `dart run tool/structure.dart`, the first CI step |
 | CI | GitHub Actions over `tool/ci.sh`, on `ubuntu-latest`, with no graphics card |
 
 **Golden render tests.** 41 scenes against **three independent reference sets** —

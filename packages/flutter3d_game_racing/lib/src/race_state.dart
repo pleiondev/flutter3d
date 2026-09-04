@@ -24,8 +24,10 @@ final class RaceState {
          (int index) => RacerProgress(index: index),
          growable: false,
        ),
-       phase = mode == RaceMode.race ? RacePhase.countdown : RacePhase.running,
-       countdown = mode == RaceMode.race ? countdownSeconds : 0.0;
+       phase = mode.startsBehindLights
+           ? RacePhase.countdown
+           : RacePhase.running,
+       countdown = mode.startsBehindLights ? countdownSeconds : 0.0;
 
   final RaceMode mode;
   final TrackSpline track;

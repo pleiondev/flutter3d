@@ -56,6 +56,10 @@ List<Rule> get allRules => <Rule>[
     name: 'every picture the site shows is a golden that exists',
     run: _goldenFiguresExist,
   ),
+  (
+    name: 'an enum in a published package is machinery or is not an enum',
+    run: _boundaryEnums,
+  ),
   (name: 'the documents agree on how many rules there are', run: _ruleCount),
   (
     name: 'the conformance suite says how many checks it runs',
@@ -2347,3 +2351,52 @@ List<Finding> _shaderEntryPoints() {
 /// Where a file is, said the way a finding says it: relative to the root.
 String _inRepository(File file) =>
     file.path.substring(repositoryRoot.path.length + 1);
+
+/// Refuses an enum in a published package unless a table says why it is
+/// machinery.
+///
+/// **A published enum is a closed list somebody else's `switch` is written
+/// against.** Adding a value to it breaks every one of those, so for a package
+/// whose purpose is that other people build on it, an enum is a promise the
+/// list is finished. Sometimes it is — a mirror of an API somebody else
+/// defines, a document key the engine has to understand to act on. Usually it
+/// is not, and the audit in `doc/boundary-0.5.0.md` found four that were not:
+/// what a weapon fires, what a monster is doing, what a stick is for, and how
+/// a camera projects.
+///
+/// The alternative each time is the shape `LightingModel` has had since before
+/// this rule: a `final class` with `static const` instances, which is an enum
+/// that anybody can add to and nothing can switch over exhaustively.
+///
+/// Applications are not checked. A game's own enum is closed against nobody.
+List<Finding> _boundaryEnums() {
+  final found = <Finding>[];
+  for (final entry in packages.entries) {
+    if (boundaryEnumPackageExempt.containsKey(entry.key)) continue;
+
+    final lib = Directory('${entry.value.path}/lib');
+    for (final file in dartFilesIn(lib)) {
+      final where = '${entry.key}/${relative(file, entry.value)}';
+      final allowed = boundaryEnumExempt[where] ?? const <String, String>{};
+      for (final match in _enumDeclaration.allMatches(
+        file.readAsStringSync(),
+      )) {
+        final name = match.group(1)!;
+        if (allowed.containsKey(name)) continue;
+        found.add(
+          Finding(
+            where,
+            '`$name` is an enum in a published package. Adding a value to it '
+            'breaks every switch anybody has written against it. Either say '
+            'why it is machinery in `boundaryEnumExempt`, or make it a final '
+            'class with const instances the way `LightingModel` is',
+          ),
+        );
+      }
+    }
+  }
+  return found;
+}
+
+/// A top-level enum declaration and its name.
+final RegExp _enumDeclaration = RegExp(r'^enum (\w+)', multiLine: true);

@@ -137,7 +137,7 @@ import 'package:flutter3d_screens/testing.dart';        // creditGaps
 <p>A package cannot import another package's <code>test/</code>, which is why there were two copies rather than one. <code>lib/testing.dart</code> is what a package can import.</p>
 </div>
 
-`cpuTestDevice` stops short of building the `Renderer`, deliberately: `flutter3d_cpu` must not depend on `flutter3d`. A backend that could not be compiled without the engine would not be an implementation of an interface, it would be part of the engine. That is a rule, and one of the twenty-seven checks it.
+`cpuTestDevice` stops short of building the `Renderer`, deliberately: `flutter3d_cpu` must not depend on `flutter3d`. A backend that could not be compiled without the engine would not be an implementation of an interface, it would be part of the engine. That is a rule, and one of the twenty-eight checks it.
 
 ## Play the game in a test
 
@@ -189,7 +189,7 @@ They ask how the code is *arranged*: who imports what, what a name says, where a
 dart run tool/structure.dart
 ```
 
-Twenty-seven rules, under a second. Nothing they read needs `pub get`, a shader bundle or a device, so finding out in minute four that a package imports a genre was finding out late what was knowable in second one.
+Twenty-eight rules, under a second. Nothing they read needs `pub get`, a shader bundle or a device, so finding out in minute four that a package imports a genre was finding out late what was knowable in second one.
 
 | Rule | What it refuses |
 |---|---|
@@ -205,7 +205,7 @@ Twenty-seven rules, under a second. Nothing they read needs `pub get`, a shader 
 | `every exemption names a file that is there` | An allowlist entry whose file has moved, or whose case only resolves on macOS |
 | `the compiled shader bundle is not older than its sources` | A bundle built before the GLSL was edited, which fails as `failed to bind texture` rather than as a shader behaving oddly |
 
-Sixteen more check the lists against the workspace, every pubspec's floors and sibling constraints, a package for a dependency on an application, a simulation package for an import of Flutter, the applications for a silenced `print` and for the flag that turns the GPU on, the Impeller runners — conformance and the surface probe — for rot, every picture this site shows for a golden that is actually recorded, the publishing order for a package it forgot, a public member nothing calls for a sentence saying who it is for, the shader table on the backends page for a stage a bundle must answer to, and five numbers that go stale on their own: the test count, the golden scene count, the structure-rule count, the number of checks the conformance suite says it runs, and the number of enums the hardware layer promises not to rename — each compared against the tree. A number in prose is a number nobody recounts, so the counting rules read this site's pages too, and the sentence you are reading is one of them: the rule counts the table above and requires the rest to be the rest.
+Seventeen more check the lists against the workspace, every pubspec's floors and sibling constraints, a package for a dependency on an application, a simulation package for an import of Flutter, the applications for a silenced `print` and for the flag that turns the GPU on, the Impeller runners — conformance and the surface probe — for rot, every picture this site shows for a golden that is actually recorded, the publishing order for a package it forgot, a public member nothing calls for a sentence saying who it is for, the shader table on the backends page for a stage a bundle must answer to, and five numbers that go stale on their own: the test count, the golden scene count, the structure-rule count, the number of checks the conformance suite says it runs, and the number of enums the hardware layer promises not to rename — plus one that refuses an enum in a published package unless a table says why it is machinery — each compared against the tree. A number in prose is a number nobody recounts, so the counting rules read this site's pages too, and the sentence you are reading is one of them: the rule counts the table above and requires the rest to be the rest.
 
 <div class="why">
 <p>These were a <code>boundaries_test.dart</code> in each package, and thirteen packages of twenty-one had none: all thirteen clean, and not one of them checked. A runner that walks <code>packages/</code> itself covers a package the day it exists rather than the day somebody remembers to add a file to it.</p>
