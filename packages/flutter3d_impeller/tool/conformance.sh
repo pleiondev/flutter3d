@@ -87,15 +87,29 @@ wait "$PID" 2>/dev/null
 # status, which reports on the tool and not on the application. The application
 # exits with a code of its own; this is the second half of the same statement,
 # and it also catches a run that never reached the report at all.
-if ! grep -q '=== .* passed, .* failed ===' "$LOG"; then
+# **Matched loosely on purpose, and it was not loose enough once.** The report
+# grew a third number when a check the backend cannot be asked stopped counting
+# as a pass, and both patterns here were anchored on `failed ===` — so the first
+# run after that change reported "the application never reported" on a run where
+# all thirty-one checks passed. A verdict read out of a printed line has to be
+# written to survive the line gaining a field, because the line will.
+if ! grep -qE '=== [0-9]+ passed, [0-9]+ failed' "$LOG"; then
   echo "the application never reported. Last of its output:"
   grep -vE '^(Launching|Syncing|Building|Flutter run|[a-z] [A-Z])' "$LOG" | tail -20
   exit 1
 fi
 
-grep -E '^(flutter: )?(PASS|FAIL|        |=== )' "$LOG" | sed 's/^flutter: //'
+grep -E '^(flutter: )?(PASS|FAIL|SKIP|        |=== )' "$LOG" | sed 's/^flutter: //'
 
-if grep -q '=== .* passed, 0 failed ===' "$LOG"; then
+# A decline is not a failure — the backend was asked something it is not in a
+# position to answer, and said so. It is also not nothing, so it is named rather
+# than left to be counted off the report line by whoever reads it.
+DECLINED=$(sed -n 's/.*failed, \([0-9]\+\) declined ===.*/\1/p' "$LOG" | tail -1)
+if [[ -n "${DECLINED:-}" && "$DECLINED" != 0 ]]; then
+  echo "($DECLINED check(s) declined — this backend was not asked them)"
+fi
+
+if grep -qE '=== [0-9]+ passed, 0 failed' "$LOG"; then
   exit 0
 fi
 exit 1
