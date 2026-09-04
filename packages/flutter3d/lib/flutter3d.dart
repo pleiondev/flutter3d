@@ -32,7 +32,8 @@ library;
 // this package handed them.
 //
 // The backend is deliberately **not** re-exported. An application picks one and
-// depends on one by name; there are two today and room for more.
+// depends on one by name; there are three today — `flutter3d_impeller`,
+// `flutter3d_webgl` and `flutter3d_cpu` — and room for more.
 // That choice is the one thing that must stay visible in an application's
 // pubspec.
 export 'package:flutter3d_hardware/flutter3d_hardware.dart';

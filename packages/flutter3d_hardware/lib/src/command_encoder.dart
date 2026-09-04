@@ -105,7 +105,26 @@ abstract interface class PassEncoder {
   /// by one.
   void setScissor(ScreenRect rect);
 
+  /// How the following draws assemble their vertices.
+  ///
+  /// **A backend need not have all five, and one here does not.** The software
+  /// rasteriser draws [PrimitiveType.triangle] and [PrimitiveType.line] and
+  /// throws an [UnsupportedError] for the other three — from the draw rather
+  /// than from here, because that is where it finds out. There is no capability
+  /// to ask first, unlike wireframe or the stencil: nothing in this engine has
+  /// ever wanted a strip or a point, so no query would have had a caller. What
+  /// the contract does promise is the refusal — a backend may not assemble one
+  /// primitive as another, because three points drawn as a triangle is a
+  /// picture nobody asked for and no error anywhere.
+  ///
+  /// Held by the conformance check
+  /// `every primitive type is assembled as itself or refused`, which draws all
+  /// five and compares how much each one painted.
   void setPrimitiveType(PrimitiveType type);
+
+  /// Filled or drawn as edges. Ask `GraphicsDevice.supportsWireframe` before
+  /// naming [PolygonMode.line]: a backend that cannot draw it throws an
+  /// [UnsupportedError] rather than filling.
   void setPolygonMode(PolygonMode mode);
   void setCullMode(CullMode mode);
   void setWindingOrder(WindingOrder order);
@@ -140,6 +159,23 @@ abstract interface class PassEncoder {
   /// Blending for one colour attachment; null switches it off.
   ///
   /// [attachment] is an index into `RenderPassDescriptor.colors`.
+  ///
+  /// **One backend of the three honours the index, and that is a term of this
+  /// contract rather than a bug in the other two.** Impeller passes it to
+  /// flutter_gpu's `colorAttachmentIndex`; WebGL2 would need
+  /// `EXT_draw_buffers_indexed`, which is optional there, and the software
+  /// rasteriser keeps one blend state for the pass. Both of those set
+  /// attachment zero whatever index is named — so a caller that sets one state
+  /// on attachment zero and a different one on attachment one gets its second
+  /// call applied to the first attachment on two backends out of three, with no
+  /// error and a plausible picture.
+  ///
+  /// Which is why the engine has exactly one caller that passes an index — the
+  /// MRT probe, switching blending *off* on attachment one when it is already
+  /// off on attachment zero, so the substitution is a no-op. Anything wanting
+  /// two attachments to blend *differently* needs the extension and a
+  /// capability query beside it, and neither exists; write the state you want
+  /// on attachment zero and treat the index as a hint until they do.
   void setBlend(BlendState? state, {int attachment = 0});
 
   /// Binds the pair of stages the following draws run.
@@ -204,6 +240,18 @@ abstract interface class PassEncoder {
   /// that looks up what it needs by name, so a member nobody reads costs a map
   /// entry. What is forbidden is a backend that *can* see the disagreement and
   /// says nothing.
+  ///
+  /// **So the return value is `true` unconditionally on such a backend**, and a
+  /// caller branching on it must know that. There is nothing for the software
+  /// rasteriser to answer `false` about — a Dart stage declares no blocks, so
+  /// "the compiler dropped this one" is not a state it has — and returning
+  /// `false` for a block it had merely never been handed would be inventing an
+  /// answer. The value is therefore a report from the backends that reflect and
+  /// a constant from the one that does not, which is the honest shape and not a
+  /// forgotten branch. The conformance check
+  /// `a block missing a member the caller named is refused` uses exactly this
+  /// to tell the two kinds of backend apart before holding either to the member
+  /// rule.
   ///
   /// Every uniform in this engine is a float vector, a matrix or an array of
   /// either, which is why [Float32List] is the only value type. Integer and

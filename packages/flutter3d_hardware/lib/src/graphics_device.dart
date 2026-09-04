@@ -1,7 +1,8 @@
 /// The backend, as a value.
 ///
 /// **Nothing in this package may import `flutter_gpu`** —
-/// `test/no_backend_test.dart` enforces it.
+/// `tool/structure.dart`'s "the hardware layer names no graphics API" rule
+/// enforces it, over every file in this package's `lib/`.
 library;
 
 import 'dart:typed_data';
@@ -166,9 +167,19 @@ abstract interface class GraphicsDevice implements TextureAllocator {
   /// is a decision for whoever owns the geometry and not a substitution a
   /// backend may make on its own.
   ///
-  /// Ask before requesting it. A backend that cannot draw it refuses loudly
-  /// rather than filling the triangles instead, because a silent substitution
-  /// here looks exactly like the wireframe setting having no effect.
+  /// Ask before requesting it. A backend that cannot draw it **throws an
+  /// [UnsupportedError]** rather than filling the triangles instead, because a
+  /// silent substitution here looks exactly like the wireframe setting having
+  /// no effect. Typed, and not a bare exception, because the caller asking is
+  /// choosing between two ways of drawing and cannot act on "something went
+  /// wrong".
+  ///
+  /// Both halves are held by the conformance check `wireframe is drawn as edges
+  /// or refused, never filled`, which counts what a triangle painted: a backend
+  /// answering false must throw, and one answering true must leave the interior
+  /// alone. It is the one capability here that differs across all three
+  /// backends, and until that check existed neither answer was tested — a
+  /// backend that said true and filled the triangles passed the whole suite.
   bool get supportsWireframe;
 
   /// Whether the depth attachment this device hands out carries a stencil
@@ -347,8 +358,10 @@ abstract interface class GraphicsDevice implements TextureAllocator {
   /// **+X, −X, +Y, −Y, +Z, −Z**. Documented once, here, because it is the piece
   /// of this that has no natural check: a table with two entries transposed
   /// produces a sky that is complete, seamless and wrong, and it looks like a
-  /// sky somebody authored badly rather than like a bug. The conformance suite
-  /// draws six known directions against six known colours for exactly this.
+  /// sky somebody authored badly rather than like a bug. The conformance check
+  /// `a cube map answers the face a direction points at` draws six known
+  /// directions against six known colours for exactly this, through the
+  /// cube-sky stage pair, and names the transposed pair when it fails.
   ///
   /// Every face is [size] by [size] — cube faces are square by definition, and
   /// a rectangular one is a mistake worth refusing rather than resizing.
@@ -437,11 +450,20 @@ abstract interface class GraphicsDevice implements TextureAllocator {
   ///
   /// It is not. A WebGL2 backend has no such path: the only route to a
   /// `ui.Image` is `readPixels` into CPU memory and `decodeImageFromPixels`
-  /// back onto the GPU. Measured at the golden suite's own 480x360, that is
-  /// 17.7 ms per frame against a 16.7 ms budget for the whole frame, and
-  /// `readPixels` is 347 us of it — the cost is putting the pixels *back*. A
-  /// contract that demands an image demands that round trip, so it does not
-  /// describe a renderer on that backend at all.
+  /// back onto the GPU, and the cost is putting the pixels *back* — the read
+  /// itself is a fraction of it. A contract that demands an image demands that
+  /// round trip every frame, so it does not describe a renderer on that backend
+  /// at all.
+  ///
+  /// **The size of it, and what that number is worth.** Timed once by hand in a
+  /// browser at the golden suite's own 480x360: 17.7 ms for the round trip
+  /// against a 16.7 ms budget for the whole frame, of which `readPixels` was
+  /// 347 us. Nothing in this repository recomputes those — there is no harness
+  /// that could, since the measurement needs a browser and a GPU — so they are
+  /// an order of magnitude and a shape, not a budget to hold anything to. The
+  /// argument does not rest on them: a full-frame download and re-upload per
+  /// frame is the wrong order of magnitude for a frame whatever the exact
+  /// figure, which is why they are stated once and not maintained.
   ///
   /// What both backends can do is produce something Flutter will show:
   /// flutter_gpu wraps its image, and a WebGL2 backend hands over the canvas it

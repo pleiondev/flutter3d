@@ -54,6 +54,14 @@ List<Rule> get allRules => <Rule>[
   ),
   (name: 'the documents agree on how many rules there are', run: _ruleCount),
   (
+    name: 'the conformance suite says how many checks it runs',
+    run: _conformanceCheckCount,
+  ),
+  (
+    name: 'the documents agree on how many enums the HAL promises',
+    run: _hardwareEnumCount,
+  ),
+  (
     name: 'the compiled shader bundle is not older than its sources',
     run: _shaderBundleIsCurrent,
   ),
@@ -1650,6 +1658,222 @@ List<File> _prosePages() {
   }
   pages.sort((File a, File b) => a.path.compareTo(b.path));
   return pages;
+}
+
+/// How many checks the conformance suite says it runs, against how many it has.
+///
+/// **Three wrong answers at once, and one of them in the file the count is
+/// about.** `flutter3d_conformance.dart` said "five of the twelve now link
+/// stages and draw" when eighteen of twenty-six did; the software backend's
+/// harness opened with "the seven checks" when it ran twenty-six; and two
+/// places said `ARCHITECTURE.md` §7.2 states nine rules when it states
+/// fourteen. None of it is load-bearing on its own — and together they are a
+/// backend author's only map of how much of the contract the suite covers,
+/// which is why "two of the nine" reads as most of §7.2 being enforced when it
+/// is two of fourteen.
+///
+/// Counted from the lists rather than from a list of counts: a check is a
+/// record with a `name` and a `run`, and there is nowhere else one can be
+/// declared. The §7.2 rules are the bold bullets of that section, which is what
+/// the section's own sentence means by "these".
+///
+/// Shown to fire by putting both old numbers back — "the seven checks" and "two
+/// of the nine rules" — and watching it name each file and each right answer.
+List<Finding> _conformanceCheckCount() {
+  final lib = Directory(
+    '${repositoryRoot.path}/packages/flutter3d_conformance/lib',
+  );
+  if (!lib.existsSync()) {
+    return <Finding>[
+      const Finding('flutter3d_conformance/lib', 'is not there'),
+    ];
+  }
+
+  // The escaped-quote alternation is not decoration: one check is named "a pass
+  // does not inherit the previous pass's scissor", and a pattern that stopped
+  // at the first quote counted twenty-five where there are twenty-six. Both
+  // quote characters, for the same reason from the other side: a name written
+  // with double quotes to avoid escaping its apostrophe is a check the count
+  // would silently not see, and a rule that can be walked past by a keystroke
+  // is not holding anything.
+  final record = RegExp(
+    '''name: (?:'(?:[^'\\\\]|\\\\.)*'|"(?:[^"\\\\]|\\\\.)*"),\\s*run:''',
+  );
+  int checksIn(String source) => record.allMatches(source).length;
+
+  final library = File('${lib.path}/flutter3d_conformance.dart');
+  if (!library.existsSync()) {
+    return <Finding>[
+      const Finding('flutter3d_conformance.dart', 'is not there'),
+    ];
+  }
+  final librarySource = library.readAsStringSync();
+  final total = dartFilesIn(lib)
+      .map((File f) => checksIn(f.readAsStringSync()))
+      .fold(0, (int a, int b) => a + b);
+
+  final opens = librarySource.indexOf('get shaderChecks =>');
+  final closes = opens < 0 ? -1 : librarySource.indexOf('\n];', opens);
+  if (closes < 0) {
+    return <Finding>[
+      const Finding(
+        'flutter3d_conformance.dart',
+        'has no shaderChecks list to count, so nothing here can tell whether '
+            'the counts beside it are right',
+      ),
+    ];
+  }
+  final shader = checksIn(librarySource.substring(opens, closes));
+
+  final architecture = File('${repositoryRoot.path}/ARCHITECTURE.md');
+  final text = architecture.existsSync() ? architecture.readAsStringSync() : '';
+  final section = text.indexOf('### 7.2');
+  final semantics = section < 0
+      ? 0
+      : RegExp(
+          r'^- \*\*',
+          multiLine: true,
+        ).allMatches(text.substring(section, text.indexOf('### 7.3'))).length;
+
+  // Each phrasing is distinctive enough that a number elsewhere in a long
+  // comment is not read as a claim about the suite — the same rule the golden
+  // scenes are counted by, for the same reason.
+  final claims = <(RegExp, int Function(RegExpMatch), String)>[
+    (
+      RegExp(r'([\w-]+) of the ([\w-]+) link stages and draw'),
+      (RegExpMatch m) => shader,
+      'checks that link stages and draw',
+    ),
+    (
+      RegExp(r'([\w-]+) shader checks'),
+      (RegExpMatch m) => shader,
+      'shader checks',
+    ),
+    (
+      RegExp(r'[Tt]he ([\w-]+) checks, against a backend'),
+      (RegExpMatch m) => total,
+      'checks in all',
+    ),
+    (
+      RegExp(r'the ([\w-]+) rules ARCHITECTURE\.md §7\.2 states'),
+      (RegExpMatch m) => semantics,
+      'rules in ARCHITECTURE.md §7.2',
+    ),
+  ];
+
+  const words = _countedInWords;
+  const spell = _spell;
+
+  final found = <Finding>[];
+  for (final file in <File>[
+    ...dartFilesIn(lib),
+    ...<String>[
+      'packages/flutter3d_cpu/test/conformance_test.dart',
+      'packages/flutter3d_webgl/test/conformance_test.dart',
+      'packages/flutter3d/example/lib/conformance_main.dart',
+    ].map((String at) => File('${repositoryRoot.path}/$at')),
+  ]) {
+    if (!file.existsSync()) continue;
+    final source = file.readAsStringSync();
+    for (final (pattern, expected, what) in claims) {
+      for (final match in pattern.allMatches(source)) {
+        final want = expected(match);
+        // Both halves of "eighteen of the twenty-six", when the phrasing has
+        // two: the second is the total and drifts on its own.
+        final said = <(String, int)>[
+          (match.group(1)!, want),
+          if (match.groupCount > 1 && match.group(2) != null)
+            (match.group(2)!, total),
+        ];
+        for (final (claim, against) in said) {
+          final number =
+              int.tryParse(claim) ?? words.indexOf(claim.toLowerCase());
+          // Not a number at all — "the checks, against a backend" — so not a
+          // claim about how many there are.
+          if (number < 0) continue;
+          if (number != against) {
+            found.add(
+              Finding(
+                _inRepository(file),
+                'says $claim $what; there are ${spell(against)}',
+              ),
+            );
+          }
+        }
+      }
+    }
+  }
+  return found;
+}
+
+/// Numbers as the documents spell them, because a doc comment says "eighteen"
+/// and not "18" — and a word is exactly the kind of number nobody recounts.
+const List<String> _countedInWords = <String>[
+  'zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', //
+  'nine', 'ten', 'eleven', 'twelve', 'thirteen', 'fourteen', 'fifteen',
+  'sixteen', 'seventeen', 'eighteen', 'nineteen', 'twenty', 'twenty-one',
+  'twenty-two', 'twenty-three', 'twenty-four', 'twenty-five', 'twenty-six',
+  'twenty-seven', 'twenty-eight', 'twenty-nine', 'thirty', 'thirty-one',
+  'thirty-two', 'thirty-three', 'thirty-four', 'thirty-five', 'thirty-six',
+  'thirty-seven', 'thirty-eight', 'thirty-nine', 'forty',
+];
+
+/// A count said both ways, so a finding can be read and searched for.
+String _spell(int n) =>
+    n < _countedInWords.length ? '$n (${_countedInWords[n]})' : '$n';
+
+/// How many enums `formats.dart` declares, against how many the promise says.
+///
+/// **§7.1 promises stability for "the eighteen enums in `formats.dart`" and
+/// there are twenty.** The two the count leaves out — `DepthRange` and
+/// `FramebufferOrigin` — are named in §7.2's "ask before requesting" list, so
+/// the promise reaches them by another road; what does not reach them is the
+/// sentence a person checks before renaming a value. The bullet's own
+/// justification is the Impeller mapping, which asserts eighteen of them map to
+/// the flutter_gpu value of the same name, and eighteen was the right number for
+/// *that* clause on the day it was written — which is how a count comes to be
+/// half true and stay there.
+///
+/// The names are gathered as well as counted, because "twenty" sends nobody
+/// anywhere: a finding that says which enum arrived is a finding somebody can
+/// act on.
+///
+/// Shown to fire by writing nineteen into the bullet and watching it name the
+/// document, the number and the list.
+List<Finding> _hardwareEnumCount() {
+  final formats = File(
+    '${repositoryRoot.path}/packages/flutter3d_hardware/lib/src/formats.dart',
+  );
+  if (!formats.existsSync()) {
+    return <Finding>[
+      const Finding(
+        'flutter3d_hardware/lib/src/formats.dart',
+        'is not there, so the promise §7.1 makes about its enums has no '
+            'subject — move the promise or restore the file',
+      ),
+    ];
+  }
+  final declared = RegExp(r'^enum\s+(\w+)', multiLine: true)
+      .allMatches(formats.readAsStringSync())
+      .map((RegExpMatch m) => m.group(1)!)
+      .toList();
+
+  final claim = RegExp(r'[Tt]he ([\w-]+) enums in `formats\.dart`');
+  return <Finding>[
+    for (final at in <String>['ARCHITECTURE.md', 'README.md'])
+      if (File('${repositoryRoot.path}/$at').existsSync())
+        for (final match in claim.allMatches(
+          File('${repositoryRoot.path}/$at').readAsStringSync(),
+        ))
+          if ((int.tryParse(match.group(1)!) ??
+                  _countedInWords.indexOf(match.group(1)!.toLowerCase())) !=
+              declared.length)
+            Finding(
+              at,
+              'says ${match.group(1)} enums in formats.dart; there are '
+              '${_spell(declared.length)} — ${declared.join(', ')}',
+            ),
+  ];
 }
 
 /// Where a file is, said the way a finding says it: relative to the root.

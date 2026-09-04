@@ -14,15 +14,21 @@
 ///
 /// **Two tiers, and the split is a correction.** This file used to say it was
 /// shader-free as a whole, and that stopped being true the day a check needed a
-/// pipeline: five of the twelve now link stages and draw. A new backend
-/// following the old promise would have met five failures it could do nothing
-/// about, so the lists say which is which — [coreChecks] needs clears, uploads
-/// and readback alone, [shaderChecks] needs the bundle. What still needs a
-/// shader and is not here (an unbound sampler) stays in `ARCHITECTURE.md` §7,
-/// and is named there as such. A uniform block's members used to be on that
-/// list and are checked now — see [checkUniformMemberMismatchIsRefused], which
-/// asks a backend whether it reflects its shaders before holding it to a rule
-/// only reflection can keep.
+/// pipeline: nineteen of the twenty-seven link stages and draw. A new backend
+/// following the old promise would have met nineteen shader checks it could do
+/// nothing about, so the lists say which is which — [coreChecks] needs clears,
+/// uploads and readback alone, [shaderChecks] needs the bundle. What still
+/// needs a shader and is not here (an unbound sampler) stays in
+/// `ARCHITECTURE.md` §7, and is named there as such. A uniform block's members
+/// used to be on that list and are checked now — see
+/// [checkUniformMemberMismatchIsRefused], which asks a backend whether it
+/// reflects its shaders before holding it to a rule only reflection can keep.
+///
+/// **The counts in this file are held to the lists by `tool/structure.dart`.**
+/// They were three different wrong answers at once — "five of the twelve", "the
+/// seven checks", "two of the nine rules" — because a number in a doc comment
+/// is a number nobody recounts, and these are a reader's only map of how much
+/// of §7 the suite covers.
 ///
 /// **The checks themselves live under `src/`, grouped by what they are testing**
 /// — capability queries and readback, shader-bundle and link checks, a pass's
@@ -40,6 +46,7 @@ import 'src/draw_checks.dart';
 import 'src/loaded_bundle_checks.dart';
 import 'src/pass_coverage_checks.dart';
 import 'src/pipeline_checks.dart';
+import 'src/refusal_checks.dart';
 import 'src/render_target_checks.dart';
 import 'src/sampling_checks.dart';
 import 'src/semantics_checks.dart';
@@ -127,9 +134,9 @@ void runDeviceConformance({
 /// **This list is why the two exist separately.** The library used to say it
 /// was shader-free as a whole, and it stopped being true the day the third
 /// check needed a pipeline — so a new backend, following the promise, would
-/// have hit five failures it had no way to act on yet. Clears, uploads and
-/// readback only: the answers here are the cheapest ones to get, and they are
-/// the ones worth having first.
+/// have hit nineteen shader checks it had no way to act on yet. Clears, uploads
+/// and readback only: the answers here are the cheapest ones to get, and they
+/// are the ones worth having first.
 List<ConformanceCheck> get coreChecks => <ConformanceCheck>[
   (name: 'answers every capability query', run: checkCapabilities),
   (name: 'the HDR format it names is renderable', run: checkHdrRenderable),
@@ -184,9 +191,15 @@ List<ConformanceCheck> get shaderChecks => <ConformanceCheck>[
     name: 'a pass renders into a cube face and a mip',
     run: checkRenderToCubeFaceAndMip,
   ),
-  // Two of the nine rules ARCHITECTURE.md §7.2 states and that no signature
-  // can. Both are decisions a new backend has to make deliberately, and
-  // neither produces an error when made the other way round.
+  // The other half of that rule, which the clears above cannot ask about
+  // because a clear covers the whole attachment however the viewport is set.
+  (
+    name: 'a pass\'s initial viewport covers the level',
+    run: checkPassViewportCoversTheLevel,
+  ),
+  // Two of the fourteen rules ARCHITECTURE.md §7.2 states and that no
+  // signature can. Both are decisions a new backend has to make deliberately,
+  // and neither produces an error when made the other way round.
   (
     name: 'a null sampler means linear and repeat',
     run: checkNullSamplerRepeats,
@@ -213,6 +226,22 @@ List<ConformanceCheck> get shaderChecks => <ConformanceCheck>[
   (
     name: 'a stencil test keeps what it should',
     run: checkStencilKeepsWhatItShould,
+  ),
+  // The half of the stencil rule that every other pass hides by tidying up
+  // after itself. This one deliberately does not.
+  (
+    name: 'a pass starts with the stencil test off',
+    run: checkPassStartsWithStencilOff,
+  ),
+  // The two capabilities that differ across the three backends, asked in the
+  // direction that matters: what a backend that answers no must do instead.
+  (
+    name: 'wireframe is drawn as edges or refused, never filled',
+    run: checkWireframeIsDrawnOrRefused,
+  ),
+  (
+    name: 'every primitive type is assembled as itself or refused',
+    run: checkPrimitiveTypesAreDrawnOrRefused,
   ),
 ];
 

@@ -315,10 +315,16 @@ final class WebGlEncoder implements CommandEncoder {
   /// decision and not a substitution a backend may make on its own. Throwing
   /// says so; quietly filling would show a solid model to somebody who asked
   /// for a wireframe and left them to wonder.
+  ///
+  /// An [UnsupportedError] and not the [StateError] every other refusal here
+  /// raises, because this is the one that a caller asked about first: it is the
+  /// answer to `supportsWireframe` being false, and the type is what lets a
+  /// caller catch this and draw lines instead without also swallowing a broken
+  /// frame. See `GraphicsDevice.supportsWireframe`.
   @override
   void setPolygonMode(PolygonMode mode) {
     if (canDrawPolygonMode(mode)) return;
-    _fail(
+    _refuse(
       'WebGL2 cannot draw PolygonMode.line: OpenGL ES has no glPolygonMode. '
       'Wireframe needs line primitives and an index buffer to match, which is '
       'a decision for the renderer.',
@@ -828,5 +834,19 @@ final class WebGlEncoder implements CommandEncoder {
   Never _fail(String message) {
     _release();
     throw StateError(message);
+  }
+
+  /// [_fail] for the one kind of failure that is not a fault: something this
+  /// backend does not have.
+  ///
+  /// `UnsupportedError` rather than `StateError`, because the caller that meets
+  /// this asked `supportsWireframe` first and is choosing between two ways of
+  /// drawing. A `catch` that cannot tell "this backend will not" from "this
+  /// frame went wrong" is not a decision anybody can act on, which is why
+  /// `GraphicsDevice.supportsWireframe` names the type and the conformance
+  /// check `wireframe is drawn as edges or refused, never filled` catches it.
+  Never _refuse(String message) {
+    _release();
+    throw UnsupportedError(message);
   }
 }

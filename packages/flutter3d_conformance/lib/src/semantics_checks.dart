@@ -1,11 +1,11 @@
 /// Two rules from the backend contract that a signature cannot state, and that
 /// nothing in this suite was asking about.
 ///
-/// ARCHITECTURE.md §7.2 enumerates nine of these — "a backend that gets one of
-/// these wrong compiles and draws the wrong thing" — and three had checks. The
-/// two here are the ones a *new* backend is most likely to get wrong, because
-/// both are decisions somebody has to make deliberately and neither produces an
-/// error when made the other way.
+/// Two of the fourteen rules ARCHITECTURE.md §7.2 states — "a backend that gets
+/// one of these wrong compiles and draws the wrong thing". They are the ones a
+/// *new* backend is most likely to get wrong, because both are decisions
+/// somebody has to make deliberately and neither produces an error when made
+/// the other way.
 ///
 /// Deliberately not here: the vertex-attribute divisor. It has its own test in
 /// `flutter3d_webgl`, and that file's own argument for staying out of this
@@ -252,7 +252,8 @@ Future<void> checkDepthWriteIsHonoured(GraphicsDevice device) async {
 /// and it is then held to the member rule. One that answers true for a block
 /// that does not exist has no reflection at all, and the check says so and
 /// stops. That keeps this from being a check every backend passes by
-/// construction, which is what the cube-face check turned out to be.
+/// construction, which is what the cube-face check was until it started
+/// pointing a direction at a face.
 Future<void> checkUniformMemberMismatchIsRefused(GraphicsDevice device) async {
   final vertex = device.shaders['ParticleVertex'];
   require(vertex != null, 'the particle vertex stage is missing');

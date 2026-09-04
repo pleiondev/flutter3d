@@ -181,3 +181,124 @@ Future<void> checkStencilKeepsWhatItShould(GraphicsDevice device) async {
     'still hold its clear value of zero.',
   );
 }
+
+/// A pass starts with the stencil test off, whatever the pass before it set.
+///
+/// **The half of the stencil contract that tidying up hides.** Every check in
+/// this suite that turns the test on turns it off again before submitting, and
+/// so does every pass in the engine — which is correct of them and means a
+/// backend whose pass start does not reset the stencil is never asked. Deleting
+/// the four reset calls in the WebGL encoder's constructor passed the whole
+/// suite. On a context-based backend these setters are global state: the
+/// symptom in a live frame is a pass after the x-ray stage silently rejecting
+/// fragments against a stencil it never configured, and the frame that comes
+/// back is missing geometry with nothing logged.
+///
+/// So this one deliberately does not tidy up. The first pass leaves
+/// `CompareFunction.never` behind — a test that rejects everything — and the
+/// second configures no stencil at all and expects its draw to land.
+Future<void> checkPassStartsWithStencilOff(GraphicsDevice device) async {
+  if (!device.supportsStencil) return;
+
+  const size = 8;
+  final vertex = device.shaders['DebugLineVertex'];
+  final fragment = device.shaders['DebugLine'];
+  require(
+    vertex != null && fragment != null,
+    'the debug-line stages are missing, so this cannot draw twice',
+  );
+  final pipeline = device.createPipeline(vertex!, fragment!);
+  final indices = Uint16List.fromList(<int>[0, 1, 2]);
+  final identity = Float32List.fromList(Matrix4.identity().storage);
+  Float32List triangle(List<double> colour) => Float32List.fromList(<double>[
+    -1, -1, 0.5, ...colour, //
+    3, -1, 0.5, ...colour,
+    -1, 3, 0.5, ...colour,
+  ]);
+
+  /// A pass with its own colour and its own depth-stencil, because the rule is
+  /// about what a *new* pass inherits and a shared attachment would let the
+  /// first pass's stencil contents answer for it.
+  CommandEncoder open(TextureHandle target, Vector4 clear) =>
+      device.beginRenderPass(
+        RenderPassDescriptor(
+          colors: <ColorTarget>[
+            ColorTarget(
+              texture: target,
+              loadAction: LoadAction.clear,
+              clearValue: clear,
+            ),
+          ],
+          depth: DepthTarget(
+            texture: device.createTexture(
+              RenderTargetSpec(
+                width: size,
+                height: size,
+                format: device.defaultDepthStencilFormat,
+                storageMode: StorageMode.deviceTransient,
+              ),
+            ),
+          ),
+        ),
+      );
+
+  void draw(PassEncoder pass, List<double> colour) => pass
+    ..bindPipeline(pipeline)
+    ..setPrimitiveType(PrimitiveType.triangle)
+    ..setCullMode(CullMode.none)
+    ..setDepthCompare(CompareFunction.always)
+    ..setDepthWrite(false)
+    ..bindUniformBlock(vertex, 'LineInfo', <String, Float32List>{
+      'view_projection': identity,
+    })
+    ..bindVertexData(ByteData.sublistView(triangle(colour)), 3)
+    ..bindIndexData(ByteData.sublistView(indices), IndexType.int16, 3)
+    ..draw();
+
+  final first = device.createTexture(
+    const RenderTargetSpec(
+      width: size,
+      height: size,
+      format: TextureFormat.r8g8b8a8UNormInt,
+    ),
+  );
+  final firstPass = open(first, Vector4(0.0, 0.0, 0.0, 1.0));
+  firstPass.setStencil(const StencilState(compare: CompareFunction.never));
+  draw(firstPass, <double>[1, 1, 1, 1]);
+  // No `setStencil(StencilState.disabled)` here, and that omission is the
+  // check. The engine's own passes do put it back; this one is standing in for
+  // the one that forgets.
+  firstPass.submit();
+
+  final second = device.createTexture(
+    const RenderTargetSpec(
+      width: size,
+      height: size,
+      format: TextureFormat.r8g8b8a8UNormInt,
+    ),
+  );
+  final secondPass = open(second, Vector4(1.0, 0.0, 0.0, 1.0));
+  draw(secondPass, <double>[0, 1, 0, 1]);
+  secondPass.submit();
+
+  final read = await device.readPixels(second);
+  require(read != null, 'the target could not be read back');
+  final bytes = read!.buffer.asUint8List();
+  final at = ((size ~/ 2) * size + size ~/ 2) * 4;
+
+  // Mutation: give `CpuEncoder`'s `_stencilFront`/`_stencilBack` an initial
+  // value of `StencilState(compare: CompareFunction.never)` rather than
+  // `StencilState.disabled`, which is a pass starting with the test on. The
+  // centre then comes back red and this fails. On WebGL the equivalent
+  // mutation is deleting the stencil resets from the encoder's constructor,
+  // which until now passed the whole suite.
+  require(
+    bytes[at + 1] > 128 && bytes[at] < 128,
+    'a pass that configured no stencil at all drew nothing: the centre came '
+    'back r=${bytes[at]} g=${bytes[at + 1]}, which is the clear colour. The '
+    'pass before it left CompareFunction.never behind, and this one inherited '
+    'it. A pass starts with the stencil test off on both faces, whatever the '
+    'pass before it set — see ARCHITECTURE.md §7.2 and '
+    'PassEncoder.setStencil.',
+  );
+}

@@ -22,9 +22,9 @@
 /// It does not build the `Renderer`, and that is not laziness. This package must
 /// not depend on `flutter3d`: a backend that could not be compiled without the
 /// engine would not be an implementation of an interface, it would be a part of
-/// the engine, and `no_backend_test.dart` in `flutter3d_hardware` says so for
-/// the layer below. So the caller makes the renderer, from three values it no
-/// longer has to spell.
+/// the engine, and `tool/structure.dart`'s "the hardware layer names no
+/// graphics API" rule says so for the layer below. So the caller makes the
+/// renderer, from three values it no longer has to spell.
 library;
 
 import 'dart:typed_data';

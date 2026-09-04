@@ -142,7 +142,30 @@ final class ColorTarget {
     this.face = 0,
     this.mipLevel = 0,
   }) : assert(face >= 0 && face < 6, 'a texture has at most six faces'),
-       assert(mipLevel >= 0, 'a mip level counts down from the base');
+       assert(mipLevel >= 0, 'a mip level counts down from the base'),
+       // **Checked here rather than by each backend, because no backend was
+       // checking.** The doc on [resolveTexture] said "the backend checks" and
+       // named a promise nobody kept: Impeller forwards both fields to
+       // flutter_gpu and asks nothing, WebGL2 reads the resolve target and
+       // never looks at the store action, and the software rasteriser has no
+       // multisampling to resolve. So a resolve target with `StoreAction.store`
+       // beside it was three different silences — and the symptom is a
+       // multisampled attachment that never reaches the texture the next pass
+       // samples, which is a black or stale picture rather than an error.
+       //
+       // One assert in the constructor is the same shape as
+       // `StencilState.narrowReference` and `readbackRegionOf`: a rule the
+       // three would otherwise each have to keep, decided once above them.
+       assert(
+         resolveTexture == null ||
+             storeAction == StoreAction.multisampleResolve ||
+             storeAction == StoreAction.storeAndMultisampleResolve,
+         'a ColorTarget with a resolveTexture must store through it: '
+         'StoreAction.multisampleResolve, or storeAndMultisampleResolve when '
+         'the multisampled texture is wanted afterwards too. With '
+         'StoreAction.store the resolve never happens and whatever samples the '
+         'resolve target reads what was in it before.',
+       );
 
   /// Where the rasteriser writes. Multisampled when [resolveTexture] is set.
   final TextureHandle texture;
@@ -174,10 +197,11 @@ final class ColorTarget {
 
   /// Where a multisampled [texture] is resolved to when the pass ends.
   ///
-  /// Setting this means [storeAction] must be a resolving one; the backend
-  /// checks. Attachments in one pass must agree on sample count, which is the
-  /// constraint that makes the scene pass drop multisampling entirely whenever
-  /// the surface buffer is wanted.
+  /// Setting this means [storeAction] must be a resolving one, and the
+  /// constructor above asserts it — not the backend, which is what this used to
+  /// say and what none of the three did. Attachments in one pass must agree on
+  /// sample count, which is the constraint that makes the scene pass drop
+  /// multisampling entirely whenever the surface buffer is wanted.
   final TextureHandle? resolveTexture;
 
   /// [LoadAction.clear] covers the **whole attachment** however the viewport

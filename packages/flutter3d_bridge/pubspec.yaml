@@ -32,7 +32,13 @@ dev_dependencies:
   # uploaded meshes are actually handed back rather than merely forgotten.
   # A dev dependency: nothing in `lib/` names the hardware layer, and the
   # engine is what this package draws through.
-  flutter3d_hardware: ^0.4.0
+  #
+  # 0.4.2 rather than 0.4.0, because `tiling_sampler_test.dart` builds
+  # `FakeBackend(maxAnisotropy: …)` and that parameter arrived with the
+  # anisotropy pair. The resolved version was already 0.4.2 — `flutter3d`
+  # floors it — so this states what the tests need rather than fixing a
+  # resolution that could go wrong.
+  flutter3d_hardware: ^0.4.2
   # A `GraphicsDevice` with no GPU under it, so this package's own loader can be
   # run in a test — which until now it never was.
   flutter3d_cpu: ^0.4.0

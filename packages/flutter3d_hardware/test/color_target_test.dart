@@ -33,6 +33,44 @@ void main() {
     );
   });
 
+  test(
+    'a resolve target with a store action that never resolves is refused',
+    () {
+      // Mutation: delete the third assert in ColorTarget's constructor. The two
+      // expectations below then pass construction, which is what every backend
+      // did — the doc said "the backend checks" and none of the three looked at
+      // the pair. A resolve that never happens is a next pass sampling whatever
+      // the resolve target held before.
+      expect(
+        () => ColorTarget(texture: texture, resolveTexture: texture),
+        throwsA(anything),
+      );
+      expect(
+        () => ColorTarget(
+          texture: texture,
+          resolveTexture: texture,
+          storeAction: StoreAction.dontCare,
+        ),
+        throwsA(anything),
+      );
+      // Both resolving actions are allowed, and `storeAndMultisampleResolve` is
+      // not a typo for the other: it keeps the multisampled texture as well.
+      for (final action in <StoreAction>[
+        StoreAction.multisampleResolve,
+        StoreAction.storeAndMultisampleResolve,
+      ]) {
+        expect(
+          ColorTarget(
+            texture: texture,
+            resolveTexture: texture,
+            storeAction: action,
+          ).storeAction,
+          action,
+        );
+      }
+    },
+  );
+
   test('the fake device makes a cube and remembers what was asked', () {
     final device = FakeBackend();
     final cube = device.createCubeRenderTarget(

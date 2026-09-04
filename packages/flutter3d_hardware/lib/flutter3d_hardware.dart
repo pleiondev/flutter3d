@@ -2,18 +2,28 @@
 ///
 /// **Nothing here names a graphics API.** That is the entire content of this
 /// package: it is what a backend implements and what the engine talks to, so
-/// that neither has to know about the other. `flutter3d_impeller` implements it over
-/// `flutter_gpu`; a WebGL2 backend would implement it beside that, and the
-/// engine would not change.
+/// that neither has to know about the other. Three implement it —
+/// `flutter3d_impeller` over `flutter_gpu`, `flutter3d_webgl` over WebGL2, and
+/// `flutter3d_cpu`, a software rasteriser with no driver under it at all — and
+/// the engine did not change for any of them.
 ///
-/// Two rules hold it in shape, and both are checked rather than intended:
+/// Two rules hold it in shape, and both are checked rather than intended by
+/// `tool/structure.dart`'s **"the hardware layer names no graphics API"** rule,
+/// which reads every file in this package's `lib/`:
 ///
-///  * no `flutter_gpu` import anywhere in this package, ever —
-///    `flutter3d_hardware/test/no_backend_test.dart`;
-///  * no `dart:ui` either, apart from one member on [GraphicsDevice] that has
-///    to name it. The reason is written where the exception is.
+///  * no `flutter_gpu` import anywhere in this package, ever, and no dependency
+///    on a backend in its pubspec either — the second because importing nothing
+///    and depending on everything would pass a scan of the imports alone;
+///  * no `dart:ui` and no `package:flutter/` either, apart from the files
+///    `hardwareMayUseFlutter` names. The reason is written where each exception
+///    is.
 ///
-/// When a second backend arrives, this package does not change. A translation
+/// That citation used to be `flutter3d_hardware/test/no_backend_test.dart`,
+/// which has not existed since the boundary tests became one scanner — so the
+/// evidence offered for the load-bearing half of the claim led nowhere, in the
+/// file a fourth-backend author reads first.
+///
+/// When a fourth backend arrives, this package does not change. A translation
 /// file appears in the new backend, and that is all.
 library;
 

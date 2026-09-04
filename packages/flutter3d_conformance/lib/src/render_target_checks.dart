@@ -97,6 +97,105 @@ Future<void> checkRenderToCubeFaceAndMip(GraphicsDevice device) async {
   }
 }
 
+/// A pass aimed at a level below the base starts with a viewport that covers
+/// *that* level, not the texture it belongs to.
+///
+/// **The half of the face-and-level rule that a clear cannot reach.** The check
+/// above aims three clears at three subresources, and a clear covers the whole
+/// attachment whatever the viewport says — §7.2's first rule — so it says
+/// nothing about the second half of §7.2's last rule: "a pass's initial viewport
+/// covers the *level*: a 64-pixel cube at level two is sixteen across". A
+/// backend that took the base dimensions for its viewport drew every probe level
+/// at a scale nobody asked for, and the picture that came back was a plausible
+/// reflection with the wrong thing in it.
+///
+/// Asked by covering *part* of clip space rather than all of it, because a
+/// full-screen triangle fills the level under either viewport and is exactly why
+/// nothing noticed. The wedge below reaches x = −0.25 across the middle row, so
+/// under the right viewport the centre texel is outside it and under a viewport
+/// twice as wide it is well inside — one texel that is the clear colour in one
+/// case and the drawn colour in the other, with no tolerance to argue about.
+Future<void> checkPassViewportCoversTheLevel(GraphicsDevice device) async {
+  if (!device.supportsCubeTextures || !device.supportsRenderToMip) return;
+
+  // Sixteen across at level one, so the two texels a centre tap reads sit nine
+  // and eight pixels from the edge the wedge grows out of — far outside it
+  // under the right viewport, and inside it under the base's.
+  const base = 32;
+  final cube = device.createCubeRenderTarget(
+    size: base,
+    format: TextureFormat.r8g8b8a8UNormInt,
+    mipLevels: 2,
+  );
+  require(cube != null, 'the device makes no cube a pass can draw into');
+
+  final vertex = device.shaders['DebugLineVertex'];
+  final fragment = device.shaders['DebugLine'];
+  require(
+    vertex != null && fragment != null,
+    'the debug-line stages are missing, so nothing here can draw a wedge',
+  );
+
+  // A wedge whose tip is at x = −0.25 on the middle row: under the level's own
+  // viewport it stops six texels short of the centre, under the base's it
+  // covers twelve and swallows it.
+  final wedge = Float32List.fromList(<double>[
+    -1, -3, 0.5, 1, 1, 1, 1, //
+    -1, 3, 0.5, 1, 1, 1, 1,
+    -0.25, 0, 0.5, 1, 1, 1, 1,
+  ]);
+  final indices = Uint16List.fromList(<int>[0, 1, 2]);
+
+  final pass = device.beginRenderPass(
+    RenderPassDescriptor(
+      colors: <ColorTarget>[
+        ColorTarget(
+          texture: cube!,
+          face: 0,
+          mipLevel: 1,
+          loadAction: LoadAction.clear,
+          clearValue: Vector4(0.0, 0.0, 0.0, 1.0),
+        ),
+      ],
+    ),
+  );
+  // No `setViewport`, which is the whole of the question.
+  pass
+    ..setPrimitiveType(PrimitiveType.triangle)
+    ..setCullMode(CullMode.none)
+    ..bindPipeline(device.createPipeline(vertex!, fragment!))
+    ..bindUniformBlock(vertex, 'LineInfo', <String, Float32List>{
+      'view_projection': Float32List.fromList(Matrix4.identity().storage),
+    })
+    ..bindVertexData(ByteData.sublistView(wedge), 3)
+    ..bindIndexData(ByteData.sublistView(indices), IndexType.int16, 3)
+    ..draw();
+  pass.submit();
+
+  // Mutation: in `CpuEncoder._drawOnce`, take the default viewport from the
+  // attachment's own texture rather than from `_attachment(...)`'s
+  // subresource — `(colors.first.texture.backend as CpuTexture).width` in place
+  // of `target.width`. This check is then the only one in the suite that fails,
+  // and on this backend it fails as a `RangeError` out of `_rasteriseTriangle`
+  // rather than as the message below, because a software rasteriser handed a
+  // viewport twice its target's size walks off the end of the level's own
+  // buffer. A hardware backend clips instead, which is what the message is for.
+  //
+  // That the read is not vacuous was checked the other way round: moving the
+  // wedge's tip from x = −0.25 to x = 3 — a triangle that does cover the
+  // centre — brings [255, 255, 255] back through the same tap and fails here.
+  final centre = await _readFace(device, cube, face: 0, lod: 1);
+  require(
+    centre[0] < 64 && centre[1] < 64 && centre[2] < 64,
+    'the centre of face zero at level one came back $centre where the level '
+    'was cleared to black and a wedge reaching only a quarter of the way in '
+    'was drawn. A pass that names a mip level starts with a viewport covering '
+    'that level — a 64-pixel cube at level two is sixteen across — and this '
+    'one is scaled as though the base were the target. See '
+    'ARCHITECTURE.md §7.2 and ColorTarget.mipLevel.',
+  );
+}
+
 /// One texel at the centre of [face] of [cube] at level [lod], through the
 /// probe prefilter stage with a single tap.
 Future<List<int>> _readFace(

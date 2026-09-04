@@ -16,8 +16,14 @@
 /// BC1 stores two 565 endpoints and 2-bit picks between them, so equal
 /// endpoints and zero picks are the endpoint colour; ETC2's individual mode
 /// stores a 4-bit base per channel and a 2-bit modifier per pixel, and the
-/// all-zero modifier under table 0 is +2. The tolerance covers both roundings
-/// and nothing else.
+/// all-zero modifier under table 0 is +2; ASTC has a block that is nothing but
+/// a colour — the void extent — which is why the family with the most
+/// complicated encoder is the one whose block here is the simplest.
+///
+/// **All three families, because two of them was an arbitrary line.** ASTC has
+/// a mapping on every backend and had never had a block drawn through it, which
+/// is exactly the status this check exists to end: a format the capability
+/// table names, the allocation accepts, and nothing has ever sampled.
 library;
 
 import 'dart:typed_data';
@@ -55,10 +61,32 @@ Uint8List _etc2Solid() {
   return Uint8List.fromList(<int>[both(_r), both(_g), both(_b), 0, 0, 0, 0, 0]);
 }
 
+/// One 4×4 ASTC LDR block as a *void extent*: the block layout whose whole
+/// content is one colour and no weights at all.
+///
+/// Bits 0–8 are the void-extent marker `111111100`, bit 9 says LDR, bits 10 and
+/// 11 are reserved and must be one, and bits 12–63 are the extent's four
+/// texture coordinates — all ones, which is the encoding for "this block is a
+/// constant colour and names no extent". The last eight bytes are RGBA as
+/// UNORM16, and a UNORM16 whose two bytes are equal is exactly its own top
+/// byte, so the colour that comes back is the colour that went in with no
+/// rounding to allow for.
+Uint8List _astc4x4Solid() {
+  int wide(int v) => (v << 8) | v;
+  return Uint8List.fromList(<int>[
+    0xFC, 0xFD, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, //
+    for (final channel in <int>[_r, _g, _b, 255]) ...<int>[
+      wide(channel) & 0xFF,
+      wide(channel) >> 8,
+    ],
+  ]);
+}
+
 Future<void> checkCompressedTextureSamples(GraphicsDevice device) async {
   final candidates = <(TextureFormat, Uint8List)>[
     (TextureFormat.bc1RGBAUNormInt, _bc1Solid()),
     (TextureFormat.etc2RGB8UNormInt, _etc2Solid()),
+    (TextureFormat.astc4x4LDR, _astc4x4Solid()),
   ];
 
   for (final (format, block) in candidates) {

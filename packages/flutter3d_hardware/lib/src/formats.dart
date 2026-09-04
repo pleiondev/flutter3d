@@ -221,6 +221,28 @@ extension TextureFormatCompression on TextureFormat {
 }
 
 /// One term of a blend equation.
+///
+/// **The last four read a blend constant this interface has no way to set**, and
+/// they are the one dead corner of these enums. [blendColor],
+/// [oneMinusBlendColor], [blendAlpha] and [oneMinusBlendAlpha] all multiply by
+/// a colour a caller would set with something like `setBlendColor` —
+/// `PassEncoder` has no such member, because no pass in this engine has ever
+/// wanted one, and this file's own rule is that the values mirror flutter_gpu's
+/// one for one rather than being pruned to what is reachable.
+///
+/// So they are here and they cannot be used, and the three backends disagree
+/// about what that means: the software rasteriser throws an [UnsupportedError]
+/// naming the reason, WebGL2 maps them to `CONSTANT_COLOR` and friends against
+/// a constant nobody ever set — which GL defines as transparent black, so the
+/// term silently evaluates to zero — and Impeller hands them to flutter_gpu,
+/// whose own default is the same. Two of the three therefore draw a plausible
+/// picture with a term missing from it.
+///
+/// A `BlendState` built from one of these is a mistake in every case today.
+/// Adding the setter, or refusing them in all three backends, are both real
+/// answers; what is not an answer is the current arrangement, and it is written
+/// down here so a fourth backend does not have to work out which of the three
+/// to copy.
 enum BlendFactor {
   zero,
   one,
@@ -282,6 +304,13 @@ enum SamplerAddressMode { clampToEdge, repeat, mirror }
 enum IndexType { int16, int32 }
 
 /// How vertices are assembled into primitives.
+///
+/// **Two of these are drawn everywhere and three are not.** The engine asks for
+/// [triangle] and [line] only — the debug overlay is the one caller of the
+/// second — and the software rasteriser implements exactly those two, throwing
+/// an [UnsupportedError] from the draw for the rest. There is no capability to
+/// ask first and `PassEncoder.setPrimitiveType` says why; what a backend may
+/// not do is assemble one of these as another.
 enum PrimitiveType { triangle, triangleStrip, line, lineStrip, point }
 
 /// Which faces the rasteriser discards.

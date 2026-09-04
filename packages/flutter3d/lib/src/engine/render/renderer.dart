@@ -964,8 +964,10 @@ final class Renderer implements RenderServices {
     }
 
     // From the device, not a literal. Four is what these goldens were recorded
-    // with and what both current backends answer; the engine no longer decides
-    // it on their behalf.
+    // with, and no two of the three backends answer the same number — Impeller
+    // four, WebGL2 whatever its context reports, the software rasteriser one
+    // because it does not multisample at all. The engine no longer decides it
+    // on their behalf.
     final sampleCount = msaaEnabled ? device.preferredSampleCount : 1;
 
     // Straight from the device rather than through the pool: these live for as

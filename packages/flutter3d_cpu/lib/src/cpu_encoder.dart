@@ -172,6 +172,13 @@ final class CpuEncoder implements CommandEncoder {
   void setStencilReference(int value) =>
       _stencilReference = StencilState.narrowReference(value);
 
+  /// [attachment] is ignored, as it is on WebGL2 and for a plainer reason:
+  /// this pass keeps one blend state and every attachment it writes uses it.
+  ///
+  /// The contract allows that — `CommandEncoder.setBlend` says the index is
+  /// honoured by one backend of three and what a caller may rely on instead —
+  /// and the engine's one indexed caller sets the same state on both
+  /// attachments, so nothing it draws depends on them differing.
   @override
   void setBlend(BlendState? state, {int attachment = 0}) => _blend = state;
 
