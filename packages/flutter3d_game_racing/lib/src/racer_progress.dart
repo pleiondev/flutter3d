@@ -51,6 +51,31 @@ final class RacerProgress {
   /// [bestSectors], which is not.
   final List<double> sectorTimes = <double>[];
 
+  /// How long the current slide has been held, in seconds. Zero when straight.
+  ///
+  /// **A slide is not a mode**, which is what [VehicleController.slipAngle]'s
+  /// own doc is about: locking the wheels spends the tyres' grip on stopping
+  /// them and the steering keeps turning the nose, so the slide falls out of
+  /// the driving. Scoring it is only a matter of reading, which is what this
+  /// is — and it is why a drift can be caught, held and driven out of rather
+  /// than entered.
+  double driftFor = 0.0;
+
+  /// What the current slide is worth so far.
+  ///
+  /// Grows faster the further sideways and the faster the car is going, which
+  /// is the shape every game that scores this uses: a slow slide at a small
+  /// angle should be worth almost nothing, or a driver scores by wobbling.
+  double driftScore = 0.0;
+
+  /// The best single slide, and everything scored this session.
+  ///
+  /// Two numbers because they answer different questions: the best is what a
+  /// driver is chasing and the total is what a session was worth. A game that
+  /// wants neither reads neither.
+  double bestDrift = 0.0;
+  double totalDrift = 0.0;
+
   /// The quickest each sector has been driven in, or null before it has been.
   ///
   /// **Per sector rather than per lap, and that is the whole point of having

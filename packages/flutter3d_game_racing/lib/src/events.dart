@@ -160,3 +160,22 @@ final class SectorCompleted extends RacerEvent {
   @override
   String get name => 'sector $sector in $time (car ${racer.index})';
 }
+
+/// A slide ended, and here is what it was worth.
+///
+/// **One event per slide rather than one a step**, because what a driver is
+/// doing is one slide and not sixty a second: a score arriving in fragments
+/// cannot say "that one was worth four hundred", which is the only thing
+/// anybody wants to hear.
+final class DriftScored extends RacerEvent {
+  const DriftScored(super.racer, this.score, this.seconds);
+
+  /// What it was worth. Grows with how far sideways and how fast.
+  final double score;
+
+  /// How long it was held.
+  final double seconds;
+
+  @override
+  String get name => 'drift worth $score over $seconds (car ${racer.index})';
+}

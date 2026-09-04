@@ -692,4 +692,37 @@ void main() {
       expect(input.shelter, 0.0, reason: 'a stale tow survived the reset');
     });
   });
+
+  test(
+    'the slip ratio says something different about a launch and a slide',
+    () {
+      // **The measurement the traction control is written against.** A car that
+      // reported one number for both could not be helped off the line without
+      // being fought mid-drift, which is what a first version of that assist
+      // did: a threshold above the launch figure and below the cornering one
+      // ignores the wheelspin it exists for and cuts the throttle in the middle
+      // of every slide.
+      final it = onFlat();
+      final input = VehicleInput()..throttle = 1.0;
+      var launch = 0.0;
+      var cornering = 0.0;
+      var locked = 0.0;
+      for (var i = 0; i < 600; i++) {
+        if (i > 180) input.steer = 1.0;
+        if (i > 400) input.handbrake = true;
+        it.car.step(1 / 60, input);
+        final slip = it.car.slipRatio.abs();
+        if (i <= 180 && slip > launch) launch = slip;
+        if (i > 180 && i <= 400 && slip > cornering) cornering = slip;
+        if (i > 400 && slip > locked) locked = slip;
+      }
+      // 0.078, 1.0 and 1.0 as measured. Held apart rather than to the figures,
+      // because a tyre model may be retuned and what must stay true is that the
+      // two are tellable apart.
+      expect(launch, greaterThan(0.05), reason: 'a launch stopped spinning');
+      expect(launch, lessThan(0.5));
+      expect(cornering, greaterThan(0.9));
+      expect(locked, greaterThan(0.9));
+    },
+  );
 }

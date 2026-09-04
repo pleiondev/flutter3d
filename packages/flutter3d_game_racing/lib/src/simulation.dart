@@ -40,6 +40,8 @@ final class RacingSimulation {
     this.killPlane = -50.0,
     this.offRoadPatience = 4.0,
     this.contactRestitution = 0.35,
+    this.difficulty = Difficulty.normal,
+    this.assisted = const <int>{0},
   }) : inputs = List<VehicleInput>.generate(
          vehicles.length,
          (_) => VehicleInput(),
@@ -130,7 +132,9 @@ final class RacingSimulation {
     _world.index(dt);
 
     for (var i = 0; i < vehicles.length; i++) {
+      _readDrift(race.progress[i], vehicles[i], dt);
       inputs[i].shelter = _shelterFor(i);
+      if (assisted.contains(i)) _assist(inputs[i], vehicles[i]);
       vehicles[i].step(dt, racing ? inputs[i] : _revvingOnly(inputs[i]));
       if (!racing) {
         // Held on the line. The wheels have turned, which is the point of
@@ -312,6 +316,106 @@ final class RacingSimulation {
       events.add(CheckpointPassed(racer));
       _closeSector(racer);
     }
+  }
+
+  /// Adds up what a slide is worth, and closes it when the car straightens.
+  ///
+  /// **Held rather than banked per step**, because what a driver is doing is
+  /// one slide and not sixty of them a second: a score that arrived in
+  /// fragments could not say "that one was worth four hundred", which is the
+  /// only thing anybody wants to hear.
+  ///
+  /// A slide ends when the car comes straight or stops, and a slide too short
+  /// to see is worth nothing — otherwise every corner scores and the number
+  /// stops meaning anything.
+  void _readDrift(RacerProgress racer, VehicleController car, double dt) {
+    final sideways = car.slipAngle.abs();
+    final sliding =
+        car.grounded && sideways >= driftAngle && car.speed >= driftSpeed;
+
+    if (sliding) {
+      racer.driftFor += dt;
+      // Linear in both, which is the shape every game that scores this uses:
+      // a slow slide at a small angle should be worth almost nothing, or a
+      // driver scores by wobbling.
+      racer.driftScore += sideways * car.speed * dt;
+      return;
+    }
+
+    if (racer.driftFor >= driftMinimum) {
+      racer.totalDrift += racer.driftScore;
+      if (racer.driftScore > racer.bestDrift) {
+        racer.bestDrift = racer.driftScore;
+      }
+      events.add(DriftScored(racer, racer.driftScore, racer.driftFor));
+    }
+    racer.driftFor = 0.0;
+    racer.driftScore = 0.0;
+  }
+
+  /// How far sideways counts as a slide, in radians. About eight degrees.
+  static const double driftAngle = 0.14;
+
+  /// How fast the car has to be going for a slide to count, in metres a second.
+  static const double driftSpeed = 8.0;
+
+  /// How long a slide has to be held to be worth anything, in seconds.
+  ///
+  /// Half a second, so a twitch on the way into a corner scores nothing and
+  /// the number goes on meaning something.
+  static const double driftMinimum = 0.5;
+
+  /// How hard this game is being.
+  ///
+  /// One axis is read — [Difficulty.assistance] — and it reaches the cars
+  /// through [_assist]. The other three describe things a racing game has no
+  /// number for: nothing damages the player, the player's own attacks do not
+  /// exist, and the drivers have no reaction time to shorten. Saying so is
+  /// better than inventing a mapping and calling it a setting.
+  final Difficulty difficulty;
+
+  /// Which cars the assists are applied to. The player by default.
+  ///
+  /// **A set rather than a flag on the car**, because whether a driver is
+  /// being helped is a property of who is driving rather than of what they are
+  /// driving, and an AI that inherited the player's traction control would be
+  /// an AI that got faster on the easy setting.
+  final Set<int> assisted;
+
+  /// Softens what a driver asked for, by as much as the setting says.
+  ///
+  /// **Traction control, and only that.** It is the one assist this simulation
+  /// has the numbers for: [VehicleController.slipRatio] already says how much
+  /// faster the wheels are turning than the ground, which is exactly what a
+  /// real one measures. A braking line is a drawing and belongs to the game; a
+  /// stability assist would be a second steering model.
+  ///
+  /// Applied to the throttle rather than to the tyres, so a car that is helped
+  /// and a car that is not are the same car — which is what makes a lap time
+  /// set with assists comparable to one set without, once the setting is
+  /// recorded beside it.
+  ///
+  /// **It refuses to act on a car that is sideways, and that is the whole
+  /// design.** Measured on the shipped car: a full-throttle launch peaks at
+  /// 0.078 of slip ratio, and a corner taken on the handbrake saturates it at
+  /// 1.0 — so a traction control written on slip ratio alone would ignore the
+  /// wheelspin it exists for and cut the throttle hard in the middle of every
+  /// slide. In a game that scores drifts, that is the assist fighting the
+  /// player at the one moment they are doing it on purpose.
+  ///
+  /// So it engages on spin *while the car is pointing where it is going*,
+  /// which is what separates a launch from a drift.
+  void _assist(VehicleInput input, VehicleController car) {
+    final help = difficulty.assistance;
+    if (help <= 0.0 || input.throttle <= 0.0) return;
+    if (car.slipAngle.abs() >= driftAngle) return;
+
+    // Above 0.05, because the launch this exists for peaks at 0.078 and
+    // everything a car does rolling along sits below it.
+    final spinning = ((car.slipRatio - 0.05) / 0.05).clamp(0.0, 1.0);
+    if (spinning <= 0.0) return;
+
+    input.throttle *= 1.0 - help * spinning;
   }
 
   /// How much of the air ahead of car [index] is already out of the way.

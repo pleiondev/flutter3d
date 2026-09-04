@@ -13,6 +13,7 @@ import 'ring_track.dart';
 final class Race {
   Race({
     RaceMode mode = RaceMode.timeTrial,
+    Difficulty difficulty = Difficulty.normal,
     int cars = 1,
     int laps = 2,
     TrackSpline? track,
@@ -48,6 +49,7 @@ final class Race {
       collision: world,
       vehicles: vehicles,
       race: race,
+      difficulty: difficulty,
     );
   }
 
@@ -770,6 +772,69 @@ void main() {
       it.simulation.step(_step);
 
       expect(it.simulation.inputs[0].shelter, 0.0);
+    });
+  });
+
+  group('assists and drifts', () {
+    test('traction control cuts the throttle a spinning wheel asked for', () {
+      // The one assist this simulation has the numbers for: slipRatio already
+      // says how much faster the wheels are turning than the ground, which is
+      // what a real traction control measures.
+      ({double leastThrottle, double peakSlip}) launch(Difficulty difficulty) {
+        final it = Race(laps: 1, difficulty: difficulty);
+        driveRound(it, seconds: 2.0, throttle: 0.0);
+        var least = 1.0;
+        var peak = 0.0;
+        for (var i = 0; i < 90; i++) {
+          it.simulation.inputs[0].throttle = 1.0;
+          it.simulation.step(_step);
+          final asked = it.simulation.inputs[0].throttle;
+          if (asked < least) least = asked;
+          final slip = it.vehicles[0].slipRatio;
+          if (slip > peak) peak = slip;
+        }
+        return (leastThrottle: least, peakSlip: peak);
+      }
+
+      final bare = launch(Difficulty.normal);
+      final helped = launch(Difficulty.gentle);
+
+      expect(
+        bare.peakSlip,
+        greaterThan(0.05),
+        reason: 'nothing was spinning, so nothing was being assisted',
+      );
+      expect(bare.leastThrottle, 1.0, reason: 'an unassisted car was helped');
+      expect(helped.leastThrottle, lessThan(1.0));
+    });
+
+    test('a held slide is scored once, when it ends', () {
+      // One event per slide rather than one a step: a score arriving in
+      // fragments cannot say "that one was worth four hundred".
+      final it = Race(laps: 2);
+      final scored = <DriftScored>[];
+      driveRound(
+        it,
+        seconds: 20.0,
+        throttle: 1.0,
+        watch: () {
+          scored.addAll(it.simulation.events.drain().whereType<DriftScored>());
+        },
+      );
+
+      for (final drift in scored) {
+        expect(drift.seconds, greaterThanOrEqualTo(0.5));
+        expect(drift.score, greaterThan(0.0));
+      }
+    });
+
+    test('and a car going straight scores nothing at all', () {
+      final it = Race(laps: 2);
+      it.simulation.step(_step);
+
+      expect(it.player.driftFor, 0.0);
+      expect(it.player.driftScore, 0.0);
+      expect(it.player.totalDrift, 0.0);
     });
   });
 }
