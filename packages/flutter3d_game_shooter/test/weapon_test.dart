@@ -607,6 +607,132 @@ void main() {
     });
   });
 
+  group('a weapon with a magazine', () {
+    const rifle = WeaponDef(
+      name: 'rifle',
+      behaviour: HitscanBehaviour(),
+      ammo: AmmoType.bullets,
+      damage: 12.0,
+      shotsPerSecond: 8.0,
+      magazine: 4,
+      reloadSeconds: 1.0,
+    );
+
+    Arsenal held({int bullets = 20}) => Arsenal(
+      slots: <WeaponDef>[rifle],
+      ammo: <AmmoType, int>{AmmoType.bullets: bullets},
+    )..selectSlot(0);
+
+    test('starts full, so a weapon picked up mid-fight can be fired', () {
+      // A pickup that hands over something that cannot be fired reads as a
+      // broken pickup rather than as a rule.
+      final arsenal = held();
+
+      expect(arsenal.loaded, 4);
+      expect(arsenal.canFire, isTrue);
+    });
+
+    test('fires out of the magazine, not out of what is carried', () {
+      final arsenal = held();
+      final carried = arsenal.ammoOf(AmmoType.bullets);
+
+      arsenal.fire();
+
+      expect(arsenal.loaded, 3);
+      expect(arsenal.ammoOf(AmmoType.bullets), carried);
+    });
+
+    test(
+      'and stops firing when the magazine is out, with rounds in the bag',
+      () {
+        final arsenal = held();
+        for (var i = 0; i < 4; i++) {
+          arsenal
+            ..advanceTime(1.0)
+            ..fire();
+        }
+
+        expect(arsenal.loaded, 0);
+        expect(arsenal.canFire, isFalse);
+        expect(arsenal.ammoOf(AmmoType.bullets), 20);
+        expect(arsenal.canReload, isTrue);
+      },
+    );
+
+    test('a reload takes its time and then fills from what is carried', () {
+      final arsenal = held();
+      for (var i = 0; i < 4; i++) {
+        arsenal
+          ..advanceTime(1.0)
+          ..fire();
+      }
+
+      expect(arsenal.reload(), isTrue);
+      expect(arsenal.canFire, isFalse, reason: 'it fired mid-reload');
+
+      arsenal.advanceTime(0.5);
+      expect(arsenal.loaded, 0, reason: 'the magazine filled early');
+
+      arsenal.advanceTime(0.6);
+      expect(arsenal.loaded, 4);
+      expect(arsenal.ammoOf(AmmoType.bullets), 16);
+      expect(arsenal.canFire, isTrue);
+    });
+
+    test('and a reload never conjures rounds nobody is carrying', () {
+      final arsenal = held(bullets: 2);
+      for (var i = 0; i < 4; i++) {
+        arsenal
+          ..advanceTime(1.0)
+          ..fire();
+      }
+      arsenal
+        ..reload()
+        ..advanceTime(2.0);
+
+      expect(arsenal.loaded, 2);
+      expect(arsenal.ammoOf(AmmoType.bullets), 0);
+      expect(arsenal.canReload, isFalse, reason: 'it reloaded from nothing');
+    });
+
+    test('two weapons keep their own magazines', () {
+      // The first version kept one count for the whole arsenal: a player
+      // would have found the rifle full because the pistol was, and emptied
+      // one by firing the other.
+      const pistol = WeaponDef(
+        name: 'sidearm',
+        behaviour: HitscanBehaviour(),
+        ammo: AmmoType.bullets,
+        damage: 8.0,
+        shotsPerSecond: 4.0,
+        magazine: 2,
+      );
+      final arsenal = Arsenal(
+        slots: <WeaponDef>[rifle, pistol],
+        ammo: <AmmoType, int>{AmmoType.bullets: 20},
+      )..selectSlot(0);
+
+      arsenal.fire();
+      expect(arsenal.loaded, 3);
+
+      arsenal.selectSlot(1);
+      expect(
+        arsenal.loaded,
+        2,
+        reason: 'the sidearm shared the rifle\'s count',
+      );
+    });
+
+    test('and a weapon with no magazine is untouched by any of it', () {
+      final arsenal = sampleArsenal()..selectSlot(1);
+
+      expect(arsenal.current.magazine, isNull);
+      expect(arsenal.canReload, isFalse);
+      expect(arsenal.reload(), isFalse);
+      expect(arsenal.canFire, isTrue);
+    });
+  });
+
   group('falling back from an empty weapon', () {
     // **Nothing covered this**, which is how a restructure of the firing block
     // silently skipped it: the fall-back sits after the shot, and an early

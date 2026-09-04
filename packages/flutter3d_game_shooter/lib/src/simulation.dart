@@ -515,6 +515,10 @@ final class GameSimulation {
     final slot = input.slotRequest;
     if (slot != null) arsenal.selectSlot(slot);
 
+    // Asked before the triggers, so a press on the same step reloads rather
+    // than firing the last round it was about to put back.
+    if (input.pressed(ShooterActions.reload)) arsenal.reload();
+
     final shot = this.shot;
     // **The main trigger first, and only one of the two fires in a step.** They
     // share a cooldown because they share a weapon, so a player holding both

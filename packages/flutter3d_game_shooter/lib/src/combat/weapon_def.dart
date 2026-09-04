@@ -59,6 +59,8 @@ final class WeaponDef {
     required this.name,
     required this.behaviour,
     this.alternate,
+    this.magazine,
+    this.reloadSeconds = 1.5,
     required this.ammo,
     required this.damage,
     required this.shotsPerSecond,
@@ -135,6 +137,24 @@ final class WeaponDef {
 
   final double shotsPerSecond;
   final int ammoPerShot;
+
+  /// How many shots the weapon holds before it has to be reloaded, or null for
+  /// one that never does.
+  ///
+  /// **Null rather than a large number**, so a weapon with no magazine is a
+  /// weapon this machinery does not touch: no reload can be asked for, no
+  /// timer runs, and `Arsenal` behaves exactly as it did. Every weapon this
+  /// template ships is one of those, because a crypt's pace is about switching
+  /// weapons rather than about waiting.
+  ///
+  /// **The wait is the point, and it is not free.** A reload is a few seconds
+  /// a player cannot shoot for, so it is the one thing in this file that can
+  /// get somebody killed by a number rather than by a decision. A game that
+  /// adds one should mean it.
+  final int? magazine;
+
+  /// How long a reload takes, in seconds. Ignored without a [magazine].
+  final double reloadSeconds;
 
   /// How many rays one shot fires.
   final int rayCount;

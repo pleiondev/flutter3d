@@ -249,4 +249,34 @@ void main() {
       expect(read(plain).track.length, greaterThan(300.0));
     });
   });
+
+  group('the grid order', () {
+    // The half of a grid that was missing: startSlot answers where slot three
+    // is, and every game put car three there — so a qualifying session had
+    // nowhere to put its result.
+
+    test('is fastest first', () {
+      final order = StartGrid.orderBy(<double?>[92.4, 90.1, 91.8]);
+
+      expect(order, <int>[1, 2, 0]);
+    });
+
+    test('and a car with no time starts behind every car with one', () {
+      final order = StartGrid.orderBy(<double?>[null, 90.1, null, 89.9]);
+
+      expect(order, <int>[3, 1, 0, 2]);
+    });
+
+    test('and a session nobody set a lap in keeps the order it was given', () {
+      // Which is the first race of a season, and also the old behaviour — so a
+      // game that always calls this gets it for free.
+      final order = StartGrid.orderBy(<double?>[null, null, null]);
+
+      expect(order, <int>[0, 1, 2]);
+    });
+
+    test('and an empty field is an empty grid', () {
+      expect(StartGrid.orderBy(const <double?>[]), isEmpty);
+    });
+  });
 }

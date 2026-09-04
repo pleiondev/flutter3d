@@ -21,6 +21,13 @@ abstract final class ShooterActions {
   /// see `Arsenal.canFireAlternate`.
   static const GameAction altFire = GameAction('altFire');
 
+  /// Fills the magazine, for a weapon that has one.
+  ///
+  /// Bound whether or not a game's weapons reload: `Arsenal.canReload` is
+  /// false for every weapon without a magazine, so the action is simply never
+  /// answered and a game does not have to know which of its weapons are which.
+  static const GameAction reload = GameAction('reload');
+
   /// Held to crouch. Released to stand, if there is room to.
   ///
   /// This game's own rather than the engine's, for the reason the whole file

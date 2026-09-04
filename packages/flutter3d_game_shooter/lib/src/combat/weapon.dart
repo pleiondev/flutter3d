@@ -164,6 +164,8 @@ final class Arsenal {
     'owned': <String>[for (final weapon in _owned) weapon.name],
     'current': _current,
     'cooldown': _cooldown,
+    'magazines': <String, int>{..._magazines},
+    'reloading': _reloading,
     'ammo': <String, int>{
       for (final entry in _ammo.entries) entry.key.name: entry.value,
     },
@@ -187,6 +189,18 @@ final class Arsenal {
     // first shot rather than on load, which is the worse of the two places.
     if (_current >= _owned.length) _current = _owned.isEmpty ? 0 : 0;
     _cooldown = (from['cooldown'] as num?)?.toDouble() ?? 0.0;
+    _reloading = (from['reloading'] as num?)?.toDouble() ?? 0.0;
+    _magazines.clear();
+    final magazines = from['magazines'];
+    if (magazines is Map) {
+      for (final entry in magazines.entries) {
+        final name = entry.key;
+        final rounds = entry.value;
+        if (name is String && rounds is num) {
+          _magazines[name] = rounds.toInt();
+        }
+      }
+    }
     final ammo = from['ammo'];
     if (ammo is Map) {
       // **Driven by what the save holds, not by a list of every type there
@@ -208,6 +222,68 @@ final class Arsenal {
     if (_cooldown > 0.0) {
       _cooldown = (_cooldown - dt).clamp(0.0, double.infinity);
     }
+    if (_reloading <= 0.0) return;
+    _reloading = (_reloading - dt).clamp(0.0, double.infinity);
+    if (_reloading > 0.0) return;
+
+    // **Filled from what is carried, and only up to it.** A reload does not
+    // conjure rounds: a player with three shells left reloads three, and the
+    // magazine says how many the weapon can hold rather than how many exist.
+    final weapon = current;
+    final magazine = weapon.magazine;
+    if (magazine == null) return;
+    final carried = ammoOf(weapon.ammo);
+    final wanted = magazine - loadedIn(weapon);
+    final taken = wanted < carried ? wanted : carried;
+    _magazines[weapon.name] = loadedIn(weapon) + taken;
+    _ammo[weapon.ammo] = carried - taken;
+  }
+
+  /// How many rounds are in the weapon in hand, for one that has a magazine.
+  ///
+  /// Meaningless for a weapon without one — [canFire] does not consult it —
+  /// and a game drawing "12 / 90" reads this and [ammoOf] respectively.
+  int get loaded => isEmpty ? 0 : loadedIn(current);
+
+  /// How many rounds are in [weapon].
+  ///
+  /// **Per weapon and not per arsenal**, which the first version got wrong: a
+  /// player carrying two weapons with magazines would have found the rifle
+  /// full because the pistol was, and emptied one by firing the other.
+  ///
+  /// A weapon starts full, so one picked up mid-fight is ready — the
+  /// alternative is a pickup that hands over something that cannot be fired,
+  /// which reads as a broken pickup rather than as a rule.
+  int loadedIn(WeaponDef weapon) {
+    final magazine = weapon.magazine;
+    if (magazine == null) return 0;
+    return _magazines[weapon.name] ??= magazine;
+  }
+
+  final Map<String, int> _magazines = <String, int>{};
+
+  /// How long the reload has left, or zero when none is running.
+  double get reloading => _reloading;
+  double _reloading = 0.0;
+
+  /// Whether a reload would do anything: there is room in the magazine, there
+  /// is something to put in it, and one is not already running.
+  bool get canReload {
+    if (isEmpty || _reloading > 0.0) return false;
+    final magazine = current.magazine;
+    if (magazine == null || loadedIn(current) >= magazine) return false;
+    return ammoOf(current.ammo) > 0;
+  }
+
+  /// Starts one. Answers whether it started.
+  ///
+  /// **The weapon stays in hand and stays selectable.** A reload that took the
+  /// weapon away would be a reload a player could not cancel by switching, and
+  /// switching out of a reload is the oldest trick in the genre.
+  bool reload() {
+    if (!canReload) return false;
+    _reloading = current.reloadSeconds;
+    return true;
   }
 
   /// Whether pulling the trigger right now would fire.
@@ -224,11 +300,16 @@ final class Arsenal {
   ///
   /// Takes the definition rather than reading [current], so both triggers ask
   /// the same question and the answer cannot drift between them.
-  bool _couldFire(WeaponDef? weapon) =>
-      weapon != null &&
-      _cooldown <= 0.0 &&
-      (weapon.ammo == AmmoType.none ||
-          ammoOf(weapon.ammo) >= weapon.ammoPerShot);
+  bool _couldFire(WeaponDef? weapon) {
+    if (weapon == null || _cooldown > 0.0 || _reloading > 0.0) return false;
+    if (weapon.ammo == AmmoType.none) return true;
+    // A weapon with a magazine fires out of it; one without fires out of what
+    // is carried, which is what every weapon in this template does.
+    if (weapon.magazine != null) {
+      return loadedIn(weapon) >= weapon.ammoPerShot;
+    }
+    return ammoOf(weapon.ammo) >= weapon.ammoPerShot;
+  }
 
   /// Whether the trigger being [held] should fire this step.
   ///
@@ -256,7 +337,11 @@ final class Arsenal {
     final weapon = alternate ? (isEmpty ? null : current.alternate) : current;
     if (!_couldFire(weapon) || weapon == null) return null;
     if (weapon.ammo != AmmoType.none) {
-      _ammo[weapon.ammo] = ammoOf(weapon.ammo) - weapon.ammoPerShot;
+      if (weapon.magazine != null) {
+        _magazines[weapon.name] = loadedIn(weapon) - weapon.ammoPerShot;
+      } else {
+        _ammo[weapon.ammo] = ammoOf(weapon.ammo) - weapon.ammoPerShot;
+      }
     }
     _cooldown = weapon.cooldownSeconds;
     return weapon;

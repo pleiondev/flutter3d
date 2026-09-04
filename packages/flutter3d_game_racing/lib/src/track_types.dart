@@ -100,4 +100,28 @@ final class StartGrid {
 
   /// How far apart the cars in a row sit.
   final double columnGap;
+
+  /// Which car takes which slot, given what each of them qualified in.
+  ///
+  /// **The half of a grid that was missing.** [TrackSpline.startSlot] answers
+  /// where slot three is, and every game placed car three there — so a
+  /// qualifying session had nowhere to put its result and every race started
+  /// in the order the cars happened to be listed in.
+  ///
+  /// Returns car indices, fastest first: the value at nought takes pole.
+  ///
+  /// **A car with no time starts behind every car with one**, in the order it
+  /// was listed. That is what a session does with somebody who did not set a
+  /// lap, and it is also what happens on the first race of a season, where
+  /// nobody has — in which case this returns the order it was given and a game
+  /// that always calls it gets the old behaviour for free.
+  static List<int> orderBy(List<double?> qualifying) {
+    final timed = <int>[];
+    final untimed = <int>[];
+    for (var i = 0; i < qualifying.length; i++) {
+      (qualifying[i] == null ? untimed : timed).add(i);
+    }
+    timed.sort((int a, int b) => qualifying[a]!.compareTo(qualifying[b]!));
+    return <int>[...timed, ...untimed];
+  }
 }

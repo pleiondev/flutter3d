@@ -620,6 +620,73 @@ final class RacingSimulation {
   /// not fit `RunSession.snapshotOf` — the signature every other genre answers.
   /// The one save mechanism the architecture describes had two users out of
   /// three.
+  /// Puts every car back on the grid and starts the race again.
+  ///
+  /// **What a racing game needs and nothing here could do.** A player who has
+  /// spun on the last corner wants the session back, not the application: the
+  /// only way to restart was to build a new simulation, which means a new
+  /// world, a new set of cars and a frame of stutter while the level is
+  /// re-staged.
+  ///
+  /// [order] is which car takes which slot, fastest first — the shape
+  /// [StartGrid.orderBy] hands back. Null keeps the order the field is in,
+  /// which is what a restart of the same race wants; a game running a
+  /// qualifying session passes the result.
+  ///
+  /// **The bests are kept and the session is not.** Lap records and sector
+  /// times survive a restart because they are what a driver is chasing across
+  /// the evening; laps, positions, damage and tyres do not, because they are
+  /// the race that has just been abandoned.
+  void restart({List<int>? order}) {
+    final places = order ?? List<int>.generate(vehicles.length, (int i) => i);
+    final position = Vector3.zero();
+    final forward = Vector3.zero();
+
+    for (var slot = 0; slot < places.length; slot++) {
+      final car = places[slot];
+      if (car < 0 || car >= vehicles.length) continue;
+      race.track.startSlot(slot, position, forward);
+      vehicles[car].placeAt(
+        position,
+        math.atan2(forward.x, forward.z),
+        trackDistance: race.track.grid.s,
+      );
+      inputs[car].reset();
+      // The simulation's own per-car memory, which a restart has to forget as
+      // well: where the car was last step, how far backwards it has driven,
+      // and how long it has been off the road. Left behind, a car that
+      // finished the last race off the tarmac is respawned on the first step
+      // of the next one.
+      _previousS[car] = race.track.centre.wrap(race.track.grid.s);
+      _backwards[car] = 0.0;
+      _offRoadFor[car] = 0.0;
+
+      final racer = race.progress[car];
+      racer
+        ..s = race.track.centre.wrap(race.track.grid.s)
+        ..lap = 0
+        ..nextCheckpoint = 0
+        ..lapTime = 0.0
+        ..totalTime = 0.0
+        ..lastLap = 0.0
+        ..finishedAt = null
+        ..offRoad = false
+        ..wrongWay = false
+        ..lateral = 0.0
+        ..driftFor = 0.0
+        ..driftScore = 0.0;
+      racer.sectorTimes.clear();
+    }
+
+    race
+      ..elapsed = 0.0
+      ..phase = race.mode.startsBehindLights
+          ? RacePhase.countdown
+          : RacePhase.running
+      ..countdown = race.mode.startsBehindLights ? race.countdownSeconds : 0.0;
+    events.clear();
+  }
+
   Snapshot save() => Snapshot(<String, Object?>{
     'race': race.save(),
     'cars': <Map<String, Object?>>[

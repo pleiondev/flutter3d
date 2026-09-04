@@ -837,4 +837,69 @@ void main() {
       expect(it.player.totalDrift, 0.0);
     });
   });
+
+  group('restarting', () {
+    // A player who has spun on the last corner wants the session back, not the
+    // application: the only way to restart was to build a new simulation,
+    // which means a new world, a new set of cars and a frame of stutter.
+
+    test('puts the race back on the grid', () {
+      final it = Race(mode: RaceMode.race, cars: 2, laps: 2);
+      driveRound(it, seconds: 30.0, throttle: 1.0);
+      expect(it.player.lap + it.player.lapTime, greaterThan(0.0));
+
+      it.simulation.restart();
+
+      expect(it.player.lap, 0);
+      expect(it.player.lapTime, 0.0);
+      expect(it.player.nextCheckpoint, 0);
+      expect(it.race.elapsed, 0.0);
+      expect(it.race.phase, RacePhase.countdown);
+      expect(it.vehicles[0].speed, 0.0);
+    });
+
+    test('and keeps what the driver is chasing', () {
+      // Lap records survive the evening; the race that has just been abandoned
+      // does not.
+      final it = Race(laps: 3);
+      driveRound(it, seconds: 40.0);
+      final best = it.player.bestLap;
+      final sectors = List<double?>.of(it.player.bestSectors);
+      expect(best, isNotNull, reason: 'nobody completed a lap');
+
+      it.simulation.restart();
+
+      expect(it.player.bestLap, best);
+      expect(it.player.bestSectors, sectors);
+    });
+
+    test('and takes a qualifying order when it is given one', () {
+      final it = Race(mode: RaceMode.race, cars: 3, laps: 1);
+
+      // Car two qualified fastest, so car two starts on pole.
+      it.simulation.restart(
+        order: StartGrid.orderBy(<double?>[92.0, 95.0, 90.0]),
+      );
+
+      final pole = Vector3.zero();
+      final forward = Vector3.zero();
+      it.track.startSlot(0, pole, forward);
+
+      expect(
+        it.vehicles[2].position.distanceTo(pole),
+        lessThan(it.vehicles[0].position.distanceTo(pole)),
+        reason: 'the grid ignored the qualifying result',
+      );
+    });
+
+    test('and forgets a car that finished the last race off the road', () {
+      final it = Race(laps: 2);
+      it.race.progress[0].offRoad = true;
+
+      it.simulation.restart();
+
+      expect(it.player.offRoad, isFalse);
+      expect(it.player.wrongWay, isFalse);
+    });
+  });
 }
