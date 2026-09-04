@@ -912,6 +912,10 @@ class _GameScreenState extends State<GameScreen>
     // entry acts on — the moment `RewindBuffer` and the loop agree about.
     if (_rewind.keyframeDue) _rewind.keyframe(sim.save());
     sim.step(dt);
+    // Drained once, here, and handed to everything that wants it. Draining
+    // empties the buffer, so two readers each draining would each get half of
+    // what happened, and which half would depend on the order they ran in.
+    final events = sim.events.drain();
     // The tape's last entry was consumed by the step that just ran, so this
     // is the moment the replay has arrived back at the death.
     if (_killcamPresent != null && (_loop.playback?.isFinished ?? true)) {
@@ -931,15 +935,17 @@ class _GameScreenState extends State<GameScreen>
       _weaponView.selectWeapon(_arsenal.current);
     }
 
-    final outcome = sim.usedThisStep;
-    if (outcome != null) _effects.say(outcome.message);
+    for (final MechanismUsed used in events.whereType<MechanismUsed>()) {
+      final said = used.outcome.message;
+      if (said != null) _effects.say(said);
+    }
 
     // **What to play is decided in `Soundtrack` and only performed here.** It
     // used to be decided here too, in eight places inside a widget, where
     // nothing could ask what a step ought to sound like without a device and a
     // window — so the game being mute was undetectable, and four weapons
     // sharing two sounds went unnoticed for as long as the game has existed.
-    _effects.perform(_soundtrack.listen(sim, player), _audio);
+    _effects.perform(_soundtrack.listen(sim, player, events), _audio);
 
     final mechanisms = _mechanisms;
     if (mechanisms != null) {
@@ -958,7 +964,9 @@ class _GameScreenState extends State<GameScreen>
     // flash can be turned down without turning the camera down with it. A
     // full-screen flash on every hit is a photosensitivity question, which is
     // not the same harm as a camera that moves by itself.
-    if (sim.damageTakenThisStep > 0.0) _effects.hurt(_system.screenFlash);
+    if (events.any((GameEvent e) => e is PlayerHurt)) {
+      _effects.hurt(_system.screenFlash);
+    }
 
     // The run's own state, republished by the cubit on the step it changes —
     // which is what makes the announcement below a listener rather than an
@@ -977,7 +985,7 @@ class _GameScreenState extends State<GameScreen>
     // can mount meant no test in this application had ever mentioned a
     // particle.
     _effects.show(
-      _reactions.listen(sim, player),
+      _reactions.listen(sim, player, events),
       _particles,
       _system.screenFlash,
     );
@@ -990,8 +998,11 @@ class _GameScreenState extends State<GameScreen>
     // It counted every monster killed since the application was launched, which
     // is right for as long as nobody restarts and wrong from the first R. The
     // run owns it now, along with the clock, and `startFresh` empties both.
-    if (sim.firedThisStep != null) _weaponView.recoil();
-    _run.run.crawl.step(dt, killed: sim.actors?.died.length ?? 0);
+    if (events.any((GameEvent e) => e is ShotFired)) _weaponView.recoil();
+    _run.run.crawl.step(
+      dt,
+      killed: events.whereType<ActorDied>().length,
+    );
 
     final body = player.body;
     _weaponView.step(

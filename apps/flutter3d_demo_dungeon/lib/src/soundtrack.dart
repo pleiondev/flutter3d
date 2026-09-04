@@ -103,39 +103,37 @@ final class Soundtrack {
   final Set<Mechanism> _running = <Mechanism>{};
 
   /// Called once per simulation step, in order.
-  Sounding listen(GameSimulation sim, Player player) {
+  Sounding listen(
+    GameSimulation sim,
+    Player player,
+    List<GameEvent> events,
+  ) {
     final once = <Heard>[];
     final loops = <Sustained>[];
     final at = player.body.position;
 
-    final fired = sim.firedThisStep;
-    if (fired != null) {
-      // At the eye rather than at the muzzle, for the same reason the shot
-      // starts there: a sound half a metre to one side pans audibly wrong when
-      // the player is against a wall.
-      once.add(Heard(forWeapon(fired), sim.firedFrom));
-    }
-
-    final actors = sim.actors;
-    if (actors != null) {
-      for (final dead in actors.died) {
-        final where = dead.position;
-        if (where != null) once.add(Heard(Sounds.monsterDie, where));
+    for (final GameEvent event in events) {
+      switch (event) {
+        case ShotFired():
+          // At the eye rather than at the muzzle, for the same reason the shot
+          // starts there: a sound half a metre to one side pans audibly wrong
+          // when the player is against a wall.
+          once.add(Heard(forWeapon(event.weapon), event.from));
+        case ActorDied():
+          final where = event.actor.position;
+          if (where != null) once.add(Heard(Sounds.monsterDie, where));
+        case ActorHurt():
+          // Only the ones that flinched. A hit that did not stagger reads as a
+          // hit that did not land, and every hit screaming is worse than none.
+          final where = event.actor.position;
+          if (event.staggered && where != null) {
+            once.add(Heard(Sounds.monsterPain, where));
+          }
+        case MechanismUsed(outcome: Refused()):
+          // A door that will not open. The refusal is the simulation's; saying
+          // so is this.
+          once.add(Heard(Sounds.locked, at));
       }
-      // Only the ones that flinched. A hit that did not stagger reads as a hit
-      // that did not land, and every hit screaming is worse than none.
-      for (final hurt in actors.hurtThisStep) {
-        final where = hurt.actor.position;
-        if (hurt.staggered && where != null) {
-          once.add(Heard(Sounds.monsterPain, where));
-        }
-      }
-    }
-
-    // A door that will not open. The refusal is the simulation's; saying so is
-    // this.
-    if (sim.usedThisStep is Refused) {
-      once.add(Heard(Sounds.locked, sim.firedFrom));
     }
 
     final mechanisms = sim.mechanisms;

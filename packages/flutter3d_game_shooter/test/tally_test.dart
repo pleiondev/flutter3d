@@ -174,7 +174,7 @@ void main() {
     var announced = 0;
     for (var i = 0; i < 6; i++) {
       it.step();
-      if (it.sim.foundThisStep != null) announced++;
+      announced += it.sim.events.drain().whereType<SecretFound>().length;
     }
 
     expect(

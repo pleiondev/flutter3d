@@ -16,8 +16,9 @@
 /// **Everything here is state.** What a shot looked like, what it sounded like,
 /// how much the screen flashed and where the smoke went are not; they are the
 /// caller's, and this reports *that* things happened rather than what they
-/// looked like — [firedThisStep], [hits], [damageTakenThisStep],
-/// [usedThisStep], and the per-step lists the subsystems already keep.
+/// looked like, through [events] — see `events.dart`. It used to be through a
+/// field for each kind of moment, one of each per step; those are gone, and
+/// what replaced them can carry two of anything and says what order it was in.
 ///
 /// That line is drawn deliberately and it is load-bearing: a save file, a
 /// replay and a network packet all need exactly what is on this side of it, and
@@ -184,21 +185,19 @@ final class GameSimulation {
   String? get nextLevel => _exitNext ?? levelNext;
   String? _exitNext;
 
-  /// What the player fired this step, or null.
-  WeaponDef? firedThisStep;
 
   /// Where that shot started — the eye, not the muzzle.
   final Vector3 firedFrom = Vector3.zero();
 
-  /// What it struck. Empty on a step with no shot, and on a shot that missed.
-  final List<ShotHit> hits = <ShotHit>[];
-
-  /// Damage the player took this step, from every source together.
+  /// What was fired this step, for the actors that have to hear it.
   ///
-  /// One number rather than one per source: a caller wants to know whether to
-  /// flash the screen, and being hit by a monster and a rocket in the same step
-  /// is one flash.
-  double damageTakenThisStep = 0.0;
+  /// **Wiring, not a report**, which is the line the public channels were
+  /// removed along: the monsters are told about a shot later in the same step
+  /// and need to know how loud it was. What the *game* gets is [ShotFired],
+  /// which carries the same weapon and cannot be confused for state.
+  WeaponDef? _firedThisStep;
+
+
 
   /// What this level has been worth so far.
   ///
@@ -219,9 +218,9 @@ final class GameSimulation {
   /// costs nothing — the buffer caps itself, and most of this repository's
   /// tests step without ever reading it.
   ///
-  /// The `…ThisStep` fields below say the same things and are kept, because
-  /// programs read them. What they cannot do is carry two of anything: a
-  /// shotgun landing eight pellets is one `firedThisStep` and eight events.
+  /// This replaced a field for each kind of moment. Those could not carry two
+  /// of anything — a shotgun landing eight pellets was one `firedThisStep` and
+  /// a list of hits — and nothing said which of two subsystems spoke first.
   final GameEvents events = GameEvents();
 
   /// Names this simulation counts under. Constants because a typo in one place
@@ -266,22 +265,12 @@ final class GameSimulation {
     for (final mechanism in doors.all) {
       if (mechanism is Secret && mechanism.justFound) {
         tally.add(secrets);
-        foundThisStep = mechanism;
         events.add(SecretFound(mechanism));
       }
     }
   }
 
-  /// The secret entered this step, for a message and a sound. Null on every
-  /// other step, which is all of them.
-  Secret? foundThisStep;
 
-  /// What came of pressing the use key, or null if it was not pressed or
-  /// reached nothing.
-  ///
-  /// Returned rather than pushed into `MechanismEvents.messages`, because
-  /// `publish()` runs after the use key and would clear it.
-  ActivationOutcome? usedThisStep;
 
   /// Where the entities live.
   ///
@@ -332,11 +321,7 @@ final class GameSimulation {
 
   /// Advances the world by one fixed step.
   void step(double dt) {
-    firedThisStep = null;
-    usedThisStep = null;
-    damageTakenThisStep = 0.0;
-    foundThisStep = null;
-    hits.clear();
+    _firedThisStep = null;
     // Last step's dead and hurt, forgotten here rather than inside
     // `ActorSystem.step` — which is halfway through this step, after the
     // player's own shot has already killed something. See
@@ -409,7 +394,7 @@ final class GameSimulation {
     // asleep. Reported before the actors think, so the ones that heard it are
     // already moving on the step it happened.
     final actors = this.actors;
-    final fired = firedThisStep;
+    final fired = _firedThisStep;
     if (fired != null && actors != null) {
       if (fired.loudness > 0.0) {
         actors.hear(firedFrom, radius: fired.loudness);
@@ -458,8 +443,7 @@ final class GameSimulation {
           if (target is! Damageable) continue;
           if (identical(target, player)) {
             target.applyDamage(entry.value, from: firedBy);
-            damageTakenThisStep += entry.value;
-            continue;
+              continue;
           }
           target.applyDamage(entry.value * scale, from: firedBy);
         }
@@ -484,10 +468,11 @@ final class GameSimulation {
       ignore: player.body.collider,
     );
     if (target == null) return;
-    usedThisStep = target.activate(
-      mechanisms.activationBy(player.body.collider),
+    events.add(
+      MechanismUsed(
+        target.activate(mechanisms.activationBy(player.body.collider)),
+      ),
     );
-    events.add(MechanismUsed(usedThisStep!));
   }
 
   /// An exit reached ends the level, whichever way it was reached.
@@ -555,8 +540,7 @@ final class GameSimulation {
     // they arrive; this only has to say where the shot came from.
     shot.begin(weapon, firedFrom, _aim, shooter: player.body.collider);
     weapon.behaviour.deliver(shot);
-    firedThisStep = weapon;
-    hits.addAll(shot.hits);
+    _firedThisStep = weapon;
     events.add(ShotFired(weapon: weapon, from: firedFrom));
     for (final hit in shot.hits) {
       events.add(ShotLanded(hit));
@@ -570,7 +554,7 @@ final class GameSimulation {
     // pellets summed once rather than rounded twice.
     final scale = _playerDamageScale;
     for (final entry in Hitscan.damageByTarget(
-      hits,
+      shot.hits,
       scale: (ShotHit hit) =>
           zones.forHitOn(hit.collider?.userData, hit.point) * scale,
     ).entries) {
@@ -643,10 +627,6 @@ final class GameSimulation {
     _counted = from.flag('counted', _counted);
 
     // Whatever the step that took the snapshot reported is not news any more.
-    firedThisStep = null;
-    usedThisStep = null;
-    damageTakenThisStep = 0.0;
-    hits.clear();
     // Health came back on a component; whether a body is solid is a fact about
     // the collision world, and something has to put the two together.
     actors?.syncCorpses();
@@ -661,7 +641,6 @@ final class GameSimulation {
     // rather than on every step after it, which is what `player.isAlive` gives.
     final wasAlive = player.isAlive;
     player.applyDamage(amount);
-    damageTakenThisStep += amount;
     events.add(PlayerHurt(amount));
     if (wasAlive && !player.isAlive) events.add(const PlayerDied());
   }

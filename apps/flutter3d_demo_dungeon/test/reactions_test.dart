@@ -24,6 +24,7 @@ import 'package:flutter3d_game_shooter/flutter3d_game_shooter.dart';
 import 'package:flutter3d_game_shooter/sample.dart';
 import 'package:flutter3d_particles/flutter3d_particles.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:vector_math/vector_math.dart';
 
 const double _dt = 1.0 / 60.0;
 
@@ -70,8 +71,11 @@ final class _Run {
       for (final action in holding) {
         input.release(action);
       }
-      hits.addAll(staged.sim.hits);
-      final reaction = reactions.listen(staged.sim, staged.player);
+      final events = staged.sim.events.drain();
+      hits.addAll(
+        events.whereType<ShotLanded>().map((ShotLanded e) => e.hit),
+      );
+      final reaction = reactions.listen(staged.sim, staged.player, events);
       shown.addAll(reaction.bursts);
       lingering.addAll(reaction.lingering);
       if (reaction.flash) flashes++;
@@ -141,10 +145,15 @@ void main() {
     final run = _Run()..run(2, holding: <GameAction>{ShooterActions.fire});
     expect(run.flashes, greaterThan(0), reason: 'it never flashed at all');
 
-    run.staged.sim
-      ..firedThisStep = Weapons.pistol
-      ..hits.clear();
-    final reaction = run.reactions.listen(run.staged.sim, run.staged.player);
+    // A shot that landed on nothing: one ShotFired and no ShotLanded, which
+    // is what the flag-and-list shape could only say by clearing the list.
+    final reaction = run.reactions.listen(
+      run.staged.sim,
+      run.staged.player,
+      <GameEvent>[
+        ShotFired(weapon: Weapons.pistol, from: Vector3.zero()),
+      ],
+    );
 
     expect(reaction.flash, isFalse);
   });

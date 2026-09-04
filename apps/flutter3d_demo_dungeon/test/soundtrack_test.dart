@@ -81,7 +81,11 @@ final class _Run {
       }
       staged.sim.step(_dt);
       input.endStep();
-      final sounding = soundtrack.listen(staged.sim, staged.player);
+      final sounding = soundtrack.listen(
+        staged.sim,
+        staged.player,
+        staged.sim.events.drain(),
+      );
       heard.addAll(sounding.once);
       loops.addAll(sounding.loops);
     }
@@ -93,7 +97,11 @@ final class _Run {
     input.press(ShooterActions.fire);
     staged.sim.step(_dt);
     input.endStep();
-    heard.addAll(soundtrack.listen(staged.sim, staged.player).once);
+    heard.addAll(
+      soundtrack
+          .listen(staged.sim, staged.player, staged.sim.events.drain())
+          .once,
+    );
     input.beginStep();
     input.release(ShooterActions.fire);
     input.endStep();
@@ -214,14 +222,18 @@ void main() {
       final run = _Run();
       final door = run.staged.mechanisms['crypt_door']! as Door;
 
-      run.staged.sim.usedThisStep = door.activate(const Activation());
+      final outcome = door.activate(const Activation());
       expect(
-        run.staged.sim.usedThisStep,
+        outcome,
         isA<Refused>(),
         reason: 'the door opened for somebody with no key',
       );
       run.heard.addAll(
-        run.soundtrack.listen(run.staged.sim, run.staged.player).once,
+        run.soundtrack
+            .listen(run.staged.sim, run.staged.player, <GameEvent>[
+              MechanismUsed(outcome),
+            ])
+            .once,
       );
 
       expect(run.names, contains('locked'));

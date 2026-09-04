@@ -1,3 +1,4 @@
+import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:flutter3d_game_shooter/flutter3d_game_shooter.dart';
 import 'package:flutter3d_particles/flutter3d_particles.dart';
 import 'package:vector_math/vector_math.dart';
@@ -80,41 +81,40 @@ final class Reactions {
   final Vector3 _right = Vector3.zero();
 
   /// Everything this step is worth showing.
-  Reaction listen(GameSimulation sim, Player player) {
+  Reaction listen(
+    GameSimulation sim,
+    Player player,
+    List<GameEvent> events,
+  ) {
     final bursts = <Shown>[];
     final lingering = <Lingering>[];
     var flash = false;
 
-    if (sim.firedThisStep != null) {
-      player
-        ..aim(_aim)
-        ..right(_right);
-      bursts.add(
-        Shown(
-          Effects.muzzleFlash,
-          Vector3(
-            sim.firedFrom.x + _aim.x * _reach - _right.x * _side,
-            sim.firedFrom.y + _aim.y * _reach - _drop,
-            sim.firedFrom.z + _aim.z * _reach - _right.z * _side,
-          ),
-          direction: _aim.clone(),
-        ),
-      );
-
-      for (final hit in sim.hits) {
-        if (!hit.struckSomething) continue;
-        flash = true;
-        bursts
-          ..add(Shown(Effects.impactSparks, hit.point, direction: hit.normal))
-          ..add(Shown(Effects.impactDust, hit.point, direction: hit.normal));
-      }
-    }
-
-    final actors = sim.actors;
-    if (actors != null) {
-      for (final dead in actors.died) {
-        final where = dead.position;
-        if (where != null) bursts.add(Shown(Effects.impactSparks, where));
+    for (final GameEvent event in events) {
+      switch (event) {
+        case ShotFired():
+          player
+            ..aim(_aim)
+            ..right(_right);
+          bursts.add(
+            Shown(
+              Effects.muzzleFlash,
+              Vector3(
+                event.from.x + _aim.x * _reach - _right.x * _side,
+                event.from.y + _aim.y * _reach - _drop,
+                event.from.z + _aim.z * _reach - _right.z * _side,
+              ),
+              direction: _aim.clone(),
+            ),
+          );
+        case ShotLanded(hit: final ShotHit hit) when hit.struckSomething:
+          flash = true;
+          bursts
+            ..add(Shown(Effects.impactSparks, hit.point, direction: hit.normal))
+            ..add(Shown(Effects.impactDust, hit.point, direction: hit.normal));
+        case ActorDied():
+          final where = event.actor.position;
+          if (where != null) bursts.add(Shown(Effects.impactSparks, where));
       }
     }
 
