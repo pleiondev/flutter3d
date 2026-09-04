@@ -18,8 +18,11 @@
 /// following the old promise would have met five failures it could do nothing
 /// about, so the lists say which is which — [coreChecks] needs clears, uploads
 /// and readback alone, [shaderChecks] needs the bundle. What still needs a
-/// shader and is not here (an unbound sampler, a uniform block's members) stays
-/// in `ARCHITECTURE.md` §7, and is named there as such.
+/// shader and is not here (an unbound sampler) stays in `ARCHITECTURE.md` §7,
+/// and is named there as such. A uniform block's members used to be on that
+/// list and are checked now — see [checkUniformMemberMismatchIsRefused], which
+/// asks a backend whether it reflects its shaders before holding it to a rule
+/// only reflection can keep.
 ///
 /// **The checks themselves live under `src/`, grouped by what they are testing**
 /// — capability queries and readback, shader-bundle and link checks, a pass's
@@ -191,6 +194,13 @@ List<ConformanceCheck> get shaderChecks => <ConformanceCheck>[
   (
     name: 'setDepthWrite(false) stops depth writes',
     run: checkDepthWriteIsHonoured,
+  ),
+  // The half of `bindUniformBlock` that was named as outside this suite for as
+  // long as it existed, and under which the two hardware backends drifted
+  // apart: a block missing a member the caller wrote.
+  (
+    name: 'a block missing a member the caller named is refused',
+    run: checkUniformMemberMismatchIsRefused,
   ),
   // The clamp the HAL promises for `SamplerOptions.anisotropy`: a request
   // above `maxAnisotropy` is lowered, never refused, on every backend.

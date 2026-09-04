@@ -380,10 +380,13 @@ extension _MeshEncode on Renderer {
     // Later so that a material cannot displace a block the engine depends on
     // by naming it: the encoder fills a block once, and the last fill wins.
     //
-    // Unconditional and safe: the encoder skips members a compiled shader
-    // does not read and reports an absent block instead of taking the process
-    // down. Its own `bindUniformBlock` says so, and that is the difference
-    // between this and the textures below.
+    // Unconditional, and the risk it carries is the material's own. A block
+    // the compiled shader does not have is reported rather than bound, so a
+    // material naming a block nobody reads costs nothing — but a block that
+    // exists without a member the material named now throws, on every backend
+    // that can see the difference. That is the contract as of today, and it
+    // cuts the way an author wants: a parameter renamed in the GLSL and not in
+    // the Dart used to draw with a zero in its place, on Impeller only.
     if (material.parameters.isNotEmpty) {
       encoder.bindUniformBlock(
         fragmentShader,

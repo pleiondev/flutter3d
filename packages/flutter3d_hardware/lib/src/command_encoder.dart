@@ -179,11 +179,31 @@ abstract interface class PassEncoder {
   /// Fills the uniform block [blockName] of [shader] from [members] and binds
   /// it. False when the shader has no such block.
   ///
-  /// Members the compiled shader does not read are skipped rather than treated
-  /// as errors — the unlit model legitimately has no `light_direction` — and a
-  /// block the compiler dropped entirely comes back false. That distinction is
-  /// load-bearing: binding a block a compiled shader does not have takes the
-  /// process down with no Dart stack.
+  /// **A block the compiler dropped is false; a block missing a member the
+  /// caller named throws.** The two look alike and are not: a compiler drops a
+  /// whole block nothing reads, which is ordinary and which the caller is
+  /// entitled to shrug at, but a block that exists *without* one of the members
+  /// written into it means the two ends disagree about its shape. Zeros are a
+  /// plausible value for most of what goes through here — a shadow strength of
+  /// zero is a scene with no shadows and no error — so silence there is
+  /// indistinguishable from working.
+  ///
+  /// That distinction is load-bearing in the other direction too: binding a
+  /// block a compiled shader does not have takes the process down with no Dart
+  /// stack, which is why the block case is a return value rather than a throw.
+  ///
+  /// **This doc comment used to say the opposite**, on the grounds that "the
+  /// unlit model legitimately has no `light_direction`". It has one: `FragInfo`
+  /// is declared once, in `lib/surface.glsl`, and every shader that reads any
+  /// of it includes the whole block. The web backend threw all along and drew
+  /// every golden, which is what settled it — the same bundle was a named
+  /// exception in a browser and a quietly wrong picture on a phone.
+  ///
+  /// A backend with no reflection of its shaders cannot tell the two apart and
+  /// is not asked to: the software rasteriser hands the block to a Dart shader
+  /// that looks up what it needs by name, so a member nobody reads costs a map
+  /// entry. What is forbidden is a backend that *can* see the disagreement and
+  /// says nothing.
   ///
   /// Every uniform in this engine is a float vector, a matrix or an array of
   /// either, which is why [Float32List] is the only value type. Integer and

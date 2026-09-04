@@ -137,7 +137,7 @@ import 'package:flutter3d_screens/testing.dart';        // creditGaps
 <p>A package cannot import another package's <code>test/</code>, which is why there were two copies rather than one. <code>lib/testing.dart</code> is what a package can import.</p>
 </div>
 
-`cpuTestDevice` stops short of building the `Renderer`, deliberately: `flutter3d_cpu` must not depend on `flutter3d`. A backend that could not be compiled without the engine would not be an implementation of an interface, it would be part of the engine. That is a rule, and one of the twenty-one checks it.
+`cpuTestDevice` stops short of building the `Renderer`, deliberately: `flutter3d_cpu` must not depend on `flutter3d`. A backend that could not be compiled without the engine would not be an implementation of an interface, it would be part of the engine. That is a rule, and one of the twenty-three checks it.
 
 ## Play the game in a test
 

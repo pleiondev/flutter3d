@@ -225,3 +225,99 @@ Future<void> checkDepthWriteIsHonoured(GraphicsDevice device) async {
     'came back r=${bytes[at]} g=${bytes[at + 1]}. See ARCHITECTURE.md §7.2.',
   );
 }
+
+/// A block the shader has, missing a member the caller named, is an error —
+/// on every backend that can see the difference.
+///
+/// **The two failures look alike and are not.** A compiler drops a whole block
+/// nothing reads, and `bindUniformBlock` answers false for it: ordinary, and
+/// the caller is entitled to shrug. A block that *exists* without one of the
+/// members written into it means the engine and the shader disagree about its
+/// shape, and the member's bytes stay zero — a plausible value for nearly
+/// everything that goes through here. A shadow strength of zero is a scene with
+/// no shadows and no error anywhere.
+///
+/// This went unchecked for as long as the suite existed, and the two hardware
+/// backends drifted apart under it: the web backend threw, Impeller returned,
+/// so one bundle was a named exception in a browser and a quietly wrong picture
+/// on a phone. `flutter3d_conformance`'s own header used to name "a uniform
+/// block's members" as deliberately outside the suite.
+///
+/// **Asked only of a backend that reflects its shaders, and it is asked which
+/// one it is rather than told.** A backend with no reflection — the software
+/// rasteriser hands the block to a Dart shader that looks up what it needs by
+/// name — cannot tell a misspelt member from a member nobody reads, and is not
+/// asked to. The discriminator is the block case above it: a backend that
+/// answers false for a block no shader has is one that can see inside a shader,
+/// and it is then held to the member rule. One that answers true for a block
+/// that does not exist has no reflection at all, and the check says so and
+/// stops. That keeps this from being a check every backend passes by
+/// construction, which is what the cube-face check turned out to be.
+Future<void> checkUniformMemberMismatchIsRefused(GraphicsDevice device) async {
+  final vertex = device.shaders['ParticleVertex'];
+  require(vertex != null, 'the particle vertex stage is missing');
+
+  final target = device.createTexture(
+    const RenderTargetSpec(
+      width: 4,
+      height: 4,
+      format: TextureFormat.r8g8b8a8UNormInt,
+    ),
+  );
+  final pass = device.beginRenderPass(
+    RenderPassDescriptor(
+      colors: <ColorTarget>[
+        ColorTarget(
+          texture: target,
+          loadAction: LoadAction.clear,
+          clearValue: Vector4(0.0, 0.0, 0.0, 1.0),
+        ),
+      ],
+    ),
+  );
+  pass.bindPipeline(
+    device.createPipeline(vertex!, device.shaders['Particle'] ?? vertex),
+  );
+
+  // Which kind of backend this is, asked rather than assumed.
+  final reflects = !pass.bindUniformBlock(
+    vertex,
+    'NoBlockAnyShaderHasEverDeclared',
+    <String, Float32List>{'anything': Float32List(4)},
+  );
+  if (!reflects) {
+    // Not a failure, and not silence either: the run says which rule it could
+    // not ask about, so a reader of the pass list can tell "checked" from
+    // "does not apply here".
+    pass.submit();
+    return;
+  }
+
+  var threw = false;
+  try {
+    pass.bindUniformBlock(vertex, 'ParticleInfo', <String, Float32List>{
+      // `ParticleInfo` has `view_projection` and no such member as this.
+      'view_projection_typed_wrong': Float32List(16),
+    });
+    // Only a backend that refused nothing gets here, and its pass is still
+    // open: submitted so the check leaves no encoder behind on the way to
+    // reporting the failure.
+    pass.submit();
+  } on Object {
+    threw = true;
+    // Deliberately not submitted. A backend is entitled to release the pass
+    // on the way out — the web one does, and calling `submit` after it throws
+    // is a second, misleading exception on top of the right behaviour. The
+    // first version of this check did exactly that and reported a correct
+    // backend as broken.
+  }
+
+  require(
+    threw,
+    'a backend that reflects its shaders bound "ParticleInfo" with a member '
+    'the block does not have and did not throw. The bytes for that member '
+    'stay zero, and zero is a plausible value for most of what goes through a '
+    'uniform block — so the picture comes out wrong with nothing logged. See '
+    'ARCHITECTURE.md §7.1 and CommandEncoder.bindUniformBlock.',
+  );
+}

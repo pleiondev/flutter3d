@@ -211,7 +211,26 @@ final class GpuCommandEncoder implements CommandEncoder {
     final data = ByteData(size);
     members.forEach((name, values) {
       final offset = slot.getMemberOffsetInBytes(name);
-      if (offset == null) return;
+      // Loud, because silence here is indistinguishable from working: the
+      // member the caller wrote leaves zeros in its place, and zero is a
+      // plausible value for most of them — a shadow strength of zero is a
+      // scene with no shadows and no error anywhere.
+      //
+      // Not the same as a missing *block*, which is above and is false: a
+      // compiler drops a whole block nothing reads, and that is ordinary.
+      // Having the block and not the member means the two ends disagree about
+      // its shape, which is worth stopping for. The web backend has always
+      // stopped for it; this one used to `return`, so the same bundle was a
+      // named exception in a browser and a wrong picture on a phone.
+      if (offset == null) {
+        throw StateError(
+          'uniform block "$blockName" has no member "$name". The engine and '
+          'the shader disagree about this block. Impeller reflects a block\'s '
+          'members from the compiled binary, so a member renamed in the GLSL '
+          'and not in the caller, or a bundle built from other sources, '
+          'arrives here.',
+        );
+      }
       // Whole arrays written from their reflected base offset. Impeller
       // reflects the array, not its elements — `lights[0]` comes back null —
       // but the std140 stride for a vec4 array is a flat 16 bytes, so a

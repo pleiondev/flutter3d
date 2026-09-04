@@ -250,12 +250,12 @@ The Impeller backend's translation asserts that each enum value maps to the `flu
 
 ## Run the conformance suite first
 
-`flutter3d_conformance` turns those semantics into executable checks, in **two tiers**. `coreChecks` works with clears, uploads and readback alone, so you can run it before you have a single shader compiled, which is when the answers are cheapest to act on. `shaderChecks` needs the bundle: that a pass starts covering its own attachment and nothing else, that it inherits no clipping from the pass before it, that a binding made for one pipeline does not follow the next, and that a cube map answers the face a direction points at.
+`flutter3d_conformance` turns those semantics into executable checks, in **two tiers**. `coreChecks` works with clears, uploads and readback alone, so you can run it before you have a single shader compiled, which is when the answers are cheapest to act on. `shaderChecks` needs the bundle — fifteen of them, among which: that a pass starts covering its own attachment and nothing else, that it inherits no clipping from the pass before it, that a binding made for one pipeline does not follow the next, that a block missing a member the caller named is refused, and that a pass renders into a cube face and a mip.
 
 `runDeviceConformance` runs both.
 
 <div class="why">
-<p>The library said it was shader-free as a whole for some time after it stopped being true: five of the twelve checks link stages and draw. A backend written against that promise would have met five failures it could do nothing about yet, which is the opposite of what a conformance suite is for.</p>
+<p>The library said it was shader-free as a whole for some time after it stopped being true: five of the twelve checks linked stages and drew. A backend written against that promise would have met five failures it could do nothing about yet, which is the opposite of what a conformance suite is for. The suite has grown since — seven checks need nothing but clears, uploads and readback, and the rest need the bundle — and the split is a property of the two lists rather than a sentence anybody has to keep true.</p>
 </div>
 
 ```dart
