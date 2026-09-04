@@ -31,7 +31,6 @@ final class AmmoType {
   /// and in code without a registry in between.
   final String name;
 
-
   /// The starting weapon never runs out, so it is always something to fall back
   /// to. A player stranded with no weapon at all is a player reloading a save.
   static const AmmoType none = AmmoType('none');

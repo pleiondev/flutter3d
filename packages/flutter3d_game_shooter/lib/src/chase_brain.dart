@@ -14,7 +14,16 @@ import 'monster_def.dart';
 /// platformer, a racing game or a stealth game, and all three of those still
 /// want the body, the health, the turning and the route-finding that
 /// `ActorSystem` provides.
-final class ChaseBrain extends Brain {
+/// **`base` rather than `final`, so a game can build on it.** Everything a
+/// monster does that is not deciding where to walk — seeing, hearing, being
+/// hurt, fighting back, dying, and the save that survives all of it — is here,
+/// and a game that wants a guard on a beat or a sentry that never moves should
+/// inherit that rather than copy it. `PatrolBrain` in this package is the first
+/// one, and it is written the way a game's own would be.
+///
+/// A subclass owes nothing; overriding `think` or `act` without calling
+/// `super` is how a brain replaces the machine rather than extending it.
+base class ChaseBrain extends Brain {
   ChaseBrain({
     required this.def,
     required this.shot,

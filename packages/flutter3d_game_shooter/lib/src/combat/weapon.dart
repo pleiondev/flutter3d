@@ -218,8 +218,7 @@ final class Arsenal {
   /// A second getter rather than `canFire({bool alternate})`, because turning
   /// a published getter into a method is a change every caller has to make and
   /// this package would rather never ask.
-  bool get canFireAlternate =>
-      _couldFire(isEmpty ? null : current.alternate);
+  bool get canFireAlternate => _couldFire(isEmpty ? null : current.alternate);
 
   /// Whether [weapon] could be fired from this arsenal right now.
   ///

@@ -831,4 +831,75 @@ void _damageableTests() {
       expect(restored.state, fleeing);
     });
   });
+
+  group('a monster on a beat', () {
+    // **What the roster was missing.** ChaseBrain's two resting states both
+    // stand still, so a crypt of unseen monsters reads as a museum. A guard
+    // walking between two points costs the level a list of positions.
+
+    ({ActorSystem system, Actor guard}) guardOn({double pause = 0.0}) {
+      final h = _harness(_room(), playerAt: Vector3(0.0, 0.0, 40.0));
+      final guard = h.bestiary.spawn(Monsters.runner, Vector3.zero());
+      guard.brain = PatrolBrain(
+        def: Monsters.runner,
+        shot: WeaponShot(
+          world: h.system.world,
+          hitscan: Hitscan(world: h.system.world, random: h.system.random),
+          projectiles: ProjectileSystem(world: h.system.world),
+        ),
+        route: <Vector3>[Vector3(0.0, 0.0, 0.0), Vector3(8.0, 0.0, 0.0)],
+        pauseSeconds: pause,
+      );
+      return (system: h.system, guard: guard);
+    }
+
+    test('walks towards the next point rather than standing still', () {
+      final it = guardOn();
+      final from = it.guard.position!.clone();
+
+      for (var i = 0; i < 120; i++) {
+        it.system
+          ..beginStep()
+          ..step(_dt, focus: Vector3(0.0, 0.7, 40.0));
+      }
+
+      expect(
+        it.guard.position!.distanceTo(from),
+        greaterThan(1.0),
+        reason: 'the guard never left its spawn',
+      );
+    });
+
+    test('and takes the next leg once it arrives', () {
+      final it = guardOn();
+      final brain = it.guard.brain! as PatrolBrain;
+      expect(brain.leg, 0);
+
+      for (var i = 0; i < 900 && brain.leg == 0; i++) {
+        it.system
+          ..beginStep()
+          ..step(_dt, focus: Vector3(0.0, 0.7, 40.0));
+      }
+
+      expect(brain.leg, 1, reason: 'it never reached the first point');
+    });
+
+    test('and a route of one point is refused rather than walked', () {
+      // A beat between fewer than two points is a monster standing still,
+      // which ChaseBrain already does — and a level that authored one by
+      // mistake should hear about it.
+      expect(
+        () => PatrolBrain(
+          def: Monsters.runner,
+          shot: WeaponShot(
+            world: CollisionWorld(),
+            hitscan: Hitscan(world: CollisionWorld(), random: GameRandom(1)),
+            projectiles: ProjectileSystem(world: CollisionWorld()),
+          ),
+          route: <Vector3>[Vector3.zero()],
+        ),
+        throwsA(anything),
+      );
+    });
+  });
 }

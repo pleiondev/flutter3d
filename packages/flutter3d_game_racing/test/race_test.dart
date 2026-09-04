@@ -642,30 +642,33 @@ void main() {
     // checkpoints, which the circuit already carries, so this needed nothing
     // authored that a track did not already have.
 
-    test('a lap reports one sector per checkpoint, plus the run to the line', () {
-      final it = Race(laps: 3);
-      final sectors = <SectorCompleted>[];
-      driveRound(
-        it,
-        seconds: 40.0,
-        watch: () {
-          sectors.addAll(
-            it.simulation.events.drain().whereType<SectorCompleted>(),
-          );
-        },
-      );
+    test(
+      'a lap reports one sector per checkpoint, plus the run to the line',
+      () {
+        final it = Race(laps: 3);
+        final sectors = <SectorCompleted>[];
+        driveRound(
+          it,
+          seconds: 40.0,
+          watch: () {
+            sectors.addAll(
+              it.simulation.events.drain().whereType<SectorCompleted>(),
+            );
+          },
+        );
 
-      final checkpoints = it.track.checkpoints.length;
-      expect(checkpoints, greaterThan(0));
-      expect(
-        sectors.length,
-        greaterThanOrEqualTo(checkpoints + 1),
-        reason: 'a lap was completed with fewer sectors than it has',
-      );
-      // Numbered from the line, and the run to the line is the last.
-      expect(sectors.first.sector, 0);
-      expect(sectors[checkpoints].sector, checkpoints);
-    });
+        final checkpoints = it.track.checkpoints.length;
+        expect(checkpoints, greaterThan(0));
+        expect(
+          sectors.length,
+          greaterThanOrEqualTo(checkpoints + 1),
+          reason: 'a lap was completed with fewer sectors than it has',
+        );
+        // Numbered from the line, and the run to the line is the last.
+        expect(sectors.first.sector, 0);
+        expect(sectors[checkpoints].sector, checkpoints);
+      },
+    );
 
     test('and they add up to the lap they came from', () {
       // Measured off the lap clock rather than a stopwatch of their own: a set
@@ -683,7 +686,9 @@ void main() {
             if (event is SectorCompleted) sectors.add(event.time);
             if (event is LapCompleted) {
               laps.add(event.racer.lastLap);
-              closed.add(sectors.fold<double>(0.0, (double a, double b) => a + b));
+              closed.add(
+                sectors.fold<double>(0.0, (double a, double b) => a + b),
+              );
               sectors.clear();
             }
           }
@@ -704,10 +709,9 @@ void main() {
         seconds: 60.0,
         watch: () {
           deltas.addAll(
-            it.simulation.events
-                .drain()
-                .whereType<SectorCompleted>()
-                .map((SectorCompleted e) => e.delta),
+            it.simulation.events.drain().whereType<SectorCompleted>().map(
+              (SectorCompleted e) => e.delta,
+            ),
           );
         },
       );
@@ -724,31 +728,38 @@ void main() {
   });
 
   group('the tow, through a race', () {
-    test('a car close behind another is sheltered, and one alongside is not', () {
-      // Read off the track's own distance rather than off the world, because a
-      // car alongside is not sheltered by the one it is passing and a
-      // world-space distance cannot tell the two apart.
-      final it = Race(cars: 2, laps: 2);
-      driveRound(it, seconds: 4.0, throttle: 0.0);
+    test(
+      'a car close behind another is sheltered, and one alongside is not',
+      () {
+        // Read off the track's own distance rather than off the world, because a
+        // car alongside is not sheltered by the one it is passing and a
+        // world-space distance cannot tell the two apart.
+        final it = Race(cars: 2, laps: 2);
+        driveRound(it, seconds: 4.0, throttle: 0.0);
 
-      final leader = it.race.progress[0];
-      final follower = it.race.progress[1];
-      leader
-        ..s = 100.0
-        ..lateral = 0.0;
-      follower
-        ..s = 80.0
-        ..lateral = 0.0;
-      it.simulation.step(_step);
-      final behind = it.simulation.inputs[1].shelter;
+        final leader = it.race.progress[0];
+        final follower = it.race.progress[1];
+        leader
+          ..s = 100.0
+          ..lateral = 0.0;
+        follower
+          ..s = 80.0
+          ..lateral = 0.0;
+        it.simulation.step(_step);
+        final behind = it.simulation.inputs[1].shelter;
 
-      follower.lateral = 6.0;
-      it.simulation.step(_step);
-      final beside = it.simulation.inputs[1].shelter;
+        follower.lateral = 6.0;
+        it.simulation.step(_step);
+        final beside = it.simulation.inputs[1].shelter;
 
-      expect(behind, greaterThan(0.0), reason: 'twenty metres behind is a tow');
-      expect(beside, 0.0, reason: 'a car off line was towed anyway');
-    });
+        expect(
+          behind,
+          greaterThan(0.0),
+          reason: 'twenty metres behind is a tow',
+        );
+        expect(beside, 0.0, reason: 'a car off line was towed anyway');
+      },
+    );
 
     test('and the car in front is towed by nobody', () {
       final it = Race(cars: 2, laps: 2);

@@ -333,7 +333,8 @@ final class RacingSimulation {
     for (var other = 0; other < race.progress.length; other++) {
       if (other == index) continue;
       final ahead = race.progress[other];
-      final gap = ahead.progressAlong(race.track.length) -
+      final gap =
+          ahead.progressAlong(race.track.length) -
           mine.progressAlong(race.track.length);
       if (gap <= 0.0 || gap > slipstreamReach) continue;
 
@@ -365,7 +366,10 @@ final class RacingSimulation {
   /// drifts from the lap by a step's worth of rounding every time, and a set of
   /// splits that does not sum to the time above it is a set nobody trusts.
   void _closeSector(RacerProgress racer) {
-    final done = racer.sectorTimes.fold<double>(0.0, (double a, double b) => a + b);
+    final done = racer.sectorTimes.fold<double>(
+      0.0,
+      (double a, double b) => a + b,
+    );
     final took = racer.lapTime - done;
     final index = racer.sectorTimes.length;
     racer.sectorTimes.add(took);
@@ -376,7 +380,9 @@ final class RacingSimulation {
     final best = racer.bestSectors[index];
     if (best == null || took < best) racer.bestSectors[index] = took;
 
-    events.add(SectorCompleted(racer, index, took, best == null ? null : took - best));
+    events.add(
+      SectorCompleted(racer, index, took, best == null ? null : took - best),
+    );
   }
 
   /// Crossing the finish line, which only counts having been all the way round.
