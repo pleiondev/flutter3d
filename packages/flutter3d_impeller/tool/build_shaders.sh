@@ -18,7 +18,10 @@
 #     -m, --manifest PATH  bundle manifest JSON, relative to the package root
 #                          (default: the single shaders/*.shaderbundle.json)
 #     -o, --out PATH       output bundle, relative to the package root
-#                          (default: assets/shaders/<manifest stem>)
+#                          (default: assets/shaders/<manifest stem>, under the
+#                          package being built — except when tool/sources.txt
+#                          sent us to another package for the GLSL, where the
+#                          bundle stays with the script's own package)
 #     -I, --include DIR    extra `#include <…>` root; repeatable. The package's
 #                          own shaders/ and the SDK's shader_lib are always
 #                          included, in that order. A package that always needs
@@ -60,7 +63,10 @@ while [[ $# -gt 0 ]]; do
     -P|--package-include)
                    PACKAGE_INCLUDES+=("${2:?--package-include needs a package name}"); shift 2 ;;
     --platform)    PLATFORM="${2:?--platform needs a name}"; shift 2 ;;
-    -h|--help)     sed -n '2,38p' "$0"; exit 0 ;;
+    # The whole header comment, found by where it stops rather than by a line
+    # number: the number was three lines out of date the first time this file
+    # grew, and --help printing half a sentence is not something anyone reports.
+    -h|--help)     sed -n '2,${/^#/!q;p;}' "$0"; exit 0 ;;
     *)             die "unknown argument: $1 (try --help)" ;;
   esac
 done
@@ -71,14 +77,14 @@ done
 SCRIPT_HOME="$(cd "$(dirname "$0")" && pwd)"
 
 # Two roots, and they stopped being the same thing when a second backend
-# appeared. OWNER is the package whose bundle this is — the compiled artifact is
-# impellerc output and belongs to the backend that reads it. SOURCE is where the
-# GLSL and the manifest live, which is now a package of its own, because the
-# shading is the engine's and every backend compiles the same text.
+# appeared. PACKAGE is where the GLSL and the manifest live, which is now a
+# package of its own, because the shading is the engine's and every backend
+# compiles the same text. BUNDLE_OWNER, worked out below, is who the compiled
+# artifact belongs to. A package naming another in tool/sources.txt gets its
+# sources from there and still writes its bundle into itself, which is what
+# keeps the invocation argument-free and CI's one-loop-over-packages discovery
+# working.
 #
-# A package naming another in tool/sources.txt gets its sources from there and
-# still writes its bundle into itself, which is what keeps the invocation
-# argument-free and CI's one-loop-over-packages discovery working.
 # Where the SDK is, asked of Flutter rather than guessed from where its
 # executable happens to sit.
 #
@@ -103,6 +109,18 @@ report a flutterRoot, and FLUTTER_ROOT is not set."
 
 SDK_DART="$SDK/bin/cache/dart-sdk/bin/dart"
 OWNER="$(cd "$SCRIPT_HOME/.." && pwd)"
+# BUNDLE_OWNER is where the compiled bundle lands, and it is only ever different
+# from PACKAGE when tool/sources.txt redirected the sources out of this package:
+# then the GLSL is somebody else's and the artifact is still ours.
+#
+# An explicitly named --package is the other direction entirely. That is how
+# `dart run flutter3d_impeller:build_shaders` builds an extension's shaders —
+# bin/build_shaders.dart passes the extension's root — and the bundle is the
+# extension's asset, declared in the extension's pubspec. Writing it against
+# OWNER there put it inside this package, which in a pub-cache install is a
+# directory the extension cannot even name, and left the extension's own
+# `assets:` entry pointing at nothing.
+BUNDLE_OWNER=""
 if [[ -z "$PACKAGE" ]]; then
   PACKAGE="$OWNER"
   if [[ -f "$SCRIPT_HOME/sources.txt" ]]; then
@@ -111,11 +129,13 @@ if [[ -z "$PACKAGE" ]]; then
       PACKAGE="$("$SDK_DART" "$SCRIPT_HOME/package_root.dart" "$name" \
         --from "$OWNER")" ||
         die "cannot resolve source package '$name' — has 'flutter pub get' run?"
+      BUNDLE_OWNER="$OWNER"
     fi
   fi
 else
   PACKAGE="$(cd "$PACKAGE" && pwd)" || die "no such package directory"
 fi
+BUNDLE_OWNER="${BUNDLE_OWNER:-$PACKAGE}"
 cd "$PACKAGE"
 
 ARTIFACTS="$SDK/bin/cache/artifacts/engine"
@@ -178,8 +198,10 @@ fi
 # cannot live in build/, which Flutter owns and clears.
 if [[ -z "$OUT" ]]; then
   STEM="$(basename "$MANIFEST" .shaderbundle.json)"
-  # Against OWNER: the bundle is the backend's, even when the GLSL is not.
-  OUT="$OWNER/assets/shaders/$STEM.shaderbundle"
+  # Against BUNDLE_OWNER, not PACKAGE: the bundle is the backend's even when the
+  # GLSL is not, and it is the extension's when the extension is what we were
+  # pointed at. See where BUNDLE_OWNER is worked out.
+  OUT="$BUNDLE_OWNER/assets/shaders/$STEM.shaderbundle"
 fi
 mkdir -p "$(dirname "$OUT")"
 

@@ -265,8 +265,16 @@ final class CpuDevice implements GraphicsDevice {
         'path here, by design (see ARCHITECTURE.md §15).',
       );
     }
+    // **Exactly, not "at least"** — the same rule the cube path above spells
+    // out, and for the same reason. `GraphicsDevice.createTextureFromPixels`
+    // says null when the buffer is not the size the description asks for;
+    // Impeller refuses on `!=` because `overwrite` would throw, WebGL on `!=`
+    // because `texSubImage2D` reads exactly that many bytes. This one took the
+    // prefix of anything longer, so a decoder that disagreed with the engine
+    // about the dimensions was refused on two backends and silently drew
+    // something else on the third.
     final expected = width * height * 4;
-    if (pixels.lengthInBytes < expected) return null;
+    if (pixels.lengthInBytes != expected) return null;
     final texture = CpuTexture(width, height, format);
     final bytes = pixels.buffer.asUint8List(pixels.offsetInBytes, expected);
     for (var i = 0; i < expected; i++) {
@@ -281,7 +289,10 @@ final class CpuDevice implements GraphicsDevice {
         h = h > 1 ? h >> 1 : 1;
         final small = CpuTexture(w, h, format);
         final need = w * h * 4;
-        if (level.lengthInBytes < need) return null;
+        // Exactly, as above. A chain built with the wrong arithmetic is the
+        // case this catches, and it is the one that looks like a filtering bug
+        // rather than like a bad upload.
+        if (level.lengthInBytes != need) return null;
         final from = level.buffer.asUint8List(level.offsetInBytes, need);
         for (var i = 0; i < need; i++) {
           small.pixels[i] = from[i] / 255.0;

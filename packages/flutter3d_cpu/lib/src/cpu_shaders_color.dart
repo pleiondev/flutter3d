@@ -69,6 +69,13 @@ Vector3 decodeOctahedral(double ex, double ey) {
 /// into the frame without also describing itself — which is the failure that
 /// leaves a screen-space effect reflecting whatever was in the buffer before.
 void writeSurface(FragmentContext c, Vector3 normal, double roughness) {
+  // A debug pass takes the buffer over rather than getting one of its own, as
+  // `WriteSurfaceGeometry` does with `g_debug_surface_on`.
+  final debug = c.debugSurface;
+  if (debug != null) {
+    c.surface = Vector4(debug.x, debug.y, debug.z, c.coord.z);
+    return;
+  }
   final encoded = encodeOctahedral(normal);
   c.surface = Vector4(
     encoded.x,

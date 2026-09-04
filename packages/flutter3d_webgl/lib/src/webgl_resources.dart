@@ -245,6 +245,21 @@ TextureHandle? webglCreateTextureFromPixels(
   // ask about, unlike Impeller's base mip size.
   if (pixels.lengthInBytes != width * height * 4) return null;
 
+  // The levels are held to the same rule, and were held to none. `texSubImage2D`
+  // reads as many bytes as the rectangle needs and ignores the rest, so a level
+  // built with the wrong arithmetic was uploaded from its prefix and sampled as
+  // a plausible, wrong picture the moment anything minified. Asked before the
+  // allocation, as the base is, so a refusal costs no texture.
+  if (mipLevels != null) {
+    var w = width;
+    var h = height;
+    for (final level in mipLevels) {
+      w = w > 1 ? w >> 1 : 1;
+      h = h > 1 ? h >> 1 : 1;
+      if (level.lengthInBytes != w * h * 4) return null;
+    }
+  }
+
   // **Allocated with the whole chain up front.** `texStorage2D` fixes the
   // number of levels for the texture's life, and a level written into a
   // texture allocated for one is an INVALID_OPERATION — dropped, with the

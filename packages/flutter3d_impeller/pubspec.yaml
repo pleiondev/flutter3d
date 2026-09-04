@@ -48,26 +48,28 @@ dev_dependencies:
     sdk: flutter
   flutter_lints: ^6.0.0
 
-# A note on `shaders/`, which is deliberately NOT listed under `flutter.assets`
-# below.
+# A note on where the GLSL is, because this package has none and used to.
 #
-# `shaders/lib/*.glsl` are build-time inputs for an extension package: its
-# materials write `#include <lib/color.glsl>`, and impellerc satisfies that from
-# `<flutter3d_impeller>/shaders` as an include root. So they have to reach a consumer
-# that installed this package from pub — but as *files in the package
-# directory*, not as Flutter assets. Declaring them as assets would copy GLSL
-# source text into every shipping application's bundle, where nothing would ever
-# read it: by the time the app runs, the only artefact that matters is the
-# compiled .shaderbundle.
+# The headers an extension includes — `#include <lib/color.glsl>` and its
+# neighbours — live in `flutter3d_shaders`, and have since a second backend
+# appeared and the sources stopped belonging to either. This package holds the
+# compiler invocation and the compiled artefact; it does not hold a `shaders/`
+# directory, and a reader sent looking for one here finds nothing.
 #
-# Nothing extra is needed to ship them. `pub publish` uploads every file in the
-# package that git tracks and .gitignore does not exclude, and `shaders/` is
-# checked in. The only way to lose them is to add an exclusion;
-# test/shader_include_test.dart is the guard.
+# Installing this package does not by itself give an extension that include
+# root. impellerc resolves `<lib/…>` only against roots it was handed, so an
+# extension depends on `flutter3d_shaders` and names it — one line reading
+# `flutter3d_shaders` in its own `shaders/includes.txt`, or `-P
+# flutter3d_shaders` on the command line. tool/build_shaders.sh resolves the
+# name through package_config.json, which is what makes it work from the pub
+# cache as well as from a path dependency.
 #
-# They live here rather than in `flutter3d` because they are impellerc GLSL, and
-# so is everything built from them. A second backend needs its own translation
-# of the same materials, not a copy of these.
+# The headers reach a consumer as *files in flutter3d_shaders*, not as Flutter
+# assets, which is why nothing lists them under `flutter.assets` there either:
+# declaring them would copy GLSL source text into every shipping application's
+# bundle, where nothing would ever read it. By the time the app runs, the only
+# artefact that matters is the compiled .shaderbundle below.
+# test/shader_include_test.dart is the guard that they ship at all.
 flutter:
   assets:
     # Built by tool/build_shaders.sh through impellerc. Generated, so it is not

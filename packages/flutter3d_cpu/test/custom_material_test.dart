@@ -40,6 +40,24 @@ final class _TintShader implements CpuFragmentShader {
   }
 }
 
+/// An application's own shading, sampling the application's own texture.
+///
+/// Reads the slot `ramp_texture`, which is a name no engine shader has and no
+/// engine code knows. The material lists it under [Material.extraTextures] and
+/// the encoder binds it there; if the encoder did not, the fallback below is
+/// what a frame would show.
+final class _RampShader implements CpuFragmentShader {
+  const _RampShader();
+
+  @override
+  Vector4? run(Float32List v, ShaderBindings bindings, FragmentContext c) {
+    final ramp = bindings.textures['ramp_texture'];
+    if (ramp == null) return Vector4(0.0, 0.0, 0.0, 1.0);
+    final texel = ramp.sample(0.5, 0.5);
+    return Vector4(texel.x, texel.y, texel.z, 1.0);
+  }
+}
+
 /// An application's own shading: flat magenta, and nothing the engine ships is.
 ///
 /// A fragment stage is a function from varyings and bindings to a colour, so an
@@ -78,6 +96,26 @@ const LightingModel _tint = LightingModel(
   usesMetallicRoughnessMap: false,
   usesMaterialParameters: false,
 );
+
+/// The model the ramp shader is reached by.
+const LightingModel _ramp = LightingModel(
+  'Ramp',
+  'Ramp',
+  usesFragInfo: false,
+  usesAlbedoTexture: false,
+  usesMaterialMaps: false,
+  usesMetallicRoughnessMap: false,
+  usesMaterialParameters: false,
+);
+
+/// A one-texel texture of a colour nothing else in this file is.
+TextureHandle _texel(CpuDevice device, int r, int g, int b) =>
+    device.createTextureFromPixels(
+      width: 1,
+      height: 1,
+      format: TextureFormat.r8g8b8a8UNormInt,
+      pixels: ByteData.sublistView(Uint8List.fromList(<int>[r, g, b, 255])),
+    )!;
 
 ({CpuDevice device, Scene scene, CameraNode camera}) _wall(
   LightingModel model,
@@ -195,6 +233,60 @@ void main() {
     final rgb = _centre(pixels);
     expect(rgb[1], greaterThan(200), reason: 'the tint it was given is green');
     expect(rgb[0], lessThan(60), reason: 'and not red');
+  });
+
+  test('an application can hand its own shader its own texture', () async {
+    // **The other half of the seam, and the half nothing ran.** `parameters`
+    // above is the safe one: a block the shader has not got is reported and
+    // skipped. `extraTextures` is not — a sampler slot a compiled shader does
+    // not have is a native crash on at least one backend — and it was reachable
+    // from `flutter3d.dart`, documented as the way to feed a custom stage, and
+    // bound by no test, no golden and no application on any of the three.
+    //
+    // Mutation: drop the `material.extraTextures` loop in
+    // `renderer_mesh_encode.dart` — the slot arrives empty, the shader takes
+    // its black fallback and this fails on every channel.
+    final device = CpuDevice(
+      width: _width,
+      height: _height,
+      shaders: CpuShaderLibrary(builtinCpuShaders()),
+    );
+    final scene = Scene();
+    scene.add(
+      MeshNode(
+        DeviceMesh.upload(
+          device,
+          CuboidShape(size: Vector3(40.0, 40.0, 1.0)).build(),
+        ),
+        Material(
+          name: 'ramped',
+          lighting: _ramp,
+          extraTextures: <String, TextureHandle>{
+            'ramp_texture': _texel(device, 0, 0, 255),
+          },
+        ),
+      )..setPosition(0.0, 0.0, -8.0),
+    );
+    final camera = CameraNode(
+      projection: const PerspectiveProjection(
+        fovYRadians: 1.0,
+        near: 0.1,
+        far: 60.0,
+      ),
+    );
+    camera.lookAt(Vector3(0.0, 0.0, -1.0));
+    scene.add(camera);
+
+    final pixels = await _draw(
+      (device: device, scene: scene, camera: camera),
+      materials: CpuShaderLibrary(<String, CpuStage>{
+        'Ramp': const CpuStage.fragment(_RampShader()),
+      }),
+    );
+
+    final rgb = _centre(pixels);
+    expect(rgb[2], greaterThan(200), reason: 'the texel it was handed is blue');
+    expect(rgb[0], lessThan(20), reason: 'and not white, and not the fallback');
   });
 
   test('an application can add a look the engine never shipped', () async {

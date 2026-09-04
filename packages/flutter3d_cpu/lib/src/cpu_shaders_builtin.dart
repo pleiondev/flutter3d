@@ -1,12 +1,22 @@
 /// The engine's shaders, written in Dart.
 ///
-/// All twenty-four of them: both mesh stages, six lighting models and the flat
-/// one the x-ray stage draws with, the two
-/// shadow passes and the atlas tile reset, three bloom stages, the composite,
-/// reflections, debug lines, particles and the MRT probe. The demo application
-/// runs end to end on this backend, and eleven of its twelve golden scenes
-/// land between 0.15% and 0.46% of the pictures Impeller recorded — most of
-/// which is the multisampling this backend says it has none of.
+/// **Every one of them, and the count is checked rather than written down
+/// here.** `kRequiredShaders` in `flutter3d_shaders` is the list — the mesh
+/// vertex stages, the lighting models and the flat one the x-ray stage draws
+/// with, the shadow passes and the atlas tile reset, the bloom chain, the
+/// composite, reflections, occlusion, the sky, the probe pair, object id,
+/// luminance, debug lines and particles — and `test/shader_names_test.dart`
+/// holds [builtinCpuShaders] to it in both directions, so a stage added to the
+/// engine fails here until it is written or listed as unimplemented. This
+/// paragraph used to open with a number instead: "all twenty-four of them",
+/// true when it was written and left alone through thirteen more.
+///
+/// How close it lands to Impeller is measured, per scene, in
+/// `test/cross_backend_test.dart`, which is also where the reasons live. Not
+/// repeated here: the spread this paragraph used to quote was a third of the
+/// current scene set and an order of magnitude under the current worst case,
+/// and a measurement copied away from the file that takes it has no way of
+/// hearing that it moved.
 ///
 /// `kUnimplementedCpuVertexShaders` and its fragment twin are empty and stay
 /// in place: they are what a stage is added to when the engine grows one, and

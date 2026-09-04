@@ -104,8 +104,9 @@ final class GpuRenderBackend implements GraphicsDevice {
   ///
   /// It lives here rather than on `Renderer` because it is `impellerc` output:
   /// an artefact only this backend can read, built by this package's
-  /// `tool/build_shaders.sh` from this package's `shaders/`. The engine names
-  /// the shaders it wants by entry point and does not know what compiled them.
+  /// `tool/build_shaders.sh` from the GLSL in `flutter3d_shaders`, which every
+  /// backend compiles its own way. The engine names the shaders it wants by
+  /// entry point and does not know what compiled them.
   ///
   /// The `packages/<name>/` prefix is how Flutter addresses a dependency's
   /// assets, and it is the same string from inside this package as from an
@@ -430,6 +431,23 @@ final class GpuRenderBackend implements GraphicsDevice {
     if (pixels.lengthInBytes !=
         _baseLevelLengthInBytes(width, height, format)) {
       return null;
+    }
+    // The levels too, for the reason `createCubeTextureFromPixels` above states
+    // and this one had not caught up with: `overwrite` throws when a buffer is
+    // not exactly its level's size, so a chain built with the wrong arithmetic
+    // took the frame down here where the other two backends returned null.
+    // Through the same arithmetic as the base, so a block-compressed chain is
+    // measured in whole blocks rather than in texels.
+    if (mipLevels != null) {
+      var w = width;
+      var h = height;
+      for (final level in mipLevels) {
+        w = w > 1 ? w >> 1 : 1;
+        h = h > 1 ? h >> 1 : 1;
+        if (level.lengthInBytes != _baseLevelLengthInBytes(w, h, format)) {
+          return null;
+        }
+      }
     }
 
     final texture = createGpuTexture(

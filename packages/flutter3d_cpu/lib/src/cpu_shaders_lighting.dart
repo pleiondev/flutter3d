@@ -84,13 +84,16 @@ LightSample? sampleLight(ShaderBindings bindings, int index, Surface s) {
     if (distance < 1e-6) return null;
     toLight.scale(1.0 / distance);
     lightAttenuation = attenuation(distance, direction.w);
-    // Spot cones are not here. Nothing this backend draws has one, and the
-    // conformance suite does not ask; a cone written blind would be another
-    // guess of the kind this file was rewritten to remove.
   }
 
-  // The spot cone: a smooth ramp between the two cosines. The Dart side
-  // guarantees the denominator is non-zero.
+  // The spot cone: a smooth ramp between the two cosines, transcribed from
+  // `SampleLight` in surface.glsl. The Dart side guarantees the denominator is
+  // non-zero.
+  //
+  // Three lines above this there used to be a comment saying spot cones were
+  // not transcribed, left behind when they were. This file's header promises
+  // that where it departs from the GLSL it says so, which is only worth
+  // anything if a departure it names is one it has.
   if (position.w > 1.5) {
     final cone = bindings.vec4(
       'FragInfo',
