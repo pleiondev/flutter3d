@@ -344,6 +344,24 @@ void main() {
         );
 
       expect(draw.isEmpty, isTrue);
+
+      // **With everything off, `buildForScene` returns before it reaches the
+      // frustum branch at all** — `anyEnabled` is false — so the expectation
+      // above holds however that branch is written, and would still hold if
+      // its `if` were deleted. Another overlay on instead, so the branch is
+      // reached and answers.
+      final axesOnly = DebugDraw()
+        ..buildForScene(
+          scene,
+          const DebugDrawOptions(axes: true),
+          activeCamera: scene.cameras.first,
+        );
+
+      expect(
+        axesOnly.lineCount,
+        3,
+        reason: 'three axes and no frustum: twelve more is the watcher drawn',
+      );
     });
   });
 }
