@@ -19,6 +19,7 @@ final class Collectible extends Takeable {
     required this.what,
     required super.collider,
     this.howMany = 1,
+    this.worth = 0.0,
     this.key,
   });
 
@@ -27,6 +28,14 @@ final class Collectible extends Takeable {
   final String what;
 
   final int howMany;
+
+  /// What taking it is worth, before the chain in hand is applied.
+  ///
+  /// **Separate from [howMany], which is a count and not a value.** Three
+  /// coins and one gem are four things taken, and a level that wanted the gem
+  /// to be worth more had nowhere to say so: the purse counted and nothing
+  /// scored. Zero scores nothing at all, which is what a key is worth.
+  final double worth;
 
   /// Which door it opens, if it opens one.
   final String? key;

@@ -404,4 +404,49 @@ void main() {
       expect(run.runner.purse['coin'], 1, reason: 'the coin is on the way');
     });
   });
+
+  group('scoring a run', () {
+    // **The purse counted and nothing scored.** A level had one way to reward
+    // a player and no way to reward a player who was good, which is the whole
+    // of what a platformer's scoring is for.
+
+    test('a coin is worth what it says, times the chain in hand', () {
+      final scoring = Scoring(step: 0.5);
+
+      expect(scoring.score(100.0), 100.0);
+      expect(scoring.score(100.0), 150.0);
+    });
+
+    test('and the event carries what it was actually worth', () {
+      // Recomputing it later reads the multiplier after it has moved on, and
+      // the number a game floats over the coin is this one.
+      final taken = CollectibleTaken(
+        Collectible(
+          collider: Collider(
+            shape: CollisionBox(Vector3.all(0.5)),
+            position: Vector3.zero(),
+          ),
+          what: 'coin',
+          worth: 100.0,
+        ),
+        250.0,
+      );
+
+      expect(taken.collectible.worth, 100.0);
+      expect(taken.scored, 250.0);
+    });
+
+    test('and a death breaks the chain rather than letting it ride', () {
+      // A run that survived dying would be a run nobody had to protect.
+      final scoring = Scoring(window: 30.0)
+        ..score(10.0)
+        ..score(10.0);
+
+      final lost = scoring.breakChain();
+
+      expect(lost, greaterThan(0.0));
+      expect(scoring.isRunning, isFalse);
+      expect(scoring.total, greaterThan(0.0), reason: 'the points were taken');
+    });
+  });
 }

@@ -30,9 +30,16 @@ import 'collectible.dart';
 /// these — which is three sounds and three bursts, and was one list a caller
 /// had to know to look in.
 final class CollectibleTaken extends GameEvent {
-  const CollectibleTaken(this.collectible);
+  const CollectibleTaken(this.collectible, this.scored);
 
   final Collectible collectible;
+
+  /// What it was worth once the chain in hand was applied.
+  ///
+  /// Carried rather than left to be recomputed, because the multiplier has
+  /// already moved on by the time anything reads this — and the number a game
+  /// floats over the coin is this one, not what the coin says it is worth.
+  final double scored;
 
   @override
   String get name => 'collectible taken';
@@ -236,4 +243,19 @@ final class PowerEnded extends GameEvent {
 
   @override
   String get name => 'power ended ($power)';
+}
+
+/// A run of scoring ended, and here is what it was worth.
+///
+/// **The moment, rather than the number afterwards.** A chain worth nought
+/// once it has lapsed cannot be told from one that never happened, which is
+/// why this is an event and not a field that goes back to zero.
+final class ChainEnded extends GameEvent {
+  const ChainEnded(this.worth);
+
+  /// What the whole run came to.
+  final double worth;
+
+  @override
+  String get name => 'chain ended, worth $worth';
 }

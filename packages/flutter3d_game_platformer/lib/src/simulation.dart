@@ -190,6 +190,17 @@ final class PlatformerSimulation {
   /// names are not an enum.
   final Powers powers = Powers();
 
+  /// What this run is worth, and the chain the runner is holding.
+  ///
+  /// **The purse counted and nothing scored.** Coins were a number that went
+  /// up, so a level had one way to reward a player and no way to reward a
+  /// player who was good — which is the whole of what a platformer's scoring
+  /// is for. A chain of collectibles taken close together is worth more than
+  /// the same collectibles taken slowly, and it breaks on a death.
+  ///
+  /// What a coin is worth is the game's; this only multiplies and counts.
+  final Scoring scoring = Scoring();
+
   /// Damage a second from standing against an enemy.
   ///
   /// A rate rather than a lump, exactly as a hazard's is, and for the same
@@ -203,6 +214,8 @@ final class PlatformerSimulation {
     for (final String ended in powers.step(dt)) {
       events.add(PowerEnded(ended));
     }
+    final lapsed = scoring.advance(dt);
+    if (lapsed != null) events.add(ChainEnded(lapsed));
 
     if (state == RunState.finished || state == RunState.lost) return;
 
@@ -252,6 +265,10 @@ final class PlatformerSimulation {
   void _revive() {
     deaths += 1;
     events.add(const RunnerDied());
+    // A death breaks the chain, whatever is left on its clock. A run that
+    // survived dying would be a run nobody had to protect.
+    final lost = scoring.breakChain();
+    if (lost != null) events.add(ChainEnded(lost));
     if (lives > 0) {
       lives -= 1;
       if (lives == 0) {
@@ -357,7 +374,12 @@ final class PlatformerSimulation {
     final events = mechanisms?.events;
     if (events == null) return;
     for (final taken in events.taken) {
-      if (taken is Collectible) this.events.add(CollectibleTaken(taken));
+      if (taken is! Collectible) continue;
+      // Worth what the collectible says, multiplied by the run in hand — so a
+      // sweep through a line of coins pays more than the same coins picked up
+      // one at a time, which is the only thing a chain is for.
+      final scored = scoring.score(taken.worth);
+      this.events.add(CollectibleTaken(taken, scored));
     }
     // Whatever the level said. Published here rather than in its own reader
     // because it comes off the same event object, gathered by the same
