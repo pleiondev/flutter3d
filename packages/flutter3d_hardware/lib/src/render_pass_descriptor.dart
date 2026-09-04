@@ -118,21 +118,24 @@ final class BlendState {
   /// did for as long as nothing could set one. One place decides which factors
   /// those are, because a backend that spelled the list out itself would go on
   /// accepting a value the enum grew afterwards.
+  /// Four questions rather than a list and `any`: the backend that refuses
+  /// asks this from `setBlend`, which is once per mesh per pass, and a list
+  /// literal built from four instance fields is an allocation on the draw path
+  /// every time. [_readsConstant] keeps the one place the four are named.
   bool get usesBlendColor =>
-      <BlendFactor>[
-        sourceColorFactor,
-        destinationColorFactor,
-        sourceAlphaFactor,
-        destinationAlphaFactor,
-      ].any(
-        (BlendFactor factor) => switch (factor) {
-          BlendFactor.blendColor ||
-          BlendFactor.oneMinusBlendColor ||
-          BlendFactor.blendAlpha ||
-          BlendFactor.oneMinusBlendAlpha => true,
-          _ => false,
-        },
-      );
+      _readsConstant(sourceColorFactor) ||
+      _readsConstant(destinationColorFactor) ||
+      _readsConstant(sourceAlphaFactor) ||
+      _readsConstant(destinationAlphaFactor);
+
+  /// Whether one factor multiplies by the blend constant.
+  static bool _readsConstant(BlendFactor factor) => switch (factor) {
+    BlendFactor.blendColor ||
+    BlendFactor.oneMinusBlendColor ||
+    BlendFactor.blendAlpha ||
+    BlendFactor.oneMinusBlendAlpha => true,
+    _ => false,
+  };
 
   @override
   bool operator ==(Object other) =>
