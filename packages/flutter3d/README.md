@@ -99,7 +99,7 @@ What works today:
   `CUBICSPLINE` with authored tangents), slerped rotations, an `AnimationPlayer`
   with play/pause/seek/speed and once/loop/ping-pong, and the decoded node
   hierarchy rebuilt on instantiation so an animated parent carries its subtree;
-- 822 tests — geometry, projection, scene, sorting, debug draw, intersections,
+- 825 tests — geometry, projection, scene, sorting, debug draw, intersections,
   raycasting, animation, skinning, lighting, tangents, render targets, BVH, LOD,
   glTF, OBJ and `.f3d` — all without a GPU.
 
@@ -308,7 +308,7 @@ lib/src/engine/scene/           scene graph, cameras, lights, orbit, raycasting
 lib/src/engine/render/          renderer, render list, materials, sorting, debug draw
 lib/src/engine/assets/          glTF, OBJ and .f3d decoders, isolate loading, cache
 example/lib/                    the demo, and the frame capture hook
-test/                           822 tests, all runnable without a GPU
+test/                           825 tests, all runnable without a GPU
 ```
 
 The GLSL is not here. Every shader this package draws with lives in
