@@ -1639,7 +1639,7 @@ entities a game defines.
 | Structure rules | 27, `dart run tool/structure.dart`, the first CI step |
 | CI | GitHub Actions over `tool/ci.sh`, on `ubuntu-latest`, with no graphics card |
 
-**Golden render tests.** 39 scenes against **three independent reference sets** —
+**Golden render tests.** 41 scenes against **three independent reference sets** —
 Impeller, the software rasteriser and WebGL2 — each held to zero differing pixels
 against its own set, with a per-channel tolerance of 8. Each backend records its
 own because a shared set would need one tolerance doing two jobs: "did this
@@ -1703,7 +1703,7 @@ pass turned its input over. The view built to check the atlas cancelled the very
 error it was pointed at and agreed with Impeller to the pixel for six sessions.
 
 What holds it now is `flutter3d_webgl/test/cross_backend_test.dart`: a budget per
-scene, all thirty-nine of them between 0.01% and 0.42%, measured rather than
+scene, all forty-one of them between 0.01% and 0.42%, measured rather than
 rounded — a budget far above what was observed has stopped watching. A scene
 this backend has yet to record carries a provisional ceiling instead, and says
 so; there are none today.
@@ -1858,7 +1858,7 @@ metres. The directional light's cascades fit the view up to that distance and
 nothing beyond it casts — a level whose far end matters visually wants the
 number raised, and pays for it in texels.
 
-**The web backend draws all thirty-nine golden scenes the way Impeller does**,
+**The web backend draws all forty-one golden scenes the way Impeller does**,
 between 0.01% and 0.42% of pixels differing by more than 8 per channel — the
 silhouette's worth of disagreement two rasterisers always have. Two of those
 numbers fell when the minification filter learned to read a sampler's

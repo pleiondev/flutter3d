@@ -167,7 +167,7 @@ double _mean(Uint8List rgba, {required int channel}) {
 void main() {
   _hardEdgedSun();
   test('no sky is byte-identical to the sky nobody asked for', () async {
-    // The property thirty-nine goldens rest on: a frame with no sky in it is
+    // The property forty-one goldens rest on: a frame with no sky in it is
     // the frame this renderer has always drawn.
     //
     // Mutation: drop the early return. The sky is drawn into every scene that

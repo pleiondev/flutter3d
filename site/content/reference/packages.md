@@ -44,7 +44,7 @@ A rasteriser written in Dart. `CpuDevice` implements the same HAL, plus PNG outp
 
 Not a fallback. Two hardware backends agreeing proves less than it looks like: both are driven by a C API and both rasterise on a GPU, so an assumption shared by graphics hardware would be invisible to the pair of them. This one shares nothing with either, no driver, no shading language, no command buffer.
 
-It is how thirty-nine golden scenes are checkable with no GPU in the room, and it is a dev dependency of every game because three shipped bugs would have been caught by rendering a single frame in a test. It stopped being *only* a dev dependency once `flutter3d_backend` started reaching for it as the runtime fallback when Impeller will not start — a real, if last-resort, production path now, not just a test one.
+It is how forty-one golden scenes are checkable with no GPU in the room, and it is a dev dependency of every game because three shipped bugs would have been caught by rendering a single frame in a test. It stopped being *only* a dev dependency once `flutter3d_backend` started reaching for it as the runtime fallback when Impeller will not start — a real, if last-resort, production path now, not just a test one.
 
 ### `flutter3d_conformance`
 The suite any fourth backend would have to pass before it counted as one, plus the cross-backend comparison with per-scene budgets.

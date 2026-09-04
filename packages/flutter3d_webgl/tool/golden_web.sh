@@ -12,7 +12,7 @@
 # serves the build, answers the page's fetches and drives Chrome.
 #
 # **One build for the whole suite.** The scene is a query parameter rather than
-# a compile-time define, so the thirty-nine scenes are one dart2js run and a
+# a compile-time define, so the forty-one scenes are one dart2js run and a
 # navigation each, rather than a dart2js run each. That is the only reason this
 # is minutes rather than an hour.
 #

@@ -52,7 +52,7 @@ Each exists for a different reason, and none of them is a fallback for another.
 
 Its shaders are GLSL ES 3.00 generated from `flutter3d_shaders`. Nothing checked that the generated file was current for a long time, and it cost two silent failures — a uniform member the browser's copy had never heard of, and a sky shader from before the sky was rewritten. `tool/ci.sh` regenerates it and fails on the diff now, and the compiled Impeller bundle, which cannot be diffed, is held by a freshness rule instead.
 
-**`flutter3d_cpu`** is the one that makes the agreement mean something. Two hardware backends agreeing proves less than it looks like: both are driven by a C API and both rasterise on a GPU, so an assumption shared by graphics hardware would be invisible to the pair of them. This one shares nothing with either, no driver, no shading language, no command buffer. It is also what makes thirty-nine golden scenes checkable in a headless run, and what caught three bugs that every simulation test passed.
+**`flutter3d_cpu`** is the one that makes the agreement mean something. Two hardware backends agreeing proves less than it looks like: both are driven by a C API and both rasterise on a GPU, so an assumption shared by graphics hardware would be invisible to the pair of them. This one shares nothing with either, no driver, no shading language, no command buffer. It is also what makes forty-one golden scenes checkable in a headless run, and what caught three bugs that every simulation test passed.
 
 Any new backend has to pass `flutter3d_conformance` before it counts as one.
 

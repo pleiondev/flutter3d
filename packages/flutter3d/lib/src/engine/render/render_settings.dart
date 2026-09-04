@@ -506,7 +506,7 @@ final class RenderSettings {
 /// **Everything here defaults to doing nothing, exactly.** Not nearly nothing:
 /// a vignette of zero multiplies by one and grain of zero adds zero, so a scene
 /// that asks for none of it composites to the same bytes it did before this
-/// existed. Thirty-nine goldens depend on that being exact, and the composite
+/// existed. Forty-one goldens depend on that being exact, and the composite
 /// pass already keeps the same promise for ambient occlusion.
 ///
 /// Applied in the composite rather than as passes of their own, which is the

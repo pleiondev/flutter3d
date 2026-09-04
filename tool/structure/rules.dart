@@ -2168,7 +2168,8 @@ const List<String> _countedInWords = <String>[
   'twenty-two', 'twenty-three', 'twenty-four', 'twenty-five', 'twenty-six',
   'twenty-seven', 'twenty-eight', 'twenty-nine', 'thirty', 'thirty-one',
   'thirty-two', 'thirty-three', 'thirty-four', 'thirty-five', 'thirty-six',
-  'thirty-seven', 'thirty-eight', 'thirty-nine', 'forty',
+  'thirty-seven', 'thirty-eight', 'thirty-nine', 'forty', 'forty-one',
+  'forty-two', 'forty-three', 'forty-four', 'forty-five',
 ];
 
 /// A count said both ways, so a finding can be read and searched for.

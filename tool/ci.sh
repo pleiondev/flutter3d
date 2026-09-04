@@ -9,7 +9,7 @@
 #
 # What it does NOT do, stated so the gap is not mistaken for coverage:
 #
-#   * The Impeller half of the golden set. Those thirty-nine scenes render through
+#   * The Impeller half of the golden set. Those forty-one scenes render through
 #     flutter_gpu and need a real device, so they run from
 #     packages/flutter3d/tool/golden.sh on a machine with a GPU. The software
 #     half runs here, and cross_backend_test.dart compares the two committed

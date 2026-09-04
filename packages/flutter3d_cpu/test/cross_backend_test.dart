@@ -54,6 +54,29 @@ import 'package:flutter_test/flutter_test.dart';
 /// multisampling on silhouettes, and an additive quad's edge deposits too
 /// little to cross a channel threshold of eight.
 const Map<String, double> _budgets = <String, double>{
+  // 0.633% measured. Screen-space reflections are a march, and the two
+  // rasterisers disagree about where a ray ends — an edge inside the
+  // reflection rather than an edge in the scene. The first number this feature
+  // has ever produced on two backends: it was advertised for months and
+  // compared nowhere.
+  'screen-space-reflections': 0.65,
+  // **7.647% measured, and this one is a defect budget rather than a floor.**
+  // It belongs with the six below that were not multisampling, and it is here
+  // for the same reason: the number is written down so that whoever fixes it
+  // can watch it fall.
+  //
+  // The disagreement is not noise. The software rasteriser is *lighter* in
+  // 12,842 of the 13,214 differing pixels — it occludes less than Impeller
+  // does — the difference reaches 77 of 255 on a channel, and it sits in the
+  // middle of the frame where the corner is, not around silhouettes. So the
+  // two transcriptions of `ssao.frag` compute different amounts of occlusion,
+  // and one of them is wrong.
+  //
+  // Found in the first minute the two were ever compared, which is the whole
+  // argument for this scene existing: the effect shipped, was drawn by three
+  // backends, and had a picture check on one.
+  'ambient-occlusion-corner': 7.7,
+
   // One number for all six, because all six measure the same thing now:
   // 0.431%, except `particles-recycled` at 0.417%. Set just above, which is
   // the rule this file is built on — a budget far from what was measured has
@@ -160,7 +183,11 @@ const Map<String, double> _budgets = <String, double>{
   'lighting-lambert': 0.24,
   'lighting-pbr': 0.24,
   'skinned-figure': 0.22,
-  'debug-overlay': 0.21,
+  // 0.361%, up from 0.21% when the scene drew neither normals nor a frustum.
+  // Both are thin lines a pixel wide, which is the one thing two rasterisers
+  // never place identically; the caption on the site says the picture has them
+  // because it does now.
+  'debug-overlay': 0.37,
   'surface-buffer': 0.02,
   'cube-shadow': 0.02,
   'cube-shadow-crowded': 0.02,
