@@ -1012,6 +1012,9 @@ List<Finding> _exemptionsResolve() {
   for (final path in engineAlsoFreeOfDartUi.keys) {
     check('engineAlsoFreeOfDartUi', 'flutter3d', path);
   }
+  for (final path in engineCompilesOffDevice.keys) {
+    check('engineCompilesOffDevice', 'flutter3d', path);
+  }
 
   // `hardwareMayUseFlutter` is keyed on basenames rather than paths, because
   // that is what the rule matches on. Same rot, same case trap.
