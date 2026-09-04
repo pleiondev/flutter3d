@@ -126,15 +126,23 @@ done
       // that an application loads it under.
       //
       // Mutation: put `OUT="$OWNER/…"` back in tool/build_shaders.sh — this
-      // fails on both expectations, the bundle landing in flutter3d_impeller
-      // instead, which in a pub-cache install is not even writable.
+      // fails on both expectations, the bundle landing in `owner/` instead,
+      // which in a pub-cache install is not even writable.
+      //
+      // The script is run from a *copy* under `owner/` rather than in place, so
+      // that OWNER is a directory this test made. Run in place, the mutation
+      // writes a bundle into this package's own `assets/shaders/` — untracked,
+      // gitignored, invisible to `git status` — and the second expectation then
+      // fails for every later run against correct code, until somebody works
+      // out which file to delete.
       final sdk = stubSdk();
       write('extension/shaders/demo.shaderbundle.json', '{}');
+      final script = write(
+        'owner/tool/build_shaders.sh',
+        File('${_thisPackage.path}/tool/build_shaders.sh').readAsStringSync(),
+      );
 
-      final result = run('${_thisPackage.path}/tool/build_shaders.sh', [
-        '--package',
-        '${temp.path}/extension',
-      ], sdk);
+      final result = run(script, ['--package', '${temp.path}/extension'], sdk);
 
       expect(
         File(
@@ -144,9 +152,7 @@ done
         reason: 'exit ${result.exitCode}\n${result.stdout}\n${result.stderr}',
       );
       expect(
-        File(
-          '${_thisPackage.path}/assets/shaders/demo.shaderbundle',
-        ).existsSync(),
+        Directory('${temp.path}/owner/assets').existsSync(),
         isFalse,
         reason: 'the extension\'s bundle must not be written into this package',
       );

@@ -432,6 +432,23 @@ final class GpuRenderBackend implements GraphicsDevice {
         _baseLevelLengthInBytes(width, height, format)) {
       return null;
     }
+    // The levels too, for the reason `createCubeTextureFromPixels` above states
+    // and this one had not caught up with: `overwrite` throws when a buffer is
+    // not exactly its level's size, so a chain built with the wrong arithmetic
+    // took the frame down here where the other two backends returned null.
+    // Through the same arithmetic as the base, so a block-compressed chain is
+    // measured in whole blocks rather than in texels.
+    if (mipLevels != null) {
+      var w = width;
+      var h = height;
+      for (final level in mipLevels) {
+        w = w > 1 ? w >> 1 : 1;
+        h = h > 1 ? h >> 1 : 1;
+        if (level.lengthInBytes != _baseLevelLengthInBytes(w, h, format)) {
+          return null;
+        }
+      }
+    }
 
     final texture = createGpuTexture(
       // Host-visible, because these bytes come from the CPU. That is a
