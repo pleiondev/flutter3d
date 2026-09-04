@@ -169,7 +169,11 @@ void main() {
   test('an inside corner goes darker than the open floor', () async {
     // Mutation: drop the range check, or the hemisphere flip, or read the
     // depth from the wrong channel. The corner stops darkening, which is the
-    // whole effect.
+    // whole effect. So does putting the screen mapping back the way it was —
+    // `vv * 2.0 - 1.0` in `worldFrom` and `ndcY * 0.5 + 0.5` for the tap: the
+    // darkening moves off the corner and onto the open floor, and the pair goes
+    // from **corner 675, open 0** to corner 2349 against open 1674, which is a
+    // picture dimmed roughly evenly rather than one with a dark corner in it.
     final without = await _draw(_settings(ao: false));
     final with_ = await _draw(_settings(ao: true));
 
@@ -177,12 +181,23 @@ void main() {
     // scene is 204 with the occlusion off — flat ambient on flat grey, wall and
     // floor alike — so there is no brightness to navigate by, and the first
     // version of this test picked its two rows blind and got them the wrong way
-    // round. Row 46 is where the floor meets the wall; row 60 is open floor
-    // near the camera.
+    // round.
+    //
+    // **Read off the frame is not the same as read off the right frame.** These
+    // rows were 46 and 60, taken from a picture the pass was drawing upside
+    // down: it turned clip space into a texture coordinate the opposite way
+    // from every other lookup in the engine, so the occlusion of each pixel was
+    // computed for the pixel mirrored about the middle of the frame. The rows
+    // fitted the darkening that produced, and the test passed on it for as long
+    // as it existed. Where the corner *is* can be had from the scene instead of
+    // from the picture: the camera sits at (0, 1.6, -3.4) looking at
+    // (0, 0.35, 2.0) through a 45° vertical field, and the line where the floor
+    // meets the wall — y = 0, z = 2.0 — is 3.5° below the axis, which is row 37
+    // of 64. Row 36 is that corner; row 56 is open floor nearer the camera.
     var corner = 0, open = 0;
     for (var x = _width ~/ 3; x < _width * 2 ~/ 3; x++) {
-      corner += without[(46 * _width + x) * 4] - with_[(46 * _width + x) * 4];
-      open += without[(60 * _width + x) * 4] - with_[(60 * _width + x) * 4];
+      corner += without[(36 * _width + x) * 4] - with_[(36 * _width + x) * 4];
+      open += without[(56 * _width + x) * 4] - with_[(56 * _width + x) * 4];
     }
     expect(corner, greaterThan(0), reason: 'the corner did not darken at all');
     expect(

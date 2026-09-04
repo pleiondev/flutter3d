@@ -17,12 +17,22 @@ export 'shadow_settings.dart';
 /// Off by default: it costs a full-screen pass and the surface buffer that
 /// feeds it, and a level lit by torches in a stone corridor gains less from it
 /// than a wet floor would.
+///
+/// **Two things were wrong with the march for as long as nothing recorded a
+/// frame of it**, which is what the front page advertising a feature no picture
+/// covers buys. It turned clip space into a texture coordinate the opposite way
+/// from every other lookup in the engine and against an unadjusted matrix, so
+/// on the two backends whose row zero is at the top it read the surface buffer
+/// mirrored about the middle of the frame and found nothing to do with the ray.
+/// And it compared [thickness] in window depth, which is not a distance. Both
+/// are covered now by `flutter3d_cpu/test/reflections_test.dart` and by the
+/// `screen-space-reflections` golden.
 final class ReflectionSettings {
   const ReflectionSettings({
     this.enabled = false,
     this.steps = 24,
     this.stride = 0.18,
-    this.thickness = 0.006,
+    this.thickness = 0.25,
     this.intensity = 0.7,
     this.debugOnly = false,
   });
@@ -37,9 +47,19 @@ final class ReflectionSettings {
   /// geometry; shorter is accurate and stops sooner.
   final double stride;
 
-  /// How thick a surface is assumed to be, in window depth. Without an upper
-  /// bound on the depth difference, a ray passing in front of a distant wall
-  /// counts as hitting it.
+  /// How thick a surface is assumed to be, in world metres. Without an upper
+  /// bound on how far behind a surface a ray may pass and still count as
+  /// hitting it, every distant wall a ray crosses in front of is a hit.
+  ///
+  /// **In metres, and it used to be in window depth.** That was the bug that
+  /// kept the whole effect off: window depth is not a distance, so 0.006 of it
+  /// was a few centimetres up against the near plane and several metres a room
+  /// away, and one value could not be both a surface a stride could land in
+  /// and a wall a ray could pass. It reads as "the reflection does not work",
+  /// which is what it was called for as long as it stood.
+  ///
+  /// A little over [stride] on purpose: a ray whose step is longer than the
+  /// surface is thick straddles it and finds nothing.
   final double thickness;
 
   final double intensity;
@@ -66,27 +86,24 @@ final class ReflectionSettings {
 /// Reading the surface buffer turns MSAA off for the whole scene pass — the
 /// average of two octahedral normals encodes no normal — so the antialiasing of
 /// the entire frame changes with it. That is measured and written down here
-/// rather than discovered by a reviewer who blames the occlusion for the edges.
-/// Nothing has yet paid that price in a shipped frame: no golden and no
-/// application in this repository turns the effect on.
+/// rather than discovered by a reviewer who blames the occlusion for the edges,
+/// and it is why the one frame that turns this on is a scene of its own rather
+/// than a flag added to an existing one.
 ///
-/// **One backend draws it in a check; the other two only prove it links.** The
-/// software rasteriser's `flutter3d_cpu/test/ssao_test.dart` is the only place
-/// in the tree where the occlusion is compared against a picture — an inside
-/// corner darker than a flat wall, the sky occluding nothing, and off being
-/// exactly off. What Impeller and WebGL have is that the shader compiles into
-/// the bundle and that `('FullscreenVertex', 'Ssao')` links, in
-/// `flutter3d_webgl/test/engine_parity_test.dart`, which says nothing about
-/// what it darkens: the two GPU transcriptions of this march have never been
-/// compared to anything, or to each other.
+/// **One backend drew it in a check; the other two only proved it links, and
+/// that lasted long enough to hide a real defect.** The software rasteriser's
+/// `flutter3d_cpu/test/ssao_test.dart` was the only place in the tree where the
+/// occlusion was compared against a picture, and even there the two rows it
+/// compared had been read off a frame the pass was drawing upside down: it
+/// turned clip space into a texture coordinate the opposite way from every
+/// other lookup in the engine, so each pixel's occlusion was computed for the
+/// pixel mirrored about the middle of the frame. What Impeller and WebGL had
+/// was that the shader compiles into the bundle and that
+/// `('FullscreenVertex', 'Ssao')` links, which says nothing about what it
+/// darkens.
 ///
-/// Said here rather than left for a reader to work out, because the choices
-/// that make the software pass an oracle — the twelve kernel taps written out
-/// as a table on both sides, the rotation picked from the parity of the pixel,
-/// the bias in metres — were argued from the GLSL and are only as good as that
-/// reading. Closing it is a `ParityScene` and a golden recorded on three
-/// backends, one of which needs a device; that is a decision about the golden
-/// sets rather than an edit here.
+/// The `ambient-occlusion-corner` golden closes that: one frame, recorded on
+/// three backends, of a corner this pass has something to darken.
 final class AmbientOcclusionSettings {
   const AmbientOcclusionSettings({
     this.enabled = false,

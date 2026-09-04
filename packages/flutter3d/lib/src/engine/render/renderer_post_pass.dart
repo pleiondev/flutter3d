@@ -169,7 +169,15 @@ extension _PostPasses on Renderer {
     // come from the buffer itself. A frame that resized between the scene pass
     // and this one would otherwise reconstruct every point somewhere else.
     final aspect = surface.height == 0 ? 1.0 : surface.width / surface.height;
-    final viewProjection = _viewProjection(view.camera, aspect);
+    // Origin-adjusted, like the matrix the shadow lookup is given and for the
+    // same reason: the pass turns clip space into a texture coordinate, and
+    // which end of the texture row zero is at is a property of the backend
+    // rather than of the shader. Without it the taps landed at the pixel
+    // mirrored about the middle of the frame on every backend but the browser.
+    final viewProjection = toFramebufferOrigin(
+      _viewProjection(view.camera, aspect),
+      device.framebufferOrigin,
+    );
     final inverse = vm.Matrix4.copy(viewProjection)..invert();
 
     _ssaoParams[0] = options.radius;
@@ -225,7 +233,15 @@ extension _PostPasses on Renderer {
 
     final target = _reflectionColor!;
     final aspect = height == 0 ? 1.0 : width / height;
-    final viewProjection = _viewProjection(view.camera, aspect);
+    // Origin-adjusted, for the reason written on `_encodeSsao`'s: the march
+    // reads the surface buffer at a coordinate it derives from clip space, and
+    // that derivation depends on where the backend puts row zero. Marching
+    // against a vertically mirrored buffer is what made this effect look like
+    // it did not work.
+    final viewProjection = toFramebufferOrigin(
+      _viewProjection(view.camera, aspect),
+      device.framebufferOrigin,
+    );
     final inverse = vm.Matrix4.copy(viewProjection)..invert();
     view.camera.readWorldPosition(_reflectionCamera);
 

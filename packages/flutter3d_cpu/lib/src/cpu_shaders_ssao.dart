@@ -62,9 +62,15 @@ final class SsaoShader implements CpuFragmentShader {
     final inverse = b.mat4('SsaoInfo', 'inverse_view_projection');
     final projection = b.mat4('SsaoInfo', 'view_projection');
 
+    // v runs the other way from clip-space y, as it does in the shadow lookup:
+    // `toFramebufferOrigin` puts the backend's convention into the matrices, so
+    // the pair below is the same arithmetic everywhere. See `UvFromNdc` in
+    // ssao.frag for what marching against a mirrored buffer used to do.
+    double vFromNdc(double ndcY) => 0.5 - ndcY * 0.5;
+
     Vector3 worldFrom(double uu, double vv, double depth) {
       final Vector4 h =
-          inverse * Vector4(uu * 2.0 - 1.0, vv * 2.0 - 1.0, depth, 1.0);
+          inverse * Vector4(uu * 2.0 - 1.0, 1.0 - vv * 2.0, depth, 1.0);
       return Vector3(h.x, h.y, h.z)..scale(1.0 / h.w);
     }
 
@@ -116,7 +122,7 @@ final class SsaoShader implements CpuFragmentShader {
       if (ndcX.abs() > 1.0 || ndcY.abs() > 1.0) continue;
 
       final su = ndcX * 0.5 + 0.5;
-      final sv = ndcY * 0.5 + 0.5;
+      final sv = vFromNdc(ndcY);
       final there = surfaceMap.sample(su, sv);
       // The sky occludes nothing: a tap that lands on it is looking out of the
       // scene, which is the opposite of being enclosed.

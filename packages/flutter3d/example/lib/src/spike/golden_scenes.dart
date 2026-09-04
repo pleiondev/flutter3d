@@ -77,14 +77,38 @@ final List<GoldenScene> kGoldenScenes = <GoldenScene>[
     ground: false,
   ),
 
-  // The debug overlay, which is otherwise never exercised by anything automatic.
+  // The debug overlay, which is otherwise never exercised by anything
+  // automatic. All five overlays, because the point of one frame here is that
+  // every kind of line the engine can draw reaches a pixel: bounds, axes, light
+  // gizmos, vertex normals and a camera frustum.
+  //
+  // **The last two were described and not drawn.** The site's caption for this
+  // frame named normals and a frustum while the scene switched on three
+  // overlays out of five, so the two line kinds a reader was told about were
+  // the two nothing had ever recorded. `addNormals` walks the mesh source and
+  // `addFrustum` inverts a view-projection; neither had a picture anywhere.
+  //
+  // The frustum needs a second camera — the one being looked through is
+  // excluded, since its frustum is the edge of the screen — so the demo adds
+  // one for this scene alone. See `_placeGoldenCamera` in main.dart.
   const GoldenScene(
     name: 'debug-overlay',
     source: 'Cube',
     shadows: false,
     bloom: false,
     ground: false,
-    debug: DebugDrawOptions(bounds: true, axes: true, lightGizmos: true),
+    debug: DebugDrawOptions(
+      bounds: true,
+      axes: true,
+      lightGizmos: true,
+      normals: true,
+      cameraFrustums: true,
+      // Named rather than left at zero, which picks two per cent of the scene
+      // diagonal — about four pixels on a unit cube at this framing, which is a
+      // fuzz along the silhouette rather than twenty-four readable spikes. A
+      // golden names every input that changes a pixel, and this is one.
+      normalLength: 0.25,
+    ),
   ),
   // The particle plugin, which the plugin seam moved out of the renderer and
   // which nothing automatic had drawn since. A fixed seed and a whole number
@@ -483,19 +507,28 @@ final List<GoldenScene> kGoldenScenes = <GoldenScene>[
     groundDrop: 2.5,
   ),
 
-  // Six casters, which was two more rows than the atlas had when this was
-  // recorded and is exactly as many as it has now.
+  // Eight casters for six rows: two lights that keep lighting the model and
+  // cast nothing, which is the whole of what this scene is for.
   //
   // Until the allocator existed the rows went to the first four point lights in
   // scene order, so a level with five torches had one that could not cast a
-  // shadow anywhere, ever. Now the rows go to whichever look largest from the
-  // camera — and `Renderer.kShadowedLights` is six, so all six of these get one
-  // and the ranking has nothing to decide. **The scene no longer pins what its
-  // name says it pins**: it is a full atlas rather than a contended one, and
-  // raising the caster count past six is a re-record of this golden in every
-  // set. When that happens, check that relevance and scene order pick
-  // *different* sets — if they agree the golden passes either way and pins
-  // nothing.
+  // shadow anywhere, ever. The scene was six casters against four rows then.
+  // Raising `Renderer.kShadowedLights` to six gave every one of them a row and
+  // left the ranking nothing to decide — a full atlas rather than a contended
+  // one, passing whether the allocator ranked anything or not — so the count
+  // went to eight and the contention came back.
+  //
+  // **Relevance and scene order pick different sets, which is the thing to
+  // check whenever this count moves.** Priority is `range / distance to the
+  // camera` and every extra light here has the same range, so the ranking is
+  // by distance alone; `_placeSceneLights` shrinks each extra light's radius
+  // with its index, so the lights added last are the nearest. Scene order would
+  // deny the last two, relevance denies two from the middle. If the two ever
+  // agree the golden passes either way and pins nothing.
+  //
+  // The atlas rather than the lit image, for the reason `cube-shadow-many`
+  // shows the atlas: occupied rows are countable, and a lit view of two missing
+  // shadows among six is a slightly brighter picture.
   const GoldenScene(
     name: 'cube-shadow-crowded',
     source: 'Teapot',
@@ -503,7 +536,7 @@ final List<GoldenScene> kGoldenScenes = <GoldenScene>[
     lights: <String>{'key light', 'fill light'},
     shadowMap: true,
     pointShadow: true,
-    extraPointShadows: 5,
+    extraPointShadows: 7,
   ),
 
   // The sky, which is the only scene in this set that has one.
@@ -575,6 +608,77 @@ final List<GoldenScene> kGoldenScenes = <GoldenScene>[
       enabled: true,
       speedUp: double.infinity,
       speedDown: double.infinity,
+    ),
+  ),
+
+  // Two glowing blocks standing on a polished floor, with their reflections in
+  // it. The first frame in this repository to show a screen-space reflection at
+  // all — the effect is on the engine's front page and no golden in any set had
+  // ever switched it on, which is how the march came to be reading the surface
+  // buffer upside down on two backends and measuring thickness in window depth
+  // on all three. See `GoldenExtras.mirrorRoom`.
+  //
+  // A low pitch, because a floor seen from above reflects the sky this scene
+  // does not have and the Fresnel term goes with the angle; not so low that the
+  // floor is a band a few rows tall, which is what 0.12 gave. The march is
+  // stepped finer and further than the defaults — forty steps of 12 cm rather
+  // than twenty-four of 18 — because at this angle a mirror image is
+  // foreshortened, and a stride that overshoots it leaves the reflection in
+  // stripes.
+  //
+  // Not `debugOnly`: the reference is the picture the effect is for, a floor
+  // with something in it, rather than the diagnostic view of what the march
+  // found. The diagnostic view is `ReflectionSettings.debugOnly` and is a
+  // switch a person reaches for, not a frame to keep.
+  //
+  // Shadows off and bloom off: emissive blocks and a glow would put light on
+  // the floor that is not a reflection, and this frame has to be readable as
+  // "what is in the floor came out of the march".
+  const GoldenScene(
+    name: 'screen-space-reflections',
+    source: 'Cube',
+    shadows: false,
+    bloom: false,
+    ground: false,
+    yaw: 0.55,
+    pitch: 0.32,
+    reflections: ReflectionSettings(
+      enabled: true,
+      steps: 40,
+      stride: 0.12,
+      thickness: 0.2,
+      intensity: 0.9,
+    ),
+  ),
+
+  // An inside corner with ambient occlusion darkening it, which is the only
+  // thing in this repository that would ever compare the two GPU
+  // transcriptions of `ssao.frag` against the software one. What Impeller and
+  // WebGL had until now was that the stage compiles and that
+  // `('FullscreenVertex', 'Ssao')` links — nothing about what it darkens.
+  //
+  // The radius is 0.9 rather than the default half metre: this room is 2.8
+  // metres across, and the setting has to suit the scene rather than the
+  // renderer — the default reaches a third as far and darkens a third as much
+  // of the frame. The strength is turned to one so the difference between a
+  // corner and an open wall is as large as the effect can make it; a golden
+  // recorded at a setting nobody can see is a golden that cannot fail usefully,
+  // which is the mistake the first `sky` recording made.
+  //
+  // See `GoldenExtras.occlusionCorner` for why the room is flat grey and lit by
+  // nothing but ambient.
+  const GoldenScene(
+    name: 'ambient-occlusion-corner',
+    source: 'Cube',
+    shadows: false,
+    bloom: false,
+    ground: false,
+    yaw: 0.75,
+    pitch: 0.3,
+    ambientOcclusion: AmbientOcclusionSettings(
+      enabled: true,
+      radius: 0.9,
+      strength: 1.0,
     ),
   ),
 ];

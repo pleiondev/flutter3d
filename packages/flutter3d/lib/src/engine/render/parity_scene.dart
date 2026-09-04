@@ -113,23 +113,29 @@ enum ParityScene {
   /// is one GPU backend against the other.
   torchNearWall,
 
-  /// The same room with six torches: every row of the cube atlas occupied.
+  /// The same room with eight torches for six rows: two of them keep lighting
+  /// and cast nothing.
   ///
-  /// **Six lights and six rows, which is a full atlas and not a contended
-  /// one — and the name is now half wrong.** It was built when
-  /// `Renderer.kShadowedLights` was four: four rows, six lights, and which four
-  /// got them decided per frame, so the fixture asked whether the two backends
-  /// agree about *which* row each light reads on a frame where the answer has
-  /// just changed. Raising the constant to six gave every torch a row and took
-  /// that question out of the picture without anyone editing this scene.
+  /// It was built when `Renderer.kShadowedLights` was four: four rows, six
+  /// lights, and which four got them decided per frame, so the fixture asked
+  /// whether the two backends agree about *which* row each light reads on a
+  /// frame where the answer has just changed. Raising the constant to six gave
+  /// every torch a row and took that question out of the picture without anyone
+  /// editing this scene — for a while the name was the only thing here still
+  /// claiming there was any contention.
   ///
-  /// What it still does, and what nothing else here does: six simultaneous cube
-  /// rows compared across backends. Every other point-shadow scene has one
+  /// Eight puts it back. Two lights are denied a row, both backends have to
+  /// deny the *same* two, and the six that hold rows have to agree about which
+  /// row each of them is reading. Every other point-shadow fixture has one
   /// light, so a bug in how rows are written or read independently shows up
-  /// only here. The contention itself — a light that keeps lighting and stops
-  /// casting, its row refilled by a neighbour — is uncovered until a fixture
-  /// carries more casters than the atlas has rows again, which is a golden
-  /// re-record on three backends rather than an edit.
+  /// only here.
+  ///
+  /// **The two that go without are not the last two in scene order**, and that
+  /// is the property to preserve if these positions are ever touched. Priority
+  /// is `range / distance to the camera`, every torch here has the same range,
+  /// and [_torchStandoffs] places them so the ranking is nothing like the order
+  /// a level author wrote them down in. A fixture where the two agree passes
+  /// with the allocator stubbed out to a constant.
   torchesRunningOut,
 
   /// The plain scene with the composite look turned all the way up.
@@ -151,7 +157,8 @@ enum ParityScene {
       which == ParityScene.torchesRunningOut) {
     return _buildTorchNearWall(
       device,
-      torches: which == ParityScene.torchesRunningOut ? 6 : 1,
+      // Two more than `Renderer.kShadowedLights`, so two of them are denied.
+      torches: which == ParityScene.torchesRunningOut ? 8 : 1,
     );
   }
 
@@ -314,14 +321,42 @@ enum ParityScene {
   return (scene: scene, camera: camera);
 }
 
+/// Where the torches after the first hang, in the order a level would list
+/// them.
+///
+/// A table rather than a formula, and the reason is what
+/// [ParityScene.torchesRunningOut] is for. The formula this replaced walked
+/// away from the camera down the room, so the first six torches in the list
+/// were also the six nearest — and with the atlas holding six rows, choosing by
+/// relevance and choosing by scene order picked the same six. The fixture would
+/// then have passed with the ranking replaced by a constant.
+///
+/// These are placed so it cannot. The camera stands at (0.9, 0.4, 4.0), the
+/// priority is the range over the distance to it, and every torch has the same
+/// range, so the ranking is simply nearest first: torches 3, 1, 6, 0, 5 and 7
+/// hold the six rows, and **torches 2 and 4 — written down early — are the two
+/// that go without**. Scene order would have denied 6 and 7 instead. Move these
+/// and that has to be rechecked; the arithmetic is a subtraction and a length,
+/// and `flutter3d/test/parity_torches_test.dart` does it.
+const List<(double, double, double)> _torchStandoffs =
+    <(double, double, double)>[
+      (3.6, 1.2, 2.0),
+      (-3.6, 1.2, 8.5),
+      (3.6, 1.2, 5.2),
+      (-3.6, 1.2, 9.5),
+      (-3.6, 1.2, 2.6),
+      (3.6, 1.2, 6.4),
+      (-3.6, 1.2, 5.6),
+    ];
+
 /// A room with a torch on one wall, as [ParityScene.torchNearWall] describes.
 ///
 /// Everything here is chosen against the crypt rather than for a pretty
 /// picture: the standoff is the crypt's 0.35 m, the range is its 13 m, the room
 /// is the width of its hall, and every surface is a static caster because a
 /// dungeon's walls do not move. The one thing deliberately unlike it is that
-/// there is a single light — a fixture that also ran out of atlas rows would be
-/// asking two questions and reporting one number.
+/// [ParityScene.torchNearWall] has a single light — a fixture that also ran out
+/// of atlas rows would be asking two questions and reporting one number.
 ({Scene scene, CameraNode camera}) _buildTorchNearWall(
   GraphicsDevice device, {
   required int torches,
@@ -374,19 +409,18 @@ enum ParityScene {
 
   // The first one is the fixture's subject: on the wall the camera is looking
   // at, at the crypt's own standoff. The rest are down the room, and exist only
-  // to ask for rows — which is why they are dimmer and further away, so that
-  // what they change is the *allocation* rather than the exposure.
+  // to ask for rows — which is why they are dimmer, so that what they change is
+  // the *allocation* rather than the exposure.
   for (var i = 0; i < torches; i++) {
+    final at = i == 0
+        ? const (0.0, 0.6, 0.35)
+        : _torchStandoffs[(i - 1) % _torchStandoffs.length];
     scene.root.add(
       LightNode(name: 'torch$i', type: LightType.point)
         ..intensity = i == 0 ? 8.0 : 4.0
         ..range = 13.0
         ..castsShadow = true
-        ..setPosition(
-          i == 0 ? 0.0 : (i.isEven ? -3.6 : 3.6),
-          i == 0 ? 0.6 : 1.2,
-          i == 0 ? 0.35 : 1.0 + i.toDouble(),
-        ),
+        ..setPosition(at.$1, at.$2, at.$3),
     );
   }
 

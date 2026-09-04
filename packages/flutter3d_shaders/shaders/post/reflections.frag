@@ -28,11 +28,14 @@ uniform sampler2D scene_texture;
 uniform sampler2D surface_texture;
 
 uniform ReflectionInfo {
+  /// World to clip, and back. Both carry the framebuffer origin — see
+  /// [UvFromNdc] — so neither is the camera's own matrix on every backend.
   mat4 view_projection;
   mat4 inverse_view_projection;
   /// xyz: camera position. w: unused.
   vec4 camera;
-  /// x: steps. y: stride in world metres. z: thickness. w: intensity.
+  /// x: steps. y: stride in world metres. z: thickness in world metres.
+  /// w: intensity.
   vec4 params;
   /// x: 1/width, y: 1/height, z: unused, w: 1 to show only what the march
   /// found, which is the only way to see whether it found anything.
@@ -49,11 +52,32 @@ vec3 DecodeOctahedral(vec2 e) {
   return normalize(n);
 }
 
+/// Where a point at clip-space [ndc] lands in the textures this pass reads.
+///
+/// **v runs the other way from y, and the matrix is what makes that true on
+/// both backends.** Row zero of a rendered texture is its top on Impeller and
+/// its bottom in WebGL, so the conversion cannot be written once for both in
+/// GLSL — `toFramebufferOrigin` negates y in the matrix handed down here for
+/// the backend that needs it, exactly as it does for the shadow lookup in
+/// `lib/surface.glsl`, which has used this convention all along.
+///
+/// This pass used the opposite one — `ndc * 0.5 + 0.5`, with an unadjusted
+/// matrix — and was therefore right in a browser and mirrored top to bottom
+/// everywhere else: the march read the surface buffer at the pixel reflected
+/// about the middle of the frame, found nothing there that had anything to do
+/// with the ray, and drew a reflection of whatever happened to be in the way.
+vec2 UvFromNdc(vec2 ndc) {
+  return vec2(ndc.x * 0.5 + 0.5, 0.5 - ndc.y * 0.5);
+}
+
 /// World position of the pixel at [uv] with window depth [depth].
 vec3 WorldAt(vec2 uv, float depth) {
   // Depth runs 0..1 here rather than -1..1: Impeller is Metal-like, and using
   // the OpenGL convention puts every reconstructed point behind the camera.
-  vec4 ndc = vec4(uv * 2.0 - 1.0, depth, 1.0);
+  //
+  // y undoes [UvFromNdc], so that reconstructing the point a march projected
+  // hands back the point it started from.
+  vec4 ndc = vec4(uv.x * 2.0 - 1.0, 1.0 - uv.y * 2.0, depth, 1.0);
   vec4 world = reflection_info.inverse_view_projection * ndc;
   return world.xyz / world.w;
 }
@@ -114,7 +138,7 @@ void main() {
     vec4 clip = reflection_info.view_projection * vec4(march, 1.0);
     if (clip.w <= 0.0) break;
     vec3 ndc = clip.xyz / clip.w;
-    vec2 uv = ndc.xy * 0.5 + 0.5;
+    vec2 uv = UvFromNdc(ndc.xy);
 
     // Off screen is where this technique ends. Fading rather than cutting,
     // because a hard edge at the border of the frame is more distracting than
@@ -122,12 +146,28 @@ void main() {
     if (uv.x < 0.0 || uv.x > 1.0 || uv.y < 0.0 || uv.y > 1.0) break;
 
     float sceneDepth = texture(surface_texture, uv).a;
-    if (sceneDepth > 0.0) {
-      float difference = ndc.z - sceneDepth;
-      // In front of the recorded surface by less than its assumed thickness:
-      // the ray went behind something. Without the upper bound the ray would
-      // "hit" every distant wall it passed in front of.
-      if (difference > 0.0 && difference < thickness) {
+    // Behind whatever was drawn at this pixel. Ordering is the one thing
+    // window depth is good for: it is monotonic in distance, so the sign of
+    // this comparison is exact at any range.
+    if (sceneDepth > 0.0 && ndc.z > sceneDepth) {
+      // *How far* behind, in metres, and that is the whole fix. This used to
+      // read the window-depth difference as a thickness, and a window-depth
+      // difference is a different number of metres at every range: near the
+      // camera 0.006 was a few centimetres and one stride stepped clean over
+      // every surface in the frame, while at ten metres it was several metres
+      // and every ray passing in front of a distant wall "hit" it. That is why
+      // the effect was off in every scene and looked wrong the moment it was
+      // switched on. `ssao.frag` splits the same two questions the same way,
+      // and says why on its own range check.
+      //
+      // The marched point and the recorded surface lie on one ray from the eye
+      // — the surface is reconstructed at the uv the march projected to — so
+      // the difference of their distances from the camera is the gap between
+      // them along that ray, with no view matrix needed.
+      vec3 seen = WorldAt(uv, sceneDepth);
+      float behind = distance(reflection_info.camera.xyz, march) -
+                     distance(reflection_info.camera.xyz, seen);
+      if (behind < thickness) {
         hitColor = texture(scene_texture, uv).rgb;
         // Fade at the edges of the frame and with distance travelled, so a
         // reflection thins out instead of stopping.

@@ -705,6 +705,128 @@ abstract final class GoldenExtras {
     return <MeshNode>[wall, behind, inFront];
   }
 
+  /// A polished floor with two bright blocks standing on it.
+  ///
+  /// The scene screen-space reflections have never had. The engine has
+  /// advertised the effect since it was written and no golden in any set turned
+  /// it on, so the march went years reading the surface buffer upside down —
+  /// its screen coordinate came out of clip space the opposite way from every
+  /// other lookup in the engine — and measuring how far behind a surface a ray
+  /// had passed in window depth, which is not a distance. Neither shows in a
+  /// frame nobody records.
+  ///
+  /// **The floor is the picture.** Its roughness is 0.04, well under the
+  /// shader's cut-off of 0.18, because a rough surface reflects nothing here by
+  /// design and a fixture that forgot that would record a floor with nothing in
+  /// it and pass for ever — which is what
+  /// `flutter3d/example/test/golden_rooms_test.dart` is here to refuse. Dark
+  /// but not black, so the frame reads as a floor rather than a void with two
+  /// streaks in it, and still dark enough that the reflection is the brightest
+  /// thing on it.
+  ///
+  /// The blocks are emissive, so what is reflected is bright whatever the
+  /// lights do, and they are two rather than one, of different colours and
+  /// different heights, standing off centre: a reflection mirrored left to
+  /// right, or one that picked the wrong block, is then a difference anyone can
+  /// see rather than a shift in a grey smear.
+  ///
+  /// Seen from a low pitch, because a floor viewed from above reflects the sky
+  /// the scene does not have — and not so low that the floor is a band a few
+  /// rows tall. See the `screen-space-reflections` scene.
+  static List<MeshNode> mirrorRoom(GraphicsDevice device) {
+    final floor = MeshNode(
+      DeviceMesh.upload(
+        device,
+        CuboidShape(size: Vector3(4.0, 0.2, 4.0)).build(),
+      ),
+      Material(
+        name: 'polished floor',
+        // Dark, so the reflection is brighter than what it lands on. A pale
+        // floor swallows it.
+        baseColor: Vector4(0.14, 0.14, 0.17, 1.0),
+        roughness: 0.04,
+        metallic: 0.1,
+      ),
+      name: 'polished floor',
+    )..setPosition(0.0, -0.1, 0.0);
+
+    MeshNode block(String name, Vector3 size, Vector3 at, Vector3 glow) =>
+        MeshNode(
+          DeviceMesh.upload(device, CuboidShape(size: size).build()),
+          Material(
+            name: name,
+            baseColor: Vector4(0.02, 0.02, 0.02, 1.0),
+            emissive: glow,
+            roughness: 0.8,
+          ),
+          name: name,
+        )..setPositionFrom(at);
+
+    return <MeshNode>[
+      floor,
+      block(
+        'tall block',
+        Vector3(0.6, 1.4, 0.6),
+        Vector3(-0.75, 0.7, 0.1),
+        Vector3(1.0, 0.35, 0.08),
+      ),
+      block(
+        'short block',
+        Vector3(0.6, 0.8, 0.6),
+        Vector3(0.8, 0.4, -0.35),
+        Vector3(0.12, 0.55, 1.0),
+      ),
+    ];
+  }
+
+  /// A floor, two walls meeting at a right angle, and a box in the corner.
+  ///
+  /// Four kinds of inside corner in one frame — the vertical line where the
+  /// walls meet, the two lines where each meets the floor, and the crevices the
+  /// box makes against both — against the open middle of each wall, which has
+  /// to stay as bright as it was. Everything is the same pale grey with nothing
+  /// but ambient on it, for the reason `ssao_test.dart` gives: occlusion
+  /// multiplies the ambient term, and any direct light in shot is ninety per
+  /// cent of every pixel and buries it.
+  ///
+  /// **The walls stand on the far side of the room from the camera**, which is
+  /// at the scene's yaw of 0.75 and therefore over +x and +z. Put on the near
+  /// side they are between the camera and the corner, the frame shows their
+  /// blank outsides, and the occlusion — still correct — reaches a tenth as many
+  /// pixels. That was measured, not guessed: it is what the first arrangement
+  /// of this room did.
+  ///
+  /// The scene the two GPU transcriptions of `ssao.frag` have never had. Both
+  /// were covered by the fact that the stage links, which says nothing about
+  /// what it darkens; the software one has been compared to a picture since it
+  /// was written, and it is what caught this pass taking its taps around the
+  /// pixel mirrored about the middle of the frame.
+  static List<MeshNode> occlusionCorner(GraphicsDevice device) {
+    final stone = Material(
+      name: 'stone',
+      // Pale, so there is headroom for the occlusion to take away. A dark
+      // surface darkened is a dark surface.
+      baseColor: Vector4(0.78, 0.77, 0.74, 1.0),
+      roughness: 0.95,
+    );
+    MeshNode slab(String name, Vector3 size, Vector3 at) => MeshNode(
+      DeviceMesh.upload(device, CuboidShape(size: size).build()),
+      stone,
+      name: name,
+    )..setPositionFrom(at);
+
+    return <MeshNode>[
+      slab('floor', Vector3(2.8, 0.2, 2.8), Vector3(0.0, -0.1, 0.0)),
+      slab('back wall', Vector3(2.8, 1.8, 0.2), Vector3(0.0, 0.9, -1.3)),
+      slab('side wall', Vector3(0.2, 1.8, 2.8), Vector3(-1.3, 0.9, 0.0)),
+      // Standing in the angle where the two walls meet, so the frame holds a
+      // corner made of three surfaces as well as the two made of two. Small
+      // enough that most of each wall stays open, or there is nothing for the
+      // dark part to be darker *than*.
+      slab('box', Vector3(0.6, 0.6, 0.6), Vector3(-0.9, 0.3, -0.9)),
+    ];
+  }
+
   /// A stand-in for something held in the player's hands.
   ///
   /// A plain box rather than a weapon, because what is being tested is that
