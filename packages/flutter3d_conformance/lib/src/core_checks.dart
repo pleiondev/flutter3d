@@ -425,6 +425,14 @@ Future<void> checkPixelBufferSize(GraphicsDevice device) async {
   // for the reason a cube's is: it is a caller that has built the chain with
   // the wrong arithmetic, and a device that takes it hides that until
   // something minifies.
+  //
+  // Asked only of a device that takes a chain at all, the way the cube check
+  // asks [GraphicsDevice.supportsCubeTextures] first. `createTextureFromPixels`
+  // tells its caller to ask [GraphicsDevice.supportsMipmaps] before handing
+  // over levels, and Impeller's answer is the driver's rather than a constant,
+  // so a suite that asked anyway would put a failure on a device that had
+  // done nothing wrong.
+  if (!device.supportsMipmaps) return;
   require(
     device.createTextureFromPixels(
           width: width,
