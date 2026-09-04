@@ -169,40 +169,10 @@ final class PlatformerSimulation {
   /// say the same things and are kept for now, because programs read them.
   final GameEvents events = GameEvents();
 
-  /// Collectibles taken on this step, for a sound and a counter.
-  final List<Collectible> takenThisStep = <Collectible>[];
 
-  /// What the level said to the player on this step.
-  ///
-  /// **Nothing in this game read it for the whole of its life.** A locked gate
-  /// answers "You need the blue key" and parks the sentence in
-  /// `MechanismEvents.messages`, because a trigger fires from inside the
-  /// collision dispatch, where there is nobody to return an outcome to. The
-  /// shooter drains that list and so does the dungeon; the platformer did not,
-  /// so a player who walked into a gate without the key was told nothing and
-  /// had no way to learn that a key existed at all.
-  final List<String> saidThisStep = <String>[];
 
-  /// True on the step a checkpoint was reached for the first time.
-  bool reachedCheckpointThisStep = false;
 
-  /// True on the step the runner landed on something and killed it.
-  bool stompedThisStep = false;
 
-  /// The runner died during this step.
-  ///
-  /// **A flag rather than a number three readers each watch.** A death used to
-  /// be inferred by comparing [deaths] against a copy kept by whoever cared —
-  /// the camera kept one, the particles kept one, the soundtrack kept a third —
-  /// and every one of them was wrong the moment a run began with deaths already
-  /// on it. Carrying a tally into the next level fired a death on its first
-  /// step; starting over fired one for a death that had been undone. Neither is
-  /// a counter bug, both are the counter.
-  ///
-  /// This is how the rest of this class already reports what happened, and it
-  /// cannot be got wrong in the same way: it is true for the step it happened
-  /// in and false afterwards, whatever [deaths] says.
-  bool diedThisStep = false;
 
   /// Damage a second from standing against an enemy.
   ///
@@ -211,11 +181,6 @@ final class PlatformerSimulation {
   double actorDamage = 60.0;
 
   void step(double dt) {
-    takenThisStep.clear();
-    saidThisStep.clear();
-    reachedCheckpointThisStep = false;
-    stompedThisStep = false;
-    diedThisStep = false;
     // The dead and the hurt, forgotten here with everything else this step
     // reports — see [ActorSystem.beginStep] for why it is not `step`'s job.
     actors?.beginStep();
@@ -267,7 +232,6 @@ final class PlatformerSimulation {
 
   void _revive() {
     deaths += 1;
-    diedThisStep = true;
     events.add(const RunnerDied());
     if (lives > 0) {
       lives -= 1;
@@ -348,7 +312,6 @@ final class PlatformerSimulation {
 
       if (onTop) {
         system.hurt(actor, double.infinity);
-        stompedThisStep = true;
         events.add(EnemyStomped(actor));
         runner.bounce();
       } else {
@@ -364,7 +327,6 @@ final class PlatformerSimulation {
     for (final mechanism in all) {
       if (mechanism is! Checkpoint || !mechanism.isReached) continue;
       if (mechanism.justReached) {
-        reachedCheckpointThisStep = true;
         events.add(CheckpointReached(mechanism));
       }
       if (best == null || mechanism.order > best.order) best = mechanism;
@@ -376,16 +338,12 @@ final class PlatformerSimulation {
     final events = mechanisms?.events;
     if (events == null) return;
     for (final taken in events.taken) {
-      if (taken is Collectible) {
-        takenThisStep.add(taken);
-        this.events.add(CollectibleTaken(taken));
-      }
+      if (taken is Collectible) this.events.add(CollectibleTaken(taken));
     }
     // Whatever the level said. Published here rather than in its own reader
     // because it comes off the same event object, gathered by the same
     // `publish()` two lines up — and reading it before that call is how it
     // stayed empty the first time this was written.
-    saidThisStep.addAll(events.messages);
     for (final message in events.messages) {
       this.events.add(LevelSaid(message));
     }

@@ -594,7 +594,7 @@ void main() {
       var stomped = false;
       for (var i = 0; i < 200 && !stomped; i++) {
         game.step();
-        stomped = game.sim.stompedThisStep;
+        stomped = game.sim.events.drain().whereType<EnemyStomped>().isNotEmpty;
       }
 
       expect(stomped, isTrue, reason: 'it landed beside it');

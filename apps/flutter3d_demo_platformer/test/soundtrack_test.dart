@@ -67,7 +67,7 @@ final class _Run {
       }
       sim.step(_dt);
       input.endStep();
-      for (final Heard sound in soundtrack.listen(sim, runner)) {
+      for (final Heard sound in soundtrack.listen(sim, runner, sim.events.drain())) {
         heard.add(sound.sound);
       }
     }

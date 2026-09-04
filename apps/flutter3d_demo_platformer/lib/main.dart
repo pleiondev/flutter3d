@@ -762,9 +762,13 @@ class _GameScreenState extends State<GameScreen>
     // The camera owns "forward", and the simulation takes it as a number.
     sim.cameraYaw = camera.yaw;
     sim.step(dt);
-    _react(sim, runner);
+    // Drained once, here, and handed to everything that wants it. Draining
+    // empties the buffer, so two readers each draining would each get half of
+    // what happened — and which half would depend on the order they ran in.
+    final events = sim.events.drain();
+    _react(sim, runner, events);
 
-    if (sim.diedThisStep) {
+    if (events.any((GameEvent event) => event is RunnerDied)) {
       // A cut rather than a chase: easing from where they died to where they
       // came back is a second of the level flying past for no reason.
       camera.cut();
@@ -816,17 +820,21 @@ class _GameScreenState extends State<GameScreen>
   /// widget needs a device, a renderer and a window to ask about — and this
   /// game shipped mute, and then shipped without a particle for a collected
   /// coin, with nothing red either time.
-  void _react(PlatformerSimulation sim, Runner runner) {
+  void _react(
+    PlatformerSimulation sim,
+    Runner runner,
+    List<GameEvent> events,
+  ) {
     final camera = _followCamera;
 
-    for (final Heard heard in _soundtrack.listen(sim, runner)) {
+    for (final Heard heard in _soundtrack.listen(sim, runner, events)) {
       _audio.scene.play(heard.sound, heard.at);
     }
 
     // What the level said. It has been saying things since the engine had
     // signals, into a list this game never drained.
-    for (final String said in sim.saidThisStep) {
-      _said = said;
+    for (final LevelSaid said in events.whereType<LevelSaid>()) {
+      _said = said.message;
       _sayFor = 3.0;
     }
 
@@ -834,7 +842,7 @@ class _GameScreenState extends State<GameScreen>
     // here — the same split as the sound above, and for the same reason: what
     // a coin looks like when it is taken was a private method of a widget
     // nothing can mount, so nothing checked that it looked like anything.
-    final reaction = _reactions.listen(sim, runner);
+    final reaction = _reactions.listen(sim, runner, events);
     for (final Shown shown in reaction.bursts) {
       _particles.burst(shown.effect, shown.at, direction: shown.direction);
     }

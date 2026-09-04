@@ -82,7 +82,11 @@ final class Reactions {
   /// Everything this step is worth showing.
   ///
   /// Called once per simulation step, in order, and the lists are what to do.
-  Reaction listen(PlatformerSimulation sim, Runner runner) {
+  Reaction listen(
+    PlatformerSimulation sim,
+    Runner runner,
+    List<GameEvent> events,
+  ) {
     final bursts = <Shown>[];
     final jolts = <Felt>[];
     final at = runner.position;
@@ -109,26 +113,28 @@ final class Reactions {
       bursts.add(Shown(Effects.dust, at));
     }
     if (runner.bouncedThisStep) {
-      // The hop off something stomped. `sim.stompedThisStep` says an enemy
-      // died; this says the runner was thrown by it, and they are not the same
+      // The hop off something stomped. `EnemyStomped` says an enemy died;
+      // this says the runner was thrown by it, and they are not the same
       // event.
       jolts.add(Felt.kick(Vector3(0.0, 0.05, 0.0)));
       bursts.add(Shown(Effects.spring, at, direction: _up));
     }
 
-    for (var i = 0; i < sim.takenThisStep.length; i++) {
-      bursts.add(Shown(Effects.coin, sim.takenThisStep[i].origin));
-    }
-    if (sim.stompedThisStep) {
-      bursts.add(Shown(Effects.slam, at));
-      jolts.add(Felt.kick(Vector3(0.0, -0.12, 0.0)));
-    }
-    if (sim.reachedCheckpointThisStep) {
-      bursts.add(Shown(Effects.checkpoint, at, direction: _up));
-    }
-    if (sim.diedThisStep) {
-      bursts.add(Shown(Effects.death, at));
-      jolts.add(const Felt.shake(0.5, seconds: 0.4));
+    // One burst per event. Two coins swept up in one step are two of these;
+    // under the flags they replace, two enemies stomped were one slam.
+    for (final GameEvent event in events) {
+      switch (event) {
+        case CollectibleTaken():
+          bursts.add(Shown(Effects.coin, event.collectible.origin));
+        case EnemyStomped():
+          bursts.add(Shown(Effects.slam, at));
+          jolts.add(Felt.kick(Vector3(0.0, -0.12, 0.0)));
+        case CheckpointReached():
+          bursts.add(Shown(Effects.checkpoint, at, direction: _up));
+        case RunnerDied():
+          bursts.add(Shown(Effects.death, at));
+          jolts.add(const Felt.shake(0.5, seconds: 0.4));
+      }
     }
 
     // Everything the level's own machinery did this step. A spring that throws

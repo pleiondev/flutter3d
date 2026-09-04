@@ -373,7 +373,7 @@ void main() {
       var bounced = false;
       for (var i = 0; i < 200 && !bounced; i++) {
         run.step();
-        bounced = run.sim.stompedThisStep;
+        bounced = run.sim.events.drain().whereType<EnemyStomped>().isNotEmpty;
       }
 
       expect(bounced, isTrue, reason: 'it landed on nothing');
@@ -398,7 +398,9 @@ void main() {
           run.step(
             holding: holding ? <GameAction>{GameAction.jump} : <GameAction>{},
           );
-          if (run.sim.stompedThisStep) return run.runner.body.velocity.y;
+          if (run.sim.events.drain().whereType<EnemyStomped>().isNotEmpty) {
+            return run.runner.body.velocity.y;
+          }
         }
         return 0.0;
       }
@@ -513,7 +515,7 @@ void main() {
       var bounced = false;
       for (var i = 0; i < 200 && !bounced; i++) {
         run.step();
-        bounced = run.sim.stompedThisStep;
+        bounced = run.sim.events.drain().whereType<EnemyStomped>().isNotEmpty;
       }
       expect(bounced, isTrue, reason: 'it landed on nothing');
       expect(run.enemy.isAlive, isFalse, reason: 'the stomp did not kill it');

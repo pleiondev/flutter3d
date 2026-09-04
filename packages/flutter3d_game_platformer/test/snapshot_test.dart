@@ -317,8 +317,8 @@ void _progressTests() {
 
       expect(world.sim.deaths, 5, reason: 'the tally is carried, not reset');
       expect(
-        world.sim.diedThisStep,
-        isFalse,
+        world.sim.events.drain().whereType<RunnerDied>(),
+        isEmpty,
         reason: 'a carried death fired the death sound on arrival',
       );
     });
@@ -329,7 +329,7 @@ void _progressTests() {
       var died = false;
       for (var i = 0; i < 240 && !died; i++) {
         world.run(1, forward: true);
-        died = world.sim.diedThisStep;
+        died = world.sim.events.drain().whereType<RunnerDied>().isNotEmpty;
       }
 
       expect(died, isTrue, reason: 'nothing killed the runner in four seconds');
@@ -341,16 +341,16 @@ void _progressTests() {
       var died = false;
       for (var i = 0; i < 240 && !died; i++) {
         world.run(1, forward: true);
-        died = world.sim.diedThisStep;
+        died = world.sim.events.drain().whereType<RunnerDied>().isNotEmpty;
       }
       expect(died, isTrue);
 
       world.step();
 
       expect(
-        world.sim.diedThisStep,
-        isFalse,
-        reason: 'the flag stayed up, so the burst plays every frame',
+        world.sim.events.drain().whereType<RunnerDied>(),
+        isEmpty,
+        reason: 'the death was reported twice, so the burst plays again',
       );
     });
   });

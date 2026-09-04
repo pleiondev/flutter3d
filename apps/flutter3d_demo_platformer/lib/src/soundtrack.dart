@@ -44,7 +44,11 @@ final class Soundtrack {
   /// Everything this step made a noise about.
   ///
   /// Called once per simulation step, in order, and the list is what to play.
-  List<Heard> listen(PlatformerSimulation sim, Runner runner) {
+  List<Heard> listen(
+    PlatformerSimulation sim,
+    Runner runner,
+    List<GameEvent> events,
+  ) {
     final out = <Heard>[];
     final at = runner.position;
 
@@ -59,11 +63,21 @@ final class Soundtrack {
     if (runner.longJumpedThisStep) out.add(Heard(Sounds.dash, at));
     if (runner.grabbedThisStep) out.add(Heard(Sounds.checkpoint, at));
 
-    for (final Collectible taken in sim.takenThisStep) {
-      out.add(Heard(Sounds.coin, taken.origin));
+    // One sound per event, which is what the flags could not do: two coins
+    // swept up in one step were one `takenThisStep` entry each and two enemies
+    // stomped were a single bool.
+    for (final GameEvent event in events) {
+      switch (event) {
+        case CollectibleTaken():
+          out.add(Heard(Sounds.coin, event.collectible.origin));
+        case EnemyStomped():
+          out.add(Heard(Sounds.land, at));
+        case CheckpointReached():
+          out.add(Heard(Sounds.checkpoint, at));
+        case RunnerDied():
+          out.add(Heard(Sounds.death, at));
+      }
     }
-    if (sim.stompedThisStep) out.add(Heard(Sounds.land, at));
-    if (sim.reachedCheckpointThisStep) out.add(Heard(Sounds.checkpoint, at));
 
     // **Decided here, and it was the one sound that was not.** The application
     // played this itself, beside the camera kick that goes with it, which left
@@ -71,8 +85,6 @@ final class Soundtrack {
     // in a widget, so the landing was the one sound in the game no test could
     // ask about. The camera's half stays where it is; only the decision moved.
     if (runner.landedThisStep) out.add(Heard(Sounds.land, at));
-
-    if (sim.diedThisStep) out.add(Heard(Sounds.death, at));
 
     // **The level's own machinery, which had particles and no sound.** A pad
     // that throws you and a shelf that gives way under you are the two loudest

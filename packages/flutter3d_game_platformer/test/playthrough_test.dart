@@ -146,11 +146,21 @@ final class _Run {
     _jumpHeld = jump;
     if (dash) input.press(PlatformerActions.dash);
     sim.step(_dt);
+    // Drained every step, the way a game drains it, and kept so that a
+    // predicate can ask what happened without consuming it.
+    lastStep = sim.events.drain();
     input.endStep();
     if (dash) input.release(PlatformerActions.dash);
     final above = runner.position.y - _floorY;
     if (above > _rise) _rise = above;
   }
+
+  /// What the last [step] reported. Empty on a step that said nothing.
+  List<GameEvent> lastStep = const <GameEvent>[];
+
+  /// The collectibles the last step reported.
+  Iterable<Collectible> get taken =>
+      lastStep.whereType<CollectibleTaken>().map((e) => e.collectible);
 
   void _hold(GameAction action, bool wanted, bool was) {
     if (wanted == was) return;
@@ -299,15 +309,15 @@ void main() {
       //
       // Mutation: drop `mechanisms?.publish()` from `PlatformerSimulation.step`.
       final run = _Run()
-        ..run(180, until: (_Run r) => r.sim.takenThisStep.isNotEmpty);
+        ..run(180, until: (_Run r) => r.taken.isNotEmpty);
 
-      expect(run.sim.takenThisStep, hasLength(1));
-      expect(run.sim.takenThisStep.single.name, 'first coin');
-      expect(run.sim.takenThisStep.single.what, 'coin');
+      expect(run.taken, hasLength(1));
+      expect(run.taken.single.name, 'first coin');
+      expect(run.taken.single.what, 'coin');
 
-      // And cleared again on the next step, so a sound plays once.
+      // And gone again on the next step, so a sound plays once.
       run.step();
-      expect(run.sim.takenThisStep, isEmpty);
+      expect(run.taken, isEmpty);
     });
 
     test('a revived runner stands on the floor rather than inside it', () {

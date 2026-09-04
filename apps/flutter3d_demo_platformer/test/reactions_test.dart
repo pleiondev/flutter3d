@@ -68,7 +68,7 @@ final class _Run {
       }
       sim.step(_dt);
       input.endStep();
-      final reaction = reactions.listen(sim, runner);
+      final reaction = reactions.listen(sim, runner, sim.events.drain());
       shown.addAll(reaction.bursts);
       felt.addAll(reaction.jolts);
     }

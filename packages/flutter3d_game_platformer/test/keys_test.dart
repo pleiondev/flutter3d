@@ -213,7 +213,9 @@ void _vanishing() {
       room.input.press(GameAction.moveForward);
       sim.step(_dt);
       room.input.endStep();
-      said.addAll(sim.saidThisStep);
+      said.addAll(
+        sim.events.drain().whereType<LevelSaid>().map((LevelSaid e) => e.message),
+      );
     }
 
     expect(room.runner.keys, isEmpty, reason: 'it picked the key up first');
