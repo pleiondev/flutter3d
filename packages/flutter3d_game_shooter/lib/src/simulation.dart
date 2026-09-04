@@ -49,6 +49,7 @@ import 'combat/hitscan.dart';
 import 'combat/projectile.dart';
 import 'combat/weapon.dart';
 import 'combat/weapon_behaviour.dart';
+import 'events.dart';
 import 'player.dart';
 import 'secret.dart';
 import 'step_phases.dart';
@@ -89,7 +90,13 @@ final class GameSimulation {
     this.levelNext,
     required this.random,
     this.zones = const HitZones(),
-  });
+  }) {
+    // Handed down rather than collected up, which is what makes the order real:
+    // a monster killed by this step's shot lands in the buffer *after* the shot
+    // that killed it, because both were written where they happened. A list
+    // read off the actor system afterwards can only say that both occurred.
+    actors?.events = events;
+  }
 
   /// What a shot is worth depending on where it lands.
   ///
@@ -205,6 +212,18 @@ final class GameSimulation {
   /// adds a line rather than a class.
   final Tally tally = Tally();
 
+  /// What this step did, for a game that wants to hear about it.
+  ///
+  /// Drain it after [step]; see `events.dart` for what this template reports
+  /// and [GameEvents] for why it is a buffer rather than a stream. Ignoring it
+  /// costs nothing — the buffer caps itself, and most of this repository's
+  /// tests step without ever reading it.
+  ///
+  /// The `…ThisStep` fields below say the same things and are kept, because
+  /// programs read them. What they cannot do is carry two of anything: a
+  /// shotgun landing eight pellets is one `firedThisStep` and eight events.
+  final GameEvents events = GameEvents();
+
   /// Names this simulation counts under. Constants because a typo in one place
   /// and not the other is a counter that reads nought for ever.
   static const String kills = 'kills';
@@ -248,6 +267,7 @@ final class GameSimulation {
       if (mechanism is Secret && mechanism.justFound) {
         tally.add(secrets);
         foundThisStep = mechanism;
+        events.add(SecretFound(mechanism));
       }
     }
   }
@@ -467,6 +487,7 @@ final class GameSimulation {
     usedThisStep = target.activate(
       mechanisms.activationBy(player.body.collider),
     );
+    events.add(MechanismUsed(usedThisStep!));
   }
 
   /// An exit reached ends the level, whichever way it was reached.
@@ -536,6 +557,10 @@ final class GameSimulation {
     weapon.behaviour.deliver(shot);
     firedThisStep = weapon;
     hits.addAll(shot.hits);
+    events.add(ShotFired(weapon: weapon, from: firedFrom));
+    for (final hit in shot.hits) {
+      events.add(ShotLanded(hit));
+    }
 
     // Pellets landing in the same monster are summed before they are applied,
     // or eight of them are eight deaths.
@@ -632,7 +657,12 @@ final class GameSimulation {
 
   void _hurtPlayer(double amount) {
     if (amount <= 0.0) return;
+    // Asked before and after, so the death is reported on the step it happened
+    // rather than on every step after it, which is what `player.isAlive` gives.
+    final wasAlive = player.isAlive;
     player.applyDamage(amount);
     damageTakenThisStep += amount;
+    events.add(PlayerHurt(amount));
+    if (wasAlive && !player.isAlive) events.add(const PlayerDied());
   }
 }

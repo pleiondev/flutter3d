@@ -42,6 +42,7 @@ export 'package:flutter3d_physics/flutter3d_physics.dart';
 
 export 'src/actors/actor.dart';
 export 'src/actors/actor_components.dart';
+export 'src/actors/actor_hurt.dart';
 export 'src/actors/actor_system.dart';
 export 'src/actors/brain.dart';
 export 'src/actors/damageable.dart';
@@ -68,6 +69,7 @@ export 'src/level/lightmap_layout.dart';
 export 'src/level/spawn_context.dart';
 export 'src/level/surface_table.dart';
 export 'src/loop/fixed_step.dart';
+export 'src/loop/game_event.dart';
 export 'src/loop/game_loop.dart';
 export 'src/loop/interpolated.dart';
 export 'src/loop/pace.dart';

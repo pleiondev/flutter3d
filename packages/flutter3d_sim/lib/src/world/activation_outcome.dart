@@ -1,9 +1,21 @@
 /// What came of asking a mechanism to do something.
 ///
-/// A sealed hierarchy rather than a bool because the interesting case is the
-/// middle one: a locked door has to tell the player *why* nothing happened, and
-/// a caller that only knows "it did not work" cannot.
-sealed class ActivationOutcome {
+/// A hierarchy rather than a bool because the interesting case is the middle
+/// one: a locked door has to tell the player *why* nothing happened, and a
+/// caller that only knows "it did not work" cannot.
+///
+/// **Open, and it was sealed on the same reflex as everything else here.** The
+/// three below are the outcomes this package could think of, not the outcomes
+/// there are: a game with a door that takes a coin, or one that starts a
+/// conversation instead of opening, has a fourth. Nothing in the repository
+/// ever switched over the three exhaustively — callers read [message] or ask
+/// `is Activated` — so sealing bought nothing and cost a game the ability to
+/// say what happened at its own door.
+///
+/// A subclass owes [message]: null when there is nothing to tell the player,
+/// and text when there is. That is the whole contract, and it is what every
+/// caller here actually uses.
+abstract class ActivationOutcome {
   const ActivationOutcome();
 
   /// Something worth showing the player, or null when there is nothing to say.

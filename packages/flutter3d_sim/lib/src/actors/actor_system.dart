@@ -39,6 +39,7 @@ import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:vector_math/vector_math.dart';
 
 import '../ecs/ecs_world.dart';
+import '../loop/game_event.dart';
 import '../math/motion.dart';
 import '../math/tolerances.dart';
 import '../nav/jump_links.dart';
@@ -107,6 +108,16 @@ final class ActorSystem {
 
   /// Beyond this, an actor is on the slow schedule.
   double closeRange = 18.0;
+
+  /// Where this system reports what happened, or null for a caller that does
+  /// not listen.
+  ///
+  /// Set by whoever owns the step, usually to the genre simulation's own
+  /// buffer, so that a death recorded here lands in the same ordered sequence
+  /// as the shot that caused it. That ordering is the reason this is a sink
+  /// handed down rather than a list collected up: a list says what happened, a
+  /// shared buffer says what happened when.
+  GameEvents? events;
 
   /// Actors that died this step.
   final List<Actor> died = <Actor>[];
@@ -339,11 +350,17 @@ final class ActorSystem {
       // you have killed turns a corridor into a maze of your own making.
       actor.body?.collider.kind = ColliderKind.trigger;
       died.add(actor);
+      events?.add(ActorDied(actor, from: from));
       actor.brain?.onDeath(_mind);
       return true;
     }
 
-    hurtThisStep.add(ActorHurt(actor, amount, from: from));
+    // One object in both places while the lists are still here; when they go
+    // it is only in the buffer. Never two, which is the whole reason ActorHurt
+    // is the event rather than something copied into one.
+    final hurt = ActorHurt(actor, amount, from: from);
+    hurtThisStep.add(hurt);
+    events?.add(hurt);
     actor.brain?.onHurt(_mind, amount);
     _mind.hurtBy = null;
     return false;
