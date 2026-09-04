@@ -288,7 +288,9 @@ final class Runner
     _readLanding(falling);
     _face(dt);
 
-    final asked = sprinting ? body.tuning.sprintSpeed : body.tuning.walkSpeed;
+    final asked =
+        (sprinting ? body.tuning.sprintSpeed : body.tuning.walkSpeed) *
+        _slopeScale();
     if (body.isGrounded) {
       _shove
         ..setFrom(_wish)
@@ -297,6 +299,24 @@ final class Runner
       _shove.setZero();
     }
     _bleedOffDash(dt, asked);
+  }
+
+  /// How much the ground's tilt helps or hinders the way the runner is going.
+  ///
+  /// One on the flat, above one running downhill, below one running up. The
+  /// horizontal part of the floor's normal points straight downhill and its
+  /// length is the sine of the tilt, so the whole answer is one dot product:
+  /// level ground contributes nothing, a sideways traverse contributes
+  /// nothing, and the steepest walkable ramp contributes the most.
+  ///
+  /// Read after the body's step, because that is where the normal was
+  /// measured — before it, this would be scaling by the floor the runner just
+  /// left.
+  double _slopeScale() {
+    if (!body.isGrounded || tuning.slopeSpeed <= 0.0) return 1.0;
+    final normal = body.groundNormal;
+    final along = _wish.x * normal.x + _wish.z * normal.z;
+    return math.max(0.15, 1.0 + tuning.slopeSpeed * along);
   }
 
   /// Whether a contact counts, which for this genre is a question about

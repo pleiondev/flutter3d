@@ -6,6 +6,7 @@ final class RunnerTuning {
     this.airJumps = 1,
     this.jumpCut = 0.45,
     this.coyoteTime = 0.12,
+    this.slopeSpeed = 0.34,
     this.dropThroughTime = 0.25,
     this.stompBounce = 7.5,
     this.stompBounceHeld = 11.0,
@@ -50,6 +51,29 @@ final class RunnerTuning {
 
   /// How long after walking off a ledge a jump still counts.
   final double coyoteTime;
+
+  /// How much faster a runner goes straight downhill, and slower straight up,
+  /// as a fraction of its speed on the flat.
+  ///
+  /// **Slopes were walkable and made no difference.** The controller refuses
+  /// anything too steep to stand on and treats everything else as level, so a
+  /// ramp cost nothing to climb and gave nothing back coming down — which is
+  /// most of what a ramp is for.
+  ///
+  /// **Speed rather than a push, and that is not a shortcut.** The first
+  /// version added an acceleration along the surface and moved the runner
+  /// exactly nowhere: the controller bleeds unrequested horizontal speed off
+  /// at [CharacterTuning.groundFriction], which is several times any push a
+  /// walkable slope could justify. That is right — a person does not slide
+  /// down a ramp they can stand on — and it means a slope in a platformer has
+  /// to be about how hard it is to *run* up, which is what it is about
+  /// anyway.
+  ///
+  /// Scaled by how tilted the ground is and by how directly the runner is
+  /// going up or down it, so traversing a slope sideways costs nothing. A
+  /// third at the steepest walkable ramp is noticeable without turning a hill
+  /// into a wall. Zero is the old behaviour exactly.
+  final double slopeSpeed;
 
   /// How long before landing a jump can be asked for and still happen.
   final double jumpBufferTime;

@@ -118,6 +118,22 @@ final class CharacterController {
   /// thing recorded was the narrow case below.
   Collider? get ground => _ground;
 
+  /// Which way the floor faces, or straight up when there is no floor.
+  ///
+  /// **Kept because the controller already knew it and threw it away.** The
+  /// probe that decides whether this body is standing on something reads a
+  /// normal to do it — that is what [tuning] compares against — and then
+  /// discarded it, so nothing above could tell a flat floor from a ramp. A
+  /// platformer that wants a runner to gather speed downhill, or a shooter
+  /// that wants a footstep to know which way the ground tilts, had to sweep
+  /// again to find out what this had just measured.
+  ///
+  /// Straight up while airborne rather than null, so a caller doing
+  /// arithmetic with it does not have to branch: falling is the same as
+  /// standing on level ground as far as any slope calculation is concerned.
+  Vector3 get groundNormal => _groundNormal;
+  final Vector3 _groundNormal = Vector3(0.0, 1.0, 0.0);
+
   /// What the feet are on, **when it moves under its own power**. Null on a
   /// static brush.
   ///
@@ -296,6 +312,7 @@ final class CharacterController {
     velocity.setZero();
     _grounded = false;
     _ground = null;
+    _groundNormal.setValues(0.0, 1.0, 0.0);
     _coyote = 0.0;
     _jumpBuffer = 0.0;
     _snapSuppressed = false;
@@ -500,6 +517,7 @@ final class CharacterController {
     _coyote = 0.0;
     _grounded = false;
     _ground = null;
+    _groundNormal.setValues(0.0, 1.0, 0.0);
     // Belt and braces, and said out loud: clearing [_grounded] on the line
     // above is already enough for this step's probe. See [suppressFloorSnap]
     // for why the rule is spelt once rather than twice.
@@ -719,6 +737,7 @@ final class CharacterController {
     position.y += _probe.y * math.max(0.0, _hit.fraction) + _skin;
     velocity.y = 0.0;
     _grounded = true;
+    _groundNormal.setFrom(_hit.normal);
     // Whatever it is, recorded. It used to keep only kinematic bodies, on the
     // grounds that a brush needs no carrying and a reference to one would be
     // noise — true of carrying, and it threw away the answer to every other
@@ -730,5 +749,6 @@ final class CharacterController {
   void _setAirborne() {
     _grounded = false;
     _ground = null;
+    _groundNormal.setValues(0.0, 1.0, 0.0);
   }
 }

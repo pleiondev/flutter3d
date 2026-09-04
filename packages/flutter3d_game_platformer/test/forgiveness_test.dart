@@ -21,6 +21,8 @@
 /// a height cannot tell "the jump was refused" from "the jump was short".
 library;
 
+import 'dart:math' show pi;
+
 import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:flutter3d_game_platformer/flutter3d_game_platformer.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -477,6 +479,78 @@ void main() {
             'holding the button produced $jumps jumps, so the buffer is '
             'refilled by the button being down rather than by a press',
       );
+    });
+  });
+
+  group('a slope', () {
+    // **Ramps were walkable and flat.** The controller refuses anything too
+    // steep to stand on and treated everything else as level, so a hill cost
+    // nothing to climb and gave nothing back coming down — which is most of
+    // what a hill is for.
+
+    ({Runner runner, CollisionWorld world}) onRamp({double help = 0.34}) {
+      final world = CollisionWorld()
+        ..add(
+          Collider(
+            shape: CollisionWedge(
+              Vector3(6.0, 1.5, 6.0),
+              uphill: WedgeUphill.positiveX,
+            ),
+            position: Vector3(0.0, 0.0, 0.0),
+          ),
+        )
+        ..update();
+      return (
+        runner: Runner(
+          body: CharacterController(
+            world: world,
+            position: Vector3(0.0, 2.4, 0.0),
+          ),
+          tuning: RunnerTuning(slopeSpeed: help),
+        ),
+        world: world,
+      );
+    }
+
+    /// How far the runner gets in three seconds of holding forward.
+    ///
+    /// `positiveX` uphill means running towards +x is running up the ramp and
+    /// towards -x is running down it.
+    double travelled({required double help, required bool downhill}) {
+      final it = onRamp(help: help);
+      final input = InputState();
+      final from = it.runner.position.x;
+      for (var i = 0; i < 180; i++) {
+        input.beginStep();
+        input.press(GameAction.moveForward);
+        it.runner.step(
+          1.0 / 60.0,
+          input,
+          cameraYaw: downhill ? -pi / 2.0 : pi / 2.0,
+        );
+        input.endStep();
+      }
+      return (it.runner.position.x - from).abs();
+    }
+
+    test('is quicker down than up', () {
+      final down = travelled(help: 0.34, downhill: true);
+      final up = travelled(help: 0.34, downhill: false);
+
+      // **1.097 measured**, on a ramp of 1.5 over 6 — about fourteen degrees,
+      // where the tilt contributes 0.24 and the default help turns that into
+      // eight per cent of the speed each way. The distance ratio is less than
+      // the speed ratio because the runner spends the first stretch of both
+      // runs accelerating, and the ramp is only twelve metres long.
+      expect(down, greaterThan(up * 1.05), reason: 'the hill did nothing');
+    });
+
+    test('and a help of nothing makes the two the same', () {
+      // Mutation: this is exactly what every ramp in this game did until now.
+      final down = travelled(help: 0.0, downhill: true);
+      final up = travelled(help: 0.0, downhill: false);
+
+      expect(down, closeTo(up, up * 0.05 + 0.2));
     });
   });
 }
