@@ -1367,7 +1367,7 @@ class _GameScreenState extends State<GameScreen>
                 armour: _playerHealth.armour,
                 ammo: _arsenal.currentAmmo,
                 pouches: <AmmoType, int>{
-                  for (final type in AmmoType.values)
+                  for (final type in _arsenal.carrying)
                     if (type != AmmoType.none) type: _arsenal.ammoOf(type),
                 },
                 powers: _inventory.powers,

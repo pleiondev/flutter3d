@@ -7,13 +7,45 @@ import 'weapon_behaviour.dart';
 /// weapon choice interesting: running dry on shells is a reason to switch, and
 /// a shared pool turns every weapon into the same weapon with different
 /// numbers.
-enum AmmoType {
+///
+/// **A value class rather than an enum, so this list is not closed.** A game
+/// written on this template writes its own weapons, and a weapon that fires
+/// something has to be able to say what: cells, fuel, arrows, a spell's mana.
+/// As an enum it could not, and adding a value to let it broke every
+/// `switch` in every game already published — which for a template is the
+/// worst shape a type can have, because the whole point is that somebody else
+/// extends it.
+///
+/// The four below are what this template ships. A game adds
+/// `const AmmoType('cells')` beside them and nothing here has to know.
+///
+/// **There is no `values`.** A list of every type that exists cannot be kept
+/// once anybody can add one, and it was the wrong question anyway: a HUD wants
+/// the counters this arsenal actually holds, not every kind of ammunition the
+/// package can name. [Arsenal.ammo] answers that.
+final class AmmoType {
+  const AmmoType(this.name);
+
+  /// What it is called. Identity: two [AmmoType]s with the same name are the
+  /// same ammunition, which is what lets a game name one in a level document
+  /// and in code without a registry in between.
+  final String name;
+
   /// The starting weapon never runs out, so it is always something to fall back
   /// to. A player stranded with no weapon at all is a player reloading a save.
-  none,
-  bullets,
-  shells,
-  rockets,
+  static const AmmoType none = AmmoType('none');
+  static const AmmoType bullets = AmmoType('bullets');
+  static const AmmoType shells = AmmoType('shells');
+  static const AmmoType rockets = AmmoType('rockets');
+
+  @override
+  bool operator ==(Object other) => other is AmmoType && other.name == name;
+
+  @override
+  int get hashCode => name.hashCode;
+
+  @override
+  String toString() => 'AmmoType($name)';
 }
 
 /// Everything about a weapon that does not change while it is being fired.

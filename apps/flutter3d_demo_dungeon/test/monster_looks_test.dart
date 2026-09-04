@@ -79,7 +79,7 @@ void main() {
   test('and every state names a clip', () {
     // An empty list is a monster that keeps playing whatever it was, which for
     // a dead one means standing up again.
-    for (final state in MonsterState.values) {
+    for (final state in MonsterState.chased) {
       expect(
         DungeonMonsters.clipsForState[state],
         isNotEmpty,
@@ -99,7 +99,7 @@ void main() {
       // pose.
       for (final entry in _models().entries) {
         final available = _clipsIn(entry.value);
-        for (final state in MonsterState.values) {
+        for (final state in MonsterState.chased) {
           final wanted = DungeonMonsters.clipsForState[state]!;
           expect(
             wanted.any(available.contains),

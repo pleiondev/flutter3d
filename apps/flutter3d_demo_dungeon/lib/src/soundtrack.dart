@@ -145,11 +145,18 @@ final class Soundtrack {
   /// application asked `ammo == shells ? shotgun : pistol`, which is four
   /// weapons and two sounds — and there is no run of the game that makes that
   /// obvious, because you have to fire all four and remember.
+  /// **What an ammunition this game has never heard of sounds like.**
+  /// [AmmoType] is open, so a game built on this template can add one — and
+  /// when it does, this table has no row for it. The answer here is the
+  /// pistol: a weapon that fires and makes no sound reads as a broken weapon,
+  /// and a wrong shot is better than a silent one in the one place where
+  /// silence is indistinguishable from a bug. A game that adds ammunition adds
+  /// a row, and this line is what it fails softly through until it does.
   SoundDef forWeapon(WeaponDef weapon) => switch (weapon.ammo) {
     AmmoType.shells => Sounds.shotgun,
     AmmoType.rockets => Sounds.rocket,
     AmmoType.none => Sounds.punch,
-    AmmoType.bullets => Sounds.pistol,
+    _ => Sounds.pistol,
   };
 
   void _machinery(

@@ -790,4 +790,45 @@ void _damageableTests() {
       expect((owner! as KeyHolder).keys, contains('brass'));
     });
   });
+
+  group('a state a game invents', () {
+    // The six are constants rather than cases, so a game can name a seventh —
+    // a monster that flees, or guards a spot, or summons. What it cannot do is
+    // teach ChaseBrain to mean it: the extension point for behaviour is Brain,
+    // and this is the label the two share.
+    const MonsterState fleeing = MonsterState('fleeing');
+
+    test('leaves ChaseBrain deciding nothing rather than guessing', () {
+      final h = _harness(_room(), playerAt: Vector3(0.0, 0.0, 3.0));
+      final monster = h.bestiary.spawn(Monsters.runner, Vector3.zero());
+      final brain = monster.brain! as ChaseBrain;
+      brain.state = fleeing;
+
+      // Sixty steps with the player in plain sight. A brain that guessed would
+      // put it back into chase; this one leaves it where the game put it.
+      for (var i = 0; i < 60; i++) {
+        h.system
+          ..beginStep()
+          ..step(_dt, focus: h.eye, focusBody: h.player);
+      }
+
+      expect(brain.state, fleeing);
+    });
+
+    test('and survives a save, which has no list to look it up in', () {
+      final h = _harness(_room());
+      final brain =
+          h.bestiary.spawn(Monsters.runner, Vector3.zero()).brain!
+              as ChaseBrain;
+      brain.state = fleeing;
+
+      final other = _harness(_room());
+      final restored =
+          other.bestiary.spawn(Monsters.runner, Vector3.zero()).brain!
+              as ChaseBrain;
+      restored.restore(brain.save());
+
+      expect(restored.state, fleeing);
+    });
+  });
 }

@@ -454,4 +454,51 @@ void main() {
       expect(hits.single.collider?.userData, 'wall');
     });
   });
+
+  group('an ammunition a game invents', () {
+    // The four this template ships are constants, not cases, so a game can add
+    // a fifth. As an enum it could not, and adding a value to let it broke
+    // every switch in every game already published.
+    const AmmoType cells = AmmoType('cells');
+
+    test('is carried, spent, and named like any other', () {
+      final arsenal = Arsenal(
+        slots: <WeaponDef>[
+          const WeaponDef(
+            name: 'coil',
+            behaviour: HitscanBehaviour(),
+            ammo: cells,
+            damage: 30.0,
+            shotsPerSecond: 5.0,
+          ),
+        ],
+        ammo: <AmmoType, int>{cells: 5},
+      )..selectSlot(0);
+
+      expect(arsenal.ammoOf(cells), 5);
+      expect(arsenal.fire(), isNotNull);
+      expect(arsenal.ammoOf(cells), 4);
+      expect(arsenal.carrying, contains(cells));
+    });
+
+    test('and survives a round trip, which is what has no list to consult', () {
+      // The restore reads the file's own keys. A loop over "every type there
+      // is" would have dropped this one, and there is no such list any more.
+      final saved = Arsenal(
+        slots: <WeaponDef>[Weapons.pistol],
+        ammo: <AmmoType, int>{cells: 7, AmmoType.bullets: 12},
+      ).save();
+
+      final loaded = Arsenal(slots: <WeaponDef>[Weapons.pistol])
+        ..restore(saved);
+
+      expect(loaded.ammoOf(cells), 7);
+      expect(loaded.ammoOf(AmmoType.bullets), 12);
+    });
+
+    test('and two of the same name are the same ammunition', () {
+      expect(const AmmoType('cells'), cells);
+      expect(<AmmoType, int>{cells: 1}[const AmmoType('cells')], 1);
+    });
+  });
 }

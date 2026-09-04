@@ -116,6 +116,14 @@ final class ChaseBrain extends Brain {
         if (_targetDistance > def.attack.range * 1.15) {
           _enter(MonsterState.chase);
         }
+
+      // **A state this brain does not know.** [MonsterState] is open, so a
+      // game can name one — and this brain is not the thing that means it. It
+      // decides nothing rather than guessing, which leaves the monster in
+      // whatever the game's own code put it in until that code moves it on.
+      // A brain that guessed would fight the game for control of its monster.
+      default:
+        return;
     }
   }
 
@@ -157,6 +165,12 @@ final class ChaseBrain extends Brain {
       case MonsterState.attack:
         it.turnTowards(_toTarget.x, _toTarget.z);
         if (attackCooldown <= 0.0) _attack(it);
+
+      // A state this brain does not know: it moves nothing and turns nothing,
+      // for the reason `think` gives. The monster still steps — gravity and
+      // collision are the world's, not this brain's — it simply is not driven.
+      default:
+        break;
     }
   }
 
@@ -325,10 +339,12 @@ final class ChaseBrain extends Brain {
 
   @override
   void restore(Map<String, Object?> from) {
+    // **Built from the name the file holds, not looked up in a list.** There
+    // is no list of every state once a game can add one, and taking the file's
+    // own word for it is what lets a game's own state survive a round trip
+    // through a save this package wrote.
     final named = from['state'];
-    for (final value in MonsterState.values) {
-      if (value.name == named) state = value;
-    }
+    if (named is String && named.isNotEmpty) state = MonsterState(named);
     stateTime = (from['stateTime'] as num?)?.toDouble() ?? 0.0;
     attackCooldown = (from['attackCooldown'] as num?)?.toDouble() ?? 0.0;
     painCooldown = (from['painCooldown'] as num?)?.toDouble() ?? 0.0;

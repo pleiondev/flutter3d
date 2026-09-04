@@ -35,7 +35,60 @@ abstract final class ShooterEntities {
 /// classes repeating one another's rules. That trade is fine for one brain in
 /// one game's own library; it was not fine in an engine, where it meant every
 /// other kind of enemy anybody wrote had to pretend to have an `alert` state.
-enum MonsterState { idle, alert, chase, attack, hurt, dead }
+/// What a monster is doing.
+///
+/// **A value class rather than an enum, so a game can add to it.** The six
+/// below are what [ChaseBrain] decides between; a game that wants a monster
+/// that flees, or summons, or guards a spot, names its own state and writes a
+/// [Brain] that means it. That is the extension point for behaviour — this is
+/// the label, and it is open so a game's brain and a game's animation table
+/// can share the vocabulary rather than inventing a parallel one.
+///
+/// **Adding a state does not teach [ChaseBrain] anything.** That brain knows
+/// these six and says, in its own `think` and `act`, what it does with a state
+/// it does not recognise. Opening a vocabulary without opening its interpreter
+/// is the trap this repository has hit twice; the interpreter here is `Brain`,
+/// and it was already open.
+///
+/// **There is no `values`.** A list of every state that exists cannot be kept
+/// once anybody can add one; the six are named individually and a save is
+/// restored from the name it holds.
+final class MonsterState {
+  const MonsterState(this.name);
+
+  /// What it is called, in a save and in an animation table. Identity: two
+  /// states with the same name are the same state.
+  final String name;
+
+  static const MonsterState idle = MonsterState('idle');
+  static const MonsterState alert = MonsterState('alert');
+  static const MonsterState chase = MonsterState('chase');
+  static const MonsterState attack = MonsterState('attack');
+  static const MonsterState hurt = MonsterState('hurt');
+  static const MonsterState dead = MonsterState('dead');
+
+  /// The six [ChaseBrain] decides between, for a table that wants to list
+  /// them. A game adds its own; there is no registry, for the reason
+  /// [GameAction.common] gives — a list nobody has to keep up to date cannot
+  /// fall behind.
+  static const List<MonsterState> chased = <MonsterState>[
+    idle,
+    alert,
+    chase,
+    attack,
+    hurt,
+    dead,
+  ];
+
+  @override
+  bool operator ==(Object other) => other is MonsterState && other.name == name;
+
+  @override
+  int get hashCode => name.hashCode;
+
+  @override
+  String toString() => 'MonsterState($name)';
+}
 
 /// Everything about a kind of monster that does not change.
 ///

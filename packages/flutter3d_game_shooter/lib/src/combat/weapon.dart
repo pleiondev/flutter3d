@@ -46,7 +46,12 @@ final class Arsenal {
   final List<WeaponDef> slots;
 
   /// How much of each type can be carried.
-  static const Map<AmmoType, int> capacity = <AmmoType, int>{
+  ///
+  /// `final` rather than `const`: [AmmoType] carries its own `==` now that a
+  /// game can add one, and Dart will not build a constant map on a key that
+  /// does. A type this table does not name is carried without a ceiling, which
+  /// is the answer a game adding its own ammunition wants by default.
+  static final Map<AmmoType, int> capacity = <AmmoType, int>{
     AmmoType.bullets: 200,
     AmmoType.shells: 60,
     AmmoType.rockets: 30,
@@ -95,6 +100,13 @@ final class Arsenal {
   /// for a game that shows the wait — a reload wheel, a barrel that glows down
   /// — where the fraction matters and "can it fire" does not.
   double get cooldownRemaining => _cooldown;
+
+  /// Every kind this arsenal is carrying a counter for, in no order.
+  ///
+  /// What a HUD asks instead of "every type there is": a game that never
+  /// picked up rockets has no rocket counter to draw, and a game that added
+  /// its own ammunition gets it here without this package knowing the name.
+  Iterable<AmmoType> get carrying => _ammo.keys;
 
   int ammoOf(AmmoType type) => type == AmmoType.none ? -1 : (_ammo[type] ?? 0);
 
@@ -177,10 +189,17 @@ final class Arsenal {
     _cooldown = (from['cooldown'] as num?)?.toDouble() ?? 0.0;
     final ammo = from['ammo'];
     if (ammo is Map) {
+      // **Driven by what the save holds, not by a list of every type there
+      // is.** There is no such list once a game can add one — and reading the
+      // file's own keys is what lets a game's own ammunition survive a round
+      // trip without this package having heard of it.
       _ammo.clear();
-      for (final type in AmmoType.values) {
-        final held = ammo[type.name];
-        if (held is num) _ammo[type] = held.toInt();
+      for (final entry in ammo.entries) {
+        final name = entry.key;
+        final held = entry.value;
+        if (name is String && held is num) {
+          _ammo[AmmoType(name)] = held.toInt();
+        }
       }
     }
   }

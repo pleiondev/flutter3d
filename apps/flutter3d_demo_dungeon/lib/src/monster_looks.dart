@@ -49,7 +49,7 @@ final class DungeonMonsters implements ActorAppearance {
   /// Public because it is the part worth testing on its own: a state with an
   /// empty list is a monster frozen mid-stride, and there is no run of the game
   /// that makes that obvious — you have to catch one in that state and look.
-  static const Map<MonsterState, List<String>>
+  static final Map<MonsterState, List<String>>
   clipsForState = <MonsterState, List<String>>{
     MonsterState.idle: <String>['Idle'],
     // The pause before it comes for you. Deliberately the same as idle: the
