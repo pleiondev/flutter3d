@@ -14,11 +14,13 @@ import 'cpu_shaders_color.dart';
 /// `reflections.frag`: screen-space reflections, marched against the surface
 /// buffer.
 ///
-/// Transcribed including the part that looks wrong: the ray's screen position
-/// is `ndc.xy * 0.5 + 0.5` with **no v flip**, where the shadow lookups do
-/// flip. Reproducing it exactly is the job here — if the two conventions
-/// genuinely disagree that is a finding about the engine, and it is not one a
-/// backend gets to decide by quietly picking the other one.
+/// The part that looked wrong was wrong. This file used to carry a note that
+/// the ray's screen position was `ndc.xy * 0.5 + 0.5` with **no v flip**, where
+/// the shadow lookups flip — transcribed exactly, because a backend does not
+/// get to settle a disagreement between conventions by quietly picking one. It
+/// was a disagreement, and the shadow lookup had the right end of it: the march
+/// read the surface buffer upside down on every backend whose row zero is at
+/// the top, which is Impeller and this one. See `UvFromNdc` in reflections.frag.
 final class ReflectionsShader implements CpuFragmentShader {
   const ReflectionsShader();
 
@@ -50,14 +52,22 @@ final class ReflectionsShader implements CpuFragmentShader {
     if (polish <= 0.0) return done(background);
 
     final inverse = b.mat4('ReflectionInfo', 'inverse_view_projection');
-    final ndc = Vector4(u * 2.0 - 1.0, w * 2.0 - 1.0, surface.w, 1.0);
-    final Vector4 worldH = inverse * ndc;
-    final position = Vector3(worldH.x, worldH.y, worldH.z)
-      ..scale(1.0 / worldH.w);
+
+    // The two halves of the origin convention, kept next to each other so they
+    // cannot drift apart: v runs the other way from clip-space y, and the
+    // matrices carry whichever backend this is.
+    double vFromNdc(double ndcY) => 0.5 - ndcY * 0.5;
+    Vector3 worldFrom(double uu, double vv, double depth) {
+      final Vector4 h =
+          inverse * Vector4(uu * 2.0 - 1.0, 1.0 - vv * 2.0, depth, 1.0);
+      return Vector3(h.x, h.y, h.z)..scale(1.0 / h.w);
+    }
+
+    final position = worldFrom(u, w, surface.w);
 
     final camera = b.vec4('ReflectionInfo', 'camera', Vector4.zero());
-    final toEye = (Vector3(camera.x, camera.y, camera.z) - position)
-      ..normalize();
+    final eye = Vector3(camera.x, camera.y, camera.z);
+    final toEye = (eye - position)..normalize();
     final facing = normal.dot(toEye);
     if (facing <= 0.05) return done(background);
 
@@ -87,13 +97,18 @@ final class ReflectionsShader implements CpuFragmentShader {
       final ny = clip.y / clip.w;
       final nz = clip.z / clip.w;
       final su = nx * 0.5 + 0.5;
-      final sv = ny * 0.5 + 0.5;
+      final sv = vFromNdc(ny);
       if (su < 0.0 || su > 1.0 || sv < 0.0 || sv > 1.0) break;
 
       final sceneDepth = surfaceMap.sample(su, sv).w;
-      if (sceneDepth > 0.0) {
-        final difference = nz - sceneDepth;
-        if (difference > 0.0 && difference < thickness) {
+      // Behind what was drawn here, then how far behind in metres — the two
+      // halves the GLSL splits, and for the reason written there: a
+      // window-depth difference is a different number of metres at every
+      // range, so it can only answer the first question.
+      if (sceneDepth > 0.0 && nz > sceneDepth) {
+        final seen = worldFrom(su, sv, sceneDepth);
+        final behind = eye.distanceTo(march) - eye.distanceTo(seen);
+        if (behind < thickness) {
           final tex = sceneMap.sample(su, sv);
           hitColour = Vector3(tex.x, tex.y, tex.z);
           final border =

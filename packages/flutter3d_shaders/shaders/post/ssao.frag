@@ -29,6 +29,9 @@ uniform sampler2D surface_texture;
 
 uniform SsaoInfo {
   /// Screen to world, for turning a stored depth back into a point.
+  ///
+  /// Carries the framebuffer origin, as its partner below does — see
+  /// [UvFromNdc].
   mat4 inverse_view_projection;
 
   /// World to screen, for finding where a sampled point lands.
@@ -58,8 +61,24 @@ vec3 DecodeOctahedral(vec2 e) {
   return normalize(n);
 }
 
+/// Where a point at clip-space [ndc] lands in the surface buffer.
+///
+/// **v runs the other way from y, and the matrix is what makes that true on
+/// both backends** — the convention `lib/surface.glsl` reads shadow maps with,
+/// and the one this pass should have had. `toFramebufferOrigin` negates y in
+/// the matrices below for the backend whose row zero is at the bottom.
+///
+/// Written the other way round — `ndc * 0.5 + 0.5`, with unadjusted matrices —
+/// this pass reconstructed the point at the pixel mirrored about the middle of
+/// the frame and took its taps around that, on every backend but the browser.
+vec2 UvFromNdc(vec2 ndc) {
+  return vec2(ndc.x * 0.5 + 0.5, 0.5 - ndc.y * 0.5);
+}
+
 vec3 WorldFromDepth(vec2 uv, float depth) {
-  vec4 ndc = vec4(uv * 2.0 - 1.0, depth, 1.0);
+  // y undoes [UvFromNdc]: a point projected and then reconstructed has to come
+  // back where it started.
+  vec4 ndc = vec4(uv.x * 2.0 - 1.0, 1.0 - uv.y * 2.0, depth, 1.0);
   vec4 world = ssao_info.inverse_view_projection * ndc;
   return world.xyz / world.w;
 }
@@ -154,7 +173,7 @@ void main() {
     vec3 ndc = clip.xyz / clip.w;
     if (abs(ndc.x) > 1.0 || abs(ndc.y) > 1.0) continue;
 
-    vec2 uv = ndc.xy * 0.5 + 0.5;
+    vec2 uv = UvFromNdc(ndc.xy);
     vec4 there = texture(surface_texture, uv);
     // The sky occludes nothing: a sample that lands on it is a sample looking
     // out of the scene, which is the opposite of being enclosed.

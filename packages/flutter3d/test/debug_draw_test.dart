@@ -309,8 +309,11 @@ void main() {
     // the one being rendered — which the overlay skips, because drawing the
     // frustum of the camera you are looking through outlines the screen. So
     // `DebugDrawOptions.cameraFrustums` could be switched on anywhere in the
-    // tree and draw nothing, and no picture and no test would differ. The
-    // second camera below is the only one in the repository.
+    // tree and draw nothing, and no picture and no test would differ. That is
+    // what the site's caption for `debug-overlay` described for as long as it
+    // did: a frustum in a frame whose scene held one camera. The demo now hangs
+    // a second one in that scene — see `_placeGoldenCamera` in the example's
+    // main.dart — and the test below is what says why it has to.
     Scene twoCameras() {
       final scene = Scene(name: 'two eyes');
       scene.root
@@ -318,6 +321,33 @@ void main() {
         ..add(CameraNode(name: 'watcher')..setPosition(6.0, 2.0, 0.0));
       return scene;
     }
+
+    test('and nothing at all when the scene holds only that camera', () {
+      // The reason a scene has to be given a second camera before switching
+      // this on means anything. Asked for over a scene with one camera in it,
+      // the overlay draws no frustum and no error: the option is on, the
+      // branch is reached, and there is nothing in the loop but the camera it
+      // skips.
+      //
+      // Mutation: drop the `identical(camera, activeCamera)` guard. The count
+      // goes from three to fifteen — the eye's own twelve edges — and the frame
+      // that was supposed to prove a frustum proves an outline of its screen.
+      final scene = Scene(name: 'one eye');
+      final eye = CameraNode(name: 'eye')..setPosition(0.0, 0.0, 4.0);
+      scene.root.add(eye);
+
+      final draw = DebugDraw()
+        ..buildForScene(
+          scene,
+          // Axes as well, so the builder is definitely past `anyEnabled` and
+          // into the frustum branch — three lines is "reached and answered
+          // nothing", and an empty buffer would not have told them apart.
+          const DebugDrawOptions(cameraFrustums: true, axes: true),
+          activeCamera: eye,
+        );
+
+      expect(draw.lineCount, 3, reason: 'three axes and no frustum');
+    });
 
     test('every camera but the one being looked through', () {
       // Mutation: dropping the `identical(camera, activeCamera)` guard draws

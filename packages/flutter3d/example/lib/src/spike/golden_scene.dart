@@ -41,7 +41,34 @@ final class GoldenScene {
     this.autoExposure = const AutoExposureSettings(),
     this.xray = const XraySettings(),
     this.reflectionProbe = false,
+    this.reflections = const ReflectionSettings(),
+    this.ambientOcclusion = const AmbientOcclusionSettings(),
   });
+
+  /// Screen-space reflections, off in every scene but one.
+  ///
+  /// The engine has advertised this on its front page since it was written and
+  /// had never compared a pixel of it on any backend, which is how the march
+  /// came to be reading the surface buffer upside down and measuring its
+  /// thickness in window depth at the same time. Both were found by a software
+  /// check; a golden is what keeps the two GPU transcriptions honest about it.
+  ///
+  /// The scene that turns it on turns [ambientOcclusion] off, and the reverse,
+  /// so that a frame that moves says which effect moved it.
+  final ReflectionSettings reflections;
+
+  /// Ambient occlusion, off in every scene but one.
+  ///
+  /// Same story and the same reason: the software rasteriser is the only place
+  /// `ssao.frag` has ever been compared to a picture, and what Impeller and
+  /// WebGL had was that the stage links. Two transcriptions of a twelve-tap
+  /// march, neither ever looked at.
+  ///
+  /// **Switching it on changes more than the corners.** Reading the surface
+  /// buffer turns MSAA off for the whole scene pass, so the antialiasing of the
+  /// entire frame changes with it — which is why this is a scene of its own
+  /// rather than a flag added to an existing one.
+  final AmbientOcclusionSettings ambientOcclusion;
 
   /// Whether the frame's exposure is metered from the frame, and how fast.
   ///
@@ -201,5 +228,7 @@ final class GoldenScene {
     bloom: base.bloom.copyWith(enabled: bloom),
     tonemap: lighting != LightingModel.normals,
     xray: xray,
+    reflections: reflections,
+    ambientOcclusion: ambientOcclusion,
   );
 }

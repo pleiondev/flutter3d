@@ -64,6 +64,15 @@ class _SpikePageState extends State<SpikePage>
   /// Additional shadow-casting point lights, only for the multi-row golden.
   final List<LightNode> _extraPoints = <LightNode>[];
 
+  /// A second camera, added only by the golden that draws camera frusta.
+  ///
+  /// The overlay skips the camera being looked through — its frustum is the
+  /// edge of the screen and outlines nothing — so a scene with one camera in it
+  /// draws no frusta however the option is set. That is why the debug frame
+  /// could name a frustum in its caption for as long as it did without anyone
+  /// noticing there was none in the picture.
+  CameraNode? _frustumCamera;
+
   /// Frames elapsed, for the golden whose caster has to move. See build().
   int _moverFrame = 0;
   late final LightNode _spot;
@@ -143,6 +152,22 @@ class _SpikePageState extends State<SpikePage>
   /// The silhouettes the golden scene asks for, or none.
   final XraySettings _xray =
       GoldenRunner.fromEnvironment()?.scene.xray ?? const XraySettings();
+
+  /// Screen-space reflections, on for the one golden that asks.
+  ///
+  /// Off everywhere else, and that is worth stating rather than assuming: the
+  /// effect attaches the surface buffer, which turns MSAA off for the whole
+  /// scene pass, so it would change every reference in the set and not only the
+  /// floors in it.
+  final ReflectionSettings _reflections =
+      GoldenRunner.fromEnvironment()?.scene.reflections ??
+      const ReflectionSettings();
+
+  /// Ambient occlusion, on for the one golden that asks, and off elsewhere for
+  /// the reason [_reflections] is.
+  final AmbientOcclusionSettings _ambientOcclusion =
+      GoldenRunner.fromEnvironment()?.scene.ambientOcclusion ??
+      const AmbientOcclusionSettings();
 
   BloomSettings _bloom = BloomSettings(
     enabled: GoldenRunner.fromEnvironment()?.scene.bloom ?? true,
@@ -474,6 +499,36 @@ class _SpikePageState extends State<SpikePage>
       _modelPivot.add(GoldenExtras.lightmappedRoom(_device!));
       return;
     }
+    if (_golden?.scene.reflections.enabled ?? false) {
+      // The floor is the picture, and the model was only ever a way in — the
+      // same trade the probe and lightmapped rooms make.
+      //
+      // The sun goes out and the ambient comes up a little. A polished floor
+      // under a directional light is a specular streak, and a streak and a
+      // reflection look alike enough that one has been mistaken for the other
+      // in this repository before: see `ReflectionSettings.debugOnly`. With no
+      // sun, everything on the floor that is not the floor is the march's.
+      instance.removeFromScene();
+      _sun.visible = false;
+      _scene.ambientIntensity = 0.25;
+      for (final node in GoldenExtras.mirrorRoom(_device!)) {
+        _modelPivot.add(node);
+      }
+      return;
+    }
+    if (_golden?.scene.ambientOcclusion.enabled ?? false) {
+      // The corner is the picture. Ambient well up and the sun out, for the
+      // reason written on `GoldenExtras.occlusionCorner`: occlusion multiplies
+      // the ambient term, and at the demo's 0.06 a correct pass takes six per
+      // cent off the corners and is invisible.
+      instance.removeFromScene();
+      _sun.visible = false;
+      _scene.ambientIntensity = 0.9;
+      for (final node in GoldenExtras.occlusionCorner(_device!)) {
+        _modelPivot.add(node);
+      }
+      return;
+    }
     if (_golden?.scene.xray.enabled ?? false) {
       // The wall and its two cubes are the picture, as the lightmapped room
       // is; the model was only ever a way in.
@@ -690,7 +745,55 @@ class _SpikePageState extends State<SpikePage>
       }
       _orbit.syncProjectionDepth(_camera);
       _placeSceneLights(bounds);
+      _placeGoldenCamera(bounds);
     });
+  }
+
+  /// Puts the second camera where the overlay can draw its whole frustum.
+  ///
+  /// Only for the golden that asks for camera frusta; nothing else in the demo
+  /// has a use for a camera it does not look through.
+  ///
+  /// Scaled by the model, as the lights and the ground are, and the near and
+  /// far planes with it: `PerspectiveProjection`'s defaults reach a thousand
+  /// units, and a frustum a thousand units deep drawn around a one-unit cube is
+  /// four lines leaving the frame in four directions. Sized to the model, it is
+  /// a wedge the size of the thing it is pointed at, which is what makes the
+  /// picture readable.
+  ///
+  /// The far plane is put *past* the model rather than short of it, so the
+  /// wedge encloses the cube instead of stopping beside it — a frustum that
+  /// shares no screen space with what the frame is otherwise about reads as
+  /// four stray lines.
+  void _placeGoldenCamera(Aabb3 bounds) {
+    if (!(_golden?.scene.debug.cameraFrustums ?? false)) return;
+    if (!bounds.min.x.isFinite) return;
+
+    final centre = (bounds.min + bounds.max)..scale(0.5);
+    final radius = math.max(
+      ((bounds.max - bounds.min)..scale(0.5)).length,
+      1e-3,
+    );
+
+    // Roughly opposite the orbit camera, which sits up and to the +x, +z side
+    // at the golden's yaw of 0.7 — so the apex is on the far left of the frame
+    // and the wedge opens across it towards the viewer.
+    final camera = _frustumCamera ??= CameraNode(
+      projection: PerspectiveProjection(
+        fovYRadians: 0.7,
+        near: radius * 0.35,
+        far: radius * 3.0,
+      ),
+      name: 'frustum camera',
+    );
+    if (camera.parent == null) _scene.add(camera);
+    camera
+      ..setPosition(
+        centre.x - radius * 1.5,
+        centre.y + radius * 1.0,
+        centre.z - radius * 1.15,
+      )
+      ..lookAt(centre);
   }
 
   /// Sits the ground plane just under the model and scales it to suit.
@@ -909,6 +1012,8 @@ class _SpikePageState extends State<SpikePage>
                             sky: _sky,
                             autoExposure: _autoExposure,
                             xray: _xray,
+                            reflections: _reflections,
+                            ambientOcclusion: _ambientOcclusion,
                           ),
                           onFrame: (frame) {
                             _lastFrame = frame;
