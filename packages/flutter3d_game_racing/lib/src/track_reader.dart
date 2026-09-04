@@ -23,7 +23,30 @@ final class TrackDocument {
   TrackDocument({required this.track, this.level, SkyPreset? sky})
     : sky = sky ?? SkyPresets.morning;
 
+  /// The version this reader understands, written by the generator.
+  ///
+  /// **Every other document here had one and this did not.** The level, its
+  /// visibility sidecar, the settings file, a demo, a snapshot and a `.fmat`
+  /// all carry a number and all refuse a newer one by name. A format without
+  /// one cannot be given one later without every file already written becoming
+  /// a file of no stated version, which the reader then has to guess about —
+  /// so it is cheapest on the day nothing has shipped, and that is today.
+  ///
+  /// A *missing* number still reads, as version one, because that is what
+  /// every track written before this line is. A number above this one is
+  /// refused: a bumped version is the writer saying this reader will get it
+  /// wrong, and the honest answer to that is to stop.
+  static const int formatVersion = 1;
+
   factory TrackDocument.fromJson(Map<String, Object?> json) {
+    final version = json['version'];
+    if (version is num && version > formatVersion) {
+      throw LevelFormatException(
+        'track format version $version is newer than this build understands '
+        '($formatVersion)',
+      );
+    }
+
     final track = json['track'];
     if (track == null) {
       throw LevelFormatException('"track" is required');

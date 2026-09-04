@@ -10,7 +10,11 @@ import 'vertex_layout.dart';
 ///
 /// Implementations are expected to be immutable and cheap to construct; the work
 /// happens in [build].
-abstract class Shape {
+/// **`base`, so this can grow.** A game writes its own shape by extending
+/// this; it may not `implements` it. An implementer would stop compiling the
+/// day a member is added here, which would make every addition to the shape
+/// contract a breaking change for a published engine.
+abstract base class Shape {
   const Shape();
 
   /// Name for diagnostics and UI labels.
@@ -29,7 +33,7 @@ abstract class Shape {
 /// is a cylinder with a zero top radius, a sphere is a revolved arc — and the
 /// relationship is worth expressing in the type rather than duplicating the
 /// generation code.
-abstract class DerivedShape extends Shape {
+abstract base class DerivedShape extends Shape {
   const DerivedShape();
 
   /// The shape this one reduces to.

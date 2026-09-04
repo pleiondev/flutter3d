@@ -36,7 +36,10 @@ abstract interface class PadStickTarget {
 /// deflection, and a game's own use brings its own [route] — which is why the
 /// three below are instances rather than cases, and why there is no `switch`
 /// left to break.
-abstract class PadStickUse {
+/// `base`: extend it, do not implement it. A stick use that implemented this
+/// would stop compiling the day [route] gains an argument, and an open type
+/// whose additions break its users is not open for long.
+abstract base class PadStickUse {
   const PadStickUse();
 
   /// For logs and error messages. Not persisted: what a stick is for is a

@@ -18,7 +18,13 @@
 /// simulation that named a sound file would be a simulation that could not run
 /// on a server, and running there is the whole reason this package has no
 /// Flutter in it.
-abstract class GameEvent {
+/// **`base`, so this can grow.** A game may `extends` this and may not
+/// `implements` it. The difference is what happens the day a member is added
+/// here: an `extends` inherits it, an `implements` stops compiling. Adding to
+/// a type a published package invites you to subclass has to be free, and the
+/// price is one keyword on the subclass — `final class MyEvent extends
+/// GameEvent`.
+abstract base class GameEvent {
   const GameEvent();
 
   /// For logs, tests and a debug overlay. Not an identity: two events of the

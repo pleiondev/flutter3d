@@ -208,4 +208,45 @@ void main() {
     // Every vehicle test builds one of these: a road and nothing else.
     expect(read(document()).level, isNull);
   });
+
+  group('the format version', () {
+    // **The generator has stamped one since the format existed and nothing
+    // ever read it.** Every shipped track file carries `"version": 1`; this
+    // reader took the number, ignored it, and would have read a version two
+    // file as far as it could and then drawn whatever came out.
+
+    test('a newer document is refused by both numbers', () {
+      expect(
+        () => read(<String, Object?>{
+          ...document(),
+          'version': TrackDocument.formatVersion + 1,
+        }),
+        throwsA(
+          isA<LevelFormatException>().having(
+            (LevelFormatException e) => e.toString(),
+            'says which version it got and which it reads',
+            allOf(
+              contains('${TrackDocument.formatVersion + 1}'),
+              contains('${TrackDocument.formatVersion}'),
+            ),
+          ),
+        ),
+      );
+    });
+
+    test('this version reads', () {
+      final doc = read(<String, Object?>{
+        ...document(),
+        'version': TrackDocument.formatVersion,
+      });
+      expect(doc.track.length, greaterThan(300.0));
+    });
+
+    test('and a document with no version at all still reads', () {
+      // Which is what every track written before the gate existed looks like
+      // to this reader, and refusing them would be refusing our own files.
+      final plain = document()..remove('version');
+      expect(read(plain).track.length, greaterThan(300.0));
+    });
+  });
 }

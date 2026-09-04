@@ -9,7 +9,10 @@ import 'package:vector_math/vector_math.dart';
 /// that "which texture" is a value the demo can hold and the upload path is
 /// written once. [upload] is the only place that touches the GPU, which keeps
 /// [encode] testable on its own.
-abstract class ProceduralTexture {
+/// **`base`**: extend it, do not implement it. See [Shape] for the reasoning —
+/// it is the same one, and it is why a texture added to this contract later
+/// costs nobody a recompile.
+abstract base class ProceduralTexture {
   const ProceduralTexture();
 
   /// Edge length in pixels; procedural textures here are square.
@@ -42,7 +45,7 @@ abstract class ProceduralTexture {
 /// A 1x1 white instance stands in for a missing base-colour texture: a shader
 /// that declares a sampler must have something bound to it, so "no texture" has
 /// to be expressed as a neutral texture rather than an absent binding.
-class SolidColorTexture extends ProceduralTexture {
+final class SolidColorTexture extends ProceduralTexture {
   const SolidColorTexture(this.color, {this.size = 1});
 
   /// Non-linear (sRGB-encoded) RGBA in the 0..1 range, matching how texture
@@ -90,7 +93,7 @@ class SolidColorTexture extends ProceduralTexture {
 /// engine uses neither, so this is
 /// plain RGBA8 with a single level. Without mips, minification aliases: visible
 /// as shimmer on faces seen at a grazing angle.
-class CheckerboardTexture extends ProceduralTexture {
+final class CheckerboardTexture extends ProceduralTexture {
   const CheckerboardTexture({
     this.size = 64,
     this.cell = 8,

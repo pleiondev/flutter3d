@@ -37,7 +37,7 @@ const double _tau = math.pi * 2.0;
 /// but first-order wrong at the ends of a curved profile: at a sphere pole built
 /// from 16 rings the error is about 5.6 degrees. Pass [profileNormals] when the
 /// profile has a known analytic normal, as [SphereShape] and [CapsuleShape] do.
-class LatheShape extends Shape {
+final class LatheShape extends Shape {
   const LatheShape({
     required this.profile,
     this.segments = 32,

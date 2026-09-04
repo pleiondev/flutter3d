@@ -13,7 +13,7 @@ import 'vertex_layout.dart';
 /// Named "cuboid" rather than "box" because `flutter/material.dart` exports a
 /// `BoxShape` enum, and a clash there would force every app importing both to
 /// disambiguate.
-class CuboidShape extends Shape {
+final class CuboidShape extends Shape {
   CuboidShape({Vector3? size}) : size = size ?? Vector3.all(1.0);
 
   final Vector3 size;
@@ -114,7 +114,7 @@ class CuboidShape extends Shape {
 }
 
 /// Subdivided plane in the XZ plane, normal pointing at +Y.
-class PlaneShape extends Shape {
+final class PlaneShape extends Shape {
   const PlaneShape({
     this.width = 1.0,
     this.depth = 1.0,

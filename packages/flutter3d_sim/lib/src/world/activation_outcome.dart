@@ -15,7 +15,9 @@
 /// A subclass owes [message]: null when there is nothing to tell the player,
 /// and text when there is. That is the whole contract, and it is what every
 /// caller here actually uses.
-abstract class ActivationOutcome {
+/// `base`: extend it, do not implement it, so that an outcome gaining a member
+/// here is inherited by a game's own rather than breaking it.
+abstract base class ActivationOutcome {
   const ActivationOutcome();
 
   /// Something worth showing the player, or null when there is nothing to say.

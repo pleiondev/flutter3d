@@ -11,7 +11,7 @@ const double _tau = math.pi * 2.0;
 ///
 /// [rings] counts the segments from pole to pole, so the pole rows land exactly
 /// on the axis and [LatheShape] drops the degenerate triangles there.
-class SphereShape extends DerivedShape {
+final class SphereShape extends DerivedShape {
   const SphereShape({this.radius = 0.5, this.segments = 32, this.rings = 16});
 
   final double radius;
@@ -50,7 +50,7 @@ class SphereShape extends DerivedShape {
 ///
 /// Caps are part of the profile rather than separate meshes, so the rim stays a
 /// single watertight surface, and the repeated rim points give it a hard edge.
-class CylinderShape extends DerivedShape {
+final class CylinderShape extends DerivedShape {
   const CylinderShape({
     this.radiusTop = 0.5,
     this.radiusBottom = 0.5,
@@ -96,7 +96,7 @@ class CylinderShape extends DerivedShape {
 }
 
 /// Cone with the apex at +Y: a cylinder whose top radius is zero.
-class ConeShape extends DerivedShape {
+final class ConeShape extends DerivedShape {
   const ConeShape({
     this.radius = 0.5,
     this.height = 1.0,
@@ -123,7 +123,7 @@ class ConeShape extends DerivedShape {
 }
 
 /// Torus: a closed circular profile revolved around Y.
-class TorusShape extends DerivedShape {
+final class TorusShape extends DerivedShape {
   const TorusShape({
     this.radius = 0.35,
     this.tubeRadius = 0.15,
@@ -173,7 +173,7 @@ class TorusShape extends DerivedShape {
 ///
 /// The profile has no repeated points, so the hemisphere-to-wall junction stays
 /// smooth.
-class CapsuleShape extends DerivedShape {
+final class CapsuleShape extends DerivedShape {
   const CapsuleShape({
     this.radius = 0.3,
     this.height = 0.5,
@@ -230,7 +230,7 @@ class CapsuleShape extends DerivedShape {
 /// The profile runs outer-to-inner: profile direction sets both the normal and
 /// the winding, so reversing it is all that is needed to face the surface the
 /// other way.
-class DiscShape extends DerivedShape {
+final class DiscShape extends DerivedShape {
   const DiscShape({
     this.radius = 0.5,
     this.innerRadius = 0.0,
