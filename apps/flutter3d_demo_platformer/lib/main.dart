@@ -37,6 +37,7 @@ import 'src/screen_cubit.dart';
 import 'src/sounds.dart';
 import 'src/soundtrack.dart';
 import 'src/title_card.dart';
+import 'src/touch_runner.dart';
 
 void main() {
   // Landscape and no system bars on a handset — see `configureForTouch`,
@@ -1114,13 +1115,16 @@ class _GameScreenState extends State<GameScreen>
               if (Playing.touch &&
                   _screen.state.started &&
                   !_settings.state.isOpen)
-                TouchControls(
+                // **`TouchRunner` rather than `TouchControls` written out
+                // here.** The list of buttons was inline in this method, where
+                // nothing could pump it — and it was one verb short: sprint is
+                // bound to shift and to a shoulder button and to nothing a
+                // finger could reach. Its own file says why that one is a
+                // switch rather than a fourth circle.
+                TouchRunner(
                   state: _input,
-                  buttons: const <TouchAction>[
-                    TouchAction(PlatformerActions.dropThrough, 'drop'),
-                    TouchAction(PlatformerActions.dash, 'dash'),
-                    TouchAction(GameAction.jump, 'jump'),
-                  ],
+                  onSprint: () =>
+                      setState(() => _input.toggle(GameAction.sprint)),
                 ),
               // The way back in on a device that has neither R nor a pad.
               // Above the stick, because a finished run has nothing left to

@@ -33,6 +33,7 @@ import 'src/backend.dart';
 import 'src/circuits.dart';
 import 'src/controls.dart';
 import 'src/credits.dart';
+import 'src/ending.dart';
 import 'src/ghost_car.dart';
 import 'src/hud.dart';
 import 'src/looks.dart';
@@ -41,6 +42,7 @@ import 'src/race_readout.dart';
 import 'src/reactions.dart';
 import 'src/sounds.dart';
 import 'src/staging.dart';
+import 'src/title_card.dart';
 import 'src/touch_drive.dart';
 
 void main() {
@@ -196,12 +198,14 @@ class _RaceScreenState extends State<RaceScreen>
   /// so that it can be asserted without a window. A caption rather than a
   /// sound for the respawn because there is no asset for one — nothing
   /// `tool/make_sounds.py` writes would do.
+  /// **The end of the season is no longer one of them.** It used to be the
+  /// second half of this switch — `seasonCompleteNotice` written across a race
+  /// that kept running underneath — and it is a whole screen now, `SeasonEnding`,
+  /// which is where the same sentence is read from. A caption behind it would
+  /// be the game saying it twice.
   String? get _notice => raceNotice(
     betweenCircuits: switch (_raceCubit.state) {
-      RaceOver(:final next) =>
-        next == null
-            ? seasonCompleteNotice(touch: Playing.touch)
-            : '${next.title} next',
+      RaceOver(next: final Circuit next) => '${next.title} next',
       _ => null,
     },
     justRespawned: _respawnFor > 0.0,
@@ -218,6 +222,27 @@ class _RaceScreenState extends State<RaceScreen>
     RaceOver(:final next) => next == null,
     _ => false,
   };
+
+  /// Whether the player has asked to drive yet, which takes the title card
+  /// down.
+  ///
+  /// Once a session and never again: a card that comes back every time the
+  /// keyboard is let go is a card in the middle of a race. See [TitleCard] for
+  /// why the race waits behind it rather than running under it.
+  bool _started = false;
+
+  /// Takes the title card down, the first time the player asks to drive.
+  void _begin() {
+    if (_started) return;
+    // **The audio opens here rather than at launch**, which is the browser's
+    // rule rather than a preference: a page may not make a sound until the
+    // player has done something, and this game spent that permission in
+    // `_open` before the player had given it — so the first engine note of the
+    // first race was the one that got refused. This is the first key, touch or
+    // pad button in every build, which is the gesture the browser waits for.
+    unawaited(_openAudio());
+    setState(() => _started = true);
+  }
 
   /// How long the respawn caption stays up.
   ///
@@ -451,8 +476,6 @@ class _RaceScreenState extends State<RaceScreen>
 
     _renderer?.addContributor(ParticleContributor(_particles));
 
-    unawaited(_openAudio());
-
     // The ticker before the circuit, not after. Drawing has to start at once —
     // see [_scene] — and there is nothing to step until the circuit is read, so
     // the loop simply returns early until it is.
@@ -676,7 +699,16 @@ class _RaceScreenState extends State<RaceScreen>
     // Deciding what comes next and saying so are both `_raceCubit.finish()`'s
     // job now — see `RaceProgress.finish` for the season-complete clause this
     // used to hold directly.
-    final next = _raceCubit.finish();
+    //
+    // The two numbers go in here because here is the last moment they exist:
+    // `_moveOn` rebuilds the race, and with it every lap and every lap time
+    // this circuit had. The race's own lap count rather than the player's
+    // counter, which stops at the flag.
+    final race = _race;
+    final next = _raceCubit.finish(
+      laps: race?.laps ?? 0,
+      bestLap: race?.progress[0].bestLap,
+    );
     if (next != null) unawaited(_moveOn(next));
   }
 
@@ -789,7 +821,13 @@ class _RaceScreenState extends State<RaceScreen>
 
     _loop.paused = shouldPause(
       ready: _simulation != null,
-      menuOpen: _settings.state.isOpen,
+      // The title card counts as a menu, and for the same reason `shouldPause`
+      // gives that clause: it is a screen over the game and the clearest
+      // statement of attention there is. Without it the lights go out and the
+      // rivals leave the grid behind a card the player has not put down — see
+      // [TitleCard], where that is the first of the three reasons this game
+      // waits rather than running underneath.
+      menuOpen: _settings.state.isOpen || !_started,
       // This game never captures the pointer — it is driven from the keyboard —
       // so the pointer is not the gate here and saying otherwise would freeze
       // it on every desktop build.
@@ -866,20 +904,31 @@ class _RaceScreenState extends State<RaceScreen>
     if (race.progress[0].finishedThisStep) _finishedHere();
   }
 
-  /// A pad button offered to a waiting rebinding.
+  /// What the pad means to a screen rather than to the car.
   ///
-  /// So a controller can be remapped from the controller, which is the whole
-  /// point for a player who has one of the two devices. There is nothing else
-  /// on screen here for a pad button to mean — no title card to take down and
-  /// no run to start over — so what `PadPresses` hands back is dropped.
-  void _padRebinding() => _presses.offer(
-    _pad,
-    _settings,
-    menuButton: PadButton.start,
-    // The same clause Escape and the gear run — the keys the car was holding
-    // are let go, or it comes back accelerating into a wall.
-    opening: _input.clear,
-  );
+  /// A rebinding waiting for a button gets it first — `PadPresses` holds that
+  /// order, and the edge that stops a controller resting against something from
+  /// binding itself to whatever the panel was waiting for.
+  ///
+  /// **There is something for a button to mean now.** This used to drop what
+  /// `PadPresses` handed back with a comment saying there was no title card to
+  /// take down; there is one, and a player holding a controller should not have
+  /// to reach for a keyboard to start the season. Any button begins, which is
+  /// also how a browser reveals the pad to the page in the first place: it stays
+  /// invisible until one is pressed.
+  void _padRebinding() {
+    if (!_presses.offer(
+      _pad,
+      _settings,
+      menuButton: PadButton.start,
+      // The same clause Escape and the gear run — the keys the car was holding
+      // are let go, or it comes back accelerating into a wall.
+      opening: _input.clear,
+    )) {
+      return;
+    }
+    if (!_started) _begin();
+  }
 
   /// The pad's presses, told apart from its holds.
   final PadPresses _presses = PadPresses();
@@ -1107,6 +1156,14 @@ class _RaceScreenState extends State<RaceScreen>
             opening: _input.clear,
           );
           if (settingsSay != null) return settingsSay;
+          // Any key takes the title card down, and none of them also drives:
+          // the card is the one screen where a hand reaching for the throttle
+          // means "start", and letting W through to the car as well would put
+          // the player on the grid already accelerating.
+          if (!_started && event is KeyDownEvent) {
+            _begin();
+            return KeyEventResult.handled;
+          }
           // R, once the season is over and not before. The other two games
           // put a restart on this key and this one had none at all, so a
           // driver who had won five circuits was left with a caption over a
@@ -1161,15 +1218,29 @@ class _RaceScreenState extends State<RaceScreen>
             Positioned.fill(
               child: Listener(
                 behavior: HitTestBehavior.opaque,
-                onPointerDown: (_) => _keyboard.requestFocus(),
+                onPointerDown: (_) {
+                  _keyboard.requestFocus();
+                  // A touch build has no key to press, and a click is the
+                  // gesture a browser is waiting for before it will make a
+                  // sound — so this layer is the other half of [_begin].
+                  _begin();
+                },
               ),
             ),
-            if (_race != null) RaceHud(readout: _readout(), issue: _issue),
+            // Not behind the title card: the lap counter and the speedometer
+            // showed through it, counting a race the player has not started.
+            if (_race != null && _started)
+              RaceHud(readout: _readout(), issue: _issue),
             // A phone has no keyboard and this game had nothing else to offer
             // it: the wheel and the pedals, above the frame and below the
             // panel. Hidden while the settings are open, or a thumb reaching
-            // for a slider holds the throttle down behind it.
-            if (Playing.touch && _race != null && !_settings.state.isOpen)
+            // for a slider holds the throttle down behind it — and hidden
+            // behind the title card, where a thumb on the throttle would be
+            // holding it down through the lights.
+            if (Playing.touch &&
+                _race != null &&
+                _started &&
+                !_settings.state.isOpen)
               TouchDrive(
                 state: _input,
                 steerLeft: Drive.left,
@@ -1177,16 +1248,43 @@ class _RaceScreenState extends State<RaceScreen>
                 throttle: Drive.throttle,
                 brake: Drive.brake,
                 handbrake: Drive.handbrake,
+                // The HUD tells a driver to stop first and then change; on a
+                // phone there was nothing bound to the second half of that
+                // sentence. See [TouchDrive.pitStop].
+                pitStop: Drive.tyres,
               ),
-            // Over the wheel and the pedals, and only once the season is
-            // done: R is what a keyboard presses here and a handset has none.
-            // Over them rather than beside them because a finished season has
-            // nothing left to steer, and the pedals are where a thumb already
-            // is.
+            // **This was a caption over a race that never stopped.** The last
+            // circuit keeps running after the flag — nothing calls `moveOn`
+            // past the fifth — so the whole of the game's ending was one line
+            // written across a car still driving. Over the wheel and the
+            // pedals, because a finished season has nothing left to steer;
+            // below the settings overlay, so the gear still opens.
+            if (_seasonIsOver)
+              SeasonEnding(
+                circuits: _raceCubit.season.circuits,
+                laps: _raceCubit.season.laps,
+                bestLap: _raceCubit.season.bestLap,
+                touch: Playing.touch,
+              ),
+            // Over the ending in turn, and only once the season is done: R is
+            // what a keyboard presses here and a handset has none.
             if (Playing.touch && _seasonIsOver && !_settings.state.isOpen)
               TapToRestart(
                 onRestart: () => unawaited(_startOver()),
                 label: 'Tap to race the season again',
+              ),
+            if (!_started)
+              TitleCard(
+                prompt: Playing.touch
+                    ? 'Touch to start the season.'
+                    : 'Press any key to start the season, or a button on the '
+                          'pad.',
+                touch: Playing.touch,
+                // The card's own, because the start layer above cannot see a
+                // touch that lands on it — see [TitleCard.onBegin]. Without
+                // this a handset read "touch to start the season" and had
+                // nothing that would.
+                onBegin: _begin,
               ),
             SettingsOverlay(
               settings: _settings,
@@ -1207,8 +1305,13 @@ class _RaceScreenState extends State<RaceScreen>
               opening: _input.clear,
               // **The licence asks for this and the game did not do it.** The
               // car is CC BY 4.0, whose text says attribution must appear
-              // wherever the work does.
+              // wherever the work does. Kept here as well as on the title
+              // card, which is where it now primarily lives: a gear most
+              // players never open was the wrong and only home for it.
               credits: const CreditsSection(credits: Credits.models),
+              // Not over the title card, which carries the same credits and is
+              // the one screen a stray gear has nothing to add to.
+              canOpen: _started,
             ),
           ],
         ),

@@ -67,6 +67,45 @@ final class RaceFailed extends RaceStatus {
   final String? asset;
 }
 
+/// What a season came to: circuits won, laps driven, and the best of them.
+///
+/// **The screen at the end of the season had none of this to show**, because
+/// nothing added it up: every number this game keeps belongs to one race —
+/// `RacerProgress` is rebuilt with each circuit — and the season was five
+/// unrelated races with a caption after the last.
+///
+/// Mutable fields rather than a value rebuilt per circuit. It is state; there
+/// are five writes in a season, and the alternative is a copy constructor and
+/// an emit for each.
+final class SeasonTally {
+  int circuits = 0;
+  int laps = 0;
+
+  /// The quickest lap of the season, or null before one is driven.
+  ///
+  /// **Not `GhostKeeper.record`**, which is what has ever been driven on a
+  /// circuit across every evening. A screen reporting that at the end of a slow
+  /// season would congratulate a driver on a lap they did not drive.
+  double? bestLap;
+
+  /// A circuit finished. [bestLap] is that race's own best, or null if the
+  /// player never completed a clean lap of it.
+  void won({required int laps, double? bestLap}) {
+    circuits++;
+    this.laps += laps;
+    final best = this.bestLap;
+    if (bestLap != null && (best == null || bestLap < best)) {
+      this.bestLap = bestLap;
+    }
+  }
+
+  void reset() {
+    circuits = 0;
+    laps = 0;
+    bestLap = null;
+  }
+}
+
 /// How far into the season the player has got, and what to say about it.
 ///
 /// **What `RunSession` would have been, with the middle taken out.** The
@@ -98,6 +137,9 @@ final class RaceProgress {
   Circuit get current => _current;
   Circuit _current = Season.first;
 
+  /// What this season has come to, for the screen at the end of it.
+  final SeasonTally season = SeasonTally();
+
   /// The circuit in [current] has been read and is ready to draw.
   void ready() => _emit(Racing(_current));
 
@@ -118,6 +160,9 @@ final class RaceProgress {
   /// Loading is still the screen's: this only says where the season is.
   void startOver() {
     _current = Season.first;
+    // A season raced again is a season, not a longer one. Without this the
+    // ending screen after the second run of it would report ten circuits.
+    season.reset();
     _emit(const RaceLoading());
   }
 
@@ -127,7 +172,11 @@ final class RaceProgress {
   ///
   /// Returns the same circuit as [RaceOver.next], which is what the screen
   /// needs in order to know whether to schedule that pause at all.
-  Circuit? finish() {
+  /// [laps] and [bestLap] are the race that has just been won, added into
+  /// [season] — the only moment either is knowable, since the next circuit
+  /// rebuilds every number this game keeps about a race.
+  Circuit? finish({int laps = 0, double? bestLap}) {
+    season.won(laps: laps, bestLap: bestLap);
     final next = Season.after(_current);
     _emit(RaceOver(_current, next: next));
     return next;
@@ -159,10 +208,14 @@ final class RaceCubit extends Cubit<RaceStatus> {
 
   Circuit get circuit => progress.current;
 
+  /// What the season has come to. See [SeasonTally].
+  SeasonTally get season => progress.season;
+
   void ready() => progress.ready();
   void failed(Object error, {String? asset}) =>
       progress.failed(error, asset: asset);
-  Circuit? finish() => progress.finish();
+  Circuit? finish({int laps = 0, double? bestLap}) =>
+      progress.finish(laps: laps, bestLap: bestLap);
   void moveOn(Circuit next) => progress.moveOn(next);
   void startOver() => progress.startOver();
 

@@ -100,6 +100,37 @@ final class GameSimulation {
   /// choose. Aiming is the player's skill; being aimed at is not.
   final HitZones zones;
 
+  /// What everything the player fires is worth while `berserk` is running.
+  ///
+  /// **The power-up was in the shipped registry, placed in no level, and
+  /// `Inventory.isBerserk` was read by nothing** — thirty seconds of a HUD line
+  /// counting down beside a game that behaved exactly as it had. This is the
+  /// effect it never had.
+  ///
+  /// Two, and the number is a statement about the roster rather than a round
+  /// figure. What a power-up is worth is measured in *swings*, because that is
+  /// what a player feels: at two the fists — 20 — take a runner (45) in two
+  /// blows instead of three and a shooter (60) in two instead of three, the
+  /// pistol (14) takes a runner in two rather than four, and a shell (8 pellets
+  /// at 11, so 88 close up) takes a tank (320) in two rather than four. Every
+  /// one of those crosses a whole number, which is the point: a multiplier that
+  /// does not change how many times you pull the trigger changes nothing a
+  /// player can notice. Two and a half would take the tank in two shells as
+  /// well and the fists to one blow on a runner, which is a crypt with no fight
+  /// left in it; one and a half rounds back down to three swings for the fists
+  /// and two for the pistol, and would be a HUD line for a power-up that still
+  /// did nothing.
+  ///
+  /// Applied to what the player *delivers*, not to what a weapon says it does,
+  /// so it reaches the melee, the rays and a rocket's splash alike. A power-up
+  /// honoured by one weapon and not the other is the bug report
+  /// [Inventory.damage]'s own doc was written against.
+  static const double berserkDamage = 2.0;
+
+  /// What the player's damage is multiplied by this step.
+  double get _playerDamageScale =>
+      player.inventory.isBerserk ? berserkDamage : 1.0;
+
   final Player player;
   final CollisionWorld collision;
 
@@ -391,11 +422,26 @@ final class GameSimulation {
         if (blast.normal.length2 > 0.5) {
           breaches?.blast(blast.position, blast.normal);
         }
+        // A rocket the player fired counts as theirs however long it was in
+        // the air: the multiplier is read when the blast lands rather than
+        // when the trigger was pulled, because a power-up that expires while
+        // the rocket flies has expired.
+        //
+        // **Never onto the player themselves.** A blast reaches whoever fired
+        // it, so a rocket jump taken while berserk would cost twice as much —
+        // a power-up that makes the player more fragile, which is nobody's idea
+        // of one. `berserk` says what the player is worth to the crypt, not
+        // what the crypt is worth to them.
+        final scale = identical(firedBy, player) ? _playerDamageScale : 1.0;
         for (final entry in blast.damage.entries) {
           final target = entry.key.userData;
           if (target is! Damageable) continue;
-          target.applyDamage(entry.value, from: firedBy);
-          if (identical(target, player)) damageTakenThisStep += entry.value;
+          if (identical(target, player)) {
+            target.applyDamage(entry.value, from: firedBy);
+            damageTakenThisStep += entry.value;
+            continue;
+          }
+          target.applyDamage(entry.value * scale, from: firedBy);
         }
       }
     }
@@ -493,9 +539,15 @@ final class GameSimulation {
 
     // Pellets landing in the same monster are summed before they are applied,
     // or eight of them are eight deaths.
+    // Berserk multiplies the zone scale rather than the total, so a headshot
+    // taken twice over is still a headshot: the two are the same kind of thing
+    // — what this shot is worth — and folding them together is what keeps
+    // pellets summed once rather than rounded twice.
+    final scale = _playerDamageScale;
     for (final entry in Hitscan.damageByTarget(
       hits,
-      scale: (ShotHit hit) => zones.forHitOn(hit.collider?.userData, hit.point),
+      scale: (ShotHit hit) =>
+          zones.forHitOn(hit.collider?.userData, hit.point) * scale,
     ).entries) {
       final target = entry.key.userData;
       // The player did this one, which is what stops a monster shot by them

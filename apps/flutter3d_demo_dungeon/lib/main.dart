@@ -21,6 +21,7 @@ import 'package:vector_math/vector_math.dart' hide Colors;
 
 import 'src/backend.dart';
 import 'src/credits.dart';
+import 'src/ending.dart';
 import 'src/frame_effects.dart';
 import 'src/hud.dart';
 import 'src/layers.dart';
@@ -30,6 +31,7 @@ import 'src/shooter_keys.dart';
 import 'src/sounds.dart';
 import 'src/soundtrack.dart';
 import 'src/staging.dart';
+import 'src/touch_crypt.dart';
 import 'src/weapon_models.dart';
 
 /// The game: five levels of a crypt, the things in them, and a run that
@@ -209,7 +211,6 @@ class _GameScreenState extends State<GameScreen>
 
   Arsenal get _arsenal => _inventory.arsenal;
   Health get _playerHealth => _inventory.health;
-  int _kills = 0;
 
   /// What one step's decisions turn into: particles, sounds, the flashes and
   /// the message the HUD reads. See `FrameEffects` for why this is not part
@@ -223,6 +224,18 @@ class _GameScreenState extends State<GameScreen>
 
   /// Whether the run has ended, either way. Read by the two restarts.
   bool get _runIsOver => _run.isOver;
+
+  /// Whether the crawl is finished — out of the last level, alive.
+  ///
+  /// Not [_runIsOver], which is also true of dying and of finishing any level
+  /// that has one after it. Winning a level with somewhere to go next is not
+  /// the end of anything: the game is already loading the next crypt, and the
+  /// credits over that beat would roll four levels early.
+  bool get _crawlIsOut {
+    final sim = _sim;
+    if (sim == null) return false;
+    return sim.state == GameState.complete && sim.nextLevel == null;
+  }
 
   /// The pad's presses, told apart from its holds.
   final PadPresses _presses = PadPresses();
@@ -676,6 +689,12 @@ class _GameScreenState extends State<GameScreen>
   /// a smoothed camera position, an accumulator full of loading time, and a
   /// looping sound.
   void _levelArrived(LevelReady level) {
+    // One more level of the crypt stood in, for the screen at the end of it.
+    // Here rather than in `DungeonRun` because this fires once per level
+    // actually put in front of the player: a load overtaken by a newer one
+    // never reaches this listener, and `RunSession.carryFrom` — the other
+    // candidate — is not called for the last level at all.
+    _run.run.crawl.levels++;
     _soundOcclusion = SoundOcclusion(level.loaded.collision);
     // The player is built by the staging, which knows the compiled-in default
     // and nothing about what this player has chosen. Applied here rather than
@@ -964,9 +983,15 @@ class _GameScreenState extends State<GameScreen>
     );
 
     // The two that are not reactions to an event. A recoil is the weapon view's
-    // own animation, and the kill count is a number the HUD shows.
+    // own animation, and the crawl is what the HUD shows and what the screen at
+    // the end of the game is made of.
+    //
+    // **The kill count used to be a field of this widget that nothing reset.**
+    // It counted every monster killed since the application was launched, which
+    // is right for as long as nobody restarts and wrong from the first R. The
+    // run owns it now, along with the clock, and `startFresh` empties both.
     if (sim.firedThisStep != null) _weaponView.recoil();
-    _kills += sim.actors?.died.length ?? 0;
+    _run.run.crawl.step(dt, killed: sim.actors?.died.length ?? 0);
 
     final body = player.body;
     _weaponView.step(
@@ -1271,15 +1296,20 @@ class _GameScreenState extends State<GameScreen>
                     },
                   ),
                 ),
-              // Above the drag layer, so a thumb on the stick is not also a turn
-              // of the view.
+              // Above the drag layer, so a thumb on a control is not also a
+              // turn of the view.
+              //
+              // **`TouchCrypt` rather than `TouchControls`.** The shared
+              // widget offered this game two buttons, which was three quarters
+              // of its arsenal and the whole of its automap out of reach on a
+              // phone; the file it moved to says why six controls of four
+              // different kinds needed a layout of their own.
               if (Playing.touch)
-                TouchControls(
+                TouchCrypt(
                   state: _input,
-                  buttons: const <TouchAction>[
-                    TouchAction(GameAction.use, 'use'),
-                    TouchAction(ShooterActions.fire, 'fire'),
-                  ],
+                  arsenal: _arsenal,
+                  mapOn: _mapOn,
+                  onMap: () => setState(() => _mapOn = !_mapOn),
                 ),
               // Above the stick in turn, and only once the run is over: R and
               // a pad's Start were the whole of the way back in, and a phone
@@ -1321,7 +1351,7 @@ class _GameScreenState extends State<GameScreen>
                 hitFlash: _effects.hitFlash,
                 painFlash: _effects.painFlash,
                 health: _playerHealth,
-                kills: _kills,
+                kills: _run.run.crawl.kills,
                 monstersLeft: _actors?.aliveCount ?? 0,
                 message: _effects.message,
                 messageOpacity: (_effects.messageFor / 0.6).clamp(0.0, 1.0),
@@ -1343,6 +1373,30 @@ class _GameScreenState extends State<GameScreen>
                       position: body.position,
                       yaw: _player!.yaw,
                     ),
+                  ),
+                ),
+              // The end of the *game*, not of a level: the sanctum is the one
+              // with nowhere to go next, which the document says and this
+              // widget must not guess at.
+              //
+              // **This was three seconds of `You are out.` over a corridor.**
+              // Five levels of crypt, and the reward was a caption that faded
+              // and left the crosshair up on a level with nothing left in it.
+              //
+              // Last in the stack, because this game draws its HUD and its map
+              // after its settings panel, and a sheet placed anywhere earlier
+              // would have the crosshair, the ammunition count and possibly a
+              // map over it. `IgnorePointer` for the same reason the
+              // platformer's `Ending` is inside one: the tap layer that starts
+              // the crawl again is underneath, and a scroll view covering the
+              // screen would swallow the tap.
+              if (_crawlIsOut)
+                IgnorePointer(
+                  child: CryptEnding(
+                    kills: _run.run.crawl.kills,
+                    seconds: _run.run.crawl.seconds,
+                    levels: _run.run.crawl.levels,
+                    touch: Playing.touch,
                   ),
                 ),
             ],
