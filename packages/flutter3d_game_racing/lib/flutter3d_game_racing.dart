@@ -21,6 +21,7 @@ export 'src/ai/ai_tuning.dart';
 export 'src/chase_camera.dart';
 export 'src/events.dart';
 export 'src/ghost.dart';
+export 'src/hud.dart';
 export 'src/layers.dart';
 export 'src/race_phase.dart';
 export 'src/race_state.dart';

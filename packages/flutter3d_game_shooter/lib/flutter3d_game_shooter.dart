@@ -29,6 +29,7 @@ export 'src/combat/weapon_def.dart';
 export 'src/entity_kinds.dart';
 export 'src/events.dart';
 export 'src/gift.dart';
+export 'src/hud.dart';
 export 'src/inventory.dart';
 export 'src/monsters.dart';
 export 'src/pickup.dart';

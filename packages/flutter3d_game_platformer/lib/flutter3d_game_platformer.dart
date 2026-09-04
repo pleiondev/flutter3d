@@ -26,6 +26,7 @@ export 'src/entity_kinds.dart';
 export 'src/events.dart';
 export 'src/follow_camera.dart';
 export 'src/hazard.dart';
+export 'src/hud.dart';
 export 'src/platformer_entities.dart';
 export 'src/purse.dart';
 export 'src/runner.dart';
