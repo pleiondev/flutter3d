@@ -230,6 +230,12 @@ final class FakeBackend implements GraphicsDevice {
   bool get supportsOffscreenMsaa => true;
 
   @override
+  // Recorded, not evaluated: this device blends nothing, so the honest answer
+  // is the one that lets a caller under test set the constant and be recorded
+  // doing it.
+  bool get supportsBlendColor => true;
+
+  @override
   TextureHandle createTexture(RenderTargetSpec spec) {
     createdTextures.add(spec);
     return TextureHandle(

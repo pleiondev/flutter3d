@@ -98,6 +98,12 @@
   `doesSupportFramebufferRenderMipmap` — true on Metal and Vulkan, false on
   the OpenGL ES path. The bundle gains `ProbePrefilter`; `probe-car` joins
   the golden set.
+* **A blend state naming the blend constant is refused rather than drawn.**
+  flutter_gpu's `RenderPass` has no blend-constant setter, so this backend
+  answers false to `supportsBlendColor`; `setBlendColor` throws, and so does
+  `setBlend` handed a state that reads the constant. It used to hand those
+  four factors on and let Impeller multiply by its own transparent black,
+  which lost the term with no error anywhere.
 
 ## 0.4.4
 

@@ -114,6 +114,10 @@
   re-recorded and its cross-backend budget re-measured in the same pass that
   records `probe-car`. `ProbePrefilter` is generated with the rest;
   `probe-car` joins the golden set, recorded at merge.
+* **`setBlendColor` is `glBlendColor`**, and a pass now starts with the
+  constant back at transparent black — context state that would otherwise
+  carry into the next pass, the same reason the stencil's setters are reset.
+  `supportsBlendColor` answers true.
 
 ## 0.4.2
 

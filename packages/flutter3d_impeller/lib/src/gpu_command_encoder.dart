@@ -11,6 +11,7 @@ import 'dart:typed_data';
 import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:flutter_gpu/gpu.dart' as gpu;
+import 'package:vector_math/vector_math.dart' show Vector4;
 
 import 'gpu_device.dart';
 import 'gpu_formats.dart';
@@ -123,8 +124,27 @@ final class GpuCommandEncoder implements CommandEncoder {
   void setStencilReference(int value) =>
       _pass.setStencilReference(StencilState.narrowReference(value));
 
+  /// **A state naming the blend constant is refused here rather than drawn.**
+  ///
+  /// flutter_gpu's `RenderPass` has no blend-constant setter — there is no
+  /// native behind `SetBlendColor` to bind — so this backend answers false to
+  /// `GraphicsDevice.supportsBlendColor`, and the promise that false carries is
+  /// this throw. Handing the four factors on to `ColorBlendEquation` is what
+  /// this used to do, and Impeller multiplies them by its own untouched
+  /// default, transparent black: the term evaluates to zero and the frame is a
+  /// plausible picture with a term missing from it, on the one backend a phone
+  /// actually runs.
   @override
   void setBlend(BlendState? state, {int attachment = 0}) {
+    if (state != null && state.usesBlendColor) {
+      throw UnsupportedError(
+        'this blend state names a BlendFactor that reads a blend constant, and '
+        'flutter_gpu has no way to set one — see '
+        'GraphicsDevice.supportsBlendColor, which this backend answers false. '
+        'Drawing it anyway would multiply by transparent black and lose the '
+        'term with no error.',
+      );
+    }
     _pass.setColorBlendEnable(state != null, colorAttachmentIndex: attachment);
     if (state == null) return;
     _pass.setColorBlendEquation(
@@ -139,6 +159,21 @@ final class GpuCommandEncoder implements CommandEncoder {
       colorAttachmentIndex: attachment,
     );
   }
+
+  /// Refused, because there is nothing to call.
+  ///
+  /// Every other setter here is one `RenderPass` method away; this one has no
+  /// method, and no native symbol behind one — `InternalFlutterGpu_RenderPass_*`
+  /// has no `SetBlendColor` at SDK 3.47. A silent no-op would leave the
+  /// constant at Impeller's own transparent black and the caller believing it
+  /// had been set, which is the whole reason
+  /// `GraphicsDevice.supportsBlendColor` exists to be asked first.
+  @override
+  Never setBlendColor(Vector4 color) => throw UnsupportedError(
+    'flutter_gpu has no blend-constant setter, so this backend answers false '
+    'to GraphicsDevice.supportsBlendColor. Ask it before naming '
+    'BlendFactor.blendColor and the three beside it.',
+  );
 
   @override
   void bindPipeline(PipelineHandle pipeline) {

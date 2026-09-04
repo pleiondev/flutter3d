@@ -64,6 +64,19 @@
   whole cube, the base level, or face zero ends with the wrong colour in the
   wrong place. The capability check reads `supportsRenderToMip`; the link
   checks pair `FullscreenVertex` with `ProbePrefilter`.
+* **Three checks, and a way for a backend to decline one.** *A blend constant
+  reaches the blend, or is refused* draws through `BlendFactor.blendColor`
+  against a known constant and demands the two refusals from a backend that
+  has none. *A multisample resolve resolves* is the first check to carry
+  `RenderTargetSpec.sampleCount`, `ColorTarget.resolveTexture` and
+  `StoreAction.multisampleResolve` at all. *An object id survives the draw and
+  the readback* binds `IdInfo` with a known id, draws through the standard
+  five-attribute layout — which nothing else here does — and decodes
+  `r + g·256 + b·65536`.
+* **`ConformanceDeclined` and `decline`.** A check the backend cannot be asked
+  used to `return`, which every harness reported as a pass. It is now a skip
+  that names the backend and what it answered, in the test runner and in the
+  application harness's log and tally alike.
 
 ## 0.4.1
 

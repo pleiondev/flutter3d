@@ -193,6 +193,13 @@ final class GpuRenderBackend implements GraphicsDevice {
   bool get supportsOffscreenMsaa => gpu.gpuContext.doesSupportOffscreenMSAA;
 
   @override
+  // Not a property of the hardware — Metal and Vulkan both have the constant —
+  // but of what flutter_gpu exposes, which is no setter for it. See
+  // `GpuCommandEncoder.setBlendColor`, and the refusal in `setBlend` that this
+  // answer promises.
+  bool get supportsBlendColor => false;
+
+  @override
   // Impeller exposes glPolygonMode's equivalent, so the request goes through.
   bool get supportsWireframe => true;
 

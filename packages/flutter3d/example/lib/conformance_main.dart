@@ -37,6 +37,7 @@ class _ConformanceAppState extends State<ConformanceApp> {
   Future<void> _run() async {
     final log = StringBuffer();
     var failed = 0;
+    var declined = 0;
     // The engine's own compiled bundle, as the section a packed bundle would
     // carry: the same `impellerc` output the device loaded by asset path,
     // read as bytes and stamped with the SDK this process runs on.
@@ -53,6 +54,15 @@ class _ConformanceAppState extends State<ConformanceApp> {
       try {
         await check.run(await GpuRenderBackend.create());
         log.writeln('PASS  ${check.name}');
+      } on ConformanceDeclined catch (reason) {
+        // **Never PASS.** A check the backend was not in a position to answer
+        // used to `return`, and this loop wrote a green line for it — so a
+        // reader of this log was told the backend satisfies something it never
+        // ran. The reason says which backend declined and what it answered,
+        // because whoever reads this on a phone is not whoever wrote the check.
+        declined++;
+        log.writeln('SKIP  ${check.name}');
+        log.writeln('        $reason');
       } catch (error) {
         failed++;
         log.writeln('FAIL  ${check.name}');
@@ -60,8 +70,9 @@ class _ConformanceAppState extends State<ConformanceApp> {
       }
     }
     log.writeln(
-      '=== ${checks.length - failed} passed, '
-      '$failed failed ===',
+      '=== ${checks.length - failed - declined} passed, '
+      '$failed failed, '
+      '$declined declined ===',
     );
     // ignore: avoid_print
     print(log);
@@ -81,6 +92,11 @@ class _ConformanceAppState extends State<ConformanceApp> {
     // GPU needs Impeller, a headless `flutter test` does not enable it, so the
     // harness is an application and the exit code is how it reports. Held back
     // by `--dart-define=stay=true` when a person does want to read the list.
+    //
+    // **A decline does not move the code**, because the backend answered
+    // honestly that it cannot be asked this — it is not a failure and it is not
+    // a pass. It is in the log above, named and explained, which is where
+    // somebody deciding what a green run actually covered has to look.
     if (const bool.fromEnvironment('stay')) return;
     // A frame first, so the report is on screen if anybody is watching, and so
     // the process does not exit from inside a post-frame callback.
