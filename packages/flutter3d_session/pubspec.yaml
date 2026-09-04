@@ -33,7 +33,7 @@ dependencies:
   # The wall clock `FrameClock.tick` reads. Not a `Stopwatch`: this one is
   # what `flutter_test` fakes, so a widget test's `pump` advances the frame
   # clock the way a real frame does.
-  clock: ^1.1.1
+  clock: ^1.1.3
 
 
 dev_dependencies:
