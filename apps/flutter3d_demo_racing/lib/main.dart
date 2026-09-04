@@ -505,6 +505,11 @@ class _RaceScreenState extends State<RaceScreen>
   }
 
   Future<void> _loadCircuit(GraphicsDevice device) async {
+    // Which of the circuit's two documents is being read, for the catch below
+    // to name. A variable rather than a constant because there are two of
+    // them: naming the spline while the scenery is what would not parse sends
+    // the reader to a file that is fine.
+    var reading = _circuit.track;
     try {
       // Started here and awaited below, so the model decodes while the circuit
       // is being read: the wait is the longer of the two rather than the sum.
@@ -519,6 +524,7 @@ class _RaceScreenState extends State<RaceScreen>
       final document = TrackDocument.fromJson(
         jsonDecode(text) as Map<String, Object?>,
       );
+      reading = _circuit.level;
       final loaded = await const LevelLoader().load(
         _circuit.level,
         device: device,
@@ -654,7 +660,9 @@ class _RaceScreenState extends State<RaceScreen>
       // one of two files written by one script, and the screen this reaches
       // used to print the thrown object alone. "FormatException: Unexpected
       // character" over black names neither the circuit nor the half of it.
-      if (mounted) _raceCubit.failed(error, asset: _circuit.track);
+      // [reading] is the half, because naming the other one is worse than
+      // naming none: it sends the reader to a file that parses.
+      if (mounted) _raceCubit.failed(error, asset: reading);
     }
   }
 
