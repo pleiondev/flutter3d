@@ -177,6 +177,19 @@ final class PlatformerSimulation {
   /// say the same things and are kept for now, because programs read them.
   final GameEvents events = GameEvents();
 
+  /// What is running on the runner, and for how much longer.
+  ///
+  /// **The genre had none**, while the shooter has had them since it was
+  /// written: a shield, a magnet, a pair of wings are the same bookkeeping the
+  /// crypt does for berserk, and a platformer without any is a platformer
+  /// whose collectibles are all worth the same thing. Counted down here so a
+  /// level can hand one out and nothing else has to remember.
+  ///
+  /// What a power *does* is the game's: this counts, and a game asks
+  /// [Powers.has] where it matters. See `doc/boundary-0.5.0.md` on why the
+  /// names are not an enum.
+  final Powers powers = Powers();
+
   /// Damage a second from standing against an enemy.
   ///
   /// A rate rather than a lump, exactly as a hazard's is, and for the same
@@ -187,6 +200,9 @@ final class PlatformerSimulation {
     // The dead and the hurt, forgotten here with everything else this step
     // reports — see [ActorSystem.beginStep] for why it is not `step`'s job.
     actors?.beginStep();
+    for (final String ended in powers.step(dt)) {
+      events.add(PowerEnded(ended));
+    }
 
     if (state == RunState.finished || state == RunState.lost) return;
 

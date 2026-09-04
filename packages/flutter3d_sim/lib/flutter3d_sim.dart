@@ -98,6 +98,7 @@ export 'src/world/key_ring.dart';
 export 'src/world/light_fixture.dart';
 export 'src/world/mechanism.dart';
 export 'src/world/mover.dart';
+export 'src/world/powers.dart';
 export 'src/world/rider.dart';
 export 'src/world/signals.dart';
 export 'src/world/takeable.dart';

@@ -17,6 +17,8 @@ final class FollowTuning extends RigTuning {
     super.nearClearance = 0.35,
     super.minDistance = 1.2,
     this.impulseDecay = 9.0,
+    this.lookAhead = 0.34,
+    this.lookAheadLimit = 4.0,
     this.recentre = 1.6,
     this.recentreAbove = 3.0,
   });
@@ -50,6 +52,29 @@ final class FollowTuning extends RigTuning {
 
   /// How fast a kick, a widening and a shake fade, per second.
   final double impulseDecay;
+
+  /// How far ahead of the runner the camera aims, in seconds of travel.
+  ///
+  /// **The camera watched where the runner was.** It followed a point on the
+  /// body, so a player sprinting right saw the same amount of level ahead of
+  /// them as behind — and a platformer is about what is coming. Aiming a
+  /// fraction of a second up the road puts the landing on screen before the
+  /// jump has to be committed to.
+  ///
+  /// In seconds rather than metres, so it widens by itself as the runner
+  /// speeds up: a walk needs almost none of this and a sprint needs all of it,
+  /// and a fixed distance is wrong at one end or the other.
+  ///
+  /// A third of a second is about two metres at a sprint. Zero is the old
+  /// behaviour exactly.
+  final double lookAhead;
+
+  /// How far ahead it may ever aim, in metres.
+  ///
+  /// The limit that stops a spring or a long fall — where the runner is moving
+  /// far faster than it ever runs — from throwing the camera off the level
+  /// entirely.
+  final double lookAheadLimit;
 }
 
 /// A third-person camera: behind the runner, above it, out of the walls.
@@ -146,6 +171,7 @@ final class FollowCamera {
     _wantedTarget
       ..setFrom(runner)
       ..y += tuning.aimHeight;
+    _aimAhead(travelling);
 
     final cosPitch = math.cos(_pitch);
     _wantedEye.setValues(
@@ -160,6 +186,26 @@ final class FollowCamera {
       lag: tuning.lag,
       dt: dt,
     );
+  }
+
+  /// Slides the point the camera watches up the road the runner is on.
+  ///
+  /// **Horizontal only.** Leading a jump vertically points the camera at the
+  /// sky on the way up and at the floor on the way down, twice a second, which
+  /// is the version of this that every game tries first and removes.
+  void _aimAhead(Vector3? travelling) {
+    if (travelling == null || tuning.lookAhead <= 0.0) return;
+    var x = travelling.x * tuning.lookAhead;
+    var z = travelling.z * tuning.lookAhead;
+    final reach = math.sqrt(x * x + z * z);
+    if (reach > tuning.lookAheadLimit) {
+      final scale = tuning.lookAheadLimit / reach;
+      x *= scale;
+      z *= scale;
+    }
+    _wantedTarget
+      ..x += x
+      ..z += z;
   }
 
   /// Puts the camera behind the runner at once, without a chase.

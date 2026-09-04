@@ -221,3 +221,19 @@ final class BlockBroke extends FurnitureEvent {
   @override
   String get name => 'block broke';
 }
+
+/// A power-up ran out.
+///
+/// **The moment a player notices, and the one a countdown cannot report**: a
+/// number on a HUD reads nought on the frame it ends and on every frame after,
+/// so a game watching the number cannot tell the two apart without keeping a
+/// copy — which is the shape `diedThisStep` was written to remove.
+final class PowerEnded extends GameEvent {
+  const PowerEnded(this.power);
+
+  /// What ran out, by the name the level gave it.
+  final String power;
+
+  @override
+  String get name => 'power ended ($power)';
+}

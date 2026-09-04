@@ -1,4 +1,3 @@
-import 'dart:collection';
 import 'dart:math' as math;
 
 import 'package:flutter3d_game/flutter3d_game.dart';
@@ -41,14 +40,20 @@ final class Inventory with KeyHolder {
   @override
   Set<String> get keys => keyRing.keys;
 
+  /// What is running on the player, and for how much longer.
+  ///
+  /// **The bookkeeping moved to `flutter3d_sim`** once the platformer needed
+  /// the same thing: a power-up is a name and a countdown, and none of that is
+  /// about weapons. This class keeps the questions it always answered — they
+  /// are what the rest of the game calls — and [Powers] does the counting.
+  final Powers running = Powers();
+
   /// Seconds left on each power-up that is running, by name.
-  Map<String, double> get powers =>
-      UnmodifiableMapView<String, double>(_powers);
-  final Map<String, double> _powers = <String, double>{};
+  Map<String, double> get powers => running.remaining;
 
-  bool has(String power) => (_powers[power] ?? 0.0) > 0.0;
+  bool has(String power) => running.has(power);
 
-  double remainingOf(String power) => _powers[power] ?? 0.0;
+  double remainingOf(String power) => running.remainingOf(power);
 
   bool get isInvulnerable => has('invulnerability');
 
@@ -69,10 +74,7 @@ final class Inventory with KeyHolder {
   bool get hasSensor => has('sensor');
 
   /// Starts or refreshes a power-up. Never stacks — see [PowerUpGift].
-  void empower(String power, double seconds) {
-    if (seconds <= 0.0) return;
-    _powers[power] = math.max(_powers[power] ?? 0.0, seconds);
-  }
+  void empower(String power, double seconds) => running.empower(power, seconds);
 
   /// Adds armour up to [maxArmour], and says how much stuck.
   double addArmour(double amount) {
@@ -98,7 +100,7 @@ final class Inventory with KeyHolder {
     'health': health.save(),
     'arsenal': arsenal.save(),
     'keys': keyRing.save(),
-    'powers': Map<String, double>.of(_powers),
+    'powers': running.save(),
   };
 
   void restore(Map<String, Object?> from) {
@@ -107,31 +109,11 @@ final class Inventory with KeyHolder {
     final arsenal = from['arsenal'];
     if (arsenal is Map) this.arsenal.restore(arsenal.cast<String, Object?>());
     keyRing.restore(from['keys']);
-    _powers.clear();
-    final powers = from['powers'];
-    if (powers is Map) {
-      for (final entry in powers.entries) {
-        final key = entry.key;
-        final seconds = entry.value;
-        if (key is String && seconds is num) _powers[key] = seconds.toDouble();
-      }
-    }
+    running.restore(from['powers']);
     expired.clear();
   }
 
-  void step(double dt) {
-    if (_powers.isEmpty) return;
-    // Over a copy of the keys: expiring one removes it.
-    for (final power in _powers.keys.toList(growable: false)) {
-      final left = _powers[power]! - dt;
-      if (left <= 0.0) {
-        _powers.remove(power);
-        expired.add(power);
-      } else {
-        _powers[power] = left;
-      }
-    }
-  }
+  void step(double dt) => expired.addAll(running.step(dt));
 
   /// Power-ups that ran out this step, for anything that wants to say so.
   /// Cleared by the owner once read.

@@ -532,4 +532,52 @@ void main() {
       );
     });
   });
+
+  group('looking up the road', () {
+    // **The camera watched where the runner was.** It followed a point on the
+    // body, so a player sprinting right saw as much level behind them as
+    // ahead — and a platformer is about what is coming.
+
+    Vector3 aimAfter({required double ahead, required Vector3 travelling}) {
+      final camera = FollowCamera(
+        world: _empty(),
+        tuning: FollowTuning(lookAhead: ahead, recentre: 0.0),
+      );
+      for (var i = 0; i < 240; i++) {
+        camera.follow(Vector3.zero(), _frame, travelling: travelling);
+      }
+      return camera.rig.target.clone();
+    }
+
+    test('aims ahead of a runner who is moving', () {
+      final still = aimAfter(ahead: 0.34, travelling: Vector3.zero());
+      final running = aimAfter(ahead: 0.34, travelling: Vector3(8.0, 0.0, 0.0));
+
+      expect(running.x, greaterThan(still.x + 1.0));
+    });
+
+    test('and a look-ahead of nothing is the old behaviour exactly', () {
+      final still = aimAfter(ahead: 0.0, travelling: Vector3.zero());
+      final running = aimAfter(ahead: 0.0, travelling: Vector3(8.0, 0.0, 0.0));
+
+      expect(running.x, closeTo(still.x, 1e-6));
+    });
+
+    test('and a fall does not throw the aim off the level', () {
+      // A spring or a long drop moves the runner far faster than it runs, and
+      // the limit is what stops the camera going with it.
+      final far = aimAfter(ahead: 0.34, travelling: Vector3(400.0, 0.0, 0.0));
+
+      expect(far.x, lessThanOrEqualTo(4.0 + 1e-6));
+    });
+
+    test('and it never leads a jump vertically', () {
+      // Pointing at the sky on the way up and the floor on the way down, twice
+      // a second, is the version of this every game tries first and removes.
+      final level = aimAfter(ahead: 0.34, travelling: Vector3.zero());
+      final rising = aimAfter(ahead: 0.34, travelling: Vector3(0.0, 9.0, 0.0));
+
+      expect(rising.y, closeTo(level.y, 1e-6));
+    });
+  });
 }
