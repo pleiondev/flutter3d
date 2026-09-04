@@ -4,6 +4,7 @@ import 'package:vector_math/vector_math.dart';
 import 'blocks.dart';
 import 'checkpoint.dart';
 import 'collectible.dart';
+import 'events.dart';
 import 'runner.dart';
 
 /// Where the run is.
@@ -162,6 +163,12 @@ final class PlatformerSimulation {
   /// Given at construction for the same reason [deaths] is: a run spans levels.
   double elapsed;
 
+  /// What this step did, for a game that wants to hear about it.
+  ///
+  /// Drain it after [step]; see `events.dart`. The `…ThisStep` members below
+  /// say the same things and are kept for now, because programs read them.
+  final GameEvents events = GameEvents();
+
   /// Collectibles taken on this step, for a sound and a counter.
   final List<Collectible> takenThisStep = <Collectible>[];
 
@@ -261,6 +268,7 @@ final class PlatformerSimulation {
   void _revive() {
     deaths += 1;
     diedThisStep = true;
+    events.add(const RunnerDied());
     if (lives > 0) {
       lives -= 1;
       if (lives == 0) {
@@ -341,6 +349,7 @@ final class PlatformerSimulation {
       if (onTop) {
         system.hurt(actor, double.infinity);
         stompedThisStep = true;
+        events.add(EnemyStomped(actor));
         runner.bounce();
       } else {
         runner.applyDamage(actorDamage * dt);
@@ -354,7 +363,10 @@ final class PlatformerSimulation {
     Checkpoint? best;
     for (final mechanism in all) {
       if (mechanism is! Checkpoint || !mechanism.isReached) continue;
-      if (mechanism.justReached) reachedCheckpointThisStep = true;
+      if (mechanism.justReached) {
+        reachedCheckpointThisStep = true;
+        events.add(CheckpointReached(mechanism));
+      }
       if (best == null || mechanism.order > best.order) best = mechanism;
     }
     if (best != null) _respawn.setFrom(best.at);
@@ -364,13 +376,19 @@ final class PlatformerSimulation {
     final events = mechanisms?.events;
     if (events == null) return;
     for (final taken in events.taken) {
-      if (taken is Collectible) takenThisStep.add(taken);
+      if (taken is Collectible) {
+        takenThisStep.add(taken);
+        this.events.add(CollectibleTaken(taken));
+      }
     }
     // Whatever the level said. Published here rather than in its own reader
     // because it comes off the same event object, gathered by the same
     // `publish()` two lines up — and reading it before that call is how it
     // stayed empty the first time this was written.
     saidThisStep.addAll(events.messages);
+    for (final message in events.messages) {
+      this.events.add(LevelSaid(message));
+    }
   }
 
   void _readExits() {

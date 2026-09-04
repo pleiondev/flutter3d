@@ -23,6 +23,7 @@ export 'src/collectible.dart';
 export 'src/crate.dart';
 export 'src/enemy.dart';
 export 'src/entity_kinds.dart';
+export 'src/events.dart';
 export 'src/follow_camera.dart';
 export 'src/hazard.dart';
 export 'src/platformer_entities.dart';
