@@ -753,6 +753,9 @@ class _GameScreenState extends State<GameScreen>
   }
 
   /// One simulation step. Nothing here draws.
+  /// What the last simulated step reported. See where it is drained.
+  List<GameEvent> _lastStep = const <GameEvent>[];
+
   void _step(double dt) {
     final sim = _sim;
     final runner = _runner;
@@ -765,7 +768,10 @@ class _GameScreenState extends State<GameScreen>
     // Drained once, here, and handed to everything that wants it. Draining
     // empties the buffer, so two readers each draining would each get half of
     // what happened — and which half would depend on the order they ran in.
-    final events = sim.events.drain();
+    // Kept as well as passed on: the pose is built in the draw path, which
+    // runs between steps, and what it used to read were flags that stayed set
+    // until the next step cleared them. This is the same window.
+    final events = _lastStep = sim.events.drain();
     _react(sim, runner, events);
 
     if (events.any((GameEvent event) => event is RunnerDied)) {
@@ -869,7 +875,7 @@ class _GameScreenState extends State<GameScreen>
     // from what the runner did this step and applied here, because this is the
     // one place that draws.
     final runner = _runner;
-    if (runner != null) _pose.advance(runner, dt);
+    if (runner != null) _pose.advance(runner, dt, _lastStep);
     final scale = _pose.scale;
 
     // Placed by its feet rather than by a fixed drop from the body's centre.

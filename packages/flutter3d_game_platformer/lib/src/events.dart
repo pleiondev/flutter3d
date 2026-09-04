@@ -19,6 +19,8 @@ library;
 
 import 'package:flutter3d_game/flutter3d_game.dart';
 
+import 'package:vector_math/vector_math.dart';
+
 import 'checkpoint.dart';
 import 'collectible.dart';
 
@@ -86,4 +88,136 @@ final class RunnerDied extends GameEvent {
 
   @override
   String get name => 'runner died';
+}
+
+/// Something the runner's own body did.
+///
+/// The base of the ten below, so a game reacting to "the runner moved
+/// suddenly" filters on one type. They come from [Runner] rather than from the
+/// simulation, and they arrive in the same buffer in the order the step
+/// produced them — a landing and the block it broke are two events one after
+/// the other rather than a flag on a body and a flag on a brush.
+abstract base class RunnerEvent extends GameEvent {
+  const RunnerEvent();
+}
+
+/// Left the ground under its own power.
+final class Jumped extends RunnerEvent {
+  const Jumped();
+
+  @override
+  String get name => 'jumped';
+}
+
+/// Pushed off a wall it was against.
+final class WallJumped extends RunnerEvent {
+  const WallJumped();
+
+  @override
+  String get name => 'wall jumped';
+}
+
+/// Came out of a slide, low and far, with no steering.
+final class LongJumped extends RunnerEvent {
+  const LongJumped();
+
+  @override
+  String get name => 'long jumped';
+}
+
+/// Pulled itself over a ledge.
+final class Mantled extends RunnerEvent {
+  const Mantled();
+
+  @override
+  String get name => 'mantled';
+}
+
+/// Committed to a dash.
+final class Dashed extends RunnerEvent {
+  const Dashed();
+
+  @override
+  String get name => 'dashed';
+}
+
+/// Went into a slide.
+final class Slid extends RunnerEvent {
+  const Slid();
+
+  @override
+  String get name => 'slid';
+}
+
+/// Caught a rope or a ladder, and stopped falling.
+final class Grabbed extends RunnerEvent {
+  const Grabbed();
+
+  @override
+  String get name => 'grabbed';
+}
+
+/// Touched the ground.
+///
+/// Carries whether it arrived on the way down from a ground pound, which is
+/// two flags in the shape it replaces and one question a caller asks here.
+final class Landed extends RunnerEvent {
+  const Landed({required this.pounded});
+
+  /// Whether the landing was the end of a ground pound.
+  final bool pounded;
+
+  @override
+  String get name => pounded ? 'landed (pounded)' : 'landed';
+}
+
+/// Was thrown upwards by something it landed on.
+///
+/// Not [EnemyStomped], which says the enemy died: this says the runner was
+/// thrown, and a spring throws without anything dying.
+final class Bounced extends RunnerEvent {
+  const Bounced();
+
+  @override
+  String get name => 'bounced';
+}
+
+/// A piece of the level's own furniture did something.
+///
+/// **Reported by the simulation on its pass over the mechanisms, not by the
+/// mechanism itself**, and that is worth knowing rather than hiding: a spring
+/// firing is placed in the buffer where the simulation reads it, which is
+/// after the runner's own events for the step rather than at the instant the
+/// pad went off. The flags this replaces were read by a game walking every
+/// mechanism in the level once a frame and asking each one three questions;
+/// what has actually gone is that walk.
+abstract base class FurnitureEvent extends GameEvent {
+  const FurnitureEvent(this.at);
+
+  /// Where it happened, in world space.
+  final Vector3 at;
+}
+
+/// A pad threw something.
+final class SpringFired extends FurnitureEvent {
+  const SpringFired(super.at);
+
+  @override
+  String get name => 'spring fired';
+}
+
+/// A platform gave way under the weight on it.
+final class BlockCrumbled extends FurnitureEvent {
+  const BlockCrumbled(super.at);
+
+  @override
+  String get name => 'block crumbled';
+}
+
+/// A block was broken.
+final class BlockBroke extends FurnitureEvent {
+  const BlockBroke(super.at);
+
+  @override
+  String get name => 'block broke';
 }

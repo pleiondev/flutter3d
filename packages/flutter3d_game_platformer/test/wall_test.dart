@@ -13,12 +13,17 @@ import 'package:vector_math/vector_math.dart';
 const double _dt = 1.0 / 60.0;
 
 final class _Stage {
+  /// What the last step reported, drained the way a game drains it.
+  final GameEvents _events = GameEvents();
+  List<GameEvent> lastStep = const <GameEvent>[];
+
   _Stage() {
     world.addBox(Vector3(0.0, -0.5, 0.0), Vector3(40.0, 1.0, 40.0));
     mechanisms = MechanismWorld(world);
     runner = Runner(
       body: CharacterController(world: world, position: Vector3(0.0, 0.9, 0.0)),
     );
+    runner.events = _events;
   }
 
   final CollisionWorld world = CollisionWorld();
@@ -76,6 +81,7 @@ final class _Stage {
     mechanisms.step(_dt);
     world.reindex();
     runner.step(_dt, input);
+    lastStep = _events.drain();
     world.update();
     world.clearKinematicDeltas();
     input.endStep();
@@ -166,7 +172,7 @@ void main() {
       final from = stage.runner.position.clone();
       stage.step(holding: _intoWallAndJump);
 
-      expect(stage.runner.wallJumpedThisStep, isTrue);
+      expect(stage.lastStep.has<WallJumped>(), isTrue);
       expect(stage.runner.body.velocity.y, greaterThan(8.0));
       expect(
         stage.runner.body.velocity.x,
@@ -198,7 +204,7 @@ void main() {
       stage.run(2);
       stage.step(holding: _jump);
 
-      expect(stage.runner.wallJumpedThisStep, isTrue);
+      expect(stage.lastStep.has<WallJumped>(), isTrue);
     });
   });
 
@@ -213,7 +219,7 @@ void main() {
       stage.run(20, holding: _forward);
 
       expect(
-        stage.runner.mantledThisStep || stage.runner.position.y > 2.0,
+        stage.lastStep.has<Mantled>() || stage.runner.position.y > 2.0,
         isTrue,
       );
       expect(
@@ -236,7 +242,7 @@ void main() {
         ..velocity.setValues(0.0, -1.0, 0.0);
       stage.run(20, holding: _forward);
 
-      expect(stage.runner.mantledThisStep, isFalse);
+      expect(stage.lastStep.has<Mantled>(), isFalse);
       expect(stage.runner.position.y, lessThan(2.0));
     });
 
@@ -246,7 +252,7 @@ void main() {
       final stage = _Stage()..ledgeAt(1.0, top: 0.25);
       stage.run(30, holding: _forward);
 
-      expect(stage.runner.mantledThisStep, isFalse);
+      expect(stage.lastStep.has<Mantled>(), isFalse);
       expect(stage.runner.isGrounded, isTrue);
     });
   });

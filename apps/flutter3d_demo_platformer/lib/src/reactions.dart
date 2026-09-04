@@ -91,28 +91,28 @@ final class Reactions {
     final jolts = <Felt>[];
     final at = runner.position;
 
-    if (runner.dashedThisStep) {
+    if (events.has<Dashed>()) {
       bursts.add(Shown(Effects.dash, at));
       jolts.add(const Felt.widen(0.1));
     }
-    if (runner.wallJumpedThisStep) bursts.add(Shown(Effects.dust, at));
+    if (events.has<WallJumped>()) bursts.add(Shown(Effects.dust, at));
 
     // **Three flags the runner has always set and nobody has ever read**, which
     // is the same shape of gap as the silent coin: the simulation was right and
     // the game said nothing. Each one is a moment a player commits to something
     // and deserves to be told it landed.
-    if (runner.longJumpedThisStep) {
+    if (events.has<LongJumped>()) {
       // A long jump is a commitment — low, far, and no steering. It gets a wide
       // skirt of dust, because it is the slide it came out of, launched.
       bursts.add(Shown(Effects.dust, at));
       jolts.add(const Felt.widen(0.08));
     }
-    if (runner.grabbedThisStep) {
+    if (events.has<Grabbed>()) {
       // Catching a rope or a ladder: the camera settles rather than kicking,
       // because the runner has just stopped falling.
       bursts.add(Shown(Effects.dust, at));
     }
-    if (runner.bouncedThisStep) {
+    if (events.has<Bounced>()) {
       // The hop off something stomped. `EnemyStomped` says an enemy died;
       // this says the runner was thrown by it, and they are not the same
       // event.
@@ -140,20 +140,21 @@ final class Reactions {
     // Everything the level's own machinery did this step. A spring that throws
     // somebody and a shelf that gives way are both events nobody was watching
     // for until there was something to show for them.
-    for (final Mechanism mechanism
-        in sim.mechanisms?.all ?? const <Mechanism>[]) {
-      if (mechanism is Spring && mechanism.firedThisStep) {
-        bursts.add(Shown(Effects.spring, mechanism.origin, direction: _up));
-      }
-      if (mechanism is Crumbling && mechanism.crumbledThisStep) {
-        bursts.add(Shown(Effects.crumble, mechanism.origin));
-      }
-      if (mechanism is Breakable && mechanism.brokeThisStep) {
-        bursts.add(Shown(Effects.slam, mechanism.origin));
+    // **What was here was a walk over every mechanism in the level, once a
+    // frame, asking each of them three questions.** The simulation makes that
+    // pass anyway; these arrive in the buffer with everything else.
+    for (final GameEvent event in events) {
+      switch (event) {
+        case SpringFired():
+          bursts.add(Shown(Effects.spring, event.at, direction: _up));
+        case BlockCrumbled():
+          bursts.add(Shown(Effects.crumble, event.at));
+        case BlockBroke():
+          bursts.add(Shown(Effects.slam, event.at));
       }
     }
 
-    if (runner.landedThisStep) {
+    if (events.has<Landed>()) {
       _land(
         runner.landingSpeed,
         at,

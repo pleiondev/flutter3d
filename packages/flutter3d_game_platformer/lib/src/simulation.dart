@@ -6,6 +6,7 @@ import 'checkpoint.dart';
 import 'collectible.dart';
 import 'events.dart';
 import 'runner.dart';
+import 'spring.dart';
 
 /// Where the run is.
 enum RunState {
@@ -59,6 +60,11 @@ final class PlatformerSimulation {
     required this.random,
     this.killPlane = -20.0,
   }) : _respawn = startAt.clone() {
+    // Handed down rather than collected up, which is what makes the order
+    // real: the runner's landing and the block that gave way under it go into
+    // one buffer, in the order the step produced them.
+    runner.events = events;
+    actors?.events = events;
     // One generator, or the number in the save is a decoy. The dice this
     // simulation writes down were its own while the dice that actually decide
     // what the enemies do were the actor system's, so a restored run replayed
@@ -348,6 +354,16 @@ final class PlatformerSimulation {
     final all = mechanisms?.all;
     if (all == null) return;
     for (final mechanism in all) {
+      // The level's furniture, reported here because this is the pass that
+      // already walks it. See [FurnitureEvent] for what that costs.
+      switch (mechanism) {
+        case Spring() when mechanism.firedThisStep:
+          events.add(SpringFired(mechanism.origin));
+        case Crumbling() when mechanism.crumbledThisStep:
+          events.add(BlockCrumbled(mechanism.origin));
+        case Breakable() when mechanism.brokeThisStep:
+          events.add(BlockBroke(mechanism.origin));
+      }
       if (mechanism is Exit && mechanism.isReached) {
         state = RunState.finished;
         nextLevel = mechanism.next ?? levelNext;

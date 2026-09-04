@@ -30,6 +30,10 @@ const double _dt = 1.0 / 60.0;
 
 /// A ledge to walk off, and nothing below it for a long way.
 final class _Ledge {
+  /// What the last step reported, drained the way a game drains it.
+  final GameEvents _events = GameEvents();
+  List<GameEvent> lastStep = const <GameEvent>[];
+
   _Ledge({RunnerTuning tuning = const RunnerTuning()}) {
     // Ends at z = 0. Walking forward is walking off.
     world.addBox(Vector3(0.0, -0.5, -4.0), Vector3(8.0, 1.0, 8.0));
@@ -40,6 +44,7 @@ final class _Ledge {
       ),
       tuning: tuning,
     );
+    runner.events = _events;
   }
 
   final CollisionWorld world = CollisionWorld();
@@ -61,6 +66,7 @@ final class _Ledge {
       ..addAll(holding);
     world.reindex();
     runner.step(_dt, input);
+    lastStep = _events.drain();
     world.update();
     input.endStep();
   }
@@ -83,6 +89,10 @@ final class _Ledge {
 
 /// A floor with the runner dropped above it.
 final class _Floor {
+  /// What the last step reported, drained the way a game drains it.
+  final GameEvents _events = GameEvents();
+  List<GameEvent> lastStep = const <GameEvent>[];
+
   _Floor({double from = 3.0, RunnerTuning tuning = const RunnerTuning()}) {
     world.addBox(Vector3(0.0, -0.5, 0.0), Vector3(40.0, 1.0, 40.0));
     runner = Runner(
@@ -92,6 +102,7 @@ final class _Floor {
       ),
       tuning: tuning,
     );
+    runner.events = _events;
   }
 
   final CollisionWorld world = CollisionWorld();
@@ -113,6 +124,7 @@ final class _Floor {
       ..addAll(holding);
     world.reindex();
     runner.step(_dt, input);
+    lastStep = _events.drain();
     world.update();
     input.endStep();
   }
@@ -154,10 +166,10 @@ void main() {
     //
     // So the claim is the velocity *and* the flag, and the two together admit
     // exactly one of the four.
-    void expectCoyoteJump(Runner runner) {
-      expect(runner.jumpedThisStep, isTrue, reason: 'nothing happened at all');
+    void expectCoyoteJump(Runner runner, List<GameEvent> lastStep) {
+      expect(lastStep.has<Jumped>(), isTrue, reason: 'nothing happened at all');
       expect(
-        runner.wallJumpedThisStep,
+        lastStep.has<WallJumped>(),
         isFalse,
         reason:
             'it jumped off the side of the ledge, not out of the coyote '
@@ -188,7 +200,7 @@ void main() {
       );
 
       stage.step(holding: <GameAction>{..._forward, ..._jump});
-      expectCoyoteJump(stage.runner);
+      expectCoyoteJump(stage.runner, stage.lastStep);
       expect(
         stage.runner.airJumpsLeft,
         const RunnerTuning().airJumps,
@@ -207,7 +219,7 @@ void main() {
       stage.step(holding: <GameAction>{..._forward, ..._jump});
 
       expect(
-        stage.runner.jumpedThisStep,
+        stage.lastStep.has<Jumped>(),
         isTrue,
         reason: 'the air jump should still have answered',
       );
@@ -232,7 +244,7 @@ void main() {
       final stage = _Ledge();
       stage.run(4, holding: _forward);
       stage.step(holding: <GameAction>{..._forward, ..._jump});
-      expect(stage.runner.jumpedThisStep, isTrue, reason: 'the first jump');
+      expect(stage.lastStep.has<Jumped>(), isTrue, reason: 'the first jump');
 
       stage.run(2, holding: _forward);
       stage.step(holding: <GameAction>{..._forward, ..._jump});
@@ -287,7 +299,7 @@ void main() {
 
       stage.step(holding: _jump);
 
-      expect(stage.runner.jumpedThisStep, isTrue, reason: 'nothing happened');
+      expect(stage.lastStep.has<Jumped>(), isTrue, reason: 'nothing happened');
       expect(
         stage.runner.body.velocity.y,
         closeTo(9.10, 0.05),
@@ -314,14 +326,14 @@ void main() {
       final stage = _Floor(from: 20.0, tuning: const RunnerTuning(airJumps: 0));
       stage.run(30);
       stage.step(holding: _jump);
-      expect(stage.runner.jumpedThisStep, isFalse, reason: 'it jumped in air');
+      expect(stage.lastStep.has<Jumped>(), isFalse, reason: 'it jumped in air');
 
       stage.runner.reviveAt(Vector3(3.0, 0.0, 3.0));
 
       var jumps = 0;
       for (var i = 0; i < 30; i++) {
         stage.step();
-        if (stage.runner.jumpedThisStep) jumps++;
+        if (stage.lastStep.has<Jumped>()) jumps++;
       }
 
       expect(
@@ -359,7 +371,7 @@ void main() {
 
       run.step(holding: _jump);
       expect(
-        run.runner.jumpedThisStep,
+        run.lastStep.has<Jumped>(),
         isFalse,
         reason: 'it jumped in mid-air with no air jump left',
       );
@@ -385,7 +397,7 @@ void main() {
       // not a buffered one, and would prove nothing about either.
       run.run(20);
       run.step(holding: _jump);
-      expect(run.runner.jumpedThisStep, isFalse);
+      expect(run.lastStep.has<Jumped>(), isFalse);
 
       // Counted, not sampled at the end. Checking "is it at rest afterwards"
       // cannot fail: a jump taken on landing is over long before 400 steps are
@@ -395,7 +407,7 @@ void main() {
       var jumps = 0;
       for (var i = 0; i < 400; i++) {
         run.step();
-        if (run.runner.jumpedThisStep) jumps++;
+        if (run.lastStep.has<Jumped>()) jumps++;
       }
 
       expect(run.runner.isGrounded, isTrue, reason: 'never landed');
@@ -420,10 +432,10 @@ void main() {
 
       var jumps = 0;
       run.step(holding: _jump);
-      if (run.runner.jumpedThisStep) jumps++;
+      if (run.lastStep.has<Jumped>()) jumps++;
       for (var i = 0; i < 20; i++) {
         run.step();
-        if (run.runner.jumpedThisStep) jumps++;
+        if (run.lastStep.has<Jumped>()) jumps++;
       }
 
       expect(
@@ -455,7 +467,7 @@ void main() {
       var jumps = 0;
       for (var i = 0; i < 400; i++) {
         run.step(holding: _jump);
-        if (run.runner.jumpedThisStep) jumps++;
+        if (run.lastStep.has<Jumped>()) jumps++;
       }
 
       expect(

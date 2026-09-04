@@ -52,16 +52,16 @@ final class Soundtrack {
     final out = <Heard>[];
     final at = runner.position;
 
-    if (runner.jumpedThisStep) {
+    if (events.has<Jumped>()) {
       out.add(
         Heard(runner.airJumpsLeft < 1 ? Sounds.airJump : Sounds.jump, at),
       );
     }
-    if (runner.dashedThisStep) out.add(Heard(Sounds.dash, at));
+    if (events.has<Dashed>()) out.add(Heard(Sounds.dash, at));
     // A long jump is the slide it came out of, launched: it gets the dash's
     // sound because it is the same commitment at a different angle.
-    if (runner.longJumpedThisStep) out.add(Heard(Sounds.dash, at));
-    if (runner.grabbedThisStep) out.add(Heard(Sounds.checkpoint, at));
+    if (events.has<LongJumped>()) out.add(Heard(Sounds.dash, at));
+    if (events.has<Grabbed>()) out.add(Heard(Sounds.checkpoint, at));
 
     // One sound per event, which is what the flags could not do: two coins
     // swept up in one step were one `takenThisStep` entry each and two enemies
@@ -84,21 +84,17 @@ final class Soundtrack {
     // two homes for "what does this step sound like" — and the second one was
     // in a widget, so the landing was the one sound in the game no test could
     // ask about. The camera's half stays where it is; only the decision moved.
-    if (runner.landedThisStep) out.add(Heard(Sounds.land, at));
+    if (events.has<Landed>()) out.add(Heard(Sounds.land, at));
 
     // **The level's own machinery, which had particles and no sound.** A pad
     // that throws you and a shelf that gives way under you are the two loudest
     // things that can happen in this game, and both were silent.
-    for (final Mechanism mechanism
-        in sim.mechanisms?.all ?? const <Mechanism>[]) {
-      if (mechanism is Spring && mechanism.firedThisStep) {
-        out.add(Heard(Sounds.spring, mechanism.origin));
-      }
-      if (mechanism is Crumbling && mechanism.crumbledThisStep) {
-        out.add(Heard(Sounds.crumble, mechanism.origin));
-      }
-      if (mechanism is Breakable && mechanism.brokeThisStep) {
-        out.add(Heard(Sounds.crumble, mechanism.origin));
+    for (final GameEvent event in events) {
+      switch (event) {
+        case SpringFired():
+          out.add(Heard(Sounds.spring, event.at));
+        case BlockCrumbled() || BlockBroke():
+          out.add(Heard(Sounds.crumble, (event as FurnitureEvent).at));
       }
     }
 

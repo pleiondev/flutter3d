@@ -103,6 +103,12 @@ abstract interface class VehicleController {
   /// of every step. Here rather than on the implementation because what reads
   /// it is a game deciding what a crash looks like, and a game should not have
   /// to know which class it has.
+  /// **A number, and that is why it is still here** while the flags around the
+  /// genre became events. An edge — jumped, landed, crossed the line — is a
+  /// moment, and a moment belongs in the step's buffer where two of them can be
+  /// told apart and put in order. This is how hard the car is being scraped or
+  /// struck *now*, which is state, and a game implementing this interface says
+  /// it by answering rather than by being handed a sink to write into.
   double get impactThisStep;
 
   /// The engine's speed, from nought to one, for whoever is making the noise.

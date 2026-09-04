@@ -103,3 +103,18 @@ final class GameEvents {
   /// the reset would fire a death sound over a fresh spawn.
   void clear() => _pending.clear();
 }
+
+/// The question every reader of a drained step asks first.
+///
+/// A frame wants "did the runner jump" and "how many coins were taken", and
+/// both are one line on the list [GameEvents.drain] hands back. Written as an
+/// extension rather than as methods on [GameEvents] because the list outlives
+/// the buffer: a caller drains once and asks several times, which is the only
+/// safe order when more than one thing is listening.
+extension StepEvents on List<GameEvent> {
+  /// Whether anything of type [T] happened.
+  bool has<T extends GameEvent>() => whereType<T>().isNotEmpty;
+
+  /// How many of type [T] happened. The count a flag could never give.
+  int count<T extends GameEvent>() => whereType<T>().length;
+}

@@ -5,6 +5,7 @@ import 'package:vector_math/vector_math.dart';
 
 import 'actions.dart';
 import 'blocks.dart';
+import 'events.dart';
 import 'purse.dart';
 import 'runner_tuning.dart';
 import 'spring.dart';
@@ -146,30 +147,28 @@ final class Runner
   /// Whether a ground pound is in the air on its way down.
   bool get isPounding => _pounding;
 
-  /// True on the step a ground pound hit the floor, for dust and a shake.
+  /// Where this body reports what it did, or null for a caller that does not
+  /// listen.
+  ///
+  /// Set by whoever owns the step — [PlatformerSimulation] hands down its own
+  /// buffer — so that a landing and the block it broke arrive one after the
+  /// other rather than as two flags on two objects with nothing saying which
+  /// came first.
+  GameEvents? events;
+
+  /// Whether this step's landing ended a ground pound.
+  ///
+  /// **Wiring, not a report.** [PlatformerSimulation] reads it later in the
+  /// same step to shatter the block underfoot, which is why it survived the
+  /// removal of the nine flags beside it. What the *game* gets is
+  /// [Landed.pounded], carried by the event and impossible to read a step
+  /// late.
   bool poundedThisStep = false;
-
-  /// True on the step a slide started.
-  bool slidThisStep = false;
-
-  /// True on the step a long jump left the ground.
-  bool longJumpedThisStep = false;
 
   /// What the runner is climbing, or null.
   Climbable? get climbing => _climbing;
   Climbable? _climbing;
   double _climbCooldown = 0.0;
-
-  /// True on the step the runner took hold of a ladder or a rope.
-  bool grabbedThisStep = false;
-
-  /// True on the step the runner touched down after being in the air.
-  ///
-  /// The simulation had no such moment: the application worked it out by
-  /// remembering whether the runner was grounded last frame, which cannot know
-  /// *how hard* — and how hard is what decides the dust, the squash and the
-  /// volume of the thud.
-  bool landedThisStep = false;
 
   /// How fast the runner was falling when it last landed, in metres a second.
   double landingSpeed = 0.0;
@@ -194,18 +193,6 @@ final class Runner
   bool _onWall = false;
   int _airJumpsLeft = 0;
   double _dashCooldown = 0.0;
-
-  /// True on the step a dash started, for a sound or a puff of dust.
-  bool dashedThisStep = false;
-
-  /// True on the step a jump left the ground, and again on an air jump.
-  bool jumpedThisStep = false;
-
-  /// True on the step a wall jump happened, for a sound and a puff of dust.
-  bool wallJumpedThisStep = false;
-
-  /// True on the step the runner pulled itself onto a ledge.
-  bool mantledThisStep = false;
 
   /// Whether the runner is against a wall in the air, sliding down it.
   bool get isOnWall => _onWall;
@@ -263,17 +250,7 @@ final class Runner
   /// the game layer's README on why — so the number arrives as an argument, and
   /// a headless test passes zero and gets world axes.
   void step(double dt, InputState input, {double cameraYaw = 0.0}) {
-    dashedThisStep = false;
-    jumpedThisStep = false;
-    wallJumpedThisStep = false;
-    mantledThisStep = false;
-    poundedThisStep = false;
-    slidThisStep = false;
-    longJumpedThisStep = false;
-    landedThisStep = false;
-    bouncedThisStep = false;
     _jumpHeld = input.held(GameAction.jump);
-    grabbedThisStep = false;
 
     _climbCooldown = math.max(0.0, _climbCooldown - dt);
     if (_readClimb(input)) {
@@ -400,7 +377,9 @@ final class Runner
       _climbing = null;
       return false;
     }
-    if (_climbing == null) grabbedThisStep = true;
+    if (_climbing == null) {
+      events?.add(const Grabbed());
+    }
     _climbing = found;
     return true;
   }
@@ -431,7 +410,7 @@ final class Runner
       // grabbed the ladder from.
       body.suppressFloorSnap();
       _airJumpsLeft = tuning.airJumps;
-      jumpedThisStep = true;
+      events?.add(const Jumped());
       _ownRise = true;
       return;
     }
@@ -493,7 +472,7 @@ final class Runner
         // shuffle never does.
         if (speed > body.tuning.walkSpeed * 0.8) {
           _sliding = tuning.slideTime;
-          slidThisStep = true;
+          events?.add(const Slid());
           _shoveInto(tuning.slideSpeed);
         }
       }
@@ -571,11 +550,8 @@ final class Runner
     body.suppressFloorSnap();
     _airJumpsLeft = tuning.airJumps;
     _coyote = 0.0;
-    bouncedThisStep = true;
+    events?.add(const Bounced());
   }
-
-  /// True on the step the runner bounced off something it landed on.
-  bool bouncedThisStep = false;
 
   /// Whether the jump button was down as of this step's input.
   bool _jumpHeld = false;
@@ -750,7 +726,7 @@ final class Runner
       ..teleport(_mantleAt)
       ..velocity.setZero();
     _land();
-    mantledThisStep = true;
+    events?.add(const Mantled());
   }
 
   void _tryJump() {
@@ -765,7 +741,7 @@ final class Runner
         _shoveInto(tuning.longJumpPush);
         body.velocity.y = tuning.longJumpUp;
         _sliding = 0.0;
-        longJumpedThisStep = true;
+        events?.add(const LongJumped());
       } else {
         body.velocity.y = tuning.jumpSpeed;
       }
@@ -796,9 +772,9 @@ final class Runner
       // climbable; one wall and a spare jump is the same move twice.
       _airJumpsLeft = tuning.airJumps;
       _buffer = 0.0;
-      jumpedThisStep = true;
+      events?.add(const Jumped());
       _ownRise = true;
-      wallJumpedThisStep = true;
+      events?.add(const WallJumped());
       return;
     } else if (_airJumpsLeft > 0) {
       // The second jump replaces downward speed rather than adding to it, or a
@@ -810,7 +786,7 @@ final class Runner
     }
 
     _buffer = 0.0;
-    jumpedThisStep = true;
+    events?.add(const Jumped());
     _ownRise = true;
   }
 
@@ -851,7 +827,7 @@ final class Runner
     // but the one the rest of this file reads.
     _pounding = false;
     _dashCooldown = tuning.dashCooldown;
-    dashedThisStep = true;
+    events?.add(const Dashed());
   }
 
   /// Brings speed above walking pace back down after a dash.
@@ -945,14 +921,15 @@ final class Runner
   /// was in mid-air.
   /// Notices the moment the feet touch down, and how hard.
   void _readLanding(double fallingAt) {
+    poundedThisStep = false;
     final grounded = body.isGrounded;
     if (grounded && !_wasGrounded) {
-      landedThisStep = true;
       landingSpeed = fallingAt;
-      if (_pounding) {
-        _pounding = false;
-        poundedThisStep = true;
-      }
+      poundedThisStep = _pounding;
+      _pounding = false;
+      // One event carrying both, rather than two flags a caller had to read
+      // together and in the right order.
+      events?.add(Landed(pounded: poundedThisStep));
     }
     _wasGrounded = grounded;
   }

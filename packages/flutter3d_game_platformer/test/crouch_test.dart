@@ -18,6 +18,9 @@ const double _dt = 1.0 / 60.0;
 const GameAction _crouch = PlatformerActions.dropThrough;
 
 final class _Run {
+  /// What the last step reported, drained the way a game drains it.
+  List<GameEvent> lastStep = const <GameEvent>[];
+
   _Run({
     List<EntityDef> extras = const <EntityDef>[],
     List<Brush> walls = const <Brush>[],
@@ -83,6 +86,7 @@ final class _Run {
       ..clear()
       ..addAll(holding);
     sim.step(_dt);
+    lastStep = sim.events.drain();
     input.endStep();
   }
 
@@ -189,10 +193,10 @@ void main() {
     test('it says so on the step it starts', () {
       final run = _Run()
         ..run(60, holding: <GameAction>{GameAction.moveForward});
-      expect(run.runner.slidThisStep, isFalse);
+      expect(run.lastStep.has<Slid>(), isFalse);
 
       run.step(holding: <GameAction>{GameAction.moveForward, _crouch});
-      expect(run.runner.slidThisStep, isTrue);
+      expect(run.lastStep.has<Slid>(), isTrue);
       expect(run.runner.isSliding, isTrue);
 
       run.run(60, holding: <GameAction>{_crouch});
@@ -375,7 +379,7 @@ void main() {
         run.runner.body.teleport(Vector3(0.0, height, 0.0));
         for (var i = 0; i < 300; i++) {
           run.step();
-          if (run.runner.landedThisStep) return run.runner.landingSpeed;
+          if (run.lastStep.has<Landed>()) return run.runner.landingSpeed;
         }
         return -1.0;
       }

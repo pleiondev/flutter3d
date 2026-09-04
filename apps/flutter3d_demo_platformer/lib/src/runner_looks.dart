@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 
+import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:flutter3d_game_platformer/flutter3d_game_platformer.dart';
 import 'package:vector_math/vector_math.dart';
 
@@ -71,14 +72,14 @@ final class RunnerLooks {
   double get spin => _flip * 2.0 * math.pi;
 
   /// Advances the pose by [dt] from what the runner did this step.
-  void advance(Runner runner, double dt) {
+  void advance(Runner runner, double dt, List<GameEvent> events) {
     // Events first, because they set the pose; the decay below is what takes it
     // away again.
-    if (runner.jumpedThisStep) {
+    if (events.has<Jumped>()) {
       _squash = -tuning.jumpStretch;
       if (!runner.isGrounded && runner.airJumpsLeft < 1) _flip = 1.0;
     }
-    if (runner.landedThisStep) {
+    if (events.has<Landed>()) {
       // Proportional to how hard, and clamped: a fall from the top of the level
       // should read as heavier than a hop, and neither should turn the runner
       // inside out.
@@ -88,8 +89,12 @@ final class RunnerLooks {
       );
       _squash = tuning.landSquash * hardness;
     }
-    if (runner.poundedThisStep) _squash = tuning.poundSquash;
-    if (runner.slidThisStep) _squash = tuning.slideSquash;
+    // The pounded landing is the same event, asked a different way: a landing
+    // that ended a pound squashes harder than one that did not.
+    if (events.whereType<Landed>().any((Landed e) => e.pounded)) {
+      _squash = tuning.poundSquash;
+    }
+    if (events.has<Slid>()) _squash = tuning.slideSquash;
 
     // Everything decays back to standing. Exponential rather than linear, and
     // frame-rate independent for the reason the camera's lag is: a pose that

@@ -148,6 +148,9 @@ final class _Shown {
   double _elapsed = 0.0;
   bool _forward = false;
 
+  /// What the last step reported, drained as a game drains it.
+  List<GameEvent> lastStep = const <GameEvent>[];
+
   void step({bool forward = false, bool pound = false}) {
     _input.beginStep();
     if (forward != _forward) {
@@ -164,9 +167,10 @@ final class _Shown {
     if (!forward) sim.input.release(GameAction.moveForward);
     if (pound) sim.input.press(PlatformerActions.dropThrough);
     sim.step(_dt);
+    lastStep = sim.events.drain();
     sim.input.endStep();
     _input.endStep();
-    pose.advance(runner, _dt);
+    pose.advance(runner, _dt, lastStep);
     _elapsed += _dt;
   }
 
@@ -463,7 +467,7 @@ void main() {
       it.runner.body.teleport(Vector3(0.0, 20.0, -22.0));
       for (var i = 0; i < 200; i++) {
         it.step();
-        if (it.runner.landedThisStep) break;
+        if (it.lastStep.has<Landed>()) break;
       }
       final landed = await it.draw();
 

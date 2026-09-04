@@ -19,6 +19,9 @@ import 'package:vector_math/vector_math.dart';
 const double _dt = 1.0 / 60.0;
 
 final class _Run {
+  /// What the last step reported, drained the way a game drains it.
+  List<GameEvent> lastStep = const <GameEvent>[];
+
   _Run() {
     world.add(
       Collider(
@@ -58,8 +61,9 @@ final class _Run {
       ..clear()
       ..addAll(holding);
     sim.step(_dt);
+    lastStep = sim.events.drain();
     input.endStep();
-    looks.advance(runner, _dt);
+    looks.advance(runner, _dt, lastStep);
   }
 
   void run(int steps, {Set<GameAction> holding = const <GameAction>{}}) {
@@ -97,7 +101,7 @@ void main() {
     var landed = false;
     for (var i = 0; i < 200 && !landed; i++) {
       run.step();
-      landed = run.runner.landedThisStep;
+      landed = run.lastStep.has<Landed>();
     }
     expect(landed, isTrue);
     expect(run.scale.y, lessThan(0.95), reason: 'a landing should squash');
@@ -132,7 +136,7 @@ void main() {
       run.runner.body.teleport(Vector3(0.0, from, 0.0));
       for (var i = 0; i < 400; i++) {
         run.step();
-        if (run.runner.landedThisStep) return _distortion(run.scale);
+        if (run.lastStep.has<Landed>()) return _distortion(run.scale);
       }
       return 0.0;
     }
@@ -163,7 +167,7 @@ void main() {
     var landed = false;
     for (var i = 0; i < 200 && !landed; i++) {
       run.step();
-      landed = run.runner.landedThisStep;
+      landed = run.lastStep.has<Landed>();
     }
     expect(landed, isTrue);
 
@@ -191,16 +195,16 @@ void main() {
       final looks = RunnerLooks();
       final run = _Run()..run(30);
       run.step(holding: <GameAction>{GameAction.jump});
-      looks.advance(run.runner, 1.0 / rate);
-      // One more simulation step, so `jumpedThisStep` is false: the flag stays
-      // true until the next one, and advancing the pose against it re-sets the
-      // stretch every time. The first draft of this measured the last frame's
-      // decay and nothing else.
+      looks.advance(run.runner, 1.0 / rate, run.lastStep);
+      // One more simulation step, so the jump is no longer in the last step's
+      // events: the pose is advanced in the draw path and re-sets the stretch
+      // every time it is handed the jump again. The first draft of this
+      // measured the last frame's decay and nothing else.
       run.step();
 
       final steps = (seconds * rate).round();
       for (var i = 0; i < steps; i++) {
-        looks.advance(run.runner, 1.0 / rate);
+        looks.advance(run.runner, 1.0 / rate, run.lastStep);
       }
       return _distortion(looks.scale);
     }
