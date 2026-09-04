@@ -32,7 +32,11 @@ const double _dt = 1.0 / 60.0;
 /// the power-up: the ray lands wherever the capsule happens to be, and a table
 /// that pays for height would make the comparison a question about where the
 /// crosshair sat.
-double _damageOneShot(WeaponDef weapon, {required bool berserk}) {
+double _damageOneShot(
+  WeaponDef weapon, {
+  required bool berserk,
+  Difficulty difficulty = Difficulty.normal,
+}) {
   const target = Monsters.tank;
   final world = CollisionWorld()
     ..addBox(Vector3(0.0, -0.5, 0.0), Vector3(60.0, 1.0, 60.0));
@@ -72,6 +76,7 @@ double _damageOneShot(WeaponDef weapon, {required bool berserk}) {
     actors: actors,
     shot: shot,
     zones: const HitZones.even(),
+    difficulty: difficulty,
   );
 
   final before = monster.health!.current;
@@ -127,5 +132,40 @@ void main() {
     expect(swings(Weapons.fists.damage, Monsters.runner.health), 3);
     expect(swings(Weapons.pistol.damage * scaled, Monsters.runner.health), 2);
     expect(swings(Weapons.pistol.damage, Monsters.runner.health), 4);
+  });
+
+  group('the difficulty setting', () {
+    // Measured through the simulation rather than asserted about a constant,
+    // for the reason the berserk test above gives: a multiplier nobody puts a
+    // shot through is a multiplier that can be applied in the wrong place.
+
+    test('scales what the player deals', () {
+      final plain = _damageOneShot(Weapons.pistol, berserk: false);
+      final gentle = _damageOneShot(
+        Weapons.pistol,
+        berserk: false,
+        difficulty: Difficulty.gentle,
+      );
+
+      expect(gentle, closeTo(plain * Difficulty.gentle.damageDealt, 1e-9));
+    });
+
+    test('and multiplies with the power-up rather than losing to it', () {
+      // A player on a gentle setting who picks up berserk should feel both.
+      final both = _damageOneShot(
+        Weapons.pistol,
+        berserk: true,
+        difficulty: Difficulty.gentle,
+      );
+      final plain = _damageOneShot(Weapons.pistol, berserk: false);
+
+      expect(
+        both,
+        closeTo(
+          plain * GameSimulation.berserkDamage * Difficulty.gentle.damageDealt,
+          1e-9,
+        ),
+      );
+    });
   });
 }

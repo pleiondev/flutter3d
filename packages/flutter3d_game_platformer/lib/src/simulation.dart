@@ -59,7 +59,9 @@ final class PlatformerSimulation {
     this.levelNext,
     required this.random,
     this.killPlane = -20.0,
+    Difficulty difficulty = Difficulty.normal,
   }) : _respawn = startAt.clone() {
+    runner.difficulty = difficulty;
     // Handed down rather than collected up, which is what makes the order
     // real: the runner's landing and the block that gave way under it go into
     // one buffer, in the order the step produced them.

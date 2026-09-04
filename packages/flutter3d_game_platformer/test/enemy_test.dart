@@ -536,4 +536,30 @@ void main() {
       expect(loaded.enemy.isAlive, isFalse);
     });
   });
+
+  group('the difficulty setting', () {
+    test('scales what the runner is hurt by, whatever hurt it', () {
+      // Through `Runner.applyDamage`, which is the one door every source
+      // arrives at — an enemy stood against, a hazard, a fall. Checked on the
+      // door rather than on one source, because that is the claim: a source
+      // added later is scaled without anybody remembering to.
+      double leftAfter(Difficulty difficulty) {
+        final runner = Runner(
+          body: CharacterController(
+            world: CollisionWorld()..update(),
+            position: Vector3.zero(),
+          ),
+        )..difficulty = difficulty;
+        runner.applyDamage(20.0);
+        return runner.health.current;
+      }
+
+      final normal = leftAfter(Difficulty.normal);
+      final gentle = leftAfter(Difficulty.gentle);
+      final punishing = leftAfter(Difficulty.punishing);
+
+      expect(gentle, greaterThan(normal));
+      expect(punishing, lessThan(normal));
+    });
+  });
 }

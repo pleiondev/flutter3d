@@ -22,7 +22,8 @@ final class Skeleton {
     required List<Matrix4> inverseBindMatrices,
     this.skeletonRoot,
     this.name,
-  }) : joints = List.unmodifiable(joints), _inverseBind = List<Matrix4>.of(inverseBindMatrices) {
+  }) : joints = List.unmodifiable(joints),
+       _inverseBind = List<Matrix4>.of(inverseBindMatrices) {
     if (_inverseBind.length != joints.length) {
       throw ArgumentError(
         'Skeleton "${name ?? 'unnamed'}" has ${joints.length} joints and '

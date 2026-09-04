@@ -22,7 +22,8 @@ final class LoadedLevel {
     List<DeviceMesh>? brushMeshes,
     List<ReflectionProbeNode>? probes,
     this.culler,
-  }) : issues = List.unmodifiable(issues), materialTextures = materialTextures ?? const <String, TextureHandle?>{},
+  }) : issues = List.unmodifiable(issues),
+       materialTextures = materialTextures ?? const <String, TextureHandle?>{},
        brushMeshes = brushMeshes ?? const <DeviceMesh>[],
        probes = probes ?? const <ReflectionProbeNode>[];
 

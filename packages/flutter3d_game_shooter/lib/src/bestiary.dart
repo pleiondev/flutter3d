@@ -13,7 +13,12 @@ import 'monster_def.dart';
 /// content seam follows: a second shooter brings its own bestiary and gets none
 /// of this one's.
 final class Bestiary {
-  Bestiary({required this.actors, required this.shot, required this.catalog});
+  Bestiary({
+    required this.actors,
+    required this.shot,
+    required this.catalog,
+    this.difficulty = Difficulty.normal,
+  });
 
   final ActorSystem actors;
 
@@ -21,6 +26,12 @@ final class Bestiary {
   final WeaponShot shot;
 
   final Map<String, MonsterDef> catalog;
+
+  /// How hard this game is being, handed to every brain this spawns.
+  ///
+  /// Here rather than on each monster because it is a property of the game and
+  /// not of the roster: a level does not author some of its monsters hard.
+  final Difficulty difficulty;
 
   Actor spawn(MonsterDef def, Vector3 position, {double yaw = 0.0}) {
     return actors.spawn(
@@ -43,7 +54,7 @@ final class Bestiary {
         ),
       ),
       health: Health(def.health),
-      brain: ChaseBrain(def: def, shot: shot),
+      brain: ChaseBrain(def: def, shot: shot, difficulty: difficulty),
       // A monster has all four. Something else in the same system may have one
       // — see `ActorSystem.spawn`.
       facing: Facing(yaw: yaw, turnRate: def.turnRate),

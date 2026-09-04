@@ -15,9 +15,21 @@ import 'monster_def.dart';
 /// want the body, the health, the turning and the route-finding that
 /// `ActorSystem` provides.
 final class ChaseBrain extends Brain {
-  ChaseBrain({required this.def, required this.shot});
+  ChaseBrain({
+    required this.def,
+    required this.shot,
+    this.difficulty = Difficulty.normal,
+  });
 
   final MonsterDef def;
+
+  /// How hard this game is being.
+  ///
+  /// One axis is read: [Difficulty.opponentReaction], which scales how long
+  /// this monster stands alert before it comes. Scaled rather than replaced,
+  /// so a monster the level authored as slow to react is still the slower of
+  /// two on every setting.
+  final Difficulty difficulty;
 
   /// Shared by every monster in the level: it is a way of firing, not a thing
   /// that is fired.
@@ -103,7 +115,9 @@ final class ChaseBrain extends Brain {
         }
 
       case MonsterState.alert:
-        if (stateTime >= def.alertDuration) _enter(MonsterState.chase);
+        if (stateTime >= def.alertDuration * difficulty.opponentReaction) {
+          _enter(MonsterState.chase);
+        }
 
       case MonsterState.chase:
         if (_targetDistance <= def.attack.range && _canSeeTarget(it)) {

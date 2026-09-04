@@ -156,6 +156,10 @@ final class Runner
   /// came first.
   GameEvents? events;
 
+  /// How hard this game is being. One axis is read — what the runner is hurt
+  /// by; the others describe things this genre does not have a number for.
+  Difficulty difficulty = Difficulty.normal;
+
   /// Whether this step's landing ended a ground pound.
   ///
   /// **Wiring, not a report.** [PlatformerSimulation] reads it later in the
@@ -213,7 +217,14 @@ final class Runner
   Collider? get carriedBy => body.groundBody;
 
   @override
-  bool applyDamage(double amount, {Object? from}) => health.damage(amount);
+  /// Hurts the runner, scaled by how hard the game is being.
+  ///
+  /// **The one door damage reaches the runner through**, which is why the
+  /// setting is applied here: a hazard, an enemy stood against, a fall — every
+  /// source arrives at this method, so a source added later is scaled without
+  /// anybody remembering to.
+  bool applyDamage(double amount, {Object? from}) =>
+      health.damage(amount * difficulty.damageTaken);
 
   static final List<Vector3> _sides = <Vector3>[
     Vector3(1.0, 0.0, 0.0),

@@ -19,7 +19,8 @@ final class GltfAccessorReader {
   GltfAccessorReader({
     required Map<String, Object?> json,
     required List<Uint8List> buffers,
-  }) : buffers = List.unmodifiable(buffers), _accessors = _listOf(json['accessors']),
+  }) : buffers = List.unmodifiable(buffers),
+       _accessors = _listOf(json['accessors']),
        _bufferViews = _listOf(json['bufferViews']);
 
   final List<Map<String, Object?>> _accessors;

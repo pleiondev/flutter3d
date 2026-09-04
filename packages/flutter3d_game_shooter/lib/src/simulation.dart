@@ -91,6 +91,7 @@ final class GameSimulation {
     this.levelNext,
     required this.random,
     this.zones = const HitZones(),
+    this.difficulty = Difficulty.normal,
   }) {
     // Handed down rather than collected up, which is what makes the order real:
     // a monster killed by this step's shot lands in the buffer *after* the shot
@@ -98,6 +99,14 @@ final class GameSimulation {
     // read off the actor system afterwards can only say that both occurred.
     actors?.events = events;
   }
+
+  /// How hard this game is being.
+  ///
+  /// Read in exactly two places here — what the player deals and what the
+  /// player takes — because those are the two axes this genre has a number
+  /// for. `opponentReaction` reaches the monsters through [MonsterDef]; see
+  /// [Bestiary].
+  final Difficulty difficulty;
 
   /// What a shot is worth depending on where it lands.
   ///
@@ -136,8 +145,12 @@ final class GameSimulation {
   static const double berserkDamage = 2.0;
 
   /// What the player's damage is multiplied by this step.
+  ///
+  /// The power-up and the setting, multiplied together rather than one winning:
+  /// a player on a gentle setting who picks up berserk should feel both.
   double get _playerDamageScale =>
-      player.inventory.isBerserk ? berserkDamage : 1.0;
+      (player.inventory.isBerserk ? berserkDamage : 1.0) *
+      difficulty.damageDealt;
 
   final Player player;
   final CollisionWorld collision;
@@ -630,7 +643,12 @@ final class GameSimulation {
     _world.afterRestore();
   }
 
-  void _hurtPlayer(double amount) {
+  void _hurtPlayer(double rawAmount) {
+    // **Scaled here, at the one door damage reaches the player through.** Every
+    // source — a claw, a blast, a fall — arrives at this method, so the setting
+    // is applied once rather than at each of them, and a source added later
+    // gets it without anybody remembering.
+    final amount = rawAmount * difficulty.damageTaken;
     if (amount <= 0.0) return;
     // Asked before and after, so the death is reported on the step it happened
     // rather than on every step after it, which is what `player.isAlive` gives.
