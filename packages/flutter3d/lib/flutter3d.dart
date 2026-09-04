@@ -63,7 +63,12 @@ export 'src/engine/assets/model_loader.dart';
 export 'src/engine/assets/obj/obj.dart';
 export 'src/engine/assets/resource_cache.dart';
 export 'src/engine/assets/texture_upload.dart';
-// Geometry: CPU-side meshes and the shapes that generate them.
+// Geometry: CPU-side meshes and the shapes that generate them. Two files
+// rather than one because `device_mesh.dart` holds the types that have met a
+// device, and keeping them out of the `geometry.dart` barrel is what lets
+// everything that only generates or decodes a mesh compile without `dart:ui`.
+// Both are exported here, so the public surface does not know them apart.
+export 'src/engine/geometry/device_mesh.dart';
 export 'src/engine/geometry/geometry.dart';
 // Particles are `package:flutter3d_particles` and are named nowhere here.
 // The engine defines what a contributor is; what draws through one is not its

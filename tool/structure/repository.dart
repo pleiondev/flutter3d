@@ -132,6 +132,34 @@ const Map<String, String> engineAlsoFreeOfDartUi = <String, String>{
       'analyser would report only that a test no longer compiles',
 };
 
+/// Files in `flutter3d` that must still compile with `dart compile exe`, and
+/// why — checked **through their imports**, not just their own text.
+///
+/// The difference from [engineAlsoFreeOfDartUi] is the whole point. That map
+/// reads one file and asks what it imports; this one follows the imports until
+/// they stop, because the way this breaks is never a `dart:ui` line in the file
+/// named. It broke exactly once, like this: `mesh_geometry.dart` declared both
+/// `MeshGeometry`, which needs no device, and `DeviceMesh`, which holds two
+/// buffers a device made. One `flutter3d_hardware` import served both. Through
+/// it `geometry.dart` reached `GraphicsDevice`, whose `present` returns a
+/// `Widget` — so every file that generated or decoded a mesh reached
+/// `package:flutter/widgets.dart`, four hops away and named nowhere.
+///
+/// Nothing failed on a device, which is why it survived. What failed was
+/// `dart compile exe`, where `dart:ui` does not exist: the benchmark stopped
+/// building, and the numbers in ARCHITECTURE.md §14 became numbers nobody could
+/// re-run. A rule that reads single files would have stayed green throughout.
+const Map<String, String> engineCompilesOffDevice = <String, String>{
+  'tool/bench/bench.dart':
+      'the benchmark is compiled ahead of time on purpose, so that the figures '
+      'in ARCHITECTURE.md §14 come from the pipeline a release build uses — a '
+      'suite that cannot be compiled produces numbers that cannot be '
+      'contradicted',
+  'lib/src/engine/geometry/geometry.dart':
+      'the CPU geometry layer says it depends on no graphics backend, and every '
+      'unit test of bounds, shapes and mesh maths is spent on that being true',
+};
+
 /// Calls that put a document's contents into a world, or dress what it built.
 ///
 /// Each is something a shipped game does exactly once, and a second caller is a

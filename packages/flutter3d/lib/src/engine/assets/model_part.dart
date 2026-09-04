@@ -1,6 +1,6 @@
 import 'package:vector_math/vector_math.dart';
 
-import '../geometry/geometry.dart';
+import '../geometry/device_mesh.dart';
 import '../render/material.dart';
 
 /// One drawable piece of a model: geometry, appearance, and where it sits

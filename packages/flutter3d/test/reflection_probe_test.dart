@@ -12,6 +12,7 @@
 /// GPU to check.
 library;
 
+import 'package:flutter3d/src/engine/geometry/device_mesh.dart';
 import 'package:flutter3d/src/engine/geometry/geometry.dart';
 import 'package:flutter3d/src/engine/render/lighting_model.dart';
 import 'package:flutter3d/src/engine/render/material.dart';

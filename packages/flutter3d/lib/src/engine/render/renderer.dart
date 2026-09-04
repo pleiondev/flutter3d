@@ -6,7 +6,7 @@ import 'dart:typed_data';
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:vector_math/vector_math.dart' as vm;
 
-import '../geometry/mesh_geometry.dart';
+import '../geometry/device_mesh.dart';
 import '../geometry/vertex_layout.dart';
 import '../scene/camera_node.dart';
 import '../scene/instanced_mesh_node.dart';

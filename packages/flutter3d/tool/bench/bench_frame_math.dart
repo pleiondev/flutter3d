@@ -14,15 +14,18 @@ import 'bench_util.dart';
 ///     dart compile exe tool/bench/bench_frame_math.dart -o /tmp/bench_frame
 ///     /tmp/bench_frame
 ///
-/// **Its own entry point because `bench.dart` no longer AOT-compiles.** The
-/// aggregate binary pulls in the geometry and asset suites, which reach
-/// `MeshGeometry` and through it the hardware layer, and `GraphicsDevice` names
-/// a Flutter type — so the whole of it fails on `dart:ui is not available on
-/// this platform` and takes these numbers down with it. This suite reaches only
-/// `key_sort.dart` and `bvh.dart`, neither of which knows a device, so it still
-/// compiles the way the figures it produces were taken.
+/// **Its own entry point so one suite can be re-run without the other two.**
+/// It had a sharper reason once: `bench.dart` had stopped AOT-compiling, because
+/// the geometry and asset suites reached `MeshGeometry` and through it the
+/// hardware layer, and `GraphicsDevice` names a Flutter type — so the aggregate
+/// binary died on `dart:ui is not available on this platform` and took these
+/// numbers with it, while this suite, which reaches only `key_sort.dart` and
+/// `bvh.dart`, still compiled. The geometry layer has since been split so that
+/// the aggregate compiles again; what is left here is the convenience, which is
+/// worth keeping on its own — these rows are the slowest of the three suites,
+/// and re-measuring them should not cost a teapot parse.
 ///
-/// That matters more than a convenience: `kRadixThreshold`,
+/// The numbers matter more than the convenience does: `kRadixThreshold`,
 /// `RenderList.bvhThreshold` and the decision that this engine ships no native
 /// sorting code are all quoted from this suite, and a measurement nobody can
 /// re-run is a measurement nobody can contradict.

@@ -17,7 +17,7 @@ import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:flutter3d/src/engine/geometry/box_shapes.dart';
-import 'package:flutter3d/src/engine/geometry/mesh_geometry.dart';
+import 'package:flutter3d/src/engine/geometry/device_mesh.dart';
 import 'package:flutter3d/src/engine/render/material.dart';
 import 'package:flutter3d/src/engine/render/render_view.dart';
 import 'package:flutter3d/src/engine/render/renderer.dart';

@@ -403,7 +403,92 @@ List<Finding> _engineNamesNoBackend() {
       );
     }
   }
+
+  for (final entry in engineCompilesOffDevice.entries) {
+    final file = File('${dir.path}/${entry.key}');
+    if (!file.existsSync()) {
+      found.add(
+        Finding(
+          'flutter3d/${entry.key}',
+          'moved or was renamed; the rule moves with it',
+        ),
+      );
+      continue;
+    }
+    final path = _pathToFlutter(file);
+    if (path != null) {
+      found.add(
+        Finding(
+          'flutter3d/${entry.key}',
+          'reaches Flutter, so it no longer compiles ahead of time — '
+              '${entry.value}\n      via ${path.join('\n       -> ')}',
+        ),
+      );
+    }
+  }
   return found;
+}
+
+/// The shortest import path from [start] to a file naming Flutter, or null.
+///
+/// Breadth-first so that what it reports is the shortest way in rather than the
+/// first one the walk happened to take — the difference between a finding that
+/// names the import to delete and one that names a file four hops downstream of
+/// it. Relative imports resolve against the importing file; `package:` imports
+/// against the workspace, which is what makes this cross the package boundary
+/// the single-file scans cannot see. Anything it cannot resolve — the SDK, a
+/// pub-cache dependency — is not walked: those are somebody else's tree, and
+/// `package:flutter/` is recognised on sight rather than followed.
+List<String>? _pathToFlutter(File start) {
+  final roots = <String, String>{
+    for (final entry in packages.entries) entry.key: '${entry.value.path}/lib',
+  };
+  final from = <String, String>{};
+  final queue = <String>[start.absolute.path];
+  final seen = <String>{queue.first};
+
+  List<String> trail(String file, String last) {
+    final steps = <String>[last];
+    for (String? at = file; at != null; at = from[at]) {
+      steps.add(at.replaceFirst('${repositoryRoot.path}/', ''));
+    }
+    return steps.reversed.toList();
+  }
+
+  while (queue.isNotEmpty) {
+    final current = queue.removeAt(0);
+    final file = File(current);
+    if (!file.existsSync()) continue;
+    for (final uri in _importedUris(file.readAsStringSync())) {
+      if (uri.startsWith('package:flutter/') || uri == 'dart:ui') {
+        return trail(current, uri);
+      }
+      final resolved = _resolveImport(uri, current, roots);
+      if (resolved == null || !seen.add(resolved)) continue;
+      from[resolved] = current;
+      queue.add(resolved);
+    }
+  }
+  return null;
+}
+
+/// Every `import`/`export` target in [source], in the order written.
+Iterable<String> _importedUris(String source) => RegExp(
+  '''^\\s*(?:import|export)\\s+['"]([^'"]+)['"]''',
+  multiLine: true,
+).allMatches(source).map((RegExpMatch m) => m.group(1)!);
+
+/// Where an import URI lands on disk, or null when it leaves the workspace.
+String? _resolveImport(String uri, String from, Map<String, String> roots) {
+  if (uri.startsWith('dart:')) return null;
+  if (uri.startsWith('package:')) {
+    final rest = uri.substring('package:'.length);
+    final slash = rest.indexOf('/');
+    if (slash < 0) return null;
+    final root = roots[rest.substring(0, slash)];
+    return root == null ? null : '$root/${rest.substring(slash + 1)}';
+  }
+  return File('${File(from).parent.path}/$uri').absolute.path;
 }
 
 // ------------------------------------------------------------ one assembly

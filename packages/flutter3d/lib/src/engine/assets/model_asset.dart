@@ -2,6 +2,7 @@ import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:vector_math/vector_math.dart';
 
 import '../animation/animation.dart';
+import '../geometry/device_mesh.dart';
 import '../geometry/geometry.dart';
 import '../render/lighting_model.dart';
 import '../render/material.dart';
