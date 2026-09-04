@@ -40,16 +40,22 @@ final class RenderList {
   /// Above this many meshes, culling goes through the tree.
   ///
   /// Set from measurement rather than taste, and the measurement is not
-  /// flattering. `tool/bench/bench.dart` on 200 000 spheres:
+  /// flattering. `tool/bench/bench_frame_math.dart` on 200 000 spheres, on
+  /// 2026-09-04 — Dart 3.13.0 AOT, Apple M3 Pro, macOS 27, which is the same
+  /// run the sorting figures on `sortPackedKeys` come from:
   ///
   /// | case | linear | BVH |
   /// |---|---|---|
-  /// | everything on screen | 2.4 ms | 4.6 ms |
+  /// | everything on screen | 2.5 ms | 4.7 ms |
   /// | nothing on screen | 1.6 ms | 0.0 ms |
+  ///
+  /// The day is written down because these four numbers decide a threshold and
+  /// nothing else recounts them: without it there is no telling a figure that
+  /// still holds from one taken on an SDK the repository has since left.
   ///
   /// A tree only pays when it can reject. With every object visible it adds
   /// traversal on top of the same leaf tests and loses outright — and a rebuild
-  /// of that scene costs 93 ms, which no frame can absorb. So the threshold is
+  /// of that scene costs 92 ms, which no frame can absorb. So the threshold is
   /// high, the rebuild is skipped unless a transform actually changed, and a
   /// scene that both is large and moves constantly is still better served by
   /// the linear pass. Getting past that is what clustered culling and a

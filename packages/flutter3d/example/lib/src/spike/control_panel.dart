@@ -383,6 +383,11 @@ class ControlPanel extends StatelessWidget {
             '${frame?.lights ?? 0} lights'
             '${(frame?.lightsDropped ?? 0) > 0 ? ' (+${frame!.lightsDropped} dropped)' : ''}'
             '${(frame?.shadowsDenied ?? 0) > 0 ? ' · ${frame!.shadowsDenied} shadows denied' : ''}'
+            // Beside the other two refusals, and for the same reason: the
+            // wireframe chip in this panel does nothing on the web build and
+            // on the software backend, and a solid model with the switch on
+            // reads as a broken switch until the frame says otherwise.
+            '${(frame?.wireframeDeclined ?? false) ? ' · wireframe declined' : ''}'
             '${(frame?.debugLines ?? 0) > 0 ? ' · ${frame!.debugLines} debug lines' : ''}',
             style: textTheme.bodySmall?.copyWith(color: Colors.white60),
           ),
