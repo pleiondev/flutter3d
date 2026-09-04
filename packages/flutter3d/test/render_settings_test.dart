@@ -15,6 +15,7 @@ library;
 
 import 'package:flutter3d/src/engine/render/debug_draw.dart';
 import 'package:flutter3d/src/engine/render/renderer.dart';
+import 'package:flutter3d/src/engine/render/sky_settings.dart';
 import 'package:flutter3d/src/engine/scene/scene_node.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart';
@@ -33,6 +34,7 @@ void main() {
       highlighted: highlighted,
       tonemap: false,
       bloom: const BloomSettings(enabled: false, intensity: 0.125),
+      look: const LookSettings(contrast: 1.25),
       shadows: const ShadowSettings(enabled: false, resolution: 256),
       surfaceBuffer: true,
       showSurfaceBuffer: true,
@@ -40,7 +42,9 @@ void main() {
       showStaticShadowMap: true,
       showPointShadowDebug: true,
       reflections: const ReflectionSettings(enabled: true),
+      ambientOcclusion: const AmbientOcclusionSettings(enabled: true),
       fog: FogSettings(color: Vector3(0.1, 0.2, 0.3), density: 0.05),
+      sky: const SkySettings(enabled: true),
       anisotropy: 8,
       autoExposure: const AutoExposureSettings(enabled: true),
       xray: XraySettings(color: Vector3(0.9, 0.1, 0.1), layerMask: 4),
@@ -56,6 +60,15 @@ void main() {
     expect(copy.highlighted, same(original.highlighted));
     expect(copy.tonemap, original.tonemap);
     expect(copy.bloom, same(original.bloom));
+    expect(
+      copy.look,
+      same(original.look),
+      reason:
+          'look, ambientOcclusion and sky were the three this round trip '
+          'never looked at: the doc above and on `copyWith` both said every '
+          'field, and an eighth dropped one would have been any of these '
+          'three without a word from here',
+    );
     expect(copy.shadows, same(original.shadows));
     expect(
       copy.surfaceBuffer,
@@ -93,7 +106,13 @@ void main() {
       same(original.reflections),
       reason: 'reflections was one of the six',
     );
+    expect(
+      copy.ambientOcclusion,
+      same(original.ambientOcclusion),
+      reason: 'see look, above',
+    );
     expect(copy.fog, same(original.fog), reason: 'fog was one of the six');
+    expect(copy.sky, same(original.sky), reason: 'see look, above');
     expect(
       copy.anisotropy,
       original.anisotropy,

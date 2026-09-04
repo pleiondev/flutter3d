@@ -188,9 +188,11 @@ final class XraySettings {
 ///
 /// **One value passed to `Renderer.render`, and nothing here is state.** A
 /// caller builds the settings for a frame and hands them over; the renderer
-/// keeps no copy and remembers nothing between frames, which is what lets a
-/// debug view be switched on for one frame and off for the next without
-/// anything having to be switched back. [copyWith] is how a frame is derived
+/// keeps no copy of them, which is what lets a debug view be switched on for
+/// one frame and off for the next without anything having to be switched back.
+/// What does cross a frame boundary is measured rather than remembered from
+/// here — the exposure meter, and what it answers is [autoExposure]'s to
+/// explain. [copyWith] is how a frame is derived
 /// from the last one — and every field belongs in it, which
 /// `test/render_settings_test.dart` is there to insist on, having caught seven
 /// that did not.
@@ -419,11 +421,14 @@ final class RenderSettings {
 
   /// This one with some fields replaced.
   ///
-  /// **Every field, and that is the whole point of the test beside it.** Six
+  /// **Every field, and that is the whole point of the test beside it.** Seven
   /// were missing here — `surfaceBuffer`, `showSurfaceBuffer`, `showShadowMap`,
-  /// `showPointShadowDebug`, `reflections` and `fog` — so calling `copyWith` to
-  /// change the exposure silently switched reflections and fog back off and
-  /// turned three debug views off with them. A `copyWith` that drops a field is
+  /// `showStaticShadowMap`, `showPointShadowDebug`, `reflections` and `fog` —
+  /// so calling `copyWith` to change the exposure silently switched reflections
+  /// and fog back off and turned four debug views off with them. Six were
+  /// found at once; the seventh went on being dropped for as long as this file
+  /// watched the other six, and took an audit to find. A `copyWith` that drops
+  /// a field is
   /// a peculiarly quiet bug: it does exactly what was asked *and* something
   /// else, and the something else looks like the feature never worked.
   ///
