@@ -1,3 +1,10 @@
+## 0.5.0
+
+* **A `WebGlProgram`'s attributes, blocks and samplers are unmodifiable.** They
+  describe a program that has been linked; nothing should be adding to them
+  afterwards.
+* The engine parity reference catches up with a fixture that grew two torches.
+
 ## 0.4.3
 
 * **Anisotropic filtering, where the context has the extension.**

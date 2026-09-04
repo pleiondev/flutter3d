@@ -1,3 +1,24 @@
+## 0.5.0
+
+**Breaking.** Ten flags become events, the mode carries what it means, and the
+track reads its own version.
+
+* **Eight flags on `RacerProgress`, two on `RaceState` and one on the
+  simulation are gone.** Every event names the car it happened to, which a flag
+  living on one `RacerProgress` could not: a caller found out who by knowing
+  whose flag it had just read, which stops working the moment anything wants
+  the field's moments in the order they happened.
+* **`RaceMode` is open, and carries the three questions it was already being
+  asked** with `==` in four places: does it start behind lights, does it count
+  progress, does it end after so many laps. A game adds elimination or a drift
+  event by answering them.
+* **`TrackDocument` reads its `version`.** The generator has stamped one into
+  every file since the format existed and this reader took the number and
+  ignored it. A missing number still reads.
+* **`LapReadout` and `PositionReadout`.** The lap counter counts from one and
+  stops at the last, which every game that reached for `RacerProgress.lap` got
+  wrong in both directions.
+
 ## 0.4.0
 
 * No changes of its own beyond a doc comment following `gripLimit` to its new

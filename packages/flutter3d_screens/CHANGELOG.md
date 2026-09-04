@@ -1,3 +1,11 @@
+## 0.5.0
+
+**Breaking.** Follows `flutter3d_game`'s `IssueSink`.
+
+* **Every sink here takes an `Issue`.** The settings file, the save file, the
+  demo file and both storage backends report through the object rather than a
+  bare string.
+
 ## 0.4.0
 
 * **Renamed from `flutter3d_ui`.** pub.dev's name-similarity check refused the

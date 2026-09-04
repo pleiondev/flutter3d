@@ -1,3 +1,10 @@
+## 0.5.0
+
+* **`CpuShaderLibrary.stages` is unmodifiable.** It is built once and read
+  afterwards, and a writer now breaks loudly rather than silently.
+* Follows the engine's widened callbacks and the physics package's contact
+  filter.
+
 ## 0.4.2
 
 * **`maxAnisotropy` is one, and means it.** This rasteriser picks one level

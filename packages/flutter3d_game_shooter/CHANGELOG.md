@@ -1,3 +1,30 @@
+## 0.5.0
+
+**Breaking.** Three closed types open, four per-step fields go, and the genre
+ships its readouts.
+
+* **`AmmoType`, `MonsterState` and `WeaponBehaviour` are open.** A game written
+  on this template can say its weapon fires cells, that its monster is fleeing,
+  and that its shot is a beam that charges. Both enums lose `values`: a list of
+  everything that exists cannot be kept once anybody can add to it, and it was
+  the wrong question — `Arsenal.carrying` answers what a HUD wanted, and both
+  restores read the names the file holds, which is what lets a game's own
+  ammunition survive a round trip.
+* **`firedThisStep`, `usedThisStep`, `damageTakenThisStep`, `foundThisStep` and
+  `hits` are gone.** What a game gets is `GameSimulation.events`, which carries
+  two of anything and says what order it was in: a shotgun's eight pellets are
+  eight `ShotLanded` rather than a list read beside a flag.
+* **`ChaseBrain` says what it does with a state it does not know: nothing.** It
+  leaves the monster where the game's own code put it, because a brain that
+  guessed would fight the game for control of its monster.
+* **Readouts, not a HUD.** `HealthBar`, `AmmoReadout` and `KeyPips` take the
+  genre's own types, because pulling the numbers out is where every game got
+  the same three details wrong — the fists printing `0`, armour drawn as a
+  second bar, a key ring showing a key that had been used.
+* **`Difficulty` is read in two places**: what the player deals, which
+  multiplies with berserk rather than losing to it, and what the player takes,
+  in the one method every source arrives at.
+
 ## 0.4.1
 
 * **The sensor.** A power-up that shows what walks behind the walls, as

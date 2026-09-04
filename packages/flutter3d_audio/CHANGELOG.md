@@ -1,3 +1,14 @@
+## 0.5.0
+
+**Breaking.** The issue sink is named apart and takes an object.
+
+* **`IssueSink` is `AudioIssueSink`, taking an `AudioIssue`.** Two identical
+  `typedef`s were interchangeable and cost nothing; two identical *classes* are
+  not, and a program importing this package and `flutter3d_game` would have had
+  to prefix one at every use. This package depends on nothing of ours so that a
+  program can take the sound without the rest, and its own vocabulary is what
+  that means.
+
 ## 0.4.0
 
 * **`SoLoudBackend.open` waits out the web module.** flutter_soloud's wasm

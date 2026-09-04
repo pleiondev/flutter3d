@@ -1,3 +1,7 @@
+## 0.5.0
+
+* No API change. Released with the set.
+
 ## 0.4.2
 
 * **`Luminance`**: the lit scene's log luminance at low resolution, sixteen

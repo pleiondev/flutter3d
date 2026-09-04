@@ -1,6 +1,6 @@
 name: flutter3d_impeller
 description: "The flutter_gpu backend for flutter3d: one implementation of flutter3d_hardware, and the only place in the stack that names a graphics API."
-version: 0.4.5
+version: 0.5.0
 repository: https://github.com/pleiondev/flutter3d
 homepage: https://flutter3d.pleion.dev
 issue_tracker: https://github.com/pleiondev/flutter3d/issues
@@ -37,7 +37,7 @@ dependencies:
   flutter_gpu:
     sdk: flutter
 
-  flutter3d_hardware: ^0.4.2
+  flutter3d_hardware: ^0.5.0
 
   # Named directly because the HAL's own signatures do: a clear value and a
   # blend constant are `Vector4`, and an implementation of `PassEncoder` cannot

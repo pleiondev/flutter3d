@@ -2,7 +2,7 @@ name: flutter3d_conformance
 description: >-
   The behaviour a flutter3d_hardware backend has to have, as tests it can run
   against itself.
-version: 0.4.2
+version: 0.5.0
 repository: https://github.com/pleiondev/flutter3d
 homepage: https://flutter3d.pleion.dev
 issue_tracker: https://github.com/pleiondev/flutter3d/issues
@@ -24,10 +24,10 @@ dependencies:
   # them take it as a dev dependency of their own.
   flutter_test:
     sdk: flutter
-  flutter3d_hardware: ^0.4.2
+  flutter3d_hardware: ^0.5.0
   vector_math: ^2.2.0
   # The list of entry points a bundle must answer to.
-  flutter3d_shaders: ^0.4.0
+  flutter3d_shaders: ^0.5.0
 
 dev_dependencies:
   flutter_lints: ^6.0.0

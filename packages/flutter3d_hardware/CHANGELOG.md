@@ -1,3 +1,8 @@
+## 0.5.0
+
+* No API change. Released with the set so every floor in the workspace moves
+  together; see `doc/boundary-0.5.0.md` for what the release is.
+
 ## 0.4.2
 
 * **`bindUniformBlock`'s contract says which of the two failures is an error.**

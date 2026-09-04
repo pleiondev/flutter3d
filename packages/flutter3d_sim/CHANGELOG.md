@@ -1,3 +1,30 @@
+## 0.5.0
+
+**Breaking.** A step can say what happened, and four types stop being closed.
+
+* **`GameEvent` and `GameEvents`: what a step did, drained by whoever owns
+  it.** A buffer rather than a stream, because a stream delivers on a later
+  microtask and two simulations here reproduce a recorded run exactly — an
+  event arriving between two steps is the one state no replay can reproduce.
+  `ActorSystem` writes into the simulation's buffer at the moment of a death,
+  so a monster killed by this step's shot lands after the shot that killed it;
+  two lists read afterwards can only say that both occurred. `ActorHurt` is
+  now the event rather than a value copied into one, and `ActorDied` says who
+  caused it. `StepEvents.has` and `.count` answer the two questions every
+  reader asks of a drained step.
+* **`Difficulty`: four axes a genre applies where it decides.** What the player
+  is hurt by, what their attacks are worth, how quickly the opposition reacts,
+  and how much of the genre's help is on. A value class rather than an enum, so
+  a game writes its own — or builds one from a slider, which a list of four
+  cannot express. `opponentReaction` is a duration, so the harder settings have
+  less of it.
+* **`ActivationOutcome` is open**, and `abstract base`. Nothing ever switched
+  over its three cases exhaustively, so sealing bought nothing and cost a game
+  the ability to say what happened at its own door.
+* **`StepSystem` takes a `StepContext`.** A function type is frozen the day it
+  is published; the context carries `dt` and the phase, which the old shape
+  could not, and can grow a field instead of breaking every system.
+
 ## 0.4.2
 
 * **A brush can say how it casts, not only whether.** `shadowCasting` in the

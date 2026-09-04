@@ -1,6 +1,6 @@
 name: flutter3d_app
 description: "The layer an application is assembled from, as one import: which device to open, the frame surface and run lifecycle, the screens that are not the game, and the input devices Flutter itself does not cover."
-version: 0.4.0
+version: 0.5.0
 resolution: workspace
 repository: https://github.com/pleiondev/flutter3d
 homepage: https://flutter3d.pleion.dev
@@ -29,9 +29,9 @@ dependencies:
   flutter:
     sdk: flutter
 
-  flutter3d_backend: ^0.4.0
-  flutter3d_session: ^0.4.0
-  flutter3d_screens: ^0.4.0
+  flutter3d_backend: ^0.5.0
+  flutter3d_session: ^0.5.0
+  flutter3d_screens: ^0.5.0
   pad_input: ^0.4.0
   pointer_lock: ^0.4.0
 

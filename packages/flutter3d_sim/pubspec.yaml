@@ -1,6 +1,6 @@
 name: flutter3d_sim
 description: "The simulation: a fixed step, an ECS, levels, navigation, saves and replays. Plain Dart, so it runs on a server."
-version: 0.4.2
+version: 0.5.0
 repository: https://github.com/pleiondev/flutter3d
 homepage: https://flutter3d.pleion.dev
 issue_tracker: https://github.com/pleiondev/flutter3d/issues
@@ -17,7 +17,7 @@ environment:
 dependencies:
   # Collision, queries and the character controller — already plain Dart, and
   # extracted from the same package this was, for the same reason.
-  flutter3d_physics: ^0.4.0
+  flutter3d_physics: ^0.5.0
 
   vector_math: ^2.2.0
 

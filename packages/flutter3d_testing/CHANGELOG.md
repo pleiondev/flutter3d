@@ -1,3 +1,11 @@
+## 0.5.0
+
+**Breaking.** The frame builder takes one object.
+
+* **`FrameBuilder` is `FrameSubject Function(FrameRequest)`**, so telling a
+  builder the size it is drawing at, or which backend it is on, does not break
+  every builder anybody has written.
+
 ## 0.4.0
 
 * No changes of its own; the version moves with the workspace, whose sibling

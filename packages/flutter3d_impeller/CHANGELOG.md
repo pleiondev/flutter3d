@@ -1,3 +1,7 @@
+## 0.5.0
+
+* No API change. Released with the set.
+
 ## 0.4.5
 
 * **A uniform block missing a member the caller named now throws, and used to

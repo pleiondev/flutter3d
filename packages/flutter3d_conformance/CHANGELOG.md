@@ -1,3 +1,9 @@
+## 0.5.0
+
+* Follows the hardware layer's version. The checks are unchanged; the device
+  suite now passes all thirty-one on Metal, including the blend constant, the
+  multisample resolve and the object id, which had never been run on hardware.
+
 ## 0.4.2
 
 * **A block missing a member the caller named is refused.** The one half of

@@ -1,3 +1,7 @@
+## 0.5.0
+
+* No API change. Its floors move to the 0.5.0 backends.
+
 ## 0.4.0
 
 * No changes of its own; the version moves with the workspace, whose sibling

@@ -1,3 +1,14 @@
+## 0.5.0
+
+**Breaking.** The contact filter takes one object.
+
+* **`ContactFilter` is `bool Function(SweptContact)`.** A function type is
+  frozen the day it is published, so telling a filter the contact point or how
+  far along the sweep it happened would have broken every filter anybody had
+  written. `tool/filter_cost.dart` says what it cost: 1.932 microseconds a step
+  became 1.953, and the `late`-field version that would have cost 1.997 is what
+  the object avoids. The number is written into the benchmark beside it.
+
 ## 0.4.0
 
 * No changes of its own; the version moves with the workspace, whose sibling

@@ -1,3 +1,15 @@
+## 0.5.0
+
+**Breaking.** The two readers take one object, and the level's issues are
+unmodifiable.
+
+* **`AssetBytes` and `DocumentText` take an `AssetRequest`** — the engine's,
+  not one of their own: a game reading a texture and a decoder reading a
+  sibling file are the same question one level apart, and two request types
+  would be two places to add the same field to.
+* **`LoadedLevel.issues` is unmodifiable.** It is built by a load and read
+  afterwards.
+
 ## 0.4.2
 
 * **A rebuilt wall keeps its baked light, and its shadow mode.**

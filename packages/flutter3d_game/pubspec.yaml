@@ -1,6 +1,6 @@
 name: flutter3d_game
 description: "The game layer on top of flutter3d: the touch, keyboard, mouse and gamepad devices, with the whole of flutter3d_sim re-exported."
-version: 0.4.1
+version: 0.5.0
 repository: https://github.com/pleiondev/flutter3d
 homepage: https://flutter3d.pleion.dev
 issue_tracker: https://github.com/pleiondev/flutter3d/issues
@@ -29,7 +29,7 @@ dependencies:
   # The simulation, and `flutter3d_physics` through it. Extracted because none
   # of it imported Flutter and a verifying server cannot install a Flutter SDK
   # to advance a step — see that package's pubspec for the whole reason.
-  flutter3d_sim: ^0.4.0
+  flutter3d_sim: ^0.5.0
 
   vector_math: ^2.2.0
 

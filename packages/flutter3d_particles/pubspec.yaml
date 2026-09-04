@@ -3,7 +3,7 @@ description: >-
   A pooled CPU particle simulation for flutter3d, and the contributor that
   draws it. Its particles can be a light source, which is the part no other
   engine on this platform has.
-version: 0.4.0
+version: 0.5.0
 repository: https://github.com/pleiondev/flutter3d
 homepage: https://flutter3d.pleion.dev
 issue_tracker: https://github.com/pleiondev/flutter3d/issues
@@ -23,8 +23,8 @@ dependencies:
   # For PassContributor and ContributorFrame — a contributor is defined by the
   # engine and implemented here, which is what makes this an extension rather
   # than a fork.
-  flutter3d: ^0.4.0
-  flutter3d_hardware: ^0.4.0
+  flutter3d: ^0.5.0
+  flutter3d_hardware: ^0.5.0
   vector_math: ^2.2.0
 
 dev_dependencies:

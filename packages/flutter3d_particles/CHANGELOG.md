@@ -1,3 +1,12 @@
+## 0.5.0
+
+**Breaking.** An ease carries its curve.
+
+* **`KeyEase` is a value class holding the shape it applies.** Opening the list
+  alone would have been useless — `easeShape` would have had no branch for a
+  game's own ease. A game writes `const KeyEase('bounce', _bounce)` and every
+  curve and gradient samples it without this package having heard of it.
+
 ## 0.4.0
 
 * No changes of its own; the version moves with the workspace, whose sibling

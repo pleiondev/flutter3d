@@ -1,3 +1,15 @@
+## 0.5.0
+
+**Breaking.** A stick use carries what it does, and an issue is an object.
+
+* **`PadStickUse` is open, and its interpreter opened with it.** It was an enum
+  switched over in one method, so a game could not say its stick leans the
+  ship. A use now *is* what it does with a deflection — `route` against a
+  narrow `PadStickTarget`, `letGo` for whatever it writes — and the three built
+  in are instances rather than cases. There is no switch left to break.
+* **`IssueSink` takes an `Issue`.** A bare string could not grow a severity or
+  a source without breaking every sink anybody had written.
+
 ## 0.4.1
 
 * **The simulation moved out, and nothing that imports this package changes a

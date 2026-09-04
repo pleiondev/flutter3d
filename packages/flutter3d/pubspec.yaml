@@ -1,6 +1,6 @@
 name: flutter3d
 description: "A 3D engine on Flutter GPU: scene graph, glTF/OBJ/.f3d loading, PBR, shadows, bloom, skinning."
-version: 0.4.3
+version: 0.5.0
 repository: https://github.com/pleiondev/flutter3d
 homepage: https://flutter3d.pleion.dev
 issue_tracker: https://github.com/pleiondev/flutter3d/issues
@@ -23,7 +23,7 @@ dependencies:
   # backend: `flutter3d` names no graphics API at all, which is what lets an
   # application choose one — `flutter3d_impeller` today — and what would let a WebGL
   # backend exist without touching the engine.
-  flutter3d_hardware: ^0.4.2
+  flutter3d_hardware: ^0.5.0
   vector_math: ^2.2.0
 
 dev_dependencies:

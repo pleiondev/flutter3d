@@ -1,3 +1,26 @@
+## 0.5.0
+
+**Breaking.** Fifteen per-step fields become events, and the genre ships its
+readouts.
+
+* **The simulation's five channels and the runner's ten are gone.** Two of them
+  were bools that could carry one of a thing: two enemies stomped in a step
+  made one sound, and a level whose checkpoints differ could not say which had
+  just been passed. What replaces them is `PlatformerSimulation.events`, which
+  the runner writes into as well — so a landing and the block that gave way
+  under it arrive one after the other rather than as two flags on two objects.
+* **`Runner.poundedThisStep` survives, and says why**: the simulation reads it
+  later in the same step to shatter the block underfoot. That is wiring; what a
+  game should read is `Landed.pounded`.
+* **The game's walk over every mechanism, once a frame, is gone.** Springs,
+  crumbling platforms and breakable blocks are reported by the simulation on
+  the pass it already makes.
+* **`PurseReadout` and `LivesStrip`.** The purse draws what is in it rather
+  than a fixed list of kinds, and a run with no life limit draws nothing at
+  all.
+* **`Difficulty` is read in `Runner.applyDamage`**, the one door damage reaches
+  the runner through.
+
 ## 0.4.1
 
 * **`Hunter`**, an enemy that comes after the player across the gaps: it

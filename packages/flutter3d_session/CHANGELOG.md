@@ -1,3 +1,7 @@
+## 0.5.0
+
+* No API change. Released with the set.
+
 ## 0.4.1
 
 * **A frame's cost, on request.** `FrameTimingLog` prints the mean and the

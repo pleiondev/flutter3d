@@ -1,3 +1,28 @@
+## 0.5.0
+
+**Breaking.** Four callbacks widen, four types open, and nine collections stop
+being writable by whoever holds them.
+
+* **`AssetUriResolver`, and `SkyColour`, take one object.** `AssetRequest` and
+  `SkyLook` can grow a field; a function type cannot grow a parameter without
+  breaking every implementation. `SkyLook` is reused between calls, never held.
+* **`AssetSource` is open, and deliberately without a registry.** A game whose
+  assets live in an archive or behind a network cache writes its own source and
+  passes it. A registry would be empty in the background isolate that does the
+  reading — the failure `ModelLoadRequest.decoders` documents — so a source
+  travels with the request instead, and must be sendable.
+* **`Projection` is open.** Nothing ever switched over it; the matrix maths was
+  always polymorphic. A skewed projection for a portal is the case that made
+  the point.
+* **`Shape`, `DerivedShape`, `ProceduralTexture` and `Projection` are `base`.**
+  Extend them, do not implement them, so a member added later is inherited
+  rather than missing. Eleven shapes and two procedural textures become `final`
+  with them.
+* **`ModelNode.joints`, `Skeleton.joints`, `ModelAsset.skins` and a glTF
+  asset's buffers are unmodifiable.** They are built by a load and read
+  afterwards; a writer now breaks loudly, which is a change that can only be
+  made before somebody starts writing.
+
 ## 0.4.3
 
 * **`RenderSettings.anisotropy`.** Taps a model's texture samplers may take
