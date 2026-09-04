@@ -40,7 +40,8 @@ enum ObjNormals {
 ///
 /// OBJ is a text format with no version and plenty of dialects, so the parser is
 /// permissive by design — unknown directives are recorded as warnings and
-/// skipped rather than treated as errors.
+/// skipped rather than treated as errors. That holds for the `.mtl` half too:
+/// see [parseMtl], which reports its own once each.
 final class ObjLoader {
   ObjLoader({
     this.layout = VertexLayout.standard,

@@ -193,6 +193,41 @@ void main() {
       expect(loaded.brushNodes.every((n) => !n.lightmapped), isTrue);
     });
 
+    // The hash says the level is the level the bake read. It cannot say that
+    // this build packs that level's faces where the baking build packed
+    // them, and a map whose atlas is a different size is proof they do not:
+    // every face would sample somebody else's texels. So the size is
+    // compared too. Mutation: dropping the `layout.width != lightmap.width`
+    // check in `LevelLoader.build` binds the map anyway, and both the
+    // `isNull` and the issue expectations report false.
+    test('the size of which disagrees with the plan is refused too', () async {
+      final level = _level();
+      final baked = const LightmapBaker(
+        texelsPerMetre: 1.0,
+        bounces: 0,
+      ).bake(level);
+      // Fresh by the hash — same level, same lights — and half the atlas the
+      // planner asks for, which is what a changed packer would look like.
+      final wrongSize = Lightmap(
+        width: baked.width ~/ 2,
+        height: baked.height,
+        texelsPerMetre: baked.texelsPerMetre,
+        levelHash: baked.levelHash,
+      );
+      expect(wrongSize.isStaleFor(level), isFalse, reason: 'the hash agrees');
+
+      final loaded = await const LevelLoader().build(
+        level,
+        device: device,
+        registry: registry,
+        lightmap: wrongSize,
+      );
+
+      expect(loaded.lightmap, isNull);
+      expect(loaded.issues.single.message, contains('this build plans'));
+      expect(loaded.brushNodes.every((n) => !n.lightmapped), isTrue);
+    });
+
     test('is looked for beside the document', () async {
       final asked = <String>[];
       final loaded = await const LevelLoader().load(

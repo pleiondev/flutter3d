@@ -74,6 +74,13 @@ Future<MaterialDocument> loadMaterialDocument(
 /// normal map should cost a normal map, not the level — the renderer binds a
 /// neutral texture in its place, which is the same thing a model with an
 /// undecodable image gets.
+///
+/// **An extra texture slot keeps its image and loses its sampler**, and says
+/// so in [warnings] when the file asked for one. [Material.extraTextures] is
+/// names to handles: a slot invented for an application's own shader has no
+/// field here to hang a sampler off, so the encoder binds it with the
+/// device's default. Only whether it carries a mip chain survives, because
+/// that is part of the texture rather than of the sampler.
 Future<Material> bindMaterial(
   MaterialDocument document, {
   required GraphicsDevice device,
@@ -129,10 +136,30 @@ Future<Material> bindMaterial(
   final (occlusion, occlusionSampler) = await resolve(surface.occlusionTexture);
   final (emissive, emissiveSampler) = await resolve(surface.emissiveTexture);
 
+  // Extras keep no sampler, and the file may ask for one. `Material`'s map is
+  // `String -> TextureHandle`: the encoder binds these by name with the
+  // device's default, because a slot named for an application's own shader
+  // has no field here to hang a sampler off. A `.fmat` that writes
+  // `{"path": ..., "wrapS": "clampToEdge"}` in such a slot therefore samples
+  // repeating anyway — worth a sentence rather than a silent difference
+  // between what the file says and what is drawn.
+  const plain = TextureSampling();
   final extra = <String, TextureHandle>{};
   for (final entry in document.extraTextures.entries) {
     final (handle, _) = await resolve(entry.value);
-    if (handle != null) extra[entry.key] = handle;
+    if (handle == null) continue;
+    extra[entry.key] = handle;
+    final sampling = entry.value.sampling;
+    if (sampling.wrapS != plain.wrapS ||
+        sampling.wrapT != plain.wrapT ||
+        sampling.magLinear != plain.magLinear ||
+        sampling.minLinear != plain.minLinear) {
+      warnings?.add(
+        'the "${entry.key}" texture asks for a sampler of its own, and an '
+        'extra slot is bound with the device default; only the built-in '
+        'slots keep one.',
+      );
+    }
   }
 
   return Material(

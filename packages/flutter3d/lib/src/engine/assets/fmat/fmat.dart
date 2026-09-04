@@ -29,9 +29,20 @@ bool isFmat(Uint8List bytes) {
 /// the look of something changes; a binary container would buy nothing here and
 /// cost both. Models are the other case and have their own container.
 ///
-/// Unknown keys are recorded in [MaterialDocument.warnings] rather than thrown
-/// on: a file written by a newer tool should still load, minus what this version
-/// does not understand.
+/// Unknown top-level keys are recorded in [MaterialDocument.warnings] rather
+/// than thrown on: a file written by a newer tool should still load, minus what
+/// this version does not understand, and a hand-edited file with `roughnesss`
+/// in it should say so rather than quietly take the default. That is not in
+/// tension with the version gate below, which refuses a whole newer `fmat`
+/// number outright: a bumped version is the writer declaring that the
+/// difference matters, and an extra key in a file that still calls itself
+/// version 1 is the writer saying it does not.
+///
+/// Two namespaces are deliberately open and so are never warned about. A
+/// texture slot the [SurfaceMaterial] does not name becomes an entry in
+/// [MaterialDocument.extraTextures], and a key under `parameters` becomes a
+/// uniform: both exist so a custom shader can ask for something this engine
+/// has never heard of.
 MaterialDocument readFmat(Uint8List bytes, {String name = ''}) {
   final Object? parsed = json.decode(utf8.decode(bytes));
   if (parsed is! Map<String, Object?>) {
@@ -49,7 +60,33 @@ MaterialDocument readFmat(Uint8List bytes, {String name = ''}) {
     );
   }
 
-  final warnings = <String>[];
+  // Exactly the keys `writeFmat` emits, so the two halves of the format
+  // cannot drift: a key added to the writer and not to this set warns on the
+  // writer's own output, which `fmat_test.dart`'s round trip catches.
+  const knownKeys = <String>{
+    'fmat',
+    'name',
+    'lighting',
+    'baseColor',
+    'metallic',
+    'roughness',
+    'normalScale',
+    'occlusionStrength',
+    'emissive',
+    'emissiveStrength',
+    'alphaMode',
+    'alphaCutoff',
+    'doubleSided',
+    'unlit',
+    'textures',
+    'parameterBlock',
+    'parameters',
+  };
+  final warnings = <String>[
+    for (final key in parsed.keys)
+      if (!knownKeys.contains(key))
+        '"$key" is not a key this reader knows; ignored',
+  ];
   final images = <String>[];
   final texturePaths = <String, int>{};
 
@@ -77,7 +114,9 @@ MaterialDocument readFmat(Uint8List bytes, {String name = ''}) {
 
   final textures =
       parsed['textures'] as Map<String, Object?>? ?? const <String, Object?>{};
-  const known = <String>{
+  // The slots [SurfaceMaterial] has a field for; everything else under
+  // `textures` is an extra, on purpose, and so is never a warning.
+  const knownSlots = <String>{
     'albedo',
     'normal',
     'metallicRoughness',
@@ -119,7 +158,7 @@ MaterialDocument readFmat(Uint8List bytes, {String name = ''}) {
     },
     extraTextures: <String, TextureBinding>{
       for (final entry in textures.entries)
-        if (!known.contains(entry.key))
+        if (!knownSlots.contains(entry.key))
           if (binding(entry.value) case final TextureBinding slot)
             entry.key: slot,
     },

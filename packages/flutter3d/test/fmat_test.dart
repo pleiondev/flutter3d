@@ -205,6 +205,18 @@ void main() {
       expect(_shapeOf(again), _shapeOf(original));
       expect(again.images, original.images);
       expect(again.lighting, same(LightingModel.pbr));
+      // And the reader knows every key the writer emits. `readFmat` warns on
+      // an unknown top-level key, so a key added to `writeFmat` and not to
+      // its `knownKeys` set warns on the writer's own output — which is only
+      // caught if somebody looks. Mutation: emit `'extra': 1` from
+      // `writeFmat` — this reports false while nothing else moves.
+      expect(
+        again.warnings,
+        isEmpty,
+        reason:
+            'the writer wrote a key the '
+            'reader does not know; add it to readFmat\'s knownKeys',
+      );
     });
 
     test('and that a custom shader survives the trip too', () {
@@ -223,6 +235,13 @@ void main() {
       expect(again.lighting!.usesMaterialParameters, isFalse);
       expect(again.parameters['speed'], <double>[2.5]);
       expect(again.extraTextures['flow']!.sampling.useMipmaps, isFalse);
+      expect(
+        again.warnings,
+        isEmpty,
+        reason:
+            'the same, for the keys only a '
+            'custom shader makes the writer emit',
+      );
     });
 
     test('and that an unusual sampler is written long and a plain one short', () {
@@ -268,6 +287,39 @@ void main() {
 
       expect(document.surface.alphaMode, SurfaceAlphaMode.opaque);
       expect(document.warnings.single, contains('dissolve'));
+    });
+
+    // The failure the doc comment claims to prevent, and the one a text
+    // format exists to make survivable: a hand-edit with a letter too many
+    // used to load with the default roughness and say nothing at all.
+    // Mutation: dropping `roughnesss` from the misspelling below — or
+    // dropping the `knownKeys` filter from `readFmat` — leaves `warnings`
+    // empty and the single-warning expectation reports false.
+    test('and a misspelt key is named rather than silently dropped', () {
+      final document = readFmat(
+        _bytes('{"fmat": 1, "roughnesss": 0.9, "roughness": 0.2}'),
+      );
+
+      expect(document.surface.roughness, 0.2);
+      expect(document.warnings.single, contains('roughnesss'));
+    });
+
+    // The open half of the format, which must stay quiet: an extra texture
+    // slot and an extra parameter are how a custom shader asks for something
+    // this engine has never heard of. Mutation: dropping `'textures'` from
+    // `readFmat`'s `knownKeys` warns about the very namespace that is open on
+    // purpose, and the empty-warnings expectation reports false.
+    test('and an extra texture slot or parameter is not a warning', () {
+      final document = readFmat(
+        _bytes(
+          '{"fmat": 1, "textures": {"detail": "d.png"}, '
+          '"parameters": {"windStrength": 2.0}}',
+        ),
+      );
+
+      expect(document.extraTextures.keys, <String>['detail']);
+      expect(document.parameters.keys, <String>['windStrength']);
+      expect(document.warnings, isEmpty);
     });
   });
 }

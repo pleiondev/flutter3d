@@ -28,6 +28,7 @@
 library;
 
 import 'dart:math' as math;
+import 'dart:typed_data';
 
 import 'package:vector_math/vector_math.dart';
 
@@ -150,19 +151,28 @@ final class LightmapLayout {
   /// stably, and nothing here reads anything but the level. Throws
   /// [StateError] when the level wants more than [maxSize] texels on a side,
   /// which is a level that wants a lower density.
+  ///
+  /// Deterministic across the sidecar as well, which is why the density is
+  /// narrowed to a `float32` before anything is measured with it. `Lightmap`
+  /// stores it as `float32`, and the loader re-plans from what it read: a
+  /// density the baker took from `--density 0.1` and a plan made from the
+  /// 0.100000001490116 that comes back are not obliged to round a face's
+  /// `ceil()` the same way, and one face a texel wider re-packs every shelf
+  /// under it. Narrowing here makes the two plans the same plan by
+  /// construction rather than by luck, for every density anyone can type.
   static LightmapLayout plan(
     Level level, {
     double texelsPerMetre = 4.0,
     bool cullHiddenFaces = true,
     double cellSize = 8.0,
   }) {
+    final density = (Float32List(1)..[0] = texelsPerMetre)[0];
     final geometry = BrushGeometry(
       cullHiddenFaces: cullHiddenFaces,
       cellSize: cellSize,
     );
     final planned = <_Planned>[
-      for (final face in geometry.blockFaces(level))
-        _Planned(face, texelsPerMetre),
+      for (final face in geometry.blockFaces(level)) _Planned(face, density),
     ];
     // Tallest first, then widest, then the level's own order, so two runs
     // over the same level pack the same way.
@@ -209,12 +219,12 @@ final class LightmapLayout {
     final height = _powerOfTwoAtLeast(used).clamp(64, maxSize);
     if (used > maxSize) {
       throw StateError(
-        'the level wants $used rows of lightmap at $texelsPerMetre texels a '
+        'the level wants $used rows of lightmap at $density texels a '
         'metre, more than $maxSize; lower the density',
       );
     }
     return LightmapLayout._(
-      texelsPerMetre: texelsPerMetre,
+      texelsPerMetre: density,
       width: width,
       height: height,
       faces: faces,

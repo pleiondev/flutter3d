@@ -105,10 +105,15 @@ final class GltfLoader {
     final required = json['extensionsRequired'];
     if (required is! List) return;
 
+    // Only what something downstream actually reads. `KHR_texture_transform`
+    // was on this list and nothing anywhere applied a transform: an
+    // atlas-packed model — the export that needs it — passed the gate and
+    // then drew every material sampling the whole atlas. A file that requires
+    // it is refused here, and one that merely uses it gets a warning where
+    // its texture is read, in `_decodeMaterials`.
     const supported = <String>{
       'KHR_materials_unlit',
       'KHR_materials_emissive_strength',
-      'KHR_texture_transform',
       // Supported as far as the KTX2 reader goes — Basis ETC1S, and a file's
       // own BC/ETC2/ASTC where the device samples them. A UASTC texture in
       // such a file is refused by name at upload and becomes a warning on the

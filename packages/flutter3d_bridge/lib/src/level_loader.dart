@@ -301,9 +301,31 @@ final class LevelLoader {
     }
     // Planned here the same way the baker planned it, from the level and the
     // map's own density; the map carries pixels and a hash, not a table.
-    final layout = lightmap == null
+    var layout = lightmap == null
         ? null
         : LightmapLayout.plan(level, texelsPerMetre: lightmap.texelsPerMetre);
+    // And then checked against the map, which is the one thing the hash
+    // cannot do for us: it says the level is the level the bake read, not
+    // that this build's packer puts the faces where that build's packer put
+    // them. An atlas of a different size is proof they disagree — a changed
+    // planner, or a density that did not survive the sidecar's float32 — and
+    // every face would then sample somebody else's texels, which reads as
+    // scrambled light rather than as a stale map. Cheap enough to do every
+    // load: two integers.
+    if (layout != null &&
+        lightmap != null &&
+        (layout.width != lightmap.width || layout.height != lightmap.height)) {
+      loadIssues.add(
+        LevelIssue(
+          LevelIssueSeverity.warning,
+          'the lightmap is ${lightmap.width}x${lightmap.height} and this '
+          'build plans ${layout.width}x${layout.height} for the same level, '
+          'so it is ignored; run bake_lightmap again',
+        ),
+      );
+      lightmap = null;
+      layout = null;
+    }
     final lightmapTexture = lightmap == null
         ? null
         : device.createTextureFromPixels(

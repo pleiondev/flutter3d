@@ -10,13 +10,24 @@
 /// where that difference is stated rather than assumed**: a material is a few
 /// hundred bytes of text, it is read where it is asked for, and the interface is
 /// synchronous because there is nothing to move off the frame.
+///
+/// **The last group is the half that touches a device.** `bindMaterial` and
+/// `loadMaterial` are exported from `flutter3d.dart` and had no caller
+/// anywhere — no app, no sample, no test — so a published path from a file on
+/// disk to a `Material` the renderer draws with had never been run once. It
+/// runs here, against `FakeBackend` and a hand-built KTX2, which needs no
+/// live binding: `uploadEncodedImage` sniffs KTX2 before `dart:ui` sees the
+/// bytes.
 library;
 
 import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter3d/flutter3d.dart';
+import 'package:flutter3d_hardware/testing.dart';
 import 'package:flutter_test/flutter_test.dart';
+
+import 'helpers/build_ktx2.dart';
 
 /// A format invented for this test: one line, `TOYMAT <roughness>`.
 ///
@@ -49,6 +60,33 @@ String _fileNamed(String name, String content) {
 }
 
 const String _steel = '{"fmat": 1, "name": "steel", "metallic": 1.0}';
+
+/// A directory holding a `.fmat` and whatever sibling files it names.
+///
+/// `FileAssetSource.resolveUri` resolves a material's texture paths against
+/// the material's own directory, so the two have to be written side by side
+/// for the binding half to be exercised at all.
+String _materialBeside(
+  String fmat, {
+  Map<String, List<int>> siblings = const <String, List<int>>{},
+}) {
+  final dir = Directory.systemTemp.createTempSync('flutter3d_bind_');
+  addTearDown(() => dir.deleteSync(recursive: true));
+  for (final sibling in siblings.entries) {
+    File('${dir.path}/${sibling.key}').writeAsBytesSync(sibling.value);
+  }
+  final path = '${dir.path}/thing.fmat';
+  File(path).writeAsStringSync(fmat);
+  return path;
+}
+
+/// A whole, valid, four-by-four BC7 KTX2 — enough for a real upload without a
+/// Flutter binding, since `uploadEncodedImage` sniffs KTX2 before `dart:ui`
+/// ever sees the bytes.
+List<int> _texture(int seed) => buildKtx2(
+  vkFormat: VkFormat.bc7UNormBlock,
+  levels: <List<int>>[List<int>.generate(16, (i) => (seed + i) & 0xFF)],
+);
 
 void main() {
   test(
@@ -117,6 +155,104 @@ void main() {
           allOf(contains('MaterialDecoder'), contains('.fmat')),
         ),
       ),
+    );
+  });
+
+  // Everything above stops at the document. `bindMaterial` and `loadMaterial`
+  // are exported from `flutter3d.dart` and were called by nothing at all —
+  // not an app, not a sample, not a test — so the half of the format that
+  // touches a device had never run. These four take the same path an
+  // application would.
+  group('and the half that reaches a device', () {
+    // Mutation: passing `albedo: null` to `Material`'s constructor in
+    // `bindMaterial` — the document still reads, and the two expectations
+    // that the image reached the device report false.
+    test('loads a file into a drawable material', () async {
+      final device = FakeBackend();
+      final warnings = <String>[];
+      final material = await loadMaterial(
+        FileAssetSource(
+          _materialBeside(
+            '{"fmat": 1, "name": "brass", "metallic": 0.8, "roughness": 0.3, '
+            '"textures": {"albedo": "brass.ktx2"}}',
+            siblings: <String, List<int>>{'brass.ktx2': _texture(1)},
+          ),
+        ),
+        device: device,
+        warnings: warnings,
+      );
+
+      expect(material.name, 'brass');
+      expect(material.metallic, 0.8);
+      expect(material.roughness, 0.3);
+      expect(material.albedo, isNotNull);
+      expect(
+        device.uploadedTextures.single.format,
+        TextureFormat.bc7RGBAUNormInt,
+      );
+      expect(warnings, isEmpty);
+    });
+
+    // Mutation: make `resolve` rethrow instead of catching — the load fails
+    // and this whole test throws rather than reporting a warning.
+    test('costs a missing image a warning, not the material', () async {
+      final warnings = <String>[];
+      final material = await loadMaterial(
+        FileAssetSource(
+          _materialBeside('{"fmat": 1, "textures": {"normal": "gone.ktx2"}}'),
+        ),
+        device: FakeBackend(),
+        warnings: warnings,
+      );
+
+      expect(material.normal, isNull);
+      expect(warnings.single, contains('gone.ktx2'));
+    });
+
+    // The extension point, end to end: a slot no `SurfaceMaterial` field
+    // names becomes a `Material.extraTextures` entry the encoder binds by
+    // name. Mutation: dropping the `extraTextures` loop from `bindMaterial`
+    // leaves the map empty and this reports false.
+    test('binds a slot only the application\'s shader knows', () async {
+      final material = await loadMaterial(
+        FileAssetSource(
+          _materialBeside(
+            '{"fmat": 1, "lighting": {"shader": "flow"}, '
+            '"textures": {"flow": "flow.ktx2"}}',
+            siblings: <String, List<int>>{'flow.ktx2': _texture(2)},
+          ),
+        ),
+        device: FakeBackend(),
+      );
+
+      expect(material.lighting.shaderName, 'flow');
+      expect(material.extraTextures.keys, <String>['flow']);
+    });
+
+    // A `.fmat` may ask an extra slot for a sampler, and `Material` has
+    // nowhere to keep one: `extraTextures` is `Map<String, TextureHandle>`
+    // and the encoder binds those with the device's default. Said out loud
+    // rather than dropped. Mutation: deleting the `sampling` check in
+    // `bindMaterial`'s extras loop leaves `warnings` empty and this reports
+    // false.
+    test(
+      'says so when an extra slot asks for a sampler it cannot keep',
+      () async {
+        final warnings = <String>[];
+        await loadMaterial(
+          FileAssetSource(
+            _materialBeside(
+              '{"fmat": 1, "textures": {"flow": '
+              '{"path": "flow.ktx2", "wrapS": "clampToEdge"}}}',
+              siblings: <String, List<int>>{'flow.ktx2': _texture(3)},
+            ),
+          ),
+          device: FakeBackend(),
+          warnings: warnings,
+        );
+
+        expect(warnings.single, allOf(contains('flow'), contains('sampler')));
+      },
     );
   });
 }
