@@ -25,7 +25,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[3] / "tool"))
-from leveldoc import dump, rounded  # noqa: E402
+from leveldoc import dump, rounded, shadow  # noqa: E402
 
 LEVELS = Path(__file__).resolve().parent.parent / "assets" / "levels"
 
@@ -51,12 +51,13 @@ def start():
 # ── Architecture ────────────────────────────────────────────────────────────
 
 
-def _box(at, size, material, casts=True, solid=True):
+def _box(at, size, material, casts=True, solid=True, shadows=None):
     row = {"at": rounded(at), "size": rounded(size), "material": material}
-    # A fence is not architecture: omitted when true, so the documents do not
-    # grow a line per brush saying the obvious.
-    if not casts:
-        row["castsShadow"] = False
+    # A fence is not architecture, and a wall one brush thick casts from both
+    # of its faces: `leveldoc.shadow` knows which of the four answers needs
+    # saying and which is the silent default. [casts] is the older two-state
+    # way of asking, kept because most of a crypt has nothing finer to say.
+    row.update(shadow(shadows if shadows else ("on" if casts else "off")))
     # Water is walked through, not into: a brush that is drawn and stops
     # nothing. Omitted when solid for the same reason as above.
     if not solid:
@@ -65,14 +66,18 @@ def _box(at, size, material, casts=True, solid=True):
     return row
 
 
-def block(at, size, material, *, casts=True, solid=True):
+def block(at, size, material, *, casts=True, solid=True, shadows=None):
     """One brush, as it is: a pier, a dais, a slab of water.
 
     The rooms build their own walls and a pillar knows its own shape; this is
     for the piece of architecture that is only a box and needs no arithmetic
     done for it.
+
+    [shadows] is one of `leveldoc.SHADOW_MODES` for a block that wants a finer
+    answer than [casts] can give — a screen that should cast from both faces,
+    a coarse box standing in for something the shadow map cannot afford.
     """
-    return _box(at, size, material, casts=casts, solid=solid)
+    return _box(at, size, material, casts=casts, solid=solid, shadows=shadows)
 
 
 def _wall_with_holes(fixed, axis, span, base, height, holes, material):
@@ -100,16 +105,25 @@ def _wall_with_holes(fixed, axis, span, base, height, holes, material):
 
 
 def _piece(fixed, axis, low, high, bottom, top, material):
+    """One run of wall, and the reason every one of them says `doubleSided`.
+
+    A crypt's walls are one brush thick and rooms stand on both sides of them,
+    so the face a torch lights and the face it does not are a metre apart. The
+    shadow pass records back faces by default, which is right for a solid
+    thing and wrong for a wall used from both sides: the wall is recorded from
+    the room behind it and light leaks along the seam where it meets the floor
+    of the room in front. `doubleSided` records both faces.
+    """
     if high - low < 1e-6 or top - bottom < 1e-6:
         return
     along = (low + high) / 2.0
     thick = THICK
     if axis == "x":
         _box((along, (bottom + top) / 2.0, fixed),
-             (high - low, top - bottom, thick), material)
+             (high - low, top - bottom, thick), material, shadows="doubleSided")
     else:
         _box((fixed, (bottom + top) / 2.0, along),
-             (thick, top - bottom, high - low), material)
+             (thick, top - bottom, high - low), material, shadows="doubleSided")
 
 
 PROBE_REACH = 10.0

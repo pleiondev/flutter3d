@@ -18,6 +18,38 @@ Nothing here reads or writes a file. `dump` returns a string.
 
 import json
 
+#: The four answers a brush may give about the shadow passes, in the order
+#: `ShadowCasting` spells them. `on` and `off` are what the older `castsShadow`
+#: boolean could say; `doubleSided` is for a wall one brush thick, which
+#: recorded from its lit side only leaks light along the seam where it meets
+#: the floor; `shadowsOnly` is a proxy that casts without being drawn.
+SHADOW_MODES = ("on", "off", "doubleSided", "shadowsOnly")
+
+
+def shadow(mode):
+    """The keys a brush writes to ask for [mode], and nothing it need not.
+
+    Here rather than in each game's kit because it is a fact about the format,
+    which is what this file is for — and because the elisions are the part that
+    is easy to get subtly different in two places. `on` says nothing at all:
+    it is the default, and a document that grew a line per brush saying so is
+    a document nobody can read a diff of. `off` keeps writing the boolean, so
+    every level already on disk stays the file it is. The other two have no
+    boolean that can say them, so they are spelled out.
+
+    Refuses an unknown word here rather than letting the loader refuse it three
+    hours later: a generator is run far more often than a level is loaded.
+    """
+    if mode not in SHADOW_MODES:
+        raise SystemExit(
+            f'a brush asks for shadowCasting {mode!r}, which is not one of '
+            f'{", ".join(SHADOW_MODES)}')
+    if mode == "on":
+        return {}
+    if mode == "off":
+        return {"castsShadow": False}
+    return {"shadowCasting": mode}
+
 
 def dump(value, indent=0):
     """Compact where compact reads better: one line per brush, per entity.

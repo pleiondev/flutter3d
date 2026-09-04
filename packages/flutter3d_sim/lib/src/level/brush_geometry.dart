@@ -88,10 +88,20 @@ final class BrushGeometry {
   /// With [lightmap], every vertex also carries its second texture
   /// coordinate — the face's place in the atlas — and [BrushSurface.lightmapUvs]
   /// is filled; without one it is null and the batches are what they were.
+  ///
+  /// [origins] says, for each of `level.brushes`, which brush of the *authored*
+  /// level it came out of — `Breaches.origins`. It is how a lightmap survives a
+  /// breach. An atlas is planned by brush index, and a cut replaces one brush
+  /// with up to six in its place, so without it every face after the first hole
+  /// would read somebody else's texels; with it a piece asks the atlas for the
+  /// face it is part of, and measures where in that face it lies. A piece's
+  /// face towards the hole is on no planned plane and takes the neutral texel,
+  /// which is the one part of a breached wall that genuinely has no baked light.
   List<BrushSurface> build(
     Level level, {
     LevelVisibility? visibility,
     LightmapLayout? lightmap,
+    List<int>? origins,
   }) {
     final builders = <String, SurfaceBuilder>{};
 
@@ -101,24 +111,43 @@ final class BrushGeometry {
     // with no fences and no table produces exactly the batches it always did.
     SurfaceBuilder builderFor(Brush brush, double x, double y, double z) {
       final slot = visibility == null ? -1 : visibility.slotOf(x, y, z);
-      final key = '${brush.material}|${brush.castsShadow ? 1 : 0}|$slot';
+      final key = '${brush.material}|${brush.shadowCasting.name}|$slot';
       return builders.putIfAbsent(
         key,
         () => SurfaceBuilder(
           brush.material,
-          castsShadow: brush.castsShadow,
+          shadowCasting: brush.shadowCasting,
           lightmapped: lightmap != null,
         ),
       );
     }
 
+    // Where a face reads its baked light, and whether it has to measure. A
+    // whole face counts its corners off its own rectangle, which is what every
+    // level built without a hole in it does and what every recorded picture
+    // was drawn with; a piece of a cut brush is a smaller rectangle somewhere
+    // inside a planned one, so it measures.
+    (LightmapFace?, bool) placeOf(BrushFace face) {
+      final layout = lightmap;
+      if (layout == null) return (null, false);
+      if (origins == null) return (layout.faceOf(face.brush, face.face), false);
+      final planned = layout.faceOf(origins[face.brush], face.face);
+      final kept =
+          planned != null &&
+          layout.isOnPlane(planned, face.centreX, face.centreY, face.centreZ);
+      return (kept ? planned : null, true);
+    }
+
     for (final face in blockFaces(level)) {
       final brush = level.brushes[face.brush];
+      final (placed, measured) = placeOf(face);
       _emitFace(
         face,
         level.materialFor(brush),
         builderFor(brush, face.centreX, face.centreY, face.centreZ),
         lightmap,
+        placed,
+        measured: measured,
       );
     }
     for (final brush in level.brushes) {
@@ -192,7 +221,9 @@ final class BrushGeometry {
     LevelMaterial material,
     SurfaceBuilder out,
     LightmapLayout? lightmap,
-  ) {
+    LightmapFace? placed, {
+    required bool measured,
+  }) {
     final scale = material.texelsPerMetre;
     final normal = face.normal;
     final u = face.u;
@@ -202,7 +233,6 @@ final class BrushGeometry {
     final centreZ = face.centreZ;
     final halfU = face.halfU;
     final halfV = face.halfV;
-    final placed = lightmap?.faceOf(face.brush, face.face);
 
     final first = out.vertexCount;
     for (final (su, sv) in const <(double, double)>[
@@ -215,7 +245,8 @@ final class BrushGeometry {
       final y = centreY + u.y * halfU * su + v.y * halfV * sv;
       final z = centreZ + u.z * halfU * su + v.z * halfV * sv;
       final (lu, lv) = switch ((lightmap, placed)) {
-        (final layout?, final at?) => layout.uvAt(at, su, sv),
+        (final layout?, final at?) =>
+          measured ? layout.uvOfPoint(at, x, y, z) : layout.uvAt(at, su, sv),
         (final layout?, null) => layout.neutralUv,
         _ => (0.0, 0.0),
       };

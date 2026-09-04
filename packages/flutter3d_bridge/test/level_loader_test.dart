@@ -12,10 +12,12 @@ library;
 import 'dart:convert';
 import 'dart:typed_data';
 
+import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_bridge/flutter3d_bridge.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:vector_math/vector_math.dart';
 
 /// The document a level with one wall, in one material, parses from.
 Map<String, Object?> _levelJson({String? albedo}) => <String, Object?>{
@@ -251,7 +253,132 @@ void main() {
       expect(loaded.issues, isEmpty, reason: 'a missing map is not an issue');
     });
   });
+
+  group('a breach', () {
+    Future<(LoadedLevel, Breaches)> breached() async {
+      final level = _twoWalls();
+      final loaded = await const LevelLoader().build(
+        level,
+        device: device,
+        registry: registry,
+        lightmap: const LightmapBaker(
+          texelsPerMetre: 1.0,
+          bounces: 0,
+          includeDirect: true,
+        ).bake(level),
+      );
+      expect(loaded.lightmap, isNotNull, reason: 'the level loaded lit');
+
+      final world = CollisionWorld();
+      level.addTo(world);
+      return (
+        loaded,
+        Breaches(level, world)
+          ..hole(Aabb3.minMax(Vector3(5.0, 1.0, -3.0), Vector3(7.0, 3.0, 1.0))),
+      );
+    }
+
+    test('keeps the baked light on the walls it did not touch', () async {
+      // The decision this was written for. Before it, one rocket into one wall
+      // dropped the atlas from the whole level — in the crypt, the light in
+      // every room changing because a corridor lost a metre of stone.
+      //
+      // That the pieces read the *right* texels is `flutter3d_sim`'s
+      // `breached_lightmap_test.dart`; what is held here is that the atlas
+      // reaches the rebuild at all.
+      //
+      // Mutation: stop keeping the plan — `..lightmapLayout = null` at the
+      // foot of `build`. Every batch comes back unlightmapped and the level
+      // goes flat on the first rocket.
+      final (loaded, breaches) = await breached();
+      final atlas = loaded.lightmap;
+
+      const LevelLoader().rebuildBrushes(
+        loaded,
+        device: device,
+        brushes: breaches.brushes,
+        origins: breaches.origins,
+      );
+
+      expect(loaded.brushNodes, isNotEmpty);
+      for (final node in loaded.brushNodes) {
+        expect(node.lightmapped, isTrue);
+        expect(node.material.lightmap, same(atlas));
+      }
+    });
+
+    test(
+      'and asks for none when it cannot say where its walls came from',
+      () async {
+        // The honest fallback, and the reason it is one: a layout is keyed by
+        // brush index, so a caller with no origins has no way to tell a piece
+        // which face it is part of. Flat is a limit; a face reading somebody
+        // else's texels is a bug that looks like light.
+        //
+        // Mutation: pass `loaded.lightmapLayout` regardless of `origins`.
+        final (loaded, breaches) = await breached();
+
+        const LevelLoader().rebuildBrushes(
+          loaded,
+          device: device,
+          brushes: breaches.brushes,
+        );
+
+        expect(loaded.brushNodes, isNotEmpty);
+        expect(loaded.brushNodes.every((MeshNode n) => !n.lightmapped), isTrue);
+      },
+    );
+  });
+
+  group('the shadow mode a document asks for', () {
+    test('reaches the node the batch is drawn through', () async {
+      // A crypt's walls are one brush thick and lit from both sides, which is
+      // the case `ShadowCastingMode.doubleSided` was written for and the case
+      // a level document could not ask for.
+      //
+      // Mutation: `..castsShadow = surface.castsShadow` on the node again.
+      // `doubleSided` reads as true, so the wall loads as an ordinary caster
+      // and leaks light along its seam with nothing said.
+      final loaded = await const LevelLoader().build(
+        Level.fromJson(<String, Object?>{
+          ..._levelJson(),
+          'brushes': <Object?>[
+            <String, Object?>{
+              'material': 'wall',
+              'at': <double>[0.0, 1.5, -1.5],
+              'size': <double>[4.0, 3.0, 1.0],
+              'shadowCasting': 'doubleSided',
+            },
+          ],
+        }),
+        device: device,
+        registry: registry,
+      );
+
+      expect(
+        loaded.brushNodes.single.shadowCasting,
+        ShadowCastingMode.doubleSided,
+      );
+    });
+  });
 }
+
+/// Two walls twelve metres apart: one for a blast to cut, one for it to miss.
+Level _twoWalls() => Level.fromJson(<String, Object?>{
+  ..._levelJson(),
+  'brushes': <Object?>[
+    <String, Object?>{
+      'material': 'wall',
+      'at': <double>[6.0, 2.0, -1.0],
+      'size': <double>[4.0, 4.0, 1.0],
+    },
+    <String, Object?>{
+      'material': 'wall',
+      'at': <double>[-6.0, 2.0, -1.0],
+      'size': <double>[4.0, 4.0, 1.0],
+    },
+  ],
+});
 
 /// One opaque white pixel, as a PNG.
 ///

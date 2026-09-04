@@ -7,6 +7,44 @@ import 'json_reader.dart';
 import 'json_write_through.dart';
 import 'level_format_exception.dart';
 
+/// How a brush takes part in the shadow passes, as a document says it.
+///
+/// **The engine has had four answers since `ShadowCastingMode` was written and
+/// the level format has had two.** A wall recorded from its lit face only
+/// leaks light along its seam, and a coarse proxy should cast without being
+/// drawn; both were reachable from Dart and unauthorable in a document, so a
+/// level that wanted either had to be patched after loading.
+///
+/// The names are the engine's, deliberately, because they are also the words a
+/// document writes — but this package may not import the engine (see the note
+/// at the foot of its `pubspec.yaml`), so the two are spelled twice and the
+/// bridge maps them case by case rather than by name.
+enum ShadowCasting {
+  /// Drawn into the shadow maps and into the colour image. The default.
+  on,
+
+  /// Drawn into the colour image and into no shadow map. What a fence wants.
+  off,
+
+  /// Cast from every face, whatever the renderer's caster-face setting says.
+  ///
+  /// What a single-thickness wall wants: recorded from its lit side only, a
+  /// wall lets light along the seam where it meets the floor.
+  doubleSided,
+
+  /// Drawn into the shadow maps and into no colour image.
+  shadowsOnly;
+
+  /// Whether a brush in this mode is drawn into the shadow maps at all.
+  bool get casts => this != ShadowCasting.off;
+
+  /// Whether `castsShadow` alone cannot say this.
+  ///
+  /// The two finer modes are exactly the ones the boolean loses, so they are
+  /// exactly the ones a document has to spell out. See [Brush.toJson].
+  bool get needsWord => this != ShadowCasting.on && this != ShadowCasting.off;
+}
+
 /// One axis-aligned block of level geometry.
 ///
 /// The whole level is these. It is a decision about authoring as much as about
@@ -19,13 +57,20 @@ final class Brush {
     required Vector3 size,
     this.material = 'default',
     this.solid = true,
-    this.castsShadow = true,
+    bool castsShadow = true,
+    ShadowCasting? shadowCasting,
     String? surface,
     this.layer,
     this.ramp,
     Map<String, Object?> source = const <String, Object?>{},
   }) : centre = centre.clone(),
        size = size.clone(),
+       // The boolean is the lossy view, here as everywhere else: it says
+       // whether the brush casts, and the mode says how. Given both, the mode
+       // wins, because it is the one that can say what the other cannot.
+       shadowCasting =
+           shadowCasting ??
+           (castsShadow ? ShadowCasting.on : ShadowCasting.off),
        // ignore: prefer_initializing_formals
        _source = source,
        // ignore: prefer_initializing_formals
@@ -72,7 +117,20 @@ final class Brush {
   /// through a purely visual detail is a player fighting the level.
   final bool solid;
 
+  /// How it takes part in the lighting, as opposed to merely being lit.
+  ///
+  /// `on` unless the document says otherwise, and the two words worth typing
+  /// are `off` for a fence and `doubleSided` for a wall one brush thick. See
+  /// [ShadowCasting].
+  final ShadowCasting shadowCasting;
+
   /// Whether it takes part in the lighting, as opposed to merely being lit.
+  ///
+  /// A two-state view of [shadowCasting], kept because every level document
+  /// and every generator in this repository was written against it: reading it
+  /// asks only whether the brush casts at all, so a `doubleSided` wall reads
+  /// as true. The same relationship the engine's `MeshNode.castsShadow` has to
+  /// its mode, said again on this side of the format.
   ///
   /// **True by default, and the one place it is worth saying otherwise is a
   /// fence.** A boundary wall exists so the level cannot be walked out of; it
@@ -87,7 +145,7 @@ final class Brush {
   /// goes from 23.8% dark to 29.4%, because a sun overhead lights vertical
   /// surfaces edge-on. The wall was never the thing that should have been
   /// lighting the level.
-  final bool castsShadow;
+  bool get castsShadow => shadowCasting.casts;
 
   /// Which way this brush climbs, or null for an ordinary block.
   ///
@@ -130,7 +188,18 @@ final class Brush {
     size: json.vector3('size'),
     material: json.textOrNull('material') ?? 'default',
     solid: json.flagOr('solid', fallback: true),
-    castsShadow: json.flagOr('castsShadow', fallback: true),
+    // The word where the document has one, and the boolean's answer where it
+    // has not — so every level ever authored means what it meant, and a
+    // misspelt mode is a refusal with the four words in it rather than a wall
+    // that quietly stops casting.
+    shadowCasting: json.enumValue(
+      'shadowCasting',
+      ShadowCasting.values,
+      json.flagOr('castsShadow', fallback: true)
+          ? ShadowCasting.on
+          : ShadowCasting.off,
+      describedAs: 'brush shadow mode',
+    ),
     surface: json.textOrNull('surface'),
     layer: json.integerOrNull('layer'),
     ramp: _rampFromName(json.textOrNull('ramp')),
@@ -165,18 +234,36 @@ final class Brush {
       .firstWhere((MapEntry<String, WedgeUphill> e) => e.value == uphill)
       .key;
 
-  Map<String, Object?> toJson() => writeThrough(_source, <WriteThroughField>[
-    WriteThroughField('at', centre.toJson()),
-    WriteThroughField('size', size.toJson()),
-    WriteThroughField('material', material, whenAbsent: material != 'default'),
-    WriteThroughField('solid', solid, whenAbsent: !solid),
-    WriteThroughField('castsShadow', castsShadow, whenAbsent: !castsShadow),
-    WriteThroughField('surface', _surface, whenAbsent: _surface != null),
-    WriteThroughField('layer', layer, whenAbsent: layer != null),
-    WriteThroughField(
-      'ramp',
-      ramp == null ? null : _rampName(ramp!),
-      whenAbsent: ramp != null,
-    ),
-  ]);
+  Map<String, Object?> toJson() {
+    // A document that spelled the mode out goes on spelling it out, and does
+    // not grow a boolean beside a word that already says more than it could.
+    final spelledOut = _source.containsKey('shadowCasting');
+    return writeThrough(_source, <WriteThroughField>[
+      WriteThroughField('at', centre.toJson()),
+      WriteThroughField('size', size.toJson()),
+      WriteThroughField(
+        'material',
+        material,
+        whenAbsent: material != 'default',
+      ),
+      WriteThroughField('solid', solid, whenAbsent: !solid),
+      WriteThroughField(
+        'castsShadow',
+        castsShadow,
+        whenAbsent: !castsShadow && !spelledOut,
+      ),
+      WriteThroughField(
+        'shadowCasting',
+        shadowCasting.name,
+        whenAbsent: shadowCasting.needsWord,
+      ),
+      WriteThroughField('surface', _surface, whenAbsent: _surface != null),
+      WriteThroughField('layer', layer, whenAbsent: layer != null),
+      WriteThroughField(
+        'ramp',
+        ramp == null ? null : _rampName(ramp!),
+        whenAbsent: ramp != null,
+      ),
+    ]);
+  }
 }

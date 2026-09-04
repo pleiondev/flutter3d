@@ -42,7 +42,10 @@ List<Brush> subtractBox(Brush brush, Aabb3 hole) {
         size: Vector3(x1 - x0, y1 - y0, z1 - z0),
         material: brush.material,
         solid: brush.solid,
-        castsShadow: brush.castsShadow,
+        // The mode and not the boolean: a wall cut in half is still a wall one
+        // brush thick, and a `doubleSided` one that came back as `on` would
+        // leak light along the seam the hole just made.
+        shadowCasting: brush.shadowCasting,
         surface: brush.surface,
         layer: brush.layer,
       ),
@@ -94,10 +97,17 @@ List<Brush> subtractBox(Brush brush, Aabb3 hole) {
 /// grid keeps its walls: a monster does not learn a new route through a
 /// breach, which is a limit and not a bug — it was baked from the brushes,
 /// and it is baked once.
+///
+/// The baked light is kept, and [origins] is how. A lightmap is planned by
+/// brush index, and a cut replaces one brush with up to six in its place, so
+/// every index after the hole shifts; the pieces remember which brush they
+/// came out of, and the geometry hands each face of a piece the texels of the
+/// face it is part of.
 final class Breaches {
   Breaches(this.level, this.world, {bool Function(Brush)? breakable})
     : breakable = breakable ?? _solidWalls,
-      brushes = List<Brush>.of(level.brushes) {
+      brushes = List<Brush>.of(level.brushes),
+      origins = List<int>.generate(level.brushes.length, (int i) => i) {
     _adoptColliders();
   }
 
@@ -113,6 +123,21 @@ final class Breaches {
   /// The level's brushes as they are now: the originals the holes missed and
   /// the pieces of the ones they cut.
   final List<Brush> brushes;
+
+  /// Which brush of the authored level each of [brushes] came out of.
+  ///
+  /// Same length as [brushes], same order: `origins[i]` indexes
+  /// `level.brushes`. A brush no hole has touched points at itself; the six
+  /// pieces of a cut one all point at the brush they were cut from, and a
+  /// piece cut again keeps pointing at the same original.
+  ///
+  /// **This is the only thing that survives a cut and is not a brush.** It is
+  /// what lets `BrushGeometry.build` carry a lightmap through a breach: the
+  /// atlas was planned for the authored brushes, and without a way back to one
+  /// of them a piece has no texels of its own. Handed on rather than looked up
+  /// by geometry, because a piece is a box like any other box and nothing
+  /// about its numbers says which wall it used to be.
+  final List<int> origins;
 
   /// Every hole so far, in the order they were blown.
   final List<Aabb3> holes = <Aabb3>[];
@@ -196,8 +221,11 @@ final class Breaches {
       if (!breakable(brush)) continue;
       final pieces = subtractBox(brush, box);
       if (pieces.length == 1 && identical(pieces.first, brush)) continue;
+      final origin = origins[i];
       brushes.removeAt(i);
       brushes.insertAll(i, pieces);
+      origins.removeAt(i);
+      origins.insertAll(i, List<int>.filled(pieces.length, origin));
       final old = _colliders.remove(brush);
       if (old != null) world.remove(old);
       for (final piece in pieces) {
@@ -240,6 +268,9 @@ final class Breaches {
     brushes
       ..clear()
       ..addAll(level.brushes);
+    origins
+      ..clear()
+      ..addAll(List<int>.generate(level.brushes.length, (int i) => i));
     for (final brush in level.brushes) {
       if (!brush.solid) continue;
       final ramp = brush.ramp;

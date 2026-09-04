@@ -100,6 +100,15 @@ final class LoadedLevel {
   /// one that matched it. Uploaded by the loader, released by [dispose].
   TextureHandle? lightmap;
 
+  /// Where each authored face sits in [lightmap], planned at load.
+  ///
+  /// Null exactly when [lightmap] is. Kept rather than re-planned because
+  /// `LevelLoader.rebuildBrushes` needs it after a breach and the brushes it
+  /// is handed are no longer the ones a plan could be made from — the plan
+  /// belongs to the level as authored, which is what makes the pieces of a cut
+  /// wall able to find the light that was baked for it.
+  LightmapLayout? lightmapLayout;
+
   /// Gives the level's own uploads — brush meshes and material maps — back to
   /// [device].
   ///

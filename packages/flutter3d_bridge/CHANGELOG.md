@@ -1,5 +1,15 @@
 ## 0.4.2
 
+* **A rebuilt wall keeps its baked light, and its shadow mode.**
+  `LevelLoader.rebuildBrushes` takes `origins` — `Breaches.origins` — and with
+  it hands `BrushGeometry` the atlas the level loaded with, kept on
+  `LoadedLevel.lightmapLayout`. One rocket used to take the bake off every
+  wall in the level; now it takes it off nothing but the surfaces the blast
+  itself made. Without `origins` the rebuild passes no layout at all, which is
+  what it did before: a face reading a stranger's texels looks like light, and
+  a missing bake looks like a limit. Brush batches are also given the
+  document's `shadowCasting` rather than its boolean, so a wall that asked to
+  cast from both faces does.
 * **A level's brushes are filtered anisotropically, as far as the device
   goes.** `LevelLoader.tilingSamplerFor` is the tiling sampler every wall
   had with `min(8, maxAnisotropy)` taps, decided once per level and handed

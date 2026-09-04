@@ -118,6 +118,42 @@ final class LightmapLayout {
     (face.y + (sv + 1.0) * 0.5 * face.extentV * texelsPerMetre) / height,
   );
 
+  /// The second texture coordinate of any point on [face]'s plane.
+  ///
+  /// [uvAt] answers for the four corners of the whole face, which is all the
+  /// geometry needs while a face is whole. A breach cuts a wall into pieces
+  /// whose faces are *parts* of one planned face — same plane, same axes, a
+  /// smaller rectangle inside it — and a piece's corner is nowhere near the
+  /// original's, so its place in the atlas has to be measured rather than
+  /// counted off. Not clamped, deliberately: a point off the face is a caller
+  /// with the wrong face, and reading a neighbour's texels would look like
+  /// light and not like a mistake. Compare [texelOf], which clamps because the
+  /// baker is walking texels it already owns.
+  (double, double) uvOfPoint(LightmapFace face, double x, double y, double z) {
+    final dx = x - face.origin.x;
+    final dy = y - face.origin.y;
+    final dz = z - face.origin.z;
+    final along = dx * face.u.x + dy * face.u.y + dz * face.u.z;
+    final across = dx * face.v.x + dy * face.v.y + dz * face.v.z;
+    return (
+      (face.x + along * texelsPerMetre) / width,
+      (face.y + across * texelsPerMetre) / height,
+    );
+  }
+
+  /// Whether [point] lies on [face]'s plane, to within a millimetre.
+  ///
+  /// What tells a piece's face that survived a cut from one the cut made: the
+  /// slab left beside a hole keeps the wall's outer face, and its face towards
+  /// the hole is a new surface the atlas never planned and has no light for.
+  bool isOnPlane(LightmapFace face, double x, double y, double z) {
+    final away =
+        (x - face.origin.x) * face.normal.x +
+        (y - face.origin.y) * face.normal.y +
+        (z - face.origin.z) * face.normal.z;
+    return away.abs() <= 1e-3;
+  }
+
   /// The centre of the reserved texel.
   (double, double) get neutralUv =>
       ((reservedX + 0.5) / width, (reservedY + 0.5) / height);

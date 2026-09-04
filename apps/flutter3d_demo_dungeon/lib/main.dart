@@ -1010,6 +1010,9 @@ class _GameScreenState extends State<GameScreen>
         loaded,
         device: _run.run.device,
         brushes: breaches.brushes,
+        // Which wall each piece was cut out of, so the walls the rocket missed
+        // keep the light that was baked for them.
+        origins: breaches.origins,
       );
     }
 
