@@ -89,7 +89,9 @@ void main() {
   // brushes, these lights and these materials, and the size says this build's
   // planner packs them into the atlas the bake wrote. Mutation: flipping any
   // byte of the hash in one `.lightmap.bin` — offsets 20 to 23 — makes the
-  // first expectation report false.
+  // first expectation report false; changing what `LightmapLayout.plan`
+  // packs into (the `area * 1.2` the atlas width comes from) makes the
+  // second report false without touching the first.
   test('and the lightmap committed beside each was baked from it', () {
     for (final step in _chain()) {
       final side =

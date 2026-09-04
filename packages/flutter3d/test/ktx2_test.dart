@@ -208,6 +208,12 @@ void main() {
   // in `Ktx2Texture.parse` makes all four parse without complaint, and the
   // three refusals report false.
   group('key/value data', () {
+    // A section with two entries in it, so this also pins the walk itself and
+    // not only the three refusals: `KTXwriter` is what every real file
+    // carries, and it must be stepped over rather than tripped on. Mutation:
+    // dropping the `at = (at + 3) & ~3` padding step at the end of
+    // `_checkKeyValues`'s loop misreads the second entry's length and this
+    // reports false.
     test('the default orientation, and only it, is accepted', () {
       expect(
         Ktx2Texture.parse(

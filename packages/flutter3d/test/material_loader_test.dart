@@ -164,6 +164,9 @@ void main() {
   // touches a device had never run. These four take the same path an
   // application would.
   group('and the half that reaches a device', () {
+    // Mutation: passing `albedo: null` to `Material`'s constructor in
+    // `bindMaterial` — the document still reads, and the two expectations
+    // that the image reached the device report false.
     test('loads a file into a drawable material', () async {
       final device = FakeBackend();
       final warnings = <String>[];

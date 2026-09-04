@@ -477,6 +477,10 @@ map_Bump other_n.png
       expect('map_Bump'.allMatches(warnings.single), hasLength(1));
     });
 
+    // The other side of it: warning about everything is as useless as warning
+    // about nothing. Mutation: dropping `line.startsWith('#')` from the skip
+    // at the top of `parseMtl`'s loop makes a comment an unknown directive,
+    // and this reports false.
     test('and says nothing about a library it fully understands', () {
       final warnings = <String>[];
       parseMtl('# a comment\nnewmtl a\nKd 1 1 1\n', warnings: warnings);
