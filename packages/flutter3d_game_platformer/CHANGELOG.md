@@ -20,6 +20,16 @@ readouts.
   all.
 * **`Difficulty` is read in `Runner.applyDamage`**, the one door damage reaches
   the runner through.
+* **Slopes, gliding and water.** A ramp is quicker down than up — by scaling
+  the speed asked for rather than adding a push, because the controller's own
+  friction eats any push a walkable slope could justify. A held jump turns a
+  fall into a drift, after the apex, so the two meanings of that button do not
+  fight. Water is a volume rather than a surface, with its tuning on the pool
+  so a stream and a tar pit are two different pools.
+* **Points, power-ups and a camera that looks up the road.** Collectibles gain
+  a worth separate from how many they are; a chain of them is worth more and
+  breaks on a death. The follow camera leads by a third of a second of travel,
+  horizontally only.
 
 ## 0.4.1
 

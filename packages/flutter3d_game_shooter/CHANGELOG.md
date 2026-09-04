@@ -24,6 +24,20 @@ ships its readouts.
 * **`Difficulty` is read in two places**: what the player deals, which
   multiplies with berserk rather than losing to it, and what the player takes,
   in the one method every source arrives at.
+* **A second trigger.** `WeaponDef.alternate` is a whole `WeaponDef`, so an
+  alternate fire is described exactly as a weapon is. One cooldown, shared,
+  because it is one weapon in one pair of hands; `canFireAlternate` is a second
+  getter rather than `canFire` gaining a parameter, because turning a published
+  getter into a method is a change every caller has to make.
+* **Magazines and reloading.** Null by default, so a weapon without one is
+  untouched by any of it. Per weapon rather than per arsenal — the first
+  version shared one count, so a rifle would have been full because the pistol
+  was. A weapon starts full, a reload never conjures rounds nobody carries, and
+  the weapon stays selectable while it runs.
+* **`PatrolBrain` and `Spawner`.** A crypt whose monsters all stand still until
+  seen reads as a museum; a room that can fill after the player is in it was
+  entirely unavailable. `ChaseBrain` is `base` so a game can build on it the
+  way `PatrolBrain` does.
 
 ## 0.4.1
 

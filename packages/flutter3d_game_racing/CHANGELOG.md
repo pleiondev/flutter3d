@@ -18,6 +18,15 @@ track reads its own version.
 * **`LapReadout` and `PositionReadout`.** The lap counter counts from one and
   stops at the last, which every game that reached for `RacerProgress.lap` got
   wrong in both directions.
+* **Sectors, a tow, assists, drift scoring, a qualifying grid and a restart.**
+  Sectors are the stretches between checkpoints a circuit already carries, so a
+  ghost can finally say *where* a driver lost the time. The slipstream arrives
+  on `VehicleInput` rather than on `VehicleController`, which answers questions
+  about the car rather than doing things to it. Traction control engages on
+  spin while the car is pointing where it is going — written on slip ratio
+  alone it would have cut the throttle mid-drift, in a game that scores them.
+  `StartGrid.orderBy` turns a qualifying result into a grid, and `restart` puts
+  the field back without rebuilding the world.
 
 ## 0.4.0
 

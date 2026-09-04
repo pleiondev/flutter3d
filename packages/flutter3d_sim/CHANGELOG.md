@@ -24,6 +24,15 @@
 * **`StepSystem` takes a `StepContext`.** A function type is frozen the day it
   is published; the context carries `dt` and the phase, which the old shape
   could not, and can grow a field instead of breaking every system.
+* **`Difficulty`, `Powers`, `Scoring` and `RunStats`.** Four pieces every genre
+  wanted and at most one of them had written. Powers came out of the shooter,
+  which keeps every question it answered and delegates the counting. Scoring is
+  the question a tally cannot answer — what those counts were *worth*, and
+  whether they came close enough together to be worth more. RunStats counts
+  events, and counts nothing until a game says what to recognise.
+* **`CharacterController.groundNormal`** — it measured the floor's normal to
+  decide whether the body was standing on it and threw it away, so nothing
+  above could tell a flat floor from a ramp.
 
 ## 0.4.2
 

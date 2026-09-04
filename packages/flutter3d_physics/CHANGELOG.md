@@ -8,6 +8,11 @@
   written. `tool/filter_cost.dart` says what it cost: 1.932 microseconds a step
   became 1.953, and the `late`-field version that would have cost 1.997 is what
   the object avoids. The number is written into the benchmark beside it.
+* **`CharacterController.groundNormal`.** The probe that decides whether a body
+  is standing on something reads a normal to do it and discarded it, so a
+  caller that wanted to know which way the floor tilts had to sweep again for
+  what this had just measured. Straight up while airborne rather than null, so
+  arithmetic on it needs no branch.
 
 ## 0.4.0
 
