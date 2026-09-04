@@ -103,6 +103,12 @@ final class LodGroup extends SceneNode {
   List<LodLevel> get levels => List<LodLevel>.unmodifiable(_levels);
 
   /// Index of the level currently visible.
+  ///
+  /// The engine picks the level and swaps the node itself, so nothing here has
+  /// to ask which one won. It is for a game that decides something else by the
+  /// same distance — an animation it stops updating, or an audio source it drops
+  /// — and would rather ask the group that already chose than measure again and
+  /// disagree with it at the boundary.
   int get activeLevel => _active;
 
   MeshNode get activeNode => _levels[_active].node;

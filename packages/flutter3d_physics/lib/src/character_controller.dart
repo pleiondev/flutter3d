@@ -129,6 +129,10 @@ final class CharacterController {
   ///
   /// Exposed for debugging a corner that feels sticky: two means a proper
   /// wedge, three means the iteration limit was probably reached.
+  ///
+  /// Which names who it is for — whoever is standing in that corner with a
+  /// debug overlay open. Nothing here reads it, and a rule that only counted
+  /// callers would have called it dead and taken it away from them.
   int get contactsLastStep => _contacts;
   int _contacts = 0;
 

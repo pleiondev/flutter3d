@@ -82,7 +82,18 @@ final class Arsenal {
     return _owned[_current];
   }
 
+  /// Which of the owned weapons is in hand, as an index into that list.
+  ///
+  /// The simulation asks for [current] and gets the weapon itself. The index is
+  /// for a game drawing the row of slots along the bottom of the screen, which
+  /// has to know which one to light up and cannot get that from the weapon.
   int get currentIndex => _current;
+
+  /// Seconds until the weapon in hand can fire again; zero when it can.
+  ///
+  /// Firing checks this internally and refuses, so nothing here reads it. It is
+  /// for a game that shows the wait — a reload wheel, a barrel that glows down
+  /// — where the fraction matters and "can it fire" does not.
   double get cooldownRemaining => _cooldown;
 
   int ammoOf(AmmoType type) => type == AmmoType.none ? -1 : (_ammo[type] ?? 0);

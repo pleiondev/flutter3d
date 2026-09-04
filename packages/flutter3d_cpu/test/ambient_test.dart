@@ -141,7 +141,7 @@ void main() {
     // approximately, bit for bit.
     //
     // Mutation: default either end of the hemisphere to anything but white.
-    // Thirty-one goldens move at once.
+    // Thirty-nine goldens move at once.
     final lit = await _pixels(_ball(), _noSky);
     final top = _band(lit, 0.15, 0.35);
     final bottom = _band(lit, 0.65, 0.85);

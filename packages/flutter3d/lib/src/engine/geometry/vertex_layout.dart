@@ -46,6 +46,11 @@ final class VertexLayout {
   static const VertexLayout positionOnly = VertexLayout([position]);
 
   /// The debug line layout, matching shaders/debug_line.vert.
+  ///
+  /// The engine's own line drawing builds its buffers against that shader
+  /// directly and never names the layout. It is here for a caller writing a pass
+  /// of its own — a gizmo, an editor's grid — that wants vertices the built-in
+  /// line shader will accept, said once rather than guessed at.
   static const VertexLayout positionColor = VertexLayout([position, color]);
 
   static const VertexLayout positionNormal = VertexLayout([position, normal]);
@@ -56,6 +61,11 @@ final class VertexLayout {
   /// A third layout means a third vertex shader, because a backend reads the
   /// layout off the shader's `in` declarations. That is the same constraint
   /// that forced a separate stage for debug lines and for skinning.
+  ///
+  /// The particle system writes its quads against that stage without naming this
+  /// constant. It is for a caller feeding the same stage from somewhere else — a
+  /// sprite batcher, or a decal pass — which is the only way to reuse a shader
+  /// whose layout is fixed.
   static const VertexLayout positionColorTexcoord = VertexLayout([
     position,
     color,

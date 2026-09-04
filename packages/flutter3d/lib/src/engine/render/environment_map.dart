@@ -134,6 +134,12 @@ abstract final class EnvironmentMap {
   /// that is already the least directional thing in the frame. One cube, one
   /// binding, and the error is smaller than the one the flat ambient it
   /// replaces was making.
+  /// Which mip level of the prefiltered chain stands in for the diffuse term.
+  ///
+  /// Nothing here calls it — the shaders index the chain themselves, from the
+  /// same rule written in GLSL. It is for a caller preparing its own cube map
+  /// outside this engine, who needs to know which level the diffuse lookup will
+  /// land on so it can convolve that one properly.
   static int diffuseLevel(int levels) => levels;
 }
 

@@ -6,7 +6,7 @@
 /// `lighting-unlit` came back as an empty frame — the background colour in every
 /// pixel — while the other five drew a sphere. The golden set found it, once
 /// there was a golden set; this says the same thing in one second instead of a
-/// browser run over thirty-two scenes, and says it per model rather than per
+/// browser run over thirty-nine scenes, and says it per model rather than per
 /// picture.
 ///
 /// It deliberately does not compare against a reference. What a shader *should*

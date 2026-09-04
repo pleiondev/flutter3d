@@ -86,6 +86,10 @@ final class ResourceCache<K, V> {
   int referenceCount(K key) => _entries[key]?.refCount ?? 0;
 
   /// True once the value for [key] has finished loading.
+  ///
+  /// Borrowing waits for the load, so nothing here has to ask first. It is for a
+  /// caller that must not wait — a frame that will draw a placeholder rather
+  /// than block, or a loading screen counting how much of a level has arrived.
   bool isLoaded(K key) => _entries[key]?.loaded != null;
 
   /// Borrows [key], loading it if needed.

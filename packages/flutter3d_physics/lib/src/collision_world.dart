@@ -71,6 +71,13 @@ final class CollisionWorld {
   /// one out. Read-only: adding and removing go through [add] and [remove],
   /// which keep the grid's indices true.
   Iterable<Collider> get statics => _statics;
+
+  /// How many moving colliders are in the world.
+  ///
+  /// [colliderCount] is what the engine's own checks watch, because the total is
+  /// what a leak shows up in. This half is for a profiler: movers are the ones
+  /// re-inserted into the grid every step, so this is the number that predicts
+  /// what a step costs, and the static count that does not.
   int get moverCount => _movers.length;
 
   // Scratch, reused by every query.

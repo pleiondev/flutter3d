@@ -67,6 +67,12 @@ final class ModelAsset {
   final List<String> warnings;
   final String? name;
 
+  /// Whether the file brought any animation with it.
+  ///
+  /// Nothing here asks: the engine plays the clips it was given and does nothing
+  /// when there are none. It is for an application deciding what to build around
+  /// a model it did not choose — whether to make a player for it at all, or
+  /// whether an asset browser shows it as a still.
   bool get isAnimated => clips.isNotEmpty;
 
   bool get isSkinned => skins.isNotEmpty;

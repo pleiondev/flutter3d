@@ -77,6 +77,10 @@ final class StateDigest {
   ///
   /// Fixed width and lower case, so a column of them in a test file lines up
   /// and a diff of two traces is read by eye.
+  ///
+  /// Which is who it is for: whoever is holding two traces of a run that
+  /// diverged. The checks in this repository compare [value], because a number
+  /// is what an assertion wants; this is the form a person reads.
   String get hex => _hash.toRadixString(16).padLeft(8, '0');
 
   /// Folds one value in, whatever shape it is.

@@ -17,6 +17,12 @@ final class CollisionCapsule extends CollisionShape {
   /// height, which is `halfHeight + radius`.
   final double halfHeight;
 
+  /// Half the total height, caps included — the sum [halfHeight] is not.
+  ///
+  /// The solver works with the segment and the radius separately, which is why
+  /// nothing here adds them. It is for a caller sizing something against the
+  /// capsule: a camera that must clear the top of a head, or a game placing a
+  /// body so its feet land on a floor.
   double get totalHalfHeight => halfHeight + radius;
 
   @override

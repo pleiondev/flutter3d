@@ -115,6 +115,11 @@ final class CameraRig {
   double _fov = 0.0;
 
   /// Whether the camera has been put anywhere yet.
+  ///
+  /// The rig places itself on its first step, so nothing here needs to ask. It
+  /// is for a game that draws something before the first step — a loading shot,
+  /// or a menu over the world — and must not read a position that is still the
+  /// origin and would snap on the frame after.
   bool get isPlaced => _placed;
 
   /// Knocks the camera along [direction] by its length, in metres.
