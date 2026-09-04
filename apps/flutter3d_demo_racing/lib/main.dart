@@ -1280,6 +1280,11 @@ class _RaceScreenState extends State<RaceScreen>
                     : 'Press any key to start the season, or a button on the '
                           'pad.',
                 touch: Playing.touch,
+                // The card's own, because the start layer above cannot see a
+                // touch that lands on it — see [TitleCard.onBegin]. Without
+                // this a handset read "touch to start the season" and had
+                // nothing that would.
+                onBegin: _begin,
               ),
             SettingsOverlay(
               settings: _settings,

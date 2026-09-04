@@ -41,11 +41,33 @@ import 'credits.dart';
 /// Shown once a session and never again: a card that comes back every time the
 /// keyboard is let go is a card in the middle of a race.
 class TitleCard extends StatelessWidget {
-  const TitleCard({super.key, required this.prompt, this.touch = false});
+  const TitleCard({
+    super.key,
+    required this.prompt,
+    this.touch = false,
+    this.onBegin,
+  });
 
   /// What the player has to do to begin. Different on a handset, which has no
   /// key to press.
   final String prompt;
+
+  /// The touch that takes the card down, on a build that has no key to press.
+  ///
+  /// **Here rather than on the screen's own start layer, which cannot see it.**
+  /// That layer is a `Positioned.fill` *below* this card in the same `Stack`,
+  /// and a card is a [ColoredBox] — which hit-tests opaque. So every pointer
+  /// that lands anywhere on this screen stops here, and a handset, which has no
+  /// keyboard and no `Escape` and reads a prompt that says "touch to start",
+  /// had nothing that would start the season. The platformer does not have this
+  /// fault because its own `_begin` listener wraps the whole stack rather than
+  /// sitting inside it: an ancestor is on the hit-test path even when a
+  /// descendant absorbs, and a sibling underneath is not.
+  ///
+  /// A [Listener] and not a [GestureDetector]: this must not enter the arena
+  /// against the card's own scroll view, or a card too tall for the screen
+  /// would begin the race on the first drag of a read.
+  final VoidCallback? onBegin;
 
   /// Whether this build is driven with fingers, in which case none of the keys
   /// below exist and listing them would be a screen of nonsense.
@@ -79,7 +101,14 @@ class TitleCard extends StatelessWidget {
         ];
 
   @override
-  Widget build(BuildContext context) => ColoredBox(
+  Widget build(BuildContext context) {
+    final begin = onBegin;
+    final card = _card();
+    if (begin == null) return card;
+    return Listener(onPointerDown: (_) => begin(), child: card);
+  }
+
+  Widget _card() => ColoredBox(
     color: Colors.black.withValues(alpha: 0.78),
     child: Center(
       child: SingleChildScrollView(

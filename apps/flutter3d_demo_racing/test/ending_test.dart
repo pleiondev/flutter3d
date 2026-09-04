@@ -69,6 +69,46 @@ void main() {
       expect(find.textContaining('pedals'), findsOneWidget);
       expect(find.textContaining('Pit stops'), findsOneWidget);
     });
+
+    testWidgets('and a touch on it is what a handset has instead of a key', (
+      WidgetTester tester,
+    ) async {
+      // **The card told a phone to touch it and swallowed the touch.** A card
+      // is a `ColoredBox`, which hit-tests opaque, and the screen's start layer
+      // is a `Positioned.fill` *below* it in the same `Stack` — so nothing
+      // under the card ever saw the pointer, and a build with no keyboard and
+      // no pad could not begin the season at all. The layer below is in this
+      // tree as the thing that must stay unreached, which is the half of the
+      // claim a listener on the card alone would not make.
+      //
+      // Mutation: drop the `Listener` from `TitleCard.build` — `begins` stays
+      // at nought and this fails, which is the handset build as it shipped.
+      var begins = 0;
+      var below = 0;
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Stack(
+            children: <Widget>[
+              Positioned.fill(
+                child: Listener(
+                  behavior: HitTestBehavior.opaque,
+                  onPointerDown: (_) => below++,
+                ),
+              ),
+              TitleCard(
+                prompt: 'Touch to start the season.',
+                touch: true,
+                onBegin: () => begins++,
+              ),
+            ],
+          ),
+        ),
+      );
+
+      await tester.tap(find.text('Touch to start the season.'));
+      expect(begins, 1, reason: 'the card cannot be put down with a finger');
+      expect(below, 0, reason: 'the card is not opaque after all; re-read why');
+    });
   });
 
   group('what a season came to', () {
