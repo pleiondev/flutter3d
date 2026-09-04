@@ -75,6 +75,33 @@ const Map<String, double> _budgets = <String, double>{
   // Found in the first minute the two were ever compared, which is the whole
   // argument for this scene existing: the effect shipped, was drawn by three
   // backends, and had a picture check on one.
+  //
+  // ## What it is not
+  //
+  // **Not the depth convention.** The browser had that bug and it was most of
+  // its 4.861%: both passes that read the surface buffer were handed a
+  // view-projection adjusted to the *device's* clip range, and compared the
+  // result against `gl_FragCoord.z`, which is `[0, 1]` everywhere. This
+  // backend's range is `[0, 1]` like Impeller's, so it never had it, and
+  // fixing it moved this number by nothing at all.
+  //
+  // **Not the storage precision, which was worth measuring and was wrong.**
+  // `CpuTexture` keeps every channel as a `double` whatever the format says,
+  // so a target declared `r16g16b16a16Float` holds eleven bits of mantissa on
+  // a GPU and fifty-three here — and the occlusion pass compares a stored
+  // depth against a computed one twelve times a pixel. Rounding every write to
+  // half precision made the disagreement **worse**, 7.647% to 10.694%, and
+  // turned the systematic lightness into symmetric noise: 12,842 lighter
+  // against 372 became 9,698 against 8,782. Quantising does not remove a
+  // difference below the quantum, it promotes it — two values a hair apart
+  // land either side of a half-step and disagree by the whole step. So the
+  // bias is not precision, and a faithful-storage change would have to be made
+  // for its own sake and measured again.
+  //
+  // What is left to try: the taps themselves. The frame's map says the
+  // difference sits on the subject rather than on its silhouette, and this
+  // backend occludes *less* — so the next thing to count is how many of the
+  // twelve taps each backend rejects, and at which of the four `continue`s.
   'ambient-occlusion-corner': 7.7,
 
   // One number for all six, because all six measure the same thing now:
