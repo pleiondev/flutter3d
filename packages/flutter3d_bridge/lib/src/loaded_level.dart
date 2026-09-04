@@ -16,13 +16,13 @@ final class LoadedLevel {
     required this.level,
     required this.scene,
     required this.collision,
-    required this.issues,
+    required List<LevelIssue> issues,
     required this.drawCallCount,
     Map<String, TextureHandle?>? materialTextures,
     List<DeviceMesh>? brushMeshes,
     List<ReflectionProbeNode>? probes,
     this.culler,
-  }) : materialTextures = materialTextures ?? const <String, TextureHandle?>{},
+  }) : issues = List.unmodifiable(issues), materialTextures = materialTextures ?? const <String, TextureHandle?>{},
        brushMeshes = brushMeshes ?? const <DeviceMesh>[],
        probes = probes ?? const <ReflectionProbeNode>[];
 

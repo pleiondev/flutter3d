@@ -87,11 +87,11 @@ final class ModelNode {
 /// skin reads them.
 final class ModelSkin {
   ModelSkin({
-    required this.joints,
+    required List<int> joints,
     required this.inverseBindMatrices,
     this.skeletonRoot,
     this.name,
-  }) {
+  }) : joints = List.unmodifiable(joints) {
     if (inverseBindMatrices.length != joints.length) {
       throw ArgumentError(
         'Skin "${name ?? 'unnamed'}" has ${joints.length} joints but '

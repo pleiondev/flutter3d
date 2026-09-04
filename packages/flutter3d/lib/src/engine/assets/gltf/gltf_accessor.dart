@@ -18,8 +18,8 @@ export 'gltf_accessor_type.dart';
 final class GltfAccessorReader {
   GltfAccessorReader({
     required Map<String, Object?> json,
-    required this.buffers,
-  }) : _accessors = _listOf(json['accessors']),
+    required List<Uint8List> buffers,
+  }) : buffers = List.unmodifiable(buffers), _accessors = _listOf(json['accessors']),
        _bufferViews = _listOf(json['bufferViews']);
 
   final List<Map<String, Object?>> _accessors;

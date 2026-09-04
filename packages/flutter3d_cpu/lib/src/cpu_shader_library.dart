@@ -10,7 +10,8 @@ import 'cpu_shader.dart';
 
 /// A library of Dart stages, by the names the engine asks for.
 final class CpuShaderLibrary implements ShaderLibrary {
-  CpuShaderLibrary(this.stages);
+  CpuShaderLibrary(Map<String, CpuStage> stages)
+    : stages = Map<String, CpuStage>.unmodifiable(stages);
 
   final Map<String, CpuStage> stages;
 

@@ -37,11 +37,11 @@ final class ModelAsset {
     required this.localBounds,
     List<ModelNode>? nodes,
     List<int>? roots,
-    this.skins = const <ModelSkin>[],
+    List<ModelSkin> skins = const <ModelSkin>[],
     this.clips = const <AnimationClip>[],
     this.warnings = const <String>[],
     this.name,
-  }) : nodes = nodes ?? _flatNodesFor(parts),
+  }) : skins = List.unmodifiable(skins), nodes = nodes ?? _flatNodesFor(parts),
        roots = roots ?? <int>[for (var i = 0; i < parts.length; i++) i];
 
   final List<ModelPart> parts;

@@ -18,11 +18,11 @@ import 'scene_node.dart';
 /// in ARCHITECTURE.md §2.
 final class Skeleton {
   Skeleton({
-    required this.joints,
+    required List<SceneNode> joints,
     required List<Matrix4> inverseBindMatrices,
     this.skeletonRoot,
     this.name,
-  }) : _inverseBind = List<Matrix4>.of(inverseBindMatrices) {
+  }) : joints = List.unmodifiable(joints), _inverseBind = List<Matrix4>.of(inverseBindMatrices) {
     if (_inverseBind.length != joints.length) {
       throw ArgumentError(
         'Skeleton "${name ?? 'unnamed'}" has ${joints.length} joints and '

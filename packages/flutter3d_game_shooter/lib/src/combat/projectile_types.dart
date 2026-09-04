@@ -92,10 +92,11 @@ final class Detonation {
     required Vector3 position,
     required Vector3 normal,
     required this.blast,
-    required this.damage,
+    required Map<Collider, double> damage,
     required this.owner,
   }) : position = position.clone(),
-       normal = normal.clone();
+       normal = normal.clone(),
+       damage = Map<Collider, double>.unmodifiable(damage);
 
   final Vector3 position;
 

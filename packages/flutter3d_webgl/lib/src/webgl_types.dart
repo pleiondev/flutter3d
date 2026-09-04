@@ -59,11 +59,13 @@ final class WebGlTexture {
 final class WebGlProgram {
   WebGlProgram(
     this.program,
-    this.attributes,
-    this.blocks,
-    this.samplers, {
+    List<WebGlAttribute> attributes,
+    Map<String, WebGlBlock> blocks,
+    Map<String, int> samplers, {
     this.layout,
-  });
+  }) : attributes = List<WebGlAttribute>.unmodifiable(attributes),
+       blocks = Map<String, WebGlBlock>.unmodifiable(blocks),
+       samplers = Map<String, int>.unmodifiable(samplers);
 
   final web.WebGLProgram program;
 
