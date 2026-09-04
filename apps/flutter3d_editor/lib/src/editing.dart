@@ -272,7 +272,10 @@ final class Editing {
             material: brush.material,
             surface: brush.surface == brush.material ? null : brush.surface,
             solid: brush.solid,
-            castsShadow: brush.castsShadow,
+            // The mode rather than the boolean: a copy of a `doubleSided`
+            // wall is a wall, and a copy that quietly became an ordinary
+            // caster is exactly the kind of thing a duplicate must not do.
+            shadowCasting: brush.shadowCasting,
             layer: brush.layer,
             ramp: brush.ramp,
           ),

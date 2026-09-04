@@ -1,5 +1,25 @@
 ## 0.4.2
 
+* **A brush can say how it casts, not only whether.** `shadowCasting` in the
+  document is one of `on`, `off`, `doubleSided` or `shadowsOnly` — the engine
+  has had four modes since `ShadowCastingMode` was written and the format had
+  two, so the two it could not ask for were the two it most needed: both faces
+  recorded, for a wall one brush thick whose lit side and dark side are a
+  metre apart, and a proxy that casts without being drawn. `Brush.castsShadow`
+  is now the two-state view of `Brush.shadowCasting` and goes on meaning what
+  it meant, an unknown word is refused with the four in the message, and a
+  document that said nothing goes on saying nothing. Surfaces are batched by
+  the mode rather than by the boolean, because a batch is the smallest thing
+  that can answer.
+* **A breach keeps the baked light on the walls it did not touch.**
+  `Breaches.origins` says which authored brush each current brush was cut out
+  of, and `BrushGeometry.build(origins:)` uses it to find the planned face a
+  piece's face is part of and measure its place inside it —
+  `LightmapLayout.uvOfPoint` and `isOnPlane` are that arithmetic. Before it,
+  redrawing a level after one hole meant no atlas at all and every wall in
+  every room fell back to flat ambient at once. The faces the blast itself
+  made take the neutral texel, which is the one part of a breached wall
+  nothing ever baked.
 * **A level can ask to be reflected.** `EntityTypes.reflectionProbe` is the
   format's word for a point a room is reflected from, and
   `ReflectionProbeKind` is the kind that validates one: `radius`,

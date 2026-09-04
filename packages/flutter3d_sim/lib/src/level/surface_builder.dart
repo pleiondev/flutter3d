@@ -1,5 +1,6 @@
 import 'dart:typed_data';
 
+import 'brush.dart';
 import 'brush_surface.dart';
 
 /// Accumulates one material's triangles.
@@ -10,12 +11,12 @@ import 'brush_surface.dart';
 final class SurfaceBuilder {
   SurfaceBuilder(
     this.material, {
-    required this.castsShadow,
+    required this.shadowCasting,
     this.lightmapped = false,
   });
 
   final String material;
-  final bool castsShadow;
+  final ShadowCasting shadowCasting;
 
   /// Whether the vertices carry a second texture coordinate into the
   /// lightmap. See [BrushSurface.lightmapUvs].
@@ -72,7 +73,7 @@ final class SurfaceBuilder {
 
   BrushSurface finish() => BrushSurface(
     material: material,
-    castsShadow: castsShadow,
+    shadowCasting: shadowCasting,
     positions: Float32List.fromList(_positions),
     normals: Float32List.fromList(_normals),
     texcoords: Float32List.fromList(_texcoords),

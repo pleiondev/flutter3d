@@ -2,6 +2,8 @@ import 'dart:typed_data';
 
 import 'package:vector_math/vector_math.dart';
 
+import 'brush.dart';
+
 /// The triangles of every brush sharing one material *and* one answer about
 /// shadows.
 ///
@@ -13,7 +15,7 @@ import 'package:vector_math/vector_math.dart';
 final class BrushSurface {
   BrushSurface({
     required this.material,
-    required this.castsShadow,
+    required this.shadowCasting,
     required this.positions,
     required this.normals,
     required this.texcoords,
@@ -33,13 +35,18 @@ final class BrushSurface {
   /// second decision per vertex.
   final Float32List? lightmapUvs;
 
-  /// Whether the mesh built from this takes part in the shadow pass.
+  /// How the mesh built from this takes part in the shadow pass.
   ///
   /// **The reason surfaces are keyed by this as well as by material.** Brushes
   /// are batched so that a level of two hundred and fifty of them is a handful
   /// of draws, and a batch is the smallest thing that can answer — so a fence
-  /// and a wall of the same stone had to stop sharing one.
-  final bool castsShadow;
+  /// and a wall of the same stone had to stop sharing one, and so must a
+  /// single-thickness wall and a solid pillar of it.
+  final ShadowCasting shadowCasting;
+
+  /// Whether it takes part in the shadow pass at all — the two-state view of
+  /// [shadowCasting], as on the brushes this came from.
+  bool get castsShadow => shadowCasting.casts;
 
   /// Three floats per vertex.
   final Float32List positions;

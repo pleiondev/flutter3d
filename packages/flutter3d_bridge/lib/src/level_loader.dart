@@ -160,6 +160,21 @@ final class LevelLoader {
     }
   }
 
+  /// The engine's shadow mode for the one a level document asked for.
+  ///
+  /// **Case by case rather than by name**, though the four words are spelled
+  /// the same on both sides: `flutter3d_sim` may not import the engine, so the
+  /// two enums are two enums, and a `switch` with no default is the thing that
+  /// makes the compiler point at this line the day either of them grows a
+  /// fifth answer. Matching on `name` would compile and quietly fall back.
+  static ShadowCastingMode shadowModeOf(ShadowCasting casting) =>
+      switch (casting) {
+        ShadowCasting.on => ShadowCastingMode.on,
+        ShadowCasting.off => ShadowCastingMode.off,
+        ShadowCasting.doubleSided => ShadowCastingMode.doubleSided,
+        ShadowCasting.shadowsOnly => ShadowCastingMode.shadowsOnly,
+      };
+
   /// Draws the level's walls again from [brushes], which are no longer the
   /// document's — a blast has cut some of them.
   ///
@@ -172,25 +187,22 @@ final class LevelLoader {
   /// sight it does not know about. Textures are the ones the level loaded
   /// with, so nothing is fetched.
   ///
-  /// **And the baked light goes with them, over the whole level.** This is the
-  /// half nothing had written down. [load] passes `BrushGeometry.build` a
-  /// [LightmapLayout] and every planned face gets its place in the atlas;
-  /// there is no layout here, so every rebuilt vertex carries the neutral
-  /// texel and every wall in the level falls back to direct light plus flat
-  /// ambient — not only the wall the rocket went through. In the crypt that is
-  /// the first rocket into any wall changing the light in every room at once.
-  ///
-  /// It cannot simply be passed through. A layout is keyed by *brush index*,
-  /// and a breach replaces one brush with up to six pieces in its place, so
-  /// every index after the hole shifts and the surviving faces would read
-  /// somebody else's texels — a wrong bake looks like a bug and a missing one
-  /// looks like a limit. Carrying it through a cut needs the pieces to
-  /// remember which face of which original brush they came off, which is
-  /// `Breaches`' knowledge and not this method's.
+  /// **The baked light is not dropped with them, and [origins] is the price.**
+  /// A rebuild without it hands every vertex the neutral texel, so one rocket
+  /// into one wall takes the bake off every wall in the level — in the crypt,
+  /// the light in every room changing at once because a corridor lost a metre
+  /// of stone. The layout cannot simply be passed through: it is keyed by
+  /// *brush index*, and a breach puts up to six pieces where one brush was, so
+  /// every index past the hole shifts and the surviving faces would read
+  /// somebody else's texels. `Breaches.origins` is the way back — which brush
+  /// each piece was cut out of — and `BrushGeometry.build` measures each
+  /// piece's face inside the planned face it is part of. Without [origins] the
+  /// rebuild is what it was: no lightmap, flat ambient, level-wide.
   void rebuildBrushes(
     LoadedLevel loaded, {
     required GraphicsDevice device,
     required List<Brush> brushes,
+    List<int>? origins,
   }) {
     for (final node in loaded.brushNodes) {
       node.removeFromParent();
@@ -209,7 +221,17 @@ final class LevelLoader {
       brushes: brushes,
       materials: level.materials,
     );
-    final surfaces = const BrushGeometry().build(cut);
+    // The atlas the level loaded with, and only when there are origins to find
+    // a piece's place in it. A layout with no way back to the authored brushes
+    // is worse than none: every face past the hole would sample a stranger's
+    // texels, which reads as scrambled light rather than as a missing bake.
+    final lightmapTexture = loaded.lightmap;
+    final layout = origins == null ? null : loaded.lightmapLayout;
+    final surfaces = const BrushGeometry().build(
+      cut,
+      lightmap: lightmapTexture == null ? null : layout,
+      origins: origins,
+    );
     final tiling = tilingSamplerFor(device);
     final meshes = <DeviceMesh>[];
     for (final surface in surfaces) {
@@ -219,15 +241,19 @@ final class LevelLoader {
           MeshNode(
               mesh,
               materialFrom(
-                level.materials[surface.material] ?? LevelMaterial(),
-                loaded.materialTextures,
-                name: surface.material,
-                tiling: tiling,
-              ),
+                  level.materials[surface.material] ?? LevelMaterial(),
+                  loaded.materialTextures,
+                  name: surface.material,
+                  tiling: tiling,
+                )
+                ..lightmap = surface.lightmapUvs == null
+                    ? null
+                    : lightmapTexture,
               name: surface.material,
             )
+            ..lightmapped = surface.lightmapUvs != null
             ..shadowIsStatic = true
-            ..castsShadow = surface.castsShadow;
+            ..shadowCasting = shadowModeOf(surface.shadowCasting);
       loaded.scene.add(node);
       loaded.brushNodes.add(node);
     }
@@ -394,10 +420,11 @@ final class LevelLoader {
             // Brushes are the level: they never move, so their shadow is baked
             // once rather than redrawn six times a frame.
             ..shadowIsStatic = true
-            // A fence is not architecture. See `Brush.castsShadow` — and note
-            // that this is why surfaces are batched by that answer as well as
-            // by material: a batch is the smallest thing that can be left out.
-            ..castsShadow = surface.castsShadow;
+            // A fence is not architecture, and a wall one brush thick casts
+            // from both faces. See `Brush.shadowCasting` — and note that this
+            // is why surfaces are batched by that answer as well as by
+            // material: a batch is the smallest thing that can answer it.
+            ..shadowCasting = shadowModeOf(surface.shadowCasting);
       scene.add(node);
       batches.add((node: node, bounds: surface.bounds));
       brushNodes.add(node);
@@ -433,7 +460,11 @@ final class LevelLoader {
             : VisibilityCuller(visibility, batches),
       )
       ..brushNodes.addAll(brushNodes)
-      ..lightmap = lightmapTexture;
+      ..lightmap = lightmapTexture
+      // Kept for the rebuild after a breach, which has to plan nothing: the
+      // atlas is a pure function of the authored level, and this is that
+      // function's answer for the level that was actually loaded.
+      ..lightmapLayout = lightmapTexture == null ? null : layout;
   }
 
   /// A kept probe at the entity's position, with the document's numbers
