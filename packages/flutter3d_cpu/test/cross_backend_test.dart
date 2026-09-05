@@ -54,55 +54,47 @@ import 'package:flutter_test/flutter_test.dart';
 /// multisampling on silhouettes, and an additive quad's edge deposits too
 /// little to cross a channel threshold of eight.
 const Map<String, double> _budgets = <String, double>{
-  // 0.633% measured. Screen-space reflections are a march, and the two
-  // rasterisers disagree about where a ray ends — an edge inside the
-  // reflection rather than an edge in the scene. The first number this feature
-  // has ever produced on two backends: it was advertised for months and
-  // compared nowhere.
-  'screen-space-reflections': 0.65,
-  // **7.647% measured, and this one is a defect budget rather than a floor.**
-  // It belongs with the six below that were not multisampling, and it is here
-  // for the same reason: the number is written down so that whoever fixes it
-  // can watch it fall.
+  // 0.025% measured, down from 0.633%. Screen-space reflections are a march,
+  // and what is left is the two rasterisers disagreeing about where a ray ends
+  // — an edge inside the reflection rather than an edge in the scene. The rest
+  // went with the occlusion's, below, and for the same reason.
+  'screen-space-reflections': 0.03,
+  // **0.159% measured, and this line used to read 7.7% and call itself a
+  // defect budget.** It was one. Keeping the number here is what let it be
+  // watched, and this is what it fell to.
   //
-  // The disagreement is not noise. The software rasteriser is *lighter* in
-  // 12,842 of the 13,214 differing pixels — it occludes less than Impeller
-  // does — the difference reaches 77 of 255 on a channel, and it sits in the
-  // middle of the frame where the corner is, not around silhouettes. So the
-  // two transcriptions of `ssao.frag` compute different amounts of occlusion,
-  // and one of them is wrong.
+  // ## What the defect was
   //
-  // Found in the first minute the two were ever compared, which is the whole
-  // argument for this scene existing: the effect shipped, was drawn by three
-  // backends, and had a picture check on one.
+  // The surface buffer's alpha held `gl_FragCoord.z`, a window depth, in a
+  // half-float attachment. That format's steps near the top of `[0, 1]` are
+  // about five ten-thousandths, and a projection puts everything past twenty
+  // metres inside the last half a hundredth of the range — so a wall at twenty
+  // metres and one at twenty and a half stored the *same* number, and the
+  // occlusion pass, which decides whether a tap is occluded by subtracting two
+  // of them, decided whole bands of the frame by rounding. It drew them:
+  // vertical stripes along the lines of equal depth on both GPU backends.
   //
-  // ## What it is not
+  // **This backend was the one that was right.** `CpuTexture` keeps every
+  // channel as a `double` whatever the format says, so its copy of the buffer
+  // had precision to spare and drew the effect correctly — and disagreed with
+  // two backends that did not. A budget of 7.7% was the correct picture being
+  // held to the broken one. `surface_depth_test.dart` holds the arithmetic.
+  //
+  // ## What it was not, both measured before the cause was found
   //
   // **Not the depth convention.** The browser had that bug and it was most of
   // its 4.861%: both passes that read the surface buffer were handed a
-  // view-projection adjusted to the *device's* clip range, and compared the
-  // result against `gl_FragCoord.z`, which is `[0, 1]` everywhere. This
-  // backend's range is `[0, 1]` like Impeller's, so it never had it, and
-  // fixing it moved this number by nothing at all.
+  // view-projection adjusted to the *device's* clip range and compared the
+  // result against a `[0, 1]` window depth. This backend's range is `[0, 1]`
+  // like Impeller's, so it never had it, and fixing it moved this by nothing.
   //
-  // **Not the storage precision, which was worth measuring and was wrong.**
-  // `CpuTexture` keeps every channel as a `double` whatever the format says,
-  // so a target declared `r16g16b16a16Float` holds eleven bits of mantissa on
-  // a GPU and fifty-three here — and the occlusion pass compares a stored
-  // depth against a computed one twelve times a pixel. Rounding every write to
-  // half precision made the disagreement **worse**, 7.647% to 10.694%, and
-  // turned the systematic lightness into symmetric noise: 12,842 lighter
-  // against 372 became 9,698 against 8,782. Quantising does not remove a
-  // difference below the quantum, it promotes it — two values a hair apart
-  // land either side of a half-step and disagree by the whole step. So the
-  // bias is not precision, and a faithful-storage change would have to be made
-  // for its own sake and measured again.
-  //
-  // What is left to try: the taps themselves. The frame's map says the
-  // difference sits on the subject rather than on its silhouette, and this
-  // backend occludes *less* — so the next thing to count is how many of the
-  // twelve taps each backend rejects, and at which of the four `continue`s.
-  'ambient-occlusion-corner': 7.7,
+  // **Not the storage precision — and that measurement pointed straight at the
+  // cause without being read that way.** Rounding this backend's writes to half
+  // precision made the disagreement *worse*, 7.647% to 10.694%, and turned a
+  // systematic lightness into symmetric noise. The reading taken at the time
+  // was "so it is not precision". The reading available was that quantising a
+  // depth changes the picture at all, which is a depth the format cannot hold.
+  'ambient-occlusion-corner': 0.17,
 
   // One number for all six, because all six measure the same thing now:
   // 0.431%, except `particles-recycled` at 0.417%. Set just above, which is

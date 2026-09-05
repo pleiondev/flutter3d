@@ -52,22 +52,28 @@ final class ReflectionsShader implements CpuFragmentShader {
     if (polish <= 0.0) return done(background);
 
     final inverse = b.mat4('ReflectionInfo', 'inverse_view_projection');
+    final camera = b.vec4('ReflectionInfo', 'camera', Vector4.zero());
+    final eye = Vector3(camera.x, camera.y, camera.z);
+    final forward = b.vec4('ReflectionInfo', 'forward', Vector4.zero());
+    final axis = Vector3(forward.x, forward.y, forward.z);
 
     // The two halves of the origin convention, kept next to each other so they
     // cannot drift apart: v runs the other way from clip-space y, and the
     // matrices carry whichever backend this is.
     double vFromNdc(double ndcY) => 0.5 - ndcY * 0.5;
-    Vector3 worldFrom(double uu, double vv, double depth) {
-      final Vector4 h =
-          inverse * Vector4(uu * 2.0 - 1.0, 1.0 - vv * 2.0, depth, 1.0);
-      return Vector3(h.x, h.y, h.z)..scale(1.0 / h.w);
-    }
+
+    /// `WorldAt`: the pixel's ray crossed with the plane the stored depth
+    /// names, because the buffer holds metres along the view axis rather than a
+    /// window depth. Shared with the occlusion pass; see [worldAtDepth].
+    Vector3 worldFrom(double uu, double vv, double depth) =>
+        worldAtDepth(inverse, eye, axis, uu, vv, depth);
 
     final position = worldFrom(u, w, surface.w);
 
-    final camera = b.vec4('ReflectionInfo', 'camera', Vector4.zero());
-    final eye = Vector3(camera.x, camera.y, camera.z);
-    final toEye = (eye - position)..normalize();
+    // Back along the ray this pixel looks down, not towards the camera
+    // position: the two agree under a perspective camera and do not under an
+    // orthographic one, whose rays are parallel. See `PixelRay` in the GLSL.
+    final toEye = -pixelRay(inverse, u, w).along;
     final facing = normal.dot(toEye);
     if (facing <= 0.05) return done(background);
 
@@ -95,19 +101,19 @@ final class ReflectionsShader implements CpuFragmentShader {
       if (clip.w <= 0.0) break;
       final nx = clip.x / clip.w;
       final ny = clip.y / clip.w;
-      final nz = clip.z / clip.w;
       final su = nx * 0.5 + 0.5;
       final sv = vFromNdc(ny);
       if (su < 0.0 || su > 1.0 || sv < 0.0 || sv > 1.0) break;
 
       final sceneDepth = surfaceMap.sample(su, sv).w;
-      // Behind what was drawn here, then how far behind in metres — the two
-      // halves the GLSL splits, and for the reason written there: a
-      // window-depth difference is a different number of metres at every
-      // range, so it can only answer the first question.
-      if (sceneDepth > 0.0 && nz > sceneDepth) {
+      final marchDepth = (march - eye).dot(axis);
+      // Behind what was drawn here, then how far behind. The second in the
+      // world rather than in depths: the two points sit on one ray, and along a
+      // ray running away from the camera a depth difference is shorter than the
+      // gap it stands for. Thickness is a size in the world.
+      if (sceneDepth > 0.0 && marchDepth > sceneDepth) {
         final seen = worldFrom(su, sv, sceneDepth);
-        final behind = eye.distanceTo(march) - eye.distanceTo(seen);
+        final behind = march.distanceTo(seen);
         if (behind < thickness) {
           final tex = sceneMap.sample(su, sv);
           hitColour = Vector3(tex.x, tex.y, tex.z);

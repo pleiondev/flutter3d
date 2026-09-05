@@ -639,7 +639,9 @@ in vec2 v_lightmap_uv;
 layout(location = 0) out vec4 frag_color;
 
 // The second attachment: what a screen-space effect needs to know about the
-// surface it is looking at. World-space normal in rgb, window-space depth in a.
+// surface it is looking at. World-space normal in rgb, and in a the depth along
+// the view axis in world metres — not a window depth; `WriteSurfaceGeometry`
+// says at length why not.
 //
 // Depth travels here rather than in a depth texture because flutter_gpu cannot
 // sample one — the same reason the shadow pass writes its depth into a colour
@@ -680,33 +682,12 @@ vec2 EncodeOctahedral(vec3 n) {
 vec3 g_debug_surface = vec3(0.0);
 bool g_debug_surface_on = false;
 
-/// Records the geometry of this fragment for whatever runs after the scene.
-///
-/// Called from the same place that writes colour, so a surface cannot be lit
-/// into the frame without also describing itself — which is the failure that
-/// leaves a screen-space effect reflecting whatever was in the buffer before.
-///
-/// rg: octahedral normal. b: perceptual roughness. a: window depth.
-void WriteSurfaceGeometry(float roughness) {
-#ifndef F3D_NO_SURFACE_BUFFER
-  // A debug pass takes the buffer over rather than getting one of its own.
-  // The surface buffer already has an attachment, a viewer and a golden; a
-  // second one would need all three built before it could answer anything.
-  if (g_debug_surface_on) {
-    frag_surface = vec4(g_debug_surface, gl_FragCoord.z);
-    return;
-  }
-  frag_surface = vec4(EncodeOctahedral(normalize(v_normal)),
-                      clamp(roughness, 0.0, 1.0), gl_FragCoord.z);
-#endif
-}
-
 /// Distance fog, in its own block rather than folded into FragInfo.
 ///
 /// Its own because color.glsl is included before FragInfo is declared, and
 /// because appending to a block that half a dozen shaders already share is a
-/// way to move offsets nobody expected to move. Two vec4s is a cheap price for
-/// not touching any of that.
+/// way to move offsets nobody expected to move. Three vec4s is a cheap price
+/// for not touching any of that.
 layout(std140) uniform FogInfo {
   /// rgb: linear fog colour. w: density per metre, zero for no fog.
   vec4 fog;
@@ -714,8 +695,79 @@ layout(std140) uniform FogInfo {
   /// xyz: camera position in world space. Duplicated from FragInfo so this
   /// block stands alone; a vec3 is cheaper than a coupling.
   vec4 eye;
+
+  /// xyz: the direction the camera looks, as a unit vector in world space.
+  /// w unused.
+  ///
+  /// Here rather than in a block of its own because it answers the same
+  /// question [eye] does — where the camera is and which way it faces — and
+  /// this is the block `color.glsl` can see.
+  vec4 forward;
 }
 fog_info;
+
+/// How far this fragment is from the eye, in world metres.
+///
+/// What the fog fades by. Distance rather than depth, because fog is a
+/// property of the air between two points and does not care which way the
+/// camera happens to face.
+float EyeDistance() { return distance(v_world_position, fog_info.eye.xyz); }
+
+/// How far this fragment is *along the view axis*, in world metres.
+///
+/// What the surface buffer's alpha holds. Depth rather than distance, and the
+/// difference only shows on an orthographic camera — where the rays through
+/// the pixels are parallel instead of meeting at the eye, so a distance from
+/// the eye names a sphere that the pixel's ray crosses somewhere the reader
+/// cannot solve for. A depth along the axis names a plane, which every ray
+/// crosses exactly once. See `WorldAtDepth` in `post/ssao.frag` for the
+/// reconstruction both projections share.
+float ViewDepth() {
+  return dot(v_world_position - fog_info.eye.xyz, fog_info.forward.xyz);
+}
+
+/// Records the geometry of this fragment for whatever runs after the scene.
+///
+/// Called from the same place that writes colour, so a surface cannot be lit
+/// into the frame without also describing itself — which is the failure that
+/// leaves a screen-space effect reflecting whatever was in the buffer before.
+///
+/// rg: octahedral normal. b: perceptual roughness. a: **depth along the view
+/// axis, in world metres** — see [ViewDepth].
+///
+/// **Not `gl_FragCoord.z`, and that is a defect this channel carried until it
+/// was looked at.** Window depth crowds every distant surface into the top of
+/// its range — with a near plane of a tenth of a metre, everything past twenty
+/// metres lives in the last half a hundredth of `[0, 1]` — and this attachment
+/// is a half float, whose steps up there are about five ten-thousandths. So two
+/// surfaces half a metre apart at twenty metres stored the *same* number, and
+/// every screen-space pass that compares against this channel decided whole
+/// bands of pixels by rounding. The occlusion pass drew them: vertical stripes
+/// along the lines of constant depth on any wall receding from the camera, on
+/// both GPU backends. The software rasteriser kept the channel at full
+/// precision and drew the effect correctly, so it was the one that looked
+/// wrong against the other two.
+///
+/// A depth in metres has none of that: the exponent carries the range and the
+/// mantissa carries the same relative precision everywhere, which at twenty
+/// metres is a centimetre. Both numbers are measured in
+/// `flutter3d_cpu/test/surface_depth_test.dart`.
+///
+/// Zero still means nothing was drawn. The attachment is cleared to zero and
+/// nothing is drawn in front of the near plane.
+void WriteSurfaceGeometry(float roughness) {
+#ifndef F3D_NO_SURFACE_BUFFER
+  // A debug pass takes the buffer over rather than getting one of its own.
+  // The surface buffer already has an attachment, a viewer and a golden; a
+  // second one would need all three built before it could answer anything.
+  if (g_debug_surface_on) {
+    frag_surface = vec4(g_debug_surface, ViewDepth());
+    return;
+  }
+  frag_surface = vec4(EncodeOctahedral(normalize(v_normal)),
+                      clamp(roughness, 0.0, 1.0), ViewDepth());
+#endif
+}
 
 /// Fades [color] toward the fog with distance from the eye.
 ///
@@ -724,7 +776,7 @@ fog_info;
 vec3 ApplyFog(vec3 color) {
   float density = fog_info.fog.w;
   if (density <= 0.0) return color;
-  float d = distance(v_world_position, fog_info.eye.xyz);
+  float d = EyeDistance();
   return mix(fog_info.fog.rgb, color, clamp(exp(-density * d), 0.0, 1.0));
 }
 
@@ -1561,7 +1613,9 @@ in vec2 v_lightmap_uv;
 layout(location = 0) out vec4 frag_color;
 
 // The second attachment: what a screen-space effect needs to know about the
-// surface it is looking at. World-space normal in rgb, window-space depth in a.
+// surface it is looking at. World-space normal in rgb, and in a the depth along
+// the view axis in world metres — not a window depth; `WriteSurfaceGeometry`
+// says at length why not.
 //
 // Depth travels here rather than in a depth texture because flutter_gpu cannot
 // sample one — the same reason the shadow pass writes its depth into a colour
@@ -1602,33 +1656,12 @@ vec2 EncodeOctahedral(vec3 n) {
 vec3 g_debug_surface = vec3(0.0);
 bool g_debug_surface_on = false;
 
-/// Records the geometry of this fragment for whatever runs after the scene.
-///
-/// Called from the same place that writes colour, so a surface cannot be lit
-/// into the frame without also describing itself — which is the failure that
-/// leaves a screen-space effect reflecting whatever was in the buffer before.
-///
-/// rg: octahedral normal. b: perceptual roughness. a: window depth.
-void WriteSurfaceGeometry(float roughness) {
-#ifndef F3D_NO_SURFACE_BUFFER
-  // A debug pass takes the buffer over rather than getting one of its own.
-  // The surface buffer already has an attachment, a viewer and a golden; a
-  // second one would need all three built before it could answer anything.
-  if (g_debug_surface_on) {
-    frag_surface = vec4(g_debug_surface, gl_FragCoord.z);
-    return;
-  }
-  frag_surface = vec4(EncodeOctahedral(normalize(v_normal)),
-                      clamp(roughness, 0.0, 1.0), gl_FragCoord.z);
-#endif
-}
-
 /// Distance fog, in its own block rather than folded into FragInfo.
 ///
 /// Its own because color.glsl is included before FragInfo is declared, and
 /// because appending to a block that half a dozen shaders already share is a
-/// way to move offsets nobody expected to move. Two vec4s is a cheap price for
-/// not touching any of that.
+/// way to move offsets nobody expected to move. Three vec4s is a cheap price
+/// for not touching any of that.
 layout(std140) uniform FogInfo {
   /// rgb: linear fog colour. w: density per metre, zero for no fog.
   vec4 fog;
@@ -1636,8 +1669,79 @@ layout(std140) uniform FogInfo {
   /// xyz: camera position in world space. Duplicated from FragInfo so this
   /// block stands alone; a vec3 is cheaper than a coupling.
   vec4 eye;
+
+  /// xyz: the direction the camera looks, as a unit vector in world space.
+  /// w unused.
+  ///
+  /// Here rather than in a block of its own because it answers the same
+  /// question [eye] does — where the camera is and which way it faces — and
+  /// this is the block `color.glsl` can see.
+  vec4 forward;
 }
 fog_info;
+
+/// How far this fragment is from the eye, in world metres.
+///
+/// What the fog fades by. Distance rather than depth, because fog is a
+/// property of the air between two points and does not care which way the
+/// camera happens to face.
+float EyeDistance() { return distance(v_world_position, fog_info.eye.xyz); }
+
+/// How far this fragment is *along the view axis*, in world metres.
+///
+/// What the surface buffer's alpha holds. Depth rather than distance, and the
+/// difference only shows on an orthographic camera — where the rays through
+/// the pixels are parallel instead of meeting at the eye, so a distance from
+/// the eye names a sphere that the pixel's ray crosses somewhere the reader
+/// cannot solve for. A depth along the axis names a plane, which every ray
+/// crosses exactly once. See `WorldAtDepth` in `post/ssao.frag` for the
+/// reconstruction both projections share.
+float ViewDepth() {
+  return dot(v_world_position - fog_info.eye.xyz, fog_info.forward.xyz);
+}
+
+/// Records the geometry of this fragment for whatever runs after the scene.
+///
+/// Called from the same place that writes colour, so a surface cannot be lit
+/// into the frame without also describing itself — which is the failure that
+/// leaves a screen-space effect reflecting whatever was in the buffer before.
+///
+/// rg: octahedral normal. b: perceptual roughness. a: **depth along the view
+/// axis, in world metres** — see [ViewDepth].
+///
+/// **Not `gl_FragCoord.z`, and that is a defect this channel carried until it
+/// was looked at.** Window depth crowds every distant surface into the top of
+/// its range — with a near plane of a tenth of a metre, everything past twenty
+/// metres lives in the last half a hundredth of `[0, 1]` — and this attachment
+/// is a half float, whose steps up there are about five ten-thousandths. So two
+/// surfaces half a metre apart at twenty metres stored the *same* number, and
+/// every screen-space pass that compares against this channel decided whole
+/// bands of pixels by rounding. The occlusion pass drew them: vertical stripes
+/// along the lines of constant depth on any wall receding from the camera, on
+/// both GPU backends. The software rasteriser kept the channel at full
+/// precision and drew the effect correctly, so it was the one that looked
+/// wrong against the other two.
+///
+/// A depth in metres has none of that: the exponent carries the range and the
+/// mantissa carries the same relative precision everywhere, which at twenty
+/// metres is a centimetre. Both numbers are measured in
+/// `flutter3d_cpu/test/surface_depth_test.dart`.
+///
+/// Zero still means nothing was drawn. The attachment is cleared to zero and
+/// nothing is drawn in front of the near plane.
+void WriteSurfaceGeometry(float roughness) {
+#ifndef F3D_NO_SURFACE_BUFFER
+  // A debug pass takes the buffer over rather than getting one of its own.
+  // The surface buffer already has an attachment, a viewer and a golden; a
+  // second one would need all three built before it could answer anything.
+  if (g_debug_surface_on) {
+    frag_surface = vec4(g_debug_surface, ViewDepth());
+    return;
+  }
+  frag_surface = vec4(EncodeOctahedral(normalize(v_normal)),
+                      clamp(roughness, 0.0, 1.0), ViewDepth());
+#endif
+}
 
 /// Fades [color] toward the fog with distance from the eye.
 ///
@@ -1646,7 +1750,7 @@ fog_info;
 vec3 ApplyFog(vec3 color) {
   float density = fog_info.fog.w;
   if (density <= 0.0) return color;
-  float d = distance(v_world_position, fog_info.eye.xyz);
+  float d = EyeDistance();
   return mix(fog_info.fog.rgb, color, clamp(exp(-density * d), 0.0, 1.0));
 }
 
@@ -2473,7 +2577,9 @@ in vec2 v_lightmap_uv;
 layout(location = 0) out vec4 frag_color;
 
 // The second attachment: what a screen-space effect needs to know about the
-// surface it is looking at. World-space normal in rgb, window-space depth in a.
+// surface it is looking at. World-space normal in rgb, and in a the depth along
+// the view axis in world metres — not a window depth; `WriteSurfaceGeometry`
+// says at length why not.
 //
 // Depth travels here rather than in a depth texture because flutter_gpu cannot
 // sample one — the same reason the shadow pass writes its depth into a colour
@@ -2514,33 +2620,12 @@ vec2 EncodeOctahedral(vec3 n) {
 vec3 g_debug_surface = vec3(0.0);
 bool g_debug_surface_on = false;
 
-/// Records the geometry of this fragment for whatever runs after the scene.
-///
-/// Called from the same place that writes colour, so a surface cannot be lit
-/// into the frame without also describing itself — which is the failure that
-/// leaves a screen-space effect reflecting whatever was in the buffer before.
-///
-/// rg: octahedral normal. b: perceptual roughness. a: window depth.
-void WriteSurfaceGeometry(float roughness) {
-#ifndef F3D_NO_SURFACE_BUFFER
-  // A debug pass takes the buffer over rather than getting one of its own.
-  // The surface buffer already has an attachment, a viewer and a golden; a
-  // second one would need all three built before it could answer anything.
-  if (g_debug_surface_on) {
-    frag_surface = vec4(g_debug_surface, gl_FragCoord.z);
-    return;
-  }
-  frag_surface = vec4(EncodeOctahedral(normalize(v_normal)),
-                      clamp(roughness, 0.0, 1.0), gl_FragCoord.z);
-#endif
-}
-
 /// Distance fog, in its own block rather than folded into FragInfo.
 ///
 /// Its own because color.glsl is included before FragInfo is declared, and
 /// because appending to a block that half a dozen shaders already share is a
-/// way to move offsets nobody expected to move. Two vec4s is a cheap price for
-/// not touching any of that.
+/// way to move offsets nobody expected to move. Three vec4s is a cheap price
+/// for not touching any of that.
 layout(std140) uniform FogInfo {
   /// rgb: linear fog colour. w: density per metre, zero for no fog.
   vec4 fog;
@@ -2548,8 +2633,79 @@ layout(std140) uniform FogInfo {
   /// xyz: camera position in world space. Duplicated from FragInfo so this
   /// block stands alone; a vec3 is cheaper than a coupling.
   vec4 eye;
+
+  /// xyz: the direction the camera looks, as a unit vector in world space.
+  /// w unused.
+  ///
+  /// Here rather than in a block of its own because it answers the same
+  /// question [eye] does — where the camera is and which way it faces — and
+  /// this is the block `color.glsl` can see.
+  vec4 forward;
 }
 fog_info;
+
+/// How far this fragment is from the eye, in world metres.
+///
+/// What the fog fades by. Distance rather than depth, because fog is a
+/// property of the air between two points and does not care which way the
+/// camera happens to face.
+float EyeDistance() { return distance(v_world_position, fog_info.eye.xyz); }
+
+/// How far this fragment is *along the view axis*, in world metres.
+///
+/// What the surface buffer's alpha holds. Depth rather than distance, and the
+/// difference only shows on an orthographic camera — where the rays through
+/// the pixels are parallel instead of meeting at the eye, so a distance from
+/// the eye names a sphere that the pixel's ray crosses somewhere the reader
+/// cannot solve for. A depth along the axis names a plane, which every ray
+/// crosses exactly once. See `WorldAtDepth` in `post/ssao.frag` for the
+/// reconstruction both projections share.
+float ViewDepth() {
+  return dot(v_world_position - fog_info.eye.xyz, fog_info.forward.xyz);
+}
+
+/// Records the geometry of this fragment for whatever runs after the scene.
+///
+/// Called from the same place that writes colour, so a surface cannot be lit
+/// into the frame without also describing itself — which is the failure that
+/// leaves a screen-space effect reflecting whatever was in the buffer before.
+///
+/// rg: octahedral normal. b: perceptual roughness. a: **depth along the view
+/// axis, in world metres** — see [ViewDepth].
+///
+/// **Not `gl_FragCoord.z`, and that is a defect this channel carried until it
+/// was looked at.** Window depth crowds every distant surface into the top of
+/// its range — with a near plane of a tenth of a metre, everything past twenty
+/// metres lives in the last half a hundredth of `[0, 1]` — and this attachment
+/// is a half float, whose steps up there are about five ten-thousandths. So two
+/// surfaces half a metre apart at twenty metres stored the *same* number, and
+/// every screen-space pass that compares against this channel decided whole
+/// bands of pixels by rounding. The occlusion pass drew them: vertical stripes
+/// along the lines of constant depth on any wall receding from the camera, on
+/// both GPU backends. The software rasteriser kept the channel at full
+/// precision and drew the effect correctly, so it was the one that looked
+/// wrong against the other two.
+///
+/// A depth in metres has none of that: the exponent carries the range and the
+/// mantissa carries the same relative precision everywhere, which at twenty
+/// metres is a centimetre. Both numbers are measured in
+/// `flutter3d_cpu/test/surface_depth_test.dart`.
+///
+/// Zero still means nothing was drawn. The attachment is cleared to zero and
+/// nothing is drawn in front of the near plane.
+void WriteSurfaceGeometry(float roughness) {
+#ifndef F3D_NO_SURFACE_BUFFER
+  // A debug pass takes the buffer over rather than getting one of its own.
+  // The surface buffer already has an attachment, a viewer and a golden; a
+  // second one would need all three built before it could answer anything.
+  if (g_debug_surface_on) {
+    frag_surface = vec4(g_debug_surface, ViewDepth());
+    return;
+  }
+  frag_surface = vec4(EncodeOctahedral(normalize(v_normal)),
+                      clamp(roughness, 0.0, 1.0), ViewDepth());
+#endif
+}
 
 /// Fades [color] toward the fog with distance from the eye.
 ///
@@ -2558,7 +2714,7 @@ fog_info;
 vec3 ApplyFog(vec3 color) {
   float density = fog_info.fog.w;
   if (density <= 0.0) return color;
-  float d = distance(v_world_position, fog_info.eye.xyz);
+  float d = EyeDistance();
   return mix(fog_info.fog.rgb, color, clamp(exp(-density * d), 0.0, 1.0));
 }
 
@@ -3587,7 +3743,9 @@ in vec2 v_lightmap_uv;
 layout(location = 0) out vec4 frag_color;
 
 // The second attachment: what a screen-space effect needs to know about the
-// surface it is looking at. World-space normal in rgb, window-space depth in a.
+// surface it is looking at. World-space normal in rgb, and in a the depth along
+// the view axis in world metres — not a window depth; `WriteSurfaceGeometry`
+// says at length why not.
 //
 // Depth travels here rather than in a depth texture because flutter_gpu cannot
 // sample one — the same reason the shadow pass writes its depth into a colour
@@ -3628,33 +3786,12 @@ vec2 EncodeOctahedral(vec3 n) {
 vec3 g_debug_surface = vec3(0.0);
 bool g_debug_surface_on = false;
 
-/// Records the geometry of this fragment for whatever runs after the scene.
-///
-/// Called from the same place that writes colour, so a surface cannot be lit
-/// into the frame without also describing itself — which is the failure that
-/// leaves a screen-space effect reflecting whatever was in the buffer before.
-///
-/// rg: octahedral normal. b: perceptual roughness. a: window depth.
-void WriteSurfaceGeometry(float roughness) {
-#ifndef F3D_NO_SURFACE_BUFFER
-  // A debug pass takes the buffer over rather than getting one of its own.
-  // The surface buffer already has an attachment, a viewer and a golden; a
-  // second one would need all three built before it could answer anything.
-  if (g_debug_surface_on) {
-    frag_surface = vec4(g_debug_surface, gl_FragCoord.z);
-    return;
-  }
-  frag_surface = vec4(EncodeOctahedral(normalize(v_normal)),
-                      clamp(roughness, 0.0, 1.0), gl_FragCoord.z);
-#endif
-}
-
 /// Distance fog, in its own block rather than folded into FragInfo.
 ///
 /// Its own because color.glsl is included before FragInfo is declared, and
 /// because appending to a block that half a dozen shaders already share is a
-/// way to move offsets nobody expected to move. Two vec4s is a cheap price for
-/// not touching any of that.
+/// way to move offsets nobody expected to move. Three vec4s is a cheap price
+/// for not touching any of that.
 layout(std140) uniform FogInfo {
   /// rgb: linear fog colour. w: density per metre, zero for no fog.
   vec4 fog;
@@ -3662,8 +3799,79 @@ layout(std140) uniform FogInfo {
   /// xyz: camera position in world space. Duplicated from FragInfo so this
   /// block stands alone; a vec3 is cheaper than a coupling.
   vec4 eye;
+
+  /// xyz: the direction the camera looks, as a unit vector in world space.
+  /// w unused.
+  ///
+  /// Here rather than in a block of its own because it answers the same
+  /// question [eye] does — where the camera is and which way it faces — and
+  /// this is the block `color.glsl` can see.
+  vec4 forward;
 }
 fog_info;
+
+/// How far this fragment is from the eye, in world metres.
+///
+/// What the fog fades by. Distance rather than depth, because fog is a
+/// property of the air between two points and does not care which way the
+/// camera happens to face.
+float EyeDistance() { return distance(v_world_position, fog_info.eye.xyz); }
+
+/// How far this fragment is *along the view axis*, in world metres.
+///
+/// What the surface buffer's alpha holds. Depth rather than distance, and the
+/// difference only shows on an orthographic camera — where the rays through
+/// the pixels are parallel instead of meeting at the eye, so a distance from
+/// the eye names a sphere that the pixel's ray crosses somewhere the reader
+/// cannot solve for. A depth along the axis names a plane, which every ray
+/// crosses exactly once. See `WorldAtDepth` in `post/ssao.frag` for the
+/// reconstruction both projections share.
+float ViewDepth() {
+  return dot(v_world_position - fog_info.eye.xyz, fog_info.forward.xyz);
+}
+
+/// Records the geometry of this fragment for whatever runs after the scene.
+///
+/// Called from the same place that writes colour, so a surface cannot be lit
+/// into the frame without also describing itself — which is the failure that
+/// leaves a screen-space effect reflecting whatever was in the buffer before.
+///
+/// rg: octahedral normal. b: perceptual roughness. a: **depth along the view
+/// axis, in world metres** — see [ViewDepth].
+///
+/// **Not `gl_FragCoord.z`, and that is a defect this channel carried until it
+/// was looked at.** Window depth crowds every distant surface into the top of
+/// its range — with a near plane of a tenth of a metre, everything past twenty
+/// metres lives in the last half a hundredth of `[0, 1]` — and this attachment
+/// is a half float, whose steps up there are about five ten-thousandths. So two
+/// surfaces half a metre apart at twenty metres stored the *same* number, and
+/// every screen-space pass that compares against this channel decided whole
+/// bands of pixels by rounding. The occlusion pass drew them: vertical stripes
+/// along the lines of constant depth on any wall receding from the camera, on
+/// both GPU backends. The software rasteriser kept the channel at full
+/// precision and drew the effect correctly, so it was the one that looked
+/// wrong against the other two.
+///
+/// A depth in metres has none of that: the exponent carries the range and the
+/// mantissa carries the same relative precision everywhere, which at twenty
+/// metres is a centimetre. Both numbers are measured in
+/// `flutter3d_cpu/test/surface_depth_test.dart`.
+///
+/// Zero still means nothing was drawn. The attachment is cleared to zero and
+/// nothing is drawn in front of the near plane.
+void WriteSurfaceGeometry(float roughness) {
+#ifndef F3D_NO_SURFACE_BUFFER
+  // A debug pass takes the buffer over rather than getting one of its own.
+  // The surface buffer already has an attachment, a viewer and a golden; a
+  // second one would need all three built before it could answer anything.
+  if (g_debug_surface_on) {
+    frag_surface = vec4(g_debug_surface, ViewDepth());
+    return;
+  }
+  frag_surface = vec4(EncodeOctahedral(normalize(v_normal)),
+                      clamp(roughness, 0.0, 1.0), ViewDepth());
+#endif
+}
 
 /// Fades [color] toward the fog with distance from the eye.
 ///
@@ -3672,7 +3880,7 @@ fog_info;
 vec3 ApplyFog(vec3 color) {
   float density = fog_info.fog.w;
   if (density <= 0.0) return color;
-  float d = distance(v_world_position, fog_info.eye.xyz);
+  float d = EyeDistance();
   return mix(fog_info.fog.rgb, color, clamp(exp(-density * d), 0.0, 1.0));
 }
 
@@ -4716,7 +4924,9 @@ in vec2 v_lightmap_uv;
 layout(location = 0) out vec4 frag_color;
 
 // The second attachment: what a screen-space effect needs to know about the
-// surface it is looking at. World-space normal in rgb, window-space depth in a.
+// surface it is looking at. World-space normal in rgb, and in a the depth along
+// the view axis in world metres — not a window depth; `WriteSurfaceGeometry`
+// says at length why not.
 //
 // Depth travels here rather than in a depth texture because flutter_gpu cannot
 // sample one — the same reason the shadow pass writes its depth into a colour
@@ -4757,33 +4967,12 @@ vec2 EncodeOctahedral(vec3 n) {
 vec3 g_debug_surface = vec3(0.0);
 bool g_debug_surface_on = false;
 
-/// Records the geometry of this fragment for whatever runs after the scene.
-///
-/// Called from the same place that writes colour, so a surface cannot be lit
-/// into the frame without also describing itself — which is the failure that
-/// leaves a screen-space effect reflecting whatever was in the buffer before.
-///
-/// rg: octahedral normal. b: perceptual roughness. a: window depth.
-void WriteSurfaceGeometry(float roughness) {
-#ifndef F3D_NO_SURFACE_BUFFER
-  // A debug pass takes the buffer over rather than getting one of its own.
-  // The surface buffer already has an attachment, a viewer and a golden; a
-  // second one would need all three built before it could answer anything.
-  if (g_debug_surface_on) {
-    frag_surface = vec4(g_debug_surface, gl_FragCoord.z);
-    return;
-  }
-  frag_surface = vec4(EncodeOctahedral(normalize(v_normal)),
-                      clamp(roughness, 0.0, 1.0), gl_FragCoord.z);
-#endif
-}
-
 /// Distance fog, in its own block rather than folded into FragInfo.
 ///
 /// Its own because color.glsl is included before FragInfo is declared, and
 /// because appending to a block that half a dozen shaders already share is a
-/// way to move offsets nobody expected to move. Two vec4s is a cheap price for
-/// not touching any of that.
+/// way to move offsets nobody expected to move. Three vec4s is a cheap price
+/// for not touching any of that.
 layout(std140) uniform FogInfo {
   /// rgb: linear fog colour. w: density per metre, zero for no fog.
   vec4 fog;
@@ -4791,8 +4980,79 @@ layout(std140) uniform FogInfo {
   /// xyz: camera position in world space. Duplicated from FragInfo so this
   /// block stands alone; a vec3 is cheaper than a coupling.
   vec4 eye;
+
+  /// xyz: the direction the camera looks, as a unit vector in world space.
+  /// w unused.
+  ///
+  /// Here rather than in a block of its own because it answers the same
+  /// question [eye] does — where the camera is and which way it faces — and
+  /// this is the block `color.glsl` can see.
+  vec4 forward;
 }
 fog_info;
+
+/// How far this fragment is from the eye, in world metres.
+///
+/// What the fog fades by. Distance rather than depth, because fog is a
+/// property of the air between two points and does not care which way the
+/// camera happens to face.
+float EyeDistance() { return distance(v_world_position, fog_info.eye.xyz); }
+
+/// How far this fragment is *along the view axis*, in world metres.
+///
+/// What the surface buffer's alpha holds. Depth rather than distance, and the
+/// difference only shows on an orthographic camera — where the rays through
+/// the pixels are parallel instead of meeting at the eye, so a distance from
+/// the eye names a sphere that the pixel's ray crosses somewhere the reader
+/// cannot solve for. A depth along the axis names a plane, which every ray
+/// crosses exactly once. See `WorldAtDepth` in `post/ssao.frag` for the
+/// reconstruction both projections share.
+float ViewDepth() {
+  return dot(v_world_position - fog_info.eye.xyz, fog_info.forward.xyz);
+}
+
+/// Records the geometry of this fragment for whatever runs after the scene.
+///
+/// Called from the same place that writes colour, so a surface cannot be lit
+/// into the frame without also describing itself — which is the failure that
+/// leaves a screen-space effect reflecting whatever was in the buffer before.
+///
+/// rg: octahedral normal. b: perceptual roughness. a: **depth along the view
+/// axis, in world metres** — see [ViewDepth].
+///
+/// **Not `gl_FragCoord.z`, and that is a defect this channel carried until it
+/// was looked at.** Window depth crowds every distant surface into the top of
+/// its range — with a near plane of a tenth of a metre, everything past twenty
+/// metres lives in the last half a hundredth of `[0, 1]` — and this attachment
+/// is a half float, whose steps up there are about five ten-thousandths. So two
+/// surfaces half a metre apart at twenty metres stored the *same* number, and
+/// every screen-space pass that compares against this channel decided whole
+/// bands of pixels by rounding. The occlusion pass drew them: vertical stripes
+/// along the lines of constant depth on any wall receding from the camera, on
+/// both GPU backends. The software rasteriser kept the channel at full
+/// precision and drew the effect correctly, so it was the one that looked
+/// wrong against the other two.
+///
+/// A depth in metres has none of that: the exponent carries the range and the
+/// mantissa carries the same relative precision everywhere, which at twenty
+/// metres is a centimetre. Both numbers are measured in
+/// `flutter3d_cpu/test/surface_depth_test.dart`.
+///
+/// Zero still means nothing was drawn. The attachment is cleared to zero and
+/// nothing is drawn in front of the near plane.
+void WriteSurfaceGeometry(float roughness) {
+#ifndef F3D_NO_SURFACE_BUFFER
+  // A debug pass takes the buffer over rather than getting one of its own.
+  // The surface buffer already has an attachment, a viewer and a golden; a
+  // second one would need all three built before it could answer anything.
+  if (g_debug_surface_on) {
+    frag_surface = vec4(g_debug_surface, ViewDepth());
+    return;
+  }
+  frag_surface = vec4(EncodeOctahedral(normalize(v_normal)),
+                      clamp(roughness, 0.0, 1.0), ViewDepth());
+#endif
+}
 
 /// Fades [color] toward the fog with distance from the eye.
 ///
@@ -4801,7 +5061,7 @@ fog_info;
 vec3 ApplyFog(vec3 color) {
   float density = fog_info.fog.w;
   if (density <= 0.0) return color;
-  float d = distance(v_world_position, fog_info.eye.xyz);
+  float d = EyeDistance();
   return mix(fog_info.fog.rgb, color, clamp(exp(-density * d), 0.0, 1.0));
 }
 
@@ -5938,7 +6198,9 @@ in vec2 v_lightmap_uv;
 layout(location = 0) out vec4 frag_color;
 
 // The second attachment: what a screen-space effect needs to know about the
-// surface it is looking at. World-space normal in rgb, window-space depth in a.
+// surface it is looking at. World-space normal in rgb, and in a the depth along
+// the view axis in world metres — not a window depth; `WriteSurfaceGeometry`
+// says at length why not.
 //
 // Depth travels here rather than in a depth texture because flutter_gpu cannot
 // sample one — the same reason the shadow pass writes its depth into a colour
@@ -5979,33 +6241,12 @@ vec2 EncodeOctahedral(vec3 n) {
 vec3 g_debug_surface = vec3(0.0);
 bool g_debug_surface_on = false;
 
-/// Records the geometry of this fragment for whatever runs after the scene.
-///
-/// Called from the same place that writes colour, so a surface cannot be lit
-/// into the frame without also describing itself — which is the failure that
-/// leaves a screen-space effect reflecting whatever was in the buffer before.
-///
-/// rg: octahedral normal. b: perceptual roughness. a: window depth.
-void WriteSurfaceGeometry(float roughness) {
-#ifndef F3D_NO_SURFACE_BUFFER
-  // A debug pass takes the buffer over rather than getting one of its own.
-  // The surface buffer already has an attachment, a viewer and a golden; a
-  // second one would need all three built before it could answer anything.
-  if (g_debug_surface_on) {
-    frag_surface = vec4(g_debug_surface, gl_FragCoord.z);
-    return;
-  }
-  frag_surface = vec4(EncodeOctahedral(normalize(v_normal)),
-                      clamp(roughness, 0.0, 1.0), gl_FragCoord.z);
-#endif
-}
-
 /// Distance fog, in its own block rather than folded into FragInfo.
 ///
 /// Its own because color.glsl is included before FragInfo is declared, and
 /// because appending to a block that half a dozen shaders already share is a
-/// way to move offsets nobody expected to move. Two vec4s is a cheap price for
-/// not touching any of that.
+/// way to move offsets nobody expected to move. Three vec4s is a cheap price
+/// for not touching any of that.
 layout(std140) uniform FogInfo {
   /// rgb: linear fog colour. w: density per metre, zero for no fog.
   vec4 fog;
@@ -6013,8 +6254,79 @@ layout(std140) uniform FogInfo {
   /// xyz: camera position in world space. Duplicated from FragInfo so this
   /// block stands alone; a vec3 is cheaper than a coupling.
   vec4 eye;
+
+  /// xyz: the direction the camera looks, as a unit vector in world space.
+  /// w unused.
+  ///
+  /// Here rather than in a block of its own because it answers the same
+  /// question [eye] does — where the camera is and which way it faces — and
+  /// this is the block `color.glsl` can see.
+  vec4 forward;
 }
 fog_info;
+
+/// How far this fragment is from the eye, in world metres.
+///
+/// What the fog fades by. Distance rather than depth, because fog is a
+/// property of the air between two points and does not care which way the
+/// camera happens to face.
+float EyeDistance() { return distance(v_world_position, fog_info.eye.xyz); }
+
+/// How far this fragment is *along the view axis*, in world metres.
+///
+/// What the surface buffer's alpha holds. Depth rather than distance, and the
+/// difference only shows on an orthographic camera — where the rays through
+/// the pixels are parallel instead of meeting at the eye, so a distance from
+/// the eye names a sphere that the pixel's ray crosses somewhere the reader
+/// cannot solve for. A depth along the axis names a plane, which every ray
+/// crosses exactly once. See `WorldAtDepth` in `post/ssao.frag` for the
+/// reconstruction both projections share.
+float ViewDepth() {
+  return dot(v_world_position - fog_info.eye.xyz, fog_info.forward.xyz);
+}
+
+/// Records the geometry of this fragment for whatever runs after the scene.
+///
+/// Called from the same place that writes colour, so a surface cannot be lit
+/// into the frame without also describing itself — which is the failure that
+/// leaves a screen-space effect reflecting whatever was in the buffer before.
+///
+/// rg: octahedral normal. b: perceptual roughness. a: **depth along the view
+/// axis, in world metres** — see [ViewDepth].
+///
+/// **Not `gl_FragCoord.z`, and that is a defect this channel carried until it
+/// was looked at.** Window depth crowds every distant surface into the top of
+/// its range — with a near plane of a tenth of a metre, everything past twenty
+/// metres lives in the last half a hundredth of `[0, 1]` — and this attachment
+/// is a half float, whose steps up there are about five ten-thousandths. So two
+/// surfaces half a metre apart at twenty metres stored the *same* number, and
+/// every screen-space pass that compares against this channel decided whole
+/// bands of pixels by rounding. The occlusion pass drew them: vertical stripes
+/// along the lines of constant depth on any wall receding from the camera, on
+/// both GPU backends. The software rasteriser kept the channel at full
+/// precision and drew the effect correctly, so it was the one that looked
+/// wrong against the other two.
+///
+/// A depth in metres has none of that: the exponent carries the range and the
+/// mantissa carries the same relative precision everywhere, which at twenty
+/// metres is a centimetre. Both numbers are measured in
+/// `flutter3d_cpu/test/surface_depth_test.dart`.
+///
+/// Zero still means nothing was drawn. The attachment is cleared to zero and
+/// nothing is drawn in front of the near plane.
+void WriteSurfaceGeometry(float roughness) {
+#ifndef F3D_NO_SURFACE_BUFFER
+  // A debug pass takes the buffer over rather than getting one of its own.
+  // The surface buffer already has an attachment, a viewer and a golden; a
+  // second one would need all three built before it could answer anything.
+  if (g_debug_surface_on) {
+    frag_surface = vec4(g_debug_surface, ViewDepth());
+    return;
+  }
+  frag_surface = vec4(EncodeOctahedral(normalize(v_normal)),
+                      clamp(roughness, 0.0, 1.0), ViewDepth());
+#endif
+}
 
 /// Fades [color] toward the fog with distance from the eye.
 ///
@@ -6023,7 +6335,7 @@ fog_info;
 vec3 ApplyFog(vec3 color) {
   float density = fog_info.fog.w;
   if (density <= 0.0) return color;
-  float d = distance(v_world_position, fog_info.eye.xyz);
+  float d = EyeDistance();
   return mix(fog_info.fog.rgb, color, clamp(exp(-density * d), 0.0, 1.0));
 }
 
@@ -7035,7 +7347,9 @@ in vec2 v_lightmap_uv;
 layout(location = 0) out vec4 frag_color;
 
 // The second attachment: what a screen-space effect needs to know about the
-// surface it is looking at. World-space normal in rgb, window-space depth in a.
+// surface it is looking at. World-space normal in rgb, and in a the depth along
+// the view axis in world metres — not a window depth; `WriteSurfaceGeometry`
+// says at length why not.
 //
 // Depth travels here rather than in a depth texture because flutter_gpu cannot
 // sample one — the same reason the shadow pass writes its depth into a colour
@@ -7076,33 +7390,12 @@ vec2 EncodeOctahedral(vec3 n) {
 vec3 g_debug_surface = vec3(0.0);
 bool g_debug_surface_on = false;
 
-/// Records the geometry of this fragment for whatever runs after the scene.
-///
-/// Called from the same place that writes colour, so a surface cannot be lit
-/// into the frame without also describing itself — which is the failure that
-/// leaves a screen-space effect reflecting whatever was in the buffer before.
-///
-/// rg: octahedral normal. b: perceptual roughness. a: window depth.
-void WriteSurfaceGeometry(float roughness) {
-#ifndef F3D_NO_SURFACE_BUFFER
-  // A debug pass takes the buffer over rather than getting one of its own.
-  // The surface buffer already has an attachment, a viewer and a golden; a
-  // second one would need all three built before it could answer anything.
-  if (g_debug_surface_on) {
-    frag_surface = vec4(g_debug_surface, gl_FragCoord.z);
-    return;
-  }
-  frag_surface = vec4(EncodeOctahedral(normalize(v_normal)),
-                      clamp(roughness, 0.0, 1.0), gl_FragCoord.z);
-#endif
-}
-
 /// Distance fog, in its own block rather than folded into FragInfo.
 ///
 /// Its own because color.glsl is included before FragInfo is declared, and
 /// because appending to a block that half a dozen shaders already share is a
-/// way to move offsets nobody expected to move. Two vec4s is a cheap price for
-/// not touching any of that.
+/// way to move offsets nobody expected to move. Three vec4s is a cheap price
+/// for not touching any of that.
 layout(std140) uniform FogInfo {
   /// rgb: linear fog colour. w: density per metre, zero for no fog.
   vec4 fog;
@@ -7110,8 +7403,79 @@ layout(std140) uniform FogInfo {
   /// xyz: camera position in world space. Duplicated from FragInfo so this
   /// block stands alone; a vec3 is cheaper than a coupling.
   vec4 eye;
+
+  /// xyz: the direction the camera looks, as a unit vector in world space.
+  /// w unused.
+  ///
+  /// Here rather than in a block of its own because it answers the same
+  /// question [eye] does — where the camera is and which way it faces — and
+  /// this is the block `color.glsl` can see.
+  vec4 forward;
 }
 fog_info;
+
+/// How far this fragment is from the eye, in world metres.
+///
+/// What the fog fades by. Distance rather than depth, because fog is a
+/// property of the air between two points and does not care which way the
+/// camera happens to face.
+float EyeDistance() { return distance(v_world_position, fog_info.eye.xyz); }
+
+/// How far this fragment is *along the view axis*, in world metres.
+///
+/// What the surface buffer's alpha holds. Depth rather than distance, and the
+/// difference only shows on an orthographic camera — where the rays through
+/// the pixels are parallel instead of meeting at the eye, so a distance from
+/// the eye names a sphere that the pixel's ray crosses somewhere the reader
+/// cannot solve for. A depth along the axis names a plane, which every ray
+/// crosses exactly once. See `WorldAtDepth` in `post/ssao.frag` for the
+/// reconstruction both projections share.
+float ViewDepth() {
+  return dot(v_world_position - fog_info.eye.xyz, fog_info.forward.xyz);
+}
+
+/// Records the geometry of this fragment for whatever runs after the scene.
+///
+/// Called from the same place that writes colour, so a surface cannot be lit
+/// into the frame without also describing itself — which is the failure that
+/// leaves a screen-space effect reflecting whatever was in the buffer before.
+///
+/// rg: octahedral normal. b: perceptual roughness. a: **depth along the view
+/// axis, in world metres** — see [ViewDepth].
+///
+/// **Not `gl_FragCoord.z`, and that is a defect this channel carried until it
+/// was looked at.** Window depth crowds every distant surface into the top of
+/// its range — with a near plane of a tenth of a metre, everything past twenty
+/// metres lives in the last half a hundredth of `[0, 1]` — and this attachment
+/// is a half float, whose steps up there are about five ten-thousandths. So two
+/// surfaces half a metre apart at twenty metres stored the *same* number, and
+/// every screen-space pass that compares against this channel decided whole
+/// bands of pixels by rounding. The occlusion pass drew them: vertical stripes
+/// along the lines of constant depth on any wall receding from the camera, on
+/// both GPU backends. The software rasteriser kept the channel at full
+/// precision and drew the effect correctly, so it was the one that looked
+/// wrong against the other two.
+///
+/// A depth in metres has none of that: the exponent carries the range and the
+/// mantissa carries the same relative precision everywhere, which at twenty
+/// metres is a centimetre. Both numbers are measured in
+/// `flutter3d_cpu/test/surface_depth_test.dart`.
+///
+/// Zero still means nothing was drawn. The attachment is cleared to zero and
+/// nothing is drawn in front of the near plane.
+void WriteSurfaceGeometry(float roughness) {
+#ifndef F3D_NO_SURFACE_BUFFER
+  // A debug pass takes the buffer over rather than getting one of its own.
+  // The surface buffer already has an attachment, a viewer and a golden; a
+  // second one would need all three built before it could answer anything.
+  if (g_debug_surface_on) {
+    frag_surface = vec4(g_debug_surface, ViewDepth());
+    return;
+  }
+  frag_surface = vec4(EncodeOctahedral(normalize(v_normal)),
+                      clamp(roughness, 0.0, 1.0), ViewDepth());
+#endif
+}
 
 /// Fades [color] toward the fog with distance from the eye.
 ///
@@ -7120,7 +7484,7 @@ fog_info;
 vec3 ApplyFog(vec3 color) {
   float density = fog_info.fog.w;
   if (density <= 0.0) return color;
-  float d = distance(v_world_position, fog_info.eye.xyz);
+  float d = EyeDistance();
   return mix(fog_info.fog.rgb, color, clamp(exp(-density * d), 0.0, 1.0));
 }
 
@@ -7677,7 +8041,9 @@ in vec2 v_lightmap_uv;
 layout(location = 0) out vec4 frag_color;
 
 // The second attachment: what a screen-space effect needs to know about the
-// surface it is looking at. World-space normal in rgb, window-space depth in a.
+// surface it is looking at. World-space normal in rgb, and in a the depth along
+// the view axis in world metres — not a window depth; `WriteSurfaceGeometry`
+// says at length why not.
 //
 // Depth travels here rather than in a depth texture because flutter_gpu cannot
 // sample one — the same reason the shadow pass writes its depth into a colour
@@ -7718,33 +8084,12 @@ vec2 EncodeOctahedral(vec3 n) {
 vec3 g_debug_surface = vec3(0.0);
 bool g_debug_surface_on = false;
 
-/// Records the geometry of this fragment for whatever runs after the scene.
-///
-/// Called from the same place that writes colour, so a surface cannot be lit
-/// into the frame without also describing itself — which is the failure that
-/// leaves a screen-space effect reflecting whatever was in the buffer before.
-///
-/// rg: octahedral normal. b: perceptual roughness. a: window depth.
-void WriteSurfaceGeometry(float roughness) {
-#ifndef F3D_NO_SURFACE_BUFFER
-  // A debug pass takes the buffer over rather than getting one of its own.
-  // The surface buffer already has an attachment, a viewer and a golden; a
-  // second one would need all three built before it could answer anything.
-  if (g_debug_surface_on) {
-    frag_surface = vec4(g_debug_surface, gl_FragCoord.z);
-    return;
-  }
-  frag_surface = vec4(EncodeOctahedral(normalize(v_normal)),
-                      clamp(roughness, 0.0, 1.0), gl_FragCoord.z);
-#endif
-}
-
 /// Distance fog, in its own block rather than folded into FragInfo.
 ///
 /// Its own because color.glsl is included before FragInfo is declared, and
 /// because appending to a block that half a dozen shaders already share is a
-/// way to move offsets nobody expected to move. Two vec4s is a cheap price for
-/// not touching any of that.
+/// way to move offsets nobody expected to move. Three vec4s is a cheap price
+/// for not touching any of that.
 layout(std140) uniform FogInfo {
   /// rgb: linear fog colour. w: density per metre, zero for no fog.
   vec4 fog;
@@ -7752,8 +8097,79 @@ layout(std140) uniform FogInfo {
   /// xyz: camera position in world space. Duplicated from FragInfo so this
   /// block stands alone; a vec3 is cheaper than a coupling.
   vec4 eye;
+
+  /// xyz: the direction the camera looks, as a unit vector in world space.
+  /// w unused.
+  ///
+  /// Here rather than in a block of its own because it answers the same
+  /// question [eye] does — where the camera is and which way it faces — and
+  /// this is the block `color.glsl` can see.
+  vec4 forward;
 }
 fog_info;
+
+/// How far this fragment is from the eye, in world metres.
+///
+/// What the fog fades by. Distance rather than depth, because fog is a
+/// property of the air between two points and does not care which way the
+/// camera happens to face.
+float EyeDistance() { return distance(v_world_position, fog_info.eye.xyz); }
+
+/// How far this fragment is *along the view axis*, in world metres.
+///
+/// What the surface buffer's alpha holds. Depth rather than distance, and the
+/// difference only shows on an orthographic camera — where the rays through
+/// the pixels are parallel instead of meeting at the eye, so a distance from
+/// the eye names a sphere that the pixel's ray crosses somewhere the reader
+/// cannot solve for. A depth along the axis names a plane, which every ray
+/// crosses exactly once. See `WorldAtDepth` in `post/ssao.frag` for the
+/// reconstruction both projections share.
+float ViewDepth() {
+  return dot(v_world_position - fog_info.eye.xyz, fog_info.forward.xyz);
+}
+
+/// Records the geometry of this fragment for whatever runs after the scene.
+///
+/// Called from the same place that writes colour, so a surface cannot be lit
+/// into the frame without also describing itself — which is the failure that
+/// leaves a screen-space effect reflecting whatever was in the buffer before.
+///
+/// rg: octahedral normal. b: perceptual roughness. a: **depth along the view
+/// axis, in world metres** — see [ViewDepth].
+///
+/// **Not `gl_FragCoord.z`, and that is a defect this channel carried until it
+/// was looked at.** Window depth crowds every distant surface into the top of
+/// its range — with a near plane of a tenth of a metre, everything past twenty
+/// metres lives in the last half a hundredth of `[0, 1]` — and this attachment
+/// is a half float, whose steps up there are about five ten-thousandths. So two
+/// surfaces half a metre apart at twenty metres stored the *same* number, and
+/// every screen-space pass that compares against this channel decided whole
+/// bands of pixels by rounding. The occlusion pass drew them: vertical stripes
+/// along the lines of constant depth on any wall receding from the camera, on
+/// both GPU backends. The software rasteriser kept the channel at full
+/// precision and drew the effect correctly, so it was the one that looked
+/// wrong against the other two.
+///
+/// A depth in metres has none of that: the exponent carries the range and the
+/// mantissa carries the same relative precision everywhere, which at twenty
+/// metres is a centimetre. Both numbers are measured in
+/// `flutter3d_cpu/test/surface_depth_test.dart`.
+///
+/// Zero still means nothing was drawn. The attachment is cleared to zero and
+/// nothing is drawn in front of the near plane.
+void WriteSurfaceGeometry(float roughness) {
+#ifndef F3D_NO_SURFACE_BUFFER
+  // A debug pass takes the buffer over rather than getting one of its own.
+  // The surface buffer already has an attachment, a viewer and a golden; a
+  // second one would need all three built before it could answer anything.
+  if (g_debug_surface_on) {
+    frag_surface = vec4(g_debug_surface, ViewDepth());
+    return;
+  }
+  frag_surface = vec4(EncodeOctahedral(normalize(v_normal)),
+                      clamp(roughness, 0.0, 1.0), ViewDepth());
+#endif
+}
 
 /// Fades [color] toward the fog with distance from the eye.
 ///
@@ -7762,7 +8178,7 @@ fog_info;
 vec3 ApplyFog(vec3 color) {
   float density = fog_info.fog.w;
   if (density <= 0.0) return color;
-  float d = distance(v_world_position, fog_info.eye.xyz);
+  float d = EyeDistance();
   return mix(fog_info.fog.rgb, color, clamp(exp(-density * d), 0.0, 1.0));
 }
 
@@ -7856,9 +8272,15 @@ in vec3 v_world_position;
 
 layout(location = 0) out vec4 frag_color;
 
-/// The same block the lit shaders use, declared again because this shader
-/// shares none of their headers — it has a different vertex layout and none of
-/// their varyings.
+/// The lit shaders' block, declared again because this shader shares none of
+/// their headers — it has a different vertex layout and none of their varyings.
+///
+/// **The first two members of it, not all three.** `color.glsl` carries a
+/// `forward` beside these, for the view axis the surface buffer measures its
+/// depths along; a particle writes no surface buffer, so it neither declares
+/// that member nor is bound one. The two blocks share a name and not a shape,
+/// which is fine — they belong to different programs — and a check that binds
+/// this one has to bind what it declares.
 layout(std140) uniform FogInfo {
   /// rgb: linear fog colour. w: density per metre, zero for no fog.
   vec4 fog;
@@ -8057,8 +8479,10 @@ precision highp samplerCube;
 // The surface buffer is what makes it possible at all: a forward renderer
 // throws its normals away inside the fragment shader, and there is nothing to
 // reflect against without them. rg is the world-space normal, octahedrally
-// encoded; b is perceptual roughness; a is window depth — depth is here rather
-// than in a depth texture because flutter_gpu cannot sample one.
+// encoded; b is perceptual roughness; a is the depth along the view axis in
+// world metres — depth is here rather than in a depth texture because
+// flutter_gpu cannot sample one, and it is in metres rather than a window depth
+// because a half float cannot hold the second one usefully past a few metres.
 //
 // Roughness is why the normal is squeezed into two channels. Without it the
 // shader reflects off rough stone as readily as off a wet floor, which is what
@@ -8079,6 +8503,10 @@ layout(std140) uniform ReflectionInfo {
   mat4 inverse_view_projection;
   /// xyz: camera position. w: unused.
   vec4 camera;
+  /// xyz: the direction the camera looks, a unit vector in world space.
+  /// w: unused. With [camera] it names the planes the buffer's depths measure
+  /// against; see [WorldAt].
+  vec4 forward;
   /// x: steps. y: stride in world metres. z: thickness in world metres.
   /// w: intensity.
   vec4 params;
@@ -8115,16 +8543,41 @@ vec2 UvFromNdc(vec2 ndc) {
   return vec2(ndc.x * 0.5 + 0.5, 0.5 - ndc.y * 0.5);
 }
 
-/// World position of the pixel at [uv] with window depth [depth].
+/// World position of the pixel at [uv], [depth] metres along the view axis.
+///
+/// **A ray crossing a plane**, because that is what the buffer holds now — see
+/// `WriteSurfaceGeometry`. The inverse matrix gives both ends of the pixel's
+/// ray; the stored depth names the plane the surface sits on, and every ray
+/// crosses that plane once. A window depth in a half float could not name it at
+/// range: past twenty metres its steps are wider than the differences this
+/// march turns on.
+///
+/// Both ends rather than the camera and one end, so that an orthographic camera
+/// — whose rays are parallel and meet nowhere — reconstructs correctly too.
+/// `post/ssao.frag` says the same at more length.
+///
+/// y undoes [UvFromNdc], so that reconstructing the point a march projected
+/// hands back the point it started from.
+void PixelRay(vec2 uv, out vec3 origin, out vec3 along) {
+  vec2 xy = vec2(uv.x * 2.0 - 1.0, 1.0 - uv.y * 2.0);
+  vec4 nearH = reflection_info.inverse_view_projection * vec4(xy, 0.0, 1.0);
+  vec4 farH = reflection_info.inverse_view_projection * vec4(xy, 1.0, 1.0);
+  origin = nearH.xyz / nearH.w;
+  along = normalize(farH.xyz / farH.w - origin);
+}
+
 vec3 WorldAt(vec2 uv, float depth) {
-  // Depth runs 0..1 here rather than -1..1: Impeller is Metal-like, and using
-  // the OpenGL convention puts every reconstructed point behind the camera.
-  //
-  // y undoes [UvFromNdc], so that reconstructing the point a march projected
-  // hands back the point it started from.
-  vec4 ndc = vec4(uv.x * 2.0 - 1.0, 1.0 - uv.y * 2.0, depth, 1.0);
-  vec4 world = reflection_info.inverse_view_projection * ndc;
-  return world.xyz / world.w;
+  vec3 origin, along;
+  PixelRay(uv, origin, along);
+  vec3 axis = reflection_info.forward.xyz;
+  return origin +
+         along * ((depth - dot(origin - reflection_info.camera.xyz, axis)) /
+                  dot(along, axis));
+}
+
+/// How deep [at] is, in the metres the buffer holds.
+float DepthOf(vec3 at) {
+  return dot(at - reflection_info.camera.xyz, reflection_info.forward.xyz);
 }
 
 void main() {
@@ -8153,7 +8606,16 @@ void main() {
     return;
   }
   vec3 position = WorldAt(v_uv, surface.a);
-  vec3 toEye = normalize(reflection_info.camera.xyz - position);
+
+  // Back along the ray this pixel looks down, rather than towards the camera
+  // position. The two are the same thing under a perspective camera and are
+  // not under an orthographic one, whose rays are parallel: there the vector to
+  // the camera *position* leans further off the view axis the nearer a pixel is
+  // to the edge of the frame, and every reflection in an isometric scene would
+  // be angled by where it happened to sit on screen.
+  vec3 rayOrigin, viewRay;
+  PixelRay(v_uv, rayOrigin, viewRay);
+  vec3 toEye = -viewRay;
 
   // Facing away, or so nearly edge-on that the march would crawl along the
   // surface it started from.
@@ -8191,27 +8653,27 @@ void main() {
     if (uv.x < 0.0 || uv.x > 1.0 || uv.y < 0.0 || uv.y > 1.0) break;
 
     float sceneDepth = texture(surface_texture, uv).a;
-    // Behind whatever was drawn at this pixel. Ordering is the one thing
-    // window depth is good for: it is monotonic in distance, so the sign of
-    // this comparison is exact at any range.
-    if (sceneDepth > 0.0 && ndc.z > sceneDepth) {
+    // The march's own depth, in the same metres the buffer holds — so the two
+    // are comparable without a projection between them.
+    float marchDepth = DepthOf(march);
+    // Behind whatever was drawn at this pixel, in metres both sides of the
+    // comparison are already in.
+    if (sceneDepth > 0.0 && marchDepth > sceneDepth) {
       // *How far* behind, in metres, and that is the whole fix. This used to
       // read the window-depth difference as a thickness, and a window-depth
       // difference is a different number of metres at every range: near the
       // camera 0.006 was a few centimetres and one stride stepped clean over
-      // every surface in the frame, while at ten metres it was several metres
+      // every surface in the frame, while at twenty metres it was several metres
       // and every ray passing in front of a distant wall "hit" it. That is why
       // the effect was off in every scene and looked wrong the moment it was
-      // switched on. `ssao.frag` splits the same two questions the same way,
-      // and says why on its own range check.
+      // switched on. `ssao.frag` splits the same two questions the same way.
       //
-      // The marched point and the recorded surface lie on one ray from the eye
-      // — the surface is reconstructed at the uv the march projected to — so
-      // the difference of their distances from the camera is the gap between
-      // them along that ray, with no view matrix needed.
+      // The gap between the two points rather than between their depths: they
+      // sit on one ray from the eye, and along a ray running away from the
+      // camera a depth difference is shorter than the distance it stands for.
+      // Thickness is a size in the world, so it is compared against one.
       vec3 seen = WorldAt(uv, sceneDepth);
-      float behind = distance(reflection_info.camera.xyz, march) -
-                     distance(reflection_info.camera.xyz, seen);
+      float behind = distance(march, seen);
       if (behind < thickness) {
         hitColor = texture(scene_texture, uv).rgb;
         // Fade at the edges of the frame and with distance travelled, so a
@@ -8251,9 +8713,11 @@ precision highp samplerCube;
 //
 // **Nothing here needs a depth texture, and that is not a preference.**
 // flutter_gpu cannot sample a depth attachment at all, so the engine's depth
-// lives in the alpha channel of the surface buffer — see `WriteSurfaceGeometry`
-// in `lib/color.glsl`. Every screen-space effect in this renderer is built on
-// that one decision, and this stage inherits it rather than working around it.
+// lives in the alpha channel of the surface buffer — as metres along the view
+// axis, which is not what a depth buffer holds and is deliberate; see
+// `WriteSurfaceGeometry` in `lib/color.glsl`. Every screen-space effect in this
+// renderer is built on that one decision, and this stage inherits it rather
+// than working around it.
 //
 // The cost that must be stated rather than discovered: reading the surface
 // buffer turns MSAA off for the whole scene pass, because the average of two
@@ -8290,6 +8754,18 @@ layout(std140) uniform SsaoInfo {
   /// x: 1/width, y: 1/height of *this* target, which is half the scene's.
   /// z, w unused.
   vec4 screen;
+
+  /// xyz: where the eye is. w unused.
+  ///
+  /// Needed because the surface buffer holds a *depth along the view axis in
+  /// metres* rather than a window depth — see `WriteSurfaceGeometry`. Turning
+  /// one back into a point takes a ray and a plane rather than a matrix
+  /// multiply, and this is where the ray starts.
+  vec4 camera;
+
+  /// xyz: the direction the camera looks, a unit vector in world space.
+  /// w unused. The normal of the planes the stored depth measures against.
+  vec4 forward;
 }
 ssao_info;
 
@@ -8316,12 +8792,39 @@ vec2 UvFromNdc(vec2 ndc) {
   return vec2(ndc.x * 0.5 + 0.5, 0.5 - ndc.y * 0.5);
 }
 
-vec3 WorldFromDepth(vec2 uv, float depth) {
-  // y undoes [UvFromNdc]: a point projected and then reconstructed has to come
-  // back where it started.
-  vec4 ndc = vec4(uv.x * 2.0 - 1.0, 1.0 - uv.y * 2.0, depth, 1.0);
-  vec4 world = ssao_info.inverse_view_projection * ndc;
-  return world.xyz / world.w;
+/// Where the depth stored for [uv] is, in the world.
+///
+/// **A ray crossing a plane**, rather than a matrix multiply. The buffer stores
+/// metres along the view axis rather than a window depth, so the inverse matrix
+/// is used to find the pixel's ray — both ends of it — and the stored depth
+/// picks the point on that ray lying [depth] metres in front of the eye. What
+/// that buys is precision: a window depth in a half float cannot tell twenty
+/// metres from twenty and a half, which is what used to draw bands across every
+/// wall.
+///
+/// **Both ends, rather than one and the camera**, and that is what makes it
+/// true of an orthographic camera as well. Its rays do not meet at the eye;
+/// they are parallel, and a reconstruction that starts every ray at the camera
+/// position puts an isometric scene's geometry somewhere it is not. Two
+/// unprojections cost one extra matrix multiply and are right either way.
+///
+/// y undoes [UvFromNdc]: a point projected and then reconstructed has to come
+/// back where it started.
+vec3 WorldAtDepth(vec2 uv, float depth) {
+  vec2 xy = vec2(uv.x * 2.0 - 1.0, 1.0 - uv.y * 2.0);
+  vec4 nearH = ssao_info.inverse_view_projection * vec4(xy, 0.0, 1.0);
+  vec4 farH = ssao_info.inverse_view_projection * vec4(xy, 1.0, 1.0);
+  vec3 origin = nearH.xyz / nearH.w;
+  vec3 along = normalize(farH.xyz / farH.w - origin);
+  vec3 axis = ssao_info.forward.xyz;
+  return origin +
+         along * ((depth - dot(origin - ssao_info.camera.xyz, axis)) /
+                  dot(along, axis));
+}
+
+/// How deep [at] is, in the metres the buffer holds.
+float DepthOf(vec3 at) {
+  return dot(at - ssao_info.camera.xyz, ssao_info.forward.xyz);
 }
 
 /// Twelve directions on a hemisphere, as a fixed table.
@@ -8387,7 +8890,8 @@ void main() {
   // a different number of millimetres at every distance from the camera —
   // that is what a projection matrix does — so a value tuned on a near wall
   // leaves acne on a far one. A metre is a metre anywhere.
-  vec3 origin = WorldFromDepth(v_uv, surface.a) + normal * ssao_info.params.w;
+  vec3 origin =
+      WorldAtDepth(v_uv, surface.a) + normal * ssao_info.params.w;
 
   vec2 rot = Rotation(v_uv);
   float occluded = 0.0;
@@ -8420,19 +8924,20 @@ void main() {
     // out of the scene, which is the opposite of being enclosed.
     if (there.a <= 0.0) continue;
 
-    // Nearer to the camera than the point we sampled towards means something
-    // stands between them. Compared in window depth, which is what the buffer
-    // holds and what `ndc.z` already is — reconstructing both to world space
-    // and measuring there would be the same test with two extra matrix
-    // multiplies and a division.
-    if (there.a >= ndc.z) continue;
+    // Nearer to the eye than the point we sampled towards means something
+    // stands between them. **Compared in metres**, which is what the buffer
+    // holds: the same test in window depth is a comparison whose resolution
+    // collapses with range, and at twenty metres a half float cannot separate
+    // two surfaces half a metre apart. `reflections.frag` reached this
+    // conclusion first and says so at more length.
+    if (there.a >= DepthOf(at)) continue;
 
     // The range check, and the reason a version without one draws haloes: a
     // wall four metres behind a railing is nearer to the camera than every
     // sample taken around the railing, and would occlude all of them. Distance
     // measured in the world, because "four metres behind" is a world fact and
     // the depth buffer's answer to it depends on where the camera is.
-    vec3 seen = WorldFromDepth(uv, there.a);
+    vec3 seen = WorldAtDepth(uv, there.a);
     occluded +=
         smoothstep(0.0, 1.0, radius / max(distance(seen, origin), 1e-4));
   }
@@ -8618,7 +9123,9 @@ in vec2 v_lightmap_uv;
 layout(location = 0) out vec4 frag_color;
 
 // The second attachment: what a screen-space effect needs to know about the
-// surface it is looking at. World-space normal in rgb, window-space depth in a.
+// surface it is looking at. World-space normal in rgb, and in a the depth along
+// the view axis in world metres — not a window depth; `WriteSurfaceGeometry`
+// says at length why not.
 //
 // Depth travels here rather than in a depth texture because flutter_gpu cannot
 // sample one — the same reason the shadow pass writes its depth into a colour
@@ -8659,33 +9166,12 @@ vec2 EncodeOctahedral(vec3 n) {
 vec3 g_debug_surface = vec3(0.0);
 bool g_debug_surface_on = false;
 
-/// Records the geometry of this fragment for whatever runs after the scene.
-///
-/// Called from the same place that writes colour, so a surface cannot be lit
-/// into the frame without also describing itself — which is the failure that
-/// leaves a screen-space effect reflecting whatever was in the buffer before.
-///
-/// rg: octahedral normal. b: perceptual roughness. a: window depth.
-void WriteSurfaceGeometry(float roughness) {
-#ifndef F3D_NO_SURFACE_BUFFER
-  // A debug pass takes the buffer over rather than getting one of its own.
-  // The surface buffer already has an attachment, a viewer and a golden; a
-  // second one would need all three built before it could answer anything.
-  if (g_debug_surface_on) {
-    frag_surface = vec4(g_debug_surface, gl_FragCoord.z);
-    return;
-  }
-  frag_surface = vec4(EncodeOctahedral(normalize(v_normal)),
-                      clamp(roughness, 0.0, 1.0), gl_FragCoord.z);
-#endif
-}
-
 /// Distance fog, in its own block rather than folded into FragInfo.
 ///
 /// Its own because color.glsl is included before FragInfo is declared, and
 /// because appending to a block that half a dozen shaders already share is a
-/// way to move offsets nobody expected to move. Two vec4s is a cheap price for
-/// not touching any of that.
+/// way to move offsets nobody expected to move. Three vec4s is a cheap price
+/// for not touching any of that.
 layout(std140) uniform FogInfo {
   /// rgb: linear fog colour. w: density per metre, zero for no fog.
   vec4 fog;
@@ -8693,8 +9179,79 @@ layout(std140) uniform FogInfo {
   /// xyz: camera position in world space. Duplicated from FragInfo so this
   /// block stands alone; a vec3 is cheaper than a coupling.
   vec4 eye;
+
+  /// xyz: the direction the camera looks, as a unit vector in world space.
+  /// w unused.
+  ///
+  /// Here rather than in a block of its own because it answers the same
+  /// question [eye] does — where the camera is and which way it faces — and
+  /// this is the block `color.glsl` can see.
+  vec4 forward;
 }
 fog_info;
+
+/// How far this fragment is from the eye, in world metres.
+///
+/// What the fog fades by. Distance rather than depth, because fog is a
+/// property of the air between two points and does not care which way the
+/// camera happens to face.
+float EyeDistance() { return distance(v_world_position, fog_info.eye.xyz); }
+
+/// How far this fragment is *along the view axis*, in world metres.
+///
+/// What the surface buffer's alpha holds. Depth rather than distance, and the
+/// difference only shows on an orthographic camera — where the rays through
+/// the pixels are parallel instead of meeting at the eye, so a distance from
+/// the eye names a sphere that the pixel's ray crosses somewhere the reader
+/// cannot solve for. A depth along the axis names a plane, which every ray
+/// crosses exactly once. See `WorldAtDepth` in `post/ssao.frag` for the
+/// reconstruction both projections share.
+float ViewDepth() {
+  return dot(v_world_position - fog_info.eye.xyz, fog_info.forward.xyz);
+}
+
+/// Records the geometry of this fragment for whatever runs after the scene.
+///
+/// Called from the same place that writes colour, so a surface cannot be lit
+/// into the frame without also describing itself — which is the failure that
+/// leaves a screen-space effect reflecting whatever was in the buffer before.
+///
+/// rg: octahedral normal. b: perceptual roughness. a: **depth along the view
+/// axis, in world metres** — see [ViewDepth].
+///
+/// **Not `gl_FragCoord.z`, and that is a defect this channel carried until it
+/// was looked at.** Window depth crowds every distant surface into the top of
+/// its range — with a near plane of a tenth of a metre, everything past twenty
+/// metres lives in the last half a hundredth of `[0, 1]` — and this attachment
+/// is a half float, whose steps up there are about five ten-thousandths. So two
+/// surfaces half a metre apart at twenty metres stored the *same* number, and
+/// every screen-space pass that compares against this channel decided whole
+/// bands of pixels by rounding. The occlusion pass drew them: vertical stripes
+/// along the lines of constant depth on any wall receding from the camera, on
+/// both GPU backends. The software rasteriser kept the channel at full
+/// precision and drew the effect correctly, so it was the one that looked
+/// wrong against the other two.
+///
+/// A depth in metres has none of that: the exponent carries the range and the
+/// mantissa carries the same relative precision everywhere, which at twenty
+/// metres is a centimetre. Both numbers are measured in
+/// `flutter3d_cpu/test/surface_depth_test.dart`.
+///
+/// Zero still means nothing was drawn. The attachment is cleared to zero and
+/// nothing is drawn in front of the near plane.
+void WriteSurfaceGeometry(float roughness) {
+#ifndef F3D_NO_SURFACE_BUFFER
+  // A debug pass takes the buffer over rather than getting one of its own.
+  // The surface buffer already has an attachment, a viewer and a golden; a
+  // second one would need all three built before it could answer anything.
+  if (g_debug_surface_on) {
+    frag_surface = vec4(g_debug_surface, ViewDepth());
+    return;
+  }
+  frag_surface = vec4(EncodeOctahedral(normalize(v_normal)),
+                      clamp(roughness, 0.0, 1.0), ViewDepth());
+#endif
+}
 
 /// Fades [color] toward the fog with distance from the eye.
 ///
@@ -8703,7 +9260,7 @@ fog_info;
 vec3 ApplyFog(vec3 color) {
   float density = fog_info.fog.w;
   if (density <= 0.0) return color;
-  float d = distance(v_world_position, fog_info.eye.xyz);
+  float d = EyeDistance();
   return mix(fog_info.fog.rgb, color, clamp(exp(-density * d), 0.0, 1.0));
 }
 
@@ -9103,7 +9660,9 @@ in vec2 v_lightmap_uv;
 layout(location = 0) out vec4 frag_color;
 
 // The second attachment: what a screen-space effect needs to know about the
-// surface it is looking at. World-space normal in rgb, window-space depth in a.
+// surface it is looking at. World-space normal in rgb, and in a the depth along
+// the view axis in world metres — not a window depth; `WriteSurfaceGeometry`
+// says at length why not.
 //
 // Depth travels here rather than in a depth texture because flutter_gpu cannot
 // sample one — the same reason the shadow pass writes its depth into a colour
@@ -9144,33 +9703,12 @@ vec2 EncodeOctahedral(vec3 n) {
 vec3 g_debug_surface = vec3(0.0);
 bool g_debug_surface_on = false;
 
-/// Records the geometry of this fragment for whatever runs after the scene.
-///
-/// Called from the same place that writes colour, so a surface cannot be lit
-/// into the frame without also describing itself — which is the failure that
-/// leaves a screen-space effect reflecting whatever was in the buffer before.
-///
-/// rg: octahedral normal. b: perceptual roughness. a: window depth.
-void WriteSurfaceGeometry(float roughness) {
-#ifndef F3D_NO_SURFACE_BUFFER
-  // A debug pass takes the buffer over rather than getting one of its own.
-  // The surface buffer already has an attachment, a viewer and a golden; a
-  // second one would need all three built before it could answer anything.
-  if (g_debug_surface_on) {
-    frag_surface = vec4(g_debug_surface, gl_FragCoord.z);
-    return;
-  }
-  frag_surface = vec4(EncodeOctahedral(normalize(v_normal)),
-                      clamp(roughness, 0.0, 1.0), gl_FragCoord.z);
-#endif
-}
-
 /// Distance fog, in its own block rather than folded into FragInfo.
 ///
 /// Its own because color.glsl is included before FragInfo is declared, and
 /// because appending to a block that half a dozen shaders already share is a
-/// way to move offsets nobody expected to move. Two vec4s is a cheap price for
-/// not touching any of that.
+/// way to move offsets nobody expected to move. Three vec4s is a cheap price
+/// for not touching any of that.
 layout(std140) uniform FogInfo {
   /// rgb: linear fog colour. w: density per metre, zero for no fog.
   vec4 fog;
@@ -9178,8 +9716,79 @@ layout(std140) uniform FogInfo {
   /// xyz: camera position in world space. Duplicated from FragInfo so this
   /// block stands alone; a vec3 is cheaper than a coupling.
   vec4 eye;
+
+  /// xyz: the direction the camera looks, as a unit vector in world space.
+  /// w unused.
+  ///
+  /// Here rather than in a block of its own because it answers the same
+  /// question [eye] does — where the camera is and which way it faces — and
+  /// this is the block `color.glsl` can see.
+  vec4 forward;
 }
 fog_info;
+
+/// How far this fragment is from the eye, in world metres.
+///
+/// What the fog fades by. Distance rather than depth, because fog is a
+/// property of the air between two points and does not care which way the
+/// camera happens to face.
+float EyeDistance() { return distance(v_world_position, fog_info.eye.xyz); }
+
+/// How far this fragment is *along the view axis*, in world metres.
+///
+/// What the surface buffer's alpha holds. Depth rather than distance, and the
+/// difference only shows on an orthographic camera — where the rays through
+/// the pixels are parallel instead of meeting at the eye, so a distance from
+/// the eye names a sphere that the pixel's ray crosses somewhere the reader
+/// cannot solve for. A depth along the axis names a plane, which every ray
+/// crosses exactly once. See `WorldAtDepth` in `post/ssao.frag` for the
+/// reconstruction both projections share.
+float ViewDepth() {
+  return dot(v_world_position - fog_info.eye.xyz, fog_info.forward.xyz);
+}
+
+/// Records the geometry of this fragment for whatever runs after the scene.
+///
+/// Called from the same place that writes colour, so a surface cannot be lit
+/// into the frame without also describing itself — which is the failure that
+/// leaves a screen-space effect reflecting whatever was in the buffer before.
+///
+/// rg: octahedral normal. b: perceptual roughness. a: **depth along the view
+/// axis, in world metres** — see [ViewDepth].
+///
+/// **Not `gl_FragCoord.z`, and that is a defect this channel carried until it
+/// was looked at.** Window depth crowds every distant surface into the top of
+/// its range — with a near plane of a tenth of a metre, everything past twenty
+/// metres lives in the last half a hundredth of `[0, 1]` — and this attachment
+/// is a half float, whose steps up there are about five ten-thousandths. So two
+/// surfaces half a metre apart at twenty metres stored the *same* number, and
+/// every screen-space pass that compares against this channel decided whole
+/// bands of pixels by rounding. The occlusion pass drew them: vertical stripes
+/// along the lines of constant depth on any wall receding from the camera, on
+/// both GPU backends. The software rasteriser kept the channel at full
+/// precision and drew the effect correctly, so it was the one that looked
+/// wrong against the other two.
+///
+/// A depth in metres has none of that: the exponent carries the range and the
+/// mantissa carries the same relative precision everywhere, which at twenty
+/// metres is a centimetre. Both numbers are measured in
+/// `flutter3d_cpu/test/surface_depth_test.dart`.
+///
+/// Zero still means nothing was drawn. The attachment is cleared to zero and
+/// nothing is drawn in front of the near plane.
+void WriteSurfaceGeometry(float roughness) {
+#ifndef F3D_NO_SURFACE_BUFFER
+  // A debug pass takes the buffer over rather than getting one of its own.
+  // The surface buffer already has an attachment, a viewer and a golden; a
+  // second one would need all three built before it could answer anything.
+  if (g_debug_surface_on) {
+    frag_surface = vec4(g_debug_surface, ViewDepth());
+    return;
+  }
+  frag_surface = vec4(EncodeOctahedral(normalize(v_normal)),
+                      clamp(roughness, 0.0, 1.0), ViewDepth());
+#endif
+}
 
 /// Fades [color] toward the fog with distance from the eye.
 ///
@@ -9188,7 +9797,7 @@ fog_info;
 vec3 ApplyFog(vec3 color) {
   float density = fog_info.fog.w;
   if (density <= 0.0) return color;
-  float d = distance(v_world_position, fog_info.eye.xyz);
+  float d = EyeDistance();
   return mix(fog_info.fog.rgb, color, clamp(exp(-density * d), 0.0, 1.0));
 }
 

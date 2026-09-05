@@ -346,6 +346,7 @@ extension _MeshEncode on Renderer {
       encoder.bindUniformBlock(fragmentShader, _kFogInfoBlock, {
         'fog': _fogData,
         'eye': _cameraData,
+        'forward': _forwardData,
       });
 
       encoder.bindUniformBlock(fragmentShader, _kFragInfoBlock, {

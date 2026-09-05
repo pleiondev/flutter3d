@@ -82,7 +82,7 @@ final class NormalsShader implements CpuFragmentShader {
     final n = Vector3(v[kVNormal], v[kVNormal + 1], v[kVNormal + 2])
       ..normalize();
     final display = Vector3(n.x * 0.5 + 0.5, n.y * 0.5 + 0.5, n.z * 0.5 + 0.5);
-    writeSurface(c, n, 1.0);
+    writeSurface(c, v, b, n, 1.0);
     return Vector4(
       toLinear(display.x),
       toLinear(display.y),

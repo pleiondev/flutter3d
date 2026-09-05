@@ -36,8 +36,9 @@ const List<List<double>> ssaoKernel = <List<double>>[
 ///
 /// The transcription that makes the software rasteriser an oracle for this
 /// pass. Everything it needs comes out of the surface buffer — octahedral
-/// normal in rg, window depth in a — because flutter_gpu cannot sample a depth
-/// attachment and the whole engine is built around that one fact.
+/// normal in rg, metres along the view axis in a — because flutter_gpu cannot
+/// sample a depth attachment and the whole engine is built around that one
+/// fact.
 final class SsaoShader implements CpuFragmentShader {
   const SsaoShader();
 
@@ -61,6 +62,10 @@ final class SsaoShader implements CpuFragmentShader {
 
     final inverse = b.mat4('SsaoInfo', 'inverse_view_projection');
     final projection = b.mat4('SsaoInfo', 'view_projection');
+    final eye4 = b.vec4('SsaoInfo', 'camera', Vector4.zero());
+    final eye = Vector3(eye4.x, eye4.y, eye4.z);
+    final forward4 = b.vec4('SsaoInfo', 'forward', Vector4.zero());
+    final axis = Vector3(forward4.x, forward4.y, forward4.z);
 
     // v runs the other way from clip-space y, as it does in the shadow lookup:
     // `toFramebufferOrigin` puts the backend's convention into the matrices, so
@@ -68,11 +73,13 @@ final class SsaoShader implements CpuFragmentShader {
     // ssao.frag for what marching against a mirrored buffer used to do.
     double vFromNdc(double ndcY) => 0.5 - ndcY * 0.5;
 
-    Vector3 worldFrom(double uu, double vv, double depth) {
-      final Vector4 h =
-          inverse * Vector4(uu * 2.0 - 1.0, 1.0 - vv * 2.0, depth, 1.0);
-      return Vector3(h.x, h.y, h.z)..scale(1.0 / h.w);
-    }
+    /// `WorldAtDepth`: the pixel's ray, crossed with the plane the stored depth
+    /// names. Shared with the reflections march; see [worldAtDepth].
+    Vector3 worldFrom(double uu, double vv, double depth) =>
+        worldAtDepth(inverse, eye, axis, uu, vv, depth);
+
+    /// How deep [at] is, in the metres the buffer holds.
+    double depthOf(Vector3 at) => (at - eye).dot(axis);
 
     final normal = decodeOctahedral(surface.x, surface.y);
     // Lifted along the normal, in metres: a bias in window depth is a different
@@ -118,7 +125,6 @@ final class SsaoShader implements CpuFragmentShader {
       if (clip.w <= 0.0) continue;
       final ndcX = clip.x / clip.w;
       final ndcY = clip.y / clip.w;
-      final ndcZ = clip.z / clip.w;
       if (ndcX.abs() > 1.0 || ndcY.abs() > 1.0) continue;
 
       final su = ndcX * 0.5 + 0.5;
@@ -127,7 +133,9 @@ final class SsaoShader implements CpuFragmentShader {
       // The sky occludes nothing: a tap that lands on it is looking out of the
       // scene, which is the opposite of being enclosed.
       if (there.w <= 0.0) continue;
-      if (there.w >= ndcZ) continue;
+      // Nearer to the eye than the point sampled towards means something stands
+      // between them, compared in the metres the buffer holds.
+      if (there.w >= depthOf(at)) continue;
 
       // The range check, without which every silhouette gains a dark outline:
       // a wall four metres behind a railing is nearer to the camera than the

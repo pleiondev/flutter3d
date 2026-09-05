@@ -489,6 +489,14 @@ final class Renderer implements RenderServices {
   // pattern the render list was shaped to avoid.
   final Float32List _fogData = Float32List(4);
   final Float32List _cameraData = Float32List(4);
+
+  /// Which way the camera of the pass being encoded looks, in world space.
+  ///
+  /// Beside the camera position because the surface buffer's depth is measured
+  /// along it — see `ViewDepth` in `lib/color.glsl`. Written wherever
+  /// [_cameraData] is, and the two are meaningless apart.
+  final Float32List _forwardData = Float32List(4);
+  final vm.Vector3 _forward = vm.Vector3.zero();
   final Float32List _baseColorData = Float32List(4);
   final Float32List _emissiveData = Float32List(4);
   final Float32List _materialData = Float32List(4);
@@ -669,6 +677,8 @@ final class Renderer implements RenderServices {
   final Float32List _reflectionScreen = Float32List(4);
   final Float32List _reflectionCameraData = Float32List(4);
   final vm.Vector3 _reflectionCamera = vm.Vector3.zero();
+  final Float32List _reflectionForwardData = Float32List(4);
+  final vm.Vector3 _reflectionForward = vm.Vector3.zero();
   TextureHandle? _reflectionColor;
   TextureHandle? _surfaceColor;
   TextureHandle? _surfaceMsaa;
@@ -2120,6 +2130,11 @@ final class Renderer implements RenderServices {
     _cameraData[0] = cameraPosition.x;
     _cameraData[1] = cameraPosition.y;
     _cameraData[2] = cameraPosition.z;
+    // Out of the matrix, because a contributor is handed one and not a camera.
+    viewAxisOf(viewProjection, _forward);
+    _forwardData[0] = _forward.x;
+    _forwardData[1] = _forward.y;
+    _forwardData[2] = _forward.z;
 
     for (final node in scene.meshes) {
       if (!node.visibleInHierarchy) continue;
@@ -2716,6 +2731,10 @@ final class Renderer implements RenderServices {
 
   final Float32List _ssaoParams = Float32List(4);
   final Float32List _ssaoScreen = Float32List(4);
+  final Float32List _ssaoCameraData = Float32List(4);
+  final vm.Vector3 _ssaoCamera = vm.Vector3.zero();
+  final Float32List _ssaoForwardData = Float32List(4);
+  final vm.Vector3 _ssaoForward = vm.Vector3.zero();
 
   /// Draws into two colour attachments and reports what came back.
   ///

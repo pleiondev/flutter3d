@@ -98,27 +98,31 @@ const int _channel = 8;
 /// pointed at and agreed with Impeller to the pixel for six sessions.
 ///
 const Map<String, double> _budgets = <String, double>{
-  // **0.001% measured — two pixels — and it was 0.558%.** Both numbers are the
-  // same bug: this pass and the occlusion below reconstruct a world point from
-  // the depth stored in the surface buffer, which is `gl_FragCoord.z` and
-  // therefore `[0, 1]` on every API, and both were handed a matrix adjusted to
-  // this backend's `[-1, 1]` clip range. On a backend whose range is already
-  // `[0, 1]` the two agree by accident, which is why nothing else in the suite
-  // ever noticed.
+  // **Zero measured, and it was 0.558%.** Both this and the occlusion below
+  // reconstruct a world point from the depth stored in the surface buffer, and
+  // both were handed a matrix adjusted to this backend's `[-1, 1]` clip range
+  // while the buffer held `gl_FragCoord.z`, which is `[0, 1]` on every API. On
+  // a backend whose range is already `[0, 1]` the two agree by accident, which
+  // is why nothing else in the suite ever noticed. Held at a hundredth rather
+  // than at zero: a budget of zero on a march between two rasterisers is a
+  // budget that will fail on a driver update rather than on a mistake.
   'screen-space-reflections': 0.01,
-  // **0.522% measured, and it was 4.861%.** The depth-range bug described
-  // above was most of it: nine tenths of this backend's disagreement with
-  // Impeller over the occlusion was a shader comparing a window depth against
-  // a clip depth from the other convention, and reconstructing every sampled
-  // point with a matrix that did not expect the number it was given.
+  // **0.253% measured, and it was 4.861%.** Two bugs, in the order they were
+  // found. The depth-range one described above was most of the first drop: a
+  // shader comparing a window depth against a clip depth from the other
+  // convention, and reconstructing every sampled point with a matrix that did
+  // not expect the number it was given. That took it to 0.522%.
+  //
+  // The rest was the surface buffer's alpha holding a window depth at all —
+  // a number a half float cannot hold usefully past twenty metres, which both
+  // GPU backends were rounding into bands. It is metres along the view axis
+  // now; `flutter3d_cpu/test/cross_backend_test.dart` tells that story, since
+  // the software backend was the one that had been right all along.
   //
   // What is left is a floor rather than a defect — a twelve-tap march over a
   // half-resolution buffer, where a tap landing a texel either side of an edge
-  // changes an eighth of the answer. The software backend's number for the
-  // same scene is still 7.647% and is still a defect; it shares this
-  // backend's depth range with Impeller, so it never had this bug and has one
-  // of its own.
-  'ambient-occlusion-corner': 0.53,
+  // changes an eighth of the answer.
+  'ambient-occlusion-corner': 0.26,
   // 0.098% measured. It was 0.6 while this backend sampled a normal map's
   // base level where Impeller sampled its chain; the minification filter now
   // follows the sampler's `mipFilter`, and what is left is the silhouette.

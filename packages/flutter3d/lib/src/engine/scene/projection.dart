@@ -211,3 +211,33 @@ Matrix4 toFramebufferOrigin(Matrix4 projection, FramebufferOrigin origin) {
     ..setEntry(1, 1, -1.0)
     ..multiply(projection);
 }
+
+/// Which way [viewProjection] looks, as a unit vector in world space.
+///
+/// Read out of the matrix rather than asked of a camera, because the places
+/// that need it do not all have one: a frame graph contributor is handed a
+/// matrix, and a probe face is a matrix that belongs to no node. The answer is
+/// the same either way — the line from the middle of the near plane to the
+/// middle of the far one is the view axis of a perspective camera and of an
+/// orthographic one alike.
+///
+/// Insensitive to what [toDepthRange] and [toFramebufferOrigin] did to the
+/// matrix: the two points are taken at x = y = 0, where a mirrored y changes
+/// nothing, and any two distinct depths along the axis give the same direction.
+///
+/// The surface buffer measures its depths along this — see `ViewDepth` in
+/// `lib/color.glsl` — so whatever writes that buffer and whatever reads it have
+/// to agree about it.
+Vector3 viewAxisOf(Matrix4 viewProjection, [Vector3? out]) {
+  final inverse = Matrix4.copy(viewProjection)..invert();
+  final near = inverse * Vector4(0.0, 0.0, 0.0, 1.0) as Vector4;
+  final far = inverse * Vector4(0.0, 0.0, 1.0, 1.0) as Vector4;
+  final result = out ?? Vector3.zero();
+  result.setValues(
+    far.x / far.w - near.x / near.w,
+    far.y / far.w - near.y / near.w,
+    far.z / far.w - near.z / near.w,
+  );
+  if (result.length2 > 0.0) result.normalize();
+  return result;
+}

@@ -23,9 +23,15 @@ in vec3 v_world_position;
 
 out vec4 frag_color;
 
-/// The same block the lit shaders use, declared again because this shader
-/// shares none of their headers — it has a different vertex layout and none of
-/// their varyings.
+/// The lit shaders' block, declared again because this shader shares none of
+/// their headers — it has a different vertex layout and none of their varyings.
+///
+/// **The first two members of it, not all three.** `color.glsl` carries a
+/// `forward` beside these, for the view axis the surface buffer measures its
+/// depths along; a particle writes no surface buffer, so it neither declares
+/// that member nor is bound one. The two blocks share a name and not a shape,
+/// which is fine — they belong to different programs — and a check that binds
+/// this one has to bind what it declares.
 uniform FogInfo {
   /// rgb: linear fog colour. w: density per metre, zero for no fog.
   vec4 fog;

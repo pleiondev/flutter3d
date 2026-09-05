@@ -177,18 +177,28 @@ extension _PostPasses on Renderer {
     final viewProjection = toFramebufferOrigin(
       // **Not depth-range adjusted, and that is the whole of a bug this pass
       // carried on one backend.** `_viewProjection` applies `toDepthRange`,
-      // which maps clip depth to `[-1, 1]` where the device wants it — and
-      // what this pass compares against is `gl_FragCoord.z`, the *window*
-      // depth, which is `[0, 1]` on every API there is. On a backend whose
-      // range is `[0, 1]` the two agree by accident; on one whose range is
-      // `[-1, 1]` the shader reconstructed every world point from a depth the
-      // inverse matrix did not expect and then compared it against a number
-      // from the other convention. The camera's own matrix is already in the
-      // engine's `[0, 1]`, which is the convention the buffer is written in.
+      // which maps clip depth to `[-1, 1]` where the device wants it. What the
+      // shader inverts this matrix for is a *direction*: the ray through a
+      // pixel, taken by unprojecting its far corner. Under the other convention
+      // `z = 1` is not the far plane, and the reconstructed ray pointed
+      // somewhere else — behind the camera, for most of the frame. The camera's
+      // own matrix is in the engine's `[0, 1]`, which is what the shader
+      // assumes.
       view.camera.viewProjection(aspect),
       device.framebufferOrigin,
     );
     final inverse = vm.Matrix4.copy(viewProjection)..invert();
+    // The other half of the reconstruction: the buffer holds how far along the
+    // view axis the surface is, in metres, so the pass needs to know where that
+    // axis starts and which way it points. See `WorldAtDepth`.
+    view.camera.readWorldPosition(_ssaoCamera);
+    _ssaoCameraData[0] = _ssaoCamera.x;
+    _ssaoCameraData[1] = _ssaoCamera.y;
+    _ssaoCameraData[2] = _ssaoCamera.z;
+    view.camera.readForward(_ssaoForward);
+    _ssaoForwardData[0] = _ssaoForward.x;
+    _ssaoForwardData[1] = _ssaoForward.y;
+    _ssaoForwardData[2] = _ssaoForward.z;
 
     _ssaoParams[0] = options.radius;
     _ssaoParams[1] = options.samples.toDouble();
@@ -209,6 +219,8 @@ extension _PostPasses on Renderer {
             'view_projection': viewProjection.storage,
             'params': _ssaoParams,
             'screen': _ssaoScreen,
+            'camera': _ssaoCameraData,
+            'forward': _ssaoForwardData,
           },
         },
         // **Unfiltered**, unlike every other full-screen read in this renderer,
@@ -251,14 +263,11 @@ extension _PostPasses on Renderer {
     final viewProjection = toFramebufferOrigin(
       // **Not depth-range adjusted, and that is the whole of a bug this pass
       // carried on one backend.** `_viewProjection` applies `toDepthRange`,
-      // which maps clip depth to `[-1, 1]` where the device wants it — and
-      // what this pass compares against is `gl_FragCoord.z`, the *window*
-      // depth, which is `[0, 1]` on every API there is. On a backend whose
-      // range is `[0, 1]` the two agree by accident; on one whose range is
-      // `[-1, 1]` the shader reconstructed every world point from a depth the
-      // inverse matrix did not expect and then compared it against a number
-      // from the other convention. The camera's own matrix is already in the
-      // engine's `[0, 1]`, which is the convention the buffer is written in.
+      // which maps clip depth to `[-1, 1]` where the device wants it, and the
+      // shader inverts this matrix to find the ray through a pixel — taken by
+      // unprojecting the pixel's far corner, which under the other convention
+      // is not the far corner at all. See `_encodeSsao`, which reconstructs the
+      // same way.
       view.camera.viewProjection(aspect),
       device.framebufferOrigin,
     );
@@ -277,6 +286,12 @@ extension _PostPasses on Renderer {
     _reflectionCameraData[0] = _reflectionCamera.x;
     _reflectionCameraData[1] = _reflectionCamera.y;
     _reflectionCameraData[2] = _reflectionCamera.z;
+    // With the position, the axis the buffer measures its depths along; see
+    // `WorldAt`.
+    view.camera.readForward(_reflectionForward);
+    _reflectionForwardData[0] = _reflectionForward.x;
+    _reflectionForwardData[1] = _reflectionForward.y;
+    _reflectionForwardData[2] = _reflectionForward.z;
 
     drawFullscreen(
       FullscreenDraw(
@@ -291,6 +306,7 @@ extension _PostPasses on Renderer {
             'view_projection': viewProjection.storage,
             'inverse_view_projection': inverse.storage,
             'camera': _reflectionCameraData,
+            'forward': _reflectionForwardData,
             'params': _reflectionParams,
             'screen': _reflectionScreen,
           },

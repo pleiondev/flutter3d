@@ -163,6 +163,15 @@ extension _ScenePasses on Renderer {
       _cameraData[1] = cameraPosition.y;
       _cameraData[2] = cameraPosition.z;
 
+      // The axis the surface buffer's depths are measured along, and the reason
+      // it is read from the camera here and from the matrix elsewhere: this
+      // pass has a camera node and the others do not. Both answer the same
+      // question — see `viewAxisOf`.
+      camera.readForward(_forward);
+      _forwardData[0] = _forward.x;
+      _forwardData[1] = _forward.y;
+      _forwardData[2] = _forward.z;
+
       developer.Timeline.startSync('Renderer.encodeDraws');
       void encodeHalf(List<int> indices) {
         for (var i = 0; i < indices.length; i++) {

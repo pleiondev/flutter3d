@@ -327,7 +327,7 @@ Two silences worth knowing before one is reported as a bug. The stage draws from
 
 ## The surface buffer
 
-The scene pass can write a second attachment holding world-space normal and depth, for a screen-space effect to read.
+The scene pass can write a second attachment holding world-space normal and distance, for a screen-space effect to read.
 
 ```dart
 RenderSettings(
@@ -336,7 +336,11 @@ RenderSettings(
 )
 ```
 
-{{golden surface-buffer | The second attachment shown instead of the lit image: world-space normal in the colour, depth in the alpha.}}
+{{golden surface-buffer | The second attachment shown instead of the lit image: world-space normal in the colour, metres from the eye in the alpha.}}
+
+The alpha is a **depth along the view axis in world metres**, not a window depth, and the difference is visible rather than academic. The attachment is `r16g16b16a16Float` on every backend, and a window depth spends almost the whole of its `[0, 1]` on the first few metres: past twenty, its half-float steps are wider than half a metre, so a wall at twenty and one at twenty and a half store the same number. Both passes that read this buffer decide occlusion by subtracting two of them, and the rounding decided whole bands of the picture at once — vertical stripes along the lines of equal depth, in every scene with a wall in it. Metres are uniform: half a metre at twenty and half a metre at one look the same to the format. Both numbers are measured in `flutter3d_cpu/test/surface_depth_test.dart`.
+
+Reconstructing a point from that depth is a ray crossing a plane rather than a matrix multiply, so the reading passes are handed the camera position and the direction it looks alongside the inverse matrix. **Both ends of the pixel's ray are unprojected**, rather than starting it at the camera: an orthographic camera's rays are parallel and meet nowhere, so a reconstruction anchored at the camera position is right on a perspective camera and silently wrong on an isometric scene. `viewAxisOf` reads the same axis out of a matrix for the places that have one and no camera — a frame graph contributor, a reflection probe's faces.
 
 The shaders write it either way, a pipeline may declare more outputs than its target has attachments, so the flag is purely whether anybody is listening. Whether it is *needed* is answered by the compiled frame graph instead of by a setting, because a setting cannot see what nodes an application registered: `CompiledFrameGraph.isConsumed(FrameResourceIds.surfaceBuffer)`.
 

@@ -12,8 +12,10 @@
 // The surface buffer is what makes it possible at all: a forward renderer
 // throws its normals away inside the fragment shader, and there is nothing to
 // reflect against without them. rg is the world-space normal, octahedrally
-// encoded; b is perceptual roughness; a is window depth — depth is here rather
-// than in a depth texture because flutter_gpu cannot sample one.
+// encoded; b is perceptual roughness; a is the depth along the view axis in
+// world metres — depth is here rather than in a depth texture because
+// flutter_gpu cannot sample one, and it is in metres rather than a window depth
+// because a half float cannot hold the second one usefully past a few metres.
 //
 // Roughness is why the normal is squeezed into two channels. Without it the
 // shader reflects off rough stone as readily as off a wet floor, which is what
@@ -34,6 +36,10 @@ uniform ReflectionInfo {
   mat4 inverse_view_projection;
   /// xyz: camera position. w: unused.
   vec4 camera;
+  /// xyz: the direction the camera looks, a unit vector in world space.
+  /// w: unused. With [camera] it names the planes the buffer's depths measure
+  /// against; see [WorldAt].
+  vec4 forward;
   /// x: steps. y: stride in world metres. z: thickness in world metres.
   /// w: intensity.
   vec4 params;
@@ -70,16 +76,41 @@ vec2 UvFromNdc(vec2 ndc) {
   return vec2(ndc.x * 0.5 + 0.5, 0.5 - ndc.y * 0.5);
 }
 
-/// World position of the pixel at [uv] with window depth [depth].
+/// World position of the pixel at [uv], [depth] metres along the view axis.
+///
+/// **A ray crossing a plane**, because that is what the buffer holds now — see
+/// `WriteSurfaceGeometry`. The inverse matrix gives both ends of the pixel's
+/// ray; the stored depth names the plane the surface sits on, and every ray
+/// crosses that plane once. A window depth in a half float could not name it at
+/// range: past twenty metres its steps are wider than the differences this
+/// march turns on.
+///
+/// Both ends rather than the camera and one end, so that an orthographic camera
+/// — whose rays are parallel and meet nowhere — reconstructs correctly too.
+/// `post/ssao.frag` says the same at more length.
+///
+/// y undoes [UvFromNdc], so that reconstructing the point a march projected
+/// hands back the point it started from.
+void PixelRay(vec2 uv, out vec3 origin, out vec3 along) {
+  vec2 xy = vec2(uv.x * 2.0 - 1.0, 1.0 - uv.y * 2.0);
+  vec4 nearH = reflection_info.inverse_view_projection * vec4(xy, 0.0, 1.0);
+  vec4 farH = reflection_info.inverse_view_projection * vec4(xy, 1.0, 1.0);
+  origin = nearH.xyz / nearH.w;
+  along = normalize(farH.xyz / farH.w - origin);
+}
+
 vec3 WorldAt(vec2 uv, float depth) {
-  // Depth runs 0..1 here rather than -1..1: Impeller is Metal-like, and using
-  // the OpenGL convention puts every reconstructed point behind the camera.
-  //
-  // y undoes [UvFromNdc], so that reconstructing the point a march projected
-  // hands back the point it started from.
-  vec4 ndc = vec4(uv.x * 2.0 - 1.0, 1.0 - uv.y * 2.0, depth, 1.0);
-  vec4 world = reflection_info.inverse_view_projection * ndc;
-  return world.xyz / world.w;
+  vec3 origin, along;
+  PixelRay(uv, origin, along);
+  vec3 axis = reflection_info.forward.xyz;
+  return origin +
+         along * ((depth - dot(origin - reflection_info.camera.xyz, axis)) /
+                  dot(along, axis));
+}
+
+/// How deep [at] is, in the metres the buffer holds.
+float DepthOf(vec3 at) {
+  return dot(at - reflection_info.camera.xyz, reflection_info.forward.xyz);
 }
 
 void main() {
@@ -108,7 +139,16 @@ void main() {
     return;
   }
   vec3 position = WorldAt(v_uv, surface.a);
-  vec3 toEye = normalize(reflection_info.camera.xyz - position);
+
+  // Back along the ray this pixel looks down, rather than towards the camera
+  // position. The two are the same thing under a perspective camera and are
+  // not under an orthographic one, whose rays are parallel: there the vector to
+  // the camera *position* leans further off the view axis the nearer a pixel is
+  // to the edge of the frame, and every reflection in an isometric scene would
+  // be angled by where it happened to sit on screen.
+  vec3 rayOrigin, viewRay;
+  PixelRay(v_uv, rayOrigin, viewRay);
+  vec3 toEye = -viewRay;
 
   // Facing away, or so nearly edge-on that the march would crawl along the
   // surface it started from.
@@ -146,27 +186,27 @@ void main() {
     if (uv.x < 0.0 || uv.x > 1.0 || uv.y < 0.0 || uv.y > 1.0) break;
 
     float sceneDepth = texture(surface_texture, uv).a;
-    // Behind whatever was drawn at this pixel. Ordering is the one thing
-    // window depth is good for: it is monotonic in distance, so the sign of
-    // this comparison is exact at any range.
-    if (sceneDepth > 0.0 && ndc.z > sceneDepth) {
+    // The march's own depth, in the same metres the buffer holds — so the two
+    // are comparable without a projection between them.
+    float marchDepth = DepthOf(march);
+    // Behind whatever was drawn at this pixel, in metres both sides of the
+    // comparison are already in.
+    if (sceneDepth > 0.0 && marchDepth > sceneDepth) {
       // *How far* behind, in metres, and that is the whole fix. This used to
       // read the window-depth difference as a thickness, and a window-depth
       // difference is a different number of metres at every range: near the
       // camera 0.006 was a few centimetres and one stride stepped clean over
-      // every surface in the frame, while at ten metres it was several metres
+      // every surface in the frame, while at twenty metres it was several metres
       // and every ray passing in front of a distant wall "hit" it. That is why
       // the effect was off in every scene and looked wrong the moment it was
-      // switched on. `ssao.frag` splits the same two questions the same way,
-      // and says why on its own range check.
+      // switched on. `ssao.frag` splits the same two questions the same way.
       //
-      // The marched point and the recorded surface lie on one ray from the eye
-      // — the surface is reconstructed at the uv the march projected to — so
-      // the difference of their distances from the camera is the gap between
-      // them along that ray, with no view matrix needed.
+      // The gap between the two points rather than between their depths: they
+      // sit on one ray from the eye, and along a ray running away from the
+      // camera a depth difference is shorter than the distance it stands for.
+      // Thickness is a size in the world, so it is compared against one.
       vec3 seen = WorldAt(uv, sceneDepth);
-      float behind = distance(reflection_info.camera.xyz, march) -
-                     distance(reflection_info.camera.xyz, seen);
+      float behind = distance(march, seen);
       if (behind < thickness) {
         hitColor = texture(scene_texture, uv).rgb;
         // Fade at the edges of the frame and with distance travelled, so a

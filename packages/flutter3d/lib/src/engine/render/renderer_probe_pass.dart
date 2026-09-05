@@ -262,6 +262,12 @@ extension _ProbePasses on Renderer {
     _cameraData[0] = position.x;
     _cameraData[1] = position.y;
     _cameraData[2] = position.z;
+    // Out of the matrix: a probe face is a view that belongs to no node, and
+    // its axis changes with the face.
+    viewAxisOf(viewProjection, _forward);
+    _forwardData[0] = _forward.x;
+    _forwardData[1] = _forward.y;
+    _forwardData[2] = _forward.z;
 
     void encodeHalf({required bool blended}) {
       for (final node in scene.meshes) {

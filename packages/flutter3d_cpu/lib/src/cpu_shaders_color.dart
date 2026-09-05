@@ -63,31 +63,122 @@ Vector3 decodeOctahedral(double ex, double ey) {
   return n..normalize();
 }
 
+/// `EyeDistance`: how far this fragment is from the camera, in world metres.
+///
+/// What the fog fades by. A distance, because fog is a property of the air
+/// between two points and does not care which way the camera faces.
+double eyeDistance(Float32List v, ShaderBindings b) {
+  final eye = b.vec4('FogInfo', 'eye', Vector4.zero());
+  final dx = v[kVWorld] - eye.x;
+  final dy = v[kVWorld + 1] - eye.y;
+  final dz = v[kVWorld + 2] - eye.z;
+  return math.sqrt(dx * dx + dy * dy + dz * dz);
+}
+
+/// `ViewDepth`: how far this fragment is along the view axis, in world metres.
+///
+/// What the surface buffer's alpha holds. A depth rather than a distance, and
+/// the difference only shows on an orthographic camera, whose rays are parallel
+/// rather than meeting at the eye: a distance from the eye names a sphere, and
+/// a reader cannot tell which point of a parallel ray it means. A depth names a
+/// plane, which every ray crosses once.
+double viewDepth(Float32List v, ShaderBindings b) {
+  final eye = b.vec4('FogInfo', 'eye', Vector4.zero());
+  final forward = b.vec4('FogInfo', 'forward', Vector4.zero());
+  return (v[kVWorld] - eye.x) * forward.x +
+      (v[kVWorld + 1] - eye.y) * forward.y +
+      (v[kVWorld + 2] - eye.z) * forward.z;
+}
+
+/// `WorldAtDepth` / `WorldAt`: the point [uv] is looking at, [depth] metres
+/// along the view axis.
+///
+/// The reader's half of what [viewDepth] writes, and one copy for the two
+/// passes that need it — `ssao.frag` and `reflections.frag` transcribe the same
+/// six lines, and two copies of a reconstruction is two chances to reconstruct
+/// somewhere different.
+///
+/// **Both ends of the ray are unprojected**, rather than starting it at [eye].
+/// An orthographic camera's rays are parallel and meet nowhere, so a ray from
+/// the camera position is not the ray the pixel looks along, and every point an
+/// isometric scene reconstructed would land somewhere it is not. Under a
+/// perspective camera the two agree, so this costs one matrix multiply and buys
+/// a projection.
+///
+/// [inverse] carries the framebuffer origin, so v runs the other way from
+/// clip-space y — see `UvFromNdc`.
+Vector3 worldAtDepth(
+  Matrix4 inverse,
+  Vector3 eye,
+  Vector3 axis,
+  double u,
+  double v,
+  double depth,
+) {
+  final (:origin, :along) = pixelRay(inverse, u, v);
+  return origin +
+      along * ((depth - (origin - eye).dot(axis)) / along.dot(axis));
+}
+
+/// `PixelRay`: where the ray through [u], [v] starts and which way it goes.
+///
+/// Two unprojections rather than one and the camera position, which is the
+/// whole of what makes an orthographic camera work here — see [worldAtDepth].
+/// The direction is also the direction the pixel *looks*, which is what a
+/// reflection reflects about.
+({Vector3 origin, Vector3 along}) pixelRay(
+  Matrix4 inverse,
+  double u,
+  double v,
+) {
+  final x = u * 2.0 - 1.0;
+  final y = 1.0 - v * 2.0;
+  final Vector4 nearH = inverse * Vector4(x, y, 0.0, 1.0);
+  final Vector4 farH = inverse * Vector4(x, y, 1.0, 1.0);
+  final origin = Vector3(nearH.x, nearH.y, nearH.z)..scale(1.0 / nearH.w);
+  return (
+    origin: origin,
+    along: Vector3(farH.x, farH.y, farH.z)
+      ..scale(1.0 / farH.w)
+      ..sub(origin)
+      ..normalize(),
+  );
+}
+
 /// `WriteSurfaceGeometry`: the octahedral normal, the roughness, the depth.
 ///
 /// Called from the same place that writes colour, so a surface cannot be lit
 /// into the frame without also describing itself — which is the failure that
 /// leaves a screen-space effect reflecting whatever was in the buffer before.
 ///
+/// **Metres along the view axis rather than `coord.z`**, matching the GLSL:
+/// this rasteriser keeps its buffers in float32 and could store either, but the
+/// backends it is compared against cannot — a window depth in their half float
+/// stops distinguishing surfaces half a metre apart at twenty, which drew bands
+/// across the occlusion in every scene. Storing what the readers actually
+/// subtract costs nothing here and is the only version that survives the trip.
+///
 /// A debug pass takes the buffer over rather than getting one of its own, the
 /// way the GLSL does: the surface buffer already has an attachment, a viewer
 /// and a golden, and a second one would need all three built before it could
 /// answer anything.
-void writeSurface(FragmentContext c, Vector3 normal, double roughness) {
+void writeSurface(
+  FragmentContext c,
+  Float32List v,
+  ShaderBindings b,
+  Vector3 normal,
+  double roughness,
+) {
+  final depth = viewDepth(v, b);
   // A debug pass takes the buffer over rather than getting one of its own, as
   // `WriteSurfaceGeometry` does with `g_debug_surface_on`.
   final debug = c.debugSurface;
   if (debug != null) {
-    c.surface = Vector4(debug.x, debug.y, debug.z, c.coord.z);
+    c.surface = Vector4(debug.x, debug.y, debug.z, depth);
     return;
   }
   final encoded = encodeOctahedral(normal);
-  c.surface = Vector4(
-    encoded.x,
-    encoded.y,
-    roughness.clamp(0.0, 1.0),
-    c.coord.z,
-  );
+  c.surface = Vector4(encoded.x, encoded.y, roughness.clamp(0.0, 1.0), depth);
 }
 
 /// `ApplyFog` from `color.glsl`: fades [colour] toward the fog with distance.
@@ -101,12 +192,7 @@ Vector3 applyFog(Vector3 colour, Float32List v, ShaderBindings b) {
   final density = fog.w;
   if (density <= 0.0) return colour;
 
-  final eye = b.vec4('FogInfo', 'eye', Vector4.zero());
-  final dx = v[kVWorld] - eye.x;
-  final dy = v[kVWorld + 1] - eye.y;
-  final dz = v[kVWorld + 2] - eye.z;
-  final distance = math.sqrt(dx * dx + dy * dy + dz * dz);
-  final t = math.exp(-density * distance).clamp(0.0, 1.0);
+  final t = math.exp(-density * eyeDistance(v, b)).clamp(0.0, 1.0);
 
   return Vector3(
     fog.x * (1.0 - t) + colour.x * t,
@@ -134,7 +220,7 @@ Vector4 writeLit(
   required Vector3 normal,
   required double roughness,
 }) {
-  writeSurface(c, normal, roughness);
+  writeSurface(c, v, b, normal, roughness);
   final fogged = applyFog(colour, v, b);
   return Vector4(fogged.x, fogged.y, fogged.z, alpha);
 }
