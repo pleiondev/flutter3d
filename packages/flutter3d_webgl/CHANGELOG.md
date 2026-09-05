@@ -1,3 +1,14 @@
+## 0.5.1
+
+* **The occlusion agrees with Impeller to 0.253% and the reflections to
+  zero**, from 0.522% and 0.001%. The surface buffer's alpha no longer holds a
+  window depth, which is a number a half float cannot hold usefully past twenty
+  metres and which both GPU backends were rounding into bands; see
+  `flutter3d_shaders` 0.5.1. `engine_shaders.dart` is regenerated with the new
+  block members.
+* This backend's check that a bound uniform member exists is what caught the
+  block going out of step, in the browser, on the run that introduced it.
+
 ## 0.5.0
 
 * **A `WebGlProgram`'s attributes, blocks and samplers are unmodifiable.** They

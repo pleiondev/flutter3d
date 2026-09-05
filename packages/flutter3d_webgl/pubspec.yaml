@@ -1,6 +1,6 @@
 name: flutter3d_webgl
 description: "A WebGL2 backend for flutter3d: the second implementation of flutter3d_hardware, and the one that tells us whether the HAL is a seam or a description of Impeller."
-version: 0.5.0
+version: 0.5.1
 repository: https://github.com/pleiondev/flutter3d
 homepage: https://flutter3d.pleion.dev
 issue_tracker: https://github.com/pleiondev/flutter3d/issues

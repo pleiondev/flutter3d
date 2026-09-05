@@ -1,3 +1,34 @@
+## 0.5.1
+
+**The surface buffer's alpha changes meaning, and `FogInfo` gains a member.**
+Breaking for anything that declares that block or reads that channel. It goes
+out as a patch because nothing outside this repository has taken a dependency
+on 0.5.0 yet; the entry says what it is rather than what the number implies.
+
+* **`frag_surface.a` holds the depth along the view axis in world metres**,
+  where it held `gl_FragCoord.z`. The attachment is `r16g16b16a16Float` on
+  every backend, and a window depth spends nearly the whole of `[0, 1]` on the
+  first few metres — past twenty, one half-float step is wider than half a
+  metre, so a wall at twenty and one at twenty and a half stored the same
+  number. Both passes that read this buffer decide occlusion by subtracting two
+  of them, and the rounding decided whole bands of the frame: vertical stripes
+  along the lines of equal depth, on both GPU backends, in every scene with a
+  wall in it. `WriteSurfaceGeometry` and the new `ViewDepth` beside
+  `EyeDistance` carry the reasoning.
+* **`FogInfo` gains `vec4 forward`**, the camera's world-space direction, which
+  is what a fragment needs to compute that depth. A custom lit shader that
+  declares this block must declare the member: the engine binds it, and a
+  backend that checks its bindings refuses one the shader does not have. The
+  three particle stages declare the block without it on purpose — a particle
+  writes no surface buffer — and are bound without it.
+* **`SsaoInfo` and `ReflectionInfo` gain `vec4 forward` beside `camera`.**
+  Reconstructing a point from the stored depth is now a ray crossed with a
+  plane, and both ends of the pixel's ray are unprojected rather than one end
+  and the camera position: an orthographic camera's rays are parallel and meet
+  nowhere, so the cheaper version is right on a perspective camera and wrong on
+  every isometric scene. `reflections.frag` takes its view vector from that ray
+  as well.
+
 ## 0.5.0
 
 * No API change. Released with the set.

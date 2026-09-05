@@ -1,3 +1,17 @@
+## 0.5.1
+
+* **This backend was the one that was right, and its budget said otherwise.**
+  Its transcription of the occlusion pass disagreed with Impeller over 7.647%
+  of the corner scene, written down as a defect budget for whoever fixed it.
+  What was wrong was the surface buffer's depth format on the two GPU backends;
+  this rasteriser keeps every channel as a `double` whatever the format says,
+  so it had the precision to draw the effect correctly and was being held to a
+  picture that was not. The budget is 0.159% now, and reflections 0.633% to
+  0.025%. See `flutter3d_shaders` 0.5.1.
+* **`surface_depth_test.dart`**, holding the contract that channel now carries:
+  a point round-tripped through it under a perspective camera and an
+  orthographic one, and the two half-float numbers the change rests on.
+
 ## 0.5.0
 
 * **`CpuShaderLibrary.stages` is unmodifiable.** It is built once and read

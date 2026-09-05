@@ -1,6 +1,6 @@
 name: flutter3d_shaders
 description: The engine's shader sources, in GLSL, for every backend to compile.
-version: 0.5.0
+version: 0.5.1
 repository: https://github.com/pleiondev/flutter3d
 homepage: https://flutter3d.pleion.dev
 issue_tracker: https://github.com/pleiondev/flutter3d/issues

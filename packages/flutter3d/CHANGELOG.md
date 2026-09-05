@@ -1,3 +1,24 @@
+## 0.5.1
+
+* **The surface buffer stops storing a depth its format cannot hold.** Its
+  alpha held `gl_FragCoord.z` in an `r16g16b16a16Float` attachment, where a
+  half-float step past twenty metres is wider than half a metre — so the
+  occlusion pass, which decides a tap by subtracting two of those, decided
+  whole bands of the frame by rounding and drew vertical stripes along the
+  lines of equal depth on both GPU backends. It holds metres along the view
+  axis now. See `flutter3d_shaders` 0.5.1 for the shader-side contract, which
+  is the breaking half: a custom lit shader declaring `FogInfo` has to declare
+  the new `forward` member.
+* **`viewAxisOf`**, beside `toDepthRange` and `toFramebufferOrigin`: the
+  world-space direction a view-projection looks along, read out of the matrix.
+  For the places that have a matrix and no camera node — a frame graph
+  contributor, a reflection probe's faces — which now have to agree with the
+  scene pass about the axis the buffer's depths are measured along.
+* Screen-space occlusion and reflections reconstruct a world point as a ray
+  crossed with a plane, unprojecting **both** ends of the pixel's ray. An
+  orthographic camera's rays are parallel and meet nowhere, so the shorter
+  version was right on a perspective camera and wrong on every isometric scene.
+
 ## 0.5.0
 
 **Breaking.** Four callbacks widen, four types open, and nine collections stop
