@@ -24,6 +24,7 @@ List<Rule> get allRules => <Rule>[
   ),
   (name: 'a genre package draws only where it says', run: _genreIsolation),
   (name: 'a genre package reaches no other genre', run: _noSidewaysGenre),
+  (name: 'a genre camera turns the shared rig', run: _genreCameraTurnsTheRig),
   (name: 'a step reaches for no clock and no loose dice', run: _repeatableStep),
   (name: 'the simulation names no Flutter', run: _simNamesNoFlutter),
   (name: 'the hardware layer names no graphics API', run: _hardwareNamesNoApi),
@@ -177,6 +178,50 @@ List<Finding> _genreIsolation() {
       } else if (!_draws(file.readAsStringSync())) {
         found.add(
           Finding('$genre/$path', 'no longer draws; take it off the list'),
+        );
+      }
+    }
+  }
+  return found;
+}
+
+/// Every genre camera turns `CameraRig`, or says on [notARigCamera] why not.
+///
+/// Matched on the file name rather than on what the class extends, because the
+/// failure this catches does not subclass anything: it is a new file called
+/// `something_camera.dart` holding its own lerp. A camera that names the rig
+/// has found the seam, whatever it does with it; one that never names it has
+/// not, and that is the whole question.
+///
+/// Read out of the code rather than the whole file, because prose naming the
+/// rig is what a reimplementation would have too — `follow_camera.dart` opens
+/// by saying which parts moved to [CameraRig], and a file that explains the
+/// seam while going around it is the case this must still catch. It is also not
+/// an import check: the cameras reach the rig through the package barrel, so
+/// the name never appears on an `import` line.
+List<Finding> _genreCameraTurnsTheRig() {
+  final found = <Finding>[];
+  // Packages *and* applications, because the default has to be covered. The
+  // repeatable-step rule learned this the expensive way — written as a table of
+  // what to scan, it left a new genre unscanned until somebody remembered to
+  // edit the table — and a camera is the same shape: the third one gets written
+  // in a demo application, which is where a genre starts, more readily than in
+  // a package that already has one.
+  for (final entry in <String, Directory>{...packages, ...apps}.entries) {
+    final dir = entry.value;
+    for (final file in dartFilesIn(Directory('${dir.path}/lib'))) {
+      final path = relative(file, dir);
+      if (!path.split('/').last.contains('camera')) continue;
+      if (notARigCamera.containsKey('${entry.key}/$path')) continue;
+      if (!codeOf(file.readAsStringSync()).contains('CameraRig')) {
+        found.add(
+          Finding(
+            '${entry.key}/$path',
+            'is a camera that never names CameraRig — the smoothing, the '
+                'impulse decay and the pull out of walls are already written '
+                'once in flutter3d_sim; turn the rig, or add it to '
+                'notARigCamera and say what it does instead',
+          ),
         );
       }
     }
@@ -967,8 +1012,10 @@ List<Finding> _publishingOrder() {
 List<Finding> _exemptionsResolve() {
   final found = <Finding>[];
 
+  // Applications too, because `notARigCamera` names one: the rule it belongs to
+  // scans both, so the check that its entries resolve has to look in both.
   void check(String label, String package, String path) {
-    final dir = packages[package];
+    final dir = packages[package] ?? apps[package];
     if (dir == null) {
       found.add(Finding(label, '$package is not there'));
       return;
@@ -1003,6 +1050,17 @@ List<Finding> _exemptionsResolve() {
     for (final path in entry.value.keys) {
       check('repeatableStepExempt', entry.key, path);
     }
+  }
+  // Keyed by the whole path, package and file in one string, because that is
+  // the shape the camera rule reads it in — split back apart here rather than
+  // stored twice and allowed to disagree.
+  for (final key in notARigCamera.keys) {
+    final cut = key.indexOf('/');
+    if (cut < 0) {
+      found.add(Finding('notARigCamera → $key', 'is not a package and a path'));
+      continue;
+    }
+    check('notARigCamera', key.substring(0, cut), key.substring(cut + 1));
   }
   // The exclusion list rots the other way: a package excused from the rule and
   // then deleted leaves a sentence explaining why a thing that is not there is

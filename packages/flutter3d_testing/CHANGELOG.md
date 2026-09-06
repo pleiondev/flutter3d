@@ -1,3 +1,14 @@
+## 0.5.1
+
+* **Its floors move to `flutter3d` and `flutter3d_cpu` at 0.5.1, both of
+  them.** This package pairs the engine with the software backend, and 0.5.1
+  changed a contract they share: what the surface buffer's alpha holds, and the
+  members of the `FogInfo` block. Either half at 0.5.0 against the other at
+  0.5.1 draws a picture that is quietly the old one — the software backend
+  reads a missing uniform member as zeros rather than refusing, so nothing says
+  anything. Naming both floors is what closes it in both directions, which
+  `flutter3d_backend` cannot do because it does not depend on the engine.
+
 ## 0.5.0
 
 **Breaking.** The frame builder takes one object.

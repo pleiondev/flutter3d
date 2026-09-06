@@ -146,7 +146,7 @@ import 'package:flutter3d_screens/testing.dart';        // creditGaps
 <p>A package cannot import another package's <code>test/</code>, which is why there were two copies rather than one. <code>lib/testing.dart</code> is what a package can import.</p>
 </div>
 
-`cpuTestDevice` stops short of building the `Renderer`, deliberately: `flutter3d_cpu` must not depend on `flutter3d`. A backend that could not be compiled without the engine would not be an implementation of an interface, it would be part of the engine. That is a rule, and one of the twenty-nine checks it.
+`cpuTestDevice` stops short of building the `Renderer`, deliberately: `flutter3d_cpu` must not depend on `flutter3d`. A backend that could not be compiled without the engine would not be an implementation of an interface, it would be part of the engine. That is a rule, and one of the thirty checks it.
 
 ## Play the game in a test
 
@@ -198,7 +198,7 @@ They ask how the code is *arranged*: who imports what, what a name says, where a
 dart run tool/structure.dart
 ```
 
-Twenty-nine rules, under a second. Nothing they read needs `pub get`, a shader bundle or a device, so finding out in minute four that a package imports a genre was finding out late what was knowable in second one.
+Thirty rules, under a second. Nothing they read needs `pub get`, a shader bundle or a device, so finding out in minute four that a package imports a genre was finding out late what was knowable in second one.
 
 | Rule | What it refuses |
 |---|---|
@@ -207,6 +207,7 @@ Twenty-nine rules, under a second. Nothing they read needs `pub get`, a shader b
 | `the engine names no backend` | A backend import, or dependency, in `flutter3d` |
 | `a genre package draws only where it says` | A renderer reached from a genre's simulation half, and an allowlist entry that has stopped drawing |
 | `a genre package reaches no other genre` | A racer borrowing a platformer's runner |
+| `a genre camera turns the shared rig` | A genre camera file whose code never names `CameraRig` — smoothing, impulse decay and the pull out of walls written a third time instead of reused |
 | `nothing shares a mutable value as a constant` | `static final Vector3`, which the first caller to scale in place changes for the whole process |
 | `a step reaches for no clock and no loose dice` | `Random()` and `DateTime.now()` in a simulation package |
 | `a step asks no machine for an answer` | `math.sin` and its neighbours in a simulation package: the VM and a browser give different bits for every one of them, and a run built on that replays differently on the machine that verifies it |

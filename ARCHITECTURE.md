@@ -266,7 +266,7 @@ the saves and the collision world.
 
 ### 3.3 Rules that are scanned, not remembered
 
-`tool/structure.dart` walks `packages/` and `apps/` and enforces twenty-nine rules in
+`tool/structure.dart` walks `packages/` and `apps/` and enforces thirty rules in
 under a second, as the first step of CI. They cover the *arrangement* of the code
 — who imports what, what a name says, where a thing may live — while anything
 about what the code *does* stays a test.
@@ -283,6 +283,15 @@ The load-bearing ones:
   detector that fires on prose gets deleted.
 - **A genre package reaches no other genre**, and **no package depends on an
   application**.
+- **A genre camera turns the shared rig.** The smoothing, the impulse decay, the
+  shake and the pull out of walls live once, in `flutter3d_sim`'s `CameraRig`;
+  the platformer's `FollowCamera` and the racer's `ChaseCamera` are shells over
+  it that differ only where a genre should differ — where to look for a runner
+  who is turning around, how a car's heading blends between its velocity and the
+  track. That was already true and nothing said so, which is the shape a fourth
+  genre would break by *addition*: a new camera file, complete-looking, with a
+  third copy of the lerp. The scan reads the code rather than the prose, because
+  a file that explains the seam while going around it is the case worth catching.
 - **The engine names no backend**, and **the hardware layer names no graphics
   API**.
 - **A step reaches for no clock and no loose dice** — the scan behind
@@ -1636,7 +1645,7 @@ entities a game defines.
 | Style | `dart format` |
 | Analysis | `flutter analyze` clean across the workspace, no warnings |
 | Unit tests | **3697 tests** across 24 packages and 5 applications |
-| Structure rules | 29, `dart run tool/structure.dart`, the first CI step |
+| Structure rules | 30, `dart run tool/structure.dart`, the first CI step |
 | CI | GitHub Actions over `tool/ci.sh`, on `ubuntu-latest`, with no graphics card |
 
 **Golden render tests.** 41 scenes against **three independent reference sets** —

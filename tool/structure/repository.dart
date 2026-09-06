@@ -56,6 +56,38 @@ const Map<String, Set<String>> genreMayDraw = <String, Set<String>>{
   'flutter3d_game_platformer': <String>{},
 };
 
+/// Genre cameras that do not turn [CameraRig], and why.
+///
+/// **The seam this protects was already built, which is exactly why it needs a
+/// rule.** `FollowCamera` and `ChaseCamera` keep none of the hard parts: the
+/// smoothing, the impulse decay, the shake and the pull out of walls all live
+/// once, in `flutter3d_sim`'s `CameraRig`, and both genres forward `kick`,
+/// `shake`, `widen` and `cut` straight into it. What differs between them is
+/// what should differ — where the camera looks for a runner who is turning
+/// around, and how a car's heading blends between its velocity and the track.
+///
+/// Nothing said so. A fourth genre would reach for a camera, find two
+/// implementations that look complete, and write a third — smoothing and all —
+/// without ever learning that the smoothing was already solved and tested. The
+/// arrangement would decay by addition rather than by edit, which is the kind
+/// nobody notices in review.
+///
+/// Scanned over packages *and* applications, because the third camera gets
+/// written where a genre starts — in a demo — more readily than in a package
+/// that already has one. Taking a file off the rule costs a sentence saying what
+/// it does instead: a camera with no subject to follow has no rig to turn, and
+/// that is a reason; "it was easier" is not.
+const Map<String, String> notARigCamera = <String, String>{
+  'flutter3d/lib/src/engine/scene/camera_node.dart':
+      'the scene-graph camera the rig steers, not a camera that follows '
+      'anything: it holds the projection and the view, sits below '
+      'flutter3d_sim, and could not name CameraRig without inverting the '
+      'dependency that makes the rig possible',
+  'flutter3d_editor/lib/src/fly_camera.dart':
+      'a tool, not a game: it flies where the author points it, so it follows '
+      'nothing and has no impulse, no shake and no wall to be pulled out of',
+};
+
 /// Packages the repeatable-step rule does **not** apply to, and why.
 ///
 /// **This was the other way round**, and the file it lives in opens by naming
