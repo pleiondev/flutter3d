@@ -12,6 +12,11 @@
   Accuracy is held to two units in the last place against `dart:math` by
   `portable_math_test.dart`, because portable and wrong is a physics bug no
   parity test could report.
+* **`solver_parity_test.dart`: the rigid-body solver replays bit for bit**,
+  in a browser and on the VM. Predicted — `flutter3d_physics` calls no
+  transcendental — and measured anyway, because the three ways it could still
+  have diverged are the broadphase's ordering, a long chain of non-associative
+  additions, and a browser's `int` being a `double` under the spatial grid.
 * `Motion.easeFactor`, `Interpolated` and the actor system's facing now call it
   rather than `dart:math`. `tool/structure.dart`'s new rule *a step asks no
   machine for an answer* is what keeps them there.
