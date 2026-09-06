@@ -361,8 +361,9 @@ final class Runner
 
   void _readWish(InputState input, double cameraYaw) {
     final axis = input.moveAxis;
-    final sin = math.sin(cameraYaw);
-    final cos = math.cos(cameraYaw);
+    final turn = Portable.sinCos(cameraYaw);
+    final sin = turn.sin;
+    final cos = turn.cos;
 
     // Forward is where the camera looks: `F = (sin, 0, cos)`.
     //
@@ -531,7 +532,10 @@ final class Runner
       ..z = along.z * speed;
   }
 
-  Vector3 _facingVector() => Vector3(math.sin(yaw), 0.0, math.cos(yaw));
+  Vector3 _facingVector() {
+    final turn = Portable.sinCos(yaw);
+    return Vector3(turn.sin, 0.0, turn.cos);
+  }
 
   /// A crouched runner is a slow one, and a sliding one keeps what it has.
   ///
@@ -843,8 +847,9 @@ final class Runner
     var x = _wish.x;
     var z = _wish.z;
     if (x == 0.0 && z == 0.0) {
-      x = math.sin(yaw);
-      z = math.cos(yaw);
+      final turn = Portable.sinCos(yaw);
+      x = turn.sin;
+      z = turn.cos;
     }
     final length = math.sqrt(x * x + z * z);
     if (length == 0.0) return;
@@ -975,7 +980,7 @@ final class Runner
     if (_wish.x == 0.0 && _wish.z == 0.0) return;
     yaw = turnedTowards(
       yaw,
-      math.atan2(_wish.x, _wish.z),
+      Portable.atan2(_wish.x, _wish.z),
       tuning.turnRate * dt,
     );
   }

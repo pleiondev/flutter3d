@@ -78,6 +78,7 @@ export 'src/loop/pause_gate.dart';
 export 'src/loop/run_outcome.dart';
 export 'src/loop/step_systems.dart';
 export 'src/math/motion.dart';
+export 'src/math/portable_math.dart';
 export 'src/math/spline.dart';
 export 'src/math/tolerances.dart';
 export 'src/nav/automap.dart';

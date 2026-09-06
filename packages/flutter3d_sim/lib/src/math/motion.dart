@@ -9,6 +9,8 @@ library;
 
 import 'dart:math' as math;
 
+import 'portable_math.dart';
+
 const double _twoPi = 2.0 * math.pi;
 
 /// The shortest way round from one angle to another, in radians.
@@ -83,5 +85,5 @@ double turnedTowards(double yaw, double wanted, double step) =>
 /// than as a body flying apart.
 double easeFactor(double rate, double dt) {
   if (rate <= 0.0 || dt <= 0.0) return 0.0;
-  return 1.0 - math.exp(-rate * dt);
+  return 1.0 - Portable.exp(-rate * dt);
 }

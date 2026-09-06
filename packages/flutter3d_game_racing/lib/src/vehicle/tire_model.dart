@@ -93,7 +93,7 @@ final class TireModel {
 
   /// The magic formula, less the parts that need a laboratory.
   static double _curve(double slip, double stiffness, double shape) =>
-      math.sin(shape * math.atan(stiffness * slip));
+      Portable.sin(shape * Portable.atan(stiffness * slip));
 
   /// The shape factor that leaves [tail] of the peak when fully sliding.
   ///
@@ -102,7 +102,7 @@ final class TireModel {
   /// branch wanted — hence `π − asin`, not `asin`.
   static double _shapeFor(double tail) {
     final clamped = tail.clamp(0.05, 0.999);
-    return 2.0 - 2.0 * math.asin(clamped) / math.pi;
+    return 2.0 - 2.0 * Portable.asin(clamped) / math.pi;
   }
 
   /// The stiffness that puts the peak at [peak].
@@ -111,7 +111,7 @@ final class TireModel {
   /// that solved for `B`.
   static double _stiffnessFor(double shape, double peak) {
     if (peak <= 1e-6) return 1e6;
-    return math.tan(math.pi / (2.0 * shape)) / peak;
+    return Portable.tan(math.pi / (2.0 * shape)) / peak;
   }
 }
 

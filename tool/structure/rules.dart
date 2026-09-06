@@ -77,6 +77,7 @@ List<Rule> get allRules => <Rule>[
     name: 'the compiled shader bundle is not older than its sources',
     run: _shaderBundleIsCurrent,
   ),
+  (name: 'a step asks no machine for an answer', run: _portableStepArithmetic),
 ];
 
 // ------------------------------------------------------------------- genre
@@ -2400,3 +2401,90 @@ List<Finding> _boundaryEnums() {
 
 /// A top-level enum declaration and its name.
 final RegExp _enumDeclaration = RegExp(r'^enum (\w+)', multiLine: true);
+
+// ------------------------------------------- a step asks no machine anything
+
+/// Nothing a fixed step runs may call a transcendental from `dart:math`.
+///
+/// **The measurement this exists because of.** `flutter3d_sim`'s parity test
+/// asked twelve `dart:math` functions for twenty thousand answers apiece under
+/// the VM and under Chrome: `sqrt` and `pow` matched and every transcendental
+/// did not, because on the VM they are the host's libm and in a browser they
+/// are whatever that engine ships. A character controller reached almost none
+/// of the disagreeing arguments and replayed identically; a car is made of them
+/// and diverged at twenty-three of forty checkpoints. So "a replay is the same
+/// run" was true for one genre and false for another, which is the worst shape
+/// a guarantee can have — and a verifying server rests entirely on it.
+///
+/// `Portable` answers the same questions out of `+`, `-`, `*`, `/` and `sqrt`,
+/// all of which the specification pins. This rule is what keeps a call site
+/// from drifting back: the substitution is invisible at a glance, a `math.sin`
+/// added next year would compile and pass every test, and the failure would
+/// arrive as one player's run being rejected by a server months later.
+///
+/// **Scanned by exclusion, like the repeatable-step rule beside it**, and over
+/// exactly the same set: a package a run steps through is a package both rules
+/// apply to. See [notARepeatableStep] for what that set is and
+/// [portableStepExempt] for the files inside it that draw rather than step.
+List<Finding> _portableStepArithmetic() {
+  final found = <Finding>[];
+  for (final entry in packages.entries) {
+    if (notARepeatableStep.containsKey(entry.key)) continue;
+    final dir = entry.value;
+    final exempt = portableStepExempt[entry.key] ?? const <String, String>{};
+
+    for (final file in dartFilesIn(Directory('${dir.path}/lib'))) {
+      final path = relative(file, dir);
+      if (exempt.containsKey(path)) continue;
+      final source = _withoutComments(file.readAsStringSync());
+
+      // An unprefixed import would let `sin(x)` through the scan below, so it
+      // is refused outright rather than answered with a cleverer regex.
+      if (source.contains("import 'dart:math';")) {
+        found.add(
+          Finding(
+            '${entry.key}/$path',
+            "imports `dart:math` without a prefix, so a bare `sin(x)` in it "
+                'would be invisible to this rule. Import it `as math`',
+          ),
+        );
+      }
+
+      for (final match in _machineArithmetic.allMatches(source)) {
+        found.add(
+          Finding(
+            '${entry.key}/$path',
+            'calls `math.${match.group(1)}`, whose answer is the platform\'s '
+                'libm rather than a number. Call `Portable.${match.group(1)}` '
+                'instead, or say in `portableStepExempt` why this file is not '
+                'part of a run',
+          ),
+        );
+      }
+    }
+  }
+  return found;
+}
+
+/// [source] with its comments taken out.
+///
+/// So that a doc comment naming `math.sin` — this rule's own explanation does,
+/// and so does the library it points at — is not read as a call. Crude on
+/// purpose: it is looking for one shape and a string containing `//` costs
+/// nothing here but a line the scan does not see.
+String _withoutComments(String source) => source
+    .split('\n')
+    .map((String line) {
+      final comment = line.indexOf('//');
+      return comment < 0 ? line : line.substring(0, comment);
+    })
+    .join('\n');
+
+/// A call to one of the functions whose answer belongs to the machine.
+///
+/// `sqrt` is not among them and `pow` is not either: IEEE 754 pins the first
+/// and the parity sweep measured both to agree in the two places, which is why
+/// `Portable` has neither.
+final RegExp _machineArithmetic = RegExp(
+  r'\bmath\.(sin|cos|tan|asin|acos|atan2|atan|exp|log)\s*\(',
+);

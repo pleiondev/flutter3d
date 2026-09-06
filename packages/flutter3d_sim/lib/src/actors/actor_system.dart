@@ -33,14 +33,13 @@
 /// the entire level.
 library;
 
-import 'dart:math' as math;
-
 import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:vector_math/vector_math.dart';
 
 import '../ecs/ecs_world.dart';
 import '../loop/game_event.dart';
 import '../math/motion.dart';
+import '../math/portable_math.dart';
 import '../math/tolerances.dart';
 import '../nav/jump_links.dart';
 import '../nav/navigation.dart';
@@ -517,7 +516,7 @@ final class ActorSystem {
     if (actor.facing == null) return;
     actor.yaw = turnedTowards(
       actor.yaw,
-      math.atan2(-x, -z),
+      Portable.atan2(-x, -z),
       actor.turnRate * dt,
     );
   }

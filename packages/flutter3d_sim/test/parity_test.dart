@@ -40,10 +40,10 @@
 /// not in conflict and the gap between them is the useful part. Two libms
 /// disagree on a small fraction of arguments; a run reaches the arguments it
 /// reaches; a thousand steps of a character controller happened to reach none
-/// of the disagreeing ones. `flutter3d_game_racing/test/parity_test.dart` is
-/// the counter-example — the same measurement on a car diverges at exactly one
-/// checkpoint out of forty — so "a run replays identically" is a thing that is
-/// usually true and cannot be relied on.
+/// of the disagreeing ones. `flutter3d_game_racing/test/parity_test.dart` was
+/// the counter-example — the same measurement on a car diverged at
+/// twenty-three checkpoints of forty — so "a run replays identically" was a
+/// thing that was usually true and could not be relied on.
 ///
 /// **The first version of this file got question 2 wrong**, and the way it did
 /// is worth keeping. It sampled twelve hand-picked arguments, concluded that
@@ -53,13 +53,23 @@
 /// are not portable either and neither substitute is. A test of where two
 /// implementations agree will report that they agree.
 ///
-/// ## What this means for a verifying server
+/// ## What was done about it
 ///
-/// Not that it cannot be built — question 3 says a replay usually is exact —
-/// but that it cannot trust a whole-run comparison. It has to carry the
-/// checkpoints, compare them interval by interval, and treat a mismatch as a
-/// quarantine to look at rather than as a player caught cheating. That is the
-/// contingency the year's plan wrote down, and it is the one that applies.
+/// **A step stopped calling any of them.** `Portable` — beside this file in
+/// `lib/src/math/portable_math.dart` — answers the same seven questions a
+/// simulation asks out of `+`, `-`, `*`, `/` and `sqrt`, which the
+/// specification pins and this table confirms. It is the same bits on every
+/// platform by construction rather than by luck, including platforms nobody has
+/// measured, and `tool/structure.dart` holds the call sites to it with the rule
+/// *a step asks no machine for an answer*.
+///
+/// The car went from twenty-three disagreeing checkpoints of forty to none.
+///
+/// **This group stays, and is not measuring the step any more.** It is the
+/// reason `Portable` exists, kept where somebody proposing to delete it will
+/// read it — and it is an instrument in its own right: a row here gaining a
+/// third answer says the platform in front of you has arithmetic nobody has
+/// seen, which is worth knowing whether or not a step calls it.
 ///
 /// The committed numbers were recorded on macOS-arm64 under the VM and under
 /// Chrome. `tool/ci.sh` runs this package on both platforms, so its machines

@@ -1,3 +1,21 @@
+## 0.5.1
+
+* **`Portable`: the transcendental functions a step is allowed to call.**
+  `sin`, `cos`, `sinCos`, `tan`, `atan`, `atan2`, `asin` and `exp`, built out of
+  `+`, `-`, `*`, `/`, `sqrt` and the bytes of a double — all of which the
+  specification pins — so two platforms cannot disagree about them. That is not
+  a theoretical worry: `parity_test.dart` swept twelve `dart:math` functions
+  over twenty thousand arguments under the VM and under Chrome, and only `sqrt`
+  and `pow` gave the same bits. A car built on the rest replayed differently in
+  a browser at twenty-three checkpoints of forty, which is a verifying server
+  that cannot verify. It is forty of forty now.
+  Accuracy is held to two units in the last place against `dart:math` by
+  `portable_math_test.dart`, because portable and wrong is a physics bug no
+  parity test could report.
+* `Motion.easeFactor`, `Interpolated` and the actor system's facing now call it
+  rather than `dart:math`. `tool/structure.dart`'s new rule *a step asks no
+  machine for an answer* is what keeps them there.
+
 ## 0.5.0
 
 **Breaking.** A step can say what happened, and four types stop being closed.

@@ -73,7 +73,7 @@ final class AiDriver {
     _toAim
       ..setFrom(_aim)
       ..sub(self.position);
-    final wanted = math.atan2(_toAim.x, _toAim.z);
+    final wanted = Portable.atan2(_toAim.x, _toAim.z);
     final error = shortestAngle(self.headingYaw, wanted);
 
     final pace = _pace(at, playerGap);

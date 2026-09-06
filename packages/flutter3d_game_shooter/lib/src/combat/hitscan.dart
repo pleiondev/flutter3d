@@ -133,8 +133,9 @@ final class Hitscan {
 
     final petals = weapon.rayCount - 1;
     final angle = (index - 1) / petals * 2.0 * math.pi;
-    final offsetRight = math.cos(angle) * weapon.spread;
-    final offsetUp = math.sin(angle) * weapon.spread;
+    final petal = Portable.sinCos(angle);
+    final offsetRight = petal.cos * weapon.spread;
+    final offsetUp = petal.sin * weapon.spread;
 
     _direction
       ..x += _right.x * offsetRight + _up.x * offsetUp

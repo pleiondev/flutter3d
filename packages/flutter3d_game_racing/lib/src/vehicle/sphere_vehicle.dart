@@ -315,13 +315,14 @@ final class SphereVehicle implements VehicleController {
       _normal.setValues(0.0, 1.0, 0.0);
     }
 
-    _forward.setValues(math.sin(_headingYaw), 0.0, math.cos(_headingYaw));
+    final heading = Portable.sinCos(_headingYaw);
+    _forward.setValues(heading.sin, 0.0, heading.cos);
     // Flatten the heading onto the surface, so that a car on a slope drives
     // along it rather than into it.
     _forward.addScaled(_normal, -_forward.dot(_normal));
     final length = _forward.length;
     if (length < 1e-6) {
-      _forward.setValues(math.sin(_headingYaw), 0.0, math.cos(_headingYaw));
+      _forward.setValues(heading.sin, 0.0, heading.cos);
     } else {
       _forward.scale(1.0 / length);
     }
@@ -368,7 +369,7 @@ final class SphereVehicle implements VehicleController {
 
     // The bicycle model: the car turns about a point out to the side, at a rate
     // set by how fast it is going and how far the wheels are turned.
-    var yawRate = forwardSpeed / tuning.wheelBase * math.tan(angle);
+    var yawRate = forwardSpeed / tuning.wheelBase * Portable.tan(angle);
 
     // And a slide drags the nose round with it. Without this the nose only goes
     // where it is steered, which means a car can never spin and a caught slide
@@ -439,7 +440,10 @@ final class SphereVehicle implements VehicleController {
     // going, and a car that is barely moving would otherwise report enormous
     // slip from a millimetre of drift — and then be thrown across the road by
     // tyres answering it.
-    _slipAngle = math.atan2(lateralSpeed, math.max(forwardSpeed.abs(), 1.5));
+    _slipAngle = Portable.atan2(
+      lateralSpeed,
+      math.max(forwardSpeed.abs(), 1.5),
+    );
     _slipRatio =
         ((_wheelSpeed - forwardSpeed) / math.max(forwardSpeed.abs(), 3.0))
             .clamp(-1.0, 1.0);

@@ -156,8 +156,9 @@ final class TrackSpline {
 
     // Rotate the pair about the direction of travel. Both stay perpendicular to
     // it, so the road stays a flat ribbon and only its tilt changes.
-    final cosine = math.cos(bank);
-    final sine = math.sin(bank);
+    final tilt = Portable.sinCos(bank);
+    final cosine = tilt.cos;
+    final sine = tilt.sin;
     out.right.setValues(
       rx * cosine + ux * sine,
       uy * sine,

@@ -1,3 +1,11 @@
+## 0.5.1
+
+* The player's aim, the shotgun's spread, a wave's ring of spawn points and the
+  melee cone call `Portable` rather than `dart:math`, so a run replays
+  identically in a browser and on the VM. See `flutter3d_sim` 0.5.1 for what
+  that is and why. No API change; a saved run from 0.5.0 replays a hair
+  differently in its last bits.
+
 ## 0.5.0
 
 **Breaking.** Three closed types open, four per-step fields go, and the genre

@@ -563,7 +563,7 @@ final class RacingSimulation {
       ..y += 1.0;
     vehicle.placeAt(
       _spawn,
-      math.atan2(_frame.forward.x, _frame.forward.z),
+      Portable.atan2(_frame.forward.x, _frame.forward.z),
       trackDistance: at,
     );
 
@@ -648,7 +648,7 @@ final class RacingSimulation {
       race.track.startSlot(slot, position, forward);
       vehicles[car].placeAt(
         position,
-        math.atan2(forward.x, forward.z),
+        Portable.atan2(forward.x, forward.z),
         trackDistance: race.track.grid.s,
       );
       inputs[car].reset();

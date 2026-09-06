@@ -539,3 +539,44 @@ const Map<String, String> boundaryEnumPackageExempt = <String, String>{
   'pointer_lock':
       "mirrors the platform's pointer lock, which has exactly these states",
 };
+
+/// Files inside a stepped package allowed to call the machine's `dart:math`.
+///
+/// **The rule and this table are about a run, not about accuracy.** A
+/// transcendental in `dart:math` is the host's libm on the VM and the browser's
+/// own routine on the web, and `flutter3d_sim/test/parity_test.dart` measured
+/// that all nine of them give different bits in the two places — which cost a
+/// car twenty-three of forty checkpoints. `Portable` is what a step calls
+/// instead; see `flutter3d_sim/lib/src/math/portable_math.dart`.
+///
+/// Everything below is outside a run: it decides what a frame *looks* like, or
+/// it runs once before the game ships. Two platforms drawing a lamp a
+/// ten-thousandth of a shade apart is not a divergence, and holding a camera to
+/// this would be a cost with nothing bought. Each line says which it is, and a
+/// file that stops being one of those stops being exempt.
+const Map<String, Map<String, String>> portableStepExempt =
+    <String, Map<String, String>>{
+      'flutter3d_sim': <String, String>{
+        'lib/src/camera/camera_rig.dart':
+            'a camera is where the picture is taken from; no run depends on it',
+        'lib/src/world/light_fixture.dart':
+            'how bright a lamp looks on a frame, which nothing steps on',
+        'lib/src/level/lightmap_baker.dart':
+            'runs once, before a level ships, and its output is committed',
+        'lib/src/loop/pace.dart':
+            'a dropped-frame meter, measured against the wall clock — it is '
+            'already a thing no two machines agree about',
+      },
+      'flutter3d_game_racing': <String, String>{
+        'lib/src/sky.dart': 'the colour of the sky',
+        'lib/src/chase_camera.dart': 'a camera',
+      },
+      'flutter3d_game_platformer': <String, String>{
+        'lib/src/follow_camera.dart': 'a camera',
+      },
+      'flutter3d_game_shooter': <String, String>{
+        'lib/src/weapon_view.dart':
+            'the weapon the player sees, not the one '
+            'that fires',
+      },
+    };

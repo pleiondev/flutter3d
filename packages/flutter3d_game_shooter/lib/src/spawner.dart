@@ -14,8 +14,6 @@
 /// to grow.
 library;
 
-import 'dart:math' as math;
-
 import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:vector_math/vector_math.dart';
 
@@ -128,9 +126,9 @@ final class Spawner extends Mechanism {
       final offset = wave.count == 1
           ? Vector3.zero()
           : Vector3(
-              wave.spread * math.cos(angle),
+              wave.spread * Portable.cos(angle),
               0.0,
-              wave.spread * math.sin(angle),
+              wave.spread * Portable.sin(angle),
             );
       spawned.add(
         bestiary.spawn(

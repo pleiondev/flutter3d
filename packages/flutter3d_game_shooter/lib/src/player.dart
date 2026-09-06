@@ -260,12 +260,9 @@ final class Player with KeyHolder implements Collector, Damageable, Rider {
   /// rather than only what the screen shows.
   void aim(Vector3 out) {
     final pitch = (_pitch + recoilPitch).clamp(-pitchLimit, pitchLimit);
-    final cosPitch = math.cos(pitch);
-    out.setValues(
-      -math.sin(yaw) * cosPitch,
-      math.sin(pitch),
-      -math.cos(yaw) * cosPitch,
-    );
+    final look = Portable.sinCos(pitch);
+    final turn = Portable.sinCos(yaw);
+    out.setValues(-turn.sin * look.cos, look.sin, -turn.cos * look.cos);
   }
 
   /// How far the sight has been kicked above where it is being held, in
@@ -297,11 +294,16 @@ final class Player with KeyHolder implements Collector, Damageable, Rider {
   }
 
   /// Where forward is on the ground, ignoring pitch.
-  void forward(Vector3 out) =>
-      out.setValues(-math.sin(yaw), 0.0, -math.cos(yaw));
+  void forward(Vector3 out) {
+    final turn = Portable.sinCos(yaw);
+    out.setValues(-turn.sin, 0.0, -turn.cos);
+  }
 
   /// Where the right hand is on the ground, ignoring pitch.
-  void right(Vector3 out) => out.setValues(math.cos(yaw), 0.0, -math.sin(yaw));
+  void right(Vector3 out) {
+    final turn = Portable.sinCos(yaw);
+    out.setValues(turn.cos, 0.0, -turn.sin);
+  }
 
   /// The direction to walk for a movement axis, from [InputState.moveAxis].
   ///
@@ -313,8 +315,9 @@ final class Player with KeyHolder implements Collector, Damageable, Rider {
   /// Not normalised: an axis at half deflection is a request to walk at half
   /// speed, and normalising here would throw that away.
   void moveWish(Vector2 axis, Vector3 out) {
-    final sin = math.sin(yaw);
-    final cos = math.cos(yaw);
+    final turn = Portable.sinCos(yaw);
+    final sin = turn.sin;
+    final cos = turn.cos;
     out.setValues(
       -sin * axis.y + cos * axis.x,
       0.0,

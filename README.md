@@ -130,7 +130,7 @@ Or one package at a time:
 (cd packages/flutter3d_physics && dart test)   # plain Dart, no Flutter needed
 ```
 
-3680 tests across twenty-four packages and five applications, and the only
+3694 tests across twenty-four packages and five applications, and the only
 ones that need a GPU are the
 Impeller half of the golden set. The other half is rendered by the software
 backend, which is what makes 41 scenes checkable in a headless run.
@@ -168,7 +168,7 @@ declares and the compiled binary has not got — and binding a slot a compiled
 shader does not have takes the frame down. The message names nothing that leads
 back to the file that was edited.
 
-So `dart run tool/structure.dart` checks it: one of its twenty-eight rules compares
+So `dart run tool/structure.dart` checks it: one of its twenty-nine rules compares
 the bundle against the sources it was built from and says which of them are
 newer. The rule skips when there is no bundle at all, which is every fresh
 checkout and every CI run — `impellerc` is not there to build one, and a rule

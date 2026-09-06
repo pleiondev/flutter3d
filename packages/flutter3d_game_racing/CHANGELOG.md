@@ -1,3 +1,16 @@
+## 0.5.1
+
+* **The car replays identically in a browser and on the VM.** It did not: the
+  same tape drove measurably different cars, diverging at twenty-three of forty
+  checkpoints from step 75, because the tyre curve and the bicycle-model
+  steering are made of transcendentals and `dart:math` gives different bits for
+  every one of them in the two places. The vehicle, the tyre model, the track's
+  camber, the AI driver and the grid placement call `Portable` now — see
+  `flutter3d_sim` 0.5.1. Forty of forty.
+* No API change. What a car does is a hair different in the last bits, which is
+  a saved race from 0.5.0 replaying a hair differently and nothing a player can
+  see.
+
 ## 0.5.0
 
 **Breaking.** Ten flags become events, the mode carries what it means, and the

@@ -1,3 +1,10 @@
+## 0.5.1
+
+* The runner's facing, its movement wish and the swinging blocks call
+  `Portable` rather than `dart:math`, so a run replays identically in a browser
+  and on the VM. See `flutter3d_sim` 0.5.1 for what that is and why. No API
+  change; a saved run from 0.5.0 replays a hair differently in its last bits.
+
 ## 0.5.0
 
 **Breaking.** Fifteen per-step fields become events, and the genre ships its

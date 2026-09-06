@@ -135,7 +135,7 @@ final class MeleeBehaviour extends WeaponBehaviour {
       includeTriggers: false,
     );
 
-    final minimumCosine = math.cos(arcDegrees * 0.5 * math.pi / 180.0);
+    final minimumCosine = Portable.cos(arcDegrees * 0.5 * math.pi / 180.0);
     final toTarget = Vector3.zero();
     // The arc is horizontal, so the cone test ignores height. Measuring it in
     // three dimensions from the swinger's eye rejects anything shorter than

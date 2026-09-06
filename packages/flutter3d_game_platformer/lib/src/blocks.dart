@@ -268,12 +268,13 @@ final class Climbable extends Mechanism {
     if (swing <= 0.0 || period <= 0.0) return;
     _time += dt;
     final rate = 2.0 * math.pi / period;
+    final phase = Portable.sinCos(rate * _time);
     _at
       ..setFrom(_restingAt)
-      ..x += swing * math.sin(rate * _time);
+      ..x += swing * phase.sin;
     // The derivative, so a climber who jumps off leaves with the rope's own
     // speed — which is what makes timing a jump off a swing worth anything.
-    _swingVelocity = swing * rate * math.cos(rate * _time);
+    _swingVelocity = swing * rate * phase.cos;
     collider.moveTo(_at);
   }
 }

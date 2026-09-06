@@ -1,49 +1,41 @@
-/// A lap driven on two platforms, and the one checkpoint where it is not the
-/// same lap.
+/// A lap driven on two platforms, and now it is the same lap.
 ///
 ///     flutter test test/parity_test.dart
 ///     flutter test --platform chrome test/parity_test.dart
 ///
-/// **This is the counter-example the other parity file needs.**
-/// `flutter3d_game/test/parity_test.dart` drove a character controller for a
+/// **This file used to be the counter-example, and that is what it recorded.**
+/// `flutter3d_sim/test/parity_test.dart` drove a character controller for a
 /// thousand steps and got all forty checkpoints identical between the VM and
-/// Chrome — and separately found that every transcendental in `dart:math`
-/// gives different bits in the two places. Both are true, and the gap between
-/// them is where the design decision lives: two libms disagree on a small
-/// fraction of arguments, and whether a run diverges is a question about which
-/// arguments that particular run reaches.
+/// Chrome, while separately finding that every transcendental in `dart:math`
+/// gives different bits in the two places. Both were true, and the gap between
+/// them was the whole problem: two libms disagree on a small fraction of
+/// arguments, and whether a run survives is a question about which arguments it
+/// happens to reach. A character walking reaches almost none. A car is made of
+/// them — the tangent in the bicycle-model steering, an arc tangent twice a
+/// step per tyre in the Pacejka curve, an arc tangent for the slip angle — and
+/// this drive disagreed at **twenty-three checkpoints of forty**, first at step
+/// 75.
 ///
-/// A car reaches them, and not rarely. The same measurement here, on the same
-/// day and the same machine, disagrees at **twenty-three checkpoints of
-/// forty**, first at step 75. So the character controller's clean sweep is a
-/// property of that simulation and not of the engine: walking reaches almost
-/// no transcendental, and driving is made of them — `math.tan` in the
-/// bicycle-model steering, `math.atan` twice a step per tyre in the Pacejka
-/// curve, `math.atan2` for the slip angle, and `math.tan` again in the
-/// coefficient the curve is built from.
+/// So the test could only ask which of two arithmetics a platform had, and it
+/// carried two accepted traces in order to ask it.
 ///
-/// ## The substitution that was tried, and why it is not here
+/// ## What was tried before the answer, and why it was not one
 ///
 /// Routing those call sites through `sin(x) / cos(x)` and `atan2(x, 1)` — both
-/// of which the twelve-argument version of the primitives table wrongly
-/// reported as portable — cut the disagreement from twenty-three checkpoints
-/// to one. That is a large effect and it is **not** a fix: the substitutes are
-/// not portable either, and a change justified by "it diverges less often" is
-/// one whose failures are rarer and no less real. It was reverted rather than
-/// kept, and the number is recorded here because it says something worth
-/// knowing — the divergence is concentrated in `tan` and `atan`, and the
-/// remaining sliver lives in `atan2` and `sin`.
+/// wrongly reported as portable by a twelve-argument version of the primitives
+/// table — cut the disagreement from twenty-three checkpoints to one. That is a
+/// large effect and it was **not** a fix: the substitutes are not portable
+/// either, and a change justified by "it diverges less often" is one whose
+/// failures are rarer and no less real. It was reverted.
 ///
-/// ## What this settles
+/// ## What it is now
 ///
-/// A verifying server cannot compare whole runs and call a mismatch cheating.
-/// For a genre made of transcendentals it cannot compare runs across platforms
-/// at all. Either the server replays a run on the platform it was played on, or
-/// the simulation stops calling functions whose answers are a property of the
-/// machine — a polynomial, a table, or a quantised argument, all of which are
-/// work and none of which is done. Whichever is chosen, the checkpoints are how
-/// a mismatch is localised, and a mismatch is a quarantine somebody looks at
-/// rather than a verdict.
+/// The vehicle calls `Portable` instead, which answers the same questions out
+/// of `+`, `-`, `*`, `/` and `sqrt` — every one of them pinned by the
+/// specification rather than supplied by the machine. One recorded trace,
+/// matched here and in Chrome. `flutter3d_sim/test/portable_math_test.dart` is
+/// the layer below this one, and `tool/structure.dart` holds the call sites to
+/// it with the rule *a step asks no machine for an answer*.
 ///
 /// The scenario is a car and not a track. A circuit would make this a test of
 /// the track reader too, and would hide the arithmetic behind a document; a
@@ -59,36 +51,24 @@ import 'package:vector_math/vector_math.dart';
 
 void main() {
   group('a thousand steps of a car', () {
-    test('is one of the two drives that were recorded', () {
-      // Two accepted traces and not one, and that is the finding rather than a
-      // weakening of the test: the VM and Chrome drove measurably different
-      // cars. A third answer means a third arithmetic, and is worth the red.
+    test('is the drive that was recorded, wherever it is driven', () {
+      // **One accepted trace, where there used to be two.** The pair was the
+      // finding: the VM and Chrome drove measurably different cars, so the test
+      // could only ask which of the two arithmetics this platform had. The
+      // vehicle no longer calls the machine's transcendentals, so there is one
+      // answer to accept and a second one is a failure again.
       final trace = _drive(_laps(seed: 20260902, steps: 1000));
-      final onVm = trace.divergenceFromHex(_recordedOnTheVm);
-      final inChrome = trace.divergenceFromHex(_recordedInChrome);
+      final divergence = trace.divergenceFromHex(_recorded);
       expect(
-        onVm == null || inChrome == null,
-        isTrue,
+        divergence,
+        isNull,
         reason:
-            'this platform drove a car that is neither of the two recorded '
-            'ones. Against the VM: $onVm. Against Chrome: $inChrome. Check '
-            'the primitives table in flutter3d_game/test/parity_test.dart '
-            'first — if a row there has gained an answer, this is downstream '
-            'of it.',
+            'this platform drove a different car: $divergence. Everything the '
+            'vehicle calls is in `Portable`, whose own test says it gives one '
+            'answer everywhere — so check that first: if a row there has '
+            'moved, this is downstream of it, and if none has, the difference '
+            'is in the vehicle rather than in the arithmetic.',
       );
-    });
-
-    test('and the two recorded drives disagree from step 75 onwards', () {
-      // The measurement, pinned compactly. If a change to the vehicle moves
-      // either number, that is a real result about how far the two platforms'
-      // arithmetic carries into the physics, and it should be read rather than
-      // absorbed.
-      final differing = <int>[
-        for (var i = 0; i < _recordedOnTheVm.length; i++)
-          if (_recordedOnTheVm[i] != _recordedInChrome[i]) (i + 1) * 25,
-      ];
-      expect(differing.length, 23, reason: 'of forty checkpoints');
-      expect(differing.first, 75);
     });
 
     test('and driving it twice in one process gives the same drive twice', () {
@@ -183,93 +163,50 @@ DigestTrace _drive(List<VehicleInput> inputs, {int every = 25}) {
   return trace;
 }
 
-/// Recorded on macOS-arm64, 2026-09-02, with the vehicle exactly as it ships.
+/// Recorded on macOS-arm64 under the VM, 2026-09-05, and matched by Chrome.
 ///
-/// The two disagree at twenty-three of the forty checkpoints, from step 75
-/// onwards. See the head of this file.
-const List<String> _recordedOnTheVm = <String>[
+/// **One table where there were two.** The pair recorded on 2026-09-02
+/// disagreed at twenty-three of the forty checkpoints, from step 75 onwards;
+/// the head of this file says what that was and what it cost.
+const List<String> _recorded = <String>[
   '24ac3284',
   '2174d61e',
   '4e2148ff',
   'da32b826',
   '15d2cb6e',
-  '07bd742d',
-  '7e2e3e7e',
-  'f9992e27',
-  'c53860b8',
-  '55884eff',
-  '08c3845f',
-  '69c728fd',
-  'e9787997',
-  'be3b49eb',
-  '3f0a613a',
-  '92deac35',
-  'e65b2164',
-  '51e8f616',
-  '7075711f',
-  'e7eee819',
-  '40a823f3',
-  '4b32e2f3',
-  'ae5e0f18',
-  '6ed41883',
-  'ccf45de4',
-  '89afc922',
-  'f0e4e4eb',
-  '8f14c4e1',
-  'a1f69a55',
-  '434a0238',
-  'd5cc19f4',
-  '98f08b5d',
-  'c086af09',
-  '051c8720',
-  '287fd48c',
-  'c4145b4a',
-  '26aee62c',
-  '5a081168',
-  '553c8424',
-  '4e3a7f45',
-];
-
-/// The same drive in Chrome on the same machine, the same day.
-const List<String> _recordedInChrome = <String>[
-  '24ac3284',
-  '2174d61e',
-  'b2f4027f',
-  '64f1f9d2',
-  '15d2cb6e',
-  '07bd742d',
+  '1a50ab8f',
   '7e2e3e7e',
   '9f1ca66d',
   'c53860b8',
-  '5de3b717',
-  '76cc22fb',
-  '2b018235',
-  'c1107bf7',
-  '302dde5b',
-  '18705bea',
-  '4d5290fd',
-  'e65b2164',
-  '51e8f616',
-  'a049efff',
-  'fb868765',
-  '40a823f3',
-  '4b32e2f3',
-  'fbf4da4c',
-  'd7f1ab87',
-  '67fc2f44',
-  '743a15ce',
-  '524f5d0b',
-  'eff60119',
-  'e5fdc0e9',
-  '34f601a0',
-  'd5cc19f4',
-  '98f08b5d',
-  'c086af09',
-  '051c8720',
-  '287fd48c',
-  'c4145b4a',
-  '26aee62c',
-  '78737bf4',
-  'ed5738b8',
-  'dc4a50f1',
+  '4407aee5',
+  'e1d0489d',
+  '69c728fd',
+  '76fc7877',
+  'be3b49eb',
+  '3f0a613a',
+  'b49e656d',
+  'e3ec2c6a',
+  'e5360ba4',
+  'f647f887',
+  '4e912215',
+  'd36c6203',
+  'd8489fc1',
+  'ac964840',
+  '072f4a81',
+  '61bed764',
+  '6fe91816',
+  'b55892eb',
+  '2b56c5c1',
+  'ff92ab0d',
+  'b86fa260',
+  'b1200694',
+  '9346ce2d',
+  'e53f0a89',
+  '7caa7ec2',
+  '90ac7fda',
+  '42939720',
+  '1eaa9264',
+  'e4bfa32c',
+  'bc6bc0e4',
+  '4b114d3d',
 ];

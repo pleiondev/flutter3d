@@ -1,20 +1,20 @@
 ---
-description: Three independent golden sets, mutation-checking every new test, determinism and snapshots, and why only about thirty of 3680 tests need a GPU.
+description: Three independent golden sets, mutation-checking every new test, determinism and snapshots, and why only about thirty of 3694 tests need a GPU.
 ---
 
 # Testing
 
-3680 tests across 24 packages and five applications, counted the same way the `the document says how many tests there are` rule does: a scan of every `test(`/`testWidgets(` call. The rule holds `ARCHITECTURE.md` §13, the README and this page to the answer — the README went on saying 1242 across thirteen packages for as long as nothing compared it with anything. About thirty need a GPU; the [architecture](/core/architecture/) is what keeps the number that low.
+3694 tests across 24 packages and five applications, counted the same way the `the document says how many tests there are` rule does: a scan of every `test(`/`testWidgets(` call. The rule holds `ARCHITECTURE.md` §13, the README and this page to the answer — the README went on saying 1242 across thirteen packages for as long as nothing compared it with anything. About thirty need a GPU; the [architecture](/core/architecture/) is what keeps the number that low.
 
 | Package | Tests | | Package | Tests |
 |---|---|---|---|---|
 | `flutter3d` | 827 | | `flutter3d_particles` | 73 |
-| `flutter3d_sim` | 442 | | `flutter3d_bridge` | 61 |
+| `flutter3d_sim` | 456 | | `flutter3d_bridge` | 61 |
 | `flutter3d_game_shooter` | 337 | | `pad_input` | 59 |
 | `apps/flutter3d_editor` | 203 | | `flutter3d_audio` | 55 |
 | `apps/flutter3d_demo_platformer` | 196 | | `flutter3d_hardware` | 53 |
-| `flutter3d_game_racing` | 224 | | `flutter3d_impeller` | 53 |
-| `flutter3d_game_platformer` | 214 | | `flutter3d_webgl` | 53 |
+| `flutter3d_game_racing` | 223 | | `flutter3d_impeller` | 53 |
+| `flutter3d_game_platformer` | 214 | | `flutter3d_webgl` | 54 |
 | `flutter3d_cpu` | 170 | | `flutter3d_session` | 34 |
 | `apps/flutter3d_demo_racing` | 144 | | `pointer_lock` | 28 |
 | `flutter3d_physics` | 137 | | `flutter3d_testing` | 7 |
@@ -22,7 +22,7 @@ description: Three independent golden sets, mutation-checking every new test, de
 | `apps/flutter3d_demo_dungeon` | 89 | | `flutter3d_backend` | 2 |
 | `flutter3d_game` | 79 | | `flutter3d_shaders` | 1 |
 
-The rows sum to 3665 rather than 3680: the remaining 15 live in `packages/*/example/test`, which the count includes and this table does not.
+The rows sum to 3679 rather than 3694: the remaining 15 live in `packages/*/example/test`, which the count includes and this table does not.
 
 `flutter3d_app` and `flutter3d_samples` are not in the table and have no `test/` at all. One is a barrel of thirty-five `export` lines and the other is test data with two path constants over it; what there is to check about them is structural, and other packages' decoder tests are what exercise the samples. `flutter3d_conformance` is missing for a different reason: it is invoked as a script harness rather than through `flutter test`, so it does not surface in a grep of `test(` calls either. See below for what that cost once.
 
@@ -137,7 +137,7 @@ import 'package:flutter3d_screens/testing.dart';        // creditGaps
 <p>A package cannot import another package's <code>test/</code>, which is why there were two copies rather than one. <code>lib/testing.dart</code> is what a package can import.</p>
 </div>
 
-`cpuTestDevice` stops short of building the `Renderer`, deliberately: `flutter3d_cpu` must not depend on `flutter3d`. A backend that could not be compiled without the engine would not be an implementation of an interface, it would be part of the engine. That is a rule, and one of the twenty-eight checks it.
+`cpuTestDevice` stops short of building the `Renderer`, deliberately: `flutter3d_cpu` must not depend on `flutter3d`. A backend that could not be compiled without the engine would not be an implementation of an interface, it would be part of the engine. That is a rule, and one of the twenty-nine checks it.
 
 ## Play the game in a test
 
@@ -189,7 +189,7 @@ They ask how the code is *arranged*: who imports what, what a name says, where a
 dart run tool/structure.dart
 ```
 
-Twenty-eight rules, under a second. Nothing they read needs `pub get`, a shader bundle or a device, so finding out in minute four that a package imports a genre was finding out late what was knowable in second one.
+Twenty-nine rules, under a second. Nothing they read needs `pub get`, a shader bundle or a device, so finding out in minute four that a package imports a genre was finding out late what was knowable in second one.
 
 | Rule | What it refuses |
 |---|---|
@@ -200,6 +200,7 @@ Twenty-eight rules, under a second. Nothing they read needs `pub get`, a shader 
 | `a genre package reaches no other genre` | A racer borrowing a platformer's runner |
 | `nothing shares a mutable value as a constant` | `static final Vector3`, which the first caller to scale in place changes for the whole process |
 | `a step reaches for no clock and no loose dice` | `Random()` and `DateTime.now()` in a simulation package |
+| `a step asks no machine for an answer` | `math.sin` and its neighbours in a simulation package: the VM and a browser give different bits for every one of them, and a run built on that replays differently on the machine that verifies it |
 | `each assembly has one home per application` | A second place that spawns a level or dresses it |
 | `no test builds its own world` | A harness that is not the game, and so agrees with any bug the game has |
 | `every exemption names a file that is there` | An allowlist entry whose file has moved, or whose case only resolves on macOS |

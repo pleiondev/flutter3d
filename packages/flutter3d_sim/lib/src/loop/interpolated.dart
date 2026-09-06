@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:vector_math/vector_math.dart';
 
 import '../math/motion.dart';
+import '../math/portable_math.dart';
 
 /// A position the simulation writes at a fixed rate and the renderer reads at
 /// the display's rate.
@@ -85,7 +86,7 @@ final class InterpolatedVector3 {
   void push(Vector3 value, {double dt = 0.0, double steppedUp = 0.0}) {
     if (stepLimit > 0.0) {
       _previousHidden = _currentHidden;
-      _currentHidden *= math.exp(-dt / stepRecovery);
+      _currentHidden *= Portable.exp(-dt / stepRecovery);
       if (steppedUp > 0.0) {
         _currentHidden = math.min(stepLimit, _currentHidden + steppedUp);
       }
