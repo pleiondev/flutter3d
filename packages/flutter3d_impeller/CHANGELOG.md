@@ -1,6 +1,23 @@
-## 0.5.0
+## 0.5.1
 
-* No API change. Released with the set.
+* **The shader bundle is rebuilt, and this release exists for that alone.**
+  No API change and no line of Dart moved. This package ships
+  `assets/shaders/flutter3d.shaderbundle`, which is `impellerc` output compiled
+  from `flutter3d_shaders`' GLSL — so a change to that GLSL is a change to this
+  package's contents even when nothing here is edited. `flutter3d_shaders`
+  0.5.1 added `forward` to the `FogInfo` block and changed what the surface
+  buffer's alpha means; an application on `flutter3d` 0.5.1 with this package at
+  0.5.0 would have been binding a uniform member its compiled shaders did not
+  declare, and reconstructing screen-space effects from a depth in the wrong
+  units.
+* **The gap is the interesting part, and it is a second version of a mistake
+  this package has already made once.** 0.4.0 shipped *without* the bundle
+  because the file is gitignored; 0.5.0 shipped *with* a bundle that no longer
+  matched its sources. Both are the same failure — a compiled artefact whose
+  freshness nothing checked at publish time — and `tool/structure.dart`'s
+  *the compiled shader bundle is not older than its sources* rule only holds it
+  inside this repository, where the file exists. What it cannot see is the copy
+  already on pub.dev.
 
 ## 0.4.5
 
