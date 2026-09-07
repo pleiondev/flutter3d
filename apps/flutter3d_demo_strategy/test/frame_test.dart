@@ -49,7 +49,7 @@ void main() {
     // bug this one has.
     final it = cpuTestDevice(width: _width, height: _height);
     final renderer = Renderer.create(device: it.device);
-    final staged = stage(device: it.device, units: 200);
+    final staged = stage(device: it.device, workers: 40);
 
     final scene = Scene(name: 'map');
     staged.visuals.addTo(scene);
@@ -65,7 +65,7 @@ void main() {
     final views = <RenderView>[RenderView(camera: camera)];
 
     Future<Uint8List> draw() async {
-      staged.simulation.step(1.0 / 60.0);
+      staged.match.step(1.0 / 60.0);
       staged.visuals.sync();
       staged.camera.place(1.0 / 60.0);
       camera
@@ -95,7 +95,8 @@ void main() {
     expect(
       first.lit,
       greaterThan(_width * _height ~/ 4),
-      reason: 'the ground did not draw: a quarter of the frame is the least a '
+      reason:
+          'the ground did not draw: a quarter of the frame is the least a '
           'hillside under this camera covers',
     );
     expect(
@@ -104,9 +105,12 @@ void main() {
       reason: 'one flat colour is a frame with nothing lit in it',
     );
 
-    // Send the crowd somewhere and let it get there: the picture has to change,
-    // which is what says the batch is being written rather than uploaded once.
-    Squad(staged.simulation.units).moveTo(vm.Vector3(120.0, 0.0, 40.0));
+    // Send this side's crowd somewhere and let the other side's get on with its
+    // work: the picture has to change, which is what says the batch is being
+    // written rather than uploaded once. Both halves of that are worth having
+    // here — an order given from outside and a policy giving its own — because
+    // the drawing cannot tell them apart and neither should this test.
+    Squad(staged.mine).moveTo(vm.Vector3(80.0, 0.0, 40.0));
     for (var i = 0; i < 240; i++) {
       await draw();
     }

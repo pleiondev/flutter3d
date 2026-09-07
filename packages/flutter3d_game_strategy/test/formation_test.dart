@@ -18,6 +18,44 @@ Heightfield _flat() => Heightfield(
 
 void main() {
   _obstacleTests();
+  group('an order', () {
+    test('takes a worker off the job it was running', () {
+      // **The claim this phase rests on is that a bot and a player hold the
+      // same handles**, and it was not true until this: a job writes an order
+      // every step, so a squad order given to a harvester was overwritten
+      // before the crowd moved and the click did nothing at all.
+      //
+      // Mutation: drop the `job = null` in `Squad.moveTo`. The worker turns
+      // round at the next step and goes back to the seam, and the assertion
+      // below — that it is walking the other way — fails.
+      final sim = StrategySimulation(ground: _flat());
+      final base = sim.build(
+        Building(centre: Vector3(20.0, 0.0, 20.0), width: 6.0, depth: 6.0),
+      );
+      final seam = sim.addResource(
+        ResourceNode(at: Vector3(40.0, 0.0, 20.0), amount: 500.0),
+      );
+      final worker = sim.add(Unit(position: Vector3(26.0, 0.0, 20.0)));
+      worker.job = HarvestJob(node: seam, dropOff: base);
+      for (var i = 0; i < 120; i++) {
+        sim.step(1.0 / 60.0);
+      }
+      expect(worker.position.x, greaterThan(27.0), reason: 'it never set off');
+
+      Squad(<Unit>[worker]).moveTo(Vector3(20.0, 0.0, 60.0));
+      for (var i = 0; i < 600; i++) {
+        sim.step(1.0 / 60.0);
+      }
+
+      expect(worker.job, isNull);
+      expect(
+        worker.position.z,
+        greaterThan(45.0),
+        reason: 'it went back to digging instead',
+      );
+    });
+  });
+
   group('a block', () {
     test('is centred on the goal rather than growing away from it', () {
       // Mutation: drop the `- (columns - 1) / 2` centring. The squad then

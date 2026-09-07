@@ -30,16 +30,22 @@
 ///
 /// ## What is here and what is not
 ///
-/// Units, orders and the step that moves them. No economy, no production, no
-/// fight and no fog: those are the phases after this one, and a package that
-/// grew them before it could carry a crowd across a hill would have been
-/// guessing about the part that was actually uncertain.
+/// Units, orders and the step that moves them; ground taken from the map and
+/// turned into more units; two sides, and a policy that plays one of them
+/// without a mouse. **No fight and no fog** — those are the phase after this
+/// one, and a package that grew them before it could carry a crowd across a
+/// hill would have been guessing about the part that was actually uncertain.
+///
+/// The victory here is economic for the same reason: nothing on this map
+/// fights, so what settles a match is what a side dug. See [Match].
 library;
 
+export 'src/bot.dart';
 export 'src/building.dart';
 export 'src/economy.dart';
 export 'src/formation.dart';
 export 'src/map_camera.dart';
+export 'src/match.dart';
 export 'src/selection.dart';
 export 'src/simulation.dart';
 export 'src/unit.dart';

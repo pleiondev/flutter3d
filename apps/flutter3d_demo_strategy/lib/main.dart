@@ -2,11 +2,16 @@
 ///
 ///     flutter run -d macos
 ///
-/// Click the ground to send everybody there. Drag to push the view, and use the
-/// scroll wheel to pull it back. Nothing here decides anything about the
-/// simulation: it steps, the bridge reads it, and the camera watches — which is
-/// the arrangement every game in this repository has, seen at the one scale
-/// where a thousand of something is ordinary.
+/// A match: your camp in the near corner, a bot's in the far one, both digging
+/// the same hillside for the same finishing line. Click the ground to send your
+/// crowd there — which takes it off its work, the way an order does. Drag to
+/// push the view, and use the scroll wheel to pull it back.
+///
+/// Nothing here decides anything about the simulation: it steps, the bridge
+/// reads it, and the camera watches — which is the arrangement every game in
+/// this repository has, seen at the one scale where a thousand of something is
+/// ordinary. The bot is not an exception to that: it writes the same orders
+/// through the same handles as the click above, one thought every half second.
 library;
 
 import 'package:flutter/gestures.dart';
@@ -79,7 +84,7 @@ class _MapState extends State<_Map> with SingleTickerProviderStateMixin {
     _view = RenderView(camera: _camera);
 
     _ticker = createTicker((_) {
-      staged.simulation.step(_dt);
+      staged.match.step(_dt);
       staged.visuals.sync();
       staged.camera.place(_dt);
       _camera
@@ -120,7 +125,27 @@ class _MapState extends State<_Map> with SingleTickerProviderStateMixin {
       origin.z + direction.z * t,
     );
 
-    Squad(staged.simulation.units).moveTo(goal);
+    // Only this side's units. The other one has a policy of its own and takes
+    // its orders from that; a click that moved both crowds would be a demo of
+    // nothing.
+    Squad(staged.mine).moveTo(goal);
+  }
+
+  /// The score, and who has won when somebody has.
+  String get _score {
+    final staged = _staged;
+    if (staged == null) return '';
+    final sim = staged.simulation;
+    final String tally =
+        'you ${sim.delivered[0].round()} · '
+        'bot ${sim.delivered[1].round()}';
+    final Standing standing = staged.match.standing;
+    if (!standing.isOver) return tally;
+    return switch (standing.winner) {
+      0 => '$tally — you win',
+      1 => '$tally — the bot wins',
+      _ => '$tally — drawn',
+    };
   }
 
   @override
@@ -165,7 +190,23 @@ class _MapState extends State<_Map> with SingleTickerProviderStateMixin {
               views: <RenderView>[_view],
               settings: const RenderSettings(),
             );
-            return renderer.device.present(frame.frame);
+            return Stack(
+              children: <Widget>[
+                Positioned.fill(child: renderer.device.present(frame.frame)),
+                Positioned(
+                  left: 16.0,
+                  top: 16.0,
+                  child: Text(
+                    _score,
+                    style: const TextStyle(
+                      color: Color(0xFFE8ECF4),
+                      fontSize: 16.0,
+                      fontFeatures: <FontFeature>[FontFeature.tabularFigures()],
+                    ),
+                  ),
+                ),
+              ],
+            );
           },
         ),
       ),

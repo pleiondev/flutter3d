@@ -99,5 +99,37 @@ void main() {
         reason: 'and it still got past',
       );
     });
+
+    test('does not bury the crowd that was standing there', () {
+      // **The failure this prevents is silent.** A flow field gives no
+      // direction out of a cell it could not reach, and a cell under a building
+      // is precisely that — so a unit left underneath keeps its order, keeps
+      // its job, and never moves again. Mutation: drop the eviction from
+      // `build`. Nothing throws, nothing is drawn wrong, and the unit is simply
+      // still at (40, 40) two thousand steps later.
+      final sim = StrategySimulation(ground: _flat());
+      final buried = sim.add(Unit(position: Vector3(40.0, 0.0, 40.0)));
+
+      final hall = sim.build(
+        Building(centre: Vector3(40.0, 0.0, 40.0), width: 10.0, depth: 10.0),
+      );
+
+      expect(
+        hall.covers(buried.position.x, buried.position.z),
+        isFalse,
+        reason: 'it was left under the building',
+      );
+
+      buried.order = UnitOrder.moveTo(Vector3(70.0, 0.0, 40.0));
+      for (var i = 0; i < 1200; i++) {
+        sim.step(1.0 / 60.0);
+      }
+
+      expect(
+        buried.position.x,
+        greaterThan(60.0),
+        reason: 'it never walked again',
+      );
+    });
   });
 }

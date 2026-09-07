@@ -66,12 +66,37 @@ final class StrategySimulation {
   /// What has been built, in the order it was built.
   final List<Building> buildings = <Building>[];
 
-  /// Puts a building on the map and takes its ground out of the grid.
+  /// Puts a building on the map, takes its ground out of the grid, and moves
+  /// anybody who was standing where it now stands.
+  ///
+  /// **The eviction is not tidiness.** A flow field refuses to give a direction
+  /// out of a cell it could not reach, and taking a cell out of the grid is
+  /// exactly what makes it unreachable — so a unit left under a new building
+  /// stops walking for the rest of the match, silently, with its orders
+  /// intact. Placing a hall on top of one's own crowd is a thing a player does
+  /// on the first day, so it is answered here rather than in a note.
   Building build(Building building) {
     building.centre.y = ground.heightAt(building.centre.x, building.centre.z);
     buildings.add(building);
     _bake();
+    _evict(building);
     return building;
+  }
+
+  /// Moves whoever is under [building] to the nearest ground they can stand on.
+  void _evict(Building building) {
+    for (final Unit unit in units) {
+      if (!building.covers(unit.position.x, unit.position.z)) continue;
+      final int to = _standableNear(
+        grid.cellAtPoint(unit.position.x, unit.position.z),
+      );
+      if (to < 0) continue;
+      final Vector3 centre = grid.centreOfCell(to);
+      unit.position
+        ..x = centre.x
+        ..z = centre.z
+        ..y = ground.heightAt(centre.x, centre.z);
+    }
   }
 
   void _bake() {
@@ -114,6 +139,16 @@ final class StrategySimulation {
 
   /// What each side has taken and not yet spent, by side.
   final List<Stockpile> stock = <Stockpile>[Stockpile(), Stockpile()];
+
+  /// What each side has ever brought home, by side, spent or not.
+  ///
+  /// Held apart from [stock] because they answer different questions and only
+  /// one of them can settle a match: a stockpile is what a side has *left*, and
+  /// a side that turns everything it digs into units would show nought in it
+  /// while out-earning an opponent sitting on a pile. What a side achieved is
+  /// the running total, and it only ever goes up — which is also what makes it
+  /// a usable finishing line.
+  final List<double> delivered = <double>[0.0, 0.0];
 
   /// What is left on the map to take.
   final List<ResourceNode> resources = <ResourceNode>[];
@@ -159,6 +194,7 @@ final class StrategySimulation {
         if (job.dropOff.distanceTo(unit.position.x, unit.position.z) <=
             _reach) {
           stock[unit.side].amount += job.carried;
+          delivered[unit.side] += job.carried;
           job.carried = 0.0;
           // A worker whose seam ran dry while it was walking home delivers what
           // it has and then stands: finding it another seam is a decision about

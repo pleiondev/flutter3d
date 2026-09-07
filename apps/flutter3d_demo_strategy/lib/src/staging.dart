@@ -19,19 +19,32 @@ import 'package:vector_math/vector_math.dart';
 final class Staged {
   /// Holds the halves together.
   const Staged({
-    required this.simulation,
+    required this.match,
     required this.visuals,
     required this.camera,
+    required this.mine,
   });
 
-  /// The crowd and the ground it walks on.
-  final StrategySimulation simulation;
+  /// The two sides, the ground under them, and the finishing line.
+  final Match match;
 
   /// What draws them.
   final StrategyVisuals visuals;
 
   /// The view over the map.
   final MapCamera camera;
+
+  /// The units the person holding the mouse commands.
+  ///
+  /// The other side has a [Bot] on it, and **the two are given orders through
+  /// the same handles** — a [Squad] here, a policy there, both writing to
+  /// `Unit.order` and `Unit.job`. That symmetry is the whole reason the bot was
+  /// worth writing: a mirror is a load test, a replay test and an opponent at
+  /// once, and none of the three works if the bot has a private door.
+  final List<Unit> mine;
+
+  /// The crowd and the ground it walks on.
+  StrategySimulation get simulation => match.simulation;
 }
 
 /// Ground with two ridges and a valley between them.
@@ -66,49 +79,88 @@ Heightfield hills({int samples = 81, double cellSize = 2.0}) {
   );
 }
 
-/// Builds a run: the ground, the crowd standing on it, and the view over it.
-Staged stage({required GraphicsDevice device, int units = 600}) {
+/// Builds a run: two camps on one hillside, a bot on the far one, and the view
+/// over the near one.
+///
+/// [workers] is what each side starts with; both grow from there, because both
+/// have a hall that turns a stockpile into more of them. The seams are finite,
+/// so the growth is too — which is also what makes the match end.
+Staged stage({required GraphicsDevice device, int workers = 60}) {
   final ground = hills();
   final simulation = StrategySimulation(ground: ground);
 
-  // A block in the near corner, spaced so nobody starts inside anybody.
-  const int across = 25;
-  for (var i = 0; i < units; i++) {
-    simulation.add(
-      Unit(
-        position: Vector3(
-          12.0 + (i % across) * 1.1,
-          0.0,
-          12.0 + (i ~/ across) * 1.1,
-        ),
+  final mine = <Unit>[];
+  Bot? theirs;
+  for (var side = 0; side < 2; side++) {
+    // Near corner and far corner of the same hillside. Not mirrored: the ground
+    // is a sum of sines and the two camps stand on different parts of it, which
+    // is fair enough for a demo and would not be for a test — the tests that
+    // care use flat ground and a translation.
+    final Vector3 home = side == 0
+        ? Vector3(36.0, 0.0, 36.0)
+        : Vector3(124.0, 0.0, 124.0);
+    final Vector3 seam = side == 0
+        ? Vector3(36.0, 0.0, 72.0)
+        : Vector3(124.0, 0.0, 88.0);
+
+    final base = simulation.build(
+      Building(
+        centre: home,
+        width: 12.0,
+        depth: 10.0,
+        name: side == 0 ? 'hall' : 'their hall',
+        side: side,
       ),
     );
-  }
+    final deposit = simulation.addResource(
+      ResourceNode(at: seam, amount: 1600.0),
+    );
+    simulation.addProducer(Producer(building: base));
 
-  simulation.build(
-    Building(
-      centre: Vector3(80.0, 0.0, 80.0),
-      width: 14.0,
-      depth: 10.0,
-      name: 'hall',
-    ),
-  );
+    // A block beside the hall, spaced so nobody starts inside anybody.
+    const int across = 10;
+    for (var i = 0; i < workers; i++) {
+      final unit = simulation.add(
+        Unit(
+          position: Vector3(
+            home.x - 12.0 + (i % across) * 1.1,
+            0.0,
+            home.z + 8.0 + (i ~/ across) * 1.1,
+          ),
+          side: side,
+        ),
+      );
+      // Both sides open at work rather than standing about. The far side's bot
+      // would have sent its own out within a second anyway; the near side's
+      // opening orders are the player's, and clicking the ground cancels them,
+      // which is the same exchange either way round.
+      unit.job = HarvestJob(node: deposit, dropOff: base);
+      if (side == 0) mine.add(unit);
+    }
+
+    if (side == 1) theirs = Bot(side: side, base: base);
+  }
 
   final visuals = StrategyVisuals(
     simulation: simulation,
     device: device,
-    capacity: units + 64,
+    capacity: workers * 2 + 256,
   );
 
-  // Pointed at the crowd rather than at the middle of the map. The default is
-  // the centre of the ground, and the block above stands in a corner sixty
-  // metres away — which drew a picture of empty hillside with the game just
-  // out of frame.
+  // Pointed at the near camp rather than at the middle of the map. The default
+  // is the centre of the ground, and the camp stands forty metres away — which
+  // drew a picture of empty hillside with the game just out of frame.
   final camera = MapCamera(ground: ground)
-    ..pan(
-      12.0 + across * 1.1 / 2.0 - ground.width / 2.0,
-      12.0 + (units / across) * 1.1 / 2.0 - ground.depth / 2.0,
-    );
+    ..pan(36.0 - ground.width / 2.0, 44.0 - ground.depth / 2.0);
 
-  return Staged(simulation: simulation, visuals: visuals, camera: camera);
+  return Staged(
+    match: Match(
+      simulation: simulation,
+      bots: <Bot>[theirs!],
+      goal: const MatchGoal(delivered: 1200.0),
+    ),
+    visuals: visuals,
+    camera: camera,
+    mine: mine,
+  );
 }

@@ -78,18 +78,31 @@ final class Squad {
   final Formation formation;
 
   /// Sends everybody to [goal], each with its own place in the arrangement.
+  ///
+  /// **An order from outside ends whatever loop the unit was running.** A job
+  /// writes an order of its own every step, so a squad order given to a worker
+  /// without cancelling the job is overwritten before anybody moves — and a
+  /// player who clicks a busy harvester sees it carry on digging. That reads as
+  /// disobedience and is a job nobody cancelled. Telling a unit where to go is
+  /// telling it to stop what it was doing; a side that wants it back at work
+  /// says so again, which is exactly what a bot's policy does on its next
+  /// thought.
   void moveTo(Vector3 goal) {
     final slot = Vector3.zero();
     for (var i = 0; i < units.length; i++) {
       formation.slotFor(i, units.length, slot);
-      units[i].order = UnitOrder.moveTo(goal, slot: slot.clone());
+      units[i]
+        ..job = null
+        ..order = UnitOrder.moveTo(goal, slot: slot.clone());
     }
   }
 
-  /// Tells everybody to stand still.
+  /// Tells everybody to stand still, and to stop working while they are at it.
   void hold() {
     for (final Unit unit in units) {
-      unit.order = const UnitOrder.hold();
+      unit
+        ..job = null
+        ..order = const UnitOrder.hold();
     }
   }
 }
