@@ -1,6 +1,6 @@
 /// A document being changed, and the ways that can lose somebody's work.
 ///
-///     flutter test test/editing_test.dart
+///     dart test test/editing_test.dart
 ///
 /// Everything here runs without a window, which is the whole reason the editor
 /// is split this way: what a level editor is *for* is a picture, and what it
@@ -9,10 +9,9 @@ library;
 
 import 'dart:convert';
 
-import 'package:flutter3d_editor/src/editing.dart';
-import 'package:flutter3d_editor/src/gizmos.dart';
-import 'package:flutter3d_game/flutter3d_game.dart';
-import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter3d_editor_core/flutter3d_editor_core.dart';
+import 'package:flutter3d_sim/flutter3d_sim.dart';
+import 'package:test/test.dart';
 import 'package:vector_math/vector_math.dart';
 
 /// A small document, written the way a generator writes one.

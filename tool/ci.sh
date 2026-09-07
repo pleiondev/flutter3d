@@ -156,8 +156,13 @@ for package in packages/*/; do
   # would have been reported green having run nothing at all. No package
   # nests today, which is exactly why it was worth fixing before one does.
   [ -n "$(find "$package/test" -name '*_test.dart' -print -quit 2>/dev/null)" ] || continue
-  # Plain Dart, and it is the point of that package that it needs no Flutter.
-  if [ "$name" = "flutter3d_physics" ] || [ "$name" = "flutter3d_sim" ]; then
+  # Plain Dart, and it is the point of those packages that they need no Flutter.
+  # Running them under `flutter test` would pass either way and would therefore
+  # prove nothing: `the simulation names no Flutter` reads their source, and
+  # this line is the other half — the suite executed the way their callers will
+  # execute them.
+  if [ "$name" = "flutter3d_physics" ] || [ "$name" = "flutter3d_sim" ] ||
+     [ "$name" = "flutter3d_editor_core" ]; then
     step "test $name" in_dir "$package" dart test
   else
     step "test $name" in_dir "$package" flutter test

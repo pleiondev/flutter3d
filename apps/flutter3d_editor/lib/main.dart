@@ -8,10 +8,13 @@
 /// three games there is no web build and no backend to choose between.
 ///
 /// What is here is the shell: a window, a camera, a mouse and a keyboard. The
-/// parts that can lose somebody's work are in `src/editing.dart`, which needs
-/// no window and is tested without one. Which screen to show, and what the
-/// strip along the bottom says, are in `src/editor_cubit.dart` — see its own
-/// doc comment for why that is a `Cubit` and this is not.
+/// parts that can lose somebody's work are `package:flutter3d_editor_core`,
+/// which needs no window and is tested without one — and is a package rather
+/// than a directory here because a level linter and a service that validates an
+/// uploaded level want the same code and cannot depend on an application.
+/// Which screen to show, and what the strip along the bottom says, are in
+/// `src/editor_cubit.dart` — see its own doc comment for why that is a `Cubit`
+/// and this is not.
 library;
 
 import 'dart:async';
@@ -26,6 +29,7 @@ import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter3d/flutter3d.dart' hide Material;
 import 'package:flutter3d_bridge/flutter3d_bridge.dart';
+import 'package:flutter3d_editor_core/flutter3d_editor_core.dart';
 import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:flutter3d_screens/native.dart';
 import 'package:flutter3d_session/flutter3d_session.dart';
@@ -34,7 +38,6 @@ import 'package:vector_math/vector_math.dart' hide Colors;
 
 import 'src/backend.dart';
 import 'src/documents.dart';
-import 'src/editing.dart';
 import 'src/editor_bar.dart';
 import 'src/editor_chooser.dart';
 import 'src/editor_cubit.dart';
@@ -42,14 +45,8 @@ import 'src/editor_inspector.dart';
 import 'src/editor_legend.dart';
 import 'src/editor_palette.dart';
 import 'src/fly_camera.dart';
-import 'src/gizmos.dart';
-import 'src/looks.dart';
-import 'src/palette_items.dart';
-import 'src/picking.dart';
-import 'src/scaffold.dart';
 import 'src/scene_dressing.dart';
 import 'src/shader_watch.dart';
-import 'src/vocabulary.dart';
 
 /// The document opened on launch.
 ///

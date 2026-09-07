@@ -1,7 +1,4 @@
-import 'editing.dart';
-import 'looks.dart';
-import 'palette_items.dart';
-import 'scaffold.dart';
+import 'package:flutter3d_editor_core/flutter3d_editor_core.dart';
 
 /// What the editor's document is doing, as far as a screen is concerned.
 ///

@@ -182,6 +182,19 @@ Button names are **physical positions** (`face.south`, not `a`), because the str
 
 Knows nothing about games. The translation into actions is `PadInput` in `flutter3d_game`, beside the keyboard's. The web backend is pure Dart over `navigator.getGamepads()`; macOS, iOS and Android wait for a controller in hand, for the reason `ARCHITECTURE.md` §11.1 records. Windows and Linux are not implemented yet.
 
+## Tools
+
+### `flutter3d_editor_core`
+A level editor with the editor taken out. `Editing` (select, nudge, grow, add, duplicate, turn, brighten, delete, set a field, undo, redo, and write the document back exactly as it was written), `Handle` and `handlesOf`, `Picking` (a ray against the brushes, and a tie broken towards the thing standing against the wall rather than the wall), `Placeable` and the palette a level builds out of itself, `Looks` (what a game says its own words look like), `OpenKind`, and `Template` / `scaffold` / `projectAt` — a new project as a map of bytes.
+
+**Plain Dart, held by the same scan the simulation is** — `the simulation names no Flutter` reads a list of packages now, and this is the second one on it. `dart test` runs the suite with no binding.
+
+It was eight files of `apps/flutter3d_editor/lib/src`, and moving them was not tidiness: `no package depends on an application` forbids anything depending on an application, and pub cannot express such a dependency anyway, because an application is not published. So a level linter for CI, a service that validates an uploaded level before a player loads it, or a tool an agent speaks to had nowhere to start. A level is a document, and the programs that most want to say a document is wrong are the ones with nothing to draw.
+
+It does not draw, does not read a disk, and knows no genre. Two files stayed with the application and say where the line is: the fly camera needs a renderer to have a camera, and reading a file off a disk is where a crash loses somebody's work.
+
+→ [The level editor](/core/editor/)
+
 ## Applications
 
 ### `apps/flutter3d_demo_dungeon`
@@ -194,7 +207,7 @@ The platformer: third person, two jumps and a dash, and no line of the engine ch
 An arcade racer: one circuit, a car that can be made to slide, and a lap time to beat. Runs on Impeller and, since the cube shadow atlas got its own resolution, in a browser too — its [demo page](/racing/demo/) keeps the hunt that took it there.
 
 ### `apps/flutter3d_editor`
-The fourth application and the first that is not a game: opens a level document with the same `LevelLoader` the games use, and lets somebody fly around it, move what's in it, and write it back. → [The level editor](/core/editor/)
+The fourth application and the first that is not a game: opens a level document with the same `LevelLoader` the games use, and lets somebody fly around it, move what's in it, and write it back. What it keeps is the half that reaches a device — the window, the disk, the camera, the frame; everything else is `flutter3d_editor_core`. → [The level editor](/core/editor/)
 
 ### `apps/flutter3d_template_app`
 The application a new project starts as: a level you can walk around, with no genre package. Depends on `flutter3d_session` but, unlike `apps/flutter3d_demo_dungeon`, still opens its device with `GpuRenderBackend.create()` directly rather than through `flutter3d_backend` — a gap [Assembling an application](/core/session/) states rather than glosses over.

@@ -31,6 +31,15 @@ dependencies:
   flutter3d_game:
     path: ../../packages/flutter3d_game
 
+  # **Everything this application does that has no window in it.** The document
+  # being nudged, undone and written back, the handles a pointer hits, the
+  # palette built out of the level, and the project a template turns into —
+  # eight files that named Flutter nowhere, and are therefore usable by anything
+  # that is not this program. What stayed here is the half that reaches a
+  # device: the disk, the camera, and everything drawn.
+  flutter3d_editor_core:
+    path: ../../packages/flutter3d_editor_core
+
   # Level geometry to mesh nodes. `LevelLoader.build` is what an editor needs
   # and what a game never did: a level drawn from a document in memory rather
   # than from an asset.

@@ -39,6 +39,31 @@ const List<String> applications = <String>[
   'flutter3d_template_app',
 ];
 
+/// Packages that must run with no Flutter SDK anywhere near them, and what
+/// each one is for.
+///
+/// **A list rather than a rule per package, because the second one arrived.**
+/// The rule was written for `flutter3d_sim` alone and named it in its own
+/// source, so `flutter3d_editor_core` — extracted for exactly the same reason,
+/// from an application instead of from a package — would have got either a
+/// thirty-first rule that reads the same file twice or no rule at all. A list
+/// makes the third one a line here.
+///
+/// What earns a place is not "happens to compile without Flutter". It is a
+/// package with a caller that has no Flutter SDK to give it: the simulation
+/// because a server replays a submitted run through the same code the player
+/// ran, and the editor's core because a linter, a service or a tool opens a
+/// level without a window. `flutter3d_physics` compiles without Flutter too and
+/// is not here, because nothing has yet needed it to and a rule kept for
+/// nobody is a rule somebody eventually deletes.
+const Map<String, String> flatDartPackages = <String, String>{
+  'flutter3d_sim': 'a server replays a run through it, in a container with no '
+      'Flutter SDK in it',
+  'flutter3d_editor_core':
+      'a level is a document, and the programs that check one — a linter, a '
+      'service, a tool an agent speaks to — have no window',
+};
+
 /// Packages the genre rule does not apply to, and why.
 const Map<String, String> genreRuleExempt = <String, String>{
   'flutter3d_game_shooter': 'it is a genre; the rule it keeps is isolation',
@@ -537,6 +562,13 @@ boundaryEnumExempt = <String, Map<String, String>>{
         'playing, won, lost. The vocabulary all three games and every '
         'screen are built on, and the same set RunStatus is sealed around',
   },
+  'flutter3d_editor_core/lib/src/gizmos.dart': <String, String>{
+    'Piece':
+        'the three things a level document is made of, seen from an editor: '
+        'geometry, a light, and everything else the document names. It is '
+        'closed because the format is — a fourth member would be a fourth '
+        'top-level list in Level, which is a document change and not a value',
+  },
   'flutter3d_game_shooter/lib/src/simulation.dart': <String, String>{
     'GameState':
         'whether this simulation is running, over, or finished. Pausing and '
@@ -609,6 +641,13 @@ const Map<String, Map<String, String>> portableStepExempt =
         'lib/src/loop/pace.dart':
             'a dropped-frame meter, measured against the wall clock — it is '
             'already a thing no two machines agree about',
+      },
+      'flutter3d_editor_core': <String, String>{
+        'lib/src/picking.dart':
+            'where a click points, given a camera. Nothing steps on it: the '
+            'answer is compared against the boxes on one machine and then '
+            'thrown away, and the document only ever records which box was '
+            'chosen',
       },
       'flutter3d_game_racing': <String, String>{
         'lib/src/sky.dart': 'the colour of the sky',

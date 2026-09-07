@@ -66,6 +66,14 @@ flutter:
 ''';
 
 /// The `README.md` a scaffolded project starts with.
+///
+/// **It names no genre, and the wording of one sentence is deliberate.** This
+/// prose is a string literal in a published package, and `no package names a
+/// genre` reads string literals — it strips comments and nothing else, because
+/// a word in a comment cannot be called and a word in a string can end up
+/// switched on. So the seed says what it leaves out without listing weapons,
+/// monsters or coins, which is the same sentence and one this package is
+/// allowed to say.
 String readmeFor(String name, Template template) =>
     '''
 # $name
@@ -134,8 +142,8 @@ fails with a deployment-target error that has nothing to do with this project.
 
 **A seed, not a game.** It reads the level, builds it, and puts a body in it
 that walks, looks and jumps. What it deliberately does not do is anything a
-*genre* does: no weapons, no monsters, no coins, no doors that open, no score,
-no menu, no saving.
+*genre* does: nothing to fight, nothing to collect, no doors that open, no
+score, no menu, no saving.
 
 Those live in `flutter3d_game_shooter` and `flutter3d_game_platformer`, and wiring one up
 is the next thing to do. Each of the three games in the flutter3d checkout keeps

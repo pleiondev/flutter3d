@@ -1,6 +1,6 @@
 /// What a game's own words look like, told to the editor by the game.
 ///
-///     flutter test test/looks_test.dart
+///     dart test test/looks_test.dart
 ///
 /// **The question this answers came from looking at a wall.** A torch was two
 /// coloured boxes where a torch should be — because the crypt's document says
@@ -15,11 +15,20 @@ library;
 
 import 'dart:io';
 
-import 'package:flutter3d_editor/src/gizmos.dart';
-import 'package:flutter3d_editor/src/looks.dart';
-import 'package:flutter3d_game/flutter3d_game.dart';
-import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter3d_editor_core/flutter3d_editor_core.dart';
+import 'package:flutter3d_sim/flutter3d_sim.dart';
+import 'package:test/test.dart';
 import 'package:vector_math/vector_math.dart';
+
+/// **A test in a package, reading an application's data on purpose.** The
+/// question `looks.dart` exists to answer was asked by a game — the crypt's
+/// torch drawn as two coloured boxes — and it is answered in that game's
+/// `assets/editor.json`, which no code here names and nothing compiles. A
+/// paraphrase of it in this file would pass forever while the real one rotted,
+/// so the real one is read. It is data across a relative path, not a dependency:
+/// nothing in `lib/` knows this directory exists, and the pubspec cannot name it.
+const String _dungeon = '../../apps/flutter3d_demo_dungeon';
+const String _crypt = '$_dungeon/assets/editor.json';
 
 const String _file = '''
 {
@@ -196,7 +205,7 @@ void main() {
 
     test('and the crypt describes its torch', () {
       final said = Looks.parse(
-        File('../flutter3d_demo_dungeon/assets/editor.json').readAsStringSync(),
+        File(_crypt).readAsStringSync(),
       );
 
       expect(
@@ -227,7 +236,7 @@ void main() {
   group('the crypt\'s own file', () {
     // Read off the disk, because it is data: nothing fails to compile when it
     // is deleted or mistyped, and the symptom is a wall with two boxes on it.
-    final file = File('../flutter3d_demo_dungeon/assets/editor.json');
+    final file = File(_crypt);
 
     test('is there and describes the things that had no model', () {
       expect(
@@ -261,7 +270,7 @@ void main() {
           _entity('monster', properties: <String, Object?>{'kind': kind}),
         )!;
         expect(
-          File('../flutter3d_demo_dungeon/$path').existsSync(),
+          File('$_dungeon/$path').existsSync(),
           isTrue,
           reason: '$path is named and is not there',
         );
@@ -272,9 +281,7 @@ void main() {
       // The game lists four asset directories and this is beside them rather
       // than in one, which is the difference between a file an editor reads and
       // a file every player downloads.
-      final pubspec = File(
-        '../flutter3d_demo_dungeon/pubspec.yaml',
-      ).readAsStringSync();
+      final pubspec = File('$_dungeon/pubspec.yaml').readAsStringSync();
 
       expect(pubspec, isNot(contains('assets/editor.json')));
     });

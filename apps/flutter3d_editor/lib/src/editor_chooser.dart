@@ -2,9 +2,9 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart' hide Material;
+import 'package:flutter3d_editor_core/flutter3d_editor_core.dart';
 
 import 'editor_cubit.dart';
-import 'scaffold.dart';
 
 /// The screen for a level that does not exist yet.
 ///

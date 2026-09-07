@@ -217,6 +217,7 @@ point of §3.3.
 | `flutter3d_screens` | Screens that are not the game: menus, settings, rebinding, storage |
 | `flutter3d_session` | The run lifecycle that ties a game, a device and a screen together |
 | `flutter3d_app` | The assembly layer, as one import |
+| `flutter3d_editor_core` | The headless half of a level editor: the document being changed and undone, the handles a pointer hits, the palette a level builds out of itself, the project a template becomes. Plain Dart |
 | `flutter3d_testing` | Rendering a scene with no GPU and comparing it against a reference image |
 | `pad_input` | Gamepad devices on web, Android, macOS and iOS |
 | `pointer_lock` | Relative mouse movement: a method channel on macOS, the Pointer Lock API in a browser, which Flutter surfaces on neither |
@@ -264,6 +265,37 @@ the package it described.
 Nothing moved that a caller can see: `flutter3d_game` re-exports the whole of
 `flutter3d_sim`, so an existing import keeps handing over the loop, the level,
 the saves and the collision world.
+
+**And why the editor's core is its own package, which is the same argument
+pointing the other way.** `apps/flutter3d_editor` is an application, and nine
+files of its `lib/src` named Flutter nowhere at all: the document being
+selected in, nudged, resized, duplicated, undone and written back; the handles a
+pointer hits; the palette a level builds out of itself; the project a template
+turns into. Everything a level editor can get *catastrophically* wrong is in
+those files, and everything it exists to show is not.
+
+The reason it was worth moving is that **nothing could depend on them.** `no
+package depends on an application` forbids it, and pub cannot express it anyway:
+an application is not published, so such a dependency is true only inside this
+checkout, on the one machine that has it. That blocked every program that wants
+to read a level without a window — a command-line linter, a service that
+validates an uploaded level before a player ever loads it, a tool an agent
+speaks to. A level is a document, and the programs that most want to say a
+document is wrong are the ones with nothing to draw.
+
+Two files stayed behind, and each says what the boundary is: `fly_camera.dart`,
+because it reaches `package:flutter3d` for a camera, and `documents.dart`,
+because reading a file off a disk is where a crash loses somebody's work and
+where a platform gets an opinion. The eight that moved import `flutter3d_sim`
+rather than `flutter3d_game` — every type the document is made of has been in
+the simulation since it stopped needing Flutter.
+
+The scan holds this boundary with the rule it already had. `the simulation names
+no Flutter` reads a **list** of packages now rather than one name, because the
+second one arrived and the alternative was a thirty-first rule running the same
+regexp over a different directory; `flatDartPackages` in
+`tool/structure/repository.dart` says which packages are on it and what each has
+a caller for that cannot supply a Flutter SDK.
 
 ### 3.3 Rules that are scanned, not remembered
 
@@ -1997,6 +2029,22 @@ next frame and nothing has to be rebuilt. A bundle that will not load keeps the
 previous shaders and says so in the bar, which is the ordinary case in an editing
 loop. See `apps/flutter3d_editor/lib/src/shader_watch.dart`.
 
+**No headless program that edits a level yet**, only a package that could carry
+one. `flutter3d_editor_core` is the editor's document layer as plain Dart — open
+a level, select in it, nudge it, undo, validate it, write it back, or turn a
+template into a project — and it has no `bin/` at all. So the blocker it removed
+is real and the thing that blocker was in front of is still unwritten: a level
+linter for CI, a service that checks an uploaded level, a tool an agent speaks
+to. What can be said today is that any of them is a dependency and a `main`
+rather than an argument about which application owns the code, which is what it
+was while those files sat in `apps/`.
+
+Two of the editor's own files did not follow and are the shape of what a
+headless core cannot do: `fly_camera.dart` needs a renderer to have a camera at
+all, and `documents.dart` is `dart:io` — choosing a path, reading it, writing it
+back atomically. Reading a disk is the half where a crash loses somebody's work,
+and it stays with the program that has a window to apologise in.
+
 **No asset streaming**, no load priorities and no cancellation. Streaming is only
 needed for open worlds, and there is no such scenario here.
 
@@ -2134,18 +2182,21 @@ applications and the example apps keep theirs, being repository-only by design.
 3. `flutter3d`, `flutter3d_physics`
 4. `flutter3d_impeller`, `flutter3d_webgl`, `flutter3d_cpu`, `flutter3d_particles`,
    `flutter3d_sim`
-5. `flutter3d_game`
+5. `flutter3d_game`, `flutter3d_editor_core`
 6. `flutter3d_screens`, `flutter3d_bridge`, `flutter3d_backend`, `flutter3d_testing`
 7. `flutter3d_session`
 8. `flutter3d_app`
 9. `flutter3d_game_shooter`, `flutter3d_game_platformer`, `flutter3d_game_racing`,
    `flutter3d_game_strategy`
 
-Two positions are not obvious and so are written down rather than re-derived:
+Three positions are not obvious and so are written down rather than re-derived:
 `flutter3d_samples` is in the first tier although nothing depends on it at run
 time, because `flutter3d`'s tests do and a dev dependency has to resolve for the
-archive to be accepted; and `flutter3d_app` is second to last because it is the
-assembly layer.
+archive to be accepted; `flutter3d_app` is second to last because it is the
+assembly layer; and `flutter3d_editor_core` is beside `flutter3d_game` rather
+than behind it, because it needs only `flutter3d_sim` — the editor's document
+layer never wanted the Flutter half, which is why it could leave an application
+at all.
 
 **The applications are not packages.** `apps/` keeps its path dependencies: three
 demo games and an editor are things to clone, not things to depend on.

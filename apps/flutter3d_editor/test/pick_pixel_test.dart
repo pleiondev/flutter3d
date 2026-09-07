@@ -19,12 +19,8 @@ import 'dart:convert';
 import 'package:flutter3d/flutter3d.dart' hide Material;
 import 'package:flutter3d_bridge/flutter3d_bridge.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
-import 'package:flutter3d_editor/src/editing.dart';
-import 'package:flutter3d_editor/src/gizmos.dart';
-import 'package:flutter3d_editor/src/looks.dart';
-import 'package:flutter3d_editor/src/picking.dart';
 import 'package:flutter3d_editor/src/scene_dressing.dart';
-import 'package:flutter3d_editor/src/vocabulary.dart';
+import 'package:flutter3d_editor_core/flutter3d_editor_core.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart';
 

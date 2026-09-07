@@ -12,9 +12,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
-import 'package:flutter3d_editor/src/editing.dart';
-import 'package:flutter3d_editor/src/looks.dart';
-import 'package:flutter3d_editor/src/scaffold.dart';
+import 'package:flutter3d_editor_core/flutter3d_editor_core.dart';
 import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:flutter3d_game_shooter/sample.dart';
 import 'package:flutter_test/flutter_test.dart';

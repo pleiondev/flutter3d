@@ -18,10 +18,9 @@
 library;
 
 import 'package:flutter/material.dart';
-import 'package:flutter3d_editor/src/editing.dart';
 import 'package:flutter3d_editor/src/editor_inspector.dart';
 import 'package:flutter3d_editor/src/editor_state.dart';
-import 'package:flutter3d_editor/src/gizmos.dart';
+import 'package:flutter3d_editor_core/flutter3d_editor_core.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'editor_cubit_helpers.dart';

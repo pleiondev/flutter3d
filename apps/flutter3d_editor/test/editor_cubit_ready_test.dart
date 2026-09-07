@@ -7,10 +7,8 @@
 /// and for why this is a plain `test()` and not a widget test.
 library;
 
-import 'package:flutter3d_editor/src/editing.dart';
 import 'package:flutter3d_editor/src/editor_cubit.dart';
-import 'package:flutter3d_editor/src/gizmos.dart';
-import 'package:flutter3d_editor/src/palette_items.dart';
+import 'package:flutter3d_editor_core/flutter3d_editor_core.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart';
 

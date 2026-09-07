@@ -1,6 +1,6 @@
 import 'dart:convert';
 
-import 'package:flutter3d_game/flutter3d_game.dart';
+import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:vector_math/vector_math.dart';
 
 /// What a game's own words look like, told to the editor by the game.

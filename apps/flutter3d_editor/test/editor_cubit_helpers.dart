@@ -5,9 +5,7 @@ library;
 
 import 'dart:convert';
 
-import 'package:flutter3d_editor/src/editing.dart';
-import 'package:flutter3d_editor/src/looks.dart';
-import 'package:flutter3d_editor/src/scaffold.dart';
+import 'package:flutter3d_editor_core/flutter3d_editor_core.dart';
 
 /// A small document, written the way a generator writes one.
 String _document({String? generatedBy}) => jsonEncode(<String, Object?>{

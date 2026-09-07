@@ -235,18 +235,30 @@ check is geometry, materials and lights.
 
 ## Where the parts are
 
-* `src/editing.dart` — the document being changed: select, move, resize, add,
-  duplicate, delete, undo, write. **No window anywhere in it**, which is the
-  whole reason the split exists: what an editor is *for* is a picture, and what
-  it can get catastrophically wrong is a file.
-* `src/picking.dart` — a ray against the brushes. Against the *brushes* and not
-  against the collision world, because a brush with `solid: false` never
-  reaches the collision world — and those are the mouldings and the painted
-  alcoves, exactly the decoration somebody opens an editor to move.
+**Half of this application is not in this application.** Everything with no
+window in it — the document being changed, what a click hits, the palette, what
+a game says its own words look like, the project a template becomes — is
+`packages/flutter3d_editor_core`, which is plain Dart and which anything may
+depend on. That is the whole reason the split exists: what an editor is *for* is
+a picture, and what it can get catastrophically wrong is a file, and only one of
+those needs a screen to be checked. `Editing`, `Picking`, `handlesOf`,
+`Placeable`, `Looks`, `vocabularyOf` and `scaffold` all arrive through
+`package:flutter3d_editor_core/flutter3d_editor_core.dart`.
+
+What is left here is the half that reaches a device:
+
+* `src/documents.dart` — the disk: which file is open, reading it, and writing
+  it back atomically. It is `dart:io`, and it is where a crash loses somebody's
+  work.
 * `src/fly_camera.dart` — a camera that goes into walls on purpose. Every other
   camera here follows something and is kept out of geometry, which is right for
-  the games and exactly wrong for this.
-* `src/vocabulary.dart` — see above.
+  the games and exactly wrong for this. It needs the renderer to have a camera
+  at all, which is why it did not travel.
+* `src/scene_dressing.dart` — the document turned into something drawn, and the
+  handles drawn over it.
+* `src/editor_cubit.dart` and the widgets beside it — which document is open,
+  why one is not, and what the strip along the bottom says.
+* `src/shader_watch.dart` — the shader bundle reloaded while somebody edits it.
 * `main.dart` — the window, the keys and the mouse.
 
 ## Getting about

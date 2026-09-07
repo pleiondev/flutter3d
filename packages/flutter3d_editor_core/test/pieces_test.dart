@@ -1,6 +1,6 @@
 /// The half of a level that is not geometry.
 ///
-///     flutter test test/pieces_test.dart
+///     dart test test/pieces_test.dart
 ///
 /// **A level editor that can only touch walls is a level editor that cannot
 /// make a level.** The crypt is fifty-one brushes and sixteen other things: a
@@ -11,11 +11,9 @@ library;
 
 import 'dart:convert';
 
-import 'package:flutter3d_editor/src/editing.dart';
-import 'package:flutter3d_editor/src/gizmos.dart';
-import 'package:flutter3d_editor/src/picking.dart';
-import 'package:flutter3d_game/flutter3d_game.dart';
-import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter3d_editor_core/flutter3d_editor_core.dart';
+import 'package:flutter3d_sim/flutter3d_sim.dart';
+import 'package:test/test.dart';
 import 'package:vector_math/vector_math.dart';
 
 String _document() => jsonEncode(<String, Object?>{

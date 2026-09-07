@@ -1,10 +1,7 @@
+import 'package:flutter3d_editor_core/flutter3d_editor_core.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import 'editing.dart';
 import 'editor_state.dart';
-import 'looks.dart';
-import 'palette_items.dart';
-import 'scaffold.dart';
 
 export 'editor_state.dart';
 

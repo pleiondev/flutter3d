@@ -11,7 +11,7 @@ description: Three independent golden sets, mutation-checking every new test, de
 | `flutter3d` | 898 | | `flutter3d_particles` | 73 |
 | `flutter3d_sim` | 482 | | `flutter3d_bridge` | 61 |
 | `flutter3d_game_shooter` | 337 | | `pad_input` | 59 |
-| `apps/flutter3d_editor` | 203 | | `flutter3d_audio` | 55 |
+| `apps/flutter3d_editor` | 116 | | `flutter3d_audio` | 55 |
 | `apps/flutter3d_demo_platformer` | 196 | | `flutter3d_hardware` | 53 |
 | `flutter3d_game_racing` | 223 | | `flutter3d_impeller` | 53 |
 | `flutter3d_game_platformer` | 217 | | `flutter3d_webgl` | 54 |
@@ -22,6 +22,7 @@ description: Three independent golden sets, mutation-checking every new test, de
 | `apps/flutter3d_demo_dungeon` | 89 | | `flutter3d_backend` | 2 |
 | `flutter3d_game` | 79 | | `flutter3d_game_strategy` | 69 |
 | `flutter3d_shaders` | 1 | | `apps/flutter3d_demo_strategy` | 2 |
+| `flutter3d_editor_core` | 87 | | | |
 
 The rows sum to 3866 rather than 3885: the remaining 15 live in `packages/*/example/test`, which the count includes and this table does not.
 

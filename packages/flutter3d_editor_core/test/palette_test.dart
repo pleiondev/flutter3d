@@ -1,6 +1,6 @@
 /// What can be put into a level, and where it lands.
 ///
-///     flutter test test/palette_test.dart
+///     dart test test/palette_test.dart
 ///
 /// **The palette is built from the document, which is the only honest place to
 /// get it.** This application has no vocabulary — it cannot know that a game
@@ -12,11 +12,9 @@ library;
 
 import 'dart:convert';
 
-import 'package:flutter3d_editor/src/editing.dart';
-import 'package:flutter3d_editor/src/gizmos.dart';
-import 'package:flutter3d_editor/src/palette_items.dart';
-import 'package:flutter3d_game/flutter3d_game.dart';
-import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter3d_editor_core/flutter3d_editor_core.dart';
+import 'package:flutter3d_sim/flutter3d_sim.dart';
+import 'package:test/test.dart';
 import 'package:vector_math/vector_math.dart';
 
 String _document() => jsonEncode(<String, Object?>{

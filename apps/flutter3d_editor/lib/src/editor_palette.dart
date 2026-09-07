@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart' hide Material;
 import 'package:flutter/services.dart';
+import 'package:flutter3d_editor_core/flutter3d_editor_core.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'editor_cubit.dart';
-import 'palette_items.dart';
 
 /// What can be put into this level, and what is holding.
 ///

@@ -1,0 +1,47 @@
+name: flutter3d_editor_core
+description: "The headless half of a level editor: a document you can nudge, undo and write back, the handles a pointer hits, and the project a template turns into."
+version: 0.1.0
+repository: https://github.com/pleiondev/flutter3d
+homepage: https://flutter3d.pleion.dev
+issue_tracker: https://github.com/pleiondev/flutter3d/issues
+topics:
+  - game-development
+  - level-editor
+  - game-engine
+  - tooling
+resolution: workspace
+
+environment:
+  sdk: ^3.12.2
+
+dependencies:
+  # The document and everything it is made of: `Level`, `Brush`, `LevelLight`,
+  # `EntityDef`, `EntityRegistry`, `LevelValidator`, `LevelIssue`. All of it is
+  # plain Dart already, which is why this package could follow it out of the
+  # application without leaving anything behind.
+  flutter3d_sim: ^0.5.2
+
+  vector_math: ^2.2.0
+
+dev_dependencies:
+  test: ^1.25.0
+  flutter_lints: ^6.0.0
+
+# **A plain Dart package, and what it may not import is the point.**
+#
+# The editor's document layer sat in `apps/flutter3d_editor/lib/src` for as long
+# as the editor was the only thing that wanted it. Then anything else that wants
+# it — a command-line level linter, a tool that speaks to an agent, a service
+# that validates an uploaded level before it reaches a player — had to depend on
+# an application, which `tool/structure.dart` forbids and pub cannot express.
+#
+# Nine files of that directory named Flutter nowhere at all. Eight of them are
+# here; `fly_camera.dart` stayed because it reaches the renderer for a camera,
+# and `documents.dart` stayed because reading a file off a disk is the one thing
+# a headless core has no business doing.
+#
+# The boundary is checked rather than described: `the simulation names no
+# Flutter` in `tool/structure.dart` reads a list of plain Dart packages, this one
+# among them, and fails on the first import that would put a Flutter SDK back in
+# front of a program that only wants to open a level. It keeps the name it was
+# published under, from the day the simulation was the only package on the list.
