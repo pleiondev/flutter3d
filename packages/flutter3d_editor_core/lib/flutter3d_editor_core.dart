@@ -41,6 +41,8 @@
 library;
 
 export 'src/editing.dart';
+export 'src/editor_command.dart';
+export 'src/editor_history.dart';
 export 'src/gizmos.dart';
 export 'src/looks.dart';
 export 'src/palette_items.dart';

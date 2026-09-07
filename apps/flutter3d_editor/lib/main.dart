@@ -669,7 +669,9 @@ class _EditorScreenState extends State<EditorScreen>
             (Picking.hit(hit.min, hit.max, _fly.position, along) ?? 6.0) - 0.5,
           );
 
-    editing.place(what, _fly.position + along * distance);
+    editing.history.run(
+      Place(what.kind, what.what, _fly.position + along * distance),
+    );
     _placeMarker();
     _changed('placed ${editing.says}');
   }
@@ -752,23 +754,43 @@ class _EditorScreenState extends State<EditorScreen>
     final pressed = HardwareKeyboard.instance;
     final command = pressed.isMetaPressed || pressed.isControlPressed;
     final key = event.logicalKey;
+    // **Every key that changes the document goes through the history.** Not
+    // ceremony: the history is what names a step, what keeps a whole gesture to
+    // one entry in the stack, and what a tool server will drive this document
+    // with. A keystroke that reached past it would be a change of a kind the
+    // rest of the editor cannot see.
+    final history = editing.history;
 
     if (command && key == LogicalKeyboardKey.keyZ) {
       // Shift-command-Z goes the other way, which is what every editor on this
       // platform does and what this one could not do at all.
+      //
+      // **Named, now that a step knows what it is.** "undone" told somebody
+      // that a key had worked; "undone move by 0.25, 0, 0" tells them what it
+      // took back, which is the thing they were about to check by looking.
       if (pressed.isShiftPressed) {
-        editing.redo();
+        final what = history.redoSays;
+        history.redo();
         _placeMarker();
-        _changed(editing.canRedo ? 'redone' : 'redone — back to the front');
+        _changed(switch ((what, history.canRedo)) {
+          (null, _) => 'nothing to redo',
+          (final it?, true) => 'redone $it',
+          (final it?, false) => 'redone $it — back to the front',
+        });
       } else {
-        editing.undo();
+        final what = history.undoSays;
+        history.undo();
         _placeMarker();
-        _changed(editing.canUndo ? 'undone' : 'undone — back to the start');
+        _changed(switch ((what, history.canUndo)) {
+          (null, _) => 'nothing to undo',
+          (final it?, true) => 'undone $it',
+          (final it?, false) => 'undone $it — back to the start',
+        });
       }
       return KeyEventResult.handled;
     }
     if (command && key == LogicalKeyboardKey.keyD) {
-      editing.duplicate();
+      history.run(const Duplicate());
       _changed('duplicated as brush ${editing.selected}');
       return KeyEventResult.handled;
     }
@@ -794,13 +816,13 @@ class _EditorScreenState extends State<EditorScreen>
     final step = editing.grid;
     switch (key) {
       case LogicalKeyboardKey.arrowLeft:
-        editing.nudge(Vector3(-step, 0.0, 0.0));
+        history.run(MoveBy(Vector3(-step, 0.0, 0.0)));
       case LogicalKeyboardKey.arrowRight:
-        editing.nudge(Vector3(step, 0.0, 0.0));
+        history.run(MoveBy(Vector3(step, 0.0, 0.0)));
       case LogicalKeyboardKey.arrowUp:
-        editing.nudge(Vector3(0.0, 0.0, -step));
+        history.run(MoveBy(Vector3(0.0, 0.0, -step)));
       case LogicalKeyboardKey.arrowDown:
-        editing.nudge(Vector3(0.0, 0.0, step));
+        history.run(MoveBy(Vector3(0.0, 0.0, step)));
       // **R and F as well as the page keys**, because on the keyboard this is
       // being used on, Page Up is Fn and an arrow — a two-handed way to say
       // "up" while the other hand is on the mouse. The page keys stay: a
@@ -808,26 +830,30 @@ class _EditorScreenState extends State<EditorScreen>
       // has learnt it is worse than having two.
       case LogicalKeyboardKey.pageUp:
       case LogicalKeyboardKey.keyR:
-        editing.nudge(Vector3(0.0, step, 0.0));
+        history.run(MoveBy(Vector3(0.0, step, 0.0)));
       case LogicalKeyboardKey.pageDown:
       case LogicalKeyboardKey.keyF:
-        editing.nudge(Vector3(0.0, -step, 0.0));
+        history.run(MoveBy(Vector3(0.0, -step, 0.0)));
       // **The same two keys, and what they mean depends on what is selected.**
       // A brush has a size; a light has a strength and no size at all. Giving
       // each its own pair would be two more keys to learn for one idea, which
       // is "more of this, less of this".
       case LogicalKeyboardKey.minus:
-        editing.kind == Piece.light
-            ? editing.brighten(0.8)
-            : editing.grow(_along(-step));
+        history.run(
+          editing.kind == Piece.light
+              ? const Brighten(0.8)
+              : Resize(_along(-step)),
+        );
       case LogicalKeyboardKey.equal:
-        editing.kind == Piece.light
-            ? editing.brighten(1.25)
-            : editing.grow(_along(step));
+        history.run(
+          editing.kind == Piece.light
+              ? const Brighten(1.25)
+              : Resize(_along(step)),
+        );
       case LogicalKeyboardKey.comma:
-        editing.turn(-math.pi / 8);
+        history.run(const Turn(-math.pi / 8));
       case LogicalKeyboardKey.period:
-        editing.turn(math.pi / 8);
+        history.run(const Turn(math.pi / 8));
       case LogicalKeyboardKey.keyB:
         final on = _cubit.toggleLamp();
         // The node stays in the scene either way; a lamp at nought is a lamp
@@ -837,7 +863,7 @@ class _EditorScreenState extends State<EditorScreen>
       case LogicalKeyboardKey.keyL:
         // Four metres in front, which is far enough to light a room and near
         // enough to be the room somebody is standing in.
-        editing.addLight(_fly.position + _fly.ground * 4.0);
+        history.run(AddLight(_fly.position + _fly.ground * 4.0));
         _placeMarker();
         _changed('added ${editing.says}');
         return KeyEventResult.handled;
@@ -853,17 +879,22 @@ class _EditorScreenState extends State<EditorScreen>
       case LogicalKeyboardKey.keyN:
         // Six metres in front, which is far enough to be looked at and near
         // enough to be flown to.
-        editing.add(_fly.position + _fly.forward * 6.0);
+        history.run(AddBrush(_fly.position + _fly.forward * 6.0));
         _placeMarker();
         _changed('added brush ${editing.selected}');
         return KeyEventResult.handled;
       case LogicalKeyboardKey.delete:
       case LogicalKeyboardKey.backspace:
-        editing.remove();
+        history.run(const Delete());
         _placeMarker();
         _changed('deleted');
         return KeyEventResult.handled;
       case LogicalKeyboardKey.keyG:
+        // **Not a command, and not in the history.** How coarse the grid is is
+        // a setting of the editor rather than anything in the document: no
+        // brush moves when it changes, nothing is written when the file is
+        // saved, and an undo that put the grid back to a quarter of a metre
+        // would be an undo that appears to have done nothing at all.
         editing.grid = switch (editing.grid) {
           0.25 => 1.0,
           1.0 => 0.0,
@@ -928,7 +959,7 @@ class _EditorScreenState extends State<EditorScreen>
         // running it again is exactly what throws the work away.
         editing.write(claiming: copy ? kAuthor : null),
       );
-      editing.saved();
+      editing.history.saved();
       _cubit.say('written to $path');
     } catch (error) {
       _cubit.say('could not write $path: $error');

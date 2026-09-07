@@ -21,6 +21,7 @@
 library;
 
 import 'package:flutter/material.dart' hide Material;
+import 'package:flutter3d_editor_core/flutter3d_editor_core.dart';
 
 import 'editor_cubit.dart';
 
@@ -93,8 +94,14 @@ final class EditorInspector extends StatelessWidget {
                       key: ValueKey<String>('field:$key'),
                       name: key,
                       value: fields[key],
+                      // Through the history, like every other change: one row
+                      // written is one step back, named after the field it
+                      // wrote. `run` answers what `setField` answers, so a
+                      // value the format cannot read still rebuilds nothing.
                       onWrite: (Object? value) {
-                        if (editing.setField(key, value)) onChanged(key);
+                        if (editing.history.run(SetField(key, value))) {
+                          onChanged(key);
+                        }
                       },
                     ),
                   if (more.isNotEmpty) ...<Widget>[
@@ -120,7 +127,9 @@ final class EditorInspector extends StatelessWidget {
                         // the difference matters to somebody reading a diff.
                         faded: true,
                         onWrite: (Object? value) {
-                          if (editing.setField(key, value)) onChanged(key);
+                          if (editing.history.run(SetField(key, value))) {
+                            onChanged(key);
+                          }
                         },
                       ),
                   ],

@@ -4,6 +4,7 @@ import 'dart:math' as math;
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:vector_math/vector_math.dart';
 
+import 'editor_history.dart';
 import 'gizmos.dart';
 import 'palette_items.dart';
 
@@ -26,7 +27,8 @@ final class Editing {
     path: path,
   );
 
-  /// The document. Replaced wholesale by [undo], which is why it is not final.
+  /// The document. Replaced wholesale by [history] when it goes back, which is
+  /// why it is not final.
   Level level;
 
   /// Where it came from, for writing it back and for saying so on screen.
@@ -105,9 +107,26 @@ final class Editing {
   /// rather than one a program makes for them.
   bool get mayOverwrite => generatedBy == null;
 
+  /// Everything that has been done to this document, and the way back.
+  ///
+  /// **The stack, what is unsaved and what one command means all live there**,
+  /// and this is the only handle on them. An application drives the document
+  /// through it — `history.run(const Delete())` rather than `remove()` — because
+  /// that is where a name for the step and a transaction around a drag come
+  /// from; the methods below stay because they are what a command is made of,
+  /// and because a caller with one thing to do should not have to build an
+  /// object to do it.
+  ///
+  /// Built on demand and then kept, so a document that is only ever read never
+  /// makes one.
+  late final EditorHistory history = EditorHistory(this);
+
   /// Whether anything has been changed since the last save.
-  bool get isDirty => _dirty;
-  bool _dirty = false;
+  ///
+  /// The history's answer; here because "has this document got unsaved work in
+  /// it" is a question about the document, and because the bar that prints it
+  /// has an [Editing] in its hand.
+  bool get isDirty => history.isDirty;
 
   /// How far a nudge moves, and what every edited number is rounded to.
   ///
@@ -122,70 +141,26 @@ final class Editing {
   /// and impossible to get back.
   static const double minimumSize = 0.25;
 
-  final List<Map<String, Object?>> _undo = <Map<String, Object?>>[];
-
-  /// How many steps back an editor can go. Whole documents rather than a list
-  /// of reversible operations: a level is a few hundred numbers, and an undo
-  /// that reconstructs state is an undo with its own bugs.
-  static const int undoDepth = 64;
-
-  /// Documents undone, newest last, so [redo] can put one back.
+  /// Remembers the document as it stands, before a change [says] describes.
   ///
-  /// **There was an undo stack and no redo**, which is half a mechanism: the
-  /// design here is whole-document snapshots precisely because reconstructing
-  /// state is an undo with its own bugs, and going forward again is the same
-  /// snapshot read the other way. Five lines, given the shape already chosen.
-  final List<Map<String, Object?>> _redo = <Map<String, Object?>>[];
-
-  void _remember() {
-    _undo.add(level.toJson());
-    if (_undo.length > undoDepth) _undo.removeAt(0);
-    // A new change is a new future. Keeping the old one would let redo put
-    // back a document that never followed from what is on screen.
-    _redo.clear();
-    _dirty = true;
-  }
+  /// Every method below that changes anything begins with this, and that is
+  /// deliberately the only injection point: a document layer where some edits
+  /// were recorded and others were not would be a document layer with an undo
+  /// that works most of the time. Inside `EditorHistory.transaction` this costs
+  /// nothing — the transaction has already taken its snapshot.
+  void _remember(String says) => history.remember(says);
 
   /// Whether there is anything to go back to.
-  bool get canUndo => _undo.isNotEmpty;
+  bool get canUndo => history.canUndo;
 
   /// Whether there is anything to go forward to.
-  bool get canRedo => _redo.isNotEmpty;
+  bool get canRedo => history.canRedo;
 
   /// Puts the document back the way it was before the last change.
-  ///
-  /// The selection survives if it still points at something, which is what
-  /// makes undoing a nudge feel like undoing a nudge rather than like losing
-  /// the brush.
-  void undo() {
-    if (_undo.isEmpty) return;
-    _redo.add(level.toJson());
-    _restore(_undo.removeLast());
-  }
+  void undo() => history.undo();
 
   /// Puts back the change [undo] took away.
-  void redo() {
-    if (_redo.isEmpty) return;
-    _undo.add(level.toJson());
-    _restore(_redo.removeLast());
-  }
-
-  void _restore(Map<String, Object?> document) {
-    level = Level.fromJson(document);
-    // A selection that survives is what makes undoing a nudge feel like undoing
-    // a nudge; one that points past the end of a list that just got shorter is
-    // a crash waiting for the next key.
-    if (piece == null) {
-      kind = null;
-      selected = null;
-    }
-    // **Not unconditionally `true`, which it was.** Undoing back to the state
-    // that was last written is a document with nothing unsaved in it, and
-    // saying otherwise means the bar reads "— unsaved" over work that is on
-    // the disk — and, now that closing asks, that the editor asks a question
-    // it already knows the answer to.
-    _dirty = _undo.length != _savedDepth;
-  }
+  void redo() => history.redo();
 
   /// Picks something, or nothing.
   void select(Piece? kind, int? index) {
@@ -209,7 +184,7 @@ final class Editing {
   void nudge(Vector3 by) {
     final at = where;
     if (at == null) return;
-    _remember();
+    _remember('move');
     at.setValues(_snap(at.x + by.x), _snap(at.y + by.y), _snap(at.z + by.z));
   }
 
@@ -220,7 +195,7 @@ final class Editing {
   void grow(Vector3 by) {
     final it = brush;
     if (it == null) return;
-    _remember();
+    _remember('resize');
     it.size.setValues(
       math.max(minimumSize, _snap(it.size.x + by.x)),
       math.max(minimumSize, _snap(it.size.y + by.y)),
@@ -235,7 +210,7 @@ final class Editing {
   /// bug — the validator says so, and an editor that produced them by default
   /// would be an editor whose first act is a warning.
   void add(Vector3 at, {Vector3? size, String? material}) {
-    _remember();
+    _remember('add a brush');
     level.brushes.add(
       Brush(
         centre: Vector3(_snap(at.x), _snap(at.y), _snap(at.z)),
@@ -262,7 +237,7 @@ final class Editing {
   void duplicate() {
     final it = piece;
     if (it == null) return;
-    _remember();
+    _remember('duplicate');
     switch (it) {
       case final Brush brush:
         level.brushes.add(
@@ -320,7 +295,7 @@ final class Editing {
   /// vocabulary. What a `monster` needs in it is not knowable here; what a
   /// point light needs is.
   void addLight(Vector3 at, {double intensity = 4.0, double range = 8.0}) {
-    _remember();
+    _remember('add a light');
     level.lights.add(
       LevelLight(
         position: Vector3(_snap(at.x), _snap(at.y), _snap(at.z)),
@@ -352,7 +327,7 @@ final class Editing {
       case Piece.light:
         addLight(snapped);
       case Piece.entity:
-        _remember();
+        _remember('place a ${it.what}');
         final model = level.entities.lastWhere(
           (EntityDef entity) => entity.type == it.what,
           orElse: () => EntityDef(type: it.what),
@@ -380,7 +355,7 @@ final class Editing {
   void brighten(double by) {
     final it = light;
     if (it == null) return;
-    _remember();
+    _remember('brighten');
     level.lights[selected!] = LevelLight.fromJson(<String, Object?>{
       ...it.toJson(),
       'intensity': double.parse(
@@ -396,7 +371,7 @@ final class Editing {
   void turn(double by) {
     final it = entity;
     if (it == null) return;
-    _remember();
+    _remember('turn');
     final turned = it.yaw + by;
     level.entities[selected!] = EntityDef.fromJson(<String, Object?>{
       ...it.toJson(),
@@ -408,7 +383,7 @@ final class Editing {
   void remove() {
     final index = selected;
     if (piece == null || index == null) return;
-    _remember();
+    _remember('delete');
     switch (kind!) {
       case Piece.brush:
         level.brushes.removeAt(index);
@@ -530,7 +505,7 @@ final class Editing {
       return false;
     }
 
-    _remember();
+    _remember(value == null ? 'clear $key' : 'set $key');
     level = rebuilt;
     return true;
   }
@@ -594,14 +569,10 @@ final class Editing {
   }
 
   /// Says the document has been written, so it stops calling itself unsaved.
-  void saved() {
-    _dirty = false;
-    // Where the undo stack stood when this document was written, so undoing
-    // back to here is "nothing unsaved" rather than "one more change".
-    _savedDepth = _undo.length;
-  }
-
-  int _savedDepth = 0;
+  ///
+  /// The history's, because what "unsaved" means is where the stack stood when
+  /// the file was written — see `EditorHistory.saved`.
+  void saved() => history.saved();
 
   double _snap(double value) =>
       grid <= 0.0 ? value : (value / grid).roundToDouble() * grid;

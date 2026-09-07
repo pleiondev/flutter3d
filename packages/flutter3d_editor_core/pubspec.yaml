@@ -1,6 +1,6 @@
 name: flutter3d_editor_core
 description: "The headless half of a level editor: a document you can nudge, undo and write back, the handles a pointer hits, and the project a template turns into."
-version: 0.1.0
+version: 0.2.0
 repository: https://github.com/pleiondev/flutter3d
 homepage: https://flutter3d.pleion.dev
 issue_tracker: https://github.com/pleiondev/flutter3d/issues
