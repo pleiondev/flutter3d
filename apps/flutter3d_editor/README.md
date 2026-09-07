@@ -32,6 +32,53 @@ games use, and lets somebody fly around it and change it.
 | `G` | grid: 0.25 m, 1 m, off |
 | `⌘Z`, `⇧⌘Z` | undo, redo |
 | `⌘S`, `⇧⌘S` | save, save a copy |
+| `⌘O` | open another level |
+
+## Opening a level
+
+**Three ways in, and they all end in the same read.**
+
+`⌘O` puts up the system's open panel. Pick a `.json` level anywhere on the
+machine and it opens — there is no working directory to be standing in and no
+path to spell. It refuses while the open document has unsaved changes and says
+so in the bar, rather than putting a dialogue up: closing the window is
+something somebody meant to do and gets three buttons, but `⌘O` is a key next to
+`⌘S` and gets pressed by accident.
+
+**Every document that opens is written down**, and the next launch offers them
+back. Point the editor at nothing — or at a path that is not there — and the
+screen that offers the four templates offers the projects you were working on
+above them, most recent first, eight of them. A project that has been moved,
+renamed or deleted since is not on the list: the disk is asked on every read,
+so the row that is there is a row that opens. The list lives in `recent.json`
+beside the settings a game keeps, through the same storage and for its reasons
+— per platform, written through a temporary and a rename, and no loss if it
+goes.
+
+The `--dart-define` stays, and is now for what it was always best at: a level
+named by something that is not a person. The tests use it, scripts use it, and
+`flutter run` beside the levels in this repository uses it — all of which know
+the path already and have no hand to point with.
+
+```sh
+flutter run -d macos --dart-define=level=../flutter3d_demo_dungeon/assets/levels/crypt.json
+```
+
+**One plugin, called from one function.** `package:file_selector` is the first
+plugin here that was not written here — `pad_input` and `pointer_lock` are
+packages in this repository, whose platform code can be read and fixed in the
+same checkout. It buys the one thing no amount of Dart can — the panel this
+platform's own applications put up — and it is called from `askForLevel` in
+`src/editor_chooser.dart` and nowhere else. What can be wrong without a window
+is somewhere else on purpose: which path a spelling means is `src/documents.dart`,
+which projects are still worth offering is `src/recent_projects.dart`, and both
+are tested with no plugin registered.
+
+It is not how this application gets *access*, either. The macOS sandbox is off
+here — `macos/Runner/*.entitlements` carries the whole argument — because an
+editor that opens a document somewhere in this repository, changes it and writes
+it back over itself is exactly what the sandbox exists to stop. The panel saves
+somebody typing a path; it does not buy a permission.
 
 ## Editing a shader without restarting
 
@@ -332,8 +379,14 @@ What is left here is the half that reaches a device:
 * `src/scene_dressing.dart` — the document turned into something drawn, and the
   handles drawn over it: the marks, the selection box, the bars of it a drag
   takes hold of and the gesture that moves what was grabbed.
+* `src/recent_projects.dart` — the projects offered back on the second launch:
+  what the stored document still means, which order they go in, and which of
+  them the disk no longer has. It is `dart:io`'s only through a `Storage`, so
+  it is tested against a map.
 * `src/editor_cubit.dart` and the widgets beside it — which document is open,
-  why one is not, and what the strip along the bottom says.
+  why one is not, and what the strip along the bottom says. `editor_chooser.dart`
+  is also where the open panel is called, in one function, because it is the one
+  screen whose whole subject is choosing a document.
 * `src/shader_watch.dart` — the shader bundle reloaded while somebody edits it.
 * `main.dart` — the window, the keys and the mouse.
 
@@ -354,8 +407,7 @@ Nothing stops the camera at a wall, on purpose — see `fly_camera.dart`.
 
 ## What it does not do yet
 
-No file dialogue: the path is a `--dart-define`. Dragging moves things and only
-things — a size is still `1` `2` `3` and `−` `=` on the keyboard, and a facing
+Dragging moves things and only things — a size is still `1` `2` `3` and `−` `=` on the keyboard, and a facing
 is still `,` and `.`, because a bar that meant "move" when pulled and "resize"
 when pushed would be a bar nobody could aim. Everything a drag does is on the
 grid, the same quarter of a metre the arrow keys use.

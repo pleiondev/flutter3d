@@ -59,6 +59,20 @@ dependencies:
   flutter3d_screens:
     path: ../../packages/flutter3d_screens
 
+  # **The first plugin here that was not written here, and it is asked one
+  # question.** There are two others — `pad_input` and `pointer_lock` — and both
+  # are packages in this repository, whose platform code can be read and fixed
+  # in the same checkout. This one comes off pub.dev, and what it buys is the
+  # thing no amount of Dart can produce: the system's own open panel, which is
+  # how a person says which document they mean.
+  #
+  # It is called from exactly one function — `askForLevel` in
+  # `src/editor_chooser.dart` — so everything that can be wrong without a
+  # window stays somewhere a test can reach: which path a spelling means is
+  # `src/documents.dart`, which projects are still worth offering is
+  # `src/recent_projects.dart`, and both are tested with no plugin registered.
+  file_selector: ^1.1.0
+
   vector_math: ^2.2.0
 
   # State management — see the note in `packages/flutter3d_screens/pubspec.yaml`.

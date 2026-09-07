@@ -45,14 +45,19 @@ import 'src/editor_inspector.dart';
 import 'src/editor_legend.dart';
 import 'src/editor_palette.dart';
 import 'src/fly_camera.dart';
+import 'src/recent_projects.dart';
 import 'src/scene_dressing.dart';
 import 'src/shader_watch.dart';
 
-/// The document opened on launch.
+/// The document opened on launch, when one is named on the command line.
 ///
-/// A define rather than a file dialogue, for now: the whole repository's levels
-/// are a relative path away, and a picker is a platform channel's worth of work
-/// that adds nothing to the part that is hard.
+/// **The define stays, and it is no longer the only way in.** `⌘O` and the rows
+/// on the chooser open whatever a person picked out of the system's panel, and
+/// the projects they picked before are offered back to them — see
+/// `askForLevel` and `RecentProjects`. What a define is still exactly right for
+/// is a level named by something that is not a person: the tests, the scripts,
+/// and `flutter run` beside the levels in this repository, all of which know
+/// the path already and have no hand to point with.
 const String kLevelPath = String.fromEnvironment(
   'level',
   defaultValue: '../flutter3d_demo_dungeon/assets/levels/crypt.json',
@@ -111,6 +116,16 @@ class _EditorScreenState extends State<EditorScreen>
   /// out of it: the camera, the scene, and everything below that is read every
   /// frame rather than rebuilt on.
   final EditorCubit _cubit = EditorCubit();
+
+  /// The documents this editor has had open, kept between launches.
+  final RecentProjects _projects = RecentProjects();
+
+  /// What [_projects] said when the chooser last needed it.
+  ///
+  /// Read once rather than in `build`, because `_onTick` rebuilds this screen
+  /// sixty times a second and a list that read a file each time would be sixty
+  /// reads a second of a file that changes when somebody opens a level.
+  List<String> _recent = const <String>[];
 
   GraphicsDevice? _device;
   Renderer? _renderer;
@@ -229,11 +244,7 @@ class _EditorScreenState extends State<EditorScreen>
       _renderer = Renderer.create(device: device, materials: shaders?.library);
       _shaders = shaders?..start();
       _dressing = SceneDressing(device);
-      final found = Documents.find(
-        kLevelPath,
-        from: tried,
-        exists: (String path) => File(path).existsSync(),
-      );
+      final found = Documents.find(kLevelPath, from: tried, exists: _onDisk);
       if (found == null) {
         final templates = await _readTemplates();
         if (templates.isEmpty) {
@@ -245,6 +256,7 @@ class _EditorScreenState extends State<EditorScreen>
           );
         }
         if (!mounted) return;
+        _recent = _projects.read(exists: _onDisk);
         _cubit.nothingFound(templates, path: kLevelPath);
         return;
       }
@@ -305,13 +317,25 @@ class _EditorScreenState extends State<EditorScreen>
     );
   }
 
+  /// Whether there is a file at [path]. The one thing `Documents` and
+  /// `RecentProjects` both want from a disk, and the seam both are tested
+  /// without.
+  static bool _onDisk(String path) => File(path).existsSync();
+
   /// Opens the document at [found], which is known to be there.
+  ///
+  /// **Every way into this editor arrives here**: the define, a row on the
+  /// chooser, a template that has just written a project, and the open panel.
+  /// So this is where a document becomes a recent project — one place, rather
+  /// than one per way in, and after the parse rather than before it, so a file
+  /// that turns out not to be a level is not offered back tomorrow.
   Future<void> _openAt(String found) async {
     try {
       final editing = Editing.parse(
         await File(found).readAsString(),
         path: found,
       );
+      _recent = _projects.remember(found, exists: _onDisk);
       // Where this document's own `assets/…` live. A game never has to work
       // this out; an editor always does, because the level it has open belongs
       // to another application.
@@ -865,6 +889,10 @@ class _EditorScreenState extends State<EditorScreen>
       unawaited(_save(copy: pressed.isShiftPressed));
       return KeyEventResult.handled;
     }
+    if (command && key == LogicalKeyboardKey.keyO) {
+      unawaited(_chooseAndOpen());
+      return KeyEventResult.handled;
+    }
 
     // Escape puts the palette down, and then gives up the selection. Two
     // meanings for one key in the order somebody wants them: the thing you
@@ -998,6 +1026,24 @@ class _EditorScreenState extends State<EditorScreen>
       '${v.x.toStringAsFixed(2)}, '
       '${v.y.toStringAsFixed(2)}, ${v.z.toStringAsFixed(2)}';
 
+  /// Asks which document to open, and opens it.
+  ///
+  /// **It refuses while there is unsaved work, rather than asking.** Closing
+  /// the window puts three buttons up — see [_askBeforeLeaving] — because
+  /// closing is a thing somebody meant to do and there is no way back from it.
+  /// `⌘O` sits one key from `⌘P` and two from `⌘I`, gets pressed by mistake,
+  /// and would throw an afternoon away between two keystrokes. A sentence in
+  /// the bar and the level still on screen costs one `⌘S` and loses nothing.
+  Future<void> _chooseAndOpen() async {
+    if (_editing?.isDirty ?? false) {
+      _cubit.say('unsaved changes — ⌘S first, or ⇧⌘S for a copy');
+      return;
+    }
+    final path = await askForLevel();
+    if (path == null || !mounted) return;
+    await _openAt(path);
+  }
+
   /// Writes the document back, or says why it will not.
   Future<void> _save({bool copy = false}) async {
     final editing = _editing;
@@ -1092,7 +1138,9 @@ class _EditorScreenState extends State<EditorScreen>
           EditorChoosing() => EditorChooser(
             state: state,
             levelPath: kLevelPath,
+            recent: _recent,
             onCreate: _create,
+            onOpen: _openAt,
           ),
           EditorOpening() => const _Loading(),
           EditorReady() => _editorScreen(state),
