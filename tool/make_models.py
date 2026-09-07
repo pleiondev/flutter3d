@@ -694,8 +694,16 @@ def main():
         for name, build in sorted(models.items()):
             mesh = Mesh()
             build(mesh)
+            # `apps/flutter3d_editor`, and it was `apps/editor` until the
+            # directory that name refers to stopped existing. The rename left
+            # this line behind pointing at nothing, so the generator quietly
+            # rebuilt a corpse on every run while the models the editor
+            # actually ships sat in git untouched — and because the corpse was
+            # never tracked, `git diff --exit-code` over `apps` had nothing to
+            # compare and the check that generated files are generated passed
+            # over these thirteen without looking at them.
             path = os.path.join(
-                HERE, 'apps', 'editor', 'assets', 'templates', genre,
+                HERE, 'apps', 'flutter3d_editor', 'assets', 'templates', genre,
                 f'model.{name}.glb',
             )
             size = write_glb(mesh, name, path)
