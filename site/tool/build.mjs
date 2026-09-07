@@ -76,6 +76,17 @@ const GITHUB = 'https://github.com/pleiondev/flutter3d';
 const LINKEDIN = 'https://www.linkedin.com/in/dmitrii-zolotov';
 const EMAIL = 'dmitrii.zolotov@gmail.com';
 
+// Where the built site answers. Pages address each other by absolute path and
+// never need it, but `llms.txt` is read by something that has no idea which
+// host it came from, so every link in it has to carry the origin.
+const SITE = 'https://flutter3d.pleion.dev';
+
+// The raw file, not the page around it. A `github.com/.../blob/main/README.md`
+// link answers with a screenful of application HTML and the file somewhere
+// inside it; `raw.githubusercontent.com` answers with the Markdown, which is
+// the whole point of naming these files to a reader that only reads text.
+const RAW = `${GITHUB.replace('github.com', 'raw.githubusercontent.com')}/main`;
+
 // width/height set on the <svg> itself, not just in CSS: a stale cached
 // stylesheet must not leave these at the browser's ~150px replaced-element
 // default while a redeploy propagates.
@@ -385,9 +396,20 @@ if (existsSync(distDir)) rmSync(distDir, { recursive: true });
 mkdirSync(distDir, { recursive: true });
 
 let built = 0;
+// What each page said about itself, collected while it is being built rather
+// than by reading the tree a second time afterwards. The second read is where
+// the two lists drift apart.
+const catalog = [];
 flat.forEach((page, index) => {
   const source = readFileSync(join(contentDir, page.file), 'utf8');
   const { data, body } = frontMatter(source);
+  catalog.push({
+    url: page.url,
+    title: page.title,
+    section: page.section,
+    description: data.description ?? '',
+    body,
+  });
   slugs.clear();
   const html = md.render(goldenFigures(body, page.file));
   const toc = tocFrom(html);
@@ -417,6 +439,139 @@ writeFileSync(
     toc: [],
     index: -1,
   }),
+);
+
+// ---------------------------------------------------------------------------
+// llms.txt — the site's table of contents, for a reader that is not a browser.
+//
+// Written here rather than dropped into `content/` or `assets/`, for the same
+// reason 404.html is written here: the root of `dist` is built, not copied. A
+// file placed anywhere in the source tree lands in a subdirectory or not at
+// all, and llmstxt.org asks for exactly one path — `/llms.txt`.
+//
+// Generated rather than hand-kept, because a hand-kept index of a site that
+// grows is an index that is wrong by the second page. Every line below comes
+// from the same NAV and the same front matter the sidebar and the meta
+// descriptions come from, and every number is counted by this script on the
+// way past — a figure nobody recounts is a figure that drifts, and there is no
+// scan watching this file the way `tool/structure.dart` watches the prose.
+// ---------------------------------------------------------------------------
+const goldenCount = readdirSync(goldenSets.impeller)
+  .filter((name) => name.endsWith('.png')).length;
+const backendCount = Object.keys(goldenSets).length;
+const genreCount = NAV.filter((group) => group.badge === 'genre').length;
+
+// Counted numbers still have to read like the prose around them: every
+// document in this repository writes "twenty-four packages" and "forty-one
+// golden scenes" in words, and a paragraph that suddenly says "24" reads as
+// pasted in from somewhere else. Spelling happens here, at the last moment, so
+// the counting above stays counting.
+const ONES = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven',
+  'eight', 'nine', 'ten', 'eleven', 'twelve', 'thirteen', 'fourteen',
+  'fifteen', 'sixteen', 'seventeen', 'eighteen', 'nineteen'];
+const TENS = ['', '', 'twenty', 'thirty', 'forty', 'fifty', 'sixty',
+  'seventy', 'eighty', 'ninety'];
+function spell(n) {
+  if (n < 20) return ONES[n];
+  if (n < 100) {
+    const tens = TENS[Math.floor(n / 10)];
+    return n % 10 === 0 ? tens : `${tens}-${ONES[n % 10]}`;
+  }
+  return `${n}`;
+}
+
+// Wrapped after the numbers are spelled, not before. A line break placed by
+// hand in the source is a break measured against "twenty-four"; the day a
+// package is added the word becomes "twenty-five" and every line under it is
+// one character out of true. Wrapping the finished sentence costs nothing and
+// cannot go stale.
+function wrap(text, width = 78) {
+  const lines = [];
+  let line = '';
+  for (const word of text.split(/\s+/).filter(Boolean)) {
+    if (line && `${line} ${word}`.length > width) {
+      lines.push(line);
+      line = word;
+    } else {
+      line = line ? `${line} ${word}` : word;
+    }
+  }
+  if (line) lines.push(line);
+  return lines.join('\n');
+}
+
+// A page with no `description` in its front matter still gets a line, and the
+// line is still a link rather than a link followed by the word "undefined" —
+// which is what a template that always interpolates would have written, on
+// every row, in a file whose whole job is to be read literally.
+const catalogLine = (page) => page.description
+  ? `- [${page.title}](${SITE}${page.url}): ${page.description}`
+  : `- [${page.title}](${SITE}${page.url})`;
+
+const catalogSections = NAV.map((group) => [
+  `## ${group.section}`,
+  '',
+  ...catalog.filter((page) => page.section === group.section).map(catalogLine),
+  '',
+].join('\n'));
+
+writeFileSync(
+  join(distDir, 'llms.txt'),
+  `# flutter3d
+
+> A 3D engine on Flutter GPU, a game layer beside it, and ${spell(genreCount)} games of different genres built from both — which is the only honest test that the engine is one.
+
+${wrap(`The ${spell(packageCount)} packages resolve as a single pub workspace
+against one lock file. The renderer reaches the machine through one hardware
+contract with ${spell(backendCount)} implementations behind it — Impeller,
+WebGL2, and a software rasteriser written in plain Dart — so a frame can be
+drawn and held against ${spell(goldenCount)} reference images in ordinary CI,
+on a runner with no GPU in it. The game layer does not sit under the renderer
+and does not depend on it; a genre is its own package, ${spell(genreCount)} of
+them are here, and none of them names another. Levels, materials and animation
+are documents rather than API calls, which is why the editor and the games read
+the same files.`)}
+
+${wrap(`That is the part a reader would otherwise have to infer by walking
+every directory. The rest is the pages below, and the layer rules are
+executable rather than described: \`dart run tool/structure.dart\` holds them
+and names the file that broke one.`)}
+
+${catalogSections.join('\n')}
+## Repository
+
+- [README](${RAW}/README.md): what each package owns, how to run the games, and what the engine refuses to do.
+- [ARCHITECTURE](${RAW}/ARCHITECTURE.md): the long form — why the layers are cut where they are, and what each invariant is protecting against.
+- [CONTRIBUTING](${RAW}/CONTRIBUTING.md): the conventions, including the one that a test is written by breaking the code it covers and watching it go red.
+- [ROADMAP](${RAW}/ROADMAP.md): what is committed for the current quarter, what follows if it lands, and what is deliberately not being done.
+
+## Optional
+
+- [llms-full.txt](${SITE}/llms-full.txt): every page above, in one file, as the Markdown it was written in.
+- [API reference](${SITE}/docs/): generated from the source, for names and signatures rather than for reasons.
+- [Source](${GITHUB}): the repository itself, including the tests, the golden images and the scans.
+`,
+);
+
+// llms-full.txt — the same pages, whole. The site is small enough that the
+// concatenation is a few hundred kilobytes, which is cheaper for a reader to
+// fetch once than a page at a time, and the Markdown source is what it wants
+// anyway: the HTML around it is navigation it cannot use.
+writeFileSync(
+  join(distDir, 'llms-full.txt'),
+  `# flutter3d — the documentation, as one file
+
+${wrap(`Every page of ${SITE}, in the order the sidebar lists them, each one
+preceded by the URL it is served at. This is the Markdown the pages are written
+in rather than the rendered HTML, because the navigation, the highlighting and
+the theme around a page are not what a reader of this file came for.`)}
+${catalog.map((page) => `
+---
+
+<!-- ${SITE}${page.url} -->
+
+${page.body.trim()}
+`).join('')}`,
 );
 
 // Assets, then the mermaid runtime out of node_modules so the page loads
