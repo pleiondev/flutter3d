@@ -22,7 +22,7 @@ description: Three independent golden sets, mutation-checking every new test, de
 | `apps/flutter3d_demo_dungeon` | 89 | | `flutter3d_backend` | 2 |
 | `flutter3d_game` | 79 | | `flutter3d_game_strategy` | 69 |
 | `flutter3d_shaders` | 1 | | `apps/flutter3d_demo_strategy` | 2 |
-| `flutter3d_editor_core` | 87 | | | |
+| `flutter3d_editor_core` | 87 | | `flutter3d_editor_mcp` | 14 |
 
 The rows sum to 3866 rather than 3885: the remaining 15 live in `packages/*/example/test`, which the count includes and this table does not.
 

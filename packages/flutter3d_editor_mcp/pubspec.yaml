@@ -1,0 +1,60 @@
+name: flutter3d_editor_mcp
+description: "A level editor an agent can drive: the editor's own commands offered as tools over stdio, with one document open per process."
+version: 0.1.0
+repository: https://github.com/pleiondev/flutter3d
+homepage: https://flutter3d.pleion.dev
+issue_tracker: https://github.com/pleiondev/flutter3d/issues
+topics:
+  - game-development
+  - level-editor
+  - mcp
+  - tooling
+resolution: workspace
+
+environment:
+  sdk: ^3.12.2
+
+dependencies:
+  # The document and everything you can do to one. `EditorCommand` is what makes
+  # this package small: the ten things an editor does are already values with a
+  # name, a `toJson` and a `fromJson`, so a tool call is a map handed to
+  # `EditorCommand.fromJson` rather than a switch written a second time here.
+  flutter3d_editor_core: ^0.2.0
+
+  # `Level`, `LevelIssue` and `LevelValidator`, which `validate` reports.
+  flutter3d_sim: ^0.5.2
+
+  # The protocol, and nothing else it brings: `async`, `collection`,
+  # `json_rpc_2`, `meta`, `stream_channel`, `stream_transform`. No Flutter
+  # anywhere in that graph, which is what lets this run under `dart run`.
+  #
+  # **Pinned to one minor, because the package says to.** Its own README opens
+  # with "this package is still experimental and is likely to evolve quickly",
+  # and a caret on a pre-1.0 version already means that in pub's arithmetic —
+  # written out here so the narrowness reads as a decision rather than as the
+  # default somebody accepted.
+  dart_mcp: ">=0.5.2 <0.6.0"
+
+  vector_math: ^2.2.0
+
+dev_dependencies:
+  test: ^1.25.0
+  flutter_lints: ^6.0.0
+
+  # An in-memory pair of channels, so the suite drives the real server through
+  # the real protocol without starting a process. See test/three_torches_test.dart.
+  stream_channel: ^2.1.4
+
+# **Plain Dart, and that is the point rather than a coincidence.**
+#
+# `dart run` cannot resolve a package that depends on the Flutter SDK — the note
+# in `packages/flutter3d_cpu/tool/dump_fixture.dart` records finding that out —
+# and an MCP server is started by whatever is hosting the agent, with no Flutter
+# tool in sight. So this depends on the editor's headless core and on nothing
+# that would drag a widget in behind it, and `the simulation names no Flutter` in
+# `tool/structure.dart` reads `lib/`, `bin/` and `test/` here to keep it that way.
+#
+# The same fact is why there is no `screenshot` tool that takes a picture. Every
+# renderer in this repository reaches `GraphicsDevice`, whose `present` returns a
+# Flutter `Widget`; a process that can draw a level is a Flutter process, and
+# this one is deliberately not.

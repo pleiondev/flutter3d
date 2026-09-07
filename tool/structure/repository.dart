@@ -62,6 +62,11 @@ const Map<String, String> flatDartPackages = <String, String>{
   'flutter3d_editor_core':
       'a level is a document, and the programs that check one — a linter, a '
       'service, a tool an agent speaks to — have no window',
+  'flutter3d_editor_mcp':
+      'it is that tool an agent speaks to. A host starts it with `dart run`, '
+      'which cannot resolve a package that depends on the Flutter SDK — so a '
+      'single Flutter import here is not a heavier process, it is a server '
+      'that will not start on any machine that has not got the Flutter tool',
 };
 
 /// Packages the genre rule does not apply to, and why.

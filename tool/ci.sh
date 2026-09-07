@@ -162,7 +162,8 @@ for package in packages/*/; do
   # this line is the other half — the suite executed the way their callers will
   # execute them.
   if [ "$name" = "flutter3d_physics" ] || [ "$name" = "flutter3d_sim" ] ||
-     [ "$name" = "flutter3d_editor_core" ]; then
+     [ "$name" = "flutter3d_editor_core" ] ||
+     [ "$name" = "flutter3d_editor_mcp" ]; then
     step "test $name" in_dir "$package" dart test
   else
     step "test $name" in_dir "$package" flutter test

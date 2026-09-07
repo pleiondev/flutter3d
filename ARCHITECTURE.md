@@ -218,6 +218,7 @@ point of §3.3.
 | `flutter3d_session` | The run lifecycle that ties a game, a device and a screen together |
 | `flutter3d_app` | The assembly layer, as one import |
 | `flutter3d_editor_core` | The headless half of a level editor: the document being changed and undone, the handles a pointer hits, the palette a level builds out of itself, the project a template becomes. Plain Dart |
+| `flutter3d_editor_mcp` | The same editor offered to an agent: `EditorCommand` as a table of MCP tools over stdio, one document per process, plus the two verbs a caller with no screen needs — a flat listing, and the validator. Plain Dart |
 | `flutter3d_testing` | Rendering a scene with no GPU and comparing it against a reference image |
 | `pad_input` | Gamepad devices on web, Android, macOS and iOS |
 | `pointer_lock` | Relative mouse movement: a method channel on macOS, the Pointer Lock API in a browser, which Flutter surfaces on neither |
@@ -2144,6 +2145,28 @@ first thing that would answer the ring's gap properly.
 moving the step to a thread is a message protocol and a copy of the frame's state
 rather than a flag.
 
+**An agent editing a level cannot see it, and cannot join a session somebody
+else has open.** `flutter3d_editor_mcp` is a `dart run` process holding one
+document, and both of its limits follow from that. It cannot draw, because every
+backend here reaches a `GraphicsDevice` whose `present` returns a Flutter widget
+— so rendering a level needs a Flutter process, and `dart run` cannot resolve a
+package that depends on the Flutter SDK, which
+`packages/flutter3d_cpu/tool/dump_fixture.dart` records finding out. The
+`screenshot` tool is therefore declared and refuses with that reason rather than
+being left out, because a missing tool reads as an incomplete server and sends
+whatever is calling it looking for another way. `validate` is the question this
+process can answer instead, and for a caller that writes coordinates rather than
+clicking on things it is the more useful one.
+
+The second limit is a design decision rather than a platform's. A socket into a
+running editor — an agent and a person watching one level change together — is
+the arrangement that would be worth having, and it is a much harder program: two
+writers on one undo stack, a selection that has to mean something to both, and a
+test that needs a device before it can assert anything. What exists is the half
+that a plain `dart test` can hold still: one process, one document, deterministic
+text out, and a suite that drives the real protocol over a pair of in-memory
+streams.
+
 ---
 
 ## 16. Distribution
@@ -2183,20 +2206,23 @@ applications and the example apps keep theirs, being repository-only by design.
 4. `flutter3d_impeller`, `flutter3d_webgl`, `flutter3d_cpu`, `flutter3d_particles`,
    `flutter3d_sim`
 5. `flutter3d_game`, `flutter3d_editor_core`
-6. `flutter3d_screens`, `flutter3d_bridge`, `flutter3d_backend`, `flutter3d_testing`
+6. `flutter3d_screens`, `flutter3d_bridge`, `flutter3d_backend`,
+   `flutter3d_testing`, `flutter3d_editor_mcp`
 7. `flutter3d_session`
 8. `flutter3d_app`
 9. `flutter3d_game_shooter`, `flutter3d_game_platformer`, `flutter3d_game_racing`,
    `flutter3d_game_strategy`
 
-Three positions are not obvious and so are written down rather than re-derived:
+Four positions are not obvious and so are written down rather than re-derived:
 `flutter3d_samples` is in the first tier although nothing depends on it at run
 time, because `flutter3d`'s tests do and a dev dependency has to resolve for the
 archive to be accepted; `flutter3d_app` is second to last because it is the
-assembly layer; and `flutter3d_editor_core` is beside `flutter3d_game` rather
+assembly layer; `flutter3d_editor_core` is beside `flutter3d_game` rather
 than behind it, because it needs only `flutter3d_sim` — the editor's document
 layer never wanted the Flutter half, which is why it could leave an application
-at all.
+at all; and `flutter3d_editor_mcp` sits one tier behind that core and nowhere
+near the applications, because it is a published package that happens to have a
+`bin/` rather than a program that happens to be in this repository.
 
 **The applications are not packages.** `apps/` keeps its path dependencies: three
 demo games and an editor are things to clone, not things to depend on.

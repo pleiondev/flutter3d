@@ -44,6 +44,7 @@ export 'src/editing.dart';
 export 'src/editor_command.dart';
 export 'src/editor_history.dart';
 export 'src/gizmos.dart';
+export 'src/listing.dart';
 export 'src/looks.dart';
 export 'src/palette_items.dart';
 export 'src/picking.dart';

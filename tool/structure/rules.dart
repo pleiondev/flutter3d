@@ -1413,6 +1413,10 @@ List<Finding> _testCount() {
     // falls back to digits, and then the README's word never matches anything
     // and the finding blames the prose for a list that is simply too short.
     'twenty-six',
+    // And the day `flutter3d_editor_mcp` became the twenty-seventh, for the
+    // reason the line above gives: the list is extended before the package is
+    // counted, not after somebody has read a finding about the wrong thing.
+    'twenty-seven',
   ];
   final readme = File('${root.path}/README.md').readAsStringSync();
   final saidInProse = RegExp(

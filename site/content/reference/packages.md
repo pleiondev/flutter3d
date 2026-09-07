@@ -195,6 +195,19 @@ It does not draw, does not read a disk, and knows no genre. Two files stayed wit
 
 → [The level editor](/core/editor/)
 
+### `flutter3d_editor_mcp`
+The same editor, offered to an agent. A [Model Context Protocol](https://modelcontextprotocol.io) server over stdio — `dart run flutter3d_editor_mcp:editor_mcp <level.json>` — holding one document for the life of one process.
+
+**The tools are `EditorCommand`, not a second implementation of one.** Ten of the seventeen are the sealed hierarchy `flutter3d_editor_core` already publishes, offered under the names that package already gives them, and a tool call is its arguments handed to `EditorCommand.fromJson`. So an edit made by an agent and an edit made by a hand reach the document by one route, get one name in the undo stack, and come back under the same key. The table is built from `editorCommandNames` and the suite holds it to that list both ways round, because a server keeping its own copy is a server that silently cannot call the eleventh command.
+
+**Two of the tools are not commands, and both were missing from every sketch of this.** `list` prints everything in the level with the kind and index `select` takes — every other verb works on "the selection", which a program with no screen cannot guess, so without it driving the editor means moving the third brush without ever finding out there is a third brush. It lives in the core package as `contentsOf`, beside `handlesOf`, because it is the same question asked by a caller with no pixels. `validate` runs the document through `LevelValidator` against its own vocabulary; without it the first news of a broken level is a diff somebody reads later.
+
+**It cannot draw, and says so.** `screenshot` is declared and refuses with the reason: every backend here reaches a `GraphicsDevice` whose finished frame is a Flutter widget, so a process that can render a level is a Flutter process — and `dart run` cannot resolve a package that depends on the Flutter SDK. An absent tool reads as an incomplete server; a refusal with a reason ends the question.
+
+**And it will not write over a generated document.** A level carrying `generatedBy` may be opened, changed and saved somewhere else, and the copy claims itself. Saving over the original is refused, because that save would look like it worked right up until the next run of the generator threw the work away.
+
+Plain Dart, held by the same scan the simulation and the editor's core are: no Flutter anywhere in the graph, which for this package is not tidiness but whether the server starts at all.
+
 ## Applications
 
 ### `apps/flutter3d_demo_dungeon`
