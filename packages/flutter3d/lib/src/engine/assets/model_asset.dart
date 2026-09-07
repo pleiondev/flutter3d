@@ -200,34 +200,36 @@ final class ModelAsset {
     /// A failed upload is a model that draws its base shape, not a model that
     /// refuses to load: a device that will not take a float texture is a device
     /// on which every face is expressionless, and that is still a picture.
-    ({TextureHandle? texture, int count}) morphFor(MeshData mesh, String where) =>
-        morphCache.putIfAbsent(mesh, () {
-          final packed = MorphTexture.pack(mesh);
-          if (packed == null) return (texture: null, count: 0);
+    ({TextureHandle? texture, int count}) morphFor(
+      MeshData mesh,
+      String where,
+    ) => morphCache.putIfAbsent(mesh, () {
+      final packed = MorphTexture.pack(mesh);
+      if (packed == null) return (texture: null, count: 0);
 
-          final left = packed.dropped(mesh);
-          if (left > 0) {
-            warnings.add(
-              '$where: $left of ${mesh.morphTargets.length} morph targets were '
-              'left out; the shader blends ${packed.targetCount} at once.',
-            );
-          }
+      final left = packed.dropped(mesh);
+      if (left > 0) {
+        warnings.add(
+          '$where: $left of ${mesh.morphTargets.length} morph targets were '
+          'left out; the shader blends ${packed.targetCount} at once.',
+        );
+      }
 
-          final uploaded = device.createTextureFromPixels(
-            width: packed.width,
-            height: packed.height,
-            format: TextureFormat.r32g32b32a32Float,
-            pixels: packed.bytes,
-          );
-          if (uploaded == null) {
-            warnings.add(
-              '$where: the morph deltas could not be uploaded; the mesh draws '
-              'its base shape.',
-            );
-            return (texture: null, count: 0);
-          }
-          return (texture: uploaded, count: packed.targetCount);
-        });
+      final uploaded = device.createTextureFromPixels(
+        width: packed.width,
+        height: packed.height,
+        format: TextureFormat.r32g32b32a32Float,
+        pixels: packed.bytes,
+      );
+      if (uploaded == null) {
+        warnings.add(
+          '$where: the morph deltas could not be uploaded; the mesh draws '
+          'its base shape.',
+        );
+        return (texture: null, count: 0);
+      }
+      return (texture: uploaded, count: packed.targetCount);
+    });
 
     final parts = <ModelPart>[];
     for (final surface in document.surfaces) {

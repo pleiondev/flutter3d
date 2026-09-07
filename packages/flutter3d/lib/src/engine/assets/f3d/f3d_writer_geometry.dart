@@ -124,10 +124,14 @@ extension _F3dWriteGeometry on F3dWriter {
           tangents == null ? 0 : _blobAppend(tangents),
           Endian.little,
         );
-        record.setUint32(28, <int>[
-          if (normals != null) F3dMorphFlags.hasNormals,
-          if (tangents != null) F3dMorphFlags.hasTangents,
-        ].fold(0, (a, b) => a | b), Endian.little);
+        record.setUint32(
+          28,
+          <int>[
+            if (normals != null) F3dMorphFlags.hasNormals,
+            if (tangents != null) F3dMorphFlags.hasTangents,
+          ].fold(0, (a, b) => a | b),
+          Endian.little,
+        );
 
         records.add(record.buffer.asUint8List());
         count++;

@@ -291,8 +291,11 @@ TextureHandle? webglCreateTextureFromPixels(
   final (int type, JSAny Function(ByteData) view) = switch (format) {
     TextureFormat.r32g32b32a32Float => (
       web.WebGLRenderingContext.FLOAT,
-      (ByteData b) =>
-          Float32List.view(b.buffer, b.offsetInBytes, b.lengthInBytes ~/ 4).toJS,
+      (ByteData b) => Float32List.view(
+        b.buffer,
+        b.offsetInBytes,
+        b.lengthInBytes ~/ 4,
+      ).toJS,
     ),
     TextureFormat.r16g16b16a16Float => (
       web.WebGL2RenderingContext.HALF_FLOAT,

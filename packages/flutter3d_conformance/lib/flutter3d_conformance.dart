@@ -229,10 +229,7 @@ List<ConformanceCheck> get shaderChecks => <ConformanceCheck>[
     name: 'a vertex stage can sample a texture',
     run: checkVertexTextureSampling,
   ),
-  (
-    name: 'a float texture uploads as floats',
-    run: checkFloatTextureUpload,
-  ),
+  (name: 'a float texture uploads as floats', run: checkFloatTextureUpload),
   (
     name: 'a buffer is uploaded for its declared use, and draws as it',
     run: checkGeometryUsage,
