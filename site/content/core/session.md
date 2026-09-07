@@ -11,7 +11,7 @@ description: The device, the frame surface and the level lifecycle every shipped
 <li><code>flutter3d_backend.openDevice()</code>: one line that opens Impeller on desktop and WebGL2 on the web, without either name appearing at the call site</li>
 <li><code>SceneSurface</code>: the widget that hands a frame to Flutter, and why its settings are a function rather than a value</li>
 <li><code>RunSession&lt;L&gt;</code>: the five questions a game answers to get loading, restarting, saving and moving on for free</li>
-<li>Where <code>flutter3d_screens</code> and the input packages fit in, how <code>flutter3d_app</code> puts all five behind one import, and where two of the five applications have not caught up to any of this yet</li>
+<li>Where <code>flutter3d_screens</code> and the input packages fit in, how <code>flutter3d_app</code> puts all five behind one import, and where one of the six applications has not caught up to any of this yet</li>
 </ul>
 </div>
 
@@ -158,7 +158,7 @@ What is deliberately not behind it: `flutter3d`, `flutter3d_bridge`, `flutter3d_
 
 ## Where one application has not caught up
 
-The three demo games import `flutter3d_app`, and so does `apps/flutter3d_template_app`: the scaffold names `flutter3d_app` in its pubspec and opens its device through `openDevice`, which picks Impeller or WebGL for the build and falls back to the software rasteriser at run time when flutter_gpu will not start — the pattern this page teaches, including the fallback. It also names `flutter3d_session` directly, which the barrel re-exports; a second dependency on a package you are already getting is a line to delete, not a different arrangement.
+The four demo games import `flutter3d_app`, and so does `apps/flutter3d_template_app`: the scaffold names `flutter3d_app` in its pubspec and opens its device through `openDevice`, which picks Impeller or WebGL for the build and falls back to the software rasteriser at run time when flutter_gpu will not start — the pattern this page teaches, including the fallback. It also names `flutter3d_session` directly, which the barrel re-exports; a second dependency on a package you are already getting is a line to delete, not a different arrangement.
 
 `apps/flutter3d_editor` is the one that does not: it names `flutter3d_impeller` and opens its device with `GpuRenderBackend.create()`, the way [the tutorial](/core/tutorial/) does. That is defensible where it is, since the editor is desktop-only and there is no backend to choose between — but it is the reason the editor cannot be the thing you copy. Copy the scaffold, which is what it is for.
 

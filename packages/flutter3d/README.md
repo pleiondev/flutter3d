@@ -99,7 +99,7 @@ What works today:
   `CUBICSPLINE` with authored tangents), slerped rotations, an `AnimationPlayer`
   with play/pause/seek/speed and once/loop/ping-pong, and the decoded node
   hierarchy rebuilt on instantiation so an animated parent carries its subtree;
-- 904 tests — geometry, projection, scene, sorting, debug draw, intersections,
+- 908 tests — geometry, projection, scene, sorting, debug draw, intersections,
   raycasting, animation, skinning, lighting, tangents, render targets, BVH, LOD,
   glTF, OBJ and `.f3d` — all without a GPU.
 
@@ -311,7 +311,7 @@ lib/src/engine/assets/          glTF, OBJ and .f3d decoders, isolate loading, ca
 example/lib/                    the demo, and the frame capture hook
 skills/                         the conventions, as agent skills — see below
 bin/skills.dart                 what copies them into a project that uses this
-test/                           904 tests, all runnable without a GPU
+test/                           908 tests, all runnable without a GPU
 ```
 
 The GLSL is not here. Every shader this package draws with lives in
@@ -321,7 +321,7 @@ stages, the post chain and the headers they share — because an extension packa
 includes those headers and would otherwise depend on the whole engine to reach
 them.
 
-This package is one of twenty-five; see the [repository README](../../README.md)
+This package is one of twenty-seven; see the [repository README](../../README.md)
 for how the game layer, the backends and the genre templates sit around it.
 
 ## The conventions, unpacked into your repository

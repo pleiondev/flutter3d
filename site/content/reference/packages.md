@@ -4,7 +4,7 @@ description: Every package in the workspace, what it owns, what it depends on, a
 
 # Package index
 
-Twenty-four packages and five applications, resolved as one [pub workspace](https://dart.dev/tools/pub/workspaces), so a single `flutter pub get` covers everything against one lock file.
+Twenty-seven packages and six applications, resolved as one [pub workspace](https://dart.dev/tools/pub/workspaces), so a single `flutter pub get` covers everything against one lock file. Twenty-four of the packages are on pub.dev; `flutter3d_editor_core`, `flutter3d_editor_mcp` and `flutter3d_game_strategy` were written after the last release and live only in this checkout so far.
 
 ## Engine
 
@@ -49,7 +49,7 @@ It is how forty-three golden scenes are checkable with no GPU in the room, and i
 ### `flutter3d_conformance`
 The suite any fourth backend would have to pass before it counted as one, plus the cross-backend comparison with per-scene budgets.
 
-Two tiers, and the split is a correction. The library said it was shader-free as a whole, and that stopped being true the day a check needed a pipeline: twenty-three of the thirty-one now link stages and draw. `coreChecks` is what runs on clears, uploads and readback alone, so a backend can ask it before compiling a single shader; `shaderChecks` is the rest. A backend that believed the old promise would have met twenty-three failures it could do nothing about yet.
+Two tiers, and the split is a correction. The library said it was shader-free as a whole, and that stopped being true the day a check needed a pipeline: twenty-five of the thirty-three link stages and draw. `coreChecks` is what runs on clears, uploads and readback alone, so a backend can ask it before compiling a single shader; `shaderChecks` is the rest. A backend that believed the old promise would have met every one of those failures with nothing it could do about them yet — and the phrasing here is the one `tool/structure.dart` holds to the lists themselves, so the sentence cannot go stale again without the scan saying so.
 
 → [Writing a HAL backend](/core/backends/)
 
@@ -102,6 +102,13 @@ Draws nothing, for the same reason the other two genres don't: a car that unders
 
 → [What a racing game adds](/racing/) · [Tutorial](/racing/tutorial/)
 
+### `flutter3d_game_strategy`
+A camera over a map, orders given to a selection, and a crowd instead of a hero — the first genre here that is not one body under a camera bolted to it. A `Heightfield` of samples is the ground everything stands on, and `MapCamera` looks down at it; `StrategyOrder` is sealed over `MoveOrder`, `AssignOrder`, `AttackOrder` and `TrainOrder`, and a `UnitOrder` carries a goal, a formation and, when there is one, a target; `Formation`, `Squad` and a flow field shared by destination are how a crowd descends on the same place without a path apiece; `UnitType` is a row of numbers, so a worker, a soldier and a tank differ in what they measure rather than in what runs; `ResourceNode`, `HarvestJob`, `Stockpile`, `Producer`, `Building` and `Bot` give a side something to spend and a policy that plays it without a mouse; `FogOfWar` keeps what a side has explored apart from what it can see right now; `Match` and `MatchGoal` own the two ways to win; and `OrderTape` writes a whole match down as the orders that produced it.
+
+Two probes ran before any of it was written, and both moved the design. Ten thousand agents step in under a millisecond and fifty thousand instanced units hold the display's refresh rate — so neither the crowd nor the draw call is the constraint, and what follows is that separation applies to *everybody* rather than to what a camera can see (limiting it saves 717 microseconds and costs a run that replays the same way twice) and that the navigation grid is two metres rather than the quarter a shooter bakes.
+
+It is what finally exercised three things the engine had built and no game had used: `InstancedMeshNode`, the picking pass, and the flow fields in `flutter3d_sim`'s navigation.
+
 ## Where the halves meet
 
 ### `flutter3d_bridge`
@@ -136,7 +143,7 @@ Thirty-five lines, all of them `export`. It re-exports `flutter3d_backend`, `flu
 
 Deliberately **not** behind it: `flutter3d`, `flutter3d_bridge`, `flutter3d_game` and a genre package. Those are content, meaning what a scene looks like and what kind of game this is, and a facade cannot choose a genre on an application's behalf.
 
-Three of the five applications import it. `flutter3d_editor` and `flutter3d_template_app` do not, and that is a gap rather than a second pattern: see [Assembling an application](/core/session/).
+Five of the six applications import it — the four games and the template, which reaches `openDevice` through it in one exported line. `flutter3d_editor` is the one that does not, and that is a gap rather than a second pattern: see [Assembling an application](/core/session/).
 
 ### `flutter3d_backend`
 Which graphics backend a build draws through: `openDevice({required width, required height})` returns a `GraphicsDevice`. Web or native is a conditional export, picked at compile time, because `flutter_gpu` does not compile for the web and `dart:js_interop` does not compile for macOS. On the native half, Impeller or software is a runtime `try`/`catch` instead: `GpuRenderBackend.create()` is tried first, and a throw — Flutter GPU refusing to start on Skia, or a platform where Impeller was never enabled — falls back to `flutter3d_cpu`'s `CpuDevice`, since `flutter_gpu` ships with the SDK and no compile-time check can see whether it will actually start. Deliberately does not decide resolution or shadow budget — `kFixedResolution` reports whether the *primary* backend renders to a fixed internal target, and the size stays the application's own choice.
@@ -219,11 +226,14 @@ The platformer: third person, two jumps and a dash, and no line of the engine ch
 ### `apps/flutter3d_demo_racing`
 An arcade racer: one circuit, a car that can be made to slide, and a lap time to beat. Runs on Impeller and, since the cube shadow atlas got its own resolution, in a browser too — its [demo page](/racing/demo/) keeps the hunt that took it there.
 
+### `apps/flutter3d_demo_strategy`
+A map, two sides and a match played to a finish: a camera over the ground, a box drawn round a selection, orders given to it, and an opposing side played by `Bot`. `playthrough_test.dart` plays `assets/levels/map_a.json` to somebody winning it with nothing drawn at all — the balance of a map is what no other test in this repository would notice, and a match is thousands of steps, so a picture per step would be an hour of frames nobody looks at. Builds for macOS, the web, Android and iOS.
+
 ### `apps/flutter3d_editor`
-The fourth application and the first that is not a game: opens a level document with the same `LevelLoader` the games use, and lets somebody fly around it, move what's in it, and write it back. What it keeps is the half that reaches a device — the window, the disk, the camera, the frame; everything else is `flutter3d_editor_core`. → [The level editor](/core/editor/)
+The first application here that is not a game: opens a level document with the same `LevelLoader` the games use, and lets somebody fly around it, drag what's in it, and write it back. What it keeps is the half that reaches a device — the window, the disk, the camera, the frame; everything else is `flutter3d_editor_core`. → [The level editor](/core/editor/)
 
 ### `apps/flutter3d_template_app`
-The application a new project starts as: a level you can walk around, with no genre package. Depends on `flutter3d_session` but, unlike `apps/flutter3d_demo_dungeon`, still opens its device with `GpuRenderBackend.create()` directly rather than through `flutter3d_backend` — a gap [Assembling an application](/core/session/) states rather than glosses over.
+The application a new project starts as: a level you can walk around, with no genre package. It opens its device through `flutter3d_backend`'s `openDevice` in one exported line, which is what gives a scaffolded project the web build and the software fallback without its author deciding anything — see [Assembling an application](/core/session/).
 
 ### `packages/flutter3d/example`
 The engine's own demo: a model browser with every feature switchable, and the frame-capture hook.
@@ -232,7 +242,7 @@ The engine's own demo: a model browser with every feature switchable, and the fr
 
 ```mermaid
 flowchart TB
-  apps["apps/*"] --> genres["flutter3d_game_shooter<br>flutter3d_game_platformer<br>flutter3d_game_racing"]
+  apps["apps/*"] --> genres["flutter3d_game_shooter<br>flutter3d_game_platformer<br>flutter3d_game_racing<br>flutter3d_game_strategy"]
   apps --> bridge["flutter3d_bridge"]
   apps --> session["flutter3d_session<br>flutter3d_screens"]
   apps --> picker["flutter3d_backend"]

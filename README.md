@@ -8,11 +8,14 @@ wrapper around another engine, and it is not affiliated with the Flutter team.
 [![CI](https://github.com/pleiondev/flutter3d/actions/workflows/ci.yml/badge.svg)](https://github.com/pleiondev/flutter3d/actions/workflows/ci.yml)
 [![Licence: MIT](https://img.shields.io/badge/licence-MIT-blue.svg)](LICENSE)
 
-On pub.dev: all twenty-four packages, published by
+On pub.dev: twenty-four packages, published by
 [pleion.dev](https://pub.dev/publishers/pleion.dev/packages) — start with
-[`flutter3d`](https://pub.dev/packages/flutter3d) and a backend. The newest is
-[`flutter3d_sim`](https://pub.dev/packages/flutter3d_sim): the simulation, as
-plain Dart, so a server can replay a run without a Flutter SDK.
+[`flutter3d`](https://pub.dev/packages/flutter3d) and a backend. The workspace
+holds twenty-seven: `flutter3d_editor_core`, `flutter3d_editor_mcp` and
+`flutter3d_game_strategy` were written after the last release and are in this
+checkout only, which is why the two counts differ. The newest one that did go
+out is [`flutter3d_sim`](https://pub.dev/packages/flutter3d_sim): the
+simulation, as plain Dart, so a server can replay a run without a Flutter SDK.
 Or build it
 from this repository — see [Running](#running),
 [CONTRIBUTING.md](CONTRIBUTING.md) and [SECURITY.md](SECURITY.md).
@@ -47,9 +50,13 @@ genres, and the generated API reference.
 | [`packages/flutter3d_session`](packages/flutter3d_session) | A run that can be started, saved, resumed and ended, with no widget in it |
 | [`packages/flutter3d_app`](packages/flutter3d_app) | What every application repeats: storage, settings, the frame clock, the screens |
 | [`packages/flutter3d_game_racing`](packages/flutter3d_game_racing) | A third genre: a car simulated as a sphere, a circuit read from a spline, lap timing and a ghost |
+| [`packages/flutter3d_game_strategy`](packages/flutter3d_game_strategy) | A fourth genre, and the first without a protagonist: ground made of samples, a crowd that takes orders and shoves itself apart, flow fields shared by destination, an economy, a fight, fog a side has to walk into, and a policy that plays a side without a mouse |
+| [`packages/flutter3d_editor_core`](packages/flutter3d_editor_core) | The level editor with the editor taken out: the document being selected in, nudged, undone and written back, the handles a pointer hits, the palette a level builds out of itself, and the project a template becomes. Plain Dart, so a linter or a service can depend on it |
+| [`packages/flutter3d_editor_mcp`](packages/flutter3d_editor_mcp) | The same editor offered to an agent: an MCP server over stdio whose tools are the editor's own commands, one document per process |
 | [`apps/flutter3d_demo_dungeon`](apps/flutter3d_demo_dungeon) | The shooter, and a headless test that plays it to the exit. Desktop, web, Android and iOS |
 | [`apps/flutter3d_demo_platformer`](apps/flutter3d_demo_platformer) | The second game: third person, two jumps and a dash, and no line of the engine changed to allow it. Desktop, web, Android and iOS |
 | [`apps/flutter3d_demo_racing`](apps/flutter3d_demo_racing) | The third game: a circuit, three rivals and the lap you drove before, drawn beside the one you are driving |
+| [`apps/flutter3d_demo_strategy`](apps/flutter3d_demo_strategy) | A map, two sides and a match played to a finish, with a headless test that plays the recording back. Desktop, web, Android and iOS |
 | [`apps/flutter3d_editor`](apps/flutter3d_editor) | A level editor that reads the same documents the games do, and writes projects from templates |
 | [`apps/flutter3d_template_app`](apps/flutter3d_template_app) | The application a new project starts as, and the source the editor's templates are generated from |
 | [`packages/flutter3d/example`](packages/flutter3d/example) | The engine's own demo: a model browser with every feature switchable |
@@ -130,7 +137,7 @@ Or one package at a time:
 (cd packages/flutter3d_physics && dart test)   # plain Dart, no Flutter needed
 ```
 
-3885 tests across twenty-five packages and five applications, and the only
+4091 tests across twenty-seven packages and six applications, and the only
 ones that need a GPU are the
 Impeller half of the golden set. The other half is rendered by the software
 backend, which is what makes 43 scenes checkable in a headless run.
@@ -146,13 +153,22 @@ why every new test is written by breaking the thing it covers — is in
 
 ## Channel
 
-Flutter 3.47.0 stable, and the list of what that costs got shorter in August
-2026. Mip levels and instancing both arrived, and both are now used: a mip
-chain is built on the CPU and uploaded level by level because `flutter_gpu` has
-no `generateMipmap`, and instanced draws carry mesh particles. What is still
-absent is compressed texture formats, compute passes, and rendering into a mip
-level — recorded in [ARCHITECTURE.md](ARCHITECTURE.md), section 2, and still
-the reason several things are built the way they are rather than the obvious way.
+Flutter 3.47.0 stable, and the list of what that costs kept getting shorter.
+Mip levels and instancing both arrived, and both are now used: a mip chain is
+built on the CPU and uploaded level by level because `flutter_gpu` has no
+`generateMipmap`, and instanced draws carry mesh particles. Rendering *into* a
+mip level came with them — `ColorTarget.mipLevel` names a face and a level, and
+the environment map is prefiltered through it. Compressed pixel formats are
+here too: the BC, ETC2 and ASTC families are in `TextureFormat`, every backend
+answers `supportsTextureFormat` for itself, and a KTX2 that arrives is read.
+What no asset in this repository *ships* is a compressed texture, because
+`tool/convert_asset.dart` has no encoder to make one — a gap upstream of the
+engine rather than in it.
+
+So one entry is left on the list: compute passes, and with them GPU particles,
+GPU skinning, GPU culling and indirect draw. That one is recorded in
+[ARCHITECTURE.md](ARCHITECTURE.md), section 2, and is still the reason several
+things are built the way they are rather than the obvious way.
 
 The upgrade is worth one sentence of its own: `setDepthWrite(false)` did
 nothing until 3.47, so additive particles occluded each other on two backends

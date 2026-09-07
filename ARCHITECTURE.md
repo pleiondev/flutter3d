@@ -169,7 +169,7 @@ copy, and is the bridge into the widget tree.
 
 ## 3. The package map
 
-Twenty-four packages and five applications in one pub workspace — one
+Twenty-seven packages and six applications in one pub workspace — one
 `flutter pub get` for the repository.
 
 ### 3.1 The layering rule
@@ -225,9 +225,10 @@ point of §3.3.
 
 Applications: `apps/flutter3d_demo_dungeon` (shooter),
 `apps/flutter3d_demo_platformer`, `apps/flutter3d_demo_racing`,
-`apps/flutter3d_editor` (level editor) and `apps/flutter3d_template_app` (the
-seed a new project starts from), plus the engine's own example — five
-applications, which is the count the workspace list is held to.
+`apps/flutter3d_demo_strategy`, `apps/flutter3d_editor` (level editor) and
+`apps/flutter3d_template_app` (the seed a new project starts from), plus the
+engine's own example — six applications, which is the count the workspace list
+is held to.
 
 
 ### 3.3 Why the simulation is its own package
@@ -1159,9 +1160,16 @@ slots is uploaded once.
 
 ### 8.4 Textures and caching
 
-PNG and JPEG through `dart:ui`, uploaded as RGBA8 — there are no compressed pixel
-formats in use, so a 2048² texture costs 16 MB regardless of how small its file
-was. Mip chains are built on the CPU by `MipChain.build` and every backend uploads
+PNG and JPEG through `dart:ui`, uploaded as RGBA8, which is what every texture
+this repository ships costs: a 2048² one is 16 MB however small its file was.
+That is a statement about the assets rather than about the engine.
+`TextureFormat` names the BC, ETC2 and ASTC families,
+`GraphicsDevice.supportsTextureFormat` answers for each of them per backend, and
+a KTX2 that arrives carrying blocks those answers allow goes to the device as
+blocks. The gap is upstream, where `tool/convert_asset.dart` has no encoder to
+produce one; [§15](#15-limits) tells that half at length.
+
+Mip chains are built on the CPU by `MipChain.build` and every backend uploads
 the same bytes, because WebGL2 has `glGenerateMipmap`, Impeller has nothing of the
 kind, and a chain generated per backend is two of them agreeing by accident. Ask
 `supportsMipmaps` first: a hand-built chain samples as **black** on OpenGL ES 2
@@ -1335,29 +1343,44 @@ opposite of it either, and the difference between the two measurements is the
 part worth carrying.
 
 **The primitives.** Twelve `dart:math` functions, twenty thousand arguments
-apiece, digested and compared between the Dart VM and Chrome on macOS-arm64:
+apiece, digested and compared across three environments: the Dart VM and Chrome
+on macOS-arm64, and both again on ubuntu-x64 in CI:
 
-| Function | Same bits in both |
+| Function | Same bits everywhere it has been asked |
 |---|---|
-| `sqrt`, `pow` | yes |
-| `sin`, `cos`, `tan`, `asin`, `acos`, `atan`, `atan2`, `exp`, `log` | **no** |
+| `sqrt` | yes |
+| `pow`, `sin`, `cos`, `tan`, `asin`, `acos`, `atan`, `atan2`, `exp`, `log` | **no** |
 
-Every transcendental differs, and so does every combination of them. There is
-nothing portable to build a substitute out of.
+Exactly one function is portable, and the specification is the reason it may be:
+IEEE 754 requires `sqrt` to be correctly rounded. Every transcendental differs,
+and so does every combination of them. There is nothing portable to build a
+substitute out of.
+
+**`pow` was on the first row for five days**, and the third machine took it off.
+Two libms agreed on it at the one exponent asked about, which was enough to read
+as a property of `pow` and was only a property of those two libms; ubuntu answers
+a different digest in both of its environments. That is the table working rather
+than breaking — a row gained an answer, and it gained it in a test rather than in
+somebody's replayed run. `packages/flutter3d_sim/test/parity_test.dart` carries
+every digest beside the ones it disagrees with, and is the authority this section
+is written from.
 
 **The simulations.** A thousand steps digested every twenty-five:
 
 | Scenario | Checkpoints matching |
 |---|---|
 | Character controller through a room of brushes | **40 of 40** |
-| `SphereVehicle` on flat ground, scripted driver | 17 of 40, first divergence at step 75 |
+| `SphereVehicle` on flat ground, scripted driver, on the host libm | 17 of 40, first divergence at step 75 |
+| The same drive, once the tyre curve ran on `Portable` | **40 of 40**, on all four environments |
 
-Those are consistent, and the gap between them is the finding. Two libms
-disagree on a small fraction of arguments; whether a run diverges is a question
-about which arguments *that* run reaches. Walking reaches almost no
+The middle row is the finding and the last one is what was done about it. Two
+libms disagree on a small fraction of arguments; whether a run diverges is a
+question about which arguments *that* run reaches. Walking reaches almost no
 transcendental. Driving is made of them — `tan` in the bicycle-model steering,
 `atan` twice a step per tyre in the Pacejka curve, `atan2` for the slip angle,
-`tan` again in the coefficient the curve is built from.
+`tan` again in the coefficient the curve is built from — which is why the car
+was the counter-example and why it is the best confirmation now that not one of
+its recorded digests had to change.
 
 **A correction, kept because the shape of the mistake recurs.** The first
 version of the primitives table sampled twelve hand-picked arguments and
@@ -1370,18 +1393,31 @@ a change justified by "it diverges less often" has failures that are rarer and
 no less real. **A test of where two implementations agree will report that they
 agree.**
 
-**What this settles for a verifying server.** Not that it cannot be built, but
-that it cannot compare whole runs across platforms and call a mismatch
-cheating. Either a run is replayed on the platform it was played on, or the
-step stops calling functions whose answers are a property of the machine — a
-polynomial, a table, or a quantised argument, none of which is written. The
-checkpoints are how a mismatch is localised either way, and a mismatch is a
-quarantine somebody looks at rather than a verdict.
+**What this settles for a verifying server.** The two ways out were a run
+replayed on the platform it was played on, or a step that stops calling
+functions whose answers are a property of the machine. The second one is
+written: `Portable`, in `flutter3d_sim/lib/src/math/portable_math.dart`, answers
+the ten names the scan refuses — `sin`, `cos`, `tan`, `asin`, `acos`, `atan`,
+`atan2`, `exp`, `log`, `pow`, plus `sinCos` for the pair a call site wants
+together — out of `+`, `-`, `*`, `/`, `sqrt`, comparison and the bytes of a
+double, every one of which Dart pins to IEEE 754. Two platforms running it
+cannot disagree because there is nothing left for them to disagree about, which
+holds for platforms nobody has measured as well. What it does not promise is the
+last bit against `dart:math`: these are minimax polynomials accurate to a couple
+of units in the last place, and `portable_math_test.dart` holds that bound.
+`a step asks no machine for an answer` is the rule that keeps the call sites,
+and the racing game's own parity test is what it bought — twenty-three
+disagreeing checkpoints of forty, then none. The checkpoints are still how a
+mismatch is localised, and a mismatch is a quarantine somebody looks at rather
+than a verdict.
 
-Two things this does **not** say. It is one processor family running two
-compilers; Linux is answered by `tool/ci.sh`, which runs both packages under
-the VM and under Chrome. And it is the character controller and the arcade
-vehicle, not the rigid-body solver, whose divergence nobody has measured.
+Two things this does **not** say. Linux has now answered and did not agree: on
+2026-09-07 `tool/ci.sh`'s ubuntu-x64 machines asked the same question of the
+same bytes and differed in eleven rows under the VM and two under Chrome (run
+34121423137). Those answers are recorded rather than the question being
+silenced, which is why the group is green again. And it is the character
+controller and the arcade vehicle, not the rigid-body solver, whose divergence
+nobody has measured.
 
 The digest is `StateDigest`, and it is 32-bit FNV-1a arrived at by a route a
 browser can walk: the multiply is done in halves so that no intermediate passes
@@ -1475,8 +1511,18 @@ pit and asks whether it arrived.
 
 `flutter3d_physics` is pure Dart with no Flutter dependency.
 
-**Shapes:** box, sphere, capsule. Raycast, shape cast and overlap queries, filtered
-by layers and masks. Convex hulls and triangle meshes are absent.
+**Shapes:** box, sphere, capsule and wedge. Raycast, shape cast and overlap
+queries, filtered by layers and masks. Convex hulls and triangle meshes are
+absent.
+
+The wedge is a box with one edge cut away — a ramp — and it is a *shape* rather
+than a brush the loader tilts because a level document has no rotation in it and
+because a solid that collided as its bounding box would be a wall a player stands
+on top of, which nothing in a test would have said. Its steepness is its own
+proportions and its uphill direction is one of four, so a slope stays something a
+level author reads off the sizes they typed. `CollisionShape.expandedPlanes` is
+what makes it affordable: the wedge answers with five real faces, and every
+sweep and query the world already had reads it through that.
 
 **The character controller is capsule-based and kinematic**, with steps, sliding
 and coyote time. It is deliberately not rewritten as a rigid body: a player driven
@@ -1678,7 +1724,7 @@ entities a game defines.
 |---|---|
 | Style | `dart format` |
 | Analysis | `flutter analyze` clean across the workspace, no warnings |
-| Unit tests | **3885 tests** across 25 packages and 5 applications |
+| Unit tests | **4091 tests** across 27 packages and 6 applications |
 | Structure rules | 30, `dart run tool/structure.dart`, the first CI step |
 | CI | GitHub Actions over `tool/ci.sh`, on `ubuntu-latest`, with no graphics card |
 
@@ -1891,6 +1937,21 @@ drawn rather than only allocated. Still refused by name: UASTC, Zstandard
 and ZLIB supercompression, arrays, cube maps, 3D textures. What is missing
 is upstream: `tool/convert_asset.dart` has no encoder, so nothing produces a
 compressed KTX2 for this engine's own pipeline to read.
+
+**A material hint describes a control and refuses nothing.** `MaterialHintKind`
+— a range, a colour of three or four channels, a texture path with the suffixes
+this engine decodes, an enumeration, and the plain fallback — says how a value
+should be *shown*, and `builtInMaterialHints` answers for the fields every
+material has while a `.fmat` carries `MaterialDocument.hints` for the parameters
+only somebody's own shader knows about. What it deliberately does not do is
+constrain: a hint of `0..1` does not make `readFmat` clamp a roughness of 1.5,
+because the number in the file is what the shader receives and a reader that
+tidied it up would be changing what the engine draws to suit an editor's slider.
+Every golden picture here was rendered from the numbers the files actually
+carry. So a `.fmat` still has no schema and nothing validates one; the hints buy
+a panel that shows a colour as a swatch instead of as four boxes, and that is
+the whole of what they were for. The one consumer today is
+`apps/flutter3d_editor/lib/src/material_panel.dart`.
 
 **Morph targets are drawn on the GPU, and there is still no additive
 animation.** A file's targets are read into `MeshData.morphTargets`, packed by
@@ -2167,6 +2228,37 @@ that a plain `dart test` can hold still: one process, one document, deterministi
 text out, and a suite that drives the real protocol over a pair of in-memory
 streams.
 
+**A strategy match is written down as orders, and that tape is not `Demo`'s.**
+`OrderTape` holds a seed, the starting `Snapshot`, and one list of orders per
+step with the index as the step number, so a match replays exactly the way the
+crypt's `InputTape` does — `match_test.dart` plays the shipped map to a finish
+and holds the result to the bit. The arithmetic is written out a second time
+rather than shared, because `Demo` types its `tape` field as `InputTape` and
+calls `InputTape.fromJson` by name: making it generic would change a class three
+shipped genres read, so that a fourth could put something in it none of them can
+play. What *is* shared is the failure — `DemoFormatException` says the same
+three sentences about the same three broken documents, so a reader that opens
+both kinds catches one type. A tape of orders rather than of positions is the
+whole point: a recording of where everybody walked would keep playing after the
+crowd's separation changed underneath it, and would therefore be a recording of
+nothing.
+
+**The fight cost no new mechanism, and its limits are the ones that saved.** A
+unit's kind is `UnitType`, a row of numbers a worker, a soldier and a tank
+differ in rather than a subclass apiece, so the walk asks how fast, the fight
+asks how hard and how far, and a kind travels in a document as its own numbers —
+a tape recorded against one balance cannot silently replay against another. An
+attack order is a target in a field beside the goal, so the walk that already
+descends a flow field follows a retreating enemy without knowing what a target
+is, and the shooting reuses the spatial hash the shove was already building,
+because the measurement this package was designed against leaves no room for a
+pass of everybody against everybody. What is absent follows from the same
+budget: sight is a radius rather than a line of sight, so a ridge hides nothing
+— line of sight over a heightfield is a ray per cell per source, the one cost
+here that grows with the crowd *and* with the map. `FogOfWar` keeps explored and
+visible apart on a four-metre lattice of its own, coarser than the two-metre
+navigation grid, because fog is looked at rather than walked on.
+
 ---
 
 ## 16. Distribution
@@ -2175,14 +2267,20 @@ streams.
 went to pub.dev at 0.4.0 under the
 [pleion.dev](https://pub.dev/publishers/pleion.dev/packages) publisher, and
 `flutter3d_sim` followed when the simulation was split out of the game layer, so
-the workspace's twenty-four are all published now. `publish_to: none` — "the one line between prepared and on the
+twenty-four of the workspace's twenty-seven are on the internet.
+`flutter3d_editor_core`, `flutter3d_editor_mcp` and `flutter3d_game_strategy`
+are the three that are not: each was written after that release and each is
+waiting for the next one rather than for a decision.
+`publish_to: none` — "the one line between prepared and on the
 internet" — came out of the packages that day; the workspace root, the
 applications and the example apps keep theirs, being repository-only by design.
 
 - **Licence: MIT**, `Copyright (c) 2026 Dmitrii Zolotov`. One `LICENSE` at the root
   and a copy in every package, because pub wants the file inside the archive.
 - `LICENSE`, `CHANGELOG.md`, `README.md`, `repository:` and `homepage:` in all
-  twenty-four packages.
+  twenty-seven packages, the three unpublished ones included — `pub publish
+  --dry-run` is what `tool/publish_check.sh` asks of every one of them, so a
+  package is ready on the day it is written rather than on release day.
 - **`dart format` is a CI step**, second in the order and reported by
   `tool/ci.sh`. It was this document's claimed style for a year with nothing
   checking it, and 637 files of 874 did not match — Dart 3.7 changed the
@@ -2224,8 +2322,9 @@ at all; and `flutter3d_editor_mcp` sits one tier behind that core and nowhere
 near the applications, because it is a published package that happens to have a
 `bin/` rather than a program that happens to be in this repository.
 
-**The applications are not packages.** `apps/` keeps its path dependencies: three
-demo games and an editor are things to clone, not things to depend on.
+**The applications are not packages.** `apps/` keeps its path dependencies: four
+demo games, an editor and a template are things to clone, not things to depend
+on.
 
 **Most packages have no `example/`.** pub scores a package higher with one, and an
 example nobody runs is worse than none. `packages/pad_input/example` exists because
