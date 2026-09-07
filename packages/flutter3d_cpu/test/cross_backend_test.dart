@@ -207,6 +207,13 @@ const Map<String, double> _budgets = <String, double>{
   // never place identically; the caption on the site says the picture has them
   // because it does now.
   'debug-overlay': 0.37,
+  // 0.226% measured, which is a silhouette and nothing else — the same band
+  // `skinned-figure` sits in, and for the same reason: both scenes are one
+  // model whose vertices were moved by a stage before anything shaded them, so
+  // what is left to disagree about is the edge multisampling softens on one
+  // backend and not the other. A vertex stage that read the delta texture
+  // differently on the two would not land here; it would land in whole shapes.
+  'morph-cube': 0.25,
   'surface-buffer': 0.02,
   'cube-shadow': 0.02,
   'cube-shadow-crowded': 0.02,

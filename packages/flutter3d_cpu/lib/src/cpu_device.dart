@@ -279,13 +279,10 @@ final class CpuDevice implements GraphicsDevice {
     // prefix of anything longer, so a decoder that disagreed with the engine
     // about the dimensions was refused on two backends and silently drew
     // something else on the third.
-    final expected = width * height * 4;
+    final expected = width * height * _texelBytes(format);
     if (pixels.lengthInBytes != expected) return null;
     final texture = CpuTexture(width, height, format);
-    final bytes = pixels.buffer.asUint8List(pixels.offsetInBytes, expected);
-    for (var i = 0; i < expected; i++) {
-      texture.pixels[i] = bytes[i] / 255.0;
-    }
+    _decodeInto(texture.pixels, pixels, format, width * height);
     if (mipLevels != null && mipLevels.isNotEmpty) {
       final chain = <CpuTexture>[];
       var w = width;
@@ -294,15 +291,12 @@ final class CpuDevice implements GraphicsDevice {
         w = w > 1 ? w >> 1 : 1;
         h = h > 1 ? h >> 1 : 1;
         final small = CpuTexture(w, h, format);
-        final need = w * h * 4;
+        final need = w * h * _texelBytes(format);
         // Exactly, as above. A chain built with the wrong arithmetic is the
         // case this catches, and it is the one that looks like a filtering bug
         // rather than like a bad upload.
         if (level.lengthInBytes != need) return null;
-        final from = level.buffer.asUint8List(level.offsetInBytes, need);
-        for (var i = 0; i < need; i++) {
-          small.pixels[i] = from[i] / 255.0;
-        }
+        _decodeInto(small.pixels, level, format, w * h);
         chain.add(small);
       }
       texture.levels = chain;
@@ -447,4 +441,83 @@ final class CpuDevice implements GraphicsDevice {
 
   @override
   void releaseGeometry(GeometryBuffer geometry) {}
+}
+
+/// How many bytes one texel of [format] occupies in an upload.
+///
+/// **This used to be four for everything.** Every texture the engine uploaded
+/// was eight-bit RGBA, so a constant was right by accident until the morph
+/// deltas arrived as `r32g32b32a32Float`: sixteen bytes a texel, refused by the
+/// size check, and a model that quietly drew its base shape on this backend
+/// while the other two morphed. A format the sampler cannot describe is not a
+/// format this rasteriser should guess at, so anything unlisted keeps the old
+/// four and is refused by the size check if that is wrong — which is a null
+/// upload and a warning rather than a texture full of misread bytes.
+int _texelBytes(TextureFormat format) => switch (format) {
+  TextureFormat.r32g32b32a32Float => 16,
+  TextureFormat.r16g16b16a16Float => 8,
+  TextureFormat.r32Float => 4,
+  _ => 4,
+};
+
+/// Reads [count] texels out of [pixels] into a [CpuTexture]'s four-float
+/// storage.
+///
+/// The float formats are copied as they are; everything else is the eight-bit
+/// unorm decode this backend has always done. A single-channel float lands in
+/// red with the rest at nought and alpha at one, which is what sampling one of
+/// these means everywhere else.
+void _decodeInto(
+  Float32List into,
+  ByteData pixels,
+  TextureFormat format,
+  int count,
+) {
+  switch (format) {
+    case TextureFormat.r32g32b32a32Float:
+      for (var i = 0; i < count * 4; i++) {
+        into[i] = pixels.getFloat32(i * 4, Endian.little);
+      }
+    case TextureFormat.r16g16b16a16Float:
+      // Read through a Float32List rather than by hand: `dart:typed_data` has
+      // no half-float view, and the conversion belongs in one place.
+      for (var i = 0; i < count * 4; i++) {
+        into[i] = _halfToDouble(pixels.getUint16(i * 2, Endian.little));
+      }
+    case TextureFormat.r32Float:
+      for (var i = 0; i < count; i++) {
+        into[i * 4] = pixels.getFloat32(i * 4, Endian.little);
+        into[i * 4 + 1] = 0.0;
+        into[i * 4 + 2] = 0.0;
+        into[i * 4 + 3] = 1.0;
+      }
+    default:
+      for (var i = 0; i < count * 4; i++) {
+        into[i] = pixels.getUint8(i) / 255.0;
+      }
+  }
+}
+
+/// One IEEE binary16 as a double.
+double _halfToDouble(int bits) {
+  final sign = (bits & 0x8000) != 0 ? -1.0 : 1.0;
+  final exponent = (bits >> 10) & 0x1F;
+  final mantissa = bits & 0x3FF;
+
+  if (exponent == 0) return sign * mantissa * _halfSubnormal;
+  if (exponent == 0x1F) {
+    return mantissa == 0 ? sign * double.infinity : double.nan;
+  }
+  return sign * (1.0 + mantissa / 1024.0) * _twoTo(exponent - 15);
+}
+
+/// 2⁻²⁴, the step between subnormal halves.
+const double _halfSubnormal = 1.0 / 16777216.0;
+
+double _twoTo(int power) {
+  var value = 1.0;
+  for (var i = 0; i < power.abs(); i++) {
+    value *= 2.0;
+  }
+  return power < 0 ? 1.0 / value : value;
 }

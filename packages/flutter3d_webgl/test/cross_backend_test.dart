@@ -193,6 +193,12 @@ const Map<String, double> _budgets = <String, double>{
   'particles-recycled': 0.01,
   'debug-overlay': 0.01,
   'shadow-map': 0.01,
+  // 0.139% measured: a silhouette's worth, which is what two hardware
+  // rasterisers leave when a vertex stage has agreed about where every vertex
+  // went. The deltas travel as a float texture sampled in the vertex stage, so
+  // a browser that had refused the format or filled it as bytes would not be
+  // a tenth of a percent away — it would be the base shape.
+  'morph-cube': 0.15,
   'surface-buffer': 0.01,
 };
 

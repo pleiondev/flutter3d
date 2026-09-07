@@ -119,3 +119,121 @@ Future<void> checkVertexTextureSampling(GraphicsDevice device) async {
     'a delta texture. Record it rather than fixing it.',
   );
 }
+
+/// Whether a full-float texture uploads and samples back the floats it was
+/// given.
+///
+/// **Two backends answered no and neither said so.** Morph deltas travel as
+/// `r32g32b32a32Float` — sixteen bytes a texel — and every texture the engine
+/// had ever uploaded before them was eight-bit RGBA. The software rasteriser
+/// measured the buffer at four bytes a texel and refused it as the wrong size;
+/// WebGL measured it the same way and, for a buffer that happened to pass,
+/// filled RGBA32F storage through `RGBA`/`UNSIGNED_BYTE`. Impeller was right by
+/// asking flutter_gpu for the format's own `bytesPerBlock`. So the feature
+/// looked finished on all three and drew the base shape on two, with no error
+/// anywhere — which is the shape of failure a conformance check exists for.
+///
+/// Sampled in the vertex stage, like [checkVertexTextureSampling] and through
+/// the same probe: that is where the deltas are actually read, and a format
+/// that uploads correctly but cannot be sampled from a vertex stage would be
+/// the same no by a different route.
+///
+/// Nearest and clamped, deliberately. Linear filtering of a 32-bit float
+/// texture is an extension on WebGL2 (`OES_texture_float_linear`) and is not
+/// asked for here, because the delta texture is read at texel centres and never
+/// wanted filtering — see `MorphTexture`.
+Future<void> checkFloatTextureUpload(GraphicsDevice device) async {
+  const size = 8;
+
+  final vertex = device.shaders['VertexTextureProbeVertex'];
+  final fragment = device.shaders['VertexTextureProbe'];
+  require(
+    vertex != null && fragment != null,
+    'the vertex-texture probe stages are missing from the bundle',
+  );
+
+  // The same three quarters the eight-bit probe uses, so the two checks say
+  // the same number back and a reader can compare them. As floats it is a
+  // value no byte-wise misread can produce: 0.75 is 0x3F400000, whose bytes
+  // read as unorm would be a red of nought.
+  final pixels = ByteData(16)
+    ..setFloat32(0, 0.75, Endian.little)
+    ..setFloat32(4, 0.0, Endian.little)
+    ..setFloat32(8, 0.0, Endian.little)
+    ..setFloat32(12, 1.0, Endian.little);
+  final texture = device.createTextureFromPixels(
+    width: 1,
+    height: 1,
+    format: TextureFormat.r32g32b32a32Float,
+    pixels: pixels,
+  );
+  require(
+    texture != null,
+    'a one-texel r32g32b32a32Float texture could not be uploaded. Sixteen '
+    'bytes were offered for one texel, which is what the format is; a backend '
+    'measuring every format at four bytes a texel refuses exactly here.',
+  );
+
+  final target = device.createTexture(
+    const RenderTargetSpec(
+      width: size,
+      height: size,
+      format: TextureFormat.r8g8b8a8UNormInt,
+    ),
+  );
+
+  final pass = device.beginRenderPass(
+    RenderPassDescriptor(
+      colors: <ColorTarget>[
+        ColorTarget(
+          texture: target,
+          loadAction: LoadAction.clear,
+          clearValue: Vector4(0.0, 1.0, 0.0, 1.0),
+        ),
+      ],
+    ),
+  );
+
+  final triangle = Float32List.fromList(<double>[
+    -1, -1, 0.5, //
+    3, -1, 0.5,
+    -1, 3, 0.5,
+  ]);
+  final indices = Uint16List.fromList(<int>[0, 1, 2]);
+
+  pass
+    ..setPrimitiveType(PrimitiveType.triangle)
+    ..setCullMode(CullMode.none)
+    ..bindPipeline(device.createPipeline(vertex!, fragment!))
+    ..bindUniformBlock(vertex, 'ProbeInfo', <String, Float32List>{
+      'at': Float32List.fromList(<double>[0.5, 0.5, 0.0, 0.0]),
+    })
+    ..bindTexture(
+      vertex,
+      'probe_texture',
+      texture!,
+      sampler: SamplerOptions.nearestClamp,
+    )
+    ..bindVertexData(ByteData.sublistView(triangle), 3)
+    ..bindIndexData(ByteData.sublistView(indices), IndexType.int16, 3)
+    ..draw()
+    ..submit();
+
+  final read = await device.readPixels(target);
+  require(read != null, 'the target could not be read back');
+
+  final bytes = read!.buffer.asUint8List();
+  final green = bytes[1];
+  require(
+    green < 32,
+    'the frame came back the clear colour, so the draw never landed — which '
+    'says nothing about the upload on its own.',
+  );
+  require(
+    (bytes[0] - 191).abs() <= 2,
+    'a float texture holding 0.75 sampled back as ${bytes[0] / 255.0}. The '
+    'bytes reached the device as something other than floats — the usual '
+    'cause is a transfer type of UNSIGNED_BYTE against float storage, which '
+    'no API reports as an error and every model with a face pays for.',
+  );
+}

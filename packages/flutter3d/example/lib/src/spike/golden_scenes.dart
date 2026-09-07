@@ -77,6 +77,25 @@ final List<GoldenScene> kGoldenScenes = <GoldenScene>[
     ground: false,
   ),
 
+  // A morphed mesh at a fixed clip time, where **both** of the file's shapes
+  // are weighted at once — 0.47 and 0.53 at 2.45 seconds. That is the frame
+  // worth having: a single weighted target would pass on a shader that read
+  // the first row and stopped, and the sum of two is what the layout of the
+  // delta texture is actually for. The cube carries normal and tangent deltas
+  // as well as positions, so all three rows a target occupies reach a pixel.
+  //
+  // No ground and no bloom, for the reason the rigged scene gives: this frame
+  // tests one thing, and the vertex stage is the thing.
+  const GoldenScene(
+    name: 'morph-cube',
+    source: 'morph: Cube',
+    animationTime: 2.45,
+    yaw: 0.7,
+    pitch: 0.35,
+    bloom: false,
+    ground: false,
+  ),
+
   // The debug overlay, which is otherwise never exercised by anything
   // automatic. All five overlays, because the point of one frame here is that
   // every kind of line the engine can draw reaches a pixel: bounds, axes, light

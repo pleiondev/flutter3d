@@ -240,10 +240,14 @@ TextureHandle? webglCreateTextureFromPixels(
     );
   }
 
-  // RGBA8 is the only format the engine uploads from the CPU, and four bytes
-  // a texel is the whole of the size question here — WebGL has no padding to
-  // ask about, unlike Impeller's base mip size.
-  if (pixels.lengthInBytes != width * height * 4) return null;
+  // Four bytes a texel used to be the whole of the size question here, because
+  // RGBA8 was the only format the engine uploaded from the CPU. Morph deltas
+  // are `r32g32b32a32Float` — sixteen — and a constant four refused them
+  // silently, which is a model drawing its base shape and no error anywhere.
+  // WebGL has no padding to ask about, unlike Impeller's base mip size, so the
+  // texel size is still the whole of it.
+  final texelBytes = webglTexelBytes(format);
+  if (pixels.lengthInBytes != width * height * texelBytes) return null;
 
   // The levels are held to the same rule, and were held to none. `texSubImage2D`
   // reads as many bytes as the rectangle needs and ignores the rest, so a level
@@ -256,7 +260,7 @@ TextureHandle? webglCreateTextureFromPixels(
     for (final level in mipLevels) {
       w = w > 1 ? w >> 1 : 1;
       h = h > 1 ? h >> 1 : 1;
-      if (level.lengthInBytes != w * h * 4) return null;
+      if (level.lengthInBytes != w * h * texelBytes) return null;
     }
   }
 
@@ -279,6 +283,29 @@ TextureHandle? webglCreateTextureFromPixels(
   final backend = handle.backend as WebGlTexture;
   gl.bindTexture(web.WebGLRenderingContext.TEXTURE_2D, backend.texture);
 
+  // `texSubImage2D` wants the *transfer* format and type, which are not the
+  // internal format the storage was allocated with: RGBA32F storage is filled
+  // by RGBA/FLOAT, and handing it RGBA/UNSIGNED_BYTE is an INVALID_OPERATION
+  // that leaves the texture as it was allocated — sampling as zeros, which
+  // reads as a feature that does nothing rather than as an error.
+  final (int type, JSAny Function(ByteData) view) = switch (format) {
+    TextureFormat.r32g32b32a32Float => (
+      web.WebGLRenderingContext.FLOAT,
+      (ByteData b) =>
+          Float32List.view(b.buffer, b.offsetInBytes, b.lengthInBytes ~/ 4).toJS,
+    ),
+    TextureFormat.r16g16b16a16Float => (
+      web.WebGL2RenderingContext.HALF_FLOAT,
+      (ByteData b) =>
+          Uint16List.view(b.buffer, b.offsetInBytes, b.lengthInBytes ~/ 2).toJS,
+    ),
+    _ => (
+      web.WebGLRenderingContext.UNSIGNED_BYTE,
+      (ByteData b) =>
+          Uint8List.view(b.buffer, b.offsetInBytes, b.lengthInBytes).toJS,
+    ),
+  };
+
   void upload(int level, int w, int h, ByteData bytes) {
     gl.texSubImage2D(
       web.WebGLRenderingContext.TEXTURE_2D,
@@ -288,8 +315,8 @@ TextureHandle? webglCreateTextureFromPixels(
       w.toJS,
       h.toJS,
       web.WebGLRenderingContext.RGBA.toJS,
-      web.WebGLRenderingContext.UNSIGNED_BYTE,
-      bytes.buffer.asUint8List(bytes.offsetInBytes, bytes.lengthInBytes).toJS,
+      type,
+      view(bytes),
     );
   }
 

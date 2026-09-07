@@ -72,6 +72,11 @@ final List<SceneSource> kSources = <SceneSource>[
     'skin: SimpleSkin',
     '$_samples/simple_skin/SimpleSkin.gltf',
   ),
+  // Morphing: the mesh is deformed by weighted shapes the animation drives,
+  // which is the same two features meeting as a rig — the player writes the
+  // weights and the vertex stage reads them out of a texture, neither knowing
+  // about the other.
+  const ModelFileSource('morph: Cube', '$_samples/AnimatedMorphCube.glb'),
   const ModelFileSource('f3d: Teapot', '$_samples/f3d/teapot.f3d'),
   const ModelFileSource('f3d: Textured', '$_samples/f3d/BoxTextured.f3d'),
   const ModelFileSource('f3d: Animated', '$_samples/f3d/BoxAnimated.f3d'),

@@ -109,6 +109,19 @@ int indexSizeInBytes(IndexType type) => switch (type) {
   IndexType.int32 => 4,
 };
 
+/// How many bytes one texel of [format] occupies in an upload.
+///
+/// Only the uncompressed formats the engine uploads from the host, which is
+/// what `webglCreateTextureFromPixels` checks its buffer against. Anything
+/// unlisted answers four, and a caller handing over a buffer of another size is
+/// refused by that check rather than uploaded from its prefix.
+int webglTexelBytes(TextureFormat format) => switch (format) {
+  TextureFormat.r32g32b32a32Float => 16,
+  TextureFormat.r16g16b16a16Float => 8,
+  TextureFormat.r32Float => 4,
+  _ => 4,
+};
+
 /// The sized internal format for `texStorage2D`.
 ///
 /// Depth formats map to the nearest WebGL2 has: there is no `d24s8` under that
