@@ -15,15 +15,50 @@
 /// shape rather than a list of fields: a row per key, an editor chosen by the
 /// value that is there, and a field this build has never heard of shown rather
 /// than dropped.
+///
+/// The second half is the row on its own, because the row is now the piece two
+/// panels share: a hint chooses the control, the value's type chooses it when
+/// nothing hinted the field, and — the case that keeps the level working
+/// exactly as it did — the value's type chooses it again when the hint and what
+/// is actually there disagree.
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter3d/flutter3d.dart'
+    show
+        ColorHint,
+        EnumHint,
+        EnumHintValue,
+        MaterialHint,
+        RangeHint,
+        TextureHint;
 import 'package:flutter3d_editor/src/editor_inspector.dart';
 import 'package:flutter3d_editor/src/editor_state.dart';
 import 'package:flutter3d_editor_core/flutter3d_editor_core.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'editor_cubit_helpers.dart';
+
+/// One row on its own, which is how the hinted controls are reached without a
+/// document that would have to carry a hint to get at them.
+Widget _row({
+  required Object? value,
+  MaterialHint? hint,
+  void Function(Object? value)? onWrite,
+  PathOffers offers = _noPaths,
+}) => MaterialApp(
+  home: Scaffold(
+    body: FieldRow(
+      name: 'field',
+      value: value,
+      hint: hint,
+      offers: offers,
+      onWrite: onWrite ?? (Object? _) {},
+    ),
+  ),
+);
+
+List<String> _noPaths(List<String> suffixes) => const <String>[];
 
 /// The panel over a document with something selected.
 Widget _inspector(Editing editing, {void Function(String)? onChanged}) =>
@@ -248,5 +283,219 @@ void main() {
       'stone',
       reason: 'a brush with no surface uses its material',
     );
+  });
+
+  testWidgets('a range hint is a slider where a bare number is a box', (
+    WidgetTester tester,
+  ) async {
+    // **The whole point of the hints reaching a UI.** Roughness is a feel found
+    // by dragging, and the panel could only offer a box to type it in because
+    // the only thing it knew about the value was that it was a number.
+    //
+    // Mutation: drop the hint arm of the switch. The slider disappears and the
+    // row is the box it was, which is what the second half of this test pins as
+    // still correct for a field nothing describes.
+    await tester.pumpWidget(
+      _row(
+        value: 0.4,
+        hint: const MaterialHint(RangeHint(0.0, 1.0, step: 0.01)),
+      ),
+    );
+    expect(find.byType(Slider), findsOneWidget);
+
+    await tester.pumpWidget(_row(value: 0.4));
+    expect(find.byType(Slider), findsNothing);
+    expect(find.byType(TextField), findsOneWidget);
+  });
+
+  testWidgets('and dragging it writes the value the step lands on', (
+    WidgetTester tester,
+  ) async {
+    // Written when the drag ends, not per frame: a slider recorded per pixel
+    // fills all sixty-four undo steps in about a second.
+    //
+    // Mutation: write from `onChanged` instead. This still passes, and
+    // `EditorHistory.transaction`'s own reason says why that is worse.
+    Object? written;
+    await tester.pumpWidget(
+      _row(
+        value: 0.4,
+        hint: const MaterialHint(RangeHint(0.0, 1.0, step: 0.25)),
+        onWrite: (Object? it) => written = it,
+      ),
+    );
+
+    tester.widget<Slider>(find.byType(Slider)).onChangeEnd!(0.7);
+    await tester.pump();
+
+    expect(written, 0.75, reason: 'a step of a quarter has no 0.7 on it');
+  });
+
+  testWidgets('and a value outside the range is shown, not clamped', (
+    WidgetTester tester,
+  ) async {
+    // The engine's own note on a hint: it describes a control and never
+    // constrains the reader, so a roughness of 1.5 is what the shader receives.
+    // A slider that quietly dragged it back to one would be an editor changing
+    // what a picture looks like to tidy up its own control.
+    //
+    // Mutation: clamp the value into the hint on the way in. The line below
+    // disappears and the box starts printing 1, which is a number the document
+    // does not contain.
+    await tester.pumpWidget(
+      _row(value: 1.5, hint: const MaterialHint(RangeHint(0.0, 1.0))),
+    );
+
+    expect(find.text('1.5 is outside 0–1'), findsOneWidget);
+    expect(
+      find.widgetWithText(TextField, '1.5'),
+      findsOneWidget,
+      reason: 'the box must go on printing what the document says',
+    );
+  });
+
+  testWidgets('an enum hint is a list of the words it offers', (
+    WidgetTester tester,
+  ) async {
+    // Mutation: keep the text box for a string. The picker disappears and
+    // `alphaMode` is a field somebody has to know the spelling of.
+    Object? written;
+    await tester.pumpWidget(
+      _row(
+        value: 'opaque',
+        hint: MaterialHint(
+          EnumHint(<EnumHintValue>[
+            const EnumHintValue('opaque', 'Opaque'),
+            const EnumHintValue('blend', 'Blended'),
+          ]),
+        ),
+        onWrite: (Object? it) => written = it,
+      ),
+    );
+
+    await tester.tap(find.byType(DropdownButton<String>));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Blended').last);
+    await tester.pumpAndSettle();
+
+    expect(written, 'blend');
+  });
+
+  testWidgets('and a word the hint does not offer is shown anyway', (
+    WidgetTester tester,
+  ) async {
+    // A material written by a newer tool names a mode this build has never
+    // heard of. A picker that could not display it would show the wrong one —
+    // and write the wrong one the moment anybody touched anything else.
+    await tester.pumpWidget(
+      _row(
+        value: 'shimmer',
+        hint: MaterialHint(
+          EnumHint(<EnumHintValue>[const EnumHintValue('opaque', 'Opaque')]),
+        ),
+      ),
+    );
+
+    expect(find.text('shimmer — not one this build offers'), findsOneWidget);
+  });
+
+  testWidgets('a colour hint is a swatch beside the numbers it writes', (
+    WidgetTester tester,
+  ) async {
+    // The numbers stay: a colour picked by eye is a colour nobody can reproduce
+    // from the document, which is the argument this panel made before it had a
+    // picker at all.
+    //
+    // Mutation: write only three components from the picker. The alpha the
+    // document carried is dropped and every painted surface goes opaque.
+    Object? written;
+    await tester.pumpWidget(
+      _row(
+        value: <double>[0.5, 0.5, 0.5, 0.25],
+        hint: const MaterialHint(ColorHint()),
+        onWrite: (Object? it) => written = it,
+      ),
+    );
+    expect(find.byType(TextField), findsNWidgets(4));
+
+    await tester.tap(find.byType(GestureDetector).first);
+    await tester.pumpAndSettle();
+    await tester.tap(find.byType(GestureDetector).last);
+    await tester.pumpAndSettle();
+
+    expect(written, isA<List<num>>());
+    expect((written! as List<num>).length, 4);
+    expect((written! as List<num>).last, 0.25);
+  });
+
+  testWidgets('a texture hint offers the files something listed for it', (
+    WidgetTester tester,
+  ) async {
+    // A widget cannot list a disk it was never told about, so the offer comes
+    // from the caller — and a caller that offers nothing leaves a box somebody
+    // types a path into, which is the only way to name a file not made yet.
+    Object? written;
+    await tester.pumpWidget(
+      _row(
+        value: 'stone.png',
+        hint: const MaterialHint(TextureHint()),
+        offers: (List<String> suffixes) => const <String>['brick.png'],
+        onWrite: (Object? it) => written = it,
+      ),
+    );
+
+    await tester.tap(find.byIcon(Icons.folder_open));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('brick.png'));
+    await tester.pumpAndSettle();
+
+    expect(written, 'brick.png');
+  });
+
+  testWidgets('and says when a path is not one of the suffixes it decodes', (
+    WidgetTester tester,
+  ) async {
+    // Said rather than refused: a material may name a file a build step has yet
+    // to produce. What this catches is the `.tga` dragged in from elsewhere.
+    await tester.pumpWidget(
+      _row(value: 'stone.tga', hint: const MaterialHint(TextureHint())),
+    );
+
+    expect(find.text('not one of .png .jpg .jpeg .ktx2'), findsOneWidget);
+  });
+
+  testWidgets('and a hint that disagrees with the value falls back to type', (
+    WidgetTester tester,
+  ) async {
+    // **What keeps the level format editable.** A hint may come from a file
+    // written by another tool, so a range over a word is a thing that arrives —
+    // and the honest control for a field whose description and whose content
+    // disagree is the one the content calls for.
+    //
+    // Mutation: match the hint alone, ignoring the value. The slider asserts on
+    // a string and the panel throws instead of showing the field.
+    await tester.pumpWidget(
+      _row(value: 'stone', hint: const MaterialHint(RangeHint(0.0, 1.0))),
+    );
+
+    expect(find.byType(Slider), findsNothing);
+    expect(find.widgetWithText(TextField, 'stone'), findsOneWidget);
+  });
+
+  testWidgets('and a hint renames the row without renaming the field', (
+    WidgetTester tester,
+  ) async {
+    // The label is for the person; the key is still what goes in the file. A
+    // row that showed `Base colour` and wrote `Base colour` would be a document
+    // no reader has ever heard of.
+    await tester.pumpWidget(
+      _row(
+        value: 0.4,
+        hint: const MaterialHint(RangeHint(0.0, 1.0), label: 'Roughness'),
+      ),
+    );
+
+    expect(find.text('Roughness'), findsOneWidget);
+    expect(find.text('field'), findsNothing);
   });
 }

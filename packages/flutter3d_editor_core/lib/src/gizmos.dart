@@ -4,6 +4,24 @@ import 'package:vector_math/vector_math.dart';
 import 'looks.dart';
 
 /// What a level is made of, from an editor's side.
+///
+/// **Three, and a material is deliberately not a fourth.** A material is the
+/// other thing an editor authors — it is what a brush's `material` names, and
+/// the panel that edits one is `material_panel.dart` — so the question of
+/// adding it here was asked and answered no. Everything this enum reaches is
+/// *a list and an index into it*: [Handle] carries an `index`, `Editing`
+/// selects with an `int`, and its `switch`es turn a kind into `brushes`,
+/// `lights` or `entities` and then call `removeAt` on one. A level's materials
+/// are a map keyed by name, with no position, nothing to draw, nothing to
+/// point at and nothing to nudge — so a fourth member would be a member every
+/// one of those `switch`es had to answer "not that one" to, and the enum would
+/// stop meaning what [Handle]'s own doc says it means: something in the
+/// document that can be pointed at and moved.
+///
+/// So the material panel selects by name instead, and that selection is the
+/// panel's own: nothing else in the editor — no gizmo, no arrow key, no click
+/// — needs to know which material is open, which is exactly the difference
+/// from a selected brush.
 enum Piece {
   /// Geometry. The only one of the three that is drawn by the game.
   brush,
