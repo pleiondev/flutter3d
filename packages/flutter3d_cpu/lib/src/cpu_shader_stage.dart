@@ -23,6 +23,33 @@ abstract interface class CpuVertexShader {
   );
 }
 
+/// A vertex stage that also wants to know *which* vertex it is running on.
+///
+/// **A second interface rather than a parameter on [CpuVertexShader]**, which
+/// is an `abstract interface class` in a published package: adding to it breaks
+/// every implementer, and the thirteen stages in this backend are not the only
+/// ones that could exist. The rasteriser asks with `is` and calls this when the
+/// answer is yes, so a stage that does not care is not rewritten and a stage
+/// outside this repository goes on compiling.
+///
+/// It exists for morph targets, and for now they are its only caller. The
+/// index is `gl_VertexIndex` — the number the draw addressed this vertex with,
+/// which is the column of the delta texture `lib/morph.glsl` reads. Every
+/// backend needed it and this one had no way to say it.
+abstract interface class CpuVertexShaderByIndex implements CpuVertexShader {
+  /// The same as [CpuVertexShader.run], plus the vertex's own index.
+  ///
+  /// [run] must still work — a caller that has no index, or a rasteriser that
+  /// has not been taught to pass one, falls back to it — so an implementation
+  /// answers both and shares whatever it can.
+  Vector4 runAt(
+    int vertexIndex,
+    Float32List attributes,
+    ShaderBindings bindings,
+    Float32List varyings,
+  );
+}
+
 /// Everything a fragment stage gets that is not a varying or a binding.
 ///
 /// One object rather than more parameters, because both of the things on it are

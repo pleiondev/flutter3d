@@ -8,26 +8,68 @@ import 'package:vector_math/vector_math.dart';
 
 import 'cpu_shader.dart';
 import 'cpu_shaders_layout.dart';
+import 'cpu_shaders_morph.dart';
+
+/// One scratch for every mesh stage in this library.
+///
+/// The stages are `const` — they are registered as constants and hold no state
+/// — so the vectors a morph needs cannot live on them. A vertex stage runs once
+/// per vertex per draw, so allocating three vectors inside it would be hundreds
+/// of thousands of allocations a frame, which is the pattern every hot loop
+/// here is written to avoid.
+///
+/// Safe because this backend rasterises one draw at a time on one thread: the
+/// encoder walks its primitives in a loop and nothing here is reentrant. A
+/// second thread rasterising would need one of these apiece, and would need a
+/// great deal else besides.
+final MorphScratch _morphScratch = MorphScratch();
 
 /// The mesh vertex stage — `mesh.vert`.
-final class MeshVertexShader implements CpuVertexShader {
+final class MeshVertexShader implements CpuVertexShaderByIndex {
   const MeshVertexShader();
 
   @override
   int get varyingCount => kMeshVaryings;
 
+  /// Without an index, which is a caller that cannot morph — see
+  /// [CpuVertexShaderByIndex]. A negative index reads as "no vertex", and the
+  /// morph is skipped rather than reading column minus one.
   @override
-  Vector4 run(Float32List a, ShaderBindings bindings, Float32List out) {
+  Vector4 run(Float32List a, ShaderBindings bindings, Float32List out) =>
+      runAt(-1, a, bindings, out);
+
+  @override
+  Vector4 runAt(
+    int vertexIndex,
+    Float32List a,
+    ShaderBindings bindings,
+    Float32List out,
+  ) {
     final mvp = bindings.mat4('FrameInfo', 'mvp');
     final model = bindings.mat4('FrameInfo', 'model');
     final normalMatrix = bindings.mat4('FrameInfo', 'normal_matrix');
 
-    final local = Vector4(
-      a[kPosition],
-      a[kPosition + 1],
-      a[kPosition + 2],
-      1.0,
-    );
+    // Morphed first and in the mesh's own space, which is the order the GLSL
+    // uses and the order glTF specifies.
+    final morphed =
+        vertexIndex >= 0 &&
+        _morphScratch.load(
+          vertexIndex,
+          a,
+          bindings,
+          positionAt: kPosition,
+          normalAt: kNormal,
+          tangentAt: kTangent,
+        );
+
+    final local = morphed
+        ? Vector4(
+            _morphScratch.position.x,
+            _morphScratch.position.y,
+            _morphScratch.position.z,
+            1.0,
+          )
+        : Vector4(a[kPosition], a[kPosition + 1], a[kPosition + 2], 1.0);
     final Vector4 world = model * local;
     out[kVWorld] = world.x;
     out[kVWorld + 1] = world.y;
@@ -37,7 +79,9 @@ final class MeshVertexShader implements CpuVertexShader {
     // translation does not move a direction.
     final Vector3 n =
         normalMatrix.getRotation() *
-        Vector3(a[kNormal], a[kNormal + 1], a[kNormal + 2]);
+        (morphed
+            ? _morphScratch.normal
+            : Vector3(a[kNormal], a[kNormal + 1], a[kNormal + 2]));
     out[kVNormal] = n.x;
     out[kVNormal + 1] = n.y;
     out[kVNormal + 2] = n.z;
@@ -55,7 +99,13 @@ final class MeshVertexShader implements CpuVertexShader {
     // staying perpendicular to it.
     final Vector3 t =
         model.getRotation() *
-        Vector3(a[kTangent], a[kTangent + 1], a[kTangent + 2]);
+        (morphed
+            ? Vector3(
+                _morphScratch.tangent.x,
+                _morphScratch.tangent.y,
+                _morphScratch.tangent.z,
+              )
+            : Vector3(a[kTangent], a[kTangent + 1], a[kTangent + 2]));
     out[kVTangent] = t.x;
     out[kVTangent + 1] = t.y;
     out[kVTangent + 2] = t.z;
@@ -72,7 +122,7 @@ final class MeshVertexShader implements CpuVertexShader {
 /// and the tint held at white — which is exactly what the GLSL does, and
 /// reusing the plain stage keeps the two from drifting on the arithmetic
 /// they share.
-final class MeshLightmappedVertexShader implements CpuVertexShader {
+final class MeshLightmappedVertexShader implements CpuVertexShaderByIndex {
   const MeshLightmappedVertexShader();
 
   static const MeshVertexShader _plain = MeshVertexShader();
@@ -81,8 +131,17 @@ final class MeshLightmappedVertexShader implements CpuVertexShader {
   int get varyingCount => kMeshVaryings;
 
   @override
-  Vector4 run(Float32List a, ShaderBindings bindings, Float32List out) {
-    final clip = _plain.run(a, bindings, out);
+  Vector4 run(Float32List a, ShaderBindings bindings, Float32List out) =>
+      runAt(-1, a, bindings, out);
+
+  @override
+  Vector4 runAt(
+    int vertexIndex,
+    Float32List a,
+    ShaderBindings bindings,
+    Float32List out,
+  ) {
+    final clip = _plain.runAt(vertexIndex, a, bindings, out);
     out[kVLightmap] = a[kColour];
     out[kVLightmap + 1] = a[kColour + 1];
     for (var i = 0; i < 4; i++) {
@@ -104,7 +163,7 @@ final class MeshLightmappedVertexShader implements CpuVertexShader {
 /// sixteen — three rows of the transform and the colour — in the order
 /// `cpu_vertex_fetch.dart` says: every attribute of slot 0, then every
 /// attribute of slot 1.
-final class MeshInstancedVertexShader implements CpuVertexShader {
+final class MeshInstancedVertexShader implements CpuVertexShaderByIndex {
   const MeshInstancedVertexShader();
 
   static const int _row0 = 16;
@@ -116,7 +175,16 @@ final class MeshInstancedVertexShader implements CpuVertexShader {
   int get varyingCount => kMeshVaryings;
 
   @override
-  Vector4 run(Float32List a, ShaderBindings bindings, Float32List out) {
+  Vector4 run(Float32List a, ShaderBindings bindings, Float32List out) =>
+      runAt(-1, a, bindings, out);
+
+  @override
+  Vector4 runAt(
+    int vertexIndex,
+    Float32List a,
+    ShaderBindings bindings,
+    Float32List out,
+  ) {
     final mvp = bindings.mat4('FrameInfo', 'mvp');
     final model = bindings.mat4('FrameInfo', 'model');
     final normalMatrix = bindings.mat4('FrameInfo', 'normal_matrix');
@@ -141,9 +209,29 @@ final class MeshInstancedVertexShader implements CpuVertexShader {
       a[_row2 + 3],
       1.0, // column 3
     );
+    // Morphed in the mesh's own space, before the instance transform: every
+    // instance of a batch shares the mesh and therefore its shape, which is
+    // what the GLSL says at the same point.
+    final morphed =
+        vertexIndex >= 0 &&
+        _morphScratch.load(
+          vertexIndex,
+          a,
+          bindings,
+          positionAt: kPosition,
+          normalAt: kNormal,
+          tangentAt: kTangent,
+        );
     final Vector4 local =
         instance *
-        Vector4(a[kPosition], a[kPosition + 1], a[kPosition + 2], 1.0);
+        (morphed
+            ? Vector4(
+                _morphScratch.position.x,
+                _morphScratch.position.y,
+                _morphScratch.position.z,
+                1.0,
+              )
+            : Vector4(a[kPosition], a[kPosition + 1], a[kPosition + 2], 1.0));
     final Vector4 world = model * local;
     out[kVWorld] = world.x;
     out[kVWorld + 1] = world.y;
@@ -151,7 +239,9 @@ final class MeshInstancedVertexShader implements CpuVertexShader {
 
     final rotation = instance.getRotation();
     final rotated = rotation.transformed(
-      Vector3(a[kNormal], a[kNormal + 1], a[kNormal + 2]),
+      morphed
+          ? _morphScratch.normal
+          : Vector3(a[kNormal], a[kNormal + 1], a[kNormal + 2]),
     )..normalize();
     final n = normalMatrix.getRotation().transformed(rotated);
     out[kVNormal] = n.x;
@@ -168,7 +258,14 @@ final class MeshInstancedVertexShader implements CpuVertexShader {
 
     final Vector3 t =
         model.getRotation() *
-        (rotation * Vector3(a[kTangent], a[kTangent + 1], a[kTangent + 2]));
+        (rotation *
+            (morphed
+                ? Vector3(
+                    _morphScratch.tangent.x,
+                    _morphScratch.tangent.y,
+                    _morphScratch.tangent.z,
+                  )
+                : Vector3(a[kTangent], a[kTangent + 1], a[kTangent + 2])));
     out[kVTangent] = t.x;
     out[kVTangent + 1] = t.y;
     out[kVTangent + 2] = t.z;
@@ -178,7 +275,7 @@ final class MeshInstancedVertexShader implements CpuVertexShader {
   }
 }
 
-final class MeshSkinnedVertexShader implements CpuVertexShader {
+final class MeshSkinnedVertexShader implements CpuVertexShaderByIndex {
   const MeshSkinnedVertexShader();
 
   static const int _joints = 16; // vec4
@@ -188,7 +285,16 @@ final class MeshSkinnedVertexShader implements CpuVertexShader {
   int get varyingCount => kMeshVaryings;
 
   @override
-  Vector4 run(Float32List a, ShaderBindings bindings, Float32List out) {
+  Vector4 run(Float32List a, ShaderBindings bindings, Float32List out) =>
+      runAt(-1, a, bindings, out);
+
+  @override
+  Vector4 runAt(
+    int vertexIndex,
+    Float32List a,
+    ShaderBindings bindings,
+    Float32List out,
+  ) {
     // The weights are renormalised rather than trusted: an exporter that
     // writes three of four and leaves the fourth at zero is common, and a
     // total below one shrinks the vertex towards the origin.
@@ -220,12 +326,27 @@ final class MeshSkinnedVertexShader implements CpuVertexShader {
     final mvp = bindings.mat4('FrameInfo', 'mvp');
     final normalMatrix = bindings.mat4('FrameInfo', 'normal_matrix');
 
-    final local = Vector4(
-      a[kPosition],
-      a[kPosition + 1],
-      a[kPosition + 2],
-      1.0,
-    );
+    // Morphed in the rest pose and skinned afterwards, which is the order glTF
+    // specifies and the only one that composes: a face morphs where it was
+    // modelled and the skeleton then carries it.
+    final morphed =
+        vertexIndex >= 0 &&
+        _morphScratch.load(
+          vertexIndex,
+          a,
+          bindings,
+          positionAt: kPosition,
+          normalAt: kNormal,
+          tangentAt: kTangent,
+        );
+    final local = morphed
+        ? Vector4(
+            _morphScratch.position.x,
+            _morphScratch.position.y,
+            _morphScratch.position.z,
+            1.0,
+          )
+        : Vector4(a[kPosition], a[kPosition + 1], a[kPosition + 2], 1.0);
     final Vector4 skinned = skin * local;
     final Vector4 world = model * skinned;
     out[kVWorld] = world.x;
@@ -235,7 +356,10 @@ final class MeshSkinnedVertexShader implements CpuVertexShader {
     final skinRotation = skin.getRotation();
     final Vector3 n =
         normalMatrix.getRotation() *
-        (skinRotation * Vector3(a[kNormal], a[kNormal + 1], a[kNormal + 2]));
+        (skinRotation *
+            (morphed
+                ? _morphScratch.normal
+                : Vector3(a[kNormal], a[kNormal + 1], a[kNormal + 2])));
     out[kVNormal] = n.x;
     out[kVNormal + 1] = n.y;
     out[kVNormal + 2] = n.z;
@@ -250,7 +374,14 @@ final class MeshSkinnedVertexShader implements CpuVertexShader {
 
     final Vector3 t =
         model.getRotation() *
-        (skinRotation * Vector3(a[kTangent], a[kTangent + 1], a[kTangent + 2]));
+        (skinRotation *
+            (morphed
+                ? Vector3(
+                    _morphScratch.tangent.x,
+                    _morphScratch.tangent.y,
+                    _morphScratch.tangent.z,
+                  )
+                : Vector3(a[kTangent], a[kTangent + 1], a[kTangent + 2])));
     out[kVTangent] = t.x;
     out[kVTangent + 1] = t.y;
     out[kVTangent + 2] = t.z;

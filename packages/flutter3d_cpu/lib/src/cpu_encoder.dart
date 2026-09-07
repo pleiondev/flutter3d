@@ -347,11 +347,16 @@ final class CpuEncoder implements CommandEncoder {
             ? _indexAt(t * perPrimitive + corner)
             : t * perPrimitive + corner;
         if (!fetch.into(attributes, vertex)) return;
-        clip[corner] = pipeline.vertex.run(
-          attributes,
-          bindings,
-          varyings[corner],
-        );
+        // A stage that wants its own index gets it — see
+        // [CpuVertexShaderByIndex], which exists because morph targets read a
+        // delta per vertex and this backend had no way to say which vertex.
+        // Asked once per corner rather than hoisted: `is` on a const stage is
+        // a class check the compiler folds, and hoisting it would mean a
+        // second field on the pipeline that could disagree with the stage.
+        final stage = pipeline.vertex;
+        clip[corner] = stage is CpuVertexShaderByIndex
+            ? stage.runAt(vertex, attributes, bindings, varyings[corner])
+            : stage.run(attributes, bindings, varyings[corner]);
       }
       if (perPrimitive == 2) {
         _rasteriseLine(
