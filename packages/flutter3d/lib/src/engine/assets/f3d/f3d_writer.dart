@@ -52,6 +52,8 @@ final class F3dWriter {
     // before the tables that reference them; the sections themselves are
     // located by the directory, so their file order is free.
     final meshTable = _writeMeshes();
+    final (morphTable, morphCount) = _writeMorphTargets();
+    final (weightTable, weightCount) = _writeMorphWeights();
     final surfaceTable = _writeSurfaces();
     final materialTable = _writeMaterials();
     final imageTable = _writeImages();
@@ -67,6 +69,8 @@ final class F3dWriter {
       (F3dSection.layouts, layoutTable, _layouts.length),
       (F3dSection.attributes, _attributes.toBytes(), _attributeCount),
       (F3dSection.meshes, meshTable, _meshes.length),
+      (F3dSection.morphTargets, morphTable, morphCount),
+      (F3dSection.morphWeights, weightTable, weightCount),
       (F3dSection.surfaces, surfaceTable, document.surfaces.length),
       (F3dSection.materials, materialTable, document.materials.length),
       (F3dSection.images, imageTable, document.images.length),

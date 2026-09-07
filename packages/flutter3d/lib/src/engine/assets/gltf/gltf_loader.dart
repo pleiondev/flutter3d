@@ -154,6 +154,11 @@ List<int> _intList(Object? value) {
   return <int>[for (final item in value) ?_asInt(item)];
 }
 
+List<double> _doubleList(Object? value) {
+  if (value is! List) return const <double>[];
+  return <double>[for (final item in value) ?_asDouble(item)];
+}
+
 /// The image a texture's `KHR_texture_basisu` extension names, or null when
 /// it names none. [warnings] hears about an extension block that is there
 /// and malformed, which is a different thing from one that is absent.

@@ -99,7 +99,7 @@ What works today:
   `CUBICSPLINE` with authored tangents), slerped rotations, an `AnimationPlayer`
   with play/pause/seek/speed and once/loop/ping-pong, and the decoded node
   hierarchy rebuilt on instantiation so an animated parent carries its subtree;
-- 874 tests — geometry, projection, scene, sorting, debug draw, intersections,
+- 884 tests — geometry, projection, scene, sorting, debug draw, intersections,
   raycasting, animation, skinning, lighting, tangents, render targets, BVH, LOD,
   glTF, OBJ and `.f3d` — all without a GPU.
 
@@ -212,9 +212,10 @@ What is supported:
 | Mirroring transforms | detected from the determinant's sign; the winding order is flipped per instance |
 | Node hierarchy | kept index-aligned with the file, transform-only nodes included, because animation channels address nodes by index |
 | Skins | `joints`, `inverseBindMatrices`, `skeleton`, and JOINTS_0/WEIGHTS_0; a primitive with joint attributes gets the skinned vertex layout, chosen from the data rather than from the caller |
-| Animations | all samplers and channels; `STEP`, `LINEAR` and `CUBICSPLINE`; translation, rotation, scale and weights (weights decoded but not applied) |
+| Animations | all samplers and channels; `STEP`, `LINEAR` and `CUBICSPLINE`; translation, rotation, scale and weights |
+| Morph targets | POSITION, NORMAL and TANGENT deltas, packed into a texture the vertex stage samples; a node's or mesh's rest weights; up to eight targets blended at once |
 
-Not there: morph targets, cameras, Draco and meshopt (reported in `warnings`),
+Not there: cameras, Draco and meshopt (reported in `warnings`),
 TEXCOORD_1 and up. KTX2 is read — `KHR_texture_basisu`'s Basis ETC1S files
 transcode to RGBA8, and a file's own BC, ETC2 or ASTC blocks upload as they
 are where the device samples them — with UASTC and Zstandard still refused by
@@ -308,7 +309,7 @@ lib/src/engine/scene/           scene graph, cameras, lights, orbit, raycasting
 lib/src/engine/render/          renderer, render list, materials, sorting, debug draw
 lib/src/engine/assets/          glTF, OBJ and .f3d decoders, isolate loading, cache
 example/lib/                    the demo, and the frame capture hook
-test/                           874 tests, all runnable without a GPU
+test/                           884 tests, all runnable without a GPU
 ```
 
 The GLSL is not here. Every shader this package draws with lives in

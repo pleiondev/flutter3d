@@ -86,4 +86,80 @@ extension _F3dWriteGeometry on F3dWriter {
     }
     return table;
   }
+
+  // ------------------------------------------------------------ morph targets
+
+  /// The targets of every mesh already in the table, in mesh order.
+  ///
+  /// Runs after [_writeMeshes], and depends on it: a record names its mesh by
+  /// index, and the deltas of a mesh nothing draws are not written at all.
+  /// Deltas go into the blob exactly as `MorphTarget` holds them, so the loader
+  /// views them the way it views vertices — a face's shapes are the largest
+  /// thing in a morphing model, and copying them per load is the cost the
+  /// format exists to refuse.
+  (Uint8List, int) _writeMorphTargets() {
+    final records = BytesBuilder();
+    var count = 0;
+
+    for (var i = 0; i < _meshes.length; i++) {
+      for (final target in _meshes[i].morphTargets) {
+        final (nameOffset, nameLength) = _string(target.name);
+        final positions = _blobAppend(target.positions);
+        final normals = target.normals;
+        final tangents = target.tangents;
+
+        final record = ByteData(F3dRecord.morphTarget);
+        record.setUint32(0, i, Endian.little);
+        record.setUint32(4, nameOffset, Endian.little);
+        record.setUint32(8, nameLength, Endian.little);
+        record.setUint32(12, target.vertexCount, Endian.little);
+        record.setUint32(16, positions, Endian.little);
+        record.setUint32(
+          20,
+          normals == null ? 0 : _blobAppend(normals),
+          Endian.little,
+        );
+        record.setUint32(
+          24,
+          tangents == null ? 0 : _blobAppend(tangents),
+          Endian.little,
+        );
+        record.setUint32(28, <int>[
+          if (normals != null) F3dMorphFlags.hasNormals,
+          if (tangents != null) F3dMorphFlags.hasTangents,
+        ].fold(0, (a, b) => a | b), Endian.little);
+
+        records.add(record.buffer.asUint8List());
+        count++;
+      }
+    }
+    return (records.toBytes(), count);
+  }
+
+  /// The rest weights of the surfaces that have any.
+  ///
+  /// Sparse — a record per surface that morphs, not per surface — because
+  /// nearly every model has none, and a table of zeros in every file is a cost
+  /// paid by the assets that do not use the feature.
+  (Uint8List, int) _writeMorphWeights() {
+    final records = BytesBuilder();
+    var count = 0;
+
+    for (var i = 0; i < document.surfaces.length; i++) {
+      final weights = document.surfaces[i].morphWeights;
+      if (weights.isEmpty) continue;
+
+      final record = ByteData(F3dRecord.morphWeights);
+      record.setUint32(0, i, Endian.little);
+      record.setUint32(
+        4,
+        _blobAppend(Float32List.fromList(weights)),
+        Endian.little,
+      );
+      record.setUint32(8, weights.length, Endian.little);
+      records.add(record.buffer.asUint8List());
+      count++;
+    }
+    return (records.toBytes(), count);
+  }
 }

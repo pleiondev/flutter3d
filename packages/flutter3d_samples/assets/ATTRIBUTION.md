@@ -9,6 +9,7 @@ chosen to cover the different loading paths.
 | `BoxAnimated.glb`, `InterpolationTest.glb`, `animated_cube/AnimatedCube.gltf` + `.bin` + `_BaseColor.png` | [KhronosGroup/glTF-Sample-Assets](https://github.com/KhronosGroup/glTF-Sample-Assets) |
 | `NormalTangentTest.glb`, `NormalTangentMirrorTest.glb` | [KhronosGroup/glTF-Sample-Assets](https://github.com/KhronosGroup/glTF-Sample-Assets) |
 | `RiggedSimple.glb`, `RiggedFigure.glb`, `simple_skin/SimpleSkin.gltf` | [KhronosGroup/glTF-Sample-Assets](https://github.com/KhronosGroup/glTF-Sample-Assets) |
+| `AnimatedMorphCube.glb` | [KhronosGroup/glTF-Sample-Assets](https://github.com/KhronosGroup/glTF-Sample-Assets), CC0-1.0 |
 | `teapot.obj` | [mauricelam/Teapot](https://github.com/mauricelam/Teapot) — the Utah teapot |
 
 Why these specifically: between them they cover all three ways glTF can carry its
@@ -21,6 +22,14 @@ single looping rotation, `BoxAnimated` moves a parent node so its child has to
 follow, and `InterpolationTest` exists specifically to show `STEP`, `LINEAR` and
 `CUBICSPLINE` next to each other — a decoder that treats cubic keys as linear
 reads tangents as values, and nothing else in the suite would catch it.
+
+`AnimatedMorphCube` is the morph-target fixture, and it is the smallest thing
+that exercises the whole chain: twenty-four vertices, one primitive, **two
+targets each carrying POSITION, NORMAL and TANGENT** — so all three rows of the
+delta texture are filled rather than two of them being zeros nobody would
+notice — default weights on the mesh, and an animation whose only channel is
+`weights`. No skin and no textures, so a picture that comes out wrong is wrong
+about morphing and not about something else.
 
 The two normal-tangent models are the same geometry with and without authored
 `TANGENT` data, which makes them the only direct check available on the tangent

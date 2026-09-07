@@ -1644,7 +1644,7 @@ entities a game defines.
 |---|---|
 | Style | `dart format` |
 | Analysis | `flutter analyze` clean across the workspace, no warnings |
-| Unit tests | **3747 tests** across 24 packages and 5 applications |
+| Unit tests | **3757 tests** across 24 packages and 5 applications |
 | Structure rules | 30, `dart run tool/structure.dart`, the first CI step |
 | CI | GitHub Actions over `tool/ci.sh`, on `ubuntu-latest`, with no graphics card |
 
@@ -1858,25 +1858,32 @@ and ZLIB supercompression, arrays, cube maps, 3D textures. What is missing
 is upstream: `tool/convert_asset.dart` has no encoder, so nothing produces a
 compressed KTX2 for this engine's own pipeline to read.
 
-**Morph targets are read and not yet drawn, and no additive animation.** The
-loader used to throw a file's targets away with a warning; it reads them now
-into `MeshData.morphTargets`, and `MorphBlend` blends a weight vector into a
-copy of the vertices — deltas summed from the base, positions always and
-normals and tangents where the file carries them. What is missing is the two
-ends: the weights track an animation carries is still decoded and dropped,
-because `AnimationTarget` is three setters and a fourth would break every
-implementer, and a blended vertex buffer has no way back onto the device
-without a per-change re-upload — `GraphicsDevice` is an `abstract interface
-class` with `uploadGeometry` and no update, so adding one is a breaking change
-to the backend contract and creating a buffer per change is the alternative.
-Neither is decided.
+**Morph targets are drawn on the GPU, and there is still no additive
+animation.** A file's targets are read into `MeshData.morphTargets`, packed by
+`MorphTexture` into an `r32g32b32a32Float` texture — one column a vertex, three
+rows a target: positions, normals, tangents — uploaded once with the mesh, and
+sampled by the vertex stage through `lib/morph.glsl`. `MorphState` holds the
+weights on the *node* rather than on the geometry, so two copies of one model
+wear different expressions from one upload, and a weights track reaches it
+through `MorphSink`: an optional second list on `AnimationPlayer`, index-aligned
+with the targets it already has, rather than a fourth setter on
+`AnimationTarget` — that is an `abstract interface class` in a published
+package, and a weight belongs to the mesh a node draws rather than to the node's
+placement. The rest weights a glTF node or mesh names are read, and `.f3d`
+carries both the deltas and the weights in sections of their own, so a build
+that predates them skips both and reads the same file as a model in its base
+shape. `MorphBlend` still exists and still blends on the host: the software
+rasteriser's own transcription is checked against it, and a tool that wants the
+deformed vertices — a raycast, an exporter — has nowhere else to ask.
 
-The blend is on the CPU and that is also a decision. The vertex layout here is
-structural — the `in` declarations of `mesh.vert` are the layout, one layout for
-every model — so morphing on the GPU means a second layout and a second vertex
-shader per lighting model, or the deltas in a texture the vertex stage samples
-by vertex id. No vertex stage in this engine samples anything, and whether
-flutter_gpu binds a texture to one is unmeasured.
+The layout is why it is a texture. The `in` declarations of `mesh.vert` *are*
+the vertex layout, one layout for every model, so deltas as attributes would
+mean a second layout and a second vertex shader for each of six lighting models.
+A texture costs one sampler and no layout — which was only an option because a
+vertex stage can sample one, measured on all three backends by
+`checkVertexTextureSampling` rather than assumed. impellerc aborts on
+`texelFetch` in a vertex stage, so the shader reads texel centres with
+`texture()` and is handed the texel size in its uniform.
 
 Additive blending — a delta over a reference pose, which is what recoil
 and lean want — needs a reference frame per clip, and glTF has no standard place

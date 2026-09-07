@@ -83,6 +83,18 @@ abstract final class F3dSection {
   static const int strings = 12;
   static const int blob = 13;
   static const int skins = 14;
+
+  /// The shapes a mesh can be blended towards, each naming the mesh it belongs
+  /// to. A section of its own rather than fields on the mesh record, so that a
+  /// build that predates morph targets skips it and reads the same file as a
+  /// model that draws its base shape — which is exactly what the directory is
+  /// for, and cheaper than a version bump that invalidates every asset on disk.
+  static const int morphTargets = 15;
+
+  /// The rest weights of a surface's targets, for the few surfaces that have
+  /// any. Separate from the surface record for the same reason: that record is
+  /// a fixed 84 bytes and every existing file is written to it.
+  static const int morphWeights = 16;
 }
 
 /// Fixed record sizes, in bytes. All multiples of four.
@@ -133,6 +145,23 @@ abstract final class F3dRecord {
   /// One texture binding inside a material: i32 imageIndex, u32 texCoordSet,
   /// u32 samplingFlags
   static const int textureBinding = 12;
+
+  /// u32 meshIndex, u32 nameOffset, u32 nameLength, u32 vertexCount,
+  /// u32 positionOffset, u32 normalOffset, u32 tangentOffset, u32 flags
+  ///
+  /// Each stream is `vertexCount * 3` floats, so only the offsets are stored;
+  /// `flags` says which of the two optional ones are there, because a blob
+  /// offset of zero is a real offset and cannot double as "absent".
+  static const int morphTarget = 32;
+
+  /// u32 surfaceIndex, u32 valuesOffset, u32 valuesCount
+  static const int morphWeights = 12;
+}
+
+/// Which optional streams a morph target record carries.
+abstract final class F3dMorphFlags {
+  static const int hasNormals = 1 << 0;
+  static const int hasTangents = 1 << 1;
 }
 
 /// Bit positions inside a texture binding's `samplingFlags`.

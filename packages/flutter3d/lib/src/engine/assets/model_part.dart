@@ -1,3 +1,4 @@
+import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:vector_math/vector_math.dart';
 
 import '../geometry/device_mesh.dart';
@@ -13,7 +14,11 @@ final class ModelPart {
     this.name,
     this.skinIndex,
     this.flipWinding = false,
-  }) : transform = transform ?? Matrix4.identity();
+    this.morphTexture,
+    this.morphTargetCount = 0,
+    List<double>? morphWeights,
+  }) : transform = transform ?? Matrix4.identity(),
+       morphWeights = morphWeights ?? const <double>[];
 
   final DeviceMesh mesh;
   final Material material;
@@ -24,4 +29,18 @@ final class ModelPart {
   final int? skinIndex;
 
   final bool flipWinding;
+
+  /// This surface's morph deltas, uploaded once and shared by every instance.
+  ///
+  /// Null for almost every part. The *weights* are not here: they belong to the
+  /// node an instance created, so that two copies of one model can wear
+  /// different expressions from one upload — see `MorphState`.
+  final TextureHandle? morphTexture;
+
+  /// How many targets [morphTexture] holds, which can be fewer than the file
+  /// carried when it named more shapes than the shader blends.
+  final int morphTargetCount;
+
+  /// The expression this part starts in, before anything animates it.
+  final List<double> morphWeights;
 }

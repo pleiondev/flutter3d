@@ -76,9 +76,10 @@ unawaited(_dressRunner(device, scene, runner));   // swaps it in later
 | Materials | Metal-rough, all texture slots, `alphaMode`/`cutoff`, `doubleSided`, `KHR_materials_unlit`, `KHR_materials_emissive_strength` |
 | Mirroring | Detected from the determinant's sign; winding is flipped per instance |
 | Skins | `joints`, `inverseBindMatrices`, `skeleton`, JOINTS_0/WEIGHTS_0 |
-| Animations | All samplers and channels; STEP, LINEAR, CUBICSPLINE; translation, rotation, scale, and weights (decoded, not applied) |
+| Animations | All samplers and channels; STEP, LINEAR, CUBICSPLINE; translation, rotation, scale, and weights |
+| Morph targets | POSITION, NORMAL and TANGENT deltas, packed into a texture the vertex stage samples; rest weights from the node or the mesh; eight blended at once |
 
-Not supported: morph targets, cameras, Draco and meshopt, TEXCOORD_1 and up. All of them are reported in `warnings` rather than failing the file, and the demo surfaces those, a skipped primitive explains a model that looks odd but still loaded.
+Not supported: cameras, Draco and meshopt, TEXCOORD_1 and up. All of them are reported in `warnings` rather than failing the file, and the demo surfaces those, a skipped primitive explains a model that looks odd but still loaded.
 
 ## KTX2 and compressed textures
 

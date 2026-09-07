@@ -65,6 +65,65 @@ extension _F3dGeometry on F3dDocument {
       layout: _layouts[layoutIndex],
       vertices: _floats(vertexOffset, vertexBytes ~/ 4),
       indices: _uint32s(indexOffset, indexBytes ~/ 4),
+      morphTargets: _morphTargets[index] ?? const <MorphTarget>[],
     );
   });
+
+  // ------------------------------------------------------------ morph targets
+
+  /// Every target in the file, grouped by the mesh it belongs to.
+  ///
+  /// Read in one pass rather than searched per mesh: the records are a flat
+  /// table and a mesh asking for its own would otherwise be a scan, which is
+  /// the shape of loading that this format was written to get away from. A file
+  /// from before the section existed has none, and every mesh gets an empty
+  /// list without anything special being said about it.
+  Map<int, List<MorphTarget>> _readMorphTargets() {
+    final table = _section(F3dSection.morphTargets);
+    final grouped = <int, List<MorphTarget>>{};
+
+    for (var i = 0; i < table.count; i++) {
+      final o = table.offset + i * F3dRecord.morphTarget;
+      final meshIndex = _view.getUint32(o, Endian.little);
+      final vertexCount = _view.getUint32(o + 12, Endian.little);
+      final flags = _view.getUint32(o + 28, Endian.little);
+      final floats = vertexCount * 3;
+
+      (grouped[meshIndex] ??= <MorphTarget>[]).add(
+        MorphTarget(
+          vertexCount: vertexCount,
+          name: _string(
+            _view.getUint32(o + 4, Endian.little),
+            _view.getUint32(o + 8, Endian.little),
+          ),
+          positions: _floats(_view.getUint32(o + 16, Endian.little), floats),
+          normals: flags & F3dMorphFlags.hasNormals == 0
+              ? null
+              : _floats(_view.getUint32(o + 20, Endian.little), floats),
+          tangents: flags & F3dMorphFlags.hasTangents == 0
+              ? null
+              : _floats(_view.getUint32(o + 24, Endian.little), floats),
+        ),
+      );
+    }
+    return grouped;
+  }
+
+  /// The rest weights of the surfaces that carry any, by surface index.
+  Map<int, List<double>> _readMorphWeights() {
+    final table = _section(F3dSection.morphWeights);
+    return Map<int, List<double>>.fromEntries(<MapEntry<int, List<double>>>[
+      for (var i = 0; i < table.count; i++)
+        () {
+          final o = table.offset + i * F3dRecord.morphWeights;
+          return MapEntry<int, List<double>>(
+            _view.getUint32(o, Endian.little),
+            _floats(
+              _view.getUint32(o + 4, Endian.little),
+              _view.getUint32(o + 8, Endian.little),
+            ),
+          );
+        }(),
+    ]);
+  }
 }

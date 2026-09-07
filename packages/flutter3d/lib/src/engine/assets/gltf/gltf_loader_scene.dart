@@ -83,6 +83,11 @@ extension _GltfSceneWalk on GltfLoader {
         // rather than making the renderer recompute the determinant per draw.
         final mirrored = world.determinant() < 0.0;
         final nodeName = node['name'];
+        // glTF puts default weights on the mesh and lets the node that draws it
+        // override them, so a node that says nothing wears the mesh's mood.
+        final weights = node.containsKey('weights')
+            ? _doubleList(node['weights'])
+            : _doubleList(meshes[meshIndex]['weights']);
 
         for (final primitive in primitives) {
           modelNodes[nodeIndex].surfaces.add(instances.length);
@@ -98,6 +103,7 @@ extension _GltfSceneWalk on GltfLoader {
               materialIndex: primitive.materialIndex,
               skinIndex: skinIndex,
               flipWinding: skinIndex == null && mirrored,
+              morphWeights: weights,
             ),
           );
         }

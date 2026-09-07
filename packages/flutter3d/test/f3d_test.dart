@@ -491,6 +491,99 @@ void main() {
     });
   });
 
+  group('morph targets survive the container', () {
+    test('a sample keeps its shapes, deltas and all', () async {
+      // The whole point of converting an asset is that the converted one is
+      // the same model. A container that quietly dropped the targets would
+      // turn a face into a mask at the moment somebody optimised the load.
+      final source = await GltfLoader().load(
+        readSample('AnimatedMorphCube.glb'),
+      );
+      final reloaded = roundTrip(source);
+
+      final a = source.surfaces.single.mesh.morphTargets;
+      final b = reloaded.surfaces.single.mesh.morphTargets;
+      expect(a, hasLength(2));
+      expect(b, hasLength(a.length));
+
+      for (var t = 0; t < a.length; t++) {
+        expect(b[t].vertexCount, a[t].vertexCount);
+        expect(b[t].name, a[t].name);
+        expect(
+          b[t].positions,
+          orderedEquals(a[t].positions),
+          reason: 'target $t moved',
+        );
+        expect(b[t].normals, a[t].normals == null ? isNull : isNotNull);
+        if (a[t].normals != null) {
+          expect(b[t].normals, orderedEquals(a[t].normals!));
+        }
+      }
+    });
+
+    test('a target that morphs positions alone stays that way', () {
+      // Mutation: write the flags as a constant three and the loader builds
+      // normal and tangent streams out of whatever the blob held at offset
+      // zero — a mesh that shades itself with its own vertices.
+      final mesh = triangle();
+      final reloaded = roundTrip(
+        _FakeDocument(
+          surfaces: <ModelSurface>[
+            ModelSurface(
+              mesh: MeshData(
+                layout: mesh.layout,
+                vertices: mesh.vertices,
+                indices: mesh.indices,
+                morphTargets: <MorphTarget>[
+                  MorphTarget(
+                    vertexCount: 3,
+                    name: 'lean',
+                    positions: Float32List.fromList(<double>[
+                      1, 0, 0, //
+                      1, 0, 0, //
+                      1, 0, 0,
+                    ]),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      );
+
+      final target = reloaded.surfaces.single.mesh.morphTargets.single;
+      expect(target.name, 'lean');
+      expect(target.normals, isNull);
+      expect(target.tangents, isNull);
+      expect(target.positions.first, 1.0);
+    });
+
+    test('the rest weights come back with the surface', () {
+      // Sparse in the file, so the case worth pinning is the one that writes
+      // no record at all: a surface with no weights must read back with none
+      // rather than with the neighbouring surface's.
+      final reloaded = roundTrip(
+        _FakeDocument(
+          surfaces: <ModelSurface>[
+            ModelSurface(mesh: triangle()),
+            ModelSurface(mesh: triangle(), morphWeights: <double>[0.25, 1.0]),
+          ],
+        ),
+      );
+
+      expect(reloaded.surfaces.first.morphWeights, isEmpty);
+      expect(reloaded.surfaces.last.morphWeights, <double>[0.25, 1.0]);
+    });
+
+    test('a model with none writes empty sections and reads back clean', () {
+      final reloaded = roundTrip(
+        _FakeDocument(surfaces: <ModelSurface>[ModelSurface(mesh: triangle())]),
+      );
+      expect(reloaded.surfaces.single.mesh.morphTargets, isEmpty);
+      expect(reloaded.surfaces.single.morphWeights, isEmpty);
+    });
+  });
+
   group('a bad file is rejected with something readable', () {
     test('the wrong magic', () {
       expect(

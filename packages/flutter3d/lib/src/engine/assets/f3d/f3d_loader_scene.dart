@@ -36,6 +36,7 @@ extension _F3dScene on F3dDocument {
               return packed == 0 ? null : packed - 1;
             }(),
             transform: Matrix4.fromFloat32List(storage),
+            morphWeights: _morphWeights[i],
           );
         }(),
     ];

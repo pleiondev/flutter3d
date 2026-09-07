@@ -11,7 +11,9 @@ final class ModelSurface {
     this.skinIndex,
     this.flipWinding = false,
     this.name,
-  }) : transform = transform ?? Matrix4.identity();
+    List<double>? morphWeights,
+  }) : transform = transform ?? Matrix4.identity(),
+       morphWeights = morphWeights ?? const <double>[];
 
   final MeshData mesh;
 
@@ -34,6 +36,15 @@ final class ModelSurface {
   final bool flipWinding;
 
   final String? name;
+
+  /// The rest weights of [mesh]'s morph targets: the expression the model wears
+  /// before anything animates it.
+  ///
+  /// On the surface and not on the mesh because a node overrides them — glTF
+  /// puts a default on the mesh and lets each node that draws it disagree, so
+  /// two copies of one face can start in different moods. Empty for the models
+  /// that morph nothing, which is nearly all of them.
+  final List<double> morphWeights;
 }
 
 /// A node in a decoded model's hierarchy.

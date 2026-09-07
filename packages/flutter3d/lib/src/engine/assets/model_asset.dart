@@ -7,6 +7,7 @@ import '../geometry/geometry.dart';
 import '../render/lighting_model.dart';
 import '../render/material.dart';
 import '../scene/mesh_node.dart';
+import '../scene/morph_state.dart';
 import '../scene/scene.dart';
 import '../scene/scene_node.dart';
 import '../scene/skeleton.dart';
@@ -165,6 +166,10 @@ final class ModelAsset {
     // whichever answer the first happened to ask for.
     final textureCache = <(int, bool), TextureHandle?>{};
     final materialCache = <int, Material>{};
+    // Deltas belong to the geometry and are keyed with it: two surfaces sharing
+    // a MeshData share one upload, and a model whose face is drawn twice pays
+    // for its expressions once.
+    final morphCache = <MeshData, ({TextureHandle? texture, int count})>{};
 
     Future<TextureHandle?> textureFor(
       int imageIndex,
@@ -190,12 +195,47 @@ final class ModelAsset {
       return uploaded;
     }
 
+    /// Packs and uploads one mesh's morph deltas, or nothing when it has none.
+    ///
+    /// A failed upload is a model that draws its base shape, not a model that
+    /// refuses to load: a device that will not take a float texture is a device
+    /// on which every face is expressionless, and that is still a picture.
+    ({TextureHandle? texture, int count}) morphFor(MeshData mesh, String where) =>
+        morphCache.putIfAbsent(mesh, () {
+          final packed = MorphTexture.pack(mesh);
+          if (packed == null) return (texture: null, count: 0);
+
+          final left = packed.dropped(mesh);
+          if (left > 0) {
+            warnings.add(
+              '$where: $left of ${mesh.morphTargets.length} morph targets were '
+              'left out; the shader blends ${packed.targetCount} at once.',
+            );
+          }
+
+          final uploaded = device.createTextureFromPixels(
+            width: packed.width,
+            height: packed.height,
+            format: TextureFormat.r32g32b32a32Float,
+            pixels: packed.bytes,
+          );
+          if (uploaded == null) {
+            warnings.add(
+              '$where: the morph deltas could not be uploaded; the mesh draws '
+              'its base shape.',
+            );
+            return (texture: null, count: 0);
+          }
+          return (texture: uploaded, count: packed.targetCount);
+        });
+
     final parts = <ModelPart>[];
     for (final surface in document.surfaces) {
       final mesh = meshCache.putIfAbsent(
         surface.mesh,
         () => DeviceMesh.upload(device, surface.mesh),
       );
+      final morph = morphFor(surface.mesh, surface.name ?? 'a surface');
 
       final index = surface.materialIndex;
       Material material;
@@ -217,6 +257,9 @@ final class ModelAsset {
           name: surface.name,
           skinIndex: surface.skinIndex,
           flipWinding: surface.flipWinding,
+          morphTexture: morph.texture,
+          morphTargetCount: morph.count,
+          morphWeights: surface.morphWeights,
         ),
       );
     }

@@ -181,6 +181,9 @@ final class F3dDocument extends ModelDocument {
 
   final Map<int, MeshData> _meshCache = <int, MeshData>{};
 
+  late final Map<int, List<MorphTarget>> _morphTargets = _readMorphTargets();
+  late final Map<int, List<double>> _morphWeights = _readMorphWeights();
+
   @override
   late final List<ModelSurface> surfaces = _readSurfaces();
 

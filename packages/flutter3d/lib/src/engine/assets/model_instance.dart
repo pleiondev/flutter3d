@@ -76,6 +76,11 @@ extension ModelAssetInstantiate on ModelAsset {
     // Skeletons are attached after the walk: a joint may be created later than
     // the mesh that references it, so binding as we go would capture nulls.
     final pendingSkins = <(MeshNode, int)>[];
+    // Index-aligned with `nodes`, because a weights track names a node index
+    // and not a surface. A node drawing several primitives — one glTF mesh
+    // split by material — has one set of weights across all of them, so the
+    // sinks are gathered per node and fanned out below.
+    final morphSinks = List<List<MorphState>?>.filled(nodes.length, null);
 
     Material materialFor(Material source) => shareMaterials
         ? source
@@ -117,6 +122,16 @@ extension ModelAssetInstantiate on ModelAsset {
         node.add(mesh);
         meshNodes.add(mesh);
         if (part.skinIndex != null) pendingSkins.add((mesh, part.skinIndex!));
+
+        final deltas = part.morphTexture;
+        if (deltas != null) {
+          final state = MorphState(
+            texture: deltas,
+            targetCount: part.morphTargetCount,
+          )..setWeights(part.morphWeights);
+          mesh.morph = state;
+          (morphSinks[index] ??= <MorphState>[]).add(state);
+        }
       }
 
       for (final child in model.children.reversed) {
@@ -150,6 +165,9 @@ extension ModelAssetInstantiate on ModelAsset {
           : AnimationPlayer(
               clips: clips,
               targets: List<AnimationTarget?>.of(created),
+              morphs: morphSinks.any((states) => states != null)
+                  ? <MorphSink?>[for (final states in morphSinks) _sink(states)]
+                  : null,
             ),
     );
   }
@@ -181,5 +199,30 @@ extension ModelAssetInstantiate on ModelAsset {
     );
   }
 
+  /// One sink for the meshes one node draws.
+  ///
+  /// The common case is a single mesh and it is handed back as it is; the case
+  /// that needs wrapping is a glTF mesh split across materials, where one set of
+  /// weights drives several primitives and the file still calls them one shape.
+  static MorphSink? _sink(List<MorphState>? states) => switch (states) {
+    null => null,
+    [final only] => only,
+    _ => _MorphFan(states),
+  };
+
   static Material _copyMaterial(Material source) => source.copy();
+}
+
+/// A weights track reaching every primitive of one split mesh.
+final class _MorphFan implements MorphSink {
+  _MorphFan(this.states);
+
+  final List<MorphState> states;
+
+  @override
+  void setWeights(List<double> values) {
+    for (final state in states) {
+      state.setWeights(values);
+    }
+  }
 }
