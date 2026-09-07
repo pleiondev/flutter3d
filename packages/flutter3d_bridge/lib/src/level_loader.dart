@@ -58,6 +58,43 @@ Future<String> _bundleDocument(AssetRequest request) =>
 Future<ByteData> _bundleAsset(AssetRequest request) =>
     rootBundle.load(request.uri);
 
+/// A level's `.fmat` as something [loadMaterialDocument] will read.
+///
+/// **Why the engine asks for a source and not for bytes**, and why closing over
+/// a callback is allowed here: an `AssetSource` is a sendable description
+/// because a *model* decode crosses to a background isolate, where a closure
+/// cannot follow. A material decode does not — it is a few hundred bytes of
+/// JSON read on this isolate, which `MaterialDecoder` says at length. So this
+/// one may hold the level's own reader, and that is the point: a game's
+/// bundled material and an editor's material on disk beside a document it has
+/// just opened go through the same call, exactly as their textures already do.
+final class _LevelMaterialSource extends AssetSource {
+  const _LevelMaterialSource(this.path, this.fetch);
+
+  final String path;
+  final AssetBytes fetch;
+
+  @override
+  String get key => 'level-material:$path';
+
+  @override
+  Future<Uint8List> read() async => _bytes(await fetch(AssetRequest(path)));
+
+  /// Images a material names are relative to the material file, the way a
+  /// `.gltf`'s buffers and an `.obj`'s maps already are — so a folder of
+  /// materials can be moved without rewriting what is inside them.
+  @override
+  AssetUriResolver get resolveUri {
+    final slash = path.lastIndexOf('/');
+    final directory = slash < 0 ? '' : path.substring(0, slash + 1);
+    return (request) async =>
+        _bytes(await fetch(AssetRequest('$directory${request.uri}')));
+  }
+
+  static Uint8List _bytes(ByteData data) =>
+      data.buffer.asUint8List(data.offsetInBytes, data.lengthInBytes);
+}
+
 final class LevelLoader {
   const LevelLoader();
 
@@ -213,6 +250,13 @@ final class LevelLoader {
   /// each piece was cut out of — and `BrushGeometry.build` measures each
   /// piece's face inside the planned face it is part of. Without [origins] the
   /// rebuild is what it was: no lightmap, flat ambient, level-wide.
+  ///
+  /// **A surface that deferred its look to a `.fmat` is rebuilt from the level's
+  /// own numbers**, because the bound material belongs to the load and this
+  /// method has no device work to redo it with — it re-binds nothing and
+  /// re-uploads nothing on purpose. Nothing breachable defers yet; the day
+  /// something does, the materials the load bound have to be kept beside the
+  /// textures it uploaded, which is where the fix goes.
   void rebuildBrushes(
     LoadedLevel loaded, {
     required GraphicsDevice device,
@@ -322,6 +366,10 @@ final class LevelLoader {
     // the person who renamed the file is the one who wants to hear about it.
     final loadIssues = <LevelIssue>[...issues];
     for (final source in level.materials.values) {
+      // A material that defers to a `.fmat` names its maps in that file, and
+      // `bindMaterial` uploads them below. Uploading these three as well would
+      // be three textures nothing ever samples.
+      if (source.fmat != null) continue;
       for (final path in <String?>[source.albedo, source.normal, source.orm]) {
         if (path == null || textures.containsKey(path)) continue;
         textures[path] = await _upload(
@@ -330,6 +378,47 @@ final class LevelLoader {
           readAsset ?? _bundleAsset,
           loadIssues,
         );
+      }
+    }
+
+    // **The other dictionary.** Everything above binds a surface through
+    // `materialFrom`, which is the bridge between the eight fields a
+    // `LevelMaterial` has and the renderer's `Material` — and those eight are
+    // all a level author ever had. A `.fmat` is the engine's own material
+    // format and a far larger vocabulary: fourteen scalars, five texture slots
+    // each with its own sampler, alpha, a shader of the application's own and
+    // the parameters that shader reads. A level material naming one is saying
+    // *ask that file instead*, and this is the fork.
+    //
+    // **What happens to the fields the second dictionary has no word for.**
+    // `texelsPerMetre` is untouched and still applies: it scales the texture
+    // coordinates in `BrushGeometry` long before anything is bound, so a
+    // deferred wall tiles exactly as it did. `baseColor`, `roughness`,
+    // `metallic`, `emissive`, `albedo`, `normal` and `orm` are *not* merged in
+    // — the file is the whole answer, because a wall whose colour is stated in
+    // two places is a wall somebody will one day change in the wrong one. The
+    // level keeps them as what it falls back to when the file will not read,
+    // which is the failure below. One thing is genuinely lost: the anisotropic
+    // sampler `tilingSamplerFor` builds for brush surfaces, since a `.fmat`
+    // names a sampler per slot and the file's answer wins over the level's.
+    //
+    // Bound once per material name rather than once per surface, so a level
+    // whose walls share a look upload its maps once. Safe because a build
+    // either has a lightmap layout or has not, so every surface in it carries
+    // lightmap coordinates or none does — the one thing set on the material
+    // per surface below.
+    final deferred = <String, Material>{};
+    for (final entry in level.materials.entries) {
+      if (entry.value.fmat case final String path) {
+        if (await _fmatMaterial(
+              device,
+              path,
+              readAsset ?? _bundleAsset,
+              loadIssues,
+            )
+            case final Material material) {
+          deferred[entry.key] = material;
+        }
       }
     }
 
@@ -420,12 +509,13 @@ final class LevelLoader {
       final node =
           MeshNode(
               mesh,
-              LevelLoader.materialFrom(
-                  level.materials[surface.material] ?? LevelMaterial(),
-                  textures,
-                  name: surface.material,
-                  tiling: tiling,
-                )
+              (deferred[surface.material] ??
+                  LevelLoader.materialFrom(
+                    level.materials[surface.material] ?? LevelMaterial(),
+                    textures,
+                    name: surface.material,
+                    tiling: tiling,
+                  ))
                 ..lightmap = surface.lightmapUvs == null
                     ? null
                     : lightmapTexture,
@@ -569,6 +659,56 @@ final class LevelLoader {
   /// length is the surface the filter is for.
   static SamplerOptions tilingSamplerFor(GraphicsDevice device) =>
       _tiling.withAnisotropy(math.min(tilingAnisotropy, device.maxAnisotropy));
+
+  /// Reads the `.fmat` at [path] and binds it, or says why it could not.
+  ///
+  /// **A material that will not read is a warning, not a lost level** — the same
+  /// bargain [_upload] strikes for a texture, and for the same reason: the
+  /// surface falls back to the numbers the level document itself carries, the
+  /// room is still walkable, and the person who renamed the file hears about it.
+  /// The document's own findings come through too, because a `.fmat` with
+  /// `roughnesss` in it is exactly the hand-edit that format exists to make
+  /// survivable and the warning is the only place it shows.
+  static Future<Material?> _fmatMaterial(
+    GraphicsDevice device,
+    String path,
+    AssetBytes read,
+    List<LevelIssue> issues,
+  ) async {
+    final source = _LevelMaterialSource(path, read);
+    final warnings = <String>[];
+    final Material material;
+    try {
+      final document = await loadMaterialDocument(source);
+      warnings.addAll(document.warnings);
+      material = await bindMaterial(
+        document,
+        device: device,
+        resolveUri: source.resolveUri,
+        warnings: warnings,
+      );
+    } catch (error) {
+      issues.add(
+        LevelIssue(
+          LevelIssueSeverity.warning,
+          'could not be read, so the surface falls back to the numbers the '
+          'level itself carries: $error',
+          where: 'material "$path"',
+        ),
+      );
+      return null;
+    }
+    for (final warning in warnings) {
+      issues.add(
+        LevelIssue(
+          LevelIssueSeverity.warning,
+          warning,
+          where: 'material "$path"',
+        ),
+      );
+    }
+    return material;
+  }
 
   static Future<TextureHandle?> _upload(
     GraphicsDevice device,

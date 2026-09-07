@@ -255,6 +255,142 @@ void main() {
     });
   });
 
+  group('a hint beside a parameter', () {
+    test('describes the control each kind wants, and nothing else', () {
+      // **Description, never constraint.** `speed` is hinted `0..10` and the
+      // file says 25; the reader must hand the shader 25, because a range that
+      // clamped would change what the engine draws in order to tidy up an
+      // editor's slider — and every golden in this repository was rendered with
+      // the numbers the files actually carry.
+      //
+      // Mutation: clamp a parameter to its hinted range in `readFmat` — the
+      // last expectation here fails, and it is the only one that would.
+      final document = readFmat(
+        _bytes('''
+        {"fmat": 1,
+         "parameters": {"speed": 25.0},
+         "hints": {
+           "speed": {"kind": "range", "min": 0, "max": 10, "step": 0.5,
+                     "label": "Current", "help": "Metres a second."},
+           "tint": {"kind": "color", "channels": 3},
+           "foam": {"kind": "texture", "extensions": [".png"]},
+           "mood": {"kind": "enum",
+                    "values": ["calm", {"value": "storm", "label": "Storm"}]}
+         }}
+      '''),
+      );
+
+      final speed = document.hints['speed']!;
+      expect(speed.label, 'Current');
+      expect(speed.help, 'Metres a second.');
+      expect((speed.kind as RangeHint).min, 0.0);
+      expect((speed.kind as RangeHint).max, 10.0);
+      expect((speed.kind as RangeHint).step, 0.5);
+      expect((document.hints['tint']!.kind as ColorHint).channels, 3);
+      expect((document.hints['foam']!.kind as TextureHint).extensions, <String>[
+        '.png',
+      ]);
+      final mood = document.hints['mood']!.kind as EnumHint;
+      expect(mood.values.map((v) => v.value), <String>['calm', 'storm']);
+      expect(
+        mood.values.map((v) => v.label),
+        <String>['calm', 'Storm'],
+        reason: 'a choice given no label is its own label',
+      );
+      expect(document.warnings, isEmpty);
+      expect(
+        document.parameters['speed'],
+        <double>[25.0],
+        reason: 'a hint described the control and moved the value',
+      );
+    });
+
+    test('and survives being written back out', () {
+      // The property a material inspector stands on, for hints as for factors:
+      // an editor that reads a file and saves it must not lose what it did not
+      // show. Mutation: drop `hints` from `writeFmat` — the shape differs and
+      // this fails; drop `'hints'` from `readFmat`'s `knownKeys` and the writer
+      // warns on its own output, which the round trip above already catches.
+      final original = readFmat(
+        _bytes('''
+        {"fmat": 1, "parameters": {"speed": [2.5], "tint": [1, 0, 0]},
+         "hints": {
+           "speed": {"kind": "range", "min": 0, "max": 4, "help": "How fast."},
+           "tint": {"kind": "color", "channels": 3},
+           "mood": {"kind": "enum", "values": [{"value": "s", "label": "Storm"}]}
+         }}
+      '''),
+      );
+      final again = readFmat(_bytes(writeFmat(original)));
+
+      expect(_hintsOf(again), _hintsOf(original));
+      expect(again.warnings, isEmpty);
+    });
+
+    test('and a kind nobody defined is a warning, not a refusal', () {
+      // The same answer `alphaMode` gives a word it does not know, and for a
+      // stronger reason: a hint that will not parse costs a slider, and a
+      // material that will not load costs the level. A tool three versions
+      // ahead may write a curve here.
+      //
+      // Mutation: throw on an unknown kind — the material stops loading over a
+      // decoration, and both halves of this fail.
+      final document = readFmat(
+        _bytes(
+          '{"fmat": 1, "parameters": {"curve": [1, 2]}, '
+          '"hints": {"curve": {"kind": "spline"}}}',
+        ),
+      );
+
+      expect(document.hints, isEmpty);
+      expect(document.parameters['curve'], <double>[1.0, 2.0]);
+      expect(document.warnings.single, contains('spline'));
+      expect(document.warnings.single, contains('curve'));
+    });
+
+    test('and the fields the engine already knows are hinted by the engine', () {
+      // **Not written into every file, and that is the whole decision.**
+      // Roughness runs nought to one in every material ever authored; a file
+      // carrying that sentence would put a hundred identical lines in front of
+      // the six an artist edits, and the readable diff is why this format is
+      // text at all. So the built-in fields are hinted here and a file hints
+      // only what this table cannot know.
+      //
+      // Mutation: drop `SurfaceAlphaMode.blend` from the alpha list, or a model
+      // from `LightingModel.builtIn`'s use here — the two exhaustiveness
+      // expectations fail.
+      expect((builtInMaterialHints['roughness']!.kind as RangeHint).max, 1.0);
+      expect((builtInMaterialHints['metallic']!.kind as RangeHint).min, 0.0);
+      expect(
+        (builtInMaterialHints['normalScale']!.kind as RangeHint).max,
+        1.0,
+      );
+      expect(
+        (builtInMaterialHints['occlusionStrength']!.kind as RangeHint).max,
+        1.0,
+      );
+      expect((builtInMaterialHints['baseColor']!.kind as ColorHint).channels, 4);
+      expect(
+        (builtInMaterialHints['emissive']!.kind as ColorHint).channels,
+        3,
+        reason: 'a surface does not glow transparently',
+      );
+      expect(
+        (builtInMaterialHints['alphaMode']!.kind as EnumHint).values.map(
+          (v) => v.value,
+        ),
+        SurfaceAlphaMode.values.map((mode) => mode.name),
+      );
+      expect(
+        (builtInMaterialHints['lighting']!.kind as EnumHint).values.map(
+          (v) => v.value,
+        ),
+        LightingModel.builtIn.map((model) => model.shaderName),
+        reason: 'the picker offers the shaders the engine ships',
+      );
+    });
+  });
+
   group('a file this engine will not guess at', () {
     test('is one from a newer version', () {
       // **Deliberately not read as best-effort.** The difference between the two
@@ -362,3 +498,23 @@ String _shapeOf(MaterialDocument document) {
       '${entry.key}=${slot(entry.value)}',
   ].join('|');
 }
+
+/// Every hint as one comparable value, for the same reason [_shapeOf] is one:
+/// a round-trip test that names the kinds it checks goes quiet the day a fifth
+/// kind arrives.
+String _hintsOf(MaterialDocument document) => <String>[
+  for (final entry in document.hints.entries)
+    <String>[
+      entry.key,
+      '${entry.value.label}',
+      '${entry.value.help}',
+      switch (entry.value.kind) {
+        RangeHint(:final min, :final max, :final step) =>
+          'range $min..$max by $step',
+        ColorHint(:final channels) => 'color x$channels',
+        TextureHint(:final extensions) => 'texture ${extensions.join(',')}',
+        EnumHint(:final values) =>
+          'enum ${values.map((v) => '${v.value}=${v.label}').join(',')}',
+      },
+    ].join(':'),
+].join('|');

@@ -8,6 +8,14 @@ import '../material_document.dart';
 import '../surface_material.dart';
 
 /// The version this reader writes and the only one it accepts.
+///
+/// **Additions do not bump it, and `hints` is the case that proves why.** The
+/// gate below refuses a whole file whose number is larger than this one, so
+/// raising it to two would make every `.fmat` written since — and every one an
+/// artist has on disk — unreadable by the readers already shipped, in exchange
+/// for a key those readers would have ignored anyway. A version is for a
+/// difference that changes what the old reader would *draw*; a new key that an
+/// old reader skips with a warning is not one.
 const int kFmatVersion = 1;
 
 /// Whether [bytes] look like a `.fmat`.
@@ -81,6 +89,7 @@ MaterialDocument readFmat(Uint8List bytes, {String name = ''}) {
     'textures',
     'parameterBlock',
     'parameters',
+    'hints',
   };
   final warnings = <String>[
     for (final key in parsed.keys)
@@ -156,6 +165,7 @@ MaterialDocument readFmat(Uint8List bytes, {String name = ''}) {
               .entries)
         entry.key: _floats(entry.value),
     },
+    hints: _readHints(parsed['hints'], warnings),
     extraTextures: <String, TextureBinding>{
       for (final entry in textures.entries)
         if (!knownSlots.contains(entry.key))
@@ -238,6 +248,7 @@ String writeFmat(MaterialDocument document) {
     if (textures.isNotEmpty) 'textures': textures,
     if (document.parameterBlock != 'MaterialParams') 'parameterBlock': document.parameterBlock,
     if (document.parameters.isNotEmpty) 'parameters': <String, Object?>{for (final entry in document.parameters.entries) entry.key: entry.value.toList()},
+    if (document.hints.isNotEmpty) 'hints': _writeHints(document.hints),
   })}\n';
 }
 
@@ -321,6 +332,124 @@ Object _writeLighting(LightingModel model) {
       'environment': model.usesEnvironment,
   };
 }
+
+/// Reads the `hints` block, which describes the entries in `parameters`.
+///
+/// **Only the parameters, and only in the file.** The fields every material has
+/// are hinted by [builtInMaterialHints]: their ends and their lists are the same
+/// in every material ever written, and repeating them here would put a hundred
+/// lines of identical text in front of the six an artist edits. What a file
+/// alone can say is what a studio's own `windStrength` means, which is exactly
+/// what this block is for.
+Map<String, MaterialHint> _readHints(Object? value, List<String> warnings) {
+  if (value == null) return const <String, MaterialHint>{};
+  if (value is! Map<String, Object?>) {
+    warnings.add('"hints" is not an object; ignored');
+    return const <String, MaterialHint>{};
+  }
+  final hints = <String, MaterialHint>{};
+  for (final entry in value.entries) {
+    final body = entry.value;
+    if (body is! Map<String, Object?>) {
+      warnings.add('the hint for "${entry.key}" is not an object; ignored');
+      continue;
+    }
+    if (_hintKind(entry.key, body, warnings) case final MaterialHintKind kind) {
+      hints[entry.key] = MaterialHint(
+        kind,
+        label: body['label'] as String?,
+        help: body['help'] as String?,
+      );
+    }
+  }
+  return hints;
+}
+
+/// The control a hint asks for, or null and a word when it asks for one this
+/// engine has never heard of.
+///
+/// **A warning rather than a refusal**, the same answer `alphaMode` gives a word
+/// it does not know — and for a stronger reason here: a hint that will not parse
+/// costs a slider in an editor, and a whole material that will not load costs
+/// the level. A tool three versions ahead may write a curve or a gradient, and
+/// the file's colours are still good.
+MaterialHintKind? _hintKind(
+  String name,
+  Map<String, Object?> body,
+  List<String> warnings,
+) => switch (body['kind']) {
+  'range' => RangeHint(
+    _number(body['min'], 0.0),
+    _number(body['max'], 1.0),
+    step: body['step'] is num ? _number(body['step'], 0.0) : null,
+  ),
+  'color' => ColorHint(channels: (body['channels'] as num?)?.toInt() ?? 4),
+  'texture' => TextureHint(
+    extensions: switch (body['extensions']) {
+      final List<Object?> listed => <String>[
+        for (final suffix in listed)
+          if (suffix is String) suffix,
+      ],
+      _ => TextureHint.imageSuffixes,
+    },
+  ),
+  'enum' => EnumHint(<EnumHintValue>[
+    for (final choice in body['values'] as List<Object?>? ?? const <Object?>[])
+      // A choice that is already a word is written as that word, so a list of
+      // six of them is six short lines rather than six objects.
+      ...switch (choice) {
+        final String plain => <EnumHintValue>[EnumHintValue(plain)],
+        {'value': final String value, 'label': final String label} =>
+          <EnumHintValue>[EnumHintValue(value, label)],
+        {'value': final String value} => <EnumHintValue>[EnumHintValue(value)],
+        _ => const <EnumHintValue>[],
+      },
+  ]),
+  final Object? kind => () {
+    warnings.add(
+      '"$kind" is not a hint kind this reader knows, so "$name" is shown '
+      'without one; its value is unaffected',
+    );
+    return null;
+  }(),
+};
+
+/// Symmetric with [_readHints]: what this writes, that reads back equal.
+Object _writeHints(Map<String, MaterialHint> hints) => <String, Object?>{
+  for (final entry in hints.entries)
+    entry.key: <String, Object?>{
+      ..._writeHintKind(entry.value.kind),
+      if (entry.value.label case final String label) 'label': label,
+      if (entry.value.help case final String help) 'help': help,
+    },
+};
+
+Map<String, Object?> _writeHintKind(MaterialHintKind kind) => switch (kind) {
+  RangeHint(:final min, :final max, :final step) => <String, Object?>{
+    'kind': 'range',
+    'min': min,
+    'max': max,
+    'step': ?step,
+  },
+  ColorHint(:final channels) => <String, Object?>{
+    'kind': 'color',
+    'channels': channels,
+  },
+  TextureHint(:final extensions) => <String, Object?>{
+    'kind': 'texture',
+    'extensions': extensions,
+  },
+  EnumHint(:final values) => <String, Object?>{
+    'kind': 'enum',
+    'values': <Object?>[
+      for (final choice in values)
+        if (choice.label == choice.value)
+          choice.value
+        else
+          <String, Object?>{'value': choice.value, 'label': choice.label},
+    ],
+  },
+};
 
 SurfaceAlphaMode _alphaMode(Object? value, List<String> warnings) =>
     switch (value) {

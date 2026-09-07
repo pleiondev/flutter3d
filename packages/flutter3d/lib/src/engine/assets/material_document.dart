@@ -1,7 +1,10 @@
 import 'dart:typed_data';
 
 import '../render/lighting_model.dart';
+import 'material_hint.dart';
 import 'surface_material.dart';
+
+export 'material_hint.dart';
 
 /// A material as a file of its own, rather than as part of a model.
 ///
@@ -26,6 +29,7 @@ final class MaterialDocument {
     this.lighting,
     this.parameterBlock = 'MaterialParams',
     this.parameters = const <String, Float32List>{},
+    this.hints = const <String, MaterialHint>{},
     this.extraTextures = const <String, TextureBinding>{},
     this.warnings = const <String>[],
   });
@@ -60,6 +64,21 @@ final class MaterialDocument {
 
   /// Numbers the shader reads, by uniform name.
   final Map<String, Float32List> parameters;
+
+  /// How a UI should show a [parameters] entry, by the same uniform name.
+  ///
+  /// **Beside the value, never instead of it.** A hint is a control's
+  /// description — a range's ends, a colour's channel count, the list an enum
+  /// picks from — and [parameters] stays the whole truth about what the shader
+  /// receives. That separation is why a hint may be missing, wrong, or from a
+  /// newer tool without any of it reaching the picture.
+  ///
+  /// Only parameters, because only parameters are unknowable: a studio's own
+  /// shader declares `windStrength` and nothing in this engine can guess what
+  /// that number means. The fields every material has are hinted by
+  /// [builtInMaterialHints] instead, so a hundred files do not each carry the
+  /// same sentence about roughness.
+  final Map<String, MaterialHint> hints;
 
   /// Texture slots beyond the standard five, by sampler name.
   final Map<String, TextureBinding> extraTextures;

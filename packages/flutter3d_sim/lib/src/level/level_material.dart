@@ -23,6 +23,7 @@ final class LevelMaterial {
     this.albedo,
     this.normal,
     this.orm,
+    this.fmat,
     Map<String, Object?> source = const <String, Object?>{},
   }) : baseColor = baseColor ?? Vector4(0.5, 0.5, 0.5, 1.0),
        // ignore: prefer_initializing_formals
@@ -62,6 +63,25 @@ final class LevelMaterial {
   /// chances to ship a mismatched set.
   final String? orm;
 
+  /// A standalone material file this surface defers its whole look to.
+  ///
+  /// **The eight fields above are what a level needs to block a room out, and
+  /// they are not what a look is made of.** There is no shader here, no
+  /// emissive map, no alpha, no parameters a studio's own shader reads — a
+  /// level material is deliberately the small vocabulary a level author works
+  /// in, and growing it towards the renderer's would end with two descriptions
+  /// of a surface that have to be kept in step. Naming a file instead keeps
+  /// them apart: this key says *ask that document*, and the document is the
+  /// engine's own `.fmat`, authored once and worn by every level that names it.
+  ///
+  /// Relative to the game's assets, like [albedo] and the rest. Null is every
+  /// level written so far, and those go on being drawn from the fields above.
+  ///
+  /// This package may not import the engine, so nothing here reads the file;
+  /// `flutter3d_bridge`'s loader is the only place that knows both formats, and
+  /// it is where the fork lives.
+  final String? fmat;
+
   /// Whether anything here has to be loaded from disk.
   bool get hasMaps => albedo != null || normal != null || orm != null;
 
@@ -74,6 +94,7 @@ final class LevelMaterial {
     albedo: json.textOrNull('albedo'),
     normal: json.textOrNull('normal'),
     orm: json.textOrNull('orm'),
+    fmat: json.textOrNull('fmat'),
     source: json,
   );
 
@@ -94,5 +115,10 @@ final class LevelMaterial {
     WriteThroughField('albedo', albedo, whenAbsent: albedo != null),
     WriteThroughField('normal', normal, whenAbsent: normal != null),
     WriteThroughField('orm', orm, whenAbsent: orm != null),
+    // Named here as well as parsed, though [writeThrough] would carry the key
+    // through untouched either way: a build that does not know a key copies it,
+    // and one that does must also be able to *set* it. Listing it is what makes
+    // an editor's change to the field reach the document.
+    WriteThroughField('fmat', fmat, whenAbsent: fmat != null),
   ]);
 }
