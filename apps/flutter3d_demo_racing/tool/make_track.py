@@ -628,10 +628,18 @@ def write(circuit):
             "closed": True,
             "shoulder": circuit.shoulder,
             "points": entries,
+            # The lap length is rounded for the same reason `tool/make_models.py`
+            # quantises its coordinates: it is a sum of `math.dist` over points
+            # that came out of `math.sin` and `math.cos`, so libm decides its last
+            # bit, and `math.dist` itself was rewritten in CPython 3.10 — the full
+            # mantissa therefore names the machine and the interpreter that wrote
+            # it, and the levels step regenerates these files and diffs them. A
+            # centimetre is far below the width of the road it describes, and it
+            # is what every neighbouring field is already rounded to.
             "surfaces": [
                 {
                     "fromS": 0.0,
-                    "toS": length,
+                    "toS": round(length, 2),
                     "centre": "asphalt",
                     "shoulder": "grass",
                 }
