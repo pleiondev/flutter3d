@@ -204,9 +204,7 @@ void main() {
     });
 
     test('and the crypt describes its torch', () {
-      final said = Looks.parse(
-        File(_crypt).readAsStringSync(),
-      );
+      final said = Looks.parse(File(_crypt).readAsStringSync());
 
       expect(
         said.partsFor(_entity('torch')),

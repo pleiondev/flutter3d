@@ -162,27 +162,30 @@ void main() {
     expect(material.albedo, isNull);
   });
 
-  test('and a material file that will not read costs a look, not a level', () async {
-    // The same bargain a missing texture strikes: the room stays walkable, the
-    // wall falls back to the numbers the level itself carries, and the person
-    // who renamed the file hears about it. Mutation: let the exception out of
-    // `_fmatMaterial` and the level stops loading over a decoration.
-    final loaded = await const LevelLoader().build(
-      Level.fromJson(_levelJson(fmat: 'materials/gone.fmat')),
-      device: device,
-      registry: registry,
-      readAsset: readAsset,
-    );
+  test(
+    'and a material file that will not read costs a look, not a level',
+    () async {
+      // The same bargain a missing texture strikes: the room stays walkable, the
+      // wall falls back to the numbers the level itself carries, and the person
+      // who renamed the file hears about it. Mutation: let the exception out of
+      // `_fmatMaterial` and the level stops loading over a decoration.
+      final loaded = await const LevelLoader().build(
+        Level.fromJson(_levelJson(fmat: 'materials/gone.fmat')),
+        device: device,
+        registry: registry,
+        readAsset: readAsset,
+      );
 
-    expect(loaded.issues, hasLength(1));
-    expect(loaded.issues.single.isError, isFalse);
-    expect(loaded.issues.single.where, contains('gone.fmat'));
-    expect(
-      loaded.brushNodes.single.material.roughness,
-      closeTo(0.9, 1e-6),
-      reason: 'the level\'s own numbers are what it falls back to',
-    );
-  });
+      expect(loaded.issues, hasLength(1));
+      expect(loaded.issues.single.isError, isFalse);
+      expect(loaded.issues.single.where, contains('gone.fmat'));
+      expect(
+        loaded.brushNodes.single.material.roughness,
+        closeTo(0.9, 1e-6),
+        reason: 'the level\'s own numbers are what it falls back to',
+      );
+    },
+  );
 }
 
 /// One opaque white pixel, as a PNG. Written out rather than read from a file,

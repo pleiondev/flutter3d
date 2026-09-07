@@ -338,8 +338,8 @@ List<Finding> _flatDartNamesNoFlutter() {
         Finding(
           entry.key,
           'is not a package any more, so the rule that it stays plain Dart has '
-              'outlived its subject — take it out of flatDartPackages or '
-              'restore the package',
+          'outlived its subject — take it out of flatDartPackages or '
+          'restore the package',
         ),
       );
       continue;

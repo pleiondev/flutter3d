@@ -61,12 +61,12 @@ void main() {
     // whether somebody should go and draw one — so it is written down here,
     // against the packages that decide it.
 
-    Looks looksOf(String genre) =>
-        Looks.parse(File('assets/templates/$genre/editor.json').readAsStringSync());
+    Looks looksOf(String genre) => Looks.parse(
+      File('assets/templates/$genre/editor.json').readAsStringSync(),
+    );
 
-    List<File> modelsOf(String genre) => models
-        .where((File it) => it.path.contains('/$genre/'))
-        .toList();
+    List<File> modelsOf(String genre) =>
+        models.where((File it) => it.path.contains('/$genre/')).toList();
 
     test('names no model it does not have', () {
       // The general rule, which is what makes the two below safe to state: a

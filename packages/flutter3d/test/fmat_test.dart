@@ -292,17 +292,14 @@ void main() {
       ]);
       final mood = document.hints['mood']!.kind as EnumHint;
       expect(mood.values.map((v) => v.value), <String>['calm', 'storm']);
-      expect(
-        mood.values.map((v) => v.label),
-        <String>['calm', 'Storm'],
-        reason: 'a choice given no label is its own label',
-      );
+      expect(mood.values.map((v) => v.label), <String>[
+        'calm',
+        'Storm',
+      ], reason: 'a choice given no label is its own label');
       expect(document.warnings, isEmpty);
-      expect(
-        document.parameters['speed'],
-        <double>[25.0],
-        reason: 'a hint described the control and moved the value',
-      );
+      expect(document.parameters['speed'], <double>[
+        25.0,
+      ], reason: 'a hint described the control and moved the value');
     });
 
     test('and survives being written back out', () {
@@ -361,15 +358,15 @@ void main() {
       // expectations fail.
       expect((builtInMaterialHints['roughness']!.kind as RangeHint).max, 1.0);
       expect((builtInMaterialHints['metallic']!.kind as RangeHint).min, 0.0);
-      expect(
-        (builtInMaterialHints['normalScale']!.kind as RangeHint).max,
-        1.0,
-      );
+      expect((builtInMaterialHints['normalScale']!.kind as RangeHint).max, 1.0);
       expect(
         (builtInMaterialHints['occlusionStrength']!.kind as RangeHint).max,
         1.0,
       );
-      expect((builtInMaterialHints['baseColor']!.kind as ColorHint).channels, 4);
+      expect(
+        (builtInMaterialHints['baseColor']!.kind as ColorHint).channels,
+        4,
+      );
       expect(
         (builtInMaterialHints['emissive']!.kind as ColorHint).channels,
         3,

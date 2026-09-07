@@ -172,10 +172,8 @@ void main() {
     // genre somebody has to write a first document for by hand, which is the
     // state all four were in.
     expect(
-      (jsonDecode(
-                File('assets/templates/index.json').readAsStringSync(),
-              )
-              as Map<String, Object?>)['templates'],
+      (jsonDecode(File('assets/templates/index.json').readAsStringSync())
+          as Map<String, Object?>)['templates'],
       templates.map((_Template it) => it.genre).toList()..sort(),
     );
   });
@@ -323,9 +321,9 @@ void main() {
     test('and ships no track beside the level, deliberately', () {
       // If this ever fails, the thing to check is not the manifest: it is
       // whether something now edits a circuit. Nothing does.
-      final files = (racing.read('index.json')['files']! as Map<String, Object?>)
-          .values
-          .cast<String>();
+      final files =
+          (racing.read('index.json')['files']! as Map<String, Object?>).values
+              .cast<String>();
 
       expect(files.where((String it) => it.contains('track')), isEmpty);
     });
@@ -379,7 +377,10 @@ void main() {
       final document = strategy.read('level.first.json');
 
       expect(document['goal'], isNotNull);
-      expect(Editing.parse(jsonEncode(document), path: 'x').write(), isNotEmpty);
+      expect(
+        Editing.parse(jsonEncode(document), path: 'x').write(),
+        isNotEmpty,
+      );
     });
 
     test('and offers exactly the words that map is written in', () {

@@ -213,7 +213,10 @@ void main() {
       // being lied to.
       final editing = _open()..select(Piece.brush, 0);
 
-      expect(editing.history.run(const SetField('at', 'not a vector')), isFalse);
+      expect(
+        editing.history.run(const SetField('at', 'not a vector')),
+        isFalse,
+      );
 
       expect(editing.brush!.centre.x, 0.0);
       expect(editing.fields['at'], isA<List<Object?>>());

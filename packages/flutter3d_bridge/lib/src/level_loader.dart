@@ -510,12 +510,12 @@ final class LevelLoader {
           MeshNode(
               mesh,
               (deferred[surface.material] ??
-                  LevelLoader.materialFrom(
-                    level.materials[surface.material] ?? LevelMaterial(),
-                    textures,
-                    name: surface.material,
-                    tiling: tiling,
-                  ))
+                    LevelLoader.materialFrom(
+                      level.materials[surface.material] ?? LevelMaterial(),
+                      textures,
+                      name: surface.material,
+                      tiling: tiling,
+                    ))
                 ..lightmap = surface.lightmapUvs == null
                     ? null
                     : lightmapTexture,

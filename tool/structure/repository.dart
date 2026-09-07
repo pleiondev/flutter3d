@@ -57,7 +57,8 @@ const List<String> applications = <String>[
 /// is not here, because nothing has yet needed it to and a rule kept for
 /// nobody is a rule somebody eventually deletes.
 const Map<String, String> flatDartPackages = <String, String>{
-  'flutter3d_sim': 'a server replays a run through it, in a container with no '
+  'flutter3d_sim':
+      'a server replays a run through it, in a container with no '
       'Flutter SDK in it',
   'flutter3d_editor_core':
       'a level is a document, and the programs that check one — a linter, a '

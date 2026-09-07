@@ -114,7 +114,8 @@ final Map<String, MaterialHint> builtInMaterialHints = <String, MaterialHint>{
   'metallic': const MaterialHint(
     RangeHint(0.0, 1.0, step: 0.01),
     label: 'Metallic',
-    help: 'Nought is a dielectric, one is bare metal. The values between the '
+    help:
+        'Nought is a dielectric, one is bare metal. The values between the '
         'two describe no real material and are there for blending between them.',
   ),
   'roughness': const MaterialHint(
@@ -135,7 +136,8 @@ final Map<String, MaterialHint> builtInMaterialHints = <String, MaterialHint>{
   'emissive': const MaterialHint(
     ColorHint(channels: 3),
     label: 'Emissive',
-    help: 'The colour the surface glows in. It has no alpha: a surface does '
+    help:
+        'The colour the surface glows in. It has no alpha: a surface does '
         'not glow transparently.',
   ),
   // Both enums are derived from the lists the engine already keeps rather than
@@ -160,7 +162,8 @@ final Map<String, MaterialHint> builtInMaterialHints = <String, MaterialHint>{
         EnumHintValue(model.shaderName, model.label),
     ]),
     label: 'Shader',
-    help: 'The shaders this engine ships. A material may name one of its own '
+    help:
+        'The shaders this engine ships. A material may name one of its own '
         'instead, and must then say what that shader binds.',
   ),
 };
