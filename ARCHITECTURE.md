@@ -1885,9 +1885,21 @@ model drawing nothing.
 
 **No occlusion culling for anything but a brush level, and no FXAA or TAA.**
 A brush level has the precomputed visibility of [§4.6](#46-precomputed-visibility);
-a model imported from glTF is culled by the frustum alone. Screen-space ambient occlusion and
-reflections exist and are off by default; neither has a golden scene, so what
-is pinned about them is their settings and their shader, not their picture.
+a model imported from glTF is culled by the frustum alone.
+
+The absent antialiasing costs more than it sounds like, because of what the
+screen-space effects require: filling the surface buffer turns MSAA off for the
+whole scene pass — the average of two octahedral normals is the encoding of no
+normal — so switching on ambient occlusion or reflections switches off the
+antialiasing of the entire frame, and there is nothing to put in its place. A
+post-pass FXAA is the piece that would let a game have both.
+
+Those two effects are off by default and are pinned by a picture on every
+backend: `ambient-occlusion-corner` and `screen-space-reflections` are golden
+scenes in all three sets, and the cross-backend budgets over them are what
+caught the surface buffer storing a depth its format could not hold. This
+paragraph said for months that neither had a golden scene, which stopped being
+true before it stopped being written down.
 
 **No convex hulls or triangle-mesh collision shapes**, and no joints.
 
