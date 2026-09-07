@@ -28,6 +28,7 @@ import 'package:flutter3d_backend/flutter3d_backend.dart';
 import 'package:flutter3d_game_strategy/flutter3d_game_strategy.dart';
 import 'package:vector_math/vector_math.dart' as vm;
 
+import 'src/level_document.dart';
 import 'src/staging.dart';
 
 void main() => runApp(const StrategyDemo());
@@ -79,10 +80,13 @@ class _MapState extends State<_Map> with SingleTickerProviderStateMixin {
   }
 
   Future<void> _open() async {
+    // The map first, then the device: a document that failed to load with a
+    // device already open would leak the device.
+    final map = await StrategyMap.load();
     final device = await openDevice(width: 1280, height: 720);
     if (!mounted) return device.dispose();
 
-    final staged = stage(device: device);
+    final staged = stage(device: device, map: map);
     _scene = Scene(name: 'map');
     staged.visuals.addTo(_scene);
 

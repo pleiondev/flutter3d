@@ -16,6 +16,7 @@ library;
 
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_cpu/testing.dart';
+import 'package:flutter3d_demo_strategy/src/level_document.dart';
 import 'package:flutter3d_demo_strategy/src/staging.dart';
 import 'package:flutter3d_game_strategy/flutter3d_game_strategy.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -25,10 +26,17 @@ const int _width = 120;
 const int _height = 90;
 
 void main() {
+  // The map comes out of the asset bundle, the way it does for the demo.
+  TestWidgetsFlutterBinding.ensureInitialized();
+
   test('the pass answers with the hall the cursor is over', () async {
     final it = cpuTestDevice(width: _width, height: _height);
     final renderer = Renderer.create(device: it.device);
-    final staged = stage(device: it.device, workers: 8);
+    final staged = stage(
+      device: it.device,
+      map: await StrategyMap.load(),
+      workers: 8,
+    );
 
     final scene = Scene(name: 'map');
     staged.visuals

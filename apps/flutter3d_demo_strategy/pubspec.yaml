@@ -29,3 +29,9 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+
+  # The map: a level document with the hillside in it, written by
+  # `tool/make_map.py`. The whole directory rather than the one file, because a
+  # second map is a second file and not a second line here.
+  assets:
+    - assets/levels/

@@ -21,6 +21,7 @@ import 'dart:typed_data';
 
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_cpu/testing.dart';
+import 'package:flutter3d_demo_strategy/src/level_document.dart';
 import 'package:flutter3d_demo_strategy/src/staging.dart';
 import 'package:flutter3d_game_strategy/flutter3d_game_strategy.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -52,13 +53,22 @@ const int _height = 100;
 const int _pixels = _width * _height;
 
 void main() {
+  // The map comes out of the asset bundle, the way it does for the demo.
+  TestWidgetsFlutterBinding.ensureInitialized();
+
   test('the map is drawn, and the crowd is in it', () async {
-    // The game's own assembly, not a likeness of it: `stage` is what `main`
-    // calls, and a harness that built its own hillside would agree with every
-    // bug this one has.
+    // The game's own assembly and the game's own map, not a likeness of
+    // either: `stage` is what `main` calls, and a harness that built its own
+    // hillside would agree with every bug this one has. Forty workers a side
+    // rather than the map's sixty, because a software rasteriser draws every
+    // one of them.
     final it = cpuTestDevice(width: _width, height: _height);
     final renderer = Renderer.create(device: it.device);
-    final staged = stage(device: it.device, workers: 40);
+    final staged = stage(
+      device: it.device,
+      map: await StrategyMap.load(),
+      workers: 40,
+    );
 
     final scene = Scene(name: 'map');
     staged.visuals.addTo(scene);
