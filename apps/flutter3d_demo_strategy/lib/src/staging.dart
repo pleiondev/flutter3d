@@ -25,7 +25,7 @@ final class Staged {
     required this.mine,
   });
 
-  /// The two sides, the ground under them, and the finishing line.
+  /// The sides, the ground under them, and the finishing line.
   final Match match;
 
   /// What draws them.
@@ -79,29 +79,42 @@ Heightfield hills({int samples = 81, double cellSize = 2.0}) {
   );
 }
 
-/// Builds a run: two camps on one hillside, a bot on the far one, and the view
-/// over the near one.
+/// Builds a run: a camp per side on one hillside, a bot on every camp but the
+/// near one, and the view over that.
 ///
-/// [workers] is what each side starts with; both grow from there, because both
-/// have a hall that turns a stockpile into more of them. The seams are finite,
-/// so the growth is too — which is also what makes the match end.
-Staged stage({required GraphicsDevice device, int workers = 60}) {
+/// [workers] is what each side starts with; all of them grow from there,
+/// because each has a hall that turns a stockpile into more of them. The seams
+/// are finite, so the growth is too — which is also what makes the match end.
+///
+/// [sides] is how many camps get staged, and side nought is always the one the
+/// mouse commands; the rest get a policy each. Two is what the demo shows, but
+/// the number is a parameter rather than a pair of hand-written corners,
+/// because the simulation stopped assuming two and this is the one place that
+/// would have gone on doing it.
+Staged stage({
+  required GraphicsDevice device,
+  int workers = 60,
+  int sides = 2,
+}) {
   final ground = hills();
-  final simulation = StrategySimulation(ground: ground);
+  final simulation = StrategySimulation(ground: ground, sides: sides);
 
   final mine = <Unit>[];
-  Bot? theirs;
-  for (var side = 0; side < 2; side++) {
-    // Near corner and far corner of the same hillside. Not mirrored: the ground
-    // is a sum of sines and the two camps stand on different parts of it, which
-    // is fair enough for a demo and would not be for a test — the tests that
-    // care use flat ground and a translation.
-    final Vector3 home = side == 0
-        ? Vector3(36.0, 0.0, 36.0)
-        : Vector3(124.0, 0.0, 124.0);
-    final Vector3 seam = side == 0
-        ? Vector3(36.0, 0.0, 72.0)
-        : Vector3(124.0, 0.0, 88.0);
+  final bots = <Bot>[];
+  for (var side = 0; side < sides; side++) {
+    // Spread along the hillside's diagonal, from its near corner to its far
+    // one. Not mirrored: the ground is a sum of sines and the camps stand on
+    // different parts of it, which is fair enough for a demo and would not be
+    // for a test — the tests that care use flat ground and a translation.
+    final double along = sides == 1 ? 0.0 : side / (sides - 1);
+    final Vector3 home = Vector3(36.0 + along * 88.0, 0.0, 36.0 + along * 88.0);
+    // The seam sits thirty-six metres from the hall towards the middle of the
+    // map, so that no camp is asked to dig off the edge of the ground.
+    final Vector3 seam = Vector3(
+      home.x,
+      0.0,
+      home.z + (home.z < ground.depth / 2.0 ? 36.0 : -36.0),
+    );
 
     final base = simulation.build(
       Building(
@@ -138,7 +151,7 @@ Staged stage({required GraphicsDevice device, int workers = 60}) {
       if (side == 0) mine.add(unit);
     }
 
-    if (side == 1) theirs = Bot(side: side, base: base);
+    if (side != 0) bots.add(Bot(side: side, base: base));
   }
 
   // Drawn through side nought's eyes rather than the simulation's: the far
@@ -147,7 +160,7 @@ Staged stage({required GraphicsDevice device, int workers = 60}) {
   final visuals = StrategyVisuals(
     simulation: simulation,
     device: device,
-    capacity: workers * 2 + 256,
+    capacity: workers * sides + 256,
     viewer: 0,
   );
 
@@ -160,7 +173,7 @@ Staged stage({required GraphicsDevice device, int workers = 60}) {
   return Staged(
     match: Match(
       simulation: simulation,
-      bots: <Bot>[theirs!],
+      bots: bots,
       goal: const MatchGoal(delivered: 1200.0),
     ),
     visuals: visuals,

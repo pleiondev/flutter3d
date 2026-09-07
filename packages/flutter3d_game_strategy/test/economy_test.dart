@@ -151,6 +151,31 @@ void main() {
 
       expect(sim.units, isEmpty, reason: 'side one had nothing to spend');
       expect(sim.stock[0].amount, closeTo(100.0, 1e-6));
+
+      // A third side has a purse and a running total of its own, because both
+      // lists are as long as the simulation was told rather than a literal
+      // pair. Mutation: build them as two-element literals again — staging a
+      // third camp then reads past the end of both.
+      final wide = StrategySimulation(ground: _flat(), sides: 3);
+      final third = wide.build(
+        Building(
+          centre: Vector3(60.0, 0.0, 60.0),
+          width: 8.0,
+          depth: 8.0,
+          side: 2,
+        ),
+      );
+      wide.addProducer(Producer(building: third, cost: 25.0, seconds: 1.0));
+      wide.stock[2].amount = 50.0;
+
+      for (var i = 0; i < 60 * 3; i++) {
+        wide.step(1.0 / 60.0);
+      }
+
+      expect(wide.delivered.length, 3);
+      expect(wide.units, isNotEmpty, reason: 'side two could not pay its own');
+      expect(wide.stock[0].amount, 0.0);
+      expect(wide.stock[2].amount, closeTo(0.0, 1e-6));
     });
 
     test('puts a new unit outside the building that made it', () {

@@ -1,4 +1,4 @@
-/// Two sides, a finishing line, and the loop that runs between them.
+/// The sides, a finishing line, and the loop that runs between them.
 ///
 /// **The victory is economic because the game is.** Nothing on this map fights;
 /// what a side does is dig, carry and grow, so what settles a match is how much
@@ -17,6 +17,11 @@
 /// policy from mirrored starts *should* finish level, and a match that
 /// invented a winner there would be hiding exactly the bias the mirror was
 /// built to expose.
+///
+/// **How many sides there are is the simulation's business, not this file's.**
+/// Judging asks for the largest total among however many were staged, so a
+/// three-cornered match is scored by the same pass as a duel and a tie for the
+/// lead is a draw wherever in the list it happens to fall.
 library;
 
 import 'bot.dart';
@@ -66,7 +71,7 @@ final class Match {
     this.goal = const MatchGoal(),
   });
 
-  /// The world both sides play in.
+  /// The world every side plays in, and the one that says how many there are.
   final StrategySimulation simulation;
 
   /// The policies, in the order they are asked. Order is visible — the first
@@ -93,22 +98,38 @@ final class Match {
   }
 
   Standing _judge() {
-    final double ours = simulation.delivered[0];
-    final double theirs = simulation.delivered[1];
-    if (ours >= goal.delivered || theirs >= goal.delivered) {
-      return _between(ours, theirs);
-    }
+    final bool crossed = simulation.delivered.any(
+      (double total) => total >= goal.delivered,
+    );
     // Nothing left in the ground and nothing left in anybody's hands: the
-    // totals cannot move again, so the match is decided even though neither
-    // side reached the line.
-    if (_anythingLeft()) return const Standing.running();
-    return _between(ours, theirs);
+    // totals cannot move again, so the match is decided even though nobody
+    // reached the line.
+    if (!crossed && _anythingLeft()) return const Standing.running();
+    return _leader();
   }
 
-  static Standing _between(double ours, double theirs) {
-    if (ours > theirs) return const Standing.wonBy(0);
-    if (theirs > ours) return const Standing.wonBy(1);
-    return const Standing.drawn();
+  /// Who is ahead, or a draw when nobody is on their own.
+  ///
+  /// One pass, keeping the best total seen and whether anything has since drawn
+  /// level with it. A later side that beats the lead clears the tie — it is
+  /// alone in front again — which is why the flag is written rather than only
+  /// set, and why `[3, 5, 5]` is a draw while `[5, 5, 7]` is won by the last.
+  Standing _leader() {
+    final List<double> delivered = simulation.delivered;
+    var best = delivered[0];
+    var leader = 0;
+    var level = false;
+    for (var side = 1; side < delivered.length; side++) {
+      final double total = delivered[side];
+      if (total > best) {
+        best = total;
+        leader = side;
+        level = false;
+      } else if (total == best) {
+        level = true;
+      }
+    }
+    return level ? const Standing.drawn() : Standing.wonBy(leader);
   }
 
   bool _anythingLeft() {

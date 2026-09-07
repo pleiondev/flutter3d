@@ -244,6 +244,21 @@ void main() {
       expect(match.standing.isOver, isTrue);
       expect(match.standing.winner, 0);
       expect(match.simulation.delivered[0], greaterThanOrEqualTo(300.0));
+
+      // **And a third side is judged by the same pass.** Mutation: have the
+      // judgement read `delivered[1]` against `delivered[0]` again. The side
+      // in front is then invisible to it — both of the sides it looks at are
+      // on nought — and a match somebody has won comes back drawn.
+      final three = Match(
+        simulation: StrategySimulation(ground: _flat(), sides: 3),
+        bots: const <Bot>[],
+        goal: const MatchGoal(delivered: 100.0),
+      );
+      three.simulation.delivered[2] = 120.0;
+      three.step(1.0 / 30.0);
+
+      expect(three.standing.isOver, isTrue);
+      expect(three.standing.winner, 2, reason: 'the largest total did not win');
     });
 
     test('is level between sides that are level', () {
@@ -304,6 +319,22 @@ void main() {
 
       expect(match.standing.isOver, isTrue);
       expect(match.standing.winner, isNull);
+
+      // Level between three, too, and the tie is not between the first two: a
+      // pass that only remembered the best total without remembering that
+      // something had drawn level with it would hand this to side one.
+      final three = Match(
+        simulation: StrategySimulation(ground: _flat(), sides: 3),
+        bots: const <Bot>[],
+      );
+      three.simulation.delivered
+        ..[0] = 40.0
+        ..[1] = 90.0
+        ..[2] = 90.0;
+      three.step(1.0 / 30.0);
+
+      expect(three.standing.isOver, isTrue);
+      expect(three.standing.winner, isNull, reason: 'a tie was given a winner');
     });
 
     test('stops changing once it is over', () {

@@ -47,15 +47,28 @@ final class StrategySimulation {
     double maxSlope = 0.698,
     double fogCellSize = 4.0,
     this.fogEvery = 6,
-  }) : // ignore_for_file: prefer_initializing_formals
+    this.sides = 2,
+  }) : assert(sides > 0, 'a match nobody plays'),
+       // ignore_for_file: prefer_initializing_formals
        _cellSize = cellSize,
        _maxSlope = maxSlope,
-       fog = FogOfWar(ground: ground, cellSize: fogCellSize) {
+       fog = FogOfWar(ground: ground, cellSize: fogCellSize, sides: sides),
+       stock = List<Stockpile>.generate(sides, (_) => Stockpile()),
+       delivered = List<double>.filled(sides, 0.0) {
     _bake();
   }
 
   final double _cellSize;
   final double _maxSlope;
+
+  /// How many sides are playing.
+  ///
+  /// **Two is a default, not a law.** Everything a side owns here is a slot in
+  /// a list — a purse, a running total, a layer of fog — and the count is the
+  /// length of those lists rather than a pair of names written into the code.
+  /// A three-cornered match therefore costs a constructor argument instead of a
+  /// pass over every place that used to say "ours" and "theirs".
+  final int sides;
 
   /// What each side knows of the map. See [FogOfWar]: visibility is a rule of
   /// the simulation here rather than a coat of paint on the picture, which is
@@ -169,8 +182,8 @@ final class StrategySimulation {
     return unit;
   }
 
-  /// What each side has taken and not yet spent, by side.
-  final List<Stockpile> stock = <Stockpile>[Stockpile(), Stockpile()];
+  /// What each side has taken and not yet spent, by side. One entry per side.
+  final List<Stockpile> stock;
 
   /// What each side has ever brought home, by side, spent or not.
   ///
@@ -180,7 +193,7 @@ final class StrategySimulation {
   /// while out-earning an opponent sitting on a pile. What a side achieved is
   /// the running total, and it only ever goes up — which is also what makes it
   /// a usable finishing line.
-  final List<double> delivered = <double>[0.0, 0.0];
+  final List<double> delivered;
 
   /// What is left on the map to take.
   final List<ResourceNode> resources = <ResourceNode>[];

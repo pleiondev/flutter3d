@@ -65,6 +65,16 @@ void main() {
 
       expect(fog.knows(0, 40.0, 40.0), isTrue);
       expect(fog.knows(1, 40.0, 40.0), isFalse);
+
+      // A third side gets a layer of its own as well: the lattice is as many
+      // as it was asked for rather than always two, and the offset keeps them
+      // apart however many there are.
+      final three = FogOfWar(ground: _flat(), sides: 3);
+      three.reveal(2, 40.0, 40.0, 10.0);
+
+      expect(three.knows(2, 40.0, 40.0), isTrue);
+      expect(three.knows(0, 40.0, 40.0), isFalse);
+      expect(three.knows(1, 40.0, 40.0), isFalse);
     });
 
     test('answers false off the map rather than throwing', () {
@@ -90,6 +100,24 @@ void main() {
 
       expect(sim.fog.knows(0, 22.0, 22.0), isTrue);
       expect(sim.fog.knows(1, 22.0, 22.0), isFalse);
+
+      // And the count the simulation was built with reaches the lattice.
+      // Mutation: stop passing `sides` to the fog. The layer side two writes
+      // into is then past the end of a two-side lattice, and staging a third
+      // camp throws instead of revealing anything.
+      final wide = StrategySimulation(ground: _flat(), sides: 3);
+      wide.build(
+        Building(
+          centre: Vector3(20.0, 0.0, 20.0),
+          width: 6.0,
+          depth: 6.0,
+          side: 2,
+        ),
+      );
+
+      expect(wide.fog.sides, 3);
+      expect(wide.fog.knows(2, 22.0, 22.0), isTrue);
+      expect(wide.fog.knows(0, 22.0, 22.0), isFalse);
     });
 
     test('loses sight of ground its crowd has walked away from', () {
