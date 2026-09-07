@@ -182,6 +182,10 @@ base class MeshNode extends SceneNode {
   /// cache key.
   int _boundsVersion = -1;
 
+  /// `MorphState.version` the bounds were fitted to, so a changed expression
+  /// refits them.
+  int _boundsShape = -1;
+
   /// The skeleton pose the cached bounds were computed from, for skinned meshes.
   int _poseVersion = -1;
   MeshGeometry? _boundsMesh;
@@ -256,7 +260,12 @@ base class MeshNode extends SceneNode {
       _poseVersion = stamp;
       _boundsMesh = mesh;
 
-      final bounds = skin.computeBounds(reach: skinReach * skin.skinScale);
+      // The morph's reach rides with the skin's: a morphed vertex is moved in
+      // the mesh's rest pose and then posed, so it can end up that much further
+      // from every joint than the bind pose said.
+      final bounds = skin.computeBounds(
+        reach: (skinReach + (morph?.reach ?? 0.0)) * skin.skinScale,
+      );
       _worldBounds.min.setFrom(bounds.min);
       _worldBounds.max.setFrom(bounds.max);
       _boundsCentre
@@ -269,11 +278,30 @@ base class MeshNode extends SceneNode {
     }
 
     final version = worldVersion;
-    if (version == _boundsVersion && mesh == _boundsMesh) return;
+    final shape = morph?.version ?? 0;
+    if (version == _boundsVersion &&
+        mesh == _boundsMesh &&
+        shape == _boundsShape) {
+      return;
+    }
+    _boundsShape = shape;
 
     // Transforming the eight corners is necessary: rotating an AABB and taking
     // the extents of the result is only correct for axis-aligned rotations.
-    final local = localBounds;
+    //
+    // **Grown by what the morph reaches**, in the mesh's own space and before
+    // the world transform, so a scaled node scales the allowance with it. A
+    // mesh's bounds describe its base vertices, and a weighted target puts them
+    // somewhere else — see `MorphState.reach`, which is where the cost of
+    // getting this wrong is written down.
+    final base = localBounds;
+    final grow = morph?.reach ?? 0.0;
+    final local = grow == 0.0
+        ? base
+        : Aabb3.minMax(
+            base.min - Vector3.all(grow),
+            base.max + Vector3.all(grow),
+          );
     final matrix = worldMatrix;
     final corner = Vector3.zero();
 

@@ -17,8 +17,10 @@ final class ModelPart {
     this.morphTexture,
     this.morphTargetCount = 0,
     List<double>? morphWeights,
+    List<double>? morphReaches,
   }) : transform = transform ?? Matrix4.identity(),
-       morphWeights = morphWeights ?? const <double>[];
+       morphWeights = morphWeights ?? const <double>[],
+       morphReaches = morphReaches ?? const <double>[];
 
   final DeviceMesh mesh;
   final Material material;
@@ -43,4 +45,7 @@ final class ModelPart {
 
   /// The expression this part starts in, before anything animates it.
   final List<double> morphWeights;
+
+  /// How far each target reaches, for the bounds of the node that draws it.
+  final List<double> morphReaches;
 }

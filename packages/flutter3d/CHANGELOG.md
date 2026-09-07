@@ -27,6 +27,15 @@
   than by widening the mesh and surface records, so a build that predates them
   skips both and reads the same file as a model at rest. The container version
   is unchanged, which is what the section directory was for.
+* **Bounds grow with the expression.** `MorphState.reach` tells a node how far
+  its weights can put a vertex past the mesh's own box, so a morphed model is
+  culled and shadowed against where it is rather than where it was authored.
+  Without it a cube whose target slid it twelve metres drew nothing at all —
+  the same trap `MeshNode.skinReach` closes for skinning, found the same way.
+* A ray still finds the shape *before* the vertex stage moved it, for morphing
+  as for skinning: `Raycaster` intersects CPU geometry. Now stated in
+  `Raycaster`'s own documentation, with `MorphBlend` named as the way to a
+  deformed copy for a caller who needs one. The bounding volumes do follow.
 * **A batch can wear a face per copy.** `InstancedMeshNode.setMorphWeights`
   gives one instance its own weights, read in the vertex stage from a texture
   by instance id. Not in the instance record, where it would cost thirty-two

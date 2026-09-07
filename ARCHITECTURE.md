@@ -1645,7 +1645,7 @@ entities a game defines.
 |---|---|
 | Style | `dart format` |
 | Analysis | `flutter analyze` clean across the workspace, no warnings |
-| Unit tests | **3829 tests** across 25 packages and 5 applications |
+| Unit tests | **3844 tests** across 25 packages and 5 applications |
 | Structure rules | 30, `dart run tool/structure.dart`, the first CI step |
 | CI | GitHub Actions over `tool/ci.sh`, on `ubuntu-latest`, with no graphics card |
 
@@ -1876,6 +1876,25 @@ that predates them skips both and reads the same file as a model in its base
 shape. `MorphBlend` still exists and still blends on the host: the software
 rasteriser's own transcription is checked against it, and a tool that wants the
 deformed vertices — a raycast, an exporter — has nowhere else to ask.
+
+**A bounding box is told what an expression reaches.** A mesh's bounds describe
+its base vertices and a morphed vertex is somewhere else, so a face that opens
+its jaw past that box is culled while it is on screen and its shadow leaves the
+cascade fitted to it — the trap skinning has and closes with
+`MeshNode.skinReach`. `MorphState.reach` is the same closure: the sum over
+targets of the absolute weight times how far that target moves the vertex it
+moves most, measured once per target when the deltas are packed. The sum rather
+than the largest, because two shapes at half strength reach further than either
+alone, and the absolute weight because glTF permits a negative one. It cost a
+whole model to find: a cube whose target slid it twelve metres drew nothing at
+all with the camera pointed where it lands.
+
+**A ray still hits the shape before the stage moved it.** `Raycaster`
+intersects CPU geometry, which is the bind pose and the base shape, so picking
+a morphed face finds its jaw shut. That is written down in `Raycaster` rather
+than fixed, because fixing it means a deformed copy of every mesh per cast, and
+`MorphBlend` is the tool for the caller that needs one. The bounding volumes do
+follow, so a deformed model is still a candidate and still culled correctly.
 
 **A batch can wear a face per copy.** `InstancedMeshNode.setMorphWeights` gives
 one instance its own weights, read in the vertex stage from a second texture by

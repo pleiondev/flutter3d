@@ -128,6 +128,7 @@ extension ModelAssetInstantiate on ModelAsset {
           final state = MorphState(
             texture: deltas,
             targetCount: part.morphTargetCount,
+            reaches: part.morphReaches,
           )..setWeights(part.morphWeights);
           mesh.morph = state;
           (morphSinks[index] ??= <MorphState>[]).add(state);

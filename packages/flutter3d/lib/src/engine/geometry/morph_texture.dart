@@ -41,6 +41,7 @@ final class MorphTexture {
     required this.height,
     required this.pixels,
     required this.targetCount,
+    required this.reaches,
   });
 
   /// Packs [mesh]'s targets, or null when it has none.
@@ -72,6 +73,9 @@ final class MorphTexture {
       height: height,
       pixels: pixels,
       targetCount: used,
+      reaches: <double>[
+        for (var t = 0; t < used; t++) mesh.morphTargets[t].maxDisplacement,
+      ],
     );
   }
 
@@ -108,6 +112,10 @@ final class MorphTexture {
 
   /// How many targets are in the texture, which is what the shader is told.
   final int targetCount;
+
+  /// How far each packed target moves the vertex it moves most, so a bounding
+  /// box can be told what an expression reaches — see `MorphState.reach`.
+  final List<double> reaches;
 
   /// How many the mesh had that did not fit.
   int dropped(MeshData mesh) => mesh.morphTargets.length - targetCount;

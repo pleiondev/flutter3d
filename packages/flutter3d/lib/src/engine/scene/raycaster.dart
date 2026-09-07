@@ -77,6 +77,28 @@ final class HitResult {
 /// the scene's flat mesh registry, rejecting on the cached world bounding sphere
 /// before touching a single triangle. A spatial index replaces that first pass
 /// later without changing anything below it.
+///
+/// ## It hits the mesh as it was authored, not as it is drawn
+///
+/// A skinned mesh is posed by its skeleton in the vertex stage and a morphed
+/// one is moved by its weights there, and **neither reaches these triangles**:
+/// the CPU geometry is the bind pose and the base shape. So a ray finds a
+/// character's arm where the model was exported with it, and finds a face's jaw
+/// shut however wide the expression has it open.
+///
+/// Written down rather than fixed, because fixing it is a decision and not an
+/// oversight: deforming on the host means a posed copy of every skinned mesh
+/// and a blended copy of every morphed one, per cast or per frame, and that is
+/// a cost nothing in this repository has asked to pay — picking is used on
+/// static geometry and on whole characters, where the bounding volumes are the
+/// answer either way. `MorphBlend` is the tool for a caller that does need it:
+/// it produces the deformed vertices on the host, and a mesh built from those
+/// is one this will hit exactly.
+///
+/// The bounding volumes, unlike the triangles, **do** follow both — see
+/// `MeshNode.skinReach` and `MorphState.reach` — so a deformed model is still
+/// found as a candidate and still culled correctly. It is only the triangle
+/// test underneath that answers about the shape before the stage moved it.
 final class Raycaster {
   Raycaster();
 

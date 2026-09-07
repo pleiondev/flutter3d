@@ -169,7 +169,11 @@ final class ModelAsset {
     // Deltas belong to the geometry and are keyed with it: two surfaces sharing
     // a MeshData share one upload, and a model whose face is drawn twice pays
     // for its expressions once.
-    final morphCache = <MeshData, ({TextureHandle? texture, int count})>{};
+    final morphCache =
+        <
+          MeshData,
+          ({TextureHandle? texture, int count, List<double> reaches})
+        >{};
 
     Future<TextureHandle?> textureFor(
       int imageIndex,
@@ -200,12 +204,14 @@ final class ModelAsset {
     /// A failed upload is a model that draws its base shape, not a model that
     /// refuses to load: a device that will not take a float texture is a device
     /// on which every face is expressionless, and that is still a picture.
-    ({TextureHandle? texture, int count}) morphFor(
+    ({TextureHandle? texture, int count, List<double> reaches}) morphFor(
       MeshData mesh,
       String where,
     ) => morphCache.putIfAbsent(mesh, () {
       final packed = MorphTexture.pack(mesh);
-      if (packed == null) return (texture: null, count: 0);
+      if (packed == null) {
+        return (texture: null, count: 0, reaches: const <double>[]);
+      }
 
       final left = packed.dropped(mesh);
       if (left > 0) {
@@ -226,9 +232,13 @@ final class ModelAsset {
           '$where: the morph deltas could not be uploaded; the mesh draws '
           'its base shape.',
         );
-        return (texture: null, count: 0);
+        return (texture: null, count: 0, reaches: const <double>[]);
       }
-      return (texture: uploaded, count: packed.targetCount);
+      return (
+        texture: uploaded,
+        count: packed.targetCount,
+        reaches: packed.reaches,
+      );
     });
 
     final parts = <ModelPart>[];
@@ -262,6 +272,7 @@ final class ModelAsset {
           morphTexture: morph.texture,
           morphTargetCount: morph.count,
           morphWeights: surface.morphWeights,
+          morphReaches: morph.reaches,
         ),
       );
     }

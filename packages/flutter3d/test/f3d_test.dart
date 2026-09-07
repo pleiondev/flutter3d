@@ -521,6 +521,43 @@ void main() {
       }
     });
 
+    test('a real model with several morphing primitives survives', () async {
+      // `AnimatedMorphCube` is one primitive with two shapes; this is the other
+      // shape a file takes — a head split across three primitives that share
+      // three expressions, with a weights channel in every one of fourteen
+      // clips. It is what `tool/convert_asset.dart` was run against by hand
+      // before this test existed, and running it by hand is what this replaces.
+      final source = await GltfLoader().load(readSample('RobotExpressive.glb'));
+      final reloaded = roundTrip(source);
+
+      int morphing(ModelDocument doc) =>
+          doc.surfaces.where((s) => s.mesh.morphTargets.isNotEmpty).length;
+      int targets(ModelDocument doc) => doc.surfaces
+          .map((s) => s.mesh.morphTargets.length)
+          .fold(0, (a, b) => a + b);
+
+      expect(morphing(source), 3);
+      expect(morphing(reloaded), morphing(source));
+      expect(targets(reloaded), targets(source));
+
+      final before = source.surfaces.firstWhere(
+        (s) => s.mesh.morphTargets.isNotEmpty,
+      );
+      final after = reloaded.surfaces[source.surfaces.indexOf(before)];
+      expect(after.mesh.morphTargets.first.name, 'Angry');
+      expect(
+        after.mesh.morphTargets.first.positions,
+        orderedEquals(before.mesh.morphTargets.first.positions),
+      );
+
+      int weightsChannels(ModelDocument doc) => doc.animations
+          .expand((a) => a.tracks)
+          .where((t) => t.path == AnimationPath.weights)
+          .length;
+      expect(weightsChannels(reloaded), weightsChannels(source));
+      expect(weightsChannels(reloaded), 14);
+    });
+
     test('a target that morphs positions alone stays that way', () {
       // Mutation: write the flags as a constant three and the loader builds
       // normal and tangent streams out of whatever the blob held at offset

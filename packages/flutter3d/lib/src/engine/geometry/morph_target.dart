@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'dart:typed_data';
 
 /// One shape a mesh can be blended towards, as deltas from its base vertices.
@@ -57,6 +58,29 @@ final class MorphTarget {
 
   /// Tangent deltas, three floats a vertex — see the class doc on the w.
   final Float32List? tangents;
+
+  /// How far this target moves the vertex it moves most, in the mesh's own
+  /// space.
+  ///
+  /// **What a bounding box has to be told about.** A mesh's bounds describe its
+  /// base vertices, and a morphed vertex is somewhere else — so a face that
+  /// opens its jaw past the box around its rest pose is culled while it is on
+  /// screen, and its shadow falls out of the cascade fitted to that box. That
+  /// is exactly the trap skinning has, where `MeshNode.skinReach` closes it.
+  ///
+  /// Measured once, lazily, and only over positions: a normal or a tangent
+  /// delta turns a vertex without moving it.
+  late final double maxDisplacement = () {
+    var worst = 0.0;
+    for (var v = 0; v < vertexCount; v++) {
+      final x = positions[v * 3];
+      final y = positions[v * 3 + 1];
+      final z = positions[v * 3 + 2];
+      final length = x * x + y * y + z * z;
+      if (length > worst) worst = length;
+    }
+    return math.sqrt(worst);
+  }();
 
   /// What the file called it, when it said.
   ///
