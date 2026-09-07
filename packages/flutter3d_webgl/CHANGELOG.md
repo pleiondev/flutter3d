@@ -1,3 +1,14 @@
+## 0.5.2
+
+* **RGBA32F storage was filled through `RGBA`/`UNSIGNED_BYTE`.** That is an
+  `INVALID_OPERATION` no API reports and a texture that samples as zeros, so a
+  model whose morph deltas travel as floats drew its base shape with no error
+  anywhere. The transfer type now comes from the format, and the size check
+  measures a texel rather than assuming four bytes.
+* A golden for the morphed cube, recorded in a browser like the rest: 0.139%
+  from Impeller, which is a silhouette and what is left once a vertex stage has
+  agreed about where every vertex went.
+
 ## 0.5.1
 
 * **The occlusion agrees with Impeller to 0.253% and the reflections to

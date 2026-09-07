@@ -1,3 +1,24 @@
+## 0.5.2
+
+* **A vertex stage can be told which vertex it is drawing.**
+  `CpuVertexShaderByIndex` adds `runAt(vertexIndex, ...)` beside
+  `CpuVertexShader.run`, which is handed attributes and no index. A second
+  interface rather than a member on the published one, so every stage that
+  exists still compiles: the encoder calls `runAt` when a stage implements it
+  and `run` otherwise. Morph targets are what needed it — a vertex has to look
+  its own deltas up in a texture.
+* **`lib/morph.glsl`, transcribed.** Deltas read out of a texture by vertex
+  index and added to the position, normal and tangent, against the GLSL rather
+  than against `MorphBlend`: the same arithmetic on the host is a second
+  source, and a transcription of a transcription drifts. Four tests hold it to
+  a picture — weighting a target moves it, it lands where `MorphBlend` puts it,
+  half a weight lands between, and a weight of nought costs nothing.
+* **A float texture could not be uploaded at all, and said nothing.**
+  `createTextureFromPixels` measured every format at four bytes a texel, so an
+  `r32g32b32a32Float` — sixteen — was refused as the wrong size and the caller
+  saw a null. Texel size now comes from the format, and the float formats are
+  decoded as floats rather than as eight-bit unorm.
+
 ## 0.5.1
 
 * **This backend was the one that was right, and its budget said otherwise.**

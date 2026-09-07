@@ -1,3 +1,10 @@
+## 0.4.2
+
+* `AnimatedMorphCube.glb`, the Khronos sample for morph targets: two shapes
+  and a clip that drives their weights. CC0-1.0, recorded in `ATTRIBUTION.md`.
+  It is what the engine's morph pipeline is tested end to end against, and
+  what the `morph-cube` golden draws.
+
 ## 0.4.1
 
 * Three Basis Universal ETC1S files under `assets/ktx2/` — one level, then

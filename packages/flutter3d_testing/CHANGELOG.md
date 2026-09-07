@@ -1,3 +1,10 @@
+## 0.5.2
+
+* `^0.5.2` on both halves. This package is the one place the engine and the
+  software backend are named together, so it is where "these two move as a
+  pair" can be written at all — see `flutter3d_backend` 0.5.2 for what a
+  mismatched pair does with morph targets.
+
 ## 0.5.1
 
 * **Its floors move to `flutter3d` and `flutter3d_cpu` at 0.5.1, both of

@@ -1,3 +1,13 @@
+## 0.5.1
+
+* **A new check: a float texture uploads as floats.** Two of the three backends
+  answered no and neither said so — one refused sixteen bytes a texel as the
+  wrong size, the other filled float storage with bytes. Both looked finished.
+  The check uploads a one-texel `r32g32b32a32Float` holding three quarters and
+  samples it in a vertex stage, which is where morph deltas are actually read,
+  and fails with a sentence naming the likely cause.
+* Thirty-three checks in all, twenty-five of which link stages and draw.
+
 ## 0.5.0
 
 * Follows the hardware layer's version. The checks are unchanged; the device

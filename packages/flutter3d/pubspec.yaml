@@ -35,7 +35,7 @@ dev_dependencies:
   # The Khronos test models, which every decoder test reads from disk. A dev
   # dependency and not a real one: an application that draws a scene needs the
   # decoders and not the fixtures they were checked with.
-  flutter3d_samples: ^0.4.0
+  flutter3d_samples: ^0.4.2
 
 # **This package declares no assets, and that is a decision worth the paragraph.**
 #

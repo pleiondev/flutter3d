@@ -1,3 +1,14 @@
+## 0.5.2
+
+* No Dart moved. This package ships `assets/shaders/flutter3d.shaderbundle`,
+  built by impellerc from `flutter3d_shaders` GLSL, and 0.5.2 of those shaders
+  added `lib/morph.glsl` and the morph block and sampler to four vertex stages
+  — so this package's contents changed even though nothing here was edited.
+* One thing worth recording for whoever meets it next: **impellerc aborts on
+  `texelFetch` in a vertex stage**, with a SIGABRT and no diagnostic. Reading
+  texel centres with `texture()` is the way past it, and it is why the shader
+  is handed the texel size in a uniform instead of asking `textureSize`.
+
 ## 0.5.1
 
 * **The shader bundle is rebuilt, and this release exists for that alone.**

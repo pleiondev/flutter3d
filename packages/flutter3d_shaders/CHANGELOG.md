@@ -1,3 +1,22 @@
+## 0.5.2
+
+* **`lib/morph.glsl`: a vertex moved towards the shapes its mesh carries.**
+  Deltas in an `r32g32b32a32Float` texture — one column a vertex, three rows a
+  target — read by `gl_VertexIndex` and blended by up to eight weights. A
+  texture rather than vertex attributes because the layout here is structural:
+  the `in` declarations of `mesh.vert` *are* the layout, and deltas as
+  attributes would mean a second vertex shader for each lighting model.
+* Read with `texture()` at texel centres rather than `texelFetch`, and handed
+  the texel size in the uniform rather than asking `textureSize`: impellerc
+  aborts on `texelFetch` in a vertex stage.
+* `mesh.vert`, `mesh_skinned.vert`, `mesh_instanced.vert` and
+  `mesh_lightmapped.vert` all morph before their transform — the skinned one in
+  the rest pose first, the instanced one before the instance matrix, since the
+  deltas are in the mesh's own space and a batch shares its mesh.
+* A probe pair, `probe/vertex_texture.vert` and `.frag`, which passes what the
+  *vertex* stage sampled through to the fragment stage. It is how the
+  conformance suite asks whether a backend can do this at all.
+
 ## 0.5.1
 
 **The surface buffer's alpha changes meaning, and `FogInfo` gains a member.**

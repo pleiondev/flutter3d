@@ -1,5 +1,36 @@
 ## 0.5.2
 
+* **Morph targets are drawn, on the GPU, on all three backends.** A file's
+  targets are packed by `MorphTexture` into an `r32g32b32a32Float` texture —
+  one column a vertex, three rows a target: positions, normals, tangents —
+  uploaded once with the mesh and sampled by the vertex stage. A texture and
+  not vertex attributes because the layout here is structural: the `in`
+  declarations of `mesh.vert` *are* the layout, one for every model, so deltas
+  as attributes would mean a second vertex shader for each of six lighting
+  models.
+* **`MorphState` holds the weights on the node, not on the geometry**, so two
+  copies of one model wear different expressions from one upload — the same
+  split a skeleton already has. `MeshNode.morph` is where it lives and
+  `MeshNode.morphWeights` is the shortcut for a game putting a face into an
+  expression by hand.
+* **A weights track reaches it through `MorphSink`**: an optional second list
+  on `AnimationPlayer`, index-aligned with the targets it already has. Not a
+  fourth setter on `AnimationTarget` — that is an `abstract interface class` in
+  a published package and a fourth member breaks every implementer — and a
+  weight is not a transform anyway: it belongs to the mesh a node draws, which
+  is a distinction glTF keeps too. Answered before the node lookup, so a face
+  that never travels still morphs.
+* The rest weights a glTF node or mesh names are read, so a model arrives in
+  the expression its author gave it. Up to eight targets blend at once; a file
+  with more loads with a warning naming what was left out, rather than failing.
+* `.f3d` carries the deltas and the weights in two sections of its own rather
+  than by widening the mesh and surface records, so a build that predates them
+  skips both and reads the same file as a model at rest. The container version
+  is unchanged, which is what the section directory was for.
+* Not blended through a crossfade or an animation layer, and that is written
+  down rather than half-built: two clips fading between two expressions would
+  want the weights mixed the way a pose is, and guessing at how that should
+  feel is how an API arrives that nobody can use.
 * **Animation layers: a clip over part of a skeleton while the base plays over
   all of it.** `AnimationPlayer.layers`, `playLayer` and `AnimationLayer` — an
   upper body that reloads while the legs keep running, a monster that flinches

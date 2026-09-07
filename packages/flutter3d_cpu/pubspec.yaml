@@ -2,7 +2,7 @@ name: flutter3d_cpu
 description: >-
   A software backend for flutter3d_hardware: no GPU, no shading language, and
   therefore the sharpest test of whether the interface is an interface.
-version: 0.5.1
+version: 0.5.2
 repository: https://github.com/pleiondev/flutter3d
 homepage: https://flutter3d.pleion.dev
 issue_tracker: https://github.com/pleiondev/flutter3d/issues
@@ -26,11 +26,11 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0
-  flutter3d_conformance: ^0.5.0
+  flutter3d_conformance: ^0.5.1
   # Test-only, and deliberately so: the backend itself must not depend on the
   # engine. A backend that could not be compiled without it would not be an
   # implementation of an interface, it would be a part of the engine.
   flutter3d: ^0.5.0
-  flutter3d_shaders: ^0.5.0
+  flutter3d_shaders: ^0.5.2
 
 resolution: workspace

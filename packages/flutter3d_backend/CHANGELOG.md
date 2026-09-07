@@ -1,3 +1,12 @@
+## 0.5.2
+
+* Floors again, for the same reason as 0.5.1 and a different feature. An
+  engine at 0.5.2 binds a `MorphInfo` block and a `morph_texture` sampler in
+  its vertex stages; a backend older than that has neither in its bundle and
+  cannot upload the float texture the deltas travel in. Impeller throws, naming
+  the block; the software backend and WebGL read what is missing as nothing and
+  go on drawing the base shape, saying nothing. `^0.5.2` on all three.
+
 ## 0.5.1
 
 * **The floors move to the 0.5.1 backends, and the reason is a coupling the
