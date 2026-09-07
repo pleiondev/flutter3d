@@ -21,6 +21,12 @@ dependencies:
   # The engine half. Everything here is content it takes as an argument.
   flutter3d_game: ^0.5.0
 
+  # For `bridge.dart` and nothing else. The simulation under `src/` names
+  # neither of these, and the structure rule that allows exactly one drawing
+  # file is what keeps that true.
+  flutter3d: ^0.5.0
+  flutter3d_bridge: ^0.5.0
+
   vector_math: ^2.2.0
 
 dev_dependencies:
@@ -28,8 +34,12 @@ dev_dependencies:
     sdk: flutter
   flutter_lints: ^6.0.0
 
-# Deliberately no dependency on flutter3d, the same way the platformer has none:
-# a crowd of ten thousand was measured stepping in under a millisecond with
-# nothing drawn, and keeping the whole of it reachable from a test with no
-# device is what made that measurement possible in the first place. The visual
-# half arrives as a `bridge.dart` beside the barrel when there is one.
+  # A device with no GPU behind it, so the drawing half is testable too.
+  flutter3d_cpu: ^0.5.0
+
+# The simulation half depends on nothing that draws, the same way the
+# platformer's does: a crowd of ten thousand was measured stepping in under a
+# millisecond with nothing drawn, and keeping the whole of it reachable from a
+# test with no device is what made that measurement possible. `bridge.dart` is
+# the one file that reaches a renderer, and `genreMayDraw` in the structure
+# rules names it — so the dependency above cannot quietly spread.
