@@ -581,9 +581,16 @@ const Map<String, String> boundaryEnumPackageExempt = <String, String>{
 /// **The rule and this table are about a run, not about accuracy.** A
 /// transcendental in `dart:math` is the host's libm on the VM and the browser's
 /// own routine on the web, and `flutter3d_sim/test/parity_test.dart` measured
-/// that all nine of them give different bits in the two places — which cost a
+/// that all ten of them give different bits in the two places — which cost a
 /// car twenty-three of forty checkpoints. `Portable` is what a step calls
 /// instead; see `flutter3d_sim/lib/src/math/portable_math.dart`.
+///
+/// Ten rather than nine because of `pow`, which is worth a sentence. On the one
+/// machine the sweep first ran on it agreed in both places, and a function that
+/// agrees on both runtimes of one machine looks like a function the
+/// specification pins. A third machine, an x86-64 Ubuntu, disagreed with both —
+/// so the agreement was two runtimes sharing one host's libm rather than a
+/// guarantee, and `pow` joined the list a step may not call.
 ///
 /// Everything below is outside a run: it decides what a frame *looks* like, or
 /// it runs once before the game ships. Two platforms drawing a lamp a

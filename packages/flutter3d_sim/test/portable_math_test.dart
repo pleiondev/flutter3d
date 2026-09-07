@@ -42,7 +42,19 @@ void main() {
       ('atan', 546930916, (int i) => Portable.atan(_a[i])),
       ('atan2', 12031001, (int i) => Portable.atan2(_a[i], _b[i])),
       ('asin', 864263681, (int i) => Portable.asin(_a[i].abs() % 1.0)),
+      // Folded onto -1 to 1 rather than 0 to 1, because `acos` is the one
+      // inverse whose two halves are not each other's mirror image: the answer
+      // runs from 0 to π rather than either side of nothing.
+      ('acos', 3104191014, (int i) => Portable.acos(_a[i].abs() % 2.0 - 1.0)),
       ('exp', 67011626, (int i) => Portable.exp(_a[i] % 4.0)),
+      // The sweep's own magnitudes, which span eleven decades and so reach both
+      // the subnormal scaling and the ordinary path.
+      ('log', 1558536927, (int i) => Portable.log(_a[i].abs())),
+      (
+        'pow',
+        1395560049,
+        (int i) => Portable.pow(_a[i].abs() % 10.0, _b[i] % 4.0),
+      ),
     ]) {
       final (name, expected, at) = row;
       test('$name gives one answer, not one per platform', () {
@@ -143,6 +155,111 @@ void main() {
       expect(worst, lessThanOrEqualTo(4.0));
     });
 
+    test('acos is within two ulp of dart:math, including at the ends', () {
+      var worst = 0.0;
+      var worstAt = 0.0;
+      for (var i = 0; i < _sweep; i++) {
+        final x = _a[i].abs() % 2.0 - 1.0;
+        final error = _ulpsApart(Portable.acos(x), math.acos(x));
+        if (error > worst) {
+          worst = error;
+          worstAt = x;
+        }
+      }
+      // Where the shorter `π/2 - asin(x)` gives up: the answer there is tiny
+      // and the subtraction it comes out of is between two numbers near π/2, so
+      // most of the digits cancel. This form is the reason the bound is two
+      // here and four for `asin`.
+      for (final x in <double>[
+        1.0,
+        -1.0,
+        0.9999999999,
+        -0.9999999999,
+        0.0,
+        1e-300,
+      ]) {
+        final error = _ulpsApart(Portable.acos(x), math.acos(x));
+        if (error > worst) {
+          worst = error;
+          worstAt = x;
+        }
+      }
+      expect(worst, lessThanOrEqualTo(2.0), reason: 'acos at $worstAt');
+    });
+
+    test('log is within two ulp of dart:math at every scale', () {
+      var worst = 0.0;
+      var worstAt = 0.0;
+      for (var i = 0; i < _sweep; i++) {
+        // The sweep's magnitudes, then the same magnitudes pushed to both ends
+        // of the exponent range: the small end is where the argument goes
+        // subnormal and the reduction has to scale it up by 2^54 and pay the
+        // exponent back, which no ordinary argument exercises.
+        for (final x in <double>[
+          _a[i].abs(),
+          _a[i].abs() * 1e-300,
+          _a[i].abs() * 1e300,
+        ]) {
+          if (x == 0.0 || !x.isFinite) continue;
+          final error = _ulpsApart(Portable.log(x), math.log(x));
+          if (error > worst) {
+            worst = error;
+            worstAt = x;
+          }
+        }
+      }
+      // The two places the mantissa normalisation changes its mind, either side
+      // of one, where an off-by-one in the carry would show and nowhere else.
+      for (final x in <double>[
+        0.5,
+        2.0,
+        1.0000000001,
+        0.9999999999,
+        math.sqrt2,
+        math.sqrt2 / 2,
+      ]) {
+        final error = _ulpsApart(Portable.log(x), math.log(x));
+        if (error > worst) {
+          worst = error;
+          worstAt = x;
+        }
+      }
+      expect(worst, lessThanOrEqualTo(2.0), reason: 'log at $worstAt');
+    });
+
+    test('pow is within two ulp of dart:math, and not by way of exp', () {
+      // **The measurement this function exists because of.** `exp(y · log x)`
+      // out of the two functions above passes every digest and is out by
+      // twenty-six units in the last place at `y = 1.5` and seventy-nine at
+      // `y = 5`. The exponents below include both, so a future tidy-up back to
+      // the two-line version fails here rather than shipping.
+      var worst = 0.0;
+      var worstAt = '';
+      void measure(double x, double y) {
+        final error = _ulpsApart(Portable.pow(x, y), math.pow(x, y).toDouble());
+        if (error > worst) {
+          worst = error;
+          worstAt = '$x ^ $y';
+        }
+      }
+
+      for (var i = 0; i < _sweep; i++) {
+        final base = _a[i].abs() % 10.0;
+        if (base == 0.0) continue;
+        for (final y in <double>[_b[i] % 8.0, _b[i], 1.5, 5.0, -3.25]) {
+          measure(base, y);
+        }
+        // A negative base with a whole exponent, which is the branch where the
+        // sign is taken out at the front and multiplied back in at the end.
+        measure(-base - 0.001, (_b[i] * 6.0).roundToDouble());
+        // A base within a billionth of one against an enormous exponent: the
+        // separate short path, where the logarithm is four terms of a series
+        // because `f/(2 + f)` would be nothing but rounding error.
+        measure(1.0 + _a[i] * 1e-9, _b[i] * 1e9);
+      }
+      expect(worst, lessThanOrEqualTo(2.0), reason: 'pow at $worstAt');
+    });
+
     test('exp is within two ulp of dart:math across its range', () {
       var worst = 0.0;
       var worstAt = 0.0;
@@ -230,6 +347,66 @@ void main() {
       );
       expect(Portable.asin(1.0), closeTo(math.pi / 2, 1e-15));
       expect(Portable.asin(-1.0), closeTo(-math.pi / 2, 1e-15));
+    });
+
+    test('an arc cosine runs from π down to nothing', () {
+      // Exactly nought at the top end rather than nearly: `atan2(0, 1)` is the
+      // zero it is given, and a formula built on a subtraction would land a
+      // couple of ulp away instead.
+      expect(Portable.acos(1.0), 0.0);
+      expect(Portable.acos(-1.0), closeTo(math.pi, 1e-15));
+      expect(Portable.acos(0.0), closeTo(math.pi / 2, 1e-15));
+      expect(Portable.acos(1.5).isNaN, isTrue);
+      expect(Portable.acos(-1.5).isNaN, isTrue);
+      expect(Portable.acos(double.nan).isNaN, isTrue);
+    });
+
+    test('a logarithm answers at both ends of what a double can hold', () {
+      expect(Portable.log(1.0), 0.0);
+      expect(Portable.log(0.0), double.negativeInfinity);
+      expect(Portable.log(-0.0), double.negativeInfinity);
+      expect(Portable.log(-1.0).isNaN, isTrue);
+      expect(Portable.log(double.nan).isNaN, isTrue);
+      expect(Portable.log(double.infinity), double.infinity);
+      // The smallest subnormal there is. Finite, and the scaling by 2^54 is the
+      // only reason it is: read straight, its exponent field says nothing.
+      expect(Portable.log(double.minPositive).isFinite, isTrue);
+      expect(
+        Portable.log(double.minPositive),
+        closeTo(math.log(double.minPositive), 1e-12),
+      );
+    });
+
+    test('a power answers its conventions rather than its limits', () {
+      // The conventions, in the order the function takes them.
+      expect(Portable.pow(0.0, 0.0), 1.0);
+      expect(Portable.pow(7.5, 0.0), 1.0);
+      expect(Portable.pow(double.nan, 0.0), 1.0);
+      expect(Portable.pow(1.0, 42.5), 1.0);
+      expect(Portable.pow(1.0, double.nan), 1.0);
+      expect(Portable.pow(-1.0, double.infinity), 1.0);
+
+      // A negative base, where the parity of a whole exponent is the sign and
+      // anything else is outside the domain.
+      expect(Portable.pow(-2.0, 3.0), -8.0);
+      expect(Portable.pow(-2.0, 2.0), 4.0);
+      expect(Portable.pow(-2.0, 2.5).isNaN, isTrue);
+      expect(Portable.pow(-0.0, 3.0), -0.0);
+      expect(Portable.pow(-0.0, 0.5), 0.0);
+
+      // Past both ends. 2^1024 is the first exponent that is not a double and
+      // 2^-1075 the first that is not a subnormal, so the pair either side of
+      // each is where a bound written one out would show.
+      expect(Portable.pow(2.0, 1024.0), double.infinity);
+      expect(Portable.pow(2.0, 1023.0), math.pow(2.0, 1023.0));
+      expect(Portable.pow(2.0, -1075.0), 0.0);
+      expect(Portable.pow(2.0, -1074.0), double.minPositive);
+      // Between those two the answer is subnormal and there is no exponent
+      // field left to write the scaling into, so it has to be multiplied in
+      // instead — a separate line, and this is what stands over it.
+      expect(Portable.pow(2.0, -1023.0), math.pow(2.0, -1023.0));
+      expect(Portable.pow(2.0, -1022.0), math.pow(2.0, -1022.0));
+      expect(Portable.pow(0.0, -1.0), double.infinity);
     });
   });
 }

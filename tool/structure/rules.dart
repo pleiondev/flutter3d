@@ -2053,17 +2053,25 @@ List<File> _everyDartFile() => <File>[
     ...dartFilesIn(Directory('${repositoryRoot.path}/$where')),
 ].where((File f) => !f.path.endsWith('structure/repository.dart')).toList();
 
-/// CONTRIBUTING.md and every Markdown page of the documentation site.
+/// CONTRIBUTING.md, ROADMAP.md and every Markdown page of the documentation
+/// site.
 ///
 /// The three counting rules read these along with the README and
 /// `ARCHITECTURE.md`, because the site restates the same numbers in prose and
 /// drifted the same way: its testing page said 2901 tests, its glossary said
 /// nineteen scans, and nothing compared either with the tree. A page here is
 /// only held to a count it states; none is required to state one.
+///
+/// Both root pages are looked for rather than assumed. A repository can be
+/// checked out without them and this list is built at every run, so a missing
+/// file has to read as a page with no counts in it rather than as a crash that
+/// takes every other rule down with it.
 List<File> _prosePages() {
   final pages = <File>[];
   final contributing = File('${repositoryRoot.path}/CONTRIBUTING.md');
   if (contributing.existsSync()) pages.add(contributing);
+  final roadmap = File('${repositoryRoot.path}/ROADMAP.md');
+  if (roadmap.existsSync()) pages.add(roadmap);
   final content = Directory('${repositoryRoot.path}/site/content');
   if (content.existsSync()) {
     pages.addAll(
@@ -2546,9 +2554,20 @@ String _withoutComments(String source) => source
 
 /// A call to one of the functions whose answer belongs to the machine.
 ///
-/// `sqrt` is not among them and `pow` is not either: IEEE 754 pins the first
-/// and the parity sweep measured both to agree in the two places, which is why
-/// `Portable` has neither.
+/// **`pow` was left out of this list once, and the reason it was left out is
+/// worth keeping.** The first parity sweep ran on one machine — macOS-arm64,
+/// under the VM and under Chrome — and `pow` agreed in both places while every
+/// transcendental beside it disagreed. Two runtimes agreeing looked like the
+/// specification pinning an answer. It was not: a third machine, an x86-64
+/// Ubuntu, answers `pow` differently from either, so what the first measurement
+/// found was two runtimes sharing one host's libm. `Portable.pow` exists now
+/// and this rule asks for it.
+///
+/// `sqrt` is the one still missing from the list, and it is the one that
+/// belongs missing: IEEE 754 requires a correctly rounded square root, so there
+/// is a single right answer and every platform is obliged to give it. That is a
+/// guarantee rather than a measurement, which is the difference between the two
+/// cases.
 final RegExp _machineArithmetic = RegExp(
-  r'\bmath\.(sin|cos|tan|asin|acos|atan2|atan|exp|log)\s*\(',
+  r'\bmath\.(sin|cos|tan|asin|acos|atan2|atan|exp|log|pow)\s*\(',
 );
