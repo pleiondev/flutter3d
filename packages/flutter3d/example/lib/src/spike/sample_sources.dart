@@ -77,6 +77,12 @@ final List<SceneSource> kSources = <SceneSource>[
   // weights and the vertex stage reads them out of a texture, neither knowing
   // about the other.
   const ModelFileSource('morph: Cube', '$_samples/AnimatedMorphCube.glb'),
+  // Rigged *and* morphing, which no Khronos sample is: a skeleton with fourteen
+  // clips and a head whose three primitives share three expressions. The two
+  // features have to agree about their order here — the deltas are in the rest
+  // pose and the joints come after — and this is the only model in the set
+  // where getting that wrong shows.
+  const ModelFileSource('morph: Robot', '$_samples/RobotExpressive.glb'),
   const ModelFileSource('f3d: Teapot', '$_samples/f3d/teapot.f3d'),
   const ModelFileSource('f3d: Textured', '$_samples/f3d/BoxTextured.f3d'),
   const ModelFileSource('f3d: Animated', '$_samples/f3d/BoxAnimated.f3d'),

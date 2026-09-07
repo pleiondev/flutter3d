@@ -199,6 +199,12 @@ const Map<String, double> _budgets = <String, double>{
   // a browser that had refused the format or filled it as bytes would not be
   // a tenth of a percent away — it would be the base shape.
   'morph-cube': 0.15,
+  // 0.679% measured: the same silhouette, between two hardware rasterisers
+  // that both multisample, which is why it is half what the software backend
+  // sits at. The scene is the one place the two vertex features meet — the
+  // deltas are added in the rest pose and the joints come after — and getting
+  // that order wrong moves limbs rather than edges.
+  'morph-skinned': 0.7,
   'surface-buffer': 0.01,
 };
 

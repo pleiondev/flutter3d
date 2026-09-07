@@ -17,6 +17,7 @@ final class GoldenScene {
     this.pitch = 0.35,
     this.lights = const <String>{'sun', 'key light'},
     this.animationTime,
+    this.morphWeights = const <double>[],
     this.shadows = true,
     this.bloom = true,
     this.ground = true,
@@ -208,6 +209,17 @@ final class GoldenScene {
 
   /// Seconds to freeze any clip at, or null for a model with no animation.
   final double? animationTime;
+
+  /// Morph weights written onto every morphing mesh after the clip is frozen,
+  /// or empty to leave whatever the clip and the file set.
+  ///
+  /// **Set by hand because the useful models set them by hand.** The one model
+  /// in this repository that is both rigged and morphing carries weights
+  /// channels that are all zeros — its author drives those expressions from
+  /// code — so a scene that only froze a clip would record a face at rest and
+  /// call it a morph test. Written after the seek, so the clip moves the bones
+  /// and this decides the shape they carry.
+  final List<double> morphWeights;
 
   final bool shadows;
   final bool bloom;

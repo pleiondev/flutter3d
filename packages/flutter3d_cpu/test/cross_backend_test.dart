@@ -214,6 +214,15 @@ const Map<String, double> _budgets = <String, double>{
   // backend and not the other. A vertex stage that read the delta texture
   // differently on the two would not land here; it would land in whole shapes.
   'morph-cube': 0.25,
+  // 1.185% measured, and it is silhouette rather than shape. A robot with a
+  // skeleton is far more edge than a cube — limbs, plates, a head split across
+  // three primitives — and it stands on a floor it casts onto, so the shadow's
+  // outline is edge too. It sits between `instanced-field` at 1.15% and
+  // `normal-mapping` at 1.5%, the other frames whose budget is set by how much
+  // boundary they contain. A vertex stage that morphed after
+  // skinning rather than before would not land here: the limbs would be in
+  // different places, and the number would be whole percents.
+  'morph-skinned': 1.25,
   'surface-buffer': 0.02,
   'cube-shadow': 0.02,
   'cube-shadow-crowded': 0.02,

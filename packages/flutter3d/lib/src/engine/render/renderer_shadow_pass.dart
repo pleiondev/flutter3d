@@ -316,7 +316,7 @@ extension _ShadowPasses on Renderer {
             'model': node.worldMatrix.storage,
             'normal_matrix': node.worldNormalMatrix.storage,
           });
-          _bindMorph(pass, stage);
+          _bindMorph(pass, stage, node.morph);
           if (instanced != null) {
             pass.bindVertexData(
               instanced.instanceBytes,
@@ -728,7 +728,7 @@ extension _ShadowPasses on Renderer {
           'model': node.worldMatrix.storage,
           'normal_matrix': node.worldNormalMatrix.storage,
         });
-        _bindMorph(pass, stage);
+        _bindMorph(pass, stage, node.morph);
         if (instanced != null) {
           pass.bindVertexData(
             instanced.instanceBytes,

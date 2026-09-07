@@ -10,6 +10,7 @@ chosen to cover the different loading paths.
 | `NormalTangentTest.glb`, `NormalTangentMirrorTest.glb` | [KhronosGroup/glTF-Sample-Assets](https://github.com/KhronosGroup/glTF-Sample-Assets) |
 | `RiggedSimple.glb`, `RiggedFigure.glb`, `simple_skin/SimpleSkin.gltf` | [KhronosGroup/glTF-Sample-Assets](https://github.com/KhronosGroup/glTF-Sample-Assets) |
 | `AnimatedMorphCube.glb` | [KhronosGroup/glTF-Sample-Assets](https://github.com/KhronosGroup/glTF-Sample-Assets), CC0-1.0 |
+| `RobotExpressive.glb` | [Tomás Laulhé](https://www.patreon.com/quaternius), CC0-1.0, with facial morph targets added by [Don McCurdy](https://donmccurdy.com/); taken from [three.js examples](https://github.com/mrdoob/three.js/tree/dev/examples/models/gltf/RobotExpressive) |
 | `teapot.obj` | [mauricelam/Teapot](https://github.com/mauricelam/Teapot) — the Utah teapot |
 
 Why these specifically: between them they cover all three ways glTF can carry its
@@ -30,6 +31,20 @@ delta texture are filled rather than two of them being zeros nobody would
 notice — default weights on the mesh, and an animation whose only channel is
 `weights`. No skin and no textures, so a picture that comes out wrong is wrong
 about morphing and not about something else.
+
+`RobotExpressive` is the only model here that is **rigged and morphing at
+once**, and it is not from Khronos because Khronos has no such model: all 150
+samples in that collection were read, and every one that carries morph targets
+carries no skin. This one has a skeleton, fourteen clips, and a head split
+across three primitives that share one set of three expressions — which is also
+the case that makes a node's weights reach several meshes at once.
+
+**Its weights channels are all zeros**, and that is the author's doing rather
+than a defect: three.js drives these expressions from code, and the clips exist
+to leave them alone. So the frame this model is recorded in sets the weights by
+hand and lets the clip move the bones — which is the more useful picture
+anyway, because it is the one where morphing and skinning have to agree about
+the order they happen in.
 
 The two normal-tangent models are the same geometry with and without authored
 `TANGENT` data, which makes them the only direct check available on the tangent

@@ -96,6 +96,26 @@ final List<GoldenScene> kGoldenScenes = <GoldenScene>[
     ground: false,
   ),
 
+  // Rigged and morphing at once, which is the one combination the two features
+  // can get wrong about each other. The deltas are in the mesh's rest pose and
+  // the joints come after; morphing a vertex that has already been skinned
+  // moves it along the wrong axes, and the further a bone is from rest the
+  // wider the two answers are. So the frame is taken mid-clip, with the arms
+  // where the dance put them, and the head wearing an expression.
+  //
+  // The weights are set by hand rather than played: this model's weights
+  // channels are all zeros, because its author drives the expressions from
+  // code. See `GoldenScene.morphWeights`.
+  const GoldenScene(
+    name: 'morph-skinned',
+    source: 'morph: Robot',
+    animationTime: 1.2,
+    morphWeights: <double>[1.0, 0.0, 0.0],
+    yaw: 0.6,
+    pitch: 0.25,
+    bloom: false,
+  ),
+
   // The debug overlay, which is otherwise never exercised by anything
   // automatic. All five overlays, because the point of one frame here is that
   // every kind of line the engine can draw reaches a pixel: bounds, axes, light

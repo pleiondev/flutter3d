@@ -124,12 +124,11 @@ extension _GltfAnimation on GltfLoader {
           continue;
         }
 
-        if (path == AnimationPath.weights) {
-          warnings.add(
-            '$channelLabel animates morph target weights, which are '
-            'decoded but not applied.',
-          );
-        }
+        // A weights channel used to warn that it was decoded and dropped. It is
+        // applied now — through `MorphSink`, to the mesh the node draws — so
+        // the warning was a sentence that had stopped being true, and a
+        // warning nobody can act on is worse than none: every animated face
+        // loaded with a line saying its animation would not play.
 
         tracks.add(
           AnimationTrack(

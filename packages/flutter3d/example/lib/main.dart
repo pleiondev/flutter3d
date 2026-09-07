@@ -681,6 +681,16 @@ class _SpikePageState extends State<SpikePage>
         instance.player?.play();
       }
 
+      // After the seek, because a weights track would otherwise write over
+      // these on the very frame they were set. See `GoldenScene.morphWeights`
+      // for why a scene sets them by hand at all.
+      final weights = _golden?.scene.morphWeights ?? const <double>[];
+      if (weights.isNotEmpty) {
+        for (final mesh in instance.meshes) {
+          mesh.morph?.setWeights(weights);
+        }
+      }
+
       // Every material a newly loaded model brought with it arrives on the
       // engine default, which is PBR. Pushing the chosen model onto them here
       // rather than only from the control panel is what makes the lighting
