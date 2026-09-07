@@ -122,6 +122,12 @@ String translateGlsl(
     );
   }
 
+  // SPIR-V and GLSL ES spell the vertex index differently and mean the same
+  // builtin. The source spells it Vulkan's way, because impellerc refuses
+  // `gl_VertexID` outright while a rewrite here is one line — see
+  // `lib/morph.glsl`, which is the only shader that asks for it.
+  text = text.replaceAll('gl_VertexIndex', 'gl_VertexID');
+
   final header = StringBuffer('#version 300 es\n');
   if (fragment) {
     // Fragment shaders have no default precision for float in ES, and a shader

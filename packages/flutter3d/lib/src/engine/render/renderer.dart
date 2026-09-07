@@ -64,6 +64,7 @@ const String _kSsaoInfoBlock = 'SsaoInfo';
 const String _kFrameInfoBlock = 'FrameInfo';
 const String _kFragInfoBlock = 'FragInfo';
 const String _kFogInfoBlock = 'FogInfo';
+const String _kMorphInfoBlock = 'MorphInfo';
 const String _kLineInfoBlock = 'LineInfo';
 const String _kSkinInfoBlock = 'SkinInfo';
 const String _kBloomInfoBlock = 'BloomInfo';
@@ -487,6 +488,14 @@ final class Renderer implements RenderServices {
   // Uniform scratch, reused rather than rebuilt per draw. Writing a fresh
   // Float32List for every member of every draw is precisely the allocation
   // pattern the render list was shaped to avoid.
+  /// Eight morph weights and the shape of the delta texture.
+  ///
+  /// Written on every mesh draw, neutral when the mesh has no targets: the
+  /// vertex stage declares the block whatever is drawn through it, so leaving
+  /// it unbound is the arrangement that killed Metal in `sky.frag`.
+  final Float32List _morphWeights = Float32List(8);
+  final Float32List _morphParams = Float32List(4);
+
   final Float32List _fogData = Float32List(4);
   final Float32List _cameraData = Float32List(4);
 

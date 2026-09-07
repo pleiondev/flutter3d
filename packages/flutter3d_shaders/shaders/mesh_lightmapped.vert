@@ -15,6 +15,8 @@ in vec2 texcoord;
 in vec4 tangent;
 in vec4 color;
 
+#include <lib/morph.glsl>
+
 uniform FrameInfo {
   mat4 mvp;
   mat4 model;
@@ -30,13 +32,19 @@ out vec4 v_color;
 out vec2 v_lightmap_uv;
 
 void main() {
-  vec4 world = frame_info.model * vec4(position, 1.0);
+  vec3 morphed_position = position;
+  vec3 morphed_normal = normal;
+  vec4 morphed_tangent = tangent;
+  ApplyMorph(morphed_position, morphed_normal, morphed_tangent);
+
+  vec4 world = frame_info.model * vec4(morphed_position, 1.0);
   v_world_position = world.xyz;
-  v_normal = mat3(frame_info.normal_matrix) * normal;
+  v_normal = mat3(frame_info.normal_matrix) * morphed_normal;
   v_texcoord = texcoord;
-  v_tangent = vec4(mat3(frame_info.model) * tangent.xyz, tangent.w);
+  v_tangent =
+      vec4(mat3(frame_info.model) * morphed_tangent.xyz, morphed_tangent.w);
   v_color = vec4(1.0);
   v_lightmap_uv = color.xy;
 
-  gl_Position = frame_info.mvp * vec4(position, 1.0);
+  gl_Position = frame_info.mvp * vec4(morphed_position, 1.0);
 }

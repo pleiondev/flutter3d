@@ -18,6 +18,8 @@ in vec4 tangent;
 /// Vertex colour, multiplied into the albedo. Neutral is opaque white.
 in vec4 color;
 
+#include <lib/morph.glsl>
+
 uniform FrameInfo {
   mat4 mvp;
   mat4 model;
@@ -38,18 +40,27 @@ out vec4 v_color;
 out vec2 v_lightmap_uv;
 
 void main() {
-  vec4 world = frame_info.model * vec4(position, 1.0);
+  // Morphed first and in the mesh's own space, which is the order glTF
+  // specifies: a morphed vertex is then transformed, and a morphed *skinned*
+  // vertex is morphed in its rest pose before the skeleton poses it.
+  vec3 morphed_position = position;
+  vec3 morphed_normal = normal;
+  vec4 morphed_tangent = tangent;
+  ApplyMorph(morphed_position, morphed_normal, morphed_tangent);
+
+  vec4 world = frame_info.model * vec4(morphed_position, 1.0);
   v_world_position = world.xyz;
-  v_normal = mat3(frame_info.normal_matrix) * normal;
+  v_normal = mat3(frame_info.normal_matrix) * morphed_normal;
   v_texcoord = texcoord;
 
   // The tangent transforms with the model matrix, not the normal matrix: it
   // lies *in* the surface, so it stretches with the geometry rather than
   // resisting it. Using the inverse transpose here is the classic way to get a
   // TBN that is subtly wrong under non-uniform scale.
-  v_tangent = vec4(mat3(frame_info.model) * tangent.xyz, tangent.w);
+  v_tangent =
+      vec4(mat3(frame_info.model) * morphed_tangent.xyz, morphed_tangent.w);
   v_color = color;
   v_lightmap_uv = vec2(0.0);
 
-  gl_Position = frame_info.mvp * vec4(position, 1.0);
+  gl_Position = frame_info.mvp * vec4(morphed_position, 1.0);
 }

@@ -18,6 +18,8 @@ in vec2 texcoord;
 in vec4 tangent;
 in vec4 color;
 
+#include <lib/morph.glsl>
+
 /// Four joint indices, held as floats. See VertexLayout.joints.
 in vec4 joints;
 
@@ -72,9 +74,17 @@ void main() {
   mat4 skin = SkinMatrix();
   // Skin first, then place: the joint matrices work in the mesh's own space, so
   // the model matrix still has to carry the result into the world.
+  // Morphed in the rest pose and skinned afterwards, which is the order glTF
+  // specifies and the only one that composes: a face morphs where it was
+  // modelled and the skeleton then carries it.
+  vec3 morphed_position = position;
+  vec3 morphed_normal = normal;
+  vec4 morphed_tangent = tangent;
+  ApplyMorph(morphed_position, morphed_normal, morphed_tangent);
+
   mat4 skinnedModel = frame_info.model * skin;
 
-  vec4 world = skinnedModel * vec4(position, 1.0);
+  vec4 world = skinnedModel * vec4(morphed_position, 1.0);
   v_world_position = world.xyz;
 
   // The joint transform rotates and may scale, so the normal needs the same
@@ -83,13 +93,14 @@ void main() {
   // practice; a non-uniformly scaled joint would need the inverse transpose,
   // and computing that per vertex is the trade this deliberately does not make.
   mat3 skinRotation = mat3(skin);
-  v_normal = mat3(frame_info.normal_matrix) * (skinRotation * normal);
+  v_normal =
+      mat3(frame_info.normal_matrix) * (skinRotation * morphed_normal);
   v_tangent = vec4(
-      mat3(frame_info.model) * (skinRotation * tangent.xyz), tangent.w);
+      mat3(frame_info.model) * (skinRotation * morphed_tangent.xyz), morphed_tangent.w);
 
   v_texcoord = texcoord;
   v_color = color;
   v_lightmap_uv = vec2(0.0);
 
-  gl_Position = frame_info.mvp * (skin * vec4(position, 1.0));
+  gl_Position = frame_info.mvp * (skin * vec4(morphed_position, 1.0));
 }

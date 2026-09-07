@@ -33,6 +33,123 @@ in vec4 tangent;
 /// Vertex colour, multiplied into the albedo. Neutral is opaque white.
 in vec4 color;
 
+// --- lib/morph.glsl ---
+// Morph targets, applied in the vertex stage from a texture of deltas.
+//
+// ## Why a texture and not attributes
+//
+// The vertex layout in this engine is **structural**: the `in` declarations of
+// `mesh.vert` are the layout, and one layout serves every model so that a
+// lighting model needs one pipeline rather than one per attribute set. Morph
+// deltas as attributes would mean a second layout, and with it a second vertex
+// shader for every lighting model — six of them — and a second pipeline for
+// each. A texture read by vertex index costs one sampler and no layout at all.
+//
+// That the read is possible is measured rather than assumed:
+// `checkVertexTextureSampling` in `flutter3d_conformance` draws through a
+// vertex stage that samples, on all three backends. It answers yes on each,
+// Impeller included, which was the one that could not be settled by reading a
+// header.
+//
+// ## The layout of the texture
+//
+// `r32g32b32a32Float`, width = the mesh's vertex count, height = one row per
+// delta stream per target. Target *t* occupies rows `t * MORPH_ROWS` upwards:
+//
+//     row + 0   position delta, xyz
+//     row + 1   normal delta, xyz     (zero when the file carried none)
+//     row + 2   tangent delta, xyz    (zero when the file carried none)
+//
+// Three rows always, so the arithmetic is a multiply rather than a table: a
+// target that morphs only positions costs two rows of zeros, which is memory
+// and not branches. `MorphTargetTexture` on the Dart side packs exactly this.
+//
+// **`texture` at a texel centre, and it should have been `texelFetch`.** There
+// is nothing to filter — a vertex has exactly one delta per target — so the
+// fetch is the operation this wants: no size arithmetic, no sampler state, no
+// half-texel to get wrong.
+//
+// It is not used because **impellerc crashes on `texelFetch` in a vertex
+// stage**: SIGABRT, no diagnostic, exit 134. Bisected — the same call in a
+// *fragment* stage compiles, `gl_VertexID` alone compiles, and `texture()`
+// in a vertex stage compiles, so it is that one combination. So the coordinate
+// is built by hand, `(index + 0.5) / size`, and the sampler is bound nearest
+// and clamped: exactly the texel, reached the long way round. The size comes
+// down in `morph_params` rather than from `textureSize`, which is one more
+// thing that would have to survive the same compiler.
+
+#ifndef MORPH_GLSL_
+#define MORPH_GLSL_
+
+/// Rows of the delta texture each target occupies. See the header.
+const int kMorphRows = 3;
+
+/// The most targets one draw can blend.
+///
+/// Eight because glTF's own guidance is that an engine support at least eight
+/// active targets, and because a `vec4[2]` is two registers. A model carrying
+/// more is not refused — the renderer sends the first eight and says so, which
+/// is a face missing an expression rather than a face that will not load.
+const int kMorphMax = 8;
+
+uniform sampler2D morph_texture;
+
+layout(std140) uniform MorphInfo {
+  /// Weight of target *i* at `morph_weights[i / 4][i % 4]`.
+  vec4 morph_weights[2];
+
+  /// x: how many targets are active, as a float.
+  /// y: one texel across, `1 / width`. z: one texel down, `1 / height`.
+  /// w unused.
+  ///
+  /// A count rather than a convention that a zero weight means absent: a
+  /// target held at exactly nought is a face that is not smiling, and reading
+  /// it as "the list ends here" would stop the ones after it.
+  vec4 morph_params;
+}
+morph_info;
+
+/// Adds the blended deltas onto one vertex.
+///
+/// Called with the attributes as they were read and before anything else
+/// touches them — skinning included, which is the order glTF specifies: a
+/// skinned morphed mesh morphs in its rest pose and is then posed by the
+/// skeleton.
+///
+/// The tangent is a `vec4` and only its xyz move: w is the bitangent sign, a
+/// handedness rather than a direction, and glTF does not morph it.
+void ApplyMorph(inout vec3 position, inout vec3 normal, inout vec4 tangent) {
+  int count = int(morph_info.morph_params.x + 0.5);
+  if (count <= 0) return;
+
+  // The vertex's own column: the index this vertex was drawn with, which is
+  // exactly the row of the delta arrays the loader built.
+  //
+  // **`gl_VertexID`, spelt the way SPIR-V spells it.** GLSL ES 3.00 calls
+  // the same builtin `gl_VertexID`, and the browser backend's translator
+  // rewrites the name on its way out — one substitution beside the ones it
+  // already makes for `#version` and `layout(std140)`. Written the other way
+  // round, impellerc refuses it outright: "undeclared identifier (Did you mean
+  // gl_VertexID?)", which is the friendliest error in this repository.
+  float column = (float(gl_VertexID) + 0.5) * morph_info.morph_params.y;
+  float rowStep = morph_info.morph_params.z;
+
+  for (int i = 0; i < kMorphMax; i++) {
+    if (i >= count) break;
+    float weight = morph_info.morph_weights[i / 4][i % 4];
+    if (weight == 0.0) continue;
+
+    float row = (float(i * kMorphRows) + 0.5) * rowStep;
+    position += texture(morph_texture, vec2(column, row)).xyz * weight;
+    normal += texture(morph_texture, vec2(column, row + rowStep)).xyz * weight;
+    tangent.xyz +=
+        texture(morph_texture, vec2(column, row + rowStep * 2.0)).xyz * weight;
+  }
+}
+
+#endif  // MORPH_GLSL_
+
+
 layout(std140) uniform FrameInfo {
   mat4 mvp;
   mat4 model;
@@ -53,20 +170,29 @@ out vec4 v_color;
 out vec2 v_lightmap_uv;
 
 void main() {
-  vec4 world = frame_info.model * vec4(position, 1.0);
+  // Morphed first and in the mesh's own space, which is the order glTF
+  // specifies: a morphed vertex is then transformed, and a morphed *skinned*
+  // vertex is morphed in its rest pose before the skeleton poses it.
+  vec3 morphed_position = position;
+  vec3 morphed_normal = normal;
+  vec4 morphed_tangent = tangent;
+  ApplyMorph(morphed_position, morphed_normal, morphed_tangent);
+
+  vec4 world = frame_info.model * vec4(morphed_position, 1.0);
   v_world_position = world.xyz;
-  v_normal = mat3(frame_info.normal_matrix) * normal;
+  v_normal = mat3(frame_info.normal_matrix) * morphed_normal;
   v_texcoord = texcoord;
 
   // The tangent transforms with the model matrix, not the normal matrix: it
   // lies *in* the surface, so it stretches with the geometry rather than
   // resisting it. Using the inverse transpose here is the classic way to get a
   // TBN that is subtly wrong under non-uniform scale.
-  v_tangent = vec4(mat3(frame_info.model) * tangent.xyz, tangent.w);
+  v_tangent =
+      vec4(mat3(frame_info.model) * morphed_tangent.xyz, morphed_tangent.w);
   v_color = color;
   v_lightmap_uv = vec2(0.0);
 
-  gl_Position = frame_info.mvp * vec4(position, 1.0);
+  gl_Position = frame_info.mvp * vec4(morphed_position, 1.0);
 }
 
 ''',
@@ -104,7 +230,7 @@ void main() {
 // work. The extra area outside the viewport is clipped for free.
 //
 // The three vertices come from a tiny vertex buffer rather than from
-// gl_VertexIndex, because flutter_gpu's draw() renders nothing without an index
+// gl_VertexID, because flutter_gpu's draw() renders nothing without an index
 // buffer bound, so there is a buffer to bind either way.
 in vec2 position;
 in vec2 texcoord;
@@ -136,6 +262,123 @@ in vec3 normal;
 in vec2 texcoord;
 in vec4 tangent;
 in vec4 color;
+
+// --- lib/morph.glsl ---
+// Morph targets, applied in the vertex stage from a texture of deltas.
+//
+// ## Why a texture and not attributes
+//
+// The vertex layout in this engine is **structural**: the `in` declarations of
+// `mesh.vert` are the layout, and one layout serves every model so that a
+// lighting model needs one pipeline rather than one per attribute set. Morph
+// deltas as attributes would mean a second layout, and with it a second vertex
+// shader for every lighting model — six of them — and a second pipeline for
+// each. A texture read by vertex index costs one sampler and no layout at all.
+//
+// That the read is possible is measured rather than assumed:
+// `checkVertexTextureSampling` in `flutter3d_conformance` draws through a
+// vertex stage that samples, on all three backends. It answers yes on each,
+// Impeller included, which was the one that could not be settled by reading a
+// header.
+//
+// ## The layout of the texture
+//
+// `r32g32b32a32Float`, width = the mesh's vertex count, height = one row per
+// delta stream per target. Target *t* occupies rows `t * MORPH_ROWS` upwards:
+//
+//     row + 0   position delta, xyz
+//     row + 1   normal delta, xyz     (zero when the file carried none)
+//     row + 2   tangent delta, xyz    (zero when the file carried none)
+//
+// Three rows always, so the arithmetic is a multiply rather than a table: a
+// target that morphs only positions costs two rows of zeros, which is memory
+// and not branches. `MorphTargetTexture` on the Dart side packs exactly this.
+//
+// **`texture` at a texel centre, and it should have been `texelFetch`.** There
+// is nothing to filter — a vertex has exactly one delta per target — so the
+// fetch is the operation this wants: no size arithmetic, no sampler state, no
+// half-texel to get wrong.
+//
+// It is not used because **impellerc crashes on `texelFetch` in a vertex
+// stage**: SIGABRT, no diagnostic, exit 134. Bisected — the same call in a
+// *fragment* stage compiles, `gl_VertexID` alone compiles, and `texture()`
+// in a vertex stage compiles, so it is that one combination. So the coordinate
+// is built by hand, `(index + 0.5) / size`, and the sampler is bound nearest
+// and clamped: exactly the texel, reached the long way round. The size comes
+// down in `morph_params` rather than from `textureSize`, which is one more
+// thing that would have to survive the same compiler.
+
+#ifndef MORPH_GLSL_
+#define MORPH_GLSL_
+
+/// Rows of the delta texture each target occupies. See the header.
+const int kMorphRows = 3;
+
+/// The most targets one draw can blend.
+///
+/// Eight because glTF's own guidance is that an engine support at least eight
+/// active targets, and because a `vec4[2]` is two registers. A model carrying
+/// more is not refused — the renderer sends the first eight and says so, which
+/// is a face missing an expression rather than a face that will not load.
+const int kMorphMax = 8;
+
+uniform sampler2D morph_texture;
+
+layout(std140) uniform MorphInfo {
+  /// Weight of target *i* at `morph_weights[i / 4][i % 4]`.
+  vec4 morph_weights[2];
+
+  /// x: how many targets are active, as a float.
+  /// y: one texel across, `1 / width`. z: one texel down, `1 / height`.
+  /// w unused.
+  ///
+  /// A count rather than a convention that a zero weight means absent: a
+  /// target held at exactly nought is a face that is not smiling, and reading
+  /// it as "the list ends here" would stop the ones after it.
+  vec4 morph_params;
+}
+morph_info;
+
+/// Adds the blended deltas onto one vertex.
+///
+/// Called with the attributes as they were read and before anything else
+/// touches them — skinning included, which is the order glTF specifies: a
+/// skinned morphed mesh morphs in its rest pose and is then posed by the
+/// skeleton.
+///
+/// The tangent is a `vec4` and only its xyz move: w is the bitangent sign, a
+/// handedness rather than a direction, and glTF does not morph it.
+void ApplyMorph(inout vec3 position, inout vec3 normal, inout vec4 tangent) {
+  int count = int(morph_info.morph_params.x + 0.5);
+  if (count <= 0) return;
+
+  // The vertex's own column: the index this vertex was drawn with, which is
+  // exactly the row of the delta arrays the loader built.
+  //
+  // **`gl_VertexID`, spelt the way SPIR-V spells it.** GLSL ES 3.00 calls
+  // the same builtin `gl_VertexID`, and the browser backend's translator
+  // rewrites the name on its way out — one substitution beside the ones it
+  // already makes for `#version` and `layout(std140)`. Written the other way
+  // round, impellerc refuses it outright: "undeclared identifier (Did you mean
+  // gl_VertexID?)", which is the friendliest error in this repository.
+  float column = (float(gl_VertexID) + 0.5) * morph_info.morph_params.y;
+  float rowStep = morph_info.morph_params.z;
+
+  for (int i = 0; i < kMorphMax; i++) {
+    if (i >= count) break;
+    float weight = morph_info.morph_weights[i / 4][i % 4];
+    if (weight == 0.0) continue;
+
+    float row = (float(i * kMorphRows) + 0.5) * rowStep;
+    position += texture(morph_texture, vec2(column, row)).xyz * weight;
+    normal += texture(morph_texture, vec2(column, row + rowStep)).xyz * weight;
+    tangent.xyz +=
+        texture(morph_texture, vec2(column, row + rowStep * 2.0)).xyz * weight;
+  }
+}
+
+#endif  // MORPH_GLSL_
+
 
 /// Four joint indices, held as floats. See VertexLayout.joints.
 in vec4 joints;
@@ -191,9 +434,17 @@ void main() {
   mat4 skin = SkinMatrix();
   // Skin first, then place: the joint matrices work in the mesh's own space, so
   // the model matrix still has to carry the result into the world.
+  // Morphed in the rest pose and skinned afterwards, which is the order glTF
+  // specifies and the only one that composes: a face morphs where it was
+  // modelled and the skeleton then carries it.
+  vec3 morphed_position = position;
+  vec3 morphed_normal = normal;
+  vec4 morphed_tangent = tangent;
+  ApplyMorph(morphed_position, morphed_normal, morphed_tangent);
+
   mat4 skinnedModel = frame_info.model * skin;
 
-  vec4 world = skinnedModel * vec4(position, 1.0);
+  vec4 world = skinnedModel * vec4(morphed_position, 1.0);
   v_world_position = world.xyz;
 
   // The joint transform rotates and may scale, so the normal needs the same
@@ -202,15 +453,16 @@ void main() {
   // practice; a non-uniformly scaled joint would need the inverse transpose,
   // and computing that per vertex is the trade this deliberately does not make.
   mat3 skinRotation = mat3(skin);
-  v_normal = mat3(frame_info.normal_matrix) * (skinRotation * normal);
+  v_normal =
+      mat3(frame_info.normal_matrix) * (skinRotation * morphed_normal);
   v_tangent = vec4(
-      mat3(frame_info.model) * (skinRotation * tangent.xyz), tangent.w);
+      mat3(frame_info.model) * (skinRotation * morphed_tangent.xyz), morphed_tangent.w);
 
   v_texcoord = texcoord;
   v_color = color;
   v_lightmap_uv = vec2(0.0);
 
-  gl_Position = frame_info.mvp * (skin * vec4(position, 1.0));
+  gl_Position = frame_info.mvp * (skin * vec4(morphed_position, 1.0));
 }
 
 ''',
@@ -237,6 +489,123 @@ in vec3 normal;
 in vec2 texcoord;
 in vec4 tangent;
 in vec4 color;
+
+// --- lib/morph.glsl ---
+// Morph targets, applied in the vertex stage from a texture of deltas.
+//
+// ## Why a texture and not attributes
+//
+// The vertex layout in this engine is **structural**: the `in` declarations of
+// `mesh.vert` are the layout, and one layout serves every model so that a
+// lighting model needs one pipeline rather than one per attribute set. Morph
+// deltas as attributes would mean a second layout, and with it a second vertex
+// shader for every lighting model — six of them — and a second pipeline for
+// each. A texture read by vertex index costs one sampler and no layout at all.
+//
+// That the read is possible is measured rather than assumed:
+// `checkVertexTextureSampling` in `flutter3d_conformance` draws through a
+// vertex stage that samples, on all three backends. It answers yes on each,
+// Impeller included, which was the one that could not be settled by reading a
+// header.
+//
+// ## The layout of the texture
+//
+// `r32g32b32a32Float`, width = the mesh's vertex count, height = one row per
+// delta stream per target. Target *t* occupies rows `t * MORPH_ROWS` upwards:
+//
+//     row + 0   position delta, xyz
+//     row + 1   normal delta, xyz     (zero when the file carried none)
+//     row + 2   tangent delta, xyz    (zero when the file carried none)
+//
+// Three rows always, so the arithmetic is a multiply rather than a table: a
+// target that morphs only positions costs two rows of zeros, which is memory
+// and not branches. `MorphTargetTexture` on the Dart side packs exactly this.
+//
+// **`texture` at a texel centre, and it should have been `texelFetch`.** There
+// is nothing to filter — a vertex has exactly one delta per target — so the
+// fetch is the operation this wants: no size arithmetic, no sampler state, no
+// half-texel to get wrong.
+//
+// It is not used because **impellerc crashes on `texelFetch` in a vertex
+// stage**: SIGABRT, no diagnostic, exit 134. Bisected — the same call in a
+// *fragment* stage compiles, `gl_VertexID` alone compiles, and `texture()`
+// in a vertex stage compiles, so it is that one combination. So the coordinate
+// is built by hand, `(index + 0.5) / size`, and the sampler is bound nearest
+// and clamped: exactly the texel, reached the long way round. The size comes
+// down in `morph_params` rather than from `textureSize`, which is one more
+// thing that would have to survive the same compiler.
+
+#ifndef MORPH_GLSL_
+#define MORPH_GLSL_
+
+/// Rows of the delta texture each target occupies. See the header.
+const int kMorphRows = 3;
+
+/// The most targets one draw can blend.
+///
+/// Eight because glTF's own guidance is that an engine support at least eight
+/// active targets, and because a `vec4[2]` is two registers. A model carrying
+/// more is not refused — the renderer sends the first eight and says so, which
+/// is a face missing an expression rather than a face that will not load.
+const int kMorphMax = 8;
+
+uniform sampler2D morph_texture;
+
+layout(std140) uniform MorphInfo {
+  /// Weight of target *i* at `morph_weights[i / 4][i % 4]`.
+  vec4 morph_weights[2];
+
+  /// x: how many targets are active, as a float.
+  /// y: one texel across, `1 / width`. z: one texel down, `1 / height`.
+  /// w unused.
+  ///
+  /// A count rather than a convention that a zero weight means absent: a
+  /// target held at exactly nought is a face that is not smiling, and reading
+  /// it as "the list ends here" would stop the ones after it.
+  vec4 morph_params;
+}
+morph_info;
+
+/// Adds the blended deltas onto one vertex.
+///
+/// Called with the attributes as they were read and before anything else
+/// touches them — skinning included, which is the order glTF specifies: a
+/// skinned morphed mesh morphs in its rest pose and is then posed by the
+/// skeleton.
+///
+/// The tangent is a `vec4` and only its xyz move: w is the bitangent sign, a
+/// handedness rather than a direction, and glTF does not morph it.
+void ApplyMorph(inout vec3 position, inout vec3 normal, inout vec4 tangent) {
+  int count = int(morph_info.morph_params.x + 0.5);
+  if (count <= 0) return;
+
+  // The vertex's own column: the index this vertex was drawn with, which is
+  // exactly the row of the delta arrays the loader built.
+  //
+  // **`gl_VertexID`, spelt the way SPIR-V spells it.** GLSL ES 3.00 calls
+  // the same builtin `gl_VertexID`, and the browser backend's translator
+  // rewrites the name on its way out — one substitution beside the ones it
+  // already makes for `#version` and `layout(std140)`. Written the other way
+  // round, impellerc refuses it outright: "undeclared identifier (Did you mean
+  // gl_VertexID?)", which is the friendliest error in this repository.
+  float column = (float(gl_VertexID) + 0.5) * morph_info.morph_params.y;
+  float rowStep = morph_info.morph_params.z;
+
+  for (int i = 0; i < kMorphMax; i++) {
+    if (i >= count) break;
+    float weight = morph_info.morph_weights[i / 4][i % 4];
+    if (weight == 0.0) continue;
+
+    float row = (float(i * kMorphRows) + 0.5) * rowStep;
+    position += texture(morph_texture, vec2(column, row)).xyz * weight;
+    normal += texture(morph_texture, vec2(column, row + rowStep)).xyz * weight;
+    tangent.xyz +=
+        texture(morph_texture, vec2(column, row + rowStep * 2.0)).xyz * weight;
+  }
+}
+
+#endif  // MORPH_GLSL_
+
 
 /// Rows of the instance's 3x4 affine transform, in the node's space.
 in vec4 i_row0;
@@ -267,7 +636,17 @@ void main() {
       vec4(i_row0.y, i_row1.y, i_row2.y, 0.0),
       vec4(i_row0.z, i_row1.z, i_row2.z, 0.0),
       vec4(i_row0.w, i_row1.w, i_row2.w, 1.0));
-  vec4 local = instance * vec4(position, 1.0);
+  // Morphed before the instance transform: the deltas are in the mesh's own
+  // space, and every instance of a batch shares the mesh and therefore its
+  // shape. A batch whose instances morphed differently would need a weight set
+  // per instance, which is a per-instance uniform this layout has no room for
+  // and a feature nothing has asked for.
+  vec3 morphed_position = position;
+  vec3 morphed_normal = normal;
+  vec4 morphed_tangent = tangent;
+  ApplyMorph(morphed_position, morphed_normal, morphed_tangent);
+
+  vec4 local = instance * vec4(morphed_position, 1.0);
   vec4 world = frame_info.model * local;
   v_world_position = world.xyz;
   // The instance's rotation and scale applied before the node's normal matrix.
@@ -275,9 +654,12 @@ void main() {
   // for; a non-uniform instance scale skews the normal, and that is the
   // documented limit rather than an inverse transpose per vertex.
   mat3 rotation = mat3(instance);
-  v_normal = mat3(frame_info.normal_matrix) * normalize(rotation * normal);
+  v_normal =
+      mat3(frame_info.normal_matrix) * normalize(rotation * morphed_normal);
   v_texcoord = texcoord;
-  v_tangent = vec4(mat3(frame_info.model) * (rotation * tangent.xyz), tangent.w);
+  v_tangent = vec4(
+      mat3(frame_info.model) * (rotation * morphed_tangent.xyz),
+      morphed_tangent.w);
   v_color = color * i_color;
   v_lightmap_uv = vec2(0.0);
   gl_Position = frame_info.mvp * local;
@@ -301,6 +683,123 @@ in vec2 texcoord;
 in vec4 tangent;
 in vec4 color;
 
+// --- lib/morph.glsl ---
+// Morph targets, applied in the vertex stage from a texture of deltas.
+//
+// ## Why a texture and not attributes
+//
+// The vertex layout in this engine is **structural**: the `in` declarations of
+// `mesh.vert` are the layout, and one layout serves every model so that a
+// lighting model needs one pipeline rather than one per attribute set. Morph
+// deltas as attributes would mean a second layout, and with it a second vertex
+// shader for every lighting model — six of them — and a second pipeline for
+// each. A texture read by vertex index costs one sampler and no layout at all.
+//
+// That the read is possible is measured rather than assumed:
+// `checkVertexTextureSampling` in `flutter3d_conformance` draws through a
+// vertex stage that samples, on all three backends. It answers yes on each,
+// Impeller included, which was the one that could not be settled by reading a
+// header.
+//
+// ## The layout of the texture
+//
+// `r32g32b32a32Float`, width = the mesh's vertex count, height = one row per
+// delta stream per target. Target *t* occupies rows `t * MORPH_ROWS` upwards:
+//
+//     row + 0   position delta, xyz
+//     row + 1   normal delta, xyz     (zero when the file carried none)
+//     row + 2   tangent delta, xyz    (zero when the file carried none)
+//
+// Three rows always, so the arithmetic is a multiply rather than a table: a
+// target that morphs only positions costs two rows of zeros, which is memory
+// and not branches. `MorphTargetTexture` on the Dart side packs exactly this.
+//
+// **`texture` at a texel centre, and it should have been `texelFetch`.** There
+// is nothing to filter — a vertex has exactly one delta per target — so the
+// fetch is the operation this wants: no size arithmetic, no sampler state, no
+// half-texel to get wrong.
+//
+// It is not used because **impellerc crashes on `texelFetch` in a vertex
+// stage**: SIGABRT, no diagnostic, exit 134. Bisected — the same call in a
+// *fragment* stage compiles, `gl_VertexID` alone compiles, and `texture()`
+// in a vertex stage compiles, so it is that one combination. So the coordinate
+// is built by hand, `(index + 0.5) / size`, and the sampler is bound nearest
+// and clamped: exactly the texel, reached the long way round. The size comes
+// down in `morph_params` rather than from `textureSize`, which is one more
+// thing that would have to survive the same compiler.
+
+#ifndef MORPH_GLSL_
+#define MORPH_GLSL_
+
+/// Rows of the delta texture each target occupies. See the header.
+const int kMorphRows = 3;
+
+/// The most targets one draw can blend.
+///
+/// Eight because glTF's own guidance is that an engine support at least eight
+/// active targets, and because a `vec4[2]` is two registers. A model carrying
+/// more is not refused — the renderer sends the first eight and says so, which
+/// is a face missing an expression rather than a face that will not load.
+const int kMorphMax = 8;
+
+uniform sampler2D morph_texture;
+
+layout(std140) uniform MorphInfo {
+  /// Weight of target *i* at `morph_weights[i / 4][i % 4]`.
+  vec4 morph_weights[2];
+
+  /// x: how many targets are active, as a float.
+  /// y: one texel across, `1 / width`. z: one texel down, `1 / height`.
+  /// w unused.
+  ///
+  /// A count rather than a convention that a zero weight means absent: a
+  /// target held at exactly nought is a face that is not smiling, and reading
+  /// it as "the list ends here" would stop the ones after it.
+  vec4 morph_params;
+}
+morph_info;
+
+/// Adds the blended deltas onto one vertex.
+///
+/// Called with the attributes as they were read and before anything else
+/// touches them — skinning included, which is the order glTF specifies: a
+/// skinned morphed mesh morphs in its rest pose and is then posed by the
+/// skeleton.
+///
+/// The tangent is a `vec4` and only its xyz move: w is the bitangent sign, a
+/// handedness rather than a direction, and glTF does not morph it.
+void ApplyMorph(inout vec3 position, inout vec3 normal, inout vec4 tangent) {
+  int count = int(morph_info.morph_params.x + 0.5);
+  if (count <= 0) return;
+
+  // The vertex's own column: the index this vertex was drawn with, which is
+  // exactly the row of the delta arrays the loader built.
+  //
+  // **`gl_VertexID`, spelt the way SPIR-V spells it.** GLSL ES 3.00 calls
+  // the same builtin `gl_VertexID`, and the browser backend's translator
+  // rewrites the name on its way out — one substitution beside the ones it
+  // already makes for `#version` and `layout(std140)`. Written the other way
+  // round, impellerc refuses it outright: "undeclared identifier (Did you mean
+  // gl_VertexID?)", which is the friendliest error in this repository.
+  float column = (float(gl_VertexID) + 0.5) * morph_info.morph_params.y;
+  float rowStep = morph_info.morph_params.z;
+
+  for (int i = 0; i < kMorphMax; i++) {
+    if (i >= count) break;
+    float weight = morph_info.morph_weights[i / 4][i % 4];
+    if (weight == 0.0) continue;
+
+    float row = (float(i * kMorphRows) + 0.5) * rowStep;
+    position += texture(morph_texture, vec2(column, row)).xyz * weight;
+    normal += texture(morph_texture, vec2(column, row + rowStep)).xyz * weight;
+    tangent.xyz +=
+        texture(morph_texture, vec2(column, row + rowStep * 2.0)).xyz * weight;
+  }
+}
+
+#endif  // MORPH_GLSL_
+
+
 layout(std140) uniform FrameInfo {
   mat4 mvp;
   mat4 model;
@@ -316,15 +815,21 @@ out vec4 v_color;
 out vec2 v_lightmap_uv;
 
 void main() {
-  vec4 world = frame_info.model * vec4(position, 1.0);
+  vec3 morphed_position = position;
+  vec3 morphed_normal = normal;
+  vec4 morphed_tangent = tangent;
+  ApplyMorph(morphed_position, morphed_normal, morphed_tangent);
+
+  vec4 world = frame_info.model * vec4(morphed_position, 1.0);
   v_world_position = world.xyz;
-  v_normal = mat3(frame_info.normal_matrix) * normal;
+  v_normal = mat3(frame_info.normal_matrix) * morphed_normal;
   v_texcoord = texcoord;
-  v_tangent = vec4(mat3(frame_info.model) * tangent.xyz, tangent.w);
+  v_tangent =
+      vec4(mat3(frame_info.model) * morphed_tangent.xyz, morphed_tangent.w);
   v_color = vec4(1.0);
   v_lightmap_uv = color.xy;
 
-  gl_Position = frame_info.mvp * vec4(position, 1.0);
+  gl_Position = frame_info.mvp * vec4(morphed_position, 1.0);
 }
 
 ''',

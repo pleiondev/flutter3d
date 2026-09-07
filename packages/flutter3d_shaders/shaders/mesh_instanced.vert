@@ -22,6 +22,8 @@ in vec2 texcoord;
 in vec4 tangent;
 in vec4 color;
 
+#include <lib/morph.glsl>
+
 /// Rows of the instance's 3x4 affine transform, in the node's space.
 in vec4 i_row0;
 in vec4 i_row1;
@@ -51,7 +53,17 @@ void main() {
       vec4(i_row0.y, i_row1.y, i_row2.y, 0.0),
       vec4(i_row0.z, i_row1.z, i_row2.z, 0.0),
       vec4(i_row0.w, i_row1.w, i_row2.w, 1.0));
-  vec4 local = instance * vec4(position, 1.0);
+  // Morphed before the instance transform: the deltas are in the mesh's own
+  // space, and every instance of a batch shares the mesh and therefore its
+  // shape. A batch whose instances morphed differently would need a weight set
+  // per instance, which is a per-instance uniform this layout has no room for
+  // and a feature nothing has asked for.
+  vec3 morphed_position = position;
+  vec3 morphed_normal = normal;
+  vec4 morphed_tangent = tangent;
+  ApplyMorph(morphed_position, morphed_normal, morphed_tangent);
+
+  vec4 local = instance * vec4(morphed_position, 1.0);
   vec4 world = frame_info.model * local;
   v_world_position = world.xyz;
   // The instance's rotation and scale applied before the node's normal matrix.
@@ -59,9 +71,12 @@ void main() {
   // for; a non-uniform instance scale skews the normal, and that is the
   // documented limit rather than an inverse transpose per vertex.
   mat3 rotation = mat3(instance);
-  v_normal = mat3(frame_info.normal_matrix) * normalize(rotation * normal);
+  v_normal =
+      mat3(frame_info.normal_matrix) * normalize(rotation * morphed_normal);
   v_texcoord = texcoord;
-  v_tangent = vec4(mat3(frame_info.model) * (rotation * tangent.xyz), tangent.w);
+  v_tangent = vec4(
+      mat3(frame_info.model) * (rotation * morphed_tangent.xyz),
+      morphed_tangent.w);
   v_color = color * i_color;
   v_lightmap_uv = vec2(0.0);
   gl_Position = frame_info.mvp * local;

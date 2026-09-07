@@ -30,6 +30,30 @@ final class _DrawOverride {
 }
 
 extension _MeshEncode on Renderer {
+  /// Binds the morph state for a draw through one of the mesh vertex stages.
+  ///
+  /// **Every path that binds `FrameInfo` has to call this**, and that is the
+  /// price of putting the deltas in a texture: `lib/morph.glsl` is included by
+  /// all four mesh vertex stages, so the block and the sampler are declared on
+  /// every pipeline they build, and a stage whose block nobody wrote reads
+  /// whatever was in that memory. The first time this was missed the shadow and
+  /// pick passes still bound `FrameInfo` and not this, and the browser drew
+  /// shadows displaced by a garbage weight — 217 pixels out where 8 is the
+  /// budget — while Impeller happened to see zeros and looked fine.
+  ///
+  /// One helper rather than the same six lines in four places, for the reason
+  /// this file already gives about the material binding: two copies of a
+  /// binding eventually disagree, and the disagreement arrives as a picture
+  /// nobody can explain.
+  void _bindMorph(PassEncoder pass, ShaderHandle stage) {
+    pass
+      ..bindUniformBlock(stage, _kMorphInfoBlock, {
+        'morph_weights': _morphWeights,
+        'morph_params': _morphParams,
+      })
+      ..bindTexture(stage, 'morph_texture', fallbackAlbedo);
+  }
+
   /// Encodes one mesh node into an open pass.
   ///
   /// Extracted so the view-model pass draws through exactly the same code as
@@ -174,6 +198,9 @@ extension _MeshEncode on Renderer {
       'model': modelMatrix.storage,
       'normal_matrix': normalMatrix.storage,
     });
+
+    // Always, even when nothing morphs. See [_bindMorph].
+    _bindMorph(encoder, activeVertexShader);
 
     if (skeleton != null) {
       // Recomputed here rather than by the caller: the matrices depend on
