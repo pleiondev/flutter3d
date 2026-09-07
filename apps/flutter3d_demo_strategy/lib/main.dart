@@ -28,6 +28,15 @@
 /// renderer what is actually under the pointer — by pixel, not by bounding box
 /// — and lights it.
 ///
+/// **The match is played on a fixed step and written down as it goes.** A
+/// frame's worth of real time is spent in whole sixtieths and the leftover is
+/// kept for the next one, so a slow frame is a frame that ran three steps rather
+/// than one long one — which is the difference between a crowd that keeps
+/// walking at the same speed on any display and one that walks faster on a fast
+/// machine. The run itself is a `RunSession`: it resumes the saved match on
+/// launch, writes it down every few seconds, and forgets it once somebody has
+/// won. See `src/run.dart`.
+///
 /// Nothing here decides anything about the simulation: it steps, the bridge
 /// reads it, and the camera watches — which is the arrangement every game in
 /// this repository has, seen at the one scale where a thousand of something is
@@ -35,19 +44,23 @@
 /// through the same handles as the click above, one thought every half second.
 library;
 
+import 'dart:async';
+
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart' hide Material;
 import 'package:flutter/scheduler.dart';
 import 'package:flutter3d/flutter3d.dart';
-import 'package:flutter3d_backend/flutter3d_backend.dart';
+import 'package:flutter3d_game/flutter3d_game.dart' show FixedStep;
 import 'package:flutter3d_game_strategy/flutter3d_game_strategy.dart';
 import 'package:vector_math/vector_math.dart' as vm;
 
+import 'src/backend.dart';
 import 'src/command.dart';
 import 'src/hud.dart';
 import 'src/hud_readout.dart';
 import 'src/level_document.dart';
 import 'src/pointing.dart';
+import 'src/run.dart';
 import 'src/staging.dart';
 
 void main() => runApp(const StrategyDemo());
@@ -72,7 +85,23 @@ class _Map extends StatefulWidget {
 }
 
 class _MapState extends State<_Map> with SingleTickerProviderStateMixin {
-  static const double _dt = 1.0 / 60.0;
+  /// The longest real frame the match will accept, in seconds.
+  ///
+  /// A frame longer than this is not a slow frame — it is a window being
+  /// dragged, a lid being shut, or a debugger sitting on a breakpoint — and
+  /// handing the whole of it to a fixed step asks for a minute of simulation at
+  /// once, which arrives as the entire crowd teleporting.
+  static const double _longestFrame = 0.25;
+
+  /// How long the match runs between one autosave and the next, in seconds.
+  ///
+  /// **A match has no checkpoints to hang a save on**, which is what makes this
+  /// a clock rather than an event: the other genres write the run down at a door
+  /// or a start line, and the only comparable moment here is the end, which is
+  /// exactly when a save must *not* be written. Five seconds is a few hundred
+  /// steps — cheap against a step over a crowd of hundreds, and short enough
+  /// that a launch after a crash resumes somewhere a player recognises.
+  static const double _saveEvery = 5.0;
 
   /// How far a pointer may travel and still have been a click, in pixels.
   ///
@@ -89,8 +118,8 @@ class _MapState extends State<_Map> with SingleTickerProviderStateMixin {
   /// **State on the widget, because a selection is not a fact about the
   /// match.** Nothing in the simulation knows or should know which six of six
   /// hundred workers somebody has a rectangle round; it is the same kind of
-  /// thing as where the camera is pointing. Built in [_open] because it needs
-  /// the simulation the document made.
+  /// thing as where the camera is pointing. Built in [_place] because it needs
+  /// the simulation the document made, and rebuilt whenever a new one is.
   CommandPost? _command;
 
   /// The corners of the rectangle being dragged, in widget coordinates, or null
@@ -104,9 +133,43 @@ class _MapState extends State<_Map> with SingleTickerProviderStateMixin {
   late final Scene _scene;
   late final RenderView _view;
   late final CameraNode _camera;
-  late final Ticker _ticker;
+
+  /// The frame source, once there is something to spend a frame on.
+  ///
+  /// Nullable rather than `late final`, because there are now two awaits
+  /// between this widget being built and this being started: a widget taken
+  /// away in either gap used to reach `dispose` with nothing here to dispose.
+  Ticker? _ticker;
   final Raycaster _ray = Raycaster();
   Size _surface = const Size(1280, 720);
+
+  /// The run: which map is up, how it is going, and where it is written down.
+  StrategyRun? _run;
+
+  /// Real time turned into whole steps of simulated time.
+  ///
+  /// **Two of what it offers are deliberately not read here, and saying which
+  /// is worth more than pretending otherwise.** `alpha` is the fraction of a
+  /// step the frame sits past the last one, for a picture that draws between
+  /// two simulated states; the crowd is one instanced batch written from where
+  /// everybody is *now*, and blending would mean the batch keeping each unit's
+  /// previous transform as well — a second buffer of a thousand matrices, for a
+  /// unit that is a few pixels across from a camera this high up. `droppedSteps`
+  /// is the count of simulated time thrown away when a frame asked for more
+  /// steps than the ceiling allows, and it belongs in a frame overlay this demo
+  /// does not have. Both are the clock's to report the day either is worth
+  /// spending; neither is worth faking a use for today.
+  final FixedStep _clock = strategyClock();
+
+  /// What the ticker read last, so a frame can be told from a total.
+  ///
+  /// A `Ticker` reports how long it has been running rather than how long the
+  /// last frame took, and the difference between the two is the whole of what a
+  /// fixed step is fed.
+  Duration _since = Duration.zero;
+
+  /// Simulated seconds since the run was last written down.
+  double _unsaved = 0.0;
 
   /// Whether a picking question is already waiting on a frame.
   bool _asking = false;
@@ -123,17 +186,21 @@ class _MapState extends State<_Map> with SingleTickerProviderStateMixin {
     _open();
   }
 
+  /// Opens the device, the scene over it, and the run played in that scene.
+  ///
+  /// **The map is no longer read here**, and that is the change this file came
+  /// with: reading it is `StrategyRun.open`'s job, so that the same sequence
+  /// which reads it can also resume the match that was saved from it. The
+  /// device is opened first because a session asks for one while it loads, and
+  /// the guard below is what the map-first ordering used to buy — a device that
+  /// outlived the widget it was opened for is a device nobody frees.
   Future<void> _open() async {
-    // The map first, then the device: a document that failed to load with a
-    // device already open would leak the device.
-    final map = await StrategyMap.load();
     final device = await openDevice(width: 1280, height: 720);
     if (!mounted) return device.dispose();
 
-    final staged = stage(device: device, map: map);
+    // The scene, and the one thing in it that belongs to the view rather than
+    // to any particular match: a sun does not come out of the document.
     _scene = Scene(name: 'map');
-    staged.visuals.addTo(_scene);
-
     _scene.add(
       LightNode(
         type: LightType.directional,
@@ -142,42 +209,103 @@ class _MapState extends State<_Map> with SingleTickerProviderStateMixin {
         name: 'sun',
       )..lookAt(vm.Vector3(0.35, -1.0, 0.5)),
     );
-
     _camera = _scene.add(CameraNode(name: 'camera'));
     _view = RenderView(camera: _camera);
 
-    final command = CommandPost(
-      simulation: staged.simulation,
-      side: viewerSide,
+    final run = StrategyRun(
+      firstLevel: mapAsset,
+      saves: SaveFile(appName: 'flutter3d_demo_strategy'),
+      openDevice: () async => device,
+      onLevelBuilt: _place,
     );
+    _run = run;
+    // Resumes the saved match if there is one, and starts a fresh one if there
+    // is not. Either way the map is whole before anything is put back into it.
+    await run.begin();
+    if (!mounted) return;
 
-    _ticker = createTicker((_) {
+    _ticker = createTicker(_frame)..start();
+    setState(() => _renderer = Renderer.create(device: device));
+  }
+
+  /// Takes a staged match and gives the screen its half of it.
+  ///
+  /// Called from inside `StrategyRun.open`, before the session restores
+  /// anything — the visuals and the command post are part of "the level is
+  /// whole", and a snapshot arrives after that.
+  void _place(Staged staged) {
+    staged.visuals.addTo(_scene);
+    _staged = staged;
+    _command = CommandPost(simulation: staged.simulation, side: viewerSide);
+  }
+
+  /// One frame: whole steps of the match, then the picture over them.
+  void _frame(Duration elapsed) {
+    final Staged? staged = _staged;
+    final CommandPost? command = _command;
+    final StrategyRun? run = _run;
+    if (staged == null || command == null || run == null) return;
+
+    // Clamped once, here, and everything else in the frame is given the clamped
+    // number: the camera eases in real time rather than in steps, and handing it
+    // the raw frame after a hitch would swing the view somewhere the match has
+    // not been.
+    final double frame =
+        (elapsed - _since).inMicroseconds / Duration.microsecondsPerSecond;
+    _since = elapsed;
+    final double dt = frame.isNaN ? 0.0 : frame.clamp(0.0, _longestFrame);
+
+    final int steps = _clock.advance(dt);
+    for (var i = 0; i < steps; i++) {
       // The near camp has no policy behind it, and a hall makes nothing it was
       // not asked for, so without this the player's side would open with the
       // crowd the document gave it and never gain another while the far camps
       // grew. Asked before the step so the order is in the queue the step
       // drains.
       command.restock();
-      staged.match.step(_dt);
+      staged.match.step(_clock.stepSeconds);
       // Before the picture and before the readout: a squad the player is
       // holding may have lost somebody to the step that just ran, and both the
       // count on the screen and the next order given would otherwise be about a
       // crowd that is one larger than the one on the map. Cheap — it walks the
       // crowd only while something is selected.
       command.prune();
-      staged.visuals.sync();
-      staged.camera.place(_dt);
-      _camera
-        ..setPositionFrom(staged.camera.eye)
-        ..lookAt(staged.camera.target);
-      setState(() {});
-    })..start();
+    }
 
-    setState(() {
-      _staged = staged;
-      _command = command;
-      _renderer = Renderer.create(device: device);
-    });
+    // Once the steps have run and never between two of them: a save taken
+    // mid-frame would describe a match half a frame old, and the outcome the
+    // session republishes has to be the one the last step decided.
+    run.observe();
+    _keep(run, steps * _clock.stepSeconds);
+
+    staged.visuals.sync();
+    staged.camera.place(dt);
+    _camera
+      ..setPositionFrom(staged.camera.eye)
+      ..lookAt(staged.camera.target);
+    setState(() {});
+  }
+
+  /// Writes the run down every [_saveEvery] seconds, and lets it go when it
+  /// ends.
+  ///
+  /// **The ending is the session's business, not this file's.** `advance` is
+  /// what clears the save on a finished match — and it does nothing twice, so a
+  /// match that stays won for every frame afterwards is written off once. Left
+  /// to a widget, the same three lines would run sixty times a second and the
+  /// save would be deleted again on every one of them.
+  ///
+  /// `RunSession.save` refuses a finished run of its own accord, so the clock
+  /// below needs no guard against writing one down at the finishing line.
+  void _keep(StrategyRun run, double seconds) {
+    if (run.isOver) {
+      unawaited(run.advance());
+      return;
+    }
+    _unsaved += seconds;
+    if (_unsaved < _saveEvery) return;
+    _unsaved = 0.0;
+    run.save();
   }
 
   /// Aims [_ray] through a point on the widget, and hands back the world ray.
@@ -363,7 +491,7 @@ class _MapState extends State<_Map> with SingleTickerProviderStateMixin {
 
   @override
   void dispose() {
-    _ticker.dispose();
+    _ticker?.dispose();
     final renderer = _renderer;
     if (renderer != null) {
       renderer.dispose();

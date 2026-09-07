@@ -17,6 +17,16 @@ dependencies:
   flutter3d_game: ^0.5.0
   flutter3d_game_strategy: ^0.5.1
 
+  # Where `RunSession` lives. Named here rather than reached through the
+  # `flutter3d_app` barrel above, because `src/run.dart` imports it by name and
+  # a file's imports and its package's dependencies should say the same thing.
+  #
+  # **Not a dependency of `flutter3d_game_strategy`, and that is the boundary.**
+  # None of the four genre packages depends on this one: a session knows where a
+  # save lives and which side a person is playing, and both are facts about an
+  # application. The genre owes it two methods and no import.
+  flutter3d_session: ^0.5.0
+
   vector_math: ^2.2.0
 
 dev_dependencies:
