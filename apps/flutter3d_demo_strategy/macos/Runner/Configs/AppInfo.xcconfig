@@ -5,10 +5,10 @@
 // 'flutter create' template.
 
 // The application's name. By default this is also the title of the Flutter window.
-PRODUCT_NAME = flutter3d_demo_strategy
+PRODUCT_NAME = strategy
 
 // The application's bundle identifier
-PRODUCT_BUNDLE_IDENTIFIER = dev.pleion.flutter3dDemoStrategy
+PRODUCT_BUNDLE_IDENTIFIER = dev.flutter3d.strategy
 
 // The copyright displayed in application information
-PRODUCT_COPYRIGHT = Copyright © 2026 dev.pleion. All rights reserved.
+PRODUCT_COPYRIGHT = Copyright © 2026 dev.flutter3d. All rights reserved.

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# Builds the three games for the web into the site's own dist/demo/.
+# Builds the four games for the web into the site's own dist/demo/.
 #
-#   tool/demos.sh                  all three
+#   tool/demos.sh                  all four
 #   tool/demos.sh shooter          just one
 #
 # **They go inside dist/ now**, which is the whole point of this script
@@ -13,9 +13,9 @@
 # does not carry is a broken link nobody notices until somebody clicks it.
 #
 # The cost is stated rather than hidden: `npm run build` wipes dist/, so the
-# games have to be rebuilt after it, and three Flutter web builds are about a
-# minute even warm. That is why this is its own script and not part of the site
-# build: editing prose should not cost a minute of dart2wasm.
+# games have to be rebuilt after it, and four Flutter web builds are minutes
+# even warm. That is why this is its own script and not part of the site
+# build: editing prose should not cost a run of dart2wasm.
 set -euo pipefail
 
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -33,6 +33,7 @@ games=(
   "shooter:apps/flutter3d_demo_dungeon"
   "platformer:apps/flutter3d_demo_platformer"
   "racing:apps/flutter3d_demo_racing"
+  "strategy:apps/flutter3d_demo_strategy"
 )
 
 wanted="${1:-}"
