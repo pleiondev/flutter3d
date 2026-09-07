@@ -3,12 +3,19 @@
 /// ## Why a grid and not a navigation mesh
 ///
 /// A navmesh earns its complexity by representing *arbitrary* walkable
-/// surfaces — slopes, ramps, terrain. This format has none: a `Brush` is a
-/// centre and a size, and `level.dart` says so outright — there are no slopes.
-/// A navmesh over axis-aligned boxes is a voxelise → region → contour →
-/// triangulate pipeline whose output is the rectangles you could have
-/// rasterised directly. The most code, the hardest to test, and it buys a
-/// representation the format cannot express.
+/// surfaces. Brushes are not that: a `Brush` is a centre and a size, and
+/// `level.dart` says so outright — there are no slopes. A navmesh over
+/// axis-aligned boxes is a voxelise → region → contour → triangulate pipeline
+/// whose output is the rectangles you could have rasterised directly. The most
+/// code, the hardest to test, and it buys a representation the format cannot
+/// express.
+///
+/// **Ground made of samples arrived later and did not change the answer.**
+/// [bakeHeightfield] walks a `Heightfield`, which is terrain and does have
+/// slopes — and a height field is already a lattice, so rasterising it into
+/// this one is a resample rather than a pipeline. The argument against a
+/// navmesh got stronger rather than weaker: the surface it would triangulate
+/// is a grid to begin with.
 ///
 /// ## Why it is baked from brushes and not from the collision world
 ///
@@ -41,8 +48,10 @@ import 'dart:typed_data';
 
 import 'package:vector_math/vector_math.dart';
 
+import '../level/heightfield.dart';
 import '../level/level.dart';
 import '../level/level_issue.dart';
+import '../math/portable_math.dart';
 import '../math/tolerances.dart';
 import 'jump_links.dart';
 
@@ -194,6 +203,91 @@ final class NavGrid {
 
   /// Open sky, and the largest number [headroomAt] will report.
   static const double maxHeadroom = 8.0;
+
+  /// Rasterises a [Heightfield] into a lattice of standing places.
+  ///
+  /// **A second source rather than a wider first one.** [bake] measures its
+  /// grid from the brushes it is given and stamps each cell with whatever
+  /// solid is under it; ground made of samples has no brushes to stamp and its
+  /// extent is the field's own, so the two share the cell format and nothing
+  /// else. A map that is terrain *and* buildings wants both walked together,
+  /// and that is a third thing to write on the day a map has both — it does
+  /// not exist yet, and guessing its shape now would be guessing.
+  ///
+  /// **Steepness is what makes ground unwalkable here**, where a level makes it
+  /// a ceiling too low to stand under. [maxSlope] is in radians from flat, and
+  /// it is the caller's number because `Heightfield.slopeAt` refuses to have an
+  /// opinion: a tank and a scout disagree about the same hillside. The default
+  /// is forty degrees, which is steeper than anything a person walks up
+  /// comfortably and gentler than the sixty the character controller allows.
+  ///
+  /// [blocked] refuses ground for a reason that is not its shape — a building's
+  /// footprint, a lake, a scenario's boundary. Separate from [maxSlope] because
+  /// the two are different questions: one asks whether the ground *can* be
+  /// stood on, the other whether it *may* be.
+  ///
+  /// A cell whose centre falls outside the field is not walkable. The field
+  /// answers for points beyond its edge — the nearest edge's height, so that
+  /// walking off the map meets the ground it can see — and a bake that took
+  /// that answer would lay standing places over ground that is not there.
+  static NavGrid bakeHeightfield(
+    Heightfield field, {
+    double cellSize = 0.5,
+    double agentHeight = 1.7,
+    double? stepHeight,
+    double maxFall = 2.0,
+    double maxSlope = 0.698,
+    bool Function(double x, double z)? blocked,
+  }) {
+    // **Derived from the slope, not taken as a number for stairs.** A step
+    // height is how far up a *ledge* an agent will climb, and on terrain the
+    // rise between neighbouring cells is not a ledge — it is the hillside the
+    // slope test just allowed. Left at the 0.4 a level uses, a two-metre grid
+    // over ground of one part in five refuses every uphill move: the rise is
+    // 0.4 exactly, `canMove` compares it against the same number, and a unit
+    // sent up the hill stands still while the field says the way is blocked.
+    // So the default is the tallest rise the steepest walkable cell can have,
+    // with a hair of room for the arithmetic that produced it.
+    final double rise = stepHeight ?? Portable.tan(maxSlope) * cellSize * 1.001;
+    final columns = math.max(1, (field.width / cellSize).ceil());
+    final rows = math.max(1, (field.depth / cellSize).ceil());
+    final count = columns * rows;
+
+    final floor = Float32List(count);
+    final headroom = Float32List(count);
+
+    for (var cz = 0; cz < rows; cz++) {
+      for (var cx = 0; cx < columns; cx++) {
+        final x = field.origin.x + (cx + 0.5) * cellSize;
+        final z = field.origin.z + (cz + 0.5) * cellSize;
+        final index = cz * columns + cx;
+        if (!field.contains(x, z)) continue;
+        floor[index] = field.heightAt(x, z);
+        // Ground refused for a reason that is not its shape: what a building
+        // stands on, what a lake covers, what a scenario forbids. Asked before
+        // the slope because it is cheaper and because it cannot be argued with
+        // — a flat courtyard inside a wall is still not somewhere to walk.
+        if (blocked != null && blocked(x, z)) continue;
+        // Open sky over ground: there is nothing above a hillside to duck
+        // under, so every walkable cell reports the cap.
+        if (field.slopeAt(x, z) <= maxSlope) headroom[index] = maxHeadroom;
+      }
+    }
+
+    return NavGrid._(
+      originX: field.origin.x,
+      originZ: field.origin.z,
+      cellSize: cellSize,
+      columns: columns,
+      rows: rows,
+      agentHeight: agentHeight,
+      stepHeight: rise,
+      maxFall: maxFall,
+      floor: floor,
+      headroom: headroom,
+      clearance: _clearances(floor, headroom, columns, rows, rise, maxFall),
+    );
+  }
 
   /// Rasterises the solid brushes into a lattice of standing places.
   ///

@@ -2,6 +2,7 @@ import 'package:vector_math/vector_math.dart';
 
 import 'brush.dart';
 import 'entity_def.dart';
+import 'heightfield.dart';
 import 'json_reader.dart';
 import 'json_write_through.dart';
 import 'level_format_exception.dart';
@@ -28,6 +29,7 @@ final class Level {
     List<EntityDef>? entities,
     List<LevelLight>? lights,
     Map<String, LevelMaterial>? materials,
+    this.heightfield,
     Vector3? fogColor,
     this.fogDensity = 0.0,
     this.music,
@@ -52,6 +54,20 @@ final class Level {
   /// Bumped when an existing field changes meaning. Adding one does not need
   /// it: an older reader ignores what it does not know.
   static const int formatVersion = 1;
+
+  /// The ground, when the level is played on sampled terrain rather than on
+  /// brushes alone.
+  ///
+  /// **Additive, and the version is deliberately not bumped for it** — the rule
+  /// above says a version marks a field whose *meaning* changed, and an older
+  /// reader ignoring a section it never knew is the case that rule allows. The
+  /// hazard is worth naming even so: what an older reader ignores here is the
+  /// ground itself, so a terrain map opened by a build without this field is a
+  /// level whose floor is missing rather than one drawn slightly wrong. Nothing
+  /// in this repository is such a build — every reader is compiled from the
+  /// same tree — and the day one exists, this is the field that decides whether
+  /// it may open the document.
+  final Heightfield? heightfield;
 
   final String name;
   final List<Brush> brushes;
@@ -107,6 +123,10 @@ final class Level {
                   LevelMaterial.fromJson(value),
                 ),
           ),
+      heightfield: switch (json['heightfield']) {
+        final Map<String, Object?> section => Heightfield.fromJson(section),
+        _ => null,
+      },
       fogColor: json.vector3('fogColor', fallback: Vector3(0.05, 0.04, 0.06)),
       fogDensity: json.numberOr('fogDensity', 0.0),
       music: json.textOrNull('music'),
@@ -139,6 +159,11 @@ final class Level {
       'entities',
       entities.map((EntityDef e) => e.toJson()).toList(),
       whenAbsent: entities.isNotEmpty,
+    ),
+    WriteThroughField(
+      'heightfield',
+      heightfield?.toJson(),
+      whenAbsent: heightfield != null,
     ),
   ]);
 }

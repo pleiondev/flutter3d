@@ -27,6 +27,7 @@ import 'dart:math' as math;
 import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:vector_math/vector_math.dart';
 
+import 'building.dart';
 import 'formation.dart';
 import 'unit.dart';
 
@@ -42,17 +43,51 @@ final class StrategySimulation {
     required this.ground,
     double cellSize = 2.0,
     double maxSlope = 0.698,
-  }) : grid = NavGrid.bakeHeightfield(
-         ground,
-         cellSize: cellSize,
-         maxSlope: maxSlope,
-       );
+  }) : // ignore_for_file: prefer_initializing_formals
+       _cellSize = cellSize,
+       _maxSlope = maxSlope {
+    _bake();
+  }
+
+  final double _cellSize;
+  final double _maxSlope;
 
   /// The ground everything stands on.
   final Heightfield ground;
 
-  /// Where a unit may walk, baked once from [ground].
-  final NavGrid grid;
+  /// Where a unit may walk, baked from [ground] and whatever stands on it.
+  ///
+  /// Re-baked when a building is placed rather than kept current by hand: the
+  /// bake costs about a millisecond at this cell size, and a placement is a
+  /// thing a player does now and then.
+  late NavGrid grid;
+
+  /// What has been built, in the order it was built.
+  final List<Building> buildings = <Building>[];
+
+  /// Puts a building on the map and takes its ground out of the grid.
+  Building build(Building building) {
+    building.centre.y = ground.heightAt(building.centre.x, building.centre.z);
+    buildings.add(building);
+    _bake();
+    return building;
+  }
+
+  void _bake() {
+    grid = NavGrid.bakeHeightfield(
+      ground,
+      cellSize: _cellSize,
+      maxSlope: _maxSlope,
+      blocked: buildings.isEmpty
+          ? null
+          : (double x, double z) {
+              for (final Building building in buildings) {
+                if (building.covers(x, z)) return true;
+              }
+              return false;
+            },
+    );
+  }
 
   /// The crowd, in the order it was added.
   ///
