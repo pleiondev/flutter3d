@@ -1,3 +1,31 @@
+## 0.5.2
+
+* **Animation layers: a clip over part of a skeleton while the base plays over
+  all of it.** `AnimationPlayer.layers`, `playLayer` and `AnimationLayer` — an
+  upper body that reloads while the legs keep running, a monster that flinches
+  without stopping to do it. A crossfade moves the whole skeleton; this moves
+  the joints an `AnimationMask` names and leaves the rest alone. Each layer
+  carries its own playhead, wrap, speed and weight, with `fadeTo` to ramp the
+  weight so a layer does not pop in, and where two layers want one joint the
+  later one wins.
+* **`AnimationMask`, and `ModelDocument.maskUnder`** to build one from a joint's
+  name — every node at or under it. A set of indices rather than a walk up a
+  parent chain, because `AnimationTarget` is three setters and no hierarchy on
+  purpose: reading a parent would mean the animation layer depending on the
+  scene graph, and through it on `dart:ui`, in everything that decodes a glTF
+  file. A name the rig does not carry gives an empty mask rather than
+  everything — a layer that does nothing rather than one that takes the
+  skeleton over.
+* Override, not additive: a layer replaces the base's value for the joints it
+  covers. A joint the base does not animate takes the layer's value outright,
+  which is the rule the crossfade already followed for the same situation —
+  there is nothing to blend from.
+* No behaviour change without a layer. `apply` now resolves one pose per joint
+  and writes once, where it used to blend inside the per-path switch; the first
+  test in `animation_layer_test.dart` is the assertion that this moved nothing,
+  because a reorganisation that shifted every pose by a hair would have shifted
+  every golden in the repository.
+
 ## 0.5.1
 
 * **The surface buffer stops storing a depth its format cannot hold.** Its

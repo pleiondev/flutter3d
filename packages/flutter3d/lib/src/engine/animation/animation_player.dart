@@ -4,6 +4,8 @@ import 'dart:typed_data';
 import 'package:vector_math/vector_math.dart';
 
 import 'animation_clip.dart';
+import 'animation_layer.dart';
+import 'animation_mask.dart';
 import 'animation_target.dart';
 import 'animation_track.dart';
 
@@ -20,10 +22,20 @@ import 'animation_track.dart';
 /// straight to the new pose is what makes a character look as though it teleports
 /// between animations.
 ///
-/// Layers and additive blending are still a separate feature, and building them
-/// in before there is anything to blend would be guessing at the API. What is
-/// missing above this is a state machine that decides *which* clip — that
-/// belongs to the game layer, not here.
+/// **And [layers] over the top of that**, each one a clip on the joints its
+/// mask names — an upper body that reloads while the legs keep running. A
+/// crossfade moves the whole skeleton; a layer moves part of it and leaves the
+/// rest alone. See [AnimationLayer], which says why it overrides rather than
+/// adds, and [AnimationMask], which says why a mask is indices.
+///
+/// The base is applied first and a layer writes over it, so a player with no
+/// layers poses exactly as it did before there were any — `animation_layer_test`
+/// holds that, because a feature that moved every existing character by a hair
+/// would have been a feature that moved every golden.
+///
+/// Additive blending is still a separate feature. What is missing above this is
+/// a state machine that decides *which* clip — that belongs to the game layer,
+/// not here.
 final class AnimationPlayer {
   AnimationPlayer({required this.clips, required this.targets});
 
@@ -52,6 +64,15 @@ final class AnimationPlayer {
   Map<int, AnimationTrack>? _fadeFromTracks;
 
   Float32List _fadeSample = Float32List(4);
+
+  /// Scratch for a layer's own sample, and the keys the base clip writes.
+  ///
+  /// Both are fields rather than locals for the reason every buffer in a frame
+  /// here is: `apply` runs once per model per frame, and a set allocated inside
+  /// it would be a set allocated per model per frame.
+  Float32List _layerSample = Float32List(4);
+  final Set<int> _baseKeys = <int>{};
+
   final Quaternion _fadeQuaternion = Quaternion.identity();
   bool _playing = false;
   bool _reversing = false;
@@ -60,6 +81,59 @@ final class AnimationPlayer {
   double speed = 1.0;
 
   AnimationWrap wrap = AnimationWrap.loop;
+
+  /// Clips playing over the base, in the order they are written.
+  ///
+  /// A list rather than one overlay, because the order is the answer to two
+  /// layers wanting the same joint: the last one wins, which is the rule a
+  /// caller can hold in their head. Empty is the ordinary case and costs a
+  /// length check per frame.
+  ///
+  /// Owned by the caller: a game adds a layer when a reload starts and removes
+  /// it when the layer reports [AnimationLayer.isFinished] and its weight has
+  /// been faded back to nothing. The player does not remove them, because
+  /// "finished" and "wanted gone" are not the same moment — a layer held at
+  /// full weight on its last pose is how a game holds a pose.
+  final List<AnimationLayer> layers = <AnimationLayer>[];
+
+  /// Adds [layer] and returns it, for the one-liner a caller usually wants.
+  AnimationLayer addLayer(AnimationLayer layer) {
+    layers.add(layer);
+    return layer;
+  }
+
+  /// Starts [clip] over [mask] and returns the layer driving it.
+  ///
+  /// Fades in rather than appearing, for the reason [AnimationLayer.fadeTo]
+  /// exists: a layer that arrives at full weight on one frame pops.
+  AnimationLayer playLayer(
+    int clip, {
+    AnimationMask? mask,
+    AnimationWrap wrap = AnimationWrap.once,
+    double fadeIn = 0.15,
+    double speed = 1.0,
+  }) {
+    final layer = AnimationLayer(
+      clip: clip,
+      mask: mask,
+      wrap: wrap,
+      speed: speed,
+      weight: fadeIn > 0.0 ? 0.0 : 1.0,
+    );
+    if (fadeIn > 0.0) layer.fadeTo(1.0, seconds: fadeIn);
+    return addLayer(layer);
+  }
+
+  /// The first layer playing [clip], or null.
+  ///
+  /// What a caller asks before starting one, so a reload pressed twice does not
+  /// stack two of the same layer on top of each other.
+  AnimationLayer? layerOf(int clip) {
+    for (final layer in layers) {
+      if (layer.clip == clip) return layer;
+    }
+    return null;
+  }
 
   /// Scratch big enough for any track's value, grown on demand.
   Float32List _sample = Float32List(4);
@@ -162,8 +236,8 @@ final class AnimationPlayer {
     )..normalize();
   }
 
-  static int _trackKey(AnimationTrack track) =>
-      track.nodeIndex * AnimationPath.values.length + track.path.index;
+  /// One copy, shared with the layers — see [animationTrackKey].
+  static int _trackKey(AnimationTrack track) => animationTrackKey(track);
 
   bool get hasClips => clips.isNotEmpty;
 
@@ -249,7 +323,14 @@ final class AnimationPlayer {
       if (_fadeRemaining <= 0.0) _cancelFade();
     }
 
-    if (!_playing || clip == null) return;
+    // Layers run whether or not the base does: a player paused on a pose with
+    // a flinch over it should still finish the flinch.
+    _advanceLayers(deltaSeconds);
+
+    if (!_playing || clip == null) {
+      if (layers.isNotEmpty) apply();
+      return;
+    }
 
     final length = duration;
     if (length <= 0.0) {
@@ -257,38 +338,26 @@ final class AnimationPlayer {
       return;
     }
 
-    var next = _time + deltaSeconds * speed * (_reversing ? -1.0 : 1.0);
+    final advanced = advanceTime(
+      time: _time,
+      deltaSeconds: deltaSeconds * speed,
+      length: length,
+      wrap: wrap,
+      reversing: _reversing,
+    );
+    _time = advanced.time;
+    _reversing = advanced.reversing;
+    if (advanced.stopped) _playing = false;
 
-    switch (wrap) {
-      case AnimationWrap.once:
-        if (next >= length) {
-          next = length;
-          _playing = false;
-        } else if (next <= 0.0) {
-          next = 0.0;
-          _playing = false;
-        }
-
-      case AnimationWrap.loop:
-        // Modulo rather than a subtraction, so a long pause or a huge speed
-        // does not need several iterations to catch up.
-        next %= length;
-        if (next < 0.0) next += length;
-
-      case AnimationWrap.pingPong:
-        while (next > length || next < 0.0) {
-          if (next > length) {
-            next = 2.0 * length - next;
-            _reversing = !_reversing;
-          } else if (next < 0.0) {
-            next = -next;
-            _reversing = !_reversing;
-          }
-        }
-    }
-
-    _time = next;
     apply();
+  }
+
+  void _advanceLayers(double deltaSeconds) {
+    for (final layer in layers) {
+      final index = layer.clip;
+      if (index < 0 || index >= clips.length) continue;
+      layer.advance(deltaSeconds, clips[index].duration);
+    }
   }
 
   /// Writes the pose at the current time onto the target nodes.
@@ -297,7 +366,15 @@ final class AnimationPlayer {
   /// paused are all the same operation.
   void apply() {
     final active = clip;
-    if (active == null) return;
+    if (active == null) {
+      if (layers.isNotEmpty) _applyLayersAlone();
+      return;
+    }
+
+    _baseKeys.clear();
+    for (final track in active.tracks) {
+      _baseKeys.add(_trackKey(track));
+    }
 
     for (final track in active.tracks) {
       if (track.nodeIndex < 0 || track.nodeIndex >= targets.length) continue;
@@ -326,53 +403,144 @@ final class AnimationPlayer {
         previous.sample(_fadeFromTime, _fadeSample);
       }
 
-      switch (track.path) {
-        case AnimationPath.translation:
-          if (previous == null) {
-            node.setPosition(_sample[0], _sample[1], _sample[2]);
-          } else {
-            node.setPosition(
-              _mix(_fadeSample[0], _sample[0], weight),
-              _mix(_fadeSample[1], _sample[1], weight),
-              _mix(_fadeSample[2], _sample[2], weight),
-            );
-          }
-
-        case AnimationPath.rotation:
-          // glTF stores quaternions xyzw, which is the order this constructor
-          // takes.
-          _quaternion.setValues(_sample[0], _sample[1], _sample[2], _sample[3]);
-          if (previous != null) {
-            _fadeQuaternion.setValues(
-              _fadeSample[0],
-              _fadeSample[1],
-              _fadeSample[2],
-              _fadeSample[3],
-            );
-            // Slerp, not a component lerp: blending quaternions linearly and
-            // renormalising takes the long way round whenever the two are more
-            // than a quarter turn apart, which is exactly what a hurt reaction
-            // is.
-            _quaternion.setFrom(_slerp(_fadeQuaternion, _quaternion, weight));
-          }
-          node.setRotation(_quaternion);
-
-        case AnimationPath.scale:
-          if (previous == null) {
-            node.setScale(_sample[0], _sample[1], _sample[2]);
-          } else {
-            node.setScale(
-              _mix(_fadeSample[0], _sample[0], weight),
-              _mix(_fadeSample[1], _sample[1], weight),
-              _mix(_fadeSample[2], _sample[2], weight),
-            );
-          }
-
-        case AnimationPath.weights:
-          // Morph targets are not implemented; the track is decoded and carried
-          // so the clip round-trips, but there is nothing to write it to.
-          break;
+      // The crossfade's blend, folded into the sample rather than done at each
+      // write. That is what lets a layer blend on top of it: by the time the
+      // layers are asked, `_sample` holds one pose for this joint whatever the
+      // base was doing to get there.
+      if (previous != null) {
+        _blendInto(_sample, _fadeSample, weight, track.path);
       }
+
+      if (layers.isNotEmpty) {
+        _blendLayersInto(_sample, _trackKey(track), track.path);
+      }
+
+      _write(node, track.path, _sample);
+    }
+
+    if (layers.isNotEmpty) _applyLayersWhereBaseIsSilent();
+  }
+
+  /// Mixes [from] into [into] by [weight], the way the path wants mixing.
+  ///
+  /// [into] is the destination pose and ends up holding the result. Rotation
+  /// goes through the shortest arc; everything else is a straight line.
+  void _blendInto(
+    Float32List into,
+    Float32List from,
+    double weight,
+    AnimationPath path,
+  ) {
+    switch (path) {
+      case AnimationPath.rotation:
+        _quaternion.setValues(into[0], into[1], into[2], into[3]);
+        _fadeQuaternion.setValues(from[0], from[1], from[2], from[3]);
+        // Slerp, not a component lerp: blending quaternions linearly and
+        // renormalising takes the long way round whenever the two are more than
+        // a quarter turn apart, which is exactly what a hurt reaction is.
+        final mixed = _slerp(_fadeQuaternion, _quaternion, weight);
+        into[0] = mixed.x;
+        into[1] = mixed.y;
+        into[2] = mixed.z;
+        into[3] = mixed.w;
+
+      case AnimationPath.translation:
+      case AnimationPath.scale:
+        for (var i = 0; i < 3; i++) {
+          into[i] = _mix(from[i], into[i], weight);
+        }
+
+      case AnimationPath.weights:
+        break;
+    }
+  }
+
+  /// Lets every layer covering this joint write over [pose], in order.
+  ///
+  /// The last layer wins where two want the same joint, which is the rule the
+  /// list's own documentation states — and it falls out of blending them one
+  /// after another rather than being a special case.
+  void _blendLayersInto(Float32List pose, int key, AnimationPath path) {
+    for (final layer in layers) {
+      final index = layer.clip;
+      if (index < 0 || index >= clips.length) continue;
+      final weight = layer.effectiveWeight;
+      if (weight <= 0.0) continue;
+      final track = layer.tracksOf(clips[index])[key];
+      if (track == null) continue;
+      if (!layer.mask.covers(track.nodeIndex)) continue;
+
+      if (_layerSample.length < track.componentCount) {
+        _layerSample = Float32List(track.componentCount);
+      }
+      track.sample(layer.time, _layerSample);
+      // The layer is what is being mixed *in*, so it is the destination and the
+      // pose so far is what it comes from — the same direction the crossfade
+      // uses, where a weight of one means all of the newer thing. Written the
+      // other way round first, with `1 - weight`, which is a layer at full
+      // weight showing the base: the half-weight test passed anyway, because
+      // mixing is symmetric at a half and says nothing about which end is which.
+      _blendInto(_layerSample, pose, weight, path);
+      pose.setRange(0, track.componentCount, _layerSample);
+    }
+  }
+
+  /// Writes the joints layers animate that the base clip does not touch.
+  ///
+  /// **Taken outright rather than faded**, which is the rule the crossfade
+  /// above already follows for the same situation: there is nothing to blend
+  /// from. The base is not posing this joint, so the alternative would be to
+  /// blend against whatever the node happened to be holding — and an
+  /// [AnimationTarget] cannot be read, deliberately, because reading one would
+  /// mean depending on the scene graph. The cost is that a layer fading in over
+  /// a joint its base ignores arrives at once; an upper-body clip over a walk
+  /// that animates the arms — which is the ordinary case — never meets it.
+  void _applyLayersWhereBaseIsSilent() {
+    for (final layer in layers) {
+      final index = layer.clip;
+      if (index < 0 || index >= clips.length) continue;
+      if (layer.effectiveWeight <= 0.0) continue;
+
+      for (final track in clips[index].tracks) {
+        if (_baseKeys.contains(_trackKey(track))) continue;
+        if (!layer.mask.covers(track.nodeIndex)) continue;
+        if (track.nodeIndex < 0 || track.nodeIndex >= targets.length) continue;
+        final node = targets[track.nodeIndex];
+        if (node == null) continue;
+
+        if (_layerSample.length < track.componentCount) {
+          _layerSample = Float32List(track.componentCount);
+        }
+        track.sample(layer.time, _layerSample);
+        _write(node, track.path, _layerSample);
+      }
+    }
+  }
+
+  /// Poses from the layers alone, for a player with no base clip selected.
+  void _applyLayersAlone() {
+    _baseKeys.clear();
+    _applyLayersWhereBaseIsSilent();
+  }
+
+  void _write(AnimationTarget node, AnimationPath path, Float32List pose) {
+    switch (path) {
+      case AnimationPath.translation:
+        node.setPosition(pose[0], pose[1], pose[2]);
+
+      case AnimationPath.rotation:
+        // glTF stores quaternions xyzw, which is the order this constructor
+        // takes.
+        _quaternion.setValues(pose[0], pose[1], pose[2], pose[3]);
+        node.setRotation(_quaternion);
+
+      case AnimationPath.scale:
+        node.setScale(pose[0], pose[1], pose[2]);
+
+      case AnimationPath.weights:
+        // Morph targets are not implemented; the track is decoded and carried
+        // so the clip round-trips, but there is nothing to write it to.
+        break;
     }
   }
 

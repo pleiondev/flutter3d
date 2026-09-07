@@ -1644,7 +1644,7 @@ entities a game defines.
 |---|---|
 | Style | `dart format` |
 | Analysis | `flutter analyze` clean across the workspace, no warnings |
-| Unit tests | **3700 tests** across 24 packages and 5 applications |
+| Unit tests | **3726 tests** across 24 packages and 5 applications |
 | Structure rules | 30, `dart run tool/structure.dart`, the first CI step |
 | CI | GitHub Actions over `tool/ci.sh`, on `ubuntu-latest`, with no graphics card |
 
@@ -1858,9 +1858,29 @@ and ZLIB supercompression, arrays, cube maps, 3D textures. What is missing
 is upstream: `tool/convert_asset.dart` has no encoder, so nothing produces a
 compressed KTX2 for this engine's own pipeline to read.
 
-**No morph targets**, no animation blending or crossfade, and therefore no useful
-animation state machine — a crossfade is useful on its own, and a state machine
-without one is not.
+**No morph targets, and no additive animation.** The weights track a glTF file
+carries is decoded and dropped with a warning, because there is nothing to write
+it to. Additive blending — a delta over a reference pose, which is what recoil
+and lean want — needs a reference frame per clip, and glTF has no standard place
+to say which frame that is.
+
+What is *there* is a crossfade and layers. `AnimationPlayer.crossFadeTo` moves
+the whole skeleton from one clip to another, keeping the outgoing clip playing
+while it goes, and `AnimationPlayer.layers` puts a clip over the joints an
+`AnimationMask` names while the base keeps running — an upper body that reloads
+while the legs walk. The mask is a set of node indices rather than a walk up a
+parent chain, because `AnimationTarget` is three setters and no hierarchy: the
+animation layer is reached from the asset decoders, and a dependency on
+`SceneNode` would drag `Material` and through it `dart:ui` into everything that
+reads a glTF file. `ModelDocument.maskUnder` does the walking, where the
+hierarchy already is.
+
+This paragraph said "no animation blending or crossfade" until 2026-09-07. The
+crossfade had been there since the first commit, with its own test file and
+three callers.
+
+A state machine that decides *which* clip is still absent and still belongs to
+the game layer rather than to the engine.
 
 **No shadows past `ShadowSettings.viewDistance`**, which defaults to sixty
 metres. The directional light's cascades fit the view up to that distance and

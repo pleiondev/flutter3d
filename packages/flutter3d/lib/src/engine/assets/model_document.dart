@@ -55,6 +55,45 @@ abstract class ModelDocument {
   /// Clips that drive [nodes]. Empty for formats that carry no animation.
   List<AnimationClip> get animations => const <AnimationClip>[];
 
+  /// The joints at and under the node called [name], as a mask a layer takes.
+  ///
+  /// **The hierarchy walk lives here because the hierarchy does.**
+  /// `AnimationTarget` is three setters and no parents, deliberately — see
+  /// `AnimationMask` — so the player cannot work out what is under a spine and
+  /// is handed the answer instead. [nodes] is the tree, and its indices are the
+  /// ones an animation channel addresses, so the set that comes out needs no
+  /// translation on the way in.
+  ///
+  /// An empty mask when nothing carries that name, which a caller should treat
+  /// as a miss rather than as "everything": a layer over an empty mask writes
+  /// nothing, so a misspelt joint is a layer that does nothing rather than a
+  /// layer that takes over the whole skeleton. [AnimationMask.everything] is
+  /// how a caller asks for the whole skeleton on purpose.
+  AnimationMask maskUnder(String name) {
+    for (var i = 0; i < nodes.length; i++) {
+      if (nodes[i].name == name) return maskUnderIndex(i);
+    }
+    return AnimationMask(const <int>[]);
+  }
+
+  /// The same, from an index into [nodes].
+  ///
+  /// Iterative rather than recursive, and it carries a seen set: a malformed
+  /// document whose children point back up their own branch would otherwise
+  /// walk for ever, and a decoder is exactly the place a cycle arrives from.
+  AnimationMask maskUnderIndex(int root) {
+    if (root < 0 || root >= nodes.length) return AnimationMask(const <int>[]);
+    final found = <int>{};
+    final pending = <int>[root];
+    while (pending.isNotEmpty) {
+      final index = pending.removeLast();
+      if (index < 0 || index >= nodes.length) continue;
+      if (!found.add(index)) continue;
+      pending.addAll(nodes[index].children);
+    }
+    return AnimationMask(found);
+  }
+
   /// Skeletons. Empty for formats that carry no skinning.
   List<ModelSkin> get skins => const <ModelSkin>[];
 
