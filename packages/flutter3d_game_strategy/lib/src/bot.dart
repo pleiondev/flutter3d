@@ -7,6 +7,14 @@
 /// sides run the same code, anything that makes a run differ from itself shows
 /// up as the wrong side winning rather than as a number a hair out.
 ///
+/// **It gives its orders through the queue, and that is the same door the
+/// mouse uses.** Nothing here writes `Unit.order` or `Unit.job`: a policy asks
+/// `StrategySimulation.orders` for a move or a job the way a click does, and
+/// the step carries both out at the same moment. That is what makes a match
+/// recordable at all — see `order_tape.dart` — and it is also the honest test
+/// of the claim this file opens with, since a bot with a private door would be
+/// a mirror of nothing.
+///
 /// **It decides on a cadence, not every step.** Not for speed — the policy is a
 /// few comparisons — but because deciding sixty times a second is how a bot
 /// ends up re-ordering a unit that has not had time to take a step, which reads
@@ -69,7 +77,7 @@ final class Bot {
         _scout(simulation, unit);
         continue;
       }
-      unit.job = HarvestJob(node: seam, dropOff: base);
+      simulation.orders.assign(unit, node: seam, dropOff: base);
     }
   }
 
@@ -101,7 +109,14 @@ final class Bot {
   ///
   /// No job, so the worker is idle again the moment it arrives and gets asked
   /// the same question with more of the map uncovered. That is the whole loop:
-  /// walk, look, be asked again.
+  /// walk, look, be asked again — and the "no job" is now the order's doing
+  /// rather than this method's, because a move cancels whatever loop the unit
+  /// was running. What that changed is worth naming: a scout used to keep the
+  /// exhausted job it was sent out with, and the job's own loop rewrote its
+  /// order every step to walk it home again. It went scouting in name only.
+  ///
+  /// A squad of one, which takes a slot of nothing: a formation centres its
+  /// block on the goal, and a block one unit wide is centred on it exactly.
   void _scout(StrategySimulation simulation, Unit unit) {
     final int cell = simulation.fog.nearestUnexplored(
       side,
@@ -113,7 +128,7 @@ final class Bot {
       },
     );
     if (cell < 0) return;
-    unit.order = UnitOrder.moveTo(simulation.fog.centreOf(cell));
+    simulation.orders.moveTo(<Unit>[unit], simulation.fog.centreOf(cell));
   }
 
   /// The nearest deposit this side has found that still has something in it.

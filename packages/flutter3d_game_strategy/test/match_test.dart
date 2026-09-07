@@ -7,12 +7,13 @@
 /// drift is a bias in the order the step walks its collections).
 ///
 /// [flat], [mirror], [play], [run] and [digestOf] are public because
-/// `snapshot_test.dart` imports them. A save is only worth anything if a match
-/// carries on after it, and "carries on" is measured with the same arrangement
-/// and the same digest this file compares two runs with — a second likeness of
-/// either would be a second thing to keep right.
+/// `snapshot_test.dart` and `orders_test.dart` import them. A save is only
+/// worth anything if a match carries on after it, and "carries on" is measured
+/// with the same arrangement this file compares two runs with — a second
+/// likeness of it would be a second thing to keep right.
 library;
 
+import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:flutter3d_game/flutter3d_game.dart';
@@ -32,6 +33,10 @@ Heightfield flat() => Heightfield(
 /// Everything a side has is the same shape as everything the other has, so any
 /// difference in the result comes from a difference that was asked for — a seam
 /// further away, a seam with less in it — and never from being side one.
+/// [policies] stages the same map with nobody playing it, which is what a
+/// replay is: the tape gives every order the two bots gave, so a second run
+/// that still had them would come out right with an empty tape and prove
+/// nothing.
 Match mirror({
   double seamOne = 20.0,
   double seamTwo = 20.0,
@@ -40,6 +45,7 @@ Match mirror({
   double target = 300.0,
   int workers = 3,
   bool produce = true,
+  bool policies = true,
 }) {
   final sim = StrategySimulation(random: GameRandom(1), ground: flat());
   final bots = <Bot>[];
@@ -66,7 +72,7 @@ Match mirror({
     if (produce) {
       sim.addProducer(Producer(building: base));
     }
-    bots.add(Bot(side: side, base: base));
+    if (policies) bots.add(Bot(side: side, base: base));
   }
   return Match(
     simulation: sim,
@@ -130,6 +136,17 @@ void run(Match match, int steps) {
     match.step(1.0 / 30.0);
   }
 }
+
+/// A world as the bytes it travels in.
+///
+/// **What the replay below compares, in place of the hand-made digest it used
+/// to.** A list of the fields somebody thought of is a comparison that goes on
+/// passing when a field arrives that nobody added to it, and this genre has
+/// already grown three that way — the fog, the running totals, a producer's
+/// progress. The save is the whole of what a step reads, it is kept right by
+/// `snapshot_test.dart`, and jsonEncode of it is one string: a field added to
+/// the world is a field in the comparison the same afternoon.
+String bytesOf(Snapshot snapshot) => jsonEncode(snapshot.toJson());
 
 void main() {
   group('a bot', () {
@@ -204,6 +221,20 @@ void main() {
 
   group('a match', () {
     test('replays to the bit', () {
+      // **What this used to measure and no longer does.** The second run was a
+      // second mirror played by the same two policies — which measures that
+      // running one program twice gives one answer twice, and says nothing
+      // about a recording. There was nothing to record: an order was an
+      // assignment a bot made from outside the step, so the only second run
+      // available was a re-run.
+      //
+      // Now the first match is played **with a tape running**, and the second
+      // is that tape played into a fresh map with nobody at the controls: the
+      // replay has no bots at all, so every job handed out and every walk
+      // ordered over four thousand steps comes off the document. Compared as
+      // the bytes of the save, out through JSON and back the way a file
+      // travels.
+      //
       // Mutation: add `math.Random().nextDouble() * 1e-6` to the separation
       // push — a die rolled inside the step, which is exactly what the
       // structure rule about clocks and dice forbids and what this test is the
@@ -217,15 +248,49 @@ void main() {
       // by 1e-9 gave a final crowd identical to the last bit, and the same
       // start moved by 1e-6 put units two metres apart by the end. "To the bit"
       // means single precision here, and that is the precision the state has.
-      final first = mirror(seamTwo: 34.0);
-      final second = mirror(seamTwo: 34.0);
+      final live = mirror(seamTwo: 34.0);
+      final Snapshot start = live.simulation.save();
+      final recorder = OrderTapeRecorder(seed: start.data.integer('random'));
+      live.simulation.orders.recorder = recorder;
 
-      final int steps = play(first);
-      play(second);
+      final int steps = play(live);
+      final String ending = bytesOf(live.simulation.save());
 
       expect(steps, lessThan(6000), reason: 'the match never finished');
-      expect(digestOf(second.simulation), digestOf(first.simulation));
-      expect(second.standing.winner, first.standing.winner);
+      expect(
+        ending,
+        isNot(bytesOf(start)),
+        reason: 'a match in which nothing happened would prove nothing',
+      );
+
+      // Through the document as it would travel: a string.
+      final String sent = jsonEncode(
+        MatchDemo(
+          level: 'the mirror',
+          start: start,
+          tape: recorder.tape,
+        ).toJson(),
+      );
+      final demo = MatchDemo.fromJson(jsonDecode(sent) as Map<String, Object?>);
+      expect(demo.steps, steps, reason: 'the tape lost a step');
+      expect(
+        demo.tape.frames.where((List<StrategyOrder> it) => it.isNotEmpty),
+        isNotEmpty,
+        reason: 'nobody gave an order all match, so the tape carried nothing',
+      );
+
+      // The replay: the same map with nobody playing it, the demo's start
+      // restored into it, and the tape in place of the two policies.
+      final replay = mirror(seamTwo: 34.0, policies: false);
+      replay.simulation.restore(demo.start);
+      final playback = OrderTapePlayback(demo.tape);
+      while (!playback.isFinished) {
+        playback.applyTo(replay.simulation.orders);
+        replay.step(1.0 / 30.0);
+      }
+
+      expect(bytesOf(replay.simulation.save()), ending);
+      expect(replay.standing.winner, live.standing.winner);
     });
 
     test('is not replayed by a start a centimetre away', () {

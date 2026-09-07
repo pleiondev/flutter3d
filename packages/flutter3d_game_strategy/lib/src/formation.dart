@@ -66,6 +66,14 @@ final class Formation {
 }
 
 /// A group of units that takes one order together.
+///
+/// **Reached through the queue rather than built by a caller**, now that an
+/// order is a thing that can be written down: a `MoveOrder` names its units by
+/// entity index and gathers them into one of these to hand out the slots, so
+/// this is where the arrangement is applied and `orders.dart` is where the
+/// asking happens. A caller with the handles in front of it can still make one
+/// — a test does — but a squad built outside the queue gives an order no tape
+/// will ever see.
 final class Squad {
   /// Gathers [units] under [formation].
   Squad(this.units, {this.formation = const Formation.block()});

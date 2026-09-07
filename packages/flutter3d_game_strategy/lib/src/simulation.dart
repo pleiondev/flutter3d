@@ -31,6 +31,7 @@ import 'building.dart';
 import 'economy.dart';
 import 'fog.dart';
 import 'formation.dart';
+import 'orders.dart';
 import 'unit.dart';
 
 /// A crowd on a piece of ground.
@@ -186,6 +187,18 @@ final class StrategySimulation {
     );
   }
 
+  /// What has been asked for and not yet done.
+  ///
+  /// **The one door an order comes through, and that is the point of it.** A
+  /// policy and a mouse used to reach into the crowd and assign `Unit.order`
+  /// and `Unit.job` directly, which works and leaves no moment at which the
+  /// intent is a value — so a match could only be re-run by running the same
+  /// policy again, and never played back from a recording. See `orders.dart`.
+  ///
+  /// Late rather than eager because the queue holds this simulation and a field
+  /// cannot name `this` before the constructor has run.
+  late final OrderQueue orders = OrderQueue(this);
+
   /// The crowd, in the order it was added.
   ///
   /// **A list, and the step walks it in order.** A set or a map keyed by
@@ -251,11 +264,16 @@ final class StrategySimulation {
 
   /// Moves the crowd on by [dt] seconds.
   ///
-  /// **Jobs first, then the walk.** A harvester decides where it is going this
-  /// step before anything moves it, so an order issued by a job takes effect in
-  /// the same step it was issued rather than the next one — which is the
-  /// difference between a stream of workers and a stutter of them.
+  /// **Orders first, then jobs, then the walk.** What was asked for between
+  /// this step and the last is carried out before anything reads it, so an
+  /// order lands on a step number rather than somewhere inside one — which is
+  /// what lets a tape index its entries by step and get the same match back.
+  /// A harvester then decides where it is going before anything moves it, so an
+  /// order issued by a job takes effect in the same step it was issued rather
+  /// than the next one — the difference between a stream of workers and a
+  /// stutter of them.
   void step(double dt) {
+    orders.obey();
     _work(dt);
     _walk(dt);
     _separate();
@@ -574,6 +592,12 @@ final class StrategySimulation {
     ],
     'fog': fog.save(),
     'sinceFog': _sinceFog,
+    // What has been asked for and not yet done. The window is small and it is
+    // real: an application takes a click in a pointer callback and the step
+    // that obeys it runs a frame later, so a save taken between the two
+    // describes a world in which an order has already been given. See
+    // [OrderQueue.save].
+    'orders': orders.save(),
   });
 
   /// Puts [snapshot] back into this map.
@@ -619,6 +643,7 @@ final class StrategySimulation {
     final Map<String, Object?>? known = from.object('fog');
     if (known != null) fog.restore(known);
     _sinceFog = from.integer('sinceFog', _sinceFog);
+    orders.restore(from.rows('orders'));
 
     _settle();
   }

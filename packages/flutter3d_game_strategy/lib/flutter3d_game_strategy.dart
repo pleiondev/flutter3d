@@ -48,6 +48,15 @@
 /// runs, so a save describes more of them than the map it is restored into has,
 /// and an entity is a handle where a list index is only a guess.
 ///
+/// **And played back.** Every order a side gives — a policy's and a mouse's
+/// alike — goes into [OrderQueue] and is carried out at the top of the step
+/// that follows it, so a match is a starting [Snapshot] plus an entry per step.
+/// [MatchDemo] is those two things as one file. The genre carries its own tape
+/// rather than the engine's [InputTape] because a click on a hillside is not a
+/// key press and a set of units is not a numbered slot; the shape is the same,
+/// the fields are this game's, and the three genres that already play input
+/// tapes were left alone.
+///
 /// **The fog is a rule, not a coat of paint.** [FogOfWar] is asked by the
 /// policy that decides where to send workers, so a side that has not found a
 /// seam cannot dig it and has to send somebody to look; it is also what the
@@ -64,6 +73,8 @@ export 'src/fog.dart';
 export 'src/formation.dart';
 export 'src/map_camera.dart';
 export 'src/match.dart';
+export 'src/order_tape.dart';
+export 'src/orders.dart';
 export 'src/selection.dart';
 export 'src/simulation.dart';
 export 'src/unit.dart';

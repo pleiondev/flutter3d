@@ -147,7 +147,14 @@ class _MapState extends State<_Map> with SingleTickerProviderStateMixin {
     // Only this side's units. The other one has a policy of its own and takes
     // its orders from that; a click that moved both crowds would be a demo of
     // nothing.
-    Squad(staged.mine).moveTo(goal);
+    //
+    // **Into the queue, not into the crowd.** A pointer callback runs between
+    // steps, so an order written straight onto the units would land at whatever
+    // moment the mouse happened to be released and could not be written down at
+    // all. Queued, it is carried out at the top of the next step — the same
+    // moment the bot's orders are — and a recorder attached to the queue sees
+    // it. See `OrderQueue`.
+    staged.simulation.orders.moveTo(staged.mine, goal);
   }
 
   /// Asks the next frame what is drawn under the cursor, and lights it.
