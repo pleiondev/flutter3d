@@ -146,5 +146,13 @@
   "ObjectId": {
     "type": "fragment",
     "file": "shaders/lighting/object_id.frag"
+  },
+  "VertexTextureProbeVertex": {
+    "type": "vertex",
+    "file": "shaders/probe/vertex_texture.vert"
+  },
+  "VertexTextureProbe": {
+    "type": "fragment",
+    "file": "shaders/probe/vertex_texture.frag"
   }
 }

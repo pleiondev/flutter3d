@@ -1,4 +1,4 @@
-/// The thirty-one checks, against a backend with no GPU underneath it.
+/// The thirty-two checks, against a backend with no GPU underneath it.
 ///
 /// This is the only backend that can run them in a plain `flutter test`: the
 /// other two need a device, so Impeller runs them from an application and

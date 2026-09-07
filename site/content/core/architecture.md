@@ -57,7 +57,7 @@ Its shaders are GLSL ES 3.00 generated from `flutter3d_shaders`. Nothing checked
 Any new backend has to pass `flutter3d_conformance` before it counts as one.
 
 <div class="note">
-<p>Writing a fourth one is a documented job rather than an archaeology exercise: <a href="/core/backends/"><strong>Writing a HAL backend</strong></a> covers the whole contract, the ten semantics that appear in no signature, the conformance suite you can run before compiling a single shader, and the thirty-seven shader entry points your bundle has to answer to.</p>
+<p>Writing a fourth one is a documented job rather than an archaeology exercise: <a href="/core/backends/"><strong>Writing a HAL backend</strong></a> covers the whole contract, the ten semantics that appear in no signature, the conformance suite you can run before compiling a single shader, and the thirty-nine shader entry points your bundle has to answer to.</p>
 </div>
 
 ### What the HAL actually names

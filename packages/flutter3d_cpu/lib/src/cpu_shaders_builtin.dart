@@ -58,6 +58,7 @@ import 'cpu_shaders_reflections.dart';
 import 'cpu_shaders_shadow_passes.dart';
 import 'cpu_shaders_sky.dart';
 import 'cpu_shaders_ssao.dart';
+import 'cpu_shaders_vertex_probe.dart';
 
 export 'cpu_shaders_bloom.dart';
 export 'cpu_shaders_color.dart';
@@ -76,6 +77,7 @@ export 'cpu_shaders_shadow_point.dart';
 export 'cpu_shaders_sky.dart';
 export 'cpu_shaders_ssao.dart';
 export 'cpu_shaders_surface.dart';
+export 'cpu_shaders_vertex_probe.dart';
 
 /// A stage that exists so the name resolves and fails if anybody draws with it.
 ///
@@ -139,6 +141,10 @@ Map<String, CpuStage> builtinCpuShaders() {
       MeshLightmappedVertexShader(),
     ),
     'DebugLineVertex': const CpuStage.vertex(DebugLineVertexShader()),
+    'VertexTextureProbeVertex': const CpuStage.vertex(
+      VertexTextureProbeVertexShader(),
+    ),
+    'VertexTextureProbe': const CpuStage.fragment(VertexTextureProbeShader()),
     'DebugLine': const CpuStage.fragment(DebugLineShader()),
     'ParticleVertex': const CpuStage.vertex(ParticleVertexShader()),
     'ParticleMeshVertex': const CpuStage.vertex(ParticleMeshVertexShader()),

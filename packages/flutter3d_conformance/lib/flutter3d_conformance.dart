@@ -14,8 +14,8 @@
 ///
 /// **Two tiers, and the split is a correction.** This file used to say it was
 /// shader-free as a whole, and that stopped being true the day a check needed a
-/// pipeline: twenty-three of the thirty-one link stages and draw. A new
-/// backend following the old promise would have met twenty-three shader checks
+/// pipeline: twenty-four of the thirty-two link stages and draw. A new
+/// backend following the old promise would have met twenty-four shader checks
 /// it could do nothing about, so the lists say which is which — [coreChecks]
 /// needs clears, uploads and readback alone, [shaderChecks] needs the bundle.
 /// The tiers answer "can this be asked yet", not "does this matter": the
@@ -65,6 +65,7 @@ import 'src/sampling_checks.dart';
 import 'src/semantics_checks.dart';
 import 'src/shader_link_checks.dart';
 import 'src/stencil_checks.dart';
+import 'src/vertex_texture_checks.dart';
 
 export 'src/loaded_bundle_checks.dart'
     show OwnShaderSection, loadedBundleChecks;
@@ -180,7 +181,7 @@ void runDeviceConformance({
 /// **This list is why the two exist separately.** The library used to say it
 /// was shader-free as a whole, and it stopped being true the day the third
 /// check needed a pipeline — so a new backend, following the promise, would
-/// have hit twenty-three shader checks it had no way to act on yet. Clears,
+/// have hit twenty-four shader checks it had no way to act on yet. Clears,
 /// uploads and readback only: the answers here are the cheapest ones to get,
 /// and they are the ones worth having first.
 List<ConformanceCheck> get coreChecks => <ConformanceCheck>[
@@ -224,6 +225,10 @@ List<ConformanceCheck> get shaderChecks => <ConformanceCheck>[
     run: checkReadbackOfRegion,
   ),
   (name: 'an instanced draw draws every instance', run: checkInstancedDraw),
+  (
+    name: 'a vertex stage can sample a texture',
+    run: checkVertexTextureSampling,
+  ),
   (
     name: 'a buffer is uploaded for its declared use, and draws as it',
     run: checkGeometryUsage,

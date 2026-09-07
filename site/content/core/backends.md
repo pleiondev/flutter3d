@@ -15,7 +15,7 @@ What could **not** be written from the contract is the shaders. That limit is re
 <li>What <code>GraphicsDevice</code>, <code>CommandEncoder</code> and <code>PassEncoder</code> require of you</li>
 <li>Ten semantics that are part of the contract and appear in no signature</li>
 <li>The conformance suite, and how to run it before you have a single shader</li>
-<li>The thirty-seven shader entry points your bundle must answer to</li>
+<li>The thirty-nine shader entry points your bundle must answer to</li>
 </ul>
 </div>
 
@@ -274,7 +274,7 @@ The Impeller backend's translation asserts that each enum value maps to the `flu
 
 ## Run the conformance suite first
 
-`flutter3d_conformance` turns those semantics into executable checks, in **two tiers**. `coreChecks` works with clears, uploads and readback alone, so you can run it before you have a single shader compiled, which is when the answers are cheapest to act on. `shaderChecks` needs the bundle: twenty-three shader checks against seven that ask for none, and one more for a backend that can pack its own shaders as a loadable bundle — twenty-three of the thirty-one link stages and draw. Among the twenty-three: that a pass starts covering its own attachment and nothing else, that its initial viewport covers the *level* rather than the base, that it inherits no clipping from the pass before it and starts with the stencil test off, that a binding made for one pipeline does not follow the next, that a block missing a member the caller named is refused, that a pass renders into a cube face and a mip, that a blend constant reaches the blend or is refused rather than drawn as zero, that a multisample resolve resolves, that an object id survives the draw and the readback, and that wireframe and every primitive type are each drawn as themselves or refused rather than quietly substituted. The lists are the authority — `coreChecks` and `shaderChecks` in `flutter3d_conformance.dart` — and the counts in this paragraph are held to them by `tool/structure.dart`, because the last time they were not, this page said fifteen.
+`flutter3d_conformance` turns those semantics into executable checks, in **two tiers**. `coreChecks` works with clears, uploads and readback alone, so you can run it before you have a single shader compiled, which is when the answers are cheapest to act on. `shaderChecks` needs the bundle: twenty-four shader checks against seven that ask for none, and one more for a backend that can pack its own shaders as a loadable bundle — twenty-four of the thirty-two link stages and draw. Among the twenty-four: that a pass starts covering its own attachment and nothing else, that its initial viewport covers the *level* rather than the base, that it inherits no clipping from the pass before it and starts with the stencil test off, that a binding made for one pipeline does not follow the next, that a block missing a member the caller named is refused, that a pass renders into a cube face and a mip, that a blend constant reaches the blend or is refused rather than drawn as zero, that a multisample resolve resolves, that an object id survives the draw and the readback, and that wireframe and every primitive type are each drawn as themselves or refused rather than quietly substituted. The lists are the authority — `coreChecks` and `shaderChecks` in `flutter3d_conformance.dart` — and the counts in this paragraph are held to them by `tool/structure.dart`, because the last time they were not, this page said fifteen.
 
 **A check a backend cannot be asked is reported as a decline, not as a pass.** Three of them can end that way: multisampling, where the software rasteriser answers `supportsOffscreenMsaa` false and does not multisample at all; the blend constant, where flutter_gpu exposes no setter, so the Impeller backend answers `supportsBlendColor` false and refuses; and the uniform-member rule, which only a backend that reflects its shaders can keep. The runner's tally line says `N passed, M failed, K declined` for exactly this reason: "the suite is green" and "the suite is green, and here is what it never asked" are different sentences, and a third party reading this page to decide what conformance buys them needs the second one.
 
@@ -338,6 +338,9 @@ Thirty-seven entry points. `kRequiredShaders` and the bundle manifest are kept i
 | Particles | `Particle`, `ParticleTextured`, `ParticleMesh` |
 | Sky | `Sky`, `SkyCube` |
 | Debug | `DebugLine`, `MrtProbe`, `ObjectId`, `Xray` |
+| Probes | `VertexTextureProbeVertex`, `VertexTextureProbe` |
+
+The probe pair draws nothing a game ever sees. It asks whether a **vertex** stage can sample a texture, because the answer decides how morph targets reach the GPU: the vertex layout here is structural, so morphing either needs a second layout — and a second vertex shader per lighting model — or the deltas in a texture read by vertex id, which needs exactly this. All three backends answered yes, Impeller included, which is the answer that was not knowable from a header. `MrtProbe` is in the table above it for the same reason and predates it.
 
 `flutter3d_shaders` holds the GLSL every backend compiles from — Impeller into a bundle, WebGL by translation, the CPU backend as Dart transcriptions, so that is one list instead of three. **But a backend cannot satisfy the contract without reading the shaders themselves.**
 
