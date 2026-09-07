@@ -3,7 +3,10 @@ import 'dart:typed_data';
 
 import 'package:vector_math/vector_math.dart';
 
+import 'morph_target.dart';
 import 'vertex_layout.dart';
+
+export 'morph_target.dart';
 
 /// Opaque white: a vertex colour multiplies the surface, so this is the value
 /// that changes nothing.
@@ -45,7 +48,8 @@ final class MeshData {
     required this.layout,
     required this.vertices,
     required this.indices,
-  }) {
+    List<MorphTarget> morphTargets = const <MorphTarget>[],
+  }) : morphTargets = List<MorphTarget>.unmodifiable(morphTargets) {
     final stride = layout.floatsPerVertex;
     if (vertices.length % stride != 0) {
       throw ArgumentError(
@@ -59,10 +63,43 @@ final class MeshData {
         'are not triangles.',
       );
     }
+    for (final target in this.morphTargets) {
+      if (target.vertexCount != vertexCount) {
+        throw ArgumentError(
+          'a morph target covers ${target.vertexCount} vertices and the mesh '
+          'has $vertexCount. A target that does not cover the mesh would '
+          'blend part of it and leave the rest where it was, which draws as a '
+          'model torn in half.',
+        );
+      }
+    }
   }
 
   final VertexLayout layout;
   final Float32List vertices;
+
+  /// Shapes this mesh can be blended towards. Empty for almost every mesh.
+  ///
+  /// Unmodifiable, and the reason is the same one every collection in this
+  /// engine got one for: a target list that could grow after the deltas were
+  /// uploaded would be a list the GPU copy disagreed with.
+  final List<MorphTarget> morphTargets;
+
+  /// Whether anything can deform this mesh.
+  bool get hasMorphTargets => morphTargets.isNotEmpty;
+
+  /// The same geometry carrying [targets].
+  ///
+  /// A copy rather than a setter because every other transformation here
+  /// returns a new mesh — `withGeneratedTangents` among them, which is exactly
+  /// why this exists: targets attached before it would be dropped by it, so
+  /// they go on last.
+  MeshData withMorphTargets(List<MorphTarget> targets) => MeshData(
+    layout: layout,
+    vertices: vertices,
+    indices: indices,
+    morphTargets: targets,
+  );
 
   /// Indices are always 32-bit on the CPU side; narrowing to 16 bit happens
   /// only when packing for the GPU.

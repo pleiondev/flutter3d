@@ -22,6 +22,18 @@ extension _GltfMesh on GltfLoader {
     final primitives = _mapList(mesh['primitives']);
     final result = <_DecodedPrimitive>[];
 
+    // What a target is called, when the exporter said. glTF puts these in
+    // `mesh.extras.targetNames`, which is a convention every tool follows and
+    // the specification does not require — so this is a list that is usually
+    // empty and occasionally the only way a game can ask for "blink".
+    final extras = mesh['extras'];
+    final names = extras is Map ? extras['targetNames'] : null;
+    final targetNames = <String>[
+      if (names is List)
+        for (final name in names)
+          if (name is String) name,
+    ];
+
     for (var i = 0; i < primitives.length; i++) {
       final primitive = primitives[i];
       final label = 'meshes[$meshIndex].primitives[$i]';
@@ -41,19 +53,9 @@ extension _GltfMesh on GltfLoader {
         continue;
       }
 
-      // **Morph targets load their base shape and are then never applied**,
-      // and said nothing about it — so a mesh authored to open a door, blink or
-      // speak comes back as a model that draws correctly and does not move,
-      // which is the failure that gets chased in the animation code rather than
-      // here. The sibling case already warns: a morph *weight* channel on an
-      // animation says so.
+      // Morph targets are read here and blended by `MorphBlend`. What used to
+      // stand in this place was a warning that they were dropped.
       final targets = primitive['targets'];
-      if (targets is List && targets.isNotEmpty) {
-        warnings.add(
-          '$label has ${targets.length} morph target(s), which this engine '
-          'does not apply; the base shape is drawn.',
-        );
-      }
 
       if (primitive['extensions'] is Map) {
         final extensions = (primitive['extensions']! as Map).keys;
@@ -86,6 +88,8 @@ extension _GltfMesh on GltfLoader {
           attributes: attributes.cast<String, Object?>(),
           indicesAccessor: _asInt(primitive['indices']),
           materialIndex: _asInt(primitive['material']),
+          targets: targets is List ? targets : const <Object?>[],
+          targetNames: targetNames,
           reader: reader,
           warnings: warnings,
         );
@@ -105,6 +109,8 @@ extension _GltfMesh on GltfLoader {
     required Map<String, Object?> attributes,
     required int? indicesAccessor,
     required int? materialIndex,
+    required List<Object?> targets,
+    required List<String> targetNames,
     required GltfAccessorReader reader,
     required List<String> warnings,
   }) {
@@ -345,8 +351,95 @@ extension _GltfMesh on GltfLoader {
       mesh = mesh.withGeneratedTangents(target: primitiveLayout);
     }
 
+    // Last, because `withGeneratedTangents` returns a fresh mesh and would drop
+    // anything attached before it.
+    if (targets.isNotEmpty) {
+      final morphs = _readMorphTargets(
+        label: label,
+        targets: targets,
+        targetNames: targetNames,
+        sourceVertexCount: vertexCount,
+        builtVertexCount: mesh.vertexCount,
+        split: needsFlatNormals,
+        reader: reader,
+        warnings: warnings,
+      );
+      if (morphs.isNotEmpty) mesh = mesh.withMorphTargets(morphs);
+    }
+
     return _DecodedPrimitive(mesh: mesh, materialIndex: materialIndex);
   }
+}
+
+/// Reads a primitive's morph targets, or says why it could not.
+///
+/// **Only where the built vertices are the file's vertices.** A target is a
+/// delta per source vertex, and this loader has one path that changes the
+/// count: flat-shading a primitive with no NORMAL splits every shared vertex,
+/// three per triangle. Remapping the deltas through that split is possible and
+/// is not done, because the case cannot arise for the thing morph targets are
+/// for — a face carries normals, and a mesh authored to deform without them is
+/// a mesh whose deltas would be blended into flat facets anyway. It warns
+/// instead, which is the same shape the old unconditional warning had and now
+/// fires for the one case rather than all of them.
+List<MorphTarget> _readMorphTargets({
+  required String label,
+  required List<Object?> targets,
+  required List<String> targetNames,
+  required int sourceVertexCount,
+  required int builtVertexCount,
+  required bool split,
+  required GltfAccessorReader reader,
+  required List<String> warnings,
+}) {
+  if (split || builtVertexCount != sourceVertexCount) {
+    warnings.add(
+      '\$label has \${targets.length} morph target(s) and was rebuilt with '
+      '\$builtVertexCount vertices from \$sourceVertexCount, so the deltas no '
+      'longer line up with the vertices; the base shape is drawn. A primitive '
+      'with NORMAL is not rebuilt.',
+    );
+    return const <MorphTarget>[];
+  }
+
+  final read = <MorphTarget>[];
+  for (var i = 0; i < targets.length; i++) {
+    final target = targets[i];
+    if (target is! Map) continue;
+    final positionAccessor = _asInt(target['POSITION']);
+    if (positionAccessor == null) {
+      // glTF allows a target that morphs only normals. Nothing this engine
+      // draws is authored that way, and reading one would mean carrying a
+      // target with no positions through every layer below.
+      warnings.add('\$label morph target \$i has no POSITION and was skipped.');
+      continue;
+    }
+    if (reader.countOf(positionAccessor) != sourceVertexCount) {
+      warnings.add(
+        '\$label morph target \$i covers \${reader.countOf(positionAccessor)} '
+        'vertices and the primitive has \$sourceVertexCount; skipped.',
+      );
+      continue;
+    }
+
+    Float32List? deltasOf(String name) {
+      final accessor = _asInt(target[name]);
+      if (accessor == null) return null;
+      if (reader.countOf(accessor) != sourceVertexCount) return null;
+      return reader.readAsFloats(accessor);
+    }
+
+    read.add(
+      MorphTarget(
+        vertexCount: sourceVertexCount,
+        positions: reader.readAsFloats(positionAccessor),
+        normals: deltasOf('NORMAL'),
+        tangents: deltasOf('TANGENT'),
+        name: i < targetNames.length ? targetNames[i] : null,
+      ),
+    );
+  }
+  return read;
 }
 
 final class _DecodedPrimitive {
