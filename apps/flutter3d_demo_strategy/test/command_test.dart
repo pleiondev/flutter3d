@@ -34,17 +34,20 @@ StrategyMap _map() =>
   final StrategyStart start = openMatch(_map(), workers: workers);
   return (
     match: start.match,
-    command: CommandPost(
-      simulation: start.simulation,
-      side: viewerSide,
-    ),
+    command: CommandPost(simulation: start.simulation, side: viewerSide),
   );
 }
 
 /// Steps [match] for [seconds] at thirty a second, the way the demo's ticker
 /// would, and hands back what this side has brought home.
-double _play(Match match, double seconds) {
+///
+/// [command] stands in for the ticker's other half: a hall makes nothing it was
+/// not asked for, and on this side the screen is what asks. A test that steps
+/// the match alone watches a camp that never grows, which is a different game
+/// from the one the demo plays.
+double _play(Match match, double seconds, {CommandPost? command}) {
   for (var i = 0; i < (seconds * 30).round(); i++) {
+    command?.restock();
     match.step(1.0 / 30.0);
   }
   return match.simulation.delivered[viewerSide];
@@ -120,7 +123,11 @@ void main() {
     command.orderTo(_away);
 
     expect(match.simulation.orders.waiting, hasLength(1));
-    expect(picked.order.goal, isNull, reason: 'the order was carried out early');
+    expect(
+      picked.order.goal,
+      isNull,
+      reason: 'the order was carried out early',
+    );
 
     match.step(1.0 / 30.0);
     expect(picked.order.goal, isNotNull);
@@ -199,7 +206,7 @@ void main() {
     final (:match, :command) = _open();
     final int opened = command.mine.length;
 
-    _play(match, 40.0);
+    _play(match, 40.0, command: command);
     expect(
       command.mine.length,
       greaterThan(opened),

@@ -311,13 +311,12 @@ final class StrategyVisuals {
     // failing unit reads as reddening rather than as merely dimming — a dim one
     // would be indistinguishable from one standing in shadow.
     final double hurt = left < 0.0 ? 0.0 : left;
-    return _tint
-      ..setValues(
-        0.45 + 0.55 * hurt,
-        0.12 + 0.88 * hurt,
-        0.1 + 0.9 * hurt,
-        1.0,
-      );
+    return _tint..setValues(
+      0.45 + 0.55 * hurt,
+      0.12 + 0.88 * hurt,
+      0.1 + 0.9 * hurt,
+      1.0,
+    );
   }
 
   /// Whether [side] is shown [unit].

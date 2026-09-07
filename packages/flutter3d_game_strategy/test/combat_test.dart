@@ -46,7 +46,8 @@ void _steps(StrategySimulation sim, int count) {
 
 /// A soldier that stands still: no reach, so it never picks a fight of its own
 /// and only does what a test tells it to.
-UnitType get _unarmedGuard => UnitType.soldier.copyWith(damage: 0.0, range: 0.0);
+UnitType get _unarmedGuard =>
+    UnitType.soldier.copyWith(damage: 0.0, range: 0.0);
 
 void main() {
   group('a kind', () {
@@ -99,16 +100,18 @@ void main() {
       // The whole of what `unit.dart` asked for: the step still only asks where
       // an order points, and where it points is the quarry's own position.
       final sim = _world();
-      final quarry = sim.add(
-        Unit(position: Vector3(40.0, 0.0, 10.0), side: 1),
-      );
+      final quarry = sim.add(Unit(position: Vector3(40.0, 0.0, 10.0), side: 1));
       final hunter = sim.add(
         Unit(position: Vector3(8.0, 0.0, 10.0), type: UnitType.soldier),
       );
       hunter.order = UnitOrder.attack(quarry);
 
       expect(hunter.order.target, same(quarry));
-      expect(hunter.order.goal, isNotNull, reason: 'the walk has nowhere to go');
+      expect(
+        hunter.order.goal,
+        isNotNull,
+        reason: 'the walk has nowhere to go',
+      );
       expect(hunter.order.slot, isNull);
 
       final double was = hunter.position.x;
@@ -309,9 +312,7 @@ void main() {
       final sim = _world(samples: 61);
       final marks = <Unit>[
         for (var i = 0; i < 8; i++)
-          sim.add(
-            Unit(position: Vector3(10.0 + i * 12.0, 0.0, 30.0), side: 1),
-          ),
+          sim.add(Unit(position: Vector3(10.0 + i * 12.0, 0.0, 30.0), side: 1)),
       ];
       for (var i = 0; i < 8; i++) {
         // Just under the soldier's reach, and deliberately not on the bucket
@@ -465,9 +466,7 @@ void main() {
           type: UnitType.worker.copyWith(health: 10.0),
         ),
       );
-      sim.add(
-        Unit(position: Vector3(23.0, 0.0, 20.0), type: UnitType.soldier),
-      );
+      sim.add(Unit(position: Vector3(23.0, 0.0, 20.0), type: UnitType.soldier));
       final match = Match(
         simulation: sim,
         bots: const <Bot>[],
@@ -535,9 +534,7 @@ void main() {
           type: UnitType.worker.copyWith(health: 30.0),
         ),
       );
-      sim.add(
-        Unit(position: Vector3(23.0, 0.0, 20.0), type: UnitType.soldier),
-      );
+      sim.add(Unit(position: Vector3(23.0, 0.0, 20.0), type: UnitType.soldier));
       final match = Match(
         simulation: sim,
         bots: const <Bot>[],
@@ -705,9 +702,7 @@ void main() {
       final mine = sim.add(
         Unit(position: Vector3(14.0, 0.0, 10.0), type: UnitType.soldier),
       );
-      final theirs = sim.add(
-        Unit(position: Vector3(22.0, 0.0, 10.0), side: 1),
-      );
+      final theirs = sim.add(Unit(position: Vector3(22.0, 0.0, 10.0), side: 1));
       final match = Match(
         simulation: sim,
         bots: <Bot>[

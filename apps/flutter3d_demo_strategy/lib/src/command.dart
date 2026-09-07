@@ -117,6 +117,24 @@ final class CommandPost {
   /// Picks out nothing.
   void clear() => _selected.clear();
 
+  /// Asks this side's idle halls for another worker each.
+  ///
+  /// **A hall makes nothing until somebody asks it to.** That is what lets a
+  /// policy save its stockpile for soldiers instead of spending it the moment
+  /// it can, and the far camps have a policy that asks. This side has a player
+  /// instead, and until there is a panel to ask through, the screen asks on
+  /// their behalf — one worker at a time, so a hall stops the moment the seams
+  /// run dry rather than standing with an order it can never pay for.
+  ///
+  /// Called every step, and cheap for it: a producer that is already making
+  /// something, or already holds an order, is passed over without arithmetic.
+  void restock() {
+    for (final Producer maker in simulation.producers) {
+      if (maker.building.side != side || maker.isWanted) continue;
+      simulation.orders.train(maker, UnitType.worker);
+    }
+  }
+
   /// Asks the next step to send whoever is picked out to [goal], and returns
   /// whether anybody was asked.
   ///

@@ -174,7 +174,9 @@ void main() {
       final hall = sim.build(
         Building(centre: Vector3(20.0, 0.0, 20.0), width: 8.0, depth: 8.0),
       );
-      sim.addProducer(Producer(building: hall)..order(UnitType.worker, count: 9));
+      sim.addProducer(
+        Producer(building: hall)..order(UnitType.worker, count: 9),
+      );
 
       for (var i = 0; i < 60 * 20; i++) {
         sim.step(1.0 / 60.0);

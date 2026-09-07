@@ -106,8 +106,7 @@ void main() {
     // The tint sits in the four floats after the three rows of the transform.
     List<double> tintOf(int index) => <double>[
       for (var i = 0; i < 4; i++)
-        visuals.crowd.instanceData[index *
-                InstancedMeshNode.floatsPerInstance +
+        visuals.crowd.instanceData[index * InstancedMeshNode.floatsPerInstance +
             12 +
             i],
     ];

@@ -99,7 +99,11 @@ void main() {
         ),
       );
 
-      expect(tallies.map((it) => it.label), <String>['side 0', 'you', 'side 2']);
+      expect(tallies.map((it) => it.label), <String>[
+        'side 0',
+        'you',
+        'side 2',
+      ]);
       expect(tallies.map((it) => it.amount), <String>['10', '20', '30']);
     });
   });

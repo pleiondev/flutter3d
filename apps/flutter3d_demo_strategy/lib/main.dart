@@ -152,6 +152,12 @@ class _MapState extends State<_Map> with SingleTickerProviderStateMixin {
     );
 
     _ticker = createTicker((_) {
+      // The near camp has no policy behind it, and a hall makes nothing it was
+      // not asked for, so without this the player's side would open with the
+      // crowd the document gave it and never gain another while the far camps
+      // grew. Asked before the step so the order is in the queue the step
+      // drains.
+      command.restock();
       staged.match.step(_dt);
       // Before the picture and before the readout: a squad the player is
       // holding may have lost somebody to the step that just ran, and both the
@@ -442,42 +448,42 @@ class _MapState extends State<_Map> with SingleTickerProviderStateMixin {
           _under = null;
         }),
         child: LayoutBuilder(
-            builder: (BuildContext context, BoxConstraints constraints) {
-              _surface = constraints.biggest;
-              final frame = renderer.render(
-                width: (constraints.maxWidth * dpr).round().clamp(1, 8192),
-                height: (constraints.maxHeight * dpr).round().clamp(1, 8192),
-                scene: _scene,
-                views: <RenderView>[_view],
-                settings: const RenderSettings(),
-              );
-              return Stack(
-                children: <Widget>[
-                  Positioned.fill(child: renderer.device.present(frame.frame)),
-                  if (_bandFrom case final Offset from)
-                    if (_bandTo case final Offset to)
-                      // Drawn from the corners rather than from the units it
-                      // holds: the selection is decided when the button comes
-                      // up, and a rectangle that highlighted its catch as it
-                      // went would be walking the crowd on every mouse move to
-                      // show an answer that is not final.
-                      Positioned.fromRect(
-                        rect: Rect.fromPoints(from, to),
-                        child: const _Band(),
-                      ),
-                  StrategyHud(
-                    readout: readoutOf(
-                      staged.match,
-                      side: viewerSide,
-                      selected: command.count,
-                      under: _under,
+          builder: (BuildContext context, BoxConstraints constraints) {
+            _surface = constraints.biggest;
+            final frame = renderer.render(
+              width: (constraints.maxWidth * dpr).round().clamp(1, 8192),
+              height: (constraints.maxHeight * dpr).round().clamp(1, 8192),
+              scene: _scene,
+              views: <RenderView>[_view],
+              settings: const RenderSettings(),
+            );
+            return Stack(
+              children: <Widget>[
+                Positioned.fill(child: renderer.device.present(frame.frame)),
+                if (_bandFrom case final Offset from)
+                  if (_bandTo case final Offset to)
+                    // Drawn from the corners rather than from the units it
+                    // holds: the selection is decided when the button comes
+                    // up, and a rectangle that highlighted its catch as it
+                    // went would be walking the crowd on every mouse move to
+                    // show an answer that is not final.
+                    Positioned.fromRect(
+                      rect: Rect.fromPoints(from, to),
+                      child: const _Band(),
                     ),
+                StrategyHud(
+                  readout: readoutOf(
+                    staged.match,
+                    side: viewerSide,
+                    selected: command.count,
+                    under: _under,
                   ),
-                ],
-              );
-            },
-          ),
+                ),
+              ],
+            );
+          },
         ),
+      ),
     );
   }
 }

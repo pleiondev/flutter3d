@@ -96,7 +96,11 @@ void main() {
     // crossing ahead of the ray, and the arithmetic would happily report one
     // behind it.
     expect(
-      groundUnder(Vector3(0.0, -5.0, 0.0), Vector3(0.0, -1.0, 0.0), planeY: 0.0),
+      groundUnder(
+        Vector3(0.0, -5.0, 0.0),
+        Vector3(0.0, -1.0, 0.0),
+        planeY: 0.0,
+      ),
       isNull,
     );
   });
