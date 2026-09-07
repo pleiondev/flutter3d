@@ -12,6 +12,8 @@ library;
 
 import 'package:vector_math/vector_math.dart';
 
+import 'economy.dart';
+
 /// What a unit has been told to do.
 ///
 /// One class rather than a hierarchy, because the only thing a step does with
@@ -43,6 +45,7 @@ final class Unit {
     required this.position,
     this.radius = 0.4,
     this.speed = 3.0,
+    this.side = 0,
     UnitOrder? order,
   }) : order = order ?? const UnitOrder.hold();
 
@@ -58,6 +61,14 @@ final class Unit {
   /// How fast it walks, in metres a second.
   final double speed;
 
+  /// Whose it is. Sides are small integers because that is all a simulation
+  /// needs them to be; what a side is called belongs to the game.
+  final int side;
+
   /// What it is doing. Assigning a new one is how a game gives an order.
   UnitOrder order;
+
+  /// The loop it runs when nobody is pointing, or null for a unit that only
+  /// does as it is told. See `HarvestJob`.
+  HarvestJob? job;
 }

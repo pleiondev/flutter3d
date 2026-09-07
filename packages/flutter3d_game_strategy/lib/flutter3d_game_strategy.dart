@@ -37,6 +37,7 @@
 library;
 
 export 'src/building.dart';
+export 'src/economy.dart';
 export 'src/formation.dart';
 export 'src/map_camera.dart';
 export 'src/selection.dart';

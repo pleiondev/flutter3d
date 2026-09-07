@@ -28,6 +28,7 @@ import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:vector_math/vector_math.dart';
 
 import 'building.dart';
+import 'economy.dart';
 import 'formation.dart';
 import 'unit.dart';
 
@@ -111,12 +112,154 @@ final class StrategySimulation {
     return unit;
   }
 
+  /// What each side has taken and not yet spent, by side.
+  final List<Stockpile> stock = <Stockpile>[Stockpile(), Stockpile()];
+
+  /// What is left on the map to take.
+  final List<ResourceNode> resources = <ResourceNode>[];
+
+  /// The buildings that make units.
+  final List<Producer> producers = <Producer>[];
+
+  /// Adds a deposit and returns it.
+  ResourceNode addResource(ResourceNode node) {
+    node.at.y = ground.heightAt(node.at.x, node.at.z);
+    resources.add(node);
+    return node;
+  }
+
+  /// Adds a producer and returns it.
+  Producer addProducer(Producer producer) {
+    producers.add(producer);
+    return producer;
+  }
+
   /// Moves the crowd on by [dt] seconds.
+  ///
+  /// **Jobs first, then the walk.** A harvester decides where it is going this
+  /// step before anything moves it, so an order issued by a job takes effect in
+  /// the same step it was issued rather than the next one — which is the
+  /// difference between a stream of workers and a stutter of them.
   void step(double dt) {
+    _work(dt);
     _walk(dt);
     _separate();
     _sit();
+    _produce(dt);
   }
+
+  /// Runs each unit's job: out to the deposit, back to the drop-off.
+  void _work(double dt) {
+    for (final Unit unit in units) {
+      final HarvestJob? job = unit.job;
+      if (job == null) continue;
+
+      if (job.isFull || job.node.isEmpty) {
+        final Vector3 home = job.dropOff.centre;
+        if (job.dropOff.distanceTo(unit.position.x, unit.position.z) <=
+            _reach) {
+          stock[unit.side].amount += job.carried;
+          job.carried = 0.0;
+          // A worker whose seam ran dry while it was walking home delivers what
+          // it has and then stands: finding it another seam is a decision about
+          // the game rather than about carrying, and it belongs to whoever gave
+          // the job.
+          unit.order = job.node.isEmpty
+              ? const UnitOrder.hold()
+              : UnitOrder.moveTo(job.node.at);
+        } else {
+          unit.order = UnitOrder.moveTo(home);
+        }
+        continue;
+      }
+
+      if (_within(unit.position, job.node.at, _reach)) {
+        job.carried += job.node.take(
+          _least(job.rate * dt, job.capacity - job.carried),
+        );
+        unit.order = const UnitOrder.hold();
+      } else {
+        unit.order = UnitOrder.moveTo(job.node.at);
+      }
+    }
+  }
+
+  /// Turns stockpiles into units.
+  void _produce(double dt) {
+    for (final Producer producer in producers) {
+      final Stockpile purse = stock[producer.building.side];
+      if (!producer.isBusy && !purse.spend(producer.cost)) continue;
+
+      producer.progress += dt;
+      if (producer.progress < producer.seconds) continue;
+      producer.progress = 0.0;
+
+      // Out of the near face rather than the middle, so a unit is not born
+      // inside the building that made it and shoved out by the separation pass
+      // in whichever direction it happened to be leaning.
+      final Building at = producer.building;
+      add(
+        Unit(
+          position: Vector3(
+            at.centre.x,
+            0.0,
+            at.centre.z + at.depth / 2.0 + 1.0,
+          ),
+          side: at.side,
+        ),
+      );
+    }
+  }
+
+  /// The nearest cell that can actually be stood in, starting from [cell].
+  ///
+  /// **A goal is not always somewhere to stand, and the commonest case is the
+  /// one a player makes on purpose: clicking a building.** Its cells are out of
+  /// the grid — that is what placing it did — so a field built for its centre
+  /// reaches nothing and the crowd stands still, which reads as an order that
+  /// was ignored rather than as one that was impossible. A worker taking a load
+  /// home hit this first: the drop-off it was walking to was the very thing
+  /// that had removed the ground under itself.
+  ///
+  /// Rings outward, so the answer is the nearest edge of whatever was clicked.
+  /// Bounded, because a click in the middle of a lake should give up rather
+  /// than search the map.
+  int _standableNear(int cell) {
+    if (cell < 0 || grid.isWalkable(cell)) return cell;
+
+    final int cx = grid.cellX(cell);
+    final int cz = grid.cellZ(cell);
+    for (var ring = 1; ring <= 8; ring++) {
+      for (var dz = -ring; dz <= ring; dz++) {
+        for (var dx = -ring; dx <= ring; dx++) {
+          // Only the ring itself: the inside was searched by the ring before.
+          if (dx.abs() != ring && dz.abs() != ring) continue;
+          final int x = cx + dx;
+          final int z = cz + dz;
+          if (x < 0 || z < 0 || x >= grid.columns || z >= grid.rows) continue;
+          final int at = grid.cellIndex(x, z);
+          if (grid.isWalkable(at)) return at;
+        }
+      }
+    }
+    return -1;
+  }
+
+  /// How near a thing a unit has to be to work at it, in metres.
+  ///
+  /// Measured from the edge of a building and from the middle of a deposit,
+  /// because a deposit has no footprint to be outside of. Wide enough to cover
+  /// the ring of cells a building takes out of the grid, which is most of a
+  /// cell on every side.
+  static const double _reach = 3.5;
+
+  static bool _within(Vector3 a, Vector3 b, double reach) {
+    final double dx = a.x - b.x;
+    final double dz = a.z - b.z;
+    return dx * dx + dz * dz <= reach * reach;
+  }
+
+  static double _least(double a, double b) => a < b ? a : b;
 
   /// Every unit under a move order descends the field for its goal.
   void _walk(double dt) {
@@ -129,7 +272,7 @@ final class StrategySimulation {
       // coordinates: a hundred units told to go to a hundred points inside one
       // two-metre cell walk the same field, and telling them apart would cost a
       // field each for a difference nothing can see.
-      final int cell = grid.cellAt(goal);
+      final int cell = _standableNear(grid.cellAt(goal));
       if (cell < 0) continue;
       final FlowField field = _fields.putIfAbsent(cell, () {
         final made = FlowField(grid)..rebuild(grid.centreOfCell(cell));
