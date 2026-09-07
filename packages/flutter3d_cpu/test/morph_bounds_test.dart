@@ -141,12 +141,19 @@ void main() {
     // Mutation: return nought from `MorphState.reach` and the box stays the
     // half-metre one the mesh was built with.
     final it = _scene(weight: 1.0, told: true);
-    expect(it.node.morph!.reach, closeTo(_slide, 1e-6));
+    expect(it.node.morph!.growth.max.x, closeTo(_slide, 1e-6));
     expect(it.node.worldBounds.max.x, greaterThan(_slide));
     expect(
-      it.node.worldBounds.min.x,
-      lessThan(-_slide),
-      reason: 'the allowance is symmetric: a weight may be negative',
+      it.node.morph!.growth.min.x,
+      0.0,
+      reason:
+          'the target only ever moves the cube one way, and the box '
+          'follows the deltas rather than a radius around them',
+    );
+    expect(
+      it.node.morph!.growth.max.y,
+      0.0,
+      reason: 'nothing moves along Y, so the box does not grow along Y',
     );
   });
 
@@ -155,7 +162,7 @@ void main() {
     expect(it.node.worldBounds.max.x, greaterThan(_slide));
 
     it.node.morph!.setWeights(const <double>[0.0]);
-    expect(it.node.morph!.reach, 0.0);
+    expect(it.node.morph!.growth.max.x, 0.0);
     expect(
       it.node.worldBounds.max.x,
       lessThan(1.0),
@@ -180,6 +187,6 @@ void main() {
     // The sum rather than the largest: two shapes at half strength can put a
     // vertex where either alone could not.
     final it = _scene(weight: 0.5, told: true);
-    expect(it.node.morph!.reach, closeTo(_slide * 0.5, 1e-6));
+    expect(it.node.morph!.growth.max.x, closeTo(_slide * 0.5, 1e-6));
   });
 }

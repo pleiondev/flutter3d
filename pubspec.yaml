@@ -43,4 +43,5 @@ workspace:
   - apps/flutter3d_editor
   - apps/flutter3d_demo_platformer
   - apps/flutter3d_demo_racing
+  - apps/flutter3d_demo_strategy
   - apps/flutter3d_template_app

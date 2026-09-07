@@ -1,4 +1,5 @@
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
+import 'package:vector_math/vector_math.dart';
 
 import '../animation/morph_sink.dart';
 
@@ -18,9 +19,9 @@ final class MorphState implements MorphSink {
   MorphState({
     required this.texture,
     required int targetCount,
-    List<double>? reaches,
+    List<Aabb3>? reaches,
   }) : weights = List<double>.filled(targetCount, 0.0),
-       _reaches = reaches ?? const <double>[];
+       _reaches = reaches ?? const <Aabb3>[];
 
   /// The packed deltas, uploaded once with the mesh.
   final TextureHandle texture;
@@ -34,16 +35,17 @@ final class MorphState implements MorphSink {
 
   int get targetCount => weights.length;
 
-  /// How far each target moves the vertex it moves most, in the mesh's own
-  /// space, index-aligned with [weights]. Empty when the caller did not say.
-  final List<double> _reaches;
+  /// The box each target's deltas span, in the mesh's own space,
+  /// index-aligned with [weights]. Empty when the caller did not say.
+  final List<Aabb3> _reaches;
 
   /// Bumped whenever a weight changes, so a bounding box can tell whether the
   /// shape it was fitted to is still the shape being drawn.
   int get version => _version;
   int _version = 0;
 
-  /// How far past the mesh's own bounds this expression can put a vertex.
+  /// How far past the mesh's own bounds this expression puts a vertex, per
+  /// axis and in each direction.
   ///
   /// **A bounding box has to be told.** A mesh's bounds describe its base
   /// vertices, so a face that opens its jaw past that box is culled while it is
@@ -53,24 +55,38 @@ final class MorphState implements MorphSink {
   /// nothing at all, because the frustum was tested against a box half a metre
   /// wide back at the origin.
   ///
-  /// The sum rather than the largest, and the absolute weight rather than the
-  /// weight: two shapes at half strength can reach further than either alone,
-  /// and glTF permits a negative weight, which moves a vertex just as far in
-  /// the other direction. It is an upper bound and deliberately loose — a box a
-  /// little too large draws something that could have been culled, and a box
-  /// too small loses a model.
-  double get reach {
-    if (_reaches.isEmpty) return 0.0;
-    if (_reachVersion == _version) return _reach;
+  /// The sum of the targets' boxes scaled by their weights, which is the exact
+  /// span of the sum — two shapes at half strength can reach where neither
+  /// alone does. A negative weight swaps a box's ends rather than being taken
+  /// as its size, because glTF permits one and it moves a vertex the other way.
+  ///
+  /// Per axis rather than a radius, for the reason `MorphTarget.displacement`
+  /// gives: a radius grows the box in directions the deltas never point, and on
+  /// a model whose targets are large next to itself that is the difference
+  /// between a subject filling a frame and a third of one.
+  Aabb3 get growth {
+    if (_reachVersion == _version) return _growth;
     _reachVersion = _version;
-    var total = 0.0;
+    _growth.min.setZero();
+    _growth.max.setZero();
     for (var i = 0; i < weights.length && i < _reaches.length; i++) {
-      total += weights[i].abs() * _reaches[i];
+      final weight = weights[i];
+      if (weight == 0.0) continue;
+      final span = _reaches[i];
+      // A negative weight sends the low end high and the high end low.
+      final low = weight > 0.0 ? span.min : span.max;
+      final high = weight > 0.0 ? span.max : span.min;
+      _growth.min.addScaled(low, weight);
+      _growth.max.addScaled(high, weight);
     }
-    return _reach = total;
+    return _growth;
   }
 
-  double _reach = 0.0;
+  /// Whether this expression moves anything at all, for a caller deciding
+  /// whether to widen a box.
+  bool get grows => _reaches.isNotEmpty;
+
+  final Aabb3 _growth = Aabb3();
   int _reachVersion = -1;
 
   /// Sets every weight from [values], ignoring any past the end.

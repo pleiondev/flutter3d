@@ -1860,9 +1860,15 @@ List<Finding> _goldenSceneCount() {
       const Finding('flutter3d_cpu/test/goldens', 'is not there'),
     ];
   }
+  // `.actual.png` is what a failed comparison leaves beside a reference, and
+  // counting one made this rule report a scene that does not exist — the same
+  // slip the site's build had, where those files were being published.
   final count = goldens
       .listSync()
-      .where((FileSystemEntity it) => it.path.endsWith('.png'))
+      .where(
+        (FileSystemEntity it) =>
+            it.path.endsWith('.png') && !it.path.endsWith('.actual.png'),
+      )
       .length;
   if (count == 0) {
     return <Finding>[

@@ -250,6 +250,23 @@ base class MeshNode extends SceneNode {
     return _mirrored;
   }
 
+  /// The longest half-extent of [box] measured from the origin, for the one
+  /// caller that wants a radius where this file otherwise deals in boxes.
+  static double _longestHalfExtent(Aabb3 box) {
+    var worst = 0.0;
+    for (final value in <double>[
+      box.min.x.abs(),
+      box.min.y.abs(),
+      box.min.z.abs(),
+      box.max.x.abs(),
+      box.max.y.abs(),
+      box.max.z.abs(),
+    ]) {
+      if (value > worst) worst = value;
+    }
+    return worst;
+  }
+
   void _refreshBounds() {
     final skin = skeleton;
     if (skin != null) {
@@ -262,9 +279,15 @@ base class MeshNode extends SceneNode {
 
       // The morph's reach rides with the skin's: a morphed vertex is moved in
       // the mesh's rest pose and then posed, so it can end up that much further
-      // from every joint than the bind pose said.
+      // from every joint than the bind pose said. A skeleton's allowance is one
+      // radius rather than a box — it is applied around joints that may point
+      // anywhere — so the growth's longest half-extent is what it is told.
+      final morphing = morph;
+      final grown = morphing == null || !morphing.grows
+          ? 0.0
+          : _longestHalfExtent(morphing.growth);
       final bounds = skin.computeBounds(
-        reach: (skinReach + (morph?.reach ?? 0.0)) * skin.skinScale,
+        reach: (skinReach + grown) * skin.skinScale,
       );
       _worldBounds.min.setFrom(bounds.min);
       _worldBounds.max.setFrom(bounds.max);
@@ -278,13 +301,13 @@ base class MeshNode extends SceneNode {
     }
 
     final version = worldVersion;
-    final shape = morph?.version ?? 0;
+    final expression = morph?.version ?? 0;
     if (version == _boundsVersion &&
         mesh == _boundsMesh &&
-        shape == _boundsShape) {
+        expression == _boundsShape) {
       return;
     }
-    _boundsShape = shape;
+    _boundsShape = expression;
 
     // Transforming the eight corners is necessary: rotating an AABB and taking
     // the extents of the result is only correct for axis-aligned rotations.
@@ -292,15 +315,15 @@ base class MeshNode extends SceneNode {
     // **Grown by what the morph reaches**, in the mesh's own space and before
     // the world transform, so a scaled node scales the allowance with it. A
     // mesh's bounds describe its base vertices, and a weighted target puts them
-    // somewhere else — see `MorphState.reach`, which is where the cost of
+    // somewhere else — see `MorphState.growth`, which is where the cost of
     // getting this wrong is written down.
     final base = localBounds;
-    final grow = morph?.reach ?? 0.0;
-    final local = grow == 0.0
+    final shape = morph;
+    final local = shape == null || !shape.grows
         ? base
         : Aabb3.minMax(
-            base.min - Vector3.all(grow),
-            base.max + Vector3.all(grow),
+            base.min + shape.growth.min,
+            base.max + shape.growth.max,
           );
     final matrix = worldMatrix;
     final corner = Vector3.zero();

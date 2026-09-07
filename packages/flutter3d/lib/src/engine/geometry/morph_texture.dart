@@ -1,5 +1,7 @@
 import 'dart:typed_data';
 
+import 'package:vector_math/vector_math.dart';
+
 import 'mesh_data.dart';
 
 /// A mesh's morph deltas, packed the way `lib/morph.glsl` reads them.
@@ -73,8 +75,8 @@ final class MorphTexture {
       height: height,
       pixels: pixels,
       targetCount: used,
-      reaches: <double>[
-        for (var t = 0; t < used; t++) mesh.morphTargets[t].maxDisplacement,
+      reaches: <Aabb3>[
+        for (var t = 0; t < used; t++) mesh.morphTargets[t].displacement,
       ],
     );
   }
@@ -115,7 +117,7 @@ final class MorphTexture {
 
   /// How far each packed target moves the vertex it moves most, so a bounding
   /// box can be told what an expression reaches — see `MorphState.reach`.
-  final List<double> reaches;
+  final List<Aabb3> reaches;
 
   /// How many the mesh had that did not fit.
   int dropped(MeshData mesh) => mesh.morphTargets.length - targetCount;

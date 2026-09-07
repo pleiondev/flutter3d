@@ -98,7 +98,7 @@ void main() {
     // frustum as well, and the model would be neither hit nor drawn.
     final it = _scene();
     expect(it.node.worldBounds.max.x, greaterThan(_slide));
-    expect(it.node.morph!.reach, closeTo(_slide, 1e-6));
+    expect(it.node.morph!.growth.max.x, closeTo(_slide, 1e-6));
   });
 
   test('MorphBlend is the way out for a caller that needs the real shape', () {

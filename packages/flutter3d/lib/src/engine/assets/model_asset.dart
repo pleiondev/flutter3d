@@ -172,7 +172,7 @@ final class ModelAsset {
     final morphCache =
         <
           MeshData,
-          ({TextureHandle? texture, int count, List<double> reaches})
+          ({TextureHandle? texture, int count, List<Aabb3> reaches})
         >{};
 
     Future<TextureHandle?> textureFor(
@@ -204,13 +204,13 @@ final class ModelAsset {
     /// A failed upload is a model that draws its base shape, not a model that
     /// refuses to load: a device that will not take a float texture is a device
     /// on which every face is expressionless, and that is still a picture.
-    ({TextureHandle? texture, int count, List<double> reaches}) morphFor(
+    ({TextureHandle? texture, int count, List<Aabb3> reaches}) morphFor(
       MeshData mesh,
       String where,
     ) => morphCache.putIfAbsent(mesh, () {
       final packed = MorphTexture.pack(mesh);
       if (packed == null) {
-        return (texture: null, count: 0, reaches: const <double>[]);
+        return (texture: null, count: 0, reaches: const <Aabb3>[]);
       }
 
       final left = packed.dropped(mesh);
@@ -232,7 +232,7 @@ final class ModelAsset {
           '$where: the morph deltas could not be uploaded; the mesh draws '
           'its base shape.',
         );
-        return (texture: null, count: 0, reaches: const <double>[]);
+        return (texture: null, count: 0, reaches: const <Aabb3>[]);
       }
       return (
         texture: uploaded,

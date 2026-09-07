@@ -34,6 +34,7 @@ const List<String> applications = <String>[
   'flutter3d_demo_dungeon',
   'flutter3d_demo_platformer',
   'flutter3d_demo_racing',
+  'flutter3d_demo_strategy',
   'flutter3d_editor',
   'flutter3d_template_app',
 ];
@@ -56,9 +57,7 @@ const Map<String, Set<String>> genreMayDraw = <String, Set<String>>{
   'flutter3d_game_shooter': <String>{'lib/src/weapon_view.dart'},
   'flutter3d_game_racing': <String>{'lib/bridge.dart'},
   'flutter3d_game_platformer': <String>{},
-  // Nothing here draws yet: the crowd is arithmetic, and the day it grows a
-  // visual half it grows a `bridge.dart` like the shooter's.
-  'flutter3d_game_strategy': <String>{},
+  'flutter3d_game_strategy': <String>{'lib/bridge.dart'},
 };
 
 /// Genre cameras that do not turn [CameraRig], and why.
