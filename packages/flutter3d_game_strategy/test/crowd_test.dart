@@ -31,7 +31,7 @@ Heightfield _ground([double Function(int column, int row)? height]) {
 void main() {
   group('an order', () {
     test('walks a unit towards where it points', () {
-      final sim = StrategySimulation(ground: _ground());
+      final sim = StrategySimulation(random: GameRandom(1), ground: _ground());
       final unit = sim.add(Unit(position: Vector3(4.0, 0.0, 4.0)));
       unit.order = UnitOrder.moveTo(Vector3(50.0, 0.0, 50.0));
 
@@ -50,7 +50,7 @@ void main() {
     test('leaves a unit under no order where it stands', () {
       // Mutation: drop the `continue` on a null goal — a held unit then
       // descends whichever field was built last and wanders off.
-      final sim = StrategySimulation(ground: _ground());
+      final sim = StrategySimulation(random: GameRandom(1), ground: _ground());
       final held = sim.add(Unit(position: Vector3(10.0, 0.0, 10.0)));
       final sent = sim.add(Unit(position: Vector3(20.0, 0.0, 20.0)))
         ..order = UnitOrder.moveTo(Vector3(50.0, 0.0, 50.0));
@@ -70,7 +70,7 @@ void main() {
       // one field, not two hundred. Mutation: key the fields by the goal's
       // coordinates — the same walk then costs a field a unit, which is the
       // difference between half a millisecond and a hundred of them.
-      final sim = StrategySimulation(ground: _ground());
+      final sim = StrategySimulation(random: GameRandom(1), ground: _ground());
       for (var i = 0; i < 200; i++) {
         sim
             .add(Unit(position: Vector3(2.0 + i % 20 * 0.9, 0.0, 2.0)))
@@ -99,7 +99,7 @@ void main() {
       // Mutation: drop the separation pass. Every unit descends the same field
       // to the same cell, so without shoving they converge to one point and
       // this fails by an order of magnitude.
-      final sim = StrategySimulation(ground: _ground());
+      final sim = StrategySimulation(random: GameRandom(1), ground: _ground());
       for (var i = 0; i < 40; i++) {
         sim
             .add(
@@ -137,7 +137,10 @@ void main() {
       // `identityHashCode` — two runs then shove in a different order and the
       // positions drift apart in the third decimal.
       List<double> run() {
-        final sim = StrategySimulation(ground: _ground());
+        final sim = StrategySimulation(
+          random: GameRandom(1),
+          ground: _ground(),
+        );
         for (var i = 0; i < 50; i++) {
           sim
               .add(
@@ -174,6 +177,7 @@ void main() {
       // Mutation: drop `_sit`. Units then keep the height they were added at
       // and walk through the hill rather than over it.
       final sim = StrategySimulation(
+        random: GameRandom(1),
         ground: _ground((column, row) => column * 0.4),
       );
       final unit = sim.add(Unit(position: Vector3(4.0, 0.0, 30.0)));

@@ -14,6 +14,7 @@
 /// every player click cancel a career.
 library;
 
+import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:vector_math/vector_math.dart';
 
 import 'building.dart';
@@ -40,6 +41,15 @@ final class ResourceNode {
     amount -= got;
     return got;
   }
+
+  /// What is left in it, which is the whole of what a match can change.
+  ///
+  /// Where the seam is belongs to the level: the map put it there, and a save
+  /// restored into the map it was taken in finds it there again.
+  Map<String, Object?> save() => <String, Object?>{'amount': amount};
+
+  void restore(Map<String, Object?> from) =>
+      amount = from.number('amount', amount);
 }
 
 /// What a unit is doing when nobody is giving it orders.
@@ -69,6 +79,46 @@ final class HarvestJob {
 
   /// Whether it is on its way home rather than out.
   bool get isFull => carried >= capacity;
+
+  /// What it is carrying, how it carries, and where the two things it points at
+  /// sit in the lists the simulation keeps.
+  ///
+  /// **The two indices come from outside**, because a job cannot see them. It
+  /// holds a deposit and a building directly, and a document has no references;
+  /// what identifies both is their place in `StrategySimulation.resources` and
+  /// `StrategySimulation.buildings`, which are lists in the order they were
+  /// staged and therefore the same lists on the far side of a save.
+  Map<String, Object?> save({required int node, required int dropOff}) =>
+      <String, Object?>{
+        'node': node,
+        'dropOff': dropOff,
+        'carried': carried,
+        'capacity': capacity,
+        'rate': rate,
+      };
+
+  /// A job read back from [save], or null when either end of it is missing.
+  ///
+  /// Null rather than a throw, for the reason [Snapshot] gives: a save is the
+  /// one document that must not refuse to load. A worker whose seam is not in
+  /// this map comes back idle, and the policy that gave it the job gives it
+  /// another one on its next thought.
+  static HarvestJob? fromSnapshot(
+    Map<String, Object?> from, {
+    required List<ResourceNode> nodes,
+    required List<Building> buildings,
+  }) {
+    final int node = from.integer('node', -1);
+    final int dropOff = from.integer('dropOff', -1);
+    if (node < 0 || node >= nodes.length) return null;
+    if (dropOff < 0 || dropOff >= buildings.length) return null;
+    return HarvestJob(
+      node: nodes[node],
+      dropOff: buildings[dropOff],
+      capacity: from.number('capacity', 10.0),
+      rate: from.number('rate', 8.0),
+    )..carried = from.number('carried');
+  }
 }
 
 /// What a side has taken and not yet spent.
@@ -89,6 +139,11 @@ final class Stockpile {
     amount -= cost;
     return true;
   }
+
+  Map<String, Object?> save() => <String, Object?>{'amount': amount};
+
+  void restore(Map<String, Object?> from) =>
+      amount = from.number('amount', amount);
 }
 
 /// A building that turns a stockpile into units.
@@ -111,4 +166,19 @@ final class Producer {
 
   /// Whether it has begun one it has not finished.
   bool get isBusy => progress > 0.0;
+
+  /// How far through the current one it is, and only that.
+  ///
+  /// **Which is the field that pays for the whole pair.** A producer restored
+  /// at nought has not merely lost a few seconds: it has forgotten that it
+  /// already paid, so the stockpile is charged a second time for a unit that
+  /// was three-quarters built — and the side that saved while building comes
+  /// back poorer than the side that did not.
+  ///
+  /// What it costs and how long it takes are what the game set it to, and come
+  /// back from the game.
+  Map<String, Object?> save() => <String, Object?>{'progress': progress};
+
+  void restore(Map<String, Object?> from) =>
+      progress = from.number('progress', progress);
 }

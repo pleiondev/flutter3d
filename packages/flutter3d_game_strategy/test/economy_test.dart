@@ -18,7 +18,7 @@ Heightfield _flat() => Heightfield(
 /// A base, a seam twenty metres from it, and one worker between them.
 ({StrategySimulation sim, Unit worker, ResourceNode seam, Building base})
 _camp({double amount = 1000.0}) {
-  final sim = StrategySimulation(ground: _flat());
+  final sim = StrategySimulation(random: GameRandom(1), ground: _flat());
   final base = sim.build(
     Building(centre: Vector3(20.0, 0.0, 20.0), width: 6.0, depth: 6.0),
   );
@@ -98,7 +98,7 @@ void main() {
 
   group('a producer', () {
     test('makes a unit when its side can pay for one', () {
-      final sim = StrategySimulation(ground: _flat());
+      final sim = StrategySimulation(random: GameRandom(1), ground: _flat());
       final hall = sim.build(
         Building(centre: Vector3(20.0, 0.0, 20.0), width: 8.0, depth: 8.0),
       );
@@ -116,7 +116,7 @@ void main() {
     test('makes nothing for a side that cannot pay', () {
       // Mutation: charge after finishing rather than before starting. A side
       // with nothing then gets a free unit every four seconds.
-      final sim = StrategySimulation(ground: _flat());
+      final sim = StrategySimulation(random: GameRandom(1), ground: _flat());
       final hall = sim.build(
         Building(centre: Vector3(20.0, 0.0, 20.0), width: 8.0, depth: 8.0),
       );
@@ -133,7 +133,7 @@ void main() {
       // Mutation: read `stock[0]` instead of the building's side. One side then
       // pays for the other's army, which in a mirror match reads as the bot
       // cheating.
-      final sim = StrategySimulation(ground: _flat());
+      final sim = StrategySimulation(random: GameRandom(1), ground: _flat());
       final theirs = sim.build(
         Building(
           centre: Vector3(60.0, 0.0, 60.0),
@@ -156,7 +156,11 @@ void main() {
       // lists are as long as the simulation was told rather than a literal
       // pair. Mutation: build them as two-element literals again — staging a
       // third camp then reads past the end of both.
-      final wide = StrategySimulation(ground: _flat(), sides: 3);
+      final wide = StrategySimulation(
+        random: GameRandom(1),
+        ground: _flat(),
+        sides: 3,
+      );
       final third = wide.build(
         Building(
           centre: Vector3(60.0, 0.0, 60.0),
@@ -179,7 +183,7 @@ void main() {
     });
 
     test('puts a new unit outside the building that made it', () {
-      final sim = StrategySimulation(ground: _flat());
+      final sim = StrategySimulation(random: GameRandom(1), ground: _flat());
       final hall = sim.build(
         Building(centre: Vector3(30.0, 0.0, 30.0), width: 10.0, depth: 10.0),
       );

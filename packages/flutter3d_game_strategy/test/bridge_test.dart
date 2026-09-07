@@ -32,7 +32,7 @@ void main() {
   tearDown(() => device.dispose());
 
   test('the ground is one node with a vertex per sample', () {
-    final sim = StrategySimulation(ground: _ground());
+    final sim = StrategySimulation(random: GameRandom(1), ground: _ground());
     final visuals = StrategyVisuals(simulation: sim, device: device);
     final scene = Scene(name: 'map');
     visuals.addTo(scene);
@@ -44,7 +44,7 @@ void main() {
     // The reason a strategy is the genre that exercises instancing: a thousand
     // nodes is a thousand draws. Mutation: add a node per unit instead — the
     // scene then holds a thousand children and this fails on the first.
-    final sim = StrategySimulation(ground: _ground());
+    final sim = StrategySimulation(random: GameRandom(1), ground: _ground());
     for (var i = 0; i < 300; i++) {
       sim.add(Unit(position: Vector3(4.0 + i % 20 * 1.5, 0.0, 4.0)));
     }
@@ -63,7 +63,7 @@ void main() {
   test('a unit is drawn standing on the ground, not buried in it', () {
     // Mutation: drop the half-height lift. Every unit is then drawn with its
     // middle at ground level, which reads as a field of half-sunk boxes.
-    final sim = StrategySimulation(ground: _ground());
+    final sim = StrategySimulation(random: GameRandom(1), ground: _ground());
     final unit = sim.add(Unit(position: Vector3(10.0, 0.0, 10.0)));
 
     final visuals = StrategyVisuals(simulation: sim, device: device);
@@ -84,7 +84,7 @@ void main() {
     // Mutation: pass `simulation.units.length` to `count` unclamped. The batch
     // then reports more instances than its buffer has, and the draw reads past
     // the end of it.
-    final sim = StrategySimulation(ground: _ground());
+    final sim = StrategySimulation(random: GameRandom(1), ground: _ground());
     for (var i = 0; i < 40; i++) {
       sim.add(Unit(position: Vector3(4.0 + i * 1.2, 0.0, 4.0)));
     }
@@ -105,7 +105,7 @@ void main() {
     // Instances scale uniformly, and buildings have sizes of their own, so a
     // building cannot join the batch. Mutation: put them in it — a wide hall
     // is then drawn as a cube.
-    final sim = StrategySimulation(ground: _ground());
+    final sim = StrategySimulation(random: GameRandom(1), ground: _ground());
     final visuals = StrategyVisuals(simulation: sim, device: device);
     final scene = Scene(name: 'map');
     visuals
@@ -132,7 +132,7 @@ void main() {
     // node the same material — lighting a hall then lights every hall on the
     // map, which is the sort of thing that looks like a renderer bug and is
     // not.
-    final sim = StrategySimulation(ground: _ground());
+    final sim = StrategySimulation(random: GameRandom(1), ground: _ground());
     final visuals = StrategyVisuals(simulation: sim, device: device);
     visuals.addTo(Scene(name: 'map'));
     sim
@@ -152,7 +152,7 @@ void main() {
       // Mutation: build the tile batches whatever `viewer` says. A test
       // harness, a replay or an editor then looks at a map through somebody
       // else's ignorance, which is the one view that has to be honest.
-      final sim = StrategySimulation(ground: _ground());
+      final sim = StrategySimulation(random: GameRandom(1), ground: _ground());
       final visuals = StrategyVisuals(simulation: sim, device: device);
 
       expect(visuals.unseen, isNull);
@@ -165,7 +165,7 @@ void main() {
       // enemy is simply visible through the dark — and the instance bill,
       // which is what this genre's ceiling is made of, is paid in full for a
       // crowd nobody is allowed to look at.
-      final sim = StrategySimulation(ground: _ground());
+      final sim = StrategySimulation(random: GameRandom(1), ground: _ground());
       sim
         ..add(Unit(position: Vector3(6.0, 0.0, 6.0)))
         ..add(Unit(position: Vector3(34.0, 0.0, 34.0), side: 1));
@@ -184,7 +184,7 @@ void main() {
     });
 
     test('covers what nobody went to and thins behind a crowd that did', () {
-      final sim = StrategySimulation(ground: _ground());
+      final sim = StrategySimulation(random: GameRandom(1), ground: _ground());
       final scout = sim.add(Unit(position: Vector3(6.0, 0.0, 6.0), sight: 8.0));
       final visuals = StrategyVisuals(
         simulation: sim,
@@ -221,7 +221,7 @@ void main() {
       // Mutation: make a node for every building the moment it is placed. The
       // other side's hall then appears out of the dark the instant it is built,
       // which is the fog telling you exactly what it was there to hide.
-      final sim = StrategySimulation(ground: _ground());
+      final sim = StrategySimulation(random: GameRandom(1), ground: _ground());
       final visuals = StrategyVisuals(
         simulation: sim,
         device: device,

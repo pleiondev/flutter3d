@@ -10,6 +10,7 @@
 /// is, and where it was told to go.
 library;
 
+import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:vector_math/vector_math.dart';
 
 import 'economy.dart';
@@ -36,6 +37,28 @@ final class UnitOrder {
   /// walks to the goal itself. See `Formation` for why the slot is an offset
   /// taken on arrival rather than a goal of its own.
   final Vector3? slot;
+
+  /// The two points, written down, and nothing else — there is nothing else.
+  ///
+  /// Both keys are left out for an order that points nowhere, so that a hold
+  /// reads back as a hold rather than as a walk to the origin. That difference
+  /// is not cosmetic: the origin is a corner of the map, and a crowd restored
+  /// with orders to walk there is a crowd that empties its own camp.
+  Map<String, Object?> save() => <String, Object?>{
+    if (goal case final Vector3 at) 'goal': vectorOf(at),
+    if (slot case final Vector3 at) 'slot': vectorOf(at),
+  };
+
+  /// An order read back from [save].
+  factory UnitOrder.fromSnapshot(Map<String, Object?> from) {
+    final Vector3 goal = Vector3.zero();
+    if (!from.vectorInto('goal', goal)) return const UnitOrder.hold();
+    final Vector3 slot = Vector3.zero();
+    return UnitOrder.moveTo(
+      goal,
+      slot: from.vectorInto('slot', slot) ? slot : null,
+    );
+  }
 }
 
 /// One unit on the map.
@@ -80,4 +103,52 @@ final class Unit {
   /// The loop it runs when nobody is pointing, or null for a unit that only
   /// does as it is told. See `HarvestJob`.
   HarvestJob? job;
+
+  /// Which entity carries it, once a simulation has taken it in.
+  ///
+  /// [Entity.none] until then, which is what a unit built by a caller and not
+  /// yet handed to `StrategySimulation.add` is. The handle exists so that a
+  /// crowd can be written down and read back by an `EcsWorld` rather than by a
+  /// list index: production makes units while the match runs, so a save taken
+  /// at minute three has more of them than the map it is restored into, and an
+  /// index into a list of a different length names the wrong unit or none.
+  Entity entity = Entity.none;
+
+  /// Everything about it that is not a place in somebody else's list.
+  ///
+  /// **The job is not here**, and the omission is the interesting part: a job
+  /// points straight at a deposit and at a building, JSON has no references,
+  /// and what identifies those two is where they sit in the simulation's own
+  /// lists — which a unit cannot see. `StrategySimulation` writes that half
+  /// beside this one, because it is the thing holding the lists.
+  ///
+  /// Its width, speed and sight are saved even though they never change,
+  /// because a restore has to *build* this unit rather than fill one in: the
+  /// map it lands in never made it.
+  Map<String, Object?> save() => <String, Object?>{
+    'at': vectorOf(position),
+    'radius': radius,
+    'speed': speed,
+    'sight': sight,
+    'side': side,
+    ...order.save(),
+  };
+
+  /// A unit read back from [save], standing where it stood.
+  ///
+  /// A factory rather than a `restore` on an existing unit, for the reason the
+  /// note on [entity] gives: the crowd a snapshot describes is not the crowd
+  /// the fresh map was staged with.
+  factory Unit.fromSnapshot(Map<String, Object?> from) {
+    final Vector3 at = Vector3.zero();
+    from.vectorInto('at', at);
+    return Unit(
+      position: at,
+      radius: from.number('radius', 0.4),
+      speed: from.number('speed', 3.0),
+      sight: from.number('sight', 18.0),
+      side: from.integer('side'),
+      order: UnitOrder.fromSnapshot(from),
+    );
+  }
 }

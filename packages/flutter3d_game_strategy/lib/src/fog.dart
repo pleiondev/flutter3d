@@ -24,6 +24,7 @@
 /// for a difference a camera above the map cannot see.
 library;
 
+import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:flutter3d_game/flutter3d_game.dart';
@@ -185,4 +186,53 @@ final class FogOfWar {
 
   /// A cell's middle as a point, for a caller that wants somewhere to walk.
   Vector3 centreOf(int cell) => Vector3(centreX(cell), 0.0, centreZ(cell));
+
+  /// What every side knows, as one string, plus the shape of the lattice it
+  /// was written on.
+  ///
+  /// **Base64 rather than a list of numbers**, because the lattice is one byte
+  /// a cell a side and a demo map is a few thousand cells: written out as JSON
+  /// numbers that is tens of kilobytes of `1,3,1,1,` where the same bytes are a
+  /// few kilobytes of text, and every one of those numbers would have to be
+  /// read back and range-checked one at a time.
+  ///
+  /// The three counts are not state and are saved anyway: they are how
+  /// [restore] tells a save of *this* map from a save of another one. Without
+  /// them a lattice from a wider map lands here as a stripe of knowledge
+  /// shifted a few cells sideways per row — a fog that is wrong in a way that
+  /// looks like weather.
+  Map<String, Object?> save() => <String, Object?>{
+    'columns': columns,
+    'rows': rows,
+    'sides': sides,
+    'state': base64Encode(_state),
+  };
+
+  /// Puts [from] back, or leaves this lattice alone when it does not fit.
+  ///
+  /// Written into the array that is already here rather than swapped for a new
+  /// one: the drawing half holds this fog, and a lattice replaced underneath it
+  /// is a picture that stops following the rules it is meant to be showing.
+  ///
+  /// Left alone rather than thrown over, for the reason [Snapshot] gives about
+  /// documents from other builds — and a fog that stays as it is, is a fog the
+  /// next refresh corrects.
+  void restore(Map<String, Object?> from) {
+    if (from.integer('columns', -1) != columns) return;
+    if (from.integer('rows', -1) != rows) return;
+    if (from.integer('sides', -1) != sides) return;
+    final String? written = from.text('state');
+    if (written == null) return;
+    final Uint8List bytes;
+    try {
+      bytes = base64Decode(written);
+    } on FormatException {
+      // A string that is not base64 at all — a truncated write, a hand edit.
+      // The same answer as a lattice of the wrong size, and for the same
+      // reason: a save file is the document that must not refuse to load.
+      return;
+    }
+    if (bytes.length != _state.length) return;
+    _state.setAll(0, bytes);
+  }
 }

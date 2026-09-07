@@ -43,6 +43,7 @@ final class StrategySimulation {
   /// and the units walking them cannot tell.
   StrategySimulation({
     required this.ground,
+    required this.random,
     double cellSize = 2.0,
     double maxSlope = 0.698,
     double fogCellSize = 4.0,
@@ -55,11 +56,43 @@ final class StrategySimulation {
        fog = FogOfWar(ground: ground, cellSize: fogCellSize, sides: sides),
        stock = List<Stockpile>.generate(sides, (_) => Stockpile()),
        delivered = List<double>.filled(sides, 0.0) {
+    entities.register<Unit>('unit', encode: _writeUnit, decode: _readUnit);
     _bake();
   }
 
   final double _cellSize;
   final double _maxSlope;
+
+  /// The generator every roll in this simulation comes out of.
+  ///
+  /// **Nothing here rolls it yet, and it is required anyway.** The three other
+  /// genres each shipped a game that took a default generator, saved dice
+  /// nobody was rolling, and diverged from the run it had saved at the first
+  /// roll somebody later added. The cheap moment to close that is before the
+  /// first die exists: a fight, a scatter of spawn points, a policy that picks
+  /// between two seams that are the same distance away — each of those wants
+  /// randomness, and every one of them would otherwise arrive alongside a save
+  /// format that had to be bumped to carry it.
+  ///
+  /// So this is bookkeeping paid in advance, and the assertion it makes is that
+  /// there is no way to leave it out.
+  final GameRandom random;
+
+  /// Where the crowd lives, entity by entity.
+  ///
+  /// **The reason is the save, and it is worth stating because a crowd this
+  /// simple does not otherwise need an ECS.** [_produce] makes units while the
+  /// match runs, so a snapshot taken at minute three describes more of them
+  /// than the freshly staged map it is restored into — and a snapshot restores
+  /// objects that already exist. Saving unit *n* as the *n*th entry of a list
+  /// would therefore restore three units into a map that has four, or four into
+  /// a map that has three, and either way the wrong worker is holding the load.
+  ///
+  /// An entity is a handle rather than a position, and [EcsWorld.restore]
+  /// raises the ones a save describes without the map having staged them. That
+  /// is the whole of what is bought here; [units] below is still the order the
+  /// step walks, and that order is still what makes a run repeat.
+  final EcsWorld entities = EcsWorld();
 
   /// How many sides are playing.
   ///
@@ -177,6 +210,8 @@ final class StrategySimulation {
   /// explore the ground it is standing on.
   Unit add(Unit unit) {
     unit.position.y = ground.heightAt(unit.position.x, unit.position.z);
+    unit.entity = entities.spawn();
+    entities.set<Unit>(unit.entity, unit);
     units.add(unit);
     fog.reveal(unit.side, unit.position.x, unit.position.z, unit.sight);
     return unit;
@@ -464,6 +499,175 @@ final class StrategySimulation {
     for (final Unit unit in units) {
       unit.position.y = ground.heightAt(unit.position.x, unit.position.z);
     }
+  }
+
+  /// A unit and the job it is running, as one row of the entity world.
+  ///
+  /// The job's half is written here rather than in [Unit.save] because it is
+  /// two places in the lists this object holds — see [HarvestJob.save].
+  Object? _writeUnit(Unit unit) {
+    final HarvestJob? job = unit.job;
+    return <String, Object?>{
+      ...unit.save(),
+      if (job != null)
+        'job': job.save(
+          node: resources.indexOf(job.node),
+          dropOff: buildings.indexOf(job.dropOff),
+        ),
+    };
+  }
+
+  /// The other direction, and the reason [entities] is here at all: this builds
+  /// a unit the map it is restoring into never staged.
+  Unit? _readUnit(Object? data) {
+    if (data is! Map) return null;
+    final Map<String, Object?> from = data.cast<String, Object?>();
+    final Map<String, Object?>? job = from.object('job');
+    return Unit.fromSnapshot(from)
+      ..job = job == null
+          ? null
+          : HarvestJob.fromSnapshot(
+              job,
+              nodes: resources,
+              buildings: buildings,
+            );
+  }
+
+  /// Everything needed to carry on digging, and nothing needed only to draw.
+  ///
+  /// **What is deliberately absent, and why each one is safe to leave out:**
+  ///
+  /// * [ground] and the buildings standing on it are the level. A save restores
+  ///   into the map it was taken in — see [Snapshot] — so the hillside, and
+  ///   where each hall sits on it, come back from whatever staged them. That is
+  ///   what lets a map be re-generated under a save rather than frozen by one.
+  /// * [grid] is derived. It is baked from the ground and the footprints, both
+  ///   of which the level brings back, so carrying it would be carrying a
+  ///   lattice to say what the level already says. [restore] re-bakes instead.
+  /// * The scratch of one step — the flow fields, the separation buckets, the
+  ///   step vector — describes a step that has already happened and is cleared
+  ///   at the top of the next one.
+  ///
+  /// **[_sinceFog] is here and is not a number, it is a phase.** Fog refreshes
+  /// every [fogEvery] steps and is left alone in between; restore that counter
+  /// at nought and a run agrees with the one it was saved from for as many
+  /// steps as were left in the cycle and then refreshes on a beat of its own,
+  /// for ever. Two runs of one tape then disagree about what each side can see
+  /// on most steps, which is the whole of what a replay compares — and the day
+  /// something decides on what a side can see *now* rather than on what it has
+  /// ever seen, it becomes a disagreement about orders too.
+  Snapshot save() => Snapshot(<String, Object?>{
+    'random': random.state,
+    'entities': entities.save(),
+    // The order the step walks the crowd in, which is the whole of this
+    // simulation's determinism. An entity world is a map keyed by index and a
+    // map has no order, so the order is written down rather than inferred from
+    // one.
+    'order': <int>[for (final Unit unit in units) unit.entity.index],
+    'stock': <Object?>[for (final Stockpile purse in stock) purse.save()],
+    'delivered': List<double>.of(delivered),
+    'resources': <Object?>[
+      for (final ResourceNode node in resources) node.save(),
+    ],
+    'producers': <Object?>[
+      for (final Producer maker in producers) maker.save(),
+    ],
+    'fog': fog.save(),
+    'sinceFog': _sinceFog,
+  });
+
+  /// Puts [snapshot] back into this map.
+  ///
+  /// **Every unit handle taken before this call is stale afterwards.** The
+  /// crowd a save describes is not the crowd that was staged, so the units are
+  /// built rather than filled in, and the objects that were here are gone —
+  /// [units] is where the new ones are, in the order the step will walk them.
+  /// Buildings, deposits and producers are the other way round and for the
+  /// opposite reason: the map staged those, so they keep their identity and
+  /// take their numbers back.
+  void restore(Snapshot snapshot) {
+    final Map<String, Object?> from = snapshot.data;
+    random.state = from.integer('random', random.state);
+
+    final Map<String, Object?>? saved = from.object('entities');
+    if (saved != null) entities.restore(saved);
+    _restoreCrowd(from['order']);
+
+    final List<Map<String, Object?>> purses = from.rows('stock');
+    for (var side = 0; side < stock.length && side < purses.length; side++) {
+      stock[side].restore(purses[side]);
+    }
+    final Object? totals = from['delivered'];
+    if (totals is List) {
+      for (
+        var side = 0;
+        side < delivered.length && side < totals.length;
+        side++
+      ) {
+        final Object? total = totals[side];
+        if (total is num) delivered[side] = total.toDouble();
+      }
+    }
+    final List<Map<String, Object?>> seams = from.rows('resources');
+    for (var i = 0; i < resources.length && i < seams.length; i++) {
+      resources[i].restore(seams[i]);
+    }
+    final List<Map<String, Object?>> makers = from.rows('producers');
+    for (var i = 0; i < producers.length && i < makers.length; i++) {
+      producers[i].restore(makers[i]);
+    }
+    final Map<String, Object?>? known = from.object('fog');
+    if (known != null) fog.restore(known);
+    _sinceFog = from.integer('sinceFog', _sinceFog);
+
+    _settle();
+  }
+
+  /// Puts the map and the crowd back into agreement, after something has moved
+  /// the crowd without asking the map.
+  ///
+  /// **The counterpart of the racer's `afterRestore`, and it exists for the
+  /// reason [_evict] already gives.** A restore is the second door a unit's
+  /// position can be set through; the first is [build], which has always
+  /// evicted whoever it buried, because a unit standing on ground that is out
+  /// of the grid gets no direction out of a flow field and stops walking for
+  /// the rest of the match, silently, holding its orders. A save is a document
+  /// and a document can say anything — a hand edit, a crowd written down before
+  /// a hall was raised over it — so the same guarantee is made at both doors
+  /// rather than at one.
+  ///
+  /// The re-bake ahead of it costs about a millisecond, which is what buys the
+  /// eviction an up-to-date grid to look for open ground in without this having
+  /// to know what the caller staged, or in what order.
+  void _settle() {
+    _bake();
+    for (final Building building in buildings) {
+      _evict(building);
+    }
+  }
+
+  /// Rebuilds [units] in the order the save wrote down.
+  ///
+  /// Two things happen here that nothing else can do: each restored unit is
+  /// told which entity it came back on, and the crowd is put back in the order
+  /// the step walks it. Anything the save named that this world does not have
+  /// is skipped rather than filled with a hole.
+  void _restoreCrowd(Object? order) {
+    final Map<int, Unit> found = <int, Unit>{};
+    for (final Entity entity in entities.query<Unit>()) {
+      final Unit? unit = entities.get<Unit>(entity);
+      if (unit == null) continue;
+      unit.entity = entity;
+      found[entity.index] = unit;
+    }
+    units
+      ..clear()
+      ..addAll(<Unit>[
+        if (order is List)
+          for (final Object? index in order)
+            if (index is num)
+              if (found[index.toInt()] case final Unit unit) unit,
+      ]);
   }
 
   /// Which bucket a position falls in. Two metres, so that a pair close enough

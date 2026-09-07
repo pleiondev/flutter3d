@@ -35,7 +35,7 @@ void main() {
     test('takes its ground out of the grid', () {
       // Mutation: drop the `blocked` argument in `_bake`. The cells under a
       // building stay walkable and the crowd walks through the walls.
-      final sim = StrategySimulation(ground: _flat());
+      final sim = StrategySimulation(random: GameRandom(1), ground: _flat());
       final under = sim.grid.cellAtPoint(40.0, 40.0);
       expect(sim.grid.isWalkable(under), isTrue, reason: 'open ground first');
 
@@ -53,6 +53,7 @@ void main() {
 
     test('sits the building on the ground it was placed over', () {
       final sim = StrategySimulation(
+        random: GameRandom(1),
         ground: Heightfield(
           columns: 41,
           rows: 41,
@@ -75,7 +76,7 @@ void main() {
       // The whole point of taking the ground away. Mutation: place the
       // building *after* the walk starts and never re-bake — the units then
       // march through the middle of it.
-      final sim = StrategySimulation(ground: _flat());
+      final sim = StrategySimulation(random: GameRandom(1), ground: _flat());
       sim.build(
         Building(centre: Vector3(40.0, 0.0, 40.0), width: 24.0, depth: 8.0),
       );
@@ -107,7 +108,7 @@ void main() {
       // its job, and never moves again. Mutation: drop the eviction from
       // `build`. Nothing throws, nothing is drawn wrong, and the unit is simply
       // still at (40, 40) two thousand steps later.
-      final sim = StrategySimulation(ground: _flat());
+      final sim = StrategySimulation(random: GameRandom(1), ground: _flat());
       final buried = sim.add(Unit(position: Vector3(40.0, 0.0, 40.0)));
 
       final hall = sim.build(

@@ -93,7 +93,7 @@ void main() {
       // refresh in the step. Everything staged before the first step is then
       // blind for a tenth of a second, and a policy asked for its opening
       // orders sends the whole crowd out to explore its own front garden.
-      final sim = StrategySimulation(ground: _flat());
+      final sim = StrategySimulation(random: GameRandom(1), ground: _flat());
       sim.build(
         Building(centre: Vector3(20.0, 0.0, 20.0), width: 6.0, depth: 6.0),
       );
@@ -105,7 +105,11 @@ void main() {
       // Mutation: stop passing `sides` to the fog. The layer side two writes
       // into is then past the end of a two-side lattice, and staging a third
       // camp throws instead of revealing anything.
-      final wide = StrategySimulation(ground: _flat(), sides: 3);
+      final wide = StrategySimulation(
+        random: GameRandom(1),
+        ground: _flat(),
+        sides: 3,
+      );
       wide.build(
         Building(
           centre: Vector3(20.0, 0.0, 20.0),
@@ -121,7 +125,7 @@ void main() {
     });
 
     test('loses sight of ground its crowd has walked away from', () {
-      final sim = StrategySimulation(ground: _flat());
+      final sim = StrategySimulation(random: GameRandom(1), ground: _flat());
       final scout = sim.add(
         Unit(position: Vector3(10.0, 0.0, 10.0), sight: 8.0),
       );
@@ -149,7 +153,10 @@ void main() {
   group('a bot in the dark', () {
     /// A camp with its only seam well outside anybody's sight.
     ({Match match, Unit worker, ResourceNode seam}) camp() {
-      final sim = StrategySimulation(ground: _flat(samples: 21));
+      final sim = StrategySimulation(
+        random: GameRandom(1),
+        ground: _flat(samples: 21),
+      );
       final base = sim.build(
         Building(
           centre: Vector3(8.0, 0.0, 8.0),

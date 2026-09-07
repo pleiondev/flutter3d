@@ -24,6 +24,8 @@
 /// lead is a draw wherever in the list it happens to fall.
 library;
 
+import 'package:flutter3d_game/flutter3d_game.dart';
+
 import 'bot.dart';
 import 'economy.dart';
 import 'simulation.dart';
@@ -130,6 +132,37 @@ final class Match {
       }
     }
     return level ? const Standing.drawn() : Standing.wonBy(leader);
+  }
+
+  /// The world, the policies playing it, and nothing that can be worked out
+  /// from either.
+  ///
+  /// **A match is what a caller saves, not a simulation.** Everything the step
+  /// touches is either in the world below or in a bot's own head, and saving
+  /// only the first is what makes a restored match give its next order at a
+  /// different moment than the one that was saved — see [Bot.save].
+  ///
+  /// [standing] is not written down. It is a function of what the simulation
+  /// holds — who has delivered what, and whether anything is left to deliver —
+  /// so [restore] asks the judgement rather than reading an answer that a
+  /// hand-edited or half-written document could put at odds with the totals it
+  /// claims to describe. A finishing line moved between the save and the load
+  /// is then honoured, which is the same boundary [MatchGoal] already sits on:
+  /// the goal belongs to whoever staged the match.
+  Snapshot save() => Snapshot(<String, Object?>{
+    'simulation': simulation.save().data,
+    'bots': <Object?>[for (final Bot bot in bots) bot.save()],
+  });
+
+  void restore(Snapshot snapshot) {
+    final Map<String, Object?> from = snapshot.data;
+    final Map<String, Object?>? world = from.object('simulation');
+    if (world != null) simulation.restore(Snapshot(world));
+    final List<Map<String, Object?>> saved = from.rows('bots');
+    for (var i = 0; i < bots.length && i < saved.length; i++) {
+      bots[i].restore(saved[i]);
+    }
+    _standing = _judge();
   }
 
   bool _anythingLeft() {

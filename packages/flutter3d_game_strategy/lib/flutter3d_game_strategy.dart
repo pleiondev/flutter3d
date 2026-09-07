@@ -40,6 +40,14 @@
 /// The victory here is economic for the same reason: nothing on this map
 /// fights, so what settles a match is what a side dug. See [Match].
 ///
+/// **And a match can be written down.** [Match.save] and
+/// [StrategySimulation.save] answer the same [Snapshot] the other three genres
+/// answer, which is what makes an order tape, a replay and a session possible
+/// here rather than a fourth thing to invent. The crowd lives in an [EcsWorld]
+/// for one reason and it is this one: production makes units while the match
+/// runs, so a save describes more of them than the map it is restored into has,
+/// and an entity is a handle where a list index is only a guess.
+///
 /// **The fog is a rule, not a coat of paint.** [FogOfWar] is asked by the
 /// policy that decides where to send workers, so a side that has not found a
 /// seam cannot dig it and has to send somebody to look; it is also what the

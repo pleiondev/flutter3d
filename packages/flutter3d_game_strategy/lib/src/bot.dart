@@ -27,6 +27,8 @@
 /// keeping — this is where that choice goes.
 library;
 
+import 'package:flutter3d_game/flutter3d_game.dart';
+
 import 'building.dart';
 import 'economy.dart';
 import 'simulation.dart';
@@ -70,6 +72,22 @@ final class Bot {
       unit.job = HarvestJob(node: seam, dropOff: base);
     }
   }
+
+  /// Where in its thinking cycle it is.
+  ///
+  /// **A phase rather than a number, and the only thing here worth saving.**
+  /// Which side this plays and where its base is were given to it by whoever
+  /// staged the match, and come back from there. The count of steps since its
+  /// last thought is the one thing it has invented for itself, and a bot
+  /// restored at nought thinks on a different beat than the one that was saved
+  /// — which is a run that agrees for a second and then hands a worker its next
+  /// job at a different moment, near a different seam.
+  Map<String, Object?> save() => <String, Object?>{
+    'sinceThought': _sinceThought,
+  };
+
+  void restore(Map<String, Object?> from) =>
+      _sinceThought = from.integer('sinceThought', _sinceThought);
 
   /// Sends a unit with nothing to dig towards the nearest ground nobody of this
   /// side has seen.

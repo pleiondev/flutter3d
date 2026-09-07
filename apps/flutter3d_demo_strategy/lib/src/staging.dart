@@ -97,7 +97,15 @@ Staged stage({
   int sides = 2,
 }) {
   final ground = hills();
-  final simulation = StrategySimulation(ground: ground, sides: sides);
+  // A fixed seed, because a demo that staged itself differently on every launch
+  // would be a demo whose screenshots are not comparable and whose bug reports
+  // cannot be re-run. Nothing in the simulation rolls it yet; see
+  // `StrategySimulation.random` for why it is here before the first die.
+  final simulation = StrategySimulation(
+    ground: ground,
+    random: GameRandom(1),
+    sides: sides,
+  );
 
   final mine = <Unit>[];
   final bots = <Bot>[];

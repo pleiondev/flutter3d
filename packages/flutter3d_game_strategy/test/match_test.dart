@@ -5,6 +5,12 @@
 /// reproducibility check (two runs of the same start, compared to the bit), and
 /// it is the fairness check (mirrored sides must not drift apart, because a
 /// drift is a bias in the order the step walks its collections).
+///
+/// [flat], [mirror], [play], [run] and [digestOf] are public because
+/// `snapshot_test.dart` imports them. A save is only worth anything if a match
+/// carries on after it, and "carries on" is measured with the same arrangement
+/// and the same digest this file compares two runs with — a second likeness of
+/// either would be a second thing to keep right.
 library;
 
 import 'dart:typed_data';
@@ -14,7 +20,7 @@ import 'package:flutter3d_game_strategy/flutter3d_game_strategy.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart';
 
-Heightfield _flat() => Heightfield(
+Heightfield flat() => Heightfield(
   columns: 41,
   rows: 41,
   cellSize: 2.0,
@@ -26,7 +32,7 @@ Heightfield _flat() => Heightfield(
 /// Everything a side has is the same shape as everything the other has, so any
 /// difference in the result comes from a difference that was asked for — a seam
 /// further away, a seam with less in it — and never from being side one.
-Match _mirror({
+Match mirror({
   double seamOne = 20.0,
   double seamTwo = 20.0,
   double amountOne = 500.0,
@@ -35,7 +41,7 @@ Match _mirror({
   int workers = 3,
   bool produce = true,
 }) {
-  final sim = StrategySimulation(ground: _flat());
+  final sim = StrategySimulation(random: GameRandom(1), ground: flat());
   final bots = <Bot>[];
   for (var side = 0; side < 2; side++) {
     final double z = 16.0 + side * 40.0;
@@ -74,7 +80,7 @@ Match _mirror({
 /// Compared with `==` rather than `closeTo`: the point of the comparison is
 /// that two runs of one start are the *same* run, and a tolerance would let
 /// through exactly the drift it is looking for.
-List<double> _digest(StrategySimulation sim) => <double>[
+List<double> digestOf(StrategySimulation sim) => <double>[
   sim.delivered[0],
   sim.delivered[1],
   sim.stock[0].amount,
@@ -109,7 +115,7 @@ double _cellsKnown(StrategySimulation sim, int side, {required bool visible}) {
 }
 
 /// Runs [match] to its end, or to [cap] steps, and says how many it took.
-int _play(Match match, {int cap = 6000}) {
+int play(Match match, {int cap = 6000}) {
   const double dt = 1.0 / 30.0;
   for (var i = 0; i < cap; i++) {
     if (match.standing.isOver) return i;
@@ -119,7 +125,7 @@ int _play(Match match, {int cap = 6000}) {
 }
 
 /// Runs [steps] of [match] whether or not it finishes.
-void _run(Match match, int steps) {
+void run(Match match, int steps) {
   for (var i = 0; i < steps; i++) {
     match.step(1.0 / 30.0);
   }
@@ -131,8 +137,8 @@ void main() {
       // Mutation: have the policy skip units that already hold a job even when
       // the seam under it is empty. Every worker then stops for good at the
       // hole it emptied, and the second seam on the map is never touched.
-      final match = _mirror(produce: false, workers: 1, amountOne: 40.0);
-      _play(match, cap: 900);
+      final match = mirror(produce: false, workers: 1, amountOne: 40.0);
+      play(match, cap: 900);
 
       expect(
         match.simulation.delivered[0],
@@ -153,14 +159,14 @@ void main() {
       // was written for is never asked. Thirty seconds is measured — long
       // enough for both loads to come home, short enough that the worker has
       // not yet finished the long walk to the seam across the map.
-      final match = _mirror(
+      final match = mirror(
         produce: false,
         workers: 1,
         amountOne: 20.0,
         amountTwo: 400.0,
         target: 10000.0,
       );
-      _run(match, 900);
+      run(match, 900);
 
       expect(match.simulation.delivered[0], closeTo(20.0, 1e-9));
     });
@@ -176,15 +182,15 @@ void main() {
       // count has a boundary: a unit produced inside the last step has not been
       // asked for orders yet, and failing a test for that would be failing it
       // for arriving on time.
-      final match = _mirror(
+      final match = mirror(
         target: 10000.0,
         amountOne: 5000.0,
         amountTwo: 5000.0,
       );
 
-      _run(match, 900);
+      run(match, 900);
       final double early = match.simulation.delivered[0];
-      _run(match, 900);
+      run(match, 900);
       final double late = match.simulation.delivered[0] - early;
 
       expect(match.simulation.units.length, greaterThan(3));
@@ -211,14 +217,14 @@ void main() {
       // by 1e-9 gave a final crowd identical to the last bit, and the same
       // start moved by 1e-6 put units two metres apart by the end. "To the bit"
       // means single precision here, and that is the precision the state has.
-      final first = _mirror(seamTwo: 34.0);
-      final second = _mirror(seamTwo: 34.0);
+      final first = mirror(seamTwo: 34.0);
+      final second = mirror(seamTwo: 34.0);
 
-      final int steps = _play(first);
-      _play(second);
+      final int steps = play(first);
+      play(second);
 
       expect(steps, lessThan(6000), reason: 'the match never finished');
-      expect(_digest(second.simulation), _digest(first.simulation));
+      expect(digestOf(second.simulation), digestOf(first.simulation));
       expect(second.standing.winner, first.standing.winner);
     });
 
@@ -226,19 +232,19 @@ void main() {
       // The companion the test above needs: a comparison that never fails is a
       // comparison that proves nothing. One worker begins one centimetre along
       // and the two runs part company.
-      final first = _mirror(seamTwo: 34.0);
-      final second = _mirror(seamTwo: 34.0);
+      final first = mirror(seamTwo: 34.0);
+      final second = mirror(seamTwo: 34.0);
       second.simulation.units.first.position.x += 0.01;
 
-      _play(first);
-      _play(second);
+      play(first);
+      play(second);
 
-      expect(_digest(second.simulation), isNot(_digest(first.simulation)));
+      expect(digestOf(second.simulation), isNot(digestOf(first.simulation)));
     });
 
     test('is won by the side whose seam is nearer', () {
-      final match = _mirror(seamTwo: 34.0);
-      final int steps = _play(match);
+      final match = mirror(seamTwo: 34.0);
+      final int steps = play(match);
 
       expect(steps, lessThan(6000));
       expect(match.standing.isOver, isTrue);
@@ -250,7 +256,11 @@ void main() {
       // in front is then invisible to it — both of the sides it looks at are
       // on nought — and a match somebody has won comes back drawn.
       final three = Match(
-        simulation: StrategySimulation(ground: _flat(), sides: 3),
+        simulation: StrategySimulation(
+          random: GameRandom(1),
+          ground: flat(),
+          sides: 3,
+        ),
         bots: const <Bot>[],
         goal: const MatchGoal(delivered: 100.0),
       );
@@ -266,8 +276,8 @@ void main() {
       // one arrangement must come out equal; a gap would mean the step favours
       // whoever it walks first — in separation, in the field cache, in
       // production — and that is the bias a replay cannot see but a match can.
-      final match = _mirror(target: 10000.0);
-      final int steps = _play(match);
+      final match = mirror(target: 10000.0);
+      final int steps = play(match);
 
       expect(steps, lessThan(6000), reason: 'the map never ran out');
       expect(match.simulation.delivered[0], closeTo(500.0, 1e-6));
@@ -284,14 +294,14 @@ void main() {
       // Mutation: judge only by the target. With a finishing line the ground
       // cannot pay for, the loop then runs for ever over an empty map — which
       // in a suite is not a red test but a hang.
-      final match = _mirror(
+      final match = mirror(
         produce: false,
         workers: 1,
         amountOne: 120.0,
         amountTwo: 60.0,
         target: 10000.0,
       );
-      final int steps = _play(match);
+      final int steps = play(match);
 
       expect(steps, lessThan(6000), reason: 'the match never ended');
       expect(match.standing.winner, 0);
@@ -312,7 +322,7 @@ void main() {
     });
 
     test('is drawn when there was never anything to win', () {
-      final sim = StrategySimulation(ground: _flat());
+      final sim = StrategySimulation(random: GameRandom(1), ground: flat());
       final match = Match(simulation: sim, bots: <Bot>[]);
 
       match.step(1.0 / 30.0);
@@ -324,7 +334,11 @@ void main() {
       // pass that only remembered the best total without remembering that
       // something had drawn level with it would hand this to side one.
       final three = Match(
-        simulation: StrategySimulation(ground: _flat(), sides: 3),
+        simulation: StrategySimulation(
+          random: GameRandom(1),
+          ground: flat(),
+          sides: 3,
+        ),
         bots: const <Bot>[],
       );
       three.simulation.delivered
@@ -338,15 +352,15 @@ void main() {
     });
 
     test('stops changing once it is over', () {
-      final match = _mirror(seamTwo: 34.0);
-      _play(match);
-      final List<double> ended = _digest(match.simulation);
+      final match = mirror(seamTwo: 34.0);
+      play(match);
+      final List<double> ended = digestOf(match.simulation);
 
       for (var i = 0; i < 200; i++) {
         match.step(1.0 / 30.0);
       }
 
-      expect(_digest(match.simulation), ended);
+      expect(digestOf(match.simulation), ended);
     });
   });
 }

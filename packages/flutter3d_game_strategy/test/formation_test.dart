@@ -28,7 +28,7 @@ void main() {
       // Mutation: drop the `job = null` in `Squad.moveTo`. The worker turns
       // round at the next step and goes back to the seam, and the assertion
       // below — that it is walking the other way — fails.
-      final sim = StrategySimulation(ground: _flat());
+      final sim = StrategySimulation(random: GameRandom(1), ground: _flat());
       final base = sim.build(
         Building(centre: Vector3(20.0, 0.0, 20.0), width: 6.0, depth: 6.0),
       );
@@ -105,7 +105,7 @@ void main() {
       // at its own place relative to the goal. Mutation: drop the
       // `toGoal < arriveWithin` branch and every unit stops at the goal cell
       // instead, so the distances below become the width of a shoved pile.
-      final sim = StrategySimulation(ground: _flat());
+      final sim = StrategySimulation(random: GameRandom(1), ground: _flat());
       final squad = Squad(<Unit>[
         for (var i = 0; i < 9; i++)
           sim.add(
@@ -134,7 +134,7 @@ void main() {
     });
 
     test('is told to stand still all at once', () {
-      final sim = StrategySimulation(ground: _flat());
+      final sim = StrategySimulation(random: GameRandom(1), ground: _flat());
       final squad = Squad(<Unit>[
         for (var i = 0; i < 4; i++)
           sim.add(Unit(position: Vector3(10.0 + i * 1.0, 0.0, 10.0))),
@@ -184,7 +184,7 @@ void _obstacleTests() {
       // field is what knows about the gap. Mutation: take the slot branch
       // unconditionally — this fails and the flat-ground tests do not, which
       // is why it exists.
-      final sim = StrategySimulation(ground: _ridge());
+      final sim = StrategySimulation(random: GameRandom(1), ground: _ridge());
       final squad = Squad(<Unit>[
         for (var i = 0; i < 4; i++)
           sim.add(Unit(position: Vector3(10.0, 0.0, 10.0 + i * 1.2))),
