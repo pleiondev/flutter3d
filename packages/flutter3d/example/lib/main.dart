@@ -1109,6 +1109,13 @@ class _SpikePageState extends State<SpikePage>
                     pick: _pickDescription,
                     player: _instance?.player,
                     onPlayerChanged: () => setState(() {}),
+                    // Every drawn node that morphs, not the instance's list:
+                    // the panel is about what is on screen, and a model
+                    // reloaded leaves the old instance behind.
+                    morphNodes: <MeshNode>[
+                      for (final mesh in _scene.meshes)
+                        if (mesh.morph != null) mesh,
+                    ],
                     onFrameAll: () => setState(() {
                       _orbit.frameBounds(_scene.computeBounds());
                       _orbit.syncProjectionDepth(_camera);

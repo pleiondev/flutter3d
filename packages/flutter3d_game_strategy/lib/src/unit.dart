@@ -20,13 +20,20 @@ import 'package:vector_math/vector_math.dart';
 /// them rather than as a shape the step has to switch on.
 final class UnitOrder {
   /// An order to stand where it is.
-  const UnitOrder.hold() : goal = null;
+  const UnitOrder.hold() : goal = null, slot = null;
 
-  /// An order to walk to [goal].
-  const UnitOrder.moveTo(Vector3 this.goal);
+  /// An order to walk to [goal], standing at [slot] beside it on arrival.
+  const UnitOrder.moveTo(Vector3 this.goal, {this.slot});
 
   /// Where the order points, or null for one that points nowhere.
   final Vector3? goal;
+
+  /// Where in the arrangement this unit stands, as an offset from [goal].
+  ///
+  /// Null for an order given to one unit rather than to a squad, which then
+  /// walks to the goal itself. See `Formation` for why the slot is an offset
+  /// taken on arrival rather than a goal of its own.
+  final Vector3? slot;
 }
 
 /// One unit on the map.

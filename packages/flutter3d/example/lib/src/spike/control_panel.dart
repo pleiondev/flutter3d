@@ -44,6 +44,7 @@ class ControlPanel extends StatelessWidget {
     required this.player,
     required this.onPlayerChanged,
     required this.onFrameAll,
+    this.morphNodes = const <MeshNode>[],
     required this.renderer,
     required this.scene,
     required this.asset,
@@ -101,6 +102,10 @@ class ControlPanel extends StatelessWidget {
   final VoidCallback onPlayerChanged;
 
   final VoidCallback onFrameAll;
+
+  /// The loaded model's mesh nodes that carry morph state, or empty for the
+  /// models that morph nothing — which is most of them.
+  final List<MeshNode> morphNodes;
   final Renderer renderer;
   final Scene scene;
   final ModelAsset? asset;
@@ -222,6 +227,15 @@ class ControlPanel extends StatelessWidget {
             const SizedBox(height: 6),
             PanelLabel('Animation', textTheme),
             AnimationControls(player: player!, onChanged: onPlayerChanged),
+          ],
+          if (morphNodes.isNotEmpty) ...<Widget>[
+            const SizedBox(height: 6),
+            PanelLabel('Morph', textTheme),
+            MorphControls(
+              nodes: morphNodes,
+              player: player,
+              onChanged: onPlayerChanged,
+            ),
           ],
           const SizedBox(height: 6),
           PanelLabel('Lights', textTheme),
@@ -523,6 +537,85 @@ class AnimationControls extends StatelessWidget {
           '${player.clip?.tracks.length ?? 0} tracks',
           style: textTheme.bodySmall?.copyWith(color: Colors.white60),
         ),
+      ],
+    );
+  }
+}
+
+/// A slider per morph target of the loaded model.
+///
+/// **The reason to have this at all**: a face is the one thing in a renderer
+/// whose parameters mean nothing written down and everything moved by hand.
+/// Reading "target 2 at 0.4" tells you nothing; dragging target 2 from nought
+/// to one and watching a jaw open tells you what the file contains.
+///
+/// The first drag pauses the clip, and that is not a nicety. A weights track
+/// rewrites these every frame, so a slider moved under a running clip snaps
+/// back on the next tick and reads as a broken control rather than as a clip
+/// winning an argument.
+class MorphControls extends StatelessWidget {
+  const MorphControls({
+    super.key,
+    required this.nodes,
+    required this.player,
+    required this.onChanged,
+  });
+
+  /// The mesh nodes of the loaded model that carry morph state.
+  final List<MeshNode> nodes;
+
+  /// Paused on the first drag, or null when the model has no clips.
+  final AnimationPlayer? player;
+
+  final VoidCallback onChanged;
+
+  /// What the file called target [index] of [node], or its number.
+  ///
+  /// glTF puts target names in `mesh.extras.targetNames`, which is a convention
+  /// rather than part of the format, so most models answer with the number —
+  /// and a number is still the thing to drag.
+  String _label(MeshNode node, int index) {
+    final source = node.mesh is DeviceMesh
+        ? (node.mesh as DeviceMesh).source
+        : null;
+    final targets = source?.morphTargets ?? const <MorphTarget>[];
+    final name = index < targets.length ? targets[index].name : null;
+    return name ?? 'Target $index';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        for (final node in nodes) ...<Widget>[
+          if (nodes.length > 1)
+            Text(
+              node.name ?? 'mesh',
+              style: textTheme.bodySmall?.copyWith(color: Colors.white60),
+            ),
+          for (var i = 0; i < node.morphWeights.length; i++)
+            PanelSlider(
+              label: _label(node, i),
+              value: node.morphWeights[i],
+              enabled: true,
+              onChanged: (v) {
+                // Every node of the model, not just this one: a glTF mesh split
+                // across materials arrives as several nodes sharing one set of
+                // shapes, and moving one of them alone tears the model apart
+                // along the seam between its primitives.
+                player?.pause();
+                for (final other in nodes) {
+                  if (i < other.morphWeights.length) {
+                    other.morphWeights[i] = v;
+                  }
+                }
+                onChanged();
+              },
+            ),
+        ],
       ],
     );
   }

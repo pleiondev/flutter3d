@@ -36,6 +36,7 @@
 /// guessing about the part that was actually uncertain.
 library;
 
+export 'src/formation.dart';
 export 'src/selection.dart';
 export 'src/simulation.dart';
 export 'src/unit.dart';

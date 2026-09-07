@@ -27,6 +27,7 @@ import 'dart:math' as math;
 import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:vector_math/vector_math.dart';
 
+import 'formation.dart';
 import 'unit.dart';
 
 /// A crowd on a piece of ground.
@@ -99,6 +100,39 @@ final class StrategySimulation {
         final made = FlowField(grid)..rebuild(grid.centreOfCell(cell));
         return made;
       });
+
+      // Near the goal a unit steers at its own place in the arrangement; far
+      // from it everybody shares one field. See `Formation`: slots are an
+      // arrangement at the destination rather than a destination each, which
+      // is what keeps an order costing one field instead of one per unit.
+      final Vector3? slot = unit.order.slot;
+      if (slot != null) {
+        final double dx = goal.x + slot.x - unit.position.x;
+        final double dz = goal.z + slot.z - unit.position.z;
+        final double toGoal =
+            (goal.x - unit.position.x) * (goal.x - unit.position.x) +
+            (goal.z - unit.position.z) * (goal.z - unit.position.z);
+        if (toGoal < Formation.arriveWithin * Formation.arriveWithin) {
+          final double distance = math.sqrt(dx * dx + dz * dz);
+          if (distance < 1e-4) continue;
+          final double travel = math.min(unit.speed * dt, distance);
+          final double toX = unit.position.x + dx / distance * travel;
+          final double toZ = unit.position.z + dz / distance * travel;
+
+          // **Steering still asks the grid.** The first version of this branch
+          // moved the unit outright, on the grounds that a slot is a few metres
+          // from a goal the field had already found. It is not: a squad sent to
+          // the far side of a ridge walked *up the ridge*, because nothing in
+          // the direct step consulted walkability and `_sit` obligingly put
+          // each unit on top of the wall it was crossing. Cheap to ask, and the
+          // answer is the difference between a formation and a climb.
+          final int to = grid.cellAtPoint(toX, toZ);
+          if (to < 0 || !grid.isWalkable(to)) continue;
+          unit.position.x = toX;
+          unit.position.z = toZ;
+          continue;
+        }
+      }
 
       if (!field.descend(unit.position, _step)) continue;
       unit.position.x += _step.x * unit.speed * dt;
