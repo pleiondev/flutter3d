@@ -424,8 +424,15 @@ writeFileSync(
 cpSync(join(root, 'assets'), join(distDir, 'assets'), { recursive: true });
 // The golden reference images, one directory per backend, so a page can show
 // what a scene renders as — and, on the testing page, how the three agree.
+// `.actual.png` is skipped: a failed local comparison leaves one beside the
+// reference, gitignored, and it was being published — so a scene somebody was
+// midway through re-recording went to the public site as a second picture
+// nothing links to.
 for (const [name, dir] of Object.entries(goldenSets)) {
-  cpSync(dir, join(distDir, 'goldens', name), { recursive: true });
+  cpSync(dir, join(distDir, 'goldens', name), {
+    recursive: true,
+    filter: (from) => !from.endsWith('.actual.png'),
+  });
 }
 cpSync(
   join(root, 'node_modules/mermaid/dist/mermaid.min.js'),

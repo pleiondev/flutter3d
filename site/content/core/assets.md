@@ -168,6 +168,7 @@ if (player != null) {
 | Modes | Once, loop, ping-pong |
 | Transport | `play`, `pause`, `stop`, `seek(seconds)`, `speed` |
 | Blending | `crossFadeTo(index)` and `crossFadeToNamed(name)` |
+| Layers | `playLayer(index, mask: ...)` — a clip over the joints a mask names while the base keeps running |
 
 <div class="why">
 <p>A crossfade duration is not one number. A quarter of a second blending into a take-off is a quarter of a second of the character still standing there while the body is already in the air, so a jump gets 0.06 s and a walk-to-run gets 0.14 s. The rule is that the fade must be shorter than the event it is covering.</p>
@@ -194,6 +195,35 @@ player
 A glTF skin decodes into a `Skeleton` of ordinary scene nodes. 64 joint matrices in a uniform array, four weights a vertex, a separate skinned vertex stage, because a second layout is a second shader, and bounds taken from the **posed** skeleton rather than the bind pose.
 
 {{golden skinned-figure | A skinned figure frozen at a stated second of its clip, so the frame is the same every time it is drawn.}}
+
+## Morph targets
+
+A face is a mesh blended towards the shapes its file carries. The deltas go into an `r32g32b32a32Float` texture — one column a vertex, three rows a target: positions, normals, tangents — uploaded once with the mesh and sampled **in the vertex stage**. The weights live on the node, so two copies of a model wear different expressions from one upload, exactly as two copies of a rigged model pose from their own skeletons.
+
+```dart
+// From a clip, or by hand.
+node.morphWeights[0] = 0.6;              // one mesh
+batch.setMorphWeights(7, [0.6, 0.0]);    // one copy in a batch
+```
+
+| | |
+|---|---|
+| Streams | POSITION, NORMAL and TANGENT deltas; a target with only positions leaves the rest alone |
+| At once | Eight. A file with more loads with a warning naming what was left out |
+| Rest weights | Read from the node, or the mesh when the node says nothing |
+| From a clip | A `weights` channel, mixed by a crossfade and **added** by a layer |
+| Per instance | `InstancedMeshNode.setMorphWeights`, read by instance id from a second texture |
+| Passes | The colour, shadow and id passes all morph — a shadow of the base shape is a bug that hides |
+
+{{golden morph-skinned | Rigged and morphing at once, which is the combination the two features can get wrong about each other: the deltas are added in the mesh's rest pose and the joints come after.}}
+
+<div class="why">
+<p>A texture rather than vertex attributes, because the vertex layout here is <em>structural</em> — the <code>in</code> declarations of <code>mesh.vert</code> are the layout, and one layout serves every model. Deltas as attributes would mean a second layout and with it a second vertex shader for each of six lighting models. A texture costs one sampler and no layout, which was only an option because a vertex stage can sample one — measured on all three backends by a conformance check rather than assumed.</p>
+</div>
+
+<div class="warn">
+<p>Two of the three backends could not upload a full-float texture at all, and neither said so: the software rasteriser measured every format at four bytes a texel and refused sixteen as the wrong size, and WebGL filled <code>RGBA32F</code> storage through <code>RGBA</code>/<code>UNSIGNED_BYTE</code>, which is an <code>INVALID_OPERATION</code> no API reports and a texture that samples as zeros. Both drew the base shape with no error anywhere. What found it was the golden frame above, showing the same cube weighted and unweighted and identical byte for byte; what keeps it found is the <code>a float texture uploads as floats</code> conformance check.</p>
+</div>
 
 ## Next
 
