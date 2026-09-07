@@ -1,3 +1,56 @@
+## 0.5.2
+
+Ground made of samples, and a crowd that walks over it.
+
+* **`Heightfield`: the first sloped ground this level format has.** A `Brush` is
+  a box, so until now the only slope a level could describe was the ramp a wedge
+  makes. A field is `columns * rows` heights, `cellSize` metres apart, with an
+  `origin` where sample `(0, 0)` sits, and it answers `heightAt`, `normalAt` and
+  `slopeAt` about the ground rather than building anything.
+  The answers are about **the triangles that are drawn, not a bilinear sheet**.
+  Four samples make a quad and a quad is two triangles, so a quad is only flat
+  when its corners agree; interpolating bilinearly instead describes a surface
+  nobody draws, and at the centre of a cell the two differ by a quarter of
+  `h00 + h11 - h10 - h01` — a unit hovering over one half of the quad and sunk
+  into the other. So the field finds the triangle the point is in. The split is
+  fixed at `(0,0)–(1,1)` and written down once, because a mesh builder that
+  chose the other diagonal would draw ground this class does not describe and
+  the only symptom would be a body standing slightly in the air.
+  `slopeAt` reports radians from flat and refuses to say what is walkable — a
+  tank and a scout disagree about the same hillside — and it reaches for
+  `Portable.atan2` rather than `math.acos`, because `acos` is the platform's
+  libm and the rule *a step asks no machine for an answer* is what keeps a run
+  verified in a browser agreeing with the run a player made.
+* **A level can carry one.** `Level.heightfield` is an optional section, read
+  and written by `Heightfield.fromJson` / `toJson`. The heights travel as base64
+  of a `Float32List`'s bytes, the way `LevelVisibility` carries its cells:
+  sixteen thousand samples spelled out as JSON digits is a megabyte nobody reads
+  and every editor reformats. The four numbers a person might edit by hand stay
+  plain.
+* **`HeightfieldGeometry` emits a `BrushSurface`**, not a new type. Terrain is
+  not a brush, but what the type holds is plain arrays, and the twenty lines in
+  `flutter3d_bridge` that interleave them into a vertex layout do not care where
+  the triangles came from — so ground draws with no new code downstream. Its
+  normals are averaged from central differences while `Heightfield.normalAt`
+  returns the triangle's own: one answers what the ground looks like, the other
+  what a body is standing on, and the disagreement is the point.
+* **`NavGrid.bakeHeightfield`: a second source for the same lattice.** `bake`
+  measures its grid from brushes and stamps each cell with the solid under it;
+  ground made of samples has no brushes and its extent is the field's own, so
+  the two share the cell format and nothing else. Steepness is what makes ground
+  unwalkable here — `maxSlope` defaults to 0.698 radians, a hair under forty
+  degrees — with `blocked` for the ground refused for a reason that is not its
+  shape.
+  **The step height is derived from the slope rather than taken from a level.**
+  On terrain the rise between neighbouring cells is not a ledge, it is the
+  hillside the slope test just allowed, so the default is the tallest rise the
+  steepest walkable cell can have: `tan(maxSlope) * cellSize * 1.001`, which is
+  0.42 m at the default half-metre cell. Left at the 0.4 a level's bake uses, a
+  two-metre grid over ground of one part in five puts a rise of 0.4 against a
+  limit of 0.4 and lets float rounding decide: 112 of 240 uphill moves survived
+  the comparison and the rest were called walls. The derived height allows all
+  240, and the half-metre bake all 4032 of its own.
+
 ## 0.5.1
 
 * **`Portable`: the transcendental functions a step is allowed to call.**

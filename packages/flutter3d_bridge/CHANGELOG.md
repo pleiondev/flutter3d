@@ -1,3 +1,20 @@
+## 0.5.1
+
+* **`meshDataOf` is public, in `lib/src/surface_mesh.dart`.** It was
+  `LevelLoader._toMeshData`, a private helper of the one thing that had brush
+  surfaces to draw. A genre that builds its own ground — `HeightfieldGeometry`
+  emits the same `BrushSurface` — has triangles and no level loader, and the
+  only ways left were to load a level it does not have or to write the
+  interleave again.
+  A second copy is the real cost. The doc on those twenty lines is a note about
+  a GPU failure that reports nothing: flutter_gpu takes the vertex layout from
+  the shader's `in` declarations, `mesh.vert` declares position, normal,
+  texcoord, tangent **and** colour — sixteen floats — and supplying eight does
+  not fail. The GPU keeps reading at the stride the shader expects, assembles
+  each vertex out of two of the ones actually written, and draws a convincing
+  field of garbage triangles with no error anywhere. A copy of that warning is a
+  copy that stops being updated.
+
 ## 0.5.0
 
 **Breaking.** The two readers take one object, and the level's issues are
