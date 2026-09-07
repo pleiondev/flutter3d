@@ -99,7 +99,7 @@ What works today:
   `CUBICSPLINE` with authored tangents), slerped rotations, an `AnimationPlayer`
   with play/pause/seek/speed and once/loop/ping-pong, and the decoded node
   hierarchy rebuilt on instantiation so an animated parent carries its subtree;
-- 898 tests — geometry, projection, scene, sorting, debug draw, intersections,
+- 904 tests — geometry, projection, scene, sorting, debug draw, intersections,
   raycasting, animation, skinning, lighting, tangents, render targets, BVH, LOD,
   glTF, OBJ and `.f3d` — all without a GPU.
 
@@ -309,7 +309,9 @@ lib/src/engine/scene/           scene graph, cameras, lights, orbit, raycasting
 lib/src/engine/render/          renderer, render list, materials, sorting, debug draw
 lib/src/engine/assets/          glTF, OBJ and .f3d decoders, isolate loading, cache
 example/lib/                    the demo, and the frame capture hook
-test/                           898 tests, all runnable without a GPU
+skills/                         the conventions, as agent skills — see below
+bin/skills.dart                 what copies them into a project that uses this
+test/                           904 tests, all runnable without a GPU
 ```
 
 The GLSL is not here. Every shader this package draws with lives in
@@ -319,8 +321,29 @@ stages, the post chain and the headers they share — because an extension packa
 includes those headers and would otherwise depend on the whole engine to reach
 them.
 
-This package is one of twenty-four; see the [repository README](../../README.md)
+This package is one of twenty-five; see the [repository README](../../README.md)
 for how the game layer, the backends and the genre templates sit around it.
+
+## The conventions, unpacked into your repository
+
+```bash
+dart run flutter3d:skills            # into ./.claude/skills
+dart run flutter3d:skills --list     # name them and stop
+dart run flutter3d:skills --into docs/skills
+```
+
+Seven skills, each tied to something a machine here already checks: the
+structure scan, the rule that a test is shown to fail before it is believed, the
+determinism machinery a replay is measured with, the golden sets and how they
+are recorded, why a frame draws nothing, what each layer may import, and which
+files are generated rather than written.
+
+They are prose, and prose that lives in one repository is prose nobody else has.
+An agent working in your game cannot read a `CONTRIBUTING.md` out of a
+version-stamped pub cache directory, so this copies the files to where it does
+look. `.claude/skills` under the current directory by default — the copy travels
+with your code, gets reviewed with your code, and is yours to edit afterwards,
+which is why a file you have changed is left alone unless you pass `--force`.
 
 The scene layer holds a `MeshGeometry`, not a `GpuMesh`. Bounds, culling, framing
 and picking need no device, and requiring one would have meant none of them could
