@@ -168,6 +168,13 @@ DigestTrace _drive(List<VehicleInput> inputs, {int every = 25}) {
 /// **One table where there were two.** The pair recorded on 2026-09-02
 /// disagreed at twenty-three of the forty checkpoints, from step 75 onwards;
 /// the head of this file says what that was and what it cost.
+///
+/// **Matched a third and fourth time on ubuntu-x64, under the VM and under
+/// Chrome, in CI run 34121423137 on 2026-09-07** — forty of forty in both. This
+/// is the car that used to be the counter-example, so the confirmation is worth
+/// more here than anywhere: the arithmetic the tyre curve now runs on carries a
+/// run across a processor and an operating system as well as across an engine.
+/// No number below changed to earn it.
 const List<String> _recorded = <String>[
   '24ac3284',
   '2174d61e',

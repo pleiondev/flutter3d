@@ -247,6 +247,13 @@ DigestTrace _settle({required int steps, int every = 5}) {
 /// One table, and it was expected to be one: the solver reaches for nothing the
 /// platform supplies. See the head of this file for the three ways that could
 /// have been wrong anyway.
+///
+/// **Matched again on ubuntu-x64, under the VM and under Chrome, in CI run
+/// 34121423137 on 2026-09-07** — every checkpoint, both environments. No number
+/// here moved; the expectation is simply held by a second processor and a
+/// second operating system now, which is worth writing down because the same
+/// run also found eleven rows of `parity_test.dart`'s libm table answering
+/// differently on that machine. The solver walked past all of it.
 const List<String> _recorded = <String>[
   '37f28474',
   'a752b50a',

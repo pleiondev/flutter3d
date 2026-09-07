@@ -31,10 +31,16 @@
 ///
 /// ## What it answered, and the correction that came with it
 ///
-/// **Question 2: two functions of twelve are portable** — `sqrt` and `pow` —
-/// and every transcendental gives different bits in a browser than in the VM,
-/// including every combination of them. There is nothing portable to build a
-/// substitute out of.
+/// **Question 2: one function of twelve is portable** — `sqrt`, the one the
+/// specification pins — and every transcendental gives different bits in a
+/// browser than in the VM, including every combination of them. There is
+/// nothing portable to build a substitute out of.
+///
+/// It read *two* for five days. `pow` matched at the one exponent asked about
+/// here on both of the environments that had been measured, and then a third
+/// machine answered differently and the table said so; the row is below with
+/// its second number and without its label. Two implementations agreeing is a
+/// fact about those two implementations, and the count of them was two.
 ///
 /// **Question 3: all forty checkpoints matched anyway.** Those two answers are
 /// not in conflict and the gap between them is the useful part. Two libms
@@ -71,10 +77,14 @@
 /// third answer says the platform in front of you has arithmetic nobody has
 /// seen, which is worth knowing whether or not a step calls it.
 ///
-/// The committed numbers were recorded on macOS-arm64 under the VM and under
-/// Chrome. `tool/ci.sh` runs this package on both platforms, so its machines
-/// are a third measurement asking the same question of the same bytes; a
-/// function gaining a third answer there is a result, not a breakage.
+/// That is not hypothetical any more. The first numbers were recorded on
+/// macOS-arm64 under the VM and under Chrome; `tool/ci.sh` runs this package on
+/// both platforms, and on 2026-09-07 its ubuntu-x64 machines asked the same
+/// question of the same bytes and answered differently in eleven rows of the VM
+/// and two of Chrome. Every one of those answers is committed below beside the
+/// ones it disagrees with, `pow` lost its portable label to it, and the group
+/// is green again — which is what recording an answer looks like as opposed to
+/// silencing the question.
 library;
 
 import 'dart:math' as math;
@@ -352,49 +362,88 @@ List<double> _sweepArguments(int seed) {
 final List<double> _a = _sweepArguments(1);
 final List<double> _b = _sweepArguments(2);
 
-/// Measured on macOS-arm64 under the VM and under Chrome, 2026-09-02.
+/// Measured on three machines: macOS-arm64 under the VM and under Chrome on
+/// 2026-09-02, and ubuntu-x64 under the VM and under Chrome in CI run
+/// 34121423137 on 2026-09-07.
 ///
-/// **Two functions out of twelve are the same function in both places**, and
-/// they are the two the specification pins rather than the two anybody would
-/// have guessed: `sqrt`, which IEEE 754 requires to be correctly rounded, and
-/// `pow` at the one exponent asked about here. Every transcendental differs —
-/// `sin`, `cos`, `tan`, `asin`, `acos`, `atan`, `atan2`, `exp`, `log` — and so
-/// does every combination of them, which is why there is no substitute row in
-/// this table any more. There is nothing portable to build one out of.
+/// **Exactly one function out of twelve is the same function everywhere it has
+/// been asked**: `sqrt`, which IEEE 754 requires to be correctly rounded, and
+/// which the third machine duly rounded the same way. It is the only row that
+/// claims portability, and the specification is the reason it may.
 ///
-/// The VM's answer is first in each pair and the browser's second.
+/// **`pow` used to be the second, and the third machine took the claim away.**
+/// Two libms agreed on it at the one exponent asked about here, which was
+/// enough to look like a property of `pow` and was only a property of those two
+/// libms; ubuntu's answers a different digest in both of its environments. That
+/// is not a breakage, it is the whole point of keeping the table: a row gained
+/// an answer, and it gained it in a test rather than in somebody's replayed
+/// run. Every transcendental differs as it always did — `sin`, `cos`, `tan`,
+/// `asin`, `acos`, `atan`, `atan2`, `exp`, `log` — and so does every
+/// combination of them. There is nothing portable to build a substitute out of.
+///
+/// A row's numbers are in the order they were measured: macOS under the VM,
+/// macOS under Chrome where it differs, then ubuntu. `atan` carries four,
+/// because V8 on Linux parted company with the VM beside it *and* with V8 on
+/// macOS.
 final List<_Probe> _probes = <_Probe>[
   _Probe('sqrt', (int i) => math.sqrt(_a[i].abs()), <int>[
     3731598178,
   ], portable: true),
   _Probe('pow', (int i) => math.pow(_a[i].abs(), 1.5) as double, <int>[
     1010605104,
-  ], portable: true),
+    1145324355,
+  ]),
 
-  _Probe('sin', (int i) => math.sin(_a[i]), <int>[1529023637, 2189972239]),
-  _Probe('cos', (int i) => math.cos(_a[i]), <int>[278506023, 346840732]),
-  _Probe('tan', (int i) => math.tan(_a[i]), <int>[1991664472, 706737394]),
+  _Probe('sin', (int i) => math.sin(_a[i]), <int>[
+    1529023637,
+    2189972239,
+    2433372706,
+  ]),
+  _Probe('cos', (int i) => math.cos(_a[i]), <int>[
+    278506023,
+    346840732,
+    3594954000,
+  ]),
+  _Probe('tan', (int i) => math.tan(_a[i]), <int>[
+    1991664472,
+    706737394,
+    595115946,
+  ]),
   _Probe('asin', (int i) => math.asin(_a[i].abs() % 1.0), <int>[
     1169059466,
     3965097627,
+    3194318433,
   ]),
   _Probe('acos', (int i) => math.acos(_a[i].abs() % 1.0), <int>[
     1074980516,
     2412058023,
+    2800665172,
   ]),
-  _Probe('atan', (int i) => math.atan(_a[i]), <int>[2151501439, 711472516]),
+  _Probe('atan', (int i) => math.atan(_a[i]), <int>[
+    2151501439,
+    711472516,
+    716969095,
+    3343257601,
+  ]),
   _Probe('atan2', (int i) => math.atan2(_a[i], _b[i]), <int>[
     4076892957,
     386132713,
+    2641690815,
   ]),
-  _Probe('exp', (int i) => math.exp(_a[i] % 4.0), <int>[1225667539, 184235517]),
+  _Probe('exp', (int i) => math.exp(_a[i] % 4.0), <int>[
+    1225667539,
+    184235517,
+    2186498326,
+  ]),
   _Probe('log', (int i) => math.log(_a[i].abs() + 1e-3), <int>[
     3156546821,
     2348571721,
+    4107030032,
   ]),
   _Probe('sin over cos', (int i) => math.sin(_a[i]) / math.cos(_a[i]), <int>[
     3918902778,
     2137336336,
+    4054147482,
   ]),
 ];
 
@@ -521,12 +570,16 @@ DigestTrace _play(InputTape tape, {int every = 25}) {
 /// twenty-five steps of a thousand.
 ///
 /// **Chrome on the same machine reproduced all forty on the day they were
-/// written**, which is the first half of the answer the year's plan was waiting
-/// for. The second half is Linux, and it is not asked here — `tool/ci.sh` runs
-/// this package on the VM and under Chrome, and CI's machines are the third
-/// platform. A red row on one of them is the result, not a breakage: it says
-/// the cloud service has to carry a checksum per interval and quarantine on a
-/// mismatch rather than trusting a whole-run comparison.
+/// written**, which was the first half of the answer the year's plan was
+/// waiting for.
+///
+/// **The second half was Linux, and it arrived on 2026-09-07**: CI run
+/// 34121423137 played the same tape on ubuntu-x64 under the VM and under Chrome
+/// and matched all forty in both. So a run of a character controller crosses a
+/// processor, an operating system and an engine intact — while the primitives
+/// table above disagreed in eleven rows on the same machine in the same run.
+/// That is the gap this file exists to measure, and it is now measured across
+/// three machines rather than argued from one.
 const List<String> _recorded = <String>[
   'c520c154',
   '9af8158a',
