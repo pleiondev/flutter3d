@@ -91,6 +91,17 @@ dev_dependencies:
   flutter3d_game_platformer:
     path: ../../packages/flutter3d_game_platformer
 
+  # The other two genres, whose templates prove different things because their
+  # documents are different shapes. Racing's template is the level half of a
+  # circuit and places nothing, so what there is to check is its air: the sun
+  # and the haze are `SkyPresets.morning` rather than numbers typed beside it.
+  # Strategy's template is a map, and its sizes are the ones the strategy
+  # package builds a hall and a worker at.
+  flutter3d_game_racing:
+    path: ../../packages/flutter3d_game_racing
+  flutter3d_game_strategy:
+    path: ../../packages/flutter3d_game_strategy
+
 flutter:
   uses-material-design: true
 
@@ -103,3 +114,5 @@ flutter:
     - assets/templates/
     - assets/templates/shooter/
     - assets/templates/platformer/
+    - assets/templates/racing/
+    - assets/templates/strategy/

@@ -100,8 +100,20 @@ flutter run -d macos --dart-define=level=/where/i/keep/things/deep_mine/assets/l
 ```
 
 Picking one writes a project there — a vocabulary, a first level, a model per
-kind of thing, a `pubspec.yaml`, a `README.md` and an application that runs —
-and opens the level in it.
+kind of thing that has one to draw, a `pubspec.yaml`, a `README.md` and an
+application that runs — and opens the level in it.
+
+**There is one for each of the four genres this repository has**, which is the
+point: a level of any of them can be started from nothing rather than by copying
+somebody else's document and deleting what is in it. What the four give differs
+because their documents differ. The shooter and the platformer are played
+indoors, so their first level is a room. Racing gets a field and no road, for the
+reason below. Strategy gets the map its demo is played on — ground made of
+eighty-one by eighty-one samples of a hillside, two halls, two seams, a purse
+each and a block of workers apiece — read out of
+`apps/flutter3d_demo_strategy` rather than invented here, because a strategy map
+is an economy and a generator with no game behind it cannot make one up and
+still call it playable.
 
 **This is not the editor learning a vocabulary**, and the distinction is the
 whole of why it is allowed to exist. A template is data: it is copied into the
@@ -117,8 +129,9 @@ records somebody already making.
 The starter level is checked hard, because `LevelLoader.build` throws on a
 validator error and a warning is a new project greeting its author with a
 complaint: **zero errors and zero warnings**, against each genre's real registry
-and rules. Its walls surround the floor rather than standing on it — shared
-faces, no shared volume — and its light has a range.
+and rules. The room's walls surround its floor rather than standing on it —
+shared faces, no shared volume — and its light has a range; the racing field's
+fence posts stand exactly on the turf's top face for the same arithmetic.
 
 Templates are written by `tool/make_templates.py` and their models by
 `tool/make_models.py`, which writes real glTF out of primitives: no textures, no
@@ -126,9 +139,38 @@ skins, no animation, no licences, and coordinates quantised onto a 1/4096 m grid
 so the bytes are the same on every machine. `ci.sh` regenerates both and fails if
 what comes out is not what is committed.
 
-There is no racing template. A circuit is a second document — points, widths,
-banks, barriers, checkpoints, a starting grid — and editing one is a different
-editor.
+**Two of the four ship no model, and the absence is deliberate.** Racing places
+no entities at all, so there is no kind of thing to draw one of; strategy draws
+its crowd as one instanced box `UnitSize` across and its halls as boxes, because
+a thousand workers in one draw call is the reason that genre exists — so a `.glb`
+of a worker would be a file whose only content is a number the strategy package
+already holds, and the mark the editor draws is the same box the game builds.
+
+### The racing template is half a circuit
+
+**A track is not edited here, and it is not an oversight.** A circuit in this
+repository is two documents. One is a level, in the format everything else uses:
+the turf a car lands on when it leaves the road, the posts along the outside, the
+sun and the haze. The other is the road itself — a measured curve of points with
+a width, a camber and a bank at each, the barriers along it, the checkpoints
+across it and the grid the field starts from — and it is read by `TrackDocument`,
+not by `Level`. Nothing about it is geometry a brush could be: a corner is a
+radius and a width, and the surface under a wheel is worked out from the curve
+rather than swept against a box.
+
+So the template is the level half, and only that. A new racing project gets
+somewhere to drive and no road on it: editing the curve means dragging control
+points, seeing the line a car would take, and watching a lap change — which is a
+different editor, and one that does not exist. Until it does, circuits are
+written by `apps/flutter3d_demo_racing/tool/make_track.py`, which is where the
+five in the demo come from.
+
+What the level half still buys is the part that is genuinely shared: the ground,
+the scenery and the air. The template's sun and haze are `SkyPresets.morning`
+read out of the racing package rather than numbers chosen beside it, because the
+sky, the fog and the colour distance settles to are one decision — that is what
+stops the far side of a circuit ending in a visible band, and authoring them
+apart is how it starts.
 
 ## The palette
 

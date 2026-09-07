@@ -17,6 +17,9 @@ import 'dart:typed_data';
 
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
+import 'package:flutter3d_editor_core/flutter3d_editor_core.dart';
+import 'package:flutter3d_game/flutter3d_game.dart';
+import 'package:flutter3d_game_strategy/bridge.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart';
 
@@ -49,6 +52,77 @@ void main() {
       hasLength(greaterThanOrEqualTo(6)),
       reason: 'run tool/make_models.py',
     );
+  });
+
+  group('a template that ships none', () {
+    // **Two of the four genres ship no model, and that is a statement rather
+    // than a gap.** A missing `.glb` and a deliberately absent one look
+    // identical in a directory listing, and the difference is the whole of
+    // whether somebody should go and draw one — so it is written down here,
+    // against the packages that decide it.
+
+    Looks looksOf(String genre) =>
+        Looks.parse(File('assets/templates/$genre/editor.json').readAsStringSync());
+
+    List<File> modelsOf(String genre) => models
+        .where((File it) => it.path.contains('/$genre/'))
+        .toList();
+
+    test('names no model it does not have', () {
+      // The general rule, which is what makes the two below safe to state: a
+      // vocabulary that names a path is a vocabulary whose file has to be
+      // there, and a genre with no files may name none.
+      for (final genre in <String>[
+        'shooter',
+        'platformer',
+        'racing',
+        'strategy',
+      ]) {
+        final looks = looksOf(genre);
+        final types =
+            (jsonDecode(
+                      File(
+                        'assets/templates/$genre/editor.json',
+                      ).readAsStringSync(),
+                    )
+                    as Map<String, Object?>)
+                .keys;
+        for (final type in types) {
+          final model = looks.modelFor(EntityDef(type: type));
+          if (model == null) continue;
+          expect(
+            modelsOf(genre).map((File it) => it.uri.pathSegments.last),
+            contains('model.${model.split('/').last}'),
+          );
+        }
+      }
+    });
+
+    test('and racing has nothing a model could be of', () {
+      // A circuit places no entities: its scenery is brushes and everything
+      // that is really an object belongs to the track document, which this
+      // editor does not open. There is no kind of thing here to draw.
+      expect(looksOf('racing').modelFor(EntityDef(type: 'camp')), isNull);
+      expect(modelsOf('racing'), isEmpty);
+    });
+
+    test('and strategy draws the boxes the game itself draws', () {
+      // **The one genre where the mark and the model would be the same
+      // object.** `StrategyBridge` builds its crowd as one instanced cuboid
+      // `UnitSize` across and its halls as boxes, because a thousand workers is
+      // the reason this genre exists at all — so a worker really is a box that
+      // size, and a `.glb` of one would be a file whose only content is a
+      // number this package already holds.
+      const UnitSize unit = UnitSize();
+      final Vector3? worker = looksOf(
+        'strategy',
+      ).sizeFor(EntityDef(type: 'worker'));
+
+      expect(modelsOf('strategy'), isEmpty);
+      expect(worker, isNotNull);
+      expect(worker!.x, closeTo(unit.width, 1e-6));
+      expect(worker.y, closeTo(unit.height, 1e-6));
+    });
   });
 
   group('where a model sits on its own origin', () {

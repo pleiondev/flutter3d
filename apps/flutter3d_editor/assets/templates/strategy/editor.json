@@ -1,0 +1,59 @@
+{
+  "camp": {
+    "size": [
+      12.0,
+      3.0,
+      10.0
+    ],
+    "defaults": {
+      "side": 0,
+      "width": 12.0,
+      "depth": 10.0
+    }
+  },
+  "worker": {
+    "size": [
+      0.8,
+      1.2,
+      0.8
+    ],
+    "defaults": {
+      "side": 0,
+      "count": 10,
+      "across": 5,
+      "spacing": 1.1
+    }
+  },
+  "resource_node": {
+    "size": [
+      4.0,
+      1.0,
+      4.0
+    ],
+    "defaults": {
+      "amount": 1600.0
+    }
+  },
+  "stockpile": {
+    "size": [
+      1.2,
+      1.2,
+      1.2
+    ],
+    "defaults": {
+      "side": 0,
+      "amount": 0.0
+    }
+  },
+  "producer": {
+    "size": [
+      1.2,
+      1.2,
+      1.2
+    ],
+    "defaults": {
+      "cost": 25.0,
+      "seconds": 4.0
+    }
+  }
+}
