@@ -63,12 +63,42 @@ final class Bot {
       if (job != null && job.carried > 0.0) continue;
 
       final ResourceNode? seam = _nearestSeam(simulation);
-      if (seam == null) return;
+      if (seam == null) {
+        _scout(simulation, unit);
+        continue;
+      }
       unit.job = HarvestJob(node: seam, dropOff: base);
     }
   }
 
-  /// The nearest deposit with anything left in it.
+  /// Sends a unit with nothing to dig towards the nearest ground nobody of this
+  /// side has seen.
+  ///
+  /// **This is what makes the fog a rule rather than a filter on the picture.**
+  /// The policy above can only send workers to seams it knows about, so a side
+  /// that opens with everything beyond its hall in the dark has exactly one
+  /// sensible move, and it is this one. Take the scouting away and the fog
+  /// becomes a way of losing: the crowd stands at home beside a map full of ore
+  /// it is not allowed to have heard of.
+  ///
+  /// No job, so the worker is idle again the moment it arrives and gets asked
+  /// the same question with more of the map uncovered. That is the whole loop:
+  /// walk, look, be asked again.
+  void _scout(StrategySimulation simulation, Unit unit) {
+    final int cell = simulation.fog.nearestUnexplored(
+      side,
+      unit.position.x,
+      unit.position.z,
+      reachable: (double x, double z) {
+        final int at = simulation.grid.cellAtPoint(x, z);
+        return at >= 0 && simulation.grid.isWalkable(at);
+      },
+    );
+    if (cell < 0) return;
+    unit.order = UnitOrder.moveTo(simulation.fog.centreOf(cell));
+  }
+
+  /// The nearest deposit this side has found that still has something in it.
   ///
   /// Nearest to the base rather than to the worker, so that every worker of a
   /// side agrees about which seam is the seam — a fleet that each chose its own
@@ -76,11 +106,18 @@ final class Bot {
   /// picture nobody asked for. Ties break on the order deposits were added,
   /// because the list is walked in order and a tie broken by anything else
   /// would be a tie broken differently on a different run.
+  ///
+  /// **Found, not merely present.** A seam in unexplored ground is not a seam
+  /// as far as this side is concerned — that is what the fog is for. What is
+  /// *not* asked is whether the seam is visible now: a side remembers where the
+  /// ore was, and finding out that somebody else has emptied it is what walking
+  /// there is for.
   ResourceNode? _nearestSeam(StrategySimulation simulation) {
     ResourceNode? best;
     var bestAt = double.infinity;
     for (final ResourceNode node in simulation.resources) {
       if (node.isEmpty) continue;
+      if (!simulation.fog.knows(side, node.at.x, node.at.z)) continue;
       final double dx = node.at.x - base.centre.x;
       final double dz = node.at.z - base.centre.z;
       final double at = dx * dx + dz * dz;

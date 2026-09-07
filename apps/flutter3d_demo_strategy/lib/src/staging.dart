@@ -141,10 +141,14 @@ Staged stage({required GraphicsDevice device, int workers = 60}) {
     if (side == 1) theirs = Bot(side: side, base: base);
   }
 
+  // Drawn through side nought's eyes rather than the simulation's: the far
+  // camp is dark until somebody of ours goes and looks at it, and what is drawn
+  // of the crowd is only what this side can see.
   final visuals = StrategyVisuals(
     simulation: simulation,
     device: device,
     capacity: workers * 2 + 256,
+    viewer: 0,
   );
 
   // Pointed at the near camp rather than at the middle of the map. The default

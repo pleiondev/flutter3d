@@ -29,6 +29,7 @@ import 'package:vector_math/vector_math.dart';
 
 import 'building.dart';
 import 'economy.dart';
+import 'fog.dart';
 import 'formation.dart';
 import 'unit.dart';
 
@@ -44,14 +45,32 @@ final class StrategySimulation {
     required this.ground,
     double cellSize = 2.0,
     double maxSlope = 0.698,
+    double fogCellSize = 4.0,
+    this.fogEvery = 6,
   }) : // ignore_for_file: prefer_initializing_formals
        _cellSize = cellSize,
-       _maxSlope = maxSlope {
+       _maxSlope = maxSlope,
+       fog = FogOfWar(ground: ground, cellSize: fogCellSize) {
     _bake();
   }
 
   final double _cellSize;
   final double _maxSlope;
+
+  /// What each side knows of the map. See [FogOfWar]: visibility is a rule of
+  /// the simulation here rather than a coat of paint on the picture, which is
+  /// why a policy reads it and why it is part of what a replay compares.
+  final FogOfWar fog;
+
+  /// How many steps pass between recomputing what everybody can see.
+  ///
+  /// Counted in steps rather than seconds, because a fog that refreshed on a
+  /// clock would make two runs of one tape disagree the moment one of them ran
+  /// on a slower machine. Six is a tenth of a second at sixty: far below what
+  /// anybody notices a crowd moving, and a sixth of the work.
+  final int fogEvery;
+
+  int _sinceFog = 0;
 
   /// The ground everything stands on.
   final Heightfield ground;
@@ -78,6 +97,12 @@ final class StrategySimulation {
   Building build(Building building) {
     building.centre.y = ground.heightAt(building.centre.x, building.centre.z);
     buildings.add(building);
+    fog.reveal(
+      building.side,
+      building.centre.x,
+      building.centre.z,
+      building.sight,
+    );
     _bake();
     _evict(building);
     return building;
@@ -131,9 +156,16 @@ final class StrategySimulation {
   final Map<int, List<int>> _buckets = <int, List<int>>{};
 
   /// Adds a unit and returns it, so a caller can keep the handle.
+  ///
+  /// It sees where it stands the moment it exists, rather than at the next fog
+  /// refresh. Without that, everything staged before the first step is blind
+  /// for a tenth of a second — long enough for a policy asked for its opening
+  /// orders to find a map it has never seen and send its whole crowd out to
+  /// explore the ground it is standing on.
   Unit add(Unit unit) {
     unit.position.y = ground.heightAt(unit.position.x, unit.position.z);
     units.add(unit);
+    fog.reveal(unit.side, unit.position.x, unit.position.z, unit.sight);
     return unit;
   }
 
@@ -181,6 +213,31 @@ final class StrategySimulation {
     _separate();
     _sit();
     _produce(dt);
+    _look();
+  }
+
+  /// Recomputes what every side can see, now and then.
+  ///
+  /// **Last in the step, so that what a side knows agrees with where its crowd
+  /// is.** A policy runs between steps and reads this; refreshed first, it
+  /// would be answering about the step before, and a scout would be told to go
+  /// and look at the cell it is standing in.
+  void _look() {
+    if (_sinceFog++ < fogEvery) return;
+    _sinceFog = 0;
+
+    fog.forgetVisible();
+    for (final Building building in buildings) {
+      fog.reveal(
+        building.side,
+        building.centre.x,
+        building.centre.z,
+        building.sight,
+      );
+    }
+    for (final Unit unit in units) {
+      fog.reveal(unit.side, unit.position.x, unit.position.z, unit.sight);
+    }
   }
 
   /// Runs each unit's job: out to the deposit, back to the drop-off.

@@ -211,7 +211,7 @@ point of §3.3.
 | `flutter3d_game_shooter` | Shooter rules: weapons, hitscan, projectiles, inventory, monsters |
 | `flutter3d_game_platformer` | Platformer rules: runner, coins, hazards, checkpoints |
 | `flutter3d_game_racing` | Racing rules: cars, circuits, laps, ghosts |
-| `flutter3d_game_strategy` | Strategy rules: ground made of samples, a crowd that takes orders, flow fields shared by destination |
+| `flutter3d_game_strategy` | Strategy rules: ground made of samples, a crowd that takes orders, flow fields shared by destination, an economy, a policy that plays a side, fog each side has to walk into |
 | `flutter3d_bridge` | Simulation state to scene: actor visuals, fixture visuals, particle effects |
 | `flutter3d_audio` | Loading, streaming, 3D positioning, voice limits, mix buses |
 | `flutter3d_screens` | Screens that are not the game: menus, settings, rebinding, storage |
@@ -1645,7 +1645,7 @@ entities a game defines.
 |---|---|
 | Style | `dart format` |
 | Analysis | `flutter analyze` clean across the workspace, no warnings |
-| Unit tests | **3870 tests** across 25 packages and 5 applications |
+| Unit tests | **3885 tests** across 25 packages and 5 applications |
 | Structure rules | 30, `dart run tool/structure.dart`, the first CI step |
 | CI | GitHub Actions over `tool/ci.sh`, on `ubuntu-latest`, with no graphics card |
 

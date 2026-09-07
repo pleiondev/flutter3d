@@ -45,6 +45,7 @@ final class Unit {
     required this.position,
     this.radius = 0.4,
     this.speed = 3.0,
+    this.sight = 18.0,
     this.side = 0,
     UnitOrder? order,
   }) : order = order ?? const UnitOrder.hold();
@@ -60,6 +61,14 @@ final class Unit {
 
   /// How fast it walks, in metres a second.
   final double speed;
+
+  /// How far it uncovers the map around itself, in metres.
+  ///
+  /// Wider than a unit could plausibly *see* on foot, and deliberately: sight
+  /// is what makes a crowd's own ground legible, and a radius near the walking
+  /// distance of one step leaves a side stumbling through a map it has already
+  /// walked over. See `FogOfWar` for what the radius does and does not model.
+  final double sight;
 
   /// Whose it is. Sides are small integers because that is all a simulation
   /// needs them to be; what a side is called belongs to the game.

@@ -7,6 +7,12 @@
 /// crowd there — which takes it off its work, the way an order does. Drag to
 /// push the view, and use the scroll wheel to pull it back.
 ///
+/// **The map is drawn through your eyes, not the simulation's.** Ground nobody
+/// of yours has been to is under fog, ground you have left is dim, and the
+/// other side's crowd is drawn only where you can see it. Hovering asks the
+/// renderer what is actually under the pointer — by pixel, not by bounding box
+/// — and lights it.
+///
 /// Nothing here decides anything about the simulation: it steps, the bridge
 /// reads it, and the camera watches — which is the arrangement every game in
 /// this repository has, seen at the one scale where a thousand of something is
@@ -56,6 +62,15 @@ class _MapState extends State<_Map> with SingleTickerProviderStateMixin {
   late final Ticker _ticker;
   final Raycaster _ray = Raycaster();
   Size _surface = const Size(1280, 720);
+
+  /// Whether a picking question is already waiting on a frame.
+  bool _asking = false;
+
+  /// The building the cursor is over, lit.
+  MeshNode? _lit;
+
+  /// What the cursor is over, by name, for the line in the corner.
+  String? _under;
 
   @override
   void initState() {
@@ -131,6 +146,65 @@ class _MapState extends State<_Map> with SingleTickerProviderStateMixin {
     Squad(staged.mine).moveTo(goal);
   }
 
+  /// Asks the next frame what is drawn under the cursor, and lights it.
+  ///
+  /// **The first time a game in this repository uses the picking pass.** A ray
+  /// against bounds — which is what every other genre here points with, and
+  /// what the click below still uses to find a spot of ground — answers "which
+  /// box did I point at", and a box is a metre wider than the hall in it. The
+  /// pass draws the scene again with each mesh writing its own number and reads
+  /// the one pixel back, so the answer is the silhouette: the corner of a hall
+  /// stops being the hall exactly where it looks like it does.
+  ///
+  /// One question at a time. The pass costs a scene's worth of draws on the
+  /// frame it runs, and a pointer that moves sixty times a second would
+  /// otherwise queue sixty of them — the cursor would be answered about where
+  /// it used to be, more slowly, for ever.
+  void _hover(Offset at) {
+    final renderer = _renderer;
+    if (renderer == null || _asking) return;
+    _asking = true;
+    renderer
+        .pickPixel(at.dx / _surface.width, at.dy / _surface.height)
+        .then(
+          (MeshNode? node) {
+            if (!mounted) return;
+            setState(() {
+              _asking = false;
+              _light(node);
+            });
+          },
+          // A pick belongs to a frame, and a frame can fail — see `pickPixel`.
+          // Nothing about the game depends on the answer, so a question that
+          // cannot be answered is one nothing was under.
+          onError: (Object _, StackTrace _) {
+            if (!mounted) return;
+            setState(() {
+              _asking = false;
+              _light(null);
+            });
+          },
+        );
+  }
+
+  /// Lights [node] if it is a building, and puts out whatever was lit.
+  ///
+  /// Buildings only. A batch is picked as the batch by the engine's own
+  /// account, so lighting what the cursor found over the crowd would light
+  /// every unit on the map — and over the fog it would light the fog.
+  void _light(MeshNode? node) {
+    final staged = _staged;
+    if (staged == null) return;
+    final MeshNode? wanted = staged.visuals.buildings.contains(node)
+        ? node
+        : null;
+    if (identical(wanted, _lit)) return;
+    _lit?.material.emissive.setZero();
+    _lit = wanted;
+    wanted?.material.emissive.setValues(0.30, 0.26, 0.10);
+    _under = node?.name;
+  }
+
   /// The score, and who has won when somebody has.
   String get _score {
     final staged = _staged;
@@ -139,8 +213,9 @@ class _MapState extends State<_Map> with SingleTickerProviderStateMixin {
     final String tally =
         'you ${sim.delivered[0].round()} · '
         'bot ${sim.delivered[1].round()}';
+    final String under = _under == null ? '' : ' · over ${_under!}';
     final Standing standing = staged.match.standing;
-    if (!standing.isOver) return tally;
+    if (!standing.isOver) return '$tally$under';
     return switch (standing.winner) {
       0 => '$tally — you win',
       1 => '$tally — the bot wins',
@@ -174,40 +249,46 @@ class _MapState extends State<_Map> with SingleTickerProviderStateMixin {
           staged.camera.zoom(event.scrollDelta.dy * 0.05);
         }
       },
-      child: GestureDetector(
-        onTapUp: (TapUpDetails details) => _order(details.localPosition),
-        onPanUpdate: (DragUpdateDetails details) => staged.camera.pan(
-          -details.delta.dx * 0.12,
-          -details.delta.dy * 0.12,
-        ),
-        child: LayoutBuilder(
-          builder: (BuildContext context, BoxConstraints constraints) {
-            _surface = constraints.biggest;
-            final frame = renderer.render(
-              width: (constraints.maxWidth * dpr).round().clamp(1, 8192),
-              height: (constraints.maxHeight * dpr).round().clamp(1, 8192),
-              scene: _scene,
-              views: <RenderView>[_view],
-              settings: const RenderSettings(),
-            );
-            return Stack(
-              children: <Widget>[
-                Positioned.fill(child: renderer.device.present(frame.frame)),
-                Positioned(
-                  left: 16.0,
-                  top: 16.0,
-                  child: Text(
-                    _score,
-                    style: const TextStyle(
-                      color: Color(0xFFE8ECF4),
-                      fontSize: 16.0,
-                      fontFeatures: <FontFeature>[FontFeature.tabularFigures()],
+      child: MouseRegion(
+        onHover: (PointerHoverEvent event) => _hover(event.localPosition),
+        onExit: (PointerExitEvent _) => setState(() => _light(null)),
+        child: GestureDetector(
+          onTapUp: (TapUpDetails details) => _order(details.localPosition),
+          onPanUpdate: (DragUpdateDetails details) => staged.camera.pan(
+            -details.delta.dx * 0.12,
+            -details.delta.dy * 0.12,
+          ),
+          child: LayoutBuilder(
+            builder: (BuildContext context, BoxConstraints constraints) {
+              _surface = constraints.biggest;
+              final frame = renderer.render(
+                width: (constraints.maxWidth * dpr).round().clamp(1, 8192),
+                height: (constraints.maxHeight * dpr).round().clamp(1, 8192),
+                scene: _scene,
+                views: <RenderView>[_view],
+                settings: const RenderSettings(),
+              );
+              return Stack(
+                children: <Widget>[
+                  Positioned.fill(child: renderer.device.present(frame.frame)),
+                  Positioned(
+                    left: 16.0,
+                    top: 16.0,
+                    child: Text(
+                      _score,
+                      style: const TextStyle(
+                        color: Color(0xFFE8ECF4),
+                        fontSize: 16.0,
+                        fontFeatures: <FontFeature>[
+                          FontFeature.tabularFigures(),
+                        ],
+                      ),
                     ),
                   ),
-                ),
-              ],
-            );
-          },
+                ],
+              );
+            },
+          ),
         ),
       ),
     );

@@ -126,4 +126,129 @@ void main() {
     expect(scene.meshes.length, before + 1);
     expect(scene.meshes.last.name, 'hall');
   });
+
+  test('each building keeps a material of its own', () {
+    // What lets a game light the one the cursor is over. Mutation: hand every
+    // node the same material — lighting a hall then lights every hall on the
+    // map, which is the sort of thing that looks like a renderer bug and is
+    // not.
+    final sim = StrategySimulation(ground: _ground());
+    final visuals = StrategyVisuals(simulation: sim, device: device);
+    visuals.addTo(Scene(name: 'map'));
+    sim
+      ..build(Building(centre: Vector3(8.0, 0.0, 8.0), width: 4.0, depth: 4.0))
+      ..build(
+        Building(centre: Vector3(30.0, 0.0, 30.0), width: 4.0, depth: 4.0),
+      );
+    visuals.sync();
+
+    final materials = visuals.buildings.map((MeshNode m) => m.material);
+    expect(materials.length, 2);
+    expect(identical(materials.first, materials.last), isFalse);
+  });
+
+  group('under fog', () {
+    test('a spectator is given no fog at all', () {
+      // Mutation: build the tile batches whatever `viewer` says. A test
+      // harness, a replay or an editor then looks at a map through somebody
+      // else's ignorance, which is the one view that has to be honest.
+      final sim = StrategySimulation(ground: _ground());
+      final visuals = StrategyVisuals(simulation: sim, device: device);
+
+      expect(visuals.unseen, isNull);
+      expect(visuals.remembered, isNull);
+    });
+
+    test('a side is not drawn a crowd it cannot see', () {
+      // **The saving the phase was partly for.** Mutation: write every unit
+      // into the batch regardless. Nothing looks wrong in a small test — the
+      // enemy is simply visible through the dark — and the instance bill,
+      // which is what this genre's ceiling is made of, is paid in full for a
+      // crowd nobody is allowed to look at.
+      final sim = StrategySimulation(ground: _ground());
+      sim
+        ..add(Unit(position: Vector3(6.0, 0.0, 6.0)))
+        ..add(Unit(position: Vector3(34.0, 0.0, 34.0), side: 1));
+      sim.step(1.0 / 60.0);
+
+      final visuals = StrategyVisuals(
+        simulation: sim,
+        device: device,
+        viewer: 0,
+      );
+      visuals
+        ..addTo(Scene(name: 'map'))
+        ..sync();
+
+      expect(visuals.crowd.count, 1, reason: 'it was shown the other side');
+    });
+
+    test('covers what nobody went to and thins behind a crowd that did', () {
+      final sim = StrategySimulation(ground: _ground());
+      final scout = sim.add(Unit(position: Vector3(6.0, 0.0, 6.0), sight: 8.0));
+      final visuals = StrategyVisuals(
+        simulation: sim,
+        device: device,
+        viewer: 0,
+      );
+      visuals
+        ..addTo(Scene(name: 'map'))
+        ..sync();
+
+      final int dark = visuals.unseen!.count;
+      expect(dark, greaterThan(0), reason: 'the map opened uncovered');
+      expect(visuals.remembered!.count, 0, reason: 'nothing to remember yet');
+
+      scout.order = UnitOrder.moveTo(Vector3(34.0, 0.0, 34.0));
+      for (var i = 0; i < 60 * 20; i++) {
+        sim.step(1.0 / 60.0);
+      }
+      visuals.sync();
+
+      expect(
+        visuals.unseen!.count,
+        lessThan(dark),
+        reason: 'walking across the map uncovered none of it',
+      );
+      expect(
+        visuals.remembered!.count,
+        greaterThan(0),
+        reason: 'the ground it walked over is not remembered',
+      );
+    });
+
+    test('holds back a building the viewer has never found', () {
+      // Mutation: make a node for every building the moment it is placed. The
+      // other side's hall then appears out of the dark the instant it is built,
+      // which is the fog telling you exactly what it was there to hide.
+      final sim = StrategySimulation(ground: _ground());
+      final visuals = StrategyVisuals(
+        simulation: sim,
+        device: device,
+        viewer: 0,
+      );
+      final scene = Scene(name: 'map');
+      visuals
+        ..addTo(scene)
+        ..sync();
+      final int before = scene.meshes.length;
+
+      sim.build(
+        Building(
+          centre: Vector3(34.0, 0.0, 34.0),
+          width: 6.0,
+          depth: 6.0,
+          name: 'their hall',
+          side: 1,
+        ),
+      );
+      visuals.sync();
+
+      expect(scene.meshes.length, before, reason: 'it was drawn unseen');
+      expect(
+        scene.meshes.map((MeshNode m) => m.name),
+        isNot(contains('their hall')),
+      );
+    });
+  });
 }

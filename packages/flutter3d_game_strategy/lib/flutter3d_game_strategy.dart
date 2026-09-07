@@ -32,17 +32,27 @@
 ///
 /// Units, orders and the step that moves them; ground taken from the map and
 /// turned into more units; two sides, and a policy that plays one of them
-/// without a mouse. **No fight and no fog** — those are the phase after this
-/// one, and a package that grew them before it could carry a crowd across a
-/// hill would have been guessing about the part that was actually uncertain.
+/// without a mouse; and a map each side has to go and look at before it knows
+/// what is on it. **No fight** — a package that grew one before it could carry
+/// a crowd across a hill would have been guessing about the part that was
+/// actually uncertain.
 ///
 /// The victory here is economic for the same reason: nothing on this map
 /// fights, so what settles a match is what a side dug. See [Match].
+///
+/// **The fog is a rule, not a coat of paint.** [FogOfWar] is asked by the
+/// policy that decides where to send workers, so a side that has not found a
+/// seam cannot dig it and has to send somebody to look; it is also what the
+/// drawing half draws, so a view belonging to a side shows that side's
+/// knowledge rather than the simulation. The two uses are the same lattice, and
+/// keeping them the same is the point: a fog the picture believed and the rules
+/// did not would be a fog that lied to exactly one of them.
 library;
 
 export 'src/bot.dart';
 export 'src/building.dart';
 export 'src/economy.dart';
+export 'src/fog.dart';
 export 'src/formation.dart';
 export 'src/map_camera.dart';
 export 'src/match.dart';

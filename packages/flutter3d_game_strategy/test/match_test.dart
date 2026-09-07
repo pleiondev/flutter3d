@@ -80,6 +80,13 @@ List<double> _digest(StrategySimulation sim) => <double>[
   sim.stock[0].amount,
   sim.stock[1].amount,
   sim.units.length.toDouble(),
+  // What each side knows, counted. Fog is a rule of the simulation rather than
+  // a coat on the picture, so a run that ends with the same crowd and a
+  // different map is a run that did not replay — and the cheapest way to say
+  // that is to make the map part of what is compared.
+  for (var side = 0; side < 2; side++)
+    for (final bool now in <bool>[true, false])
+      _cellsKnown(sim, side, visible: now),
   for (final ResourceNode node in sim.resources) node.amount,
   for (final Unit unit in sim.units) ...<double>[
     unit.position.x,
@@ -87,6 +94,19 @@ List<double> _digest(StrategySimulation sim) => <double>[
     unit.position.z,
   ],
 ];
+
+/// How many cells a side can see now, or has ever seen.
+double _cellsKnown(StrategySimulation sim, int side, {required bool visible}) {
+  var count = 0;
+  for (var cell = 0; cell < sim.fog.cellCount; cell++) {
+    if (visible
+        ? sim.fog.isVisible(side, cell)
+        : sim.fog.isExplored(side, cell)) {
+      count++;
+    }
+  }
+  return count.toDouble();
+}
 
 /// Runs [match] to its end, or to [cap] steps, and says how many it took.
 int _play(Match match, {int cap = 6000}) {

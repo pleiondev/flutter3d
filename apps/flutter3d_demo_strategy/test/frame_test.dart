@@ -30,17 +30,26 @@ const int _width = 160;
 const int _height = 100;
 
 /// What a frame is made of: how much is not the clear colour, and how varied.
-({int lit, int shades}) _describe(Uint8List rgba) {
+({int lit, int deep, int bright, int shades}) _describe(Uint8List rgba) {
   final buckets = <int>{};
   var lit = 0;
+  var deep = 0;
+  var bright = 0;
   for (var i = 0; i < rgba.length; i += 4) {
     final int luminance =
         (rgba[i] * 30 + rgba[i + 1] * 59 + rgba[i + 2] * 11) ~/ 100;
     if (luminance > 6) lit++;
+    // Three, not six: the background this camera sees past the edge of the
+    // hillside lands under six, and only the fog goes below three. Measured —
+    // see the two bounds below.
+    if (luminance <= 3) deep++;
+    if (luminance > 60) bright++;
     buckets.add(luminance >> 4);
   }
-  return (lit: lit, shades: buckets.length);
+  return (lit: lit, deep: deep, bright: bright, shades: buckets.length);
 }
+
+const int _pixels = _width * _height;
 
 void main() {
   test('the map is drawn, and the crowd is in it', () async {
@@ -104,14 +113,44 @@ void main() {
       greaterThan(2),
       reason: 'one flat colour is a frame with nothing lit in it',
     );
+    // **The fog is drawn, and it has not swallowed the game** — two bounds,
+    // because each catches a different way of getting it wrong and neither
+    // catches the other. The tiles over unexplored ground are near-black slabs
+    // ten metres deep, so a fog that never reaches the frame leaves nothing
+    // dark in it, and one placed over the camp instead of beyond it leaves
+    // nothing bright. Neither shows up in a simulation test: the lattice is
+    // right in both.
+    //
+    // Measured, not guessed, and the first threshold moved because of it. As
+    // drawn: 4138 pixels darker than three and 10686 brighter than sixty, of
+    // 16000. With the fog batches never filled: **nought** below three — but
+    // 948 below six, which is the background past the edge of the hillside and
+    // is why counting unlit pixels let that mistake through. With the
+    // visibility test dropped, so that explored ground is covered too: 6628
+    // bright.
+    expect(
+      first.deep,
+      greaterThan(_pixels ~/ 20),
+      reason: 'no fog reached the frame at all',
+    );
+    expect(
+      first.bright,
+      greaterThan(_pixels ~/ 2),
+      reason: 'the fog covered the ground the camera is looking at',
+    );
 
     // Send this side's crowd somewhere and let the other side's get on with its
     // work: the picture has to change, which is what says the batch is being
     // written rather than uploaded once. Both halves of that are worth having
     // here — an order given from outside and a policy giving its own — because
     // the drawing cannot tell them apart and neither should this test.
+    // Ninety frames rather than the two hundred and forty this started with:
+    // the fog is two batches of a couple of thousand slabs, and the software
+    // rasteriser fills every one of them, so the frames here cost three times
+    // what they used to. A second and a half is still four metres of walking,
+    // which is all this needs to see.
     Squad(staged.mine).moveTo(vm.Vector3(80.0, 0.0, 40.0));
-    for (var i = 0; i < 240; i++) {
+    for (var i = 0; i < 90; i++) {
       await draw();
     }
     final Uint8List after = await draw();

@@ -28,6 +28,7 @@ final class Building {
     required this.depth,
     this.name = 'building',
     this.side = 0,
+    this.sight = 30.0,
   }) : centre = centre.clone(),
        assert(
          width > 0.0 && depth > 0.0,
@@ -46,6 +47,13 @@ final class Building {
 
   /// Whose it is.
   final int side;
+
+  /// How far it uncovers the map around itself, in metres.
+  ///
+  /// Further than a unit, which is the whole reason a side's first building is
+  /// worth putting somewhere rather than anywhere: a hall is what a side can
+  /// see from while its crowd is away digging.
+  final double sight;
 
   /// Whether `(x, z)` is under this building.
   bool covers(double x, double z) =>
