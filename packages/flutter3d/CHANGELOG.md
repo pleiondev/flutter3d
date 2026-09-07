@@ -27,10 +27,15 @@
   than by widening the mesh and surface records, so a build that predates them
   skips both and reads the same file as a model at rest. The container version
   is unchanged, which is what the section directory was for.
-* Not blended through a crossfade or an animation layer, and that is written
-  down rather than half-built: two clips fading between two expressions would
-  want the weights mixed the way a pose is, and guessing at how that should
-  feel is how an API arrives that nobody can use.
+* **A crossfade mixes weights; a layer adds them.** Two different questions and
+  two answers. Fading between clips is a transition between whole performances,
+  so halfway through it the face is halfway between the two expressions — the
+  straight line a translation already takes. A layer is not a transition but a
+  second thing happening at once, so a wince goes *on top of* a shout rather
+  than instead of half of it, scaled by the layer's own weight and bounded at
+  one so that two layers asking for most of a shape reach it instead of
+  overshooting. A file whose own track asks for more than one still gets it:
+  the ceiling belongs to the sum a layer makes.
 * **Animation layers: a clip over part of a skeleton while the base plays over
   all of it.** `AnimationPlayer.layers`, `playLayer` and `AnimationLayer` — an
   upper body that reloads while the legs keep running, a monster that flinches

@@ -439,34 +439,144 @@ final class AnimationPlayer {
       _write(node, track.path, _sample);
     }
 
-    if (layers.isNotEmpty) _applyLayersWhereBaseIsSilent();
+    if (layers.isNotEmpty) {
+      _applyLayersWhereBaseIsSilent();
+      _applyLayerWeightsWhereBaseIsSilent();
+    }
   }
 
-  /// Samples a weights track and hands it to whatever is morphing.
+  /// Samples a weights track, mixes what the crossfade and the layers say, and
+  /// hands the result to whatever is morphing.
   ///
-  /// Not blended with a crossfade or a layer, and that is a limit rather than
-  /// an oversight: two clips fading between two expressions would want the
-  /// weights mixed, and doing it would mean the outgoing clip's weights track
-  /// looked up the same way the outgoing pose is. It is written down here
-  /// rather than half-built — nothing in this repository morphs through a
-  /// crossfade yet, and guessing at how it should feel is how an API arrives
-  /// that nobody can use.
+  /// **A crossfade mixes weights the way it mixes a pose; a layer adds.** The
+  /// two are different questions and they get different answers. Fading from
+  /// one clip to another is a transition between two whole performances, and a
+  /// face halfway through it should be halfway between the two expressions —
+  /// the same straight line a translation takes. A layer is not a transition:
+  /// it is a second thing happening at once, a blink over a line of speech or a
+  /// wince over a shout, and the useful arithmetic there is the wince *on top
+  /// of* the shout rather than instead of half of it.
+  ///
+  /// Adding is bounded at one, because a weight above it is a face pushed past
+  /// the shape its author sculpted, and two layers that each ask for most of an
+  /// expression should reach it rather than overshoot it. The ceiling is only
+  /// applied when a layer actually added something: a file whose own track asks
+  /// for 1.2 gets 1.2, which is its business.
   void _applyWeights(AnimationTrack track) {
     if (track.nodeIndex < 0 || track.nodeIndex >= morphs.length) return;
     final sink = morphs[track.nodeIndex];
     if (sink == null) return;
 
-    if (_sample.length < track.componentCount) {
-      _sample = Float32List(track.componentCount);
-    }
+    final count = track.componentCount;
+    if (_sample.length < count) _sample = Float32List(count);
     track.sample(_time, _sample);
-    if (_weightScratch.length != track.componentCount) {
-      _weightScratch = List<double>.filled(track.componentCount, 0.0);
+
+    // The crossfade, on the same terms as a joint's: the outgoing clip's track
+    // for this node, looked up the way the outgoing pose is.
+    final fade = fadeWeight;
+    if (fade < 1.0) {
+      final previous = _fadeFromTracks?[_trackKey(track)];
+      if (previous != null) {
+        if (_fadeSample.length < previous.componentCount) {
+          _fadeSample = Float32List(previous.componentCount);
+        }
+        previous.sample(_fadeFromTime, _fadeSample);
+        final shared = count < previous.componentCount
+            ? count
+            : previous.componentCount;
+        for (var i = 0; i < shared; i++) {
+          _sample[i] = _mix(_fadeSample[i], _sample[i], fade);
+        }
+      }
     }
-    for (var i = 0; i < track.componentCount; i++) {
-      _weightScratch[i] = _sample[i];
+
+    final added = _addLayerWeights(_sample, _trackKey(track), count);
+    _sendWeights(sink, _sample, count, bounded: added);
+  }
+
+  /// Adds every layer's weights for [key] into [into], and says whether any
+  /// layer had something to add.
+  ///
+  /// Scaled by the layer's own weight, so fading a layer in fades the shape it
+  /// contributes rather than switching it on.
+  bool _addLayerWeights(Float32List into, int key, int count) {
+    var added = false;
+    for (final layer in layers) {
+      final index = layer.clip;
+      if (index < 0 || index >= clips.length) continue;
+      final weight = layer.effectiveWeight;
+      if (weight <= 0.0) continue;
+      final track = layer.tracksOf(clips[index])[key];
+      if (track == null) continue;
+      if (!layer.mask.covers(track.nodeIndex)) continue;
+
+      if (_layerSample.length < track.componentCount) {
+        _layerSample = Float32List(track.componentCount);
+      }
+      track.sample(layer.time, _layerSample);
+      final shared = count < track.componentCount
+          ? count
+          : track.componentCount;
+      for (var i = 0; i < shared; i++) {
+        into[i] += _layerSample[i] * weight;
+      }
+      added = true;
+    }
+    return added;
+  }
+
+  /// Copies [count] weights out of [pose] and sets them on [sink].
+  void _sendWeights(
+    MorphSink sink,
+    Float32List pose,
+    int count, {
+    required bool bounded,
+  }) {
+    if (_weightScratch.length != count) {
+      _weightScratch = List<double>.filled(count, 0.0);
+    }
+    for (var i = 0; i < count; i++) {
+      final value = pose[i];
+      _weightScratch[i] = bounded && value > 1.0 ? 1.0 : value;
     }
     sink.setWeights(_weightScratch);
+  }
+
+  /// The weights of layers whose node the base clip says nothing about.
+  ///
+  /// A separate pass rather than a branch inside
+  /// [_applyLayersWhereBaseIsSilent], because adding is a question about all
+  /// the layers at once: that method writes each layer's pose in turn and the
+  /// last one wins, which is right for a joint and wrong for a sum.
+  void _applyLayerWeightsWhereBaseIsSilent() {
+    final done = <int>{};
+    for (final layer in layers) {
+      final index = layer.clip;
+      if (index < 0 || index >= clips.length) continue;
+      if (layer.effectiveWeight <= 0.0) continue;
+
+      for (final track in clips[index].tracks) {
+        if (track.path != AnimationPath.weights) continue;
+        final key = _trackKey(track);
+        if (_baseKeys.contains(key) || !done.add(key)) continue;
+        if (!layer.mask.covers(track.nodeIndex)) continue;
+        if (track.nodeIndex < 0 || track.nodeIndex >= morphs.length) continue;
+        final sink = morphs[track.nodeIndex];
+        if (sink == null) continue;
+
+        // From nought rather than from what the sink holds: a sink cannot be
+        // read back through [MorphSink], deliberately — the same reason
+        // `_applyLayersWhereBaseIsSilent` gives for taking a joint outright —
+        // and adding onto last frame's value would accumulate.
+        final count = track.componentCount;
+        if (_sample.length < count) _sample = Float32List(count);
+        for (var i = 0; i < count; i++) {
+          _sample[i] = 0.0;
+        }
+        _addLayerWeights(_sample, key, count);
+        _sendWeights(sink, _sample, count, bounded: true);
+      }
+    }
   }
 
   /// The weights handed to a sink, reused: a list per model per frame is an
@@ -554,6 +664,10 @@ final class AnimationPlayer {
       if (layer.effectiveWeight <= 0.0) continue;
 
       for (final track in clips[index].tracks) {
+        // Weights are added rather than written over, and by every layer at
+        // once — see [_applyLayerWeightsWhereBaseIsSilent], which runs after
+        // this and is where they go.
+        if (track.path == AnimationPath.weights) continue;
         if (_baseKeys.contains(_trackKey(track))) continue;
         if (!layer.mask.covers(track.nodeIndex)) continue;
         if (track.nodeIndex < 0 || track.nodeIndex >= targets.length) continue;
@@ -573,6 +687,7 @@ final class AnimationPlayer {
   void _applyLayersAlone() {
     _baseKeys.clear();
     _applyLayersWhereBaseIsSilent();
+    _applyLayerWeightsWhereBaseIsSilent();
   }
 
   void _write(AnimationTarget node, AnimationPath path, Float32List pose) {

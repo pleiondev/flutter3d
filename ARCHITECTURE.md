@@ -1644,7 +1644,7 @@ entities a game defines.
 |---|---|
 | Style | `dart format` |
 | Analysis | `flutter analyze` clean across the workspace, no warnings |
-| Unit tests | **3771 tests** across 24 packages and 5 applications |
+| Unit tests | **3780 tests** across 24 packages and 5 applications |
 | Structure rules | 30, `dart run tool/structure.dart`, the first CI step |
 | CI | GitHub Actions over `tool/ci.sh`, on `ubuntu-latest`, with no graphics card |
 
@@ -1885,9 +1885,17 @@ vertex stage can sample one, measured on all three backends by
 `texelFetch` in a vertex stage, so the shader reads texel centres with
 `texture()` and is handed the texel size in its uniform.
 
-Additive blending — a delta over a reference pose, which is what recoil
-and lean want — needs a reference frame per clip, and glTF has no standard place
-to say which frame that is.
+Additive blending **of a pose** — a delta over a reference pose, which is what
+recoil and lean want — needs a reference frame per clip, and glTF has no
+standard place to say which frame that is. Morph *weights* are a different
+matter and are additive already: a weight is a number from nought, so a layer
+has a reference frame without anybody naming one. So a layer adds its weights
+to the base's, scaled by the layer's own weight and bounded at one — a wince
+over a shout rather than instead of half of it — while a crossfade mixes them
+the way it mixes a translation, because a fade is a transition between whole
+performances and a layer is a second thing happening at once. A file whose own
+track asks for a weight above one still gets it; the ceiling belongs to the sum
+a layer makes.
 
 What is *there* is a crossfade and layers. `AnimationPlayer.crossFadeTo` moves
 the whole skeleton from one clip to another, keeping the outgoing clip playing
