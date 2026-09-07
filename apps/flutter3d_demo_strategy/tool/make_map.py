@@ -225,6 +225,14 @@ def main():
         # is how much a side has to have brought home, and the format carries a
         # section it does not know rather than losing it — see `writeThrough`.
         "goal": {"delivered": GOAL},
+        # The distance haze, written down although it is the value a reader
+        # falls back to anyway. `Level` writes this key on every save whether
+        # or not it was read, so a document without it is a document that
+        # changes the first time anything opens and saves it — which the
+        # round-trip test over every level in this repository catches, and
+        # which would otherwise reach a person as an editor dirtying a file
+        # they only looked at.
+        "fogColor": [0.05, 0.04, 0.06],
         "materials": {
             "rock": {"baseColor": [0.31, 0.29, 0.26, 1.0], "roughness": 0.95},
         },
