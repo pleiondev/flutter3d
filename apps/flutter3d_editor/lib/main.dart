@@ -580,38 +580,105 @@ class _EditorScreenState extends State<EditorScreen>
 
   /// Where the pointer went down, and how far it has travelled since.
   ///
-  /// **One button, and the difference between looking and selecting is the
-  /// drag.** The first version put looking on the right button, which is a
-  /// two-finger press-and-drag on a trackpad and was undiscoverable enough that
-  /// the person it was built for could not get down the first corridor. A click
-  /// that does not move is a click; a click that moves is a look. Nothing to
-  /// hold, nothing to know.
+  /// **One button, and what a drag means is decided where it starts.** The
+  /// first version put looking on the right button, which is a two-finger
+  /// press-and-drag on a trackpad and was undiscoverable enough that the person
+  /// it was built for could not get down the first corridor. So there are three
+  /// meanings on one button and none of them is a modifier: a press that does
+  /// not move is a click; a press that moves *off a bar of the selection box*
+  /// drags the selected thing along that bar; a press that moves anywhere else
+  /// turns the camera. Turning the camera is what most of the screen is, which
+  /// is what keeps it the thing nobody has to be told about.
   Offset? _dragged;
   double _travelled = 0.0;
+
+  /// The gesture in progress, when the press landed on a bar. Null while the
+  /// pointer is turning the camera or doing nothing.
+  ///
+  /// **Decided at the press and not revisited.** Which of the two a drag is
+  /// cannot be a question the camera asks again halfway through: a hand that
+  /// slips off the bar it grabbed is still dragging the thing, and a pointer
+  /// that swapped meanings mid-gesture would spin the view instead.
+  AxisDrag? _grabbed;
 
   /// How far a pointer may move and still count as a click, in pixels.
   static const double _slop = 4.0;
 
-  void _pointerDown(PointerDownEvent event) {
+  void _pointerDown(PointerDownEvent event, Size size) {
     _keyboard.requestFocus();
     _dragged = event.localPosition;
     _travelled = 0.0;
+    _grabbed = _grab(event.localPosition, size);
   }
 
-  void _pointerMove(PointerMoveEvent event) {
+  /// Takes hold of a bar of the selection box under [at], or answers null.
+  ///
+  /// **Nothing to hold while the palette is holding something**, because the
+  /// next click is then a click that puts one down — and a press that both
+  /// placed a monster and dragged the last one somewhere would be the palette
+  /// row doing two things at once.
+  AxisDrag? _grab(Offset at, Size size) {
+    final editing = _editing;
+    final dressing = _dressing;
+    if (editing == null || dressing == null || _ready?.placing != null) {
+      return null;
+    }
+    return AxisDrag.start(
+      dressing.bars,
+      editing,
+      _fly.position,
+      _rayThrough(at, size),
+    );
+  }
+
+  void _pointerMove(PointerMoveEvent event, Size size) {
     final from = _dragged;
     if (from == null) return;
     final by = event.localPosition - from;
     _travelled += by.distance;
     _dragged = event.localPosition;
     if (_travelled < _slop) return;
-    _fly.look(Vector2(by.dx, by.dy));
+
+    final drag = _grabbed;
+    final editing = _editing;
+    if (drag == null || editing == null) {
+      _fly.look(Vector2(by.dx, by.dy));
+      return;
+    }
+    // **Through the same gate as every other change, and quieter.** Marking
+    // the document stale is what `_changed` does; `_onTick` then rebuilds at
+    // most one level per frame, so a pointer reporting faster than the screen
+    // draws costs one rebuild rather than one each — see `_build`, which is
+    // the whole level every time. What is left out is the other half of
+    // `_changed`: a sentence for the bar sixty times a second, saying what the
+    // picture is already showing. Where it landed is said once, on the way up.
+    if (drag.moveTo(
+      editing,
+      _fly.position,
+      _rayThrough(event.localPosition, size),
+    )) {
+      _placeMarker();
+      _stale = true;
+    }
   }
 
   void _pointerUp(PointerUpEvent event, Size size) {
     final from = _dragged;
+    final drag = _grabbed;
     _dragged = null;
-    if (from == null || _travelled >= _slop) return;
+    _grabbed = null;
+    if (from == null) return;
+
+    final editing = _editing;
+    // The whole drag becomes one step here, whatever it took to make it —
+    // see `AxisDrag.finish`. A press that took hold of a bar and moved
+    // nothing falls through to being the click it was.
+    if (drag != null && editing != null && drag.finish(editing)) {
+      _placeMarker();
+      _changed('dragged ${editing.says}');
+      return;
+    }
+    if (_travelled >= _slop) return;
     final placing = _ready?.placing;
     if (placing == null) {
       unawaited(_pick(event.localPosition, size));
@@ -1101,8 +1168,10 @@ class _EditorScreenState extends State<EditorScreen>
                 // had just picked up. A scroll over the list flew the camera at
                 // the same time as scrolling.
                 Listener(
-                  onPointerDown: _pointerDown,
-                  onPointerMove: _pointerMove,
+                  onPointerDown: (PointerDownEvent event) =>
+                      _pointerDown(event, size),
+                  onPointerMove: (PointerMoveEvent event) =>
+                      _pointerMove(event, size),
                   onPointerUp: (PointerUpEvent event) =>
                       _pointerUp(event, size),
                   onPointerSignal: _pointerSignal,

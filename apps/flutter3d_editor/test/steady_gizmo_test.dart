@@ -19,6 +19,7 @@ import 'package:flutter3d/flutter3d.dart' as engine show Material;
 import 'package:flutter3d/flutter3d.dart' hide Material;
 import 'package:flutter3d_bridge/flutter3d_bridge.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
+import 'package:flutter3d_editor/src/scene_dressing.dart';
 import 'package:flutter3d_editor_core/flutter3d_editor_core.dart';
 import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -92,6 +93,53 @@ Level _level() => Level.fromJson(
 );
 
 void main() {
+  test('the selection box can be taken hold of where it is drawn', () {
+    // **The bar somebody sees and the bar their click meets are the same
+    // twelve.** A drag begins by tracing a ray against boxes rather than by
+    // reading a pixel — the pixel arrives a frame late and may not arrive at
+    // all — so the boxes are built beside the nodes from one description of
+    // the cage. Built apart they would agree until the day one of them was
+    // tidied, and that day the selection box is drawn in one place and
+    // grabbable in another, which reads as the mouse being broken.
+    final device = CpuDevice(
+      width: _width,
+      height: _height,
+      shaders: CpuShaderLibrary(builtinCpuShaders()),
+    );
+    final dressing = SceneDressing(device);
+    final scene = Scene();
+    final editing = Editing(level: _level(), path: 'memory.json')
+      ..select(Piece.brush, 1);
+
+    dressing.placeMarker(scene, editing);
+    final marker = dressing.marker;
+    expect(marker, isNotNull);
+    expect(marker!.children, hasLength(12));
+    expect(dressing.bars, hasLength(12));
+
+    for (final edge in marker.children) {
+      final at =
+          marker.localMatrix.getTranslation() +
+          edge.localMatrix.getTranslation();
+      final around = dressing.bars.where(
+        (GizmoBar bar) =>
+            Picking.hit(bar.min, bar.max, at, Vector3(0.0, 0.0, 1.0)) == 0.0,
+      );
+      expect(
+        around,
+        hasLength(1),
+        reason: 'the bar drawn at $at is exactly one of the bars a ray meets',
+      );
+    }
+
+    // And nothing selected is nothing to grab: the cage goes, and so does
+    // everything a press could have taken hold of.
+    editing.select(null, null);
+    dressing.placeMarker(scene, editing);
+    expect(dressing.marker, isNull);
+    expect(dressing.bars, isEmpty);
+  });
+
   test('a region the document sized is a cage, not a slab', () {
     // **The editor's way of saying "this is a region" without knowing what a
     // trigger is.** Something the author gave a size to is something whose

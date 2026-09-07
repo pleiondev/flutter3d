@@ -8,6 +8,8 @@ import 'package:flutter3d_editor_core/flutter3d_editor_core.dart';
 import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:vector_math/vector_math.dart' hide Colors;
 
+import 'editor_state.dart' show EditorAxis;
+
 /// Diagnostic: what to draw besides the walls, the floor and the ceiling.
 ///
 ///  * `--dart-define=only=level` — nothing at all, and none of the document's
@@ -42,6 +44,18 @@ final class SceneDressing {
   /// is not one node per brush, and this is the one thing in the scene that
   /// is not the document.
   SceneNode? marker;
+
+  /// The twelve bars of [marker], as boxes a ray can be traced against.
+  ///
+  /// **What makes the selection box something to take hold of rather than
+  /// something to look at.** A pointer going down has to decide there and then
+  /// whether it is dragging the thing or turning the camera, and the pixel
+  /// picker cannot answer that: it replies a frame later and is allowed to
+  /// refuse. A bar is a box, a click is a ray, and boxes and rays have been
+  /// answering each other in `Picking` since before there was a gizmo — so the
+  /// same numbers that draw the cage are kept here, and the answer is ready in
+  /// the handler that asked. Empty whenever nothing is selected.
+  final List<GizmoBar> bars = <GizmoBar>[];
 
   final List<SceneNode> gizmos = <SceneNode>[];
 
@@ -97,6 +111,7 @@ final class SceneDressing {
   /// of every scene rebuild.
   void reset() {
     marker = null;
+    bars.clear();
     gizmos.clear();
     owners.clear();
   }
@@ -115,6 +130,7 @@ final class SceneDressing {
     final was = marker;
     if (was != null) scene.remove(was);
     marker = null;
+    bars.clear();
 
     final at = editing.where;
     if (at == null) return;
@@ -123,13 +139,19 @@ final class SceneDressing {
     // **A cage, not a solid box.** A wall is six metres by five, and a glowing
     // slab that size over the thing somebody just selected hides both it and
     // the room. Edges show the same extent and hide nothing.
+    final around = size * 1.06;
     marker = buildCage(
       scene,
       at,
-      size * 1.06,
+      around,
       Vector3(1.0, 0.45, 0.05),
       name: 'selection',
     );
+    // The same twelve bars again as boxes, so the thing that is drawn is the
+    // thing that can be grabbed. Built from the cage's own numbers rather than
+    // read back off the nodes, because a node knows where it is and not which
+    // way it runs, and which way it runs is the whole answer a drag wants.
+    bars.addAll(gizmoBarsAround(at, around));
   }
 
   /// Draws a mark for everything the renderer does not.
@@ -250,11 +272,6 @@ final class SceneDressing {
     final holder = SceneNode(name: name)
       ..setPosition(centre.x, centre.y, centre.z);
     scene.add(holder);
-    final bar = math.max(
-      0.02,
-      math.min(size.x, math.min(size.y, size.z)) * 0.05,
-    );
-    final half = Vector3(size.x / 2.0, size.y / 2.0, size.z / 2.0);
     final meshes = SharedMeshes(device);
     final material = engine.Material(
       name: name,
@@ -262,33 +279,12 @@ final class SceneDressing {
       emissive: tint * 0.9,
     );
 
-    void edge(Vector3 extent, double x, double y, double z) {
+    for (final edge in edgesOf(size)) {
       holder.add(
-        MeshNode(meshes.box(extent), material, name: 'edge')
-          ..setPosition(x, y, z)
+        MeshNode(meshes.box(edge.extent), material, name: 'edge')
+          ..setPosition(edge.at.x, edge.at.y, edge.at.z)
           ..castsShadow = false,
       );
-    }
-
-    // **The bars meet, they do not overlap.** Twelve full-length bars share a
-    // small cube at each corner, and two coplanar faces of the same colour
-    // fight for those pixels. The four along X keep their length and the
-    // other eight give up a bar's width at each end, so the corner belongs to
-    // one of them.
-    for (final y in <double>[-half.y, half.y]) {
-      for (final z in <double>[-half.z, half.z]) {
-        edge(Vector3(size.x, bar, bar), 0.0, y, z);
-      }
-    }
-    for (final x in <double>[-half.x, half.x]) {
-      for (final z in <double>[-half.z, half.z]) {
-        edge(Vector3(bar, math.max(size.y - bar * 2, bar), bar), x, 0.0, z);
-      }
-    }
-    for (final x in <double>[-half.x, half.x]) {
-      for (final y in <double>[-half.y, half.y]) {
-        edge(Vector3(bar, bar, math.max(size.z - bar * 2, bar)), x, y, 0.0);
-      }
     }
     return holder;
   }
@@ -467,4 +463,225 @@ final class SceneDressing {
       return null;
     }
   }
+}
+
+/// One bar of a cage: how long it is, where it sits inside the cage, and which
+/// way it runs.
+typedef CageEdge = ({EditorAxis axis, Vector3 extent, Vector3 at});
+
+/// The twelve bars of a cage [size] across, about its own centre.
+///
+/// **The one description of the cage**, read twice: once to build the mesh
+/// nodes that get drawn and once to build the boxes a click is traced against.
+/// Written out separately they would agree until the day one of them was
+/// tidied, and the failure that day is a selection box drawn in one place and
+/// grabbable in another — which reads as the mouse being broken.
+///
+/// Thin in proportion to the region rather than a fixed thickness: a trigger is
+/// metres across and a small volume is centimetres, and one width cannot be
+/// visible on the first and slender on the second.
+List<CageEdge> edgesOf(Vector3 size) {
+  final bar = math.max(0.02, math.min(size.x, math.min(size.y, size.z)) * 0.05);
+  final half = Vector3(size.x / 2.0, size.y / 2.0, size.z / 2.0);
+  // **The bars meet, they do not overlap.** Twelve full-length bars share a
+  // small cube at each corner, and two coplanar faces of the same colour fight
+  // for those pixels. The four along X keep their length and the other eight
+  // give up a bar's width at each end, so the corner belongs to one of them.
+  return <CageEdge>[
+    for (final y in <double>[-half.y, half.y])
+      for (final z in <double>[-half.z, half.z])
+        (
+          axis: EditorAxis.x,
+          extent: Vector3(size.x, bar, bar),
+          at: Vector3(0.0, y, z),
+        ),
+    for (final x in <double>[-half.x, half.x])
+      for (final z in <double>[-half.z, half.z])
+        (
+          axis: EditorAxis.y,
+          extent: Vector3(bar, math.max(size.y - bar * 2, bar), bar),
+          at: Vector3(x, 0.0, z),
+        ),
+    for (final x in <double>[-half.x, half.x])
+      for (final y in <double>[-half.y, half.y])
+        (
+          axis: EditorAxis.z,
+          extent: Vector3(bar, bar, math.max(size.z - bar * 2, bar)),
+          at: Vector3(x, y, 0.0),
+        ),
+  ];
+}
+
+/// A bar of the selection cage as something to take hold of.
+///
+/// A box in world space and the direction it runs in, which between them are
+/// the whole of what a drag needs to know: the box says whether the pointer is
+/// on it, and the direction says which way the thing being dragged may go.
+final class GizmoBar {
+  const GizmoBar({required this.axis, required this.min, required this.max});
+
+  /// Which way this bar runs, and so which way grabbing it moves things.
+  final EditorAxis axis;
+
+  final Vector3 min;
+  final Vector3 max;
+}
+
+/// How much wider than the bar it stands for a [GizmoBar] is, in metres.
+///
+/// **A drawn bar is too thin to put a mouse on.** A cage around a half-metre
+/// mark is two centimetres thick, which across a room is under a pixel: a
+/// grab that demanded the drawn bar would be a grab nobody could make and a
+/// feature nobody could find. Six centimetres of slack on each side is a
+/// comfortable target and still well inside the thing's own extent, so the
+/// middle of every face stays free for the camera.
+const double kGrabMargin = 0.06;
+
+/// The bars of a cage [size] across at [centre], fattened to be grabbable.
+List<GizmoBar> gizmoBarsAround(Vector3 centre, Vector3 size) => <GizmoBar>[
+  for (final edge in edgesOf(size))
+    GizmoBar(
+      axis: edge.axis,
+      min: centre + edge.at - edge.extent / 2.0 - Vector3.all(kGrabMargin),
+      max: centre + edge.at + edge.extent / 2.0 + Vector3.all(kGrabMargin),
+    ),
+];
+
+/// Something in the document being dragged along one axis by the pointer.
+///
+/// **The gesture, without the window.** Everything here is a ray and a
+/// document: where the drag took hold, which way it may go, where the thing
+/// has got to, and the one entry it leaves in the history when the button
+/// comes up. `main.dart` supplies the rays and owns nothing else about it,
+/// which is what lets a drag be tested by a list of rays rather than by a
+/// mouse.
+///
+/// **The document is moved during the drag and the history hears about it
+/// once.** A pointer reports sixty times a second and every report through
+/// `history.run` would be an entry, so the sixty-four steps a person has are
+/// gone in a second and the change they actually wanted back went with them.
+/// So [moveTo] writes straight into the document — where the thing is, right
+/// now, is what the next rebuild draws — and [finish] puts it back where the
+/// drag started and does the whole move again inside one
+/// `EditorHistory.transaction`. The picture never changes at that moment; the
+/// stack gains one step whose snapshot is the document as it stood before
+/// anybody touched the mouse.
+final class AxisDrag {
+  AxisDrag._(this.axis, this.from, this.grabbed);
+
+  /// Which way the bar that was grabbed runs.
+  final EditorAxis axis;
+
+  /// Where the dragged thing was when the pointer went down. A copy, because
+  /// the document's own vector is about to be written to.
+  final Vector3 from;
+
+  /// The point of the bar the pointer took hold of.
+  ///
+  /// **The line a drag is measured along runs through here, not through the
+  /// middle of the thing.** Take hold of the top corner of a six-metre wall and
+  /// the wall follows the hand; measured from its centre instead it would leap
+  /// three metres up and sideways on the first report, because that is where
+  /// its centre would have to be for the *centre* to be under the cursor.
+  final Vector3 grabbed;
+
+  /// Takes hold of whatever [bars] the ray from [eye] along [along] hits, or
+  /// answers null when it hits none.
+  ///
+  /// **Synchronously, which is the whole reason this is a ray.** The decision
+  /// between dragging a thing and turning the camera has to be made in the
+  /// handler for the press: the pixel picker answers a frame later and may
+  /// refuse, and a press that waited for it would be a press that turns the
+  /// camera and then jumps.
+  static AxisDrag? start(
+    List<GizmoBar> bars,
+    Editing editing,
+    Vector3 eye,
+    Vector3 along,
+  ) {
+    final at = editing.where;
+    if (at == null) return null;
+
+    GizmoBar? nearest;
+    var nearestAt = double.infinity;
+    for (final bar in bars) {
+      final distance = Picking.hit(bar.min, bar.max, eye, along);
+      if (distance == null || distance >= nearestAt) continue;
+      nearestAt = distance;
+      nearest = bar;
+    }
+    if (nearest == null) return null;
+
+    return AxisDrag._(nearest.axis, at.clone(), eye + along * nearestAt);
+  }
+
+  /// Moves what is selected to where the ray from [eye] along [along] now
+  /// points, snapped to the grid. Answers whether the document changed.
+  ///
+  /// The pointer is on a screen and the thing is on a line, so what is asked
+  /// is where the two come closest — the point of the axis the pointer is
+  /// nearest to pointing at. A ray that runs nearly along the axis has no such
+  /// point worth having (a pixel of movement would be metres of travel), and
+  /// that is the one case this refuses: the thing stays where it is until the
+  /// camera is somewhere the drag can be aimed from.
+  bool moveTo(Editing editing, Vector3 eye, Vector3 along) {
+    final at = editing.where;
+    if (at == null) return false;
+
+    final line = _directionOf(axis);
+    final facing = line.dot(along);
+    final spread = 1.0 - facing * facing;
+    if (spread < 1e-3) return false;
+
+    final between = grabbed - eye;
+    final travelled =
+        (facing * along.dot(between) - line.dot(between)) / spread;
+
+    final wanted = _snapped(from + line * travelled, editing.grid);
+    if ((wanted - at).length2 < 1e-12) return false;
+    at.setFrom(wanted);
+    return true;
+  }
+
+  /// Ends the gesture, leaving one step in the history for all of it.
+  ///
+  /// Answers whether anything was recorded: a drag that never left the grid
+  /// square it started on is not a change, and an undo that has to be pressed
+  /// twice because one press does nothing visible is an undo nobody trusts.
+  bool finish(Editing editing) {
+    final at = editing.where;
+    if (at == null) return false;
+    final total = at - from;
+    if (total.length2 < 1e-12) return false;
+
+    // Back where it started, so the snapshot the transaction takes on its way
+    // in is the document as it was before the drag rather than after it. The
+    // move is then made once, through the same command the arrow keys use.
+    at.setFrom(from);
+    return editing.history.transaction(
+      'drag by ${_metres(total)}',
+      () => MoveBy(total).apply(editing),
+    );
+  }
+
+  static Vector3 _directionOf(EditorAxis axis) => switch (axis) {
+    EditorAxis.x => Vector3(1.0, 0.0, 0.0),
+    EditorAxis.y => Vector3(0.0, 1.0, 0.0),
+    EditorAxis.z => Vector3(0.0, 0.0, 1.0),
+  };
+
+  /// [at], rounded onto a grid [step] metres across — the same rounding
+  /// `Editing.nudge` does, so the move [finish] makes lands exactly where the
+  /// drag left the thing rather than a fraction of a millimetre off it.
+  static Vector3 _snapped(Vector3 at, double step) => step <= 0.0
+      ? at
+      : Vector3(
+          (at.x / step).roundToDouble() * step,
+          (at.y / step).roundToDouble() * step,
+          (at.z / step).roundToDouble() * step,
+        );
+
+  static String _metres(Vector3 v) =>
+      '${v.x.toStringAsFixed(2)}, '
+      '${v.y.toStringAsFixed(2)}, ${v.z.toStringAsFixed(2)}';
 }

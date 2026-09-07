@@ -19,6 +19,7 @@ games use, and lets somebody fly around it and change it.
 | `Q` `E` | down and up |
 | shift | four times faster |
 | drag, scroll | look, and move forward |
+| drag a bar of the selection box | move what is selected along that bar |
 | click | select a brush |
 | arrows | move it on the grid, in X and Z |
 | `R` `F`, page up/down | raise and lower it |
@@ -243,6 +244,38 @@ stonework, a monster stands on a floor, a lift's marker sits in the block it
 moves — sorted strictly by distance the surface always wins, which would mean
 every torch in the crypt is unclickable.
 
+## Taking hold of something
+
+The selection box is a cage of twelve bars, and now those bars are what a hand
+grabs: press on one and the selected thing follows the pointer along that bar
+until the button comes up. **Which bar decides the axis**, so a wall goes
+sideways along the bars that run sideways and up along the ones that stand
+upright, and there is no mode to be in and nothing to press first.
+
+**One button, and what a press means is decided where it starts.** A press that
+does not move is a click; a press that moves off a bar is a drag; a press that
+moves anywhere else turns the camera — which is most of the screen, and is what
+keeps looking around the thing nobody has to be told about. Looking was on the
+right button once, which on a trackpad is a two-finger press-and-drag and was
+undiscoverable enough that the person this was built for could not get down the
+first corridor.
+
+**The decision is a ray, not the pixel.** Selecting reads back the pixel under
+the click, and that answer arrives a frame later and is allowed to be a refusal
+— fine for a click, useless for a press that has to know *this instant* whether
+it is dragging a wall or turning the view. So a bar is also a box, built from
+the same numbers that draw it, and the press traces a ray against the twelve of
+them with the `Picking` the rest of the editor already uses.
+
+**A drag is one step in the history, not sixty.** The document moves on every
+report of the pointer, because the picture is rebuilt from the document and
+nothing smaller than the document exists to move. Recorded one report at a time
+that is the whole undo stack spent in a second, and the change somebody actually
+wanted back is gone with it — so the moves are made straight in the document,
+and the release puts the thing back where the drag started and makes the whole
+move once inside one transaction. What lands in the stack is one entry, taken
+against the level as it stood before anybody touched the mouse.
+
 **Copy is how a level gets a second monster.** The editor has no vocabulary: it
 cannot know what a `monster` needs in it or which of a lift's properties matter.
 So it does not invent one — `⌘D` copies one the level already has, with
@@ -297,7 +330,8 @@ What is left here is the half that reaches a device:
   the games and exactly wrong for this. It needs the renderer to have a camera
   at all, which is why it did not travel.
 * `src/scene_dressing.dart` — the document turned into something drawn, and the
-  handles drawn over it.
+  handles drawn over it: the marks, the selection box, the bars of it a drag
+  takes hold of and the gesture that moves what was grabbed.
 * `src/editor_cubit.dart` and the widgets beside it — which document is open,
   why one is not, and what the strip along the bottom says.
 * `src/shader_watch.dart` — the shader bundle reloaded while somebody edits it.
@@ -320,9 +354,15 @@ Nothing stops the camera at a wall, on purpose — see `fly_camera.dart`.
 
 ## What it does not do yet
 
-No file dialogue (the path is a `--dart-define`), and nothing is dragged with
-the mouse — the marks and selection boxes are drawn, not grabbed, so moving and
-resizing are on the keyboard and on the grid. The rebuild is the whole level on
-every change, because a brush is batched into its material's mesh and there is
-nothing smaller to rebuild; at the size of the levels here that is a frame's
-work and it keeps the picture and the document impossible to disagree.
+No file dialogue: the path is a `--dart-define`. Dragging moves things and only
+things — a size is still `1` `2` `3` and `−` `=` on the keyboard, and a facing
+is still `,` and `.`, because a bar that meant "move" when pulled and "resize"
+when pushed would be a bar nobody could aim. Everything a drag does is on the
+grid, the same quarter of a metre the arrow keys use.
+
+The rebuild is the whole level on every change, because a brush is batched into
+its material's mesh and there is nothing smaller to rebuild; at the size of the
+levels here that is a frame's work and it keeps the picture and the document
+impossible to disagree. A drag goes through the same gate as everything else —
+the document is marked stale and the next frame rebuilds it — so a pointer
+reporting faster than the screen draws costs one rebuild rather than one each.
