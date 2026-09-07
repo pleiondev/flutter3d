@@ -25,14 +25,22 @@
 /// of a run anybody replays, and the whole reason two of them are put on a map
 /// is to watch a replay come out the same.
 ///
-/// **It has one lever, and that is honest rather than lazy.** It sends idle
-/// workers to a seam; it does not choose *whether* to make units, and it does
-/// not place buildings. Both were considered and both wait for the same missing
-/// thing: production spends a stockpile the moment it can, so there is nothing
-/// yet for a bot to save *for*, and a policy that chose between two things when
-/// only one of them exists would be a shape pretending to be a decision. The
-/// day there is a second use for a pile — a hall nearer the seam, an army worth
-/// keeping — this is where that choice goes.
+/// **It has two levers now, and the second one arrived with something to
+/// choose between.** It sends idle workers to a seam, and it says what its
+/// halls are to make. The second was refused for a long time on the grounds
+/// that production spent a stockpile the moment it could, so there was nothing
+/// to save *for* and a policy choosing between one thing would have been a
+/// shape pretending to be a decision. Now a producer makes only what it was
+/// asked for, and the choice is real in three directions: another digger,
+/// another soldier, or nothing at all and a growing pile. It still does not
+/// place buildings, and that is still waiting on the same kind of missing
+/// thing.
+///
+/// **It only ever attacks what its own fog says it can see.** Not politeness —
+/// the fog is a rule of this simulation, and a policy that read the crowd
+/// directly would be a side that fights an enemy it has never met, in a game
+/// where going and looking is half of what a side does. The cheat is invisible
+/// in the picture, which is exactly why it is asserted rather than intended.
 library;
 
 import 'package:flutter3d_game/flutter3d_game.dart';
@@ -42,10 +50,46 @@ import 'economy.dart';
 import 'simulation.dart';
 import 'unit.dart';
 
+/// What a side is trying to have on the map.
+///
+/// **A plan rather than a rule**, because how many diggers are enough and
+/// whether to raise an army at all are decisions about the game somebody is
+/// making, not facts about a policy. The default is the economy this package
+/// had before there was a fight: workers up to a comfortable number and no
+/// soldiers, so a match staged the way the old ones were is played the way they
+/// were played. A game that wants a war asks for one here.
+final class ArmyPlan {
+  /// Wants [workers] diggers and [fighters] of [fighter], and no more.
+  const ArmyPlan({
+    this.workers = 12,
+    this.fighters = 0,
+    this.worker = UnitType.worker,
+    this.fighter = UnitType.soldier,
+  });
+
+  /// How many unarmed units this side wants working.
+  final int workers;
+
+  /// How many armed ones it wants standing. Nought is a side that never
+  /// fights, which is a plan and not an omission.
+  final int fighters;
+
+  /// What it makes when it wants another digger.
+  final UnitType worker;
+
+  /// What it makes when it wants another soldier.
+  final UnitType fighter;
+}
+
 /// A side, played.
 final class Bot {
-  /// Plays [side], carrying what it digs to [base].
-  Bot({required this.side, required this.base, this.thinkEvery = 30});
+  /// Plays [side], carrying what it digs to [base] and building to [plan].
+  Bot({
+    required this.side,
+    required this.base,
+    this.thinkEvery = 30,
+    this.plan = const ArmyPlan(),
+  });
 
   /// Which side this plays.
   final int side;
@@ -56,15 +100,29 @@ final class Bot {
   /// How many steps pass between decisions.
   final int thinkEvery;
 
+  /// What it is trying to end up with.
+  final ArmyPlan plan;
+
   int _sinceThought = 0;
 
   /// Gives the orders this side would give, if it is time to give them.
+  ///
+  /// Digging, then building, then fighting — in that order because the first
+  /// two count the crowd this side already has and the third would otherwise be
+  /// counting one that a moment ago it decided to change.
   void step(StrategySimulation simulation) {
     if (_sinceThought++ < thinkEvery) return;
     _sinceThought = 0;
 
+    _dig(simulation);
+    _make(simulation);
+    _hunt(simulation);
+  }
+
+  /// Puts every idle digger back on a seam, or sends it to find one.
+  void _dig(StrategySimulation simulation) {
     for (final Unit unit in simulation.units) {
-      if (unit.side != side) continue;
+      if (unit.side != side || unit.type.isArmed) continue;
       final HarvestJob? job = unit.job;
       // Idle, or standing at a seam that has run out: both mean "needs
       // somewhere to dig". A worker already carrying a load is left alone —
@@ -79,6 +137,125 @@ final class Bot {
       }
       simulation.orders.assign(unit, node: seam, dropOff: base);
     }
+  }
+
+  /// Decides what this side's halls are making: a digger, a soldier, or
+  /// nothing.
+  ///
+  /// **The third answer is the one that makes this a decision.** A side that
+  /// has the crowd it planned asks for nothing and lets the pile grow, which is
+  /// a position rather than an idleness — the pile is what pays for the army it
+  /// will want the moment its plan changes or somebody knocks a soldier over.
+  ///
+  /// One at a time per hall, and the check is on the book rather than on a
+  /// count of its own: a producer already asked for something is left to finish
+  /// it, so a cadence faster than a build time cannot stack up an army nobody
+  /// meant to order.
+  void _make(StrategySimulation simulation) {
+    var workers = 0;
+    var fighters = 0;
+    for (final Unit unit in simulation.units) {
+      if (unit.side != side) continue;
+      if (unit.type.isArmed) {
+        fighters++;
+      } else {
+        workers++;
+      }
+    }
+
+    // The saving branch, and it is the early return rather than a third case:
+    // a side with the crowd it planned asks nobody for anything.
+    if (workers >= plan.workers && fighters >= plan.fighters) return;
+    final UnitType wanted = workers < plan.workers ? plan.worker : plan.fighter;
+
+    for (final Producer maker in simulation.producers) {
+      if (maker.building.side != side) continue;
+      if (maker.isWanted) continue;
+      simulation.orders.train(maker, wanted);
+    }
+  }
+
+  /// Points every idle soldier at something.
+  ///
+  /// A soldier already after a living quarry is left alone: re-ordering it
+  /// every cadence would replace one attack order with an identical one, and
+  /// the day the two are not identical it would be a squad that changes its
+  /// mind about which enemy to chase twice a second.
+  void _hunt(StrategySimulation simulation) {
+    for (final Unit unit in simulation.units) {
+      if (unit.side != side || !unit.type.isArmed) continue;
+      if (unit.order.target != null) continue;
+
+      if (_nearestFoe(simulation, unit) case final Unit quarry) {
+        simulation.orders.attackWith(<Unit>[unit], quarry);
+        continue;
+      }
+      // Nothing in sight. March on whatever enemy ground this side has found —
+      // a hall does not move, so what it has *ever* seen is the right question
+      // for one, the same question it asks about a seam. Failing that, go and
+      // look: an army standing at home on a map it has not explored is an army
+      // that never meets anybody.
+      //
+      // **Asked again every cadence rather than only when the unit is idle**,
+      // which is the same loop `_dig` runs and for the same reason. The version
+      // that skipped a soldier already holding a goal froze its whole army at
+      // the first frontier it walked to: nothing clears a move order on
+      // arrival, so "it still has somewhere to go" stayed true for the rest of
+      // the match and the map beyond that point was never looked at.
+      if (_nearestFoundHall(simulation) case final Building hall) {
+        simulation.orders.moveTo(<Unit>[unit], hall.centre);
+        continue;
+      }
+      _scout(simulation, unit);
+    }
+  }
+
+  /// The nearest enemy unit this side can see **at this moment**, or null.
+  ///
+  /// **Visible, not remembered, and not merely present.** A seam stays where it
+  /// was put, so a side is right to remember one; a unit walks away, so
+  /// remembering where one stood is remembering nothing. And reading the crowd
+  /// without asking at all is the oldest cheat in the genre and the one that
+  /// leaves no mark in the picture — the soldiers simply always turn the right
+  /// way. See `fog_test` and `combat_test`, which exist to make that cheat
+  /// fail rather than to hope it is absent.
+  Unit? _nearestFoe(StrategySimulation simulation, Unit from) {
+    Unit? best;
+    var bestAt = double.infinity;
+    for (final Unit other in simulation.units) {
+      if (other.side == side) continue;
+      if (!simulation.fog.sees(side, other.position.x, other.position.z)) {
+        continue;
+      }
+      final double dx = other.position.x - from.position.x;
+      final double dz = other.position.z - from.position.z;
+      final double at = dx * dx + dz * dz;
+      if (at >= bestAt) continue;
+      best = other;
+      bestAt = at;
+    }
+    return best;
+  }
+
+  /// The nearest building of somebody else's that this side has found.
+  ///
+  /// Measured from this side's own base, for the reason [_nearestSeam] gives:
+  /// an army whose members each chose their own nearest target is an army that
+  /// arrives in pieces.
+  Building? _nearestFoundHall(StrategySimulation simulation) {
+    Building? best;
+    var bestAt = double.infinity;
+    for (final Building hall in simulation.buildings) {
+      if (hall.side == side) continue;
+      if (!simulation.fog.knows(side, hall.centre.x, hall.centre.z)) continue;
+      final double dx = hall.centre.x - base.centre.x;
+      final double dz = hall.centre.z - base.centre.z;
+      final double at = dx * dx + dz * dz;
+      if (at >= bestAt) continue;
+      best = hall;
+      bestAt = at;
+    }
+    return best;
   }
 
   /// Where in its thinking cycle it is.

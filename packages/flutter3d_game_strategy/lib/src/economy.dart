@@ -18,6 +18,7 @@ import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:vector_math/vector_math.dart';
 
 import 'building.dart';
+import 'unit.dart';
 
 /// Something on the map worth carrying home.
 final class ResourceNode {
@@ -147,6 +148,14 @@ final class Stockpile {
 }
 
 /// A building that turns a stockpile into units.
+///
+/// **It makes what it was asked for and nothing otherwise.** The first version
+/// of this spent whatever was in the pile the moment it could, which meant a
+/// side had exactly one thing it could ever do with what it dug — and a policy
+/// choosing between one option is a shape pretending to be a decision. An order
+/// book is what turns the pile into a choice: a side that wants diggers asks for
+/// diggers, a side that wants an army asks for one, and a side that wants
+/// neither asks for nothing and watches the pile grow.
 final class Producer {
   /// Makes a unit every [seconds], for [cost] each, at [building].
   Producer({required this.building, this.cost = 25.0, this.seconds = 4.0});
@@ -164,21 +173,57 @@ final class Producer {
   /// being made — a producer that cannot afford to start has not started.
   double progress = 0.0;
 
+  /// What kind it has been asked for, or null for one nobody has asked
+  /// anything of.
+  ///
+  /// The kind rather than a name, because a kind is already a value that
+  /// travels: see [UnitType]. A producer holds one at a time — an order for
+  /// soldiers replaces an order for workers rather than queueing behind it,
+  /// which is what makes a policy's latest thought the one that counts.
+  UnitType? wanted;
+
+  /// How many of [wanted] are still to be made. Counted down as they come out.
+  int ordered = 0;
+
+  /// Whether anybody has asked for anything it has not yet delivered.
+  bool get isWanted => wanted != null && ordered > 0;
+
   /// Whether it has begun one it has not finished.
   bool get isBusy => progress > 0.0;
 
-  /// How far through the current one it is, and only that.
+  /// Asks for [count] of [type], in place of whatever was asked for before.
+  void order(UnitType type, {int count = 1}) {
+    wanted = type;
+    ordered = count < 0 ? 0 : count;
+  }
+
+  /// What it is making, how far through it is, and how many more are wanted.
   ///
-  /// **Which is the field that pays for the whole pair.** A producer restored
-  /// at nought has not merely lost a few seconds: it has forgotten that it
-  /// already paid, so the stockpile is charged a second time for a unit that
-  /// was three-quarters built — and the side that saved while building comes
-  /// back poorer than the side that did not.
+  /// **[progress] is the field that pays for the whole pair.** A producer
+  /// restored at nought has not merely lost a few seconds: it has forgotten
+  /// that it already paid, so the stockpile is charged a second time for a unit
+  /// that was three-quarters built — and the side that saved while building
+  /// comes back poorer than the side that did not.
+  ///
+  /// The order book is here for the same kind of reason and a sharper one: it
+  /// is the whole of what a side decided to do with its pile, and a match
+  /// restored with an empty book is a match in which both economies stop dead
+  /// until each policy next happens to think.
   ///
   /// What it costs and how long it takes are what the game set it to, and come
   /// back from the game.
-  Map<String, Object?> save() => <String, Object?>{'progress': progress};
+  Map<String, Object?> save() => <String, Object?>{
+    'progress': progress,
+    'ordered': ordered,
+    if (wanted case final UnitType type) 'wanted': type.toJson(),
+  };
 
-  void restore(Map<String, Object?> from) =>
-      progress = from.number('progress', progress);
+  void restore(Map<String, Object?> from) {
+    progress = from.number('progress', progress);
+    ordered = from.integer('ordered');
+    wanted = switch (from.object('wanted')) {
+      final Map<String, Object?> row => UnitType.fromJson(row),
+      null => null,
+    };
+  }
 }

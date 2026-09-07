@@ -80,6 +80,52 @@ void main() {
     );
   });
 
+  test('a unit that has been shot is drawn darker than a whole one', () {
+    // **Damage costs no new drawing machinery at all**, which is why it is here
+    // rather than in a follow-up: the batch has carried four floats of colour
+    // per copy since it was written, and every unit has been writing white into
+    // them without meaning to. So a wounded one is one different write into a
+    // buffer that is uploaded whole anyway — no second batch, no material per
+    // unit, no blending this package was not already doing, and no picture that
+    // was right before is changed, because a crowd nobody has hit is still
+    // white.
+    //
+    // Mutation: drop the `setColor` call from `sync`. A crowd at the point of
+    // collapse is drawn exactly like a fresh one, which is the one thing about
+    // a fight that a player has to be able to read at a glance.
+    final sim = StrategySimulation(random: GameRandom(1), ground: _ground());
+    final whole = sim.add(Unit(position: Vector3(6.0, 0.0, 6.0)));
+    final hurt = sim.add(Unit(position: Vector3(10.0, 0.0, 6.0)))
+      ..hurt(UnitType.worker.health * 0.75);
+
+    final visuals = StrategyVisuals(simulation: sim, device: device);
+    visuals
+      ..addTo(Scene(name: 'map'))
+      ..sync();
+
+    // The tint sits in the four floats after the three rows of the transform.
+    List<double> tintOf(int index) => <double>[
+      for (var i = 0; i < 4; i++)
+        visuals.crowd.instanceData[index *
+                InstancedMeshNode.floatsPerInstance +
+            12 +
+            i],
+    ];
+
+    expect(whole.health, UnitType.worker.health);
+    expect(tintOf(0), <double>[1.0, 1.0, 1.0, 1.0], reason: 'an unhurt unit');
+
+    final List<double> wounded = tintOf(1);
+    expect(hurt.health, lessThan(UnitType.worker.health));
+    expect(wounded[1], lessThan(0.5), reason: 'it is not visibly hurt');
+    expect(
+      wounded[0],
+      greaterThan(wounded[1]),
+      reason: 'it dimmed rather than reddened, which reads as shadow',
+    );
+    expect(wounded[3], 1.0, reason: 'damage turned a unit see-through');
+  });
+
   test('draws no more than the batch can hold', () {
     // Mutation: pass `simulation.units.length` to `count` unclamped. The batch
     // then reports more instances than its buffer has, and the draw reads past
@@ -185,7 +231,12 @@ void main() {
 
     test('covers what nobody went to and thins behind a crowd that did', () {
       final sim = StrategySimulation(random: GameRandom(1), ground: _ground());
-      final scout = sim.add(Unit(position: Vector3(6.0, 0.0, 6.0), sight: 8.0));
+      final scout = sim.add(
+        Unit(
+          position: Vector3(6.0, 0.0, 6.0),
+          type: UnitType.worker.copyWith(sight: 8.0),
+        ),
+      );
       final visuals = StrategyVisuals(
         simulation: sim,
         device: device,

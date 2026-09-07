@@ -127,7 +127,10 @@ void main() {
     test('loses sight of ground its crowd has walked away from', () {
       final sim = StrategySimulation(random: GameRandom(1), ground: _flat());
       final scout = sim.add(
-        Unit(position: Vector3(10.0, 0.0, 10.0), sight: 8.0),
+        Unit(
+          position: Vector3(10.0, 0.0, 10.0),
+          type: UnitType.worker.copyWith(sight: 8.0),
+        ),
       );
 
       for (var i = 0; i < 12; i++) {
@@ -169,7 +172,10 @@ void main() {
         ResourceNode(at: Vector3(32.0, 0.0, 8.0), amount: 200.0),
       );
       final worker = sim.add(
-        Unit(position: Vector3(12.0, 0.0, 8.0), sight: 7.0),
+        Unit(
+          position: Vector3(12.0, 0.0, 8.0),
+          type: UnitType.worker.copyWith(sight: 7.0),
+        ),
       );
       return (
         match: Match(

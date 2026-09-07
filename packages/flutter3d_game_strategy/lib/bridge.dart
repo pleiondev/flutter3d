@@ -152,6 +152,7 @@ final class StrategyVisuals {
   InstancedMeshNode? _remembered;
   final List<MeshNode?> _buildings = <MeshNode?>[];
   final Matrix4 _transform = Matrix4.identity();
+  final Vector4 _tint = Vector4(1.0, 1.0, 1.0, 1.0);
 
   Scene? _scene;
 
@@ -230,6 +231,7 @@ final class StrategyVisuals {
       _transform.setIdentity();
       _transform.setTranslationRaw(at.x, at.y + unitSize.height / 2.0, at.z);
       _crowd.setTransform(drawn, _transform);
+      _crowd.setColor(drawn, _woundOf(unit));
       drawn++;
     }
     _crowd.count = drawn;
@@ -280,6 +282,42 @@ final class StrategyVisuals {
     }
 
     if (side != null) _syncFog(side);
+  }
+
+  /// How hurt [unit] looks: white at full health, darkening towards red as it
+  /// is worn down.
+  ///
+  /// **A tint on an instance that is already there, which is why there is no
+  /// new anything here.** The batch has carried four floats of colour per copy
+  /// since it was written, multiplied into the vertex colour, and every unit
+  /// has been writing white into them without meaning to. So showing damage
+  /// costs one write per unit per frame in a buffer that is uploaded whole
+  /// anyway — no second batch, no material per unit, no blending mode this
+  /// package was not already using, and no picture that was correct before
+  /// changes, because a crowd nobody has hit is still white.
+  ///
+  /// The dead are not drawn at all and need no rule for it: `_bury` takes them
+  /// out of the crowd inside the step that kills them, so by the time anything
+  /// here looks there is nobody to leave out.
+  /// Written into [_tint] rather than returned fresh, which is the same reason
+  /// [_transform] is a field: this is called once per unit per frame, and a
+  /// crowd that allocated a colour apiece would spend the saving on the
+  /// collector. [InstancedMeshNode.setColor] copies the components straight
+  /// into the buffer, so nothing holds on to the object afterwards.
+  Vector4 _woundOf(Unit unit) {
+    final double left = unit.health / unit.type.health;
+    if (left >= 1.0) return _tint..setValues(1.0, 1.0, 1.0, 1.0);
+    // The green and blue give way and the red is held back only a little, so a
+    // failing unit reads as reddening rather than as merely dimming — a dim one
+    // would be indistinguishable from one standing in shadow.
+    final double hurt = left < 0.0 ? 0.0 : left;
+    return _tint
+      ..setValues(
+        0.45 + 0.55 * hurt,
+        0.12 + 0.88 * hurt,
+        0.1 + 0.9 * hurt,
+        1.0,
+      );
   }
 
   /// Whether [side] is shown [unit].

@@ -80,7 +80,12 @@ Camp _camp({
   final seam = sim.addResource(
     ResourceNode(at: Vector3(seamAt, 0.0, 16.0), amount: amount),
   );
-  final maker = sim.addProducer(Producer(building: hall, cost: cost));
+  // With a standing order, because a producer nobody has asked for anything
+  // makes nothing — see [Producer]. The camp is here to drive a producer's
+  // progress into a state worth saving, and an idle one has no state.
+  final maker = sim.addProducer(
+    Producer(building: hall, cost: cost)..order(UnitType.worker, count: 20),
+  );
   final worker = sim.add(Unit(position: Vector3(21.0, 0.0, 16.0)))
     ..job = HarvestJob(node: seam, dropOff: hall);
   return (sim: sim, hall: hall, seam: seam, maker: maker, worker: worker);
@@ -97,11 +102,38 @@ Camp _camp({
 ({StrategySimulation sim, Unit scout}) _walker() {
   final sim = StrategySimulation(random: GameRandom(1), ground: flat());
   final scout = sim.add(
-    Unit(position: Vector3(4.0, 0.0, 4.0), speed: 20.0)
-      ..order = UnitOrder.moveTo(Vector3(76.0, 0.0, 76.0)),
+    Unit(
+      position: Vector3(4.0, 0.0, 4.0),
+      type: UnitType.worker.copyWith(speed: 20.0),
+    )..order = UnitOrder.moveTo(Vector3(76.0, 0.0, 76.0)),
   );
   return (sim: sim, scout: scout);
 }
+
+/// A soldier shooting a worker of the other side, which is the cheapest thing
+/// that drives health, a reload and an attack order all at once.
+///
+/// The quarry is given far more health than its kind has so that it is still
+/// standing at the moment every test below takes its save: a unit that has been
+/// buried is a unit whose health is not in the document to be compared.
+({StrategySimulation sim, Unit hunter, Unit quarry}) _skirmish() {
+  final sim = StrategySimulation(random: GameRandom(1), ground: flat());
+  final quarry = sim.add(
+    Unit(
+      position: Vector3(24.0, 0.0, 20.0),
+      side: 1,
+      type: UnitType.worker.copyWith(name: 'stubborn', health: 400.0),
+    ),
+  );
+  final hunter = sim.add(
+    Unit(position: Vector3(20.0, 0.0, 20.0), type: UnitType.soldier),
+  );
+  hunter.order = UnitOrder.attack(quarry);
+  return (sim: sim, hunter: hunter, quarry: quarry);
+}
+
+Unit _sideOf(StrategySimulation sim, int side) =>
+    sim.units.firstWhere((Unit it) => it.side == side);
 
 /// What a side can see this instant, cell by cell.
 List<bool> _visible(StrategySimulation sim) => <bool>[
@@ -412,6 +444,112 @@ void main() {
       closeTo(it.seam.amount, 1e-9),
       reason: 'the seam forgot what had been dug out of it',
     );
+  });
+
+  test('and a unit that has been shot comes back as hurt as it was', () {
+    // **Health is the one number the fight moves, and aliveness is derived
+    // from it rather than kept beside it** — so this assertion is both halves
+    // at once. Mutation: drop `health` from `Unit.save`. Every restored unit
+    // comes back at full, which is not a rounding error but a battle undone:
+    // the side that was one shot from winning has to fight the whole thing
+    // again, and `match_test`'s replay parts company at the first exchange.
+    final it = _skirmish();
+    _steps(it.sim, 90);
+    expect(
+      it.quarry.health,
+      lessThan(400.0),
+      reason: 'nobody fired, so health was never off its default',
+    );
+    expect(it.quarry.health, greaterThan(0.0), reason: 'it is already buried');
+
+    final loaded = _skirmish()..sim.restore(roundTrip(it.sim.save()));
+    final Unit came = _sideOf(loaded.sim, 1);
+
+    expect(came.health, closeTo(it.quarry.health, 1e-9));
+    expect(came.isAlive, isTrue);
+    expect(
+      came.type,
+      it.quarry.type,
+      reason: 'a stubborn worker came back as an ordinary one',
+    );
+  });
+
+  test('and a reload half spent is still half spent', () {
+    // The same argument the fog's beat and a bot's thinking count make, in the
+    // one place where being a fraction of a second early wins a fight. Mutation:
+    // drop `cooldown` from `Unit.save`. The restored soldier fires the instant
+    // it comes back, and the two runs are a shot apart within one step and
+    // further apart every step after.
+    final it = _skirmish();
+    _steps(it.sim, 41);
+    expect(
+      it.hunter.cooldown,
+      greaterThan(0.0),
+      reason: 'it was ready to fire anyway, so nothing was under test',
+    );
+
+    final loaded = _skirmish()..sim.restore(roundTrip(it.sim.save()));
+    final Unit shot = _sideOf(loaded.sim, 1);
+
+    for (var i = 0; i < 40; i++) {
+      it.sim.step(_step);
+      loaded.sim.step(_step);
+      expect(shot.health, closeTo(it.quarry.health, 1e-9), reason: 'step $i');
+    }
+  });
+
+  test('and a hunter comes back after the same unit, not a stranger', () {
+    // **An order that names a body cannot be read back by the body.** The crowd
+    // a save describes is being built while each unit is read, so the quarry
+    // may not exist yet; the index waits and `_restoreCrowd` hands the object
+    // over once everybody is standing.
+    //
+    // Mutation: write the attack's *goal* as well and let it restore as a walk.
+    // The hunter comes back marching to the patch of hillside the quarry was
+    // standing on, arrives, and holds there while the thing it was sent to kill
+    // walks away — a save that looks perfectly restored and has quietly
+    // cancelled an order.
+    final it = _skirmish();
+    _steps(it.sim, 60);
+
+    final loaded = _skirmish()..sim.restore(roundTrip(it.sim.save()));
+    final Unit came = _sideOf(loaded.sim, 1);
+    final Unit shooter = _sideOf(loaded.sim, 0);
+
+    expect(shooter.order.target, same(came), reason: 'it is hunting a ghost');
+    expect(
+      shooter.order.goal,
+      same(came.position),
+      reason: 'its goal is a copy, so it will follow the quarry nowhere',
+    );
+
+    final double was = came.health;
+    _steps(loaded.sim, 60);
+    expect(came.health, lessThan(was), reason: 'it came back and stood still');
+  });
+
+  test('and a hall comes back making what it was making', () {
+    // **The order book is the whole of what a side decided to do with its
+    // pile.** Mutation: drop it from `Producer.save`. Both economies stop dead
+    // on the load and stay stopped until each policy next happens to think —
+    // which in a match saved between two thoughts is most of a second of
+    // production that the run it was saved from did not lose.
+    //
+    // The camp it is restored into is deliberately making something else, so
+    // that a book which failed to travel would leave the wrong answer standing
+    // rather than the right one by luck.
+    final it = _camp();
+    it.sim.stock[0].amount = 300.0;
+    _steps(it.sim, 400);
+    expect(it.maker.isWanted, isTrue, reason: 'the book emptied itself');
+    expect(it.maker.ordered, lessThan(20), reason: 'it never made anything');
+
+    final loaded = _camp();
+    loaded.maker.order(UnitType.soldier, count: 3);
+    loaded.sim.restore(roundTrip(it.sim.save()));
+
+    expect(loaded.maker.wanted, UnitType.worker);
+    expect(loaded.maker.ordered, it.maker.ordered);
   });
 
   test('a saved match says which format it is in', () {

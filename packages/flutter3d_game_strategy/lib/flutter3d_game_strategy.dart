@@ -30,15 +30,26 @@
 ///
 /// ## What is here and what is not
 ///
-/// Units, orders and the step that moves them; ground taken from the map and
-/// turned into more units; two sides, and a policy that plays one of them
-/// without a mouse; and a map each side has to go and look at before it knows
-/// what is on it. **No fight** — a package that grew one before it could carry
-/// a crowd across a hill would have been guessing about the part that was
-/// actually uncertain.
+/// Units of several kinds, orders and the step that moves them; ground taken
+/// from the map and turned into more units; two sides, and a policy that plays
+/// one of them without a mouse; a map each side has to go and look at before it
+/// knows what is on it; and a fight over all of it.
 ///
-/// The victory here is economic for the same reason: nothing on this map
-/// fights, so what settles a match is what a side dug. See [Match].
+/// **The fight came last, and that ordering is the method rather than a
+/// backlog.** A package that grew one before it could carry a crowd across a
+/// hill would have been guessing about the part that was actually uncertain —
+/// and when it did arrive it cost no new mechanism: a kind is [UnitType], a row
+/// of numbers so that a worker, a soldier and a tank differ in what they
+/// measure rather than in what runs; a target is a field on the order beside
+/// the goal, so the walk that already descends a field follows a retreating
+/// enemy without knowing what a target is; and the shooting reuses the same
+/// spatial hash the shove was already building, because the measurement this
+/// package was designed against leaves no room for a pass of everybody against
+/// everybody.
+///
+/// So there are two ways to win and neither replaces the other: bring home what
+/// the match was set at, or be the only side with anything left to act with.
+/// See [Match].
 ///
 /// **And a match can be written down.** [Match.save] and
 /// [StrategySimulation.save] answer the same [Snapshot] the other three genres

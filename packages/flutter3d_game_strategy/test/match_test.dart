@@ -104,6 +104,14 @@ List<double> digestOf(StrategySimulation sim) => <double>[
     unit.position.x,
     unit.position.y,
     unit.position.z,
+    // **How hurt each one is, and whether it is here at all.** Aliveness is
+    // derived from health rather than kept beside it, so one number carries
+    // both: a run that ends with the same crowd standing in the same places on
+    // different amounts of health is a run that fought a different battle, and
+    // a comparison blind to that would go on passing while the whole military
+    // half of the game drifted.
+    unit.health,
+    unit.cooldown,
   ],
 ];
 

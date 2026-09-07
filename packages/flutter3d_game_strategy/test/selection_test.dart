@@ -53,7 +53,12 @@ void main() {
       // standing behind a wider one wins the click it should have lost.
       final sim = StrategySimulation(random: GameRandom(1), ground: _flat());
       final near = sim.add(Unit(position: Vector3(10.0, 0.0, 10.0)));
-      sim.add(Unit(position: Vector3(20.0, 0.0, 10.0), radius: 1.5));
+      sim.add(
+        Unit(
+          position: Vector3(20.0, 0.0, 10.0),
+          type: UnitType.worker.copyWith(radius: 1.5),
+        ),
+      );
 
       final picked = Selection(
         sim.units,

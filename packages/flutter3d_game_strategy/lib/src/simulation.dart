@@ -1,4 +1,4 @@
-/// The step a crowd takes, and the three things in it.
+/// The step a crowd takes, and the things in it.
 ///
 /// Descend a shared field, shove neighbours apart, sit on the ground. All three
 /// were measured before any of this was written, on a flat map with ten
@@ -6,6 +6,15 @@
 /// everybody, 19 to write the transforms — under a millisecond together, six
 /// per cent of a frame at sixty. **The measurement is why the shape is this
 /// shape**, and two decisions came straight out of it.
+///
+/// **And it is why the fight looks the way it does.** Shooting arrived long
+/// after the numbers above, and the obvious form of it — every armed unit
+/// against every unit — is that measurement squared, every step, whether or not
+/// a shot is fired. So [_fight] sorts the crowd into cells the width of the
+/// longest reach on the map and looks in the nine around a shooter, through the
+/// same hash [_separate] was already building; and a crowd with nothing armed
+/// in it, which is every match this package could play before, pays one
+/// comparison a unit and stops.
 ///
 /// **Everyone is shoved, not just the visible.** Limiting separation to what is
 /// on screen was the obvious saving and it costs 717 microseconds not to make;
@@ -213,6 +222,11 @@ final class StrategySimulation {
   /// Scratch, so that a step of ten thousand allocates nothing.
   final Vector3 _step = Vector3.zero();
   final Map<int, List<int>> _buckets = <int, List<int>>{};
+  final Map<int, List<int>> _marks = <int, List<int>>{};
+
+  /// Whom each restored unit was told to attack, by entity index, until the
+  /// crowd it names has been stood up. See [_restoreCrowd].
+  final Map<Unit, int> _pendingMarks = <Unit, int>{};
 
   /// Adds a unit and returns it, so a caller can keep the handle.
   ///
@@ -272,12 +286,28 @@ final class StrategySimulation {
   /// order issued by a job takes effect in the same step it was issued rather
   /// than the next one — the difference between a stream of workers and a
   /// stutter of them.
+  ///
+  /// **The fight goes between the walk and the shove, and the position is the
+  /// argument.** Shots are taken from where a unit has just arrived rather than
+  /// from where it stood last step, so an order to close and a shot at the end
+  /// of the closing are one step apart rather than two; and they are taken
+  /// before separation, so a pair that has walked into each other is measured
+  /// at the range they actually reached instead of at the range the shove left
+  /// them at.
+  ///
+  /// **Then the dead are collected, once.** [_separate] and [_fight] both hold
+  /// places in [units] while they run, so nothing may be taken out of that list
+  /// while either is walking it; [_bury] runs after both and before anything
+  /// counts the crowd, which is what keeps production and the fog from
+  /// answering for bodies.
   void step(double dt) {
     orders.obey();
     _work(dt);
     _walk(dt);
+    _fight(dt);
     _separate();
     _sit();
+    _bury();
     _produce(dt);
     _look();
   }
@@ -343,15 +373,24 @@ final class StrategySimulation {
     }
   }
 
-  /// Turns stockpiles into units.
+  /// Turns stockpiles into the units somebody asked for.
+  ///
+  /// **Nothing is made that was not ordered**, which is the whole of what gives
+  /// a side something to do with a pile besides spend it. See [Producer]: a
+  /// producer with an empty book is not idle by accident, it is a side saving
+  /// up, and that third answer is what makes "worker or soldier" a decision
+  /// rather than a label on the only thing available.
   void _produce(double dt) {
     for (final Producer producer in producers) {
+      final UnitType? wanted = producer.wanted;
+      if (wanted == null || !producer.isWanted) continue;
       final Stockpile purse = stock[producer.building.side];
       if (!producer.isBusy && !purse.spend(producer.cost)) continue;
 
       producer.progress += dt;
       if (producer.progress < producer.seconds) continue;
       producer.progress = 0.0;
+      producer.ordered -= 1;
 
       // Out of the near face rather than the middle, so a unit is not born
       // inside the building that made it and shoved out by the separation pass
@@ -365,6 +404,7 @@ final class StrategySimulation {
             at.centre.z + at.depth / 2.0 + 1.0,
           ),
           side: at.side,
+          type: wanted,
         ),
       );
     }
@@ -477,16 +517,134 @@ final class StrategySimulation {
     }
   }
 
+  /// Everybody who can shoot and has somebody to shoot at, does.
+  ///
+  /// **Through the same hash the shove uses, and that is the point.** The
+  /// obvious answer — every armed unit against every unit — is the one this
+  /// package cannot afford: the whole budget was set by measuring ten thousand
+  /// agents stepping in under a millisecond, and an unconditional pass of
+  /// everybody against everybody is that measurement squared, every step,
+  /// whether or not a shot is fired. Sorting the crowd into cells the width of
+  /// the longest reach on the map and looking in the nine cells around a
+  /// shooter answers exactly the same question against a handful of neighbours.
+  ///
+  /// **A crowd with nothing armed in it pays one comparison a unit.** The reach
+  /// is worked out in the pass that ticks the reloads, and a nought means there
+  /// is nobody who could shoot anybody — so an economy with no soldiers in it
+  /// never builds a second hash and never looks in a bucket. That is what keeps
+  /// this affordable for the game the package already had.
+  void _fight(double dt) {
+    var reach = 0.0;
+    for (final Unit unit in units) {
+      if (unit.cooldown > 0.0) unit.cooldown -= dt;
+      if (unit.type.isArmed && unit.type.range > reach) reach = unit.type.range;
+    }
+    if (reach <= 0.0) return;
+
+    _hash(_marks, reach);
+
+    for (final Unit unit in units) {
+      if (!unit.isAlive || !unit.type.isArmed || unit.cooldown > 0.0) continue;
+      final Unit? mark = _markFor(unit, reach);
+      if (mark == null) continue;
+      mark.hurt(unit.type.damage);
+      unit.cooldown = unit.type.reload;
+    }
+  }
+
+  /// What [unit] shoots this step, or null for nothing in reach.
+  ///
+  /// **An order beats an answer of its own.** A unit told to go for something
+  /// shoots that and waits for it rather than picking off whatever wandered
+  /// past, because the alternative is a squad sent across the map that stops at
+  /// the first worker it meets and never arrives.
+  ///
+  /// **Everything else shoots back on its own**, which is not a convenience:
+  /// units that only ever fired when told would make an unattended side an
+  /// unattended target, and a policy that had to issue an order per exchange
+  /// would be a policy deciding sixty times a second.
+  ///
+  /// [cell] is the width the buckets were sorted at, which is the longest reach
+  /// on the map — so everything within *this* unit's range is in one of the
+  /// nine cells around it, and no shot is missed by the shortcut.
+  Unit? _markFor(Unit unit, double cell) {
+    final double range = unit.type.range;
+    if (unit.order.target case final Unit told when told.isAlive) {
+      return _within(unit.position, told.position, range) ? told : null;
+    }
+
+    final double reach = range * range;
+    Unit? best;
+    var bestAt = double.infinity;
+    final int cx = (unit.position.x / cell).floor();
+    final int cz = (unit.position.z / cell).floor();
+    for (var dz = -1; dz <= 1; dz++) {
+      for (var dx = -1; dx <= 1; dx++) {
+        final List<int>? bucket = _marks[_bucketAt(cx + dx, cz + dz)];
+        if (bucket == null) continue;
+        // In the order the crowd is walked, so that two units the same distance
+        // off are settled by the list order that makes a run repeat rather than
+        // by whichever the hash happened to hold first.
+        for (final int index in bucket) {
+          final Unit other = units[index];
+          if (other.side == unit.side || !other.isAlive) continue;
+          final double ddx = other.position.x - unit.position.x;
+          final double ddz = other.position.z - unit.position.z;
+          final double at = ddx * ddx + ddz * ddz;
+          if (at > reach || at >= bestAt) continue;
+          best = other;
+          bestAt = at;
+        }
+      }
+    }
+    return best;
+  }
+
+  /// Takes the fallen out of the crowd, in one pass, and cuts what was holding
+  /// them.
+  ///
+  /// **One pass at the end rather than a removal where the damage was done.**
+  /// The order [units] is walked in is this simulation's whole claim to
+  /// replaying, and both [_fight] and [_separate] hold places in that list
+  /// while they run — take one out in the middle and every index after it names
+  /// the wrong unit, which is a shove applied to a stranger and a shot fired at
+  /// nobody. Filtering in place keeps the survivors in the order they were in,
+  /// so the crowd after a battle is the crowd before it with gaps closed.
+  ///
+  /// **And the references that outlived them are cut here.** A body that is out
+  /// of the list is still reachable from whatever was pointing at it: an
+  /// attacker keeps its quarry in its order, and would go on walking to where a
+  /// corpse's position vector says it is for the rest of the match. The entity
+  /// goes back to the world for the same reason — a handle nobody can reach is
+  /// a row a save still writes.
+  void _bury() {
+    var fallen = false;
+    for (final Unit unit in units) {
+      if (unit.isAlive) continue;
+      fallen = true;
+      break;
+    }
+    if (!fallen) return;
+
+    for (final Unit unit in units) {
+      if (unit.isAlive) continue;
+      entities.despawn(unit.entity);
+    }
+    units.retainWhere((Unit unit) => unit.isAlive);
+    for (final Unit unit in units) {
+      if (unit.order.target case final Unit mark when !mark.isAlive) {
+        unit.order = const UnitOrder.hold();
+      }
+    }
+  }
+
   /// Shoves overlapping neighbours apart.
   ///
   /// A hash of the cell a unit is in, rebuilt every step. Rebuilding it is
   /// cheaper than keeping it current: units move every step, so a kept index
   /// would be rewritten every step anyway, and a fresh one cannot go stale.
   void _separate() {
-    _buckets.clear();
-    for (var i = 0; i < units.length; i++) {
-      _buckets.putIfAbsent(_bucketOf(units[i].position), () => <int>[]).add(i);
-    }
+    _hash(_buckets, _shoveCell);
 
     for (final List<int> bucket in _buckets.values) {
       for (var a = 0; a < bucket.length; a++) {
@@ -537,11 +695,18 @@ final class StrategySimulation {
 
   /// The other direction, and the reason [entities] is here at all: this builds
   /// a unit the map it is restoring into never staged.
+  ///
+  /// **Whom it was fighting is noted rather than resolved.** A quarry is
+  /// another unit, and the crowd is only half built while this runs — the
+  /// attacker may well be read before its target exists. So the index is put
+  /// aside and [_restoreCrowd] hands the object over once everybody is
+  /// standing, which is the same two-pass shape a harvest job would need if
+  /// deposits were made here rather than staged by the map.
   Unit? _readUnit(Object? data) {
     if (data is! Map) return null;
     final Map<String, Object?> from = data.cast<String, Object?>();
     final Map<String, Object?>? job = from.object('job');
-    return Unit.fromSnapshot(from)
+    final Unit unit = Unit.fromSnapshot(from)
       ..job = job == null
           ? null
           : HarvestJob.fromSnapshot(
@@ -549,6 +714,9 @@ final class StrategySimulation {
               nodes: resources,
               buildings: buildings,
             );
+    final int mark = from.integer('target', -1);
+    if (mark >= 0) _pendingMarks[unit] = mark;
+    return unit;
   }
 
   /// Everything needed to carry on digging, and nothing needed only to draw.
@@ -693,14 +861,44 @@ final class StrategySimulation {
             if (index is num)
               if (found[index.toInt()] case final Unit unit) unit,
       ]);
+
+    // The second pass the note on [_readUnit] promises. A quarry the document
+    // named and this world does not have leaves its hunter holding — the
+    // leniency every other reader here shows, and the right answer besides: the
+    // thing it was told to kill is not on the map.
+    for (final MapEntry<Unit, int> waiting in _pendingMarks.entries) {
+      if (found[waiting.value] case final Unit mark) {
+        waiting.key.order = UnitOrder.attack(mark);
+      }
+    }
+    _pendingMarks.clear();
   }
 
-  /// Which bucket a position falls in. Two metres, so that a pair close enough
-  /// to touch is a pair in one bucket for any radius a unit has.
-  int _bucketOf(Vector3 at) {
-    const double cell = 2.0;
-    final int x = (at.x / cell).floor();
-    final int z = (at.z / cell).floor();
-    return x * 73856093 ^ z * 19349663;
+  /// How wide the shove's buckets are, in metres. Two, so that a pair close
+  /// enough to touch is a pair in one bucket for any radius a unit has.
+  static const double _shoveCell = 2.0;
+
+  /// Sorts the whole crowd into [into] by the [cell]-metre square it stands in.
+  ///
+  /// **One mechanism, two widths.** The shove wants cells the width of a couple
+  /// of units and the fight wants cells the width of the longest reach, and
+  /// those are different numbers on the same idea — so the hashing is written
+  /// once and asked twice rather than copied with a constant changed. What each
+  /// bucket holds is places in [units], in the order the step walks them, which
+  /// is what lets either caller break a tie the way a replay needs it broken.
+  void _hash(Map<int, List<int>> into, double cell) {
+    into.clear();
+    for (var i = 0; i < units.length; i++) {
+      final Vector3 at = units[i].position;
+      into
+          .putIfAbsent(
+            _bucketAt((at.x / cell).floor(), (at.z / cell).floor()),
+            () => <int>[],
+          )
+          .add(i);
+    }
   }
+
+  /// Which bucket a pair of cell coordinates falls in.
+  static int _bucketAt(int x, int z) => x * 73856093 ^ z * 19349663;
 }

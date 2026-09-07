@@ -202,21 +202,119 @@ final class AssignOrder extends StrategyOrder {
   }
 }
 
-// MARK: - Where the fight goes
-//
-// **An attack is the third kind, and it is deliberately not here.** The shape
-// it will take is already decided by the two above: a `kind` of `attack`, a
-// list of entity indices for whoever is swinging, and an entity index for
-// whatever they are swinging at — the same addressing, the same one entry in
-// the frame the order was given on, the same sealed switch in `orderFromJson`.
-//
-// What is missing is not the order, it is the thing it would point at: a unit
-// has no target, no reach and no health, so an `AttackOrder` written today
-// would be a document with nowhere to be carried out. Writing it now would fix
-// the shape of a mechanism that has not been measured, which is the mistake
-// this package has avoided twice already — the crowd and the fog were both
-// built after the probe rather than before it. When there is a fight, this is
-// where its order goes, and the tape's format does not move to let it in.
+/// Send these units after that one.
+///
+/// **The shape this file predicted before there was a fight to put in it**, and
+/// it arrived unchanged: a list of entity indices for whoever is swinging, one
+/// entity index for whatever they are swinging at, the same addressing as the
+/// two above and one entry on the step the order was given. Nothing in the tape
+/// format moved to let it in.
+final class AttackOrder extends StrategyOrder {
+  /// Sends the units at [units] — entity indices — after [target].
+  const AttackOrder({required this.units, required this.target});
+
+  /// Whom it was given to, by entity index, in the order they were named.
+  final List<int> units;
+
+  /// What they are to go for, by entity index.
+  final int target;
+
+  @override
+  Map<String, Object?> toJson() => <String, Object?>{
+    'kind': 'attack',
+    'units': units,
+    'target': target,
+  };
+
+  /// An order read back from [toJson].
+  factory AttackOrder.fromJson(Map<String, Object?> from) {
+    final Object? units = from['units'];
+    return AttackOrder(
+      units: <int>[
+        if (units is List)
+          for (final Object? index in units)
+            if (index is num) index.toInt(),
+      ],
+      target: from.integer('target', -1),
+    );
+  }
+
+  /// **A quarry that is not on the map any more takes the whole order with
+  /// it.** The alternative — send them anyway, to hold where it fell — is a
+  /// squad walking to a patch of hillside for reasons nobody watching could
+  /// reconstruct, and a stale click is exactly the case this leniency is for.
+  @override
+  void obey(StrategySimulation simulation, Map<int, Unit> crowd) {
+    final Unit? mark = crowd[target];
+    if (mark == null) return;
+    for (final int index in units) {
+      if (crowd[index] case final Unit hunter when !identical(hunter, mark)) {
+        // The job goes, for the reason `Squad.moveTo` gives: a harvest loop
+        // rewrites the order every step, so a worker told to fight without
+        // being taken off its seam would go on digging and look disobedient.
+        hunter
+          ..job = null
+          ..order = UnitOrder.attack(mark);
+      }
+    }
+  }
+}
+
+/// Make this many of that kind, there.
+///
+/// **The order that turns a stockpile into a decision.** Production used to
+/// spend a pile the moment it could, which left a policy nothing to choose
+/// between; asking for a kind is the choice, and it goes through the queue for
+/// the same reason a move does — an intent that is never a value is an intent
+/// no recording can carry, and a replay whose economies stand idle is a replay
+/// of a different match.
+final class TrainOrder extends StrategyOrder {
+  /// Asks [producer] — a place in `StrategySimulation.producers` — for [count]
+  /// of [type].
+  const TrainOrder({
+    required this.producer,
+    required this.type,
+    this.count = 1,
+  });
+
+  /// Which producer, as a place in the simulation's own list.
+  final int producer;
+
+  /// What kind to make.
+  ///
+  /// The whole row of numbers rather than a name, because a name would need a
+  /// roster both ends agreed on: a tape recorded against one balance and
+  /// replayed against another would then quietly make a different army. See
+  /// [UnitType].
+  final UnitType type;
+
+  /// How many to make before falling idle again.
+  final int count;
+
+  @override
+  Map<String, Object?> toJson() => <String, Object?>{
+    'kind': 'train',
+    'producer': producer,
+    'type': type.toJson(),
+    'count': count,
+  };
+
+  /// An order read back from [toJson].
+  factory TrainOrder.fromJson(Map<String, Object?> from) => TrainOrder(
+    producer: from.integer('producer', -1),
+    type: switch (from.object('type')) {
+      final Map<String, Object?> row => UnitType.fromJson(row),
+      null => UnitType.worker,
+    },
+    count: from.integer('count', 1),
+  );
+
+  @override
+  void obey(StrategySimulation simulation, Map<int, Unit> crowd) {
+    if (producer < 0 || producer >= simulation.producers.length) return;
+    simulation.producers[producer].order(type, count: count);
+  }
+}
 
 /// An order read back from whatever wrote it down.
 ///
@@ -231,6 +329,8 @@ StrategyOrder orderFromJson(Map<String, Object?> from) =>
     switch (from.text('kind')) {
       'move' => MoveOrder.fromJson(from),
       'assign' => AssignOrder.fromJson(from),
+      'attack' => AttackOrder.fromJson(from),
+      'train' => TrainOrder.fromJson(from),
       final String? kind => throw DemoFormatException(
         'the tape holds an order of kind "$kind", which this build cannot '
         'carry out',
@@ -286,6 +386,27 @@ final class OrderQueue {
       units: <int>[for (final Unit unit in units) unit.entity.index],
       goal: goal,
       formation: formation,
+    ),
+  );
+
+  /// Sends [units] after [target].
+  void attackWith(Iterable<Unit> units, Unit target) => add(
+    AttackOrder(
+      units: <int>[for (final Unit unit in units) unit.entity.index],
+      target: target.entity.index,
+    ),
+  );
+
+  /// Asks [producer] for [count] of [type].
+  ///
+  /// The producer is turned into a place in the simulation's list here, while
+  /// the caller still has the handle, for the same reason [assign] does it: an
+  /// order carrying the object is an order that cannot be written down.
+  void train(Producer producer, UnitType type, {int count = 1}) => add(
+    TrainOrder(
+      producer: _simulation.producers.indexOf(producer),
+      type: type,
+      count: count,
     ),
   );
 

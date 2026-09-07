@@ -102,7 +102,10 @@ void main() {
       final hall = sim.build(
         Building(centre: Vector3(20.0, 0.0, 20.0), width: 8.0, depth: 8.0),
       );
-      sim.addProducer(Producer(building: hall, cost: 25.0, seconds: 2.0));
+      sim.addProducer(
+        Producer(building: hall, cost: 25.0, seconds: 2.0)
+          ..order(UnitType.worker, count: 4),
+      );
       sim.stock[0].amount = 60.0;
 
       for (var i = 0; i < 60 * 5; i++) {
@@ -113,6 +116,57 @@ void main() {
       expect(sim.stock[0].amount, closeTo(10.0, 1e-6));
     });
 
+    test('makes nothing nobody asked for', () {
+      // **The saving branch, which is what the order book bought.** A hall with
+      // money and no order is a side keeping its pile, and until there was a
+      // book that was not a state this game could be in: production spent
+      // whatever it could reach the moment it could reach it.
+      //
+      // Mutation: have `_produce` skip the empty-book test. The pile empties
+      // itself into workers nobody wanted, and a policy's third answer stops
+      // existing.
+      final sim = StrategySimulation(random: GameRandom(1), ground: _flat());
+      final hall = sim.build(
+        Building(centre: Vector3(20.0, 0.0, 20.0), width: 8.0, depth: 8.0),
+      );
+      sim.addProducer(Producer(building: hall, cost: 25.0, seconds: 1.0));
+      sim.stock[0].amount = 500.0;
+
+      for (var i = 0; i < 60 * 20; i++) {
+        sim.step(1.0 / 60.0);
+      }
+
+      expect(sim.units, isEmpty, reason: 'it made an army out of boredom');
+      expect(sim.stock[0].amount, closeTo(500.0, 1e-9));
+    });
+
+    test('makes exactly what it was asked for and then stops', () {
+      // The count is a count, not a switch. Mutation: leave `ordered` alone
+      // when a unit comes out — the first order then runs the hall for ever.
+      final sim = StrategySimulation(random: GameRandom(1), ground: _flat());
+      final hall = sim.build(
+        Building(centre: Vector3(20.0, 0.0, 20.0), width: 8.0, depth: 8.0),
+      );
+      final maker = sim.addProducer(
+        Producer(building: hall, cost: 1.0, seconds: 0.5)
+          ..order(UnitType.soldier, count: 3),
+      );
+      sim.stock[0].amount = 100.0;
+
+      for (var i = 0; i < 60 * 10; i++) {
+        sim.step(1.0 / 60.0);
+      }
+
+      expect(sim.units.length, 3);
+      expect(maker.ordered, 0);
+      expect(maker.isWanted, isFalse);
+      expect(
+        sim.units.every((Unit it) => it.type == UnitType.soldier),
+        isTrue,
+        reason: 'a hall asked for soldiers made something else',
+      );
+    });
+
     test('makes nothing for a side that cannot pay', () {
       // Mutation: charge after finishing rather than before starting. A side
       // with nothing then gets a free unit every four seconds.
@@ -120,7 +174,7 @@ void main() {
       final hall = sim.build(
         Building(centre: Vector3(20.0, 0.0, 20.0), width: 8.0, depth: 8.0),
       );
-      sim.addProducer(Producer(building: hall));
+      sim.addProducer(Producer(building: hall)..order(UnitType.worker, count: 9));
 
       for (var i = 0; i < 60 * 20; i++) {
         sim.step(1.0 / 60.0);
@@ -142,7 +196,10 @@ void main() {
           side: 1,
         ),
       );
-      sim.addProducer(Producer(building: theirs, cost: 25.0, seconds: 1.0));
+      sim.addProducer(
+        Producer(building: theirs, cost: 25.0, seconds: 1.0)
+          ..order(UnitType.worker, count: 4),
+      );
       sim.stock[0].amount = 100.0;
 
       for (var i = 0; i < 60 * 5; i++) {
@@ -169,7 +226,10 @@ void main() {
           side: 2,
         ),
       );
-      wide.addProducer(Producer(building: third, cost: 25.0, seconds: 1.0));
+      wide.addProducer(
+        Producer(building: third, cost: 25.0, seconds: 1.0)
+          ..order(UnitType.worker, count: 2),
+      );
       wide.stock[2].amount = 50.0;
 
       for (var i = 0; i < 60 * 3; i++) {
@@ -187,7 +247,10 @@ void main() {
       final hall = sim.build(
         Building(centre: Vector3(30.0, 0.0, 30.0), width: 10.0, depth: 10.0),
       );
-      sim.addProducer(Producer(building: hall, cost: 1.0, seconds: 0.5));
+      sim.addProducer(
+        Producer(building: hall, cost: 1.0, seconds: 0.5)
+          ..order(UnitType.worker, count: 5),
+      );
       sim.stock[0].amount = 5.0;
 
       for (var i = 0; i < 60; i++) {
