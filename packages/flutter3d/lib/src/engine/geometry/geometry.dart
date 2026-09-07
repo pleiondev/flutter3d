@@ -20,6 +20,8 @@ export 'mesh_builder.dart';
 export 'mesh_data.dart';
 export 'mesh_geometry.dart';
 export 'mesh_tangents.dart';
+export 'morph_blend.dart';
+export 'morph_texture.dart';
 export 'revolved_shapes.dart';
 export 'shape.dart';
 export 'vertex_layout.dart';

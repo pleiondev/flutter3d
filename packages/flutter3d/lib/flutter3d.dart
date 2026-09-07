@@ -105,6 +105,7 @@ export 'src/engine/scene/light_buffer.dart';
 export 'src/engine/scene/light_node.dart';
 export 'src/engine/scene/lod_group.dart';
 export 'src/engine/scene/mesh_node.dart';
+export 'src/engine/scene/morph_state.dart';
 export 'src/engine/scene/orbit_controller.dart';
 export 'src/engine/scene/projection.dart';
 export 'src/engine/scene/raycaster.dart';

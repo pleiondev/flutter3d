@@ -45,13 +45,38 @@ extension _MeshEncode on Renderer {
   /// this file already gives about the material binding: two copies of a
   /// binding eventually disagree, and the disagreement arrives as a picture
   /// nobody can explain.
-  void _bindMorph(PassEncoder pass, ShaderHandle stage) {
+  void _bindMorph(PassEncoder pass, ShaderHandle stage, [MorphState? morph]) {
+    final count = morph == null
+        ? 0
+        : (morph.targetCount < _morphWeights.length
+              ? morph.targetCount
+              : _morphWeights.length);
+
+    for (var i = 0; i < _morphWeights.length; i++) {
+      _morphWeights[i] = i < count ? morph!.weights[i] : 0.0;
+    }
+    _morphParams[0] = count.toDouble();
+    // One texel across and one down, so the shader can reach a texel centre
+    // without `textureSize` — which is a second thing that would have to
+    // survive the compiler that crashes on `texelFetch`. Nought when there is
+    // nothing to read, which the count already stops.
+    _morphParams[1] = morph == null ? 0.0 : 1.0 / morph.texture.width;
+    _morphParams[2] = morph == null ? 0.0 : 1.0 / morph.texture.height;
+
     pass
       ..bindUniformBlock(stage, _kMorphInfoBlock, {
         'morph_weights': _morphWeights,
         'morph_params': _morphParams,
       })
-      ..bindTexture(stage, 'morph_texture', fallbackAlbedo);
+      ..bindTexture(
+        stage,
+        'morph_texture',
+        morph?.texture ?? fallbackAlbedo,
+        // Nearest and clamped: the coordinate names a texel centre exactly, and
+        // a filtered read would blend a vertex with its neighbour — a model
+        // that shimmers along its own index order.
+        sampler: SamplerOptions.nearestClamp,
+      );
   }
 
   /// Encodes one mesh node into an open pass.
@@ -200,7 +225,7 @@ extension _MeshEncode on Renderer {
     });
 
     // Always, even when nothing morphs. See [_bindMorph].
-    _bindMorph(encoder, activeVertexShader);
+    _bindMorph(encoder, activeVertexShader, node.morph);
 
     if (skeleton != null) {
       // Recomputed here rather than by the caller: the matrices depend on

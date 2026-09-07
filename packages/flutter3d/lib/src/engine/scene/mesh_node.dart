@@ -2,6 +2,7 @@ import 'package:vector_math/vector_math.dart';
 
 import '../geometry/mesh_geometry.dart';
 import '../render/material.dart';
+import 'morph_state.dart';
 import 'scene.dart';
 import 'scene_node.dart';
 import 'skeleton.dart';
@@ -70,6 +71,28 @@ base class MeshNode extends SceneNode {
   /// it to pick the skinned vertex shader — the layout and the shader are one
   /// decision, so a mesh either has both or neither.
   Skeleton? skeleton;
+
+  /// The shapes this mesh blends towards, and how much of each.
+  ///
+  /// Null for almost every mesh. Set by whatever uploaded the geometry — see
+  /// `MorphTexture` — and driven by an animation clip's weights track, or by a
+  /// game writing into [morphWeights] directly, which is how a face is put into
+  /// an expression that no clip carries.
+  ///
+  /// On the node rather than on the geometry because two copies of one model
+  /// must be able to wear different expressions: the deltas are shared and the
+  /// weights are not, exactly as a skeleton's matrices are per instance while
+  /// its mesh is not.
+  MorphState? morph;
+
+  /// What each target is worth right now, from nought to one.
+  ///
+  /// Empty when nothing morphs. For a game putting a face into an expression
+  /// by hand — the shortcut past `morph!.weights` that also answers for a mesh
+  /// with no targets, so a caller writing a HUD or a debug slider need not
+  /// branch. Nothing in this repository reaches for it yet: no model here
+  /// carries morph targets, and the one that will is the point of the feature.
+  List<double> get morphWeights => morph?.weights ?? const <double>[];
 
   /// Whether this mesh's vertex colour is its place in a lightmap.
   ///

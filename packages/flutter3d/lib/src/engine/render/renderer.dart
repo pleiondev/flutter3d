@@ -13,6 +13,7 @@ import '../scene/instanced_mesh_node.dart';
 import '../scene/light_buffer.dart';
 import '../scene/light_node.dart';
 import '../scene/mesh_node.dart';
+import '../scene/morph_state.dart';
 import '../scene/projection.dart';
 import '../scene/reflection_probe_node.dart';
 import '../scene/scene.dart';

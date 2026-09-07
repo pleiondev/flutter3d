@@ -8,6 +8,7 @@ import 'animation_layer.dart';
 import 'animation_mask.dart';
 import 'animation_target.dart';
 import 'animation_track.dart';
+import 'morph_sink.dart';
 
 /// Plays [AnimationClip]s onto animation targets.
 ///
@@ -37,7 +38,11 @@ import 'animation_track.dart';
 /// a state machine that decides *which* clip — that belongs to the game layer,
 /// not here.
 final class AnimationPlayer {
-  AnimationPlayer({required this.clips, required this.targets});
+  AnimationPlayer({
+    required this.clips,
+    required this.targets,
+    List<MorphSink?>? morphs,
+  }) : morphs = morphs ?? const <MorphSink?>[];
 
   final List<AnimationClip> clips;
 
@@ -45,6 +50,13 @@ final class AnimationPlayer {
   /// none. Index-aligned with the model's node list, which is what an animation
   /// channel addresses.
   final List<AnimationTarget?> targets;
+
+  /// Where a weights track goes, index-aligned with [targets].
+  ///
+  /// Empty for a model that morphs nothing, which is almost all of them. A
+  /// second list rather than a fourth setter on [AnimationTarget]: see
+  /// [MorphSink], which says why a weight is not a transform.
+  final List<MorphSink?> morphs;
 
   int _clipIndex = -1;
   double _time = 0.0;
@@ -377,6 +389,15 @@ final class AnimationPlayer {
     }
 
     for (final track in active.tracks) {
+      // Weights go to a sink and not to a node, so they are answered before the
+      // node lookup: a mesh that morphs need not be one an animation also
+      // moves, and requiring an `AnimationTarget` for it would drop the track
+      // of a face that never travels.
+      if (track.path == AnimationPath.weights) {
+        _applyWeights(track);
+        continue;
+      }
+
       if (track.nodeIndex < 0 || track.nodeIndex >= targets.length) continue;
       final node = targets[track.nodeIndex];
       if (node == null) continue;
@@ -420,6 +441,37 @@ final class AnimationPlayer {
 
     if (layers.isNotEmpty) _applyLayersWhereBaseIsSilent();
   }
+
+  /// Samples a weights track and hands it to whatever is morphing.
+  ///
+  /// Not blended with a crossfade or a layer, and that is a limit rather than
+  /// an oversight: two clips fading between two expressions would want the
+  /// weights mixed, and doing it would mean the outgoing clip's weights track
+  /// looked up the same way the outgoing pose is. It is written down here
+  /// rather than half-built — nothing in this repository morphs through a
+  /// crossfade yet, and guessing at how it should feel is how an API arrives
+  /// that nobody can use.
+  void _applyWeights(AnimationTrack track) {
+    if (track.nodeIndex < 0 || track.nodeIndex >= morphs.length) return;
+    final sink = morphs[track.nodeIndex];
+    if (sink == null) return;
+
+    if (_sample.length < track.componentCount) {
+      _sample = Float32List(track.componentCount);
+    }
+    track.sample(_time, _sample);
+    if (_weightScratch.length != track.componentCount) {
+      _weightScratch = List<double>.filled(track.componentCount, 0.0);
+    }
+    for (var i = 0; i < track.componentCount; i++) {
+      _weightScratch[i] = _sample[i];
+    }
+    sink.setWeights(_weightScratch);
+  }
+
+  /// The weights handed to a sink, reused: a list per model per frame is an
+  /// allocation for a value that usually has not moved.
+  List<double> _weightScratch = const <double>[];
 
   /// Mixes [from] into [into] by [weight], the way the path wants mixing.
   ///
@@ -538,8 +590,8 @@ final class AnimationPlayer {
         node.setScale(pose[0], pose[1], pose[2]);
 
       case AnimationPath.weights:
-        // Morph targets are not implemented; the track is decoded and carried
-        // so the clip round-trips, but there is nothing to write it to.
+        // Answered before the node lookup — see `_applyWeights`. Nothing
+        // reaches here.
         break;
     }
   }
