@@ -22,7 +22,7 @@ in vec2 texcoord;
 in vec4 tangent;
 in vec4 color;
 
-#include <lib/morph.glsl>
+#include <lib/morph_instanced.glsl>
 
 /// Rows of the instance's 3x4 affine transform, in the node's space.
 in vec4 i_row0;
@@ -54,14 +54,15 @@ void main() {
       vec4(i_row0.z, i_row1.z, i_row2.z, 0.0),
       vec4(i_row0.w, i_row1.w, i_row2.w, 1.0));
   // Morphed before the instance transform: the deltas are in the mesh's own
-  // space, and every instance of a batch shares the mesh and therefore its
-  // shape. A batch whose instances morphed differently would need a weight set
-  // per instance, which is a per-instance uniform this layout has no room for
-  // and a feature nothing has asked for.
+  // space, and every instance of a batch shares the mesh. What they need not
+  // share is the *shape* — `ApplyMorphInstanced` reads this instance's own
+  // weights out of a texture when the batch has any, and falls through to the
+  // batch-wide uniform when it has none. See `lib/morph_instanced.glsl`.
   vec3 morphed_position = position;
   vec3 morphed_normal = normal;
   vec4 morphed_tangent = tangent;
-  ApplyMorph(morphed_position, morphed_normal, morphed_tangent);
+  ApplyMorphInstanced(gl_InstanceIndex, morphed_position, morphed_normal,
+                      morphed_tangent);
 
   vec4 local = instance * vec4(morphed_position, 1.0);
   vec4 world = frame_info.model * local;

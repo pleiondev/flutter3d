@@ -40,47 +40,69 @@ void applyMorph(
   Vector3 normal,
   Vector4 tangent,
 ) {
-  final params = bindings.vec4('MorphInfo', 'morph_params', Vector4.zero());
-  final count = (params.x + 0.5).floor();
+  final count = _targetCount(bindings);
   if (count <= 0) return;
 
+  final limit = count < kMorphMax ? count : kMorphMax;
+  for (var i = 0; i < limit; i++) {
+    final weight = _weightAt(bindings, i);
+    if (weight == 0.0) continue;
+    addMorphTarget(i, weight, vertexIndex, bindings, position, normal, tangent);
+  }
+}
+
+/// How many targets this draw blends. `MorphCount()` in the GLSL.
+int _targetCount(ShaderBindings bindings) {
+  final params = bindings.vec4('MorphInfo', 'morph_params', Vector4.zero());
+  return (params.x + 0.5).floor();
+}
+
+/// Adds target [t]'s deltas onto one vertex, scaled by [weight].
+///
+/// `AddMorphTarget` in the GLSL, and split out here for the same reason it is
+/// split out there: two callers with different ideas about where a weight comes
+/// from, and one place that knows where a delta is.
+void addMorphTarget(
+  int t,
+  double weight,
+  int vertexIndex,
+  ShaderBindings bindings,
+  Vector3 position,
+  Vector3 normal,
+  Vector4 tangent,
+) {
   final texture = bindings.textures['morph_texture'];
   if (texture == null) return;
 
+  final params = bindings.vec4('MorphInfo', 'morph_params', Vector4.zero());
   final columnStep = params.y;
   final rowStep = params.z;
   if (columnStep <= 0.0 || rowStep <= 0.0) return;
 
   final column = (vertexIndex + 0.5) * columnStep;
-  final limit = count < kMorphMax ? count : kMorphMax;
+  final row = (t * kMorphRows + 0.5) * rowStep;
 
-  for (var i = 0; i < limit; i++) {
-    final weight = _weightAt(bindings, i);
-    if (weight == 0.0) continue;
+  final dp = texture.sample(column, row);
+  position.setValues(
+    position.x + dp.x * weight,
+    position.y + dp.y * weight,
+    position.z + dp.z * weight,
+  );
 
-    final row = (i * kMorphRows + 0.5) * rowStep;
-    final dp = texture.sample(column, row);
-    position.setValues(
-      position.x + dp.x * weight,
-      position.y + dp.y * weight,
-      position.z + dp.z * weight,
-    );
+  final dn = texture.sample(column, row + rowStep);
+  normal.setValues(
+    normal.x + dn.x * weight,
+    normal.y + dn.y * weight,
+    normal.z + dn.z * weight,
+  );
 
-    final dn = texture.sample(column, row + rowStep);
-    normal.setValues(
-      normal.x + dn.x * weight,
-      normal.y + dn.y * weight,
-      normal.z + dn.z * weight,
-    );
-
-    final dt = texture.sample(column, row + rowStep * 2.0);
-    tangent.setValues(
-      tangent.x + dt.x * weight,
-      tangent.y + dt.y * weight,
-      tangent.z + dt.z * weight,
-      tangent.w,
-    );
-  }
+  final dt = texture.sample(column, row + rowStep * 2.0);
+  tangent.setValues(
+    tangent.x + dt.x * weight,
+    tangent.y + dt.y * weight,
+    tangent.z + dt.z * weight,
+    tangent.w,
+  );
 }
 
 /// Weight *i*, out of the `vec4[2]` the block declares.
@@ -92,6 +114,60 @@ double _weightAt(ShaderBindings bindings, int i) {
   final data = bindings.read('MorphInfo', 'morph_weights');
   if (data == null || i >= data.length) return 0.0;
   return data[i];
+}
+
+/// `lib/morph_instanced.glsl`, transcribed: the same blend with each instance's
+/// own weights.
+///
+/// Reads the weights out of a texture by instance rather than out of the
+/// uniform, when the batch has any. A batch that has none falls through to
+/// [applyMorph], which is what the GLSL does at the same point and for the same
+/// reason: the feature costs a sampler and a branch, and every batch that does
+/// not use it pays only the branch.
+void applyMorphInstanced(
+  int vertexIndex,
+  int instanceIndex,
+  ShaderBindings bindings,
+  Vector3 position,
+  Vector3 normal,
+  Vector4 tangent,
+) {
+  final params = bindings.vec4(
+    'MorphInstanceInfo',
+    'instance_params',
+    Vector4.zero(),
+  );
+  if (params.x < 0.5) {
+    applyMorph(vertexIndex, bindings, position, normal, tangent);
+    return;
+  }
+
+  final weights = bindings.textures['morph_instance_weights'];
+  if (weights == null) return;
+  final columnStep = params.y;
+  final rowStep = params.z;
+  if (columnStep <= 0.0 || rowStep <= 0.0) return;
+
+  final count = _targetCount(bindings);
+  if (count <= 0) return;
+
+  final row = (instanceIndex + 0.5) * rowStep;
+  final limit = count < kMorphMax ? count : kMorphMax;
+  for (var i = 0; i < limit; i++) {
+    // Four weights a texel, exactly as the uniform packs them into a `vec4[2]`
+    // — which is what makes an instance's face and a batch's face the same
+    // arithmetic reached two ways.
+    final column = (i ~/ 4 + 0.5) * columnStep;
+    final texel = weights.sample(column, row);
+    final weight = switch (i % 4) {
+      0 => texel.x,
+      1 => texel.y,
+      2 => texel.z,
+      _ => texel.w,
+    };
+    if (weight == 0.0) continue;
+    addMorphTarget(i, weight, vertexIndex, bindings, position, normal, tangent);
+  }
 }
 
 /// Whether this draw morphs anything, for a stage deciding whether to copy its
@@ -120,6 +196,11 @@ final class MorphScratch {
     required int positionAt,
     required int normalAt,
     required int tangentAt,
+
+    /// The copy being drawn, for a stage whose batch gives each instance its
+    /// own weights. Negative asks for the batch-wide ones, which is every
+    /// stage but the instanced one.
+    int instanceIndex = -1,
   }) {
     if (!morphs(bindings)) return false;
     position.setValues(
@@ -138,7 +219,18 @@ final class MorphScratch {
       attributes[tangentAt + 2],
       attributes[tangentAt + 3],
     );
-    applyMorph(vertexIndex, bindings, position, normal, tangent);
+    if (instanceIndex < 0) {
+      applyMorph(vertexIndex, bindings, position, normal, tangent);
+    } else {
+      applyMorphInstanced(
+        vertexIndex,
+        instanceIndex,
+        bindings,
+        position,
+        normal,
+        tangent,
+      );
+    }
     return true;
   }
 }

@@ -355,7 +355,13 @@ final class CpuEncoder implements CommandEncoder {
         // second field on the pipeline that could disagree with the stage.
         final stage = pipeline.vertex;
         clip[corner] = stage is CpuVertexShaderByIndex
-            ? stage.runAt(vertex, attributes, bindings, varyings[corner])
+            ? stage.runAt(
+                vertex,
+                instance,
+                attributes,
+                bindings,
+                varyings[corner],
+              )
             : stage.run(attributes, bindings, varyings[corner]);
       }
       if (perPrimitive == 2) {

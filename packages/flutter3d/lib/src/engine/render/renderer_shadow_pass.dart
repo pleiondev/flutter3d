@@ -318,6 +318,9 @@ extension _ShadowPasses on Renderer {
           });
           _bindMorph(pass, stage, node.morph);
           if (instanced != null) {
+            _bindInstanceMorph(pass, stage, instanced);
+          }
+          if (instanced != null) {
             pass.bindVertexData(
               instanced.instanceBytes,
               instanced.count,
@@ -729,6 +732,9 @@ extension _ShadowPasses on Renderer {
           'normal_matrix': node.worldNormalMatrix.storage,
         });
         _bindMorph(pass, stage, node.morph);
+        if (instanced != null) {
+          _bindInstanceMorph(pass, stage, instanced);
+        }
         if (instanced != null) {
           pass.bindVertexData(
             instanced.instanceBytes,

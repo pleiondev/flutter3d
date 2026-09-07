@@ -211,6 +211,7 @@ point of §3.3.
 | `flutter3d_game_shooter` | Shooter rules: weapons, hitscan, projectiles, inventory, monsters |
 | `flutter3d_game_platformer` | Platformer rules: runner, coins, hazards, checkpoints |
 | `flutter3d_game_racing` | Racing rules: cars, circuits, laps, ghosts |
+| `flutter3d_game_strategy` | Strategy rules: ground made of samples, a crowd that takes orders, flow fields shared by destination |
 | `flutter3d_bridge` | Simulation state to scene: actor visuals, fixture visuals, particle effects |
 | `flutter3d_audio` | Loading, streaming, 3D positioning, voice limits, mix buses |
 | `flutter3d_screens` | Screens that are not the game: menus, settings, rebinding, storage |
@@ -1644,7 +1645,7 @@ entities a game defines.
 |---|---|
 | Style | `dart format` |
 | Analysis | `flutter analyze` clean across the workspace, no warnings |
-| Unit tests | **3780 tests** across 24 packages and 5 applications |
+| Unit tests | **3812 tests** across 25 packages and 5 applications |
 | Structure rules | 30, `dart run tool/structure.dart`, the first CI step |
 | CI | GitHub Actions over `tool/ci.sh`, on `ubuntu-latest`, with no graphics card |
 
@@ -1876,6 +1877,18 @@ shape. `MorphBlend` still exists and still blends on the host: the software
 rasteriser's own transcription is checked against it, and a tool that wants the
 deformed vertices — a raycast, an exporter — has nowhere else to ask.
 
+**A batch can wear a face per copy.** `InstancedMeshNode.setMorphWeights` gives
+one instance its own weights, read in the vertex stage from a second texture by
+`gl_InstanceIndex` — one row a slot, two texels across, since eight weights are
+two `vec4`s. Not in the instance record, which is where it obviously belongs
+and where it would cost thirty-two bytes an instance to every batch in every
+game that morphs nothing: the record's size is part of the instanced vertex
+layout. The trade the texture makes instead is that a weight changed is a
+texture rebuilt — `GraphicsDevice` creates a texture with its contents and has
+no update — so a crowd whose faces *differ* costs nothing per frame and a crowd
+whose faces *move* pays per frame. `InstancedMeshNode` rebuilds only when a
+weight actually changed, which is the same skip `MorphBlend` makes.
+
 The layout is why it is a texture. The `in` declarations of `mesh.vert` *are*
 the vertex layout, one layout for every model, so deltas as attributes would
 mean a second layout and a second vertex shader for each of six lighting models.
@@ -2106,7 +2119,8 @@ applications and the example apps keep theirs, being repository-only by design.
 6. `flutter3d_screens`, `flutter3d_bridge`, `flutter3d_backend`, `flutter3d_testing`
 7. `flutter3d_session`
 8. `flutter3d_app`
-9. `flutter3d_game_shooter`, `flutter3d_game_platformer`, `flutter3d_game_racing`
+9. `flutter3d_game_shooter`, `flutter3d_game_platformer`, `flutter3d_game_racing`,
+   `flutter3d_game_strategy`
 
 Two positions are not obvious and so are written down rather than re-derived:
 `flutter3d_samples` is in the first tier although nothing depends on it at run

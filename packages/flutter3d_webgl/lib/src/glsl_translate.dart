@@ -122,11 +122,20 @@ String translateGlsl(
     );
   }
 
-  // SPIR-V and GLSL ES spell the vertex index differently and mean the same
-  // builtin. The source spells it Vulkan's way, because impellerc refuses
-  // `gl_VertexID` outright while a rewrite here is one line — see
-  // `lib/morph.glsl`, which is the only shader that asks for it.
-  text = text.replaceAll('gl_VertexIndex', 'gl_VertexID');
+  // SPIR-V and GLSL ES spell these two builtins differently and mean the same
+  // thing by them. The source spells them Vulkan's way, because impellerc
+  // refuses `gl_VertexID` outright while a rewrite here is one line — see
+  // `lib/morph.glsl` for the vertex index and `lib/morph_instanced.glsl` for
+  // the instance one, which are the only shaders that ask for either.
+  //
+  // **`gl_InstanceID` is not `gl_InstanceIndex` in general**, and it does not
+  // matter here: Vulkan's index counts from the draw's `firstInstance` and
+  // GL's id counts from zero, so the two differ exactly when a draw starts
+  // part way into an instance buffer. Nothing in this engine issues one —
+  // `PassEncoder.draw` takes a count and no offset.
+  text = text
+      .replaceAll('gl_VertexIndex', 'gl_VertexID')
+      .replaceAll('gl_InstanceIndex', 'gl_InstanceID');
 
   final header = StringBuffer('#version 300 es\n');
   if (fragment) {

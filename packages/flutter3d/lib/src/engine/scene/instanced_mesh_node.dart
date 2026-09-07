@@ -1,5 +1,6 @@
 import 'dart:typed_data';
 
+import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:vector_math/vector_math.dart';
 
 import '../geometry/mesh_geometry.dart';
@@ -23,6 +24,12 @@ import 'mesh_node.dart';
 /// thousand costs one uniform write. Sixteen floats each: three rows of a 3x4
 /// affine matrix — the bottom row of one is always `(0, 0, 0, 1)`, and a
 /// quarter of the buffer would be spent saying so — and an RGBA colour.
+///
+/// A copy can also wear its own morph weights — see [setMorphWeights] — which
+/// is how a crowd gets faces rather than one face repeated. Those do not live
+/// in the instance record: they are a texture read by instance id, so that the
+/// record's size, which is part of the vertex layout, is not paid by every
+/// batch in every game for a feature most of them never use.
 ///
 /// ## What it is not, yet
 ///
@@ -174,6 +181,94 @@ final class InstancedMeshNode extends MeshNode {
     setTransform(index, transform);
     if (color != null) setColor(index, color);
     return index;
+  }
+
+  // ------------------------------------------------- morph weights, per copy
+
+  /// Weights for every slot, `kMorphMax` apiece, or null until one is set.
+  ///
+  /// Allocated on the first [setMorphWeights] and not before: a batch of grass
+  /// should not carry eight floats an instance for a feature it never uses.
+  Float32List? _weights;
+  int _weightsVersion = 0;
+  int _uploadedWeights = -1;
+  TextureHandle? _weightsTexture;
+
+  /// The most targets an instance can be given weights for. `kMorphMax` in
+  /// `lib/morph.glsl`, and the two have to move together.
+  static const int maxMorphTargets = 8;
+
+  /// Texels one instance's weights occupy: four weights to a texel.
+  static const int _weightTexels = maxMorphTargets ~/ 4;
+
+  /// Whether any instance has been given weights of its own.
+  bool get hasInstanceMorphWeights => _weights != null;
+
+  /// Gives instance [index] its own morph weights.
+  ///
+  /// **This is what a crowd is for.** A batch shares one mesh and therefore one
+  /// set of deltas, and until this existed it shared one *shape* as well: the
+  /// weights came from a uniform, which is the same for every instance in the
+  /// draw by definition. A thousand villagers could morph, and all thousand
+  /// wore the same face.
+  ///
+  /// Longer than [maxMorphTargets] is truncated and shorter leaves the rest at
+  /// nought, on the same terms as `MorphState.setWeights`.
+  ///
+  /// Costs nothing per frame once set: the texture behind these is rebuilt only
+  /// when a weight actually changed. Changing one every frame on every instance
+  /// rebuilds it every frame, which is the trade `lib/morph_instanced.glsl`
+  /// describes — a texture in this engine is created with its contents and
+  /// never written again.
+  void setMorphWeights(int index, List<double> weights) {
+    _check(index);
+    final slots = _weights ??= Float32List(_capacity * maxMorphTargets);
+    final at = index * maxMorphTargets;
+    var changed = false;
+    for (var i = 0; i < maxMorphTargets; i++) {
+      final value = i < weights.length ? weights[i] : 0.0;
+      if (slots[at + i] != value) {
+        slots[at + i] = value;
+        changed = true;
+      }
+    }
+    if (changed) _weightsVersion++;
+  }
+
+  /// Instance [index]'s weights, as they were set.
+  List<double> morphWeightsOf(int index) {
+    _check(index);
+    final slots = _weights;
+    if (slots == null) return const <double>[];
+    final at = index * maxMorphTargets;
+    return <double>[for (var i = 0; i < maxMorphTargets; i++) slots[at + i]];
+  }
+
+  /// The weights as a texture the instanced vertex stage can read, or null when
+  /// no instance has any.
+  ///
+  /// One row per slot and [_weightTexels] texels across, which is the layout
+  /// `lib/morph_instanced.glsl` reads. Rebuilt when a weight changed and
+  /// returned as it is otherwise — the skip is the whole point, since a texture
+  /// cannot be written after it is made and rebuilding one per frame for a
+  /// crowd that is not changing would be the cost of a feature nobody used.
+  TextureHandle? instanceMorphWeights(GraphicsDevice device) {
+    final slots = _weights;
+    if (slots == null) return null;
+    if (_uploadedWeights == _weightsVersion) return _weightsTexture;
+
+    final previous = _weightsTexture;
+    _weightsTexture = device.createTextureFromPixels(
+      width: _weightTexels,
+      height: _capacity,
+      format: TextureFormat.r32g32b32a32Float,
+      pixels: ByteData.sublistView(slots),
+    );
+    _uploadedWeights = _weightsVersion;
+    // After the new one is made, not before: a device that refuses the upload
+    // leaves the batch drawing the shape it had rather than none at all.
+    if (previous != null) device.releaseTexture(previous);
+    return _weightsTexture;
   }
 
   /// Says the buffer was written through [instanceData].

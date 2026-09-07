@@ -1,0 +1,35 @@
+name: flutter3d_game_strategy
+description: "A fourth genre: ground made of samples, units that move as a crowd rather than one at a time, and orders given to a selection instead of to a body."
+version: 0.5.1
+repository: https://github.com/pleiondev/flutter3d
+homepage: https://flutter3d.pleion.dev
+issue_tracker: https://github.com/pleiondev/flutter3d/issues
+topics:
+  - game-development
+  - game-engine
+  - strategy
+  - gameplay
+resolution: workspace
+
+environment:
+  sdk: ^3.12.2
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # The engine half. Everything here is content it takes as an argument.
+  flutter3d_game: ^0.5.0
+
+  vector_math: ^2.2.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+# Deliberately no dependency on flutter3d, the same way the platformer has none:
+# a crowd of ten thousand was measured stepping in under a millisecond with
+# nothing drawn, and keeping the whole of it reachable from a test with no
+# device is what made that measurement possible in the first place. The visual
+# half arrives as a `bridge.dart` beside the barrel when there is one.

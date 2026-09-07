@@ -6,6 +6,13 @@
   texture rather than vertex attributes because the layout here is structural:
   the `in` declarations of `mesh.vert` *are* the layout, and deltas as
   attributes would mean a second vertex shader for each lighting model.
+* `lib/morph_instanced.glsl`, included by `mesh_instanced.vert` alone: the same
+  blend with each instance's weights, read by `gl_InstanceIndex` from a texture
+  of one row a slot. A file of its own because a sampler declared in
+  `lib/morph.glsl` would be declared on all four mesh vertex stages and bound
+  by every draw for ever; the deltas are worth that and a second sampler three
+  stages can never use is not. `ApplyMorph`'s delta read is split out as
+  `AddMorphTarget` so both paths reach a texel through the same three lines.
 * Read with `texture()` at texel centres rather than `texelFetch`, and handed
   the texel size in the uniform rather than asking `textureSize`: impellerc
   aborts on `texelFetch` in a vertex stage.

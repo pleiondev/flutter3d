@@ -36,11 +36,12 @@ final class MeshVertexShader implements CpuVertexShaderByIndex {
   /// morph is skipped rather than reading column minus one.
   @override
   Vector4 run(Float32List a, ShaderBindings bindings, Float32List out) =>
-      runAt(-1, a, bindings, out);
+      runAt(-1, 0, a, bindings, out);
 
   @override
   Vector4 runAt(
     int vertexIndex,
+    int instanceIndex,
     Float32List a,
     ShaderBindings bindings,
     Float32List out,
@@ -132,16 +133,17 @@ final class MeshLightmappedVertexShader implements CpuVertexShaderByIndex {
 
   @override
   Vector4 run(Float32List a, ShaderBindings bindings, Float32List out) =>
-      runAt(-1, a, bindings, out);
+      runAt(-1, 0, a, bindings, out);
 
   @override
   Vector4 runAt(
     int vertexIndex,
+    int instanceIndex,
     Float32List a,
     ShaderBindings bindings,
     Float32List out,
   ) {
-    final clip = _plain.runAt(vertexIndex, a, bindings, out);
+    final clip = _plain.runAt(vertexIndex, instanceIndex, a, bindings, out);
     out[kVLightmap] = a[kColour];
     out[kVLightmap + 1] = a[kColour + 1];
     for (var i = 0; i < 4; i++) {
@@ -176,11 +178,12 @@ final class MeshInstancedVertexShader implements CpuVertexShaderByIndex {
 
   @override
   Vector4 run(Float32List a, ShaderBindings bindings, Float32List out) =>
-      runAt(-1, a, bindings, out);
+      runAt(-1, 0, a, bindings, out);
 
   @override
   Vector4 runAt(
     int vertexIndex,
+    int instanceIndex,
     Float32List a,
     ShaderBindings bindings,
     Float32List out,
@@ -210,8 +213,10 @@ final class MeshInstancedVertexShader implements CpuVertexShaderByIndex {
       1.0, // column 3
     );
     // Morphed in the mesh's own space, before the instance transform: every
-    // instance of a batch shares the mesh and therefore its shape, which is
-    // what the GLSL says at the same point.
+    // instance of a batch shares the mesh, which is what the GLSL says at the
+    // same point. What they need not share is the shape — the instance index
+    // goes in, and a batch that gives each copy its own weights is read a row
+    // at a time out of a second texture.
     final morphed =
         vertexIndex >= 0 &&
         _morphScratch.load(
@@ -221,6 +226,7 @@ final class MeshInstancedVertexShader implements CpuVertexShaderByIndex {
           positionAt: kPosition,
           normalAt: kNormal,
           tangentAt: kTangent,
+          instanceIndex: instanceIndex,
         );
     final Vector4 local =
         instance *
@@ -286,11 +292,12 @@ final class MeshSkinnedVertexShader implements CpuVertexShaderByIndex {
 
   @override
   Vector4 run(Float32List a, ShaderBindings bindings, Float32List out) =>
-      runAt(-1, a, bindings, out);
+      runAt(-1, 0, a, bindings, out);
 
   @override
   Vector4 runAt(
     int vertexIndex,
+    int instanceIndex,
     Float32List a,
     ShaderBindings bindings,
     Float32List out,

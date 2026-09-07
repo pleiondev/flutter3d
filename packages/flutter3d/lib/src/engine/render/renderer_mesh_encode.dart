@@ -79,6 +79,39 @@ extension _MeshEncode on Renderer {
       );
   }
 
+  /// Binds the per-instance weights for a draw through the *instanced* stage.
+  ///
+  /// Called only for that stage, and always for it: `MorphInstanceInfo` and
+  /// `morph_instance_weights` are declared on it and on nothing else, so
+  /// binding them elsewhere is a phantom sampler and not binding them here is
+  /// a block nobody wrote — the two ways this repository has already found to
+  /// draw a wrong picture with no error anywhere.
+  ///
+  /// A batch with no per-instance weights still binds: the flag goes to nought,
+  /// the shader falls through to the batch-wide uniform, and the sampler holds
+  /// a stand-in it never reads.
+  void _bindInstanceMorph(
+    PassEncoder pass,
+    ShaderHandle stage,
+    InstancedMeshNode? batch,
+  ) {
+    final texture = batch?.instanceMorphWeights(device);
+    _morphInstanceParams[0] = texture == null ? 0.0 : 1.0;
+    _morphInstanceParams[1] = texture == null ? 0.0 : 1.0 / texture.width;
+    _morphInstanceParams[2] = texture == null ? 0.0 : 1.0 / texture.height;
+
+    pass
+      ..bindUniformBlock(stage, _kMorphInstanceInfoBlock, {
+        'instance_params': _morphInstanceParams,
+      })
+      ..bindTexture(
+        stage,
+        'morph_instance_weights',
+        texture ?? fallbackAlbedo,
+        sampler: SamplerOptions.nearestClamp,
+      );
+  }
+
   /// Encodes one mesh node into an open pass.
   ///
   /// Extracted so the view-model pass draws through exactly the same code as
@@ -226,6 +259,7 @@ extension _MeshEncode on Renderer {
 
     // Always, even when nothing morphs. See [_bindMorph].
     _bindMorph(encoder, activeVertexShader, node.morph);
+    if (batched) _bindInstanceMorph(encoder, activeVertexShader, instanced);
 
     if (skeleton != null) {
       // Recomputed here rather than by the caller: the matrices depend on

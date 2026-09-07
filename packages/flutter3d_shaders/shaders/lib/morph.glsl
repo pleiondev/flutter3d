@@ -73,6 +73,51 @@ uniform MorphInfo {
 }
 morph_info;
 
+/// How many targets this draw blends.
+int MorphCount() { return int(morph_info.morph_params.x + 0.5); }
+
+/// The vertex's own column in the delta texture.
+///
+/// **`gl_VertexIndex`, spelt the way SPIR-V spells it.** GLSL ES 3.00 calls the
+/// same builtin `gl_VertexID`, and the browser backend's translator rewrites
+/// the name on its way out — one substitution beside the ones it already makes
+/// for `#version` and `layout(std140)`. Written the other way round, impellerc
+/// refuses it outright: "undeclared identifier (Did you mean gl_VertexIndex?)",
+/// which is the friendliest error in this repository.
+float MorphColumn() {
+  return (float(gl_VertexIndex) + 0.5) * morph_info.morph_params.y;
+}
+
+/// Adds target *t*'s deltas onto one vertex, scaled by [weight].
+///
+/// Split out of [ApplyMorph] so that a stage which gets its weights from
+/// somewhere else — `lib/morph_instanced.glsl`, where each instance of a batch
+/// wears its own — reads the deltas through the same three lines rather than
+/// through a second copy of them.
+///
+/// [column] and [rowStep] are the caller's, worked out once rather than per
+/// target.
+///
+/// **Splitting this out moved the picture, by 31 pixels of silhouette on
+/// Impeller**, and the reference set was re-recorded rather than the split
+/// abandoned. The arithmetic is the same arithmetic — it was checked against
+/// the software backend, which draws it identically either way — so what moved
+/// is what impellerc's optimiser does with a function call it can no longer
+/// see through. Hoisting the coordinates was the first guess at the cause and
+/// was not it: the same 31 pixels moved with them hoisted. Worth writing down,
+/// because the next person to factor a line out of a vertex stage will see a
+/// golden fail and reach for the same wrong explanation.
+void AddMorphTargetAt(int t, float weight, float column, float rowStep,
+                      inout vec3 position, inout vec3 normal,
+                      inout vec4 tangent) {
+  float row = (float(t * kMorphRows) + 0.5) * rowStep;
+
+  position += texture(morph_texture, vec2(column, row)).xyz * weight;
+  normal += texture(morph_texture, vec2(column, row + rowStep)).xyz * weight;
+  tangent.xyz +=
+      texture(morph_texture, vec2(column, row + rowStep * 2.0)).xyz * weight;
+}
+
 /// Adds the blended deltas onto one vertex.
 ///
 /// Called with the attributes as they were read and before anything else
@@ -83,31 +128,17 @@ morph_info;
 /// The tangent is a `vec4` and only its xyz move: w is the bitangent sign, a
 /// handedness rather than a direction, and glTF does not morph it.
 void ApplyMorph(inout vec3 position, inout vec3 normal, inout vec4 tangent) {
-  int count = int(morph_info.morph_params.x + 0.5);
+  int count = MorphCount();
   if (count <= 0) return;
 
-  // The vertex's own column: the index this vertex was drawn with, which is
-  // exactly the row of the delta arrays the loader built.
-  //
-  // **`gl_VertexIndex`, spelt the way SPIR-V spells it.** GLSL ES 3.00 calls
-  // the same builtin `gl_VertexID`, and the browser backend's translator
-  // rewrites the name on its way out — one substitution beside the ones it
-  // already makes for `#version` and `layout(std140)`. Written the other way
-  // round, impellerc refuses it outright: "undeclared identifier (Did you mean
-  // gl_VertexIndex?)", which is the friendliest error in this repository.
-  float column = (float(gl_VertexIndex) + 0.5) * morph_info.morph_params.y;
+  float column = MorphColumn();
   float rowStep = morph_info.morph_params.z;
 
   for (int i = 0; i < kMorphMax; i++) {
     if (i >= count) break;
     float weight = morph_info.morph_weights[i / 4][i % 4];
     if (weight == 0.0) continue;
-
-    float row = (float(i * kMorphRows) + 0.5) * rowStep;
-    position += texture(morph_texture, vec2(column, row)).xyz * weight;
-    normal += texture(morph_texture, vec2(column, row + rowStep)).xyz * weight;
-    tangent.xyz +=
-        texture(morph_texture, vec2(column, row + rowStep * 2.0)).xyz * weight;
+    AddMorphTargetAt(i, weight, column, rowStep, position, normal, tangent);
   }
 }
 

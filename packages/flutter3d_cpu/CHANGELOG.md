@@ -13,6 +13,11 @@
   source, and a transcription of a transcription drifts. Four tests hold it to
   a picture — weighting a target moves it, it lands where `MorphBlend` puts it,
   half a weight lands between, and a weight of nought costs nothing.
+* `runAt` takes the instance index as well as the vertex index, and
+  `lib/morph_instanced.glsl` is transcribed beside the one it extends: a batch
+  whose copies wear different expressions draws them here too. The interface
+  gained a parameter rather than a sibling because it had not been published
+  yet — after this, adding one would break every implementer.
 * **A float texture could not be uploaded at all, and said nothing.**
   `createTextureFromPixels` measured every format at four bytes a texel, so an
   `r32g32b32a32Float` — sixteen — was refused as the wrong size and the caller

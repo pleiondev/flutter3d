@@ -66,6 +66,7 @@ const String _kFrameInfoBlock = 'FrameInfo';
 const String _kFragInfoBlock = 'FragInfo';
 const String _kFogInfoBlock = 'FogInfo';
 const String _kMorphInfoBlock = 'MorphInfo';
+const String _kMorphInstanceInfoBlock = 'MorphInstanceInfo';
 const String _kLineInfoBlock = 'LineInfo';
 const String _kSkinInfoBlock = 'SkinInfo';
 const String _kBloomInfoBlock = 'BloomInfo';
@@ -496,6 +497,7 @@ final class Renderer implements RenderServices {
   /// it unbound is the arrangement that killed Metal in `sky.frag`.
   final Float32List _morphWeights = Float32List(8);
   final Float32List _morphParams = Float32List(4);
+  final Float32List _morphInstanceParams = Float32List(4);
 
   final Float32List _fogData = Float32List(4);
   final Float32List _cameraData = Float32List(4);

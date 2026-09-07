@@ -22,6 +22,7 @@ const List<String> genrePackages = <String>[
   'flutter3d_game_shooter',
   'flutter3d_game_platformer',
   'flutter3d_game_racing',
+  'flutter3d_game_strategy',
 ];
 
 /// Every application in this repository, which is also its directory name.
@@ -42,6 +43,7 @@ const Map<String, String> genreRuleExempt = <String, String>{
   'flutter3d_game_shooter': 'it is a genre; the rule it keeps is isolation',
   'flutter3d_game_platformer': 'it is a genre',
   'flutter3d_game_racing': 'it is a genre',
+  'flutter3d_game_strategy': 'it is a genre',
 };
 
 /// Which files of a genre package are allowed to reach a renderer.
@@ -54,6 +56,9 @@ const Map<String, Set<String>> genreMayDraw = <String, Set<String>>{
   'flutter3d_game_shooter': <String>{'lib/src/weapon_view.dart'},
   'flutter3d_game_racing': <String>{'lib/bridge.dart'},
   'flutter3d_game_platformer': <String>{},
+  // Nothing here draws yet: the crowd is arithmetic, and the day it grows a
+  // visual half it grows a `bridge.dart` like the shooter's.
+  'flutter3d_game_strategy': <String>{},
 };
 
 /// Genre cameras that do not turn [CameraRig], and why.

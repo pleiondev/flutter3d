@@ -242,6 +242,9 @@ extension _PickPass on Renderer {
           'normal_matrix': node.worldNormalMatrix.storage,
         });
         _bindMorph(pass, stage, node.morph);
+        if (instanced != null) {
+          _bindInstanceMorph(pass, stage, instanced);
+        }
         if (skeleton != null) {
           skeleton.update(modelMatrix);
           pass.bindUniformBlock(skinnedVertexShader, _kSkinInfoBlock, {

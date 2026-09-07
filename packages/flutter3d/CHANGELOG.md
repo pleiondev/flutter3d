@@ -27,6 +27,15 @@
   than by widening the mesh and surface records, so a build that predates them
   skips both and reads the same file as a model at rest. The container version
   is unchanged, which is what the section directory was for.
+* **A batch can wear a face per copy.** `InstancedMeshNode.setMorphWeights`
+  gives one instance its own weights, read in the vertex stage from a texture
+  by instance id. Not in the instance record, where it would cost thirty-two
+  bytes an instance to every batch in every game that morphs nothing — that
+  record's size is part of the instanced vertex layout. The texture's own trade
+  is that a weight changed is a texture rebuilt, since a texture is created
+  with its contents and never written again, so a crowd whose faces differ
+  costs nothing per frame and one whose faces move pays per frame. The rebuild
+  happens only when a weight actually changed.
 * **A crossfade mixes weights; a layer adds them.** Two different questions and
   two answers. Fading between clips is a transition between whole performances,
   so halfway through it the face is halfway between the two expressions — the

@@ -32,18 +32,22 @@ abstract interface class CpuVertexShader {
 /// answer is yes, so a stage that does not care is not rewritten and a stage
 /// outside this repository goes on compiling.
 ///
-/// It exists for morph targets, and for now they are its only caller. The
-/// index is `gl_VertexIndex` — the number the draw addressed this vertex with,
-/// which is the column of the delta texture `lib/morph.glsl` reads. Every
-/// backend needed it and this one had no way to say it.
+/// It exists for morph targets, and for now they are its only caller. The two
+/// indices are `gl_VertexIndex` and `gl_InstanceIndex`: the number the draw
+/// addressed this vertex with, which is the column of the delta texture
+/// `lib/morph.glsl` reads, and the copy being drawn, which is the row of the
+/// weights texture `lib/morph_instanced.glsl` reads. Every backend needed both
+/// and this one had no way to say either.
 abstract interface class CpuVertexShaderByIndex implements CpuVertexShader {
-  /// The same as [CpuVertexShader.run], plus the vertex's own index.
+  /// The same as [CpuVertexShader.run], plus the vertex's and the instance's
+  /// own indices.
   ///
-  /// [run] must still work — a caller that has no index, or a rasteriser that
-  /// has not been taught to pass one, falls back to it — so an implementation
+  /// [run] must still work — a caller that has no indices, or a rasteriser that
+  /// has not been taught to pass them, falls back to it — so an implementation
   /// answers both and shares whatever it can.
   Vector4 runAt(
     int vertexIndex,
+    int instanceIndex,
     Float32List attributes,
     ShaderBindings bindings,
     Float32List varyings,

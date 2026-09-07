@@ -5,6 +5,10 @@
   model whose morph deltas travel as floats drew its base shape with no error
   anywhere. The transfer type now comes from the format, and the size check
   measures a texel rather than assuming four bytes.
+* `gl_InstanceIndex` is rewritten to `gl_InstanceID` on the way out, beside the
+  vertex one. The two builtins differ in general — Vulkan's counts from the
+  draw's `firstInstance` and GL's from zero — and not here: nothing in this
+  engine issues a draw that starts part way into an instance buffer.
 * A golden for the morphed cube, recorded in a browser like the rest: 0.139%
   from Impeller, which is a silhouette and what is left once a vertex stage has
   agreed about where every vertex went.
