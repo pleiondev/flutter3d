@@ -21,6 +21,15 @@ import 'package:vector_math/vector_math.dart';
 
 import 'level_document.dart';
 
+/// The side the person holding the mouse plays.
+///
+/// A named constant rather than a nought written out at each use, because it is
+/// written in three places that have to agree — what the fog is drawn through,
+/// what the camera opens over, and whose units a click may pick out — and a
+/// disagreement between any two of them is a screen showing one side's map
+/// while commanding another's.
+const int viewerSide = 0;
+
 /// Everything a frame needs.
 final class Staged {
   /// Holds the halves together.
@@ -45,13 +54,15 @@ final class Staged {
   /// The crowd and the ground it walks on.
   StrategySimulation get simulation => start.simulation;
 
-  /// The units the person holding the mouse commands.
+  /// The crowd side [viewerSide] opened the match with.
   ///
-  /// The other side has a [Bot] on it, and **the two are given orders through
-  /// the same handles** — a [Squad] here, a policy there, both writing to
-  /// `Unit.order` and `Unit.job`. That symmetry is the whole reason the bot was
-  /// worth writing: a mirror is a load test, a replay test and an opponent at
-  /// once, and none of the three works if the bot has a private door.
+  /// **The opening crowd, and nothing more than that.** It was once also what a
+  /// click ordered about, which made it wrong twice over: a hall builds workers
+  /// while the match runs and none of them are in here, and nothing takes a
+  /// unit out of it. Who is under orders is a question about the screen rather
+  /// than about the document, and `CommandPost` in `command.dart` is what holds
+  /// the answer. What this is still good for is a test that wants the crowd the
+  /// map staged.
   List<Unit> get mine => start.mine;
 }
 
@@ -77,7 +88,7 @@ Staged stage({
     simulation: start.simulation,
     device: device,
     capacity: start.simulation.units.length + 256,
-    viewer: 0,
+    viewer: viewerSide,
   );
 
   final Heightfield ground = map.ground;
@@ -90,16 +101,16 @@ Staged stage({
 
 /// Where the view opens, in world space.
 ///
-/// Over side nought's hall and as far down the map as its crowd, rather than at
+/// Over the viewer's hall and as far down the map as its crowd, rather than at
 /// the middle of the ground — which is what a map camera aims at by default,
 /// and which drew a picture of empty hillside with the game just out of frame.
 Vector3 _opening(Level level) {
   final EntityDef hall = level
       .ofType(StrategyEntities.camp)
-      .firstWhere((EntityDef it) => (it.integer('side') ?? 0) == 0);
+      .firstWhere((EntityDef it) => (it.integer('side') ?? 0) == viewerSide);
   final Iterable<EntityDef> crowd = level
       .ofType(StrategyEntities.worker)
-      .where((EntityDef it) => (it.integer('side') ?? 0) == 0);
+      .where((EntityDef it) => (it.integer('side') ?? 0) == viewerSide);
   return Vector3(
     hall.position.x,
     0.0,
