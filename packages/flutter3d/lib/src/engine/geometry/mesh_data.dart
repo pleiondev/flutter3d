@@ -86,7 +86,14 @@ final class MeshData {
   final List<MorphTarget> morphTargets;
 
   /// Whether anything can deform this mesh.
-  bool get hasMorphTargets => morphTargets.isNotEmpty;
+  ///
+  /// For the caller that decides whether a mesh needs a [MorphBlend] and the
+  /// per-frame upload one implies: an application driving a face asks this
+  /// before building one, and the renderer will ask it once weights are routed
+  /// from the animation player. Nothing in this repository calls it yet, which
+  /// is why this paragraph is here rather than a deletion — the loader reads
+  /// targets today and the frame does not consume them, and that gap is
+  /// written down in ARCHITECTURE.md §15.
 
   /// The same geometry carrying [targets].
   ///

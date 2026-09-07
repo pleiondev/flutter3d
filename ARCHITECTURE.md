@@ -1644,7 +1644,7 @@ entities a game defines.
 |---|---|
 | Style | `dart format` |
 | Analysis | `flutter analyze` clean across the workspace, no warnings |
-| Unit tests | **3726 tests** across 24 packages and 5 applications |
+| Unit tests | **3738 tests** across 24 packages and 5 applications |
 | Structure rules | 30, `dart run tool/structure.dart`, the first CI step |
 | CI | GitHub Actions over `tool/ci.sh`, on `ubuntu-latest`, with no graphics card |
 
@@ -1858,9 +1858,27 @@ and ZLIB supercompression, arrays, cube maps, 3D textures. What is missing
 is upstream: `tool/convert_asset.dart` has no encoder, so nothing produces a
 compressed KTX2 for this engine's own pipeline to read.
 
-**No morph targets, and no additive animation.** The weights track a glTF file
-carries is decoded and dropped with a warning, because there is nothing to write
-it to. Additive blending — a delta over a reference pose, which is what recoil
+**Morph targets are read and not yet drawn, and no additive animation.** The
+loader used to throw a file's targets away with a warning; it reads them now
+into `MeshData.morphTargets`, and `MorphBlend` blends a weight vector into a
+copy of the vertices — deltas summed from the base, positions always and
+normals and tangents where the file carries them. What is missing is the two
+ends: the weights track an animation carries is still decoded and dropped,
+because `AnimationTarget` is three setters and a fourth would break every
+implementer, and a blended vertex buffer has no way back onto the device
+without a per-change re-upload — `GraphicsDevice` is an `abstract interface
+class` with `uploadGeometry` and no update, so adding one is a breaking change
+to the backend contract and creating a buffer per change is the alternative.
+Neither is decided.
+
+The blend is on the CPU and that is also a decision. The vertex layout here is
+structural — the `in` declarations of `mesh.vert` are the layout, one layout for
+every model — so morphing on the GPU means a second layout and a second vertex
+shader per lighting model, or the deltas in a texture the vertex stage samples
+by vertex id. No vertex stage in this engine samples anything, and whether
+flutter_gpu binds a texture to one is unmeasured.
+
+Additive blending — a delta over a reference pose, which is what recoil
 and lean want — needs a reference frame per clip, and glTF has no standard place
 to say which frame that is.
 
