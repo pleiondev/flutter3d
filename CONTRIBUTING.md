@@ -11,8 +11,22 @@ flutter pub get          # one lock file for the whole workspace
 bash tool/ci.sh          # everything CI runs, in the order it runs it
 ```
 
-`tool/ci.sh` is the contract. If it is green locally it is green on CI, and if
-it is red the first line of the failure names the step.
+`tool/ci.sh` is the contract for the ubuntu job, and only for that one: it is
+what that job runs, so if it is red the first line of the failure names the step
+and you can fix it without waiting for a runner. It is not a promise that green
+here is green there. The macOS job asks a question this script never puts —
+whether the platform-specific half compiles, whether both shader bundles build
+with `impellerc`, whether the analyser is clean on a machine that sees the Swift
+and the macOS branches — and a repository whose golden scenes can only be
+re-recorded on macOS has to ask it somewhere.
+
+Your machine is an input to the answer as much as your diff is. `math.sin` is
+libm, and libm is the operating system's, so a generator that does not quantise
+its coordinates writes different bytes here from the ones CI regenerates and
+diffs; the Python that runs the generators is an input the same way, since a
+version that reorders a dict or resamples an image differently produces output
+that no longer matches what is committed. When a step fails only for you, or
+only for CI, that is the first place to look.
 
 The workspace needs Flutter stable with Dart `^3.12.2`. Impeller and Flutter GPU
 are switched on per application in `Info.plist`; a new application that forgets
@@ -122,6 +136,13 @@ was missing — the same thing the comments do. A PR that says "refactor
 Small, complete changes are easier to accept than large ones. A change that
 touches one package, updates its tests and leaves `tool/ci.sh` green is the
 easiest kind to merge.
+
+**A red `main` blocks the merge.** Nothing lands on top of a broken build, even
+a change that has nothing to do with what broke: the second commit makes the
+first one's failure somebody else's to untangle, and by the third nobody can
+tell which one to revert. Fix or revert what is red first, then merge. A pull
+request whose own job is red is the same rule one step earlier — it does not go
+in on the argument that the failure is unrelated.
 
 ## Licence
 

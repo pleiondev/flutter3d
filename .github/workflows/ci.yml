@@ -59,10 +59,14 @@ jobs:
   # and `pointer_lock` have Swift under them that Linux never sees. A build that
   # only ever ran on ubuntu could not say whether any of it still compiled.
   #
-  # Analysis and the unit tests rather than `tool/ci.sh`: the browser steps want
-  # a Chrome this runner does not have, and duplicating the whole gate on a
-  # slower machine buys nothing the Linux job has not already said. What is
-  # asked here is the question ubuntu cannot answer — does the macOS half build.
+  # Analysis and the structure scan rather than `tool/ci.sh`: the browser steps
+  # want a Chrome this runner does not have, and duplicating the whole gate on a
+  # slower machine buys nothing the Linux job has not already said. No tests run
+  # here, and saying otherwise would have this job standing in for coverage it
+  # does not provide. What it asks is narrower and is the question ubuntu cannot
+  # answer: does the macOS half resolve, compile its shader bundles and analyse
+  # clean, and does the repository still hold its shape when a second operating
+  # system reads it.
   macos:
     runs-on: macos-latest
     timeout-minutes: 60
@@ -78,5 +82,16 @@ jobs:
       - run: flutter precache --macos
       - run: flutter pub get
       - run: (cd packages/flutter3d_impeller && ./tool/build_shaders.sh)
+
+      # The example's bundle, for the reason ubuntu builds it in tool/ci.sh: it
+      # is gitignored and the example declares it as an asset, so a checkout
+      # without it fails `flutter analyze` outright — "the asset file
+      # 'assets/shaders/example.f3dshaders' doesn't exist" — and this job died
+      # two minutes in without ever reaching the structure scan below. Here
+      # rather than earlier because the script wants impellerc from `flutter
+      # precache` and a resolved workspace from `flutter pub get`, both of which
+      # are above it; it brings nothing else with it.
+      - run: (cd packages/flutter3d/example && ./tool/build_shaders.sh)
+
       - run: flutter analyze
       - run: dart run tool/structure.dart
