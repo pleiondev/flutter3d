@@ -15,8 +15,11 @@
 #     half runs here, and cross_backend_test.dart compares the two committed
 #     reference sets with no device at all — which is the question that
 #     actually matters.
-#   * The performance budgets in ARCHITECTURE.md §14. There is no profiler yet
-#     and no stored baseline to compare against.
+#   * The performance budgets in ARCHITECTURE.md §14. There is no profiler for
+#     a native frame yet and no stored baseline to compare against. The web has
+#     one — packages/flutter3d_webgl/tool/profile_web.py, with its numbers in
+#     its own header — and it is not run here: it builds a demo and drives a
+#     browser, which is minutes, and nothing it measures fails a build yet.
 #   * The Android and iOS builds. Both are configured and neither is compiled
 #     here: a toolchain and an SDK image apiece, for platforms nothing has yet
 #     been played on. The web build below is compiled, because that is a
