@@ -6,12 +6,17 @@
 /// by one number is a level that can be made to prove one thing at a time.
 library;
 
+import 'dart:convert';
+
 import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:flutter3d_game_platformer/flutter3d_game_platformer.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart';
 
 const double _dt = 1.0 / 60.0;
+
+/// A save as text, which is the only form two runs can be compared in.
+String _canonical(Snapshot snapshot) => jsonEncode(snapshot.toJson());
 
 /// A run along +Z: ground, a gap to clear, a ledge only two jumps reach, and
 /// the exit on top of it.
@@ -405,6 +410,8 @@ void main() {
     });
   });
 
+  group('two runs of one tape', _determinismTests);
+
   group('scoring a run', () {
     // **The purse counted and nothing scored.** A level had one way to reward
     // a player and no way to reward a player who was good, which is the whole
@@ -450,3 +457,102 @@ void main() {
     });
   });
 }
+
+/// Two runs of one tape, and the halves that stop that from proving nothing.
+///
+/// **The gap this fills was easy to mistake for covered.** `snapshot_test.dart`
+/// reads as the determinism file and is not one: every test in it saves and
+/// restores, which proves a *field survives the trip* and says nothing about
+/// whether two plays of the same tape are the same play. The distinction is the
+/// one the testing page draws — a determinism test where every run agrees might
+/// be testing determinism, or might be testing that nothing happens — and both
+/// sibling genres already answer it. The racer compares two twenty-second races
+/// for exact equality and then proves a different driver drives differently;
+/// the shooter compares canonical saves and then spends one extra press to show
+/// the comparison can see a difference at all.
+///
+/// **There is no seed axis here, and that is a fact about the genre rather than
+/// a thinner test.** A shooter rolls for its monsters, so a different seed is a
+/// different world; nothing in a platformer rolls at all — `enemy.dart` never
+/// touches `Brain.random`, and the `GameRandom` the simulation carries is there
+/// because a simulation carries one. Asserting that two seeds differ here would
+/// assert something false; asserting they agree would be a test that cannot
+/// fail. So the third assertion is the one this genre can make: a run picked up
+/// from a restore is the run it was picked up from.
+void _determinismTests() {
+  // The tape that finishes the level, reused on purpose: a run that reaches the
+  // exit has jumped a pit, taken a coin, double-jumped a ledge and tripped an
+  // exit, so the save it ends on has few fields still sitting at nought — which
+  // is the condition under which comparing two of them means anything.
+  bool tape(_Run r) =>
+      (r.z > 5.2 && r.z < 8.5) ||
+      (r.z > 13.4 && r.z < 15.6) ||
+      (r.z > 15.75 && r.z < 18.0);
+
+  test('are the same run, to the byte', () {
+    final a = _Run()..run(900, jumpAt: tape, until: _finished);
+    final b = _Run()..run(900, jumpAt: tape, until: _finished);
+
+    expect(a.sim.state, RunState.finished, reason: 'a tape that ends nowhere');
+    expect(_canonical(a.sim.save()), _canonical(b.sim.save()));
+  });
+
+  test('and a tape that misses the pit is a different run', () {
+    // The half that stops the test above from passing because the runner stood
+    // still.
+    //
+    // **It was an extra jump first, and the two runs still agreed byte for
+    // byte.** Two reasons, and both are facts about this genre worth writing
+    // down. A jump on flat ground changes nothing that outlives the landing:
+    // horizontal speed is held at 6 m/s in the air as on the ground, so the
+    // runner arrives everywhere at exactly the same step whether it jumped on
+    // the way or not. And the comparison was made at step two hundred, by which
+    // point both runs had reached the exit — a finished run stops stepping, so
+    // every tape that finishes converges on the same frozen save.
+    //
+    // So the difference has to be one the run cannot recover from. Dropping the
+    // first jump window is that: the runner walks into the pit, the hazard is
+    // instant, and the save carries a death and a respawn the other never had.
+    final a = _Run()..run(200, jumpAt: tape);
+    final b = _Run()
+      ..run(
+        200,
+        jumpAt: (_Run r) =>
+            (r.z > 13.4 && r.z < 15.6) || (r.z > 15.75 && r.z < 18.0),
+      );
+
+    expect(a.sim.state, RunState.finished, reason: 'the tape stopped working');
+    expect(b.sim.deaths, greaterThan(0), reason: 'it was supposed to fall in');
+    expect(_canonical(a.sim.save()), isNot(_canonical(b.sim.save())));
+  });
+
+  test('and a run picked up from a restore is the run it was picked up from', () {
+    // What a round-trip test cannot see: a field that comes back and still
+    // leaves the next step different.
+    //
+    // Mutation: comment out `readVector(from['velocity'], velocity)` in
+    // `CharacterController.restore`. **All nineteen tests in
+    // `snapshot_test.dart` still pass** — they ask whether a field survives the
+    // trip, and a velocity that is simply never read back is not a field they
+    // look at — while this one fails: the resumed runner starts from rest,
+    // reaches the pit a few steps late and jumps it from the wrong place.
+    //
+    // The save is taken on the starting ground, before the first jump window,
+    // so the restored run presses jump on the same steps as the run it is being
+    // compared with — a save taken mid-window would hand the fresh harness a
+    // press edge the original never made, and the divergence would be the
+    // harness's rather than the simulation's.
+    final whole = _Run()..run(900, jumpAt: tape, until: _finished);
+
+    final part = _Run()..run(900, jumpAt: tape, until: (_Run r) => r.z > 4.0);
+    final midway = part.sim.save();
+
+    final resumed = _Run()..sim.restore(midway);
+    resumed.run(900, jumpAt: tape, until: _finished);
+
+    expect(resumed.sim.state, RunState.finished, reason: 'it stopped early');
+    expect(_canonical(resumed.sim.save()), _canonical(whole.sim.save()));
+  });
+}
+
+bool _finished(_Run r) => r.sim.state == RunState.finished;
