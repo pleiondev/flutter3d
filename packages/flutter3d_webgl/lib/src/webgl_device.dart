@@ -631,6 +631,29 @@ final class WebGlDevice implements GraphicsDevice {
         'blitError=$lastBlitError readError=$error';
   }
 
+  /// One pixel of the canvas, as RGBA, counted from the bottom left.
+  ///
+  /// The companion to [debugCanvasState], which reads the middle. The middle is
+  /// the *last* place a presenting blit stops reaching, so a check that only
+  /// looks there passes while three quarters of the canvas is black — which is
+  /// exactly what happened, in public, on every display that is not retina.
+  /// Corners are what say the blit covered the canvas.
+  List<int> debugCanvasPixelAt(int x, int y) {
+    _gl.bindFramebuffer(web.WebGL2RenderingContext.READ_FRAMEBUFFER, null);
+    final pixels = Uint8List(4);
+    final js = pixels.toJS;
+    _gl.readPixels(
+      x,
+      y,
+      1,
+      1,
+      web.WebGLRenderingContext.RGBA,
+      web.WebGLRenderingContext.UNSIGNED_BYTE,
+      js,
+    );
+    return js.toDart.sublist(0, 4);
+  }
+
   void _blitToCanvas(TextureHandle frame) {
     final source = _gl.createFramebuffer();
     _gl.bindFramebuffer(web.WebGL2RenderingContext.READ_FRAMEBUFFER, source);
@@ -652,6 +675,22 @@ final class WebGlDevice implements GraphicsDevice {
       throw StateError('the frame cannot be read for presenting: $why');
     }
     _gl.bindFramebuffer(web.WebGL2RenderingContext.DRAW_FRAMEBUFFER, null);
+
+    // **The scissor is turned off, and forgetting it is what made the browser
+    // demos look broken.** `blitFramebuffer` is one of the operations the
+    // scissor test clips, and a pass leaves `SCISSOR_TEST` enabled with its own
+    // rectangle — see `WebGlEncoder`, which enables it per pass and has no
+    // reason to put it back. So the blit that presents a frame was clipped to
+    // whatever the last pass had been drawing into.
+    //
+    // Invisible whenever the frame is at least as large as this canvas, which
+    // is why it survived: on a 2x display the requested frame is bigger than
+    // the canvas, the scissor covers it, and everything looks right. On a 1x
+    // display in a small embedded frame the request is *smaller*, and the blit
+    // then wrote a rectangle in the corner and left the rest of the canvas
+    // black — the corner being the bottom left, because that is where GL puts
+    // its origin.
+    _gl.disable(web.WebGLRenderingContext.SCISSOR_TEST);
 
     // Drained first, so the code below reports this blit rather than whatever
     // the frame left behind. An error queue is cumulative and getError clears
