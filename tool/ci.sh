@@ -137,6 +137,18 @@ step "levels" bash -c '
 # Impeller and no test could see it. Same shape as the icons and the models.
 step "webgl shaders" bash -c 'cd packages/flutter3d_webgl && dart run tool/generate_shaders.dart >/dev/null && git diff --exit-code -- lib/engine_shaders.dart'
 
+# **The same step for the WebGPU table, written the day the table was.** It is
+# the one the trap above was set for: WGSL comes out of two external programs —
+# `glslangValidator` and `naga`, neither of them a pub dependency — so this
+# table can go stale not only because a shader changed but because a machine has
+# a different compiler on it. A regeneration that is byte-identical is what says
+# both are still true.
+#
+# It needs those two on `PATH` and fails rather than skips without them, for the
+# reason the shader bundle step does: a check that quietly does nothing is worse
+# than no check, because it reports green.
+step "webgpu shaders" bash -c 'cd packages/flutter3d_webgpu && dart run tool/generate_shaders.dart >/dev/null && git diff --exit-code -- lib/engine_shaders.dart'
+
 step "analyze" flutter analyze
 
 # What `pub publish` would say about each package, without publishing anything.

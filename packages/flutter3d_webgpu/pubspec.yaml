@@ -33,6 +33,13 @@ dependencies:
   vector_math: ^2.2.0
 
 dev_dependencies:
+  # For `resolveIncludes` in `glsl_translate.dart`, and for nothing else. The
+  # WebGL2 backend already answers "which headers does this shader really pull
+  # in", and a second answer to that question is how two backends drift apart in
+  # the one place neither of them can see. A dev dependency for the same reason
+  # `flutter3d_shaders` is: nothing in `lib/` reaches it, and two backends that
+  # depended on each other at run time would not be two backends.
+  flutter3d_webgl: ^0.5.2
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0

@@ -1,34 +1,33 @@
 ## 0.5.2
 
-* **`webgpu_interop.dart`: WebGPU's interfaces and dictionaries as
-  `dart:js_interop` declarations.** Bind group layouts and bind groups, pipeline
-  layouts, samplers, the canvas context, depth and stencil state, multisampling,
-  texture views by mip level and array layer, and `queue.writeTexture` — none of
-  which the spike this package grew from had, and none of which a backend can be
-  written without. Descriptors are object-literal constructors, so a misspelt
-  member is a compile error rather than a `TypeError` from inside
-  `createRenderPipeline`; where WebGPU forbids a *combination* the choice is a
-  named constructor, because an absent dictionary key and an explicit `null` are
-  different things to this API and `blend: null` is the spelling it refuses.
-* **The parameters a triangle can leave at zero are all present.** A vertex or
-  index buffer offset, a first index, a base vertex, a first instance: each of
-  them is a wrong picture rather than an error when it is dropped, and a backend
-  that packs two meshes into one allocation and forgets one draws the other mesh
-  in silence. Twelve tests in Chrome ask about each in turn, every one against a
-  control draw that comes back the other colour — a test that only checked
-  "green arrived" would pass on a backend that had stopped reading the parameter
-  and happened to be pointing at green.
-* **`gpuChecked`, and error scopes used from the first day rather than the
-  first bug.** WebGPU validates asynchronously: a bad descriptor yields an
-  object that does not work and a complaint on the browser console that no Dart
-  program ever sees. Bracketing a call in a validation scope is the only way one
-  becomes a thrown `GpuDeviceError`, which is what the conformance suite's
-  refusal checks are written expecting.
-* **The flag constants are written out rather than imported.** The spike reached
-  into `package:web` for `$GPUBufferUsage` and its four siblings, which cost it
-  a dependency for twenty-five integers. They are asserted against the
-  specification here instead, and this package depends on nothing but the
-  contract.
+* **Every shader the engine asks for, in WGSL, with the reflection beside it.**
+  `tool/generate_shaders.dart` reads the manifest `impellerc` and the WebGL
+  generator read, prepares each of the 39 stages, and hands it to
+  `glslangValidator` and then to `naga`. All 39 compile, and all 39 come back
+  through `naga --input-kind wgsl`, which is a different question from whether
+  naga could write them. `tool/ci.sh` regenerates the table and diffs it.
+* **The reflection is written by the packer, not read back out of the WGSL.**
+  A `GPUShaderModule` cannot be asked what it declares and a pipeline layout has
+  to state it, so `webgpu_bundle_section.dart` carries attributes by name,
+  location and format; uniform blocks by name, group, binding, size and member
+  offsets; and samplers by name and the two bindings each takes. The offsets are
+  computed from the GLSL by std140 and held against glslang's own `Offset`
+  decorations on every block of every stage, which is the only place the two
+  could disagree.
+* **naga will not read a combined sampler**, and says so as `invalid id %14`
+  with no file and no construct. Only the declarations are edited — a
+  `texture2D`, a `sampler` and a `#define` that puts them back together — so all
+  59 `texture()` calls and 5 `textureLod()` calls pass through untouched.
+* **`--keep-coordinate-space`, which is not optional.** naga 30.0.1 otherwise
+  appends `gl_Position.y = -(gl_Position.y)` to every vertex entry point, and
+  nothing fails: the WGSL compiles, the pipeline builds, and every scene comes
+  back upside down. Both facts are tests rather than memories.
+* **A varying's location is decided across the manifest.** WebGPU does not
+  link, so a pair whose two sides number their varyings from their own
+  declarations draws the wrong picture with nothing to say so. Locations are a
+  function of the name, grouped into families by which names ever appear in one
+  stage — four families, the widest of eight, because there are seventeen
+  varyings and sixteen locations.
 * **The package exists, and nothing in it opens a device.** A fourth backend is
   three or four branches of work, and every one of them wants a `pubspec.yaml`,
   an `analysis_options.yaml` and a place in the publishing order. Written once,

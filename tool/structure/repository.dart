@@ -533,6 +533,13 @@ boundaryEnumExempt = <String, Map<String, String>>{
         'what to do when an OBJ has no normals. Smooth or flat, and there '
         'is no third answer the decoder could give',
   },
+  'flutter3d_webgpu/lib/src/webgpu_bundle_section.dart': <String, String>{
+    'WebGpuTextureDimension':
+        'the shapes of texture this backend has a bind group layout entry '
+        'for, spelled the way WebGPU spells them. A value it does not have '
+        'is a sampler declaration the shader translator refuses, so the set '
+        'is closed at the far end of the pipeline rather than here',
+  },
   'flutter3d_physics/lib/src/collider.dart': <String, String>{
     'ColliderKind':
         'the four the solver has paths for. A fifth kind is a solver '

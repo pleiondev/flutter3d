@@ -198,7 +198,7 @@ point of §3.3.
 | `flutter3d_hardware` | The graphics vocabulary a backend implements: devices, encoders, handles, formats. Names no graphics API |
 | `flutter3d_impeller` | The backend over `flutter_gpu`, and the compiled shader bundle |
 | `flutter3d_webgl` | The WebGL2 backend, and GLSL translated from `flutter3d_shaders` |
-| `flutter3d_webgpu` | The WebGPU backend, being built. Today: the translation table and the pipeline key, both pure Dart |
+| `flutter3d_webgpu` | The WebGPU backend, being built. Today: the translation table, the pipeline key, and WGSL with its reflection, translated from `flutter3d_shaders` |
 | `flutter3d_cpu` | A software rasteriser: a second reference, and rendering with no GPU |
 | `flutter3d_backend` | Picks a backend for a build — conditional import plus `openDevice` |
 | `flutter3d_conformance` | The contract suite every backend passes |
@@ -1758,7 +1758,7 @@ entities a game defines.
 |---|---|
 | Style | `dart format` |
 | Analysis | `flutter analyze` clean across the workspace, no warnings |
-| Unit tests | **4171 tests** across 28 packages and 6 applications |
+| Unit tests | **4206 tests** across 28 packages and 6 applications |
 | Structure rules | 30, `dart run tool/structure.dart`, the first CI step |
 | CI | GitHub Actions over `tool/ci.sh`, on `ubuntu-latest`, with no graphics card |
 
