@@ -17,7 +17,11 @@ environment:
 dependencies:
   # Collision, queries and the character controller — already plain Dart, and
   # extracted from the same package this was, for the same reason.
-  flutter3d_physics: ^0.5.0
+  # The floor is 0.5.1 because that is where ground became a collision shape:
+  # `Heightfield` here is the data, `CollisionHeightfield` there is what a body
+  # stands on, and a resolver free to pick 0.5.0 would hand a caller the first
+  # without the second.
+  flutter3d_physics: ^0.5.1
 
   vector_math: ^2.2.0
 

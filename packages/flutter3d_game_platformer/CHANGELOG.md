@@ -1,3 +1,15 @@
+## 0.5.2
+
+* **The runner stands on ground made of samples.** `CollisionHeightfield`
+  joined the sealed hierarchy of collision shapes, and a sealed hierarchy is
+  what made the compiler name every switch that had to think about it — the
+  runner's included — rather than letting one fall through to a default and
+  answer wrongly for ever. It answers with the standing half-height, the same
+  as it does for a box.
+* Needs `flutter3d_game` 0.5.1 or above, which is where that shape reaches this
+  package from. A floor rather than a note: the type arrives through a
+  re-export, so nothing else can say which version underneath has it.
+
 ## 0.5.1
 
 * The runner's facing, its movement wish and the swinging blocks call

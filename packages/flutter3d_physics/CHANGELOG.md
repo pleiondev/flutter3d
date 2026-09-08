@@ -1,4 +1,4 @@
-## Unreleased
+## 0.5.1
 
 **Ground is a collision shape, and the joins in it are not surfaces.**
 

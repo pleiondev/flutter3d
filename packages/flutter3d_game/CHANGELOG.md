@@ -1,3 +1,14 @@
+## 0.5.1
+
+* **A floor, and no code.** Nothing in this package changed; what changed is
+  what it promises about the package it re-exports. `flutter3d_sim` is now
+  required at 0.5.2 or above, because that is where `Heightfield` arrived and,
+  through it, `flutter3d_physics` 0.5.1 with the collision shape a body stands
+  on. A caller reaching those names through this one was reaching whatever the
+  resolver happened to pick, which for a `^0.5.0` floor could be a version
+  without either — and the symptom is a compile error in somebody else's
+  package.
+
 ## 0.5.0
 
 **Breaking.** A stick use carries what it does, and an issue is an object.

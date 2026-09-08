@@ -1,4 +1,4 @@
-## Unreleased
+## 0.5.1
 
 * **`ShaderBundle.webgpuSection`, and the format version stays at 1.** A fourth
   backend needs a fourth section, and the container was already built to take
