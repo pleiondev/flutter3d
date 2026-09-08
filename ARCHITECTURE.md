@@ -198,7 +198,6 @@ point of §3.3.
 | `flutter3d_hardware` | The graphics vocabulary a backend implements: devices, encoders, handles, formats. Names no graphics API |
 | `flutter3d_impeller` | The backend over `flutter_gpu`, and the compiled shader bundle |
 | `flutter3d_webgl` | The WebGL2 backend, and GLSL translated from `flutter3d_shaders` |
-| `flutter3d_webgpu` | The WebGPU backend, being built. Today: the translation table and the pipeline key, both pure Dart |
 | `flutter3d_cpu` | A software rasteriser: a second reference, and rendering with no GPU |
 | `flutter3d_backend` | Picks a backend for a build — conditional import plus `openDevice` |
 | `flutter3d_conformance` | The contract suite every backend passes |
@@ -1758,7 +1757,7 @@ entities a game defines.
 |---|---|
 | Style | `dart format` |
 | Analysis | `flutter analyze` clean across the workspace, no warnings |
-| Unit tests | **4159 tests** across 28 packages and 6 applications |
+| Unit tests | **4144 tests** across 27 packages and 6 applications |
 | Structure rules | 30, `dart run tool/structure.dart`, the first CI step |
 | CI | GitHub Actions over `tool/ci.sh`, on `ubuntu-latest`, with no graphics card |
 
@@ -2315,14 +2314,10 @@ navigation grid, because fog is looked at rather than walked on.
 went to pub.dev at 0.4.0 under the
 [pleion.dev](https://pub.dev/publishers/pleion.dev/packages) publisher, and
 `flutter3d_sim` followed when the simulation was split out of the game layer, so
-twenty-four of the workspace's twenty-eight are on the internet.
-`flutter3d_editor_core`, `flutter3d_editor_mcp`, `flutter3d_game_strategy` and
-`flutter3d_webgpu` are the four that are not: the first three were written
-after that release and are waiting for the next one rather than for a decision.
-The fourth is waiting for something else — it is in the order above because a
-package that exists belongs in it, and it goes out when it can draw a frame.
-Being in the publishing order and being published are different things, and
-this is the entry that makes the difference visible.
+twenty-four of the workspace's twenty-seven are on the internet.
+`flutter3d_editor_core`, `flutter3d_editor_mcp` and `flutter3d_game_strategy`
+are the three that are not: each was written after that release and each is
+waiting for the next one rather than for a decision.
 `publish_to: none` — "the one line between prepared and on the
 internet" — came out of the packages that day; the workspace root, the
 applications and the example apps keep theirs, being repository-only by design.
@@ -2330,7 +2325,7 @@ applications and the example apps keep theirs, being repository-only by design.
 - **Licence: MIT**, `Copyright (c) 2026 Dmitrii Zolotov`. One `LICENSE` at the root
   and a copy in every package, because pub wants the file inside the archive.
 - `LICENSE`, `CHANGELOG.md`, `README.md`, `repository:` and `homepage:` in all
-  twenty-eight packages, the four unpublished ones included — `pub publish
+  twenty-seven packages, the three unpublished ones included — `pub publish
   --dry-run` is what `tool/publish_check.sh` asks of every one of them, so a
   package is ready on the day it is written rather than on release day.
 - **`dart format` is a CI step**, second in the order and reported by
@@ -2353,8 +2348,8 @@ applications and the example apps keep theirs, being repository-only by design.
    `flutter3d_audio`, `pad_input`, `pointer_lock`
 2. `flutter3d_conformance`
 3. `flutter3d`, `flutter3d_physics`
-4. `flutter3d_impeller`, `flutter3d_webgl`, `flutter3d_webgpu`, `flutter3d_cpu`,
-   `flutter3d_particles`, `flutter3d_sim`
+4. `flutter3d_impeller`, `flutter3d_webgl`, `flutter3d_cpu`, `flutter3d_particles`,
+   `flutter3d_sim`
 5. `flutter3d_game`, `flutter3d_editor_core`
 6. `flutter3d_screens`, `flutter3d_bridge`, `flutter3d_backend`,
    `flutter3d_testing`, `flutter3d_editor_mcp`

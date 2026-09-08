@@ -71,6 +71,43 @@ final class ShaderBundle {
   /// JSON. `flutter3d_webgl` says what the document looks like.
   static const String webglSection = 'webgl';
 
+  /// The section the WebGPU backend reads: WGSL sources **and the reflection
+  /// that goes with them**, as JSON. `flutter3d_webgpu` says what the document
+  /// looks like.
+  ///
+  /// The two sections above carry code and nothing else, because whatever
+  /// reads them can be asked afterwards what is inside: `impellerc`'s
+  /// flatbuffer describes its own uniforms, and a WebGL context answers
+  /// `getUniformLocation` for a program it has linked. A WGSL module answers
+  /// neither. The browser compiles the text and hands back something that will
+  /// not say which group and binding a sampler landed on, so the payload has
+  /// to carry the answers beside the code: the name of every uniform block
+  /// with the offset of each member, the group-and-binding pair for each
+  /// texture and each sampler, and the location every vertex attribute was
+  /// given, by name. Reflection and code travel together because a section
+  /// holding one without the other is a section a device can compile and
+  /// cannot bind.
+  ///
+  /// **The payload carries a version of its own**, inside the document, and it
+  /// is not [formatVersion]. The container's version is a fact about the
+  /// header and the section table, which every backend already shipped reads
+  /// unchanged however this section grows; the reflection's shape is a fact
+  /// between one packer and one backend, and it will move again while the
+  /// container stands still. Two versions because there are two agreements,
+  /// and bumping the outer one for the inner would refuse bundles to three
+  /// backends that were never asked to care.
+  ///
+  /// [sdk] says nothing about this section, so the backend that reads it never
+  /// asks [compiledFor] and the answer would be false in any case. A bundle
+  /// whose only section is this one leaves the field empty, and empty matches
+  /// nothing by design; a bundle that also carries an Impeller section does
+  /// have a token, but that token is `impellerc`'s and this section was not
+  /// built by it. This is right rather than missing: WGSL is text the browser
+  /// compiles when the page loads, and nothing in the path is pinned to a
+  /// Flutter release for the check to be about. Anybody moved to "fix" it
+  /// would be inventing a version to compare.
+  static const String webgpuSection = 'webgpu';
+
   /// What the bundle is called, and what a refusal names.
   final String name;
 

@@ -14,6 +14,9 @@ import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:flutter3d_hardware/testing.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+ByteData _payload(List<int> bytes) =>
+    Uint8List.fromList(bytes).buffer.asByteData();
+
 ShaderBundle _sample() => ShaderBundle(
   name: 'effects',
   sdk: '3.13.0',
@@ -51,6 +54,53 @@ void main() {
     );
     expect(back.section(ShaderBundle.webglSection)!.lengthInBytes, 0);
     expect(back.section('vulkan'), isNull);
+  });
+
+  test('a fourth section rides along, and one nobody knows rides too', () {
+    // What makes a new backend an addition rather than a format change: the
+    // section table is a count and that many name-to-bytes pairs, and the only
+    // version gate is equality. So `webgpuSection` sits beside the other two
+    // without moving `formatVersion`, and a reader that has never heard of a
+    // section id still carries its bytes through untouched — which is what the
+    // three backends already shipped do with the WebGPU section.
+    //
+    // Mutation: write `sections.length - 1` in `encode` and the last pair goes
+    // unclaimed — `vulkan` comes back missing here.
+    final bundle = ShaderBundle(
+      name: 'four',
+      sdk: '3.13.0',
+      stages: const <ShaderBundleStage>[
+        ShaderBundleStage('MeshVertex', fragment: false),
+      ],
+      sections: <String, ByteData>{
+        ShaderBundle.impellerSection: _payload(<int>[1, 2, 3]),
+        ShaderBundle.webglSection: _payload(<int>[4, 5]),
+        ShaderBundle.webgpuSection: _payload(<int>[6, 7, 8, 9]),
+        'vulkan': _payload(<int>[10]),
+      },
+    );
+
+    final bytes = bundle.encode();
+    // The header still says version 1: a fourth section is not a fourth
+    // format, and a bump here would refuse this bundle to Impeller and WebGL.
+    expect(bytes.getUint32(4, Endian.little), ShaderBundle.formatVersion);
+    expect(ShaderBundle.formatVersion, 1);
+
+    final back = ShaderBundle.decode(bytes);
+    expect(back.sections.keys.toSet(), <String>{
+      ShaderBundle.impellerSection,
+      ShaderBundle.webglSection,
+      ShaderBundle.webgpuSection,
+      'vulkan',
+    });
+    expect(
+      back.section(ShaderBundle.webgpuSection)!.buffer.asUint8List(),
+      <int>[6, 7, 8, 9],
+    );
+    expect(back.section('vulkan')!.buffer.asUint8List(), <int>[10]);
+    // And round-tripping the decoded bundle writes the same bytes back: a
+    // section the reader could not name is not a section it has degraded.
+    expect(back.encode().buffer.asUint8List(), bytes.buffer.asUint8List());
   });
 
   test('a decoded section is a copy that starts at zero', () {

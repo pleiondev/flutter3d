@@ -1,3 +1,30 @@
+## Unreleased
+
+* **`ShaderBundle.webgpuSection`, and the format version stays at 1.** A fourth
+  backend needs a fourth section, and the container was already built to take
+  one: the section table is a count followed by that many name-to-bytes pairs,
+  and the only version gate is equality, so a bundle carrying WGSL is read by
+  the Impeller and WebGL backends exactly as it was before — they count four,
+  take theirs, and carry the rest through untouched. The doc comment says the
+  two things the neighbouring sections do not have to. First, the payload holds
+  reflection beside the code — uniform block names with member offsets,
+  group-and-binding pairs for textures and samplers, attribute locations by
+  name — because a compiled WGSL module will not answer where anything landed,
+  and code without those answers is code a device can compile and cannot bind.
+  Second, the payload versions itself, separately, because the shape of that
+  reflection is an agreement between one packer and one backend and will move
+  again while the container does not.
+* **The SDK check is false for WGSL, on purpose.** `compiledFor` compares the
+  token `impellerc` was pinned to; there is no `impellerc` in the WebGPU path
+  at all, because WGSL is text the browser compiles when the page loads. A
+  bundle carrying only that section leaves `sdk` empty and the check answers
+  false forever. Written down so the next reader does not take it for an
+  oversight and invent a version to compare.
+* **`WindingOrder` says the winding is measured in clip space.** No behaviour
+  changes; the sentence is one a reader otherwise pays for in test triangles,
+  because a transform that mirrors flips the facing without touching the order
+  the vertices were given in.
+
 ## 0.5.0
 
 * No API change. Released with the set so every floor in the workspace moves

@@ -315,7 +315,9 @@ enum PrimitiveType { triangle, triangleStrip, line, lineStrip, point }
 /// Which faces the rasteriser discards.
 enum CullMode { none, frontFace, backFace }
 
-/// Which winding counts as front-facing.
+/// Which winding counts as front-facing, wound in clip space: a transform that
+/// mirrors reverses the facing without touching the order the vertices arrived
+/// in, and every backend decides after the vertex stage rather than before it.
 enum WindingOrder { clockwise, counterClockwise }
 
 /// Whether primitives are filled or drawn as edges.
