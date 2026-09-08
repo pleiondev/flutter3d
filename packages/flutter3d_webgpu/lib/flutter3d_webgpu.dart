@@ -23,4 +23,13 @@ library;
 /// enumeration strings. Pure Dart: nothing in it reaches for `dart:js_interop`
 /// or `package:web`, so every answer is asserted on the VM rather than only in
 /// a browser with a GPU.
+///
+/// **`webgpu_interop.dart` is deliberately not exported beside it, and the
+/// reason is this file's own platform.** A barrel that re-exports a library
+/// importing `dart:js_interop` cannot be imported on the VM at all, and the
+/// table's tests are the ones that run in a second and catch a typo in
+/// `"less-equal"` without a GPU. So the bindings are reached at
+/// `package:flutter3d_webgpu/src/webgpu_interop.dart`, by the device and the
+/// encoder that will sit next to them, and this barrel stays importable
+/// everywhere.
 export 'src/webgpu_formats.dart';

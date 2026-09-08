@@ -3,13 +3,14 @@
 ///
 /// **Pure Dart on purpose.** Nothing here imports `dart:js_interop`, so the
 /// whole translation runs and is asserted on the VM — which is the half of this
-/// spike that can be checked without a browser and a GPU. The interop half is
-/// `webgpu_interop.dart` and the two implementations beside it.
+/// package that can be checked without a browser and a GPU. The interop half is
+/// `webgpu_interop.dart`, which imports `dart:js_interop` and so can only be
+/// checked in Chrome.
 ///
 /// Every function here returns one of WebGPU's own enumeration strings, spelled
 /// as the specification spells it. A string rather than a constant because that
 /// is what the API takes: `GPUCullMode` is `"none" | "front" | "back"` and there
-/// is nothing else to map onto. `webgpu_conventions_test.dart` holds every
+/// is nothing else to map onto. `webgpu_formats_test.dart` holds every
 /// answer against the specification's own value sets, so a typo is a failed test
 /// rather than a pipeline the browser refuses at run time with a message about a
 /// dictionary member.
@@ -162,7 +163,8 @@ String gpuCullMode(CullMode mode) => switch (mode) {
 /// [WindingOrder.counterClockwise], and it looked like the careful answer.
 ///
 /// **The measurement says otherwise, and the measurement is what is here.** A
-/// triangle wound counter-clockwise in clip space, drawn through this spike in
+/// triangle wound counter-clockwise in clip space, drawn through the spike this
+/// table came from, in
 /// Chrome, survives `CullMode.backFace` under `"ccw"` and is discarded under
 /// `"cw"` — the whole two-by-two of winding against cull mode, which is
 /// `webgpu_triangle_test.dart`. So WebGPU agrees with the other three about what
@@ -334,8 +336,9 @@ final class WebGpuPipelineKey {
   final bool depthWrite;
 
   /// The blend equation of attachment zero, or null for blending off. One
-  /// attachment because that is as far as this spike goes; a backend would key
-  /// on the whole list, which WebGPU is happy to honour and the two hardware
+  /// attachment because that is as far as the spike this key came from went; a
+  /// backend keying on the whole list is what WebGPU is happy to honour and the
+  /// two hardware
   /// backends are not — see `PassEncoder.setBlend`.
   final BlendState? blend;
 

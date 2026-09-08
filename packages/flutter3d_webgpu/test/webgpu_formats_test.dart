@@ -1,4 +1,4 @@
-/// Every translation this spike makes, held against WebGPU's own value sets.
+/// Every translation this table makes, held against WebGPU's own value sets.
 ///
 /// **The specification's enumerations are written out here as literals, and that
 /// is the point.** A test that only asserted "the answers are distinct" would

@@ -11,9 +11,9 @@ wrapper around another engine, and it is not affiliated with the Flutter team.
 On pub.dev: twenty-four packages, published by
 [pleion.dev](https://pub.dev/publishers/pleion.dev/packages) — start with
 [`flutter3d`](https://pub.dev/packages/flutter3d) and a backend. The workspace
-holds twenty-seven: `flutter3d_editor_core`, `flutter3d_editor_mcp` and
-`flutter3d_game_strategy` were written after the last release and are in this
-checkout only, which is why the two counts differ. The newest one that did go
+holds twenty-eight: `flutter3d_editor_core`, `flutter3d_editor_mcp`,
+`flutter3d_game_strategy` and `flutter3d_webgpu` were written after the last
+release and are in this checkout only, which is why the two counts differ. The newest one that did go
 out is [`flutter3d_sim`](https://pub.dev/packages/flutter3d_sim): the
 simulation, as plain Dart, so a server can replay a run without a Flutter SDK.
 Or build it
@@ -137,7 +137,7 @@ Or one package at a time:
 (cd packages/flutter3d_physics && dart test)   # plain Dart, no Flutter needed
 ```
 
-4144 tests across twenty-seven packages and six applications, and the only
+4171 tests across twenty-eight packages and six applications, and the only
 ones that need a GPU are the
 Impeller half of the golden set. The other half is rendered by the software
 backend, which is what makes 43 scenes checkable in a headless run.

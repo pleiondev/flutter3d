@@ -2,12 +2,15 @@
 
 `flutter3d_hardware` over WebGPU. The fourth backend, and the one being built.
 
-**Nothing here opens a device yet.** What this package holds today is the
-translation table: every enumeration the contract names, written as the
-WebGPU string the specification spells it with, and the key a device will look
-each draw's real pipeline up by. The device, the encoder and the shaders arrive in the
-waves that follow, and this package exists ahead of them so that three branches
-writing into it do not each invent a `pubspec.yaml`.
+**Nothing here implements `GraphicsDevice` yet.** What this package holds today
+is the two halves a device is built out of. The translation table: every
+enumeration the contract names, written as the WebGPU string the specification
+spells it with, and the key a device will look each draw's real pipeline up by.
+And the bindings: WebGPU's interfaces and dictionaries as `dart:js_interop`
+declarations, because `package:web` carries the flag constants and not one
+interface. The device, the encoder and the shaders arrive in the waves that
+follow, and this package exists ahead of them so that three branches writing
+into it do not each invent a `pubspec.yaml`.
 
 The table came from `tool/webgpu_spike`, which drew a triangle through the
 contract in a real browser to settle the two answers a table cannot settle on
@@ -16,6 +19,31 @@ despite a framebuffer whose y runs down, and that the contract needs no
 correction anywhere else. It is moved here unchanged, prose included, so that
 what this package asserts is exactly what was measured rather than a retyping
 of it.
+
+## Why the bindings are three hundred lines of dictionaries
+
+Every descriptor is an object-literal constructor rather than a map, so a
+misspelt member is a compile error. That is worth the typing because the failure
+it prevents has no other detector: a browser handed `frontface` where it wanted
+`frontFace` does not complain — it takes the default and draws a picture with
+the wrong faces missing. Where WebGPU forbids a combination rather than a
+spelling, the choice is a named constructor instead of an optional member: an
+absent dictionary key and an explicit `null` are different things here, and
+`blend: null` — the obvious translation of "blending off" — is the one spelling
+this API refuses.
+
+The parameters a triangle can leave at zero are all present, because each of
+them is a silent wrong picture rather than an error: a vertex or index buffer
+offset, a first index, a base vertex, a first instance. A backend that packs two
+meshes into one allocation and drops the offset draws the other mesh and reports
+nothing. `webgpu_interop_test.dart` asks about each of them in Chrome, against a
+control draw that comes back the other colour.
+
+Validation in WebGPU is asynchronous, so `createRenderPipeline` returns a
+pipeline whether or not the descriptor was legal and the complaint goes to the
+browser console where no Dart program will see it. `gpuChecked` is the bracket
+that turns one into a thrown `GpuDeviceError`, and it is what the conformance
+suite's refusal checks will need to be watching.
 
 ## What WebGPU cannot say
 
