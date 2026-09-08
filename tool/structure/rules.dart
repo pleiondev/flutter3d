@@ -1868,18 +1868,7 @@ const String _countedGoldenSet = 'cpu';
 /// leave the name here, and the rule reports the entry as spent. Neither state
 /// survives a run.
 const Map<String, Map<String, String>> _goldenSetGaps =
-    <String, Map<String, String>>{
-      'webgpu': <String, String>{
-        'loaded-shader':
-            'the example\'s loadable bundle carries an "impeller" section and '
-            'a "webgl" section and no third one, because the scripts that '
-            'pack it write no WGSL. WebGpuDevice.loadShaders refuses it by '
-            'name and the renderer never starts, so the stand reports a stall '
-            'and there is no frame to record. A gap in the packing tools '
-            'rather than in the backend: the engine\'s own shaders reach it '
-            'as WGSL through lib/engine_shaders.dart',
-      },
-    };
+    <String, Map<String, String>>{};
 
 /// The scene names a set has recorded.
 ///

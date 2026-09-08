@@ -210,11 +210,11 @@ const Map<String, double> _budgets = <String, double>{
 ///
 /// Every reason below is a measurement from the recording run or from the
 /// repeats that followed it, not a reading of the source.
-/// **Empty, and it took four entries leaving to make it so.** Two scenes were
-/// left unrecorded because the backend drew one of two atlas layouts and a
-/// reference would have been one toss of that coin; the race behind it was found
-/// in the demo rather than in this backend, and both were recorded once it was
-/// stopped. `probe-car` came back without the reflection it exists to show,
+/// **Empty, and it took four entries leaving to make it so.** The pair built
+/// around the shadow atlas went unrecorded because the backend drew one of two
+/// layouts and a reference would have been one toss of that coin; the race
+/// behind it was found in the demo rather than in this backend, and both were
+/// recorded once it was stopped. `probe-car` came back without the reflection it exists to show,
 /// because `supportsRenderToMip` was false; the capability is true now.
 /// `loaded-shader` never reached a frame, because the packers wrote an
 /// `impeller` section and a `webgl` section and no third one; they write WGSL
