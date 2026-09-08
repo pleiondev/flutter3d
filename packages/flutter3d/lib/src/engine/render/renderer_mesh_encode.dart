@@ -309,6 +309,22 @@ extension _MeshEncode on Renderer {
         ? 0
         : scene.environmentLevels;
 
+    // Which of the scene's lights *this* draw is lit by. The frame's own eight
+    // when they are all the scene has, and the eight that reach this object
+    // when the scene holds more — the shader is handed eight slots either way,
+    // which is why hundreds of lights need no new shader.
+    //
+    // Asked here rather than at the call sites because every caller draws
+    // through this one procedure, and a second copy of the question would
+    // eventually answer it differently for the x-ray stage than for the pass.
+    final draw = _drawLightsFor(
+      frameLights: lights,
+      frameShadowSlots: shadowSlots,
+      node: node,
+    );
+    final drawLights = draw.lights;
+    final drawShadowSlots = draw.shadowSlots;
+
     if (material.lighting.usesFragInfo) {
       _baseColorData[0] = material.baseColor.x;
       _baseColorData[1] = material.baseColor.y;
@@ -340,7 +356,7 @@ extension _MeshEncode on Renderer {
       _material2Data[3] = material.emissiveStrength;
 
       _frameParams[0] = settings.exposure;
-      _frameParams[1] = lights.count.toDouble();
+      _frameParams[1] = drawLights.count.toDouble();
       _frameParams[2] = shadows.directional == null
           ? -1.0
           : shadows.casterIndex.toDouble();
@@ -402,7 +418,7 @@ extension _MeshEncode on Renderer {
         encoder.bindUniformBlock(fragmentShader, 'PointShadow', {
           'faces': _cubeFaceMatrices,
           'lights': _cubeLightData,
-          'slots': shadowSlots,
+          'slots': drawShadowSlots,
           'params': _pointShadowParams,
           'params2': _pointShadowParams2,
           'params3': _pointShadowParams3,
@@ -440,10 +456,10 @@ extension _MeshEncode on Renderer {
         // reflects the array, not its elements — `lights[0]` comes back
         // null — but the std140 stride for a vec4 array is a flat 16
         // bytes, so a contiguous write lands each element correctly.
-        'light_position': lights.positions,
-        'light_color': lights.colors,
-        'light_direction': lights.directions,
-        'light_cone': lights.cones,
+        'light_position': drawLights.positions,
+        'light_color': drawLights.colors,
+        'light_direction': drawLights.directions,
+        'light_cone': drawLights.cones,
         'base_color': _baseColorData,
         'emissive': _emissiveData,
         'camera_position': _cameraData,

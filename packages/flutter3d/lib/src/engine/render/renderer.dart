@@ -1103,6 +1103,68 @@ final class Renderer implements RenderServices {
     return -1;
   }
 
+  /// Restates this frame's atlas assignment in the slot order [buffer] packed.
+  ///
+  /// The shader knows a light only as an index into the eight slots it was
+  /// handed, so the row table has to be written per packing. `x < 0` is the
+  /// shader's own early-out for "no shadow here", which is why every slot is
+  /// cleared to it first and only the rows that exist are written.
+  void _writeShadowSlots(LightBuffer buffer, Float32List out) {
+    out.fillRange(0, out.length, -1.0);
+    if (_shadowRowOf.isEmpty) return;
+    for (var i = 0; i < buffer.packed.length; i++) {
+      final row = _shadowRowOf[buffer.packed[i]];
+      if (row == null) continue;
+      out[i * 4] = row.toDouble();
+      out[i * 4 + 1] = _shadowRowShape[row];
+      out[i * 4 + 2] = _shadowRowTangent[row];
+    }
+  }
+
+  /// The lights one draw is lit by, and the slot table that goes with them.
+  ///
+  /// When the scene's live lights all fit, every draw in the frame shares the
+  /// frame's own buffer and table — the same arrays, not a copy — so a scene
+  /// that fits costs exactly what it cost before and packs byte for byte the
+  /// same. Only a scene that overflows pays for selection, and it pays per
+  /// draw: a night map may carry two hundred torches while each object is told
+  /// about the eight that reach it.
+  ///
+  /// An instanced batch is one draw and therefore gets one list, chosen for the
+  /// bounds of the whole batch. For a cluster of props that is right; for a
+  /// crowd spread across a map it is not, and the answer there is not a
+  /// per-instance list — the shader reads eight slots for the whole draw and
+  /// giving each instance its own would be the new shader this deliberately
+  /// avoids — but splitting the crowd into batches that are local enough to
+  /// share a light list. The same caveat covers a single mesh that spans the
+  /// map: a ground plane's bounding sphere touches every torch, so it scores
+  /// them all at distance zero and keeps the eight brightest, which is the best
+  /// answer a per-draw list can give and a reason to build big ground out of
+  /// tiles.
+  ({LightBuffer lights, Float32List shadowSlots}) _drawLightsFor({
+    required LightBuffer frameLights,
+    required Float32List frameShadowSlots,
+    required MeshNode node,
+  }) {
+    if (frameLights.overflow == 0) {
+      return (lights: frameLights, shadowSlots: frameShadowSlots);
+    }
+    _drawLights.gatherNearFrom(
+      frameLights,
+      node.worldBoundsCentre,
+      node.worldBoundsRadius,
+    );
+    // The frame's table is the world scene's; a contributor scene was handed
+    // `_noShadowSlots` and its lights own no rows, so rebuilding from the row
+    // map would invent shadows the atlas never drew.
+    if (identical(frameShadowSlots, _shadowSlots)) {
+      _writeShadowSlots(_drawLights, _drawShadowSlots);
+    } else {
+      _drawShadowSlots.fillRange(0, _drawShadowSlots.length, -1.0);
+    }
+    return (lights: _drawLights, shadowSlots: _drawShadowSlots);
+  }
+
   /// Renders the scene from the light's point of view into a depth map.
   ///
   /// A shadow pass is a render view whose camera happens to be a light — which
@@ -1290,6 +1352,26 @@ final class Renderer implements RenderServices {
 
   /// One vec4 per light the shading knows about; x is its atlas row or -1.
   final Float32List _shadowSlots = Float32List(4 * LightBuffer.maxLights);
+
+  /// Which atlas row each shadowed light owns, keyed by the light rather than
+  /// by its slot.
+  ///
+  /// A slot index only means something inside one packing, and with per-object
+  /// light lists there is a packing per draw. Keyed by the node, the assignment
+  /// is stated once for the frame and every packing can look itself up in it.
+  final Map<LightNode, int> _shadowRowOf = <LightNode, int>{};
+
+  /// Per row, what a slot needs beside the row number: y the shape (1 for a
+  /// spot's single cone-shaped tile, 0 for a cube), z the tangent of half the
+  /// frustum the row was drawn through.
+  final Float32List _shadowRowShape = Float32List(kShadowedLights);
+  final Float32List _shadowRowTangent = Float32List(kShadowedLights);
+
+  /// Repacked once per draw, for scenes that hold more lights than a draw can
+  /// carry, with the slot table that belongs to that packing. Hot-loop scratch,
+  /// like the uniform staging beside it. See [_drawLightsFor].
+  final LightBuffer _drawLights = LightBuffer();
+  final Float32List _drawShadowSlots = Float32List(4 * LightBuffer.maxLights);
 
   final Float32List _pointShadowParams = Float32List(4);
   final Float32List _pointShadowParams2 = Float32List(4);
@@ -2328,16 +2410,17 @@ final class Renderer implements RenderServices {
     final assignment = _shadowSlotAllocator.assign(_shadowCandidates);
     _shadowsDenied = assignment.denied.length;
 
-    for (var i = 0; i < _shadowSlots.length; i++) {
-      _shadowSlots[i] = -1.0;
-    }
+    _shadowRowOf.clear();
     var slot = 0;
     for (var row = 0; row < assignment.owners.length; row++) {
       final owner = assignment.owners[row];
       if (owner is! LightNode) continue;
-      final index = lights.packed.indexOf(owner);
-      if (index < 0) continue;
 
+      // Every assigned row is described from here down, whether or not this
+      // light reached the frame's own eight slots. The loop used to stop on a
+      // light the frame buffer had no room for, leaving the row drawn from
+      // whatever cube data was last in it — and that is exactly the light
+      // per-object selection now hands to a draw standing next to it.
       owner.readWorldPosition(_cubePosition);
       _cubeLightData[row * 4] = _cubePosition.x;
       _cubeLightData[row * 4 + 1] = _cubePosition.y;
@@ -2366,18 +2449,21 @@ final class Renderer implements RenderServices {
       // without either being able to impersonate the other.
       _cubeLightAim[row * 4 + 3] = spot ? tanHalf : -1.0;
 
-      // Which atlas row this light's shader index should read.
-      _shadowSlots[index * 4] = row.toDouble();
+      // Which atlas row this light owns, said once for the frame. Which *slot*
+      // reads it depends on the packing, and there is a packing per draw once
+      // the scene offers more lights than a draw can carry — see
+      // [_writeShadowSlots].
+      _shadowRowOf[owner] = row;
       // Which shape it is: 0 a cube, 1 a single cone-shaped tile. The shader
       // needs this before it can pick a face, and it cannot be inferred from
       // the tangent beside it — a spot opening to exactly forty-five degrees
       // has a tangent of one, the same as every cube face.
-      _shadowSlots[index * 4 + 1] = spot ? 1.0 : 0.0;
+      _shadowRowShape[row] = spot ? 1.0 : 0.0;
       // The tangent again, this time for the filter rather than the pass. It
-      // has to be *written* rather than left at the −1 the clear above puts
-      // there, because the penumbra estimate divides by it. Written next to the
-      // row and not in a branch: the two are read together, and a slot with a
-      // row but no angle is a black light.
+      // has to be *written* rather than left at the −1 an empty slot holds,
+      // because the penumbra estimate divides by it. Written next to the row
+      // and not in a branch: the two are read together, and a slot with a row
+      // but no angle is a black light.
       //
       // The depth bias is deliberately **not** scaled by this, and the reason
       // is a measurement rather than a preference. The argument for scaling it
@@ -2387,9 +2473,10 @@ final class Renderer implements RenderServices {
       // point and once as a cone of 0.6 and then of 0.22 radians, put its
       // shadow in the same cells every time, contact included. A separate
       // `spotBias` would have been a knob nothing turns.
-      _shadowSlots[index * 4 + 2] = tanHalf;
+      _shadowRowTangent[row] = tanHalf;
       slot = math.max(slot, row + 1);
     }
+    _writeShadowSlots(lights, _shadowSlots);
     // Which rows are occupied, and therefore whether the atlas is worth
     // drawing at all. Decided here rather than inside either atlas node,
     // because it is what the *frame* knows — both nodes are asked whether they

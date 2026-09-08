@@ -847,9 +847,37 @@ renderer.
 ### 6.3 Lights
 
 Directional, point and spot, with glTF's inverse-square falloff, range window and
-smooth cone ramp. Up to eight are packed into `vec4[8]` uniform arrays with the
-count as a uniform, so switching a light on or off never rebuilds a pipeline.
+smooth cone ramp. Eight are packed into `vec4[8]` uniform arrays with the count
+as a uniform, so switching a light on or off never rebuilds a pipeline.
 Intensities are unitless multipliers rather than lumens.
+
+**The eight belong to a draw, not to the scene.** A scene registers as many
+lights as it likes; what is fixed at eight is the length of the arrays the
+fragment stages declare, and those are compiled ahead of time. While one packing
+served a whole frame the two were the same thing, and the ninth lamp of a night
+map did nothing anywhere. `LightBuffer` now answers twice: `gather` packs the
+first eight in scene order, which is what the frame needs — the shadow atlas is
+assigned against it — and `gatherNear` picks, per object, the eight that reach
+it. The renderer takes the second route only when a scene overflows the first,
+so a scene inside eight lights is packed exactly as it always was, byte for
+byte, and every recorded golden holds.
+
+Relevance is the shader's own arithmetic and not a proxy for it: intensity times
+the punctual attenuation of `surface.glsl`, measured to the nearest point of the
+object's bounding sphere rather than to its centre, so a floor tile whose centre
+is far from every torch still catches the one touching its edge. A light that
+scores zero — outside its own range window — is not packed at all, which is how
+an object out of reach of everything ends up with an empty list rather than with
+eight terms the shader evaluates to black. Directional lights are not ranked:
+they have no position, so nearness says nothing about them, and they take slots
+first in scene order. Ties break on scene order, because a tie broken by
+anything the frame carries is a lamp that swaps with its neighbour between
+frames — a flicker on screen and a golden that will not reproduce.
+
+The atlas assignment follows the lights rather than the slots. A row is recorded
+against the `LightNode` that owns it and the slot table is rewritten for
+whichever packing a draw was given, because a slot index only means something
+inside one packing and there is now a packing per draw.
 
 Image-based lighting is a prefiltered specular chain plus a diffuse level, built
 by `EnvironmentMap.prefilter` from a cube map or from sky settings. The
@@ -1724,7 +1752,7 @@ entities a game defines.
 |---|---|
 | Style | `dart format` |
 | Analysis | `flutter analyze` clean across the workspace, no warnings |
-| Unit tests | **4099 tests** across 27 packages and 6 applications |
+| Unit tests | **4104 tests** across 27 packages and 6 applications |
 | Structure rules | 30, `dart run tool/structure.dart`, the first CI step |
 | CI | GitHub Actions over `tool/ci.sh`, on `ubuntu-latest`, with no graphics card |
 
@@ -1908,6 +1936,23 @@ into a bundle.
 
 **No compute**, and therefore no GPU particles, GPU skinning, GPU culling or
 indirect draw.
+
+**No clustered forward, and therefore one light list per draw.** A scene may
+carry hundreds of lights and each object is handed the eight that reach it
+(§6.3), but the unit that receives a list is the draw, and three cases inherit
+that. An instanced batch is one draw, so the whole crowd shares one list chosen
+for the batch's bounds — right for a cluster of props, wrong for a crowd spread
+across a map, and the fix there is smaller batches rather than a per-instance
+list, which would need the new shader this deliberately avoids. A single mesh
+that spans the map has the same shape of problem: a ground plane's bounding
+sphere touches every torch, scores them all at distance zero and keeps the
+brightest eight, which is a reason to build large ground out of tiles. And the
+selection is linear in objects times lights: at a thousand objects and two
+hundred lamps it costs about 5 ms a frame in the test VM, of which 2.4 ms is
+what that VM charges for the bare loop. A scene inside eight lights pays none of
+it. Cutting the rest means indexing the lights spatially, which is the shape
+clustered forward has and the reason it is the next thing here rather than a
+wider array.
 
 **No buffer readback on flutter_gpu.** SDK 3.47 has `copyTextureToBuffer`, and
 no way for Dart to read the `DeviceBuffer` it fills — `overwrite` and `flush` go

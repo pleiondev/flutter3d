@@ -78,8 +78,14 @@ final class FrameResult {
   /// Lights actually shaded this frame.
   final int lights;
 
-  /// Lights that did not fit in the uniform array, so a scene that quietly
-  /// stopped lighting its ninth lamp says so instead of looking wrong.
+  /// Lights the scene holds beyond the eight one packing can carry.
+  ///
+  /// It used to mean lights going unlit, and it no longer does: above zero, the
+  /// renderer stops handing every draw the same eight and picks eight per
+  /// object instead, so the ninth lamp lights what stands beside it. What the
+  /// number reports now is that the frame is in that regime — worth watching,
+  /// because the selection is a per-draw cost that a scene inside eight lights
+  /// never pays, and worth knowing before reading a profile.
   final int lightsDropped;
 
   /// Whether `RenderSettings.wireframe` was asked for and could not be given.

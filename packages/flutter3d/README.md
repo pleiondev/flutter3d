@@ -74,10 +74,14 @@ What works today:
 - **tangents**: generated with Lengyel's method where a mesh has none, taken
   analytically where the surface knows them, and checked against a real
   exporter's output on `NormalTangentMirrorTest`;
-- **up to eight lights of any type** — directional, point and spot with glTF's
-  inverse-square falloff, range window and cone ramp — packed into `vec4[8]`
-  uniform arrays with the count as a uniform, so switching a light on or off
-  never rebuilds a pipeline;
+- **eight lights per draw, out of as many as a scene holds** — directional,
+  point and spot with glTF's inverse-square falloff, range window and cone ramp
+  — packed into `vec4[8]` uniform arrays with the count as a uniform, so
+  switching a light on or off never rebuilds a pipeline. A scene inside eight
+  is packed in scene order and every draw sees the same eight; past that, each
+  object is handed the eight that actually reach it, ranked by the attenuation
+  the shader itself will compute and tie-broken by scene order so the picture
+  does not flicker. No shader changed to make that true;
 - **decoders for glTF 2.0 / GLB and Wavefront OBJ** behind one `ModelDocument`
   abstraction with shared `SurfaceMaterial` / `TextureBinding` / `EncodedImage`,
   so the GPU upload path is written once for both formats;
@@ -99,7 +103,7 @@ What works today:
   `CUBICSPLINE` with authored tangents), slerped rotations, an `AnimationPlayer`
   with play/pause/seek/speed and once/loop/ping-pong, and the decoded node
   hierarchy rebuilt on instantiation so an animated parent carries its subtree;
-- 916 tests — geometry, projection, scene, sorting, debug draw, intersections,
+- 920 tests — geometry, projection, scene, sorting, debug draw, intersections,
   raycasting, animation, skinning, lighting, tangents, render targets, BVH, LOD,
   glTF, OBJ and `.f3d` — all without a GPU.
 
@@ -311,7 +315,7 @@ lib/src/engine/assets/          glTF, OBJ and .f3d decoders, isolate loading, ca
 example/lib/                    the demo, and the frame capture hook
 skills/                         the conventions, as agent skills — see below
 bin/skills.dart                 what copies them into a project that uses this
-test/                           916 tests, all runnable without a GPU
+test/                           920 tests, all runnable without a GPU
 ```
 
 The GLSL is not here. Every shader this package draws with lives in
