@@ -640,19 +640,44 @@ final class WebGpuDevice implements GraphicsDevice, WgslModuleCompiler {
   bool get supportsMipmaps => true;
 
   /// True: a cube is a six-layer texture with a `"cube"` view over it, and the
-  /// sky pass needs one. It is the one of the three cube-shaped capabilities
-  /// this iteration answers yes to.
+  /// sky pass needs one.
   @override
   bool get supportsCubeTextures => true;
 
-  /// **False for now, and the false is a refusal rather than a wrong picture.**
-  /// A view built with a `baseMipLevel` is an ordinary attachment in this API,
-  /// so nothing here is impossible; what is missing is
-  /// [createCubeRenderTarget], and a probe needs both. Answering true with no
-  /// cube to draw into would give `ReflectionProbeNode.supportedOn` a yes and
-  /// the conformance suite a crash instead of a skip.
+  /// True, and what it turns on is reflection probes.
+  ///
+  /// **The false this used to be was honest when it was written and had stopped
+  /// being so.** It was written beside a [createCubeRenderTarget] that answered
+  /// null: a probe needs a cube to draw six views into *and* a chain to convolve
+  /// them down, `ReflectionProbeNode.supportedOn` asks for both, and answering
+  /// yes to the second while the first was missing would have handed the
+  /// renderer a probe and got a crash where a skip belonged. The cube arrived
+  /// later — the conformance suite would not let `supportsCubeTextures` promise
+  /// a face a pass could name and then hand back nothing — and this line stayed
+  /// false, which by then described no missing work at all. A refusal that
+  /// outlives its reason is worse than the gap it once guarded, because nobody
+  /// goes looking behind it.
+  ///
+  /// **There was nothing left to build.** The chain a probe wants is not a
+  /// `generateMipmap` — this API has none, and the engine never asks a device
+  /// for one. `Renderer._prefilterProbe` writes every level itself, as an
+  /// ordinary full-screen pass whose colour target names a face and a level, and
+  /// on this backend both of those are one mechanism: `baseArrayLayer` picks the
+  /// face and `baseMipLevel` picks the level on a plain 2D view, which
+  /// `WebGpuTexture.attachmentView` has always made. The pass's initial viewport
+  /// covers the *level* rather than the texture, because WebGPU takes it from
+  /// the view's own size, so §7.2's last rule needs no arithmetic here either.
+  ///
+  /// What said so is the picture rather than the reading: `probe-car` records
+  /// through this backend and lands on Impeller's reference at nought of a
+  /// hundred and seventy-two thousand eight hundred pixels, worst channel zero.
+  /// The two conformance checks this gates — the face-and-level clear and the
+  /// viewport that covers the level — declined themselves while it was false and
+  /// now run whole, and `test/reflection_probe_test.dart` asks the question the
+  /// capability actually promises: that a mirror ball between a red wall and a
+  /// blue one shows each on its own side.
   @override
-  bool get supportsRenderToMip => false;
+  bool get supportsRenderToMip => true;
 
   /// Sixteen, which is what this API's `maxAnisotropy` tops out at. A sampler
   /// asking for more is clamped by [samplerFor] rather than refused.
@@ -720,7 +745,7 @@ final class WebGpuDevice implements GraphicsDevice, WgslModuleCompiler {
     ),
   );
 
-  /// A cube a pass may aim at one face of.
+  /// A cube a pass may aim at one face and one level of.
   ///
   /// **This used to be null, and the conformance suite is what said it could
   /// not stay null.** The argument for the null was that a cube a probe can
@@ -731,10 +756,11 @@ final class WebGpuDevice implements GraphicsDevice, WgslModuleCompiler {
   /// that answered true and then handed back no cube failed that check rather
   /// than declining it. It was a gap wearing a refusal's clothes.
   ///
-  /// [supportsRenderToMip] stays false and stays a real refusal, which is what
-  /// keeps `ReflectionProbeNode.supportedOn` — it asks for both — from turning
-  /// a probe on over half an implementation. Six array layers and a view per
-  /// face is `webgpu_resources.dart`'s whole answer.
+  /// The chain arrived with it and went unclaimed for a while: [mipLevels] has
+  /// been honoured here since the cube was, and [supportsRenderToMip] went on
+  /// saying no. Both halves `ReflectionProbeNode.supportedOn` asks for are yes
+  /// now. Six array layers and a view per face and level is
+  /// `webgpu_resources.dart`'s whole answer.
   @override
   TextureHandle? createCubeRenderTarget({
     required int size,

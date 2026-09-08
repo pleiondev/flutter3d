@@ -1758,7 +1758,7 @@ entities a game defines.
 |---|---|
 | Style | `dart format` |
 | Analysis | `flutter analyze` clean across the workspace, no warnings |
-| Unit tests | **4309 tests** across 28 packages and 6 applications |
+| Unit tests | **4310 tests** across 28 packages and 6 applications |
 | Structure rules | 30, `dart run tool/structure.dart`, the first CI step |
 | CI | GitHub Actions over `tool/ci.sh`, on `ubuntu-latest`, with no graphics card |
 
@@ -1773,10 +1773,8 @@ the first.
 **A fourth set is being recorded, on a branch of its own, and is not complete**,
 so it is written here as a number rather than as a set: **42 of the 43 scenes**
 had WebGPU references at the time this paragraph was written, all of them in
-another branch and none of them in this one. The missing scene is `probe-car`,
-which the device declines rather than draws: `supportsRenderToMip` is false, the
-probe captures nothing, and a picture of the empty cube would record a refusal as
-agreement. That is not a reference set yet — a partial one cannot say a
+another branch and none of them in this one. The missing scene is
+`loaded-shader`. That is not a reference set yet — a partial one cannot say a
 picture regressed, only that some pictures exist — and the count is here in place
 of the word precisely so a reader can tell those two apart. Until it lands whole,
 this repository has three sets.
@@ -2141,14 +2139,10 @@ declares false rather than a check that was quietly skipped:
   families. Sampling a BC7 texture on a device that did not request
   `texture-compression-bc` is a validation error rather than a slow path, so the
   honest answer is a false that leaves the texture out with a reason.
-- **`supportsRenderToMip`**, which is the one that costs a feature. A view built
-  with a `baseMipLevel` is an ordinary attachment in this API, so nothing here is
-  impossible; what is absent is the filtering half of a reflection probe.
-  `ReflectionProbeNode.supportedOn` asks for this and for cubes together, so a
-  probe stays switched off rather than being drawn from half an implementation.
+**Two capabilities left that list, and between them they are the clearest
+statement in this repository of how a refusal goes wrong.**
 
-**`createCubeRenderTarget` is not on that list, and the correction is the
-paragraph's point.** It answered null for a while on the argument that a cube a
+`createCubeRenderTarget` answered null for a while on the argument that a cube a
 probe can draw into is only useful beside a chain it can filter into, so the two
 should arrive together — and the conformance suite disagreed, because
 `supportsCubeTextures` answering true is read as a promise that *a pass can name
@@ -2156,6 +2150,23 @@ a face*, not merely that a sampler can read one. The backend failed that check
 rather than declining it, which is exactly the difference: a declared capability
 is the only thing that separates a limit from a gap wearing a refusal's clothes.
 Six array layers and a view per face was the whole of the fix.
+
+`supportsRenderToMip` then went on answering false beside the cube it had been
+paired with, and that is the other failure mode: a refusal that outlives its
+reason, which nobody goes looking behind. Lifting it took no code. WebGPU has no
+`generateMipmap`, and the engine never asks a device for one — `supportsMipmaps`
+is about uploading a chain built on the host, and a reflection probe convolves
+its own chain in `Renderer._prefilterProbe`, one full-screen pass per face and
+level. A colour target naming a face and a level is `baseArrayLayer` and
+`baseMipLevel` on an ordinary 2D view here, which `WebGpuTexture.attachmentView`
+had always made, and the pass's initial viewport comes from that view and so
+covers the level rather than the texture without arithmetic. The picture is what
+settled it: `probe-car` records through this backend and lands on Impeller's
+reference at 0 of 172800 pixels, worst channel 0. The two conformance checks the
+capability gates had been declining themselves from the inside all along — one
+allocating a single level and asking only about the face, the other returning
+before it drew — so the suite's 33 of 33 never moved when they started asking the
+whole question. A count that cannot move is not a count that can be read.
 
 **An ordinary web build still opens WebGL2, and that is a decision about bundle
 size rather than about WebGPU.** Which backend a browser hands out cannot be a

@@ -65,20 +65,27 @@ device that did not request `texture-compression-bc` is a validation error, not 
 slow path, so `supportsTextureFormat` answers false for every one of them and a
 loader leaves the texture out with a reason.
 
-**Rendering into a mip**, which is the one that costs a feature.
-`supportsRenderToMip` is false, and `ReflectionProbeNode.supportedOn` asks for
-that and cubes together, so a probe stays switched off here rather than being
-drawn from half an implementation. Nothing about it is impossible — a view built
-with a `baseMipLevel` is an ordinary attachment in this API — and the honest
-false is what keeps the probe from being turned on over the missing half.
+Two entries used to sit below these and no longer do, and both corrections are
+worth keeping.
 
-`createCubeRenderTarget` used to be on this list and is not, which is the
-correction worth keeping. It answered null on the argument that a cube a probe
-draws into is only useful beside a chain it can filter into — and the conformance
-suite disagreed, because `supportsCubeTextures` answering true is read as a
-promise that *a pass can name a face*, not merely that a sampler can read one.
-The suite failed that check rather than declining it, which is exactly how a gap
-wearing a refusal's clothes shows itself.
+`createCubeRenderTarget` answered null on the argument that a cube a probe draws
+into is only useful beside a chain it can filter into — and the conformance suite
+disagreed, because `supportsCubeTextures` answering true is read as a promise
+that *a pass can name a face*, not merely that a sampler can read one. The suite
+failed that check rather than declining it, which is exactly how a gap wearing a
+refusal's clothes shows itself.
+
+`supportsRenderToMip` then went on saying false beside the cube it had been
+paired with, which by then described no missing work. Nothing had to be built to
+lift it. WebGPU has no `generateMipmap`, and the engine never asks for one: a
+reflection probe convolves its own chain, one full-screen pass per face and
+level, and a colour target naming a face and a level is `baseArrayLayer` and
+`baseMipLevel` on an ordinary 2D view here — the pass's viewport comes from that
+view, so it covers the level rather than the texture without any arithmetic. The
+proof is `probe-car`, recorded through this backend and landing on Impeller's
+reference at nought of a hundred and seventy-two thousand eight hundred pixels.
+A refusal that outlives its reason is worse than the gap it once guarded, because
+nobody goes looking behind it.
 
 ## The shaders, and the two programs that make them
 

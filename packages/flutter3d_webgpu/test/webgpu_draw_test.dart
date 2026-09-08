@@ -649,34 +649,62 @@ void main() {
       scene.device.dispose();
     });
 
-    test('a mip level to draw into, but not a cube to draw into', () async {
-      // The mip answers no in this iteration so that a reflection probe is
-      // skipped rather than crashed — `ReflectionProbeNode.supportedOn` asks
-      // for cube textures *and* render-to-mip, so one no is enough. The cube
-      // render target used to answer no beside it and no longer does: the
-      // conformance suite reads `supportsCubeTextures` as a promise that a pass
-      // can name a face, and a backend that answered true and handed back no
-      // cube failed that check rather than declining it.
+    test('a compressed format it did not ask the adapter for', () async {
+      // `create` requests none of the three compression families, so sampling
+      // one would be a validation error rather than a slow path, and a loader
+      // asking here gets a false and leaves the texture out with a reason.
       final scene = await _scene();
       if (scene == null) return;
-      expect(scene.device.supportsCubeTextures, isTrue);
-      expect(scene.device.supportsRenderToMip, isFalse);
-      expect(
-        scene.device.createCubeRenderTarget(
-          size: 4,
-          format: TextureFormat.r16g16b16a16Float,
-        ),
-        isNotNull,
-      );
       expect(
         scene.device.supportsTextureFormat(TextureFormat.bc7RGBAUNormInt),
         isFalse,
         reason: 'this device requests none of the compression features',
       );
-      expect(await scene.device.debugDrainErrors('a cube target'), isNull);
       scene.device.dispose();
     });
   });
+
+  test(
+    'a cube target holds a chain, and the device says a pass may fill it',
+    () async {
+      // Both halves `ReflectionProbeNode.supportedOn` asks for, in one place.
+      // They were split for an iteration — the cube was made and the chain was
+      // refused — and the split is what this guards against coming back: a cube
+      // with levels nobody may draw into is a mirror at every roughness, and a
+      // true beside a null cube is a probe that crashes instead of being skipped.
+      // What the levels actually *do* is asked by the conformance suite, which
+      // clears one and reads it back, and by `reflection_probe_test.dart`.
+      final scene = await _scene();
+      if (scene == null) return;
+      expect(scene.device.supportsCubeTextures, isTrue);
+      expect(scene.device.supportsRenderToMip, isTrue);
+      final cube = scene.device.createCubeRenderTarget(
+        size: 8,
+        format: TextureFormat.r16g16b16a16Float,
+        mipLevels: 4,
+      );
+      expect(cube, isNotNull);
+      // Cleared through the level rather than merely allocated: a chain the
+      // allocator accepted and the attachment path refused would pass every
+      // assertion above.
+      scene.device
+          .beginRenderPass(
+            RenderPassDescriptor(
+              colors: <ColorTarget>[
+                ColorTarget(
+                  texture: cube!,
+                  face: 5,
+                  mipLevel: 3,
+                  clearValue: Vector4(1, 1, 1, 1),
+                ),
+              ],
+            ),
+          )
+          .submit();
+      expect(await scene.device.debugDrainErrors('a cube chain'), isNull);
+      scene.device.dispose();
+    },
+  );
 
   group('a uniform block', () {
     test('the stage does not declare comes back false', () async {

@@ -141,7 +141,7 @@ The renderer talks to a hardware abstraction layer and never to a graphics API. 
 | `flutter3d_impeller` | `flutter_gpu`: Metal on Apple platforms, Vulkan elsewhere | Complete. All three games ship on it |
 | `flutter3d_webgl` | WebGL2, in the browser | Runs all three games, slower and at a fixed resolution. The racing game was the holdout for months and drives now — the cost was a cube shadow atlas sized from the sun's setting, not the frame |
 | `flutter3d_cpu` | Nothing. It rasterises in Dart | Complete for the golden set. A dev dependency of every game, and now `flutter3d_backend`'s last resort too |
-| `flutter3d_webgpu` | WebGPU, in a browser that has an adapter | Draws, and answers the whole conformance suite against a live device. Declines four capabilities by name. Reached by asking for it, not by default — see below |
+| `flutter3d_webgpu` | WebGPU, in a browser that has an adapter | Draws, and answers the whole conformance suite against a live device. Declines three capabilities by name. Reached by asking for it, not by default — see below |
 
 `flutter3d_conformance` is the suite a backend has to pass before it belongs in this table — clears that cover the whole attachment, upload/readback row order, HDR renderability, shader stage linking. It runs against all four, including Impeller through `packages/flutter3d_impeller/tool/conformance.sh`, which the harness itself has to be, since Flutter GPU requires Impeller and a headless `flutter test` cannot give it one. WebGPU is the opposite case and the easiest of the four: Chrome has a real WebGPU device inside `flutter test`, so the suite is an ordinary test file there.
 

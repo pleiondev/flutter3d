@@ -440,13 +440,14 @@ TextureHandle? webgpuCreateCubeTextureFromPixels(
 /// `WebGpuTexture.attachmentView` already makes exactly that pair, because a
 /// cube face and a mip level are the same mechanism in this API.
 ///
-/// **A cube that can be drawn into and no promise about drawing into a level
-/// below its base**, which is the one asymmetry worth stating: this device
-/// answers false to `supportsRenderToMip`, so a caller asking for a chain gets
-/// the levels allocated and the engine's probe — which needs both answers —
-/// stays switched off. What the levels are for meanwhile is a caller that fills
-/// them by upload rather than by rendering, and the conformance check that
-/// clears one face and reads it back through a sampler.
+/// **[mipLevels] is a chain a pass may draw into, not one it may only upload
+/// to**, and for a while this said the opposite. The levels were allocated from
+/// the day the cube was and `supportsRenderToMip` went on answering false beside
+/// them, so a caller reading the capability was told the chain was out of reach
+/// while the allocation quietly held it. Nothing had to be built to lift that:
+/// the level is `baseMipLevel` on the attachment view, and a reflection probe
+/// fills the chain with its own passes rather than asking this API for a
+/// `generateMipmap` it does not have.
 ///
 /// Null for a format this device has no spelling for, which is the same answer
 /// `supportsTextureFormat` already gave.

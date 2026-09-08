@@ -16,27 +16,35 @@
 ///
 /// ## What this backend declines, and why each is a refusal rather than a gap
 ///
-/// Four of the checks are answered "I cannot be asked this", and the device
-/// says so through a capability before the check ever draws:
+/// Two of the checks are answered "I cannot be asked this", and the device says
+/// so through a capability before the check ever draws:
 ///
-///  1. **A cube to render into, and a mip to render into** —
-///     `supportsRenderToMip` is false and `createCubeRenderTarget` answers
-///     null. Nothing in this API makes either hard; a probe needs both, and the
-///     two arrive together or neither is worth having.
-///  2. **A compressed format** — `create` requests none of the three
+///  1. **A compressed format** — `create` requests none of the three
 ///     compression families, so `supportsTextureFormat` answers false for every
 ///     block-compressed layout and a loader leaves such a texture out with a
 ///     reason. Sampling one on a device that did not ask for the feature is a
 ///     validation error, not a slow path.
-///  3. **A blend constant** — `supportsBlendColor` is false because two of the
+///  2. **A blend constant** — `supportsBlendColor` is false because two of the
 ///     four constant-reading `BlendFactor` values have no spelling in WebGPU at
 ///     all. The capability is one answer for all four, so the honest answer
 ///     loses the two it could have had.
 ///
-/// **Cube *textures* are not among them and must not become one.** The sky pass
-/// samples a cube, `supportsCubeTextures` answers true, and two checks here —
-/// the mip chain a cube is handed, and the face a direction points at — are the
-/// ones that say so.
+/// **The list was longer, and the entry that left it is worth remembering.**
+/// Rendering into a cube face and into a level below the base used to sit at the
+/// top of it, and the count of checks never moved when it went: the two mip
+/// checks were *running* all along and declining themselves from inside, on
+/// `supportsRenderToMip`. `checkRenderToCubeFaceAndMip` allocated one level
+/// instead of two and asked only about the face; `checkPassViewportCoversTheLevel`
+/// returned before it drew anything. So a suite reporting thirty-three of
+/// thirty-three was reporting thirty-one questions and two shrugs, and the
+/// device's own capability was what chose which. Both ask the whole question
+/// now, at the same count, which is the shape a refusal has to be read with
+/// care to see.
+///
+/// **Cube *textures* were never among them and must not become one.** The sky
+/// pass samples a cube, `supportsCubeTextures` answers true, and two checks here
+/// — the mip chain a cube is handed, and the face a direction points at — are
+/// the ones that say so.
 @TestOn('browser')
 library;
 

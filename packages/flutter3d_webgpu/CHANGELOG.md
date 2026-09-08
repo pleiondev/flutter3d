@@ -8,19 +8,42 @@ as bytes alike; and `flutter3d_conformance` answers **33 of 33** against a live
 adapter in Chrome — the same list the other three backends are held to, run as an
 ordinary test file rather than as an application somebody watches, because Chrome
 has a WebGPU device inside `flutter test` and that is the one arrangement
-Impeller cannot have. Four of the thirty-three pass by *declining*, and each
+Impeller cannot have. Three of the thirty-three pass by *declining*, and each
 decline is a capability this device says false to by name rather than a method
 that quietly does nothing: **the blend constant** (WebGPU has `"constant"` and
 `"one-minus-constant"` and no colour/alpha split to form `BlendFactor.blendAlpha`
-with), **wireframe** (no polygon fill mode in the API at all), **every
+with), **wireframe** (no polygon fill mode in the API at all), and **every
 block-compressed format** (the device requests no compression family, and
-sampling one it did not request is a validation error rather than a slow path),
-and **rendering into a mip** — the one that costs a feature, since
-`ReflectionProbeNode.supportedOn` wants that and cubes together, so a probe stays
-off rather than half-built. What separates those four from a gap is only that
-they are declared, which this package learned by getting it wrong once:
-`createCubeRenderTarget` returned null while `supportsCubeTextures` said true,
-and the suite failed it instead of declining it.
+sampling one it did not request is a validation error rather than a slow path).
+What separates those three from a gap is only that they are declared, which this
+package learned by getting it wrong once: `createCubeRenderTarget` returned null
+while `supportsCubeTextures` said true, and the suite failed it instead of
+declining it.
+
+**Reflection probes are on, and lifting that refusal took no code at all —
+which is the finding.** `supportsRenderToMip` answered false for one iteration
+and had a reason: `ReflectionProbeNode.supportedOn` asks for a cube to draw six
+views into *and* a chain to convolve them down, and while the cube was null a
+yes here would have handed the renderer a probe and got a crash where a skip
+belonged. The cube arrived, the false stayed, and by then it guarded nothing.
+There was no mip-generation pass to write either: this API has no
+`generateMipmap` and the engine never wants one — `Renderer._prefilterProbe`
+writes each level itself as a full-screen pass whose colour target names a face
+and a level, and on this backend `baseArrayLayer` and `baseMipLevel` on a plain
+2D view are that pair, with the pass's initial viewport taken from the view and
+so already covering the level rather than the texture. What proves it is a
+picture: `probe-car` records here and lands on Impeller's reference at **0 of
+172800 pixels, worst channel 0** — a mirrored ball whose reflection agrees to
+the texel with a backend compiling the same GLSL through a different compiler on
+the same GPU. The set now holds forty-two of the forty-three scenes.
+
+**Two conformance checks stopped shrugging, at the same count.** The suite still
+reports 33 of 33, and two of those thirty-three used to decline themselves from
+the inside on this capability: `checkRenderToCubeFaceAndMip` allocated one level
+instead of two and asked only about the face, and `checkPassViewportCoversTheLevel`
+returned before it drew anything. Both ask the whole question now. A count that
+does not move is exactly how a half-answered check hides, and it is worth saying
+that the number was never the thing to read.
 
 **It is not what a browser build opens, and that is a decision about bytes.**
 `flutter3d_backend` still gives a web build WebGL2 and tries WebGPU first only

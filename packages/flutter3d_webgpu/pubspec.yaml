@@ -51,6 +51,14 @@ dev_dependencies:
   # `flutter3d_shaders` is: nothing in `lib/` reaches it, and two backends that
   # depended on each other at run time would not be two backends.
   flutter3d_webgl: ^0.5.2
+  # For `reflection_probe_test.dart` alone, which drives the real Renderer
+  # through this backend so that a reflection probe is checked as a picture
+  # rather than as a capability. The sibling WebGL2 package reaches for the
+  # engine the same way and for the same reason: `supportsRenderToMip` is a
+  # promise about what a probe does, and only the engine can be asked whether
+  # the promise held. A dev dependency, so nothing a consumer builds picks up
+  # the engine because the backend was installed.
+  flutter3d: ^0.5.0
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0
