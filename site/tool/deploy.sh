@@ -26,7 +26,14 @@ tool/demos.sh
 # dist/ — a dartdoc tree per package is minutes to regenerate and changes only
 # when a public API moves — so `/docs/` is still excluded, anchored: an
 # unanchored `docs/` would also match a page called that.
-rsync -az --delete --exclude '/docs/' dist/ "$host:$target/"
+# `/demo-st` joins `/docs/` in being left alone, and it was found missing
+# rather than reasoned about: nginx serves it — the same demos with cross-origin
+# isolation switched off, an A/B lever for phone browsers that mishandle a
+# multi-threaded skwasm — as a symlink to `demo`, and a symlink no build writes
+# is a symlink `--delete` removes. Every deploy since the lever was added had
+# been quietly taking it away, and the config went on describing a path that
+# answered 404.
+rsync -az --delete --exclude '/docs/' --exclude '/demo-st' dist/ "$host:$target/"
 ssh "$host" "chown -R www-data:www-data $target"
 
 echo "deployed to https://flutter3d.pleion.dev/"
