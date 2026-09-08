@@ -142,24 +142,11 @@ const Map<String, double> _budgets = <String, double>{
   'shadow-map': 0.01,
   'cube-shadow': 0.01,
   'cube-shadow-lit': 0.01,
-  // 1346 of 172800, worst channel 255: four teapots in the same atlas, in two
-  // different orders of rows. This backend drew both orders until the demo
-  // stopped drawing a golden before its model had landed — measured twelve runs
-  // to a row, identically, after it did — and Impeller's reference still holds
-  // the order the unstaged frames latched. Recorded at 0.78 rather than at the
-  // floor so that the line fails on a change and not on a difference that is
-  // already understood and written down.
-  'cube-shadow-many': 0.78,
+  'cube-shadow-many': 0.01,
   'cube-shadow-mover': 0.01,
   'cube-shadow-gap': 0.01,
   'spot-shadow': 0.01,
-  // 5037 of 172800, worst channel 255, and the same cause on the scene built
-  // for contention: eight casters for six rows, so the arrangement decides not
-  // only which row each light holds but which two lights hold none. Staged, the
-  // six rows go to the six nearest the camera; unstaged, to the first six in the
-  // order they were added — which is the ranking this scene exists to disprove,
-  // and what its references have been showing all along.
-  'cube-shadow-crowded': 2.92,
+  'cube-shadow-crowded': 0.01,
   'sky': 0.01,
   'auto-exposure': 0.01,
   'screen-space-reflections': 0.01,
