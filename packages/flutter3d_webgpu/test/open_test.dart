@@ -19,6 +19,8 @@
 library;
 
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
+import 'package:flutter3d_webgpu/engine_shaders.dart';
+import 'package:flutter3d_webgpu/flutter3d_webgpu.dart';
 import 'package:flutter3d_webgpu/flutter3d_webgpu_web.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -71,6 +73,21 @@ void main() {
         device.shaders[fragment],
         isNotNull,
         reason: 'the bundle must answer to $fragment',
+      );
+    }
+
+    // Every stage, and not only the thirteen pairs above. The library compiles
+    // on first use, so asking for a name is what sends its WGSL to the browser
+    // — and the question this test exists to ask is what the browser makes of
+    // all thirty-nine.
+    for (final name in <String>[
+      ...engineShaders.vertex.keys,
+      ...engineShaders.fragment.keys,
+    ]) {
+      expect(
+        device.shaders[name],
+        isNotNull,
+        reason: 'the sidecar holds $name, so the library must answer it',
       );
     }
 
@@ -146,7 +163,16 @@ void main() {
         format: device.defaultDepthStencilFormat,
       ),
     );
-    await webgpu.debugDrainErrors('targets');
+    // Every stage this test pairs, compiled and its verdict drained before the
+    // loop below asks about layouts. The library compiles on first use, so
+    // without this the six stages the test above holds as a known finding would
+    // arrive inside the first pair's drain and be read as a bad bind group
+    // layout — a compile complaint reported against the wrong thing.
+    for (final (String vertex, String fragment) in _pairs) {
+      expect(device.shaders[vertex], isNotNull);
+      expect(device.shaders[fragment], isNotNull);
+    }
+    await webgpu.debugDrainErrors('targets and the stages drawn with them');
 
     for (final (String vertex, String fragment) in _pairs) {
       final pipeline = device.createPipeline(
@@ -167,7 +193,7 @@ void main() {
       // exactly that — the procedural sky takes its parameters through no
       // uniform block — so what is asserted is that the browser accepted the
       // layouts, not that there were any.
-      webgpu.bindingsFor(pipeline.backend as WebGpuPipelineProgram);
+      webgpu.bindingsFor(pipeline.backend as WebGpuPipeline);
       expect(
         await webgpu.debugDrainErrors('$vertex+$fragment'),
         isNull,

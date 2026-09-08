@@ -47,6 +47,8 @@
 /// something it never ran.
 library;
 
+import 'dart:async';
+
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:flutter_test/flutter_test.dart' show markTestSkipped, test;
 
@@ -73,8 +75,21 @@ export 'src/loaded_bundle_checks.dart'
 /// Builds a device to test. Called fresh for each check, because a backend that
 /// leaves state behind should fail on its own account rather than on the
 /// previous test's.
+///
+/// **The return is a `FutureOr` because the fourth backend's device cannot be
+/// built by a constructor.** `navigator.gpu.requestAdapter()` and
+/// `adapter.requestDevice()` are both promises, so WebGPU is opened with an
+/// `await` where Impeller, WebGL2 and the software rasteriser are opened with a
+/// call. Nothing in `flutter3d_hardware` says how a device is made — the
+/// contract starts once one exists — so the widening costs the three backends
+/// that were here first exactly nothing: a factory that returns a device is
+/// still a factory that returns a `FutureOr` of one, and none of their call
+/// sites changed.
 typedef DeviceFactory =
-    GraphicsDevice Function({required int width, required int height});
+    FutureOr<GraphicsDevice> Function({
+      required int width,
+      required int height,
+    });
 
 /// Raised by a check the backend did not satisfy.
 final class ConformanceFailure implements Exception {
@@ -156,7 +171,7 @@ void runDeviceConformance({
       : conformanceChecksWith(ownShaders);
   for (final check in checks) {
     test('$backend: ${check.name}', () async {
-      final device = makeDevice(width: 64, height: 64);
+      final device = await makeDevice(width: 64, height: 64);
       try {
         await check.run(device);
       } on ConformanceDeclined catch (declined) {

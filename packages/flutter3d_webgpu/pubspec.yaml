@@ -33,6 +33,11 @@ dependencies:
   vector_math: ^2.2.0
 
 dev_dependencies:
+  # The behaviour flutter3d_hardware requires, as tests this backend runs
+  # against itself — in Chrome, against a live device. See
+  # flutter3d_conformance, and `test/conformance_test.dart` for what this
+  # backend declines and why.
+  flutter3d_conformance: ^0.5.1
   # For `resolveIncludes` in `glsl_translate.dart`, and for nothing else. The
   # WebGL2 backend already answers "which headers does this shader really pull
   # in", and a second answer to that question is how two backends drift apart in

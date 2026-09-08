@@ -53,12 +53,19 @@ void main() {
       markTestSkipped('no WebGPU in this browser');
       return;
     }
-    // Three arena buffers, the zeroed block behind an unbound uniform, and the
-    // four modules `quad_stages.dart` holds. Not zero, unlike the WebGL2
-    // backend's count of the same name, and the difference is a fact about the
-    // two APIs: this one allocates before it is asked for anything. What
-    // matters is that the number is stated rather than discovered.
-    expect(device.debugTrackedResourceCount, 8);
+    // Three arena buffers and the zeroed block behind an unbound uniform. Not
+    // zero, unlike the WebGL2 backend's count of the same name, and the
+    // difference is a fact about the two APIs: this one allocates before it is
+    // asked for anything. No modules yet — the shader library compiles a stage
+    // when a name is first asked for, and nothing has asked. What matters is
+    // that the number is stated rather than discovered.
+    expect(device.debugTrackedResourceCount, 4);
+    expect(device.shaders['QuadVertex'], isNotNull);
+    expect(
+      device.debugTrackedResourceCount,
+      5,
+      reason: 'asking for a stage is what compiles it',
+    );
     expect(await device.debugDrainErrors('opening'), isNull);
     device.dispose();
   });

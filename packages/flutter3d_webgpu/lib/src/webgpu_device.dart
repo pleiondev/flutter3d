@@ -6,12 +6,23 @@
 /// `webgpu_encoder.dart`, and the second largest is the buffer lifetime scheme
 /// at the top of `webgpu_resources.dart`.
 ///
-/// Split by cohesive concern, the way `webgl_device.dart` is: [WebGpuTexture],
-/// [WebGpuGeometry], [WebGpuStageProgram] and [WebGpuPipelineProgram] are the
-/// value types a handle carries (`webgpu_types.dart`); allocation and teardown
-/// are `webgpu_resources.dart`; [WebGpuPipelineSignature] and the map behind it
-/// are `webgpu_pipeline_cache.dart`; [WebGpuEncoder] — one pass, accumulated
-/// and resolved at the draw — is `webgpu_encoder.dart`.
+/// Split by cohesive concern, the way `webgl_device.dart` is: [WebGpuTexture]
+/// and [WebGpuGeometry] are the value types a handle carries
+/// (`webgpu_types.dart`); [WebGpuShader], [WebGpuPipeline] and the libraries
+/// over them are `webgpu_shaders.dart` and `webgpu_loaded_shaders.dart`;
+/// allocation and teardown are `webgpu_resources.dart`;
+/// [WebGpuPipelineSignature] and the map behind it are
+/// `webgpu_pipeline_cache.dart`; [WebGpuEncoder] — one pass, accumulated and
+/// resolved at the draw — is `webgpu_encoder.dart`.
+///
+/// **This device is itself the shader libraries' compiler.** They are written
+/// without a browser binding so that name resolution, the vertex layout
+/// arithmetic and every refusal can be asserted on the VM; the one thing they
+/// cannot do without a device is turn WGSL into a module, and they reach it
+/// through [WgslModuleCompiler], which this class implements over
+/// `GPUDevice.createShaderModule`. Both libraries — the engine's own stages and
+/// one loaded from a bundle — are handed this same seam, which is why
+/// [loadShaders] is four lines.
 ///
 /// **A few lines of DOM binding live here rather than in
 /// `webgpu_interop.dart`.** This package depends on neither `package:web` nor
@@ -34,8 +45,10 @@ import 'webgpu_bundle_section.dart';
 import 'webgpu_encoder.dart';
 import 'webgpu_formats.dart';
 import 'webgpu_interop.dart';
+import 'webgpu_loaded_shaders.dart';
 import 'webgpu_pipeline_cache.dart';
 import 'webgpu_resources.dart';
+import 'webgpu_shaders.dart';
 import 'webgpu_types.dart';
 
 @JS('document')
@@ -77,58 +90,6 @@ final class _CanvasSlot {
   JSObject? element;
 }
 
-/// The engine's own stages, compiled into modules.
-///
-/// **Private, and deliberately the smallest thing that answers a name.** The
-/// bundle-loading half of this backend — `loadShaders`, the reload promise, the
-/// refusals a malformed section earns — is `webgpu_loaded_shaders.dart`, which
-/// is written beside this file rather than in it. What a device needs before
-/// that exists is a table of the stages `engine_shaders.dart` already holds,
-/// turned into `GPUShaderModule`s once.
-final class _EngineStages implements ShaderLibrary {
-  _EngineStages(GPUDevice gpu, WebGpuSectionStages stages)
-    : _stages = <String, ShaderHandle>{
-        for (final entry in stages.vertex.entries)
-          entry.key: _compile(gpu, entry.key, entry.value),
-        for (final entry in stages.fragment.entries)
-          entry.key: _compile(gpu, entry.key, entry.value),
-      };
-
-  /// Every stage in this package's WGSL is called `main`, because that is what
-  /// glslang wrote and naga kept: one module per stage, one entry point in it.
-  static const String _entryPoint = 'main';
-
-  static ShaderHandle _compile(GPUDevice gpu, String name, WebGpuStage stage) =>
-      ShaderHandle(
-        backend: WebGpuStageProgram(
-          module: gpu.createShaderModule(
-            GPUShaderModuleDescriptor(code: stage.wgsl, label: name),
-          ),
-          entryPoint: _entryPoint,
-          reflection: stage,
-        ),
-        name: name,
-      );
-
-  final Map<String, ShaderHandle> _stages;
-
-  /// How many modules this library made, for the device's resource count.
-  int get length => _stages.length;
-
-  /// Every stage, for whoever is asking the browser what it thought of the
-  /// WGSL — see `WebGpuDevice._watchCompilation`.
-  Iterable<ShaderHandle> get stages => _stages.values;
-
-  /// Drops the table. A `GPUShaderModule` has no `destroy` of its own and dies
-  /// with the device that compiled it, so this is only about the handles: a
-  /// caller still holding one after `dispose` is holding a stage of a device
-  /// that is gone.
-  void forget() => _stages.clear();
-
-  @override
-  ShaderHandle? operator [](String name) => _stages[name];
-}
-
 /// A bind group by what is in it, so two draws binding the same things get the
 /// same group.
 ///
@@ -162,15 +123,11 @@ final class _BindGroupKey {
   );
 }
 
-/// WebGPU as a [GraphicsDevice].
-final class WebGpuDevice implements GraphicsDevice {
-  WebGpuDevice._(
-    this.gpuDevice,
-    this._canvas,
-    this._context,
-    WebGpuSectionStages stages,
-  ) : _library = _EngineStages(gpuDevice, stages),
-      _slot = _CanvasSlot(_canvas),
+/// WebGPU as a [GraphicsDevice], and as the compiler its shader libraries reach
+/// a browser through.
+final class WebGpuDevice implements GraphicsDevice, WgslModuleCompiler {
+  WebGpuDevice._(this.gpuDevice, this._canvas, this._context, this._stages)
+    : _slot = _CanvasSlot(_canvas),
       uniformArena = WebGpuFrameArena(
         gpuDevice,
         usage: GpuBufferUsage.uniform,
@@ -207,37 +164,44 @@ final class WebGpuDevice implements GraphicsDevice {
         label: 'flutter3d unbound block',
       ),
     );
-    for (final stage in _library.stages) {
-      _watchCompilation(stage);
-    }
   }
 
-  /// Asks the browser what it thought of one stage's WGSL, and records any
-  /// error into [debugDrainErrors].
+  /// Turns [wgsl] into a `GPUShaderModule`, and asks the browser what it
+  /// thought of it.
   ///
-  /// **A module compiles whether or not the code was valid**, the same way a
-  /// pipeline is created whether or not the descriptor was — and the two
-  /// failures do not look alike from Dart. A bad shader is not an error scope's
-  /// business at all: `createShaderModule` succeeds, and the complaint arrives
-  /// at the first pipeline built from it as `[Invalid ShaderModule "X"] is
-  /// invalid due to a previous error`, which names neither the line nor what
-  /// was wrong with it. The line and the column are here and nowhere else, and
-  /// the WGSL a translator produced is WGSL nobody typed.
-  void _watchCompilation(ShaderHandle stage) {
-    final program = stage.backend as WebGpuStageProgram;
+  /// **Nothing is thrown for text that does not compile, and nothing can be.**
+  /// A module is created whether or not the code was valid, the same way a
+  /// pipeline is created whether or not the descriptor was — and a bad shader
+  /// is not an error scope's business at all: `createShaderModule` succeeds,
+  /// and the complaint arrives at the first pipeline built from it as
+  /// `[Invalid ShaderModule "X"] is invalid due to a previous error`, naming
+  /// neither the line nor what was wrong with it. `getCompilationInfo` has the
+  /// line and the column and is a promise, so the verdict cannot reach a caller
+  /// standing here. It reaches [debugDrainErrors] instead, which is where a
+  /// test — and `open_test.dart`, which is the only thing in this repository
+  /// that has ever asked a browser what it makes of the generated WGSL — goes
+  /// looking. The WGSL a translator produced is WGSL nobody typed.
+  ///
+  /// Every module this backend ever compiles goes through here, the engine's
+  /// stages and a loaded bundle's alike, so a stage that arrives broken at half
+  /// past a reload is reported in the same words as one that shipped broken.
+  @override
+  Object compileModule(String name, String wgsl) {
+    final module = gpuDevice.createShaderModule(
+      GPUShaderModuleDescriptor(code: wgsl, label: name),
+    );
     _pending.add(
-      program.module.getCompilationInfo().toDart.then((
-        GPUCompilationInfo info,
-      ) {
+      module.getCompilationInfo().toDart.then((GPUCompilationInfo info) {
         for (final message in info.messages.toDart) {
           if (message.type != 'error') continue;
           _errors.add(
-            'the WGSL of "${stage.name}" at line ${message.lineNum}, '
+            'the WGSL of "$name" at line ${message.lineNum}, '
             'column ${message.linePos}: ${message.message}',
           );
         }
       }),
     );
+    return module;
   }
 
   /// Opens a device over a canvas of [width] by [height], or answers null where
@@ -324,8 +288,18 @@ final class WebGpuDevice implements GraphicsDevice {
 
   final _Canvas _canvas;
   final GPUCanvasContext _context;
-  final _EngineStages _library;
   final _CanvasSlot _slot;
+
+  final WebGpuSectionStages _stages;
+
+  /// The engine's own stages, compiled on first use.
+  ///
+  /// **Lazy, where the first version of this file compiled all thirty-nine at
+  /// `create`.** A scene binds a handful of them, and compiling the rest is a
+  /// pause the frame pays for shaders it never draws with. `late final` rather
+  /// than an initialiser because the library is handed `this` as its compiler,
+  /// and `this` does not exist yet in an initialiser list.
+  late final WebGpuShaderLibrary _library = WebGpuShaderLibrary(this, _stages);
 
   /// Where a uniform block written this frame lands. See
   /// `webgpu_resources.dart` for why one arena reset per frame is safe.
@@ -422,7 +396,7 @@ final class WebGpuDevice implements GraphicsDevice {
   /// layouts come out of the two stages' reflection and nothing else: two
   /// pipelines over one pair with different vertex layouts are two pipelines
   /// and one set of bind group layouts.
-  WebGpuBindingLayouts bindingsFor(WebGpuPipelineProgram pipeline) =>
+  WebGpuBindingLayouts bindingsFor(WebGpuPipeline pipeline) =>
       _bindingLayouts[pipeline.name] ??= guard(
         'the bind group layouts of ${pipeline.name}',
         () => WebGpuBindingLayouts.of(gpuDevice, pipeline),
@@ -480,7 +454,8 @@ final class WebGpuDevice implements GraphicsDevice {
     final shape = layouts.shapes[group];
     final resources = <Object>[];
     final entries = <GPUBindGroupEntry>[];
-    for (final block in shape.blocks) {
+    for (final bound in shape.blocks) {
+      final block = bound.block;
       final buffer = blocks?[block.binding]?.buffer ?? _zeroBlock;
       resources.add(buffer);
       entries.add(
@@ -497,7 +472,8 @@ final class WebGpuDevice implements GraphicsDevice {
         ),
       );
     }
-    for (final sampler in shape.samplers) {
+    for (final bound in shape.samplers) {
+      final sampler = bound.sampler;
       final view =
           views?[sampler.textureBinding] ?? _blankView(sampler.dimension);
       final object =
@@ -608,7 +584,7 @@ final class WebGpuDevice implements GraphicsDevice {
       vertexArena.bufferCount +
       indexArena.bufferCount +
       (_disposed ? 0 : 1) +
-      _library.length +
+      _library.debugTrackedModuleCount +
       _bindingLayouts.length +
       _samplers.length +
       _bindGroups.length +
@@ -744,22 +720,36 @@ final class WebGpuDevice implements GraphicsDevice {
     ),
   );
 
-  /// Null, which is what [supportsRenderToMip] answering false already
-  /// promised: a probe asks both and gets no probe at all, which is a scene
-  /// whose materials go on reading the environment rather than a frame with
-  /// something wrong in it.
+  /// A cube a pass may aim at one face of.
   ///
-  /// Nothing about this API makes it hard — six array layers and a view per
-  /// face — and the reason it is null is that a cube a probe can draw into is
-  /// only useful beside a chain it can filter into, which is
-  /// [supportsRenderToMip]'s half. The two arrive together or neither is worth
-  /// having.
+  /// **This used to be null, and the conformance suite is what said it could
+  /// not stay null.** The argument for the null was that a cube a probe can
+  /// draw into is only useful beside a chain it can filter into, so the two
+  /// should arrive together — but [supportsCubeTextures] answering true is a
+  /// promise about more than sampling: the suite reads it as "a pass can name a
+  /// face of a cube", clears three of them and reads them back, and a backend
+  /// that answered true and then handed back no cube failed that check rather
+  /// than declining it. It was a gap wearing a refusal's clothes.
+  ///
+  /// [supportsRenderToMip] stays false and stays a real refusal, which is what
+  /// keeps `ReflectionProbeNode.supportedOn` — it asks for both — from turning
+  /// a probe on over half an implementation. Six array layers and a view per
+  /// face is `webgpu_resources.dart`'s whole answer.
   @override
   TextureHandle? createCubeRenderTarget({
     required int size,
     required TextureFormat format,
     int mipLevels = 1,
-  }) => null;
+  }) => guard(
+    'a ${size}x$size ${format.name} cube target',
+    () => webgpuCreateCubeRenderTarget(
+      gpuDevice,
+      _textures,
+      size: size,
+      format: format,
+      mipLevels: mipLevels,
+    ),
+  );
 
   @override
   GeometryBuffer uploadGeometry(ByteData bytes, GeometryUsage usage) => guard(
@@ -767,45 +757,46 @@ final class WebGpuDevice implements GraphicsDevice {
     () => webgpuUploadGeometry(gpuDevice, _buffers, bytes, usage),
   );
 
-  /// Records the stage pair and its layout. Nothing is built: see
-  /// [WebGpuPipelineProgram], and `webgpu_encoder.dart` for what a draw does
-  /// with it.
+  /// Records the stage pair, its layout and the reflection a bind group will
+  /// need. Nothing is built: see [WebGpuPipeline], and `webgpu_encoder.dart`
+  /// for what a draw does with it.
   ///
   /// The contract calls this expensive and tells callers to cache. Here it is
   /// nearly free and the expense moves to the first draw of each distinct
   /// state — which is not a contract change, but it does make the advice
   /// describe the other end of the frame.
+  ///
+  /// **The two stages' modules are captured, not looked up again.** That is
+  /// what keeps [loadShaders]'s reload promise: a bundle refreshed under a
+  /// renderer replaces the code behind a `ShaderHandle`, and a pipeline built
+  /// before the refresh goes on drawing the code it was built from until
+  /// `Renderer.relinkShaders` builds another. A frame in between is the old
+  /// picture rather than a missing one.
   @override
   PipelineHandle createPipeline(
     ShaderHandle vertex,
     ShaderHandle fragment, {
     VertexLayoutSpec? layout,
-  }) {
-    final name = '${vertex.name}+${fragment.name}';
-    return PipelineHandle(
-      backend: WebGpuPipelineProgram(
-        name: name,
-        vertex: vertex.backend as WebGpuStageProgram,
-        fragment: fragment.backend as WebGpuStageProgram,
-        layout: layout,
-      ),
-      name: name,
-    );
-  }
+  }) => createWebGpuPipeline(vertex, fragment, layout: layout);
 
-  /// **Not written here.** Loading a bundle is `webgpu_loaded_shaders.dart`,
-  /// which is the other half of this wave: the section decoder already exists,
-  /// and what a loaded library adds is the reload promise — a handle already
-  /// handed out keeps its identity and keeps working — which is a design about
-  /// mutation and belongs in one file with its own tests.
+  /// The bundle's own WGSL, compiled by this device, as a library that can be
+  /// reloaded.
+  ///
+  /// **Four lines, because the two halves meet at [compileModule].** The
+  /// section codec is `webgpu_bundle_section.dart`, the refusals and the reload
+  /// are `webgpu_loaded_shaders.dart`, and what this device contributes is the
+  /// one thing neither can do without a browser: turning text into a module.
+  /// The library is built synchronously and the future is the signature's, not
+  /// a promise of work — nothing here waits on the GPU, and a browser's opinion
+  /// of the WGSL arrives at [debugDrainErrors] the way [compileModule]
+  /// describes.
+  ///
+  /// Refuses by name — [ShaderBundleRefused] — for a bundle with no section for
+  /// this backend, a section that is not the document the codec reads, and one
+  /// written to a version of that document this build does not know.
   @override
   Future<LoadedShaderLibrary> loadShaders(ByteData bytes) async =>
-      throw UnimplementedError(
-        'this device answers the engine\'s own stage names and cannot yet load '
-        'a bundle handed to it as bytes. The WebGPU section codec is '
-        'webgpu_bundle_section.dart and the library over it is '
-        'webgpu_loaded_shaders.dart',
-      );
+      WebGpuLoadedShaderLibrary.load(this, bytes);
 
   @override
   void releaseTexture(TextureHandle texture) {

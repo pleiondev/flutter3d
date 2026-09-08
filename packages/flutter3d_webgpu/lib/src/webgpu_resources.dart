@@ -430,6 +430,65 @@ TextureHandle? webgpuCreateCubeTextureFromPixels(
   );
 }
 
+/// An empty cube a pass may draw into, one face and one level at a time. See
+/// `GraphicsDevice.createCubeRenderTarget`.
+///
+/// **Six array layers and `RENDER_ATTACHMENT`, and that is the whole of it.**
+/// Where WebGL2 needs a face target constant in `framebufferTexture2D` and
+/// Impeller needs a slice on the attachment, here a face is `baseArrayLayer`
+/// and a level is `baseMipLevel` on an ordinary 2D view —
+/// `WebGpuTexture.attachmentView` already makes exactly that pair, because a
+/// cube face and a mip level are the same mechanism in this API.
+///
+/// **A cube that can be drawn into and no promise about drawing into a level
+/// below its base**, which is the one asymmetry worth stating: this device
+/// answers false to `supportsRenderToMip`, so a caller asking for a chain gets
+/// the levels allocated and the engine's probe — which needs both answers —
+/// stays switched off. What the levels are for meanwhile is a caller that fills
+/// them by upload rather than by rendering, and the conformance check that
+/// clears one face and reads it back through a sampler.
+///
+/// Null for a format this device has no spelling for, which is the same answer
+/// `supportsTextureFormat` already gave.
+TextureHandle? webgpuCreateCubeRenderTarget(
+  GPUDevice gpu,
+  List<WebGpuTexture> tracked, {
+  required int size,
+  required TextureFormat format,
+  int mipLevels = 1,
+}) {
+  final spelling = gpuTextureFormat(format);
+  if (spelling == null) return null;
+  final texture = gpu.createTexture(
+    GPUTextureDescriptor(
+      size: GPUExtent3DDict(width: size, height: size, depthOrArrayLayers: 6),
+      format: spelling,
+      usage:
+          GpuTextureUsage.renderAttachment |
+          GpuTextureUsage.textureBinding |
+          GpuTextureUsage.copyDst |
+          GpuTextureUsage.copySrc,
+      sampleCount: 1,
+      mipLevelCount: mipLevels,
+      dimension: '2d',
+      label: 'cube target ${size}x$size $spelling',
+    ),
+  );
+  final backend = WebGpuTexture(
+    texture: texture,
+    dimension: WebGpuTextureDimension.cube,
+    sampleable: true,
+  );
+  tracked.add(backend);
+  return TextureHandle(
+    backend: backend,
+    width: size,
+    height: size,
+    format: format,
+    type: TextureType.textureCube,
+  );
+}
+
 void _writeLevel(
   GPUDevice gpu,
   GPUTexture texture,

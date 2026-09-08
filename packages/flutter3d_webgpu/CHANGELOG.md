@@ -1,5 +1,37 @@
 ## 0.5.2
 
+* **The device and the shader library are one backend now.** Both halves of the
+  same wave were written in parallel: the device declared a private class for
+  the engine's stages, the library declared a one-method compiler interface,
+  and neither knew the other. The private class is gone. The device *is* the
+  compiler — `WgslModuleCompiler` over `GPUDevice.createShaderModule` — and the
+  engine's stages and a bundle loaded from bytes go through the same library,
+  the same pipeline record and the same refusals. `WebGpuStageProgram` and
+  `WebGpuPipelineProgram` are gone with it; what a handle carries is
+  `WebGpuShader` and `WebGpuPipeline`, in a file that imports no browser
+  binding, so the vertex layout arithmetic and every refusal are asserted on
+  the VM in a second.
+* **`loadShaders` loads.** It reads the bundle's fourth section, refuses by name
+  where there is no section for this backend, where the section is not the
+  document the codec reads, and where it says it is a shape this build does not
+  know. A reload compiles every stage in use before it swaps any of them, so a
+  bundle that dropped a stage still in use leaves the library drawing what it
+  drew; a `ShaderHandle` already handed out keeps its identity, and a pipeline
+  built before the reload keeps its own two modules until the renderer relinks.
+* **The engine's thirty-nine stages compile when a name is asked for**, not when
+  a device opens. A scene binds a handful of them, and the rest were a pause the
+  frame paid for shaders it never drew with.
+* **`createCubeRenderTarget` makes a cube.** It answered null on the grounds
+  that a cube a probe can draw into is only useful beside a chain it can filter
+  into — and the conformance suite disagreed, because `supportsCubeTextures`
+  answering true is read as a promise that a pass can name a face. That was a
+  gap wearing a refusal's clothes. `supportsRenderToMip` stays false and stays a
+  real refusal, which is what keeps a reflection probe switched off rather than
+  half-implemented.
+* **The conformance suite runs against a live device, in Chrome.** Thirty-three
+  checks, thirty-three passed: the same list the other three backends are held
+  to, run the way the WebGL2 backend runs it — as a test rather than as an
+  application, because Chrome has a real WebGPU device inside `flutter test`.
 * **A device, an encoder and a frame that comes back as pixels.** `openWebGpu`
   asks for an adapter and then a device, answers null where a browser has
   neither, and turns that null into the one `StateError` worth putting on a

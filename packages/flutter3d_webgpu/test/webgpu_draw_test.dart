@@ -640,10 +640,14 @@ void main() {
       scene.device.dispose();
     });
 
-    test('a cube to render into, and a mip level to draw into', () async {
-      // Both answer no in this iteration so that a reflection probe is skipped
-      // rather than crashed. The cube *texture* is a different question, and
-      // the sky pass needs it.
+    test('a mip level to draw into, but not a cube to draw into', () async {
+      // The mip answers no in this iteration so that a reflection probe is
+      // skipped rather than crashed — `ReflectionProbeNode.supportedOn` asks
+      // for cube textures *and* render-to-mip, so one no is enough. The cube
+      // render target used to answer no beside it and no longer does: the
+      // conformance suite reads `supportsCubeTextures` as a promise that a pass
+      // can name a face, and a backend that answered true and handed back no
+      // cube failed that check rather than declining it.
       final scene = await _scene();
       if (scene == null) return;
       expect(scene.device.supportsCubeTextures, isTrue);
@@ -653,13 +657,14 @@ void main() {
           size: 4,
           format: TextureFormat.r16g16b16a16Float,
         ),
-        isNull,
+        isNotNull,
       );
       expect(
         scene.device.supportsTextureFormat(TextureFormat.bc7RGBAUNormInt),
         isFalse,
         reason: 'this device requests none of the compression features',
       );
+      expect(await scene.device.debugDrainErrors('a cube target'), isNull);
       scene.device.dispose();
     });
   });

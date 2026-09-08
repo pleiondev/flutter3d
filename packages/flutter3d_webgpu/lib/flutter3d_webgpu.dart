@@ -26,6 +26,12 @@
 /// where it can be wrong out loud — in `CHANGELOG.md`, and in the tests.
 library;
 
+/// The WGSL sources and the reflection a bundle carries for this backend, as
+/// one document a packer writes and a device reads. Exported because a device
+/// is opened over it — `WebGpuDevice.create` takes the stages — and because a
+/// tool that packs a bundle for this backend needs the encoder.
+export 'src/webgpu_bundle_section.dart';
+
 /// The translation between the contract's vocabulary and WebGPU's own
 /// enumeration strings. Pure Dart: nothing in it reaches for `dart:js_interop`
 /// or `package:web`, so every answer is asserted on the VM rather than only in
@@ -45,3 +51,9 @@ export 'src/webgpu_formats.dart';
 /// states are one pipeline and which are two is a question about this file
 /// rather than about a browser.
 export 'src/webgpu_pipeline_cache.dart';
+
+/// A compiled stage, a pipeline over a pair of them, and the library that
+/// resolves a name into the first. Everything but turning text into a module,
+/// which is the device's through `WgslModuleCompiler` — so the vertex layout
+/// arithmetic and the refusals load and are asserted on the VM.
+export 'src/webgpu_shaders.dart';

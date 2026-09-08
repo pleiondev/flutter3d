@@ -57,6 +57,7 @@ import 'webgpu_formats.dart';
 import 'webgpu_interop.dart';
 import 'webgpu_pipeline_cache.dart';
 import 'webgpu_resources.dart';
+import 'webgpu_shaders.dart';
 import 'webgpu_types.dart';
 
 /// One pass, recorded and submitted.
@@ -179,7 +180,7 @@ final class WebGpuEncoder implements CommandEncoder {
 
   // The accumulated state. Mutable because it is state: every setter writes one
   // of these and the draw reads all of them.
-  WebGpuPipelineProgram? _pipeline;
+  WebGpuPipeline? _pipeline;
   PrimitiveType _primitive = PrimitiveType.triangle;
   CullMode _cull = CullMode.none;
   WindingOrder _winding = WindingOrder.counterClockwise;
@@ -330,7 +331,7 @@ final class WebGpuEncoder implements CommandEncoder {
 
   @override
   void bindPipeline(PipelineHandle pipeline) {
-    _pipeline = pipeline.backend as WebGpuPipelineProgram;
+    _pipeline = pipeline.backend as WebGpuPipeline;
     // Bindings do not survive a pipeline change — the contract states it, and
     // this honours it literally rather than by accident.
     _forgetBindings();
@@ -392,7 +393,7 @@ final class WebGpuEncoder implements CommandEncoder {
     String blockName,
     Map<String, Float32List> members,
   ) {
-    final stage = shader.backend as WebGpuStageProgram;
+    final stage = shader.backend as WebGpuShader;
     final block = stage.blockNamed(blockName);
     if (block == null) return false;
 
@@ -457,7 +458,7 @@ final class WebGpuEncoder implements CommandEncoder {
     TextureHandle texture, {
     SamplerOptions? sampler,
   }) {
-    final stage = shader.backend as WebGpuStageProgram;
+    final stage = shader.backend as WebGpuShader;
     final declared = stage.samplerNamed(slot);
     if (declared == null) return;
 
@@ -524,8 +525,8 @@ final class WebGpuEncoder implements CommandEncoder {
           _samplers[group],
         ),
         <JSNumber>[
-          for (final block in shape.blocks)
-            (_blocks[group]?[block.binding]?.offset ?? 0).toJS,
+          for (final bound in shape.blocks)
+            (_blocks[group]?[bound.block.binding]?.offset ?? 0).toJS,
         ].toJS,
       );
     }
@@ -555,7 +556,7 @@ final class WebGpuEncoder implements CommandEncoder {
   /// counting what the browser built, and a test that could only count would
   /// pass on a backend that had stopped honouring the key and happened to build
   /// two anyway.
-  WebGpuPipelineSignature signatureFor(WebGpuPipelineProgram pipeline) {
+  WebGpuPipelineSignature signatureFor(WebGpuPipeline pipeline) {
     final strip =
         _primitive == PrimitiveType.triangleStrip ||
         _primitive == PrimitiveType.lineStrip;
@@ -577,7 +578,7 @@ final class WebGpuEncoder implements CommandEncoder {
   }
 
   GPURenderPipeline _realPipeline(
-    WebGpuPipelineProgram pipeline,
+    WebGpuPipeline pipeline,
     WebGpuBindingLayouts layouts,
   ) {
     final signature = signatureFor(pipeline);
@@ -591,15 +592,21 @@ final class WebGpuEncoder implements CommandEncoder {
   }
 
   GPURenderPipeline _buildPipeline(
-    WebGpuPipelineProgram pipeline,
+    WebGpuPipeline pipeline,
     WebGpuBindingLayouts layouts,
     WebGpuPipelineSignature signature,
   ) {
     final vertex = GPUVertexState(
-      module: pipeline.vertex.module,
-      entryPoint: pipeline.vertex.entryPoint,
+      // The cast is where a module stops being the `Object` a shader library
+      // hands out and becomes this browser's own. That library compiles through
+      // `WgslModuleCompiler` so its arithmetic can be asserted on the VM, and
+      // this is the one line that pays for it — on a handle the device itself
+      // compiled, which is what `createWebGpuPipeline` already refused to take
+      // on trust.
+      module: pipeline.vertexModule as GPUShaderModule,
+      entryPoint: webgpuEntryPoint,
       buffers: <GPUVertexBufferLayout>[
-        for (final buffer in pipeline.layout.buffers)
+        for (final buffer in pipeline.buffers)
           GPUVertexBufferLayout(
             arrayStride: buffer.strideInBytes,
             stepMode: gpuVertexStepMode(buffer.stepMode),
@@ -608,15 +615,19 @@ final class WebGpuEncoder implements CommandEncoder {
                 GPUVertexAttribute(
                   format: gpuVertexFormat(attribute.format),
                   offset: attribute.offsetInBytes,
-                  shaderLocation: pipeline.locationOf(attribute.name),
+                  // Already resolved against the vertex stage's own table when
+                  // the pipeline was made: a layout names attributes and WGSL
+                  // kept only locations, and the bundle's reflection is what
+                  // matches the two.
+                  shaderLocation: attribute.shaderLocation,
                 ),
             ].toJS,
           ),
       ].toJS,
     );
     final fragment = GPUFragmentState(
-      module: pipeline.fragment.module,
-      entryPoint: pipeline.fragment.entryPoint,
+      module: pipeline.fragmentModule as GPUShaderModule,
+      entryPoint: webgpuEntryPoint,
       targets: <GPUColorTargetState>[
         for (var i = 0; i < _colorFormats.length; i++)
           if (_blends[i] case final BlendState blend)
