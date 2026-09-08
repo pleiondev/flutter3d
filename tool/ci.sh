@@ -20,10 +20,12 @@
 #     one — packages/flutter3d_webgl/tool/profile_web.py, with its numbers in
 #     its own header — and it is not run here: it builds a demo and drives a
 #     browser, which is minutes, and nothing it measures fails a build yet.
-#   * The Android and iOS builds. Both are configured and neither is compiled
-#     here: a toolchain and an SDK image apiece, for platforms nothing has yet
-#     been played on. The web build below is compiled, because that is a
-#     platform the demos are published to.
+#   * The Android and iOS builds. They are compiled, but not by this script:
+#     .github/workflows/ci.yml has a job apiece, because one wants an Android
+#     toolchain and the other only builds on macOS, and a script that asked a
+#     Linux developer for both would be a script that fails for everybody. The
+#     web build below is here rather than there for the opposite reason —
+#     anything that runs `flutter` can do it.
 set -uo pipefail
 cd "$(dirname "$0")/.."
 

@@ -7,13 +7,13 @@
 that used to do this regenerated the icons in place and asked `git diff` whether
 anything moved. Two things were wrong with it.
 
-The first is that it compared three files out of forty-three. Two of its three
-pathspecs named directories with a `*` in them — `apps/*/macos/Runner/Assets.xcassets`
-and `apps/*/web/icons` — and a `*` in a git pathspec does not cross a `/`, so
-those patterns matched the directory's own path and nothing inside it. Only
-`apps/*/web/favicon.png`, which has one `*` spanning one segment, ever matched.
-It went unnoticed because the step could not run at all: Pillow was not on the
-runner, so it failed before reaching the diff.
+The first is that it compared three files out of the forty-three there were
+then. Two of its three pathspecs named directories with a `*` in them —
+`apps/*/macos/Runner/Assets.xcassets` and `apps/*/web/icons` — and a `*` in a git
+pathspec does not cross a `/`, so those patterns matched the directory's own path
+and nothing inside it. Only `apps/*/web/favicon.png`, which has one `*` spanning
+one segment, ever matched. It went unnoticed because the step could not run at
+all: Pillow was not on the runner, so it failed before reaching the diff.
 
 The second is that byte equality is not available across operating systems.
 Pillow's LANCZOS is compiled per platform, and the same drawing reduced to the
@@ -26,6 +26,16 @@ So this compares images: every pixel of every icon must be within
 well inside and a changed design does not. The failure names the file, the worst
 channel and how many pixels were over, because "the icons differ" is not
 something anybody can act on.
+
+**What it cannot say, stated so the gap is not mistaken for coverage: that two
+applications look different.** It walks what the generator drew and asks whether
+each file is committed as drawn; an application the generator does not know
+about is not walked, so it is not checked. The strategy demo shipped that way for
+its whole life — no entry in `DESIGNS`, four platforms of `flutter create`'s
+default icon, and this check green the entire time, because there was nothing
+drawn for it to disagree with. `make_icons.py` keying `DESIGNS` on the directory
+name is the guard on one half of that; the other half is that a new application
+needs a design the day it is created, and nothing here will remind anyone.
 """
 
 import os

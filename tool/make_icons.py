@@ -9,13 +9,16 @@ next to it — the levels, the tracks, the models' preparation — for the reaso
 this file exists too: an icon that can only be edited in an image editor by the
 person who has that image editor is an icon nobody will ever fix.
 
-Four designs, one per application, each made of the thing the application is
+Five designs, one per application, each made of the thing the application is
 about and nothing else:
 
   * **Ascent** climbs: steps rising into a cold morning sky.
   * **The Crypt** is a lit doorway in the dark, which is the whole of that game:
     somewhere to go, and a torch to see it by.
   * **Ring** is a circuit seen from above, with the line you cross.
+  * **Hillside** is a crowd on sloping ground with a box dragged round part of
+    it — a camera above a map and an order given to a selection, which is what
+    makes the fourth genre a different shape from the three before it.
   * **editor** is a wireframe box on a grid, in the green the editor draws a
     selection in — the one thing on its screen that is the editor rather than
     somebody's level.
@@ -23,9 +26,17 @@ about and nothing else:
 Written at four times the largest size and reduced, because a rounded corner and
 a diagonal drawn at 16 pixels by a program are a staircase, and drawn at 4096 and
 reduced they are a corner and a diagonal.
+
+**Four platforms, and two of them want the drawing without the tile.** macOS and
+the web get a rounded square with a margin and a shadow, because that is how an
+icon sits in a dock and beside a bookmark. Android and iOS mask the icon
+themselves — a superellipse on one, whatever the launcher's shape is on the
+other — so they get the picture edge to edge and opaque. Handing a rounded,
+transparent tile to something that rounds its own corner is how an icon ends up
+with two of them and a halo between; iOS rejects an alpha channel outright.
 """
 
-import math
+import json
 import os
 import sys
 
@@ -40,6 +51,16 @@ HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 MAC_SIZES = (16, 32, 64, 128, 256, 512, 1024)
 WEB_SIZES = (192, 512)
 
+# Android's density buckets, and the pixel side of a launcher icon in each. The
+# names are the resource directories, so this table is also where the files go.
+ANDROID_SIZES = {
+    'mipmap-mdpi': 48,
+    'mipmap-hdpi': 72,
+    'mipmap-xhdpi': 96,
+    'mipmap-xxhdpi': 144,
+    'mipmap-xxxhdpi': 192,
+}
+
 # What is drawn at, before reducing. Four times the largest is what it takes for
 # the 16-pixel version to have a clean edge.
 CANVAS = 4096
@@ -51,7 +72,19 @@ MARGIN = 0.098
 RADIUS = 0.2237
 
 
-def tile(background, draw_content):
+def full_bleed(draw_content):
+    """[draw_content] on an opaque square, edge to edge and corner to corner.
+
+    What Android and iOS want. Every design below sizes itself off the square it
+    is handed, so the same function draws the tile's inner face and this one and
+    neither knows the difference.
+    """
+    image = Image.new('RGBA', (CANVAS, CANVAS), (0, 0, 0, 255))
+    draw_content(image, ImageDraw.Draw(image))
+    return image
+
+
+def tile(draw_content):
     """A rounded square with [draw_content] inside it."""
     size = CANVAS
     image = Image.new('RGBA', (size, size), (0, 0, 0, 0))
@@ -232,6 +265,84 @@ def ring(face, draw):
             )
 
 
+def hillside(face, draw):
+    """A crowd on sloping ground, and the box dragged round part of it.
+
+    The three games before this one put a camera on a body. This one puts it
+    over a map, and the order goes to whoever is inside a rectangle — so the
+    rectangle is the icon. Without it this is a picture of some dots.
+    """
+    side = face.size[0]
+
+    # Grass, lit from above.
+    vertical_gradient(face, (112, 148, 78), (66, 100, 58))
+
+    # The ridge: everything past it is the far side of the slope and stands in
+    # shade. Two flat tones with a lit crest between them, rather than a
+    # gradient — a camera this high sees no horizon, so a change of shade is
+    # the only thing in this picture that can say "height", and it has to
+    # survive being sixteen pixels wide.
+    crest = ((0, side * 0.66), (side, side * 0.50))
+    shade = Image.new('RGBA', face.size, (0, 0, 0, 0))
+    ImageDraw.Draw(shade).polygon(
+        [crest[0], crest[1], (side, side), (0, side)], fill=(6, 20, 12, 120)
+    )
+    face.alpha_composite(shade)
+    draw = ImageDraw.Draw(face)
+    draw.line(list(crest), fill=(168, 202, 122), width=int(side * 0.020))
+
+    # Nine of them in three ranks, which is what a unit is from this height: a
+    # disc and the shadow under it. The ranks lean with the slope, so the crowd
+    # stands on the ground rather than on top of the picture.
+    spacing = side * 0.215
+    origin = (side * 0.245, side * 0.335)
+    crowd = tuple(
+        (origin[0] + column * spacing + row * spacing * 0.20,
+         origin[1] + row * spacing * 0.72)
+        for row in range(3)
+        for column in range(3)
+    )
+    body = side * 0.058
+
+    # The marquee: the box you drag round the ones about to be given an order.
+    # Four of the nine are inside it and five are not, which is the whole
+    # difference between this genre and the three before it — there, the thing
+    # under the camera was the only thing there was.
+    chosen = tuple(crowd[row * 3 + column] for row in (0, 1) for column in (0, 1))
+    margin = body * 1.35
+    box = (
+        min(x for x, _ in chosen) - margin,
+        min(y for _, y in chosen) - margin,
+        max(x for x, _ in chosen) + margin,
+        max(y for _, y in chosen) + margin,
+    )
+
+    # Under the crowd, so that being selected leaves a unit its own colour. A
+    # wash painted over them turned four red discs brown, which reads as the
+    # selection having gone out rather than come on.
+    wash = Image.new('RGBA', face.size, (0, 0, 0, 0))
+    ImageDraw.Draw(wash).rectangle(box, fill=(230, 252, 238, 46))
+    face.alpha_composite(wash)
+    draw = ImageDraw.Draw(face)
+
+    for x, y in crowd:
+        draw.ellipse(
+            [x - body * 1.05, y + body * 0.30,
+             x + body * 1.05, y + body * 1.25],
+            fill=(20, 36, 24),
+        )
+    for x, y in crowd:
+        draw.ellipse([x - body, y - body, x + body, y + body],
+                     fill=(214, 84, 58))
+        draw.ellipse(
+            [x - body * 0.52, y - body * 0.70,
+             x + body * 0.22, y - body * 0.02],
+            fill=(250, 156, 122),
+        )
+
+    draw.rectangle(box, outline=(238, 252, 244), width=int(side * 0.019))
+
+
 def editor(face, draw):
     """A wireframe box on a grid, in the green a selection is drawn in."""
     vertical_gradient(face, (18, 22, 28), (10, 12, 16))
@@ -283,13 +394,39 @@ DESIGNS = {
     'flutter3d_demo_platformer': ascent,
     'flutter3d_demo_dungeon': crypt,
     'flutter3d_demo_racing': ring,
+    'flutter3d_demo_strategy': hillside,
     'flutter3d_editor': editor,
 }
 
 
-def write(image, path, size):
+def write(image, path, size, opaque=False):
     os.makedirs(os.path.dirname(path), exist_ok=True)
-    image.resize((size, size), Image.LANCZOS).save(path)
+    reduced = image.resize((size, size), Image.LANCZOS)
+    if opaque:
+        reduced = reduced.convert('RGB')
+    reduced.save(path)
+
+
+def ios_icons(appiconset):
+    """The (filename, pixel side) pairs `Contents.json` in [appiconset] asks for.
+
+    Read out of the catalogue rather than listed here, because the catalogue is
+    what Xcode reads: a size added there and missing from a table in this file
+    would be a hole in an app's icon set that nothing notices until the App
+    Store rejects the upload. The pixel side is the point size times the scale,
+    which is why `83.5x83.5@2x` is a 167-pixel file.
+    """
+    with open(os.path.join(appiconset, 'Contents.json')) as handle:
+        catalogue = json.load(handle)
+    # A filename can appear twice — the iPhone and iPad entries share several —
+    # so this is keyed on the name and not a list.
+    return {
+        entry['filename']: round(
+            float(entry['size'].split('x')[0]) * int(entry['scale'].rstrip('x'))
+        )
+        for entry in catalogue['images']
+        if 'filename' in entry
+    }
 
 
 def main(root=HERE, quiet=False):
@@ -306,7 +443,37 @@ def main(root=HERE, quiet=False):
     or `web/` in it, and the answer must not depend on that.
     """
     for app, design in DESIGNS.items():
-        image = tile(None, design)
+        image = tile(design)
+
+        android = os.path.join(HERE, 'apps', app, 'android', 'app', 'src',
+                               'main', 'res')
+        appiconset = os.path.join(HERE, 'apps', app, 'ios', 'Runner',
+                                  'Assets.xcassets', 'AppIcon.appiconset')
+        # Drawn only if somebody wants it. The editor has neither mobile
+        # platform, and a 4096-square nobody reduces is a second of nothing.
+        picture = (full_bleed(design)
+                   if os.path.isdir(android) or os.path.isdir(appiconset)
+                   else None)
+
+        if os.path.isdir(android):
+            for bucket, size in ANDROID_SIZES.items():
+                write(
+                    picture,
+                    os.path.join(root, 'apps', app, 'android', 'app', 'src',
+                                 'main', 'res', bucket, 'ic_launcher.png'),
+                    size,
+                    opaque=True,
+                )
+
+        if os.path.isdir(appiconset):
+            for name, size in ios_icons(appiconset).items():
+                write(
+                    picture,
+                    os.path.join(root, 'apps', app, 'ios', 'Runner',
+                                 'Assets.xcassets', 'AppIcon.appiconset', name),
+                    size,
+                    opaque=True,
+                )
 
         if os.path.isdir(os.path.join(HERE, 'apps', app, 'macos', 'Runner',
                                       'Assets.xcassets', 'AppIcon.appiconset')):

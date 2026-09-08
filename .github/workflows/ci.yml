@@ -67,6 +67,14 @@ jobs:
   # answer: does the macOS half resolve, compile its shader bundles and analyse
   # clean, and does the repository still hold its shape when a second operating
   # system reads it.
+  #
+  # And now iOS, because this is the only runner that can. Four builds as four
+  # steps here rather than a matrix of four macOS jobs: the setup above —
+  # checkout, the SDK, precache, `pub get`, the shader bundle — took a little
+  # over two minutes on the last run that got that far, and a build measured
+  # 2m14, 2m37, 2m27 and 1m54 on a developer's machine. Splitting them would pay
+  # that setup four times to save about seven minutes, on the runner that is the
+  # scarcest and the slowest to be handed out.
   macos:
     runs-on: macos-latest
     timeout-minutes: 60
@@ -79,7 +87,7 @@ jobs:
           channel: stable
           cache: true
 
-      - run: flutter precache --macos
+      - run: flutter precache --macos --ios
       - run: flutter pub get
       - run: (cd packages/flutter3d_impeller && ./tool/build_shaders.sh)
 
@@ -95,3 +103,153 @@ jobs:
 
       - run: flutter analyze
       - run: dart run tool/structure.dart
+
+      # Last, because they are the slowest thing here and everything above
+      # answers sooner. `--no-codesign` is what makes this runnable at all: it
+      # sets CODE_SIGNING_ALLOWED=NO, so the DEVELOPMENT_TEAM every one of these
+      # projects names never has to resolve to a certificate this machine does
+      # not have. Release and not debug — the default, spelled out because it is
+      # a choice: release is where the Dart AOT compiler runs, and it measured
+      # about half a minute more per demo, which is a cheap price for the half
+      # of the toolchain a debug build never touches.
+      #
+      # Four and not one, unlike the web build in tool/ci.sh. That one argues
+      # the three games differ in their level and their genre package and not in
+      # how they reach the browser, which is true of a compiler target. It is
+      # not true of a platform folder: each of these carries its own Xcode
+      # project, its own Info.plist and its own generated Swift, and four copies
+      # of a thing nobody opens is four places for one of them to be different.
+      - run: flutter build ios --no-codesign
+        working-directory: apps/flutter3d_demo_dungeon
+      - run: flutter build ios --no-codesign
+        working-directory: apps/flutter3d_demo_platformer
+      - run: flutter build ios --no-codesign
+        working-directory: apps/flutter3d_demo_racing
+      - run: flutter build ios --no-codesign
+        working-directory: apps/flutter3d_demo_strategy
+
+  # **Four applications configured for Android, and nothing had ever compiled
+  # one.** `tool/ci.sh` said so in its own header until this job existed: both
+  # mobile platforms configured, neither built, "for platforms nothing has yet
+  # been played on". What that bought was four Gradle projects, four manifests
+  # and four `build.gradle.kts` free to drift out of a working state, with one of
+  # them tried by hand once and the other three never.
+  #
+  # A job of its own rather than steps in `check`, and the reason is the clock.
+  # `check` is seventeen minutes and is already what a push waits for; the four
+  # APKs measured 4m23, 3m13, 3m04 and 2m52 on a developer's machine — the first
+  # paying for a cold Gradle daemon — which appended to `check` would put it past
+  # forty. In parallel it costs nothing that was not already being spent.
+  #
+  # A matrix rather than four steps, which is the opposite of the choice made
+  # for iOS above, and for the reason that made it: an ubuntu runner starts in
+  # under a minute and there are many of them, so paying the setup four times is
+  # cheap here and buys back three builds' worth of wall clock. It also puts the
+  # name of the demo that failed in the job list instead of inside a log.
+  #
+  # `--debug` for the compile answer, because that is the question every clone
+  # of this repository can ask and a debug APK answers it in two thirds of the
+  # time. The release build below is a second question — does the thing that
+  # would actually ship still assemble and get signed — and it is asked only
+  # where there is a key to sign with.
+  android:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    strategy:
+      # One broken demo must not hide the state of the other three. The whole
+      # point of building four is finding out about four.
+      fail-fast: false
+      matrix:
+        demo: [dungeon, platformer, racing, strategy]
+    steps:
+      - uses: actions/checkout@v4
+
+      # Explicit, because the Android Gradle plugin and the Kotlin `jvmTarget`
+      # in every app's build.gradle.kts both name 17, and which JDK a runner
+      # image happens to default to is not a thing this repository should be
+      # finding out the hard way.
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.0'
+          channel: stable
+          cache: true
+
+      # Most of a first Android build is downloading the plugin and its
+      # dependencies. Keyed on the Gradle files, so a change to one of them
+      # rebuilds the cache and everything else restores it; `restore-keys` means
+      # a miss still starts from the last good one rather than from nothing.
+      #
+      # One key for all four legs and not one apiece, because the four demos
+      # want the same dependencies and four copies of them is four times the
+      # storage for nothing. The legs that lose the race to save it say "a cache
+      # with this key already exists" and carry on, which is the intended
+      # outcome and not a warning to chase.
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-${{ hashFiles('apps/*/android/**/*.gradle*', 'apps/*/android/gradle/wrapper/gradle-wrapper.properties') }}
+          restore-keys: gradle-
+
+      # impellerc, for the shader bundle below, for the reason the check job
+      # gives. The bundle is gitignored and `flutter3d_impeller` declares it as
+      # an asset, so without it the APK build fails in Gradle's asset step with
+      # a message about a missing file and nothing about shaders.
+      - run: flutter precache --linux
+      - run: flutter pub get
+      - run: (cd packages/flutter3d_impeller && ./tool/build_shaders.sh)
+
+      - run: flutter build apk --debug
+        working-directory: apps/flutter3d_demo_${{ matrix.demo }}
+
+      # **The release key, when this checkout is one that has it.** A fork has no
+      # secrets and a pull request from one is handed none either, which is the
+      # constraint the whole mechanism is shaped around: the step must succeed
+      # having done nothing, and the release build below must simply not happen,
+      # rather than the job going red at somebody who was only trying to read
+      # the repository.
+      #
+      # An output rather than testing the secret in an `if:`, because the
+      # `secrets` context is not one an `if:` can see. The values go through the
+      # environment and never through the command line, where a `ps` and a shell
+      # trace can both reach them; the decoded keystore lands in `android/`,
+      # which android/.gitignore already covers, next to the `key.properties`
+      # each app's build.gradle.kts looks for.
+      - id: key
+        working-directory: apps/flutter3d_demo_${{ matrix.demo }}/android
+        env:
+          KEYSTORE: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          STORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          if [ -z "$KEYSTORE" ]; then
+            echo "no ANDROID_KEYSTORE_BASE64 here — skipping the release build."
+            echo "A clone without the key still builds; it signs with the debug"
+            echo "key, which is what apps/*/android/app/build.gradle.kts falls"
+            echo "back to and is fine for everything except distribution."
+            exit 0
+          fi
+          printenv KEYSTORE | base64 -d > upload.jks
+          {
+            echo "storeFile=upload.jks"
+            echo "storePassword=$STORE_PASSWORD"
+            echo "keyAlias=$KEY_ALIAS"
+            echo "keyPassword=$KEY_PASSWORD"
+          } > key.properties
+          echo "signed=yes" >> "$GITHUB_OUTPUT"
+
+      # The build that would ship, and the only one that proves the key works.
+      # Signing failures are not the kind that turn up at a convenient moment:
+      # a wrong alias or a keystore that decoded to nothing is a thing to find
+      # out on a push, not on the evening somebody wanted to publish.
+      - if: steps.key.outputs.signed == 'yes'
+        run: flutter build apk --release
+        working-directory: apps/flutter3d_demo_${{ matrix.demo }}
