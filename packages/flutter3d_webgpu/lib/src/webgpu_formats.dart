@@ -305,8 +305,18 @@ Uint8List gpuWritableBytes(ByteData bytes) {
 /// `GraphicsDevice.createPipeline` — it records the stage pair, accumulates the
 /// setters, and looks a real pipeline up at the draw.
 ///
-/// This is that lookup key. A value type with `==` for the same reason
-/// `BlendState` is one: the map behind it is consulted once per draw.
+/// This is that lookup key as the spike wrote it, and **the backend does not
+/// use it any more**: `WebGpuPipelineSignature` in `webgpu_pipeline_cache.dart`
+/// is what a draw is actually keyed by, because three things WebGPU also bakes
+/// into a pipeline are missing from the ten fields below — the vertex layout,
+/// the stencil, and a blend equation per attachment rather than for attachment
+/// zero. That file's header says what each of them costs when it is left out.
+/// This one stays because it is exported from a published barrel and its tests
+/// are what hold the ten spellings to the specification; it goes at the next
+/// major.
+///
+/// A value type with `==` for the same reason `BlendState` is one: the map
+/// behind it is consulted once per draw.
 ///
 /// **Every field here is a field the engine actually changes inside one pass.**
 /// The mesh loop sets winding and cull per node and blend per material, so a

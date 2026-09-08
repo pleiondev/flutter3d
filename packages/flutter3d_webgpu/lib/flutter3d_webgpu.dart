@@ -7,9 +7,16 @@
 /// pipeline object, alongside the attachment formats a pass only settles when
 /// it is opened. So a backend here cannot build anything where the contract
 /// says `createPipeline` — it records the stage pair, accumulates the setters,
-/// and looks a real pipeline up at the draw. [WebGpuPipelineKey] is that
+/// and looks a real pipeline up at the draw. [WebGpuPipelineSignature] is that
 /// lookup key, and it is why this barrel begins with a table rather than a
 /// device.
+///
+/// **The device is in `flutter3d_webgpu_web.dart`, and the split is about the
+/// VM.** Everything here is pure Dart, so a harness on the VM can hold the
+/// translation and the signature to their answers without a browser; the device,
+/// the encoder and the bindings import `dart:js_interop`, which the VM does not
+/// have, and a barrel re-exporting one of those cannot be imported at all off
+/// the web. An application imports the other file and calls `openWebGpu`.
 ///
 /// **No status line here, deliberately.** `flutter3d_webgl`'s barrel carries a
 /// paragraph saying what that backend can and cannot draw yet, and warns in its
@@ -28,8 +35,13 @@ library;
 /// reason is this file's own platform.** A barrel that re-exports a library
 /// importing `dart:js_interop` cannot be imported on the VM at all, and the
 /// table's tests are the ones that run in a second and catch a typo in
-/// `"less-equal"` without a GPU. So the bindings are reached at
-/// `package:flutter3d_webgpu/src/webgpu_interop.dart`, by the device and the
-/// encoder that will sit next to them, and this barrel stays importable
-/// everywhere.
+/// `"less-equal"` without a GPU. So the bindings are reached through
+/// `flutter3d_webgpu_web.dart`, by whoever is opening a device, and this barrel
+/// stays importable everywhere.
 export 'src/webgpu_formats.dart';
+
+/// What a draw looks a pipeline up by, and the map it looks it up in. Pure Dart
+/// for the same reason the table is, and asserted the same way: which two
+/// states are one pipeline and which are two is a question about this file
+/// rather than about a browser.
+export 'src/webgpu_pipeline_cache.dart';

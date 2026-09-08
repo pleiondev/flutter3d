@@ -2,14 +2,19 @@
 
 `flutter3d_hardware` over WebGPU. The fourth backend, and the one being built.
 
-**Nothing here opens a device yet.** What this package holds today is the
-translation table — every enumeration the contract names, written as the
-WebGPU string the specification spells it with, and the key a device will look
-each draw's real pipeline up by — and the shaders: WGSL for every stage the
-engine asks for, with the reflection a `GPUShaderModule` cannot be asked for.
-The device and the encoder arrive in the waves that follow, and this package
-exists ahead of them so that three branches writing into it do not each invent
-a `pubspec.yaml`.
+**A device opens, a pass records, and a draw comes back as pixels.** What is
+not here yet is a bundle handed over as bytes — `loadShaders` refuses and names
+the file that will answer it — and six of the engine's own fragment stages,
+which this implementation refuses for a reason worth reading below.
+
+    final device = await openWebGpu(width: 960, height: 540);
+
+Two barrels, and which one to import is decided by whether the importer runs in
+a browser. `flutter3d_webgpu.dart` is pure Dart: the translation table and the
+signature a draw looks a pipeline up by, both asserted on the VM in about a
+second. `flutter3d_webgpu_web.dart` is everything that reaches for
+`dart:js_interop` — the device, the encoder, the frame arenas and the hand-written
+bindings under all of it.
 
 The table came from `tool/webgpu_spike`, which drew a triangle through the
 contract in a real browser to settle the two answers a table cannot settle on
@@ -66,13 +71,44 @@ nothing to say so. Locations are a function of the name, grouped into families
 by which names ever appear together, because there are seventeen varyings and
 sixteen locations.
 
-## Why the table is pure Dart
+## Six stages this implementation refuses
 
-Nothing in `webgpu_formats.dart` imports `dart:js_interop` or `package:web`, so
-its whole test file runs on the VM in about a second, with no browser and no
-GPU. A typo in `"less-equal"` is then a failed unit test rather than a browser
-refusing a pipeline at run time on a machine that has a GPU, which is the
-worst place to find out.
+`textureSample` may only be called from uniform control flow, and six of the
+engine's fragment stages — `Pbr`, `BlinnPhong`, `Lambert`, `Toon`,
+`Reflections` and `Ssao` — sample a texture inside an `if` whose condition
+comes from a material flag. naga accepts all six and round-trips them, so the
+shader pipeline is green; a browser refuses them, and the refusal arrives at
+the first pipeline built from one as `invalid due to a previous error`, naming
+no line. `test/open_test.dart` holds the count at six and the reason to one, so
+a seventh is a red line rather than a discovery. The fix is a
+`textureSampleLevel`, or hoisting the sample above the branch, and both are
+decisions about the GLSL rather than about this backend.
+
+## Where the buffers of a frame live
+
+The WebGL2 backend makes a `WebGLBuffer` for every transient binding and
+deletes it when the pass ends — 1552 of them in one measured frame — and gets
+away with it because a GL driver owns the fencing. WebGPU has an explicit
+`destroy` and no such fencing to lean on, so this backend keeps one bump
+allocator per kind of transient upload and rewinds it at `beginFrame`. That is
+safe under a frame the GPU has not finished because `queue.writeBuffer` copies
+into the queue's own staging at the moment of the call and schedules the write
+*on the queue*: frame N's write, frame N's pass, frame N+1's write and frame
+N+1's pass execute in that order however far behind the GPU is. An arena that
+outgrows itself keeps the old buffer rather than freeing it, because a bind
+group made earlier in the frame names it. `webgpu_resources.dart` is where the
+argument is written out.
+
+## Why half of it is pure Dart
+
+Nothing in `webgpu_formats.dart` or `webgpu_pipeline_cache.dart` imports
+`dart:js_interop` or `package:web`, so their tests run on the VM in about a
+second, with no browser and no GPU. A typo in `"less-equal"` is then a failed
+unit test rather than a browser refusing a pipeline at run time on a machine
+that has a GPU, which is the worst place to find out — and the same split is
+what lets the pipeline signature be asked whether two vertex layouts over one
+stage pair are two pipelines, which is a question about a map rather than about
+a driver.
 
 ---
 
