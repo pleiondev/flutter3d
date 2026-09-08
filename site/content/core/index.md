@@ -1,10 +1,10 @@
 ---
-description: The engine under all three games: the HAL and its three backends, the renderer, scene graph, geometry, assets, the fixed step and collision.
+description: The engine under all three games: the HAL and its four backends, the renderer, scene graph, geometry, assets, the fixed step and collision.
 ---
 
 # What core is
 
-Core is everything all three games use and none of them owns. Six packages that never learn what a monster, a coin or a lap is, plus three backends that never learn what a scene is.
+Core is everything all three games use and none of them owns. Six packages that never learn what a monster, a coin or a lap is, plus four backends that never learn what a scene is.
 
 Nothing in this section is genre knowledge. That is not a stylistic preference. It is the property that made the second game possible to write, and every page here says which test enforces it.
 
@@ -19,15 +19,16 @@ Nothing in this section is genre knowledge. That is not a stylistic preference. 
 | [`flutter3d_physics`](/core/physics/) | Shapes, broadphase, sweeps, rays, character controller, rigid bodies | nothing. Plain Dart |
 | [`flutter3d_bridge`](/core/architecture/#the-bridge) | Level geometry to mesh nodes, actor to visual, fixture to light | both sides, and it is the only package allowed to |
 
-**Three backends implement the HAL**, and an application names exactly one of them in its pubspec:
+**Four backends implement the HAL**, and an application names exactly one of them in its pubspec:
 
 | Backend | Runs on |
 |---|---|
 | `flutter3d_impeller` | `flutter_gpu` — Metal and Vulkan. The production one |
-| `flutter3d_webgl` | WebGL2 in the browser. Runs all three games at a fixed resolution and a lower frame rate |
-| `flutter3d_cpu` | Nothing — it rasterises in Dart, so forty-three golden scenes stay checkable with no GPU in the room |
+| `flutter3d_webgl` | WebGL2 in the browser. Runs all three games at a fixed resolution and a lower frame rate, and is what an ordinary web build opens |
+| `flutter3d_cpu` | Nothing — it rasterises in Dart, so 43 golden scenes stay checkable with no GPU in the room |
+| `flutter3d_webgpu` | WebGPU in a browser that has an adapter. Reached by `--dart-define=FLUTTER3D_WEBGPU=true`, because a build that can try it ships it |
 
-`flutter3d_conformance` is the suite any fourth one would have to pass, and [Writing a HAL backend](/core/backends/) is the guide for writing that fourth one.
+`flutter3d_conformance` is the suite each of them passed before it belonged in that table, and [Writing a HAL backend](/core/backends/) is the guide for writing the fifth.
 
 ## The two halves, and the line between them
 
@@ -76,7 +77,7 @@ Each page below stands alone, but this is the order in which each one stops bein
   <li><a href="/core/architecture/">
     <span class="card-kind">01</span>
     <h3>Architecture</h3>
-    <p>The dependency rules, the HAL and its three backends, and the one consequence that shapes everything: shaders are compiled ahead of time.</p>
+    <p>The dependency rules, the HAL and its four backends, and the one consequence that shapes everything: shaders are compiled ahead of time.</p>
   </a></li>
   <li><a href="/core/backends/">
     <span class="card-kind">02 · guide</span>

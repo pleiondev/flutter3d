@@ -4,11 +4,15 @@ description: How to implement flutter3d_hardware for a new graphics API — the 
 
 # Writing a HAL backend
 
-`flutter3d_hardware` is a hardware abstraction layer with no implementation in it. This page is what you need to write a fourth one.
+`flutter3d_hardware` is a hardware abstraction layer with no implementation in it. Four packages implement it, and this page is what you need to write the fifth.
 
 The claim it makes is that a backend can be written **without reading the engine**. That claim has been half-tested and half-confirmed: `flutter3d_cpu` is a software rasteriser with no GPU, no driver and no shading language under it, and `GraphicsDevice` was implementable straight from the contract — `Renderer` started against it unmodified and the `plain` parity fixture came out within a mean of 0.56 of Impeller's. Nothing in the engine turned out to assume a GPU.
 
 What could **not** be written from the contract is the shaders. That limit is real, it was named in advance, and it is [the last section on this page](#the-one-thing-the-hal-cannot-abstract).
+
+<div class="note">
+<p><strong>The fourth backend is the freshest evidence about this page.</strong> <code>flutter3d_webgpu</code> was written against the contract, in the order suggested at the bottom, and the two things it found were both in the shader half. Its declared capabilities are also the cleanest example of what "answer honestly" buys: four of them say no — the blend constant, wireframe, block-compressed formats, and rendering into a mip — and the conformance suite reports each as a <em>decline</em>, so it comes back 33 of 33 with nothing hidden. The one it got wrong first is worth more than the four it got right: <code>createCubeRenderTarget</code> returned null while <code>supportsCubeTextures</code> said true, and the suite failed it rather than declining it, because that capability is read as a promise that a pass can name a face. A gap wearing a refusal's clothes is the failure mode this whole page is arranged against.</p>
+</div>
 
 <div class="goal">
 <ul>
@@ -276,7 +280,7 @@ The Impeller backend's translation asserts that each enum value maps to the `flu
 
 `flutter3d_conformance` turns those semantics into executable checks, in **two tiers**. `coreChecks` works with clears, uploads and readback alone, so you can run it before you have a single shader compiled, which is when the answers are cheapest to act on. `shaderChecks` needs the bundle: twenty-five shader checks against seven that ask for none, and one more for a backend that can pack its own shaders as a loadable bundle — twenty-five of the thirty-three link stages and draw. Among the twenty-five: that a pass starts covering its own attachment and nothing else, that its initial viewport covers the *level* rather than the base, that it inherits no clipping from the pass before it and starts with the stencil test off, that a binding made for one pipeline does not follow the next, that a block missing a member the caller named is refused, that a pass renders into a cube face and a mip, that a blend constant reaches the blend or is refused rather than drawn as zero, that a multisample resolve resolves, that an object id survives the draw and the readback, and that wireframe and every primitive type are each drawn as themselves or refused rather than quietly substituted. The lists are the authority — `coreChecks` and `shaderChecks` in `flutter3d_conformance.dart` — and the counts in this paragraph are held to them by `tool/structure.dart`, because the last time they were not, this page said fifteen.
 
-**A check a backend cannot be asked is reported as a decline, not as a pass.** Three of them can end that way: multisampling, where the software rasteriser answers `supportsOffscreenMsaa` false and does not multisample at all; the blend constant, where flutter_gpu exposes no setter, so the Impeller backend answers `supportsBlendColor` false and refuses; and the uniform-member rule, which only a backend that reflects its shaders can keep. The runner's tally line says `N passed, M failed, K declined` for exactly this reason: "the suite is green" and "the suite is green, and here is what it never asked" are different sentences, and a third party reading this page to decide what conformance buys them needs the second one.
+**A check a backend cannot be asked is reported as a decline, not as a pass.** Multisampling ends that way on the software rasteriser, which answers `supportsOffscreenMsaa` false and does not multisample at all; the blend constant ends that way on Impeller, where flutter_gpu exposes no setter, and on WebGPU, where the API has `"constant"` and `"one-minus-constant"` and no colour/alpha split to form `BlendFactor.blendAlpha` with; and the uniform-member rule is one only a backend that reflects its shaders can keep. WebGPU declines four in all — the blend constant, wireframe, the block-compressed formats, and rendering into a mip — which is how its run reads 33 of 33 without claiming anything it cannot do. The runner's tally line says `N passed, M failed, K declined` for exactly this reason: "the suite is green" and "the suite is green, and here is what it never asked" are different sentences, and a third party reading this page to decide what conformance buys them needs the second one.
 
 `runDeviceConformance` runs both.
 
@@ -340,9 +344,23 @@ Thirty-seven entry points. `kRequiredShaders` and the bundle manifest are kept i
 | Debug | `DebugLine`, `MrtProbe`, `ObjectId`, `Xray` |
 | Probes | `VertexTextureProbeVertex`, `VertexTextureProbe` |
 
-The probe pair draws nothing a game ever sees. It asks whether a **vertex** stage can sample a texture, because the answer decides how morph targets reach the GPU: the vertex layout here is structural, so morphing either needs a second layout — and a second vertex shader per lighting model — or the deltas in a texture read by vertex id, which needs exactly this. All three backends answered yes, Impeller included, which is the answer that was not knowable from a header. `MrtProbe` is in the table above it for the same reason and predates it.
+The probe pair draws nothing a game ever sees. It asks whether a **vertex** stage can sample a texture, because the answer decides how morph targets reach the GPU: the vertex layout here is structural, so morphing either needs a second layout — and a second vertex shader per lighting model — or the deltas in a texture read by vertex id, which needs exactly this. Every backend answered yes, Impeller included, which is the answer that was not knowable from a header. `MrtProbe` is in the table above it for the same reason and predates it.
 
-`flutter3d_shaders` holds the GLSL every backend compiles from — Impeller into a bundle, WebGL by translation, the CPU backend as Dart transcriptions, so that is one list instead of three. **But a backend cannot satisfy the contract without reading the shaders themselves.**
+`flutter3d_shaders` holds the GLSL every backend comes from — Impeller into a bundle, WebGL by translation, WebGPU by a second translation into WGSL, the CPU backend as Dart transcriptions, so that is one list instead of four. **But a backend cannot satisfy the contract without reading the shaders themselves.**
+
+### If your API does not speak GLSL
+
+WebGPU does not, and no browser takes SPIR-V, so `flutter3d_webgpu` is the worked example of the longer road: the same manifest through `glslangValidator -V --auto-map-locations` and then `naga --keep-coordinate-space`, with only the *declarations* of each stage edited. Three things about that road cost a day each, and all three are the kind that produce a picture rather than an error.
+
+- **naga turns a vertex stage over unless told not to.** Without `--keep-coordinate-space` it appends `gl_Position.y = -(gl_Position.y)` to every vertex entry point. Nothing fails; every scene comes back upside down.
+- **naga will not read a combined sampler.** `uniform sampler2D tex` compiles to SPIR-V that `spirv-val` accepts and naga refuses with `invalid id %14`, naming neither a file nor a construct. Splitting the declaration into a `texture2D`, a `sampler` and a `#define` leaves every call site untouched.
+- **WGSL requires uniform control flow for `textureSample`, and a browser reports one error per module.** Six of this engine's fragment stages sampled under a branch a quad need not take together — a light facing away, a cascade that misses, a ray off the frame, a degenerate tangent — which naga accepts and a browser does not. It arrived as `invalid due to a previous error` at the first pipeline built from one, naming no line, and only ever one at a time: `getCompilationInfo` stops at the first fault in a module, so fixing one stage reveals the next rather than shortening a list.
+
+There is also no link step, which moves two decisions that GLSL leaves to the linker. Reflection has to be **written by the packer** — a `GPUShaderModule` cannot be asked what it declares and a pipeline layout has to state it — and a **varying's location has to be decided across the manifest** rather than inside a file, because two modules are compiled apart and joined by location alone. A shader that declared a varying of its own before its include would shift one side of a pair and not the other and draw the wrong picture with nothing to say so.
+
+<div class="warn">
+<p>The uniformity fix edited GLSL that <em>all four</em> backends read, which is the widest blast radius any change on this list has. Only a backend whose shaders are compiled or translated from that text can witness such an edit — the software rasteriser's Dart transcriptions cannot, however byte-identical its set comes back.</p>
+</div>
 
 <div class="warn">
 <p>Member names are the sharp edge, and they fail silently in <em>both</em> directions. A shader that asks for a member nobody wrote gets zeros; a caller that names a member the block does not have is an error, because then the two ends disagree about its shape.</p>
@@ -381,11 +399,11 @@ They live in the HAL rather than in the engine for the backend nobody has writte
 6. `present`, in whatever way your platform actually composites.
 7. The parity fixtures, then the golden set with per-scene budgets.
 
-The third backend went through this in that order and confirmed the interesting half of the claim: `GraphicsDevice` was implementable straight from the contract, and step 5 is where the contract stops helping.
+The third backend went through this in that order and confirmed the interesting half of the claim: `GraphicsDevice` was implementable straight from the contract, and step 5 is where the contract stops helping. The fourth went through it again and said the same thing more sharply — its step 5 was a whole second toolchain and three traps, and steps 1 to 4 were ordinary work.
 
 ## Next
 
 - [Architecture](/core/architecture/#the-hal), where the HAL sits, and what the other rules are
 - [The frame](/core/rendering/): what the engine will ask your backend to encode
 - [Pitfalls](/reference/pitfalls/): the failure modes, arranged by what you see
-- [Testing](/reference/testing/): the two golden sets, and why there are two
+- [Testing](/reference/testing/): the golden sets, and why there is more than one

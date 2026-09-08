@@ -198,7 +198,7 @@ point of §3.3.
 | `flutter3d_hardware` | The graphics vocabulary a backend implements: devices, encoders, handles, formats. Names no graphics API |
 | `flutter3d_impeller` | The backend over `flutter_gpu`, and the compiled shader bundle |
 | `flutter3d_webgl` | The WebGL2 backend, and GLSL translated from `flutter3d_shaders` |
-| `flutter3d_webgpu` | The WebGPU backend, being built. Today: the translation table, the pipeline key, and WGSL with its reflection, translated from `flutter3d_shaders` |
+| `flutter3d_webgpu` | The WebGPU backend, and WGSL with its reflection, translated from `flutter3d_shaders`. The only backend whose shaders are not the same text the others read |
 | `flutter3d_cpu` | A software rasteriser: a second reference, and rendering with no GPU |
 | `flutter3d_backend` | Picks a backend for a build — conditional import plus `openDevice` |
 | `flutter3d_conformance` | The contract suite every backend passes |
@@ -1762,12 +1762,30 @@ entities a game defines.
 | Structure rules | 30, `dart run tool/structure.dart`, the first CI step |
 | CI | GitHub Actions over `tool/ci.sh`, on `ubuntu-latest`, with no graphics card |
 
-**Golden render tests.** 43 scenes against **three independent reference sets** —
-Impeller, the software rasteriser and WebGL2 — each held to zero differing pixels
-against its own set, with a per-channel tolerance of 8. Each backend records its
-own because a shared set would need one tolerance doing two jobs: "did this
-backend change" and "do two backends still agree" are different questions, and a
-tolerance wide enough for the second stops watching the first.
+**Golden render tests.** 43 scenes against **three complete independent
+reference sets** — Impeller, the software rasteriser and WebGL2 — each held to
+zero differing pixels against its own set, with a per-channel tolerance of 8.
+Each backend records its own because a shared set would need one tolerance doing
+two jobs: "did this backend change" and "do two backends still agree" are
+different questions, and a tolerance wide enough for the second stops watching
+the first.
+
+**A fourth set is being recorded, on a branch of its own, and is not complete**,
+so it is written here as a number rather than as a set: **42 of the 43 scenes**
+had WebGPU references at the time this paragraph was written, all of them in
+another branch and none of them in this one. The missing scene is
+`loaded-shader`. That is not a reference set yet — a partial one cannot say a
+picture regressed, only that some pictures exist — and the count is here in place
+of the word precisely so a reader can tell those two apart. Until it lands whole,
+this repository has three sets.
+
+`flutter3d_webgl`'s browser stand is what records it: `tool/golden_web.sh` takes
+`--backend=webgpu`, writes into `flutter3d_webgpu/test/goldens`, and serves the
+whole suite from **one** build for either browser backend, because the scene and
+the backend are both query parameters on the page rather than defines on the
+compile. That is the whole saving of the stand — a define per backend would have
+spent it on a single word — and `--no-build` is what makes recording a second
+backend cheap rather than a repeat of the first.
 
 The agreeing is then measured with no device at all, over the committed sets:
 `flutter3d_cpu/test/cross_backend_test.dart` for the software backend and
@@ -2096,6 +2114,142 @@ what closing part of it produced — three new parity fixtures found the sky
 blacking out every frame, and a reference set of thirty-two found a lighting
 model drawing nothing.
 
+**`flutter3d_webgpu` draws, and four of its capabilities answer no on
+purpose.** It implements the same `GraphicsDevice` the other three do, over
+`navigator.gpu`: a device opens, a pass records, all thirty-nine of the engine's
+stages compile, and `flutter3d_conformance` answers **33 of 33 in Chrome** —
+against a live adapter, run as a test rather than as an application, which is the
+arrangement WebGL2 already had and Impeller cannot have. Four of those
+thirty-three pass by *refusing*, and each refusal is a capability the device
+declares false rather than a check that was quietly skipped:
+
+- **`supportsBlendColor`.** OpenGL, Metal and Vulkan all split the blend
+  constant into a colour form and an alpha form and `BlendFactor` mirrors that
+  split; WebGPU has `"constant"` and `"one-minus-constant"` and nothing else, so
+  `BlendFactor.blendAlpha` in the colour equation is a term the hardware
+  interface can ask for and this API cannot form. Nothing in the engine, the
+  games or the site builds a blend constant, so the contract is untouched.
+- **`supportsWireframe`.** WebGPU has no polygon fill mode at all. A wireframe
+  here would be line primitives and an index buffer built for them, which is the
+  renderer's decision to make and not a backend's — the same answer WebGL2 gives
+  for the same reason.
+- **`supportsTextureFormat` for every block-compressed format.** A WebGPU device
+  gets exactly the features it asked for, and this one asks for float filtering
+  and the full-precision depth-stencil format and none of the three compression
+  families. Sampling a BC7 texture on a device that did not request
+  `texture-compression-bc` is a validation error rather than a slow path, so the
+  honest answer is a false that leaves the texture out with a reason.
+- **`supportsRenderToMip`**, which is the one that costs a feature. A view built
+  with a `baseMipLevel` is an ordinary attachment in this API, so nothing here is
+  impossible; what is absent is the filtering half of a reflection probe.
+  `ReflectionProbeNode.supportedOn` asks for this and for cubes together, so a
+  probe stays switched off rather than being drawn from half an implementation.
+
+**`createCubeRenderTarget` is not on that list, and the correction is the
+paragraph's point.** It answered null for a while on the argument that a cube a
+probe can draw into is only useful beside a chain it can filter into, so the two
+should arrive together — and the conformance suite disagreed, because
+`supportsCubeTextures` answering true is read as a promise that *a pass can name
+a face*, not merely that a sampler can read one. The backend failed that check
+rather than declining it, which is exactly the difference: a declared capability
+is the only thing that separates a limit from a gap wearing a refusal's clothes.
+Six array layers and a view per face was the whole of the fix.
+
+**An ordinary web build still opens WebGL2, and that is a decision about bundle
+size rather than about WebGPU.** Which backend a browser hands out cannot be a
+compile-time question the way web-or-native is: whether `navigator.gpu` exists,
+and whether the adapter behind it is blocklisted on this machine's driver, is
+knowable only by trying — and trying means the WebGPU device is reachable code,
+which means dart2js ships it. So the probe sits behind
+`--dart-define=FLUTTER3D_WEBGPU=true`; `bool.fromEnvironment` folds to a
+constant, the branch folds with it, and a build that did not ask carries one
+backend instead of two. **The price is measured**, on
+`apps/flutter3d_demo_strategy` with `flutter build web --release`: 2,529,865
+bytes of `main.dart.js` with the flag off against 2,906,514 with it on —
+**376,649 bytes, 14.9%**, and 368 KiB over the whole of `build/web`. That is the
+device, its encoder, its pipeline cache and its WGSL arriving in a bundle that
+will never open them. The default is WebGL2 because WebGL2 is the browser backend
+three shipped games have been looked at on and the one whose reference set is
+recorded; a probe switched on for everybody would change what those games draw
+and charge each of them the bytes, and neither is a change to make on somebody
+else's behalf. A build that wants it says so in one flag, and the engine's own
+example takes the same answer from `?backend=webgpu` in the URL — a query
+parameter rather than a define, because the browser golden stand's whole saving
+is one dart2js run serving forty-three scenes and both browser backends.
+
+**`flutter3d_shaders` is one text and no two backends take it the same way.**
+Impeller compiles the GLSL with `impellerc`; the WebGL2 generator translates it
+to GLSL ES 3.00; the software rasteriser transcribes it into Dart by hand, which
+is why that backend is a second opinion and not a witness to a GLSL edit. WebGPU
+can do none of those: WGSL is a different language and a browser will not take
+SPIR-V. So
+`flutter3d_webgpu/tool/generate_shaders.dart` reads the same manifest the other
+two generators read, edits each stage's **declarations**, and hands the result to
+`glslangValidator -V --auto-map-locations` and then to
+`naga --keep-coordinate-space`. All 39 stages come out, and all 39 go back in
+through `naga --input-kind wgsl`, which is a different question from whether naga
+could write them. `tool/ci.sh` regenerates the table and diffs it, so a stale
+table or a different compiler on the machine is a failed build rather than a
+wrong picture.
+
+Two consequences follow from there being no link step. The reflection is
+**written by the packer** rather than read back out of the module: a
+`GPUShaderModule` cannot be asked what it declares and a pipeline layout has to
+state it, so the bundle's fourth section carries attributes by name, location and
+format, uniform blocks by name, group, binding, size and member offsets, and
+samplers by name and the two bindings each takes — the file version of exactly
+the record `WebGlProgram` builds after a link. And a **varying's location is
+decided across the manifest instead of inside a file**: two modules are compiled
+apart and joined by location alone, so a shader that declared a varying of its
+own before its include would shift one side of a pair and not the other, and draw
+the wrong picture with nothing to say so. Locations are a function of the name,
+grouped into families by which names ever appear together, because there are
+seventeen varyings and sixteen locations.
+
+**Three traps this road had in it**, written here rather than in a commit
+message, because all three cost a day and none of them announces itself.
+
+**naga turns a vertex stage over unless told not to.** Without
+`--keep-coordinate-space`, naga 30.0.1 appends `gl_Position.y =
+-(gl_Position.y)` to every vertex entry point. Nothing fails: the WGSL compiles,
+the pipeline builds, the frame comes back, and every scene is upside down. It is
+a test now rather than a memory.
+
+**naga will not read a combined sampler.** `uniform sampler2D tex` compiles to
+SPIR-V that `spirv-val` accepts and naga refuses with `invalid id %14`, naming
+neither a file nor a construct. The cure is in the declarations only — a
+`texture2D`, a `sampler` and a `#define` that puts them back together — so every
+call site passes through the macro untouched.
+
+**WGSL requires uniform control flow for `textureSample`, and a browser reports
+one error per module.** Six of the engine's fragment stages — `Pbr`,
+`BlinnPhong`, `Lambert`, `Toon`, `Reflections` and `Ssao` — sampled under a
+branch the four invocations of a quad need not take together: a light the surface
+faces away from, a cascade that does not contain the fragment, a ray that has
+already left the frame, a tangent too degenerate to build a frame from. naga
+accepted all six and round-tripped them, so the shader pipeline was green while
+the browser refused them, and the refusal surfaced at the first pipeline built
+from one as `invalid due to a previous error`, naming no line — and only the
+first, because `getCompilationInfo` stops at one error a module, so fixing one
+stage reveals the next rather than clearing the count. The cure was in the GLSL
+and it was two cures chosen per site: the single-level render targets a lit scene
+reads under a branch are read with `textureLod` at level zero, which is the level
+an implicit derivative was selecting anyway, and the normal map — which carries a
+real mip chain, so pinning a level there would have changed the picture — has its
+sample hoisted above the branch. `open_test.dart` now asserts that *nothing* is
+refused, as an absence rather than a count, so a stage that reacquires the fault
+fails instead of raising a number.
+
+That last cure edits GLSL all four backends read, which is the one change in this
+work whose blast radius is wider than its own package — **and its neutrality is
+not yet proved.** What would prove it is a recorded set from a backend that
+*compiles or translates* the GLSL: Impeller's or WebGL2's. Neither has been run
+since the edit. The software rasteriser's set matched byte for byte and is not
+that proof, because `flutter3d_cpu` draws from hand-written Dart transcriptions
+and says so at the head of its own files — a backend that never reads the text
+cannot be a witness to a change in it. This sentence stays until one of the two
+witnesses has spoken.
+
 **No occlusion culling for anything but a brush level, and no FXAA or TAA.**
 A brush level has the precomputed visibility of [§4.6](#46-precomputed-visibility);
 a model imported from glTF is culled by the frustum alone.
@@ -2319,10 +2473,17 @@ twenty-four of the workspace's twenty-eight are on the internet.
 `flutter3d_editor_core`, `flutter3d_editor_mcp`, `flutter3d_game_strategy` and
 `flutter3d_webgpu` are the four that are not: the first three were written
 after that release and are waiting for the next one rather than for a decision.
-The fourth is waiting for something else — it is in the order above because a
-package that exists belongs in it, and it goes out when it can draw a frame.
-Being in the publishing order and being published are different things, and
-this is the entry that makes the difference visible.
+The fourth was waiting for something else and no longer is — its condition was
+that it could draw a frame, and it draws: a device, a pass, a frame back as
+pixels, thirty-nine stages compiling, and 33 of 33 conformance checks answered
+against a live adapter. What it waits for now
+is the same next release as the other three, plus the one thing a backend cannot
+be published without: a recorded reference set, so that a picture it stops
+drawing correctly is a failed comparison rather than a report from whoever
+happened to look. It has been in the publishing order since before it had a
+device, because a package that exists belongs in it. Being in the publishing
+order and being published are different things, and this is the entry that makes
+the difference visible.
 `publish_to: none` — "the one line between prepared and on the
 internet" — came out of the packages that day; the workspace root, the
 applications and the example apps keep theirs, being repository-only by design.

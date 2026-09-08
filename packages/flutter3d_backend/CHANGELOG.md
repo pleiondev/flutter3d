@@ -10,10 +10,13 @@
 * **Why it is a define and not simply the behaviour.** A probe that can call
   either opener keeps both backends reachable, and dart2js ships what it can
   reach. Measured on `apps/flutter3d_demo_strategy`, `flutter build web
-  --release` writes 2,517,985 bytes of `main.dart.js` with the flag off and
-  2,890,671 with it on — 372,686 bytes of device, encoder, pipeline cache and
-  WGSL that a build which never opens WebGPU would be carrying anyway. That is
-  a trade a game makes, not one this package makes for it.
+  --release` writes 2,529,865 bytes of `main.dart.js` with the flag off and
+  2,906,514 with it on — 376,649 bytes, 14.9%, of device, encoder, pipeline
+  cache and WGSL that a build which never opens WebGPU would be carrying
+  anyway, and 368 KiB on the whole of `build/web`. That is a trade a game
+  makes, not one this package makes for it. Both readings are from the same
+  afternoon and the same checkout; an earlier pair over a smaller tree said
+  372,686, which is why the figure is taken again rather than quoted.
 * The browser half now has tests of its own, and a `tool/ci.sh` step that runs
   them. It had never been executed anywhere: the existing suite says outright
   that a VM run *is* the native half, and which backend a web build opens was a

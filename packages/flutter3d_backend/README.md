@@ -27,9 +27,18 @@ asks for `flutter3d_webgpu` first and falls back to WebGL2 where the browser has
 no `navigator.gpu` or hands out no adapter. **Off unless a build asks**, and that
 is about size rather than about WebGPU: the probe has to be able to call both
 openers, so a build that has it carries both backends and one that has not folds
-the branch away. On `apps/flutter3d_demo_strategy` that is 372,686 bytes of
-`main.dart.js` — 2,517,985 off against 2,890,671 on. Whether a particular game
-pays it is the game's call, the same way its resolution and shadow budget are.
+the branch away. On `apps/flutter3d_demo_strategy` that is **376,649 bytes** of
+`main.dart.js` — 2,529,865 off against 2,906,514 on, 14.9% more script and
+368 KiB on the whole of `build/web`. Whether a particular game pays it is the
+game's call, the same way its resolution and shadow budget are.
+
+**An ordinary web build still draws through WebGL2**, and that is the decision
+this default records rather than an accident of which backend was written first.
+WebGL2 is the browser backend with a recorded reference set behind it and the one
+three shipped games have been looked at on; moving every browser build onto the
+newer API by having the probe on would change what those games draw without
+anybody having asked, and would charge every one of them the bytes above. So the
+choice is a game's to make, and making it is one flag.
 
 ## What it does not decide
 

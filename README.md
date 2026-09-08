@@ -40,11 +40,12 @@ genres, and the generated API reference.
 | [`packages/flutter3d_samples`](packages/flutter3d_samples) | The Khronos test models, as fixtures rather than as the engine's own assets — so a game built on it carries the decoders and not the 4.1 MB they were checked against |
 | [`packages/flutter3d_hardware`](packages/flutter3d_hardware) | The abstraction over graphics APIs: a device, an encoder, a pass. Its vocabulary is its own — it names no API, so a fourth backend changes no user code |
 | [`packages/flutter3d_impeller`](packages/flutter3d_impeller) | The desktop backend, over `flutter_gpu`. Also where the shader build lives |
-| [`packages/flutter3d_webgl`](packages/flutter3d_webgl) | The web backend, over WebGL2 |
+| [`packages/flutter3d_webgl`](packages/flutter3d_webgl) | The web backend, over WebGL2. What an ordinary browser build draws through |
+| [`packages/flutter3d_webgpu`](packages/flutter3d_webgpu) | The second web backend, over WebGPU. The only one whose shaders are not the same text the others read — its WGSL is translated from the same GLSL through `glslangValidator` and `naga`. A browser build reaches it by asking: `--dart-define=FLUTTER3D_WEBGPU=true`. [README](packages/flutter3d_webgpu/README.md) |
 | [`packages/flutter3d_cpu`](packages/flutter3d_cpu) | A software rasteriser. Not a teaching exercise: it gives a second, independent set of reference images and lets the renderer be tested in CI with no GPU |
 | [`packages/flutter3d_testing`](packages/flutter3d_testing) | Pixel regression tests for a game built on this engine, with no GPU: draw a frame through the software backend and hold it to a reference image. Nothing else on this platform can do it without a real device |
 | [`packages/flutter3d_conformance`](packages/flutter3d_conformance) | The contract every backend must pass, as runnable checks rather than a document |
-| [`packages/flutter3d_backend`](packages/flutter3d_backend) | Picks one of the three by conditional import, so an application says `openDevice()` and not which |
+| [`packages/flutter3d_backend`](packages/flutter3d_backend) | Picks one of the four, so an application says `openDevice()` and not which: web or native at compile time by conditional import, Impeller or software and WebGL2 or WebGPU at run time, because neither of those is visible to a compiler |
 | [`packages/flutter3d_shaders`](packages/flutter3d_shaders) | The GLSL, and the headers an extension package includes |
 | [`packages/flutter3d_particles`](packages/flutter3d_particles) | One pool, one draw call, whatever is in it |
 | [`packages/flutter3d_session`](packages/flutter3d_session) | A run that can be started, saved, resumed and ended, with no widget in it |
@@ -108,6 +109,11 @@ flutter pub get
 
 In a browser it is the same command with a different device, and no shader
 bundle: the WebGL backend translates the same GLSL and the browser compiles it.
+A build that wants WebGPU instead asks for it — `--dart-define=FLUTTER3D_WEBGPU=true`,
+and the probe falls back to WebGL2 where the browser has no adapter to give. It
+is off by default because a build that can try both ships both, which is 376,649
+bytes of `main.dart.js` measured on the strategy demo, and because WebGL2 is the
+browser backend three shipped games have been looked at on.
 
 ```bash
 (cd apps/flutter3d_demo_dungeon && flutter run -d chrome)
@@ -142,14 +148,18 @@ ones that need a GPU are the
 Impeller half of the golden set. The other half is rendered by the software
 backend, which is what makes 43 scenes checkable in a headless run.
 
-Two of the steps are browser steps — `flutter test --platform chrome` for the
-WebGL backend and for the browser half of `pointer_lock` — and one of them
-compiles a game to WebAssembly, because a build nobody runs is a platform nobody
-supports.
+Several of the steps are browser steps — `flutter test --platform chrome` for
+the two web backends, for `flutter3d_backend`'s browser half and for the browser
+half of `pointer_lock` — and one of them compiles a game to WebAssembly, because
+a build nobody runs is a platform nobody supports. The WebGPU backend is the one
+that gets something out of that arrangement no other backend can: Chrome has a
+real WebGPU device inside `flutter test`, so its conformance run is a test rather
+than an application somebody watches.
 
-How they are written down — two independent golden sets rather than one, and
-why every new test is written by breaking the thing it covers — is in
-[ARCHITECTURE.md](ARCHITECTURE.md), section 13.
+How they are written down — three complete independent golden sets rather than
+one, a fourth part-recorded for WebGPU, and why every new test is written by
+breaking the thing it covers — is in [ARCHITECTURE.md](ARCHITECTURE.md),
+section 13.
 
 ## Channel
 
@@ -190,8 +200,11 @@ newer. The rule skips when there is no bundle at all, which is every fresh
 checkout and every CI run — `impellerc` is not there to build one, and a rule
 demanding it would be red on the machines least able to do anything about it.
 
-The WebGL backend has the opposite arrangement and needs no such rule: its
-translation is checked in, and CI regenerates it and fails on the diff.
+Both web backends have the opposite arrangement and need no such rule: their
+translations are checked in, and CI regenerates each and fails on the diff. The
+WebGPU one runs a longer road to get there — the same GLSL through
+`glslangValidator` and then `naga`, into WGSL — so the diff is also what catches
+a different compiler on the machine.
 
 ## Contributing
 

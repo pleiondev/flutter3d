@@ -42,13 +42,17 @@ const bool kFixedResolution = true;
 /// and a build that did not ask carries one backend rather than two. Turn it on
 /// and the build carries both, plus one adapter request before the first frame.
 ///
-/// **372,686 bytes**, measured rather than assumed: `flutter build web
-/// --release` on `apps/flutter3d_demo_strategy` writes a 2,517,985-byte
-/// `main.dart.js` with this off and a 2,890,671-byte one with it on, which is
-/// the WebGPU device, its encoder, its pipeline cache and its WGSL arriving in a
-/// bundle that will never open them. So the flag is the price tag, and whether
-/// a particular game pays it is that game's call — the same shape as the
-/// resolution and the shadow budget this package already refuses to decide.
+/// **376,649 bytes**, measured rather than assumed, and measured again on the
+/// day this sentence was last edited: `flutter build web --release` on
+/// `apps/flutter3d_demo_strategy` writes a 2,529,865-byte `main.dart.js` with
+/// this off and a 2,906,514-byte one with it on — 14.9% more script, and 368 KiB
+/// on the whole of `build/web`. That is the WebGPU device, its encoder, its
+/// pipeline cache and its WGSL arriving in a bundle that will never open them.
+/// So the flag is the price tag, and whether a particular game pays it is that
+/// game's call — the same shape as the resolution and the shadow budget this
+/// package already refuses to decide. The figure is re-measured rather than
+/// carried forward, because both halves grow: the reading before this one was
+/// 372,686 bytes over a tree eleven thousand bytes smaller.
 ///
 /// What is *not* a call anybody makes per game is that WebGL2 is what an
 /// ordinary web build draws through. WebGPU is the newer API and the one whose

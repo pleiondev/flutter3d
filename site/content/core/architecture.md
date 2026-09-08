@@ -1,5 +1,5 @@
 ---
-description: The dependency rules, the HAL and its three rendering backends — flutter_gpu, WebGL and CPU, and the one consequence that shapes everything else.
+description: The dependency rules, the HAL and its four rendering backends — flutter_gpu, WebGL2, WebGPU and CPU, and the one consequence that shapes everything else.
 ---
 
 # Architecture
@@ -36,13 +36,14 @@ final device = await GpuRenderBackend.create();   // flutter3d_impeller
 final renderer = Renderer.create(device: device);
 ```
 
-### The three backends
+### The four backends
 
 | Backend | Runs on | Entry point | Status |
 |---|---|---|---|
 | **`flutter3d_impeller`** | `flutter_gpu` — Metal on Apple platforms, Vulkan elsewhere | `GpuRenderBackend.create()` | The production one. Everything in these docs runs on it |
-| **`flutter3d_webgl`** | WebGL2, in the browser | `WebGlDevice` | Runs all three games. Slower, at a fixed resolution |
+| **`flutter3d_webgl`** | WebGL2, in the browser | `WebGlDevice` | Runs all three games. Slower, at a fixed resolution. What an ordinary web build opens |
 | **`flutter3d_cpu`** | Nothing. It rasterises in Dart | `CpuDevice()` | Complete for the golden set. A dev dependency of every game |
+| **`flutter3d_webgpu`** | WebGPU, in a browser that hands out an adapter | `openWebGpu()` | Draws, and passes the whole conformance suite against a live device. Declines four capabilities by name. Asked for rather than defaulted to |
 
 Each exists for a different reason, and none of them is a fallback for another.
 
@@ -52,12 +53,16 @@ Each exists for a different reason, and none of them is a fallback for another.
 
 Its shaders are GLSL ES 3.00 generated from `flutter3d_shaders`. Nothing checked that the generated file was current for a long time, and it cost two silent failures — a uniform member the browser's copy had never heard of, and a sky shader from before the sky was rewritten. `tool/ci.sh` regenerates it and fails on the diff now, and the compiled Impeller bundle, which cannot be diffed, is held by a freshness rule instead.
 
-**`flutter3d_cpu`** is the one that makes the agreement mean something. Two hardware backends agreeing proves less than it looks like: both are driven by a C API and both rasterise on a GPU, so an assumption shared by graphics hardware would be invisible to the pair of them. This one shares nothing with either, no driver, no shading language, no command buffer. It is also what makes forty-three golden scenes checkable in a headless run, and what caught three bugs that every simulation test passed.
+**`flutter3d_cpu`** is the one that makes the agreement mean something. Two hardware backends agreeing proves less than it looks like: both are driven by a C API and both rasterise on a GPU, so an assumption shared by graphics hardware would be invisible to the pair of them. This one shares nothing with either, no driver, no shading language, no command buffer. It is also what makes 43 golden scenes checkable in a headless run, and what caught three bugs that every simulation test passed.
+
+**`flutter3d_webgpu`** asks a question none of the other three could: whether the *shader* half of the contract is a seam. The first three all read one text — `impellerc` compiles the GLSL, the WebGL generator translates it, the software rasteriser transcribes it into Dart by hand — and WebGPU cannot, because WGSL is a different language and a browser will not take SPIR-V. So its table is generated down a second toolchain, the same manifest through `glslangValidator` and then `naga`, and all thirty-nine stages come out. What it declines it declines by name: no blend constant (WebGPU has no colour/alpha pair for one), no wireframe (no polygon fill mode in the API at all), no block-compressed format (the device asks for no compression feature, and sampling one it did not ask for is a validation error), and no render into a mip — which is the one that costs something, since a reflection probe needs that and a cube together, so the probe stays off rather than half-built.
+
+A browser build opens WebGL2 unless it says otherwise. That is a decision about bytes: a probe that can call either opener keeps both backends reachable and dart2js ships what it can reach, which the strategy demo measures at 376,649 bytes of `main.dart.js`, 14.9%. `--dart-define=FLUTTER3D_WEBGPU=true` is how a game decides for itself.
 
 Any new backend has to pass `flutter3d_conformance` before it counts as one.
 
 <div class="note">
-<p>Writing a fourth one is a documented job rather than an archaeology exercise: <a href="/core/backends/"><strong>Writing a HAL backend</strong></a> covers the whole contract, the ten semantics that appear in no signature, the conformance suite you can run before compiling a single shader, and the thirty-nine shader entry points your bundle has to answer to.</p>
+<p>Writing a fifth one is a documented job rather than an archaeology exercise: <a href="/core/backends/"><strong>Writing a HAL backend</strong></a> covers the whole contract, the ten semantics that appear in no signature, the conformance suite you can run before compiling a single shader, and the thirty-nine shader entry points your bundle has to answer to.</p>
 </div>
 
 ### What the HAL actually names

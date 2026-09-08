@@ -122,35 +122,40 @@ flowchart TB
   simp --> physics
 ```
 
-Five more packages exist that this diagram deliberately leaves out, because none of them changes what an app may know: `flutter3d_backend` picks the device (Impeller or WebGL2) at compile time, so the conditional import an app needs is written once and not per project; `flutter3d_session` holds `SceneSurface` and `RunSession`, the frame surface and level lifecycle that every app used to reimplement; `flutter3d_screens` is the settings, rebinding and save screens no game owns; `pad_input` and `pointer_lock` are gamepad and mouse-capture, read once per frame like everything else `flutter3d_game` polls. `flutter3d_app` re-exports all five, so an application names the assembly layer once. [Assembling an application](/core/session/) walks all five with the real code that uses them. One more, `flutter3d_conformance`, is test-only: it is what a backend has to pass before it can appear in the table below. The rules this diagram states are not a package at all — they are `tool/structure.dart`, thirty checks that read source text and run before a build.
+Five more packages exist that this diagram deliberately leaves out, because none of them changes what an app may know: `flutter3d_backend` picks the device — web or native at compile time, and which of the two on each side at run time — so the conditional import an app needs is written once and not per project; `flutter3d_session` holds `SceneSurface` and `RunSession`, the frame surface and level lifecycle that every app used to reimplement; `flutter3d_screens` is the settings, rebinding and save screens no game owns; `pad_input` and `pointer_lock` are gamepad and mouse-capture, read once per frame like everything else `flutter3d_game` polls. `flutter3d_app` re-exports all five, so an application names the assembly layer once. [Assembling an application](/core/session/) walks all five with the real code that uses them. One more, `flutter3d_conformance`, is test-only: it is what a backend has to pass before it can appear in the table below. The rules this diagram states are not a package at all — they are `tool/structure.dart`, thirty checks that read source text and run before a build.
 
 Three rules hold the picture up, and `tool/structure.dart` checks each one before a build.
 
 - **`flutter3d_game` does not depend on `flutter3d`.** Simulation, input and collision say nothing about how a frame is drawn. That is what lets the failures which never show up in a screenshot be reached from a plain unit test: a collision that passes through a wall once in a thousand steps, a jump that is a different height on a faster monitor, a press swallowed at a low frame rate.
 - **A genre is a package.** `flutter3d_game_shooter` holds what only a shooter wants, so a platformer inherits none of its vocabulary. Two rules check it: no package outside a genre may import one, and none may *say* a genre word — `oneWay`, `ammo` and `lapTime` import nothing and are the same leak.
-- **The engine names no graphics API.** `flutter3d` is written against a hardware abstraction layer, `flutter3d_hardware`, and three backends implement it. Checked in both directions: the engine may not name `flutter_gpu`, and the layer may not name Flutter.
+- **The engine names no graphics API.** `flutter3d` is written against a hardware abstraction layer, `flutter3d_hardware`, and four backends implement it. Checked in both directions: the engine may not name `flutter_gpu`, and the layer may not name Flutter.
 
 The bridge exists because neither of the first two rules leaves anywhere for the mapping to live. Level geometry has to become mesh nodes and an actor has to get a visual, while the game layer must not learn what a mesh is and the renderer must not learn what a monster is. One package is allowed to know both.
 
-## One HAL, three backends
+## One HAL, four backends
 
-The renderer talks to a hardware abstraction layer and never to a graphics API. Three packages implement that layer.
+The renderer talks to a hardware abstraction layer and never to a graphics API. Four packages implement that layer.
 
 | Backend | Runs on | Status |
 |---|---|---|
 | `flutter3d_impeller` | `flutter_gpu`: Metal on Apple platforms, Vulkan elsewhere | Complete. All three games ship on it |
 | `flutter3d_webgl` | WebGL2, in the browser | Runs all three games, slower and at a fixed resolution. The racing game was the holdout for months and drives now — the cost was a cube shadow atlas sized from the sun's setting, not the frame |
 | `flutter3d_cpu` | Nothing. It rasterises in Dart | Complete for the golden set. A dev dependency of every game, and now `flutter3d_backend`'s last resort too |
+| `flutter3d_webgpu` | WebGPU, in a browser that has an adapter | Draws, and answers the whole conformance suite against a live device. Declines four capabilities by name. Reached by asking for it, not by default — see below |
 
-`flutter3d_conformance` is the suite a fourth backend would have to pass before it belonged in this table — clears that cover the whole attachment, upload/readback row order, HDR renderability, shader stage linking. It runs against all three backends, including Impeller through `packages/flutter3d_impeller/tool/conformance.sh`, which the harness itself has to be, since Flutter GPU requires Impeller and a headless `flutter test` cannot give it one.
+`flutter3d_conformance` is the suite a backend has to pass before it belongs in this table — clears that cover the whole attachment, upload/readback row order, HDR renderability, shader stage linking. It runs against all four, including Impeller through `packages/flutter3d_impeller/tool/conformance.sh`, which the harness itself has to be, since Flutter GPU requires Impeller and a headless `flutter test` cannot give it one. WebGPU is the opposite case and the easiest of the four: Chrome has a real WebGPU device inside `flutter test`, so the suite is an ordinary test file there.
 
-`flutter3d_backend` — the package picking which of these three an application gets — tries Impeller first on every native build and only reaches for the CPU backend at runtime, if Impeller throws. [Assembling an application](/core/session/) is where that fallback is documented.
+`flutter3d_backend` — the package picking which of these an application gets — tries Impeller first on every native build and only reaches for the CPU backend at runtime, if Impeller throws. In a browser it opens WebGL2, and tries WebGPU first only when the build says `--dart-define=FLUTTER3D_WEBGPU=true`. [Assembling an application](/core/session/) is where those fallbacks are documented.
 
-An application names one of them in its pubspec and hands the device to `Renderer.create`. Moving between them is that line and one constructor call.
+<div class="why">
+<p><strong>WebGPU is not the browser default, and the reason is a number.</strong> Whether <code>navigator.gpu</code> hands out an adapter depends on the browser, the driver and the machine's blocklist, so finding out means trying — and code that can try is code dart2js ships. Measured on the strategy demo, <code>flutter build web --release</code> writes 2,529,865 bytes of <code>main.dart.js</code> without the flag and 2,906,514 with it: <strong>376,649 bytes, 14.9%</strong>, of a second backend a build may never open. WebGL2 is also the browser backend three shipped games have been looked at on and the one whose reference set is recorded. Switching the probe on for everybody would change what those games draw and charge each of them the bytes, so it stays a game's own call, and making it is one flag.</p>
+</div>
 
-Each backend exists for a different reason. Impeller is the production one. WebGL2 answers whether the HAL is a seam or a description of Impeller, because a fake backend can only show that an interface is callable, never that it is implementable. The CPU rasteriser shares no driver, shading language or command buffer with either of the others, so agreement with it means more than agreement between two GPU backends would.
+An application names a backend in its pubspec and hands the device to `Renderer.create`. Moving between them is that line and one constructor call.
 
-[How the HAL is put together](/core/architecture/#the-hal) · [Writing a fourth backend](/core/backends/)
+Each backend exists for a different reason. Impeller is the production one. WebGL2 answers whether the HAL is a seam or a description of Impeller, because a fake backend can only show that an interface is callable, never that it is implementable. The CPU rasteriser shares no driver, shading language or command buffer with either of the others, so agreement with it means more than agreement between two GPU backends would. WebGPU is the first one whose *shaders* are not the same text — WGSL rather than GLSL, translated by a second toolchain — which is a different question again: whether the shader half of the contract is a seam too.
+
+[How the HAL is put together](/core/architecture/#the-hal) · [Writing a backend](/core/backends/)
 
 ## What is in the box
 

@@ -1,5 +1,49 @@
 ## 0.5.2
 
+**What the fourth backend became, in one paragraph, because the entries below
+are the road and this is the destination.** It opens a real WebGPU device,
+records passes through it, and hands Flutter a frame; all thirty-nine of the
+engine's stages compile, from the generated table and from a bundle handed over
+as bytes alike; and `flutter3d_conformance` answers **33 of 33** against a live
+adapter in Chrome — the same list the other three backends are held to, run as an
+ordinary test file rather than as an application somebody watches, because Chrome
+has a WebGPU device inside `flutter test` and that is the one arrangement
+Impeller cannot have. Four of the thirty-three pass by *declining*, and each
+decline is a capability this device says false to by name rather than a method
+that quietly does nothing: **the blend constant** (WebGPU has `"constant"` and
+`"one-minus-constant"` and no colour/alpha split to form `BlendFactor.blendAlpha`
+with), **wireframe** (no polygon fill mode in the API at all), **every
+block-compressed format** (the device requests no compression family, and
+sampling one it did not request is a validation error rather than a slow path),
+and **rendering into a mip** — the one that costs a feature, since
+`ReflectionProbeNode.supportedOn` wants that and cubes together, so a probe stays
+off rather than half-built. What separates those four from a gap is only that
+they are declared, which this package learned by getting it wrong once:
+`createCubeRenderTarget` returned null while `supportsCubeTextures` said true,
+and the suite failed it instead of declining it.
+
+**It is not what a browser build opens, and that is a decision about bytes.**
+`flutter3d_backend` still gives a web build WebGL2 and tries WebGPU first only
+behind `--dart-define=FLUTTER3D_WEBGPU=true`; the engine's example takes
+`?backend=webgpu` from the URL instead, so one dart2js run still serves
+forty-three golden scenes and both browser backends. The probe cannot be a
+compile-time question — whether `navigator.gpu` yields an adapter depends on the
+browser, the driver and a blocklist — so a build that can try it carries it:
+2,529,865 bytes of `main.dart.js` on `apps/flutter3d_demo_strategy` without the
+flag against 2,906,514 with it, **376,649 bytes and 14.9%**, measured on two
+builds of one checkout. WebGL2 stays the default because it is the browser
+backend three shipped games have been looked at on and the one with a recorded
+reference set behind it; moving every browser build onto the newer API would
+change what those games draw and charge each of them those bytes, and neither is
+a decision to make on a game's behalf.
+
+**And its shaders are the first in this repository that are not the same text.**
+WGSL is a different language and no browser takes SPIR-V, so `flutter3d_shaders`
+reaches this backend through `glslangValidator` and `naga` rather than through a
+compiler or a translator — which is why the six-stage uniformity fix below edits
+GLSL that all four backends read, and why a byte-identical software golden set is
+not evidence that the edit was neutral.
+
 * **The device and the shader library are one backend now.** Both halves of the
   same wave were written in parallel: the device declared a private class for
   the engine's stages, the library declared a one-method compiler interface,
@@ -195,6 +239,10 @@
   equation at all; `supportsBlendColor` is the contract's own way of asking,
   and this backend will answer false. Nothing in the engine, the games or the
   site builds a blend constant, so the contract is untouched.
-* Version 0.5.2 to match the three backends it joins, and `pub publish` is not
-  run for it: being in the publishing order and being published are different
-  things, and this one goes out when it draws.
+* Version 0.5.2 to match the three backends it joins, and `pub publish` is still
+  not run for it: being in the publishing order and being published are
+  different things. The condition it was set was that it could draw, and it
+  draws. What it waits for now is the next release the other unpublished
+  packages are waiting for, and a recorded reference set of its own — a backend
+  whose pictures nothing compares is one whose regressions arrive as a report
+  from whoever happened to look.

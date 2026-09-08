@@ -9,7 +9,7 @@ Every word below is a type or a file in this repository, not a general graphics 
 ## Drawing
 
 <dl class="keys">
-  <div><dt>Backend</dt><dd>One implementation of <code>flutter3d_hardware</code>. There are three: <code>flutter3d_impeller</code> on the GPU, <code>flutter3d_webgl</code> in a browser, <code>flutter3d_cpu</code> in plain Dart. An application depends on exactly one by name</dd></div>
+  <div><dt>Backend</dt><dd>One implementation of <code>flutter3d_hardware</code>. There are four: <code>flutter3d_impeller</code> on the GPU, <code>flutter3d_webgl</code> in a browser, <code>flutter3d_cpu</code> in plain Dart, and <code>flutter3d_webgpu</code> in a browser that hands out an adapter. An application depends on exactly one by name</dd></div>
   <div><dt>HAL</dt><dd>The hardware abstraction layer, <code>flutter3d_hardware</code>: <code>GraphicsDevice</code>, <code>CommandEncoder</code>, formats, handles. It names no graphics API, which is what lets the renderer be written once</dd></div>
   <div><dt>Pass</dt><dd>One <code>beginRenderPass</code> and everything drawn before it is submitted. A frame here is shadows, sky, scene, then post, each in its own command buffer</dd></div>
   <div><dt>Draw item</dt><dd>One mesh, one material, one transform, sorted into the render list by a packed key. Culling decides which nodes become one</dd></div>
@@ -91,7 +91,7 @@ A level is JSON. These are its parts, and a game reads all of them through `Leve
 ## Testing
 
 <dl class="keys">
-  <div><dt>Golden</dt><dd>A reference image a scene is compared against. Three independent sets, Impeller, software and WebGL2, each held to zero differing pixels against its own</dd></div>
+  <div><dt>Golden</dt><dd>A reference image a scene is compared against. Three complete independent sets — Impeller, software and WebGL2 — each held to zero differing pixels against its own, with a fourth being recorded for WebGPU</dd></div>
   <div><dt>Parity fixture</dt><dd>One scene drawn by two backends and compared as a grid of average brightness. Answers "do these two draw the same picture", which a golden cannot</dd></div>
   <div><dt>Conformance</dt><dd>The suite a backend has to pass before it counts as one. Split in two: what needs no shaders, and the rest</dd></div>
   <div><dt>Structure rule</dt><dd>One of thirty scans in <code>tool/structure.dart</code>. They read source text and hold the architecture: that a genre package stays out of another genre, that the documents' numbers are true</dd></div>

@@ -20,12 +20,12 @@ The hardware abstraction layer, and the vocabulary a backend implements: `Graphi
 
 When a second backend arrives, this package does not change. A translation file appears in the new backend, and that is all.
 
-→ [The HAL and its three backends](/core/architecture/#the-hal) · [Writing a backend](/core/backends/)
+→ [The HAL and its four backends](/core/architecture/#the-hal) · [Writing a backend](/core/backends/)
 
 ### `flutter3d_shaders`
-The shared GLSL every backend compiles from: Impeller into a bundle, WebGL by translation, the CPU backend as Dart transcriptions.
+The shared GLSL every backend comes from: Impeller compiles it into a bundle, WebGL translates it, WebGPU translates it down a second toolchain into WGSL, and the CPU backend transcribes it into Dart by hand. Only the first three are machines reading the text, which is what decides who can witness a GLSL edit: a software golden set that matched byte for byte says nothing about one, because those shaders were rewritten by a person, and `flutter3d_cpu`'s own files say so at the head.
 
-## Backends, three implementations of the HAL
+## Backends, four implementations of the HAL
 
 An application depends on exactly one of these by name, and that dependency is the only place the choice is visible.
 
@@ -38,6 +38,15 @@ The browser. `WebGlDevice` implements the HAL and has its own example.
 Its real value is not that it runs on the web: it is the first thing that can tell you whether the HAL is a *seam* or a *description of Impeller*, because a fake backend can only confirm that an interface is callable, never that it is implementable.
 
 **Status:** all three games run on it. `lib/engine_shaders.dart` holds every entry point in GLSL ES 3.00, generated from `flutter3d_shaders` by `tool/generate_shaders.dart`, and CI regenerates it and fails on the diff — it used to go stale silently, and when cascaded shadows added a member to a uniform block the backend stopped drawing anything until somebody re-ran the generator. See the [platformer demo](/platformer/demo/#the-bug-this-demo-found).
+
+### `flutter3d_webgpu` — WebGPU
+The second browser backend. `openWebGpu` asks for an adapter and then a device, answers null where a browser has neither, and turns that null into the one `StateError` worth putting on a screen. Two barrels: `flutter3d_webgpu.dart` is pure Dart — the translation table and the pipeline signature, asserted on the VM in about a second — and `flutter3d_webgpu_web.dart` is everything that reaches for `dart:js_interop`.
+
+It is the first backend whose shaders are not the same text the others read, and that is why it exists as a separate question rather than as a second browser option. WGSL is a different language and no browser takes SPIR-V, so `tool/generate_shaders.dart` runs the same manifest through `glslangValidator` and then `naga --keep-coordinate-space`, and CI regenerates the table and fails on the diff. All thirty-nine stages compile.
+
+**What it declines, by name rather than by silence:** the blend constant, because WebGPU has `"constant"` and `"one-minus-constant"` and no colour/alpha split for `BlendFactor.blendAlpha`; wireframe, because the API has no polygon fill mode; every block-compressed format, because the device requests no compression feature and sampling one it did not request is a validation error rather than a slow path; and rendering into a mip, which is the one that costs a feature — a reflection probe needs that and a cube, so it stays switched off rather than half-implemented. Those four are how the conformance suite comes back 33 of 33 with four honest refusals in it.
+
+**Status:** it draws, and its conformance run is an ordinary test file, because Chrome has a real WebGPU device inside `flutter test` — the one thing this backend gets that Impeller cannot. Not published yet, and not what a browser build opens by default: `--dart-define=FLUTTER3D_WEBGPU=true` is the ask, and it is off because a build that can try both ships both — 376,649 bytes of `main.dart.js` on the strategy demo, 14.9%, measured rather than guessed.
 
 ### `flutter3d_cpu` — software
 A rasteriser written in Dart. `CpuDevice` implements the same HAL, plus PNG output and Dart transcriptions of the shaders.
@@ -146,7 +155,7 @@ Deliberately **not** behind it: `flutter3d`, `flutter3d_bridge`, `flutter3d_game
 Five of the six applications import it — the four games and the template, which reaches `openDevice` through it in one exported line. `flutter3d_editor` is the one that does not, and that is a gap rather than a second pattern: see [Assembling an application](/core/session/).
 
 ### `flutter3d_backend`
-Which graphics backend a build draws through: `openDevice({required width, required height})` returns a `GraphicsDevice`. Web or native is a conditional export, picked at compile time, because `flutter_gpu` does not compile for the web and `dart:js_interop` does not compile for macOS. On the native half, Impeller or software is a runtime `try`/`catch` instead: `GpuRenderBackend.create()` is tried first, and a throw — Flutter GPU refusing to start on Skia, or a platform where Impeller was never enabled — falls back to `flutter3d_cpu`'s `CpuDevice`, since `flutter_gpu` ships with the SDK and no compile-time check can see whether it will actually start. Deliberately does not decide resolution or shadow budget — `kFixedResolution` reports whether the *primary* backend renders to a fixed internal target, and the size stays the application's own choice.
+Which graphics backend a build draws through: `openDevice({required width, required height})` returns a `GraphicsDevice`. **Three decisions, made three different ways.** Web or native is a conditional export, picked at compile time, because `flutter_gpu` does not compile for the web and `dart:js_interop` does not compile for macOS. On the native half, Impeller or software is a runtime `try`/`catch` instead: `GpuRenderBackend.create()` is tried first, and a throw — Flutter GPU refusing to start on Skia, or a platform where Impeller was never enabled — falls back to `flutter3d_cpu`'s `CpuDevice`, since `flutter_gpu` ships with the SDK and no compile-time check can see whether it will actually start. On the browser half, WebGPU or WebGL2 is the same shape of `try`/`catch` — `navigator.gpu` may be absent, or present and hand out no adapter on a blocklisted driver, and no `dart.library.*` check sees either — but it is reached only behind `--dart-define=FLUTTER3D_WEBGPU=true`, because a probe that can call both openers keeps both backends reachable and dart2js ships what it can reach: 376,649 bytes of `main.dart.js` on the strategy demo, 14.9%, measured on two builds of the same checkout. Deliberately does not decide resolution or shadow budget — `kFixedResolution` reports whether the *primary* backend renders to a fixed internal target, and the size stays the application's own choice.
 
 Kept out of `flutter3d_session`, which would otherwise have to depend on both backends and drag WebGL into `apps/flutter3d_editor`, which has no browser build to choose for.
 
@@ -247,7 +256,7 @@ flowchart TB
   apps --> session["flutter3d_session<br>flutter3d_screens"]
   apps --> picker["flutter3d_backend"]
   picker --> gfx["flutter3d_hardware<br><b>the HAL</b>"]
-  picker -.-> onebackend["one backend<br><i>impeller · webgl</i>"]
+  picker -.-> onebackend["one backend<br><i>impeller · webgl · webgpu · cpu</i>"]
   session --> bridge
   genres --> game["flutter3d_game"]
   bridge --> engine["flutter3d"]

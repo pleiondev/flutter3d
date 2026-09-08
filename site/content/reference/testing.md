@@ -1,5 +1,5 @@
 ---
-description: Three independent golden sets, mutation-checking every new test, determinism and snapshots, and why only about thirty of 4303 tests need a GPU.
+description: Three independent golden sets and a fourth being recorded, mutation-checking every new test, determinism and snapshots, and why only about thirty of 4303 tests need a GPU.
 ---
 
 # Testing
@@ -35,11 +35,17 @@ tool/ci.sh                                   # shaders, analyze, every test
 (cd packages/flutter3d_physics && dart test) # plain Dart, no Flutter needed
 ```
 
-## Three independent golden sets, not one
+## Three independent golden sets, not one — and a fourth being recorded
 
 Forty-three scenes are rendered three times: through Impeller, through the software rasteriser in `flutter3d_cpu`, and through WebGL2 in a driven browser. Each backend is held to zero differing pixels against its own set, with a per-channel tolerance of 8.
 
 The browser's set is recorded when a branch lands rather than beside it — `golden_web.sh` holds one fixed port for the whole of its run — so a new scene is in two sets for as long as that takes. Which scenes, and what they are waiting for, is `_provisional` in `flutter3d_webgl/test/cross_backend_test.dart`: the comparison is skipped with the reason printed instead of quietly missing, and the check beside it fails the moment a reference lands and the name is still there.
+
+**WebGPU's set is being recorded and is not finished**, so it is stated here as a number rather than as a fourth set: **42 of the 43 scenes** had references when this was written, on a branch of their own, with `loaded-shader` the one still missing. The distinction is not pedantry — a partial set cannot say a picture regressed, only that some pictures exist, and a line reading "four sets" would promise the first while delivering the second. The same stand records it: `flutter3d_webgl/tool/golden_web.sh --backend=webgpu` writes into `flutter3d_webgpu/test/goldens`. One build serves the whole suite for either browser backend, because the scene *and* the backend are query parameters on the page rather than defines on the compile — a define per backend would have spent the stand's entire saving on a single word. `--no-build` reuses the build already there, which is what makes a second backend's recording cheap.
+
+<div class="warn">
+<p><strong>A backend can only witness a shader edit if a machine reads the shaders.</strong> The GLSL in <code>flutter3d_shaders</code> is compiled by <code>impellerc</code>, translated by the WebGL generator and translated again into WGSL for WebGPU — but transcribed into Dart <em>by hand</em> for the software rasteriser. So when six fragment stages were rewritten to satisfy WGSL's uniformity rule, the software set matching byte for byte was not evidence that the edit was neutral. The sets that can answer that are Impeller's and WebGL2's, and this is the kind of thing worth knowing before reading a green run as an answer.</p>
+</div>
 
 {{golden3 shadow-teapot | One scene, three sets: a GPU through Metal, a rasteriser written in Dart, and a browser. The pictures on this site are the Impeller set.}}
 
@@ -52,6 +58,10 @@ The browser's set is recorded when a branch lands rather than beside it — `gol
 <div class="warn">
 <p>Flutter GPU requires Impeller, which a headless <code>flutter test</code> cannot give it, so the conformance harness has to be an application that somebody watches run. It was one — and stood there showing a pass list to a human — from the same commit that added a fix meant to be caught by it, until <code>packages/flutter3d_impeller/tool/conformance.sh</code> was written to actually run the suite and return its exit code. Once it did, the suite passed; nobody had known either way before then. The <code>the Impeller runners are reachable</code> rule now keeps that script from going stale — checking that it exists, that it is executable, and that it and the entry point still agree about the line the verdict is read from.</p>
 </div>
+
+`flutter3d_webgpu` is the backend that gets the arrangement Impeller cannot. Chrome has a real WebGPU device inside `flutter test`, so `flutter test --platform chrome` runs the whole suite against live hardware as an ordinary test file — 33 of 33, four of them passing by declining a capability the device says it has not got: the blend constant, wireframe, the block-compressed formats and rendering into a mip. A decline is reported as a decline and never as a pass, because "the suite is green" and "the suite is green, and here is what it never asked" are different sentences.
+
+The rest of that package's tests are deliberately split by whether they need a browser at all. The translation table, the pipeline signature and every vertex-layout refusal live in files that import neither `dart:js_interop` nor `package:web`, so they run on the VM in about a second — a typo in `"less-equal"` fails there rather than as a pipeline a browser rejects at run time on the one machine that has a GPU. The GLSL→WGSL pipeline is checked the same way the WebGL translation is: CI regenerates the table and fails on the diff, which catches a stale table *and* a different compiler on the machine, since this road runs through `glslangValidator` and `naga` rather than one generator.
 
 The same package has a second instrument in the same shape, held by the same rule: `tool/surface_probe.sh` measures flutter_gpu's `GpuImageSurface` against the `asImage()` path `present` uses, on a live GPU, and prints what each costs. The probe itself lives in the engine's example beside the entry point that runs it, not in the backend — it reaches flutter_gpu directly, and is no part of what the backend publishes. It is a measurement rather than a check — its exit code says only whether the last frame of each of the five present paths, and of the resized surface, came back holding the colour it was cleared to, which is a check on the image wrapping the right texture and not on anything the compositor did — and what it found is on the [backends](/core/backends/#presenting) page.
 
