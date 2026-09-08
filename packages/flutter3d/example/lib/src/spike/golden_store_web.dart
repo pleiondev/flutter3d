@@ -41,9 +41,15 @@ void reportLine(String message) {
 ///
 /// A run-time choice here, where the desktop path takes a compile-time define.
 /// The reason is arithmetic: the suite is forty-three scenes, and rebuilding
-/// the bundle for each is thirty-nine dart2js runs to compare thirty-nine
-/// pictures. One build and thirty-nine navigations is the same information in
+/// the bundle for each is forty-three dart2js runs to compare forty-three
+/// pictures. One build and forty-three navigations is the same information in
 /// a fraction of the time.
+///
+/// These three said thirty-nine while the suite had been forty-three for some
+/// time. The structure rule that holds this count reads only the number
+/// standing immediately before `scenes` or `goldens`, and these stand before
+/// runs, pictures and navigations, so nothing was watching them. Recounted
+/// from the same definitions the runner reads.
 String? get sceneOverride {
   final name = Uri.base.queryParameters['golden'];
   return (name == null || name.isEmpty) ? null : name;
@@ -52,7 +58,7 @@ String? get sceneOverride {
 /// Whether this run records rather than compares, from the page's URL.
 ///
 /// A run-time choice for the same reason [sceneOverride] is one: the suite is
-/// forty-three scenes and rebuilding for each would be thirty-nine dart2js runs.
+/// forty-three scenes and rebuilding for each would be forty-three dart2js runs.
 /// One build serves both directions, and the URL says which.
 bool get updateOverride => Uri.base.queryParameters['update'] == '1';
 
