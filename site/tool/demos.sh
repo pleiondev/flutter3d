@@ -48,10 +48,22 @@ for entry in "${games[@]}"; do
   # default `<base href="/">` makes the app ask for /main.dart.js, which is a
   # 404 and a blank page with nothing in the console but the missing file.
   #
-  # --wasm builds dart2wasm and the JavaScript output together, and
-  # flutter_bootstrap.js picks between them at load. The games are the one thing
-  # on this site that spends its frame budget in Dart rather than in a driver.
-  (cd "$repo/$dir" && flutter build web --wasm --release --base-href="/demo/$name/")
+  # **`--wasm` is off, and it is a workaround rather than a preference.** The
+  # dart2wasm build of the WebGL backend throws on the first frame —
+  # `framebufferTexture2D: parameter 4 is not of type 'WebGLTexture'` — and
+  # draws nothing at all; the shooter and the platformer went out like that and
+  # the racer, which reaches that path differently, did not. The same commit
+  # built with dart2js renders correctly in the same browser.
+  #
+  # It is invisible to the tests because `flutter test --platform chrome`
+  # compiles with dart2js: all one hundred and forty-eight WebGL checks pass
+  # against a compiler the shipped build does not use. That gap is the real
+  # defect here, and it outlives this line.
+  #
+  # Put `--wasm` back when the interop bug is found — and add a browser check
+  # that runs against the compiler the demos actually ship with, or this
+  # returns.
+  (cd "$repo/$dir" && flutter build web --release --base-href="/demo/$name/")
 
   target="$here/dist/demo/$name"
   mkdir -p "$target"
