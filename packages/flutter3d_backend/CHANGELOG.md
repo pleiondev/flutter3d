@@ -1,5 +1,23 @@
 ## 0.5.2
 
+* **A browser build can ask for WebGPU, and has to ask.**
+  `--dart-define=FLUTTER3D_WEBGPU=true` makes the web half try `openWebGpu`
+  first and fall back to WebGL2 where the browser has no `navigator.gpu` or
+  refuses an adapter — the same `try`/`catch` shape, and for the same reason,
+  as the native half's fall back to the software rasteriser. Without the define
+  nothing changes: an ordinary web build opens WebGL2 and never mentions
+  WebGPU.
+* **Why it is a define and not simply the behaviour.** A probe that can call
+  either opener keeps both backends reachable, and dart2js ships what it can
+  reach. Measured on `apps/flutter3d_demo_strategy`, `flutter build web
+  --release` writes 2,517,985 bytes of `main.dart.js` with the flag off and
+  2,890,671 with it on — 372,686 bytes of device, encoder, pipeline cache and
+  WGSL that a build which never opens WebGPU would be carrying anyway. That is
+  a trade a game makes, not one this package makes for it.
+* The browser half now has tests of its own, and a `tool/ci.sh` step that runs
+  them. It had never been executed anywhere: the existing suite says outright
+  that a VM run *is* the native half, and which backend a web build opens was a
+  decision with nothing holding it.
 * Floors again, for the same reason as 0.5.1 and a different feature. An
   engine at 0.5.2 binds a `MorphInfo` block and a `morph_texture` sampler in
   its vertex stages; a backend older than that has neither in its bundle and

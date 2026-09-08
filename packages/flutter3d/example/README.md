@@ -11,7 +11,9 @@ flutter run -t lib/minimal_main.dart
 It opens its device through `flutter3d_backend`, so the same file runs on
 Impeller (desktop, mobile), WebGL2 (web) and the software rasteriser (anywhere
 neither will start — including `flutter test`, which is how
-`test/minimal_smoke_test.dart` runs it headless).
+`test/minimal_smoke_test.dart` runs it headless). A web build of it will try
+WebGPU first if it is given `--dart-define=FLUTTER3D_WEBGPU=true`, which that
+package's README explains and prices.
 
 **`lib/main.dart`** — the engine's own demo: a model browser with every
 lighting model, shadows, bloom, skinning, picking and the debug overlay. It is

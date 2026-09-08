@@ -4,6 +4,7 @@ library;
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:flutter3d_webgl/engine_shaders.dart';
 import 'package:flutter3d_webgl/flutter3d_webgl.dart';
+import 'package:flutter3d_webgpu/flutter3d_webgpu_web.dart';
 
 import 'golden_store.dart';
 
@@ -25,15 +26,16 @@ String get _requestedBackend {
 
 /// Builds the device this application draws through.
 ///
-/// The size is the canvas the browser will composite. Unlike Impeller, this
-/// backend owns a surface and has to be told how big it is.
-/// The `Future` is for the Impeller build's benefit, not this one's: a
-/// conditional import picks between the two and they must have one signature.
-/// Nothing here waits.
+/// The size is the canvas the browser will composite. Unlike Impeller, both
+/// backends here own a surface and have to be told how big it is.
+/// The `Future` used to be for the Impeller build's benefit alone; WebGPU needs
+/// it for real, because `requestAdapter` and `requestDevice` are promises and
+/// no constructor can wait on them.
 ///
-/// A backend this build cannot make is refused rather than quietly substituted.
-/// The stand records what it is told it drew, so a silent fall back to WebGL2
-/// would write one backend's frames into another's reference set — and a
+/// A backend this build cannot make is refused rather than quietly substituted,
+/// and that is now a rule about *names* rather than about WebGPU: the stand
+/// records what it is told it drew, so answering `?backend=vulkan` with a WebGL2
+/// frame would write one backend's pictures into another's reference set — and a
 /// reference set that describes the wrong device is worse than an absent one,
 /// because it passes.
 Future<GraphicsDevice> createBackend({
@@ -41,20 +43,37 @@ Future<GraphicsDevice> createBackend({
   required int height,
 }) async {
   final requested = _requestedBackend;
-  if (requested != 'webgl') {
-    final refusal =
-        'the page asked for the "$requested" backend and this build only draws '
-        'through WebGL2. Refusing rather than drawing the wrong picture under '
-        'the right name.';
+  try {
+    return switch (requested) {
+      'webgl' => _openWebGl(width: width, height: height),
+      'webgpu' => await openWebGpu(width: width, height: height),
+      _ => throw StateError(
+        'the page asked for the "$requested" backend and this build draws '
+        'through webgl and webgpu. Refusing rather than drawing the wrong '
+        'picture under the right name.',
+      ),
+    };
+  } catch (error) {
     // A browser has no exit code, so a golden run says what happened by posting
     // a line, and the stand is waiting for one about this scene. Left to the
-    // error panel alone the refusal would reach the stand as a ninety-second
-    // stall with no reason in it — which is a worse answer than the same one
-    // given at once.
+    // error panel alone, a device that will not open reaches the stand as a
+    // ninety-second stall with no reason in it — which is a worse answer than
+    // the same one given at once. Every way of failing here goes through this,
+    // not just a name nobody recognises: a browser with no `navigator.gpu` and
+    // a machine whose GPU is blocklisted both fail inside `openWebGpu`, and
+    // those are the two a WebGPU run will actually meet.
     final scene = sceneOverride;
-    if (scene != null) reportLine('GOLDEN $scene: $refusal');
-    throw StateError(refusal);
+    if (scene != null) reportLine('GOLDEN $scene: $error');
+    rethrow;
   }
+}
+
+/// WebGL2, over the canvas it creates for itself.
+///
+/// Separate from [createBackend] because it is the one branch that answers
+/// without waiting, and inlining a null check into a `switch` arm would have
+/// cost the arm its shape.
+GraphicsDevice _openWebGl({required int width, required int height}) {
   final device = WebGlDevice.create(
     width: width,
     height: height,

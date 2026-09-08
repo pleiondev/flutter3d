@@ -5,8 +5,8 @@
 ///     final device = await openDevice(width: 1280, height: 720);
 ///
 /// The engine talks to `flutter3d_hardware` and never to a graphics API, so
-/// something has to pick — and this is that something. **Two decisions, not
-/// one, and they are made two different ways:**
+/// something has to pick — and this is that something. **Three decisions, not
+/// one, and they are made three different ways:**
 ///
 /// * **Web or native** is a conditional export, decided at compile time,
 ///   because the two pull in incompatible worlds: `flutter_gpu` does not
@@ -16,6 +16,13 @@
 ///   runtime, because `flutter_gpu` ships with the SDK and is always
 ///   importable — whether it actually *starts* depends on the platform and how
 ///   the engine was launched, which nothing at compile time can see.
+/// * **WebGPU or WebGL2**, on the browser half, is the same `try`/`catch` — a
+///   browser's `navigator.gpu`, and the adapter it may refuse to hand out on a
+///   blocklisted driver, are not visible to a compiler either — but it is
+///   reached only when a build says `--dart-define=FLUTTER3D_WEBGPU=true`. The
+///   define is there because trying both means shipping both, and an ordinary
+///   web build has no reason to carry a second backend it will not open. The
+///   flag's own doc in `backend_web.dart` is where that trade is written out.
 ///
 /// ## What it does not decide
 ///

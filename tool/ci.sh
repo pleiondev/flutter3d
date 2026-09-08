@@ -217,6 +217,16 @@ step "test flutter3d_webgpu (browser)" in_dir packages/flutter3d_webgpu flutter 
 # files.
 step "test pointer_lock (browser)" in_dir packages/pointer_lock flutter test --platform chrome
 
+# **The package whose whole job is a choice, asked to make it on the platform
+# where there is now more than one answer.** `flutter3d_backend` had a VM test
+# that says outright it can only reach the native half; the browser half was
+# left to the games' web builds, which compile it and never call it. That was
+# tolerable while a browser meant WebGL2 and nothing else. It stopped being
+# tolerable when the file grew a WebGPU probe: which backend an ordinary web
+# build opens is a decision now, and a decision nothing runs is a default that
+# moves the first time somebody edits four lines.
+step "test flutter3d_backend (browser)" in_dir packages/flutter3d_backend flutter test --platform chrome
+
 # **The WebGPU spike, which the loops above cannot reach.** It is a workspace
 # member under `tool/` rather than a package or an application — see its own
 # README for why — so nothing named by a wildcard finds it, and a spike nobody

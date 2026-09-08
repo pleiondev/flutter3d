@@ -39,11 +39,22 @@ dependencies:
   flutter3d_impeller: ^0.5.2
   flutter3d_webgl: ^0.5.2
 
-  # The third one is not a branch of that export — it is what the native half
-  # falls back to at runtime when `flutter_gpu` fails to start. `flutter_gpu`
-  # ships with the SDK, so its absence is not a thing a conditional export can
-  # see; only trying tells you.
+  # Two more that are not branches of that export — each is what one half falls
+  # back to, or up to, at runtime, because the question each answers is one no
+  # `dart.library.*` check can see.
+  #
+  # `flutter_gpu` ships with the SDK, so its absence is not a thing a
+  # conditional export can spot; only trying tells you whether Impeller starts,
+  # and the software rasteriser is where the native half lands when it does not.
   flutter3d_cpu: ^0.5.2
+
+  # WebGPU is the mirror image on the browser half: whether `navigator.gpu`
+  # hands out an adapter depends on the browser and on the machine's driver
+  # blocklist. The probe is off unless a build passes
+  # `--dart-define=FLUTTER3D_WEBGPU=true`, so an ordinary web build folds the
+  # branch away and carries WebGL2 alone — the reasoning is in `backend_web.dart`
+  # beside the flag.
+  flutter3d_webgpu: ^0.5.2
 
 dev_dependencies:
 

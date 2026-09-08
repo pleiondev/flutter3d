@@ -8,12 +8,28 @@ import 'package:flutter3d_backend/flutter3d_backend.dart';
 final device = await openDevice(width: 1280, height: 720);
 ```
 
-`openDevice` returns a `GraphicsDevice` from `flutter3d_hardware`. Neither
-backend appears in any signature: on a desktop or a phone the device is
-`flutter3d_impeller`'s, in a browser it is `flutter3d_webgl`'s, and the choice is
-a conditional export rather than a runtime branch — `flutter_gpu` does not
+`openDevice` returns a `GraphicsDevice` from `flutter3d_hardware`. No backend
+appears in any signature: on a desktop or a phone the device is
+`flutter3d_impeller`'s, in a browser it is `flutter3d_webgl`'s, and web-or-native
+is a conditional export rather than a runtime branch — `flutter_gpu` does not
 compile for the web and `dart:js_interop` does not compile for macOS, so a file
 importing both could target neither.
+
+Two backends are reached at run time instead, because what decides them is not
+visible to a compiler. On the native half, `flutter3d_cpu`'s software rasteriser
+is where a build lands when Impeller will not start. On the browser half:
+
+```sh
+flutter build web --dart-define=FLUTTER3D_WEBGPU=true
+```
+
+asks for `flutter3d_webgpu` first and falls back to WebGL2 where the browser has
+no `navigator.gpu` or hands out no adapter. **Off unless a build asks**, and that
+is about size rather than about WebGPU: the probe has to be able to call both
+openers, so a build that has it carries both backends and one that has not folds
+the branch away. On `apps/flutter3d_demo_strategy` that is 372,686 bytes of
+`main.dart.js` — 2,517,985 off against 2,890,671 on. Whether a particular game
+pays it is the game's call, the same way its resolution and shadow budget are.
 
 ## What it does not decide
 
