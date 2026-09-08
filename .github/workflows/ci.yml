@@ -50,6 +50,32 @@ jobs:
       # resampler is no longer an input to it.
       - run: pip install pillow
 
+      # The "webgpu shaders" step regenerates the WGSL table and demands the
+      # result be byte-identical to the committed one, so the two compilers it
+      # runs are inputs to it: a different glslang or a different naga writes a
+      # different table and the step goes red while both machines are right.
+      # These are the versions the committed table was generated with, and they
+      # are pinned for that reason rather than out of caution. Ubuntu's
+      # `glslang-tools` is several major versions behind, which is why this
+      # takes the Khronos release archive instead.
+      - name: glslang
+        run: |
+          curl -fsSL https://github.com/KhronosGroup/glslang/releases/download/16.5.0/glslang-16.5.0-linux-x86_64-release.tar.gz \
+            | sudo tar -xz -C /usr/local bin/glslang bin/glslangValidator
+          glslangValidator --version
+
+      # naga has no package anywhere, so it is built once and kept. The cache
+      # key is the version, which means a bump here fetches a fresh build
+      # rather than a stale binary under a matching name.
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cargo/bin/naga
+          key: naga-30.0.1
+      - name: naga
+        run: |
+          command -v naga || cargo install naga-cli --version 30.0.1 --locked
+          naga --version
+
       - run: tool/ci.sh
 
   # **A second operating system, because half of what this repository does is
