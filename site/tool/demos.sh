@@ -68,7 +68,23 @@ for entry in "${games[@]}"; do
   target="$here/dist/demo/$name"
   mkdir -p "$target"
   rsync -a --delete "$repo/$dir/build/web/" "$target/"
-  echo "   → dist/demo/$name"
+
+  # **The bootstrap is asked for by a URL of its own, so a fresh page does not
+  # make it fresh.** Everything a Flutter build emits is named without a hash,
+  # and the one in front of this site keeps files by name for four hours
+  # whatever the origin says about caching. When a build changed which bundle
+  # the bootstrap names, the kept copy went on naming a `main.dart.mjs` that no
+  # longer existed: 404, a blank frame, and an origin that had been right the
+  # whole time.
+  #
+  # A stamp in the reference makes it a different URL, which is the one thing a
+  # cache in front of us cannot argue with. Only the bootstrap: it is the file
+  # that decides which bundles load, so getting it fresh is enough to get the
+  # right ones, and the bundles carry their own revalidation from nginx.
+  stamp="$(date -u +%Y%m%d%H%M%S)"
+  perl -pi -e "s{flutter_bootstrap\\.js(\\?v=[0-9]+)?}{flutter_bootstrap.js?v=$stamp}g" \
+    "$target/index.html"
+  echo "   → dist/demo/$name (bootstrap v=$stamp)"
 done
 
 echo ""
