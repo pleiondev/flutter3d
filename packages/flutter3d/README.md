@@ -103,7 +103,7 @@ What works today:
   `CUBICSPLINE` with authored tangents), slerped rotations, an `AnimationPlayer`
   with play/pause/seek/speed and once/loop/ping-pong, and the decoded node
   hierarchy rebuilt on instantiation so an animated parent carries its subtree;
-- 920 tests — geometry, projection, scene, sorting, debug draw, intersections,
+- 928 tests — geometry, projection, scene, sorting, debug draw, intersections,
   raycasting, animation, skinning, lighting, tangents, render targets, BVH, LOD,
   glTF, OBJ and `.f3d` — all without a GPU.
 
@@ -315,7 +315,7 @@ lib/src/engine/assets/          glTF, OBJ and .f3d decoders, isolate loading, ca
 example/lib/                    the demo, and the frame capture hook
 skills/                         the conventions, as agent skills — see below
 bin/skills.dart                 what copies them into a project that uses this
-test/                           920 tests, all runnable without a GPU
+test/                           928 tests, all runnable without a GPU
 ```
 
 The GLSL is not here. Every shader this package draws with lives in
