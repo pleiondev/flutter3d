@@ -4,9 +4,17 @@ import PackageDescription
 
 let package = Package(
     name: "pad_input",
+    // **The floor is what the sources need, not what the applications happen
+    // to set.** Swift Package Manager compiles this target against the minimum
+    // declared here, so `12.0` made every iOS build fail on the button list in
+    // `GamepadPlugin.swift`: the stick clicks arrived in 12.1, menu and options
+    // in 13.0, and the home button in 14.0. The four demos are already at iOS
+    // 15 and macOS 12, so raising this floor costs them nothing and stops the
+    // same failure reaching the other platform, where it is latent today only
+    // because the applications ask for more than this file does.
     platforms: [
-        .macOS("10.14"),
-        .iOS("12.0")
+        .macOS("11.0"),
+        .iOS("14.0")
     ],
     products: [
         // **A dash, and the underscore was a real break.** Flutter generates a
