@@ -17,16 +17,23 @@
 /// origin, depth in `[0, 1]`, four samples — and both end up as Metal shaders on
 /// the same Apple GPU: Impeller's through impellerc, these through the WGSL the
 /// translator writes and Chrome's own compiler. What that produces is in the
-/// table below, and it is not a tenth of a percent. It is zero — every picture
-/// this set holds, `0 of 172800`, with a worst channel of zero on all but two of
-/// them.
+/// table below, and it is not a tenth of a percent. It is zero — `0 of 172800`
+/// on thirty-nine of the forty-one pictures this set holds, with a worst channel
+/// of zero on all but two of them.
+///
+/// The other two are the two cube-atlas scenes, and what stands between them and
+/// zero is on Impeller's side rather than this one: their references there were
+/// recorded from a scene that was still being built, this backend now draws the
+/// finished one, and the difference is the size of that. Their entries say it
+/// with numbers.
 ///
 /// **A table of zeroes is a strong instrument and a demanding one.** There is no
 /// silhouette noise here for a change to hide in, so anything that moves at all
 /// shows up whole; the price is that a picture only belongs in it if the backend
-/// draws the same one twice. Four of the forty-three do not qualify, and
-/// [_refused] says which and why. Two of those four are the finding this
-/// recording produced.
+/// draws the same one twice. Two of the forty-three do not qualify, and
+/// [_refused] says which and why. It was four: the other two came back as a coin
+/// toss and were left unrecorded rather than have one face of it written down.
+/// The toss has since been explained and stopped, and they are recorded.
 ///
 /// **What is *not* in this table, and was expected to be.** Two shaders feed
 /// `gl_FragCoord.xy` to a hash — the interleaved gradient noise that rotates the
@@ -74,7 +81,9 @@ const int _channel = 8;
 ///
 /// Measured on 2026-09-08 against the set Impeller recorded on the same SDK, by
 /// recording this whole set in one pass of
-/// `flutter3d_webgl/tool/golden_web.sh --backend=webgpu --update`.
+/// `flutter3d_webgl/tool/golden_web.sh --backend=webgpu --update`, and the two
+/// cube-atlas scenes in a second pass of the same command on the same day, once
+/// they had stopped drawing two pictures.
 ///
 /// **A hundredth of a percent is what an exact agreement is written as.** It is
 /// the floor the sibling files already use for a scene that came out at zero,
@@ -89,6 +98,18 @@ const int _channel = 8;
 /// with a worst channel of one rather than zero, `lightmapped-room` and
 /// `lighting-normals`, which is a single unit in a single channel and not a
 /// differing pixel at any threshold this repository uses.
+///
+/// **Two entries are not that floor, and neither of them is this backend.**
+/// `cube-shadow-many` and `cube-shadow-crowded` are the pair whose atlas rows
+/// used to be handed out before the model had landed — see the paragraph
+/// on each. The demo now holds a golden's surface back until the scene it names
+/// is staged, so both are drawn the same way every run, on every backend; what
+/// they are compared against is the picture Impeller recorded before that, and
+/// the number on each line is the size of the arrangement that changed. Both go
+/// to the floor the moment `flutter3d/tool/golden.sh --update` is run over the
+/// pair, and until it is, the honest reading of these two lines is "the
+/// reference on the other side is older than the fix", not "this backend is
+/// three per cent away from Impeller".
 ///
 /// Kept one per line and in the suite's own order rather than collapsed into a
 /// loop over a list: a scene that starts disagreeing gets its number and its
@@ -121,9 +142,24 @@ const Map<String, double> _budgets = <String, double>{
   'shadow-map': 0.01,
   'cube-shadow': 0.01,
   'cube-shadow-lit': 0.01,
+  // 1346 of 172800, worst channel 255: four teapots in the same atlas, in two
+  // different orders of rows. This backend drew both orders until the demo
+  // stopped drawing a golden before its model had landed — measured twelve runs
+  // to a row, identically, after it did — and Impeller's reference still holds
+  // the order the unstaged frames latched. Recorded at 0.78 rather than at the
+  // floor so that the line fails on a change and not on a difference that is
+  // already understood and written down.
+  'cube-shadow-many': 0.78,
   'cube-shadow-mover': 0.01,
   'cube-shadow-gap': 0.01,
   'spot-shadow': 0.01,
+  // 5037 of 172800, worst channel 255, and the same cause on the scene built
+  // for contention: eight casters for six rows, so the arrangement decides not
+  // only which row each light holds but which two lights hold none. Staged, the
+  // six rows go to the six nearest the camera; unstaged, to the first six in the
+  // order they were added — which is the ranking this scene exists to disprove,
+  // and what its references have been showing all along.
+  'cube-shadow-crowded': 2.92,
   'sky': 0.01,
   'auto-exposure': 0.01,
   'screen-space-reflections': 0.01,
@@ -146,12 +182,19 @@ const Map<String, double> _budgets = <String, double>{
 /// coin toss into agreement, and the comparison would pass for ever on a frame
 /// that proves nothing.
 ///
-/// Two kinds of not-a-reference are here, and they fail in opposite directions.
-/// The first two entries are frames the backend declined to draw, and a picture
-/// of the decline would keep passing on the day the feature arrives. The second
-/// two are frames it draws two different ways, and a picture of either would
-/// fail at random — which is worse than both, because the fix that suggests
-/// itself is to record it again.
+/// Both entries are frames the backend declined to draw, and a picture of the
+/// decline would keep passing on the day the feature arrives.
+///
+/// **There was a second kind here, and it is worth remembering that there was.**
+/// A pair of them came back drawn two different ways — the same silhouettes in
+/// different rows of the shadow atlas, one arrangement or the other, never a
+/// spread between them — and a picture of either would have failed at random,
+/// which is worse than a refusal because the fix that suggests itself is to
+/// record it again. They are recorded now, and what made the difference was not
+/// a change to this backend at all: the demo was handing the renderer a scene
+/// whose lights had not been placed yet, and this backend, whose model load
+/// usually finishes before the first frame rather than after it, was the only
+/// one that saw both answers. See `cube-shadow-many` in [_budgets].
 ///
 /// Every reason below is a measurement from the recording run or from the
 /// repeats that followed it, not a reading of the source.
@@ -182,48 +225,6 @@ const Map<String, String> _refused = <String, String>{
   'loaded-shader':
       'the example bundle has no "webgpu" section, so loadShaders refused it '
       'and the renderer never started',
-  // **Recorded, then unrecorded, and the second measurement is why.** The frame
-  // came back cleanly and agreed with Impeller to the byte, so it looked like
-  // the best entry in the table. Run again in compare mode against the picture
-  // that had just been written, it failed: `1346 of 172800` differing, worst
-  // channel 255. Compared six times it matched once and missed five times, and
-  // every miss was the same 1346 — so this is not noise settling, it is two
-  // pictures, and the recording lands on one of them.
-  //
-  // What the two are: the same four teapot silhouettes in the same atlas, in
-  // different rows. `ShadowSlotAllocator` hands rows out on a ranking and gives
-  // an incumbent the row it already had, so which light ends up in which row
-  // depends on the order the lights first got rows — and by the captured frame
-  // that order has been decided once and kept. Something before frame ninety
-  // differs between runs on this backend and the ranking sees it.
-  //
-  // **WebGL2 is the control, and it is steady.** The same scene, the same
-  // dart2js output, the same allocator down to the emitted JavaScript, six runs
-  // against its committed set: `0 of 172800` every time. So this is not the
-  // engine being loose about atlas rows in general. It is loose here.
-  'cube-shadow-many':
-      'this backend draws one of two row assignments, 1346 pixels apart, and '
-      'which one is decided before the captured frame; WebGL2 draws the same '
-      'scene identically six times out of six',
-  // The same finding on the scene built for contention: eight casters for six
-  // rows rather than four for six. Compared seven times it matched five and
-  // missed twice, every miss `7688 of 172800` — 4.449%, and again exactly the
-  // same number each time, so again two pictures rather than drift.
-  //
-  // **Its first recording was very nearly written down as a two-percent
-  // cross-backend budget with a paragraph explaining it.** That would have been
-  // a measurement of one toss of this coin, dressed as a property of the
-  // backend, and it is the reason this table has a second kind of entry at all.
-  //
-  // WebGL2 is not a clean control here: run against its own committed set this
-  // scene fails six times out of six by the same 2651 pixels — a stale
-  // reference in that set rather than a flake, found by running the whole
-  // WebGL2 suite in compare mode while this one was being recorded, where it
-  // was the only scene of the forty-three that did not match. It belongs to
-  // whoever re-records that set.
-  'cube-shadow-crowded':
-      'this backend draws one of two row assignments, 7688 pixels apart, on '
-      'the one scene where atlas rows are contended',
 };
 
 void main() {

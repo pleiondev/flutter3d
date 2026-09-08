@@ -73,6 +73,45 @@ class _SpikePageState extends State<SpikePage>
   /// noticing there was none in the picture.
   CameraNode? _frustumCamera;
 
+  /// Whether the model has landed and the scene has been built around it.
+  ///
+  /// **A golden run draws nothing until this is true, and the reason is a
+  /// measurement.** Everything the model decides about the scene is decided
+  /// when its load returns, in `_selectSource`: where the point lights stand,
+  /// where the camera sits, how wide the floor is. A frame drawn before that
+  /// sees every point light stacked at the origin — all the same distance from
+  /// the camera, therefore all of the same relevance — and the cube shadow
+  /// atlas hands its six rows out in the order the lights were added to the
+  /// scene. Then it keeps them: `ShadowSlotAllocator` leaves an incumbent in
+  /// the row it already holds, because moving a row costs a full static
+  /// re-bake. So the rows of the second frame are the rows of the ninetieth,
+  /// and the ninetieth is the one that gets recorded.
+  ///
+  /// Which frame the load lands on is a race, and it is not always won the same
+  /// way. Ten runs of `cube-shadow-many` through WebGPU, timed from the page:
+  /// in eight the load finished between 36 and 61 ms and the first frame
+  /// arrived at about 90 ms, so the scene was staged first; in the other two
+  /// the load took 169 and 271 ms, four frames went out ahead of it, and those
+  /// two put the four teapots in different atlas rows — 1346 of 172800 pixels
+  /// away from the other eight, every time, because there are only two answers
+  /// and not a spread of them. Through WebGL2 the same load lands between 236
+  /// and 316 ms, always behind the first frames, which is the whole reason that
+  /// backend draws one picture and this one drew two. The allocator is not
+  /// loose: it is being asked about a scene that is still being built.
+  ///
+  /// Held in `build` rather than by awaiting the load in `_openScene`, because
+  /// awaiting it leaves a gap. `_selectSource` calls `setState` on the way in,
+  /// which rebuilds and draws a frame of the unstaged scene before anything is
+  /// awaited — one such frame is harmless today only because the atlas texture
+  /// is created during it and creating it resets the allocator, which is luck
+  /// rather than a guarantee. A surface that is not mounted cannot draw.
+  ///
+  /// A load that fails never sets this, so a golden whose model cannot be read
+  /// posts no verdict at all and the stand reports it as a stall rather than as
+  /// a mismatch. That is the right way round: a picture of a scene with no model
+  /// in it is a comparison of two empty rooms.
+  bool _staged = false;
+
   /// Frames elapsed, for the golden whose caster has to move. See build().
   int _moverFrame = 0;
   late final LightNode _spot;
@@ -424,7 +463,8 @@ class _SpikePageState extends State<SpikePage>
 
     // Deliberately not awaited: the first frame must not wait for a model to
     // decode. `unawaited` says so rather than leaving it to be read as a
-    // forgotten `await`.
+    // forgotten `await`. A golden run does wait for it, but it waits in
+    // `build` rather than here — see [_staged].
     if (_renderer != null) unawaited(_selectSource(_startupSourceIndex()));
 
     if (const bool.fromEnvironment('FLUTTER3D_MRT_PROBE')) {
@@ -756,6 +796,10 @@ class _SpikePageState extends State<SpikePage>
       _orbit.syncProjectionDepth(_camera);
       _placeSceneLights(bounds);
       _placeGoldenCamera(bounds);
+      // Last, inside the same setState as the placing: a golden's first frame
+      // is the first frame after this line, and it must see everything above
+      // it already done. See [_staged].
+      _staged = true;
     });
   }
 
@@ -976,6 +1020,13 @@ class _SpikePageState extends State<SpikePage>
     _lastTick = _elapsed;
     if (delta > 0.0 && delta < 0.5) _instance?.player?.update(delta);
 
+    // A golden run holds its surface back until the scene is staged, so that
+    // the frame it counts as its first is the first one drawn of the scene it
+    // names. A person watching gets the surface immediately, empty, as before.
+    // See [_staged] for what a frame drawn ahead of the staging decides, and
+    // for the two pictures that came of it.
+    final holdingForStaging = _golden != null && !_staged;
+
     return Scaffold(
       backgroundColor: const Color(0xFF0E1014),
       body: SafeArea(
@@ -985,6 +1036,8 @@ class _SpikePageState extends State<SpikePage>
               Expanded(
                 child: _loadError != null
                     ? LoadErrorPanel(message: _loadError!)
+                    : holdingForStaging
+                    ? const SizedBox.shrink()
                     : OrbitGestureDetector(
                         controller: _orbit,
                         onChanged: () => setState(() {

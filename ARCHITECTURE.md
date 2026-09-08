@@ -2261,6 +2261,21 @@ light lists: their own commit records that "a shadowing lamp written down ninth
 was allocated a row, never described, and cast nothing", and describing that row
 is what fills it. The two GPU references were not re-recorded then.
 
+A run reports 2.915% there now, and 0.779% on `cube-shadow-many` beside it, and
+the second cause is worth telling apart from the first. The demo used to draw a
+golden's opening frames before the model had landed, so the cube atlas handed its
+rows out while every point light was still stacked at the origin and then kept
+them — an incumbent holds the row it has. Which frame the load landed on was a
+race, won consistently on the desktop and in WebGL2 and only usually in WebGPU,
+which is why that backend drew one of two pictures for the pair above and had no
+reference for either. The demo now holds a golden's surface back until the
+scene it names is staged, both are drawn one way on every backend, and the WebGPU
+set records them. What the two numbers above measure is those two sets' pictures
+being older than that fix — 1346 pixels on one scene and 5037 on the other, the
+second of which is this stale row plus the arrangement — and a pass of
+`flutter3d/tool/golden.sh --update` and `flutter3d_webgl/tool/golden_web.sh
+--update` over the two names takes both to zero.
+
 **No occlusion culling for anything but a brush level, and no FXAA or TAA.**
 A brush level has the precomputed visibility of [§4.6](#46-precomputed-visibility);
 a model imported from glTF is culled by the frustum alone.

@@ -1884,18 +1884,6 @@ const Map<String, Map<String, String>> _goldenSetGaps =
             'and there is no frame to record. A gap in the packing tools '
             'rather than in the backend: the engine\'s own shaders reach it '
             'as WGSL through lib/engine_shaders.dart',
-        'cube-shadow-many':
-            'this backend draws one of two atlas row assignments, 1346 pixels '
-            'apart, and the recording lands on one of them. Six compare runs '
-            'against a freshly written reference gave four failures and two '
-            'passes, every failure the same count; WebGL2 draws the same scene '
-            'identically five times out of five. A reference here would fail '
-            'at random, which is worse than none',
-        'cube-shadow-crowded':
-            'the same, on the one scene where atlas rows are contended: two '
-            'pictures 7688 pixels apart, three passes and two failures over '
-            'five repeats. Its first recording agreed with Impeller exactly, '
-            'which is what makes recording it the tempting mistake',
       },
     };
 
