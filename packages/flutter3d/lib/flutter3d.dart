@@ -47,6 +47,7 @@ export 'src/engine/animation/animation_clip.dart';
 export 'src/engine/animation/animation_player.dart';
 export 'src/engine/animation/animation_target.dart';
 export 'src/engine/animation/animation_track.dart';
+export 'src/engine/animation/baked_poses.dart';
 // Assets: decoders for glTF/GLB, OBJ, the project's own .f3d container and its
 // .fmat material, the KTX2 compressed-texture container, plus loading and
 // caching.
