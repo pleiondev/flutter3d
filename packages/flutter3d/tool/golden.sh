@@ -9,6 +9,27 @@
 #   tool/golden.sh --update     record them instead
 #   tool/golden.sh shadow-teapot        just that one
 #   tool/golden.sh --cpu        draw them with the software backend instead
+#   tool/golden.sh --no-build   reuse the application already built
+#
+# **One build for the whole suite, and the reason is disk rather than time.**
+# This script used to call `flutter run -d macos` once a scene with the scene
+# name in a `--dart-define`. A define is a compile-time input, so every scene
+# was a fresh kernel compile filed under a fresh fingerprint directory in
+# `example/.dart_tool/flutter_build` — roughly forty-six megabytes of `app.dill`
+# apiece, and nothing has ever deleted one. Seven hundred and twenty-three of
+# them, sixteen gigabytes, had collected in the main checkout by the time anyone
+# measured; a full pass of forty-three scenes could not finish on a machine with
+# room for a couple of gigabytes, which meant the Impeller set had stopped being
+# runnable at all. The scene, the direction and the reference directory arrive
+# in the process environment now, so `flutter build macos` runs once and the
+# built binary is launched once a scene. That is the shape the browser stand has
+# had all along, for the same arithmetic.
+#
+# Launching the binary rather than `flutter run` is part of the same change and
+# not incidental: `flutter run` rebuilds, re-checks the toolchain and attaches a
+# VM service on every scene, and none of the three has anything to do with the
+# picture. The application prints its verdict with `print` and exits with a code,
+# which is all this script ever read.
 #
 # --cpu draws the same scenes through flutter3d_cpu and compares against that
 # backend's own references, in packages/flutter3d_cpu/test/goldens. Its own,
@@ -33,12 +54,14 @@ EXAMPLE_DIR="$PACKAGE_DIR/example"
 
 UPDATE=false
 CPU=false
+BUILD=true
 SCENES=()
 
 for arg in "$@"; do
   case "$arg" in
     --update) UPDATE=true ;;
     --cpu) CPU=true ;;
+    --no-build) BUILD=false ;;
     -*) echo "unknown option: $arg" >&2; exit 2 ;;
     *) SCENES+=("$arg") ;;
   esac
@@ -91,24 +114,33 @@ if [[ ! -f "$LOADABLE" ]]; then
 fi
 
 APP='flutter3d.app/Contents/MacOS/flutter3d'
+APP_BIN="$EXAMPLE_DIR/build/macos/Build/Products/Debug/$APP"
+
+if [[ "$BUILD" == true ]]; then
+  echo "building the example for macOS…"
+  (cd "$EXAMPLE_DIR" && flutter build macos --debug \
+    ${BACKEND_DEFINE[@]+"${BACKEND_DEFINE[@]}"})
+fi
+
+if [[ ! -x "$APP_BIN" ]]; then
+  echo "no application at $APP_BIN; drop --no-build" >&2
+  exit 2
+fi
 
 # How long one scene may take before it is treated as stalled rather than slow.
-# A scene renders ninety frames and exits, which is about half a minute; the
-# first one of a run also builds, and a cold build is minutes rather than
-# seconds.
+# A scene renders ninety frames and exits, which is about half a minute.
 #
-# Five, not three, because the two failure modes cost different amounts. Too
-# short turns a cold first build into a FAILED line about a picture, which is a
-# wrong answer and sends the reader hunting a rendering bug. Too long costs a
-# few extra minutes once, on a run that was going to be thrown away anyway. When
-# the errors are that lopsided, pick the side that only wastes time.
-SCENE_TIMEOUT=${FLUTTER3D_SCENE_TIMEOUT:-300}
+# Ninety seconds now, where it was five minutes: the five covered a cold build
+# happening inside the first scene, and there is no build inside a scene any
+# more. What is left is a launch and ninety frames, so a scene that has not
+# spoken in a minute and a half is stuck rather than slow.
+SCENE_TIMEOUT=${FLUTTER3D_SCENE_TIMEOUT:-90}
 
 # The software backend needs longer, and the two heaviest scenes need much
 # longer. cube-shadow-many and cube-shadow-crowded draw six faces per light
 # into 1024-pixel tiles, and a rasteriser written in Dart takes seconds a frame
 # at that size where Impeller takes milliseconds. Both were reported FAILED
-# four runs in a row under the 300 the hardware backend needs; run alone with
+# four runs in a row under the limit the hardware backend needs; run alone with
 # more patience each renders and passes.
 #
 # Raising the limit rather than shrinking the atlas for this backend, which was
@@ -144,18 +176,23 @@ reap_app() {
 #
 # A file rather than `output=$(...)`: command substitution waits for end of file
 # on a pipe, and the app inherits the write end of that pipe. A surviving app
-# therefore held the substitution open long after `flutter run` had exited,
-# which looked like `flutter run` hanging and was not. Redirecting to a file
-# makes the script wait for the process it actually started.
+# therefore held the substitution open long after the launch had returned, which
+# looked like the launch hanging and was not. Redirecting to a file makes the
+# script wait for the process it actually started.
+#
+# The scene, the direction and the directory are exported rather than compiled
+# in, which is what lets every scene share one build; the application reads all
+# three from its environment and falls back to the defines of the same name, so
+# a `flutter run` driven by hand still works the way it always did.
 run_scene() {
   local scene="$1" log="$2"
 
   (
-    cd "$EXAMPLE_DIR" && exec flutter run -d macos --debug \
-      ${BACKEND_DEFINE[@]+"${BACKEND_DEFINE[@]}"} \
-      --dart-define=FLUTTER3D_GOLDEN="$scene" \
-      --dart-define=FLUTTER3D_GOLDEN_DIR="$GOLDEN_DIR" \
-      --dart-define=FLUTTER3D_GOLDEN_UPDATE="$UPDATE"
+    cd "$EXAMPLE_DIR" &&
+      FLUTTER3D_GOLDEN="$scene" \
+        FLUTTER3D_GOLDEN_DIR="$GOLDEN_DIR" \
+        FLUTTER3D_GOLDEN_UPDATE="$UPDATE" \
+        exec "$APP_BIN"
   ) >"$log" 2>&1 &
   local pid=$!
 
@@ -174,13 +211,37 @@ run_scene() {
   wait "$pid" 2>/dev/null
 }
 
+# Free space on the volume the build and the references live on, in mebibytes.
+FLOOR_MIB=${FLUTTER3D_DISK_FLOOR_MIB:-10240}
+
+free_mib() {
+  df -m "$PACKAGE_DIR" | awk 'NR == 2 { print $4 }'
+}
+
 pass=0
 fail=0
+stopped=""
 failed_scenes=()
 log="$(mktemp -t flutter3d-golden)"
 trap 'rm -f "$log"' EXIT
 
 for scene in "${SCENES[@]}"; do
+  # **Checked before each scene, and the run stops rather than fills the
+  # volume.** A golden run writes a picture per disagreement and the build it
+  # launches is already on disk, so no single scene is expensive now; what makes
+  # this worth a check anyway is that a machine out of space does not fail as a
+  # golden mismatch, it fails as a truncated PNG or a launch that cannot write
+  # its log, and that reads as a rendering problem to whoever comes next. Ten
+  # gibibytes is a floor with room for a whole second run under it, so stopping
+  # here never costs more than the run in progress.
+  remaining="$(free_mib)"
+  if [[ -n "$remaining" && "$remaining" -lt "$FLOOR_MIB" ]]; then
+    stopped="$scene"
+    echo "STOPPED before $scene: $((remaining / 1024)) GiB free, floor is" \
+      "$((FLOOR_MIB / 1024)) GiB"
+    break
+  fi
+
   printf '%-28s' "$scene"
 
   # Reaped *before* each scene rather than after, because the straggler may
@@ -201,8 +262,8 @@ for scene in "${SCENES[@]}"; do
     run_scene "$scene" "$log"
   fi
 
-  # `flutter run` reports 0 when the app exits cleanly and non-zero otherwise,
-  # but it also prints the app's own message, which is where the verdict is.
+  # The application exits 0 on a match and non-zero otherwise, but it also
+  # prints its own message, which is where the numbers are.
   if grep -q "GOLDEN $scene: \(PASS\|recorded\)" "$log"; then
     # The verdict is printed even when it passes, and that is not noise. It
     # used to be the only defence: the threshold allowed 0.2% of pixels to
@@ -214,10 +275,12 @@ for scene in "${SCENES[@]}"; do
     # moves and the only warning that the hardware is drifting.
     # Not anchored to the start of the line. The application prints its verdict
     # with `print` — it has to, because dart:io does not exist in a browser and
-    # the same runner serves both — and on desktop Flutter's logger prefixes
-    # that with "flutter: ". An anchored extraction found nothing, so every
-    # scene passed and printed a blank line: the count survived and the numbers
-    # vanished, which is the exact state printing them was meant to end.
+    # the same runner serves both — and whatever launched it may prefix the
+    # line: run under `flutter run` it arrives behind "flutter: ", run as the
+    # binary it arrives bare. An anchored extraction found nothing under the
+    # first of those, so every scene passed and printed a blank line: the count
+    # survived and the numbers vanished, which is the exact state printing them
+    # was meant to end.
     verdict="$(sed -n "s/^.*GOLDEN $scene: //p" "$log" | head -1)"
     if [[ -z "$verdict" ]]; then
       # A pass whose numbers cannot be read is not a pass worth reporting.
@@ -240,9 +303,16 @@ done
 reap_app
 
 echo
-echo "$pass passed, $fail failed"
+echo "$pass passed, $fail failed, $(($(free_mib) / 1024)) GiB free"
+if [[ -n "$stopped" ]]; then
+  echo "stopped at $stopped with ${#SCENES[@]} scenes asked for; the rest were" \
+    "not compared"
+fi
 if [[ $fail -gt 0 ]]; then
   echo "failed: ${failed_scenes[*]}"
   echo "compare <name>.png against <name>.actual.png in $GOLDEN_DIR"
   exit 1
 fi
+# A run that stopped early answered nothing about the scenes it never reached,
+# and a zero here would say it did.
+if [[ -n "$stopped" ]]; then exit 1; fi

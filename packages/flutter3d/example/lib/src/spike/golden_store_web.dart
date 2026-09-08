@@ -62,6 +62,14 @@ String? get sceneOverride {
 /// One build serves both directions, and the URL says which.
 bool get updateOverride => Uri.base.queryParameters['update'] == '1';
 
+/// Where the references live, which in a browser is nowhere in particular.
+///
+/// Null, always: the desktop store answers this from the environment, and the
+/// two have to declare the same names because they are the two halves of one
+/// conditional export. Here the references are fetched relative to the page, so
+/// there is no directory to name and nothing for a caller to override.
+String? get directoryOverride => null;
+
 /// Whether a run has to be told where the references live.
 ///
 /// False: there is no path here to resolve one against. The references are

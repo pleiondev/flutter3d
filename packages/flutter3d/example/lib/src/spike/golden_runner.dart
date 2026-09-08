@@ -18,10 +18,14 @@ import 'png.dart';
 /// is tied to the Flutter version, so the failure this guards against is an SDK
 /// update quietly changing what the GPU produces, and only the GPU can show it.
 ///
-/// Driven by `--dart-define=FLUTTER3D_GOLDEN=<name>`, with
-/// `FLUTTER3D_GOLDEN_UPDATE=true` to record instead of compare. The process
-/// exits 0 on a match and 1 on a mismatch, so `tool/golden.dart` can just run it
-/// and read the code.
+/// Driven by `FLUTTER3D_GOLDEN=<name>` in the environment, with
+/// `FLUTTER3D_GOLDEN_UPDATE=true` to record instead of compare and
+/// `FLUTTER3D_GOLDEN_DIR` naming the reference directory. The process exits 0 on
+/// a match and 1 on a mismatch, so `tool/golden.sh` can launch the built
+/// application once per scene and read the code. The same three names still work
+/// as `--dart-define`s for a run driven by hand, but the environment is what the
+/// harness uses, because a define is a compile-time input and forty-three of
+/// them are forty-three builds.
 final class GoldenRunner {
   GoldenRunner._(this.scene, {required this.update, required this.directory});
 
@@ -74,10 +78,13 @@ final class GoldenRunner {
       finish(2);
     }
 
-    const configured = String.fromEnvironment(
-      'FLUTTER3D_GOLDEN_DIR',
-      defaultValue: '',
-    );
+    // The store's answer wins where it has one, as with the scene and the
+    // direction: a desktop run reads all three from the process environment so
+    // that one build can be launched once per scene, and falls back to the
+    // define when nothing set the variable.
+    final configured =
+        directoryOverride ??
+        const String.fromEnvironment('FLUTTER3D_GOLDEN_DIR', defaultValue: '');
     // Only where a directory means something. In a browser the references come
     // over HTTP from the server that served the page, so there is no path to
     // validate — and demanding one is how a golden run in a browser ends before
@@ -99,9 +106,9 @@ final class GoldenRunner {
     return GoldenRunner._(
       scene,
       // The store's answer wins where it has one. A desktop run takes the
-      // direction as a compile-time define, because `tool/golden.sh` rebuilds
-      // per scene anyway; a browser run takes it from the URL, because one
-      // build has to serve forty-three scenes in both directions.
+      // direction from the environment and a browser run from the URL, for the
+      // same reason on both: one build has to serve forty-three scenes in both
+      // directions, and anything the compiler sees is another build.
       update:
           updateOverride ??
           const bool.fromEnvironment('FLUTTER3D_GOLDEN_UPDATE'),

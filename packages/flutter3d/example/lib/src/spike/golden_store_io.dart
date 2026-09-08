@@ -7,13 +7,48 @@ import 'dart:typed_data';
 /// Nothing extra: the console is where the harness script reads.
 void reportLine(String message) {}
 
-/// No run-time override here: the harness script passes a define per scene and
-/// reads an exit code, which is the shape a shell can drive.
-String? get sceneOverride => null;
+/// The scene this run should draw, from the process environment.
+///
+/// **A run-time choice, and it is what lets one build serve the whole suite.**
+/// It used to be only a `--dart-define`, which is a compile-time input: the
+/// scene name lands in the build fingerprint, so forty-three scenes meant
+/// forty-three kernel compiles and forty-three directories under
+/// `example/.dart_tool/flutter_build` — about forty-six megabytes of `app.dill`
+/// apiece, and nothing ever deletes them. Seven hundred of them, sixteen
+/// gigabytes, had collected in this checkout before anybody measured, and a
+/// full run of the suite could not finish on a machine with room for a third of
+/// it. Read from the environment, the application is built once and launched
+/// once per scene with a different variable set, which is the shape the browser
+/// stand already had with its query parameter.
+///
+/// The define still answers when the variable is unset, so a `flutter run`
+/// driven by hand keeps working exactly as it did.
+String? get sceneOverride => _environment('FLUTTER3D_GOLDEN');
 
-/// Whether this run records, from the URL. There is no URL here: the desktop
-/// build takes it as a compile-time define, which `tool/golden.sh` passes.
-const bool? updateOverride = null;
+/// Whether this run records rather than compares, from the environment.
+///
+/// Run-time for the same reason [sceneOverride] is: a direction baked into the
+/// build is a second build. Null when the variable is unset, which leaves the
+/// compile-time define to answer.
+bool? get updateOverride => switch (_environment('FLUTTER3D_GOLDEN_UPDATE')) {
+  null => null,
+  final asked => asked == 'true' || asked == '1',
+};
+
+/// Where the references live, from the environment, for the same reason again.
+///
+/// The reference directory differs per backend — Impeller's set and the
+/// software rasteriser's are separate — so leaving it a define would have cost
+/// a build per backend on top of a build per scene.
+String? get directoryOverride => _environment('FLUTTER3D_GOLDEN_DIR');
+
+/// An environment variable, treating empty as absent: a shell that exports a
+/// variable it did not set hands over an empty string, and "unset" is the
+/// answer that lets the compile-time define speak.
+String? _environment(String name) {
+  final value = Platform.environment[name];
+  return (value == null || value.isEmpty) ? null : value;
+}
 
 /// Whether a run has to be told where the references live.
 ///
