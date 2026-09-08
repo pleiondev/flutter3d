@@ -676,21 +676,28 @@ final class WebGlDevice implements GraphicsDevice {
     }
     _gl.bindFramebuffer(web.WebGL2RenderingContext.DRAW_FRAMEBUFFER, null);
 
-    // **The scissor is turned off, and forgetting it is what made the browser
-    // demos look broken.** `blitFramebuffer` is one of the operations the
-    // scissor test clips, and a pass leaves `SCISSOR_TEST` enabled with its own
-    // rectangle — see `WebGlEncoder`, which enables it per pass and has no
-    // reason to put it back. So the blit that presents a frame was clipped to
-    // whatever the last pass had been drawing into.
+    // **The scissor is widened to the whole canvas — not turned off.**
+    // `blitFramebuffer` is one of the operations the scissor test clips, and a
+    // pass leaves `SCISSOR_TEST` enabled with its own rectangle — see
+    // `WebGlEncoder`, which enables it per pass and has no reason to put it
+    // back. So the blit that presents a frame was clipped to whatever the last
+    // pass had been drawing into.
     //
     // Invisible whenever the frame is at least as large as this canvas, which
     // is why it survived: on a 2x display the requested frame is bigger than
-    // the canvas, the scissor covers it, and everything looks right. On a 1x
+    // the canvas, the clip covers it, and everything looks right. On a 1x
     // display in a small embedded frame the request is *smaller*, and the blit
     // then wrote a rectangle in the corner and left the rest of the canvas
     // black — the corner being the bottom left, because that is where GL puts
     // its origin.
-    _gl.disable(web.WebGLRenderingContext.SCISSOR_TEST);
+    //
+    // **Disabling the test instead was the first attempt, and it broke two of
+    // the three public demos.** The flag is global and is left behind for
+    // whatever runs next; the two games that skin a mesh threw once a frame and
+    // drew nothing, while the one that does not was fine. Widening the
+    // rectangle un-clips this blit and leaves the flag where the rest of the
+    // engine expects it.
+    _gl.scissor(0, 0, _canvas.width, _canvas.height);
 
     // Drained first, so the code below reports this blit rather than whatever
     // the frame left behind. An error queue is cumulative and getError clears
