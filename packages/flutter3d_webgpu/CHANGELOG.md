@@ -56,6 +56,52 @@
   top left, so a readback kept in order is already what the contract promises —
   and a flip carried across from the backend that needs one gives a frame that
   reads back correctly and presents upside down.
+* **A shader library over the sidecar, and a loadable one beside it.** A name
+  is looked up, a module is compiled for it once and the handle keeps it. There
+  is no link step in WebGPU, so the WebGL2 backend's second cache — programs by
+  the pair of stages — has nothing to hold and is gone; what it knew is not.
+  Its program cache was once keyed on `vertex+fragment` spelled out, and two
+  layered libraries can both answer `Pbr`. Here the module is a field of the
+  object a `ShaderHandle` carries, so there is no map from a word to a module
+  for two libraries to collide in.
+* **The three reflection procedures are one lookup.** WebGL asks the context
+  for its attributes, its uniform blocks and its samplers once a program has
+  linked; a `GPUShaderModule` answers none of that and cannot be made to. So a
+  pipeline reads the same three things out of the bundle's fourth section, and
+  the record it builds is the shape `WebGlProgram` is — attributes in location
+  order, blocks by name, samplers by name — because the section is the file
+  version of exactly that record.
+* **A pipeline answers with a declared vertex layout as well as without one.**
+  Five places in the engine hand a `VertexLayoutSpec` in, and a path built on
+  reflection alone would leave every one of them broken. A layout names its
+  attributes and WebGPU wants locations, so both forms resolve through the same
+  table: without a layout the attributes are interleaved in location order, the
+  way every draw in this engine packed a vertex before instancing; with one,
+  each buffer keeps its stride and its step mode and each attribute takes its
+  location from the section. A layout that leaves an input unfed is refused
+  naming the input, because WebGPU refuses such a pipeline with a message about
+  a shader location and nothing else.
+* **The fourth section carries its own version, and the container does not
+  move.** `ShaderBundle.formatVersion` is a fact about the header and the
+  section table that three shipped backends read unchanged; the reflection's
+  shape is an agreement between one packer and one backend and will move again.
+  Raising the outer version to say the inner one changed would refuse every
+  bundle in existence to Impeller, WebGL2 and the software rasteriser, none of
+  which can see this section at all. A document that does not say which shape it
+  is is read as the shape that shipped.
+* **A reload compiles everything before it swaps anything.** A stage that no
+  longer compiles, or that the new bundle dropped while it was in use, refuses
+  the whole reload by name and leaves the library drawing what it drew — so an
+  editor that rebuilt a bundle wrongly keeps its picture. A handle already
+  handed out keeps its identity and gets new code behind it; a pipeline built
+  before the reload keeps the modules it was built from until the renderer
+  relinks, which is the old picture rather than a missing one. Nothing has to be
+  retired to arrange that, where GL had to keep a program alive by hand.
+* **A block or a sampler that two stages put in two places is refused.** One
+  name has to mean one binding, because that is what `bindUniformBlock` and
+  `bindTexture` take. Not hypothetical: `VertexTextureProbeVertex` binds
+  `ProbeInfo` at group 0 and `ProbePrefilter` binds a block of that name at
+  group 1, and the engine's own table is what the test pairs to prove it.
 * **Every shader the engine asks for, in WGSL, with the reflection beside it.**
   `tool/generate_shaders.dart` reads the manifest `impellerc` and the WebGL
   generator read, prepares each of the 39 stages, and hands it to
