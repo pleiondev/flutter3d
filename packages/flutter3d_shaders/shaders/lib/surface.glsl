@@ -405,8 +405,18 @@ float PointShadowDistance(vec2 uv, vec2 offset, vec2 tile, float range) {
   if (point_shadow.params3.x > 0.5) atlas.y = 1.0 - atlas.y;
   // Whichever is nearer occludes: a wall in front of a monster shadows, and so
   // does a monster in front of a wall.
-  return min(texture(point_shadow_texture, atlas).r,
-             texture(point_shadow_static_texture, atlas).r) * range;
+  //
+  // **`textureLod` at level zero, because every caller of this function stands
+  // behind a branch.** The light loop skips a light the surface faces away
+  // from, the blocker search `continue`s past a tap that found nothing, and the
+  // slot test returns before any of it — so the invocations of a quad do not
+  // arrive here together, and a WGSL backend refuses a sample whose implicit
+  // derivative would be read where they disagree. Both atlases are distance
+  // render targets with one level, so level zero is the level `texture` was
+  // choosing anyway; this names it rather than deriving it, and the picture is
+  // the same on every backend.
+  return min(textureLod(point_shadow_texture, atlas, 0.0).r,
+             textureLod(point_shadow_static_texture, atlas, 0.0).r) * range;
 }
 
 float PointShadowTap(vec2 uv, vec2 offset, vec2 tile, float range,

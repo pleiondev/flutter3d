@@ -1,5 +1,18 @@
 ## 0.5.2
 
+* **Every texture read under a branch names its level or moves above the
+  branch.** WGSL will only derive a mip level where all four invocations of a
+  quad agree to be, and six lit and screen-space stages sampled under a
+  condition that does not promise it — a light the surface faces away from, a
+  cascade that misses the fragment, a ray already off the frame, a tangent too
+  degenerate to build a frame from. The cascade atlas, both point-shadow
+  atlases, the surface buffer and the scene colour are single-level render
+  targets, so `lib/shadow.glsl`, `lib/surface.glsl`, `post/reflections.frag`
+  and `post/ssao.frag` read them with `textureLod` at level zero — the level
+  the derivative was choosing anyway. `lib/material_maps.glsl` does the
+  opposite, because a normal map's mip chain is real and pinning it would blur
+  or sharpen the picture: the sample moves above the degenerate-tangent test
+  instead. Nothing any backend draws changes.
 * **`lib/morph.glsl`: a vertex moved towards the shapes its mesh carries.**
   Deltas in an `r32g32b32a32Float` texture — one column a vertex, three rows a
   target — read by `gl_VertexIndex` and blended by up to eight weights. A

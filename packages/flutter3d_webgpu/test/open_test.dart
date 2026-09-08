@@ -44,7 +44,7 @@ const List<(String, String)> _pairs = <(String, String)>[
 ];
 
 void main() {
-  test('opens with the engine\'s stages, and six of them are refused', () async {
+  test('opens with the engine\'s stages, and none of them is refused', () async {
     final GraphicsDevice device;
     try {
       device = await openWebGpu(width: 64, height: 64);
@@ -91,55 +91,33 @@ void main() {
       );
     }
 
-    // **A finding, held here so it cannot grow quietly.**
+    // **This assertion used to be the number six, and the number is gone.**
     //
-    // Six of the engine's fragment stages produce WGSL this implementation
-    // refuses, and every one of them refuses it for the same reason:
-    // `'textureSample' must only be called from uniform control flow`. The
-    // translated GLSL samples a texture inside an `if` whose condition comes
-    // from a uniform block — a material flag — and WGSL requires the implicit
-    // derivative a `textureSample` takes to be computed where every invocation
-    // in the quad agrees to be. `textureSampleLevel` and `textureSampleGrad`
-    // carry no such requirement, and hoisting the sample above the branch has
-    // none either; which of the two the shaders want is a decision about the
-    // GLSL and about `tool/generate_shaders.dart`, not about this backend.
+    // Six fragment stages — Lambert, BlinnPhong, Pbr, Toon, Reflections and
+    // Ssao — produced WGSL this implementation refused, every one of them with
+    // `'textureSample' must only be called from uniform control flow`. Each
+    // shader sampled a texture under a branch the four invocations of a quad
+    // need not take together — a light the surface faces away from, a cascade
+    // that does not contain the fragment, a ray that has already left the
+    // frame, a tangent too degenerate to build a frame from — and WGSL will
+    // only derive a mip level where the whole quad agrees to be. The GLSL now
+    // asks for level zero by name wherever the texture is a single-level render
+    // target, and hoists the sample above the branch where the mip chain is
+    // real; `lib/shadow.glsl`, `lib/surface.glsl`, `lib/material_maps.glsl`,
+    // `post/reflections.frag` and `post/ssao.frag` each say which and why.
     //
-    // **naga accepts all six**, which is why the shader pipeline is green:
-    // `--input-kind wgsl` round-trips every stage, and the uniformity rule is
-    // one a browser applies and naga does not. That makes this the first check
-    // in the repository that could have found it — a module compiles whether
-    // or not the code was valid, and the failure otherwise arrives at the first
-    // pipeline as "invalid due to a previous error", naming no line.
-    //
-    // The count is asserted rather than the absence, so that the day the
-    // shaders are fixed this test fails and is tightened to `isNull` — and so
-    // that a seventh stage acquiring the same fault is a red line rather than a
-    // number nobody recounted.
+    // **naga accepted all six**, which is why the shader pipeline was green
+    // while this stood: `--input-kind wgsl` round-trips every stage, and the
+    // uniformity rule is one a browser applies and naga does not. That is what
+    // this test is for, and why it asserts the absence rather than a count — a
+    // module compiles whether or not the code was valid, and the failure
+    // otherwise arrives at the first pipeline as "invalid due to a previous
+    // error", naming no line. Any stage that reacquires the fault fails here.
     final said = await webgpu.debugDrainErrors('compiling the engine');
     expect(
       said,
-      isNotNull,
-      reason: 'six stages are known to be refused; see the note above',
-    );
-    for (final stage in const <String>[
-      'Lambert',
-      'BlinnPhong',
-      'Pbr',
-      'Toon',
-      'Reflections',
-      'Ssao',
-    ]) {
-      expect(said, contains('the WGSL of "$stage"'));
-    }
-    expect(
-      RegExp('the WGSL of').allMatches(said!).length,
-      6,
-      reason: 'six and no more; a seventh is a new fault, not this one',
-    );
-    expect(
-      RegExp('uniform control flow').allMatches(said).length,
-      6,
-      reason: 'all six are the same rule, and no other kind of refusal',
+      isNull,
+      reason: 'every stage must compile; see the note above',
     );
     webgpu.dispose();
   });

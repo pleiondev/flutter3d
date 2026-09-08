@@ -216,7 +216,14 @@ void main() {
     if (abs(ndc.x) > 1.0 || abs(ndc.y) > 1.0) continue;
 
     vec2 uv = UvFromNdc(ndc.xy);
-    vec4 there = texture(surface_texture, uv);
+    // **`textureLod` at level zero, for the same reason the march in
+    // `reflections.frag` uses it.** Two `continue`s stand above this line, so
+    // the invocations of a quad are not all here, and a WGSL backend refuses to
+    // derive a mip level where they are not. The surface buffer is a
+    // full-screen render target with one level, and this pass binds it
+    // unfiltered besides, so level zero is the only level there has ever been
+    // to read.
+    vec4 there = textureLod(surface_texture, uv, 0.0);
     // The sky occludes nothing: a sample that lands on it is a sample looking
     // out of the scene, which is the opposite of being enclosed.
     if (there.a <= 0.0) continue;

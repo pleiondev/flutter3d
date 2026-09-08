@@ -3033,11 +3033,11 @@ var occlusion_texture_smp: sampler;
 var emissive_texture_tex: texture_2d<f32>;
 @group(1) @binding(6) 
 var emissive_texture_smp: sampler;
-var<private> v_tangent_1: vec4<f32>;
 @group(1) @binding(11) 
 var normal_texture_tex: texture_2d<f32>;
 @group(1) @binding(12) 
 var normal_texture_smp: sampler;
+var<private> v_tangent_1: vec4<f32>;
 @group(1) @binding(19) 
 var shadow_texture_tex: texture_2d<f32>;
 @group(1) @binding(20) 
@@ -3213,9 +3213,9 @@ fn PointShadowDistance_u0028_vf2_u003b_vf2_u003b_vf2_u003b_f1_u003b(uv: ptr<func
         atlas[1u] = (1f - _e144);
     }
     let _e147 = atlas;
-    let _e148 = textureSample(point_shadow_texture_tex, point_shadow_texture_smp, _e147);
+    let _e148 = textureSampleLevel(point_shadow_texture_tex, point_shadow_texture_smp, _e147, 0f);
     let _e150 = atlas;
-    let _e151 = textureSample(point_shadow_static_texture_tex, point_shadow_static_texture_smp, _e150);
+    let _e151 = textureSampleLevel(point_shadow_static_texture_tex, point_shadow_static_texture_smp, _e150, 0f);
     let _e154 = (*range);
     return (min(_e148.x, _e151.x) * _e154);
 }
@@ -3660,11 +3660,11 @@ fn ShadowFactor_u0028_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d_vf
     var y: i32;
     var x: i32;
     var occluder: f32;
-    var phi_1478_: bool;
-    var phi_1489_: bool;
-    var phi_1579_: bool;
-    var phi_1586_: bool;
-    var phi_1593_: bool;
+    var phi_1480_: bool;
+    var phi_1491_: bool;
+    var phi_1581_: bool;
+    var phi_1588_: bool;
+    var phi_1595_: bool;
 
     let _e143 = frag_info.shadow_params[3u];
     strength_1 = _e143;
@@ -3689,25 +3689,25 @@ fn ShadowFactor_u0028_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d_vf
     cascade = 0i;
     let _e172 = cascadeCount;
     let _e173 = (_e172 > 1i);
-    phi_1478_ = _e173;
+    phi_1480_ = _e173;
     if _e173 {
         let _e174 = viewDistance;
         let _e177 = frag_info.shadow_cascades[0u];
-        phi_1478_ = (_e174 > _e177);
+        phi_1480_ = (_e174 > _e177);
     }
-    let _e180 = phi_1478_;
+    let _e180 = phi_1480_;
     if _e180 {
         cascade = 1i;
     }
     let _e181 = cascadeCount;
     let _e182 = (_e181 > 2i);
-    phi_1489_ = _e182;
+    phi_1491_ = _e182;
     if _e182 {
         let _e183 = viewDistance;
         let _e186 = frag_info.shadow_cascades[1u];
-        phi_1489_ = (_e183 > _e186);
+        phi_1491_ = (_e183 > _e186);
     }
-    let _e189 = phi_1489_;
+    let _e189 = phi_1491_;
     if _e189 {
         cascade = 2i;
     }
@@ -3759,24 +3759,24 @@ fn ShadowFactor_u0028_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d_vf
             inTile = vec2<f32>(((_e227 * 0.5f) + 0.5f), (0.5f - (_e231 * 0.5f)));
             let _e236 = inTile[0u];
             let _e237 = (_e236 < 0f);
-            phi_1579_ = _e237;
+            phi_1581_ = _e237;
             if !(_e237) {
                 let _e240 = inTile[0u];
-                phi_1579_ = (_e240 > 1f);
+                phi_1581_ = (_e240 > 1f);
             }
-            let _e243 = phi_1579_;
-            phi_1586_ = _e243;
+            let _e243 = phi_1581_;
+            phi_1588_ = _e243;
             if !(_e243) {
                 let _e246 = inTile[1u];
-                phi_1586_ = (_e246 < 0f);
+                phi_1588_ = (_e246 < 0f);
             }
-            let _e249 = phi_1586_;
-            phi_1593_ = _e249;
+            let _e249 = phi_1588_;
+            phi_1595_ = _e249;
             if !(_e249) {
                 let _e252 = inTile[1u];
-                phi_1593_ = (_e252 > 1f);
+                phi_1595_ = (_e252 > 1f);
             }
-            let _e255 = phi_1593_;
+            let _e255 = phi_1595_;
             if _e255 {
                 continue;
             }
@@ -3825,7 +3825,7 @@ fn ShadowFactor_u0028_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d_vf
                     let _e291 = x;
                     let _e293 = y;
                     let _e296 = texel_1;
-                    let _e299 = textureSample(shadow_texture_tex, shadow_texture_smp, (_e290 + (vec2<f32>(f32(_e291), f32(_e293)) * _e296)));
+                    let _e299 = textureSampleLevel(shadow_texture_tex, shadow_texture_smp, (_e290 + (vec2<f32>(f32(_e291), f32(_e293)) * _e296)), 0f);
                     occluder = _e299.x;
                     let _e302 = projected[2u];
                     let _e303 = bias;
@@ -4129,46 +4129,49 @@ fn ApplyOcclusionMap_u0028_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u00
 }
 
 fn ApplyNormalMap_u0028_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d_vf3_u002d_f1_u002d_f1_u002d_f1_u002d_f1_u002d_vf3_u002d_vf3_u002d_f11_u003b(s_7: ptr<function, Surface>) {
+    var sampledTexel: vec4<f32>;
     var t: vec3<f32>;
     var b: vec3<f32>;
     var sampled: vec3<f32>;
 
-    let _e120 = v_tangent_1;
-    t = _e120.xyz;
-    let _e122 = t;
-    let _e124 = (*s_7).n;
-    let _e126 = (*s_7).n;
-    let _e127 = t;
-    t = (_e122 - (_e124 * dot(_e126, _e127)));
-    let _e131 = t;
-    let _e132 = t;
-    if (dot(_e131, _e132) < 0.000000000001f) {
+    let _e121 = v_texcoord_1;
+    let _e122 = textureSample(normal_texture_tex, normal_texture_smp, _e121);
+    sampledTexel = _e122;
+    let _e123 = v_tangent_1;
+    t = _e123.xyz;
+    let _e125 = t;
+    let _e127 = (*s_7).n;
+    let _e129 = (*s_7).n;
+    let _e130 = t;
+    t = (_e125 - (_e127 * dot(_e129, _e130)));
+    let _e134 = t;
+    let _e135 = t;
+    if (dot(_e134, _e135) < 0.000000000001f) {
         return;
     }
-    let _e135 = t;
-    t = normalize(_e135);
-    let _e138 = (*s_7).n;
-    let _e139 = t;
-    let _e142 = v_tangent_1[3u];
-    b = (cross(_e138, _e139) * _e142);
-    let _e144 = v_texcoord_1;
-    let _e145 = textureSample(normal_texture_tex, normal_texture_smp, _e144);
-    sampled = ((_e145.xyz * 2f) - vec3(1f));
-    let _e152 = frag_info.material2_[1u];
-    let _e153 = sampled;
-    let _e155 = (_e153.xy * _e152);
-    sampled[0u] = _e155.x;
-    sampled[1u] = _e155.y;
-    let _e160 = t;
-    let _e162 = sampled[0u];
-    let _e164 = b;
-    let _e166 = sampled[1u];
-    let _e170 = (*s_7).n;
-    let _e172 = sampled[2u];
-    (*s_7).n = normalize((((_e160 * _e162) + (_e164 * _e166)) + (_e170 * _e172)));
-    let _e178 = (*s_7).n;
-    let _e180 = (*s_7).v;
-    (*s_7).n_dot_v = max(dot(_e178, _e180), 0.0001f);
+    let _e138 = t;
+    t = normalize(_e138);
+    let _e141 = (*s_7).n;
+    let _e142 = t;
+    let _e145 = v_tangent_1[3u];
+    b = (cross(_e141, _e142) * _e145);
+    let _e147 = sampledTexel;
+    sampled = ((_e147.xyz * 2f) - vec3(1f));
+    let _e154 = frag_info.material2_[1u];
+    let _e155 = sampled;
+    let _e157 = (_e155.xy * _e154);
+    sampled[0u] = _e157.x;
+    sampled[1u] = _e157.y;
+    let _e162 = t;
+    let _e164 = sampled[0u];
+    let _e166 = b;
+    let _e168 = sampled[1u];
+    let _e172 = (*s_7).n;
+    let _e174 = sampled[2u];
+    (*s_7).n = normalize((((_e162 * _e164) + (_e166 * _e168)) + (_e172 * _e174)));
+    let _e180 = (*s_7).n;
+    let _e182 = (*s_7).v;
+    (*s_7).n_dot_v = max(dot(_e180, _e182), 0.0001f);
     return;
 }
 
@@ -4634,11 +4637,11 @@ var occlusion_texture_smp: sampler;
 var emissive_texture_tex: texture_2d<f32>;
 @group(1) @binding(6) 
 var emissive_texture_smp: sampler;
-var<private> v_tangent_1: vec4<f32>;
 @group(1) @binding(11) 
 var normal_texture_tex: texture_2d<f32>;
 @group(1) @binding(12) 
 var normal_texture_smp: sampler;
+var<private> v_tangent_1: vec4<f32>;
 @group(1) @binding(19) 
 var shadow_texture_tex: texture_2d<f32>;
 @group(1) @binding(20) 
@@ -4820,9 +4823,9 @@ fn PointShadowDistance_u0028_vf2_u003b_vf2_u003b_vf2_u003b_f1_u003b(uv: ptr<func
         atlas[1u] = (1f - _e146);
     }
     let _e149 = atlas;
-    let _e150 = textureSample(point_shadow_texture_tex, point_shadow_texture_smp, _e149);
+    let _e150 = textureSampleLevel(point_shadow_texture_tex, point_shadow_texture_smp, _e149, 0f);
     let _e152 = atlas;
-    let _e153 = textureSample(point_shadow_static_texture_tex, point_shadow_static_texture_smp, _e152);
+    let _e153 = textureSampleLevel(point_shadow_static_texture_tex, point_shadow_static_texture_smp, _e152, 0f);
     let _e156 = (*range);
     return (min(_e150.x, _e153.x) * _e156);
 }
@@ -5267,11 +5270,11 @@ fn ShadowFactor_u0028_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d_vf
     var y: i32;
     var x: i32;
     var occluder: f32;
-    var phi_1504_: bool;
-    var phi_1515_: bool;
-    var phi_1605_: bool;
-    var phi_1612_: bool;
-    var phi_1619_: bool;
+    var phi_1506_: bool;
+    var phi_1517_: bool;
+    var phi_1607_: bool;
+    var phi_1614_: bool;
+    var phi_1621_: bool;
 
     let _e145 = frag_info.shadow_params[3u];
     strength_1 = _e145;
@@ -5296,25 +5299,25 @@ fn ShadowFactor_u0028_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d_vf
     cascade = 0i;
     let _e174 = cascadeCount;
     let _e175 = (_e174 > 1i);
-    phi_1504_ = _e175;
+    phi_1506_ = _e175;
     if _e175 {
         let _e176 = viewDistance;
         let _e179 = frag_info.shadow_cascades[0u];
-        phi_1504_ = (_e176 > _e179);
+        phi_1506_ = (_e176 > _e179);
     }
-    let _e182 = phi_1504_;
+    let _e182 = phi_1506_;
     if _e182 {
         cascade = 1i;
     }
     let _e183 = cascadeCount;
     let _e184 = (_e183 > 2i);
-    phi_1515_ = _e184;
+    phi_1517_ = _e184;
     if _e184 {
         let _e185 = viewDistance;
         let _e188 = frag_info.shadow_cascades[1u];
-        phi_1515_ = (_e185 > _e188);
+        phi_1517_ = (_e185 > _e188);
     }
-    let _e191 = phi_1515_;
+    let _e191 = phi_1517_;
     if _e191 {
         cascade = 2i;
     }
@@ -5366,24 +5369,24 @@ fn ShadowFactor_u0028_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d_vf
             inTile = vec2<f32>(((_e229 * 0.5f) + 0.5f), (0.5f - (_e233 * 0.5f)));
             let _e238 = inTile[0u];
             let _e239 = (_e238 < 0f);
-            phi_1605_ = _e239;
+            phi_1607_ = _e239;
             if !(_e239) {
                 let _e242 = inTile[0u];
-                phi_1605_ = (_e242 > 1f);
+                phi_1607_ = (_e242 > 1f);
             }
-            let _e245 = phi_1605_;
-            phi_1612_ = _e245;
+            let _e245 = phi_1607_;
+            phi_1614_ = _e245;
             if !(_e245) {
                 let _e248 = inTile[1u];
-                phi_1612_ = (_e248 < 0f);
+                phi_1614_ = (_e248 < 0f);
             }
-            let _e251 = phi_1612_;
-            phi_1619_ = _e251;
+            let _e251 = phi_1614_;
+            phi_1621_ = _e251;
             if !(_e251) {
                 let _e254 = inTile[1u];
-                phi_1619_ = (_e254 > 1f);
+                phi_1621_ = (_e254 > 1f);
             }
-            let _e257 = phi_1619_;
+            let _e257 = phi_1621_;
             if _e257 {
                 continue;
             }
@@ -5432,7 +5435,7 @@ fn ShadowFactor_u0028_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d_vf
                     let _e293 = x;
                     let _e295 = y;
                     let _e298 = texel_1;
-                    let _e301 = textureSample(shadow_texture_tex, shadow_texture_smp, (_e292 + (vec2<f32>(f32(_e293), f32(_e295)) * _e298)));
+                    let _e301 = textureSampleLevel(shadow_texture_tex, shadow_texture_smp, (_e292 + (vec2<f32>(f32(_e293), f32(_e295)) * _e298)), 0f);
                     occluder = _e301.x;
                     let _e304 = projected[2u];
                     let _e305 = bias;
@@ -5751,46 +5754,49 @@ fn ApplyOcclusionMap_u0028_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u00
 }
 
 fn ApplyNormalMap_u0028_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d_vf3_u002d_f1_u002d_f1_u002d_f1_u002d_f1_u002d_vf3_u002d_vf3_u002d_f11_u003b(s_8: ptr<function, Surface>) {
+    var sampledTexel: vec4<f32>;
     var t: vec3<f32>;
     var b: vec3<f32>;
     var sampled: vec3<f32>;
 
-    let _e122 = v_tangent_1;
-    t = _e122.xyz;
-    let _e124 = t;
-    let _e126 = (*s_8).n;
-    let _e128 = (*s_8).n;
-    let _e129 = t;
-    t = (_e124 - (_e126 * dot(_e128, _e129)));
-    let _e133 = t;
-    let _e134 = t;
-    if (dot(_e133, _e134) < 0.000000000001f) {
+    let _e123 = v_texcoord_1;
+    let _e124 = textureSample(normal_texture_tex, normal_texture_smp, _e123);
+    sampledTexel = _e124;
+    let _e125 = v_tangent_1;
+    t = _e125.xyz;
+    let _e127 = t;
+    let _e129 = (*s_8).n;
+    let _e131 = (*s_8).n;
+    let _e132 = t;
+    t = (_e127 - (_e129 * dot(_e131, _e132)));
+    let _e136 = t;
+    let _e137 = t;
+    if (dot(_e136, _e137) < 0.000000000001f) {
         return;
     }
-    let _e137 = t;
-    t = normalize(_e137);
-    let _e140 = (*s_8).n;
-    let _e141 = t;
-    let _e144 = v_tangent_1[3u];
-    b = (cross(_e140, _e141) * _e144);
-    let _e146 = v_texcoord_1;
-    let _e147 = textureSample(normal_texture_tex, normal_texture_smp, _e146);
-    sampled = ((_e147.xyz * 2f) - vec3(1f));
-    let _e154 = frag_info.material2_[1u];
-    let _e155 = sampled;
-    let _e157 = (_e155.xy * _e154);
-    sampled[0u] = _e157.x;
-    sampled[1u] = _e157.y;
-    let _e162 = t;
-    let _e164 = sampled[0u];
-    let _e166 = b;
-    let _e168 = sampled[1u];
-    let _e172 = (*s_8).n;
-    let _e174 = sampled[2u];
-    (*s_8).n = normalize((((_e162 * _e164) + (_e166 * _e168)) + (_e172 * _e174)));
-    let _e180 = (*s_8).n;
-    let _e182 = (*s_8).v;
-    (*s_8).n_dot_v = max(dot(_e180, _e182), 0.0001f);
+    let _e140 = t;
+    t = normalize(_e140);
+    let _e143 = (*s_8).n;
+    let _e144 = t;
+    let _e147 = v_tangent_1[3u];
+    b = (cross(_e143, _e144) * _e147);
+    let _e149 = sampledTexel;
+    sampled = ((_e149.xyz * 2f) - vec3(1f));
+    let _e156 = frag_info.material2_[1u];
+    let _e157 = sampled;
+    let _e159 = (_e157.xy * _e156);
+    sampled[0u] = _e159.x;
+    sampled[1u] = _e159.y;
+    let _e164 = t;
+    let _e166 = sampled[0u];
+    let _e168 = b;
+    let _e170 = sampled[1u];
+    let _e174 = (*s_8).n;
+    let _e176 = sampled[2u];
+    (*s_8).n = normalize((((_e164 * _e166) + (_e168 * _e170)) + (_e174 * _e176)));
+    let _e182 = (*s_8).n;
+    let _e184 = (*s_8).v;
+    (*s_8).n_dot_v = max(dot(_e182, _e184), 0.0001f);
     return;
 }
 
@@ -6262,11 +6268,11 @@ var occlusion_texture_smp: sampler;
 var emissive_texture_tex: texture_2d<f32>;
 @group(1) @binding(6) 
 var emissive_texture_smp: sampler;
-var<private> v_tangent_1: vec4<f32>;
 @group(1) @binding(13) 
 var normal_texture_tex: texture_2d<f32>;
 @group(1) @binding(14) 
 var normal_texture_smp: sampler;
+var<private> v_tangent_1: vec4<f32>;
 @group(1) @binding(21) 
 var shadow_texture_tex: texture_2d<f32>;
 @group(1) @binding(22) 
@@ -6550,9 +6556,9 @@ fn PointShadowDistance_u0028_vf2_u003b_vf2_u003b_vf2_u003b_f1_u003b(uv: ptr<func
         atlas[1u] = (1f - _e163);
     }
     let _e166 = atlas;
-    let _e167 = textureSample(point_shadow_texture_tex, point_shadow_texture_smp, _e166);
+    let _e167 = textureSampleLevel(point_shadow_texture_tex, point_shadow_texture_smp, _e166, 0f);
     let _e169 = atlas;
-    let _e170 = textureSample(point_shadow_static_texture_tex, point_shadow_static_texture_smp, _e169);
+    let _e170 = textureSampleLevel(point_shadow_static_texture_tex, point_shadow_static_texture_smp, _e169, 0f);
     let _e173 = (*range);
     return (min(_e167.x, _e170.x) * _e173);
 }
@@ -6997,11 +7003,11 @@ fn ShadowFactor_u0028_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d_vf
     var y: i32;
     var x: i32;
     var occluder: f32;
-    var phi_1524_: bool;
-    var phi_1535_: bool;
-    var phi_1625_: bool;
-    var phi_1632_: bool;
-    var phi_1639_: bool;
+    var phi_1526_: bool;
+    var phi_1537_: bool;
+    var phi_1627_: bool;
+    var phi_1634_: bool;
+    var phi_1641_: bool;
 
     let _e162 = frag_info.shadow_params[3u];
     strength_1 = _e162;
@@ -7026,25 +7032,25 @@ fn ShadowFactor_u0028_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d_vf
     cascade = 0i;
     let _e191 = cascadeCount;
     let _e192 = (_e191 > 1i);
-    phi_1524_ = _e192;
+    phi_1526_ = _e192;
     if _e192 {
         let _e193 = viewDistance;
         let _e196 = frag_info.shadow_cascades[0u];
-        phi_1524_ = (_e193 > _e196);
+        phi_1526_ = (_e193 > _e196);
     }
-    let _e199 = phi_1524_;
+    let _e199 = phi_1526_;
     if _e199 {
         cascade = 1i;
     }
     let _e200 = cascadeCount;
     let _e201 = (_e200 > 2i);
-    phi_1535_ = _e201;
+    phi_1537_ = _e201;
     if _e201 {
         let _e202 = viewDistance;
         let _e205 = frag_info.shadow_cascades[1u];
-        phi_1535_ = (_e202 > _e205);
+        phi_1537_ = (_e202 > _e205);
     }
-    let _e208 = phi_1535_;
+    let _e208 = phi_1537_;
     if _e208 {
         cascade = 2i;
     }
@@ -7096,24 +7102,24 @@ fn ShadowFactor_u0028_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d_vf
             inTile = vec2<f32>(((_e246 * 0.5f) + 0.5f), (0.5f - (_e250 * 0.5f)));
             let _e255 = inTile[0u];
             let _e256 = (_e255 < 0f);
-            phi_1625_ = _e256;
+            phi_1627_ = _e256;
             if !(_e256) {
                 let _e259 = inTile[0u];
-                phi_1625_ = (_e259 > 1f);
+                phi_1627_ = (_e259 > 1f);
             }
-            let _e262 = phi_1625_;
-            phi_1632_ = _e262;
+            let _e262 = phi_1627_;
+            phi_1634_ = _e262;
             if !(_e262) {
                 let _e265 = inTile[1u];
-                phi_1632_ = (_e265 < 0f);
+                phi_1634_ = (_e265 < 0f);
             }
-            let _e268 = phi_1632_;
-            phi_1639_ = _e268;
+            let _e268 = phi_1634_;
+            phi_1641_ = _e268;
             if !(_e268) {
                 let _e271 = inTile[1u];
-                phi_1639_ = (_e271 > 1f);
+                phi_1641_ = (_e271 > 1f);
             }
-            let _e274 = phi_1639_;
+            let _e274 = phi_1641_;
             if _e274 {
                 continue;
             }
@@ -7162,7 +7168,7 @@ fn ShadowFactor_u0028_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d_vf
                     let _e310 = x;
                     let _e312 = y;
                     let _e315 = texel_1;
-                    let _e318 = textureSample(shadow_texture_tex, shadow_texture_smp, (_e309 + (vec2<f32>(f32(_e310), f32(_e312)) * _e315)));
+                    let _e318 = textureSampleLevel(shadow_texture_tex, shadow_texture_smp, (_e309 + (vec2<f32>(f32(_e310), f32(_e312)) * _e315)), 0f);
                     occluder = _e318.x;
                     let _e321 = projected[2u];
                     let _e322 = bias;
@@ -7498,46 +7504,49 @@ fn ApplyOcclusionMap_u0028_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u00
 }
 
 fn ApplyNormalMap_u0028_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d_vf3_u002d_f1_u002d_f1_u002d_f1_u002d_f1_u002d_vf3_u002d_vf3_u002d_f11_u003b(s_8: ptr<function, Surface>) {
+    var sampledTexel: vec4<f32>;
     var t: vec3<f32>;
     var b: vec3<f32>;
     var sampled: vec3<f32>;
 
-    let _e139 = v_tangent_1;
-    t = _e139.xyz;
-    let _e141 = t;
-    let _e143 = (*s_8).n;
-    let _e145 = (*s_8).n;
-    let _e146 = t;
-    t = (_e141 - (_e143 * dot(_e145, _e146)));
-    let _e150 = t;
-    let _e151 = t;
-    if (dot(_e150, _e151) < 0.000000000001f) {
+    let _e140 = v_texcoord_1;
+    let _e141 = textureSample(normal_texture_tex, normal_texture_smp, _e140);
+    sampledTexel = _e141;
+    let _e142 = v_tangent_1;
+    t = _e142.xyz;
+    let _e144 = t;
+    let _e146 = (*s_8).n;
+    let _e148 = (*s_8).n;
+    let _e149 = t;
+    t = (_e144 - (_e146 * dot(_e148, _e149)));
+    let _e153 = t;
+    let _e154 = t;
+    if (dot(_e153, _e154) < 0.000000000001f) {
         return;
     }
-    let _e154 = t;
-    t = normalize(_e154);
-    let _e157 = (*s_8).n;
-    let _e158 = t;
-    let _e161 = v_tangent_1[3u];
-    b = (cross(_e157, _e158) * _e161);
-    let _e163 = v_texcoord_1;
-    let _e164 = textureSample(normal_texture_tex, normal_texture_smp, _e163);
-    sampled = ((_e164.xyz * 2f) - vec3(1f));
-    let _e171 = frag_info.material2_[1u];
-    let _e172 = sampled;
-    let _e174 = (_e172.xy * _e171);
-    sampled[0u] = _e174.x;
-    sampled[1u] = _e174.y;
-    let _e179 = t;
-    let _e181 = sampled[0u];
-    let _e183 = b;
-    let _e185 = sampled[1u];
-    let _e189 = (*s_8).n;
-    let _e191 = sampled[2u];
-    (*s_8).n = normalize((((_e179 * _e181) + (_e183 * _e185)) + (_e189 * _e191)));
-    let _e197 = (*s_8).n;
-    let _e199 = (*s_8).v;
-    (*s_8).n_dot_v = max(dot(_e197, _e199), 0.0001f);
+    let _e157 = t;
+    t = normalize(_e157);
+    let _e160 = (*s_8).n;
+    let _e161 = t;
+    let _e164 = v_tangent_1[3u];
+    b = (cross(_e160, _e161) * _e164);
+    let _e166 = sampledTexel;
+    sampled = ((_e166.xyz * 2f) - vec3(1f));
+    let _e173 = frag_info.material2_[1u];
+    let _e174 = sampled;
+    let _e176 = (_e174.xy * _e173);
+    sampled[0u] = _e176.x;
+    sampled[1u] = _e176.y;
+    let _e181 = t;
+    let _e183 = sampled[0u];
+    let _e185 = b;
+    let _e187 = sampled[1u];
+    let _e191 = (*s_8).n;
+    let _e193 = sampled[2u];
+    (*s_8).n = normalize((((_e181 * _e183) + (_e185 * _e187)) + (_e191 * _e193)));
+    let _e199 = (*s_8).n;
+    let _e201 = (*s_8).v;
+    (*s_8).n_dot_v = max(dot(_e199, _e201), 0.0001f);
     return;
 }
 
@@ -8070,11 +8079,11 @@ var occlusion_texture_smp: sampler;
 var emissive_texture_tex: texture_2d<f32>;
 @group(1) @binding(6) 
 var emissive_texture_smp: sampler;
-var<private> v_tangent_1: vec4<f32>;
 @group(1) @binding(11) 
 var normal_texture_tex: texture_2d<f32>;
 @group(1) @binding(12) 
 var normal_texture_smp: sampler;
+var<private> v_tangent_1: vec4<f32>;
 @group(1) @binding(19) 
 var shadow_texture_tex: texture_2d<f32>;
 @group(1) @binding(20) 
@@ -8268,9 +8277,9 @@ fn PointShadowDistance_u0028_vf2_u003b_vf2_u003b_vf2_u003b_f1_u003b(uv: ptr<func
         atlas[1u] = (1f - _e149);
     }
     let _e152 = atlas;
-    let _e153 = textureSample(point_shadow_texture_tex, point_shadow_texture_smp, _e152);
+    let _e153 = textureSampleLevel(point_shadow_texture_tex, point_shadow_texture_smp, _e152, 0f);
     let _e155 = atlas;
-    let _e156 = textureSample(point_shadow_static_texture_tex, point_shadow_static_texture_smp, _e155);
+    let _e156 = textureSampleLevel(point_shadow_static_texture_tex, point_shadow_static_texture_smp, _e155, 0f);
     let _e159 = (*range);
     return (min(_e153.x, _e156.x) * _e159);
 }
@@ -8715,11 +8724,11 @@ fn ShadowFactor_u0028_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d_vf
     var y: i32;
     var x: i32;
     var occluder: f32;
-    var phi_1504_: bool;
-    var phi_1515_: bool;
-    var phi_1605_: bool;
-    var phi_1612_: bool;
-    var phi_1619_: bool;
+    var phi_1506_: bool;
+    var phi_1517_: bool;
+    var phi_1607_: bool;
+    var phi_1614_: bool;
+    var phi_1621_: bool;
 
     let _e148 = frag_info.shadow_params[3u];
     strength_1 = _e148;
@@ -8744,25 +8753,25 @@ fn ShadowFactor_u0028_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d_vf
     cascade = 0i;
     let _e177 = cascadeCount;
     let _e178 = (_e177 > 1i);
-    phi_1504_ = _e178;
+    phi_1506_ = _e178;
     if _e178 {
         let _e179 = viewDistance;
         let _e182 = frag_info.shadow_cascades[0u];
-        phi_1504_ = (_e179 > _e182);
+        phi_1506_ = (_e179 > _e182);
     }
-    let _e185 = phi_1504_;
+    let _e185 = phi_1506_;
     if _e185 {
         cascade = 1i;
     }
     let _e186 = cascadeCount;
     let _e187 = (_e186 > 2i);
-    phi_1515_ = _e187;
+    phi_1517_ = _e187;
     if _e187 {
         let _e188 = viewDistance;
         let _e191 = frag_info.shadow_cascades[1u];
-        phi_1515_ = (_e188 > _e191);
+        phi_1517_ = (_e188 > _e191);
     }
-    let _e194 = phi_1515_;
+    let _e194 = phi_1517_;
     if _e194 {
         cascade = 2i;
     }
@@ -8814,24 +8823,24 @@ fn ShadowFactor_u0028_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d_vf
             inTile = vec2<f32>(((_e232 * 0.5f) + 0.5f), (0.5f - (_e236 * 0.5f)));
             let _e241 = inTile[0u];
             let _e242 = (_e241 < 0f);
-            phi_1605_ = _e242;
+            phi_1607_ = _e242;
             if !(_e242) {
                 let _e245 = inTile[0u];
-                phi_1605_ = (_e245 > 1f);
+                phi_1607_ = (_e245 > 1f);
             }
-            let _e248 = phi_1605_;
-            phi_1612_ = _e248;
+            let _e248 = phi_1607_;
+            phi_1614_ = _e248;
             if !(_e248) {
                 let _e251 = inTile[1u];
-                phi_1612_ = (_e251 < 0f);
+                phi_1614_ = (_e251 < 0f);
             }
-            let _e254 = phi_1612_;
-            phi_1619_ = _e254;
+            let _e254 = phi_1614_;
+            phi_1621_ = _e254;
             if !(_e254) {
                 let _e257 = inTile[1u];
-                phi_1619_ = (_e257 > 1f);
+                phi_1621_ = (_e257 > 1f);
             }
-            let _e260 = phi_1619_;
+            let _e260 = phi_1621_;
             if _e260 {
                 continue;
             }
@@ -8880,7 +8889,7 @@ fn ShadowFactor_u0028_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d_vf
                     let _e296 = x;
                     let _e298 = y;
                     let _e301 = texel_1;
-                    let _e304 = textureSample(shadow_texture_tex, shadow_texture_smp, (_e295 + (vec2<f32>(f32(_e296), f32(_e298)) * _e301)));
+                    let _e304 = textureSampleLevel(shadow_texture_tex, shadow_texture_smp, (_e295 + (vec2<f32>(f32(_e296), f32(_e298)) * _e301)), 0f);
                     occluder = _e304.x;
                     let _e307 = projected[2u];
                     let _e308 = bias;
@@ -9199,46 +9208,49 @@ fn ApplyOcclusionMap_u0028_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u00
 }
 
 fn ApplyNormalMap_u0028_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d_vf3_u002d_f1_u002d_f1_u002d_f1_u002d_f1_u002d_vf3_u002d_vf3_u002d_f11_u003b(s_8: ptr<function, Surface>) {
+    var sampledTexel: vec4<f32>;
     var t: vec3<f32>;
     var b: vec3<f32>;
     var sampled: vec3<f32>;
 
-    let _e125 = v_tangent_1;
-    t = _e125.xyz;
-    let _e127 = t;
-    let _e129 = (*s_8).n;
-    let _e131 = (*s_8).n;
-    let _e132 = t;
-    t = (_e127 - (_e129 * dot(_e131, _e132)));
-    let _e136 = t;
-    let _e137 = t;
-    if (dot(_e136, _e137) < 0.000000000001f) {
+    let _e126 = v_texcoord_1;
+    let _e127 = textureSample(normal_texture_tex, normal_texture_smp, _e126);
+    sampledTexel = _e127;
+    let _e128 = v_tangent_1;
+    t = _e128.xyz;
+    let _e130 = t;
+    let _e132 = (*s_8).n;
+    let _e134 = (*s_8).n;
+    let _e135 = t;
+    t = (_e130 - (_e132 * dot(_e134, _e135)));
+    let _e139 = t;
+    let _e140 = t;
+    if (dot(_e139, _e140) < 0.000000000001f) {
         return;
     }
-    let _e140 = t;
-    t = normalize(_e140);
-    let _e143 = (*s_8).n;
-    let _e144 = t;
-    let _e147 = v_tangent_1[3u];
-    b = (cross(_e143, _e144) * _e147);
-    let _e149 = v_texcoord_1;
-    let _e150 = textureSample(normal_texture_tex, normal_texture_smp, _e149);
-    sampled = ((_e150.xyz * 2f) - vec3(1f));
-    let _e157 = frag_info.material2_[1u];
-    let _e158 = sampled;
-    let _e160 = (_e158.xy * _e157);
-    sampled[0u] = _e160.x;
-    sampled[1u] = _e160.y;
-    let _e165 = t;
-    let _e167 = sampled[0u];
-    let _e169 = b;
-    let _e171 = sampled[1u];
-    let _e175 = (*s_8).n;
-    let _e177 = sampled[2u];
-    (*s_8).n = normalize((((_e165 * _e167) + (_e169 * _e171)) + (_e175 * _e177)));
-    let _e183 = (*s_8).n;
-    let _e185 = (*s_8).v;
-    (*s_8).n_dot_v = max(dot(_e183, _e185), 0.0001f);
+    let _e143 = t;
+    t = normalize(_e143);
+    let _e146 = (*s_8).n;
+    let _e147 = t;
+    let _e150 = v_tangent_1[3u];
+    b = (cross(_e146, _e147) * _e150);
+    let _e152 = sampledTexel;
+    sampled = ((_e152.xyz * 2f) - vec3(1f));
+    let _e159 = frag_info.material2_[1u];
+    let _e160 = sampled;
+    let _e162 = (_e160.xy * _e159);
+    sampled[0u] = _e162.x;
+    sampled[1u] = _e162.y;
+    let _e167 = t;
+    let _e169 = sampled[0u];
+    let _e171 = b;
+    let _e173 = sampled[1u];
+    let _e177 = (*s_8).n;
+    let _e179 = sampled[2u];
+    (*s_8).n = normalize((((_e167 * _e169) + (_e171 * _e173)) + (_e177 * _e179)));
+    let _e185 = (*s_8).n;
+    let _e187 = (*s_8).v;
+    (*s_8).n_dot_v = max(dot(_e185, _e187), 0.0001f);
     return;
 }
 
@@ -11079,7 +11091,7 @@ fn main_1() {
                 break;
             }
             let _e201 = uv_2;
-            let _e202 = textureSample(surface_texture_tex, surface_texture_smp, _e201);
+            let _e202 = textureSampleLevel(surface_texture_tex, surface_texture_smp, _e201, 0f);
             sceneDepth = _e202.w;
             let _e204 = march;
             param_10 = _e204;
@@ -11102,7 +11114,7 @@ fn main_1() {
                 let _e219 = thickness;
                 if (_e218 < _e219) {
                     let _e221 = uv_2;
-                    let _e222 = textureSample(scene_texture_tex, scene_texture_smp, _e221);
+                    let _e222 = textureSampleLevel(scene_texture_tex, scene_texture_smp, _e221, 0f);
                     hitColor = _e222.xyz;
                     let _e224 = uv_2;
                     edge = abs(((_e224 * 2f) - vec2(1f)));
@@ -11520,7 +11532,7 @@ fn main_1() {
             let _e209 = UvFromNdc_u0028_vf2_u003b((&param_5));
             uv_2 = _e209;
             let _e210 = uv_2;
-            let _e211 = textureSample(surface_texture_tex, surface_texture_smp, _e210);
+            let _e211 = textureSampleLevel(surface_texture_tex, surface_texture_smp, _e210, 0f);
             there = _e211;
             let _e213 = there[3u];
             if (_e213 <= 0f) {

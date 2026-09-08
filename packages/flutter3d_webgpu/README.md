@@ -55,7 +55,7 @@ Three things about that road are worth knowing before touching it.
 SPIR-V that `spirv-val` accepts and naga refuses with `invalid id %14`, naming
 neither a file nor a construct. So each sampler declaration becomes a
 `texture2D`, a `sampler` and a `#define` that puts them back together, and every
-call site — 59 `texture()` and 5 `textureLod()` — passes through the macro
+call site — 53 `texture()` and 11 `textureLod()` — passes through the macro
 untouched.
 
 **naga turns a vertex stage over unless told not to.** Without
@@ -71,18 +71,28 @@ nothing to say so. Locations are a function of the name, grouped into families
 by which names ever appear together, because there are seventeen varyings and
 sixteen locations.
 
-## Six stages this implementation refuses
+## The six stages this implementation used to refuse
 
 `textureSample` may only be called from uniform control flow, and six of the
 engine's fragment stages — `Pbr`, `BlinnPhong`, `Lambert`, `Toon`,
-`Reflections` and `Ssao` — sample a texture inside an `if` whose condition
-comes from a material flag. naga accepts all six and round-trips them, so the
-shader pipeline is green; a browser refuses them, and the refusal arrives at
-the first pipeline built from one as `invalid due to a previous error`, naming
-no line. `test/open_test.dart` holds the count at six and the reason to one, so
-a seventh is a red line rather than a discovery. The fix is a
-`textureSampleLevel`, or hoisting the sample above the branch, and both are
-decisions about the GLSL rather than about this backend.
+`Reflections` and `Ssao` — sampled a texture under a branch the four
+invocations of a quad need not take together: a light the surface faces away
+from, a cascade that does not contain the fragment, a ray that has already left
+the frame, a tangent too degenerate to build a frame from. naga accepted all six
+and round-tripped them, so the shader pipeline was green while a browser refused
+them, and the refusal arrived at the first pipeline built from one as `invalid
+due to a previous error`, naming no line.
+
+The cure was in the GLSL and it was two cures, chosen per site. The three
+single-level render targets a lit scene reads under a branch — the cascade
+atlas, the two point-shadow atlases, the surface buffer and the scene colour
+the two screen-space passes march through — are now read with `textureLod` at
+level zero, which is the level an implicit derivative was selecting anyway on a
+texture that has only one. The normal map is not one of those: it carries a real
+mip chain, so pinning a level there would have changed the picture, and the
+sample is hoisted above the branch instead. `test/open_test.dart` now asserts
+that nothing is refused at all, so a stage that reacquires the fault fails
+rather than raising a count.
 
 ## Where the buffers of a frame live
 

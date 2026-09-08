@@ -80,6 +80,19 @@ void ApplyEmissiveMap(inout Surface s) {
 
 /// Perturbs the surface normal by the tangent-space normal map.
 void ApplyNormalMap(inout Surface s) {
+  // **Sampled before the frame is tested, and that order is load-bearing.**
+  // The test below is a branch on interpolated data, so the four invocations of
+  // a quad can take different sides of it; a WGSL backend then refuses a
+  // `texture` call underneath, because the mip level it derives is only defined
+  // where the whole quad agrees. Unlike the shadow atlases, this map really is
+  // mipped — a normal map read at full resolution on a surface turned away from
+  // the camera is the aliasing that made this the widest disagreement between
+  // backends — so pinning a level here would be a picture change, and hoisting
+  // the sample is the cure that is not. A degenerate tangent is rare enough
+  // that paying for its unused texel is nothing, and the texel it reads is the
+  // same one the branch would have read.
+  vec4 sampledTexel = texture(normal_texture, v_texcoord);
+
   // The tangent is re-orthogonalized against the normal because interpolating
   // both across a triangle does not preserve the right angle between them.
   vec3 t = v_tangent.xyz;
@@ -92,7 +105,7 @@ void ApplyNormalMap(inout Surface s) {
   // is exactly what NormalTangentTest is built to show.
   vec3 b = cross(s.n, t) * v_tangent.w;
 
-  vec3 sampled = texture(normal_texture, v_texcoord).xyz * 2.0 - 1.0;
+  vec3 sampled = sampledTexel.xyz * 2.0 - 1.0;
   // normalScale attenuates the tangent-space xy, per the glTF spec.
   sampled.xy *= frag_info.material2.y;
 

@@ -73,13 +73,17 @@
   a pipeline is returned whether or not the descriptor was legal — so a backend
   that means to report a refusal has to bracket its calls, and a bad shader is
   not even that: the module is created and the line number is only in
-  `getCompilationInfo`. Asking for it found six of the engine's own stages that
-  this implementation refuses, which is the first check in the repository that
+  `getCompilationInfo`. Asking for it found six of the engine's own stages this
+  implementation refused, which is the first check in the repository that
   could have.
-* **Six fragment stages do not compile here yet**, and the count is a test
-  rather than a note. `Pbr`, `BlinnPhong`, `Lambert`, `Toon`, `Reflections` and
-  `Ssao` call `textureSample` from non-uniform control flow, which naga accepts
-  and a browser does not. The fix is in the GLSL, not in this package.
+* **All thirty-nine stages compile here now**, and the test says so as an
+  absence rather than a count. `Pbr`, `BlinnPhong`, `Lambert`, `Toon`,
+  `Reflections` and `Ssao` called `textureSample` under a branch a quad need not
+  take together — a light facing away, a cascade that misses, a ray off the
+  frame, a degenerate tangent — which naga accepts and a browser does not. The
+  GLSL now reads the single-level targets with `textureLod` at level zero and
+  hoists the one sample whose mip chain is real above its branch; the three
+  other backends draw the same pictures they drew before, byte for byte.
 * **A platform view whose pin the device can empty.** The registry has no
   unregister and never will, so the factory closure holds a cell rather than the
   canvas; `dispose` nulls it, unconfigures the canvas context and destroys the

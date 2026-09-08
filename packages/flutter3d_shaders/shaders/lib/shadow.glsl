@@ -84,11 +84,23 @@ float ShadowFactor(Surface s, LightSample light, int lightIndex) {
 
   // PCF 3x3. Four samples would band visibly at this map size and nine is the
   // smallest kernel that reads as a soft edge rather than as stair steps.
+  //
+  // **`textureLod` and not `texture`, and the level asked for is the only one
+  // there is.** Everything above this loop is a reason not to be here — the
+  // cascade search returns early when no cascade contains the fragment, and the
+  // light loop that calls it skips a light facing away — so a WGSL backend sees
+  // a sample taken where the four invocations of a quad need not agree, and
+  // refuses it: the implicit derivative `texture` asks for is only defined
+  // where they all arrive. The cascade atlas is a depth render target with a
+  // single level, so the derivative was never doing anything but selecting
+  // level zero, and naming that level directly costs nothing and changes no
+  // pixel on any backend.
   float lit = 0.0;
   for (int y = -1; y <= 1; y++) {
     for (int x = -1; x <= 1; x++) {
       float occluder =
-          texture(shadow_texture, uv + vec2(float(x), float(y)) * texel).r;
+          textureLod(shadow_texture, uv + vec2(float(x), float(y)) * texel, 0.0)
+              .r;
       lit += projected.z - bias > occluder ? 0.0 : 1.0;
     }
   }

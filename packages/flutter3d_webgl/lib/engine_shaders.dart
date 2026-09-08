@@ -1987,8 +1987,18 @@ float PointShadowDistance(vec2 uv, vec2 offset, vec2 tile, float range) {
   if (point_shadow.params3.x > 0.5) atlas.y = 1.0 - atlas.y;
   // Whichever is nearer occludes: a wall in front of a monster shadows, and so
   // does a monster in front of a wall.
-  return min(texture(point_shadow_texture, atlas).r,
-             texture(point_shadow_static_texture, atlas).r) * range;
+  //
+  // **`textureLod` at level zero, because every caller of this function stands
+  // behind a branch.** The light loop skips a light the surface faces away
+  // from, the blocker search `continue`s past a tap that found nothing, and the
+  // slot test returns before any of it — so the invocations of a quad do not
+  // arrive here together, and a WGSL backend refuses a sample whose implicit
+  // derivative would be read where they disagree. Both atlases are distance
+  // render targets with one level, so level zero is the level `texture` was
+  // choosing anyway; this names it rather than deriving it, and the picture is
+  // the same on every backend.
+  return min(textureLod(point_shadow_texture, atlas, 0.0).r,
+             textureLod(point_shadow_static_texture, atlas, 0.0).r) * range;
 }
 
 float PointShadowTap(vec2 uv, vec2 offset, vec2 tile, float range,
@@ -2961,8 +2971,18 @@ float PointShadowDistance(vec2 uv, vec2 offset, vec2 tile, float range) {
   if (point_shadow.params3.x > 0.5) atlas.y = 1.0 - atlas.y;
   // Whichever is nearer occludes: a wall in front of a monster shadows, and so
   // does a monster in front of a wall.
-  return min(texture(point_shadow_texture, atlas).r,
-             texture(point_shadow_static_texture, atlas).r) * range;
+  //
+  // **`textureLod` at level zero, because every caller of this function stands
+  // behind a branch.** The light loop skips a light the surface faces away
+  // from, the blocker search `continue`s past a tap that found nothing, and the
+  // slot test returns before any of it — so the invocations of a quad do not
+  // arrive here together, and a WGSL backend refuses a sample whose implicit
+  // derivative would be read where they disagree. Both atlases are distance
+  // render targets with one level, so level zero is the level `texture` was
+  // choosing anyway; this names it rather than deriving it, and the picture is
+  // the same on every backend.
+  return min(textureLod(point_shadow_texture, atlas, 0.0).r,
+             textureLod(point_shadow_static_texture, atlas, 0.0).r) * range;
 }
 
 float PointShadowTap(vec2 uv, vec2 offset, vec2 tile, float range,
@@ -3925,8 +3945,18 @@ float PointShadowDistance(vec2 uv, vec2 offset, vec2 tile, float range) {
   if (point_shadow.params3.x > 0.5) atlas.y = 1.0 - atlas.y;
   // Whichever is nearer occludes: a wall in front of a monster shadows, and so
   // does a monster in front of a wall.
-  return min(texture(point_shadow_texture, atlas).r,
-             texture(point_shadow_static_texture, atlas).r) * range;
+  //
+  // **`textureLod` at level zero, because every caller of this function stands
+  // behind a branch.** The light loop skips a light the surface faces away
+  // from, the blocker search `continue`s past a tap that found nothing, and the
+  // slot test returns before any of it — so the invocations of a quad do not
+  // arrive here together, and a WGSL backend refuses a sample whose implicit
+  // derivative would be read where they disagree. Both atlases are distance
+  // render targets with one level, so level zero is the level `texture` was
+  // choosing anyway; this names it rather than deriving it, and the picture is
+  // the same on every backend.
+  return min(textureLod(point_shadow_texture, atlas, 0.0).r,
+             textureLod(point_shadow_static_texture, atlas, 0.0).r) * range;
 }
 
 float PointShadowTap(vec2 uv, vec2 offset, vec2 tile, float range,
@@ -4265,6 +4295,19 @@ void ApplyEmissiveMap(inout Surface s) {
 
 /// Perturbs the surface normal by the tangent-space normal map.
 void ApplyNormalMap(inout Surface s) {
+  // **Sampled before the frame is tested, and that order is load-bearing.**
+  // The test below is a branch on interpolated data, so the four invocations of
+  // a quad can take different sides of it; a WGSL backend then refuses a
+  // `texture` call underneath, because the mip level it derives is only defined
+  // where the whole quad agrees. Unlike the shadow atlases, this map really is
+  // mipped — a normal map read at full resolution on a surface turned away from
+  // the camera is the aliasing that made this the widest disagreement between
+  // backends — so pinning a level here would be a picture change, and hoisting
+  // the sample is the cure that is not. A degenerate tangent is rare enough
+  // that paying for its unused texel is nothing, and the texel it reads is the
+  // same one the branch would have read.
+  vec4 sampledTexel = texture(normal_texture, v_texcoord);
+
   // The tangent is re-orthogonalized against the normal because interpolating
   // both across a triangle does not preserve the right angle between them.
   vec3 t = v_tangent.xyz;
@@ -4277,7 +4320,7 @@ void ApplyNormalMap(inout Surface s) {
   // is exactly what NormalTangentTest is built to show.
   vec3 b = cross(s.n, t) * v_tangent.w;
 
-  vec3 sampled = texture(normal_texture, v_texcoord).xyz * 2.0 - 1.0;
+  vec3 sampled = sampledTexel.xyz * 2.0 - 1.0;
   // normalScale attenuates the tangent-space xy, per the glTF spec.
   sampled.xy *= frag_info.material2.y;
 
@@ -4381,11 +4424,23 @@ float ShadowFactor(Surface s, LightSample light, int lightIndex) {
 
   // PCF 3x3. Four samples would band visibly at this map size and nine is the
   // smallest kernel that reads as a soft edge rather than as stair steps.
+  //
+  // **`textureLod` and not `texture`, and the level asked for is the only one
+  // there is.** Everything above this loop is a reason not to be here — the
+  // cascade search returns early when no cascade contains the fragment, and the
+  // light loop that calls it skips a light facing away — so a WGSL backend sees
+  // a sample taken where the four invocations of a quad need not agree, and
+  // refuses it: the implicit derivative `texture` asks for is only defined
+  // where they all arrive. The cascade atlas is a depth render target with a
+  // single level, so the derivative was never doing anything but selecting
+  // level zero, and naming that level directly costs nothing and changes no
+  // pixel on any backend.
   float lit = 0.0;
   for (int y = -1; y <= 1; y++) {
     for (int x = -1; x <= 1; x++) {
       float occluder =
-          texture(shadow_texture, uv + vec2(float(x), float(y)) * texel).r;
+          textureLod(shadow_texture, uv + vec2(float(x), float(y)) * texel, 0.0)
+              .r;
       lit += projected.z - bias > occluder ? 0.0 : 1.0;
     }
   }
@@ -5091,8 +5146,18 @@ float PointShadowDistance(vec2 uv, vec2 offset, vec2 tile, float range) {
   if (point_shadow.params3.x > 0.5) atlas.y = 1.0 - atlas.y;
   // Whichever is nearer occludes: a wall in front of a monster shadows, and so
   // does a monster in front of a wall.
-  return min(texture(point_shadow_texture, atlas).r,
-             texture(point_shadow_static_texture, atlas).r) * range;
+  //
+  // **`textureLod` at level zero, because every caller of this function stands
+  // behind a branch.** The light loop skips a light the surface faces away
+  // from, the blocker search `continue`s past a tap that found nothing, and the
+  // slot test returns before any of it — so the invocations of a quad do not
+  // arrive here together, and a WGSL backend refuses a sample whose implicit
+  // derivative would be read where they disagree. Both atlases are distance
+  // render targets with one level, so level zero is the level `texture` was
+  // choosing anyway; this names it rather than deriving it, and the picture is
+  // the same on every backend.
+  return min(textureLod(point_shadow_texture, atlas, 0.0).r,
+             textureLod(point_shadow_static_texture, atlas, 0.0).r) * range;
 }
 
 float PointShadowTap(vec2 uv, vec2 offset, vec2 tile, float range,
@@ -5431,6 +5496,19 @@ void ApplyEmissiveMap(inout Surface s) {
 
 /// Perturbs the surface normal by the tangent-space normal map.
 void ApplyNormalMap(inout Surface s) {
+  // **Sampled before the frame is tested, and that order is load-bearing.**
+  // The test below is a branch on interpolated data, so the four invocations of
+  // a quad can take different sides of it; a WGSL backend then refuses a
+  // `texture` call underneath, because the mip level it derives is only defined
+  // where the whole quad agrees. Unlike the shadow atlases, this map really is
+  // mipped — a normal map read at full resolution on a surface turned away from
+  // the camera is the aliasing that made this the widest disagreement between
+  // backends — so pinning a level here would be a picture change, and hoisting
+  // the sample is the cure that is not. A degenerate tangent is rare enough
+  // that paying for its unused texel is nothing, and the texel it reads is the
+  // same one the branch would have read.
+  vec4 sampledTexel = texture(normal_texture, v_texcoord);
+
   // The tangent is re-orthogonalized against the normal because interpolating
   // both across a triangle does not preserve the right angle between them.
   vec3 t = v_tangent.xyz;
@@ -5443,7 +5521,7 @@ void ApplyNormalMap(inout Surface s) {
   // is exactly what NormalTangentTest is built to show.
   vec3 b = cross(s.n, t) * v_tangent.w;
 
-  vec3 sampled = texture(normal_texture, v_texcoord).xyz * 2.0 - 1.0;
+  vec3 sampled = sampledTexel.xyz * 2.0 - 1.0;
   // normalScale attenuates the tangent-space xy, per the glTF spec.
   sampled.xy *= frag_info.material2.y;
 
@@ -5547,11 +5625,23 @@ float ShadowFactor(Surface s, LightSample light, int lightIndex) {
 
   // PCF 3x3. Four samples would band visibly at this map size and nine is the
   // smallest kernel that reads as a soft edge rather than as stair steps.
+  //
+  // **`textureLod` and not `texture`, and the level asked for is the only one
+  // there is.** Everything above this loop is a reason not to be here — the
+  // cascade search returns early when no cascade contains the fragment, and the
+  // light loop that calls it skips a light facing away — so a WGSL backend sees
+  // a sample taken where the four invocations of a quad need not agree, and
+  // refuses it: the implicit derivative `texture` asks for is only defined
+  // where they all arrive. The cascade atlas is a depth render target with a
+  // single level, so the derivative was never doing anything but selecting
+  // level zero, and naming that level directly costs nothing and changes no
+  // pixel on any backend.
   float lit = 0.0;
   for (int y = -1; y <= 1; y++) {
     for (int x = -1; x <= 1; x++) {
       float occluder =
-          texture(shadow_texture, uv + vec2(float(x), float(y)) * texel).r;
+          textureLod(shadow_texture, uv + vec2(float(x), float(y)) * texel, 0.0)
+              .r;
       lit += projected.z - bias > occluder ? 0.0 : 1.0;
     }
   }
@@ -6272,8 +6362,18 @@ float PointShadowDistance(vec2 uv, vec2 offset, vec2 tile, float range) {
   if (point_shadow.params3.x > 0.5) atlas.y = 1.0 - atlas.y;
   // Whichever is nearer occludes: a wall in front of a monster shadows, and so
   // does a monster in front of a wall.
-  return min(texture(point_shadow_texture, atlas).r,
-             texture(point_shadow_static_texture, atlas).r) * range;
+  //
+  // **`textureLod` at level zero, because every caller of this function stands
+  // behind a branch.** The light loop skips a light the surface faces away
+  // from, the blocker search `continue`s past a tap that found nothing, and the
+  // slot test returns before any of it — so the invocations of a quad do not
+  // arrive here together, and a WGSL backend refuses a sample whose implicit
+  // derivative would be read where they disagree. Both atlases are distance
+  // render targets with one level, so level zero is the level `texture` was
+  // choosing anyway; this names it rather than deriving it, and the picture is
+  // the same on every backend.
+  return min(textureLod(point_shadow_texture, atlas, 0.0).r,
+             textureLod(point_shadow_static_texture, atlas, 0.0).r) * range;
 }
 
 float PointShadowTap(vec2 uv, vec2 offset, vec2 tile, float range,
@@ -6612,6 +6712,19 @@ void ApplyEmissiveMap(inout Surface s) {
 
 /// Perturbs the surface normal by the tangent-space normal map.
 void ApplyNormalMap(inout Surface s) {
+  // **Sampled before the frame is tested, and that order is load-bearing.**
+  // The test below is a branch on interpolated data, so the four invocations of
+  // a quad can take different sides of it; a WGSL backend then refuses a
+  // `texture` call underneath, because the mip level it derives is only defined
+  // where the whole quad agrees. Unlike the shadow atlases, this map really is
+  // mipped — a normal map read at full resolution on a surface turned away from
+  // the camera is the aliasing that made this the widest disagreement between
+  // backends — so pinning a level here would be a picture change, and hoisting
+  // the sample is the cure that is not. A degenerate tangent is rare enough
+  // that paying for its unused texel is nothing, and the texel it reads is the
+  // same one the branch would have read.
+  vec4 sampledTexel = texture(normal_texture, v_texcoord);
+
   // The tangent is re-orthogonalized against the normal because interpolating
   // both across a triangle does not preserve the right angle between them.
   vec3 t = v_tangent.xyz;
@@ -6624,7 +6737,7 @@ void ApplyNormalMap(inout Surface s) {
   // is exactly what NormalTangentTest is built to show.
   vec3 b = cross(s.n, t) * v_tangent.w;
 
-  vec3 sampled = texture(normal_texture, v_texcoord).xyz * 2.0 - 1.0;
+  vec3 sampled = sampledTexel.xyz * 2.0 - 1.0;
   // normalScale attenuates the tangent-space xy, per the glTF spec.
   sampled.xy *= frag_info.material2.y;
 
@@ -6728,11 +6841,23 @@ float ShadowFactor(Surface s, LightSample light, int lightIndex) {
 
   // PCF 3x3. Four samples would band visibly at this map size and nine is the
   // smallest kernel that reads as a soft edge rather than as stair steps.
+  //
+  // **`textureLod` and not `texture`, and the level asked for is the only one
+  // there is.** Everything above this loop is a reason not to be here — the
+  // cascade search returns early when no cascade contains the fragment, and the
+  // light loop that calls it skips a light facing away — so a WGSL backend sees
+  // a sample taken where the four invocations of a quad need not agree, and
+  // refuses it: the implicit derivative `texture` asks for is only defined
+  // where they all arrive. The cascade atlas is a depth render target with a
+  // single level, so the derivative was never doing anything but selecting
+  // level zero, and naming that level directly costs nothing and changes no
+  // pixel on any backend.
   float lit = 0.0;
   for (int y = -1; y <= 1; y++) {
     for (int x = -1; x <= 1; x++) {
       float occluder =
-          texture(shadow_texture, uv + vec2(float(x), float(y)) * texel).r;
+          textureLod(shadow_texture, uv + vec2(float(x), float(y)) * texel, 0.0)
+              .r;
       lit += projected.z - bias > occluder ? 0.0 : 1.0;
     }
   }
@@ -7546,8 +7671,18 @@ float PointShadowDistance(vec2 uv, vec2 offset, vec2 tile, float range) {
   if (point_shadow.params3.x > 0.5) atlas.y = 1.0 - atlas.y;
   // Whichever is nearer occludes: a wall in front of a monster shadows, and so
   // does a monster in front of a wall.
-  return min(texture(point_shadow_texture, atlas).r,
-             texture(point_shadow_static_texture, atlas).r) * range;
+  //
+  // **`textureLod` at level zero, because every caller of this function stands
+  // behind a branch.** The light loop skips a light the surface faces away
+  // from, the blocker search `continue`s past a tap that found nothing, and the
+  // slot test returns before any of it — so the invocations of a quad do not
+  // arrive here together, and a WGSL backend refuses a sample whose implicit
+  // derivative would be read where they disagree. Both atlases are distance
+  // render targets with one level, so level zero is the level `texture` was
+  // choosing anyway; this names it rather than deriving it, and the picture is
+  // the same on every backend.
+  return min(textureLod(point_shadow_texture, atlas, 0.0).r,
+             textureLod(point_shadow_static_texture, atlas, 0.0).r) * range;
 }
 
 float PointShadowTap(vec2 uv, vec2 offset, vec2 tile, float range,
@@ -7886,6 +8021,19 @@ void ApplyEmissiveMap(inout Surface s) {
 
 /// Perturbs the surface normal by the tangent-space normal map.
 void ApplyNormalMap(inout Surface s) {
+  // **Sampled before the frame is tested, and that order is load-bearing.**
+  // The test below is a branch on interpolated data, so the four invocations of
+  // a quad can take different sides of it; a WGSL backend then refuses a
+  // `texture` call underneath, because the mip level it derives is only defined
+  // where the whole quad agrees. Unlike the shadow atlases, this map really is
+  // mipped — a normal map read at full resolution on a surface turned away from
+  // the camera is the aliasing that made this the widest disagreement between
+  // backends — so pinning a level here would be a picture change, and hoisting
+  // the sample is the cure that is not. A degenerate tangent is rare enough
+  // that paying for its unused texel is nothing, and the texel it reads is the
+  // same one the branch would have read.
+  vec4 sampledTexel = texture(normal_texture, v_texcoord);
+
   // The tangent is re-orthogonalized against the normal because interpolating
   // both across a triangle does not preserve the right angle between them.
   vec3 t = v_tangent.xyz;
@@ -7898,7 +8046,7 @@ void ApplyNormalMap(inout Surface s) {
   // is exactly what NormalTangentTest is built to show.
   vec3 b = cross(s.n, t) * v_tangent.w;
 
-  vec3 sampled = texture(normal_texture, v_texcoord).xyz * 2.0 - 1.0;
+  vec3 sampled = sampledTexel.xyz * 2.0 - 1.0;
   // normalScale attenuates the tangent-space xy, per the glTF spec.
   sampled.xy *= frag_info.material2.y;
 
@@ -8002,11 +8150,23 @@ float ShadowFactor(Surface s, LightSample light, int lightIndex) {
 
   // PCF 3x3. Four samples would band visibly at this map size and nine is the
   // smallest kernel that reads as a soft edge rather than as stair steps.
+  //
+  // **`textureLod` and not `texture`, and the level asked for is the only one
+  // there is.** Everything above this loop is a reason not to be here — the
+  // cascade search returns early when no cascade contains the fragment, and the
+  // light loop that calls it skips a light facing away — so a WGSL backend sees
+  // a sample taken where the four invocations of a quad need not agree, and
+  // refuses it: the implicit derivative `texture` asks for is only defined
+  // where they all arrive. The cascade atlas is a depth render target with a
+  // single level, so the derivative was never doing anything but selecting
+  // level zero, and naming that level directly costs nothing and changes no
+  // pixel on any backend.
   float lit = 0.0;
   for (int y = -1; y <= 1; y++) {
     for (int x = -1; x <= 1; x++) {
       float occluder =
-          texture(shadow_texture, uv + vec2(float(x), float(y)) * texel).r;
+          textureLod(shadow_texture, uv + vec2(float(x), float(y)) * texel, 0.0)
+              .r;
       lit += projected.z - bias > occluder ? 0.0 : 1.0;
     }
   }
@@ -9419,7 +9579,14 @@ void main() {
     // a missing reflection.
     if (uv.x < 0.0 || uv.x > 1.0 || uv.y < 0.0 || uv.y > 1.0) break;
 
-    float sceneDepth = texture(surface_texture, uv).a;
+    // **`textureLod` at level zero for every read inside this march.** The loop
+    // breaks the moment a ray leaves the frustum or the frame, so no two
+    // invocations of a quad are guaranteed to be on the same step, and a WGSL
+    // backend will not derive a mip level under a branch like that. Both
+    // textures are full-screen render targets with a single level and are read
+    // at one texel per pixel, so level zero is what the derivative was
+    // selecting; asking for it by name is the same picture.
+    float sceneDepth = textureLod(surface_texture, uv, 0.0).a;
     // The march's own depth, in the same metres the buffer holds — so the two
     // are comparable without a projection between them.
     float marchDepth = DepthOf(march);
@@ -9442,7 +9609,7 @@ void main() {
       vec3 seen = WorldAt(uv, sceneDepth);
       float behind = distance(march, seen);
       if (behind < thickness) {
-        hitColor = texture(scene_texture, uv).rgb;
+        hitColor = textureLod(scene_texture, uv, 0.0).rgb;
         // Fade at the edges of the frame and with distance travelled, so a
         // reflection thins out instead of stopping.
         vec2 edge = abs(uv * 2.0 - 1.0);
@@ -9686,7 +9853,14 @@ void main() {
     if (abs(ndc.x) > 1.0 || abs(ndc.y) > 1.0) continue;
 
     vec2 uv = UvFromNdc(ndc.xy);
-    vec4 there = texture(surface_texture, uv);
+    // **`textureLod` at level zero, for the same reason the march in
+    // `reflections.frag` uses it.** Two `continue`s stand above this line, so
+    // the invocations of a quad are not all here, and a WGSL backend refuses to
+    // derive a mip level where they are not. The surface buffer is a
+    // full-screen render target with one level, and this pass binds it
+    // unfiltered besides, so level zero is the only level there has ever been
+    // to read.
+    vec4 there = textureLod(surface_texture, uv, 0.0);
     // The sky occludes nothing: a sample that lands on it is a sample looking
     // out of the scene, which is the opposite of being enclosed.
     if (there.a <= 0.0) continue;

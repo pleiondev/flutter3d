@@ -185,7 +185,14 @@ void main() {
     // a missing reflection.
     if (uv.x < 0.0 || uv.x > 1.0 || uv.y < 0.0 || uv.y > 1.0) break;
 
-    float sceneDepth = texture(surface_texture, uv).a;
+    // **`textureLod` at level zero for every read inside this march.** The loop
+    // breaks the moment a ray leaves the frustum or the frame, so no two
+    // invocations of a quad are guaranteed to be on the same step, and a WGSL
+    // backend will not derive a mip level under a branch like that. Both
+    // textures are full-screen render targets with a single level and are read
+    // at one texel per pixel, so level zero is what the derivative was
+    // selecting; asking for it by name is the same picture.
+    float sceneDepth = textureLod(surface_texture, uv, 0.0).a;
     // The march's own depth, in the same metres the buffer holds — so the two
     // are comparable without a projection between them.
     float marchDepth = DepthOf(march);
@@ -208,7 +215,7 @@ void main() {
       vec3 seen = WorldAt(uv, sceneDepth);
       float behind = distance(march, seen);
       if (behind < thickness) {
-        hitColor = texture(scene_texture, uv).rgb;
+        hitColor = textureLod(scene_texture, uv, 0.0).rgb;
         // Fade at the edges of the frame and with distance travelled, so a
         // reflection thins out instead of stopping.
         vec2 edge = abs(uv * 2.0 - 1.0);
