@@ -33,6 +33,12 @@ dependencies:
   vector_math: ^2.2.0
 
 dev_dependencies:
+  # For `compareFrames` alone, in `cross_backend_test.dart`, which measures this
+  # backend's committed reference set against Impeller's. The WebGL2 package
+  # reaches for it the same way and for the same one function: a dev dependency
+  # and not a real one, since nothing in `lib/` touches it and two backends that
+  # depended on each other at run time would not be two backends.
+  flutter3d_cpu: ^0.5.2
   # The behaviour flutter3d_hardware requires, as tests this backend runs
   # against itself — in Chrome, against a live device. See
   # flutter3d_conformance, and `test/conformance_test.dart` for what this

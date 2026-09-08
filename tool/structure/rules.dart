@@ -1829,6 +1829,147 @@ String? _fieldIn(String pubspec, String key) {
   return match.group(1)!.trim().replaceAll("'", '').replaceAll('"', '');
 }
 
+/// The recorded reference sets, and the one place this repository lists them.
+///
+/// **It was a local in one rule until a fourth set arrived.** The three that
+/// came before were written into `_goldenFiguresExist` and nowhere else, so the
+/// only question anything asked about a set was "does the picture this page
+/// shows exist in it". Recording WebGPU's set made the other question the
+/// interesting one — whether the sets still hold the *same* scenes — and a map
+/// that lives inside one function cannot be asked it. So it is up here, both
+/// rules below read it, and registering a fifth backend is one line rather than
+/// two edits and a chance to forget the second.
+const Map<String, String> _goldenSets = <String, String>{
+  'impeller': 'packages/flutter3d/test/goldens',
+  'cpu': 'packages/flutter3d_cpu/test/goldens',
+  'webgl': 'packages/flutter3d_webgl/test/goldens',
+  'webgpu': 'packages/flutter3d_webgpu/test/goldens',
+};
+
+/// Which set is counted, and which the others are held to.
+///
+/// The software one, because it is recorded off a rasteriser rather than off a
+/// device: no browser, no GPU and no SDK stands between a scene existing and
+/// its picture being on disk, so it is the set that is complete first and stays
+/// complete.
+const String _countedGoldenSet = 'cpu';
+
+/// A scene a set deliberately does not hold, and why the picture was refused.
+///
+/// **A missing reference and a refused one look identical on disk, and they are
+/// opposites.** The first is a set somebody forgot to finish; the second is a
+/// backend saying, in the one place a picture could have said otherwise, that
+/// it does not draw this. So the difference is written here rather than left to
+/// a file count: naming a scene costs a sentence, and a set that quietly loses
+/// one fails [_goldenSceneCount] instead of passing it a scene lighter.
+///
+/// The reverse also holds. Take a name out of this table without recording the
+/// picture and the rule reports the gap it was hiding; record the picture and
+/// leave the name here, and the rule reports the entry as spent. Neither state
+/// survives a run.
+const Map<String, Map<String, String>> _goldenSetGaps =
+    <String, Map<String, String>>{
+      'webgpu': <String, String>{
+        'probe-car':
+            'the device answers false to supportsRenderToMip, so '
+            'ReflectionProbeNode.supportedOn declines and the mirrored ball '
+            'samples a probe nobody filled. The room and both balls still '
+            'draw; what is missing is the reflection the scene exists to show, '
+            'and a reference of that is a refusal recorded as agreement',
+        'loaded-shader':
+            'the example\'s loadable bundle carries an "impeller" section and '
+            'a "webgl" section and no third one, because the scripts that '
+            'pack it write no WGSL. WebGpuDevice.loadShaders refuses it by '
+            'name and the renderer never starts, so the stand reports a stall '
+            'and there is no frame to record. A gap in the packing tools '
+            'rather than in the backend: the engine\'s own shaders reach it '
+            'as WGSL through lib/engine_shaders.dart',
+        'cube-shadow-many':
+            'this backend draws one of two atlas row assignments, 1346 pixels '
+            'apart, and the recording lands on one of them. Six compare runs '
+            'against a freshly written reference gave four failures and two '
+            'passes, every failure the same count; WebGL2 draws the same scene '
+            'identically five times out of five. A reference here would fail '
+            'at random, which is worse than none',
+        'cube-shadow-crowded':
+            'the same, on the one scene where atlas rows are contended: two '
+            'pictures 7688 pixels apart, three passes and two failures over '
+            'five repeats. Its first recording agreed with Impeller exactly, '
+            'which is what makes recording it the tempting mistake',
+      },
+    };
+
+/// The scene names a set has recorded.
+///
+/// `.actual.png` is what a failed comparison leaves beside a reference, and
+/// counting one made this rule report a scene that does not exist — the same
+/// slip the site's build had, where those files were being published.
+Set<String> _scenesRecordedIn(Directory goldens) => goldens
+    .listSync()
+    .whereType<File>()
+    .map((File it) => it.uri.pathSegments.last)
+    .where((String it) => it.endsWith('.png') && !it.endsWith('.actual.png'))
+    .map((String it) => it.substring(0, it.length - 4))
+    .toSet();
+
+/// Whether every registered set holds the scenes [counted] holds.
+///
+/// Two findings, and they are opposite mistakes. A set short of a scene it has
+/// no entry in [_goldenSetGaps] for is a recording somebody abandoned halfway —
+/// the reference set the browser stand walked away from after a stall, most
+/// likely, since that is the way a set loses one picture and keeps the rest. A
+/// set holding a scene its gap entry says it refused is the happier failure: the
+/// picture exists now, so the sentence explaining its absence is no longer true
+/// and has to go, along with whatever comparison was skipping the scene on the
+/// strength of it.
+///
+/// A gap naming a scene nobody records is reported too. That is an entry that
+/// outlived its scene, and it would otherwise sit there excusing a set from
+/// holding a picture nothing was going to ask it for.
+List<Finding> _goldenSetsAgree(Set<String> counted) {
+  final found = <Finding>[];
+  for (final set in _goldenSets.entries) {
+    final gaps = _goldenSetGaps[set.key] ?? const <String, String>{};
+    for (final name in gaps.keys) {
+      if (counted.contains(name)) continue;
+      found.add(
+        Finding(
+          '_goldenSetGaps → ${set.key}',
+          'excuses "$name", which is not a scene the '
+              '$_countedGoldenSet set records',
+        ),
+      );
+    }
+    if (set.key == _countedGoldenSet) continue;
+    final goldens = Directory('${repositoryRoot.path}/${set.value}');
+    if (!goldens.existsSync()) {
+      found.add(Finding(set.value, 'is not there'));
+      continue;
+    }
+    final recorded = _scenesRecordedIn(goldens);
+    for (final name in counted.difference(recorded)) {
+      if (gaps.containsKey(name)) continue;
+      found.add(
+        Finding(
+          set.value,
+          'has no "$name", and nothing in _goldenSetGaps says why this set '
+          'does not draw it',
+        ),
+      );
+    }
+    for (final name in recorded.intersection(gaps.keys.toSet())) {
+      found.add(
+        Finding(
+          set.value,
+          'holds "$name" now, so take it out of _goldenSetGaps: it is '
+          'recorded as refused for "${gaps[name]}"',
+        ),
+      );
+    }
+  }
+  return found;
+}
+
 /// The golden scene count, wherever it is written in prose.
 ///
 /// **Three files carried three different answers** — "thirty scenes" in
@@ -1850,11 +1991,6 @@ List<Finding> _goldenFiguresExist() {
   final found = <Finding>[];
   final content = Directory('${repositoryRoot.path}/site/content');
   if (!content.existsSync()) return found;
-  final sets = <String, String>{
-    'impeller': 'packages/flutter3d/test/goldens',
-    'cpu': 'packages/flutter3d_cpu/test/goldens',
-    'webgl': 'packages/flutter3d_webgl/test/goldens',
-  };
   final reference = RegExp(r'\{\{(golden3?)\s+([\w-]+)');
   for (final file in content.listSync(recursive: true).whereType<File>()) {
     if (!file.path.endsWith('.md')) continue;
@@ -1862,8 +1998,14 @@ List<Finding> _goldenFiguresExist() {
     for (final match in reference.allMatches(file.readAsStringSync())) {
       final kind = match.group(1)!;
       final name = match.group(2)!;
-      for (final set in sets.entries) {
+      // A `golden3` figure is the one that puts a scene's picture from every
+      // recorded set side by side, so it is checked against every set this
+      // repository has — the fourth included, and including it is the point.
+      // The alternative is a figure that shows what it happens to have, which
+      // is how a page comes to compare three backends and call it all of them.
+      for (final set in _goldenSets.entries) {
         if (kind == 'golden' && set.key != 'impeller') continue;
+        if (_goldenSetGaps[set.key]?.containsKey(name) ?? false) continue;
         final png = File('${repositoryRoot.path}/${set.value}/$name.png');
         if (!png.existsSync()) {
           found.add(
@@ -1893,29 +2035,16 @@ List<Finding> _goldenFiguresExist() {
 /// about a past afternoon live in [goldenCountExempt] with the reason; that
 /// table is the rule, as much as the regular expression is.
 List<Finding> _goldenSceneCount() {
-  final goldens = Directory(
-    '${repositoryRoot.path}/packages/flutter3d_cpu/test/goldens',
-  );
+  final where = _goldenSets[_countedGoldenSet]!;
+  final goldens = Directory('${repositoryRoot.path}/$where');
   if (!goldens.existsSync()) {
-    return <Finding>[
-      const Finding('flutter3d_cpu/test/goldens', 'is not there'),
-    ];
+    return <Finding>[Finding(where, 'is not there')];
   }
-  // `.actual.png` is what a failed comparison leaves beside a reference, and
-  // counting one made this rule report a scene that does not exist — the same
-  // slip the site's build had, where those files were being published.
-  final count = goldens
-      .listSync()
-      .where(
-        (FileSystemEntity it) =>
-            it.path.endsWith('.png') && !it.path.endsWith('.actual.png'),
-      )
-      .length;
-  if (count == 0) {
-    return <Finding>[
-      const Finding('flutter3d_cpu/test/goldens', 'holds no PNGs to count'),
-    ];
+  final counted = _scenesRecordedIn(goldens);
+  if (counted.isEmpty) {
+    return <Finding>[Finding(where, 'holds no PNGs to count')];
   }
+  final count = counted.length;
   if (count >= _countedInWords.length) {
     return <Finding>[
       Finding(
@@ -1927,7 +2056,15 @@ List<Finding> _goldenSceneCount() {
   }
 
   final word = _countedInWords[count];
-  final found = <Finding>[];
+  final found = <Finding>[
+    // **The number in the documents is one claim; that the sets still make it
+    // true is another.** Counting one set and scanning prose against it says
+    // nothing about the other three, and a set that lost a picture would sail
+    // past this rule while every sentence about it stayed correct. So each
+    // registered set is held to the counted one, name by name, and what a set
+    // may be missing is exactly what [_goldenSetGaps] says it may be missing.
+    ..._goldenSetsAgree(counted),
+  ];
   // The site tells the same story on half a dozen pages, and its testing page
   // was still saying "thirty scenes" two recounts later — so the prose pages
   // are scanned along with the scripts and ARCHITECTURE.md, and every Dart file
