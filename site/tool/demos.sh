@@ -63,7 +63,21 @@ for entry in "${games[@]}"; do
   # Put `--wasm` back when the interop bug is found — and add a browser check
   # that runs against the compiler the demos actually ship with, or this
   # returns.
-  (cd "$repo/$dir" && flutter build web --release --base-href="/demo/$name/")
+  #
+  # **WebGPU is on for the site, and off everywhere else.** The define is what
+  # decides whether the WebGPU backend is *in* the bundle at all; whether it is
+  # *used* is a question only the browser can answer, so `backend_web.dart`
+  # asks for an adapter and falls back to WebGL2 when there is none. The price
+  # is measured in that file — 368 KiB of script on the strategy demo, 14.9% —
+  # and the site is the one place worth paying it: these four builds exist to
+  # show what the engine does, and one of the things it now does is draw
+  # through a fourth backend. A game shipped anywhere else keeps the smaller
+  # bundle by default.
+  #
+  # A visitor whose browser has WebGPU therefore sees the WebGPU picture, and
+  # the console line from the fall back says which one arrived.
+  (cd "$repo/$dir" && flutter build web --release --base-href="/demo/$name/" \
+    --dart-define=FLUTTER3D_WEBGPU=true)
 
   target="$here/dist/demo/$name"
   mkdir -p "$target"
