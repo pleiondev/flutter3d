@@ -61,6 +61,11 @@ extension type _Document._(JSObject _) implements JSObject {
 extension type _Canvas._(JSObject _) implements JSObject {
   external set width(int value);
   external set height(int value);
+  // Read as well as written, because assigning either one resets the drawing
+  // buffer: presenting compares before it resizes, and a frame the same size
+  // as the last leaves the canvas alone.
+  external int get width;
+  external int get height;
   external _Style get style;
   external void remove();
 }
@@ -926,6 +931,27 @@ final class WebGpuDevice implements GraphicsDevice, WgslModuleCompiler {
   }
 
   void _copyToCanvas(TextureHandle frame) {
+    // **The canvas takes the frame's size, and the clamp below is no longer the
+    // thing that reconciles them.** A frame is as big as the surface asked for
+    // — `SceneSurface` renders at the layout size times the device pixel ratio
+    // — while the canvas was made once, at whatever `openDevice` was given.
+    // Those are different numbers on any display with a ratio above one, and a
+    // texture-to-texture copy cannot scale: it took the frame's top-left corner
+    // the size of the canvas, and CSS then stretched that corner over the whole
+    // element. What the player saw was a magnified crop whose optical centre
+    // sat below and to the right of the middle of the screen — so a shot down
+    // the camera's axis landed there rather than under the crosshair, which is
+    // drawn at the centre by Flutter.
+    //
+    // Resizing the canvas is what makes the copy one-to-one; the scaling is
+    // CSS's, which is what `objectFit` in [present] has always been for. The
+    // WebGPU context keeps its configuration across a resize and hands back a
+    // texture of the new size, so nothing has to be reconfigured here.
+    if (_canvas.width != frame.width || _canvas.height != frame.height) {
+      _canvas
+        ..width = frame.width
+        ..height = frame.height;
+    }
     final target = _context.getCurrentTexture();
     final source = frame.backend as WebGpuTexture;
     final width = frame.width < target.width ? frame.width : target.width;
