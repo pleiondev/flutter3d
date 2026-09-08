@@ -1,3 +1,31 @@
+## 0.6.0
+
+* **The generated shader table is rebuilt against `flutter3d_shaders` 0.6.0.**
+  Six samples that stood under a branch now name mip level zero rather than
+  deriving it, which is that package's entry to read; here it is a regenerated
+  `engine_shaders.dart`. No stage was added, removed or renamed, and the
+  pictures are the same — a derivative that could only ever select level zero is
+  now asked for level zero.
+* **`tool/pack_shaders.dart` takes a `--webgpu` section.** A bundle can now
+  carry the WGSL a fourth backend reads, copied in as bytes without being
+  understood, the way the Impeller section already is: what is inside it belongs
+  to `flutter3d_webgpu`, which writes it, and a container that understood one
+  backend's document would be a container with a reason to change every time
+  that document did. The flag is optional in two senses — a bundle without it is
+  refused only by the backend whose section is missing, and the program that
+  makes the section needs `glslangValidator` and `naga`, which a machine
+  building a bundle need not have.
+* **The browser golden stand takes the backend as an argument.** The scene, the
+  direction and now the backend arrive as query parameters, so one dart2js run
+  serves both browser backends the way it already served every scene. That is
+  what keeps a full pass at minutes.
+* **`cube-shadow-crowded` and `cube-shadow-many` are recorded again.** The demo
+  they are drawn from used to hand out point-shadow atlas rows on frames drawn
+  before its model landed; both scenes now show the rows the ranking chose. The
+  reference images are this package's own test data — nothing a consumer draws
+  changed.
+* Nothing in the WebGL2 device, its encoder or its capability answers changed.
+
 ## 0.5.2
 
 * **`pack_shaders.dart` takes `--webgpu FILE`**, a WGSL section written by

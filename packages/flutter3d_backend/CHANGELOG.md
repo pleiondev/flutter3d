@@ -1,3 +1,33 @@
+## 0.6.0
+
+* **Three decisions now, not two, and the third is the browser's.** Web or
+  native stays a conditional export decided at compile time; Impeller or the
+  software rasteriser stays a `try`/`catch` at run time; and on the browser half
+  WebGPU is tried before WebGL2 by the same `try`/`catch`, because whether
+  `navigator.gpu` hands out an adapter depends on the browser, the driver and
+  the machine's blocklist, none of which a compiler can see.
+* **It is off unless a build asks for it, and that is a decision about bundle
+  size.** `--dart-define=FLUTTER3D_WEBGPU=true` turns it on;
+  `bool.fromEnvironment` folds to a constant and the branch folds with it, so a
+  build that did not ask carries one backend rather than two. The price was
+  measured rather than assumed: `flutter build web --release` on the strategy
+  demo writes a 2,529,865-byte `main.dart.js` with the flag off and a
+  2,906,514-byte one with it on — 376,649 bytes, 14.9% more script, and 368 KiB
+  over the whole of `build/web`. That is a WebGPU device, its encoder, its
+  pipeline cache and its WGSL arriving in a bundle that will never open them.
+* **A fall back says so on the console.** `openWebGpu` turns an absent
+  `navigator.gpu` and a refused adapter alike into one `StateError`; this
+  catches it, names the backend the frame is actually coming from and opens
+  WebGL2. Silence would leave a WebGL2 picture being read as a WebGPU one.
+* **What it still does not decide**: the resolution, the shadow budget, or which
+  backend a browser build ought to prefer. WebGL2 remains what an ordinary web
+  build draws through — it is the browser backend with a recorded reference set
+  behind it, and a default that quietly moved every build onto the newer API
+  would change what shipped games look like without anybody asking.
+* `flutter3d_webgpu` is a real dependency rather than a dev one, because the
+  branch above is reachable code; `openDevice` still returns a `GraphicsDevice`
+  and still names no graphics API in any signature.
+
 ## 0.5.2
 
 * **A browser build can ask for WebGPU, and has to ask.**

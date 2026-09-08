@@ -1,3 +1,9 @@
+## 0.6.0
+
+* **Floors, and no code.** One pool, one draw call, whatever is in it — byte for
+  byte 0.5.0's. `flutter3d` and `flutter3d_hardware` are now floored at
+  `^0.6.0`, which is the pair this package's single batch was compiled against.
+
 ## 0.5.0
 
 **Breaking.** An ease carries its curve.

@@ -1,3 +1,30 @@
+## 0.6.0
+
+* **Six samples taken under a branch ask for a mip level by name.** `texture`
+  derives its level from the difference between neighbouring invocations, and
+  that difference is only defined where all four invocations of a quad arrive
+  together. Five files were taking a sample where they do not: the cascade
+  search returns early, the light loop skips a light facing away, the reflection
+  march breaks when a ray leaves the frame, the ambient-occlusion loop
+  `continue`s past a sample outside it. A WGSL backend refuses exactly that,
+  which is how they were found. Four of the five — `shadow.glsl`,
+  `surface.glsl`, `reflections.frag`, `ssao.frag` — now call
+  `textureLod(..., 0.0)` at six call sites.
+* **Not a picture change on any backend, and that is the point.** Every texture
+  involved is a render target with a single level — the cascade atlas, the two
+  point-shadow atlases, the surface buffer, the scene colour — so level zero is
+  the level the derivative was selecting anyway. Naming it costs nothing and
+  removes the undefined behaviour rather than papering over it.
+* **The normal map is the one that could not be pinned, so it was hoisted
+  instead.** `ApplyNormalMap` samples before the degenerate-tangent test rather
+  than under it. That map really is mipped — read at full resolution on a
+  surface turned away from the camera it is the widest disagreement there has
+  ever been between backends — so forcing level zero would have changed the
+  picture. The sample now happens above the branch, reads the same texel the
+  branch would have read, and pays for one unused fetch in the rare case.
+* Nothing was added to or removed from the header set, and no entry point
+  changed name, so a bundle built against 0.5.2 answers to the same list.
+
 ## 0.5.2
 
 * **Every texture read under a branch names its level or moves above the

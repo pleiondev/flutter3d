@@ -1,6 +1,6 @@
 name: flutter3d_editor_mcp
 description: "A level editor an agent can drive: the editor's own commands offered as tools over stdio, with one document open per process."
-version: 0.1.0
+version: 0.6.0
 repository: https://github.com/pleiondev/flutter3d
 homepage: https://flutter3d.pleion.dev
 issue_tracker: https://github.com/pleiondev/flutter3d/issues
@@ -19,10 +19,10 @@ dependencies:
   # this package small: the ten things an editor does are already values with a
   # name, a `toJson` and a `fromJson`, so a tool call is a map handed to
   # `EditorCommand.fromJson` rather than a switch written a second time here.
-  flutter3d_editor_core: ^0.2.0
+  flutter3d_editor_core: ^0.6.0
 
   # `Level`, `LevelIssue` and `LevelValidator`, which `validate` reports.
-  flutter3d_sim: ^0.5.2
+  flutter3d_sim: ^0.6.0
 
   # The protocol, and nothing else it brings: `async`, `collection`,
   # `json_rpc_2`, `meta`, `stream_channel`, `stream_transform`. No Flutter

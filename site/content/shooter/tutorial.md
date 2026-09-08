@@ -23,19 +23,19 @@ dependencies:
   flutter:
     sdk: flutter
 
-  flutter3d_impeller: ^0.4.0
-  flutter3d:          ^0.4.0
-  flutter3d_game:     ^0.4.0
-  flutter3d_game_shooter:  ^0.4.0
-  flutter3d_bridge:   ^0.4.0
-  flutter3d_audio:    ^0.4.0
-  flutter3d_particles:^0.4.0
+  flutter3d_impeller: ^0.6.0
+  flutter3d:          ^0.6.0
+  flutter3d_game:     ^0.6.0
+  flutter3d_game_shooter:  ^0.6.0
+  flutter3d_bridge:   ^0.6.0
+  flutter3d_audio:    ^0.6.0
+  flutter3d_particles:^0.6.0
   vector_math: ^2.2.0
 
 dev_dependencies:
   flutter_test: { sdk: flutter }
   # Only the tests use it, and only to draw a frame without a GPU.
-  flutter3d_cpu: ^0.4.0
+  flutter3d_cpu: ^0.6.0
 ```
 
 Set `FLTEnableFlutterGPU` and `FLTEnableImpeller` in `macos/Runner/Info.plist`. That is the whole of the setup: the shader bundle rides inside `flutter3d_impeller` and is loaded from there, so a project installed from pub.dev has nothing to build. The [quickstart](/quickstart/) covers the plist keys, and its bundle step is for the checkout it opens with.

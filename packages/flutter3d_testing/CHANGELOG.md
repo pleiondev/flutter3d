@@ -1,3 +1,12 @@
+## 0.6.0
+
+* **Floors, and no code.** Drawing a frame through the software backend and
+  holding it to a reference image works exactly as it did in 0.5.2. The floors
+  on `flutter3d`, `flutter3d_cpu` and `flutter3d_hardware` are `^0.6.0` — and
+  they matter more here than in most places, because a golden helper resolved
+  against a different engine than the game under test compares two different
+  renderers and calls the difference a regression.
+
 ## 0.5.2
 
 * `^0.5.2` on both halves. This package is the one place the engine and the

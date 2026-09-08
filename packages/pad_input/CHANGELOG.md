@@ -1,3 +1,19 @@
+## 0.4.1
+
+* **The page pub.dev serves stops pointing at a directory nobody visiting it
+  can see.** The README's closing line sent a reader to
+  `apps/flutter3d_template_app`, a relative path inside the repository that
+  renders on a package page as a link to nothing; it now names the editor's
+  scaffold and the guide that explains it. Documentation only — not one byte of
+  `lib/`, of the Android or Darwin plugin, or of the pubspec's dependencies
+  changed.
+* **A patch on this package's own line, and not the engine's 0.6.0.** This is a
+  plugin the engine happens to vendor: it names no sibling in its pubspec,
+  nothing here was built against the engine release, and every dependent asks
+  for `^0.4.0`, which this satisfies. Joining the set's numbering would claim a
+  share in a release that contains none of its code, and would retire a 0.5 line
+  it never had.
+
 ## 0.4.0
 
 * The Android plugin performs the stream's own teardown when detached from an

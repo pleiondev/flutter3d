@@ -1,3 +1,10 @@
+## 0.6.0
+
+* **Floors, and no code.** A run that can be started, saved, resumed and ended,
+  still with no widget in it — byte for byte 0.5.0's. The floors on
+  `flutter3d`, `flutter3d_game` and `flutter3d_screens`, and the dev floor on
+  `flutter3d_cpu`, are `^0.6.0`.
+
 ## 0.5.0
 
 * No API change. Released with the set.

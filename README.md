@@ -8,15 +8,20 @@ wrapper around another engine, and it is not affiliated with the Flutter team.
 [![CI](https://github.com/pleiondev/flutter3d/actions/workflows/ci.yml/badge.svg)](https://github.com/pleiondev/flutter3d/actions/workflows/ci.yml)
 [![Licence: MIT](https://img.shields.io/badge/licence-MIT-blue.svg)](LICENSE)
 
-On pub.dev: twenty-four packages, published by
+On pub.dev: twenty-seven packages, published by
 [pleion.dev](https://pub.dev/publishers/pleion.dev/packages) — start with
 [`flutter3d`](https://pub.dev/packages/flutter3d) and a backend. The workspace
-holds twenty-eight: `flutter3d_editor_core`, `flutter3d_editor_mcp`,
-`flutter3d_game_strategy` and `flutter3d_webgpu` were written after the last
-release and are in this checkout only, which is why the two counts differ. The newest one that did go
-out is [`flutter3d_sim`](https://pub.dev/packages/flutter3d_sim): the
-simulation, as plain Dart, so a server can replay a run without a Flutter SDK.
-Or build it
+holds twenty-eight; `flutter3d_game_strategy` is the one that is not published,
+because its types still encode how many sides a match may have, and that is why
+the two counts differ. The set is **0.6.0**, twenty-five packages at one number,
+so a pubspec that names them all names one tree —
+[`pad_input`](https://pub.dev/packages/pad_input) and
+[`pointer_lock`](https://pub.dev/packages/pointer_lock) keep a line of their own
+at 0.4.1, and [`flutter3d_samples`](https://pub.dev/packages/flutter3d_samples)
+keeps its at 0.4.2. Newest out are the three that had never been out:
+[`flutter3d_webgpu`](https://pub.dev/packages/flutter3d_webgpu), the second
+browser backend, and the editor's document layer with the server that offers it
+to an agent. Or build it
 from this repository — see [Running](#running),
 [CONTRIBUTING.md](CONTRIBUTING.md) and [SECURITY.md](SECURITY.md).
 

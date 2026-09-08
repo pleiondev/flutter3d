@@ -1,3 +1,11 @@
+## 0.6.0
+
+* **No changes of its own.** Attenuation, panning, voice limiting and the
+  pluggable backend are byte for byte 0.5.0's, and this package names no sibling
+  in its pubspec, so nothing here had to follow anything. The workspace is
+  released as a set, in the order `ARCHITECTURE.md` §16 gives, and the version
+  moves with the rest so that one number names one tree.
+
 ## 0.5.0
 
 **Breaking.** The issue sink is named apart and takes an object.

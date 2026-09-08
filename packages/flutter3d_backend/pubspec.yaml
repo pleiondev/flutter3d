@@ -1,6 +1,6 @@
 name: flutter3d_backend
 description: "Picks the graphics backend a build draws through: Impeller on a desktop, WebGL2 in a browser, and a software rasteriser at runtime if Impeller will not start."
-version: 0.5.2
+version: 0.6.0
 resolution: workspace
 repository: https://github.com/pleiondev/flutter3d
 homepage: https://flutter3d.pleion.dev
@@ -30,14 +30,14 @@ dependencies:
 
   # The vocabulary the choice is made in. Neither backend appears in any
   # signature here — `openDevice` returns a `GraphicsDevice`.
-  flutter3d_hardware: ^0.5.0
+  flutter3d_hardware: ^0.6.0
 
   # The two implementations the conditional export in `flutter3d_backend.dart`
   # picks between by `dart.library.js_interop`, because the two pull in
   # incompatible worlds — `flutter_gpu` does not compile for the web and
   # `dart:js_interop` does not compile for macOS.
-  flutter3d_impeller: ^0.5.2
-  flutter3d_webgl: ^0.5.2
+  flutter3d_impeller: ^0.6.0
+  flutter3d_webgl: ^0.6.0
 
   # Two more that are not branches of that export — each is what one half falls
   # back to, or up to, at runtime, because the question each answers is one no
@@ -46,7 +46,7 @@ dependencies:
   # `flutter_gpu` ships with the SDK, so its absence is not a thing a
   # conditional export can spot; only trying tells you whether Impeller starts,
   # and the software rasteriser is where the native half lands when it does not.
-  flutter3d_cpu: ^0.5.2
+  flutter3d_cpu: ^0.6.0
 
   # WebGPU is the mirror image on the browser half: whether `navigator.gpu`
   # hands out an adapter depends on the browser and on the machine's driver
@@ -54,7 +54,7 @@ dependencies:
   # `--dart-define=FLUTTER3D_WEBGPU=true`, so an ordinary web build folds the
   # branch away and carries WebGL2 alone — the reasoning is in `backend_web.dart`
   # beside the flag.
-  flutter3d_webgpu: ^0.5.2
+  flutter3d_webgpu: ^0.6.0
 
 dev_dependencies:
 

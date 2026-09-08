@@ -1,3 +1,11 @@
+## 0.6.0
+
+* **Floors, and no code.** The monsters, the weapons, the inventory and the step
+  order are byte for byte 0.5.1's. The four lines that changed are the floors on
+  `flutter3d`, `flutter3d_game`, `flutter3d_physics` and `flutter3d_sim`, all
+  `^0.6.0` — the versions this genre was built and tested against in the one
+  resolve the workspace performs.
+
 ## 0.5.1
 
 * The player's aim, the shotgun's spread, a wave's ring of spawn points and the

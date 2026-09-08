@@ -1,3 +1,10 @@
+## 0.6.0
+
+* **Floors, and no code.** Settings, volumes, rebinding and credits are byte for
+  byte 0.5.0's. `flutter3d_game` and `flutter3d_audio` move to `^0.6.0`;
+  `pad_input` stays at `^0.4.0`, because the rebinding screen needs nothing that
+  its 0.4.1 documentation patch added.
+
 ## 0.5.0
 
 **Breaking.** Follows `flutter3d_game`'s `IssueSink`.

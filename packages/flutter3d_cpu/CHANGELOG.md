@@ -1,3 +1,16 @@
+## 0.6.0
+
+* **Two reference pictures, and no code.** `cube-shadow-crowded` and
+  `cube-shadow-many` are recorded again in this backend's own set. The scenes
+  did not change; the demo that draws them stopped handing out point-shadow
+  atlas rows on frames drawn before its model landed, and the software set held
+  the same latched rows the other three did. The cross-backend gate is what
+  caught it — 5037 and 1346 differing pixels against a budget of 0.02% — and all
+  four sets now agree on the rows the ranking chose.
+* The rasteriser, the encoder and every capability answer are byte for byte
+  0.5.2's. A caller upgrading gets the same pixels out of the same calls; what
+  moved is this package's test data.
+
 ## 0.5.2
 
 * **A vertex stage can be told which vertex it is drawing.**

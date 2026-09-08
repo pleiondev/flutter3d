@@ -1,3 +1,13 @@
+## 0.6.0
+
+* **A floor, and no code.** The device, the encoder and the shader build are
+  byte for byte 0.5.2's. What moved is the one line that names
+  `flutter3d_hardware`, now `^0.6.0`: the bundle format and the section names
+  this backend reads live in that package, and a floor is where a resolver is
+  told which version of them this one was built against.
+* The bundle it refuses and the bundle it accepts are unchanged; a
+  `flutter3d.shaderbundle` built for 0.5.2 still loads.
+
 ## 0.5.2
 
 * No Dart moved. This package ships `assets/shaders/flutter3d.shaderbundle`,

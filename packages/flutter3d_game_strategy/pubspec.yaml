@@ -1,6 +1,6 @@
 name: flutter3d_game_strategy
 description: "A fourth genre: ground made of samples, units that move as a crowd rather than one at a time, and orders given to a selection instead of to a body."
-version: 0.5.1
+version: 0.6.0
 repository: https://github.com/pleiondev/flutter3d
 homepage: https://flutter3d.pleion.dev
 issue_tracker: https://github.com/pleiondev/flutter3d/issues
@@ -19,7 +19,7 @@ dependencies:
     sdk: flutter
 
   # The engine half. Everything here is content it takes as an argument.
-  flutter3d_game: ^0.5.0
+  flutter3d_game: ^0.6.0
 
   # Named rather than leant on through the game layer's re-export, the way the
   # shooter names it. `Heightfield`, `HeightfieldGeometry` and
@@ -27,7 +27,7 @@ dependencies:
   # arrived in 0.5.2 — reached through `flutter3d_game`, the floor on them is
   # whatever that package happens to ask for, so a resolution that picks an
   # older simulation gets one with no terrain in it and nothing here says why.
-  flutter3d_sim: ^0.5.2
+  flutter3d_sim: ^0.6.0
 
   # For `bridge.dart` and nothing else. The simulation under `src/` names
   # neither of these, and the structure rule that allows exactly one drawing
@@ -36,8 +36,8 @@ dependencies:
   # 0.5.1 on the bridge for the same reason: `bridge.dart` calls `meshDataOf`
   # to turn the ground's triangles into a mesh, and that was private to the
   # level loader until then.
-  flutter3d: ^0.5.0
-  flutter3d_bridge: ^0.5.1
+  flutter3d: ^0.6.0
+  flutter3d_bridge: ^0.6.0
 
   vector_math: ^2.2.0
 
@@ -47,7 +47,7 @@ dev_dependencies:
   flutter_lints: ^6.0.0
 
   # A device with no GPU behind it, so the drawing half is testable too.
-  flutter3d_cpu: ^0.5.0
+  flutter3d_cpu: ^0.6.0
 
 # The simulation half depends on nothing that draws, the same way the
 # platformer's does: a crowd of ten thousand was measured stepping in under a

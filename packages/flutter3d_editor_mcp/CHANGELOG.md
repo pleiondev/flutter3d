@@ -1,6 +1,13 @@
-## 0.1.0
+## 0.6.0
 
 An agent edits a level with the editor's own commands.
+
+**The first release, at the set's number rather than a first number of its
+own.** It goes out beside `flutter3d_editor_core` and `flutter3d_sim`, which are
+the two packages it is a thin skin over, and a floor that named an older either
+would be a server offering tools the document underneath does not have. What
+follows is what this package is, not what changed in it: the version it wore
+inside the repository was never uploaded.
 
 * **A Model Context Protocol server over stdio, with one document per process.**
   `dart run flutter3d_editor_mcp:editor_mcp <level.json>` opens one level and
@@ -11,7 +18,7 @@ An agent edits a level with the editor's own commands.
   anything. This is the half that can be checked.
 
 * **The tools are `EditorCommand`, not a second implementation of one.** Ten of
-  them are the sealed hierarchy `flutter3d_editor_core` already published, called
+  the seventeen are the sealed hierarchy `flutter3d_editor_core` defines, called
   by the names that package already gives them, and a tool call is its arguments
   handed to `EditorCommand.fromJson` — the function whose doc says it was written
   for a caller like this. So an agent's edit and a person's edit reach the

@@ -1,6 +1,6 @@
 name: flutter3d_editor_core
 description: "The headless half of a level editor: a document you can nudge, undo and write back, the handles a pointer hits, and the project a template turns into."
-version: 0.2.0
+version: 0.6.0
 repository: https://github.com/pleiondev/flutter3d
 homepage: https://flutter3d.pleion.dev
 issue_tracker: https://github.com/pleiondev/flutter3d/issues
@@ -19,7 +19,7 @@ dependencies:
   # `EntityDef`, `EntityRegistry`, `LevelValidator`, `LevelIssue`. All of it is
   # plain Dart already, which is why this package could follow it out of the
   # application without leaving anything behind.
-  flutter3d_sim: ^0.5.2
+  flutter3d_sim: ^0.6.0
 
   vector_math: ^2.2.0
 

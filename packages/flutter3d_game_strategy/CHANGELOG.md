@@ -1,4 +1,15 @@
-## 0.5.1
+## 0.6.0
+
+* **In the workspace at the set's number, and deliberately not on pub.dev.**
+  Everything below is in this checkout and none of it has ever been uploaded.
+  The reason is the API rather than the arithmetic: a stockpile and a delivery
+  count were lists of exactly two, one per side, and a package whose types
+  encode how many sides a game may have cannot be the version somebody builds
+  against. The counting is fixed and the package is waiting for its own
+  acceptance, not for a release.
+* The floors on `flutter3d`, `flutter3d_bridge`, `flutter3d_game`,
+  `flutter3d_sim` and the dev floor on `flutter3d_cpu` are `^0.6.0`, so the day
+  it does go out it names the tree it was built in.
 
 * **A fourth genre, and the first one that is not about a protagonist.** Units,
   orders and a step that walks them over a `Heightfield` by descending shared
@@ -47,10 +58,10 @@
   find. Above all of it, `MapCamera` watches a place over `CameraRig`,
   `Selection` picks units out of a ray the application unprojects, and
   `StrategyVisuals` is the only file that draws.
-* **What none of this does is fight.** No combat, no unit types, no line of
-  sight through a ridge, and no snapshot, tape or seeded random — so a match can
-  be watched but not yet replayed or rewound, and the two sides here are two
-  rather than however many a game wants. The package waits for those before it
-  goes anywhere.
+* **A fight, an economy and fog have since landed on top of that**, and a match
+  counts its sides rather than naming two. What is still absent is line of sight
+  over a ridge — sight is a radius, because a ray per cell per source grows with
+  the crowd *and* with the map — and that absence is a budget rather than an
+  oversight.
 * Ten files of arithmetic under `src/`, and one beside them that reaches a
   renderer.

@@ -1,3 +1,17 @@
+## 0.4.1
+
+* **The page pub.dev serves stops pointing at a directory nobody visiting it
+  can see.** The README's closing line sent a reader to
+  `apps/flutter3d_template_app`, a relative path inside the repository that
+  renders on a package page as a link to nothing; it now names the editor's
+  scaffold and the guide that explains it. Documentation only — the method
+  channel, the web backend and the platform interface are byte for byte 0.4.0's.
+* **A patch on this package's own line, and not the engine's 0.6.0.** It names
+  no sibling in its pubspec and nothing here was built against the engine
+  release; every dependent asks for `^0.4.0`, which this satisfies. A jump to
+  the set's number would claim a share in a release that contains none of its
+  code.
+
 ## 0.4.0
 
 * The example stores its state subscription and cancels it in `dispose`,

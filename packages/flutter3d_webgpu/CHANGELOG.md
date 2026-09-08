@@ -1,4 +1,13 @@
-## 0.5.2
+## 0.6.0
+
+**The first release, and it takes the set's number rather than a first number of
+its own.** This package has been in the publishing order since before it had a
+device; what it was waiting for was a frame it could draw and a recorded
+reference set to be held to, and it now has both. It goes out with the engine it
+implements, at the version that engine declares, because a backend resolved
+against a different `flutter3d_hardware` than the renderer above it is the one
+mistake a floor exists to prevent. Everything below is what it is, not what
+changed.
 
 **What the fourth backend became, in one paragraph, because the entries below
 are the road and this is the destination.** It opens a real WebGPU device,

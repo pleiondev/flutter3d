@@ -1,3 +1,20 @@
+## 0.6.0
+
+* **A device factory may now answer with a `Future`.** `DeviceFactory` returns
+  `FutureOr<GraphicsDevice>` instead of `GraphicsDevice`, and the runner
+  `await`s it. The fourth backend cannot be built by a constructor —
+  `requestAdapter()` and `requestDevice()` are both promises — while Impeller,
+  WebGL2 and the software rasteriser are opened with a call. Nothing in
+  `flutter3d_hardware` says how a device is *made*; the contract starts once one
+  exists, which is why the widening costs the three backends that were here
+  first exactly nothing and changed none of their call sites.
+* **Breaking only for code that stores the typedef.** A factory that returns a
+  device is still a valid `FutureOr` factory, so passing one is unchanged; a
+  caller that held a `DeviceFactory` and used the result without awaiting is the
+  one that has to add the `await`. That is the whole of the API change.
+* The checks themselves are unchanged in number and in what they assert. What a
+  backend declines it still declines by name.
+
 ## 0.5.1
 
 * **A new check: a float texture uploads as floats.** Two of the three backends

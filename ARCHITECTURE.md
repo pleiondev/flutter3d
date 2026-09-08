@@ -2533,25 +2533,51 @@ navigation grid, because fog is looked at rather than walked on.
 **Published on 2026-08-29**: every package of that day — twenty-three of them —
 went to pub.dev at 0.4.0 under the
 [pleion.dev](https://pub.dev/publishers/pleion.dev/packages) publisher, and
-`flutter3d_sim` followed when the simulation was split out of the game layer, so
-twenty-four of the workspace's twenty-eight are on the internet.
-`flutter3d_editor_core`, `flutter3d_editor_mcp`, `flutter3d_game_strategy` and
-`flutter3d_webgpu` are the four that are not: the first three were written
-after that release and are waiting for the next one rather than for a decision.
-The fourth was waiting for something else and no longer is — its condition was
-that it could draw a frame, and it draws: a device, a pass, a frame back as
-pixels, thirty-nine stages compiling, and 33 of 33 conformance checks answered
-against a live adapter. What it waits for now
-is the same next release as the other three, plus the one thing a backend cannot
-be published without: a recorded reference set, so that a picture it stops
-drawing correctly is a failed comparison rather than a report from whoever
-happened to look. It has been in the publishing order since before it had a
-device, because a package that exists belongs in it. Being in the publishing
-order and being published are different things, and this is the entry that makes
-the difference visible.
+`flutter3d_sim` followed when the simulation was split out of the game layer.
 `publish_to: none` — "the one line between prepared and on the
 internet" — came out of the packages that day; the workspace root, the
 applications and the example apps keep theirs, being repository-only by design.
+
+**0.6.0 is the shelf, not the list of packages that happened to change**, and
+the reason is mechanical before it is aesthetic. `every package agrees about
+versions with the workspace` requires a constraint to *cover* what the sibling
+declares, and `^0.5.2` does not reach 0.6.0 — so a single package moving forces
+every dependent to edit its pubspec, and an edited pubspec is a new version by
+definition. The cascade from the seven whose shipped content changed reaches
+fifteen of the twenty-five, and the two editor packages go out regardless,
+having never gone out at all. Sparing the remaining eight would leave the shelf
+standing at four different numbers, none of which names a combination anything
+ever resolved, since the workspace resolves once against one lock file.
+Twenty-five packages therefore carry 0.6.0, and the number means the tree.
+
+**What each of the twenty-five is actually carrying**, measured by unpacking
+what pub.dev holds and comparing it file by file rather than by reading the log:
+three go up for the first time — `flutter3d_webgpu`, `flutter3d_editor_core` and
+`flutter3d_editor_mcp`. Of the twenty-one that have been up before, four ship
+changed library code (`flutter3d_backend`, which can try WebGPU on a browser
+when a build asks; `flutter3d_conformance`, whose device factory may now answer
+with a future; `flutter3d_shaders`, where six samples under a branch name their
+mip level; `flutter3d_webgl`, whose generated table follows them), three ship
+changed material that is not library code (`flutter3d`'s demo, its golden
+script and two reference pictures; `flutter3d_cpu`'s two pictures;
+`flutter3d_game_racing`'s determinism note), and fourteen are byte for byte what
+pub.dev already has and move so that one number names one tree.
+
+**`flutter3d_game_strategy` carries 0.6.0 in this checkout and does not go out.**
+Its stockpile and its delivery count were lists of exactly two, one per side, so
+its types encoded how many sides a game may have; that is fixed, and what it
+waits for now is its own acceptance rather than a release. Being in the
+publishing order and being published are different things, and this is the entry
+that makes the difference visible. After 0.6.0 it is the one package of
+twenty-eight that is not on pub.dev.
+
+**Three packages keep lines of their own, and it is not an oversight.**
+`pad_input` and `pointer_lock` are plugins this repository vendors: neither
+names a sibling in its pubspec, nothing in either was built against an engine
+release, and both sat out the whole 0.5 series. They take 0.4.1, a documentation
+patch for a README footer that pub.dev renders as a link to nothing, and every
+dependent's `^0.4.0` covers it. `flutter3d_samples` stays at 0.4.2: it is
+assets, it names no sibling either, and it is byte for byte what went out.
 
 - **Licence: MIT**, `Copyright (c) 2026 Dmitrii Zolotov`. One `LICENSE` at the root
   and a copy in every package, because pub wants the file inside the archive.

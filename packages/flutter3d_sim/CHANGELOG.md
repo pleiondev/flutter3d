@@ -1,3 +1,15 @@
+## 0.6.0
+
+* **A floor, and no code.** The step, the ECS, levels, navigation, saves and
+  replays are byte for byte 0.5.2's. The one line that changed is the floor on
+  `flutter3d_physics`, now `^0.6.0`, and it is stated for the reason it was
+  stated before: ground is split across the two packages — `Heightfield` here is
+  the data, `CollisionHeightfield` there is what a body stands on — so a
+  resolver free to reach further back would hand a caller the first without the
+  second.
+* Still plain Dart. Nothing here imports Flutter, and a server replaying a run
+  needs no SDK to do it.
+
 ## 0.5.2
 
 Ground made of samples, and a crowd that walks over it.

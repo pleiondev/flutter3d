@@ -1,3 +1,15 @@
+## 0.6.0
+
+* **A floor, and no code — the same shape as 0.5.1 and for the same reason.**
+  The input devices, the fixed step and the interpolation are byte for byte
+  0.5.1's. What moved is the promise about the package this one re-exports
+  whole: `flutter3d_sim` is required at `^0.6.0`, so a caller reaching a
+  simulation type through this name reaches a version that has it rather than
+  whatever the resolver picked.
+* `pad_input` and `pointer_lock` stay at `^0.4.0`. They are on a line of their
+  own, their 0.4.1 is a documentation patch, and a floor that demanded it would
+  be claiming this package needs something it does not.
+
 ## 0.5.1
 
 * **A floor, and no code.** Nothing in this package changed; what changed is

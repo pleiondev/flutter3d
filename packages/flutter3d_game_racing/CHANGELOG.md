@@ -1,3 +1,16 @@
+## 0.6.0
+
+* **The determinism table was matched on a third and a fourth machine, and not
+  one number in it moved.** Forty of forty checkpoints, on ubuntu-x64 under the
+  VM and under Chrome, in CI run 34121423137. This car is the one that used to
+  be the counter-example — a pair recorded on 2026-09-02 disagreed at
+  twenty-three of the forty from step 75 onwards — so the confirmation is worth
+  more here than anywhere: the arithmetic the tyre curve now runs on carries a
+  run across a processor and an operating system as well as across an engine.
+  The note is in `test/parity_test.dart` beside the table it is about.
+* Nothing in `lib/` changed. The version moves with the set, and the floors on
+  its siblings move with it.
+
 ## 0.5.1
 
 * **The car replays identically in a browser and on the VM.** It did not: the

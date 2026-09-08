@@ -109,9 +109,9 @@ dependencies:
   #   flutter3d_impeller -> flutter_gpu (Metal, Vulkan)  <- the production one
   #   flutter3d_webgl    -> WebGL2, in the browser
   #   flutter3d_cpu      -> software, rasterises in Dart (tests, goldens)
-  flutter3d_impeller: ^0.4.0
+  flutter3d_impeller: ^0.6.0
 
-  flutter3d: ^0.4.0
+  flutter3d: ^0.6.0
 
   vector_math: ^2.2.0
 ```

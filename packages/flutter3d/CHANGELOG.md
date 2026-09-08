@@ -1,3 +1,54 @@
+## 0.6.0
+
+* **The engine's own code is unchanged, and the version moves anyway.** Every
+  file under `lib/` is byte for byte what 0.5.2 put on pub.dev; what moved is
+  the demo this package ships beside it, the script that records its reference
+  pictures, and two of the pictures. The number follows the whole set so that
+  one number names one tree rather than the list of packages that happened to
+  change — the publishing order in `ARCHITECTURE.md` §16 is what makes that
+  affordable.
+* **The demo does not draw a golden until the model has landed.** Everything the
+  scene decides — where the point lights stand, where the camera sits, how wide
+  the floor is — is decided when the load returns, and a frame drawn before that
+  sees every point light stacked at the origin. All the same distance from the
+  camera means all the same relevance, so the cube-shadow atlas handed its six
+  rows out in the order the lights were added, and then kept them: the allocator
+  leaves an incumbent where it is, because moving a row costs a full static
+  re-bake. The scene built to test that ranking was pinning scene order instead.
+  `_staged` is the gate, held in `build` rather than by awaiting the load, since
+  awaiting it still leaves one frame of an unstaged scene to go out.
+* **Which frame the load lands on was a race, and it was measured rather than
+  guessed.** Ten runs of `cube-shadow-many` through WebGPU: in eight the load
+  finished between 36 and 61 ms and the first frame arrived at about 90 ms; in
+  the other two the load took 169 and 271 ms, four frames went out ahead of it,
+  and those two put the teapots 1346 pixels of 172800 away from the other eight
+  — two answers rather than a spread, which is what a latched allocation looks
+  like. Through WebGL2 the load always lands behind the first frames, which is
+  why that backend drew one picture where this one drew two.
+* **`cube-shadow-crowded` and `cube-shadow-many` are recorded again**, in this
+  package's Impeller set. They now show the rows the ranking chose rather than
+  the rows the first frames latched, and compare at zero differing pixels.
+* **A web build of the demo picks its browser backend from the URL**, not from a
+  define: `?backend=webgpu` beside the scene and the record-or-compare direction
+  the page already carries. One dart2js run then serves both backends the way it
+  already serves every scene, which is the whole saving of the browser golden
+  stand; a define would be a build apiece. A name this build cannot make is
+  refused rather than quietly substituted, because a reference set that
+  describes the wrong device passes.
+* **`tool/golden.sh` builds the application once and launches it once a scene.**
+  The scene used to arrive in a `--dart-define`, which is a compile-time input,
+  so every scene was a fresh kernel compile filed under a fresh fingerprint
+  directory — about 46 MB of `app.dill` apiece, and nothing has ever deleted
+  one. Seven hundred and twenty-three of them, sixteen gigabytes, had collected
+  in the main checkout by the time anybody measured, and a full pass could no
+  longer finish on a machine with a couple of gigabytes free. The scene, the
+  direction and the reference directory travel in the process environment now.
+  `--no-build` reuses what is already built.
+* What none of this changes: the renderer, the loaders, the scene graph and the
+  public API are exactly 0.5.2's. A caller upgrading gets the same pictures out
+  of the same calls, and the two reference images that moved are this package's
+  own test data rather than anything a consumer draws.
+
 ## 0.5.2
 
 * **Morph targets are drawn, on the GPU, on all three backends.** A file's

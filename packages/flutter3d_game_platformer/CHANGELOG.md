@@ -1,3 +1,11 @@
+## 0.6.0
+
+* **A floor, and no code.** The runner, the coins, the hazards and the
+  checkpoints are byte for byte 0.5.2's. `flutter3d_game` is required at
+  `^0.6.0`, and the floor is still the only place the chain can be said: the
+  runner switches on `CollisionHeightfield`, which arrives here through two
+  re-exports, and nothing else can state which version underneath has it.
+
 ## 0.5.2
 
 * **The runner stands on ground made of samples.** `CollisionHeightfield`

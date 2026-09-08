@@ -1,3 +1,14 @@
+## 0.6.0
+
+* **No code, and no floor to move.** `lib/` is byte for byte 0.5.1's — the
+  heightfield collision shape that arrived there is unchanged — and this package
+  depends on no sibling, so nothing in its pubspec had to follow the set. It
+  takes the set's number because `flutter3d_sim` and both games above it now
+  floor at `^0.6.0`, and a floor is only worth stating if it names a
+  combination that was built.
+* Nothing added to the sealed hierarchy of collision shapes, so nothing
+  downstream has a new `switch` arm to write.
+
 ## 0.5.1
 
 **Ground is a collision shape, and the joins in it are not surfaces.**

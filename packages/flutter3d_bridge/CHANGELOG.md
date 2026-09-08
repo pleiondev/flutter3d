@@ -1,3 +1,13 @@
+## 0.6.0
+
+* **Floors, and no code.** Level geometry to mesh nodes, an actor to its visual,
+  a fixture to the light it drives — byte for byte 0.5.1's. What moved are the
+  floors on the two halves this package exists to join, `flutter3d` and
+  `flutter3d_game`, plus `flutter3d_particles`, and the two dev floors on
+  `flutter3d_hardware` and `flutter3d_cpu`: all `^0.6.0`.
+* It is still the one package allowed to depend on both halves, and the
+  direction of that dependency did not change.
+
 ## 0.5.1
 
 * **`meshDataOf` is public, in `lib/src/surface_mesh.dart`.** It was

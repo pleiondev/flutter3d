@@ -1,3 +1,14 @@
+## 0.6.0
+
+* **Nothing of its own changed.** Every file under `lib/` is byte for byte what
+  0.5.1 put on pub.dev — the vocabulary, the fourth bundle section and the
+  format version included. This package depends on no sibling, so it has no
+  floor to move either; it takes the set's number because four backends and an
+  engine now declare `^0.6.0` against it, and one number naming one tree is what
+  makes that declaration mean the combination CI actually resolved.
+* Nothing is deprecated, renamed or removed. Code written against 0.5.1
+  compiles unchanged.
+
 ## 0.5.1
 
 * **`ShaderBundle.webgpuSection`, and the format version stays at 1.** A fourth
