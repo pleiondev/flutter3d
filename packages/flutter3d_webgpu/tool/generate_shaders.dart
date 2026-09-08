@@ -18,6 +18,15 @@
 /// codec would be tested and green. So both come out of one manifest, in one
 /// run, through one preparation.
 ///
+/// The other half now exists too: `tool/pack_wgsl_section.dart` writes that
+/// section for a bundle an application packs, and it is this file's sibling
+/// rather than its replacement. The two share the preparation, the two
+/// compilers, and `wgsl_section.dart`'s std140 cross-check — and they part
+/// where their outputs do, one printing Dart source and the other JSON.
+/// A varying's location is where they must not part at all: a loaded stage is
+/// paired with a stage out of the table below, so the packer numbers against
+/// this manifest and refuses a bundle that would renumber it.
+///
 /// The sources come from `flutter3d_shaders`, resolved by package name through
 /// `.dart_tool/package_config.json` — the one mapping pub guarantees for path,
 /// git and hosted dependencies alike. A relative path would work here and break
@@ -45,6 +54,11 @@ import 'package:flutter3d_webgl/src/glsl_translate.dart';
 import 'package:flutter3d_webgpu/src/glsl_to_wgsl.dart';
 import 'package:flutter3d_webgpu/src/source_package.dart';
 import 'package:flutter3d_webgpu/src/wgsl_compiler.dart';
+// The std140 cross-check and the pair a finished stage is, shared with
+// `tool/pack_wgsl_section.dart`. Two copies of the check would be two rules,
+// and the loadable path — where the GLSL is somebody else's — is the one that
+// needs it most.
+import 'package:flutter3d_webgpu/src/wgsl_section.dart';
 
 void main(List<String> args) {
   final ShaderSet shaders;
@@ -87,8 +101,8 @@ void main(List<String> args) {
     _fail(error.message);
   }
 
-  final vertex = <String, _Stage>{};
-  final fragment = <String, _Stage>{};
+  final vertex = <String, PackedStage>{};
+  final fragment = <String, PackedStage>{};
   shaders.stages.forEach((name, entry) {
     final PreparedStage prepared;
     final CompiledStage compiled;
@@ -110,7 +124,11 @@ void main(List<String> args) {
       _fail('$name: ${error.message}');
     }
 
-    _checkOffsets(name, prepared, compiled.offsets);
+    try {
+      checkStd140Offsets(name, prepared, compiled.offsets);
+    } on WgslSectionError catch (error) {
+      _fail(error.message);
+    }
 
     (entry.fragment ? fragment : vertex)[name] = (
       wgsl: compiled.wgsl,
@@ -161,55 +179,7 @@ void main(List<String> args) {
   );
 }
 
-/// Holds the packer's std140 arithmetic against glslang's own decorations.
-///
-/// Two independent answers to the same question. The packer computes offsets
-/// from the GLSL because the reflection has to exist before there is any WGSL
-/// to read it out of; glslang writes them into the SPIR-V because that is what
-/// `std140` means. They agree here or the build stops.
-///
-/// **A block the listing does not mention at all is the sharper failure.** It
-/// means the reflection claims a block the compiled shader does not have —
-/// which happens the moment a `#ifndef` guard is read wrongly, and which the
-/// engine turns into a bind of a slot that is not there. `lib/surface.glsl`
-/// records what that costs on the other two backends: a native crash inside
-/// Metal, and a draw discarded with nothing logged.
-void _checkOffsets(
-  String name,
-  PreparedStage prepared,
-  Map<String, Map<String, int>> offsets,
-) {
-  for (final block in prepared.blocks) {
-    final theirs = offsets[block.name];
-    if (theirs == null) {
-      _fail(
-        '$name: the reflection has the block "${block.name}" and the compiled '
-        'shader does not',
-      );
-    }
-    for (final member in block.members) {
-      final expected = theirs[member.name];
-      if (expected == null) {
-        _fail(
-          '$name: "${block.name}.${member.name}" is in the reflection and not '
-          'in the compiled block',
-        );
-      }
-      if (expected != member.offsetInBytes) {
-        _fail(
-          '$name: "${block.name}.${member.name}" is at ${member.offsetInBytes} '
-          'by std140 and at $expected in the SPIR-V',
-        );
-      }
-    }
-  }
-}
-
-/// One finished stage: the WGSL the two compilers made, and the reflection the
-/// preparation handed out.
-typedef _Stage = ({String wgsl, PreparedStage prepared});
-
-void _writeStage(StringBuffer out, String name, _Stage stage) {
+void _writeStage(StringBuffer out, String name, PackedStage stage) {
   out
     ..writeln("    '$name': WebGpuStage(")
     ..writeln("      wgsl: r'''")

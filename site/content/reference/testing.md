@@ -1,10 +1,10 @@
 ---
-description: Three independent golden sets and a fourth being recorded, mutation-checking every new test, determinism and snapshots, and why only about thirty of 4306 tests need a GPU.
+description: Three independent golden sets and a fourth being recorded, mutation-checking every new test, determinism and snapshots, and why only about thirty of 4309 tests need a GPU.
 ---
 
 # Testing
 
-4306 tests across 28 packages and six applications, counted the same way the `the document says how many tests there are` rule does: a scan of every `test(`/`testWidgets(` call. The rule holds `ARCHITECTURE.md` §13, the README and this page to the answer — the README went on saying 1242 across thirteen packages for as long as nothing compared it with anything. About thirty need a GPU; the [architecture](/core/architecture/) is what keeps the number that low.
+4309 tests across 28 packages and six applications, counted the same way the `the document says how many tests there are` rule does: a scan of every `test(`/`testWidgets(` call. The rule holds `ARCHITECTURE.md` §13, the README and this page to the answer — the README went on saying 1242 across thirteen packages for as long as nothing compared it with anything. About thirty need a GPU; the [architecture](/core/architecture/) is what keeps the number that low.
 
 | Package | Tests | | Package | Tests |
 |---|---|---|---|---|
@@ -17,7 +17,7 @@ description: Three independent golden sets and a fourth being recorded, mutation
 | `flutter3d_cpu` | 187 | | `apps/flutter3d_demo_strategy` | 42 |
 | `apps/flutter3d_editor` | 169 | | `flutter3d_session` | 34 |
 | `apps/flutter3d_demo_racing` | 144 | | `pointer_lock` | 28 |
-| `flutter3d_physics` | 168 | | `flutter3d_webgpu` | 159 |
+| `flutter3d_physics` | 168 | | `flutter3d_webgpu` | 162 |
 | `flutter3d_game_strategy` | 131 | | `flutter3d_editor_mcp` | 14 |
 | `flutter3d_screens` | 120 | | `flutter3d_testing` | 7 |
 | `flutter3d_editor_core` | 101 | | `apps/flutter3d_template_app` | 4 |
@@ -25,7 +25,7 @@ description: Three independent golden sets and a fourth being recorded, mutation
 | `flutter3d_game` | 79 | | `flutter3d_shaders` | 1 |
 | `flutter3d_particles` | 73 | | | |
 
-The rows sum to 4287 rather than 4306: the remaining 19 live in `packages/*/example/test`, which the count includes and this table does not.
+The rows sum to 4290 rather than 4309: the remaining 19 live in `packages/*/example/test`, which the count includes and this table does not.
 
 `flutter3d_app` and `flutter3d_samples` are not in the table and have no `test/` at all. One is a barrel of thirty-five `export` lines and the other is test data with two path constants over it; what there is to check about them is structural, and other packages' decoder tests are what exercise the samples. `flutter3d_conformance` is missing for a different reason: it is invoked as a script harness rather than through `flutter test`, so it does not surface in a grep of `test(` calls either. See below for what that cost once.
 
@@ -41,7 +41,7 @@ Forty-three scenes are rendered three times: through Impeller, through the softw
 
 The browser's set is recorded when a branch lands rather than beside it — `golden_web.sh` holds one fixed port for the whole of its run — so a new scene is in two sets for as long as that takes. Which scenes, and what they are waiting for, is `_provisional` in `flutter3d_webgl/test/cross_backend_test.dart`: the comparison is skipped with the reason printed instead of quietly missing, and the check beside it fails the moment a reference lands and the name is still there.
 
-**WebGPU's set is being recorded and is not finished**, so it is stated here as a number rather than as a fourth set: **42 of the 43 scenes** had references when this was written, on a branch of their own, with `loaded-shader` the one still missing. The distinction is not pedantry — a partial set cannot say a picture regressed, only that some pictures exist, and a line reading "four sets" would promise the first while delivering the second. The same stand records it: `flutter3d_webgl/tool/golden_web.sh --backend=webgpu` writes into `flutter3d_webgpu/test/goldens`. One build serves the whole suite for either browser backend, because the scene *and* the backend are query parameters on the page rather than defines on the compile — a define per backend would have spent the stand's entire saving on a single word. `--no-build` reuses the build already there, which is what makes a second backend's recording cheap.
+**WebGPU's set is being recorded and is not finished**, so it is stated here as a number rather than as a fourth set: **42 of the 43 scenes** had references when this was written, on a branch of their own, with `probe-car` the one still missing — the device answers false to `supportsRenderToMip`, so the probe captures nothing and the picture would record a refusal as agreement. The distinction is not pedantry — a partial set cannot say a picture regressed, only that some pictures exist, and a line reading "four sets" would promise the first while delivering the second. The same stand records it: `flutter3d_webgl/tool/golden_web.sh --backend=webgpu` writes into `flutter3d_webgpu/test/goldens`. One build serves the whole suite for either browser backend, because the scene *and* the backend are query parameters on the page rather than defines on the compile — a define per backend would have spent the stand's entire saving on a single word. `--no-build` reuses the build already there, which is what makes a second backend's recording cheap.
 
 <div class="warn">
 <p><strong>A backend can only witness a shader edit if a machine reads the shaders.</strong> The GLSL in <code>flutter3d_shaders</code> is compiled by <code>impellerc</code>, translated by the WebGL generator and translated again into WGSL for WebGPU — but transcribed into Dart <em>by hand</em> for the software rasteriser. So when six fragment stages were rewritten to satisfy WGSL's uniformity rule, the software set matching byte for byte was not evidence that the edit was neutral. The sets that can answer that are Impeller's and WebGL2's, and this is the kind of thing worth knowing before reading a green run as an answer.</p>

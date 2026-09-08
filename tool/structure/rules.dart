@@ -1603,7 +1603,7 @@ List<Finding> _testCount() {
 ///
 /// **Two bundles, one rule.** The example's own loadable bundle —
 /// `flutter3d/example/assets/shaders/example.f3dshaders`, what the
-/// `loaded-shader` golden loads on all three backends — is gitignored for the
+/// `loaded-shader` golden loads on all four backends — is gitignored for the
 /// same reason and goes stale the same way, against the example's own GLSL and
 /// against the engine's, which it `#include`s. Left out, the golden keeps
 /// passing on the code compiled before the edit, which is exactly the silence
@@ -1876,14 +1876,6 @@ const Map<String, Map<String, String>> _goldenSetGaps =
             'samples a probe nobody filled. The room and both balls still '
             'draw; what is missing is the reflection the scene exists to show, '
             'and a reference of that is a refusal recorded as agreement',
-        'loaded-shader':
-            'the example\'s loadable bundle carries an "impeller" section and '
-            'a "webgl" section and no third one, because the scripts that '
-            'pack it write no WGSL. WebGpuDevice.loadShaders refuses it by '
-            'name and the renderer never starts, so the stand reports a stall '
-            'and there is no frame to record. A gap in the packing tools '
-            'rather than in the backend: the engine\'s own shaders reach it '
-            'as WGSL through lib/engine_shaders.dart',
       },
     };
 

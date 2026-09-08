@@ -1758,7 +1758,7 @@ entities a game defines.
 |---|---|
 | Style | `dart format` |
 | Analysis | `flutter analyze` clean across the workspace, no warnings |
-| Unit tests | **4306 tests** across 28 packages and 6 applications |
+| Unit tests | **4309 tests** across 28 packages and 6 applications |
 | Structure rules | 30, `dart run tool/structure.dart`, the first CI step |
 | CI | GitHub Actions over `tool/ci.sh`, on `ubuntu-latest`, with no graphics card |
 
@@ -1773,8 +1773,10 @@ the first.
 **A fourth set is being recorded, on a branch of its own, and is not complete**,
 so it is written here as a number rather than as a set: **42 of the 43 scenes**
 had WebGPU references at the time this paragraph was written, all of them in
-another branch and none of them in this one. The missing scene is
-`loaded-shader`. That is not a reference set yet — a partial one cannot say a
+another branch and none of them in this one. The missing scene is `probe-car`,
+which the device declines rather than draws: `supportsRenderToMip` is false, the
+probe captures nothing, and a picture of the empty cube would record a refusal as
+agreement. That is not a reference set yet — a partial one cannot say a
 picture regressed, only that some pictures exist — and the count is here in place
 of the word precisely so a reader can tell those two apart. Until it lands whole,
 this repository has three sets.

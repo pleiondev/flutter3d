@@ -21,6 +21,13 @@
 ///   --impeller FILE   impellerc's output for the same manifest. Optional:
 ///                     without it the bundle has no `impeller` section, and
 ///                     the Impeller backend refuses it by name.
+///   --webgpu FILE     the WGSL section for the same manifest, as
+///                     `flutter3d_webgpu/tool/pack_wgsl_section.dart` writes
+///                     it. Optional in the same way and for one more reason:
+///                     that program needs glslangValidator and naga, and a
+///                     machine without them must still be able to build a
+///                     bundle. Without it the WebGPU backend refuses this
+///                     bundle by name, and the other three do not notice.
 ///   --name NAME       what the bundle is called; what a refusal names
 ///                     (default: the manifest's stem).
 ///   --sdk TOKEN       the Dart SDK the impeller section was compiled with
@@ -38,8 +45,12 @@
 /// Why this lives here: the WebGL section is the only one that has to be
 /// *made* — the engine's GLSL translated to GLSL ES 3.00, the same
 /// translation `generate_shaders.dart` does for the engine's own table — and
-/// the translator is this package's. The Impeller section arrives compiled
-/// and is copied in as it is; the software backend needs none.
+/// the translator is this package's. The other two arrive made and are copied
+/// in as they are: impellerc writes one, and
+/// `flutter3d_webgpu/tool/pack_wgsl_section.dart` writes the other, because
+/// everything the WGSL is made of — the translator, glslangValidator, naga,
+/// and the shape of the section document — belongs to that package and this
+/// one does not depend on it. The software backend needs no section at all.
 library;
 
 import 'dart:convert';
@@ -134,6 +145,18 @@ void main(List<String> args) {
         .buffer
         .asByteData();
   }
+  if (options.webgpu case final String path) {
+    // Copied in without being read, the way the Impeller section is. What is
+    // in it is `webgpu_bundle_section.dart`'s business, and a container that
+    // understood one backend's document would be a container with a reason to
+    // change every time that document did.
+    final file = File(path);
+    if (!file.existsSync()) _fail('no webgpu section at $path');
+    sections[ShaderBundle.webgpuSection] = file
+        .readAsBytesSync()
+        .buffer
+        .asByteData();
+  }
 
   if (options.impeller != null && options.sdk == null && !_onFlutterSdkDart) {
     // The one way the header goes wrong silently: the section came out of
@@ -174,6 +197,7 @@ final class _Options {
     required this.package,
     required this.includes,
     required this.impeller,
+    required this.webgpu,
     required this.name,
     required this.sdk,
     required this.out,
@@ -183,6 +207,7 @@ final class _Options {
   final String package;
   final List<String> includes;
   final String? impeller;
+  final String? webgpu;
   final String name;
 
   /// The token `--sdk` gave, or null for this process's — kept apart so the
@@ -194,6 +219,7 @@ final class _Options {
     String? manifest;
     String? package;
     String? impeller;
+    String? webgpu;
     String? name;
     String? sdk;
     String? out;
@@ -216,6 +242,8 @@ final class _Options {
           includes.add(value().replaceAll(RegExp(r'/$'), ''));
         case '--impeller':
           impeller = value();
+        case '--webgpu':
+          webgpu = value();
         case '--name':
           name = value();
         case '--sdk':
@@ -241,6 +269,7 @@ final class _Options {
       package: Directory(root).absolute.path.replaceAll(RegExp(r'/$'), ''),
       includes: includes,
       impeller: impeller,
+      webgpu: webgpu,
       name: name ?? stem,
       sdk: sdk,
       out: out,
@@ -265,11 +294,12 @@ final bool _onFlutterSdkDart = Platform.resolvedExecutable.contains(
 const String _usage = '''
 usage: dart run tool/pack_shaders.dart --manifest PATH --out PATH
          [--package DIR] [--include DIR]... [--impeller FILE]
-         [--name NAME] [--sdk TOKEN]
+         [--webgpu FILE] [--name NAME] [--sdk TOKEN]
 
 Packs a loadable shader bundle for GraphicsDevice.loadShaders: the manifest's
 stages translated to GLSL ES for WebGL, impellerc's output copied in for
-Impeller, and a header naming the bundle and the SDK it was compiled on.
+Impeller, a WGSL section copied in for WebGPU, and a header naming the bundle
+and the SDK it was compiled on.
 ''';
 
 Never _fail(String message) {

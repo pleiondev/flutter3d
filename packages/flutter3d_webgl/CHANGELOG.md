@@ -1,5 +1,13 @@
 ## 0.5.2
 
+* **`pack_shaders.dart` takes `--webgpu FILE`**, a WGSL section written by
+  `flutter3d_webgpu/tool/pack_wgsl_section.dart` and copied into the bundle
+  unread, the way impellerc's output already was. The one section this packer
+  still *makes* is its own, which is what its header always said; the third
+  arrives made, because everything it is made of belongs to a package this one
+  does not depend on. The flag is optional and a bundle without it is what the
+  other three backends have always read — the format version does not move, and
+  a section a backend has no name for is a section it never looks at.
 * **RGBA32F storage was filled through `RGBA`/`UNSIGNED_BYTE`.** That is an
   `INVALID_OPERATION` no API reports and a texture that samples as zeros, so a
   model whose morph deltas travel as floats drew its base shape with no error

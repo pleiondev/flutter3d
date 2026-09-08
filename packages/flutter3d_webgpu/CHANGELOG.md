@@ -44,6 +44,23 @@ compiler or a translator — which is why the six-stage uniformity fix below edi
 GLSL that all four backends read, and why a byte-identical software golden set is
 not evidence that the edit was neutral.
 
+* **A bundle can now be packed with a section this backend reads**, which was
+  the last thing standing between `loadShaders` and a picture.
+  `tool/pack_wgsl_section.dart` takes an application's manifest and writes the
+  `webgpu` section — the same preparation, the same `glslangValidator` and
+  `naga`, the same std140 cross-check the engine's own table goes through — and
+  `flutter3d_webgl/tool/pack_shaders.dart` copies it into the bundle under
+  `--webgpu`, unread, the way it copies impellerc's. It is a program of its own
+  because everything the section is made of belongs here and the WebGL package
+  does not depend on this one. Varyings are numbered against the engine's
+  manifest rather than the bundle's, because a loaded fragment stage is paired
+  with a vertex stage the engine compiled long before and WebGPU joins the two
+  by `@location` alone; a bundle that would renumber the engine's varyings is
+  refused at the packer with both locations named. Missing compilers are not a
+  failure — the packer exits 3 saying which program is absent, and the bundle
+  comes out with two sections, because the CI that is green today installs
+  neither. `loaded-shader` is recorded as a result, at `0 of 172800` against
+  Impeller, and is out of the table of refusals.
 * **The device and the shader library are one backend now.** Both halves of the
   same wave were written in parallel: the device declared a private class for
   the engine's stages, the library declared a one-method compiler interface,

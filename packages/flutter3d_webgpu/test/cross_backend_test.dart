@@ -18,22 +18,17 @@
 /// the same Apple GPU: Impeller's through impellerc, these through the WGSL the
 /// translator writes and Chrome's own compiler. What that produces is in the
 /// table below, and it is not a tenth of a percent. It is zero — `0 of 172800`
-/// on thirty-nine of the forty-one pictures this set holds, with a worst channel
-/// of zero on all but two of them.
-///
-/// The other two are the two cube-atlas scenes, and what stands between them and
-/// zero is on Impeller's side rather than this one: their references there were
-/// recorded from a scene that was still being built, this backend now draws the
-/// finished one, and the difference is the size of that. Their entries say it
-/// with numbers.
+/// on every one of the forty-two pictures this set holds, with a worst channel
+/// of zero on all but two of them, where it is one.
 ///
 /// **A table of zeroes is a strong instrument and a demanding one.** There is no
 /// silhouette noise here for a change to hide in, so anything that moves at all
 /// shows up whole; the price is that a picture only belongs in it if the backend
-/// draws the same one twice. Two of the forty-three do not qualify, and
-/// [_refused] says which and why. It was four: the other two came back as a coin
-/// toss and were left unrecorded rather than have one face of it written down.
-/// The toss has since been explained and stopped, and they are recorded.
+/// draws the same one twice. One of the forty-three does not qualify, and
+/// [_refused] says which and why. It was four: two came back as a coin toss and
+/// were left unrecorded rather than have one face of it written down — the toss
+/// has since been explained and stopped, and they are recorded — and one was a
+/// bundle this backend had no section in, which the packers now write.
 ///
 /// **What is *not* in this table, and was expected to be.** Two shaders feed
 /// `gl_FragCoord.xy` to a hash — the interleaved gradient noise that rotates the
@@ -81,9 +76,10 @@ const int _channel = 8;
 ///
 /// Measured on 2026-09-08 against the set Impeller recorded on the same SDK, by
 /// recording this whole set in one pass of
-/// `flutter3d_webgl/tool/golden_web.sh --backend=webgpu --update`, and the two
+/// `flutter3d_webgl/tool/golden_web.sh --backend=webgpu --update`, the two
 /// cube-atlas scenes in a second pass of the same command on the same day, once
-/// they had stopped drawing two pictures.
+/// they had stopped drawing two pictures, and `loaded-shader` in a third, once
+/// the example's bundle carried a section this backend could read.
 ///
 /// **A hundredth of a percent is what an exact agreement is written as.** It is
 /// the floor the sibling files already use for a scene that came out at zero,
@@ -99,17 +95,12 @@ const int _channel = 8;
 /// `lighting-normals`, which is a single unit in a single channel and not a
 /// differing pixel at any threshold this repository uses.
 ///
-/// **Two entries are not that floor, and neither of them is this backend.**
+/// **Every entry is that floor now, and two of them arrived there late.**
 /// `cube-shadow-many` and `cube-shadow-crowded` are the pair whose atlas rows
-/// used to be handed out before the model had landed — see the paragraph
-/// on each. The demo now holds a golden's surface back until the scene it names
-/// is staged, so both are drawn the same way every run, on every backend; what
-/// they are compared against is the picture Impeller recorded before that, and
-/// the number on each line is the size of the arrangement that changed. Both go
-/// to the floor the moment `flutter3d/tool/golden.sh --update` is run over the
-/// pair, and until it is, the honest reading of these two lines is "the
-/// reference on the other side is older than the fix", not "this backend is
-/// three per cent away from Impeller".
+/// used to be handed out before the model had landed, so what they were compared
+/// against was a picture Impeller recorded before the demo learned to hold a
+/// golden's surface back until the scene it names is staged. Both sides have
+/// been recorded since, and both read `0 of 172800` like the rest.
 ///
 /// Kept one per line and in the suite's own order rather than collapsed into a
 /// loop over a list: a scene that starts disagreeing gets its number and its
@@ -148,6 +139,7 @@ const Map<String, double> _budgets = <String, double>{
   'spot-shadow': 0.01,
   'cube-shadow-crowded': 0.01,
   'sky': 0.01,
+  'loaded-shader': 0.01,
   'auto-exposure': 0.01,
   'screen-space-reflections': 0.01,
   'ambient-occlusion-corner': 0.01,
@@ -169,10 +161,20 @@ const Map<String, double> _budgets = <String, double>{
 /// coin toss into agreement, and the comparison would pass for ever on a frame
 /// that proves nothing.
 ///
-/// Both entries are frames the backend declined to draw, and a picture of the
-/// decline would keep passing on the day the feature arrives.
+/// The one entry left is a frame the backend declined to draw, and a picture of
+/// the decline would keep passing on the day the feature arrives.
 ///
-/// **There was a second kind here, and it is worth remembering that there was.**
+/// **There was a second kind of decline here, and it left through the tooling
+/// rather than through this package.** `loaded-shader` stood beside `probe-car`
+/// until the example's bundle carried nothing this backend could read: it had an
+/// `impeller` section and a `webgl` section, because those were the two a packer
+/// knew how to write, and `loadShaders` refused it by name before the first
+/// frame. The refusal was correct and the gap was upstream of it —
+/// `flutter3d_webgpu/tool/pack_wgsl_section.dart` now writes the third section
+/// and `flutter3d_webgl/tool/pack_shaders.dart` copies it in, so the scene is
+/// recorded and sits in [_budgets] at the floor.
+///
+/// **And a third kind, which is worth remembering that there was.**
 /// A pair of them came back drawn two different ways — the same silhouettes in
 /// different rows of the shadow atlas, one arrangement or the other, never a
 /// spread between them — and a picture of either would have failed at random,
@@ -197,21 +199,6 @@ const Map<String, String> _refused = <String, String>{
   'probe-car':
       'supportsRenderToMip is false, so the probe never captures and the '
       'mirrored ball samples nothing',
-  // The run never reached a frame. The example's loadable bundle carries an
-  // `impeller` section and a `webgl` section and no third one, because
-  // `flutter3d/example/tool/build_shaders.sh` packs it with impellerc and
-  // `flutter3d_webgl/tool/pack_shaders.dart`, and neither of those writes WGSL.
-  // So `WebGpuDevice.loadShaders` threw before the renderer started, saying:
-  // "the shader bundle "example" was refused: it has no "webgpu" section, so
-  // there is no WGSL for this backend to compile." The stand reported it as a
-  // stall, because a page that fails to start posts no verdict.
-  //
-  // Worth reading as a gap in the *tooling* rather than in this backend: the
-  // engine's own shaders reach it as WGSL through `lib/engine_shaders.dart`, and
-  // it is only a bundle loaded at run time that has nowhere to come from yet.
-  'loaded-shader':
-      'the example bundle has no "webgpu" section, so loadShaders refused it '
-      'and the renderer never started',
 };
 
 void main() {

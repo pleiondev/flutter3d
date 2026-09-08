@@ -6,7 +6,7 @@
 // This is the example's own shader, compiled into the example's own bundle —
 // `tool/build_shaders.sh` here, not the engine's — and loaded from bytes at run
 // time through `GraphicsDevice.loadShaders`. The `loaded-shader` golden is a
-// teapot wearing it on all three backends, and the software backend draws it
+// teapot wearing it on all four backends, and the software backend draws it
 // from `example_stripes_cpu.dart`, the same arithmetic in Dart.
 //
 // The file name carries the package's name on purpose: Impeller derives an
