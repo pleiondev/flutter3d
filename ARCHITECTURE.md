@@ -1758,7 +1758,7 @@ entities a game defines.
 |---|---|
 | Style | `dart format` |
 | Analysis | `flutter analyze` clean across the workspace, no warnings |
-| Unit tests | **4303 tests** across 28 packages and 6 applications |
+| Unit tests | **4306 tests** across 28 packages and 6 applications |
 | Structure rules | 30, `dart run tool/structure.dart`, the first CI step |
 | CI | GitHub Actions over `tool/ci.sh`, on `ubuntu-latest`, with no graphics card |
 
@@ -2241,14 +2241,25 @@ refused, as an absence rather than a count, so a stage that reacquires the fault
 fails instead of raising a number.
 
 That last cure edits GLSL all four backends read, which is the one change in this
-work whose blast radius is wider than its own package — **and its neutrality is
-not yet proved.** What would prove it is a recorded set from a backend that
-*compiles or translates* the GLSL: Impeller's or WebGL2's. Neither has been run
-since the edit. The software rasteriser's set matched byte for byte and is not
-that proof, because `flutter3d_cpu` draws from hand-written Dart transcriptions
-and says so at the head of its own files — a backend that never reads the text
-cannot be a witness to a change in it. This sentence stays until one of the two
-witnesses has spoken.
+work whose blast radius is wider than its own package — **and both witnesses have
+now spoken.** The two sets that come from a backend which compiles or translates
+the text, Impeller's and WebGL2's, were compared scene by scene against the
+references recorded before the edit: forty-two of the forty-three match at zero
+differing pixels in each. The software rasteriser's set matched too and was never
+the proof, because `flutter3d_cpu` draws from hand-written Dart transcriptions and
+says so at the head of its own files — a backend that never reads the text cannot
+be a witness to a change in it.
+
+The forty-third, `cube-shadow-crowded`, differs in both sets by the same 1.534% of
+the frame, and the same pixels: a row of the point-shadow atlas that used to come
+back empty now holds three silhouettes. It is not this edit. Swapping the
+generated shader table back to the version from before the edit reproduces the
+difference exactly, and the two backends' outputs agree with each other byte for
+byte while both disagree with the reference — which is what a stale reference looks
+like, and not what a shader change looks like. What moved it is the per-object
+light lists: their own commit records that "a shadowing lamp written down ninth
+was allocated a row, never described, and cast nothing", and describing that row
+is what fills it. The two GPU references were not re-recorded then.
 
 **No occlusion culling for anything but a brush level, and no FXAA or TAA.**
 A brush level has the precomputed visibility of [§4.6](#46-precomputed-visibility);
