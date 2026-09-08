@@ -59,6 +59,19 @@ final class CollisionSphere extends CollisionShape {
   ) => wedge.overlapsSphere(wedgePosition, this, position);
 
   @override
+  bool overlapsHeightfield(
+    Vector3 position,
+    CollisionHeightfield field,
+    Vector3 fieldPosition,
+  ) => field.overlapsSphere(fieldPosition, this, position);
+
+  /// The radius, whichever way it is asked about — which is the whole of what
+  /// makes a sphere a sphere, and is a smaller number than its bounding cube
+  /// gives in every direction but the six axes.
+  @override
+  double supportAlong(double nx, double ny, double nz) => radius;
+
+  @override
   double raycast(
     Vector3 position,
     Vector3 origin,

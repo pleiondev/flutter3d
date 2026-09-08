@@ -847,37 +847,9 @@ renderer.
 ### 6.3 Lights
 
 Directional, point and spot, with glTF's inverse-square falloff, range window and
-smooth cone ramp. Eight are packed into `vec4[8]` uniform arrays with the count
-as a uniform, so switching a light on or off never rebuilds a pipeline.
+smooth cone ramp. Up to eight are packed into `vec4[8]` uniform arrays with the
+count as a uniform, so switching a light on or off never rebuilds a pipeline.
 Intensities are unitless multipliers rather than lumens.
-
-**The eight belong to a draw, not to the scene.** A scene registers as many
-lights as it likes; what is fixed at eight is the length of the arrays the
-fragment stages declare, and those are compiled ahead of time. While one packing
-served a whole frame the two were the same thing, and the ninth lamp of a night
-map did nothing anywhere. `LightBuffer` now answers twice: `gather` packs the
-first eight in scene order, which is what the frame needs — the shadow atlas is
-assigned against it — and `gatherNear` picks, per object, the eight that reach
-it. The renderer takes the second route only when a scene overflows the first,
-so a scene inside eight lights is packed exactly as it always was, byte for
-byte, and every recorded golden holds.
-
-Relevance is the shader's own arithmetic and not a proxy for it: intensity times
-the punctual attenuation of `surface.glsl`, measured to the nearest point of the
-object's bounding sphere rather than to its centre, so a floor tile whose centre
-is far from every torch still catches the one touching its edge. A light that
-scores zero — outside its own range window — is not packed at all, which is how
-an object out of reach of everything ends up with an empty list rather than with
-eight terms the shader evaluates to black. Directional lights are not ranked:
-they have no position, so nearness says nothing about them, and they take slots
-first in scene order. Ties break on scene order, because a tie broken by
-anything the frame carries is a lamp that swaps with its neighbour between
-frames — a flicker on screen and a golden that will not reproduce.
-
-The atlas assignment follows the lights rather than the slots. A row is recorded
-against the `LightNode` that owns it and the slot table is rewritten for
-whichever packing a draw was given, because a slot index only means something
-inside one packing and there is now a packing per draw.
 
 Image-based lighting is a prefiltered specular chain plus a diffuse level, built
 by `EnvironmentMap.prefilter` from a cube map or from sky settings. The
@@ -1539,9 +1511,9 @@ pit and asks whether it arrived.
 
 `flutter3d_physics` is pure Dart with no Flutter dependency.
 
-**Shapes:** box, sphere, capsule and wedge. Raycast, shape cast and overlap
-queries, filtered by layers and masks. Convex hulls and triangle meshes are
-absent.
+**Shapes:** box, sphere, capsule, wedge and heightfield. Raycast, shape cast and
+overlap queries, filtered by layers and masks. Convex hulls and triangle meshes
+are absent.
 
 The wedge is a box with one edge cut away — a ramp — and it is a *shape* rather
 than a brush the loader tilts because a level document has no rotation in it and
@@ -1551,6 +1523,39 @@ proportions and its uphill direction is one of four, so a slope stays something 
 level author reads off the sizes they typed. `CollisionShape.expandedPlanes` is
 what makes it affordable: the wedge answers with five real faces, and every
 sweep and query the world already had reads it through that.
+
+**The heightfield is the first shape that is not convex**, and it is what a game
+played on ground rather than in rooms stands on. A field of samples is a surface
+with dents in it, and no intersection of half-spaces has a dent, so the plane
+walk every query rests on cannot describe one solid — it describes several.
+`CollisionShape.partsIn` is that door: a query names the box it cares about, the
+shape hands back the convex pieces near it, and the walk runs once per piece.
+Each piece is one triangle of the surface extended downwards into a prism, so a
+sweep against ground is the same closed-form arithmetic as a sweep against a
+brush, several times over. It costs four times a brush for one sweep and nearly
+seven times for a whole step of a walking body; `tool/ground_cost.dart` holds
+the measurement.
+
+**Where two triangles meet is not a surface**, and saying so is the whole
+difficulty. Each prism ends in a vertical face that the next prism continues
+through, and a body sliding across the join enters that face: it is stopped dead
+by a wall nobody drew, or shoved sideways out of the hillside by the next
+depenetration. `CollisionShape.partSeams` names those faces and the world
+refuses to report a contact on one. Nothing is lost by refusing, because a field
+of samples has no vertical walls to begin with — a cliff is a very steep
+triangle, and its *top* face is real.
+
+That non-axis normal is a change to what a sweep can report. It was one of the
+six axes for as long as every shape offered its bounding box; a ramp broke that
+and ground breaks it everywhere. Reading `normal.y` against a walkable limit is
+still exactly right; treating the vector as an axis and a sign is not, and
+nothing in this repository did.
+
+**The samples are copied in rather than shared.** The simulation's level format
+carries a field of heights of its own, and the simulation depends on this
+package — so this package cannot look at it without making a circle out of a
+line. A caller hands over the same `Float32List`, and the two describe one
+surface because they split each quad along the same diagonal.
 
 **The character controller is capsule-based and kinematic**, with steps, sliding
 and coyote time. It is deliberately not rewritten as a rigid body: a player driven
@@ -1752,7 +1757,7 @@ entities a game defines.
 |---|---|
 | Style | `dart format` |
 | Analysis | `flutter analyze` clean across the workspace, no warnings |
-| Unit tests | **4104 tests** across 27 packages and 6 applications |
+| Unit tests | **4122 tests** across 27 packages and 6 applications |
 | Structure rules | 30, `dart run tool/structure.dart`, the first CI step |
 | CI | GitHub Actions over `tool/ci.sh`, on `ubuntu-latest`, with no graphics card |
 
@@ -1937,23 +1942,6 @@ into a bundle.
 **No compute**, and therefore no GPU particles, GPU skinning, GPU culling or
 indirect draw.
 
-**No clustered forward, and therefore one light list per draw.** A scene may
-carry hundreds of lights and each object is handed the eight that reach it
-(§6.3), but the unit that receives a list is the draw, and three cases inherit
-that. An instanced batch is one draw, so the whole crowd shares one list chosen
-for the batch's bounds — right for a cluster of props, wrong for a crowd spread
-across a map, and the fix there is smaller batches rather than a per-instance
-list, which would need the new shader this deliberately avoids. A single mesh
-that spans the map has the same shape of problem: a ground plane's bounding
-sphere touches every torch, scores them all at distance zero and keeps the
-brightest eight, which is a reason to build large ground out of tiles. And the
-selection is linear in objects times lights: at a thousand objects and two
-hundred lamps it costs about 5 ms a frame in the test VM, of which 2.4 ms is
-what that VM charges for the bare loop. A scene inside eight lights pays none of
-it. Cutting the rest means indexing the lights spatially, which is the shape
-clustered forward has and the reason it is the next thing here rather than a
-wider array.
-
 **No buffer readback on flutter_gpu.** SDK 3.47 has `copyTextureToBuffer`, and
 no way for Dart to read the `DeviceBuffer` it fills — `overwrite` and `flush` go
 one way. So `GraphicsDevice.readback` copies texture to texture into a pooled
@@ -2125,7 +2113,21 @@ caught the surface buffer storing a depth its format could not hold. This
 paragraph said for months that neither had a golden scene, which stopped being
 true before it stopped being written down.
 
-**No convex hulls or triangle-mesh collision shapes**, and no joints.
+**No convex hulls or triangle-mesh collision shapes**, and no joints. Ground
+closed half of that: `CollisionHeightfield` is a field of triangles a body can
+walk on, with the seams between them filtered so it does not catch on them, and
+the machinery it needed — `CollisionShape.partsIn` and `partSeams`, a shape
+handing back the convex pieces near a query and naming which of their faces are
+joins rather than surfaces — is exactly the machinery a general mesh wants. What
+a mesh needs on top is a spatial index *inside* the shape: a heightfield is
+already a grid and knows which triangles are under a box by arithmetic, and a
+mesh with arbitrary triangles has to be asked. That index has not been written
+and no measurement of it exists here.
+
+**A body walks off the edge of a field of ground.** The rim's faces are real
+rather than seams, but a body resting a millimetre above the surface is outside
+every prism, so nothing stops it going over the side. Ground ends where its
+samples end, and a game that needs a fence puts one there.
 
 **No asset hot reload**, no levelled logging, no console or cvars, and no crash
 reporting. Shaders are the half of that which closed: the editor takes a

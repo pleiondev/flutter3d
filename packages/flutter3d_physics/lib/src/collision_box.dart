@@ -54,6 +54,13 @@ final class CollisionBox extends CollisionShape {
   ) => wedge.overlapsBox(wedgePosition, this, position);
 
   @override
+  bool overlapsHeightfield(
+    Vector3 position,
+    CollisionHeightfield field,
+    Vector3 fieldPosition,
+  ) => field.overlapsBox(fieldPosition, this, position);
+
+  @override
   double raycast(
     Vector3 position,
     Vector3 origin,

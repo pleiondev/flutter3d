@@ -96,6 +96,26 @@ final class CollisionWorld {
   /// each. Grown if a shape ever asks for more; never shrunk.
   Float64List _planes = Float64List(CollisionShape.boundsPlaneCount * 4);
 
+  /// Which convex parts of the shape being tested lie near the query, and how
+  /// many of them there were. Grown the same way [_planes] is.
+  ///
+  /// A field of ground is many parts and everything else is one, so this holds
+  /// a single zero for four shapes out of five and is the reason the fifth
+  /// needs no separate path through any query.
+  Int32List _parts = Int32List(16);
+
+  /// Which of the current part's planes are seams rather than surfaces, as a
+  /// bit per plane. See [CollisionShape.partSeams].
+  int _seams = 0;
+
+  /// The mover, when a caller offered only a size.
+  ///
+  /// [depenetrate] takes half-extents, because its callers have a box and not
+  /// always a shape, and growth is a question for a *shape* — see
+  /// [CollisionShape.supportAlong]. Rewritten per call rather than allocated,
+  /// like everything else in this block.
+  final CollisionBox _asBox = CollisionBox(Vector3.zero());
+
   /// How far inside a face a point may be and still count as touching it, in
   /// metres.
   ///
@@ -335,9 +355,17 @@ final class CollisionWorld {
   /// Sweeps [shape] from [origin] along [delta] against everything solid.
   ///
   /// Against whatever faces the other shape declares through
-  /// [CollisionShape.expandedPlanes] — the bounding box for all three of them
-  /// today, which that method explains is the right trade for moving a body
-  /// and the wrong one for deciding a hit.
+  /// [CollisionShape.partPlanes] — the bounding box for a box, a sphere and a
+  /// capsule, five real faces for a ramp, and one prism per triangle for a
+  /// field of ground. [CollisionShape.expandedPlanes] explains why the bounding
+  /// box is the right trade for moving a body and the wrong one for deciding a
+  /// hit.
+  ///
+  /// **The normal this reports is not always an axis.** It was for as long as
+  /// every shape offered its bounding box, and a good deal of code was written
+  /// in that world; anything comparing `normal.y` against a walkable limit is
+  /// still right, and anything assuming two of the three components are zero is
+  /// not. See [SweepHit.normal].
   bool sweep(
     CollisionShape shape,
     Vector3 origin,
@@ -366,7 +394,7 @@ final class CollisionWorld {
       if (identical(other, ignore)) return;
       if (!other.isSolid) return;
       if ((mask & other.layer) == 0) return;
-      _sweepAgainst(origin, half, delta, other, out, allow);
+      _sweepAgainst(origin, shape, delta, other, out, allow);
     }
 
     _staticGrid.forEachInBox(_queryMin, _queryMax, (int i) {
@@ -380,44 +408,69 @@ final class CollisionWorld {
 
   void _sweepAgainst(
     Vector3 origin,
-    Vector3 half,
+    CollisionShape mover,
     Vector3 delta,
     Collider other,
     SweepHit out,
     ContactFilter? allow,
   ) {
     // A moving shape against a still one is a *point* against the still one
-    // grown by the mover's half-extents, and the shape is the one that says
-    // what that grown solid is.
-    final count = _planesOf(other, half);
-    final t = _sweepPointPlanes(origin, delta, count);
-    if (t >= out.fraction) return;
-    // The filter is asked *here* rather than in `consider`, and the normal is
-    // the reason: whether a contact counts is usually a question about which
-    // way the surface faces, and that is not known until the plane walk has
-    // found which face was crossed.
-    // A caller that only wants to skip whole colliders has [mask] already.
-    if (allow != null) {
-      _contact.set(other, _candidateNormal);
-      if (!allow(_contact)) return;
-    }
+    // grown by the mover's own reach, and the shape is the one that says what
+    // that grown solid is.
+    //
+    // Once per convex part of it, and four shapes out of five have exactly
+    // one. The nearest part wins, the way the nearest collider does: a body
+    // crossing a field of ground is inside the reach of two or three triangles
+    // at a time and has to be stopped by whichever it meets first.
+    final parts = _partsOf(other, _queryMin, _queryMax);
+    for (var p = 0; p < parts; p++) {
+      final part = _parts[p];
+      final count = _partPlanesOf(other, part, mover);
+      final t = _sweepPointPlanes(origin, delta, count);
+      if (t >= out.fraction) continue;
+      // The filter is asked *here* rather than in `consider`, and the normal is
+      // the reason: whether a contact counts is usually a question about which
+      // way the surface faces, and that is not known until the plane walk has
+      // found which face was crossed.
+      // A caller that only wants to skip whole colliders has [mask] already.
+      if (allow != null) {
+        _contact.set(other, _candidateNormal);
+        if (!allow(_contact)) continue;
+      }
 
-    out.fraction = t;
-    out.normal.setFrom(_candidateNormal);
-    out.collider = other;
+      out.fraction = t;
+      out.normal.setFrom(_candidateNormal);
+      out.collider = other;
+    }
   }
 
-  /// Fills [_planes] with [other]'s solid grown by [half], and says how many.
+  /// Fills [_parts] with the parts of [other] inside the box [min]..[max].
+  ///
+  /// The buffer grows and is asked again when a shape had more parts than it
+  /// could hold — see [CollisionShape.partsIn], which returns the total rather
+  /// than what it managed to write, so this cannot silently walk half a field.
+  int _partsOf(Collider other, Vector3 min, Vector3 max) {
+    var count = other.shape.partsIn(other.indexedAt, min, max, _parts);
+    if (count > _parts.length) {
+      _parts = Int32List(count);
+      count = other.shape.partsIn(other.indexedAt, min, max, _parts);
+    }
+    return count;
+  }
+
+  /// Fills [_planes] with one part of [other] grown to hold [mover], and says
+  /// how many. Records that part's seams in [_seams].
   ///
   /// Around [Collider.indexedAt] rather than `position`, which is the same
   /// thing for everything except a mover that has already moved this step —
   /// and for that one it is deliberately the older of the two. See the field.
-  int _planesOf(Collider other, Vector3 half) {
-    final count = other.shape.expandedPlaneCount;
+  int _partPlanesOf(Collider other, int part, CollisionShape mover) {
+    final count = other.shape.partPlaneCount;
     if (_planes.length < count * 4) {
       _planes = Float64List(count * 4);
     }
-    return other.shape.expandedPlanes(other.indexedAt, half, _planes);
+    _seams = other.shape.partSeams(part);
+    return other.shape.partPlanes(part, other.indexedAt, mover, _planes);
   }
 
   /// How far along [delta] a point stays inside all [count] planes of
@@ -483,6 +536,15 @@ final class CollisionWorld {
     // every contact already backs off by.
     if (tNear < -_touching / tNearApproach.abs()) return 1.0;
     if (tNear < 0.0) tNear = 0.0;
+
+    // **The face it came in through is a seam, so it came in through nothing.**
+    // Where two pieces of one shape meet, each ends in a face the other
+    // continues past; a body crossing the join enters that face and would be
+    // stopped by a wall nobody drew. Dropping the whole contact rather than
+    // choosing another face is right because the piece next door is walked too
+    // and reports the surface that is really there. See
+    // [CollisionShape.partSeams].
+    if ((_seams & (1 << entering)) != 0) return 1.0;
 
     final base = entering * 4;
     _candidateNormal.setValues(
@@ -590,7 +652,10 @@ final class CollisionWorld {
   /// Pushes a box out of anything solid it is already inside.
   ///
   /// The face it is nearest to wins: that is the shallowest way out, and
-  /// therefore the one that does not fling the player across the room.
+  /// therefore the one that does not fling the player across the room. Once per
+  /// convex part of what it is inside, so a body standing where three triangles
+  /// of a hillside meet is told one thing by each and lifted by the deepest of
+  /// them rather than by their sum — see [_ask].
   ///
   /// Needed because nothing guarantees a clean state — a lift can close on the
   /// player, a level can spawn them badly, and floating point can leave them a
@@ -617,60 +682,20 @@ final class CollisionWorld {
       centre.z + halfExtents.z,
     );
 
+    _asBox.halfExtents.setFrom(halfExtents);
+
     void resolve(Collider other) {
       if (identical(other, ignore)) return;
       if (!other.isSolid) return;
       if ((mask & other.layer) == 0) return;
 
-      // The same planes a sweep would use, asked the other question: not "when
-      // does the point cross a face" but "which face is it nearest to now".
-      final count = _planesOf(other, halfExtents);
-      var shallowest = double.infinity;
-      var through = -1;
-
-      for (var i = 0; i < count; i++) {
-        final base = i * 4;
-        // How far inside this face the centre sits, and therefore how far it
-        // would have to travel along the normal to leave through it.
-        final depth =
-            _planes[base + 3] -
-            (_planes[base] * centre.x +
-                _planes[base + 1] * centre.y +
-                _planes[base + 2] * centre.z);
-        // Outside one face is outside the solid, whatever the other five say.
-        if (depth <= 0.0) return;
-        if (depth < shallowest) {
-          shallowest = depth;
-          through = i;
-        } else if (depth == shallowest &&
-            _planes[base + 1].abs() > _planes[through * 4 + 1].abs()) {
-          // **A tie goes to the most upright face.** A body wedged into the
-          // join between a floor and a wall is exactly as far inside both, and
-          // lifting it out is the answer that leaves it standing where it was;
-          // shoving it sideways moves the player for them. This is what the
-          // per-axis form said by testing y first, kept as something a shape
-          // with faces that are not axes can still obey.
-          through = i;
-        }
+      // Once per convex part, the same way a sweep is — a body standing on a
+      // field of ground is inside the reach of two or three triangles at once
+      // and each of them has its own way out.
+      final parts = _partsOf(other, _queryMin, _queryMax);
+      for (var p = 0; p < parts; p++) {
+        if (_pushOutOfPart(other, _parts[p], centre, allow)) corrected = true;
       }
-
-      final base = through * 4;
-      // Which way this push would go, so the filter is asked the same question
-      // here as in a sweep: not "which collider" but "which way does it face".
-      // Without this a body that sweeps through a one-way platform is ejected
-      // out of its side by the very next depenetration, which is the bug a mask
-      // on its own leaves behind.
-      _pushNormal.setValues(
-        _planes[base],
-        _planes[base + 1],
-        _planes[base + 2],
-      );
-      if (allow != null) {
-        _contact.set(other, _pushNormal);
-        if (!allow(_contact)) return;
-      }
-      corrected = true;
-      _ask(_directionOf(_pushNormal), shallowest);
     }
 
     for (var i = 0; i < 6; i++) {
@@ -704,23 +729,106 @@ final class CollisionWorld {
     return corrected;
   }
 
-  /// Records a push of [depth] in one of the six directions, keeping the
-  /// deepest.
-  void _ask(int direction, double depth) {
-    if (depth > _deepest[direction]) _deepest[direction] = depth;
+  /// Pushes [centre] out of one convex part of [other], if it is inside it.
+  ///
+  /// The shallowest face wins: that is the shortest way out, and therefore the
+  /// one that does not fling the player across the room.
+  bool _pushOutOfPart(
+    Collider other,
+    int part,
+    Vector3 centre,
+    ContactFilter? allow,
+  ) {
+    // The same planes a sweep would use, asked the other question: not "when
+    // does the point cross a face" but "which face is it nearest to now".
+    final count = _partPlanesOf(other, part, _asBox);
+    var shallowest = double.infinity;
+    var through = -1;
+
+    for (var i = 0; i < count; i++) {
+      final base = i * 4;
+      // How far inside this face the centre sits, and therefore how far it
+      // would have to travel along the normal to leave through it.
+      final depth =
+          _planes[base + 3] -
+          (_planes[base] * centre.x +
+              _planes[base + 1] * centre.y +
+              _planes[base + 2] * centre.z);
+      // Outside one face is outside the solid, whatever the other five say —
+      // and a seam counts here, because a body past a seam really has left this
+      // piece of the shape. It is only as a way *out* that a seam is refused.
+      if (depth <= 0.0) return false;
+      if ((_seams & (1 << i)) != 0) continue;
+      if (through < 0 || depth < shallowest) {
+        shallowest = depth;
+        through = i;
+      } else if (depth == shallowest &&
+          _planes[base + 1].abs() > _planes[through * 4 + 1].abs()) {
+        // **A tie goes to the most upright face.** A body wedged into the
+        // join between a floor and a wall is exactly as far inside both, and
+        // lifting it out is the answer that leaves it standing where it was;
+        // shoving it sideways moves the player for them. This is what the
+        // per-axis form said by testing y first, kept as something a shape
+        // with faces that are not axes can still obey.
+        through = i;
+      }
+    }
+
+    // Every way out was a seam, which happens to a body deep inside a field of
+    // ground with a triangle on all sides. The piece it is nearest the surface
+    // of has a real way out, and this body is inside that one too.
+    if (through < 0) return false;
+
+    final base = through * 4;
+    // Which way this push would go, so the filter is asked the same question
+    // here as in a sweep: not "which collider" but "which way does it face".
+    // Without this a body that sweeps through a one-way platform is ejected
+    // out of its side by the very next depenetration, which is the bug a mask
+    // on its own leaves behind.
+    _pushNormal.setValues(_planes[base], _planes[base + 1], _planes[base + 2]);
+    if (allow != null) {
+      _contact.set(other, _pushNormal);
+      if (!allow(_contact)) return false;
+    }
+    _ask(_pushNormal, shallowest);
+    return true;
   }
 
-  /// Which of the six directions [normal] points along.
+  /// Records a push of [depth] along [normal], keeping the deepest asked for in
+  /// each of the six directions.
   ///
-  /// The six survive the move to planes because they are what stops a body on
-  /// a seam being pushed out twice, and that is a statement about opposing
-  /// pairs rather than about axes. A normal that is not one of the six has no
-  /// bucket to be deepest in, and there is none today: every plane written here
-  /// comes from a bounding box.
-  static int _directionOf(Vector3 normal) {
-    if (normal.y != 0.0) return normal.y < 0.0 ? 2 : 3;
-    if (normal.x != 0.0) return normal.x < 0.0 ? 0 : 1;
-    return normal.z < 0.0 ? 4 : 5;
+  /// **The push is split into its three components rather than filed under one
+  /// direction**, and for an axis-aligned normal that is the same arithmetic it
+  /// always was: two of the three components are zero and the third is the
+  /// whole depth. It stops being the same the moment a face is not an axis. The
+  /// first version asked which of the six a normal pointed *most* along and
+  /// filed the whole depth there, so a body a centimetre inside a slope was
+  /// lifted a centimetre straight up — short of the way out by the cosine of
+  /// the slope, every step, for as long as it stood there.
+  ///
+  /// The six buckets survive because they are what stops a body on a seam being
+  /// pushed out twice: two floor brushes, or two triangles of one field, ask
+  /// for the same push for the same reason, and the answer is that push and not
+  /// two of them.
+  void _ask(Vector3 normal, double depth) {
+    final x = normal.x * depth;
+    final y = normal.y * depth;
+    final z = normal.z * depth;
+    if (x < 0.0) {
+      if (-x > _deepest[0]) _deepest[0] = -x;
+    } else if (x > _deepest[1]) {
+      _deepest[1] = x;
+    }
+    if (y < 0.0) {
+      if (-y > _deepest[2]) _deepest[2] = -y;
+    } else if (y > _deepest[3]) {
+      _deepest[3] = y;
+    }
+    if (z < 0.0) {
+      if (-z > _deepest[4]) _deepest[4] = -z;
+    } else if (z > _deepest[5]) {
+      _deepest[5] = z;
+    }
   }
 
   /// The deepest push asked for in each of the six directions, this call.

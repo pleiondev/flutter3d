@@ -82,16 +82,38 @@ final class CollisionWedge extends CollisionShape {
   /// **The low end has no face at all**, which is the difference between this
   /// and the box it is cut from, and the whole of what makes it walkable.
   @override
-  int expandedPlanes(Vector3 position, Vector3 half, Float64List out) {
+  int expandedPlanes(Vector3 position, Vector3 half, Float64List out) =>
+      _faces(position, null, half, out);
+
+  /// The same five faces, grown to hold a body that is not a box.
+  ///
+  /// A wedge is where the two ways of growing part company: five of its faces,
+  /// the slope, is not an axis, and a capsule's reach along it is smaller than
+  /// its bounding box's. See [CollisionShape.supportAlong].
+  @override
+  int partPlanes(
+    int part,
+    Vector3 position,
+    CollisionShape mover,
+    Float64List out,
+  ) => _faces(position, mover, _noGrowth, out);
+
+  int _faces(
+    Vector3 position,
+    CollisionShape? mover,
+    Vector3 half,
+    Float64List out,
+  ) {
     final axis = uphill.axis;
     final side = axis == 0 ? 2 : 0;
     var i = 0;
 
     void plane(double nx, double ny, double nz, double through) {
-      // Grown by the moving body's own extent along this normal, which is the
+      // Grown by the moving body's own reach along this normal, which is the
       // Minkowski sum in closed form — see [CollisionShape.expandedPlanes].
-      final grown =
-          (nx * half.x).abs() + (ny * half.y).abs() + (nz * half.z).abs();
+      final grown = mover != null
+          ? mover.supportAlong(nx, ny, nz)
+          : (nx * half.x).abs() + (ny * half.y).abs() + (nz * half.z).abs();
       out[i] = nx;
       out[i + 1] = ny;
       out[i + 2] = nz;
@@ -221,6 +243,13 @@ final class CollisionWedge extends CollisionShape {
           halfExtents.y + wedge.halfExtents.y &&
       (position.z - wedgePosition.z).abs() <
           halfExtents.z + wedge.halfExtents.z;
+
+  @override
+  bool overlapsHeightfield(
+    Vector3 position,
+    CollisionHeightfield field,
+    Vector3 fieldPosition,
+  ) => field.overlapsWedge(fieldPosition, this, position);
 
   @override
   double raycast(

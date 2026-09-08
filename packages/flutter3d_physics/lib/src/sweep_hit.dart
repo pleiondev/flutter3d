@@ -11,8 +11,8 @@ import 'collider.dart';
 /// must stand on is one collider whose top face counts and whose other five do
 /// not.
 ///
-/// [normal] points from the surface towards the body, is axis-aligned like
-/// every normal here, and is **scratch**: read it, do not keep it.
+/// [normal] points from the surface towards the body and is **scratch**: read
+/// it, do not keep it. It is not necessarily an axis — see [SweepHit.normal].
 ///
 /// Called from inside the sweep loop, which is the hottest loop in a game, so
 /// the argument is a function rather than an object with a method and the
@@ -47,8 +47,9 @@ final class SweptContact {
   Collider get other => _other!;
   Collider? _other;
 
-  /// Points from the surface towards the body, and is axis-aligned like every
-  /// normal here. Scratch inside scratch: read it, do not keep it.
+  /// Points from the surface towards the body. Scratch inside scratch: read it,
+  /// do not keep it — and it is a face of whatever was touched rather than an
+  /// axis, which for a ramp or a hillside is a direction of its own.
   final Vector3 normal = Vector3.zero();
 
   /// Points this at one contact. Called by the world, not by a filter.
@@ -68,8 +69,16 @@ final class SweepHit {
   /// One means nothing was in the way.
   double fraction = 1.0;
 
-  /// Surface normal at the contact: one of the faces the shape offered, and so
-  /// axis-aligned for as long as every shape offers its bounding box.
+  /// Surface normal at the contact: one of the faces the shape offered.
+  ///
+  /// **Not an axis any more, and the day that changed is worth naming.** It was
+  /// one for as long as every shape offered its bounding box; a ramp broke it
+  /// and a field of ground breaks it everywhere, since every triangle of a hill
+  /// leans its own way. The code that read this had two habits, and only one of
+  /// them survived: comparing `normal.y` against a limit to ask whether a face
+  /// is walkable is still exactly right, and treating the vector as "an axis
+  /// and a sign" is not. Nothing in this repository did the second, which is
+  /// why the change was quiet — it was looked for before it was made.
   final Vector3 normal = Vector3.zero();
 
   Collider? collider;

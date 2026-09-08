@@ -85,6 +85,27 @@ final class CollisionCapsule extends CollisionShape {
   ) => wedge.overlapsCapsule(wedgePosition, this, position);
 
   @override
+  bool overlapsHeightfield(
+    Vector3 position,
+    CollisionHeightfield field,
+    Vector3 fieldPosition,
+  ) => field.overlapsCapsule(fieldPosition, this, position);
+
+  /// The segment's reach plus the radius, which is a capsule and not the box
+  /// around it.
+  ///
+  /// **This is the shoulder the comment on [expandedPlanes] admitted to.** A
+  /// walking body swept as its bounding box is grown by
+  /// `radius·|nx| + (halfHeight + radius)·|ny| + radius·|nz|`, and against a
+  /// face leaning forty-five degrees that is nearly half a radius too much —
+  /// the corner it should have rounded, caught. Along any of the six axes the
+  /// two answers are identical, which is why no face in this package could tell
+  /// the difference until a ramp had one that was not an axis.
+  @override
+  double supportAlong(double nx, double ny, double nz) =>
+      (ny * halfHeight).abs() + radius;
+
+  @override
   double raycast(
     Vector3 position,
     Vector3 origin,
@@ -101,12 +122,13 @@ final class CollisionCapsule extends CollisionShape {
   int get expandedPlaneCount => CollisionShape.boundsPlaneCount;
 
   @override
-  // **The box, and a capsule is not one.** A walking body swept as its bounding
-  // box catches its shoulders on a corner it should round, which is a thing
-  // players feel and no test here asserts. Saying so costs a line and is the
-  // whole reason this method is abstract: the next person to want a capsule
-  // swept as a capsule has one place to change and a comment admitting it was
-  // never done.
+  // **The box, and against a box that is no approximation at all.** The six
+  // faces of a bounding box are the six axes, and a capsule's reach along an
+  // axis is exactly its bounding box's — see [supportAlong], where the
+  // arithmetic is. What used to be wrong was the other half of the pair: a
+  // capsule *moving* against a face that is not an axis was grown as a box, and
+  // that is where the shoulders were. The growth is the mover's business now,
+  // so this side of it can stay the cheap answer it always was.
   int expandedPlanes(Vector3 position, Vector3 half, Float64List out) =>
       boundsExpandedPlanes(position, half, out);
 }

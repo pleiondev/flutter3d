@@ -135,11 +135,13 @@ final class Runner
     CollisionCapsule(:final double halfHeight, :final double radius) =>
       halfHeight + radius,
     CollisionSphere(:final double radius) => radius,
-    // A runner shaped like a ramp is not a thing, and the compiler asking
-    // is the sealed hierarchy earning its keep: adding `CollisionWedge`
-    // named every switch that had to think about it rather than letting one
-    // fall through to a default and answer wrongly for ever.
+    // A runner shaped like a ramp is not a thing, and neither is one shaped
+    // like a hillside. The compiler asking is the sealed hierarchy earning its
+    // keep: `CollisionWedge` and then `CollisionHeightfield` each named every
+    // switch that had to think about them rather than letting one fall through
+    // to a default and answer wrongly for ever.
     CollisionWedge(:final Vector3 halfExtents) => halfExtents.y,
+    CollisionHeightfield() => _standing.boundsHalfExtents.y,
   };
 
   /// Whether the runner is sliding, which is a crouch with speed in it.

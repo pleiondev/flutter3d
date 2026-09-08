@@ -350,11 +350,21 @@ final class CharacterController {
   ///
   /// **A game may have a constant that looks like this one and is not.** A
   /// filter deciding whether a particular platform is solid for a particular
-  /// contact asks about that contact, not about walkability, and the two agree
-  /// today only because the sweeps in [CollisionWorld] cannot report a normal
-  /// that is not an axis. Give this figure a name in one place and it stays
+  /// contact asks about that contact, not about walkability, and the two used
+  /// to agree only because the sweeps in [CollisionWorld] could not report a
+  /// normal that was not an axis. They can now — a ramp leans, and every
+  /// triangle of a hillside leans its own way — so the two questions are told
+  /// apart by more than luck. Give this figure a name in one place and it stays
   /// one question; share it and the first genre that wants a steeper limit for
   /// its own geometry changes what "standing" means for everybody.
+  ///
+  /// **Not a setting, and that is a decision rather than an omission.** Sixty
+  /// degrees is what *this controller* means by standing, and a game that wants
+  /// a different limit for a tank and a scout is a game whose units have
+  /// different rules — which belongs where those rules are, above this, reading
+  /// [groundNormal]. A number moved into [MovementTuning] would be one more
+  /// dial that every genre has to have an opinion about, and thirteen is
+  /// already the number that has to be explained to somebody starting a game.
   static const double _walkableNormalY = 0.5;
 
   /// Advances by [dt].

@@ -18,6 +18,7 @@
 library;
 
 import 'dart:math' as math;
+import 'dart:typed_data';
 
 import 'package:vector_math/vector_math.dart';
 
@@ -57,11 +58,18 @@ final class Contact {
 
 /// Fills [out] when the two shapes overlap, and clears it when they do not.
 ///
-/// Anything that is not a box or a sphere is treated as its bounding box, which
-/// is stated rather than hidden: stage one's dynamic bodies are boxes and
-/// spheres, and a capsule in this system is something they are pushed *by*
-/// rather than something that is pushed. A monster shoving a crate does it with
-/// its bounds, and at these sizes the difference is millimetres.
+/// Anything that is not a box, a sphere or a field of ground is treated as its
+/// bounding box, which is stated rather than hidden: stage one's dynamic bodies
+/// are boxes and spheres, and a capsule in this system is something they are
+/// pushed *by* rather than something that is pushed. A monster shoving a crate
+/// does it with its bounds, and at these sizes the difference is millimetres.
+///
+/// **Ground is the exception, and it had to be.** A field of samples has a
+/// bounding box the size of the map, so the fallback would have reported every
+/// crate on the level as a hundred metres deep inside one solid and launched it
+/// out of the side. That is not a smaller error of the same kind; it is the
+/// difference between a crate that rests on a hill and a crate that is fired
+/// off the edge of the world.
 void contactBetween(
   CollisionShape a,
   Vector3 aAt,
@@ -73,6 +81,14 @@ void contactBetween(
   out.touching = false;
   out.margin = margin;
 
+  if (a is CollisionHeightfield) {
+    _groundBody(a, aAt, b, bAt, out, flip: true);
+    return;
+  }
+  if (b is CollisionHeightfield) {
+    _groundBody(b, bAt, a, aAt, out, flip: false);
+    return;
+  }
   if (a is CollisionSphere && b is CollisionSphere) {
     _sphereSphere(a, aAt, b, bAt, out);
     return;
@@ -87,6 +103,108 @@ void contactBetween(
   }
   _boxBox(a.boundsHalfExtents, aAt, b.boundsHalfExtents, bAt, out);
 }
+
+/// A body against a field of ground, prism by prism.
+///
+/// **The deepest way in, not the nearest triangle.** A body standing where two
+/// triangles meet is inside both of them, at two different depths, and the
+/// contact that holds it up is the one that has to push furthest. Picking by
+/// distance instead would have the solver alternate between the two on
+/// successive steps, which is a crate that hums where it should sit still.
+///
+/// Seams are refused as ways out for the reason [CollisionShape.partSeams]
+/// gives, and refusing them matters more here than anywhere else: a crate
+/// resting on a hillside is a millimetre inside the ground and a hair's breadth
+/// from the join, so the join is very often the nearest face — and a crate
+/// pushed sideways along the hill every step is a crate that walks downhill on
+/// its own.
+void _groundBody(
+  CollisionHeightfield field,
+  Vector3 fieldAt,
+  CollisionShape body,
+  Vector3 bodyAt,
+  Contact out, {
+  required bool flip,
+}) {
+  final half = body.boundsHalfExtents;
+  _probeMin.setValues(
+    bodyAt.x - half.x - out.margin,
+    bodyAt.y - half.y - out.margin,
+    bodyAt.z - half.z - out.margin,
+  );
+  _probeMax.setValues(
+    bodyAt.x + half.x + out.margin,
+    bodyAt.y + half.y + out.margin,
+    bodyAt.z + half.z + out.margin,
+  );
+  var count = field.partsIn(fieldAt, _probeMin, _probeMax, _probeParts);
+  if (count > _probeParts.length) {
+    // A body standing on more than sixteen cells of ground at once is a body
+    // bigger than anything a game drops on a hill; when one turns up it gets
+    // the triangles that fit rather than a longer buffer on the hot path.
+    count = _probeParts.length;
+  }
+
+  var deepest = double.negativeInfinity;
+  var found = false;
+  for (var p = 0; p < count; p++) {
+    final part = _probeParts[p];
+    final planes = field.partPlanes(part, fieldAt, body, _probePlanes);
+    final seams = field.partSeams(part);
+    var shallowest = double.infinity;
+    var through = -1;
+    var gap = 0.0;
+    var gapPlane = -1;
+
+    for (var i = 0; i < planes; i++) {
+      final base = i * 4;
+      final depth =
+          _probePlanes[base + 3] -
+          (_probePlanes[base] * bodyAt.x +
+              _probePlanes[base + 1] * bodyAt.y +
+              _probePlanes[base + 2] * bodyAt.z);
+      // How far outside this prism the face puts it, over *every* face: past a
+      // seam is genuinely past this piece of the ground, even though a seam is
+      // never a face a contact is reported on.
+      if (-depth > gap) {
+        gap = -depth;
+        gapPlane = i;
+      }
+      if ((seams & (1 << i)) != 0) continue;
+      if (through < 0 || depth < shallowest) {
+        shallowest = depth;
+        through = i;
+      }
+    }
+
+    // Outside the prism: the face it is furthest outside is how far away it is,
+    // and a gap inside the margin is still a contact — see [Contact.depth] for
+    // why a resting pile needs one. Outside past a seam, though, is the next
+    // triangle's business rather than this one's.
+    if (gapPlane >= 0 && (seams & (1 << gapPlane)) != 0) continue;
+    final depth = gapPlane >= 0 ? -gap : shallowest;
+    final plane = gapPlane >= 0 ? gapPlane : through;
+    if (plane < 0 || depth <= deepest) continue;
+    deepest = depth;
+    found = true;
+    _probeNormal.setValues(
+      _probePlanes[plane * 4],
+      _probePlanes[plane * 4 + 1],
+      _probePlanes[plane * 4 + 2],
+    );
+  }
+
+  if (!found) return;
+  _emit(out, _probeNormal.x, _probeNormal.y, _probeNormal.z, deepest, flip);
+}
+
+/// Scratch for [_groundBody], which is asked once per body per step and must
+/// not allocate on the way.
+final Vector3 _probeMin = Vector3.zero();
+final Vector3 _probeMax = Vector3.zero();
+final Vector3 _probeNormal = Vector3.zero();
+final Int32List _probeParts = Int32List(32);
+final Float64List _probePlanes = Float64List(20);
 
 void _sphereSphere(
   CollisionSphere a,

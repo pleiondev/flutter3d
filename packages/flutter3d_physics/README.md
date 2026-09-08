@@ -23,6 +23,20 @@ coyote window after walking off an edge and a buffered jump pressed just before
 landing. Every one of those is a decision with a test beside it saying which way
 it went and why.
 
+## Ground, and the joins in it
+
+`CollisionHeightfield` is a field of samples a body can walk on: the fifth
+shape, and the first that is not one convex solid. A query names the box it
+cares about, the shape hands back the convex pieces near it, and the plane walk
+every other query already used runs once per piece.
+
+The part worth knowing about is the joins. Where two triangles meet, each piece
+ends in a vertical face the other continues through — and a sweep that reports
+one stops the body dead against a wall nobody drew. The shape names those faces
+and the world refuses to contact them; `heightfield_test.dart` holds the two
+measurements that catch it going wrong, and `tool/ground_cost.dart` holds what
+the whole thing costs.
+
 ## Tolerances
 
 `Nearly` names the four magnitudes this package compares against, because the

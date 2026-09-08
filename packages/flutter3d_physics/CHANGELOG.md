@@ -1,3 +1,36 @@
+## Unreleased
+
+**Ground is a collision shape, and the joins in it are not surfaces.**
+
+* **`CollisionHeightfield`.** A field of samples a body walks on: the fifth
+  shape, and the first that is not one convex solid. It comes in through
+  `CollisionShape.partsIn`, which hands a query the convex pieces near it —
+  one prism per triangle — so every sweep, push and ray is the closed-form
+  plane walk the world already had, several times over. A sweep against ground
+  costs four times a sweep against a brush and a step of a walking body nearly
+  seven; `tool/ground_cost.dart` is the measurement.
+* **`CollisionShape.partSeams`, which is what makes it walkable.** Where two
+  triangles meet, each prism ends in a vertical face the other continues
+  through. Reported, it is a wall nobody drew and a body that catches on the
+  ground every metre. The shape names those faces and `CollisionWorld` refuses
+  a contact on one.
+* **A sweep's normal is no longer always an axis.** It stopped being one when
+  the wedge arrived and the documentation had not caught up; ground makes it
+  the ordinary case. Comparing `normal.y` against a walkable limit is still
+  right, and treating the vector as an axis and a sign is not.
+* **A capsule is swept as a capsule.** Growth is now the moving shape's own
+  support function rather than the box around it, so a walking body no longer
+  catches a shoulder on a corner it should round. Against the six faces of a
+  box the two answers are identical, so nothing in a level of brushes moved.
+* **Depenetration splits its push into components.** The deepest push in each
+  of six directions is what stops a body on a seam being lifted twice, and it
+  used to file a slanted normal's whole depth under one axis — so a body on a
+  ramp was lifted short of the way out, every step, for as long as it stood
+  there.
+* **`contactBetween` knows about ground**, because the bounding-box fallback
+  for a field of samples is the size of the map: every crate on the level would
+  have been reported a hundred metres deep inside one solid.
+
 ## 0.5.0
 
 **Breaking.** The contact filter takes one object.
