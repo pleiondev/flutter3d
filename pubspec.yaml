@@ -23,6 +23,7 @@ workspace:
   - packages/flutter3d_impeller
   - packages/flutter3d_webgl
   - packages/flutter3d_webgl/example
+  - packages/flutter3d_webgpu
   - packages/flutter3d/example
   - packages/flutter3d_audio
   - packages/flutter3d_bridge

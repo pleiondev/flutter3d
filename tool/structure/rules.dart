@@ -1417,6 +1417,10 @@ List<Finding> _testCount() {
     // reason the line above gives: the list is extended before the package is
     // counted, not after somebody has read a finding about the wrong thing.
     'twenty-seven',
+    // And the day `flutter3d_webgpu` became the twenty-eighth, which is a
+    // package created before it can draw anything — the count moves when the
+    // directory appears, not when the backend works.
+    'twenty-eight',
   ];
   final readme = File('${root.path}/README.md').readAsStringSync();
   final saidInProse = RegExp(

@@ -1,0 +1,6 @@
+
+
+# Written beside a reference when a golden fails, to be compared and
+# discarded. One was committed once in another package; this line is here from
+# the first day rather than after the same mistake.
+test/goldens/*.actual.png

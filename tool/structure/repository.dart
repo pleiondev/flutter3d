@@ -142,6 +142,7 @@ const Map<String, String> notARepeatableStep = <String, String>{
   'flutter3d': 'a renderer draws a frame; the clock it reads is the frame\'s',
   'flutter3d_impeller': 'a backend, not a step',
   'flutter3d_webgl': 'a backend, not a step',
+  'flutter3d_webgpu': 'a backend, not a step',
   'flutter3d_cpu': 'a backend, not a step',
   'flutter3d_hardware': 'the vocabulary a backend implements',
   'flutter3d_conformance': 'a test suite for backends',

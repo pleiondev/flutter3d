@@ -185,6 +185,18 @@ done
 # shader bundle does.
 step "test flutter3d_webgl (browser)" in_dir packages/flutter3d_webgl flutter test --platform chrome
 
+# **The same step, written before there is anything for it to catch.**
+# `flutter3d_webgpu` today holds one platform-agnostic file, which the loop
+# above already runs; the device and the encoder that follow it cannot be
+# anything but `@TestOn('browser')`, because `dart:js_interop` is not a library
+# the VM has. Five files in the package above went unrun for as long as they
+# existed because this line was written after them, and the branch that adds
+# the first browser file here would have to notice on its own that a green loop
+# had stopped meaning anything. So the line is here first. Until then it costs
+# a compile of the translation table for the web target, which is not nothing:
+# that table is the one file in the package both platforms have to agree about.
+step "test flutter3d_webgpu (browser)" in_dir packages/flutter3d_webgpu flutter test --platform chrome
+
 # **The same trap, one package over.** `pointer_lock` grew a web backend — the
 # browser has had `requestPointerLock` all along and this package was answering
 # "unsupported" for it — and its tests are `@TestOn('browser')` for the reason

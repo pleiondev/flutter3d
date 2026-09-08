@@ -1,0 +1,38 @@
+name: flutter3d_webgpu
+description: "A WebGPU backend for flutter3d: the fourth implementation of flutter3d_hardware, and the first one whose API bakes per-draw state into the pipeline object."
+version: 0.5.2
+repository: https://github.com/pleiondev/flutter3d
+homepage: https://flutter3d.pleion.dev
+issue_tracker: https://github.com/pleiondev/flutter3d/issues
+topics:
+  - webgpu
+  - graphics
+  - gpu
+  - rendering
+  - web
+resolution: workspace
+
+# The HAL and nothing else of ours, for the reason `flutter3d_webgl` states:
+# writing a backend means implementing `flutter3d_hardware`, not understanding
+# the renderer. That property is what let a spike measure this API's cost to the
+# contract before a package existed to hold the answer.
+environment:
+  sdk: ^3.12.2
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  flutter3d_hardware: ^0.5.0
+
+  # Declared before it is imported, which is deliberate. `PassEncoder` takes a
+  # clear colour and a scissor as `Vector4`, so the encoder cannot be written
+  # without this — and the encoder is the next thing written here. Adding it
+  # then would mean three parallel branches each editing this file, which is the
+  # merge this package was created early to avoid.
+  vector_math: ^2.2.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
