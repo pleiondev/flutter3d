@@ -146,11 +146,20 @@ void main() {
       ..submit();
 
     final pixels = await scene.device.readback(target);
+    // **The browser's verdict is read before the colours, and the order is the
+    // finding rather than a habit.** A descriptor this backend gets wrong —
+    // a bind group layout that names the wrong stages, a vertex format that
+    // does not match the buffer — is not refused by a throw. The object comes
+    // back marked invalid, the pass that sets it draws nothing, and the
+    // readback is black. Asked the other way round, every such mistake is
+    // reported as a texel that should have been red, and the sentence the
+    // browser wrote about what was actually wrong is drained afterwards and
+    // never printed.
+    expect(await scene.device.debugDrainErrors('the draw'), isNull);
     // A four-pixel row samples the two-texel palette at 0.125, 0.375, 0.625 and
     // 0.875, so the left half is the left texel and the right half the right.
     expect(_texel(pixels, 4, 0, 1), _red);
     expect(_texel(pixels, 4, 3, 1), _green);
-    expect(await scene.device.debugDrainErrors('the draw'), isNull);
     scene.device.dispose();
   });
 

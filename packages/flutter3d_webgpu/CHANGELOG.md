@@ -11,6 +11,18 @@
   `WebGpuShader` and `WebGpuPipeline`, in a file that imports no browser
   binding, so the vertex layout arithmetic and every refusal are asserted on
   the VM in a second.
+* **A bind group layout names every stage that declared the binding**, which is
+  the one line the shader library gives up by refusing to import a browser
+  binding: it states two booleans per binding and `webgpu_types.dart` turns them
+  into a `GPUShaderStage` word. That word was the constant `vertex` for a while,
+  which is not a wrong picture and not an exception — the layout is legal, the
+  pipeline built over it comes back marked invalid, and every pass that sets it
+  draws nothing. Fifteen checks read black. `gpuShaderStageOf` is now a named
+  function with `webgpu_types_test.dart` on it, asking the four cases directly
+  and asking a whole stage pair's group shapes again, in a second and with no
+  adapter. The first textured draw reads the browser's verdict *before* any
+  texel, so a descriptor this backend gets wrong is reported in the browser's
+  own words rather than as a colour that should have been red.
 * **`loadShaders` loads.** It reads the bundle's fourth section, refuses by name
   where there is no section for this backend, where the section is not the
   document the codec reads, and where it says it is a shape this build does not

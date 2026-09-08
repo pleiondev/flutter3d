@@ -96,6 +96,26 @@ final class WebGpuGeometry {
   final GPUBuffer buffer;
 }
 
+/// Which stages a binding is visible to, as this API's flag word.
+///
+/// The one line that turns `webgpu_shaders.dart`'s two booleans into
+/// `GPUShaderStage` bits, which is the whole of what that file gave up by
+/// refusing to import a browser binding.
+///
+/// **Named, exported and tested rather than inlined into the descriptor**,
+/// because of what dropping a stage here costs. A layout that claims a binding
+/// is vertex-only when the fragment stage samples it is not a wrong picture and
+/// not an exception: `createRenderPipeline` accepts the descriptor, hands back
+/// an object marked invalid, and every pass that sets that object draws
+/// nothing. The readback is then black or empty, with no line anywhere naming a
+/// visibility — one word lost here reads exactly like a texture that failed to
+/// upload. `webgpu_types_test.dart` asks this function the question directly,
+/// and asks it again of a whole stage pair's group shapes, so the answer cannot
+/// go back to being a constant while the tests stay green.
+int gpuShaderStageOf(WebGpuVisibility visibility) =>
+    (visibility.vertex ? GpuShaderStage.vertex : 0) |
+    (visibility.fragment ? GpuShaderStage.fragment : 0);
+
 /// The bind group layouts one stage pair needs, and the pipeline layout over
 /// them.
 ///
@@ -138,20 +158,12 @@ final class WebGpuBindingLayouts {
     );
   }
 
-  /// Which stages a binding is visible to, as this API's flag word.
-  ///
-  /// The one line that turns `webgpu_shaders.dart`'s two booleans into
-  /// `GPUShaderStage` bits, which is the whole of what that file gave up by
-  /// refusing to import a browser binding.
-  static int _visibility(WebGpuVisibility visibility) =>
-      GpuShaderStage.vertex;
-
   static List<GPUBindGroupLayoutEntry> _entriesOf(WebGpuGroupShape shape) {
     final entries = <GPUBindGroupLayoutEntry>[
       for (final bound in shape.blocks)
         GPUBindGroupLayoutEntry.buffer(
           binding: bound.block.binding,
-          visibility: _visibility(bound.visibility),
+          visibility: gpuShaderStageOf(bound.visibility),
           buffer: GPUBufferBindingLayout(
             type: 'uniform',
             // **The one member that keeps the bind group cache worth having.**
@@ -167,7 +179,7 @@ final class WebGpuBindingLayouts {
     ];
     for (final bound in shape.samplers) {
       final sampler = bound.sampler;
-      final visibility = _visibility(bound.visibility);
+      final visibility = gpuShaderStageOf(bound.visibility);
       entries.add(
         GPUBindGroupLayoutEntry.texture(
           binding: sampler.textureBinding,
