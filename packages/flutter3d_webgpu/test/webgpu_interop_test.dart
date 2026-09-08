@@ -26,6 +26,7 @@ library;
 import 'dart:js_interop';
 import 'dart:typed_data';
 
+import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:flutter3d_webgpu/flutter3d_webgpu.dart';
 import 'package:flutter3d_webgpu/src/webgpu_interop.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -522,6 +523,45 @@ void main() {
     // question can be asked at all is, because it is the only honest source of
     // an answer for `supportsTextureFormat`.
     expect(adapter.features.has(GpuFeature.textureCompressionBc), isA<bool>());
+
+    // **The two statements of the three family names, held against each other.**
+    // `gpuTextureFormatFeature` lives in `webgpu_formats.dart`, which runs on the
+    // VM and so cannot import `GpuFeature` at all; this test runs in a browser
+    // and can import both, which makes it the one place the duplication is
+    // checked rather than trusted. A name drifting apart here is a device that
+    // reports it cannot sample a whole family on a machine that can, because a
+    // feature set answers false for a name it does not know.
+    expect(
+      gpuTextureFormatFeature(TextureFormat.bc7RGBAUNormInt),
+      GpuFeature.textureCompressionBc,
+    );
+    expect(
+      gpuTextureFormatFeature(TextureFormat.etc2RGB8UNormInt),
+      GpuFeature.textureCompressionEtc2,
+    );
+    expect(
+      gpuTextureFormatFeature(TextureFormat.astc4x4LDR),
+      GpuFeature.textureCompressionAstc,
+    );
+
+    // A device asked for a feature the adapter does not carry does not answer
+    // with a lesser device — the promise is rejected — which is why `create`
+    // intersects rather than stating a list. Asserted against a name no
+    // implementation will ever have, so the check does not depend on this
+    // machine lacking a real feature.
+    await expectLater(
+      adapter
+          .requestDevice(
+            GPUDeviceDescriptor(
+              label: 'a device that asked for the impossible',
+              requiredFeatures: gpuStrings(const <String>[
+                'texture-compression-that-does-not-exist',
+              ]),
+            ),
+          )
+          .toDart,
+      throwsA(anything),
+    );
 
     final device = await adapter
         .requestDevice(

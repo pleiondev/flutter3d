@@ -219,14 +219,21 @@ final class WebGpuDevice implements GraphicsDevice, WgslModuleCompiler {
   /// backend. `openWebGpu` is where the null becomes the one sentence worth
   /// putting on a screen.
   ///
-  /// **The features are asked for rather than assumed.** A WebGPU device gets
-  /// exactly what it requested: sampling a BC7 texture on a device that did not
-  /// ask for `texture-compression-bc` is a validation error, not a slow path.
-  /// Two are requested where the adapter has them — filtering of 32-bit float
-  /// textures, and the full-precision depth-stencil format — and the three
-  /// compression families deliberately are not, which is why
-  /// [supportsTextureFormat] answers false for every block-compressed format
-  /// and an asset that carries one is left out with a reason.
+  /// **The features are asked for rather than assumed, and only the ones this
+  /// adapter admits to having.** A WebGPU device gets exactly what it requested:
+  /// sampling a BC7 texture on a device that did not ask for
+  /// `texture-compression-bc` is a validation error, not a slow path. The other
+  /// half of that rule is the trap — `requestDevice` asked for a feature the
+  /// adapter does not carry **rejects the promise** rather than handing back a
+  /// device without it, so a list of wants written as a constant is a game that
+  /// does not start on the first machine that lacks one of them. The adapter is
+  /// asked, the intersection is requested, and [supportsTextureFormat] then
+  /// answers from `gpuDevice.features` — what was granted — rather than from
+  /// this list, because the two are not the same thing.
+  ///
+  /// Five are worth asking for: filtering of 32-bit float textures, the
+  /// full-precision depth-stencil format, and the three block-compression
+  /// families, which are what a KTX2 asset arrives in.
   static Future<WebGpuDevice?> create({
     required int width,
     required int height,
@@ -244,6 +251,9 @@ final class WebGpuDevice implements GraphicsDevice, WgslModuleCompiler {
       for (final feature in const <String>[
         GpuFeature.float32Filterable,
         GpuFeature.depth32FloatStencil8,
+        GpuFeature.textureCompressionBc,
+        GpuFeature.textureCompressionEtc2,
+        GpuFeature.textureCompressionAstc,
       ])
         if (adapter.features.has(feature)) feature,
     ];
@@ -684,17 +694,29 @@ final class WebGpuDevice implements GraphicsDevice, WgslModuleCompiler {
   @override
   int get maxAnisotropy => 16;
 
-  /// Whether WebGPU has a name for [format] *and* this device asked for the
+  /// Whether WebGPU has a name for [format] *and* this device was granted the
   /// feature it needs.
   ///
-  /// Every block-compressed format comes back false, because [create] requests
-  /// none of the three compression families — see the note there. That is the
-  /// honest coupling: a format the device did not ask for is one a sample of
-  /// would be a validation error, so a loader gets a false and leaves the
-  /// texture out with a reason.
+  /// **Two questions, and the second is asked of the device rather than of a
+  /// table.** A spelling is not permission: `bc7-rgba-unorm` is a name the
+  /// specification defines and a device that did not request
+  /// `texture-compression-bc` refuses it at allocation and at sampling alike.
+  /// [create] asks the adapter which of the three families it carries and
+  /// requests exactly those, so what came back is what this reads —
+  /// `gpuDevice.features`, not the list of wants. A device may be granted less
+  /// than it asked for, and a capability answering from a wish is how a loader
+  /// is told to upload a texture the browser will not take.
+  ///
+  /// Three formats stay false whatever any adapter carries —
+  /// [TextureFormat.a8UNormInt] and the two HDR ASTC layouts — because WebGPU
+  /// has no spelling for them at all. See [gpuTextureFormat], which is where
+  /// that is written down.
   @override
-  bool supportsTextureFormat(TextureFormat format) =>
-      gpuTextureFormat(format) != null && !format.isCompressed;
+  bool supportsTextureFormat(TextureFormat format) {
+    if (gpuTextureFormat(format) == null) return false;
+    final feature = gpuTextureFormatFeature(format);
+    return feature == null || gpuDevice.features.has(feature);
+  }
 
   @override
   ShaderLibrary get shaders => _library;
@@ -951,22 +973,265 @@ final class WebGpuDevice implements GraphicsDevice, WgslModuleCompiler {
 
   /// The texture's pixels, premultiplied RGBA8, rows from the top.
   ///
-  /// Null where the texture has nothing to read: an attachment-only allocation
-  /// — this backend's translation of tile memory — a multisampled target, and,
-  /// for now, any format but the two eight-bit RGBA layouts. The contract
-  /// offers this as the way to read a float target back, and doing that here
-  /// means a conversion pass rather than a copy, because WebGPU has no
-  /// format-converting readback the way `glReadPixels` does. Null rather than a
-  /// wrong picture until that pass exists.
+  /// **A copy for the eight-bit layouts and a conversion pass for a float one,
+  /// because WebGPU's copy has no opinion about format.** `glReadPixels` is
+  /// asked for RGBA and UNSIGNED_BYTE and the driver converts on the way out;
+  /// `copyTextureToBuffer` hands over the bytes as they are stored, so a
+  /// `rgba16float` target copied straight out is half-floats wearing the name of
+  /// a picture. The contract names this method as *the* way to read a float
+  /// target — `GraphicsDevice.readback` refuses one above every backend and says
+  /// so — and a backend that answered null here left the contract with no answer
+  /// at all on this API.
+  ///
+  /// So a float target is drawn into an `r8g8b8a8UNormInt` target of the same
+  /// size by [_toEightBit] and the copy is made from that. **The price is a
+  /// full-screen pass and a second allocation per call**, both of which are why
+  /// the eight-bit path is still a plain copy: every golden this repository
+  /// records reads back the frame, and the frame is already eight-bit. A value
+  /// outside `[0, 1]` is clamped rather than wrapped — by the `rgba8unorm`
+  /// target rather than by the shader, see [_conversionModule] — which is what
+  /// the software rasteriser's own float-to-byte does and what a caller
+  /// comparing against a PNG is asking for.
+  ///
+  /// Null where the texture has nothing to read:
+  ///
+  ///  * an attachment-only allocation — this backend's translation of
+  ///    `deviceTransient` tile memory, which holds nothing after the pass;
+  ///  * a **multisampled** target, which is a refusal shared with every other
+  ///    backend rather than one of this backend's own. `readbackRegionOf`
+  ///    refuses it for `readback` in words — "has no pixels to copy until a pass
+  ///    resolves it" — GL cannot `readPixels` a multisampled read framebuffer,
+  ///    and here it is refused twice over: a multisampled target is allocated
+  ///    without `TEXTURE_BINDING`, so the conversion pass could not sample one
+  ///    either. Read the resolve target;
+  ///  * a cube or any other non-2D texture, which is a readback of six pictures
+  ///    where the interface names one;
+  ///  * a block-compressed texture, which has no eight-bit bytes to hand back
+  ///    and cannot be sampled into a target through a pass that assumes one
+  ///    texel is one texel;
+  ///  * an sRGB layout, and this one is a decision rather than a gap.
+  ///    `readbackFormats` leaves the sRGB twins out because the backends
+  ///    disagree about whether a readback decodes: one hands back the stored
+  ///    bytes and another the linear values they stand for. A conversion pass
+  ///    here would sample the texture, which *decodes*, and so would invent a
+  ///    third answer. The caller's move is the one that message already names —
+  ///    read the same texture through its non-sRGB layout.
   @override
   Future<ByteData?> readPixels(TextureHandle texture) async {
     final backend = texture.backend;
     if (backend is! WebGpuTexture || !backend.sampleable) return null;
     if (texture.sampleCount != 1) return null;
-    if (!readbackFormats.contains(texture.format)) return null;
     if (texture.type != TextureType.texture2D) return null;
-    return _copyBack(backend, ScreenRect.of(texture));
+    if (readbackFormats.contains(texture.format)) {
+      return _copyBack(backend, ScreenRect.of(texture));
+    }
+    if (!_convertibleFormats.contains(texture.format)) return null;
+    final converted = _toEightBit(texture, backend);
+    try {
+      return await _copyBack(
+        converted.backend as WebGpuTexture,
+        ScreenRect.of(converted),
+      );
+    } finally {
+      releaseTexture(converted);
+    }
   }
+
+  /// The formats [readPixels] will draw into an eight-bit target rather than
+  /// refuse.
+  ///
+  /// **The float ones and only those**, because they are the ones the contract
+  /// sends here: "a float target is read through `readPixels`". The one-channel
+  /// float comes back as `(r, 0, 0, 1)`, which is what a shader sampling it
+  /// reads and so is not an invention.
+  ///
+  /// The eight-bit and two-channel `UNormInt` layouts are deliberately absent.
+  /// Nothing in the engine renders into `r8unorm` or `rg8unorm` and reads it
+  /// back, so a conversion for them would be a path with no caller and no test —
+  /// and the question of what the other three backends put in the missing
+  /// channels has never been asked, let alone answered the same way three times.
+  static const Set<TextureFormat> _convertibleFormats = <TextureFormat>{
+    TextureFormat.r16g16b16a16Float,
+    TextureFormat.r32g32b32a32Float,
+    TextureFormat.r32Float,
+  };
+
+  /// [texture] drawn into a fresh `r8g8b8a8UNormInt` target of the same size.
+  ///
+  /// The caller owns what comes back and releases it — [readPixels] does, in a
+  /// `finally`, so a copy that throws does not leak a full-size target.
+  TextureHandle _toEightBit(TextureHandle texture, WebGpuTexture source) {
+    final target = createTexture(
+      RenderTargetSpec(
+        width: texture.width,
+        height: texture.height,
+        format: TextureFormat.r8g8b8a8UNormInt,
+      ),
+    );
+    final layout = _conversionLayout(_sampleTypeOf(texture.format));
+    guard('the readback conversion of a ${texture.format.name} target', () {
+      final group = gpuDevice.createBindGroup(
+        GPUBindGroupDescriptor(
+          layout: layout,
+          label: 'readback conversion source',
+          entries: <GPUBindGroupEntry>[
+            GPUBindGroupEntry.textureView(
+              binding: 0,
+              resource: source.sampledView,
+            ),
+          ].toJS,
+        ),
+      );
+      final encoder = gpuDevice.createCommandEncoder();
+      final pass = encoder.beginRenderPass(
+        GPURenderPassDescriptor(
+          label: 'readback conversion',
+          colorAttachments: <GPURenderPassColorAttachment>[
+            GPURenderPassColorAttachment(
+              view: (target.backend as WebGpuTexture).attachmentView(),
+              clearValue: GPUColorDict(r: 0, g: 0, b: 0, a: 0),
+              loadOp: 'clear',
+              storeOp: 'store',
+            ),
+          ].toJS,
+        ),
+      );
+      pass
+        ..setPipeline(_conversionPipeline(_sampleTypeOf(texture.format)))
+        ..setBindGroup(0, group)
+        ..draw(3)
+        ..end();
+      gpuDevice.queue.submit(<GPUCommandBuffer>[encoder.finish()].toJS);
+    });
+    return target;
+  }
+
+  /// Which sample type a bind group layout has to claim for [format].
+  ///
+  /// **`float` and `unfilterable-float` are not interchangeable, and the wrong
+  /// one is a pipeline that never draws.** A 32-bit float texture's sample type
+  /// is `unfilterable-float` on a device that was not granted
+  /// `float32-filterable` and `float` on one that was, so this is a question
+  /// about the device rather than about the format. Sixteen-bit float is
+  /// filterable on every device and is always `float`.
+  ///
+  /// The conversion shader reads with `textureLoad` and binds no sampler at all,
+  /// so filtering never happens either way — but the *layout* still has to name
+  /// the type the view actually has.
+  String _sampleTypeOf(TextureFormat format) =>
+      (format == TextureFormat.r32g32b32a32Float ||
+              format == TextureFormat.r32Float) &&
+          !gpuDevice.features.has(GpuFeature.float32Filterable)
+      ? 'unfilterable-float'
+      : 'float';
+
+  /// The conversion shader, compiled once for the life of the device.
+  ///
+  /// Written here rather than taken from the stage table, deliberately: this
+  /// device is opened over whatever [WebGpuSectionStages] it is handed — the
+  /// conformance harness hands it one, a game hands it another — so a readback
+  /// that named an engine stage would work in one of those and not the other.
+  /// Nine lines of WGSL that belong to the backend are the smaller dependency.
+  ///
+  /// [compileModule] is the same seam every other module goes through, so a
+  /// browser's opinion of this text reaches [debugDrainErrors] like any other.
+  ///
+  /// **`textureLoad` and no sampler at all**, which is what keeps the whole
+  /// question of filtering — and of `float32-filterable` — out of the picture:
+  /// the target is the source's own size, `@builtin(position)` in a WebGPU
+  /// fragment stage is the framebuffer coordinate with the origin at the top
+  /// left, and `textureLoad` takes texel coordinates from the same corner. One
+  /// texel in, one texel out, and nothing to turn over.
+  ///
+  /// **The clamp is the colour target's rather than this shader's**, and it was
+  /// written here first: `return clamp(texel, ...)` survived being deleted,
+  /// because writing an `f32` into an `rgba8unorm` attachment is specified to
+  /// clamp to `[0, 1]` before it quantises. So the range is held by the choice
+  /// of intermediate format, which is the thing `a value outside the range
+  /// clamps rather than wrapping` actually guards.
+  late final GPUShaderModule _conversionModule =
+      compileModule('readback conversion', r'''
+@group(0) @binding(0) var source: texture_2d<f32>;
+
+@vertex
+fn vs_main(@builtin(vertex_index) index: u32) -> @builtin(position) vec4<f32> {
+    let x = f32(i32(index) / 2) * 4.0 - 1.0;
+    let y = f32(i32(index) & 1) * 4.0 - 1.0;
+    return vec4<f32>(x, y, 0.0, 1.0);
+}
+
+@fragment
+fn fs_main(@builtin(position) at: vec4<f32>) -> @location(0) vec4<f32> {
+    return textureLoad(source, vec2<i32>(at.xy), 0);
+}
+''')
+          as GPUShaderModule;
+
+  final Map<String, GPUBindGroupLayout> _conversionLayouts =
+      <String, GPUBindGroupLayout>{};
+  final Map<String, GPURenderPipeline> _conversionPipelines =
+      <String, GPURenderPipeline>{};
+
+  /// The one-entry layout the conversion binds its source through, one per
+  /// distinct [sampleType] — which on a device with `float32-filterable` is one
+  /// for all three formats.
+  GPUBindGroupLayout _conversionLayout(String sampleType) =>
+      _conversionLayouts[sampleType] ??= gpuDevice.createBindGroupLayout(
+        GPUBindGroupLayoutDescriptor(
+          label: 'readback conversion $sampleType',
+          entries: <GPUBindGroupLayoutEntry>[
+            GPUBindGroupLayoutEntry.texture(
+              binding: 0,
+              visibility: GpuShaderStage.fragment,
+              texture: GPUTextureBindingLayout(
+                sampleType: sampleType,
+                viewDimension: '2d',
+                multisampled: false,
+              ),
+            ),
+          ].toJS,
+        ),
+      );
+
+  GPURenderPipeline _conversionPipeline(String sampleType) =>
+      _conversionPipelines[sampleType] ??= guard(
+        'the readback conversion pipeline',
+        () => gpuDevice.createRenderPipeline(
+          GPURenderPipelineDescriptor.withoutDepth(
+            label: 'readback conversion $sampleType',
+            layout: gpuDevice.createPipelineLayout(
+              GPUPipelineLayoutDescriptor(
+                label: 'readback conversion $sampleType',
+                bindGroupLayouts: <GPUBindGroupLayout>[
+                  _conversionLayout(sampleType),
+                ].toJS,
+              ),
+            ),
+            vertex: GPUVertexState(
+              module: _conversionModule,
+              entryPoint: 'vs_main',
+            ),
+            fragment: GPUFragmentState(
+              module: _conversionModule,
+              entryPoint: 'fs_main',
+              targets: <GPUColorTargetState>[
+                GPUColorTargetState.opaque(
+                  format: gpuTextureFormat(TextureFormat.r8g8b8a8UNormInt)!,
+                  writeMask: GpuColorWrite.all,
+                ),
+              ].toJS,
+            ),
+            // No culling, so the covering triangle's winding is not a decision
+            // this pass has to get right on a backend whose framebuffer y runs
+            // down.
+            primitive: GPUPrimitiveState(
+              topology: 'triangle-list',
+              cullMode: 'none',
+              frontFace: 'ccw',
+            ),
+          ),
+        ),
+      );
 
   @override
   Future<ByteData> readback(TextureHandle texture, {ScreenRect? region}) {
@@ -1072,6 +1337,8 @@ final class WebGpuDevice implements GraphicsDevice, WgslModuleCompiler {
     _bindingLayouts.clear();
     _samplers.clear();
     _bindGroups.clear();
+    _conversionLayouts.clear();
+    _conversionPipelines.clear();
     _library.forget();
 
     _context.unconfigure();

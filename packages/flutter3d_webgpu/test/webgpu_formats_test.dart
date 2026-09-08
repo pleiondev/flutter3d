@@ -154,6 +154,82 @@ void main() {
       expect(spelled.toSet().length, spelled.length);
     });
 
+    test('a compressed format names the feature it rides on', () {
+      // The three families WebGPU makes optional, spelled as the specification
+      // spells them. A misspelt name here is a device that quietly reports it
+      // cannot sample BC7 on a machine that can, because `GPUSupportedFeatures`
+      // answers false for a name it does not know rather than failing.
+      const families = <String>{
+        'texture-compression-bc',
+        'texture-compression-etc2',
+        'texture-compression-astc',
+      };
+      for (final format in TextureFormat.values) {
+        final feature = gpuTextureFormatFeature(format);
+        if (!format.isCompressed) {
+          expect(
+            feature,
+            isNull,
+            reason: '${format.name} is not compressed and needs no feature',
+          );
+          continue;
+        }
+        if (gpuTextureFormat(format) == null) {
+          // The two HDR ASTC layouts: no spelling, so no feature could unlock
+          // them. See `gpuTextureFormat`.
+          expect(feature, isNull, reason: '${format.name} has no spelling');
+          continue;
+        }
+        expect(
+          families,
+          contains(feature),
+          reason: '${format.name} rides on "$feature", which WebGPU has not',
+        );
+      }
+      // The family a format lands in is the family its spelling begins with,
+      // which is the one cross-check that catches a BC7 filed under ETC2.
+      for (final format in TextureFormat.values) {
+        final spelling = gpuTextureFormat(format);
+        final feature = gpuTextureFormatFeature(format);
+        if (spelling == null || feature == null) continue;
+        expect(
+          spelling.startsWith(feature.substring('texture-compression-'.length)),
+          isTrue,
+          reason: '${format.name} is "$spelling" but rides on "$feature"',
+        );
+      }
+    });
+
+    test('a compressed level is measured in blocks, rounded up', () {
+      // BC1: 4x4 blocks of eight bytes. A 16x16 level is four blocks across and
+      // four down.
+      final bc1 = gpuBlockLayoutOf(TextureFormat.bc1RGBAUNormInt, 16, 16);
+      expect(bc1.bytesPerRow, 32);
+      expect(bc1.rowsPerImage, 4);
+      expect(bc1.byteLength, 128);
+
+      // The tail of a chain, which is where the rounding matters: a 2x2 level of
+      // a 4x4-block format is one whole block and not a quarter of one.
+      final tail = gpuBlockLayoutOf(TextureFormat.bc1RGBAUNormInt, 2, 2);
+      expect(tail.bytesPerRow, 8);
+      expect(tail.rowsPerImage, 1);
+      expect(tail.byteLength, 8);
+
+      // Sixteen bytes a block rather than eight, and a wider footprint: the two
+      // numbers that would look identical if the layout were assumed.
+      final astc = gpuBlockLayoutOf(TextureFormat.astc8x8LDR, 16, 16);
+      expect(astc.bytesPerRow, 32);
+      expect(astc.rowsPerImage, 2);
+      expect(astc.byteLength, 64);
+
+      // The arithmetic that is wrong by one for exactly the sizes nobody tries:
+      // a level that is not whole blocks still occupies whole blocks.
+      final ragged = gpuBlockLayoutOf(TextureFormat.bc7RGBAUNormInt, 5, 5);
+      expect(ragged.bytesPerRow, 32);
+      expect(ragged.rowsPerImage, 2);
+      expect(ragged.byteLength, 64);
+    });
+
     test('blend factors, and the two that have no spelling', () {
       for (final factor in BlendFactor.values) {
         final spelling = gpuBlendFactor(factor);

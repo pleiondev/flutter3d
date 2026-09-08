@@ -231,6 +231,23 @@ TextureHandle webgpuCreateTexture(
       'has no WebGPU spelling; ask supportsTextureFormat first',
     );
   }
+  // **A block-compressed target is refused here rather than by the browser.**
+  // Every one of these has a spelling now that the compression features are
+  // asked for, so a spelling is no longer the thing that stops one becoming a
+  // render target — and `RENDER_ATTACHMENT` on a compressed format is a
+  // validation error whose message names a usage flag rather than the call that
+  // wanted it. The contract already says a compressed format is sample-only
+  // everywhere (`TextureFormatCompression.isCompressed`), which is the same
+  // refusal the WebGL2 backend gives by having no non-compressed table entry to
+  // hand back.
+  if (spec.format.isCompressed) {
+    throw ArgumentError.value(
+      spec.format,
+      'format',
+      'is block-compressed, and a compressed texture cannot be a render '
+          'target on any backend. Upload one through createTextureFromPixels',
+    );
+  }
   final attachmentOnly =
       spec.sampleCount > 1 || spec.storageMode == StorageMode.deviceTransient;
   final texture = gpu.createTexture(
@@ -275,10 +292,15 @@ TextureHandle webgpuCreateTexture(
 /// `GraphicsDevice.createTextureFromPixels`.
 ///
 /// Null where the bytes are not the size the description says, which is the
-/// contract's answer for a decoder that disagreed about the dimensions, and
-/// null for a compressed format — this device requests none of the three
-/// compression features, so `supportsTextureFormat` says no and an upload that
-/// ignored it stops here rather than at a browser message about a feature.
+/// contract's answer for a decoder that disagreed about the dimensions.
+///
+/// A block-compressed format goes to [_webgpuCreateCompressedTextureFromPixels],
+/// which measures in blocks rather than texels. It is still a null here for a
+/// family the device was not granted, because [gpuTextureFormat] has a spelling
+/// for all of them and only `supportsTextureFormat` knows which were asked for —
+/// so the split is: a spelling that exists and a feature that was not granted is
+/// a texture the browser would refuse, and the caller is meant to have asked
+/// first.
 TextureHandle? webgpuCreateTextureFromPixels(
   GPUDevice gpu,
   List<WebGpuTexture> tracked, {
@@ -289,8 +311,21 @@ TextureHandle? webgpuCreateTextureFromPixels(
   List<ByteData>? mipLevels,
 }) {
   final spelling = gpuTextureFormat(format);
+  if (spelling == null) return null;
+  if (format.isCompressed) {
+    return _webgpuCreateCompressedTextureFromPixels(
+      gpu,
+      tracked,
+      spelling: spelling,
+      width: width,
+      height: height,
+      format: format,
+      pixels: pixels,
+      mipLevels: mipLevels,
+    );
+  }
   final texelBytes = webgpuTexelBytes(format);
-  if (spelling == null || texelBytes == null) return null;
+  if (texelBytes == null) return null;
   if (pixels.lengthInBytes != width * height * texelBytes) return null;
 
   // Every level measured before a single byte is uploaded, the way the WebGL2
@@ -347,6 +382,116 @@ TextureHandle? webgpuCreateTextureFromPixels(
   );
 }
 
+/// The block-compressed half of [webgpuCreateTextureFromPixels].
+///
+/// **Split out rather than threaded through the path above, for the reason the
+/// WebGL2 backend split its own: the two disagree about arithmetic, not about a
+/// constant.** There a level is `width * height * texelBytes` bytes and here it
+/// is whole blocks rounded up; there `writeTexture`'s `bytesPerRow` is a row of
+/// texels and here it is a row of blocks, with `rowsPerImage` counting block
+/// rows to match. Handed the texel numbers, the browser reads several times the
+/// bytes that exist and refuses the write — which is the good outcome. The bad
+/// one is a chain whose lower levels were measured with the wrong rounding: the
+/// base draws, and the picture only goes wrong once something minifies.
+/// [gpuBlockLayoutOf] is that arithmetic, in one place, so the size check and
+/// the upload cannot disagree.
+///
+/// Every level is measured before a single byte is uploaded, exactly as the
+/// uncompressed path measures its chain: `mipLevelCount` is fixed when the
+/// texture is made, so a chain that turns out malformed halfway through leaves
+/// an allocation nothing can correct.
+///
+/// **No `RENDER_ATTACHMENT` and no `COPY_SRC`.** A compressed texture cannot be
+/// drawn into on any backend, and `readPixels` refuses it too — the contract
+/// hands back eight-bit RGBA and a compressed texture has no such bytes to give.
+/// Two usages it does not need are two the implementation need not plan around.
+TextureHandle? _webgpuCreateCompressedTextureFromPixels(
+  GPUDevice gpu,
+  List<WebGpuTexture> tracked, {
+  required String spelling,
+  required int width,
+  required int height,
+  required TextureFormat format,
+  required ByteData pixels,
+  List<ByteData>? mipLevels,
+}) {
+  if (pixels.lengthInBytes !=
+      gpuBlockLayoutOf(format, width, height).byteLength) {
+    return null;
+  }
+  final levels = mipLevels ?? const <ByteData>[];
+  var w = width;
+  var h = height;
+  for (final level in levels) {
+    w = w > 1 ? w >> 1 : 1;
+    h = h > 1 ? h >> 1 : 1;
+    if (level.lengthInBytes != gpuBlockLayoutOf(format, w, h).byteLength) {
+      return null;
+    }
+  }
+
+  final texture = gpu.createTexture(
+    GPUTextureDescriptor(
+      size: GPUExtent3DDict(
+        width: width,
+        height: height,
+        depthOrArrayLayers: 1,
+      ),
+      format: spelling,
+      usage: GpuTextureUsage.textureBinding | GpuTextureUsage.copyDst,
+      sampleCount: 1,
+      mipLevelCount: 1 + levels.length,
+      dimension: '2d',
+      label: 'image ${width}x$height $spelling',
+    ),
+  );
+
+  void upload(int level, int w, int h, ByteData bytes) {
+    final layout = gpuBlockLayoutOf(format, w, h);
+    gpu.queue.writeTexture(
+      GPUTexelCopyTextureInfo(
+        texture: texture,
+        mipLevel: level,
+        origin: GPUOrigin3DDict(x: 0, y: 0, z: 0),
+        aspect: 'all',
+      ),
+      bytes.buffer.asUint8List(bytes.offsetInBytes, bytes.lengthInBytes).toJS,
+      GPUTexelCopyBufferLayout(
+        offset: 0,
+        bytesPerRow: layout.bytesPerRow,
+        rowsPerImage: layout.rowsPerImage,
+      ),
+      // The extent stays in *texels* while the layout above is in blocks, which
+      // is the one place the two units meet. A level narrower than a block — the
+      // 2x2 tail of a 4x4 BC1 chain — is legal exactly because it is the whole
+      // of its level, and the block it is stored in covers the rest.
+      GPUExtent3DDict(width: w, height: h, depthOrArrayLayers: 1),
+    );
+  }
+
+  upload(0, width, height, pixels);
+  w = width;
+  h = height;
+  for (var i = 0; i < levels.length; i++) {
+    w = w > 1 ? w >> 1 : 1;
+    h = h > 1 ? h >> 1 : 1;
+    upload(i + 1, w, h, levels[i]);
+  }
+
+  final backend = WebGpuTexture(
+    texture: texture,
+    dimension: WebGpuTextureDimension.twoDimensional,
+    sampleable: true,
+  );
+  tracked.add(backend);
+  return TextureHandle(
+    backend: backend,
+    width: width,
+    height: height,
+    format: format,
+  );
+}
+
 /// [faces] in `+X, −X, +Y, −Y, +Z, −Z` order as one cube texture. See
 /// `GraphicsDevice.createCubeTextureFromPixels`.
 ///
@@ -356,6 +501,14 @@ TextureHandle? webgpuCreateTextureFromPixels(
 /// documents is honoured by the loop's own index and by nothing else — which is
 /// why the conformance check that draws six known directions against six known
 /// colours is the thing that holds it.
+///
+/// **A block-compressed cube is a null, and that is a scope line rather than a
+/// limit of the API.** WebGPU would take one — six layers of block rows is the
+/// same `writeTexture` the 2D path makes — but nothing in this repository
+/// uploads a compressed cube: the KTX2 loader hands over one 2D image and the
+/// engine's own cubes are rendered rather than decoded. A path with no caller is
+/// a path with no test, and the null is what [webgpuTexelBytes] already answers
+/// for a format it has no texel size for.
 TextureHandle? webgpuCreateCubeTextureFromPixels(
   GPUDevice gpu,
   List<WebGpuTexture> tracked, {
@@ -449,8 +602,9 @@ TextureHandle? webgpuCreateCubeTextureFromPixels(
 /// fills the chain with its own passes rather than asking this API for a
 /// `generateMipmap` it does not have.
 ///
-/// Null for a format this device has no spelling for, which is the same answer
-/// `supportsTextureFormat` already gave.
+/// Null for a format this device has no spelling for, and for a block-compressed
+/// one: those have spellings now that the compression features are asked for,
+/// and a compressed render target is a validation error rather than a slow path.
 TextureHandle? webgpuCreateCubeRenderTarget(
   GPUDevice gpu,
   List<WebGpuTexture> tracked, {
@@ -459,7 +613,7 @@ TextureHandle? webgpuCreateCubeRenderTarget(
   int mipLevels = 1,
 }) {
   final spelling = gpuTextureFormat(format);
-  if (spelling == null) return null;
+  if (spelling == null || format.isCompressed) return null;
   final texture = gpu.createTexture(
     GPUTextureDescriptor(
       size: GPUExtent3DDict(width: size, height: size, depthOrArrayLayers: 6),

@@ -8,17 +8,56 @@ as bytes alike; and `flutter3d_conformance` answers **33 of 33** against a live
 adapter in Chrome — the same list the other three backends are held to, run as an
 ordinary test file rather than as an application somebody watches, because Chrome
 has a WebGPU device inside `flutter test` and that is the one arrangement
-Impeller cannot have. Three of the thirty-three pass by *declining*, and each
+Impeller cannot have. Two of the thirty-three pass by *declining*, and each
 decline is a capability this device says false to by name rather than a method
 that quietly does nothing: **the blend constant** (WebGPU has `"constant"` and
 `"one-minus-constant"` and no colour/alpha split to form `BlendFactor.blendAlpha`
-with), **wireframe** (no polygon fill mode in the API at all), and **every
-block-compressed format** (the device requests no compression family, and
-sampling one it did not request is a validation error rather than a slow path).
-What separates those three from a gap is only that they are declared, which this
-package learned by getting it wrong once: `createCubeRenderTarget` returned null
-while `supportsCubeTextures` said true, and the suite failed it instead of
-declining it.
+with) and **wireframe** (no polygon fill mode in the API at all). What separates
+those two from a gap is only that they are declared, which this package learned
+by getting it wrong once: `createCubeRenderTarget` returned null while
+`supportsCubeTextures` said true, and the suite failed it instead of declining
+it.
+
+**The compression families are asked for, and the asking is the whole of it.**
+`supportsTextureFormat` answered false for every block-compressed layout because
+`create` requested none of the three features — an honest sentence about this
+device's request rather than about WebGPU. The adapter is now asked which of
+`texture-compression-bc`, `-etc2` and `-astc` it carries and exactly those are
+requested, because `requestDevice` handed a feature the adapter lacks **rejects
+the promise** instead of answering with a lesser device: a constant list of wants
+is a game that does not start on the first machine missing one. The capability
+answers from `gpuDevice.features` — what was granted — rather than from the list
+of wants, since a device may be given less than it asked for. Uploading a level
+is block arithmetic and not texel arithmetic: `writeTexture`'s `bytesPerRow` is a
+row of *blocks* and `rowsPerImage` counts block rows, so an 8x8 BC1 level is two
+rows of sixteen bytes and a level narrower than a block is one whole block. The
+conformance check `a compressed format it supports samples its colour back`
+stops declining itself and draws a block of each family the adapter carries.
+Three formats stay false on every adapter there will ever be — `a8UNormInt`,
+which WebGPU dropped for `r8unorm` plus a swizzle, and the two HDR ASTC layouts,
+which no feature exposes — and a compressed *render target* is refused by name,
+because a spelling is not permission to draw into one.
+
+**A float target reads back as a picture, and looking for the check that would
+have said so found there is none.** `readPixels` answered null for anything but
+the two eight-bit RGBA layouts, while the contract names that method as *the* way
+to read a float target: `readback` refuses a float format above every backend and
+its message says to come here. WebGPU has no format-converting readback —
+`copyTextureToBuffer` hands over the bytes as stored, where `glReadPixels`
+converts — so the float target is drawn into an eight-bit one by a full-screen
+`textureLoad` pass and the copy is made from that, at the price of a pass and an
+allocation per call. The finding beside it: **nothing in `flutter3d_conformance`
+asks any backend to read a float target back.** Every readback in that suite is
+`r8g8b8a8UNormInt` and the only check naming a float format asserts the refusal
+of `readback`. It is not added there, because such a check would fail on WebGL2
+today, where `readPixels(RGBA, UNSIGNED_BYTE)` of an RGBA16F attachment is an
+`INVALID_OPERATION` that leaves a pack buffer of zeros and a future completing
+successfully with a black picture. The promise is witnessed in
+`test/webgpu_draw_test.dart` instead, and that hole is stated rather than
+silently inherited. Multisampled and `deviceTransient` targets stay null and the
+refusal is shared: `readbackRegionOf` states it for every backend, and here a
+multisampled target has no `TEXTURE_BINDING` either, so the conversion pass could
+not sample one.
 
 **Reflection probes are on, and lifting that refusal took no code at all —
 which is the finding.** `supportsRenderToMip` answered false for one iteration

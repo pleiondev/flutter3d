@@ -1758,7 +1758,7 @@ entities a game defines.
 |---|---|
 | Style | `dart format` |
 | Analysis | `flutter analyze` clean across the workspace, no warnings |
-| Unit tests | **4313 tests** across 28 packages and 6 applications |
+| Unit tests | **4322 tests** across 28 packages and 6 applications |
 | Structure rules | 30, `dart run tool/structure.dart`, the first CI step |
 | CI | GitHub Actions over `tool/ci.sh`, on `ubuntu-latest`, with no graphics card |
 
@@ -2114,12 +2114,12 @@ what closing part of it produced — three new parity fixtures found the sky
 blacking out every frame, and a reference set of thirty-two found a lighting
 model drawing nothing.
 
-**`flutter3d_webgpu` draws, and four of its capabilities answer no on
+**`flutter3d_webgpu` draws, and two of its capabilities answer no on
 purpose.** It implements the same `GraphicsDevice` the other three do, over
 `navigator.gpu`: a device opens, a pass records, all thirty-nine of the engine's
 stages compile, and `flutter3d_conformance` answers **33 of 33 in Chrome** —
 against a live adapter, run as a test rather than as an application, which is the
-arrangement WebGL2 already had and Impeller cannot have. Four of those
+arrangement WebGL2 already had and Impeller cannot have. Two of those
 thirty-three pass by *refusing*, and each refusal is a capability the device
 declares false rather than a check that was quietly skipped:
 
@@ -2133,14 +2133,40 @@ declares false rather than a check that was quietly skipped:
   here would be line primitives and an index buffer built for them, which is the
   renderer's decision to make and not a backend's — the same answer WebGL2 gives
   for the same reason.
-- **`supportsTextureFormat` for every block-compressed format.** A WebGPU device
-  gets exactly the features it asked for, and this one asks for float filtering
-  and the full-precision depth-stencil format and none of the three compression
-  families. Sampling a BC7 texture on a device that did not request
-  `texture-compression-bc` is a validation error rather than a slow path, so the
-  honest answer is a false that leaves the texture out with a reason.
-**Two capabilities left that list, and between them they are the clearest
+**Three capabilities left that list, and between them they are the clearest
 statement in this repository of how a refusal goes wrong.**
+
+`supportsTextureFormat` answered false for every block-compressed format, on the
+argument that a WebGPU device gets exactly the features it asked for and this one
+asked for none of the three compression families — which was true, and was a
+description of the device's own request rather than of the API. The families are
+asked for now: `create` reads `adapter.features`, requests the intersection, and
+the capability answers from `gpuDevice.features` — what was *granted*, which is
+not always what was asked for. The order matters and is the whole trap:
+`requestDevice` handed a feature the adapter does not carry rejects the promise
+rather than answering with a lesser device, so a constant list of wants is a game
+that does not start on the first machine missing one. Uploading a compressed
+level is then block arithmetic rather than texel arithmetic — `writeTexture`'s
+`bytesPerRow` is a row of blocks and `rowsPerImage` counts block rows — and
+`flutter3d_conformance`'s `a compressed format it supports samples its colour
+back` stops declining itself and draws a block of each family. Three of the
+engine's formats stay false whatever adapter it runs on: `a8UNormInt`, which
+WebGPU dropped in favour of `r8unorm` plus a swizzle, and the two HDR ASTC
+layouts, which no WebGPU feature exposes at all.
+
+`readPixels` answered null for anything but the two eight-bit RGBA layouts, and
+the contract names it as *the* way to read a float target back — `readback`
+refuses one above every backend and its message says so. WebGPU has no
+format-converting readback: `copyTextureToBuffer` hands over the bytes as stored,
+where `glReadPixels` converts. So a float target is drawn into an eight-bit one
+by a full-screen `textureLoad` pass and the copy is made from that, at the cost
+of a pass and an allocation per call. Nothing in `flutter3d_conformance` asks for
+this on any backend — every readback in that suite is `r8g8b8a8UNormInt` — and a
+check added there would fail on WebGL2 today, where `readPixels(RGBA,
+UNSIGNED_BYTE)` of an RGBA16F attachment is an `INVALID_OPERATION` that leaves a
+pack buffer of zeros and a future completing successfully with a black picture.
+The promise is witnessed in `webgpu_draw_test.dart` for now, and the WebGL2 hole
+is written down rather than papered over.
 
 `createCubeRenderTarget` answered null for a while on the argument that a cube a
 probe can draw into is only useful beside a chain it can filter into, so the two

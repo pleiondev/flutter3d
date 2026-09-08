@@ -22,13 +22,22 @@ import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 
 /// The texture format WebGPU calls [format], or null where it has none.
 ///
-/// Null is an answer rather than a failure: it is what
-/// `GraphicsDevice.supportsTextureFormat` reports false for, and the contract
-/// already asks a caller to ask. Three of the engine's formats have no WebGPU
-/// spelling at all — [TextureFormat.a8UNormInt], which WebGPU dropped in favour
-/// of `r8unorm` plus a swizzle in the shader, and the two HDR ASTC formats,
-/// which no WebGPU feature exposes. Nothing in this repository allocates any of
-/// the three, which is why they cost a null here and not an argument.
+/// Null is an answer rather than a failure: it is one of the two things
+/// `GraphicsDevice.supportsTextureFormat` reports false for — the other being a
+/// compression family the device was not granted, which is
+/// [gpuTextureFormatFeature] — and the contract already asks a caller to ask.
+///
+/// **Three of the engine's formats have no WebGPU spelling at all, and no
+/// amount of work on this backend will give them one.** They are
+/// [TextureFormat.a8UNormInt], which WebGPU dropped in favour of `r8unorm` plus
+/// a swizzle in the shader, and [TextureFormat.astc4x4HDR] and
+/// [TextureFormat.astc8x8HDR], whose profile no WebGPU feature exposes:
+/// `texture-compression-astc` unlocks the LDR block formats and there is no
+/// second feature behind it. So those three stay a refusal after the compressed
+/// families are asked for and granted, and the refusal is a property of the API
+/// rather than a piece of this package nobody has written yet. Nothing in this
+/// repository allocates any of the three, which is why they cost a null here and
+/// not an argument.
 String? gpuTextureFormat(TextureFormat format) => switch (format) {
   TextureFormat.unknown => null,
   TextureFormat.a8UNormInt => null,
@@ -62,6 +71,75 @@ String? gpuTextureFormat(TextureFormat format) => switch (format) {
   TextureFormat.astc4x4HDR => null,
   TextureFormat.astc8x8HDR => null,
 };
+
+/// The adapter feature [format] rides on, or null for one every WebGPU device
+/// has.
+///
+/// **A spelling is not permission.** `rgba8unorm` works on every device;
+/// `bc7-rgba-unorm` is a name the specification defines and a device that did
+/// not request `texture-compression-bc` refuses outright, allocation and sample
+/// alike. So `GraphicsDevice.supportsTextureFormat` is two questions and this is
+/// the second: whether the family's feature was granted. `WebGpuDevice.create`
+/// asks the adapter which of the three it has and requests exactly those,
+/// because requesting one the adapter lacks does not answer with a lesser
+/// device — it rejects the promise, and a game that will not start is a worse
+/// answer than a texture left out.
+///
+/// The three names are written here rather than taken from `GpuFeature`, which
+/// carries the same three: that class lives in `webgpu_interop.dart`, which
+/// imports `dart:js_interop` and cannot be reached from a library that runs on
+/// the VM. `webgpu_interop_test.dart` — which runs in a browser and can import
+/// both — holds the two statements against each other, so the duplication is
+/// checked rather than trusted.
+///
+/// Null for [TextureFormat.astc4x4HDR] and [TextureFormat.astc8x8HDR], which is
+/// not a claim that they need nothing: [gpuTextureFormat] has already answered
+/// null for both, because no WebGPU feature exposes the HDR profile of ASTC at
+/// all. A format with no spelling never reaches this question.
+String? gpuTextureFormatFeature(TextureFormat format) => switch (format) {
+  TextureFormat.bc1RGBAUNormInt ||
+  TextureFormat.bc1RGBAUNormIntSRGB ||
+  TextureFormat.bc3RGBAUNormInt ||
+  TextureFormat.bc3RGBAUNormIntSRGB ||
+  TextureFormat.bc5RGUNormInt ||
+  TextureFormat.bc7RGBAUNormInt ||
+  TextureFormat.bc7RGBAUNormIntSRGB => 'texture-compression-bc',
+  TextureFormat.etc2RGB8UNormInt ||
+  TextureFormat.etc2RGB8UNormIntSRGB ||
+  TextureFormat.etc2RGBA8UNormInt ||
+  TextureFormat.etc2RGBA8UNormIntSRGB => 'texture-compression-etc2',
+  TextureFormat.astc4x4LDR ||
+  TextureFormat.astc4x4LDRSRGB ||
+  TextureFormat.astc8x8LDR ||
+  TextureFormat.astc8x8LDRSRGB => 'texture-compression-astc',
+  _ => null,
+};
+
+/// The row stride and the number of rows `writeTexture` wants for a
+/// [width] by [height] level of a block-compressed [format].
+///
+/// **Both numbers are counted in blocks, and that is the whole trap.** For
+/// `rgba8unorm` the stride is a row of texels and `rowsPerImage` is a row count;
+/// for `bc7-rgba-unorm` the stride is a row of *blocks* — sixteen bytes each
+/// covering four texels across — and `rowsPerImage` counts block rows, so a
+/// 64x64 BC7 level is sixteen rows of 256 bytes rather than sixty-four rows of
+/// anything. Handed the texel arithmetic instead, the browser reads four times
+/// the bytes that exist and refuses the write.
+///
+/// The rounding is up, which is what makes a chain work: level three of a 32x32
+/// ASTC 8x8 texture is 4x4 texels and still one whole block, and a level smaller
+/// than a block is stored as one block whatever it covers.
+({int bytesPerRow, int rowsPerImage, int byteLength}) gpuBlockLayoutOf(
+  TextureFormat format,
+  int width,
+  int height,
+) {
+  final block = format.blockLayout;
+  final wide = (width + block.blockWidth - 1) ~/ block.blockWidth;
+  final high = (height + block.blockHeight - 1) ~/ block.blockHeight;
+  final stride = wide * block.bytesPerBlock;
+  return (bytesPerRow: stride, rowsPerImage: high, byteLength: stride * high);
+}
 
 /// The blend factor WebGPU calls [factor], or null where it has none.
 ///

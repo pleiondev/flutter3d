@@ -649,18 +649,352 @@ void main() {
       scene.device.dispose();
     });
 
-    test('a compressed format it did not ask the adapter for', () async {
-      // `create` requests none of the three compression families, so sampling
-      // one would be a validation error rather than a slow path, and a loader
-      // asking here gets a false and leaves the texture out with a reason.
+    test('a format WebGPU has no spelling for at all', () async {
+      // Three of the engine's formats stay false whatever adapter this runs on,
+      // and that is a property of the API rather than work left undone:
+      // `a8UNormInt` was dropped in favour of `r8unorm` plus a swizzle, and no
+      // WebGPU feature exposes the HDR profile of ASTC — `texture-compression-
+      // astc` unlocks the LDR blocks and there is no second feature behind it.
+      final scene = await _scene();
+      if (scene == null) return;
+      for (final format in const <TextureFormat>[
+        TextureFormat.a8UNormInt,
+        TextureFormat.astc4x4HDR,
+        TextureFormat.astc8x8HDR,
+      ]) {
+        expect(
+          scene.device.supportsTextureFormat(format),
+          isFalse,
+          reason: '${format.name} has no WebGPU spelling and never will',
+        );
+      }
+      scene.device.dispose();
+    });
+
+    test('a compressed render target, whatever the adapter carries', () async {
+      // A spelling is not permission to draw into one. Every compressed format
+      // has a spelling now that the families are asked for, so the thing that
+      // stops a compressed render target is this refusal rather than a missing
+      // table entry — and `RENDER_ATTACHMENT` on a compressed format is a
+      // browser message about a usage flag that names nothing a caller wrote.
       final scene = await _scene();
       if (scene == null) return;
       expect(
-        scene.device.supportsTextureFormat(TextureFormat.bc7RGBAUNormInt),
-        isFalse,
-        reason: 'this device requests none of the compression features',
+        () => scene.device.createTexture(
+          const RenderTargetSpec(
+            width: 8,
+            height: 8,
+            format: TextureFormat.bc1RGBAUNormInt,
+          ),
+        ),
+        throwsArgumentError,
+      );
+      expect(
+        scene.device.createCubeRenderTarget(
+          size: 8,
+          format: TextureFormat.bc1RGBAUNormInt,
+        ),
+        isNull,
       );
       scene.device.dispose();
+    });
+  });
+
+  group('the compression families', () {
+    test('a format is supported exactly when its feature was granted', () async {
+      // **The coupling, asked of the device rather than of a wish.** `create`
+      // asks the adapter which families it carries and requests those, because
+      // asking for one the adapter lacks rejects the promise outright — a game
+      // that does not start. What came back may still be less than what was
+      // asked for, so the capability reads `gpuDevice.features` and this asserts
+      // that it does.
+      //
+      // Mutation: answer from the list of wants instead. On an adapter carrying
+      // all three nothing moves; on one carrying none, every line below fails.
+      final scene = await _scene();
+      if (scene == null) return;
+      final device = scene.device;
+      for (final (format, feature) in <(TextureFormat, String)>[
+        (TextureFormat.bc7RGBAUNormInt, GpuFeature.textureCompressionBc),
+        (TextureFormat.etc2RGB8UNormInt, GpuFeature.textureCompressionEtc2),
+        (TextureFormat.astc4x4LDR, GpuFeature.textureCompressionAstc),
+      ]) {
+        expect(
+          device.supportsTextureFormat(format),
+          device.gpuDevice.features.has(feature),
+          reason:
+              '${format.name} is reported as ${device.supportsTextureFormat(format)} '
+              'while the device ${device.gpuDevice.features.has(feature) ? 'has' : 'has not'} '
+              '"$feature"',
+        );
+      }
+      device.dispose();
+    });
+
+    test('a BC1 chain uploads in blocks and samples the colour it holds', () async {
+      // **What the conformance suite's one-block check cannot ask.** That one
+      // uploads a single 4x4 block and samples it, which is the family working
+      // at all; this one hands over a chain, and a chain is where the block
+      // arithmetic goes wrong quietly. `writeTexture`'s `bytesPerRow` for a
+      // compressed level is a row of *blocks* and `rowsPerImage` counts block
+      // rows — an 8x8 BC1 level is two rows of sixteen bytes, not eight rows of
+      // anything — and a level measured in texels is either a write the browser
+      // refuses or, with the rounding done the other way, a lower level built
+      // from a prefix that draws a plausible wrong picture the moment something
+      // minifies.
+      //
+      // Mutation: multiply `bytesPerRow` by the block width in
+      // `gpuBlockLayoutOf`. The upload is refused and this comes back black.
+      final scene = await _scene();
+      if (scene == null) return;
+      final device = scene.device;
+      if (!device.supportsTextureFormat(TextureFormat.bc1RGBAUNormInt)) {
+        markTestSkipped('this adapter carries no texture-compression-bc');
+        device.dispose();
+        return;
+      }
+
+      // One 4x4 BC1 block of a single colour: both 565 endpoints the same, every
+      // two-bit pick zero. Assembled from the bit layout rather than taken from
+      // an encoder, so the colour that comes back is arithmetic.
+      Uint8List block(int r, int g, int b) {
+        final c = ((r >> 3) << 11) | ((g >> 2) << 5) | (b >> 3);
+        return Uint8List.fromList(<int>[
+          c & 0xFF,
+          c >> 8,
+          c & 0xFF,
+          c >> 8,
+          0,
+          0,
+          0,
+          0,
+        ]);
+      }
+
+      // 8x8 is two blocks by two, and its one level below is a single block.
+      final base = Uint8List(4 * 8)
+        ..setAll(0, block(136, 68, 204))
+        ..setAll(8, block(136, 68, 204))
+        ..setAll(16, block(136, 68, 204))
+        ..setAll(24, block(136, 68, 204));
+      final texture = device.createTextureFromPixels(
+        width: 8,
+        height: 8,
+        format: TextureFormat.bc1RGBAUNormInt,
+        pixels: ByteData.sublistView(base),
+        mipLevels: <ByteData>[ByteData.sublistView(block(136, 68, 204))],
+      );
+      expect(
+        texture,
+        isNotNull,
+        reason: 'an 8x8 BC1 texture with one level below it was refused',
+      );
+
+      // A level whose bytes are measured the wrong way is refused before a
+      // texture exists, which is the other half of the same arithmetic.
+      expect(
+        device.createTextureFromPixels(
+          width: 8,
+          height: 8,
+          format: TextureFormat.bc1RGBAUNormInt,
+          pixels: ByteData.sublistView(base),
+          mipLevels: <ByteData>[ByteData(32)],
+        ),
+        isNull,
+        reason: 'a 4x4 BC1 level is one block, and 32 bytes is four',
+      );
+
+      final target = scene.target();
+      final pass = device.beginRenderPass(
+        RenderPassDescriptor(colors: <ColorTarget>[_clearTo(target)]),
+      )..bindPipeline(scene.pipeline);
+      scene.bindQuad(
+        pass,
+        where: placedAt(),
+        sampler: SamplerOptions.nearestClamp,
+      );
+      pass
+        ..bindTexture(
+          scene.fragmentStage,
+          'palette',
+          texture!,
+          sampler: SamplerOptions.nearestClamp,
+        )
+        ..draw()
+        ..submit();
+
+      final pixels = await device.readPixels(target);
+      expect(await device.debugDrainErrors('the compressed draw'), isNull);
+      final got = _texel(pixels!, 4, 1, 1);
+      // BC1 stores 5:6:5, so the endpoint comes back as (140, 69, 206). Eight is
+      // the same tolerance the conformance suite allows for the same reason.
+      for (final (channel, read, want) in <(String, int, int)>[
+        ('red', got[0], 136),
+        ('green', got[1], 68),
+        ('blue', got[2], 204),
+      ]) {
+        expect(
+          (read - want).abs(),
+          lessThanOrEqualTo(8),
+          reason: 'the block encodes $channel $want and sampled as $read',
+        );
+      }
+      device.dispose();
+    });
+  });
+
+  group('readPixels of a float target', () {
+    // **The contract names this method as the way to read a float target back,
+    // and nothing in the conformance suite asks for it.** That suite reads back
+    // twenty-odd targets and every one of them is `r8g8b8a8UNormInt`; the only
+    // check that mentions a float format is the one asserting `readback`
+    // *refuses* it, and the refusal's own message says the caller's move is
+    // `readPixels`. So the promise had no witness on any backend — which is why
+    // these are here and not in `flutter3d_conformance`: a check added there
+    // would fail on WebGL2 today, where `readPixels(RGBA, UNSIGNED_BYTE)` of an
+    // RGBA16F attachment is an INVALID_OPERATION that leaves a pack buffer of
+    // zeros and a future that completes successfully with a black picture. That
+    // is a finding about that backend rather than something this change may
+    // quietly turn into a red build.
+    //
+    // Mutation: drop the conversion pass and copy the float bytes straight out.
+    // Half-floats read as eight-bit RGBA are not the colour, and every
+    // expectation below moves.
+    Future<List<int>> read(
+      WebGpuDevice device,
+      TextureFormat format,
+      Vector4 colour,
+    ) async {
+      final target = device.createTexture(
+        RenderTargetSpec(width: 4, height: 4, format: format),
+      );
+      device
+          .beginRenderPass(
+            RenderPassDescriptor(
+              colors: <ColorTarget>[
+                ColorTarget(texture: target, clearValue: colour),
+              ],
+            ),
+          )
+          .submit();
+      final pixels = await device.readPixels(target);
+      expect(
+        await device.debugDrainErrors('the ${format.name} conversion'),
+        isNull,
+      );
+      expect(
+        pixels,
+        isNotNull,
+        reason:
+            '${format.name} came back null; the contract sends a float '
+            'target here',
+      );
+      expect(
+        pixels!.lengthInBytes,
+        4 * 4 * 4,
+        reason:
+            'the answer is the region times four bytes, whatever the '
+            'source format was',
+      );
+      return _texel(pixels, 4, 2, 2);
+    }
+
+    test('the half-float target the engine renders into', () async {
+      final scene = await _scene();
+      if (scene == null) return;
+      final got = await read(
+        scene.device,
+        TextureFormat.r16g16b16a16Float,
+        Vector4(0.25, 0.5, 0.75, 1.0),
+      );
+      // A quarter, a half and three quarters of 255, to a rounding.
+      expect(got[0], closeTo(64, 2));
+      expect(got[1], closeTo(128, 2));
+      expect(got[2], closeTo(191, 2));
+      expect(got[3], 255);
+      scene.device.dispose();
+    });
+
+    test('the full-width float the morph path uploads', () async {
+      final scene = await _scene();
+      if (scene == null) return;
+      final got = await read(
+        scene.device,
+        TextureFormat.r32g32b32a32Float,
+        Vector4(1.0, 0.0, 0.5, 1.0),
+      );
+      expect(got[0], 255);
+      expect(got[1], 0);
+      expect(got[2], closeTo(128, 2));
+      expect(got[3], 255);
+      scene.device.dispose();
+    });
+
+    test('a value outside the range clamps rather than wrapping', () async {
+      // What the software rasteriser's own float-to-byte does, and what a caller
+      // comparing a tone-mapped frame against a PNG is asking for. A conversion
+      // that let 2.0 wrap would come back near zero and read as a black frame.
+      final scene = await _scene();
+      if (scene == null) return;
+      final got = await read(
+        scene.device,
+        TextureFormat.r16g16b16a16Float,
+        Vector4(4.0, -1.0, 0.5, 1.0),
+      );
+      expect(got[0], 255);
+      expect(got[1], 0);
+      expect(got[2], closeTo(128, 2));
+      scene.device.dispose();
+    });
+
+    test('what stays null, and why each is not a gap', () async {
+      final scene = await _scene();
+      if (scene == null) return;
+      final device = scene.device;
+
+      // Tile memory holds nothing after the pass, which here is an attachment
+      // allocated without TEXTURE_BINDING — so the conversion could not sample
+      // it either.
+      expect(
+        await device.readPixels(
+          device.createTexture(
+            const RenderTargetSpec(
+              width: 4,
+              height: 4,
+              format: TextureFormat.r8g8b8a8UNormInt,
+              storageMode: StorageMode.deviceTransient,
+            ),
+          ),
+        ),
+        isNull,
+      );
+
+      // Multisampled, which is the refusal `readbackRegionOf` states above every
+      // backend: there are no pixels to copy until a pass resolves it. Read the
+      // resolve target.
+      expect(
+        await device.readPixels(scene.target(sampleCount: 4)),
+        isNull,
+        reason: 'a multisampled target is refused on every backend',
+      );
+
+      // sRGB, and this one is a decision. A conversion pass samples, and
+      // sampling decodes — so a picture from here would be a third answer beside
+      // the two the other backends already give. Read the same texture through
+      // its non-sRGB layout.
+      expect(
+        await device.readPixels(
+          device.createTexture(
+            const RenderTargetSpec(
+              width: 4,
+              height: 4,
+              format: TextureFormat.r8g8b8a8UNormIntSRGB,
+            ),
+          ),
+        ),
+        isNull,
+      );
+      device.dispose();
     });
   });
 

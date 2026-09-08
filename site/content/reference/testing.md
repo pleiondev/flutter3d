@@ -1,10 +1,10 @@
 ---
-description: Three independent golden sets and a fourth being recorded, mutation-checking every new test, determinism and snapshots, and why only about thirty of 4313 tests need a GPU.
+description: Three independent golden sets and a fourth being recorded, mutation-checking every new test, determinism and snapshots, and why only about thirty of 4322 tests need a GPU.
 ---
 
 # Testing
 
-4313 tests across 28 packages and six applications, counted the same way the `the document says how many tests there are` rule does: a scan of every `test(`/`testWidgets(` call. The rule holds `ARCHITECTURE.md` §13, the README and this page to the answer — the README went on saying 1242 across thirteen packages for as long as nothing compared it with anything. About thirty need a GPU; the [architecture](/core/architecture/) is what keeps the number that low.
+4322 tests across 28 packages and six applications, counted the same way the `the document says how many tests there are` rule does: a scan of every `test(`/`testWidgets(` call. The rule holds `ARCHITECTURE.md` §13, the README and this page to the answer — the README went on saying 1242 across thirteen packages for as long as nothing compared it with anything. About thirty need a GPU; the [architecture](/core/architecture/) is what keeps the number that low.
 
 | Package | Tests | | Package | Tests |
 |---|---|---|---|---|
@@ -17,7 +17,7 @@ description: Three independent golden sets and a fourth being recorded, mutation
 | `flutter3d_cpu` | 187 | | `apps/flutter3d_demo_strategy` | 42 |
 | `apps/flutter3d_editor` | 169 | | `flutter3d_session` | 34 |
 | `apps/flutter3d_demo_racing` | 144 | | `pointer_lock` | 28 |
-| `flutter3d_physics` | 168 | | `flutter3d_webgpu` | 166 |
+| `flutter3d_physics` | 168 | | `flutter3d_webgpu` | 175 |
 | `flutter3d_game_strategy` | 131 | | `flutter3d_editor_mcp` | 14 |
 | `flutter3d_screens` | 120 | | `flutter3d_testing` | 7 |
 | `flutter3d_editor_core` | 101 | | `apps/flutter3d_template_app` | 4 |
@@ -25,7 +25,7 @@ description: Three independent golden sets and a fourth being recorded, mutation
 | `flutter3d_game` | 79 | | `flutter3d_shaders` | 1 |
 | `flutter3d_particles` | 73 | | | |
 
-The rows sum to 4294 rather than 4313: the remaining 19 live in `packages/*/example/test`, which the count includes and this table does not.
+The rows sum to 4303 rather than 4322: the remaining 19 live in `packages/*/example/test`, which the count includes and this table does not.
 
 `flutter3d_app` and `flutter3d_samples` are not in the table and have no `test/` at all. One is a barrel of thirty-five `export` lines and the other is test data with two path constants over it; what there is to check about them is structural, and other packages' decoder tests are what exercise the samples. `flutter3d_conformance` is missing for a different reason: it is invoked as a script harness rather than through `flutter test`, so it does not surface in a grep of `test(` calls either. See below for what that cost once.
 
@@ -59,7 +59,7 @@ The browser's set is recorded when a branch lands rather than beside it — `gol
 <p>Flutter GPU requires Impeller, which a headless <code>flutter test</code> cannot give it, so the conformance harness has to be an application that somebody watches run. It was one — and stood there showing a pass list to a human — from the same commit that added a fix meant to be caught by it, until <code>packages/flutter3d_impeller/tool/conformance.sh</code> was written to actually run the suite and return its exit code. Once it did, the suite passed; nobody had known either way before then. The <code>the Impeller runners are reachable</code> rule now keeps that script from going stale — checking that it exists, that it is executable, and that it and the entry point still agree about the line the verdict is read from.</p>
 </div>
 
-`flutter3d_webgpu` is the backend that gets the arrangement Impeller cannot. Chrome has a real WebGPU device inside `flutter test`, so `flutter test --platform chrome` runs the whole suite against live hardware as an ordinary test file — 33 of 33, three of them passing by declining a capability the device says it has not got: the blend constant, wireframe and the block-compressed formats. A fourth used to be there — rendering into a mip — and it left the list without moving the number, because the two checks that read the capability answered a smaller question rather than skipping when it was false. A decline is reported as a decline and never as a pass, because "the suite is green" and "the suite is green, and here is what it never asked" are different sentences.
+`flutter3d_webgpu` is the backend that gets the arrangement Impeller cannot. Chrome has a real WebGPU device inside `flutter test`, so `flutter test --platform chrome` runs the whole suite against live hardware as an ordinary test file — 33 of 33, two of them passing by declining a capability the device says it has not got: the blend constant and wireframe. Two more used to be there. Rendering into a mip left the list without moving the number, because the two checks that read the capability answered a smaller question rather than skipping when it was false. The block-compressed formats left it when the device started asking its adapter which compression families it carries and requesting exactly those — the check that had been skipping three candidates now draws a block of each. A decline is reported as a decline and never as a pass, because "the suite is green" and "the suite is green, and here is what it never asked" are different sentences.
 
 The rest of that package's tests are deliberately split by whether they need a browser at all. The translation table, the pipeline signature and every vertex-layout refusal live in files that import neither `dart:js_interop` nor `package:web`, so they run on the VM in about a second — a typo in `"less-equal"` fails there rather than as a pipeline a browser rejects at run time on the one machine that has a GPU. The GLSL→WGSL pipeline is checked the same way the WebGL translation is: CI regenerates the table and fails on the diff, which catches a stale table *and* a different compiler on the machine, since this road runs through `glslangValidator` and `naga` rather than one generator.
 

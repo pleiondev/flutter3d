@@ -16,18 +16,28 @@
 ///
 /// ## What this backend declines, and why each is a refusal rather than a gap
 ///
-/// Two of the checks are answered "I cannot be asked this", and the device says
-/// so through a capability before the check ever draws:
+/// **No check skips itself here any more, and the one that did is worth naming.**
+/// `checkCompressedTextureSamples` asks `supportsTextureFormat` about a BC1, an
+/// ETC2 and an ASTC block, and `continue`s past each one the device says no to —
+/// a decline with nothing drawn behind it. `create` requested none of the three
+/// compression families, so all three were `continue`d and that check ran empty.
+/// The families are asked for now — the adapter's own set, intersected, because
+/// asking for one it lacks rejects the device promise rather than answering with
+/// a lesser device — so the check assembles a block of each family this adapter
+/// carries and reads the colour back. On a machine with none of the three it
+/// declines again, which is the honest outcome there rather than a regression
+/// here.
 ///
-///  1. **A compressed format** — `create` requests none of the three
-///     compression families, so `supportsTextureFormat` answers false for every
-///     block-compressed layout and a loader leaves such a texture out with a
-///     reason. Sampling one on a device that did not ask for the feature is a
-///     validation error, not a slow path.
-///  2. **A blend constant** — `supportsBlendColor` is false because two of the
-///     four constant-reading `BlendFactor` values have no spelling in WebGPU at
-///     all. The capability is one answer for all four, so the honest answer
-///     loses the two it could have had.
+/// **Two checks read a capability that is false and then assert a refusal, which
+/// is a different thing from declining.** `checkBlendConstant` finds
+/// `supportsBlendColor` false — two of the four constant-reading `BlendFactor`
+/// values have no spelling in WebGPU at all, and the capability is one answer for
+/// all four — and requires that both the setter and a `setBlend` naming the
+/// factor throw, rather than painting a plausible picture.
+/// `checkWireframeIsDrawnOrRefused` does the same with `supportsWireframe`: this
+/// API has no polygon fill mode, so `setPolygonMode(PolygonMode.line)` has to
+/// refuse loudly instead of filling the triangle. Those two are questions with
+/// answers.
 ///
 /// **The list was longer, and the entry that left it is worth remembering.**
 /// Rendering into a cube face and into a level below the base used to sit at the

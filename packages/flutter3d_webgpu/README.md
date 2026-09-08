@@ -6,10 +6,11 @@
 conformance suite answers 33 of 33 against a live adapter in Chrome** — the same
 list the other three backends are held to, run as an ordinary test file rather
 than as an application somebody watches, because Chrome has a real WebGPU device
-inside `flutter test`. Four of those thirty-three pass by *declining*, and each
-decline is a capability this device says false to by name: the blend constant,
-wireframe, the block-compressed formats, and rendering into a mip. All thirty-nine
-of the engine's stages compile, and a bundle handed over as bytes loads.
+inside `flutter test`. Two of those thirty-three pass by *declining*, and each
+decline is a capability this device says false to by name: the blend constant and
+wireframe. All thirty-nine of the engine's stages compile, a bundle handed over as
+bytes loads, a KTX2 texture in any family the adapter carries is sampled, and a
+float target reads back as a picture.
 
     final device = await openWebGpu(width: 960, height: 540);
 
@@ -58,15 +59,47 @@ line primitives and an index buffer built for them, which is the renderer's
 decision rather than a backend's — the same answer WebGL2 gives for the same
 reason.
 
-**Block-compressed formats.** A WebGPU device gets exactly the features it asked
-for, and `create` asks for float filtering and the full-precision depth-stencil
-format and none of the three compression families. Sampling a BC7 texture on a
-device that did not request `texture-compression-bc` is a validation error, not a
-slow path, so `supportsTextureFormat` answers false for every one of them and a
-loader leaves the texture out with a reason.
+**Three formats with no spelling.** `a8UNormInt`, which WebGPU dropped in favour
+of `r8unorm` plus a swizzle in the shader, and the two HDR ASTC layouts, which no
+WebGPU feature exposes — `texture-compression-astc` unlocks the LDR blocks and
+there is no second feature behind it. `supportsTextureFormat` answers false for
+those three on every adapter there will ever be, and a loader leaves such a
+texture out with a reason.
 
-Two entries used to sit below these and no longer do, and both corrections are
-worth keeping.
+Four entries used to sit below these and no longer do, and all four corrections
+are worth keeping.
+
+**The block-compressed formats** were declined on the grounds that a WebGPU
+device gets exactly the features it asked for and `create` asked for none of the
+three families — a true sentence about the request rather than about the API.
+They are asked for now, and the shape of the asking is the part worth
+remembering: `requestDevice` handed a feature the adapter does not carry
+**rejects the promise** instead of answering with a lesser device, so the adapter
+is asked what it has and the intersection is requested. `supportsTextureFormat`
+then answers from `gpuDevice.features` — what was granted — because a device may
+be given less than it asked for, and a capability answering from a wish is how a
+loader is told to upload a texture the browser will not take. Uploading one is
+block arithmetic and not texel arithmetic: `writeTexture`'s `bytesPerRow` is a row
+of *blocks* and `rowsPerImage` counts block rows, so an 8x8 BC1 level is two rows
+of sixteen bytes. The conformance suite's compressed check stops declining itself
+and draws a block of each family it finds.
+
+**`readPixels` of a float target** answered null, and the contract names that
+method as *the* way to read one: `readback` refuses a float format above every
+backend and its own message says so. WebGPU has no format-converting readback —
+`copyTextureToBuffer` hands over the bytes as they are stored, where
+`glReadPixels` converts — so a float target is drawn into an eight-bit one by a
+full-screen `textureLoad` pass and the copy is made from that. The price is a
+pass and an allocation per call, which is why the eight-bit path is still a plain
+copy. What that pass found is worth as much as the pass: **nothing in
+`flutter3d_conformance` has ever asked any backend to read a float target back.**
+Every readback in that suite is `r8g8b8a8UNormInt`, the one check that mentions a
+float format asserts the *refusal* of `readback`, and a check added there would
+fail on WebGL2 today, where `readPixels(RGBA, UNSIGNED_BYTE)` of an RGBA16F
+attachment is an `INVALID_OPERATION` leaving a pack buffer of zeros and a future
+that completes successfully with a black picture. So the promise is witnessed in
+`test/webgpu_draw_test.dart` and the hole in the other backend is written down
+rather than turned into a red build by this package.
 
 `createCubeRenderTarget` answered null on the argument that a cube a probe draws
 into is only useful beside a chain it can filter into — and the conformance suite
