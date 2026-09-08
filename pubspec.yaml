@@ -47,3 +47,7 @@ workspace:
   - apps/flutter3d_demo_racing
   - apps/flutter3d_demo_strategy
   - apps/flutter3d_template_app
+  # Not a package and not an application: a program this repository runs on
+  # itself, kept where `tool/`'s other programs are. See its own pubspec for
+  # why it is not in `packages/`.
+  - tool/webgpu_spike

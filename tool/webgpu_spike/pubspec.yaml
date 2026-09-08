@@ -1,0 +1,35 @@
+name: webgpu_spike
+description: "A spike, not a backend: one triangle through flutter3d_hardware on WebGPU, written to count what the contract owes a fourth implementation."
+publish_to: 'none'
+resolution: workspace
+
+# **Under `tool/` and not under `packages/`, deliberately.** A directory in
+# `packages/` with a pubspec is a package, and `tool/structure.dart`'s
+# "the publishing order names every package" rule then requires it in
+# ARCHITECTURE.md's numbered publishing list — a list whose own heading says it
+# is the order used on the day the packages went out. Nothing here is ever going
+# out. Putting the spike in that list to satisfy a scan would be writing
+# something false into the one document that records how a release is made,
+# which is a worse outcome than the spike living beside the other programs this
+# repository runs on itself. `tool/ci.sh` runs its tests by name.
+environment:
+  sdk: ^3.12.2
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # The contract under test, and the only dependency that matters. A spike that
+  # reached for `flutter3d` would be measuring the renderer instead.
+  flutter3d_hardware: ^0.5.0
+
+  # `package:web` carries WebGPU's flag constants and none of its interfaces —
+  # see `webgpu_interop.dart`, which declares the slice a triangle needs.
+  web: ^1.1.0
+
+  vector_math: ^2.2.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0

@@ -191,6 +191,17 @@ step "test flutter3d_webgl (browser)" in_dir packages/flutter3d_webgl flutter te
 # files.
 step "test pointer_lock (browser)" in_dir packages/pointer_lock flutter test --platform chrome
 
+# **The WebGPU spike, which the loops above cannot reach.** It is a workspace
+# member under `tool/` rather than a package or an application — see its own
+# README for why — so nothing named by a wildcard finds it, and a spike nobody
+# runs is a spike whose answer nobody can trust. Both platforms: the VM run holds
+# the translation tables and the README's count, and the browser run compiles the
+# `dart:js_interop` half and draws the triangle where the machine has a GPU. Under
+# two seconds apiece, and the browser run reports rather than fails where there is
+# no WebGPU.
+step "test webgpu_spike" in_dir tool/webgpu_spike flutter test
+step "test webgpu_spike (browser)" in_dir tool/webgpu_spike flutter test --platform chrome
+
 # **The simulation is platform-agnostic Dart, and that is exactly why it needed
 # a second platform.** Both packages ran only on the VM, where an `int` is 64
 # bits — and the web, where it is a double with 32-bit bitwise operations, is a
