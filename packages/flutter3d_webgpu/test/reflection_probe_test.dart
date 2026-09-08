@@ -190,23 +190,28 @@ List<int> _at(Uint8List pixels, int x, int y) {
   return <int>[pixels[i], pixels[i + 1], pixels[i + 2]];
 }
 
+/// The device, or null where this browser has no WebGPU.
+///
+/// **`markTestSkipped` marks a result; it does not stop a body.** This was a
+/// `setUp` that called it and returned, leaving a `late` variable unassigned,
+/// so on a runner whose headless Chrome offers no adapter every test here ran
+/// anyway and died on `LateInitializationError` instead of skipping. Handing
+/// back null and letting each test return is what the other suites in this
+/// package do, and it is the shape that actually skips.
+Future<WebGpuDevice?> _open() async {
+  final made = await WebGpuDevice.create(
+    width: _width,
+    height: _height,
+    stages: engineShaders,
+  );
+  if (made == null) markTestSkipped('no WebGPU in this browser');
+  return made;
+}
+
 void main() {
-  late WebGpuDevice device;
-
-  setUp(() async {
-    final made = await WebGpuDevice.create(
-      width: _width,
-      height: _height,
-      stages: engineShaders,
-    );
-    if (made == null) {
-      markTestSkipped('no WebGPU in this browser');
-      return;
-    }
-    device = made;
-  });
-
-  test('this device offers a probe both halves of what one needs', () {
+  test('this device offers a probe both halves of what one needs', () async {
+    final device = await _open();
+    if (device == null) return;
     // The capability under test, asked directly. It is one line and it is the
     // line the two tests below give meaning to: answering true here without
     // them is how a backend hands `ReflectionProbeNode.supportedOn` a yes and
@@ -220,6 +225,8 @@ void main() {
   test(
     'the ball shows the red wall on its right and the blue on its left',
     () async {
+      final device = await _open();
+      if (device == null) return;
       final it = _room(device);
       final pixels = await _draw(it);
 
@@ -250,6 +257,8 @@ void main() {
     // rather than out of the room being red on one side. The same scene with
     // the probe taken out is a mirror metal in an empty environment, which is
     // nearly black everywhere.
+    final device = await _open();
+    if (device == null) return;
     final it = _room(device);
     it.scene.remove(it.scene.probes.single);
     final pixels = await _draw(it);
