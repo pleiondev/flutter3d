@@ -574,6 +574,13 @@ boundaryEnumExempt = <String, Map<String, String>>{
         'the layers `EditMesh` stores. Adding one means adding an array to '
         'that class, so a caller cannot name a value this list does not have',
   },
+  'flutter3d_mesh/lib/src/selection.dart': <String, String>{
+    'ElementLevel':
+        'the three things in a half-edge mesh a person can point at. A fourth '
+        'is not a value somebody passes; every conversion, grow and shrink in '
+        'the file switches on these three, and decision Б7 of the model '
+        'editor plan chose an enum here over a sealed class for that reason',
+  },
   'flutter3d_formats/lib/src/obj/obj_loader.dart': <String, String>{
     'ObjNormals':
         'what to do when an OBJ has no normals. Smooth or flat, and there '

@@ -41,6 +41,11 @@ works out the triangles, the corner normals and which corners are one GPU vertex
 `MeshNormals` is the shading underneath that: fans broken by a sharp edge, by a
 face nobody smoothed, or by an angle wider than the caller allows.
 
+`Selection` is what a person has picked — sorted numbers at one level, never a
+flag on the mesh, so undoing a move does not undo the click that set it up. It
+converts between vertices, edges and faces, grows and shrinks, walks edge loops
+and rings, follows an island and reports the border of a region.
+
 What comes next is in `doc/model-editor-plan.md`: selections, loop cuts,
 dissolves, modifiers, and the operations that edit in place rather than
 rebuilding.

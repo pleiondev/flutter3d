@@ -229,6 +229,31 @@ final class EditMesh {
   /// Some half-edge leaving [vertex], or [none] for a vertex in no face.
   int outgoingOf(int vertex) => _outgoing[vertex];
 
+  /// Whether there is a live face on the other side of [halfEdge].
+  ///
+  /// Not the same question as "does it have a twin": deleting a face leaves
+  /// the twins on the far side pointing into it, because that is what an undo
+  /// needs to put it back. Everything that walks the surface has to ask this
+  /// one instead, and [edgeCount] already did before there was a name for it.
+  bool hasLiveTwin(int halfEdge) {
+    final twin = _twin[halfEdge];
+    if (twin == none) return false;
+    final face = _halfEdgeFace[twin];
+    return face != none && _faceAlive[face] != 0;
+  }
+
+  /// The half-edge that stands for the whole edge [halfEdge] lies on.
+  ///
+  /// **An edge is not stored, so one of its two half-edges has to be it.** A
+  /// selection holds numbers and has to hold the same number whichever side an
+  /// edge was picked from, so the smaller of the pair is the edge; a half-edge
+  /// with nothing live behind it is an edge on its own.
+  int edgeOf(int halfEdge) {
+    if (!hasLiveTwin(halfEdge)) return halfEdge;
+    final twin = _twin[halfEdge];
+    return halfEdge < twin ? halfEdge : twin;
+  }
+
   /// Some half-edge on the loop of [face].
   ///
   /// Where a caller that wants to walk a loop by hand starts — `mesh-19`'s edge
