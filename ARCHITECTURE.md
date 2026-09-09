@@ -1762,22 +1762,24 @@ entities a game defines.
 | Structure rules | 30, `dart run tool/structure.dart`, the first CI step |
 | CI | GitHub Actions over `tool/ci.sh`, on `ubuntu-latest`, with no graphics card |
 
-**Golden render tests.** 43 scenes against **three complete independent
-reference sets** — Impeller, the software rasteriser and WebGL2 — each held to
-zero differing pixels against its own set, with a per-channel tolerance of 8.
+**Golden render tests.** 43 scenes against **four complete independent
+reference sets** — Impeller, the software rasteriser, WebGL2 and WebGPU — each
+held to zero differing pixels against its own set, with a per-channel tolerance
+of 8.
 Each backend records its own because a shared set would need one tolerance doing
 two jobs: "did this backend change" and "do two backends still agree" are
 different questions, and a tolerance wide enough for the second stops watching
 the first.
 
-**A fourth set is being recorded, on a branch of its own, and is not complete**,
-so it is written here as a number rather than as a set: **42 of the 43 scenes**
-had WebGPU references at the time this paragraph was written, all of them in
-another branch and none of them in this one. The missing scene is
-`loaded-shader`. That is not a reference set yet — a partial one cannot say a
-picture regressed, only that some pictures exist — and the count is here in place
-of the word precisely so a reader can tell those two apart. Until it lands whole,
-this repository has three sets.
+**The fourth set spent a while as a number rather than a set, and the difference
+mattered.** While WebGPU had 42 of the 43 scenes recorded, this paragraph said so
+with a count instead of calling it a set, because a partial set cannot say a
+picture regressed — it can only say some pictures exist. The stragglers were held
+back one at a time, each for a reason worth keeping: the pair built around the
+cube atlas, where the backend drew one of two row assignments and a reference
+would have been one toss of that coin; `probe-car`, where the mirrored ball came
+back black because render-to-mip was refused; and `loaded-shader`, where the
+packers wrote no WGSL for a bundle to carry. All of them are recorded now.
 
 `flutter3d_webgl`'s browser stand is what records it: `tool/golden_web.sh` takes
 `--backend=webgpu`, writes into `flutter3d_webgpu/test/goldens`, and serves the
