@@ -681,6 +681,31 @@ final class EditMesh {
   /// How many steps can be taken back.
   int get undoDepth => _faceAlive.undoDepth;
 
+  /// Forgets every step, keeping the mesh as it is.
+  ///
+  /// **What an import calls, and what saving will.** The mesh a file produced
+  /// is a document's starting point: there is nothing before it to go back to,
+  /// and a history holding "the state before the model existed" is a step that
+  /// empties the viewport. `compact` is the other side of the same rule — see
+  /// its note on why a renumbered mesh cannot carry the old journal either.
+  void clearJournal() {
+    _positions.clearJournal();
+    _origin.clearJournal();
+    _next.clearJournal();
+    _twin.clearJournal();
+    _halfEdgeFace.clearJournal();
+    _faceHalfEdge.clearJournal();
+    _outgoing.clearJournal();
+    _vertexAlive.clearJournal();
+    _faceAlive.clearJournal();
+    for (final layer in _floatLayers) {
+      layer.clearJournal();
+    }
+    for (final layer in _intLayers) {
+      layer.clearJournal();
+    }
+  }
+
   /// Bytes every journal holds together.
   int get journalBytes =>
       _positions.journalBytes +
