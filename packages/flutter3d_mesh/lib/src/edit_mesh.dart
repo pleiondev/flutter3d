@@ -612,10 +612,27 @@ final class EditMesh {
   /// rather than with the mesh: a document that is only being read never asks.
   MeshLayoutPlan? _plan;
 
+  /// How many slots each array held before the open step, and before each of
+  /// the steps behind it.
+  ///
+  /// **Growth is the one thing the journals do not record.** A step that added
+  /// a vertex is undone by there being one vertex fewer, which is a count
+  /// rather than a value — see [JournalledFloats.grow]. Three numbers per step
+  /// is what that costs, and keeping them here rather than in nine arrays is
+  /// what keeps them from disagreeing.
+  final List<int> _undoSlots = <int>[];
+  final List<int> _redoSlots = <int>[];
+  int _openVertexSlots = 0;
+  int _openFaceSlots = 0;
+  int _openHalfEdgeSlots = 0;
+
   /// Opens a step of history. Every edit until [endStep] is one undo away.
   void beginStep() {
     _wrote = false;
     _inStep = true;
+    _openVertexSlots = _vertexSlots;
+    _openFaceSlots = _faceSlots;
+    _openHalfEdgeSlots = _halfEdgeSlots;
     _positions.beginStep();
     _origin.beginStep();
     _next.beginStep();
@@ -659,6 +676,14 @@ final class EditMesh {
     for (final layer in _intLayers) {
       layer.endStep(keepEmpty: wrote);
     }
+    if (wrote) {
+      _undoSlots.addAll(<int>[
+        _openVertexSlots,
+        _openFaceSlots,
+        _openHalfEdgeSlots,
+      ]);
+      _redoSlots.clear();
+    }
     _wrote = false;
     _inStep = false;
     return wrote;
@@ -683,6 +708,10 @@ final class EditMesh {
     for (final layer in _intLayers) {
       layer.undo();
     }
+    _redoSlots.addAll(<int>[_vertexSlots, _faceSlots, _halfEdgeSlots]);
+    _halfEdgeSlots = _undoSlots.removeLast();
+    _faceSlots = _undoSlots.removeLast();
+    _vertexSlots = _undoSlots.removeLast();
     _recount();
     return true;
   }
@@ -705,6 +734,10 @@ final class EditMesh {
     for (final layer in _intLayers) {
       layer.redo();
     }
+    _undoSlots.addAll(<int>[_vertexSlots, _faceSlots, _halfEdgeSlots]);
+    _halfEdgeSlots = _redoSlots.removeLast();
+    _faceSlots = _redoSlots.removeLast();
+    _vertexSlots = _redoSlots.removeLast();
     _recount();
     return true;
   }
@@ -735,6 +768,8 @@ final class EditMesh {
     for (final layer in _intLayers) {
       layer.clearJournal();
     }
+    _undoSlots.clear();
+    _redoSlots.clear();
   }
 
   /// Bytes every journal holds together.
@@ -765,6 +800,111 @@ final class EditMesh {
     }
     _liveVertices = vertices;
     _liveFaces = faces;
+  }
+
+  // ------------------------------------------------------------------ growth
+
+  /// Adds a vertex at [at] and returns its number.
+  ///
+  /// **The arrays grow; the numbering does not shift.** Everything a caller is
+  /// holding — a selection, an id an agent was given, a row of a layout plan —
+  /// still means what it did. Undoing the step takes the slot count back, which
+  /// is what makes the vertex go away without anything else moving.
+  int addVertex(Vector3 at) {
+    _wrote = true;
+    final vertex = _vertexSlots++;
+    _positions.grow(_vertexSlots * 3);
+    _outgoing.grow(_vertexSlots, fill: none);
+    _vertexAlive.grow(_vertexSlots);
+    _weights?.grow(_vertexSlots * 4);
+    _joints?.grow(_vertexSlots * 4);
+
+    _positions
+      ..write(vertex * 3, at.x)
+      ..write(vertex * 3 + 1, at.y)
+      ..write(vertex * 3 + 2, at.z);
+    _outgoing.write(vertex, none);
+    _vertexAlive.write(vertex, 1);
+    _liveVertices++;
+    return vertex;
+  }
+
+  /// Adds a face over [loop] and returns its number. Its half-edges are
+  /// numbered consecutively from what [halfEdgeSlotCount] read before the call.
+  ///
+  /// **The twins are the caller's to name**, through [weldTwins], and this is
+  /// the one place the package asks that of anybody. `EditMeshBuilder` finds
+  /// them with a hash of vertex pairs, which is right when a whole mesh is
+  /// being built and wrong here: an operation adding four walls to an extrusion
+  /// already knows which half-edge each one meets, and a map over every edge of
+  /// the document to rediscover it would cost more than the operation.
+  int addFace(List<int> loop) {
+    if (loop.length < 3) {
+      throw ArgumentError('a face of ${loop.length} vertices');
+    }
+    _wrote = true;
+    final face = _faceSlots++;
+    final first = _halfEdgeSlots;
+    _halfEdgeSlots += loop.length;
+
+    _faceHalfEdge.grow(_faceSlots);
+    _faceAlive.grow(_faceSlots);
+    _faceFlags?.grow(_faceSlots);
+    _materialSlot?.grow(_faceSlots);
+    _origin.grow(_halfEdgeSlots);
+    _next.grow(_halfEdgeSlots);
+    _twin.grow(_halfEdgeSlots, fill: none);
+    _halfEdgeFace.grow(_halfEdgeSlots, fill: none);
+    _uv0?.grow(_halfEdgeSlots * 2);
+    _colour?.grow(_halfEdgeSlots * 4);
+    _crease?.grow(_halfEdgeSlots);
+    _edgeFlags?.grow(_halfEdgeSlots);
+
+    for (var i = 0; i < loop.length; i++) {
+      final half = first + i;
+      _origin.write(half, loop[i]);
+      _next.write(half, first + (i + 1) % loop.length);
+      _twin.write(half, none);
+      _halfEdgeFace.write(half, face);
+      final out = _outgoing[loop[i]];
+      if (out == none) _outgoing.write(loop[i], half);
+    }
+    _faceHalfEdge.write(face, first);
+    _faceAlive.write(face, 1);
+    _liveFaces++;
+    return face;
+  }
+
+  /// Makes [a] and [b] the two sides of one edge.
+  ///
+  /// Whatever either of them was twinned to is let go first, so an operation
+  /// that detaches a region and sews a wall into the gap does not leave the
+  /// half-edge on the far side pointing at something that has moved on.
+  void weldTwins(int a, int b) {
+    _wrote = true;
+    final wasA = _twin[a];
+    final wasB = _twin[b];
+    if (wasA != none && wasA != b) _twin.write(wasA, none);
+    if (wasB != none && wasB != a) _twin.write(wasB, none);
+    _twin.write(a, b);
+    _twin.write(b, a);
+  }
+
+  /// Points [vertex] at [halfEdge] as its way into the mesh.
+  ///
+  /// What an operation calls after rewiring a loop out from under a vertex.
+  /// [validate] asks that the half-edge starts there; what it cannot ask is
+  /// that the half-edge is still on a live loop, so an operation that moves one
+  /// says where the vertex goes instead.
+  void setOutgoing(int vertex, int halfEdge) {
+    _wrote = true;
+    _outgoing.write(vertex, halfEdge);
+  }
+
+  /// Makes [halfEdge] start at [vertex].
+  void setOrigin(int halfEdge, int vertex) {
+    _wrote = true;
+    _origin.write(halfEdge, vertex);
   }
 
   /// Moves [vertex] to [to], recording where it was.

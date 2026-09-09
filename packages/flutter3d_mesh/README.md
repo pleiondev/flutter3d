@@ -46,7 +46,13 @@ flag on the mesh, so undoing a move does not undo the click that set it up. It
 converts between vertices, edges and faces, grows and shrinks, walks edge loops
 and rings, follows an island and reports the border of a region.
 
-Two edits are here so far. `dissolveEdge` and `dissolveVertex` take an edge or a
+Every edit has the same shape — a mesh, a selection, its parameters, and an
+`OpResult` that says what changed and what to redraw, or refuses in a sentence
+somebody can act on. `translateSelection`, `rotateSelection` and
+`scaleSelection` move what is selected and nothing else; `extrudeFaces` and
+`extrudeEdges` detach a region, wall in the gap behind it and lift it.
+
+`dissolveEdge` and `dissolveVertex` take an edge or a
 vertex out and leave the faces around it merged rather than a hole — dissolving
 the diagonals of a triangulated box gives back the six quads it was — and each
 is one step of history. `mergeByDistance` and `mergeAt` weld vertices together,

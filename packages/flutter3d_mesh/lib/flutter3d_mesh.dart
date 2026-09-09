@@ -18,6 +18,7 @@ library;
 
 export 'src/attributes.dart';
 export 'src/edit_mesh.dart';
+export 'src/extrude.dart';
 export 'src/import_mesh.dart';
 export 'src/journal.dart';
 export 'src/layout_plan.dart';
