@@ -34,3 +34,4 @@ export 'src/frame_clock.dart';
 export 'src/frame_timing_log.dart';
 export 'src/run_session.dart';
 export 'src/scene_surface.dart';
+export 'src/widget_texture.dart';
