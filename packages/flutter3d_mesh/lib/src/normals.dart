@@ -59,6 +59,13 @@ final class MeshNormals {
   int _halfEdgeSlots = 0;
 
   /// Three floats per face slot, unit length. Zero where the face is dead.
+  ///
+  /// **For a caller that walks every face and wants the array, not a vector
+  /// per face.** The viewport's face-normal overlay (`view-12`) and the export
+  /// checks (`mesh-27`) both do; a caller asking about one face wants
+  /// [faceNormal] instead, and this stays because handing those two a
+  /// `Vector3` allocation per face of a 200 000-face mesh is the cost the
+  /// buffers exist to avoid.
   Float32List get faceNormals => _faces;
 
   /// Three floats per half-edge slot, unit length. Zero where the half-edge is
@@ -76,6 +83,15 @@ final class MeshNormals {
       _corners[halfEdge * 3 + 1],
       _corners[halfEdge * 3 + 2],
     );
+
+  /// Which smooth fan the corner [halfEdge] belongs to, as the number of one
+  /// of its corners.
+  ///
+  /// **What a layout plan merges on.** Two corners of one vertex end up in the
+  /// same fan exactly when they share a normal, so a plan deciding whether they
+  /// can be one GPU vertex has the answer already and does not have to compare
+  /// three floats and hope the arithmetic came out identical on both sides.
+  int groupOf(int halfEdge) => _find(halfEdge);
 
   /// Recomputes both sets against [mesh].
   ///

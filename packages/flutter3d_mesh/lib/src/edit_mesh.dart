@@ -30,8 +30,8 @@ import 'package:vector_math/vector_math.dart';
 
 import 'attributes.dart';
 import 'journal.dart';
+import 'layout_plan.dart';
 import 'normals.dart';
-import 'triangulate.dart';
 
 /// Where an element went when the mesh was compacted, or [EditMesh.none] where
 /// it was dropped.
@@ -583,15 +583,9 @@ final class EditMesh {
   /// Whether a step is open, which a layer created mid-step has to know.
   bool _inStep = false;
 
-  /// The cutter, and the loop it is handed. Held on the mesh rather than made
-  /// per call: a conversion asks this once per face, and a fresh triangulator
-  /// per face is the allocation the class exists to avoid.
-  final FaceTriangulator _triangulator = FaceTriangulator();
-  final List<Vector3> _loop = <Vector3>[];
-
-  /// The normals, and the buffers they live in. Made on the first conversion
+  /// The layout plan, and the normals inside it. Made on the first conversion
   /// rather than with the mesh: a document that is only being read never asks.
-  MeshNormals? _normals;
+  MeshLayoutPlan? _plan;
 
   /// Opens a step of history. Every edit until [endStep] is one undo away.
   void beginStep() {
@@ -1054,54 +1048,42 @@ final class EditMesh {
 
   final List<double> _rotated = <double>[];
 
-  /// The mesh a renderer can draw: triangles, with one vertex per corner so
-  /// every face keeps its own flat normal.
+  /// The mesh a renderer can draw.
+  ///
+  /// **Planned and then filled, in one call, throwing the plan away.** A
+  /// caller that converts once — an exporter, a test, a screenshot — wants
+  /// exactly this. A caller that converts every frame while somebody drags a
+  /// vertex wants to keep the plan and call [MeshLayoutPlan.fillVerticesOf],
+  /// and the whole reason [MeshLayoutPlan] is a class it can hold is that this
+  /// convenience cannot do that for it.
+  ///
+  /// With [materialSlot] given, only the faces carrying it are converted: a
+  /// draw call has one material, so a model with three is three meshes.
   MeshData toMeshData({
     VertexLayout layout = VertexLayout.standard,
     double smoothAngle = MeshNormals.defaultSmoothAngle,
+    int? materialSlot,
   }) {
-    final builder = MeshBuilder(
-      layout,
-      reserveVertices: halfEdgeCount,
-      reserveIndices: halfEdgeCount * 3,
+    final plan = _plan ??= MeshLayoutPlan();
+    plan.build(
+      this,
+      layout: layout,
+      smoothAngle: smoothAngle,
+      materialSlot: materialSlot,
     );
-    // Rebuilt rather than cached: the alternative is a set of normals that has
-    // to be invalidated by every edit, and a stale normal is invisible until a
-    // light moves over it.
-    final normals = _normals ??= MeshNormals();
-    normals.build(this, smoothAngle: smoothAngle);
-    final normal = Vector3.zero();
-    final position = Vector3.zero();
-    final uv = Vector2.zero();
-    final colour = Vector4.zero();
-    final corners = <int>[];
-    for (var face = 0; face < _faceSlots; face++) {
-      if (_faceAlive[face] == 0) continue;
-      corners.clear();
-      forEachHalfEdge(face, (int half) {
-        // One GPU vertex per corner, whatever the normals say. Corners of a
-        // smooth fan share a normal and could share a vertex, which is what
-        // `mesh-14`'s layout plan is for; emitting them apart draws the same
-        // picture with more vertices, and never the wrong one.
-        corners.add(
-          builder.addVertex(
-            position: positionOf(_origin[half], position),
-            normal: normals.cornerNormal(half, normal),
-            texcoord: uvOf(half, uv),
-            color: _colour == null ? null : colourOf(half, colour),
-          ),
-        );
-      });
-      // Ear clipping rather than a fan, because a fan puts triangles outside
-      // the outline of every concave face — and those triangles are what a
-      // raycast hits and what an exporter writes, not only what is drawn.
-      _loop.clear();
-      forEachVertex(face, (int vertex) => _loop.add(positionOf(vertex)));
-      _triangulator.triangulate(_loop, (int a, int b, int c) {
-        builder.addTriangle(corners[a], corners[b], corners[c]);
-      });
-    }
-    return builder.build();
+    // Copies rather than the plan's own buffers. The plan is kept on the mesh
+    // so its working arrays are not remade every conversion, and that is
+    // exactly why what goes out cannot be them: the next call would write over
+    // a mesh the caller is still holding.
+    final buffer = Float32List(plan.vertexCount * plan.floatsPerVertex);
+    plan.fillVertices(this, buffer);
+    return MeshData(
+      layout: layout,
+      vertices: buffer,
+      indices: Uint32List.fromList(
+        Uint32List.sublistView(plan.indices, 0, plan.triangleCount * 3),
+      ),
+    );
   }
 
   /// Throws unless the arrays agree with each other.

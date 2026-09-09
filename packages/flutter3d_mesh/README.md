@@ -27,15 +27,23 @@ this one converted.
 
 ## What is here today
 
-The spike, and it says so in its own header: `EditMesh` builds from faces or as
-a cuboid, walks loops without allocating, extrudes a face, validates its own
-invariants, and converts to `MeshData`. Operations rebuild the arrays rather
-than editing them in place — deliberately, because one of the answers the
-measurements may give is that a rebuild per edit is affordable, and a spike that
-assumed otherwise could not report it.
+`EditMesh` holds the topology in nine journalled arrays, so an edit is recorded
+and `undo` takes it back, and a deleted element is a tombstone rather than a
+renumbering. Over that sit the attribute layers — UVs and colours per corner,
+skin weights per vertex, sharpness and creases per edge, material slot and
+smoothing per face — each of which costs nothing until something writes to it.
 
-What comes next is in `doc/model-editor-plan.md`: persistent chunked arrays,
-attribute layers, selections, loop cuts, dissolves, modifiers.
+`importMeshData` rebuilds an editable mesh from a drawable one, welding
+duplicated corners, turning mirrored faces round and detaching the third face on
+an edge, and it reports each of those. Going the other way, `MeshLayoutPlan`
+works out the triangles, the corner normals and which corners are one GPU vertex
+— once — and then refills only the rows of the vertices somebody moved.
+`MeshNormals` is the shading underneath that: fans broken by a sharp edge, by a
+face nobody smoothed, or by an angle wider than the caller allows.
+
+What comes next is in `doc/model-editor-plan.md`: selections, loop cuts,
+dissolves, modifiers, and the operations that edit in place rather than
+rebuilding.
 
 ## Licence
 

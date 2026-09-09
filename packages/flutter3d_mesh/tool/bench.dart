@@ -77,6 +77,24 @@ void main() {
     bench('toMeshData', 5, mesh.toMeshData, items: faces);
     bench('signedVolume', 5, () => mesh.signedVolume, items: faces);
     bench('validate', 5, mesh.validate, items: faces);
+
+    // The whole reason a plan is a thing a caller keeps: building it is the
+    // conversion, and filling it again is what a drag costs per frame.
+    final plan = MeshLayoutPlan();
+    bench('MeshLayoutPlan.build', 5, () => plan.build(mesh), items: faces);
+    final rows = plan.rows();
+    bench(
+      'fillVertices (all)',
+      5,
+      () => plan.fillVertices(mesh, rows),
+      items: faces,
+    );
+    final dragged = <int>[for (var v = 0; v < 40; v++) v];
+    bench(
+      'fillVerticesOf (40 vertices)',
+      50,
+      () => plan.fillVerticesOf(mesh, rows, dragged),
+    );
   }
 
   print('');
