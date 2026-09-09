@@ -50,7 +50,9 @@ Every edit has the same shape — a mesh, a selection, its parameters, and an
 `OpResult` that says what changed and what to redraw, or refuses in a sentence
 somebody can act on. `translateSelection`, `rotateSelection` and
 `scaleSelection` move what is selected and nothing else; `extrudeFaces` and
-`extrudeEdges` detach a region, wall in the gap behind it and lift it.
+`extrudeEdges` detach a region, wall in the gap behind it and lift it; `loopCut`
+runs a new loop of edges across a ring of quads, out of `splitEdge` and
+`splitFace`, which are worth having on their own.
 
 `dissolveEdge` and `dissolveVertex` take an edge or a
 vertex out and leave the faces around it merged rather than a hole — dissolving

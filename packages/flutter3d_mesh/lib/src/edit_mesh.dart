@@ -842,23 +842,8 @@ final class EditMesh {
     if (loop.length < 3) {
       throw ArgumentError('a face of ${loop.length} vertices');
     }
-    _wrote = true;
-    final face = _faceSlots++;
-    final first = _halfEdgeSlots;
-    _halfEdgeSlots += loop.length;
-
-    _faceHalfEdge.grow(_faceSlots);
-    _faceAlive.grow(_faceSlots);
-    _faceFlags?.grow(_faceSlots);
-    _materialSlot?.grow(_faceSlots);
-    _origin.grow(_halfEdgeSlots);
-    _next.grow(_halfEdgeSlots);
-    _twin.grow(_halfEdgeSlots, fill: none);
-    _halfEdgeFace.grow(_halfEdgeSlots, fill: none);
-    _uv0?.grow(_halfEdgeSlots * 2);
-    _colour?.grow(_halfEdgeSlots * 4);
-    _crease?.grow(_halfEdgeSlots);
-    _edgeFlags?.grow(_halfEdgeSlots);
+    final face = _newFace();
+    final first = _newHalfEdges(loop.length);
 
     for (var i = 0; i < loop.length; i++) {
       final half = first + i;
@@ -873,6 +858,166 @@ final class EditMesh {
     _faceAlive.write(face, 1);
     _liveFaces++;
     return face;
+  }
+
+  /// Reserves [count] consecutive half-edge slots and returns the first.
+  int _newHalfEdges(int count) {
+    _wrote = true;
+    final first = _halfEdgeSlots;
+    _halfEdgeSlots += count;
+    _origin.grow(_halfEdgeSlots);
+    _next.grow(_halfEdgeSlots);
+    _twin.grow(_halfEdgeSlots, fill: none);
+    _halfEdgeFace.grow(_halfEdgeSlots, fill: none);
+    _uv0?.grow(_halfEdgeSlots * 2);
+    _colour?.grow(_halfEdgeSlots * 4);
+    _crease?.grow(_halfEdgeSlots);
+    _edgeFlags?.grow(_halfEdgeSlots);
+    return first;
+  }
+
+  /// Reserves a face slot and returns it. Nothing is on its loop yet.
+  int _newFace() {
+    _wrote = true;
+    final face = _faceSlots++;
+    _faceHalfEdge.grow(_faceSlots);
+    _faceAlive.grow(_faceSlots);
+    _faceFlags?.grow(_faceSlots);
+    _materialSlot?.grow(_faceSlots);
+    return face;
+  }
+
+  /// Puts a vertex on the edge [halfEdge] lies on and returns it.
+  ///
+  /// **The faces on either side gain a corner; nothing is cut in two.** A
+  /// four-sided face beside a split edge becomes a five-sided one, and that is
+  /// the honest intermediate state — a loop cut is this on every edge of a ring
+  /// followed by [splitFace] through each of the faces between them, and doing
+  /// the two at once would make an operation that cannot be reused.
+  ///
+  /// [factor] runs from the vertex [halfEdge] starts at towards the one it ends
+  /// at, so the direction the caller asks in is the direction it gets. The
+  /// corner attributes on both sides are interpolated to match, and the skin
+  /// weights are the vertex's own — a vertex put half way along an edge belongs
+  /// half to each end's bones.
+  int splitEdge(int halfEdge, {double factor = 0.5}) {
+    final face = _halfEdgeFace[halfEdge];
+    if (face == none || _faceAlive[face] == 0) return none;
+
+    final from = _origin[halfEdge];
+    final ahead = _next[halfEdge];
+    final to = _origin[ahead];
+    final middle = addVertex(
+      positionOf(from) * (1 - factor) + positionOf(to) * factor,
+    );
+
+    final far = _newHalfEdges(1);
+    _origin.write(far, middle);
+    _next.write(far, ahead);
+    _halfEdgeFace.write(far, face);
+    _twin.write(far, none);
+    _next.write(halfEdge, far);
+    if (_uv0 != null || _colour != null) {
+      setCorner(
+        far,
+        CornerAttributes.lerp(cornerOf(halfEdge), cornerOf(ahead), factor),
+      );
+    }
+    _carryEdgeAttributes(halfEdge, far);
+
+    final twin = _twin[halfEdge];
+    if (twin != none && _halfEdgeFace[twin] != none) {
+      final behind = _halfEdgeFace[twin];
+      final beyond = _next[twin];
+      final back = _newHalfEdges(1);
+      _origin.write(back, middle);
+      _next.write(back, beyond);
+      _halfEdgeFace.write(back, behind);
+      _next.write(twin, back);
+      if (_uv0 != null || _colour != null) {
+        setCorner(
+          back,
+          CornerAttributes.lerp(cornerOf(twin), cornerOf(beyond), 1 - factor),
+        );
+      }
+      _carryEdgeAttributes(twin, back);
+      // The near halves face each other, and so do the far ones.
+      _twin.write(halfEdge, back);
+      _twin.write(back, halfEdge);
+      _twin.write(far, twin);
+      _twin.write(twin, far);
+    }
+
+    if (_weights != null || _joints != null) {
+      setSkin(middle, VertexAttributes.lerp(skinOf(from), skinOf(to), factor));
+    }
+    _outgoing.write(middle, far);
+    return middle;
+  }
+
+  /// Copies the sharpness and crease of [from] onto [to], which is the other
+  /// half of the edge it was just cut from.
+  void _carryEdgeAttributes(int from, int to) {
+    if (_crease case final JournalledFloats layer) {
+      layer.write(to, layer[from]);
+    }
+    if (_edgeFlags case final JournalledInts layer) {
+      layer.write(to, layer[from]);
+    }
+  }
+
+  /// Cuts [face] in two along the line between the corners [from] and [to]
+  /// start at, and returns the new face.
+  ///
+  /// Both must be on [face]'s loop and neither next to the other: a cut between
+  /// neighbours would leave a side with two corners, which is not a face.
+  int splitFace(int face, int from, int to) {
+    if (_faceAlive[face] == 0) return none;
+    if (from == to || _next[from] == to || _next[to] == from) return none;
+    if (_halfEdgeFace[from] != face || _halfEdgeFace[to] != face) return none;
+
+    final beforeFrom = _prevOf(from);
+    final beforeTo = _prevOf(to);
+    final made = _newFace();
+    final diagonal = _newHalfEdges(2);
+    final back = diagonal;
+    final forth = diagonal + 1;
+
+    // One side keeps the face and closes through `back`; the other is new and
+    // closes through `forth`.
+    _origin.write(back, _origin[to]);
+    _next.write(back, from);
+    _halfEdgeFace.write(back, face);
+    _next.write(beforeTo, back);
+
+    _origin.write(forth, _origin[from]);
+    _next.write(forth, to);
+    _halfEdgeFace.write(forth, made);
+    _next.write(beforeFrom, forth);
+
+    _twin.write(back, forth);
+    _twin.write(forth, back);
+
+    var walk = to;
+    do {
+      _halfEdgeFace.write(walk, made);
+      walk = _next[walk];
+    } while (walk != to);
+
+    _faceHalfEdge.write(face, from);
+    _faceHalfEdge.write(made, to);
+    _faceAlive.write(made, 1);
+    _liveFaces++;
+
+    if (_materialSlot != null) setMaterialSlot(made, materialSlotOf(face));
+    if (_faceFlags != null) {
+      setFaceFlag(made, FaceFlags.smooth, on: faceHas(face, FaceFlags.smooth));
+    }
+    if (_uv0 != null || _colour != null) {
+      setCorner(back, cornerOf(to));
+      setCorner(forth, cornerOf(from));
+    }
+    return made;
   }
 
   /// Makes [a] and [b] the two sides of one edge.
