@@ -1,8 +1,8 @@
 import 'dart:ui' as ui;
 
 import 'package:flutter/widgets.dart';
-import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter3d_session/flutter3d_session.dart';
+import 'package:flutter_test/flutter_test.dart';
 
 /// The colour at a pixel, as four bytes.
 Future<List<int>> _pixel(ui.Image image, int x, int y) async {
