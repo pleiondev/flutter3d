@@ -108,6 +108,23 @@ final class LevelLoader {
   /// `rootBundle.loadString` so the games that only ever load their own
   /// bundled levels are unaffected. [readAsset] governs the textures a level
   /// names, and is passed straight through to [build].
+  ///
+  /// [sidecars] is whether to look beside the document for a visibility table
+  /// and a lightmap at all. True everywhere it can pay, and there is one place
+  /// it cannot: **an open circuit has nothing to occlude with.** Baking the
+  /// ring at a twenty-four metre grid — eight times coarser than the three
+  /// metres an indoor level uses, because finer runs out of memory — took
+  /// forty-eight minutes and produced a table whose density is *one hundred
+  /// per cent*: all 14,992,384 pairs of its 3,872 cells see each other. The
+  /// grid comes out two cells tall, which is the same fact from the other
+  /// side — there is no geometry above the road to stand in the way. The
+  /// crypt, for contrast, occludes 56% of its pairs at three metres in
+  /// seconds, which is what the mechanism is for.
+  ///
+  /// So a circuit asking for sidecars is two guaranteed 404s in the console of
+  /// every web build, and the alternative — shipping the table anyway — is
+  /// 2.5 MB per game that culls nothing. Saying so here is cheaper than
+  /// leaving each caller to discover it.
   Future<LoadedLevel> load(
     String assetPath, {
     required GraphicsDevice device,
@@ -115,16 +132,18 @@ final class LevelLoader {
     List<LevelRule> rules = const <LevelRule>[],
     AssetBytes? readAsset,
     DocumentText? readDocument,
+    bool sidecars = true,
   }) async {
     final read = readDocument ?? _bundleDocument;
     final level = Level.fromJson(
       jsonDecode(await read(AssetRequest(assetPath))) as Map<String, Object?>,
     );
-    final (visibility, issue) = await _sidecarVisibility(assetPath, read);
-    final (lightmap, lightmapIssue) = await _sidecarLightmap(
-      assetPath,
-      readAsset ?? _bundleAsset,
-    );
+    final (visibility, issue) = sidecars
+        ? await _sidecarVisibility(assetPath, read)
+        : (null, null);
+    final (lightmap, lightmapIssue) = sidecars
+        ? await _sidecarLightmap(assetPath, readAsset ?? _bundleAsset)
+        : (null, null);
     return build(
       level,
       device: device,

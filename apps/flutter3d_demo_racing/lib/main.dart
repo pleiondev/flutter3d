@@ -555,6 +555,11 @@ class _RaceScreenState extends State<RaceScreen>
         // registry is empty rather than absent: the loader validates against
         // it, and an empty one is the statement that nothing is expected.
         registry: EntityRegistry(const <EntityKind>[]),
+        // No sidecars beside a circuit, and the measurement behind that is on
+        // `LevelLoader.load`: a visibility table baked for this track sees
+        // everything from everywhere, so asking for one is two 404s in the
+        // console of every web build and nothing gained if it were there.
+        sidecars: false,
       );
 
       // The one assembly this game has. What is left here is what needs a
