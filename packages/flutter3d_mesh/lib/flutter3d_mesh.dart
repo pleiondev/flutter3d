@@ -17,3 +17,4 @@
 library;
 
 export 'src/edit_mesh.dart';
+export 'src/journal.dart';

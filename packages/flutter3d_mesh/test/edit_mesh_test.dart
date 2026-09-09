@@ -24,7 +24,7 @@ void main() {
       // boundary, and a face wound the wrong way round would leave two.
       expect(cube.halfEdgeCount, 24);
       for (var half = 0; half < cube.halfEdgeCount; half++) {
-        expect(cube.twinOf(half), isNot(EditMesh.noHalfEdge));
+        expect(cube.twinOf(half), isNot(EditMesh.none));
       }
       cube.validate();
     });
@@ -70,7 +70,7 @@ void main() {
       expect(extruded.faceCount, 10);
       expect(extruded.eulerCharacteristic, 2);
       for (var half = 0; half < extruded.halfEdgeCount; half++) {
-        expect(extruded.twinOf(half), isNot(EditMesh.noHalfEdge));
+        expect(extruded.twinOf(half), isNot(EditMesh.none));
       }
       // Mutation: leave the original face in place rather than lifting it and
       // `validate` throws on the edge that now has three faces.

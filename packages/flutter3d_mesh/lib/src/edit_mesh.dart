@@ -1,122 +1,87 @@
+/// A mesh with its topology still in it: faces of any valency, and half-edges
+/// that know what is next to what.
+///
+/// **Why this is not `MeshData`.** That one describes a finished mesh —
+/// vertices in the order a GPU wants them, with a corner duplicated once per
+/// face normal meeting there — and every question a modeller asks is about what
+/// that arrangement threw away: which faces share this edge, what ring does this
+/// edge belong to, what is the loop around this face. So editing needs the other
+/// representation, and drawing needs this one converted.
+///
+/// **Six arrays and no objects.** A half-edge knows its origin vertex, the next
+/// half-edge around its face, its twin across the edge, and the face it belongs
+/// to; a vertex knows one half-edge leaving it; a face knows one half-edge on
+/// its loop. All of it is `Int32List` and `Float32List` through
+/// [JournalledInts] and [JournalledFloats], so an edit is recorded and can be
+/// taken back, and a read is an array read.
+///
+/// **Deletion is a tombstone, not a hole.** Removing a face from the middle of
+/// the arrays would renumber everything after it, and every selection, every
+/// undo record and every id an agent is holding would be pointing at something
+/// else. So a deleted element is marked dead and skipped; [compact] is what
+/// closes the gaps, and it hands back the [IdRemap] that says where everything
+/// went.
+library;
+
 import 'dart:typed_data';
 
 import 'package:flutter3d_geometry/flutter3d_geometry.dart';
 import 'package:vector_math/vector_math.dart';
 
-/// A mesh with its topology still in it: faces of any valency, and half-edges
-/// that know what is next to what.
-///
-/// **The spike, and it is labelled as one.** `MeshData` is a finished mesh —
-/// vertices in the order a GPU wants them, with a corner duplicated once per
-/// face normal that meets there — and every question a modeller asks is about
-/// what that arrangement has thrown away: which faces share this edge, what
-/// ring does this edge belong to, what is the loop around this face. So the
-/// editable representation is a different one, and this file is the smallest
-/// version of it that can answer the question the plan asks of it: can a cube
-/// be built, a face extruded, and the result handed back to the engine, with
-/// the numbers to say what that costs.
-///
-/// **What it does not do yet, said plainly so nothing here is mistaken for the
-/// real thing.** An operation rebuilds the arrays rather than editing them in
-/// place, there are no tombstones, no attribute layers beyond position, and no
-/// persistent sharing between versions. Those are `mesh-10` through `mesh-13`
-/// of `doc/model-editor-plan.md`; the rebuild is deliberate here, because one
-/// of the answers the measurement may give is that rebuilding a whole mesh per
-/// edit is affordable, and a spike that assumed otherwise could not report it.
-///
-/// The arrays are the shape the real one keeps: four `Int32List`s over
-/// half-edges, one per face, one per vertex, and positions interleaved in a
-/// `Float32List`. Every index is an index — no objects, no maps, nothing to
-/// walk on a garbage collector's behalf.
+import 'journal.dart';
+
+/// Where an element went when the mesh was compacted, or [EditMesh.none] where
+/// it was dropped.
+final class IdRemap {
+  const IdRemap({required this.vertices, required this.faces});
+
+  /// Old vertex number to new, indexed by the old one.
+  final Int32List vertices;
+
+  /// Old face number to new.
+  final Int32List faces;
+}
+
+/// An editable mesh.
 final class EditMesh {
   EditMesh._(
     this._positions,
-    this._vertexCount,
     this._origin,
     this._next,
     this._twin,
     this._halfEdgeFace,
     this._faceHalfEdge,
     this._outgoing,
+    this._vertexAlive,
+    this._faceAlive,
+  ) : _vertexSlots = _outgoing.length,
+      _faceSlots = _faceHalfEdge.length,
+      _halfEdgeSlots = _origin.length;
+
+  /// An empty mesh, ready to be built into.
+  factory EditMesh.empty() => EditMesh._(
+    JournalledFloats(0),
+    JournalledInts(0),
+    JournalledInts(0),
+    JournalledInts(0),
+    JournalledInts(0),
+    JournalledInts(0),
+    JournalledInts(0),
+    JournalledInts(0),
+    JournalledInts(0),
   );
 
   /// Builds a mesh from points and faces, each face a list of point indices
   /// wound counter-clockwise seen from outside.
-  ///
-  /// Twins are matched by the pair of vertices an edge runs between: a
-  /// half-edge from `a` to `b` twins with the one from `b` to `a`, and a
-  /// half-edge with no partner is a boundary — [twinOf] answers [noHalfEdge]
-  /// for it rather than pretending there is a face on the other side.
-  ///
-  /// A third face on one edge is a mesh this spike does not model, and it says
-  /// so rather than silently keeping the last one it saw: repairing
-  /// non-manifold input is `mesh-13`, and quietly dropping a face would make
-  /// the Euler characteristic below agree with nothing anybody could see.
   factory EditMesh.fromFaces(List<Vector3> points, List<List<int>> faces) {
-    final halfEdgeCount = faces.fold<int>(0, (sum, face) => sum + face.length);
-
-    final positions = Float32List(points.length * 3);
-    for (var i = 0; i < points.length; i++) {
-      positions[i * 3] = points[i].x;
-      positions[i * 3 + 1] = points[i].y;
-      positions[i * 3 + 2] = points[i].z;
+    final builder = EditMeshBuilder();
+    for (final point in points) {
+      builder.addVertex(point);
     }
-
-    final origin = Int32List(halfEdgeCount);
-    final next = Int32List(halfEdgeCount);
-    final twin = Int32List(halfEdgeCount)..fillRange(0, halfEdgeCount, -1);
-    final halfEdgeFace = Int32List(halfEdgeCount);
-    final faceHalfEdge = Int32List(faces.length);
-    final outgoing = Int32List(points.length)..fillRange(0, points.length, -1);
-
-    // The pair a half-edge runs between, packed into one key so the match is a
-    // map lookup rather than a scan of everything built so far. Vertices are
-    // int32 by construction, so `from * count + to` cannot collide.
-    final byPair = <int, int>{};
-
-    var half = 0;
-    for (var face = 0; face < faces.length; face++) {
-      final loop = faces[face];
-      if (loop.length < 3) {
-        throw ArgumentError('face $face has ${loop.length} vertices');
-      }
-      faceHalfEdge[face] = half;
-      for (var i = 0; i < loop.length; i++) {
-        final from = loop[i];
-        final to = loop[(i + 1) % loop.length];
-        final index = half + i;
-
-        origin[index] = from;
-        next[index] = half + (i + 1) % loop.length;
-        halfEdgeFace[index] = face;
-        if (outgoing[from] < 0) outgoing[from] = index;
-
-        final partner = byPair.remove(to * points.length + from);
-        if (partner != null) {
-          twin[index] = partner;
-          twin[partner] = index;
-        } else if (byPair.containsKey(from * points.length + to)) {
-          throw ArgumentError(
-            'the edge $from-$to is used twice the same way round, which is a '
-            'third face on one edge rather than two',
-          );
-        } else {
-          byPair[from * points.length + to] = index;
-        }
-      }
-      half += loop.length;
+    for (final face in faces) {
+      builder.addFace(face);
     }
-
-    return EditMesh._(
-      positions,
-      points.length,
-      origin,
-      next,
-      twin,
-      halfEdgeFace,
-      faceHalfEdge,
-      outgoing,
-    );
+    return builder.build();
   }
 
   /// An axis-aligned box of [size], centred on the origin, as six quads.
@@ -127,184 +92,458 @@ final class EditMesh {
   /// a triangulated cube has nothing to cut along.
   factory EditMesh.cuboid({Vector3? size}) {
     final half = (size ?? Vector3(1, 1, 1)) * 0.5;
-    final points = <Vector3>[
-      Vector3(-half.x, -half.y, -half.z),
-      Vector3(half.x, -half.y, -half.z),
-      Vector3(half.x, half.y, -half.z),
-      Vector3(-half.x, half.y, -half.z),
-      Vector3(-half.x, -half.y, half.z),
-      Vector3(half.x, -half.y, half.z),
-      Vector3(half.x, half.y, half.z),
-      Vector3(-half.x, half.y, half.z),
-    ];
-    return EditMesh.fromFaces(points, <List<int>>[
-      <int>[4, 5, 6, 7], // +Z
-      <int>[1, 0, 3, 2], // −Z
-      <int>[5, 1, 2, 6], // +X
-      <int>[0, 4, 7, 3], // −X
-      <int>[3, 7, 6, 2], // +Y
-      <int>[0, 1, 5, 4], // −Y
-    ]);
+    return EditMesh.fromFaces(
+      <Vector3>[
+        Vector3(-half.x, -half.y, -half.z),
+        Vector3(half.x, -half.y, -half.z),
+        Vector3(half.x, half.y, -half.z),
+        Vector3(-half.x, half.y, -half.z),
+        Vector3(-half.x, -half.y, half.z),
+        Vector3(half.x, -half.y, half.z),
+        Vector3(half.x, half.y, half.z),
+        Vector3(-half.x, half.y, half.z),
+      ],
+      <List<int>>[
+        <int>[4, 5, 6, 7], // +Z
+        <int>[1, 0, 3, 2], // −Z
+        <int>[5, 1, 2, 6], // +X
+        <int>[0, 4, 7, 3], // −X
+        <int>[3, 7, 6, 2], // +Y
+        <int>[0, 1, 5, 4], // −Y
+      ],
+    );
   }
 
-  /// The answer [twinOf] gives for a half-edge on a boundary.
-  static const int noHalfEdge = -1;
+  /// What an index means when there is nothing there: a half-edge on a
+  /// boundary has no twin, a deleted element has no successor.
+  static const int none = -1;
 
-  final Float32List _positions;
-  final int _vertexCount;
-  final Int32List _origin;
-  final Int32List _next;
-  final Int32List _twin;
-  final Int32List _halfEdgeFace;
-  final Int32List _faceHalfEdge;
-  final Int32List _outgoing;
+  final JournalledFloats _positions;
+  final JournalledInts _origin;
+  final JournalledInts _next;
+  final JournalledInts _twin;
+  final JournalledInts _halfEdgeFace;
+  final JournalledInts _faceHalfEdge;
+  final JournalledInts _outgoing;
 
-  int get vertexCount => _vertexCount;
-  int get faceCount => _faceHalfEdge.length;
-  int get halfEdgeCount => _origin.length;
+  // Tombstones. One int per element rather than a bitset: the arrays are
+  // already int32 and a bitset would save four megabytes on a mesh where the
+  // positions alone are twenty-four, in exchange for a shift and a mask on the
+  // hottest test in every walk.
+  final JournalledInts _vertexAlive;
+  final JournalledInts _faceAlive;
+
+  int _vertexSlots;
+  int _faceSlots;
+  int _halfEdgeSlots;
+
+  int _liveVertices = 0;
+  int _liveFaces = 0;
+
+  /// Slots the arrays hold, live and dead. What a walk iterates over.
+  ///
+  /// A caller that iterates — a viewport building an overlay, an exporter
+  /// walking faces, a test — needs the slot count rather than the live one,
+  /// because a tombstone leaves a gap and the numbers on either side of it do
+  /// not move.
+  int get vertexSlotCount => _vertexSlots;
+  int get faceSlotCount => _faceSlots;
+
+  /// Half-edge slots, live and dead.
+  ///
+  /// What a caller sizes a per-half-edge array against — `mesh-19`'s selection
+  /// bitsets, a viewport's overlay buffers — and the bound a walk guarding
+  /// against a loop that does not close counts up to.
+  int get halfEdgeSlotCount => _halfEdgeSlots;
+
+  /// Elements that are actually there.
+  int get vertexCount => _liveVertices;
+  int get faceCount => _liveFaces;
+
+  /// Whether the slot holds something.
+  ///
+  /// Asked by everything that iterates over slots and by everything that was
+  /// handed an id earlier: a selection made before a delete, an undo record, an
+  /// agent naming a face over MCP. The alternative — letting a caller read a
+  /// dead element and get plausible-looking numbers out of it — is the failure
+  /// tombstones exist to make impossible to reach by accident.
+  bool isVertexAlive(int vertex) => _vertexAlive[vertex] != 0;
+  bool isFaceAlive(int face) => _faceAlive[face] != 0;
+
+  /// Half-edges of live faces. A dead face's half-edges are dead with it.
+  int get halfEdgeCount {
+    var count = 0;
+    for (var face = 0; face < _faceSlots; face++) {
+      if (_faceAlive[face] == 0) continue;
+      count += _valencyOf(face);
+    }
+    return count;
+  }
 
   /// Edges, counting a pair of twins once and a boundary half-edge once.
   int get edgeCount {
     var paired = 0;
     var boundary = 0;
-    for (var i = 0; i < _twin.length; i++) {
-      if (_twin[i] == noHalfEdge) {
-        boundary++;
-      } else {
-        paired++;
-      }
+    for (var face = 0; face < _faceSlots; face++) {
+      if (_faceAlive[face] == 0) continue;
+      final start = _faceHalfEdge[face];
+      var half = start;
+      do {
+        final twin = _twin[half];
+        if (twin == none ||
+            _halfEdgeFace[twin] == none ||
+            _faceAlive[_halfEdgeFace[twin]] == 0) {
+          boundary++;
+        } else {
+          paired++;
+        }
+        half = _next[half];
+      } while (half != start);
     }
     return paired ~/ 2 + boundary;
   }
 
   /// `V − E + F`, which is 2 for anything shaped like a sphere.
-  ///
-  /// The cheapest question that notices a mesh coming apart, and the one every
-  /// operation below is tested with: a face left behind, a twin not rewired or
-  /// a vertex nothing points at all move it.
   int get eulerCharacteristic => vertexCount - edgeCount + faceCount;
-
-  /// The position of [vertex], as a new vector.
-  Vector3 positionOf(int vertex) => Vector3(
-    _positions[vertex * 3],
-    _positions[vertex * 3 + 1],
-    _positions[vertex * 3 + 2],
-  );
 
   int originOf(int halfEdge) => _origin[halfEdge];
   int nextOf(int halfEdge) => _next[halfEdge];
   int twinOf(int halfEdge) => _twin[halfEdge];
   int faceOf(int halfEdge) => _halfEdgeFace[halfEdge];
 
-  /// The half-edges of [face], in winding order.
+  /// Some half-edge leaving [vertex], or [none] for a vertex in no face.
+  int outgoingOf(int vertex) => _outgoing[vertex];
+
+  /// Some half-edge on the loop of [face].
   ///
-  /// A generator rather than a list, because the loops are walked far more
-  /// often than they are stored and a list per face per operation is the
-  /// allocation this representation exists to avoid.
-  Iterable<int> halfEdgesOf(int face) sync* {
+  /// Where a caller that wants to walk a loop by hand starts — `mesh-19`'s edge
+  /// loops and rings step from a half-edge rather than from a face, and so does
+  /// anything that needs the loop's *order* rather than its members.
+  int halfEdgeOf(int face) => _faceHalfEdge[face];
+
+  /// The position of [vertex], written into [out] when one is given.
+  ///
+  /// **The out parameter is not premature.** Every operation here reads
+  /// positions per vertex per step; allocating a `Vector3` for each is what
+  /// turned the spike's `signedVolume` into thirty-seven milliseconds on 200
+  /// 000 faces.
+  Vector3 positionOf(int vertex, [Vector3? out]) => (out ?? Vector3.zero())
+    ..setValues(
+      _positions[vertex * 3],
+      _positions[vertex * 3 + 1],
+      _positions[vertex * 3 + 2],
+    );
+
+  /// The raw positions: three floats per vertex slot.
+  ///
+  /// Read-only by convention, for the reason [JournalledFloats.values] gives —
+  /// a conversion or a bounds pass must not pay for a copy. Writes go through
+  /// [moveVertex] so history records them.
+  Float32List get positions => _positions.values;
+
+  /// Calls [visit] for every half-edge of [face], in winding order.
+  ///
+  /// **A callback rather than an `Iterable`.** A sync* generator allocates an
+  /// iterator per call, and these loops are walked once per face per operation:
+  /// on a 100 000-face mesh that is 100 000 allocations to answer a question
+  /// about winding.
+  void forEachHalfEdge(int face, void Function(int halfEdge) visit) {
     final start = _faceHalfEdge[face];
-    var current = start;
+    if (start == none) return;
+    var half = start;
     do {
-      yield current;
-      current = _next[current];
-    } while (current != start);
+      visit(half);
+      half = _next[half];
+    } while (half != start);
   }
 
-  /// The vertices of [face], in winding order.
-  Iterable<int> verticesOf(int face) =>
-      halfEdgesOf(face).map((int half) => _origin[half]);
+  /// Calls [visit] for every vertex of [face], in winding order.
+  void forEachVertex(int face, void Function(int vertex) visit) =>
+      forEachHalfEdge(face, (int half) => visit(_origin[half]));
+
+  /// The vertices of [face] as a list — for callers that need one, and not for
+  /// the loops that run per face.
+  List<int> verticesOf(int face) {
+    final out = <int>[];
+    forEachVertex(face, out.add);
+    return out;
+  }
+
+  int _valencyOf(int face) {
+    var count = 0;
+    forEachHalfEdge(face, (_) => count++);
+    return count;
+  }
+
+  /// How many half-edges [face] has.
+  int valencyOf(int face) => _valencyOf(face);
+
+  // ------------------------------------------------------------------ edits
+
+  /// Whether the open step has written anything.
+  ///
+  /// Kept here rather than asked of the arrays, because the question is "did
+  /// this edit do anything", and nine arrays each answering for themselves is
+  /// nine answers to one question.
+  bool _wrote = false;
+
+  /// Opens a step of history. Every edit until [endStep] is one undo away.
+  void beginStep() {
+    _wrote = false;
+    _positions.beginStep();
+    _origin.beginStep();
+    _next.beginStep();
+    _twin.beginStep();
+    _halfEdgeFace.beginStep();
+    _faceHalfEdge.beginStep();
+    _outgoing.beginStep();
+    _vertexAlive.beginStep();
+    _faceAlive.beginStep();
+  }
+
+  /// Closes the step. Returns whether anything was written.
+  ///
+  /// **All nine arrays get a step, or none of them does.** An edit that moved a
+  /// vertex wrote to `positions` and nothing else; an edit that deleted a face
+  /// wrote to `faceAlive` and nothing else. If the empty ones dropped their
+  /// step, the arrays would sit at different depths and one undo would take
+  /// positions back a version while leaving the topology where it was. So a
+  /// step that wrote anything is recorded everywhere, empty where it has to be,
+  /// and a step that wrote nothing is recorded nowhere.
+  bool endStep() {
+    final wrote = _wrote;
+    _positions.endStep(keepEmpty: wrote);
+    _origin.endStep(keepEmpty: wrote);
+    _next.endStep(keepEmpty: wrote);
+    _twin.endStep(keepEmpty: wrote);
+    _halfEdgeFace.endStep(keepEmpty: wrote);
+    _faceHalfEdge.endStep(keepEmpty: wrote);
+    _outgoing.endStep(keepEmpty: wrote);
+    _vertexAlive.endStep(keepEmpty: wrote);
+    _faceAlive.endStep(keepEmpty: wrote);
+    _wrote = false;
+    return wrote;
+  }
+
+  /// Takes the last step back, counts and all.
+  bool undo() {
+    // Any array answers, because every step is in all of them — see [endStep].
+    if (_faceAlive.undoDepth == 0) return false;
+    _positions.undo();
+    _origin.undo();
+    _next.undo();
+    _twin.undo();
+    _halfEdgeFace.undo();
+    _faceHalfEdge.undo();
+    _outgoing.undo();
+    _vertexAlive.undo();
+    _faceAlive.undo();
+    _recount();
+    return true;
+  }
+
+  /// Puts the last undone step back.
+  bool redo() {
+    if (_faceAlive.redoDepth == 0) return false;
+    _positions.redo();
+    _origin.redo();
+    _next.redo();
+    _twin.redo();
+    _halfEdgeFace.redo();
+    _faceHalfEdge.redo();
+    _outgoing.redo();
+    _vertexAlive.redo();
+    _faceAlive.redo();
+    _recount();
+    return true;
+  }
+
+  /// How many steps can be taken back.
+  int get undoDepth => _faceAlive.undoDepth;
+
+  /// Bytes every journal holds together.
+  int get journalBytes =>
+      _positions.journalBytes +
+      _origin.journalBytes +
+      _next.journalBytes +
+      _twin.journalBytes +
+      _halfEdgeFace.journalBytes +
+      _faceHalfEdge.journalBytes +
+      _outgoing.journalBytes +
+      _vertexAlive.journalBytes +
+      _faceAlive.journalBytes;
+
+  /// The live counts, recomputed from the tombstones.
+  ///
+  /// Called after an undo rather than journalled alongside: a count is derived
+  /// from the flags, and a derived value in the journal is a second answer that
+  /// can disagree with the first.
+  void _recount() {
+    var vertices = 0;
+    for (var i = 0; i < _vertexSlots; i++) {
+      if (_vertexAlive[i] != 0) vertices++;
+    }
+    var faces = 0;
+    for (var i = 0; i < _faceSlots; i++) {
+      if (_faceAlive[i] != 0) faces++;
+    }
+    _liveVertices = vertices;
+    _liveFaces = faces;
+  }
+
+  /// Moves [vertex] to [to], recording where it was.
+  void moveVertex(int vertex, Vector3 to) {
+    _wrote = true;
+    _positions
+      ..write(vertex * 3, to.x)
+      ..write(vertex * 3 + 1, to.y)
+      ..write(vertex * 3 + 2, to.z);
+  }
+
+  /// Marks [face] dead, along with the half-edges on its loop.
+  ///
+  /// The twins on the other side keep pointing at these half-edges and become
+  /// boundary edges by the test [edgeCount] uses: a twin whose face is dead is
+  /// a twin with nothing behind it. Rewiring them to [none] instead would lose
+  /// the information an undo needs to put the face back.
+  void deleteFace(int face) {
+    if (_faceAlive[face] == 0) return;
+    _wrote = true;
+    _faceAlive.write(face, 0);
+    _liveFaces--;
+  }
+
+  /// Marks [vertex] dead. Its faces must be gone first.
+  void deleteVertex(int vertex) {
+    if (_vertexAlive[vertex] == 0) return;
+    _wrote = true;
+    _vertexAlive.write(vertex, 0);
+    _liveVertices--;
+  }
+
+  // -------------------------------------------------------------- compaction
+
+  /// Closes the gaps the tombstones left, and says where everything went.
+  ///
+  /// **A new mesh rather than a shuffle in place, and the journal is why.** The
+  /// old mesh's history is a set of indices into arrays whose numbering is
+  /// about to change; replaying one against compacted arrays would move the
+  /// wrong vertices. So compaction produces a mesh with no history, and the
+  /// caller — `doc-08` — decides what that means for undo. The plan says it
+  /// means the same thing as saving: a boundary the stack does not cross.
+  (EditMesh, IdRemap) compact() {
+    final vertexMap = Int32List(_vertexSlots)..fillRange(0, _vertexSlots, none);
+    final faceMap = Int32List(_faceSlots)..fillRange(0, _faceSlots, none);
+
+    final builder = EditMeshBuilder();
+    final position = Vector3.zero();
+    for (var vertex = 0; vertex < _vertexSlots; vertex++) {
+      if (_vertexAlive[vertex] == 0) continue;
+      vertexMap[vertex] = builder.addVertex(positionOf(vertex, position));
+    }
+    final loop = <int>[];
+    for (var face = 0; face < _faceSlots; face++) {
+      if (_faceAlive[face] == 0) continue;
+      loop.clear();
+      forEachVertex(face, (int vertex) => loop.add(vertexMap[vertex]));
+      faceMap[face] = builder.addFace(loop);
+    }
+    return (builder.build(), IdRemap(vertices: vertexMap, faces: faceMap));
+  }
+
+  // ------------------------------------------------------------- measurements
 
   /// The face's normal by Newell's method, which is the one that answers for a
   /// quad whose four points are not quite in a plane.
-  Vector3 normalOf(int face) {
-    final normal = Vector3.zero();
-    final loop = halfEdgesOf(face).toList(growable: false);
-    for (var i = 0; i < loop.length; i++) {
-      final current = positionOf(_origin[loop[i]]);
-      final ahead = positionOf(_origin[loop[(i + 1) % loop.length]]);
+  Vector3 normalOf(int face, [Vector3? out]) {
+    final normal = (out ?? Vector3.zero())..setZero();
+    forEachHalfEdge(face, (int half) {
+      final from = _origin[half] * 3;
+      final to = _origin[_next[half]] * 3;
+      final cx = _positions[from];
+      final cy = _positions[from + 1];
+      final cz = _positions[from + 2];
+      final ax = _positions[to];
+      final ay = _positions[to + 1];
+      final az = _positions[to + 2];
       normal
-        ..x += (current.y - ahead.y) * (current.z + ahead.z)
-        ..y += (current.z - ahead.z) * (current.x + ahead.x)
-        ..z += (current.x - ahead.x) * (current.y + ahead.y);
-    }
+        ..x += (cy - ay) * (cz + az)
+        ..y += (cz - az) * (cx + ax)
+        ..z += (cx - ax) * (cy + ay);
+    });
     final length = normal.length;
-    return length == 0 ? Vector3(0, 1, 0) : normal / length;
+    if (length == 0) return normal..setValues(0, 1, 0);
+    return normal..scale(1 / length);
   }
 
   /// The area of [face], summed over the fan its normal projects onto.
   double areaOf(int face) {
-    final loop = verticesOf(face).toList(growable: false);
+    final loop = verticesOf(face);
+    if (loop.length < 3) return 0;
     final anchor = positionOf(loop.first);
+    final b = Vector3.zero();
+    final c = Vector3.zero();
     var total = 0.0;
     for (var i = 1; i + 1 < loop.length; i++) {
-      final b = positionOf(loop[i]) - anchor;
-      final c = positionOf(loop[i + 1]) - anchor;
+      positionOf(loop[i], b);
+      positionOf(loop[i + 1], c);
+      b.sub(anchor);
+      c.sub(anchor);
       total += b.cross(c).length * 0.5;
     }
     return total;
   }
 
   /// The volume the surface encloses, signed by winding.
-  ///
-  /// What a test uses to say an extrusion actually moved something: a face
-  /// pushed out by `d` adds `area × d`, and an extrusion that pushed the wrong
-  /// way, or left the original face behind, does not.
   double get signedVolume {
     var total = 0.0;
-    for (var face = 0; face < faceCount; face++) {
-      final loop = verticesOf(face).toList(growable: false);
-      final anchor = positionOf(loop.first);
+    final anchor = Vector3.zero();
+    final b = Vector3.zero();
+    final c = Vector3.zero();
+    for (var face = 0; face < _faceSlots; face++) {
+      if (_faceAlive[face] == 0) continue;
+      final loop = verticesOf(face);
+      if (loop.length < 3) continue;
+      positionOf(loop.first, anchor);
       for (var i = 1; i + 1 < loop.length; i++) {
-        final b = positionOf(loop[i]);
-        final c = positionOf(loop[i + 1]);
+        positionOf(loop[i], b);
+        positionOf(loop[i + 1], c);
         total += anchor.dot(b.cross(c)) / 6.0;
       }
     }
     return total;
   }
 
-  /// Every face as a list of vertex indices, which is what an operation edits
-  /// and [EditMesh.fromFaces] reads back.
+  /// Every live face as a list of vertex numbers.
   List<List<int>> faces() => <List<int>>[
-    for (var face = 0; face < faceCount; face++)
-      verticesOf(face).toList(growable: false),
+    for (var face = 0; face < _faceSlots; face++)
+      if (_faceAlive[face] != 0) verticesOf(face),
   ];
 
   /// Pushes [face] out along its own normal by [distance], walling in the gap.
   ///
-  /// The face keeps its winding and its valency and arrives on new vertices;
-  /// the old ones stay where they were, joined to the new ones by one quad per
-  /// edge. On a closed mesh the characteristic does not move: a quad face
-  /// gains four vertices, eight edges and four faces.
-  ///
-  /// The lifted face is renumbered: the faces that were kept come first in
-  /// their old order, then the lifted one, then the walls. So extruding face
-  /// `f` of a mesh with `n` faces leaves the lifted face at `n - 1`, which is
-  /// what a caller extrudes again to build a step.
-  ///
-  /// Rebuilt rather than rewired, for the reason the class doc gives — this is
-  /// the spike, and `mesh-23` is the operation.
+  /// **Rebuilt rather than rewired, and it is the one operation still shaped
+  /// like the spike.** `mesh-23` does it in place; what is here is enough to
+  /// measure the pipeline and to give the viewport something to draw, and it
+  /// returns a fresh mesh rather than editing this one.
   EditMesh extrudeFace(int face, double distance) {
-    final loop = verticesOf(face).toList(growable: false);
-    final offset = normalOf(face) * distance;
+    final loop = verticesOf(face);
+    final offset = normalOf(face)..scale(distance);
 
     final points = <Vector3>[
-      for (var i = 0; i < vertexCount; i++) positionOf(i),
+      for (var vertex = 0; vertex < _vertexSlots; vertex++)
+        if (_vertexAlive[vertex] != 0) positionOf(vertex),
     ];
-    // Indexed by position in the loop rather than by vertex, so a loop that
-    // visits one vertex twice still gets two new ones.
     final base = points.length;
     final lifted = <int>[for (var i = 0; i < loop.length; i++) base + i];
     for (final vertex in loop) {
-      points.add(positionOf(vertex) + offset);
+      points.add(positionOf(vertex)..add(offset));
     }
 
     final rebuilt = <List<int>>[
-      for (var f = 0; f < faceCount; f++)
-        if (f != face) verticesOf(f).toList(growable: false),
+      for (var f = 0; f < _faceSlots; f++)
+        if (_faceAlive[f] != 0 && f != face) verticesOf(f),
       lifted,
-      // One quad per edge of the loop, wound so its normal points outwards:
-      // along the original edge, up, back, and down.
       for (var i = 0; i < loop.length; i++)
         <int>[
           loop[i],
@@ -318,26 +557,28 @@ final class EditMesh {
 
   /// The mesh a renderer can draw: triangles, with one vertex per corner so
   /// every face keeps its own flat normal.
-  ///
-  /// A fan from the first vertex of each face, which is right for the convex
-  /// faces a primitive is made of and wrong for an L-shaped n-gon — `mesh-15`
-  /// is the triangulation that is not.
   MeshData toMeshData({VertexLayout layout = VertexLayout.standard}) {
     final builder = MeshBuilder(
       layout,
       reserveVertices: halfEdgeCount,
       reserveIndices: halfEdgeCount * 3,
     );
-    for (var face = 0; face < faceCount; face++) {
-      final normal = normalOf(face);
-      final corners = <int>[
-        for (final vertex in verticesOf(face))
+    final normal = Vector3.zero();
+    final position = Vector3.zero();
+    final corners = <int>[];
+    for (var face = 0; face < _faceSlots; face++) {
+      if (_faceAlive[face] == 0) continue;
+      normalOf(face, normal);
+      corners.clear();
+      forEachVertex(face, (int vertex) {
+        corners.add(
           builder.addVertex(
-            position: positionOf(vertex),
+            position: positionOf(vertex, position),
             normal: normal,
             texcoord: Vector2.zero(),
           ),
-      ];
+        );
+      });
       for (var i = 1; i + 1 < corners.length; i++) {
         builder.addTriangle(corners[0], corners[i], corners[i + 1]);
       }
@@ -347,47 +588,169 @@ final class EditMesh {
 
   /// Throws unless the arrays agree with each other.
   ///
-  /// **The invariant, not the shape.** Every one of these has been broken by an
-  /// operation at some point in some modeller: a `next` that leaves the face it
-  /// started in, a twin that is not mutual, an `outgoing` left pointing at a
-  /// half-edge that now starts somewhere else. Each is silent until a loop walk
-  /// runs forever or a picked edge belongs to the wrong face.
+  /// **The invariants, not the shape.** Every one of these has been broken by
+  /// an operation in some modeller: a `next` that leaves the face it started
+  /// in, a twin that is not mutual, an `outgoing` left pointing at a half-edge
+  /// that now starts somewhere else. Each is silent until a loop walk runs
+  /// forever or a picked edge belongs to the wrong face.
   void validate() {
-    for (var half = 0; half < halfEdgeCount; half++) {
-      final twin = _twin[half];
-      if (twin != noHalfEdge) {
-        if (_twin[twin] != half) {
-          throw StateError(
-            'half-edge $half twins $twin, which twins ${_twin[twin]}',
-          );
-        }
-        if (_origin[_next[half]] != _origin[twin]) {
-          throw StateError(
-            'half-edge $half and its twin do not run between '
-            'the same two vertices',
-          );
-        }
-      }
-      if (_halfEdgeFace[_next[half]] != _halfEdgeFace[half]) {
-        throw StateError('next of $half leaves its face');
-      }
-    }
-    for (var face = 0; face < faceCount; face++) {
+    for (var face = 0; face < _faceSlots; face++) {
+      if (_faceAlive[face] == 0) continue;
       var walked = 0;
-      for (final _ in halfEdgesOf(face)) {
+      final start = _faceHalfEdge[face];
+      if (start == none) {
+        throw StateError('live face $face has no half-edge');
+      }
+      var half = start;
+      do {
+        if (_halfEdgeFace[half] != face) {
+          throw StateError(
+            'half-edge $half is on face $face\'s loop and '
+            'belongs to ${_halfEdgeFace[half]}',
+          );
+        }
+        final twin = _twin[half];
+        if (twin != none) {
+          if (_twin[twin] != half) {
+            throw StateError(
+              'half-edge $half twins $twin, which twins '
+              '${_twin[twin]}',
+            );
+          }
+          if (_origin[_next[half]] != _origin[twin] ||
+              _origin[half] != _origin[_next[twin]]) {
+            throw StateError(
+              'half-edge $half and its twin do not run between '
+              'the same two vertices',
+            );
+          }
+        }
+        if (_vertexAlive[_origin[half]] == 0) {
+          throw StateError(
+            'half-edge $half starts at dead vertex '
+            '${_origin[half]}',
+          );
+        }
         walked++;
-        if (walked > halfEdgeCount) {
+        if (walked > _halfEdgeSlots) {
           throw StateError('the loop of face $face does not close');
         }
-      }
+        half = _next[half];
+      } while (half != start);
       if (walked < 3) throw StateError('face $face has $walked half-edges');
     }
-    for (var vertex = 0; vertex < vertexCount; vertex++) {
+
+    for (var vertex = 0; vertex < _vertexSlots; vertex++) {
+      if (_vertexAlive[vertex] == 0) continue;
       final out = _outgoing[vertex];
-      if (out == noHalfEdge) throw StateError('vertex $vertex is in no face');
+      if (out == none) continue; // a vertex in no face is allowed
       if (_origin[out] != vertex) {
         throw StateError('outgoing of $vertex starts at ${_origin[out]}');
       }
     }
+  }
+}
+
+/// Builds an [EditMesh] vertex by vertex and face by face.
+///
+/// **Separate from the mesh, and the reason is the twin table.** Matching a
+/// half-edge with the one going the other way needs a map from a vertex pair to
+/// a half-edge, and that map is worth nothing once the mesh is built: keeping
+/// it on `EditMesh` would be a hash table per mesh, alive for the life of the
+/// document, to answer a question only construction asks.
+final class EditMeshBuilder {
+  final List<double> _positions = <double>[];
+  final List<int> _origin = <int>[];
+  final List<int> _next = <int>[];
+  final List<int> _twin = <int>[];
+  final List<int> _face = <int>[];
+  final List<int> _faceHalfEdge = <int>[];
+  final List<int> _outgoing = <int>[];
+
+  /// A half-edge by the pair of vertices it runs between, so its twin can find
+  /// it. Keyed on `from * 2^32 + to` rather than on a record: an int key is a
+  /// hash and a compare, and a record is an allocation per edge.
+  final Map<int, int> _byPair = <int, int>{};
+
+  int get vertexCount => _outgoing.length;
+  int get faceCount => _faceHalfEdge.length;
+
+  /// Adds a vertex and returns its number.
+  int addVertex(Vector3 position) {
+    _positions
+      ..add(position.x)
+      ..add(position.y)
+      ..add(position.z);
+    _outgoing.add(EditMesh.none);
+    return _outgoing.length - 1;
+  }
+
+  /// Adds a face over [loop], wound counter-clockwise seen from outside.
+  ///
+  /// A third face on one edge is refused rather than silently kept: repairing
+  /// non-manifold input is `mesh-13`'s job, done deliberately and reported, and
+  /// dropping a face here would make every count the mesh reports disagree with
+  /// what the caller handed over.
+  int addFace(List<int> loop) {
+    if (loop.length < 3) {
+      throw ArgumentError('a face of ${loop.length} vertices');
+    }
+    final face = _faceHalfEdge.length;
+    final first = _origin.length;
+    _faceHalfEdge.add(first);
+
+    for (var i = 0; i < loop.length; i++) {
+      final from = loop[i];
+      final to = loop[(i + 1) % loop.length];
+      if (from < 0 || from >= _outgoing.length) {
+        throw ArgumentError(
+          'face $face names vertex $from, which is not there',
+        );
+      }
+      final index = first + i;
+
+      _origin.add(from);
+      _next.add(first + (i + 1) % loop.length);
+      _twin.add(EditMesh.none);
+      _face.add(face);
+      if (_outgoing[from] == EditMesh.none) _outgoing[from] = index;
+
+      final key = from * 0x100000000 + to;
+      final opposite = to * 0x100000000 + from;
+      final partner = _byPair.remove(opposite);
+      if (partner != null) {
+        _twin[index] = partner;
+        _twin[partner] = index;
+      } else if (_byPair.containsKey(key)) {
+        throw ArgumentError(
+          'the edge $from-$to is used twice the same way round, which is a '
+          'third face on one edge rather than two',
+        );
+      } else {
+        _byPair[key] = index;
+      }
+    }
+    return face;
+  }
+
+  /// The mesh, with every element alive and no history.
+  EditMesh build() {
+    final mesh = EditMesh._(
+      JournalledFloats.of(Float32List.fromList(_positions)),
+      JournalledInts.of(Int32List.fromList(_origin)),
+      JournalledInts.of(Int32List.fromList(_next)),
+      JournalledInts.of(Int32List.fromList(_twin)),
+      JournalledInts.of(Int32List.fromList(_face)),
+      JournalledInts.of(Int32List.fromList(_faceHalfEdge)),
+      JournalledInts.of(Int32List.fromList(_outgoing)),
+      JournalledInts.of(
+        Int32List(_outgoing.length)..fillRange(0, _outgoing.length, 1),
+      ),
+      JournalledInts.of(
+        Int32List(_faceHalfEdge.length)..fillRange(0, _faceHalfEdge.length, 1),
+      ),
+    );
+    mesh._recount();
+    return mesh;
   }
 }
