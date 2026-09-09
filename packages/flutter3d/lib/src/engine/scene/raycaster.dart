@@ -1,10 +1,8 @@
 import 'dart:typed_data';
 
+import 'package:flutter3d_geometry/flutter3d_geometry.dart';
 import 'package:vector_math/vector_math.dart' hide Ray;
 
-import '../geometry/mesh_data.dart';
-import '../geometry/vertex_layout.dart';
-import '../math/intersections.dart';
 import 'bvh.dart';
 import 'camera_node.dart';
 import 'mesh_node.dart';

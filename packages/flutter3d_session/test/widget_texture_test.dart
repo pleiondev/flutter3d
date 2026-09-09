@@ -88,20 +88,23 @@ void main() {
     expect(await _pixel(image, 75, 10), <int>[0x00, 0xFF, 0x00, 0xFF]);
   });
 
-  test('text renders rather than throwing for want of a Directionality', () async {
-    // The adapter supplies one. A caller writing a sign should not have to.
-    final image = await WidgetTexture.rasterise(
-      const Center(
-        child: Text(
-          'PIT',
-          style: TextStyle(fontSize: 12, color: Color(0xFFFFFFFF)),
+  test(
+    'text renders rather than throwing for want of a Directionality',
+    () async {
+      // The adapter supplies one. A caller writing a sign should not have to.
+      final image = await WidgetTexture.rasterise(
+        const Center(
+          child: Text(
+            'PIT',
+            style: TextStyle(fontSize: 12, color: Color(0xFFFFFFFF)),
+          ),
         ),
-      ),
-      width: 48,
-      height: 24,
-    );
-    addTearDown(image.dispose);
+        width: 48,
+        height: 24,
+      );
+      addTearDown(image.dispose);
 
-    expect(image.width, 48);
-  });
+      expect(image.width, 48);
+    },
+  );
 }

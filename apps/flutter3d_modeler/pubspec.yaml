@@ -1,0 +1,85 @@
+name: flutter3d_modeler
+description: "A modeller for flutter3d: open a model, edit its mesh and materials, export what a game can load."
+publish_to: 'none'
+version: 0.1.0+1
+resolution: workspace
+
+environment:
+  sdk: ^3.12.2
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # The backend chooser with its software fallback, so this application says
+  # `openDevice()` rather than naming Impeller or WebGL. A modeller that named
+  # one would be a modeller that does not open in a browser, and the browser is
+  # a platform of the first version rather than a later one.
+  flutter3d_app:
+    path: ../../packages/flutter3d_app
+
+  # The renderer, the scene graph and the camera the viewport orbits.
+  flutter3d:
+    path: ../../packages/flutter3d
+
+  # `MeshData` and the shape generators a new object starts as.
+  flutter3d_geometry:
+    path: ../../packages/flutter3d_geometry
+
+  # Reading a model: `decodeModel`, `ModelDocument`, and the glTF/OBJ/`.f3d`
+  # decoders behind it.
+  flutter3d_formats:
+    path: ../../packages/flutter3d_formats
+
+  # The mesh being edited, with the topology still in it.
+  flutter3d_mesh:
+    path: ../../packages/flutter3d_mesh
+
+  # The surface a frame reaches Flutter through, and the frame clock with it.
+  flutter3d_session:
+    path: ../../packages/flutter3d_session
+
+  # The Khronos models, so `--dart-define=model=` names a file that is in the
+  # bundle on every platform this is measured on. **For phase 0 and not
+  # after**: once a model is opened from disk and from a browser's file picker
+  # (`ui-14` of the plan), a modeller that shipped four megabytes of test
+  # fixtures would be shipping somebody else's models to every user. The
+  # measurements need the same mesh on a laptop, in Chrome and on a handset,
+  # and a define pointing at a bundled asset is the only way to get one there.
+  flutter3d_samples:
+    path: ../../packages/flutter3d_samples
+
+  vector_math: ^2.2.0
+
+  # The native half of opening and saving a file. The web half is
+  # `package:web` below — see `lib/src/files/project_files.dart` for why the
+  # two are a conditional export rather than a `kIsWeb` branch.
+  file_selector: ^1.1.0
+
+  # The browser's own file input and download anchor, which is all the web half
+  # needs. A plugin would be a dependency whose web implementation is these same
+  # ten lines.
+  web: ^1.1.0
+
+  # Where a sandboxed process may write without asking: the container the
+  # autosave lives in. Used by `sandbox_probe.dart` and, in phase 1, by
+  # autosave itself.
+  path_provider: ^2.1.4
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+  # A renderer with no GPU under it, so the tests draw the real frame the way
+  # the application draws it. Everything this repository knows about testing a
+  # picture goes through here.
+  flutter3d_cpu:
+    path: ../../packages/flutter3d_cpu
+
+  flutter3d_testing:
+    path: ../../packages/flutter3d_testing
+
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true

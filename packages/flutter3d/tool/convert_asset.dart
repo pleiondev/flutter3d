@@ -19,10 +19,8 @@
 import 'dart:io';
 import 'dart:typed_data';
 
-import 'package:flutter3d/src/engine/assets/f3d/f3d.dart';
-import 'package:flutter3d/src/engine/assets/gltf/gltf.dart';
-import 'package:flutter3d/src/engine/assets/obj/obj.dart';
-import 'package:flutter3d/src/engine/geometry/geometry.dart';
+import 'package:flutter3d_formats/flutter3d_formats.dart';
+import 'package:flutter3d_geometry/flutter3d_geometry.dart';
 
 import 'convert_asset_options.dart';
 

@@ -24,6 +24,21 @@ dependencies:
   # application choose one — `flutter3d_impeller` today — and what would let a WebGL
   # backend exist without touching the engine.
   flutter3d_hardware: ^0.6.0
+
+  # The geometry this package is written in — `MeshData`, `VertexLayout`, the
+  # shape generators, tangents, morph targets and `Ray`. A package rather than
+  # a directory here because `flutter: sdk` above is what a modeller's document
+  # layer, an agent's tool and an AOT bench cannot resolve; `flutter3d.dart`
+  # exports it whole, so nothing above this line knows it moved.
+  flutter3d_geometry: ^0.6.0
+
+  # The formats it reads and writes — `ModelDocument`, the glTF/OBJ/`.f3d`
+  # decoders and the materials they name. Out here for the same reason geometry
+  # is: a tool an agent starts with `dart run` reads a model and cannot resolve
+  # the Flutter SDK this pubspec declares. What is left in this package is the
+  # isolate, the asset bundle and everything that names a device.
+  flutter3d_formats: ^0.6.0
+
   vector_math: ^2.2.0
 
 dev_dependencies:

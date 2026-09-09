@@ -1,0 +1,37 @@
+name: flutter3d_mesh
+description: "An editable mesh for flutter3d: half-edge topology on persistent typed arrays, selections, and the operations a modeller runs on them."
+version: 0.6.0
+repository: https://github.com/pleiondev/flutter3d
+homepage: https://flutter3d.pleion.dev
+issue_tracker: https://github.com/pleiondev/flutter3d/issues
+topics:
+  - mesh
+  - geometry
+  - modelling
+  - 3d
+resolution: workspace
+
+environment:
+  sdk: ^3.12.2
+
+dependencies:
+  # What an edited mesh turns into and comes from: `MeshData`, `VertexLayout`,
+  # the shape generators an object starts as, and `Ray` for picking. The
+  # direction is one-way — geometry describes a finished mesh, this package is
+  # what a person is halfway through editing.
+  flutter3d_geometry: ^0.6.0
+
+  vector_math: ^2.2.0
+
+dev_dependencies:
+  test: ^1.25.0
+  flutter_lints: ^6.0.0
+
+# **A plain Dart package, and the modeller's core is why.**
+#
+# An `EditMesh` is the document a modeller edits, and the programs that want to
+# open one are not all applications: the tool an agent speaks to starts with
+# `dart run`, a benchmark is compiled by `dart compile exe`, and a test of a
+# loop cut has nothing to draw. `a flat Dart package resolves without the
+# Flutter SDK` in `tool/structure.dart` holds this, its dependencies and their
+# dependencies to that.

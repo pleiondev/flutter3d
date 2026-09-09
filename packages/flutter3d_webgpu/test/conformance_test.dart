@@ -74,7 +74,17 @@ void main() {
         height: height,
         stages: engineShaders,
       );
-      if (device == null) fail('no WebGPU device in this browser');
+      // A decline rather than a failure, and the distinction is a CI runner:
+      // headless Chrome there carries `navigator.gpu` and returns null from
+      // `requestAdapter`, so a browser that looks like it has WebGPU hands out
+      // no device. Nothing was asked of the backend on such a machine, and a
+      // suite that failed thirty-three times over it was reporting the runner.
+      if (device == null) {
+        throw const ConformanceDeclined(
+          'WebGpuDevice found no adapter in this browser: navigator.gpu is '
+          'there and requestAdapter answered null',
+        );
+      }
       return device;
     },
     // The same stages the device was built with, as the section a packed bundle

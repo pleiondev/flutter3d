@@ -21,11 +21,9 @@
 /// two files apart.
 library;
 
+import 'package:flutter3d_geometry/flutter3d_geometry.dart';
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:vector_math/vector_math.dart';
-
-import 'mesh_data.dart';
-import 'mesh_geometry.dart';
 
 /// A mesh that has reached the device and can therefore be drawn.
 ///

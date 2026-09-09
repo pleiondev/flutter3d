@@ -1,0 +1,37 @@
+name: flutter3d_geometry
+description: "CPU-side geometry for flutter3d: vertex layouts, mesh data, shape generators, tangents, morph targets and ray intersections, with no Flutter SDK behind them."
+version: 0.6.0
+repository: https://github.com/pleiondev/flutter3d
+homepage: https://flutter3d.pleion.dev
+issue_tracker: https://github.com/pleiondev/flutter3d/issues
+topics:
+  - graphics
+  - geometry
+  - mesh
+  - game-engine
+resolution: workspace
+
+environment:
+  sdk: ^3.12.2
+
+dependencies:
+  vector_math: ^2.2.0
+
+dev_dependencies:
+  test: ^1.25.0
+  flutter_lints: ^6.0.0
+
+# **A plain Dart package, and the Flutter SDK is what it is defined by not
+# having.**
+#
+# `MeshData`, `VertexLayout` and the shape generators lived in `flutter3d` and
+# named Flutter nowhere, which was true and useless: `flutter3d` declares
+# `flutter: sdk`, so anything that depended on the engine for the vocabulary got
+# the SDK with it. A modeller's document layer, a server that reads a mesh, a
+# tool an agent starts with `dart run`, and `tool/bench`'s AOT binaries all want
+# these twelve files without a window in front of them.
+#
+# The boundary is checked rather than described: `a flat Dart package resolves
+# without the Flutter SDK` in `tool/structure.dart` walks this package's
+# dependencies and fails on the first one — direct or transitive — that puts a
+# Flutter SDK back in front of a program that only wants to name a triangle.

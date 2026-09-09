@@ -2,9 +2,7 @@
 
 import 'dart:io';
 
-import 'package:flutter3d/src/engine/assets/f3d/f3d.dart';
-import 'package:flutter3d/src/engine/assets/gltf/gltf.dart';
-import 'package:flutter3d/src/engine/assets/obj/obj.dart';
+import 'package:flutter3d_formats/flutter3d_formats.dart';
 import 'package:flutter3d_samples/flutter3d_samples.dart';
 
 import 'bench_util.dart';

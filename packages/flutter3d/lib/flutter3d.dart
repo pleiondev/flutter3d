@@ -26,6 +26,17 @@
 /// after every Flutter SDK change.
 library;
 
+// Assets: the formats and the documents they decode into are
+// `package:flutter3d_formats` — glTF/GLB, OBJ, the project's own .f3d container
+// and its .fmat material, `ModelDocument`, `SurfaceMaterial`, `LightingModel`
+// and the synchronous half of loading. Exported whole, so an application that
+// imports the engine keeps every name it had.
+export 'package:flutter3d_formats/flutter3d_formats.dart';
+// Geometry: CPU-side meshes, the shapes that generate them and the ray
+// arithmetic that reads one, all of it `package:flutter3d_geometry` since the
+// day a program with no Flutter SDK had to be able to say `MeshData`. Exported
+// whole, so an application that imports the engine keeps every name it had.
+export 'package:flutter3d_geometry/flutter3d_geometry.dart';
 // The graphics vocabulary, re-exported from `flutter3d_hardware`.
 //
 // Re-exported rather than left for a consumer to depend on separately, because
@@ -41,42 +52,33 @@ library;
 // pubspec.
 export 'package:flutter3d_hardware/flutter3d_hardware.dart';
 
-// Animation: clips, tracks, sampling, playback.
+// Animation: clips, tracks, sampling, playback. A clip, a track and the mask a
+// layer is filtered through are `flutter3d_formats`, because a clip is
+// something a `.glb` carries and a program that reads one has no scene to play
+// it in; what is here is what applies a pose.
 export 'src/engine/animation/animation.dart';
-export 'src/engine/animation/animation_clip.dart';
 export 'src/engine/animation/animation_player.dart';
 export 'src/engine/animation/animation_target.dart';
-export 'src/engine/animation/animation_track.dart';
 export 'src/engine/animation/baked_poses.dart';
-// Assets: decoders for glTF/GLB, OBJ, the project's own .f3d container and its
-// .fmat material, the KTX2 compressed-texture container, plus loading and
-// caching.
-export 'src/engine/assets/asset_resolver.dart';
-export 'src/engine/assets/f3d/f3d.dart';
-export 'src/engine/assets/fmat/fmat.dart';
-export 'src/engine/assets/gltf/gltf.dart';
+// What could not go with them, each because it needs something this package may
+// name and that one may not: the isolate loader and the two asset sources
+// (Flutter's bundle, and `dart:io`), the bundle resolvers, the KTX2 reader with
+// its HAL formats, and everything from `ModelAsset` down that has met a device.
 export 'src/engine/assets/gltf_resolvers.dart';
 export 'src/engine/assets/ktx2/ktx2.dart';
 export 'src/engine/assets/material_loader.dart';
 export 'src/engine/assets/model_asset.dart';
-export 'src/engine/assets/model_document.dart';
 export 'src/engine/assets/model_loader.dart';
-export 'src/engine/assets/obj/obj.dart';
 export 'src/engine/assets/resource_cache.dart';
 export 'src/engine/assets/texture_upload.dart';
-// Geometry: CPU-side meshes and the shapes that generate them. Two files
-// rather than one because `device_mesh.dart` holds the types that have met a
-// device, and keeping them out of the `geometry.dart` barrel is what lets
-// everything that only generates or decodes a mesh compile without `dart:ui`.
-// Both are exported here, so the public surface does not know them apart.
+// `device_mesh.dart` is the rest of that layer by subject matter and stayed
+// here, because it holds the two types that have met a device — and a package
+// that named `GraphicsDevice` would be a package with Flutter behind it again.
 export 'src/engine/geometry/device_mesh.dart';
-export 'src/engine/geometry/geometry.dart';
 // Particles are `package:flutter3d_particles` and are named nowhere here.
 // The engine defines what a contributor is; what draws through one is not its
 // business, which is the whole test of the extension model.
 
-// Maths that the scene layer needs and that is worth having on its own.
-export 'src/engine/math/intersections.dart';
 // Rendering.
 export 'src/engine/render/debug_draw.dart';
 export 'src/engine/render/debug_draw_gizmos.dart';
@@ -86,7 +88,6 @@ export 'src/engine/render/frame_graph.dart';
 export 'src/engine/render/frame_plan.dart';
 export 'src/engine/render/frame_resources.dart';
 export 'src/engine/render/key_sort.dart';
-export 'src/engine/render/lighting_model.dart';
 export 'src/engine/render/material.dart';
 export 'src/engine/render/pass_contributor.dart';
 export 'src/engine/render/probe_faces.dart';

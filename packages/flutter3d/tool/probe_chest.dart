@@ -1,6 +1,6 @@
 // ignore_for_file: avoid_print
 import 'dart:io';
-import 'package:flutter3d/src/engine/assets/gltf/gltf.dart';
+import 'package:flutter3d_formats/flutter3d_formats.dart';
 
 Future<void> main(List<String> args) async {
   for (final path in args) {

@@ -65,11 +65,14 @@ lands in an artefact rather than in somebody's memory.*
 
 One application in which a level of any of the four genres is built and a
 material is edited, and in which an agent does the same through an MCP server.
-The rule that makes it possible is that every edit is a command object with
-`apply` and `revert`, and that both the user interface and the MCP server call
-only those commands. An agent that edits the document by a second path is an
-agent whose work cannot be undone, and undo that is right for one of two
-callers is worse than no undo.
+The rule that makes it possible is that every edit is a command object, and
+that both the user interface and the MCP server call only those commands. An
+agent that edits the document by a second path is an agent whose work cannot be
+undone, and undo that is right for one of two callers is worse than no undo.
+How a command is taken back is the document's business rather than the
+command's — the level editor keeps a snapshot per step, and the modeller keeps
+a journal of the values an edit replaced, which phase 0 measured at two per
+cent of a snapshot.
 
 The command core lives in its own package with no Flutter in it, for the same
 reason the simulation does: it can then be tested the way the simulation is
@@ -86,6 +89,40 @@ without hand-editing JSON; four project templates in the new-project dialog
 rather than two; an agent-driven scenario replayed in CI and diffed against a
 reference document; and zero changes inside the engine's own sources made for
 the editor's sake, apart from the material hints.*
+
+### A modeller, and the same agent driving it
+
+One application in which a model is opened, its mesh edited and its material
+set, and exported as something a game here loads without a warning — and an MCP
+server offering the same commands to an agent, the way the level editor already
+does for levels.
+
+The vocabulary it needs came out of the engine first: `flutter3d_geometry` and
+`flutter3d_formats` hold `MeshData`, the shape generators, `ModelDocument` and
+the decoders with no Flutter SDK behind them, because a tool a host starts with
+`dart run` cannot resolve one. `flutter3d` exports both, so nothing above the
+split noticed. Above them sit `flutter3d_mesh` — half-edge topology, which is
+what a `MeshData` has already thrown away — a document layer with a command per
+edit, and the application.
+
+What phase 0 measured, and what it changed: a million triangles on macOS costs
+one millisecond of `render` and nothing of the frame, while a thousand draw
+calls costs twenty-five — so the budget a project carries is objects rather
+than triangles. Re-uploading an edited mesh every frame is 1.2 ms at 200 000
+triangles, so partial buffer overwrite is not phase-1 work. Picking through a
+triangle BVH is microseconds against milliseconds for a scan, so it stays on
+the CPU. History as a journal of previous values costs two per cent of a full
+copy where chunked copy-on-write costs a hundred, so the mesh is a flat array
+and a log. Under `--wasm` the application does not start where the same
+revision in JavaScript does, so the browser build is dart2js and the reason is
+being chased rather than assumed.
+
+*Acceptance: a Khronos model imported, a face extruded, a base colour and a
+texture set, exported as a GLB that this repository's own loader reads without
+warnings and glTF-Validator accepts; the same run driven by an agent over MCP
+and diffed in CI against a reference project; the editable mesh holding its
+invariants over five hundred random operations; and the application built for
+macOS, the browser, Android and iOS.*
 
 ### Strategy as the fourth genre
 
@@ -242,8 +279,13 @@ what a team asks before taking a dependency.
 - **Comparison tables against other engines.** The question this project
   answers is whether a game reaches players, and a table costs weeks of
   methodology before it says anything about that.
-- **Node-graph materials.** There is no shader compilation at runtime here, and
-  a graph that cannot produce a new shader is a picture of one.
+- **Node-graph materials that compile a shader.** There is no shader
+  compilation at runtime here, and a graph that cannot produce a new shader is
+  a picture of one. What the modeller gets instead is a **fixed set of nodes
+  that bakes into texture slots** — mix, tint, tile and mask over images that
+  already exist, evaluated into the maps a material already samples. That is a
+  texture compositor rather than a shader graph, and calling it by its own name
+  is the point.
 - **An entity-component renderer.** The scene graph is not the bottleneck any
   profile has found, and rewriting it would spend the quarter.
 - **Temporal antialiasing and motion blur.** Both want a history buffer and

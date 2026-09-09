@@ -161,6 +161,14 @@ typedef ConformanceCheck = ({
 /// bundle — see [OwnShaderSection] — and adds the loaded-library check when
 /// given. Optional, so a backend can pass the rest before it can pack one;
 /// every backend in this repository passes it.
+///
+/// **[makeDevice] may decline as well as a check.** A machine with no device
+/// for this backend at all — headless Chrome on a CI runner has
+/// `navigator.gpu` and hands out no adapter — is the same kind of answer a
+/// check gives when the capability behind it is false: nothing was asked, so
+/// nothing may be reported green. A [ConformanceDeclined] thrown while the
+/// device is being made skips the check with the sentence it carries, and
+/// every other exception is still a failure.
 void runDeviceConformance({
   required String backend,
   required DeviceFactory makeDevice,
@@ -171,7 +179,13 @@ void runDeviceConformance({
       : conformanceChecksWith(ownShaders);
   for (final check in checks) {
     test('$backend: ${check.name}', () async {
-      final device = await makeDevice(width: 64, height: 64);
+      final GraphicsDevice device;
+      try {
+        device = await makeDevice(width: 64, height: 64);
+      } on ConformanceDeclined catch (declined) {
+        markTestSkipped('$backend: ${declined.reason}');
+        return;
+      }
       try {
         await check.run(device);
       } on ConformanceDeclined catch (declined) {

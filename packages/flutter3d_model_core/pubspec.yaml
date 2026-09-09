@@ -1,0 +1,38 @@
+name: flutter3d_model_core
+description: "The headless half of a model editor: a project of objects and materials, the commands that change one, the history that takes them back, and what it refuses to export."
+version: 0.6.0
+repository: https://github.com/pleiondev/flutter3d
+homepage: https://flutter3d.pleion.dev
+issue_tracker: https://github.com/pleiondev/flutter3d/issues
+topics:
+  - modelling
+  - 3d
+  - tooling
+  - game-engine
+resolution: workspace
+
+environment:
+  sdk: ^3.12.2
+
+dependencies:
+  # The mesh being edited, with the topology still in it.
+  flutter3d_mesh: ^0.6.0
+
+  # What a project is read from and written back to: `ModelDocument`,
+  # `SurfaceMaterial`, the glTF/OBJ/`.f3d` decoders and the writers beside them.
+  flutter3d_formats: ^0.6.0
+
+  # `MeshData` and `VertexLayout`, which an imported object holds as it arrived.
+  flutter3d_geometry: ^0.6.0
+
+  vector_math: ^2.2.0
+
+dev_dependencies:
+  test: ^1.25.0
+  flutter_lints: ^6.0.0
+
+# **A plain Dart package, for the reason `flutter3d_editor_core` is one.** A
+# model is a document, and the programs that check, convert or drive one — a
+# command-line exporter, a service that validates an uploaded asset, the tool an
+# agent speaks to — have no window. The editor above it draws; this decides what
+# a change means and whether the result can leave.

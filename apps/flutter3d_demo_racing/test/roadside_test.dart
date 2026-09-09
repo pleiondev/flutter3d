@@ -70,8 +70,12 @@ void main() {
 
     final scene = Scene();
     final track = _ring();
-    final added = addRoadsideTo(scene, track, device: device, signs: <
-        TextureHandle>[face]);
+    final added = addRoadsideTo(
+      scene,
+      track,
+      device: device,
+      signs: <TextureHandle>[face],
+    );
     final board = added.firstWhere((SceneNode n) => n.name == 'sign-0');
     final at = board.readPosition();
 
@@ -98,7 +102,8 @@ void main() {
     expect(
       facing.dot(towardsRoad),
       greaterThan(0.7),
-      reason: 'the board faces ${facing.storage}, which is across the driver '
+      reason:
+          'the board faces ${facing.storage}, which is across the driver '
           'rather than at them',
     );
 
@@ -123,8 +128,9 @@ void main() {
         RenderView(camera: camera, clearColor: Vector4(0.0, 0.0, 0.3, 1.0)),
       ],
     );
-    final pixels = (await device.readPixels(result.frame))!.buffer
-        .asUint8List();
+    final pixels = (await device.readPixels(
+      result.frame,
+    ))!.buffer.asUint8List();
 
     // How much of the frame came out red, against a blue background. A board
     // edge-on covers a line of pixels; a board facing the camera covers a
@@ -151,7 +157,8 @@ void main() {
     expect(
       share,
       greaterThan(0.05),
-      reason: 'the sign covers ${(share * 100).toStringAsFixed(1)}% of the '
+      reason:
+          'the sign covers ${(share * 100).toStringAsFixed(1)}% of the '
           'frame, which is what a board seen edge-on or facing away looks like',
     );
 
@@ -161,7 +168,8 @@ void main() {
     expect(
       redOnLeft,
       greaterThan(redOnRight),
-      reason: 'the left half of the texture came out on the right of the '
+      reason:
+          'the left half of the texture came out on the right of the '
           'board, so the sign reads backwards',
     );
   });

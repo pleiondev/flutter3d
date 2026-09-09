@@ -3,9 +3,10 @@ import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter3d_formats/flutter3d_formats.dart';
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
+
 import 'ktx2/ktx2.dart';
-import 'model_document.dart';
 
 /// Decodes an encoded image (PNG, JPEG, KTX2, …) and uploads it through
 /// [device].

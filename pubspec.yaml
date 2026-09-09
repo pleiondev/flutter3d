@@ -11,6 +11,11 @@ environment:
 
 workspace:
   - packages/flutter3d
+  - packages/flutter3d_geometry
+  - packages/flutter3d_formats
+  - packages/flutter3d_mesh
+  - packages/flutter3d_model_core
+  - packages/flutter3d_model_mcp
   - packages/flutter3d_samples
   - packages/flutter3d_app
   - packages/flutter3d_backend
@@ -44,6 +49,7 @@ workspace:
   - packages/pointer_lock/example
   - apps/flutter3d_demo_dungeon
   - apps/flutter3d_editor
+  - apps/flutter3d_modeler
   - apps/flutter3d_demo_platformer
   - apps/flutter3d_demo_racing
   - apps/flutter3d_demo_strategy

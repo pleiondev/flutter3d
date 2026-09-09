@@ -43,6 +43,7 @@ library;
 import 'dart:io';
 
 import 'structure/detectors.dart';
+import 'structure/repository.dart';
 import 'structure/rules.dart';
 
 const String _bold = '[1m';
@@ -65,6 +66,20 @@ void main(List<String> args) {
   if (args.contains('--list')) {
     for (final rule in allRules) {
       stdout.writeln(rule.name);
+    }
+    return;
+  }
+
+  // **The plain Dart packages, one per line, because `tool/ci.sh` kept the same
+  // list by hand.** It named four of them in a shell condition to decide
+  // between `dart test` and `flutter test`, and a fifth plain package would
+  // have been run under `flutter test` — passing either way, which is exactly
+  // what those packages exist to make impossible to fake. The list is
+  // `flatDartPackages`, it is what the rules above are held to, and now it is
+  // what the suite is run from.
+  if (args.contains('--flat-dart')) {
+    for (final name in flatDartPackages.keys) {
+      stdout.writeln(name);
     }
     return;
   }
@@ -179,6 +194,10 @@ Every rule about how this repository is arranged.
 
   dart run tool/structure.dart          check everything
   dart run tool/structure.dart --list   name the rules and stop
+  dart run tool/structure.dart --flat-dart
+                                        name the packages that must resolve
+                                        without a Flutter SDK, so tool/ci.sh
+                                        runs each one under `dart test`
   dart run tool/structure.dart --only <text>
                                         run only rules whose name contains
                                         <text>, for the one that needs the

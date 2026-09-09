@@ -345,6 +345,50 @@ String? unrepeatableIn(String source) {
   return null;
 }
 
+// ------------------------------------------------------------- pubspec depends
+
+/// Every package [pubspec] depends on, run-time and dev alike.
+///
+/// **Dev dependencies count, and that is the point of reading them.** A plain
+/// Dart package is one a program with no Flutter SDK can resolve, and `dart
+/// test` resolves the dev list too — so a `flutter_test` under
+/// `dev_dependencies` is a package whose own suite cannot be run by the
+/// machines it was extracted for. That is where the Flutter SDK comes back in
+/// through a door nobody looked at: an import scan reads `lib/`, and this
+/// arrives in a pubspec.
+///
+/// A line scanner rather than a YAML parser: the only shape that matters here
+/// is `  name:` two spaces in under a `dependencies:` heading, and a
+/// dependency on the SDK is `flutter` or `flutter_test` by name, which is what
+/// [dependsOnFlutterSdk] reads out of the result.
+Set<String> pubspecDependencies(String pubspec) {
+  final found = <String>{};
+  var inside = false;
+  for (final line in pubspec.split('\n')) {
+    if (line.startsWith('dependencies:') ||
+        line.startsWith('dev_dependencies:')) {
+      inside = true;
+      continue;
+    }
+    // Any other column-zero key ends the section — `environment:`, `topics:`,
+    // `flutter:` with the asset block under it.
+    if (line.isNotEmpty && !line.startsWith(' ') && !line.startsWith('#')) {
+      inside = false;
+      continue;
+    }
+    if (!inside) continue;
+    final match = RegExp(r'^  ([a-z_][a-z_0-9]*):').firstMatch(line);
+    if (match != null) found.add(match.group(1)!);
+  }
+  return found;
+}
+
+/// Whether [pubspec] asks for the Flutter SDK itself.
+bool dependsOnFlutterSdk(String pubspec) {
+  final names = pubspecDependencies(pubspec);
+  return names.contains('flutter') || names.contains('flutter_test');
+}
+
 // ------------------------------------------------------------------- reaching
 
 /// Whether [source] imports or exports something naming [what].
@@ -410,6 +454,53 @@ List<Finding> proveDetectorsWork() {
     'a block comment',
     'prose explaining the rule must not break it',
   );
+
+  // **The words a modeller is made of, and the six it must spell differently.**
+  // A tool for editing meshes writes `dashedLine`, `reload`, `spike` and
+  // `boss` without meaning a platformer, a weapon, a hazard or a monster — and
+  // every one of those fires, correctly, because the scan reads words and not
+  // intent. CONTRIBUTING.md carries the replacements; these are what keep the
+  // table and the detector from drifting apart.
+  fires(
+    'genre words',
+    genreWordsIn('void dashedLine() {}').isNotEmpty,
+    'dashed',
+  );
+  fires('genre words', genreWordsIn('void reload() {}').isNotEmpty, 'reload');
+  fires('genre words', genreWordsIn('int spikeCount = 0;').isNotEmpty, 'spike');
+  fires('genre words', genreWordsIn('Node? boss;').isNotEmpty, 'boss');
+  for (final replacement in <String>[
+    'void dottedLine() {}',
+    'void reopen() {}',
+    'int peakCount = 0;',
+    'Node? owner;',
+  ]) {
+    quiet(
+      'genre words',
+      genreWordsIn(replacement).isEmpty,
+      replacement,
+      'the word CONTRIBUTING.md sends a writer to must itself be clean',
+    );
+  }
+
+  // The vocabulary of the modeller that is *not* a genre's, checked because a
+  // scan that fired on `bevelWidth` would be switched off by the second file.
+  for (final innocent in <String>[
+    'double bevelWidth = 0.02;',
+    'void edgeLoop() {}',
+    'int faceCount = 0;',
+    'Brush brush = Brush.smooth;',
+    'int boneIndex = 0;',
+    'bool manifold = true;',
+  ]) {
+    quiet(
+      'genre words',
+      genreWordsIn(innocent).isEmpty,
+      innocent,
+      'a mesh has faces, loops, bevels, bones and brushes, and none of them '
+          'is a genre',
+    );
+  }
 
   // The failure mode that kills detectors like this: three words that contain
   // `lap` and are not it. Three false positives in the first hour and the rule
@@ -643,6 +734,68 @@ List<Finding> proveDetectorsWork() {
     !reaches('/// See flutter_gpu for the details.', 'flutter_gpu'),
     'a doc comment naming it',
     'a mention is not an import',
+  );
+
+  // What a pubspec depends on. The shapes are the two that actually occur: a
+  // sibling with a caret, and the SDK spelled over two lines.
+  const flatSpec =
+      'name: flutter3d_geometry\n'
+      'environment:\n'
+      '  sdk: ^3.12.2\n'
+      '\n'
+      'dependencies:\n'
+      '  vector_math: ^2.2.0\n'
+      '\n'
+      'dev_dependencies:\n'
+      '  test: ^1.25.0\n';
+  const sdkSpec =
+      'name: flutter3d\n'
+      'dependencies:\n'
+      '  flutter:\n'
+      '    sdk: flutter\n'
+      '  flutter3d_hardware: ^0.6.0\n';
+  const devSdkSpec =
+      'name: flutter3d_model_core\n'
+      'dependencies:\n'
+      '  flutter3d_formats: ^0.6.0\n'
+      '\n'
+      'dev_dependencies:\n'
+      '  flutter_test:\n'
+      '    sdk: flutter\n';
+
+  fires(
+    'pubspec depends',
+    pubspecDependencies(sdkSpec).contains('flutter3d_hardware'),
+    'a sibling under dependencies',
+  );
+  fires(
+    'pubspec depends',
+    pubspecDependencies(flatSpec).contains('test'),
+    'a package under dev_dependencies',
+  );
+  fires('flutter SDK', dependsOnFlutterSdk(sdkSpec), 'flutter: sdk');
+  fires(
+    'flutter SDK',
+    dependsOnFlutterSdk(devSdkSpec),
+    'flutter_test: sdk, which is the door a run-time-only scan leaves open',
+  );
+  quiet(
+    'flutter SDK',
+    !dependsOnFlutterSdk(flatSpec),
+    'a pubspec naming neither',
+    'a plain Dart package must pass its own rule',
+  );
+  quiet(
+    'pubspec depends',
+    !pubspecDependencies(
+      'name: flutter3d_samples\n'
+      'flutter:\n'
+      '  assets:\n'
+      '    - assets/models/\n',
+    ).contains('assets'),
+    'the `flutter:` asset block',
+    'an asset directory is not a dependency, and reading it as one would '
+        'call every package with assets a Flutter package',
   );
 
   return broken;

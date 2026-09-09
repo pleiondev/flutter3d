@@ -1,0 +1,43 @@
+name: flutter3d_model_mcp
+description: "A model editor an agent can drive: an MCP server over stdio whose tools are the editor's own commands, one project per process."
+version: 0.6.0
+repository: https://github.com/pleiondev/flutter3d
+homepage: https://flutter3d.pleion.dev
+issue_tracker: https://github.com/pleiondev/flutter3d/issues
+topics:
+  - mcp
+  - modelling
+  - 3d
+  - tooling
+resolution: workspace
+
+environment:
+  sdk: ^3.12.2
+
+dependencies:
+  # The project and everything you can do to one. What keeps this package small
+  # is that the commands are already values with a name, a `toJson` and a
+  # `fromJson`, so a tool call is a map handed to `ModelCommand.fromJson` rather
+  # than a switch written a second time here.
+  flutter3d_model_core: ^0.6.0
+
+  # The protocol, pinned to one minor for the reason `flutter3d_editor_mcp`
+  # gives: its own README opens with "still experimental and likely to evolve
+  # quickly", and the narrowness is a decision rather than a default.
+  dart_mcp: ">=0.5.2 <0.6.0"
+
+dev_dependencies:
+  test: ^1.25.0
+  flutter_lints: ^6.0.0
+
+  # An in-memory pair of channels, so the suite drives the real server through
+  # the real protocol without starting a process.
+  stream_channel: ^2.1.4
+
+# **A host starts this with `dart run`, and that is the whole of why every
+# package under it is plain Dart.** `dart run` cannot resolve a package that
+# depends on the Flutter SDK, so a single Flutter import anywhere in this graph
+# is not a heavier process — it is a server that will not start on a machine
+# without the Flutter tool. `a flat Dart package resolves without the Flutter
+# SDK` in `tool/structure.dart` walks the graph and says so before anybody
+# tries.

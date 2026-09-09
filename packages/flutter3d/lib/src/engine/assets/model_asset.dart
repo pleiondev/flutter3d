@@ -1,17 +1,15 @@
+import 'package:flutter3d_geometry/flutter3d_geometry.dart';
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:vector_math/vector_math.dart';
 
 import '../animation/animation.dart';
 import '../geometry/device_mesh.dart';
-import '../geometry/geometry.dart';
-import '../render/lighting_model.dart';
 import '../render/material.dart';
 import '../scene/mesh_node.dart';
 import '../scene/morph_state.dart';
 import '../scene/scene.dart';
 import '../scene/scene_node.dart';
 import '../scene/skeleton.dart';
-import 'model_document.dart';
 import 'model_part.dart';
 import 'texture_upload.dart';
 

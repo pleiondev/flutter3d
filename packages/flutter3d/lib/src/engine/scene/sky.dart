@@ -46,14 +46,10 @@ library;
 
 import 'dart:math' as math;
 
+import 'package:flutter3d_formats/flutter3d_formats.dart';
+import 'package:flutter3d_geometry/flutter3d_geometry.dart';
 import 'package:vector_math/vector_math.dart';
 
-import '../geometry/lathe_shape.dart';
-import '../geometry/mesh_data.dart';
-import '../geometry/mesh_geometry.dart';
-import '../geometry/shape.dart';
-import '../geometry/vertex_layout.dart';
-import '../render/lighting_model.dart';
 import '../render/material.dart';
 import 'camera_node.dart';
 import 'mesh_node.dart';

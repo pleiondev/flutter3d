@@ -11,9 +11,10 @@ wrapper around another engine, and it is not affiliated with the Flutter team.
 On pub.dev: twenty-seven packages, published by
 [pleion.dev](https://pub.dev/publishers/pleion.dev/packages) — start with
 [`flutter3d`](https://pub.dev/packages/flutter3d) and a backend. The workspace
-holds twenty-eight; `flutter3d_game_strategy` is the one that is not published,
-because its types still encode how many sides a match may have, and that is why
-the two counts differ. The set is **0.6.0**, twenty-five packages at one number,
+holds thirty-three; `flutter3d_game_strategy` is the one that is not published,
+because its types still encode how many sides a match may have, and
+`flutter3d_geometry` and `flutter3d_formats` were written after the set went out
+and go with the next one, so the counts differ. The set is **0.6.0**, twenty-five packages at one number,
 so a pubspec that names them all names one tree —
 [`pad_input`](https://pub.dev/packages/pad_input) and
 [`pointer_lock`](https://pub.dev/packages/pointer_lock) keep a line of their own
@@ -43,6 +44,8 @@ genres, and the generated API reference.
 | [`packages/flutter3d_screens`](packages/flutter3d_screens) | The screens that are not the game: settings, volumes, rebinding, credits. Shared by both games |
 | [`packages/pointer_lock`](packages/pointer_lock) | Relative mouse deltas: a method channel on macOS, the browser's own Pointer Lock API on the web. Flutter surfaces neither |
 | [`packages/flutter3d_samples`](packages/flutter3d_samples) | The Khronos test models, as fixtures rather than as the engine's own assets — so a game built on it carries the decoders and not the 4.1 MB they were checked against |
+| [`packages/flutter3d_geometry`](packages/flutter3d_geometry) | The geometry the engine is written in, with no Flutter SDK behind it: vertex layouts, mesh data, shape generators, tangents, morph targets and ray intersections. Plain Dart, so a modeller's document layer or a tool an agent starts can name a mesh without a window. [README](packages/flutter3d_geometry/README.md) |
+| [`packages/flutter3d_formats`](packages/flutter3d_formats) | The formats it reads and writes, with no Flutter SDK behind them: `ModelDocument` and its materials, glTF/GLB, OBJ, the engine's own `.f3d` and `.fmat`. What fetches the bytes — the isolate, the asset bundle, `dart:io` — stayed in the engine. [README](packages/flutter3d_formats/README.md) |
 | [`packages/flutter3d_hardware`](packages/flutter3d_hardware) | The abstraction over graphics APIs: a device, an encoder, a pass. Its vocabulary is its own — it names no API, so a fourth backend changes no user code |
 | [`packages/flutter3d_impeller`](packages/flutter3d_impeller) | The desktop backend, over `flutter_gpu`. Also where the shader build lives |
 | [`packages/flutter3d_webgl`](packages/flutter3d_webgl) | The web backend, over WebGL2. What an ordinary browser build draws through |
@@ -59,11 +62,15 @@ genres, and the generated API reference.
 | [`packages/flutter3d_game_strategy`](packages/flutter3d_game_strategy) | A fourth genre, and the first without a protagonist: ground made of samples, a crowd that takes orders and shoves itself apart, flow fields shared by destination, an economy, a fight, fog a side has to walk into, and a policy that plays a side without a mouse |
 | [`packages/flutter3d_editor_core`](packages/flutter3d_editor_core) | The level editor with the editor taken out: the document being selected in, nudged, undone and written back, the handles a pointer hits, the palette a level builds out of itself, and the project a template becomes. Plain Dart, so a linter or a service can depend on it |
 | [`packages/flutter3d_editor_mcp`](packages/flutter3d_editor_mcp) | The same editor offered to an agent: an MCP server over stdio whose tools are the editor's own commands, one document per process |
+| [`packages/flutter3d_mesh`](packages/flutter3d_mesh) | The mesh a modeller edits, with the topology still in it: faces of any valency, half-edges that know their twin, and the operations that change them. Plain Dart. [README](packages/flutter3d_mesh/README.md) |
+| [`packages/flutter3d_model_core`](packages/flutter3d_model_core) | The headless half of the model editor: the project, the commands, the history and what it refuses to export. A skeleton today — see `doc/model-editor-plan.md` |
+| [`packages/flutter3d_model_mcp`](packages/flutter3d_model_mcp) | The same modeller offered to an agent, over MCP on stdio. An entry point today; the tools follow the document layer |
 | [`apps/flutter3d_demo_dungeon`](apps/flutter3d_demo_dungeon) | The shooter, and a headless test that plays it to the exit. Desktop, web, Android and iOS |
 | [`apps/flutter3d_demo_platformer`](apps/flutter3d_demo_platformer) | The second game: third person, two jumps and a dash, and no line of the engine changed to allow it. Desktop, web, Android and iOS |
 | [`apps/flutter3d_demo_racing`](apps/flutter3d_demo_racing) | The third game: a circuit, three rivals and the lap you drove before, drawn beside the one you are driving |
 | [`apps/flutter3d_demo_strategy`](apps/flutter3d_demo_strategy) | A map, two sides and a match played to a finish, with a headless test that plays the recording back. Desktop, web, Android and iOS |
 | [`apps/flutter3d_editor`](apps/flutter3d_editor) | A level editor that reads the same documents the games do, and writes projects from templates |
+| [`apps/flutter3d_modeler`](apps/flutter3d_modeler) | A modeller for the meshes the games draw. A viewport and a model in it today; the document, the editing and the export are `doc/model-editor-plan.md` |
 | [`apps/flutter3d_template_app`](apps/flutter3d_template_app) | The application a new project starts as, and the source the editor's templates are generated from |
 | [`packages/flutter3d/example`](packages/flutter3d/example) | The engine's own demo: a model browser with every feature switchable |
 
@@ -148,7 +155,7 @@ Or one package at a time:
 (cd packages/flutter3d_physics && dart test)   # plain Dart, no Flutter needed
 ```
 
-4322 tests across twenty-eight packages and six applications, and the only
+4352 tests across thirty-three packages and seven applications, and the only
 ones that need a GPU are the
 Impeller half of the golden set. The other half is rendered by the software
 backend, which is what makes 43 scenes checkable in a headless run.
@@ -199,7 +206,7 @@ declares and the compiled binary has not got — and binding a slot a compiled
 shader does not have takes the frame down. The message names nothing that leads
 back to the file that was edited.
 
-So `dart run tool/structure.dart` checks it: one of its thirty rules compares
+So `dart run tool/structure.dart` checks it: one of its thirty-one rules compares
 the bundle against the sources it was built from and says which of them are
 newer. The rule skips when there is no bundle at all, which is every fresh
 checkout and every CI run — `impellerc` is not there to build one, and a rule

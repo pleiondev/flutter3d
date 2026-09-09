@@ -21,8 +21,6 @@ import 'dart:typed_data';
 
 import 'package:flutter3d/src/engine/assets/ktx2/ktx2.dart';
 import 'package:flutter3d/src/engine/assets/material_loader.dart';
-import 'package:flutter3d/src/engine/assets/surface_material.dart';
-import 'package:flutter3d/src/engine/render/lighting_model.dart';
 import 'package:flutter3d_hardware/testing.dart';
 import 'package:flutter_test/flutter_test.dart';
 

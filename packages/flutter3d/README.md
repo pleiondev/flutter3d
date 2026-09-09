@@ -103,9 +103,12 @@ What works today:
   `CUBICSPLINE` with authored tangents), slerped rotations, an `AnimationPlayer`
   with play/pause/seek/speed and once/loop/ping-pong, and the decoded node
   hierarchy rebuilt on instantiation so an animated parent carries its subtree;
-- 928 tests — geometry, projection, scene, sorting, debug draw, intersections,
-  raycasting, animation, skinning, lighting, tangents, render targets, BVH, LOD,
-  glTF, OBJ and `.f3d` — all without a GPU.
+- 850 tests — projection, scene, sorting, debug draw, raycasting, animation,
+  skinning, lighting, render targets, BVH, LOD, glTF, OBJ and `.f3d` — all
+  without a GPU. The geometry the engine is written in — `MeshData`, the shape
+  generators, tangents, morph targets and `Ray` — went to
+  [`flutter3d_geometry`](../flutter3d_geometry) with its own suite, and this
+  package exports it whole.
 
 ## Running
 
@@ -306,16 +309,15 @@ either does not start or silently renders nothing. Worth keeping to hand.
 ```
 tool/bench/                     the AOT benchmarks behind ARCHITECTURE.md §14
 tool/convert_asset.dart         glTF / GLB / OBJ -> .f3d, run offline
-lib/src/engine/geometry/        CPU geometry, knows nothing about the GPU
+lib/src/engine/geometry/        DeviceMesh: the mesh that has met the device
 lib/src/engine/animation/       clips, tracks, sampling, the player
-lib/src/engine/math/            ray intersections, allocation-free
 lib/src/engine/scene/           scene graph, cameras, lights, orbit, raycasting
 lib/src/engine/render/          renderer, render list, materials, sorting, debug draw
 lib/src/engine/assets/          glTF, OBJ and .f3d decoders, isolate loading, cache
 example/lib/                    the demo, and the frame capture hook
 skills/                         the conventions, as agent skills — see below
 bin/skills.dart                 what copies them into a project that uses this
-test/                           928 tests, all runnable without a GPU
+test/                           850 tests, all runnable without a GPU
 ```
 
 The GLSL is not here. Every shader this package draws with lives in

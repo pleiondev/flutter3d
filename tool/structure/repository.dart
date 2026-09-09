@@ -27,15 +27,17 @@ const List<String> genrePackages = <String>[
 
 /// Every application in this repository, which is also its directory name.
 ///
-/// `_demo_` marks the three that exist to show the engine works. The other two
-/// are tools — a level editor and the seed a new project starts from — and
-/// rules about *games* filter on the infix rather than carrying a fourth list.
+/// `_demo_` marks the three that exist to show the engine works. The others are
+/// tools — a level editor, a modeller, and the seed a new project starts from —
+/// and rules about *games* filter on the infix rather than carrying a fourth
+/// list.
 const List<String> applications = <String>[
   'flutter3d_demo_dungeon',
   'flutter3d_demo_platformer',
   'flutter3d_demo_racing',
   'flutter3d_demo_strategy',
   'flutter3d_editor',
+  'flutter3d_modeler',
   'flutter3d_template_app',
 ];
 
@@ -57,6 +59,24 @@ const List<String> applications = <String>[
 /// is not here, because nothing has yet needed it to and a rule kept for
 /// nobody is a rule somebody eventually deletes.
 const Map<String, String> flatDartPackages = <String, String>{
+  'flutter3d_geometry':
+      'a mesh is described here and drawn elsewhere: a modeller\'s document '
+      'layer, the tool an agent starts with `dart run`, and this repository\'s '
+      'own AOT benches all need to say `MeshData` with no window in front of '
+      'them, which is what depending on `flutter3d` for it cost them',
+  'flutter3d_mesh':
+      'the mesh a modeller edits is a document before it is a picture: a bench '
+      'compiled by `dart compile exe`, the tool an agent starts with `dart '
+      'run`, and a test of a loop cut all hold one and none of them draws',
+  'flutter3d_model_core':
+      'a model is a document, and the programs that check, convert or drive '
+      'one — an exporter on a command line, a service validating an upload, '
+      'the tool an agent speaks to — have no window',
+  'flutter3d_model_mcp':
+      'it is that tool. A host starts it with `dart run`, which cannot '
+      'resolve a package that depends on the Flutter SDK — so a Flutter '
+      'import anywhere in this graph is not a heavier process, it is a server '
+      'that will not start',
   'flutter3d_sim':
       'a server replays a run through it, in a container with no '
       'Flutter SDK in it',
@@ -140,6 +160,24 @@ const Map<String, String> notARigCamera = <String, String>{
 /// package is a rule that has outlived its subject.
 const Map<String, String> notARepeatableStep = <String, String>{
   'flutter3d': 'a renderer draws a frame; the clock it reads is the frame\'s',
+  'flutter3d_geometry':
+      'geometry, not a step: a lathe turns a profile with `math.sin` once, at '
+      'the moment a shape is built, and a run that stepped it would be a run '
+      'rebuilding its meshes every tick',
+  'flutter3d_mesh':
+      'a mesh, not a step: an extrusion happens when somebody asks for it, and '
+      'the arithmetic that places its vertices is the same arithmetic '
+      'geometry does one package down',
+  'flutter3d_model_core':
+      'a document, not a step: a command changes a project when it is run, and '
+      'nothing here advances on a clock',
+  'flutter3d_model_mcp':
+      'a server that answers a host, on the host\'s schedule',
+  'flutter3d_formats':
+      'files, not a step: what is read out of a `.glb` is what somebody '
+      'authored, and the one place here that calls libm — slerping a rotation '
+      'between two keys — is sampled for a frame, on the clock the renderer '
+      'these files came out of is already exempt for',
   'flutter3d_impeller': 'a backend, not a step',
   'flutter3d_webgl': 'a backend, not a step',
   'flutter3d_webgpu': 'a backend, not a step',
@@ -223,9 +261,11 @@ const Map<String, String> engineCompilesOffDevice = <String, String>{
       'in ARCHITECTURE.md §14 come from the pipeline a release build uses — a '
       'suite that cannot be compiled produces numbers that cannot be '
       'contradicted',
-  'lib/src/engine/geometry/geometry.dart':
-      'the CPU geometry layer says it depends on no graphics backend, and every '
-      'unit test of bounds, shapes and mesh maths is spent on that being true',
+  // The CPU geometry layer used to be named here, as `lib/src/engine/geometry/
+  // geometry.dart`. It is `flutter3d_geometry` now, a package with no Flutter
+  // SDK in its pubspec at all, and `a flat Dart package resolves without the
+  // Flutter SDK` holds it to something stronger than this rule could: not "no
+  // import reaches Flutter today" but "no dependency could".
 };
 
 /// Sentences that say a number of scenes and are not claims about how many
@@ -291,11 +331,10 @@ goldenCountExempt = <String, Map<String, String>>{
     'Two scenes, switched with the space bar':
         'the example application\'s two scenes, which are not a golden set',
   },
-  'packages/flutter3d/lib/src/engine/render/lighting_model.dart':
-      <String, String>{
-        'Two goldens caught it at 25% and 0.6%':
-            'the two that caught it, named with what each one showed',
-      },
+  'packages/flutter3d_formats/lib/src/lighting_model.dart': <String, String>{
+    'Two goldens caught it at 25% and 0.6%':
+        'the two that caught it, named with what each one showed',
+  },
   'packages/flutter3d/test/lighting_model_test.dart': <String, String>{
     'which two goldens found at 25% and 0.6%': 'the same two',
   },
@@ -440,21 +479,19 @@ String relative(File file, Directory dir) => file.path
 /// the next one has to be argued for rather than typed.
 const Map<String, Map<String, String>>
 boundaryEnumExempt = <String, Map<String, String>>{
-  'flutter3d/lib/src/engine/assets/gltf/gltf_accessor_type.dart':
-      <String, String>{
-        'GltfComponentType':
-            "the glTF specification's own component types. The set is the "
-            "format's, and a file that names a fifth is not a glTF file",
-        'GltfAccessorType':
-            "the same specification's accessor types, for the same reason",
-      },
-  'flutter3d/lib/src/engine/assets/gltf/gltf_primitive_mode.dart':
-      <String, String>{
-        'GltfPrimitiveMode':
-            "the glTF specification's seven primitive modes, numbered by the "
-            'format',
-      },
-  'flutter3d/lib/src/engine/assets/surface_material.dart': <String, String>{
+  'flutter3d_formats/lib/src/gltf/gltf_accessor_type.dart': <String, String>{
+    'GltfComponentType':
+        "the glTF specification's own component types. The set is the "
+        "format's, and a file that names a fifth is not a glTF file",
+    'GltfAccessorType':
+        "the same specification's accessor types, for the same reason",
+  },
+  'flutter3d_formats/lib/src/gltf/gltf_primitive_mode.dart': <String, String>{
+    'GltfPrimitiveMode':
+        "the glTF specification's seven primitive modes, numbered by the "
+        'format',
+  },
+  'flutter3d_formats/lib/src/surface_material.dart': <String, String>{
     'SurfaceAlphaMode':
         "glTF's three alpha modes. A decoder for another format maps onto "
         'these; it does not add to them',
@@ -467,7 +504,7 @@ boundaryEnumExempt = <String, Map<String, String>>{
         'the engine side of SurfaceAlphaMode, and a fourth would need a '
         'pipeline the shaders do not have',
   },
-  'flutter3d/lib/src/engine/animation/animation_track.dart': <String, String>{
+  'flutter3d_formats/lib/src/animation/animation_track.dart': <String, String>{
     'AnimationInterpolation':
         "glTF's three interpolations; the sampler implements exactly these",
     'AnimationPath':
@@ -520,7 +557,7 @@ boundaryEnumExempt = <String, Map<String, String>>{
         'Adding one is recording three golden sets, which is not something '
         'a caller does',
   },
-  'flutter3d/lib/src/engine/assets/model_loader.dart': <String, String>{
+  'flutter3d_formats/lib/src/model_loader.dart': <String, String>{
     'ModelFormat':
         'names the three decoders this package ships, plus auto. A format it '
         'does not ship never reaches this switch: a game supplies a '
@@ -528,7 +565,7 @@ boundaryEnumExempt = <String, Map<String, String>>{
         'it, before any of these are consulted. Adding a value here means '
         'adding a decoder to this package',
   },
-  'flutter3d/lib/src/engine/assets/obj/obj_loader.dart': <String, String>{
+  'flutter3d_formats/lib/src/obj/obj_loader.dart': <String, String>{
     'ObjNormals':
         'what to do when an OBJ has no normals. Smooth or flat, and there '
         'is no third answer the decoder could give',

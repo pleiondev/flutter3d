@@ -1,7 +1,5 @@
-import 'animation_clip.dart';
-import 'animation_mask.dart';
+import 'package:flutter3d_formats/flutter3d_formats.dart';
 import 'animation_target.dart';
-import 'animation_track.dart';
 
 /// Where a track sits in a pose: one number for a node and a path together.
 ///

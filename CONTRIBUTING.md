@@ -57,7 +57,7 @@ number should be.
 
 ## Architecture is checked by scans, not by review
 
-`dart run tool/structure.dart` holds thirty rules about how the repository is
+`dart run tool/structure.dart` holds thirty-one rules about how the repository is
 arranged — that a genre package names no other genre, that the hardware layer
 names no graphics API, that the engine names no backend, that a simulation step
 reaches for no clock and no loose dice. It runs first in CI and takes under a
@@ -73,6 +73,27 @@ Two of them are worth knowing before you write anything:
 If a rule is genuinely wrong for what you are doing, the exemption lists in
 `tool/structure/repository.dart` take an entry with a reason. An exemption
 without one is the thing the rule exists to catch.
+
+### Words the genre scan takes for a genre
+
+The scan reads identifiers, not imports, and it splits them into words — so
+`currentLap` fires and `overlaps` does not. A handful of perfectly ordinary
+words for a tool are also words of a genre's repertoire, and the fix is a
+different word rather than an exemption: an exemption spends the rule to keep a
+synonym.
+
+| Instead of | Write | Because |
+|---|---|---|
+| `dashed`, `dashedLine` | `dotted`, `dottedLine` | `dash` is a platformer's move |
+| `reload` | `reopen`, `reread` | `reload` is a weapon's |
+| `spike` (an experiment) | `peak`, `probe`, `trial` | `spike` is a hazard |
+| `boss` (a supervisor) | `owner`, `parent` | `boss` is a monster |
+| `magazine` | `store`, `buffer` | `magazine` holds rounds |
+| `lap` (an overlap) | `overlap` is fine; `currentLap` is not | the scan reads words |
+
+`bevel`, `loop`, `face`, `brush`, `bone` and `manifold` all pass, which is what
+a modeller is mostly made of. The examples above are checked in
+`proveDetectorsWork`, so this table cannot drift from the detector.
 
 ## Generated files are generated
 

@@ -4,7 +4,7 @@ description: Every package in the workspace, what it owns, what it depends on, a
 
 # Package index
 
-Twenty-eight packages and six applications, resolved as one [pub workspace](https://dart.dev/tools/pub/workspaces), so a single `flutter pub get` covers everything against one lock file. Twenty-seven of the packages are on pub.dev at the 0.6.0 set — `pad_input` and `pointer_lock` on a line of their own at 0.4.1, `flutter3d_samples` on its at 0.4.2. `flutter3d_game_strategy` is the one that lives in this checkout only, because its types still encode how many sides a match may have.
+Thirty-three packages and seven applications, resolved as one [pub workspace](https://dart.dev/tools/pub/workspaces), so a single `flutter pub get` covers everything against one lock file. Twenty-seven of the packages are on pub.dev at the 0.6.0 set — `pad_input` and `pointer_lock` on a line of their own at 0.4.1, `flutter3d_samples` on its at 0.4.2. `flutter3d_game_strategy` is the one that lives in this checkout only, because its types still encode how many sides a match may have.
 
 ## Engine
 
@@ -14,6 +14,20 @@ The renderer and everything that walks a scene. Import `package:flutter3d/flutte
 Depends on `flutter3d_hardware` and nothing below it. **Does not** re-export a backend, an application picks one by name, and that choice stays visible in its pubspec.
 
 → [The frame](/core/rendering/) · [Scene graph](/core/scene/) · [Geometry](/core/geometry/) · [Assets](/core/assets/)
+
+### `flutter3d_geometry` — the mesh, with no Flutter behind it
+`VertexLayout`, `MeshData`, `MeshBuilder`, the shape generators a scene is sketched from, `MeshGeometry` and `CpuMesh`, tangents by Lengyel, morph targets and `MorphTexture`, and `Ray` with the intersection arithmetic that reads a triangle. Import `package:flutter3d_geometry/flutter3d_geometry.dart`, or take it through `flutter3d`, which exports it whole.
+
+It left the engine because `flutter3d` declares `flutter: sdk`: every file here named Flutter nowhere, and it bought nobody anything, since a package that depended on the engine to say `MeshData` resolved a Flutter SDK it had no use for and `dart pub get` in a container without one failed. `DeviceMesh` stayed behind with the types that have met a `GraphicsDevice` — that is the line the split was made along, and the only one.
+
+→ [Geometry](/core/geometry/)
+
+### `flutter3d_formats` — what a model arrives in
+`ModelDocument` and everything a decoder fills in, `SurfaceMaterial`, `MaterialDocument`, `LightingModel`, `AnimationClip` and `AnimationTrack`, and the readers for glTF/GLB, OBJ, the engine's own `.f3d` container and its `.fmat`. Import `package:flutter3d_formats/flutter3d_formats.dart`, or take it through `flutter3d`.
+
+The split with the engine is at the bytes: this package turns bytes into a document, and `flutter3d` is what fetches them and uploads the result. So `decodeModelInIsolate` with its `kIsWeb`, `BundleAssetSource` and `FileAssetSource`, the bundle resolvers, and everything naming a `GraphicsDevice` — `ModelAsset`, `ModelPart`, texture upload, the KTX2 reader — all stayed behind. `AssetSource` itself is here, as the abstraction both sources extend.
+
+→ [Assets](/core/assets/)
 
 ### `flutter3d_hardware` — the HAL
 The hardware abstraction layer, and the vocabulary a backend implements: `GraphicsDevice`, `CommandEncoder`, `PassState`, `TextureHandle`, `GeometryBuffer`, samplers, formats, vertex layout specs, a render target pool. **No implementation at all.** Two rules, both checked: no `flutter_gpu` import ever, and no `dart:ui` apart from one member on `GraphicsDevice` that has to name it.
@@ -131,9 +145,9 @@ There is no package for this. The rules about how the repository is arranged (wh
 dart run tool/structure.dart
 ```
 
-Thirty rules, under a second, no `pub get` and no device: every one of them reads source text. They were a `boundaries_test.dart` in each package until thirteen packages of twenty-one turned out to have none, all thirteen clean and not one of them checked. A runner that walks `packages/` covers a package the day it exists.
+Thirty-one rules, under a second, no `pub get` and no device: every one of them reads source text. They were a `boundaries_test.dart` in each package until thirteen packages of twenty-one turned out to have none, all thirteen clean and not one of them checked. A runner that walks `packages/` covers a package the day it exists.
 
-The detectors prove they fire before a single file is scanned, and a broken detector stops the run rather than letting thirty green scans be reported behind it. See [Testing](/reference/testing/).
+The detectors prove they fire before a single file is scanned, and a broken detector stops the run rather than letting thirty-one green scans be reported behind it. See [Testing](/reference/testing/).
 
 ## Assembling an application
 
@@ -152,7 +166,7 @@ Thirty-five lines, all of them `export`. It re-exports `flutter3d_backend`, `flu
 
 Deliberately **not** behind it: `flutter3d`, `flutter3d_bridge`, `flutter3d_game` and a genre package. Those are content, meaning what a scene looks like and what kind of game this is, and a facade cannot choose a genre on an application's behalf.
 
-Five of the six applications import it — the four games and the template, which reaches `openDevice` through it in one exported line. `flutter3d_editor` is the one that does not, and that is a gap rather than a second pattern: see [Assembling an application](/core/session/).
+Six of the seven applications import it — the four games, the template and the modeller, which reaches `openDevice` through it in one exported line. `flutter3d_editor` is the one that does not, and that is a gap rather than a second pattern: see [Assembling an application](/core/session/).
 
 ### `flutter3d_backend`
 Which graphics backend a build draws through: `openDevice({required width, required height})` returns a `GraphicsDevice`. **Three decisions, made three different ways.** Web or native is a conditional export, picked at compile time, because `flutter_gpu` does not compile for the web and `dart:js_interop` does not compile for macOS. On the native half, Impeller or software is a runtime `try`/`catch` instead: `GpuRenderBackend.create()` is tried first, and a throw — Flutter GPU refusing to start on Skia, or a platform where Impeller was never enabled — falls back to `flutter3d_cpu`'s `CpuDevice`, since `flutter_gpu` ships with the SDK and no compile-time check can see whether it will actually start. On the browser half, WebGPU or WebGL2 is the same shape of `try`/`catch` — `navigator.gpu` may be absent, or present and hand out no adapter on a blocklisted driver, and no `dart.library.*` check sees either — but it is reached only behind `--dart-define=FLUTTER3D_WEBGPU=true`, because a probe that can call both openers keeps both backends reachable and dart2js ships what it can reach: 376,649 bytes of `main.dart.js` on the strategy demo, 14.9%, measured on two builds of the same checkout. Deliberately does not decide resolution or shadow budget — `kFixedResolution` reports whether the *primary* backend renders to a fixed internal target, and the size stays the application's own choice.
@@ -223,6 +237,23 @@ The same editor, offered to an agent. A [Model Context Protocol](https://modelco
 **And it will not write over a generated document.** A level carrying `generatedBy` may be opened, changed and saved somewhere else, and the copy claims itself. Saving over the original is refused, because that save would look like it worked right up until the next run of the generator threw the work away.
 
 Plain Dart, held by the same scan the simulation and the editor's core are: no Flutter anywhere in the graph, which for this package is not tidiness but whether the server starts at all.
+
+### `flutter3d_mesh`
+The mesh a modeller edits, with the topology still in it: faces of any valency, half-edges that know their twin, attribute layers, and the operations that change them. Plain Dart.
+
+It exists because `MeshData` is the wrong shape for editing. That one describes a finished mesh — vertices in the order a GPU wants them, a corner duplicated once per face normal meeting there — and every question a modeller asks is about what that arrangement threw away: which faces share this edge, what ring does it belong to, what is the loop around this face.
+
+**A spike today, and its own header says so.** `EditMesh` builds from faces or as a cuboid, walks loops without allocating, extrudes a face, validates its invariants and converts to `MeshData`; operations rebuild the arrays rather than editing them in place. What comes next — persistent chunked arrays, selections, loop cuts, dissolves — is `doc/model-editor-plan.md` §2.1.
+
+### `flutter3d_model_core`
+The headless half of the model editor: the project, the sealed command every edit is one of, the history that takes them back, and the rules about whether the result can leave. The same split `flutter3d_editor_core` made for levels, for the same reason.
+
+A registered skeleton today. The package exists ahead of its contents so the structure scan, the publishing order and the check that a bare `dart pub get` resolves it all cover the document layer from its first commit.
+
+### `flutter3d_model_mcp`
+The modeller offered to an agent, over MCP on stdio, one project per process — the shape `flutter3d_editor_mcp` has for levels.
+
+An entry point and a usage line today; running it says the server is not built yet and exits non-zero. What it already proves is the property everything under it is arranged for: a machine with the Dart SDK and no Flutter can resolve this package and start it, which CI asks in a container of exactly that kind.
 
 ## Applications
 

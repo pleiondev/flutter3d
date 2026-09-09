@@ -19,7 +19,7 @@ library;
 import 'dart:io';
 import 'dart:typed_data';
 
-import 'package:flutter3d/src/engine/assets/gltf/glb_container.dart';
+import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 /// The shipped file, read the way the game reads it: off disk, as bytes.

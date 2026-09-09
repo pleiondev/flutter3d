@@ -1,9 +1,9 @@
 import 'dart:typed_data';
 
+import 'package:flutter3d_geometry/flutter3d_geometry.dart';
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:vector_math/vector_math.dart';
 
-import '../geometry/mesh_geometry.dart';
 import 'mesh_node.dart';
 
 /// One mesh drawn many times in one call, each copy with a transform and a

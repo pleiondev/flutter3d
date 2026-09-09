@@ -27,6 +27,10 @@ List<Rule> get allRules => <Rule>[
   (name: 'a genre camera turns the shared rig', run: _genreCameraTurnsTheRig),
   (name: 'a step reaches for no clock and no loose dice', run: _repeatableStep),
   (name: 'the simulation names no Flutter', run: _flatDartNamesNoFlutter),
+  (
+    name: 'a flat Dart package resolves without the Flutter SDK',
+    run: _flatDartResolvesWithoutFlutter,
+  ),
   (name: 'the hardware layer names no graphics API', run: _hardwareNamesNoApi),
   (name: 'the engine names no backend', run: _engineNamesNoBackend),
   (name: 'each assembly has one home per application', run: _oneAssembly),
@@ -358,6 +362,71 @@ List<Finding> _flatDartNamesNoFlutter() {
         );
       }
     }
+  }
+  return found;
+}
+
+/// A plain Dart package may not reach the Flutter SDK **through** a sibling.
+///
+/// **The rule beside this one reads `lib/`, and that is not where this arrives.**
+/// `the simulation names no Flutter` scans source text, so a package with no
+/// Flutter import at all passes it — and then `dart pub get` fails anyway,
+/// because one of its dependencies declares `flutter: sdk` and pub resolves the
+/// whole graph before a single file is read. That is not hypothetical: the
+/// modeller's document layer was going to depend on `flutter3d` for `MeshData`,
+/// which is one line in a pubspec and a package an agent's `dart run` cannot
+/// start. `flutter3d_geometry` and `flutter3d_formats` exist because of it.
+///
+/// So this walks the graph rather than the files, and reports the path it took:
+/// a name in the chain is where to break it. Dev dependencies count, for the
+/// reason [pubspecDependencies] gives — `dart test` resolves those too, and a
+/// package whose own suite needs the SDK is a package the container cannot
+/// check.
+///
+/// Packages outside this workspace are not followed. `vector_math` and `test`
+/// are pub's problem, and neither can grow a Flutter dependency without the
+/// lock file saying so.
+List<Finding> _flatDartResolvesWithoutFlutter() {
+  final found = <Finding>[];
+
+  final specs = <String, String>{};
+  for (final entry in packages.entries) {
+    final pubspec = File('${entry.value.path}/pubspec.yaml');
+    if (pubspec.existsSync()) specs[entry.key] = pubspec.readAsStringSync();
+  }
+
+  /// The shortest chain from [start] to a package asking for the SDK, or null.
+  List<String>? pathToSdk(String start) {
+    final queue = <List<String>>[
+      <String>[start],
+    ];
+    final seen = <String>{start};
+    while (queue.isNotEmpty) {
+      final chain = queue.removeAt(0);
+      final spec = specs[chain.last];
+      if (spec == null) continue;
+      if (dependsOnFlutterSdk(spec)) return chain;
+      for (final name in pubspecDependencies(spec)) {
+        if (!specs.containsKey(name) || !seen.add(name)) continue;
+        queue.add(<String>[...chain, name]);
+      }
+    }
+    return null;
+  }
+
+  for (final entry in flatDartPackages.entries) {
+    if (!specs.containsKey(entry.key)) continue; // reported by the rule above
+    final chain = pathToSdk(entry.key);
+    if (chain == null) continue;
+    final via = chain.length == 1 ? 'its own pubspec' : chain.join(' -> ');
+    found.add(
+      Finding(
+        '${entry.key}/pubspec.yaml',
+        'resolves the Flutter SDK through $via, and ${entry.key} is plain Dart '
+            'because ${entry.value}. `dart pub get` fails on this before it '
+            'reads a line of source, so no import scan can see it',
+      ),
+    );
   }
   return found;
 }
@@ -726,6 +795,14 @@ List<Finding> _ruleCount() {
     'twenty-eight',
     'twenty-nine',
     'thirty',
+    // Written past the count for the reason the package words above are:
+    // running off the end reports the prose as wrong rather than the list as
+    // short, and the reader spends the afternoon on the wrong sentence.
+    'thirty-one',
+    'thirty-two',
+    'thirty-three',
+    'thirty-four',
+    'thirty-five',
   ];
   final actual = allRules.length;
   final found = <Finding>[];
@@ -1421,6 +1498,25 @@ List<Finding> _testCount() {
     // package created before it can draw anything — the count moves when the
     // directory appears, not when the backend works.
     'twenty-eight',
+    // The rest were written in one go, ahead of the directories, which is what
+    // the two comments above ask for and what neither of them did. A modeller
+    // is six packages — geometry, formats, a mesh core, a document layer, the
+    // server an agent speaks to and the application — and each one arriving to
+    // a list one name too short reports a stale README rather than a short
+    // list. Nothing here claims the packages will exist; a word costs nothing
+    // and finding out late costs an afternoon.
+    'twenty-nine',
+    'thirty',
+    'thirty-one',
+    'thirty-two',
+    'thirty-three',
+    'thirty-four',
+    'thirty-five',
+    'thirty-six',
+    'thirty-seven',
+    'thirty-eight',
+    'thirty-nine',
+    'forty',
   ];
   final readme = File('${root.path}/README.md').readAsStringSync();
   final saidInProse = RegExp(

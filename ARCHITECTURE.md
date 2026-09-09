@@ -169,7 +169,7 @@ copy, and is the bridge into the widget tree.
 
 ## 3. The package map
 
-Twenty-seven packages and six applications in one pub workspace — one
+Thirty-three packages and seven applications in one pub workspace — one
 `flutter pub get` for the repository.
 
 ### 3.1 The layering rule
@@ -226,10 +226,10 @@ point of §3.3.
 
 Applications: `apps/flutter3d_demo_dungeon` (shooter),
 `apps/flutter3d_demo_platformer`, `apps/flutter3d_demo_racing`,
-`apps/flutter3d_demo_strategy`, `apps/flutter3d_editor` (level editor) and
-`apps/flutter3d_template_app` (the seed a new project starts from), plus the
-engine's own example — six applications, which is the count the workspace list
-is held to.
+`apps/flutter3d_demo_strategy`, `apps/flutter3d_editor` (level editor),
+`apps/flutter3d_modeler` (the modeller) and `apps/flutter3d_template_app` (the
+seed a new project starts from), plus the engine's own example — seven
+applications, which is the count the workspace list is held to.
 
 
 ### 3.3 Why the simulation is its own package
@@ -302,7 +302,7 @@ a caller for that cannot supply a Flutter SDK.
 
 ### 3.3 Rules that are scanned, not remembered
 
-`tool/structure.dart` walks `packages/` and `apps/` and enforces thirty rules in
+`tool/structure.dart` walks `packages/` and `apps/` and enforces thirty-one rules in
 under a second, as the first step of CI. They cover the *arrangement* of the code
 — who imports what, what a name says, where a thing may live — while anything
 about what the code *does* stays a test.
@@ -1758,8 +1758,8 @@ entities a game defines.
 |---|---|
 | Style | `dart format` |
 | Analysis | `flutter analyze` clean across the workspace, no warnings |
-| Unit tests | **4322 tests** across 28 packages and 6 applications |
-| Structure rules | 30, `dart run tool/structure.dart`, the first CI step |
+| Unit tests | **4352 tests** across 33 packages and 7 applications |
+| Structure rules | 31, `dart run tool/structure.dart`, the first CI step |
 | CI | GitHub Actions over `tool/ci.sh`, on `ubuntu-latest`, with no graphics card |
 
 **Golden render tests.** 43 scenes against **four complete independent
@@ -2604,23 +2604,33 @@ assets, it names no sibling either, and it is byte for byte what went out.
 **The order, used on the day**, is set by the dependency graph:
 
 1. `flutter3d_hardware`, `flutter3d_shaders`, `flutter3d_samples`,
-   `flutter3d_audio`, `pad_input`, `pointer_lock`
-2. `flutter3d_conformance`
-3. `flutter3d`, `flutter3d_physics`
-4. `flutter3d_impeller`, `flutter3d_webgl`, `flutter3d_webgpu`, `flutter3d_cpu`,
+   `flutter3d_audio`, `flutter3d_geometry`, `pad_input`, `pointer_lock`
+2. `flutter3d_formats`, `flutter3d_mesh`
+3. `flutter3d_conformance`, `flutter3d_model_core`
+4. `flutter3d`, `flutter3d_physics`
+5. `flutter3d_impeller`, `flutter3d_webgl`, `flutter3d_webgpu`, `flutter3d_cpu`,
    `flutter3d_particles`, `flutter3d_sim`
-5. `flutter3d_game`, `flutter3d_editor_core`
-6. `flutter3d_screens`, `flutter3d_bridge`, `flutter3d_backend`,
-   `flutter3d_testing`, `flutter3d_editor_mcp`
-7. `flutter3d_session`
-8. `flutter3d_app`
-9. `flutter3d_game_shooter`, `flutter3d_game_platformer`, `flutter3d_game_racing`,
-   `flutter3d_game_strategy`
+6. `flutter3d_game`, `flutter3d_editor_core`
+7. `flutter3d_screens`, `flutter3d_bridge`, `flutter3d_backend`,
+   `flutter3d_testing`, `flutter3d_editor_mcp`, `flutter3d_model_mcp`
+8. `flutter3d_session`
+9. `flutter3d_app`
+10. `flutter3d_game_shooter`, `flutter3d_game_platformer`, `flutter3d_game_racing`,
+    `flutter3d_game_strategy`
 
-Four positions are not obvious and so are written down rather than re-derived:
-`flutter3d_samples` is in the first tier although nothing depends on it at run
-time, because `flutter3d`'s tests do and a dev dependency has to resolve for the
-archive to be accepted; `flutter3d_app` is second to last because it is the
+Six positions are not obvious and so are written down rather than re-derived:
+`flutter3d_geometry` is in the first tier and ahead of `flutter3d`, which is the
+whole point of it existing — it names `vector_math` and nothing else, and the
+engine depends on it for `MeshData`; `flutter3d_formats` is a tier of its own
+between them, because it needs the geometry a decoder fills in and the engine
+needs the documents it produces; the modeller's three sit where their
+dependencies put them and nowhere near the engine — `flutter3d_mesh` beside
+`flutter3d_formats` on geometry alone, `flutter3d_model_core` a tier below both,
+and `flutter3d_model_mcp` beside `flutter3d_editor_mcp`, because it is a
+published package that happens to have a `bin/` rather than a program that
+happens to be in this repository; `flutter3d_samples` is in the first tier
+although nothing depends on it at run time, because `flutter3d`'s tests do and a
+dev dependency has to resolve for the archive to be accepted; `flutter3d_app` is second to last because it is the
 assembly layer; `flutter3d_editor_core` is beside `flutter3d_game` rather
 than behind it, because it needs only `flutter3d_sim` — the editor's document
 layer never wanted the Flutter half, which is why it could leave an application

@@ -2,8 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/services.dart' show AssetBundle, rootBundle;
 
-import 'asset_resolver.dart';
-import 'gltf/glb_container.dart';
+import 'package:flutter3d_formats/flutter3d_formats.dart';
 
 /// Resolves asset URIs relative to a directory on disk.
 ///

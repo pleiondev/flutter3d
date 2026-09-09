@@ -8,7 +8,7 @@
 /// way in and there is no second numbering to get wrong.
 library;
 
-import 'package:flutter3d/src/engine/assets/model_document.dart';
+import 'package:flutter3d_formats/flutter3d_formats.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 /// A skeleton, as a document and nothing else.

@@ -1,17 +1,12 @@
 import 'dart:typed_data';
 
+import 'package:flutter3d_formats/flutter3d_formats.dart';
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 
-import '../render/lighting_model.dart';
 import '../render/material.dart';
-import 'asset_resolver.dart';
-import 'asset_source.dart';
-import 'fmat/fmat.dart';
-import 'material_document.dart';
-import 'surface_material.dart';
 import 'texture_upload.dart';
 
-export 'material_document.dart';
+export 'package:flutter3d_formats/flutter3d_formats.dart';
 
 /// A reader for a material format the engine does not ship.
 ///

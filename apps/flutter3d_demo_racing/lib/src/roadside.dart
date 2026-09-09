@@ -116,8 +116,13 @@ List<SceneNode> addRoadsideTo(
     return hit.point.y;
   }
 
-  void putMesh(String name, MeshData mesh, Material material, Vector3 at,
-      double yaw) {
+  void putMesh(
+    String name,
+    MeshData mesh,
+    Material material,
+    Vector3 at,
+    double yaw,
+  ) {
     final node = MeshNode(DeviceMesh.upload(device, mesh), material, name: name)
       ..setPositionFrom(at)
       ..setRotationYawPitchRoll(yaw, 0.0, 0.0);
@@ -146,8 +151,8 @@ List<SceneNode> addRoadsideTo(
     );
     // Turned away from the road by a few degrees each, so a row of the same
     // four models does not read as a row.
-    final yaw = math.atan2(-frame.forward.x, -frame.forward.z) +
-        (i % 5 - 2) * 0.18;
+    final yaw =
+        math.atan2(-frame.forward.x, -frame.forward.z) + (i % 5 - 2) * 0.18;
 
     final model = buildings.isEmpty ? null : buildings[i % buildings.length];
     if (model == null) {
@@ -204,16 +209,21 @@ List<SceneNode> addRoadsideTo(
     // The face is a plane, and a plane is built lying down — so it is pitched
     // a quarter turn to stand up. `setRotationYawPitchRoll` takes the yaw
     // first, which is why the sign's facing survives the tilt.
-    final face = MeshNode(
-      DeviceMesh.upload(
-        device,
-        const PlaneShape(width: boardWidth, depth: boardHeight).build(),
-      ),
-      Roadside.sign(signs[i]),
-      name: 'sign-$i',
-    )
-      ..setPosition(base.x, base.y + standHeight + boardHeight * 0.5, base.z)
-      ..setRotationYawPitchRoll(yaw + math.pi, 1.5707963267948966, 0.0);
+    final face =
+        MeshNode(
+            DeviceMesh.upload(
+              device,
+              const PlaneShape(width: boardWidth, depth: boardHeight).build(),
+            ),
+            Roadside.sign(signs[i]),
+            name: 'sign-$i',
+          )
+          ..setPosition(
+            base.x,
+            base.y + standHeight + boardHeight * 0.5,
+            base.z,
+          )
+          ..setRotationYawPitchRoll(yaw + math.pi, 1.5707963267948966, 0.0);
     scene.add(face);
     added.add(face);
 
@@ -221,11 +231,15 @@ List<SceneNode> addRoadsideTo(
       final foot = base + frame.forward * (lean * boardWidth * 0.35);
       putMesh(
         'sign-$i-post-$lean',
-        CuboidShape(size: Vector3(0.4, standHeight + boardHeight * 0.5, 0.4))
-            .build(),
+        CuboidShape(
+          size: Vector3(0.4, standHeight + boardHeight * 0.5, 0.4),
+        ).build(),
         Roadside.post,
-        Vector3(foot.x, foot.y + (standHeight + boardHeight * 0.5) * 0.5,
-            foot.z),
+        Vector3(
+          foot.x,
+          foot.y + (standHeight + boardHeight * 0.5) * 0.5,
+          foot.z,
+        ),
         yaw,
       );
     }
@@ -296,7 +310,11 @@ Future<List<TextureHandle>> drawSignFaces(GraphicsDevice device) async {
 
 /// One sign's artwork.
 class _SignFace extends StatelessWidget {
-  const _SignFace({required this.top, required this.bottom, required this.tint});
+  const _SignFace({
+    required this.top,
+    required this.bottom,
+    required this.tint,
+  });
 
   final String top;
   final String bottom;

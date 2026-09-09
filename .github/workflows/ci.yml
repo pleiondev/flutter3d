@@ -78,6 +78,29 @@ jobs:
 
       - run: tool/ci.sh
 
+  # **A Dart SDK with no Flutter beside it, which is the machine six packages
+  # promise to run on.**
+  #
+  # `flutter3d_model_mcp` is started by a host with `dart run`, and `dart run`
+  # cannot resolve a package that depends on the Flutter SDK — so a single
+  # Flutter import anywhere under it is not a heavier process, it is a server
+  # that will not start. The same is true of `flutter3d_editor_mcp`, and of the
+  # document and geometry layers underneath both.
+  #
+  # The check job cannot ask this. It installs Flutter, and one `flutter pub
+  # get` at the root resolves the whole workspace against one lock file — so a
+  # plain package with a Flutter dependency resolves there and nowhere else.
+  # This job has no Flutter at all, which is the only way the question is real.
+  flat-dart:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dart-lang/setup-dart@v1
+        with:
+          sdk: '3.13.0'
+      - run: tool/flat_dart_check.sh
+
   # **A second operating system, because half of what this repository does is
   # macOS-only and nothing compiled it.** `tool/golden.sh` runs `flutter run -d
   # macos` and is the only way any of the three reference sets can be

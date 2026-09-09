@@ -1,5 +1,6 @@
 import 'dart:typed_data';
 
+import 'package:flutter3d_formats/flutter3d_formats.dart';
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:vector_math/vector_math.dart' as vm;
 
@@ -7,7 +8,6 @@ import '../scene/scene.dart';
 import 'frame_graph.dart';
 import 'frame_plan.dart';
 import 'frame_resources.dart';
-import 'lighting_model.dart';
 import 'render_node.dart';
 import 'render_view.dart';
 import 'renderer.dart';

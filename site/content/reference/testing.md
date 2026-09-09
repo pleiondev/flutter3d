@@ -1,22 +1,26 @@
 ---
-description: Three independent golden sets and a fourth being recorded, mutation-checking every new test, determinism and snapshots, and why only about thirty of 4322 tests need a GPU.
+description: Three independent golden sets and a fourth being recorded, mutation-checking every new test, determinism and snapshots, and why only about thirty of 4352 tests need a GPU.
 ---
 
 # Testing
 
-4322 tests across 28 packages and six applications, counted the same way the `the document says how many tests there are` rule does: a scan of every `test(`/`testWidgets(` call. The rule holds `ARCHITECTURE.md` §13, the README and this page to the answer — the README went on saying 1242 across thirteen packages for as long as nothing compared it with anything. About thirty need a GPU; the [architecture](/core/architecture/) is what keeps the number that low.
+4352 tests across 33 packages and seven applications, counted the same way the `the document says how many tests there are` rule does: a scan of every `test(`/`testWidgets(` call. The rule holds `ARCHITECTURE.md` §13, the README and this page to the answer — the README went on saying 1242 across thirteen packages for as long as nothing compared it with anything. About thirty need a GPU; the [architecture](/core/architecture/) is what keeps the number that low.
 
 | Package | Tests | | Package | Tests |
 |---|---|---|---|---|
-| `flutter3d` | 928 | | `flutter3d_bridge` | 65 |
+| `flutter3d` | 850 | | `flutter3d_geometry` | 86 |
+| | | | `flutter3d_bridge` | 65 |
+| | | | `flutter3d_formats` | 3 |
+| | | | `flutter3d_mesh` | 10 |
+| | | | `apps/flutter3d_modeler` | 4 |
 | `flutter3d_sim` | 491 | | `pad_input` | 59 |
 | `flutter3d_game_shooter` | 337 | | `flutter3d_audio` | 55 |
 | `flutter3d_game_racing` | 223 | | `flutter3d_webgl` | 55 |
 | `flutter3d_game_platformer` | 217 | | `flutter3d_hardware` | 54 |
 | `apps/flutter3d_demo_platformer` | 196 | | `flutter3d_impeller` | 53 |
 | `flutter3d_cpu` | 187 | | `apps/flutter3d_demo_strategy` | 42 |
-| `apps/flutter3d_editor` | 169 | | `flutter3d_session` | 34 |
-| `apps/flutter3d_demo_racing` | 144 | | `pointer_lock` | 28 |
+| `apps/flutter3d_editor` | 169 | | `flutter3d_session` | 38 |
+| `apps/flutter3d_demo_racing` | 145 | | `pointer_lock` | 28 |
 | `flutter3d_physics` | 168 | | `flutter3d_webgpu` | 175 |
 | `flutter3d_game_strategy` | 131 | | `flutter3d_editor_mcp` | 14 |
 | `flutter3d_screens` | 120 | | `flutter3d_testing` | 7 |
@@ -25,7 +29,7 @@ description: Three independent golden sets and a fourth being recorded, mutation
 | `flutter3d_game` | 79 | | `flutter3d_shaders` | 1 |
 | `flutter3d_particles` | 73 | | | |
 
-The rows sum to 4303 rather than 4322: the remaining 19 live in `packages/*/example/test`, which the count includes and this table does not.
+The rows sum to 4333 rather than 4352: the remaining 19 live in `packages/*/example/test`, which the count includes and this table does not.
 
 `flutter3d_app` and `flutter3d_samples` are not in the table and have no `test/` at all. One is a barrel of thirty-five `export` lines and the other is test data with two path constants over it; what there is to check about them is structural, and other packages' decoder tests are what exercise the samples. `flutter3d_conformance` is missing for a different reason: it is invoked as a script harness rather than through `flutter test`, so it does not surface in a grep of `test(` calls either. See below for what that cost once.
 
@@ -159,7 +163,7 @@ import 'package:flutter3d_screens/testing.dart';        // creditGaps
 <p>A package cannot import another package's <code>test/</code>, which is why there were two copies rather than one. <code>lib/testing.dart</code> is what a package can import.</p>
 </div>
 
-`cpuTestDevice` stops short of building the `Renderer`, deliberately: `flutter3d_cpu` must not depend on `flutter3d`. A backend that could not be compiled without the engine would not be an implementation of an interface, it would be part of the engine. That is a rule, and one of the thirty checks it.
+`cpuTestDevice` stops short of building the `Renderer`, deliberately: `flutter3d_cpu` must not depend on `flutter3d`. A backend that could not be compiled without the engine would not be an implementation of an interface, it would be part of the engine. That is a rule, and one of the thirty-one checks it.
 
 ## Play the game in a test
 
@@ -211,7 +215,7 @@ They ask how the code is *arranged*: who imports what, what a name says, where a
 dart run tool/structure.dart
 ```
 
-Thirty rules, under a second. Nothing they read needs `pub get`, a shader bundle or a device, so finding out in minute four that a package imports a genre was finding out late what was knowable in second one.
+Thirty-one rules, under a second. Nothing they read needs `pub get`, a shader bundle or a device, so finding out in minute four that a package imports a genre was finding out late what was knowable in second one.
 
 | Rule | What it refuses |
 |---|---|
@@ -229,7 +233,7 @@ Thirty rules, under a second. Nothing they read needs `pub get`, a shader bundle
 | `every exemption names a file that is there` | An allowlist entry whose file has moved, or whose case only resolves on macOS |
 | `the compiled shader bundle is not older than its sources` | A bundle built before the GLSL was edited, which fails as `failed to bind texture` rather than as a shader behaving oddly |
 
-Seventeen more check the lists against the workspace, every pubspec's floors and sibling constraints, a package for a dependency on an application, a simulation package for an import of Flutter, the applications for a silenced `print` and for the flag that turns the GPU on, the Impeller runners — conformance and the surface probe — for rot, every picture this site shows for a golden that is actually recorded, the publishing order for a package it forgot, a public member nothing calls for a sentence saying who it is for, the shader table on the backends page for a stage a bundle must answer to, and five numbers that go stale on their own: the test count, the golden scene count, the structure-rule count, the number of checks the conformance suite says it runs, and the number of enums the hardware layer promises not to rename — plus one that refuses an enum in a published package unless a table says why it is machinery — each compared against the tree. A number in prose is a number nobody recounts, so the counting rules read this site's pages too, and the sentence you are reading is one of them: the rule counts the table above and requires the rest to be the rest.
+Eighteen more check the lists against the workspace, a plain Dart package for a dependency — its own, or a sibling's — that would resolve the Flutter SDK, every pubspec's floors and sibling constraints, a package for a dependency on an application, a simulation package for an import of Flutter, the applications for a silenced `print` and for the flag that turns the GPU on, the Impeller runners — conformance and the surface probe — for rot, every picture this site shows for a golden that is actually recorded, the publishing order for a package it forgot, a public member nothing calls for a sentence saying who it is for, the shader table on the backends page for a stage a bundle must answer to, and five numbers that go stale on their own: the test count, the golden scene count, the structure-rule count, the number of checks the conformance suite says it runs, and the number of enums the hardware layer promises not to rename — plus one that refuses an enum in a published package unless a table says why it is machinery — each compared against the tree. A number in prose is a number nobody recounts, so the counting rules read this site's pages too, and the sentence you are reading is one of them: the rule counts the table above and requires the rest to be the rest.
 
 <div class="why">
 <p>These were a <code>boundaries_test.dart</code> in each package, and thirteen packages of twenty-one had none: all thirteen clean, and not one of them checked. A runner that walks <code>packages/</code> itself covers a package the day it exists rather than the day somebody remembers to add a file to it.</p>

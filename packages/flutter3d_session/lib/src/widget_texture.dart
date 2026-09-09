@@ -82,9 +82,7 @@ final class WidgetTexture {
       pixelRatio: pixelRatio,
     );
     try {
-      final pixels = await image.toByteData(
-        format: ui.ImageByteFormat.rawRgba,
-      );
+      final pixels = await image.toByteData(format: ui.ImageByteFormat.rawRgba);
       if (pixels == null) return null;
       return device.createTextureFromPixels(
         width: width,
@@ -132,20 +130,19 @@ final class WidgetTexture {
     view.prepareInitialFrame();
 
     final build = BuildOwner(focusManager: FocusManager());
-    final element =
-        RenderObjectToWidgetAdapter<RenderBox>(
-          container: boundary,
-          child: Directionality(
-            textDirection: TextDirection.ltr,
-            child: MediaQuery(
-              // The widget is told the size it is being drawn at, so a layout
-              // that reads `MediaQuery` gets an answer about its texture rather
-              // than about the window behind it.
-              data: MediaQueryData(size: logical, devicePixelRatio: pixelRatio),
-              child: widget,
-            ),
-          ),
-        ).attachToRenderTree(build);
+    final element = RenderObjectToWidgetAdapter<RenderBox>(
+      container: boundary,
+      child: Directionality(
+        textDirection: TextDirection.ltr,
+        child: MediaQuery(
+          // The widget is told the size it is being drawn at, so a layout
+          // that reads `MediaQuery` gets an answer about its texture rather
+          // than about the window behind it.
+          data: MediaQueryData(size: logical, devicePixelRatio: pixelRatio),
+          child: widget,
+        ),
+      ),
+    ).attachToRenderTree(build);
 
     // One pass of the pipeline the framework runs every frame, by hand and in
     // the same order: build, then layout, then paint.

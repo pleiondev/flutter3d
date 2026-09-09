@@ -13,8 +13,6 @@
 library;
 
 import 'package:flutter3d/src/engine/geometry/device_mesh.dart';
-import 'package:flutter3d/src/engine/geometry/geometry.dart';
-import 'package:flutter3d/src/engine/render/lighting_model.dart';
 import 'package:flutter3d/src/engine/render/material.dart';
 import 'package:flutter3d/src/engine/render/render_view.dart';
 import 'package:flutter3d/src/engine/render/renderer.dart';
@@ -22,6 +20,8 @@ import 'package:flutter3d/src/engine/scene/camera_node.dart';
 import 'package:flutter3d/src/engine/scene/mesh_node.dart';
 import 'package:flutter3d/src/engine/scene/reflection_probe_node.dart';
 import 'package:flutter3d/src/engine/scene/scene.dart';
+import 'package:flutter3d_formats/flutter3d_formats.dart';
+import 'package:flutter3d_geometry/flutter3d_geometry.dart';
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:flutter3d_hardware/testing.dart';
 import 'package:flutter_test/flutter_test.dart';

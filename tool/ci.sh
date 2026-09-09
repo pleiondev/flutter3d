@@ -158,6 +158,14 @@ step "analyze" flutter analyze
 # possible moment otherwise.
 step "publish check" bash tool/publish_check.sh
 
+# **Which packages are plain Dart is not this script's knowledge.** It named
+# four of them here and `tool/structure/repository.dart` named the same four,
+# and the two lists were free to disagree: a fifth plain package added there
+# would have been run under `flutter test` by this loop — passing whether or not
+# it was plain, which is the one thing those packages exist to make impossible.
+# `--flat-dart` prints the list the rules are held to, so there is one list.
+FLAT_DART="$(dart run tool/structure.dart --flat-dart)"
+
 for package in packages/*/; do
   name="$(basename "$package")"
   # Matched on the files rather than on the directory, for the reason the
@@ -175,9 +183,12 @@ for package in packages/*/; do
   # prove nothing: `the simulation names no Flutter` reads their source, and
   # this line is the other half — the suite executed the way their callers will
   # execute them.
-  if [ "$name" = "flutter3d_physics" ] || [ "$name" = "flutter3d_sim" ] ||
-     [ "$name" = "flutter3d_editor_core" ] ||
-     [ "$name" = "flutter3d_editor_mcp" ]; then
+  # `flutter3d_physics` is here as well as in the list: it compiles without
+  # Flutter and nothing has yet needed it to, so it is not in `flatDartPackages`
+  # — see that table for why a rule kept for nobody is a rule that gets deleted
+  # — but its suite runs the way its callers do all the same.
+  if [ "$name" = "flutter3d_physics" ] ||
+     printf '%s\n' "$FLAT_DART" | grep -qx "$name"; then
     step "test $name" in_dir "$package" dart test
   else
     step "test $name" in_dir "$package" flutter test
@@ -289,6 +300,29 @@ done
 # times the minutes for the same answer.
 step "build web (wasm)" in_dir apps/flutter3d_demo_dungeon \
   flutter build web --wasm --release
+
+# **The benchmarks, compiled rather than run.**
+#
+# `qa-13` of `doc/model-editor-plan.md` asks for the modeller's numbers to be an
+# artefact of a build rather than something somebody remembers to take. Running
+# them here would be the wrong half of that: a shared runner's timings are
+# noise, and a threshold over noise is a step that goes red for reasons nobody
+# can act on. What *is* worth checking on every commit is that they still
+# compile ahead of time — which is the property the whole plain-Dart split
+# exists for, and the one that breaks silently the day somebody adds an import.
+#
+# The figures themselves are taken on a named machine and written into
+# `doc/model-editor.md` §6 with the date, the way `ARCHITECTURE.md` §14 asks.
+step "benchmarks compile" bash -c '
+  set -e
+  out="$(mktemp -d)"
+  trap "rm -rf \"$out\"" EXIT
+  (cd packages/flutter3d_mesh && dart compile exe tool/bench.dart -o "$out/mesh" >/dev/null)
+  (cd packages/flutter3d_mesh && dart compile exe tool/bench_persistence.dart -o "$out/persistence" >/dev/null)
+  (cd packages/flutter3d_mesh && dart compile exe tool/bench_isolate.dart -o "$out/isolate" >/dev/null)
+  (cd packages/flutter3d_geometry && dart compile exe tool/bench_bvh.dart -o "$out/bvh" >/dev/null)
+  (cd packages/flutter3d && dart compile exe tool/bench/bench.dart -o "$out/engine" >/dev/null)
+'
 
 echo ""
 if [ ${#FAILED[@]} -eq 0 ]; then

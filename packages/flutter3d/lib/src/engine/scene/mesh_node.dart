@@ -1,6 +1,6 @@
+import 'package:flutter3d_geometry/flutter3d_geometry.dart';
 import 'package:vector_math/vector_math.dart';
 
-import '../geometry/mesh_geometry.dart';
 import '../render/material.dart';
 import 'morph_state.dart';
 import 'scene.dart';

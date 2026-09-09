@@ -1,8 +1,7 @@
 import 'dart:typed_data';
 
+import 'package:flutter3d_geometry/flutter3d_geometry.dart';
 import 'package:vector_math/vector_math.dart' hide Ray;
-
-import '../math/intersections.dart';
 
 /// A bounding volume hierarchy over bounding spheres.
 ///

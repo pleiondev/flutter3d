@@ -3,11 +3,12 @@ import 'dart:developer' as developer;
 import 'dart:math' as math;
 import 'dart:typed_data';
 
+import 'package:flutter3d_formats/flutter3d_formats.dart';
+import 'package:flutter3d_geometry/flutter3d_geometry.dart';
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:vector_math/vector_math.dart' as vm;
 
 import '../geometry/device_mesh.dart';
-import '../geometry/vertex_layout.dart';
 import '../scene/camera_node.dart';
 import '../scene/instanced_mesh_node.dart';
 import '../scene/light_buffer.dart';
@@ -24,7 +25,6 @@ import 'empty_frame.dart';
 import 'frame_graph.dart';
 import 'frame_plan.dart';
 import 'frame_resources.dart';
-import 'lighting_model.dart';
 import 'material.dart';
 import 'pass_contributor.dart';
 import 'probe_faces.dart';
@@ -43,16 +43,16 @@ import 'static_bake_key.dart';
 // being the one place that decides what a consumer reaches through.
 export 'render_settings.dart';
 
-part 'renderer_shadow_pass.dart';
-part 'renderer_scene_pass.dart';
-part 'renderer_mesh_encode.dart';
-part 'renderer_xray_pass.dart';
-part 'renderer_post_pass.dart';
-part 'renderer_sky_pass.dart';
-part 'renderer_resources.dart';
 part 'renderer_frame_nodes.dart';
+part 'renderer_mesh_encode.dart';
 part 'renderer_pick_pass.dart';
+part 'renderer_post_pass.dart';
 part 'renderer_probe_pass.dart';
+part 'renderer_resources.dart';
+part 'renderer_scene_pass.dart';
+part 'renderer_shadow_pass.dart';
+part 'renderer_sky_pass.dart';
+part 'renderer_xray_pass.dart';
 
 /// Uniform-block names as seen by shader reflection.
 ///
