@@ -49,3 +49,28 @@ rear wing should be, so guessing from the shape was not on.
 car, what faces the camera is the rear wing and the diffuser — which is what the
 back of a car looks like. If some future export ever comes out backwards, the
 line to change is `TURN_TO_FACE_FORWARD` in `tool/prepare_models.py`.
+
+## `building-a.glb`, `building-e.glb`, `building-k.glb`, `building-q.glb`
+
+| | |
+|---|---|
+| Author | Kenney — https://kenney.nl |
+| Source | City Kit (Suburban) 2.0 — https://kenney.nl/assets/city-kit-suburban |
+| Licence | **CC0 1.0** — http://creativecommons.org/publicdomain/zero/1.0/ |
+
+CC0 asks for nothing, so this table is a note to ourselves rather than a
+condition being met: where these came from, and that nobody has to be credited
+if the roadside grows.
+
+Four of the pack's forty, renamed from `building-type-*.glb`.
+
+**Modified in one way: the texture is now inside the file.** The pack ships each
+`.glb` referencing `Textures/colormap.png` beside it, which is legal glTF and
+useless to a bundle — the loader resolves nothing relative to an asset path, so
+every building arrived untextured and drew plain white. The PNG is appended as a
+buffer view and the image points at it, which is what `car.glb` already does and
+what makes a model one file rather than two. The kit is authored two units to a building and this
+game is in metres, so the scale lives at the call site in `src/roadside.dart`
+rather than in the file — a house that is eight metres across on one circuit
+may want to be ten on another, and baking that into the asset would make it a
+property of the model instead of a property of the placement.

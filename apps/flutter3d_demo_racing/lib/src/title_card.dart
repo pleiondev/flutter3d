@@ -148,7 +148,13 @@ class TitleCard extends StatelessWidget {
                 ),
               const SizedBox(height: 26),
               // The licence's own condition, on the screen every player meets.
-              const CreditsSection(credits: Credits.models),
+              // `owed` rather than every model shipped. The roadside is CC0
+              // and asks for nothing, so listing it here would be four lines
+              // of courtesy that push the "touch to start" line off a 600-point
+              // screen — which is how this was found. What the game ships is
+              // still accounted for in `Credits.models`, and the test reads
+              // that from the assets directory.
+              CreditsSection(credits: Credits.owed),
               const SizedBox(height: 26),
               Text(
                 prompt,

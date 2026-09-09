@@ -31,6 +31,43 @@ abstract final class Credits {
       licenceUrl: 'http://creativecommons.org/licenses/by/4.0/',
       modified: true,
     ),
+    // The roadside. CC0 owes nobody a line on a screen — `owesAttribution` is
+    // false for these — but the accounting is per file rather than per debt,
+    // so a model that ships is a model that appears here whatever its licence
+    // says. That is what keeps "somebody downloaded it" from looking the same
+    // as "this is public domain".
+    Credit(
+      file: 'models/building-a.glb',
+      work: 'City Kit (Suburban) — building type A',
+      author: 'Kenney',
+      source: 'https://kenney.nl/assets/city-kit-suburban',
+      licence: 'CC0 1.0',
+      licenceUrl: 'http://creativecommons.org/publicdomain/zero/1.0/',
+    ),
+    Credit(
+      file: 'models/building-e.glb',
+      work: 'City Kit (Suburban) — building type E',
+      author: 'Kenney',
+      source: 'https://kenney.nl/assets/city-kit-suburban',
+      licence: 'CC0 1.0',
+      licenceUrl: 'http://creativecommons.org/publicdomain/zero/1.0/',
+    ),
+    Credit(
+      file: 'models/building-k.glb',
+      work: 'City Kit (Suburban) — building type K',
+      author: 'Kenney',
+      source: 'https://kenney.nl/assets/city-kit-suburban',
+      licence: 'CC0 1.0',
+      licenceUrl: 'http://creativecommons.org/publicdomain/zero/1.0/',
+    ),
+    Credit(
+      file: 'models/building-q.glb',
+      work: 'City Kit (Suburban) — building type Q',
+      author: 'Kenney',
+      source: 'https://kenney.nl/assets/city-kit-suburban',
+      licence: 'CC0 1.0',
+      licenceUrl: 'http://creativecommons.org/publicdomain/zero/1.0/',
+    ),
   ];
 
   /// The ones whose licence makes naming the author a condition.
