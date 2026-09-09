@@ -25,6 +25,10 @@ dependencies:
   flutter3d_game:
     path: ../../packages/flutter3d_game
 
+  # For WidgetTexture: the signs beside the road wear widgets.
+  flutter3d_session:
+    path: ../../packages/flutter3d_session
+
   # The genre. Cars, tracks, laps — none of which the two above have heard of.
   flutter3d_game_racing:
     path: ../../packages/flutter3d_game_racing

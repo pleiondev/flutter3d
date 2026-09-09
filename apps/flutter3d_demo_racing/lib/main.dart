@@ -40,6 +40,7 @@ import 'src/looks.dart';
 import 'src/race_cubit.dart';
 import 'src/race_readout.dart';
 import 'src/reactions.dart';
+import 'src/roadside.dart';
 import 'src/sounds.dart';
 import 'src/staging.dart';
 import 'src/title_card.dart';
@@ -568,6 +569,20 @@ class _RaceScreenState extends State<RaceScreen>
       final track = staged.track;
       final scene = loaded.scene;
       addTrackTo(scene, track, device: device);
+      // Sheds and signs. The faces are widgets, drawn here rather than shipped
+      // as images — one round trip each, before the first frame, and none
+      // after. A device that refuses one gives a circuit with fewer signs.
+      addRoadsideTo(
+        scene,
+        track,
+        device: device,
+        // The ground, so a shed stands on the field rather than over it: the
+        // road is on an embankment and the centre line is metres above the
+        // grass beside it.
+        ground: loaded.collision,
+        buildings: await loadBuildings(device),
+        signs: await drawSignFaces(device),
+      );
       scene.add(_camera);
 
       // **Before the grid is formed, not after.** The field used to be lined up
