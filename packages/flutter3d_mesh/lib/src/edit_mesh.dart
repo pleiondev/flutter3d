@@ -921,6 +921,167 @@ final class EditMesh {
     return EditMesh.fromFaces(points, rebuilt);
   }
 
+  // -------------------------------------------------------------- dissolving
+
+  /// The half-edge before [halfEdge] on its own loop.
+  ///
+  /// Walked rather than stored: a loop is singly linked, and a back link per
+  /// half-edge is four bytes each to answer a question only the operations that
+  /// rewire a loop ever ask — of a face with five corners, once.
+  int _prevOf(int halfEdge) {
+    var walk = halfEdge;
+    var guard = _halfEdgeSlots;
+    while (_next[walk] != halfEdge) {
+      walk = _next[walk];
+      if (--guard < 0) {
+        throw StateError('the loop through $halfEdge does not close');
+      }
+    }
+    return walk;
+  }
+
+  /// Removes the edge [halfEdge] lies on, so the two faces it separated become
+  /// one. Returns whether it happened.
+  ///
+  /// **The edge goes; its vertices stay.** That is what makes this the operation
+  /// that turns a triangulated import back into quads: dissolving the six
+  /// diagonals of a triangulated box leaves the eight corners exactly where they
+  /// were and six four-sided faces where there were twelve triangles. Deleting
+  /// the edge instead would take the faces with it.
+  ///
+  /// Refused rather than half-done in three cases, each of which would leave a
+  /// loop that does not describe a polygon: an edge with nothing live behind it
+  /// — dissolving it would have to delete the one face it has, which is
+  /// `mesh-26`'s job; an edge whose two sides are the same face, where removing
+  /// it splits the face or opens a hole; and two faces that meet along more than
+  /// this one edge, where merging leaves a slit down the middle of the result.
+  bool dissolveEdge(int halfEdge) {
+    final gone = edgeOf(halfEdge);
+    if (!hasLiveTwin(gone)) return false;
+    final twin = _twin[gone];
+    final keep = _halfEdgeFace[gone];
+    final absorbed = _halfEdgeFace[twin];
+    if (keep == none || absorbed == none || keep == absorbed) return false;
+    // The merged loop is both loops with one half-edge dropped from each.
+    if (_valencyOf(keep) + _valencyOf(absorbed) - 2 < 3) return false;
+
+    var meetings = 0;
+    forEachHalfEdge(keep, (int half) {
+      if (hasLiveTwin(half) && _halfEdgeFace[_twin[half]] == absorbed) {
+        meetings++;
+      }
+    });
+    if (meetings != 1) return false;
+
+    final beforeGone = _prevOf(gone);
+    final beforeTwin = _prevOf(twin);
+    final afterGone = _next[gone];
+    final afterTwin = _next[twin];
+
+    _wrote = true;
+    // The two loops are cut open at the shared edge and sewn to each other.
+    _next.write(beforeGone, afterTwin);
+    _next.write(beforeTwin, afterGone);
+    _halfEdgeFace.write(gone, none);
+    _halfEdgeFace.write(twin, none);
+
+    var walk = afterGone;
+    do {
+      _halfEdgeFace.write(walk, keep);
+      walk = _next[walk];
+    } while (walk != afterGone);
+
+    _faceHalfEdge.write(keep, afterGone);
+    _faceAlive.write(absorbed, 0);
+    _liveFaces--;
+
+    // Both endpoints were pointed at by a half-edge that is now on no loop.
+    // `next` of the removed pair starts at exactly those two vertices.
+    _outgoing.write(_origin[gone], afterTwin);
+    _outgoing.write(_origin[twin], afterGone);
+    return true;
+  }
+
+  /// Removes [vertex] and every edge at it, so the ring of faces around it
+  /// becomes one face. Returns whether it happened.
+  ///
+  /// **The link of the vertex is the new face.** Four quads round a vertex of a
+  /// sheet become one eight-sided face over the eight points that surrounded it;
+  /// nothing else moves. What this is for is a vertex somebody put in and no
+  /// longer wants — the middle of an over-subdivided patch, the leftover of a
+  /// cut that went too far — where deleting it would leave a hole.
+  ///
+  /// Refused where the ring is not a ring: a vertex on a boundary, whose fan
+  /// does not close and so has no surrounding polygon, and a vertex the same
+  /// face reaches twice, which is a pinch rather than a fan. The second of
+  /// those is a guard the tests do not reach — every pinched vertex they can
+  /// build has a boundary somewhere and is refused for that first — so it is
+  /// here on the argument rather than on a measurement, and it is cheap.
+  ///
+  /// What comes out always has at least three corners without being checked
+  /// for it: three faces at the least, of at least three corners each, and
+  /// every one of them gives up exactly two.
+  bool dissolveVertex(int vertex) {
+    if (_vertexAlive[vertex] == 0) return false;
+    final start = _outgoing[vertex];
+    if (start == none) return false;
+
+    // The fan, in rotation order: each half-edge leaves the vertex, and the
+    // next one round is the successor of its twin.
+    final fan = <int>[];
+    final faces = <int>{};
+    var walk = start;
+    do {
+      final face = _halfEdgeFace[walk];
+      if (face == none || _faceAlive[face] == 0) return false;
+      if (!hasLiveTwin(walk)) return false;
+      if (!faces.add(face)) return false;
+      fan.add(walk);
+      if (fan.length > _halfEdgeSlots) return false;
+      walk = _next[_twin[walk]];
+    } while (walk != start);
+    if (fan.length < 3) return false;
+
+    // Read the whole rewiring before writing any of it: `_prevOf` walks the
+    // loops, and a loop half rewired is a loop that does not close.
+    final count = fan.length;
+    final firstOut = <int>[for (final half in fan) _next[half]];
+    final lastIn = <int>[for (final half in fan) _prevOf(_prevOf(half))];
+
+    _wrote = true;
+    for (var i = 0; i < count; i++) {
+      // What used to run into the vertex now runs into the chain that used to
+      // leave it in the previous face round the fan.
+      _next.write(lastIn[i], firstOut[(i - 1 + count) % count]);
+    }
+
+    final keep = _halfEdgeFace[fan.first];
+    for (final half in fan) {
+      _halfEdgeFace.write(half, none);
+      _halfEdgeFace.write(_twin[half], none);
+    }
+    walk = firstOut.first;
+    do {
+      _halfEdgeFace.write(walk, keep);
+      walk = _next[walk];
+    } while (walk != firstOut.first);
+
+    for (final face in faces) {
+      if (face == keep) continue;
+      _faceAlive.write(face, 0);
+      _liveFaces--;
+    }
+    _faceHalfEdge.write(keep, firstOut.first);
+
+    for (var i = 0; i < count; i++) {
+      _outgoing.write(_origin[firstOut[i]], firstOut[i]);
+    }
+    _vertexAlive.write(vertex, 0);
+    _liveVertices--;
+    _outgoing.write(vertex, none);
+    return true;
+  }
+
   // ------------------------------------------------------------ orientation
 
   /// Turns every face round, so the surface points the other way.

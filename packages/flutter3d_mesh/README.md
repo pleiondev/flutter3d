@@ -46,6 +46,14 @@ flag on the mesh, so undoing a move does not undo the click that set it up. It
 converts between vertices, edges and faces, grows and shrinks, walks edge loops
 and rings, follows an island and reports the border of a region.
 
+Two edits are here so far. `dissolveEdge` and `dissolveVertex` take an edge or a
+vertex out and leave the faces around it merged rather than a hole — dissolving
+the diagonals of a triangulated box gives back the six quads it was — and each
+is one step of history. `mergeByDistance` and `mergeAt` weld vertices together,
+rebuilding rather than rewiring, and report what that cost: faces that stopped
+being polygons, walls between two solids that have become one, edges that came
+out with a third face on them.
+
 What comes next is in `doc/model-editor-plan.md`: selections, loop cuts,
 dissolves, modifiers, and the operations that edit in place rather than
 rebuilding.

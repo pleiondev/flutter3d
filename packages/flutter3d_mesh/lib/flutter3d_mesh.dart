@@ -21,6 +21,7 @@ export 'src/edit_mesh.dart';
 export 'src/import_mesh.dart';
 export 'src/journal.dart';
 export 'src/layout_plan.dart';
+export 'src/merge.dart';
 export 'src/normals.dart';
 export 'src/selection.dart';
 export 'src/triangulate.dart';
