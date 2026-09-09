@@ -23,5 +23,6 @@ export 'src/journal.dart';
 export 'src/layout_plan.dart';
 export 'src/merge.dart';
 export 'src/normals.dart';
+export 'src/operations.dart';
 export 'src/selection.dart';
 export 'src/triangulate.dart';
