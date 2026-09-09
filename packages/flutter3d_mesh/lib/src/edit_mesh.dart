@@ -30,6 +30,7 @@ import 'package:vector_math/vector_math.dart';
 
 import 'attributes.dart';
 import 'journal.dart';
+import 'normals.dart';
 import 'triangulate.dart';
 
 /// Where an element went when the mesh was compacted, or [EditMesh.none] where
@@ -588,6 +589,10 @@ final class EditMesh {
   final FaceTriangulator _triangulator = FaceTriangulator();
   final List<Vector3> _loop = <Vector3>[];
 
+  /// The normals, and the buffers they live in. Made on the first conversion
+  /// rather than with the mesh: a document that is only being read never asks.
+  MeshNormals? _normals;
+
   /// Opens a step of history. Every edit until [endStep] is one undo away.
   void beginStep() {
     _wrote = false;
@@ -849,19 +854,9 @@ final class EditMesh {
   /// The volume the surface encloses, signed by winding.
   double get signedVolume {
     var total = 0.0;
-    final anchor = Vector3.zero();
-    final b = Vector3.zero();
-    final c = Vector3.zero();
     for (var face = 0; face < _faceSlots; face++) {
       if (_faceAlive[face] == 0) continue;
-      final loop = verticesOf(face);
-      if (loop.length < 3) continue;
-      positionOf(loop.first, anchor);
-      for (var i = 1; i + 1 < loop.length; i++) {
-        positionOf(loop[i], b);
-        positionOf(loop[i + 1], c);
-        total += anchor.dot(b.cross(c)) / 6.0;
-      }
+      total += _volumeOf(face);
     }
     return total;
   }
@@ -907,14 +902,174 @@ final class EditMesh {
     return EditMesh.fromFaces(points, rebuilt);
   }
 
+  // ------------------------------------------------------------ orientation
+
+  /// Turns every face round, so the surface points the other way.
+  ///
+  /// **The loops are reversed, not the normals.** A normal is not stored — it
+  /// is the winding, read back — so a mesh that "has its normals flipped" is a
+  /// mesh whose faces are wound the other way, and anything that pretended
+  /// otherwise would disagree with the exporter, the raycast and the volume.
+  ///
+  /// Every face at once, because a half-edge and its twin have to run in
+  /// opposite directions: turning one face and leaving its neighbour would put
+  /// two half-edges along the same edge pointing the same way, which is the one
+  /// arrangement this structure cannot hold. Turning a selection round is
+  /// [makeConsistent]'s side of the problem, and it works per island for the
+  /// same reason.
+  void flipNormals() {
+    _flipFaces(<int>[
+      for (var face = 0; face < _faceSlots; face++)
+        if (_faceAlive[face] != 0) face,
+    ]);
+  }
+
+  /// Winds every closed island outwards, and says whether anything turned.
+  ///
+  /// **Closed islands only, and that is not a shortcut.** "Outwards" is the
+  /// direction away from an inside, and a surface with a boundary — a plane, a
+  /// cylinder with no caps, half a scanned head — has no inside for a normal to
+  /// point out of. Guessing one from the camera or from the first face is how a
+  /// model comes back from a round trip with half its faces inverted, so an
+  /// open island is left exactly as it was.
+  ///
+  /// Islands are handled apart because their windings are independent: a file
+  /// can hold a correct body and a mirrored hand, and a mesh-wide sign would
+  /// have to average them.
+  bool makeConsistent() {
+    final island = Int32List(_faceSlots)..fillRange(0, _faceSlots, none);
+    final members = <List<int>>[];
+    final open = <bool>[];
+    final volume = <double>[];
+    final stack = <int>[];
+
+    for (var seed = 0; seed < _faceSlots; seed++) {
+      if (_faceAlive[seed] == 0 || island[seed] != none) continue;
+      final id = members.length;
+      members.add(<int>[]);
+      open.add(false);
+      volume.add(0);
+      island[seed] = id;
+      stack
+        ..clear()
+        ..add(seed);
+      while (stack.isNotEmpty) {
+        final face = stack.removeLast();
+        members[id].add(face);
+        volume[id] += _volumeOf(face);
+        forEachHalfEdge(face, (int half) {
+          final twin = _twin[half];
+          final other = twin == none ? none : _halfEdgeFace[twin];
+          if (other == none || _faceAlive[other] == 0) {
+            open[id] = true;
+            return;
+          }
+          if (island[other] != none) return;
+          island[other] = id;
+          stack.add(other);
+        });
+      }
+    }
+
+    var turned = false;
+    for (var id = 0; id < members.length; id++) {
+      if (open[id] || volume[id] >= 0) continue;
+      _flipFaces(members[id]);
+      turned = true;
+    }
+    return turned;
+  }
+
+  /// The volume of the cone from the origin over one face, signed by winding.
+  double _volumeOf(int face) {
+    final loop = verticesOf(face);
+    if (loop.length < 3) return 0;
+    final anchor = positionOf(loop.first);
+    final b = Vector3.zero();
+    final c = Vector3.zero();
+    var total = 0.0;
+    for (var i = 1; i + 1 < loop.length; i++) {
+      positionOf(loop[i], b);
+      positionOf(loop[i + 1], c);
+      total += anchor.dot(b.cross(c)) / 6.0;
+    }
+    return total;
+  }
+
+  /// Reverses the loops of [faces], which must be a set no edge crosses out of.
+  void _flipFaces(List<int> faces) {
+    if (faces.isEmpty) return;
+    _wrote = true;
+    final loop = <int>[];
+    final origins = <int>[];
+    for (final face in faces) {
+      loop.clear();
+      origins.clear();
+      forEachHalfEdge(face, loop.add);
+      final count = loop.length;
+      for (var i = 0; i < count; i++) {
+        origins.add(_origin[loop[i]]);
+      }
+      // A corner attribute belongs to the vertex the half-edge starts at, and
+      // that vertex is about to become the one it used to end at. So the UVs
+      // and colours travel one step round the loop with it; an edge attribute
+      // does not, because the half-edge still lies on the same edge.
+      _rotateCorners(loop, _uv0, 2);
+      _rotateCorners(loop, _colour, 4);
+      for (var i = 0; i < count; i++) {
+        _origin.write(loop[i], origins[(i + 1) % count]);
+        _next.write(loop[i], loop[(i - 1 + count) % count]);
+      }
+    }
+
+    // Every vertex on a turned face is now pointed at by a half-edge that
+    // starts somewhere else — the one invariant `validate` catches and nothing
+    // else would, until a walk around a vertex went off into another face.
+    for (var half = 0; half < _halfEdgeSlots; half++) {
+      final face = _halfEdgeFace[half];
+      if (face == none || _faceAlive[face] == 0) continue;
+      final vertex = _origin[half];
+      final out = _outgoing[vertex];
+      if (out == none || _origin[out] != vertex) _outgoing.write(vertex, half);
+    }
+  }
+
+  /// Moves each corner value on [loop] one step towards the front of the loop.
+  void _rotateCorners(List<int> loop, JournalledFloats? layer, int width) {
+    if (layer == null) return;
+    final count = loop.length;
+    _rotated.clear();
+    for (var i = 0; i < count; i++) {
+      for (var c = 0; c < width; c++) {
+        _rotated.add(layer[loop[i] * width + c]);
+      }
+    }
+    for (var i = 0; i < count; i++) {
+      final from = ((i + 1) % count) * width;
+      for (var c = 0; c < width; c++) {
+        layer.write(loop[i] * width + c, _rotated[from + c]);
+      }
+    }
+  }
+
+  final List<double> _rotated = <double>[];
+
   /// The mesh a renderer can draw: triangles, with one vertex per corner so
   /// every face keeps its own flat normal.
-  MeshData toMeshData({VertexLayout layout = VertexLayout.standard}) {
+  MeshData toMeshData({
+    VertexLayout layout = VertexLayout.standard,
+    double smoothAngle = MeshNormals.defaultSmoothAngle,
+  }) {
     final builder = MeshBuilder(
       layout,
       reserveVertices: halfEdgeCount,
       reserveIndices: halfEdgeCount * 3,
     );
+    // Rebuilt rather than cached: the alternative is a set of normals that has
+    // to be invalidated by every edit, and a stale normal is invisible until a
+    // light moves over it.
+    final normals = _normals ??= MeshNormals();
+    normals.build(this, smoothAngle: smoothAngle);
     final normal = Vector3.zero();
     final position = Vector3.zero();
     final uv = Vector2.zero();
@@ -922,16 +1077,16 @@ final class EditMesh {
     final corners = <int>[];
     for (var face = 0; face < _faceSlots; face++) {
       if (_faceAlive[face] == 0) continue;
-      normalOf(face, normal);
       corners.clear();
       forEachHalfEdge(face, (int half) {
-        // Flat per face for now: `mesh-16` is where a smooth face averages its
-        // normal with the neighbours across every edge that is not sharp, and
-        // the flags it will read are already here.
+        // One GPU vertex per corner, whatever the normals say. Corners of a
+        // smooth fan share a normal and could share a vertex, which is what
+        // `mesh-14`'s layout plan is for; emitting them apart draws the same
+        // picture with more vertices, and never the wrong one.
         corners.add(
           builder.addVertex(
             position: positionOf(_origin[half], position),
-            normal: normal,
+            normal: normals.cornerNormal(half, normal),
             texcoord: uvOf(half, uv),
             color: _colour == null ? null : colourOf(half, colour),
           ),

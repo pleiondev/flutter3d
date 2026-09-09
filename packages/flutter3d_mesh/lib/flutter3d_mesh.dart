@@ -20,4 +20,5 @@ export 'src/attributes.dart';
 export 'src/edit_mesh.dart';
 export 'src/import_mesh.dart';
 export 'src/journal.dart';
+export 'src/normals.dart';
 export 'src/triangulate.dart';
