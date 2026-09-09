@@ -16,5 +16,6 @@
 /// compiles ahead of time, and a test of a loop cut has nothing to draw.
 library;
 
+export 'src/attributes.dart';
 export 'src/edit_mesh.dart';
 export 'src/journal.dart';

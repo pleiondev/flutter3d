@@ -271,6 +271,20 @@ final class JournalledFloats {
     _undo.clear();
     _redo.clear();
   }
+
+  /// Pushes [count] steps that wrote nothing.
+  ///
+  /// **For an array that arrives late.** `EditMesh` creates an attribute layer
+  /// the first time somebody writes to it, which may be forty edits into a
+  /// session — and every array has to sit at the same depth or an undo takes
+  /// some of them back and leaves the rest. A layer that did not exist for
+  /// those forty steps has nothing to say about them, which is exactly what an
+  /// empty step means.
+  void padSteps(int count) {
+    for (var i = 0; i < count; i++) {
+      _undo.add(JournalStep(Int32List(0), Float32List(0)));
+    }
+  }
 }
 
 /// The same, for the integer arrays a topology is made of.
@@ -423,5 +437,12 @@ final class JournalledInts {
   void clearJournal() {
     _undo.clear();
     _redo.clear();
+  }
+
+  /// See [JournalledFloats.padSteps].
+  void padSteps(int count) {
+    for (var i = 0; i < count; i++) {
+      _undo.add(JournalStep(Int32List(0), Int32List(0)));
+    }
   }
 }

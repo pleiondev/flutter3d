@@ -28,6 +28,7 @@ import 'dart:typed_data';
 import 'package:flutter3d_geometry/flutter3d_geometry.dart';
 import 'package:vector_math/vector_math.dart';
 
+import 'attributes.dart';
 import 'journal.dart';
 
 /// Where an element went when the mesh was compacted, or [EditMesh.none] where
@@ -132,6 +133,18 @@ final class EditMesh {
   // hottest test in every walk.
   final JournalledInts _vertexAlive;
   final JournalledInts _faceAlive;
+
+  // The attribute layers, each null until something writes to it. See
+  // `attributes.dart` for why a layer nobody entered should not cost anything,
+  // and `_layerFor` for how a late arrival stays level with the journal.
+  JournalledFloats? _uv0; // 2 per half-edge
+  JournalledFloats? _colour; // 4 per half-edge
+  JournalledFloats? _weights; // 4 per vertex
+  JournalledFloats? _joints; // 4 per vertex, indices held as floats
+  JournalledFloats? _crease; // 1 per half-edge, mirrored onto the twin
+  JournalledInts? _edgeFlags; // 1 per half-edge, mirrored onto the twin
+  JournalledInts? _faceFlags; // 1 per face
+  JournalledInts? _materialSlot; // 1 per face
 
   int _vertexSlots;
   int _faceSlots;
@@ -278,6 +291,284 @@ final class EditMesh {
   /// How many half-edges [face] has.
   int valencyOf(int face) => _valencyOf(face);
 
+  // ----------------------------------------------------------------- layers
+
+  /// Whether a layer holds anything at all.
+  ///
+  /// What a conversion asks before spending bytes on it, and what a caller
+  /// checking whether a model carried UVs asks: a mesh with no layer is a mesh
+  /// nobody has textured, which is different from one textured at the origin.
+  bool hasLayer(MeshDomain domain, MeshAttribute attribute) =>
+      _existingLayer(domain, attribute) != null;
+
+  Object? _existingLayer(MeshDomain domain, MeshAttribute attribute) =>
+      switch ((domain, attribute)) {
+        (MeshDomain.corner, MeshAttribute.uv0) => _uv0,
+        (MeshDomain.corner, MeshAttribute.colour) => _colour,
+        (MeshDomain.vertex, MeshAttribute.weights) => _weights,
+        (MeshDomain.vertex, MeshAttribute.joints) => _joints,
+        (MeshDomain.edge, MeshAttribute.crease) => _crease,
+        (MeshDomain.edge, MeshAttribute.flags) => _edgeFlags,
+        (MeshDomain.face, MeshAttribute.flags) => _faceFlags,
+        (MeshDomain.face, MeshAttribute.materialSlot) => _materialSlot,
+        _ => null,
+      };
+
+  /// A layer of floats, created the first time it is written to.
+  ///
+  /// **Padded to the journal's depth on arrival.** Every array in the mesh
+  /// carries one step per edit — see [endStep] — and a layer that appears forty
+  /// edits in has nothing to say about the first forty. An empty step is what
+  /// "nothing to say" is spelled as, and without them an undo would take the
+  /// other arrays back a version and leave this one where it is.
+  JournalledFloats _floatLayer(
+    JournalledFloats? existing,
+    int count,
+    double fill,
+    void Function(JournalledFloats) store,
+  ) {
+    if (existing != null) return existing;
+    final layer = JournalledFloats(count);
+    if (fill != 0) layer.values.fillRange(0, count, fill);
+    layer.padSteps(undoDepth);
+    // A layer created inside an open step joins it, so an undo of that step
+    // takes its writes back with everything else.
+    if (_inStep) layer.beginStep();
+    store(layer);
+    return layer;
+  }
+
+  JournalledInts _intLayer(
+    JournalledInts? existing,
+    int count,
+    void Function(JournalledInts) store,
+  ) {
+    if (existing != null) return existing;
+    final layer = JournalledInts(count)..padSteps(undoDepth);
+    if (_inStep) layer.beginStep();
+    store(layer);
+    return layer;
+  }
+
+  /// The texture coordinate at [halfEdge], or the origin where none was set.
+  Vector2 uvOf(int halfEdge, [Vector2? out]) {
+    final layer = _uv0;
+    final result = out ?? Vector2.zero();
+    if (layer == null) return result..setZero();
+    return result..setValues(layer[halfEdge * 2], layer[halfEdge * 2 + 1]);
+  }
+
+  /// Sets the texture coordinate at [halfEdge].
+  ///
+  /// Per corner rather than per vertex, which is what makes a seam possible:
+  /// the two faces meeting along one can put the same vertex in two places on
+  /// the texture.
+  void setUv(int halfEdge, Vector2 uv) {
+    _wrote = true;
+    final layer = _floatLayer(
+      _uv0,
+      _halfEdgeSlots * 2,
+      0,
+      (JournalledFloats it) => _uv0 = it,
+    );
+    layer
+      ..write(halfEdge * 2, uv.x)
+      ..write(halfEdge * 2 + 1, uv.y);
+  }
+
+  /// The colour at [halfEdge], white where none was set.
+  Vector4 colourOf(int halfEdge, [Vector4? out]) {
+    final layer = _colour;
+    final result = out ?? Vector4.zero();
+    if (layer == null) return result..setFrom(kNeutralColor);
+    return result..setValues(
+      layer[halfEdge * 4],
+      layer[halfEdge * 4 + 1],
+      layer[halfEdge * 4 + 2],
+      layer[halfEdge * 4 + 3],
+    );
+  }
+
+  /// Sets the colour at [halfEdge].
+  void setColour(int halfEdge, Vector4 colour) {
+    _wrote = true;
+    final layer = _floatLayer(
+      _colour,
+      _halfEdgeSlots * 4,
+      1, // white, so corners nobody painted stay neutral rather than black
+      (JournalledFloats it) => _colour = it,
+    );
+    for (var i = 0; i < 4; i++) {
+      layer.write(halfEdge * 4 + i, colour[i]);
+    }
+  }
+
+  /// Everything [halfEdge] carries as a corner.
+  CornerAttributes cornerOf(int halfEdge) =>
+      CornerAttributes(uv: uvOf(halfEdge), colour: colourOf(halfEdge));
+
+  /// Writes [attributes] onto [halfEdge], touching only the layers that exist
+  /// or that the values differ from their neutral in.
+  ///
+  /// **The condition is what keeps a copy from creating layers.** An extrusion
+  /// copies corners onto the new side quads; on a mesh with no UVs at all, that
+  /// would otherwise allocate a UV layer full of zeroes because the copy wrote
+  /// the neutral value it had just read.
+  void setCorner(int halfEdge, CornerAttributes attributes) {
+    if (_uv0 != null || attributes.uv.x != 0 || attributes.uv.y != 0) {
+      setUv(halfEdge, attributes.uv);
+    }
+    if (_colour != null || attributes.colour != kNeutralColor) {
+      setColour(halfEdge, attributes.colour);
+    }
+  }
+
+  /// The skin binding at [vertex]: the first joint at full weight where none
+  /// was set, which is what an unskinned vertex means to the shader.
+  VertexAttributes skinOf(int vertex) {
+    final joints = _joints;
+    final weights = _weights;
+    if (joints == null && weights == null) return VertexAttributes();
+    return VertexAttributes(
+      joints: joints == null
+          ? Vector4.copy(kNeutralJoints)
+          : Vector4(
+              joints[vertex * 4],
+              joints[vertex * 4 + 1],
+              joints[vertex * 4 + 2],
+              joints[vertex * 4 + 3],
+            ),
+      weights: weights == null
+          ? Vector4.copy(kNeutralWeights)
+          : Vector4(
+              weights[vertex * 4],
+              weights[vertex * 4 + 1],
+              weights[vertex * 4 + 2],
+              weights[vertex * 4 + 3],
+            ),
+    );
+  }
+
+  /// Sets the skin binding at [vertex].
+  ///
+  /// What an import writes when a `.glb` carried a skin (`doc-11`), and what
+  /// the weight brush a caller paints with writes per stroke (`anim-09`).
+  void setSkin(int vertex, VertexAttributes skin) {
+    _wrote = true;
+    final joints = _floatLayer(
+      _joints,
+      _vertexSlots * 4,
+      0,
+      (JournalledFloats it) => _joints = it,
+    );
+    final weights = _floatLayer(
+      _weights,
+      _vertexSlots * 4,
+      0,
+      (JournalledFloats it) => _weights = it,
+    );
+    for (var i = 0; i < 4; i++) {
+      joints.write(vertex * 4 + i, skin.joints[i]);
+      weights.write(vertex * 4 + i, skin.weights[i]);
+    }
+  }
+
+  /// Whether [halfEdge]'s edge carries [flag] — one of [EdgeFlags].
+  bool edgeHas(int halfEdge, int flag) {
+    final layer = _edgeFlags;
+    return layer != null && layer[halfEdge] & flag != 0;
+  }
+
+  /// Sets or clears [flag] on the edge [halfEdge] is half of.
+  ///
+  /// **Written to both halves.** Sharpness is a property of the edge, and the
+  /// two half-edges are two views of it; storing it on one would make the
+  /// answer depend on which side a caller happened to walk in from, and that
+  /// bug shows up as a crease that appears from one direction only.
+  void setEdgeFlag(int halfEdge, int flag, {required bool on}) {
+    _wrote = true;
+    final layer = _intLayer(
+      _edgeFlags,
+      _halfEdgeSlots,
+      (JournalledInts it) => _edgeFlags = it,
+    );
+    void put(int half) {
+      final was = layer[half];
+      layer.write(half, on ? was | flag : was & ~flag);
+    }
+
+    put(halfEdge);
+    final twin = _twin[halfEdge];
+    if (twin != none) put(twin);
+  }
+
+  /// How hard the crease along [halfEdge]'s edge is; zero where none was set.
+  double creaseOf(int halfEdge) => _crease?[halfEdge] ?? 0;
+
+  /// Sets the crease weight on the edge [halfEdge] is half of, both halves.
+  ///
+  /// Read by Catmull-Clark (`mesh-45`), where a weight of one holds an edge
+  /// through every level of subdivision; a caller sets it from the inspector or
+  /// carries it in from a format that has one.
+  void setCrease(int halfEdge, double weight) {
+    _wrote = true;
+    final layer = _floatLayer(
+      _crease,
+      _halfEdgeSlots,
+      0,
+      (JournalledFloats it) => _crease = it,
+    );
+    layer.write(halfEdge, weight);
+    final twin = _twin[halfEdge];
+    if (twin != none) layer.write(twin, weight);
+  }
+
+  /// Which material [face] uses; slot zero where none was set.
+  int materialSlotOf(int face) => _materialSlot?[face] ?? 0;
+
+  /// Puts [face] in material slot [slot].
+  void setMaterialSlot(int face, int slot) {
+    _wrote = true;
+    _intLayer(
+      _materialSlot,
+      _faceSlots,
+      (JournalledInts it) => _materialSlot = it,
+    ).write(face, slot);
+  }
+
+  /// Whether [face] carries [flag] — one of [FaceFlags].
+  bool faceHas(int face, int flag) {
+    final layer = _faceFlags;
+    return layer != null && layer[face] & flag != 0;
+  }
+
+  /// Sets or clears [flag] on [face].
+  void setFaceFlag(int face, int flag, {required bool on}) {
+    _wrote = true;
+    final layer = _intLayer(
+      _faceFlags,
+      _faceSlots,
+      (JournalledInts it) => _faceFlags = it,
+    );
+    final was = layer[face];
+    layer.write(face, on ? was | flag : was & ~flag);
+  }
+
+  /// Every layer that exists, for the walks that have to touch all of them.
+  Iterable<JournalledFloats> get _floatLayers => <JournalledFloats>[
+    if (_uv0 case final JournalledFloats it) it,
+    if (_colour case final JournalledFloats it) it,
+    if (_weights case final JournalledFloats it) it,
+    if (_joints case final JournalledFloats it) it,
+    if (_crease case final JournalledFloats it) it,
+  ];
+
+  Iterable<JournalledInts> get _intLayers => <JournalledInts>[
+    if (_edgeFlags case final JournalledInts it) it,
+    if (_faceFlags case final JournalledInts it) it,
+    if (_materialSlot case final JournalledInts it) it,
+  ];
+
   // ------------------------------------------------------------------ edits
 
   /// Whether the open step has written anything.
@@ -287,9 +578,13 @@ final class EditMesh {
   /// nine answers to one question.
   bool _wrote = false;
 
+  /// Whether a step is open, which a layer created mid-step has to know.
+  bool _inStep = false;
+
   /// Opens a step of history. Every edit until [endStep] is one undo away.
   void beginStep() {
     _wrote = false;
+    _inStep = true;
     _positions.beginStep();
     _origin.beginStep();
     _next.beginStep();
@@ -299,6 +594,12 @@ final class EditMesh {
     _outgoing.beginStep();
     _vertexAlive.beginStep();
     _faceAlive.beginStep();
+    for (final layer in _floatLayers) {
+      layer.beginStep();
+    }
+    for (final layer in _intLayers) {
+      layer.beginStep();
+    }
   }
 
   /// Closes the step. Returns whether anything was written.
@@ -321,7 +622,14 @@ final class EditMesh {
     _outgoing.endStep(keepEmpty: wrote);
     _vertexAlive.endStep(keepEmpty: wrote);
     _faceAlive.endStep(keepEmpty: wrote);
+    for (final layer in _floatLayers) {
+      layer.endStep(keepEmpty: wrote);
+    }
+    for (final layer in _intLayers) {
+      layer.endStep(keepEmpty: wrote);
+    }
     _wrote = false;
+    _inStep = false;
     return wrote;
   }
 
@@ -338,6 +646,12 @@ final class EditMesh {
     _outgoing.undo();
     _vertexAlive.undo();
     _faceAlive.undo();
+    for (final layer in _floatLayers) {
+      layer.undo();
+    }
+    for (final layer in _intLayers) {
+      layer.undo();
+    }
     _recount();
     return true;
   }
@@ -354,6 +668,12 @@ final class EditMesh {
     _outgoing.redo();
     _vertexAlive.redo();
     _faceAlive.redo();
+    for (final layer in _floatLayers) {
+      layer.redo();
+    }
+    for (final layer in _intLayers) {
+      layer.redo();
+    }
     _recount();
     return true;
   }
@@ -565,17 +885,23 @@ final class EditMesh {
     );
     final normal = Vector3.zero();
     final position = Vector3.zero();
+    final uv = Vector2.zero();
+    final colour = Vector4.zero();
     final corners = <int>[];
     for (var face = 0; face < _faceSlots; face++) {
       if (_faceAlive[face] == 0) continue;
       normalOf(face, normal);
       corners.clear();
-      forEachVertex(face, (int vertex) {
+      forEachHalfEdge(face, (int half) {
+        // Flat per face for now: `mesh-16` is where a smooth face averages its
+        // normal with the neighbours across every edge that is not sharp, and
+        // the flags it will read are already here.
         corners.add(
           builder.addVertex(
-            position: positionOf(vertex, position),
+            position: positionOf(_origin[half], position),
             normal: normal,
-            texcoord: Vector2.zero(),
+            texcoord: uvOf(half, uv),
+            color: _colour == null ? null : colourOf(half, colour),
           ),
         );
       });
