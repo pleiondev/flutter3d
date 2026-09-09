@@ -30,6 +30,7 @@ import 'package:vector_math/vector_math.dart';
 
 import 'attributes.dart';
 import 'journal.dart';
+import 'triangulate.dart';
 
 /// Where an element went when the mesh was compacted, or [EditMesh.none] where
 /// it was dropped.
@@ -581,6 +582,12 @@ final class EditMesh {
   /// Whether a step is open, which a layer created mid-step has to know.
   bool _inStep = false;
 
+  /// The cutter, and the loop it is handed. Held on the mesh rather than made
+  /// per call: a conversion asks this once per face, and a fresh triangulator
+  /// per face is the allocation the class exists to avoid.
+  final FaceTriangulator _triangulator = FaceTriangulator();
+  final List<Vector3> _loop = <Vector3>[];
+
   /// Opens a step of history. Every edit until [endStep] is one undo away.
   void beginStep() {
     _wrote = false;
@@ -930,9 +937,14 @@ final class EditMesh {
           ),
         );
       });
-      for (var i = 1; i + 1 < corners.length; i++) {
-        builder.addTriangle(corners[0], corners[i], corners[i + 1]);
-      }
+      // Ear clipping rather than a fan, because a fan puts triangles outside
+      // the outline of every concave face — and those triangles are what a
+      // raycast hits and what an exporter writes, not only what is drawn.
+      _loop.clear();
+      forEachVertex(face, (int vertex) => _loop.add(positionOf(vertex)));
+      _triangulator.triangulate(_loop, (int a, int b, int c) {
+        builder.addTriangle(corners[a], corners[b], corners[c]);
+      });
     }
     return builder.build();
   }
