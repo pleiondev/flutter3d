@@ -32,6 +32,7 @@ import 'src/backend.dart';
 import 'src/churn_run.dart';
 import 'src/display_modes.dart';
 import 'src/element_picking.dart';
+import 'src/exporting.dart';
 import 'src/files/project_files.dart';
 import 'src/files/sandbox_probe.dart';
 import 'src/ground_grid.dart';
@@ -494,6 +495,98 @@ class _ModelerScreenState extends State<ModelerScreen>
           : '\na temporary file and a rename would not: $why';
     }
     if (mounted) setState(() => _fileSaid = said);
+  }
+
+  /// Takes the document out to a format somebody else reads.
+  ///
+  /// **An export may lose what the target cannot hold, and says what.** That is
+  /// the whole difference from `_saveFile`: a `.f3dproj` keeps the parameters a
+  /// cylinder knows itself by and the hierarchy, and an OBJ keeps triangles and
+  /// a colour. So the person is told rather than protected — the errors stop
+  /// the write until they answer, and the warnings ride along with it.
+  Future<void> _exportFile(ExportFormat format) async {
+    if (_state is! ModelerReady) return;
+
+    var planned = planExport(_history.project, format: format);
+
+    if (planned case final ExportBlocked blocked) {
+      final go = await _askAnyway(blocked, blocked.issues);
+      if (!go || !mounted) return;
+      planned = planExport(_history.project, format: format, force: true);
+    }
+
+    switch (planned) {
+      case ExportRefused(:final String because):
+        setState(() => _fileSaid = because);
+      case ExportBlocked():
+        // Unreachable: the branch above either forced or returned. Named rather
+        // than defaulted, so that adding a case to `ExportResult` is a compile
+        // error here instead of a silent nothing.
+        setState(() => _fileSaid = 'not exported');
+      case ExportWritten(:final List<ExportFile> files, :final List<String> warnings):
+        final said = <String>[];
+        for (final ExportFile file in files) {
+          final result = await saveAs(file.bytes, suggestedName: file.name);
+          said.add(switch (result.outcome) {
+            SaveOutcome.written =>
+              'wrote ${file.bytes.length} bytes to ${result.path}',
+            SaveOutcome.cancelled => 'nothing saved',
+            SaveOutcome.refused => result.said ?? 'refused',
+          });
+          // The `.mtl` is only worth asking for if the `.obj` was taken; a
+          // person who cancelled the first panel has cancelled the export.
+          if (result.outcome != SaveOutcome.written) break;
+        }
+        if (mounted) {
+          setState(() => _fileSaid = <String>[...said, ...warnings].join('\n'));
+        }
+    }
+  }
+
+  /// Asks whether to export a model that will not load cleanly.
+  ///
+  /// A dialog rather than a refusal, because the alternative is this
+  /// application deciding what somebody's model is for. It names what will be
+  /// wrong rather than counting it: "3 problems" is a number nobody can act on.
+  Future<bool> _askAnyway(ExportBlocked blocked, List<ExportIssue> issues) async {
+    final answer = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext context) => AlertDialog(
+        title: const Text('Export anyway?'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Text(blocked.says),
+            const SizedBox(height: 12),
+            for (final ExportIssue issue in issues.take(5))
+              Padding(
+                padding: const EdgeInsets.only(bottom: 6),
+                child: Text(
+                  issue.message,
+                  style: const TextStyle(fontSize: 12.5),
+                ),
+              ),
+            if (issues.length > 5)
+              Text(
+                'and ${issues.length - 5} more',
+                style: const TextStyle(fontSize: 12.5),
+              ),
+          ],
+        ),
+        actions: <Widget>[
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Export anyway'),
+          ),
+        ],
+      ),
+    );
+    return answer ?? false;
   }
 
   /// The element level the sub-mode names.
@@ -1054,6 +1147,7 @@ class _ModelerScreenState extends State<ModelerScreen>
       onKey: _modalKey,
       onUndo: _undo,
       onRedo: _redo,
+      onExport: () => _exportFile(ExportFormat.f3d),
       onTool: _ranTool,
       onSelectAll: () => _runSelection(const SelectAll()),
       onSelectNone: () => _runSelection(const SelectNone()),
@@ -1133,7 +1227,27 @@ class _ModelerScreenState extends State<ModelerScreen>
           const SizedBox(width: 4),
           FilledButton.tonal(
             onPressed: _saveFile,
-            child: const Text('Save as .f3d'),
+            child: const Text('Save'),
+          ),
+          const SizedBox(width: 4),
+          PopupMenuButton<ExportFormat>(
+            tooltip: 'Export a copy',
+            onSelected: _exportFile,
+            itemBuilder: (BuildContext context) => <PopupMenuEntry<ExportFormat>>[
+              for (final ExportFormat format in ExportFormat.values)
+                PopupMenuItem<ExportFormat>(
+                  value: format,
+                  height: ModelerMetrics.row,
+                  child: Text(
+                    '${format.suffix}  ${format.says}',
+                    style: const TextStyle(fontSize: 13),
+                  ),
+                ),
+            ],
+            child: const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              child: Text('Export', style: TextStyle(fontSize: 13)),
+            ),
           ),
         ],
         status: _StatusLine(
@@ -1756,6 +1870,7 @@ class _Keys extends StatelessWidget {
     required this.onKey,
     required this.onUndo,
     required this.onRedo,
+    required this.onExport,
     required this.onTool,
     required this.onLevel,
     required this.onSelectAll,
@@ -1771,6 +1886,10 @@ class _Keys extends StatelessWidget {
 
   final VoidCallback onUndo;
   final VoidCallback onRedo;
+
+  /// ⌘E. Bound to the container rather than to a menu, because it is the
+  /// export a person repeats: the one that goes back into the game.
+  final VoidCallback onExport;
   final ValueChanged<String> onTool;
   final ValueChanged<MeshSubmode> onLevel;
   final VoidCallback onSelectAll;
@@ -1801,6 +1920,9 @@ class _Keys extends StatelessWidget {
             control: true,
             shift: true,
           );
+    final export = apple
+        ? const SingleActivator(LogicalKeyboardKey.keyE, meta: true)
+        : const SingleActivator(LogicalKeyboardKey.keyE, control: true);
     // **A `Focus` with an `onKeyEvent` outside the shortcuts, because a
     // transform in progress has to see keys before they mean what they usually
     // mean.** `X` arms nothing while a move is going on — it constrains the
@@ -1819,6 +1941,7 @@ class _Keys extends StatelessWidget {
         bindings: <ShortcutActivator, VoidCallback>{
           undo: onUndo,
           redo: onRedo,
+          export: onExport,
           for (final MeshSubmode level in MeshSubmode.values)
             SingleActivator(level.shortcut): () => onLevel(level),
           for (final ModelerTool tool in tools)
