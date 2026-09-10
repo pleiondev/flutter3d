@@ -31,6 +31,7 @@ export 'src/animation/animation_mask.dart';
 export 'src/animation/animation_track.dart';
 export 'src/asset_resolver.dart';
 export 'src/asset_source.dart';
+export 'src/document_compare.dart';
 export 'src/f3d/f3d.dart';
 export 'src/fmat/fmat.dart';
 export 'src/gltf/gltf.dart';

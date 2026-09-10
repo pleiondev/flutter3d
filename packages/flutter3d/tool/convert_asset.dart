@@ -62,7 +62,7 @@ Future<int> main(List<String> arguments) async {
   // renders it, so the check belongs here rather than in a test that may not be
   // run against this particular asset.
   final roundTrip = F3dDocument.parse(encoded);
-  final problems = _compare(document, roundTrip);
+  final problems = compareModelDocuments(document, roundTrip);
   if (problems.isNotEmpty) {
     stderr.writeln('Round trip disagrees with the source:');
     for (final problem in problems) {
@@ -124,74 +124,6 @@ AssetUriResolver fileUriResolverFor(String modelPath) {
     }
     return file.readAsBytes();
   };
-}
-
-/// What the round trip must preserve.
-///
-/// Deliberately checks the vertex and index bytes rather than counts: the format
-/// promises the loader hands back the *same* geometry, and a count comparison
-/// would pass a file whose floats were mangled by an endianness slip.
-List<String> _compare(ModelDocument source, ModelDocument reloaded) {
-  final problems = <String>[];
-
-  void check(bool condition, String message) {
-    if (!condition) problems.add(message);
-  }
-
-  check(
-    source.surfaces.length == reloaded.surfaces.length,
-    'surfaces: ${source.surfaces.length} in, ${reloaded.surfaces.length} out',
-  );
-  check(
-    source.materials.length == reloaded.materials.length,
-    'materials: ${source.materials.length} in, ${reloaded.materials.length} out',
-  );
-  check(
-    source.images.length == reloaded.images.length,
-    'images: ${source.images.length} in, ${reloaded.images.length} out',
-  );
-  check(
-    source.nodes.length == reloaded.nodes.length,
-    'nodes: ${source.nodes.length} in, ${reloaded.nodes.length} out',
-  );
-  check(
-    source.animations.length == reloaded.animations.length,
-    'animations: ${source.animations.length} in, '
-    '${reloaded.animations.length} out',
-  );
-  if (problems.isNotEmpty) return problems;
-
-  for (var i = 0; i < source.surfaces.length; i++) {
-    final a = source.surfaces[i].mesh;
-    final b = reloaded.surfaces[i].mesh;
-
-    if (a.layout.toString() != b.layout.toString()) {
-      problems.add('surfaces[$i]: layout ${a.layout} became ${b.layout}');
-      continue;
-    }
-    if (a.vertices.length != b.vertices.length ||
-        a.indices.length != b.indices.length) {
-      problems.add(
-        'surfaces[$i]: ${a.vertexCount} vertices / ${a.indexCount} indices '
-        'became ${b.vertexCount} / ${b.indexCount}',
-      );
-      continue;
-    }
-    for (var v = 0; v < a.vertices.length; v++) {
-      if (a.vertices[v] != b.vertices[v]) {
-        problems.add('surfaces[$i]: vertex float $v differs');
-        break;
-      }
-    }
-    for (var v = 0; v < a.indices.length; v++) {
-      if (a.indices[v] != b.indices[v]) {
-        problems.add('surfaces[$i]: index $v differs');
-        break;
-      }
-    }
-  }
-
-  return problems;
 }
 
 String _bytes(int count) {
