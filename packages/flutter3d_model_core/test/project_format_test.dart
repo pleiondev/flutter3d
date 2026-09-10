@@ -341,9 +341,9 @@ void main() {
       final directory = directoryOf(bytes);
 
       // The numbers this project's file actually lands on: a 16-byte header and
-      // four 16-byte directory entries put the manifest at 80, and the
-      // manifest is 858 bytes, which ends at 938 and is not a multiple of four.
-      // So the mesh table starts at 940, two bytes of padding later. Those two
+      // five 16-byte directory entries put the manifest at 96, and the manifest
+      // is 885 bytes, which ends at 981 and is not a multiple of four. So the
+      // mesh table starts at 984, three bytes of padding later. Those three
       // bytes are the whole test — a reader building an `Int32List.view` over
       // the blob throws on an offset that is not a multiple of four, and it
       // throws on the machine of whoever opens the file rather than here.
@@ -352,19 +352,21 @@ void main() {
         ProjectSection.editMeshes,
         ProjectSection.blob,
         ProjectSection.importedMeshes,
+        ProjectSection.images,
       ]);
-      expect(directory[0].offset, 80);
-      expect(directory[0].length, 858);
-      expect(directory[1].offset, 940);
+      expect(directory[0].offset, 96);
+      expect(directory[0].length, 885);
+      expect(directory[1].offset, 984);
       expect(directory[1].length, 16);
       expect(directory[1].count, 2);
-      expect(directory[2].offset, 956);
-      // This project has nothing imported in it, and the table is written all
-      // the same: every file this build produces has the same four-section
-      // directory, so a reader is never deciding between "no imported meshes"
-      // and "written by something older".
+      expect(directory[2].offset, 1000);
+      // This project has nothing imported and nothing textured, and both tables
+      // are written all the same: every file this build produces has the same
+      // five-section directory, so a reader is never deciding between "none of
+      // these" and "written by something older".
       expect(directory[3].length, 0);
-      expect(bytes.length, 3532);
+      expect(directory[4].length, 0);
+      expect(bytes.length, 3576);
 
       for (final entry in directory) {
         expect(entry.offset % 4, 0, reason: 'section ${entry.kind}');
@@ -394,14 +396,16 @@ void main() {
       expect(kProjectSectionEntryBytes % 4, 0);
       expect(kProjectMeshEntryBytes % 4, 0);
       expect(kProjectImportedEntryBytes % 4, 0);
+      expect(kProjectImageEntryBytes % 4, 0);
       expect(
         <int>{
           ProjectSection.manifest,
           ProjectSection.editMeshes,
           ProjectSection.blob,
           ProjectSection.importedMeshes,
+          ProjectSection.images,
         },
-        <int>{1, 2, 3, 4},
+        <int>{1, 2, 3, 4, 5},
       );
       expect(kProjectMagic, 0x50443346);
     });
@@ -484,7 +488,7 @@ void main() {
       expect(
         refusal(bytes),
         'The header claims 500 sections, whose directory ends at byte 8016, '
-        'past the end of a 3532-byte file.',
+        'past the end of a 3576-byte file.',
       );
     });
 
@@ -496,8 +500,8 @@ void main() {
       final cut = Uint8List.sublistView(whole, 0, whole.length - 8);
       expect(
         refusal(cut),
-        'Section 3 runs from byte 956 for 2576 bytes, past the end of a '
-        '3524-byte file.',
+        'Section 3 runs from byte 1000 for 2576 bytes, past the end of a '
+        '3568-byte file.',
       );
     });
 
@@ -712,57 +716,211 @@ void main() {
     });
   });
 
-  group('what the format cannot hold yet', () {
-    test('a project with materials is refused rather than half-written', () {
-      final project = ModelProject(
-        materials: <ProjectMaterial>[
-          ProjectMaterial(surface: SurfaceMaterial(name: 'steel')),
-        ],
-      ).added(
-        (int id) => ModelObject(
-          id: id,
-          name: 'bolt',
-          geometry: EditedGeometry(EditMesh.cuboid()),
-          transform: Matrix4.identity(),
-          materialSlots: const <int>[0],
+  group('materials and images', () {
+    /// A material with every field off its default, so a field dropped on the
+    /// way through the file shows up as itself rather than as the number it
+    /// would have had anyway.
+    SurfaceMaterial painted() => SurfaceMaterial(
+      name: 'brass',
+      baseColor: Vector4(0.1, 0.2, 0.3, 0.4),
+      metallic: 0.75,
+      roughness: 0.125,
+      baseColorTexture: const TextureBinding(
+        imageIndex: 1,
+        texCoordSet: 0,
+        sampling: TextureSampling(
+          magLinear: false,
+          minLinear: false,
+          useMipmaps: false,
+          wrapS: TextureWrap.clampToEdge,
+          wrapT: TextureWrap.mirroredRepeat,
         ),
-      );
+      ),
+      normalTexture: const TextureBinding(imageIndex: 0),
+      normalScale: 0.625,
+      occlusionStrength: 0.375,
+      emissive: Vector3(0.05, 0.15, 0.25),
+      emissiveStrength: 2.5,
+      alphaMode: SurfaceAlphaMode.mask,
+      alphaCutoff: 0.875,
+      doubleSided: true,
+      unlit: true,
+    );
 
-      // Mutation: write it anyway. The manifest carries `materialSlots: [0]`
-      // and there is no table for the 0 to name, so the file opens with every
-      // painted object in clay while insisting in JSON that it was painted —
-      // a loss nothing downstream can detect, let alone repair.
-      expect(() => writeProject(project), throwsArgumentError);
+    ModelProject painting() => ModelProject(
+      materials: <ProjectMaterial>[
+        ProjectMaterial(surface: painted(), version: 7),
+        ProjectMaterial(surface: SurfaceMaterial(name: 'plain')),
+      ],
+      images: <EncodedImage>[
+        EncodedImage(
+          bytes: Uint8List.fromList(<int>[1, 2, 3, 4, 5]),
+          name: 'normal',
+          mimeType: 'image/png',
+        ),
+        EncodedImage(bytes: Uint8List.fromList(<int>[9, 9])),
+      ],
+    ).added(
+      (int id) => ModelObject(
+        id: id,
+        name: 'bolt',
+        geometry: EditedGeometry(EditMesh.cuboid()),
+        transform: Matrix4.identity(),
+        materialSlots: const <int>[0],
+      ),
+    );
+
+    test('every field of a material comes back', () {
+      final after = opened(writeProject(painting()));
+      final material = after.materials.first;
+      final surface = material.surface;
+
+      // Every field is written, including the ones sitting at their default,
+      // and the reader's pattern asks for all of them. Mutation: skip a field
+      // whose value equals this build's default — the obvious way to make the
+      // manifest smaller — and the file stops being readable at all, because a
+      // missing key is a material missing a field. Writing them out is also
+      // what stops the file's meaning depending on what this build thinks a
+      // default is.
+      expect(material.version, 7);
+      expect(surface.name, 'brass');
+      expect(surface.baseColor, Vector4(0.1, 0.2, 0.3, 0.4));
+      expect(surface.metallic, 0.75);
+      expect(surface.roughness, 0.125);
+      expect(surface.normalScale, 0.625);
+      expect(surface.occlusionStrength, 0.375);
+      expect(surface.emissive, Vector3(0.05, 0.15, 0.25));
+      expect(surface.emissiveStrength, 2.5);
+      expect(surface.alphaMode, SurfaceAlphaMode.mask);
+      expect(surface.alphaCutoff, 0.875);
+      expect(surface.doubleSided, isTrue);
+      expect(surface.unlit, isTrue);
     });
 
-    test('a project with images is refused too', () {
-      final project = ModelProject(
-        images: <EncodedImage>[
-          EncodedImage(bytes: Uint8List.fromList(<int>[1]), name: 'atlas'),
+    test('a texture binding keeps its image, its set and its sampler', () {
+      final after = opened(writeProject(painting()));
+      final binding = after.materials.first.surface.baseColorTexture!;
+
+      // Mutation: write the sampler and read it back by index into
+      // `TextureWrap.values`. It round-trips today and reinterprets every file
+      // already saved the moment a case is inserted into that enum.
+      expect(binding.imageIndex, 1);
+      expect(binding.sampling.magLinear, isFalse);
+      expect(binding.sampling.useMipmaps, isFalse);
+      expect(binding.sampling.wrapS, TextureWrap.clampToEdge);
+      expect(binding.sampling.wrapT, TextureWrap.mirroredRepeat);
+      // A slot the material does not fill stays unfilled, rather than becoming
+      // image zero of a table it never named.
+      expect(after.materials.first.surface.occlusionTexture, isNull);
+      expect(after.materials.first.surface.normalTexture!.imageIndex, 0);
+    });
+
+    test('the image bytes come back whole, with what they were called', () {
+      final after = opened(writeProject(painting()));
+
+      expect(after.images.length, 2);
+      expect(after.images[0].bytes, <int>[1, 2, 3, 4, 5]);
+      expect(after.images[0].name, 'normal');
+      expect(after.images[0].mimeType, 'image/png');
+      // A file may honestly not know either, and a glTF often does not.
+      expect(after.images[1].name, isNull);
+      expect(after.images[1].bytes, <int>[9, 9]);
+    });
+
+    test('the slots still name the same rows', () {
+      final after = opened(writeProject(painting()));
+
+      expect(after.objects.single.materialSlots, <int>[0]);
+      expect(after.materials.length, 2);
+      expect(after.materials[1].surface.name, 'plain');
+    });
+
+    test('an alpha mode from a newer build draws rather than refuses', () {
+      final bytes = forge(<String, Object?>{
+        ...manifestOf(<Map<String, Object?>>[objectJson()]),
+        'materials': <Object?>[
+          <String, Object?>{
+            'version': 1,
+            'name': 'future',
+            'baseColor': <double>[1, 1, 1, 1],
+            'metallic': 0.0,
+            'roughness': 0.5,
+            'normalScale': 1.0,
+            'occlusionStrength': 1.0,
+            'emissive': <double>[0, 0, 0],
+            'emissiveStrength': 1.0,
+            'alphaMode': 'dither',
+            'alphaCutoff': 0.5,
+            'doubleSided': false,
+            'unlit': false,
+          },
+        ],
+      });
+
+      // A name this build has not heard of is something a newer one wrote, and
+      // that is a material drawn slightly wrong rather than a project nobody
+      // can open. Mutation: refuse it, and a project saved by tomorrow's build
+      // stops opening in today's.
+      expect(opened(bytes).materials.single.surface.alphaMode,
+          SurfaceAlphaMode.opaque);
+    });
+
+    test('a material missing a field is refused, and says which kind', () {
+      final bytes = forge(<String, Object?>{
+        ...manifestOf(<Map<String, Object?>>[objectJson()]),
+        'materials': <Object?>[
+          <String, Object?>{'name': 'half a material'},
+        ],
+      });
+
+      // The other way round from the enum above, and deliberately: an unknown
+      // name is a newer file, and a missing `baseColor` is a truncated one.
+      expect(refusal(bytes), contains('Material 0 is missing a field'));
+    });
+
+    test('a colour of the wrong length is refused with its length', () {
+      final bytes = forge(<String, Object?>{
+        ...manifestOf(<Map<String, Object?>>[objectJson()]),
+        'materials': <Object?>[
+          <String, Object?>{
+            'version': 1,
+            'name': null,
+            'baseColor': <double>[1, 1, 1],
+            'metallic': 0.0,
+            'roughness': 0.5,
+            'normalScale': 1.0,
+            'occlusionStrength': 1.0,
+            'emissive': <double>[0, 0, 0],
+            'emissiveStrength': 1.0,
+            'alphaMode': 'opaque',
+            'alphaCutoff': 0.5,
+            'doubleSided': false,
+            'unlit': false,
+          },
+        ],
+      });
+
+      // Mutation: take the first four entries of whatever list arrived. A
+      // three-number colour then reads its alpha out of the next field in
+      // memory, or throws — on the machine of whoever opened the file.
+      expect(refusal(bytes), contains('3 numbers'));
+    });
+
+    test('an image table and a manifest that disagree are refused', () {
+      final table = Uint8List(kProjectImageEntryBytes);
+      final bytes = forge(
+        <String, Object?>{
+          ...manifestOf(<Map<String, Object?>>[objectJson()]),
+          'images': const <Object?>[],
+        },
+        <(int, Uint8List, int)>[
+          (ProjectSection.blob, Uint8List(8), 0),
+          (ProjectSection.images, table, 1),
         ],
       );
 
-      // A table with no materials in it still has to stop the write: an image
-      // list is what a material's bindings index, and dropping it silently is
-      // the same loss one step earlier.
-      expect(() => writeProject(project), throwsArgumentError);
-    });
-
-    test('a project with neither still writes', () {
-      final project = const ModelProject().added(
-        (int id) => ModelObject(
-          id: id,
-          name: 'bolt',
-          geometry: EditedGeometry(EditMesh.cuboid()),
-          transform: Matrix4.identity(),
-        ),
-      );
-
-      // The guard has to be about the tables and not about the slots: a
-      // mutation that refused whenever an object had any `materialSlots`, or
-      // that refused every project, would pass the two tests above and stop
-      // the format working at all.
-      expect(readProject(writeProject(project)), isA<ProjectOpened>());
+      expect(refusal(bytes), contains('table holds 1'));
+      expect(refusal(bytes), contains('names 0'));
     });
   });
 

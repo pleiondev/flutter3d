@@ -19,11 +19,20 @@
 ///
 /// **What is in the file today.** A manifest in JSON — the profile, and each
 /// object with its id, name, parent, transform, material slots and which kind
-/// of geometry it has — plus two mesh tables and the blob they both point
-/// into. An edited mesh is one chunk written by `EditMesh.toBytes`, so there is
-/// exactly one half-edge encoding in this repository; an imported one is its
-/// vertex and index buffers as they arrived, with the layout that says how to
-/// read them kept in the manifest beside its row.
+/// of geometry it has, and the material table those slots index — plus three
+/// tables of bulk and the blob they all point into. An edited mesh is one chunk
+/// written by `EditMesh.toBytes`, so there is exactly one half-edge encoding in
+/// this repository; an imported one is its vertex and index buffers as they
+/// arrived, with the layout that says how to read them kept in the manifest
+/// beside its row; and an image is its encoded bytes, never decoded here,
+/// because decoding needs `dart:ui` and this package has no window.
+///
+/// **The split between the manifest and the blob is bulk, not importance.** A
+/// material is a dozen numbers and five texture slots, so it goes in the JSON
+/// where a person can read it; the PNG it samples is a hundred kilobytes, so it
+/// goes in the blob. That is why there is a material *section* in the plan and
+/// none here: what the plan wanted was for materials to survive, and a section
+/// of their own would be a second encoding to keep working.
 ///
 /// **What is not, and is not pretended to be.** The history is not written
 /// here: the file carries the document, and putting the undo stack in it is
@@ -31,20 +40,20 @@
 /// rather than a second copy of every mesh. Skins and animations have sections
 /// of their own in the plan and none of them yet.
 ///
-/// The material and image tables are still refused by [writeProject] rather
-/// than written half: their absence would leave every object's material slots
-/// naming rows that are not in the file. See the throw there for why refusing
-/// beats saving a model that opens missing what the person could see when they
-/// pressed the button.
+/// Morph targets on an imported mesh are still refused by [writeProject] rather
+/// than written half. See the throw there for why refusing beats saving a model
+/// that opens missing what the person could see when they pressed the button.
 library;
 
 import 'dart:convert';
 import 'dart:typed_data';
 
+import 'package:flutter3d_formats/flutter3d_formats.dart';
 import 'package:flutter3d_geometry/flutter3d_geometry.dart';
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 import 'package:vector_math/vector_math.dart';
 
+import 'material.dart';
 import 'project.dart';
 
 /// `F3DP`, little-endian, so a file opened in a text editor announces itself on
@@ -70,14 +79,17 @@ const int kProjectMeshEntryBytes = 8;
 /// manifest to describe bytes it cannot see.
 const int kProjectImportedEntryBytes = 16;
 
+/// One entry of the image table: u32 offset into the blob, u32 length.
+const int kProjectImageEntryBytes = 8;
+
 /// Section kinds.
 ///
 /// Explicit numbers, never an enum's index: the number goes into a file that
 /// outlives this source, and reordering a declaration would silently
 /// reinterpret every project already saved. The plan names further sections —
-/// materials, imported meshes, images, skins, animations, the command journal
-/// and the history of `doc-31d` — and each takes a number of its own from 4
-/// upwards. None of them may reuse 1 to 3.
+/// skins, animations, the command journal and the history of `doc-31d` — and
+/// each takes a number of its own from 6 upwards. None of them may reuse 1 to
+/// 5.
 abstract final class ProjectSection {
   /// The document, as JSON. Everything that is not bulk lives here.
   static const int manifest = 1;
@@ -101,6 +113,16 @@ abstract final class ProjectSection {
   /// first. Sharing a table would mean an entry that means one thing or the
   /// other depending on which object happens to name it.
   static const int importedMeshes = 4;
+
+  /// `count` entries of [kProjectImageEntryBytes], addressing [blob]: the
+  /// encoded bytes of each image, in whatever format they arrived as.
+  ///
+  /// The bytes and nothing else. What an image is called and what it was
+  /// encoded as are two short strings, which live in the manifest beside the
+  /// row — and the pixels are never decoded here, because decoding needs
+  /// `dart:ui` and this package has no window. A project saved on a machine
+  /// that could not decode a texture still writes it back out whole.
+  static const int images = 5;
 }
 
 /// What [readProject] gives back.
@@ -156,13 +178,10 @@ final class ProjectRefused extends ProjectRead {
 /// that changes when the document did not is a file nobody can diff and a save
 /// that dirties a repository for nothing.
 ///
-/// Throws [ArgumentError] on a project holding a material or an image, and on
-/// an imported mesh carrying morph targets. Both are holes rather than rules —
-/// the plan's `materials` and `images` sections close the first — and a refusal
-/// at the call site beats the alternatives: writing material slots with no
-/// table behind them gives a file whose every painted object opens in clay
-/// while the manifest insists it was painted, and dropping a face's expressions
-/// gives a file whose loss nothing downstream can detect.
+/// Throws [ArgumentError] on an imported mesh carrying morph targets, which is
+/// the one thing a project can hold that there is still nowhere to write. A
+/// refusal at the call site beats the alternative: dropping a face's
+/// expressions gives a file whose loss nothing downstream can detect.
 Uint8List writeProject(ModelProject project) {
   final meshes = <Uint8List>[];
   final objects = <Map<String, Object?>>[];
@@ -175,22 +194,6 @@ Uint8List writeProject(ModelProject project) {
   final imported = <MeshData>[];
   final importedAt = <MeshData, int>{};
   final importedJson = <Map<String, Object?>>[];
-
-  // The slots are written and the table they index is not, which would be a
-  // file whose objects come back holding a number that names nothing — every
-  // painted object opening in clay, with the manifest insisting it was
-  // painted. Refused rather than written for the same reason imported buffers
-  // are below: a save that quietly drops half of what it was given is worse
-  // than one that says it cannot do the job yet. `doc-09` gives the materials
-  // and the images sections of their own.
-  if (project.materials.isNotEmpty || project.images.isNotEmpty) {
-    throw ArgumentError(
-      'this project holds ${project.materials.length} materials and '
-      '${project.images.length} images, and this version of the format has no '
-      'section for either. Writing it without them would save a file whose '
-      'objects name materials that are not in it.',
-    );
-  }
 
   for (final ModelObject object in project.objects) {
     final Map<String, Object?> geometry;
@@ -255,6 +258,21 @@ Uint8List writeProject(ModelProject project) {
       // layout encoded into a fixed-width table row would need a length and a
       // name table of its own to hold "position", "texcoord" and the rest.
       'importedMeshes': importedJson,
+      // Materials are structure rather than bulk — a handful of numbers and
+      // five texture slots each — so they live in the manifest with everything
+      // else that is not a buffer. Only the images they sample go in the blob.
+      'materials': <Object?>[
+        for (final ProjectMaterial each in project.materials)
+          _materialJson(each),
+      ],
+      // Parallel to the image table: the table says where the bytes are and
+      // this says what they are called and what they were encoded as. Both are
+      // written even when there are none, so the manifest's shape does not
+      // depend on what the project happens to hold.
+      'images': <Object?>[
+        for (final EncodedImage each in project.images)
+          <String, Object?>{'name': each.name, 'mimeType': each.mimeType},
+      ],
       'objects': objects,
     }),
   );
@@ -285,6 +303,11 @@ Uint8List writeProject(ModelProject project) {
         place(_rawBytes(mesh.indices)),
         mesh.indices.lengthInBytes,
       ),
+  ];
+
+  final imageOffsets = <(int, int)>[
+    for (final EncodedImage each in project.images)
+      (place(each.bytes), each.bytes.lengthInBytes),
   ];
 
   final blob = Uint8List(blobLength);
@@ -319,6 +342,17 @@ Uint8List writeProject(ModelProject project) {
       ..setUint32(entry + 12, indexBytes, Endian.little);
   }
 
+  final imageTable = Uint8List(
+    project.images.length * kProjectImageEntryBytes,
+  );
+  final imageView = ByteData.view(imageTable.buffer);
+  for (var i = 0; i < imageOffsets.length; i++) {
+    final (int at, int length) = imageOffsets[i];
+    imageView
+      ..setUint32(i * kProjectImageEntryBytes, at, Endian.little)
+      ..setUint32(i * kProjectImageEntryBytes + 4, length, Endian.little);
+  }
+
   final sections = <(int kind, Uint8List data, int count)>[
     (ProjectSection.manifest, manifest, 0),
     (ProjectSection.editMeshes, table, meshes.length),
@@ -327,6 +361,7 @@ Uint8List writeProject(ModelProject project) {
     // produces has the same shape and a reader is never deciding between "no
     // imported meshes" and "an older writer".
     (ProjectSection.importedMeshes, importedTable, imported.length),
+    (ProjectSection.images, imageTable, project.images.length),
   ];
 
   final offsets = <int>[];
@@ -468,6 +503,19 @@ ProjectRead readProject(Uint8List bytes) {
   );
   if (importRefusal != null) return ProjectRefused(importRefusal);
 
+  final (List<EncodedImage> images, String? imageRefusal) = _readImages(
+    bytes,
+    sections,
+    document is Map<String, Object?> ? document['images'] : null,
+  );
+  if (imageRefusal != null) return ProjectRefused(imageRefusal);
+
+  final (List<ProjectMaterial> materials, String? materialRefusal) =
+      _readMaterials(
+        document is Map<String, Object?> ? document['materials'] : null,
+      );
+  if (materialRefusal != null) return ProjectRefused(materialRefusal);
+
   if (document case {
     'profile': {
       'name': final String profileName,
@@ -500,6 +548,8 @@ ProjectRead readProject(Uint8List bytes) {
           maxTextureSize: maxTextureSize,
         ),
         objects: objects,
+        materials: materials,
+        images: images,
         nextId: nextId,
       ),
     );
@@ -623,6 +673,272 @@ ProjectRead readProject(Uint8List bytes) {
     );
   }
   return (meshes, null);
+}
+
+
+/// A material as JSON.
+///
+/// **Every field written, including the ones that are at their default.** A
+/// codec that skipped defaults would be shorter and would make the file's
+/// meaning depend on this build's idea of what a default is: change
+/// `roughness`'s default one day and every project already saved quietly
+/// becomes a different model. The file says what the material is.
+///
+/// **Enums are written by name, never by index**, for the reason the section
+/// numbers are: `SurfaceAlphaMode.values` is a declaration order, and inserting
+/// a case into it would reinterpret every file already written. A name this
+/// build does not know reads back as the default rather than refusing, because
+/// an alpha mode from a newer build is a material that draws slightly wrong,
+/// not a project nobody can open.
+Map<String, Object?> _materialJson(ProjectMaterial material) {
+  final surface = material.surface;
+  return <String, Object?>{
+    'version': material.version,
+    'name': surface.name,
+    'baseColor': <double>[
+      surface.baseColor.x,
+      surface.baseColor.y,
+      surface.baseColor.z,
+      surface.baseColor.w,
+    ],
+    'metallic': surface.metallic,
+    'roughness': surface.roughness,
+    'baseColorTexture': _bindingJson(surface.baseColorTexture),
+    'metallicRoughnessTexture': _bindingJson(surface.metallicRoughnessTexture),
+    'normalTexture': _bindingJson(surface.normalTexture),
+    'normalScale': surface.normalScale,
+    'occlusionTexture': _bindingJson(surface.occlusionTexture),
+    'occlusionStrength': surface.occlusionStrength,
+    'emissiveTexture': _bindingJson(surface.emissiveTexture),
+    'emissive': <double>[
+      surface.emissive.x,
+      surface.emissive.y,
+      surface.emissive.z,
+    ],
+    'emissiveStrength': surface.emissiveStrength,
+    'alphaMode': surface.alphaMode.name,
+    'alphaCutoff': surface.alphaCutoff,
+    'doubleSided': surface.doubleSided,
+    'unlit': surface.unlit,
+  };
+}
+
+Map<String, Object?>? _bindingJson(TextureBinding? binding) => binding == null
+    ? null
+    : <String, Object?>{
+        'imageIndex': binding.imageIndex,
+        'texCoordSet': binding.texCoordSet,
+        'magLinear': binding.sampling.magLinear,
+        'minLinear': binding.sampling.minLinear,
+        'useMipmaps': binding.sampling.useMipmaps,
+        'wrapS': binding.sampling.wrapS.name,
+        'wrapT': binding.sampling.wrapT.name,
+      };
+
+/// The materials [json] describes, or the sentence that stops the file.
+///
+/// A missing key is a refusal rather than a default, which is the opposite of
+/// the rule for an unknown enum name and is the right way round: a name this
+/// build has not heard of is something a newer build wrote, and a missing
+/// `baseColor` is a file that was truncated or was never a project.
+(List<ProjectMaterial>, String?) _readMaterials(Object? json) {
+  if (json == null) return (const <ProjectMaterial>[], null);
+  if (json is! List) {
+    return (
+      const <ProjectMaterial>[],
+      'The manifest\'s materials are not a list.',
+    );
+  }
+
+  final materials = <ProjectMaterial>[];
+  for (var i = 0; i < json.length; i++) {
+    final Object? entry = json[i];
+    if (entry
+        case <String, Object?>{
+          'version': final int version,
+          'name': final String? name,
+          'baseColor': final List<Object?> baseColor,
+          'metallic': final num metallic,
+          'roughness': final num roughness,
+          'normalScale': final num normalScale,
+          'occlusionStrength': final num occlusionStrength,
+          'emissive': final List<Object?> emissive,
+          'emissiveStrength': final num emissiveStrength,
+          'alphaMode': final String alphaMode,
+          'alphaCutoff': final num alphaCutoff,
+          'doubleSided': final bool doubleSided,
+          'unlit': final bool unlit,
+        }
+        when version > 0) {
+      if (baseColor.length != 4 || baseColor.any((Object? v) => v is! num)) {
+        return (
+          const <ProjectMaterial>[],
+          'Material $i has a base colour of ${baseColor.length} numbers, and a '
+          'colour is four.',
+        );
+      }
+      if (emissive.length != 3 || emissive.any((Object? v) => v is! num)) {
+        return (
+          const <ProjectMaterial>[],
+          'Material $i has an emissive colour of ${emissive.length} numbers, '
+          'and that one is three.',
+        );
+      }
+      materials.add(
+        ProjectMaterial(
+          version: version,
+          surface: SurfaceMaterial(
+            name: name,
+            baseColor: Vector4(
+              (baseColor[0]! as num).toDouble(),
+              (baseColor[1]! as num).toDouble(),
+              (baseColor[2]! as num).toDouble(),
+              (baseColor[3]! as num).toDouble(),
+            ),
+            metallic: metallic.toDouble(),
+            roughness: roughness.toDouble(),
+            baseColorTexture: _bindingFrom(entry['baseColorTexture']),
+            metallicRoughnessTexture: _bindingFrom(
+              entry['metallicRoughnessTexture'],
+            ),
+            normalTexture: _bindingFrom(entry['normalTexture']),
+            normalScale: normalScale.toDouble(),
+            occlusionTexture: _bindingFrom(entry['occlusionTexture']),
+            occlusionStrength: occlusionStrength.toDouble(),
+            emissiveTexture: _bindingFrom(entry['emissiveTexture']),
+            emissive: Vector3(
+              (emissive[0]! as num).toDouble(),
+              (emissive[1]! as num).toDouble(),
+              (emissive[2]! as num).toDouble(),
+            ),
+            emissiveStrength: emissiveStrength.toDouble(),
+            alphaMode: _named(
+              SurfaceAlphaMode.values,
+              alphaMode,
+              SurfaceAlphaMode.opaque,
+            ),
+            alphaCutoff: alphaCutoff.toDouble(),
+            doubleSided: doubleSided,
+            unlit: unlit,
+          ),
+        ),
+      );
+      continue;
+    }
+    return (
+      const <ProjectMaterial>[],
+      'Material $i is missing a field or has one of the wrong type: a material '
+      'is a version above zero, a name, two colours, its factors, its texture '
+      'slots and how it treats alpha.',
+    );
+  }
+  return (materials, null);
+}
+
+TextureBinding? _bindingFrom(Object? json) {
+  if (json case <String, Object?>{
+    'imageIndex': final int imageIndex,
+    'texCoordSet': final int texCoordSet,
+    'magLinear': final bool magLinear,
+    'minLinear': final bool minLinear,
+    'useMipmaps': final bool useMipmaps,
+    'wrapS': final String wrapS,
+    'wrapT': final String wrapT,
+  } when imageIndex >= 0 && texCoordSet >= 0) {
+    return TextureBinding(
+      imageIndex: imageIndex,
+      texCoordSet: texCoordSet,
+      sampling: TextureSampling(
+        magLinear: magLinear,
+        minLinear: minLinear,
+        useMipmaps: useMipmaps,
+        wrapS: _named(TextureWrap.values, wrapS, TextureWrap.repeat),
+        wrapT: _named(TextureWrap.values, wrapT, TextureWrap.repeat),
+      ),
+    );
+  }
+  // A slot the file does not fill, or fills with something this build cannot
+  // read, is a slot the material does without — which is a material drawn from
+  // its factors, and is what every material with no normal map already is.
+  return null;
+}
+
+/// The value of [values] called [name], or [fallback].
+T _named<T extends Enum>(List<T> values, String name, T fallback) {
+  for (final T value in values) {
+    if (value.name == name) return value;
+  }
+  return fallback;
+}
+
+/// The images, or the sentence that stops the file being read.
+///
+/// The bytes are copied out of the file rather than viewed over it, so that a
+/// project holding one texture does not keep the whole `.f3dproj` alive for as
+/// long as anything draws.
+(List<EncodedImage>, String?) _readImages(
+  Uint8List bytes,
+  Map<int, ({int offset, int length})> sections,
+  Object? described,
+) {
+  final table = sections[ProjectSection.images];
+  final blob = sections[ProjectSection.blob];
+  if (table == null || table.length == 0) return (const <EncodedImage>[], null);
+  if (blob == null) {
+    return (
+      const <EncodedImage>[],
+      'This file has an image table and no blob for it to point into.',
+    );
+  }
+
+  final count = table.length ~/ kProjectImageEntryBytes;
+  final names = described is List ? described.length : 0;
+  if (names != count) {
+    return (
+      const <EncodedImage>[],
+      'The image table holds $count images and the manifest names $names of '
+      'them.',
+    );
+  }
+
+  final view = ByteData.view(
+    bytes.buffer,
+    bytes.offsetInBytes,
+    bytes.lengthInBytes,
+  );
+  final images = <EncodedImage>[];
+  for (var i = 0; i < count; i++) {
+    final entry = table.offset + i * kProjectImageEntryBytes;
+    final at = view.getUint32(entry, Endian.little);
+    final length = view.getUint32(entry + 4, Endian.little);
+    if (at + length > blob.length) {
+      return (
+        const <EncodedImage>[],
+        'Image $i runs from $at for $length bytes and the blob is '
+        '${blob.length} bytes long.',
+      );
+    }
+    final Object? entryJson = (described! as List)[i];
+    images.add(
+      EncodedImage(
+        bytes: Uint8List.fromList(
+          Uint8List.sublistView(
+            bytes,
+            blob.offset + at,
+            blob.offset + at + length,
+          ),
+        ),
+        // A name and an encoding are both things a file may honestly not know:
+        // a glTF can carry an image with neither. Missing is null rather than a
+        // refusal, and anything of the wrong type is treated as missing.
+        name: entryJson is Map<String, Object?> ? entryJson['name'] as String? : null,
+        mimeType: entryJson is Map<String, Object?>
+            ? entryJson['mimeType'] as String?
+            : null,
+      ),
+    );
+  }
+  return (images, null);
 }
 
 int _align(int value) => (value + 3) & ~3;

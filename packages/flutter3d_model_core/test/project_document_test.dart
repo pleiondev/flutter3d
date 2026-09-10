@@ -607,6 +607,7 @@ void main() {
             name: 'body',
             mesh: EditMesh.cuboid().toMeshData(),
             transform: Matrix4.identity(),
+            materialIndex: 0,
           ),
           ModelSurface(
             name: 'lid',
@@ -633,6 +634,9 @@ void main() {
           ),
         ],
         roots: <int>[0],
+        materials: <SurfaceMaterial>[
+          SurfaceMaterial(name: 'steel', baseColor: Vector4(0.2, 0.3, 0.4, 1)),
+        ],
       );
 
       final before = fromModelDocument(document);
@@ -653,6 +657,14 @@ void main() {
       // The hierarchy is the half a flat save loses quietly: the lid still
       // hangs off the body, so moving the body still takes it along.
       expect(after.objects[1].parent, after.objects[0].id);
+      // And the paint. Until this landed, a project that had just been opened
+      // could not be saved at all: `writeProject` refused a material table it
+      // had nowhere to put.
+      expect(after.materials.length, before.materials.length);
+      expect(
+        after.materials.single.surface.baseColor,
+        Vector4(0.2, 0.3, 0.4, 1),
+      );
     });
   });
 }
