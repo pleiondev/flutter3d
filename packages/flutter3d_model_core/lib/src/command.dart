@@ -23,6 +23,7 @@ library;
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 import 'package:vector_math/vector_math.dart';
 
+import 'parametric_json.dart';
 import 'project.dart';
 import 'selection.dart';
 
@@ -358,6 +359,8 @@ const List<String> modelCommandNames = <String>[
   'setOrigin',
   'applyTransform',
   'addPrimitive',
+  'addLathe',
+  'setParametric',
   'bakeToMesh',
   'deleteObjects',
   'duplicateObjects',
@@ -442,6 +445,34 @@ ModelCommand? modelCommandFromJson(Object? json) {
     },
     'applyTransform' => switch (json['id']) {
       final int id => ApplyTransform(id),
+      _ => null,
+    },
+    'addLathe' => switch ((
+      _points(json['profile']),
+      json['segments'],
+      json['closedProfile'],
+      json['label'],
+    )) {
+      (
+        final List<Vector2> profile,
+        final int segments,
+        final bool closedProfile,
+        final String label,
+      ) =>
+        AddLathe(
+          profile: profile,
+          segments: segments,
+          closedProfile: closedProfile,
+          shapeName: label,
+          at: switch (_doubles(json['at'], 3)) {
+            final List<double> at => Vector3(at[0], at[1], at[2]),
+            _ => null,
+          },
+        ),
+      _ => null,
+    },
+    'setParametric' => switch ((json['id'], _shapeOf(json['to']))) {
+      (final int id, final ParametricShape to) => SetParametric(id: id, to: to),
       _ => null,
     },
     'addPrimitive' => switch ((json['kind'], json['size'], json['segments'])) {
@@ -543,6 +574,27 @@ TransformPivot? _pivot(Object? json) => json == null
     : TransformPivot.values
           .where((TransformPivot each) => each.name == json)
           .firstOrNull;
+
+/// The shape [json] describes, or null when it is not a shape at all.
+ParametricShape? _shapeOf(Object? json) =>
+    json is Map<String, Object?> ? parametricShapeFrom(json) : null;
+
+/// A list of pairs as points on the (radius, height) half-plane, or null.
+///
+/// Null on the first pair that is not two numbers rather than on a length,
+/// because a profile with one bad point is not a profile that can be turned.
+List<Vector2>? _points(Object? json) {
+  if (json is! List<Object?>) return null;
+  final out = <Vector2>[];
+  for (final Object? each in json) {
+    if (each case [final num x, final num y]) {
+      out.add(Vector2(x.toDouble(), y.toDouble()));
+      continue;
+    }
+    return null;
+  }
+  return out;
+}
 
 /// Where [json] puts an origin, the middle of the bounds by default, or null.
 /// See [_pivot] for why an unknown word is null rather than the default.

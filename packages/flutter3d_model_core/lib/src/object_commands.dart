@@ -113,6 +113,149 @@ final class AddPrimitive extends ModelCommand {
   }
 }
 
+/// Adds a shape turned from a profile on the (radius, height) half-plane.
+///
+/// **Separate from [AddPrimitive] because a lathe has no size.** Every other
+/// primitive answers one number and a segment count; a lathe answers a list of
+/// points, which is the thing a profile editor draws and the thing nothing else
+/// in the menu takes. Folding it into the primitive kinds would give that
+/// command an argument that is meaningless for five of its six values.
+///
+/// **A glass, a bottle, a chair leg and a plate are one shape here**, and that
+/// is why it earns a command of its own rather than waiting for a mesh: turning
+/// the profile is exactly the operation somebody wants to adjust after seeing
+/// it, and a parametric object is the only kind that can be adjusted.
+final class AddLathe extends ModelCommand {
+  const AddLathe({
+    required this.profile,
+    this.segments = 32,
+    this.closedProfile = false,
+    this.shapeName = 'lathe',
+    this.at,
+  });
+
+  /// Points in the (radius, height) half-plane, bottom to top.
+  final List<Vector2> profile;
+  final int segments;
+
+  /// Whether the last point joins back to the first, as a torus's does.
+  final bool closedProfile;
+
+  /// What the object is called, and what the shape calls itself: a glass and a
+  /// chair leg are the same operation, and the only thing that tells them apart
+  /// in an outliner is the word somebody chose.
+  final String shapeName;
+
+  /// Where it goes, or the origin.
+  final Vector3? at;
+
+  @override
+  String get name => 'addLathe';
+
+  @override
+  String get says => 'add a $shapeName';
+
+  @override
+  Map<String, Object?> get arguments => <String, Object?>{
+    'profile': <List<double>>[
+      for (final Vector2 point in profile) <double>[point.x, point.y],
+    ],
+    'segments': segments,
+    'closedProfile': closedProfile,
+    // `label` and not `name`, because `toJson` writes the command's own name
+    // under that key and spreads these over it: a lathe that called its word
+    // `name` would write itself down as a command called "glass", which
+    // nothing reads back.
+    'label': shapeName,
+    if (at case final Vector3 where) 'at': <double>[where.x, where.y, where.z],
+  };
+
+  @override
+  Outcome apply(ModelProject project, ProjectSelection selection) {
+    if (profile.length < 2) {
+      return Outcome.refused(
+        'a profile needs at least two points to turn into a surface',
+      );
+    }
+    if (segments < 3) {
+      return Outcome.refused('a turn of fewer than three segments is a fan');
+    }
+    if (profile.any((Vector2 point) => point.x < 0)) {
+      return Outcome.refused(
+        'a profile point at a negative radius would turn the surface through '
+        'its own axis',
+      );
+    }
+    final next = project.added(
+      (int id) => ModelObject(
+        id: id,
+        name: shapeName,
+        geometry: ParametricGeometry(
+          ParametricLathe(
+            profile: List<Vector2>.unmodifiable(profile),
+            segments: segments,
+            closedProfile: closedProfile,
+            name: shapeName,
+          ),
+        ),
+        transform: Matrix4.translation(at ?? Vector3.zero()),
+      ),
+    );
+    return Outcome.done(
+      next,
+      selection: selection.copyWith(objects: <int>[next.objects.last.id]),
+    );
+  }
+}
+
+/// Replaces the parameters of a shape that still has them.
+///
+/// **This is the operation card, and it is why parametric objects exist at
+/// all.** A cylinder that came back from a file knowing it is a cylinder of
+/// thirty-two segments can be made one of forty-eight; a cylinder that came
+/// back as faces cannot. `ModelHistory.amend` re-runs this against the document
+/// as it was, so dragging a slider adjusts one step instead of leaving sixty.
+///
+/// **It refuses a mesh by name rather than baking one.** Somebody who converted
+/// a shape and then reached for the card is asking for something the document
+/// no longer holds, and quietly replacing their edited geometry with a fresh
+/// primitive would throw the edit away with no step of history to say so.
+final class SetParametric extends ModelCommand {
+  const SetParametric({required this.id, required this.to});
+
+  final int id;
+  final ParametricShape to;
+
+  @override
+  String get name => 'setParametric';
+
+  @override
+  String get says => 'change the ${to.name}';
+
+  @override
+  Map<String, Object?> get arguments => <String, Object?>{
+    'id': id,
+    'to': parametricShapeJson(to),
+  };
+
+  @override
+  Outcome apply(ModelProject project, ProjectSelection selection) {
+    final ModelObject? object = project[id];
+    if (object == null) return Outcome.refused('there is no object $id');
+    return switch (object.geometry) {
+      ParametricGeometry() => Outcome.done(
+        project.withObject(object.copyWith(geometry: ParametricGeometry(to))),
+      ),
+      EditedGeometry() => Outcome.refused(
+        '"${object.name}" is a mesh now, and a mesh has no parameters to set',
+      ),
+      ImportedGeometry() => Outcome.refused(
+        '"${object.name}" came from a file and was never described by numbers',
+      ),
+    };
+  }
+}
+
 /// Turns a shape that still knows its parameters into a mesh that can be
 /// edited.
 ///

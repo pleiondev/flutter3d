@@ -543,6 +543,171 @@ void main() {
     });
   });
 
+  group('shapes that still know their parameters', () {
+    /// A glass: a profile that starts on the axis, flares and comes back in.
+    List<Vector2> glass() => <Vector2>[
+      Vector2(0, 0),
+      Vector2(0.4, 0),
+      Vector2(0.35, 0.2),
+      Vector2(0.45, 1),
+    ];
+
+    test('a lathe arrives parametric, selected and named', () {
+      final history = ModelHistory(const ModelProject());
+
+      expect(
+        history.run(
+          AddLathe(profile: glass(), segments: 16, shapeName: 'glass'),
+        ),
+        isNull,
+      );
+
+      final object = history.project.objects.single;
+      expect(object.name, 'glass');
+      expect(object.geometry, isA<ParametricGeometry>());
+      expect(history.selection.objects, <int>[object.id]);
+      expect(history.undoSays, 'add a glass');
+    });
+
+    test('a profile that cannot be turned is refused, with the reason', () {
+      final history = ModelHistory(const ModelProject());
+
+      // One point is a circle, not a surface. Mutation: accept it and the
+      // lathe builds a mesh of no faces, which the readiness then calls an
+      // error somewhere far away from the thing that caused it.
+      expect(
+        history.run(AddLathe(profile: <Vector2>[Vector2(1, 0)])),
+        contains('at least two points'),
+      );
+      // A negative radius turns the surface through its own axis and gives a
+      // shape that is inside out along half its sweep.
+      expect(
+        history.run(
+          AddLathe(profile: <Vector2>[Vector2(-1, 0), Vector2(1, 1)]),
+        ),
+        contains('negative radius'),
+      );
+      expect(
+        history.run(AddLathe(profile: glass(), segments: 2)),
+        contains('three segments'),
+      );
+      expect(history.project.objects, isEmpty);
+    });
+
+    test(
+      'the parameters can be set again, and undo puts the old ones back',
+      () {
+        final history = ModelHistory(const ModelProject())
+          ..run(const AddPrimitive(kind: 'sphere', segments: 12));
+
+        expect(
+          history.run(
+            const SetParametric(
+              id: 1,
+              to: ParametricSphere(radius: 1, segments: 48),
+            ),
+          ),
+          isNull,
+        );
+
+        final shape =
+            (history.project[1]!.geometry as ParametricGeometry).shape
+                as ParametricSphere;
+        expect(shape.segments, 48);
+
+        history.undo();
+        final back =
+            (history.project[1]!.geometry as ParametricGeometry).shape
+                as ParametricSphere;
+        // The history keeps documents, so the old parameters come back whole.
+        expect(back.segments, 12);
+      },
+    );
+
+    test('a slider adjusts one step rather than leaving sixty', () {
+      final history = ModelHistory(const ModelProject())
+        ..run(const AddPrimitive(kind: 'sphere', segments: 12));
+      history.run(
+        const SetParametric(
+          id: 1,
+          to: ParametricSphere(radius: 1, segments: 16),
+        ),
+      );
+      final int steps = history.journal.length;
+
+      for (var segments = 17; segments <= 24; segments++) {
+        expect(
+          history.amend(
+            SetParametric(
+              id: 1,
+              to: ParametricSphere(radius: 1, segments: segments),
+            ),
+          ),
+          isNull,
+        );
+      }
+
+      // This is what `amend` is for and what makes the operation card usable:
+      // eight frames of a drag are eight re-runs against the document as it
+      // was, not eight steps to press ⌘Z through.
+      expect(history.journal.length, steps);
+      final shape =
+          (history.project[1]!.geometry as ParametricGeometry).shape
+              as ParametricSphere;
+      expect(shape.segments, 24);
+    });
+
+    test('a mesh is refused by name rather than quietly replaced', () {
+      final history = edited();
+
+      // Mutation: replace the geometry anyway. Somebody who converted a shape,
+      // spent an hour editing it and then reached for the card would have that
+      // hour replaced by a fresh primitive, with one step of history to say so.
+      final String? said = history.run(
+        const SetParametric(id: 1, to: ParametricSphere()),
+      );
+      expect(said, contains('"cube" is a mesh now'));
+      expect(history.project[1]!.geometry, isA<EditedGeometry>());
+    });
+
+    test('the parameters survive being written down', () {
+      final AddLathe made = AddLathe(
+        profile: glass(),
+        segments: 24,
+        closedProfile: true,
+        shapeName: 'vase',
+      );
+
+      final back = modelCommandFromJson(made.toJson());
+      expect(back, isA<AddLathe>());
+      final AddLathe read = back! as AddLathe;
+      // Mutation: leave the profile out of `arguments`. The round trip agrees
+      // with itself — a map without the profile reads back as a lathe with no
+      // profile and writes the same map — while a journal replays every glass
+      // in the file as nothing at all.
+      expect(read.profile.length, glass().length);
+      expect(read.profile.last.y, closeTo(1.0, 1e-9));
+      expect(read.closedProfile, isTrue);
+      expect(read.shapeName, 'vase');
+    });
+
+    test('a profile with a bad point reads back as null, not as a throw', () {
+      expect(
+        modelCommandFromJson(<String, Object?>{
+          'name': 'addLathe',
+          'profile': <Object?>[
+            <Object?>[0, 0],
+            <Object?>['x', 1],
+          ],
+          'segments': 12,
+          'closedProfile': false,
+          'label': 'glass',
+        }),
+        isNull,
+      );
+    });
+  });
+
   group('the origin and the transform', () {
     /// One cube, moved and stretched, with a small cube parented to it.
     ModelHistory family({Matrix4? node}) {
@@ -1388,6 +1553,15 @@ void main() {
         const SetOrigin(id: 1, to: OriginPlacement.boundsBottom),
         const ApplyTransform(1),
         const AddPrimitive(kind: 'cylinder', size: 2, segments: 12),
+        AddLathe(
+          profile: <Vector2>[Vector2(0.4, 0), Vector2(0.2, 1)],
+          segments: 12,
+          shapeName: 'glass',
+        ),
+        const SetParametric(
+          id: 1,
+          to: ParametricSphere(radius: 0.75, segments: 16),
+        ),
         const BakeToMesh(1),
         const DeleteObjects(),
         const DuplicateObjects(),
