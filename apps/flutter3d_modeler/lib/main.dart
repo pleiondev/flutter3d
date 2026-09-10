@@ -40,6 +40,8 @@ import 'src/object_picking.dart';
 import 'src/orbit_run.dart';
 import 'src/orientation_dial.dart';
 import 'src/staging.dart';
+import 'src/ui/number_field.dart';
+import 'src/ui/operation_card.dart';
 import 'src/ui/shell.dart';
 import 'src/ui/theme.dart';
 import 'src/ui/tools.dart';
@@ -737,6 +739,28 @@ class _ModelerScreenState extends State<ModelerScreen>
     state.stage.sync?.apply(_history.project);
   }
 
+  /// A position typed into the panel.
+  ///
+  /// `SetTransform` rather than `MoveBy`, because what the field says is where
+  /// the object goes rather than how far it moves — and a person who types the
+  /// same number twice expects nothing to happen the second time.
+  void _setTransform(int id, List<double> position) {
+    final object = _history.project[id];
+    if (object == null) return;
+    final vm.Matrix4 to = vm.Matrix4.copy(object.transform)
+      ..setTranslation(vm.Vector3(position[0], position[1], position[2]));
+    final said = _history.run(SetTransform(id: id, to: to));
+    setState(() => _opSaid = said);
+    if (said == null) _sync();
+  }
+
+  /// The operation card's number was dragged.
+  void _amend(ModelCommand to) {
+    final said = _history.amend(to);
+    setState(() => _opSaid = said);
+    if (said == null) _sync();
+  }
+
   /// ⌘Z and ⇧⌘Z.
   void _undo() {
     final moved = _history.undo();
@@ -912,6 +936,9 @@ class _ModelerScreenState extends State<ModelerScreen>
               objects: <int>[id],
             ),
           ),
+          onTransform: _setTransform,
+          lastCommand: _history.journal.isEmpty ? null : _history.journal.last,
+          onAmend: _amend,
           shading: _shading,
           onShading: (ShadingMode mode) => setState(() => _shading = mode),
           lens: _lens,
@@ -1059,6 +1086,9 @@ class _Properties extends StatelessWidget {
     required this.project,
     required this.selection,
     required this.onSelect,
+    required this.onTransform,
+    required this.lastCommand,
+    required this.onAmend,
     required this.shading,
     required this.onShading,
     required this.lens,
@@ -1070,6 +1100,14 @@ class _Properties extends StatelessWidget {
   final ModelProject project;
   final ProjectSelection selection;
   final ValueChanged<int> onSelect;
+
+  /// A number field was committed: the object's position, in world units.
+  final void Function(int id, List<double> position) onTransform;
+
+  /// What the operation card is showing, and where an adjustment goes.
+  final ModelCommand? lastCommand;
+  final ValueChanged<ModelCommand> onAmend;
+
   final ShadingMode shading;
   final ValueChanged<ShadingMode> onShading;
   final ViewLens lens;
@@ -1146,6 +1184,22 @@ class _Properties extends StatelessWidget {
             selected: selection.objects.contains(object.id),
             onTap: () => onSelect(object.id),
           ),
+        if (project[selection.activeObject ?? -1]
+            case final ModelObject held) ...<Widget>[
+          _Section('Transform'),
+          _Row('Name', held.name),
+          const SizedBox(height: 4),
+          VectorField(
+            value: <double>[
+              held.transform.getTranslation().x,
+              held.transform.getTranslation().y,
+              held.transform.getTranslation().z,
+            ],
+            onChanged: (List<double> to) => onTransform(held.id, to),
+          ),
+        ],
+        _Section('Last operation'),
+        OperationCard(command: lastCommand, onAmend: onAmend),
         _Section('Selection'),
         _Row('What', selection.says),
         if (mesh != null) ...<Widget>[
