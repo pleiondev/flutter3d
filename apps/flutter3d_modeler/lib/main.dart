@@ -40,6 +40,7 @@ import 'src/object_picking.dart';
 import 'src/orbit_run.dart';
 import 'src/orientation_dial.dart';
 import 'src/staging.dart';
+import 'src/transform_modal.dart';
 import 'src/ui/number_field.dart';
 import 'src/ui/operation_card.dart';
 import 'src/ui/shell.dart';
@@ -553,41 +554,224 @@ class _ModelerScreenState extends State<ModelerScreen>
     if (!kDragTools.contains(tool)) return;
     if (_history.selection.isEmpty) return;
 
+    _lastViewportHeight = viewportHeight;
     final look = state.stage.overlayView(viewportHeight);
-    // At the middle of what is being moved, because that is the depth the drag
-    // has to be measured at: a pixel is a different number of metres a metre
-    // further away.
-    final vm.Vector3 middle = _middleOfSelection();
-    final double metres =
-        look.pixel * (look.perspective ? (middle - look.eye).length : 1.0);
-    final vm.Vector3 along =
-        look.right * (delta.dx * metres) + look.up * (-delta.dy * metres);
+    final TransformModal modal = _modalFor(tool);
 
-    // **A transaction, opened on the first move of a drag and closed when the
-    // pointer goes up.** Every frame of a drag is a command; the history
-    // collapses them into one step, so ⌘Z takes back the drag rather than a
-    // sixtieth of it.
-    if (!_dragging) {
-      _dragging = true;
-      _history.beginTransaction();
+    // Pixels into whatever the transform is measured in. A move is metres at
+    // the depth the selection is at — a pixel is a different number of metres a
+    // metre further away — and a turn and a scale are a hundredth per pixel,
+    // which is the sensitivity every modeller settles on.
+    if (modal.kind == TransformKind.move) {
+      final vm.Vector3 middle = _middleOfSelection();
+      final double metres =
+          look.pixel * (look.perspective ? (middle - look.eye).length : 1.0);
+      modal.dragged +=
+          look.right * (delta.dx * metres) + look.up * (-delta.dy * metres);
+    } else {
+      // One number, carried on whichever component the constraint lets
+      // through, so `amount` can zero the rest the same way it does for a move.
+      final double by = delta.dx * 0.01;
+      modal.dragged += switch (modal.axis) {
+        TransformAxis.y => vm.Vector3(0, by, 0),
+        TransformAxis.z => vm.Vector3(0, 0, by),
+        _ => vm.Vector3(by, 0, 0),
+      };
+    }
+    _applyModal(modal, look);
+  }
+
+  /// What the viewport reports when the pointer goes up: the transform is
+  /// accepted, which is what letting go of a drag means.
+  void _endDrag() => _commitModal();
+
+  /// A key arrived while a transform is going on.
+  ///
+  /// Returns whether it was taken. The keys are the ones every modeller has:
+  /// `X`/`Y`/`Z` constrain, digits and a point and a minus type a number,
+  /// backspace takes one off, Enter accepts and Escape throws it away.
+  bool _modalKey(LogicalKeyboardKey key, String? character) {
+    final TransformModal? modal = _modal;
+    if (modal == null) return false;
+    if (key == LogicalKeyboardKey.escape) {
+      _cancelModal();
+      return true;
+    }
+    if (key == LogicalKeyboardKey.enter ||
+        key == LogicalKeyboardKey.numpadEnter) {
+      _commitModal();
+      return true;
+    }
+    if (key == LogicalKeyboardKey.backspace) {
+      if (!modal.type('backspace')) return false;
+      _reapply(modal);
+      return true;
+    }
+    final TransformAxis? pressed = switch (key) {
+      LogicalKeyboardKey.keyX => TransformAxis.x,
+      LogicalKeyboardKey.keyY => TransformAxis.y,
+      LogicalKeyboardKey.keyZ => TransformAxis.z,
+      _ => null,
+    };
+    if (pressed != null) {
+      modal.axis = modal.axis.pressed(pressed);
+      _reapply(modal);
+      return true;
+    }
+    if (character != null && modal.type(character)) {
+      _reapply(modal);
+      return true;
+    }
+    return false;
+  }
+
+  /// Re-runs the transform at whatever it is now, after a key changed it.
+  void _reapply(TransformModal modal) {
+    final state = _state;
+    if (state is! ModelerReady) return;
+    _applyModal(modal, state.stage.overlayView(_lastViewportHeight));
+  }
+
+  /// The height the picture was laid out at, kept so a key press can measure a
+  /// pixel the same way a pointer move does.
+  double _lastViewportHeight = 600;
+
+  /// The transform in progress, or null.
+  ///
+  /// **One object for the pointer and the keyboard both**, because they are the
+  /// same transform: a person presses `G`, moves the mouse, presses `X`, types
+  /// `5` and presses Enter, and every one of those changes the same thing.
+  /// Two paths would answer differently on the frame the constraint arrives.
+  TransformModal? _modal;
+
+  /// Starts one if there is not one already, opening the transaction it will
+  /// be committed or thrown away as.
+  TransformModal _modalFor(String tool) {
+    final TransformModal? going = _modal;
+    if (going != null) return going;
+    _history.beginTransaction();
+    return _modal = TransformModal(switch (tool) {
+      'mesh.rotate' || 'object.rotate' => TransformKind.rotate,
+      'mesh.scale' || 'object.scale' => TransformKind.scale,
+      _ => TransformKind.move,
+    });
+  }
+
+  /// Accepts the transform. The transaction closes and its one step stays.
+  void _commitModal() {
+    if (_modal == null) return;
+    _modal = null;
+    _history.endTransaction();
+    setState(() => _opSaid = null);
+  }
+
+  /// Throws it away.
+  ///
+  /// **Undone rather than reversed.** The opposite of a scale by 0.3 is a scale
+  /// by ten thirds, and the two do not compose back to the identity in floating
+  /// point — so Escape closes the transaction, takes its one step back and
+  /// drops it, which puts the document back by pointer.
+  void _cancelModal() {
+    if (_modal == null) return;
+    _modal = null;
+    _history.endTransaction();
+    if (_history.undo()) {
+      _history.dropRedo();
+      _sync();
+    }
+    setState(() => _opSaid = 'cancelled');
+  }
+
+  /// Applies whatever the transform is at now, replacing what it applied last.
+  ///
+  /// Inside the open transaction, so a hundred of these are one step. Each one
+  /// runs the *difference* from the last, because a command moves by an amount
+  /// rather than to a place.
+  void _applyModal(
+    TransformModal modal,
+    ({
+      vm.Vector3 eye,
+      vm.Vector3 right,
+      vm.Vector3 up,
+      double pixel,
+      bool perspective,
+    })
+    look,
+  ) {
+    final vm.Vector3 want = modal.amount;
+    final vm.Vector3 step = want - _appliedSoFar;
+    _appliedSoFar = vm.Vector3.copy(want);
+    if (step.length2 == 0) {
+      setState(() => _opSaid = modal.says);
+      return;
     }
 
-    final String? said = _history.selection.mode == SelectionMode.mesh
-        ? _history.run(_meshDrag(tool, along, middle, delta))
-        : _history.run(_objectDrag(tool, along, look, middle, delta));
-    if (said != null) setState(() => _opSaid = said);
-    _sync();
+    final vm.Vector3 middle = _middleOfSelection();
+    final bool mesh = _history.selection.mode == SelectionMode.mesh;
+    final ModelCommand command = switch (modal.kind) {
+      TransformKind.move =>
+        mesh ? TransformElements(vm.Matrix4.translation(step)) : MoveBy(step),
+      TransformKind.rotate =>
+        mesh
+            ? TransformElements(
+                _about(
+                  middle,
+                  vm.Matrix4.compose(
+                    vm.Vector3.zero(),
+                    vm.Quaternion.axisAngle(
+                      _axisOf(modal, look),
+                      step.x + step.y + step.z,
+                    ),
+                    vm.Vector3.all(1),
+                  ),
+                ),
+                what: 'turn',
+              )
+            : RotateBy(
+                axis: _axisOf(modal, look),
+                radians: step.x + step.y + step.z,
+              ),
+      TransformKind.scale =>
+        mesh
+            ? TransformElements(
+                _about(
+                  middle,
+                  vm.Matrix4.diagonal3(
+                    vm.Vector3.all(1 + step.x + step.y + step.z),
+                  ),
+                ),
+                what: 'scale',
+              )
+            : ScaleBy(1 + step.x + step.y + step.z),
+    };
+    final said = _history.run(command);
+    setState(() => _opSaid = said ?? modal.says);
+    if (said == null) _sync();
   }
 
-  /// Whether a drag is in progress, so its commands land in one step.
-  bool _dragging = false;
+  /// How much of the transform has been applied to the document already.
+  vm.Vector3 _appliedSoFar = vm.Vector3.zero();
 
-  void _endDrag() {
-    if (!_dragging) return;
-    _dragging = false;
-    _history.endTransaction();
-    setState(() {});
-  }
+  /// The axis a turn goes about: the constrained one, or the view direction.
+  vm.Vector3 _axisOf(
+    TransformModal modal,
+    ({
+      vm.Vector3 eye,
+      vm.Vector3 right,
+      vm.Vector3 up,
+      double pixel,
+      bool perspective,
+    })
+    look,
+  ) => switch (modal.axis) {
+    TransformAxis.x => vm.Vector3(1, 0, 0),
+    TransformAxis.y => vm.Vector3(0, 1, 0),
+    TransformAxis.z => vm.Vector3(0, 0, 1),
+    // Unconstrained, a turn goes about the axis the camera is looking down, so
+    // a horizontal drag turns the model the way the hand went whatever angle it
+    // is being seen from.
+    _ => (look.eye - _middleOfSelection()).normalized(),
+  };
 
   /// The middle of what is selected, in world units.
   vm.Vector3 _middleOfSelection() {
@@ -607,58 +791,6 @@ class _ModelerScreenState extends State<ModelerScreen>
     }
     return counted == 0 ? middle : (middle..scale(1 / counted));
   }
-
-  ModelCommand _meshDrag(
-    String tool,
-    vm.Vector3 along,
-    vm.Vector3 middle,
-    Offset delta,
-  ) {
-    final vm.Matrix4 by = switch (tool) {
-      'mesh.move' => vm.Matrix4.translation(along),
-      'mesh.rotate' => _about(
-        middle,
-        vm.Matrix4.compose(
-          vm.Vector3.zero(),
-          vm.Quaternion.axisAngle(vm.Vector3(0, 1, 0), delta.dx * 0.01),
-          vm.Vector3.all(1),
-        ),
-      ),
-      _ => _about(
-        middle,
-        vm.Matrix4.diagonal3(vm.Vector3.all(1 + delta.dx * 0.01)),
-      ),
-    };
-    return TransformElements(by, what: _dragWord(tool));
-  }
-
-  ModelCommand _objectDrag(
-    String tool,
-    vm.Vector3 along,
-    ({
-      vm.Vector3 eye,
-      vm.Vector3 right,
-      vm.Vector3 up,
-      double pixel,
-      bool perspective,
-    })
-    look,
-    vm.Vector3 middle,
-    Offset delta,
-  ) => switch (tool) {
-    'object.move' => MoveBy(along),
-    'object.rotate' => RotateBy(
-      // About the axis the camera is looking down, so a horizontal drag turns
-      // the model the way the hand went whatever angle it is being seen from.
-      axis: (look.eye - middle).normalized(),
-      radians: delta.dx * 0.01,
-    ),
-    _ => ScaleBy(1 + delta.dx * 0.01),
-  };
-
-  static String _dragWord(String tool) => tool.endsWith('rotate')
-      ? 'turn'
-      : (tool.endsWith('scale') ? 'scale' : 'move');
 
   /// [by] applied about [pivot], which is what a turn and a scale mean.
   static vm.Matrix4 _about(vm.Vector3 pivot, vm.Matrix4 by) {
@@ -871,6 +1003,7 @@ class _ModelerScreenState extends State<ModelerScreen>
       ),
     ),
     ModelerReady(:final renderer, :final stage) => _Keys(
+      onKey: _modalKey,
       onUndo: _undo,
       onRedo: _redo,
       onTool: _ranTool,
@@ -1349,6 +1482,7 @@ class _Row extends StatelessWidget {
 /// that arms nothing is a key nobody wrote down twice.
 class _Keys extends StatelessWidget {
   const _Keys({
+    required this.onKey,
     required this.onUndo,
     required this.onRedo,
     required this.onTool,
@@ -1356,6 +1490,10 @@ class _Keys extends StatelessWidget {
     required this.tools,
     required this.child,
   });
+
+  /// A key that a transform in progress may want. Answers whether it took it,
+  /// so the shortcuts below only see the ones it did not.
+  final bool Function(LogicalKeyboardKey key, String? character) onKey;
 
   final VoidCallback onUndo;
   final VoidCallback onRedo;
@@ -1386,16 +1524,31 @@ class _Keys extends StatelessWidget {
             control: true,
             shift: true,
           );
-    return CallbackShortcuts(
-      bindings: <ShortcutActivator, VoidCallback>{
-        undo: onUndo,
-        redo: onRedo,
-        for (final MeshSubmode level in MeshSubmode.values)
-          SingleActivator(level.shortcut): () => onLevel(level),
-        for (final ModelerTool tool in tools)
-          SingleActivator(tool.shortcut): () => onTool(tool.id),
+    // **A `Focus` with an `onKeyEvent` outside the shortcuts, because a
+    // transform in progress has to see keys before they mean what they usually
+    // mean.** `X` arms nothing while a move is going on — it constrains the
+    // move — and `5` is a number rather than whatever `5` will one day be.
+    return Focus(
+      autofocus: true,
+      onKeyEvent: (FocusNode node, KeyEvent event) {
+        if (event is! KeyDownEvent && event is! KeyRepeatEvent) {
+          return KeyEventResult.ignored;
+        }
+        return onKey(event.logicalKey, event.character)
+            ? KeyEventResult.handled
+            : KeyEventResult.ignored;
       },
-      child: Focus(autofocus: true, child: child),
+      child: CallbackShortcuts(
+        bindings: <ShortcutActivator, VoidCallback>{
+          undo: onUndo,
+          redo: onRedo,
+          for (final MeshSubmode level in MeshSubmode.values)
+            SingleActivator(level.shortcut): () => onLevel(level),
+          for (final ModelerTool tool in tools)
+            SingleActivator(tool.shortcut): () => onTool(tool.id),
+        },
+        child: child,
+      ),
     );
   }
 }

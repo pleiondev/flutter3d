@@ -306,6 +306,16 @@ final class ModelHistory {
     }
   }
 
+  /// Forgets what a redo would put back.
+  ///
+  /// **For the one caller that undoes a step it made itself.** A transform that
+  /// is cancelled with Escape closes its transaction, takes the step back and
+  /// wants it gone — leaving it on the redo stack would offer ⇧⌘Z for a
+  /// transform the person explicitly threw away, and doing it a second time
+  /// would apply it. Nothing else should call this: an ordinary undo keeps its
+  /// redo, which is the whole of what undo is for.
+  void dropRedo() => _undone.clear();
+
   /// Every command that has been kept, oldest first — the journal a project
   /// file writes and an agent's transcript reads.
   List<ModelCommand> get journal => <ModelCommand>[
