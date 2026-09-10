@@ -22,28 +22,6 @@ import 'package:flutter3d_geometry/flutter3d_geometry.dart';
 import 'package:test/test.dart';
 import 'package:vector_math/vector_math.dart';
 
-/// A document assembled by hand, which is the only kind this writer needs: it
-/// takes a [ModelDocument] and nothing about it cares which decoder built one.
-final class _Document extends ModelDocument {
-  _Document({
-    required this.surfaces,
-    this.materials = const <SurfaceMaterial>[],
-    this.images = const <EncodedImage>[],
-  });
-
-  @override
-  final List<ModelSurface> surfaces;
-
-  @override
-  final List<SurfaceMaterial> materials;
-
-  @override
-  final List<EncodedImage> images;
-
-  @override
-  final List<String> warnings = const <String>[];
-}
-
 /// A triangle at [origin], with distinct UVs per corner so a texture-coordinate
 /// index that has slipped shows up as a wrong number rather than as a
 /// coincidence.
@@ -120,7 +98,7 @@ void main() {
         Vector3(10.0, 0.0, 0.0),
         Vector3(0.0, 20.0, -5.0),
       ];
-      final document = _Document(
+      final document = PlainModelDocument(
         surfaces: <ModelSurface>[
           for (var i = 0; i < origins.length; i++)
             ModelSurface(mesh: _triangle(origins[i]), name: 'part_$i'),
@@ -162,7 +140,7 @@ void main() {
       // shared counter destroys, and only from the surface *after* the one that
       // skipped an attribute. Hence the middle surface having no UVs and the
       // assertion falling on the last.
-      final document = _Document(
+      final document = PlainModelDocument(
         surfaces: <ModelSurface>[
           ModelSurface(mesh: _triangle(Vector3.zero()), name: 'mapped'),
           ModelSurface(
@@ -210,7 +188,7 @@ void main() {
 
   group('optional attributes', () {
     test('a mesh with no normals writes no vn and no empty field', () {
-      final document = _Document(
+      final document = PlainModelDocument(
         surfaces: <ModelSurface>[
           ModelSurface(
             mesh: _triangle(Vector3.zero(), layout: VertexLayout.positionOnly),
@@ -254,7 +232,7 @@ void main() {
       builder.addTriangle(0, 1, 2);
 
       final writer = ObjWriter(
-        _Document(
+        PlainModelDocument(
           surfaces: <ModelSurface>[ModelSurface(mesh: builder.build())],
         ),
       );
@@ -275,7 +253,9 @@ void main() {
       expect(box.signedVolume(), greaterThan(0.0));
 
       final reread = await _roundTrip(
-        ObjWriter(_Document(surfaces: <ModelSurface>[ModelSurface(mesh: box)])),
+        ObjWriter(
+          PlainModelDocument(surfaces: <ModelSurface>[ModelSurface(mesh: box)]),
+        ),
       );
 
       expect(reread.triangleCount, box.triangleCount);
@@ -294,7 +274,7 @@ void main() {
 
       final reread = await _roundTrip(
         ObjWriter(
-          _Document(
+          PlainModelDocument(
             surfaces: <ModelSurface>[
               ModelSurface(mesh: box, transform: mirror, flipWinding: true),
             ],
@@ -333,7 +313,7 @@ void main() {
       // `.mtl` library is a map keyed by `newmtl`, so the second entry would
       // replace the first and every surface using the first would draw with the
       // second's parameters.
-      final document = _Document(
+      final document = PlainModelDocument(
         surfaces: <ModelSurface>[
           ModelSurface(mesh: _triangle(Vector3.zero()), materialIndex: 0),
           ModelSurface(
@@ -367,7 +347,7 @@ void main() {
     test('a surface with no material does not inherit the previous one', () async {
       // `usemtl` is sticky and `ObjLoader` honours that, so writing nothing for
       // an unmaterialled surface hands it whatever the surface above used.
-      final document = _Document(
+      final document = PlainModelDocument(
         surfaces: <ModelSurface>[
           ModelSurface(mesh: _triangle(Vector3.zero()), materialIndex: 0),
           ModelSurface(mesh: _triangle(Vector3(4.0, 0.0, 0.0))),
@@ -386,7 +366,7 @@ void main() {
 
     test('no materials means no library and no mtllib line', () {
       final writer = ObjWriter(
-        _Document(
+        PlainModelDocument(
           surfaces: <ModelSurface>[
             ModelSurface(mesh: _triangle(Vector3.zero())),
           ],
@@ -400,7 +380,7 @@ void main() {
 
     test('a texture is named only when the image remembers a name', () {
       final withName = ObjWriter(
-        _Document(
+        PlainModelDocument(
           surfaces: <ModelSurface>[
             ModelSurface(mesh: _triangle(Vector3.zero()), materialIndex: 0),
           ],
@@ -421,7 +401,7 @@ void main() {
       );
 
       final anonymous = ObjWriter(
-        _Document(
+        PlainModelDocument(
           surfaces: <ModelSurface>[
             ModelSurface(mesh: _triangle(Vector3.zero()), materialIndex: 0),
           ],
@@ -452,7 +432,7 @@ void main() {
 
       final text = _text(
         ObjWriter(
-          _Document(
+          PlainModelDocument(
             surfaces: <ModelSurface>[ModelSurface(mesh: builder.build())],
           ),
         ),
@@ -475,7 +455,9 @@ void main() {
         // The decision, stated in `ObjWriter`'s doc comment: OBJ can say "no
         // geometry" exactly, so the writer says it instead of inventing a result
         // type. What comes back is the loader's own sentence about it.
-        final writer = ObjWriter(_Document(surfaces: <ModelSurface>[]));
+        final writer = ObjWriter(
+          PlainModelDocument(surfaces: <ModelSurface>[]),
+        );
         final text = _text(writer);
 
         expect(
@@ -502,7 +484,7 @@ void main() {
         vertices: Float32List.fromList(<double>[0, 0, 0, 1, 0, 0, 0, 1, 0]),
         indices: Uint32List(0),
       );
-      final document = _Document(
+      final document = PlainModelDocument(
         surfaces: <ModelSurface>[
           ModelSurface(mesh: empty, name: 'nothing'),
           ModelSurface(mesh: _triangle(Vector3.zero()), name: 'something'),

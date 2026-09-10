@@ -17,34 +17,6 @@ import 'package:flutter3d_geometry/flutter3d_geometry.dart';
 import 'package:test/test.dart';
 import 'package:vector_math/vector_math.dart';
 
-final class _Document extends ModelDocument {
-  _Document({
-    required this.surfaces,
-    this.materials = const <SurfaceMaterial>[],
-    this.images = const <EncodedImage>[],
-    this.nodes = const <ModelNode>[],
-    this.animations = const <AnimationClip>[],
-  });
-
-  @override
-  final List<ModelSurface> surfaces;
-
-  @override
-  final List<SurfaceMaterial> materials;
-
-  @override
-  final List<EncodedImage> images;
-
-  @override
-  final List<ModelNode> nodes;
-
-  @override
-  final List<AnimationClip> animations;
-
-  @override
-  final List<String> warnings = const <String>[];
-}
-
 MeshData triangle({
   double x = 0.0,
   VertexLayout layout = VertexLayout.positionNormalTexcoord,
@@ -67,7 +39,7 @@ ModelDocument docOf(
   int images = 0,
   int nodes = 0,
   int animations = 0,
-}) => _Document(
+}) => PlainModelDocument(
   surfaces: <ModelSurface>[
     ModelSurface(name: 'a', mesh: mesh, transform: Matrix4.identity()),
   ],
@@ -120,7 +92,7 @@ void main() {
   group('what a lost thing looks like', () {
     test('a dropped surface is named with both counts', () {
       final source = docOf(triangle());
-      final readBack = _Document(surfaces: const <ModelSurface>[]);
+      final readBack = PlainModelDocument(surfaces: const <ModelSurface>[]);
 
       final found = compareModelDocuments(source, readBack);
 
