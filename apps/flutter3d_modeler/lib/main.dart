@@ -941,6 +941,17 @@ class _ModelerScreenState extends State<ModelerScreen>
       final int selected => BakeToMesh(selected),
       _ => null,
     },
+    'object.origin' => switch (_history.selection.activeObject) {
+      final int selected => SetOrigin(
+        id: selected,
+        to: OriginPlacement.boundsBottom,
+      ),
+      _ => null,
+    },
+    'object.apply' => switch (_history.selection.activeObject) {
+      final int selected => ApplyTransform(selected),
+      _ => null,
+    },
     'mesh.extrude' => Extrude(_stepOf()),
     'mesh.loopCut' => const LoopCut(),
     'mesh.triangulate' => const Triangulate(),

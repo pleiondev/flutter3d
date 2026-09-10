@@ -355,6 +355,8 @@ const List<String> modelCommandNames = <String>[
   'rotateBy',
   'scaleBy',
   'setParent',
+  'setOrigin',
+  'applyTransform',
   'addPrimitive',
   'bakeToMesh',
   'deleteObjects',
@@ -432,6 +434,14 @@ ModelCommand? modelCommandFromJson(Object? json) {
     },
     'setParent' => switch ((json['id'], json['to'])) {
       (final int id, final int? to) => SetParent(id: id, to: to),
+      _ => null,
+    },
+    'setOrigin' => switch ((json['id'], _placement(json['to']))) {
+      (final int id, final OriginPlacement to) => SetOrigin(id: id, to: to),
+      _ => null,
+    },
+    'applyTransform' => switch (json['id']) {
+      final int id => ApplyTransform(id),
       _ => null,
     },
     'addPrimitive' => switch ((json['kind'], json['size'], json['segments'])) {
@@ -532,6 +542,14 @@ TransformPivot? _pivot(Object? json) => json == null
     ? TransformPivot.median
     : TransformPivot.values
           .where((TransformPivot each) => each.name == json)
+          .firstOrNull;
+
+/// Where [json] puts an origin, the middle of the bounds by default, or null.
+/// See [_pivot] for why an unknown word is null rather than the default.
+OriginPlacement? _placement(Object? json) => json == null
+    ? OriginPlacement.boundsCentre
+    : OriginPlacement.values
+          .where((OriginPlacement each) => each.name == json)
           .firstOrNull;
 
 /// The space [json] names, [TransformSpace.global] by default, or null. See

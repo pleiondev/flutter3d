@@ -175,6 +175,20 @@ List<ModelerTool> toolsFor(ModelerMode mode) => switch (mode) {
       group: 'create',
     ),
     ModelerTool(
+      id: 'object.origin',
+      label: 'Origin to the bottom',
+      icon: Icons.vertical_align_bottom_outlined,
+      shortcut: LogicalKeyboardKey.keyO,
+      group: 'cleanup',
+    ),
+    ModelerTool(
+      id: 'object.apply',
+      label: 'Apply the transform',
+      icon: Icons.done_all_outlined,
+      shortcut: LogicalKeyboardKey.keyY,
+      group: 'cleanup',
+    ),
+    ModelerTool(
       id: 'object.delete',
       label: 'Delete',
       icon: Icons.backspace_outlined,

@@ -355,3 +355,229 @@ Outcome _aboutThePivot(
   }
   return Outcome.done(next);
 }
+
+/// Where an object's own origin sits, for [SetOrigin].
+///
+/// **Three because three is what a person actually asks for.** The middle of
+/// the bounds is what a spin wants; the middle of the bottom is what anything
+/// standing on a floor wants, and it is the one an engine expects of a prop;
+/// the world origin is how a model that was authored off-centre gets put back
+/// where the exporter assumes it is.
+enum OriginPlacement { boundsCentre, boundsBottom, worldOrigin }
+
+/// Moves an object's origin without moving the object.
+///
+/// **What "set origin" means, said in one line: the geometry moves one way and
+/// the node moves the other.** Everything a person can see stays exactly where
+/// it was — the point of the operation is the pivot the next rotation turns
+/// about, and a pivot that moved the model as well would be a pivot nobody
+/// could aim.
+///
+/// **Children are compensated, and that is not optional.** A child's transform
+/// is local to its parent, so pushing a translation into the parent's node
+/// would carry every child along with it — the wheels would follow the car's
+/// pivot to the middle of the car. Each direct child gets the inverse of the
+/// same step, and everything under it comes along for free.
+///
+/// **It refuses a shape that still knows its parameters**, for the reason every
+/// mesh command does: a cylinder's origin is part of what a cylinder is, and
+/// moving the vertices out from under the radius leaves a description that no
+/// longer describes the thing.
+final class SetOrigin extends ModelCommand {
+  const SetOrigin({required this.id, this.to = OriginPlacement.boundsCentre});
+
+  final int id;
+  final OriginPlacement to;
+
+  @override
+  String get name => 'setOrigin';
+
+  @override
+  String get says => 'set the origin';
+
+  @override
+  Map<String, Object?> get arguments => <String, Object?>{
+    'id': id,
+    'to': to.name,
+  };
+
+  @override
+  Outcome apply(ModelProject project, ProjectSelection selection) {
+    final found = _editableObject(project, id);
+    if (found.refused != null) return Outcome.refused(found.refused!);
+    final ModelObject object = found.object!;
+    final EditMesh mesh = found.mesh!;
+
+    final Selection vertices = _everything(mesh, ElementLevel.vertex);
+    if (vertices.isEmpty) {
+      return Outcome.refused('"${object.name}" has no geometry to sit in');
+    }
+
+    final Vector3 origin = switch (to) {
+      OriginPlacement.worldOrigin => -object.transform.getTranslation(),
+      _ => _localOrigin(
+        mesh,
+        vertices,
+        bottom: to == OriginPlacement.boundsBottom,
+      ),
+    };
+    if (origin.length2 < 1e-20) {
+      return Outcome.refused('the origin of "${object.name}" is already there');
+    }
+
+    mesh.beginStep();
+    final OpResult moved = translateSelection(mesh, vertices, by: -origin);
+    if (!moved.ok) {
+      if (mesh.endStep()) mesh.undo();
+      return Outcome.refused(moved.reason!);
+    }
+    mesh.endStep();
+
+    final Matrix4 node = object.transform.clone()
+      ..multiply(Matrix4.translation(origin));
+    var next = project.withObject(
+      object.copyWith(geometry: EditedGeometry(mesh), transform: node),
+    );
+    next = _compensateChildren(next, id, Matrix4.translation(-origin));
+
+    return Outcome.done(next, meshTouched: mesh);
+  }
+
+  /// The point in the mesh's own coordinates that the origin should move to.
+  static Vector3 _localOrigin(
+    EditMesh mesh,
+    Selection vertices, {
+    required bool bottom,
+  }) {
+    final at = Vector3.zero();
+    final Vector3 low = Vector3.all(double.infinity);
+    final Vector3 high = Vector3.all(double.negativeInfinity);
+    for (final int vertex in vertices.ids) {
+      mesh.positionOf(vertex, at);
+      Vector3.min(low, at, low);
+      Vector3.max(high, at, high);
+    }
+    final Vector3 centre = (low + high) * 0.5;
+    return bottom ? Vector3(centre.x, low.y, centre.z) : centre;
+  }
+}
+
+/// Bakes an object's transform into its geometry and stands the node at the
+/// world's own axes.
+///
+/// **The step before an export, and the one everybody forgets.** An engine that
+/// reads a node's scale and a physics shape that does not are the commonest
+/// pair of disagreeing readers there is, and a model whose transform is the
+/// identity cannot be read two ways.
+///
+/// **A mirrored transform turns the surface inside out, and this puts it
+/// back.** A scale with a negative determinant reverses the winding of every
+/// face; leaving it would give a model that looks right in the viewport, where
+/// the transform is still being applied, and inside out the moment anything
+/// reads the vertices on their own.
+final class ApplyTransform extends ModelCommand {
+  const ApplyTransform(this.id);
+
+  final int id;
+
+  @override
+  String get name => 'applyTransform';
+
+  @override
+  String get says => 'apply the transform';
+
+  @override
+  Map<String, Object?> get arguments => <String, Object?>{'id': id};
+
+  @override
+  Outcome apply(ModelProject project, ProjectSelection selection) {
+    final found = _editableObject(project, id);
+    if (found.refused != null) return Outcome.refused(found.refused!);
+    final ModelObject object = found.object!;
+    final EditMesh mesh = found.mesh!;
+
+    final Matrix4 node = object.transform;
+    if (_isIdentity(node)) {
+      return Outcome.refused(
+        '"${object.name}" already stands in the world\'s own axes',
+      );
+    }
+
+    final Selection vertices = _everything(mesh, ElementLevel.vertex);
+    if (vertices.isEmpty) {
+      return Outcome.refused('"${object.name}" has no geometry to bake into');
+    }
+
+    mesh.beginStep();
+    final OpResult moved = transformSelection(mesh, vertices, by: node);
+    if (!moved.ok) {
+      if (mesh.endStep()) mesh.undo();
+      return Outcome.refused(moved.reason!);
+    }
+    if (node.determinant() < 0) mesh.flipNormals();
+    mesh.endStep();
+
+    var next = project.withObject(
+      object.copyWith(
+        geometry: EditedGeometry(mesh),
+        transform: Matrix4.identity(),
+      ),
+    );
+    next = _compensateChildren(next, id, node);
+
+    return Outcome.done(next, meshTouched: mesh);
+  }
+}
+
+/// The object [id] with a mesh of its own, or the sentence to refuse with.
+///
+/// The same four questions `_meshTarget` asks, against a named object rather
+/// than against the selection: these two commands act on the object a person
+/// pointed at in the outliner, which is not always the one the mesh mode is in.
+({ModelObject? object, EditMesh? mesh, String? refused}) _editableObject(
+  ModelProject project,
+  int id,
+) {
+  final ModelObject? object = project[id];
+  if (object == null) {
+    return (object: null, mesh: null, refused: 'there is no object $id');
+  }
+  return switch (object.geometry) {
+    EditedGeometry(:final mesh) => (object: object, mesh: mesh, refused: null),
+    ParametricGeometry(:final shape) => (
+      object: null,
+      mesh: null,
+      refused:
+          '"${object.name}" is still a ${shape.name}, and its origin is part '
+          'of what that means. Convert it to a mesh first',
+    ),
+    ImportedGeometry() => (
+      object: null,
+      mesh: null,
+      refused: '"${object.name}" came from a file and has no vertices to move',
+    ),
+  };
+}
+
+/// [project] with every direct child of [parent] pre-multiplied by [by], so
+/// that a change to the parent's node leaves the children where they are.
+ModelProject _compensateChildren(ModelProject project, int parent, Matrix4 by) {
+  var next = project;
+  for (final ModelObject child in project.objects) {
+    if (child.parent != parent) continue;
+    next = next.withObject(
+      child.copyWith(transform: by.clone()..multiply(child.transform)),
+    );
+  }
+  return next;
+}
+
+/// Whether [matrix] is the identity, to within what single-precision positions
+/// can tell apart.
+bool _isIdentity(Matrix4 matrix) {
+  final Matrix4 unit = Matrix4.identity();
+  for (var i = 0; i < 16; i++) {
+    if ((matrix[i] - unit[i]).abs() > 1e-9) return false;
+  }
+  return true;
+}

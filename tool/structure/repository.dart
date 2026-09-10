@@ -593,6 +593,15 @@ boundaryEnumExempt = <String, Map<String, String>>{
         'can be expressed in that this editor has a control for; a gimbal or '
         'a parent frame would arrive with the rig that needs it',
   },
+  'flutter3d_model_core/lib/src/object_commands.dart': <String, String>{
+    'OriginPlacement':
+        'where an object own origin goes: the middle of the bounds, the '
+        'middle of the bottom, or the world origin. The first is what a spin '
+        'wants, the second is what anything standing on a floor wants, and '
+        'the third is how a model authored off-centre gets put back. A fourth '
+        'would be a point somebody picks, and picking a point is the cursor, '
+        'which is a control and not a value',
+  },
   'flutter3d_model_core/lib/src/readiness.dart': <String, String>{
     'ExportSeverity':
         'whether the result will fail to load or merely disappoint. Those are '

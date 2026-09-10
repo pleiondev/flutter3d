@@ -33,6 +33,28 @@ ModelHistory edited() {
     );
 }
 
+/// Six times the signed volume, which is positive while the faces wind
+/// outward and negative once the surface has been turned inside out.
+///
+/// A count of faces pointing away from the middle would answer the same
+/// question for a box and the wrong one for anything dented; the volume is the
+/// same arithmetic an exporter does.
+double windingVolume(EditMesh mesh) {
+  var total = 0.0;
+  final corners = <Vector3>[];
+  for (var face = 0; face < mesh.faceSlotCount; face++) {
+    if (!mesh.isFaceAlive(face)) continue;
+    corners.clear();
+    mesh.forEachHalfEdge(face, (int half) {
+      corners.add(mesh.positionOf(mesh.originOf(half)));
+    });
+    for (var i = 1; i + 1 < corners.length; i++) {
+      total += corners[0].dot(corners[i].cross(corners[i + 1]));
+    }
+  }
+  return total;
+}
+
 /// The mesh of object 1.
 EditMesh meshOf(ModelHistory history) =>
     (history.project[1]!.geometry as EditedGeometry).mesh;
@@ -518,6 +540,149 @@ void main() {
       // actually had.
       expect(at.y, startY);
       expect(history.canUndo, isFalse);
+    });
+  });
+
+  group('the origin and the transform', () {
+    /// One cube, moved and stretched, with a small cube parented to it.
+    ModelHistory family({Matrix4? node}) {
+      var project = const ModelProject().added(
+        (int id) => ModelObject(
+          id: id,
+          name: 'car',
+          geometry: EditedGeometry(EditMesh.cuboid()),
+          transform:
+              node ??
+              Matrix4.compose(
+                Vector3(2, 0, 0),
+                Quaternion.identity(),
+                Vector3(2, 2, 2),
+              ),
+        ),
+      );
+      project = project.added(
+        (int id) => ModelObject(
+          id: id,
+          name: 'wheel',
+          geometry: EditedGeometry(EditMesh.cuboid()),
+          transform: Matrix4.translation(Vector3(0.5, -0.5, 0)),
+          parent: 1,
+        ),
+      );
+      return ModelHistory(project);
+    }
+
+    /// Where the object's vertex [vertex] is in the world.
+    Vector3 worldOf(ModelProject project, int id, int vertex) {
+      final object = project[id]!;
+      final EditMesh mesh = (object.geometry as EditedGeometry).mesh;
+      final Vector3 local = mesh.positionOf(vertex);
+      final Matrix4 up = object.parent == null
+          ? object.transform
+          : (project[object.parent!]!.transform.clone()
+              ..multiply(object.transform));
+      return up.transform3(local);
+    }
+
+    test('applying the transform leaves the model where it looked', () {
+      final history = family();
+      final Vector3 was = worldOf(history.project, 1, 0);
+
+      expect(history.run(const ApplyTransform(1)), isNull);
+
+      // Mutation: set the transform to the identity without moving the
+      // vertices. The object collapses to a unit cube at the origin — which is
+      // what "apply the transform" looks like when only half of it happened.
+      expect(history.project[1]!.transform, Matrix4.identity());
+      expect(worldOf(history.project, 1, 0), was);
+    });
+
+    test('the children stay where they were', () {
+      final history = family();
+      final Vector3 was = worldOf(history.project, 2, 0);
+
+      history.run(const ApplyTransform(1));
+
+      // A child's transform is local to its parent. Mutation: leave the
+      // children alone and every wheel of the car shrinks to half size and
+      // moves to the middle of it, because the scale it was standing in has
+      // just been taken out from under it.
+      expect(worldOf(history.project, 2, 0).x, closeTo(was.x, 1e-6));
+      expect(worldOf(history.project, 2, 0).y, closeTo(was.y, 1e-6));
+    });
+
+    test('a mirrored transform does not leave the surface inside out', () {
+      final history = family(node: Matrix4.diagonal3Values(-1, 1, 1));
+      final EditMesh mesh = meshOf(history);
+      expect(windingVolume(mesh), greaterThan(0));
+
+      history.run(const ApplyTransform(1));
+
+      // Mutation: skip the flip. The model looks right for as long as the
+      // viewport is still applying the transform and is inside out the moment
+      // anything reads the vertices on their own — which is the export.
+      expect(windingVolume(mesh), greaterThan(0));
+    });
+
+    test('an identity transform is refused rather than recorded', () {
+      final history = family(node: Matrix4.identity());
+
+      expect(
+        history.run(const ApplyTransform(1)),
+        contains("already stands in the world's own axes"),
+      );
+      expect(history.canUndo, isFalse);
+    });
+
+    test('setting the origin to the bottom moves nothing visible', () {
+      final history = family(node: Matrix4.identity());
+      final Vector3 was = worldOf(history.project, 1, 0);
+
+      expect(
+        history.run(const SetOrigin(id: 1, to: OriginPlacement.boundsBottom)),
+        isNull,
+      );
+
+      // The whole operation: the geometry goes one way and the node goes the
+      // other. Mutation: move the vertices and leave the node alone, and
+      // setting the origin becomes a move — the model drops by half its height
+      // the moment somebody asks for a pivot to spin it about.
+      expect(worldOf(history.project, 1, 0).y, closeTo(was.y, 1e-6));
+      expect(
+        history.project[1]!.transform.getTranslation().y,
+        closeTo(-0.5, 1e-6),
+      );
+    });
+
+    test('the origin that is already there is refused', () {
+      final history = family(node: Matrix4.identity());
+
+      expect(history.run(const SetOrigin(id: 1)), contains('already there'));
+    });
+
+    test('undo puts the geometry and the node back together', () {
+      final history = family(node: Matrix4.identity());
+      final EditMesh mesh = meshOf(history);
+      final Vector3 was = mesh.positionOf(0);
+
+      history.run(const SetOrigin(id: 1, to: OriginPlacement.boundsBottom));
+      expect(history.undo(), isTrue);
+
+      // Mutation: leave `meshTouched` off. The node comes back and the
+      // vertices do not, so the model sits half its height below where every
+      // step of the history says it is.
+      expect(mesh.positionOf(0), was);
+      expect(history.project[1]!.transform, Matrix4.identity());
+    });
+
+    test('a shape that still knows its parameters is refused by name', () {
+      final history = ModelHistory(const ModelProject())
+        ..run(const AddPrimitive(kind: 'cylinder'));
+
+      final String? said = history.run(const SetOrigin(id: 1));
+
+      expect(said, contains('still a cylinder'));
+      expect(said, contains('Convert it to a mesh'));
     });
   });
 
@@ -1220,6 +1385,8 @@ void main() {
         ),
         const ScaleBy(2, pivot: TransformPivot.individual),
         const SetParent(id: 2, to: 1),
+        const SetOrigin(id: 1, to: OriginPlacement.boundsBottom),
+        const ApplyTransform(1),
         const AddPrimitive(kind: 'cylinder', size: 2, segments: 12),
         const BakeToMesh(1),
         const DeleteObjects(),
