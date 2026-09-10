@@ -29,9 +29,11 @@ import 'src/churn_run.dart';
 import 'src/display_modes.dart';
 import 'src/files/project_files.dart';
 import 'src/files/sandbox_probe.dart';
+import 'src/ground_grid.dart';
 import 'src/modeler_viewport.dart';
 import 'src/object_picking.dart';
 import 'src/orbit_run.dart';
+import 'src/orientation_dial.dart';
 import 'src/staging.dart';
 
 /// The model this build opens, as an asset path. Empty means the cube.
@@ -550,6 +552,24 @@ class _ModelerScreenState extends State<ModelerScreen>
                   for (final PickedObject held in _selection) held.node,
                 ],
               ),
+            ),
+          ),
+          Positioned(
+            right: 12,
+            bottom: 12,
+            child: OrientationDial(
+              yaw: stage.orbit.yaw,
+              pitch: stage.orbit.pitch,
+              onPressed: (ViewAxis axis) {
+                // The dial says where; the controller does the turning, and
+                // takes the short way round because `viewAlong` already chose
+                // the turn nearest the yaw the camera is at.
+                final view = const OrientationGizmo().viewAlong(
+                  axis,
+                  fromYaw: stage.orbit.yaw,
+                );
+                stage.orbit.animateTo(yaw: view.yaw, pitch: view.pitch);
+              },
             ),
           ),
           Positioned(
