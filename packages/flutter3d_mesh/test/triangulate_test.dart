@@ -6,6 +6,8 @@
 /// and the dented quad here are for.
 library;
 
+import 'dart:math' as math;
+
 import 'package:flutter3d_geometry/flutter3d_geometry.dart';
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 import 'package:test/test.dart';
@@ -42,6 +44,7 @@ double totalArea(List<List<Vector3>> triangles) => triangles.fold<double>(
 );
 
 void main() {
+  _triangulateFacesTests();
   group('the easy shapes', () {
     test('a triangle is already one', () {
       final triangles = cut(<Vector3>[
@@ -302,6 +305,175 @@ void main() {
         area += (b - a).cross(c - a).length / 2;
       }
       expect(area, closeTo(3, 1e-6));
+    });
+  });
+}
+
+/// Runs [body] as one step of history, which is what every operation here
+/// expects: the journal is what `undo` reads and a write outside a step has
+/// nowhere to be recorded.
+void _edit(EditMesh mesh, void Function() body) {
+  mesh.beginStep();
+  body();
+  mesh.endStep();
+}
+
+void _triangulateFacesTests() {
+  group('triangulating a mesh', () {
+    test('a cube of quads becomes twelve triangles', () {
+      final mesh = EditMesh.cuboid();
+      final all = Selection.of(ElementLevel.face, <int>[
+        for (var face = 0; face < mesh.faceSlotCount; face++)
+          if (mesh.isFaceAlive(face)) face,
+      ]);
+
+      late final OpResult result;
+      _edit(mesh, () => result = triangulateFaces(mesh, all));
+
+      expect(result.ok, isTrue);
+      expect(result.topologyChanged, isTrue);
+      // Six quads, one diagonal each.
+      expect(mesh.faceCount, 12);
+      for (var face = 0; face < mesh.faceSlotCount; face++) {
+        if (!mesh.isFaceAlive(face)) continue;
+        var sides = 0;
+        mesh.forEachHalfEdge(face, (int _) => sides++);
+        expect(sides, 3, reason: 'face $face still has $sides sides');
+      }
+      mesh.validate();
+    });
+
+    test('running it twice is running it once', () {
+      final mesh = EditMesh.cuboid();
+      Selection all() => Selection.of(ElementLevel.face, <int>[
+        for (var face = 0; face < mesh.faceSlotCount; face++)
+          if (mesh.isFaceAlive(face)) face,
+      ]);
+
+      _edit(mesh, () => triangulateFaces(mesh, all()));
+      final faces = mesh.faceCount;
+      late final OpResult again;
+      _edit(mesh, () => again = triangulateFaces(mesh, all()));
+
+      // Refused rather than cut and rejoined. Mutation: cut a triangle anyway
+      // — `splitFace` refuses a cut between neighbours, so every attempt is a
+      // no-op that still reports success, and an exporter loops for ever
+      // waiting for a mesh that is "not triangulated yet" to become so.
+      expect(again.ok, isFalse);
+      expect(again.reason, contains('already'));
+      expect(mesh.faceCount, faces);
+    });
+
+    test('a five-sided face becomes three triangles', () {
+      final mesh = EditMesh.empty();
+      late final int face;
+      _edit(mesh, () {
+        final ring = <int>[
+          for (var i = 0; i < 5; i++)
+            mesh.addVertex(
+              Vector3(
+                math.cos(i * 2 * math.pi / 5),
+                0,
+                math.sin(i * 2 * math.pi / 5),
+              ),
+            ),
+        ];
+        face = mesh.addFace(ring);
+      });
+
+      late final OpResult result;
+      _edit(
+        mesh,
+        () => result = triangulateFaces(
+          mesh,
+          Selection.of(ElementLevel.face, <int>[face]),
+        ),
+      );
+
+      // n − 2 triangles from n − 3 diagonals. Mutation: cut on every edge of
+      // every triangle the clipper emits rather than on the diagonals only,
+      // and the cuts between neighbours are refused one at a time — which
+      // leaves the count right by luck on a quad and wrong on anything larger.
+      expect(result.ok, isTrue);
+      expect(mesh.faceCount, 3);
+      mesh.validate();
+    });
+
+    test('a twelve-gon and a concave outline both come out whole', () {
+      // **What pins the two assumptions the cutting rests on**: that the ear
+      // clipper always names a diagonal of the part not yet cut off, and that
+      // `splitFace` leaves that part as the face it was given. If either
+      // changed, a polygon would come out with fewer triangles than its corners
+      // less two, and this is where that shows.
+      for (final int n in <int>[4, 5, 6, 8, 12]) {
+        final mesh = EditMesh.empty();
+        late final int face;
+        _edit(mesh, () {
+          final ring = <int>[
+            for (var i = 0; i < n; i++)
+              mesh.addVertex(
+                Vector3(
+                  math.cos(i * 2 * math.pi / n),
+                  0,
+                  math.sin(i * 2 * math.pi / n),
+                ),
+              ),
+          ];
+          face = mesh.addFace(ring);
+        });
+        _edit(
+          mesh,
+          () => triangulateFaces(
+            mesh,
+            Selection.of(ElementLevel.face, <int>[face]),
+          ),
+        );
+        expect(mesh.faceCount, n - 2, reason: 'a $n-gon');
+        mesh.validate();
+      }
+
+      // A concave outline, where the clipper's ears are not simply consecutive:
+      // an L with the notch cut into one side.
+      final mesh = EditMesh.empty();
+      late final int face;
+      _edit(mesh, () {
+        final ring = <int>[
+          for (final (double x, double z) in <(double, double)>[
+            (0, 0),
+            (2, 0),
+            (2, 1),
+            (1, 1),
+            (1, 2),
+            (0, 2),
+          ])
+            mesh.addVertex(Vector3(x, 0, z)),
+        ];
+        face = mesh.addFace(ring);
+      });
+      _edit(
+        mesh,
+        () => triangulateFaces(
+          mesh,
+          Selection.of(ElementLevel.face, <int>[face]),
+        ),
+      );
+
+      expect(mesh.faceCount, 4);
+      mesh.validate();
+    });
+
+    test('nothing selected is refused with a sentence', () {
+      final mesh = EditMesh.cuboid();
+
+      late final OpResult result;
+      _edit(
+        mesh,
+        () =>
+            result = triangulateFaces(mesh, Selection.empty(ElementLevel.face)),
+      );
+
+      expect(result.ok, isFalse);
+      expect(result.reason, contains('no faces'));
     });
   });
 }

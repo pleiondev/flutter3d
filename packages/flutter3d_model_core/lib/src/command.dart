@@ -285,6 +285,10 @@ const List<String> modelCommandNames = <String>[
   'loopCut',
   'deleteElements',
   'transformElements',
+  'mergeByDistance',
+  'dissolveEdges',
+  'triangulate',
+  'recalculateNormals',
 ];
 
 /// Reads a command back out of a journal, or null.
@@ -356,6 +360,18 @@ ModelCommand? modelCommandFromJson(Object? json) {
       _ => null,
     },
     'deleteElements' => const DeleteElements(),
+    'mergeByDistance' => MergeByDistance(
+      distance: switch (json['distance']) {
+        final num how => how.toDouble(),
+        _ => null,
+      },
+    ),
+    'dissolveEdges' => const DissolveEdges(),
+    'triangulate' => const Triangulate(),
+    'recalculateNormals' => switch (json['flip']) {
+      final bool flip => RecalculateNormals(flip: flip),
+      _ => null,
+    },
     'transformElements' => switch ((_doubles(json['by'], 16), json['what'])) {
       (final List<double> by, final String what) => TransformElements(
         Matrix4.fromList(by),

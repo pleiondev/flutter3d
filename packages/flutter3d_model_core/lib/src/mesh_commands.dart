@@ -213,3 +213,174 @@ final class TransformElements extends ModelCommand {
             transformSelection(target.mesh, target.elements, by: by),
       );
 }
+
+/// Welds vertices closer together than [distance].
+///
+/// **The one mesh command that does not take a journal step, because
+/// `mergeByDistance` hands back a different mesh.** Rebuilding is how it drops
+/// the coincident walls a weld leaves behind and splits a vertex the weld made
+/// non-manifold — neither of which is a sequence of in-place edits. So the
+/// object gets the new mesh as its geometry, the history keeps the object that
+/// held the old one, and undo is a pointer rather than a rollback. It is also
+/// why the mesh's own journal is thrown away by a merge: the old mesh keeps
+/// its, and the new one starts with none.
+final class MergeByDistance extends ModelCommand {
+  const MergeByDistance({this.distance});
+
+  /// How close is close enough, or null for the mesh's own guess — a fraction
+  /// of its size, which is the only answer that means the same thing on a bolt
+  /// and on a building.
+  final double? distance;
+
+  @override
+  String get name => 'mergeByDistance';
+
+  @override
+  String get says => 'merge';
+
+  @override
+  Map<String, Object?> get arguments => <String, Object?>{
+    if (distance case final double how) 'distance': how,
+  };
+
+  @override
+  Outcome apply(ModelProject project, ProjectSelection selection) {
+    final found = _meshTarget(project, selection);
+    if (found.target == null) return Outcome.refused(found.refused!);
+    final _MeshTarget target = found.target!;
+
+    final (EditMesh merged, MergeReport report) = mergeByDistance(
+      target.mesh,
+      distance: distance,
+      within: target.elements.isEmpty ? null : target.elements,
+    );
+    if (report.vertices == report.sourceVertices) {
+      // Nothing welded. Refused rather than accepted as a no-op, because a new
+      // mesh with the same contents is still a new mesh: the object would get a
+      // version, the buffers would be uploaded again and the journal would be
+      // thrown away, all for a step that changed nothing.
+      return Outcome.refused('nothing was close enough to weld');
+    }
+    return Outcome.done(
+      project.withObject(
+        target.object.copyWith(geometry: EditedGeometry(merged)),
+      ),
+      // The elements are named by numbers in the old mesh and the new one has
+      // renumbered them. Emptied rather than remapped: `MergeReport` carries
+      // the map, and using it is `doc-07`'s selection-follows-the-edit work —
+      // showing a selection that names the wrong vertices would be worse than
+      // showing none.
+      selection: selection.copyWith(elements: const <int>[]),
+    );
+  }
+}
+
+/// Takes the selected edges out, leaving the faces either side joined.
+final class DissolveEdges extends ModelCommand {
+  const DissolveEdges();
+
+  @override
+  String get name => 'dissolveEdges';
+
+  @override
+  String get says => 'dissolve';
+
+  @override
+  Map<String, Object?> get arguments => const <String, Object?>{};
+
+  @override
+  Outcome apply(ModelProject project, ProjectSelection selection) =>
+      _asMeshStep(project, selection, (_MeshTarget target) {
+        final edges = target.elements.convertedTo(
+          target.mesh,
+          ElementLevel.edge,
+        );
+        if (edges.isEmpty) {
+          return OpResult.refused(
+            'no edges are selected to dissolve',
+            selection: target.elements,
+          );
+        }
+        var dissolved = 0;
+        for (final half in edges.ids) {
+          if (target.mesh.dissolveEdge(half)) dissolved++;
+        }
+        if (dissolved == 0) {
+          // Every one refused: a boundary edge has nothing on the other side,
+          // and an edge whose two faces are the same face would leave a hole.
+          return OpResult.refused(
+            'none of those edges can go: an edge on a boundary has nothing to '
+            'join to',
+            selection: target.elements,
+          );
+        }
+        return OpResult.done(
+          selection: Selection.empty(ElementLevel.edge),
+          topologyChanged: true,
+        );
+      });
+}
+
+/// Cuts every selected face into triangles.
+final class Triangulate extends ModelCommand {
+  const Triangulate();
+
+  @override
+  String get name => 'triangulate';
+
+  @override
+  String get says => 'triangulate';
+
+  @override
+  Map<String, Object?> get arguments => const <String, Object?>{};
+
+  @override
+  Outcome apply(ModelProject project, ProjectSelection selection) =>
+      _asMeshStep(
+        project,
+        selection,
+        (_MeshTarget target) => triangulateFaces(target.mesh, target.elements),
+      );
+}
+
+/// Makes every face wind the same way as its neighbours.
+///
+/// **What "recalculate normals" means when the normals are computed.** Nothing
+/// here stores a normal: `MeshNormals` works one out from the winding every
+/// time the mesh is drawn. So the thing a person is asking for when a face
+/// looks inside out is not a recomputation — it is the winding being made
+/// consistent, which is what this does. [flip] turns the whole mesh inside out
+/// instead, which is the other half of what the menu item is for.
+final class RecalculateNormals extends ModelCommand {
+  const RecalculateNormals({this.flip = false});
+
+  final bool flip;
+
+  @override
+  String get name => 'recalculateNormals';
+
+  @override
+  String get says => flip ? 'flip the normals' : 'recalculate the normals';
+
+  @override
+  Map<String, Object?> get arguments => <String, Object?>{'flip': flip};
+
+  @override
+  Outcome apply(ModelProject project, ProjectSelection selection) =>
+      _asMeshStep(project, selection, (_MeshTarget target) {
+        if (flip) {
+          target.mesh.flipNormals();
+          return OpResult.done(
+            selection: target.elements,
+            topologyChanged: true,
+          );
+        }
+        if (!target.mesh.makeConsistent()) {
+          return OpResult.refused(
+            'every face already agrees with its neighbours',
+            selection: target.elements,
+          );
+        }
+        return OpResult.done(selection: target.elements, topologyChanged: true);
+      });
+}

@@ -249,6 +249,140 @@ void main() {
       expect(meshOf(history).faceCount, faceCount);
     });
 
+    test(
+      'triangulating a cube leaves twelve triangles, and undo takes it back',
+      () {
+        final history = edited();
+        history.selection = faces(history, <int>[
+          for (var face = 0; face < meshOf(history).faceSlotCount; face++)
+            if (meshOf(history).isFaceAlive(face)) face,
+        ]);
+        final mesh = meshOf(history);
+
+        expect(history.run(const Triangulate()), isNull);
+        expect(mesh.faceCount, 12);
+
+        history.undo();
+        expect(mesh.faceCount, 6);
+      },
+    );
+
+    test(
+      'dissolving an edge joins the two faces, and says so when it cannot',
+      () {
+        final history = edited();
+        history.selection = history.selection.copyWith(
+          level: ElementLevel.edge,
+          elements: <int>[0],
+        );
+        final mesh = meshOf(history);
+
+        expect(history.run(const DissolveEdges()), isNull);
+        expect(mesh.faceCount, 5);
+
+        // Nothing selected: refused with a sentence rather than a silent no-op.
+        history.selection = history.selection.copyWith(elements: const <int>[]);
+        expect(history.run(const DissolveEdges()), contains('no edges'));
+      },
+    );
+
+    test('an edge with nothing on the other side is refused, not counted', () {
+      // A single quad: every one of its four edges is a boundary, so every
+      // dissolve refuses and the command has to notice that none of them took.
+      final flat =
+          ModelHistory(
+              const ModelProject().added(
+                (int id) => ModelObject(
+                  id: id,
+                  name: 'quad',
+                  geometry: EditedGeometry(
+                    EditMesh.fromFaces(
+                      <Vector3>[
+                        Vector3(0, 0, 0),
+                        Vector3(1, 0, 0),
+                        Vector3(1, 0, 1),
+                        Vector3(0, 0, 1),
+                      ],
+                      <List<int>>[
+                        <int>[0, 1, 2, 3],
+                      ],
+                    ),
+                  ),
+                  transform: Matrix4.identity(),
+                ),
+              ),
+            )
+            ..selection = const ProjectSelection(
+              mode: SelectionMode.mesh,
+              objects: <int>[1],
+              level: ElementLevel.edge,
+              elements: <int>[0],
+            );
+
+      // Mutation: drop the `dissolved == 0` check. Every edge refuses, nothing
+      // changes, and the command reports success — so the history gains a step
+      // that undoes to the same model and the person's ⌘Z appears to do
+      // nothing.
+      expect(flat.run(const DissolveEdges()), contains('boundary'));
+      expect(flat.canUndo, isFalse);
+    });
+
+    test('a merge with nothing close enough is refused', () {
+      final history = edited();
+
+      // The cube's corners are half a unit apart, so a hair of a distance welds
+      // nothing. Mutation: return the new mesh anyway. It has the same contents
+      // and is still a new mesh — the object takes a version, the buffers are
+      // uploaded again, and the mesh's journal is thrown away, all for a step
+      // that changed nothing and that ⌘Z now has to walk past.
+      expect(
+        history.run(const MergeByDistance(distance: 1e-6)),
+        contains('close enough'),
+      );
+      expect(history.canUndo, isFalse);
+    });
+
+    test('a merge replaces the mesh, and undo puts the old one back', () {
+      final history = edited();
+      history.selection = faces(history, <int>[0]);
+      // An edit before the merge, so the mesh has a journal step behind it.
+      history.run(const Extrude(0.5));
+      final before = meshOf(history);
+      final extruded = before.faceCount;
+
+      // Wide enough to weld the whole cube into one point, which is the
+      // extreme end of the same operation and is what makes the replacement
+      // visible.
+      expect(history.run(const MergeByDistance(distance: 10)), isNull);
+      expect(identical(meshOf(history), before), isFalse);
+
+      history.undo();
+      // Mutation: name the mesh as touched, so the history also rolls its
+      // journal back one step. A merge rebuilds rather than edits, so the step
+      // it would roll is the *extrusion before it* — the old mesh comes back
+      // with the extrusion silently undone as well, and the history says one
+      // step was taken.
+      expect(identical(meshOf(history), before), isTrue);
+      expect(meshOf(history).faceCount, extruded);
+    });
+
+    test('normals are made to agree, and can be turned inside out', () {
+      final history = edited();
+      history.selection = faces(history, <int>[0]);
+
+      // A cube built by `flutter3d_mesh` already agrees with itself, so asking
+      // for consistency is refused — which is the honest answer and not a
+      // failure.
+      expect(
+        history.run(const RecalculateNormals()),
+        contains('already agrees'),
+      );
+
+      // Flipping is the other half of the menu item and always does something.
+      expect(history.run(const RecalculateNormals(flip: true)), isNull);
+      expect(history.undoSays, 'flip the normals');
+    });
+
     test('a hundred nudges in a transaction are one step on both sides', () {
       final history = edited();
       history.selection = history.selection.copyWith(

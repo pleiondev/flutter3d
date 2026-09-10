@@ -174,6 +174,10 @@ void main() {
         const LoopCut(cuts: 2),
         const DeleteElements(),
         TransformElements(Matrix4.identity(), what: 'turn'),
+        const MergeByDistance(distance: 0.01),
+        const DissolveEdges(),
+        const Triangulate(),
+        const RecalculateNormals(flip: true),
       ];
 
       // Every name has a sample, which is what stops a command being added to

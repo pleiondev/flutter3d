@@ -29,6 +29,10 @@ library;
 
 import 'package:vector_math/vector_math.dart';
 
+import 'edit_mesh.dart';
+import 'operations.dart';
+import 'selection.dart';
+
 /// Cuts faces into triangles, reusing its own buffers.
 ///
 /// **One object held across calls rather than a function.** Triangulating every
@@ -304,4 +308,122 @@ final class FaceTriangulator {
     );
     return emitted + 1;
   }
+}
+
+/// Cuts every selected face into triangles, in the mesh.
+///
+/// **The topology is cut rather than the drawing.** [MeshLayoutPlan] already
+/// triangulates on its way to a vertex buffer, so a mesh with quads in it draws
+/// as triangles either way — and that is exactly why this exists separately: an
+/// exporter writing a format with no n-gons, and a person who wants to move one
+/// half of a quad, both need the *mesh* to have triangles in it. What the plan
+/// does is invisible to both.
+///
+/// **Each face is cut by diagonals rather than rebuilt.** `EditMesh.splitFace`
+/// keeps the half-edges either side, so the sharp flags, the creases and the
+/// corner attributes of the original survive into both halves — which
+/// rebuilding the face from its corners would silently drop. The cost is that
+/// the diagonals have to be chosen so that each cut leaves a face the next cut
+/// can still be made on, which is what taking them from the ear clipper in
+/// order gives.
+///
+/// A face already a triangle is left alone rather than cut and rejoined, so
+/// running this twice is running it once.
+OpResult triangulateFaces(EditMesh mesh, Selection selection) {
+  final faces = selection.convertedTo(mesh, ElementLevel.face);
+  if (faces.isEmpty) {
+    return OpResult.refused(
+      'no faces are selected to triangulate',
+      selection: selection,
+    );
+  }
+
+  final triangulator = FaceTriangulator();
+  final made = <int>[];
+  var cut = 0;
+  for (final face in faces.ids) {
+    if (!mesh.isFaceAlive(face)) continue;
+    cut += _triangulateOne(mesh, face, triangulator, made);
+  }
+  if (cut == 0) {
+    return OpResult.refused(
+      'every selected face is already a triangle',
+      selection: selection,
+    );
+  }
+  return OpResult.done(
+    selection: Selection.of(ElementLevel.face, <int>[...faces.ids, ...made]),
+    topologyChanged: true,
+  );
+}
+
+/// Cuts one face, and returns how many diagonals it took.
+int _triangulateOne(
+  EditMesh mesh,
+  int face,
+  FaceTriangulator triangulator,
+  List<int> made,
+) {
+  // The corners as vertices rather than as half-edges, and that is the whole
+  // difficulty of doing this in place. A cut gives the corner it was made at a
+  // second half-edge — one on each piece — so a half-edge remembered from
+  // before the first cut is on only one of them, and the next diagonal from
+  // that corner may need the other. A vertex names the corner whichever piece
+  // it ends up on.
+  final vertices = <int>[];
+  final points = <Vector3>[];
+  mesh.forEachHalfEdge(face, (int half) {
+    vertices.add(mesh.originOf(half));
+    points.add(mesh.positionOf(mesh.originOf(half), Vector3.zero()));
+  });
+  if (vertices.length < 4) return 0;
+
+  final triangles = <(int, int, int)>[];
+  triangulator.triangulate(points, (int a, int b, int c) {
+    triangles.add((a, b, c));
+  });
+
+  // **Every cut is made on [face] itself, and that is a fact about two things
+  // agreeing rather than a simplification.** The ear clipper takes a corner off
+  // the boundary it has left, so each diagonal it names has both ends on the
+  // part that has not been cut off yet; and `splitFace` leaves that part as the
+  // face it was handed, putting the ear on the new one. A list of the pieces
+  // was written to cut on whichever still held both ends, and never once found
+  // a piece other than the first — on a quad, a twelve-gon or a concave outline
+  // alike. What pins the pair still agreeing is the face count in
+  // `triangulate_test.dart`: if either of them changed, a polygon would come
+  // out with fewer triangles than it has corners less two.
+  //
+  // The pairs that are edges of the polygon rather than diagonals are left to
+  // `splitFace`, which refuses a cut between neighbours and answers `none`.
+  // Checking for them first was also written and also never changed an answer.
+  var cuts = 0;
+  for (final (int a, int b, int c) in triangles) {
+    for (final (int from, int to) in <(int, int)>[(a, b), (b, c), (c, a)]) {
+      final int piece = _splitBetween(mesh, face, vertices[from], vertices[to]);
+      if (piece == EditMesh.none) continue;
+      made.add(piece);
+      cuts++;
+    }
+  }
+  return cuts;
+}
+
+/// Cuts [face] between the corners at [from] and [to], and returns the face
+/// that made — or [EditMesh.none] when the two are not both on it, or are
+/// neighbours, or the face is gone.
+///
+/// The last of those three is `splitFace`'s own first line, which is why there
+/// is no check for it here: a guard written above it never changed an answer,
+/// because the only face this is ever handed is the one being cut.
+int _splitBetween(EditMesh mesh, int face, int from, int to) {
+  var atFrom = EditMesh.none;
+  var atTo = EditMesh.none;
+  mesh.forEachHalfEdge(face, (int half) {
+    final origin = mesh.originOf(half);
+    if (origin == from) atFrom = half;
+    if (origin == to) atTo = half;
+  });
+  if (atFrom == EditMesh.none || atTo == EditMesh.none) return EditMesh.none;
+  return mesh.splitFace(face, atFrom, atTo);
 }

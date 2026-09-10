@@ -704,6 +704,11 @@ class _ModelerScreenState extends State<ModelerScreen>
     },
     'mesh.extrude' => Extrude(_stepOf()),
     'mesh.loopCut' => const LoopCut(),
+    'mesh.triangulate' => const Triangulate(),
+    'mesh.dissolve' => const DissolveEdges(),
+    'mesh.merge' => const MergeByDistance(),
+    'mesh.normals' => const RecalculateNormals(),
+    'mesh.flip' => const RecalculateNormals(flip: true),
     'mesh.delete' => const DeleteElements(),
     _ => null,
   };
