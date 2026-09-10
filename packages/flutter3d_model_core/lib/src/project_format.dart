@@ -303,6 +303,13 @@ Uint8List writeProject(ModelProject project) {
         'maxJoints': project.profile.maxJoints,
         'maxInfluences': project.profile.maxInfluences,
         'maxTextureSize': project.profile.maxTextureSize,
+        // Written from `doc-13` on, and read back as a default rather than
+        // required when absent — see `_readProfileExtras` — so a v1 file
+        // written before these existed still opens.
+        'target': project.profile.target.name,
+        'maxTextureBytes': project.profile.maxTextureBytes,
+        'requireTriangles': project.profile.requireTriangles,
+        'requireManifold': project.profile.requireManifold,
       },
       // Written down rather than worked out from the objects on the way back
       // in: an id belonging to something deleted must not be handed out again,
@@ -598,16 +605,17 @@ ProjectRead readProject(Uint8List bytes) {
   if (materialRefusal != null) return ProjectRefused(materialRefusal);
 
   if (document case {
-    'profile': {
-      'name': final String profileName,
-      'maxTriangles': final int maxTriangles,
-      'maxJoints': final int maxJoints,
-      'maxInfluences': final int maxInfluences,
-      'maxTextureSize': final int maxTextureSize,
-    },
+    'profile': final Object? profileJson,
     'nextId': final int nextId,
     'objects': final List<Object?> entries,
   }) {
+    final ProjectProfile? profile = _readProfile(profileJson);
+    if (profile == null) {
+      return const ProjectRefused(
+        'The manifest is not shaped like a project: it needs a profile with '
+        'its five original limits, the nextId, and a list of objects.',
+      );
+    }
     final objects = <ModelObject>[];
     for (var i = 0; i < entries.length; i++) {
       final (ModelObject? object, String? refusal) = _readObject(
@@ -621,13 +629,7 @@ ProjectRead readProject(Uint8List bytes) {
     }
     return ProjectOpened(
       ModelProject(
-        profile: ProjectProfile(
-          name: profileName,
-          maxTriangles: maxTriangles,
-          maxJoints: maxJoints,
-          maxInfluences: maxInfluences,
-          maxTextureSize: maxTextureSize,
-        ),
+        profile: profile,
         objects: objects,
         materials: materials,
         images: images,
@@ -945,6 +947,52 @@ TextureBinding? _bindingFrom(Object? json) {
   // A slot the file does not fill, or fills with something this build cannot
   // read, is a slot the material does without — which is a material drawn from
   // its factors, and is what every material with no normal map already is.
+  return null;
+}
+
+/// The profile [json] describes, or null when it is missing one of the five
+/// original limits.
+///
+/// **Four fields younger than the other five, and each one optional here.**
+/// `target`, `maxTextureBytes`, `requireTriangles` and `requireManifold`
+/// arrived with `doc-13`; a v1 file predates them and has none of the four,
+/// and reading them as required would refuse every project saved before this
+/// change over a difference that changes what a *new* save means, not what an
+/// old one did — exactly the version bump `doc-28` says not to spend on this.
+/// Each reads back as the default `ProjectProfile` already has.
+ProjectProfile? _readProfile(Object? json) {
+  if (json case {
+    'name': final String name,
+    'maxTriangles': final int maxTriangles,
+    'maxJoints': final int maxJoints,
+    'maxInfluences': final int maxInfluences,
+    'maxTextureSize': final int maxTextureSize,
+  }) {
+    const fallback = ProjectProfile();
+    return ProjectProfile(
+      name: name,
+      target: switch (json['target']) {
+        final String word => _named(
+          ProfileTarget.values,
+          word,
+          fallback.target,
+        ),
+        _ => fallback.target,
+      },
+      maxTriangles: maxTriangles,
+      maxJoints: maxJoints,
+      maxInfluences: maxInfluences,
+      maxTextureSize: maxTextureSize,
+      maxTextureBytes: switch (json['maxTextureBytes']) {
+        final int bytes => bytes,
+        _ => fallback.maxTextureBytes,
+      },
+      requireTriangles:
+          json['requireTriangles'] as bool? ?? fallback.requireTriangles,
+      requireManifold:
+          json['requireManifold'] as bool? ?? fallback.requireManifold,
+    );
+  }
   return null;
 }
 

@@ -39,6 +39,38 @@ ModelObject Function(int) ghost() =>
       transform: Matrix4.identity(),
     );
 
+/// A project of [count] objects, each two triangles that share one vertex and
+/// no edge — a surface pinched at a point, which is a warning until a profile
+/// asks for a manifold and an error once it does.
+ModelProject pinched(int count, {ProjectProfile? profile}) {
+  var project = ModelProject(profile: profile ?? const ProjectProfile());
+  for (var i = 0; i < count; i++) {
+    project = project.added(
+      (int id) => ModelObject(
+        id: id,
+        name: 'pinch $id',
+        geometry: EditedGeometry(
+          EditMesh.fromFaces(
+            <Vector3>[
+              Vector3(0, 0, 0),
+              Vector3(1, 0, 0),
+              Vector3(0, 1, 0),
+              Vector3(2, 0, 0),
+              Vector3(2, 1, 0),
+            ],
+            <List<int>>[
+              <int>[0, 1, 2],
+              <int>[2, 3, 4],
+            ],
+          ),
+        ),
+        transform: Matrix4.identity(),
+      ),
+    );
+  }
+  return project;
+}
+
 void main() {
   group('what it does not walk twice', () {
     test('a second ask on the same project walks nothing', () {
@@ -137,6 +169,26 @@ void main() {
       expect(cache.walked, 8);
       expect(loose.issues, isEmpty);
       expect(cache.of(project).issues, isNotEmpty);
+    });
+
+    test('changing whether a manifold is required throws the whole cache '
+        'away too', () {
+      final project = pinched(3);
+      final cache = ReadinessCache();
+      final loose = cache.of(project);
+      expect(cache.walked, 3);
+      expect(loose.canExport, isTrue);
+
+      // Mutation: ignore `requireManifold` the way the cache used to ignore
+      // nothing at all before this field existed. `strict` would then read
+      // the three warnings cached under the loose profile instead of the
+      // three errors a stricter one asks for, and a status bar built on top
+      // of this cache would keep saying "exports with a warning" about a
+      // model that no longer does.
+      final strict = cache.of(project, requireManifold: true);
+      expect(cache.walked, 6);
+      expect(strict.canExport, isFalse);
+      expect(cache.of(project).canExport, isTrue);
     });
 
     test('forget makes the next ask walk everything again', () {

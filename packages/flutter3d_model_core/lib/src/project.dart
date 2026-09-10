@@ -26,6 +26,14 @@ import 'package:vector_math/vector_math.dart';
 import 'material.dart';
 import 'selection.dart';
 
+/// What kind of machine a profile is written for.
+///
+/// **Alongside [ProjectProfile.name], not instead of it.** The name is what a
+/// person typed — "Store demo build" — and a rule that wants to know whether
+/// it is looking at a phone has no business parsing that string. `target` is
+/// the three words a rule can switch on; the name is the one a person reads.
+enum ProfileTarget { desktop, mobile, web }
+
 /// The limits a project is being built against.
 ///
 /// **A profile rather than a set of warnings, because the same model is fine
@@ -36,10 +44,24 @@ import 'selection.dart';
 final class ProjectProfile {
   const ProjectProfile({
     this.name = 'desktop',
+    this.target = ProfileTarget.desktop,
     this.maxTriangles = 500000,
-    this.maxJoints = 128,
+    // 64 rather than a rounder number: it is `Skeleton.maxJoints` in the
+    // engine, the size of the per-draw joint array the skinning shader holds,
+    // and a profile promising more than the shader can hold is a profile
+    // whose promise nothing downstream can keep. `profile_limits_test.dart`
+    // in `apps/flutter3d_modeler` mirrors the two constants so they cannot
+    // drift apart unnoticed.
+    this.maxJoints = 64,
     this.maxInfluences = 4,
     this.maxTextureSize = 4096,
+    // Null rather than a guessed number: nothing reads this yet, and a figure
+    // presented as a budget with no measurement behind it is worse than
+    // admitting none has been taken. `mat-28`'s `TextureBudget` is where a
+    // real one lands, on top of an actual format and device measurement.
+    this.maxTextureBytes,
+    this.requireTriangles = true,
+    this.requireManifold = false,
   });
 
   /// What a handset can be asked for, which is the tightest of the three the
@@ -47,29 +69,57 @@ final class ProjectProfile {
   /// the interface agree.
   static const ProjectProfile mobile = ProjectProfile(
     name: 'mobile',
+    target: ProfileTarget.mobile,
     maxTriangles: 100000,
     maxJoints: 64,
     maxTextureSize: 2048,
   );
 
   final String name;
+  final ProfileTarget target;
   final int maxTriangles;
   final int maxJoints;
   final int maxInfluences;
   final int maxTextureSize;
 
+  /// A budget in bytes across every texture at once, or null for none
+  /// declared. See the constructor for why nothing sets one yet.
+  final int? maxTextureBytes;
+
+  /// Whether the target format can hold a face with more than three corners.
+  /// Read by `ExportReadiness.check` when its own `trianglesOnly` is not
+  /// given explicitly.
+  final bool requireTriangles;
+
+  /// Whether a mesh pinched to a point stops the export rather than merely
+  /// spoiling it. Read by `ExportReadiness.check` the same way.
+  final bool requireManifold;
+
   @override
   bool operator ==(Object other) =>
       other is ProjectProfile &&
       other.name == name &&
+      other.target == target &&
       other.maxTriangles == maxTriangles &&
       other.maxJoints == maxJoints &&
       other.maxInfluences == maxInfluences &&
-      other.maxTextureSize == maxTextureSize;
+      other.maxTextureSize == maxTextureSize &&
+      other.maxTextureBytes == maxTextureBytes &&
+      other.requireTriangles == requireTriangles &&
+      other.requireManifold == requireManifold;
 
   @override
-  int get hashCode =>
-      Object.hash(name, maxTriangles, maxJoints, maxInfluences, maxTextureSize);
+  int get hashCode => Object.hash(
+    name,
+    target,
+    maxTriangles,
+    maxJoints,
+    maxInfluences,
+    maxTextureSize,
+    maxTextureBytes,
+    requireTriangles,
+    requireManifold,
+  );
 }
 
 /// What an object is made of.

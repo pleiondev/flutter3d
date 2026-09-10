@@ -263,6 +263,42 @@ void main() {
       }
     });
 
+    test('a profile keeps the fields doc-13 added, not just the original '
+        'five', () {
+      // Every one of these is away from the constructor's default, the way
+      // `fixtureCylinder` in `fixture_project.dart` is written — a field
+      // dropped on the way through the file shows up as itself rather than as
+      // the number it would have had anyway.
+      const before = ProjectProfile(
+        target: ProfileTarget.mobile,
+        maxTextureBytes: 12345678,
+        requireTriangles: false,
+        requireManifold: true,
+      );
+      final after = opened(writeProject(ModelProject(profile: before))).profile;
+
+      expect(after, before);
+      expect(after.target, ProfileTarget.mobile);
+      expect(after.maxTextureBytes, 12345678);
+      expect(after.requireTriangles, isFalse);
+      expect(after.requireManifold, isTrue);
+    });
+
+    test('a manifest written before doc-13 opens with the new fields at '
+        'their defaults', () {
+      // `manifestOf` is exactly this shape: the five original keys and none
+      // of the four this test is about, which is what every project saved
+      // before this change looks like on disk. Mutation: require the new
+      // keys the way the five original ones are required, and this file —
+      // and every real one like it — stops opening at all.
+      final read = opened(forge(manifestOf(const <Map<String, Object?>>[])));
+
+      expect(read.profile.target, ProfileTarget.desktop);
+      expect(read.profile.maxTextureBytes, isNull);
+      expect(read.profile.requireTriangles, isTrue);
+      expect(read.profile.requireManifold, isFalse);
+    });
+
     test('a parametric object keeps its parameters', () {
       final read = opened(writeProject(sample())).objects[0].geometry;
 
@@ -354,8 +390,8 @@ void main() {
 
       // The numbers this project's file actually lands on: a 16-byte header and
       // six 16-byte directory entries put the manifest at 112, and the manifest
-      // is 885 bytes, which ends at 997 and is not a multiple of four. So the
-      // mesh table starts at 1000, three bytes of padding later. Those three
+      // is 974 bytes, which ends at 1086 and is not a multiple of four. So the
+      // mesh table starts at 1088, two bytes of padding later. Those two
       // bytes are the whole test — a reader building an `Int32List.view` over
       // the blob throws on an offset that is not a multiple of four, and it
       // throws on the machine of whoever opens the file rather than here.
@@ -368,11 +404,11 @@ void main() {
         ProjectSection.checksums,
       ]);
       expect(directory[0].offset, 112);
-      expect(directory[0].length, 885);
-      expect(directory[1].offset, 1000);
+      expect(directory[0].length, 974);
+      expect(directory[1].offset, 1088);
       expect(directory[1].length, 16);
       expect(directory[1].count, 2);
-      expect(directory[2].offset, 1016);
+      expect(directory[2].offset, 1104);
       // This project has nothing imported and nothing textured, and both tables
       // are written all the same: every file this build produces has the same
       // five-section directory, so a reader is never deciding between "none of
@@ -382,15 +418,15 @@ void main() {
       // One row per other section, so the table grows with the directory.
       expect(directory[5].count, 5);
       expect(directory[5].length, 5 * kProjectChecksumEntryBytes);
-      expect(bytes.length, 3632);
+      expect(bytes.length, 3720);
 
       for (final entry in directory) {
         expect(entry.offset % 4, 0, reason: 'section ${entry.kind}');
       }
 
       // Mutation: return `value` from the writer's `_align` and the table lands
-      // at 902 with the blob behind it at 918; the assertions above and the two
-      // below go red together.
+      // at 1086 with the blob behind it at 1102; the assertions above and the
+      // two below go red together.
       final view = ByteData.sublistView(bytes);
       final blob = directory[2];
       for (var i = 0; i < directory[1].length ~/ kProjectMeshEntryBytes; i++) {
@@ -506,7 +542,7 @@ void main() {
       expect(
         refusal(bytes),
         'The header claims 500 sections, whose directory ends at byte 8016, '
-        'past the end of a 3632-byte file.',
+        'past the end of a 3720-byte file.',
       );
     });
 
@@ -523,8 +559,8 @@ void main() {
       final cut = Uint8List.sublistView(whole, 0, whole.length - 8);
       expect(
         refusal(cut),
-        'Section 6 runs from byte 3592 for 40 bytes, past the end of a '
-        '3624-byte file.',
+        'Section 6 runs from byte 3680 for 40 bytes, past the end of a '
+        '3712-byte file.',
       );
     });
 

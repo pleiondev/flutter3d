@@ -593,6 +593,13 @@ boundaryEnumExempt = <String, Map<String, String>>{
         'can be expressed in that this editor has a control for; a gimbal or '
         'a parent frame would arrive with the rig that needs it',
   },
+  'flutter3d_model_core/lib/src/project.dart': <String, String>{
+    'ProfileTarget':
+        'the three kinds of machine a profile is written for. A rule reading '
+        'it switches on exactly these three, and a fourth — a console, say — '
+        'is a shape of hardware nothing here has been measured against, not '
+        'a value somebody passes to an existing rule',
+  },
   'flutter3d_model_core/lib/src/object_commands.dart': <String, String>{
     'OriginPlacement':
         'where an object own origin goes: the middle of the bounds, the '

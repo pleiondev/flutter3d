@@ -65,16 +65,18 @@ final class ExportReadiness {
   /// Measures [project] against its own profile.
   ///
   /// [trianglesOnly] says whether the target format can hold a face with more
-  /// than three sides. glTF and GLB cannot, which is why it is the default and
-  /// why every export this repository writes today wants it; OBJ can, and an
-  /// export to one should pass false rather than be told off for a quad it is
-  /// perfectly able to write. It is an argument rather than a field of
-  /// `ProjectProfile` because the profile is about the machine that will draw
-  /// the model and this is about the file on the way to it — `doc-13` puts a
-  /// `requireTriangles` on the profile, and this moves there when it does.
+  /// than three sides, and [requireManifold] says whether a pinched vertex
+  /// stops the export rather than merely spoiling it. Both default to
+  /// `null`, which reads [ProjectProfile.requireTriangles] and
+  /// [ProjectProfile.requireManifold] — the profile is about the machine that
+  /// will draw the model, and that is what "will this format hold a quad" and
+  /// "must this be watertight" both are. An explicit `true`/`false` still
+  /// wins: a single write to OBJ wants `trianglesOnly: false` whatever the
+  /// profile says, without a second profile to say it with.
   factory ExportReadiness.check(
     ModelProject project, {
-    bool trianglesOnly = true,
+    bool? trianglesOnly,
+    bool? requireManifold,
   }) {
     final found = <ExportIssue>[
       // The budget goes first, ahead of the objects, because it is the one
@@ -85,7 +87,11 @@ final class ExportReadiness {
       // an accident of where the call sits.
       ?_budget(project),
       for (final ModelObject object in project.objects)
-        ..._issuesWith(object, trianglesOnly: trianglesOnly),
+        ..._issuesWith(
+          object,
+          trianglesOnly: trianglesOnly ?? project.profile.requireTriangles,
+          requireManifold: requireManifold ?? project.profile.requireManifold,
+        ),
     ];
     return ExportReadiness._(_worstFirst(found));
   }
@@ -158,6 +164,7 @@ ExportIssue? _budget(ModelProject project) {
 List<ExportIssue> _issuesWith(
   ModelObject object, {
   required bool trianglesOnly,
+  required bool requireManifold,
 }) => <ExportIssue>[
   // An error, and the loader is the reason rather than taste: a primitive with
   // no indices is a mesh some glTF readers reject outright and the rest draw as
@@ -184,6 +191,7 @@ List<ExportIssue> _issuesWith(
       object,
       mesh,
       trianglesOnly: trianglesOnly,
+      requireManifold: requireManifold,
     ),
   },
 ];
@@ -192,6 +200,7 @@ List<ExportIssue> _meshIssues(
   ModelObject object,
   EditMesh mesh, {
   required bool trianglesOnly,
+  required bool requireManifold,
 }) {
   final checks = MeshChecks(mesh);
   return <ExportIssue>[
@@ -208,14 +217,14 @@ List<ExportIssue> _meshIssues(
         'them is arithmetic nothing downstream can use',
         object: object,
       ),
-    // A warning: triangles are triangles, so a surface pinched at a point
-    // uploads and draws. What it breaks is everything that assumes a
-    // neighbourhood — smoothing, thickening, printing — and the vertex normal
-    // at the pinch, which is averaged across two sheets that face different
-    // ways and shades as a dark spot.
+    // A warning unless the profile requires a manifold: triangles are
+    // triangles, so a surface pinched at a point uploads and draws, and what
+    // it breaks — smoothing, thickening, printing, the vertex normal at the
+    // pinch — only matters to a profile that asked for a watertight mesh in
+    // the first place.
     if (checks.nonManifoldVertices() case final MeshIssue issue)
       ExportIssue(
-        ExportSeverity.warning,
+        requireManifold ? ExportSeverity.error : ExportSeverity.warning,
         '"${object.name}" has '
         '${_count(issue.ids.length, 'vertex', 'vertices')} where two pieces '
         'of surface meet at a point and are joined nowhere else; the shading '

@@ -180,6 +180,39 @@ void main() {
         isEmpty,
       );
     });
+
+    test('a profile that does not require triangles is the same as passing '
+        'false, with no argument at all', () {
+      // Mutation: read the hard-coded `true` instead of
+      // `ProjectProfile.requireTriangles` when `trianglesOnly` is not given.
+      // A profile built for OBJ, which holds n-gons, would then report the
+      // same six-quad warning `ExportReadiness.check(..., trianglesOnly:
+      // false)` above proves is wrong for that format.
+      const objProfile = ProjectProfile(requireTriangles: false);
+      expect(
+        ExportReadiness.check(
+          projectOf(<Geometry>[
+            EditedGeometry(EditMesh.cuboid()),
+          ], profile: objProfile),
+        ).issues,
+        isEmpty,
+      );
+    });
+
+    test('an explicit trianglesOnly overrides the profile either way', () {
+      const objProfile = ProjectProfile(requireTriangles: false);
+      // The profile says n-gons are fine; the call insists on triangles
+      // anyway, and the call is what wins.
+      expect(
+        ExportReadiness.check(
+          projectOf(<Geometry>[
+            EditedGeometry(EditMesh.cuboid()),
+          ], profile: objProfile),
+          trianglesOnly: true,
+        ).issues,
+        hasLength(1),
+      );
+    });
   });
 
   group('geometry with nothing in it', () {
@@ -305,6 +338,25 @@ void main() {
 
       // It draws, so it does not stop the export.
       expect(ready.canExport, isTrue);
+    });
+
+    test('a profile that requires a manifold turns the same pinch into an '
+        'error', () {
+      // Mutation: keep `ExportSeverity.warning` regardless of
+      // `requireManifold`. A profile built for a target that must be
+      // watertight — 3D printing, physics baked from the mesh — would then
+      // let a model with a pinched vertex through as a warning nobody has to
+      // act on, which is the one thing that profile asked never to happen.
+      final ready = ExportReadiness.check(
+        projectOf(<Geometry>[
+          EditedGeometry(boxesAtACorner()),
+        ], profile: const ProjectProfile(requireManifold: true)),
+        trianglesOnly: false,
+      );
+
+      expect(ready.issues, hasLength(1));
+      expect(ready.issues.single.severity, ExportSeverity.error);
+      expect(ready.canExport, isFalse);
     });
 
     test('a shell wound inside out is a warning', () {

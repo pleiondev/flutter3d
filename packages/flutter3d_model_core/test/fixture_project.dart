@@ -49,6 +49,12 @@ MeshData fixtureImported() => MeshData(
 ModelProject fixtureProject() {
   final project =
       ModelProject(
+            // Pinned rather than left at the constructor's default: the v1
+            // fixture was minted when that default was 128, and a later
+            // change to the default — `doc-13` lowered it to `Skeleton`'s
+            // shader limit of 64 — must not quietly change what this fixture
+            // is asserted to hold. The file says 128; so must this.
+            profile: const ProjectProfile(maxJoints: 128),
             materials: <ProjectMaterial>[
               ProjectMaterial(
                 version: 3,

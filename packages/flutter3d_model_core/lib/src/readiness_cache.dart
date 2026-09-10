@@ -32,11 +32,14 @@ final class ReadinessCache {
 
   final Map<int, _Cached> _byObject = <int, _Cached>{};
 
-  /// What [trianglesOnly] was last asked for. Changing it changes every
-  /// answer — a quad is a warning to a format that holds triangles and nothing
-  /// at all to one that does not — so the whole cache goes rather than being
-  /// kept under a second key nobody would think to vary.
+  /// What [trianglesOnly] and `requireManifold` resolved to last time.
+  /// Changing either changes every answer — a quad is a warning to a format
+  /// that holds triangles and nothing at all to one that does not, and a
+  /// pinched vertex is a warning or a refusal depending on which — so the
+  /// whole cache goes rather than being kept under a second key nobody would
+  /// think to vary.
   bool? _lastTrianglesOnly;
+  bool? _lastRequireManifold;
 
   /// How many objects have actually been walked, over the life of this cache.
   ///
@@ -52,10 +55,20 @@ final class ReadinessCache {
   /// Objects whose version has not moved keep their issues and their triangle
   /// count; everything else is walked. Objects the project no longer holds are
   /// forgotten, so a cache does not grow across a session of deletes.
-  ExportReadiness of(ModelProject project, {bool trianglesOnly = true}) {
-    if (_lastTrianglesOnly != trianglesOnly) {
+  ExportReadiness of(
+    ModelProject project, {
+    bool? trianglesOnly,
+    bool? requireManifold,
+  }) {
+    final resolvedTrianglesOnly =
+        trianglesOnly ?? project.profile.requireTriangles;
+    final resolvedRequireManifold =
+        requireManifold ?? project.profile.requireManifold;
+    if (_lastTrianglesOnly != resolvedTrianglesOnly ||
+        _lastRequireManifold != resolvedRequireManifold) {
       _byObject.clear();
-      _lastTrianglesOnly = trianglesOnly;
+      _lastTrianglesOnly = resolvedTrianglesOnly;
+      _lastRequireManifold = resolvedRequireManifold;
     }
 
     final live = <int>{};
@@ -78,7 +91,8 @@ final class ReadinessCache {
             // report the budget — that is the project's question and is asked
             // once below, out here where the total is known.
             ModelProject(objects: <ModelObject>[object], profile: _noBudget),
-            trianglesOnly: trianglesOnly,
+            trianglesOnly: resolvedTrianglesOnly,
+            requireManifold: resolvedRequireManifold,
           ).issues,
           object.geometry.triangleCount,
         );
@@ -108,6 +122,7 @@ final class ReadinessCache {
   void forget() {
     _byObject.clear();
     _lastTrianglesOnly = null;
+    _lastRequireManifold = null;
   }
 }
 
