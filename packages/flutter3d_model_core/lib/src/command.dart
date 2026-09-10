@@ -20,13 +20,19 @@
 /// that half-worked is a command that has to be split.
 library;
 
+import 'dart:convert';
+import 'dart:typed_data';
+
+import 'package:flutter3d_formats/flutter3d_formats.dart';
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 import 'package:vector_math/vector_math.dart';
 
+import 'material.dart';
 import 'parametric_json.dart';
 import 'project.dart';
 import 'selection.dart';
 
+part 'material_commands.dart';
 part 'mesh_commands.dart';
 part 'object_commands.dart';
 part 'selection_commands.dart';
@@ -382,6 +388,13 @@ const List<String> modelCommandNames = <String>[
   'selectEdgeLoop',
   'selectEdgeRing',
   'selectByMaterial',
+  'addMaterial',
+  'removeMaterial',
+  'duplicateMaterial',
+  'setMaterialField',
+  'setTexture',
+  'addImage',
+  'assignMaterial',
 ];
 
 /// Reads a command back out of a journal, or null.
@@ -554,6 +567,50 @@ ModelCommand? modelCommandFromJson(Object? json) {
     },
     'selectByMaterial' => switch (json['slot']) {
       final int slot => SelectByMaterial(slot),
+      _ => null,
+    },
+    'addMaterial' => AddMaterial(materialName: json['materialName'] as String?),
+    'removeMaterial' => switch (json['index']) {
+      final int index => RemoveMaterial(index),
+      _ => null,
+    },
+    'duplicateMaterial' => switch (json['index']) {
+      final int index => DuplicateMaterial(index),
+      _ => null,
+    },
+    'setMaterialField' => switch ((json['index'], json['field'])) {
+      (final int index, final String field) => SetMaterialField(
+        index: index,
+        field: field,
+        value: json['value'],
+      ),
+      _ => null,
+    },
+    'setTexture' => switch ((json['materialIndex'], json['slot'])) {
+      (final int materialIndex, final String slot) => SetTexture(
+        materialIndex: materialIndex,
+        slot: slot,
+        imageIndex: json['imageIndex'] as int?,
+        sampling: TextureSampling(
+          magLinear: json['magLinear'] as bool? ?? true,
+          minLinear: json['minLinear'] as bool? ?? true,
+          useMipmaps: json['useMipmaps'] as bool? ?? true,
+          wrapS: _wrapNamed(json['wrapS']),
+          wrapT: _wrapNamed(json['wrapT']),
+        ),
+      ),
+      _ => null,
+    },
+    'addImage' => switch (json['bytes']) {
+      final String encoded => AddImage(
+        bytes: base64Decode(encoded),
+        imageName: json['imageName'] as String?,
+        mimeType: json['mimeType'] as String?,
+      ),
+      _ => null,
+    },
+    'assignMaterial' => switch ((json['id'], json['to'])) {
+      (final int id, final int? to) => AssignMaterial(id: id, to: to),
       _ => null,
     },
     _ => null,

@@ -10,7 +10,9 @@
 library;
 
 import 'dart:math' as math;
+import 'dart:typed_data';
 
+import 'package:flutter3d_formats/flutter3d_formats.dart';
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 import 'package:test/test.dart';
@@ -704,6 +706,326 @@ void main() {
           'label': 'glass',
         }),
         isNull,
+      );
+    });
+  });
+
+  group('the material table', () {
+    /// A project of one steel-named material and two bolts painted with it.
+    ModelHistory painted() {
+      final project =
+          ModelProject(
+            materials: <ProjectMaterial>[
+              ProjectMaterial(surface: SurfaceMaterial(name: 'steel')),
+            ],
+          ).added(
+            (int id) => ModelObject(
+              id: id,
+              name: 'bolt a',
+              geometry: EditedGeometry(EditMesh.cuboid()),
+              transform: Matrix4.identity(),
+              materialSlots: const <int>[0],
+            ),
+          );
+      return ModelHistory(
+        project.added(
+          (int id) => ModelObject(
+            id: id,
+            name: 'bolt b',
+            geometry: EditedGeometry(EditMesh.cuboid()),
+            transform: Matrix4.identity(),
+          ),
+        ),
+      );
+    }
+
+    test('a material arrives named, or does not', () {
+      final history = ModelHistory(const ModelProject());
+
+      expect(history.run(const AddMaterial(materialName: 'brass')), isNull);
+      expect(history.project.materials.single.surface.name, 'brass');
+      expect(history.undoSays, 'add material "brass"');
+
+      expect(history.run(const AddMaterial()), isNull);
+      expect(history.project.materials.last.surface.name, isNull);
+      expect(history.undoSays, 'add a material');
+    });
+
+    test('a material name and an image name still round-trip as the '
+        'command they belong to', () {
+      // Both arguments are called `name` in the sentence that describes them
+      // and neither is called `name` in JSON — that key is the command's own,
+      // and `toJson` spreads `arguments` over it. Mutation: put either one
+      // back under `name` and the round trip below reads back an `AddMaterial`
+      // that lost its material's name, or nothing at all for the image, since
+      // `modelCommandFromJson` would see `{'name': 'atlas', ...}` and try to
+      // build the command called "atlas".
+      final AddMaterial material =
+          modelCommandFromJson(
+                const AddMaterial(materialName: 'brass').toJson(),
+              )!
+              as AddMaterial;
+      expect(material.materialName, 'brass');
+
+      final AddImage image =
+          modelCommandFromJson(
+                AddImage(
+                  bytes: Uint8List.fromList(<int>[1, 2, 3]),
+                  imageName: 'atlas',
+                ).toJson(),
+              )!
+              as AddImage;
+      expect(image.imageName, 'atlas');
+    });
+
+    test('removing a row reindexes what was above it, unpaints what wore '
+        'it, and leaves what was below alone', () {
+      var project = ModelProject(
+        materials: <ProjectMaterial>[
+          ProjectMaterial(surface: SurfaceMaterial(name: 'steel')),
+          ProjectMaterial(surface: SurfaceMaterial(name: 'brass')),
+          ProjectMaterial(surface: SurfaceMaterial(name: 'copper')),
+        ],
+      );
+      for (final (String bolt, int slot) in <(String, int)>[
+        ('a', 0),
+        ('b', 1),
+        ('c', 2),
+      ]) {
+        project = project.added(
+          (int id) => ModelObject(
+            id: id,
+            name: 'bolt $bolt',
+            geometry: EditedGeometry(EditMesh.cuboid()),
+            transform: Matrix4.identity(),
+            materialSlots: <int>[slot],
+          ),
+        );
+      }
+      final history = ModelHistory(project);
+      final untouchedA = history.project.objects[0];
+
+      // Mutation: rebuild every object regardless of whether its slot needs
+      // to move. Bolt a's slot is 0, below the row being removed, so it must
+      // come back `identical` — the same sharing the rest of `ModelProject`
+      // promises for an edit that does not touch it.
+      expect(history.run(const RemoveMaterial(1)), isNull);
+      expect(
+        history.project.materials.map((ProjectMaterial m) => m.surface.name),
+        <String?>['steel', 'copper'],
+      );
+      expect(identical(history.project.objects[0], untouchedA), isTrue);
+      // Bolt b wore row 1, the row removed, and comes back unpainted.
+      expect(history.project.objects[1].materialSlots, isEmpty);
+      // Bolt c wore row 2, now row 1.
+      expect(history.project.objects[2].materialSlots, <int>[1]);
+    });
+
+    test('removing the material an object wears leaves it unpainted', () {
+      final history = painted();
+
+      expect(history.run(const RemoveMaterial(0)), isNull);
+      expect(history.project.materials, isEmpty);
+      expect(history.project.objects.first.materialSlots, isEmpty);
+    });
+
+    test('an out-of-range row is refused, both for removing and for '
+        'duplicating', () {
+      final history = painted();
+
+      expect(history.run(const RemoveMaterial(4)), contains('material 4'));
+      expect(history.run(const DuplicateMaterial(4)), contains('material 4'));
+    });
+
+    test('a duplicate is named after its source and stands on its own', () {
+      final history = painted();
+
+      expect(history.run(const DuplicateMaterial(0)), isNull);
+      expect(history.project.materials, hasLength(2));
+      expect(history.project.materials.last.surface.name, 'steel copy');
+
+      // Mutation: hand the copy back the same `SurfaceMaterial` instance.
+      // `SetMaterialField` on the copy would then be a field set on the
+      // original as well, since there would be one object behind both rows.
+      history.run(
+        const SetMaterialField(index: 1, field: 'metallic', value: 1.0),
+      );
+      expect(history.project.materials.first.surface.metallic, 0.0);
+    });
+
+    test('a field is set by the name `writeFmat` writes it under', () {
+      final history = painted();
+
+      expect(
+        history.run(
+          const SetMaterialField(
+            index: 0,
+            field: 'baseColor',
+            value: <double>[0.2, 0.4, 0.6, 1.0],
+          ),
+        ),
+        isNull,
+      );
+      final surface = history.project.materials.single.surface;
+      // `Vector4` is single-precision, so the tolerance is wider than a
+      // `double` field like `roughness` below needs.
+      expect(surface.baseColor.r, closeTo(0.2, 1e-6));
+      expect(surface.baseColor.a, closeTo(1.0, 1e-6));
+
+      expect(
+        history.run(
+          const SetMaterialField(index: 0, field: 'roughness', value: 0.1),
+        ),
+        isNull,
+      );
+      expect(
+        history.project.materials.single.surface.roughness,
+        closeTo(0.1, 1e-9),
+      );
+      // Mutation: forget `roughness` in the rebuild and the colour just set
+      // would be thrown away by the very next field this command touches.
+      expect(
+        history.project.materials.single.surface.baseColor.r,
+        closeTo(0.2, 1e-6),
+      );
+
+      expect(
+        history.run(
+          const SetMaterialField(index: 0, field: 'alphaMode', value: 'blend'),
+        ),
+        isNull,
+      );
+      expect(
+        history.project.materials.single.surface.alphaMode,
+        SurfaceAlphaMode.blend,
+      );
+
+      expect(
+        history.run(
+          const SetMaterialField(index: 0, field: 'unlit', value: true),
+        ),
+        isNull,
+      );
+      expect(history.project.materials.single.surface.unlit, isTrue);
+    });
+
+    test('an unknown field and a wrongly shaped value are both refused', () {
+      final history = painted();
+
+      expect(
+        history.run(
+          const SetMaterialField(index: 0, field: 'roughnesss', value: 1.0),
+        ),
+        contains('roughnesss'),
+      );
+      expect(
+        history.run(
+          const SetMaterialField(
+            index: 0,
+            field: 'baseColor',
+            value: <double>[1.0, 0.0],
+          ),
+        ),
+        isNotNull,
+      );
+      expect(history.project.materials.single.surface.roughness, 0.5);
+    });
+
+    test('an image is interned by its bytes', () {
+      final history = ModelHistory(const ModelProject());
+      final bytes = Uint8List.fromList(<int>[1, 2, 3]);
+
+      expect(history.run(AddImage(bytes: bytes, imageName: 'a')), isNull);
+      expect(history.project.images, hasLength(1));
+
+      // The same bytes again, under a different name: the row does not grow.
+      // Mutation: compare by identity rather than by content, or skip the
+      // scan, and two imports of the same PNG upload it twice.
+      expect(
+        history.run(AddImage(bytes: Uint8List.fromList(<int>[1, 2, 3]))),
+        isNull,
+      );
+      expect(history.project.images, hasLength(1));
+
+      expect(
+        history.run(AddImage(bytes: Uint8List.fromList(<int>[9]))),
+        isNull,
+      );
+      expect(history.project.images, hasLength(2));
+    });
+
+    test('a texture slot takes an image and can be cleared again', () {
+      final history = painted();
+      history.run(AddImage(bytes: Uint8List.fromList(<int>[1, 2, 3])));
+
+      expect(
+        history.run(
+          const SetTexture(materialIndex: 0, slot: 'albedo', imageIndex: 0),
+        ),
+        isNull,
+      );
+      final SurfaceMaterial withTexture =
+          history.project.materials.single.surface;
+      expect(withTexture.baseColorTexture?.imageIndex, 0);
+
+      expect(
+        history.run(const SetTexture(materialIndex: 0, slot: 'albedo')),
+        isNull,
+      );
+      expect(history.project.materials.single.surface.baseColorTexture, isNull);
+    });
+
+    test('a texture naming an image or a slot that does not exist is '
+        'refused', () {
+      final history = painted();
+
+      expect(
+        history.run(
+          const SetTexture(materialIndex: 0, slot: 'albedo', imageIndex: 0),
+        ),
+        contains('image 0'),
+      );
+      expect(
+        history.run(const SetTexture(materialIndex: 0, slot: 'shininess')),
+        contains('shininess'),
+      );
+    });
+
+    test('assigning paints, and null takes the paint off', () {
+      final history = painted();
+      final int unpainted = history.project.objects.last.id;
+
+      expect(history.run(AssignMaterial(id: unpainted, to: 0)), isNull);
+      expect(history.project[unpainted]!.materialSlots, <int>[0]);
+
+      expect(history.run(AssignMaterial(id: unpainted, to: null)), isNull);
+      expect(history.project[unpainted]!.materialSlots, isEmpty);
+    });
+
+    test('assigning an object or a material that is not there is refused', () {
+      final history = painted();
+
+      expect(
+        history.run(const AssignMaterial(id: 99, to: 0)),
+        contains('object 99'),
+      );
+      expect(
+        history.run(
+          AssignMaterial(id: history.project.objects.first.id, to: 9),
+        ),
+        contains('material 9'),
+      );
+    });
+
+    test('two objects sharing a row export as one material', () {
+      final history = painted();
+      history.run(AssignMaterial(id: history.project.objects.last.id, to: 0));
+
+      final document = toModelDocument(history.project);
+      expect(document.materials, hasLength(1));
+      expect(
+        document.surfaces.map((ModelSurface s) => s.materialIndex),
+        everyElement(0),
       );
     });
   });
@@ -1587,6 +1909,18 @@ void main() {
         const SelectEdgeLoop(4),
         const SelectEdgeRing(4),
         const SelectByMaterial(2),
+        const AddMaterial(materialName: 'brass'),
+        const RemoveMaterial(0),
+        const DuplicateMaterial(0),
+        const SetMaterialField(index: 0, field: 'metallic', value: 1.0),
+        SetTexture(
+          materialIndex: 0,
+          slot: 'albedo',
+          imageIndex: 0,
+          sampling: const TextureSampling(wrapS: TextureWrap.clampToEdge),
+        ),
+        AddImage(bytes: Uint8List.fromList(<int>[1, 2, 3]), imageName: 'atlas'),
+        const AssignMaterial(id: 1, to: 0),
       ];
 
       // Every name has a sample, which is what stops a command being added to
