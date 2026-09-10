@@ -25,9 +25,10 @@ Future<void> pumpShell(
   MeshSubmode submode = MeshSubmode.vertex,
   String? activeTool,
   ValueChanged<String>? onTool,
+  Size size = const Size(1440, 900),
 }) async {
   tester.view
-    ..physicalSize = const Size(1440, 900)
+    ..physicalSize = size
     ..devicePixelRatio = 1.0;
   addTearDown(tester.view.reset);
   await tester.pumpWidget(
@@ -122,6 +123,28 @@ void main() {
         expect(find.text('Face'), findsOneWidget);
       },
     );
+  });
+
+  group('the top bar', () {
+    testWidgets('does not overflow at any width a window can be', (
+      WidgetTester tester,
+    ) async {
+      // Eight modes, three element levels and two buttons do not fit side by
+      // side under about eleven hundred logical pixels, and a window that
+      // narrow is an ordinary one. Mutation: put the modes back in a plain
+      // `Row` with a `Spacer` — which is what the bar was — and 1024 reports
+      // `A RenderFlex overflowed by 111 pixels on the right`, with Flutter's
+      // striped banner painted over the element level, the one control in the
+      // mesh mode that a person has to reach.
+      for (final double width in <double>[1440, 1200, 1024, 900, 800]) {
+        await pumpShell(tester, mode: ModelerMode.mesh, size: Size(width, 700));
+        expect(
+          tester.takeException(),
+          isNull,
+          reason: 'the bar overflowed at $width',
+        );
+      }
+    });
   });
 
   group('the rail', () {

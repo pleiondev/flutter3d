@@ -141,50 +141,26 @@ class _TopBar extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 10),
           child: Row(
             children: <Widget>[
-              SegmentedButton<ModelerMode>(
-                showSelectedIcon: false,
-                segments: <ButtonSegment<ModelerMode>>[
-                  for (final ModelerMode each in ModelerMode.values)
-                    ButtonSegment<ModelerMode>(
-                      value: each,
-                      icon: Icon(each.icon, size: 15),
-                      // Only phase one answers. The rest are drawn and
-                      // refused, so that what the modeller is going to be is
-                      // visible from the first build rather than arriving as a
-                      // surprise — and so a person who presses one is told it
-                      // is coming rather than left wondering whether they
-                      // missed a setting.
-                      enabled: each.isReady,
-                      tooltip: each.isReady
-                          ? each.label
-                          : '${each.label} — phase ${each.phase}',
-                    ),
-                ],
-                selected: <ModelerMode>{mode},
-                onSelectionChanged: (Set<ModelerMode> picked) =>
-                    onMode(picked.first),
+              // **The modes and the level take what is left after the actions,
+              // and scroll inside it.** A top bar that overflows is not a
+              // cosmetic fault: Flutter paints the striped banner over the
+              // controls at the end of the row, so the thing that becomes
+              // unusable is whatever was last — here, the element level, in the
+              // one mode that has one. Eight modes and three levels do not fit
+              // beside two buttons under about 1100 logical pixels, which is an
+              // ordinary window on a laptop.
+              Flexible(
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: _Modes(
+                    mode: mode,
+                    onMode: onMode,
+                    submode: submode,
+                    onSubmode: onSubmode,
+                  ),
+                ),
               ),
               const SizedBox(width: 12),
-              // The sub-mode belongs to the mesh mode and to nothing else, so
-              // it is absent rather than disabled elsewhere: a control that is
-              // permanently grey in seven modes out of eight is a control
-              // people stop seeing.
-              if (mode == ModelerMode.mesh)
-                SegmentedButton<MeshSubmode>(
-                  showSelectedIcon: false,
-                  segments: <ButtonSegment<MeshSubmode>>[
-                    for (final MeshSubmode each in MeshSubmode.values)
-                      ButtonSegment<MeshSubmode>(
-                        value: each,
-                        icon: Icon(each.icon, size: 15),
-                        label: Text(each.label),
-                      ),
-                  ],
-                  selected: <MeshSubmode>{submode},
-                  onSelectionChanged: (Set<MeshSubmode> picked) =>
-                      onSubmode(picked.first),
-                ),
-              const Spacer(),
               ...actions,
             ],
           ),
@@ -192,6 +168,69 @@ class _TopBar extends StatelessWidget {
       ),
     );
   }
+}
+
+/// The two segmented buttons, as one row.
+class _Modes extends StatelessWidget {
+  const _Modes({
+    required this.mode,
+    required this.onMode,
+    required this.submode,
+    required this.onSubmode,
+  });
+
+  final ModelerMode mode;
+  final ValueChanged<ModelerMode> onMode;
+  final MeshSubmode submode;
+  final ValueChanged<MeshSubmode> onSubmode;
+
+  @override
+  Widget build(BuildContext context) => Row(
+    children: <Widget>[
+      SegmentedButton<ModelerMode>(
+        showSelectedIcon: false,
+        segments: <ButtonSegment<ModelerMode>>[
+          for (final ModelerMode each in ModelerMode.values)
+            ButtonSegment<ModelerMode>(
+              value: each,
+              icon: Icon(each.icon, size: 15),
+              // Only phase one answers. The rest are drawn and
+              // refused, so that what the modeller is going to be is
+              // visible from the first build rather than arriving as a
+              // surprise — and so a person who presses one is told it
+              // is coming rather than left wondering whether they
+              // missed a setting.
+              enabled: each.isReady,
+              tooltip: each.isReady
+                  ? each.label
+                  : '${each.label} — phase ${each.phase}',
+            ),
+        ],
+        selected: <ModelerMode>{mode},
+        onSelectionChanged: (Set<ModelerMode> picked) => onMode(picked.first),
+      ),
+      const SizedBox(width: 12),
+      // The sub-mode belongs to the mesh mode and to nothing else, so
+      // it is absent rather than disabled elsewhere: a control that is
+      // permanently grey in seven modes out of eight is a control
+      // people stop seeing.
+      if (mode == ModelerMode.mesh)
+        SegmentedButton<MeshSubmode>(
+          showSelectedIcon: false,
+          segments: <ButtonSegment<MeshSubmode>>[
+            for (final MeshSubmode each in MeshSubmode.values)
+              ButtonSegment<MeshSubmode>(
+                value: each,
+                icon: Icon(each.icon, size: 15),
+                label: Text(each.label),
+              ),
+          ],
+          selected: <MeshSubmode>{submode},
+          onSelectionChanged: (Set<MeshSubmode> picked) =>
+              onSubmode(picked.first),
+        ),
+    ],
+  );
 }
 
 class _Rail extends StatelessWidget {

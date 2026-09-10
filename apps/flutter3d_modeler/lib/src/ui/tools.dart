@@ -8,13 +8,17 @@
 /// somebody added it to the palette is a bug that cannot happen if there is
 /// nowhere else to add it.
 ///
-/// **No commands here, and that is the missing half.** A tool names what it
-/// does with an [id]; what it *does* is a command against a `ModelProject`,
-/// which is `doc-05` and does not exist yet. Until it does, a tool is a button
-/// that reports its own id, and the shell shows which one is armed. Wiring the
-/// ids to commands is one `switch` in one place when there is something to
-/// switch on — putting a callback in the table now would spread that decision
-/// across every row.
+/// **No commands here, and that is on purpose.** A tool names what it does with
+/// an [id]; what it *does* is one `switch` in `mesh_session.dart` today and a
+/// command against a `ModelProject` when there is one. Putting a callback in
+/// the table would spread that decision across every row and would have to be
+/// unpicked the day the document arrives.
+///
+/// **Only tools that do something are in it.** Inset, bevel and merge are
+/// modelling operations this repository does not have yet — merge exists but
+/// hands back a new mesh, which would throw the undo history away — and a rail
+/// full of buttons that answer nothing is the fastest way to make a tool feel
+/// broken. They arrive here when the operation behind them does.
 library;
 
 import 'package:flutter/material.dart';
@@ -134,20 +138,6 @@ List<ModelerTool> toolsFor(ModelerMode mode) => switch (mode) {
       shortcut: LogicalKeyboardKey.keyS,
       group: 'transform',
     ),
-    ModelerTool(
-      id: 'object.add',
-      label: 'Add primitive',
-      icon: Icons.add_box_outlined,
-      shortcut: LogicalKeyboardKey.keyA,
-      group: 'create',
-    ),
-    ModelerTool(
-      id: 'object.lathe',
-      label: 'Lathe',
-      icon: Icons.donut_large_outlined,
-      shortcut: LogicalKeyboardKey.keyL,
-      group: 'create',
-    ),
   ],
   ModelerMode.mesh => const <ModelerTool>[
     ModelerTool(
@@ -186,13 +176,6 @@ List<ModelerTool> toolsFor(ModelerMode mode) => switch (mode) {
       group: 'topology',
     ),
     ModelerTool(
-      id: 'mesh.inset',
-      label: 'Inset',
-      icon: Icons.crop_free_outlined,
-      shortcut: LogicalKeyboardKey.keyI,
-      group: 'topology',
-    ),
-    ModelerTool(
       id: 'mesh.loopCut',
       label: 'Loop cut',
       icon: Icons.content_cut_outlined,
@@ -200,18 +183,18 @@ List<ModelerTool> toolsFor(ModelerMode mode) => switch (mode) {
       group: 'topology',
     ),
     ModelerTool(
-      id: 'mesh.bevel',
-      label: 'Bevel',
-      icon: Icons.rounded_corner_outlined,
-      shortcut: LogicalKeyboardKey.keyB,
+      id: 'mesh.duplicate',
+      label: 'Duplicate',
+      icon: Icons.copy_all_outlined,
+      shortcut: LogicalKeyboardKey.keyD,
       group: 'topology',
     ),
     ModelerTool(
-      id: 'mesh.merge',
-      label: 'Merge',
-      icon: Icons.compress_outlined,
-      shortcut: LogicalKeyboardKey.keyM,
-      group: 'cleanup',
+      id: 'mesh.split',
+      label: 'Split off',
+      icon: Icons.call_split_outlined,
+      shortcut: LogicalKeyboardKey.keyY,
+      group: 'topology',
     ),
     ModelerTool(
       id: 'mesh.delete',

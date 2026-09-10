@@ -27,6 +27,7 @@ import 'package:flutter3d/flutter3d.dart' hide Material;
 
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 
+import 'element_picking.dart';
 import 'ground_grid.dart';
 import 'mesh_overlay_builder.dart';
 import 'object_picking.dart';
@@ -42,6 +43,8 @@ class ModelerViewport extends StatefulWidget {
     required this.onFrame,
     this.onRendered,
     this.onPick,
+    this.onElementPick,
+    this.onDragTool,
     this.settings = const RenderSettings(),
     this.grid = const GroundGrid(),
     this.elements,
@@ -96,6 +99,30 @@ class ModelerViewport extends StatefulWidget {
   /// decides what it means for the selection. `extend` is shift, which is the
   /// modifier `applyPick` reads.
   final void Function(PickResult pick, {required bool extend})? onPick;
+
+  /// What a click landed on inside the mesh, when the viewport is picking
+  /// elements rather than objects.
+  ///
+  /// Given a [PickingView] built from the camera and the size this widget was
+  /// laid out at, because those are the two things only the widget knows.
+  /// Present is what puts the viewport in element mode: a caller in object mode
+  /// leaves it null and gets [onPick] instead, which is one decision in one
+  /// place rather than a mode flag both sides have to agree about.
+  final void Function(
+    PickingView view,
+    Offset at,
+    PointerDeviceKind pointer, {
+    required bool extend,
+  })?
+  onElementPick;
+
+  /// A left-button drag with a tool armed, in logical pixels, with the height
+  /// the picture was laid out at so a caller can turn it into world units.
+  ///
+  /// The camera never sees these: `OrbitGestures` leaves the left button to the
+  /// tools, which is the rule that lets a drag mean "move this vertex" without
+  /// the model swinging away underneath it.
+  final void Function(Offset delta, double viewportHeight)? onDragTool;
 
   @override
   State<ModelerViewport> createState() => _ModelerViewportState();
@@ -303,6 +330,18 @@ class _ModelerViewportState extends State<ModelerViewport> {
     if (start != null && (event.localPosition - start.at).distance > _slop) {
       _travelled.add(event.pointer);
     }
+    final onDrag = widget.onDragTool;
+    if (onDrag != null &&
+        start != null &&
+        start.button == GestureButton.primary &&
+        _travelled.contains(event.pointer)) {
+      // The tool takes the drag and the camera does not see it. Reported as a
+      // delta rather than a position because that is what a transform is, and
+      // because a tool that had to remember where the drag began would be a
+      // second copy of what this map already holds.
+      onDrag(event.delta, _viewport.height);
+      return;
+    }
     _apply(_gestures.pointerMove(event.pointer, _pointOf(event.localPosition)));
   }
 
@@ -316,7 +355,7 @@ class _ModelerViewportState extends State<ModelerViewport> {
     // change would be answering a gesture nobody made. The right button is the
     // context menu's, whenever there is one.
     if (start.button != GestureButton.primary) return;
-    _pick(start.at);
+    _pick(start.at, event.kind);
   }
 
   void _signal(PointerSignalEvent event) {
@@ -380,10 +419,26 @@ class _ModelerViewportState extends State<ModelerViewport> {
   /// the click; `mounted` is checked because the window can close between the
   /// two, and the error arm is the renderer's own advice — a pick whose frame
   /// failed is a pick that hit nothing.
-  Future<void> _pick(Offset at) async {
-    final onPick = widget.onPick;
-    if (onPick == null || _viewport.isEmpty) return;
+  Future<void> _pick(Offset at, PointerDeviceKind kind) async {
+    if (_viewport.isEmpty) return;
     final bool extend = HardwareKeyboard.instance.isShiftPressed;
+
+    // Elements first, because a caller that wants them has said so by handing
+    // one over, and asking the renderer for a node as well would cost a whole
+    // extra frame to answer a question nobody asked.
+    final onElement = widget.onElementPick;
+    if (onElement != null) {
+      onElement(
+        PickingView(camera: widget.stage.camera, size: _viewport),
+        at,
+        kind,
+        extend: extend,
+      );
+      return;
+    }
+
+    final onPick = widget.onPick;
+    if (onPick == null) return;
     try {
       final MeshNode? node = await widget.renderer.pickPixel(
         at.dx / _viewport.width,
