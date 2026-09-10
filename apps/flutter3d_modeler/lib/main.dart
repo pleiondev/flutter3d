@@ -411,7 +411,10 @@ class _ModelerScreenState extends State<ModelerScreen>
         // out of a folder would be the worst possible answer.
         case OpenRefused(:final String because):
           _cubit.say(because);
-        case OpenedModel(:final ModelProject project, :final ModelerStage stage):
+        case OpenedModel(
+          :final ModelProject project,
+          :final ModelerStage stage,
+        ):
           stage.frameSubject();
           // The scene the old materials belonged to is going, and the
           // selection points at nodes that are no longer drawn.
@@ -517,7 +520,10 @@ class _ModelerScreenState extends State<ModelerScreen>
         // than defaulted, so that adding a case to `ExportResult` is a compile
         // error here instead of a silent nothing.
         _cubit.say('not exported');
-      case ExportWritten(:final List<ExportFile> files, :final List<String> warnings):
+      case ExportWritten(
+        :final List<ExportFile> files,
+        :final List<String> warnings,
+      ):
         final said = <String>[];
         for (final ExportFile file in files) {
           final result = await saveAs(file.bytes, suggestedName: file.name);
@@ -542,7 +548,10 @@ class _ModelerScreenState extends State<ModelerScreen>
   /// A dialog rather than a refusal, because the alternative is this
   /// application deciding what somebody's model is for. It names what will be
   /// wrong rather than counting it: "3 problems" is a number nobody can act on.
-  Future<bool> _askAnyway(ExportBlocked blocked, List<ExportIssue> issues) async {
+  Future<bool> _askAnyway(
+    ExportBlocked blocked,
+    List<ExportIssue> issues,
+  ) async {
     final answer = await showDialog<bool>(
       context: context,
       builder: (BuildContext context) => AlertDialog(
@@ -1180,25 +1189,23 @@ class _ModelerScreenState extends State<ModelerScreen>
           ),
           TextButton(onPressed: _openFile, child: const Text('Open')),
           const SizedBox(width: 4),
-          FilledButton.tonal(
-            onPressed: _saveFile,
-            child: const Text('Save'),
-          ),
+          FilledButton.tonal(onPressed: _saveFile, child: const Text('Save')),
           const SizedBox(width: 4),
           PopupMenuButton<ExportFormat>(
             tooltip: 'Export a copy',
             onSelected: _exportFile,
-            itemBuilder: (BuildContext context) => <PopupMenuEntry<ExportFormat>>[
-              for (final ExportFormat format in ExportFormat.values)
-                PopupMenuItem<ExportFormat>(
-                  value: format,
-                  height: ModelerMetrics.row,
-                  child: Text(
-                    '${format.suffix}  ${format.says}',
-                    style: const TextStyle(fontSize: 13),
-                  ),
-                ),
-            ],
+            itemBuilder: (BuildContext context) =>
+                <PopupMenuEntry<ExportFormat>>[
+                  for (final ExportFormat format in ExportFormat.values)
+                    PopupMenuItem<ExportFormat>(
+                      value: format,
+                      height: ModelerMetrics.row,
+                      child: Text(
+                        '${format.suffix}  ${format.says}',
+                        style: const TextStyle(fontSize: 13),
+                      ),
+                    ),
+                ],
             child: const Padding(
               padding: EdgeInsets.symmetric(horizontal: 10, vertical: 6),
               child: Text('Export', style: TextStyle(fontSize: 13)),

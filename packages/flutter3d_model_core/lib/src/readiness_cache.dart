@@ -90,15 +90,13 @@ final class ReadinessCache {
 
     _byObject.removeWhere((int id, _Cached _) => !live.contains(id));
 
-    return ExportReadiness.of(
-      <ExportIssue>[
-        // The budget first, ahead of the objects, keeping the order
-        // `ExportReadiness.check` puts them in: it is the one fault that is
-        // true of all of them at once.
-        ?_budgetIssue(project, triangles),
-        ...perObject,
-      ],
-    );
+    return ExportReadiness.of(<ExportIssue>[
+      // The budget first, ahead of the objects, keeping the order
+      // `ExportReadiness.check` puts them in: it is the one fault that is
+      // true of all of them at once.
+      ?_budgetIssue(project, triangles),
+      ...perObject,
+    ]);
   }
 
   /// Forgets everything, for a project that has been replaced wholesale.

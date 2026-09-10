@@ -123,8 +123,7 @@ class _StereoScreenState extends State<StereoScreen>
     _frames++;
     if (_clock.elapsedMilliseconds >= 2000) {
       debugPrint(
-        '[stereo] ${(_frames * 1000 / _clock.elapsedMilliseconds)
-            .toStringAsFixed(1)} fps '
+        '[stereo] ${(_frames * 1000 / _clock.elapsedMilliseconds).toStringAsFixed(1)} fps '
         '(${(_clock.elapsedMilliseconds / _frames).toStringAsFixed(1)} ms a '
         'frame)',
       );
@@ -182,9 +181,7 @@ class _StereoScreenState extends State<StereoScreen>
               width: width,
               height: height,
               scene: scene,
-              views: <RenderView>[
-                RenderView(camera: _rig.camera(Eye.left)),
-              ],
+              views: <RenderView>[RenderView(camera: _rig.camera(Eye.left))],
               settings: const RenderSettings(exposure: 1.2).forStereo(),
             );
             return renderer.device.present(frame.frame);

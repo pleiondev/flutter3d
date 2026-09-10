@@ -145,9 +145,7 @@ void main() {
       final cubit = it.cubit;
       final sync = it.stage.sync!;
 
-      cubit.ran(
-        AddPrimitive(kind: AddPrimitive.primitiveKinds.first),
-      );
+      cubit.ran(AddPrimitive(kind: AddPrimitive.primitiveKinds.first));
 
       // The seam this class exists for: before it, `SceneSync.apply` was a line
       // somebody had to remember beside every `history.run`, and the selection

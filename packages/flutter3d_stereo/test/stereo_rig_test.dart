@@ -27,10 +27,7 @@ void main() {
   group('where the eyes are', () {
     test('half the interpupillary distance either side of the head', () {
       final rig = inScene(ipd: 0.07);
-      expect(
-        rig.camera(Eye.left).readWorldPosition().x,
-        closeTo(-0.035, 1e-9),
-      );
+      expect(rig.camera(Eye.left).readWorldPosition().x, closeTo(-0.035, 1e-9));
       expect(rig.camera(Eye.right).readWorldPosition().x, closeTo(0.035, 1e-9));
     });
 

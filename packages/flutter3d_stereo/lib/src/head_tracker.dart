@@ -31,7 +31,9 @@ abstract interface class HeadTracker {
 final class SensorHeadTracker implements HeadTracker {
   SensorHeadTracker();
 
-  static const EventChannel _channel = EventChannel('dev.flutter3d/stereo/head');
+  static const EventChannel _channel = EventChannel(
+    'dev.flutter3d/stereo/head',
+  );
 
   final ValueNotifier<HeadPose> _pose = ValueNotifier<HeadPose>(
     HeadPose.still(),

@@ -246,9 +246,7 @@ Future<Material> bindSurfaceMaterial(
   final (albedo, albedoSampler) = await resolve(source.baseColorTexture);
   final (normal, normalSampler) = await resolve(source.normalTexture);
   final (orm, ormSampler) = await resolve(source.metallicRoughnessTexture);
-  final (occlusion, occlusionSampler) = await resolve(
-    source.occlusionTexture,
-  );
+  final (occlusion, occlusionSampler) = await resolve(source.occlusionTexture);
   final (emissive, emissiveSampler) = await resolve(source.emissiveTexture);
 
   return Material(

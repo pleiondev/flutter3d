@@ -11,7 +11,9 @@ import 'package:vector_math/vector_math.dart';
 final class HeadPose {
   const HeadPose({required this.rotation, required this.position});
 
-  HeadPose.still() : rotation = Quaternion.identity(), position = Vector3.zero();
+  HeadPose.still()
+    : rotation = Quaternion.identity(),
+      position = Vector3.zero();
 
   final Quaternion rotation;
 

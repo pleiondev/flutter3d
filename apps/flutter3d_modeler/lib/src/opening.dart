@@ -96,9 +96,7 @@ Future<FileOpened> openBytes(
 
   final ModelDocument document;
   try {
-    document = await decodeModel(
-      ModelLoadRequest(source: _Bytes(name, bytes)),
-    );
+    document = await decodeModel(ModelLoadRequest(source: _Bytes(name, bytes)));
   } catch (error) {
     return OpenRefused('$name could not be read: $error');
   }

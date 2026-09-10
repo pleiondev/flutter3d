@@ -111,7 +111,10 @@ void main() {
     // The one case that has to be quiet. Mutation: report anything at all here
     // and every conversion in the repository starts failing, which is the
     // failure mode a comparison is least likely to be trusted through.
-    expect(compareModelDocuments(docOf(triangle()), docOf(triangle())), isEmpty);
+    expect(
+      compareModelDocuments(docOf(triangle()), docOf(triangle())),
+      isEmpty,
+    );
   });
 
   group('what a lost thing looks like', () {

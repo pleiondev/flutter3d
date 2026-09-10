@@ -141,24 +141,25 @@ void main() {
     });
 
     test('the material library is written and the obj names it', () {
-      final painted = ModelProject(
-        materials: <ProjectMaterial>[
-          ProjectMaterial(
-            surface: SurfaceMaterial(
-              name: 'brass',
-              baseColor: Vector4(0.8, 0.6, 0.2, 1),
+      final painted =
+          ModelProject(
+            materials: <ProjectMaterial>[
+              ProjectMaterial(
+                surface: SurfaceMaterial(
+                  name: 'brass',
+                  baseColor: Vector4(0.8, 0.6, 0.2, 1),
+                ),
+              ),
+            ],
+          ).added(
+            (int id) => ModelObject(
+              id: id,
+              name: 'bolt',
+              geometry: EditedGeometry(EditMesh.cuboid()),
+              transform: Matrix4.identity(),
+              materialSlots: const <int>[0],
             ),
-          ),
-        ],
-      ).added(
-        (int id) => ModelObject(
-          id: id,
-          name: 'bolt',
-          geometry: EditedGeometry(EditMesh.cuboid()),
-          transform: Matrix4.identity(),
-          materialSlots: const <int>[0],
-        ),
-      );
+          );
 
       final files = written(
         planExport(painted, format: ExportFormat.obj, name: 'thing'),
@@ -190,20 +191,14 @@ void main() {
       // `.f3d` is binary and holds the floats exactly, so this one is held to
       // the bytes rather than to a tolerance — which is the difference the
       // parameter exists to express.
-      expect(
-        compareModelDocuments(toModelDocument(project), back),
-        isEmpty,
-      );
+      expect(compareModelDocuments(toModelDocument(project), back), isEmpty);
       expect(back.nodes, hasLength(project.objects.length));
     });
   });
 
   group('what stops an export', () {
     test('an empty project is refused, not written empty', () {
-      final result = planExport(
-        const ModelProject(),
-        format: ExportFormat.obj,
-      );
+      final result = planExport(const ModelProject(), format: ExportFormat.obj);
 
       // `ObjWriter` writes an empty file on purpose and says why — a format has
       // to be able to represent nothing. A person pressing Export on an empty
@@ -213,10 +208,7 @@ void main() {
     });
 
     test('an object with no faces blocks, and says how many', () {
-      final result = planExport(
-        withEmptyObject(),
-        format: ExportFormat.obj,
-      );
+      final result = planExport(withEmptyObject(), format: ExportFormat.obj);
 
       // Mutation: let errors through as warnings. The file is written with an
       // empty mesh in it, which some loaders refuse outright and the rest draw
@@ -278,8 +270,14 @@ void main() {
       // OBJ has no node tree at all, so a rig comes back as one level. `.f3d`
       // keeps it. Mutation: warn for both and the sentence stops meaning
       // anything, because it is not true of the container.
-      expect(obj.warnings.any((String w) => w.contains('no node tree')), isTrue);
-      expect(f3d.warnings.any((String w) => w.contains('no node tree')), isFalse);
+      expect(
+        obj.warnings.any((String w) => w.contains('no node tree')),
+        isTrue,
+      );
+      expect(
+        f3d.warnings.any((String w) => w.contains('no node tree')),
+        isFalse,
+      );
     });
   });
 }

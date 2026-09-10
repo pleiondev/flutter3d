@@ -252,7 +252,9 @@ void main() {
           materialIndex: 0,
         ),
       ],
-      nodes: <ModelNode>[nodeAt('body', Vector3.zero(), surfaces: <int>[0])],
+      nodes: <ModelNode>[
+        nodeAt('body', Vector3.zero(), surfaces: <int>[0]),
+      ],
       roots: <int>[0],
       materials: <SurfaceMaterial>[SurfaceMaterial(name: 'brass')],
     );
@@ -266,43 +268,51 @@ void main() {
     expect(await opened.stage.materials!.refresh(opened.project), 0);
   });
 
-  test('an image that will not decode leaves the colour and a sentence', () async {
-    final teal = Vector4(0.0, 0.5, 0.5, 1.0);
-    final document = _Decoded(
-      surfaces: <ModelSurface>[
-        ModelSurface(
-          name: 'body',
-          mesh: EditMesh.cuboid().toMeshData(),
-          transform: Matrix4.identity(),
-          materialIndex: 0,
-        ),
-      ],
-      nodes: <ModelNode>[nodeAt('body', Vector3.zero(), surfaces: <int>[0])],
-      roots: <int>[0],
-      materials: <SurfaceMaterial>[
-        SurfaceMaterial(
-          name: 'painted',
-          baseColor: teal,
-          baseColorTexture: const TextureBinding(imageIndex: 0),
-        ),
-      ],
-      // Three bytes that are not a PNG and not a JPEG.
-      images: <EncodedImage>[
-        EncodedImage(bytes: Uint8List.fromList(<int>[1, 2, 3]), name: 'broken'),
-      ],
-    );
-    final it = cpuTestDevice(width: 8, height: 8);
+  test(
+    'an image that will not decode leaves the colour and a sentence',
+    () async {
+      final teal = Vector4(0.0, 0.5, 0.5, 1.0);
+      final document = _Decoded(
+        surfaces: <ModelSurface>[
+          ModelSurface(
+            name: 'body',
+            mesh: EditMesh.cuboid().toMeshData(),
+            transform: Matrix4.identity(),
+            materialIndex: 0,
+          ),
+        ],
+        nodes: <ModelNode>[
+          nodeAt('body', Vector3.zero(), surfaces: <int>[0]),
+        ],
+        roots: <int>[0],
+        materials: <SurfaceMaterial>[
+          SurfaceMaterial(
+            name: 'painted',
+            baseColor: teal,
+            baseColorTexture: const TextureBinding(imageIndex: 0),
+          ),
+        ],
+        // Three bytes that are not a PNG and not a JPEG.
+        images: <EncodedImage>[
+          EncodedImage(
+            bytes: Uint8List.fromList(<int>[1, 2, 3]),
+            name: 'broken',
+          ),
+        ],
+      );
+      final it = cpuTestDevice(width: 8, height: 8);
 
-    final opened = await openDocument(document, device: it.device);
-    final sync = opened.stage.sync!;
-    final body = opened.project.objects.single;
+      final opened = await openDocument(document, device: it.device);
+      final sync = opened.stage.sync!;
+      final body = opened.project.objects.single;
 
-    // A model with one unreadable texture is a model that opens, not a model
-    // that refuses to. Mutation: let the failure through as an exception and
-    // the whole file fails to open because one image in it is truncated.
-    expect(sync.nodeOf(body.id)!.material.baseColor, teal);
-    expect(opened.stage.materials!.warnings, isNotEmpty);
-  });
+      // A model with one unreadable texture is a model that opens, not a model
+      // that refuses to. Mutation: let the failure through as an exception and
+      // the whole file fails to open because one image in it is truncated.
+      expect(sync.nodeOf(body.id)!.material.baseColor, teal);
+      expect(opened.stage.materials!.warnings, isNotEmpty);
+    },
+  );
 
   group('what a chosen file turns out to be', () {
     /// A project with the three things a save has to keep: a shape that still
@@ -321,9 +331,7 @@ void main() {
             (int id) => ModelObject(
               id: id,
               name: 'lid',
-              geometry: EditedGeometry(
-                EditMesh.cuboid(size: Vector3(2, 1, 3)),
-              ),
+              geometry: EditedGeometry(EditMesh.cuboid(size: Vector3(2, 1, 3))),
               transform: Matrix4.translation(Vector3(0, 4, 0)),
               parent: 1,
             ),
@@ -361,10 +369,10 @@ void main() {
       // project it was saved from at all.
       expect(after.objects.length, before.objects.length);
       expect(after.nextId, before.nextId);
-      expect(
-        after.objects.map((ModelObject o) => o.name),
-        <String>['body', 'lid'],
-      );
+      expect(after.objects.map((ModelObject o) => o.name), <String>[
+        'body',
+        'lid',
+      ]);
       expect(after.objects[0].transform.getTranslation(), Vector3(1, 2, 3));
       expect(after.objects[1].parent, after.objects[0].id);
       expect(after.triangleCount, before.triangleCount);

@@ -41,8 +41,12 @@ void expectVector(Vector3 actual, Vector3 expected, {String? reason}) {
 }
 
 /// The sensor's own reading for a device whose axes sit like this in the world.
-List<double> sensorFrom(Quaternion rotation) =>
-    <double>[rotation.x, rotation.y, rotation.z, rotation.w];
+List<double> sensorFrom(Quaternion rotation) => <double>[
+  rotation.x,
+  rotation.y,
+  rotation.z,
+  rotation.w,
+];
 
 void main() {
   group('a phone lying flat on a table, screen up', () {
@@ -118,10 +122,8 @@ void main() {
 
   group('the reading as it arrives', () {
     test('a three-value vector gets its scalar back', () {
-      final sensor = Quaternion.axisAngle(
-        Vector3(0.0, 1.0, 0.0),
-        0.7,
-      )..normalize();
+      final sensor = Quaternion.axisAngle(Vector3(0.0, 1.0, 0.0), 0.7)
+        ..normalize();
       final withScalar = headRotationFromSensor(sensorFrom(sensor));
       final without = headRotationFromSensor(<double>[
         sensor.x,

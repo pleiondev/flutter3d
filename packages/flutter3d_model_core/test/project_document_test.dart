@@ -526,10 +526,7 @@ void main() {
       // The binding is an index into a table that also had to come across. A
       // materials table imported without its images is a material pointing at
       // image 0 of an empty list, which draws as no texture at all.
-      expect(
-        project.materials.first.surface.baseColorTexture!.imageIndex,
-        0,
-      );
+      expect(project.materials.first.surface.baseColorTexture!.imageIndex, 0);
       expect(project.images.first.name, 'atlas');
     });
 
@@ -545,16 +542,18 @@ void main() {
     });
 
     test('two objects on one slot export as one material', () {
-      final document = toModelDocument(fromModelDocument(painted(<int?>[0, 0])));
+      final document = toModelDocument(
+        fromModelDocument(painted(<int?>[0, 0])),
+      );
 
       expect(document.materials, hasLength(2));
       // Both surfaces name the same row. Mutation: write a material per
       // surface and this is 0 and 1 — the file has grown a duplicate and the
       // two objects can no longer be repainted together.
-      expect(
-        document.surfaces.map((ModelSurface s) => s.materialIndex),
-        <int?>[0, 0],
-      );
+      expect(document.surfaces.map((ModelSurface s) => s.materialIndex), <int?>[
+        0,
+        0,
+      ]);
     });
 
     test('a slot naming no material is dropped rather than written', () {

@@ -91,7 +91,9 @@ List<DocumentDifference> compareModelDocuments(
 
     if (a.layout.toString() != b.layout.toString()) {
       problems.add(
-        DocumentDifference('surfaces[$i]: layout ${a.layout} became ${b.layout}'),
+        DocumentDifference(
+          'surfaces[$i]: layout ${a.layout} became ${b.layout}',
+        ),
       );
       continue;
     }

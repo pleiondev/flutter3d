@@ -184,5 +184,4 @@ final class SceneSync {
     EditedGeometry(:final mesh) => mesh.toMeshData(),
     ImportedGeometry(:final data) => data,
   };
-
 }

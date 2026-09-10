@@ -154,10 +154,7 @@ final class ModelerCubit extends Cubit<ModelerState> {
         ? was.copyWith(level: level)
         : was.copyWith(
             level: level,
-            elements: was.asMeshSelection
-                .convertedTo(mesh, level)
-                .ids
-                .toList(),
+            elements: was.asMeshSelection.convertedTo(mesh, level).ids.toList(),
           );
     emit(now.copyWith(submode: submode, clearSaid: true));
   }
@@ -173,7 +170,9 @@ final class ModelerCubit extends Cubit<ModelerState> {
   void say(String? said) {
     final ModelerReady? now = _ready;
     if (now == null) return;
-    emit(said == null ? now.copyWith(clearSaid: true) : now.copyWith(said: said));
+    emit(
+      said == null ? now.copyWith(clearSaid: true) : now.copyWith(said: said),
+    );
   }
 
   /// Brings the scene to the project and the readiness with it.
@@ -192,7 +191,8 @@ final class ModelerCubit extends Cubit<ModelerState> {
     );
   }
 
-  ModelerReady? get _ready => state is ModelerReady ? state as ModelerReady : null;
+  ModelerReady? get _ready =>
+      state is ModelerReady ? state as ModelerReady : null;
 }
 
 /// The element level a sub-mode names.

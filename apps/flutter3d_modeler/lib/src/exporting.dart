@@ -120,9 +120,7 @@ ExportResult planExport(
   // says why. The difference is the caller: a format has to represent nothing,
   // and a person pressing Export on an empty document has made a mistake.
   if (project.objects.isEmpty) {
-    return const ExportRefused(
-      'There is nothing in this project to export.',
-    );
+    return const ExportRefused('There is nothing in this project to export.');
   }
 
   // Triangles either way, because both writers write triangles: `ObjWriter`

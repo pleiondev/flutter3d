@@ -276,7 +276,9 @@ Uint8List writeProject(ModelProject project) {
         }
         final at = importedAt.putIfAbsent(data, () {
           imported.add(data);
-          importedJson.add(<String, Object?>{'layout': _layoutJson(data.layout)});
+          importedJson.add(<String, Object?>{
+            'layout': _layoutJson(data.layout),
+          });
           return imported.length - 1;
         });
         geometry = <String, Object?>{'kind': 'imported', 'mesh': at};
@@ -382,9 +384,7 @@ Uint8List writeProject(ModelProject project) {
       );
   }
 
-  final importedTable = Uint8List(
-    imported.length * kProjectImportedEntryBytes,
-  );
+  final importedTable = Uint8List(imported.length * kProjectImportedEntryBytes);
   final importedView = ByteData.view(importedTable.buffer);
   for (var i = 0; i < imported.length; i++) {
     final (int vertexAt, int vertexBytes, int indexAt, int indexBytes) =
@@ -397,9 +397,7 @@ Uint8List writeProject(ModelProject project) {
       ..setUint32(entry + 12, indexBytes, Endian.little);
   }
 
-  final imageTable = Uint8List(
-    project.images.length * kProjectImageEntryBytes,
-  );
+  final imageTable = Uint8List(project.images.length * kProjectImageEntryBytes);
   final imageView = ByteData.view(imageTable.buffer);
   for (var i = 0; i < imageOffsets.length; i++) {
     final (int at, int length) = imageOffsets[i];
@@ -590,10 +588,12 @@ ProjectRead readProject(Uint8List bytes) {
   );
   if (imageRefusal != null) return ProjectRefused(imageRefusal);
 
-  final (List<ProjectMaterial> materials, String? materialRefusal) =
-      _readMaterials(
-        document is Map<String, Object?> ? document['materials'] : null,
-      );
+  final (
+    List<ProjectMaterial> materials,
+    String? materialRefusal,
+  ) = _readMaterials(
+    document is Map<String, Object?> ? document['materials'] : null,
+  );
   if (materialRefusal != null) return ProjectRefused(materialRefusal);
 
   if (document case {
@@ -641,7 +641,6 @@ ProjectRead readProject(Uint8List bytes) {
   );
 }
 
-
 /// The imported meshes, or the sentence that stops the file being read.
 ///
 /// Two halves that have to agree: the table says where the bytes are and
@@ -670,7 +669,7 @@ ProjectRead readProject(Uint8List bytes) {
     return (
       const <MeshData>[],
       'The imported-mesh table holds $count meshes and the manifest describes '
-      '$described of them.',
+          '$described of them.',
     );
   }
 
@@ -692,7 +691,7 @@ ProjectRead readProject(Uint8List bytes) {
       return (
         const <MeshData>[],
         'Imported mesh $i runs from $vertexAt for $vertexBytes bytes and from '
-        '$indexAt for $indexBytes, and the blob is ${blob.length} bytes long.',
+            '$indexAt for $indexBytes, and the blob is ${blob.length} bytes long.',
       );
     }
     // Four bytes to a float and four to an index, so a length that is not a
@@ -703,7 +702,7 @@ ProjectRead readProject(Uint8List bytes) {
       return (
         const <MeshData>[],
         'Imported mesh $i has $vertexBytes vertex bytes and $indexBytes index '
-        'bytes, and both are counts of four-byte values.',
+            'bytes, and both are counts of four-byte values.',
       );
     }
 
@@ -715,8 +714,8 @@ ProjectRead readProject(Uint8List bytes) {
       return (
         const <MeshData>[],
         'Imported mesh $i has no vertex layout this build can read; a layout '
-        'is a non-empty list of attributes, each a name and a count of '
-        'components.',
+            'is a non-empty list of attributes, each a name and a count of '
+            'components.',
       );
     }
     final floats = vertexBytes ~/ 4;
@@ -724,7 +723,7 @@ ProjectRead readProject(Uint8List bytes) {
       return (
         const <MeshData>[],
         'Imported mesh $i holds $floats floats and its layout takes '
-        '${layout.floatsPerVertex} to a vertex, which does not divide.',
+            '${layout.floatsPerVertex} to a vertex, which does not divide.',
       );
     }
 
@@ -735,12 +734,20 @@ ProjectRead readProject(Uint8List bytes) {
     // stop guaranteeing the moment anything wrote an unaligned section.
     Float32List floatsAt(int at, int length) => Float32List.sublistView(
       Uint8List.fromList(
-        Uint8List.sublistView(bytes, blob.offset + at, blob.offset + at + length),
+        Uint8List.sublistView(
+          bytes,
+          blob.offset + at,
+          blob.offset + at + length,
+        ),
       ),
     );
     Uint32List indicesAt(int at, int length) => Uint32List.sublistView(
       Uint8List.fromList(
-        Uint8List.sublistView(bytes, blob.offset + at, blob.offset + at + length),
+        Uint8List.sublistView(
+          bytes,
+          blob.offset + at,
+          blob.offset + at + length,
+        ),
       ),
     );
 
@@ -754,7 +761,6 @@ ProjectRead readProject(Uint8List bytes) {
   }
   return (meshes, null);
 }
-
 
 /// A material as JSON.
 ///
@@ -833,35 +839,33 @@ Map<String, Object?>? _bindingJson(TextureBinding? binding) => binding == null
   final materials = <ProjectMaterial>[];
   for (var i = 0; i < json.length; i++) {
     final Object? entry = json[i];
-    if (entry
-        case <String, Object?>{
-          'version': final int version,
-          'name': final String? name,
-          'baseColor': final List<Object?> baseColor,
-          'metallic': final num metallic,
-          'roughness': final num roughness,
-          'normalScale': final num normalScale,
-          'occlusionStrength': final num occlusionStrength,
-          'emissive': final List<Object?> emissive,
-          'emissiveStrength': final num emissiveStrength,
-          'alphaMode': final String alphaMode,
-          'alphaCutoff': final num alphaCutoff,
-          'doubleSided': final bool doubleSided,
-          'unlit': final bool unlit,
-        }
-        when version > 0) {
+    if (entry case <String, Object?>{
+      'version': final int version,
+      'name': final String? name,
+      'baseColor': final List<Object?> baseColor,
+      'metallic': final num metallic,
+      'roughness': final num roughness,
+      'normalScale': final num normalScale,
+      'occlusionStrength': final num occlusionStrength,
+      'emissive': final List<Object?> emissive,
+      'emissiveStrength': final num emissiveStrength,
+      'alphaMode': final String alphaMode,
+      'alphaCutoff': final num alphaCutoff,
+      'doubleSided': final bool doubleSided,
+      'unlit': final bool unlit,
+    } when version > 0) {
       if (baseColor.length != 4 || baseColor.any((Object? v) => v is! num)) {
         return (
           const <ProjectMaterial>[],
           'Material $i has a base colour of ${baseColor.length} numbers, and a '
-          'colour is four.',
+              'colour is four.',
         );
       }
       if (emissive.length != 3 || emissive.any((Object? v) => v is! num)) {
         return (
           const <ProjectMaterial>[],
           'Material $i has an emissive colour of ${emissive.length} numbers, '
-          'and that one is three.',
+              'and that one is three.',
         );
       }
       materials.add(
@@ -908,8 +912,8 @@ Map<String, Object?>? _bindingJson(TextureBinding? binding) => binding == null
     return (
       const <ProjectMaterial>[],
       'Material $i is missing a field or has one of the wrong type: a material '
-      'is a version above zero, a name, two colours, its factors, its texture '
-      'slots and how it treats alpha.',
+          'is a version above zero, a name, two colours, its factors, its texture '
+          'slots and how it treats alpha.',
     );
   }
   return (materials, null);
@@ -977,7 +981,7 @@ T _named<T extends Enum>(List<T> values, String name, T fallback) {
     return (
       const <EncodedImage>[],
       'The image table holds $count images and the manifest names $names of '
-      'them.',
+          'them.',
     );
   }
 
@@ -995,7 +999,7 @@ T _named<T extends Enum>(List<T> values, String name, T fallback) {
       return (
         const <EncodedImage>[],
         'Image $i runs from $at for $length bytes and the blob is '
-        '${blob.length} bytes long.',
+            '${blob.length} bytes long.',
       );
     }
     final Object? entryJson = (described! as List)[i];
@@ -1011,7 +1015,9 @@ T _named<T extends Enum>(List<T> values, String name, T fallback) {
         // A name and an encoding are both things a file may honestly not know:
         // a glTF can carry an image with neither. Missing is null rather than a
         // refusal, and anything of the wrong type is treated as missing.
-        name: entryJson is Map<String, Object?> ? entryJson['name'] as String? : null,
+        name: entryJson is Map<String, Object?>
+            ? entryJson['name'] as String?
+            : null,
         mimeType: entryJson is Map<String, Object?>
             ? entryJson['mimeType'] as String?
             : null,
@@ -1086,7 +1092,10 @@ String? _verifyChecksums(
 
   final storedView = ByteData.sublistView(stored);
   for (var i = 0; i < table.length ~/ kProjectChecksumEntryBytes; i++) {
-    final kind = storedView.getUint32(i * kProjectChecksumEntryBytes, Endian.little);
+    final kind = storedView.getUint32(
+      i * kProjectChecksumEntryBytes,
+      Endian.little,
+    );
     final want = storedView.getUint32(
       i * kProjectChecksumEntryBytes + 4,
       Endian.little,
@@ -1137,12 +1146,10 @@ VertexLayout? _layoutFrom(Object? json) {
   if (json is! List) return null;
   final attributes = <VertexAttribute>[];
   for (final Object? each in json) {
-    if (each
-        case <String, Object?>{
-          'name': final String name,
-          'components': final int components,
-        }
-        when components > 0) {
+    if (each case <String, Object?>{
+      'name': final String name,
+      'components': final int components,
+    } when components > 0) {
       attributes.add(VertexAttribute(name, components));
       continue;
     }

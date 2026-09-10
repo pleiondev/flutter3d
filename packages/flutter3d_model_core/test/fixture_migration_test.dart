@@ -64,10 +64,11 @@ void main() {
     test('the objects come back with their names, places and parents', () {
       final project = fixtureOpened(1);
 
-      expect(
-        project.objects.map((ModelObject o) => o.name),
-        <String>['body', 'lid', 'arrived'],
-      );
+      expect(project.objects.map((ModelObject o) => o.name), <String>[
+        'body',
+        'lid',
+        'arrived',
+      ]);
       expect(project.objects[0].transform.getTranslation(), Vector3(1, 2, 3));
       expect(project.objects[1].parent, project.objects[0].id);
       // Ahead of the count, because an object was added and deleted before the

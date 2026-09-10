@@ -31,12 +31,13 @@ ModelProject cubes(int count, {ProjectProfile? profile}) {
 }
 
 /// One object with no faces at all, which readiness calls an error.
-ModelObject Function(int) ghost() => (int id) => ModelObject(
-  id: id,
-  name: 'ghost',
-  geometry: EditedGeometry(EditMesh.empty()),
-  transform: Matrix4.identity(),
-);
+ModelObject Function(int) ghost() =>
+    (int id) => ModelObject(
+      id: id,
+      name: 'ghost',
+      geometry: EditedGeometry(EditMesh.empty()),
+      transform: Matrix4.identity(),
+    );
 
 void main() {
   group('what it does not walk twice', () {
@@ -172,8 +173,13 @@ void main() {
     test('it is recomputed when an object changes, without walking the rest', () {
       final tight = cubes(4, profile: const ProjectProfile(maxTriangles: 100));
       final cache = ReadinessCache();
-      expect(cache.of(tight).issues.any((ExportIssue i) =>
-          i.message.contains('profile allows')), isFalse);
+      expect(
+        cache
+            .of(tight)
+            .issues
+            .any((ExportIssue i) => i.message.contains('profile allows')),
+        isFalse,
+      );
 
       // A cube replaced by a lathe of sixty-four segments: the budget has to
       // move even though only one object was walked. Mutation: keep the cached
@@ -199,9 +205,10 @@ void main() {
       final tight = cubes(4, profile: const ProjectProfile(maxTriangles: 40));
       final cache = ReadinessCache();
       expect(
-        cache.of(tight).issues.any(
-          (ExportIssue i) => i.message.contains('profile allows'),
-        ),
+        cache
+            .of(tight)
+            .issues
+            .any((ExportIssue i) => i.message.contains('profile allows')),
         isTrue,
         reason: '48 triangles against a budget of 40',
       );
@@ -212,9 +219,10 @@ void main() {
       // deleted cube goes on being counted, so the budget warning never clears
       // and the cache grows for the length of the session.
       expect(
-        cache.of(fewer).issues.any(
-          (ExportIssue i) => i.message.contains('profile allows'),
-        ),
+        cache
+            .of(fewer)
+            .issues
+            .any((ExportIssue i) => i.message.contains('profile allows')),
         isFalse,
         reason: '36 triangles against a budget of 40',
       );

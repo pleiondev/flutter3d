@@ -711,13 +711,31 @@ void main() {
           geometry: ImportedGeometry(
             MeshData(
               layout: VertexLayout.positionOnly,
-              vertices: Float32List.fromList(<double>[0, 0, 0, 1, 0, 0, 0, 1, 0]),
+              vertices: Float32List.fromList(<double>[
+                0,
+                0,
+                0,
+                1,
+                0,
+                0,
+                0,
+                1,
+                0,
+              ]),
               indices: Uint32List.fromList(<int>[0, 1, 2]),
               morphTargets: <MorphTarget>[
                 MorphTarget(
                   vertexCount: 3,
                   positions: Float32List.fromList(<double>[
-                    0, 1, 0, 0, 0, 0, 0, 0, 0,
+                    0,
+                    1,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
                   ]),
                 ),
               ],
@@ -770,28 +788,29 @@ void main() {
       unlit: true,
     );
 
-    ModelProject painting() => ModelProject(
-      materials: <ProjectMaterial>[
-        ProjectMaterial(surface: painted(), version: 7),
-        ProjectMaterial(surface: SurfaceMaterial(name: 'plain')),
-      ],
-      images: <EncodedImage>[
-        EncodedImage(
-          bytes: Uint8List.fromList(<int>[1, 2, 3, 4, 5]),
-          name: 'normal',
-          mimeType: 'image/png',
-        ),
-        EncodedImage(bytes: Uint8List.fromList(<int>[9, 9])),
-      ],
-    ).added(
-      (int id) => ModelObject(
-        id: id,
-        name: 'bolt',
-        geometry: EditedGeometry(EditMesh.cuboid()),
-        transform: Matrix4.identity(),
-        materialSlots: const <int>[0],
-      ),
-    );
+    ModelProject painting() =>
+        ModelProject(
+          materials: <ProjectMaterial>[
+            ProjectMaterial(surface: painted(), version: 7),
+            ProjectMaterial(surface: SurfaceMaterial(name: 'plain')),
+          ],
+          images: <EncodedImage>[
+            EncodedImage(
+              bytes: Uint8List.fromList(<int>[1, 2, 3, 4, 5]),
+              name: 'normal',
+              mimeType: 'image/png',
+            ),
+            EncodedImage(bytes: Uint8List.fromList(<int>[9, 9])),
+          ],
+        ).added(
+          (int id) => ModelObject(
+            id: id,
+            name: 'bolt',
+            geometry: EditedGeometry(EditMesh.cuboid()),
+            transform: Matrix4.identity(),
+            materialSlots: const <int>[0],
+          ),
+        );
 
     test('every field of a material comes back', () {
       final after = opened(writeProject(painting()));
@@ -884,8 +903,10 @@ void main() {
       // that is a material drawn slightly wrong rather than a project nobody
       // can open. Mutation: refuse it, and a project saved by tomorrow's build
       // stops opening in today's.
-      expect(opened(bytes).materials.single.surface.alphaMode,
-          SurfaceAlphaMode.opaque);
+      expect(
+        opened(bytes).materials.single.surface.alphaMode,
+        SurfaceAlphaMode.opaque,
+      );
     });
 
     test('a material missing a field is refused, and says which kind', () {
@@ -1014,9 +1035,9 @@ void main() {
       final shared = arrived();
       final bytes = writeProject(importing(2, shared: shared));
 
-      final table = directoryOf(bytes).firstWhere(
-        (entry) => entry.kind == ProjectSection.importedMeshes,
-      );
+      final table = directoryOf(
+        bytes,
+      ).firstWhere((entry) => entry.kind == ProjectSection.importedMeshes);
 
       // Mutation: append per object rather than looking the mesh up by
       // identity. The file grows a second copy of every instanced prop, and
@@ -1044,17 +1065,15 @@ void main() {
   });
 
   group('an imported mesh the file describes wrongly', () {
-    Map<String, Object?> manifestWith(
-      Object? importedMeshes, {
-      int mesh = 0,
-    }) => <String, Object?>{
-      ...manifestOf(<Map<String, Object?>>[
-        objectJson(
-          geometry: <String, Object?>{'kind': 'imported', 'mesh': mesh},
-        ),
-      ]),
-      'importedMeshes': importedMeshes,
-    };
+    Map<String, Object?> manifestWith(Object? importedMeshes, {int mesh = 0}) =>
+        <String, Object?>{
+          ...manifestOf(<Map<String, Object?>>[
+            objectJson(
+              geometry: <String, Object?>{'kind': 'imported', 'mesh': mesh},
+            ),
+          ]),
+          'importedMeshes': importedMeshes,
+        };
 
     /// A table of one entry addressing [vertexBytes] and [indexBytes] at the
     /// front of a blob of [blobBytes].
@@ -1207,9 +1226,9 @@ void main() {
 
     test('a damaged checksum table says so rather than blaming a section', () {
       final whole = writeProject(sample());
-      final table = directoryOf(whole).firstWhere(
-        (entry) => entry.kind == ProjectSection.checksums,
-      );
+      final table = directoryOf(
+        whole,
+      ).firstWhere((entry) => entry.kind == ProjectSection.checksums);
       final broken = Uint8List.fromList(whole)..[table.offset + 4] ^= 0xFF;
 
       // The one thing the table cannot check is itself, which is what the
@@ -1274,7 +1293,10 @@ void main() {
       // Mutation: read the four bytes without checking the length and this
       // throws rather than answering, on a file somebody picked by mistake.
       expect(isProjectFile(Uint8List(0)), isFalse);
-      expect(isProjectFile(Uint8List.fromList(<int>[0x46, 0x33, 0x44])), isFalse);
+      expect(
+        isProjectFile(Uint8List.fromList(<int>[0x46, 0x33, 0x44])),
+        isFalse,
+      );
     });
 
     test('the name is not what decides', () {

@@ -47,11 +47,7 @@ Future<void> show(
   MaterialApp(
     theme: modelerTheme(),
     home: Scaffold(
-      body: StatusLine(
-        said: said,
-        readiness: readiness,
-        triangles: triangles,
-      ),
+      body: StatusLine(said: said, readiness: readiness, triangles: triangles),
     ),
   ),
 );
@@ -150,7 +146,10 @@ void main() {
         triangles: 1240000,
       );
 
-      expect(find.textContaining('1${thinSpace}240${thinSpace}000'), findsOneWidget);
+      expect(
+        find.textContaining('1${thinSpace}240${thinSpace}000'),
+        findsOneWidget,
+      );
     });
   });
 
@@ -161,7 +160,8 @@ void main() {
       await show(
         tester,
         ExportReadiness.check(const ModelProject()),
-        said: 'a very long sentence about something that just happened, '
+        said:
+            'a very long sentence about something that just happened, '
             'long enough to want the whole bar to itself and then some more',
       );
 
