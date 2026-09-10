@@ -204,6 +204,27 @@ final class ProjectRefused extends ProjectRead {
   String toString() => 'ProjectRefused($because)';
 }
 
+/// Whether [bytes] begin the way a project file does.
+///
+/// **For deciding what a file is, not whether it is sound.** A person picks a
+/// file out of a folder and the application has to know whether to hand it to
+/// `readProject` or to a model decoder, and the answer is in the first four
+/// bytes rather than in the name: a `.f3dproj` renamed to `.glb` is still a
+/// project, and an extension is a thing anybody can type. Mirrors `isF3dFile`
+/// next door, and for the same reason.
+///
+/// Says nothing about the rest of the file — [readProject] is what checks that
+/// and has a sentence for every way it can be wrong.
+bool isProjectFile(Uint8List bytes) {
+  if (bytes.lengthInBytes < 4) return false;
+  final view = ByteData.view(
+    bytes.buffer,
+    bytes.offsetInBytes,
+    bytes.lengthInBytes,
+  );
+  return view.getUint32(0, Endian.little) == kProjectMagic;
+}
+
 /// The project as a `.f3dproj` file.
 ///
 /// Deterministic: the same project writes the same bytes. The manifest's keys

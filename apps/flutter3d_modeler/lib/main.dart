@@ -128,59 +128,6 @@ final class ModelerFailed extends ModelerScreenState {
   final String said;
 }
 
-/// One mesh, as the document a writer takes.
-///
-/// **A local class rather than a shared one, and only until phase 1.** The
-/// plan's `fmt-02` puts a `PlainModelDocument` in `flutter3d_formats`, where
-/// the tests that build documents by hand can share it; today the only caller
-/// is this button, and a type published for one caller is a type nobody can
-/// change afterwards.
-final class _OneMesh extends ModelDocument {
-  _OneMesh(MeshData mesh)
-    : surfaces = <ModelSurface>[ModelSurface(mesh: mesh, name: 'model')];
-
-  @override
-  final List<ModelSurface> surfaces;
-
-  @override
-  List<SurfaceMaterial> get materials => const <SurfaceMaterial>[];
-
-  @override
-  List<EncodedImage> get images => const <EncodedImage>[];
-
-  @override
-  List<String> get warnings => const <String>[];
-}
-
-/// A model whose bytes are already in memory.
-///
-/// Both halves of `ProjectFiles` hand over bytes rather than a path — a browser
-/// has no path at all — and the decoders take an `AssetSource`, so this is the
-/// adapter between them. Sibling files are refused rather than guessed: a
-/// `.gltf` with an external `.bin` is a case `ui-16` handles by asking for both
-/// files, and answering it wrongly here would look like a corrupt model.
-final class _Bytes extends AssetSource {
-  const _Bytes(this._name, this._bytes);
-
-  final String _name;
-  final Uint8List _bytes;
-
-  @override
-  String get key => 'memory:$_name';
-
-  @override
-  Future<Uint8List> read() async => _bytes;
-
-  @override
-  AssetUriResolver get resolveUri => (AssetRequest request) async {
-    if (request.uri.startsWith('data:')) return decodeDataUri(request.uri);
-    throw StateError(
-      'this model refers to "${request.uri}", and only the file itself was '
-      'opened',
-    );
-  };
-}
-
 class ModelerScreen extends StatefulWidget {
   const ModelerScreen({super.key});
 
@@ -442,13 +389,10 @@ class _ModelerScreenState extends State<ModelerScreen>
   /// draws those — so what is picked, moved, undone and exported is the model
   /// that was opened.
   ///
-  /// **The materials do not survive the trip yet, and that is a known cost.**
-  /// A `ModelProject` has no material table, so `SceneSync` paints every object
-  /// in clay and a textured model opens untextured. Instantiating the asset
-  /// instead would keep the textures and keep the split above, which is the
-  /// worse of the two: a model that is the wrong colour can be edited and
-  /// exported, and a model that is not in the document cannot. `mat-01` is the
-  /// half that gives it back.
+  /// **The materials do not survive an import yet, and that is a known cost.**
+  /// `mat-01` gives a project its material table, so a model imported from a
+  /// glTF arrives painted; a project saved by this application carries its own
+  /// and opens exactly as it was left.
   Future<void> _openFile() async {
     final device = _device;
     if (device == null) return;
@@ -460,38 +404,43 @@ class _ModelerScreenState extends State<ModelerScreen>
         return;
       }
       final opening = Stopwatch()..start();
-      final document = await decodeModel(
-        ModelLoadRequest(source: _Bytes(picked.name, picked.bytes)),
+      final opened = await openBytes(
+        picked.bytes,
+        name: picked.name,
+        device: device,
       );
-      final opened = await openDocument(document, device: device);
-      if (!mounted) return;
-      final project = opened.project;
-      final stage = opened.stage..frameSubject();
       opening.stop();
-      // The scene the old materials belonged to is going, and the selection
-      // points at nodes that are no longer drawn.
-      _surfaces.forget();
-      setState(() {
-        _history = ModelHistory(project);
-        // Ids start again from zero in the new project, so a picker held
-        // against the old one could match a version and answer about a mesh
-        // that is gone.
-        _picker = null;
-        _pickerVersion = -1;
-        _state = ModelerReady((_state as ModelerReady).renderer, stage);
-        final opened = '${picked.name}: '
-            '${_count(project.objects.length, 'object')}, '
-            '${_count(project.triangleCount, 'triangle')}, '
-            '${_count(project.materials.length, 'material')}, '
-            'opened in ${opening.elapsedMilliseconds} ms';
-        // What could not be decoded is said rather than swallowed: a model
-        // drawing in flat colour because one texture was truncated looks
-        // exactly like a model authored in flat colour.
-        _fileSaid = <String>[
-          opened,
-          ...?stage.materials?.warnings,
-        ].join('\n');
-      });
+      if (!mounted) return;
+
+      switch (opened) {
+        // A file that will not read is a sentence on the status line and
+        // nothing else: the document on screen is still the one the person was
+        // working on, and throwing it away because they picked the wrong file
+        // out of a folder would be the worst possible answer.
+        case OpenRefused(:final String because):
+          setState(() => _fileSaid = because);
+        case OpenedModel(:final ModelProject project, :final ModelerStage stage):
+          stage.frameSubject();
+          // The scene the old materials belonged to is going, and the
+          // selection points at nodes that are no longer drawn.
+          _surfaces.forget();
+          setState(() {
+            _history = ModelHistory(project);
+            // Ids start again in the new project, so a picker held against the
+            // old one could match a version and answer about a mesh that is
+            // gone.
+            _picker = null;
+            _pickerVersion = -1;
+            _state = ModelerReady((_state as ModelerReady).renderer, stage);
+            final said =
+                '${picked.name}: '
+                '${_count(project.objects.length, 'object')}, '
+                '${_count(project.triangleCount, 'triangle')}, '
+                '${_count(project.materials.length, 'material')}, '
+                'opened in ${opening.elapsedMilliseconds} ms';
+            _fileSaid = <String>[said, ...opened.warnings].join('\n');
+          });
+      }
     } catch (error) {
       if (mounted) setState(() => _fileSaid = 'could not open it: $error');
     }
@@ -501,24 +450,37 @@ class _ModelerScreenState extends State<ModelerScreen>
   /// reads as something a program wrote rather than as a sentence.
   static String _count(int n, String one) => '$n $one${n == 1 ? '' : 's'}';
 
-  /// Writes what is on screen as the engine's own container.
+  /// Writes the document as the modeller's own file.
   ///
-  /// On a desktop that is a file somebody chose; in a browser it is a
-  /// download. The spike part is what follows the write: `p0-13n` asks whether
-  /// the same directory would have taken a temporary file and a rename, and
-  /// the answer goes on the screen beside the result.
+  /// **The project, not the picture.** This used to pull one `MeshData` off the
+  /// scene's subject node and write it through `F3dWriter`, which meant a save
+  /// that silently kept one mesh of however many the document held, threw away
+  /// every name, transform and parent, and produced a file this application
+  /// could not open back into the project it came from. `writeProject` writes
+  /// the objects, their hierarchy, their material slots and the tables those
+  /// index.
+  ///
+  /// `.f3d` is still a thing this can produce, and it is an *export* rather
+  /// than a save — `ui-17`, and the difference is that an export is allowed to
+  /// lose what the target format cannot hold, while a save is not.
+  ///
+  /// The spike part is what follows the write: `p0-13n` asks whether the same
+  /// directory would have taken a temporary file and a rename, and the answer
+  /// goes on the screen beside the result.
   Future<void> _saveFile() async {
-    final state = _state;
-    if (state is! ModelerReady) return;
-    final mesh = _meshOf(state.stage.subject);
-    if (mesh == null) {
-      setState(() => _fileSaid = 'nothing to save');
+    if (_state is! ModelerReady) return;
+
+    final Uint8List bytes;
+    try {
+      bytes = writeProject(_history.project);
+    } on ArgumentError catch (error) {
+      // What the format has no section for yet — a mesh carrying morph
+      // targets. The message names the object, and it belongs in front of the
+      // person rather than in a stack trace.
+      setState(() => _fileSaid = 'not saved: ${error.message}');
       return;
     }
-
-    final bytes = F3dWriter(_OneMesh(mesh)).write();
-    final result = await saveAs(bytes, suggestedName: 'model.f3d');
-
+    final result = await saveAs(bytes, suggestedName: 'model.f3dproj');
     var said = switch (result.outcome) {
       SaveOutcome.written => 'wrote ${bytes.length} bytes to ${result.path}',
       SaveOutcome.cancelled => 'nothing saved',
@@ -1062,16 +1024,6 @@ class _ModelerScreenState extends State<ModelerScreen>
 
   /// What the selection is, in the words the status line shows.
   String get _selectionSaid => _history.selection.says;
-
-  /// The first mesh under [node], which is what a save writes.
-  static MeshData? _meshOf(SceneNode node) {
-    MeshData? found;
-    node.traverse((SceneNode each) {
-      if (found != null || each is! MeshNode) return;
-      found = each.mesh.source;
-    });
-    return found;
-  }
 
   /// Reads a model out of the bundle and uploads it.
   ///

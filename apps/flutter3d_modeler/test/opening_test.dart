@@ -303,4 +303,161 @@ void main() {
     expect(sync.nodeOf(body.id)!.material.baseColor, teal);
     expect(opened.stage.materials!.warnings, isNotEmpty);
   });
+
+  group('what a chosen file turns out to be', () {
+    /// A project with the three things a save has to keep: a shape that still
+    /// knows its parameters, an edited mesh, and a child hanging off one.
+    ModelProject workshop() {
+      final project = const ModelProject()
+          .added(
+            (int id) => ModelObject(
+              id: id,
+              name: 'body',
+              geometry: EditedGeometry(EditMesh.cuboid()),
+              transform: Matrix4.translation(Vector3(1, 2, 3)),
+            ),
+          )
+          .added(
+            (int id) => ModelObject(
+              id: id,
+              name: 'lid',
+              geometry: EditedGeometry(
+                EditMesh.cuboid(size: Vector3(2, 1, 3)),
+              ),
+              transform: Matrix4.translation(Vector3(0, 4, 0)),
+              parent: 1,
+            ),
+          )
+          .added(
+            (int id) => ModelObject(
+              id: id,
+              name: 'doomed',
+              geometry: EditedGeometry(EditMesh.cuboid()),
+              transform: Matrix4.identity(),
+            ),
+          );
+      // Removed, so `nextId` is 4 while the file holds two objects — the trap a
+      // reader that counted the objects instead of reading the number falls
+      // into, and the one that would make undo name the wrong object.
+      return project.removed(3);
+    }
+
+    test('a saved project opens back as the same project', () async {
+      final before = workshop();
+      final it = cpuTestDevice(width: 8, height: 8);
+
+      final opened = await openBytes(
+        writeProject(before),
+        name: 'model.f3dproj',
+        device: it.device,
+      );
+
+      expect(opened, isA<OpenedModel>());
+      final after = (opened as OpenedModel).project;
+
+      // Mutation: keep writing the scene's first mesh through `F3dWriter`,
+      // which is what Save did. One object of two comes back, with no name, no
+      // placement and no parent — and the file cannot be opened back into the
+      // project it was saved from at all.
+      expect(after.objects.length, before.objects.length);
+      expect(after.nextId, before.nextId);
+      expect(
+        after.objects.map((ModelObject o) => o.name),
+        <String>['body', 'lid'],
+      );
+      expect(after.objects[0].transform.getTranslation(), Vector3(1, 2, 3));
+      expect(after.objects[1].parent, after.objects[0].id);
+      expect(after.triangleCount, before.triangleCount);
+    });
+
+    test('the scene follows a project that came out of a file', () async {
+      final it = cpuTestDevice(width: 8, height: 8);
+
+      final opened =
+          await openBytes(
+                writeProject(workshop()),
+                name: 'model.f3dproj',
+                device: it.device,
+              )
+              as OpenedModel;
+      final sync = opened.stage.sync!;
+
+      // The same pairing an import gets: both roads end in a stage built from
+      // the project that came back, so nothing above has to know which was
+      // taken.
+      for (final ModelObject object in opened.project.objects) {
+        expect(sync.nodeOf(object.id), isNotNull, reason: object.name);
+      }
+    });
+
+    test('a model file goes down the import road instead', () async {
+      final it = cpuTestDevice(width: 8, height: 8);
+      final model = F3dWriter(toModelDocument(workshop())).write();
+
+      final opened =
+          await openBytes(model, name: 'thing.f3d', device: it.device)
+              as OpenedModel;
+
+      // A `.f3d` begins "F3D\n" and a project begins "F3DP" — three bytes
+      // apart. Mutation: compare three of them and every model a person picks
+      // is handed to `readProject`, which refuses it.
+      expect(opened.project.objects.length, 2);
+      // It arrives as triangles, because that is what the file holds: nothing
+      // in a `.f3d` records that a mesh was ever editable.
+      expect(opened.project.objects.first.geometry, isA<ImportedGeometry>());
+    });
+
+    test('the extension is not what decides', () async {
+      final it = cpuTestDevice(width: 8, height: 8);
+
+      // A project someone renamed. Mutation: branch on the name and this opens
+      // as a broken model, with a sentence about a decoder rather than the two
+      // objects that are plainly in the file.
+      final opened =
+          await openBytes(
+                writeProject(workshop()),
+                name: 'notaproject.glb',
+                device: it.device,
+              )
+              as OpenedModel;
+
+      expect(opened.project.objects.length, 2);
+    });
+
+    test('a damaged project is a sentence, not an exception', () async {
+      final it = cpuTestDevice(width: 8, height: 8);
+      final broken = Uint8List.fromList(writeProject(workshop()));
+      // Inside the manifest, which is where a flipped byte used to open as a
+      // silently different model.
+      broken[200] ^= 0xFF;
+
+      final opened = await openBytes(
+        broken,
+        name: 'model.f3dproj',
+        device: it.device,
+      );
+
+      // Mutation: let `readProject`'s refusal through as a throw. The
+      // application then loses the document the person was working on because
+      // they picked a damaged file out of a folder.
+      expect(opened, isA<OpenRefused>());
+      expect((opened as OpenRefused).because, contains('damaged'));
+    });
+
+    test('a file that is neither is a sentence too', () async {
+      final it = cpuTestDevice(width: 8, height: 8);
+
+      final opened = await openBytes(
+        Uint8List.fromList(<int>[1, 2, 3, 4, 5, 6, 7, 8]),
+        name: 'holiday.jpg',
+        device: it.device,
+      );
+
+      // A decoder throws, and a person who picked a photograph should be told
+      // so. Mutation: let it propagate and the catch in `_openFile` is the only
+      // thing between them and a stack trace.
+      expect(opened, isA<OpenRefused>());
+      expect((opened as OpenRefused).because, contains('holiday.jpg'));
+    });
+  });
 }

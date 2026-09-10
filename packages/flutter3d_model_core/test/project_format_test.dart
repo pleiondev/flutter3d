@@ -1252,4 +1252,37 @@ void main() {
       expect(readProject(writeProject(sample())), isA<ProjectOpened>());
     });
   });
+
+  group('telling a project file from anything else', () {
+    test('it recognises its own output', () {
+      expect(isProjectFile(writeProject(sample())), isTrue);
+    });
+
+    test('a model file is not a project', () {
+      // `.f3d` begins "F3D\n" and a project begins "F3DP", which share three
+      // bytes. Mutation: compare three of them and every `.f3d` a person picks
+      // is handed to `readProject`, which refuses it with a sentence about a
+      // magic number instead of the model being opened.
+      expect(
+        isProjectFile(Uint8List.fromList(<int>[0x46, 0x33, 0x44, 0x0A])),
+        isFalse,
+      );
+      expect(isProjectFile(utf8.encode('glTF')), isFalse);
+    });
+
+    test('a file too short to have a magic is not a project', () {
+      // Mutation: read the four bytes without checking the length and this
+      // throws rather than answering, on a file somebody picked by mistake.
+      expect(isProjectFile(Uint8List(0)), isFalse);
+      expect(isProjectFile(Uint8List.fromList(<int>[0x46, 0x33, 0x44])), isFalse);
+    });
+
+    test('the name is not what decides', () {
+      // The whole reason this reads bytes: a project renamed `.glb` is still a
+      // project, and an extension is a thing anybody can type.
+      final bytes = writeProject(sample());
+      expect(isProjectFile(bytes), isTrue);
+      expect(readProject(bytes), isA<ProjectOpened>());
+    });
+  });
 }
