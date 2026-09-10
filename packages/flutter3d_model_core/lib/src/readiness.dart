@@ -87,16 +87,19 @@ final class ExportReadiness {
       for (final ModelObject object in project.objects)
         ..._issuesWith(object, trianglesOnly: trianglesOnly),
     ];
-    // Worst first, by two passes rather than by a sort: `List.sort` is not
-    // stable, so sorting on the severity alone would let two warnings swap
-    // places between runs and a panel reorder itself while nothing changed.
-    return ExportReadiness._(<ExportIssue>[
-      for (final ExportIssue issue in found)
-        if (issue.severity == ExportSeverity.error) issue,
-      for (final ExportIssue issue in found)
-        if (issue.severity == ExportSeverity.warning) issue,
-    ]);
+    return ExportReadiness._(_worstFirst(found));
   }
+
+  /// [found], ordered the way [ExportReadiness.check] orders what it finds:
+  /// errors first, then warnings, each keeping the order it arrived in.
+  ///
+  /// For a caller that has the issues already and does not want them found
+  /// again — `ReadinessCache` keeps them per object against the object's
+  /// version, and needs the same ordering rule without the walk. Sharing the
+  /// rule rather than copying it is the point: two orderings that agree today
+  /// are two orderings that stop agreeing the first time one of them changes.
+  factory ExportReadiness.of(List<ExportIssue> found) =>
+      ExportReadiness._(_worstFirst(found));
 
   /// Errors first, then warnings, each in the order of the objects.
   final List<ExportIssue> issues;
@@ -121,6 +124,18 @@ final class ExportReadiness {
   @override
   String toString() => 'ExportReadiness(${issues.length} issues)';
 }
+
+/// [found] with the errors first, by two passes rather than by a sort.
+///
+/// `List.sort` is not stable, so sorting on the severity alone would let two
+/// warnings swap places between runs and a panel reorder itself while nothing
+/// changed.
+List<ExportIssue> _worstFirst(List<ExportIssue> found) => <ExportIssue>[
+  for (final ExportIssue issue in found)
+    if (issue.severity == ExportSeverity.error) issue,
+  for (final ExportIssue issue in found)
+    if (issue.severity == ExportSeverity.warning) issue,
+];
 
 /// The whole project against the profile's triangle budget.
 ///

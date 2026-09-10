@@ -205,6 +205,9 @@ class _ModelerScreenState extends State<ModelerScreen>
     _ => null,
   };
 
+  /// Readiness for the status bar, recomputed only where the project moved.
+  final ReadinessCache _readiness = ReadinessCache();
+
   /// The picker over that mesh, rebuilt when its version moves.
   MeshPicker? _picker;
   int _pickerVersion = -1;
@@ -432,6 +435,10 @@ class _ModelerScreenState extends State<ModelerScreen>
             // gone.
             _picker = null;
             _pickerVersion = -1;
+            // Ids start again in the new project, so nothing would hit — but
+            // two hundred entries from the old one would stay alive for the
+            // length of the session.
+            _readiness.forget();
             _state = ModelerReady((_state as ModelerReady).renderer, stage);
             final said =
                 '${picked.name}: '
@@ -1252,14 +1259,13 @@ class _ModelerScreenState extends State<ModelerScreen>
         ],
         status: _StatusLine(
           said: _opSaid ?? _fileSaid ?? _selectionSaid,
-          // **Recomputed per frame, and that is a decision to revisit.** The
-          // check walks every object and asks `MeshChecks` about each mesh,
-          // which is cheap on a project of one cube and is not on a project of
-          // two hundred — `doc-12` caches it against the project's identity,
-          // and the place to do that is here, when there is a project large
-          // enough to measure. Until then a stale readiness would be worse: a
-          // bar that says a model is ready after the edit that broke it.
-          readiness: ExportReadiness.check(_history.project),
+          // Asked every frame and computed only where the project moved: the
+          // cache keeps each object's answer against that object's version, so
+          // a drag of one object walks one object rather than two hundred. A
+          // stale answer would be worse than a slow one — a bar that says a
+          // model is ready after the edit that broke it — and the version is
+          // what makes staleness impossible rather than unlikely.
+          readiness: _readiness.of(_history.project),
           micros: _lastRenderMicros,
         ),
         properties: _Properties(
