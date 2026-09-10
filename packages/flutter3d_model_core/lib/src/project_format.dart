@@ -65,6 +65,16 @@ const int kProjectMagic = 0x50443346;
 const int kProjectVersion = 1;
 
 const int kProjectHeaderBytes = 16;
+
+/// Where the header keeps the CRC-32 of the checksum section itself.
+///
+/// **The one thing the checksum table cannot check is the checksum table.** A
+/// corrupted table reports whichever section its damaged row names, which is a
+/// refusal with the wrong sentence in it — and this file's rule is that a
+/// refusal names the number that did not add up. Four bytes in the header,
+/// which were reserved and zero, close that: zero still means "no checksums",
+/// so nothing about an older file changes meaning.
+const int kProjectChecksumOffset = 12;
 const int kProjectSectionEntryBytes = 16;
 
 /// One entry of the edited-mesh table: u32 offset into the blob, u32 length.
@@ -81,6 +91,9 @@ const int kProjectImportedEntryBytes = 16;
 
 /// One entry of the image table: u32 offset into the blob, u32 length.
 const int kProjectImageEntryBytes = 8;
+
+/// One entry of the checksum table: u32 section kind, u32 CRC-32.
+const int kProjectChecksumEntryBytes = 8;
 
 /// Section kinds.
 ///
@@ -123,6 +136,27 @@ abstract final class ProjectSection {
   /// `dart:ui` and this package has no window. A project saved on a machine
   /// that could not decode a texture still writes it back out whole.
   static const int images = 5;
+
+  /// `count` entries of [kProjectChecksumEntryBytes]: a section kind and the
+  /// CRC-32 of that section's bytes, for every section in the file but this
+  /// one.
+  ///
+  /// **Per section rather than one sum over the file, because a refusal that
+  /// names the damage is worth more than one that does not.** This file's whole
+  /// doctrine about bad files is that "corrupt" is a thing nobody can act on
+  /// and "section 3 runs from 200 for 64 bytes" is a thing somebody can take to
+  /// whoever wrote it. A single digest gives one bit; a sum per section says
+  /// which part went, and a reader that one day opens what it can will already
+  /// know that the manifest is sound and the mesh blob is not.
+  ///
+  /// **Pairs of (kind, sum) rather than sums in directory order**, so that the
+  /// table does not have to be read in step with the directory, and so that a
+  /// section this build has never heard of is still checked.
+  ///
+  /// Absent from a file means nothing is verified, which is what makes this
+  /// additive: it is a new section, and the rule for those is that an older
+  /// reader steps over what it does not know.
+  static const int checksums = 6;
 }
 
 /// What [readProject] gives back.
@@ -364,6 +398,24 @@ Uint8List writeProject(ModelProject project) {
     (ProjectSection.images, imageTable, project.images.length),
   ];
 
+  // Computed over the section data, before anything knows where in the file it
+  // will land: an offset is the directory's business and a sum is about the
+  // bytes. That is also what lets the table be built here, one row per section
+  // written so far, with itself left out.
+  final checksums = Uint8List(sections.length * kProjectChecksumEntryBytes);
+  final checksumView = ByteData.view(checksums.buffer);
+  for (var i = 0; i < sections.length; i++) {
+    final (int kind, Uint8List data, int _) = sections[i];
+    checksumView
+      ..setUint32(i * kProjectChecksumEntryBytes, kind, Endian.little)
+      ..setUint32(
+        i * kProjectChecksumEntryBytes + 4,
+        crc32(data),
+        Endian.little,
+      );
+  }
+  sections.add((ProjectSection.checksums, checksums, sections.length));
+
   final offsets = <int>[];
   final total = sections.fold<int>(
     _align(kProjectHeaderBytes + sections.length * kProjectSectionEntryBytes),
@@ -379,9 +431,10 @@ Uint8List writeProject(ModelProject project) {
     ..setUint32(0, kProjectMagic, Endian.little)
     ..setUint32(4, kProjectVersion, Endian.little)
     ..setUint32(8, sections.length, Endian.little)
-    // Reserved, and zero. A field kept rather than dropped so the header stays
-    // 16 bytes, which is what makes the directory start on a boundary.
-    ..setUint32(12, 0, Endian.little);
+    // The sum of the checksum table, which is the one thing the table cannot
+    // sum. Zero means a file with no checksums in it, so an older file keeps
+    // its meaning.
+    ..setUint32(kProjectChecksumOffset, crc32(checksums), Endian.little);
 
   for (var i = 0; i < sections.length; i++) {
     final (int kind, Uint8List data, int count) = sections[i];
@@ -466,6 +519,12 @@ ProjectRead readProject(Uint8List bytes) {
     // that writes materials opens here as the objects it also wrote.
     sections[kind] = (offset: offset, length: length);
   }
+
+  // Before anything is decoded. A manifest that parses as JSON after a byte
+  // flip is the case this exists for: it opens as a silently different model,
+  // and everything downstream believes it.
+  final String? damaged = _verifyChecksums(bytes, view, sections);
+  if (damaged != null) return ProjectRefused(damaged);
 
   final manifestAt = sections[ProjectSection.manifest];
   if (manifestAt == null) {
@@ -939,6 +998,93 @@ T _named<T extends Enum>(List<T> values, String name, T fallback) {
     );
   }
   return (images, null);
+}
+
+/// The CRC-32 of [bytes], the polynomial PNG and zip use.
+///
+/// **Written here rather than reached for, because there is nowhere to reach.**
+/// The only other one in the repository is private to `cpu_png.dart`, which is
+/// a backend and a layer this package may not depend on. Twelve lines and a
+/// table against a dependency inversion is the right trade, and the table is
+/// built once.
+///
+/// CRC-32 rather than a cryptographic digest: this is here to catch a flipped
+/// bit on a disk or a truncated copy, not to catch somebody editing the file on
+/// purpose. Nothing in a project file is a secret and nothing signs it.
+int crc32(List<int> bytes) {
+  var c = 0xFFFFFFFF;
+  for (final int byte in bytes) {
+    c = _crcTable[(c ^ byte) & 0xFF] ^ (c >> 8);
+  }
+  return (c ^ 0xFFFFFFFF) & 0xFFFFFFFF;
+}
+
+final List<int> _crcTable = List<int>.generate(256, (int n) {
+  var c = n;
+  for (var k = 0; k < 8; k++) {
+    c = (c & 1) != 0 ? 0xEDB88320 ^ (c >> 1) : c >> 1;
+  }
+  return c;
+});
+
+/// What the checksums say about the sections, or null when they agree.
+///
+/// A file with no checksum section is a file nothing is claimed about, and
+/// says nothing: that is what makes the section additive rather than a version
+/// bump. A file that has one is checked in full — including the table itself,
+/// against the header — because a table that has been damaged names the wrong
+/// section, and a refusal with the wrong sentence in it is worse than none.
+String? _verifyChecksums(
+  Uint8List bytes,
+  ByteData view,
+  Map<int, ({int offset, int length})> sections,
+) {
+  final table = sections[ProjectSection.checksums];
+  final claimed = view.getUint32(kProjectChecksumOffset, Endian.little);
+  if (table == null) {
+    return claimed == 0
+        ? null
+        : 'The header carries a checksum for a table this file does not have.';
+  }
+
+  final stored = Uint8List.sublistView(
+    bytes,
+    table.offset,
+    table.offset + table.length,
+  );
+  if (crc32(stored) != claimed) {
+    return 'The checksum table is damaged: it sums to '
+        '0x${crc32(stored).toRadixString(16)} and the header says '
+        '0x${claimed.toRadixString(16)}. Nothing else in the file can be '
+        'checked, because the thing that would check it is what went.';
+  }
+  if (table.length % kProjectChecksumEntryBytes != 0) {
+    return 'The checksum table is ${table.length} bytes and each entry is '
+        '$kProjectChecksumEntryBytes.';
+  }
+
+  final storedView = ByteData.sublistView(stored);
+  for (var i = 0; i < table.length ~/ kProjectChecksumEntryBytes; i++) {
+    final kind = storedView.getUint32(i * kProjectChecksumEntryBytes, Endian.little);
+    final want = storedView.getUint32(
+      i * kProjectChecksumEntryBytes + 4,
+      Endian.little,
+    );
+    final at = sections[kind];
+    if (at == null) {
+      return 'The checksums name section $kind and the directory does not '
+          'hold it.';
+    }
+    final found = crc32(
+      Uint8List.sublistView(bytes, at.offset, at.offset + at.length),
+    );
+    if (found != want) {
+      return 'Section $kind is damaged: its ${at.length} bytes sum to '
+          '0x${found.toRadixString(16)} and the file says '
+          '0x${want.toRadixString(16)}.';
+    }
+  }
+  return null;
 }
 
 int _align(int value) => (value + 3) & ~3;

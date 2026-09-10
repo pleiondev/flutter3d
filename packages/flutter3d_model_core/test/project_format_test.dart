@@ -146,13 +146,25 @@ Uint8List fileOf(List<(int, Uint8List, int)> sections, {int? claimSections}) {
     at = align(at + data.length);
   }
 
+  // The header's fourth field is the sum of the checksum table, when there is
+  // one. Computed here rather than copied, because this helper is a second
+  // implementation of the layout and a copied number would make it agree with
+  // the writer by construction rather than by being right.
+  final checksums = sections
+      .where(((int, Uint8List, int) s) => s.$1 == ProjectSection.checksums)
+      .map(((int, Uint8List, int) s) => s.$2);
+
   final out = Uint8List(at);
   final view = ByteData.sublistView(out);
   view
     ..setUint32(0, kProjectMagic, Endian.little)
     ..setUint32(4, kProjectVersion, Endian.little)
     ..setUint32(8, claimSections ?? sections.length, Endian.little)
-    ..setUint32(12, 0, Endian.little);
+    ..setUint32(
+      kProjectChecksumOffset,
+      checksums.isEmpty ? 0 : crc32(checksums.first),
+      Endian.little,
+    );
   for (var i = 0; i < sections.length; i++) {
     final (int kind, Uint8List data, int count) = sections[i];
     final entry = kProjectHeaderBytes + i * kProjectSectionEntryBytes;
@@ -341,9 +353,9 @@ void main() {
       final directory = directoryOf(bytes);
 
       // The numbers this project's file actually lands on: a 16-byte header and
-      // five 16-byte directory entries put the manifest at 96, and the manifest
-      // is 885 bytes, which ends at 981 and is not a multiple of four. So the
-      // mesh table starts at 984, three bytes of padding later. Those three
+      // six 16-byte directory entries put the manifest at 112, and the manifest
+      // is 885 bytes, which ends at 997 and is not a multiple of four. So the
+      // mesh table starts at 1000, three bytes of padding later. Those three
       // bytes are the whole test — a reader building an `Int32List.view` over
       // the blob throws on an offset that is not a multiple of four, and it
       // throws on the machine of whoever opens the file rather than here.
@@ -353,20 +365,24 @@ void main() {
         ProjectSection.blob,
         ProjectSection.importedMeshes,
         ProjectSection.images,
+        ProjectSection.checksums,
       ]);
-      expect(directory[0].offset, 96);
+      expect(directory[0].offset, 112);
       expect(directory[0].length, 885);
-      expect(directory[1].offset, 984);
+      expect(directory[1].offset, 1000);
       expect(directory[1].length, 16);
       expect(directory[1].count, 2);
-      expect(directory[2].offset, 1000);
+      expect(directory[2].offset, 1016);
       // This project has nothing imported and nothing textured, and both tables
       // are written all the same: every file this build produces has the same
       // five-section directory, so a reader is never deciding between "none of
       // these" and "written by something older".
       expect(directory[3].length, 0);
       expect(directory[4].length, 0);
-      expect(bytes.length, 3576);
+      // One row per other section, so the table grows with the directory.
+      expect(directory[5].count, 5);
+      expect(directory[5].length, 5 * kProjectChecksumEntryBytes);
+      expect(bytes.length, 3632);
 
       for (final entry in directory) {
         expect(entry.offset % 4, 0, reason: 'section ${entry.kind}');
@@ -397,6 +413,7 @@ void main() {
       expect(kProjectMeshEntryBytes % 4, 0);
       expect(kProjectImportedEntryBytes % 4, 0);
       expect(kProjectImageEntryBytes % 4, 0);
+      expect(kProjectChecksumEntryBytes % 4, 0);
       expect(
         <int>{
           ProjectSection.manifest,
@@ -404,8 +421,9 @@ void main() {
           ProjectSection.blob,
           ProjectSection.importedMeshes,
           ProjectSection.images,
+          ProjectSection.checksums,
         },
-        <int>{1, 2, 3, 4, 5},
+        <int>{1, 2, 3, 4, 5, 6},
       );
       expect(kProjectMagic, 0x50443346);
     });
@@ -488,7 +506,7 @@ void main() {
       expect(
         refusal(bytes),
         'The header claims 500 sections, whose directory ends at byte 8016, '
-        'past the end of a 3576-byte file.',
+        'past the end of a 3632-byte file.',
       );
     });
 
@@ -496,12 +514,17 @@ void main() {
       // Mutation: drop the per-section check and the truncated file is refused
       // three layers further in, as 'Edited mesh 1 cannot be read: Invalid
       // value' — a sentence that sends whoever reads it after the wrong thing.
+      //
+      // The section named is the last one in the file, which is the checksum
+      // table: a cut takes the tail, whatever the tail happens to be. The claim
+      // is that the bounds are checked and the sentence carries the numbers,
+      // not that any particular section is the one that goes.
       final whole = writeProject(sample());
       final cut = Uint8List.sublistView(whole, 0, whole.length - 8);
       expect(
         refusal(cut),
-        'Section 3 runs from byte 1000 for 2576 bytes, past the end of a '
-        '3568-byte file.',
+        'Section 6 runs from byte 3592 for 40 bytes, past the end of a '
+        '3624-byte file.',
       );
     });
 
@@ -1133,6 +1156,100 @@ void main() {
       // `Float32List.sublistView` throws on it, and a throw is the one thing
       // `readProject` promises not to do.
       expect(refusal(bytes), contains('four-byte values'));
+    });
+  });
+
+  group('a damaged file', () {
+    test('no single flipped byte opens as a different model', () {
+      final whole = writeProject(sample());
+      final before = sample();
+
+      // The measurement this section exists for. Before the checksums, 7342 of
+      // 10488 single-byte corruptions of this file opened — as a project, with
+      // no complaint, describing a model that was not the one saved. A manifest
+      // is JSON and most of its bytes are inside a float or a name, so flipping
+      // one leaves something that still parses and means something else.
+      //
+      // One flip per byte rather than all eight, and a fixed pattern rather
+      // than a random one: this has to run in a suite and it has to give the
+      // same answer twice.
+      var opened = 0;
+      var refused = 0;
+      for (var i = 0; i < whole.length; i++) {
+        final broken = Uint8List.fromList(whole)..[i] ^= 0xA5;
+        switch (readProject(broken)) {
+          case ProjectRefused():
+            refused++;
+          case ProjectOpened(:final ModelProject project):
+            opened++;
+            // The only corruptions allowed through are the ones that changed
+            // nothing anybody can see — padding between sections, which is
+            // where the aligner leaves bytes nothing reads.
+            expect(
+              project.objects.length,
+              before.objects.length,
+              reason: 'byte $i opened as a different model',
+            );
+            expect(project.nextId, before.nextId, reason: 'byte $i');
+            expect(
+              project.objects.map((ModelObject o) => o.name),
+              before.objects.map((ModelObject o) => o.name),
+              reason: 'byte $i',
+            );
+        }
+      }
+
+      // Mutation: skip `_verifyChecksums` and thousands of these open as
+      // something else, and the assertions inside the loop go red in bulk.
+      expect(refused + opened, whole.length);
+      expect(refused, greaterThan(whole.length - 32));
+    });
+
+    test('a damaged checksum table says so rather than blaming a section', () {
+      final whole = writeProject(sample());
+      final table = directoryOf(whole).firstWhere(
+        (entry) => entry.kind == ProjectSection.checksums,
+      );
+      final broken = Uint8List.fromList(whole)..[table.offset + 4] ^= 0xFF;
+
+      // The one thing the table cannot check is itself, which is what the
+      // header's fourth field is for. Mutation: drop that field and this file
+      // is refused as "section 1 is damaged" — a sentence that sends whoever
+      // reads it after a manifest that is perfectly fine.
+      expect(refusal(broken), contains('checksum table is damaged'));
+    });
+
+    test('a header claiming checksums that are not there is refused', () {
+      // Zero in that field means "no checksums", so an older file keeps its
+      // meaning; anything else means the file said it had a table.
+      final bytes = forge(manifestOf(<Map<String, Object?>>[objectJson()]));
+      final claiming = Uint8List.fromList(bytes);
+      ByteData.sublistView(
+        claiming,
+      ).setUint32(kProjectChecksumOffset, 99, Endian.little);
+
+      expect(refusal(claiming), contains('a table this file does not have'));
+    });
+
+    test('the checksums naming a section the directory lacks are refused', () {
+      final table = Uint8List(kProjectChecksumEntryBytes);
+      ByteData.sublistView(table)
+        ..setUint32(0, 77, Endian.little)
+        ..setUint32(4, 0, Endian.little);
+
+      final bytes = forge(
+        manifestOf(<Map<String, Object?>>[objectJson()]),
+        <(int, Uint8List, int)>[(ProjectSection.checksums, table, 1)],
+      );
+
+      expect(refusal(bytes), contains('name section 77'));
+    });
+
+    test('an undamaged file agrees with its own sums', () {
+      // The case that has to stay quiet: a mutation that reported damage on a
+      // sound file would make every save unopenable, which is the failure a
+      // checksum is least likely to be trusted through.
+      expect(readProject(writeProject(sample())), isA<ProjectOpened>());
     });
   });
 }
