@@ -13,7 +13,14 @@
 /// hold is `ModelProject` and the objects in it, the sealed `ModelCommand` every
 /// edit is one of, the history that takes them back, and `ExportReadiness`.
 ///
-/// Empty today: the package is registered before it is filled, so the scanner,
-/// the publishing order and the suite cover it from the first commit rather
-/// than from whenever somebody remembers. See `doc/model-editor-plan.md` §2.2.
+/// What is here now is the spine: [ModelProject] with the objects in it,
+/// [ProjectSelection], the sealed [ModelCommand] every edit is one of, and
+/// [ModelHistory] behind them. The commands themselves arrive a handful at a
+/// time — see `doc/model-editor-plan.md`, `doc-06` for the object ones and
+/// `doc-07` for the mesh ones.
 library;
+
+export 'src/command.dart';
+export 'src/history.dart';
+export 'src/project.dart';
+export 'src/selection.dart';

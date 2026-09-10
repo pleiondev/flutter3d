@@ -582,6 +582,14 @@ boundaryEnumExempt = <String, Map<String, String>>{
         'shade of one of these rather than a new kind of answer. The set of '
         '*findings* is open and is a value with instances, not an enum',
   },
+  'flutter3d_model_core/lib/src/selection.dart': <String, String>{
+    'SelectionMode':
+        'whether the modeller is pointing at objects or at parts of one mesh. '
+        'The two are the modes the plan names, and a third would not be a '
+        'value passed to anything — it would be a mode with its own tools, '
+        'its own commands and its own panel, which is a feature rather than '
+        'an enum value',
+  },
   'flutter3d_mesh/lib/src/selection.dart': <String, String>{
     'ElementLevel':
         'the three things in a half-edge mesh a person can point at. A fourth '
