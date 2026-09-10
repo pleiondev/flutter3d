@@ -23,7 +23,9 @@ final class OrbitController {
     this.pitch = 0.35,
     this.minDistance = 0.05,
     this.maxDistance = 1e5,
-  }) : target = target ?? Vector3.zero() {
+    this.framingFov = math.pi / 4,
+  }) : target = target ?? Vector3.zero(),
+       orthoHeight = 2.0 * distance * math.tan(framingFov * 0.5) {
     apply();
   }
 
@@ -44,12 +46,33 @@ final class OrbitController {
   double minDistance;
   double maxDistance;
 
+  /// The vertical angle the two lenses are kept in step through.
+  ///
+  /// A perspective camera shows a target-height of `2·distance·tan(fov/2)`, and
+  /// [orthoHeight] is held at that same value — so switching a viewport from
+  /// one lens to the other leaves the model the size it already was, which is
+  /// the whole point of having both.
+  final double framingFov;
+
+  /// The world height an orthographic lens shows, in the units the scene is in.
+  ///
+  /// **Its own number rather than derived from [distance] when it is asked
+  /// for.** An orthographic picture does not depend on where along the view
+  /// axis the camera stands, and it must not: a caller that walks the camera
+  /// back to clear some geometry off the near plane would otherwise find the
+  /// model had shrunk. So [zoom] moves both this and [distance] together, and
+  /// nothing else does.
+  double orthoHeight;
+
   static const double _kMaxPitch = math.pi / 2 - 0.01;
 
   /// Radians per pixel of drag.
   double rotateSensitivity = 0.008;
 
   void rotate(double deltaYaw, double deltaPitch) {
+    // A hand on the mouse outranks a turn that is still playing: an animation
+    // that kept running would drag the view out from under the drag.
+    _turnLength = 0.0;
     yaw -= deltaYaw * rotateSensitivity;
     pitch = (pitch + deltaPitch * rotateSensitivity).clamp(
       -_kMaxPitch,
@@ -63,7 +86,14 @@ final class OrbitController {
   /// Multiplicative rather than additive so a step feels the same whether the
   /// camera is a centimetre or a kilometre out.
   void zoom(double factor) {
+    final before = distance;
     distance = (distance * factor).clamp(minDistance, maxDistance);
+    // By what the distance actually moved rather than by [factor], so that a
+    // wheel spun into the near clamp stops making the orthographic picture
+    // larger — otherwise the two lenses come out of step by exactly the amount
+    // the clamp refused, and a viewport switched to orthographic afterwards
+    // shows a model of the wrong size.
+    orthoHeight *= before == 0.0 ? 1.0 : distance / before;
     apply();
   }
 
@@ -101,6 +131,14 @@ final class OrbitController {
       minDistance,
       maxDistance,
     );
+    // What the perspective camera that was just placed shows at the target's
+    // own depth, rather than the sphere's diameter — which would be the tighter
+    // framing and the wrong one. A sphere fitted tangentially into a frustum
+    // leaves the frustum wider than the sphere by the time it reaches the
+    // middle, so matching the diameter would frame the model eight per cent
+    // larger in one lens than the other, and switching between them would make
+    // it jump.
+    orthoHeight = 2.0 * distance * math.tan(fovYRadians * 0.5);
     apply();
   }
 
@@ -145,11 +183,93 @@ final class OrbitController {
     node.lookAt(target);
   }
 
-  /// Applies the suggested depth range to a perspective camera, if the node is one.
+  /// Applies the framing to whichever lens [camera] is carrying.
+  ///
+  /// A perspective camera gets the depth range and nothing else — its size on
+  /// screen is already the orbit distance's doing. An orthographic one gets
+  /// [orthoHeight] as well, because for that lens the framing *is* the height
+  /// and no amount of moving the camera will produce it.
   void syncProjectionDepth(CameraNode camera) {
     final projection = camera.projection;
-    if (projection is! PerspectiveProjection) return;
     final range = suggestedDepthRange();
-    camera.projection = projection.copyWith(near: range.near, far: range.far);
+    camera.projection = switch (projection) {
+      PerspectiveProjection() => projection.copyWith(
+        near: range.near,
+        far: range.far,
+      ),
+      OrthographicProjection() => projection.copyWith(
+        height: orthoHeight,
+        near: range.near,
+        far: range.far,
+      ),
+      // An off-axis projection is a stereo eye or a portal, and its frustum is
+      // the thing on the other side of the window rather than anything an
+      // orbit has an opinion about.
+      _ => projection,
+    };
+  }
+
+  /// Where a turn in progress began and where it is going.
+  ///
+  /// A length of zero is the resting state, which is why nothing here is
+  /// nullable: [advance] on a controller nobody asked to turn has one number to
+  /// look at.
+  double _fromYaw = 0.0;
+  double _fromPitch = 0.0;
+  double _turnYaw = 0.0;
+  double _turnPitch = 0.0;
+  double _turnAt = 0.0;
+  double _turnLength = 0.0;
+
+  /// Whether a turn asked for by [animateTo] is still playing.
+  bool get isTurning => _turnLength > 0.0;
+
+  /// Swings the view round to [yaw] and [pitch] over [seconds].
+  ///
+  /// **What the orientation gizmo clicks into.** A view that jumps to −X leaves
+  /// the person to work out which way the model just turned; a quarter of a
+  /// second of travel shows them, and it is short enough that nobody waits for
+  /// it. Driving it from the caller's clock rather than a timer of its own is
+  /// what keeps this file free of `dart:async` and lets a test step it by hand.
+  ///
+  /// The yaw takes the short way round: asked to go from just under a half turn
+  /// to just over one, it crosses the seam rather than unwinding the long way,
+  /// which is the difference between a nudge and a full spin of the model.
+  void animateTo({double? yaw, double? pitch, double seconds = 0.25}) {
+    final double wantYaw = yaw ?? this.yaw;
+    final double wantPitch = (pitch ?? this.pitch).clamp(
+      -_kMaxPitch,
+      _kMaxPitch,
+    );
+    if (seconds <= 0.0) {
+      _turnLength = 0.0;
+      this.yaw = wantYaw;
+      this.pitch = wantPitch;
+      apply();
+      return;
+    }
+    _fromYaw = this.yaw;
+    _fromPitch = this.pitch;
+    final turn = wantYaw - this.yaw;
+    _turnYaw = math.atan2(math.sin(turn), math.cos(turn));
+    _turnPitch = wantPitch - this.pitch;
+    _turnAt = 0.0;
+    _turnLength = seconds;
+  }
+
+  /// Advances a turn by [seconds] of wall clock. Does nothing when none is
+  /// playing, so a viewport can call it every frame without asking first.
+  void advance(double seconds) {
+    if (_turnLength <= 0.0) return;
+    _turnAt += seconds;
+    final double t = (_turnAt / _turnLength).clamp(0.0, 1.0);
+    // Smoothstep, so the view leaves and arrives at rest. A linear turn stops
+    // dead at the end, and the eye reads that as the picture having been
+    // yanked rather than moved.
+    final double eased = t * t * (3.0 - 2.0 * t);
+    yaw = _fromYaw + _turnYaw * eased;
+    pitch = (_fromPitch + _turnPitch * eased).clamp(-_kMaxPitch, _kMaxPitch);
+    if (t >= 1.0) _turnLength = 0.0;
+    apply();
   }
 }
