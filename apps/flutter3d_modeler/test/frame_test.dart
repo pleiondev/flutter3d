@@ -23,6 +23,7 @@ import 'dart:typed_data';
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_cpu/testing.dart';
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
+import 'package:flutter3d_mesh/testing.dart';
 import 'package:flutter3d_modeler/src/staging.dart';
 import 'package:flutter3d_testing/flutter3d_testing.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -187,5 +188,43 @@ void main() {
 
       await expectMatchesGolden(frame, 'test/goldens/mesh-spike-extrude.png');
     });
+  });
+
+  group('the operations, drawn', () {
+    // `mesh-33`: four fixtures from `flutter3d_mesh/testing.dart`, each one
+    // the smallest shape that would *look* wrong if the operation under it
+    // broke. Everything else about these operations is arithmetic — Euler
+    // characteristics, volumes, counts — and arithmetic cannot say that a wall
+    // is there, that a cut went in straight, that a pole closed, or that a rim
+    // still shades hard.
+    //
+    // Zero tolerance, because the rasteriser is deterministic and these are
+    // pictures of geometry rather than of lighting: a pixel that moved is a
+    // vertex that moved.
+    for (final subject in <(String, EditMesh Function())>[
+      ('mesh-extrude', extrudedBox),
+      ('mesh-loop-cut', cutCylinder),
+      ('mesh-lathe', turnedProfile),
+      ('mesh-sharp-vs-smooth', sharpAgainstSmooth),
+    ]) {
+      test('${subject.$1} matches its reference', () async {
+        final frame = await renderFrame(
+          width: 240,
+          height: 160,
+          build: (FrameRequest request) {
+            final stage = ModelerStage.build(device: request.device);
+            final node = stage.subject as MeshNode;
+            node.mesh = DeviceMesh.upload(
+              request.device,
+              subject.$2().toMeshData(),
+            );
+            stage.frameSubject();
+            return (scene: stage.scene, camera: stage.camera);
+          },
+        );
+
+        await expectMatchesGolden(frame, 'test/goldens/${subject.$1}.png');
+      });
+    }
   });
 }
