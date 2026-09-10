@@ -13,6 +13,7 @@ final class TextureSampling {
     this.magLinear = true,
     this.minLinear = true,
     this.useMipmaps = true,
+    this.mipLinear = true,
     this.wrapS = TextureWrap.repeat,
     this.wrapT = TextureWrap.repeat,
   });
@@ -29,6 +30,19 @@ final class TextureSampling {
   /// samples a hand-built chain at all, because one that does not returns black
   /// rather than unfiltered. See `buildsMipChain`.
   final bool useMipmaps;
+
+  /// Whether the mip level itself is chosen by interpolating between two
+  /// (trilinear) rather than picked as the nearest one (bilinear-with-mips).
+  ///
+  /// **A separate bool from [minLinear] because GL's four mipmap filters are
+  /// two independent choices, and one field cannot answer two questions.**
+  /// `LINEAR_MIPMAP_NEAREST` (9985) and `LINEAR_MIPMAP_LINEAR` (9987) agree
+  /// that a texel is sampled bilinearly and disagree about the mip; before
+  /// this field they decoded to the same [TextureSampling], and a writer
+  /// re-exporting either one had to guess. Meaningless when [useMipmaps] is
+  /// false — nothing here changes what a sampler is built with yet, only what
+  /// a decoder and a writer agree the file said.
+  final bool mipLinear;
 
   final TextureWrap wrapS;
   final TextureWrap wrapT;

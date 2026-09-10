@@ -101,6 +101,7 @@ extension _F3dMaterials on F3dDocument {
         magLinear: flags & F3dSamplingFlags.magLinear != 0,
         minLinear: flags & F3dSamplingFlags.minLinear != 0,
         useMipmaps: flags & F3dSamplingFlags.useMipmaps != 0,
+        mipLinear: flags & F3dSamplingFlags.mipNearest == 0,
         wrapS: wrap(F3dSamplingFlags.wrapSShift),
         wrapT: wrap(F3dSamplingFlags.wrapTShift),
       ),

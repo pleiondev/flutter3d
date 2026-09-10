@@ -222,6 +222,16 @@ abstract final class F3dSamplingFlags {
   static const int wrapSShift = 3;
   static const int wrapTShift = 5;
   static const int wrapMask = 0x3;
+
+  /// Set when the mip level is chosen by nearest rather than interpolated
+  /// (`TextureSampling.mipLinear == false`). Bit 7 because bits 3-6 are
+  /// already spoken for by the two wrap fields.
+  ///
+  /// Stored inverted — presence means "not linear" — so that a file written
+  /// before this flag existed, which leaves the bit unset, decodes to
+  /// `mipLinear: true`, matching [TextureSampling]'s own default and what
+  /// every reader before this flag assumed a mipmapped sampler meant.
+  static const int mipNearest = 1 << 7;
 }
 
 /// Raised when a file is not a `.f3d`, is truncated, or claims a version this

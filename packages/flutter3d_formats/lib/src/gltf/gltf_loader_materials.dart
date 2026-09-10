@@ -139,7 +139,12 @@ extension _GltfMaterials on GltfLoader {
 }
 
 TextureSampling _decodeSampler(Map<String, Object?> sampler) {
-  // Filter codes: 9728 NEAREST, 9729 LINEAR, plus the four mipmap variants.
+  // Filter codes: 9728 NEAREST, 9729 LINEAR, plus the four mipmap variants
+  // (9984 NEAREST_MIPMAP_NEAREST, 9985 LINEAR_MIPMAP_NEAREST,
+  // 9986 NEAREST_MIPMAP_LINEAR, 9987 LINEAR_MIPMAP_LINEAR). The two mipmap
+  // pairs disagree only on whether the *mip level* is interpolated, which is
+  // `mipLinear` below and is a separate question from `minLinear` — losing
+  // that distinction is what let 9985 and 9987 decode identically before.
   final magFilter = _asInt(sampler['magFilter']);
   final minFilter = _asInt(sampler['minFilter']);
 
@@ -153,7 +158,29 @@ TextureSampling _decodeSampler(Map<String, Object?> sampler) {
     magLinear: magFilter != 9728,
     minLinear: minFilter != 9728 && minFilter != 9984 && minFilter != 9986,
     useMipmaps: minFilter == null || minFilter >= 9984,
+    mipLinear: minFilter != 9984 && minFilter != 9985,
     wrapS: wrap(sampler['wrapS']),
     wrapT: wrap(sampler['wrapT']),
   );
+}
+
+/// The `(magFilter, minFilter)` GL constant pair a glTF writer should emit
+/// for [sampling] — the exact inverse of [_decodeSampler]'s filter half, so a
+/// document decoded from glTF and written back out names the same constant it
+/// arrived with, mipmap variant included.
+(int magFilter, int minFilter) toGltfFilters(TextureSampling sampling) {
+  final magFilter = sampling.magLinear ? 9729 : 9728;
+  final minFilter = switch ((
+    sampling.useMipmaps,
+    sampling.minLinear,
+    sampling.mipLinear,
+  )) {
+    (false, false, _) => 9728,
+    (false, true, _) => 9729,
+    (true, false, false) => 9984,
+    (true, true, false) => 9985,
+    (true, false, true) => 9986,
+    (true, true, true) => 9987,
+  };
+  return (magFilter, minFilter);
 }

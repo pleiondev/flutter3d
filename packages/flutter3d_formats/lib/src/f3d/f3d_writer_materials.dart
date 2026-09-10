@@ -77,6 +77,7 @@ extension _F3dWriteMaterials on F3dWriter {
     if (s.magLinear) flags |= F3dSamplingFlags.magLinear;
     if (s.minLinear) flags |= F3dSamplingFlags.minLinear;
     if (s.useMipmaps) flags |= F3dSamplingFlags.useMipmaps;
+    if (!s.mipLinear) flags |= F3dSamplingFlags.mipNearest;
     flags |= s.wrapS.index << F3dSamplingFlags.wrapSShift;
     flags |= s.wrapT.index << F3dSamplingFlags.wrapTShift;
 
