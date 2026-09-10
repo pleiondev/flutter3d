@@ -56,6 +56,13 @@ runs a new loop of edges across a ring of quads, out of `splitEdge` and
 `duplicateSelection`, `splitSelection` and `separateComponents` take a mesh
 apart and put copies of pieces back.
 
+`ParametricCuboid`, `ParametricPlane`, `ParametricCylinder`,
+`ParametricSphere`, `ParametricTorus` and `ParametricLathe` are the engine's
+own primitives built the other way: quads, one vertex per corner, sharp rings
+where the engine repeats a profile point, and a flat cap as one n-gon rather
+than a fan. Each carries the engine's `Shape` beside it, and the two are held
+to the same volume, bounds and texture coordinates.
+
 `MeshBvh` puts a tree over the plan's triangles and answers in faces —
 `refit` while somebody drags, `rebuild` when the topology changes — and
 `MeshPicker` turns where they pointed into what they meant: the face a ray

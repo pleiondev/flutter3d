@@ -28,6 +28,7 @@ export 'src/merge.dart';
 export 'src/mesh_bvh.dart';
 export 'src/normals.dart';
 export 'src/operations.dart';
+export 'src/parametric.dart';
 export 'src/parts.dart';
 export 'src/picker.dart';
 export 'src/selection.dart';
