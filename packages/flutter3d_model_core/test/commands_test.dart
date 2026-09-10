@@ -521,6 +521,156 @@ void main() {
     });
   });
 
+  group('separating', () {
+    test('the faces leave one object and arrive as another', () {
+      final history = edited();
+      history.selection = faces(history, <int>[0]);
+      final EditMesh mesh = meshOf(history);
+
+      expect(history.run(const Separate()), isNull);
+
+      expect(history.project.objects.length, 2);
+      expect(mesh.faceCount, 5);
+      final part = history.project.objects.last;
+      expect((part.geometry as EditedGeometry).mesh.faceCount, 1);
+    });
+
+    test('undo puts the document and the mesh back together', () {
+      final history = edited();
+      history.selection = faces(history, <int>[0]);
+      final EditMesh mesh = meshOf(history);
+
+      history.run(const Separate());
+      expect(history.undo(), isTrue);
+
+      // Mutation: leave `meshTouched` off the outcome. The object comes back in
+      // the document and the face does not come back in the mesh, so the model
+      // has one object drawing five faces of a box and no step of the history
+      // that says where the sixth went.
+      expect(history.project.objects.length, 1);
+      expect(mesh.faceCount, 6);
+
+      expect(history.redo(), isTrue);
+      expect(history.project.objects.length, 2);
+      expect(mesh.faceCount, 5);
+    });
+
+    test('the piece stands where the object stood', () {
+      final project = const ModelProject().added(
+        (int id) => ModelObject(
+          id: id,
+          name: 'crate',
+          geometry: EditedGeometry(EditMesh.cuboid()),
+          transform: Matrix4.translation(Vector3(3, 1, -2)),
+        ),
+      );
+      final history = ModelHistory(project)
+        ..selection = const ProjectSelection(
+          mode: SelectionMode.mesh,
+          objects: <int>[1],
+          level: ElementLevel.face,
+          elements: <int>[0],
+        );
+
+      history.run(const Separate());
+
+      // Mutation: give the piece the identity transform. Separating a wall of a
+      // building three metres out sends that wall to the origin, which reads as
+      // the operation having deleted it.
+      final part = history.project.objects.last;
+      expect(part.transform.getTranslation(), Vector3(3, 1, -2));
+      expect(part.name, 'crate part');
+    });
+
+    test('the piece is what is held afterwards, as a whole object', () {
+      final history = edited();
+      history.selection = faces(history, <int>[0]);
+
+      history.run(const Separate());
+
+      // The element numbers the person had were numbers in a mesh that has
+      // just been renumbered. Mutation: keep the mesh-level selection and the
+      // next command edits whatever face happens to wear those numbers now.
+      expect(history.selection.mode, SelectionMode.object);
+      expect(history.selection.objects, <int>[2]);
+      expect(history.selection.elements, isEmpty);
+    });
+
+    test('a whole object is refused rather than emptied', () {
+      final history = edited();
+      history.selection = faces(history, <int>[0, 1, 2, 3, 4, 5]);
+
+      final String? said = history.run(const Separate());
+
+      // Blender leaves the husk behind. A husk with no faces is what
+      // `ExportReadiness` calls an error, so the answer is a sentence rather
+      // than a broken document. Mutation: allow it, and a person who pressed
+      // ⌘A then P has an invisible object that stops the export.
+      expect(said, contains('"cube"'));
+      expect(history.project.objects.length, 1);
+      expect(history.canUndo, isFalse);
+    });
+
+    test('nothing selected is refused', () {
+      final history = edited();
+      history.selection = faces(history, const <int>[]);
+
+      expect(history.run(const Separate()), 'nothing is selected to separate');
+    });
+
+    test('a vertex selection that covers no whole face is refused', () {
+      final history = edited();
+      history.selection = history.selection.copyWith(
+        level: ElementLevel.vertex,
+        elements: <int>[0],
+      );
+
+      // A conversion up a level takes the faces whose corners are all in the
+      // selection, and one corner is never all of them. Mutation: convert down
+      // instead, or take any face that touches the vertex, and one click on a
+      // corner separates three faces the person never asked for.
+      final String? said = history.run(const Separate());
+      expect(said, contains('no whole face is selected'));
+    });
+
+    test('the piece keeps the material slots of what it came from', () {
+      final mesh = EditMesh.cuboid();
+      // Outside the history, because this is the setup and not the thing being
+      // measured — a mesh refuses a write with no step open.
+      mesh.beginStep();
+      mesh.setMaterialSlot(0, 2);
+      mesh.endStep();
+      final project = const ModelProject().added(
+        (int id) => ModelObject(
+          id: id,
+          name: 'cube',
+          geometry: EditedGeometry(mesh),
+          transform: Matrix4.identity(),
+          materialSlots: <int>[7, 4, 9],
+        ),
+      );
+      final history = ModelHistory(project)
+        ..selection = const ProjectSelection(
+          mode: SelectionMode.mesh,
+          objects: <int>[1],
+          level: ElementLevel.face,
+          elements: <int>[0],
+        );
+
+      history.run(const Separate());
+
+      // `subMesh` copies the per-face attributes across; the object has to
+      // carry the slot table itself. Mutation: leave `materialSlots` off the
+      // new object and the slot the mesh still names indexes a table that is
+      // not there — every separated piece comes out the wrong colour, on a
+      // model with a dozen materials.
+      final part = history.project.objects.last;
+      final EditMesh cut = (part.geometry as EditedGeometry).mesh;
+      expect(cut.materialSlotOf(0), 2);
+      expect(part.materialSlots, <int>[7, 4, 9]);
+    });
+  });
+
   group('selecting', () {
     test('is a step, so ⌘Z puts back the region that was there', () {
       final history = edited();
@@ -1084,6 +1234,7 @@ void main() {
         ),
         const MergeByDistance(distance: 0.01),
         const DissolveEdges(),
+        const Separate(),
         const Triangulate(),
         const RecalculateNormals(flip: true),
         const SelectAll(),

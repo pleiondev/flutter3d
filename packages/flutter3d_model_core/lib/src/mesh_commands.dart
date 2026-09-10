@@ -436,3 +436,102 @@ final class RecalculateNormals extends ModelCommand {
         return OpResult.done(selection: target.elements, topologyChanged: true);
       });
 }
+
+/// Takes the selected faces out of one object and makes them another.
+///
+/// **The one mesh command that is also a document command, and it cannot be
+/// written as either half.** Everything above hands the history a mesh and a
+/// count of journal steps; this also hands it a project with an object in it
+/// that was not there before. Both have to move together on undo — a document
+/// put back without the faces, holding a mesh that still has them, draws the
+/// same triangles twice.
+///
+/// **The piece keeps the object's place in the world.** Same transform, same
+/// parent, same material slots: separating is a statement about topology, and
+/// a piece that jumped to the origin the moment it was cut loose would be a
+/// statement about position as well. `subMesh` carries the texture coordinates
+/// and the per-face material across, so the part looks like what it was part
+/// of.
+///
+/// **What it refuses, and why each refusal is not a silent success.** Nothing
+/// selected leaves nothing to move. Everything selected would empty the object
+/// it came from — Blender leaves that husk behind, and a husk with no faces is
+/// exactly what `ExportReadiness` calls an error, so the answer here is to say
+/// the model is already one piece rather than to make a broken one.
+final class Separate extends ModelCommand {
+  const Separate();
+
+  @override
+  String get name => 'separate';
+
+  @override
+  String get says => 'separate';
+
+  @override
+  Map<String, Object?> get arguments => const <String, Object?>{};
+
+  @override
+  Outcome apply(ModelProject project, ProjectSelection selection) {
+    final found = _meshTarget(project, selection);
+    if (found.target == null) return Outcome.refused(found.refused!);
+    final _MeshTarget target = found.target!;
+
+    // Whatever the person is working at, the thing that comes out is faces: a
+    // vertex on its own has no area to be a piece of.
+    final Selection faces = target.elements.convertedTo(
+      target.mesh,
+      ElementLevel.face,
+    );
+    if (faces.isEmpty) {
+      return Outcome.refused(
+        target.elements.isEmpty
+            ? 'nothing is selected to separate'
+            : 'no whole face is selected — a piece is made of faces, and the '
+                  'selection covers none of them completely',
+      );
+    }
+    if (faces.ids.length >= target.mesh.faceCount) {
+      return Outcome.refused(
+        '"${target.object.name}" is selected whole, so there is nothing to '
+        'separate it from',
+      );
+    }
+
+    final (EditMesh part, IdRemap _) = subMesh(target.mesh, faces.ids);
+
+    target.mesh.beginStep();
+    final OpResult cut = deleteSelection(target.mesh, faces);
+    if (!cut.ok) {
+      if (target.mesh.endStep()) target.mesh.undo();
+      return Outcome.refused(cut.reason!);
+    }
+    target.mesh.endStep();
+
+    final ModelObject source = target.object;
+    final ModelProject next = project
+        .withObject(source.copyWith(geometry: EditedGeometry(target.mesh)))
+        .added(
+          (int fresh) => ModelObject(
+            id: fresh,
+            name: '${source.name} part',
+            geometry: EditedGeometry(part),
+            transform: Matrix4.copy(source.transform),
+            parent: source.parent,
+            materialSlots: source.materialSlots,
+          ),
+        );
+
+    return Outcome.done(
+      next,
+      // The piece is what the person is now holding, and it is a whole object:
+      // the element numbers they had were numbers in a mesh that has just been
+      // renumbered, and `subMesh` says so by handing back a remap.
+      selection: selection.copyWith(
+        mode: SelectionMode.object,
+        objects: <int>[next.objects.last.id],
+        elements: const <int>[],
+      ),
+      meshTouched: target.mesh,
+    );
+  }
+}

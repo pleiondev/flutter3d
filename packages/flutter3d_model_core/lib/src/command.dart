@@ -365,6 +365,7 @@ const List<String> modelCommandNames = <String>[
   'transformElements',
   'mergeByDistance',
   'dissolveEdges',
+  'separate',
   'triangulate',
   'recalculateNormals',
   'selectAll',
@@ -470,6 +471,7 @@ ModelCommand? modelCommandFromJson(Object? json) {
       },
     ),
     'dissolveEdges' => const DissolveEdges(),
+    'separate' => const Separate(),
     'triangulate' => const Triangulate(),
     'recalculateNormals' => switch (json['flip']) {
       final bool flip => RecalculateNormals(flip: flip),

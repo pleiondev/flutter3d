@@ -233,6 +233,13 @@ List<ModelerTool> toolsFor(ModelerMode mode) => switch (mode) {
       group: 'topology',
     ),
     ModelerTool(
+      id: 'mesh.separate',
+      label: 'Separate',
+      icon: Icons.call_split_outlined,
+      shortcut: LogicalKeyboardKey.keyP,
+      group: 'topology',
+    ),
+    ModelerTool(
       id: 'mesh.dissolve',
       label: 'Dissolve edges',
       icon: Icons.remove_outlined,
