@@ -64,7 +64,7 @@ genres, and the generated API reference.
 | [`packages/flutter3d_editor_core`](packages/flutter3d_editor_core) | The level editor with the editor taken out: the document being selected in, nudged, undone and written back, the handles a pointer hits, the palette a level builds out of itself, and the project a template becomes. Plain Dart, so a linter or a service can depend on it |
 | [`packages/flutter3d_editor_mcp`](packages/flutter3d_editor_mcp) | The same editor offered to an agent: an MCP server over stdio whose tools are the editor's own commands, one document per process |
 | [`packages/flutter3d_mesh`](packages/flutter3d_mesh) | The mesh a modeller edits, with the topology still in it: faces of any valency, half-edges that know their twin, and the operations that change them. Plain Dart. [README](packages/flutter3d_mesh/README.md) |
-| [`packages/flutter3d_model_core`](packages/flutter3d_model_core) | The headless half of the model editor: the project, the commands, the history and what it refuses to export. A skeleton today — see `doc/model-editor-plan.md` |
+| [`packages/flutter3d_model_core`](packages/flutter3d_model_core) | The headless half of the model editor: the project of objects, the sealed command every edit is one of, the history that takes them back, and what it refuses to export |
 | [`packages/flutter3d_model_mcp`](packages/flutter3d_model_mcp) | The same modeller offered to an agent, over MCP on stdio. An entry point today; the tools follow the document layer |
 | [`apps/flutter3d_demo_dungeon`](apps/flutter3d_demo_dungeon) | The shooter, and a headless test that plays it to the exit. Desktop, web, Android and iOS |
 | [`apps/flutter3d_demo_platformer`](apps/flutter3d_demo_platformer) | The second game: third person, two jumps and a dash, and no line of the engine changed to allow it. Desktop, web, Android and iOS |
@@ -156,7 +156,7 @@ Or one package at a time:
 (cd packages/flutter3d_physics && dart test)   # plain Dart, no Flutter needed
 ```
 
-4407 tests across thirty-three packages and seven applications, and the only
+5045 tests across thirty-four packages and seven applications, and the only
 ones that need a GPU are the
 Impeller half of the golden set. The other half is rendered by the software
 backend, which is what makes 43 scenes checkable in a headless run.
@@ -207,7 +207,7 @@ declares and the compiled binary has not got — and binding a slot a compiled
 shader does not have takes the frame down. The message names nothing that leads
 back to the file that was edited.
 
-So `dart run tool/structure.dart` checks it: one of its thirty-one rules compares
+So `dart run tool/structure.dart` checks it: one of its thirty-two rules compares
 the bundle against the sources it was built from and says which of them are
 newer. The rule skips when there is no bundle at all, which is every fresh
 checkout and every CI run — `impellerc` is not there to build one, and a rule
@@ -218,6 +218,23 @@ translations are checked in, and CI regenerates each and fails on the diff. The
 WebGPU one runs a longer road to get there — the same GLSL through
 `glslangValidator` and then `naga`, into WGSL — so the diff is also what catches
 a different compiler on the machine.
+
+## Skills for whatever is writing the code
+
+Every package here ships agent skills — what its API is for, the mistakes it has
+already paid for, and the boundaries a scan holds it to. A project that depends
+on any of them installs the ones it wants:
+
+```bash
+dart run skills@ get          # reads the skills/ of every dependency
+```
+
+They travel in the published archive, so an agent working in your game reads
+them where it looks rather than out of a version-stamped pub cache directory it
+has no way to name. Each skill directory is named for the package it comes from,
+which the [`skills`](https://pub.dev/packages/skills) CLI requires and a
+structure rule here checks: one that is named otherwise is installed for nobody,
+and says nothing about it.
 
 ## Contributing
 

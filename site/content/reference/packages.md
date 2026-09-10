@@ -145,9 +145,9 @@ There is no package for this. The rules about how the repository is arranged (wh
 dart run tool/structure.dart
 ```
 
-Thirty-one rules, under a second, no `pub get` and no device: every one of them reads source text. They were a `boundaries_test.dart` in each package until thirteen packages of twenty-one turned out to have none, all thirteen clean and not one of them checked. A runner that walks `packages/` covers a package the day it exists.
+Thirty-two rules, under a second, no `pub get` and no device: every one of them reads source text. They were a `boundaries_test.dart` in each package until thirteen packages of twenty-one turned out to have none, all thirteen clean and not one of them checked. A runner that walks `packages/` covers a package the day it exists.
 
-The detectors prove they fire before a single file is scanned, and a broken detector stops the run rather than letting thirty-one green scans be reported behind it. See [Testing](/reference/testing/).
+The detectors prove they fire before a single file is scanned, and a broken detector stops the run rather than letting thirty-two green scans be reported behind it. See [Testing](/reference/testing/).
 
 ## Assembling an application
 
@@ -248,7 +248,9 @@ It exists because `MeshData` is the wrong shape for editing. That one describes 
 ### `flutter3d_model_core`
 The headless half of the model editor: the project, the sealed command every edit is one of, the history that takes them back, and the rules about whether the result can leave. The same split `flutter3d_editor_core` made for levels, for the same reason.
 
-A registered skeleton today. The package exists ahead of its contents so the structure scan, the publishing order and the check that a bare `dart pub get` resolves it all cover the document layer from its first commit.
+`ModelProject` is a value: an edit hands back a new one sharing every object it did not touch, which is what makes a step of history cost two hundred pointers rather than two hundred objects. Ids are numbers and are never handed out twice, because a selection, a command's arguments and a step of history all name objects and all three outlive the object being deleted and put back by an undo.
+
+Twenty-eight commands so far, each carrying its own name, a sentence for the menu and its arguments as a map — which is what lets the history say "undo move" rather than "undo", a file replay the steps that made it, and an agent call one by name. Mesh commands are the exception to the value rule and the reason is measured: `p0-05` timed copy-on-write chunks against a flat array with a journal of previous values, and chunks cost 92 to 100 per cent of a full copy the moment an edit is scattered. So an `EditMesh` takes a journal step and the history rolls it in lockstep with the documents it keeps for everything else.
 
 ### `flutter3d_model_mcp`
 The modeller offered to an agent, over MCP on stdio, one project per process — the shape `flutter3d_editor_mcp` has for levels.

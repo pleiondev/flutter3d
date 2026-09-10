@@ -103,7 +103,7 @@ What works today:
   `CUBICSPLINE` with authored tangents), slerped rotations, an `AnimationPlayer`
   with play/pause/seek/speed and once/loop/ping-pong, and the decoded node
   hierarchy rebuilt on instantiation so an animated parent carries its subtree;
-- 850 tests — projection, scene, sorting, debug draw, raycasting, animation,
+- 889 tests — projection, scene, sorting, debug draw, raycasting, animation,
   skinning, lighting, render targets, BVH, LOD, glTF, OBJ and `.f3d` — all
   without a GPU. The geometry the engine is written in — `MeshData`, the shape
   generators, tangents, morph targets and `Ray` — went to
@@ -317,7 +317,7 @@ lib/src/engine/assets/          glTF, OBJ and .f3d decoders, isolate loading, ca
 example/lib/                    the demo, and the frame capture hook
 skills/                         the conventions, as agent skills — see below
 bin/skills.dart                 what copies them into a project that uses this
-test/                           850 tests, all runnable without a GPU
+test/                           889 tests, all runnable without a GPU
 ```
 
 The GLSL is not here. Every shader this package draws with lives in
@@ -333,16 +333,22 @@ for how the game layer, the backends and the genre templates sit around it.
 ## The conventions, unpacked into your repository
 
 ```bash
-dart run flutter3d:skills            # into ./.claude/skills
+dart run skills@ get                 # every dependency's skills, this one included
+dart run flutter3d:skills            # only this package's, into ./.claude/skills
 dart run flutter3d:skills --list     # name them and stop
 dart run flutter3d:skills --into docs/skills
 ```
 
-Seven skills, each tied to something a machine here already checks: the
-structure scan, the rule that a test is shown to fail before it is believed, the
-determinism machinery a replay is measured with, the golden sets and how they
-are recorded, why a frame draws nothing, what each layer may import, and which
-files are generated rather than written.
+Eight skills: how a scene is built and a frame drawn, and seven tied to
+something a machine here already checks — the structure scan, the rule that a
+test is shown to fail before it is believed, the determinism machinery a replay
+is measured with, the golden sets and how they are recorded, why a frame draws
+nothing, what each layer may import, and which files are generated rather than
+written.
+
+Every package in this repository ships its own, named for the package the way
+`dart run skills@ get` requires: a skill whose directory does not start with its
+package's name is skipped without a word.
 
 They are prose, and prose that lives in one repository is prose nobody else has.
 An agent working in your game cannot read a `CONTRIBUTING.md` out of a

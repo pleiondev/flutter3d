@@ -79,6 +79,12 @@ document is made of, what order the tools are meant to be called in, and every
 refusal this server can give. They are prose for whatever is driving the editor,
 and each of them is about something the code here actually enforces.
 
+A project depending on this package installs them with
+`dart run skills@ get`, which reads the `skills/` directory of every dependency
+and copies the chosen ones into the agent's own directory. That is why each one
+is named `flutter3d-editor-mcp-…`: the CLI skips a skill whose directory does
+not start with its package's name.
+
 ## Plain Dart
 
 No Flutter in the dependency graph — the editor's headless core, the simulation's

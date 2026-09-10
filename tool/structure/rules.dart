@@ -83,6 +83,7 @@ List<Rule> get allRules => <Rule>[
     run: _shaderBundleIsCurrent,
   ),
   (name: 'a step asks no machine for an answer', run: _portableStepArithmetic),
+  (name: 'every skill is named for its package', run: _skillNames),
 ];
 
 // ------------------------------------------------------------------- genre
@@ -2816,3 +2817,95 @@ String _withoutComments(String source) => source
 final RegExp _machineArithmetic = RegExp(
   r'\bmath\.(sin|cos|tan|asin|acos|atan2|atan|exp|log|pow)\s*\(',
 );
+
+// ------------------------------------------------------------------- skills
+
+/// Every `skills/<name>/SKILL.md`, held to what `dart run skills@ get` reads.
+///
+/// **The failure this exists for is silence.** The `skills` CLI installs a
+/// package's skills into a consumer's agent directory, and it skips — without a
+/// word, as a matter of documented policy — any skill whose directory does not
+/// begin with the package's own name. Ten skills in this repository sat in
+/// exactly that state: shipped in two archives, listed in two READMEs, and
+/// invisible to the one command a consumer runs to get them.
+///
+/// So the three facts a skill needs are checked here rather than remembered:
+/// the directory is named for the package it ships from, it holds a `SKILL.md`,
+/// and the `name` in that file is the directory it is in. The third matters on
+/// its own — a directory is what lands on disk and a name is what an agent asks
+/// for, so the two can disagree with nothing failing to load, and then a skill
+/// is installed under one name and invoked under another.
+///
+/// `flutter3d/test/skills_test.dart` asks the same questions of one package,
+/// which is where the mutations for them are written down. This asks them of
+/// every package, which is the half a test in one package cannot cover.
+List<Finding> _skillNames() {
+  final found = <Finding>[];
+  for (final entry in packages.entries) {
+    final skills = Directory('${entry.value.path}/skills');
+    if (!skills.existsSync()) continue;
+
+    // Underscores or hyphens: the CLI accepts the package name either way, and
+    // this repository writes hyphens because a skill name is read aloud more
+    // often than a package name is.
+    final prefixes = <String>[
+      '${entry.key}-',
+      '${entry.key.replaceAll('_', '-')}-',
+    ];
+
+    for (final directory in skills.listSync().whereType<Directory>()) {
+      final name = directory.path.split('/').last;
+      final where = '${entry.key}/skills/$name';
+
+      if (!prefixes.any(name.startsWith)) {
+        found.add(
+          Finding(
+            where,
+            'does not start with "${prefixes.last}", so the skills CLI '
+            'installs it for nobody and says nothing',
+          ),
+        );
+      }
+
+      final file = File('${directory.path}/SKILL.md');
+      if (!file.existsSync()) {
+        found.add(Finding(where, 'holds no SKILL.md'));
+        continue;
+      }
+
+      final text = file.readAsStringSync();
+      final declared = _frontmatterValue(text, 'name');
+      if (declared == null) {
+        found.add(Finding(where, 'has no name in its frontmatter'));
+      } else if (declared != name) {
+        found.add(Finding(where, 'names itself "$declared"'));
+      }
+
+      final description = _frontmatterValue(text, 'description');
+      if (description == null || description.isEmpty) {
+        found.add(
+          Finding(
+            where,
+            'has no description, which is the line an agent decides by, so '
+            'the skill is shipped and never loaded',
+          ),
+        );
+      }
+    }
+  }
+  return found;
+}
+
+/// The value of a one-line `key: value` in a leading `---` frontmatter block.
+String? _frontmatterValue(String text, String key) {
+  final lines = text.split('\n');
+  if (lines.isEmpty || lines.first.trim() != '---') return null;
+  for (final line in lines.skip(1)) {
+    if (line.trim() == '---') return null;
+    final colon = line.indexOf(':');
+    if (colon < 0) continue;
+    if (line.substring(0, colon).trim() != key) continue;
+    return line.substring(colon + 1).trim();
+  }
+  return null;
+}
