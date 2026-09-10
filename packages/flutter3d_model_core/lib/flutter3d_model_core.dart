@@ -32,6 +32,7 @@ library;
 export 'src/command.dart';
 export 'src/command_journal.dart';
 export 'src/history.dart';
+export 'src/listing.dart';
 export 'src/material.dart';
 export 'src/parametric_json.dart';
 export 'src/project.dart';
