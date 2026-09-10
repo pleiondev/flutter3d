@@ -134,6 +134,56 @@ void main() {
     });
   });
 
+  group('duplicating', () {
+    test('editing the copy leaves the original mesh untouched', () {
+      final history = edited();
+
+      expect(history.run(const DuplicateObjects()), isNull);
+      final int copyId = history.selection.objects.single;
+      expect(copyId, isNot(1));
+
+      history.selection = history.selection.copyWith(
+        mode: SelectionMode.mesh,
+        objects: <int>[copyId],
+        level: ElementLevel.face,
+        elements: <int>[0],
+      );
+      // Mutation: hand the copy the same `EditMesh` instance the original
+      // holds. `EditMesh` is a journal mutated in place — see
+      // `mesh_commands.dart` — so an extrude run against the copy would edit
+      // the original's mesh as well, and the original would gain a face
+      // nobody asked it to have.
+      expect(history.run(const Extrude(1.0)), isNull);
+
+      final EditMesh original =
+          (history.project[1]!.geometry as EditedGeometry).mesh;
+      final EditMesh copy =
+          (history.project[copyId]!.geometry as EditedGeometry).mesh;
+      expect(!identical(original, copy), isTrue);
+      expect(original.vertexCount, EditMesh.cuboid().vertexCount);
+      expect(copy.vertexCount, greaterThan(original.vertexCount));
+    });
+
+    test('a parametric or an imported geometry is shared, not copied', () {
+      final history = ModelHistory(const ModelProject())
+        ..run(const AddPrimitive(kind: 'box'));
+
+      expect(history.run(const DuplicateObjects()), isNull);
+      final int copyId = history.selection.objects.single;
+
+      // Safe to share: a parametric shape is replaced whole by
+      // `SetParametric`, never mutated in place, so two objects pointing at
+      // the same one cannot see each other's edits.
+      expect(
+        identical(
+          history.project[1]!.geometry,
+          history.project[copyId]!.geometry,
+        ),
+        isTrue,
+      );
+    });
+  });
+
   group('baking', () {
     test('a shape becomes a mesh, and undo puts the shape back', () {
       final history = ModelHistory(const ModelProject())

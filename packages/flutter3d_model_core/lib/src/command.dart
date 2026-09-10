@@ -330,15 +330,29 @@ final class DuplicateObjects extends ModelCommand {
     for (final int id in selection.objects) {
       final object = next[id];
       if (object == null) continue;
-      // The copy keeps the geometry by reference. `EditMesh` is edited through
-      // commands that replace it, so two objects sharing one until either is
-      // touched is the same structural sharing the project itself uses — and
-      // duplicating a two hundred thousand face mesh is then free.
+      // A parametric or an imported geometry is replaced whole by the
+      // commands that touch it — `SetParametric` hands back a new
+      // `ParametricGeometry`, an imported `MeshData` is never written to — so
+      // two objects pointing at the same one is the same structural sharing
+      // `ModelProject` itself uses, and free.
+      //
+      // **An edited mesh cannot share that way.** `EditMesh` is a journal
+      // mutated in place — see `mesh_commands.dart` — so a copy sharing the
+      // original's `EditMesh` would have every mesh command run against it
+      // edit the original too. It is copied through `toBytes`/`fromBytes`
+      // instead, which is a real copy at a real cost; there is no cheaper
+      // correct one until `EditMesh` itself has a copy-on-write story.
+      final Geometry geometry = switch (object.geometry) {
+        EditedGeometry(:final mesh) => EditedGeometry(
+          EditMesh.fromBytes(mesh.toBytes()),
+        ),
+        final Geometry shared => shared,
+      };
       next = next.added(
         (int fresh) => ModelObject(
           id: fresh,
           name: '${object.name} copy',
-          geometry: object.geometry,
+          geometry: geometry,
           transform: Matrix4.copy(object.transform),
           parent: object.parent,
           materialSlots: object.materialSlots,

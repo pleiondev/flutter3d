@@ -146,15 +146,24 @@ void main() {
       expect(outcome.selection!.objects, <int>[2]);
     });
 
-    test('a duplicate shares the geometry until either is edited', () {
-      final project = cubes(1);
+    test('a duplicate of a parametric object shares the geometry', () {
+      final project = const ModelProject().added(
+        (int id) => ModelObject(
+          id: id,
+          name: 'a',
+          geometry: ParametricGeometry(ParametricCuboid()),
+          transform: Matrix4.identity(),
+        ),
+      );
       final made = const DuplicateObjects()
           .apply(project, allOf(project))
           .project!;
 
-      // Mutation: deep-copy the `EditMesh` and duplicating a two hundred
-      // thousand face model costs a whole mesh — for a copy the person may be
-      // about to move and never touch.
+      // Safe here, and only here: `SetParametric` replaces the shape whole
+      // rather than editing it in place, so two objects naming the same one
+      // cannot see each other's edits. `commands_test.dart`'s `duplicating`
+      // group holds the mesh case, where sharing is not safe — an `EditMesh`
+      // is a journal mutated in place, and duplicating one now copies it.
       expect(
         identical(made.objects[0].geometry, made.objects[1].geometry),
         isTrue,
