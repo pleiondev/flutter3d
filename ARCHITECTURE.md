@@ -2609,7 +2609,7 @@ assets, it names no sibling either, and it is byte for byte what went out.
 3. `flutter3d_conformance`, `flutter3d_model_core`
 4. `flutter3d`, `flutter3d_physics`
 5. `flutter3d_impeller`, `flutter3d_webgl`, `flutter3d_webgpu`, `flutter3d_cpu`,
-   `flutter3d_particles`, `flutter3d_sim`
+   `flutter3d_particles`, `flutter3d_sim`, `flutter3d_stereo`
 6. `flutter3d_game`, `flutter3d_editor_core`
 7. `flutter3d_screens`, `flutter3d_bridge`, `flutter3d_backend`,
    `flutter3d_testing`, `flutter3d_editor_mcp`, `flutter3d_model_mcp`

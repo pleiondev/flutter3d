@@ -57,6 +57,7 @@ genres, and the generated API reference.
 | [`packages/flutter3d_shaders`](packages/flutter3d_shaders) | The GLSL, and the headers an extension package includes |
 | [`packages/flutter3d_particles`](packages/flutter3d_particles) | One pool, one draw call, whatever is in it |
 | [`packages/flutter3d_session`](packages/flutter3d_session) | A run that can be started, saved, resumed and ended, with no widget in it |
+| [`packages/flutter3d_stereo`](packages/flutter3d_stereo) | Two eyes and a head: the rig, the widget that draws a pair into one frame, and the settings a pair can have. A phone in a holder today, a headset when there is one |
 | [`packages/flutter3d_app`](packages/flutter3d_app) | What every application repeats: storage, settings, the frame clock, the screens |
 | [`packages/flutter3d_game_racing`](packages/flutter3d_game_racing) | A third genre: a car simulated as a sphere, a circuit read from a spline, lap timing and a ghost |
 | [`packages/flutter3d_game_strategy`](packages/flutter3d_game_strategy) | A fourth genre, and the first without a protagonist: ground made of samples, a crowd that takes orders and shoves itself apart, flow fields shared by destination, an economy, a fight, fog a side has to walk into, and a policy that plays a side without a mouse |

@@ -1,0 +1,34 @@
+name: flutter3d_stereo_example
+description: "A scene in stereo on whatever is at hand: two eyes side by side, pointed by the device's own rotation sensor."
+publish_to: 'none'
+version: 0.1.0
+resolution: workspace
+
+environment:
+  sdk: ^3.12.2
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # The engine, and the backend that opens a device and falls back to the
+  # software rasteriser when Impeller will not start.
+  flutter3d: ^0.6.0
+  flutter3d_backend: ^0.6.0
+
+  # The software rasteriser, so a device whose driver refuses the engine can
+  # still show the picture: `--dart-define=software=true`.
+  flutter3d_cpu: ^0.6.0
+
+  flutter3d_stereo:
+    path: ../
+
+  vector_math: ^2.2.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true

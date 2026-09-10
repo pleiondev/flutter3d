@@ -1,0 +1,5 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- No permissions. The rotation vector is a fused sensor and Android asks
+         for nothing before handing it over; it is the body sensors and the
+         camera that need a permission, and this package reads neither. -->
+</manifest>

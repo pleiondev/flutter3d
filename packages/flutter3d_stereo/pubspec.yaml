@@ -1,0 +1,38 @@
+name: flutter3d_stereo
+description: "Stereo rendering for flutter3d: a rig of two eyes under a head, the widget that draws the pair into one frame, and the settings a pair can actually have."
+version: 0.1.0
+resolution: workspace
+repository: https://github.com/pleiondev/flutter3d
+homepage: https://flutter3d.pleion.dev
+issue_tracker: https://github.com/pleiondev/flutter3d/issues
+topics:
+  - vr
+  - xr
+  - stereo
+  - game-development
+
+environment:
+  sdk: ^3.12.2
+  flutter: '>=3.47.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # The renderer: `RenderView`, `OffAxisProjection`, `RenderSettings.forStereo`.
+  # All three exist because of this package and are used by nothing else yet.
+  flutter3d: ^0.6.0
+
+  vector_math: ^2.2.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  plugin:
+    platforms:
+      android:
+        package: dev.flutter3d.stereo
+        pluginClass: HeadSensorPlugin
