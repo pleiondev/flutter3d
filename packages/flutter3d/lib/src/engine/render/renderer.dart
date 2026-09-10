@@ -411,8 +411,10 @@ final class Renderer implements RenderServices {
       _fallbackBlack,
       _fallbackEnvironment,
       _shadowMap,
+      _shadowDepth,
       _cubeShadow,
       _cubeShadowStatic,
+      _cubeShadowDepth,
       for (final probe in _probeStates.values) ...<TextureHandle>[
         probe.capture,
         probe.filtered,
@@ -426,8 +428,10 @@ final class Renderer implements RenderServices {
     _fallbackBlack = null;
     _fallbackEnvironment = null;
     _shadowMap = null;
+    _shadowDepth = null;
     _cubeShadow = null;
     _cubeShadowStatic = null;
+    _cubeShadowDepth = null;
     _cubeShadowTile = 0;
 
     final indices = _debugIndexBuffer;
@@ -793,6 +797,22 @@ final class Renderer implements RenderServices {
   final vm.Matrix4 _shadowDrawMatrix = vm.Matrix4.identity();
   final Float32List _shadowParams = Float32List(4);
   TextureHandle? _shadowMap;
+
+  /// The depth buffer the cascade atlas is drawn with, kept for as long as the
+  /// atlas is rather than borrowed from the pool a frame at a time.
+  ///
+  /// **A pooled one is a different texture every frame, and that is a problem
+  /// the engine below cannot see.** A backend may cache the framebuffer it
+  /// built for a colour attachment — Impeller's Vulkan backend does — and a
+  /// framebuffer holds a view of every attachment in it. Pairing one long-lived
+  /// atlas with a fresh depth buffer each frame hands that cache a key it thinks
+  /// it has seen, and the pass is drawn with the *previous* depth texture: a
+  /// crash where that texture has since been freed, and a shadow map drawn into
+  /// the wrong buffer where it has not. Filed as flutter/flutter#192538.
+  ///
+  /// Owning it costs one texture the size of the atlas and takes the question
+  /// away.
+  TextureHandle? _shadowDepth;
   int _shadowResolution = 0;
   int _shadowCasters = 0;
   int _shadowsDenied = 0;
@@ -1241,8 +1261,17 @@ final class Renderer implements RenderServices {
     // and a leak on another — see [_destroyAfterFrame].
     _destroyAfterFrame(_cubeShadowStatic);
     _destroyAfterFrame(_cubeShadow);
+    _destroyAfterFrame(_cubeShadowDepth);
     _cubeShadowStatic = device.createTexture(spec);
     _cubeShadow = device.createTexture(spec);
+    _cubeShadowDepth = device.createTexture(
+      RenderTargetSpec(
+        width: width,
+        height: height,
+        format: device.defaultDepthStencilFormat,
+        storageMode: StorageMode.deviceTransient,
+      ),
+    );
     _cubeShadowTile = tile;
     _staticShadowBaked = false;
     // Belt and braces: the flag above already forces a bake, and a stale key
@@ -1815,6 +1844,10 @@ final class Renderer implements RenderServices {
   bool _cubeShadowStaticCleared = false;
   TextureHandle? _cubeShadow;
   TextureHandle? _cubeShadowStatic;
+
+  /// The depth buffer both cube atlases are drawn with. Owned for the reason
+  /// [_shadowDepth] is owned.
+  TextureHandle? _cubeShadowDepth;
   bool _staticShadowBaked = false;
 
   /// The settings the static bake was drawn with, or null before the first one.

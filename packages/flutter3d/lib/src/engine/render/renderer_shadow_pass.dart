@@ -82,17 +82,10 @@ extension _ShadowPasses on Renderer {
     final cleared = static ? _cubeShadowStaticCleared : _cubeShadowCleared;
 
     final tile = _cubeShadowTile;
-    final width = tile * 6;
-    final height = tile * Renderer.kShadowedLights;
 
-    final depth = resources.transient(
-      RenderTargetSpec(
-        width: width,
-        height: height,
-        format: device.defaultDepthStencilFormat,
-        storageMode: StorageMode.deviceTransient,
-      ),
-    );
+    // The atlas's own depth rather than one from the pool: see [_shadowDepth]
+    // for what a changing depth attachment does to a cached framebuffer.
+    final depth = _cubeShadowDepth!;
 
     developer.Timeline.startSync('Renderer.cubeShadow');
     final pass = device.beginRenderPass(
@@ -563,18 +556,21 @@ extension _ShadowPasses on Renderer {
           format: hdrFormat,
         ),
       );
+      // Its own depth, for as long as the atlas lives. See [_shadowDepth].
+      _destroyAfterFrame(_shadowDepth);
+      _shadowDepth = device.createTexture(
+        RenderTargetSpec(
+          width: atlasWidth,
+          height: resolution,
+          format: device.defaultDepthStencilFormat,
+          storageMode: StorageMode.deviceTransient,
+        ),
+      );
       _shadowResolution = resolution;
       _shadowCascadeCount = count;
     }
 
-    final depth = resources.transient(
-      RenderTargetSpec(
-        width: atlasWidth,
-        height: resolution,
-        format: device.defaultDepthStencilFormat,
-        storageMode: StorageMode.deviceTransient,
-      ),
-    );
+    final depth = _shadowDepth!;
 
     developer.Timeline.startSync('Renderer.shadowPass');
     final pass = device.beginRenderPass(
