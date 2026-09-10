@@ -1902,8 +1902,16 @@ final class EditMesh {
               '${_twin[twin]}',
             );
           }
-          if (_origin[_next[half]] != _origin[twin] ||
-              _origin[half] != _origin[_next[twin]]) {
+          // Which two vertices, only where there is a live face on the other
+          // side. A deleted face keeps its links so an undo can put it back —
+          // that is what [deleteFace] promises — and an operation that moved a
+          // corner of the *living* face since is under no obligation to have
+          // moved the dead one's with it. Asking anyway made every split and
+          // every extrusion beside a deleted face look broken, which is what a
+          // fuzz run over five hundred operations found.
+          if (hasLiveTwin(half) &&
+              (_origin[_next[half]] != _origin[twin] ||
+                  _origin[half] != _origin[_next[twin]])) {
             throw StateError(
               'half-edge $half and its twin do not run between '
               'the same two vertices',
