@@ -2,7 +2,7 @@
 ///
 ///     flutter test test/selection_box_test.dart
 ///
-/// **Three of the four groups need no geometry at all**, which is the point of
+/// **Four of the five groups need no geometry at all**, which is the point of
 /// `selection_box.dart` being separate from the overlay that draws it: whether
 /// a drag is a box, and what a box does to a set of ids, are questions about
 /// two points and a modifier. The numbers below are logical pixels because that
@@ -95,11 +95,13 @@ void main() {
     test('starts as no rectangle at all', () {
       // A box begins at the pointer-down, before there is a second corner, and
       // it has to be answerable then: the overlay asks for `rect` on the frame
-      // the button goes down. Making `to` required would compile and would
-      // leave every caller inventing a second corner nobody has told it, so it
-      // is not a mutation this can watch fail — the default is here to be read
-      // rather than pinned, and what is pinned is that a box of no size is not
-      // a box.
+      // the button goes down. Mutation: `to = to ?? Offset.zero` for
+      // `to ?? from`, which is the plausible way to spell "no second corner
+      // yet". Run, and the first line fails with
+      // `Rect.fromLTRB(0.0, 0.0, 120.0, 90.0)` — the press drags a rectangle
+      // out of the viewport's corner, so the overlay paints a box nobody has
+      // drawn and a release on the frame after pointer-down replaces the
+      // selection with whatever that quarter of the screen covers.
       final box = SelectionBox(
         from: const Offset(120.0, 90.0),
         pointer: PointerDeviceKind.mouse,
@@ -128,6 +130,18 @@ void main() {
       expect(
         _dragged(const Offset(100.0, 100.0), const Offset(100.0, 104.0)).isBox,
         isTrue,
+      );
+
+      // A hair under four. Mutation: `cursorBoxSlop = 3.5`, which is the kind
+      // of drift a tidy-up makes without anybody arguing for it. Run, and this
+      // drag comes back a box. Between the three-pixel wobble and this, the
+      // constant is held to the interval (3.75, 4.0] — a real is never pinned
+      // to a point by a boundary pair, and the interval is narrow enough that
+      // the doc's "half the pick slack" cannot become something else in
+      // silence.
+      expect(
+        _dragged(const Offset(100.0, 100.0), const Offset(100.0, 103.75)).isBox,
+        isFalse,
       );
     });
 
@@ -174,6 +188,38 @@ void main() {
       expect(
         _dragged(from, to, pointer: PointerDeviceKind.trackpad).isBox,
         isTrue,
+      );
+    });
+
+    test('twelve pixels of fingertip is a box, and ten is a thumb', () {
+      const from = Offset(200.0, 200.0);
+
+      // The test above holds `fingerBoxSlop` from underneath only: a six-pixel
+      // drag expected false needs the number to be more than six and asks
+      // nothing else of it. Mutation: `fingerBoxSlop = 999.0`. Run, and the
+      // first line here fails, which is every touch drag on the device
+      // becoming a click on wherever the finger landed and a box gesture that
+      // a touchscreen cannot make at all.
+      expect(
+        _dragged(
+          from,
+          const Offset(200.0, 212.0),
+          pointer: PointerDeviceKind.touch,
+        ).isBox,
+        isTrue,
+      );
+
+      // Ten is still inside the eight to ten millimetres of glass a fingertip
+      // covers, so it is a press that rolled. With the line above, the
+      // constant is held to (10.0, 12.0], and with the four-pixel pair in the
+      // first test that is the three the doc argues.
+      expect(
+        _dragged(
+          from,
+          const Offset(200.0, 210.0),
+          pointer: PointerDeviceKind.touch,
+        ).isBox,
+        isFalse,
       );
     });
   });
@@ -278,7 +324,7 @@ void main() {
       );
     });
 
-    test('the answer is a copy, and nothing can edit it afterwards', () {
+    test('every mode answers with a copy nothing can edit afterwards', () {
       final live = <int>{1, 2};
 
       // The copying is `Set.unmodifiable`'s doing, not the `where`'s, so the
@@ -292,6 +338,34 @@ void main() {
 
       // Mutation: `Set<T>.of` for `Set<T>.unmodifiable`. Run, and this fails.
       expect(() => taken.add(4), throwsUnsupportedError);
+
+      // Replace is where the aliasing hazard is live rather than theoretical:
+      // it is the bare drag, the default mode, and its answer is the set
+      // `pickElementsIn` just built. Mutation:
+      // `mode == SelectionBoxMode.replace ? caught : Set<T>.unmodifiable(...)`,
+      // which is the shortcut somebody takes on the grounds that replace
+      // changes nothing. Run, and the line after the edit fails with
+      // `Set:[7, 8, 9]` against `Set:[7, 8]` — the picker's working set is
+      // published, and whatever it does next rewrites a selection already
+      // handed out.
+      final enclosed = <int>{7, 8};
+      final replaced = applyBox(
+        <int>{1, 2},
+        enclosed,
+        mode: SelectionBoxMode.replace,
+      );
+      enclosed.add(9);
+      expect(replaced, <int>{7, 8});
+      expect(() => replaced.add(4), throwsUnsupportedError);
+
+      // Add builds a set of its own, so no amount of editing the arguments
+      // afterwards can catch a path that forgot the wrapper; the edit is what
+      // catches it. Mutation:
+      // `mode == SelectionBoxMode.add ? <T>{...selection, ...caught} : ...`.
+      // Run, and the union comes back writable, `add(3)` succeeds and this
+      // line fails for want of the throw.
+      final joined = applyBox(<int>{1}, <int>{2}, mode: SelectionBoxMode.add);
+      expect(() => joined.add(3), throwsUnsupportedError);
     });
   });
 
@@ -312,7 +386,7 @@ void main() {
       expect(
         box.isBox,
         isTrue,
-        reason: 'ninety pixels tall and four hundred wide',
+        reason: 'four hundred and sixteen pixels wide, fifty-four tall',
       );
 
       final caught = pickElementsIn(
@@ -322,12 +396,15 @@ void main() {
         level: ElementLevel.vertex,
       );
 
-      // The two back corners at y = 1 are four units further off, so they
-      // project inside this box across and above its lower edge. That the box
-      // is tight enough to leave them out is the thing to pin: drop its lower
-      // edge from `Vector3(1.15, 0.85, 1.0)` to `Vector3(1.15, 0.6, 1.0)` and
-      // this comes back `Set:[2, 3, 6, 7]` against `Set:[7, 6]`, so a box read
-      // as any looser than it was drawn takes the back of the cube with it.
+      // The cuboid is two units deep, so the two back corners at y = 1 sit at
+      // depth six against the front face's four, and the divide pulls them in
+      // to x = 279.29 and x = 520.71 — well inside this box across — at
+      // y = 179.29, which is thirty-three pixels under its lower edge of
+      // 146.09. They are left out because the box is tight, and that is the
+      // thing to pin: drop its lower edge from `Vector3(1.15, 0.85, 1.0)` to
+      // `Vector3(1.15, 0.6, 1.0)`, which puts the edge at y = 191.36, and this
+      // comes back `Set:[2, 3, 6, 7]` against `Set:[7, 6]` — a box read as any
+      // looser than it was drawn takes the back of the cube with it.
       expect(caught.ids.toSet(), <int>{left, right});
 
       // The vertex the person had already selected survives the box, which is

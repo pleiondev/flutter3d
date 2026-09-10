@@ -95,9 +95,13 @@ void main() {
       );
 
       // A quarter turn about Z takes X to Y. Mutation: drop the `radians()` on
-      // the way in, and 90 becomes ninety radians — a turn of 117 degrees,
-      // fourteen whole revolutions later. This fails at -0.448 where it wanted
-      // 0, and the field still reads 90 the whole time.
+      // the way in, on all three axes or on the Z line alone, since Z is the
+      // only box this test fills. Ninety then means ninety radians — a turn of
+      // 117 degrees, fourteen whole revolutions later — and this fails at
+      // -0.4480736255645752 where it wanted 0, while the field still reads 90.
+      // Dropping it on the X line only leaves this test passing and fails the
+      // order of the turns instead, at the same -0.4480736255645752; between
+      // them the two tests cover all three axes, and neither covers them alone.
       final Vector3 turned = matrix.transform3(Vector3(1, 0, 0));
       expect(turned.x, closeTo(0, 1e-6));
       expect(turned.y, closeTo(1, 1e-6));
@@ -174,13 +178,48 @@ void main() {
       // passes were run while this was written and none moved after the sixth.
       // The whole walk is four ulps, which is the bound below.
       //
-      // Mutation: keep the four ulps and give up the settling — round the
-      // fields to three places on the way out, the way the panel shows them.
-      // Every pass then finds a slightly different matrix and the exact check
-      // fails by 2.4e-7, which is an object walking off while somebody opens
-      // and closes the panel.
+      // Mutation: keep the four ulps and give up the settling — round the turn
+      // to three places on the way out, the way the panel shows it. Every pass
+      // then finds a slightly different matrix and the exact check below fails
+      // by 2.384185791015625e-7, which is an object walking off while somebody
+      // opens and closes the panel. Rounding the place and the size to three
+      // places as well hides that again rather than adding to it, because every
+      // number in this example is already exact at three places; what those two
+      // cost is pinned by 'the fields keep more of a number than the panel
+      // shows' instead.
       expectSameMatrix(passes[20], passes[10], within: 0);
       expectSameMatrix(passes[20], passes[1], within: 1e-6);
+    });
+
+    test('the fields keep more of a number than the panel shows', () {
+      final Matrix4 first = built(
+        fieldsOf(
+          <double>[1.23456, -2.06789, 0.00049],
+          <double>[15, 80, -170],
+          <double>[1.06251, 1.23456, 0.75049],
+        ),
+      );
+
+      final fields = transformFieldsOf(first);
+
+      // A place a person set by dragging a gizmo has more decimals in it than
+      // anything on the screen shows — `TransformModal` gives a move three, and
+      // a row of boxes will do something similar — and the temptation is to
+      // round here so that the number carried and the number read are the same.
+      // What that costs is everything below the third place, on every pass
+      // through the panel. Mutation: round position and scale to three places
+      // on the way out of `transformFieldsOf`. This fails at 1.2350000143051147
+      // against 1.23456, and with that line taken out it fails again at 0.0
+      // against 0.00049 — half a millimetre of a model measured in metres,
+      // gone. Rounding belongs in whatever draws the number; the conversion
+      // hands back what it was given, and the round trip at the end is where a
+      // person would pay for it, since those fields go straight into the
+      // document.
+      expect(fields.position.x, closeTo(1.23456, 1e-5));
+      expect(fields.position.z, closeTo(0.00049, 1e-7));
+      expect(fields.scale.x, closeTo(1.06251, 1e-5));
+      expect(fields.scale.z, closeTo(0.75049, 1e-5));
+      expectSameMatrix(built(fields), first);
     });
   });
 
@@ -215,12 +254,20 @@ void main() {
       // a person sees is the spelling move. Written down here because it is the
       // surprise: a mirror in Z reads back as a mirror in X and a half turn in
       // the other two boxes.
+      //
+      // The signs are asserted here as well as the sizes, though 180 and -180
+      // are the same half turn and the minus comes off the sign of a zero deep
+      // in the basis. The library comment quotes these six numbers as the thing
+      // a person will see, and a quoted number with nothing holding it is how
+      // that paragraph came to say 180, 0, 180 for a run that prints
+      // 180, 0, -180. If a change moves the minus, this fails and the paragraph
+      // gets rewritten along with it.
       expect(fields.scale.x, closeTo(-1, 1e-6));
       expect(fields.scale.y, closeTo(1, 1e-6));
       expect(fields.scale.z, closeTo(1, 1e-6));
-      expect(fields.rotationDegrees.x.abs(), closeTo(180, 1e-4));
-      expect(fields.rotationDegrees.y.abs(), closeTo(0, 1e-4));
-      expect(fields.rotationDegrees.z.abs(), closeTo(180, 1e-4));
+      expect(fields.rotationDegrees.x, closeTo(180, 1e-4));
+      expect(fields.rotationDegrees.y, closeTo(0, 1e-4));
+      expect(fields.rotationDegrees.z, closeTo(-180, 1e-4));
     });
 
     test('and the object is where it was', () {
@@ -257,6 +304,32 @@ void main() {
       expect(fields.rotationDegrees.x, closeTo(60, 1e-3));
       expect(fields.rotationDegrees.y, closeTo(90, 1e-3));
       expect(fields.rotationDegrees.z, closeTo(0, 1e-3));
+    });
+
+    test('at -90 in Y it is the difference that survives', () {
+      final Matrix4 first = built(
+        fieldsOf(<double>[0, 0, 0], <double>[50, -90, 20], <double>[1, 1, 1]),
+      );
+
+      final fields = transformFieldsOf(first);
+
+      // The other half of what the library comment claims about ±90, and it is
+      // not the same claim twice: at the far pole the X turn appears the other
+      // way about the shared line, so the matrix keeps 50 - 20 where at +90 it
+      // keeps the sum. Written down because it reads like a bug otherwise —
+      // 30, -90, 30 comes back 0, -90, 0 and the two boxes a person filled in
+      // look thrown away, when what is left is all the matrix ever held.
+      //
+      // Mutation: drop the `.abs()` from the pole test, so that only +90 counts
+      // as the pole and the far one divides through by what rounding left of
+      // the cosine. This fails at 49.999996185302734 against 30, and the 50 it
+      // has apparently recovered is the trap rather than the prize: the matrix
+      // holds the difference and nothing else, so that 50 is whatever the last
+      // bits of the division say and it moves when they do.
+      expect(fields.rotationDegrees.x, closeTo(30, 1e-3));
+      expect(fields.rotationDegrees.y, closeTo(-90, 1e-3));
+      expect(fields.rotationDegrees.z, closeTo(0, 1e-3));
+      expectSameMatrix(built(fields), first, within: 1e-5);
     });
 
     test('and it is still the same object', () {
@@ -347,18 +420,48 @@ void main() {
       expect(made.refused, 'Z of the rotation is not a number');
     });
 
-    test('a scale of zero is refused in the same words as the command', () {
+    test('a NaN in the size is refused, and the sentence names the size', () {
       final made = transformFromFields(
-        fieldsOf(<double>[0, 0, 0], <double>[0, 0, 0], <double>[1, 0, 1]),
+        fieldsOf(<double>[0, 0, 0], <double>[0, 0, 0], <double>[
+          double.nan,
+          1,
+          1,
+        ]),
       );
 
+      // Three boxes are checked one after another and each refusal has to name
+      // its own, because the sentence is what sends a person back to the box
+      // they typed in. Mutation: hand 'rotation' to the scale check as well,
+      // and this comes back 'X of the rotation is not a number' — a status line
+      // pointing at three boxes that are perfectly all right, for a mistake in
+      // a fourth.
+      expect(made.matrix, isNull);
+      expect(made.refused, 'X of the scale is not a number');
+    });
+
+    test('a scale of zero is refused in the same words as the command', () {
       // The same sentence `ScaleBy` refuses with, because it is the same
       // mistake: a flattened object cannot be scaled back out, and the turn
       // about the flattened axis is gone with it. Mutation: drop the check and
       // a matrix comes back where null was wanted, so a person flattens an
       // object by typing one character and cannot undo it by typing another.
-      expect(made.matrix, isNull);
-      expect(made.refused, 'a scale of zero would flatten the object');
+      //
+      // All three boxes, because the check is three clauses joined by `||` and
+      // a test that fills one of them pins one of them. Mutation: take
+      // `fields.scale.x == 0` out of the condition and the X case alone comes
+      // back a matrix — a `Matrix4` whose first column is three zeros, which is
+      // exactly the object the sentence exists to refuse.
+      for (final List<double> flat in <List<double>>[
+        <double>[0, 1, 1],
+        <double>[1, 0, 1],
+        <double>[1, 1, 0],
+      ]) {
+        final made = transformFromFields(
+          fieldsOf(<double>[0, 0, 0], <double>[0, 0, 0], flat),
+        );
+        expect(made.matrix, isNull, reason: '$flat');
+        expect(made.refused, 'a scale of zero would flatten the object');
+      }
     });
 
     test('a refusal is a value, not a throw', () {
@@ -395,11 +498,12 @@ void main() {
       final fields = transformFieldsOf(flattened);
 
       // Mutation: divide by the length without checking it. The flat column
-      // divides zero by zero and comes out NaN, and although `clamp` then
-      // turns that NaN into a 1 rather than letting it through — which is why
-      // the finiteness check below passes either way — a sine of 1 is the
-      // pole, so the turn is read as 0, 90, 0 and this fails at 0 against 30.
-      // The object is told it faces somewhere it does not.
+      // divides zero by zero, the sine of Y comes out NaN, and every comparison
+      // against a NaN is false — so the reading falls through to the pole
+      // branch and the Z box fails at 0.0 against 30. Take that line out and
+      // the Y box fails at NaN against 0, which is why the finiteness check is
+      // at the end: the panel would be telling a person the object faces
+      // somewhere it does not, and handing the document a NaN to keep.
       expect(fields.position, Vector3(4, 5, 6));
       expect(fields.scale.z, 0);
       expect(fields.rotationDegrees.z, closeTo(30, 1e-3));
@@ -411,6 +515,27 @@ void main() {
         expect(number.isFinite, isTrue, reason: '$number');
       }
     });
+  });
+
+  test('a matrix that is nonsense reads back as nonsense', () {
+    final Matrix4 rubbish = Matrix4.identity();
+    for (var i = 0; i < 16; i++) {
+      rubbish.storage[i] = double.nan;
+    }
+
+    final fields = transformFieldsOf(rubbish);
+
+    // Nothing in the modeller writes one of these — the fields refuse a NaN
+    // and so does the scale command — but this conversion is total, so what
+    // it says about a document that holds one is a decision, and the decision
+    // is to pass the NaN on where a caller can see it.
+    //
+    // Mutation: put back the `clamp(-1.0, 1.0)` the sine of Y used to be read
+    // through. Dart orders a NaN above every number, so the clamp answers
+    // with the upper limit and the Y box reads a confident 90.0 for a matrix
+    // that means nothing at all. That is the reading a person cannot tell
+    // apart from a real quarter turn, and the reason the clamp went.
+    expect(fields.rotationDegrees.y, isNaN);
   });
 
   test('the position is read straight off the matrix', () {
@@ -425,8 +550,11 @@ void main() {
     );
 
     // Mutation: read the translation from the scaled columns instead of the
-    // fourth one. A scaled and turned object then reports 1.372 for the 1.5 it
-    // is at, so typing anything into any other box teleports it.
+    // fourth one. A scaled and turned object then reports 1.62759530544281 for
+    // the 1.5 it is standing at — the diagonal of the scaled basis has nothing
+    // to do with where anything is — so typing into any other box teleports it.
+    // Ten more tests fail with it, the round trip first, which is what a
+    // mistake in the busiest three of the nine numbers ought to look like.
     expect(fields.position.x, closeTo(1.5, 1e-5));
     expect(fields.position.y, closeTo(-2, 1e-5));
     expect(fields.position.z, closeTo(30, 1e-4));

@@ -142,6 +142,31 @@ void main() {
       expect(ready.canExport, isTrue);
     });
 
+    test('counts the faces that are there and not the slots they left', () {
+      // Two quads deleted, which is the ordinary state of an `EditMesh` after
+      // any delete: the slots stay, `faceSlotCount` is still six, and a dead
+      // slot answers `valencyOf` with the four corners it had while it was
+      // alive.
+      final mesh = EditMesh.cuboid();
+      mesh.beginStep();
+      mesh.deleteFace(0);
+      mesh.deleteFace(1);
+      mesh.repairVertexLinks();
+      mesh.endStep();
+
+      final ready = ExportReadiness.check(
+        projectOf(<Geometry>[EditedGeometry(mesh)]),
+      );
+
+      // Mutation: drop `mesh.isFaceAlive(face) &&` from the comprehension in
+      // `_wideFaces`, which is the line anybody writing a walk over faces
+      // forgets. The stale valency of the two tombstones is counted with the
+      // rest and this expectation reads `6 faces` — a warning about work
+      // somebody has already done.
+      expect(ready.issues, hasLength(1));
+      expect(ready.issues.single.message, contains('4 faces'));
+    });
+
     test('and nothing at all when the format holds n-gons', () {
       // Mutation: drop the `trianglesOnly` argument and check the faces
       // always. An OBJ export, which can write the quad exactly as it stands,
@@ -217,6 +242,30 @@ void main() {
       expect(ready.canExport, isTrue);
     });
 
+    test('leads the warnings, ahead of the objects it was spent by', () {
+      // A box of quads, over a budget of one triangle: two warnings, one about
+      // the project and one about the object.
+      final ready = ExportReadiness.check(
+        projectOf(<Geometry>[
+          EditedGeometry(EditMesh.cuboid()),
+        ], profile: const ProjectProfile(name: 'tiny', maxTriangles: 1)),
+      );
+
+      // Mutation: move `?_budget(project)` from the head of `found` to the
+      // foot of it. Both warnings are still there and both still say what they
+      // say, so everything else here stays green — what changes is the line
+      // the status bar leads with, which becomes a quad in one object while
+      // the project as a whole is twelve times its budget. The project-wide
+      // fault goes first because it is the one that is true of every object at
+      // once.
+      expect(ready.issues, hasLength(2));
+      expect(
+        ready.says,
+        startsWith('exports with a warning: the project draws 12 triangles'),
+      );
+      expect(ready.says, endsWith('(and 1 more)'));
+    });
+
     test('and a project inside it is not mentioned', () {
       expect(
         ExportReadiness.check(
@@ -244,8 +293,15 @@ void main() {
       // a word.
       expect(ready.issues, hasLength(1));
       expect(ready.issues.single.severity, ExportSeverity.warning);
-      expect(ready.issues.single.message, contains('1 vertex'));
+      expect(ready.issues.single.message, contains('1 vertex where'));
       expect(ready.issues.single.message, contains('"a"'));
+
+      // Mutation: drop `object: object` from the issue. The name is still in
+      // the sentence, so a test reading only the message stays green while a
+      // panel that highlights `issues.object` stops highlighting — and a null
+      // there means something else again, which is that the project as a whole
+      // is to blame the way the budget is.
+      expect(ready.issues.single.object?.name, 'a');
 
       // It draws, so it does not stop the export.
       expect(ready.canExport, isTrue);
@@ -269,6 +325,7 @@ void main() {
       expect(ready.issues.single.severity, ExportSeverity.warning);
       expect(ready.issues.single.message, contains('6 faces'));
       expect(ready.issues.single.message, contains('inside out'));
+      expect(ready.issues.single.object?.name, 'a');
     });
 
     test('a face with no area stops the export', () {
@@ -295,8 +352,13 @@ void main() {
       // in a vertex buffer, and `canExport` saying true here is the panel
       // handing somebody a file that disappears on half the drivers that open
       // it.
+      // The next word is asserted with the count, and that is the plural rule
+      // being tested as well: `contains('1 face')` is satisfied by "1 faces",
+      // so a `_count` that had lost its singular branch would read as covered
+      // here while the panel said "1 faces".
       expect(ready.issues.first.severity, ExportSeverity.error);
-      expect(ready.issues.first.message, contains('1 face'));
+      expect(ready.issues.first.message, contains('1 face with no area'));
+      expect(ready.issues.first.object?.name, 'a');
       expect(ready.canExport, isFalse);
     });
   });
@@ -331,12 +393,14 @@ void main() {
       // export is blocked by an empty mesh one object further down, and this
       // reads `exports with a warning`.
       //
-      // What is *not* tested is the order among issues of one severity. The
-      // two passes in `check` hold it because they do not sort at all, and a
-      // `List.sort` on the severity would pass everything here while being
-      // free to swap two warnings between runs. Catching that wants a project
-      // large enough for the sort to reorder, which is a test about Dart
-      // rather than about this.
+      // What is *not* tested is the order of two warnings about two different
+      // objects. Where the budget sits among the warnings is pinned above, in
+      // the budget group; this is the rest of it. The two passes in `check`
+      // hold that order because they do not sort at all, and a `List.sort` on
+      // the severity would pass everything here while being free to swap two
+      // warnings between runs. Catching that wants a project large enough for
+      // the sort to reorder, which is a test about Dart rather than about
+      // this.
       expect(ready.issues.first.severity, ExportSeverity.error);
       expect(ready.says, startsWith('will not export: "b" has no faces'));
 
@@ -345,6 +409,43 @@ void main() {
       // presses Export and meets the next problem, one at a time for as long
       // as the list is.
       expect(ready.says, endsWith('(and 1 more)'));
+    });
+
+    test('and stops at the problem when the problem is the only one', () {
+      final ready = ExportReadiness.check(
+        projectOf(<Geometry>[EditedGeometry(EditMesh.empty())]),
+      );
+
+      // Mutation: drop the `rest.isEmpty ? '' :` guard and always append the
+      // tail. Every project with one thing wrong then ends its status bar with
+      // `(and 0 more)`, which reads as a bar that has lost count. Asserted as
+      // the whole line rather than as `isNot(contains('0 more'))`, because the
+      // line is short enough to write down and a line nobody has written down
+      // is a line that grows a stray space where two pieces meet.
+      expect(
+        ready.says,
+        'will not export: "a" has no faces; it would be written as an empty '
+        'mesh, which some loaders refuse and the rest draw as nothing',
+      );
+    });
+  });
+
+  group('what a failure prints', () {
+    test('an issue leads with the severity, then the whole sentence', () {
+      final ready = ExportReadiness.check(
+        projectOf(<Geometry>[EditedGeometry(EditMesh.empty())]),
+      );
+
+      // `ExportIssue.toString` is what every expectation in this file prints
+      // when it fails, so it is asserted here rather than left to be read off
+      // a red run: a `toString` that dropped the severity would take the one
+      // thing that says whether the export is blocked out of every diagnostic
+      // in the suite, and nothing would go red to say so.
+      expect(
+        ready.issues.single.toString(),
+        startsWith('error: "a" has no faces;'),
+      );
+      expect(ready.toString(), 'ExportReadiness(1 issues)');
     });
   });
 }

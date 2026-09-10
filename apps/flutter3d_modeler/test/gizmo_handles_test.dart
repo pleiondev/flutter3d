@@ -20,6 +20,7 @@ import 'dart:typed_data';
 
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_modeler/src/gizmo_handles.dart';
+import 'package:flutter3d_modeler/src/mesh_overlay_builder.dart';
 import 'package:flutter3d_modeler/src/transform_gizmo.dart';
 import 'package:flutter3d_modeler/src/transform_modal.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -116,6 +117,22 @@ Vector3 _centreOf(List<Vector3> at, int from, int count) {
   return sum / count.toDouble();
 }
 
+/// How many logical pixels across the shape drawn as the six vertices at
+/// [from] is, seen from [eye].
+///
+/// **One measure for both shapes, and it is the same two corners either way.**
+/// A quad is written as `a b c a c d`, so the first and the last vertex of a
+/// run are the two ends of one side of it: across a band that side is the
+/// width, and across a camera-facing square it is the side. Dividing by the
+/// world size of a pixel at the shape's centre undoes the distance, so what
+/// comes back is the number the drawing asked [MeshOverlay] for. Only true
+/// with the nudge towards the eye switched off, which is why every caller
+/// below leaves `biasPixels` at zero: with a nudge the centre is no longer the
+/// point the size was worked out at.
+double _pixelsAcross(List<Vector3> at, int from, Vector3 eye) =>
+    (at[from + 5] - at[from]).length /
+    (_pixel * (_centreOf(at, from, 6) - eye).length);
+
 void _expectNear(Vector3 got, Vector3 wanted, {double within = 1e-4}) {
   expect(got.x, closeTo(wanted.x, within), reason: 'x of $got');
   expect(got.y, closeTo(wanted.y, within), reason: 'y of $got');
@@ -199,6 +216,11 @@ void main() {
       // What this does *not* catch is a gizmo sized in metres: the arms come
       // from `gizmoHandles`, which does that arithmetic and has its own tests.
       // The ring below is where this file holds its own screen sizing.
+      //
+      // Nor does it catch the thirteen. Both sides of the comparison read
+      // `drawing.headPixels`, so a head of forty goes through here green; what
+      // this holds is that the two cameras agree. The number itself is held in
+      // 'the sizes', which writes it out.
     });
 
     test('each arrow is its axis\'s own tint', () {
@@ -253,6 +275,17 @@ void main() {
       expect(after.sublist(0, 12), everyElement(after[0]));
       // Y and Z are untouched.
       expect(after.sublist(12, 36), before.sublist(12, 36));
+      // The lit branch writes its own alpha, and it has to be the one the cold
+      // branch writes: the batches are drawn with no blend state, so an alpha
+      // under one is a fade that changes nothing on screen and lies to
+      // anything else reading these vertices. Nothing above would notice —
+      // every assertion so far masks a channel or compares one lit vertex to
+      // another.
+      expect(
+        after.map((ink) => ink >> 24).toList(),
+        everyElement(0xFF),
+        reason: 'a lit handle is as opaque as a cold one',
+      );
       // Mutation: `hotMix = kGizmoHotMix` to `0.0`. The first fails at 107
       // against 107: the pointer picks an arm up and nothing on screen says so,
       // so a person drags before they know which axis they have got hold of.
@@ -260,6 +293,11 @@ void main() {
       // Mutation: `handle.axis == hot` to `hot != null`. The fourth fails —
       // all three arms light at once, which says the gizmo is grabbed and not
       // which part of it.
+      //
+      // Mutation: the `1.0` alpha of the lit branch of `_inkFor` to `0.0`. The
+      // last fails with the twelve vertices of the X arm at 0 against 255 — the
+      // hovered handle is the one handle drawn transparent, in batches that
+      // have no blend state to make that mean anything.
     });
 
     test('a hot axis lights that axis and not the one beside it', () {
@@ -282,6 +320,44 @@ void main() {
       // rather than the handle whose axis matches it. The X arm comes back
       // brightened on a hover over Z, so the highlight points at one axis while
       // the drag that follows moves the model along another.
+    });
+
+    test('a mix past the ends of the range still lands on a colour', () {
+      final eye = Vector3(0, 0, 10);
+
+      // **Read as raw floats, and that is the point of the test.**
+      // [_coloursOf] rounds and clamps on the way to a byte, so a channel that
+      // came out at ten looks exactly like white there. What actually leaves
+      // this file is the float, and it is what a backend's tone curve is handed.
+      List<double> inkFloats(double hotMix) {
+        final overlay = _overlay(eye: eye);
+        GizmoDrawing(hotMix: hotMix).writeInto(
+          overlay,
+          pivot: pivot,
+          handles: _handlesAt(pivot, eye),
+          kind: TransformKind.move,
+          hot: GizmoAxis.x,
+        );
+        final floats = _floatsOf(overlay.handles);
+        return <double>[
+          for (var v = 0; v < overlay.handles.vertexCount; v++)
+            for (var c = 3; c < MeshOverlay.floatsPerVertex; c++)
+              floats[v * MeshOverlay.floatsPerVertex + c],
+        ];
+      }
+
+      // `hotMix` is a field a caller sets, so both ends are reachable from
+      // outside this file — a touch build asking for a stronger highlight is
+      // one typo away from either.
+      expect(inkFloats(4.0), everyElement(inInclusiveRange(0.0, 1.0)));
+      expect(inkFloats(-1.0), everyElement(inInclusiveRange(0.0, 1.0)));
+      // Mutation: `final mix = hotMix.clamp(0.0, 1.0);` to `final mix =
+      // hotMix;`. The green of the lit X arm comes back at 10.374067306518555
+      // on the first and at -0.012444605119526386 on the second — a colour
+      // three quarters of the way to a stop above white, handed to whatever
+      // tone curve the backend has, and a colour the other side of black.
+      // Neither is a thing to find out one platform at a time, and neither is
+      // visible through [_coloursOf], which clamps to a byte on the way past.
     });
   });
 
@@ -367,6 +443,47 @@ void main() {
       // it is a dot beside the model it is meant to enclose. This is the whole
       // reason the gizmo asks the overlay how big a pixel is.
     });
+
+    test('the chords sag less than a pixel away from the circle', () {
+      final eye = Vector3(0, 0, 10);
+      final overlay = _overlay(eye: eye);
+
+      drawing.writeInto(
+        overlay,
+        pivot: pivot,
+        handles: _handlesAt(pivot, eye),
+        kind: TransformKind.rotate,
+      );
+
+      // A ring of straight segments reads as round exactly when nobody can see
+      // where a corner is, and what decides that is how far the middle of a
+      // chord falls inside the circle it is standing in for — the gap between
+      // the two, in the pixels the ring is drawn in. The spacing of the corners
+      // says nothing on its own: these are eleven pixels apart.
+      final at = _positionsOf(overlay.lines);
+      final radius = at.first.length;
+      final sag =
+          (radius - ((at[0] + at[1]) * 0.5).length) /
+          (_pixel * (pivot - eye).length);
+
+      expect(sag, closeTo(0.176, 0.005));
+      expect(
+        (at[1] - at[0]).length / (_pixel * (pivot - eye).length),
+        closeTo(10.73, 0.01),
+      );
+      expect(sag, lessThan(1.0), reason: 'a corner of the ring is visible');
+      // Mutation: `_turnSegments = 48` to `24`. The sag comes back at
+      // 0.7015177971073605 against 0.176 and the corners at 21.41 pixels apart
+      // — four times the departure from the circle, on a line one pixel wide,
+      // which is a ring a person can count the sides of. The vertex count above
+      // goes red at the same time and says only that the number changed; this
+      // says what the number is for.
+      //
+      // Mutation: `this.turnPixels = 82.0` to `820.0`. The chord fails at
+      // 107.26112463455978, because a ring ten times the radius drawn with the
+      // same forty-eight segments is a ring whose corners are ten times as far
+      // apart.
+    });
   });
 
   group('a scale', () {
@@ -400,6 +517,30 @@ void main() {
       expect(ink.sublist(36, 42), everyElement(_opaque(kGizmoTintUniform)));
       // The middle box belongs to no axis, so it is none of the three tints.
       expect(_opaque(kGizmoTintUniform), isNot(_opaque(kGizmoTintX)));
+      // And it is lighter than both greys the overlay draws underneath it,
+      // which is the whole claim [kGizmoTintUniform] makes for itself: the one
+      // handle with no colour of its own has to be findable on top of a
+      // wireframe the same distance along the grey scale.
+      final under = MeshOverlayColours();
+      for (final grey in <Vector4>[under.wire, under.vertex]) {
+        for (final (shift, channel) in <(int, double)>[
+          (16, grey.x),
+          (8, grey.y),
+          (0, grey.z),
+        ]) {
+          expect(
+            (kGizmoTintUniform >> shift) & 0xFF,
+            greaterThan((channel * 255).round()),
+            reason: 'the middle box has sunk into the overlay under it',
+          );
+        }
+      }
+      // Mutation: `kGizmoTintUniform = 0xC8CFD2` to `0x8C9399`, which is the
+      // wireframe's own grey — the colour the doc for that constant used to
+      // claim it already was. The red channel fails at 140 against 140, and the
+      // middle box is then drawn in the exact colour of the mesh it is standing
+      // on top of.
+      //
       // Mutation: drop the `overlay.point(pivot, …)` call. The count is 36 and
       // there is no way to scale every axis at once with the pointer at all —
       // the commonest scale there is becomes keyboard-only.
@@ -441,6 +582,114 @@ void main() {
     });
   });
 
+  group('the sizes', () {
+    /// The three shapes of a move and a scale gizmo, measured off the batch in
+    /// logical pixels: the shaft of an arrow, its head, a scale box and the
+    /// middle box.
+    ({double shaft, double head, double box, double middle, double ring})
+    sizesFrom(Vector3 eye) {
+      final move = _overlay(eye: eye);
+      final scale = _overlay(eye: eye);
+      final turn = _overlay(eye: eye);
+      for (final (overlay, kind) in <(MeshOverlay, TransformKind)>[
+        (move, TransformKind.move),
+        (scale, TransformKind.scale),
+        (turn, TransformKind.rotate),
+      ]) {
+        drawing.writeInto(
+          overlay,
+          pivot: pivot,
+          handles: _handlesAt(pivot, eye),
+          kind: kind,
+        );
+      }
+      final moveAt = _positionsOf(move.handles);
+      final scaleAt = _positionsOf(scale.handles);
+      return (
+        shaft: _pixelsAcross(moveAt, 0, eye),
+        head: _pixelsAcross(moveAt, 6, eye),
+        box: _pixelsAcross(scaleAt, 6, eye),
+        middle: _pixelsAcross(scaleAt, 36, eye),
+        ring:
+            _positionsOf(turn.lines).first.length /
+            (_pixel * (pivot - eye).length),
+      );
+    }
+
+    test('are the numbers the design named, in logical pixels', () {
+      // **Written out rather than read back off the [GizmoDrawing].** A test
+      // that compares the drawing to `drawing.shaftPixels` passes whatever that
+      // field says, so it holds the pixels-rather-than-metres arithmetic and
+      // nothing about the design: a shaft ten times its width goes through it
+      // green. These are the numbers the gizmo was drawn to, and changing one
+      // of them is a decision rather than a refactor.
+      final near = sizesFrom(Vector3(0, 0, 10));
+      expect(near.shaft, closeTo(3, 1e-3));
+      expect(near.head, closeTo(13, 1e-3));
+      expect(near.box, closeTo(11, 1e-3));
+      expect(near.middle, closeTo(11, 1e-3));
+      expect(near.ring, closeTo(82, 1e-3));
+      // Mutation: `this.shaftPixels = 3.0` to `30.0`. The first fails at
+      // 29.999999828083094 — a shaft wider than the head it is meant to point
+      // with, over the model it is meant to leave visible.
+      //
+      // Mutation: `this.boxPixels = 11.0` to `30.0`. The third fails at
+      // 29.999998776861467, and the three scale boxes are then wide enough to
+      // meet each other round the middle one.
+      //
+      // Mutation: `this.turnPixels = 82.0` to `820.0`. The last fails at 820.0.
+      // Every one of the three passed before this test was written, because the
+      // assertions read the same field they were checking.
+    });
+
+    test('every drawn pixel is inside the box a ray is traced against', () {
+      // The consequence the numbers above are chosen for. `gizmoHandles` gives
+      // an arm [kGizmoGrabPixels] of slack either side of its axis and stops
+      // the box at the tip, so a shape drawn wider than twice that slack has
+      // paint hanging outside the only thing a press can hit — a person aims at
+      // the gizmo, misses it, and orbits the camera instead. The ring is held
+      // to [kGizmoPixels] for the neighbouring reason: a ring reaching past the
+      // arrows makes switching from move to rotate look like the gizmo growing.
+      final eye = Vector3(0, 0, 10);
+      final near = sizesFrom(eye);
+      for (final (what, size) in <(String, double)>[
+        ('the shaft', near.shaft),
+        ("the arrow's head", near.head),
+        ('a scale box', near.box),
+      ]) {
+        expect(
+          size / 2,
+          lessThanOrEqualTo(kGizmoGrabPixels),
+          reason: '$what hangs outside the grab box',
+        );
+      }
+      // The middle box is the one shape no ray is traced against at all —
+      // [GizmoHit.nearest] answers for the three arms and nothing else — so
+      // what holds it is the clear space the arms leave round the pivot. A box
+      // wider than that overlaps the arm boxes, and a press in the overlap is
+      // then answered by whichever arm the trace reaches first while the paint
+      // under the pointer says uniform.
+      final armStart =
+          (_handlesAt(pivot, eye).first.base - pivot).length /
+          (_pixel * (pivot - eye).length);
+      expect(near.middle / 2, lessThan(armStart));
+      expect(near.ring, lessThan(kGizmoPixels));
+      // Mutation: `this.shaftPixels = 3.0` to `30.0`. The shaft fails at
+      // 14.999999914041547 against eleven of slack, so five of the fifteen
+      // pixels either side of the axis are paint a press goes straight through.
+      //
+      // Mutation: `this.boxPixels = 11.0` to `30.0`. The same at
+      // 14.999999388430734 for a scale box, which is worse: the box is the
+      // handle, so most of what a person aims at is outside it. The middle box
+      // goes with it, at 15.0 against the 14.40000057220459 pixels the arms
+      // leave clear round the pivot.
+      //
+      // Mutation: `this.turnPixels = 82.0` to `820.0`. The ring fails at 820.0
+      // against 96, and a rotate gizmo is then eight times the arrows the same
+      // pivot draws for a move.
+    });
+  });
+
   test('the handles are nudged towards the eye, the way the overlay nudges', () {
     final eye = Vector3(0, 5, 0);
     final overlay = _overlay(eye: eye, biasPixels: 12);
@@ -461,10 +710,14 @@ void main() {
     for (var v = 24; v < 36; v++) {
       expect(at[v].y, greaterThan(0), reason: 'the Z arrow has not lifted');
     }
-    // Mutation: write the shaft's vertices straight into `overlay.handles`
-    // rather than through `overlay.ribbon`. Every y is then exactly 0, and the
-    // arms of the gizmo flicker in and out against the face of any model whose
-    // surface passes through the pivot — which, for a gizmo that stands on the
-    // thing being edited, is most of them.
+    // Mutation: write the shaft's six vertices straight into `overlay.handles`
+    // — `handle.base` and `handle.headBase` alternating — rather than through
+    // `overlay.ribbon`. The first expectation fails at 0.0 and the run stops
+    // there. What the mutation reaches is the shaft alone: the head still goes
+    // through `overlay.point` and is still lifted, so the loop over the second
+    // six vertices is never a test of this at all. That is enough. A shaft
+    // sitting exactly on the plane it is drawn over flickers in and out against
+    // the face of any model whose surface passes through the pivot — which, for
+    // a gizmo that stands on the thing being edited, is most of them.
   });
 }

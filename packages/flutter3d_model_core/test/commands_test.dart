@@ -568,6 +568,109 @@ void main() {
       expect(history.run(const SelectNone()), contains('already'));
     });
 
+    test(
+      'an empty project says so rather than talking about the selection',
+      () {
+        final history = ModelHistory(const ModelProject());
+
+        // Mutation: drop the `project.objects.isEmpty` guard from either of
+        // these. Both still refuse — `_keep` compares the empty selection with
+        // the empty one it built and says "that is what is selected already" —
+        // so the step count is right and the sentence is nonsense. A person who
+        // has just opened an empty file is told about their selection when the
+        // answer is that there is nothing there.
+        expect(
+          history.run(const SelectAll()),
+          contains('nothing in the project to select'),
+        );
+        expect(
+          history.run(const InvertSelection()),
+          contains('nothing in the project to invert'),
+        );
+        expect(history.canUndo, isFalse);
+      },
+    );
+
+    test('the same objects in a different order is a different selection', () {
+      // Picked in this order by hand, so object 1 is the active one — the one
+      // a mesh command would act on.
+      final history = ModelHistory(cubes(2))
+        ..selection = const ProjectSelection(objects: <int>[2, 1]);
+
+      // Mutation: compare the ids as sets — `a.toSet().containsAll(b)` with a
+      // length check. "Select all" is then refused as already selected while it
+      // in fact moves the active object from 1 to 2, so the next mesh command
+      // acts on a different object from the one the interface is pointing at.
+      expect(history.run(const SelectAll()), isNull);
+      expect(history.selection.objects, <int>[1, 2]);
+      expect(history.selection.activeObject, 2);
+    });
+
+    test('inverting inside a mesh gives back what was not picked', () {
+      final history = edited();
+      history.selection = faces(history, <int>[0]);
+
+      expect(history.run(const InvertSelection()), isNull);
+
+      // Mutation: drop the `.difference(target.elements)` and hand back
+      // everything. Invert becomes a synonym for select-all, so pressing it
+      // twice keeps the whole cube instead of getting the first face back, and
+      // the one command that lets a person pick a region by picking its
+      // complement stops answering.
+      expect(history.selection.elements, <int>[1, 2, 3, 4, 5]);
+
+      expect(history.run(const InvertSelection()), isNull);
+      expect(history.selection.elements, <int>[0]);
+    });
+
+    test('a mesh with nothing left in it says so rather than selecting '
+        'nothing', () {
+      final history = edited();
+      history.selection = faces(history, <int>[0, 1, 2, 3, 4, 5]);
+      expect(history.run(const DeleteElements()), isNull);
+      history.selection = faces(history, const <int>[]);
+
+      // Mutation: drop the `everything.isEmpty` guard and return the empty
+      // selection as a success. `_keep` then compares it with the empty
+      // selection already there and refuses anyway — with "that is what is
+      // selected already", which tells a person looking at a mesh they have
+      // just emptied nothing at all about why the key did nothing.
+      expect(
+        history.run(const SelectAll()),
+        contains('nothing left in it to select'),
+      );
+      expect(history.canUndo, isTrue);
+      expect(history.undoSays, 'delete');
+    });
+
+    test('slots the mesh has stopped using are not handed back', () {
+      final history = edited();
+      history.selection = history.selection.copyWith(
+        level: ElementLevel.vertex,
+        elements: <int>[0],
+      );
+      // Deleting one corner of the cube takes the three faces that used it with
+      // it, and leaves the vertex slot and three face slots dead rather than
+      // compacting the arrays — which is what a journal needs to be able to put
+      // them back.
+      expect(history.run(const DeleteElements()), isNull);
+      history.selection = history.selection.copyWith(elements: const <int>[]);
+
+      // Mutation: drop the `isVertexAlive` filter from `_everything`. Select-all
+      // hands back slot 0 as well, and every later command reads a position out
+      // of a slot the mesh has stopped using — the overlay draws a corner that
+      // is not there and a transform writes into a dead vertex.
+      expect(history.run(const SelectAll()), isNull);
+      expect(history.selection.elements, <int>[1, 2, 3, 4, 5, 6, 7]);
+
+      // Mutation: drop the `isFaceAlive` filter. The twin check in `_everyEdge`
+      // is caught by 'an edge the mesh no longer has is refused by name', which
+      // is what makes this branch look covered when it is not.
+      history.selection = faces(history, const <int>[]);
+      expect(history.run(const SelectAll()), isNull);
+      expect(history.selection.elements, <int>[0, 2, 4]);
+    });
+
     test('a walk over one mesh is refused in object mode, with somewhere to '
         'go', () {
       final history = ModelHistory(cubes(3))
@@ -613,6 +716,31 @@ void main() {
         history.run(const SelectLinked()),
         contains('nothing is selected'),
       );
+      // Shrink carries the same guard and was the one of the three nothing
+      // reached: with it gone, `shrunk` on an empty selection hands back an
+      // empty one and the refusal that comes out says "that is what is selected
+      // already" rather than naming what is missing.
+      expect(
+        history.run(const ShrinkSelection()),
+        contains('nothing is selected to shrink'),
+      );
+    });
+
+    test('an edge picked from the far side is the same edge', () {
+      final history = edited();
+      history.selection = faces(history, <int>[0]);
+
+      // Half-edges 7 and 9 are the two sides of one edge of the cube, and 7 is
+      // the smaller of the pair — so 7 is the number a selection holds and 9 is
+      // what a click on the far face has in hand.
+      // Mutation: look the number up as it arrives, without `EditMesh.edgeOf`.
+      // The `contains` test against the mesh's own edges then rejects 9,
+      // because `_everything` only ever holds the canonical half of a pair, and
+      // picking an edge from one side of a surface works while picking the same
+      // edge from the other side is refused as an edge that does not exist.
+      expect(history.run(const SelectEdgeLoop(9)), isNull);
+      expect(history.selection.level, ElementLevel.edge);
+      expect(history.selection.elements, contains(7));
     });
 
     test('an edge the mesh no longer has is refused by name', () {
@@ -718,6 +846,112 @@ void main() {
         history.project[2]!.transform.getTranslation().x,
         closeTo(3, 1e-6),
       );
+    });
+
+    test('a scale about each object\'s own origin leaves them where they '
+        'are', () {
+      final history = ModelHistory(cubes(2))
+        ..selection = const ProjectSelection(objects: <int>[1, 2]);
+
+      expect(
+        history.run(const ScaleBy(2, pivot: TransformPivot.individual)),
+        isNull,
+      );
+
+      // Mutation: hand `TransformPivot.median` to `_aboutThePivot` and ignore
+      // the argument, which was proven to survive a round trip through JSON and
+      // never proven to do anything. The two cubes sit at 1 and 3, so the
+      // middle is 2 and doubling about it drags them to 0 and 4 — a person who
+      // asked for two objects to get bigger watches them move apart as well.
+      expect(
+        history.project[1]!.transform.getTranslation().x,
+        closeTo(1, 1e-6),
+      );
+      expect(
+        history.project[2]!.transform.getTranslation().x,
+        closeTo(3, 1e-6),
+      );
+      // And each of them really is twice the size, so the assertion above is
+      // not passing because nothing happened.
+      expect(
+        history.project[1]!.transform.transform3(Vector3(1, 0, 0)).x -
+            history.project[1]!.transform.getTranslation().x,
+        closeTo(2, 1e-6),
+      );
+    });
+
+    test('a selection whose objects have all gone is refused, not applied', () {
+      // Straight to `apply` rather than through `ModelHistory.run`, and that is
+      // the point of the test rather than a shortcut: the history's `selection`
+      // getter puts the selection through `within` first, so an object a
+      // previous step deleted is gone before any command sees it. The shape
+      // below is the one that arrives from somewhere else — an agent's tool
+      // call, a journal entry read back — where the selection was written down
+      // against a project that no longer matches it.
+      // Mutation: drop the `counted == 0` check. The middle is then divided by
+      // nothing, comes out as NaN, the loop finds no object to touch, and the
+      // command hands back the project unchanged as a success — so a step that
+      // moved nothing goes on the stack and the ⌘Z after it does nothing
+      // anybody can see.
+      final Outcome scaled = const ScaleBy(
+        2,
+      ).apply(cubes(1), const ProjectSelection(objects: <int>[7]));
+      expect(scaled.ok, isFalse);
+      expect(scaled.refused, contains('nothing is selected to scale'));
+
+      final Outcome turned = RotateBy(
+        axis: Vector3(0, 1, 0),
+        radians: 1,
+      ).apply(cubes(1), const ProjectSelection(objects: <int>[7]));
+      expect(turned.ok, isFalse);
+      expect(turned.refused, contains('nothing is selected to turn'));
+    });
+
+    test('a local turn on a stretched object turns it rather than bending '
+        'it', () {
+      final history = ModelHistory(
+        const ModelProject().added(
+          (int id) => ModelObject(
+            id: id,
+            name: 'stretched',
+            geometry: EditedGeometry(EditMesh.cuboid()),
+            // Twice as long along its own X and nothing else: no rotation
+            // in it at all, so the upper three by three is the scale and
+            // the decomposed rotation is the identity. That gap is the
+            // whole difference between the two ways of reading a basis.
+            transform: Matrix4.diagonal3(Vector3(2, 1, 1)),
+          ),
+        ),
+      )..selection = const ProjectSelection(objects: <int>[1]);
+
+      // An eighth of a turn, which is the angle that makes a shear visible: at
+      // a quarter the axes land back on the grid and a sheared result is merely
+      // the wrong size.
+      expect(
+        history.run(
+          RotateBy(
+            axis: Vector3(0, 1, 0),
+            radians: math.pi / 4,
+            pivot: TransformPivot.individual,
+            space: TransformSpace.local,
+          ),
+        ),
+        isNull,
+      );
+
+      // Mutation: read the basis straight off the upper three by three —
+      // `Matrix4.identity()..setRotation(transform.getRotation())`. The turn is
+      // then sandwiched in a matrix that scales unevenly, which is a shear. The
+      // object's own X comes back 1.581138803024151 long instead of 2, its own
+      // Z the same length instead of 1, and the two of them meet at a dot
+      // product of 1.4999999486571873 rather than at a right angle: a stretched
+      // box turned by a person arrives leaning.
+      final Matrix4 after = history.project[1]!.transform;
+      final Vector3 alongX = after.transform3(Vector3(1, 0, 0));
+      final Vector3 alongZ = after.transform3(Vector3(0, 0, 1));
+      expect(alongX.length, closeTo(2, 1e-6));
+      expect(alongZ.length, closeTo(1, 1e-6));
+      expect(alongX.dot(alongZ), closeTo(0, 1e-6));
     });
 
     test('local turns an object about its own axes', () {
