@@ -26,9 +26,11 @@ import 'package:flutter3d_session/flutter3d_session.dart';
 
 import 'src/backend.dart';
 import 'src/churn_run.dart';
+import 'src/display_modes.dart';
 import 'src/files/project_files.dart';
 import 'src/files/sandbox_probe.dart';
 import 'src/modeler_viewport.dart';
+import 'src/object_picking.dart';
 import 'src/orbit_run.dart';
 import 'src/staging.dart';
 
@@ -199,6 +201,28 @@ class _ModelerScreenState extends State<ModelerScreen>
   /// What the last file operation said, shown beside the buttons.
   String? _fileSaid;
 
+  /// What is selected, in the order it was picked.
+  ///
+  /// Held here rather than in the viewport because the selection is the
+  /// document's, not the picture's: the properties panel, the transform gizmo
+  /// and every edit read it, and only one of those three is inside the
+  /// viewport. Unmodifiable and replaced wholesale — `applyPick` hands back a
+  /// new set, and a set that is never mutated in place is a set no listener
+  /// can miss a change to.
+  Set<PickedObject> _selection = const <PickedObject>{};
+
+  /// Which lens the viewport looks through, and what the surface is drawn as.
+  ViewLens _lens = ViewLens.perspective;
+  ShadingMode _shading = ShadingMode.material;
+
+  /// Remembers what the materials were, so the normals view can be left.
+  final SurfaceShading _surfaces = SurfaceShading();
+
+  /// The tick the last frame was at, so a turn advances by real time rather
+  /// than by frames — a view that swings faster on a fast machine is a view
+  /// nobody can aim.
+  Duration _lastTick = Duration.zero;
+
   /// What the finished run measured, shown over the viewport.
   ///
   /// **On the screen and not only in the console**, because the console is the
@@ -224,6 +248,23 @@ class _ModelerScreenState extends State<ModelerScreen>
   }
 
   void _onTick(Duration elapsed) {
+    // Clamped because the first tick is measured from zero and a tab that was
+    // in the background comes back with a gap of minutes: either one would
+    // finish a quarter-second turn before its first frame was drawn.
+    final double seconds = ((elapsed - _lastTick).inMicroseconds / 1e6).clamp(
+      0.0,
+      0.1,
+    );
+    _lastTick = elapsed;
+    if (_state case ModelerReady(:final stage)) {
+      stage.orbit.advance(seconds);
+      _surfaces.apply(stage.subject, _shading);
+      // Reasserted every frame rather than only when a chip is pressed: the
+      // lens and the shading are two of the three things a newly opened model
+      // has to inherit, and a state that is reasserted cannot be got out of
+      // step with the interface by anything.
+      useLens(stage.camera, _lens, stage.orbit);
+    }
     _churn?.step();
     final run = _orbit;
     if (run != null) {
@@ -347,7 +388,11 @@ class _ModelerScreenState extends State<ModelerScreen>
       final stage = ModelerStage.build(device: device, asset: asset);
       stage.frameSubject();
       opening.stop();
+      // The scene the old materials belonged to is going, and the selection
+      // points at nodes that are no longer drawn.
+      _surfaces.forget();
       setState(() {
+        _selection = const <PickedObject>{};
         _state = ModelerReady((_state as ModelerReady).renderer, stage);
         _fileSaid =
             '${picked.name}: ${document.surfaces.length} surfaces, '
@@ -391,6 +436,68 @@ class _ModelerScreenState extends State<ModelerScreen>
     if (mounted) setState(() => _fileSaid = said);
   }
 
+  /// The names on the chips.
+  ///
+  /// A table rather than a `switch` in the builder, so that adding a mode to
+  /// the enum is a compile error here rather than a chip that reads `null`.
+  static const Map<ShadingMode, String> _shadingNames = <ShadingMode, String>{
+    ShadingMode.material: 'Material',
+    ShadingMode.normals: 'Normals',
+    ShadingMode.wireframe: 'Wireframe',
+  };
+
+  static const Map<StandardView, String> _viewNames = <StandardView, String>{
+    StandardView.front: 'Front',
+    StandardView.back: 'Back',
+    StandardView.left: 'Left',
+    StandardView.right: 'Right',
+    StandardView.top: 'Top',
+    StandardView.bottom: 'Bottom',
+  };
+
+  /// One of the small buttons along the bottom.
+  static Widget _chip(
+    String said, {
+    required bool on,
+    required VoidCallback onPressed,
+  }) => TextButton(
+    onPressed: onPressed,
+    style: TextButton.styleFrom(
+      minimumSize: Size.zero,
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+      backgroundColor: on ? const Color(0xFF1E464D) : const Color(0x66000000),
+      foregroundColor: const Color(0xFFE6E9EA),
+    ),
+    child: Text(said, style: const TextStyle(fontSize: 12)),
+  );
+
+  /// What a click in the viewport did to the selection.
+  ///
+  /// The rules are all in `applyPick`, which is where they can be read and
+  /// tested without a window; this is the seam that gives it the two things it
+  /// cannot know — what is selected now, and whether shift was down.
+  void _picked(PickResult pick, {required bool extend}) {
+    final next = applyPick(_selection, pick, extend: extend);
+    // Compared before setting, because a click on the background with nothing
+    // selected is the commonest click there is and it changes nothing: a frame
+    // rebuilt for it is a frame spent on an answer of "still nothing".
+    if (next.length == _selection.length && next.containsAll(_selection)) {
+      return;
+    }
+    setState(() => _selection = next);
+  }
+
+  /// What the selection is, in the words the corner panel shows.
+  String get _selectionSaid => switch (_selection.length) {
+    0 => 'nothing selected',
+    1 => 'selected ${_nameOf(_selection.first)}',
+    final int many => '$many selected',
+  };
+
+  static String _nameOf(PickedObject picked) =>
+      picked.node.name ?? 'an unnamed node';
+
   /// The first mesh under [node], which is what a save writes.
   static MeshData? _meshOf(SceneNode node) {
     MeshData? found;
@@ -431,6 +538,52 @@ class _ModelerScreenState extends State<ModelerScreen>
             stage: stage,
             onFrame: () {},
             onRendered: (int micros) => _lastRenderMicros = micros,
+            onPick: _picked,
+            settings: settingsFor(
+              _shading,
+              // The outline is the renderer's until view-10, when the overlay
+              // draws the selection itself and can say which *part* of an
+              // object is selected. Until then this is what tells a person
+              // their click landed.
+              RenderSettings(
+                highlighted: <SceneNode>[
+                  for (final PickedObject held in _selection) held.node,
+                ],
+              ),
+            ),
+          ),
+          Positioned(
+            left: 12,
+            bottom: 40,
+            child: Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: <Widget>[
+                for (final ShadingMode mode in ShadingMode.values)
+                  _chip(
+                    _shadingNames[mode]!,
+                    on: _shading == mode,
+                    onPressed: () => setState(() => _shading = mode),
+                  ),
+                const SizedBox(width: 12),
+                _chip(
+                  _lens == ViewLens.perspective ? 'Perspective' : 'Ortho',
+                  on: _lens == ViewLens.orthographic,
+                  onPressed: () => setState(
+                    () => _lens = _lens == ViewLens.perspective
+                        ? ViewLens.orthographic
+                        : ViewLens.perspective,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                for (final StandardView view in StandardView.values)
+                  _chip(
+                    _viewNames[view]!,
+                    on: false,
+                    onPressed: () => lookFrom(stage.orbit, view),
+                  ),
+              ],
+            ),
           ),
           Positioned(
             right: 12,
@@ -503,6 +656,14 @@ class _ModelerScreenState extends State<ModelerScreen>
                 ),
               ),
             ),
+          Positioned(
+            left: 12,
+            bottom: 12,
+            child: Text(
+              _selectionSaid,
+              style: const TextStyle(fontSize: 13, color: Color(0xFF9AA3A6)),
+            ),
+          ),
         ],
       ),
     },

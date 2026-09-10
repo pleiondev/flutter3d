@@ -24,6 +24,7 @@ import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_cpu/testing.dart';
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 import 'package:flutter3d_mesh/testing.dart';
+import 'package:flutter3d_modeler/src/display_modes.dart';
 import 'package:flutter3d_modeler/src/staging.dart';
 import 'package:flutter3d_testing/flutter3d_testing.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -54,13 +55,20 @@ Future<Uint8List> _draw(
   GraphicsDevice device,
   Renderer renderer,
   ModelerStage stage,
+) => _drawWith(device, renderer, stage, const RenderSettings());
+
+Future<Uint8List> _drawWith(
+  GraphicsDevice device,
+  Renderer renderer,
+  ModelerStage stage,
+  RenderSettings settings,
 ) async {
   final result = renderer.render(
     width: _width,
     height: _height,
     scene: stage.scene,
     views: stage.views(),
-    settings: const RenderSettings(),
+    settings: settings,
   );
   final pixels = await device.readPixels(result.frame);
   expect(pixels, isNotNull, reason: 'the frame could not be read back');
@@ -68,6 +76,36 @@ Future<Uint8List> _draw(
 }
 
 void main() {
+  test('a +Y face in the normals view is the colour of a +Y normal', () async {
+    final it = cpuTestDevice(width: _width, height: _height);
+    final renderer = Renderer.create(device: it.device);
+    final stage = ModelerStage.build(device: it.device);
+    stage.frameSubject();
+    // Straight down at the cube's top face, so the middle of the frame is a
+    // face whose normal is exactly +Y and the answer is a number rather than a
+    // range.
+    lookFrom(stage.orbit, StandardView.top, seconds: 0.0);
+    SurfaceShading().apply(stage.subject, ShadingMode.normals);
+
+    final rgba = await _drawWith(
+      it.device,
+      renderer,
+      stage,
+      settingsFor(ShadingMode.normals, const RenderSettings()),
+    );
+
+    // `(0, 1, 0)` encoded the way every normal buffer encodes one, half the
+    // range either side of zero: 128, 255, 128. Mutation: leave the exposure at
+    // the 1.6 a lit scene wants and this is 159, 255, 159; leave the tone curve
+    // on as well and it is 137, 249, 137. Both look like a plausible green and
+    // neither is the normal — which is the whole difficulty with a diagnostic
+    // view that is nearly right.
+    final at = ((_height ~/ 2) * _width + _width ~/ 2) * 4;
+    expect(rgba[at], closeTo(128, 2));
+    expect(rgba[at + 1], closeTo(255, 2));
+    expect(rgba[at + 2], closeTo(128, 2));
+  });
+
   test('the cube a project starts as is drawn, and it is lit', () async {
     final it = cpuTestDevice(width: _width, height: _height);
     final renderer = Renderer.create(device: it.device);
