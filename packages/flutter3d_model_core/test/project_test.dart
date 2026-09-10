@@ -158,41 +158,11 @@ void main() {
       );
     });
 
-    test('every name round-trips through JSON', () {
-      final samples = <ModelCommand>[
-        const Rename(id: 1, to: 'body'),
-        SetTransform(id: 1, to: Matrix4.identity()),
-        MoveBy(Vector3(1, 0, -2)),
-        RotateBy(axis: Vector3(0, 1, 0), radians: 0.5),
-        const ScaleBy(2),
-        const SetParent(id: 2, to: 1),
-        const AddPrimitive(kind: 'cylinder', size: 2, segments: 12),
-        const BakeToMesh(1),
-        const DeleteObjects(),
-        const DuplicateObjects(),
-        const Extrude(0.25),
-        const LoopCut(cuts: 2),
-        const DeleteElements(),
-        TransformElements(Matrix4.identity(), what: 'turn'),
-        const MergeByDistance(distance: 0.01),
-        const DissolveEdges(),
-        const Triangulate(),
-        const RecalculateNormals(flip: true),
-      ];
-
-      // Every name has a sample, which is what stops a command being added to
-      // the sealed set and forgotten by the journal — the file would then read
-      // back a project missing exactly the steps nobody wrote a case for.
-      expect(
-        samples.map((ModelCommand c) => c.name).toSet(),
-        modelCommandNames.toSet(),
-      );
-      for (final ModelCommand sample in samples) {
-        final back = modelCommandFromJson(sample.toJson());
-        expect(back, isNotNull, reason: '${sample.name} did not read back');
-        expect(back!.toJson(), sample.toJson());
-      }
-    });
+    // The round trip over every command name moved to `commands_test.dart`
+    // when the commands themselves did: the sample list there carries the
+    // pivot and the space that `RotateBy` and `ScaleBy` now take, and two
+    // lists of samples for one `modelCommandNames` is two lists to forget to
+    // add to.
 
     test('incomplete JSON is null rather than a throw', () {
       // A journal is replayed entry by entry, and an entry from a newer version

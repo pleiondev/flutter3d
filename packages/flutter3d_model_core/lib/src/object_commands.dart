@@ -202,12 +202,23 @@ final class SetParent extends ModelCommand {
   }
 }
 
-/// Turns everything selected about its own middle.
+/// Turns everything selected.
 final class RotateBy extends ModelCommand {
-  const RotateBy({required this.axis, required this.radians});
+  const RotateBy({
+    required this.axis,
+    required this.radians,
+    this.pivot = TransformPivot.median,
+    this.space = TransformSpace.global,
+  });
 
   final Vector3 axis;
   final double radians;
+
+  /// The point the turn happens about.
+  final TransformPivot pivot;
+
+  /// Whose axes [axis] is given in.
+  final TransformSpace space;
 
   @override
   String get name => 'rotateBy';
@@ -219,15 +230,19 @@ final class RotateBy extends ModelCommand {
   Map<String, Object?> get arguments => <String, Object?>{
     'axis': <double>[axis.x, axis.y, axis.z],
     'radians': radians,
+    'pivot': pivot.name,
+    'space': space.name,
   };
 
   @override
   Outcome apply(ModelProject project, ProjectSelection selection) =>
-      _aboutTheMiddle(
+      _aboutThePivot(
         project,
         selection,
         'turn',
-        () => Matrix4.compose(
+        pivot: pivot,
+        space: space,
+        build: () => Matrix4.compose(
           Vector3.zero(),
           Quaternion.axisAngle(axis, radians),
           Vector3.all(1),
@@ -235,11 +250,21 @@ final class RotateBy extends ModelCommand {
       );
 }
 
-/// Scales everything selected about its own middle.
+/// Scales everything selected.
+///
+/// **No [TransformSpace] here, and that is arithmetic rather than an
+/// omission.** [by] is one number, so the matrix it builds is a multiple of the
+/// identity — and sandwiching that in any basis gives it back unchanged, since
+/// `R · sI · R⁻¹` is `sI` for every rotation there is. An argument that
+/// provably cannot change the answer is one an agent would set and then wonder
+/// why nothing moved. The day a scale takes three numbers it will need one.
 final class ScaleBy extends ModelCommand {
-  const ScaleBy(this.by);
+  const ScaleBy(this.by, {this.pivot = TransformPivot.median});
 
   final double by;
+
+  /// The point the scale happens about.
+  final TransformPivot pivot;
 
   @override
   String get name => 'scaleBy';
@@ -248,7 +273,10 @@ final class ScaleBy extends ModelCommand {
   String get says => 'scale';
 
   @override
-  Map<String, Object?> get arguments => <String, Object?>{'by': by};
+  Map<String, Object?> get arguments => <String, Object?>{
+    'by': by,
+    'pivot': pivot.name,
+  };
 
   @override
   Outcome apply(ModelProject project, ProjectSelection selection) {
@@ -258,28 +286,38 @@ final class ScaleBy extends ModelCommand {
       // multiplies by nothing.
       return Outcome.refused('a scale of zero would flatten the object');
     }
-    return _aboutTheMiddle(
+    return _aboutThePivot(
       project,
       selection,
       'scale',
-      () => Matrix4.diagonal3(Vector3.all(by)),
+      pivot: pivot,
+      build: () => Matrix4.diagonal3(Vector3.all(by)),
     );
   }
 }
 
-/// Applies [build] to everything selected, about the middle of the selection.
+/// Applies [build] to everything selected, about [pivot] and along [space]'s
+/// axes.
 ///
-/// **About the middle rather than each object's own origin.** Three objects
-/// turned ninety degrees each about themselves stay where they are and face
-/// differently; turned about the middle of the three they swing round each
-/// other, which is what a person watching the gizmo expects. Blender, Maya and
-/// every other modeller do the second.
-Outcome _aboutTheMiddle(
+/// **[TransformPivot.median] is the default because it is what a person
+/// watching the gizmo expects.** Three objects turned ninety degrees each about
+/// themselves stay where they are and face differently; turned about the middle
+/// of the three they swing round each other, and the gizmo sitting at that
+/// middle is the promise that they will. [TransformPivot.individual] is the
+/// other answer, and it is a real one — laying out a row of chairs and turning
+/// every one of them to face the same way is exactly it.
+///
+/// The middle is walked for even when the pivot is individual, because a
+/// selection all of whose objects have been deleted has to refuse rather than
+/// quietly do nothing, and counting them is how that is known.
+Outcome _aboutThePivot(
   ModelProject project,
   ProjectSelection selection,
-  String what,
-  Matrix4 Function() build,
-) {
+  String what, {
+  required TransformPivot pivot,
+  required Matrix4 Function() build,
+  TransformSpace space = TransformSpace.global,
+}) {
   if (selection.objects.isEmpty) {
     return Outcome.refused('nothing is selected to $what');
   }
@@ -294,18 +332,19 @@ Outcome _aboutTheMiddle(
   if (counted == 0) return Outcome.refused('nothing is selected to $what');
   middle.scale(1 / counted);
 
-  // Written in steps because `Matrix4 * Matrix4` is declared to return
-  // `dynamic` in vector_math, and a chain of them is a chain of dynamic calls
-  // that the analyser is right to complain about: one wrong operand type and
-  // the failure arrives at run time as a matrix full of NaN.
-  final Matrix4 about = Matrix4.translation(middle);
-  about.multiply(build());
-  about.multiply(Matrix4.translation(-middle));
   var next = project;
   for (final int id in selection.objects) {
     final object = next[id];
     if (object == null) continue;
-    final Matrix4 moved = Matrix4.copy(about)..multiply(object.transform);
+    final Vector3 about = switch (pivot) {
+      TransformPivot.median => middle,
+      TransformPivot.individual => object.transform.getTranslation(),
+    };
+    final Matrix4 moved = _sandwiched(
+      about,
+      space == TransformSpace.local ? _basisOf(object.transform) : null,
+      build(),
+    )..multiply(object.transform);
     next = next.withObject(object.copyWith(transform: moved));
   }
   return Outcome.done(next);

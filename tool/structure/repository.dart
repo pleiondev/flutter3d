@@ -582,6 +582,24 @@ boundaryEnumExempt = <String, Map<String, String>>{
         'shade of one of these rather than a new kind of answer. The set of '
         '*findings* is open and is a value with instances, not an enum',
   },
+  'flutter3d_model_core/lib/src/command.dart': <String, String>{
+    'TransformPivot':
+        'the three points a turn or a scale can be about: the middle of the '
+        'selection, each object own centre, and the cursor. A fourth is not a '
+        'value somebody passes — it is a place the interface would have to '
+        'let a person put, which is a feature with its own control',
+    'TransformSpace':
+        'world axes or the object own. There is no third frame a transform '
+        'can be expressed in that this editor has a control for; a gimbal or '
+        'a parent frame would arrive with the rig that needs it',
+  },
+  'flutter3d_model_core/lib/src/readiness.dart': <String, String>{
+    'ExportSeverity':
+        'whether the result will fail to load or merely disappoint. Those are '
+        'the two answers an export dialogue can act on — refuse, or warn and '
+        'let the person decide — and a third would be an answer with nothing '
+        'to do about it',
+  },
   'flutter3d_model_core/lib/src/selection.dart': <String, String>{
     'SelectionMode':
         'whether the modeller is pointing at objects or at parts of one mesh. '

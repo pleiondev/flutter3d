@@ -184,13 +184,36 @@ final class DeleteElements extends ModelCommand {
 /// commands with the same body is three chances for two of them to drift from
 /// the third; what a person sees is decided by [says], which is the only place
 /// the three are actually different.
+///
+/// **[by] is the transform at the pivot, not the transform to apply to the
+/// vertices.** The command puts the pivot in, the same way `rotateSelection`
+/// and `scaleSelection` do one package down — so a caller hands over a turn
+/// about the origin and says where the origin should be, rather than composing
+/// three matrices and getting the order wrong. A caller that has already
+/// wrapped its own pivot in will find it applied twice.
 final class TransformElements extends ModelCommand {
-  const TransformElements(this.by, {this.what = 'move'});
+  const TransformElements(
+    this.by, {
+    this.what = 'move',
+    this.pivot = TransformPivot.median,
+    this.space = TransformSpace.global,
+  });
 
   final Matrix4 by;
 
   /// The word the history offers: `move`, `turn` or `scale`.
   final String what;
+
+  /// The point the transform happens about. [TransformPivot.individual] is
+  /// refused — see [apply].
+  final TransformPivot pivot;
+
+  /// Whose axes [by] is given in. The elements are stored in the object's own
+  /// frame, so [TransformSpace.local] is the cheap case and
+  /// [TransformSpace.global] is the one that has to undo the object's rotation
+  /// first — which is why an object nobody has turned behaves identically under
+  /// both.
+  final TransformSpace space;
 
   @override
   String get name => 'transformElements';
@@ -202,16 +225,45 @@ final class TransformElements extends ModelCommand {
   Map<String, Object?> get arguments => <String, Object?>{
     'by': by.storage.toList(),
     'what': what,
+    'pivot': pivot.name,
+    'space': space.name,
   };
 
+  /// **[TransformPivot.individual] is refused rather than approximated.**
+  /// Turning every face about its own centre means the faces stop sharing their
+  /// corners, and `transformSelection` moves each vertex exactly once — so the
+  /// honest version of this is a split first and a transform after, which is
+  /// two operations and one of them does not exist yet. Doing it by moving
+  /// shared vertices twice would tear the mesh in a way no step of the history
+  /// describes.
   @override
-  Outcome apply(ModelProject project, ProjectSelection selection) =>
-      _asMeshStep(
-        project,
-        selection,
-        (_MeshTarget target) =>
-            transformSelection(target.mesh, target.elements, by: by),
+  Outcome apply(ModelProject project, ProjectSelection selection) {
+    if (pivot == TransformPivot.individual) {
+      return Outcome.refused(
+        'turning each element about its own centre needs them pulled apart '
+        'first: a corner two faces share cannot follow both of them',
       );
+    }
+    return _asMeshStep(project, selection, (_MeshTarget target) {
+      // The median of the selected vertices, in the object's own frame, which
+      // is the frame the positions are stored in.
+      final Vector3 about = medianOf(target.mesh, target.elements);
+      return transformSelection(
+        target.mesh,
+        target.elements,
+        by: _sandwiched(
+          about,
+          // The inverse, because what is wanted is the world's axes *read in*
+          // the object's frame: `R⁻¹ · by · R` turns a world X into whatever
+          // direction that is on an object somebody has already turned.
+          space == TransformSpace.global
+              ? Matrix4.inverted(_basisOf(target.object.transform))
+              : null,
+          by,
+        ),
+      );
+    });
+  }
 }
 
 /// Welds vertices closer together than [distance].

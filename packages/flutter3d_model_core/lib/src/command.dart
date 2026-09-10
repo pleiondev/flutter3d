@@ -28,6 +28,7 @@ import 'selection.dart';
 
 part 'mesh_commands.dart';
 part 'object_commands.dart';
+part 'selection_commands.dart';
 
 /// What a command did.
 final class Outcome {
@@ -59,6 +60,83 @@ final class Outcome {
   final EditMesh? meshTouched;
 
   bool get ok => refused == null;
+}
+
+/// The point a turn or a scale happens about.
+///
+/// **An argument on the command rather than a setting the command cannot
+/// see.** A journal entry that said "turn ninety degrees" and left the pivot to
+/// whatever a toolbar happened to be showing would replay differently from the
+/// way it ran — which is the same reason the selection travels with the step
+/// rather than being read fresh. An agent driving the modeller has no toolbar
+/// at all and has to be able to say which point it means.
+///
+/// Machinery: these are the pivots the arithmetic in `object_commands.dart` has
+/// a branch for. A pivot somebody works out for themselves is a `Vector3`
+/// handed over, not a name added here.
+enum TransformPivot {
+  /// The middle of everything selected. Three objects turned together swing
+  /// round each other, which is what a person watching the gizmo expects.
+  median,
+
+  /// Each object about its own origin, which leaves the objects where they are
+  /// and points them somewhere else.
+  individual,
+}
+
+/// Whose axes a transform is expressed in.
+///
+/// **The difference only shows on something already turned, and then it shows
+/// every time.** "A metre along X" means one thing to a person reading the
+/// world grid and another to a person looking at a car parked sideways, and a
+/// tool that offers only the first leaves the second to do the arithmetic by
+/// hand.
+///
+/// Machinery, for the reason [TransformPivot] is: two is what a basis can be
+/// taken from — the world, or the thing being moved — and a third would be
+/// somebody else's matrix, which is a matrix rather than a name.
+enum TransformSpace {
+  /// The world's axes: the same X for everything selected, whatever each of
+  /// them is facing.
+  global,
+
+  /// The axes of the object being transformed, so two objects in one selection
+  /// can go different ways under one command.
+  local,
+}
+
+/// [by] wrapped so that it happens at [about], along [basis]'s axes when one is
+/// given and along the world's when it is not.
+///
+/// Written in steps because `Matrix4 * Matrix4` is declared to return `dynamic`
+/// in vector_math, and a chain of them is a chain of dynamic calls that the
+/// analyser is right to complain about: one wrong operand type and the failure
+/// arrives at run time as a matrix full of NaN.
+Matrix4 _sandwiched(Vector3 about, Matrix4? basis, Matrix4 by) {
+  final Matrix4 out = Matrix4.translation(about);
+  if (basis == null) {
+    out.multiply(by);
+  } else {
+    out.multiply(basis);
+    out.multiply(by);
+    out.multiply(Matrix4.inverted(basis));
+  }
+  out.multiply(Matrix4.translation(-about));
+  return out;
+}
+
+/// The rotation in [transform], with the translation and the scale taken out.
+///
+/// **Decomposed rather than read straight off the upper three by three**, which
+/// would be the rotation multiplied by the scale. Sandwiching a turn in a
+/// matrix that also scales unevenly gives a shear, so an object stretched along
+/// one axis would come out of a local-space turn bent rather than turned.
+Matrix4 _basisOf(Matrix4 transform) {
+  final translation = Vector3.zero();
+  final rotation = Quaternion.identity();
+  final scale = Vector3.zero();
+  transform.decompose(translation, rotation, scale);
+  return Matrix4.compose(Vector3.zero(), rotation, Vector3.all(1));
 }
 
 /// One change, as a value.
@@ -289,6 +367,15 @@ const List<String> modelCommandNames = <String>[
   'dissolveEdges',
   'triangulate',
   'recalculateNormals',
+  'selectAll',
+  'selectNone',
+  'invertSelection',
+  'growSelection',
+  'shrinkSelection',
+  'selectLinked',
+  'selectEdgeLoop',
+  'selectEdgeRing',
+  'selectByMaterial',
 ];
 
 /// Reads a command back out of a journal, or null.
@@ -315,15 +402,31 @@ ModelCommand? modelCommandFromJson(Object? json) {
       final List<double> by => MoveBy(Vector3(by[0], by[1], by[2])),
       _ => null,
     },
-    'rotateBy' => switch ((_doubles(json['axis'], 3), json['radians'])) {
-      (final List<double> axis, final num radians) => RotateBy(
-        axis: Vector3(axis[0], axis[1], axis[2]),
-        radians: radians.toDouble(),
-      ),
+    'rotateBy' => switch ((
+      _doubles(json['axis'], 3),
+      json['radians'],
+      _pivot(json['pivot']),
+      _space(json['space']),
+    )) {
+      (
+        final List<double> axis,
+        final num radians,
+        final TransformPivot pivot,
+        final TransformSpace space,
+      ) =>
+        RotateBy(
+          axis: Vector3(axis[0], axis[1], axis[2]),
+          radians: radians.toDouble(),
+          pivot: pivot,
+          space: space,
+        ),
       _ => null,
     },
-    'scaleBy' => switch (json['by']) {
-      final num by => ScaleBy(by.toDouble()),
+    'scaleBy' => switch ((json['by'], _pivot(json['pivot']))) {
+      (final num by, final TransformPivot pivot) => ScaleBy(
+        by.toDouble(),
+        pivot: pivot,
+      ),
       _ => null,
     },
     'setParent' => switch ((json['id'], json['to'])) {
@@ -372,16 +475,70 @@ ModelCommand? modelCommandFromJson(Object? json) {
       final bool flip => RecalculateNormals(flip: flip),
       _ => null,
     },
-    'transformElements' => switch ((_doubles(json['by'], 16), json['what'])) {
-      (final List<double> by, final String what) => TransformElements(
-        Matrix4.fromList(by),
-        what: what,
-      ),
+    'transformElements' => switch ((
+      _doubles(json['by'], 16),
+      json['what'],
+      _pivot(json['pivot']),
+      _space(json['space']),
+    )) {
+      (
+        final List<double> by,
+        final String what,
+        final TransformPivot pivot,
+        final TransformSpace space,
+      ) =>
+        TransformElements(
+          Matrix4.fromList(by),
+          what: what,
+          pivot: pivot,
+          space: space,
+        ),
+      _ => null,
+    },
+    'selectAll' => const SelectAll(),
+    'selectNone' => const SelectNone(),
+    'invertSelection' => const InvertSelection(),
+    'growSelection' => const GrowSelection(),
+    'shrinkSelection' => const ShrinkSelection(),
+    'selectLinked' => const SelectLinked(),
+    'selectEdgeLoop' => switch (json['edge']) {
+      final int edge => SelectEdgeLoop(edge),
+      _ => null,
+    },
+    'selectEdgeRing' => switch (json['edge']) {
+      final int edge => SelectEdgeRing(edge),
+      _ => null,
+    },
+    'selectByMaterial' => switch (json['slot']) {
+      final int slot => SelectByMaterial(slot),
       _ => null,
     },
     _ => null,
   };
 }
+
+/// The pivot [json] names, [TransformPivot.median] when it says nothing, or
+/// null when it names one this version has never heard of.
+///
+/// **Three answers rather than two, and the third is the whole point.** A key
+/// that is missing belongs to a journal written before there were pivots, and
+/// median is what that entry meant. A key holding a word this version does not
+/// know belongs to a journal written by a newer application — reading it back
+/// as median would replay the step about a different point in silence, which is
+/// worse than skipping the entry the way every other unreadable one is skipped.
+TransformPivot? _pivot(Object? json) => json == null
+    ? TransformPivot.median
+    : TransformPivot.values
+          .where((TransformPivot each) => each.name == json)
+          .firstOrNull;
+
+/// The space [json] names, [TransformSpace.global] by default, or null. See
+/// [_pivot] for why an unknown word is null rather than the default.
+TransformSpace? _space(Object? json) => json == null
+    ? TransformSpace.global
+    : TransformSpace.values
+          .where((TransformSpace each) => each.name == json)
+          .firstOrNull;
 
 /// Exactly [length] numbers, or null.
 ///

@@ -706,43 +706,36 @@ class _ModelerScreenState extends State<ModelerScreen>
       return;
     }
 
-    final vm.Vector3 middle = _middleOfSelection();
     final bool mesh = _history.selection.mode == SelectionMode.mesh;
+    final double scalar = step.x + step.y + step.z;
+    // **The pivot is the command's, not this file's.** `TransformElements`
+    // takes the median of the selected vertices itself and sandwiches the
+    // matrix in it, so wrapping the matrix here as well turned and scaled about
+    // twice the median — a mesh-mode turn swung the geometry off into space,
+    // and nothing on either side of the seam caught it because the command's
+    // own pivot had no test. What is handed over is the bare rotation or the
+    // bare scale.
     final ModelCommand command = switch (modal.kind) {
       TransformKind.move =>
         mesh ? TransformElements(vm.Matrix4.translation(step)) : MoveBy(step),
       TransformKind.rotate =>
         mesh
             ? TransformElements(
-                _about(
-                  middle,
-                  vm.Matrix4.compose(
-                    vm.Vector3.zero(),
-                    vm.Quaternion.axisAngle(
-                      _axisOf(modal, look),
-                      step.x + step.y + step.z,
-                    ),
-                    vm.Vector3.all(1),
-                  ),
+                vm.Matrix4.compose(
+                  vm.Vector3.zero(),
+                  vm.Quaternion.axisAngle(_axisOf(modal, look), scalar),
+                  vm.Vector3.all(1),
                 ),
                 what: 'turn',
               )
-            : RotateBy(
-                axis: _axisOf(modal, look),
-                radians: step.x + step.y + step.z,
-              ),
+            : RotateBy(axis: _axisOf(modal, look), radians: scalar),
       TransformKind.scale =>
         mesh
             ? TransformElements(
-                _about(
-                  middle,
-                  vm.Matrix4.diagonal3(
-                    vm.Vector3.all(1 + step.x + step.y + step.z),
-                  ),
-                ),
+                vm.Matrix4.diagonal3(vm.Vector3.all(1 + scalar)),
                 what: 'scale',
               )
-            : ScaleBy(1 + step.x + step.y + step.z),
+            : ScaleBy(1 + scalar),
     };
     final said = _history.run(command);
     setState(() => _opSaid = said ?? modal.says);
@@ -790,14 +783,6 @@ class _ModelerScreenState extends State<ModelerScreen>
       counted++;
     }
     return counted == 0 ? middle : (middle..scale(1 / counted));
-  }
-
-  /// [by] applied about [pivot], which is what a turn and a scale mean.
-  static vm.Matrix4 _about(vm.Vector3 pivot, vm.Matrix4 by) {
-    final vm.Matrix4 about = vm.Matrix4.translation(pivot);
-    about.multiply(by);
-    about.multiply(vm.Matrix4.translation(-pivot));
-    return about;
   }
 
   /// Presses a rail button.
