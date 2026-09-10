@@ -12,6 +12,7 @@ extension _F3dScene on F3dDocument {
 
   List<ModelSurface> _readSurfaces() {
     final table = _section(F3dSection.surfaces);
+    final attributeTable = _section(F3dSection.surfaceAttributes);
     return <ModelSurface>[
       for (var i = 0; i < table.count; i++)
         () {
@@ -37,9 +38,39 @@ extension _F3dScene on F3dDocument {
             }(),
             transform: Matrix4.fromFloat32List(storage),
             morphWeights: _morphWeights[i],
+            // Absent (a file written before `fmt-03`) means null here, which
+            // `ModelSurface` itself reads as "every attribute the layout
+            // has" — see its own doc comment.
+            authoredAttributes: attributeTable.count == 0
+                ? null
+                : _authoredAttributesAt(i),
           );
         }(),
     ];
+  }
+
+  /// The attribute names bit `i`'s `surfaceAttributes` record marks, read
+  /// against [F3dAttributeFlags].
+  Set<String> _authoredAttributesAt(int i) {
+    final o = _recordOffset(
+      F3dSection.surfaceAttributes,
+      i,
+      F3dRecord.surfaceAttributes,
+    );
+    final flags = _view.getUint32(o, Endian.little);
+    const named = <(String, int)>[
+      ('position', F3dAttributeFlags.position),
+      ('normal', F3dAttributeFlags.normal),
+      ('texcoord', F3dAttributeFlags.texcoord),
+      ('tangent', F3dAttributeFlags.tangent),
+      ('color', F3dAttributeFlags.color),
+      ('joints', F3dAttributeFlags.joints),
+      ('weights', F3dAttributeFlags.weights),
+    ];
+    return <String>{
+      for (final (name, bit) in named)
+        if (flags & bit != 0) name,
+    };
   }
 
   // -------------------------------------------------------------------- nodes

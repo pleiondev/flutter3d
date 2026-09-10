@@ -55,6 +55,7 @@ final class F3dWriter {
     final (morphTable, morphCount) = _writeMorphTargets();
     final (weightTable, weightCount) = _writeMorphWeights();
     final surfaceTable = _writeSurfaces();
+    final surfaceAttributeTable = _writeSurfaceAttributes();
     final materialTable = _writeMaterials();
     final imageTable = _writeImages();
     final nodeTable = _writeNodes();
@@ -72,6 +73,11 @@ final class F3dWriter {
       (F3dSection.morphTargets, morphTable, morphCount),
       (F3dSection.morphWeights, weightTable, weightCount),
       (F3dSection.surfaces, surfaceTable, document.surfaces.length),
+      (
+        F3dSection.surfaceAttributes,
+        surfaceAttributeTable,
+        document.surfaces.length,
+      ),
       (F3dSection.materials, materialTable, document.materials.length),
       (F3dSection.images, imageTable, document.images.length),
       (F3dSection.nodes, nodeTable, document.nodes.length),

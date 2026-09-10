@@ -11,8 +11,12 @@ final class ModelSurface {
     this.flipWinding = false,
     this.name,
     List<double>? morphWeights,
+    Set<String>? authoredAttributes,
   }) : transform = transform ?? Matrix4.identity(),
-       morphWeights = morphWeights ?? const <double>[];
+       morphWeights = morphWeights ?? const <double>[],
+       authoredAttributes =
+           authoredAttributes ??
+           <String>{for (final a in mesh.layout.attributes) a.name};
 
   final MeshData mesh;
 
@@ -44,6 +48,26 @@ final class ModelSurface {
   /// two copies of one face can start in different moods. Empty for the models
   /// that morph nothing, which is nearly all of them.
   final List<double> morphWeights;
+
+  /// Which of [mesh.layout]'s attribute names the source file actually
+  /// declared, as opposed to a value a decoder filled in to satisfy a
+  /// requested [VertexLayout].
+  ///
+  /// **Both decoders in this package fill in slots the file never had.** A
+  /// glTF primitive with no `NORMAL` gets a flat one computed from its faces
+  /// when the requested layout wants one; one with no `TEXCOORD_0` gets a
+  /// vertex zeroed at that slot rather than an attribute the layout does not
+  /// have room to omit. OBJ has no tangent record at all, so a requested
+  /// tangent is *always* generated. A writer re-exporting the surface reads
+  /// this to decide what to write back rather than re-declaring a value that
+  /// was never really there.
+  ///
+  /// Defaults to every name [mesh.layout] has, so a document built by hand —
+  /// every test in this repository before `fmt-03`, and any future one that
+  /// does not care — behaves as if the whole layout was authored, which is
+  /// also what a `.f3d` written before this field existed means when it is
+  /// read back.
+  final Set<String> authoredAttributes;
 }
 
 /// A node in a decoded model's hierarchy.

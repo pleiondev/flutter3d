@@ -95,6 +95,14 @@ abstract final class F3dSection {
   /// any. Separate from the surface record for the same reason: that record is
   /// a fixed 84 bytes and every existing file is written to it.
   static const int morphWeights = 16;
+
+  /// Which of a surface's vertex attributes the source file actually
+  /// declared, one record per surface in [surfaces] order — see
+  /// `ModelSurface.authoredAttributes` and [F3dAttributeFlags]. Absent in a
+  /// file written before `fmt-03`, which is read as every attribute the
+  /// surface's own mesh layout has, the same "unwritten means all of it"
+  /// shape [morphTargets] uses for a section added after the format shipped.
+  static const int surfaceAttributes = 17;
 }
 
 /// Fixed record sizes, in bytes. All multiples of four.
@@ -156,6 +164,21 @@ abstract final class F3dRecord {
 
   /// u32 surfaceIndex, u32 valuesOffset, u32 valuesCount
   static const int morphWeights = 12;
+
+  /// u32 bitmask, see [F3dAttributeFlags]
+  static const int surfaceAttributes = 4;
+}
+
+/// Bit positions inside a `surfaceAttributes` record — one per name
+/// `VertexLayout`'s own attributes use.
+abstract final class F3dAttributeFlags {
+  static const int position = 1 << 0;
+  static const int normal = 1 << 1;
+  static const int texcoord = 1 << 2;
+  static const int tangent = 1 << 3;
+  static const int color = 1 << 4;
+  static const int joints = 1 << 5;
+  static const int weights = 1 << 6;
 }
 
 /// Which optional streams a morph target record carries.

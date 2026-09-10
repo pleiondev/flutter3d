@@ -131,7 +131,9 @@ final class _SurfaceBuilder {
       ..add(c);
   }
 
-  MeshData build({
+  /// Builds the mesh, and says which of [layout]'s attributes the file
+  /// actually gave a value for — see [ModelSurface.authoredAttributes].
+  ({MeshData mesh, Set<String> authoredAttributes}) build({
     required VertexLayout layout,
     required List<double> positions,
     required List<double> texcoords,
@@ -141,6 +143,9 @@ final class _SurfaceBuilder {
     final hasFileNormals =
         normalData.isNotEmpty &&
         _corners.any((corner) => corner.normal != null);
+    final hasFileTexcoords =
+        texcoords.isNotEmpty &&
+        _corners.any((corner) => corner.texcoord != null);
     // Flat shading needs one normal per face, so vertices cannot be shared.
     final split = !hasFileNormals && normalMode == ObjNormals.flat;
 
@@ -177,6 +182,15 @@ final class _SurfaceBuilder {
       }
     }
 
+    // Position is the one attribute OBJ cannot omit; tangent is the one it
+    // never has — `withGeneratedTangents` below always fills it when the
+    // layout wants one, so it is never in this set.
+    final authored = <String>{
+      VertexLayout.position.name,
+      if (hasFileNormals) VertexLayout.normal.name,
+      if (hasFileTexcoords) VertexLayout.texcoord.name,
+    };
+
     if (split) {
       final a = Vector3.zero();
       final b = Vector3.zero();
@@ -203,7 +217,7 @@ final class _SurfaceBuilder {
         builder.addTriangle(base, base + 1, base + 2);
       }
 
-      return builder.build();
+      return (mesh: builder.build(), authoredAttributes: authored);
     }
 
     // Deduplicate by the (position, texcoord, normal) triple, which is the unit
@@ -238,9 +252,12 @@ final class _SurfaceBuilder {
     // to derive it. After the smoothing pass, because the frame is built
     // relative to the final normals.
     if (layout.has(VertexLayout.tangent)) {
-      return mesh.withGeneratedTangents(target: layout);
+      return (
+        mesh: mesh.withGeneratedTangents(target: layout),
+        authoredAttributes: authored,
+      );
     }
-    return mesh;
+    return (mesh: mesh, authoredAttributes: authored);
   }
 
   static void _readPosition(List<double> positions, int index, Vector3 out) {

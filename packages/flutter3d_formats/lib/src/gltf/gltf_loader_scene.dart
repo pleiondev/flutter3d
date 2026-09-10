@@ -104,6 +104,7 @@ extension _GltfSceneWalk on GltfLoader {
               skinIndex: skinIndex,
               flipWinding: skinIndex == null && mirrored,
               morphWeights: weights,
+              authoredAttributes: primitive.authoredAttributes,
             ),
           );
         }

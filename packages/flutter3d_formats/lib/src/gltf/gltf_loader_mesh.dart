@@ -347,6 +347,21 @@ extension _GltfMesh on GltfLoader {
     // layout asks for tangents is simpler and no less correct: without UVs the
     // generator writes the neutral frame, which is what the vertices already
     // hold.
+    //
+    // The authored set is decided here, before generation: `tangents == null`
+    // is still "the file had none", and after this line every primitive that
+    // wanted one has a tangent whether the file did or not.
+    final authored = <String>{
+      VertexLayout.position.name,
+      if (normals != null) VertexLayout.normal.name,
+      if (texcoords != null) VertexLayout.texcoord.name,
+      if (tangents != null) VertexLayout.tangent.name,
+      if (colors != null) VertexLayout.color.name,
+      if (joints != null && weights != null) ...<String>[
+        VertexLayout.joints.name,
+        VertexLayout.weights.name,
+      ],
+    };
     if (wantsTangent && tangents == null) {
       mesh = mesh.withGeneratedTangents(target: primitiveLayout);
     }
@@ -367,7 +382,11 @@ extension _GltfMesh on GltfLoader {
       if (morphs.isNotEmpty) mesh = mesh.withMorphTargets(morphs);
     }
 
-    return _DecodedPrimitive(mesh: mesh, materialIndex: materialIndex);
+    return _DecodedPrimitive(
+      mesh: mesh,
+      materialIndex: materialIndex,
+      authoredAttributes: authored,
+    );
   }
 }
 
@@ -443,8 +462,13 @@ List<MorphTarget> _readMorphTargets({
 }
 
 final class _DecodedPrimitive {
-  const _DecodedPrimitive({required this.mesh, required this.materialIndex});
+  const _DecodedPrimitive({
+    required this.mesh,
+    required this.materialIndex,
+    required this.authoredAttributes,
+  });
 
   final MeshData mesh;
   final int? materialIndex;
+  final Set<String> authoredAttributes;
 }

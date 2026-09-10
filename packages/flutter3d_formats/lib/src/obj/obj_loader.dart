@@ -193,17 +193,19 @@ final class ObjLoader {
     for (final builder in builders) {
       if (builder.isEmpty) continue;
       final name = builder.materialName;
+      final built = builder.build(
+        layout: layout,
+        positions: positions,
+        texcoords: texcoords,
+        normalData: normalData,
+        normalMode: normals,
+      );
       surfaces.add(
         ModelSurface(
-          mesh: builder.build(
-            layout: layout,
-            positions: positions,
-            texcoords: texcoords,
-            normalData: normalData,
-            normalMode: normals,
-          ),
+          mesh: built.mesh,
           name: builder.name,
           materialIndex: name == null ? null : indexByName[name],
+          authoredAttributes: built.authoredAttributes,
         ),
       );
       if (name != null && !indexByName.containsKey(name)) {

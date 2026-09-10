@@ -46,6 +46,34 @@ extension _F3dWriteScene on F3dWriter {
     return table;
   }
 
+  /// One bitmask per surface, [F3dSection.surfaceAttributes] order matching
+  /// [F3dSection.surfaces]. See [F3dAttributeFlags].
+  Uint8List _writeSurfaceAttributes() {
+    final table = Uint8List(
+      document.surfaces.length * F3dRecord.surfaceAttributes,
+    );
+    final view = ByteData.view(table.buffer);
+    const named = <(String, int)>[
+      ('position', F3dAttributeFlags.position),
+      ('normal', F3dAttributeFlags.normal),
+      ('texcoord', F3dAttributeFlags.texcoord),
+      ('tangent', F3dAttributeFlags.tangent),
+      ('color', F3dAttributeFlags.color),
+      ('joints', F3dAttributeFlags.joints),
+      ('weights', F3dAttributeFlags.weights),
+    ];
+
+    for (var i = 0; i < document.surfaces.length; i++) {
+      final authored = document.surfaces[i].authoredAttributes;
+      var flags = 0;
+      for (final (name, bit) in named) {
+        if (authored.contains(name)) flags |= bit;
+      }
+      view.setUint32(i * F3dRecord.surfaceAttributes, flags, Endian.little);
+    }
+    return table;
+  }
+
   // -------------------------------------------------------------------- nodes
 
   Uint8List _writeNodes() {
