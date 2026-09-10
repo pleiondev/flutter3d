@@ -25,6 +25,7 @@ import 'package:flutter/material.dart' hide Material;
 import 'package:flutter/services.dart';
 import 'package:flutter3d/flutter3d.dart' hide Material;
 
+import 'ground_grid.dart';
 import 'object_picking.dart';
 import 'orbit_gestures.dart';
 import 'staging.dart';
@@ -39,6 +40,7 @@ class ModelerViewport extends StatefulWidget {
     this.onRendered,
     this.onPick,
     this.settings = const RenderSettings(),
+    this.grid = const GroundGrid(),
   });
 
   final Renderer renderer;
@@ -47,6 +49,13 @@ class ModelerViewport extends StatefulWidget {
   /// What the renderer is asked for, which is where a display mode's wireframe
   /// arrives from.
   final RenderSettings settings;
+
+  /// The floor, or null for none.
+  ///
+  /// Null rather than a `showGrid` flag, because the two questions a viewport
+  /// asks are "is there a floor" and "what does it look like", and one nullable
+  /// value answers both. A material preview wants none of it.
+  final GroundGrid? grid;
 
   /// Called immediately before each frame, after the camera has been placed —
   /// where a caller advances anything drawn but not simulated.
@@ -108,6 +117,55 @@ class _ModelerViewportState extends State<ModelerViewport> {
   /// button went down is a different vertex.
   static const double _slop = 4.0;
 
+  /// The overlay this viewport draws its own furniture into, built from the
+  /// renderer's line pipeline and registered with it once.
+  ///
+  /// One per viewport rather than one per application: the geometry in it is
+  /// built for a particular camera — a vertex handle is sized in world units
+  /// for the distance it is at — so two viewports sharing one would each
+  /// overwrite the other's idea of how big a pixel is.
+  MeshOverlay? _overlay;
+
+  MeshOverlay _overlayFor(Renderer renderer) =>
+      _overlay ??= renderer.addContributor(
+        MeshOverlay(
+          vertexShader: renderer.debugLineVertexShader,
+          fragmentShader: renderer.debugLineFragmentShader,
+        ),
+      );
+
+  @override
+  void dispose() {
+    final overlay = _overlay;
+    if (overlay != null) widget.renderer.removeContributor(overlay);
+    super.dispose();
+  }
+
+  /// Fills the overlay for the frame about to be drawn.
+  ///
+  /// Rebuilt every frame rather than when something changes, and that is not
+  /// the extravagance it looks like: everything in it is sized against the
+  /// camera, so the one thing that would have to invalidate it is the camera
+  /// moving, which is the thing that happens sixty times a second. The grid of
+  /// a default floor is under seven hundred lines.
+  void _buildOverlay(MeshOverlay overlay) {
+    final look = widget.stage.overlayView(_viewport.height);
+    overlay
+      ..clear()
+      ..lookFrom(
+        eye: look.eye,
+        right: look.right,
+        up: look.up,
+        pixel: look.pixel,
+        perspective: look.perspective,
+      );
+    widget.grid?.writeInto(
+      overlay,
+      eye: look.eye,
+      fadeRadius: widget.stage.groundFadeRadius,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final dpr = MediaQuery.devicePixelRatioOf(context);
@@ -132,6 +190,11 @@ class _ModelerViewportState extends State<ModelerViewport> {
           // and clips it when the model is large, and a modeller meets both
           // inside one session.
           widget.stage.orbit.syncProjectionDepth(widget.stage.camera);
+          // After the projection and before the render: the overlay is sized
+          // against the camera as it will be for this frame, not as it was for
+          // the last one, and a grid a frame behind is a grid that swims under
+          // a model while somebody orbits.
+          _buildOverlay(_overlayFor(widget.renderer));
           final frame = widget.renderer.render(
             // Clamped because a zero-sized viewport is a real state — a panel
             // animating open, a window dragged to nothing — and a render

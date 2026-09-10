@@ -117,11 +117,46 @@ final class MeshOverlay extends PassContributor {
     fill.clear();
   }
 
+  /// A colour a design named, converted for the target it lands in.
+  ///
+  /// **An overlay drawn in the scene pass pays the composite's transfer
+  /// function; `DebugDraw` does not, and that is the whole difference between
+  /// the two.** `DebugDraw` is encoded after the composite, so a byte it writes
+  /// is the byte that reaches the screen. This is encoded inside the scene pass
+  /// — it has to be, or the depth test could not let an edge sit on its own
+  /// face — and everything written there is treated as a light quantity and
+  /// encoded on the way out. A grid line handed over as `#2A3234` and written
+  /// literally comes back as `#717B7D`: the same hue, half again as bright, and
+  /// nothing in the picture to say why. So the design colour is converted here,
+  /// which is what the engine's own normals stage does and for the same reason.
+  ///
+  /// The alpha is left alone: it is a coverage, not a colour, and the fill's
+  /// 55 per cent means 55 per cent of the way to the surface either way.
+  ///
+  /// What this does *not* undo is the exposure and the tone curve. A viewport
+  /// lighting a scene at 1.6 shows the grid a little lighter than the hex says,
+  /// and that is deliberate: the floor is in the picture rather than pasted on
+  /// top of it, and a floor that ignored the exposure would be the one thing on
+  /// screen that did.
+  static Vector4 asDrawn(Vector4 colour) => Vector4(
+    _toLinear(colour.x),
+    _toLinear(colour.y),
+    _toLinear(colour.z),
+    colour.w,
+  );
+
+  /// sRGB to linear, per the engine's `color.glsl`. A copy rather than an
+  /// import, the way `sky_settings.dart` keeps its own `smoothstep`: two lines
+  /// of arithmetic against a dependency from the renderer to a backend.
+  static double _toLinear(double c) =>
+      c < 0.04045 ? c / 12.92 : math.pow((c + 0.055) / 1.055, 2.4).toDouble();
+
   /// A line between two points.
   void edge(Vector3 from, Vector3 to, Vector4 colour) {
+    final drawn = asDrawn(colour);
     lines
-      ..vertex(_towardsEye(from), colour)
-      ..vertex(_towardsEye(to), colour);
+      ..vertex(_towardsEye(from), drawn)
+      ..vertex(_towardsEye(to), drawn);
   }
 
   /// A square facing the camera, [size] logical pixels across.
@@ -139,7 +174,7 @@ final class MeshOverlay extends PassContributor {
       middle + x - y,
       middle + x + y,
       middle - x + y,
-      colour,
+      asDrawn(colour),
     );
   }
 
@@ -164,13 +199,13 @@ final class MeshOverlay extends PassContributor {
       _towardsEye(to) - offset,
       _towardsEye(to) + offset,
       _towardsEye(from) + offset,
-      colour,
+      asDrawn(colour),
     );
   }
 
   /// A translucent triangle over a face.
   void wash(Vector3 a, Vector3 b, Vector3 c, Vector4 colour) {
-    final washed = Vector4(colour.x, colour.y, colour.z, fillOpacity);
+    final washed = asDrawn(Vector4(colour.x, colour.y, colour.z, fillOpacity));
     fill
       ..vertex(_towardsEye(a), washed)
       ..vertex(_towardsEye(b), washed)
@@ -209,6 +244,39 @@ final class MeshOverlay extends PassContributor {
 
   PipelineHandle? _pipeline;
 
+  /// The index sequence 0, 1, 2, … that every draw here is made through.
+  ///
+  /// **Not an optimisation and not a formality: `CommandEncoder.draw` in this
+  /// engine is always indexed, and there is no non-indexed path.** A draw with
+  /// a vertex buffer and no index buffer bound is a draw of nothing — silently,
+  /// with no refusal and no empty-frame report, because binding nothing is a
+  /// legal state that the mesh loop passes through between draws. The overlay
+  /// went a whole commit drawing nothing for exactly that reason, and every
+  /// test it had still passed, because they all read the batch. `DebugDraw`
+  /// keeps the same sequence for the same reason.
+  GeometryBuffer? _indices;
+  int _indexCapacity = 0;
+
+  /// A view over that sequence long enough for [count] vertices.
+  GeometryBuffer _identityIndices(GraphicsDevice device, int count) {
+    if (count > _indexCapacity) {
+      var capacity = math.max(_indexCapacity * 2, 1024);
+      while (capacity < count) {
+        capacity *= 2;
+      }
+      final indices = Uint32List(capacity);
+      for (var i = 0; i < capacity; i++) {
+        indices[i] = i;
+      }
+      _indices = device.uploadGeometry(
+        indices.buffer.asByteData(),
+        GeometryUsage.indices,
+      );
+      _indexCapacity = capacity;
+    }
+    return _indices!.slice(length: count * 4);
+  }
+
   @override
   void encode(ContributorFrame frame) {
     final viewProjection = frame.viewProjection;
@@ -237,6 +305,11 @@ final class MeshOverlay extends PassContributor {
     frame.encoder
       ..setState(state)
       ..bindVertexData(batch.vertexBytes, batch.vertexCount)
+      ..bindIndexBuffer(
+        _identityIndices(frame.device, batch.vertexCount),
+        IndexType.int32,
+        batch.vertexCount,
+      )
       ..bindUniformBlock(vertexShader, 'LineInfo', {
         'view_projection': viewProjection.storage,
       })

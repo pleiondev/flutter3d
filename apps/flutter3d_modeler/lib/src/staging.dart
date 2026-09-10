@@ -224,6 +224,47 @@ final class ModelerStage {
     return total;
   }
 
+  /// What the overlay has to be told about the camera to size itself.
+  ///
+  /// **The one place the two lenses are converted into the same three
+  /// numbers.** [MeshOverlay] sizes a vertex handle and a grid's fade in
+  /// pixels, and to do that it needs the world size of a pixel — which is a
+  /// per-unit-of-distance figure under a perspective lens and a flat one under
+  /// an orthographic lens. Working it out at the call site would mean two
+  /// call sites doing it, and the second one getting it wrong the day somebody
+  /// adds a viewport.
+  ///
+  /// [viewportHeight] is in logical pixels. A viewport of no height is a panel
+  /// mid-animation, and the clamp keeps the division from handing back an
+  /// infinity that reaches a vertex buffer.
+  ({Vector3 eye, Vector3 right, Vector3 up, double pixel, bool perspective})
+  overlayView(double viewportHeight) {
+    final m = camera.worldMatrix.storage;
+    final projection = camera.projection;
+    final height = math.max(viewportHeight, 1.0);
+    return (
+      eye: Vector3(m[12], m[13], m[14]),
+      right: Vector3(m[0], m[1], m[2]),
+      up: Vector3(m[4], m[5], m[6]),
+      pixel: switch (projection) {
+        OrthographicProjection(height: final shown) => shown / height,
+        PerspectiveProjection(:final fovYRadians) =>
+          2.0 * math.tan(fovYRadians * 0.5) / height,
+        _ => 2.0 * math.tan(math.pi / 8) / height,
+      },
+      perspective: projection is! OrthographicProjection,
+    );
+  }
+
+  /// How far out the floor should have faded to nothing.
+  ///
+  /// Tied to the orbit distance rather than fixed, for the reason the grid's
+  /// own fade exists: a floor drawn to a fixed radius is a floor that is a
+  /// speck under a camera framing a building and a wall in front of one framing
+  /// a bolt. Four times the distance puts the horizon comfortably past whatever
+  /// is being looked at without drawing a hundred lines that land in one pixel.
+  double get groundFadeRadius => orbit.distance * 4.0;
+
   /// The views a frame is drawn through.
   ///
   /// A list because the viewport is one of several — a second one arrives with

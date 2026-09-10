@@ -25,6 +25,7 @@ import 'package:flutter3d_cpu/testing.dart';
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 import 'package:flutter3d_mesh/testing.dart';
 import 'package:flutter3d_modeler/src/display_modes.dart';
+import 'package:flutter3d_modeler/src/ground_grid.dart';
 import 'package:flutter3d_modeler/src/staging.dart';
 import 'package:flutter3d_testing/flutter3d_testing.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -76,6 +77,75 @@ Future<Uint8List> _drawWith(
 }
 
 void main() {
+  test('the floor is drawn, in the colour the design named', () async {
+    final it = cpuTestDevice(width: _width, height: _height);
+    final renderer = Renderer.create(device: it.device);
+    final stage = ModelerStage.build(device: it.device);
+    stage.frameSubject();
+
+    // The overlay the viewport builds every frame, built here the same way, so
+    // that what this asserts is the chain from a grid line to a pixel rather
+    // than a second arrangement that happens to agree with the first.
+    final overlay = renderer.addContributor(
+      MeshOverlay(
+        vertexShader: renderer.debugLineVertexShader,
+        fragmentShader: renderer.debugLineFragmentShader,
+      ),
+    );
+    final look = stage.overlayView(_height.toDouble());
+    overlay.lookFrom(
+      eye: look.eye,
+      right: look.right,
+      up: look.up,
+      pixel: look.pixel,
+      perspective: look.perspective,
+    );
+    // A radius far past the model, so the whole visible floor is inside the
+    // solid part of the fade. The fade itself is `ground_grid_test`'s subject
+    // and is arithmetic; what is being asked here is whether a line the grid
+    // wrote reaches a pixel *in the colour it was given*, and a line at half
+    // strength cannot answer that.
+    const grid = GroundGrid();
+    grid.writeInto(overlay, eye: look.eye, fadeRadius: 1000);
+
+    // Neutral composite, for the reason the normals view uses one: the exposure
+    // and the tone curve are a picture of light, and `#2A3234` is not a light
+    // value — it is a colour a design named. The viewport draws the same floor
+    // through the lit settings and it comes out a little brighter, which is
+    // deliberate and is argued in `MeshOverlay.asDrawn`.
+    final rgba = await _drawWith(
+      it.device,
+      renderer,
+      stage,
+      const RenderSettings(tonemap: false, exposure: 1.0),
+    );
+
+    // 0x2A3234 is 42, 50, 52, and comes back as 43, 51, 53 — one level of an
+    // eight-bit channel lost in the round trip through linear and back, which
+    // is the width of the storage rather than an error in the arithmetic.
+    // Nothing else in this scene is that colour: the background is 14, 18, 18
+    // and the clay is far lighter.
+    var lines = 0;
+    for (var i = 0; i < rgba.length; i += 4) {
+      if ((rgba[i] - 42).abs() <= 2 &&
+          (rgba[i + 1] - 50).abs() <= 2 &&
+          (rgba[i + 2] - 52).abs() <= 2) {
+        lines++;
+      }
+    }
+
+    // Two mutations, both of which this is the only test in the repository to
+    // catch, and both of which were live in the overlay when it was written:
+    // drop the index buffer `MeshOverlay._draw` binds, and nothing draws at all
+    // — `draw` in this engine is always indexed, and a draw with no indices
+    // bound is a legal, silent draw of nothing; and write the caller's colour
+    // into the batch literally instead of through `asDrawn`, and the floor
+    // comes back `#717B7D`, half again as bright as the design named. Every
+    // test the overlay and the grid had passed under both, because all of them
+    // read the batch and none of them asked whether anything drew it.
+    expect(lines, greaterThan(20), reason: 'no grid line reached a pixel');
+  });
+
   test('a +Y face in the normals view is the colour of a +Y normal', () async {
     final it = cpuTestDevice(width: _width, height: _height);
     final renderer = Renderer.create(device: it.device);
