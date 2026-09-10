@@ -67,6 +67,10 @@ TransferableTypedData buildAndTransfer(int side) {
   return TransferableTypedData.fromList(<TypedData>[vertices, indices]);
 }
 
+/// Work that changes nothing, so what the round trip below measures is the
+/// crossing rather than an operation.
+EditMesh countTheFaces(EditMesh mesh) => mesh;
+
 Future<double> milliseconds(int runs, Future<void> Function() body) async {
   await body();
   final stopwatch = Stopwatch()..start();
@@ -130,6 +134,33 @@ void main() async {
     '   (+${(byTransfer - onCaller).toStringAsFixed(1)} ms, '
     '${((byTransfer / onCaller - 1) * 100).toStringAsFixed(0)} %)',
   );
+
+  // What `mesh-30` asks: the cost of an *existing* mesh crossing and coming
+  // back, which is the shape an operation run elsewhere has. The two halves
+  // are worth apart — writing and reading the bytes is arithmetic, and the
+  // handover itself is what `TransferableTypedData` makes nearly free.
+  final standing = grid(side);
+  final written = await milliseconds(3, () async {
+    standing.toBytes();
+  });
+  print('');
+  print('EditMesh.toBytes            ${written.toStringAsFixed(1)} ms');
+
+  final bytes = standing.toBytes();
+  final read = await milliseconds(3, () async {
+    EditMesh.fromBytes(bytes);
+  });
+  print('EditMesh.fromBytes         ${read.toStringAsFixed(1)} ms');
+
+  final roundTrip = await milliseconds(3, () async {
+    await editInIsolate(standing, countTheFaces);
+  });
+  print(
+    'a mesh there and back      ${roundTrip.toStringAsFixed(1)} ms'
+    '   (${(roundTrip - written * 2 - read * 2).toStringAsFixed(1)} ms of it '
+    'the handover)',
+  );
+  print('');
 
   // Chunked: the mesh is built once, and the conversion is done a band of rows
   // at a time — which is the shape an operation takes when it is made

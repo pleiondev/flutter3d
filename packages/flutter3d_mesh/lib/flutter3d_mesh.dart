@@ -22,6 +22,7 @@ export 'src/cut.dart';
 export 'src/edit_mesh.dart';
 export 'src/extrude.dart';
 export 'src/import_mesh.dart';
+export 'src/isolate.dart';
 export 'src/journal.dart';
 export 'src/layout_plan.dart';
 export 'src/merge.dart';

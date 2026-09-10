@@ -73,6 +73,11 @@ inside a rectangle.
 four-byte boundaries, little-endian, deterministic, and a section a reader does
 not know is stepped over rather than fatal.
 
+`editInIsolate` takes a mesh somewhere else and brings it back: it crosses as
+the bytes above, inside a `TransferableTypedData`, and the work is a named
+function rather than a closure. On a build with no isolates it does the work
+where it stands and says so.
+
 `MeshChecks` says what is wrong with a mesh and names the elements rather than
 counting them, so a viewport turns an issue into a selection: n-gons, rims,
 vertices where two surfaces meet at a point, vertices nothing stands on, faces
