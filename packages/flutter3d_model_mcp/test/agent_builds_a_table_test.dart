@@ -13,9 +13,9 @@
 /// **And it diffs bytes, which is the point.** `writeProject` is already
 /// deterministic — `project_format_test.dart` holds that — so a fixture is a
 /// fair thing to compare against, and a change that moves one number moves one
-/// line of a diff a person can read. glTF/GLB is not built (`fmt-06`), so this
-/// diffs `.f3d` and `.obj`/`.mtl` instead of the GLB `doc-21`'s row names; that
-/// deviation is recorded in `HANDOFF.md`.
+/// line of a diff a person can read. `table.glb` is `GltfWriter` (`fmt-06`),
+/// alongside `.f3d` and `.obj`/`.mtl` — the three formats an agent can export
+/// this project to today.
 library;
 
 import 'dart:io';
@@ -106,14 +106,14 @@ void main() {
     expect(refused.says, contains('nothing in this project'));
   });
 
-  test('glTF/GLB says why rather than pretending to write one', () async {
+  test('.gltf says why rather than pretending to write one', () async {
     await call('addPrimitive', <String, Object?>{'kind': 'box'});
     final refused = await call('export', <String, Object?>{
-      'to': '${workspace.path}/table.glb',
+      'to': '${workspace.path}/table.gltf',
     });
     expect(refused.did, isFalse);
-    expect(refused.says, contains('not built yet'));
-    expect(refused.says, contains('fmt-06'));
+    expect(refused.says, contains('not built'));
+    expect(refused.says, contains('.glb'));
   });
 
   test(
@@ -199,6 +199,15 @@ void main() {
       expect(
         File('${workspace.path}/table.mtl').readAsStringSync(),
         File('test/fixtures/table.mtl').readAsStringSync(),
+      );
+
+      final exportedGlb = await call('export', <String, Object?>{
+        'to': '${workspace.path}/table.glb',
+      });
+      expect(exportedGlb.did, isTrue, reason: exportedGlb.says);
+      expect(
+        File('${workspace.path}/table.glb').readAsBytesSync(),
+        File('test/fixtures/table.glb').readAsBytesSync(),
       );
 
       final wroteJournal = await call('journal', <String, Object?>{

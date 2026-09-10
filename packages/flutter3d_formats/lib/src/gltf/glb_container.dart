@@ -107,6 +107,53 @@ final class GlbContainer {
     return GlbContainer(json: json, binaryChunk: binary);
   }
 
+  /// Encodes [json] and an optional [binary] chunk into a `.glb` file.
+  ///
+  /// The exact inverse of [_parseBinary]: a 12-byte header naming the total
+  /// length, then the `JSON` chunk padded with spaces (the byte the spec
+  /// requires for that chunk's padding, as opposed to zero for `BIN`), then
+  /// the `BIN` chunk when there is one. Nothing here validates [json] against
+  /// the schema — a writer that built a bad document gets a bad file back,
+  /// which is what makes round-tripping through [GlbContainer.parse] a
+  /// meaningful check of the writer rather than of this method.
+  static Uint8List encode(Map<String, Object?> json, {Uint8List? binary}) {
+    final jsonBytes = utf8.encode(jsonEncode(json));
+    final jsonPadding = (4 - (jsonBytes.length % 4)) % 4;
+    final binPadding = binary == null ? 0 : (4 - (binary.length % 4)) % 4;
+
+    final total =
+        12 +
+        8 +
+        jsonBytes.length +
+        jsonPadding +
+        (binary == null ? 0 : 8 + binary.length + binPadding);
+
+    final out = BytesBuilder();
+    final header = ByteData(12);
+    header.setUint32(0, _kMagic, Endian.little);
+    header.setUint32(4, 2, Endian.little);
+    header.setUint32(8, total, Endian.little);
+    out.add(header.buffer.asUint8List());
+
+    final jsonHeader = ByteData(8);
+    jsonHeader.setUint32(0, jsonBytes.length + jsonPadding, Endian.little);
+    jsonHeader.setUint32(4, _kChunkJson, Endian.little);
+    out.add(jsonHeader.buffer.asUint8List());
+    out.add(jsonBytes);
+    out.add(List<int>.filled(jsonPadding, 0x20));
+
+    if (binary != null) {
+      final binHeader = ByteData(8);
+      binHeader.setUint32(0, binary.length + binPadding, Endian.little);
+      binHeader.setUint32(4, _kChunkBin, Endian.little);
+      out.add(binHeader.buffer.asUint8List());
+      out.add(binary);
+      out.add(List<int>.filled(binPadding, 0));
+    }
+
+    return out.toBytes();
+  }
+
   /// Resolves every `buffers[i]` entry to its bytes.
   ///
   /// Three forms exist and all three appear in the wild: no `uri` at all (the

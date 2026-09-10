@@ -14,3 +14,4 @@ export 'glb_container.dart' show GlbContainer, decodeDataUri;
 export 'gltf_accessor.dart';
 export 'gltf_asset.dart';
 export 'gltf_loader.dart';
+export 'gltf_writer.dart';

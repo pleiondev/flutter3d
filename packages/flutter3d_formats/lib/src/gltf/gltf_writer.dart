@@ -1,0 +1,130 @@
+import 'dart:typed_data';
+
+import 'package:flutter3d_geometry/flutter3d_geometry.dart';
+
+import '../image_sniff.dart';
+import '../model_document.dart';
+import 'glb_container.dart';
+import 'gltf_accessor.dart';
+// For `toGltfFilters`, the exact inverse of `_decodeSampler`'s filter half —
+// kept beside the code it undoes rather than duplicated here.
+import 'gltf_loader.dart';
+
+// One phase per file, mirroring `gltf_loader.dart`'s own split: geometry,
+// scene hierarchy, materials, images. Every phase appends to the single
+// binary blob and the flat JSON arrays declared below, so they are `part`s of
+// this library rather than files that import it — the same reasoning as the
+// loader's own parts.
+part 'gltf_writer_images.dart';
+part 'gltf_writer_materials.dart';
+part 'gltf_writer_mesh.dart';
+part 'gltf_writer_scene.dart';
+
+/// Serializes any [ModelDocument] into glTF's binary container.
+///
+/// Takes a [ModelDocument] rather than something engine-specific for the same
+/// reason [F3dWriter] does: one writer serves every decoder this package has —
+/// glTF, OBJ, `.f3d` — so exporting a model imported from any of them needs no
+/// format-specific code at the call site.
+///
+/// **Geometry and materials only. Skins, animations and morph targets are not
+/// written here** — `document.skins`/`document.animations`/a surface's
+/// `morphWeights` are read past rather than serialized, which is honest for a
+/// document that has none and silently lossy for one that does. That is the
+/// next layer, `fmt-07`'s `gltf_writer_animation.dart` part, built once this
+/// one has something to attach to.
+///
+/// Everything is embedded in the GLB's own binary chunk — vertex data and
+/// image bytes alike — so [writeGlb] always produces one self-contained file,
+/// never a `.gltf` with siblings to lose track of.
+final class GltfWriter {
+  GltfWriter(this.document);
+
+  final ModelDocument document;
+
+  final BytesBuilder _binary = BytesBuilder();
+  int _binaryLength = 0;
+
+  final List<Map<String, Object?>> _bufferViews = <Map<String, Object?>>[];
+  final List<Map<String, Object?>> _accessors = <Map<String, Object?>>[];
+
+  /// Geometry accessors already written for a [MeshData], keyed by identity —
+  /// see `_accessorsFor` in `gltf_writer_mesh.dart`.
+  final Map<MeshData, _EncodedMesh> _meshAccessorCache =
+      <MeshData, _EncodedMesh>{};
+
+  /// Extension names a material actually used, so `extensionsUsed` lists only
+  /// what the file needs rather than every extension this writer knows about.
+  final Set<String> _extensionsUsed = <String>{};
+
+  /// Encodes the document. The result is a complete `.glb` file.
+  Uint8List writeGlb() {
+    final (materials, samplers, textures) = _writeMaterials();
+    final images = _writeImages();
+    final primitives = <Map<String, Object?>>[
+      for (var i = 0; i < document.surfaces.length; i++) _primitiveFor(i),
+    ];
+    final (meshes, nodes, scenes) = _writeScene(primitives);
+
+    final json = <String, Object?>{
+      'asset': <String, Object?>{
+        'version': '2.0',
+        if (document.asset?.generator != null)
+          'generator': document.asset!.generator,
+      },
+      if (_extensionsUsed.isNotEmpty)
+        'extensionsUsed': _extensionsUsed.toList(),
+      if (scenes.isNotEmpty) 'scene': 0,
+      if (scenes.isNotEmpty) 'scenes': scenes,
+      if (nodes.isNotEmpty) 'nodes': nodes,
+      if (meshes.isNotEmpty) 'meshes': meshes,
+      if (materials.isNotEmpty) 'materials': materials,
+      if (samplers.isNotEmpty) 'samplers': samplers,
+      if (textures.isNotEmpty) 'textures': textures,
+      if (images.isNotEmpty) 'images': images,
+      if (_accessors.isNotEmpty) 'accessors': _accessors,
+      if (_bufferViews.isNotEmpty) 'bufferViews': _bufferViews,
+      if (_binaryLength > 0)
+        'buffers': <Object?>[
+          <String, Object?>{'byteLength': _binaryLength},
+        ],
+    };
+
+    return GlbContainer.encode(
+      json,
+      binary: _binaryLength > 0 ? _binary.toBytes() : null,
+    );
+  }
+
+  // ------------------------------------------------------------ binary blob
+
+  /// Appends [data] to the binary chunk at a 4-byte boundary and records a
+  /// `bufferViews` entry for it. `target` is glTF's `ARRAY_BUFFER` (34962) or
+  /// `ELEMENT_ARRAY_BUFFER` (34963), omitted for data — like images — that a
+  /// GPU never binds directly.
+  int _appendBufferView(TypedData data, {int? target}) {
+    while (_binaryLength % 4 != 0) {
+      _binary.addByte(0);
+      _binaryLength++;
+    }
+    final byteOffset = _binaryLength;
+    final bytes = Uint8List.sublistView(
+      data.buffer.asUint8List(data.offsetInBytes, data.lengthInBytes),
+    );
+    _binary.add(bytes);
+    _binaryLength += bytes.length;
+
+    _bufferViews.add(<String, Object?>{
+      'buffer': 0,
+      'byteOffset': byteOffset,
+      'byteLength': bytes.length,
+      'target': ?target,
+    });
+    return _bufferViews.length - 1;
+  }
+
+  int _addAccessor(Map<String, Object?> accessor) {
+    _accessors.add(accessor);
+    return _accessors.length - 1;
+  }
+}

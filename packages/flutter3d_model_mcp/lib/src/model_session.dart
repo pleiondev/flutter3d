@@ -180,20 +180,25 @@ final class ModelSession {
 
   /// Takes the project out to a format a game or another tool reads.
   ///
-  /// **`.f3d` and `.obj` today; glTF is `fmt-06` and does not exist yet.**
-  /// Offered and refused with the reason rather than left off the tool table,
-  /// the way `flutter3d_editor_mcp`'s `screenshot` is: an agent that finds no
-  /// `export` tool tries something else to get a GLB; one that is told why
-  /// stops asking.
+  /// **`.f3d`, `.obj` and GLB today; a `.gltf` + `.bin` + loose images is not
+  /// built.** `GltfWriter.writeGlb` (`fmt-06`) embeds vertex data and images in
+  /// one binary chunk, which is what a GLB is; splitting that into a JSON
+  /// `.gltf` beside a `.bin` and per-image files is a second entry point onto
+  /// the same writer that nothing has asked for yet. Skins, animations and
+  /// morph targets do not travel through GLB either — `fmt-07`'s part of
+  /// `GltfWriter`, not written — so a rigged project exports its geometry and
+  /// materials only, with no warning of its own beyond what `ExportReadiness`
+  /// already checks.
   Answer export(String to, {String? format, bool force = false}) {
     final String kind = format ?? _formatFromSuffix(to);
-    if (kind != 'f3d' && kind != 'obj') {
+    if (kind != 'f3d' && kind != 'obj' && kind != 'glb') {
       return (
         did: false,
-        says: kind == 'gltf' || kind == 'glb'
-            ? 'glTF/GLB export is not built yet — see doc/model-editor-plan.md '
-                  'fmt-06. ".f3d" and ".obj" work today'
-            : '"$kind" is not a format this can export; it is "f3d" or "obj"',
+        says: kind == 'gltf'
+            ? '".gltf" (JSON plus a separate .bin) is not built; export ".glb" '
+                  'instead — same writer, one self-contained file'
+            : '"$kind" is not a format this can export; it is "f3d", "obj" or '
+                  '"glb"',
       );
     }
     if (project.objects.isEmpty) {
@@ -218,6 +223,8 @@ final class ModelSession {
     final document = toModelDocument(project);
     if (kind == 'f3d') {
       File(to).writeAsBytesSync(F3dWriter(document).write());
+    } else if (kind == 'glb') {
+      File(to).writeAsBytesSync(GltfWriter(document).writeGlb());
     } else {
       final name = to
           .split(RegExp(r'[\\/]'))

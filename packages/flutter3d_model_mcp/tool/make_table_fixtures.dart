@@ -50,6 +50,7 @@ Future<void> main() async {
   await run('save', const <String, Object?>{});
   await run('export', <String, Object?>{'to': '${dir.path}/table.f3d'});
   await run('export', <String, Object?>{'to': '${dir.path}/table.obj'});
+  await run('export', <String, Object?>{'to': '${dir.path}/table.glb'});
   await run('journal', <String, Object?>{'to': '${dir.path}/table.jsonl'});
 
   const fixtures = 'test/fixtures';
@@ -59,6 +60,7 @@ Future<void> main() async {
     'table.f3d',
     'table.obj',
     'table.mtl',
+    'table.glb',
     'table.jsonl',
   ]) {
     File('${dir.path}/$name').copySync('$fixtures/$name');
