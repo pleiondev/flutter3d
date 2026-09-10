@@ -78,6 +78,40 @@ jobs:
 
       - run: tool/ci.sh
 
+      # **A number per commit, so that a regression has something to be a
+      # regression against.** `doc/model-editor.md` §6 carries the mesh figures
+      # with the machine and the date beside them, because a figure without
+      # either is a figure nobody can contradict — and until now those numbers
+      # were taken by hand, once, on one laptop. This runs the same benchmark
+      # on every push and keeps the output, so the next person comparing has a
+      # series rather than a memory.
+      #
+      # Compiled rather than run under the JIT: the recorded numbers were taken
+      # from `dart compile exe`, and a JIT run would be a different measurement
+      # wearing the same name. Ten seconds either way.
+      #
+      # It does not fail the build. A benchmark that gates a merge on a shared
+      # runner gates it on whoever else is on that machine — the budgets in
+      # ARCHITECTURE §14 say the same about the engine's, and `qa-13` asks for
+      # an artifact rather than a threshold.
+      - name: bench the editable mesh
+        run: |
+          mkdir -p build/bench
+          {
+            echo "commit:  $GITHUB_SHA"
+            echo "date:    $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            echo "runner:  $RUNNER_OS $(uname -m), Dart $(dart --version 2>&1)"
+            echo
+            dart compile exe packages/flutter3d_mesh/tool/bench.dart \
+              -o build/bench/bench_mesh >/dev/null
+            build/bench/bench_mesh
+          } | tee build/bench/bench-mesh.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: bench-mesh
+          path: build/bench/bench-mesh.txt
+          retention-days: 90
+
   # **A Dart SDK with no Flutter beside it, which is the machine six packages
   # promise to run on.**
   #
