@@ -20,7 +20,11 @@
 // vertex shader's outputs does not link, and mesh.vert emits all five.
 // One attachment, not two: this pass writes a shadow map, and the surface
 // buffer belongs to the scene pass.
+// And no fog block either: this shader reads neither, and a uniform block it
+// declares without using is a descriptor that collides with the vertex stage's
+// on Vulkan. See the guard in lib/color.glsl.
 #define F3D_NO_SURFACE_BUFFER
+#define F3D_NO_FOG
 #include <lib/color.glsl>
 
 void main() {
