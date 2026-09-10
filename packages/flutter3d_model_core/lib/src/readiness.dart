@@ -77,6 +77,12 @@ final class ExportReadiness {
     bool trianglesOnly = true,
   }) {
     final found = <ExportIssue>[
+      // The budget goes first, ahead of the objects, because it is the one
+      // fault that is true of all of them at once: a bar that led with a quad
+      // in one object while the project as a whole was twelve times its budget
+      // would be answering the smaller question. Warnings keep this order
+      // through the two passes below, so the position is a choice rather than
+      // an accident of where the call sits.
       ?_budget(project),
       for (final ModelObject object in project.objects)
         ..._issuesWith(object, trianglesOnly: trianglesOnly),
@@ -234,6 +240,14 @@ String _count(int n, String one, String many) => '$n ${n == 1 ? one : many}';
 /// is that the cut is the one somebody would have made — a fan through a
 /// concave face crosses the outside of it, and a non-planar quad cut along the
 /// other diagonal is a different shape from the one on screen.
+///
+/// The walk is over the slots and the liveness test is load-bearing, because
+/// `valencyOf` answers a dead slot with the corners it had while it was alive.
+/// A mesh somebody has deleted a quad from keeps that slot and its four, so
+/// counting the slots would warn about a face that is no longer in the file and
+/// send them looking for it. `faceCount` cannot be walked instead: it says how
+/// many faces are live while saying nothing about which slots they sit in, and
+/// the ids on either side of a tombstone stay where they were.
 ExportIssue? _wideFaces(ModelObject object, EditMesh mesh) {
   final wide = <int>[
     for (var face = 0; face < mesh.faceSlotCount; face++)

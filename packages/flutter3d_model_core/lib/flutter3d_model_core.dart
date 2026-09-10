@@ -14,13 +14,15 @@
 /// edit is one of, the history that takes them back, and `ExportReadiness`.
 ///
 /// What is here now is the spine: [ModelProject] with the objects in it,
-/// [ProjectSelection], the sealed [ModelCommand] every edit is one of, and
-/// [ModelHistory] behind them. The commands themselves arrive a handful at a
-/// time — see `doc/model-editor-plan.md`, `doc-06` for the object ones and
-/// `doc-07` for the mesh ones.
+/// [ProjectSelection], the sealed [ModelCommand] every edit is one of,
+/// [ModelHistory] behind them, and [ExportReadiness] for what a project will
+/// refuse to leave as. The commands arrive a handful at a time — see
+/// `doc/model-editor-plan.md`, `doc-06` for the object ones, `doc-07` for the
+/// mesh ones and `doc-32n` for the selection ones.
 library;
 
 export 'src/command.dart';
 export 'src/history.dart';
 export 'src/project.dart';
+export 'src/readiness.dart';
 export 'src/selection.dart';

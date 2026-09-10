@@ -854,6 +854,17 @@ class _ModelerScreenState extends State<ModelerScreen>
     return span == 0.0 ? 0.1 : span * 0.1;
   }
 
+  /// Runs a selection command.
+  ///
+  /// **Through the history like everything else**, which is the point of
+  /// `doc-32n`: a selection made by mistake is one press of ⌘Z away, the
+  /// journal records what was selected when a command ran, and an agent
+  /// driving the modeller can ask for it by name.
+  void _runSelection(ModelCommand command) {
+    final said = _history.run(command);
+    setState(() => _opSaid = said);
+  }
+
   /// Brings the scene to the project.
   void _sync() {
     final state = _state;
@@ -992,6 +1003,9 @@ class _ModelerScreenState extends State<ModelerScreen>
       onUndo: _undo,
       onRedo: _redo,
       onTool: _ranTool,
+      onSelectAll: () => _runSelection(const SelectAll()),
+      onSelectNone: () => _runSelection(const SelectNone()),
+      onInvertSelection: () => _runSelection(const InvertSelection()),
       onLevel: (MeshSubmode submode) => setState(() {
         _submode = submode;
         // Through `convertedTo`, so a person who picked a face and pressed 1
@@ -1072,6 +1086,14 @@ class _ModelerScreenState extends State<ModelerScreen>
         ],
         status: _StatusLine(
           said: _opSaid ?? _fileSaid ?? _selectionSaid,
+          // **Recomputed per frame, and that is a decision to revisit.** The
+          // check walks every object and asks `MeshChecks` about each mesh,
+          // which is cheap on a project of one cube and is not on a project of
+          // two hundred — `doc-12` caches it against the project's identity,
+          // and the place to do that is here, when there is a project large
+          // enough to measure. Until then a stale readiness would be worse: a
+          // bar that says a model is ready after the edit that broke it.
+          readiness: ExportReadiness.check(_history.project),
           micros: _lastRenderMicros,
         ),
         properties: _Properties(
@@ -1192,9 +1214,19 @@ class _ModelerScreenState extends State<ModelerScreen>
 /// from an export readiness — need a document to count and a readiness to ask,
 /// so what is here is what the application actually knows.
 class _StatusLine extends StatelessWidget {
-  const _StatusLine({required this.said, required this.micros});
+  const _StatusLine({
+    required this.said,
+    required this.readiness,
+    required this.micros,
+  });
 
   final String said;
+
+  /// What the project would refuse to export as, shown beside what just
+  /// happened — because the moment to learn that a model has an n-gon in it is
+  /// while it is being built rather than at the export dialogue.
+  final ExportReadiness readiness;
+
   final int? micros;
 
   @override
@@ -1208,6 +1240,21 @@ class _StatusLine extends StatelessWidget {
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: theme.textTheme.bodySmall,
+          ),
+        ),
+        // Coloured only when it is a refusal: a bar that is orange whenever
+        // anything at all is imperfect is a bar people stop reading.
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          child: Text(
+            readiness.says,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: readiness.canExport
+                  ? theme.colorScheme.onSurfaceVariant
+                  : theme.colorScheme.tertiary,
+            ),
           ),
         ),
         if (micros case final int spent)
@@ -1582,6 +1629,9 @@ class _Keys extends StatelessWidget {
     required this.onRedo,
     required this.onTool,
     required this.onLevel,
+    required this.onSelectAll,
+    required this.onSelectNone,
+    required this.onInvertSelection,
     required this.tools,
     required this.child,
   });
@@ -1594,6 +1644,9 @@ class _Keys extends StatelessWidget {
   final VoidCallback onRedo;
   final ValueChanged<String> onTool;
   final ValueChanged<MeshSubmode> onLevel;
+  final VoidCallback onSelectAll;
+  final VoidCallback onSelectNone;
+  final VoidCallback onInvertSelection;
   final List<ModelerTool> tools;
   final Widget child;
 

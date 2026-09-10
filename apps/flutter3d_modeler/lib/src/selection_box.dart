@@ -29,11 +29,12 @@ import 'dart:ui' show Offset, PointerDeviceKind, Rect;
 /// only has to be big enough to have been *meant*, and a hand that pulled a
 /// pressed mouse four pixels across the screen pulled it deliberately.
 ///
-/// Flutter's own recogniser would let a much smaller drag through — `kPanSlop`
-/// for a precise pointer is two logical pixels — but the viewport listens to
-/// raw pointer events rather than owning a pan recogniser, so no recogniser
-/// slop is applied to this gesture at all and the number below is the only one
-/// there is.
+/// Flutter's own recogniser would let a much smaller drag through —
+/// `kPrecisePointerPanSlop` is two logical pixels, against the `kPanSlop` of
+/// thirty-six a coarse pointer has to clear — but the viewport listens to raw
+/// pointer events rather than owning a pan recogniser, so no recogniser slop is
+/// applied to this gesture at all and the number below is the only one there
+/// is.
 const double cursorBoxSlop = 4.0;
 
 /// The same distance for a fingertip, which is three times as much.
@@ -164,16 +165,25 @@ final class SelectionBox {
 /// [selection] is what was selected before, [caught] is what the rectangle
 /// enclosed — `pickElementsIn` for elements, the object-mode equivalent for
 /// whole objects, which is why this is generic over the id rather than tied to
-/// either. The type argument is non-nullable because null is not something that
-/// can be selected, and a set that held one would compare equal to a set that
-/// held a different one.
+/// either. The bound is `Object` rather than a bare `T` so that nobody can
+/// instantiate this at `int?`: a null id is a slot no picker ever returns, and
+/// all three modes would carry it into the selection a tool then reads as the
+/// element to transform. The analyser is what refuses it — `applyBox<int?>`
+/// reads `'int?' doesn't conform to the bound 'Object'`, which no test can
+/// watch fail, and dropping the bound to `Set<T> applyBox<T>(` was written,
+/// run, and left the suite green at twelve tests. It is kept anyway: it costs
+/// one word, and the only caller it can inconvenience is one holding a null id
+/// it should not have.
 ///
 /// The result is unmodifiable, and a copy even when nothing changed, for the
-/// reason `applyPick` gives: handing [selection] straight back aliases a set
-/// the caller may still be mutating, and the sets here hold a handful of ids
-/// against a bug that would be very hard to see. Insertion order survives, so
-/// the last member is the most recently caught, which is what a tool wanting a
-/// single id should read.
+/// reason `applyPick` gives: handing [selection] or [caught] straight back
+/// aliases a set the caller may still be mutating, and the sets here hold a
+/// handful of ids against a bug that would be very hard to see. Replace is
+/// where that matters most, being the bare drag and the mode with no modifier:
+/// there [caught] arrives fresh from `pickElementsIn` today, and returning it
+/// unwrapped would publish whatever the picker still holds. Insertion order
+/// survives, so the last member is the most recently caught, which is what a
+/// tool wanting a single id should read.
 Set<T> applyBox<T extends Object>(
   Set<T> selection,
   Set<T> caught, {

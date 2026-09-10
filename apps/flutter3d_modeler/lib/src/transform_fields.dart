@@ -29,18 +29,22 @@
 /// and every engine that follows three.js does, so the panel and the scene
 /// graph agree about which axis carries the mirror. What a person sees is that
 /// typing -1 into Z and looking again shows a scale of -1, 1, 1 and a turn of
-/// 180, 0, 180 — a half turn that puts back the two axes the sign moved. The
-/// object is right; the spelling moved.
+/// 180, 0, -180 — two half turns that put back the two axes the sign moved.
+/// Half a circle is its own opposite, so the minus on the Z one is a matter of
+/// spelling; it is quoted here as a run prints it, and pinned in the test,
+/// because somebody holding this paragraph up against the panel should find the
+/// same characters in both. The object is right; the spelling moved.
 ///
 /// **At ±90 degrees of Y the turn cannot be split**, because the X and the Z
-/// turns become the same turn. Only their sum survives in the matrix, so this
-/// gives the whole of it to X and reports Z as zero: 30, 90, 30 is read back as
-/// 60, 90, 0, which is the same object.
+/// turns become one turn about the same line. The matrix keeps their sum at +90
+/// and their difference at -90, and nothing else of them, so this gives the
+/// whole of what is left to X and reports Z as zero: 30, 90, 30 is read back as
+/// 60, 90, 0, and 50, -90, 20 as 30, -90, 0. Either way it is the same object.
 ///
 /// The seam that leaves is worth being plain about, because it is a thing a
 /// person will see. Somebody dragging a turn up through the pole watches X and
 /// Z read 30 and 30 until Y reaches 89.975 and then jump to 60 and 0 in one
-/// frame, their sum unchanged. Nothing better is available — the matrix at the
+/// frame, their sum unchanged. Nothing better is available — the matrix at that
 /// pole holds the sum and nothing else — and the alternative of easing across
 /// would mean the panel showing numbers that are not what the object is doing.
 /// What the panel must not do is re-read a box somebody is typing in, and it
@@ -72,11 +76,14 @@ const double _turnedFlatAbove = 0.9999999;
 /// Takes [matrix] apart into the numbers the panel shows.
 ///
 /// Total, on purpose: whatever the document holds, this answers with nine
-/// numbers. A matrix with shear in it loses the shear, and a matrix flattened
-/// along an axis reports a scale of zero there and no turn about it, because
-/// the turn went with it. Neither is recoverable, and the alternative — a
-/// refusal — would be a panel that shows nothing at all for an object a person
-/// can see on the screen and wants to fix.
+/// numbers. A matrix with shear in it loses the shear. A matrix flattened along
+/// an axis reports a scale of zero there and keeps whatever turn the two axes
+/// that are left still show: a squashed Z with a turn of 30 about Z in it reads
+/// back as 0, 0, 30 and a scale of 1, 1, 0, because X and Y are still lying at
+/// 30 degrees and it is the tilt out of their plane that has gone. Neither loss
+/// is recoverable, and the alternative — a refusal — would be a panel that
+/// shows nothing at all for an object a person can see on the screen and wants
+/// to fix.
 TransformFields transformFieldsOf(Matrix4 matrix) {
   final Vector3 alongX = Vector3(
     matrix.entry(0, 0),
@@ -111,10 +118,22 @@ TransformFields transformFieldsOf(Matrix4 matrix) {
 
   // Read off `Rx · Ry · Rz`: the top-right entry is sin(Y) on its own, and the
   // rest of the top row and the right column carry X and Z divided by cos(Y).
-  // Clamped because a basis assembled from a flattened matrix need not be
-  // orthonormal, and asin of 1.0000001 is a NaN that would spread through
-  // every field.
-  final double sinY = basis.entry(0, 2).clamp(-1.0, 1.0);
+  //
+  // This entry was clamped to [-1, 1] for a while, on the argument that a basis
+  // assembled from a flattened matrix need not be orthonormal and that asin of
+  // 1.0000001 is a NaN. The clamp was taken out, the suite was run, and it had
+  // been covering nothing: every column here is either divided by its own
+  // length, which cannot leave a component larger than one — that length is the
+  // root of the component's own square and two more, and rounding cannot bring
+  // it below the component — or, where there is no length to divide by,
+  // replaced whole by an axis.
+  //
+  // What the clamp did reach was a matrix already holding a NaN, and there it
+  // made the answer worse: Dart orders a NaN above every number, so the clamp
+  // returned the upper limit and this reported a confident 90 degrees of Y for
+  // a matrix that means nothing. A NaN a caller can test for is the better
+  // answer, and the test named for nonsense pins it.
+  final double sinY = basis.entry(0, 2);
   final (double x, double z) = sinY.abs() < _turnedFlatAbove
       ? (
           math.atan2(-basis.entry(1, 2), basis.entry(2, 2)),

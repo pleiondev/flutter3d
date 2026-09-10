@@ -74,8 +74,14 @@ Outcome _keep(
 /// Order counts because the last object picked is the active one — the one a
 /// mesh command acts on — so a selection of the same three objects in a
 /// different order is a different selection to everything downstream of it.
+///
+/// The mode is not compared, and that is not an oversight. A comparison of it
+/// was written, run and found unreachable: every command in this file builds
+/// the selection it hands to [_keep] with `copyWith` from the one it was given
+/// and none of them passes a mode, so the two are the same object's mode every
+/// time. The level *is* compared, because [_asSelection] does change it — an
+/// edge loop asked for at vertex level comes back at edge level.
 bool _sameSelection(ProjectSelection a, ProjectSelection b) =>
-    a.mode == b.mode &&
     a.level == b.level &&
     _sameIds(a.objects, b.objects) &&
     _sameIds(a.elements, b.elements);
@@ -128,10 +134,14 @@ Outcome _asSelection(
 /// `twinOf` from wherever they are put down — so a stale number out of an
 /// overlay built before a delete would walk a dead loop rather than refuse.
 ///
-/// The number is put through [EditMesh.edgeOf] before it is looked up, which
-/// buys two things: a click on the far side of a surface names the same edge as
-/// the number a selection holds, and the walk always starts from a half-edge
-/// that is on a live face.
+/// The number is put through [EditMesh.edgeOf] before it is looked up, and what
+/// that buys is one thing rather than two: a click on the far side of a surface
+/// names the same edge as the number a selection holds, because the twin
+/// canonicalises to the same half-edge of the pair. The walk starting from a
+/// half-edge that is on a live face is the `contains` test's doing and not
+/// `edgeOf`'s — [_everything] is swept from live faces and holds nothing else,
+/// so a number that survives it is live whether or not it was canonicalised
+/// first.
 OpResult _fromEdge(
   _MeshTarget target,
   int edge,

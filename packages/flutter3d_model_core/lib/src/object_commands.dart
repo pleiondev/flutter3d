@@ -308,8 +308,14 @@ final class ScaleBy extends ModelCommand {
 /// every one of them to face the same way is exactly it.
 ///
 /// The middle is walked for even when the pivot is individual, because a
-/// selection all of whose objects have been deleted has to refuse rather than
-/// quietly do nothing, and counting them is how that is known.
+/// selection all of whose objects have gone has to refuse rather than quietly
+/// do nothing, and counting them is how that is known. That selection does not
+/// arrive from [ModelHistory], which filters through `ProjectSelection.within`
+/// before a command sees anything — it arrives from an agent's tool call or a
+/// journal entry replayed against a project that has moved on, which is where
+/// [ModelCommand.apply] is called with a selection nobody has checked. Without
+/// the count the division is by nothing, the middle comes out as NaN, and the
+/// command reports success on a project it did not touch.
 Outcome _aboutThePivot(
   ModelProject project,
   ProjectSelection selection,

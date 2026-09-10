@@ -54,8 +54,17 @@ import 'transform_modal.dart';
 /// direction, and a uniform scale is the one handle that says none of them;
 /// borrowing one of the three would put a red box in the middle of a gizmo
 /// whose red arm points elsewhere. A pale grey is what is left that still reads
-/// as something to take hold of, and it is the wireframe's own grey, so the
-/// middle box belongs to the same palette as the mesh under it.
+/// as something to take hold of.
+///
+/// It is a grey of its own, which is one more colour than this file would like
+/// to add. The greys already on screen are the wireframe's `#8C9399` and an
+/// unselected vertex handle's `#B8C2C7`, and a middle box painted in either of
+/// them is a handle a person has to pick out of the mesh it is standing on.
+/// This one is a step lighter than both, so it reads as sitting in front of the
+/// model; going the other way and darkening it would put the box in the range
+/// the shadowed side of a lit model occupies. The test holds the gap rather
+/// than the hex: what matters is that the middle box is lighter than anything
+/// the overlay draws underneath it.
 const int kGizmoTintUniform = 0xC8CFD2;
 
 /// How far towards white the handle under the pointer is mixed.
@@ -112,10 +121,17 @@ final class GizmoDrawing {
 
   /// How many segments a turn ring is drawn as.
   ///
-  /// At the radius above, forty-eight puts the corners about five pixels apart,
-  /// which is under the width of the ring's own line: the ring reads as round
-  /// rather than as a polygon, and it costs ninety-six vertices in a batch that
-  /// already holds a wireframe.
+  /// At the radius above, forty-eight puts the corners about eleven logical
+  /// pixels apart, which sounds coarse and is the wrong measure: the ring is
+  /// drawn as one-pixel lines, so what decides whether a corner can be seen is
+  /// how far the chord sags away from the circle between two of them. Here that
+  /// is 0.18 of a pixel — a fifth of the line's own width, which is nothing to
+  /// see. Twenty-four segments would put it at 0.70 of a pixel, which is a
+  /// corner, and the ring would read as a polygon.
+  ///
+  /// The price is ninety-six vertices per ring in a batch that already holds a
+  /// wireframe, which is why this stops at the count where the sag disappears
+  /// rather than going further.
   static const int _turnSegments = 48;
 
   /// Writes the handles for a transform of [kind] about [pivot] into [overlay].
@@ -150,9 +166,15 @@ final class GizmoDrawing {
   /// A shaft and a head per axis, on the [GizmoHandle]'s own points.
   ///
   /// The head is centred half way along the length the handle set aside for it
-  /// rather than sitting on the tip, so the square ends where the arrow ends
-  /// instead of hanging a half-square past it — which at a glance is an arrow
-  /// longer than the grab box behind it.
+  /// rather than sitting on the tip. [gizmoHandles] traces its box from the
+  /// base to the tip and fattens it sideways only, so the tip is where a ray
+  /// stops answering: a thirteen-pixel square centred there would hang six and
+  /// a half pixels past the end of the box, and the point of the arrow — the
+  /// part a hand aims at — would be paint nothing can be grabbed by. Centred at
+  /// eighty-four of the arm's ninety-six pixels it runs from 77.5 to 90.5 and
+  /// stands clear of both ends of the region the handle reserved for it, 72 to
+  /// 96. The last five and a half pixels of the arm therefore carry no paint,
+  /// which is the price of every drawn pixel being a pixel that can be hit.
   void _arrows(MeshOverlay overlay, List<GizmoHandle> handles, GizmoAxis? hot) {
     for (final handle in handles) {
       final ink = _inkFor(handle.tint, handle.axis == hot);
@@ -226,8 +248,19 @@ final class GizmoDrawing {
     }
   }
 
-  /// The two axes a turn about [axis] moves things along, right-handed, so the
-  /// ring is swept the way the turn goes.
+  /// The two axes a turn about [axis] moves things along, in the order that
+  /// makes the pair right-handed about it.
+  ///
+  /// The plane is what the ring is, and the tests hold it. The order of the two
+  /// vectors is a convention nothing yet reads, and it cannot be seen in what
+  /// is drawn: the forty-eight samples start at angle zero and are symmetrical
+  /// about that start, so swapping the pair reflects the ring onto its own
+  /// vertices and the same forty-eight chords come back in the opposite order.
+  /// It is kept right-handed anyway, because the first thing to read a
+  /// direction off this pair — an arc that grows the way a drag turns the model
+  /// — wants the sweep to agree with a positive turn about the axis, and a
+  /// convention is cheaper to keep now than to work out later from a ring that
+  /// looks the same either way.
   ///
   /// Fresh vectors each time, the way [GizmoAxis.direction] hands out fresh
   /// ones: a shared constant is a constant the first caller to scale it in
@@ -256,7 +289,12 @@ final class GizmoDrawing {
     // Clamped because `hotMix` is a field a caller sets: a mix past one takes
     // the channels past white, and what a backend does with that — clamp, wrap,
     // or a NaN once it has been through a tone curve — is a thing nobody wants
-    // to find out one platform at a time.
+    // to find out one platform at a time. A mix under zero is the same fault
+    // downwards, and comes out as a handle darker than its own tint on the one
+    // frame it is hovered. Both ends are held by 'a mix past the ends of the
+    // range still lands on a colour' in `gizmo_handles_test.dart`, which reads
+    // the raw floats: the byte the test's other helpers hand back is already
+    // clamped on the way out, so a channel at 10.4 looks like white there.
     final mix = hotMix.clamp(0.0, 1.0);
     return Vector4(
       ink.x + (1.0 - ink.x) * mix,
