@@ -39,6 +39,7 @@ import 'src/modeler_viewport.dart';
 import 'src/object_picking.dart';
 import 'src/orbit_run.dart';
 import 'src/orientation_dial.dart';
+import 'src/selection_box.dart';
 import 'src/staging.dart';
 import 'src/transform_modal.dart';
 import 'src/ui/number_field.dart';
@@ -854,6 +855,68 @@ class _ModelerScreenState extends State<ModelerScreen>
     return span == 0.0 ? 0.1 : span * 0.1;
   }
 
+  /// A rectangle was dragged and let go.
+  ///
+  /// **The rules are `applyBox`'s and they are the same rules a click
+  /// follows** — shift adds, control takes away, neither replaces — because a
+  /// modifier that means one thing for a click and another for a box is a
+  /// modifier nobody can rely on.
+  void _boxed(SelectionBox box, PickingView view) {
+    final was = _history.selection;
+    if (was.mode == SelectionMode.mesh) {
+      final MeshPicker? picker = _elementPicker;
+      if (picker == null) return;
+      final Selection caught = pickElementsIn(
+        picker,
+        view,
+        rect: box.rect,
+        level: _levelOf(_submode),
+      );
+      final Set<int> next = applyBox<int>(
+        was.elements.toSet(),
+        caught.ids.toSet(),
+        mode: box.mode,
+      );
+      setState(() {
+        _history.selection = was.copyWith(
+          elements: next.toList()..sort(),
+          level: caught.level,
+        );
+        _opSaid = null;
+      });
+      return;
+    }
+
+    // Objects, by the middle of what they cover rather than by every vertex in
+    // them. **The middle and not an overlap**, which is what every modeller
+    // does and is the more useful of the two: a box drawn across a crowded
+    // scene to catch the three props in it should not also catch the floor
+    // whose bounds run under all of them. Through the same frustum the element
+    // picker uses, so the two answer the same question about one rectangle.
+    final state = _state;
+    if (state is! ModelerReady) return;
+    final sync = state.stage.sync;
+    if (sync == null) return;
+    final vm.Frustum frustum = view.frustumOver(box.rect);
+    final Set<int> caught = <int>{
+      for (final ModelObject object in _history.project.objects)
+        if (sync.nodeOf(object.id) case final MeshNode node)
+          if (frustum.containsVector3(node.worldBounds.center)) object.id,
+    };
+    final Set<int> next = applyBox<int>(
+      was.objects.toSet(),
+      caught,
+      mode: box.mode,
+    );
+    setState(() {
+      _history.selection = was.copyWith(
+        mode: SelectionMode.object,
+        objects: next.toList(),
+      );
+      _opSaid = null;
+    });
+  }
+
   /// Runs a selection command.
   ///
   /// **Through the history like everything else**, which is the point of
@@ -1135,8 +1198,13 @@ class _ModelerScreenState extends State<ModelerScreen>
                 onElementPick: _mode == ModelerMode.mesh && _editMesh != null
                     ? _pickedElement
                     : null,
-                onDragTool: _dragged,
+                // One or the other: with a transform tool armed a left drag is
+                // the transform, and with none it is a rectangle. A viewport
+                // that offered both would have to guess, and the guess would be
+                // wrong on the frame a person changed their mind.
+                onDragTool: kDragTools.contains(_tool) ? _dragged : null,
                 onDragDone: _endDrag,
+                onBox: _boxed,
                 editMesh: _mode == ModelerMode.mesh ? _editMesh : null,
                 elements: _history.selection.asMeshSelection,
                 meshVersion:

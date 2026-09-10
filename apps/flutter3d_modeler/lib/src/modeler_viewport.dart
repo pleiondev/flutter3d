@@ -32,6 +32,7 @@ import 'ground_grid.dart';
 import 'mesh_overlay_builder.dart';
 import 'object_picking.dart';
 import 'orbit_gestures.dart';
+import 'selection_box.dart';
 import 'staging.dart';
 
 /// Draws [stage] through [renderer], and orbits it under the pointer.
@@ -46,6 +47,7 @@ class ModelerViewport extends StatefulWidget {
     this.onElementPick,
     this.onDragTool,
     this.onDragDone,
+    this.onBox,
     this.editMesh,
     this.settings = const RenderSettings(),
     this.grid = const GroundGrid(),
@@ -125,6 +127,15 @@ class ModelerViewport extends StatefulWidget {
   /// tools, which is the rule that lets a drag mean "move this vertex" without
   /// the model swinging away underneath it.
   final void Function(Offset delta, double viewportHeight)? onDragTool;
+
+  /// A rectangle was dragged with no tool armed, and let go.
+  ///
+  /// Given the box and a [PickingView] built from the camera and the size this
+  /// widget was laid out at, because those are the two things only the widget
+  /// knows. What the box catches and what that does to the selection is the
+  /// caller's — `applyBox` holds the rules and they have to agree with the ones
+  /// a click follows.
+  final void Function(SelectionBox box, PickingView view)? onBox;
 
   /// The pointer that was dragging has gone up. What the caller does with it is
   /// close the transaction the first move opened, so the whole drag is one step
@@ -321,11 +332,32 @@ class _ModelerViewportState extends State<ModelerViewport> {
           // reason `SceneSurface` gives: a backend whose frame is composited
           // elsewhere has no image to paint, and `present` is the one answer
           // both can give.
-          return widget.renderer.device.present(frame.frame);
+          final Widget picture = widget.renderer.device.present(frame.frame);
+          final SelectionBox? box = _box;
+          // Drawn in Flutter rather than into the overlay, and that is the one
+          // thing in this viewport that belongs on top of the picture rather
+          // than in it: a selection rectangle is a screen-space thing with no
+          // position in the world, and putting it in the overlay would mean
+          // unprojecting it back out every frame to draw a shape that was
+          // never anywhere but the glass.
+          if (box == null || !box.isBox) return picture;
+          return Stack(
+            children: <Widget>[
+              Positioned.fill(child: picture),
+              Positioned.fill(
+                child: IgnorePointer(
+                  child: CustomPaint(painter: _BoxPainter(box)),
+                ),
+              ),
+            ],
+          );
         },
       ),
     );
   }
+
+  /// The rectangle being dragged, or null.
+  SelectionBox? _box;
 
   void _down(PointerDownEvent event) {
     final GestureButton button = _buttonOf(event.buttons);
@@ -345,6 +377,27 @@ class _ModelerViewportState extends State<ModelerViewport> {
     if (start != null && (event.localPosition - start.at).distance > _slop) {
       _travelled.add(event.pointer);
     }
+    // A box, when the left button is dragging and no tool wants the drag. It
+    // begins on the first move rather than on the press, because a press that
+    // never moves is a click and a box that existed from the press would have
+    // to be told apart from one by its size anyway.
+    final onBox = widget.onBox;
+    if (onBox != null &&
+        widget.onDragTool == null &&
+        start != null &&
+        start.button == GestureButton.primary &&
+        _travelled.contains(event.pointer)) {
+      final SelectionBox box = _box ??= SelectionBox(
+        from: start.at,
+        pointer: event.kind,
+      );
+      box
+        ..to = event.localPosition
+        ..mode = _boxMode();
+      setState(() {});
+      return;
+    }
+
     final onDrag = widget.onDragTool;
     if (onDrag != null &&
         start != null &&
@@ -364,6 +417,21 @@ class _ModelerViewportState extends State<ModelerViewport> {
     _gestures.pointerUp(event.pointer);
     final start = _pressed.remove(event.pointer);
     final bool travelled = _travelled.remove(event.pointer);
+    final SelectionBox? box = _box;
+    if (box != null) {
+      _box = null;
+      setState(() {});
+      // Only when it grew into one. A drag of three pixels is a click that
+      // wobbled, and answering it with a box that caught nothing would clear
+      // the selection somebody was aiming at.
+      if (box.isBox && !_viewport.isEmpty) {
+        widget.onBox?.call(
+          box,
+          PickingView(camera: widget.stage.camera, size: _viewport),
+        );
+      }
+      return;
+    }
     if (travelled && start?.button == GestureButton.primary) {
       widget.onDragDone?.call();
     }
@@ -470,6 +538,20 @@ class _ModelerViewportState extends State<ModelerViewport> {
     }
   }
 
+  /// What releasing the box would do, from the modifiers held right now.
+  ///
+  /// Read at every move rather than latched at the press, because people reach
+  /// for shift after starting to drag at least as often as before — and the
+  /// rectangle drawn on screen is a promise about what letting go will do.
+  static SelectionBoxMode _boxMode() {
+    final keys = HardwareKeyboard.instance;
+    if (keys.isShiftPressed) return SelectionBoxMode.add;
+    if (keys.isControlPressed || keys.isMetaPressed) {
+      return SelectionBoxMode.subtract;
+    }
+    return SelectionBoxMode.replace;
+  }
+
   static GestureModifiers _modifiers() => GestureModifiers(
     shift: HardwareKeyboard.instance.isShiftPressed,
     control: HardwareKeyboard.instance.isControlPressed,
@@ -504,4 +586,37 @@ class _ModelerViewportState extends State<ModelerViewport> {
     if (buttons & kSecondaryMouseButton != 0) return GestureButton.secondary;
     return GestureButton.primary;
   }
+}
+
+/// The rectangle a box-select is being dragged as.
+///
+/// A hairline and a wash, in the colour the mode means: the same teal the
+/// selection wash uses for replace and add, and the warm accent for subtract —
+/// because a person dragging a subtract box over half a model wants to be sure
+/// which way round it is before letting go.
+class _BoxPainter extends CustomPainter {
+  const _BoxPainter(this.box);
+
+  final SelectionBox box;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final Color colour = switch (box.mode) {
+      SelectionBoxMode.subtract => const Color(0xFFFF9926),
+      _ => const Color(0xFF62D4E3),
+    };
+    canvas
+      ..drawRect(box.rect, Paint()..color = colour.withValues(alpha: 0.12))
+      ..drawRect(
+        box.rect,
+        Paint()
+          ..color = colour
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 1,
+      );
+  }
+
+  @override
+  bool shouldRepaint(_BoxPainter old) =>
+      old.box.rect != box.rect || old.box.mode != box.mode;
 }
