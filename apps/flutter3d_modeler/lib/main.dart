@@ -35,6 +35,9 @@ import 'src/object_picking.dart';
 import 'src/orbit_run.dart';
 import 'src/orientation_dial.dart';
 import 'src/staging.dart';
+import 'src/ui/shell.dart';
+import 'src/ui/theme.dart';
+import 'src/ui/tools.dart';
 
 /// The model this build opens, as an asset path. Empty means the cube.
 ///
@@ -85,11 +88,7 @@ class ModelerApp extends StatelessWidget {
   Widget build(BuildContext context) => MaterialApp(
     title: 'flutter3d modeller',
     debugShowCheckedModeBanner: false,
-    theme: ThemeData(
-      useMaterial3: true,
-      brightness: Brightness.dark,
-      visualDensity: VisualDensity.compact,
-    ),
+    theme: modelerTheme(),
     home: const ModelerScreen(),
   );
 }
@@ -219,6 +218,17 @@ class _ModelerScreenState extends State<ModelerScreen>
 
   /// Remembers what the materials were, so the normals view can be left.
   final SurfaceShading _surfaces = SurfaceShading();
+
+  /// Which mode the interface is in, which level a mesh is edited at, and
+  /// which tool is armed.
+  ///
+  /// Three fields on the state rather than a `ModelerCubit`, and only until
+  /// `ui-03`: what that class is for is a *project* — a document, a history, a
+  /// readiness — and standing one up around three enums would be a cubit that
+  /// has to be rewritten the day it gets something to hold.
+  ModelerMode _mode = ModelerMode.object;
+  MeshSubmode _submode = MeshSubmode.vertex;
+  String? _tool = 'object.select';
 
   /// The tick the last frame was at, so a turn advances by real time rather
   /// than by frames — a view that swings faster on a fast machine is a view
@@ -438,42 +448,6 @@ class _ModelerScreenState extends State<ModelerScreen>
     if (mounted) setState(() => _fileSaid = said);
   }
 
-  /// The names on the chips.
-  ///
-  /// A table rather than a `switch` in the builder, so that adding a mode to
-  /// the enum is a compile error here rather than a chip that reads `null`.
-  static const Map<ShadingMode, String> _shadingNames = <ShadingMode, String>{
-    ShadingMode.material: 'Material',
-    ShadingMode.normals: 'Normals',
-    ShadingMode.wireframe: 'Wireframe',
-  };
-
-  static const Map<StandardView, String> _viewNames = <StandardView, String>{
-    StandardView.front: 'Front',
-    StandardView.back: 'Back',
-    StandardView.left: 'Left',
-    StandardView.right: 'Right',
-    StandardView.top: 'Top',
-    StandardView.bottom: 'Bottom',
-  };
-
-  /// One of the small buttons along the bottom.
-  static Widget _chip(
-    String said, {
-    required bool on,
-    required VoidCallback onPressed,
-  }) => TextButton(
-    onPressed: onPressed,
-    style: TextButton.styleFrom(
-      minimumSize: Size.zero,
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-      backgroundColor: on ? const Color(0xFF1E464D) : const Color(0x66000000),
-      foregroundColor: const Color(0xFFE6E9EA),
-    ),
-    child: Text(said, style: const TextStyle(fontSize: 12)),
-  );
-
   /// What a click in the viewport did to the selection.
   ///
   /// The rules are all in `applyPick`, which is where they can be read and
@@ -523,34 +497,66 @@ class _ModelerScreenState extends State<ModelerScreen>
   }
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-    backgroundColor: const Color(0xFF0E1112),
-    body: switch (_state) {
-      ModelerOpening() => const Center(child: CircularProgressIndicator()),
-      ModelerFailed(:final said) => Center(
+  Widget build(BuildContext context) => switch (_state) {
+    ModelerOpening() => const Scaffold(
+      body: Center(child: CircularProgressIndicator()),
+    ),
+    ModelerFailed(:final said) => Scaffold(
+      body: Center(
         child: Padding(
           padding: const EdgeInsets.all(24),
           child: Text(said, textAlign: TextAlign.center),
         ),
       ),
-      ModelerReady(:final renderer, :final stage) => Stack(
+    ),
+    ModelerReady(:final renderer, :final stage) => ModelerShell(
+      mode: _mode,
+      onMode: (ModelerMode mode) => setState(() => _mode = mode),
+      submode: _submode,
+      onSubmode: (MeshSubmode submode) => setState(() => _submode = submode),
+      activeTool: _tool,
+      onTool: (String id) => setState(() => _tool = id),
+      actions: <Widget>[
+        TextButton(onPressed: _openFile, child: const Text('Open')),
+        const SizedBox(width: 4),
+        FilledButton.tonal(
+          onPressed: _saveFile,
+          child: const Text('Save as .f3d'),
+        ),
+      ],
+      status: _StatusLine(
+        said: _fileSaid ?? _selectionSaid,
+        micros: _lastRenderMicros,
+      ),
+      properties: _Properties(
+        stage: stage,
+        selection: _selection,
+        shading: _shading,
+        onShading: (ShadingMode mode) => setState(() => _shading = mode),
+        lens: _lens,
+        onLens: (ViewLens lens) => setState(() => _lens = lens),
+        onView: (StandardView view) => lookFrom(stage.orbit, view),
+      ),
+      viewport: Stack(
         children: <Widget>[
-          ModelerViewport(
-            renderer: renderer,
-            stage: stage,
-            onFrame: () {},
-            onRendered: (int micros) => _lastRenderMicros = micros,
-            onPick: _picked,
-            settings: settingsFor(
-              _shading,
-              // The outline is the renderer's until view-10, when the overlay
-              // draws the selection itself and can say which *part* of an
-              // object is selected. Until then this is what tells a person
-              // their click landed.
-              RenderSettings(
-                highlighted: <SceneNode>[
-                  for (final PickedObject held in _selection) held.node,
-                ],
+          Positioned.fill(
+            child: ModelerViewport(
+              renderer: renderer,
+              stage: stage,
+              onFrame: () {},
+              onRendered: (int micros) => _lastRenderMicros = micros,
+              onPick: _picked,
+              settings: settingsFor(
+                _shading,
+                // The outline is the renderer's until the overlay draws the
+                // selection itself and can say which *part* of an object is
+                // selected. Until then this is what tells a person their click
+                // landed.
+                RenderSettings(
+                  highlighted: <SceneNode>[
+                    for (final PickedObject held in _selection) held.node,
+                  ],
+                ),
               ),
             ),
           ),
@@ -572,86 +578,6 @@ class _ModelerScreenState extends State<ModelerScreen>
               },
             ),
           ),
-          Positioned(
-            left: 12,
-            bottom: 40,
-            child: Wrap(
-              spacing: 6,
-              runSpacing: 6,
-              children: <Widget>[
-                for (final ShadingMode mode in ShadingMode.values)
-                  _chip(
-                    _shadingNames[mode]!,
-                    on: _shading == mode,
-                    onPressed: () => setState(() => _shading = mode),
-                  ),
-                const SizedBox(width: 12),
-                _chip(
-                  _lens == ViewLens.perspective ? 'Perspective' : 'Ortho',
-                  on: _lens == ViewLens.orthographic,
-                  onPressed: () => setState(
-                    () => _lens = _lens == ViewLens.perspective
-                        ? ViewLens.orthographic
-                        : ViewLens.perspective,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                for (final StandardView view in StandardView.values)
-                  _chip(
-                    _viewNames[view]!,
-                    on: false,
-                    onPressed: () => lookFrom(stage.orbit, view),
-                  ),
-              ],
-            ),
-          ),
-          Positioned(
-            right: 12,
-            top: 12,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: <Widget>[
-                Row(
-                  children: <Widget>[
-                    FilledButton.tonal(
-                      onPressed: _openFile,
-                      child: const Text('Open'),
-                    ),
-                    const SizedBox(width: 8),
-                    FilledButton.tonal(
-                      onPressed: _saveFile,
-                      child: const Text('Save as .f3d'),
-                    ),
-                  ],
-                ),
-                if (_fileSaid case final String said)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 8),
-                    child: ConstrainedBox(
-                      constraints: const BoxConstraints(maxWidth: 420),
-                      child: DecoratedBox(
-                        decoration: BoxDecoration(
-                          color: const Color(0xCC000000),
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: Padding(
-                          padding: const EdgeInsets.all(10),
-                          child: Text(
-                            said,
-                            textAlign: TextAlign.right,
-                            style: const TextStyle(
-                              fontSize: 13,
-                              height: 1.35,
-                              color: Color(0xFFE6E9EA),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-          ),
           if (_report case final String said)
             Positioned(
               left: 12,
@@ -670,22 +596,223 @@ class _ModelerScreenState extends State<ModelerScreen>
                       fontFamilyFallback: <String>['Courier'],
                       fontSize: 13,
                       height: 1.35,
-                      color: Color(0xFFE6E9EA),
                     ),
                   ),
                 ),
               ),
             ),
-          Positioned(
-            left: 12,
-            bottom: 12,
+        ],
+      ),
+    ),
+  };
+}
+
+/// The line along the bottom: what just happened, and what the last frame cost.
+///
+/// The metrics `ui-10` asks for — the mode's own counts, and the first issue
+/// from an export readiness — need a document to count and a readiness to ask,
+/// so what is here is what the application actually knows.
+class _StatusLine extends StatelessWidget {
+  const _StatusLine({required this.said, required this.micros});
+
+  final String said;
+  final int? micros;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Row(
+      children: <Widget>[
+        Expanded(
+          child: Text(
+            said,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: theme.textTheme.bodySmall,
+          ),
+        ),
+        if (micros case final int spent)
+          Text(
+            '${(spent / 1000).toStringAsFixed(1)} ms',
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+              fontFeatures: const <FontFeature>[FontFeature.tabularFigures()],
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+/// The right-hand panel.
+///
+/// **Thin, and honest about why.** `ui-08` puts an object list, three-by-three
+/// number fields and a modifier stack here, and every one of those edits a
+/// `ModelProject` through a command — which is `doc-03` and `doc-05`, and is
+/// the step this application is waiting on. What a panel can show today is what
+/// the viewport knows: what is selected, how the surface is drawn, and where
+/// the camera is standing. Those are real controls that belong here rather than
+/// floating over the picture, which is where they were.
+class _Properties extends StatelessWidget {
+  const _Properties({
+    required this.stage,
+    required this.selection,
+    required this.shading,
+    required this.onShading,
+    required this.lens,
+    required this.onLens,
+    required this.onView,
+  });
+
+  final ModelerStage stage;
+  final Set<PickedObject> selection;
+  final ShadingMode shading;
+  final ValueChanged<ShadingMode> onShading;
+  final ViewLens lens;
+  final ValueChanged<ViewLens> onLens;
+  final ValueChanged<StandardView> onView;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final mesh = stage.editMesh;
+    return ListView(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      children: <Widget>[
+        _Section('Display'),
+        SegmentedButton<ShadingMode>(
+          showSelectedIcon: false,
+          segments: const <ButtonSegment<ShadingMode>>[
+            ButtonSegment<ShadingMode>(
+              value: ShadingMode.material,
+              label: Text('Material'),
+            ),
+            ButtonSegment<ShadingMode>(
+              value: ShadingMode.normals,
+              label: Text('Normals'),
+            ),
+            ButtonSegment<ShadingMode>(
+              value: ShadingMode.wireframe,
+              label: Text('Wire'),
+            ),
+          ],
+          selected: <ShadingMode>{shading},
+          onSelectionChanged: (Set<ShadingMode> picked) =>
+              onShading(picked.first),
+        ),
+        const SizedBox(height: 8),
+        SegmentedButton<ViewLens>(
+          showSelectedIcon: false,
+          segments: const <ButtonSegment<ViewLens>>[
+            ButtonSegment<ViewLens>(
+              value: ViewLens.perspective,
+              label: Text('Perspective'),
+            ),
+            ButtonSegment<ViewLens>(
+              value: ViewLens.orthographic,
+              label: Text('Orthographic'),
+            ),
+          ],
+          selected: <ViewLens>{lens},
+          onSelectionChanged: (Set<ViewLens> picked) => onLens(picked.first),
+        ),
+        _Section('View'),
+        Wrap(
+          spacing: 4,
+          runSpacing: 4,
+          children: <Widget>[
+            for (final StandardView view in StandardView.values)
+              OutlinedButton(
+                onPressed: () => onView(view),
+                style: OutlinedButton.styleFrom(
+                  minimumSize: const Size(0, ModelerMetrics.row - 6),
+                  padding: const EdgeInsets.symmetric(horizontal: 10),
+                  textStyle: const TextStyle(fontSize: 12),
+                ),
+                child: Text(_viewNames[view]!),
+              ),
+          ],
+        ),
+        _Section('Selection'),
+        _Row('Objects', '${selection.length}'),
+        if (mesh != null) ...<Widget>[
+          _Section('Mesh'),
+          _Row('Vertices', '${mesh.vertexCount}'),
+          _Row('Faces', '${mesh.faceCount}'),
+        ] else
+          Padding(
+            padding: const EdgeInsets.only(top: 8),
             child: Text(
-              _selectionSaid,
-              style: const TextStyle(fontSize: 13, color: Color(0xFF9AA3A6)),
+              'An imported model has no editable topology yet.',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
+  static const Map<StandardView, String> _viewNames = <StandardView, String>{
+    StandardView.front: 'Front',
+    StandardView.back: 'Back',
+    StandardView.left: 'Left',
+    StandardView.right: 'Right',
+    StandardView.top: 'Top',
+    StandardView.bottom: 'Bottom',
+  };
+}
+
+/// A heading in the properties panel. `ui-08` calls this `section_label.dart`
+/// and shares it between the two editors; it is four lines until then.
+class _Section extends StatelessWidget {
+  const _Section(this.said);
+
+  final String said;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.only(top: 14, bottom: 6),
+    child: Text(
+      said.toUpperCase(),
+      style: Theme.of(context).textTheme.labelMedium?.copyWith(
+        color: Theme.of(context).colorScheme.onSurfaceVariant,
+        letterSpacing: 0.6,
+      ),
+    ),
+  );
+}
+
+/// A label and a value, on one row of the height the design names.
+class _Row extends StatelessWidget {
+  const _Row(this.label, this.value);
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return SizedBox(
+      height: ModelerMetrics.row,
+      child: Row(
+        children: <Widget>[
+          Expanded(
+            child: Text(
+              label,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ),
+          Text(
+            value,
+            style: theme.textTheme.bodyMedium?.copyWith(
+              fontFeatures: const <FontFeature>[FontFeature.tabularFigures()],
             ),
           ),
         ],
       ),
-    },
-  );
+    );
+  }
 }
