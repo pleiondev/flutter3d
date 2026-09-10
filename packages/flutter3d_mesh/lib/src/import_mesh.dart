@@ -185,7 +185,15 @@ final class ImportReport {
     ]);
   }
 
-  final flipped = _repairOrientation(triangles, sourceCorners);
+  // How far apart two vertex numbers have to be packed to stay one key. Used
+  // by both maps below, and the reason it is a count rather than `2^32`: a key
+  // of `a * 2^32 + b` has nothing but `b` in its low bits, so a hash table of a
+  // hundred thousand of them puts every edge that ends at the same vertex in
+  // one bucket. That is not a slow hash, it is a quadratic import — 6.6 s on
+  // 50 000 triangles, against 0.3 s once the numbers are packed to fit.
+  final pack = unique.length + 6 * triangles.length + 1;
+
+  final flipped = _repairOrientation(triangles, sourceCorners, pack);
 
   // ------------------------------------------------------- non-manifold split
 
@@ -201,7 +209,7 @@ final class ImportReport {
   var split = 0;
   final faceCorners = <List<int>>[];
 
-  int edgeKey(int from, int to) => from * 0x100000000 + to;
+  int edgeKey(int from, int to) => from * pack + to;
 
   for (var index = 0; index < triangles.length; index++) {
     final loop = List<int>.of(triangles[index]);
@@ -303,12 +311,15 @@ final class ImportReport {
 /// other. Whether a component as a whole is inside out is a separate question —
 /// `mesh-27`'s signed volume answers it, and this does not, because a surface
 /// with a boundary has no inside to be out of.
-int _repairOrientation(List<List<int>> triangles, List<List<int>> corners) {
+int _repairOrientation(
+  List<List<int>> triangles,
+  List<List<int>> corners,
+  int pack,
+) {
   // Undirected edge to the faces on it. A key that does not depend on direction,
   // so the two faces of an edge land in the same bucket however they are wound.
   final onEdge = <int, List<int>>{};
-  int undirected(int a, int b) =>
-      a < b ? a * 0x100000000 + b : b * 0x100000000 + a;
+  int undirected(int a, int b) => a < b ? a * pack + b : b * pack + a;
 
   for (var face = 0; face < triangles.length; face++) {
     final loop = triangles[face];
