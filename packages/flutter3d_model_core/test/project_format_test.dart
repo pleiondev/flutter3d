@@ -341,9 +341,9 @@ void main() {
       final directory = directoryOf(bytes);
 
       // The numbers this project's file actually lands on: a 16-byte header and
-      // three 16-byte directory entries put the manifest at 64, and the
-      // manifest is 838 bytes, which ends at 902 and is not a multiple of four.
-      // So the mesh table starts at 904, two bytes of padding later. Those two
+      // four 16-byte directory entries put the manifest at 80, and the
+      // manifest is 858 bytes, which ends at 938 and is not a multiple of four.
+      // So the mesh table starts at 940, two bytes of padding later. Those two
       // bytes are the whole test — a reader building an `Int32List.view` over
       // the blob throws on an offset that is not a multiple of four, and it
       // throws on the machine of whoever opens the file rather than here.
@@ -351,14 +351,20 @@ void main() {
         ProjectSection.manifest,
         ProjectSection.editMeshes,
         ProjectSection.blob,
+        ProjectSection.importedMeshes,
       ]);
-      expect(directory[0].offset, 64);
-      expect(directory[0].length, 838);
-      expect(directory[1].offset, 904);
+      expect(directory[0].offset, 80);
+      expect(directory[0].length, 858);
+      expect(directory[1].offset, 940);
       expect(directory[1].length, 16);
       expect(directory[1].count, 2);
-      expect(directory[2].offset, 920);
-      expect(bytes.length, 3496);
+      expect(directory[2].offset, 956);
+      // This project has nothing imported in it, and the table is written all
+      // the same: every file this build produces has the same four-section
+      // directory, so a reader is never deciding between "no imported meshes"
+      // and "written by something older".
+      expect(directory[3].length, 0);
+      expect(bytes.length, 3532);
 
       for (final entry in directory) {
         expect(entry.offset % 4, 0, reason: 'section ${entry.kind}');
@@ -387,13 +393,15 @@ void main() {
       expect(kProjectHeaderBytes % 4, 0);
       expect(kProjectSectionEntryBytes % 4, 0);
       expect(kProjectMeshEntryBytes % 4, 0);
+      expect(kProjectImportedEntryBytes % 4, 0);
       expect(
         <int>{
           ProjectSection.manifest,
           ProjectSection.editMeshes,
           ProjectSection.blob,
+          ProjectSection.importedMeshes,
         },
-        <int>{1, 2, 3},
+        <int>{1, 2, 3, 4},
       );
       expect(kProjectMagic, 0x50443346);
     });
@@ -476,7 +484,7 @@ void main() {
       expect(
         refusal(bytes),
         'The header claims 500 sections, whose directory ends at byte 8016, '
-        'past the end of a 3496-byte file.',
+        'past the end of a 3532-byte file.',
       );
     });
 
@@ -488,8 +496,8 @@ void main() {
       final cut = Uint8List.sublistView(whole, 0, whole.length - 8);
       expect(
         refusal(cut),
-        'Section 3 runs from byte 920 for 2576 bytes, past the end of a '
-        '3488-byte file.',
+        'Section 3 runs from byte 956 for 2576 bytes, past the end of a '
+        '3524-byte file.',
       );
     });
 
@@ -665,28 +673,27 @@ void main() {
       );
     });
 
-    test('an object holding buffers the format has no section for', () {
-      // At the write, not at the read: the file has nowhere to put them yet,
-      // and a save that quietly loses an object is worse than one that stops.
+    test('an imported mesh with morph targets is refused', () {
+      // The one thing an imported mesh can still carry that there is nowhere
+      // to write. At the write, not at the read: a save that quietly drops a
+      // face's expressions is a loss nothing downstream can detect.
       final project = const ModelProject().added(
         (int id) => ModelObject(
           id: id,
-          name: 'imported',
+          name: 'face',
           geometry: ImportedGeometry(
             MeshData(
               layout: VertexLayout.positionOnly,
-              vertices: Float32List.fromList(<double>[
-                0,
-                0,
-                0,
-                1,
-                0,
-                0,
-                0,
-                1,
-                0,
-              ]),
+              vertices: Float32List.fromList(<double>[0, 0, 0, 1, 0, 0, 0, 1, 0]),
               indices: Uint32List.fromList(<int>[0, 1, 2]),
+              morphTargets: <MorphTarget>[
+                MorphTarget(
+                  vertexCount: 3,
+                  positions: Float32List.fromList(<double>[
+                    0, 1, 0, 0, 0, 0, 0, 0, 0,
+                  ]),
+                ),
+              ],
             ),
           ),
           transform: Matrix4.identity(),
@@ -698,7 +705,7 @@ void main() {
           isA<ArgumentError>().having(
             (ArgumentError e) => e.message,
             'message',
-            contains('has no section for them'),
+            contains('morph targets'),
           ),
         ),
       );
@@ -756,6 +763,218 @@ void main() {
       // that refused every project, would pass the two tests above and stop
       // the format working at all.
       expect(readProject(writeProject(project)), isA<ProjectOpened>());
+    });
+  });
+
+  group('imported meshes', () {
+    /// Buffers with distinct numbers in every slot, so a float that arrived
+    /// from the wrong offset reads as the wrong number rather than as a zero
+    /// that could have been anything.
+    MeshData arrived() => MeshData(
+      layout: VertexLayout.positionNormal,
+      vertices: Float32List.fromList(<double>[
+        0.5, 1.5, 2.5, 0, 0, 1, //
+        3.5, 4.5, 5.5, 0, 1, 0, //
+        6.5, 7.5, 8.5, 1, 0, 0, //
+      ]),
+      indices: Uint32List.fromList(<int>[0, 1, 2]),
+    );
+
+    ModelProject importing(int count, {MeshData? shared}) {
+      var project = const ModelProject();
+      for (var i = 0; i < count; i++) {
+        project = project.added(
+          (int id) => ModelObject(
+            id: id,
+            name: 'part $id',
+            geometry: ImportedGeometry(shared ?? arrived()),
+            transform: Matrix4.translationValues(i.toDouble(), 0, 0),
+          ),
+        );
+      }
+      return project;
+    }
+
+    test('the buffers come back byte for byte', () {
+      final after = opened(writeProject(importing(1)));
+      final geometry = after.objects.single.geometry;
+
+      expect(geometry, isA<ImportedGeometry>());
+      final MeshData mesh = (geometry as ImportedGeometry).data;
+
+      // Against the source rather than against a written-down list, so that
+      // changing the fixture cannot leave this passing about the wrong numbers.
+      // Mutation: write the vertex length where the index offset goes, which is
+      // the field order this table is easiest to get wrong in — the vertices
+      // still arrive and the triangle is built out of whatever floats follow.
+      expect(mesh.vertices, arrived().vertices);
+      expect(mesh.indices, arrived().indices);
+      expect(mesh.layout.attributes.length, 2);
+      expect(
+        mesh.layout.attributes.map((VertexAttribute a) => a.name),
+        <String>['position', 'normal'],
+      );
+      expect(after.objects.single.geometry.triangleCount, 1);
+    });
+
+    test('a project of imported objects keeps its transforms and ids', () {
+      final before = importing(3);
+      final after = opened(writeProject(before));
+
+      expect(after.objects.length, 3);
+      expect(after.nextId, before.nextId);
+      expect(
+        after.objects.map((ModelObject o) => o.transform.getTranslation().x),
+        <double>[0, 1, 2],
+      );
+    });
+
+    test('one mesh drawn twice is written once', () {
+      final shared = arrived();
+      final bytes = writeProject(importing(2, shared: shared));
+
+      final table = directoryOf(bytes).firstWhere(
+        (entry) => entry.kind == ProjectSection.importedMeshes,
+      );
+
+      // Mutation: append per object rather than looking the mesh up by
+      // identity. The file grows a second copy of every instanced prop, and
+      // re-opening it gives two meshes where the document had one — so an edit
+      // to the shared mesh stops reaching both objects.
+      expect(table.count, 1);
+      expect(table.length, kProjectImportedEntryBytes);
+
+      final after = opened(bytes);
+      expect(
+        identical(
+          (after.objects[0].geometry as ImportedGeometry).data,
+          (after.objects[1].geometry as ImportedGeometry).data,
+        ),
+        isTrue,
+      );
+    });
+
+    test('an empty table is written even when nothing was imported', () {
+      final bytes = writeProject(sample());
+      final kinds = directoryOf(bytes).map((entry) => entry.kind);
+
+      expect(kinds, contains(ProjectSection.importedMeshes));
+    });
+  });
+
+  group('an imported mesh the file describes wrongly', () {
+    Map<String, Object?> manifestWith(
+      Object? importedMeshes, {
+      int mesh = 0,
+    }) => <String, Object?>{
+      ...manifestOf(<Map<String, Object?>>[
+        objectJson(
+          geometry: <String, Object?>{'kind': 'imported', 'mesh': mesh},
+        ),
+      ]),
+      'importedMeshes': importedMeshes,
+    };
+
+    /// A table of one entry addressing [vertexBytes] and [indexBytes] at the
+    /// front of a blob of [blobBytes].
+    List<(int, Uint8List, int)> tableAndBlob({
+      int vertexBytes = 24,
+      int indexBytes = 12,
+      int blobBytes = 36,
+      int vertexAt = 0,
+    }) {
+      final table = Uint8List(kProjectImportedEntryBytes);
+      ByteData.sublistView(table)
+        ..setUint32(0, vertexAt, Endian.little)
+        ..setUint32(4, vertexBytes, Endian.little)
+        ..setUint32(8, vertexBytes, Endian.little)
+        ..setUint32(12, indexBytes, Endian.little);
+      return <(int, Uint8List, int)>[
+        (ProjectSection.blob, Uint8List(blobBytes), 0),
+        (ProjectSection.importedMeshes, table, 1),
+      ];
+    }
+
+    test('a mesh index naming nothing is refused with both numbers', () {
+      final bytes = forge(manifestWith(const <Object?>[], mesh: 3));
+
+      expect(refusal(bytes), contains('imported mesh 3'));
+      expect(refusal(bytes), contains('holds 0'));
+    });
+
+    test('a table and a manifest that disagree are refused', () {
+      // Mutation: read down to the shorter of the two. The file then opens with
+      // some of its meshes wearing another mesh's layout, which is a model that
+      // draws as noise rather than one that fails.
+      final bytes = forge(manifestWith(const <Object?>[]), tableAndBlob());
+
+      expect(refusal(bytes), contains('table holds 1'));
+      expect(refusal(bytes), contains('describes 0'));
+    });
+
+    test('a layout that is not one is refused', () {
+      final bytes = forge(
+        manifestWith(<Object?>[
+          <String, Object?>{'layout': const <Object?>[]},
+        ]),
+        tableAndBlob(),
+      );
+
+      // An empty layout is a stride of zero, and a stride of zero makes the
+      // vertex count a division by zero. Mutation: accept it and the refusal
+      // becomes a crash inside `MeshData`, on the machine of whoever opened the
+      // file.
+      expect(refusal(bytes), contains('no vertex layout'));
+    });
+
+    test('a buffer running past the blob is refused', () {
+      final bytes = forge(
+        manifestWith(<Object?>[
+          <String, Object?>{
+            'layout': <Object?>[
+              <String, Object?>{'name': 'position', 'components': 3},
+            ],
+          },
+        ]),
+        tableAndBlob(blobBytes: 8),
+      );
+
+      expect(refusal(bytes), contains('the blob is 8 bytes long'));
+    });
+
+    test('a vertex buffer that does not divide by the stride is refused', () {
+      final bytes = forge(
+        manifestWith(<Object?>[
+          <String, Object?>{
+            'layout': <Object?>[
+              <String, Object?>{'name': 'position', 'components': 3},
+            ],
+          },
+        ]),
+        // 20 bytes is five floats, and a position takes three.
+        tableAndBlob(vertexBytes: 20, indexBytes: 12, blobBytes: 40),
+      );
+
+      // Mutation: build the mesh anyway. `MeshData` divides to find its vertex
+      // count and the last vertex is two floats of the index buffer.
+      expect(refusal(bytes), contains('does not divide'));
+    });
+
+    test('a length that is not a count of four-byte values is refused', () {
+      final bytes = forge(
+        manifestWith(<Object?>[
+          <String, Object?>{
+            'layout': <Object?>[
+              <String, Object?>{'name': 'position', 'components': 3},
+            ],
+          },
+        ]),
+        tableAndBlob(vertexBytes: 13, indexBytes: 12, blobBytes: 40),
+      );
+
+      // `Float32List.sublistView` throws on it, and a throw is the one thing
+      // `readProject` promises not to do.
+      expect(refusal(bytes), contains('four-byte values'));
     });
   });
 }

@@ -594,4 +594,65 @@ void main() {
       );
     });
   });
+
+  group('a decoded file, saved and opened again', () {
+    test('the objects, the triangles and the placements all survive', () {
+      // The chain the modeller actually walks: a glTF is decoded, becomes a
+      // project, is saved as `.f3dproj`, and is opened again. Every link is
+      // tested on its own elsewhere; this is the one that would have caught
+      // `writeProject` refusing every model that had just been opened.
+      final document = _Doc(
+        surfaces: <ModelSurface>[
+          ModelSurface(
+            name: 'body',
+            mesh: EditMesh.cuboid().toMeshData(),
+            transform: Matrix4.identity(),
+          ),
+          ModelSurface(
+            name: 'lid',
+            mesh: EditMesh.cuboid(size: Vector3(2, 1, 3)).toMeshData(),
+            transform: Matrix4.identity(),
+          ),
+        ],
+        nodes: <ModelNode>[
+          ModelNode(
+            name: 'body',
+            translation: Vector3(1, 2, 3),
+            rotation: Quaternion.identity(),
+            scale: Vector3(1, 1, 1),
+            children: <int>[1],
+            surfaces: <int>[0],
+          ),
+          ModelNode(
+            name: 'lid',
+            translation: Vector3(0, 4, 0),
+            rotation: Quaternion.identity(),
+            scale: Vector3(1, 1, 1),
+            children: const <int>[],
+            surfaces: <int>[1],
+          ),
+        ],
+        roots: <int>[0],
+      );
+
+      final before = fromModelDocument(document);
+      final read = readProject(writeProject(before));
+      final after = (read as ProjectOpened).project;
+
+      expect(after.objects.length, before.objects.length);
+      expect(after.triangleCount, before.triangleCount);
+      expect(after.nextId, before.nextId);
+      expect(
+        after.objects.map((ModelObject o) => o.name),
+        before.objects.map((ModelObject o) => o.name),
+      );
+      expect(
+        after.objects.map((ModelObject o) => o.transform.getTranslation()),
+        before.objects.map((ModelObject o) => o.transform.getTranslation()),
+      );
+      // The hierarchy is the half a flat save loses quietly: the lid still
+      // hangs off the body, so moving the body still takes it along.
+      expect(after.objects[1].parent, after.objects[0].id);
+    });
+  });
 }

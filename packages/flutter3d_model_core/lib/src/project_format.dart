@@ -19,9 +19,11 @@
 ///
 /// **What is in the file today.** A manifest in JSON — the profile, and each
 /// object with its id, name, parent, transform, material slots and which kind
-/// of geometry it has — plus a table of edited meshes and the blob those live
-/// in, each written by `EditMesh.toBytes` so there is exactly one mesh encoding
-/// in this repository.
+/// of geometry it has — plus two mesh tables and the blob they both point
+/// into. An edited mesh is one chunk written by `EditMesh.toBytes`, so there is
+/// exactly one half-edge encoding in this repository; an imported one is its
+/// vertex and index buffers as they arrived, with the layout that says how to
+/// read them kept in the manifest beside its row.
 ///
 /// **What is not, and is not pretended to be.** The history is not written
 /// here: the file carries the document, and putting the undo stack in it is
@@ -29,18 +31,17 @@
 /// rather than a second copy of every mesh. Skins and animations have sections
 /// of their own in the plan and none of them yet.
 ///
-/// Two things a project can hold today are refused by [writeProject] rather
-/// than written half, and both refusals are holes waiting on `doc-09`: imported
-/// geometry, which has no section to put its buffers in, and the material and
-/// image tables, whose absence would leave every object's material slots naming
-/// rows that are not in the file. See the throws there for why refusing beats
-/// saving a model that opens missing what the person could see when they
+/// The material and image tables are still refused by [writeProject] rather
+/// than written half: their absence would leave every object's material slots
+/// naming rows that are not in the file. See the throw there for why refusing
+/// beats saving a model that opens missing what the person could see when they
 /// pressed the button.
 library;
 
 import 'dart:convert';
 import 'dart:typed_data';
 
+import 'package:flutter3d_geometry/flutter3d_geometry.dart';
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 import 'package:vector_math/vector_math.dart';
 
@@ -59,6 +60,15 @@ const int kProjectSectionEntryBytes = 16;
 
 /// One entry of the edited-mesh table: u32 offset into the blob, u32 length.
 const int kProjectMeshEntryBytes = 8;
+
+/// One entry of the imported-mesh table: u32 vertex offset, u32 vertex length,
+/// u32 index offset, u32 index length, all into the blob.
+///
+/// The two buffers are addressed separately rather than as one run, because
+/// they are different widths — floats and `uint32`s — and a reader that took
+/// one run and split it by a count in the manifest would be trusting the
+/// manifest to describe bytes it cannot see.
+const int kProjectImportedEntryBytes = 16;
 
 /// Section kinds.
 ///
@@ -80,6 +90,17 @@ abstract final class ProjectSection {
 
   /// Where the bulk is. Every entry starts on a four-byte boundary.
   static const int blob = 3;
+
+  /// `count` entries of [kProjectImportedEntryBytes], addressing [blob]: the
+  /// vertex and index buffers of a mesh that arrived from a file with no
+  /// topology behind it.
+  ///
+  /// A table of its own rather than more rows in [editMeshes], because the two
+  /// hold different things: an edited mesh is one `EditMesh.toBytes` chunk, and
+  /// an imported one is two buffers and a layout that says how to read the
+  /// first. Sharing a table would mean an entry that means one thing or the
+  /// other depending on which object happens to name it.
+  static const int importedMeshes = 4;
 }
 
 /// What [readProject] gives back.
@@ -135,18 +156,25 @@ final class ProjectRefused extends ProjectRead {
 /// that changes when the document did not is a file nobody can diff and a save
 /// that dirties a repository for nothing.
 ///
-/// Throws [ArgumentError] on an object holding [ImportedGeometry], and on a
-/// project with a material or an image in it. Both are holes rather than rules
-/// — the plan's `importedMeshes`, `materials` and `images` sections are what
-/// close them — and a refusal at the call site is better than the alternatives:
-/// writing an object without its buffers gives a file that opens into an empty
-/// shape, dropping the object gives a file missing something the user could see
-/// when they pressed save, and writing material slots with no table behind them
-/// gives a file whose every painted object opens in clay while the manifest
-/// insists it was painted.
+/// Throws [ArgumentError] on a project holding a material or an image, and on
+/// an imported mesh carrying morph targets. Both are holes rather than rules —
+/// the plan's `materials` and `images` sections close the first — and a refusal
+/// at the call site beats the alternatives: writing material slots with no
+/// table behind them gives a file whose every painted object opens in clay
+/// while the manifest insists it was painted, and dropping a face's expressions
+/// gives a file whose loss nothing downstream can detect.
 Uint8List writeProject(ModelProject project) {
   final meshes = <Uint8List>[];
   final objects = <Map<String, Object?>>[];
+
+  // Imported buffers, deduplicated by identity: two objects drawing the same
+  // `MeshData` — which is what an instanced prop becomes — write it once and
+  // name the same row. Compared by identity rather than by content, for the
+  // reason `SceneSync` gives about the same question: comparing two buffers of
+  // ten thousand floats costs more than writing the second copy would.
+  final imported = <MeshData>[];
+  final importedAt = <MeshData, int>{};
+  final importedJson = <Map<String, Object?>>[];
 
   // The slots are written and the table they index is not, which would be a
   // file whose objects come back holding a number that names nothing — every
@@ -175,13 +203,25 @@ Uint8List writeProject(ModelProject project) {
       case EditedGeometry(:final EditMesh mesh):
         geometry = <String, Object?>{'kind': 'edited', 'mesh': meshes.length};
         meshes.add(mesh.toBytes());
-      case ImportedGeometry():
-        throw ArgumentError(
-          'object ${object.id} ("${object.name}") holds imported buffers, and '
-          'this version of the format has no section for them. Writing it '
-          'without them would save a file that opens with the object there and '
-          'nothing in it.',
-        );
+      case ImportedGeometry(:final MeshData data):
+        // Morph targets are the one thing an imported mesh can carry that
+        // there is still nowhere to put. Refused rather than dropped, on the
+        // rule the rest of this file keeps: a file that opens with the face
+        // there and none of its expressions is a loss nothing downstream can
+        // detect.
+        if (data.morphTargets.isNotEmpty) {
+          throw ArgumentError(
+            'object ${object.id} ("${object.name}") holds a mesh with '
+            '${data.morphTargets.length} morph targets, and this version of '
+            'the format has nowhere to write them.',
+          );
+        }
+        final at = importedAt.putIfAbsent(data, () {
+          imported.add(data);
+          importedJson.add(<String, Object?>{'layout': _layoutJson(data.layout)});
+          return imported.length - 1;
+        });
+        geometry = <String, Object?>{'kind': 'imported', 'mesh': at};
     }
     objects.add(<String, Object?>{
       'id': object.id,
@@ -209,22 +249,54 @@ Uint8List writeProject(ModelProject project) {
       // step of history that named the old object would start naming the new
       // one the moment it was undone.
       'nextId': project.nextId,
+      // Parallel to the imported-mesh table, one entry each: the table holds
+      // where the bytes are and this holds how to read them. The layout is
+      // structure rather than bulk, and structure lives in the manifest — a
+      // layout encoded into a fixed-width table row would need a length and a
+      // name table of its own to hold "position", "texcoord" and the rest.
+      'importedMeshes': importedJson,
       'objects': objects,
     }),
   );
 
-  final meshOffsets = <int>[];
-  final blobLength = meshes.fold<int>(0, (int at, Uint8List mesh) {
-    meshOffsets.add(at);
-    return _align(at + mesh.lengthInBytes);
-  });
+  // One blob for both tables. Everything that goes in it is placed here, in
+  // the order it is written, so that an offset is recorded by the same code
+  // that reserves the room for it — the shape the old two-pass version got
+  // wrong once already by aligning in one pass and copying in the other.
+  final chunks = <Uint8List>[];
+  final placed = <int>[];
+  var blobLength = 0;
+  int place(Uint8List chunk) {
+    final at = blobLength;
+    chunks.add(chunk);
+    placed.add(at);
+    blobLength = _align(at + chunk.lengthInBytes);
+    return at;
+  }
+
+  final editedOffsets = <int>[for (final Uint8List mesh in meshes) place(mesh)];
+  // Left to right, so the vertices are placed before the indices and the pair
+  // reads in the order the table row holds them.
+  final importedOffsets = <(int, int, int, int)>[
+    for (final MeshData mesh in imported)
+      (
+        place(_rawBytes(mesh.vertices)),
+        mesh.vertices.lengthInBytes,
+        place(_rawBytes(mesh.indices)),
+        mesh.indices.lengthInBytes,
+      ),
+  ];
+
   final blob = Uint8List(blobLength);
+  for (var i = 0; i < chunks.length; i++) {
+    blob.setRange(placed[i], placed[i] + chunks[i].lengthInBytes, chunks[i]);
+  }
+
   final table = Uint8List(meshes.length * kProjectMeshEntryBytes);
   final tableView = ByteData.view(table.buffer);
   for (var i = 0; i < meshes.length; i++) {
-    blob.setRange(meshOffsets[i], meshOffsets[i] + meshes[i].length, meshes[i]);
     tableView
-      ..setUint32(i * kProjectMeshEntryBytes, meshOffsets[i], Endian.little)
+      ..setUint32(i * kProjectMeshEntryBytes, editedOffsets[i], Endian.little)
       ..setUint32(
         i * kProjectMeshEntryBytes + 4,
         meshes[i].lengthInBytes,
@@ -232,10 +304,29 @@ Uint8List writeProject(ModelProject project) {
       );
   }
 
+  final importedTable = Uint8List(
+    imported.length * kProjectImportedEntryBytes,
+  );
+  final importedView = ByteData.view(importedTable.buffer);
+  for (var i = 0; i < imported.length; i++) {
+    final (int vertexAt, int vertexBytes, int indexAt, int indexBytes) =
+        importedOffsets[i];
+    final entry = i * kProjectImportedEntryBytes;
+    importedView
+      ..setUint32(entry, vertexAt, Endian.little)
+      ..setUint32(entry + 4, vertexBytes, Endian.little)
+      ..setUint32(entry + 8, indexAt, Endian.little)
+      ..setUint32(entry + 12, indexBytes, Endian.little);
+  }
+
   final sections = <(int kind, Uint8List data, int count)>[
     (ProjectSection.manifest, manifest, 0),
     (ProjectSection.editMeshes, table, meshes.length),
     (ProjectSection.blob, blob, 0),
+    // Written even when empty, so that the directory of every file this build
+    // produces has the same shape and a reader is never deciding between "no
+    // imported meshes" and "an older writer".
+    (ProjectSection.importedMeshes, importedTable, imported.length),
   ];
 
   final offsets = <int>[];
@@ -370,6 +461,13 @@ ProjectRead readProject(Uint8List bytes) {
   );
   if (meshRefusal != null) return ProjectRefused(meshRefusal);
 
+  final (List<MeshData> arrived, String? importRefusal) = _readImported(
+    bytes,
+    sections,
+    document is Map<String, Object?> ? document['importedMeshes'] : null,
+  );
+  if (importRefusal != null) return ProjectRefused(importRefusal);
+
   if (document case {
     'profile': {
       'name': final String profileName,
@@ -387,6 +485,7 @@ ProjectRead readProject(Uint8List bytes) {
         entries[i],
         i,
         meshes,
+        arrived,
       );
       if (refusal != null) return ProjectRefused(refusal);
       objects.add(object!);
@@ -412,7 +511,165 @@ ProjectRead readProject(Uint8List bytes) {
   );
 }
 
+
+/// The imported meshes, or the sentence that stops the file being read.
+///
+/// Two halves that have to agree: the table says where the bytes are and
+/// [layouts] — the manifest's `importedMeshes` — says how to read them. A file
+/// whose table holds three rows and whose manifest describes two is a file
+/// nothing can open honestly, so it is refused with both numbers rather than
+/// read down to the shorter of them.
+(List<MeshData>, String?) _readImported(
+  Uint8List bytes,
+  Map<int, ({int offset, int length})> sections,
+  Object? layouts,
+) {
+  final table = sections[ProjectSection.importedMeshes];
+  final blob = sections[ProjectSection.blob];
+  if (table == null || table.length == 0) return (const <MeshData>[], null);
+  if (blob == null) {
+    return (
+      const <MeshData>[],
+      'This file has an imported-mesh table and no blob for it to point into.',
+    );
+  }
+
+  final count = table.length ~/ kProjectImportedEntryBytes;
+  final described = layouts is List ? layouts.length : 0;
+  if (described != count) {
+    return (
+      const <MeshData>[],
+      'The imported-mesh table holds $count meshes and the manifest describes '
+      '$described of them.',
+    );
+  }
+
+  final view = ByteData.view(
+    bytes.buffer,
+    bytes.offsetInBytes,
+    bytes.lengthInBytes,
+  );
+  final meshes = <MeshData>[];
+  for (var i = 0; i < count; i++) {
+    final entry = table.offset + i * kProjectImportedEntryBytes;
+    final vertexAt = view.getUint32(entry, Endian.little);
+    final vertexBytes = view.getUint32(entry + 4, Endian.little);
+    final indexAt = view.getUint32(entry + 8, Endian.little);
+    final indexBytes = view.getUint32(entry + 12, Endian.little);
+
+    if (vertexAt + vertexBytes > blob.length ||
+        indexAt + indexBytes > blob.length) {
+      return (
+        const <MeshData>[],
+        'Imported mesh $i runs from $vertexAt for $vertexBytes bytes and from '
+        '$indexAt for $indexBytes, and the blob is ${blob.length} bytes long.',
+      );
+    }
+    // Four bytes to a float and four to an index, so a length that is not a
+    // multiple of four cannot be either. Checked because `Float32List.view`
+    // throws on it, and a throw here is the one thing this function promises
+    // not to do.
+    if (vertexBytes % 4 != 0 || indexBytes % 4 != 0) {
+      return (
+        const <MeshData>[],
+        'Imported mesh $i has $vertexBytes vertex bytes and $indexBytes index '
+        'bytes, and both are counts of four-byte values.',
+      );
+    }
+
+    final Object? described = (layouts! as List)[i];
+    final layout = _layoutFrom(
+      described is Map<String, Object?> ? described['layout'] : null,
+    );
+    if (layout == null) {
+      return (
+        const <MeshData>[],
+        'Imported mesh $i has no vertex layout this build can read; a layout '
+        'is a non-empty list of attributes, each a name and a count of '
+        'components.',
+      );
+    }
+    final floats = vertexBytes ~/ 4;
+    if (floats % layout.floatsPerVertex != 0) {
+      return (
+        const <MeshData>[],
+        'Imported mesh $i holds $floats floats and its layout takes '
+        '${layout.floatsPerVertex} to a vertex, which does not divide.',
+      );
+    }
+
+    // Copied rather than viewed over the file, for two reasons. A view keeps
+    // the whole file alive for as long as any mesh in it is drawn, and
+    // `Float32List.view` refuses a byte offset that is not a multiple of four
+    // — which the blob's own alignment happens to guarantee today and would
+    // stop guaranteeing the moment anything wrote an unaligned section.
+    Float32List floatsAt(int at, int length) => Float32List.sublistView(
+      Uint8List.fromList(
+        Uint8List.sublistView(bytes, blob.offset + at, blob.offset + at + length),
+      ),
+    );
+    Uint32List indicesAt(int at, int length) => Uint32List.sublistView(
+      Uint8List.fromList(
+        Uint8List.sublistView(bytes, blob.offset + at, blob.offset + at + length),
+      ),
+    );
+
+    meshes.add(
+      MeshData(
+        layout: layout,
+        vertices: floatsAt(vertexAt, vertexBytes),
+        indices: indicesAt(indexAt, indexBytes),
+      ),
+    );
+  }
+  return (meshes, null);
+}
+
 int _align(int value) => (value + 3) & ~3;
+
+/// [data]'s bytes as they sit in memory.
+///
+/// Host order, matching `.f3d`'s own blob — see `F3dWriter._blobAppend`. Every
+/// target this engine builds for is little-endian, and one bulk encoding across
+/// the repository is worth more than a byte-swap nothing here can exercise.
+Uint8List _rawBytes(TypedData data) =>
+    Uint8List.view(data.buffer, data.offsetInBytes, data.lengthInBytes);
+
+/// A vertex layout as JSON: the attribute names, in order, with how many floats
+/// each of them takes.
+///
+/// The names are written out rather than an index into a fixed list, because
+/// the fixed list is `VertexLayout`'s own constants and adding one in the
+/// middle of it would silently renumber every file already saved.
+List<Object?> _layoutJson(VertexLayout layout) => <Object?>[
+  for (final VertexAttribute attribute in layout.attributes)
+    <String, Object?>{
+      'name': attribute.name,
+      'components': attribute.componentCount,
+    },
+];
+
+/// The layout [json] describes, or null when it is not one.
+VertexLayout? _layoutFrom(Object? json) {
+  if (json is! List) return null;
+  final attributes = <VertexAttribute>[];
+  for (final Object? each in json) {
+    if (each
+        case <String, Object?>{
+          'name': final String name,
+          'components': final int components,
+        }
+        when components > 0) {
+      attributes.add(VertexAttribute(name, components));
+      continue;
+    }
+    return null;
+  }
+  // An empty layout is a stride of zero, and a stride of zero makes
+  // `vertexCount` a division by zero rather than an error. Refused here, where
+  // the sentence can say what was wrong with the file.
+  return attributes.isEmpty ? null : VertexLayout(attributes);
+}
 
 /// The edited meshes, or the sentence that stops the file being read.
 ///
@@ -474,6 +731,7 @@ int _align(int value) => (value + 3) & ~3;
   Object? entry,
   int index,
   List<EditMesh> meshes,
+  List<MeshData> arrived,
 ) {
   if (entry case {
     'id': final int id,
@@ -503,6 +761,7 @@ int _align(int value) => (value + 3) & ~3;
       index,
       name,
       meshes,
+      arrived,
     );
     if (refusal != null) return (null, refusal);
 
@@ -534,6 +793,7 @@ int _align(int value) => (value + 3) & ~3;
   int index,
   String name,
   List<EditMesh> meshes,
+  List<MeshData> arrived,
 ) {
   switch (geometry['kind']) {
     case 'parametric':
@@ -558,6 +818,16 @@ int _align(int value) => (value + 3) & ~3;
         );
       }
       return (EditedGeometry(meshes[at]), null);
+    case 'imported':
+      final Object? at = geometry['mesh'];
+      if (at is! int || at < 0 || at >= arrived.length) {
+        return (
+          null,
+          'Object $index ("$name") is imported mesh $at and this file holds '
+              '${arrived.length}.',
+        );
+      }
+      return (ImportedGeometry(arrived[at]), null);
     default:
       return (
         null,
