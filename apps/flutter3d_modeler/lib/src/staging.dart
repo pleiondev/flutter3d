@@ -17,7 +17,10 @@ import 'dart:math' as math;
 
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
+import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 import 'package:vector_math/vector_math.dart';
+
+import 'scene_sync.dart';
 
 /// The world the modeller draws, and everything that can be asked about it.
 final class ModelerStage {
@@ -27,6 +30,7 @@ final class ModelerStage {
     this.orbit,
     this.subject,
     this.editMesh,
+    this.sync,
   );
 
   /// What is in front of the camera: a model that was opened, or the cube a
@@ -54,6 +58,12 @@ final class ModelerStage {
   final CameraNode camera;
   final OrbitController orbit;
 
+  /// What keeps [scene] in step with the project, when the stage was built from
+  /// one. Null for the measurement stands, which have a lattice and no
+  /// document — `p0-01` is about triangles on a screen and putting a project
+  /// behind it would be measuring the document instead.
+  final SceneSync? sync;
+
   /// The colour behind everything, and a decision rather than a default.
   ///
   /// Flat, not a sky. A modeller is looked at for hours and every judgement
@@ -73,6 +83,31 @@ final class ModelerStage {
   /// [stressTriangles] replaces the subject with a mesh of about that many
   /// triangles, split across [stressObjects] draws — the stand `p0-01` asks
   /// for. Zero, which is the default, builds the cube.
+  /// A stage whose contents follow [project].
+  ///
+  /// **The one door a document comes through.** Everything else here builds a
+  /// scene directly, which is what the measurement stands and the phase-zero
+  /// spike need; this is what the application uses, and the difference is that
+  /// the objects are a value somebody can undo rather than nodes somebody has
+  /// mutated.
+  factory ModelerStage.fromProject({
+    required GraphicsDevice device,
+    required ModelProject project,
+  }) {
+    final scene = Scene();
+    final root = SceneNode(name: 'objects');
+    scene.add(root);
+    _light(scene);
+
+    final camera = CameraNode(name: 'viewport');
+    scene.add(camera);
+    final orbit = OrbitController(camera, distance: 3.2, yaw: 0.6, pitch: 0.45);
+
+    final sync = SceneSync(device: device, scene: scene, root: root)
+      ..apply(project);
+    return ModelerStage._(scene, camera, orbit, root, null, sync);
+  }
+
   factory ModelerStage.build({
     required GraphicsDevice device,
     ModelAsset? asset,
@@ -109,12 +144,22 @@ final class ModelerStage {
       scene.add(subject);
     }
 
-    // **Two lights and no shadow.** A single light leaves half of every object
-    // black, and an object half black is an object whose silhouette cannot be
-    // read — which is the one thing a modeller is for. The key is above and to
-    // the left of the camera's home, the fill is opposite and a third as
-    // bright, and neither casts: a shadow across the subject would be one more
-    // thing to mistake for a hole in the mesh.
+    _light(scene);
+
+    final camera = CameraNode(name: 'viewport');
+    scene.add(camera);
+    final orbit = OrbitController(camera, distance: 3.2, yaw: 0.6, pitch: 0.45);
+
+    return ModelerStage._(scene, camera, orbit, subject, edit, null);
+  }
+
+  /// **Two lights and no shadow.** A single light leaves half of every object
+  /// black, and an object half black is an object whose silhouette cannot be
+  /// read — which is the one thing a modeller is for. The key is above and to
+  /// the left of the camera's home, the fill is opposite and a third as
+  /// bright, and neither casts: a shadow across the subject would be one more
+  /// thing to mistake for a hole in the mesh.
+  static void _light(Scene scene) {
     scene.add(
       LightNode(type: LightType.directional, name: 'key')
         ..intensity = 3.2
@@ -125,12 +170,6 @@ final class ModelerStage {
         ..intensity = 1.1
         ..setLocalForward(Vector3(0.7, -0.3, 0.8)),
     );
-
-    final camera = CameraNode(name: 'viewport');
-    scene.add(camera);
-    final orbit = OrbitController(camera, distance: 3.2, yaw: 0.6, pitch: 0.45);
-
-    return ModelerStage._(scene, camera, orbit, subject, edit);
   }
 
   /// A mesh of about [triangles] triangles, spread over [objects] nodes.

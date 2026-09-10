@@ -24,6 +24,7 @@ import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter3d/flutter3d.dart' hide Material;
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
+import 'package:flutter3d_model_core/flutter3d_model_core.dart' hide Outcome;
 import 'package:flutter3d_session/flutter3d_session.dart';
 import 'package:vector_math/vector_math.dart' as vm;
 
@@ -34,7 +35,6 @@ import 'src/element_picking.dart';
 import 'src/files/project_files.dart';
 import 'src/files/sandbox_probe.dart';
 import 'src/ground_grid.dart';
-import 'src/mesh_session.dart';
 import 'src/modeler_viewport.dart';
 import 'src/object_picking.dart';
 import 'src/orbit_run.dart';
@@ -207,16 +207,6 @@ class _ModelerScreenState extends State<ModelerScreen>
   /// What the last file operation said, shown beside the buttons.
   String? _fileSaid;
 
-  /// What is selected, in the order it was picked.
-  ///
-  /// Held here rather than in the viewport because the selection is the
-  /// document's, not the picture's: the properties panel, the transform gizmo
-  /// and every edit read it, and only one of those three is inside the
-  /// viewport. Unmodifiable and replaced wholesale — `applyPick` hands back a
-  /// new set, and a set that is never mutated in place is a set no listener
-  /// can miss a change to.
-  Set<PickedObject> _selection = const <PickedObject>{};
-
   /// Which lens the viewport looks through, and what the surface is drawn as.
   ViewLens _lens = ViewLens.perspective;
   ShadingMode _shading = ShadingMode.material;
@@ -235,11 +225,48 @@ class _ModelerScreenState extends State<ModelerScreen>
   MeshSubmode _submode = MeshSubmode.vertex;
   String? _tool = 'object.select';
 
-  /// The one mesh being edited, when the project is the cube it starts as.
+  /// The document, and everything that has been done to it.
   ///
-  /// Built with the stage and thrown away with it. Null for a model that was
-  /// opened, which has no topology until there is a document to import into.
-  MeshSession? _session;
+  /// **One history for both modes**, which is what replaced the mesh-only
+  /// session: ⌘Z now takes back a rename, a move of an object and an extrusion
+  /// with the same press, in the order they were made. Two stacks would have
+  /// meant a person undoing a move and getting an extrusion back.
+  ModelHistory _history = ModelHistory(_newProject());
+
+  /// A project with the cube a new one starts as.
+  static ModelProject _newProject() => const ModelProject().added(
+    (int id) => ModelObject(
+      id: id,
+      name: 'cube',
+      geometry: EditedGeometry(EditMesh.cuboid()),
+      transform: vm.Matrix4.identity(),
+    ),
+  );
+
+  /// The mesh being edited, when what is selected has one.
+  EditMesh? get _editMesh => switch (_history
+      .project[_history.selection.activeObject ?? -1]
+      ?.geometry) {
+    EditedGeometry(:final mesh) => mesh,
+    _ => null,
+  };
+
+  /// The picker over that mesh, rebuilt when its version moves.
+  MeshPicker? _picker;
+  int _pickerVersion = -1;
+
+  MeshPicker? get _elementPicker {
+    final EditMesh? mesh = _editMesh;
+    final int? id = _history.selection.activeObject;
+    if (mesh == null || id == null) return null;
+    final int version = _history.project[id]!.version;
+    if (_picker == null || _pickerVersion != version) {
+      final plan = MeshLayoutPlan()..build(mesh);
+      _picker = MeshPicker(mesh, MeshBvh(mesh, plan));
+      _pickerVersion = version;
+    }
+    return _picker;
+  }
 
   /// What the last operation said when it refused, shown in the status line
   /// until something else happens.
@@ -343,12 +370,18 @@ class _ModelerScreenState extends State<ModelerScreen>
       final asset = kModel.isEmpty ? null : await _load(kModel, device);
       if (!mounted) return;
 
-      final stage = ModelerStage.build(
-        device: device,
-        asset: asset,
-        stressTriangles: kStress,
-        stressObjects: kStressObjects,
-      );
+      // The measurement stands keep the old door: `p0-01` is about triangles on
+      // a screen and putting a project behind a million-triangle lattice would
+      // be measuring the document instead. Everything else comes through the
+      // project, which is the one a person edits.
+      final stage = kStress > 0 || asset != null
+          ? ModelerStage.build(
+              device: device,
+              asset: asset,
+              stressTriangles: kStress,
+              stressObjects: kStressObjects,
+            )
+          : ModelerStage.fromProject(device: device, project: _history.project);
       // Framed once, after the meshes are in: an object of any size arrives on
       // screen at a usable distance rather than as a dot or as the inside of
       // itself.
@@ -377,7 +410,6 @@ class _ModelerScreenState extends State<ModelerScreen>
         if (kSandboxPick) await _saveFile();
       }
       setState(() {
-        _session = _sessionFor(stage);
         _state = ModelerReady(renderer, stage);
         // With no run to wait for, the opening cost is the whole report.
         if (kOrbit <= 0) _report = 'opened in $_openedInMs ms';
@@ -420,8 +452,7 @@ class _ModelerScreenState extends State<ModelerScreen>
       // points at nodes that are no longer drawn.
       _surfaces.forget();
       setState(() {
-        _selection = const <PickedObject>{};
-        _session = _sessionFor(stage);
+        _history = ModelHistory(_newProject());
         _state = ModelerReady((_state as ModelerReady).renderer, stage);
         _fileSaid =
             '${picked.name}: ${document.surfaces.length} surfaces, '
@@ -465,12 +496,6 @@ class _ModelerScreenState extends State<ModelerScreen>
     if (mounted) setState(() => _fileSaid = said);
   }
 
-  /// A session over the stage's mesh, when it has one.
-  static MeshSession? _sessionFor(ModelerStage stage) {
-    final mesh = stage.editMesh;
-    return mesh == null ? null : MeshSession(mesh);
-  }
-
   /// The element level the sub-mode names.
   static ElementLevel _levelOf(MeshSubmode submode) => switch (submode) {
     MeshSubmode.vertex => ElementLevel.vertex,
@@ -486,17 +511,27 @@ class _ModelerScreenState extends State<ModelerScreen>
     PointerDeviceKind pointer, {
     required bool extend,
   }) {
-    final session = _session;
-    if (session == null) return;
+    final MeshPicker? picker = _elementPicker;
+    if (picker == null) return;
     final picked = pickElementAt(
-      session.picker,
+      picker,
       view,
       at: at,
       pointer: pointer,
       level: _levelOf(_submode),
     );
     setState(() {
-      session.select(picked, extend: extend);
+      final was = _history.selection;
+      // Shift takes an element back out rather than only ever adding: dropping
+      // one face from a selection of forty is otherwise thirty-nine clicks.
+      final Selection next = extend && was.level == picked.level
+          ? was.asMeshSelection.toggle(picked)
+          : picked;
+      _history.selection = was.copyWith(
+        mode: SelectionMode.mesh,
+        level: next.level,
+        elements: next.ids.toList(),
+      );
       _opSaid = null;
     });
   }
@@ -510,97 +545,209 @@ class _ModelerScreenState extends State<ModelerScreen>
   /// without an axis to constrain them there is nothing else it could mean;
   /// the axis arrives with the gizmo.
   void _dragged(Offset delta, double viewportHeight) {
-    final session = _session;
     final state = _state;
-    if (session == null || state is! ModelerReady || _tool == null) return;
-    if (!kDragTools.contains(_tool)) return;
+    final String? tool = _tool;
+    if (state is! ModelerReady || tool == null) return;
+    if (!kDragTools.contains(tool)) return;
+    if (_history.selection.isEmpty) return;
 
-    if (session.selection.isEmpty) return;
     final look = state.stage.overlayView(viewportHeight);
     // At the middle of what is being moved, because that is the depth the drag
     // has to be measured at: a pixel is a different number of metres a metre
     // further away.
-    final middle = medianOf(session.mesh, session.selection);
-    final metres =
+    final vm.Vector3 middle = _middleOfSelection();
+    final double metres =
         look.pixel * (look.perspective ? (middle - look.eye).length : 1.0);
+    final vm.Vector3 along =
+        look.right * (delta.dx * metres) + look.up * (-delta.dy * metres);
 
-    final vm.Matrix4 by = switch (_tool) {
-      'mesh.move' || 'object.move' => vm.Matrix4.translation(
-        look.right * (delta.dx * metres) + look.up * (-delta.dy * metres),
-      ),
-      'mesh.rotate' || 'object.rotate' => vm.Matrix4.compose(
-        vm.Vector3.zero(),
-        vm.Quaternion.axisAngle(
-          (look.eye - middle).normalized(),
-          delta.dx * 0.01,
-        ),
-        vm.Vector3.all(1),
-      ),
-      _ => vm.Matrix4.diagonal3(vm.Vector3.all(1 + delta.dx * 0.01)),
-    };
-    final said = _tool == 'mesh.move' || _tool == 'object.move'
-        ? session.transformBy(by)
-        : _about(session, by, middle);
-    setState(() => _opSaid = said);
-    _upload();
+    // **A transaction, opened on the first move of a drag and closed when the
+    // pointer goes up.** Every frame of a drag is a command; the history
+    // collapses them into one step, so ⌘Z takes back the drag rather than a
+    // sixtieth of it.
+    if (!_dragging) {
+      _dragging = true;
+      _history.beginTransaction();
+    }
+
+    final String? said = _history.selection.mode == SelectionMode.mesh
+        ? _history.run(_meshDrag(tool, along, middle, delta))
+        : _history.run(_objectDrag(tool, along, look, middle, delta));
+    if (said != null) setState(() => _opSaid = said);
+    _sync();
   }
 
+  /// Whether a drag is in progress, so its commands land in one step.
+  bool _dragging = false;
+
+  void _endDrag() {
+    if (!_dragging) return;
+    _dragging = false;
+    _history.endTransaction();
+    setState(() {});
+  }
+
+  /// The middle of what is selected, in world units.
+  vm.Vector3 _middleOfSelection() {
+    final selection = _history.selection;
+    if (selection.mode == SelectionMode.mesh) {
+      final EditMesh? mesh = _editMesh;
+      if (mesh == null) return vm.Vector3.zero();
+      return medianOf(mesh, selection.asMeshSelection);
+    }
+    final middle = vm.Vector3.zero();
+    var counted = 0;
+    for (final int id in selection.objects) {
+      final object = _history.project[id];
+      if (object == null) continue;
+      middle.add(object.transform.getTranslation());
+      counted++;
+    }
+    return counted == 0 ? middle : (middle..scale(1 / counted));
+  }
+
+  ModelCommand _meshDrag(
+    String tool,
+    vm.Vector3 along,
+    vm.Vector3 middle,
+    Offset delta,
+  ) {
+    final vm.Matrix4 by = switch (tool) {
+      'mesh.move' => vm.Matrix4.translation(along),
+      'mesh.rotate' => _about(
+        middle,
+        vm.Matrix4.compose(
+          vm.Vector3.zero(),
+          vm.Quaternion.axisAngle(vm.Vector3(0, 1, 0), delta.dx * 0.01),
+          vm.Vector3.all(1),
+        ),
+      ),
+      _ => _about(
+        middle,
+        vm.Matrix4.diagonal3(vm.Vector3.all(1 + delta.dx * 0.01)),
+      ),
+    };
+    return TransformElements(by, what: _dragWord(tool));
+  }
+
+  ModelCommand _objectDrag(
+    String tool,
+    vm.Vector3 along,
+    ({
+      vm.Vector3 eye,
+      vm.Vector3 right,
+      vm.Vector3 up,
+      double pixel,
+      bool perspective,
+    })
+    look,
+    vm.Vector3 middle,
+    Offset delta,
+  ) => switch (tool) {
+    'object.move' => MoveBy(along),
+    'object.rotate' => RotateBy(
+      // About the axis the camera is looking down, so a horizontal drag turns
+      // the model the way the hand went whatever angle it is being seen from.
+      axis: (look.eye - middle).normalized(),
+      radians: delta.dx * 0.01,
+    ),
+    _ => ScaleBy(1 + delta.dx * 0.01),
+  };
+
+  static String _dragWord(String tool) => tool.endsWith('rotate')
+      ? 'turn'
+      : (tool.endsWith('scale') ? 'scale' : 'move');
+
   /// [by] applied about [pivot], which is what a turn and a scale mean.
-  String? _about(MeshSession session, vm.Matrix4 by, vm.Vector3 pivot) =>
-      session.transformBy(
-        (vm.Matrix4.translation(pivot) * by as vm.Matrix4) *
-                vm.Matrix4.translation(-pivot)
-            as vm.Matrix4,
-      );
+  static vm.Matrix4 _about(vm.Vector3 pivot, vm.Matrix4 by) {
+    final vm.Matrix4 about = vm.Matrix4.translation(pivot);
+    about.multiply(by);
+    about.multiply(vm.Matrix4.translation(-pivot));
+    return about;
+  }
 
   /// Presses a rail button.
   void _ranTool(String id) {
-    final session = _session;
-    if (session == null || !kImmediateTools.contains(id)) {
-      // Arming rather than acting: the transform tools wait for a drag, and a
-      // mode with no session has nothing to act on.
+    if (kDragTools.contains(id) || id.endsWith('.select')) {
+      // Arming rather than acting: these wait for a pointer.
       setState(() => _tool = id);
       return;
     }
-    final said = session.run(id);
+    final ModelCommand? command = _commandFor(id);
+    if (command == null) {
+      setState(() => _tool = id);
+      return;
+    }
+    final said = _history.run(command);
     setState(() {
       _tool = id;
       _opSaid = said;
     });
-    if (said == null) _upload();
+    if (said == null) _sync();
   }
 
-  /// Puts the edited mesh back on the device.
+  /// The command a rail button stands for, or null when it only arms.
   ///
-  /// **A fresh upload rather than an overwrite, and that is measured rather
-  /// than assumed.** `p0-06` timed both and `view-14` is the overwrite path;
-  /// until that lands, a whole upload of the cube costs less than a frame and
-  /// the alternative would be a second code path nobody has profiled.
-  void _upload() {
+  /// **One switch in one place, which is what the tool table was built to
+  /// allow.** A callback on each row of that table would put this decision in
+  /// as many places as there are tools, and a tool added without one would be a
+  /// button that silently did nothing.
+  ModelCommand? _commandFor(String id) => switch (id) {
+    'object.add' => const AddPrimitive(kind: 'box'),
+    'object.duplicate' => const DuplicateObjects(),
+    'object.delete' => const DeleteObjects(),
+    'object.bake' => switch (_history.selection.activeObject) {
+      final int selected => BakeToMesh(selected),
+      _ => null,
+    },
+    'mesh.extrude' => Extrude(_stepOf()),
+    'mesh.loopCut' => const LoopCut(),
+    'mesh.delete' => const DeleteElements(),
+    _ => null,
+  };
+
+  /// How far an extrusion goes when nobody has said.
+  ///
+  /// A tenth of the model rather than a fixed number of metres: the same button
+  /// is pressed on a cube of one metre and on a scanned head of two hundred,
+  /// and a fixed distance is invisible on one and catastrophic on the other.
+  double _stepOf() {
+    final EditMesh? mesh = _editMesh;
+    if (mesh == null) return 0.1;
+    final low = vm.Vector3.all(double.infinity);
+    final high = vm.Vector3.all(double.negativeInfinity);
+    final at = vm.Vector3.zero();
+    var found = false;
+    for (var vertex = 0; vertex < mesh.vertexSlotCount; vertex++) {
+      if (!mesh.isVertexAlive(vertex)) continue;
+      found = true;
+      mesh.positionOf(vertex, at);
+      vm.Vector3.min(low, at, low);
+      vm.Vector3.max(high, at, high);
+    }
+    if (!found) return 0.1;
+    final span = (high - low).length;
+    return span == 0.0 ? 0.1 : span * 0.1;
+  }
+
+  /// Brings the scene to the project.
+  void _sync() {
     final state = _state;
-    final session = _session;
-    final device = _device;
-    if (state is! ModelerReady || session == null || device == null) return;
-    final node = state.stage.subject;
-    if (node is! MeshNode) return;
-    node.mesh = DeviceMesh.upload(device, session.toMeshData());
+    if (state is! ModelerReady) return;
+    state.stage.sync?.apply(_history.project);
   }
 
   /// ⌘Z and ⇧⌘Z.
   void _undo() {
-    final session = _session;
-    if (session == null) return;
-    final moved = session.undo();
+    final moved = _history.undo();
     setState(() => _opSaid = moved ? null : 'nothing to undo');
-    if (moved) _upload();
+    if (moved) _sync();
   }
 
   void _redo() {
-    final session = _session;
-    if (session == null) return;
-    final moved = session.redo();
+    final moved = _history.redo();
     setState(() => _opSaid = moved ? null : 'nothing to redo');
-    if (moved) _upload();
+    if (moved) _sync();
   }
 
   /// What a click in the viewport did to the selection.
@@ -609,25 +756,55 @@ class _ModelerScreenState extends State<ModelerScreen>
   /// tested without a window; this is the seam that gives it the two things it
   /// cannot know — what is selected now, and whether shift was down.
   void _picked(PickResult pick, {required bool extend}) {
-    final next = applyPick(_selection, pick, extend: extend);
+    final state = _state;
+    if (state is! ModelerReady) return;
+    final sync = state.stage.sync;
+    if (sync == null) return;
+
+    // The renderer answers with the leaf it rasterised; the document speaks in
+    // ids. `SceneSync` is the only place that knows which is which, and a
+    // second map here would be a second thing to keep in step.
+    final int? id = switch (pick) {
+      PickedObject(:final node) => sync.objectOf(node),
+      // The viewport's own furniture. Not "nothing": clicking a gizmo's arrow
+      // is the first half of a drag of the very object that is selected, and
+      // clearing there would delete the selection out from under it.
+      PickedService() => null,
+      PickedNothing() => null,
+    };
+    final was = _history.selection;
+    final List<int> next;
+    if (id == null) {
+      if (pick is PickedService) return;
+      next = extend ? was.objects : const <int>[];
+    } else if (!extend) {
+      next = <int>[id];
+    } else if (was.objects.contains(id)) {
+      next = <int>[
+        for (final int each in was.objects)
+          if (each != id) each,
+      ];
+    } else {
+      next = <int>[...was.objects, id];
+    }
+
     // Compared before setting, because a click on the background with nothing
     // selected is the commonest click there is and it changes nothing: a frame
     // rebuilt for it is a frame spent on an answer of "still nothing".
-    if (next.length == _selection.length && next.containsAll(_selection)) {
+    if (next.length == was.objects.length && next.every(was.objects.contains)) {
       return;
     }
-    setState(() => _selection = next);
+    setState(() {
+      _history.selection = was.copyWith(
+        mode: SelectionMode.object,
+        objects: next,
+      );
+      _opSaid = null;
+    });
   }
 
-  /// What the selection is, in the words the corner panel shows.
-  String get _selectionSaid => switch (_selection.length) {
-    0 => 'nothing selected',
-    1 => 'selected ${_nameOf(_selection.first)}',
-    final int many => '$many selected',
-  };
-
-  static String _nameOf(PickedObject picked) =>
-      picked.node.name ?? 'an unnamed node';
+  /// What the selection is, in the words the status line shows.
+  String get _selectionSaid => _history.selection.says;
 
   /// The first mesh under [node], which is what a save writes.
   static MeshData? _meshOf(SceneNode node) {
@@ -670,7 +847,19 @@ class _ModelerScreenState extends State<ModelerScreen>
       onTool: _ranTool,
       onLevel: (MeshSubmode submode) => setState(() {
         _submode = submode;
-        _session?.setLevel(_levelOf(submode));
+        // Through `convertedTo`, so a person who picked a face and pressed 1
+        // gets its corners rather than an empty viewport.
+        final EditMesh? mesh = _editMesh;
+        final was = _history.selection;
+        _history.selection = mesh == null
+            ? was.copyWith(level: _levelOf(submode))
+            : was.copyWith(
+                level: _levelOf(submode),
+                elements: was.asMeshSelection
+                    .convertedTo(mesh, _levelOf(submode))
+                    .ids
+                    .toList(),
+              );
       }),
       tools: toolsFor(_mode),
       child: ModelerShell(
@@ -685,7 +874,19 @@ class _ModelerScreenState extends State<ModelerScreen>
         submode: _submode,
         onSubmode: (MeshSubmode submode) => setState(() {
           _submode = submode;
-          _session?.setLevel(_levelOf(submode));
+          // Through `convertedTo`, so a person who picked a face and pressed 1
+          // gets its corners rather than an empty viewport.
+          final EditMesh? mesh = _editMesh;
+          final was = _history.selection;
+          _history.selection = mesh == null
+              ? was.copyWith(level: _levelOf(submode))
+              : was.copyWith(
+                  level: _levelOf(submode),
+                  elements: was.asMeshSelection
+                      .convertedTo(mesh, _levelOf(submode))
+                      .ids
+                      .toList(),
+                );
         }),
         activeTool: _tool,
         onTool: _ranTool,
@@ -703,7 +904,14 @@ class _ModelerScreenState extends State<ModelerScreen>
         ),
         properties: _Properties(
           stage: stage,
-          selection: _selection,
+          project: _history.project,
+          selection: _history.selection,
+          onSelect: (int id) => setState(
+            () => _history.selection = _history.selection.copyWith(
+              mode: SelectionMode.object,
+              objects: <int>[id],
+            ),
+          ),
           shading: _shading,
           onShading: (ShadingMode mode) => setState(() => _shading = mode),
           lens: _lens,
@@ -723,13 +931,19 @@ class _ModelerScreenState extends State<ModelerScreen>
                 // CPU, and asking the renderer for a node as well would cost a
                 // whole frame to answer a question nobody asked.
                 onPick: _mode == ModelerMode.mesh ? null : _picked,
-                onElementPick: _mode == ModelerMode.mesh && _session != null
+                onElementPick: _mode == ModelerMode.mesh && _editMesh != null
                     ? _pickedElement
                     : null,
                 onDragTool: _dragged,
-                elements: _session?.selection,
-                meshVersion: _session?.meshVersion ?? 0,
-                elementsVersion: _session?.selectionVersion ?? 0,
+                onDragDone: _endDrag,
+                editMesh: _mode == ModelerMode.mesh ? _editMesh : null,
+                elements: _history.selection.asMeshSelection,
+                meshVersion:
+                    _history
+                        .project[_history.selection.activeObject ?? -1]
+                        ?.version ??
+                    0,
+                elementsVersion: _history.selection.elements.length,
                 settings: settingsFor(
                   _shading,
                   // The outline is the renderer's until the overlay draws the
@@ -738,7 +952,8 @@ class _ModelerScreenState extends State<ModelerScreen>
                   // landed.
                   RenderSettings(
                     highlighted: <SceneNode>[
-                      for (final PickedObject held in _selection) held.node,
+                      for (final int id in _history.selection.objects)
+                        if (stage.sync?.nodeOf(id) case final SceneNode n) n,
                     ],
                   ),
                 ),
@@ -841,7 +1056,9 @@ class _StatusLine extends StatelessWidget {
 class _Properties extends StatelessWidget {
   const _Properties({
     required this.stage,
+    required this.project,
     required this.selection,
+    required this.onSelect,
     required this.shading,
     required this.onShading,
     required this.lens,
@@ -850,7 +1067,9 @@ class _Properties extends StatelessWidget {
   });
 
   final ModelerStage stage;
-  final Set<PickedObject> selection;
+  final ModelProject project;
+  final ProjectSelection selection;
+  final ValueChanged<int> onSelect;
   final ShadingMode shading;
   final ValueChanged<ShadingMode> onShading;
   final ViewLens lens;
@@ -859,8 +1078,10 @@ class _Properties extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final mesh = stage.editMesh;
+    final mesh = switch (project[selection.activeObject ?? -1]?.geometry) {
+      EditedGeometry(:final mesh) => mesh,
+      _ => null,
+    };
     return ListView(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       children: <Widget>[
@@ -918,22 +1139,23 @@ class _Properties extends StatelessWidget {
               ),
           ],
         ),
+        _Section('Objects'),
+        for (final ModelObject object in project.objects)
+          _ObjectRow(
+            object: object,
+            selected: selection.objects.contains(object.id),
+            onTap: () => onSelect(object.id),
+          ),
         _Section('Selection'),
-        _Row('Objects', '${selection.length}'),
+        _Row('What', selection.says),
         if (mesh != null) ...<Widget>[
           _Section('Mesh'),
           _Row('Vertices', '${mesh.vertexCount}'),
           _Row('Faces', '${mesh.faceCount}'),
-        ] else
-          Padding(
-            padding: const EdgeInsets.only(top: 8),
-            child: Text(
-              'An imported model has no editable topology yet.',
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
-            ),
-          ),
+        ],
+        _Section('Budget'),
+        _Row('Triangles', '${project.triangleCount}'),
+        _Row('Profile', project.profile.name),
       ],
     );
   }
@@ -946,6 +1168,63 @@ class _Properties extends StatelessWidget {
     StandardView.top: 'Top',
     StandardView.bottom: 'Bottom',
   };
+}
+
+/// One line of the object list: the name, what it is made of, and whether it is
+/// selected.
+///
+/// **The kind is shown, because it decides what the rail can do.** An object
+/// that is still a cylinder refuses every mesh command with a sentence about
+/// converting it; showing which objects are parametric is what stops that
+/// sentence being a surprise.
+class _ObjectRow extends StatelessWidget {
+  const _ObjectRow({
+    required this.object,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final ModelObject object;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return InkWell(
+      onTap: onTap,
+      child: SizedBox(
+        height: ModelerMetrics.row,
+        child: Row(
+          children: <Widget>[
+            Icon(
+              switch (object.geometry) {
+                ParametricGeometry() => Icons.category_outlined,
+                EditedGeometry() => Icons.hexagon_outlined,
+                ImportedGeometry() => Icons.download_outlined,
+              },
+              size: 14,
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                object.name,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: selected
+                      ? theme.colorScheme.primary
+                      : theme.colorScheme.onSurface,
+                  fontWeight: selected ? FontWeight.w500 : FontWeight.w400,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
 /// A heading in the properties panel. `ui-08` calls this `section_label.dart`

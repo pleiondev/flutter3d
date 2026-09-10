@@ -159,47 +159,71 @@ final class ModelHistory {
   final Map<EditMesh, int> _meshStepsOfTransaction = <EditMesh, int>{};
 
   /// Runs [body] and records everything it did as one step.
-  ///
-  /// The step is named after the *first* command, because that is the one the
-  /// person started: a drag is `move`, whatever the ninety-nine after it were.
-  /// A transaction in which nothing succeeded leaves no step, which is what
-  /// makes a drag that never moved anything cost nothing.
   T transaction<T>(T Function() body) {
+    beginTransaction();
+    try {
+      return body();
+    } finally {
+      endTransaction();
+    }
+  }
+
+  /// Opens a transaction that a later event will close.
+  ///
+  /// **The pair exists because a drag is not a closure.** A pointer goes down
+  /// in one callback and up in another, with sixty frames of moves in between,
+  /// and there is no scope that spans them — so [transaction] is written on top
+  /// of these two rather than the other way round. A caller that can wrap its
+  /// work in a function should use [transaction] and let the `finally` close
+  /// it; a caller driven by events cannot.
+  void beginTransaction() {
     if (_inTransaction) {
       // Nesting would need a stack of open steps and a rule about which one a
       // failure unwinds to, for a case nothing has: the interface opens one on
       // a pointer down and closes it on a pointer up.
       throw StateError('a transaction is already open');
     }
-    final before = _project;
-    final selectionBefore = _selection;
     _inTransaction = true;
     _firstOfTransaction = null;
     _meshStepsOfTransaction.clear();
-    try {
-      return body();
-    } finally {
-      final ModelCommand? first = _firstOfTransaction;
-      final Map<EditMesh, int> meshSteps = Map<EditMesh, int>.of(
-        _meshStepsOfTransaction,
-      );
-      _inTransaction = false;
-      _firstOfTransaction = null;
-      _meshStepsOfTransaction.clear();
-      if (first != null && !identical(_project, before)) {
-        _done.add(
-          HistoryStep(
-            command: first,
-            before: before,
-            selectionBefore: selectionBefore,
-            meshSteps: meshSteps,
-          ),
-        );
-        _undone.clear();
-        if (_done.length > depth) _done.removeAt(0);
-      }
-    }
+    _projectBeforeTransaction = _project;
+    _selectionBeforeTransaction = _selection;
   }
+
+  /// Closes it, leaving one step for everything that succeeded inside.
+  ///
+  /// The step is named after the *first* command, because that is the one the
+  /// person started: a drag is `move`, whatever the ninety-nine after it were.
+  /// A transaction in which nothing succeeded leaves no step, which is what
+  /// makes a drag that never moved anything cost nothing.
+  void endTransaction() {
+    if (!_inTransaction) return;
+    final ModelCommand? first = _firstOfTransaction;
+    final ModelProject before = _projectBeforeTransaction!;
+    final ProjectSelection selectionBefore = _selectionBeforeTransaction!;
+    final Map<EditMesh, int> meshSteps = Map<EditMesh, int>.of(
+      _meshStepsOfTransaction,
+    );
+    _inTransaction = false;
+    _firstOfTransaction = null;
+    _projectBeforeTransaction = null;
+    _selectionBeforeTransaction = null;
+    _meshStepsOfTransaction.clear();
+    if (first == null || identical(_project, before)) return;
+    _done.add(
+      HistoryStep(
+        command: first,
+        before: before,
+        selectionBefore: selectionBefore,
+        meshSteps: meshSteps,
+      ),
+    );
+    _undone.clear();
+    if (_done.length > depth) _done.removeAt(0);
+  }
+
+  ModelProject? _projectBeforeTransaction;
+  ProjectSelection? _selectionBeforeTransaction;
 
   /// Re-runs the command at the top of the stack with [replacement], against
   /// the document as it was before it.

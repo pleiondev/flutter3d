@@ -24,6 +24,21 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+/// The tools that wait for a pointer instead of acting when pressed.
+///
+/// A set rather than a check at the call site, so that the shell can ask
+/// whether a button arms or acts without knowing what any of them do — and so a
+/// tool added to the table without a case behind it is a name in one place
+/// rather than a button that silently does nothing.
+const Set<String> kDragTools = <String>{
+  'object.move',
+  'object.rotate',
+  'object.scale',
+  'mesh.move',
+  'mesh.rotate',
+  'mesh.scale',
+};
+
 /// What the modeller is being used for.
 ///
 /// **All eight are here and two of them work**, which is deliberate: a person
@@ -138,6 +153,34 @@ List<ModelerTool> toolsFor(ModelerMode mode) => switch (mode) {
       shortcut: LogicalKeyboardKey.keyS,
       group: 'transform',
     ),
+    ModelerTool(
+      id: 'object.add',
+      label: 'Add a box',
+      icon: Icons.add_box_outlined,
+      shortcut: LogicalKeyboardKey.keyA,
+      group: 'create',
+    ),
+    ModelerTool(
+      id: 'object.duplicate',
+      label: 'Duplicate',
+      icon: Icons.copy_all_outlined,
+      shortcut: LogicalKeyboardKey.keyD,
+      group: 'create',
+    ),
+    ModelerTool(
+      id: 'object.bake',
+      label: 'Convert to a mesh',
+      icon: Icons.change_circle_outlined,
+      shortcut: LogicalKeyboardKey.keyB,
+      group: 'create',
+    ),
+    ModelerTool(
+      id: 'object.delete',
+      label: 'Delete',
+      icon: Icons.backspace_outlined,
+      shortcut: LogicalKeyboardKey.keyX,
+      group: 'cleanup',
+    ),
   ],
   ModelerMode.mesh => const <ModelerTool>[
     ModelerTool(
@@ -180,20 +223,6 @@ List<ModelerTool> toolsFor(ModelerMode mode) => switch (mode) {
       label: 'Loop cut',
       icon: Icons.content_cut_outlined,
       shortcut: LogicalKeyboardKey.keyC,
-      group: 'topology',
-    ),
-    ModelerTool(
-      id: 'mesh.duplicate',
-      label: 'Duplicate',
-      icon: Icons.copy_all_outlined,
-      shortcut: LogicalKeyboardKey.keyD,
-      group: 'topology',
-    ),
-    ModelerTool(
-      id: 'mesh.split',
-      label: 'Split off',
-      icon: Icons.call_split_outlined,
-      shortcut: LogicalKeyboardKey.keyY,
       group: 'topology',
     ),
     ModelerTool(

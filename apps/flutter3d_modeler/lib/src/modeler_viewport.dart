@@ -45,6 +45,8 @@ class ModelerViewport extends StatefulWidget {
     this.onPick,
     this.onElementPick,
     this.onDragTool,
+    this.onDragDone,
+    this.editMesh,
     this.settings = const RenderSettings(),
     this.grid = const GroundGrid(),
     this.elements,
@@ -123,6 +125,19 @@ class ModelerViewport extends StatefulWidget {
   /// tools, which is the rule that lets a drag mean "move this vertex" without
   /// the model swinging away underneath it.
   final void Function(Offset delta, double viewportHeight)? onDragTool;
+
+  /// The pointer that was dragging has gone up. What the caller does with it is
+  /// close the transaction the first move opened, so the whole drag is one step
+  /// of history rather than sixty.
+  final VoidCallback? onDragDone;
+
+  /// The mesh whose wireframe is drawn, or null for none.
+  ///
+  /// Handed in rather than taken from the stage, because which mesh is being
+  /// edited is a question about the selection and the selection belongs to the
+  /// document — see `mesh_commands.dart`. The stage draws whatever the project
+  /// says; this is the one the *overlay* is about.
+  final EditMesh? editMesh;
 
   @override
   State<ModelerViewport> createState() => _ModelerViewportState();
@@ -241,7 +256,7 @@ class _ModelerViewportState extends State<ModelerViewport> {
 
     // Registered second and therefore drawn second — see the field's comment.
     final mesh = _mesh ??= _newOverlay(renderer);
-    final EditMesh? edit = widget.stage.editMesh;
+    final EditMesh? edit = widget.editMesh ?? widget.stage.editMesh;
     if (edit == null) {
       mesh.clear();
       return;
@@ -349,6 +364,9 @@ class _ModelerViewportState extends State<ModelerViewport> {
     _gestures.pointerUp(event.pointer);
     final start = _pressed.remove(event.pointer);
     final bool travelled = _travelled.remove(event.pointer);
+    if (travelled && start?.button == GestureButton.primary) {
+      widget.onDragDone?.call();
+    }
     if (event is! PointerUpEvent || start == null || travelled) return;
     // The left button only: a middle-drag that happens not to travel is a
     // camera gesture that did nothing, and answering it with a selection

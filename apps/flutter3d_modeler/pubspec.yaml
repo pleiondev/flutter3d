@@ -32,6 +32,11 @@ dependencies:
     path: ../../packages/flutter3d_formats
 
   # The mesh being edited, with the topology still in it.
+  # The document: a project of objects, the commands that change one, and the
+  # history that takes them back.
+  flutter3d_model_core:
+    path: ../../packages/flutter3d_model_core
+
   flutter3d_mesh:
     path: ../../packages/flutter3d_mesh
 
