@@ -524,15 +524,13 @@ void main() {
       // is the file, and the `o` record for an object that draws nothing. That
       // is the whole claim here; the round trip below is what says the skip
       // costs nothing.
-      expect(vertexLines, isNotEmpty);
+      expect(vertexLines, hasLength(3));
+      expect(text, isNot(contains('nothing')));
 
       final reread = await _roundTrip(ObjWriter(document));
-      expect(reread.surfaces.last.name, 'something');
-      expect(reread.surfaces.last.mesh.positionAt(0), _near(Vector3.zero()));
-      expect(
-        reread.surfaces.last.mesh.positionAt(1),
-        _near(Vector3(1.0, 0.0, 0.0)),
-      );
+      expect(reread.surfaces, hasLength(1));
+      expect(reread.surfaces.single.name, 'something');
+      expect(reread.surfaces.single.mesh.positionAt(0), _near(Vector3.zero()));
     });
   });
 }

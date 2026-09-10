@@ -117,6 +117,9 @@ final class ProjectRefused extends ProjectRead {
   const ProjectRefused(this.because);
 
   final String because;
+
+  @override
+  String toString() => 'ProjectRefused($because)';
 }
 
 /// The project as a `.f3dproj` file.
@@ -189,7 +192,7 @@ Uint8List writeProject(ModelProject project) {
   final meshOffsets = <int>[];
   final blobLength = meshes.fold<int>(0, (int at, Uint8List mesh) {
     meshOffsets.add(at);
-    return at + mesh.lengthInBytes;
+    return _align(at + mesh.lengthInBytes);
   });
   final blob = Uint8List(blobLength);
   final table = Uint8List(meshes.length * kProjectMeshEntryBytes);
@@ -206,9 +209,9 @@ Uint8List writeProject(ModelProject project) {
   }
 
   final sections = <(int kind, Uint8List data, int count)>[
-    (ProjectSection.manifest, manifest, 99),
+    (ProjectSection.manifest, manifest, 0),
     (ProjectSection.editMeshes, table, meshes.length),
-    (ProjectSection.blob, blob, 99),
+    (ProjectSection.blob, blob, 0),
   ];
 
   final offsets = <int>[];
@@ -278,7 +281,7 @@ ProjectRead readProject(Uint8List bytes) {
   }
 
   final version = view.getUint32(4, Endian.little);
-  if (version != kProjectVersion) {
+  if (version > kProjectVersion) {
     return ProjectRefused(
       'This project was written by version $version and this build reads '
       'version $kProjectVersion. Open it in a newer build; there is nothing '
@@ -457,11 +460,17 @@ int _align(int value) => (value + 3) & ~3;
     'materialSlots': final List<Object?> slots,
     'geometry': final Map<String, Object?> geometry,
   }) {
-    if (transform.length != 16) {
+    if (transform.length != 16 || transform.any((Object? v) => v is! num)) {
       return (
         null,
         'Object $index ("$name") has a transform of ${transform.length} '
             'entries, and a matrix is sixteen numbers.',
+      );
+    }
+    if (slots.any((Object? v) => v is! int)) {
+      return (
+        null,
+        'Object $index ("$name") has a material slot that is not a number.',
       );
     }
 
@@ -517,7 +526,7 @@ int _align(int value) => (value + 3) & ~3;
       );
     case 'edited':
       final Object? at = geometry['mesh'];
-      if (at is! int || at >= meshes.length) {
+      if (at is! int || at < 0 || at >= meshes.length) {
         return (
           null,
           'Object $index ("$name") is edited mesh $at and this file holds '
@@ -590,7 +599,7 @@ Map<String, Object?> _shapeJson(ParametricShape shape) => switch (shape) {
       'startAngle': startAngle,
       'sweepAngle': sweepAngle,
       'closedProfile': closedProfile,
-      'name': 'MUTATED',
+      'name': name,
     },
   ParametricSphere(
     :final double radius,

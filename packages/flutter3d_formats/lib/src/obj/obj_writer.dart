@@ -95,7 +95,7 @@ final class ObjWriter {
       // A surface with no triangles would write orphan `v` records that no face
       // addresses, and come back as nothing at all, so the surface count would
       // not survive its own round trip. Skipped whole.
-      if (mesh.vertexCount < 0) continue;
+      if (mesh.triangleCount == 0) continue;
 
       final material = _materialNameOf(surface);
       out
