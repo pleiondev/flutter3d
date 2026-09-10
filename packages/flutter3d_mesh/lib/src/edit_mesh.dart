@@ -1035,6 +1035,20 @@ final class EditMesh {
     _twin.write(b, a);
   }
 
+  /// Lets go of whatever was on the other side of [halfEdge], leaving it on a
+  /// boundary.
+  ///
+  /// What an operation calls when it takes a piece of the surface away from
+  /// its neighbours without moving it — `splitSelection` — and the one write
+  /// that turns a shared edge into two rims.
+  void cutTwin(int halfEdge) {
+    final twin = _twin[halfEdge];
+    if (twin == none) return;
+    _wrote = true;
+    _twin.write(twin, none);
+    _twin.write(halfEdge, none);
+  }
+
   /// Points [vertex] at [halfEdge] as its way into the mesh.
   ///
   /// What an operation calls after rewiring a loop out from under a vertex.
@@ -1067,11 +1081,50 @@ final class EditMesh {
   /// boundary edges by the test [edgeCount] uses: a twin whose face is dead is
   /// a twin with nothing behind it. Rewiring them to [none] instead would lose
   /// the information an undo needs to put the face back.
+  /// A caller that deletes faces calls [repairVertexLinks] once afterwards: a
+  /// vertex whose way into the mesh was a half-edge of a face that has just
+  /// died needs a new one, and finding it per face would be a walk over the
+  /// mesh per face.
   void deleteFace(int face) {
     if (_faceAlive[face] == 0) return;
     _wrote = true;
     _faceAlive.write(face, 0);
     _liveFaces--;
+  }
+
+  /// Points every vertex at a half-edge that is still on a live loop.
+  ///
+  /// **What deleting faces leaves behind, and what nothing else catches.**
+  /// [validate] asks that a vertex's half-edge starts there, which a dead one
+  /// still does; what it cannot ask is that a walk from it goes anywhere. A
+  /// vertex left pointing into a deleted face is invisible until somebody
+  /// walks the fan around it — a normal, a loop, a selection grown by one —
+  /// and then it walks into nothing.
+  ///
+  /// One pass over the half-edges rather than a search per vertex, which is
+  /// why it is a separate call: `deleteSelection` kills a hundred faces and
+  /// pays for this once.
+  void repairVertexLinks() {
+    _wrote = true;
+    final alive = Int32List(_vertexSlots)..fillRange(0, _vertexSlots, none);
+    for (var face = 0; face < _faceSlots; face++) {
+      if (_faceAlive[face] == 0) continue;
+      forEachHalfEdge(face, (int half) {
+        alive[_origin[half]] = half;
+      });
+    }
+    for (var vertex = 0; vertex < _vertexSlots; vertex++) {
+      if (_vertexAlive[vertex] == 0) continue;
+      final out = _outgoing[vertex];
+      final onALiveLoop =
+          out != none &&
+          _origin[out] == vertex &&
+          _halfEdgeFace[out] != none &&
+          _faceAlive[_halfEdgeFace[out]] != 0;
+      // Written only when it has to be, so a delete of one face does not put
+      // every vertex of the mesh into the step.
+      if (!onALiveLoop) _outgoing.write(vertex, alive[vertex]);
+    }
   }
 
   /// Marks [vertex] dead. Its faces must be gone first.

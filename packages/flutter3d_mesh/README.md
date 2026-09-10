@@ -52,7 +52,9 @@ somebody can act on. `translateSelection`, `rotateSelection` and
 `scaleSelection` move what is selected and nothing else; `extrudeFaces` and
 `extrudeEdges` detach a region, wall in the gap behind it and lift it; `loopCut`
 runs a new loop of edges across a ring of quads, out of `splitEdge` and
-`splitFace`, which are worth having on their own.
+`splitFace`, which are worth having on their own. `deleteSelection`,
+`duplicateSelection`, `splitSelection` and `separateComponents` take a mesh
+apart and put copies of pieces back.
 
 `dissolveEdge` and `dissolveVertex` take an edge or a
 vertex out and leave the faces around it merged rather than a hole — dissolving
