@@ -17,6 +17,7 @@
 library;
 
 export 'src/attributes.dart';
+export 'src/checks.dart';
 export 'src/cut.dart';
 export 'src/edit_mesh.dart';
 export 'src/extrude.dart';

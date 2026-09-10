@@ -56,6 +56,12 @@ runs a new loop of edges across a ring of quads, out of `splitEdge` and
 `duplicateSelection`, `splitSelection` and `separateComponents` take a mesh
 apart and put copies of pieces back.
 
+`MeshChecks` says what is wrong with a mesh and names the elements rather than
+counting them, so a viewport turns an issue into a selection: n-gons, rims,
+vertices where two surfaces meet at a point, vertices nothing stands on, faces
+with no area, vertices standing on top of each other, shells wound inside out,
+and the Euler characteristic of each island.
+
 `dissolveEdge` and `dissolveVertex` take an edge or a
 vertex out and leave the faces around it merged rather than a hole — dissolving
 the diagonals of a triangulated box gives back the six quads it was — and each
