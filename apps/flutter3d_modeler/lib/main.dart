@@ -1053,6 +1053,31 @@ class _ModelerScreenState extends State<ModelerScreen>
         activeTool: _tool,
         onTool: _ranTool,
         actions: <Widget>[
+          // **A menu rather than five buttons on the rail.** The rail is for
+          // the tools a hand rests on; adding a shape is something done once
+          // and then not again for an hour, and five of anything on a rail of
+          // fifty-two pixels is a rail nobody can read. `A` still adds a box,
+          // which is the one people reach for without looking.
+          PopupMenuButton<String>(
+            tooltip: 'Add a primitive',
+            onSelected: (String kind) {
+              final said = _history.run(AddPrimitive(kind: kind));
+              setState(() => _opSaid = said);
+              if (said == null) _sync();
+            },
+            itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
+              for (final String kind in AddPrimitive.primitiveKinds)
+                PopupMenuItem<String>(
+                  value: kind,
+                  height: ModelerMetrics.row,
+                  child: Text(kind, style: const TextStyle(fontSize: 13)),
+                ),
+            ],
+            child: const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              child: Text('Add', style: TextStyle(fontSize: 13)),
+            ),
+          ),
           TextButton(onPressed: _openFile, child: const Text('Open')),
           const SizedBox(width: 4),
           FilledButton.tonal(
@@ -1075,6 +1100,10 @@ class _ModelerScreenState extends State<ModelerScreen>
             ),
           ),
           onTransform: _setTransform,
+          onRename: (int id, String to) {
+            final said = _history.run(Rename(id: id, to: to));
+            setState(() => _opSaid = said);
+          },
           lastCommand: _history.journal.isEmpty ? null : _history.journal.last,
           onAmend: _amend,
           shading: _shading,
@@ -1225,6 +1254,7 @@ class _Properties extends StatelessWidget {
     required this.selection,
     required this.onSelect,
     required this.onTransform,
+    required this.onRename,
     required this.lastCommand,
     required this.onAmend,
     required this.shading,
@@ -1241,6 +1271,9 @@ class _Properties extends StatelessWidget {
 
   /// A number field was committed: the object's position, in world units.
   final void Function(int id, List<double> position) onTransform;
+
+  /// The name box was committed.
+  final void Function(int id, String to) onRename;
 
   /// What the operation card is showing, and where an adjustment goes.
   final ModelCommand? lastCommand;
@@ -1325,7 +1358,11 @@ class _Properties extends StatelessWidget {
         if (project[selection.activeObject ?? -1]
             case final ModelObject held) ...<Widget>[
           _Section('Transform'),
-          _Row('Name', held.name),
+          _NameField(
+            key: ValueKey<int>(held.id),
+            name: held.name,
+            onRenamed: (String to) => onRename(held.id, to),
+          ),
           const SizedBox(height: 4),
           VectorField(
             value: <double>[
@@ -1360,6 +1397,79 @@ class _Properties extends StatelessWidget {
     StandardView.top: 'Top',
     StandardView.bottom: 'Bottom',
   };
+}
+
+/// The object's name, editable.
+///
+/// **Keyed by the object's id**, so selecting a different object builds a
+/// different field rather than rewriting the text under a cursor — which is how
+/// a rename ends up applied to whichever object happened to be selected when
+/// the person pressed Enter.
+class _NameField extends StatefulWidget {
+  const _NameField({super.key, required this.name, required this.onRenamed});
+
+  final String name;
+  final void Function(String to) onRenamed;
+
+  @override
+  State<_NameField> createState() => _NameFieldState();
+}
+
+class _NameFieldState extends State<_NameField> {
+  late final TextEditingController _text = TextEditingController(
+    text: widget.name,
+  );
+  final FocusNode _focus = FocusNode();
+
+  @override
+  void initState() {
+    super.initState();
+    _focus.addListener(() {
+      if (!_focus.hasFocus) _commit();
+    });
+  }
+
+  @override
+  void didUpdateWidget(_NameField old) {
+    super.didUpdateWidget(old);
+    if (!_focus.hasFocus && widget.name != old.name) _text.text = widget.name;
+  }
+
+  @override
+  void dispose() {
+    _text.dispose();
+    _focus.dispose();
+    super.dispose();
+  }
+
+  void _commit() {
+    final String said = _text.text.trim();
+    // An empty name is refused by the command with a sentence; putting the old
+    // one back here as well means a person who clears the box and clicks away
+    // is not left looking at a blank field for an object that still has a name.
+    if (said.isEmpty || said == widget.name) {
+      _text.text = widget.name;
+      return;
+    }
+    widget.onRenamed(said);
+  }
+
+  @override
+  Widget build(BuildContext context) => SizedBox(
+    height: ModelerMetrics.row,
+    child: TextField(
+      controller: _text,
+      focusNode: _focus,
+      style: Theme.of(context).textTheme.bodyMedium,
+      decoration: const InputDecoration(
+        isDense: true,
+        contentPadding: EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+        border: OutlineInputBorder(),
+      ),
+      onSubmitted: (_) => _commit(),
+      onTapOutside: (_) => _focus.unfocus(),
+    ),
+  );
 }
 
 /// One line of the object list: the name, what it is made of, and whether it is
