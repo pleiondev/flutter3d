@@ -187,12 +187,11 @@ class _ModelerScreenState extends State<ModelerScreen>
   );
 
   /// The mesh being edited, when what is selected has one.
-  EditMesh? get _editMesh => switch (_history
-      .project[_history.selection.activeObject ?? -1]
-      ?.geometry) {
-    EditedGeometry(:final mesh) => mesh,
-    _ => null,
-  };
+  ///
+  /// One implementation, in the cubit, because the sub-mode change needs the
+  /// same answer and two copies of "which mesh is being edited" is exactly the
+  /// shape of the disagreement this application already had once.
+  EditMesh? get _editMesh => editMeshOf(_history.project, _history.selection);
 
   /// The picker over that mesh, rebuilt when its version moves.
   MeshPicker? _picker;
@@ -1221,17 +1220,24 @@ class _ModelerScreenState extends State<ModelerScreen>
         ),
         properties: _Properties(
           stage: stage,
-          project: _history.project,
-          selection: _history.selection,
-          onSelect: (int id) => setState(
-            () => _history.selection = _history.selection.copyWith(
+          project: state.project,
+          selection: state.selection,
+          onSelect: (int id) {
+            // Straight onto the history's selection rather than through a
+            // command: `doc-32n` gave the *set* operations commands — all,
+            // none, invert, grow — and picking one object out of the outliner
+            // is not one of them yet. When it is, this becomes `_cubit.ran`.
+            state.history.selection = state.selection.copyWith(
               mode: SelectionMode.object,
               objects: <int>[id],
-            ),
-          ),
+            );
+            _cubit.documentMoved();
+          },
           onTransform: _setTransform,
           onRename: (int id, String to) => _cubit.ran(Rename(id: id, to: to)),
-          lastCommand: _history.journal.isEmpty ? null : _history.journal.last,
+          lastCommand: state.history.journal.isEmpty
+              ? null
+              : state.history.journal.last,
           onAmend: _amend,
           shading: _shading,
           onShading: (ShadingMode mode) => setState(() => _shading = mode),
