@@ -62,6 +62,10 @@ apart and put copies of pieces back.
 hits, the nearest vertex or edge to the line they pointed along, everything
 inside a rectangle.
 
+`toBytes` and `fromBytes` are the mesh as a file: tagged sections on
+four-byte boundaries, little-endian, deterministic, and a section a reader does
+not know is stepped over rather than fatal.
+
 `MeshChecks` says what is wrong with a mesh and names the elements rather than
 counting them, so a viewport turns an issue into a selection: n-gons, rims,
 vertices where two surfaces meet at a point, vertices nothing stands on, faces

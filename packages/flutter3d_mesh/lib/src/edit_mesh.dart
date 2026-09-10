@@ -117,9 +117,161 @@ final class EditMesh {
     );
   }
 
+  /// Reads a mesh back from [bytes].
+  ///
+  /// See [toBytes] for the format. A section this version does not know is
+  /// skipped by the length it declares, so a file written by a later one still
+  /// loads — with whatever that section carried missing, which is the honest
+  /// half of forward compatibility and the reason the length is written down.
+  factory EditMesh.fromBytes(Uint8List bytes) {
+    final data = ByteData.sublistView(bytes);
+    if (bytes.length < 8 || data.getUint32(0, Endian.little) != _magic) {
+      throw ArgumentError(
+        'not an editable mesh: the first four bytes are not '
+        'the ones this format starts with',
+      );
+    }
+    final version = data.getUint32(4, Endian.little);
+    if (version > _version) {
+      throw ArgumentError(
+        'this mesh was written by version $version and this is version '
+        '$_version, which cannot read it',
+      );
+    }
+
+    var vertexSlots = 0;
+    var faceSlots = 0;
+    var halfEdgeSlots = 0;
+    final ints = <String, Int32List>{};
+    final floats = <String, Float32List>{};
+
+    var at = 8;
+    while (at + 8 <= bytes.length) {
+      final tag = String.fromCharCodes(bytes, at, at + 4);
+      final length = data.getUint32(at + 4, Endian.little);
+      final payload = at + 8;
+      if (payload + length > bytes.length) {
+        throw ArgumentError(
+          'section $tag says it is $length bytes and the '
+          'file ends before that',
+        );
+      }
+      if (tag == _sizes) {
+        vertexSlots = data.getInt32(payload, Endian.little);
+        faceSlots = data.getInt32(payload + 4, Endian.little);
+        halfEdgeSlots = data.getInt32(payload + 8, Endian.little);
+      } else if (_intSections.contains(tag)) {
+        ints[tag] = _readInts(data, payload, length);
+      } else if (_floatSections.contains(tag)) {
+        floats[tag] = _readFloats(data, payload, length);
+      }
+      // Rounded up, which is what the padding is for: every section starts on
+      // a boundary, so a reader that skipped one lands on the next tag rather
+      // than three bytes into it.
+      at = payload + ((length + 3) & ~3);
+    }
+
+    Int32List need(String tag, int count) {
+      final found = ints[tag];
+      if (found == null || found.length != count) {
+        throw ArgumentError('section $tag is missing or the wrong size');
+      }
+      return found;
+    }
+
+    final mesh = EditMesh._(
+      JournalledFloats.of(floats[_positions_] ?? Float32List(vertexSlots * 3)),
+      JournalledInts.of(need(_origins, halfEdgeSlots)),
+      JournalledInts.of(need(_nexts, halfEdgeSlots)),
+      JournalledInts.of(need(_twins, halfEdgeSlots)),
+      JournalledInts.of(need(_halfEdgeFaces, halfEdgeSlots)),
+      JournalledInts.of(need(_faceHalfEdges, faceSlots)),
+      JournalledInts.of(need(_outgoings, vertexSlots)),
+      JournalledInts.of(need(_vertexAlives, vertexSlots)),
+      JournalledInts.of(need(_faceAlives, faceSlots)),
+    );
+    mesh._uv0 = _layerOf(floats[_uvs]);
+    mesh._colour = _layerOf(floats[_colours]);
+    mesh._weights = _layerOf(floats[_weightsTag]);
+    mesh._joints = _layerOf(floats[_jointsTag]);
+    mesh._crease = _layerOf(floats[_creases]);
+    mesh._edgeFlags = _intLayerOf(ints[_edgeFlagsTag]);
+    mesh._faceFlags = _intLayerOf(ints[_faceFlagsTag]);
+    mesh._materialSlot = _intLayerOf(ints[_materialSlots]);
+    mesh._recount();
+    return mesh;
+  }
+
   /// What an index means when there is nothing there: a half-edge on a
   /// boundary has no twin, a deleted element has no successor.
   static const int none = -1;
+
+  // The byte format. Four characters and a length per section, so a reader
+  // that does not know a tag can step over it — see [toBytes].
+  static const int _magic = 0x4D443346; // 'F3DM', little-endian
+  static const int _version = 1;
+  static const String _sizes = 'SIZE';
+  static const String _positions_ = 'POSI';
+  static const String _origins = 'ORIG';
+  static const String _nexts = 'NEXT';
+  static const String _twins = 'TWIN';
+  static const String _halfEdgeFaces = 'HEFA';
+  static const String _faceHalfEdges = 'FAHE';
+  static const String _outgoings = 'OUTG';
+  static const String _vertexAlives = 'VALV';
+  static const String _faceAlives = 'FALV';
+  static const String _uvs = 'UV0 ';
+  static const String _colours = 'COLR';
+  static const String _weightsTag = 'WGHT';
+  static const String _jointsTag = 'JNTS';
+  static const String _creases = 'CRES';
+  static const String _edgeFlagsTag = 'EFLG';
+  static const String _faceFlagsTag = 'FFLG';
+  static const String _materialSlots = 'MSLT';
+
+  static const Set<String> _intSections = <String>{
+    _origins,
+    _nexts,
+    _twins,
+    _halfEdgeFaces,
+    _faceHalfEdges,
+    _outgoings,
+    _vertexAlives,
+    _faceAlives,
+    _edgeFlagsTag,
+    _faceFlagsTag,
+    _materialSlots,
+  };
+  static const Set<String> _floatSections = <String>{
+    _positions_,
+    _uvs,
+    _colours,
+    _weightsTag,
+    _jointsTag,
+    _creases,
+  };
+
+  static Int32List _readInts(ByteData data, int at, int length) {
+    final out = Int32List(length ~/ 4);
+    for (var i = 0; i < out.length; i++) {
+      out[i] = data.getInt32(at + i * 4, Endian.little);
+    }
+    return out;
+  }
+
+  static Float32List _readFloats(ByteData data, int at, int length) {
+    final out = Float32List(length ~/ 4);
+    for (var i = 0; i < out.length; i++) {
+      out[i] = data.getFloat32(at + i * 4, Endian.little);
+    }
+    return out;
+  }
+
+  static JournalledFloats? _layerOf(Float32List? values) =>
+      values == null ? null : JournalledFloats.of(values);
+
+  static JournalledInts? _intLayerOf(Int32List? values) =>
+      values == null ? null : JournalledInts.of(values);
 
   final JournalledFloats _positions;
   final JournalledInts _origin;
@@ -1601,14 +1753,123 @@ final class EditMesh {
     // a mesh the caller is still holding.
     final buffer = Float32List(plan.vertexCount * plan.floatsPerVertex);
     plan.fillVertices(this, buffer);
-    return MeshData(
+    final drawn = MeshData(
       layout: layout,
       vertices: buffer,
       indices: Uint32List.fromList(
         Uint32List.sublistView(plan.indices, 0, plan.triangleCount * 3),
       ),
     );
+    // **Tangents, because this is the call that converts once.** A layout that
+    // declares a tangent and carries zeros is a model that draws black under a
+    // normal map, and every caller of this one — an exporter, a screenshot, a
+    // test — would have to know to ask. The plan's own conversion is where a
+    // viewport goes, and it is the one that leaves the choice open.
+    return layout.has(VertexLayout.tangent)
+        ? drawn.withGeneratedTangents()
+        : drawn;
   }
+
+  // ------------------------------------------------------------------ bytes
+
+  /// The mesh as bytes, which is what a file holds and what crosses to an
+  /// isolate.
+  ///
+  /// **Sections with a tag and a length, each starting on a boundary of four.**
+  /// Eight bytes of header — `F3DM` and a version — and then a run of sections:
+  /// four characters, a length, that many bytes, and padding up to the next
+  /// multiple of four. A reader steps over a tag it does not know by the length
+  /// it declares, which is what lets a later version add a layer without
+  /// stopping an earlier one from opening the file. The padding is what makes
+  /// stepping over land on a tag rather than inside one.
+  ///
+  /// Every section *this* version writes is a whole number of four-byte values
+  /// long, so the writer's padding never adds a byte and no test here can tell
+  /// it from nothing. It is the format's promise rather than today's code: the
+  /// first section that carries a name or a comment will need it, and a reader
+  /// written now already rounds up — which is the half a test does reach.
+  ///
+  /// **Little-endian, spelled out rather than viewed.** Handing over a view of
+  /// the typed arrays would be faster and would write a different file on a
+  /// machine of the other byte order, and a mesh is a document. `mesh-30`'s
+  /// isolate transfer is the case where speed matters, and it moves the arrays
+  /// themselves rather than going through here.
+  ///
+  /// **Deterministic**: the same mesh writes the same bytes, because the
+  /// sections go in a fixed order and only the layers that exist are written.
+  /// A file that changes when nothing did is a file nobody can diff.
+  ///
+  /// The journal is not in it. What a document does about history across a
+  /// save is `doc-08`'s, and the plan's answer is that saving is a boundary
+  /// the undo stack does not cross.
+  Uint8List toBytes() {
+    final sections = <(String, TypedData)>[
+      (
+        _sizes,
+        Int32List.fromList(<int>[_vertexSlots, _faceSlots, _halfEdgeSlots]),
+      ),
+      (_positions_, _floatsOf(_positions, _vertexSlots * 3)),
+      (_origins, _intsOf(_origin, _halfEdgeSlots)),
+      (_nexts, _intsOf(_next, _halfEdgeSlots)),
+      (_twins, _intsOf(_twin, _halfEdgeSlots)),
+      (_halfEdgeFaces, _intsOf(_halfEdgeFace, _halfEdgeSlots)),
+      (_faceHalfEdges, _intsOf(_faceHalfEdge, _faceSlots)),
+      (_outgoings, _intsOf(_outgoing, _vertexSlots)),
+      (_vertexAlives, _intsOf(_vertexAlive, _vertexSlots)),
+      (_faceAlives, _intsOf(_faceAlive, _faceSlots)),
+      if (_uv0 case final JournalledFloats it)
+        (_uvs, _floatsOf(it, _halfEdgeSlots * 2)),
+      if (_colour case final JournalledFloats it)
+        (_colours, _floatsOf(it, _halfEdgeSlots * 4)),
+      if (_weights case final JournalledFloats it)
+        (_weightsTag, _floatsOf(it, _vertexSlots * 4)),
+      if (_joints case final JournalledFloats it)
+        (_jointsTag, _floatsOf(it, _vertexSlots * 4)),
+      if (_crease case final JournalledFloats it)
+        (_creases, _floatsOf(it, _halfEdgeSlots)),
+      if (_edgeFlags case final JournalledInts it)
+        (_edgeFlagsTag, _intsOf(it, _halfEdgeSlots)),
+      if (_faceFlags case final JournalledInts it)
+        (_faceFlagsTag, _intsOf(it, _faceSlots)),
+      if (_materialSlot case final JournalledInts it)
+        (_materialSlots, _intsOf(it, _faceSlots)),
+    ];
+
+    var total = 8;
+    for (final (_, payload) in sections) {
+      total += 8 + ((payload.lengthInBytes + 3) & ~3);
+    }
+
+    final out = Uint8List(total);
+    final data = ByteData.sublistView(out);
+    data
+      ..setUint32(0, _magic, Endian.little)
+      ..setUint32(4, _version, Endian.little);
+
+    var at = 8;
+    for (final (tag, payload) in sections) {
+      out.setRange(at, at + 4, tag.codeUnits);
+      data.setUint32(at + 4, payload.lengthInBytes, Endian.little);
+      at += 8;
+      if (payload is Float32List) {
+        for (var i = 0; i < payload.length; i++) {
+          data.setFloat32(at + i * 4, payload[i], Endian.little);
+        }
+      } else if (payload is Int32List) {
+        for (var i = 0; i < payload.length; i++) {
+          data.setInt32(at + i * 4, payload[i], Endian.little);
+        }
+      }
+      at += (payload.lengthInBytes + 3) & ~3;
+    }
+    return out;
+  }
+
+  Int32List _intsOf(JournalledInts layer, int count) =>
+      Int32List.sublistView(layer.values, 0, count);
+
+  Float32List _floatsOf(JournalledFloats layer, int count) =>
+      Float32List.sublistView(layer.values, 0, count);
 
   /// Throws unless the arrays agree with each other.
   ///

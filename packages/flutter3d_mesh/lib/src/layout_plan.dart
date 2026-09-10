@@ -352,10 +352,24 @@ final class MeshLayoutPlan {
   /// frame wants — and it means the `MeshData` handed back last time now holds
   /// the new numbers, so a caller keeping the old one is keeping a view rather
   /// than a copy.
-  MeshData toMeshData(EditMesh mesh, {Float32List? into}) {
+  ///
+  /// **[withTangents] breaks that, and is off for exactly that reason.** A
+  /// tangent is not a thing a row can be filled with: it is accumulated over
+  /// the triangles a vertex is in, so it needs a pass, and the pass here is
+  /// `MeshTangents.withGeneratedTangents` next door — one implementation,
+  /// where it already is. What comes back with it is a *copy*, so a later
+  /// `fillVerticesOf` into the reused buffer no longer reaches the mesh handed
+  /// out. A viewport drawing a normal-mapped model every frame is the caller
+  /// that minds, and whether that costs anything is `mesh-31`'s measurement to
+  /// make rather than this method's guess.
+  MeshData toMeshData(
+    EditMesh mesh, {
+    Float32List? into,
+    bool withTangents = false,
+  }) {
     final buffer = rows(into);
     fillVertices(mesh, buffer);
-    return MeshData(
+    final drawn = MeshData(
       layout: _layout,
       vertices: buffer.length == _vertexCount * _stride
           ? buffer
@@ -364,5 +378,8 @@ final class MeshLayoutPlan {
           ? _indices
           : Uint32List.sublistView(_indices, 0, _triangleCount * 3),
     );
+    return withTangents && _layout.has(VertexLayout.tangent)
+        ? drawn.withGeneratedTangents()
+        : drawn;
   }
 }
