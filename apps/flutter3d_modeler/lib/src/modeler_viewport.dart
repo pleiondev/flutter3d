@@ -26,14 +26,18 @@ import 'package:flutter/services.dart';
 import 'package:flutter3d/flutter3d.dart' hide Material;
 
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
+import 'package:vector_math/vector_math.dart' show Vector3;
 
 import 'element_picking.dart';
+import 'gizmo_handles.dart';
 import 'ground_grid.dart';
 import 'mesh_overlay_builder.dart';
 import 'object_picking.dart';
 import 'orbit_gestures.dart';
 import 'selection_box.dart';
 import 'staging.dart';
+import 'transform_gizmo.dart';
+import 'transform_modal.dart';
 
 /// Draws [stage] through [renderer], and orbits it under the pointer.
 class ModelerViewport extends StatefulWidget {
@@ -54,6 +58,9 @@ class ModelerViewport extends StatefulWidget {
     this.elements,
     this.meshVersion = 0,
     this.elementsVersion = 0,
+    this.gizmoPivot,
+    this.gizmoKind = TransformKind.move,
+    this.onGizmoDrag,
   });
 
   final Renderer renderer;
@@ -77,6 +84,20 @@ class ModelerViewport extends StatefulWidget {
   final Selection? elements;
   final int meshVersion;
   final int elementsVersion;
+
+  /// Where the gizmo stands, or null when nothing is selected and it is not
+  /// drawn at all. The middle of the selection, decided by the caller: the
+  /// viewport does not know what a pivot means — `doc-33n` gives that three
+  /// answers — and a second opinion here would be a third.
+  final Vector3? gizmoPivot;
+
+  /// Which gizmo: arrows, rings or boxes. The same three `TransformModal` has,
+  /// because dragging an arm is one way into the same transform `G` starts.
+  final TransformKind gizmoKind;
+
+  /// A drag began on an arm. The axis is the one the ray hit; the caller opens
+  /// the transform with it already constrained.
+  final void Function(GizmoAxis axis)? onGizmoDrag;
 
   /// The floor, or null for none.
   ///
@@ -215,6 +236,26 @@ class _ModelerViewportState extends State<ModelerViewport> {
   MeshOverlay? _ground;
   MeshOverlay? _mesh;
 
+  /// Registered third and therefore drawn third: a gizmo under the wireframe
+  /// would be a gizmo somebody cannot see on the model they are editing, which
+  /// is the only model they ever use it on.
+  MeshOverlay? _gizmo;
+
+  /// The arm the pointer is on, from the last move. Null when it is on none.
+  ///
+  /// Kept rather than recomputed in `build`, because the answer comes from a
+  /// ray against the handles and the handles come from the camera — so asking
+  /// it during a rebuild would be asking it against whatever the camera was
+  /// when the rebuild happened rather than when the pointer moved.
+  GizmoAxis? _hotAxis;
+
+  /// The handles the last frame drew, kept for the hit test.
+  ///
+  /// The same list both halves use, which is `gizmo_handles.dart`'s own rule:
+  /// a hit test written against handles the drawing did not use is a gizmo
+  /// that lights one arm and drags another.
+  List<GizmoHandle> _handles = const <GizmoHandle>[];
+
   MeshOverlay _newOverlay(Renderer renderer) => renderer.addContributor(
     MeshOverlay(
       vertexShader: renderer.debugLineVertexShader,
@@ -233,7 +274,7 @@ class _ModelerViewportState extends State<ModelerViewport> {
 
   @override
   void dispose() {
-    for (final MeshOverlay? overlay in <MeshOverlay?>[_ground, _mesh]) {
+    for (final MeshOverlay? overlay in <MeshOverlay?>[_ground, _mesh, _gizmo]) {
       if (overlay != null) widget.renderer.removeContributor(overlay);
     }
     super.dispose();
@@ -247,7 +288,17 @@ class _ModelerViewportState extends State<ModelerViewport> {
   /// moving, which is the thing that happens sixty times a second. The grid of
   /// a default floor is under seven hundred lines.
   void _buildOverlay(Renderer renderer) {
-    final look = widget.stage.overlayView(_viewport.height);
+    final camera = widget.stage.overlayView(_viewport.height);
+    // One view value for the frame, rather than each half asking the camera
+    // again: two answers taken a moment apart are a gizmo drawn at one size
+    // and hit-tested at another.
+    final look = MeshOverlayView(
+      eye: camera.eye,
+      right: camera.right,
+      up: camera.up,
+      pixel: camera.pixel,
+      perspective: camera.perspective,
+    );
 
     final ground = _ground ??= _newOverlay(renderer);
     ground
@@ -270,21 +321,63 @@ class _ModelerViewportState extends State<ModelerViewport> {
     final EditMesh? edit = widget.editMesh ?? widget.stage.editMesh;
     if (edit == null) {
       mesh.clear();
+    } else {
+      _buildWireframe(mesh, edit, look);
+    }
+
+    _buildGizmo(renderer, look);
+  }
+
+  /// The gizmo, when there is a selection to put one on.
+  ///
+  /// **Built after the wireframe rather than instead of it**, which is the bug
+  /// the restructuring above avoids: the wireframe used to return early when
+  /// nothing was editable, and a gizmo written before that line would vanish
+  /// the moment somebody selected an imported mesh — which has no half-edges
+  /// and is exactly a thing people move.
+  void _buildGizmo(Renderer renderer, MeshOverlayView look) {
+    final gizmo = _gizmo ??= _newOverlay(renderer);
+    gizmo
+      ..clear()
+      ..lookFrom(
+        eye: look.eye,
+        right: look.right,
+        up: look.up,
+        pixel: look.pixel,
+        perspective: look.perspective,
+      );
+
+    final Vector3? pivot = widget.gizmoPivot;
+    if (pivot == null) {
+      _handles = const <GizmoHandle>[];
       return;
     }
+
+    _handles = gizmoHandles(
+      pivot,
+      GizmoView(
+        eye: look.eye,
+        pixel: look.pixel,
+        perspective: look.perspective,
+      ),
+    );
+    const GizmoDrawing().writeInto(
+      gizmo,
+      pivot: pivot,
+      handles: _handles,
+      kind: widget.gizmoKind,
+      hot: _hotAxis,
+    );
+  }
+
+  void _buildWireframe(MeshOverlay mesh, EditMesh edit, MeshOverlayView look) {
     _builder.build(
       mesh,
       mesh: edit,
       selection: widget.elements ?? _nothingSelected,
       meshVersion: widget.meshVersion,
       selectionVersion: widget.elementsVersion,
-      view: MeshOverlayView(
-        eye: look.eye,
-        right: look.right,
-        up: look.up,
-        pixel: look.pixel,
-        perspective: look.perspective,
-      ),
+      view: look,
     );
   }
 
@@ -298,6 +391,10 @@ class _ModelerViewportState extends State<ModelerViewport> {
       onPointerDown: _down,
       onPointerMove: _move,
       onPointerUp: _up,
+      // The lit arm follows a pointer that is not pressed. A hover rather than
+      // a move, so that dragging the camera across the gizmo does not light
+      // arms behind it.
+      onPointerHover: _hover,
       onPointerCancel: (PointerCancelEvent event) => _up(event),
       onPointerSignal: _signal,
       onPointerPanZoomStart: (PointerPanZoomStartEvent event) =>
@@ -361,6 +458,20 @@ class _ModelerViewportState extends State<ModelerViewport> {
 
   void _down(PointerDownEvent event) {
     final GestureButton button = _buttonOf(event.buttons);
+
+    // The gizmo gets the press before the camera does, and only the primary
+    // button. Otherwise the arm a person aimed at orbits the view instead of
+    // moving the object — and they aimed at a thirteen-pixel square, so the
+    // aim was deliberate.
+    final onGizmoDrag = widget.onGizmoDrag;
+    if (onGizmoDrag != null && button == GestureButton.primary) {
+      final GizmoAxis? axis = _gizmoUnder(event.localPosition);
+      if (axis != null) {
+        onGizmoDrag(axis);
+        return;
+      }
+    }
+
     _pressed[event.pointer] = (at: event.localPosition, button: button);
     _travelled.remove(event.pointer);
     _gestures.pointerDown(
@@ -411,6 +522,37 @@ class _ModelerViewportState extends State<ModelerViewport> {
       return;
     }
     _apply(_gestures.pointerMove(event.pointer, _pointOf(event.localPosition)));
+  }
+
+  /// Lights the arm under the pointer, or unlights them all.
+  ///
+  /// `setState` only when the answer changed: a hover fires on every pixel of
+  /// travel, and rebuilding the viewport sixty times a second for a value that
+  /// is the same sixty times is the shape of a stutter nobody can find.
+  void _hover(PointerHoverEvent event) {
+    if (widget.gizmoPivot == null) return;
+    final GizmoAxis? axis = _gizmoUnder(event.localPosition);
+    if (axis == _hotAxis) return;
+    setState(() => _hotAxis = axis);
+  }
+
+  /// The gizmo arm a click at [at] is on, or null.
+  ///
+  /// Against the handles the last frame drew, which is the rule
+  /// `gizmo_handles.dart` states: a hit test written against handles the
+  /// drawing did not use is a gizmo that lights one arm and drags another.
+  GizmoAxis? _gizmoUnder(Offset at) {
+    if (_handles.isEmpty) return null;
+    final Ray ray = PickingView(
+      camera: widget.stage.camera,
+      size: _viewport,
+    ).rayThrough(at);
+    final GizmoHit? hit = GizmoHit.nearest(
+      _handles,
+      ray.origin,
+      ray.direction.normalized(),
+    );
+    return hit?.handle.axis;
   }
 
   void _up(PointerEvent event) {

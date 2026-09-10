@@ -46,6 +46,7 @@ import 'src/orientation_dial.dart';
 import 'src/selection_box.dart';
 import 'src/staging.dart';
 import 'src/transform_fields.dart';
+import 'src/transform_gizmo.dart';
 import 'src/transform_modal.dart';
 import 'src/ui/number_field.dart';
 import 'src/ui/operation_card.dart';
@@ -743,6 +744,46 @@ class _ModelerScreenState extends State<ModelerScreen>
     });
   }
 
+  /// A gizmo arm was grabbed: the same transform `G` starts, with the axis it
+  /// was grabbed by already set.
+  ///
+  /// **One path, not two.** The alternative — a gizmo that computes its own
+  /// delta and runs its own command — would be a second answer to what a move
+  /// is, and the two would part company at the first snap, the first pivot
+  /// setting and the first refusal. Here the arm only says which axis; the drag
+  /// after it is the drag `G X` already had, and it ends in the same one step
+  /// of history.
+  void _grabbedGizmo(GizmoAxis axis) {
+    if (_state is! ModelerReady) return;
+    final String tool = switch (_gizmoKind) {
+      TransformKind.rotate => 'object.rotate',
+      TransformKind.scale => 'object.scale',
+      TransformKind.move => 'object.move',
+    };
+    final modal = _modalFor(tool);
+    modal.axis = switch (axis) {
+      GizmoAxis.x => TransformAxis.x,
+      GizmoAxis.y => TransformAxis.y,
+      GizmoAxis.z => TransformAxis.z,
+    };
+    _cubit.say(modal.says);
+  }
+
+  /// Which gizmo the armed tool asks for.
+  TransformKind get _gizmoKind => switch (_tool) {
+    'mesh.rotate' || 'object.rotate' => TransformKind.rotate,
+    'mesh.scale' || 'object.scale' => TransformKind.scale,
+    _ => TransformKind.move,
+  };
+
+  /// Where the gizmo stands, or null when nothing is selected.
+  ///
+  /// Null rather than the origin: a gizmo at the world centre with nothing
+  /// selected is a control that does nothing, drawn where a person will aim at
+  /// it.
+  vm.Vector3? get _gizmoPivot =>
+      _history.selection.isEmpty ? null : _middleOfSelection();
+
   /// Accepts the transform. The transaction closes and its one step stays.
   void _commitModal() {
     if (_modal == null) return;
@@ -1275,6 +1316,14 @@ class _ModelerScreenState extends State<ModelerScreen>
                 onDragTool: kDragTools.contains(_tool) ? _dragged : null,
                 onDragDone: _endDrag,
                 onBox: _boxed,
+                // The gizmo stands on the selection and offers the transform
+                // the armed tool asks for. On a tablet it is the only way in:
+                // there is no `G` key on an iPad, so this is not a second path
+                // to the same place — on three of the five platforms phase 1
+                // ships to it is the path.
+                gizmoPivot: _gizmoPivot,
+                gizmoKind: _gizmoKind,
+                onGizmoDrag: _grabbedGizmo,
                 editMesh: _mode == ModelerMode.mesh ? _editMesh : null,
                 elements: _history.selection.asMeshSelection,
                 meshVersion:
