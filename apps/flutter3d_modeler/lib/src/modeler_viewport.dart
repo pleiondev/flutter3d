@@ -25,7 +25,10 @@ import 'package:flutter/material.dart' hide Material;
 import 'package:flutter/services.dart';
 import 'package:flutter3d/flutter3d.dart' hide Material;
 
+import 'package:flutter3d_mesh/flutter3d_mesh.dart';
+
 import 'ground_grid.dart';
+import 'mesh_overlay_builder.dart';
 import 'object_picking.dart';
 import 'orbit_gestures.dart';
 import 'staging.dart';
@@ -41,6 +44,9 @@ class ModelerViewport extends StatefulWidget {
     this.onPick,
     this.settings = const RenderSettings(),
     this.grid = const GroundGrid(),
+    this.elements,
+    this.meshVersion = 0,
+    this.elementsVersion = 0,
   });
 
   final Renderer renderer;
@@ -49,6 +55,21 @@ class ModelerViewport extends StatefulWidget {
   /// What the renderer is asked for, which is where a display mode's wireframe
   /// arrives from.
   final RenderSettings settings;
+
+  /// What is selected inside the mesh, and two counters that change when the
+  /// mesh or the selection does.
+  ///
+  /// Counters rather than the values themselves, because an `EditMesh` of two
+  /// hundred thousand edges cannot be compared to its previous self once a
+  /// frame — which is the comparison a widget would otherwise have to make to
+  /// know whether to rebuild the wireframe.
+  /// Null is nothing selected, which is not the same as an empty selection at
+  /// some level: `Selection.empty` has to be told which level it is empty at,
+  /// and a widget's default argument has to be a constant. The state below
+  /// picks the level a viewport comes up in.
+  final Selection? elements;
+  final int meshVersion;
+  final int elementsVersion;
 
   /// The floor, or null for none.
   ///
@@ -117,27 +138,51 @@ class _ModelerViewportState extends State<ModelerViewport> {
   /// button went down is a different vertex.
   static const double _slop = 4.0;
 
-  /// The overlay this viewport draws its own furniture into, built from the
-  /// renderer's line pipeline and registered with it once.
+  /// The two overlays this viewport draws its own furniture into: the floor's,
+  /// and the mesh's.
   ///
-  /// One per viewport rather than one per application: the geometry in it is
-  /// built for a particular camera — a vertex handle is sized in world units
-  /// for the distance it is at — so two viewports sharing one would each
-  /// overwrite the other's idea of how big a pixel is.
-  MeshOverlay? _overlay;
+  /// Per viewport rather than per application, both of them: the geometry in
+  /// an overlay is built for a particular camera — a vertex handle is sized in
+  /// world units for the distance it is at — so two viewports sharing one would
+  /// each overwrite the other's idea of how big a pixel is.
+  ///
+  /// **Two rather than one, because the two are rebuilt on different
+  /// questions.** The floor is rebuilt every frame — it is sized against the
+  /// camera and nothing else. The mesh's wireframe is rebuilt when the mesh
+  /// changes or the selection does, which on a two hundred thousand edge model
+  /// is the difference between twenty milliseconds a frame and none; that is
+  /// `MeshOverlayBuilder`'s whole reason for existing, and it decides for
+  /// itself which of the three batches to refill. Sharing one overlay would
+  /// mean the floor's `clear` throwing away a wireframe the builder had
+  /// decided not to rebuild.
+  ///
+  /// Registered floor first: two contributors claiming the same order keep the
+  /// order they were added in, so the mesh is drawn over the floor rather than
+  /// under it.
+  MeshOverlay? _ground;
+  MeshOverlay? _mesh;
 
-  MeshOverlay _overlayFor(Renderer renderer) =>
-      _overlay ??= renderer.addContributor(
-        MeshOverlay(
-          vertexShader: renderer.debugLineVertexShader,
-          fragmentShader: renderer.debugLineFragmentShader,
-        ),
-      );
+  MeshOverlay _newOverlay(Renderer renderer) => renderer.addContributor(
+    MeshOverlay(
+      vertexShader: renderer.debugLineVertexShader,
+      fragmentShader: renderer.debugLineFragmentShader,
+    ),
+  );
+
+  /// The wireframe, rebuilt only when it has to be.
+  final MeshOverlayBuilder _builder = MeshOverlayBuilder();
+
+  /// What a viewport with no selection hands the builder. Vertex level, which
+  /// is the level a mesh mode opens in.
+  static final Selection _nothingSelected = Selection.empty(
+    ElementLevel.vertex,
+  );
 
   @override
   void dispose() {
-    final overlay = _overlay;
-    if (overlay != null) widget.renderer.removeContributor(overlay);
+    for (final MeshOverlay? overlay in <MeshOverlay?>[_ground, _mesh]) {
+      if (overlay != null) widget.renderer.removeContributor(overlay);
+    }
     super.dispose();
   }
 
@@ -148,9 +193,11 @@ class _ModelerViewportState extends State<ModelerViewport> {
   /// camera, so the one thing that would have to invalidate it is the camera
   /// moving, which is the thing that happens sixty times a second. The grid of
   /// a default floor is under seven hundred lines.
-  void _buildOverlay(MeshOverlay overlay) {
+  void _buildOverlay(Renderer renderer) {
     final look = widget.stage.overlayView(_viewport.height);
-    overlay
+
+    final ground = _ground ??= _newOverlay(renderer);
+    ground
       ..clear()
       ..lookFrom(
         eye: look.eye,
@@ -160,9 +207,31 @@ class _ModelerViewportState extends State<ModelerViewport> {
         perspective: look.perspective,
       );
     widget.grid?.writeInto(
-      overlay,
+      ground,
       eye: look.eye,
       fadeRadius: widget.stage.groundFadeRadius,
+    );
+
+    // Registered second and therefore drawn second — see the field's comment.
+    final mesh = _mesh ??= _newOverlay(renderer);
+    final EditMesh? edit = widget.stage.editMesh;
+    if (edit == null) {
+      mesh.clear();
+      return;
+    }
+    _builder.build(
+      mesh,
+      mesh: edit,
+      selection: widget.elements ?? _nothingSelected,
+      meshVersion: widget.meshVersion,
+      selectionVersion: widget.elementsVersion,
+      view: MeshOverlayView(
+        eye: look.eye,
+        right: look.right,
+        up: look.up,
+        pixel: look.pixel,
+        perspective: look.perspective,
+      ),
     );
   }
 
@@ -194,7 +263,7 @@ class _ModelerViewportState extends State<ModelerViewport> {
           // against the camera as it will be for this frame, not as it was for
           // the last one, and a grid a frame behind is a grid that swims under
           // a model while somebody orbits.
-          _buildOverlay(_overlayFor(widget.renderer));
+          _buildOverlay(widget.renderer);
           final frame = widget.renderer.render(
             // Clamped because a zero-sized viewport is a real state — a panel
             // animating open, a window dragged to nothing — and a render

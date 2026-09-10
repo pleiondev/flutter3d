@@ -21,7 +21,13 @@ import 'package:vector_math/vector_math.dart';
 
 /// The world the modeller draws, and everything that can be asked about it.
 final class ModelerStage {
-  ModelerStage._(this.scene, this.camera, this.orbit, this.subject);
+  ModelerStage._(
+    this.scene,
+    this.camera,
+    this.orbit,
+    this.subject,
+    this.editMesh,
+  );
 
   /// What is in front of the camera: a model that was opened, or the cube a
   /// project starts as.
@@ -30,6 +36,19 @@ final class ModelerStage {
   /// finding a node by walking the scene, which is the shape of assertion that
   /// passes after somebody stops adding the node at all.
   final SceneNode subject;
+
+  /// The half-edge mesh behind [subject], when there is one.
+  ///
+  /// **Null for anything that was opened, and that is a statement about where
+  /// the document is rather than about this class.** A project that starts as
+  /// the cube has an `EditMesh` because `flutter3d_mesh` built the cube; a
+  /// model read out of a glTF has vertex buffers and no topology, and building
+  /// one for it is `importMeshData` against a document that does not exist yet
+  /// — `doc-03`. Until then the overlay draws the wireframe of what it can and
+  /// nothing of what it cannot, which is honest, and the alternative — an
+  /// `EditMesh` imported here per model with nowhere to put the result — would
+  /// be a second document with no undo, no version and no owner.
+  final EditMesh? editMesh;
 
   final Scene scene;
   final CameraNode camera;
@@ -63,6 +82,7 @@ final class ModelerStage {
     final scene = Scene();
 
     final SceneNode subject;
+    EditMesh? edit;
     if (stressTriangles > 0) {
       subject = _stress(
         device,
@@ -73,9 +93,9 @@ final class ModelerStage {
     } else if (asset != null) {
       subject = asset.instantiate(scene).root;
     } else {
-      final mesh = EditMesh.cuboid().toMeshData();
+      edit = EditMesh.cuboid();
       subject = MeshNode(
-        DeviceMesh.upload(device, mesh),
+        DeviceMesh.upload(device, edit.toMeshData()),
         Material(
           name: 'clay',
           lighting: LightingModel.pbr,
@@ -110,7 +130,7 @@ final class ModelerStage {
     scene.add(camera);
     final orbit = OrbitController(camera, distance: 3.2, yaw: 0.6, pitch: 0.45);
 
-    return ModelerStage._(scene, camera, orbit, subject);
+    return ModelerStage._(scene, camera, orbit, subject, edit);
   }
 
   /// A mesh of about [triangles] triangles, spread over [objects] nodes.

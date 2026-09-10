@@ -26,6 +26,7 @@ import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 import 'package:flutter3d_mesh/testing.dart';
 import 'package:flutter3d_modeler/src/display_modes.dart';
 import 'package:flutter3d_modeler/src/ground_grid.dart';
+import 'package:flutter3d_modeler/src/mesh_overlay_builder.dart';
 import 'package:flutter3d_modeler/src/staging.dart';
 import 'package:flutter3d_testing/flutter3d_testing.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -144,6 +145,72 @@ void main() {
     // test the overlay and the grid had passed under both, because all of them
     // read the batch and none of them asked whether anything drew it.
     expect(lines, greaterThan(20), reason: 'no grid line reached a pixel');
+  });
+
+  test('the mesh a project starts as is drawn as a wireframe', () async {
+    final it = cpuTestDevice(width: _width, height: _height);
+    final renderer = Renderer.create(device: it.device);
+    final stage = ModelerStage.build(device: it.device);
+    stage.frameSubject();
+    final EditMesh? edit = stage.editMesh;
+    expect(edit, isNotNull, reason: 'a new project is the cube, and has one');
+
+    final overlay = renderer.addContributor(
+      MeshOverlay(
+        vertexShader: renderer.debugLineVertexShader,
+        fragmentShader: renderer.debugLineFragmentShader,
+      ),
+    );
+    final look = stage.overlayView(_height.toDouble());
+    final colours = MeshOverlayColours();
+    MeshOverlayBuilder(colours: colours).build(
+      overlay,
+      mesh: edit!,
+      selection: Selection.empty(ElementLevel.vertex),
+      meshVersion: 1,
+      selectionVersion: 1,
+      view: MeshOverlayView(
+        eye: look.eye,
+        right: look.right,
+        up: look.up,
+        pixel: look.pixel,
+        perspective: look.perspective,
+      ),
+    );
+
+    final rgba = await _drawWith(
+      it.device,
+      renderer,
+      stage,
+      const RenderSettings(tonemap: false, exposure: 1.0),
+    );
+
+    // The wire colour is a middle grey, and nothing else in this scene is: the
+    // clay is warm and much lighter, the background is nearly black, and the
+    // floor is not in this frame.
+    final wire = <int>[
+      (colours.wire.x * 255).round(),
+      (colours.wire.y * 255).round(),
+      (colours.wire.z * 255).round(),
+    ];
+    var edges = 0;
+    for (var i = 0; i < rgba.length; i += 4) {
+      if ((rgba[i] - wire[0]).abs() <= 2 &&
+          (rgba[i + 1] - wire[1]).abs() <= 2 &&
+          (rgba[i + 2] - wire[2]).abs() <= 2) {
+        edges++;
+      }
+    }
+
+    // Mutation: hand the builder a mesh and never register the overlay with
+    // the renderer, which is what every test of the builder does — all of them
+    // stay green, because all of them read the batch. The cube has twelve
+    // edges and each of them is a line several pixels long.
+    expect(
+      edges,
+      greaterThan(20),
+      reason: 'no edge of the mesh reached a pixel',
+    );
   });
 
   test('a +Y face in the normals view is the colour of a +Y normal', () async {
