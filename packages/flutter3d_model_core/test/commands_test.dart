@@ -758,6 +758,49 @@ void main() {
         isNull,
       );
     });
+
+    test('a command with optional fields reads back with their defaults '
+        'when the JSON leaves them out', () {
+      // A file or a hand-written tool call naming only what it cares about —
+      // `addPrimitive` with just a `kind`, say — should read back the same
+      // object the constructor's own defaults would build, not refuse for
+      // want of a `size` nobody who wrote `AddPrimitive(kind: 'box')` in Dart
+      // would ever have to give either. Mutation: require the field the way
+      // the round trip above requires `profile`, and a tool call this
+      // permissive schema promises to accept is refused instead.
+      final addPrimitive =
+          modelCommandFromJson(<String, Object?>{
+                'name': 'addPrimitive',
+                'kind': 'box',
+              })!
+              as AddPrimitive;
+      expect(addPrimitive.size, 1.0);
+      expect(addPrimitive.segments, 32);
+
+      final addLathe =
+          modelCommandFromJson(<String, Object?>{
+                'name': 'addLathe',
+                'profile': <Object?>[
+                  <Object?>[0, 0],
+                  <Object?>[1, 1],
+                ],
+              })!
+              as AddLathe;
+      expect(addLathe.segments, 32);
+      expect(addLathe.closedProfile, isFalse);
+      expect(addLathe.shapeName, 'lathe');
+
+      final loopCut =
+          modelCommandFromJson(<String, Object?>{'name': 'loopCut'})!
+              as LoopCut;
+      expect(loopCut.cuts, 1);
+      expect(loopCut.factor, 0.5);
+
+      final recalculateNormals =
+          modelCommandFromJson(<String, Object?>{'name': 'recalculateNormals'})!
+              as RecalculateNormals;
+      expect(recalculateNormals.flip, isFalse);
+    });
   });
 
   group('the material table', () {

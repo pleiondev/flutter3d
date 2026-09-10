@@ -175,6 +175,36 @@ sealed class ModelCommand {
       '$name(${arguments.entries.map((MapEntry<String, Object?> e) => '${e.key}: ${e.value}').join(', ')})';
 }
 
+/// Swaps the whole document for [next], as one undo step.
+///
+/// **Deliberately not in [modelCommandNames], not in [modelCommandFromJson],
+/// and not `record`-able through `CommandJournal`.** Every other command
+/// describes an edit small enough to write down and replay — a number, an id,
+/// a list of points; this one carries a whole [ModelProject], which is what an
+/// importer builds from a decoded file and a journal has no honest way to
+/// store. It exists so that bringing in an external model — `flutter3d_model_mcp`'s
+/// `import`, and later `doc-11a-n`'s `ImportInto` — still goes through
+/// [ModelHistory] and can be undone as itself, rather than needing a second,
+/// private way to push a step that every other command already has for free.
+final class ReplaceDocument extends ModelCommand {
+  const ReplaceDocument(this.next, this.says);
+
+  final ModelProject next;
+
+  @override
+  final String says;
+
+  @override
+  String get name => 'replaceDocument';
+
+  @override
+  Map<String, Object?> get arguments => const <String, Object?>{};
+
+  @override
+  Outcome apply(ModelProject project, ProjectSelection selection) =>
+      Outcome.done(next);
+}
+
 /// Renames one object.
 final class Rename extends ModelCommand {
   const Rename({required this.id, required this.to});
@@ -474,39 +504,37 @@ ModelCommand? modelCommandFromJson(Object? json) {
       final int id => ApplyTransform(id),
       _ => null,
     },
-    'addLathe' => switch ((
-      _points(json['profile']),
-      json['segments'],
-      json['closedProfile'],
-      json['label'],
-    )) {
-      (
-        final List<Vector2> profile,
-        final int segments,
-        final bool closedProfile,
-        final String label,
-      ) =>
-        AddLathe(
-          profile: profile,
-          segments: segments,
-          closedProfile: closedProfile,
-          shapeName: label,
-          at: switch (_doubles(json['at'], 3)) {
-            final List<double> at => Vector3(at[0], at[1], at[2]),
-            _ => null,
-          },
-        ),
+    'addLathe' => switch (_points(json['profile'])) {
+      final List<Vector2> profile => AddLathe(
+        profile: profile,
+        segments: switch (json['segments']) {
+          final int segments => segments,
+          _ => 32,
+        },
+        closedProfile: json['closedProfile'] as bool? ?? false,
+        shapeName: json['label'] as String? ?? 'lathe',
+        at: switch (_doubles(json['at'], 3)) {
+          final List<double> at => Vector3(at[0], at[1], at[2]),
+          _ => null,
+        },
+      ),
       _ => null,
     },
     'setParametric' => switch ((json['id'], _shapeOf(json['to']))) {
       (final int id, final ParametricShape to) => SetParametric(id: id, to: to),
       _ => null,
     },
-    'addPrimitive' => switch ((json['kind'], json['size'], json['segments'])) {
-      (final String kind, final num size, final int segments) => AddPrimitive(
+    'addPrimitive' => switch (json['kind']) {
+      final String kind => AddPrimitive(
         kind: kind,
-        size: size.toDouble(),
-        segments: segments,
+        size: switch (json['size']) {
+          final num size => size.toDouble(),
+          _ => 1.0,
+        },
+        segments: switch (json['segments']) {
+          final int segments => segments,
+          _ => 32,
+        },
         at: switch (_doubles(json['at'], 3)) {
           final List<double> at => Vector3(at[0], at[1], at[2]),
           _ => null,
@@ -524,13 +552,16 @@ ModelCommand? modelCommandFromJson(Object? json) {
       final num distance => Extrude(distance.toDouble()),
       _ => null,
     },
-    'loopCut' => switch ((json['cuts'], json['factor'])) {
-      (final int cuts, final num factor) => LoopCut(
-        cuts: cuts,
-        factor: factor.toDouble(),
-      ),
-      _ => null,
-    },
+    'loopCut' => LoopCut(
+      cuts: switch (json['cuts']) {
+        final int cuts => cuts,
+        _ => 1,
+      },
+      factor: switch (json['factor']) {
+        final num factor => factor.toDouble(),
+        _ => 0.5,
+      },
+    ),
     'deleteElements' => const DeleteElements(),
     'mergeByDistance' => MergeByDistance(
       distance: switch (json['distance']) {
@@ -541,10 +572,9 @@ ModelCommand? modelCommandFromJson(Object? json) {
     'dissolveEdges' => const DissolveEdges(),
     'separate' => const Separate(),
     'triangulate' => const Triangulate(),
-    'recalculateNormals' => switch (json['flip']) {
-      final bool flip => RecalculateNormals(flip: flip),
-      _ => null,
-    },
+    'recalculateNormals' => RecalculateNormals(
+      flip: json['flip'] as bool? ?? false,
+    ),
     'transformElements' => switch ((
       _doubles(json['by'], 16),
       json['what'],

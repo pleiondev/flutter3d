@@ -2,35 +2,49 @@
 ///
 ///     dart run flutter3d_model_mcp:model_mcp <project.f3dproj>
 ///
-/// **A usage line and nothing else yet, on purpose.** What this proves today is
-/// the thing that has to be true before any of the server exists: that a
-/// machine with the Dart SDK and no Flutter can resolve this package and run
-/// it. That is checked in a container from CI — `dart pub get`, then `--help` —
-/// and it is the check that would have failed on the first day if the document
-/// layer had depended on `flutter3d` for `MeshData`.
+/// **The project is an argument, and there is no tool to change it.** The
+/// project is the state: an agent that could open a second one halfway
+/// through would be left holding an undo stack describing a file it is no
+/// longer editing. A host that wants two projects open starts two processes.
 ///
-/// The server itself is `doc-19` of `doc/model-editor-plan.md`; when it lands,
-/// this file opens the project named on the command line and hands the channel
-/// to `ModelMcpServer`, the way `flutter3d_editor_mcp`'s entry point does.
+/// **A path that does not exist yet starts a fresh project there** — `Г8`'s
+/// decision — so the first call an agent makes can be `addPrimitive` rather
+/// than a separate "create" step nothing else in this repository has either.
 ///
 /// Nothing is written to stdout that is not a protocol message — stdout *is*
-/// the channel — so usage goes to stderr and the exit code is what a host
-/// reads.
+/// the channel — so the one thing that can go wrong before the protocol
+/// starts, a project that exists but will not parse, is written to stderr and
+/// the process exits non-zero. Registered as `bin/` rather than as an
+/// `executables:` entry, matching every other package in this repository.
 library;
 
 import 'dart:io';
+
+import 'package:dart_mcp/stdio.dart';
+import 'package:flutter3d_model_mcp/flutter3d_model_mcp.dart';
 
 void main(List<String> arguments) {
   if (arguments.contains('--help') || arguments.contains('-h')) {
     stderr.writeln(_usage);
     return;
   }
+  if (arguments.length != 1) {
+    stderr.writeln(_usage);
+    exit(64);
+  }
 
-  stderr.writeln(
-    'the model server is not built yet — see doc/model-editor-plan.md '
-    'doc-19.\n\n$_usage',
+  final ModelSession session;
+  try {
+    session = ModelSession.open(arguments.first);
+  } catch (error) {
+    stderr.writeln('could not open ${arguments.first}: $error');
+    exit(66);
+  }
+
+  ModelMcpServer(
+    stdioChannel(input: stdin, output: stdout),
+    session: session,
   );
-  exit(69);
 }
 
 const String _usage = '''
@@ -38,6 +52,6 @@ A model editor an agent can drive, over MCP on stdin and stdout.
 
   dart run flutter3d_model_mcp:model_mcp <project.f3dproj>
 
-One project, opened for the life of the process. A host that wants two
-starts two processes.
+One project, opened for the life of the process — or started fresh, if the
+path does not exist yet. A host that wants two starts two processes.
 ''';

@@ -21,6 +21,14 @@ dependencies:
   # than a switch written a second time here.
   flutter3d_model_core: ^0.6.0
 
+  # `ModelDocument`, `F3dWriter`/`ObjWriter`, `decodeModel` — the export and
+  # import verbs go through the same document abstraction the rest of the
+  # engine does, rather than knowing about glTF or OBJ themselves.
+  flutter3d_formats: ^0.6.0
+
+  # `ElementLevel`, for the `select` verb's mesh-mode argument.
+  flutter3d_mesh: ^0.6.0
+
   # The protocol, pinned to one minor for the reason `flutter3d_editor_mcp`
   # gives: its own README opens with "still experimental and likely to evolve
   # quickly", and the narrowness is a decision rather than a default.

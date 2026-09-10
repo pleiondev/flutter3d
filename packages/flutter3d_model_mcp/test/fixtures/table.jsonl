@@ -1,0 +1,16 @@
+{"name":"addPrimitive","kind":"box","size":1.2,"segments":32,"at":[0.0,1.0,0.0]}
+{"name":"rename","id":1,"to":"top"}
+{"name":"addPrimitive","kind":"cylinder","size":0.1,"segments":12,"at":[0.5,0.5,0.5]}
+{"name":"rename","id":2,"to":"leg 1"}
+{"name":"addPrimitive","kind":"cylinder","size":0.1,"segments":12,"at":[-0.5,0.5,0.5]}
+{"name":"rename","id":3,"to":"leg 2"}
+{"name":"addPrimitive","kind":"cylinder","size":0.1,"segments":12,"at":[0.5,0.5,-0.5]}
+{"name":"rename","id":4,"to":"leg 3"}
+{"name":"addPrimitive","kind":"cylinder","size":0.1,"segments":12,"at":[-0.5,0.5,-0.5]}
+{"name":"rename","id":5,"to":"leg 4"}
+{"name":"addMaterial","materialName":"oak"}
+{"name":"assignMaterial","id":1,"to":0}
+{"name":"assignMaterial","id":2,"to":0}
+{"name":"assignMaterial","id":3,"to":0}
+{"name":"assignMaterial","id":4,"to":0}
+{"name":"assignMaterial","id":5,"to":0}
