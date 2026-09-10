@@ -41,6 +41,7 @@ import 'src/orbit_run.dart';
 import 'src/orientation_dial.dart';
 import 'src/selection_box.dart';
 import 'src/staging.dart';
+import 'src/transform_fields.dart';
 import 'src/transform_modal.dart';
 import 'src/ui/number_field.dart';
 import 'src/ui/operation_card.dart';
@@ -935,17 +936,20 @@ class _ModelerScreenState extends State<ModelerScreen>
     state.stage.sync?.apply(_history.project);
   }
 
-  /// A position typed into the panel.
+  /// Nine numbers typed into the panel.
   ///
-  /// `SetTransform` rather than `MoveBy`, because what the field says is where
-  /// the object goes rather than how far it moves — and a person who types the
-  /// same number twice expects nothing to happen the second time.
-  void _setTransform(int id, List<double> position) {
-    final object = _history.project[id];
-    if (object == null) return;
-    final vm.Matrix4 to = vm.Matrix4.copy(object.transform)
-      ..setTranslation(vm.Vector3(position[0], position[1], position[2]));
-    final said = _history.run(SetTransform(id: id, to: to));
+  /// `SetTransform` rather than `MoveBy`, because what a field says is where
+  /// the object goes rather than how far it moves — a person who types the same
+  /// number twice expects nothing to happen the second time, and a panel that
+  /// emitted a difference would move the object again on every rebuild.
+  void _setTransform(int id, TransformFields to) {
+    if (_history.project[id] == null) return;
+    final built = transformFromFields(to);
+    if (built.refused case final String said) {
+      setState(() => _opSaid = said);
+      return;
+    }
+    final said = _history.run(SetTransform(id: id, to: built.matrix!));
     setState(() => _opSaid = said);
     if (said == null) _sync();
   }
@@ -1369,8 +1373,8 @@ class _Properties extends StatelessWidget {
   final ProjectSelection selection;
   final ValueChanged<int> onSelect;
 
-  /// A number field was committed: the object's position, in world units.
-  final void Function(int id, List<double> position) onTransform;
+  /// A number field was committed: the whole transform, as nine numbers.
+  final void Function(int id, TransformFields to) onTransform;
 
   /// The name box was committed.
   final void Function(int id, String to) onRename;
@@ -1464,13 +1468,10 @@ class _Properties extends StatelessWidget {
             onRenamed: (String to) => onRename(held.id, to),
           ),
           const SizedBox(height: 4),
-          VectorField(
-            value: <double>[
-              held.transform.getTranslation().x,
-              held.transform.getTranslation().y,
-              held.transform.getTranslation().z,
-            ],
-            onChanged: (List<double> to) => onTransform(held.id, to),
+          _TransformRows(
+            key: ValueKey<int>(held.id),
+            fields: transformFieldsOf(held.transform),
+            onChanged: (TransformFields to) => onTransform(held.id, to),
           ),
         ],
         _Section('Last operation'),
@@ -1497,6 +1498,81 @@ class _Properties extends StatelessWidget {
     StandardView.top: 'Top',
     StandardView.bottom: 'Bottom',
   };
+}
+
+/// Position, turn and size, three numbers each.
+///
+/// **Keyed by the object's id at the call site**, for the reason the name field
+/// is: a rebuild for a different object must build different boxes rather than
+/// rewrite the text under a cursor.
+///
+/// The turn and the size are shown as `transformFieldsOf` reads them out of the
+/// matrix, which is not always the spelling somebody typed — a turn of 30, 90,
+/// 30 reads back as 60, 90, 0, because at the pole the X and Z turns are the
+/// same turn and only their difference survives. That is a property of Euler
+/// angles rather than of this panel, and the file that does the arithmetic
+/// argues it at length.
+class _TransformRows extends StatelessWidget {
+  const _TransformRows({
+    super.key,
+    required this.fields,
+    required this.onChanged,
+  });
+
+  final TransformFields fields;
+  final ValueChanged<TransformFields> onChanged;
+
+  @override
+  Widget build(BuildContext context) => Column(
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    children: <Widget>[
+      _label(context, 'Position'),
+      VectorField(
+        value: <double>[
+          fields.position.x,
+          fields.position.y,
+          fields.position.z,
+        ],
+        onChanged: (List<double> to) => onChanged((
+          position: vm.Vector3(to[0], to[1], to[2]),
+          rotationDegrees: fields.rotationDegrees,
+          scale: fields.scale,
+        )),
+      ),
+      _label(context, 'Rotation'),
+      VectorField(
+        value: <double>[
+          fields.rotationDegrees.x,
+          fields.rotationDegrees.y,
+          fields.rotationDegrees.z,
+        ],
+        onChanged: (List<double> to) => onChanged((
+          position: fields.position,
+          rotationDegrees: vm.Vector3(to[0], to[1], to[2]),
+          scale: fields.scale,
+        )),
+      ),
+      _label(context, 'Scale'),
+      VectorField(
+        value: <double>[fields.scale.x, fields.scale.y, fields.scale.z],
+        onChanged: (List<double> to) => onChanged((
+          position: fields.position,
+          rotationDegrees: fields.rotationDegrees,
+          scale: vm.Vector3(to[0], to[1], to[2]),
+        )),
+      ),
+    ],
+  );
+
+  static Widget _label(BuildContext context, String said) => Padding(
+    padding: const EdgeInsets.only(top: 6, bottom: 2),
+    child: Text(
+      said,
+      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+        color: Theme.of(context).colorScheme.onSurfaceVariant,
+      ),
+    ),
+  );
 }
 
 /// The object's name, editable.
