@@ -56,6 +56,12 @@ runs a new loop of edges across a ring of quads, out of `splitEdge` and
 `duplicateSelection`, `splitSelection` and `separateComponents` take a mesh
 apart and put copies of pieces back.
 
+`MeshBvh` puts a tree over the plan's triangles and answers in faces —
+`refit` while somebody drags, `rebuild` when the topology changes — and
+`MeshPicker` turns where they pointed into what they meant: the face a ray
+hits, the nearest vertex or edge to the line they pointed along, everything
+inside a rectangle.
+
 `MeshChecks` says what is wrong with a mesh and names the elements rather than
 counting them, so a viewport turns an issue into a selection: n-gons, rims,
 vertices where two surfaces meet at a point, vertices nothing stands on, faces

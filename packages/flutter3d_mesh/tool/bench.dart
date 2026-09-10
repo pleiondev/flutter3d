@@ -18,8 +18,9 @@
 /// — `ARCHITECTURE.md` §14 says the same about the engine's.
 library;
 
+import 'package:flutter3d_geometry/flutter3d_geometry.dart';
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
-import 'package:vector_math/vector_math.dart';
+import 'package:vector_math/vector_math.dart' hide Ray;
 
 /// A grid of quads `n` by `n`, which is the shape a subdivided plane has and
 /// the cheapest way to a mesh of a stated size.
@@ -95,6 +96,15 @@ void main() {
       50,
       () => plan.fillVerticesOf(mesh, rows, dragged),
     );
+
+    // Picking: the tree is rebuilt after a topological edit and refitted while
+    // somebody drags, and a click is one ray.
+    plan.build(mesh);
+    final bvh = MeshBvh(mesh, plan);
+    bench('MeshBvh.rebuild', 3, () => bvh.rebuild(mesh, plan), items: faces);
+    bench('MeshBvh.refit', 5, () => bvh.refit(mesh), items: faces);
+    final ray = Ray(Vector3(0, 1, 0), Vector3(0.001, -1, 0.001)..normalize());
+    bench('MeshBvh.raycast', 2000, () => bvh.raycast(ray));
   }
 
   print('');

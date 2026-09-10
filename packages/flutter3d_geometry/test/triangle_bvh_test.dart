@@ -137,5 +137,118 @@ void main() {
     final bvh = TriangleBvh.fromMesh(empty);
 
     expect(bvh.raycast(Ray(Vector3.zero(), Vector3(0, 0, -1))), isNull);
+    expect(
+      collectInAabb(bvh, Aabb3.minMax(Vector3.all(-9), Vector3.all(9))),
+      isEmpty,
+    );
   });
+
+  group('a box query', () {
+    test('finds the same triangles a scan of every box finds', () {
+      final mesh = const SphereShape(radius: 1, segments: 16, rings: 8).build();
+      final bvh = TriangleBvh.fromMesh(mesh);
+      // A corner of the sphere's own bounding box, so the answer is a real
+      // subset rather than everything or nothing.
+      final box = Aabb3.minMax(Vector3(0.2, 0.2, -2), Vector3(2, 2, 2));
+
+      final found = collectInAabb(bvh, box);
+
+      // Mutation: descend only where a node's box is *inside* the query rather
+      // than overlapping it, and the tree answers with nothing at all — the
+      // root is never inside a box smaller than the mesh.
+      expect(found, scanInAabb(bvh, box));
+      expect(found, isNotEmpty);
+      expect(found.length, lessThan(bvh.indices.length ~/ 3));
+    });
+
+    test('a box that holds the whole mesh holds every triangle', () {
+      final mesh = CuboidShape().build();
+      final bvh = TriangleBvh.fromMesh(mesh);
+
+      expect(
+        collectInAabb(bvh, Aabb3.minMax(Vector3.all(-9), Vector3.all(9))),
+        hasLength(12),
+      );
+      // And one beside it holds none.
+      expect(
+        collectInAabb(bvh, Aabb3.minMax(Vector3.all(8), Vector3.all(9))),
+        isEmpty,
+      );
+    });
+  });
+
+  group('a frustum query', () {
+    test('finds the same triangles a scan of every box finds', () {
+      final mesh = const SphereShape(radius: 1, segments: 16, rings: 8).build();
+      final bvh = TriangleBvh.fromMesh(mesh);
+      // A slab of space: six planes, four of them cutting the sphere.
+      final frustum = Frustum.matrix(
+        makeOrthographicMatrix(0.1, 2, -2, 2, -2, 2),
+      );
+
+      final found = <int>[];
+      bvh.forEachInFrustum(frustum, found.add);
+      found.sort();
+
+      final scanned = <int>[];
+      final box = Aabb3();
+      for (var t = 0; t * 3 < bvh.indices.length; t++) {
+        if (frustum.intersectsWithAabb3(boxOfTriangle(bvh, t, box))) {
+          scanned.add(t);
+        }
+      }
+
+      // Mutation: test the node boxes and hand back every triangle of a leaf
+      // that overlaps, and this comes back with triangles the scan rejects —
+      // a rectangle selection then takes in faces beside the one clicked.
+      expect(found, scanned);
+      expect(found, isNotEmpty);
+      expect(found.length, lessThan(bvh.indices.length ~/ 3));
+    });
+  });
+}
+
+/// The triangles the tree says are in [box].
+List<int> collectInAabb(TriangleBvh bvh, Aabb3 box) {
+  final found = <int>[];
+  bvh.forEachInAabb(box, found.add);
+  return found..sort();
+}
+
+/// The same question asked of every triangle in turn.
+List<int> scanInAabb(TriangleBvh bvh, Aabb3 box) {
+  final found = <int>[];
+  final into = Aabb3();
+  for (var triangle = 0; triangle * 3 < bvh.indices.length; triangle++) {
+    final bounds = boxOfTriangle(bvh, triangle, into);
+    if (bounds.min.x <= box.max.x &&
+        bounds.max.x >= box.min.x &&
+        bounds.min.y <= box.max.y &&
+        bounds.max.y >= box.min.y &&
+        bounds.min.z <= box.max.z &&
+        bounds.max.z >= box.min.z) {
+      found.add(triangle);
+    }
+  }
+  return found;
+}
+
+/// The box round one triangle of [bvh].
+Aabb3 boxOfTriangle(TriangleBvh bvh, int triangle, Aabb3 into) {
+  final base = triangle * 3;
+  Vector3 at(int corner) => Vector3(
+    bvh.positions[bvh.indices[base + corner] * 3],
+    bvh.positions[bvh.indices[base + corner] * 3 + 1],
+    bvh.positions[bvh.indices[base + corner] * 3 + 2],
+  );
+  final a = at(0);
+  final b = at(1);
+  final c = at(2);
+  into.min.setFrom(a);
+  into.max.setFrom(a);
+  Vector3.min(into.min, b, into.min);
+  Vector3.max(into.max, b, into.max);
+  Vector3.min(into.min, c, into.min);
+  Vector3.max(into.max, c, into.max);
+  return into;
 }

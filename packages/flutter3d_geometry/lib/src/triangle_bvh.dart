@@ -376,6 +376,112 @@ final class TriangleBvh {
     );
   }
 
+  /// Visits every triangle whose own box overlaps [box].
+  ///
+  /// **Conservative, and the caller is told so.** What comes back is every
+  /// triangle that *may* be in the box: a long thin triangle lying diagonally
+  /// across a corner has a box that overlaps and a body that does not. Deciding
+  /// exactly is a separating-axis test per triangle, and the callers this has —
+  /// a rectangle selection, a region query before an edit — all want to look at
+  /// the triangles themselves anyway. Reporting a few extra is cheap; missing
+  /// one is a face a person dragged a box round and did not select.
+  void forEachInAabb(Aabb3 box, void Function(int triangle) visit) {
+    _walk((int node) => _boxOverlaps(node, box), (int triangle) {
+      if (_triangleOverlaps(triangle, box)) visit(triangle);
+    });
+  }
+
+  /// Visits every triangle whose own box may intersect [frustum].
+  ///
+  /// Conservative for the same reason [forEachInAabb] is, and one more: a box
+  /// outside every plane of a frustum is outside the frustum, but a box that
+  /// straddles two planes without being inside either can still be reported.
+  /// A rectangle selection is a question about what the person can see, and it
+  /// refines this against the vertices.
+  void forEachInFrustum(Frustum frustum, void Function(int triangle) visit) {
+    final box = Aabb3();
+    _walk((int node) => frustum.intersectsWithAabb3(_boxOf(node, box)), (
+      int triangle,
+    ) {
+      if (frustum.intersectsWithAabb3(_triangleBox(triangle, box))) {
+        visit(triangle);
+      }
+    });
+  }
+
+  /// Walks the tree, descending where [enter] says to and handing every
+  /// triangle of a leaf it reaches to [reached].
+  void _walk(
+    bool Function(int node) enter,
+    void Function(int triangle) reached,
+  ) {
+    if (_nodes == 0) return;
+    final stack = Int32List(64);
+    var depth = 0;
+    stack[depth++] = 0;
+    while (depth > 0) {
+      final node = stack[--depth];
+      if (!enter(node)) continue;
+      final left = _left[node];
+      if (left < 0) {
+        final start = _start[node];
+        final end = start + _count[node];
+        for (var i = start; i < end; i++) {
+          reached(_order[i]);
+        }
+        continue;
+      }
+      if (depth + 2 > stack.length) {
+        throw StateError('the tree is deeper than the stack this walk carries');
+      }
+      stack[depth++] = left;
+      stack[depth++] = left + 1;
+    }
+  }
+
+  Aabb3 _boxOf(int node, Aabb3 into) => into
+    ..min.setValues(_min[node * 3], _min[node * 3 + 1], _min[node * 3 + 2])
+    ..max.setValues(_max[node * 3], _max[node * 3 + 1], _max[node * 3 + 2]);
+
+  bool _boxOverlaps(int node, Aabb3 box) {
+    for (var axis = 0; axis < 3; axis++) {
+      if (_max[node * 3 + axis] < box.min[axis]) return false;
+      if (_min[node * 3 + axis] > box.max[axis]) return false;
+    }
+    return true;
+  }
+
+  Aabb3 _triangleBox(int triangle, Aabb3 into) {
+    final base = triangle * 3;
+    final a = indices[base] * 3;
+    final b = indices[base + 1] * 3;
+    final c = indices[base + 2] * 3;
+    for (var axis = 0; axis < 3; axis++) {
+      final x = positions[a + axis];
+      final y = positions[b + axis];
+      final z = positions[c + axis];
+      into.min[axis] = x < y ? (x < z ? x : z) : (y < z ? y : z);
+      into.max[axis] = x > y ? (x > z ? x : z) : (y > z ? y : z);
+    }
+    return into;
+  }
+
+  bool _triangleOverlaps(int triangle, Aabb3 box) {
+    final base = triangle * 3;
+    final a = indices[base] * 3;
+    final b = indices[base + 1] * 3;
+    final c = indices[base + 2] * 3;
+    for (var axis = 0; axis < 3; axis++) {
+      final x = positions[a + axis];
+      final y = positions[b + axis];
+      final z = positions[c + axis];
+      final low = x < y ? (x < z ? x : z) : (y < z ? y : z);
+      final high = x > y ? (x > z ? x : z) : (y > z ? y : z);
+      if (high < box.min[axis] || low > box.max[axis]) return false;
+    }
+    return true;
+  }
+
   Vector3 _vertex(int index) => Vector3(
     positions[index * 3],
     positions[index * 3 + 1],
