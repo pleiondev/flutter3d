@@ -18,10 +18,12 @@
 /// ever goes up is the one thing that survives both.
 library;
 
+import 'package:flutter3d_formats/flutter3d_formats.dart';
 import 'package:flutter3d_geometry/flutter3d_geometry.dart';
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 import 'package:vector_math/vector_math.dart';
 
+import 'material.dart';
 import 'selection.dart';
 
 /// The limits a project is being built against.
@@ -208,10 +210,22 @@ final class ModelProject implements ModelProjectView {
   const ModelProject({
     this.profile = const ProjectProfile(),
     this.objects = const <ModelObject>[],
+    this.materials = const <ProjectMaterial>[],
+    this.images = const <EncodedImage>[],
     this.nextId = 1,
   });
 
   final ProjectProfile profile;
+
+  /// What the objects are painted with. [ModelObject.materialSlots] indexes
+  /// this; a slot that indexes nothing is drawn in the viewport's own default,
+  /// which is what an object nobody has painted yet looks like.
+  final List<ProjectMaterial> materials;
+
+  /// The images [materials] sample, addressed by index from their
+  /// [TextureBinding]s. See `material.dart` for why they are a table of their
+  /// own rather than fields inside a material.
+  final List<EncodedImage> images;
 
   /// In the order they were added, which is the order the outliner shows and
   /// the order an export writes. A map by id would make a lookup cheaper and
@@ -260,7 +274,13 @@ final class ModelProject implements ModelProjectView {
         'would put it in twice under one id and no lookup would say which.',
       );
     }
-    return ModelProject(profile: profile, objects: next, nextId: nextId);
+    return ModelProject(
+      profile: profile,
+      objects: next,
+      materials: materials,
+      images: images,
+      nextId: nextId,
+    );
   }
 
   /// This project with a new object built from [nextId].
@@ -271,6 +291,8 @@ final class ModelProject implements ModelProjectView {
   ModelProject added(ModelObject Function(int id) build) => ModelProject(
     profile: profile,
     objects: <ModelObject>[...objects, build(nextId)],
+    materials: materials,
+    images: images,
     nextId: nextId + 1,
   );
 
@@ -299,6 +321,12 @@ final class ModelProject implements ModelProjectView {
         for (final ModelObject each in objects)
           if (!doomed.contains(each.id)) each,
       ],
+      // The tables stay whole. A material is shared, so deleting the last
+      // object that used one is not a reason to throw the material away —
+      // undo would have to put it back, and a person who deletes a bolt has
+      // not asked to lose the steel.
+      materials: materials,
+      images: images,
       // Unchanged on purpose: an id belonging to something deleted must not
       // come back, or a step of history that names it starts naming something
       // else the moment it is undone and redone.
@@ -306,13 +334,20 @@ final class ModelProject implements ModelProjectView {
     );
   }
 
-  ModelProject copyWith({ProjectProfile? profile}) => ModelProject(
+  ModelProject copyWith({
+    ProjectProfile? profile,
+    List<ProjectMaterial>? materials,
+    List<EncodedImage>? images,
+  }) => ModelProject(
     profile: profile ?? this.profile,
     objects: objects,
+    materials: materials ?? this.materials,
+    images: images ?? this.images,
     nextId: nextId,
   );
 
   @override
   String toString() =>
-      'ModelProject(${objects.length} objects, next id $nextId)';
+      'ModelProject(${objects.length} objects, ${materials.length} materials, '
+      'next id $nextId)';
 }

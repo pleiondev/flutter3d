@@ -10,6 +10,7 @@ import '../scene/morph_state.dart';
 import '../scene/scene.dart';
 import '../scene/scene_node.dart';
 import '../scene/skeleton.dart';
+import 'material_loader.dart';
 import 'model_part.dart';
 import 'texture_upload.dart';
 
@@ -250,7 +251,7 @@ final class ModelAsset {
       final index = surface.materialIndex;
       Material material;
       if (index != null && index >= 0 && index < document.materials.length) {
-        material = materialCache[index] ??= await _convertMaterial(
+        material = materialCache[index] ??= await bindSurfaceMaterial(
           document.materials[index],
           lighting: lighting,
           textureFor: textureFor,
@@ -323,65 +324,5 @@ final class ModelAsset {
     for (final texture in textures) {
       device.releaseTexture(texture);
     }
-  }
-
-  static Future<Material> _convertMaterial(
-    SurfaceMaterial source, {
-    required LightingModel lighting,
-    required Future<TextureHandle?> Function(int, TextureSampling) textureFor,
-  }) async {
-    /// Resolves one texture slot, returning both the image and its sampler.
-    ///
-    /// A slot the file does not declare comes back null and the renderer binds
-    /// a neutral texture instead, which is why nothing here has to record
-    /// "this material has no normal map".
-    Future<(TextureHandle?, SamplerOptions?)> resolve(
-      TextureBinding? binding,
-    ) async {
-      if (binding == null) return (null, null);
-      return (
-        await textureFor(binding.imageIndex, binding.sampling),
-        samplerOptionsFor(binding.sampling),
-      );
-    }
-
-    final (albedo, albedoSampler) = await resolve(source.baseColorTexture);
-    final (normal, normalSampler) = await resolve(source.normalTexture);
-    final (orm, ormSampler) = await resolve(source.metallicRoughnessTexture);
-    final (occlusion, occlusionSampler) = await resolve(
-      source.occlusionTexture,
-    );
-    final (emissive, emissiveSampler) = await resolve(source.emissiveTexture);
-
-    return Material(
-      name: source.name,
-      // An unlit material asks for unlit shading regardless of the scene's
-      // preferred model; ignoring the flag would light something authored flat.
-      lighting: source.unlit ? LightingModel.unlit : lighting,
-      baseColor: source.baseColor.clone(),
-      metallic: source.metallic,
-      roughness: source.roughness,
-      albedo: albedo,
-      albedoSampler: albedoSampler,
-      normal: normal,
-      normalSampler: normalSampler,
-      normalScale: source.normalScale,
-      metallicRoughness: orm,
-      metallicRoughnessSampler: ormSampler,
-      occlusion: occlusion,
-      occlusionSampler: occlusionSampler,
-      occlusionStrength: source.occlusionStrength,
-      emissiveTexture: emissive,
-      emissiveSampler: emissiveSampler,
-      emissive: source.emissive.clone(),
-      emissiveStrength: source.emissiveStrength,
-      alphaMode: switch (source.alphaMode) {
-        SurfaceAlphaMode.opaque => MaterialAlphaMode.opaque,
-        SurfaceAlphaMode.mask => MaterialAlphaMode.mask,
-        SurfaceAlphaMode.blend => MaterialAlphaMode.blend,
-      },
-      alphaCutoff: source.alphaCutoff,
-      doubleSided: source.doubleSided,
-    );
   }
 }

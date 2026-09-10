@@ -11,6 +11,8 @@
 /// draws for them.
 library;
 
+import 'dart:typed_data';
+
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_cpu/testing.dart';
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
@@ -53,7 +55,13 @@ ModelNode nodeAt(
 /// A decoded file shaped like the ones that arrive: a hierarchy, two meshes of
 /// different sizes, and a group that draws nothing.
 final class _Decoded extends ModelDocument {
-  _Decoded({required this.surfaces, required this.nodes, required this.roots});
+  _Decoded({
+    required this.surfaces,
+    required this.nodes,
+    required this.roots,
+    this.materials = const <SurfaceMaterial>[],
+    this.images = const <EncodedImage>[],
+  });
 
   @override
   final List<ModelSurface> surfaces;
@@ -65,10 +73,10 @@ final class _Decoded extends ModelDocument {
   final List<int> roots;
 
   @override
-  List<SurfaceMaterial> get materials => const <SurfaceMaterial>[];
+  final List<SurfaceMaterial> materials;
 
   @override
-  List<EncodedImage> get images => const <EncodedImage>[];
+  final List<EncodedImage> images;
 
   @override
   List<String> get warnings => const <String>[];
@@ -99,11 +107,11 @@ ModelDocument decoded() => _Decoded(
 );
 
 void main() {
-  test('every node in the file becomes an object in the document', () {
+  test('every node in the file becomes an object in the document', () async {
     final document = decoded();
     final it = cpuTestDevice(width: 8, height: 8);
 
-    final opened = openDocument(document, device: it.device);
+    final opened = await openDocument(document, device: it.device);
 
     // Mutation: hand back a fresh project holding a cube — which is what this
     // used to do. One object instead of three, and every assertion below about
@@ -115,22 +123,22 @@ void main() {
     );
   });
 
-  test('the triangles on screen are the triangles in the file', () {
+  test('the triangles on screen are the triangles in the file', () async {
     final document = decoded();
     final it = cpuTestDevice(width: 8, height: 8);
 
-    final opened = openDocument(document, device: it.device);
+    final opened = await openDocument(document, device: it.device);
 
     // Against the document rather than against 16, so that changing either
     // mesh in the fixture cannot leave this passing about the wrong shape.
     expect(opened.project.triangleCount, document.triangleCount);
   });
 
-  test('the scene draws a node for each object, and nothing else', () {
+  test('the scene draws a node for each object, and nothing else', () async {
     final document = decoded();
     final it = cpuTestDevice(width: 8, height: 8);
 
-    final opened = openDocument(document, device: it.device);
+    final opened = await openDocument(document, device: it.device);
     final sync = opened.stage.sync!;
 
     // The pairing is the whole point: the stage was built from this project, so
@@ -142,11 +150,11 @@ void main() {
     }
   });
 
-  test('the hierarchy survives the trip', () {
+  test('the hierarchy survives the trip', () async {
     final document = decoded();
     final it = cpuTestDevice(width: 8, height: 8);
 
-    final opened = openDocument(document, device: it.device);
+    final opened = await openDocument(document, device: it.device);
     final sync = opened.stage.sync!;
 
     final rig = opened.project.objects.firstWhere(
@@ -163,11 +171,11 @@ void main() {
     expect(sync.nodeOf(body.id)!.parent, same(sync.nodeOf(rig.id)));
   });
 
-  test('an opened model can be edited and taken back', () {
+  test('an opened model can be edited and taken back', () async {
     final document = decoded();
     final it = cpuTestDevice(width: 8, height: 8);
 
-    final opened = openDocument(document, device: it.device);
+    final opened = await openDocument(document, device: it.device);
     final history = ModelHistory(opened.project);
     final body = opened.project.objects.firstWhere(
       (ModelObject o) => o.name == 'body',
@@ -182,5 +190,117 @@ void main() {
 
     history.undo();
     expect(history.project[body.id]!.name, 'body');
+  });
+
+  test('an opened model keeps the colour the file gave it', () async {
+    final brass = Vector4(0.8, 0.6, 0.2, 1.0);
+    final document = _Decoded(
+      surfaces: <ModelSurface>[
+        ModelSurface(
+          name: 'body',
+          mesh: EditMesh.cuboid().toMeshData(),
+          transform: Matrix4.identity(),
+          materialIndex: 0,
+        ),
+        // Painted with nothing, which is not the same as painted with the
+        // first material in the file.
+        ModelSurface(
+          name: 'spike',
+          mesh: tetrahedron(),
+          transform: Matrix4.identity(),
+        ),
+      ],
+      nodes: <ModelNode>[
+        nodeAt('body', Vector3.zero(), surfaces: <int>[0]),
+        nodeAt('spike', Vector3.zero(), surfaces: <int>[1]),
+      ],
+      roots: <int>[0, 1],
+      materials: <SurfaceMaterial>[
+        SurfaceMaterial(name: 'brass', baseColor: brass, metallic: 1.0),
+      ],
+    );
+    final it = cpuTestDevice(width: 8, height: 8);
+
+    final opened = await openDocument(document, device: it.device);
+    final sync = opened.stage.sync!;
+    final body = opened.project.objects.firstWhere(
+      (ModelObject o) => o.name == 'body',
+    );
+    final spike = opened.project.objects.firstWhere(
+      (ModelObject o) => o.name == 'spike',
+    );
+
+    // Mutation: paint every node in clay, which is what this did before the
+    // table existed. A model opens the colour of unfired pottery whatever the
+    // file said, and nothing in the suite could tell the difference.
+    expect(sync.nodeOf(body.id)!.material.baseColor, brass);
+    expect(sync.nodeOf(body.id)!.material.metallic, 1.0);
+
+    // Mutation: fall back to material zero for an unpainted object. The spike
+    // turns brass, and every unpainted object in every opened file takes on
+    // whichever material happened to be first.
+    expect(sync.nodeOf(spike.id)!.material.name, 'clay');
+  });
+
+  test('a second refresh builds nothing', () async {
+    final document = _Decoded(
+      surfaces: <ModelSurface>[
+        ModelSurface(
+          name: 'body',
+          mesh: EditMesh.cuboid().toMeshData(),
+          transform: Matrix4.identity(),
+          materialIndex: 0,
+        ),
+      ],
+      nodes: <ModelNode>[nodeAt('body', Vector3.zero(), surfaces: <int>[0])],
+      roots: <int>[0],
+      materials: <SurfaceMaterial>[SurfaceMaterial(name: 'brass')],
+    );
+    final it = cpuTestDevice(width: 8, height: 8);
+
+    final opened = await openDocument(document, device: it.device);
+
+    // The number that has to be zero while somebody is dragging. Mutation: key
+    // the pool on nothing and rebuild every material each call — every edit to
+    // the document then decodes every texture in the model again.
+    expect(await opened.stage.materials!.refresh(opened.project), 0);
+  });
+
+  test('an image that will not decode leaves the colour and a sentence', () async {
+    final teal = Vector4(0.0, 0.5, 0.5, 1.0);
+    final document = _Decoded(
+      surfaces: <ModelSurface>[
+        ModelSurface(
+          name: 'body',
+          mesh: EditMesh.cuboid().toMeshData(),
+          transform: Matrix4.identity(),
+          materialIndex: 0,
+        ),
+      ],
+      nodes: <ModelNode>[nodeAt('body', Vector3.zero(), surfaces: <int>[0])],
+      roots: <int>[0],
+      materials: <SurfaceMaterial>[
+        SurfaceMaterial(
+          name: 'painted',
+          baseColor: teal,
+          baseColorTexture: const TextureBinding(imageIndex: 0),
+        ),
+      ],
+      // Three bytes that are not a PNG and not a JPEG.
+      images: <EncodedImage>[
+        EncodedImage(bytes: Uint8List.fromList(<int>[1, 2, 3]), name: 'broken'),
+      ],
+    );
+    final it = cpuTestDevice(width: 8, height: 8);
+
+    final opened = await openDocument(document, device: it.device);
+    final sync = opened.stage.sync!;
+    final body = opened.project.objects.single;
+
+    // A model with one unreadable texture is a model that opens, not a model
+    // that refuses to. Mutation: let the failure through as an exception and
+    // the whole file fails to open because one image in it is truncated.
+    expect(sync.nodeOf(body.id)!.material.baseColor, teal);
+    expect(opened.stage.materials!.warnings, isNotEmpty);
   });
 }

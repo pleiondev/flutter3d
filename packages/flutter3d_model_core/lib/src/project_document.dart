@@ -20,6 +20,7 @@ import 'package:flutter3d_formats/flutter3d_formats.dart';
 import 'package:flutter3d_geometry/flutter3d_geometry.dart';
 import 'package:vector_math/vector_math.dart';
 
+import 'material.dart';
 import 'project.dart';
 
 /// [project] as the document `F3dWriter` — and the glTF and OBJ writers when
@@ -56,12 +57,18 @@ import 'project.dart';
 /// draw call in the file that every consumer downstream has to guard against
 /// for the sake of a thing that draws nothing.
 ///
-/// Materials are not written, because a [ModelProject] has no material table
-/// yet: [ModelObject.materialSlots] indexes one that does not exist, and a
-/// surface pointing at material 2 of an empty list is a dangling index rather
-/// than a colour. When the table arrives this is where an object splits into
-/// one surface per slot — `EditMesh.toMeshData` already takes a `materialSlot`
-/// for exactly that — since a draw call has one material.
+/// **The material and image tables are written across whole, and the slots stay
+/// indices.** A project's table is already the shape a document wants, so two
+/// objects painted the same steel come out naming one material rather than two
+/// copies of it, and a material sampling an atlas still names the image it
+/// named. Flattening a material into each surface instead would be the obvious
+/// way to write this and would turn one steel into forty, one atlas into forty
+/// uploads, and a re-import into a project nobody can recolour in one edit.
+///
+/// An object still writes one surface, so it writes one material — the first of
+/// its slots. `EditMesh.toMeshData` already takes a `materialSlot`, so the day
+/// an object draws two materials is the day it becomes two surfaces here; until
+/// something can set a second slot there is nothing to split.
 ModelDocument toModelDocument(ModelProject project) {
   final objects = project.objects;
   final indexOfId = <int, int>{
@@ -158,6 +165,13 @@ ModelDocument toModelDocument(ModelProject project) {
           name: object.name,
           mesh: mesh,
           transform: placement.clone(),
+          // The slot names a row of the project's table, and the table is
+          // written across whole — so two objects painted the same steel come
+          // out pointing at one material rather than at two copies of it. A
+          // slot pointing past the end of the table is dropped rather than
+          // written: an index no material answers to is a dangling reference
+          // in the file, and a reader given one either guesses or refuses.
+          materialIndex: _slotOf(object, project.materials.length),
           // A mirrored object — a scale of −1 on one axis, which is how a
           // modeller makes the other glove — reverses on-screen winding, and
           // backface culling then discards exactly the faces meant to be seen.
@@ -205,7 +219,23 @@ ModelDocument toModelDocument(ModelProject project) {
     nodes: nodes,
     roots: roots,
     warnings: warnings,
+    materials: <SurfaceMaterial>[
+      for (final ProjectMaterial each in project.materials) each.surface,
+    ],
+    images: project.images,
   );
+}
+
+/// The material index [object]'s one surface is written with.
+///
+/// The first slot, because an object is one draw call today: `EditMesh` can cut
+/// a mesh by material slot — `toMeshData` takes one — and the day an object
+/// writes several surfaces is the day this returns one index per surface. Until
+/// then a second slot is something nothing can have set.
+int? _slotOf(ModelObject object, int materialCount) {
+  if (object.materialSlots.isEmpty) return null;
+  final slot = object.materialSlots.first;
+  return slot >= 0 && slot < materialCount ? slot : null;
 }
 
 /// [document] as a project of imported objects, which is what opening a glTF
@@ -233,6 +263,13 @@ ModelDocument toModelDocument(ModelProject project) {
 /// under it, would double the outliner for the ordinary one-mesh node and
 /// break the round trip for every document this file writes.
 ///
+/// **The materials and images come across as tables and the surfaces keep
+/// their indices into them**, so a file whose nine bolts share one steel opens
+/// as nine objects holding one slot number, and darkening the steel is one
+/// edit. A surface naming no material gets no slot rather than slot zero:
+/// "unpainted" and "painted with the first material in the file" are different
+/// things, and only one of them is what the file said.
+///
 /// The profile does not come back, because a file does not record one: a
 /// project is measured against the machine it is being built for, and that
 /// belongs to the workspace rather than to the model.
@@ -241,7 +278,18 @@ ModelProject fromModelDocument(ModelDocument document) {
   final taken = List<bool>.filled(nodes.length, false);
   final pending = <(int node, int? parent)>[];
 
-  var project = const ModelProject();
+  // The tables come across whole and by index, so a material shared by nine
+  // surfaces stays one material and every binding inside it still names the
+  // image it named. Rebuilding them per object — a material each, an image
+  // each — would turn a file's one atlas into nine uploads and lose the fact
+  // that the nine were ever the same thing.
+  var project = ModelProject(
+    materials: <ProjectMaterial>[
+      for (final SurfaceMaterial each in document.materials)
+        ProjectMaterial(surface: each),
+    ],
+    images: document.images,
+  );
 
   void drain() {
     while (pending.isNotEmpty) {
@@ -268,6 +316,12 @@ ModelProject fromModelDocument(ModelDocument document) {
           ),
           transform: node.toMatrix(),
           parent: parentId,
+          // An object with no geometry draws nothing and so is painted with
+          // nothing; giving a group a slot would put a material index on a
+          // node the exporter writes no surface for.
+          materialSlots: drawn.isEmpty
+              ? const <int>[]
+              : _slotsOf(document.surfaces[drawn.first]),
         ),
       );
 
@@ -280,6 +334,7 @@ ModelProject fromModelDocument(ModelDocument document) {
             geometry: ImportedGeometry(surface.mesh),
             transform: Matrix4.identity(),
             parent: id,
+            materialSlots: _slotsOf(surface),
           ),
         );
       }
@@ -307,6 +362,17 @@ ModelProject fromModelDocument(ModelDocument document) {
 
   return project;
 }
+
+/// The slot list an imported surface arrives with.
+///
+/// Empty when the file named no material, which is not the same as naming
+/// material zero: a surface with no material is drawn in the viewport's default
+/// and written back out with none, and turning that into a slot would paint it
+/// with whichever material happened to be first in the file.
+List<int> _slotsOf(ModelSurface surface) => switch (surface.materialIndex) {
+  final int index when index >= 0 => <int>[index],
+  _ => const <int>[],
+};
 
 /// The mesh a piece of geometry draws as.
 ///
@@ -373,6 +439,8 @@ final class _ProjectDocument extends ModelDocument {
     required this.nodes,
     required this.roots,
     required this.warnings,
+    required this.materials,
+    required this.images,
   });
 
   @override
@@ -388,10 +456,10 @@ final class _ProjectDocument extends ModelDocument {
   final List<String> warnings;
 
   @override
-  List<SurfaceMaterial> get materials => const <SurfaceMaterial>[];
+  final List<SurfaceMaterial> materials;
 
   @override
-  List<EncodedImage> get images => const <EncodedImage>[];
+  final List<EncodedImage> images;
 
   @override
   String toString() =>

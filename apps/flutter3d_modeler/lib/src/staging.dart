@@ -20,6 +20,7 @@ import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 import 'package:vector_math/vector_math.dart';
 
+import 'material_pool.dart';
 import 'scene_sync.dart';
 
 /// The world the modeller draws, and everything that can be asked about it.
@@ -31,6 +32,7 @@ final class ModelerStage {
     this.subject,
     this.editMesh,
     this.sync,
+    this.materials,
   );
 
   /// What is in front of the camera: a model that was opened, or the cube a
@@ -63,6 +65,14 @@ final class ModelerStage {
   /// document — `p0-01` is about triangles on a screen and putting a project
   /// behind it would be measuring the document instead.
   final SceneSync? sync;
+
+  /// The project's materials, uploaded. Null for the measurement stands, which
+  /// have no document to take a table from.
+  ///
+  /// Filling it is asynchronous, so a stage arrives with it empty and whatever
+  /// opened the project fills it — see `openDocument`. Until then [sync] paints
+  /// in clay.
+  final MaterialPool? materials;
 
   /// The colour behind everything, and a decision rather than a default.
   ///
@@ -103,9 +113,14 @@ final class ModelerStage {
     scene.add(camera);
     final orbit = OrbitController(camera, distance: 3.2, yaw: 0.6, pitch: 0.45);
 
-    final sync = SceneSync(device: device, scene: scene, root: root)
-      ..apply(project);
-    return ModelerStage._(scene, camera, orbit, root, null, sync);
+    final materials = MaterialPool(device: device);
+    final sync = SceneSync(
+      device: device,
+      scene: scene,
+      root: root,
+      materials: materials,
+    )..apply(project);
+    return ModelerStage._(scene, camera, orbit, root, null, sync, materials);
   }
 
   factory ModelerStage.build({
@@ -150,7 +165,7 @@ final class ModelerStage {
     scene.add(camera);
     final orbit = OrbitController(camera, distance: 3.2, yaw: 0.6, pitch: 0.45);
 
-    return ModelerStage._(scene, camera, orbit, subject, edit, null);
+    return ModelerStage._(scene, camera, orbit, subject, edit, null, null);
   }
 
   /// **Two lights and no shadow.** A single light leaves half of every object

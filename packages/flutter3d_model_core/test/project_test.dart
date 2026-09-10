@@ -8,6 +8,9 @@
 /// has a window.
 library;
 
+import 'dart:typed_data';
+
+import 'package:flutter3d_formats/flutter3d_formats.dart';
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 import 'package:test/test.dart';
@@ -422,6 +425,80 @@ void main() {
         isNull,
       );
       expect(ProjectSelection.fromJson(42), isNull);
+    });
+  });
+
+  group('the material table', () {
+    /// A project of [count] cubes painted from a table of one steel.
+    ModelProject painted(int count) {
+      var project = ModelProject(
+        materials: <ProjectMaterial>[
+          ProjectMaterial(surface: SurfaceMaterial(name: 'steel')),
+        ],
+        images: <EncodedImage>[
+          EncodedImage(bytes: Uint8List.fromList(<int>[9]), name: 'atlas'),
+        ],
+      );
+      for (var i = 0; i < count; i++) {
+        project = project.added(
+          (int id) => ModelObject(
+            id: id,
+            name: 'bolt $id',
+            geometry: EditedGeometry(EditMesh.cuboid()),
+            transform: Matrix4.identity(),
+            materialSlots: const <int>[0],
+          ),
+        );
+      }
+      return project;
+    }
+
+    test('adding an object keeps the tables', () {
+      // Every one of these builds a whole new `ModelProject`, and a field left
+      // off one of those constructor calls is a table that silently empties on
+      // the next edit. The mutation is dropping `materials:` from `added` — the
+      // model turns grey the moment somebody adds a cube, and nothing else in
+      // the suite notices.
+      expect(painted(2).materials, hasLength(1));
+      expect(painted(2).images, hasLength(1));
+    });
+
+    test('replacing an object keeps the tables', () {
+      final project = painted(1);
+      final moved = project.withObject(
+        project.objects.single.copyWith(
+          transform: Matrix4.translation(Vector3(1, 0, 0)),
+        ),
+      );
+
+      // Mutation: drop `materials:` from `withObject`. Dragging an object is
+      // what a person does most, so the paint would come off the whole model on
+      // the first nudge.
+      expect(moved.materials, hasLength(1));
+      expect(moved.images, hasLength(1));
+    });
+
+    test('deleting the last object that used a material keeps it', () {
+      final project = painted(1);
+      final empty = project.removed(project.objects.single.id);
+
+      // Not a leak and not tidiness either: a material is shared, and undo has
+      // to be able to put the object back onto the steel it was painted with. A
+      // delete that swept the table would make undo a different document from
+      // the one before the delete.
+      expect(empty.objects, isEmpty);
+      expect(empty.materials, hasLength(1));
+    });
+
+    test('a changed material moves its version', () {
+      final before = ProjectMaterial(surface: SurfaceMaterial(name: 'steel'));
+      final after = before.withSurface(SurfaceMaterial(name: 'brass'));
+
+      // The version is what a pool of uploaded textures reads to know it has to
+      // build the material again. Mutation: keep the version — the model keeps
+      // drawing the old paint until something else forces a rebuild.
+      expect(after.version, before.version + 1);
+      expect(after.surface.name, 'brass');
     });
   });
 }

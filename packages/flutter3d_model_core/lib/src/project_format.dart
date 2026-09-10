@@ -26,11 +26,16 @@
 /// **What is not, and is not pretended to be.** The history is not written
 /// here: the file carries the document, and putting the undo stack in it is
 /// `doc-31d`, which wants the steps to address chunks already lying in the blob
-/// rather than a second copy of every mesh. Materials, images, skins and
-/// animations have sections of their own in the plan and none of them yet.
-/// Imported geometry — buffers that arrived from a glTF with no topology behind
-/// them — is refused by [writeProject] rather than written half: see the throw
-/// there for why that beats a file whose object comes back empty.
+/// rather than a second copy of every mesh. Skins and animations have sections
+/// of their own in the plan and none of them yet.
+///
+/// Two things a project can hold today are refused by [writeProject] rather
+/// than written half, and both refusals are holes waiting on `doc-09`: imported
+/// geometry, which has no section to put its buffers in, and the material and
+/// image tables, whose absence would leave every object's material slots naming
+/// rows that are not in the file. See the throws there for why refusing beats
+/// saving a model that opens missing what the person could see when they
+/// pressed the button.
 library;
 
 import 'dart:convert';
@@ -130,15 +135,34 @@ final class ProjectRefused extends ProjectRead {
 /// that changes when the document did not is a file nobody can diff and a save
 /// that dirties a repository for nothing.
 ///
-/// Throws [ArgumentError] on an object holding [ImportedGeometry]. That is a
-/// hole rather than a rule — the plan's `importedMeshes` section is what closes
-/// it — and a refusal at the call site is better than the alternatives: writing
-/// the object without its buffers gives a file that opens into an empty shape,
-/// and dropping the object gives a file missing something the user could see on
-/// the screen when they pressed save.
+/// Throws [ArgumentError] on an object holding [ImportedGeometry], and on a
+/// project with a material or an image in it. Both are holes rather than rules
+/// — the plan's `importedMeshes`, `materials` and `images` sections are what
+/// close them — and a refusal at the call site is better than the alternatives:
+/// writing an object without its buffers gives a file that opens into an empty
+/// shape, dropping the object gives a file missing something the user could see
+/// when they pressed save, and writing material slots with no table behind them
+/// gives a file whose every painted object opens in clay while the manifest
+/// insists it was painted.
 Uint8List writeProject(ModelProject project) {
   final meshes = <Uint8List>[];
   final objects = <Map<String, Object?>>[];
+
+  // The slots are written and the table they index is not, which would be a
+  // file whose objects come back holding a number that names nothing — every
+  // painted object opening in clay, with the manifest insisting it was
+  // painted. Refused rather than written for the same reason imported buffers
+  // are below: a save that quietly drops half of what it was given is worse
+  // than one that says it cannot do the job yet. `doc-09` gives the materials
+  // and the images sections of their own.
+  if (project.materials.isNotEmpty || project.images.isNotEmpty) {
+    throw ArgumentError(
+      'this project holds ${project.materials.length} materials and '
+      '${project.images.length} images, and this version of the format has no '
+      'section for either. Writing it without them would save a file whose '
+      'objects name materials that are not in it.',
+    );
+  }
 
   for (final ModelObject object in project.objects) {
     final Map<String, Object?> geometry;

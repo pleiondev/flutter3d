@@ -15,6 +15,7 @@ library;
 import 'dart:convert';
 import 'dart:typed_data';
 
+import 'package:flutter3d_formats/flutter3d_formats.dart';
 import 'package:flutter3d_geometry/flutter3d_geometry.dart';
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 import 'package:flutter3d_mesh/testing.dart';
@@ -701,6 +702,60 @@ void main() {
           ),
         ),
       );
+    });
+  });
+
+  group('what the format cannot hold yet', () {
+    test('a project with materials is refused rather than half-written', () {
+      final project = ModelProject(
+        materials: <ProjectMaterial>[
+          ProjectMaterial(surface: SurfaceMaterial(name: 'steel')),
+        ],
+      ).added(
+        (int id) => ModelObject(
+          id: id,
+          name: 'bolt',
+          geometry: EditedGeometry(EditMesh.cuboid()),
+          transform: Matrix4.identity(),
+          materialSlots: const <int>[0],
+        ),
+      );
+
+      // Mutation: write it anyway. The manifest carries `materialSlots: [0]`
+      // and there is no table for the 0 to name, so the file opens with every
+      // painted object in clay while insisting in JSON that it was painted —
+      // a loss nothing downstream can detect, let alone repair.
+      expect(() => writeProject(project), throwsArgumentError);
+    });
+
+    test('a project with images is refused too', () {
+      final project = ModelProject(
+        images: <EncodedImage>[
+          EncodedImage(bytes: Uint8List.fromList(<int>[1]), name: 'atlas'),
+        ],
+      );
+
+      // A table with no materials in it still has to stop the write: an image
+      // list is what a material's bindings index, and dropping it silently is
+      // the same loss one step earlier.
+      expect(() => writeProject(project), throwsArgumentError);
+    });
+
+    test('a project with neither still writes', () {
+      final project = const ModelProject().added(
+        (int id) => ModelObject(
+          id: id,
+          name: 'bolt',
+          geometry: EditedGeometry(EditMesh.cuboid()),
+          transform: Matrix4.identity(),
+        ),
+      );
+
+      // The guard has to be about the tables and not about the slots: a
+      // mutation that refused whenever an object had any `materialSlots`, or
+      // that refused every project, would pass the two tests above and stop
+      // the format working at all.
+      expect(readProject(writeProject(project)), isA<ProjectOpened>());
     });
   });
 }

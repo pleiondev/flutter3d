@@ -209,3 +209,76 @@ Future<Material> loadMaterial(
     warnings: warnings,
   );
 }
+
+/// [source] as a material the renderer can draw with, uploading what it samples.
+///
+/// **The one conversion from a decoded material to a drawable one.** Every
+/// decoder in the repository produces a [SurfaceMaterial] and the renderer takes
+/// a [Material]; between them sits this, and there is one of it because the
+/// mapping is long, dull and easy to get subtly wrong — an alpha mode dropped, a
+/// sampler taken from the wrong slot — in a way that shows up as a picture
+/// nobody can explain rather than as an error.
+///
+/// [textureFor] answers with an uploaded image for a slot, or null. Passing it
+/// in rather than taking a list of images is what lets a caller cache: a model
+/// whose nine materials sample one atlas uploads it once, and a modeller
+/// rebuilding one material after an edit re-uploads nothing at all.
+Future<Material> bindSurfaceMaterial(
+  SurfaceMaterial source, {
+  LightingModel lighting = LightingModel.pbr,
+  required Future<TextureHandle?> Function(int, TextureSampling) textureFor,
+}) async {
+  /// Resolves one texture slot, returning both the image and its sampler.
+  ///
+  /// A slot the file does not declare comes back null and the renderer binds
+  /// a neutral texture instead, which is why nothing here has to record
+  /// "this material has no normal map".
+  Future<(TextureHandle?, SamplerOptions?)> resolve(
+    TextureBinding? binding,
+  ) async {
+    if (binding == null) return (null, null);
+    return (
+      await textureFor(binding.imageIndex, binding.sampling),
+      samplerOptionsFor(binding.sampling),
+    );
+  }
+
+  final (albedo, albedoSampler) = await resolve(source.baseColorTexture);
+  final (normal, normalSampler) = await resolve(source.normalTexture);
+  final (orm, ormSampler) = await resolve(source.metallicRoughnessTexture);
+  final (occlusion, occlusionSampler) = await resolve(
+    source.occlusionTexture,
+  );
+  final (emissive, emissiveSampler) = await resolve(source.emissiveTexture);
+
+  return Material(
+    name: source.name,
+    // An unlit material asks for unlit shading regardless of the scene's
+    // preferred model; ignoring the flag would light something authored flat.
+    lighting: source.unlit ? LightingModel.unlit : lighting,
+    baseColor: source.baseColor.clone(),
+    metallic: source.metallic,
+    roughness: source.roughness,
+    albedo: albedo,
+    albedoSampler: albedoSampler,
+    normal: normal,
+    normalSampler: normalSampler,
+    normalScale: source.normalScale,
+    metallicRoughness: orm,
+    metallicRoughnessSampler: ormSampler,
+    occlusion: occlusion,
+    occlusionSampler: occlusionSampler,
+    occlusionStrength: source.occlusionStrength,
+    emissiveTexture: emissive,
+    emissiveSampler: emissiveSampler,
+    emissive: source.emissive.clone(),
+    emissiveStrength: source.emissiveStrength,
+    alphaMode: switch (source.alphaMode) {
+      SurfaceAlphaMode.opaque => MaterialAlphaMode.opaque,
+      SurfaceAlphaMode.mask => MaterialAlphaMode.mask,
+      SurfaceAlphaMode.blend => MaterialAlphaMode.blend,
+    },
+    alphaCutoff: source.alphaCutoff,
+    doubleSided: source.doubleSided,
+  );
+}

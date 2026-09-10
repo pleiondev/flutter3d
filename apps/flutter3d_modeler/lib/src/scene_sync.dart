@@ -23,7 +23,8 @@ library;
 import 'package:flutter3d/flutter3d.dart' hide Material;
 import 'package:flutter3d/flutter3d.dart' as engine show Material;
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
-import 'package:vector_math/vector_math.dart';
+
+import 'material_pool.dart';
 
 /// One object's node, and what it was built from.
 final class _Tracked {
@@ -36,10 +37,23 @@ final class _Tracked {
 
 /// The scene, following a project.
 final class SceneSync {
-  SceneSync({required this.device, required this.scene, required this.root});
+  SceneSync({
+    required this.device,
+    required this.scene,
+    required this.root,
+    this.materials,
+  });
 
   final GraphicsDevice device;
   final Scene scene;
+
+  /// The project's materials, uploaded. Null for the measurement stands, which
+  /// have no document and want the clay.
+  ///
+  /// Read rather than owned: filling it is asynchronous — a texture has to be
+  /// decoded — and [apply] runs where nothing can wait. Whoever fills it calls
+  /// [repaint] afterwards.
+  final MaterialPool? materials;
 
   /// What every object's node hangs under. A node of its own rather than the
   /// scene, so the lights and the camera are not among the things a pick has to
@@ -82,7 +96,7 @@ final class SceneSync {
       if (had == null) {
         final MeshNode node = MeshNode(
           DeviceMesh.upload(device, _dataOf(object.geometry)),
-          _clay(),
+          _paintFor(object),
           name: object.name,
         );
         node.setLocalMatrix(object.transform);
@@ -102,6 +116,7 @@ final class SceneSync {
       }
       had.node
         ..name = object.name
+        ..material = _paintFor(object)
         ..setLocalMatrix(object.transform);
       had.version = object.version;
     }
@@ -137,6 +152,32 @@ final class SceneSync {
     }
   }
 
+  /// Re-reads every node's material from the pool.
+  ///
+  /// **What closes the gap between an upload and a frame.** [apply] cannot wait
+  /// for a texture to decode, so the first pass over a freshly opened model
+  /// paints everything in clay; once the pool is filled, this puts the paint on
+  /// without touching a vertex buffer. Calling [apply] again instead would work
+  /// and would compare every mesh to decide it had not changed.
+  ///
+  /// **This has to run before the stage's first frame, and the reason is in
+  /// `display_modes.dart`.** `SurfaceShading` records what each node was drawn
+  /// with the first time it sees one, so that switching to the normals view and
+  /// back can put it back. A repaint after that first sight changes the node
+  /// and not the record, and the next frame in material mode writes the
+  /// remembered clay straight back over the paint. Opening is safe because
+  /// `openDocument` repaints before the stage reaches the screen; whatever
+  /// changes a material later has to make the shading forget the node too.
+  void repaint(ModelProject project) {
+    for (final ModelObject object in project.objects) {
+      _tracked[object.id]?.node.material = _paintFor(object);
+    }
+  }
+
+  /// What [object] is painted with: its slot's material, or clay.
+  engine.Material _paintFor(ModelObject object) =>
+      materials?.forObject(object) ?? clay();
+
   /// The buffers a geometry draws as.
   static MeshData _dataOf(Geometry geometry) => switch (geometry) {
     ParametricGeometry(:final shape) => shape.drawn.build(),
@@ -144,15 +185,4 @@ final class SceneSync {
     ImportedGeometry(:final data) => data,
   };
 
-  /// The colour of unpainted clay, which is what an object with no material yet
-  /// should look like: a shape being judged by its form.
-  ///
-  /// One per node rather than one shared, because a material is what `mat-01`
-  /// will assign per object and sharing them now would mean unpicking it then.
-  static engine.Material _clay() => engine.Material(
-    name: 'clay',
-    lighting: LightingModel.pbr,
-    baseColor: Vector4(0.72, 0.70, 0.67, 1.0),
-    roughness: 0.65,
-  );
 }

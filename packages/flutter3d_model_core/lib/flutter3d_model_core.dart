@@ -31,6 +31,7 @@ library;
 
 export 'src/command.dart';
 export 'src/history.dart';
+export 'src/material.dart';
 export 'src/project.dart';
 export 'src/project_document.dart';
 export 'src/project_format.dart';

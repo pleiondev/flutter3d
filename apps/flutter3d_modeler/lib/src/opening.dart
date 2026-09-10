@@ -38,19 +38,21 @@ final class OpenedModel {
 /// is a viewport decision, and the measurement stands open documents without
 /// wanting one.
 ///
-/// **The materials do not come across yet.** A [ModelProject] has no material
-/// table, so every object arrives as untextured clay and a model that had a
-/// base colour opens without it — `mat-01`. Keeping the textures by
-/// instantiating the asset instead is what this function exists to stop: a
-/// model that is the wrong colour can still be edited, moved, undone and
-/// exported, and a model that never reached the document can do none of those.
-OpenedModel openDocument(
+/// **The paint arrives a moment after the shape, and on purpose.** Building a
+/// material means decoding the images it samples, which a frame cannot wait
+/// for. So the stage is made and drawn first — every object in clay — and the
+/// pool is filled after; `repaint` then puts the materials on without touching
+/// a vertex buffer. Doing it the other way round would hold the first frame of
+/// every opened file for as long as its textures take to decode.
+Future<OpenedModel> openDocument(
   ModelDocument document, {
   required GraphicsDevice device,
-}) {
+}) async {
   final project = fromModelDocument(document);
-  return OpenedModel(
-    project,
-    ModelerStage.fromProject(device: device, project: project),
-  );
+  final stage = ModelerStage.fromProject(device: device, project: project);
+
+  await stage.materials?.refresh(project);
+  stage.sync?.repaint(project);
+
+  return OpenedModel(project, stage);
 }

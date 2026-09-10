@@ -46,7 +46,13 @@ Vector3 placementOf(ModelSurface surface) => surface.transform.getTranslation();
 /// A document assembled by hand, for the shapes only an importer produces: a
 /// node drawing several primitives, and a node no root reaches.
 final class _Doc extends ModelDocument {
-  _Doc({required this.surfaces, required this.nodes, required this.roots});
+  _Doc({
+    required this.surfaces,
+    required this.nodes,
+    required this.roots,
+    this.materials = const <SurfaceMaterial>[],
+    this.images = const <EncodedImage>[],
+  });
 
   @override
   final List<ModelSurface> surfaces;
@@ -58,10 +64,10 @@ final class _Doc extends ModelDocument {
   final List<int> roots;
 
   @override
-  List<SurfaceMaterial> get materials => const <SurfaceMaterial>[];
+  final List<SurfaceMaterial> materials;
 
   @override
-  List<EncodedImage> get images => const <EncodedImage>[];
+  final List<EncodedImage> images;
 
   @override
   List<String> get warnings => const <String>[];
@@ -451,6 +457,141 @@ void main() {
       expect(after.geometry, isA<ImportedGeometry>());
       expect(after.geometry.triangleCount, before.triangleCount);
       expect(after.name, 'barrel');
+    });
+  });
+
+  group('materials', () {
+    /// A document painting [count] surfaces from a shared table, one image
+    /// behind the first material.
+    _Doc painted(List<int?> slots) => _Doc(
+      surfaces: <ModelSurface>[
+        for (var i = 0; i < slots.length; i++)
+          ModelSurface(
+            name: 'part $i',
+            mesh: EditMesh.cuboid().toMeshData(),
+            transform: Matrix4.identity(),
+            materialIndex: slots[i],
+          ),
+      ],
+      nodes: <ModelNode>[
+        for (var i = 0; i < slots.length; i++)
+          ModelNode(
+            name: 'part $i',
+            translation: Vector3.zero(),
+            rotation: Quaternion.identity(),
+            scale: Vector3(1, 1, 1),
+            children: const <int>[],
+            surfaces: <int>[i],
+          ),
+      ],
+      roots: <int>[for (var i = 0; i < slots.length; i++) i],
+      materials: <SurfaceMaterial>[
+        SurfaceMaterial(
+          name: 'steel',
+          baseColor: Vector4(0.2, 0.3, 0.4, 1.0),
+          metallic: 1.0,
+          roughness: 0.25,
+          baseColorTexture: const TextureBinding(imageIndex: 0),
+        ),
+        SurfaceMaterial(name: 'paint', baseColor: Vector4(0.9, 0.1, 0.1, 1.0)),
+      ],
+      images: <EncodedImage>[
+        EncodedImage(bytes: Uint8List.fromList(<int>[1, 2, 3]), name: 'atlas'),
+      ],
+    );
+
+    test('a shared material stays one material, not one per object', () {
+      final project = fromModelDocument(painted(<int?>[0, 0, 1]));
+
+      // Mutation: flatten a material into each surface on the way in — give
+      // every object its own copy. The picture is identical and the document
+      // has become one nobody can recolour in a single edit, one whose export
+      // writes three materials where the file had two, and one whose atlas is
+      // uploaded once per object.
+      expect(project.materials, hasLength(2));
+      expect(project.images, hasLength(1));
+      expect(
+        project.objects.map((ModelObject o) => o.materialSlots),
+        <List<int>>[
+          <int>[0],
+          <int>[0],
+          <int>[1],
+        ],
+      );
+    });
+
+    test('a texture still names the image it named', () {
+      final project = fromModelDocument(painted(<int?>[0]));
+
+      // The binding is an index into a table that also had to come across. A
+      // materials table imported without its images is a material pointing at
+      // image 0 of an empty list, which draws as no texture at all.
+      expect(
+        project.materials.first.surface.baseColorTexture!.imageIndex,
+        0,
+      );
+      expect(project.images.first.name, 'atlas');
+    });
+
+    test('an unpainted surface gets no slot, not slot zero', () {
+      final project = fromModelDocument(painted(<int?>[null, 1]));
+
+      // Mutation: read a missing material index as 0. Every unpainted object
+      // in every opened file silently takes whichever material happened to be
+      // first, which is a model that looks wrong and a document that says it
+      // meant to.
+      expect(project.objects.first.materialSlots, isEmpty);
+      expect(project.objects.last.materialSlots, <int>[1]);
+    });
+
+    test('two objects on one slot export as one material', () {
+      final document = toModelDocument(fromModelDocument(painted(<int?>[0, 0])));
+
+      expect(document.materials, hasLength(2));
+      // Both surfaces name the same row. Mutation: write a material per
+      // surface and this is 0 and 1 — the file has grown a duplicate and the
+      // two objects can no longer be repainted together.
+      expect(
+        document.surfaces.map((ModelSurface s) => s.materialIndex),
+        <int?>[0, 0],
+      );
+    });
+
+    test('a slot naming no material is dropped rather than written', () {
+      final painted0 = fromModelDocument(painted(<int?>[0]));
+      final object = painted0.objects.single;
+      final project = painted0.withObject(
+        object.copyWith(materialSlots: const <int>[7]),
+      );
+
+      final document = toModelDocument(project);
+
+      // Mutation: write the slot through unchecked. The file then holds a
+      // surface naming material 7 of a table of two, and every reader either
+      // guesses or refuses to open it.
+      expect(document.surfaces.single.materialIndex, isNull);
+    });
+
+    test('the paint survives a write and a read', () {
+      final project = fromModelDocument(painted(<int?>[0, 1]));
+
+      final Uint8List bytes = F3dWriter(toModelDocument(project)).write();
+      final reopened = fromModelDocument(F3dDocument.parse(bytes));
+
+      expect(reopened.materials, hasLength(2));
+      expect(reopened.images, hasLength(1));
+      expect(
+        reopened.materials.first.surface.baseColor,
+        project.materials.first.surface.baseColor,
+      );
+      expect(reopened.materials.first.surface.metallic, 1.0);
+      expect(
+        reopened.objects.map((ModelObject o) => o.materialSlots),
+        <List<int>>[
+          <int>[0],
+          <int>[1],
+        ],
+      );
     });
   });
 }

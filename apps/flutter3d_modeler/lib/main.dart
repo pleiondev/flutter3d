@@ -463,7 +463,7 @@ class _ModelerScreenState extends State<ModelerScreen>
       final document = await decodeModel(
         ModelLoadRequest(source: _Bytes(picked.name, picked.bytes)),
       );
-      final opened = openDocument(document, device: device);
+      final opened = await openDocument(document, device: device);
       if (!mounted) return;
       final project = opened.project;
       final stage = opened.stage..frameSubject();
@@ -479,10 +479,18 @@ class _ModelerScreenState extends State<ModelerScreen>
         _picker = null;
         _pickerVersion = -1;
         _state = ModelerReady((_state as ModelerReady).renderer, stage);
-        _fileSaid =
-            '${picked.name}: ${_count(project.objects.length, 'object')}, '
+        final opened = '${picked.name}: '
+            '${_count(project.objects.length, 'object')}, '
             '${_count(project.triangleCount, 'triangle')}, '
+            '${_count(project.materials.length, 'material')}, '
             'opened in ${opening.elapsedMilliseconds} ms';
+        // What could not be decoded is said rather than swallowed: a model
+        // drawing in flat colour because one texture was truncated looks
+        // exactly like a model authored in flat colour.
+        _fileSaid = <String>[
+          opened,
+          ...?stage.materials?.warnings,
+        ].join('\n');
       });
     } catch (error) {
       if (mounted) setState(() => _fileSaid = 'could not open it: $error');
