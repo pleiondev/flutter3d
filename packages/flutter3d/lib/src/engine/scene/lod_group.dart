@@ -162,11 +162,14 @@ final class LodGroup extends SceneNode {
       return (radius * 2.0) / height;
     }
 
+    // The projection is asked rather than type-tested. This read
+    // `is PerspectiveProjection`, and every other projection — an off-axis one
+    // for a headset above all — got 45 degrees whatever it actually saw. The
+    // fallback stays for a projection that answers null and is not the
+    // orthographic case handled above, which is a projection this engine does
+    // not ship.
     final fov =
-        verticalFieldOfView ??
-        (projection is PerspectiveProjection
-            ? projection.fovYRadians
-            : math.pi / 4);
+        verticalFieldOfView ?? projection.verticalFieldOfView ?? math.pi / 4;
 
     final eye = camera.readWorldPosition();
     final distance = (node.worldBoundsCentre - eye).length;

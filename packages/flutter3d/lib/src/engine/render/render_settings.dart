@@ -498,6 +498,38 @@ final class RenderSettings {
     autoExposure: autoExposure ?? this.autoExposure,
     xray: xray ?? this.xray,
   );
+
+  /// These settings with the effects a stereo pair cannot have taken out.
+  ///
+  /// **Three of them are wrong on a stereo frame rather than merely slow**, and
+  /// the reason is one line in the renderer: the frame graph is compiled for
+  /// `views.first`. Ambient occlusion and reflections then read the surface
+  /// buffer of the *whole* frame and reconstruct world positions from the first
+  /// view's matrix, so on a pair drawn side by side the right eye is
+  /// reconstructed with the left eye's camera — occlusion in the wrong places
+  /// and reflections marching along the wrong ray, on half the picture. The
+  /// aspect they derive is the whole target's too, which is twice what either
+  /// eye has.
+  ///
+  /// Bloom is here for a nearer reason: it blurs across the seam, so the sun in
+  /// one eye glows into the edge of the other, which is exactly where a
+  /// difference between the eyes is least forgivable.
+  ///
+  /// What is *not* here is as deliberate. Fog is applied per draw, in the scene
+  /// pass, with the view's own camera, so a pair gets it right. Auto exposure
+  /// meters the whole frame, which is what a pair wants: one exposure for two
+  /// eyes rather than two that disagree while the head turns. Shadows are drawn
+  /// once for the frame and sampled per view.
+  ///
+  /// Effects are turned off by replacing their settings with the defaults,
+  /// which are already off, rather than by clearing one flag: a tuned radius
+  /// kept beside a disabled effect is a value that lies about what the frame
+  /// did.
+  RenderSettings forStereo() => copyWith(
+    bloom: bloom.copyWith(enabled: false),
+    reflections: const ReflectionSettings(),
+    ambientOcclusion: const AmbientOcclusionSettings(),
+  );
 }
 
 /// How much of the frame's light spills into a glow.

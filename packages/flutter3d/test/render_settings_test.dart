@@ -179,6 +179,46 @@ void main() {
     );
   });
 
+  group('the settings a stereo pair can have', () {
+    // Three effects are compiled for `views.first` and then applied to the
+    // whole frame, so on a pair drawn side by side they treat the right eye as
+    // if it were the left one. `forStereo` is where that is stated once.
+    const rich = RenderSettings(
+      exposure: 2.5,
+      reflections: ReflectionSettings(enabled: true),
+      ambientOcclusion: AmbientOcclusionSettings(enabled: true, radius: 3.0),
+      bloom: BloomSettings(intensity: 0.9),
+      fog: FogSettings(density: 0.02),
+    );
+
+    test('drops the three that are wrong on a pair', () {
+      final stereo = rich.forStereo();
+      expect(stereo.reflections.enabled, isFalse);
+      expect(stereo.ambientOcclusion.enabled, isFalse);
+      expect(stereo.bloom.enabled, isFalse);
+    });
+
+    test('keeps everything that survives a pair', () {
+      // Fog is applied per draw with the view's own camera, and auto exposure
+      // metering the whole frame is what a pair wants: one exposure for two
+      // eyes rather than two that disagree while the head turns.
+      final stereo = rich.forStereo();
+      expect(stereo.exposure, 2.5);
+      expect(stereo.fog.density, 0.02);
+      expect(stereo.shadows.cascades, rich.shadows.cascades);
+      expect(stereo.autoExposure.enabled, rich.autoExposure.enabled);
+    });
+
+    test('leaves no tuned value beside a disabled effect', () {
+      // A radius of three metres kept on an effect that did not run is a
+      // number that lies about what the frame did.
+      expect(
+        rich.forStereo().ambientOcclusion.radius,
+        const AmbientOcclusionSettings().radius,
+      );
+    });
+  });
+
   test('the shadow resolution has two ceilings, and both are named', () {
     // **One number, two legal ranges, and neither was written down.** The
     // cascade pass clamped to 256–4096 and the cube atlas to 128–1024, in two

@@ -259,4 +259,50 @@ void main() {
       );
     });
   });
+
+  group('a projection that is neither perspective nor orthographic', () {
+    // The case a headset brings: an off-axis frustum, whose field of view is
+    // whatever the runtime says and is never the 45 degrees this used to
+    // assume for anything it could not name.
+    test('is asked for its field of view rather than assumed to have 45°', () {
+      final (:group, :scene, :camera) = build();
+      camera.setPosition(0.0, 0.0, 6.0);
+      camera.lookAt(Vector3.zero());
+
+      // The same frustum stated two ways. If the fraction were taken from a
+      // hardcoded angle, the wide camera would agree with the narrow one — and
+      // an object seen through a wide lens covers less of the frame, not the
+      // same.
+      final narrow = OffAxisProjection.symmetric(fovYRadians: math.pi / 6);
+      final wide = OffAxisProjection.symmetric(fovYRadians: math.pi / 2);
+
+      camera.projection = narrow;
+      final throughNarrow = group.screenFraction(camera);
+      camera.projection = wide;
+      final throughWide = group.screenFraction(camera);
+
+      expect(throughWide, lessThan(throughNarrow));
+      expect(
+        throughWide,
+        closeTo(
+          group.screenFraction(camera, verticalFieldOfView: math.pi / 2),
+          1e-12,
+        ),
+      );
+    });
+
+    test('an eye and the perspective camera of the same angle agree', () {
+      final (:group, :scene, :camera) = build();
+      camera.setPosition(0.0, 0.0, 12.0);
+      camera.lookAt(Vector3.zero());
+
+      camera.projection = const PerspectiveProjection(fovYRadians: 1.1);
+      final perspective = group.select(camera);
+      final perspectiveFraction = group.screenFraction(camera);
+
+      camera.projection = OffAxisProjection.symmetric(fovYRadians: 1.1);
+      expect(group.select(camera), perspective);
+      expect(group.screenFraction(camera), closeTo(perspectiveFraction, 1e-12));
+    });
+  });
 }

@@ -155,6 +155,203 @@ void main() {
       expect(ndc.z, isNot(closeTo(0.0, 1e-3)));
     });
   });
+
+  _offAxisTests();
+}
+
+/// The projection a headset dictates: four angles, no symmetry to lean on.
+///
+/// Every check here is one of the ways an eye's frustum can be wrong while
+/// still producing a picture — which is the whole difficulty, because half of
+/// them look fine on a monitor and only disagree with the *other* eye.
+void _offAxisTests() {
+  const near = 0.1;
+  const far = 100.0;
+
+  // Roughly one eye of a headset: wider outward than inward, and not centred.
+  const eye = OffAxisProjection(
+    tanLeft: -1.19175359259,
+    tanRight: 1.0,
+    tanDown: -1.19175359259,
+    tanUp: 1.19175359259,
+    near: near,
+    far: far,
+  );
+
+  group('an off-axis frustum with symmetric angles is a perspective one', () {
+    test('the matrices agree entry for entry', () {
+      const fov = math.pi / 3;
+      const aspect = 16.0 / 9.0;
+      final offAxis = OffAxisProjection.symmetric(
+        fovYRadians: fov,
+        aspect: aspect,
+        near: near,
+        far: far,
+      ).toMatrix(aspect);
+      final perspective = const PerspectiveProjection(
+        fovYRadians: fov,
+        near: near,
+        far: far,
+      ).toMatrix(aspect);
+
+      for (var i = 0; i < 16; i++) {
+        expect(
+          offAxis.storage[i],
+          closeTo(perspective.storage[i], 1e-9),
+          reason: 'entry $i',
+        );
+      }
+    });
+
+    test('the two shear terms are what makes it off-axis, and they vanish', () {
+      final m = OffAxisProjection.symmetric(aspect: 2.0).toMatrix(1.0);
+      expect(m.entry(0, 2), closeTo(0.0, 1e-12));
+      expect(m.entry(1, 2), closeTo(0.0, 1e-12));
+      // And do not vanish when the frustum really is off-axis, or the check
+      // above would pass on a matrix that had dropped them entirely.
+      expect(eye.toMatrix(1.0).entry(0, 2), isNot(closeTo(0.0, 1e-3)));
+    });
+  });
+
+  group('the four angles come back out of the matrix', () {
+    // The only way to assert an asymmetric frustum: put a point exactly on each
+    // plane and see it land on that edge of the clip volume. A sign error in
+    // either shear term moves these off the edge — and, in a headset, moves the
+    // whole image sideways in one eye.
+    test('a point on each side plane lands on that edge of NDC', () {
+      const depth = 5.0;
+      final m = eye.toMatrix(1.0);
+
+      expect(
+        projectToNdc(m, Vector3(eye.tanLeft * depth, 0.0, -depth)).x,
+        closeTo(-1.0, 1e-9),
+      );
+      expect(
+        projectToNdc(m, Vector3(eye.tanRight * depth, 0.0, -depth)).x,
+        closeTo(1.0, 1e-9),
+      );
+      expect(
+        projectToNdc(m, Vector3(0.0, eye.tanDown * depth, -depth)).y,
+        closeTo(-1.0, 1e-9),
+      );
+      expect(
+        projectToNdc(m, Vector3(0.0, eye.tanUp * depth, -depth)).y,
+        closeTo(1.0, 1e-9),
+      );
+    });
+
+    test('the view axis is not in the middle of the frame', () {
+      // What "off-axis" means, stated as a picture: looking straight ahead does
+      // not land at x = 0. An implementation that quietly symmetrised the
+      // frustum would pass every other check in this group.
+      final ndc = projectToNdc(eye.toMatrix(1.0), Vector3(0.0, 0.0, -5.0));
+      expect(ndc.x, isNot(closeTo(0.0, 1e-3)));
+      expect(ndc.y, closeTo(0.0, 1e-9));
+    });
+
+    test('depth still maps near to 0 and far to 1', () {
+      final m = eye.toMatrix(1.0);
+      expect(projectToNdc(m, Vector3(0.0, 0.0, -near)).z, closeTo(0.0, 1e-6));
+      expect(projectToNdc(m, Vector3(0.0, 0.0, -far)).z, closeTo(1.0, 1e-5));
+    });
+  });
+
+  group('the aspect argument is ignored', () {
+    test('the same frustum at any viewport shape', () {
+      // Deliberate, and the doc comment says why: the four tangents already
+      // state the shape. Dividing by an aspect here would squash one eye
+      // against the other by the ratio between them.
+      final square = eye.toMatrix(1.0);
+      final wide = eye.toMatrix(2.0);
+      for (var i = 0; i < 16; i++) {
+        expect(wide.storage[i], equals(square.storage[i]), reason: 'entry $i');
+      }
+    });
+  });
+
+  group('the vertical field of view it reports', () {
+    test('is the angle a symmetric frustum was built from', () {
+      const fov = math.pi / 3;
+      expect(
+        OffAxisProjection.symmetric(fovYRadians: fov).verticalFieldOfView,
+        closeTo(fov, 1e-12),
+      );
+    });
+
+    test('covers the same vertical extent as the frustum itself', () {
+      // What a caller sizing an object against the frame actually needs: the
+      // half-height of the view volume at a distance, which is what the LOD
+      // formula computes from this angle.
+      const distance = 10.0;
+      final half = math.tan(eye.verticalFieldOfView! * 0.5) * distance;
+      expect(half, closeTo((eye.tanUp - eye.tanDown) * 0.5 * distance, 1e-9));
+    });
+
+    test('a perspective projection answers with its own, and an orthographic '
+        'answers with nothing', () {
+      expect(
+        const PerspectiveProjection(fovYRadians: 1.2).verticalFieldOfView,
+        closeTo(1.2, 1e-12),
+      );
+      expect(const OrthographicProjection().verticalFieldOfView, isNull);
+    });
+  });
+
+  group('argument validation', () {
+    test('rejects a frustum with no width or no height', () {
+      expect(
+        () => const OffAxisProjection(
+          tanLeft: 1.0,
+          tanRight: 1.0,
+          tanDown: -1.0,
+          tanUp: 1.0,
+        ).toMatrix(1.0),
+        throwsArgumentError,
+      );
+      expect(
+        () => const OffAxisProjection(
+          tanLeft: -1.0,
+          tanRight: 1.0,
+          tanDown: 1.0,
+          tanUp: -1.0,
+        ).toMatrix(1.0),
+        throwsArgumentError,
+      );
+    });
+
+    test('rejects near >= far', () {
+      expect(
+        () => const OffAxisProjection(
+          tanLeft: -1.0,
+          tanRight: 1.0,
+          tanDown: -1.0,
+          tanUp: 1.0,
+          near: 10.0,
+          far: 10.0,
+        ).toMatrix(1.0),
+        throwsArgumentError,
+      );
+    });
+  });
+
+  group('from the angles a runtime states', () {
+    test('tangents are taken of each, signs and all', () {
+      // `XrFovf` states four angles in radians, left and down negative. Taking
+      // the tangent of the absolute value — an easy slip, since three of the
+      // four are usually mirror images — puts the whole frustum on one side.
+      final p = OffAxisProjection.fromAngles(
+        left: -0.9,
+        right: 0.8,
+        down: -0.87,
+        up: 0.87,
+      );
+      expect(p.tanLeft, closeTo(math.tan(-0.9), 1e-12));
+      expect(p.tanRight, closeTo(math.tan(0.8), 1e-12));
+      expect(p.tanDown, closeTo(math.tan(-0.87), 1e-12));
+      expect(p.tanUp, closeTo(math.tan(0.87), 1e-12));
+      expect(p.tanLeft, lessThan(0.0));
+    });
+  });
 }
 
 void _depthRangeTests() {

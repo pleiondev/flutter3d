@@ -46,6 +46,24 @@ abstract base class Projection {
   double get near;
   double get far;
 
+  /// The vertical angle this projection sees, in radians, or null for one that
+  /// has no such angle.
+  ///
+  /// Asked by whatever sizes an object against the frame — `LodGroup` is the
+  /// only thing that does — and answered by the projection rather than found
+  /// out with an `is` check at the call site. That check was there, it named
+  /// [PerspectiveProjection], and everything else fell through to a hardcoded
+  /// 45 degrees. A camera whose field of view is dictated by a headset's
+  /// runtime would have chosen its levels off a number nobody set, and chosen
+  /// them wrongly in the direction that costs: a wider view than 45 degrees
+  /// means every object covers less of the frame than the fallback thinks.
+  ///
+  /// Null where the question does not apply. An orthographic object's size on
+  /// screen does not depend on how far away it is, so there is no angle to
+  /// give, and a caller that gets null is expected to have handled that case
+  /// on its own terms rather than to substitute a number.
+  double? get verticalFieldOfView => null;
+
   /// Projects an eye-space point to NDC.
   ///
   /// The only honest way to assert what a projection actually does, which is why
@@ -76,6 +94,9 @@ final class PerspectiveProjection extends Projection {
   /// Vertical field of view. Vertical rather than horizontal so that widening the
   /// viewport reveals more scene instead of squashing it.
   final double fovYRadians;
+
+  @override
+  double? get verticalFieldOfView => fovYRadians;
 
   @override
   final double near;
@@ -165,6 +186,149 @@ final class OrthographicProjection extends Projection {
     double? far,
   }) => OrthographicProjection(
     height: height ?? this.height,
+    near: near ?? this.near,
+    far: far ?? this.far,
+  );
+}
+
+/// A frustum whose four sides are given separately, so the axis need not be in
+/// the middle of it.
+///
+/// **What it exists for is a headset.** A perspective projection has one angle
+/// and a viewport aspect, and from those the frustum is symmetric by
+/// construction. An eye is not: the lens sits off the centre of its half of the
+/// display, the two eyes are mirror images of each other, and the runtime hands
+/// over four angles per eye that no single field of view can reproduce. Feeding
+/// their average to [PerspectiveProjection] gets a picture that looks right on
+/// a monitor and, in a headset, disagrees with the other eye by a degree or so
+/// — which is not a subtle artefact but the thing that makes people take the
+/// device off.
+///
+/// The four values are **tangents of the angles from the view axis**, which is
+/// what `XrFovf` gives after `tan` and what the matrix needs anyway. [tanLeft]
+/// and [tanDown] are negative for a frustum that contains its own axis.
+///
+/// **[toMatrix] ignores its aspect argument, and that is deliberate.** The
+/// shape of this frustum is already stated by the four tangents, and the
+/// viewport it will be drawn into was chosen to match them; there is nothing
+/// left for an aspect ratio to decide. Dividing by one here — which is what the
+/// signature invites — would squash the image by the ratio between the eye's
+/// own aspect and the viewport's, and a fraction of a degree of that is enough
+/// for the two eyes to fight.
+final class OffAxisProjection extends Projection {
+  const OffAxisProjection({
+    required this.tanLeft,
+    required this.tanRight,
+    required this.tanDown,
+    required this.tanUp,
+    this.near = 0.1,
+    this.far = 1000.0,
+  });
+
+  /// From the four angles a runtime states, in radians, as `XrFovf` does.
+  factory OffAxisProjection.fromAngles({
+    required double left,
+    required double right,
+    required double down,
+    required double up,
+    double near = 0.1,
+    double far = 1000.0,
+  }) => OffAxisProjection(
+    tanLeft: math.tan(left),
+    tanRight: math.tan(right),
+    tanDown: math.tan(down),
+    tanUp: math.tan(up),
+    near: near,
+    far: far,
+  );
+
+  /// The frustum a [PerspectiveProjection] of this shape would have, for
+  /// comparing the two and for a stereo pair that wants a symmetric fallback.
+  factory OffAxisProjection.symmetric({
+    double fovYRadians = math.pi / 4,
+    double aspect = 1.0,
+    double near = 0.1,
+    double far = 1000.0,
+  }) {
+    final up = math.tan(fovYRadians / 2.0);
+    final right = up * aspect;
+    return OffAxisProjection(
+      tanLeft: -right,
+      tanRight: right,
+      tanDown: -up,
+      tanUp: up,
+      near: near,
+      far: far,
+    );
+  }
+
+  final double tanLeft;
+  final double tanRight;
+  final double tanDown;
+  final double tanUp;
+
+  @override
+  final double near;
+
+  @override
+  final double far;
+
+  /// The symmetric angle covering the same vertical extent.
+  ///
+  /// The view volume is `(tanUp - tanDown) * distance` tall wherever it is cut,
+  /// so this is the angle whose half-tangent is half of that — the number a
+  /// caller sizing an object against the frame is actually asking for. It is
+  /// not the sum of the two angles unless the frustum happens to be symmetric.
+  @override
+  double? get verticalFieldOfView => 2.0 * math.atan((tanUp - tanDown) / 2.0);
+
+  @override
+  Matrix4 toMatrix(double aspect) {
+    final width = tanRight - tanLeft;
+    final height = tanUp - tanDown;
+    if (width <= 0.0 || height <= 0.0) {
+      throw ArgumentError(
+        'Degenerate frustum: left/right are $tanLeft/$tanRight and down/up are '
+        '$tanDown/$tanUp, as tangents. Right must exceed left and up must '
+        'exceed down.',
+      );
+    }
+    if (near <= 0.0 || far <= near) {
+      throw ArgumentError('Expected 0 < near < far, got near=$near far=$far.');
+    }
+
+    final m = Matrix4.zero();
+    // The two off-centre terms in column 2 are what makes this off-axis: they
+    // shear the frustum so that its axis passes through wherever the four
+    // tangents put it rather than through the middle. With a symmetric pair
+    // they cancel and the matrix is a perspective one — `projection_test.dart`
+    // asserts exactly that, which is the cheapest guard against a sign here.
+    m.setEntry(0, 0, 2.0 / width);
+    m.setEntry(0, 2, (tanRight + tanLeft) / width);
+    m.setEntry(1, 1, 2.0 / height);
+    m.setEntry(1, 2, (tanUp + tanDown) / height);
+    // Depth, in this file's `[0, 1]` convention. Copied in shape from
+    // `PerspectiveProjection` because it is the same mapping and must stay the
+    // same mapping: an eye whose depth ran the other way would still draw, and
+    // would fight the shadow lookup rather than report anything.
+    m.setEntry(2, 2, far / (near - far));
+    m.setEntry(2, 3, (near * far) / (near - far));
+    m.setEntry(3, 2, -1.0);
+    return m;
+  }
+
+  OffAxisProjection copyWith({
+    double? tanLeft,
+    double? tanRight,
+    double? tanDown,
+    double? tanUp,
+    double? near,
+    double? far,
+  }) => OffAxisProjection(
+    tanLeft: tanLeft ?? this.tanLeft,
+    tanRight: tanRight ?? this.tanRight,
+    tanDown: tanDown ?? this.tanDown,
+    tanUp: tanUp ?? this.tanUp,
     near: near ?? this.near,
     far: far ?? this.far,
   );

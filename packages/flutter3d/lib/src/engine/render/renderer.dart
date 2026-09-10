@@ -1855,12 +1855,19 @@ final class Renderer implements RenderServices {
   /// An orthographic camera has no far distance worth splitting by, and a
   /// camera with a far plane at infinity would put the first split at infinity
   /// too, so both fall back to something a level-sized scene can use.
+  ///
+  /// Stated as "which projections have no useful far plane" rather than as
+  /// "which projection is the perspective one", which is what it used to ask.
+  /// The difference shows on a projection this engine did not have when the
+  /// question was written: an off-axis frustum has a far plane like any other,
+  /// and under the old test it was handed 200 metres instead — cascades split
+  /// for a scene of a size nobody had asked for.
   static double _cameraFar(CameraNode camera) {
     final projection = camera.projection;
-    if (projection is PerspectiveProjection && projection.far.isFinite) {
-      return math.max(10.0, projection.far);
+    if (projection is OrthographicProjection || !projection.far.isFinite) {
+      return 200.0;
     }
-    return 200.0;
+    return math.max(10.0, projection.far);
   }
 
   /// A right-handed look-at, which `vector_math` does not offer in the form the
