@@ -71,7 +71,7 @@ genres, and the generated API reference.
 | [`apps/flutter3d_demo_racing`](apps/flutter3d_demo_racing) | The third game: a circuit, three rivals and the lap you drove before, drawn beside the one you are driving |
 | [`apps/flutter3d_demo_strategy`](apps/flutter3d_demo_strategy) | A map, two sides and a match played to a finish, with a headless test that plays the recording back. Desktop, web, Android and iOS |
 | [`apps/flutter3d_editor`](apps/flutter3d_editor) | A level editor that reads the same documents the games do, and writes projects from templates |
-| [`apps/flutter3d_modeler`](apps/flutter3d_modeler) | A modeller for the meshes the games draw. A viewport and a model in it today; the document, the editing and the export are `doc/model-editor-plan.md` |
+| [`apps/flutter3d_modeler`](apps/flutter3d_modeler) | A modeller for the meshes the games draw: a document of objects, a rail of tools that edit one, undo across both, and the beginnings of a file. What is still ahead of it is planned on the [`modeler`](https://github.com/pleiondev/flutter3d/tree/modeler) branch |
 | [`apps/flutter3d_template_app`](apps/flutter3d_template_app) | The application a new project starts as, and the source the editor's templates are generated from |
 | [`packages/flutter3d/example`](packages/flutter3d/example) | The engine's own demo: a model browser with every feature switchable |
 
