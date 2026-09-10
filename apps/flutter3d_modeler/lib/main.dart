@@ -37,6 +37,7 @@ import 'src/files/sandbox_probe.dart';
 import 'src/ground_grid.dart';
 import 'src/modeler_viewport.dart';
 import 'src/object_picking.dart';
+import 'src/opening.dart';
 import 'src/orbit_run.dart';
 import 'src/orientation_dial.dart';
 import 'src/selection_box.dart';
@@ -425,11 +426,29 @@ class _ModelerScreenState extends State<ModelerScreen>
     }
   }
 
-  /// Opens a model the person chose, and puts it in front of the camera.
+  /// Opens a model the person chose, and puts it in the document.
   ///
   /// The whole of `p0-08` on the web and the ordinary path everywhere else:
   /// bytes from a picker, `decodeModel` over them, upload, frame. Nothing here
   /// branches on the platform — `ProjectFiles` already did.
+  ///
+  /// **The document is what is opened, and the picture follows from it.** This
+  /// used to instantiate the decoded model straight into a scene and then start
+  /// a fresh project holding a cube, which put the model on the screen and left
+  /// every other half of the application describing something else: the
+  /// outliner listed one cube, a click selected nothing that was drawn, undo had
+  /// no edits to take back and `ExportReadiness` measured a shape nobody could
+  /// see. `fromModelDocument` turns the file into objects, and `SceneSync`
+  /// draws those — so what is picked, moved, undone and exported is the model
+  /// that was opened.
+  ///
+  /// **The materials do not survive the trip yet, and that is a known cost.**
+  /// A `ModelProject` has no material table, so `SceneSync` paints every object
+  /// in clay and a textured model opens untextured. Instantiating the asset
+  /// instead would keep the textures and keep the split above, which is the
+  /// worse of the two: a model that is the wrong colour can be edited and
+  /// exported, and a model that is not in the document cannot. `mat-01` is the
+  /// half that gives it back.
   Future<void> _openFile() async {
     final device = _device;
     if (device == null) return;
@@ -444,29 +463,35 @@ class _ModelerScreenState extends State<ModelerScreen>
       final document = await decodeModel(
         ModelLoadRequest(source: _Bytes(picked.name, picked.bytes)),
       );
-      final asset = await ModelAsset.fromDocument(
-        document,
-        device: device,
-        name: picked.name,
-      );
+      final opened = openDocument(document, device: device);
       if (!mounted) return;
-      final stage = ModelerStage.build(device: device, asset: asset);
-      stage.frameSubject();
+      final project = opened.project;
+      final stage = opened.stage..frameSubject();
       opening.stop();
       // The scene the old materials belonged to is going, and the selection
       // points at nodes that are no longer drawn.
       _surfaces.forget();
       setState(() {
-        _history = ModelHistory(_newProject());
+        _history = ModelHistory(project);
+        // Ids start again from zero in the new project, so a picker held
+        // against the old one could match a version and answer about a mesh
+        // that is gone.
+        _picker = null;
+        _pickerVersion = -1;
         _state = ModelerReady((_state as ModelerReady).renderer, stage);
         _fileSaid =
-            '${picked.name}: ${document.surfaces.length} surfaces, '
+            '${picked.name}: ${_count(project.objects.length, 'object')}, '
+            '${_count(project.triangleCount, 'triangle')}, '
             'opened in ${opening.elapsedMilliseconds} ms';
       });
     } catch (error) {
       if (mounted) setState(() => _fileSaid = 'could not open it: $error');
     }
   }
+
+  /// "1 object" and "2 objects", because a status line that says "1 objects"
+  /// reads as something a program wrote rather than as a sentence.
+  static String _count(int n, String one) => '$n $one${n == 1 ? '' : 's'}';
 
   /// Writes what is on screen as the engine's own container.
   ///

@@ -19,10 +19,20 @@
 /// refuse to leave as. The commands arrive a handful at a time — see
 /// `doc/model-editor-plan.md`, `doc-06` for the object ones, `doc-07` for the
 /// mesh ones and `doc-32n` for the selection ones.
+///
+/// The two doors a project comes in and goes out through are here as well:
+/// [toModelDocument] and [fromModelDocument] for what every writer and loader
+/// in the repository speaks, and [writeProject]/[readProject] for the
+/// container a project is saved as. They were written against their own tests
+/// and reachable from nowhere else for a while, which is a thing worth not
+/// repeating: a file that only its test can import is a file the application
+/// cannot use.
 library;
 
 export 'src/command.dart';
 export 'src/history.dart';
 export 'src/project.dart';
+export 'src/project_document.dart';
+export 'src/project_format.dart';
 export 'src/readiness.dart';
 export 'src/selection.dart';
