@@ -1,0 +1,297 @@
+/// What the modeller is doing, asked without building a window.
+///
+///     flutter test test/modeler_cubit_test.dart
+///
+/// **This file is the reason `ModelerCubit` exists.** Before it, the only way
+/// to ask "does changing the mode keep the selection" or "does the readiness
+/// follow a command" was to pump a shell and press things — so nobody asked,
+/// and the answer to the second one was no. Every test here is a sentence about
+/// a transition, and none of them needs a frame.
+library;
+
+import 'package:flutter3d/flutter3d.dart' hide Material;
+import 'package:flutter3d_cpu/testing.dart';
+import 'package:flutter3d_mesh/flutter3d_mesh.dart';
+import 'package:flutter3d_model_core/flutter3d_model_core.dart';
+import 'package:flutter3d_modeler/src/modeler_cubit.dart';
+import 'package:flutter3d_modeler/src/staging.dart';
+import 'package:flutter3d_modeler/src/ui/tools.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:vector_math/vector_math.dart';
+
+/// A project of [count] cubes, named `a`, `b`, …
+ModelProject cubes(int count) {
+  var project = const ModelProject();
+  for (var i = 0; i < count; i++) {
+    project = project.added(
+      (int id) => ModelObject(
+        id: id,
+        name: String.fromCharCode(97 + i),
+        geometry: EditedGeometry(EditMesh.cuboid()),
+        transform: Matrix4.identity(),
+      ),
+    );
+  }
+  return project;
+}
+
+/// A cubit with a document open and a real scene behind it, drawn by the
+/// software rasteriser so there is no GPU and no window anywhere.
+({ModelerCubit cubit, ModelerStage stage}) opened({int count = 2}) =>
+    openedWith(cubes(count));
+
+({ModelerCubit cubit, ModelerStage stage}) openedWith(ModelProject project) {
+  final it = cpuTestDevice(width: 8, height: 8);
+  final history = ModelHistory(project);
+  final stage = ModelerStage.fromProject(
+    device: it.device,
+    project: history.project,
+  );
+  final cubit = ModelerCubit()
+    ..opened(
+      history,
+      renderer: Renderer.create(device: it.device),
+      stage: stage,
+    );
+  return (cubit: cubit, stage: stage);
+}
+
+ModelerReady ready(ModelerCubit cubit) {
+  expect(cubit.state, isA<ModelerReady>(), reason: '${cubit.state}');
+  return cubit.state as ModelerReady;
+}
+
+void main() {
+  group('opening', () {
+    test('a document arrives ready, with its readiness already computed', () {
+      final cubit = opened().cubit;
+      final now = ready(cubit);
+
+      expect(now.project.objects, hasLength(2));
+      expect(now.mode, ModelerMode.object);
+      expect(now.submode, MeshSubmode.vertex);
+      // Mutation: leave `readiness` to a getter that computes on read. It works
+      // and it is exactly what this replaced — a walk of every object and every
+      // face, on every frame, for a value that changes when a command lands.
+      expect(now.readiness.canExport, isTrue);
+    });
+
+    test('a failure is a sentence and not a half-open document', () {
+      final cubit = ModelerCubit()..failed('no device');
+
+      expect(cubit.state, isA<ModelerFailed>());
+      expect((cubit.state as ModelerFailed).said, 'no device');
+    });
+  });
+
+  group('a command', () {
+    test('lands, moves the document and refreshes the readiness', () {
+      final cubit = opened().cubit;
+      final before = ready(cubit).project;
+
+      final ok = cubit.ran(Rename(id: before.objects.first.id, to: 'torso'));
+
+      expect(ok, isTrue);
+      final now = ready(cubit);
+      expect(now.project.objects.first.name, 'torso');
+      expect(now.said, isNotNull);
+    });
+
+    test('the readiness follows the edit that changed the verdict', () {
+      // One object with no faces at all: readiness calls that an error, because
+      // some loaders refuse an empty mesh and the rest draw nothing.
+      final cubit = openedWith(
+        const ModelProject().added(
+          (int id) => ModelObject(
+            id: id,
+            name: 'ghost',
+            geometry: EditedGeometry(EditMesh.empty()),
+            transform: Matrix4.identity(),
+          ),
+        ),
+      ).cubit;
+      expect(ready(cubit).readiness.canExport, isFalse);
+
+      cubit
+        ..ran(const SelectAll())
+        ..ran(const DeleteObjects());
+
+      // Mutation: skip `_readiness.of` after a command. The verdict stays
+      // `false` and the bar goes on describing a model that is no longer there
+      // — which is the same failure the other way round: a bar that says a
+      // model is broken after the edit that fixed it.
+      expect(ready(cubit).project.objects, isEmpty);
+      expect(ready(cubit).readiness.canExport, isTrue);
+    });
+
+    test('a refusal says why and leaves the document alone', () {
+      final cubit = opened().cubit;
+      final before = ready(cubit).project;
+
+      // An id no object has: the command refuses rather than throwing.
+      final ok = cubit.ran(const Rename(id: 9999, to: 'ghost'));
+
+      expect(ok, isFalse);
+      final now = ready(cubit);
+      expect(now.said, isNotNull);
+      // Mutation: treat a refusal as a landing. The history grows a step that
+      // did nothing, and ⌘Z then appears to do nothing too.
+      expect(identical(now.project, before), isTrue);
+      expect(now.history.undoSays, isNull);
+    });
+
+    test('the scene is brought to the project without being asked', () {
+      final it = opened();
+      final cubit = it.cubit;
+      final sync = it.stage.sync!;
+
+      cubit.ran(
+        AddPrimitive(kind: AddPrimitive.primitiveKinds.first),
+      );
+
+      // The seam this class exists for: before it, `SceneSync.apply` was a line
+      // somebody had to remember beside every `history.run`, and the selection
+      // commands forgot it. Mutation: drop the `apply` and the new object is in
+      // the document and not on the screen.
+      final added = ready(cubit).project.objects.last;
+      expect(sync.nodeOf(added.id), isNotNull);
+    });
+  });
+
+  group('undo and redo', () {
+    test('undo takes the step back and says what it took', () {
+      final cubit = opened().cubit;
+      final id = ready(cubit).project.objects.first.id;
+      cubit.ran(Rename(id: id, to: 'torso'));
+
+      cubit.undo();
+
+      final now = ready(cubit);
+      expect(now.project[id]!.name, 'a');
+      expect(now.said, contains('undone'));
+    });
+
+    test('undo with nothing to take back says so and changes nothing', () {
+      final cubit = opened().cubit;
+      final before = ready(cubit).project;
+
+      cubit.undo();
+
+      final now = ready(cubit);
+      expect(now.said, 'nothing to undo');
+      expect(identical(now.project, before), isTrue);
+    });
+
+    test('a transaction is one step, however many commands went into it', () {
+      final cubit = opened().cubit;
+      final now = ready(cubit);
+      final ids = now.project.objects.map((ModelObject o) => o.id).toList();
+
+      now.history.transaction(() {
+        now.history.run(Rename(id: ids[0], to: 'x'));
+        now.history.run(Rename(id: ids[1], to: 'y'));
+      });
+      cubit.documentMoved(said: 'renamed both');
+
+      cubit.undo();
+
+      // One ⌘Z, not two. Mutation: close the transaction per command and a
+      // person who dragged nine objects presses undo nine times.
+      final after = ready(cubit).project;
+      expect(after[ids[0]]!.name, 'a');
+      expect(after[ids[1]]!.name, 'b');
+    });
+
+    test('redo puts it back and the readiness follows', () {
+      final cubit = opened().cubit;
+      final id = ready(cubit).project.objects.first.id;
+      cubit.ran(Rename(id: id, to: 'torso'));
+      cubit.undo();
+
+      cubit.redo();
+
+      expect(ready(cubit).project[id]!.name, 'torso');
+      expect(ready(cubit).said, 'redone');
+    });
+  });
+
+  group('the mode', () {
+    test('changing it keeps the selection', () {
+      final cubit = opened().cubit;
+      final id = ready(cubit).project.objects.first.id;
+      cubit.ran(const SelectAll());
+      expect(ready(cubit).selection.objects, contains(id));
+
+      cubit.mode(ModelerMode.mesh);
+
+      // The small rudeness an editor is judged by: an object stays selected
+      // when somebody drops into the mesh mode to work on it. Mutation: clear
+      // the selection on a mode change and every trip into mesh mode starts by
+      // picking the object again.
+      final now = ready(cubit);
+      expect(now.mode, ModelerMode.mesh);
+      expect(now.selection.objects, contains(id));
+    });
+
+    test('the element level survives a trip through the object mode', () {
+      final cubit = opened().cubit
+        ..mode(ModelerMode.mesh)
+        ..submode(MeshSubmode.face);
+
+      cubit
+        ..mode(ModelerMode.object)
+        ..mode(ModelerMode.mesh);
+
+      expect(ready(cubit).submode, MeshSubmode.face);
+    });
+
+    test('setting the mode it is already in emits nothing', () {
+      final cubit = opened().cubit;
+      final before = cubit.state;
+
+      cubit.mode(ModelerMode.object);
+
+      // Mutation: emit regardless. Every press of a mode chip rebuilds the
+      // whole shell for a change that did not happen.
+      expect(identical(cubit.state, before), isTrue);
+    });
+  });
+
+  group('what it says', () {
+    test('a sentence from outside a command survives', () {
+      final cubit = opened().cubit..say('wrote 40 bytes');
+
+      expect(ready(cubit).said, 'wrote 40 bytes');
+    });
+
+    test('a command replaces it and a mode change clears it', () {
+      final cubit = opened().cubit..say('wrote 40 bytes');
+      cubit.ran(Rename(id: ready(cubit).project.objects.first.id, to: 'x'));
+      expect(ready(cubit).said, isNot('wrote 40 bytes'));
+
+      cubit.mode(ModelerMode.mesh);
+
+      // A sentence about the last thing that happened stops being true when
+      // something else happens, and a stale one is a bar that lies quietly.
+      expect(ready(cubit).said, isNull);
+    });
+  });
+
+  group('nothing happens before a document', () {
+    test('every verb is a no-op while opening', () {
+      final cubit = ModelerCubit();
+
+      cubit
+        ..ran(const Rename(id: 1, to: 'x'))
+        ..undo()
+        ..redo()
+        ..mode(ModelerMode.mesh)
+        ..say('hello');
+
+      // Mutation: reach for `state as ModelerReady` without checking. Every one
+      // of these throws before the device is up, which is the window between
+      // `runApp` and the first frame.
+      expect(cubit.state, isA<ModelerOpening>());
+    });
+  });
+}

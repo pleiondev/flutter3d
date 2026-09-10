@@ -26,6 +26,7 @@ import 'package:flutter3d/flutter3d.dart' hide Material;
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart' hide Outcome;
 import 'package:flutter3d_session/flutter3d_session.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:vector_math/vector_math.dart' as vm;
 
 import 'src/backend.dart';
@@ -36,6 +37,7 @@ import 'src/exporting.dart';
 import 'src/files/project_files.dart';
 import 'src/files/sandbox_probe.dart';
 import 'src/ground_grid.dart';
+import 'src/modeler_cubit.dart';
 import 'src/modeler_viewport.dart';
 import 'src/object_picking.dart';
 import 'src/opening.dart';
@@ -107,28 +109,6 @@ class ModelerApp extends StatelessWidget {
 
 /// What the screen is doing. Three states, and no more until there is a
 /// document to have states about.
-sealed class ModelerScreenState {
-  const ModelerScreenState();
-}
-
-/// Before the device is up.
-final class ModelerOpening extends ModelerScreenState {
-  const ModelerOpening();
-}
-
-/// A device, a renderer and a world.
-final class ModelerReady extends ModelerScreenState {
-  const ModelerReady(this.renderer, this.stage);
-  final Renderer renderer;
-  final ModelerStage stage;
-}
-
-/// Nothing to draw with, and the sentence saying why.
-final class ModelerFailed extends ModelerScreenState {
-  const ModelerFailed(this.said);
-  final String said;
-}
-
 class ModelerScreen extends StatefulWidget {
   const ModelerScreen({super.key});
 
@@ -138,7 +118,18 @@ class ModelerScreen extends StatefulWidget {
 
 class _ModelerScreenState extends State<ModelerScreen>
     with SingleTickerProviderStateMixin {
-  ModelerScreenState _state = const ModelerOpening();
+  /// The document and everything a screen rebuilds on. See
+  /// `modeler_cubit.dart`: the orbit, the modal transform and the frame
+  /// timings stay plain fields below, because they change while a finger is
+  /// down and a rebuild of the shell per frame is not a thing this can afford.
+  final ModelerCubit _cubit = ModelerCubit();
+
+  ModelerState get _state => _cubit.state;
+
+  /// The open document. Reading it through the cubit rather than holding a
+  /// second reference is what stops the two disagreeing — the mistake this
+  /// application already made once, between the scene and the project.
+  ModelHistory get _history => (_state as ModelerReady).history;
 
   Ticker? _ticker;
 
@@ -159,7 +150,6 @@ class _ModelerScreenState extends State<ModelerScreen>
   GraphicsDevice? _device;
 
   /// What the last file operation said, shown beside the buttons.
-  String? _fileSaid;
 
   /// Which lens the viewport looks through, and what the surface is drawn as.
   ViewLens _lens = ViewLens.perspective;
@@ -175,9 +165,9 @@ class _ModelerScreenState extends State<ModelerScreen>
   /// `ui-03`: what that class is for is a *project* — a document, a history, a
   /// readiness — and standing one up around three enums would be a cubit that
   /// has to be rewritten the day it gets something to hold.
-  ModelerMode _mode = ModelerMode.object;
-  MeshSubmode _submode = MeshSubmode.vertex;
-  String? _tool = 'object.select';
+  ModelerMode get _mode => (_state as ModelerReady).mode;
+  MeshSubmode get _submode => (_state as ModelerReady).submode;
+  String? get _tool => (_state as ModelerReady).tool;
 
   /// The document, and everything that has been done to it.
   ///
@@ -185,8 +175,6 @@ class _ModelerScreenState extends State<ModelerScreen>
   /// session: ⌘Z now takes back a rename, a move of an object and an extrusion
   /// with the same press, in the order they were made. Two stacks would have
   /// meant a person undoing a move and getting an extrusion back.
-  ModelHistory _history = ModelHistory(_newProject());
-
   /// A project with the cube a new one starts as.
   static ModelProject _newProject() => const ModelProject().added(
     (int id) => ModelObject(
@@ -204,9 +192,6 @@ class _ModelerScreenState extends State<ModelerScreen>
     EditedGeometry(:final mesh) => mesh,
     _ => null,
   };
-
-  /// Readiness for the status bar, recomputed only where the project moved.
-  final ReadinessCache _readiness = ReadinessCache();
 
   /// The picker over that mesh, rebuilt when its version moves.
   MeshPicker? _picker;
@@ -227,7 +212,6 @@ class _ModelerScreenState extends State<ModelerScreen>
 
   /// What the last operation said when it refused, shown in the status line
   /// until something else happens.
-  String? _opSaid;
 
   /// The tick the last frame was at, so a turn advances by real time rather
   /// than by frames — a view that swings faster on a fast machine is a view
@@ -307,6 +291,7 @@ class _ModelerScreenState extends State<ModelerScreen>
   void dispose() {
     _ticker?.dispose();
     _timings.stop();
+    _cubit.close();
     super.dispose();
   }
 
@@ -315,6 +300,9 @@ class _ModelerScreenState extends State<ModelerScreen>
     // number from what a frame costs afterwards — and the one a person waiting
     // at a white page is actually measuring.
     final opening = Stopwatch()..start();
+    // The document a new session starts with: one cube, so the first thing on
+    // screen is a thing rather than an empty grid.
+    final opening3 = ModelHistory(_newProject());
     try {
       // The size a web build's canvas is created at: `kFixedResolution` is
       // true there, so this is the resolution the browser scales from. Impeller
@@ -338,7 +326,7 @@ class _ModelerScreenState extends State<ModelerScreen>
               stressTriangles: kStress,
               stressObjects: kStressObjects,
             )
-          : ModelerStage.fromProject(device: device, project: _history.project);
+          : ModelerStage.fromProject(device: device, project: opening3.project);
       // Framed once, after the meshes are in: an object of any size arrives on
       // screen at a usable distance rather than as a dot or as the inside of
       // itself.
@@ -359,21 +347,21 @@ class _ModelerScreenState extends State<ModelerScreen>
       if (kSandboxProbe) {
         final said = describeProbe(await probeSandbox());
         debugPrint(said);
-        if (mounted) setState(() => _fileSaid = said);
+        if (mounted) _cubit.say(said);
         // The other half of the question needs the panel, and the panel needs
         // somebody to answer it: this opens it, and what comes back — the write
         // and whether a rename beside it would have worked — is printed the
         // same way. See `saveAs`.
         if (kSandboxPick) await _saveFile();
       }
+      _cubit.opened(opening3, renderer: renderer, stage: stage);
       setState(() {
-        _state = ModelerReady(renderer, stage);
         // With no run to wait for, the opening cost is the whole report.
         if (kOrbit <= 0) _report = 'opened in $_openedInMs ms';
       });
     } catch (error) {
       if (!mounted) return;
-      setState(() => _state = ModelerFailed('$error'));
+      _cubit.failed('$error');
     }
   }
 
@@ -400,11 +388,11 @@ class _ModelerScreenState extends State<ModelerScreen>
   Future<void> _openFile() async {
     final device = _device;
     if (device == null) return;
-    setState(() => _fileSaid = 'choosing…');
+    _cubit.say('choosing…');
     try {
       final picked = await openModel();
       if (picked == null) {
-        if (mounted) setState(() => _fileSaid = 'nothing chosen');
+        if (mounted) _cubit.say('nothing chosen');
         return;
       }
       final opening = Stopwatch()..start();
@@ -422,35 +410,34 @@ class _ModelerScreenState extends State<ModelerScreen>
         // working on, and throwing it away because they picked the wrong file
         // out of a folder would be the worst possible answer.
         case OpenRefused(:final String because):
-          setState(() => _fileSaid = because);
+          _cubit.say(because);
         case OpenedModel(:final ModelProject project, :final ModelerStage stage):
           stage.frameSubject();
           // The scene the old materials belonged to is going, and the
           // selection points at nodes that are no longer drawn.
           _surfaces.forget();
+          final said =
+              '${picked.name}: '
+              '${_count(project.objects.length, 'object')}, '
+              '${_count(project.triangleCount, 'triangle')}, '
+              '${_count(project.materials.length, 'material')}, '
+              'opened in ${opening.elapsedMilliseconds} ms';
+          _cubit.opened(
+            ModelHistory(project),
+            renderer: (_state as ModelerReady).renderer,
+            stage: stage,
+            said: <String>[said, ...opened.warnings].join('\n'),
+          );
           setState(() {
-            _history = ModelHistory(project);
             // Ids start again in the new project, so a picker held against the
             // old one could match a version and answer about a mesh that is
             // gone.
             _picker = null;
             _pickerVersion = -1;
-            // Ids start again in the new project, so nothing would hit — but
-            // two hundred entries from the old one would stay alive for the
-            // length of the session.
-            _readiness.forget();
-            _state = ModelerReady((_state as ModelerReady).renderer, stage);
-            final said =
-                '${picked.name}: '
-                '${_count(project.objects.length, 'object')}, '
-                '${_count(project.triangleCount, 'triangle')}, '
-                '${_count(project.materials.length, 'material')}, '
-                'opened in ${opening.elapsedMilliseconds} ms';
-            _fileSaid = <String>[said, ...opened.warnings].join('\n');
           });
       }
     } catch (error) {
-      if (mounted) setState(() => _fileSaid = 'could not open it: $error');
+      if (mounted) _cubit.say('could not open it: $error');
     }
   }
 
@@ -485,7 +472,7 @@ class _ModelerScreenState extends State<ModelerScreen>
       // What the format has no section for yet — a mesh carrying morph
       // targets. The message names the object, and it belongs in front of the
       // person rather than in a stack trace.
-      setState(() => _fileSaid = 'not saved: ${error.message}');
+      _cubit.say('not saved: ${error.message}');
       return;
     }
     final result = await saveAs(bytes, suggestedName: 'model.f3dproj');
@@ -501,7 +488,7 @@ class _ModelerScreenState extends State<ModelerScreen>
           ? '\na temporary file and a rename would also have worked'
           : '\na temporary file and a rename would not: $why';
     }
-    if (mounted) setState(() => _fileSaid = said);
+    if (mounted) _cubit.say(said);
   }
 
   /// Takes the document out to a format somebody else reads.
@@ -524,12 +511,12 @@ class _ModelerScreenState extends State<ModelerScreen>
 
     switch (planned) {
       case ExportRefused(:final String because):
-        setState(() => _fileSaid = because);
+        _cubit.say(because);
       case ExportBlocked():
         // Unreachable: the branch above either forced or returned. Named rather
         // than defaulted, so that adding a case to `ExportResult` is a compile
         // error here instead of a silent nothing.
-        setState(() => _fileSaid = 'not exported');
+        _cubit.say('not exported');
       case ExportWritten(:final List<ExportFile> files, :final List<String> warnings):
         final said = <String>[];
         for (final ExportFile file in files) {
@@ -545,7 +532,7 @@ class _ModelerScreenState extends State<ModelerScreen>
           if (result.outcome != SaveOutcome.written) break;
         }
         if (mounted) {
-          setState(() => _fileSaid = <String>[...said, ...warnings].join('\n'));
+          _cubit.say(<String>[...said, ...warnings].join('\n'));
         }
     }
   }
@@ -596,13 +583,6 @@ class _ModelerScreenState extends State<ModelerScreen>
     return answer ?? false;
   }
 
-  /// The element level the sub-mode names.
-  static ElementLevel _levelOf(MeshSubmode submode) => switch (submode) {
-    MeshSubmode.vertex => ElementLevel.vertex,
-    MeshSubmode.edge => ElementLevel.edge,
-    MeshSubmode.face => ElementLevel.face,
-  };
-
   /// A click in the mesh mode: what element is under it, at the level the
   /// sub-mode names.
   void _pickedElement(
@@ -618,7 +598,7 @@ class _ModelerScreenState extends State<ModelerScreen>
       view,
       at: at,
       pointer: pointer,
-      level: _levelOf(_submode),
+      level: levelOf(_submode),
     );
     setState(() {
       final was = _history.selection;
@@ -632,7 +612,7 @@ class _ModelerScreenState extends State<ModelerScreen>
         level: next.level,
         elements: next.ids.toList(),
       );
-      _opSaid = null;
+      _cubit.say(null);
     });
   }
 
@@ -759,7 +739,7 @@ class _ModelerScreenState extends State<ModelerScreen>
     if (_modal == null) return;
     _modal = null;
     _history.endTransaction();
-    setState(() => _opSaid = null);
+    _cubit.say(null);
   }
 
   /// Throws it away.
@@ -776,7 +756,7 @@ class _ModelerScreenState extends State<ModelerScreen>
       _history.dropRedo();
       _sync();
     }
-    setState(() => _opSaid = 'cancelled');
+    _cubit.say('cancelled');
   }
 
   /// Applies whatever the transform is at now, replacing what it applied last.
@@ -799,7 +779,7 @@ class _ModelerScreenState extends State<ModelerScreen>
     final vm.Vector3 step = want - _appliedSoFar;
     _appliedSoFar = vm.Vector3.copy(want);
     if (step.length2 == 0) {
-      setState(() => _opSaid = modal.says);
+      _cubit.say(modal.says);
       return;
     }
 
@@ -834,9 +814,7 @@ class _ModelerScreenState extends State<ModelerScreen>
               )
             : ScaleBy(1 + scalar),
     };
-    final said = _history.run(command);
-    setState(() => _opSaid = said ?? modal.says);
-    if (said == null) _sync();
+    _cubit.ran(command, said: modal.says);
   }
 
   /// How much of the transform has been applied to the document already.
@@ -886,20 +864,17 @@ class _ModelerScreenState extends State<ModelerScreen>
   void _ranTool(String id) {
     if (kDragTools.contains(id) || id.endsWith('.select')) {
       // Arming rather than acting: these wait for a pointer.
-      setState(() => _tool = id);
+      _cubit.tool(id);
       return;
     }
     final ModelCommand? command = _commandFor(id);
     if (command == null) {
-      setState(() => _tool = id);
+      _cubit.tool(id);
       return;
     }
-    final said = _history.run(command);
-    setState(() {
-      _tool = id;
-      _opSaid = said;
-    });
-    if (said == null) _sync();
+    _cubit
+      ..tool(id)
+      ..ran(command);
   }
 
   /// The command a rail button stands for, or null when it only arms.
@@ -966,7 +941,7 @@ class _ModelerScreenState extends State<ModelerScreen>
         picker,
         view,
         rect: box.rect,
-        level: _levelOf(_submode),
+        level: levelOf(_submode),
       );
       final Set<int> next = applyBox<int>(
         was.elements.toSet(),
@@ -978,7 +953,7 @@ class _ModelerScreenState extends State<ModelerScreen>
           elements: next.toList()..sort(),
           level: caught.level,
         );
-        _opSaid = null;
+        _cubit.say(null);
       });
       return;
     }
@@ -1009,7 +984,7 @@ class _ModelerScreenState extends State<ModelerScreen>
         mode: SelectionMode.object,
         objects: next.toList(),
       );
-      _opSaid = null;
+      _cubit.say(null);
     });
   }
 
@@ -1019,17 +994,14 @@ class _ModelerScreenState extends State<ModelerScreen>
   /// `doc-32n`: a selection made by mistake is one press of ⌘Z away, the
   /// journal records what was selected when a command ran, and an agent
   /// driving the modeller can ask for it by name.
-  void _runSelection(ModelCommand command) {
-    final said = _history.run(command);
-    setState(() => _opSaid = said);
-  }
+  void _runSelection(ModelCommand command) => _cubit.ran(command);
 
   /// Brings the scene to the project.
-  void _sync() {
-    final state = _state;
-    if (state is! ModelerReady) return;
-    state.stage.sync?.apply(_history.project);
-  }
+  ///
+  /// The one place left that changes the document without a command going
+  /// through the cubit: a drag that closed its own transaction, and an `amend`.
+  /// Both tell the cubit afterwards, and it does the rest.
+  void _sync() => _cubit.documentMoved();
 
   /// Nine numbers typed into the panel.
   ///
@@ -1041,33 +1013,26 @@ class _ModelerScreenState extends State<ModelerScreen>
     if (_history.project[id] == null) return;
     final built = transformFromFields(to);
     if (built.refused case final String said) {
-      setState(() => _opSaid = said);
+      _cubit.say(said);
       return;
     }
-    final said = _history.run(SetTransform(id: id, to: built.matrix!));
-    setState(() => _opSaid = said);
-    if (said == null) _sync();
+    _cubit.ran(SetTransform(id: id, to: built.matrix!));
   }
 
   /// The operation card's number was dragged.
   void _amend(ModelCommand to) {
     final said = _history.amend(to);
-    setState(() => _opSaid = said);
-    if (said == null) _sync();
+    if (said != null) {
+      _cubit.say(said);
+      return;
+    }
+    _cubit.documentMoved(said: to.says);
   }
 
   /// ⌘Z and ⇧⌘Z.
-  void _undo() {
-    final moved = _history.undo();
-    setState(() => _opSaid = moved ? null : 'nothing to undo');
-    if (moved) _sync();
-  }
+  void _undo() => _cubit.undo();
 
-  void _redo() {
-    final moved = _history.redo();
-    setState(() => _opSaid = moved ? null : 'nothing to redo');
-    if (moved) _sync();
-  }
+  void _redo() => _cubit.redo();
 
   /// What a click in the viewport did to the selection.
   ///
@@ -1118,7 +1083,7 @@ class _ModelerScreenState extends State<ModelerScreen>
         mode: SelectionMode.object,
         objects: next,
       );
-      _opSaid = null;
+      _cubit.say(null);
     });
   }
 
@@ -1138,9 +1103,25 @@ class _ModelerScreenState extends State<ModelerScreen>
   }
 
   @override
-  Widget build(BuildContext context) => switch (_state) {
+  Widget build(BuildContext context) => BlocBuilder<ModelerCubit, ModelerState>(
+    bloc: _cubit,
+    builder: (BuildContext context, ModelerState state) => _screen(state),
+  );
+
+  Widget _screen(ModelerState state) => switch (state) {
     ModelerOpening() => const Scaffold(
       body: Center(child: CircularProgressIndicator()),
+    ),
+    // `ui-15` is the start screen and this is the state it will show in. Until
+    // it exists there is no way to reach this, and a wildcard here would be a
+    // silent blank window on the day somebody adds the first path to it.
+    ModelerChoosing(:final said) => Scaffold(
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Text(said, textAlign: TextAlign.center),
+        ),
+      ),
     ),
     ModelerFailed(:final said) => Scaffold(
       body: Center(
@@ -1159,50 +1140,21 @@ class _ModelerScreenState extends State<ModelerScreen>
       onSelectAll: () => _runSelection(const SelectAll()),
       onSelectNone: () => _runSelection(const SelectNone()),
       onInvertSelection: () => _runSelection(const InvertSelection()),
-      onLevel: (MeshSubmode submode) => setState(() {
-        _submode = submode;
-        // Through `convertedTo`, so a person who picked a face and pressed 1
-        // gets its corners rather than an empty viewport.
-        final EditMesh? mesh = _editMesh;
-        final was = _history.selection;
-        _history.selection = mesh == null
-            ? was.copyWith(level: _levelOf(submode))
-            : was.copyWith(
-                level: _levelOf(submode),
-                elements: was.asMeshSelection
-                    .convertedTo(mesh, _levelOf(submode))
-                    .ids
-                    .toList(),
-              );
-      }),
-      tools: toolsFor(_mode),
+      onLevel: _cubit.submode,
+      tools: toolsFor(state.mode),
       child: ModelerShell(
-        mode: _mode,
-        onMode: (ModelerMode mode) => setState(() {
-          _mode = mode;
-          // The armed tool belongs to the mode it came from, so a mode change
-          // arms that mode's pointer rather than leaving a tool id from the old
-          // one that nothing here would recognise.
-          _tool = toolsFor(mode).isEmpty ? null : toolsFor(mode).first.id;
-        }),
-        submode: _submode,
-        onSubmode: (MeshSubmode submode) => setState(() {
-          _submode = submode;
-          // Through `convertedTo`, so a person who picked a face and pressed 1
-          // gets its corners rather than an empty viewport.
-          final EditMesh? mesh = _editMesh;
-          final was = _history.selection;
-          _history.selection = mesh == null
-              ? was.copyWith(level: _levelOf(submode))
-              : was.copyWith(
-                  level: _levelOf(submode),
-                  elements: was.asMeshSelection
-                      .convertedTo(mesh, _levelOf(submode))
-                      .ids
-                      .toList(),
-                );
-        }),
-        activeTool: _tool,
+        mode: state.mode,
+        onMode: (ModelerMode mode) {
+          _cubit
+            ..mode(mode)
+            // The armed tool belongs to the mode it came from, so a mode change
+            // arms that mode's pointer rather than leaving a tool id from the
+            // old one that nothing here would recognise.
+            ..tool(toolsFor(mode).isEmpty ? null : toolsFor(mode).first.id);
+        },
+        submode: state.submode,
+        onSubmode: _cubit.submode,
+        activeTool: state.tool,
         onTool: _ranTool,
         actions: <Widget>[
           // **A menu rather than five buttons on the rail.** The rail is for
@@ -1212,11 +1164,7 @@ class _ModelerScreenState extends State<ModelerScreen>
           // which is the one people reach for without looking.
           PopupMenuButton<String>(
             tooltip: 'Add a primitive',
-            onSelected: (String kind) {
-              final said = _history.run(AddPrimitive(kind: kind));
-              setState(() => _opSaid = said);
-              if (said == null) _sync();
-            },
+            onSelected: (String kind) => _cubit.ran(AddPrimitive(kind: kind)),
             itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
               for (final String kind in AddPrimitive.primitiveKinds)
                 PopupMenuItem<String>(
@@ -1258,14 +1206,15 @@ class _ModelerScreenState extends State<ModelerScreen>
           ),
         ],
         status: _StatusLine(
-          said: _opSaid ?? _fileSaid ?? _selectionSaid,
-          // Asked every frame and computed only where the project moved: the
-          // cache keeps each object's answer against that object's version, so
-          // a drag of one object walks one object rather than two hundred. A
-          // stale answer would be worse than a slow one — a bar that says a
-          // model is ready after the edit that broke it — and the version is
-          // what makes staleness impossible rather than unlikely.
-          readiness: _readiness.of(_history.project),
+          // One sentence, carried by the state. There used to be two — one for
+          // files and one for operations — with the operation's winning by
+          // sitting first in a `??` chain, which meant a file that failed to
+          // open said nothing at all if an operation had run before it.
+          said: state.said ?? _selectionSaid,
+          // A value on the state, refreshed when a command lands rather than
+          // computed while a frame is drawn. It cannot go stale behind a check
+          // that never runs, which is what a getter here could do.
+          readiness: state.readiness,
           micros: _lastRenderMicros,
         ),
         properties: _Properties(
@@ -1279,10 +1228,7 @@ class _ModelerScreenState extends State<ModelerScreen>
             ),
           ),
           onTransform: _setTransform,
-          onRename: (int id, String to) {
-            final said = _history.run(Rename(id: id, to: to));
-            setState(() => _opSaid = said);
-          },
+          onRename: (int id, String to) => _cubit.ran(Rename(id: id, to: to)),
           lastCommand: _history.journal.isEmpty ? null : _history.journal.last,
           onAmend: _amend,
           shading: _shading,

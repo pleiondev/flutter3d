@@ -11,6 +11,10 @@ dependencies:
   flutter:
     sdk: flutter
 
+  # The state a screen rebuilds on, kept out of the frame loop — see
+  # lib/src/modeler_cubit.dart. Same version the level editor and the demos use.
+  flutter_bloc: ^9.1.1
+
   # The backend chooser with its software fallback, so this application says
   # `openDevice()` rather than naming Impeller or WebGL. A modeller that named
   # one would be a modeller that does not open in a browser, and the browser is
