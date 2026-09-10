@@ -23,6 +23,8 @@
 /// wrapped round the widget.
 library;
 
+import 'package:flutter3d_mesh/flutter3d_mesh.dart';
+
 import 'command.dart';
 import 'project.dart';
 import 'selection.dart';
@@ -33,6 +35,7 @@ final class HistoryStep {
     required this.command,
     required this.before,
     required this.selectionBefore,
+    this.meshSteps = const <EditMesh, int>{},
   });
 
   final ModelCommand command;
@@ -43,6 +46,17 @@ final class HistoryStep {
   /// The selection the command was made against, kept so a redo does the same
   /// thing to the same elements even if the pointer has moved on.
   final ProjectSelection selectionBefore;
+
+  /// How many journal steps each mesh took in this history step.
+  ///
+  /// **The one thing the kept document cannot answer.** A mesh is a flat array
+  /// with a journal rather than a value with old versions in it — `p0-05`
+  /// measured both and the journal costs two per cent of a copy where chunks
+  /// cost a hundred — so rolling a mesh back is `EditMesh.undo`, not swapping a
+  /// pointer. A transaction can touch more than one mesh and can take more than
+  /// one step on each, which is why this is a count per mesh rather than a
+  /// flag.
+  final Map<EditMesh, int> meshSteps;
 }
 
 /// A project, the changes made to it, and the way back.
@@ -107,14 +121,22 @@ final class ModelHistory {
   String? run(ModelCommand command) {
     final Outcome outcome = command.apply(_project, selection);
     if (!outcome.ok) return outcome.refused;
+    final EditMesh? touched = outcome.meshTouched;
     if (_inTransaction) {
       _firstOfTransaction ??= command;
+      if (touched != null) {
+        _meshStepsOfTransaction[touched] =
+            (_meshStepsOfTransaction[touched] ?? 0) + 1;
+      }
     } else {
       _done.add(
         HistoryStep(
           command: command,
           before: _project,
           selectionBefore: _selection,
+          meshSteps: touched == null
+              ? const <EditMesh, int>{}
+              : <EditMesh, int>{touched: 1},
         ),
       );
       // Only a step that a person made clears the redo stack. A redo that ran
@@ -134,6 +156,7 @@ final class ModelHistory {
   /// [transaction] — and the name to put on the one step it leaves behind.
   bool _inTransaction = false;
   ModelCommand? _firstOfTransaction;
+  final Map<EditMesh, int> _meshStepsOfTransaction = <EditMesh, int>{};
 
   /// Runs [body] and records everything it did as one step.
   ///
@@ -152,18 +175,24 @@ final class ModelHistory {
     final selectionBefore = _selection;
     _inTransaction = true;
     _firstOfTransaction = null;
+    _meshStepsOfTransaction.clear();
     try {
       return body();
     } finally {
       final ModelCommand? first = _firstOfTransaction;
+      final Map<EditMesh, int> meshSteps = Map<EditMesh, int>.of(
+        _meshStepsOfTransaction,
+      );
       _inTransaction = false;
       _firstOfTransaction = null;
+      _meshStepsOfTransaction.clear();
       if (first != null && !identical(_project, before)) {
         _done.add(
           HistoryStep(
             command: first,
             before: before,
             selectionBefore: selectionBefore,
+            meshSteps: meshSteps,
           ),
         );
         _undone.clear();
@@ -208,10 +237,12 @@ final class ModelHistory {
         command: step.command,
         before: _project,
         selectionBefore: _selection,
+        meshSteps: step.meshSteps,
       ),
     );
     _project = step.before;
     _selection = step.selectionBefore;
+    _rollMeshes(step.meshSteps, forward: false);
     return true;
   }
 
@@ -224,11 +255,31 @@ final class ModelHistory {
         command: step.command,
         before: _project,
         selectionBefore: _selection,
+        meshSteps: step.meshSteps,
       ),
     );
     _project = step.before;
     _selection = step.selectionBefore;
+    _rollMeshes(step.meshSteps, forward: true);
     return true;
+  }
+
+  /// Moves each mesh's own journal by the number of steps it took.
+  ///
+  /// The document and the meshes have to move together or not at all: a project
+  /// put back to before a loop cut, holding a mesh that still has the cut in
+  /// it, is a document that disagrees with itself and draws geometry no step of
+  /// history describes.
+  void _rollMeshes(Map<EditMesh, int> steps, {required bool forward}) {
+    for (final MapEntry<EditMesh, int> each in steps.entries) {
+      for (var i = 0; i < each.value; i++) {
+        if (forward) {
+          each.key.redo();
+        } else {
+          each.key.undo();
+        }
+      }
+    }
   }
 
   /// Every command that has been kept, oldest first — the journal a project

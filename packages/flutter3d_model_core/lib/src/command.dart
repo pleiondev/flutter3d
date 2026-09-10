@@ -20,29 +20,43 @@
 /// that half-worked is a command that has to be split.
 library;
 
+import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 import 'package:vector_math/vector_math.dart';
 
 import 'project.dart';
 import 'selection.dart';
 
+part 'mesh_commands.dart';
+part 'object_commands.dart';
+
 /// What a command did.
 final class Outcome {
-  const Outcome._(this.project, this.selection, this.refused);
+  const Outcome._(this.project, this.selection, this.refused, this.meshTouched);
 
   /// It worked, and this is the project now.
   ///
   /// [selection] is what should be selected afterwards, which is not always
   /// what was selected before: a command that makes something selects what it
   /// made, because that is what a person wants to move next.
-  factory Outcome.done(ModelProject project, {ProjectSelection? selection}) =>
-      Outcome._(project, selection, null);
+  /// [meshTouched] is the mesh that took a journal step, when one did. See
+  /// `mesh_commands.dart`: a mesh is not a value with old versions in it, so
+  /// the history has to roll its journal in step with the documents it keeps.
+  factory Outcome.done(
+    ModelProject project, {
+    ProjectSelection? selection,
+    EditMesh? meshTouched,
+  }) => Outcome._(project, selection, null, meshTouched);
 
   /// It did not, and this is what to tell somebody.
-  factory Outcome.refused(String said) => Outcome._(null, null, said);
+  factory Outcome.refused(String said) => Outcome._(null, null, said, null);
 
   final ModelProject? project;
   final ProjectSelection? selection;
   final String? refused;
+
+  /// The mesh whose journal moved on, or null when the command only touched
+  /// the document.
+  final EditMesh? meshTouched;
 
   bool get ok => refused == null;
 }
@@ -260,8 +274,17 @@ const List<String> modelCommandNames = <String>[
   'rename',
   'setTransform',
   'moveBy',
+  'rotateBy',
+  'scaleBy',
+  'setParent',
+  'addPrimitive',
+  'bakeToMesh',
   'deleteObjects',
   'duplicateObjects',
+  'extrude',
+  'loopCut',
+  'deleteElements',
+  'transformElements',
 ];
 
 /// Reads a command back out of a journal, or null.
@@ -288,8 +311,58 @@ ModelCommand? modelCommandFromJson(Object? json) {
       final List<double> by => MoveBy(Vector3(by[0], by[1], by[2])),
       _ => null,
     },
+    'rotateBy' => switch ((_doubles(json['axis'], 3), json['radians'])) {
+      (final List<double> axis, final num radians) => RotateBy(
+        axis: Vector3(axis[0], axis[1], axis[2]),
+        radians: radians.toDouble(),
+      ),
+      _ => null,
+    },
+    'scaleBy' => switch (json['by']) {
+      final num by => ScaleBy(by.toDouble()),
+      _ => null,
+    },
+    'setParent' => switch ((json['id'], json['to'])) {
+      (final int id, final int? to) => SetParent(id: id, to: to),
+      _ => null,
+    },
+    'addPrimitive' => switch ((json['kind'], json['size'], json['segments'])) {
+      (final String kind, final num size, final int segments) => AddPrimitive(
+        kind: kind,
+        size: size.toDouble(),
+        segments: segments,
+        at: switch (_doubles(json['at'], 3)) {
+          final List<double> at => Vector3(at[0], at[1], at[2]),
+          _ => null,
+        },
+      ),
+      _ => null,
+    },
+    'bakeToMesh' => switch (json['id']) {
+      final int id => BakeToMesh(id),
+      _ => null,
+    },
     'deleteObjects' => const DeleteObjects(),
     'duplicateObjects' => const DuplicateObjects(),
+    'extrude' => switch (json['distance']) {
+      final num distance => Extrude(distance.toDouble()),
+      _ => null,
+    },
+    'loopCut' => switch ((json['cuts'], json['factor'])) {
+      (final int cuts, final num factor) => LoopCut(
+        cuts: cuts,
+        factor: factor.toDouble(),
+      ),
+      _ => null,
+    },
+    'deleteElements' => const DeleteElements(),
+    'transformElements' => switch ((_doubles(json['by'], 16), json['what'])) {
+      (final List<double> by, final String what) => TransformElements(
+        Matrix4.fromList(by),
+        what: what,
+      ),
+      _ => null,
+    },
     _ => null,
   };
 }

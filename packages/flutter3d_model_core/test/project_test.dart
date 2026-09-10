@@ -163,8 +163,17 @@ void main() {
         const Rename(id: 1, to: 'body'),
         SetTransform(id: 1, to: Matrix4.identity()),
         MoveBy(Vector3(1, 0, -2)),
+        RotateBy(axis: Vector3(0, 1, 0), radians: 0.5),
+        const ScaleBy(2),
+        const SetParent(id: 2, to: 1),
+        const AddPrimitive(kind: 'cylinder', size: 2, segments: 12),
+        const BakeToMesh(1),
         const DeleteObjects(),
         const DuplicateObjects(),
+        const Extrude(0.25),
+        const LoopCut(cuts: 2),
+        const DeleteElements(),
+        TransformElements(Matrix4.identity(), what: 'turn'),
       ];
 
       // Every name has a sample, which is what stops a command being added to
