@@ -50,6 +50,7 @@ import 'src/transform_modal.dart';
 import 'src/ui/number_field.dart';
 import 'src/ui/operation_card.dart';
 import 'src/ui/shell.dart';
+import 'src/ui/status_line.dart';
 import 'src/ui/theme.dart';
 import 'src/ui/tools.dart';
 
@@ -1205,7 +1206,7 @@ class _ModelerScreenState extends State<ModelerScreen>
             ),
           ),
         ],
-        status: _StatusLine(
+        status: StatusLine(
           // One sentence, carried by the state. There used to be two — one for
           // files and one for operations — with the operation's winning by
           // sitting first in a `??` chain, which meant a file that failed to
@@ -1215,6 +1216,7 @@ class _ModelerScreenState extends State<ModelerScreen>
           // computed while a frame is drawn. It cannot go stale behind a check
           // that never runs, which is what a getter here could do.
           readiness: state.readiness,
+          triangles: state.project.triangleCount,
           micros: _lastRenderMicros,
         ),
         properties: _Properties(
@@ -1336,63 +1338,6 @@ class _ModelerScreenState extends State<ModelerScreen>
 /// The metrics `ui-10` asks for — the mode's own counts, and the first issue
 /// from an export readiness — need a document to count and a readiness to ask,
 /// so what is here is what the application actually knows.
-class _StatusLine extends StatelessWidget {
-  const _StatusLine({
-    required this.said,
-    required this.readiness,
-    required this.micros,
-  });
-
-  final String said;
-
-  /// What the project would refuse to export as, shown beside what just
-  /// happened — because the moment to learn that a model has an n-gon in it is
-  /// while it is being built rather than at the export dialogue.
-  final ExportReadiness readiness;
-
-  final int? micros;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Row(
-      children: <Widget>[
-        Expanded(
-          child: Text(
-            said,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: theme.textTheme.bodySmall,
-          ),
-        ),
-        // Coloured only when it is a refusal: a bar that is orange whenever
-        // anything at all is imperfect is a bar people stop reading.
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12),
-          child: Text(
-            readiness.says,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: readiness.canExport
-                  ? theme.colorScheme.onSurfaceVariant
-                  : theme.colorScheme.tertiary,
-            ),
-          ),
-        ),
-        if (micros case final int spent)
-          Text(
-            '${(spent / 1000).toStringAsFixed(1)} ms',
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
-              fontFeatures: const <FontFeature>[FontFeature.tabularFigures()],
-            ),
-          ),
-      ],
-    );
-  }
-}
-
 /// The right-hand panel.
 ///
 /// **Thin, and honest about why.** `ui-08` puts an object list, three-by-three
