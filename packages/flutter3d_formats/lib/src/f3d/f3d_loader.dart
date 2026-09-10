@@ -209,6 +209,21 @@ final class F3dDocument extends ModelDocument {
   @override
   late final List<String> warnings = _readWarnings();
 
+  @override
+  late final DocumentAsset? asset = _readAsset();
+
+  /// The one `asset` record, or null when the section is empty — a file
+  /// written before `fmt-04`, or one whose document genuinely said nothing.
+  DocumentAsset? _readAsset() {
+    final table = _section(F3dSection.asset);
+    if (table.count == 0) return null;
+    final generator = _string(
+      _view.getUint32(table.offset, Endian.little),
+      _view.getUint32(table.offset + 4, Endian.little),
+    );
+    return DocumentAsset(generator: generator);
+  }
+
   // ----------------------------------------------------------------- warnings
 
   List<String> _readWarnings() {

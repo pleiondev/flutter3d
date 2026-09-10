@@ -33,7 +33,7 @@ extension _ObjMaterials on ObjLoader {
         try {
           final bytes = await resolveUri(AssetRequest(path));
           baseColorTexture = TextureBinding(imageIndex: images.length);
-          images.add(EncodedImage(bytes: bytes, name: path));
+          images.add(EncodedImage(bytes: bytes, name: path, sourceUri: path));
         } catch (error) {
           warnings.add('Could not load texture "$path": $error');
         }

@@ -10,6 +10,7 @@ final class ModelSurface {
     this.skinIndex,
     this.flipWinding = false,
     this.name,
+    this.meshName,
     List<double>? morphWeights,
     Set<String>? authoredAttributes,
   }) : transform = transform ?? Matrix4.identity(),
@@ -39,6 +40,17 @@ final class ModelSurface {
   final bool flipWinding;
 
   final String? name;
+
+  /// The name of the mesh asset [mesh] was built from, distinct from [name].
+  ///
+  /// glTF separates a node's own name from the mesh it draws — two nodes can
+  /// share one mesh under two different names — and [name] here already
+  /// prefers the node's, which is what an outliner wants to show. This is the
+  /// other one, kept for a writer that wants to say "this surface came from
+  /// the asset called X" rather than "the node that draws it is called Y".
+  /// Null for a format with no such distinction — OBJ's groups are already
+  /// the only name a surface has.
+  final String? meshName;
 
   /// The rest weights of [mesh]'s morph targets: the expression the model wears
   /// before anything animates it.

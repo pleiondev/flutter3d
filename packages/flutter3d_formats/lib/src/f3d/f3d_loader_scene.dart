@@ -13,6 +13,7 @@ extension _F3dScene on F3dDocument {
   List<ModelSurface> _readSurfaces() {
     final table = _section(F3dSection.surfaces);
     final attributeTable = _section(F3dSection.surfaceAttributes);
+    final meshNameTable = _section(F3dSection.meshNames);
     return <ModelSurface>[
       for (var i = 0; i < table.count; i++)
         () {
@@ -44,9 +45,19 @@ extension _F3dScene on F3dDocument {
             authoredAttributes: attributeTable.count == 0
                 ? null
                 : _authoredAttributesAt(i),
+            meshName: i < meshNameTable.count ? _meshNameAt(i) : null,
           );
         }(),
     ];
+  }
+
+  /// The string surface `i`'s `meshNames` record holds, or null.
+  String? _meshNameAt(int i) {
+    final o = _recordOffset(F3dSection.meshNames, i, F3dRecord.meshName);
+    return _string(
+      _view.getUint32(o, Endian.little),
+      _view.getUint32(o + 4, Endian.little),
+    );
   }
 
   /// The attribute names bit `i`'s `surfaceAttributes` record marks, read

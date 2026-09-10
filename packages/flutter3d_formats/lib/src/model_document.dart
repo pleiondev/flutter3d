@@ -13,6 +13,32 @@ import 'surface_material.dart';
 export 'model_node.dart';
 export 'surface_material.dart';
 
+/// What the source file said about itself, as opposed to what it contains.
+///
+/// **`generator` only, because that is the one name the plan asks for and the
+/// one field every real producer of these files actually fills in.** glTF's
+/// own `asset` object also carries `copyright` and a required schema
+/// `version`; neither is read yet, and a field nothing decodes is a field
+/// nothing can honestly claim to round-trip.
+final class DocumentAsset {
+  const DocumentAsset({this.generator});
+
+  /// The tool that wrote the file — glTF's `asset.generator`, e.g. `"Blender
+  /// 4.2"`. Null when the file does not say, which most hand-built test
+  /// documents and every OBJ do not.
+  final String? generator;
+
+  @override
+  bool operator ==(Object other) =>
+      other is DocumentAsset && other.generator == generator;
+
+  @override
+  int get hashCode => generator.hashCode;
+
+  @override
+  String toString() => 'DocumentAsset(generator: $generator)';
+}
+
 /// A decoded model, whatever format it came from.
 ///
 /// The seam between decoders and the rest of the engine: glTF and OBJ both
@@ -24,6 +50,10 @@ abstract class ModelDocument {
   List<ModelSurface> get surfaces;
   List<SurfaceMaterial> get materials;
   List<EncodedImage> get images;
+
+  /// What the source file said about itself. Null for a format that carries
+  /// no such block, or a document nobody has set one on.
+  DocumentAsset? get asset => null;
 
   /// The model's node hierarchy.
   ///

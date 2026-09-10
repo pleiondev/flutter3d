@@ -74,6 +74,44 @@ extension _F3dWriteScene on F3dWriter {
     return table;
   }
 
+  /// One `(offset, length)` string per surface, [F3dSection.surfaces] order.
+  /// See `ModelSurface.meshName`.
+  Uint8List _writeMeshNames() {
+    final table = Uint8List(document.surfaces.length * F3dRecord.meshName);
+    final view = ByteData.view(table.buffer);
+    for (var i = 0; i < document.surfaces.length; i++) {
+      final (offset, length) = _string(document.surfaces[i].meshName);
+      view.setUint32(i * F3dRecord.meshName, offset, Endian.little);
+      view.setUint32(i * F3dRecord.meshName + 4, length, Endian.little);
+    }
+    return table;
+  }
+
+  /// Zero or one record — see `ModelDocument.asset`.
+  (Uint8List, int) _writeAsset() {
+    final generator = document.asset?.generator;
+    if (generator == null) return (Uint8List(0), 0);
+    final (offset, length) = _string(generator);
+    final table = Uint8List(F3dRecord.asset);
+    final view = ByteData.view(table.buffer);
+    view.setUint32(0, offset, Endian.little);
+    view.setUint32(4, length, Endian.little);
+    return (table, 1);
+  }
+
+  /// One `(offset, length)` string per image, [F3dSection.images] order. See
+  /// `EncodedImage.sourceUri`.
+  Uint8List _writeImageUris() {
+    final table = Uint8List(document.images.length * F3dRecord.imageUri);
+    final view = ByteData.view(table.buffer);
+    for (var i = 0; i < document.images.length; i++) {
+      final (offset, length) = _string(document.images[i].sourceUri);
+      view.setUint32(i * F3dRecord.imageUri, offset, Endian.little);
+      view.setUint32(i * F3dRecord.imageUri + 4, length, Endian.little);
+    }
+    return table;
+  }
+
   // -------------------------------------------------------------------- nodes
 
   Uint8List _writeNodes() {

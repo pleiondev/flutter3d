@@ -24,6 +24,7 @@ final class PlainModelDocument extends ModelDocument {
     this.animations = const <AnimationClip>[],
     this.skins = const <ModelSkin>[],
     this.warnings = const <String>[],
+    this.asset,
   });
 
   @override
@@ -46,4 +47,7 @@ final class PlainModelDocument extends ModelDocument {
 
   @override
   final List<String> warnings;
+
+  @override
+  final DocumentAsset? asset;
 }

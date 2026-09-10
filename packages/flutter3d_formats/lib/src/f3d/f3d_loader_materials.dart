@@ -111,6 +111,7 @@ extension _F3dMaterials on F3dDocument {
 
   List<EncodedImage> _readImages() {
     final table = _section(F3dSection.images);
+    final uriTable = _section(F3dSection.imageUris);
     return <EncodedImage>[
       for (var i = 0; i < table.count; i++)
         () {
@@ -133,8 +134,19 @@ extension _F3dMaterials on F3dDocument {
               _view.getUint32(o + 16, Endian.little),
               _view.getUint32(o + 20, Endian.little),
             ),
+            sourceUri: i < uriTable.count ? _imageUriAt(i) : null,
           );
         }(),
     ];
+  }
+
+  /// The string image `i`'s `imageUris` record names, or null when it names
+  /// nothing — see `EncodedImage.sourceUri`.
+  String? _imageUriAt(int i) {
+    final o = _recordOffset(F3dSection.imageUris, i, F3dRecord.imageUri);
+    return _string(
+      _view.getUint32(o, Endian.little),
+      _view.getUint32(o + 4, Endian.little),
+    );
   }
 }

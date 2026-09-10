@@ -90,6 +90,9 @@ final class GltfLoader {
     final animations = _decodeAnimations(json, reader, graph.nodes, warnings);
     final skins = _decodeSkins(json, reader, graph.nodes.length, warnings);
 
+    final assetBlock = json['asset'];
+    final generator = assetBlock is Map ? assetBlock['generator'] : null;
+
     return GltfAsset(
       surfaces: graph.surfaces,
       materials: materials,
@@ -99,6 +102,7 @@ final class GltfLoader {
       roots: graph.roots,
       animations: animations,
       skins: skins,
+      asset: generator is String ? DocumentAsset(generator: generator) : null,
     );
   }
 

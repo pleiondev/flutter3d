@@ -66,6 +66,9 @@ extension _GltfImages on GltfLoader {
           name: name is String ? name : null,
           bytes: bytes ?? Uint8List(0),
           mimeType: mimeType is String ? mimeType : null,
+          // Not a `data:` URI — those have no path a writer could reuse, only
+          // bytes this image already carries.
+          sourceUri: uri is String && !uri.startsWith('data:') ? uri : null,
         ),
       );
     }

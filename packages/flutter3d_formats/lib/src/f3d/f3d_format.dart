@@ -103,6 +103,19 @@ abstract final class F3dSection {
   /// surface's own mesh layout has, the same "unwritten means all of it"
   /// shape [morphTargets] uses for a section added after the format shipped.
   static const int surfaceAttributes = 17;
+
+  /// The mesh asset name behind each surface, one record per surface in
+  /// [surfaces] order — see `ModelSurface.meshName`. Absent reads as null for
+  /// every surface, the same as a file that predates `fmt-04`.
+  static const int meshNames = 18;
+
+  /// What the source file said about itself — `count` 0 or 1, never more.
+  /// See `ModelDocument.asset`.
+  static const int asset = 19;
+
+  /// Where each image's bytes came from, one record per image in [images]
+  /// order — see `EncodedImage.sourceUri`.
+  static const int imageUris = 20;
 }
 
 /// Fixed record sizes, in bytes. All multiples of four.
@@ -167,6 +180,15 @@ abstract final class F3dRecord {
 
   /// u32 bitmask, see [F3dAttributeFlags]
   static const int surfaceAttributes = 4;
+
+  /// u32 nameOffset, u32 nameLength into the strings section
+  static const int meshName = 8;
+
+  /// u32 generatorOffset, u32 generatorLength into the strings section
+  static const int asset = 8;
+
+  /// u32 uriOffset, u32 uriLength into the strings section
+  static const int imageUri = 8;
 }
 
 /// Bit positions inside a `surfaceAttributes` record — one per name

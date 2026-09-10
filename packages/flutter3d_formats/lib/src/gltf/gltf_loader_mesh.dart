@@ -21,6 +21,7 @@ extension _GltfMesh on GltfLoader {
   ) {
     final primitives = _mapList(mesh['primitives']);
     final result = <_DecodedPrimitive>[];
+    final meshName = mesh['name'];
 
     // What a target is called, when the exporter said. glTF puts these in
     // `mesh.extras.targetNames`, which is a convention every tool follows and
@@ -93,7 +94,16 @@ extension _GltfMesh on GltfLoader {
           reader: reader,
           warnings: warnings,
         );
-        if (decoded != null) result.add(decoded);
+        if (decoded != null) {
+          result.add(
+            _DecodedPrimitive(
+              mesh: decoded.mesh,
+              materialIndex: decoded.materialIndex,
+              authoredAttributes: decoded.authoredAttributes,
+              meshName: meshName is String ? meshName : null,
+            ),
+          );
+        }
       } on FormatException catch (error) {
         // One broken primitive should not sink the whole file.
         warnings.add('$label failed to decode: ${error.message}');
@@ -466,9 +476,11 @@ final class _DecodedPrimitive {
     required this.mesh,
     required this.materialIndex,
     required this.authoredAttributes,
+    this.meshName,
   });
 
   final MeshData mesh;
   final int? materialIndex;
   final Set<String> authoredAttributes;
+  final String? meshName;
 }

@@ -60,11 +60,25 @@ final class TextureBinding {
 /// out of the decoders is what lets the whole asset layer be unit tested with no
 /// Flutter binding.
 final class EncodedImage {
-  const EncodedImage({required this.bytes, this.name, this.mimeType});
+  const EncodedImage({
+    required this.bytes,
+    this.name,
+    this.mimeType,
+    this.sourceUri,
+  });
 
   final Uint8List bytes;
   final String? name;
   final String? mimeType;
+
+  /// Where the source file pointed to find this image, relative to the file
+  /// itself — a glTF `uri` that named a sibling rather than a `data:` URI or a
+  /// `bufferView`, or the path an OBJ `map_Kd` line gave. Null for an image
+  /// that arrived embedded, since there was never a path to remember.
+  ///
+  /// A writer re-exporting the image reads this to decide whether to keep the
+  /// original relative path or invent a new one; nothing here resolves it.
+  final String? sourceUri;
 
   bool get isEmpty => bytes.isEmpty;
 }
