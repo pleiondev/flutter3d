@@ -92,20 +92,8 @@ final class FileStorage implements Storage {
   /// never to throw.
   late final Directory? directory = _given ?? _resolve();
 
-  Directory? _resolve() {
-    try {
-      final path = applicationDirectory(
-        appName: appName,
-        platform: defaultTargetPlatform,
-        environment: Platform.environment,
-        temporary: Directory.systemTemp.path,
-      );
-      return path == null ? null : Directory(path);
-    } catch (error) {
-      onIssue(Issue('storage: no directory on this platform ($error)'));
-      return null;
-    }
-  }
+  Directory? _resolve() =>
+      resolveApplicationDirectory(appName: appName, onIssue: onIssue);
 
   File? _file(String name) {
     final where = directory;
@@ -156,3 +144,91 @@ final class FileStorage implements Storage {
 /// The storage a build outside the browser gets.
 Storage defaultStorage(String appName, {IssueSink? onIssue}) =>
     FileStorage(appName: appName, onIssue: onIssue);
+
+/// [applicationDirectory] resolved for the current platform, or null with
+/// [onIssue] told why — the shared half of [FileStorage] and
+/// [FileBinaryStorage], which otherwise differ only in what they do with the
+/// directory once they have it.
+Directory? resolveApplicationDirectory({
+  required String appName,
+  required IssueSink onIssue,
+}) {
+  try {
+    final path = applicationDirectory(
+      appName: appName,
+      platform: defaultTargetPlatform,
+      environment: Platform.environment,
+      temporary: Directory.systemTemp.path,
+    );
+    return path == null ? null : Directory(path);
+  } catch (error) {
+    onIssue(Issue('storage: no directory on this platform ($error)'));
+    return null;
+  }
+}
+
+/// Documents kept as files, the binary half of [FileStorage].
+///
+/// Same directory, same atomic-write discipline — [writeBytesAtomically]
+/// rather than [writeFileAtomically] — different bytes.
+final class FileBinaryStorage implements BinaryStorage {
+  FileBinaryStorage({
+    required this.appName,
+    Directory? directory,
+    IssueSink? onIssue,
+  }) : _given = directory,
+       onIssue = onIssue ?? printIssue;
+
+  final String appName;
+  final Directory? _given;
+  final IssueSink onIssue;
+
+  late final Directory? directory =
+      _given ?? resolveApplicationDirectory(appName: appName, onIssue: onIssue);
+
+  File? _file(String name) {
+    final where = directory;
+    return where == null ? null : File('${where.path}/$name');
+  }
+
+  @override
+  Future<Uint8List?> read(String name) async {
+    try {
+      final file = _file(name);
+      if (file == null || !file.existsSync()) return null;
+      return file.readAsBytesSync();
+    } catch (error) {
+      onIssue(Issue('storage: could not read $name ($error)'));
+      return null;
+    }
+  }
+
+  @override
+  Future<bool> write(String name, Uint8List contents) async {
+    try {
+      final where = directory;
+      final file = _file(name);
+      if (where == null || file == null) return false;
+      where.createSync(recursive: true);
+      writeBytesAtomicallySync(file.path, contents);
+      return true;
+    } catch (error) {
+      onIssue(Issue('storage: could not write $name ($error)'));
+      return false;
+    }
+  }
+
+  @override
+  Future<void> remove(String name) async {
+    try {
+      final file = _file(name);
+      if (file != null && file.existsSync()) file.deleteSync();
+    } catch (error) {
+      onIssue(Issue('storage: could not clear $name ($error)'));
+    }
+  }
+}
+
+/// The binary storage a build outside the browser gets.
+BinaryStorage defaultBinaryStorage(String appName, {IssueSink? onIssue}) =>
+    FileBinaryStorage(appName: appName, onIssue: onIssue);

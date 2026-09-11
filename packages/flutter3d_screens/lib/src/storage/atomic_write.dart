@@ -9,6 +9,7 @@
 library;
 
 import 'dart:io';
+import 'dart:typed_data';
 
 /// Writes [contents] to [path], through a temporary file and a rename.
 ///
@@ -34,5 +35,12 @@ Future<void> writeFileAtomically(String path, String contents) async {
 /// The same, without waiting. For a caller already on a synchronous path.
 void writeFileAtomicallySync(String path, String contents) {
   final temporary = File('$path.new')..writeAsStringSync(contents, flush: true);
+  temporary.renameSync(path);
+}
+
+/// The same as [writeFileAtomicallySync], for bytes rather than text —
+/// [FileBinaryStorage]'s write.
+void writeBytesAtomicallySync(String path, Uint8List contents) {
+  final temporary = File('$path.new')..writeAsBytesSync(contents, flush: true);
   temporary.renameSync(path);
 }

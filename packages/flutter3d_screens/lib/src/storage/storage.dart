@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 export 'storage_native.dart' if (dart.library.js_interop) 'storage_web.dart';
 
 /// Where a game keeps the small documents a player's choices live in.
@@ -34,4 +36,31 @@ abstract interface class Storage {
 
   /// Forgets [name], if it is there.
   void remove(String name);
+}
+
+/// Where a document too large or too binary for [Storage] lives.
+///
+/// **Why a second interface rather than base64 through [Storage].** A model
+/// project can be megabytes; `localStorage` — [Storage]'s own backing on the
+/// web — is capped at a few of them per origin for every document an
+/// application keeps there combined, and base64 costs another third on top
+/// of that budget for nothing. IndexedDB has no such ceiling in practice and
+/// stores bytes as bytes, which is what an autosave of a real document needs.
+///
+/// **Asynchronous, unlike [Storage], because [read] and [write] both are on
+/// the web.** There is no synchronous IndexedDB from a page's own thread —
+/// only from a worker — so an interface promising otherwise would be a
+/// promise the web implementation could not keep. A caller on a native
+/// platform pays nothing for this: [FileBinaryStorage]'s own I/O is already
+/// asynchronous underneath `dart:io`.
+abstract interface class BinaryStorage {
+  /// The document called [name], or null if there is not one.
+  Future<Uint8List?> read(String name);
+
+  /// Writes [contents], and says whether it managed to. Never throws, for
+  /// the same reason [Storage.write] does not.
+  Future<bool> write(String name, Uint8List contents);
+
+  /// Forgets [name], if it is there.
+  Future<void> remove(String name);
 }
