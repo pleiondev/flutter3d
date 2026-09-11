@@ -96,13 +96,39 @@ Outcome _asMeshStep(
     project.withObject(
       // A new `EditedGeometry` round the same mesh: the value that changed is
       // the object, and its version is what tells a viewport to upload again.
-      target.object.copyWith(geometry: EditedGeometry(target.mesh)),
+      _resyncShapeSet(target.object, target.mesh).copyWith(
+        geometry: EditedGeometry(target.mesh),
+      ),
     ),
     selection: selection.copyWith(
       elements: result.selection.ids.toList(),
       level: result.selection.level,
     ),
     meshTouched: target.mesh,
+  );
+}
+
+/// [object], with every one of its own shape keys grown to [mesh]'s current
+/// vertex slots — `anim-19`'s own remaining gap (see `mesh-61`'s "loop cut
+/// сохраняет ключи"): a topology edit that adds vertices (a loop cut, an
+/// extrusion) left a shape key's own positions one call to [ShapeKey
+/// .grownTo] short of covering the mesh it was captured on, silently, until
+/// the next sculpt on that key touched the new vertices' own default
+/// (whatever `grownTo` would have seeded them to) rather than actually
+/// seeding them.
+///
+/// Only [ShapeKey.grownTo] — never [ShapeKey.remappedBy] — because every
+/// command that reaches [_asMeshStep] edits [mesh] in place and never
+/// compacts it: a deleted vertex is tombstoned, its own slot held rather
+/// than freed, so nothing here is ever renumbered out from under a shape
+/// key. [EditMesh.compact] does not appear anywhere in this file.
+ModelObject _resyncShapeSet(ModelObject object, EditMesh mesh) {
+  final shapes = object.shapeSet;
+  if (shapes.isEmpty) return object;
+  return object.copyWith(
+    shapeSet: shapes.copyWith(
+      keys: <ShapeKey>[for (final key in shapes.keys) key.grownTo(mesh)],
+    ),
   );
 }
 

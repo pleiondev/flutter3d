@@ -2814,6 +2814,91 @@ void main() {
     );
   });
 
+  group(
+    'shape keys survive a topology edit — mesh-61\'s own "loop cut '
+    'сохраняет ключи"',
+    () {
+      test('LoopCut grows a shape key to cover the vertices it adds', () {
+        final history = edited();
+        expect(history.run(const AddShapeFromMesh(id: 1, shapeName: 'a')), isNull);
+        final before = meshOf(history).vertexSlotCount;
+        expect(history.project[1]!.shapeSet.keys.single.vertexCount, before);
+
+        history.selection = history.selection.copyWith(
+          mode: SelectionMode.mesh,
+          level: ElementLevel.edge,
+          elements: <int>[0],
+        );
+        expect(history.run(const LoopCut(cuts: 1)), isNull);
+
+        final mesh = meshOf(history);
+        expect(mesh.vertexSlotCount, greaterThan(before));
+        final key = history.project[1]!.shapeSet.keys.single;
+        // Mutation: leave the key at its own old vertex count instead of
+        // calling `grownTo` — the next line is what actually catches it,
+        // not merely that the command succeeded.
+        expect(key.vertexCount, mesh.vertexSlotCount);
+
+        // Every new vertex the cut added reads, in this key, as wherever
+        // the mesh itself currently has it — a zero delta, not the origin
+        // `grownTo` would leave an un-seeded slot at.
+        for (var v = before; v < mesh.vertexSlotCount; v++) {
+          final base = mesh.positionOf(v);
+          final shaped = key.positionOf(v);
+          expect(shaped.x, closeTo(base.x, 1e-6));
+          expect(shaped.y, closeTo(base.y, 1e-6));
+          expect(shaped.z, closeTo(base.z, 1e-6));
+        }
+
+        // The key's own original sculpted positions are untouched by the
+        // grow — checked against the mesh's own original vertices, still
+        // the ordinary case (LoopCut moves nothing that already existed).
+        for (var v = 0; v < before; v++) {
+          final base = mesh.positionOf(v);
+          final shaped = key.positionOf(v);
+          expect(shaped.x, closeTo(base.x, 1e-6));
+        }
+      });
+
+      test('Extrude grows a shape key the same way', () {
+        final history = edited();
+        history.run(const AddShapeFromMesh(id: 1, shapeName: 'a'));
+        final before = meshOf(history).vertexSlotCount;
+
+        history.selection = faces(history, <int>[0]);
+        expect(history.run(const Extrude(0.5)), isNull);
+
+        final mesh = meshOf(history);
+        expect(mesh.vertexSlotCount, greaterThan(before));
+        expect(history.project[1]!.shapeSet.keys.single.vertexCount, mesh.vertexSlotCount);
+      });
+
+      test('an object with no shape keys is unaffected — no shapeSet field '
+          'is created where there was none', () {
+        final history = edited();
+        history.selection = faces(history, <int>[0]);
+        expect(history.run(const Extrude(0.5)), isNull);
+        expect(history.project[1]!.shapeSet.isEmpty, isTrue);
+      });
+
+      test('Separate keeps the source object\'s own shape key in step', () {
+        final history = edited();
+        history.run(const AddShapeFromMesh(id: 1, shapeName: 'a'));
+
+        history.selection = faces(history, <int>[0]);
+        expect(history.run(const Separate()), isNull);
+
+        final mesh = meshOf(history);
+        expect(history.project[1]!.shapeSet.keys.single.vertexCount, mesh.vertexSlotCount);
+        // The new piece starts shapeless — a shape key captured on the
+        // whole original mesh names vertices this smaller piece may not
+        // even have, so it does not follow along.
+        final pieceId = history.project.objects.firstWhere((o) => o.name == 'cube part').id;
+        expect(history.project[pieceId]!.shapeSet.isEmpty, isTrue);
+      });
+    },
+  );
+
   group('keyframe commands', () {
     // A cube (from `edited()`) with one clip, one translation track: two
     // keys, t=0 at the origin and t=1 at (1,2,3), linear.
