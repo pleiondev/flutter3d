@@ -58,14 +58,24 @@ extension _GltfMesh on GltfLoader {
       // stand in this place was a warning that they were dropped.
       final targets = primitive['targets'];
 
+      // `fmt-15`'s own name for what follows: a primitive compressed with
+      // either extension keeps its ordinary accessors as a fallback only
+      // when an exporter chose to write one — the common case leaves them
+      // with no `bufferView` at all, since the real data lives in the
+      // extension's own buffer instead. Reading a bufferView-less accessor
+      // is legal and reads as all zeros (`GltfAccessorReader`'s own rule,
+      // correct for a sparse accessor's base) but wrong here: a degenerate
+      // mesh pinched to the origin, decoded in silence.
+      var compressed = false;
       if (primitive['extensions'] is Map) {
         final extensions = (primitive['extensions']! as Map).keys;
         for (final name in extensions) {
           if (name == 'KHR_draco_mesh_compression' ||
               name == 'EXT_meshopt_compression') {
+            compressed = true;
             warnings.add(
-              '$label uses $name, which is not implemented; the primitive was '
-              'read from its uncompressed accessors instead.',
+              '$label uses $name, which is not implemented; read from its '
+              'own uncompressed accessors when it has any.',
             );
           }
         }
@@ -79,6 +89,14 @@ extension _GltfMesh on GltfLoader {
       final positionAccessor = _asInt(attributes['POSITION']);
       if (positionAccessor == null) {
         warnings.add('$label has no POSITION; skipped.');
+        continue;
+      }
+      if (compressed && !reader.hasBufferView(positionAccessor)) {
+        warnings.add(
+          '$label\'s POSITION accessor has no buffer view of its own; the '
+          'compressed data has nowhere else to be read from, so the '
+          'primitive is skipped rather than decoded as zeros.',
+        );
         continue;
       }
 

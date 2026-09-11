@@ -51,6 +51,18 @@ final class GltfAccessorReader {
         _requireInt(_accessor(accessorIndex), 'componentType', accessorIndex),
       );
 
+  /// Whether accessors[accessorIndex] names a `bufferView`.
+  ///
+  /// False is legal on its own — every element then reads as zero, which is
+  /// exactly what a sparse accessor's own base is meant to be. It is also
+  /// the shape a `KHR_draco_mesh_compression`/`EXT_meshopt_compression`
+  /// primitive's fallback accessor takes when an exporter left the real
+  /// data in the extension's own buffer and named no fallback at all —
+  /// `fmt-15`'s own reason a caller needs to ask this before reading,
+  /// rather than reading and getting a silent, degenerate zero mesh back.
+  bool hasBufferView(int accessorIndex) =>
+      _accessor(accessorIndex)['bufferView'] is int;
+
   /// Reads an accessor as floats, applying the normalization rule when set.
   ///
   /// The result is tightly packed: `count * componentCount` floats.
