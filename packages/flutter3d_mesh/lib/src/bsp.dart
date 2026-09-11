@@ -33,13 +33,22 @@
 /// operation: the classic algorithm was never in danger of crashing on this
 /// case, only of answering a question that had two defensible answers.
 ///
-/// **[maxPolygons] is checked once, against the two inputs' own triangle
-/// counts, before any splitting starts** — not against the tree's own
-/// working set as it grows, which a single pass over the input cannot know
-/// in advance and a running check would cost as much as the splitting
-/// itself to police accurately. A mesh already over budget refuses before
-/// doing any work; one that explodes during splitting is not caught by this
-/// and is a real, open gap.
+/// **[maxPolygons] is checked twice: once against the two inputs' own
+/// triangle counts before any splitting starts, once against the result's
+/// own polygon count before it is stitched into a mesh.** The first refuses
+/// a mesh already over budget before doing any work; the second catches a
+/// working set that grew past it mid-split — a spanning polygon can turn
+/// one triangle into two, so an input that started under budget is not
+/// guaranteed to end there. The result check runs once, after both trees are
+/// fully built, rather than live inside every split: a running check tied
+/// to [CsgNode.build]'s own recursion has to track growth *and* shrinkage
+/// across `build` and `clipTo` both, since a polygon flows through several
+/// of each on its way to the answer, and getting that live count wrong
+/// silently refuses a perfectly good result far more often than it saves —
+/// found directly, not assumed, when a first attempt at exactly that did.
+/// A mesh already over budget after both checks still costs the work
+/// already done to build it; refusing before spending that work is a
+/// second, real gap this does not close.
 ///
 /// **The volume this hands back is correct; the mesh it sits in is not
 /// always closed.** [_fromPolygons] welds the split pieces back into one
@@ -421,7 +430,15 @@ CsgResult? _boolean(EditMesh a, EditMesh b, CsgOperation op, int maxPolygons) {
       nodeA.invert();
   }
 
-  final mesh = _fromPolygons(nodeA.allPolygons());
+  final resultPolygons = nodeA.allPolygons();
+  // Caught here rather than inside `build`/`clipTo`: a spanning polygon
+  // splitting one triangle into two is what can push the working set past
+  // the input's own count, and this is the one point every path through
+  // the switch above already funnels back through, checked once against a
+  // number that is real rather than a running estimate of one.
+  if (resultPolygons.length > maxPolygons) return null;
+
+  final mesh = _fromPolygons(resultPolygons);
   if (mesh == null) return null;
   final coplanarWarning =
       '${tolerance.coplanarCount} polygon(s) landed exactly on the other '
