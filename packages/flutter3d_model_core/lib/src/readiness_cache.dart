@@ -90,7 +90,10 @@ final class ReadinessCache {
             // profile comes along because a single-object check must not
             // report the budget — that is the project's question and is asked
             // once below, out here where the total is known.
-            ModelProject(objects: <ModelObject>[object], profile: _noBudget),
+            ModelProject(
+              objects: <ModelObject>[object],
+              profile: _noBudget(project.profile),
+            ),
             trianglesOnly: resolvedTrianglesOnly,
             requireManifold: resolvedRequireManifold,
           ).issues,
@@ -126,15 +129,25 @@ final class ReadinessCache {
   }
 }
 
-/// A profile no project can exceed, so a per-object check never reports the
-/// budget.
+/// [real] with its triangle budget lifted, so a per-object check never
+/// reports the budget.
 ///
 /// The budget belongs to the project and is computed once from the summed
 /// triangle counts; asking it of one object at a time would report it once per
-/// object, each with the wrong number in the sentence.
-const ProjectProfile _noBudget = ProjectProfile(
+/// object, each with the wrong number in the sentence. Everything else about
+/// [real] carries through unchanged — `maxTextureSize` in particular, which
+/// the morph-target check reads per object and would otherwise silently fall
+/// back to this profile's own default rather than the project's actual one.
+ProjectProfile _noBudget(ProjectProfile real) => ProjectProfile(
   name: 'per-object',
+  target: real.target,
   maxTriangles: 0x7FFFFFFF,
+  maxJoints: real.maxJoints,
+  maxInfluences: real.maxInfluences,
+  maxTextureSize: real.maxTextureSize,
+  maxTextureBytes: real.maxTextureBytes,
+  requireTriangles: real.requireTriangles,
+  requireManifold: real.requireManifold,
 );
 
 ExportIssue? _budgetIssue(ModelProject project, int triangles) {

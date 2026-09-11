@@ -23,6 +23,7 @@
 /// their forty objects to open.
 library;
 
+import 'package:flutter3d_geometry/flutter3d_geometry.dart';
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 
 import 'project.dart';
@@ -91,6 +92,7 @@ final class ExportReadiness {
           object,
           trianglesOnly: trianglesOnly ?? project.profile.requireTriangles,
           requireManifold: requireManifold ?? project.profile.requireManifold,
+          maxTextureSize: project.profile.maxTextureSize,
         ),
     ];
     return ExportReadiness._(_worstFirst(found));
@@ -165,6 +167,7 @@ List<ExportIssue> _issuesWith(
   ModelObject object, {
   required bool trianglesOnly,
   required bool requireManifold,
+  required int maxTextureSize,
 }) => <ExportIssue>[
   // An error, and the loader is the reason rather than taste: a primitive with
   // no indices is a mesh some glTF readers reject outright and the rest draw as
@@ -184,9 +187,15 @@ List<ExportIssue> _issuesWith(
     // the segment count. Do not add one.
     ParametricGeometry() => const <ExportIssue>[],
     // Buffers with no topology behind them: there are no half-edges to walk,
-    // so the checks below have nothing to ask. Triangles are what arrived and
-    // triangles are what will be written.
-    ImportedGeometry() => const <ExportIssue>[],
+    // so the mesh checks below have nothing to ask — triangles are what
+    // arrived and triangles are what will be written. Morph targets are the
+    // one thing an imported mesh can carry that an edited or parametric one
+    // cannot yet, so they are the one thing checked here instead.
+    ImportedGeometry(:final data) => _morphTargetIssues(
+      object,
+      data,
+      maxTextureSize,
+    ),
     EditedGeometry(:final EditMesh mesh) => _meshIssues(
       object,
       mesh,
@@ -195,6 +204,35 @@ List<ExportIssue> _issuesWith(
     ),
   },
 ];
+
+/// Morph targets an imported mesh brought in, against the profile's texture
+/// limit.
+///
+/// **`MorphTexture` puts one column on the texture per vertex the mesh has**
+/// — see its own doc comment in `flutter3d_geometry` — so a mesh morphing more
+/// vertices than [maxTextureSize] allows columns for is a texture the target
+/// device refuses to create. The base shape still uploads and draws; what is
+/// lost is only the morphing, which is why this is a warning and not an
+/// error — the object does not vanish, an animation of its face does nothing.
+List<ExportIssue> _morphTargetIssues(
+  ModelObject object,
+  MeshData data,
+  int maxTextureSize,
+) {
+  if (data.morphTargets.isEmpty || data.vertexCount <= maxTextureSize) {
+    return const <ExportIssue>[];
+  }
+  return <ExportIssue>[
+    ExportIssue(
+      ExportSeverity.warning,
+      '"${object.name}" morphs ${data.vertexCount} vertices and the profile '
+      'allows a $maxTextureSize-pixel texture; the morph texture needs one '
+      'column a vertex, so it will not build on that target and the shape '
+      'will not morph there',
+      object: object,
+    ),
+  ];
+}
 
 List<ExportIssue> _meshIssues(
   ModelObject object,

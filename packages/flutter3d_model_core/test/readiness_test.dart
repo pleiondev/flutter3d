@@ -20,6 +20,7 @@ import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 // about triangles. What it needs is the document and the rules over it.
 import 'package:flutter3d_model_core/src/project.dart';
 import 'package:flutter3d_model_core/src/readiness.dart';
+import 'package:flutter3d_model_core/src/readiness_cache.dart';
 import 'package:test/test.dart';
 import 'package:vector_math/vector_math.dart';
 
@@ -243,6 +244,92 @@ void main() {
       expect(ready.issues, hasLength(1));
       expect(ready.issues.single.object?.name, 'a');
       expect(ready.canExport, isFalse);
+    });
+  });
+
+  group('morph targets past the profile\'s texture size', () {
+    /// One triangle, morphing, with [vertexCount] vertices in its base mesh —
+    /// always at least 3, so it is still a real triangle underneath.
+    ImportedGeometry morphing(int vertexCount) => ImportedGeometry(
+      MeshData(
+        layout: VertexLayout.positionOnly,
+        vertices: Float32List(vertexCount * 3),
+        indices: Uint32List.fromList(<int>[0, 1, 2]),
+        morphTargets: <MorphTarget>[
+          MorphTarget(
+            vertexCount: vertexCount,
+            positions: Float32List(vertexCount * 3),
+          ),
+        ],
+      ),
+    );
+
+    test('fewer vertices than the profile allows says nothing', () {
+      final ready = ExportReadiness.check(
+        projectOf(<Geometry>[
+          morphing(100),
+        ], profile: const ProjectProfile(maxTextureSize: 2048)),
+      );
+
+      expect(ready.issues, isEmpty);
+    });
+
+    test(
+      'more vertices than the profile allows is a warning, not a refusal',
+      () {
+        final ready = ExportReadiness.check(
+          projectOf(<Geometry>[
+            morphing(3000),
+          ], profile: const ProjectProfile(maxTextureSize: 2048)),
+        );
+
+        // A warning: the base shape still uploads and draws. Only its morphing
+        // is what a device with this limit cannot build a texture for.
+        // Mutation: make this an error. `canExport` would come back false for a
+        // shape whose triangles are perfectly fine geometry.
+        expect(ready.issues, hasLength(1));
+        expect(ready.issues.single.severity, ExportSeverity.warning);
+        expect(ready.issues.single.object?.name, 'a');
+        expect(ready.canExport, isTrue);
+      },
+    );
+
+    test(
+      'an imported mesh with no morph targets is never flagged for this',
+      () {
+        // Mutation: drop the `morphTargets.isEmpty` guard and compare
+        // `vertexCount` alone. A plain imported prop bigger than the texture
+        // limit — nothing unusual for a dense mesh — would warn about morphing
+        // it does not have.
+        final ready = ExportReadiness.check(
+          projectOf(<Geometry>[
+            imported(2000),
+          ], profile: const ProjectProfile(maxTextureSize: 2048)),
+        );
+
+        expect(ready.issues, isEmpty);
+      },
+    );
+
+    test('ReadinessCache reports the same warning as a fresh check, at the '
+        'project\'s own texture limit', () {
+      // `ReadinessCache` checks one object against a synthetic profile with
+      // the triangle budget lifted — the exact case a `maxTextureSize` that
+      // profile does not carry through would silently fall back to the
+      // synthetic profile's own default instead of this one.
+      final cache = ReadinessCache();
+      final project = projectOf(<Geometry>[
+        morphing(3000),
+      ], profile: const ProjectProfile(maxTextureSize: 2048));
+
+      final cached = cache.of(project);
+      final fresh = ExportReadiness.check(project);
+
+      expect(
+        cached.issues.map((i) => i.severity),
+        fresh.issues.map((i) => i.severity),
+      );
+      expect(cached.issues, hasLength(1));
     });
   });
 
