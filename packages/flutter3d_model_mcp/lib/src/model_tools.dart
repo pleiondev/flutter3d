@@ -1148,6 +1148,39 @@ List<ModelTool> get _commandTools => <ModelTool>[
   ),
   ModelTool(
     Tool(
+      name: 'addSkeleton',
+      description:
+          'Add a new, empty skeleton — no joints yet — appended at the '
+          'end of the skeleton list. addJoint refuses a skeletonIndex '
+          'naming nothing, so this is what makes one to add the first '
+          'joint to.',
+      inputSchema: ObjectSchema(
+        properties: <String, Schema>{
+          'skeletonName': StringSchema(description: 'optional'),
+        },
+      ),
+    ),
+    _command('addSkeleton'),
+  ),
+  ModelTool(
+    Tool(
+      name: 'bindSkin',
+      description:
+          'Set which skeleton an object\'s own mesh is skinned to. A '
+          'mesh with no skin reads null; this is the only tool that '
+          'ever sets it to something else.',
+      inputSchema: ObjectSchema(
+        properties: <String, Schema>{
+          'objectId': IntegerSchema(description: 'the object to bind'),
+          'skeletonIndex': IntegerSchema(description: 'which skeleton, from list'),
+        },
+        required: <String>['objectId', 'skeletonIndex'],
+      ),
+    ),
+    _command('bindSkin'),
+  ),
+  ModelTool(
+    Tool(
       name: 'addJoint',
       description:
           'Add an existing object to a skeleton as a new joint, appended '
@@ -1427,6 +1460,22 @@ List<ModelTool> get _commandTools => <ModelTool>[
       ),
     ),
     _command('bakeRootMotionIntoClip'),
+  ),
+  ModelTool(
+    Tool(
+      name: 'addClip',
+      description:
+          'Add a new, empty animation clip — no tracks yet — appended '
+          'at the end of the clip list. setKey and poseJoint both refuse '
+          'a clipIndex naming nothing, so this is what makes one to key '
+          'the first track in.',
+      inputSchema: ObjectSchema(
+        properties: <String, Schema>{
+          'clipName': StringSchema(description: 'optional'),
+        },
+      ),
+    ),
+    _command('addClip'),
   ),
 ];
 

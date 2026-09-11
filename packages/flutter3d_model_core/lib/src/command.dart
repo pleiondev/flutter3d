@@ -510,6 +510,9 @@ const List<String> modelCommandNames = <String>[
   'poseJoint',
   'extractRootMotion',
   'bakeRootMotionIntoClip',
+  'addSkeleton',
+  'bindSkin',
+  'addClip',
 ];
 
 /// Reads a command back out of a journal, or null.
@@ -843,6 +846,12 @@ ModelCommand? modelCommandFromJson(Object? json) {
       ),
       _ => null,
     },
+    'addSkeleton' => AddSkeleton(skeletonName: json['skeletonName'] as String?),
+    'bindSkin' => switch ((json['objectId'], json['skeletonIndex'])) {
+      (final int objectId, final int skeletonIndex) =>
+        BindSkin(objectId: objectId, skeletonIndex: skeletonIndex),
+      _ => null,
+    },
     'addJoint' => switch ((json['skeletonIndex'], json['objectId'])) {
       (final int skeletonIndex, final int objectId) => AddJoint(
         skeletonIndex: skeletonIndex,
@@ -1024,6 +1033,7 @@ ModelCommand? modelCommandFromJson(Object? json) {
         BakeRootMotionIntoClip(clipIndex: clipIndex, rootJoint: rootJoint),
       _ => null,
     },
+    'addClip' => AddClip(clipName: json['clipName'] as String?),
     _ => null,
   };
 }

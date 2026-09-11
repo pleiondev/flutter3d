@@ -2215,6 +2215,9 @@ void main() {
         ),
         const ExtractRootMotion(clipIndex: 0, rootJoint: 1),
         const BakeRootMotionIntoClip(clipIndex: 0, rootJoint: 1),
+        const AddSkeleton(skeletonName: 'rig'),
+        const BindSkin(objectId: 1, skeletonIndex: 0),
+        const AddClip(clipName: 'idle'),
       ];
 
       // Every name has a sample, which is what stops a command being added to
@@ -3470,6 +3473,89 @@ void main() {
         history.run(const BakeRootMotionIntoClip(clipIndex: 0, rootJoint: 1)),
         isNotNull,
       );
+    });
+  });
+
+  group('AddSkeleton, BindSkin, AddClip', () {
+    test('AddSkeleton appends an empty skeleton, ready for AddJoint', () {
+      final history = edited();
+      expect(
+        history.run(const AddSkeleton(skeletonName: 'rig')),
+        isNull,
+      );
+
+      expect(history.project.skeletons, hasLength(1));
+      expect(history.project.skeletons.single.name, 'rig');
+      expect(history.project.skeletons.single.joints, isEmpty);
+
+      // The skeleton AddSkeleton just created is a real one: AddJoint,
+      // which refuses a skeletonIndex naming nothing, accepts it.
+      expect(
+        history.run(const AddJoint(skeletonIndex: 0, objectId: 1)),
+        isNull,
+      );
+      expect(history.project.skeletons.single.joints, <int>[1]);
+    });
+
+    test('AddSkeleton with no name leaves it null, not empty', () {
+      final history = edited();
+      history.run(const AddSkeleton());
+      expect(history.project.skeletons.single.name, isNull);
+    });
+
+    test('BindSkin sets the object\'s own skeletonIndex', () {
+      final history = edited();
+      history.run(const AddSkeleton());
+      expect(
+        history.run(const BindSkin(objectId: 1, skeletonIndex: 0)),
+        isNull,
+      );
+      expect(history.project[1]!.skeletonIndex, 0);
+    });
+
+    test('BindSkin refuses an object or a skeleton the project does not '
+        'have', () {
+      final history = edited();
+      history.run(const AddSkeleton());
+      expect(
+        history.run(const BindSkin(objectId: 99, skeletonIndex: 0)),
+        isNotNull,
+      );
+      expect(
+        history.run(const BindSkin(objectId: 1, skeletonIndex: 9)),
+        isNotNull,
+      );
+    });
+
+    test('AddClip appends an empty clip, ready for PoseJoint', () {
+      final history = edited();
+      expect(history.run(const AddClip(clipName: 'idle')), isNull);
+
+      expect(history.project.clips, hasLength(1));
+      expect(history.project.clips.single.name, 'idle');
+      expect(history.project.clips.single.tracks, isEmpty);
+
+      // The clip AddClip just created is a real one: PoseJoint, which
+      // refuses a clipIndex naming nothing, accepts it and creates the
+      // track.
+      expect(
+        history.run(
+          const PoseJoint(
+            joint: 1,
+            path: AnimationPath.translation,
+            clipIndex: 0,
+            frame: 0,
+          ),
+        ),
+        isNull,
+      );
+      expect(history.project.clips.single.tracks, hasLength(1));
+    });
+
+    test('AddClip with no name leaves it null, not empty', () {
+      final history = edited();
+      history.run(const AddClip());
+      expect(history.project.clips.single.name, isNull);
     });
   });
 

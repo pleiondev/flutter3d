@@ -48,6 +48,84 @@ ModelProject _withSkeleton(ModelProject project, int index, ProjectSkeleton skel
   return project.copyWith(skeletons: skeletons);
 }
 
+/// Appends an empty [ProjectSkeleton] — no joints yet — to [project]'s own
+/// list, at the index [AddJoint]/[BindSkin] address it by afterward: the
+/// last one, `project.skeletons.length` before this ran.
+///
+/// **`doc-26`'s own remaining gap, not `anim-29`'s.** [AddJoint] already
+/// grows a skeleton's joint list one object at a time, but every one of its
+/// own tests hands it a skeleton [ModelProject] already carries — nothing
+/// in this package ever created the first one. A skeleton with no joints
+/// is a real, useful state: the one moment between "add a rig" and "add its
+/// first joint," which [AddJoint] cannot be first to run because it refuses
+/// a `skeletonIndex` naming nothing at all.
+final class AddSkeleton extends ModelCommand {
+  const AddSkeleton({this.skeletonName});
+
+  final String? skeletonName;
+
+  @override
+  String get name => 'addSkeleton';
+
+  @override
+  String get says =>
+      skeletonName == null ? 'add a skeleton' : 'add skeleton "$skeletonName"';
+
+  @override
+  Map<String, Object?> get arguments =>
+      <String, Object?>{'skeletonName': skeletonName};
+
+  @override
+  Outcome apply(ModelProject project, ProjectSelection selection) =>
+      Outcome.done(
+        project.copyWith(
+          skeletons: <ProjectSkeleton>[
+            ...project.skeletons,
+            ProjectSkeleton(
+              joints: const <int>[],
+              inverseBindMatrices: const <Matrix4>[],
+              name: skeletonName,
+            ),
+          ],
+        ),
+      );
+}
+
+/// Sets [objectId]'s own [ModelObject.skeletonIndex] to [skeletonIndex] —
+/// which of [project.skeletons] its mesh is skinned to, `doc-26`'s own
+/// `BindSkin`. A mesh with no skin of its own reads `null`; this is the one
+/// command that ever sets it to something else.
+final class BindSkin extends ModelCommand {
+  const BindSkin({required this.objectId, required this.skeletonIndex});
+
+  final int objectId;
+  final int skeletonIndex;
+
+  @override
+  String get name => 'bindSkin';
+
+  @override
+  String get says => 'bind to a skeleton';
+
+  @override
+  Map<String, Object?> get arguments =>
+      <String, Object?>{'objectId': objectId, 'skeletonIndex': skeletonIndex};
+
+  @override
+  Outcome apply(ModelProject project, ProjectSelection selection) {
+    final object = project[objectId];
+    if (object == null) {
+      return Outcome.refused('there is no object $objectId');
+    }
+    if (skeletonIndex < 0 || skeletonIndex >= project.skeletons.length) {
+      return Outcome.refused('there is no skeleton $skeletonIndex');
+    }
+    return Outcome.done(
+      project.withObject(object.copyWith(skeletonIndex: skeletonIndex)),
+    );
+  }
+}
+
 /// Adds [objectId] to skeleton [skeletonIndex]'s own joint list, at
 /// [inverseBindMatrix] (identity when the object's own bind pose is
 /// already its rest pose).

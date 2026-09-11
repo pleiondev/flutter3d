@@ -405,5 +405,40 @@ void main() {
         expect(session.history.project.clips.single.extras, isNull);
       },
     );
+
+    test(
+      'addSkeleton, bindSkin and addClip reach the real project — a '
+      'skeleton and a clip neither existed before',
+      () async {
+        final project = const ModelProject().added(
+          (int id) => ModelObject(
+            id: id,
+            name: 'a',
+            geometry: const SocketGeometry(),
+            transform: Matrix4.identity(),
+          ),
+        );
+        final session = ModelSession(ModelHistory(project));
+
+        final skeleton = await toolNamed(
+          'addSkeleton',
+        ).run(session, <String, Object?>{'skeletonName': 'rig'});
+        expect(skeleton.did, isTrue);
+        expect(session.history.project.skeletons.single.name, 'rig');
+
+        final bound = await toolNamed(
+          'bindSkin',
+        ).run(session, <String, Object?>{'objectId': 1, 'skeletonIndex': 0});
+        expect(bound.did, isTrue);
+        expect(session.history.project[1]!.skeletonIndex, 0);
+
+        final clip = await toolNamed(
+          'addClip',
+        ).run(session, <String, Object?>{'clipName': 'idle'});
+        expect(clip.did, isTrue);
+        expect(session.history.project.clips.single.name, 'idle');
+        expect(session.history.project.clips.single.tracks, isEmpty);
+      },
+    );
   });
 }

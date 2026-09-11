@@ -31,6 +31,42 @@
 /// than a sentence naming what disagreed.
 part of 'command.dart';
 
+/// Appends an empty [ProjectClip] — no tracks yet — to [project]'s own
+/// list, at the index [SetKey]/[PoseJoint] address it by afterward: the
+/// last one, `project.clips.length` before this ran.
+///
+/// **`doc-26`'s own remaining gap.** Every keyframe command in this file
+/// grows or edits a track already inside a clip a project carries — none of
+/// them can be the first thing that puts a clip there, since all of them
+/// refuse a `clipIndex` naming nothing at all. A blank clip, its own name
+/// set and no tracks in it yet, is the state an artist starting a brand new
+/// animation is actually in.
+final class AddClip extends ModelCommand {
+  const AddClip({this.clipName});
+
+  final String? clipName;
+
+  @override
+  String get name => 'addClip';
+
+  @override
+  String get says => clipName == null ? 'add a clip' : 'add clip "$clipName"';
+
+  @override
+  Map<String, Object?> get arguments => <String, Object?>{'clipName': clipName};
+
+  @override
+  Outcome apply(ModelProject project, ProjectSelection selection) =>
+      Outcome.done(
+        project.copyWith(
+          clips: <ProjectClip>[
+            ...project.clips,
+            ProjectClip(name: clipName, tracks: const <ProjectTrack>[]),
+          ],
+        ),
+      );
+}
+
 /// The track clip [clipIndex] track [trackIndex] names, or the sentence to
 /// refuse with.
 ({ProjectTrack? track, String? refused}) _trackTarget(
