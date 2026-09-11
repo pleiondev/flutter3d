@@ -110,7 +110,12 @@ Future<RenderedFrame> _renderDocument(ModelDocument document) async {
     ),
   );
   final pixels = await kit.device.readPixels(result.frame);
-  return (pixels: pixels!.buffer.asUint8List(), width: width, height: height);
+  return (
+    pixels: pixels!.buffer.asUint8List(),
+    width: width,
+    height: height,
+    drawCalls: result.drawCalls,
+  );
 }
 
 void main() {

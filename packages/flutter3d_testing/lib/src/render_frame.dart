@@ -13,7 +13,16 @@ typedef FrameSubject = ({Scene scene, CameraNode camera});
 /// recording a reference image needs it. A caller that had to remember its own
 /// width would be one refactor away from recording a golden at the wrong shape,
 /// which compares as a rendering failure.
-typedef RenderedFrame = ({Uint8List pixels, int width, int height});
+///
+/// **`drawCalls` travels too**, off the same [FrameResult] every render
+/// already produces — `qa-14`'s own row, a test that wants to know how many
+/// draws a scene cost rather than only what it looked like.
+typedef RenderedFrame = ({
+  Uint8List pixels,
+  int width,
+  int height,
+  int drawCalls,
+});
 
 /// Builds the subject, given the device its meshes have to be uploaded to.
 typedef FrameBuilder = FrameSubject Function(FrameRequest request);
@@ -87,5 +96,10 @@ Future<RenderedFrame> renderFrame({
       'nothing to be busy with and no driver to blame',
     );
   }
-  return (pixels: pixels.buffer.asUint8List(), width: width, height: height);
+  return (
+    pixels: pixels.buffer.asUint8List(),
+    width: width,
+    height: height,
+    drawCalls: result.drawCalls,
+  );
 }
