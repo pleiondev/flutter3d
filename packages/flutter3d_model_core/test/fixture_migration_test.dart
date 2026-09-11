@@ -190,5 +190,20 @@ void main() {
       );
       expect(fixtureOpened(version).objects, isNotEmpty);
     }
+
+    // The other direction, and the one `doc-28` actually asks for: a bump
+    // with no fixture is a red test, not a silent gap somebody notices when
+    // an old file stops opening on somebody else's machine. Mutation: drop
+    // this assertion and bump `kProjectVersion` to 2 with no `v2/` — every
+    // check above still passes, since there is nothing at version 2 to be
+    // wrong about.
+    expect(
+      versions,
+      contains(kProjectVersion),
+      reason:
+          'kProjectVersion is $kProjectVersion and test/fixtures has no '
+          'v$kProjectVersion/ — a version bump needs a fixture minted at the '
+          'moment it happens, not after',
+    );
   });
 }
