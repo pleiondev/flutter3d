@@ -29,6 +29,7 @@
 /// cannot use.
 library;
 
+export 'src/autosave.dart';
 export 'src/command.dart';
 export 'src/command_journal.dart';
 export 'src/history.dart';

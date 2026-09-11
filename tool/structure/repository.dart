@@ -636,6 +636,12 @@ boundaryEnumExempt = <String, Map<String, String>>{
         'what to do when an OBJ has no normals. Smooth or flat, and there '
         'is no third answer the decoder could give',
   },
+  'flutter3d_model_core/lib/src/autosave.dart': <String, String>{
+    'RecoveryDecision':
+        'open the file or offer the autosave — a two-way fork a dialog reads '
+        'to know which button to show, and there is no third answer opening '
+        'a project could need',
+  },
   'flutter3d_formats/lib/src/stl/stl_loader.dart': <String, String>{
     'StlNormals':
         'whether a facet\'s own normal record is trusted or recomputed from '
