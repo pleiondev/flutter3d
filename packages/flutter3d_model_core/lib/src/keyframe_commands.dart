@@ -77,6 +77,128 @@ AnimationInterpolation? _interpolationFrom(Object? json) =>
         .where((AnimationInterpolation each) => each.name == json)
         .firstOrNull;
 
+/// The [AnimationPath] [json] names, or null when it does not match one —
+/// the same "no default" reasoning as [_interpolationFrom], for the same
+/// reason: every writer of [PoseJoint] names one explicitly.
+AnimationPath? _pathFrom(Object? json) => AnimationPath.values
+    .where((AnimationPath each) => each.name == json)
+    .firstOrNull;
+
+/// [transform]'s own [path] component, decomposed from the local matrix —
+/// or null for [AnimationPath.weights], which [PoseJoint] does not key; see
+/// [KeyShape] for that.
+List<double>? _poseComponent(Matrix4 transform, AnimationPath path) {
+  if (path == AnimationPath.weights) return null;
+  final translation = Vector3.zero();
+  final rotation = Quaternion.identity();
+  final scale = Vector3.zero();
+  transform.decompose(translation, rotation, scale);
+  return switch (path) {
+    AnimationPath.translation => <double>[
+      translation.x,
+      translation.y,
+      translation.z,
+    ],
+    AnimationPath.rotation => <double>[
+      rotation.x,
+      rotation.y,
+      rotation.z,
+      rotation.w,
+    ],
+    AnimationPath.scale => <double>[scale.x, scale.y, scale.z],
+    AnimationPath.weights => null,
+  };
+}
+
+/// Keys [joint]'s own current [path] component — translation, rotation or
+/// scale, read off its live local transform rather than taken as an
+/// argument — onto clip [clipIndex] at [frame]. `anim-05`'s own row: an
+/// auto-key, for a gizmo drag that poses a joint and then asks the pose it
+/// already reached to be remembered.
+///
+/// **Three calls at the same [frame], wrapped in one
+/// [ModelHistory.transaction], read back as one key and one step — from two
+/// mechanisms neither of which PoseJoint has to implement itself.**
+/// [KeyTable.setKey] already replaces the key at a repeated time rather than
+/// adding a second one, which is the "one key"; [ModelHistory.transaction]
+/// already folds every command run inside it into the step the first one
+/// opened, which is the "one step". A joint moved three times mid-drag with
+/// [frame] unchanged between calls is exactly that shape — the last call's
+/// pose is the one that survives, the same way it would if only that call
+/// had ever run.
+final class PoseJoint extends ModelCommand {
+  const PoseJoint({
+    required this.joint,
+    required this.path,
+    required this.clipIndex,
+    required this.frame,
+  });
+
+  final int joint;
+  final AnimationPath path;
+  final int clipIndex;
+  final int frame;
+
+  @override
+  String get name => 'poseJoint';
+
+  @override
+  String get says => 'key a joint\'s pose';
+
+  @override
+  Map<String, Object?> get arguments => <String, Object?>{
+    'joint': joint,
+    'path': path.name,
+    'clipIndex': clipIndex,
+    'frame': frame,
+  };
+
+  @override
+  Outcome apply(ModelProject project, ProjectSelection selection) {
+    final object = project[joint];
+    if (object == null) return Outcome.refused('there is no object $joint');
+    if (clipIndex < 0 || clipIndex >= project.clips.length) {
+      return Outcome.refused('there is no clip $clipIndex');
+    }
+    final values = _poseComponent(object.transform, path);
+    if (values == null) {
+      return Outcome.refused(
+        'PoseJoint keys translation, rotation or scale, not ${path.name} — '
+        'see KeyShape for morph weights',
+      );
+    }
+
+    final clip = project.clips[clipIndex];
+    final existingIndex = clip.tracks.indexWhere(
+      (ProjectTrack t) => t.objectId == joint && t.track.path == path,
+    );
+    final table = existingIndex >= 0
+        ? KeyTable.fromAnimationTrack(clip.tracks[existingIndex].track)
+        : KeyTable(componentCount: values.length);
+    final time = KeyTable.timeOfFrame(frame, project.profile.fps);
+    table.setKey(time, values);
+
+    final newTrack = ProjectTrack(
+      objectId: joint,
+      track: table.toAnimationTrack(nodeIndex: 0, path: path),
+    );
+    final tracks = List<ProjectTrack>.of(clip.tracks);
+    if (existingIndex >= 0) {
+      tracks[existingIndex] = newTrack;
+    } else {
+      tracks.add(newTrack);
+    }
+    final clips = List<ProjectClip>.of(project.clips)
+      ..[clipIndex] = ProjectClip(
+        name: clip.name,
+        extras: clip.extras,
+        tracks: tracks,
+      );
+
+    return Outcome.done(project.copyWith(clips: clips));
+  }
+}
+
 /// [project], with clip [clipIndex] track [trackIndex] replaced by
 /// [newTrack] — every other track and clip left exactly as they were.
 ModelProject _withTrack(

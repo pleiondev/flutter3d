@@ -73,6 +73,18 @@ UntitledSingleSelectEnumSchema _interpolation(String about) =>
       values: <String>[for (final i in AnimationInterpolation.values) i.name],
     );
 
+/// The three components [PoseJoint] can key — never `weights`, which the
+/// command itself refuses, so the schema does not offer a value guaranteed
+/// to fail.
+UntitledSingleSelectEnumSchema _posablePath(String about) =>
+    UntitledSingleSelectEnumSchema(
+      description: about,
+      values: <String>[
+        for (final p in AnimationPath.values)
+          if (p != AnimationPath.weights) p.name,
+      ],
+    );
+
 /// A list of numbers whose own length is a track's `componentCount` — not
 /// known ahead of time the way [_vector]'s always-three or [_matrix16]'s
 /// always-sixteen are, so no `minItems`/`maxItems` here; the command itself
@@ -1355,6 +1367,28 @@ List<ModelTool> get _commandTools => <ModelTool>[
       inputSchema: ObjectSchema(),
     ),
     _command('fillHoles'),
+  ),
+  ModelTool(
+    Tool(
+      name: 'poseJoint',
+      description:
+          'Key an object\'s own current translation, rotation or scale '
+          '— read off its live transform, not taken as an argument — onto a '
+          'clip at a given frame. Creates the track if none exists yet for '
+          'that object and path; calling it again at the same frame '
+          'replaces the key rather than adding a second one, so posing a '
+          'joint and then keying it repeatedly at the same frame is safe.',
+      inputSchema: ObjectSchema(
+        properties: <String, Schema>{
+          'joint': IntegerSchema(description: 'the object id to key'),
+          'path': _posablePath('translation, rotation or scale'),
+          'clipIndex': IntegerSchema(description: 'which clip, from list'),
+          'frame': IntegerSchema(description: 'which frame, at the project\'s own fps'),
+        },
+        required: <String>['joint', 'path', 'clipIndex', 'frame'],
+      ),
+    ),
+    _command('poseJoint'),
   ),
 ];
 

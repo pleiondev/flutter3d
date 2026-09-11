@@ -2207,6 +2207,12 @@ void main() {
           outTangent: <double>[1, 1, 1],
         ),
         const FillHoles(),
+        const PoseJoint(
+          joint: 1,
+          path: AnimationPath.translation,
+          clipIndex: 0,
+          frame: 10,
+        ),
       ];
 
       // Every name has a sample, which is what stops a command being added to
@@ -3135,6 +3141,199 @@ void main() {
       expect(
         history.run(
           const SetInterpolation(clipIndex: 0, trackIndex: 9, interpolation: interpolation),
+        ),
+        isNotNull,
+      );
+    });
+  });
+
+  group('PoseJoint', () {
+    // A cube (from edited(), object id 1) with one empty clip — no tracks at
+    // all, so the first key on any path has to create its own track.
+    ModelHistory withClip() {
+      final history = edited();
+      final project = history.project.copyWith(
+        clips: <ProjectClip>[const ProjectClip(name: 'idle', tracks: <ProjectTrack>[])],
+      );
+      return ModelHistory(project)..selection = history.selection;
+    }
+
+    test('keys the object\'s own current translation, at frame/fps', () {
+      final history = withClip();
+      history.run(
+        SetTransform(id: 1, to: Matrix4.identity()..setTranslationRaw(2, 4, 6)),
+      );
+
+      expect(
+        history.run(
+          const PoseJoint(
+            joint: 1,
+            path: AnimationPath.translation,
+            clipIndex: 0,
+            frame: 15,
+          ),
+        ),
+        isNull,
+      );
+
+      final track = history.project.clips.single.tracks.single.track;
+      expect(track.path, AnimationPath.translation);
+      expect(track.keyCount, 1);
+      expect(track.times, <double>[0.5]); // frame 15 at the default 30 fps
+      final out = Float32List(3);
+      track.sample(0.5, out);
+      expect(out, <double>[2, 4, 6]);
+    });
+
+    test('keys rotation as a quaternion, four components', () {
+      final history = withClip();
+      // An off-axis rotation, not just one axis — x, y and z all land on
+      // different values, so a mutation swapping two components (x/y, say)
+      // has something to disagree about instead of comparing two zeros.
+      final expected = Quaternion.axisAngle(
+        Vector3(1, 2, 3).normalized(),
+        math.pi / 3,
+      );
+      final tilted = Matrix4.compose(
+        Vector3.zero(),
+        expected,
+        Vector3.all(1),
+      );
+      history.run(SetTransform(id: 1, to: tilted));
+
+      history.run(
+        const PoseJoint(
+          joint: 1,
+          path: AnimationPath.rotation,
+          clipIndex: 0,
+          frame: 0,
+        ),
+      );
+
+      final track = history.project.clips.single.tracks.single.track;
+      expect(track.path, AnimationPath.rotation);
+      final out = Float32List(4);
+      track.sample(0.0, out);
+      expect(out[0], closeTo(expected.x, 1e-6));
+      expect(out[1], closeTo(expected.y, 1e-6));
+      expect(out[2], closeTo(expected.z, 1e-6));
+      expect(out[3], closeTo(expected.w, 1e-6));
+    });
+
+    test('a second PoseJoint on the same track adds a key, not a new track', () {
+      final history = withClip();
+      history.run(
+        const PoseJoint(
+          joint: 1,
+          path: AnimationPath.translation,
+          clipIndex: 0,
+          frame: 0,
+        ),
+      );
+      history.run(SetTransform(id: 1, to: Matrix4.identity()..setTranslationRaw(1, 0, 0)));
+      history.run(
+        const PoseJoint(
+          joint: 1,
+          path: AnimationPath.translation,
+          clipIndex: 0,
+          frame: 30,
+        ),
+      );
+
+      expect(history.project.clips.single.tracks, hasLength(1));
+      expect(history.project.clips.single.tracks.single.track.keyCount, 2);
+    });
+
+    test(
+      'three PoseJoint calls in one transaction, frame unchanged, read back '
+      'as one key and one step',
+      () {
+        // The shape a gizmo drag actually makes: the object moves between
+        // calls, frame does not.
+        final history = withClip();
+        history.transaction(() {
+          history.run(SetTransform(id: 1, to: Matrix4.identity()..setTranslationRaw(1, 0, 0)));
+          history.run(
+            const PoseJoint(
+              joint: 1,
+              path: AnimationPath.translation,
+              clipIndex: 0,
+              frame: 10,
+            ),
+          );
+          history.run(SetTransform(id: 1, to: Matrix4.identity()..setTranslationRaw(2, 0, 0)));
+          history.run(
+            const PoseJoint(
+              joint: 1,
+              path: AnimationPath.translation,
+              clipIndex: 0,
+              frame: 10,
+            ),
+          );
+          history.run(SetTransform(id: 1, to: Matrix4.identity()..setTranslationRaw(3, 0, 0)));
+          history.run(
+            const PoseJoint(
+              joint: 1,
+              path: AnimationPath.translation,
+              clipIndex: 0,
+              frame: 10,
+            ),
+          );
+        });
+
+        expect(history.canUndo, isTrue);
+        final track = history.project.clips.single.tracks.single.track;
+        expect(track.keyCount, 1, reason: 'one key, not three — the last call wins');
+        final out = Float32List(3);
+        track.sample(track.times.first, out);
+        expect(out, <double>[3, 0, 0]);
+
+        // One step: undo puts the whole transaction back at once.
+        history.undo();
+        expect(history.project.clips.single.tracks, isEmpty);
+      },
+    );
+
+    test('refuses a clip the project does not have', () {
+      final history = edited();
+      expect(
+        history.run(
+          const PoseJoint(
+            joint: 1,
+            path: AnimationPath.translation,
+            clipIndex: 0,
+            frame: 0,
+          ),
+        ),
+        isNotNull,
+      );
+    });
+
+    test('refuses an object the project does not have', () {
+      final history = withClip();
+      expect(
+        history.run(
+          const PoseJoint(
+            joint: 99,
+            path: AnimationPath.translation,
+            clipIndex: 0,
+            frame: 0,
+          ),
+        ),
+        isNotNull,
+      );
+    });
+
+    test('refuses to key morph weights — that is KeyShape\'s own job', () {
+      final history = withClip();
+      expect(
+        history.run(
+          const PoseJoint(
+            joint: 1,
+            path: AnimationPath.weights,
+            clipIndex: 0,
+            frame: 0,
+          ),
         ),
         isNotNull,
       );

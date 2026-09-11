@@ -506,6 +506,7 @@ const List<String> modelCommandNames = <String>[
   'setInterpolation',
   'setTangent',
   'fillHoles',
+  'poseJoint',
 ];
 
 /// Reads a command back out of a journal, or null.
@@ -990,6 +991,21 @@ ModelCommand? modelCommandFromJson(Object? json) {
         inTangent: _doubleListFrom(json['inTangent']),
         outTangent: _doubleListFrom(json['outTangent']),
       ),
+      _ => null,
+    },
+    'poseJoint' => switch ((
+      json['joint'],
+      _pathFrom(json['path']),
+      json['clipIndex'],
+      json['frame'],
+    )) {
+      (
+        final int joint,
+        final AnimationPath path,
+        final int clipIndex,
+        final int frame,
+      ) =>
+        PoseJoint(joint: joint, path: path, clipIndex: clipIndex, frame: frame),
       _ => null,
     },
     _ => null,

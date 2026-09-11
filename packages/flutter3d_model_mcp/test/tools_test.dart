@@ -322,5 +322,33 @@ void main() {
         expect(session.history.project.clips.single.tracks.single.track.keyCount, 2);
       },
     );
+
+    test('poseJoint keys the object\'s own live transform, not an argument', () async {
+      var project = const ModelProject().added(
+        (int id) => ModelObject(
+          id: id,
+          name: 'a',
+          geometry: const SocketGeometry(),
+          transform: Matrix4.identity()..setTranslationRaw(1, 2, 3),
+        ),
+      );
+      project = project.copyWith(
+        clips: <ProjectClip>[const ProjectClip(name: 'idle', tracks: <ProjectTrack>[])],
+      );
+      final session = ModelSession(ModelHistory(project));
+
+      final posed = await toolNamed('poseJoint').run(session, <String, Object?>{
+        'joint': 1,
+        'path': 'translation',
+        'clipIndex': 0,
+        'frame': 0,
+      });
+      expect(posed.did, isTrue);
+      final track = session.history.project.clips.single.tracks.single.track;
+      expect(track.path, AnimationPath.translation);
+      final out = Float32List(3);
+      track.sample(0.0, out);
+      expect(out, <double>[1, 2, 3]);
+    });
   });
 }
