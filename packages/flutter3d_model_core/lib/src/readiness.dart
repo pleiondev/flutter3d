@@ -177,7 +177,13 @@ List<ExportIssue> _issuesWith(
   // An error, and the loader is the reason rather than taste: a primitive with
   // no indices is a mesh some glTF readers reject outright and the rest draw as
   // nothing, and either way the object is in the outliner and not in the game.
-  if (object.geometry.triangleCount == 0)
+  //
+  // A socket is exempted on purpose: it draws nothing *because* it is a named
+  // point rather than a shape, the same way an empty group already writes as
+  // a node with no surface, and warning about geometry nobody meant to add
+  // would send somebody hunting for faces that were never supposed to exist.
+  if (object.geometry.triangleCount == 0 &&
+      object.geometry is! SocketGeometry)
     ExportIssue(
       ExportSeverity.error,
       '"${object.name}" has no faces; it would be written as an empty mesh, '
@@ -207,6 +213,9 @@ List<ExportIssue> _issuesWith(
       trianglesOnly: trianglesOnly,
       requireManifold: requireManifold,
     ),
+    // Deliberately nothing, and for the same reason the check above exempts
+    // it: a socket has no faces on purpose.
+    SocketGeometry() => const <ExportIssue>[],
   },
 ];
 

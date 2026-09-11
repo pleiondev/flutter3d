@@ -46,6 +46,7 @@ List<Listed> contentsOf(ModelProject project) => <Listed>[
         ParametricGeometry() => 'parametric',
         EditedGeometry() => 'mesh',
         ImportedGeometry() => 'imported',
+        SocketGeometry() => 'socket',
       },
     ),
 ];

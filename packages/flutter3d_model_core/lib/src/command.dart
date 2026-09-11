@@ -438,6 +438,7 @@ const List<String> modelCommandNames = <String>[
   'applyTransform',
   'addPrimitive',
   'addLathe',
+  'addSocket',
   'setParametric',
   'bakeToMesh',
   'deleteObjects',
@@ -555,6 +556,13 @@ ModelCommand? modelCommandFromJson(Object? json) {
       ),
       _ => null,
     },
+    'addSocket' => AddSocket(
+      label: json['label'] as String? ?? 'socket',
+      at: switch (_doubles(json['at'], 3)) {
+        final List<double> at => Vector3(at[0], at[1], at[2]),
+        _ => null,
+      },
+    ),
     'setParametric' => switch ((json['id'], _shapeOf(json['to']))) {
       (final int id, final ParametricShape to) => SetParametric(id: id, to: to),
       _ => null,

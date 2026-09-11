@@ -52,11 +52,12 @@ import 'project.dart';
 ///
 /// **An object with nothing in it keeps its node and gets no surface.** An
 /// empty group is how a modeller makes a handle for a subtree — an "arm" with a
-/// forearm and a hand under it — and it is what an imported node with no mesh
-/// comes back as. Dropping it would reparent its children onto the world and
-/// move the model; giving it a surface with no triangles would put an empty
-/// draw call in the file that every consumer downstream has to guard against
-/// for the sake of a thing that draws nothing.
+/// forearm and a hand under it — or a socket to hang an accessory off of, and
+/// it is what an imported node with no mesh comes back as
+/// ([SocketGeometry]). Dropping it would reparent its children onto the world
+/// and move the model; giving it a surface with no triangles would put an
+/// empty draw call in the file that every consumer downstream has to guard
+/// against for the sake of a thing that draws nothing.
 ///
 /// **The material and image tables are written across whole, and the slots stay
 /// indices.** A project's table is already the shape a document wants, so two
@@ -413,9 +414,12 @@ ModelProject fromModelDocument(
         (int newId) => ModelObject(
           id: newId,
           name: name,
-          geometry: ImportedGeometry(
-            drawn.isEmpty ? _nothing : document.surfaces[drawn.first].mesh,
-          ),
+          // A node with no surface is a socket — see `SocketGeometry`'s own
+          // doc comment for why that is not a second idea layered on the old
+          // "empty group" one.
+          geometry: drawn.isEmpty
+              ? const SocketGeometry()
+              : ImportedGeometry(document.surfaces[drawn.first].mesh),
           transform: node.toMatrix(),
           parent: parentId,
           // An object with no geometry draws nothing and so is painted with
@@ -593,6 +597,7 @@ MeshData _meshOf(Geometry geometry) => switch (geometry) {
   ParametricGeometry(:final shape) => shape.drawn.build(),
   EditedGeometry(:final mesh) => mesh.toMeshData(),
   ImportedGeometry(:final MeshData data) => data,
+  SocketGeometry() => _nothing,
 };
 
 /// Whether recomposing [translation], [rotation] and [scale] gives [matrix]

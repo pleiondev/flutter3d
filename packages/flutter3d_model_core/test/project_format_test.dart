@@ -272,6 +272,30 @@ void main() {
       }
     });
 
+    test('a socket writes and reads back with no mesh behind it', () {
+      final before = ModelProject().added(
+        (int id) => ModelObject(
+          id: id,
+          name: 'weapon mount',
+          geometry: const SocketGeometry(),
+          transform: Matrix4.translation(Vector3(0.0, 1.4, 0.2)),
+        ),
+      );
+
+      final after = opened(writeProject(before));
+
+      // Mutation: fall through to the `default` clause instead of a `case
+      // 'socket':` in `_readGeometry` and this object refuses to open at
+      // all — "geometry of kind socket, which this build does not know
+      // how to read" — for a file this same build wrote.
+      expect(after.objects.single.geometry, isA<SocketGeometry>());
+      expect(after.objects.single.geometry.triangleCount, 0);
+      expect(
+        after.objects.single.transform.getTranslation(),
+        Vector3(0.0, 1.4, 0.2),
+      );
+    });
+
     test('a profile keeps the fields doc-13 added, not just the original '
         'five', () {
       // Every one of these is away from the constructor's default, the way

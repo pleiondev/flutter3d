@@ -803,6 +803,73 @@ void main() {
     });
   });
 
+  group('sockets', () {
+    test('a socket arrives named, selected and at the given position', () {
+      final history = ModelHistory(const ModelProject());
+
+      expect(
+        history.run(
+          AddSocket(label: 'weapon mount', at: Vector3(0, 1.4, 0.2)),
+        ),
+        isNull,
+      );
+
+      final object = history.project.objects.single;
+      expect(object.name, 'weapon mount');
+      expect(object.geometry, isA<SocketGeometry>());
+      expect(object.geometry.triangleCount, 0);
+      expect(object.transform.getTranslation(), Vector3(0, 1.4, 0.2));
+      expect(history.selection.objects, <int>[object.id]);
+      expect(history.undoSays, 'add a socket');
+    });
+
+    test('defaults to the origin, named "socket"', () {
+      final history = ModelHistory(const ModelProject())
+        ..run(const AddSocket());
+      final object = history.project.objects.single;
+      expect(object.name, 'socket');
+      expect(object.transform.getTranslation(), Vector3.zero());
+    });
+
+    test('renaming a socket is a history step, like any other object', () {
+      final history = ModelHistory(const ModelProject())
+        ..run(const AddSocket(label: 'mount'));
+      final id = history.project.objects.single.id;
+
+      expect(history.run(Rename(id: id, to: 'hand mount')), isNull);
+      expect(history.project.objects.single.name, 'hand mount');
+
+      history.undo();
+      expect(history.project.objects.single.name, 'mount');
+    });
+
+    test('a socket refuses the commands a mesh needs and says why', () {
+      final history = ModelHistory(const ModelProject())
+        ..run(const AddSocket());
+      final id = history.project.objects.single.id;
+
+      expect(
+        history.run(const BakeToMesh(1)),
+        contains('no shape underneath it'),
+      );
+      expect(
+        history.run(
+          const SetParametric(id: 1, to: ParametricSphere(radius: 1)),
+        ),
+        contains('was never described by numbers'),
+      );
+      expect(
+        history.run(const SetOrigin(id: 1, to: OriginPlacement.boundsBottom)),
+        contains('has no vertices to move'),
+      );
+      history.selection = history.selection.copyWith(objects: <int>[id]);
+      expect(
+        history.run(const Extrude(0.25)),
+        contains('has no topology to edit'),
+      );
+    });
+  });
+
   group('the material table', () {
     /// A project of one steel-named material and two bolts painted with it.
     ModelHistory painted() {
@@ -1973,6 +2040,7 @@ void main() {
           segments: 12,
           shapeName: 'glass',
         ),
+        AddSocket(label: 'weapon mount', at: Vector3(0, 1.4, 0.2)),
         const SetParametric(
           id: 1,
           to: ParametricSphere(radius: 0.75, segments: 16),

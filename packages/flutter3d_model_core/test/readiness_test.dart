@@ -247,6 +247,19 @@ void main() {
       expect(ready.issues.single.object?.name, 'a');
       expect(ready.canExport, isFalse);
     });
+
+    test('but a socket, which has no faces on purpose, is not one', () {
+      // Mutation: drop the `is! SocketGeometry` exemption in `_issuesWith`
+      // and a project holding nothing but a socket refuses to export at
+      // all, for geometry nobody meant to add in the first place.
+      final ready = ExportReadiness.check(
+        projectOf(<Geometry>[const SocketGeometry(), imported(2)]),
+      );
+
+      expect(ready.issues, isEmpty);
+      expect(ready.canExport, isTrue);
+      expect(ready.says, 'ready to export');
+    });
   });
 
   group('morph targets past the profile\'s texture size', () {

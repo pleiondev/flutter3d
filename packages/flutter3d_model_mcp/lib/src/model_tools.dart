@@ -286,6 +286,25 @@ List<ModelTool> get _commandTools => <ModelTool>[
   ),
   ModelTool(
     Tool(
+      name: 'addSocket',
+      description:
+          'Add a named point with no geometry of its own — a place for an '
+          'accessory or an attachment — and select it. Exports as a node '
+          'with no surface, the same way an empty group already does, and '
+          'reads back as a socket.',
+      inputSchema: ObjectSchema(
+        properties: <String, Schema>{
+          'label': StringSchema(
+            description: 'what to call it, default "socket"',
+          ),
+          'at': _vector('where it goes, default the origin'),
+        },
+      ),
+    ),
+    _command('addSocket'),
+  ),
+  ModelTool(
+    Tool(
       name: 'setParametric',
       description:
           'Replace the parameters of a shape that still has them — '

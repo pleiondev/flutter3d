@@ -20,6 +20,8 @@
 /// before paying for an upload. A drag of a hundred frames uploads nothing.
 library;
 
+import 'dart:typed_data';
+
 import 'package:flutter3d/flutter3d.dart' hide Material;
 import 'package:flutter3d/flutter3d.dart' as engine show Material;
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
@@ -183,5 +185,15 @@ final class SceneSync {
     ParametricGeometry(:final shape) => shape.drawn.build(),
     EditedGeometry(:final mesh) => mesh.toMeshData(),
     ImportedGeometry(:final data) => data,
+    // A socket draws nothing — see `SocketGeometry`'s own doc comment.
+    SocketGeometry() => _empty,
   };
+
+  /// What a socket uploads as: no vertices, no indices. One instance for all
+  /// of them, the same reason `project_document.dart`'s own `_nothing` is.
+  static final MeshData _empty = MeshData(
+    layout: VertexLayout.standard,
+    vertices: Float32List(0),
+    indices: Uint32List(0),
+  );
 }

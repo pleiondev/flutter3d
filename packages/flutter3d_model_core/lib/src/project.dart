@@ -250,6 +250,22 @@ final class ImportedGeometry extends Geometry {
   int get triangleCount => data.triangleCount;
 }
 
+/// No geometry at all — a named point for something else to hang off of, the
+/// way an empty in Blender or a `Marker3D` in Godot works.
+///
+/// **The same shape an imported "group" already is.** `project_document.dart`
+/// has always kept an object with nothing in it as a node with no surface —
+/// "an arm with a forearm and a hand under it" — so a socket is that idea
+/// given its own type rather than a second one: `AddSocket` builds one on
+/// purpose, and a file's own empty group now reads back as one too, since
+/// there is nothing left to tell the two apart once the mesh is gone.
+final class SocketGeometry extends Geometry {
+  const SocketGeometry();
+
+  @override
+  int get triangleCount => 0;
+}
+
 /// One thing in the project.
 ///
 /// **[version] is not [id] and the difference matters every frame.** The id

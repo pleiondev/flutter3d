@@ -156,4 +156,22 @@ void main() {
     expect(sync.nodeOf(1), isNotNull);
     expect(sync.nodeOf(1)!.mesh.source, isNotNull);
   });
+
+  test('a socket still gets a node, and it uploads nothing', () {
+    final project = const ModelProject().added(
+      (int id) => ModelObject(
+        id: id,
+        name: 'weapon mount',
+        geometry: const SocketGeometry(),
+        transform: Matrix4.identity(),
+      ),
+    );
+    final sync = staged(project).stage.sync!;
+
+    // Mutation: skip uploading a mesh for an object with nothing to draw —
+    // the tempting cleanup — and the socket has no node to move, pick or
+    // parent something under.
+    expect(sync.nodeOf(1), isNotNull);
+    expect(sync.nodeOf(1)!.mesh.source?.vertexCount, 0);
+  });
 }

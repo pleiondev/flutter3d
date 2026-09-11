@@ -60,6 +60,10 @@ typedef _MeshTarget = ({ModelObject object, EditMesh mesh, Selection elements});
       refused:
           '"${object.name}" came from a file and has no topology to edit yet',
     ),
+    SocketGeometry() => (
+      target: null,
+      refused: '"${object.name}" is a socket and has no topology to edit',
+    ),
   };
 }
 

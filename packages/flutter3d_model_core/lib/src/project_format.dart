@@ -291,6 +291,8 @@ Uint8List writeProject(ModelProject project) {
           return imported.length - 1;
         });
         geometry = <String, Object?>{'kind': 'imported', 'mesh': at};
+      case SocketGeometry():
+        geometry = <String, Object?>{'kind': 'socket'};
     }
     objects.add(<String, Object?>{
       'id': object.id,
@@ -1564,6 +1566,8 @@ VertexLayout? _layoutFrom(Object? json, Map<String, String> pool) {
         );
       }
       return (ImportedGeometry(arrived[at]), null);
+    case 'socket':
+      return (const SocketGeometry(), null);
     default:
       return (
         null,

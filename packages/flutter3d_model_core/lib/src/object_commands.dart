@@ -220,6 +220,51 @@ final class AddLathe extends ModelCommand {
   }
 }
 
+/// Adds a named point with no geometry of its own — a place for an
+/// accessory or an attachment to hang off of, the way an empty in Blender or
+/// a `Marker3D` in Godot works. See [SocketGeometry]'s own doc comment for
+/// why it shares its type with what an imported empty group already
+/// becomes.
+final class AddSocket extends ModelCommand {
+  const AddSocket({this.label = 'socket', this.at});
+
+  /// What the object is called. `label` and not `name`, for the reason
+  /// [AddLathe.shapeName]'s own comment gives: `toJson` writes the command's
+  /// own name under that key.
+  final String label;
+
+  /// Where it goes, or the origin.
+  final Vector3? at;
+
+  @override
+  String get name => 'addSocket';
+
+  @override
+  String get says => 'add a socket';
+
+  @override
+  Map<String, Object?> get arguments => <String, Object?>{
+    'label': label,
+    if (at case final Vector3 where) 'at': <double>[where.x, where.y, where.z],
+  };
+
+  @override
+  Outcome apply(ModelProject project, ProjectSelection selection) {
+    final next = project.added(
+      (int id) => ModelObject(
+        id: id,
+        name: label,
+        geometry: const SocketGeometry(),
+        transform: Matrix4.translation(at ?? Vector3.zero()),
+      ),
+    );
+    return Outcome.done(
+      next,
+      selection: selection.copyWith(objects: <int>[next.objects.last.id]),
+    );
+  }
+}
+
 /// Replaces the parameters of a shape that still has them.
 ///
 /// **This is the operation card, and it is why parametric objects exist at
@@ -263,6 +308,9 @@ final class SetParametric extends ModelCommand {
       ),
       ImportedGeometry() => Outcome.refused(
         '"${object.name}" came from a file and was never described by numbers',
+      ),
+      SocketGeometry() => Outcome.refused(
+        '"${object.name}" is a socket and was never described by numbers',
       ),
     };
   }
@@ -308,6 +356,10 @@ final class BakeToMesh extends ModelCommand {
       ImportedGeometry() => Outcome.refused(
         '"${object.name}" came from a file, and building topology for it is '
         'an import option rather than a conversion',
+      ),
+      SocketGeometry() => Outcome.refused(
+        '"${object.name}" is a socket, and there is no shape underneath it '
+        'to turn into a mesh',
       ),
     };
   }
@@ -724,6 +776,11 @@ final class ApplyTransform extends ModelCommand {
       object: null,
       mesh: null,
       refused: '"${object.name}" came from a file and has no vertices to move',
+    ),
+    SocketGeometry() => (
+      object: null,
+      mesh: null,
+      refused: '"${object.name}" is a socket and has no vertices to move',
     ),
   };
 }
