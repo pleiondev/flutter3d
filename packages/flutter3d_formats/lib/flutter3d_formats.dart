@@ -44,4 +44,5 @@ export 'src/model_loader.dart';
 export 'src/model_node.dart';
 export 'src/obj/obj.dart';
 export 'src/plain_model_document.dart';
+export 'src/stl/stl.dart';
 export 'src/surface_material.dart';

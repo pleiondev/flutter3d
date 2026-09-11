@@ -7,6 +7,7 @@ import 'asset_source.dart';
 import 'f3d/f3d.dart';
 import 'gltf/gltf.dart';
 import 'obj/obj.dart';
+import 'stl/stl.dart';
 
 // **This is the half of loading a model that needs nothing from Flutter**, and
 // the other half is `flutter3d`'s `model_loader.dart`: `decodeModelInIsolate`,
@@ -24,6 +25,8 @@ enum ModelFormat {
 
   /// The engine's own container, produced by `tool/convert_asset.dart`.
   f3d,
+
+  stl,
 }
 
 /// A decoder for a format the engine does not ship.
@@ -62,6 +65,7 @@ final class ModelLoadRequest {
     this.format = ModelFormat.auto,
     this.layout = VertexLayout.standard,
     this.objNormals = ObjNormals.smooth,
+    this.stlNormals = StlNormals.fromFile,
     this.decoders = const <ModelDecoder>[],
   });
 
@@ -69,6 +73,7 @@ final class ModelLoadRequest {
   final ModelFormat format;
   final VertexLayout layout;
   final ObjNormals objNormals;
+  final StlNormals stlNormals;
 
   /// An application's own decoders, tried in order before the built-in ones.
   ///
@@ -142,6 +147,12 @@ Future<ModelDocument> decodeModelBytes(
         normals: request.objNormals,
       ).load(bytes, resolveUri: resolveUri);
 
+    case ModelFormat.stl:
+      decoded = StlLoader(
+        layout: request.layout,
+        normals: request.stlNormals,
+      ).load(bytes);
+
     case ModelFormat.gltf:
     case ModelFormat.auto:
       decoded = GltfLoader(
@@ -161,6 +172,7 @@ ModelFormat _resolveFormat(ModelLoadRequest request, Uint8List bytes) {
   final name = request.source.fileName.toLowerCase();
   if (name.endsWith('.f3d')) return ModelFormat.f3d;
   if (name.endsWith('.obj')) return ModelFormat.obj;
+  if (name.endsWith('.stl')) return ModelFormat.stl;
   if (name.endsWith('.gltf') || name.endsWith('.glb')) return ModelFormat.gltf;
 
   return sniffModelFormat(bytes);
@@ -186,6 +198,13 @@ ModelFormat sniffModelFormat(Uint8List bytes) {
     if (byte == 0x7B) return ModelFormat.gltf;
     break;
   }
+
+  // Checked ahead of the OBJ default, and after everything above: a binary
+  // STL's own size is decisive regardless of what its header text says (see
+  // `isBinaryStl`), and an ASCII one is the one format here that looks like
+  // plain text the way OBJ does, so it needs its own check rather than
+  // falling into that default by looking similar enough.
+  if (isBinaryStl(bytes) || looksLikeAsciiStl(bytes)) return ModelFormat.stl;
 
   return ModelFormat.obj;
 }

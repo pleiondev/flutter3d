@@ -106,6 +106,9 @@ Future<ModelDocument> _decode(Uint8List bytes, String path) {
       layout: VertexLayout.standard,
     ).load(bytes, resolveUri: resolve);
   }
+  if (lower.endsWith('.stl')) {
+    return StlLoader(layout: VertexLayout.standard).load(bytes);
+  }
   if (isF3dFile(bytes)) {
     throw const FormatException('That is already a .f3d file.');
   }

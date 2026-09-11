@@ -636,6 +636,13 @@ boundaryEnumExempt = <String, Map<String, String>>{
         'what to do when an OBJ has no normals. Smooth or flat, and there '
         'is no third answer the decoder could give',
   },
+  'flutter3d_formats/lib/src/stl/stl_loader.dart': <String, String>{
+    'StlNormals':
+        'whether a facet\'s own normal record is trusted or recomputed from '
+        'its triangle. Unlike OBJ, STL always carries a normal, so this is a '
+        'choice about how much to trust it rather than what to do when it is '
+        'missing — and there is no third answer there either',
+  },
   'flutter3d_webgpu/lib/src/webgpu_bundle_section.dart': <String, String>{
     'WebGpuTextureDimension':
         'the shapes of texture this backend has a bind group layout entry '
