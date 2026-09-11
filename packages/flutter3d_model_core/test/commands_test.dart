@@ -2107,6 +2107,11 @@ void main() {
           meshBytes: Uint8List.fromList(<int>[1, 2, 3]),
         ),
         const SetProfileLimits(maxJoints: 32, maxInfluences: 2),
+        const SetShapeWeight(id: 1, shapeIndex: 0, weight: 0.5),
+        const AddShapeFromMesh(id: 1, shapeName: 'smile'),
+        const RenameShape(id: 1, shapeIndex: 0, to: 'grin'),
+        const DeleteShape(id: 1, shapeIndex: 0),
+        const KeyShape(id: 1, clipIndex: 0, time: 0.5),
       ];
 
       // Every name has a sample, which is what stops a command being added to
@@ -2654,6 +2659,127 @@ void main() {
     // JSON round-tripping is covered once, for every command including this
     // one, by "every name has a sample and round-trips through JSON" in the
     // journal group above.
+  });
+
+  group('shape keys', () {
+    test('AddShapeFromMesh captures the current mesh, at weight zero', () {
+      final history = edited();
+      expect(history.run(const AddShapeFromMesh(id: 1, shapeName: 'smile')), isNull);
+      final shapes = history.project[1]!.shapeSet;
+      expect(shapes.keys, hasLength(1));
+      expect(shapes.keys.single.name, 'smile');
+      expect(shapes.weights, <double>[0.0]);
+
+      final mesh = meshOf(history);
+      final position = Vector3.zero();
+      for (var v = 0; v < mesh.vertexSlotCount; v++) {
+        mesh.positionOf(v, position);
+        expect(shapes.keys.single.positionOf(v), position);
+      }
+    });
+
+    test('SetShapeWeight changes one shape\'s weight, refuses an unknown index', () {
+      final history = edited();
+      history.run(const AddShapeFromMesh(id: 1, shapeName: 'a'));
+      history.run(const AddShapeFromMesh(id: 1, shapeName: 'b'));
+
+      expect(
+        history.run(const SetShapeWeight(id: 1, shapeIndex: 1, weight: 0.7)),
+        isNull,
+      );
+      expect(history.project[1]!.shapeSet.weights, <double>[0.0, 0.7]);
+
+      expect(
+        history.run(const SetShapeWeight(id: 1, shapeIndex: 5, weight: 0.1)),
+        isNotNull,
+      );
+    });
+
+    test('RenameShape refuses a blank name without touching the weight', () {
+      final history = edited();
+      history.run(const AddShapeFromMesh(id: 1, shapeName: 'a'));
+
+      expect(history.run(const RenameShape(id: 1, shapeIndex: 0, to: 'renamed')), isNull);
+      expect(history.project[1]!.shapeSet.keys.single.name, 'renamed');
+
+      expect(history.run(const RenameShape(id: 1, shapeIndex: 0, to: '  ')), isNotNull);
+      expect(history.project[1]!.shapeSet.keys.single.name, 'renamed');
+    });
+
+    test('DeleteShape drops one key and its weight, keeping the rest in order', () {
+      final history = edited();
+      history.run(const AddShapeFromMesh(id: 1, shapeName: 'a'));
+      history.run(const AddShapeFromMesh(id: 1, shapeName: 'b'));
+      history.run(const AddShapeFromMesh(id: 1, shapeName: 'c'));
+      history.run(const SetShapeWeight(id: 1, shapeIndex: 1, weight: 0.4));
+
+      expect(history.run(const DeleteShape(id: 1, shapeIndex: 0)), isNull);
+      final shapes = history.project[1]!.shapeSet;
+      expect(shapes.keys.map((k) => k.name), <String>['b', 'c']);
+      expect(shapes.weights, <double>[0.4, 0.0]);
+    });
+
+    test(
+      'KeyShape records the current weights at frame 10 (10/30 s), sampled back',
+      () {
+        final history = edited();
+        history.run(const AddShapeFromMesh(id: 1, shapeName: 'a'));
+        history.run(const AddShapeFromMesh(id: 1, shapeName: 'b'));
+        history.run(const SetShapeWeight(id: 1, shapeIndex: 0, weight: 0.25));
+        history.run(const SetShapeWeight(id: 1, shapeIndex: 1, weight: 0.75));
+
+        final withClip = history.project.copyWith(
+          clips: const <ProjectClip>[ProjectClip(name: 'idle', tracks: <ProjectTrack>[])],
+        );
+        final replayed = ModelHistory(withClip)..selection = history.selection;
+
+        const frame = 10;
+        const fps = 30.0;
+        const time = frame / fps;
+        expect(replayed.run(const KeyShape(id: 1, clipIndex: 0, time: time)), isNull);
+
+        final track = replayed.project.clips.single.tracks.single;
+        expect(track.objectId, 1);
+        expect(track.track.path, AnimationPath.weights);
+        expect(track.track.componentCount, 2);
+
+        final out = Float32List(2);
+        track.track.sample(time, out);
+        expect(out[0], closeTo(0.25, 1e-6));
+        expect(out[1], closeTo(0.75, 1e-6));
+      },
+    );
+
+    test(
+      'DeleteShape does not break the weights AnimationTrack: the remaining '
+      'components sample at their new positions',
+      () {
+        final history = edited();
+        history.run(const AddShapeFromMesh(id: 1, shapeName: 'a'));
+        history.run(const AddShapeFromMesh(id: 1, shapeName: 'b'));
+        history.run(const AddShapeFromMesh(id: 1, shapeName: 'c'));
+        history.run(const SetShapeWeight(id: 1, shapeIndex: 0, weight: 0.1));
+        history.run(const SetShapeWeight(id: 1, shapeIndex: 1, weight: 0.2));
+        history.run(const SetShapeWeight(id: 1, shapeIndex: 2, weight: 0.3));
+
+        final project = history.project.copyWith(
+          clips: const <ProjectClip>[ProjectClip(name: 'idle', tracks: <ProjectTrack>[])],
+        );
+        final replayed = ModelHistory(project)..selection = history.selection;
+        replayed.run(const KeyShape(id: 1, clipIndex: 0, time: 0.0));
+
+        expect(replayed.run(const DeleteShape(id: 1, shapeIndex: 1)), isNull);
+
+        final track = replayed.project.clips.single.tracks.single;
+        expect(track.track.componentCount, 2);
+        final out = Float32List(2);
+        track.track.sample(0.0, out);
+        // 'b' (weight 0.2) was dropped; 'a' and 'c' keep their own weights,
+        // shifted down one slot rather than reading each other's.
+        expect(out[0], closeTo(0.1, 1e-6));
+        expect(out[1], closeTo(0.3, 1e-6));
+      },
+    );
   });
 
   group('profile limits', () {

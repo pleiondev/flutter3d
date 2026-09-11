@@ -27,6 +27,7 @@ import 'material.dart';
 import 'modifier_slot.dart';
 import 'param_hint.dart';
 import 'project_animation.dart';
+import 'project_morphs.dart';
 import 'selection.dart';
 import 'texture_budget.dart';
 
@@ -338,6 +339,7 @@ final class ModelObject {
     this.materialSlots = const <int>[],
     this.modifiers = const <ModifierSlot>[],
     this.skeletonIndex,
+    this.shapeSet = const ShapeSet(),
   });
 
   /// Stable for the life of the object, and not reused after a delete.
@@ -371,6 +373,11 @@ final class ModelObject {
   /// case of a mesh that is not a character.
   final int? skeletonIndex;
 
+  /// This object's own shape keys and their current preview weights —
+  /// `anim-19`'s own row. Empty for almost every object, the ordinary case
+  /// of a mesh with no sculpted alternate shapes.
+  final ShapeSet shapeSet;
+
   /// A copy with some fields replaced and [version] moved on.
   ///
   /// **The version moves here rather than at the call sites**, so that an edit
@@ -386,6 +393,7 @@ final class ModelObject {
     List<ModifierSlot>? modifiers,
     int? skeletonIndex,
     bool clearSkeletonIndex = false,
+    ShapeSet? shapeSet,
   }) => ModelObject(
     id: id,
     name: name ?? this.name,
@@ -398,6 +406,7 @@ final class ModelObject {
     skeletonIndex: clearSkeletonIndex
         ? null
         : (skeletonIndex ?? this.skeletonIndex),
+    shapeSet: shapeSet ?? this.shapeSet,
   );
 
   @override

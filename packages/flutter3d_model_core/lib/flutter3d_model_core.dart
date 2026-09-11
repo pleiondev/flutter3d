@@ -52,6 +52,7 @@ export 'src/project.dart';
 export 'src/project_animation.dart';
 export 'src/project_document.dart';
 export 'src/project_format.dart';
+export 'src/project_morphs.dart';
 export 'src/readiness.dart';
 export 'src/readiness_cache.dart';
 export 'src/rig_issues.dart';

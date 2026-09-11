@@ -33,12 +33,15 @@ import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 import 'package:vector_math/vector_math.dart';
 
 import 'job.dart';
+import 'key_table.dart';
 import 'material.dart';
 import 'modifier_slot.dart';
 import 'param_hint.dart';
 import 'parametric_json.dart';
 import 'png_encoder.dart';
 import 'project.dart';
+import 'project_animation.dart';
+import 'project_morphs.dart';
 import 'selection.dart';
 import 'texture_bake.dart';
 import 'texture_graph.dart';
@@ -50,6 +53,7 @@ part 'modifier_commands.dart';
 part 'object_commands.dart';
 part 'profile_commands.dart';
 part 'selection_commands.dart';
+part 'shape_commands.dart';
 
 /// What a command did.
 final class Outcome {
@@ -482,6 +486,11 @@ const List<String> modelCommandNames = <String>[
   'applyModifier',
   'applyJobResult',
   'setProfileLimits',
+  'setShapeWeight',
+  'addShapeFromMesh',
+  'renameShape',
+  'deleteShape',
+  'keyShape',
 ];
 
 /// Reads a command back out of a journal, or null.
@@ -779,6 +788,41 @@ ModelCommand? modelCommandFromJson(Object? json) {
       maxJoints: json['maxJoints'] as int?,
       maxInfluences: json['maxInfluences'] as int?,
     ),
+    'setShapeWeight' => switch ((json['id'], json['shapeIndex'], json['weight'])) {
+      (final int id, final int shapeIndex, final num weight) => SetShapeWeight(
+        id: id,
+        shapeIndex: shapeIndex,
+        weight: weight.toDouble(),
+      ),
+      _ => null,
+    },
+    'addShapeFromMesh' => switch ((json['id'], json['shapeName'])) {
+      (final int id, final String shapeName) => AddShapeFromMesh(
+        id: id,
+        shapeName: shapeName,
+      ),
+      _ => null,
+    },
+    'renameShape' => switch ((json['id'], json['shapeIndex'], json['to'])) {
+      (final int id, final int shapeIndex, final String to) => RenameShape(
+        id: id,
+        shapeIndex: shapeIndex,
+        to: to,
+      ),
+      _ => null,
+    },
+    'deleteShape' => switch ((json['id'], json['shapeIndex'])) {
+      (final int id, final int shapeIndex) => DeleteShape(id: id, shapeIndex: shapeIndex),
+      _ => null,
+    },
+    'keyShape' => switch ((json['id'], json['clipIndex'], json['time'])) {
+      (final int id, final int clipIndex, final num time) => KeyShape(
+        id: id,
+        clipIndex: clipIndex,
+        time: time.toDouble(),
+      ),
+      _ => null,
+    },
     _ => null,
   };
 }
