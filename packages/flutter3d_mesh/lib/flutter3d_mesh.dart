@@ -42,3 +42,4 @@ export 'src/shape_key.dart';
 export 'src/smooth.dart';
 export 'src/subdivide.dart';
 export 'src/triangulate.dart';
+export 'src/weight_ops.dart';
