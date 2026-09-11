@@ -40,10 +40,17 @@
 /// `ProjectClip` — so they live in the manifest beside the materials rather
 /// than in a section of their own, for the identical reason.
 ///
-/// **What is not, and is not pretended to be.** The history is not written
-/// here: the file carries the document, and putting the undo stack in it is
-/// `doc-31d`, which wants the steps to address chunks already lying in the blob
-/// rather than a second copy of every mesh. A shape key's own positions are
+/// **The undo stack rides in the file too, `doc-31d`'s own section — stale
+/// wording here once called this "not written," from before that row
+/// landed; corrected rather than left to mislead the next reader.** Every
+/// [HistoryStep]'s own `objects` addresses the identical `editMeshes`/
+/// `importedMeshes` tables the live project's own objects do, deduplicated
+/// by identity the same way: a step that shares a mesh with an earlier one
+/// or with the live document costs the file nothing extra to carry, since
+/// [writeProject]'s own `meshAt`/`importedAt` maps are built once, walked
+/// oldest step first. `history` is optional on write — a file with none is
+/// not a smaller version of one with some, it is the ordinary shape most
+/// calls to [writeProject] take. A shape key's own positions are
 /// written as plain JSON numbers in the manifest, not blob-encoded the way a
 /// mesh's own vertex buffer is — the simpler choice, and the honest cost of
 /// it is a project with several heavily sculpted shape keys writing a larger

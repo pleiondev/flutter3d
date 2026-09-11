@@ -221,6 +221,11 @@ point of §3.3.
 | `flutter3d_editor_core` | The headless half of a level editor: the document being changed and undone, the handles a pointer hits, the palette a level builds out of itself, the project a template becomes. Plain Dart |
 | `flutter3d_editor_mcp` | The same editor offered to an agent: `EditorCommand` as a table of MCP tools over stdio, one document per process, plus the two verbs a caller with no screen needs — a flat listing, and the validator. Plain Dart |
 | `flutter3d_testing` | Rendering a scene with no GPU and comparing it against a reference image |
+| `flutter3d_geometry` | The mesh vocabulary every decoder and every editable mesh share: `MeshData`, `VertexLayout`, tangents, morph targets, `TriangleBvh` |
+| `flutter3d_formats` | Model documents and their decoders/writers — glTF, OBJ, STL, `.f3d`, `.usdz` — and material files. No Flutter, so an MCP server exports without one ([§8.1](#81-model-decoding), [§8.6](#86-writers)) |
+| `flutter3d_mesh` | The editable half-edge mesh — `EditMesh`, its journal, its operations — that a model decodes into once somebody starts editing it |
+| `flutter3d_model_core` | The modeller's own document: `ModelProject`, commands, undo, `ExportReadiness`, its own project file ([§8.7](#87-the-project-file-and-three-undo-models)). Plain Dart, for the identical Flutter-SDK-boundary reason `flutter3d_formats` is |
+| `flutter3d_model_mcp` | The modeller's own commands offered to an agent over MCP, the same shape `flutter3d_editor_mcp` already gives the level editor |
 | `pad_input` | Gamepad devices on web, Android, macOS and iOS |
 | `pointer_lock` | Relative mouse movement: a method channel on macOS, the Pointer Lock API in a browser, which Flutter surfaces on neither |
 
@@ -1101,10 +1106,13 @@ returns an exit code.
 
 ### 8.1 Model decoding
 
-glTF 2.0 / GLB, Wavefront OBJ and the engine's own `.f3d` all produce one
-`ModelDocument` — surfaces, `SurfaceMaterial`s, `EncodedImage`s, a node hierarchy,
-skins, animations and `warnings`. That is what makes `ModelAsset.fromDocument()`
-the single upload path, with mesh and image deduplication written once.
+glTF 2.0 / GLB, Wavefront OBJ, STL and the engine's own `.f3d` — four decoders —
+all produce one `ModelDocument` — surfaces, `SurfaceMaterial`s, `EncodedImage`s,
+a node hierarchy, skins, animations and `warnings`. That is what makes
+`ModelAsset.fromDocument()` the single upload path, with mesh and image
+deduplication written once. STL carries none of the rest — no materials, no
+hierarchy, no skins — so its own document is the plainest any decoder here
+produces, one surface named by the file and nothing else set.
 
 The glTF layer depends on neither flutter_gpu, `dart:io` nor `dart:ui`: external
 files arrive through an `AssetUriResolver` callback and images are handed back
@@ -1266,6 +1274,104 @@ Not in it: a ramp's slope points at a reserved texel holding the level's
 average bounce; a spot light bakes as a point, since the level format
 carries no cone; a textured material reflects a mid grey, since the bake
 reads no texture; and a breach drops the map with the visibility table.
+
+### 8.6 Writers
+
+Every writer takes the same `ModelDocument` every decoder in [§8.1](#81-model-decoding)
+produces, the symmetry that makes exporting a model no different in kind from
+loading one: `GltfWriter`, `ObjWriter`, `StlWriter`, `F3dWriter` and `UsdzWriter`
+all live in `flutter3d_formats`, next to the decoders rather than in the engine,
+so an MCP server can export a GLB with no Flutter SDK in the process.
+
+**`GltfWriter` is the one every other writer is measured against**, because it
+is the one format that can hold everything a document carries: hierarchy,
+materials, images, skins, animation and morph targets. It writes the extensions
+the loader already reads back — `KHR_lights_punctual`, `KHR_materials_unlit`,
+`KHR_texture_basisu` when an image's own KTX2 header says Basis Universal — and
+names each as `extensionsRequired` only when a reader with no support for it
+would have nothing to fall back to.
+
+**`ObjWriter` and `StlWriter` have no hierarchy to write**, so a surface's own
+transform is baked into its positions before anything else happens — the same
+bake either one does, since STL has no per-object transform slot either and OBJ
+groups rather than nests. STL goes further: no materials, no shared vertices
+between facets, one flat list regardless of how many surfaces the document had.
+
+**`F3dWriter` is `.f3d`'s own writer** ([§8.2](#82-f3d)), the format symmetric
+with its own loader by construction — vertex and index arrays written exactly
+as `MeshData` holds them, section by section, so the 360× a project's own read
+already measures for a mesh chunk holds for a written model too.
+
+**`UsdzWriter` is a spike, not a fifth feature-complete writer.** Geometry only,
+one `Mesh` prim a surface, no materials and no hierarchy past that — Quick Look
+support is the question a spike answers before anything commits to the rest.
+
+**`ExportReport` asks two different questions of one write, and keeps them
+apart.** `writerWarnings` is what a writer already knew it was dropping while
+writing — a skin OBJ has no record for, a second surface STL has no boundary
+for; `differences` is what `compareModelDocuments` finds by reading the file
+back and comparing it against what went in, which is what catches a rounding
+bug or an off-by-one index nobody predicted. A clean `differences` list with
+warnings in it is a writer working as documented; differences with no warning
+to explain them is a writer with a real bug.
+
+### 8.7 The project file and three undo models
+
+**A format of the modeller's own, because glTF is the way out and not the way
+back.** Nowhere in a glTF is there room for the profile a project is being
+built against, for the parameters a cylinder still knows itself by, or for a
+modifier stack — round-tripping through glTF would mean a cylinder that comes
+back as a bag of triangles, with "set segments to 48" a sentence nothing can
+answer any more. So `.f3dproj` is its own format, and glTF (or OBJ, or STL, or
+`.usdz`) is what a project turns into on the way out, through the writers in
+[§8.6](#86-writers).
+
+**The container is `.f3d`'s, deliberately reused rather than reinvented.** A
+magic, a version, a 16-byte header, a directory of sections each on a four-byte
+boundary, and a section kind the reader does not know stepped over rather than
+refused — the same rule for the same reason: somebody opening a project a
+newer build wrote should get their objects back, missing only what the new
+section carried, and the version only moves when an existing record's own
+meaning changes. Seven section kinds exist today: the manifest; edited-mesh
+and imported-mesh tables; the blob those two tables address; an image table;
+a per-section checksum table; and the undo stack itself.
+
+**The manifest and the blob split on bulk, not on importance.** A material is a
+dozen numbers and five texture slots, small enough to read in a diff, so it is
+JSON in the manifest; the PNG it samples is a hundred kilobytes, so it is bytes
+in the blob. A skeleton's joints and a clip's own tracks are the identical
+shape of small, structured data, so they sit in the manifest beside the
+materials rather than earning a section of their own. Every edited mesh is one
+chunk `EditMesh.toBytes` already writes, so there is exactly one half-edge
+encoding in the whole repository, read the same way whether it came from a
+live document or from history.
+
+**Three undo models answer three different questions, and none of them is the
+other two done differently.**
+
+- **A mesh's own journal** (`flutter3d_mesh`) rolls one `EditMesh` back a step
+  at a time through `JournalledFloats`/`JournalledInts` over its flat arrays —
+  cheap because it is a record of what changed rather than a second copy of
+  the mesh: a measured 2% of a full copy against 92–100% for the
+  copy-on-write chunks it replaced, on a selection scattered enough to touch
+  nearly every one.
+- **`ModelHistory` rolls a whole project back** a `HistoryStep` at a time,
+  keeping the document as it was rather than asking a command to know how to
+  take itself back — the same document-not-reversal choice [§8.5](#85-levels-and-saves)
+  makes for a snapshot. `ModelProject` is a value that shares whatever a step
+  did not touch, so this is affordable on its own; where a step also edited a
+  mesh, `HistoryStep.meshSteps` names how many journal steps that one
+  `EditMesh` took, and undo rolls both back together — a document swap and a
+  journal roll, one step of each, not two undo stacks disagreeing about how
+  far back they are.
+- **A reopened file's own history needs neither.** Every step the file's
+  `history` section carries already names its own, distinct `EditMesh` for
+  that moment — `writeProject`'s own mesh table deduplicates by identity as it
+  writes, so two steps that share an unedited mesh, or share one with the live
+  document, cost the file nothing extra to carry. `ModelHistory.withSteps`
+  reading that back is therefore a swap of which `ModelProject` is current and
+  nothing else: the copy a live journal would have paid for was already paid
+  once, at write time, by construction.
 
 ---
 
