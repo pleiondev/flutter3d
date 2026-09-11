@@ -1345,6 +1345,17 @@ List<ModelTool> get _commandTools => <ModelTool>[
     ),
     _command('setTangent'),
   ),
+  ModelTool(
+    Tool(
+      name: 'fillHoles',
+      description:
+          'Close every open boundary loop in the object\'s own mesh '
+          'with one new face — the fix for "won\'t load: an open edge" '
+          'a readiness check names. Refused when nothing is open.',
+      inputSchema: ObjectSchema(),
+    ),
+    _command('fillHoles'),
+  ),
 ];
 
 // ------------------------------------------------------------ session tools

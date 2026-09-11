@@ -601,3 +601,66 @@ final class Separate extends ModelCommand {
     );
   }
 }
+
+/// Closes every open boundary loop in the selected object's own mesh with
+/// one new face — `mesh-81n`'s own row, wiring `fillHoles` (`flutter3d_mesh`)
+/// into the undo stack, the "button" its own doc comment says
+/// `ExportReadiness`'s "won't load" leaves a person without. Selects the
+/// faces it made, the same "an operation that adds geometry selects what it
+/// made" rule every other mesh command here already follows.
+///
+/// **Not routed through `_asMeshStep`, on purpose.** `fillHoles` reports how
+/// many holes it closed as a plain count, not an [OpResult] — a library
+/// function that welds an existing boundary back together rather than
+/// moving or adding vertices has no [Selection] of its own to report,
+/// unlike `extrudeFaces` or `deleteSelection`. Building the step by hand
+/// here, the same way [MergeByDistance] and [Separate] already do for the
+/// identical reason, costs three lines and avoids forcing every future
+/// caller of `fillHoles` itself to carry an `OpResult`'s own selection
+/// machinery it would never use.
+final class FillHoles extends ModelCommand {
+  const FillHoles();
+
+  @override
+  String get name => 'fillHoles';
+
+  @override
+  String get says => 'fill holes';
+
+  @override
+  Map<String, Object?> get arguments => const <String, Object?>{};
+
+  @override
+  Outcome apply(ModelProject project, ProjectSelection selection) {
+    final found = _meshTarget(project, selection);
+    if (found.target == null) return Outcome.refused(found.refused!);
+    final _MeshTarget target = found.target!;
+
+    target.mesh.beginStep();
+    final firstNewFace = target.mesh.faceSlotCount;
+    final closed = fillHoles(target.mesh);
+    if (closed == 0) {
+      if (target.mesh.endStep()) target.mesh.undo();
+      return Outcome.refused(
+        '"${target.object.name}" has no open boundary to close',
+      );
+    }
+    target.mesh.endStep();
+
+    // `fillHoles` only ever welds new faces to vertices the boundary
+    // already named — it calls `addFace`, never `addVertex` — so unlike a
+    // `LoopCut` or an `Extrude`, there is nothing here for a shape key to
+    // grow into; `_resyncShapeSet` would be the identical dead call entry
+    // 70 found and removed from `Separate`; not repeated.
+    return Outcome.done(
+      project.withObject(
+        target.object.copyWith(geometry: EditedGeometry(target.mesh)),
+      ),
+      selection: selection.copyWith(
+        elements: <int>[for (var f = firstNewFace; f < target.mesh.faceSlotCount; f++) f],
+        level: ElementLevel.face,
+      ),
+      meshTouched: target.mesh,
+    );
+  }
+}

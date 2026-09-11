@@ -595,6 +595,68 @@ void main() {
     });
   });
 
+  group(
+    'FillHoles — mesh-81n\'s own row, the button ExportReadiness never had',
+    () {
+      test('closes a cube missing one face back to χ = 2', () {
+        final history = edited();
+        history.selection = faces(history, <int>[0]);
+        expect(history.run(const DeleteElements()), isNull);
+
+        final mesh = meshOf(history);
+        expect(mesh.eulerCharacteristic, isNot(2));
+
+        expect(history.run(const FillHoles()), isNull);
+        expect(mesh.eulerCharacteristic, 2);
+        // Actually welded, not merely covered — the same check mesh-81n's
+        // own library test (entry 59) uses rather than trusting χ alone.
+        expect(MeshChecks(mesh).boundaryEdges(), isNull);
+        mesh.validate();
+      });
+
+      test('selects the face it made', () {
+        final history = edited();
+        history.selection = faces(history, <int>[0]);
+        history.run(const DeleteElements());
+        final before = meshOf(history).faceCount;
+
+        expect(history.run(const FillHoles()), isNull);
+        expect(meshOf(history).faceCount, before + 1);
+        expect(history.selection.level, ElementLevel.face);
+        expect(history.selection.elements, hasLength(1));
+      });
+
+      test('refuses a mesh with no open boundary, and says so', () {
+        final history = edited();
+        history.selection = faces(history, <int>[0]);
+        final said = history.run(const FillHoles());
+        expect(said, isNotNull);
+        expect(said, contains('no open boundary'));
+      });
+
+      test('is its own history step — undo puts the hole back', () {
+        final history = edited();
+        history.selection = faces(history, <int>[0]);
+        history.run(const DeleteElements());
+        final mesh = meshOf(history);
+        final openChi = mesh.eulerCharacteristic;
+
+        history.run(const FillHoles());
+        expect(mesh.eulerCharacteristic, 2);
+
+        history.undo();
+        // Mutation: leave the fill's own mesh step out — undo would then
+        // roll back the DeleteElements before it instead, and the hole
+        // this test asserts comes back would never have been made in the
+        // first place for this assertion to actually distinguish.
+        expect(mesh.eulerCharacteristic, openChi);
+
+        history.redo();
+        expect(mesh.eulerCharacteristic, 2);
+      });
+    },
+  );
+
   group('shapes that still know their parameters', () {
     /// A glass: a profile that starts on the axis, flares and comes back in.
     List<Vector2> glass() => <Vector2>[
@@ -2144,6 +2206,7 @@ void main() {
           inTangent: <double>[0, 0, 0],
           outTangent: <double>[1, 1, 1],
         ),
+        const FillHoles(),
       ];
 
       // Every name has a sample, which is what stops a command being added to

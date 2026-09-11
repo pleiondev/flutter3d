@@ -505,6 +505,7 @@ const List<String> modelCommandNames = <String>[
   'deleteKeys',
   'setInterpolation',
   'setTangent',
+  'fillHoles',
 ];
 
 /// Reads a command back out of a journal, or null.
@@ -644,6 +645,7 @@ ModelCommand? modelCommandFromJson(Object? json) {
     ),
     'dissolveEdges' => const DissolveEdges(),
     'separate' => const Separate(),
+    'fillHoles' => const FillHoles(),
     'triangulate' => const Triangulate(),
     'recalculateNormals' => RecalculateNormals(
       flip: json['flip'] as bool? ?? false,
