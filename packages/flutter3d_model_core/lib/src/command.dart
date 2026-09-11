@@ -498,6 +498,7 @@ const List<String> modelCommandNames = <String>[
   'renameJoint',
   'reparentJoint',
   'setRestPose',
+  'mirrorJoints',
 ];
 
 /// Reads a command back out of a journal, or null.
@@ -878,6 +879,21 @@ ModelCommand? modelCommandFromJson(Object? json) {
           skeletonIndex: skeletonIndex,
           jointIndex: jointIndex,
           worldTransform: Matrix4.fromList(worldTransform),
+        ),
+      _ => null,
+    },
+    'mirrorJoints' => switch ((json['skeletonIndex'], json['axis'], json['jointMirror'])) {
+      (
+        final int skeletonIndex,
+        final int axis,
+        final Map<String, Object?> jointMirror,
+      ) =>
+        MirrorJoints(
+          skeletonIndex: skeletonIndex,
+          axis: axis,
+          jointMirror: jointMirror.map(
+            (key, value) => MapEntry(int.parse(key), value! as int),
+          ),
         ),
       _ => null,
     },

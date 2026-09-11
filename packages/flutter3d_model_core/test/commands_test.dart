@@ -2121,6 +2121,7 @@ void main() {
           jointIndex: 0,
           worldTransform: Matrix4.identity(),
         ),
+        const MirrorJoints(skeletonIndex: 0, axis: 0, jointMirror: <int, int>{1: 2, 2: 1}),
       ];
 
       // Every name has a sample, which is what stops a command being added to
@@ -3018,6 +3019,155 @@ void main() {
       for (var i = 0; i < 16; i++) {
         expect(world.storage[i], closeTo(target[i], 1e-6));
       }
+    });
+
+    Vector3 reflected(Vector3 v, int axis) {
+      final r = Vector3.copy(v);
+      switch (axis) {
+        case 0:
+          r.x = -r.x;
+        case 1:
+          r.y = -r.y;
+        default:
+          r.z = -r.z;
+      }
+      return r;
+    }
+
+    final samplePoints = <Vector3>[
+      Vector3(1, 0, 0),
+      Vector3(0, 2, 0),
+      Vector3(0, 0, 3),
+      Vector3(1, 1, 1),
+      Vector3(-2, 3, -1),
+    ];
+
+    void expectMirroredTransform(Matrix4 mirrored, Matrix4 original, int axis) {
+      for (final p in samplePoints) {
+        final lhs = mirrored.transformed3(reflected(p, axis));
+        final rhs = reflected(original.transformed3(p), axis);
+        expect(lhs.x, closeTo(rhs.x, 1e-6));
+        expect(lhs.y, closeTo(rhs.y, 1e-6));
+        expect(lhs.z, closeTo(rhs.z, 1e-6));
+      }
+    }
+
+    test(
+      'MirrorJoints satisfies mirrored·reflect(p) == reflect(original·p), '
+      'self-mirrored joint, every axis',
+      () {
+        for (var axis = 0; axis < 3; axis++) {
+          final history = riggedChain();
+          final skeleton = history.project.skeletons.single;
+          final rootId = skeleton.joints[0];
+
+          final original = Matrix4.translation(Vector3(3, -2, 4))
+            ..multiply(Matrix4.rotationY(0.7))
+            ..multiply(Matrix4.rotationX(0.3));
+          expect(history.run(SetTransform(id: rootId, to: original)), isNull);
+
+          expect(
+            history.run(
+              MirrorJoints(skeletonIndex: 0, axis: axis, jointMirror: const <int, int>{0: 0}),
+            ),
+            isNull,
+          );
+
+          final mirrored = worldTransformOf(history.project, rootId);
+          expectMirroredTransform(mirrored, original, axis);
+        }
+      },
+    );
+
+    test(
+      'MirrorJoints reads every source world before writing any target — '
+      'a left/right pair named both ways lands correctly, not doubly-mirrored',
+      () {
+        // left and right are both parented directly to root — siblings, not
+        // ancestor/descendant of each other — so mirroring one can never
+        // invalidate the other's already-written world the way it would if
+        // one target were the other's own parent.
+        var project = const ModelProject().added(
+          (id) => ModelObject(
+            id: id,
+            name: 'root',
+            geometry: const SocketGeometry(),
+            transform: Matrix4.identity(),
+          ),
+        );
+        final rootId = project.objects.last.id;
+        project = project.added(
+          (id) => ModelObject(
+            id: id,
+            name: 'left',
+            geometry: const SocketGeometry(),
+            transform: Matrix4.translation(Vector3(1, 0, 0))
+              ..multiply(Matrix4.rotationZ(0.5)),
+            parent: rootId,
+          ),
+        );
+        final leftId = project.objects.last.id;
+        project = project.added(
+          (id) => ModelObject(
+            id: id,
+            name: 'right',
+            geometry: const SocketGeometry(),
+            transform: Matrix4.translation(Vector3(0, 0, 2))
+              ..multiply(Matrix4.rotationY(1.1)),
+            parent: rootId,
+          ),
+        );
+        final rightId = project.objects.last.id;
+        project = project.copyWith(
+          skeletons: <ProjectSkeleton>[
+            ProjectSkeleton(
+              joints: <int>[rootId, leftId, rightId],
+              inverseBindMatrices: <Matrix4>[
+                Matrix4.identity(),
+                Matrix4.identity(),
+                Matrix4.identity(),
+              ],
+            ),
+          ],
+        );
+        final history = ModelHistory(project);
+
+        final leftWorldBefore = worldTransformOf(history.project, leftId).clone();
+        final rightWorldBefore = worldTransformOf(history.project, rightId).clone();
+
+        // A buggy interleaved read/write would, for this exact pairing, read
+        // joint 2's own world back after it had already been overwritten from
+        // joint 1's source — mirroring is its own inverse, so that reads back
+        // as joint 1's *original* world, leaving joint 1 unmirrored. Reading
+        // both sources up front (which this asserts) is what rules that out.
+        expect(
+          history.run(
+            const MirrorJoints(skeletonIndex: 0, axis: 0, jointMirror: <int, int>{1: 2, 2: 1}),
+          ),
+          isNull,
+        );
+
+        final leftWorldAfter = worldTransformOf(history.project, leftId);
+        final rightWorldAfter = worldTransformOf(history.project, rightId);
+        expectMirroredTransform(leftWorldAfter, rightWorldBefore, 0);
+        expectMirroredTransform(rightWorldAfter, leftWorldBefore, 0);
+      },
+    );
+
+    test('MirrorJoints refuses a source or target joint index out of range', () {
+      final history = riggedChain();
+      expect(
+        history.run(
+          const MirrorJoints(skeletonIndex: 0, axis: 0, jointMirror: <int, int>{5: 0}),
+        ),
+        isNotNull,
+      );
+      expect(
+        history.run(
+          const MirrorJoints(skeletonIndex: 0, axis: 0, jointMirror: <int, int>{0: 5}),
+        ),
+        isNotNull,
+      );
     });
   });
 

@@ -13,13 +13,22 @@
 /// transform composed out through every ancestor — which nothing in this
 /// package computed before this row.
 ///
-/// **What is still not here: `MirrorJoints`.** Reflecting a rest pose
-/// across an axis needs mirroring a full rigid transform — the rotation
-/// along with the position, which flips handedness and is not simply
-/// negating a component — and nothing in this row's own acceptance line
-/// tests it (that line is entirely about `RemoveJoint`): built when a real
-/// caller needs it rather than shipped now on the strength of arithmetic
-/// worked out but never run against a case that would catch it wrong.
+/// **`MirrorJoints` is `SetRestPose`, called once per pair.** Mirroring a
+/// full rigid transform — the rotation along with the position — is not
+/// negating one component: a reflection flips handedness, which a
+/// [Quaternion] alone cannot represent, since it only ever holds a proper
+/// rotation. The way out is the same sandwiching `_sandwiched` in
+/// `command.dart` already uses for a turn about a pivot: conjugate by the
+/// reflection itself, `Reflect · M · Reflect`. A reflection is its own
+/// inverse, so this needs no `Matrix4.inverted` call, and — the property
+/// that actually makes it a *mirror* rather than some other transform of
+/// the same matrix — conjugating by a reflection preserves the
+/// determinant, so a proper rotation goes in and a proper rotation comes
+/// out. `test/commands_test.dart`'s own `MirrorJoints` group checks
+/// exactly that identity: applying the mirrored transform to a mirrored
+/// point lands on the mirror of applying the original transform to the
+/// original point, for every axis and several rotations — not by trusting
+/// the algebra on paper.
 part of 'command.dart';
 
 /// The skeleton at [skeletonIndex] in [project], or the sentence to refuse
@@ -315,4 +324,102 @@ final class SetRestPose extends ModelCommand {
     );
     return Outcome.done(next);
   }
+}
+
+/// Sets every joint index in [jointMirror]'s own values to the mirror
+/// image, across [axis] (`0`=x, `1`=y, `2`=z), of the joint its key names
+/// — `MirrorJoints`, delegating to [SetRestPose] once per target rather
+/// than repeating its own world-transform recompute.
+///
+/// [jointMirror] maps a source joint index to the joint index that
+/// receives its mirror. A left/right pair is named both ways
+/// (`{left: right, right: left}`); a joint straddling the mirror plane —
+/// a spine root — is named to itself (`{root: root}`), which mirrors it
+/// in place rather than leaving it untouched, the same way a hand-built
+/// symmetric rig is expected to already sit exactly on the plane.
+///
+/// Every source's own world transform is read before any target is
+/// written: naming a pair both ways and writing them one at a time would
+/// otherwise have the second write read the first write's own
+/// already-mirrored result instead of the original.
+final class MirrorJoints extends ModelCommand {
+  const MirrorJoints({required this.skeletonIndex, required this.axis, required this.jointMirror});
+
+  final int skeletonIndex;
+
+  /// `0` for x, `1` for y, `2` for z.
+  final int axis;
+
+  final Map<int, int> jointMirror;
+
+  @override
+  String get name => 'mirrorJoints';
+
+  @override
+  String get says => 'mirror joints';
+
+  @override
+  Map<String, Object?> get arguments => <String, Object?>{
+    'skeletonIndex': skeletonIndex,
+    'axis': axis,
+    'jointMirror': jointMirror.map((k, v) => MapEntry(k.toString(), v)),
+  };
+
+  @override
+  Outcome apply(ModelProject project, ProjectSelection selection) {
+    final (:skeleton, :refused) = _skeletonTarget(project, skeletonIndex);
+    if (skeleton == null) return Outcome.refused(refused!);
+
+    final mirroredWorlds = <int, Matrix4>{};
+    for (final entry in jointMirror.entries) {
+      if (entry.key < 0 || entry.key >= skeleton.jointCount) {
+        return Outcome.refused(
+          'skeleton $skeletonIndex has ${skeleton.jointCount} joints; '
+          '${entry.key} is not one of them',
+        );
+      }
+      if (entry.value < 0 || entry.value >= skeleton.jointCount) {
+        return Outcome.refused(
+          'skeleton $skeletonIndex has ${skeleton.jointCount} joints; '
+          '${entry.value} is not one of them',
+        );
+      }
+      final sourceWorld = worldTransformOf(project, skeleton.joints[entry.key]);
+      mirroredWorlds[entry.value] = _reflected(sourceWorld, axis);
+    }
+
+    var next = project;
+    for (final target in mirroredWorlds.entries) {
+      final outcome = SetRestPose(
+        skeletonIndex: skeletonIndex,
+        jointIndex: target.key,
+        worldTransform: target.value,
+      ).apply(next, selection);
+      if (!outcome.ok) return outcome;
+      next = outcome.project!;
+    }
+    return Outcome.done(next);
+  }
+}
+
+/// [transform], conjugated by the reflection across [axis]:
+/// `Reflect · transform · Reflect`. A reflection is its own inverse, and
+/// conjugating by one preserves the determinant — a proper rotation goes
+/// in and a proper rotation comes out, which is what keeps this
+/// representable as the ordinary rotation+translation [ModelObject
+/// .transform] already stores rather than needing a improper-rotation
+/// case nothing else here has.
+Matrix4 _reflected(Matrix4 transform, int axis) {
+  final reflect = Matrix4.identity();
+  switch (axis) {
+    case 0:
+      reflect[0] = -1.0;
+    case 1:
+      reflect[5] = -1.0;
+    default:
+      reflect[10] = -1.0;
+  }
+  return Matrix4.copy(reflect)
+    ..multiply(transform)
+    ..multiply(reflect);
 }
