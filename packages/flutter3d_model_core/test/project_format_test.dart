@@ -308,6 +308,7 @@ void main() {
         requireTriangles: false,
         requireManifold: true,
         textures: TextureBudget.mobile,
+        texelsPerMeter: 512.5,
       );
       final after = opened(writeProject(ModelProject(profile: before))).profile;
 
@@ -317,6 +318,7 @@ void main() {
       expect(after.requireTriangles, isFalse);
       expect(after.requireManifold, isTrue);
       expect(after.textures, TextureBudget.mobile);
+      expect(after.texelsPerMeter, 512.5);
     });
 
     test('a manifest written before doc-13 opens with the new fields at '
@@ -336,6 +338,9 @@ void main() {
       // manifest with none of the five still opens with `mat-28`'s own
       // default rather than refusing or reading a budget of zero.
       expect(read.profile.textures, TextureBudget.desktop);
+      // `texelsPerMeter` is younger still — `doc-35n`'s own default is
+      // null, "nothing measured", not a fabricated number.
+      expect(read.profile.texelsPerMeter, isNull);
     });
 
     test('an unknown texture budget format opens as other, and says so', () {
@@ -450,13 +455,29 @@ void main() {
     });
 
     test('everything lands on a four-byte boundary', () {
-      final bytes = writeProject(sample());
+      final base = sample();
+      // A profile name one character longer than the default `'desktop'`,
+      // chosen so this project's manifest lands one byte short of a
+      // four-byte multiple. Without it, `doc-35n`'s extra field happens to
+      // leave this fixture's manifest already aligned by coincidence, and
+      // the padding this test exists to check for never fires — the
+      // `_align` call under test could be deleted and every assertion
+      // below would still be green.
+      final bytes = writeProject(
+        ModelProject(
+          profile: const ProjectProfile(name: 'desktop!'),
+          objects: base.objects,
+          materials: base.materials,
+          images: base.images,
+          nextId: base.nextId,
+        ),
+      );
       final directory = directoryOf(bytes);
 
       // The numbers this project's file actually lands on: a 16-byte header and
       // six 16-byte directory entries put the manifest at 112, and the manifest
-      // is 1078 bytes, which ends at 1190 and is not a multiple of four. So the
-      // mesh table starts at 1192, two bytes of padding later. Those two
+      // is 1101 bytes, which ends at 1213 and is not a multiple of four. So the
+      // mesh table starts at 1216, three bytes of padding later. Those three
       // bytes are the whole test — a reader building an `Int32List.view` over
       // the blob throws on an offset that is not a multiple of four, and it
       // throws on the machine of whoever opens the file rather than here.
@@ -469,11 +490,11 @@ void main() {
         ProjectSection.checksums,
       ]);
       expect(directory[0].offset, 112);
-      expect(directory[0].length, 1078);
-      expect(directory[1].offset, 1192);
+      expect(directory[0].length, 1101);
+      expect(directory[1].offset, 1216);
       expect(directory[1].length, 16);
       expect(directory[1].count, 2);
-      expect(directory[2].offset, 1208);
+      expect(directory[2].offset, 1232);
       // This project has nothing imported and nothing textured, and both tables
       // are written all the same: every file this build produces has the same
       // five-section directory, so a reader is never deciding between "none of
@@ -483,14 +504,14 @@ void main() {
       // One row per other section, so the table grows with the directory.
       expect(directory[5].count, 5);
       expect(directory[5].length, 5 * kProjectChecksumEntryBytes);
-      expect(bytes.length, 3824);
+      expect(bytes.length, 3848);
 
       for (final entry in directory) {
         expect(entry.offset % 4, 0, reason: 'section ${entry.kind}');
       }
 
       // Mutation: return `value` from the writer's `_align` and the table lands
-      // at 1086 with the blob behind it at 1102; the assertions above and the
+      // at 1213 with the blob behind it at 1229; the assertions above and the
       // two below go red together.
       final view = ByteData.sublistView(bytes);
       final blob = directory[2];
@@ -686,7 +707,7 @@ void main() {
       expect(
         refusal(bytes),
         'The header claims 500 sections, whose directory ends at byte 8016, '
-        'past the end of a 3824-byte file.',
+        'past the end of a 3844-byte file.',
       );
     });
 
@@ -703,8 +724,8 @@ void main() {
       final cut = Uint8List.sublistView(whole, 0, whole.length - 8);
       expect(
         refusal(cut),
-        'Section 6 runs from byte 3784 for 40 bytes, past the end of a '
-        '3816-byte file.',
+        'Section 6 runs from byte 3804 for 40 bytes, past the end of a '
+        '3836-byte file.',
       );
     });
 

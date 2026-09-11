@@ -89,14 +89,33 @@ final class ReadinessCache {
             // One object at a time, so the answer can be kept per object. The
             // profile comes along because a single-object check must not
             // report the budget — that is the project's question and is asked
-            // once below, out here where the total is known.
+            // once below, out here where the total is known. `materials` and
+            // `images` come along too, whole rather than trimmed to what this
+            // one object uses: `object.materialSlots` and every
+            // `TextureBinding.imageIndex` are indices into the *project's*
+            // tables, and a trimmed copy would have to remap both rather than
+            // just pass them — `doc-35n`'s texel-density rule reads exactly
+            // this path, and silently found nothing here until this line
+            // existed, the same shape of gap `mesh-48`'s own cache had.
             ModelProject(
               objects: <ModelObject>[object],
               profile: _noBudget(project.profile),
+              materials: project.materials,
+              images: project.images,
             ),
             trianglesOnly: resolvedTrianglesOnly,
             requireManifold: resolvedRequireManifold,
-          ).issues,
+          ).issues
+              // Filtered to object-scoped issues only, for the same reason
+              // the budget is excluded above: `materialIssues(project)`
+              // runs *inside* `ExportReadiness.check` too, over the whole
+              // `materials` table just passed in, and every one of its
+              // issues has `object: null` (see `_singleMaterialIssues`) —
+              // without this filter every material issue would be counted
+              // once per object sharing it rather than once, the moment
+              // `materials` stopped being an empty list here.
+              .where((ExportIssue i) => i.object != null)
+              .toList(growable: false),
           object.geometry.triangleCount,
         );
         _byObject[object.id] = now;
@@ -153,6 +172,7 @@ ProjectProfile _noBudget(ProjectProfile real) => ProjectProfile(
   maxTextureBytes: real.maxTextureBytes,
   requireTriangles: real.requireTriangles,
   requireManifold: real.requireManifold,
+  texelsPerMeter: real.texelsPerMeter,
 );
 
 ExportIssue? _budgetIssue(ModelProject project, int triangles) {

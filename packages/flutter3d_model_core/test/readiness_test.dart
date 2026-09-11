@@ -547,6 +547,146 @@ void main() {
     );
   });
 
+  group('texel density, doc-35n', () {
+    // A minimal PNG header, the fewest bytes `imageDimensions` looks at —
+    // the same fixture `image_dimensions_test.dart` and `texture_info_test.dart`
+    // already build for the same reason: nothing here decodes a pixel.
+    Uint8List png(int width, int height) {
+      final bytes = Uint8List(33);
+      final view = ByteData.sublistView(bytes);
+      bytes.setAll(0, <int>[0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]);
+      view.setUint32(8, 13, Endian.big);
+      bytes.setAll(12, <int>[0x49, 0x48, 0x44, 0x52]);
+      view.setUint32(16, width, Endian.big);
+      view.setUint32(20, height, Endian.big);
+      bytes.setAll(24, <int>[8, 6, 0, 0, 0]);
+      return bytes;
+    }
+
+    /// A single 1×1 quad in the XY plane — world area exactly 1 — with the
+    /// UV set to cover the whole 0–1 square, so its UV area is exactly 1
+    /// too and a texture's own resolution is the texel density verbatim.
+    EditMesh unitQuad({bool withUv = true}) {
+      final mesh = EditMesh.fromFaces(
+        <Vector3>[
+          Vector3(0, 0, 0),
+          Vector3(1, 0, 0),
+          Vector3(1, 1, 0),
+          Vector3(0, 1, 0),
+        ],
+        <List<int>>[
+          <int>[0, 1, 2, 3],
+        ],
+      );
+      if (withUv) {
+        final uvs = <Vector2>[
+          Vector2(0, 0),
+          Vector2(1, 0),
+          Vector2(1, 1),
+          Vector2(0, 1),
+        ];
+        var i = 0;
+        mesh.beginStep();
+        mesh.forEachHalfEdge(0, (int half) => mesh.setUv(half, uvs[i++]));
+        mesh.endStep();
+      }
+      return mesh;
+    }
+
+    ModelProject withTexturedQuad({
+      required bool withUv,
+      required int side,
+      required double? texelsPerMeter,
+    }) {
+      var project = ModelProject(
+        // `requireTriangles: false`, so this quad's own four sides do not
+        // also trip `_wideFaces` — a different rule this group is not
+        // about.
+        profile: ProjectProfile(
+          texelsPerMeter: texelsPerMeter,
+          requireTriangles: false,
+        ),
+        materials: <ProjectMaterial>[
+          ProjectMaterial(
+            surface: SurfaceMaterial(
+              baseColorTexture: const TextureBinding(imageIndex: 0),
+            ),
+          ),
+        ],
+        images: <EncodedImage>[EncodedImage(bytes: png(side, side))],
+      );
+      project = project.added(
+        (int id) => ModelObject(
+          id: id,
+          name: 'panel',
+          geometry: EditedGeometry(unitQuad(withUv: withUv)),
+          transform: Matrix4.identity(),
+          materialSlots: const <int>[0],
+        ),
+      );
+      return project;
+    }
+
+    test('a texture twice as dense as the profile target is a warning with '
+        'both numbers', () {
+      // 1024 px over a 1 m² UV island is 1024 texels/m; a 512 target makes
+      // that exactly 2× — the acceptance line's own number, and the ratio
+      // boundary the rule itself treats as "over" rather than "under".
+      final ready = ExportReadiness.check(
+        withTexturedQuad(withUv: true, side: 1024, texelsPerMeter: 512),
+      );
+
+      // Mutation: compare `actual` to `texelsPerMeter` with `==` (or drop
+      // the threshold and fire on any difference) — either would fire on
+      // every textured object at all, including ones already on target.
+      expect(ready.issues, hasLength(1));
+      expect(ready.issues.single.severity, ExportSeverity.warning);
+      expect(ready.issues.single.object?.name, 'panel');
+      expect(ready.issues.single.message, contains('1024'));
+      expect(ready.issues.single.message, contains('512'));
+    });
+
+    test('a texture on target is not flagged', () {
+      final ready = ExportReadiness.check(
+        withTexturedQuad(withUv: true, side: 512, texelsPerMeter: 512),
+      );
+      expect(ready.issues, isEmpty);
+    });
+
+    test('an object with no UV stays silent even with a target set', () {
+      // Mutation: treat an all-zero UV loop as a valid degenerate island of
+      // area zero and divide by it anyway — this is exactly the input that
+      // would produce a NaN or an infinite density rather than silence.
+      final ready = ExportReadiness.check(
+        withTexturedQuad(withUv: false, side: 1024, texelsPerMeter: 512),
+      );
+      expect(ready.issues, isEmpty);
+    });
+
+    test('no profile target set stays silent even on a wildly mismatched '
+        'texture', () {
+      final ready = ExportReadiness.check(
+        withTexturedQuad(withUv: true, side: 8192, texelsPerMeter: null),
+      );
+      expect(ready.issues, isEmpty);
+    });
+
+    test('ReadinessCache finds the same warning the direct check does', () {
+      // The per-object cache builds its own single-object `ModelProject`
+      // internally — `readiness_cache.dart`'s own `materials`/`images`
+      // wiring is what this exercises, not `ExportReadiness.check` again.
+      final project = withTexturedQuad(
+        withUv: true,
+        side: 1024,
+        texelsPerMeter: 512,
+      );
+      final cache = ReadinessCache();
+      final cached = cache.of(project);
+      expect(cached.issues, hasLength(1));
+      expect(cached.issues.single.message, contains('1024'));
+    });
+  });
+
   group('topology, which is MeshChecks and not this', () {
     test('a surface pinched at a point is a warning naming the object', () {
       final ready = ExportReadiness.check(

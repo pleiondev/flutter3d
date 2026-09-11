@@ -69,6 +69,7 @@ final class ProjectProfile {
     this.requireTriangles = true,
     this.requireManifold = false,
     this.textures = TextureBudget.desktop,
+    this.texelsPerMeter,
   });
 
   /// What a handset can be asked for, which is the tightest of the three the
@@ -112,6 +113,18 @@ final class ProjectProfile {
   /// spoiling it. Read by `ExportReadiness.check` the same way.
   final bool requireManifold;
 
+  /// The texel density every textured object is measured against — how many
+  /// pixels of its texture should cover one metre of its own surface — or
+  /// null for no check at all, the same "nothing measured yet" null
+  /// [maxTextureBytes] already uses. **A single number for the whole
+  /// project, not a memo pinned to one asset**: what breaks the illusion of
+  /// one scene is not that a box's texture is blurry in isolation, but that
+  /// it is visibly coarser or crisper than the box next to it, and the
+  /// cheapest way to catch that is one shared target every object is held
+  /// to. Read by `ExportReadiness.check`, which is silent about an object
+  /// with no UV of its own — there is no area to measure a density over.
+  final double? texelsPerMeter;
+
   /// What control a profile editor should offer for each of this class's own
   /// fields, keyed by field name.
   ///
@@ -149,6 +162,7 @@ final class ProjectProfile {
     'maxTextureBytes': const IntHint(min: 0),
     'requireTriangles': const BoolHint(),
     'requireManifold': const BoolHint(),
+    'texelsPerMeter': const DoubleHint(min: 0, unit: 'texels/m'),
   };
 
   @override
@@ -163,7 +177,8 @@ final class ProjectProfile {
       other.maxTextureBytes == maxTextureBytes &&
       other.requireTriangles == requireTriangles &&
       other.requireManifold == requireManifold &&
-      other.textures == textures;
+      other.textures == textures &&
+      other.texelsPerMeter == texelsPerMeter;
 
   @override
   int get hashCode => Object.hash(
@@ -177,6 +192,7 @@ final class ProjectProfile {
     requireTriangles,
     requireManifold,
     textures,
+    texelsPerMeter,
   );
 }
 

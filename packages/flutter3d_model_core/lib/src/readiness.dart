@@ -23,10 +23,15 @@
 /// their forty objects to open.
 library;
 
+import 'dart:math';
+
 import 'package:flutter3d_formats/flutter3d_formats.dart';
 import 'package:flutter3d_geometry/flutter3d_geometry.dart';
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
+import 'package:vector_math/vector_math.dart';
 
+import 'image_dimensions.dart';
+import 'material.dart';
 import 'project.dart';
 
 /// Whether an issue stops the export or spoils the result.
@@ -98,6 +103,9 @@ final class ExportReadiness {
           trianglesOnly: trianglesOnly ?? project.profile.requireTriangles,
           requireManifold: requireManifold ?? project.profile.requireManifold,
           maxTextureSize: project.profile.maxTextureSize,
+          texelsPerMeter: project.profile.texelsPerMeter,
+          materials: project.materials,
+          images: project.images,
         ),
     ];
     return ExportReadiness._(_worstFirst(found));
@@ -173,6 +181,9 @@ List<ExportIssue> _issuesWith(
   required bool trianglesOnly,
   required bool requireManifold,
   required int maxTextureSize,
+  required double? texelsPerMeter,
+  required List<ProjectMaterial> materials,
+  required List<EncodedImage> images,
 }) => <ExportIssue>[
   // An error, and the loader is the reason rather than taste: a primitive with
   // no indices is a mesh some glTF readers reject outright and the rest draw as
@@ -207,17 +218,123 @@ List<ExportIssue> _issuesWith(
       data,
       maxTextureSize,
     ),
-    EditedGeometry(:final EditMesh mesh) => _meshIssues(
-      object,
-      mesh,
-      trianglesOnly: trianglesOnly,
-      requireManifold: requireManifold,
-    ),
+    EditedGeometry(:final EditMesh mesh) => <ExportIssue>[
+      ..._meshIssues(
+        object,
+        mesh,
+        trianglesOnly: trianglesOnly,
+        requireManifold: requireManifold,
+      ),
+      ?_texelDensityIssue(
+        object,
+        mesh,
+        texelsPerMeter: texelsPerMeter,
+        materials: materials,
+        images: images,
+      ),
+    ],
     // Deliberately nothing, and for the same reason the check above exempts
     // it: a socket has no faces on purpose.
     SocketGeometry() => const <ExportIssue>[],
   },
 ];
+
+/// How densely [object]'s texture covers its own surface, against the
+/// profile's [texelsPerMeter] target — `doc-35n`'s own rule.
+///
+/// **Silent whenever there is nothing to measure, on purpose**: no target set
+/// ([texelsPerMeter] null), no material on the object's first slot, no base
+/// colour texture on that material, an image whose header will not read, or
+/// a mesh with no UV island of its own — every corner an [EditMesh] has not
+/// been given a UV sits at `Vector2.zero()`, which folds the whole face flat
+/// and gives it zero UV area, so "no UV" and "degenerate UV" both read as the
+/// same silence rather than as a division by zero. Any one of those is "there
+/// is no picture stretched over this object to measure", a different fact
+/// from "the picture is the wrong size for it".
+///
+/// **One material only, the object's own first slot** — the same
+/// simplification `project_document.dart`'s own `_slotOf` already makes and
+/// for the same reason it gives: an object is one draw call today, so asking
+/// which of several materials to measure is a question nothing can have set
+/// up yet.
+///
+/// The number itself is the texel-density formula this shape of check
+/// already goes by elsewhere: a texture's own resolution, scaled by how much
+/// of the unit UV square a piece of surface takes up against how much of the
+/// object's actual surface it is — `resolution × √(uvArea) ÷ √(worldArea)`.
+/// Both areas come from the same fan-triangulation `EditMesh.areaOf` already
+/// walks for world space, done again here over `uvOf` for UV space, since
+/// `areaOf` itself has no UV-space twin to call instead.
+///
+/// A factor of two off target either way is the threshold, not a return to
+/// exactly [texelsPerMeter]: `mat-28`'s own texture presets already differ by
+/// that much between targets, so a check that fired on any deviation at all
+/// would be a check nobody could satisfy on every profile at once.
+ExportIssue? _texelDensityIssue(
+  ModelObject object,
+  EditMesh mesh, {
+  required double? texelsPerMeter,
+  required List<ProjectMaterial> materials,
+  required List<EncodedImage> images,
+}) {
+  if (texelsPerMeter == null || object.materialSlots.isEmpty) return null;
+  final slot = object.materialSlots.first;
+  if (slot < 0 || slot >= materials.length) return null;
+  final texture = materials[slot].surface.baseColorTexture;
+  if (texture == null ||
+      texture.imageIndex < 0 ||
+      texture.imageIndex >= images.length) {
+    return null;
+  }
+  final dimensions = imageDimensions(images[texture.imageIndex].bytes);
+  if (dimensions == null) return null;
+
+  var worldArea = 0.0;
+  var uvArea = 0.0;
+  for (var face = 0; face < mesh.faceSlotCount; face++) {
+    if (!mesh.isFaceAlive(face)) continue;
+    worldArea += mesh.areaOf(face);
+    uvArea += _uvAreaOf(mesh, face);
+  }
+  if (uvArea <= 0 || worldArea <= 0) return null;
+
+  final resolution = sqrt(
+    dimensions.width.toDouble() * dimensions.height.toDouble(),
+  );
+  final actual = resolution * sqrt(uvArea) / sqrt(worldArea);
+  final ratio = actual / texelsPerMeter;
+  if (ratio < 2.0 && ratio > 0.5) return null;
+
+  return ExportIssue(
+    ExportSeverity.warning,
+    '"${object.name}" measures ${actual.round()} texels/m against a '
+    '${texelsPerMeter.round()} texels/m profile target — '
+    '${ratio >= 1 ? 'about ${ratio.toStringAsFixed(1)}× as dense' : 'about ${(1 / ratio).toStringAsFixed(1)}× as sparse'}, '
+    'which will read as ${ratio >= 1 ? 'crisper' : 'blurrier'} than the rest '
+    'of a scene built to the same target',
+    object: object,
+  );
+}
+
+/// The UV-space twin of [EditMesh.areaOf]: the same fan triangulation, over
+/// [EditMesh.uvOf] instead of [EditMesh.positionOf], and a 2D cross product
+/// (the shoelace term) instead of a 3D one since a UV island has no third
+/// axis to be flat against.
+double _uvAreaOf(EditMesh mesh, int face) {
+  final corners = <Vector2>[];
+  mesh.forEachHalfEdge(face, (int half) => corners.add(mesh.uvOf(half)));
+  if (corners.length < 3) return 0;
+  final anchor = corners.first;
+  var total = 0.0;
+  for (var i = 1; i + 1 < corners.length; i++) {
+    final bx = corners[i].x - anchor.x;
+    final by = corners[i].y - anchor.y;
+    final cx = corners[i + 1].x - anchor.x;
+    final cy = corners[i + 1].y - anchor.y;
+    total += (bx * cy - by * cx).abs() * 0.5;
+  }
+  return total;
+}
 
 /// Morph targets an imported mesh brought in, against the profile's texture
 /// limit.

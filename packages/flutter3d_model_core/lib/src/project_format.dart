@@ -329,6 +329,9 @@ Uint8List writeProject(ModelProject project) {
             'targetFormat': project.profile.textures.targetFormat.name,
             'requirePowerOfTwo': project.profile.textures.requirePowerOfTwo,
           },
+          // `doc-35n`, younger even than `textures`, read back the same
+          // optional way.
+          'texelsPerMeter': project.profile.texelsPerMeter,
         },
         // Written down rather than worked out from the objects on the way back
         // in: an id belonging to something deleted must not be handed out again,
@@ -1049,10 +1052,11 @@ TextureBinding? _bindingFrom(
 /// The profile [json] describes, or null when it is missing one of the five
 /// original limits.
 ///
-/// **Five fields younger than the other five, and each one optional here.**
+/// **Six fields younger than the other five, and each one optional here.**
 /// `target`, `maxTextureBytes`, `requireTriangles` and `requireManifold`
-/// arrived with `doc-13`; `textures` arrived later still with `mat-28`. A v1
-/// file predates all five, and reading them as required would refuse every
+/// arrived with `doc-13`; `textures` arrived later still with `mat-28`, and
+/// `texelsPerMeter` later still with `doc-35n`. A v1 file predates all six,
+/// and reading them as required would refuse every
 /// project saved before this change over a difference that changes what a
 /// *new* save means, not what an old one did — exactly the version bump
 /// `doc-28` says not to spend on this. Each reads back as the default
@@ -1092,6 +1096,10 @@ ProjectProfile? _readProfile(Object? json, List<String> warnings) {
           json['requireManifold'] as bool? ?? fallback.requireManifold,
       textures:
           _readTextureBudget(json['textures'], warnings) ?? fallback.textures,
+      texelsPerMeter: switch (json['texelsPerMeter']) {
+        final num value => value.toDouble(),
+        _ => fallback.texelsPerMeter,
+      },
     );
   }
   return null;

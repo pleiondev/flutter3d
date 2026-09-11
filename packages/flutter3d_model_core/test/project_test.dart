@@ -135,6 +135,7 @@ void main() {
           'maxTextureBytes',
           'requireTriangles',
           'requireManifold',
+          'texelsPerMeter',
         ]),
       );
     });

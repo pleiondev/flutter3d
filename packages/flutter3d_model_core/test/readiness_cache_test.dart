@@ -310,6 +310,35 @@ void main() {
       );
     });
 
+    test('a material issue is counted once, not once per object sharing '
+        'it', () {
+      // `doc-35n` gave the per-object cache path a real `materials` table
+      // to read for the first time — before it, this project's own
+      // `ExportReadiness.check` inside `ReadinessCache.of` ran over an
+      // empty `materials` list and `materialIssues` was a silent no-op
+      // there, so nothing walked this path to duplicate. Mutation: drop
+      // the `.where((i) => i.object != null)` filter in
+      // `ReadinessCache.of` and this project's one blend warning becomes
+      // three — one from the aggregate `materialIssues(project)` call and
+      // one more for every object whose own per-object check now also
+      // carries the whole `materials` table.
+      final project = cubes(3).copyWith(
+        materials: <ProjectMaterial>[
+          ProjectMaterial(
+            surface: SurfaceMaterial(
+              alphaMode: SurfaceAlphaMode.blend,
+              baseColor: Vector4(1, 1, 1, 1),
+            ),
+          ),
+        ],
+      );
+      final cache = ReadinessCache();
+      expect(
+        cache.of(project).issues.where((i) => i.message.contains('blend')),
+        hasLength(1),
+      );
+    });
+
     test('does not count toward walked — no object owns it', () {
       final project = cubes(2).copyWith(
         materials: <ProjectMaterial>[
