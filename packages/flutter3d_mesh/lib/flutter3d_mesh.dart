@@ -30,6 +30,7 @@ export 'src/journal.dart';
 export 'src/layout_plan.dart';
 export 'src/merge.dart';
 export 'src/mesh_bvh.dart';
+export 'src/mesh_repair.dart';
 export 'src/mirror.dart';
 export 'src/modifier.dart';
 export 'src/normals.dart';
