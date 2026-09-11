@@ -2407,6 +2407,33 @@ void main() {
       );
     });
 
+    test('SetModifierField dispatches on the concrete modifier kind', () {
+      final history = edited();
+      history.run(
+        AddModifier(id: 1, modifier: const SmoothModifier(iterations: 5)),
+      );
+
+      expect(
+        history.run(
+          SetModifierField(
+            id: 1,
+            index: 0,
+            field: 'preserveVolume',
+            value: true,
+          ),
+        ),
+        isNull,
+      );
+
+      final modifier =
+          history.project[1]!.modifiers.single.modifier as SmoothModifier;
+      // Mutation: leave `preserveVolume` at the case's own default `false`
+      // instead of forwarding `value` — the acceptance's own "10 iterations,
+      // <5% with HC" is exactly the setting this field exists to turn on.
+      expect(modifier.preserveVolume, isTrue);
+      expect(modifier.iterations, 5);
+    });
+
     // JSON round-tripping is covered once, for every command including
     // these six, by "every name has a sample and round-trips through JSON"
     // in the journal group above — no need for a second copy of that

@@ -268,4 +268,77 @@ void main() {
       expect(throughModifier.signedVolume, closeTo(direct.signedVolume, 1e-9));
     });
   });
+
+  group('SmoothModifier', () {
+    test('never mutates its own base', () {
+      final base = const ParametricSphere(segments: 8, rings: 4).toEditMesh();
+      final before = <Vector3>[
+        for (var v = 0; v < base.vertexSlotCount; v++)
+          if (base.isVertexAlive(v)) base.positionOf(v),
+      ];
+
+      const modifier = SmoothModifier(iterations: 5, preserveVolume: true);
+      modifier.apply(base, ModifierContext());
+
+      // Mutation: run `smoothVertices` on `base` itself instead of a
+      // `fromBytes(toBytes())` copy — a stack evaluated twice from the same
+      // base would then find it already smoothed the second time.
+      final after = <Vector3>[
+        for (var v = 0; v < base.vertexSlotCount; v++)
+          if (base.isVertexAlive(v)) base.positionOf(v),
+      ];
+      expect(after, before);
+    });
+
+    test('the result is a genuinely different, smoothed mesh', () {
+      final base = const ParametricSphere(segments: 8, rings: 4).toEditMesh();
+      const modifier = SmoothModifier(iterations: 5, preserveVolume: true);
+
+      final result = modifier.apply(base, ModifierContext());
+      result.validate();
+
+      expect(result.vertexCount, base.vertexCount);
+      expect(identical(result, base), isFalse);
+    });
+
+    test('round-trips through JSON', () {
+      const modifier = SmoothModifier(
+        iterations: 12,
+        lambda: 0.3,
+        preserveVolume: true,
+      );
+      final restored = modifierFromJson(modifier.toJson());
+
+      expect(restored, isA<SmoothModifier>());
+      final again = restored! as SmoothModifier;
+      expect(again.iterations, 12);
+      expect(again.lambda, 0.3);
+      expect(again.preserveVolume, isTrue);
+    });
+
+    test('a modifier missing a required field is refused, not guessed', () {
+      expect(
+        modifierFromJson(<String, Object?>{'kind': 'smooth', 'lambda': 0.5}),
+        isNull,
+      );
+    });
+
+    test('lambda and preserveVolume default the way the constructor does '
+        'when a caller omits them', () {
+      final restored =
+          modifierFromJson(<String, Object?>{
+                'kind': 'smooth',
+                'iterations': 7,
+              })!
+              as SmoothModifier;
+
+      // Mutation: require `lambda`/`preserveVolume` in the same pattern as
+      // `iterations` instead of defaulting them — an MCP tool call naming
+      // only `iterations`, which this tool's own schema advertises as
+      // enough on its own, would then be refused rather than answered.
+      expect(restored.iterations, 7);
+      expect(restored.lambda, 0.5);
+      expect(restored.preserveVolume, isFalse);
+    });
+  });
 }

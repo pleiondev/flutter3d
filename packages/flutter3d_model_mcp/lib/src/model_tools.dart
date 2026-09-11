@@ -758,14 +758,18 @@ List<ModelTool> get _commandTools => <ModelTool>[
           'takes normal (3 numbers, the plane through the object\'s own '
           'origin) — both also take an optional mergeDistance (a number) to '
           'weld seams, and mirror also takes bisect (refused — not built '
-          'yet) and flipUv (stored, no effect yet).',
+          'yet) and flipUv (stored, no effect yet); kind "smooth" takes '
+          'iterations (an int, at least 1), an optional lambda (a number, '
+          '0-1, how far each pass moves toward its neighbours\' average) '
+          'and an optional preserveVolume (a bool — without it, enough '
+          'iterations visibly shrink the mesh).',
       inputSchema: ObjectSchema(
         properties: <String, Schema>{
           'id': IntegerSchema(description: 'the object'),
           'modifier': ObjectSchema(
             properties: <String, Schema>{
               'kind': UntitledSingleSelectEnumSchema(
-                values: <String>['array', 'mirror'],
+                values: <String>['array', 'mirror', 'smooth'],
               ),
               'count': IntegerSchema(description: 'array only'),
               'offset': ListSchema(
@@ -776,9 +780,12 @@ List<ModelTool> get _commandTools => <ModelTool>[
                 items: NumberSchema(),
                 description: 'mirror only, 3 numbers',
               ),
-              'mergeDistance': NumberSchema(description: 'either kind'),
+              'mergeDistance': NumberSchema(description: 'array or mirror'),
               'bisect': BooleanSchema(description: 'mirror only'),
               'flipUv': BooleanSchema(description: 'mirror only'),
+              'iterations': IntegerSchema(description: 'smooth only'),
+              'lambda': NumberSchema(description: 'smooth only, 0-1'),
+              'preserveVolume': BooleanSchema(description: 'smooth only'),
             },
             required: <String>['kind'],
           ),

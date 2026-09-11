@@ -69,4 +69,9 @@ Map<String, ParamHint> hintsForModifier(Modifier modifier) =>
         'bisect': BoolHint(),
         'flipUv': BoolHint(),
       },
+      SmoothModifier() => const <String, ParamHint>{
+        'iterations': IntHint(min: 1, max: 50),
+        'lambda': DoubleHint(min: 0.0, max: 1.0, step: 0.05),
+        'preserveVolume': BoolHint(),
+      },
     };

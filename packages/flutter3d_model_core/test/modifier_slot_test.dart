@@ -90,5 +90,16 @@ void main() {
       expect(hints['bisect'], isA<BoolHint>());
       expect(hints['flipUv'], isA<BoolHint>());
     });
+
+    test('SmoothModifier hints its own three fields', () {
+      final hints = hintsForModifier(const SmoothModifier(iterations: 5));
+      expect(
+        hints.keys,
+        unorderedEquals(<String>['iterations', 'lambda', 'preserveVolume']),
+      );
+      expect(hints['iterations'], isA<IntHint>());
+      expect(hints['lambda'], isA<DoubleHint>());
+      expect(hints['preserveVolume'], isA<BoolHint>());
+    });
   });
 }

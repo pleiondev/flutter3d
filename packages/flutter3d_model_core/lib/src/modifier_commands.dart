@@ -373,4 +373,31 @@ Modifier? _modifierFieldSet(Modifier modifier, String field, Object? value) =>
               : null,
         _ => null,
       },
+      final SmoothModifier m => switch (field) {
+        'iterations' =>
+          value is int && value > 0
+              ? SmoothModifier(
+                  iterations: value,
+                  lambda: m.lambda,
+                  preserveVolume: m.preserveVolume,
+                )
+              : null,
+        'lambda' =>
+          value is num
+              ? SmoothModifier(
+                  iterations: m.iterations,
+                  lambda: value.toDouble(),
+                  preserveVolume: m.preserveVolume,
+                )
+              : null,
+        'preserveVolume' =>
+          value is bool
+              ? SmoothModifier(
+                  iterations: m.iterations,
+                  lambda: m.lambda,
+                  preserveVolume: value,
+                )
+              : null,
+        _ => null,
+      },
     };
