@@ -21,6 +21,12 @@ dependencies:
   # application without leaving anything behind.
   flutter3d_sim: ^0.6.0
 
+  # `MaterialDocument`/`MaterialHint`, `readFmat`/`writeFmat` and
+  # `builtInMaterialHints` — what `material_edit.dart`'s own gate is written
+  # against. Itself a plain Dart package, so this one stays off the Flutter
+  # SDK adding it.
+  flutter3d_formats: ^0.6.0
+
   vector_math: ^2.2.0
 
 dev_dependencies:
@@ -45,3 +51,8 @@ dev_dependencies:
 # among them, and fails on the first import that would put a Flutter SDK back in
 # front of a program that only wants to open a level. It keeps the name it was
 # published under, from the day the simulation was the only package on the list.
+#
+# `material_edit.dart` moved in once `flutter3d_formats` gave it a plain-Dart
+# `MaterialDocument` to depend on — the first thing here that is not about a
+# level at all, and the reason this package's own dependency on `flutter3d`'s
+# publishing tier shifted (see ARCHITECTURE.md §16, rel-03).

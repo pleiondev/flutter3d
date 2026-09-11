@@ -38,6 +38,13 @@
 /// in front of a program that only wants to open a level. The rule keeps the
 /// name it was published under, from the day the simulation was the only
 /// package on that list.
+///
+/// **A second document lives here besides the level: `.fmat`.** [materialWith]
+/// is the gate `flutter3d_editor`'s material panel used to keep to itself — it
+/// could move only once [MaterialDocument] left `flutter3d` for
+/// `flutter3d_formats`, itself a plain Dart package, so this one could depend
+/// on it without a Flutter SDK arriving behind it. The second editor a `.fmat`
+/// field ever gets edited from does not have to write the gate again.
 library;
 
 export 'src/editing.dart';
@@ -46,6 +53,7 @@ export 'src/editor_history.dart';
 export 'src/gizmos.dart';
 export 'src/listing.dart';
 export 'src/looks.dart';
+export 'src/material_edit.dart';
 export 'src/palette_items.dart';
 export 'src/picking.dart';
 export 'src/scaffold.dart';

@@ -19,12 +19,12 @@ description: Three independent golden sets and a fourth being recorded, mutation
 | `flutter3d_game_platformer` | 217 | | `flutter3d_hardware` | 54 |
 | `apps/flutter3d_demo_platformer` | 196 | | `flutter3d_impeller` | 53 |
 | `flutter3d_cpu` | 194 | | `apps/flutter3d_demo_strategy` | 42 |
-| `apps/flutter3d_editor` | 169 | | `flutter3d_session` | 38 |
+| `apps/flutter3d_editor` | 163 | | `flutter3d_session` | 38 |
 | `apps/flutter3d_demo_racing` | 145 | | `pointer_lock` | 28 |
 | `flutter3d_physics` | 168 | | `flutter3d_webgpu` | 175 |
 | `flutter3d_game_strategy` | 131 | | `flutter3d_editor_mcp` | 19 |
 | `flutter3d_screens` | 125 | | `flutter3d_testing` | 8 |
-| `flutter3d_editor_core` | 101 | | `apps/flutter3d_template_app` | 4 |
+| `flutter3d_editor_core` | 107 | | `apps/flutter3d_template_app` | 4 |
 | `apps/flutter3d_demo_dungeon` | 89 | | `flutter3d_backend` | 4 |
 | `flutter3d_game` | 79 | | `flutter3d_shaders` | 1 |
 | `flutter3d_particles` | 73 | | `flutter3d_stereo` | 39 |
