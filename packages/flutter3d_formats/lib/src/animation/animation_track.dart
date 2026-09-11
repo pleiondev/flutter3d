@@ -27,6 +27,16 @@ enum AnimationInterpolation {
   /// Values stored per keyframe: a cubic key carries an in tangent, the value,
   /// and an out tangent.
   int get valuesPerKey => this == cubicSpline ? 3 : 1;
+
+  /// The exact inverse of [fromGltf]: the string a writer puts under
+  /// `sampler.interpolation`. Never omitted even for [linear], the spec's own
+  /// default — a writer that relies on a reader defaulting the same way it
+  /// does is one omission away from disagreeing with a reader that does not.
+  String toGltf() => switch (this) {
+    AnimationInterpolation.step => 'STEP',
+    AnimationInterpolation.linear => 'LINEAR',
+    AnimationInterpolation.cubicSpline => 'CUBICSPLINE',
+  };
 }
 
 /// Which node property a track drives.
@@ -51,6 +61,15 @@ enum AnimationPath {
     'scale' => AnimationPath.scale,
     'weights' => AnimationPath.weights,
     _ => null,
+  };
+
+  /// The exact inverse of [fromGltf]: the string a writer puts under
+  /// `channel.target.path`.
+  String toGltf() => switch (this) {
+    AnimationPath.translation => 'translation',
+    AnimationPath.rotation => 'rotation',
+    AnimationPath.scale => 'scale',
+    AnimationPath.weights => 'weights',
   };
 }
 

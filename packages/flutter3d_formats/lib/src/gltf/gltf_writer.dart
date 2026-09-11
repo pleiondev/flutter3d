@@ -2,6 +2,7 @@ import 'dart:typed_data';
 
 import 'package:flutter3d_geometry/flutter3d_geometry.dart';
 
+import '../animation/animation_track.dart';
 import '../image_sniff.dart';
 import '../model_document.dart';
 import 'glb_container.dart';
@@ -15,6 +16,7 @@ import 'gltf_loader.dart';
 // binary blob and the flat JSON arrays declared below, so they are `part`s of
 // this library rather than files that import it — the same reasoning as the
 // loader's own parts.
+part 'gltf_writer_animation.dart';
 part 'gltf_writer_images.dart';
 part 'gltf_writer_materials.dart';
 part 'gltf_writer_mesh.dart';
@@ -27,12 +29,10 @@ part 'gltf_writer_scene.dart';
 /// glTF, OBJ, `.f3d` — so exporting a model imported from any of them needs no
 /// format-specific code at the call site.
 ///
-/// **Geometry and materials only. Skins, animations and morph targets are not
-/// written here** — `document.skins`/`document.animations`/a surface's
-/// `morphWeights` are read past rather than serialized, which is honest for a
-/// document that has none and silently lossy for one that does. That is the
-/// next layer, `fmt-07`'s `gltf_writer_animation.dart` part, built once this
-/// one has something to attach to.
+/// Geometry, materials, skins, animations and morph targets — the whole
+/// document, less what nothing here reads: a surface's `flipWinding` is
+/// re-derived by any reader from the same node transform this writes, and is
+/// not stored twice.
 ///
 /// Everything is embedded in the GLB's own binary chunk — vertex data and
 /// image bytes alike — so [writeGlb] always produces one self-contained file,
@@ -65,6 +65,8 @@ final class GltfWriter {
       for (var i = 0; i < document.surfaces.length; i++) _primitiveFor(i),
     ];
     final (meshes, nodes, scenes) = _writeScene(primitives);
+    final skins = _writeSkins();
+    final animations = _writeAnimations();
 
     final json = <String, Object?>{
       'asset': <String, Object?>{
@@ -78,6 +80,8 @@ final class GltfWriter {
       if (scenes.isNotEmpty) 'scenes': scenes,
       if (nodes.isNotEmpty) 'nodes': nodes,
       if (meshes.isNotEmpty) 'meshes': meshes,
+      if (skins.isNotEmpty) 'skins': skins,
+      if (animations.isNotEmpty) 'animations': animations,
       if (materials.isNotEmpty) 'materials': materials,
       if (samplers.isNotEmpty) 'samplers': samplers,
       if (textures.isNotEmpty) 'textures': textures,

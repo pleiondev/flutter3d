@@ -35,8 +35,21 @@ extension _GltfWriterScene on GltfWriter {
       final key = surfaces.join(',');
       final existing = meshIndexByShape[key];
       if (existing != null) return existing;
+
+      // glTF puts default morph weights and target names on the mesh, one
+      // level above where this document keeps them (on the surface, per
+      // `ModelSurface.morphWeights`'s own doc comment on why) — every surface
+      // sharing one mesh entry came from one node in the original file, so
+      // the first one's values are the node's, and writing them once here is
+      // exactly the fold a decoder already did in the other direction.
+      final weights = document.surfaces[surfaces.first].morphWeights;
+      final targetNames = _targetNamesFor(surfaces.first);
+
       meshes.add(<String, Object?>{
         'primitives': <Object?>[for (final s in surfaces) primitives[s]],
+        if (weights.isNotEmpty) 'weights': weights,
+        if (targetNames.any((name) => name != null))
+          'extras': <String, Object?>{'targetNames': targetNames},
       });
       final index = meshes.length - 1;
       meshIndexByShape[key] = index;
@@ -64,6 +77,13 @@ extension _GltfWriterScene on GltfWriter {
           'scale': <double>[node.scale.x, node.scale.y, node.scale.z],
           if (node.children.isNotEmpty) 'children': node.children,
           'mesh': ?meshIndexFor(node.surfaces),
+          // Per-node in glTF and per-surface here (`ModelSurface.skinIndex`,
+          // since a skin binds vertices, not a mesh entry) — every surface a
+          // node draws shares one skin already, the decoder's own invariant,
+          // so the first one's is the node's.
+          'skin': ?(node.surfaces.isEmpty
+              ? null
+              : document.surfaces[node.surfaces.first].skinIndex),
         },
     ];
 
