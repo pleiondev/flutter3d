@@ -2097,4 +2097,69 @@ void main() {
       expect((back! as ScaleBy).pivot, TransformPivot.median);
     });
   });
+
+  group('ParamHint', () {
+    /// One of every command this session gave a hint, built so every
+    /// argument that ever gets one is actually set — a null `distance` on
+    /// `MergeByDistance` would still pass the subset check below for the
+    /// wrong reason, by having nothing on either side to compare.
+    final hinted = <ModelCommand>[
+      MoveBy(Vector3(1, 2, 3)),
+      RotateBy(axis: Vector3(0, 1, 0), radians: 0.5),
+      const ScaleBy(2),
+      const AddPrimitive(kind: 'sphere', size: 2, segments: 16),
+      AddLathe(
+        profile: <Vector2>[Vector2(0.4, 0), Vector2(0.2, 1)],
+        segments: 12,
+        shapeName: 'glass',
+      ),
+      const Extrude(0.25),
+      const LoopCut(cuts: 3, factor: 0.25),
+      TransformElements(Matrix4.identity()),
+      const MergeByDistance(distance: 0.001),
+      const RecalculateNormals(flip: true),
+    ];
+
+    test('a hint\'s keys are always among the command\'s own arguments', () {
+      // Mutation: hint a key the command does not actually write under that
+      // name — `AddLathe`'s own display name is `arguments['label']`, not
+      // `arguments['shapeName']`, and a hint keyed the second way would slip
+      // past every other check here while describing a control for nothing.
+      for (final command in hinted) {
+        expect(
+          command.hints.keys,
+          everyElement(isIn(command.arguments.keys)),
+          reason:
+              '${command.name}: ${command.hints.keys} vs '
+              '${command.arguments.keys}',
+        );
+      }
+    });
+
+    test('a command with nothing numeric offers no hints at all', () {
+      // The default on `ModelCommand` itself, unless a command overrides it.
+      expect(const DeleteObjects().hints, isEmpty);
+      expect(const SelectAll().hints, isEmpty);
+    });
+
+    test('LoopCut.cuts is a whole number, not a fraction', () {
+      // Mutation: hint it as a `DoubleHint`. A slider built from that lets
+      // somebody drag to "2.5 loops", which `loopCut` cannot cut.
+      expect(const LoopCut().hints['cuts'], isA<IntHint>());
+    });
+
+    test('RecalculateNormals.flip is a flag, not a range', () {
+      // The plan's own acceptance line names `Extrude.individual` for this —
+      // a field that does not exist on `Extrude` today (it takes only
+      // `distance`). `flip` is the flag this build actually has.
+      expect(const RecalculateNormals().hints['flip'], isA<BoolHint>());
+    });
+
+    test('MergeByDistance hints nothing when there is nothing to hint', () {
+      // Mutation: hint `distance` unconditionally. The subset test above
+      // would not catch this on its own sample, since that one sets
+      // `distance` — this is the instance that would.
+      expect(const MergeByDistance().hints, isEmpty);
+    });
+  });
 }

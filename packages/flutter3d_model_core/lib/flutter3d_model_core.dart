@@ -35,6 +35,7 @@ export 'src/command_journal.dart';
 export 'src/history.dart';
 export 'src/listing.dart';
 export 'src/material.dart';
+export 'src/param_hint.dart';
 export 'src/parametric_json.dart';
 export 'src/project.dart';
 export 'src/project_document.dart';

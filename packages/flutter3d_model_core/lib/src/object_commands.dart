@@ -57,6 +57,12 @@ final class AddPrimitive extends ModelCommand {
     if (at case final Vector3 where) 'at': <double>[where.x, where.y, where.z],
   };
 
+  @override
+  Map<String, ParamHint> get hints => const <String, ParamHint>{
+    'size': DoubleHint(min: 0.001, step: 0.1, unit: 'm'),
+    'segments': IntHint(min: 3, max: 256),
+  };
+
   /// What [kind] may be.
   static const List<String> primitiveKinds = <String>[
     'box',
@@ -168,6 +174,12 @@ final class AddLathe extends ModelCommand {
     // nothing reads back.
     'label': shapeName,
     if (at case final Vector3 where) 'at': <double>[where.x, where.y, where.z],
+  };
+
+  @override
+  Map<String, ParamHint> get hints => const <String, ParamHint>{
+    'segments': IntHint(min: 3, max: 256),
+    'closedProfile': BoolHint(),
   };
 
   @override
@@ -378,6 +390,14 @@ final class RotateBy extends ModelCommand {
   };
 
   @override
+  Map<String, ParamHint> get hints => <String, ParamHint>{
+    'axis': const Vector3Hint(step: 0.01),
+    'radians': const DoubleHint(unit: 'rad', step: 0.01),
+    'pivot': EnumHint(<String>[for (final p in TransformPivot.values) p.name]),
+    'space': EnumHint(<String>[for (final s in TransformSpace.values) s.name]),
+  };
+
+  @override
   Outcome apply(ModelProject project, ProjectSelection selection) =>
       _aboutThePivot(
         project,
@@ -419,6 +439,12 @@ final class ScaleBy extends ModelCommand {
   Map<String, Object?> get arguments => <String, Object?>{
     'by': by,
     'pivot': pivot.name,
+  };
+
+  @override
+  Map<String, ParamHint> get hints => <String, ParamHint>{
+    'by': const DoubleHint(min: 0.001, step: 0.01),
+    'pivot': EnumHint(<String>[for (final p in TransformPivot.values) p.name]),
   };
 
   @override

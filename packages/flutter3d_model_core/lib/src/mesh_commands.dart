@@ -118,6 +118,11 @@ final class Extrude extends ModelCommand {
   Map<String, Object?> get arguments => <String, Object?>{'distance': distance};
 
   @override
+  Map<String, ParamHint> get hints => const <String, ParamHint>{
+    'distance': DoubleHint(unit: 'm', step: 0.1),
+  };
+
+  @override
   Outcome apply(ModelProject project, ProjectSelection selection) =>
       _asMeshStep(
         project,
@@ -144,6 +149,12 @@ final class LoopCut extends ModelCommand {
   Map<String, Object?> get arguments => <String, Object?>{
     'cuts': cuts,
     'factor': factor,
+  };
+
+  @override
+  Map<String, ParamHint> get hints => const <String, ParamHint>{
+    'cuts': IntHint(min: 1, max: 100),
+    'factor': DoubleHint(min: 0.0, max: 1.0, step: 0.01),
   };
 
   @override
@@ -229,6 +240,16 @@ final class TransformElements extends ModelCommand {
     'space': space.name,
   };
 
+  // No hint for `by`: it is the whole transform matrix rather than a single
+  // number, and nothing here is asking a person to type sixteen floats into a
+  // control. `pivot`/`space` are the two arguments an operation card can
+  // actually offer a person a choice between.
+  @override
+  Map<String, ParamHint> get hints => <String, ParamHint>{
+    'pivot': EnumHint(<String>[for (final p in TransformPivot.values) p.name]),
+    'space': EnumHint(<String>[for (final s in TransformSpace.values) s.name]),
+  };
+
   /// **[TransformPivot.individual] is refused rather than approximated.**
   /// Turning every face about its own centre means the faces stop sharing their
   /// corners, and `transformSelection` moves each vertex exactly once — so the
@@ -293,6 +314,16 @@ final class MergeByDistance extends ModelCommand {
   @override
   Map<String, Object?> get arguments => <String, Object?>{
     if (distance case final double how) 'distance': how,
+  };
+
+  // Conditional the same way `arguments` is: a hint for a key that is not
+  // there when this instance's own `distance` is null would break the one
+  // promise `ModelCommand.hints` makes about itself — that its keys are
+  // always a subset of `arguments`'.
+  @override
+  Map<String, ParamHint> get hints => <String, ParamHint>{
+    if (distance != null)
+      'distance': const DoubleHint(min: 0.0, step: 0.001, unit: 'm'),
   };
 
   @override
@@ -416,6 +447,11 @@ final class RecalculateNormals extends ModelCommand {
 
   @override
   Map<String, Object?> get arguments => <String, Object?>{'flip': flip};
+
+  @override
+  Map<String, ParamHint> get hints => const <String, ParamHint>{
+    'flip': BoolHint(),
+  };
 
   @override
   Outcome apply(ModelProject project, ProjectSelection selection) =>

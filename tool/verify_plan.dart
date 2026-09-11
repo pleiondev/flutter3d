@@ -198,7 +198,12 @@ List<PlanItem> _readPlan(File plan) {
   for (var i = 0; i < lines.length; i++) {
     final String line = lines[i];
     if (line.startsWith('## 2. ')) inside = true;
-    if (line.startsWith('## 3. ')) break;
+    // §3.3 adds items too — three names that resolved to none of §2's rows
+    // and were given their own. A status naming one of them was "unknown"
+    // until this widened, which hid syn-01/02/03 from every check below.
+    if (line.startsWith('### 3.3 ')) inside = true;
+    if (line.startsWith('## 3. ')) inside = false;
+    if (line.startsWith('## 4. ')) break;
     if (!inside || !line.startsWith('| ')) continue;
     final cells = line.trim().split('|').map((String c) => c.trim()).toList();
     // A leading and a trailing empty cell from the pipes at both ends.

@@ -23,11 +23,17 @@ library;
 import 'dart:convert';
 import 'dart:typed_data';
 
-import 'package:flutter3d_formats/flutter3d_formats.dart';
+// `EnumHint` hidden: `flutter3d_formats`' own is `MaterialHintKind`'s, for a
+// material's fields, and this library's `param_hint.dart` names a command
+// argument's the same word for the same reason — nothing here reads a
+// material's, and the collision is the one the plan's own critique (Г4/Ж2)
+// gives for keeping the two hierarchies apart in the first place.
+import 'package:flutter3d_formats/flutter3d_formats.dart' hide EnumHint;
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 import 'package:vector_math/vector_math.dart';
 
 import 'material.dart';
+import 'param_hint.dart';
 import 'parametric_json.dart';
 import 'project.dart';
 import 'selection.dart';
@@ -161,6 +167,19 @@ sealed class ModelCommand {
   /// The arguments, as the journal and an agent see them.
   Map<String, Object?> get arguments;
 
+  /// What a control for one of [arguments] should look like, keyed the same
+  /// way — a step, a range, a unit, or which of the four kinds it even is.
+  ///
+  /// **A subset of [arguments], not a mirror of it.** An id or an index has
+  /// nothing here to say: a control for "which object" is a selection, not a
+  /// number line, and `SetParametric`'s own shape parameters already carry
+  /// their hints through `ParametricShape` rather than through this — giving
+  /// them a second copy here would be two answers to "what step does this
+  /// take" that a shape's own author could disagree with. Empty by default,
+  /// so a command with nothing numeric in it — most of them — says nothing
+  /// rather than an empty map somebody has to write out each time.
+  Map<String, ParamHint> get hints => const <String, ParamHint>{};
+
   /// Applies this to [project], with [selection] as it was when the command was
   /// made.
   Outcome apply(ModelProject project, ProjectSelection selection);
@@ -284,6 +303,11 @@ final class MoveBy extends ModelCommand {
   @override
   Map<String, Object?> get arguments => <String, Object?>{
     'by': <double>[by.x, by.y, by.z],
+  };
+
+  @override
+  Map<String, ParamHint> get hints => const <String, ParamHint>{
+    'by': Vector3Hint(unit: 'm', step: 0.1),
   };
 
   @override
