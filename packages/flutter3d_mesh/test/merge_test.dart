@@ -115,7 +115,7 @@ void main() {
     });
 
     test('a triangulated box goes back to being six quads', () {
-      final (mesh, _) = importMeshData(CuboidShape().build());
+      final (mesh, _, _) = importMeshData(CuboidShape().build());
       expect(mesh.faceCount, 12);
 
       expect(dissolveFlatEdges(mesh), 6);

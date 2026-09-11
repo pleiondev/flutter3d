@@ -131,7 +131,7 @@ void main() {
     });
 
     test('a sphere shades within six degrees of straight out', () {
-      final (mesh, _) = importMeshData(
+      final (mesh, _, _) = importMeshData(
         const SphereShape(radius: 1, segments: 24, rings: 12).build(),
       );
       smoothEverything(mesh);
@@ -453,7 +453,7 @@ void main() {
 
   group('through the conversion', () {
     test('a smoothed sphere hands the renderer smooth normals', () {
-      final (mesh, _) = importMeshData(
+      final (mesh, _, _) = importMeshData(
         const SphereShape(radius: 1, segments: 16, rings: 8).build(),
       );
       smoothEverything(mesh);

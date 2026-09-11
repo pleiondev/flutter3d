@@ -32,7 +32,7 @@ void main() {
       // What the GPU needs: a corner per face normal meeting there.
       expect(drawn.vertexCount, 24);
 
-      final (mesh, report) = importMeshData(drawn);
+      final (mesh, report, _) = importMeshData(drawn);
 
       // Eight corners, eighteen edges, twelve triangles — a triangulated cube,
       // and χ is still 2, which is the cheapest statement that nothing came
@@ -59,7 +59,7 @@ void main() {
         rings: 12,
       ).build();
 
-      final (mesh, report) = importMeshData(drawn);
+      final (mesh, report, _) = importMeshData(drawn);
 
       expect(report.weldedVertices, lessThan(report.sourceVertices));
       // Mutation: quantise coordinates into one cell and look no further, and
@@ -88,10 +88,10 @@ void main() {
         <int>[0, 1, 2, 3, 4, 5],
       );
 
-      final (welded, _) = importMeshData(drawn);
+      final (welded, _, _) = importMeshData(drawn);
       expect(welded.vertexCount, 4);
 
-      final (apart, _) = importMeshData(drawn, weldEpsilon: 0);
+      final (apart, _, _) = importMeshData(drawn, weldEpsilon: 0);
       expect(apart.vertexCount, 5, reason: 'exact matches still weld');
     });
 
@@ -109,7 +109,7 @@ void main() {
         <int>[0, 1, 2, 3, 4, 5],
       );
 
-      final (mesh, report) = importMeshData(drawn);
+      final (mesh, report, _) = importMeshData(drawn);
 
       expect(report.droppedDegenerate, 1);
       expect(mesh.faceCount, 1);
@@ -132,7 +132,7 @@ void main() {
         <int>[0, 1, 2, 1, 2, 3],
       );
 
-      final (mesh, report) = importMeshData(drawn);
+      final (mesh, report, _) = importMeshData(drawn);
 
       // Mutation: skip `_repairOrientation` and the builder refuses the second
       // face outright — "the edge 1-2 is used twice the same way round" — so
@@ -165,7 +165,7 @@ void main() {
         indices: flipped,
       );
 
-      final (mesh, report) = importMeshData(reversed);
+      final (mesh, report, _) = importMeshData(reversed);
 
       // Consistent, which is what the repair promises. Whether the whole shell
       // is inside out is a different question — the volume answers it, and the
@@ -190,7 +190,7 @@ void main() {
         <int>[0, 1, 2, 3, 4, 5],
       );
 
-      final (mesh, report) = importMeshData(drawn);
+      final (mesh, report, _) = importMeshData(drawn);
 
       // Nothing to disagree about: neither island touches the other, so no
       // flip is warranted and none happens.
@@ -215,7 +215,7 @@ void main() {
         <int>[0, 1, 2, 1, 0, 3, 0, 1, 4],
       );
 
-      final (mesh, report) = importMeshData(drawn);
+      final (mesh, report, _) = importMeshData(drawn);
 
       // Mutation: let the builder see the third face and it throws — an import
       // that refuses a model somebody has is an import nobody can use, so the
@@ -231,7 +231,7 @@ void main() {
     });
 
     test('an ordinary model reports nothing worth reporting', () {
-      final (_, report) = importMeshData(CuboidShape().build());
+      final (_, report, _) = importMeshData(CuboidShape().build());
 
       expect(report.worthReporting, isFalse);
       expect(report.toString(), contains('12 faces'));
@@ -244,7 +244,7 @@ void main() {
       final uvAt = drawn.layout.floatOffsetOf(VertexLayout.texcoord.name);
       expect(uvAt, greaterThanOrEqualTo(0));
 
-      final (mesh, _) = importMeshData(drawn);
+      final (mesh, _, _) = importMeshData(drawn);
 
       expect(mesh.hasLayer(MeshDomain.corner, MeshAttribute.uv0), isTrue);
       // A plane's corners span the unit square, so the imported corners do too.
@@ -262,12 +262,163 @@ void main() {
     });
 
     test('an import is the document\'s starting point, not an edit', () {
-      final (mesh, _) = importMeshData(CuboidShape().build());
+      final (mesh, _, _) = importMeshData(CuboidShape().build());
 
       // Nothing to undo: there is no state before the model existed, and a
       // history that offered one would empty the viewport.
       expect(mesh.undoDepth, 0);
       expect(mesh.undo(), isFalse);
+    });
+  });
+
+  group('shape keys from morph targets', () {
+    // A quad, as the raw soup a decoder hands over: two triangles, six
+    // source vertices, welding down to the corners' own four positions —
+    // p0 and p2 both appear twice, once in each triangle.
+    final p0 = Vector3(0, 0, 0);
+    final p1 = Vector3(1, 0, 0);
+    final p2 = Vector3(1, 1, 0);
+    final p3 = Vector3(0, 1, 0);
+    MeshData quadWithTargets(List<MorphTarget> targets) {
+      final soup = triangleSoup(<Vector3>[p0, p1, p2, p0, p2, p3], <int>[
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+      ]);
+      return MeshData(
+        layout: soup.layout,
+        vertices: soup.vertices,
+        indices: soup.indices,
+        morphTargets: targets,
+      );
+    }
+
+    test('no morph targets means no shape keys', () {
+      final (_, _, shapeKeys) = importMeshData(quadWithTargets(const <MorphTarget>[]));
+      expect(shapeKeys, isEmpty);
+    });
+
+    test(
+      'one shape key a target, sized and positioned to the welded mesh, '
+      'named from the target when it has one',
+      () {
+        final lift = Float32List.fromList(<double>[
+          for (var i = 0; i < 6; i++) ...<double>[0, 0, 1],
+        ]);
+        final (mesh, _, shapeKeys) = importMeshData(
+          quadWithTargets(<MorphTarget>[
+            MorphTarget(vertexCount: 6, positions: lift, name: 'lift'),
+          ]),
+        );
+
+        expect(mesh.vertexCount, 4);
+        expect(shapeKeys, hasLength(1));
+        expect(shapeKeys.single.vertexCount, mesh.vertexSlotCount);
+        expect(shapeKeys.single.name, 'lift');
+
+        // Every welded corner reads as its own base position plus the
+        // uniform lift — checked against the mesh's own positions rather
+        // than against p0..p3 directly, so a welded vertex's own final id
+        // (not necessarily in p0..p3's own order) is not assumed.
+        for (var v = 0; v < mesh.vertexCount; v++) {
+          final base = mesh.positionOf(v);
+          final shaped = shapeKeys.single.positionOf(v);
+          expect(shaped.x, closeTo(base.x, 1e-6));
+          expect(shaped.y, closeTo(base.y, 1e-6));
+          expect(shaped.z, closeTo(base.z + 1, 1e-6));
+        }
+      },
+    );
+
+    test(
+      "a delta that differs corner to corner lands on its own welded "
+      'vertex, not a neighbour\'s — source 0 and source 3 both name p0, '
+      'and must still agree',
+      () {
+        // Every corner's own delta, distinguishable by which of p0..p3 it
+        // belongs to — a uniform delta (as the test above uses) cannot
+        // catch a source/destination index mix-up, since every vertex
+        // would read the same value regardless of which index actually
+        // drove it. p0 appears at source 0 and source 3, in different
+        // triangles, and must land on the identical delta both times: the
+        // same welded vertex, the same point.
+        final delta = Float32List.fromList(<double>[
+          1, 0, 0, // source 0: p0
+          0, 1, 0, // source 1: p1
+          0, 0, 2, // source 2: p2
+          1, 0, 0, // source 3: p0, again
+          0, 0, 2, // source 4: p2, again
+          3, 3, 3, // source 5: p3
+        ]);
+        final (mesh, _, shapeKeys) = importMeshData(
+          quadWithTargets(<MorphTarget>[MorphTarget(vertexCount: 6, positions: delta)]),
+        );
+        final key = shapeKeys.single;
+
+        Vector3 deltaAt(Vector3 point) {
+          for (var v = 0; v < mesh.vertexCount; v++) {
+            if ((mesh.positionOf(v) - point).length < 1e-6) {
+              return key.positionOf(v) - mesh.positionOf(v);
+            }
+          }
+          fail('no welded vertex at $point');
+        }
+
+        expect(deltaAt(p0).x, closeTo(1, 1e-6));
+        expect(deltaAt(p0).y, closeTo(0, 1e-6));
+        expect(deltaAt(p0).z, closeTo(0, 1e-6));
+        expect(deltaAt(p1).y, closeTo(1, 1e-6));
+        expect(deltaAt(p2).z, closeTo(2, 1e-6));
+        expect(deltaAt(p3).x, closeTo(3, 1e-6));
+        expect(deltaAt(p3).y, closeTo(3, 1e-6));
+        expect(deltaAt(p3).z, closeTo(3, 1e-6));
+      },
+    );
+
+    test(
+      'two targets stay independent — neither one\'s own delta leaks into '
+      'the other',
+      () {
+        final lift = Float32List.fromList(<double>[
+          for (var i = 0; i < 6; i++) ...<double>[0, 0, 1],
+        ]);
+        final push = Float32List.fromList(<double>[
+          for (var i = 0; i < 6; i++) ...<double>[2, 0, 0],
+        ]);
+        final (mesh, _, shapeKeys) = importMeshData(
+          quadWithTargets(<MorphTarget>[
+            MorphTarget(vertexCount: 6, positions: lift, name: 'lift'),
+            MorphTarget(vertexCount: 6, positions: push, name: 'push'),
+          ]),
+        );
+
+        expect(shapeKeys, hasLength(2));
+        expect(shapeKeys.map((k) => k.name), <String>['lift', 'push']);
+        for (var v = 0; v < mesh.vertexCount; v++) {
+          final base = mesh.positionOf(v);
+          final lifted = shapeKeys[0].positionOf(v);
+          final pushed = shapeKeys[1].positionOf(v);
+          expect(lifted.x, closeTo(base.x, 1e-6));
+          expect(lifted.z, closeTo(base.z + 1, 1e-6));
+          expect(pushed.x, closeTo(base.x + 2, 1e-6));
+          expect(pushed.z, closeTo(base.z, 1e-6));
+        }
+      },
+    );
+
+    test('an unnamed target counts its own position rather than sharing '
+        'one name', () {
+      final zero = Float32List(18);
+      final (_, _, shapeKeys) = importMeshData(
+        quadWithTargets(<MorphTarget>[
+          MorphTarget(vertexCount: 6, positions: zero),
+          MorphTarget(vertexCount: 6, positions: zero),
+        ]),
+      );
+      expect(shapeKeys.map((k) => k.name), <String>['shape 1', 'shape 2']);
     });
   });
 }

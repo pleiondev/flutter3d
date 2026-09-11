@@ -41,7 +41,7 @@ List<String> framesOf(MeshData mesh) {
 /// A mesh imported from [drawn] with its coplanar diagonals dissolved, so the
 /// quads the engine built come back as quads rather than pairs of triangles.
 EditMesh asQuads(MeshData drawn) {
-  final (mesh, _) = importMeshData(drawn);
+  final (mesh, _, _) = importMeshData(drawn);
   final here = Vector3.zero();
   final there = Vector3.zero();
   edit(mesh, () {
@@ -157,7 +157,7 @@ void main() {
 
   group('who generates them', () {
     test('a plan leaves them alone unless it is asked', () {
-      final (mesh, _) = importMeshData(CuboidShape().build());
+      final (mesh, _, _) = importMeshData(CuboidShape().build());
       final plan = MeshLayoutPlan()..build(mesh);
 
       // The buffer-reuse path fills what a row can be filled with, and a

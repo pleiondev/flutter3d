@@ -24,6 +24,11 @@
 ///
 /// Everything the import decided is in the [ImportReport]. Nothing here is
 /// silent, and that is the difference between an importer and a black box.
+///
+/// **A morph target is not a guess** — `mesh-61`'s own remaining half — so it
+/// is not in the report: it is a [ShapeKey], returned alongside the mesh and
+/// built from exactly the deltas the file carried, welded the identical way
+/// everything else on the same vertex already was.
 library;
 
 import 'dart:math' as math;
@@ -34,6 +39,7 @@ import 'package:vector_math/vector_math.dart';
 
 import 'attributes.dart';
 import 'edit_mesh.dart';
+import 'shape_key.dart';
 
 /// What an import had to decide, and how often.
 final class ImportReport {
@@ -92,7 +98,25 @@ final class ImportReport {
 /// [weldEpsilon] defaults to a millionth of the model's diagonal, which is
 /// under the precision a float carries at that size and over the drift an
 /// exporter introduces. Pass zero to weld only exact matches.
-(EditMesh, ImportReport) importMeshData(MeshData mesh, {double? weldEpsilon}) {
+///
+/// **One [ShapeKey] a morph target on [mesh], empty when it has none.** A
+/// morph target's own delta is per *source* vertex, the same indexing UVs
+/// and colours already use, so it rides the identical per-corner walk that
+/// copies those across — a shape key stores absolute positions rather than
+/// a delta, so each final vertex is seeded to its own base position first
+/// and every corner that reaches it writes `base + delta`, not `+=`: two
+/// corners welded to the one final vertex carry the identical delta for any
+/// mesh that morphs cleanly, so the second write repeats the first rather
+/// than doubling it. A vertex no corner reaches at all — a rare case, a
+/// welded point every triangle naming it turned out degenerate — is left at
+/// its own base position, a zero delta, the same "an unwritten layer
+/// answers with a neutral value" rule every other per-vertex layer in this
+/// package already follows. Named from [MorphTarget.name] when the file
+/// gave one, `shape 1`/`shape 2`/... by position otherwise.
+(EditMesh, ImportReport, List<ShapeKey>) importMeshData(
+  MeshData mesh, {
+  double? weldEpsilon,
+}) {
   final layout = mesh.layout;
   final stride = layout.floatsPerVertex;
   final positionAt = layout.floatOffsetOf(VertexLayout.position.name);
@@ -250,37 +274,75 @@ final class ImportReport {
 
   // UVs and colours are per corner in both representations, so they copy across
   // directly — and only where the source had them. A layout with no texcoord,
-  // or a mesh whose every UV is the origin, leaves the layer uncreated.
-  if (uvAt >= 0 || colourAt >= 0) {
+  // or a mesh whose every UV is the origin, leaves the layer uncreated. A
+  // morph target's own delta rides the identical walk — see this function's
+  // own doc comment for why.
+  final shapeKeys = <ShapeKey>[];
+  if (uvAt >= 0 || colourAt >= 0 || mesh.morphTargets.isNotEmpty) {
     final uv = Vector2.zero();
     final colour = Vector4.zero();
+    final hasCorners = uvAt >= 0 || colourAt >= 0;
+
+    final position = Vector3.zero();
+    final targetPositions = <Float32List>[
+      for (var t = 0; t < mesh.morphTargets.length; t++)
+        Float32List(result.vertexSlotCount * 3),
+    ];
+    for (var v = 0; v < result.vertexSlotCount; v++) {
+      result.positionOf(v, position);
+      for (final positions in targetPositions) {
+        positions[v * 3] = position.x;
+        positions[v * 3 + 1] = position.y;
+        positions[v * 3 + 2] = position.z;
+      }
+    }
+
     result.beginStep();
     for (var face = 0; face < faceCorners.length; face++) {
       final corners = faceCorners[face];
       var corner = 0;
       result.forEachHalfEdge(face, (int half) {
         final source = corners[corner++];
-        if (uvAt >= 0) {
-          uv.setValues(
-            mesh.vertices[source * stride + uvAt],
-            mesh.vertices[source * stride + uvAt + 1],
-          );
+        if (hasCorners) {
+          if (uvAt >= 0) {
+            uv.setValues(
+              mesh.vertices[source * stride + uvAt],
+              mesh.vertices[source * stride + uvAt + 1],
+            );
+          }
+          if (colourAt >= 0) {
+            colour.setValues(
+              mesh.vertices[source * stride + colourAt],
+              mesh.vertices[source * stride + colourAt + 1],
+              mesh.vertices[source * stride + colourAt + 2],
+              mesh.vertices[source * stride + colourAt + 3],
+            );
+          }
+          result.setCorner(half, CornerAttributes(uv: uv, colour: colour));
         }
-        if (colourAt >= 0) {
-          colour.setValues(
-            mesh.vertices[source * stride + colourAt],
-            mesh.vertices[source * stride + colourAt + 1],
-            mesh.vertices[source * stride + colourAt + 2],
-            mesh.vertices[source * stride + colourAt + 3],
-          );
+        if (mesh.morphTargets.isNotEmpty) {
+          final destination = result.originOf(half);
+          result.positionOf(destination, position);
+          for (var t = 0; t < mesh.morphTargets.length; t++) {
+            final deltas = mesh.morphTargets[t].positions;
+            final at = destination * 3;
+            targetPositions[t][at] = position.x + deltas[source * 3];
+            targetPositions[t][at + 1] = position.y + deltas[source * 3 + 1];
+            targetPositions[t][at + 2] = position.z + deltas[source * 3 + 2];
+          }
         }
-        result.setCorner(half, CornerAttributes(uv: uv, colour: colour));
       });
     }
     result.endStep();
     // An import is not an edit: what it produced is the document's starting
     // point, and there is nothing before it to go back to.
     result.clearJournal();
+
+    for (var t = 0; t < mesh.morphTargets.length; t++) {
+      shapeKeys.add(
+        ShapeKey(mesh.morphTargets[t].name ?? 'shape ${t + 1}', targetPositions[t]),
+      );
+    }
   }
 
   return (
@@ -294,6 +356,7 @@ final class ImportReport {
       droppedDegenerate: dropped,
       weldEpsilon: epsilon,
     ),
+    shapeKeys,
   );
 }
 

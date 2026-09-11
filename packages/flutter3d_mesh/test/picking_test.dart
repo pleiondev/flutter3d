@@ -69,7 +69,7 @@ void main() {
     });
 
     test('ten thousand rays agree with a scan of every triangle', () {
-      final (mesh, _) = importMeshData(
+      final (mesh, _, _) = importMeshData(
         const SphereShape(radius: 1, segments: 16, rings: 8).build(),
       );
       final it = staged(mesh);
