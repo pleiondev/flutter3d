@@ -101,5 +101,12 @@ void main() {
       expect(hints['lambda'], isA<DoubleHint>());
       expect(hints['preserveVolume'], isA<BoolHint>());
     });
+
+    test('SubdivisionModifier hints levels and viewLevels', () {
+      final hints = hintsForModifier(const SubdivisionModifier(levels: 2));
+      expect(hints.keys, unorderedEquals(<String>['levels', 'viewLevels']));
+      expect(hints['levels'], isA<IntHint>());
+      expect(hints['viewLevels'], isA<IntHint>());
+    });
   });
 }

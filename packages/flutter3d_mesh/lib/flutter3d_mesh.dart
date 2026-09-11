@@ -37,4 +37,5 @@ export 'src/parts.dart';
 export 'src/picker.dart';
 export 'src/selection.dart';
 export 'src/smooth.dart';
+export 'src/subdivide.dart';
 export 'src/triangulate.dart';

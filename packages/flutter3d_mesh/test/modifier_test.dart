@@ -341,4 +341,69 @@ void main() {
       expect(restored.preserveVolume, isFalse);
     });
   });
+
+  group('SubdivisionModifier', () {
+    test('apply folds levels Catmull-Clark passes into the result', () {
+      const modifier = SubdivisionModifier(levels: 2);
+      final result = modifier.apply(EditMesh.cuboid(), ModifierContext());
+      result.validate();
+
+      // Mutation: call `catmullClark` with `levels: 1` regardless of the
+      // field, or `subdivideSimple` instead of the smoothing one — either
+      // way this stops matching two real Catmull-Clark levels of a cube.
+      expect(
+        result.vertexCount,
+        catmullClark(EditMesh.cuboid(), levels: 2).vertexCount,
+      );
+    });
+
+    test('never mutates its own base', () {
+      final base = EditMesh.cuboid();
+      final before = base.toBytes();
+
+      const modifier = SubdivisionModifier(levels: 1);
+      modifier.apply(base, ModifierContext());
+
+      expect(base.toBytes(), before);
+    });
+
+    test('round-trips through JSON, viewLevels included', () {
+      const modifier = SubdivisionModifier(levels: 3, viewLevels: 1);
+      final restored = modifierFromJson(modifier.toJson());
+
+      expect(restored, isA<SubdivisionModifier>());
+      final again = restored! as SubdivisionModifier;
+      expect(again.levels, 3);
+      expect(again.viewLevels, 1);
+    });
+
+    test('a modifier missing levels is refused, not guessed', () {
+      expect(
+        modifierFromJson(<String, Object?>{
+          'kind': 'subdivision',
+          'viewLevels': 1,
+        }),
+        isNull,
+      );
+    });
+
+    test('viewLevels defaults to levels when a caller omits it', () {
+      const modifier = SubdivisionModifier(levels: 4);
+      expect(modifier.viewLevels, 4);
+
+      final restored =
+          modifierFromJson(<String, Object?>{
+                'kind': 'subdivision',
+                'levels': 5,
+              })!
+              as SubdivisionModifier;
+
+      // Mutation: leave `viewLevels` at some fixed default (0, say) instead
+      // of mirroring `levels` — a caller that has never heard of the split,
+      // which is every caller until a viewport actually reads this field,
+      // would then see a viewport number that means nothing next to the
+      // one it asked for.
+      expect(restored.viewLevels, 5);
+    });
+  });
 }

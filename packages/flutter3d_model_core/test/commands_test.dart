@@ -2439,6 +2439,29 @@ void main() {
       expect(modifier.iterations, 5);
     });
 
+    test('SetModifierField dispatches SubdivisionModifier too', () {
+      final history = edited();
+      history.run(
+        AddModifier(id: 1, modifier: const SubdivisionModifier(levels: 2)),
+      );
+
+      expect(
+        history.run(
+          SetModifierField(id: 1, index: 0, field: 'levels', value: 4),
+        ),
+        isNull,
+      );
+
+      final modifier =
+          history.project[1]!.modifiers.single.modifier as SubdivisionModifier;
+      // Mutation: no `SubdivisionModifier` case in `_modifierFieldSet` at
+      // all — a non-exhaustive switch `dart analyze` would already have
+      // caught, which is exactly the safety net this test confirms is wired
+      // rather than merely present.
+      expect(modifier.levels, 4);
+      expect(modifier.viewLevels, 2);
+    });
+
     // JSON round-tripping is covered once, for every command including
     // these six, by "every name has a sample and round-trips through JSON"
     // in the journal group above — no need for a second copy of that

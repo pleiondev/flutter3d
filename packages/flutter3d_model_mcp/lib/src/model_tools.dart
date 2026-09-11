@@ -762,14 +762,18 @@ List<ModelTool> get _commandTools => <ModelTool>[
           'iterations (an int, at least 1), an optional lambda (a number, '
           '0-1, how far each pass moves toward its neighbours\' average) '
           'and an optional preserveVolume (a bool — without it, enough '
-          'iterations visibly shrink the mesh).',
+          'iterations visibly shrink the mesh); kind "subdivision" takes '
+          'levels (an int, at least 1, how many Catmull-Clark passes are '
+          'actually baked into the mesh) and an optional viewLevels (an '
+          'int — defaults to levels; nothing here reads it, it is carried '
+          'for a viewport that might).',
       inputSchema: ObjectSchema(
         properties: <String, Schema>{
           'id': IntegerSchema(description: 'the object'),
           'modifier': ObjectSchema(
             properties: <String, Schema>{
               'kind': UntitledSingleSelectEnumSchema(
-                values: <String>['array', 'mirror', 'smooth'],
+                values: <String>['array', 'mirror', 'smooth', 'subdivision'],
               ),
               'count': IntegerSchema(description: 'array only'),
               'offset': ListSchema(
@@ -786,6 +790,8 @@ List<ModelTool> get _commandTools => <ModelTool>[
               'iterations': IntegerSchema(description: 'smooth only'),
               'lambda': NumberSchema(description: 'smooth only, 0-1'),
               'preserveVolume': BooleanSchema(description: 'smooth only'),
+              'levels': IntegerSchema(description: 'subdivision only'),
+              'viewLevels': IntegerSchema(description: 'subdivision only'),
             },
             required: <String>['kind'],
           ),

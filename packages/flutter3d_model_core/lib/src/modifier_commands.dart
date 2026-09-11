@@ -400,4 +400,15 @@ Modifier? _modifierFieldSet(Modifier modifier, String field, Object? value) =>
               : null,
         _ => null,
       },
+      final SubdivisionModifier m => switch (field) {
+        'levels' =>
+          value is int && value > 0
+              ? SubdivisionModifier(levels: value, viewLevels: m.viewLevels)
+              : null,
+        'viewLevels' =>
+          value is int && value > 0
+              ? SubdivisionModifier(levels: m.levels, viewLevels: value)
+              : null,
+        _ => null,
+      },
     };

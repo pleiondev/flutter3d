@@ -19,8 +19,9 @@
 /// repository's own `.f3d`/`.f3dproj` split was written to avoid elsewhere.
 ///
 /// **[ModifierContext] stays almost empty on purpose.** Every modifier
-/// shipping so far — [ArrayModifier], [MirrorModifier], [SmoothModifier] —
-/// needs nothing beyond the base mesh `apply` is already handed. A modifier
+/// shipping so far — [ArrayModifier], [MirrorModifier], [SmoothModifier],
+/// [SubdivisionModifier] — needs nothing beyond the base mesh `apply` is
+/// already handed. A modifier
 /// that reads another object's mesh (a boolean operand) cannot be handed a
 /// `ModelObject` or a `ModelProject`
 /// directly: those are `flutter3d_model_core` types, one genre above this
@@ -38,10 +39,12 @@ import 'merge.dart';
 import 'mirror.dart';
 import 'selection.dart';
 import 'smooth.dart';
+import 'subdivide.dart';
 
 part 'array_modifier.dart';
 part 'mirror_modifier.dart';
 part 'smooth_modifier.dart';
+part 'subdivision_modifier.dart';
 
 /// What a modifier's own `apply` may read besides the mesh it is folding —
 /// today, nothing. See this file's own doc comment for why it stays this way.
@@ -84,6 +87,7 @@ Modifier? modifierFromJson(Object? json) {
     'array' => ArrayModifier.fromJson(json),
     'mirror' => MirrorModifier.fromJson(json),
     'smooth' => SmoothModifier.fromJson(json),
+    'subdivision' => SubdivisionModifier.fromJson(json),
     _ => null,
   };
 }

@@ -74,4 +74,8 @@ Map<String, ParamHint> hintsForModifier(Modifier modifier) =>
         'lambda': DoubleHint(min: 0.0, max: 1.0, step: 0.05),
         'preserveVolume': BoolHint(),
       },
+      SubdivisionModifier() => const <String, ParamHint>{
+        'levels': IntHint(min: 1, max: 6),
+        'viewLevels': IntHint(min: 1, max: 6),
+      },
     };
