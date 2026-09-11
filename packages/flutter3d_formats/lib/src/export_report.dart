@@ -61,12 +61,12 @@ final class ExportReport {
 
 /// Writes [document] as glTF, reads the result back and compares — a
 /// binary format, so the round trip is held to a tolerance of `0.0`.
-Future<ExportReport> exportToGlb(ModelDocument document) async {
+Future<ExportReport> exportToGlb(ModelDocument document, {String name = 'model'}) async {
   final writer = GltfWriter(document);
   final bytes = writer.writeGlb();
   final readBack = await GltfLoader().load(bytes);
   return ExportReport(
-    files: <String, Uint8List>{'model.glb': bytes},
+    files: <String, Uint8List>{'$name.glb': bytes},
     writerWarnings: writer.warnings,
     differences: compareModelDocuments(document, readBack),
   );
@@ -122,12 +122,12 @@ Future<ExportReport> exportToStl(ModelDocument document, {String name = 'model'}
 /// result back and compares. Synchronous, unlike the other three: `.f3d`
 /// is read as a view over its own bytes rather than decoded, and nothing
 /// in that path is asynchronous either.
-ExportReport exportToF3d(ModelDocument document) {
+ExportReport exportToF3d(ModelDocument document, {String name = 'model'}) {
   final writer = F3dWriter(document);
   final bytes = writer.write();
   final readBack = F3dDocument.parse(bytes);
   return ExportReport(
-    files: <String, Uint8List>{'model.f3d': bytes},
+    files: <String, Uint8List>{'$name.f3d': bytes},
     writerWarnings: writer.warnings,
     differences: compareModelDocuments(document, readBack),
   );

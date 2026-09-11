@@ -60,3 +60,4 @@ workspace:
   # itself, kept where `tool/`'s other programs are. See its own pubspec for
   # why it is not in `packages/`.
   - tool/webgpu_spike
+  - tool/convert_asset

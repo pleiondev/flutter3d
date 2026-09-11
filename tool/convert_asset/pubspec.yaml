@@ -1,0 +1,21 @@
+name: convert_asset
+description: "A CLI: reads glTF/OBJ/STL/.f3d, writes any of the other three, and prints an ExportReport — fmt-14's own row."
+publish_to: 'none'
+resolution: workspace
+
+# **Under `tool/` and not under `packages/`, deliberately** — the same reason
+# `tool/webgpu_spike`'s own pubspec gives: a package under `packages/` is
+# checked against ARCHITECTURE.md's publishing list by `tool/structure.dart`'s
+# "the publishing order names every package" rule, and this is never going out.
+
+environment:
+  sdk: ^3.12.2
+
+dependencies:
+  # Everything this tool does — decoding, encoding, `ExportReport` — is
+  # already `flutter3d_formats`'s own public API; this package is the CLI
+  # around it, not a second copy of any of it.
+  flutter3d_formats: ^0.6.0
+
+dev_dependencies:
+  test: ^1.24.0
