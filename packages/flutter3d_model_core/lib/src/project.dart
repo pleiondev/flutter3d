@@ -158,13 +158,50 @@ final class ProjectProfile {
     'target': EnumHint([...ProfileTarget.values.map((t) => t.name)]),
     'maxTriangles': const IntHint(min: 1000, max: 2000000, step: 1000),
     'maxJoints': const IntHint(min: 1, max: 64),
-    'maxInfluences': const IntHint(min: 1, max: 8),
+    // 4, not the 8 this used to say: a vertex's own storage is four slots —
+    // `VertexAttributes`, `mesh-60`'s own subject — and a hint that offered
+    // a fifth was offering a control for a value nothing downstream could
+    // actually hold.
+    'maxInfluences': const IntHint(min: 1, max: 4),
     'maxTextureSize': const IntHint(min: 64, max: 8192, step: 64),
     'maxTextureBytes': const IntHint(min: 0),
     'requireTriangles': const BoolHint(),
     'requireManifold': const BoolHint(),
     'texelsPerMeter': const DoubleHint(min: 0, unit: 'texels/m'),
   };
+
+  /// [this], with named fields replaced.
+  ProjectProfile copyWith({
+    String? name,
+    ProfileTarget? target,
+    int? maxTriangles,
+    int? maxJoints,
+    int? maxInfluences,
+    int? maxTextureSize,
+    int? maxTextureBytes,
+    bool clearMaxTextureBytes = false,
+    bool? requireTriangles,
+    bool? requireManifold,
+    TextureBudget? textures,
+    double? texelsPerMeter,
+    bool clearTexelsPerMeter = false,
+  }) => ProjectProfile(
+    name: name ?? this.name,
+    target: target ?? this.target,
+    maxTriangles: maxTriangles ?? this.maxTriangles,
+    maxJoints: maxJoints ?? this.maxJoints,
+    maxInfluences: maxInfluences ?? this.maxInfluences,
+    maxTextureSize: maxTextureSize ?? this.maxTextureSize,
+    maxTextureBytes: clearMaxTextureBytes
+        ? null
+        : (maxTextureBytes ?? this.maxTextureBytes),
+    requireTriangles: requireTriangles ?? this.requireTriangles,
+    requireManifold: requireManifold ?? this.requireManifold,
+    textures: textures ?? this.textures,
+    texelsPerMeter: clearTexelsPerMeter
+        ? null
+        : (texelsPerMeter ?? this.texelsPerMeter),
+  );
 
   @override
   bool operator ==(Object other) =>

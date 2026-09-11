@@ -48,6 +48,7 @@ part 'material_commands.dart';
 part 'mesh_commands.dart';
 part 'modifier_commands.dart';
 part 'object_commands.dart';
+part 'profile_commands.dart';
 part 'selection_commands.dart';
 
 /// What a command did.
@@ -480,6 +481,7 @@ const List<String> modelCommandNames = <String>[
   'removeModifier',
   'applyModifier',
   'applyJobResult',
+  'setProfileLimits',
 ];
 
 /// Reads a command back out of a journal, or null.
@@ -773,6 +775,10 @@ ModelCommand? modelCommandFromJson(Object? json) {
         ),
       _ => null,
     },
+    'setProfileLimits' => SetProfileLimits(
+      maxJoints: json['maxJoints'] as int?,
+      maxInfluences: json['maxInfluences'] as int?,
+    ),
     _ => null,
   };
 }

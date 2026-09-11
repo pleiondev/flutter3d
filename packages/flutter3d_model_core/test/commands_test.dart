@@ -2106,6 +2106,7 @@ void main() {
           baseVersion: 1,
           meshBytes: Uint8List.fromList(<int>[1, 2, 3]),
         ),
+        const SetProfileLimits(maxJoints: 32, maxInfluences: 2),
       ];
 
       // Every name has a sample, which is what stops a command being added to
@@ -2653,5 +2654,46 @@ void main() {
     // JSON round-tripping is covered once, for every command including this
     // one, by "every name has a sample and round-trips through JSON" in the
     // journal group above.
+  });
+
+  group('profile limits', () {
+    test('changes maxJoints and maxInfluences together', () {
+      final history = ModelHistory(const ModelProject());
+      expect(
+        history.run(const SetProfileLimits(maxJoints: 16, maxInfluences: 2)),
+        isNull,
+      );
+      expect(history.project.profile.maxJoints, 16);
+      expect(history.project.profile.maxInfluences, 2);
+    });
+
+    test('changing one leaves the other as it was', () {
+      final history = ModelHistory(const ModelProject());
+      history.run(const SetProfileLimits(maxJoints: 16));
+      expect(history.project.profile.maxJoints, 16);
+      expect(history.project.profile.maxInfluences, const ProjectProfile().maxInfluences);
+    });
+
+    test('a maxInfluences past what a vertex stores is refused, and says so', () {
+      final history = ModelHistory(const ModelProject());
+      final said = history.run(const SetProfileLimits(maxInfluences: 5));
+      expect(said, contains('maxInfluences'));
+      expect(said, contains('4'));
+      expect(history.project.profile.maxInfluences, const ProjectProfile().maxInfluences);
+    });
+
+    test('a maxJoints past the shader\'s own cap is refused, and says so', () {
+      final history = ModelHistory(const ModelProject());
+      final said = history.run(const SetProfileLimits(maxJoints: 128));
+      expect(said, contains('maxJoints'));
+      expect(said, contains('64'));
+      expect(history.project.profile.maxJoints, const ProjectProfile().maxJoints);
+    });
+
+    test('zero or negative is refused for either field', () {
+      final history = ModelHistory(const ModelProject());
+      expect(history.run(const SetProfileLimits(maxJoints: 0)), isNotNull);
+      expect(history.run(const SetProfileLimits(maxInfluences: -1)), isNotNull);
+    });
   });
 }
