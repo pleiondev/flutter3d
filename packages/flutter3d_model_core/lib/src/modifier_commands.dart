@@ -411,4 +411,37 @@ Modifier? _modifierFieldSet(Modifier modifier, String field, Object? value) =>
               : null,
         _ => null,
       },
+      final BooleanModifier m => switch (field) {
+        'operation' => switch (_csgOperationNamed(value)) {
+          final CsgOperation operation => BooleanModifier(
+            operation: operation,
+            operandId: m.operandId,
+            operandTransform: m.operandTransform,
+          ),
+          null => null,
+        },
+        'operandId' =>
+          value is int
+              ? BooleanModifier(
+                  operation: m.operation,
+                  operandId: value,
+                  operandTransform: m.operandTransform,
+                )
+              : null,
+        _ => null,
+      },
     };
+
+/// [value] as one of [CsgOperation]'s own three names, or null when it is
+/// not a `String` or names none of them — `operandTransform` has no setter
+/// here at all: a 4×4 matrix is not a shape `SetModifierField`'s own
+/// number/bool/three-number value fits, and nothing yet needs to move a
+/// boolean's own operand from a command rather than from whatever rebuilds
+/// it alongside the operand object's own transform.
+CsgOperation? _csgOperationNamed(Object? value) {
+  if (value is! String) return null;
+  for (final operation in CsgOperation.values) {
+    if (operation.name == value) return operation;
+  }
+  return null;
+}

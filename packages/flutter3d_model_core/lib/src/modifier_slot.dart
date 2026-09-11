@@ -78,4 +78,14 @@ Map<String, ParamHint> hintsForModifier(Modifier modifier) =>
         'levels': IntHint(min: 1, max: 6),
         'viewLevels': IntHint(min: 1, max: 6),
       },
+      // `operandTransform` has no entry: a 4×4 matrix is not a shape any
+      // `ParamHint` here names, and nothing rebuilds it from a control
+      // rather than from the operand object's own transform directly — the
+      // same reason `SetModifierField` has no case for it either.
+      BooleanModifier() => <String, ParamHint>{
+        'operation': EnumHint([
+          ...CsgOperation.values.map((CsgOperation o) => o.name),
+        ]),
+        'operandId': const IntHint(min: 0),
+      },
     };

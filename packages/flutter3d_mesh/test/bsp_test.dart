@@ -150,4 +150,28 @@ void main() {
       expect(result, isNull);
     });
   });
+
+  group('booleanOp: the three named functions by a stored operation field', () {
+    test('dispatches to the same answer each named function gives', () {
+      final (dx, dy, dz) = _ordinaryOffset;
+      final a = EditMesh.cuboid();
+      final b = translatedCuboid(Vector3(dx, dy, dz));
+
+      // Mutation: swap which case calls which named function, and this
+      // stops matching — the three volumes (1.72, 0.28, 1.72) are distinct
+      // enough that a swap cannot hide behind a coincidence.
+      expect(
+        booleanOp(a, b, CsgOperation.union)!.mesh.signedVolume,
+        closeTo(booleanUnion(a, b)!.mesh.signedVolume, 1e-9),
+      );
+      expect(
+        booleanOp(a, b, CsgOperation.subtract)!.mesh.signedVolume,
+        closeTo(booleanSubtract(a, b)!.mesh.signedVolume, 1e-9),
+      );
+      expect(
+        booleanOp(a, b, CsgOperation.intersect)!.mesh.signedVolume,
+        closeTo(booleanIntersect(a, b)!.mesh.signedVolume, 1e-9),
+      );
+    });
+  });
 }

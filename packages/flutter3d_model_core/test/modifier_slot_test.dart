@@ -108,5 +108,21 @@ void main() {
       expect(hints['levels'], isA<IntHint>());
       expect(hints['viewLevels'], isA<IntHint>());
     });
+
+    test('BooleanModifier hints operation and operandId, not the matrix', () {
+      final hints = hintsForModifier(
+        BooleanModifier(
+          operation: CsgOperation.union,
+          operandId: 2,
+          operandTransform: Matrix4.identity(),
+        ),
+      );
+      // Mutation: add an entry for `operandTransform`, and a modifier panel
+      // built from this map would offer a control for a 4×4 matrix no
+      // `ParamHint` here can describe.
+      expect(hints.keys, unorderedEquals(<String>['operation', 'operandId']));
+      expect(hints['operation'], isA<EnumHint>());
+      expect(hints['operandId'], isA<IntHint>());
+    });
   });
 }

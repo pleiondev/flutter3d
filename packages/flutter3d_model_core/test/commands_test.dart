@@ -2462,6 +2462,47 @@ void main() {
       expect(modifier.viewLevels, 2);
     });
 
+    test('SetModifierField dispatches BooleanModifier too', () {
+      final history = edited();
+      history.run(
+        AddModifier(
+          id: 1,
+          modifier: BooleanModifier(
+            operation: CsgOperation.union,
+            operandId: 2,
+            operandTransform: Matrix4.identity(),
+          ),
+        ),
+      );
+
+      expect(
+        history.run(
+          SetModifierField(
+            id: 1,
+            index: 0,
+            field: 'operation',
+            value: 'subtract',
+          ),
+        ),
+        isNull,
+      );
+      expect(
+        history.run(
+          SetModifierField(id: 1, index: 0, field: 'operandId', value: 5),
+        ),
+        isNull,
+      );
+
+      final modifier =
+          history.project[1]!.modifiers.single.modifier as BooleanModifier;
+      // Mutation: no `BooleanModifier` case in `_modifierFieldSet` at all —
+      // a non-exhaustive switch `dart analyze` would already have caught,
+      // the same safety net every other modifier's own dispatch test
+      // confirms is wired rather than merely present.
+      expect(modifier.operation, CsgOperation.subtract);
+      expect(modifier.operandId, 5);
+    });
+
     // JSON round-tripping is covered once, for every command including
     // these six, by "every name has a sample and round-trips through JSON"
     // in the journal group above — no need for a second copy of that

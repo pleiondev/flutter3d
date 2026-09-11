@@ -46,6 +46,62 @@ void main() {
       final base = EditMesh.cuboid();
       expect(identical(stack.evaluate(base, ModifierContext()), base), isTrue);
     });
+
+    test('the same base but a different operand mesh re-folds too', () {
+      final stack = ModifierStack(<Modifier>[
+        BooleanModifier(
+          operation: CsgOperation.union,
+          operandId: 1,
+          operandTransform: Matrix4.translationValues(0.5, 0.3, 0.2),
+        ),
+      ]);
+      final base = EditMesh.cuboid();
+      final operandA = EditMesh.cuboid();
+      final operandB = EditMesh.cuboid();
+
+      final first = stack.evaluate(
+        base,
+        ModifierContext(operands: <int, EditMesh>{1: operandA}),
+      );
+      final second = stack.evaluate(
+        base,
+        ModifierContext(operands: <int, EditMesh>{1: operandB}),
+      );
+
+      // Mutation: cache on `base`'s own identity alone, the way this class
+      // used to before `BooleanModifier` existed — `second` would then be
+      // `identical` to `first`, a stale answer from before the operand's
+      // own mesh (a different instance, even though it started out an
+      // identical cube) was swapped in. `mesh-48`'s own acceptance is this
+      // exact case one level up, at `ModifierEvaluationCache`: a changed
+      // operand must never be read through a cache keyed on this object's
+      // own base alone.
+      expect(identical(first, second), isFalse);
+    });
+
+    test('the same base and the same operand mesh instance answers the '
+        'cached result', () {
+      final stack = ModifierStack(<Modifier>[
+        BooleanModifier(
+          operation: CsgOperation.union,
+          operandId: 1,
+          operandTransform: Matrix4.translationValues(0.5, 0.3, 0.2),
+        ),
+      ]);
+      final base = EditMesh.cuboid();
+      final operand = EditMesh.cuboid();
+
+      final first = stack.evaluate(
+        base,
+        ModifierContext(operands: <int, EditMesh>{1: operand}),
+      );
+      final second = stack.evaluate(
+        base,
+        ModifierContext(operands: <int, EditMesh>{1: operand}),
+      );
+
+      expect(identical(first, second), isTrue);
+    });
   });
 
   group('modifierFromJson', () {
@@ -404,6 +460,135 @@ void main() {
       // would then see a viewport number that means nothing next to the
       // one it asked for.
       expect(restored.viewLevels, 5);
+    });
+  });
+
+  group('BooleanModifier', () {
+    test('apply combines the base with the resolved operand', () {
+      final base = EditMesh.cuboid();
+      final operand = EditMesh.cuboid();
+      operand.beginStep();
+      for (var v = 0; v < operand.vertexSlotCount; v++) {
+        if (!operand.isVertexAlive(v)) continue;
+        operand.moveVertex(v, operand.positionOf(v) + Vector3(0.5, 0.3, 0.2));
+      }
+      operand.endStep();
+
+      final modifier = BooleanModifier(
+        operation: CsgOperation.union,
+        operandId: 7,
+        operandTransform: Matrix4.identity(),
+      );
+      final result = modifier.apply(
+        base,
+        ModifierContext(operands: <int, EditMesh>{7: operand}),
+      );
+
+      // The same 1.72 `bsp_test.dart`'s own union test works out
+      // analytically for this exact offset.
+      expect(result.signedVolume, closeTo(1.72, 1e-6));
+    });
+
+    test('a missing operand passes the base through unchanged', () {
+      final base = EditMesh.cuboid();
+      final modifier = BooleanModifier(
+        operation: CsgOperation.union,
+        operandId: 7,
+        operandTransform: Matrix4.identity(),
+      );
+
+      // Mutation: throw or build an empty mesh instead of passing `base`
+      // through — this is the same answer a cycle a caller broke by
+      // leaving the cyclic operand's own entry out gets.
+      final result = modifier.apply(base, const ModifierContext());
+      expect(identical(result, base), isTrue);
+    });
+
+    test('operandTransform is applied before combining, not after', () {
+      final base = EditMesh.cuboid();
+      // An operand cube still at the origin — the modifier's own
+      // `operandTransform`, not the mesh's own position, has to carry it
+      // to (0.5, 0.3, 0.2) for the same 1.72 union volume as the test
+      // above, which moved the mesh directly instead.
+      final operand = EditMesh.cuboid();
+
+      final modifier = BooleanModifier(
+        operation: CsgOperation.union,
+        operandId: 3,
+        operandTransform: Matrix4.translationValues(0.5, 0.3, 0.2),
+      );
+      final result = modifier.apply(
+        base,
+        ModifierContext(operands: <int, EditMesh>{3: operand}),
+      );
+
+      expect(result.signedVolume, closeTo(1.72, 1e-6));
+    });
+
+    test('never mutates its own base or the operand it was given', () {
+      final base = EditMesh.cuboid();
+      final beforeBase = base.toBytes();
+      final operand = EditMesh.cuboid();
+      final beforeOperand = operand.toBytes();
+
+      BooleanModifier(
+        operation: CsgOperation.subtract,
+        operandId: 1,
+        operandTransform: Matrix4.translationValues(0.1, 0, 0),
+      ).apply(base, ModifierContext(operands: <int, EditMesh>{1: operand}));
+
+      expect(base.toBytes(), beforeBase);
+      expect(operand.toBytes(), beforeOperand);
+    });
+
+    test('round-trips through JSON, the matrix included', () {
+      final modifier = BooleanModifier(
+        operation: CsgOperation.intersect,
+        operandId: 12,
+        operandTransform: Matrix4.translationValues(1, 2, 3),
+      );
+      final restored = modifierFromJson(modifier.toJson());
+
+      expect(restored, isA<BooleanModifier>());
+      final again = restored! as BooleanModifier;
+      expect(again.operation, CsgOperation.intersect);
+      expect(again.operandId, 12);
+      expect(again.operandTransform.storage, modifier.operandTransform.storage);
+    });
+
+    test('a modifier missing a required field is refused, not guessed', () {
+      expect(
+        modifierFromJson(<String, Object?>{
+          'kind': 'boolean',
+          'operation': 'union',
+          'operandId': 1,
+        }),
+        isNull,
+      );
+    });
+
+    test('an operation name this build does not have is refused', () {
+      expect(
+        modifierFromJson(<String, Object?>{
+          'kind': 'boolean',
+          'operation': 'xor',
+          'operandId': 1,
+          'operandTransform': Matrix4.identity().storage.toList(),
+        }),
+        isNull,
+      );
+    });
+
+    test('a matrix that is not 16 numbers is refused', () {
+      expect(
+        modifierFromJson(<String, Object?>{
+          'kind': 'boolean',
+          'operation': 'union',
+          'operandId': 1,
+          'operandTransform': <double>[1, 2, 3],
+        }),
+        isNull,
+      );
     });
   });
 }

@@ -766,14 +766,26 @@ List<ModelTool> get _commandTools => <ModelTool>[
           'levels (an int, at least 1, how many Catmull-Clark passes are '
           'actually baked into the mesh) and an optional viewLevels (an '
           'int — defaults to levels; nothing here reads it, it is carried '
-          'for a viewport that might).',
+          'for a viewport that might); kind "boolean" takes operation '
+          '(one of union/subtract/intersect), operandId (the id of the '
+          'other object to combine with) and operandTransform (16 numbers, '
+          'column-major, mapping the operand\'s own local positions into '
+          'this object\'s own local space) — the operand object itself is '
+          'not read here, only named; combining it happens once the stack '
+          'is evaluated.',
       inputSchema: ObjectSchema(
         properties: <String, Schema>{
           'id': IntegerSchema(description: 'the object'),
           'modifier': ObjectSchema(
             properties: <String, Schema>{
               'kind': UntitledSingleSelectEnumSchema(
-                values: <String>['array', 'mirror', 'smooth', 'subdivision'],
+                values: <String>[
+                  'array',
+                  'mirror',
+                  'smooth',
+                  'subdivision',
+                  'boolean',
+                ],
               ),
               'count': IntegerSchema(description: 'array only'),
               'offset': ListSchema(
@@ -792,6 +804,14 @@ List<ModelTool> get _commandTools => <ModelTool>[
               'preserveVolume': BooleanSchema(description: 'smooth only'),
               'levels': IntegerSchema(description: 'subdivision only'),
               'viewLevels': IntegerSchema(description: 'subdivision only'),
+              'operation': UntitledSingleSelectEnumSchema(
+                values: <String>['union', 'subtract', 'intersect'],
+              ),
+              'operandId': IntegerSchema(description: 'boolean only'),
+              'operandTransform': ListSchema(
+                items: NumberSchema(),
+                description: 'boolean only, 16 numbers',
+              ),
             },
             required: <String>['kind'],
           ),

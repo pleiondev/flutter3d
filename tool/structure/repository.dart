@@ -583,10 +583,12 @@ boundaryEnumExempt = <String, Map<String, String>>{
         '*findings* is open and is a value with instances, not an enum',
   },
   'flutter3d_mesh/lib/src/bsp.dart': <String, String>{
-    '_Op':
+    'CsgOperation':
         'the three boolean operations a binary space partition answers — '
-        'union, subtract, intersect — and private besides, so no switch '
-        'outside this file could see a fourth even if one were ever added',
+        'union, subtract, intersect. A fourth would need its own clip/invert '
+        'recipe worked out from the same reference algorithm this file '
+        'already transcribes the other three from, not a value slipped into '
+        'an existing switch',
   },
   'flutter3d_model_core/lib/src/command.dart': <String, String>{
     'TransformPivot':

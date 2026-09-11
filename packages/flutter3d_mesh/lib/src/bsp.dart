@@ -355,25 +355,36 @@ final class CsgResult {
 
 /// `a ∪ b`: everything either solid covers.
 CsgResult? booleanUnion(EditMesh a, EditMesh b, {int maxPolygons = 200000}) =>
-    _boolean(a, b, _Op.union, maxPolygons);
+    _boolean(a, b, CsgOperation.union, maxPolygons);
 
 /// `a − b`: [a] with whatever [b] covers cut away.
 CsgResult? booleanSubtract(
   EditMesh a,
   EditMesh b, {
   int maxPolygons = 200000,
-}) => _boolean(a, b, _Op.subtract, maxPolygons);
+}) => _boolean(a, b, CsgOperation.subtract, maxPolygons);
 
 /// `a ∩ b`: only what both solids cover.
 CsgResult? booleanIntersect(
   EditMesh a,
   EditMesh b, {
   int maxPolygons = 200000,
-}) => _boolean(a, b, _Op.intersect, maxPolygons);
+}) => _boolean(a, b, CsgOperation.intersect, maxPolygons);
 
-enum _Op { union, subtract, intersect }
+/// [booleanUnion]/[booleanSubtract]/[booleanIntersect], chosen by
+/// [operation] — the one shape `BooleanModifier` (`mesh-48`) needs to
+/// dispatch on a stored field rather than three separate call sites.
+CsgResult? booleanOp(
+  EditMesh a,
+  EditMesh b,
+  CsgOperation operation, {
+  int maxPolygons = 200000,
+}) => _boolean(a, b, operation, maxPolygons);
 
-CsgResult? _boolean(EditMesh a, EditMesh b, _Op op, int maxPolygons) {
+/// The three boolean operations a binary space partition answers.
+enum CsgOperation { union, subtract, intersect }
+
+CsgResult? _boolean(EditMesh a, EditMesh b, CsgOperation op, int maxPolygons) {
   final aTriangles = _triangleCount(a);
   final bTriangles = _triangleCount(b);
   if (aTriangles + bTriangles > maxPolygons) return null;
@@ -384,14 +395,14 @@ CsgResult? _boolean(EditMesh a, EditMesh b, _Op op, int maxPolygons) {
   final nodeB = CsgNode()..build(_toPolygons(b), tolerance);
 
   switch (op) {
-    case _Op.union:
+    case CsgOperation.union:
       nodeA.clipTo(nodeB, tolerance);
       nodeB.clipTo(nodeA, tolerance);
       nodeB.invert();
       nodeB.clipTo(nodeA, tolerance);
       nodeB.invert();
       nodeA.build(nodeB.allPolygons(), tolerance);
-    case _Op.subtract:
+    case CsgOperation.subtract:
       nodeA.invert();
       nodeA.clipTo(nodeB, tolerance);
       nodeB.clipTo(nodeA, tolerance);
@@ -400,7 +411,7 @@ CsgResult? _boolean(EditMesh a, EditMesh b, _Op op, int maxPolygons) {
       nodeB.invert();
       nodeA.build(nodeB.allPolygons(), tolerance);
       nodeA.invert();
-    case _Op.intersect:
+    case CsgOperation.intersect:
       nodeA.invert();
       nodeB.clipTo(nodeA, tolerance);
       nodeB.invert();

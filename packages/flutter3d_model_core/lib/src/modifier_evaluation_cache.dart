@@ -41,31 +41,70 @@ final class _CacheEntry {
 /// [EditMesh] a [Modifier] can run over; [evaluatedMesh] answers null for a
 /// parametric or imported object rather than guessing at a conversion
 /// nothing has asked for.
+///
+/// **[BooleanModifier]'s own operand is resolved here, recursively, from
+/// [project] — this is the "caller" its own doc comment in `flutter3d_mesh`
+/// points at.** Resolving an operand means evaluating *that* object's own
+/// modifier stack too, through this same cache, so an operand with its own
+/// modifiers (including its own `BooleanModifier`) is combined already
+/// folded, not as its raw base. A cycle — two objects each naming the other,
+/// directly or through a longer chain, including an object naming itself —
+/// is broken rather than refused loudly: the object already being resolved
+/// when its own id comes back around simply has no entry in
+/// [ModifierContext.operands] for that link, which every [BooleanModifier]
+/// already treats as nothing to combine with (see its own doc comment). The
+/// object that closes the loop still evaluates — with that one modifier
+/// inert — rather than the whole recursion refusing to answer at all.
 final class ModifierEvaluationCache {
   final Map<int, _CacheEntry> _byObjectId = <int, _CacheEntry>{};
 
   /// The mesh [object]'s modifier stack produces over its own base geometry,
-  /// or null when [object] has no [EditedGeometry] to run one over.
-  EditMesh? evaluatedMesh(ModelObject object) {
+  /// resolving any [BooleanModifier] operand against [project], or null when
+  /// [object] has no [EditedGeometry] to run one over.
+  EditMesh? evaluatedMesh(ModelProject project, ModelObject object) =>
+      _evaluatedMesh(project, object, const <int>{});
+
+  EditMesh? _evaluatedMesh(
+    ModelProject project,
+    ModelObject object,
+    Set<int> resolving,
+  ) {
     final EditMesh? base = switch (object.geometry) {
       final EditedGeometry g => g.mesh,
       _ => null,
     };
     if (base == null) return null;
 
+    final enabled = <Modifier>[
+      for (final ModifierSlot slot in object.modifiers)
+        if (slot.enabled) slot.modifier,
+    ];
+
     final int hash = _hashOf(object.modifiers);
     _CacheEntry? entry = _byObjectId[object.id];
     if (entry == null || entry.modifiersHash != hash) {
-      entry = _CacheEntry(
-        modifiersHash: hash,
-        stack: ModifierStack(<Modifier>[
-          for (final ModifierSlot slot in object.modifiers)
-            if (slot.enabled) slot.modifier,
-        ]),
-      );
+      entry = _CacheEntry(modifiersHash: hash, stack: ModifierStack(enabled));
       _byObjectId[object.id] = entry;
     }
-    return entry.stack.evaluate(base, const ModifierContext());
+
+    final stillResolving = <int>{...resolving, object.id};
+    final operands = <int, EditMesh>{};
+    for (final Modifier modifier in enabled) {
+      if (modifier is! BooleanModifier) continue;
+      if (stillResolving.contains(modifier.operandId)) {
+        continue; // A cycle closing here: leave this link unresolved.
+      }
+      final ModelObject? operandObject = project[modifier.operandId];
+      if (operandObject == null) continue;
+      final EditMesh? operandMesh = _evaluatedMesh(
+        project,
+        operandObject,
+        stillResolving,
+      );
+      if (operandMesh != null) operands[modifier.operandId] = operandMesh;
+    }
+
+    return entry.stack.evaluate(base, ModifierContext(operands: operands));
   }
 
   /// Drops whatever this remembers about [objectId], so a project that
