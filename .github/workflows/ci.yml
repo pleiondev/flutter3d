@@ -29,7 +29,7 @@ jobs:
     # hours and reports nothing at the end of it.
     timeout-minutes: 60
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: subosito/flutter-action@v2
         with:
@@ -67,7 +67,7 @@ jobs:
       # naga has no package anywhere, so it is built once and kept. The cache
       # key is the version, which means a bump here fetches a fresh build
       # rather than a stale binary under a matching name.
-      - uses: actions/cache@v4
+      - uses: actions/cache@v6
         with:
           path: ~/.cargo/bin/naga
           key: naga-30.0.1
@@ -95,7 +95,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: dart-lang/setup-dart@v1
         with:
           sdk: '3.13.0'
@@ -128,7 +128,7 @@ jobs:
     runs-on: macos-latest
     timeout-minutes: 60
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: subosito/flutter-action@v2
         with:
@@ -211,13 +211,13 @@ jobs:
       matrix:
         demo: [dungeon, platformer, racing, strategy]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       # Explicit, because the Android Gradle plugin and the Kotlin `jvmTarget`
       # in every app's build.gradle.kts both name 17, and which JDK a runner
       # image happens to default to is not a thing this repository should be
       # finding out the hard way.
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '17'
@@ -238,7 +238,7 @@ jobs:
       # storage for nothing. The legs that lose the race to save it say "a cache
       # with this key already exists" and carry on, which is the intended
       # outcome and not a warning to chase.
-      - uses: actions/cache@v4
+      - uses: actions/cache@v6
         with:
           path: |
             ~/.gradle/caches
