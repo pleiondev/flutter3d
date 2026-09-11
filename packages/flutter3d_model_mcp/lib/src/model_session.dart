@@ -336,6 +336,154 @@ final class ModelSession {
     File(to).writeAsBytesSync(_journal.toBytes());
     return (did: true, says: 'wrote ${_journal.length} journal lines to $to');
   }
+
+  // ------------------------------------------------------------- mcp-09n
+
+  /// Welds every mesh's own duplicate vertices, drops faces with no area,
+  /// and winds every closed shell outward — the whole project, one undo
+  /// step regardless of how many objects it touched.
+  ///
+  /// **Twenty-eight commands are how a person cleans up one object at a
+  /// time; this is what an agent that just imported a GLB full of them
+  /// runs once.** Wrapped in [ModelHistory.transaction] — the mechanism
+  /// `mcp-11n` is about, which existed in `flutter3d_model_core` before
+  /// anything here called it — so a ⌘Z after this takes the whole batch
+  /// back, not one weld at a time.
+  Answer cleanup() {
+    final ids = <int>[
+      for (final ModelObject object in project.objects)
+        if (object.geometry is EditedGeometry) object.id,
+    ];
+    if (ids.isEmpty) {
+      return (did: false, says: 'nothing here has a mesh to clean up');
+    }
+    var didAnything = false;
+    history.transaction(() {
+      for (final int id in ids) {
+        history.selection = ProjectSelection(objects: <int>[id]);
+        if (run(const MergeByDistance()).did) didAnything = true;
+
+        if (project[id]?.geometry case EditedGeometry(:final mesh)) {
+          final MeshIssue? degenerate = MeshChecks(mesh).degenerateFaces();
+          if (degenerate != null) {
+            history.selection = ProjectSelection(
+              mode: SelectionMode.mesh,
+              objects: <int>[id],
+              level: ElementLevel.face,
+              elements: degenerate.ids.toList(),
+            );
+            if (run(const DeleteElements()).did) didAnything = true;
+            history.selection = ProjectSelection(objects: <int>[id]);
+          }
+        }
+
+        // `makeConsistent` winds every *closed* island outward on its own,
+        // never guessing at an open one — see its own doc comment — which
+        // is exactly "вывернуть должной стороной" without this recipe
+        // having to detect a shell's own winding itself.
+        if (run(const RecalculateNormals()).did) didAnything = true;
+      }
+    });
+    return (
+      did: didAnything,
+      says: didAnything
+          ? 'cleaned up ${ids.length} ${ids.length == 1 ? 'mesh' : 'meshes'}'
+          : 'nothing needed cleaning',
+    );
+  }
+
+  /// A batch of primitives, each optionally naming an earlier entry in
+  /// [spec] as its parent, built as one undo step.
+  ///
+  /// Each entry takes `addPrimitive`'s own arguments (`kind`, `size`,
+  /// `segments`, `at`) plus an optional `name` and an optional `parent` —
+  /// an index into [spec] itself, not an object id, since nothing in the
+  /// batch has one until this runs.
+  ///
+  /// **Validated whole before anything is built.** A batch that fails
+  /// partway through would leave some of a hierarchy built and some not,
+  /// on a stack an agent's own `undo` — `mcp-10n`'s — would have to take
+  /// back one piece at a time to get out of; checking every entry first
+  /// means the transaction below never has a reason to fail midway.
+  Answer buildFrom(List<Map<String, Object?>> spec) {
+    if (spec.isEmpty) return (did: false, says: 'nothing to build');
+    for (var i = 0; i < spec.length; i++) {
+      final Object? kind = spec[i]['kind'];
+      if (kind is! String || !AddPrimitive.primitiveKinds.contains(kind)) {
+        return (
+          did: false,
+          says:
+              'entry $i: "$kind" is not a shape this builds. It knows '
+              '${AddPrimitive.primitiveKinds.join(', ')}',
+        );
+      }
+      final Object? size = spec[i]['size'];
+      if (size != null && (size is! num || size <= 0)) {
+        return (did: false, says: 'entry $i needs a positive size');
+      }
+      final Object? parent = spec[i]['parent'];
+      if (parent != null && (parent is! int || parent < 0 || parent >= i)) {
+        return (
+          did: false,
+          says: 'entry $i names a parent this batch has not built yet',
+        );
+      }
+    }
+
+    final ids = <int>[];
+    history.transaction(() {
+      for (var i = 0; i < spec.length; i++) {
+        final entry = spec[i];
+        final ModelCommand command = modelCommandFromJson(<String, Object?>{
+          'name': 'addPrimitive',
+          'kind': entry['kind'],
+          if (entry['size'] != null) 'size': entry['size'],
+          if (entry['segments'] != null) 'segments': entry['segments'],
+          if (entry['at'] != null) 'at': entry['at'],
+        })!;
+        run(command);
+        final int newId = history.selection.activeObject!;
+        ids.add(newId);
+        if (entry['name'] case final String label
+            when label.trim().isNotEmpty) {
+          run(Rename(id: newId, to: label));
+        }
+        if (entry['parent'] case final int parentIndex) {
+          run(SetParent(id: newId, to: ids[parentIndex]));
+        }
+      }
+    });
+    return (
+      did: true,
+      says: 'built ${ids.length} ${ids.length == 1 ? 'object' : 'objects'}',
+    );
+  }
+
+  /// Metrics and issues in one call, so checking on a project just built
+  /// does not need [listing] and [check] both.
+  ///
+  /// **No picture.** The row this answers also asks for one; that needs
+  /// `renderProject` (`mcp-05n`), itself waiting on the `DevicePresenter`
+  /// split `mcp-01n` names — real, larger, unbuilt scope this recipe does
+  /// not pretend to have by leaving the word out of its own name.
+  String inspect() {
+    var meshObjects = 0;
+    var vertices = 0;
+    var faces = 0;
+    for (final ModelObject object in project.objects) {
+      if (object.geometry case EditedGeometry(:final mesh)) {
+        meshObjects++;
+        vertices += mesh.vertexCount;
+        faces += mesh.faceCount;
+      }
+    }
+    return '${project.objects.length} '
+        '${project.objects.length == 1 ? 'object' : 'objects'}'
+        '${meshObjects == 0 ? '' : ', $meshObjects with topology: $vertices '
+              '${vertices == 1 ? 'vertex' : 'vertices'}, $faces '
+              '${faces == 1 ? 'face' : 'faces'}'}'
+        '\n${check()}';
+  }
 }
 
 ElementLevel? _levelNamed(String? word) {

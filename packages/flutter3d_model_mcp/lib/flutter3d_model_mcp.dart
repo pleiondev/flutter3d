@@ -11,8 +11,12 @@
 /// otherwise supply: [ModelSession.listing] and [ModelSession.select],
 /// because a program with no screen cannot point at anything; `check`, `save`,
 /// `export` and `import`, because a project has a life outside the commands
-/// that shape it; and `journal`, because `doc-16`'s `CommandJournal` is worth
-/// writing to disk from the one place that already runs every command.
+/// that shape it; `journal`, because `doc-16`'s `CommandJournal` is worth
+/// writing to disk from the one place that already runs every command; and
+/// `mcp-09n`'s own composite recipes — `cleanup`, `buildFrom` and
+/// `inspect` — because an agent assembling one out of the commands above
+/// by hand is slow, expensive, and leaves a whole batch of edits as many
+/// undo steps instead of one.
 ///
 /// ## What it is not
 ///

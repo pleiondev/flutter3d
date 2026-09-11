@@ -38,6 +38,9 @@ void main() {
       'export',
       'import',
       'journal',
+      'cleanup',
+      'buildFrom',
+      'inspect',
     };
     expect(
       namesOf(modelTools).difference(modelCommandNames.toSet()),

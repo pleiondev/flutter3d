@@ -1217,4 +1217,77 @@ List<ModelTool> get modelTools => <ModelTool>[
       return session.journal(to);
     }),
   ),
+  ModelTool(
+    Tool(
+      name: 'cleanup',
+      description:
+          'Weld every mesh\'s own duplicate vertices, drop faces '
+          'with no area, and wind every closed shell outward — the whole '
+          'project, one undo step. Worth calling right after import.',
+      inputSchema: ObjectSchema(),
+    ),
+    _sync(
+      (ModelSession session, Map<String, Object?> arguments) =>
+          session.cleanup(),
+    ),
+  ),
+  ModelTool(
+    Tool(
+      name: 'buildFrom',
+      description:
+          'Add a batch of primitives in one undo step. Each entry '
+          'takes addPrimitive\'s own arguments (kind, size, segments, at) '
+          'plus an optional name and an optional parent — the index of an '
+          'earlier entry in this same list, not an object id, since '
+          'nothing in the batch has one until this runs.',
+      inputSchema: ObjectSchema(
+        properties: <String, Schema>{
+          'spec': ListSchema(
+            description: 'the batch, built in order',
+            items: ObjectSchema(
+              properties: <String, Schema>{
+                'kind': UntitledSingleSelectEnumSchema(
+                  values: AddPrimitive.primitiveKinds,
+                ),
+                'size': NumberSchema(description: 'how big, default 1'),
+                'segments': IntegerSchema(description: 'how round, default 32'),
+                'at': _vector('where it goes, default the origin'),
+                'name': StringSchema(description: 'what to call it'),
+                'parent': IntegerSchema(
+                  description:
+                      'an earlier index in this same list, for '
+                      'a child of it',
+                ),
+              },
+              required: <String>['kind'],
+            ),
+          ),
+        },
+        required: <String>['spec'],
+      ),
+    ),
+    _sync((ModelSession session, Map<String, Object?> arguments) {
+      final spec = arguments['spec'];
+      if (spec is! List) {
+        return (did: false, says: 'buildFrom needs a "spec" list');
+      }
+      return session.buildFrom(
+        spec.map((Object? e) => Map<String, Object?>.from(e! as Map)).toList(),
+      );
+    }),
+  ),
+  ModelTool(
+    Tool(
+      name: 'inspect',
+      description:
+          'Metrics (object, vertex and face counts) and issues in '
+          'one call — list and check together, for a quick read on what '
+          'was just built. No picture yet.',
+      inputSchema: ObjectSchema(),
+    ),
+    _sync(
+      (ModelSession session, Map<String, Object?> arguments) =>
+          (did: true, says: session.inspect()),
+    ),
+  ),
 ];
