@@ -53,9 +53,12 @@ import 'package:flutter3d_geometry/flutter3d_geometry.dart';
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 import 'package:vector_math/vector_math.dart';
 
+import 'command.dart';
+import 'history.dart';
 import 'material.dart';
 import 'parametric_json.dart';
 import 'project.dart';
+import 'selection.dart';
 import 'texture_budget.dart';
 import 'texture_info.dart';
 
@@ -103,9 +106,8 @@ const int kProjectChecksumEntryBytes = 8;
 /// Explicit numbers, never an enum's index: the number goes into a file that
 /// outlives this source, and reordering a declaration would silently
 /// reinterpret every project already saved. The plan names further sections —
-/// skins, animations, the command journal and the history of `doc-31d` — and
-/// each takes a number of its own from 6 upwards. None of them may reuse 1 to
-/// 5.
+/// skins, animations and the command journal — and each takes a number of its
+/// own from 8 upwards. None of them may reuse 1 to 7.
 abstract final class ProjectSection {
   /// The document, as JSON. Everything that is not bulk lives here.
   static const int manifest = 1;
@@ -160,6 +162,18 @@ abstract final class ProjectSection {
   /// additive: it is a new section, and the rule for those is that an older
   /// reader steps over what it does not know.
   static const int checksums = 6;
+
+  /// `doc-31d`'s own section: JSON, the same shape the manifest itself is —
+  /// `{'steps': [...]}`, oldest step first, each `{says, command, '
+  /// selectionBefore, objects}` — `objects` shaped exactly like the
+  /// manifest's own, so a step's `geometry.mesh` index addresses the same
+  /// [editMeshes]/[importedMeshes] tables the live project's objects do.
+  ///
+  /// Absent, not present-and-empty, for a file nobody asked to carry history
+  /// for — [writeProject]'s own `history` parameter is null far more often
+  /// than not, and a section that is never written is one an older reader
+  /// never has to skip.
+  static const int history = 7;
 }
 
 /// What [readProject] gives back.
@@ -187,7 +201,11 @@ sealed class ProjectRead {
 
 /// The file read.
 final class ProjectOpened extends ProjectRead {
-  const ProjectOpened(this.project, {this.warnings = const <String>[]});
+  const ProjectOpened(
+    this.project, {
+    this.warnings = const <String>[],
+    this.history = const <HistoryStep>[],
+  });
 
   final ModelProject project;
 
@@ -196,6 +214,15 @@ final class ProjectOpened extends ProjectRead {
   /// newer build, opened as the fallback that name names above. Empty for a
   /// file with nothing to say about — every field it named, this build knew.
   final List<String> warnings;
+
+  /// `doc-31d`'s own history, oldest step first — empty for a file with no
+  /// `history` section, the ordinary case, not merely a possible one.
+  ///
+  /// A caller after undo/redo builds `ModelHistory.withSteps(project,
+  /// history)` rather than the plain constructor; one with no use for
+  /// history — a headless export, say — reads [project] alone and never
+  /// looks at this.
+  final List<HistoryStep> history;
 }
 
 /// The file not read, and one sentence saying what is wrong with it.
@@ -246,9 +273,22 @@ bool isProjectFile(Uint8List bytes) {
 /// the one thing a project can hold that there is still nowhere to write. A
 /// refusal at the call site beats the alternative: dropping a face's
 /// expressions gives a file whose loss nothing downstream can detect.
-Uint8List writeProject(ModelProject project) {
+Uint8List writeProject(
+  ModelProject project, {
+  ModelHistory? history,
+  int maxHistoryBytes = 4 * 1024 * 1024,
+}) {
   final meshes = <Uint8List>[];
-  final objects = <Map<String, Object?>>[];
+
+  // Edited meshes, deduplicated by identity: `doc-31d`'s own reason this
+  // exists at all — a history step's `before` project and the live one
+  // share every `EditMesh` neither of them touched, and writing each of
+  // those once, addressed by index, is the whole of what keeps a file with
+  // history from costing one full mesh copy a step. `EditMesh` has no `==`,
+  // so a plain `Map` is already identity-keyed, the same fact this
+  // session's own caches (`ModifierStack`, `TextureBakeCache`) already
+  // lean on.
+  final meshAt = <EditMesh, int>{};
 
   // Imported buffers, deduplicated by identity: two objects drawing the same
   // `MeshData` — which is what an instanced prop becomes — write it once and
@@ -259,51 +299,82 @@ Uint8List writeProject(ModelProject project) {
   final importedAt = <MeshData, int>{};
   final importedJson = <Map<String, Object?>>[];
 
-  for (final ModelObject object in project.objects) {
-    final Map<String, Object?> geometry;
-    switch (object.geometry) {
-      case ParametricGeometry(:final ParametricShape shape):
-        geometry = <String, Object?>{
-          'kind': 'parametric',
-          ...parametricShapeJson(shape),
-        };
-      case EditedGeometry(:final EditMesh mesh):
-        geometry = <String, Object?>{'kind': 'edited', 'mesh': meshes.length};
-        meshes.add(mesh.toBytes());
-      case ImportedGeometry(:final MeshData data):
-        // Morph targets are the one thing an imported mesh can carry that
-        // there is still nowhere to put. Refused rather than dropped, on the
-        // rule the rest of this file keeps: a file that opens with the face
-        // there and none of its expressions is a loss nothing downstream can
-        // detect.
-        if (data.morphTargets.isNotEmpty) {
-          throw ArgumentError(
-            'object ${object.id} ("${object.name}") holds a mesh with '
-            '${data.morphTargets.length} morph targets, and this version of '
-            'the format has nowhere to write them.',
-          );
-        }
-        final at = importedAt.putIfAbsent(data, () {
-          imported.add(data);
-          importedJson.add(<String, Object?>{
-            'layout': _layoutJson(data.layout),
+  List<Map<String, Object?>> objectsJsonFor(List<ModelObject> objectList) {
+    final out = <Map<String, Object?>>[];
+    for (final ModelObject object in objectList) {
+      final Map<String, Object?> geometry;
+      switch (object.geometry) {
+        case ParametricGeometry(:final ParametricShape shape):
+          geometry = <String, Object?>{
+            'kind': 'parametric',
+            ...parametricShapeJson(shape),
+          };
+        case EditedGeometry(:final EditMesh mesh):
+          final at = meshAt.putIfAbsent(mesh, () {
+            meshes.add(mesh.toBytes());
+            return meshes.length - 1;
           });
-          return imported.length - 1;
-        });
-        geometry = <String, Object?>{'kind': 'imported', 'mesh': at};
-      case SocketGeometry():
-        geometry = <String, Object?>{'kind': 'socket'};
+          geometry = <String, Object?>{'kind': 'edited', 'mesh': at};
+        case ImportedGeometry(:final MeshData data):
+          // Morph targets are the one thing an imported mesh can carry that
+          // there is still nowhere to put. Refused rather than dropped, on
+          // the rule the rest of this file keeps: a file that opens with the
+          // face there and none of its expressions is a loss nothing
+          // downstream can detect.
+          if (data.morphTargets.isNotEmpty) {
+            throw ArgumentError(
+              'object ${object.id} ("${object.name}") holds a mesh with '
+              '${data.morphTargets.length} morph targets, and this version '
+              'of the format has nowhere to write them.',
+            );
+          }
+          final at = importedAt.putIfAbsent(data, () {
+            imported.add(data);
+            importedJson.add(<String, Object?>{
+              'layout': _layoutJson(data.layout),
+            });
+            return imported.length - 1;
+          });
+          geometry = <String, Object?>{'kind': 'imported', 'mesh': at};
+        case SocketGeometry():
+          geometry = <String, Object?>{'kind': 'socket'};
+      }
+      out.add(<String, Object?>{
+        'id': object.id,
+        'name': object.name,
+        'parent': object.parent,
+        'version': object.version,
+        'transform': <double>[...object.transform.storage],
+        'materialSlots': <int>[...object.materialSlots],
+        'geometry': geometry,
+      });
     }
-    objects.add(<String, Object?>{
-      'id': object.id,
-      'name': object.name,
-      'parent': object.parent,
-      'version': object.version,
-      'transform': <double>[...object.transform.storage],
-      'materialSlots': <int>[...object.materialSlots],
-      'geometry': geometry,
-    });
+    return out;
   }
+
+  final objects = objectsJsonFor(project.objects);
+
+  // Every history step's own objects, walked oldest first so a step that
+  // shares a mesh with an *earlier* step (not just with the live project)
+  // still finds it already in `meshAt` — order only matters for which step
+  // pays for a chunk's first appearance, never for whether one is shared.
+  // `history` is null for the overwhelming majority of calls (every
+  // existing fixture and every writer that does not ask for it), and stays
+  // that way rather than defaulting to an empty `ModelHistory`: a file with
+  // no `history` section and a file with an empty one both open with an
+  // empty history, so there is nothing an empty-but-present section would
+  // say that omitting it does not.
+  final stepJson = history == null
+      ? const <Map<String, Object?>>[]
+      : <Map<String, Object?>>[
+          for (final HistoryStep step in history.steps)
+            <String, Object?>{
+              'says': step.command.says,
+              'command': step.command.toJson(),
+              'selectionBefore': step.selectionBefore.toJson(),
+              'objects': objectsJsonFor(step.before.objects),
+            },
+        ];
 
   final manifest = utf8.encode(
     jsonEncode(
@@ -437,6 +508,14 @@ Uint8List writeProject(ModelProject project) {
       ..setUint32(i * kProjectImageEntryBytes + 4, length, Endian.little);
   }
 
+  // Г5's own byte limit, trimming the *oldest* steps first — the same
+  // direction `ModelHistory`'s own depth limit already trims in
+  // (`_done.removeAt(0)`). A mesh a trimmed step alone referenced stays in
+  // the blob unreferenced by anything the history section still names,
+  // spent rather than reclaimed, which is the one honest cost of deciding
+  // what to keep after the blob is already built.
+  final trimmedSteps = _trimmedToFit(stepJson, maxHistoryBytes);
+
   final sections = <(int kind, Uint8List data, int count)>[
     (ProjectSection.manifest, manifest, 0),
     (ProjectSection.editMeshes, table, meshes.length),
@@ -446,6 +525,16 @@ Uint8List writeProject(ModelProject project) {
     // imported meshes" and "an older writer".
     (ProjectSection.importedMeshes, importedTable, imported.length),
     (ProjectSection.images, imageTable, project.images.length),
+    // Absent, not merely empty, when nobody asked for history at all — see
+    // `stepJson`'s own comment.
+    if (history != null)
+      (
+        ProjectSection.history,
+        utf8.encode(
+          jsonEncode(_canonical(<String, Object?>{'steps': trimmedSteps})),
+        ),
+        trimmedSteps.length,
+      ),
   ];
 
   // Computed over the section data, before anything knows where in the file it
@@ -670,6 +759,20 @@ ProjectRead readProject(Uint8List bytes) {
       if (refusal != null) return ProjectRefused(refusal);
       objects.add(object!);
     }
+
+    final (List<HistoryStep> history, String? historyRefusal) = _readHistory(
+      bytes,
+      sections,
+      meshes,
+      arrived,
+      pool,
+      profile: profile,
+      materials: materials,
+      images: images,
+      nextId: nextId,
+    );
+    if (historyRefusal != null) return ProjectRefused(historyRefusal);
+
     return ProjectOpened(
       ModelProject(
         profile: profile,
@@ -679,6 +782,7 @@ ProjectRead readProject(Uint8List bytes) {
         nextId: nextId,
       ),
       warnings: warnings,
+      history: history,
     );
   }
 
@@ -686,6 +790,115 @@ ProjectRead readProject(Uint8List bytes) {
     'The manifest is not shaped like a project: it needs a profile with its '
     'five limits, the nextId, and a list of objects.',
   );
+}
+
+/// `doc-31d`'s own `history` section, or the sentence that stops the file
+/// being read — empty, not refused, when the section is simply absent, which
+/// is the ordinary shape of a file nobody asked to carry history for.
+///
+/// [meshes] and [arrived] are the same decoded tables the live project's own
+/// objects were just read against: a step's own `objects` addresses the
+/// identical `editMeshes`/`importedMeshes` indices, since [writeProject]
+/// built both from the same shared tables.
+///
+/// **[profile], [materials], [images] and [nextId] are the live project's
+/// own, not written per step.** Only the object list is stored once for
+/// every historical moment; a material or an image added or changed inside
+/// the three commands a caller undoes is not what this row's own acceptance
+/// asks to round-trip, and every `before` project below borrows the current
+/// ones rather than carrying a second, empty-by-default copy of tables
+/// nothing wrote a history of.
+(List<HistoryStep>, String?) _readHistory(
+  Uint8List bytes,
+  Map<int, ({int offset, int length})> sections,
+  List<EditMesh> meshes,
+  List<MeshData> arrived,
+  Map<String, String> pool, {
+  required ProjectProfile profile,
+  required List<ProjectMaterial> materials,
+  required List<EncodedImage> images,
+  required int nextId,
+}) {
+  final at = sections[ProjectSection.history];
+  if (at == null) return (const <HistoryStep>[], null);
+
+  final Object? document;
+  try {
+    document = jsonDecode(
+      utf8.decode(Uint8List.sublistView(bytes, at.offset, at.offset + at.length)),
+    );
+  } on FormatException catch (error) {
+    return (const <HistoryStep>[], 'The history section is not JSON: ${error.message}');
+  }
+  if (document is! Map<String, Object?> || document['steps'] is! List) {
+    return (
+      const <HistoryStep>[],
+      'The history section is not shaped like a list of steps.',
+    );
+  }
+
+  final entries = document['steps']! as List;
+  final steps = <HistoryStep>[];
+  for (var i = 0; i < entries.length; i++) {
+    if (entries[i] case {
+      'says': final String says,
+      'command': final Map<String, Object?> commandJson,
+      'selectionBefore': final Object? selectionJson,
+      'objects': final List<Object?> objectEntries,
+    }) {
+      final ModelCommand? command = modelCommandFromJson(commandJson);
+      if (command == null) {
+        return (
+          const <HistoryStep>[],
+          'History step $i ("$says") names a command this build does not '
+              'know.',
+        );
+      }
+      final ProjectSelection? selection = ProjectSelection.fromJson(
+        selectionJson,
+      );
+      if (selection == null) {
+        return (
+          const <HistoryStep>[],
+          'History step $i ("$says") has no readable selection.',
+        );
+      }
+      final objects = <ModelObject>[];
+      for (var j = 0; j < objectEntries.length; j++) {
+        final (ModelObject? object, String? refusal) = _readObject(
+          objectEntries[j],
+          j,
+          meshes,
+          arrived,
+          pool,
+        );
+        if (refusal != null) {
+          return (const <HistoryStep>[], 'History step $i: $refusal');
+        }
+        objects.add(object!);
+      }
+      steps.add(
+        HistoryStep(
+          command: command,
+          before: ModelProject(
+            profile: profile,
+            objects: objects,
+            materials: materials,
+            images: images,
+            nextId: nextId,
+          ),
+          selectionBefore: selection,
+        ),
+      );
+    } else {
+      return (
+        const <HistoryStep>[],
+        'History step $i is not shaped like a step: it needs says, a '
+            'command, a selection and a list of objects.',
+      );
+    }
+  }
+  return (steps, null);
 }
 
 /// The imported meshes, or the sentence that stops the file being read.
@@ -1330,6 +1543,25 @@ String? _verifyChecksums(
 }
 
 int _align(int value) => (value + 3) & ~3;
+
+/// [steps], oldest dropped first, until `jsonEncode({'steps': steps})` fits
+/// [maxBytes] — Г5's own byte limit on the history a file carries, read
+/// literally: "the limit trims the tail on write." Kept simple on purpose —
+/// re-encoding the whole array on every drop is quadratic in step count, and
+/// sixty-odd steps (`ModelHistory`'s own default depth) is nowhere near
+/// where that would be felt.
+List<Map<String, Object?>> _trimmedToFit(
+  List<Map<String, Object?>> steps,
+  int maxBytes,
+) {
+  var kept = steps;
+  while (kept.isNotEmpty &&
+      utf8.encode(jsonEncode(<String, Object?>{'steps': kept})).length >
+          maxBytes) {
+    kept = kept.sublist(1);
+  }
+  return kept;
+}
 
 /// [s], or the equal string already in [pool] if one has been read before.
 ///

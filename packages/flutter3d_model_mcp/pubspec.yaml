@@ -42,6 +42,12 @@ dev_dependencies:
   # the real protocol without starting a process.
   stream_channel: ^2.1.4
 
+  # `Vector3`/`Matrix4`, for a test that builds a `ModelObject` directly
+  # rather than through a tool call's own JSON — already a transitive
+  # dependency through `flutter3d_model_core`, declared here too since a
+  # test imports it by name.
+  vector_math: ^2.2.0
+
 # **A host starts this with `dart run`, and that is the whole of why every
 # package under it is plain Dart.** `dart run` cannot resolve a package that
 # depends on the Flutter SDK, so a single Flutter import anywhere in this graph

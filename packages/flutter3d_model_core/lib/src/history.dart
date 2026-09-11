@@ -65,6 +65,29 @@ final class ModelHistory {
     : _selection = selection ?? ProjectSelection.none,
       _saved = _project;
 
+  /// Rebuilds a history whose undo stack is already known — `doc-31d`'s own
+  /// reader, once a file's own `history` section has read [steps] back.
+  ///
+  /// **No mesh rolling on undo/redo built from this.** Every [HistoryStep]
+  /// read from a file already names the real, distinct `EditMesh` for its
+  /// own moment — `project_format.dart`'s own dedup means two steps that
+  /// happened to leave a mesh untouched already point at the same
+  /// instance — so swapping `_project` to `step.before` is the whole of
+  /// undo here. [HistoryStep.meshSteps] stays empty for exactly that
+  /// reason: it exists for the *live* editing path, where one `EditMesh`
+  /// keeps mutating through its own journal rather than being copied each
+  /// step, and a file-rebuilt history has already paid that copy's cost by
+  /// construction.
+  ModelHistory.withSteps(
+    this._project,
+    List<HistoryStep> steps, {
+    this.depth = 64,
+    ProjectSelection? selection,
+  }) : _selection = selection ?? ProjectSelection.none,
+       _saved = _project {
+    _done.addAll(steps);
+  }
+
   /// How many steps are kept.
   ///
   /// Sixty-four rather than unbounded: each step holds a whole project, and
@@ -321,4 +344,10 @@ final class ModelHistory {
   List<ModelCommand> get journal => <ModelCommand>[
     for (final HistoryStep step in _done) step.command,
   ];
+
+  /// The undo stack itself, oldest first — `doc-31d`'s own writer reads this
+  /// to put a project's history in the file beside it. Redo is not here:
+  /// [_undone] is what a person has already taken back, and a save keeps
+  /// what happened, not what somebody is one ⇧⌘Z away from doing again.
+  List<HistoryStep> get steps => List<HistoryStep>.unmodifiable(_done);
 }

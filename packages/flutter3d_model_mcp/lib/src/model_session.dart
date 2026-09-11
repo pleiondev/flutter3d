@@ -37,8 +37,14 @@ final class ModelSession {
     }
     final ProjectRead read = readProject(file.readAsBytesSync());
     return switch (read) {
-      ProjectOpened(:final project) => ModelSession(
-        ModelHistory(project),
+      // `doc-31d`: a file with its own `history` section reopens with real
+      // undo already on the stack, not just the project it last saved as.
+      // `ModelHistory.withSteps` on an empty list (an older file, or one
+      // saved with `save(includeHistory: false)`) is exactly
+      // `ModelHistory(project)` — no branch needed for "this file has no
+      // history."
+      ProjectOpened(:final project, :final history) => ModelSession(
+        ModelHistory.withSteps(project, history),
         path: path,
       ),
       ProjectRefused(:final because) => throw FormatException(because),
@@ -171,7 +177,16 @@ final class ModelSession {
   }
 
   /// Writes the project, to [to] or over the path it was opened from.
-  Answer save(String? to) {
+  ///
+  /// [includeHistory] writes the undo stack in beside it (`doc-31d`) so the
+  /// next `ModelSession.open` reopens with real undo already on the stack,
+  /// not just the project as it last stood. Off by default: a project of a
+  /// few objects, saved after the sort of session `agent_builds_a_table_
+  /// test.dart` runs, grows roughly ninefold with every step's own object
+  /// list written in beside it — a real cost worth asking for, not one an
+  /// ordinary save should pay without being asked. The toggle to ask for
+  /// it from outside this session is `ui-33d`'s own row, not built here.
+  Answer save(String? to, {bool includeHistory = false}) {
     final target = to ?? path;
     if (target == null) {
       return (
@@ -179,7 +194,9 @@ final class ModelSession {
         says: 'this session has no path of its own — give one',
       );
     }
-    File(target).writeAsBytesSync(writeProject(project));
+    File(target).writeAsBytesSync(
+      writeProject(project, history: includeHistory ? history : null),
+    );
     path = target;
     return (did: true, says: 'written to $target');
   }
