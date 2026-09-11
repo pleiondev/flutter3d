@@ -46,3 +46,4 @@ export 'src/obj/obj.dart';
 export 'src/plain_model_document.dart';
 export 'src/stl/stl.dart';
 export 'src/surface_material.dart';
+export 'src/usdz/usdz.dart';
