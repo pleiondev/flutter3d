@@ -394,6 +394,89 @@ void main() {
     });
   });
 
+  group('ImportOptions', () {
+    ModelDocument cubeAt(Vector3 translation) => _Doc(
+      surfaces: <ModelSurface>[
+        ModelSurface(mesh: EditMesh.cuboid().toMeshData()),
+      ],
+      nodes: <ModelNode>[
+        ModelNode(name: 'cube', translation: translation, surfaces: <int>[0]),
+      ],
+      roots: <int>[0],
+    );
+
+    test('default options touch nothing', () {
+      final project = fromModelDocument(cubeAt(Vector3(1.0, 2.0, 3.0)));
+      expect(
+        project.objects.single.transform.getTranslation(),
+        Vector3(1.0, 2.0, 3.0),
+      );
+    });
+
+    test('scale: 0.001 gives bounds 1000x smaller', () {
+      final document = cubeAt(Vector3.zero());
+      final unscaled = toModelDocument(
+        fromModelDocument(document),
+      ).computeBounds();
+      final scaled = toModelDocument(
+        fromModelDocument(document, options: const ImportOptions(scale: 0.001)),
+      ).computeBounds();
+
+      final before = unscaled.max - unscaled.min;
+      final after = scaled.max - scaled.min;
+      // Mutation: scale by `options.scale` a second time, or not at all.
+      // Either changes this ratio away from exactly 0.001.
+      expect(after.x / before.x, closeTo(0.001, 1e-9));
+      expect(after.y / before.y, closeTo(0.001, 1e-9));
+      expect(after.z / before.z, closeTo(0.001, 1e-9));
+    });
+
+    test('upAxis: z rotates the root -90 degrees about X', () {
+      // One unit "up" in the source file's own Z-up convention.
+      final document = cubeAt(Vector3(0.0, 0.0, 1.0));
+      final project = fromModelDocument(
+        document,
+        options: const ImportOptions(upAxis: UpAxis.z),
+      );
+      final placed = project.objects.single.transform.getTranslation();
+      // Mutation: rotate +90 instead of -90, or about the wrong axis. Both
+      // land somewhere other than "the same point, now called up in Y".
+      expect(placed.x, closeTo(0.0, 1e-9));
+      expect(placed.y, closeTo(1.0, 1e-9));
+      expect(placed.z, closeTo(0.0, 1e-9));
+    });
+
+    test(
+      'a child inherits the correction through the root, not on its own',
+      () {
+        final document = _Doc(
+          surfaces: <ModelSurface>[
+            ModelSurface(mesh: EditMesh.cuboid().toMeshData()),
+            ModelSurface(mesh: EditMesh.cuboid().toMeshData()),
+          ],
+          nodes: <ModelNode>[
+            ModelNode(name: 'root', children: <int>[1]),
+            ModelNode(
+              name: 'child',
+              translation: Vector3(0.0, 0.0, 1.0),
+              surfaces: <int>[1],
+            ),
+          ],
+          roots: <int>[0],
+        );
+        final project = fromModelDocument(
+          document,
+          options: const ImportOptions(upAxis: UpAxis.z),
+        );
+        final child = project.objects.firstWhere((o) => o.name == 'child');
+        // The child's own local transform is untouched — the rotation lives on
+        // the root and the hierarchy composes it, the same as every other
+        // placement in this project.
+        expect(child.transform.getTranslation(), Vector3(0.0, 0.0, 1.0));
+      },
+    );
+  });
+
   group('out and back', () {
     test('a hierarchy survives being written and read', () {
       final project = projectOf(<ModelObject Function(int)>[

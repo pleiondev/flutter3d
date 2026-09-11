@@ -14,6 +14,7 @@
 /// project and leaves both sides alone.
 library;
 
+import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:flutter3d_formats/flutter3d_formats.dart';
@@ -336,10 +337,45 @@ int? _slotOf(ModelObject object, int materialCount) {
 /// "unpainted" and "painted with the first material in the file" are different
 /// things, and only one of them is what the file said.
 ///
+/// Which way is up in the file being imported.
+enum UpAxis {
+  /// glTF's own convention, and this project's: no adjustment.
+  y,
+
+  /// Common in CAD and DCC exports (and STL, which specifies no convention at
+  /// all but is Z-up in practice more often than not). The root is rotated
+  /// −90° about X, which is the rotation that takes a Z-up model's "up" to Y.
+  z,
+}
+
+/// How to interpret a file [fromModelDocument] is bringing in, for the two
+/// facts a format's geometry does not settle on its own.
+///
+/// **Applied to every root object's own transform, not to the vertices.**
+/// A mesh imported at the wrong scale or on the wrong axis is still exactly
+/// the mesh the file had — [ImportedGeometry] keeps it byte for byte — so the
+/// correction belongs where every other placement in this project already
+/// lives. It composes for free with the existing hierarchy walk: a root's
+/// children inherit the correction by inheriting the root's transform, the
+/// same way they inherit everything else about where it sits.
+final class ImportOptions {
+  const ImportOptions({this.scale = 1.0, this.upAxis = UpAxis.y});
+
+  /// Multiplies every root's translation and scale. STL carries no unit at
+  /// all and is conventionally millimetres; `0.001` reads such a file as
+  /// metres, the unit every other placement in this project is already in.
+  final double scale;
+
+  final UpAxis upAxis;
+}
+
 /// The profile does not come back, because a file does not record one: a
 /// project is measured against the machine it is being built for, and that
 /// belongs to the workspace rather than to the model.
-ModelProject fromModelDocument(ModelDocument document) {
+ModelProject fromModelDocument(
+  ModelDocument document, {
+  ImportOptions options = const ImportOptions(),
+}) {
   final nodes = document.nodes;
   final taken = List<bool>.filled(nodes.length, false);
   final pending = <(int node, int? parent)>[];
@@ -424,6 +460,29 @@ ModelProject fromModelDocument(ModelDocument document) {
     if (taken[i]) continue;
     pending.add((i, null));
     drain();
+  }
+
+  if (options.scale != 1.0 || options.upAxis == UpAxis.z) {
+    // Scale in the file's own axes first, then reorient — unit conversion
+    // and "which way is up" are independent facts about the file, and doing
+    // them in this order means a mis-set axis never scales a rotation term
+    // meant for translation alone.
+    var adjustment = Matrix4.identity();
+    if (options.scale != 1.0) {
+      adjustment = adjustment.multiplied(
+        Matrix4.diagonal3Values(options.scale, options.scale, options.scale),
+      );
+    }
+    if (options.upAxis == UpAxis.z) {
+      adjustment = adjustment.multiplied(Matrix4.rotationX(-math.pi / 2));
+    }
+    for (final ModelObject root in project.objects.where(
+      (ModelObject o) => o.parent == null,
+    )) {
+      project = project.withObject(
+        root.copyWith(transform: adjustment.multiplied(root.transform)),
+      );
+    }
   }
 
   return project;

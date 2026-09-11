@@ -636,6 +636,11 @@ boundaryEnumExempt = <String, Map<String, String>>{
         'what to do when an OBJ has no normals. Smooth or flat, and there '
         'is no third answer the decoder could give',
   },
+  'flutter3d_model_core/lib/src/project_document.dart': <String, String>{
+    'UpAxis':
+        'the two conventions a 3D file actually uses. A third axis being '
+        '"up" is not a thing any format this reads asks for',
+  },
   'flutter3d_model_core/lib/src/autosave.dart': <String, String>{
     'RecoveryDecision':
         'open the file or offer the autosave — a two-way fork a dialog reads '
