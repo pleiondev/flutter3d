@@ -47,6 +47,28 @@ considered exception from something somebody silenced to get a build green.
 Deleting a rule because it fired is almost never right. A rule that fires on
 correct code is a rule whose sentence is wrong, and the fix is the sentence.
 
+## Adding a test
+
+A new `test(`/`testWidgets(` call moves the one number four documents all
+state independently, and the scan holds them to agreeing rather than to any
+particular value — so after adding (or removing) one, run
+`dart run tool/structure.dart` and, if `the document says how many tests
+there are` fires, update every document it names:
+
+1. `ARCHITECTURE.md` — the headline count in its own CI table (§13), and, if
+   the test belongs to a package listed in §3.2's own per-package table,
+   that row's number too.
+2. `README.md` — the same headline count, in prose.
+3. `site/content/quickstart.md` — the same headline count, in prose.
+4. `site/content/reference/testing.md` — the headline count, the package's
+   own row in its table, and the "the rows sum to N rather than M" sentence
+   just below the table (the gap between the two is always the tests living
+   in `packages/*/example/test`, which the table does not enumerate).
+
+The rule's own failure message says exactly which of the four is still
+wrong and by how much — there is no case where guessing the right number
+beats reading it off the message.
+
 ## The trap this scan itself fell into
 
 One rule — the one about the shader bundle being no older than its sources —
