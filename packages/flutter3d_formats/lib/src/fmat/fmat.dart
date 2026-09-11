@@ -133,24 +133,15 @@ MaterialDocument readFmat(Uint8List bytes, {String name = ''}) {
     'emissive',
   };
 
-  final surface = SurfaceMaterial(
-    name: parsed['name'] as String? ?? (name.isEmpty ? null : name),
-    baseColor: _vec4(parsed['baseColor']) ?? Vector4(1.0, 1.0, 1.0, 1.0),
-    metallic: _number(parsed['metallic'], 0.0),
-    roughness: _number(parsed['roughness'], 0.5),
+  final surface = surfaceMaterialFromJson(
+    parsed,
+    name: name.isEmpty ? null : name,
+    warnings: warnings,
     baseColorTexture: binding(textures['albedo']),
     metallicRoughnessTexture: binding(textures['metallicRoughness']),
     normalTexture: binding(textures['normal']),
-    normalScale: _number(parsed['normalScale'], 1.0),
     occlusionTexture: binding(textures['occlusion']),
-    occlusionStrength: _number(parsed['occlusionStrength'], 1.0),
     emissiveTexture: binding(textures['emissive']),
-    emissive: _vec3(parsed['emissive']) ?? Vector3.zero(),
-    emissiveStrength: _number(parsed['emissiveStrength'], 1.0),
-    alphaMode: _alphaMode(parsed['alphaMode'], warnings),
-    alphaCutoff: _number(parsed['alphaCutoff'], 0.5),
-    doubleSided: parsed['doubleSided'] as bool? ?? false,
-    unlit: parsed['unlit'] as bool? ?? false,
   );
 
   return MaterialDocument(
@@ -232,25 +223,91 @@ String writeFmat(MaterialDocument document) {
   final lighting = document.lighting;
   return '${const JsonEncoder.withIndent('  ').convert(<String, Object?>{
     'fmat': kFmatVersion,
-    if (surface.name != null) 'name': surface.name,
     if (lighting != null) 'lighting': _writeLighting(lighting),
-    'baseColor': <double>[surface.baseColor.r, surface.baseColor.g, surface.baseColor.b, surface.baseColor.a],
-    if (surface.metallic != 0.0) 'metallic': surface.metallic,
-    if (surface.roughness != 0.5) 'roughness': surface.roughness,
-    if (surface.normalScale != 1.0) 'normalScale': surface.normalScale,
-    if (surface.occlusionStrength != 1.0) 'occlusionStrength': surface.occlusionStrength,
-    if (surface.emissive.length2 != 0.0) 'emissive': <double>[surface.emissive.r, surface.emissive.g, surface.emissive.b],
-    if (surface.emissiveStrength != 1.0) 'emissiveStrength': surface.emissiveStrength,
-    if (surface.alphaMode != SurfaceAlphaMode.opaque) 'alphaMode': surface.alphaMode.name,
-    if (surface.alphaCutoff != 0.5) 'alphaCutoff': surface.alphaCutoff,
-    if (surface.doubleSided) 'doubleSided': true,
-    if (surface.unlit) 'unlit': true,
+    ...surfaceMaterialToJson(surface),
     if (textures.isNotEmpty) 'textures': textures,
     if (document.parameterBlock != 'MaterialParams') 'parameterBlock': document.parameterBlock,
     if (document.parameters.isNotEmpty) 'parameters': <String, Object?>{for (final entry in document.parameters.entries) entry.key: entry.value.toList()},
     if (document.hints.isNotEmpty) 'hints': _writeHints(document.hints),
   })}\n';
 }
+
+/// [surface]'s own scalar and colour fields, keyed the way [writeFmat] nests
+/// them into a `.fmat` — everything but its texture slots, which
+/// [surfaceMaterialFromJson] takes as separate, already-resolved arguments
+/// rather than reading here.
+///
+/// **`doc-25`'s own remaining half, once `mat-01` absorbed the rest**: the
+/// one place these eleven field names and shapes are spelled out, so a
+/// material editor's own `SetMaterialField` and this format's own writer
+/// cannot drift the way two hand-written lists of the same fields always
+/// eventually do.
+///
+/// **Texture slots stay out on purpose.** [SurfaceMaterial] holds a
+/// [TextureBinding] for each, but a binding's own `imageIndex` only means
+/// anything against the [MaterialDocument] it came from — resolving a path
+/// to one, or interning a new one, is a whole document's business, not one
+/// material's, which is why [readFmat] still does that part itself before
+/// handing the result to [surfaceMaterialFromJson].
+Map<String, Object?> surfaceMaterialToJson(SurfaceMaterial surface) => <String, Object?>{
+  if (surface.name != null) 'name': surface.name,
+  'baseColor': <double>[
+    surface.baseColor.r,
+    surface.baseColor.g,
+    surface.baseColor.b,
+    surface.baseColor.a,
+  ],
+  if (surface.metallic != 0.0) 'metallic': surface.metallic,
+  if (surface.roughness != 0.5) 'roughness': surface.roughness,
+  if (surface.normalScale != 1.0) 'normalScale': surface.normalScale,
+  if (surface.occlusionStrength != 1.0) 'occlusionStrength': surface.occlusionStrength,
+  if (surface.emissive.length2 != 0.0)
+    'emissive': <double>[surface.emissive.r, surface.emissive.g, surface.emissive.b],
+  if (surface.emissiveStrength != 1.0) 'emissiveStrength': surface.emissiveStrength,
+  if (surface.alphaMode != SurfaceAlphaMode.opaque) 'alphaMode': surface.alphaMode.name,
+  if (surface.alphaCutoff != 0.5) 'alphaCutoff': surface.alphaCutoff,
+  if (surface.doubleSided) 'doubleSided': true,
+  if (surface.unlit) 'unlit': true,
+};
+
+/// The inverse of [surfaceMaterialToJson]: a [SurfaceMaterial] built from
+/// [json]'s own scalar and colour fields, with [name] as the fallback for a
+/// document that names itself no other way and the five texture bindings
+/// supplied by the caller — already resolved against whatever document
+/// [json] came from, the same division [surfaceMaterialToJson] draws.
+///
+/// A field [json] does not carry reads as the same default
+/// [SurfaceMaterial]'s own constructor gives it; an `alphaMode` this build
+/// has never heard of is reported through [warnings] and read as `opaque`,
+/// the identical fallback [readFmat] has always given one.
+SurfaceMaterial surfaceMaterialFromJson(
+  Map<String, Object?> json, {
+  String? name,
+  List<String>? warnings,
+  TextureBinding? baseColorTexture,
+  TextureBinding? normalTexture,
+  TextureBinding? metallicRoughnessTexture,
+  TextureBinding? occlusionTexture,
+  TextureBinding? emissiveTexture,
+}) => SurfaceMaterial(
+  name: json['name'] as String? ?? name,
+  baseColor: _vec4(json['baseColor']) ?? Vector4(1.0, 1.0, 1.0, 1.0),
+  metallic: _number(json['metallic'], 0.0),
+  roughness: _number(json['roughness'], 0.5),
+  baseColorTexture: baseColorTexture,
+  metallicRoughnessTexture: metallicRoughnessTexture,
+  normalTexture: normalTexture,
+  normalScale: _number(json['normalScale'], 1.0),
+  occlusionTexture: occlusionTexture,
+  occlusionStrength: _number(json['occlusionStrength'], 1.0),
+  emissiveTexture: emissiveTexture,
+  emissive: _vec3(json['emissive']) ?? Vector3.zero(),
+  emissiveStrength: _number(json['emissiveStrength'], 1.0),
+  alphaMode: _alphaMode(json['alphaMode'], warnings ?? <String>[]),
+  alphaCutoff: _number(json['alphaCutoff'], 0.5),
+  doubleSided: json['doubleSided'] as bool? ?? false,
+  unlit: json['unlit'] as bool? ?? false,
+);
 
 TextureSampling _readSampling(Map<String, Object?> json) => TextureSampling(
   magLinear: json['magLinear'] as bool? ?? true,
