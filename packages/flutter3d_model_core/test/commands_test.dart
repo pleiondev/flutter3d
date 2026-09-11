@@ -2116,6 +2116,11 @@ void main() {
         const RemoveJoint(skeletonIndex: 0, jointIndex: 1),
         const RenameJoint(skeletonIndex: 0, jointIndex: 0, to: 'shoulder'),
         const ReparentJoint(skeletonIndex: 0, jointIndex: 1, to: 2),
+        SetRestPose(
+          skeletonIndex: 0,
+          jointIndex: 0,
+          worldTransform: Matrix4.identity(),
+        ),
       ];
 
       // Every name has a sample, which is what stops a command being added to
@@ -2964,6 +2969,146 @@ void main() {
       final sum = pairs.fold<double>(0, (s, p) => s + p.weight);
       expect(sum, closeTo(1.0, 1e-6));
       expect(pairs.map((p) => p.joint).toSet(), <int>{0, 1}); // mid, tip — shifted down
+    });
+
+    test('SetRestPose moves the joint in world space and recomputes its own '
+        'inverse bind matrix', () {
+      final history = riggedChain();
+      final skeleton = history.project.skeletons.single;
+      final midId = skeleton.joints[1]; // parented under root
+
+      final newWorld = Matrix4.translation(Vector3(0, 2, 0));
+      expect(
+        history.run(SetRestPose(skeletonIndex: 0, jointIndex: 1, worldTransform: newWorld)),
+        isNull,
+      );
+
+      // The object's own resulting world transform matches what was asked
+      // for — root sits at the identity in this fixture, so mid's own local
+      // transform should equal the world one here, but this checks the
+      // composed world, not the local, so a non-identity root would still
+      // pass.
+      final world = worldTransformOf(history.project, midId);
+      for (var i = 0; i < 16; i++) {
+        expect(world.storage[i], closeTo(newWorld.storage[i], 1e-6));
+      }
+
+      // The defining property of an inverse bind matrix: undoing the world
+      // transform it was built from lands back on the identity.
+      final rebuilt = Matrix4.copy(
+        history.project.skeletons.single.inverseBindMatrices[1],
+      )..multiply(newWorld);
+      for (var i = 0; i < 16; i++) {
+        expect(rebuilt.storage[i], closeTo(Matrix4.identity().storage[i], 1e-6));
+      }
+    });
+
+    test('SetRestPose composes through a non-identity parent', () {
+      final history = riggedChain();
+      final skeleton = history.project.skeletons.single;
+      final rootId = skeleton.joints[0];
+      final tipId = skeleton.joints[2];
+
+      history.run(SetTransform(id: rootId, to: Matrix4.translation(Vector3(5, 0, 0))));
+      const target = <double>[1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 5, 7, 0, 1];
+      final worldTarget = Matrix4.fromList(target);
+      history.run(SetRestPose(skeletonIndex: 0, jointIndex: 2, worldTransform: worldTarget));
+
+      final world = worldTransformOf(history.project, tipId);
+      for (var i = 0; i < 16; i++) {
+        expect(world.storage[i], closeTo(target[i], 1e-6));
+      }
+    });
+  });
+
+  group('worldTransformOf', () {
+    test('composes a chain of translations out to the root', () {
+      var project = const ModelProject().added(
+        (id) => ModelObject(
+          id: id,
+          name: 'a',
+          geometry: const SocketGeometry(),
+          transform: Matrix4.translation(Vector3(1, 0, 0)),
+        ),
+      );
+      final aId = project.objects.last.id;
+      project = project.added(
+        (id) => ModelObject(
+          id: id,
+          name: 'b',
+          geometry: const SocketGeometry(),
+          transform: Matrix4.translation(Vector3(0, 2, 0)),
+          parent: aId,
+        ),
+      );
+      final bId = project.objects.last.id;
+
+      final world = worldTransformOf(project, bId);
+      final translation = Vector3.zero();
+      world.decompose(translation, Quaternion.identity(), Vector3.zero());
+      expect(translation, Vector3(1, 2, 0));
+    });
+
+    test(
+      "a parent's own rotation carries a child's local translation with it "
+      '— order, not just presence, has to be right',
+      () {
+        // A pure-translation chain composes the same whichever order the
+        // ancestors are multiplied in, since translations commute — this
+        // fixture adds a rotation specifically so a reversed composition
+        // order gives a different, wrong answer rather than coincidentally
+        // matching the right one.
+        var project = const ModelProject().added(
+          (id) => ModelObject(
+            id: id,
+            name: 'a',
+            geometry: const SocketGeometry(),
+            transform: Matrix4.rotationZ(math.pi / 2),
+          ),
+        );
+        final aId = project.objects.last.id;
+        project = project.added(
+          (id) => ModelObject(
+            id: id,
+            name: 'b',
+            geometry: const SocketGeometry(),
+            transform: Matrix4.translation(Vector3(1, 0, 0)),
+            parent: aId,
+          ),
+        );
+        final bId = project.objects.last.id;
+
+        final world = worldTransformOf(project, bId);
+        final translation = Vector3.zero();
+        world.decompose(translation, Quaternion.identity(), Vector3.zero());
+        // b's own local +X, carried through a's 90° turn about Z, lands on
+        // +Y — not at (1, 0, 0), which is what b's own local translation
+        // would be read as if a's rotation were dropped or applied after
+        // rather than before it.
+        expect(translation.x, closeTo(0.0, 1e-6));
+        expect(translation.y, closeTo(1.0, 1e-6));
+      },
+    );
+
+    test('an object with no parent is its own world transform', () {
+      final project = const ModelProject().added(
+        (id) => ModelObject(
+          id: id,
+          name: 'lone',
+          geometry: const SocketGeometry(),
+          transform: Matrix4.translation(Vector3(3, 0, 0)),
+        ),
+      );
+      final id = project.objects.single.id;
+      final world = worldTransformOf(project, id);
+      expect(world.storage, Matrix4.translation(Vector3(3, 0, 0)).storage);
+    });
+
+    test('an object that does not exist is the identity', () {
+      expect(
+        worldTransformOf(const ModelProject(), 999).storage,
+        Matrix4.identity().storage,
+      );
     });
   });
 

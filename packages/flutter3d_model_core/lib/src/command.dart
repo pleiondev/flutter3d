@@ -45,6 +45,7 @@ import 'project_morphs.dart';
 import 'selection.dart';
 import 'texture_bake.dart';
 import 'texture_graph.dart';
+import 'world_transform.dart';
 
 part 'job_commands.dart';
 part 'joint_commands.dart';
@@ -496,6 +497,7 @@ const List<String> modelCommandNames = <String>[
   'removeJoint',
   'renameJoint',
   'reparentJoint',
+  'setRestPose',
 ];
 
 /// Reads a command back out of a journal, or null.
@@ -860,6 +862,23 @@ ModelCommand? modelCommandFromJson(Object? json) {
         jointIndex: jointIndex,
         to: json['to'] as int?,
       ),
+      _ => null,
+    },
+    'setRestPose' => switch ((
+      json['skeletonIndex'],
+      json['jointIndex'],
+      _doubles(json['worldTransform'], 16),
+    )) {
+      (
+        final int skeletonIndex,
+        final int jointIndex,
+        final List<double> worldTransform,
+      ) =>
+        SetRestPose(
+          skeletonIndex: skeletonIndex,
+          jointIndex: jointIndex,
+          worldTransform: Matrix4.fromList(worldTransform),
+        ),
       _ => null,
     },
     _ => null,

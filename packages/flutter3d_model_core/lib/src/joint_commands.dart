@@ -7,13 +7,19 @@
 /// `switch` is only exhaustive if the compiler can see every case inside
 /// one library.
 ///
-/// **What is not here: `SetRestPose` and `MirrorJoints`.** Both need a
-/// joint's own *world* transform — walking every object's `parent` chain
-/// and composing — which nothing in this package computes yet; recovering
-/// an inverse bind matrix or reflecting a rest pose across an axis without
-/// that would be arithmetic over the wrong space. `AddJoint`, `RemoveJoint`,
-/// `RenameJoint` and `ReparentJoint` all stay local to one object or one
-/// list, and needed no such thing.
+/// **`SetRestPose` reads `worldTransformOf`, added alongside it.** Setting
+/// a joint's rest pose in world space and recomputing its inverse bind
+/// matrix both need a joint's own *world* transform — its object's own
+/// transform composed out through every ancestor — which nothing in this
+/// package computed before this row.
+///
+/// **What is still not here: `MirrorJoints`.** Reflecting a rest pose
+/// across an axis needs mirroring a full rigid transform — the rotation
+/// along with the position, which flips handedness and is not simply
+/// negating a component — and nothing in this row's own acceptance line
+/// tests it (that line is entirely about `RemoveJoint`): built when a real
+/// caller needs it rather than shipped now on the strength of arithmetic
+/// worked out but never run against a case that would catch it wrong.
 part of 'command.dart';
 
 /// The skeleton at [skeletonIndex] in [project], or the sentence to refuse
@@ -247,5 +253,66 @@ final class ReparentJoint extends ModelCommand {
     }
     final jointId = skeleton.joints[jointIndex];
     return SetParent(id: jointId, to: to).apply(project, selection);
+  }
+}
+
+/// Sets joint [jointIndex] of skeleton [skeletonIndex]'s own rest pose to
+/// [worldTransform] — a world-space transform, since that is the space a
+/// gizmo or a "match this other bone" tool naturally has one in — and
+/// recomputes both the joint object's own local transform and the
+/// skeleton's own inverse bind matrix for it, "с пересчётом inverseBind",
+/// the row's own words.
+final class SetRestPose extends ModelCommand {
+  const SetRestPose({
+    required this.skeletonIndex,
+    required this.jointIndex,
+    required this.worldTransform,
+  });
+
+  final int skeletonIndex;
+  final int jointIndex;
+  final Matrix4 worldTransform;
+
+  @override
+  String get name => 'setRestPose';
+
+  @override
+  String get says => 'move a joint\'s rest pose';
+
+  @override
+  Map<String, Object?> get arguments => <String, Object?>{
+    'skeletonIndex': skeletonIndex,
+    'jointIndex': jointIndex,
+    'worldTransform': worldTransform.storage,
+  };
+
+  @override
+  Outcome apply(ModelProject project, ProjectSelection selection) {
+    final (:skeleton, :refused) = _skeletonTarget(project, skeletonIndex);
+    if (skeleton == null) return Outcome.refused(refused!);
+    if (jointIndex < 0 || jointIndex >= skeleton.jointCount) {
+      return Outcome.refused(
+        'skeleton $skeletonIndex has ${skeleton.jointCount} joints; '
+        '$jointIndex is not one of them',
+      );
+    }
+    final jointId = skeleton.joints[jointIndex];
+    final object = project[jointId]!;
+
+    final parentWorld = object.parent == null
+        ? Matrix4.identity()
+        : worldTransformOf(project, object.parent!);
+    final local = Matrix4.inverted(parentWorld)..multiply(worldTransform);
+
+    final matrices = List<Matrix4>.of(skeleton.inverseBindMatrices)
+      ..[jointIndex] = Matrix4.inverted(worldTransform);
+
+    var next = project.withObject(object.copyWith(transform: local));
+    next = _withSkeleton(
+      next,
+      skeletonIndex,
+      skeleton.copyWith(inverseBindMatrices: matrices),
+    );
+    return Outcome.done(next);
   }
 }
