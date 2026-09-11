@@ -69,161 +69,227 @@ import 'project.dart';
 /// its slots. `EditMesh.toMeshData` already takes a `materialSlot`, so the day
 /// an object draws two materials is the day it becomes two surfaces here; until
 /// something can set a second slot there is nothing to split.
-ModelDocument toModelDocument(ModelProject project) {
-  final objects = project.objects;
-  final indexOfId = <int, int>{
-    for (var i = 0; i < objects.length; i++) objects[i].id: i,
-  };
+///
+/// **A one-shot convenience over [ProjectModelDocument].** Every call here
+/// starts a fresh cache, so two calls with the same unchanged project each
+/// rebuild every mesh. A caller that exports the same project repeatedly as it
+/// changes — a session behind an MCP `export` tool, an editor's "save" button —
+/// should keep one [ProjectModelDocument] instead and call [ProjectModelDocument.of]
+/// on it each time.
+ModelDocument toModelDocument(ModelProject project) =>
+    ProjectModelDocument().of(project);
 
-  // Children by parent, in project order, so the node tree comes out in the
-  // order the outliner shows rather than in whatever order the walk reaches
-  // them. An object naming a parent that is not here gets no entry and is
-  // swept up below.
-  final childrenByParent = <int, List<int>>{};
-  for (var i = 0; i < objects.length; i++) {
-    final parent = objects[i].parent;
-    if (parent == null) continue;
-    final parentIndex = indexOfId[parent];
-    if (parentIndex == null) continue;
-    (childrenByParent[parentIndex] ??= <int>[]).add(i);
-  }
+/// A [ModelProject] seen as a [ModelDocument], with a cache that survives
+/// repeated conversions of the project as it changes.
+///
+/// **The cache key is `(ObjectId, version)`, not identity or content.**
+/// `ModelObject.version` is bumped by every edit — see its own doc comment —
+/// so a hit means exactly "this object has not changed since the mesh in the
+/// cache was built for it", which is a fact a version number can answer for
+/// free where hashing a mesh's own vertices every call would cost as much as
+/// rebuilding it. An object whose id was reused after a delete would be a
+/// false hit; ids are not reused, which is `ModelObject.id`'s own contract.
+///
+/// **Why identity matters downstream.** `F3dWriter` and the GPU uploader both
+/// deduplicate a document's geometry by `MeshData` identity — see `_nothing`
+/// below and `ModelAsset.fromDocument`'s own mesh cache — so a converter that
+/// handed back an equal-but-different `MeshData` for an object nobody touched
+/// would upload it again, or write it twice into a file whose whole point is
+/// that a shared mesh is written once. Reusing the exact instance is what lets
+/// those caches work across an edit that touched a different object entirely.
+final class ProjectModelDocument extends ModelDocument {
+  final Map<(int, int), MeshData> _meshCache = <(int, int), MeshData>{};
 
-  // A child's world matrix is its own transform under every parent above it,
-  // computed downwards from the roots and never upwards from the child: an
-  // upward walk repeats the whole ancestry for every object in a deep rig, and
-  // an ancestry that loops walks for ever. Downwards, each object is reached at
-  // most once — `world[child] != null` is the whole of the cycle protection —
-  // and what a loop costs is that nothing in it is ever reached, which the
-  // sweep below turns into a root and a sentence.
-  final world = List<Matrix4?>.filled(objects.length, null);
-  final children = <List<int>>[
-    for (var i = 0; i < objects.length; i++) <int>[],
-  ];
-  final roots = <int>[];
-  final warnings = <String>[];
+  @override
+  List<ModelSurface> surfaces = const <ModelSurface>[];
 
-  void descendFrom(int start) {
-    final pending = <int>[start];
-    while (pending.isNotEmpty) {
-      final parent = pending.removeLast();
-      for (final int child in childrenByParent[parent] ?? const <int>[]) {
-        if (world[child] != null) continue;
-        world[child] = world[parent]!.multiplied(objects[child].transform);
-        // The edge is recorded here, where the child was actually reached,
-        // rather than from `childrenByParent`. That is what makes the node
-        // tree a forest whatever the project holds: every node is either one
-        // node's child or a root, so an instantiating loader can trust it.
-        children[parent].add(child);
-        pending.add(child);
+  @override
+  List<ModelNode> nodes = const <ModelNode>[];
+
+  @override
+  List<int> roots = const <int>[];
+
+  @override
+  List<String> warnings = const <String>[];
+
+  @override
+  List<SurfaceMaterial> materials = const <SurfaceMaterial>[];
+
+  @override
+  List<EncodedImage> images = const <EncodedImage>[];
+
+  /// The mesh for [object], built once per `(id, version)` and reused after.
+  MeshData _meshFor(ModelObject object) => _meshCache.putIfAbsent((
+    object.id,
+    object.version,
+  ), () => _meshOf(object.geometry));
+
+  /// Rebuilds this document from [project] and returns it.
+  ///
+  /// Call again after every edit a caller means to export — this does not
+  /// watch [project] for changes, and calling it twice on the identical
+  /// project is exactly the case the cache is for: nothing has a different
+  /// version, so nothing rebuilds.
+  ModelDocument of(ModelProject project) {
+    final objects = project.objects;
+    final indexOfId = <int, int>{
+      for (var i = 0; i < objects.length; i++) objects[i].id: i,
+    };
+
+    // Children by parent, in project order, so the node tree comes out in the
+    // order the outliner shows rather than in whatever order the walk reaches
+    // them. An object naming a parent that is not here gets no entry and is
+    // swept up below.
+    final childrenByParent = <int, List<int>>{};
+    for (var i = 0; i < objects.length; i++) {
+      final parent = objects[i].parent;
+      if (parent == null) continue;
+      final parentIndex = indexOfId[parent];
+      if (parentIndex == null) continue;
+      (childrenByParent[parentIndex] ??= <int>[]).add(i);
+    }
+
+    // A child's world matrix is its own transform under every parent above it,
+    // computed downwards from the roots and never upwards from the child: an
+    // upward walk repeats the whole ancestry for every object in a deep rig, and
+    // an ancestry that loops walks for ever. Downwards, each object is reached at
+    // most once — `world[child] != null` is the whole of the cycle protection —
+    // and what a loop costs is that nothing in it is ever reached, which the
+    // sweep below turns into a root and a sentence.
+    final world = List<Matrix4?>.filled(objects.length, null);
+    final children = <List<int>>[
+      for (var i = 0; i < objects.length; i++) <int>[],
+    ];
+    final roots = <int>[];
+    final warnings = <String>[];
+
+    void descendFrom(int start) {
+      final pending = <int>[start];
+      while (pending.isNotEmpty) {
+        final parent = pending.removeLast();
+        for (final int child in childrenByParent[parent] ?? const <int>[]) {
+          if (world[child] != null) continue;
+          world[child] = world[parent]!.multiplied(objects[child].transform);
+          // The edge is recorded here, where the child was actually reached,
+          // rather than from `childrenByParent`. That is what makes the node
+          // tree a forest whatever the project holds: every node is either one
+          // node's child or a root, so an instantiating loader can trust it.
+          children[parent].add(child);
+          pending.add(child);
+        }
       }
     }
-  }
 
-  for (var i = 0; i < objects.length; i++) {
-    if (objects[i].parent != null) continue;
-    world[i] = objects[i].transform.clone();
-    roots.add(i);
-    descendFrom(i);
-  }
+    for (var i = 0; i < objects.length; i++) {
+      if (objects[i].parent != null) continue;
+      world[i] = objects[i].transform.clone();
+      roots.add(i);
+      descendFrom(i);
+    }
 
-  // Whatever the roots did not reach hangs from something that is not there or
-  // from itself. Two faults, two sentences, one repair: it is written at the
-  // top level, where the modeller can see it and put it back, because the
-  // alternative is a file that silently lost an arm.
-  for (var i = 0; i < objects.length; i++) {
-    if (world[i] != null) continue;
-    final object = objects[i];
-    warnings.add(
-      indexOfId.containsKey(object.parent)
-          ? 'Object "${object.name}" hangs under itself through parent '
-                '${object.parent}. The loop is cut and it is written at the '
-                'top level.'
-          : 'Object "${object.name}" names parent ${object.parent}, which is '
-                'not in this project. It is written at the top level.',
-    );
-    world[i] = object.transform.clone();
-    roots.add(i);
-    descendFrom(i);
-  }
+    // Whatever the roots did not reach hangs from something that is not there or
+    // from itself. Two faults, two sentences, one repair: it is written at the
+    // top level, where the modeller can see it and put it back, because the
+    // alternative is a file that silently lost an arm.
+    for (var i = 0; i < objects.length; i++) {
+      if (world[i] != null) continue;
+      final object = objects[i];
+      warnings.add(
+        indexOfId.containsKey(object.parent)
+            ? 'Object "${object.name}" hangs under itself through parent '
+                  '${object.parent}. The loop is cut and it is written at the '
+                  'top level.'
+            : 'Object "${object.name}" names parent ${object.parent}, which is '
+                  'not in this project. It is written at the top level.',
+      );
+      world[i] = object.transform.clone();
+      roots.add(i);
+      descendFrom(i);
+    }
 
-  final surfaces = <ModelSurface>[];
-  final nodes = <ModelNode>[];
+    final surfaces = <ModelSurface>[];
+    final nodes = <ModelNode>[];
 
-  final translation = Vector3.zero();
-  final rotation = Quaternion.identity();
-  final scale = Vector3.zero();
+    final translation = Vector3.zero();
+    final rotation = Quaternion.identity();
+    final scale = Vector3.zero();
 
-  for (var i = 0; i < objects.length; i++) {
-    final object = objects[i];
-    final placement = world[i]!;
-    final mesh = _meshOf(object.geometry);
+    for (var i = 0; i < objects.length; i++) {
+      final object = objects[i];
+      final placement = world[i]!;
+      final mesh = _meshFor(object);
 
-    final surfaceIndex = mesh.vertexCount == 0 ? null : surfaces.length;
-    if (surfaceIndex != null) {
-      surfaces.add(
-        ModelSurface(
+      final surfaceIndex = mesh.vertexCount == 0 ? null : surfaces.length;
+      if (surfaceIndex != null) {
+        surfaces.add(
+          ModelSurface(
+            name: object.name,
+            mesh: mesh,
+            transform: placement.clone(),
+            // The slot names a row of the project's table, and the table is
+            // written across whole — so two objects painted the same steel come
+            // out pointing at one material rather than at two copies of it. A
+            // slot pointing past the end of the table is dropped rather than
+            // written: an index no material answers to is a dangling reference
+            // in the file, and a reader given one either guesses or refuses.
+            materialIndex: _slotOf(object, project.materials.length),
+            // A mirrored object — a scale of −1 on one axis, which is how a
+            // modeller makes the other glove — reverses on-screen winding, and
+            // backface culling then discards exactly the faces meant to be seen.
+            // The renderer flips for it when the surface says so.
+            flipWinding: placement.determinant() < 0.0,
+          ),
+        );
+      }
+
+      // The node carries the object's *local* transform and the surface the
+      // world matrix it composes to. Decomposing the world matrix onto the node
+      // as well would place every child by its whole ancestry and then place it
+      // again under a parent node that had already moved: a hand two units above
+      // a shoulder three units up draws five units up and slides further with
+      // every joint. The hierarchy is what composes them; the node's job is to
+      // say only what this object does.
+      object.transform.decompose(translation, rotation, scale);
+      // A node is translate, rotate and scale, and a matrix is more than that: a
+      // shear, or a scale of zero, has no TRS that reproduces it. Saying so is
+      // worth more than silently writing the nearest one, because the surface
+      // still carries the exact matrix and the two would then disagree — and a
+      // modeller told which object it was can flatten it on purpose.
+      if (!_matchesComposed(object.transform, translation, rotation, scale)) {
+        warnings.add(
+          'Object "${object.name}" has a transform that is not a translate, a '
+          'rotate and a scale. Its node carries the closest one it can express; '
+          'the surface keeps the exact matrix.',
+        );
+      }
+
+      nodes.add(
+        ModelNode(
           name: object.name,
-          mesh: mesh,
-          transform: placement.clone(),
-          // The slot names a row of the project's table, and the table is
-          // written across whole — so two objects painted the same steel come
-          // out pointing at one material rather than at two copies of it. A
-          // slot pointing past the end of the table is dropped rather than
-          // written: an index no material answers to is a dangling reference
-          // in the file, and a reader given one either guesses or refuses.
-          materialIndex: _slotOf(object, project.materials.length),
-          // A mirrored object — a scale of −1 on one axis, which is how a
-          // modeller makes the other glove — reverses on-screen winding, and
-          // backface culling then discards exactly the faces meant to be seen.
-          // The renderer flips for it when the surface says so.
-          flipWinding: placement.determinant() < 0.0,
+          translation: translation.clone(),
+          rotation: rotation.clone(),
+          scale: scale.clone(),
+          children: children[i],
+          surfaces: surfaceIndex == null ? <int>[] : <int>[surfaceIndex],
         ),
       );
     }
 
-    // The node carries the object's *local* transform and the surface the
-    // world matrix it composes to. Decomposing the world matrix onto the node
-    // as well would place every child by its whole ancestry and then place it
-    // again under a parent node that had already moved: a hand two units above
-    // a shoulder three units up draws five units up and slides further with
-    // every joint. The hierarchy is what composes them; the node's job is to
-    // say only what this object does.
-    object.transform.decompose(translation, rotation, scale);
-    // A node is translate, rotate and scale, and a matrix is more than that: a
-    // shear, or a scale of zero, has no TRS that reproduces it. Saying so is
-    // worth more than silently writing the nearest one, because the surface
-    // still carries the exact matrix and the two would then disagree — and a
-    // modeller told which object it was can flatten it on purpose.
-    if (!_matchesComposed(object.transform, translation, rotation, scale)) {
-      warnings.add(
-        'Object "${object.name}" has a transform that is not a translate, a '
-        'rotate and a scale. Its node carries the closest one it can express; '
-        'the surface keeps the exact matrix.',
-      );
-    }
-
-    nodes.add(
-      ModelNode(
-        name: object.name,
-        translation: translation.clone(),
-        rotation: rotation.clone(),
-        scale: scale.clone(),
-        children: children[i],
-        surfaces: surfaceIndex == null ? <int>[] : <int>[surfaceIndex],
-      ),
-    );
+    this.surfaces = surfaces;
+    this.nodes = nodes;
+    this.roots = roots;
+    this.warnings = warnings;
+    materials = <SurfaceMaterial>[
+      for (final ProjectMaterial each in project.materials) each.surface,
+    ];
+    images = project.images;
+    return this;
   }
 
-  return _ProjectDocument(
-    surfaces: surfaces,
-    nodes: nodes,
-    roots: roots,
-    warnings: warnings,
-    materials: <SurfaceMaterial>[
-      for (final ProjectMaterial each in project.materials) each.surface,
-    ],
-    images: project.images,
-  );
+  @override
+  String toString() =>
+      'ProjectModelDocument(${surfaces.length} surfaces, ${nodes.length} '
+      'nodes, $triangleCount triangles)';
 }
 
 /// The material index [object]'s one surface is written with.
@@ -426,43 +492,3 @@ final MeshData _nothing = MeshData(
   vertices: Float32List(0),
   indices: Uint32List(0),
 );
-
-/// A project seen as a decoded model.
-///
-/// Private, and constructed only by [toModelDocument]: the fields have to agree
-/// with each other — a node's surface indices, a root list that covers every
-/// node exactly once — and there is no second caller who could be trusted to
-/// build one by hand.
-final class _ProjectDocument extends ModelDocument {
-  _ProjectDocument({
-    required this.surfaces,
-    required this.nodes,
-    required this.roots,
-    required this.warnings,
-    required this.materials,
-    required this.images,
-  });
-
-  @override
-  final List<ModelSurface> surfaces;
-
-  @override
-  final List<ModelNode> nodes;
-
-  @override
-  final List<int> roots;
-
-  @override
-  final List<String> warnings;
-
-  @override
-  final List<SurfaceMaterial> materials;
-
-  @override
-  final List<EncodedImage> images;
-
-  @override
-  String toString() =>
-      '_ProjectDocument(${surfaces.length} surfaces, ${nodes.length} nodes, '
-      '$triangleCount triangles)';
-}

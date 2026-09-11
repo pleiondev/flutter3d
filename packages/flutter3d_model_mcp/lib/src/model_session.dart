@@ -54,6 +54,12 @@ final class ModelSession {
   /// Every command this session has run, for [journal] to write out.
   final CommandJournal _journal = CommandJournal();
 
+  /// Kept across calls to [export] rather than built fresh each time, so an
+  /// object nobody has touched since the last export keeps the same
+  /// [MeshData] — see `ProjectModelDocument`'s own doc comment for why that
+  /// is worth doing at all.
+  final ProjectModelDocument _document = ProjectModelDocument();
+
   ModelProject get project => history.project;
 
   /// Everything in the project, one line each, and what is selected.
@@ -220,7 +226,7 @@ final class ModelSession {
       );
     }
 
-    final document = toModelDocument(project);
+    final document = _document.of(project);
     if (kind == 'f3d') {
       File(to).writeAsBytesSync(F3dWriter(document).write());
     } else if (kind == 'glb') {

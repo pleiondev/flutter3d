@@ -666,4 +666,77 @@ void main() {
       );
     });
   });
+
+  group('ProjectModelDocument', () {
+    test(
+      'of() twice on an unchanged project gives back identical MeshData',
+      () {
+        final project = projectOf(<ModelObject Function(int)>[cube(), cube()]);
+        final document = ProjectModelDocument();
+
+        // `of()` mutates and returns `this`, so the meshes themselves — not the
+        // document, which is one object throughout — are what a comparison has
+        // to hold onto. Comparing `document.of(project)` against a second
+        // `document.of(project)` would compare the same reference with itself
+        // and pass no matter what the cache did.
+        document.of(project);
+        final firstMesh0 = document.surfaces[0].mesh;
+        final firstMesh1 = document.surfaces[1].mesh;
+
+        document.of(project);
+        expect(document.surfaces[0].mesh, same(firstMesh0));
+        expect(document.surfaces[1].mesh, same(firstMesh1));
+      },
+    );
+
+    test(
+      'editing one object\'s geometry rebuilds only that object\'s mesh',
+      () {
+        final project = projectOf(<ModelObject Function(int)>[cube(), cube()]);
+        final document = ProjectModelDocument();
+        document.of(project);
+        final beforeMesh0 = document.surfaces[0].mesh;
+        final beforeMesh1 = document.surfaces[1].mesh;
+
+        // A fresh `EditMesh` — a real change to the geometry — so the result is
+        // genuinely a new `MeshData` rather than one `EditMesh`'s own memoized
+        // `toMeshData()` handing back what it already had.
+        final touched = project.objects[0].copyWith(
+          geometry: EditedGeometry(EditMesh.cuboid()),
+        );
+        // Mutation: key the cache on id alone, dropping `version`. That would
+        // leave this test seeing the same mesh instance for an object whose
+        // geometry just changed underneath the same id.
+        expect(touched.version, greaterThan(project.objects[0].version));
+        final edited = project.withObject(touched);
+
+        document.of(edited);
+
+        expect(document.surfaces[0].mesh, isNot(same(beforeMesh0)));
+        expect(document.surfaces[1].mesh, same(beforeMesh1));
+      },
+    );
+
+    test('toModelDocument is the one-shot form: no cache across calls', () {
+      final project = projectOf(<ModelObject Function(int)>[cube()]);
+      final first = toModelDocument(project);
+      final second = toModelDocument(project);
+      // Each call starts its own `ProjectModelDocument`, so nothing here is
+      // the same instance even though the project never changed — the whole
+      // reason `ProjectModelDocument` exists as a name of its own for a
+      // caller that wants the other answer.
+      expect(
+        second.surfaces.single.mesh,
+        isNot(same(first.surfaces.single.mesh)),
+      );
+    });
+
+    test('the converted document still round-trips through F3dWriter', () {
+      final project = projectOf(<ModelObject Function(int)>[cube()]);
+      final document = ProjectModelDocument().of(project);
+      final bytes = F3dWriter(document).write();
+      final reread = F3dDocument.parse(bytes);
+      expect(compareModelDocuments(document, reread), isEmpty);
+    });
+  });
 }
