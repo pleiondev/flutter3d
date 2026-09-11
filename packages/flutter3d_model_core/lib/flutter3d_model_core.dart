@@ -32,6 +32,7 @@ library;
 export 'src/autosave.dart';
 export 'src/command.dart';
 export 'src/command_journal.dart';
+export 'src/curve_display.dart';
 export 'src/deflate.dart';
 export 'src/history.dart';
 export 'src/image_dimensions.dart';
