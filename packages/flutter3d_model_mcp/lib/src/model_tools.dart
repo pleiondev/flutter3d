@@ -805,6 +805,7 @@ List<ModelTool> get _commandTools => <ModelTool>[
               'levels': IntegerSchema(description: 'subdivision only'),
               'viewLevels': IntegerSchema(description: 'subdivision only'),
               'operation': UntitledSingleSelectEnumSchema(
+                description: 'boolean only',
                 values: <String>['union', 'subtract', 'intersect'],
               ),
               'operandId': IntegerSchema(description: 'boolean only'),
