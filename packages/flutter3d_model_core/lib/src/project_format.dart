@@ -60,6 +60,7 @@ import 'parametric_json.dart';
 import 'project.dart';
 import 'selection.dart';
 import 'texture_budget.dart';
+import 'texture_graph.dart';
 import 'texture_info.dart';
 
 /// `F3DP`, little-endian, so a file opened in a text editor announces itself on
@@ -1054,6 +1055,8 @@ Map<String, Object?> _materialJson(ProjectMaterial material) {
   return <String, Object?>{
     'version': material.version,
     'fmat': material.fmat,
+    'graph': material.graph?.toJson(),
+    'bakedAtVersion': material.bakedAtVersion,
     'name': surface.name,
     'baseColor': <double>[
       surface.baseColor.x,
@@ -1157,6 +1160,14 @@ Map<String, Object?>? _bindingJson(TextureBinding? binding) => binding == null
             final String s => _intern(s, pool),
             _ => null,
           },
+          // Younger than `fmat` above, read the same optional way: absent
+          // means a material painted by hand, never touched by
+          // `SetMaterialGraph`.
+          graph: switch (entry['graph']) {
+            final Map<String, Object?> g => TextureGraph.fromJson(g),
+            _ => null,
+          },
+          bakedAtVersion: entry['bakedAtVersion'] as int?,
           surface: SurfaceMaterial(
             name: name == null ? null : _intern(name, pool),
             baseColor: Vector4(

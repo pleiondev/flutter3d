@@ -37,8 +37,11 @@ import 'material.dart';
 import 'modifier_slot.dart';
 import 'param_hint.dart';
 import 'parametric_json.dart';
+import 'png_encoder.dart';
 import 'project.dart';
 import 'selection.dart';
+import 'texture_bake.dart';
+import 'texture_graph.dart';
 
 part 'job_commands.dart';
 part 'material_commands.dart';
@@ -468,6 +471,8 @@ const List<String> modelCommandNames = <String>[
   'setTexture',
   'addImage',
   'assignMaterial',
+  'setMaterialGraph',
+  'bakeTextureGraph',
   'addModifier',
   'setModifierField',
   'toggleModifier',
@@ -698,6 +703,23 @@ ModelCommand? modelCommandFromJson(Object? json) {
     },
     'assignMaterial' => switch ((json['id'], json['to'])) {
       (final int id, final int? to) => AssignMaterial(id: id, to: to),
+      _ => null,
+    },
+    'setMaterialGraph' => switch (json['materialIndex']) {
+      final int materialIndex => SetMaterialGraph(
+        materialIndex: materialIndex,
+        graph: switch (json['graph']) {
+          final Map<String, Object?> g => TextureGraph.fromJson(g),
+          _ => null,
+        },
+      ),
+      _ => null,
+    },
+    'bakeTextureGraph' => switch (json['materialIndex']) {
+      final int materialIndex => BakeTextureGraph(
+        materialIndex: materialIndex,
+        size: json['size'] as int? ?? 1024,
+      ),
       _ => null,
     },
     'addModifier' => switch ((json['id'], json['modifier'])) {

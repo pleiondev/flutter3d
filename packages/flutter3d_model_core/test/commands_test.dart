@@ -2082,6 +2082,16 @@ void main() {
         ),
         AddImage(bytes: Uint8List.fromList(<int>[1, 2, 3]), imageName: 'atlas'),
         const AssignMaterial(id: 1, to: 0),
+        SetMaterialGraph(
+          materialIndex: 0,
+          graph: TextureGraph(
+            nodes: <TextureNode>[
+              ColorTextureNode(id: 1, value: Vector4(1, 0, 0, 1)),
+              const OutputTextureNode(id: 2, result: 1, slot: 'albedo'),
+            ],
+          ),
+        ),
+        const BakeTextureGraph(materialIndex: 0, size: 64),
         AddModifier(
           id: 1,
           modifier: ArrayModifier(count: 2, offset: Vector3(1, 0, 0)),

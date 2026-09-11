@@ -192,6 +192,199 @@ final class SetMaterialField extends ModelCommand {
   }
 }
 
+/// Replaces (or clears) the whole [TextureGraph] a material's texture slots
+/// can be baked from.
+///
+/// **Whole-graph, not node by node.** `AddNode`/`Link`/`Unlink`/
+/// `SetNodeField`/`MoveNode` — the fine-grained verbs a panel edits one node
+/// at a time with — are `mat-13`'s own row, not this one; this command is
+/// the plumbing that gets a graph onto a material at all, the same way
+/// [AddMaterial] hands a material a blank [SurfaceMaterial] before anything
+/// edits it field by field.
+final class SetMaterialGraph extends ModelCommand {
+  const SetMaterialGraph({required this.materialIndex, this.graph});
+
+  final int materialIndex;
+
+  /// The new graph, or null to take one off a material entirely.
+  final TextureGraph? graph;
+
+  @override
+  String get name => 'setMaterialGraph';
+
+  @override
+  String get says =>
+      graph == null ? 'clear the texture graph' : 'set the texture graph';
+
+  @override
+  Map<String, Object?> get arguments => <String, Object?>{
+    'materialIndex': materialIndex,
+    'graph': graph?.toJson(),
+  };
+
+  @override
+  Outcome apply(ModelProject project, ProjectSelection selection) {
+    if (materialIndex < 0 || materialIndex >= project.materials.length) {
+      return Outcome.refused('there is no material $materialIndex');
+    }
+    final ProjectMaterial material = project.materials[materialIndex];
+    return Outcome.done(
+      project.copyWith(
+        materials: <ProjectMaterial>[
+          for (var i = 0; i < project.materials.length; i++)
+            i == materialIndex ? material.withGraph(graph) : project.materials[i],
+        ],
+      ),
+    );
+  }
+}
+
+/// Bakes a material's own [ProjectMaterial.graph] to pixels and wires the
+/// result into whichever texture slots its `OutputTextureNode`s each name —
+/// `mat-12`'s own row, the command `mat-11`'s CPU compositor and this file's
+/// own [encodePng] existed to be called from.
+///
+/// **Every output with a [OutputTextureNode.slot] bakes in one step.** A
+/// graph feeding `albedo` and `normal` both writes two images and moves the
+/// material to its new [ProjectMaterial.version] once, not twice — the same
+/// "one call, one step" shape [SetTexture] already gives a single slot, kept
+/// for a graph that touches several.
+///
+/// **A baked image is interned the same way [AddImage] interns an uploaded
+/// one.** Baking the same graph twice in a row — nothing between the two
+/// calls changed a source image or a node field — writes the same PNG bytes
+/// both times, and the second bake reuses the first's row rather than
+/// appending a duplicate the file would carry forever.
+final class BakeTextureGraph extends ModelCommand {
+  const BakeTextureGraph({required this.materialIndex, this.size = 1024});
+
+  final int materialIndex;
+
+  /// The square a graph bakes to. Synchronous — a command's own [apply]
+  /// cannot await an isolate the way `bakeTextureFull` does — so this stays
+  /// close to `mat-11`'s own preview size rather than an export size a panel
+  /// would ask for off the main isolate.
+  final int size;
+
+  @override
+  String get name => 'bakeTextureGraph';
+
+  @override
+  String get says => 'bake the texture graph';
+
+  @override
+  Map<String, Object?> get arguments => <String, Object?>{
+    'materialIndex': materialIndex,
+    'size': size,
+  };
+
+  @override
+  Outcome apply(ModelProject project, ProjectSelection selection) {
+    if (materialIndex < 0 || materialIndex >= project.materials.length) {
+      return Outcome.refused('there is no material $materialIndex');
+    }
+    final ProjectMaterial material = project.materials[materialIndex];
+    final TextureGraph? graph = material.graph;
+    if (graph == null) {
+      return Outcome.refused(
+        'material $materialIndex has no texture graph to bake',
+      );
+    }
+    final issues = graph.validate();
+    if (issues.isNotEmpty) {
+      return Outcome.refused(
+        'the texture graph is not valid: ${issues.first.message}',
+      );
+    }
+    final outputs = <OutputTextureNode>[
+      for (final node in graph.nodes)
+        if (node is OutputTextureNode && node.slot != null) node,
+    ];
+    if (outputs.isEmpty) {
+      return Outcome.refused('the texture graph feeds no material slot');
+    }
+
+    final images = <int, Uint8List>{
+      for (var i = 0; i < project.images.length; i++) i: project.images[i].bytes,
+    };
+    final cache = TextureBakeCache();
+    var nextImages = List<EncodedImage>.of(project.images);
+    var next = material.surface;
+    for (final OutputTextureNode output in outputs) {
+      final Uint8List? rgba = bakeTextureGraph(
+        graph,
+        output.id,
+        images,
+        size: size,
+        cache: cache,
+      );
+      if (rgba == null) {
+        return Outcome.refused('output ${output.id} did not bake');
+      }
+      final Uint8List png = encodePng(size, size, rgba);
+      var at = -1;
+      for (var i = 0; i < nextImages.length; i++) {
+        if (_bytesEqual(nextImages[i].bytes, png)) {
+          at = i;
+          break;
+        }
+      }
+      if (at == -1) {
+        at = nextImages.length;
+        nextImages = <EncodedImage>[
+          ...nextImages,
+          EncodedImage(bytes: png, name: '${output.slot} bake'),
+        ];
+      }
+      final binding = TextureBinding(imageIndex: at);
+      next = switch (output.slot!) {
+        'albedo' => _surfaceWith(
+          next,
+          baseColorTexture: binding,
+          setBaseColorTexture: true,
+        ),
+        'normal' => _surfaceWith(
+          next,
+          normalTexture: binding,
+          setNormalTexture: true,
+        ),
+        'metallicRoughness' => _surfaceWith(
+          next,
+          metallicRoughnessTexture: binding,
+          setMetallicRoughnessTexture: true,
+        ),
+        'occlusion' => _surfaceWith(
+          next,
+          occlusionTexture: binding,
+          setOcclusionTexture: true,
+        ),
+        'emissive' => _surfaceWith(
+          next,
+          emissiveTexture: binding,
+          setEmissiveTexture: true,
+        ),
+        // Written by `SetMaterialGraph` from `TextureGraph.toJson`/`fromJson`
+        // only, never typed by a person, so a name outside `_textureSlots`
+        // here is a graph from a build newer than this one, not a mistake
+        // to refuse the whole bake over — skip the slot this build cannot
+        // place and keep the rest.
+        _ => next,
+      };
+    }
+
+    final bakedMaterial = material.withBake(next);
+    return Outcome.done(
+      project.copyWith(
+        materials: <ProjectMaterial>[
+          for (var i = 0; i < project.materials.length; i++)
+            i == materialIndex ? bakedMaterial : project.materials[i],
+        ],
+        images: nextImages,
+      ),
+    );
+  }
+}
+
 /// The five texture slots a material has, named the way `writeFmat` names them
 /// under `textures`.
 const List<String> _textureSlots = <String>[

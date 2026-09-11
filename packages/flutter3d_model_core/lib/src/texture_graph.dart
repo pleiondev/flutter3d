@@ -166,6 +166,7 @@ sealed class TextureNode {
       'output' => OutputTextureNode(
         id: id,
         result: _optionalInt(json, 'result'),
+        slot: json['slot'] as String?,
       ),
       _ => throw FormatException(
         'texture node $id has an unknown kind '
@@ -575,12 +576,20 @@ final class NormalFromHeightTextureNode extends TextureNode {
 }
 
 /// The graph's own result — what `mat-11`'s bake reads. A graph may hold more
-/// than one: which one feeds which material slot is `mat-12`'s question, not
-/// this file's.
+/// than one, each naming which material slot it feeds: `mat-12`'s own
+/// question, answered by [slot] rather than by this file adding a second way
+/// to address a texture slot next to `SetTexture`'s own five names.
 final class OutputTextureNode extends TextureNode {
-  const OutputTextureNode({required super.id, this.result});
+  const OutputTextureNode({required super.id, this.result, this.slot});
 
   final int? result;
+
+  /// One of `SetTexture`'s own slot names (`albedo`, `normal`,
+  /// `metallicRoughness`, `occlusion`, `emissive`), or null for an output not
+  /// yet wired to a material — a thumbnail a panel bakes to look at, not to
+  /// paint anything with. `BakeTextureGraph` skips an output with no slot and
+  /// refuses a graph where none has one.
+  final String? slot;
 
   @override
   TextureValueType get outputType => TextureValueType.color;
@@ -597,7 +606,7 @@ final class OutputTextureNode extends TextureNode {
   String get kind => 'output';
 
   @override
-  Map<String, Object?> toJson() => {'result': result};
+  Map<String, Object?> toJson() => {'result': result, 'slot': slot};
 }
 
 /// An immutable network of [TextureNode]s.

@@ -17,6 +17,8 @@ library;
 
 import 'package:flutter3d_formats/flutter3d_formats.dart';
 
+import 'texture_graph.dart';
+
 /// One material in a project's table.
 ///
 /// A wrapper around [SurfaceMaterial] for the sake of [version], which is the
@@ -25,7 +27,13 @@ import 'package:flutter3d_formats/flutter3d_formats.dart';
 /// materials — five texture bindings, a sampler each — costs more than the
 /// upload it would save.
 final class ProjectMaterial {
-  const ProjectMaterial({required this.surface, this.version = 1, this.fmat});
+  const ProjectMaterial({
+    required this.surface,
+    this.version = 1,
+    this.fmat,
+    this.graph,
+    this.bakedAtVersion,
+  });
 
   /// How the surface looks, in the one description every decoder in the
   /// repository produces and every writer takes. Its [TextureBinding]s index
@@ -49,14 +57,67 @@ final class ProjectMaterial {
   /// this project, keeping its own numbers.
   final String? fmat;
 
+  /// What `BakeTextureGraph` bakes into this material's texture slots — one
+  /// graph, its `OutputTextureNode`s each naming which slot they feed. Null
+  /// for a material painted by hand, the ordinary case; `mat-13`'s own panel
+  /// is what a person edits this with node by node, once it exists.
+  final TextureGraph? graph;
+
+  /// [version] the last time `BakeTextureGraph` ran, or null if it never has.
+  /// See [isGraphStale].
+  final int? bakedAtVersion;
+
+  /// Whether [graph] has moved on since the slots were last baked from it —
+  /// true right after `SetMaterialGraph` replaces the graph, or after any
+  /// other edit bumps [version] past the bake's own. False for a material
+  /// with no [graph] at all: nothing to be stale about.
+  bool get isGraphStale => graph != null && bakedAtVersion != version;
+
   /// A copy with a new [surface] and [version] moved on.
-  ProjectMaterial withSurface(SurfaceMaterial next) =>
-      ProjectMaterial(surface: next, version: version + 1, fmat: fmat);
+  ProjectMaterial withSurface(SurfaceMaterial next) => ProjectMaterial(
+    surface: next,
+    version: version + 1,
+    fmat: fmat,
+    graph: graph,
+    bakedAtVersion: bakedAtVersion,
+  );
 
   /// A copy naming (or clearing) the `.fmat` this material defers to, with
   /// [version] moved on the same way [withSurface] does.
-  ProjectMaterial withFmat(String? next) =>
-      ProjectMaterial(surface: surface, version: version + 1, fmat: next);
+  ProjectMaterial withFmat(String? next) => ProjectMaterial(
+    surface: surface,
+    version: version + 1,
+    fmat: next,
+    graph: graph,
+    bakedAtVersion: bakedAtVersion,
+  );
+
+  /// A copy naming (or clearing) [graph], with [version] moved on — so a
+  /// graph just handed to a material reads [isGraphStale] true until
+  /// `BakeTextureGraph` runs against it, the same as any other edit would.
+  ProjectMaterial withGraph(TextureGraph? next) => ProjectMaterial(
+    surface: surface,
+    version: version + 1,
+    fmat: fmat,
+    graph: next,
+    bakedAtVersion: bakedAtVersion,
+  );
+
+  /// `BakeTextureGraph`'s own update: a new [surface] with the baked images
+  /// wired into their slots, [version] moved on the same one step
+  /// [withSurface] would, and [bakedAtVersion] set to that same new version —
+  /// so this exact bake reads fresh, and the next edit of any kind, graph or
+  /// not, is what makes [isGraphStale] true again.
+  ProjectMaterial withBake(SurfaceMaterial next) {
+    final baked = version + 1;
+    return ProjectMaterial(
+      surface: next,
+      version: baked,
+      fmat: fmat,
+      graph: graph,
+      bakedAtVersion: baked,
+    );
+  }
 
   @override
   String toString() =>

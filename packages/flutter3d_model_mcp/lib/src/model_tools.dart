@@ -768,6 +768,59 @@ List<ModelTool> get _commandTools => <ModelTool>[
   ),
   ModelTool(
     Tool(
+      name: 'setMaterialGraph',
+      description:
+          'Replace (or, with "graph" left out, clear) the whole '
+          'texture graph a material\'s slots can be baked from. "graph" is '
+          'an object with a "nodes" list, each an object naming its own '
+          '"id" (an int, unique in the graph), "kind" (one of image, '
+          'color, blend, channels, levels, invert, uvTransform, checker, '
+          'noise, normalFromHeight, output) and that kind\'s own fields — '
+          'read `flutter3d_model_core`\'s TextureNode subtypes for the '
+          'exact field names each kind takes. An "output" node also names '
+          '"slot" (albedo, normal, metallicRoughness, occlusion or '
+          'emissive) to say which material slot bakeTextureGraph writes it '
+          'to; an output with no slot is a preview nothing paints with.',
+      inputSchema: ObjectSchema(
+        properties: <String, Schema>{
+          'materialIndex': IntegerSchema(description: 'the material row'),
+          'graph': ObjectSchema(
+            description: 'the new graph, or omit to clear it',
+            properties: <String, Schema>{
+              'nodes': ListSchema(items: ObjectSchema()),
+            },
+            required: <String>['nodes'],
+          ),
+        },
+        required: <String>['materialIndex'],
+      ),
+    ),
+    _command('setMaterialGraph'),
+  ),
+  ModelTool(
+    Tool(
+      name: 'bakeTextureGraph',
+      description:
+          'Bake a material\'s own texture graph (set by '
+          'setMaterialGraph) to pixels and wire the result into every slot '
+          'an "output" node in it names — one image per slot, one undo '
+          'step for the whole graph. Refused when the material has no '
+          'graph, the graph does not validate, or no output in it names a '
+          'slot.',
+      inputSchema: ObjectSchema(
+        properties: <String, Schema>{
+          'materialIndex': IntegerSchema(description: 'the material row'),
+          'size': IntegerSchema(
+            description: 'the square a slot bakes to; 1024 if omitted',
+          ),
+        },
+        required: <String>['materialIndex'],
+      ),
+    ),
+    _command('bakeTextureGraph'),
+  ),
+  ModelTool(
+    Tool(
       name: 'addModifier',
       description:
           'Append a modifier to an object\'s own stack, enabled. '
