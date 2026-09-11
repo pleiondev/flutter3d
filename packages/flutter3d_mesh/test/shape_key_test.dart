@@ -18,6 +18,7 @@ library;
 
 import 'dart:typed_data';
 
+import 'package:flutter3d_geometry/flutter3d_geometry.dart';
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 import 'package:test/test.dart';
 import 'package:vector_math/vector_math.dart';
@@ -234,6 +235,107 @@ void main() {
       // throws a range error immediately rather than reading vertex 1 as
       // untouched, which is what this checks instead.
       expect(blended[3], closeTo(position.x, 1e-9));
+    });
+  });
+
+  group('shapeKeyMorphTargets', () {
+    test('a delta round-trips: base + target == the shape key', () {
+      final mesh = EditMesh.cuboid();
+      final plan = MeshLayoutPlan()..build(mesh);
+      final key = ShapeKey(
+        'puffed',
+        _fullOf(mesh, 0, mesh.positionOf(0) + Vector3(0, 0.5, 0)),
+      );
+
+      final targets = shapeKeyMorphTargets(plan, mesh, <ShapeKey>[key]);
+      expect(targets, hasLength(1));
+      expect(targets.single.name, 'puffed');
+      expect(targets.single.vertexCount, plan.vertexCount);
+
+      // Every GPU row that came from EditMesh vertex 0 carries the same
+      // delta — the row's own "round-trip дельт" — checked by rebuilding
+      // the shaped position from base + delta at each one, not just the
+      // first.
+      final gpuVertexToVertex = plan.gpuVertexToVertex;
+      final base = Vector3.zero();
+      var sawVertexZero = false;
+      for (var g = 0; g < plan.vertexCount; g++) {
+        final vertex = gpuVertexToVertex[g];
+        mesh.positionOf(vertex, base);
+        final shapedFromDelta = Vector3(
+          base.x + targets.single.positions[g * 3],
+          base.y + targets.single.positions[g * 3 + 1],
+          base.z + targets.single.positions[g * 3 + 2],
+        );
+        final wanted = key.positionOf(vertex);
+        expect(shapedFromDelta.x, closeTo(wanted.x, 1e-6));
+        expect(shapedFromDelta.y, closeTo(wanted.y, 1e-6));
+        expect(shapedFromDelta.z, closeTo(wanted.z, 1e-6));
+        if (vertex == 0) sawVertexZero = true;
+      }
+      expect(sawVertexZero, isTrue);
+    });
+
+    test('a vertex duplicated across a sharp edge carries the same delta on '
+        'every row it was split into', () {
+      final mesh = EditMesh.cuboid();
+      final plan = MeshLayoutPlan()..build(mesh);
+      // `mesh-14`'s own acceptance: a sharp cube's 8 vertices become more
+      // than 8 GPU rows — the seam this function has to carry a delta
+      // across correctly, not just the 1:1 case.
+      expect(plan.vertexCount, greaterThan(mesh.vertexSlotCount));
+
+      final key = ShapeKey(
+        'moved',
+        _fullOf(mesh, 0, mesh.positionOf(0) + Vector3(0.3, 0, 0)),
+      );
+      final target = shapeKeyMorphTargets(plan, mesh, <ShapeKey>[key]).single;
+
+      final gpuVertexToVertex = plan.gpuVertexToVertex;
+      final rowsOfVertexZero = <int>[
+        for (var g = 0; g < plan.vertexCount; g++)
+          if (gpuVertexToVertex[g] == 0) g,
+      ];
+      // A sharp cube duplicates every vertex into the three faces meeting
+      // there — otherwise this test is not exercising a seam at all.
+      expect(rowsOfVertexZero.length, greaterThan(1));
+      for (final g in rowsOfVertexZero) {
+        expect(target.positions[g * 3], closeTo(0.3, 1e-6));
+        expect(target.positions[g * 3 + 1], closeTo(0.0, 1e-6));
+        expect(target.positions[g * 3 + 2], closeTo(0.0, 1e-6));
+      }
+    });
+
+    test('composes with toMeshData/withMorphTargets, GPU-vertex-counted', () {
+      final mesh = EditMesh.cuboid();
+      final plan = MeshLayoutPlan()..build(mesh);
+      final key = ShapeKey('k', _fullOf(mesh, 0, mesh.positionOf(0)));
+
+      final drawn = plan
+          .toMeshData(mesh)
+          .withMorphTargets(shapeKeyMorphTargets(plan, mesh, <ShapeKey>[key]));
+
+      expect(drawn.morphTargets.single.vertexCount, drawn.vertexCount);
+    });
+
+    test('a target sized to EditMesh vertices instead of GPU rows is refused '
+        'by MeshData, not silently accepted', () {
+      final mesh = EditMesh.cuboid();
+      final plan = MeshLayoutPlan()..build(mesh);
+      final drawn = plan.toMeshData(mesh);
+      expect(mesh.vertexSlotCount, isNot(drawn.vertexCount));
+
+      // Built to the wrong count on purpose — `EditMesh`'s own vertex count
+      // rather than the plan's GPU vertex count — the row's own "мутация
+      // «по вершинам EditMesh»".
+      final wrongTarget = MorphTarget(
+        vertexCount: mesh.vertexSlotCount,
+        positions: Float32List(mesh.vertexSlotCount * 3),
+      );
+      expect(
+        () => drawn.withMorphTargets(<MorphTarget>[wrongTarget]),
+        throwsArgumentError,
+      );
     });
   });
 }

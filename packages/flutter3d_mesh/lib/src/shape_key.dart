@@ -1,8 +1,10 @@
 import 'dart:typed_data';
 
+import 'package:flutter3d_geometry/flutter3d_geometry.dart';
 import 'package:vector_math/vector_math.dart';
 
 import 'edit_mesh.dart';
+import 'layout_plan.dart';
 
 /// A named, full set of absolute vertex positions — a Blender-style shape
 /// key — `mesh-61`'s own row.
@@ -164,4 +166,58 @@ final class ShapeKey {
 
   @override
   String toString() => 'ShapeKey($name, $vertexCount vertices)';
+}
+
+/// [keys] against [base], as [MorphTarget]s sized and ordered for [plan]'s
+/// own GPU rows — `mesh-62`'s own row.
+///
+/// **A delta per GPU row, not per `EditMesh` vertex, and the two counts
+/// differ.** A hard edge or a UV seam duplicates one vertex into several
+/// rows through [MeshLayoutPlan.gpuVertexToVertex]; every one of those rows
+/// has to carry the same delta; or a face would tear apart mid-blend, with
+/// one of its corners following the shape and the other staying behind. A
+/// [MorphTarget] built to the wrong count — `EditMesh.vertexSlotCount`
+/// rather than [MeshLayoutPlan.vertexCount] — is refused by [MeshData]'s own
+/// constructor, not by this function: see [MeshData.withMorphTargets]'s
+/// `ArgumentError` for a target that does not cover the mesh.
+///
+/// **A delta, computed here, not read off the key.** [ShapeKey] stores full
+/// positions — see its own class comment for why — and [MorphTarget] stores
+/// the difference from the base [mesh], the form glTF carries and a shader
+/// blends by adding. The subtraction happens once, at export, rather than
+/// living in either type permanently.
+///
+/// Composes with [MeshLayoutPlan.toMeshData] rather than being folded into
+/// it, the same way [MeshData.withMorphTargets] already composes with
+/// tangent generation: `plan.toMeshData(mesh).withMorphTargets(...)`.
+List<MorphTarget> shapeKeyMorphTargets(
+  MeshLayoutPlan plan,
+  EditMesh mesh,
+  List<ShapeKey> keys,
+) {
+  final gpuVertexToVertex = plan.gpuVertexToVertex;
+  final vertexCount = plan.vertexCount;
+  return <MorphTarget>[
+    for (final key in keys)
+      _morphTargetOf(vertexCount, gpuVertexToVertex, mesh, key),
+  ];
+}
+
+MorphTarget _morphTargetOf(
+  int vertexCount,
+  Int32List gpuVertexToVertex,
+  EditMesh mesh,
+  ShapeKey key,
+) {
+  final deltas = Float32List(vertexCount * 3);
+  final base = Vector3.zero();
+  for (var g = 0; g < vertexCount; g++) {
+    final vertex = gpuVertexToVertex[g];
+    mesh.positionOf(vertex, base);
+    final shaped = key.positionOf(vertex);
+    deltas[g * 3] = shaped.x - base.x;
+    deltas[g * 3 + 1] = shaped.y - base.y;
+    deltas[g * 3 + 2] = shaped.z - base.z;
+  }
+  return MorphTarget(vertexCount: vertexCount, positions: deltas, name: key.name);
 }
