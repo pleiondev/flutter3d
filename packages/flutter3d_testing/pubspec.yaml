@@ -35,4 +35,11 @@ dependencies:
 dev_dependencies:
   flutter_lints: ^6.0.0
 
+  # The document decoders and writer, and the Khronos sample models they read —
+  # for the one test that checks a *rendered* round trip rather than a byte
+  # one. Neither is a real dependency: nothing this package ships builds a
+  # `ModelDocument`.
+  flutter3d_formats: ^0.6.0
+  flutter3d_samples: ^0.4.2
+
 resolution: workspace
