@@ -38,6 +38,7 @@ export 'src/image_dimensions.dart';
 export 'src/import_into.dart';
 export 'src/inflate.dart';
 export 'src/job.dart';
+export 'src/key_table.dart';
 export 'src/listing.dart';
 export 'src/material.dart';
 export 'src/modifier_evaluation_cache.dart';
