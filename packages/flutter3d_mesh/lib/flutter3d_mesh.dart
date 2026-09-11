@@ -27,6 +27,7 @@ export 'src/journal.dart';
 export 'src/layout_plan.dart';
 export 'src/merge.dart';
 export 'src/mesh_bvh.dart';
+export 'src/modifier.dart';
 export 'src/normals.dart';
 export 'src/operations.dart';
 export 'src/parametric.dart';
