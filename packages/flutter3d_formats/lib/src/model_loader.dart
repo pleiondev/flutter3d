@@ -168,14 +168,27 @@ Future<ModelDocument> decodeModelBytes(
 /// fallback for names that carry no useful suffix.
 ModelFormat _resolveFormat(ModelLoadRequest request, Uint8List bytes) {
   if (request.format != ModelFormat.auto) return request.format;
+  return recognizedModelFormat(request.source.fileName) ??
+      sniffModelFormat(bytes);
+}
 
-  final name = request.source.fileName.toLowerCase();
+/// The format [fileName]'s own extension names, or null when it names none
+/// of the four this package reads.
+///
+/// **The one place this package's own list of extensions is written down.**
+/// `_resolveFormat` reads it for the same reason a drop target does — `ui-
+/// 31n`'s own "drop неизвестного расширения": a caller deciding whether a
+/// dropped file is one this application can open needs the same answer
+/// `decodeModel` itself would give, not a second list of suffixes kept
+/// beside this one that could name a fifth format this package still could
+/// not read.
+ModelFormat? recognizedModelFormat(String fileName) {
+  final name = fileName.toLowerCase();
   if (name.endsWith('.f3d')) return ModelFormat.f3d;
   if (name.endsWith('.obj')) return ModelFormat.obj;
   if (name.endsWith('.stl')) return ModelFormat.stl;
   if (name.endsWith('.gltf') || name.endsWith('.glb')) return ModelFormat.gltf;
-
-  return sniffModelFormat(bytes);
+  return null;
 }
 
 /// Guesses a format from the leading bytes.

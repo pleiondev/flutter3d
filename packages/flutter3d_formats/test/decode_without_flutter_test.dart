@@ -129,6 +129,18 @@ void main() {
     expect(reread.surfaces.single.mesh.triangleCount, 1);
   });
 
+  test('recognizedModelFormat names the four extensions this package '
+      'reads, and nothing else — ui-31n\'s own worked example', () {
+    expect(recognizedModelFormat('teapot.glb'), ModelFormat.gltf);
+    expect(recognizedModelFormat('teapot.gltf'), ModelFormat.gltf);
+    expect(recognizedModelFormat('teapot.obj'), ModelFormat.obj);
+    expect(recognizedModelFormat('teapot.stl'), ModelFormat.stl);
+    expect(recognizedModelFormat('teapot.f3d'), ModelFormat.f3d);
+    expect(recognizedModelFormat('TEAPOT.GLB'), ModelFormat.gltf);
+    expect(recognizedModelFormat('teapot.png'), isNull);
+    expect(recognizedModelFormat('teapot'), isNull);
+  });
+
   test('sniffing tells the three formats apart by their first bytes', () {
     expect(sniffModelFormat(_triangleGltf()), ModelFormat.gltf);
     expect(
