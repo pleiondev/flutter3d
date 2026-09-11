@@ -56,7 +56,17 @@ final class CommandJournal {
   /// Records [command] as the next line. Call this after [command] has
   /// already run and succeeded — see the library comment for why an earlier
   /// call would make a refusal during [replay] mean nothing.
-  void record(ModelCommand command) => _lines.add(jsonEncode(command.toJson()));
+  ///
+  /// [author] rides alongside the command's own arguments as one more key,
+  /// `mcp-12n`'s own reason this journal names one at all — the same
+  /// `StepAuthor` `HistoryStep` (`mcp-10n`) already carries, read back by
+  /// [replay] and threaded into `ModelHistory.run` the same way, so a
+  /// recovered journal's undo stack refuses an agent's own undo past a
+  /// person's step exactly as the live session would have.
+  void record(ModelCommand command, {StepAuthor author = StepAuthor.person}) =>
+      _lines.add(
+        jsonEncode(<String, Object?>{...command.toJson(), 'author': author.name}),
+      );
 
   /// Brackets the commands recorded between this and the matching
   /// [endTransaction] as one undo step on [replay], mirroring
@@ -121,7 +131,14 @@ final class CommandJournal {
           'line ${i + 1} names a command this build does not know',
         );
       }
-      final String? refusal = history.run(command);
+      // Absent reads as `person` — the same "a name nobody wrote is a human"
+      // default `HistoryStep.author` has always had, so a journal written
+      // before this row read the same way it always did.
+      final StepAuthor author = switch (parsed) {
+        {'author': 'agent'} => StepAuthor.agent,
+        _ => StepAuthor.person,
+      };
+      final String? refusal = history.run(command, author: author);
       if (refusal != null) {
         return JournalReplay.refused('line ${i + 1}: $refusal');
       }

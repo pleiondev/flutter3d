@@ -136,16 +136,33 @@ final class ModelSession {
   }
 
   /// Runs [command] through the history, and records it if it succeeded —
-  /// always as `StepAuthor.agent`: every command an MCP tool call reaches
-  /// this method with is one by definition, `mcp-10n`'s own row.
+  /// always as `StepAuthor.agent`, both to [history] and to [_journal]: every
+  /// command an MCP tool call reaches this method with is one by definition,
+  /// `mcp-10n`'s own row, and `mcp-12n`'s own recovered journal has to agree
+  /// with the live session about whose step each one was, not fall back to
+  /// `record`'s own `person` default because nobody here named one.
   Answer run(ModelCommand command) {
     final String? refused = history.run(command, author: StepAuthor.agent);
     if (refused != null) {
       return (did: false, says: 'nothing did ${command.says}: $refused');
     }
-    _journal.record(command);
+    _journal.record(command, author: StepAuthor.agent);
     return (did: true, says: '${command.says} — $selection');
   }
+
+  /// Runs [body] as one [history] step, its own journal lines bracketed the
+  /// same way — a recipe (`mcp-09n`) calling [run] several times inside
+  /// [body] is one undo step in the live session and, thanks to this, one
+  /// step again when `mcp-12n`'s own [CommandJournal.replay] rebuilds a
+  /// crashed session's journal from disk: [history]'s own transaction
+  /// grouping and [_journal]'s are two different objects that would
+  /// otherwise have to be kept in step by every caller separately, and a
+  /// caller that wrapped only [history] — every recipe here did, once —
+  /// left [_journal] recording the same body as several ungrouped lines,
+  /// correct for the live session and wrong for anything recovered from
+  /// disk.
+  T _recipe<T>(T Function() body) =>
+      history.transaction(() => _journal.transaction(body));
 
   /// Takes back the top step — refusing, by name, when it is not this
   /// session's own to take back. `mcp-10n`'s own acceptance: an agent's
@@ -358,7 +375,7 @@ final class ModelSession {
       return (did: false, says: 'nothing here has a mesh to clean up');
     }
     var didAnything = false;
-    history.transaction(() {
+    _recipe(() {
       for (final int id in ids) {
         history.selection = ProjectSelection(objects: <int>[id]);
         if (run(const MergeByDistance()).did) didAnything = true;
@@ -423,7 +440,7 @@ final class ModelSession {
         if (object.geometry is EditedGeometry) object.id,
     ];
     var didAnything = false;
-    history.transaction(() {
+    _recipe(() {
       for (final int id in ids) {
         // `Triangulate` refuses on an empty selection rather than
         // defaulting to "every face" the way `MergeByDistance` does, so
@@ -497,7 +514,7 @@ final class ModelSession {
     }
 
     final ids = <int>[];
-    history.transaction(() {
+    _recipe(() {
       for (var i = 0; i < spec.length; i++) {
         final entry = spec[i];
         final ModelCommand command = modelCommandFromJson(<String, Object?>{

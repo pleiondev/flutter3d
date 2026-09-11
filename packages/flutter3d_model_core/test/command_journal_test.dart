@@ -133,6 +133,88 @@ void main() {
     });
   });
 
+  group('mcp-12n: the author rides along', () {
+    test('an agent\'s own line reads back as StepAuthor.agent', () {
+      final history = ModelHistory(const ModelProject());
+      final journal = CommandJournal();
+      const command = AddPrimitive(kind: 'box');
+      history.run(command, author: StepAuthor.agent);
+      journal.record(command, author: StepAuthor.agent);
+
+      final replay = CommandJournal.replay(journal.toBytes(), const ModelProject());
+      expect(replay.ok, isTrue);
+      // Mutation: `replay` ignoring the line's own `author` key and always
+      // calling `history.run(command)` with no author — every step would
+      // read back `StepAuthor.person`, and an agent's own `undo`
+      // (`mcp-10n`) would refuse to take back work it did itself.
+      expect(replay.history!.topStepAuthor, StepAuthor.agent);
+    });
+
+    test('a line recorded with no author reads back as StepAuthor.person, '
+        'the same as a journal written before this row existed', () {
+      final journal = CommandJournal()..record(const AddPrimitive(kind: 'box'));
+      final replay = CommandJournal.replay(journal.toBytes(), const ModelProject());
+      expect(replay.ok, isTrue);
+      expect(replay.history!.topStepAuthor, StepAuthor.person);
+    });
+
+    test('a transaction of several agent commands replays as one step, '
+        'still authored by the agent', () {
+      final history = ModelHistory(const ModelProject());
+      final journal = CommandJournal();
+      history.run(const AddPrimitive(kind: 'box'), author: StepAuthor.agent);
+      journal.record(const AddPrimitive(kind: 'box'), author: StepAuthor.agent);
+
+      journal.transaction(() {
+        history.transaction(() {
+          for (var i = 1; i <= 3; i++) {
+            final step = SetTransform(
+              id: 1,
+              to: Matrix4.translation(Vector3(i.toDouble(), 0, 0)),
+            );
+            history.run(step, author: StepAuthor.agent);
+            journal.record(step, author: StepAuthor.agent);
+          }
+        });
+      });
+
+      final replay = CommandJournal.replay(journal.toBytes(), const ModelProject());
+      expect(replay.ok, isTrue);
+      expect(replay.history!.steps, hasLength(2)); // the add, then the drag
+      expect(replay.history!.topStepAuthor, StepAuthor.agent);
+    });
+
+    test('mcp-12n\'s own acceptance: session, journal, replay in a clean '
+        'process, writeProject matches byte for byte', () {
+      final history = ModelHistory(const ModelProject());
+      final journal = CommandJournal();
+      void act(ModelCommand command, {StepAuthor author = StepAuthor.person}) {
+        final refused = history.run(command, author: author);
+        expect(refused, isNull, reason: refused);
+        journal.record(command, author: author);
+      }
+
+      act(const AddPrimitive(kind: 'box'), author: StepAuthor.agent);
+      act(Rename(id: 1, to: 'crate'), author: StepAuthor.agent);
+      act(const AddMaterial(materialName: 'oak'));
+      act(const AssignMaterial(id: 1, to: 0));
+
+      // "A clean process" — nothing here is the `history` or `journal`
+      // above, only the bytes either one could be handed on disk.
+      final replay = CommandJournal.replay(journal.toBytes(), const ModelProject());
+      expect(replay.ok, isTrue);
+
+      // Mutation: read the author back but never pass it into
+      // `ModelHistory.run`, or record it but forget to thread it through
+      // `ModelSession.run` — either leaves the bytes matching (this line
+      // does not need the author to be right) while `topStepAuthor` above
+      // would have already caught it; this line is the row's own literal
+      // acceptance, kept as its own assertion rather than folded into one
+      // that also happens to prove something else.
+      expect(writeProject(replay.history!.project), writeProject(history.project));
+    });
+  });
+
   group('what it refuses, and where', () {
     test('a line that is not JSON names itself by number', () {
       final journal = CommandJournal()
