@@ -205,6 +205,32 @@ void main(List<String> arguments) {
 }
 
 /// The rows of §2, in order.
+/// Splits a table row on `|`, except inside a backtick-quoted span.
+///
+/// **A cell can be `convert_asset -f glb|gltf|obj` and mean one thing.**
+/// `fmt-14`'s own row does exactly that — a flag's own allowed values,
+/// pipe-separated, inside backticks — and a plain [String.split] cuts it
+/// into three cells instead of one, which is what silently turned every
+/// status on that row into "an item the plan does not have" until this
+/// existed: the row never parsed into nine cells at all.
+List<String> _splitRow(String line) {
+  final cells = <String>[];
+  final buffer = StringBuffer();
+  var inBackticks = false;
+  for (final int rune in line.runes) {
+    final String char = String.fromCharCode(rune);
+    if (char == '`') inBackticks = !inBackticks;
+    if (char == '|' && !inBackticks) {
+      cells.add(buffer.toString());
+      buffer.clear();
+      continue;
+    }
+    buffer.write(char);
+  }
+  cells.add(buffer.toString());
+  return cells;
+}
+
 List<PlanItem> _readPlan(File plan) {
   final lines = plan.readAsLinesSync();
   final items = <PlanItem>[];
@@ -219,7 +245,9 @@ List<PlanItem> _readPlan(File plan) {
     if (line.startsWith('## 3. ')) inside = false;
     if (line.startsWith('## 4. ')) break;
     if (!inside || !line.startsWith('| ')) continue;
-    final cells = line.trim().split('|').map((String c) => c.trim()).toList();
+    final cells = _splitRow(
+      line.trim(),
+    ).map((String c) => c.trim()).toList();
     // A leading and a trailing empty cell from the pipes at both ends.
     if (cells.length != 9) continue;
     final match = _rowId.firstMatch(cells[1]);
