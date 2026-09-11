@@ -135,9 +135,11 @@ final class ModelSession {
     return (did: true, says: selection);
   }
 
-  /// Runs one command through the history, and records it if it succeeded.
+  /// Runs [command] through the history, and records it if it succeeded —
+  /// always as `StepAuthor.agent`: every command an MCP tool call reaches
+  /// this method with is one by definition, `mcp-10n`'s own row.
   Answer run(ModelCommand command) {
-    final String? refused = history.run(command);
+    final String? refused = history.run(command, author: StepAuthor.agent);
     if (refused != null) {
       return (did: false, says: 'nothing did ${command.says}: $refused');
     }
@@ -145,10 +147,24 @@ final class ModelSession {
     return (did: true, says: '${command.says} — $selection');
   }
 
+  /// Takes back the top step — refusing, by name, when it is not this
+  /// session's own to take back. `mcp-10n`'s own acceptance: an agent's
+  /// undo does not reach past a person's own step; a person's own ⌘Z (the
+  /// app, not this session) is not gated the same way, since [undo] here is
+  /// always asked for as [StepAuthor.agent].
   Answer undo() {
     final says = history.undoSays;
     if (says == null) return (did: false, says: 'nothing to undo');
-    history.undo();
+    final StepAuthor? topAuthor = history.topStepAuthor;
+    if (topAuthor != StepAuthor.agent) {
+      return (
+        did: false,
+        says:
+            'the top step ("$says") is a person\'s own, not this session\'s '
+            '— an agent does not undo someone else\'s work',
+      );
+    }
+    history.undo(onlyIfAuthoredBy: StepAuthor.agent);
     return (did: true, says: 'undid $says — $selection');
   }
 

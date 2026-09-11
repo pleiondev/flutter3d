@@ -689,6 +689,13 @@ boundaryEnumExempt = <String, Map<String, String>>{
         'resampling algorithm is a real feature, worth its own review, not '
         'a value slipped into the switch these two already are',
   },
+  'flutter3d_model_core/lib/src/history.dart': <String, String>{
+    'StepAuthor':
+        "mcp-10n's own two hands on the keyboard — a person at the app, "
+        'an agent over MCP. A third kind of author is a different feature '
+        '(a second agent, a plugin) worth its own row, not a value added '
+        'to the one switch an undo\'s own authorship check already is',
+  },
   'flutter3d_formats/lib/src/stl/stl_loader.dart': <String, String>{
     'StlNormals':
         'whether a facet\'s own normal record is trusted or recomputed from '

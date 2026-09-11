@@ -29,6 +29,11 @@ import 'command.dart';
 import 'project.dart';
 import 'selection.dart';
 
+/// Who made a [HistoryStep] — `mcp-10n`'s own reason [HistoryStep] names one
+/// at all: an agent's own [ModelHistory.undo] should not reach past a
+/// person's own step and take back work nobody asked it to.
+enum StepAuthor { person, agent }
+
 /// One entry: what was done, and what the document was before it.
 final class HistoryStep {
   const HistoryStep({
@@ -36,6 +41,7 @@ final class HistoryStep {
     required this.before,
     required this.selectionBefore,
     this.meshSteps = const <EditMesh, int>{},
+    this.author = StepAuthor.person,
   });
 
   final ModelCommand command;
@@ -46,6 +52,14 @@ final class HistoryStep {
   /// The selection the command was made against, kept so a redo does the same
   /// thing to the same elements even if the pointer has moved on.
   final ProjectSelection selectionBefore;
+
+  /// Who made this step — a person at the app, or an agent over MCP.
+  /// Defaults to [StepAuthor.person] because that is every call site this
+  /// class has ever had until `ModelSession` (`flutter3d_model_mcp`) started
+  /// naming its own steps [StepAuthor.agent] explicitly; a step nobody names
+  /// an author for is one a human made, not an agent whose own undo needs
+  /// watching.
+  final StepAuthor author;
 
   /// How many journal steps each mesh took in this history step.
   ///
@@ -141,12 +155,18 @@ final class ModelHistory {
   /// A refusal leaves the stack exactly as it was: it is an ordinary answer,
   /// not a step, and a person who pressed extrude with nothing selected has not
   /// done anything to take back.
-  String? run(ModelCommand command) {
+  ///
+  /// [author] is [StepAuthor.person] unless a caller says otherwise —
+  /// `ModelSession` (`flutter3d_model_mcp`) is the one caller that ever
+  /// passes [StepAuthor.agent], since every command an MCP tool call runs is
+  /// one by definition.
+  String? run(ModelCommand command, {StepAuthor author = StepAuthor.person}) {
     final Outcome outcome = command.apply(_project, selection);
     if (!outcome.ok) return outcome.refused;
     final EditMesh? touched = outcome.meshTouched;
     if (_inTransaction) {
       _firstOfTransaction ??= command;
+      _authorOfTransaction ??= author;
       if (touched != null) {
         _meshStepsOfTransaction[touched] =
             (_meshStepsOfTransaction[touched] ?? 0) + 1;
@@ -160,6 +180,7 @@ final class ModelHistory {
           meshSteps: touched == null
               ? const <EditMesh, int>{}
               : <EditMesh, int>{touched: 1},
+          author: author,
         ),
       );
       // Only a step that a person made clears the redo stack. A redo that ran
@@ -179,6 +200,7 @@ final class ModelHistory {
   /// [transaction] — and the name to put on the one step it leaves behind.
   bool _inTransaction = false;
   ModelCommand? _firstOfTransaction;
+  StepAuthor? _authorOfTransaction;
   final Map<EditMesh, int> _meshStepsOfTransaction = <EditMesh, int>{};
 
   /// Runs [body] and records everything it did as one step.
@@ -208,6 +230,7 @@ final class ModelHistory {
     }
     _inTransaction = true;
     _firstOfTransaction = null;
+    _authorOfTransaction = null;
     _meshStepsOfTransaction.clear();
     _projectBeforeTransaction = _project;
     _selectionBeforeTransaction = _selection;
@@ -222,6 +245,7 @@ final class ModelHistory {
   void endTransaction() {
     if (!_inTransaction) return;
     final ModelCommand? first = _firstOfTransaction;
+    final StepAuthor author = _authorOfTransaction ?? StepAuthor.person;
     final ModelProject before = _projectBeforeTransaction!;
     final ProjectSelection selectionBefore = _selectionBeforeTransaction!;
     final Map<EditMesh, int> meshSteps = Map<EditMesh, int>.of(
@@ -229,6 +253,7 @@ final class ModelHistory {
     );
     _inTransaction = false;
     _firstOfTransaction = null;
+    _authorOfTransaction = null;
     _projectBeforeTransaction = null;
     _selectionBeforeTransaction = null;
     _meshStepsOfTransaction.clear();
@@ -239,6 +264,7 @@ final class ModelHistory {
         before: before,
         selectionBefore: selectionBefore,
         meshSteps: meshSteps,
+        author: author,
       ),
     );
     _undone.clear();
@@ -269,15 +295,33 @@ final class ModelHistory {
       command: replacement,
       before: step.before,
       selectionBefore: step.selectionBefore,
+      author: step.author,
     );
     _project = outcome.project!;
     _selection = outcome.selection ?? step.selectionBefore;
     return null;
   }
 
-  /// One step back. False when there is nothing to go back to.
-  bool undo() {
+  /// Who made the step [undo] would take back, or null when there is none.
+  ///
+  /// `mcp-10n`'s own reason to ask before calling [undo]: an agent's own
+  /// undo has to know whose the top step is *before* deciding whether to
+  /// take it — [undo]'s own `onlyIfAuthoredBy` refuses silently (`false`),
+  /// and a caller that wants the clear sentence the row's acceptance asks
+  /// for reads this first to say whose step it actually was.
+  StepAuthor? get topStepAuthor => _done.isEmpty ? null : _done.last.author;
+
+  /// One step back. False when there is nothing to go back to, or when
+  /// [onlyIfAuthoredBy] is given and does not match [topStepAuthor] —
+  /// `mcp-10n`'s own rule that an agent's undo does not reach past a
+  /// person's own step. A person's own ⌘Z passes nothing here and undoes
+  /// whichever step is on top regardless of who made it, the row's own
+  /// second acceptance line.
+  bool undo({StepAuthor? onlyIfAuthoredBy}) {
     if (_done.isEmpty) return false;
+    if (onlyIfAuthoredBy != null && _done.last.author != onlyIfAuthoredBy) {
+      return false;
+    }
     final HistoryStep step = _done.removeLast();
     _undone.add(
       HistoryStep(
@@ -285,6 +329,7 @@ final class ModelHistory {
         before: _project,
         selectionBefore: _selection,
         meshSteps: step.meshSteps,
+        author: step.author,
       ),
     );
     _project = step.before;
@@ -303,6 +348,7 @@ final class ModelHistory {
         before: _project,
         selectionBefore: _selection,
         meshSteps: step.meshSteps,
+        author: step.author,
       ),
     );
     _project = step.before;

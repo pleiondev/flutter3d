@@ -164,10 +164,12 @@ abstract final class ProjectSection {
   static const int checksums = 6;
 
   /// `doc-31d`'s own section: JSON, the same shape the manifest itself is —
-  /// `{'steps': [...]}`, oldest step first, each `{says, command, '
-  /// selectionBefore, objects}` — `objects` shaped exactly like the
+  /// `{'steps': [...]}`, oldest step first, each `{says, command,
+  /// selectionBefore, author, objects}` — `objects` shaped exactly like the
   /// manifest's own, so a step's `geometry.mesh` index addresses the same
   /// [editMeshes]/[importedMeshes] tables the live project's objects do.
+  /// `author` (`mcp-10n`) is optional, read back as a person's own step when
+  /// absent — a file written before that row existed named nobody.
   ///
   /// Absent, not present-and-empty, for a file nobody asked to carry history
   /// for — [writeProject]'s own `history` parameter is null far more often
@@ -372,6 +374,10 @@ Uint8List writeProject(
               'says': step.command.says,
               'command': step.command.toJson(),
               'selectionBefore': step.selectionBefore.toJson(),
+              // `mcp-10n`, younger than the section itself — read back as
+              // `StepAuthor.person` when absent, the same optional shape
+              // every field this file has grown since v1 already takes.
+              'author': step.author.name,
               'objects': objectsJsonFor(step.before.objects),
             },
         ];
@@ -877,6 +883,10 @@ ProjectRead readProject(Uint8List bytes) {
         }
         objects.add(object!);
       }
+      final author = switch (entries[i]) {
+        {'author': 'agent'} => StepAuthor.agent,
+        _ => StepAuthor.person,
+      };
       steps.add(
         HistoryStep(
           command: command,
@@ -888,6 +898,7 @@ ProjectRead readProject(Uint8List bytes) {
             nextId: nextId,
           ),
           selectionBefore: selection,
+          author: author,
         ),
       );
     } else {

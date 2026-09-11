@@ -78,4 +78,39 @@ void main() {
       Vector3.zero(),
     );
   });
+
+  group('mcp-10n: an agent\'s own undo does not reach a person\'s step', () {
+    test('session.undo() refuses, by name, when the top step is not this '
+        'session\'s own', () {
+      final session = sessionWithOneBlock();
+      session.run(MoveBy(Vector3(1, 0, 0))); // through session.run: agent
+
+      // A step this session never made — the same shape a person's own
+      // edit at the app takes, run straight against the shared
+      // `ModelHistory` rather than through `session.run`.
+      session.history.run(MoveBy(Vector3(0, 1, 0)));
+
+      // Mutation: call `history.undo(onlyIfAuthoredBy: StepAuthor.agent)`
+      // without checking `topStepAuthor` first and reporting `did: true`
+      // regardless — the underlying `ModelHistory.undo` would correctly
+      // do nothing, but this session's own `Answer` would still claim it
+      // worked, which is exactly the "clear sentence" the row's own
+      // acceptance asks a refusal to have instead.
+      final answer = session.undo();
+      expect(answer.did, isFalse);
+      expect(answer.says, contains('person'));
+      expect(session.history.steps, hasLength(2)); // nothing taken back
+    });
+
+    test('session.undo() succeeds once the top step really is this '
+        'session\'s own', () {
+      final session = sessionWithOneBlock();
+      session.run(MoveBy(Vector3(1, 0, 0)));
+      session.run(MoveBy(Vector3(0, 1, 0)));
+
+      final answer = session.undo();
+      expect(answer.did, isTrue);
+      expect(session.history.steps, hasLength(1));
+    });
+  });
 }
