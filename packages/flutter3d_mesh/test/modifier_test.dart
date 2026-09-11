@@ -191,4 +191,81 @@ void main() {
       }
     });
   });
+
+  group('MirrorModifier', () {
+    test('round-trips through JSON, every field included', () {
+      final modifier = MirrorModifier(
+        normal: Vector3(1, 0, 0),
+        mergeDistance: 0.01,
+        bisect: true,
+        flipUv: true,
+      );
+      final restored = modifierFromJson(modifier.toJson());
+
+      expect(restored, isA<MirrorModifier>());
+      final again = restored! as MirrorModifier;
+      expect(again.normal, Vector3(1, 0, 0));
+      expect(again.mergeDistance, 0.01);
+      expect(again.bisect, isTrue);
+      expect(again.flipUv, isTrue);
+    });
+
+    test('a null mergeDistance round-trips as null, not zero', () {
+      final modifier = MirrorModifier(normal: Vector3(0, 1, 0));
+      final restored = modifierFromJson(modifier.toJson())! as MirrorModifier;
+
+      expect(restored.mergeDistance, isNull);
+      // Mutation: default `bisect`/`flipUv` to `true` when absent instead of
+      // reading them — every mirror saved before this test would come back
+      // asking for a refusal (`bisect`) or a UV flip it never asked for.
+      expect(restored.bisect, isFalse);
+      expect(restored.flipUv, isFalse);
+    });
+
+    test('a modifier missing a required field is refused, not guessed', () {
+      expect(modifierFromJson(<String, Object?>{'kind': 'mirror'}), isNull);
+    });
+
+    test('apply defers to the mirror function with its own parameters', () {
+      final modifier = MirrorModifier(
+        normal: Vector3(1, 0, 0),
+        mergeDistance: 1e-6,
+      );
+      final base = EditMesh.fromFaces(
+        <Vector3>[
+          Vector3(0, -0.5, -0.5),
+          Vector3(1, -0.5, -0.5),
+          Vector3(1, 0.5, -0.5),
+          Vector3(0, 0.5, -0.5),
+          Vector3(0, -0.5, 0.5),
+          Vector3(1, -0.5, 0.5),
+          Vector3(1, 0.5, 0.5),
+          Vector3(0, 0.5, 0.5),
+        ],
+        <List<int>>[
+          <int>[4, 5, 6, 7],
+          <int>[1, 0, 3, 2],
+          <int>[5, 1, 2, 6],
+          <int>[0, 4, 7, 3],
+          <int>[3, 7, 6, 2],
+          <int>[0, 1, 5, 4],
+        ],
+      );
+
+      final direct = mirror(
+        base,
+        normal: Vector3(1, 0, 0),
+        mergeDistance: 1e-6,
+      );
+      final throughModifier = modifier.apply(base, ModifierContext());
+
+      // Mutation: hard-code `bisect: true` (or drop `mergeDistance`) inside
+      // `apply` instead of passing this modifier's own fields through — the
+      // wrapper would then behave the same for every instance regardless of
+      // what it was constructed with.
+      expect(throughModifier.vertexCount, direct.vertexCount);
+      expect(throughModifier.faceCount, direct.faceCount);
+      expect(throughModifier.signedVolume, closeTo(direct.signedVolume, 1e-9));
+    });
+  });
 }
