@@ -10,7 +10,7 @@ library;
 
 import 'dart:typed_data';
 
-import 'package:flutter3d_formats/flutter3d_formats.dart';
+import 'package:flutter3d_formats/flutter3d_formats.dart' hide EnumHint;
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 import 'package:test/test.dart';
@@ -118,6 +118,47 @@ void main() {
       // Adding through the same door as replacing is how an object ends up in
       // the project twice under one id, and no lookup would say which.
       expect(() => project.withObject(stranger), throwsArgumentError);
+    });
+  });
+
+  group('ProjectProfile.profileHints', () {
+    test('a hint exists for every field a profile editor would show', () {
+      const profile = ProjectProfile();
+      expect(
+        profile.profileHints.keys,
+        unorderedEquals(<String>[
+          'target',
+          'maxTriangles',
+          'maxJoints',
+          'maxInfluences',
+          'maxTextureSize',
+          'maxTextureBytes',
+          'requireTriangles',
+          'requireManifold',
+        ]),
+      );
+    });
+
+    test('maxJoints never advertises more than the shader can hold', () {
+      // Mutation: raise the hint's `max` past 64 (say, to 128, the profile's
+      // own old default before it was tightened to match `Skeleton.maxJoints`)
+      // — a UI honouring this hint would then let someone dial up a profile
+      // no skinning shader in the engine could actually keep.
+      final hint = const ProjectProfile().profileHints['maxJoints'];
+      expect(hint, isA<IntHint>());
+      expect((hint! as IntHint).max, 64);
+    });
+
+    test('target is an enum hint naming every ProfileTarget by its name', () {
+      final hint = const ProjectProfile().profileHints['target'];
+      expect(hint, isA<EnumHint>());
+      expect((hint! as EnumHint).values, ['desktop', 'mobile', 'web']);
+    });
+
+    test('the two require* flags are flags, not ranges', () {
+      const profile = ProjectProfile();
+      expect(profile.profileHints['requireTriangles'], isA<BoolHint>());
+      expect(profile.profileHints['requireManifold'], isA<BoolHint>());
     });
   });
 

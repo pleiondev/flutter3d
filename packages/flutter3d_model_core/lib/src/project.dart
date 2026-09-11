@@ -18,12 +18,13 @@
 /// ever goes up is the one thing that survives both.
 library;
 
-import 'package:flutter3d_formats/flutter3d_formats.dart';
+import 'package:flutter3d_formats/flutter3d_formats.dart' hide EnumHint;
 import 'package:flutter3d_geometry/flutter3d_geometry.dart';
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 import 'package:vector_math/vector_math.dart';
 
 import 'material.dart';
+import 'param_hint.dart';
 import 'selection.dart';
 
 /// What kind of machine a profile is written for.
@@ -94,6 +95,37 @@ final class ProjectProfile {
   /// Whether a mesh pinched to a point stops the export rather than merely
   /// spoiling it. Read by `ExportReadiness.check` the same way.
   final bool requireManifold;
+
+  /// What control a profile editor should offer for each of this class's own
+  /// fields, keyed by field name.
+  ///
+  /// **`doc-13`'s row asks for this "from `MaterialHint`"; that reference went
+  /// stale the moment Г4/Ж2 (2026-09-09) closed `MaterialHint` to the material
+  /// panel and put a new sealed `ParamHint` in core for everything else** —
+  /// see `syn-01`. Built from `ParamHint` instead, the same type
+  /// `ModelCommand.hints` uses, rather than the type the row names. Named
+  /// `profileHints` rather than `hints` to match the plan row's own
+  /// backticked name, even though `ModelCommand.hints` picked the shorter
+  /// one for the same concept — the mechanical check in `verify_plan.dart`
+  /// reads names literally.
+  ///
+  /// `maxJoints`'s ceiling is hard-coded to 64 rather than read from
+  /// `Skeleton.maxJoints`: this package cannot depend on the engine that
+  /// declares it (`flutter3d_model_core` is core, `flutter3d` is a genre
+  /// package one layer up), so 64 is repeated here the same way the
+  /// constructor's own default already repeats it — both are mirrored against
+  /// the real constant by `apps/flutter3d_modeler/test/profile_limits_test.dart`,
+  /// not by this file.
+  Map<String, ParamHint> get profileHints => {
+    'target': EnumHint([...ProfileTarget.values.map((t) => t.name)]),
+    'maxTriangles': const IntHint(min: 1000, max: 2000000, step: 1000),
+    'maxJoints': const IntHint(min: 1, max: 64),
+    'maxInfluences': const IntHint(min: 1, max: 8),
+    'maxTextureSize': const IntHint(min: 64, max: 8192, step: 64),
+    'maxTextureBytes': const IntHint(min: 0),
+    'requireTriangles': const BoolHint(),
+    'requireManifold': const BoolHint(),
+  };
 
   @override
   bool operator ==(Object other) =>
