@@ -64,14 +64,26 @@ extension _GltfMaterials on GltfLoader {
       // put `KHR_texture_transform` in `extensionsRequired` were ever
       // refused, and the commoner atlas export lists it under
       // `extensionsUsed` only — so without this it drew untransformed and
-      // said nothing. `TextureBinding` carries no offset, scale or rotation
-      // to put a transform in, and no shader reads one.
+      // said nothing.
       final infoExtensions = value['extensions'];
-      if (infoExtensions is Map &&
-          infoExtensions.containsKey('KHR_texture_transform')) {
+      final transformExt =
+          infoExtensions is Map ? infoExtensions['KHR_texture_transform'] : null;
+      TextureTransform? transform;
+      if (transformExt != null) {
         warnings.add(
           'A texture asks for KHR_texture_transform; no offset, scale or '
           'rotation is applied, so it samples its whole image.',
+        );
+        // `fmt-19`: `TextureBinding` now has somewhere to put this — carried
+        // through to a writer, not applied to any sampling this package
+        // does, which is why the warning above stays exactly as it was.
+        final transformMap = transformExt is Map
+            ? transformExt.cast<String, Object?>()
+            : const <String, Object?>{};
+        transform = TextureTransform(
+          offset: _vec2(transformMap['offset']),
+          scale: _vec2(transformMap['scale']),
+          rotation: _asDouble(transformMap['rotation']) ?? 0.0,
         );
       }
 
@@ -79,6 +91,7 @@ extension _GltfMaterials on GltfLoader {
         imageIndex: imageIndex,
         texCoordSet: texCoord,
         sampling: sampler,
+        transform: transform,
       );
     }
 
@@ -132,6 +145,7 @@ extension _GltfMaterials on GltfLoader {
             alphaCutoff: _asDouble(material['alphaCutoff']) ?? 0.5,
             doubleSided: material['doubleSided'] == true,
             unlit: extensionsMap.containsKey('KHR_materials_unlit'),
+            extras: _extrasOf(material),
           );
         }(),
     ];

@@ -166,6 +166,7 @@ extension _GltfSceneWalk on GltfLoader {
       rotation: rotation,
       scale: scale,
       children: _intList(node['children']),
+      extras: _extrasOf(node),
     );
   }
 

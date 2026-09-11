@@ -99,6 +99,7 @@ final class ModelNode {
     Vector3? scale,
     List<int>? children,
     List<int>? surfaces,
+    this.extras,
   }) : translation = translation ?? Vector3.zero(),
        rotation = rotation ?? Quaternion.identity(),
        scale = scale ?? Vector3(1.0, 1.0, 1.0),
@@ -116,6 +117,13 @@ final class ModelNode {
 
   /// Indices into `ModelDocument.surfaces` drawn at this node.
   final List<int> surfaces;
+
+  /// glTF's own `extras` on this node, carried opaquely — `fmt-19`'s own
+  /// row. Nothing here reads a key out of it; a decoder copies the JSON
+  /// object verbatim and a writer copies it back, so whatever an authoring
+  /// tool put here survives a round trip even though nothing in this engine
+  /// interprets it.
+  final Map<String, Object?>? extras;
 
   Matrix4 toMatrix() => Matrix4.compose(translation, rotation, scale);
 
@@ -137,6 +145,7 @@ final class ModelSkin {
     required this.inverseBindMatrices,
     this.skeletonRoot,
     this.name,
+    this.extras,
   }) : joints = List.unmodifiable(joints) {
     if (inverseBindMatrices.length != joints.length) {
       throw ArgumentError(
@@ -161,6 +170,10 @@ final class ModelSkin {
 
   /// The node the skeleton hangs from, when the file names one.
   final int? skeletonRoot;
+
+  /// glTF's own `extras` on this skin, carried opaquely — see
+  /// [ModelNode.extras] for what that means and why.
+  final Map<String, Object?>? extras;
 
   int get jointCount => joints.length;
 

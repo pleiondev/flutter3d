@@ -76,6 +76,7 @@ extension _GltfWriterScene on GltfWriter {
           ],
           'scale': <double>[node.scale.x, node.scale.y, node.scale.z],
           if (node.children.isNotEmpty) 'children': node.children,
+          if (node.extras != null) 'extras': node.extras,
           'mesh': ?meshIndexFor(node.surfaces),
           // Per-node in glTF and per-surface here (`ModelSurface.skinIndex`,
           // since a skin binds vertices, not a mesh entry) — every surface a

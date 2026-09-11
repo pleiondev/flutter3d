@@ -20,6 +20,11 @@ extension _GltfWriterMaterials on GltfWriter {
     final samplerIndexByValue = <_SamplerKey, int>{};
     final textures = <Map<String, Object?>>[];
     final textureIndexByValue = <(int, int?), int>{};
+    // Declared before `textureInfo` below, which adds to it whenever a
+    // binding's own `KHR_texture_transform` needs recording — a texture
+    // info's own extension, unlike every other one here, which are all a
+    // material's.
+    final extensionsUsed = <String>{};
 
     int? samplerIndexFor(TextureSampling sampling) {
       // The all-default sampler needs no `samplers` entry at all — a texture
@@ -57,13 +62,24 @@ extension _GltfWriterMaterials on GltfWriter {
       return index;
     }
 
-    Map<String, Object?> textureInfo(TextureBinding binding) =>
-        <String, Object?>{
-          'index': textureIndexFor(binding),
-          if (binding.texCoordSet != 0) 'texCoord': binding.texCoordSet,
-        };
+    Map<String, Object?> textureInfo(TextureBinding binding) {
+      final transform = binding.transform;
+      final extensions = <String, Object?>{
+        if (transform != null)
+          'KHR_texture_transform': <String, Object?>{
+            'offset': <double>[transform.offset.x, transform.offset.y],
+            'scale': <double>[transform.scale.x, transform.scale.y],
+            'rotation': transform.rotation,
+          },
+      };
+      if (transform != null) extensionsUsed.add('KHR_texture_transform');
+      return <String, Object?>{
+        'index': textureIndexFor(binding),
+        if (binding.texCoordSet != 0) 'texCoord': binding.texCoordSet,
+        if (extensions.isNotEmpty) 'extensions': extensions,
+      };
+    }
 
-    final extensionsUsed = <String>{};
     final materials = <Map<String, Object?>>[
       for (final material in document.materials)
         () {
@@ -125,6 +141,7 @@ extension _GltfWriterMaterials on GltfWriter {
               'alphaCutoff': material.alphaCutoff,
             if (material.doubleSided) 'doubleSided': true,
             if (extensions.isNotEmpty) 'extensions': extensions,
+            if (material.extras != null) 'extras': material.extras,
           };
         }(),
     ];

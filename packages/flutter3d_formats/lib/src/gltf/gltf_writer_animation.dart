@@ -13,6 +13,7 @@ extension _GltfWriterAnimation on GltfWriter {
         if (skin.name != null) 'name': skin.name,
         'joints': skin.joints,
         'skeleton': ?skin.skeletonRoot,
+        if (skin.extras != null) 'extras': skin.extras,
         'inverseBindMatrices': _addAccessor(<String, Object?>{
           'bufferView': _appendBufferView(_flattenMatrices(skin)),
           'componentType': GltfComponentType.float.code,
@@ -89,6 +90,7 @@ extension _GltfWriterAnimation on GltfWriter {
           if (clip.name != null) 'name': clip.name,
           'channels': channels,
           'samplers': samplers,
+          if (clip.extras != null) 'extras': clip.extras,
         };
       }(),
   ];

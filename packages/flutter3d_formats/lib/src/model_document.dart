@@ -21,22 +21,61 @@ export 'surface_material.dart';
 /// `version`; neither is read yet, and a field nothing decodes is a field
 /// nothing can honestly claim to round-trip.
 final class DocumentAsset {
-  const DocumentAsset({this.generator});
+  const DocumentAsset({this.generator, this.extras});
 
   /// The tool that wrote the file — glTF's `asset.generator`, e.g. `"Blender
   /// 4.2"`. Null when the file does not say, which most hand-built test
   /// documents and every OBJ do not.
   final String? generator;
 
-  @override
-  bool operator ==(Object other) =>
-      other is DocumentAsset && other.generator == generator;
+  /// The root glTF document's own `extras` — `fmt-19`'s own row, and the
+  /// "document" of "extras on node/material/skin/clip/document." Carried
+  /// opaquely the same way `ModelNode.extras` is: nothing here reads a key
+  /// out of it, a decoder copies the JSON object verbatim, and a writer
+  /// copies it back.
+  final Map<String, Object?>? extras;
 
   @override
-  int get hashCode => generator.hashCode;
+  bool operator ==(Object other) =>
+      other is DocumentAsset &&
+      other.generator == generator &&
+      _mapEquals(other.extras, extras);
+
+  @override
+  int get hashCode => Object.hash(generator, extras);
 
   @override
   String toString() => 'DocumentAsset(generator: $generator)';
+}
+
+/// Deep-enough equality for two `extras` blocks — plain JSON values, so
+/// `Map`/`List`/`String`/`num`/`bool`/`null` is the whole alphabet either
+/// side of `==` needs to agree on. `DeepCollectionEquality` is `package
+/// :collection`'s and this file has no other reason to depend on it, so a
+/// small recursive check is cheaper than the import.
+bool _mapEquals(Map<String, Object?>? a, Map<String, Object?>? b) {
+  if (identical(a, b)) return true;
+  if (a == null || b == null) return false;
+  if (a.length != b.length) return false;
+  for (final entry in a.entries) {
+    if (!b.containsKey(entry.key)) return false;
+    if (!_jsonEquals(entry.value, b[entry.key])) return false;
+  }
+  return true;
+}
+
+bool _jsonEquals(Object? a, Object? b) {
+  if (a is Map<String, Object?> && b is Map<String, Object?>) {
+    return _mapEquals(a, b);
+  }
+  if (a is List && b is List) {
+    if (a.length != b.length) return false;
+    for (var i = 0; i < a.length; i++) {
+      if (!_jsonEquals(a[i], b[i])) return false;
+    }
+    return true;
+  }
+  return a == b;
 }
 
 /// A decoded model, whatever format it came from.

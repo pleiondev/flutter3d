@@ -80,6 +80,7 @@ extension _GltfSkins on GltfLoader {
               skeleton != null && skeleton >= 0 && skeleton < nodeCount
               ? skeleton
               : null,
+          extras: _extrasOf(skin),
         ),
       );
     }

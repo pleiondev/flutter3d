@@ -58,6 +58,7 @@ final class TextureBinding {
     required this.imageIndex,
     this.texCoordSet = 0,
     this.sampling = const TextureSampling(),
+    this.transform,
   });
 
   final int imageIndex;
@@ -66,6 +67,38 @@ final class TextureBinding {
   final int texCoordSet;
 
   final TextureSampling sampling;
+
+  /// `KHR_texture_transform`'s own offset/scale/rotation, when the source
+  /// file named the extension — `fmt-19`'s own row. Null for a texture info
+  /// with no such extension, which is every file before this one existed.
+  ///
+  /// **Carried, not applied.** No shader here samples a texture through
+  /// this, so a material with one still draws sampling its whole image —
+  /// `gltf_loader_materials.dart`'s own warning about that stays exactly
+  /// where it was. What changes is that a round trip no longer drops the
+  /// numbers a decoder already had in hand.
+  final TextureTransform? transform;
+}
+
+/// `KHR_texture_transform`'s three fields, decoded but not acted on — see
+/// [TextureBinding.transform].
+final class TextureTransform {
+  TextureTransform({Vector2? offset, Vector2? scale, this.rotation = 0.0})
+    : offset = offset ?? Vector2.zero(),
+      scale = scale ?? Vector2(1.0, 1.0);
+
+  /// UV offset, applied before scale and rotation per the extension's own
+  /// spec — not that anything here applies either.
+  final Vector2 offset;
+
+  final Vector2 scale;
+
+  /// Radians, counter-clockwise, about the origin.
+  final double rotation;
+
+  @override
+  String toString() =>
+      'TextureTransform(offset: $offset, scale: $scale, rotation: $rotation)';
 }
 
 /// An image still in its source encoding (PNG, JPEG, …).
@@ -122,6 +155,7 @@ final class SurfaceMaterial {
     this.alphaCutoff = 0.5,
     this.doubleSided = false,
     this.unlit = false,
+    this.extras,
   }) : baseColor = baseColor ?? Vector4(1.0, 1.0, 1.0, 1.0),
        emissive = emissive ?? Vector3.zero();
 
@@ -150,6 +184,10 @@ final class SurfaceMaterial {
   /// Shade with albedo only, from glTF's `KHR_materials_unlit` or an OBJ material
   /// with no specular response at all.
   final bool unlit;
+
+  /// glTF's own `extras` on this material, carried opaquely — see
+  /// [ModelNode.extras] for what that means and why.
+  final Map<String, Object?>? extras;
 
   @override
   String toString() =>

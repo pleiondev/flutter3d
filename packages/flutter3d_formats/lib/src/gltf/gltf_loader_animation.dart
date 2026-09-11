@@ -152,6 +152,7 @@ extension _GltfAnimation on GltfLoader {
         AnimationClip(
           name: name is String ? name : 'animation $a',
           tracks: tracks,
+          extras: _extrasOf(animation),
         ),
       );
     }

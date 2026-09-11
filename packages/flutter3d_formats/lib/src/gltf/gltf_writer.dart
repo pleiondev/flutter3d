@@ -74,6 +74,9 @@ final class GltfWriter {
         if (document.asset?.generator != null)
           'generator': document.asset!.generator,
       },
+      // The root document's own `extras`, not `asset`'s — see
+      // `GltfLoader.load`'s own comment on the same distinction.
+      if (document.asset?.extras != null) 'extras': document.asset!.extras,
       if (_extensionsUsed.isNotEmpty)
         'extensionsUsed': _extensionsUsed.toList(),
       if (scenes.isNotEmpty) 'scene': 0,

@@ -92,6 +92,12 @@ final class GltfLoader {
 
     final assetBlock = json['asset'];
     final generator = assetBlock is Map ? assetBlock['generator'] : null;
+    // The root document's own `extras`, not `asset`'s — glTF's `asset` object
+    // can carry its own `extras` too, a different, narrower thing nothing
+    // here reads either, but "extras on the document" (`fmt-19`'s own row)
+    // is this one: the top-level object every other key in `json` is a
+    // sibling of.
+    final documentExtras = _extrasOf(json);
 
     return GltfAsset(
       surfaces: graph.surfaces,
@@ -102,7 +108,12 @@ final class GltfLoader {
       roots: graph.roots,
       animations: animations,
       skins: skins,
-      asset: generator is String ? DocumentAsset(generator: generator) : null,
+      asset: generator is String || documentExtras != null
+          ? DocumentAsset(
+              generator: generator is String ? generator : null,
+              extras: documentExtras,
+            )
+          : null,
     );
   }
 
@@ -146,6 +157,15 @@ final class GltfLoader {
 // another file could see them would widen `GltfLoader`'s surface for no
 // reader's benefit.
 
+/// [json]'s own `extras`, as an opaque map — `fmt-19`'s own row. Any glTF
+/// object may carry one; every phase of this pipeline that decodes one reads
+/// it through here, and `gltf_writer.dart`'s own phases write it back
+/// unread, which is the whole of what "carried, not interpreted" means.
+Map<String, Object?>? _extrasOf(Map<String, Object?> json) {
+  final extras = json['extras'];
+  return extras is Map ? extras.cast<String, Object?>() : null;
+}
+
 List<Map<String, Object?>> _mapList(Object? value) {
   if (value is! List) return const <Map<String, Object?>>[];
   return <Map<String, Object?>>[
@@ -188,6 +208,11 @@ int? _asInt(Object? value) {
 double? _asDouble(Object? value) {
   if (value is num) return value.toDouble();
   return null;
+}
+
+Vector2? _vec2(Object? value) {
+  if (value is! List || value.length < 2) return null;
+  return Vector2(_asDouble(value[0]) ?? 0.0, _asDouble(value[1]) ?? 0.0);
 }
 
 Vector3? _vec3(Object? value) {
