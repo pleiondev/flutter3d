@@ -93,7 +93,7 @@ OpResult insetFaces(
 
   final normal = mesh.normalOf(face);
   final positions = <Vector3>[for (final v in from) mesh.positionOf(v)];
-  final insetAt = _insetPositions(positions, normal, thickness, depth);
+  final insetAt = insetCornerPositions(positions, normal, thickness, depth);
 
   final lifted = <int>[for (final p in insetAt) mesh.addVertex(p)];
   for (var i = 0; i < n; i++) {
@@ -134,7 +134,15 @@ OpResult insetFaces(
 /// originals as every other edge is — the same reason a mitred picture
 /// frame's outer corners are cut steeper than its straight run. Uncorrected,
 /// only a rectangle's own right angles would happen to come out even.
-List<Vector3> _insetPositions(
+///
+/// **Public rather than file-private because `bevel.dart` needs the exact
+/// same formula.** A face whose every edge is being beveled shrinks by
+/// exactly this same mitred amount at each of its own corners — the two
+/// operations part ways only in what happens to the gap that shrinking
+/// leaves: [insetFaces] walls it back to the face's own original boundary,
+/// `bevelEdges`/`bevelVertices` bridge it to the *neighbouring* face's own
+/// shrunk corner instead, since both sides of a beveled edge move.
+List<Vector3> insetCornerPositions(
   List<Vector3> positions,
   Vector3 normal,
   double thickness,
