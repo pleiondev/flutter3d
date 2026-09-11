@@ -2014,6 +2014,15 @@ void main() {
         ),
         AddImage(bytes: Uint8List.fromList(<int>[1, 2, 3]), imageName: 'atlas'),
         const AssignMaterial(id: 1, to: 0),
+        AddModifier(
+          id: 1,
+          modifier: ArrayModifier(count: 2, offset: Vector3(1, 0, 0)),
+        ),
+        const SetModifierField(id: 1, index: 0, field: 'count', value: 5),
+        const ToggleModifier(id: 1, index: 0),
+        const ReorderModifier(id: 1, from: 0, to: 1),
+        const RemoveModifier(id: 1, index: 0),
+        const ApplyModifier(id: 1, index: 0),
       ];
 
       // Every name has a sample, which is what stops a command being added to
@@ -2161,5 +2170,246 @@ void main() {
       // `distance` — this is the instance that would.
       expect(const MergeByDistance().hints, isEmpty);
     });
+  });
+
+  group('the modifier stack', () {
+    test('AddModifier appends, enabled', () {
+      final history = edited();
+      expect(
+        history.run(
+          AddModifier(
+            id: 1,
+            modifier: ArrayModifier(count: 2, offset: Vector3(2, 0, 0)),
+          ),
+        ),
+        isNull,
+      );
+
+      final modifiers = history.project[1]!.modifiers;
+      expect(modifiers, hasLength(1));
+      expect(modifiers.single.enabled, isTrue);
+      expect(modifiers.single.modifier, isA<ArrayModifier>());
+    });
+
+    test('AddModifier refuses an object that does not exist', () {
+      final history = edited();
+      expect(
+        history.run(
+          AddModifier(
+            id: 99,
+            modifier: ArrayModifier(count: 2, offset: Vector3(1, 0, 0)),
+          ),
+        ),
+        contains('no object 99'),
+      );
+    });
+
+    test('SetModifierField replaces one field and leaves the rest', () {
+      final history = edited();
+      history.run(
+        AddModifier(
+          id: 1,
+          modifier: ArrayModifier(count: 2, offset: Vector3(2, 0, 0)),
+        ),
+      );
+
+      expect(
+        history.run(
+          SetModifierField(id: 1, index: 0, field: 'count', value: 5),
+        ),
+        isNull,
+      );
+
+      final modifier =
+          history.project[1]!.modifiers.single.modifier as ArrayModifier;
+      // Mutation: rebuild the modifier from only the changed field,
+      // defaulting the rest — `offset` would silently reset to zero the
+      // moment anybody touched `count`.
+      expect(modifier.count, 5);
+      expect(modifier.offset, Vector3(2, 0, 0));
+    });
+
+    test('SetModifierField refuses a field the modifier does not have', () {
+      final history = edited();
+      history.run(
+        AddModifier(id: 1, modifier: MirrorModifier(normal: Vector3(1, 0, 0))),
+      );
+
+      expect(
+        history.run(
+          SetModifierField(id: 1, index: 0, field: 'count', value: 5),
+        ),
+        contains('not a field'),
+      );
+    });
+
+    test('SetModifierField refuses a value of the wrong shape', () {
+      final history = edited();
+      history.run(
+        AddModifier(
+          id: 1,
+          modifier: ArrayModifier(count: 2, offset: Vector3(1, 0, 0)),
+        ),
+      );
+
+      expect(
+        history.run(
+          SetModifierField(id: 1, index: 0, field: 'count', value: 'five'),
+        ),
+        contains('wrong shape'),
+      );
+    });
+
+    test('SetModifierField can clear mergeDistance back to null', () {
+      final history = edited();
+      history.run(
+        AddModifier(
+          id: 1,
+          modifier: ArrayModifier(
+            count: 2,
+            offset: Vector3(1, 0, 0),
+            mergeDistance: 0.01,
+          ),
+        ),
+      );
+
+      history.run(
+        SetModifierField(id: 1, index: 0, field: 'mergeDistance', value: null),
+      );
+
+      final modifier =
+          history.project[1]!.modifiers.single.modifier as ArrayModifier;
+      expect(modifier.mergeDistance, isNull);
+    });
+
+    test('ToggleModifier flips enabled, and again flips it back', () {
+      final history = edited();
+      history.run(
+        AddModifier(
+          id: 1,
+          modifier: ArrayModifier(count: 2, offset: Vector3(1, 0, 0)),
+        ),
+      );
+
+      history.run(const ToggleModifier(id: 1, index: 0));
+      expect(history.project[1]!.modifiers.single.enabled, isFalse);
+
+      history.run(const ToggleModifier(id: 1, index: 0));
+      // Mutation: always set `enabled: false` instead of `!slot.enabled` —
+      // the second toggle would then leave it off instead of turning it
+      // back on.
+      expect(history.project[1]!.modifiers.single.enabled, isTrue);
+    });
+
+    test('ReorderModifier moves a slot without touching the others', () {
+      final history = edited();
+      history.run(
+        AddModifier(
+          id: 1,
+          modifier: ArrayModifier(count: 1, offset: Vector3(1, 0, 0)),
+        ),
+      );
+      history.run(
+        AddModifier(id: 1, modifier: MirrorModifier(normal: Vector3(1, 0, 0))),
+      );
+      history.run(
+        AddModifier(
+          id: 1,
+          modifier: ArrayModifier(count: 3, offset: Vector3(3, 0, 0)),
+        ),
+      );
+
+      expect(history.run(const ReorderModifier(id: 1, from: 2, to: 0)), isNull);
+
+      final modifiers = history.project[1]!.modifiers;
+      // Mutation: `insert` at `from` instead of `to`, or forget the
+      // `removeAt` first — either leaves the moved slot in the wrong place
+      // or duplicates it.
+      expect((modifiers[0].modifier as ArrayModifier).count, 3);
+      expect(modifiers[1].modifier, isA<ArrayModifier>());
+      expect((modifiers[1].modifier as ArrayModifier).count, 1);
+      expect(modifiers[2].modifier, isA<MirrorModifier>());
+    });
+
+    test('RemoveModifier drops one slot and keeps the others in order', () {
+      final history = edited();
+      history.run(
+        AddModifier(
+          id: 1,
+          modifier: ArrayModifier(count: 1, offset: Vector3(1, 0, 0)),
+        ),
+      );
+      history.run(
+        AddModifier(id: 1, modifier: MirrorModifier(normal: Vector3(1, 0, 0))),
+      );
+
+      expect(history.run(const RemoveModifier(id: 1, index: 0)), isNull);
+
+      final modifiers = history.project[1]!.modifiers;
+      expect(modifiers, hasLength(1));
+      expect(modifiers.single.modifier, isA<MirrorModifier>());
+    });
+
+    test(
+      'ApplyModifier bakes the modifier into the base mesh and drops it',
+      () {
+        final history = edited();
+        final beforeVertices = meshOf(history).vertexCount;
+        history.run(
+          AddModifier(
+            id: 1,
+            modifier: ArrayModifier(count: 2, offset: Vector3(2, 0, 0)),
+          ),
+        );
+
+        expect(history.run(const ApplyModifier(id: 1, index: 0)), isNull);
+
+        final object = history.project[1]!;
+        // Mutation: leave the applied modifier on the stack instead of
+        // dropping `0..index` — the same array would then double again on the
+        // very next evaluation, past what "apply" means.
+        expect(object.modifiers, isEmpty);
+        expect(
+          (object.geometry as EditedGeometry).mesh.vertexCount,
+          beforeVertices * 2,
+        );
+      },
+    );
+
+    test('ApplyModifier bakes in a disabled modifier, matching an export '
+        'with it switched on', () {
+      final history = edited();
+      final beforeVertices = meshOf(history).vertexCount;
+      history.run(
+        AddModifier(
+          id: 1,
+          modifier: ArrayModifier(count: 2, offset: Vector3(2, 0, 0)),
+        ),
+      );
+      history.run(const ToggleModifier(id: 1, index: 0));
+
+      history.run(const ApplyModifier(id: 1, index: 0));
+
+      // Mutation: skip a disabled slot when building the stack to apply —
+      // "apply" is what export with the modifier turned on would give,
+      // which is this row's own acceptance line, read literally.
+      expect(
+        (history.project[1]!.geometry as EditedGeometry).mesh.vertexCount,
+        beforeVertices * 2,
+      );
+    });
+
+    test('ApplyModifier refuses a modifier that is not there', () {
+      final history = edited();
+      expect(
+        history.run(const ApplyModifier(id: 1, index: 0)),
+        contains('no modifier 0'),
+      );
+    });
+
+    // JSON round-tripping is covered once, for every command including
+    // these six, by "every name has a sample and round-trips through JSON"
+    // in the journal group above — no need for a second copy of that
+    // assertion here.
   });
 }

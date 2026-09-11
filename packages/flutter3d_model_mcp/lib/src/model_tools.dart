@@ -747,6 +747,137 @@ List<ModelTool> get _commandTools => <ModelTool>[
     ),
     _command('assignMaterial'),
   ),
+  ModelTool(
+    Tool(
+      name: 'addModifier',
+      description:
+          'Append a modifier to an object\'s own stack, enabled. '
+          '"modifier" is an object naming which kind and its own fields: '
+          'kind "array" takes count (an int, total instances including the '
+          'original) and offset (3 numbers, added per copy); kind "mirror" '
+          'takes normal (3 numbers, the plane through the object\'s own '
+          'origin) — both also take an optional mergeDistance (a number) to '
+          'weld seams, and mirror also takes bisect (refused — not built '
+          'yet) and flipUv (stored, no effect yet).',
+      inputSchema: ObjectSchema(
+        properties: <String, Schema>{
+          'id': IntegerSchema(description: 'the object'),
+          'modifier': ObjectSchema(
+            properties: <String, Schema>{
+              'kind': UntitledSingleSelectEnumSchema(
+                values: <String>['array', 'mirror'],
+              ),
+              'count': IntegerSchema(description: 'array only'),
+              'offset': ListSchema(
+                items: NumberSchema(),
+                description: 'array only, 3 numbers',
+              ),
+              'normal': ListSchema(
+                items: NumberSchema(),
+                description: 'mirror only, 3 numbers',
+              ),
+              'mergeDistance': NumberSchema(description: 'either kind'),
+              'bisect': BooleanSchema(description: 'mirror only'),
+              'flipUv': BooleanSchema(description: 'mirror only'),
+            },
+            required: <String>['kind'],
+          ),
+        },
+        required: <String>['id', 'modifier'],
+      ),
+    ),
+    _command('addModifier'),
+  ),
+  ModelTool(
+    Tool(
+      name: 'setModifierField',
+      description:
+          'Set one field of a modifier already on an object\'s '
+          'stack, by the same field names addModifier\'s own "modifier" '
+          'object takes.',
+      inputSchema: ObjectSchema(
+        properties: <String, Schema>{
+          'id': IntegerSchema(description: 'the object'),
+          'index': IntegerSchema(description: 'the modifier, from list'),
+          'field': StringSchema(description: 'the field name'),
+          'value': Schema.combined(
+            description:
+                'a number, a bool, or a list of 3 numbers, '
+                'matching the field',
+            anyOf: <Schema>[
+              NumberSchema(),
+              BooleanSchema(),
+              ListSchema(items: NumberSchema()),
+            ],
+          ),
+        },
+        required: <String>['id', 'index', 'field', 'value'],
+      ),
+    ),
+    _command('setModifierField'),
+  ),
+  ModelTool(
+    Tool(
+      name: 'toggleModifier',
+      description: 'Flip whether a modifier on an object\'s stack runs.',
+      inputSchema: ObjectSchema(
+        properties: <String, Schema>{
+          'id': IntegerSchema(description: 'the object'),
+          'index': IntegerSchema(description: 'the modifier, from list'),
+        },
+        required: <String>['id', 'index'],
+      ),
+    ),
+    _command('toggleModifier'),
+  ),
+  ModelTool(
+    Tool(
+      name: 'reorderModifier',
+      description: 'Move a modifier to a different position in the stack.',
+      inputSchema: ObjectSchema(
+        properties: <String, Schema>{
+          'id': IntegerSchema(description: 'the object'),
+          'from': IntegerSchema(description: 'the modifier\'s current index'),
+          'to': IntegerSchema(description: 'where it should end up'),
+        },
+        required: <String>['id', 'from', 'to'],
+      ),
+    ),
+    _command('reorderModifier'),
+  ),
+  ModelTool(
+    Tool(
+      name: 'removeModifier',
+      description: 'Drop a modifier from an object\'s own modifier stack.',
+      inputSchema: ObjectSchema(
+        properties: <String, Schema>{
+          'id': IntegerSchema(description: 'the object'),
+          'index': IntegerSchema(description: 'the modifier, from list'),
+        },
+        required: <String>['id', 'index'],
+      ),
+    ),
+    _command('removeModifier'),
+  ),
+  ModelTool(
+    Tool(
+      name: 'applyModifier',
+      description:
+          'Bake a modifier and everything below it on the stack '
+          'into the object\'s own mesh, and drop those entries — what is '
+          'left above keeps running, now over the newly baked base. Bakes '
+          'in the named modifier even if it is currently switched off: this '
+          'is what exporting with it enabled would give.',
+      inputSchema: ObjectSchema(
+        properties: <String, Schema>{
+          'id': IntegerSchema(description: 'the object'),
+          'index': IntegerSchema(description: 'the modifier, from list'),
+        },
+        required: <String>['id', 'index'],
+      ),
+    ),
+    _command('applyModifier'),
+  ),
 ];
 
 // ------------------------------------------------------------ session tools

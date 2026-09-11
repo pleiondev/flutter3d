@@ -33,6 +33,7 @@ import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 import 'package:vector_math/vector_math.dart';
 
 import 'material.dart';
+import 'modifier_slot.dart';
 import 'param_hint.dart';
 import 'parametric_json.dart';
 import 'project.dart';
@@ -40,6 +41,7 @@ import 'selection.dart';
 
 part 'material_commands.dart';
 part 'mesh_commands.dart';
+part 'modifier_commands.dart';
 part 'object_commands.dart';
 part 'selection_commands.dart';
 
@@ -463,6 +465,12 @@ const List<String> modelCommandNames = <String>[
   'setTexture',
   'addImage',
   'assignMaterial',
+  'addModifier',
+  'setModifierField',
+  'toggleModifier',
+  'reorderModifier',
+  'removeModifier',
+  'applyModifier',
 ];
 
 /// Reads a command back out of a journal, or null.
@@ -679,6 +687,44 @@ ModelCommand? modelCommandFromJson(Object? json) {
     },
     'assignMaterial' => switch ((json['id'], json['to'])) {
       (final int id, final int? to) => AssignMaterial(id: id, to: to),
+      _ => null,
+    },
+    'addModifier' => switch ((json['id'], json['modifier'])) {
+      (final int id, final Object? modifierJson) => switch (modifierFromJson(
+        modifierJson,
+      )) {
+        final Modifier modifier => AddModifier(id: id, modifier: modifier),
+        null => null,
+      },
+      _ => null,
+    },
+    'setModifierField' => switch ((json['id'], json['index'], json['field'])) {
+      (final int id, final int index, final String field) => SetModifierField(
+        id: id,
+        index: index,
+        field: field,
+        value: json['value'],
+      ),
+      _ => null,
+    },
+    'toggleModifier' => switch ((json['id'], json['index'])) {
+      (final int id, final int index) => ToggleModifier(id: id, index: index),
+      _ => null,
+    },
+    'reorderModifier' => switch ((json['id'], json['from'], json['to'])) {
+      (final int id, final int from, final int to) => ReorderModifier(
+        id: id,
+        from: from,
+        to: to,
+      ),
+      _ => null,
+    },
+    'removeModifier' => switch ((json['id'], json['index'])) {
+      (final int id, final int index) => RemoveModifier(id: id, index: index),
+      _ => null,
+    },
+    'applyModifier' => switch ((json['id'], json['index'])) {
+      (final int id, final int index) => ApplyModifier(id: id, index: index),
       _ => null,
     },
     _ => null,
