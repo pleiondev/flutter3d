@@ -9,6 +9,7 @@
 /// all — and why half this file asserts on it.
 library;
 
+import 'package:flutter3d_formats/flutter3d_formats.dart';
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 import 'package:test/test.dart';
@@ -278,6 +279,51 @@ void main() {
         isFalse,
         reason: '36 triangles against a budget of 40',
       );
+    });
+  });
+
+  group('materials, through the cache', () {
+    test('a material issue shows up the same way it would asked directly', () {
+      final project = cubes(1).copyWith(
+        materials: <ProjectMaterial>[
+          ProjectMaterial(
+            surface: SurfaceMaterial(
+              alphaMode: SurfaceAlphaMode.blend,
+              baseColor: Vector4(1, 1, 1, 1),
+            ),
+          ),
+        ],
+      );
+      final cache = ReadinessCache();
+
+      // Mutation: leave `materialIssues(project)` out of `ReadinessCache.of`
+      // — every other assertion about materials in `readiness_test.dart`
+      // still passes, since none of them go through the cache, and a panel
+      // that reads readiness from `ReadinessCache` (the one a status bar
+      // actually asks every frame) would never show this warning at all.
+      expect(
+        cache
+            .of(project)
+            .issues
+            .any((ExportIssue i) => i.message.contains('blend')),
+        isTrue,
+      );
+    });
+
+    test('does not count toward walked — no object owns it', () {
+      final project = cubes(2).copyWith(
+        materials: <ProjectMaterial>[
+          ProjectMaterial(
+            surface: SurfaceMaterial(
+              alphaMode: SurfaceAlphaMode.blend,
+              baseColor: Vector4(1, 1, 1, 1),
+            ),
+          ),
+        ],
+      );
+      final cache = ReadinessCache();
+      cache.of(project);
+      expect(cache.walked, 2);
     });
   });
 }

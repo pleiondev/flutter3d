@@ -112,6 +112,11 @@ final class ReadinessCache {
       // `ExportReadiness.check` puts them in: it is the one fault that is
       // true of all of them at once.
       ?_budgetIssue(project, triangles),
+      // Materials next, the same order `ExportReadiness.check` keeps them
+      // in — and, unlike the budget, no separate cache-path version to
+      // maintain: `materialIssues` reads `project.materials` directly and
+      // needs no per-object aggregation redone for it.
+      ...materialIssues(project),
       ...perObject,
     ]);
   }

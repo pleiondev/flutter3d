@@ -23,6 +23,7 @@
 /// their forty objects to open.
 library;
 
+import 'package:flutter3d_formats/flutter3d_formats.dart';
 import 'package:flutter3d_geometry/flutter3d_geometry.dart';
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 
@@ -87,6 +88,10 @@ final class ExportReadiness {
       // through the two passes below, so the position is a choice rather than
       // an accident of where the call sits.
       ?_budget(project),
+      // Materials are project-level, the same way the budget is: one row
+      // regardless of how many objects paint with it, so this runs once
+      // here rather than once per object below.
+      ...materialIssues(project),
       for (final ModelObject object in project.objects)
         ..._issuesWith(
           object,
@@ -325,3 +330,61 @@ ExportIssue? _wideFaces(ModelObject object, EditMesh mesh) {
           object: object,
         );
 }
+
+/// Every material's own issues, independent of which objects paint with it.
+///
+/// **Project-level, the same way [_budget] is** — a material is one row
+/// regardless of how many objects use it, and reporting it once per object
+/// would repeat the same sentence for every object sharing a slot. Public
+/// rather than `_`-prefixed so `ReadinessCache.of` can call the identical
+/// function directly: unlike the budget, nothing here needs a different
+/// shape for the cached path — no aggregation across objects to redo, just
+/// `project.materials`, which the cache already has.
+List<ExportIssue> materialIssues(ModelProject project) => <ExportIssue>[
+  for (var i = 0; i < project.materials.length; i++)
+    ..._singleMaterialIssues(i, project.materials[i].surface),
+];
+
+List<ExportIssue> _singleMaterialIssues(int index, SurfaceMaterial surface) {
+  final label = surface.name == null
+      ? 'material $index'
+      : 'material $index ("${surface.name}")';
+  return <ExportIssue>[
+    // A warning: it loads and draws identically to opaque, so nothing here
+    // is broken — it is paid for. Blend costs every engine a sort and the
+    // overdraw a transparent surface costs, and a material with no texture
+    // to carry alpha and a fully opaque colour of its own pays that for a
+    // result nobody can tell from opaque.
+    if (surface.alphaMode == SurfaceAlphaMode.blend &&
+        surface.baseColorTexture == null &&
+        surface.baseColor.w >= 1.0)
+      ExportIssue(
+        ExportSeverity.warning,
+        '$label is set to blend and has no transparency of its own — a '
+        'fully opaque colour with no texture to carry alpha — so it costs '
+        'the sort and the overdraw a blended surface costs for a result '
+        'nobody can tell from opaque; opaque would draw the same thing for '
+        'less',
+      ),
+    // A warning, not an error: the texture is still there and still loads,
+    // and `TextureBinding.texCoordSet`'s own doc comment says plainly that
+    // only set 0 is decoded — so a binding naming any other set reads from
+    // whichever UVs a loader falls back to, or from nothing at all.
+    if (_texCoordSetsOf(surface).any((int set) => set != 0))
+      ExportIssue(
+        ExportSeverity.warning,
+        '$label samples a texture coordinate set other than 0; nothing in '
+        'this repository decodes any but set 0 today, so that texture will '
+        'be read from the wrong UVs once this leaves',
+      ),
+  ];
+}
+
+/// The `texCoordSet` of every texture slot [surface] actually fills.
+Iterable<int> _texCoordSetsOf(SurfaceMaterial surface) => <TextureBinding?>[
+  surface.baseColorTexture,
+  surface.metallicRoughnessTexture,
+  surface.normalTexture,
+  surface.occlusionTexture,
+  surface.emissiveTexture,
+].whereType<TextureBinding>().map((TextureBinding b) => b.texCoordSet);

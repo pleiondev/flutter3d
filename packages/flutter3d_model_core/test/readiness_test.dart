@@ -12,12 +12,14 @@ library;
 
 import 'dart:typed_data';
 
+import 'package:flutter3d_formats/flutter3d_formats.dart';
 import 'package:flutter3d_geometry/flutter3d_geometry.dart';
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 // By path rather than through the barrel, and both of these for one reason:
 // readiness is not exported yet, and a test that reached for the barrel to get
 // `ModelProject` would drag in the commands and the history to check a rule
 // about triangles. What it needs is the document and the rules over it.
+import 'package:flutter3d_model_core/src/material.dart';
 import 'package:flutter3d_model_core/src/project.dart';
 import 'package:flutter3d_model_core/src/readiness.dart';
 import 'package:flutter3d_model_core/src/readiness_cache.dart';
@@ -396,6 +398,140 @@ void main() {
         isEmpty,
       );
     });
+  });
+
+  group('materials, which are project-level like the budget', () {
+    ModelProject withMaterial(SurfaceMaterial surface) => ModelProject(
+      materials: <ProjectMaterial>[ProjectMaterial(surface: surface)],
+    );
+
+    test('a blend material with no transparency of its own is a warning', () {
+      final ready = ExportReadiness.check(
+        withMaterial(
+          SurfaceMaterial(
+            name: 'glass',
+            alphaMode: SurfaceAlphaMode.blend,
+            baseColor: Vector4(1, 1, 1, 1),
+          ),
+        ),
+      );
+
+      // Mutation: check `baseColor.w > 1.0` instead of `>= 1.0` — a colour
+      // read straight back from `Vector4(1,1,1,1)` is exactly 1.0, and a
+      // strict `>` misses precisely the case a person would actually author.
+      expect(ready.issues, hasLength(1));
+      expect(ready.issues.single.severity, ExportSeverity.warning);
+      expect(ready.issues.single.message, contains('blend'));
+      expect(ready.issues.single.message, contains('glass'));
+      // No object to blame — same reasoning as the budget.
+      expect(ready.issues.single.object, isNull);
+    });
+
+    test('blend with a real alpha texture is not flagged', () {
+      final ready = ExportReadiness.check(
+        withMaterial(
+          SurfaceMaterial(
+            alphaMode: SurfaceAlphaMode.blend,
+            baseColor: Vector4(1, 1, 1, 1),
+            baseColorTexture: const TextureBinding(imageIndex: 0),
+          ),
+        ),
+      );
+
+      // Mutation: fire the warning whenever `baseColor.w >= 1.0`, ignoring
+      // whether a texture is bound — the texture's own alpha is exactly
+      // what this rule cannot see, and warning anyway would be wrong most
+      // of the time a texture is actually doing the work.
+      expect(ready.issues, isEmpty);
+    });
+
+    test('blend with genuine translucency of its own is not flagged', () {
+      final ready = ExportReadiness.check(
+        withMaterial(
+          SurfaceMaterial(
+            alphaMode: SurfaceAlphaMode.blend,
+            baseColor: Vector4(1, 1, 1, 0.4),
+          ),
+        ),
+      );
+      expect(ready.issues, isEmpty);
+    });
+
+    test('opaque is never flagged, however its own alpha reads', () {
+      final ready = ExportReadiness.check(
+        withMaterial(SurfaceMaterial(baseColor: Vector4(1, 1, 1, 1))),
+      );
+      expect(ready.issues, isEmpty);
+    });
+
+    test('a texture coordinate set other than 0 is a warning', () {
+      final ready = ExportReadiness.check(
+        withMaterial(
+          SurfaceMaterial(
+            name: 'floor',
+            baseColorTexture: const TextureBinding(
+              imageIndex: 0,
+              texCoordSet: 1,
+            ),
+          ),
+        ),
+      );
+
+      // Mutation: check only `baseColorTexture` for this instead of every
+      // slot — a normal map or an occlusion map on set 1 would then go
+      // unwarned, and the doc comment this rule reads
+      // (`TextureBinding.texCoordSet`) says plainly that only set 0
+      // decodes, whichever slot it is on.
+      expect(ready.issues, hasLength(1));
+      expect(ready.issues.single.severity, ExportSeverity.warning);
+      expect(ready.issues.single.message, contains('texture coordinate'));
+      expect(ready.issues.single.message, contains('floor'));
+    });
+
+    test('the same warning fires for a slot other than baseColorTexture', () {
+      // A separate case from the one above on purpose: a rule that only
+      // read `baseColorTexture` would pass every assertion up there and
+      // still leave a normal or occlusion map on the wrong set unwarned.
+      final ready = ExportReadiness.check(
+        withMaterial(
+          SurfaceMaterial(
+            normalTexture: const TextureBinding(imageIndex: 0, texCoordSet: 2),
+          ),
+        ),
+      );
+      expect(ready.issues, hasLength(1));
+      expect(ready.issues.single.message, contains('texture coordinate'));
+    });
+
+    test('every slot on set 0 is not flagged', () {
+      final ready = ExportReadiness.check(
+        withMaterial(
+          SurfaceMaterial(
+            baseColorTexture: const TextureBinding(imageIndex: 0),
+            normalTexture: const TextureBinding(imageIndex: 1),
+          ),
+        ),
+      );
+      expect(ready.issues, isEmpty);
+    });
+
+    test(
+      'materialIssues answers the same list ExportReadiness.check finds',
+      () {
+        final project = withMaterial(
+          SurfaceMaterial(
+            alphaMode: SurfaceAlphaMode.blend,
+            baseColor: Vector4(1, 1, 1, 1),
+          ),
+        );
+        expect(
+          materialIssues(project).map((ExportIssue i) => i.message),
+          ExportReadiness.check(
+            project,
+          ).issues.map((ExportIssue i) => i.message),
+        );
+      },
+    );
   });
 
   group('topology, which is MeshChecks and not this', () {
