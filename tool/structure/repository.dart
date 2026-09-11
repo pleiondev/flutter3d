@@ -647,6 +647,16 @@ boundaryEnumExempt = <String, Map<String, String>>{
         'to know which button to show, and there is no third answer opening '
         'a project could need',
   },
+  'flutter3d_model_core/lib/src/texture_info.dart': <String, String>{
+    'TextureFileFormat':
+        "the vkFormat families this file's own switch maps to a block "
+        "layout — BC1/BC3/BC7/ETC2 RGBA8/ASTC 4×4, the set mat-30's encoder "
+        'targets — plus rgba8 for a plain PNG/JPEG and other for every '
+        'vkFormat none of those name. A format this does not recognise '
+        'already falls into other rather than needing a new case, so a '
+        'texture panel switching on this never sees a value it was not '
+        'built for',
+  },
   'flutter3d_formats/lib/src/stl/stl_loader.dart': <String, String>{
     'StlNormals':
         'whether a facet\'s own normal record is trusted or recomputed from '
