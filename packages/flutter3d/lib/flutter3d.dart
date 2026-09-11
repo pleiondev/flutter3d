@@ -60,6 +60,7 @@ export 'src/engine/animation/animation.dart';
 export 'src/engine/animation/animation_player.dart';
 export 'src/engine/animation/animation_target.dart';
 export 'src/engine/animation/baked_poses.dart';
+export 'src/engine/animation/inverse_kinematics.dart';
 export 'src/engine/animation/pose.dart';
 export 'src/engine/animation/skin_blend.dart';
 // What could not go with them, each because it needs something this package may

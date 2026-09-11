@@ -4,6 +4,7 @@ import 'package:flutter3d_formats/flutter3d_formats.dart';
 import 'package:vector_math/vector_math.dart';
 
 import '../scene/skeleton.dart';
+import 'animation_target.dart';
 
 /// A flat, scene-graph-free pose: one hierarchy's local TRS, sampled from a
 /// clip and composed into world and joint matrices without ever touching a
@@ -314,6 +315,37 @@ final class Pose {
       }
     }
     return out;
+  }
+
+  /// Writes this pose's current local TRS onto [targets], index-aligned
+  /// with [parents] — `anim-14`'s own row, the bridge back from a solver
+  /// that works on [Pose] alone (inverse kinematics, a mocap importer) onto
+  /// whatever a renderer actually reads.
+  ///
+  /// A null entry in [targets] — the ordinary case for a node this caller
+  /// has no [AnimationTarget] for, or has chosen not to drive — is skipped
+  /// rather than refused, the same tolerance `AnimationPlayer.apply` has
+  /// for a track naming a node with none.
+  void writeTo(List<AnimationTarget?> targets) {
+    final count = nodeCount < targets.length ? nodeCount : targets.length;
+    for (var i = 0; i < count; i++) {
+      final target = targets[i];
+      if (target == null) continue;
+      target.setPosition(
+        translations[i * 3],
+        translations[i * 3 + 1],
+        translations[i * 3 + 2],
+      );
+      target.setRotation(
+        Quaternion(
+          rotations[i * 4],
+          rotations[i * 4 + 1],
+          rotations[i * 4 + 2],
+          rotations[i * 4 + 3],
+        ),
+      );
+      target.setScale(scales[i * 3], scales[i * 3 + 1], scales[i * 3 + 2]);
+    }
   }
 
   @override
