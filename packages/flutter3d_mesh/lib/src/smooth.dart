@@ -56,7 +56,7 @@ OpResult smoothVertices(
   // still pulls correctly on the vertices inside it without itself moving.
   final touched = <int>{...selected};
   for (final v in selected) {
-    touched.addAll(_neighborsOf(mesh, v));
+    touched.addAll(mesh.neighborsOf(v));
   }
 
   final original = <int, Vector3>{
@@ -82,7 +82,7 @@ OpResult smoothVertices(
     };
     const beta = 0.5;
     for (final v in selected) {
-      final neighbors = _neighborsOf(mesh, v);
+      final neighbors = mesh.neighborsOf(v);
       final neighborPush = Vector3.zero();
       var counted = 0;
       for (final n in neighbors) {
@@ -118,7 +118,7 @@ Vector3 _laplacianStep(
   double lambda,
 ) {
   final here = positions[vertex]!;
-  final neighbors = _neighborsOf(mesh, vertex);
+  final neighbors = mesh.neighborsOf(vertex);
   if (neighbors.isEmpty) return here;
   final centroid = Vector3.zero();
   for (final n in neighbors) {
@@ -126,28 +126,4 @@ Vector3 _laplacianStep(
   }
   centroid.scale(1 / neighbors.length);
   return here + (centroid - here).scaled(lambda);
-}
-
-/// The vertices sharing an edge with [vertex], walked once around its own
-/// half-edge fan.
-///
-/// **One direction only.** Rotating by `nextOf(twinOf(h))` from an outgoing
-/// half-edge visits every neighbour of an interior vertex and arrives back
-/// at the half-edge it started from, which is how this knows it is done. A
-/// boundary vertex — one whose fan runs out partway round because an edge
-/// on one side has no twin — stops there and misses the neighbours on the
-/// other side; nothing here needs that case yet; a sphere, this file's own
-/// test fixture, has no boundary vertices at all to expose it.
-List<int> _neighborsOf(EditMesh mesh, int vertex) {
-  final neighbors = <int>[];
-  final start = mesh.outgoingOf(vertex);
-  if (start == EditMesh.none) return neighbors;
-  var half = start;
-  while (true) {
-    neighbors.add(mesh.originOf(mesh.nextOf(half)));
-    if (!mesh.hasLiveTwin(half)) break;
-    half = mesh.nextOf(mesh.twinOf(half));
-    if (half == start) break;
-  }
-  return neighbors;
 }

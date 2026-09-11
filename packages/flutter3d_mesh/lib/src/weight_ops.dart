@@ -28,9 +28,16 @@ final class WeightPair {
 
 /// The weights stored at [vertex], as pairs rather than fixed `Vector4`
 /// slots — zero-weight slots dropped, since they name no influence at all.
-/// An unskinned vertex reads as one pair, joint 0 at full weight, per
-/// [EditMesh.skinOf]'s own contract for what "no binding was ever set"
-/// means to the shader — not as an empty list.
+///
+/// **A vertex nobody has ever skinned reads as one pair, joint 0 at full
+/// weight — but only while that is true of the whole mesh.** That default
+/// is [EditMesh.skinOf]'s own answer for "no binding was ever set", and it
+/// only applies while the weights/joints layers themselves have never been
+/// allocated. The first [EditMesh.setSkin] call on *any* vertex allocates
+/// both layers for every vertex slot, zero-filled; every other,
+/// still-unpainted vertex then reads its own real, stored zeros — an empty
+/// list here, not a joint-0 default — because the mesh now has an actual
+/// answer for that vertex rather than a placeholder for the whole thing.
 ///
 /// The inverse of writing through [EditMesh.setSkin] by way of
 /// [toVertexAttributes]: `toVertexAttributes(weightsOf(mesh, v))` round-trips

@@ -394,6 +394,29 @@ final class EditMesh {
     return face != none && _faceAlive[face] != 0;
   }
 
+  /// The vertices sharing an edge with [vertex], walked once around its own
+  /// half-edge fan.
+  ///
+  /// **One direction only.** Rotating by `nextOf(twinOf(h))` from an outgoing
+  /// half-edge visits every neighbour of an interior vertex and arrives back
+  /// at the half-edge it started from, which is how this knows it is done. A
+  /// boundary vertex — one whose fan runs out partway round because an edge
+  /// on one side has no twin — stops there and misses the neighbours on the
+  /// other side.
+  List<int> neighborsOf(int vertex) {
+    final neighbors = <int>[];
+    final start = outgoingOf(vertex);
+    if (start == none) return neighbors;
+    var half = start;
+    while (true) {
+      neighbors.add(originOf(nextOf(half)));
+      if (!hasLiveTwin(half)) break;
+      half = nextOf(twinOf(half));
+      if (half == start) break;
+    }
+    return neighbors;
+  }
+
   /// The half-edge that stands for the whole edge [halfEdge] lies on.
   ///
   /// **An edge is not stored, so one of its two half-edges has to be it.** A
