@@ -69,6 +69,7 @@ export 'src/engine/assets/ktx2/ktx2.dart';
 export 'src/engine/assets/material_loader.dart';
 export 'src/engine/assets/model_asset.dart';
 export 'src/engine/assets/model_loader.dart';
+export 'src/engine/assets/model_writer.dart';
 export 'src/engine/assets/resource_cache.dart';
 export 'src/engine/assets/texture_upload.dart';
 // `device_mesh.dart` is the rest of that layer by subject matter and stayed

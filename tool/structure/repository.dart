@@ -703,6 +703,13 @@ boundaryEnumExempt = <String, Map<String, String>>{
         'choice about how much to trust it rather than what to do when it is '
         'missing — and there is no third answer there either',
   },
+  'flutter3d/lib/src/engine/assets/model_writer.dart': <String, String>{
+    'ModelWriteFormat':
+        'the writers `flutter3d_formats` has: `ObjWriter`, `GltfWriter`, '
+        '`F3dWriter`, `StlWriter` (binary and ASCII). A fifth value needs a '
+        'fifth writer built and reviewed first — this enum only names the '
+        'ones `encodeModel`\'s own switch already knows how to reach',
+  },
   'flutter3d_webgpu/lib/src/webgpu_bundle_section.dart': <String, String>{
     'WebGpuTextureDimension':
         'the shapes of texture this backend has a bind group layout entry '
