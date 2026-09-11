@@ -2774,11 +2774,14 @@ happens to be in this repository; `flutter3d_samples` is in the first tier
 although nothing depends on it at run time, because `flutter3d`'s tests do and a
 dev dependency has to resolve for the archive to be accepted; `flutter3d_app` is second to last because it is the
 assembly layer; `flutter3d_editor_core` is beside `flutter3d_game` rather
-than behind it, because it needs only `flutter3d_sim` — the editor's document
-layer never wanted the Flutter half, which is why it could leave an application
-at all; and `flutter3d_editor_mcp` sits one tier behind that core and nowhere
-near the applications, because it is a published package that happens to have a
-`bin/` rather than a program that happens to be in this repository.
+than behind it, because the editor's document layer never wanted the Flutter
+half, which is why it could leave an application at all — it needed only
+`flutter3d_sim` until `mat-03` gave it `flutter3d_formats` too, for the
+`.fmat` gate a second editor wanted, and the second tier that dependency sits
+in is still well ahead of the sixth; and `flutter3d_editor_mcp` sits one tier
+behind that core and nowhere near the applications, because it is a published
+package that happens to have a `bin/` rather than a program that happens to
+be in this repository.
 
 **The applications are not packages.** `apps/` keeps its path dependencies: four
 demo games, an editor and a template are things to clone, not things to depend
