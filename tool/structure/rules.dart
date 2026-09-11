@@ -2697,11 +2697,10 @@ List<Finding> _boundaryEnums() {
     for (final file in dartFilesIn(lib)) {
       final where = '${entry.key}/${relative(file, entry.value)}';
       final allowed = boundaryEnumExempt[where] ?? const <String, String>{};
-      for (final match in _enumDeclaration.allMatches(
+      for (final name in unexemptedEnumsIn(
         file.readAsStringSync(),
+        allowed.keys.toSet(),
       )) {
-        final name = match.group(1)!;
-        if (allowed.containsKey(name)) continue;
         found.add(
           Finding(
             where,
@@ -2716,9 +2715,6 @@ List<Finding> _boundaryEnums() {
   }
   return found;
 }
-
-/// A top-level enum declaration and its name.
-final RegExp _enumDeclaration = RegExp(r'^enum (\w+)', multiLine: true);
 
 // ------------------------------------------- a step asks no machine anything
 

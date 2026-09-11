@@ -399,6 +399,38 @@ bool reaches(String source, String what) =>
           trimmed.contains(what);
     });
 
+// ---------------------------------------------------- the published boundary
+
+/// A top-level `enum Name` declaration, by name.
+final RegExp enumDeclaration = RegExp(r'^enum (\w+)', multiLine: true);
+
+/// Every top-level enum [source] declares.
+///
+/// **A `sealed`/`final class` never matches, and that is the point rather
+/// than an oversight.** `qa-06`'s own alternative to an enum a published
+/// package cannot close — `LightingModel`'s own shape, a `final class` with
+/// `static const` instances, or a `sealed`/`abstract base class` hierarchy —
+/// is closed by something other than an enum's own fixed value list, so a
+/// scan built on this regex has nothing in either shape to find. The rule
+/// this feeds never has to special-case "unless it is sealed": it is simply
+/// never asked about one.
+List<String> enumDeclarationsIn(String source) => <String>[
+  for (final match in enumDeclaration.allMatches(source)) match.group(1)!,
+];
+
+/// [source]'s own enum declarations that [exempt] does not name.
+///
+/// The published-boundary rule's whole question in one function: every name
+/// in [exempt] is a `boundaryEnumExempt` entry — a reviewed, one-sentence
+/// reason a fourth value would be machinery rather than a game's own content
+/// — and everything else [enumDeclarationsIn] finds is a promise nobody has
+/// looked at yet.
+List<String> unexemptedEnumsIn(String source, Set<String> exempt) =>
+    <String>[
+      for (final name in enumDeclarationsIn(source))
+        if (!exempt.contains(name)) name,
+    ];
+
 // --------------------------------------------------------------- self-checks
 
 /// Proves every detector above fires, and stays quiet on what only looks alike.
@@ -734,6 +766,48 @@ List<Finding> proveDetectorsWork() {
     !reaches('/// See flutter_gpu for the details.', 'flutter_gpu'),
     'a doc comment naming it',
     'a mention is not an import',
+  );
+
+  // The published-enum boundary. `qa-06`'s own row: a skeleton with an enum,
+  // and a skeleton with the `LightingModel` alternative, both prove the rule
+  // out on fixtures nobody has ever added to `boundaryEnumExempt` by hand.
+  fires(
+    'boundary enums',
+    unexemptedEnumsIn('enum Foo { a, b }', const <String>{}).contains('Foo'),
+    'a top-level enum with no exemption',
+  );
+  quiet(
+    'boundary enums',
+    unexemptedEnumsIn('enum Foo { a, b }', const <String>{'Foo'}).isEmpty,
+    'a top-level enum a boundaryEnumExempt entry already names',
+    'a reviewed, one-sentence reason is what turns a promise into a '
+        'documented exception',
+  );
+  quiet(
+    'boundary enums',
+    unexemptedEnumsIn(
+      'final class LightingModel {\n'
+      '  const LightingModel._(this.name);\n'
+      '  final String name;\n'
+      '  static const LightingModel physical = LightingModel._("physical");\n'
+      '}',
+      const <String>{},
+    ).isEmpty,
+    'a final class with const instances — the enum alternative this rule '
+        'itself points a caller at',
+    'the fix must not be reported as the fault',
+  );
+  quiet(
+    'boundary enums',
+    unexemptedEnumsIn(
+      'sealed class Shape {}\n'
+      'final class Circle extends Shape {}\n'
+      'final class Square extends Shape {}\n',
+      const <String>{},
+    ).isEmpty,
+    'a sealed class hierarchy',
+    'closed by inheritance rather than by an enum\'s own value list is '
+        'still closed, and is not what this rule is about',
   );
 
   // What a pubspec depends on. The shapes are the two that actually occur: a

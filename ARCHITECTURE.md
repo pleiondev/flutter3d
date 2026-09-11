@@ -1758,9 +1758,45 @@ entities a game defines.
 |---|---|
 | Style | `dart format` |
 | Analysis | `flutter analyze` clean across the workspace, no warnings |
-| Unit tests | **5755 tests** across 34 packages and 7 applications |
+| Unit tests | **5761 tests** across 34 packages and 7 applications |
 | Structure rules | 32, `dart run tool/structure.dart`, the first CI step |
 | CI | GitHub Actions over `tool/ci.sh`, on `ubuntu-latest`, with no graphics card |
+
+### 13.1 The published-enum boundary
+
+**An enum in a published package is a promise the value list is finished.**
+Every `switch` anybody outside this repository writes against it is
+exhaustive, so adding a value later breaks every one of them — the same
+breaking change as removing a method, spelled as an addition. `qa-06`'s own
+policy, enforced by `tool/structure.dart`'s "an enum in a published package is
+machinery or is not an enum" rule: a top-level `enum` in a package's `lib/`
+either has a one-sentence reason in `tool/structure/repository.dart`'s own
+`boundaryEnumExempt` table, or it is refused.
+
+**The alternative is `LightingModel`'s own shape** — a `final class` with
+`static const` instances — or a `sealed`/`abstract base class` hierarchy,
+neither of which the scan can find at all: closed by something other than an
+enum's own fixed value list is not the promise this rule is about, and a
+skeleton of either shape proves the rule quiet rather than merely absent of
+complaint (`tool/structure/detectors.dart`'s own `proveDetectorsWork`, run
+before every scan, carries that proof as a fixture rather than a claim).
+
+*Machinery* is what stays an enum: a closed set that belongs to this
+repository, not to whatever a caller builds on top of it. A few of the
+current exemptions, out of the full table in `tool/structure/repository.dart`:
+
+| Enum | Package | Why it stays closed |
+|---|---|---|
+| `ElementLevel` | `flutter3d_mesh` | the three things a half-edge mesh has to point at — vertex, edge, face — and every conversion, grow and shrink in the package switches on exactly these three |
+| `IssueSeverity` | `flutter3d_mesh` | three levels a panel can show and a person can triage; a fourth would be a shade of one of these, not a new kind of answer |
+| `TransformPivot` | `flutter3d_model_core` | the three points a turn or a scale can be about; a fourth is a place the interface would need its own control for |
+| `ProfileTarget` | `flutter3d_model_core` | the three kinds of machine a profile is written for; a fourth is hardware nothing here has been measured against |
+
+A value a caller *does* need to extend — a game's own weapon, a level's own
+material parameter — is the case `doc/boundary-0.5.0.md` worked through for
+0.5.0's own release: an open value class, not a closed enum, every time the
+set belongs to whoever builds on the package rather than to the package
+itself.
 
 **Golden render tests.** 43 scenes against **four complete independent
 reference sets** — Impeller, the software rasteriser, WebGL2 and WebGPU — each
