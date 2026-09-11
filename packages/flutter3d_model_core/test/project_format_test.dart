@@ -1314,6 +1314,164 @@ void main() {
     });
   });
 
+  group('string interning', () {
+    /// A distinct `MeshData` naming the same two attributes `arrived` in the
+    /// "imported meshes" group below does, so two meshes' worth of "position"
+    /// and "normal" reach `readProject` as two separate runs of JSON text
+    /// rather than as one Dart string used twice — which is the only way this
+    /// group can tell interning apart from a compiler that already
+    /// canonicalises source-code string literals for free.
+    MeshData meshNamed(double x) => MeshData(
+      layout: VertexLayout.positionNormal,
+      vertices: Float32List.fromList(<double>[x, 0, 0, 0, 0, 1]),
+      indices: Uint32List.fromList(<int>[0, 0, 0]),
+    );
+
+    test('two meshes\' worth of "position" and "normal" come back as one '
+        'string, not two', () {
+      final project = const ModelProject()
+          .added(
+            (int id) => ModelObject(
+              id: id,
+              name: 'a',
+              geometry: ImportedGeometry(meshNamed(1)),
+              transform: Matrix4.identity(),
+            ),
+          )
+          .added(
+            (int id) => ModelObject(
+              id: id,
+              name: 'b',
+              geometry: ImportedGeometry(meshNamed(2)),
+              transform: Matrix4.identity(),
+            ),
+          );
+
+      final after = opened(writeProject(project));
+      final VertexLayout layoutA =
+          (after.objects[0].geometry as ImportedGeometry).data.layout;
+      final VertexLayout layoutB =
+          (after.objects[1].geometry as ImportedGeometry).data.layout;
+
+      // Mutation: read `VertexAttribute(name, components)` straight off the
+      // JSON instead of through `_intern` — the layouts still compare equal
+      // (`VertexAttribute`'s `name` is a plain field), so only `identical`
+      // catches the regression; `==` would not.
+      expect(
+        identical(layoutA.attributes[0].name, layoutB.attributes[0].name),
+        isTrue,
+      );
+      expect(
+        identical(layoutA.attributes[1].name, layoutB.attributes[1].name),
+        isTrue,
+      );
+    });
+
+    test('two images with the same mimeType share one string', () {
+      final bytes = forge(
+        <String, Object?>{
+          ...manifestOf(<Map<String, Object?>>[objectJson()]),
+          'images': <Object?>[
+            <String, Object?>{'name': 'a', 'mimeType': 'image/png'},
+            <String, Object?>{'name': 'b', 'mimeType': 'image/png'},
+          ],
+        },
+        <(int, Uint8List, int)>[
+          (ProjectSection.blob, Uint8List(8), 0),
+          (
+            ProjectSection.images,
+            Uint8List.fromList(<int>[
+              0,
+              0,
+              0,
+              0,
+              4,
+              0,
+              0,
+              0,
+              4,
+              0,
+              0,
+              0,
+              4,
+              0,
+              0,
+              0,
+            ]),
+            2,
+          ),
+        ],
+      );
+
+      final images = opened(bytes).images;
+      expect(identical(images[0].mimeType, images[1].mimeType), isTrue);
+    });
+
+    test('two materials with the same name share one string', () {
+      Map<String, Object?> materialNamed(String name) => <String, Object?>{
+        'version': 1,
+        'name': name,
+        'baseColor': <double>[1, 1, 1, 1],
+        'metallic': 0.0,
+        'roughness': 0.5,
+        'normalScale': 1.0,
+        'occlusionStrength': 1.0,
+        'emissive': <double>[0, 0, 0],
+        'emissiveStrength': 1.0,
+        'alphaMode': 'opaque',
+        'alphaCutoff': 0.5,
+        'doubleSided': false,
+        'unlit': false,
+      };
+      final bytes = forge(<String, Object?>{
+        ...manifestOf(<Map<String, Object?>>[objectJson()]),
+        'materials': <Object?>[materialNamed('steel'), materialNamed('steel')],
+      });
+
+      final materials = opened(bytes).materials;
+      expect(
+        identical(materials[0].surface.name, materials[1].surface.name),
+        isTrue,
+      );
+    });
+
+    test(
+      'the pool is per file: two separate reads do not share one string',
+      () {
+        final bytes = writeProject(
+          const ModelProject().added(
+            (int id) => ModelObject(
+              id: id,
+              name: 'a',
+              geometry: ImportedGeometry(meshNamed(1)),
+              transform: Matrix4.identity(),
+            ),
+          ),
+        );
+
+        final firstRead =
+            (opened(bytes).objects.single.geometry as ImportedGeometry)
+                .data
+                .layout
+                .attributes[0]
+                .name;
+        final secondRead =
+            (opened(bytes).objects.single.geometry as ImportedGeometry)
+                .data
+                .layout
+                .attributes[0]
+                .name;
+
+        // Not a correctness requirement of `readProject`'s own contract — two
+        // reads of the same file are free to share a string or not — but it is
+        // what this file's own pool actually does (one `Map` built fresh at the
+        // top of every call), and a global pool instead would be a real design
+        // change worth a comment of its own rather than a silent one.
+        expect(identical(firstRead, secondRead), isFalse);
+      },
+    );
+  });
+
   group('imported meshes', () {
     /// Buffers with distinct numbers in every slot, so a float that arrived
     /// from the wrong offset reads as the wrong number rather than as a zero

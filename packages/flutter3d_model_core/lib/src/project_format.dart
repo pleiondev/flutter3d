@@ -590,10 +590,20 @@ ProjectRead readProject(Uint8List bytes) {
   );
   if (meshRefusal != null) return ProjectRefused(meshRefusal);
 
+  // One pool, and one only, for the whole file: every string this build reads
+  // out of the manifest — a vertex attribute's name repeated on every mesh
+  // that has one, an image's mimeType, a material's own name or its `.fmat`
+  // path, an object's name — goes through it, so a project holding thousands
+  // of copies of "position" or "image/png" holds one Dart string for each,
+  // not thousands. See `_intern`'s own doc comment for the number this
+  // actually matters at.
+  final pool = <String, String>{};
+
   final (List<MeshData> arrived, String? importRefusal) = _readImported(
     bytes,
     sections,
     document is Map<String, Object?> ? document['importedMeshes'] : null,
+    pool,
   );
   if (importRefusal != null) return ProjectRefused(importRefusal);
 
@@ -601,6 +611,7 @@ ProjectRead readProject(Uint8List bytes) {
     bytes,
     sections,
     document is Map<String, Object?> ? document['images'] : null,
+    pool,
   );
   if (imageRefusal != null) return ProjectRefused(imageRefusal);
 
@@ -616,6 +627,7 @@ ProjectRead readProject(Uint8List bytes) {
   ) = _readMaterials(
     document is Map<String, Object?> ? document['materials'] : null,
     warnings,
+    pool,
   );
   if (materialRefusal != null) return ProjectRefused(materialRefusal);
 
@@ -638,6 +650,7 @@ ProjectRead readProject(Uint8List bytes) {
         i,
         meshes,
         arrived,
+        pool,
       );
       if (refusal != null) return ProjectRefused(refusal);
       objects.add(object!);
@@ -671,6 +684,7 @@ ProjectRead readProject(Uint8List bytes) {
   Uint8List bytes,
   Map<int, ({int offset, int length})> sections,
   Object? layouts,
+  Map<String, String> pool,
 ) {
   final table = sections[ProjectSection.importedMeshes];
   final blob = sections[ProjectSection.blob];
@@ -728,6 +742,7 @@ ProjectRead readProject(Uint8List bytes) {
     final Object? described = (layouts! as List)[i];
     final layout = _layoutFrom(
       described is Map<String, Object?> ? described['layout'] : null,
+      pool,
     );
     if (layout == null) {
       return (
@@ -851,6 +866,7 @@ Map<String, Object?>? _bindingJson(TextureBinding? binding) => binding == null
 (List<ProjectMaterial>, String?) _readMaterials(
   Object? json,
   List<String> warnings,
+  Map<String, String> pool,
 ) {
   if (json == null) return (const <ProjectMaterial>[], null);
   if (json is! List) {
@@ -898,9 +914,12 @@ Map<String, Object?>? _bindingJson(TextureBinding? binding) => binding == null
           // Younger than the rest of this record (`doc-10`), read the same
           // optional way `mipLinear` above is: absent means the ordinary
           // case, a material with no external file, not a refusal.
-          fmat: entry['fmat'] as String?,
+          fmat: switch (entry['fmat']) {
+            final String s => _intern(s, pool),
+            _ => null,
+          },
           surface: SurfaceMaterial(
-            name: name,
+            name: name == null ? null : _intern(name, pool),
             baseColor: Vector4(
               (baseColor[0]! as num).toDouble(),
               (baseColor[1]! as num).toDouble(),
@@ -1096,6 +1115,7 @@ T _named<T extends Enum>(
   Uint8List bytes,
   Map<int, ({int offset, int length})> sections,
   Object? described,
+  Map<String, String> pool,
 ) {
   final table = sections[ProjectSection.images];
   final blob = sections[ProjectSection.blob];
@@ -1148,10 +1168,19 @@ T _named<T extends Enum>(
         // a glTF can carry an image with neither. Missing is null rather than a
         // refusal, and anything of the wrong type is treated as missing.
         name: entryJson is Map<String, Object?>
-            ? entryJson['name'] as String?
+            ? switch (entryJson['name']) {
+                final String s => _intern(s, pool),
+                _ => null,
+              }
             : null,
+        // `mimeType` is one of a handful of strings — "image/png",
+        // "image/jpeg" — repeated once per image, which is the other place
+        // this file's own strings actually repeat at scale.
         mimeType: entryJson is Map<String, Object?>
-            ? entryJson['mimeType'] as String?
+            ? switch (entryJson['mimeType']) {
+                final String s => _intern(s, pool),
+                _ => null,
+              }
             : null,
       ),
     );
@@ -1251,6 +1280,21 @@ String? _verifyChecksums(
 
 int _align(int value) => (value + 3) & ~3;
 
+/// [s], or the equal string already in [pool] if one has been read before.
+///
+/// **`jsonDecode` allocates a new `String` for every literal it parses, even
+/// when the text is byte-for-byte one this call has already seen.** A vertex
+/// layout is five or six attribute names — `position`, `normal`, `texcoord`
+/// — repeated on every one of however many imported meshes a scene holds,
+/// and at the plan's own "200k vertices" scale that is not five or six
+/// strings but thousands of copies of them, each a separate heap object the
+/// garbage collector now has to know about. Pooled here, a whole file shares
+/// one `"position"` no matter how many meshes name it. One pool per call to
+/// [readProject] — a string interned while opening one file is not assumed
+/// to be the same string some other file happens to spell the same way.
+String _intern(String s, Map<String, String> pool) =>
+    pool.putIfAbsent(s, () => s);
+
 /// [value] with every JSON object's keys sorted, recursively.
 ///
 /// **The manifest is built by code, and code builds a map in whatever order
@@ -1302,7 +1346,7 @@ List<Object?> _layoutJson(VertexLayout layout) => <Object?>[
 ];
 
 /// The layout [json] describes, or null when it is not one.
-VertexLayout? _layoutFrom(Object? json) {
+VertexLayout? _layoutFrom(Object? json, Map<String, String> pool) {
   if (json is! List) return null;
   final attributes = <VertexAttribute>[];
   for (final Object? each in json) {
@@ -1310,7 +1354,7 @@ VertexLayout? _layoutFrom(Object? json) {
       'name': final String name,
       'components': final int components,
     } when components > 0) {
-      attributes.add(VertexAttribute(name, components));
+      attributes.add(VertexAttribute(_intern(name, pool), components));
       continue;
     }
     return null;
@@ -1382,6 +1426,7 @@ VertexLayout? _layoutFrom(Object? json) {
   int index,
   List<EditMesh> meshes,
   List<MeshData> arrived,
+  Map<String, String> pool,
 ) {
   if (entry case {
     'id': final int id,
@@ -1418,7 +1463,7 @@ VertexLayout? _layoutFrom(Object? json) {
     return (
       ModelObject(
         id: id,
-        name: name,
+        name: _intern(name, pool),
         geometry: shape!,
         transform: Matrix4.fromList(<double>[
           for (final Object? value in transform) (value! as num).toDouble(),

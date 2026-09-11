@@ -13,7 +13,7 @@
     "doc-07": "done",
     "doc-08": "done",
     "doc-09": "done",
-    "doc-10": "partial",
+    "doc-10": "done",
     "doc-11": "done",
     "doc-12": "done",
     "doc-13": "done",
@@ -135,6 +135,9 @@
     "anim-31": {
       "SkinBlend": "строка прямо говорит, что это код фазы 3 и мерить его будет anim-31a-n",
       "bindWeights": "то же"
+    },
+    "doc-10": {
+      "ProjectReader": "project_format.dart работает функциями readProject/writeProject плюс запечатанные ProjectRead/ProjectOpened/ProjectRefused для результата, а не парой классов Reader/Writer — тот же выбор, что и у остального файла"
     }
   }
 }
