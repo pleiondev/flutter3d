@@ -33,6 +33,7 @@ import 'package:vector_math/vector_math.dart';
 import 'image_dimensions.dart';
 import 'material.dart';
 import 'project.dart';
+import 'texture_budget.dart';
 
 /// Whether an issue stops the export or spoils the result.
 enum ExportSeverity {
@@ -97,6 +98,10 @@ final class ExportReadiness {
       // regardless of how many objects paint with it, so this runs once
       // here rather than once per object below.
       ...materialIssues(project),
+      // The texture budget, project-level for the same reason: `mat-28`'s
+      // own `measure` reads `project.images` whole, not one object's share
+      // of it.
+      ...textureBudgetIssues(project),
       for (final ModelObject object in project.objects)
         ..._issuesWith(
           object,
@@ -457,6 +462,50 @@ ExportIssue? _wideFaces(ModelObject object, EditMesh mesh) {
         );
 }
 
+/// [project]'s own images against its `ProjectProfile.textures` budget —
+/// `mat-22`'s "texture outside budget," read from `mat-28`'s `measure`
+/// rather than a second walk of its own.
+///
+/// **Project-level, the same way [materialIssues] and [_budget] are**: an
+/// image is a row in `project.images` regardless of how many materials
+/// sample it, and `measure` already counts each one exactly once for the
+/// same reason `project.images` is a deduplicated table at all. Public for
+/// the same reason `materialIssues` is — `ReadinessCache.of` calls it
+/// directly, once, rather than once per object.
+List<ExportIssue> textureBudgetIssues(ModelProject project) {
+  final budget = project.profile.textures;
+  final usage = measure(project, budget);
+  return <ExportIssue>[
+    for (final int index in usage.overs)
+      ExportIssue(
+        ExportSeverity.warning,
+        () {
+          final label = project.images[index].name == null
+              ? 'image $index'
+              : 'image $index ("${project.images[index].name}")';
+          final dimensions = imageDimensions(project.images[index].bytes);
+          return '$label is '
+              '${dimensions == null ? 'wider or taller' : '${dimensions.width}×${dimensions.height}'} '
+              'and the ${project.profile.name} profile allows '
+              '${budget.maxSide}px a side; it will need resizing before it '
+              'reaches that target';
+        }(),
+      ),
+    // A warning rather than an error, the same reasoning `_budget` gives for
+    // triangles: every image still loads and draws, and what is over is a
+    // total the device this profile describes cannot actually hold once
+    // everything is uploaded at once.
+    if (usage.totalBytes > budget.maxBytesOnDevice)
+      ExportIssue(
+        ExportSeverity.warning,
+        'the project\'s textures cost ${usage.totalBytes} bytes recomputed '
+        'as ${budget.targetFormat.name} and the ${project.profile.name} '
+        'profile allows ${budget.maxBytesOnDevice}; some of them will not '
+        'fit in memory at once on that target',
+      ),
+  ];
+}
+
 /// Every material's own issues, independent of which objects paint with it.
 ///
 /// **Project-level, the same way [_budget] is** — a material is one row
@@ -468,10 +517,11 @@ ExportIssue? _wideFaces(ModelObject object, EditMesh mesh) {
 /// `project.materials`, which the cache already has.
 List<ExportIssue> materialIssues(ModelProject project) => <ExportIssue>[
   for (var i = 0; i < project.materials.length; i++)
-    ..._singleMaterialIssues(i, project.materials[i].surface),
+    ..._singleMaterialIssues(i, project.materials[i]),
 ];
 
-List<ExportIssue> _singleMaterialIssues(int index, SurfaceMaterial surface) {
+List<ExportIssue> _singleMaterialIssues(int index, ProjectMaterial material) {
+  final surface = material.surface;
   final label = surface.name == null
       ? 'material $index'
       : 'material $index ("${surface.name}")';
@@ -502,6 +552,22 @@ List<ExportIssue> _singleMaterialIssues(int index, SurfaceMaterial surface) {
         '$label samples a texture coordinate set other than 0; nothing in '
         'this repository decodes any but set 0 today, so that texture will '
         'be read from the wrong UVs once this leaves',
+      ),
+    // A warning, `mat-22`'s own "`.fmat` без копии": `ProjectMaterial.fmat`
+    // names an external shader file this class deliberately never reads —
+    // see its own doc comment — so nothing here can tell whether that file
+    // defines `extraTextures` or `parameters` `SurfaceMaterial` has no room
+    // for. What is knowable without opening it is enough to warn about: a
+    // glTF/GLB export writes `surface` and nothing else, so a material
+    // still deferring to a file at all is a material an export can only
+    // give the base PBR half of.
+    if (material.fmat != null)
+      ExportIssue(
+        ExportSeverity.warning,
+        '$label defers to an external file ("${material.fmat}"); a '
+        'glTF/GLB export carries only its own colour, metallic, roughness '
+        'and texture slots, so any extraTextures or shader parameters that '
+        'file defines beyond those are not written',
       ),
   ];
 }

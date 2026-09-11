@@ -23,8 +23,25 @@ import 'package:flutter3d_model_core/src/material.dart';
 import 'package:flutter3d_model_core/src/project.dart';
 import 'package:flutter3d_model_core/src/readiness.dart';
 import 'package:flutter3d_model_core/src/readiness_cache.dart';
+import 'package:flutter3d_model_core/src/texture_budget.dart';
+import 'package:flutter3d_model_core/src/texture_info.dart';
 import 'package:test/test.dart';
 import 'package:vector_math/vector_math.dart';
+
+/// A minimal PNG header, the fewest bytes `imageDimensions` looks at — the
+/// same fixture `image_dimensions_test.dart` and `texture_info_test.dart`
+/// already build for the same reason: nothing here decodes a pixel.
+Uint8List _png(int width, int height) {
+  final bytes = Uint8List(33);
+  final view = ByteData.sublistView(bytes);
+  bytes.setAll(0, <int>[0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]);
+  view.setUint32(8, 13, Endian.big);
+  bytes.setAll(12, <int>[0x49, 0x48, 0x44, 0x52]);
+  view.setUint32(16, width, Endian.big);
+  view.setUint32(20, height, Endian.big);
+  bytes.setAll(24, <int>[8, 6, 0, 0, 0]);
+  return bytes;
+}
 
 /// A project holding [geometries], named `a`, `b`, …
 ModelProject projectOf(
@@ -545,6 +562,96 @@ void main() {
         );
       },
     );
+
+    test('a material deferring to an external .fmat is a warning, mat-22\'s '
+        '".fmat без копии"', () {
+      final project = ModelProject(
+        materials: <ProjectMaterial>[
+          ProjectMaterial(
+            surface: SurfaceMaterial(name: 'hull'),
+            fmat: 'materials/hull.fmat',
+          ),
+        ],
+      );
+      // Mutation: read `material.surface.name` instead of `material.fmat`
+      // for the guard, or drop the check entirely — either leaves a
+      // project whose glTF export silently drops whatever the `.fmat`
+      // defines beyond base PBR with nothing to say so.
+      final ready = ExportReadiness.check(project);
+      expect(ready.issues, hasLength(1));
+      expect(ready.issues.single.severity, ExportSeverity.warning);
+      expect(ready.issues.single.message, contains('hull.fmat'));
+    });
+
+    test('a material with no .fmat is not flagged for it', () {
+      final project = withMaterial(SurfaceMaterial(name: 'hull'));
+      expect(ExportReadiness.check(project).issues, isEmpty);
+    });
+  });
+
+  group('the texture budget, mat-22', () {
+    ExportIssue? overSideIssue(List<ExportIssue> issues) => issues
+        .where((ExportIssue i) => i.message.contains('px a side'))
+        .firstOrNull;
+
+    test('an image wider than the profile\'s budget is a warning naming '
+        'both sizes', () {
+      final project = ModelProject(
+        // Desktop's own preset (`TextureBudget.desktop`), 2048px a side —
+        // the profile default, named explicitly so this test does not go
+        // quiet the day that default changes.
+        profile: const ProjectProfile(textures: TextureBudget.desktop),
+        images: <EncodedImage>[EncodedImage(bytes: _png(4096, 4096))],
+      );
+      // Mutation: compare against `budget.maxBytesOnDevice` instead of
+      // `maxSide`, or drop the per-image loop and keep only the aggregate
+      // check below — either misses an image that is oversized on its own
+      // dimension while the project's total bytes still happen to fit.
+      final ready = ExportReadiness.check(project);
+      expect(ready.issues, hasLength(1));
+      expect(ready.issues.single.message, contains('4096'));
+      expect(ready.issues.single.message, contains('2048'));
+    });
+
+    test('an image within the budget is not flagged', () {
+      final project = ModelProject(
+        profile: const ProjectProfile(textures: TextureBudget.desktop),
+        images: <EncodedImage>[EncodedImage(bytes: _png(1024, 1024))],
+      );
+      expect(ExportReadiness.check(project).issues, isEmpty);
+    });
+
+    test('total bytes over the device budget is a separate warning from '
+        'the per-image one', () {
+      // A tiny device budget on purpose — one image well inside `maxSide`
+      // still costs more than a 100-byte device could ever hold.
+      final project = ModelProject(
+        profile: const ProjectProfile(
+          textures: TextureBudget(
+            maxSide: 2048,
+            maxBytesOnDevice: 100,
+            targetFormat: TextureFileFormat.rgba8,
+          ),
+        ),
+        images: <EncodedImage>[EncodedImage(bytes: _png(64, 64))],
+      );
+      final ready = ExportReadiness.check(project);
+      expect(ready.issues, hasLength(1));
+      expect(ready.issues.single.message, contains('bytes'));
+      // Mutation: report the per-image `overSideIssue` sentence here
+      // instead — the two are different faults and this project's one
+      // image is not individually over `maxSide` at all.
+      expect(overSideIssue(ready.issues), isNull);
+    });
+
+    test('ReadinessCache finds the same warning the direct check does', () {
+      final project = ModelProject(
+        profile: const ProjectProfile(textures: TextureBudget.desktop),
+        images: <EncodedImage>[EncodedImage(bytes: _png(4096, 4096))],
+      );
+      final cache = ReadinessCache();
+      expect(cache.of(project).issues, hasLength(1));
+    });
   });
 
   group('texel density, doc-35n', () {
@@ -665,8 +772,12 @@ void main() {
 
     test('no profile target set stays silent even on a wildly mismatched '
         'texture', () {
+      // 1024, not something wider than the desktop profile's own texture
+      // budget (2048px a side) — this group is about `texelsPerMeter`
+      // specifically, and a side chosen to also trip `mat-22`'s "texture
+      // outside budget" would make this test pass for the wrong reason.
       final ready = ExportReadiness.check(
-        withTexturedQuad(withUv: true, side: 8192, texelsPerMeter: null),
+        withTexturedQuad(withUv: true, side: 1024, texelsPerMeter: null),
       );
       expect(ready.issues, isEmpty);
     });

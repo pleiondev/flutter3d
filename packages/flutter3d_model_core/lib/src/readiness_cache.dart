@@ -136,6 +136,10 @@ final class ReadinessCache {
       // maintain: `materialIssues` reads `project.materials` directly and
       // needs no per-object aggregation redone for it.
       ...materialIssues(project),
+      // The texture budget, same reasoning and same order as materials —
+      // `textureBudgetIssues` reads `project.images` directly, once, the
+      // way `materialIssues` reads `project.materials`.
+      ...textureBudgetIssues(project),
       ...perObject,
     ]);
   }
