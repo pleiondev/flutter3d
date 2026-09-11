@@ -21,14 +21,15 @@ reads**, not a network it does not open:
 - **Asset parsing** — glTF, GLB, OBJ, STL and `.f3d` are read from files an
   application may not control. A malformed document must fail, not read out of
   bounds or allocate without limit.
-- **The writers on the other side of those decoders** — `F3dWriter`, `ObjWriter`
-  and `GltfWriter` all take a decoded document and produce bytes, and a
-  document built from an untrusted import is exactly the input a writer sees
-  next. The same rule applies: a document with an adversarial shape must fail
-  the write, not read out of bounds or allocate without limit while producing
-  one.
-- **The model editor's own project format**, `.f3dproj` (`ProjectWriter`/
-  `ProjectReader`) — a file a person can hand-edit or send to somebody else,
+- **The writers on the other side of those decoders** — `F3dWriter`,
+  `ObjWriter`, `StlWriter` and `GltfWriter` all take a decoded document and
+  produce bytes, and a document built from an untrusted import is exactly the
+  input a writer sees next. The same rule applies: a document with an
+  adversarial shape must fail the write, not read out of bounds or allocate
+  without limit while producing one.
+- **The model editor's own project format**, `.f3dproj` (`writeProject`/
+  `readProject`, the latter returning a sealed `ProjectOpened` or
+  `ProjectRefused`) — a file a person can hand-edit or send to somebody else,
   the same trust level as a game's save file below.
 - **Level and save documents** — JSON read from disk and from a game's own save
   file, which a player can edit.
