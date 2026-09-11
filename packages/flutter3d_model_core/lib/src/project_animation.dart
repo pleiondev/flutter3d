@@ -46,6 +46,20 @@ final class ProjectSkeleton {
 
   int get jointCount => joints.length;
 
+  /// [this], with named fields replaced.
+  ProjectSkeleton copyWith({
+    List<int>? joints,
+    List<Matrix4>? inverseBindMatrices,
+    int? skeletonRoot,
+    bool clearSkeletonRoot = false,
+    String? name,
+  }) => ProjectSkeleton(
+    joints: joints ?? this.joints,
+    inverseBindMatrices: inverseBindMatrices ?? this.inverseBindMatrices,
+    skeletonRoot: clearSkeletonRoot ? null : (skeletonRoot ?? this.skeletonRoot),
+    name: name ?? this.name,
+  );
+
   @override
   String toString() =>
       'ProjectSkeleton(${name ?? 'unnamed'}, ${joints.length} joints)';

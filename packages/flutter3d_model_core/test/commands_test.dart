@@ -2112,6 +2112,10 @@ void main() {
         const RenameShape(id: 1, shapeIndex: 0, to: 'grin'),
         const DeleteShape(id: 1, shapeIndex: 0),
         const KeyShape(id: 1, clipIndex: 0, time: 0.5),
+        AddJoint(skeletonIndex: 0, objectId: 2, inverseBindMatrix: Matrix4.identity()),
+        const RemoveJoint(skeletonIndex: 0, jointIndex: 1),
+        const RenameJoint(skeletonIndex: 0, jointIndex: 0, to: 'shoulder'),
+        const ReparentJoint(skeletonIndex: 0, jointIndex: 1, to: 2),
       ];
 
       // Every name has a sample, which is what stops a command being added to
@@ -2780,6 +2784,187 @@ void main() {
         expect(out[1], closeTo(0.3, 1e-6));
       },
     );
+  });
+
+  group('joint commands', () {
+    // Three joints — root, mid, tip, each parented to the last — and a
+    // skinned cube bound to them, vertex 0 weighted 0.5/0.3/0.2 across the
+    // three, the rest fully on root.
+    ModelHistory riggedChain() {
+      var project = const ModelProject();
+      project = project.added(
+        (id) => ModelObject(
+          id: id,
+          name: 'root',
+          geometry: const SocketGeometry(),
+          transform: Matrix4.identity(),
+        ),
+      );
+      final rootId = project.objects.last.id;
+      project = project.added(
+        (id) => ModelObject(
+          id: id,
+          name: 'mid',
+          geometry: const SocketGeometry(),
+          transform: Matrix4.identity(),
+          parent: rootId,
+        ),
+      );
+      final midId = project.objects.last.id;
+      project = project.added(
+        (id) => ModelObject(
+          id: id,
+          name: 'tip',
+          geometry: const SocketGeometry(),
+          transform: Matrix4.identity(),
+          parent: midId,
+        ),
+      );
+      final tipId = project.objects.last.id;
+      project = project.copyWith(
+        skeletons: <ProjectSkeleton>[
+          ProjectSkeleton(
+            joints: <int>[rootId, midId, tipId],
+            inverseBindMatrices: <Matrix4>[
+              Matrix4.identity(),
+              Matrix4.identity(),
+              Matrix4.identity(),
+            ],
+          ),
+        ],
+      );
+
+      final mesh = EditMesh.cuboid();
+      for (var v = 0; v < mesh.vertexSlotCount; v++) {
+        mesh
+          ..beginStep()
+          ..setSkin(
+            v,
+            v == 0
+                ? VertexAttributes(
+                    joints: Vector4(0, 1, 2, 0),
+                    weights: Vector4(0.5, 0.3, 0.2, 0),
+                  )
+                : VertexAttributes(
+                    joints: Vector4(0, 0, 0, 0),
+                    weights: Vector4(1, 0, 0, 0),
+                  ),
+          )
+          ..endStep();
+      }
+      project = project.added(
+        (id) => ModelObject(
+          id: id,
+          name: 'body',
+          geometry: EditedGeometry(mesh),
+          transform: Matrix4.identity(),
+          skeletonIndex: 0,
+        ),
+      );
+      return ModelHistory(project);
+    }
+
+    EditMesh bodyMesh(ModelHistory history) =>
+        (history.project.objects.firstWhere((o) => o.name == 'body').geometry
+                as EditedGeometry)
+            .mesh;
+
+    test('AddJoint appends, refuses an object already a joint', () {
+      final history = riggedChain();
+      final bodyId = history.project.objects.firstWhere((o) => o.name == 'body').id;
+
+      expect(
+        history.run(AddJoint(skeletonIndex: 0, objectId: bodyId)),
+        isNull,
+      );
+      expect(history.project.skeletons.single.jointCount, 4);
+
+      final rootId = history.project.skeletons.single.joints.first;
+      expect(
+        history.run(AddJoint(skeletonIndex: 0, objectId: rootId)),
+        isNotNull,
+      );
+    });
+
+    test('RenameJoint renames the joint\'s own object, refuses a blank name', () {
+      final history = riggedChain();
+      expect(
+        history.run(const RenameJoint(skeletonIndex: 0, jointIndex: 0, to: 'pelvis')),
+        isNull,
+      );
+      final rootId = history.project.skeletons.single.joints.first;
+      expect(history.project[rootId]!.name, 'pelvis');
+
+      expect(
+        history.run(const RenameJoint(skeletonIndex: 0, jointIndex: 0, to: ' ')),
+        isNotNull,
+      );
+    });
+
+    test('ReparentJoint delegates to SetParent, cycle refusal included', () {
+      final history = riggedChain();
+      final skeleton = history.project.skeletons.single;
+      final rootId = skeleton.joints[0];
+      final tipId = skeleton.joints[2];
+
+      // Reparenting the root under its own descendant would ring the
+      // hierarchy — SetParent's own cycle check, reached through a joint
+      // index rather than an id.
+      expect(
+        history.run(ReparentJoint(skeletonIndex: 0, jointIndex: 0, to: tipId)),
+        isNotNull,
+      );
+      expect(history.project[rootId]!.parent, isNull);
+    });
+
+    test(
+      'RemoveJoint reassigns weight to the parent joint, sum stays 1±1e-6 — '
+      "anim-29's own acceptance",
+      () {
+        final history = riggedChain();
+        // Remove 'mid' (joint 1): vertex 0's own 0.3 on joint 1 should move
+        // to joint 0 (mid's own parent, 'root'), joint 2 shifts down to 1.
+        expect(history.run(const RemoveJoint(skeletonIndex: 0, jointIndex: 1)), isNull);
+
+        final skeleton = history.project.skeletons.single;
+        expect(skeleton.jointCount, 2);
+        expect(skeleton.joints.map((id) => history.project[id]!.name), <String>['root', 'tip']);
+
+        final mesh = bodyMesh(history);
+        final pairs = weightsOf(mesh, 0);
+        final sum = pairs.fold<double>(0, (s, p) => s + p.weight);
+        expect(sum, closeTo(1.0, 1e-6));
+        // joint 0 (root) absorbed mid's own 0.3, on top of its own 0.5;
+        // the old joint 2 (tip) is now joint 1.
+        final root = pairs.firstWhere((p) => p.joint == 0).weight;
+        final tip = pairs.firstWhere((p) => p.joint == 1).weight;
+        expect(root, closeTo(0.8, 1e-6));
+        expect(tip, closeTo(0.2, 1e-6));
+
+        // Skeleton actually builds from the result — the acceptance's own
+        // "Skeleton строится", checked by the plain fact that every joint
+        // index a remaining vertex weight names is within the new,
+        // shorter joint count.
+        for (var v = 0; v < mesh.vertexSlotCount; v++) {
+          for (final pair in weightsOf(mesh, v)) {
+            expect(pair.joint, inInclusiveRange(0, skeleton.jointCount - 1));
+          }
+        }
+      },
+    );
+
+    test('RemoveJoint on a joint with no parent drops its weight, renormalized', () {
+      final history = riggedChain();
+      // Remove 'root' (joint 0, no parent of its own in this skeleton):
+      // vertex 0's own 0.5 on it is dropped outright.
+      expect(history.run(const RemoveJoint(skeletonIndex: 0, jointIndex: 0)), isNull);
+
+      final mesh = bodyMesh(history);
+      final pairs = weightsOf(mesh, 0);
+      final sum = pairs.fold<double>(0, (s, p) => s + p.weight);
+      expect(sum, closeTo(1.0, 1e-6));
+      expect(pairs.map((p) => p.joint).toSet(), <int>{0, 1}); // mid, tip — shifted down
+    });
   });
 
   group('profile limits', () {

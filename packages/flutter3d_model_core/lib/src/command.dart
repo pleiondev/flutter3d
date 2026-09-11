@@ -47,6 +47,7 @@ import 'texture_bake.dart';
 import 'texture_graph.dart';
 
 part 'job_commands.dart';
+part 'joint_commands.dart';
 part 'material_commands.dart';
 part 'mesh_commands.dart';
 part 'modifier_commands.dart';
@@ -491,6 +492,10 @@ const List<String> modelCommandNames = <String>[
   'renameShape',
   'deleteShape',
   'keyShape',
+  'addJoint',
+  'removeJoint',
+  'renameJoint',
+  'reparentJoint',
 ];
 
 /// Reads a command back out of a journal, or null.
@@ -820,6 +825,40 @@ ModelCommand? modelCommandFromJson(Object? json) {
         id: id,
         clipIndex: clipIndex,
         time: time.toDouble(),
+      ),
+      _ => null,
+    },
+    'addJoint' => switch ((json['skeletonIndex'], json['objectId'])) {
+      (final int skeletonIndex, final int objectId) => AddJoint(
+        skeletonIndex: skeletonIndex,
+        objectId: objectId,
+        inverseBindMatrix: switch (_doubles(json['inverseBindMatrix'], 16)) {
+          final List<double> m => Matrix4.fromList(m),
+          null => null,
+        },
+      ),
+      _ => null,
+    },
+    'removeJoint' => switch ((json['skeletonIndex'], json['jointIndex'])) {
+      (final int skeletonIndex, final int jointIndex) => RemoveJoint(
+        skeletonIndex: skeletonIndex,
+        jointIndex: jointIndex,
+      ),
+      _ => null,
+    },
+    'renameJoint' => switch ((json['skeletonIndex'], json['jointIndex'], json['to'])) {
+      (final int skeletonIndex, final int jointIndex, final String to) => RenameJoint(
+        skeletonIndex: skeletonIndex,
+        jointIndex: jointIndex,
+        to: to,
+      ),
+      _ => null,
+    },
+    'reparentJoint' => switch ((json['skeletonIndex'], json['jointIndex'])) {
+      (final int skeletonIndex, final int jointIndex) => ReparentJoint(
+        skeletonIndex: skeletonIndex,
+        jointIndex: jointIndex,
+        to: json['to'] as int?,
       ),
       _ => null,
     },
