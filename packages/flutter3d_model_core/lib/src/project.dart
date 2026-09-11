@@ -24,6 +24,7 @@ import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 import 'package:vector_math/vector_math.dart';
 
 import 'material.dart';
+import 'modifier_slot.dart';
 import 'param_hint.dart';
 import 'selection.dart';
 
@@ -240,6 +241,7 @@ final class ModelObject {
     this.parent,
     this.version = 1,
     this.materialSlots = const <int>[],
+    this.modifiers = const <ModifierSlot>[],
   });
 
   /// Stable for the life of the object, and not reused after a delete.
@@ -261,6 +263,12 @@ final class ModelObject {
   /// the project's materials.
   final List<int> materialSlots;
 
+  /// The modifier stack, top of the list evaluated first — see
+  /// `ModifierEvaluationCache` for what actually runs it. Empty for almost
+  /// every object today, since nothing yet writes to this list; `doc-23`'s
+  /// commands are what will.
+  final List<ModifierSlot> modifiers;
+
   /// A copy with some fields replaced and [version] moved on.
   ///
   /// **The version moves here rather than at the call sites**, so that an edit
@@ -273,6 +281,7 @@ final class ModelObject {
     int? parent,
     bool clearParent = false,
     List<int>? materialSlots,
+    List<ModifierSlot>? modifiers,
   }) => ModelObject(
     id: id,
     name: name ?? this.name,
@@ -281,6 +290,7 @@ final class ModelObject {
     parent: clearParent ? null : (parent ?? this.parent),
     version: version + 1,
     materialSlots: materialSlots ?? this.materialSlots,
+    modifiers: modifiers ?? this.modifiers,
   );
 
   @override
