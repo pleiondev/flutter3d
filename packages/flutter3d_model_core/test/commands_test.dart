@@ -2213,6 +2213,8 @@ void main() {
           clipIndex: 0,
           frame: 10,
         ),
+        const ExtractRootMotion(clipIndex: 0, rootJoint: 1),
+        const BakeRootMotionIntoClip(clipIndex: 0, rootJoint: 1),
       ];
 
       // Every name has a sample, which is what stops a command being added to
@@ -3335,6 +3337,137 @@ void main() {
             frame: 0,
           ),
         ),
+        isNotNull,
+      );
+    });
+  });
+
+  group('root motion', () {
+    // A cube (edited(), object id 1) with one clip whose translation track
+    // walks the root forward two metres in a straight line — t=0 at the
+    // origin, t=0.5 at x=1, t=1 at x=2 — the shape a walk cycle's own root
+    // makes.
+    ModelHistory withWalkingRoot() {
+      final history = edited();
+      final project = history.project.copyWith(
+        clips: <ProjectClip>[
+          ProjectClip(
+            name: 'walk',
+            tracks: <ProjectTrack>[
+              ProjectTrack(
+                objectId: 1,
+                track: AnimationTrack(
+                  nodeIndex: 0,
+                  path: AnimationPath.translation,
+                  interpolation: AnimationInterpolation.linear,
+                  componentCount: 3,
+                  times: Float32List.fromList(<double>[0, 0.5, 1]),
+                  values: Float32List.fromList(<double>[
+                    0, 0, 0,
+                    1, 0, 0,
+                    2, 0, 0,
+                  ]),
+                ),
+              ),
+            ],
+          ),
+        ],
+      );
+      return ModelHistory(project)..selection = history.selection;
+    }
+
+    test('the root stands still: every key reads the first key\'s own value', () {
+      final history = withWalkingRoot();
+      expect(
+        history.run(const ExtractRootMotion(clipIndex: 0, rootJoint: 1)),
+        isNull,
+      );
+
+      final track = history.project.clips.single.tracks.single.track;
+      final out = Float32List(3);
+      for (final time in <double>[0, 0.5, 1]) {
+        track.sample(time, out);
+        expect(out, <double>[0, 0, 0]);
+      }
+    });
+
+    test('the sum of the extracted deltas over the cycle is 2 metres', () {
+      final history = withWalkingRoot();
+      history.run(const ExtractRootMotion(clipIndex: 0, rootJoint: 1));
+
+      final saved =
+          history.project.clips.single.extras![kRootMotionExtra]! as List;
+      var sum = 0.0;
+      for (var i = 1; i < saved.length; i++) {
+        final a = (saved[i - 1] as List)[0] as double;
+        final b = (saved[i] as List)[0] as double;
+        sum += b - a;
+      }
+      expect(sum, closeTo(2.0, 1e-9));
+    });
+
+    test('extracting twice is refused, not a silent overwrite of the real '
+        'motion', () {
+      final history = withWalkingRoot();
+      history.run(const ExtractRootMotion(clipIndex: 0, rootJoint: 1));
+      expect(
+        history.run(const ExtractRootMotion(clipIndex: 0, rootJoint: 1)),
+        isNotNull,
+      );
+    });
+
+    test('extracting refuses a clip or a joint the project does not have', () {
+      final history = withWalkingRoot();
+      expect(
+        history.run(const ExtractRootMotion(clipIndex: 9, rootJoint: 1)),
+        isNotNull,
+      );
+      expect(
+        history.run(const ExtractRootMotion(clipIndex: 0, rootJoint: 99)),
+        isNotNull,
+      );
+    });
+
+    test('baking restores the exact original track, and clears the extra', () {
+      final history = withWalkingRoot();
+      final original = history.project.clips.single.tracks.single.track;
+
+      history.run(const ExtractRootMotion(clipIndex: 0, rootJoint: 1));
+      expect(
+        history.run(const BakeRootMotionIntoClip(clipIndex: 0, rootJoint: 1)),
+        isNull,
+      );
+
+      final restored = history.project.clips.single.tracks.single.track;
+      expect(restored.times, original.times);
+      expect(restored.values, original.values);
+      expect(history.project.clips.single.extras, isNull);
+    });
+
+    test('baking without an extraction first is refused', () {
+      final history = withWalkingRoot();
+      expect(
+        history.run(const BakeRootMotionIntoClip(clipIndex: 0, rootJoint: 1)),
+        isNotNull,
+      );
+    });
+
+    test('baking refuses a saved key count that no longer matches the '
+        'track\'s own', () {
+      final history = withWalkingRoot();
+      history.run(const ExtractRootMotion(clipIndex: 0, rootJoint: 1));
+      // A keyframe command run after extraction, on the now-flat track.
+      history.run(
+        const SetKey(
+          clipIndex: 0,
+          trackIndex: 0,
+          time: 0.75,
+          values: <double>[0, 0, 0],
+        ),
+      );
+
+      expect(
+        history.run(const BakeRootMotionIntoClip(clipIndex: 0, rootJoint: 1)),
         isNotNull,
       );
     });

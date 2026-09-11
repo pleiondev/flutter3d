@@ -55,6 +55,7 @@ part 'mesh_commands.dart';
 part 'modifier_commands.dart';
 part 'object_commands.dart';
 part 'profile_commands.dart';
+part 'root_motion_commands.dart';
 part 'selection_commands.dart';
 part 'shape_commands.dart';
 
@@ -507,6 +508,8 @@ const List<String> modelCommandNames = <String>[
   'setTangent',
   'fillHoles',
   'poseJoint',
+  'extractRootMotion',
+  'bakeRootMotionIntoClip',
 ];
 
 /// Reads a command back out of a journal, or null.
@@ -1006,6 +1009,19 @@ ModelCommand? modelCommandFromJson(Object? json) {
         final int frame,
       ) =>
         PoseJoint(joint: joint, path: path, clipIndex: clipIndex, frame: frame),
+      _ => null,
+    },
+    'extractRootMotion' => switch ((json['clipIndex'], json['rootJoint'])) {
+      (final int clipIndex, final int rootJoint) =>
+        ExtractRootMotion(clipIndex: clipIndex, rootJoint: rootJoint),
+      _ => null,
+    },
+    'bakeRootMotionIntoClip' => switch ((
+      json['clipIndex'],
+      json['rootJoint'],
+    )) {
+      (final int clipIndex, final int rootJoint) =>
+        BakeRootMotionIntoClip(clipIndex: clipIndex, rootJoint: rootJoint),
       _ => null,
     },
     _ => null,

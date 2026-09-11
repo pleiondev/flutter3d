@@ -350,5 +350,60 @@ void main() {
       track.sample(0.0, out);
       expect(out, <double>[1, 2, 3]);
     });
+
+    test(
+      'extractRootMotion and bakeRootMotionIntoClip reach a real track, '
+      'exactly reversing each other',
+      () async {
+        var project = const ModelProject().added(
+          (int id) => ModelObject(
+            id: id,
+            name: 'a',
+            geometry: const SocketGeometry(),
+            transform: Matrix4.identity(),
+          ),
+        );
+        project = project.copyWith(
+          clips: <ProjectClip>[
+            ProjectClip(
+              name: 'walk',
+              tracks: <ProjectTrack>[
+                ProjectTrack(
+                  objectId: 1,
+                  track: AnimationTrack(
+                    nodeIndex: 0,
+                    path: AnimationPath.translation,
+                    interpolation: AnimationInterpolation.linear,
+                    componentCount: 3,
+                    times: Float32List.fromList(<double>[0, 1]),
+                    values: Float32List.fromList(<double>[0, 0, 0, 2, 0, 0]),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        );
+        final session = ModelSession(ModelHistory(project));
+
+        final extracted = await toolNamed(
+          'extractRootMotion',
+        ).run(session, <String, Object?>{'clipIndex': 0, 'rootJoint': 1});
+        expect(extracted.did, isTrue);
+        final flat = session.history.project.clips.single.tracks.single.track;
+        final out = Float32List(3);
+        flat.sample(1.0, out);
+        expect(out, <double>[0, 0, 0]);
+
+        final baked = await toolNamed(
+          'bakeRootMotionIntoClip',
+        ).run(session, <String, Object?>{'clipIndex': 0, 'rootJoint': 1});
+        expect(baked.did, isTrue);
+        final restored =
+            session.history.project.clips.single.tracks.single.track;
+        restored.sample(1.0, out);
+        expect(out, <double>[2, 0, 0]);
+        expect(session.history.project.clips.single.extras, isNull);
+      },
+    );
   });
 }

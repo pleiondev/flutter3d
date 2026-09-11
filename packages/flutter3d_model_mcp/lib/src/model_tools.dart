@@ -1390,6 +1390,44 @@ List<ModelTool> get _commandTools => <ModelTool>[
     ),
     _command('poseJoint'),
   ),
+  ModelTool(
+    Tool(
+      name: 'extractRootMotion',
+      description:
+          'Flatten a clip\'s own translation track for a root object to '
+          'its first key\'s value — the root stands still — after saving '
+          'every key\'s real value on the clip itself, so '
+          'bakeRootMotionIntoClip can restore them exactly. Refused if '
+          'this clip already has extracted root motion.',
+      inputSchema: ObjectSchema(
+        properties: <String, Schema>{
+          'clipIndex': IntegerSchema(description: 'which clip, from list'),
+          'rootJoint': IntegerSchema(description: 'the root object id'),
+        },
+        required: <String>['clipIndex', 'rootJoint'],
+      ),
+    ),
+    _command('extractRootMotion'),
+  ),
+  ModelTool(
+    Tool(
+      name: 'bakeRootMotionIntoClip',
+      description:
+          'Restore a clip\'s own translation track for a root object '
+          'from whatever extractRootMotion last saved — the exact '
+          'inverse, key for key. Refused if this clip has no extracted '
+          'root motion, or if the track was edited since extraction and '
+          'no longer has the same number of keys.',
+      inputSchema: ObjectSchema(
+        properties: <String, Schema>{
+          'clipIndex': IntegerSchema(description: 'which clip, from list'),
+          'rootJoint': IntegerSchema(description: 'the root object id'),
+        },
+        required: <String>['clipIndex', 'rootJoint'],
+      ),
+    ),
+    _command('bakeRootMotionIntoClip'),
+  ),
 ];
 
 // ------------------------------------------------------------ session tools
