@@ -665,6 +665,23 @@ boundaryEnumExempt = <String, Map<String, String>>{
         'texture panel switching on this never sees a value it was not '
         'built for',
   },
+  'flutter3d_model_core/lib/src/texture_graph.dart': <String, String>{
+    'TextureValueType':
+        "the two socket kinds mat-10's own texture compositor reads and "
+        "writes — color and scalar. A third would be a new kind of data a "
+        "texture slot could hold, not a value slipped into an existing "
+        "node's switch, and every node's own inputs/outputType already "
+        "names one of exactly these two",
+    'TextureBlendMode':
+        'the blend recipes this compositor bakes — normal, multiply, add, '
+        'screen — a fixed list by the same Ж1 decision that fixed the node '
+        "set itself. A fifth needs its own baked recipe worked out, the "
+        "same way CsgOperation's own boolean recipes do, not a name added "
+        "to an existing switch",
+    'TextureChannel':
+        'the four channels a colour has — r, g, b, a — which is not a '
+        "number this format is ever going to grow a fifth of",
+  },
   'flutter3d_formats/lib/src/stl/stl_loader.dart': <String, String>{
     'StlNormals':
         'whether a facet\'s own normal record is trusted or recomputed from '

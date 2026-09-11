@@ -49,4 +49,5 @@ export 'src/readiness.dart';
 export 'src/readiness_cache.dart';
 export 'src/selection.dart';
 export 'src/texture_budget.dart';
+export 'src/texture_graph.dart';
 export 'src/texture_info.dart';
