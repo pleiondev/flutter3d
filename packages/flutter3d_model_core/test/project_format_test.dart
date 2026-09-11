@@ -82,6 +82,76 @@ ModelProject sample() {
   return project.withObject(project.objects[1].copyWith(name: 'lid'));
 }
 
+/// A project that skins one object to a skeleton, keys the skeleton's own
+/// joint with an animation clip, and gives the skinned object a shape key —
+/// `anim-03`/`anim-19`'s own round trip, all three at once, every field away
+/// from a default a dropped one could be mistaken for.
+ModelProject riggedSample() {
+  var project = const ModelProject().added(
+    (int id) => ModelObject(
+      id: id,
+      name: 'root',
+      geometry: const SocketGeometry(),
+      transform: Matrix4.identity(),
+    ),
+  );
+  final rootId = project.objects.single.id;
+  final mesh = EditMesh.cuboid();
+  project = project.added(
+    (int id) => ModelObject(
+      id: id,
+      name: 'body',
+      geometry: EditedGeometry(mesh),
+      transform: Matrix4.identity(),
+      skeletonIndex: 0,
+      shapeSet: ShapeSet(
+        keys: <ShapeKey>[
+          ShapeKey(
+            'smile',
+            Float32List.fromList(<double>[
+              for (var v = 0; v < mesh.vertexSlotCount; v++) ...<double>[
+                v * 0.1,
+                v * 0.2,
+                v * 0.3,
+              ],
+            ]),
+          ),
+        ],
+        weights: <double>[0.75],
+      ),
+    ),
+  );
+  return project.copyWith(
+    skeletons: <ProjectSkeleton>[
+      ProjectSkeleton(
+        name: 'rig',
+        joints: <int>[rootId],
+        inverseBindMatrices: <Matrix4>[Matrix4.translation(Vector3(0, 1, 0))],
+        skeletonRoot: rootId,
+      ),
+    ],
+    clips: <ProjectClip>[
+      ProjectClip(
+        name: 'wave',
+        extras: const <String, Object?>{'author': 'a rigger'},
+        tracks: <ProjectTrack>[
+          ProjectTrack(
+            objectId: rootId,
+            track: AnimationTrack(
+              nodeIndex: 0,
+              path: AnimationPath.translation,
+              interpolation: AnimationInterpolation.linear,
+              componentCount: 3,
+              times: Float32List.fromList(<double>[0, 1]),
+              values: Float32List.fromList(<double>[0, 0, 0, 1, 2, 3]),
+            ),
+          ),
+        ],
+      ),
+    ],
+  );
+}
+
 /// The project [bytes] hold, or the failure the refusal describes.
 ModelProject opened(Uint8List bytes) {
   final read = readProject(bytes);
@@ -271,6 +341,67 @@ void main() {
         expect(now.mesh.toBytes(), was.mesh.toBytes());
       }
     });
+
+    test(
+      'a skeleton, a clip and a shape key all survive the round trip — '
+      "anim-03/anim-19's own gap",
+      () {
+        final before = riggedSample();
+        final after = opened(writeProject(before));
+
+        expect(after.skeletons, hasLength(1));
+        final skeletonBefore = before.skeletons.single;
+        final skeletonAfter = after.skeletons.single;
+        expect(skeletonAfter.name, skeletonBefore.name);
+        // Mutation: drop `skeletonRoot`/`name` from `_skeletonJson` and both
+        // come back null — this fixture would not notice unless both are
+        // set to something a default could not produce by accident.
+        expect(skeletonAfter.skeletonRoot, skeletonBefore.skeletonRoot);
+        expect(skeletonAfter.joints, skeletonBefore.joints);
+        expect(skeletonAfter.inverseBindMatrices, hasLength(1));
+        for (var i = 0; i < 16; i++) {
+          expect(
+            skeletonAfter.inverseBindMatrices[0].storage[i],
+            closeTo(skeletonBefore.inverseBindMatrices[0].storage[i], 1e-9),
+          );
+        }
+
+        expect(after.clips, hasLength(1));
+        final clipBefore = before.clips.single;
+        final clipAfter = after.clips.single;
+        expect(clipAfter.name, clipBefore.name);
+        expect(clipAfter.extras, clipBefore.extras);
+        expect(clipAfter.tracks, hasLength(1));
+        final trackBefore = clipBefore.tracks.single.track;
+        final trackAfter = clipAfter.tracks.single.track;
+        expect(clipAfter.tracks.single.objectId, clipBefore.tracks.single.objectId);
+        expect(trackAfter.path, trackBefore.path);
+        expect(trackAfter.interpolation, trackBefore.interpolation);
+        expect(trackAfter.componentCount, trackBefore.componentCount);
+        expect(trackAfter.times, trackBefore.times);
+        expect(trackAfter.values, trackBefore.values);
+
+        final bodyBefore = before.objects.firstWhere((o) => o.name == 'body');
+        final bodyAfter = after.objects.firstWhere((o) => o.name == 'body');
+        // Mutation: read `skeletonIndex` back as `null` unconditionally and
+        // this fails directly — the object would read as unskinned.
+        expect(bodyAfter.skeletonIndex, bodyBefore.skeletonIndex);
+        expect(bodyAfter.shapeSet.keys, hasLength(1));
+        expect(bodyAfter.shapeSet.keys.single.name, 'smile');
+        expect(bodyAfter.shapeSet.weights, bodyBefore.shapeSet.weights);
+        expect(
+          bodyAfter.shapeSet.keys.single.positions,
+          bodyBefore.shapeSet.keys.single.positions,
+        );
+
+        // The plain, unrigged objects in `sample()` still read back with no
+        // skeleton and no shape keys — the absent case is `null`/empty, not
+        // some other default a dropped field could be mistaken for.
+        final plain = opened(writeProject(sample())).objects.first;
+        expect(plain.skeletonIndex, isNull);
+        expect(plain.shapeSet.isEmpty, isTrue);
+      },
+    );
 
     test('a socket writes and reads back with no mesh behind it', () {
       final before = ModelProject().added(
@@ -476,11 +607,14 @@ void main() {
 
       // The numbers this project's file actually lands on: a 16-byte header and
       // six 16-byte directory entries put the manifest at 112, and the manifest
-      // is 1101 bytes, which ends at 1213 and is not a multiple of four. So the
-      // mesh table starts at 1216, three bytes of padding later. Those three
-      // bytes are the whole test — a reader building an `Int32List.view` over
-      // the blob throws on an offset that is not a multiple of four, and it
-      // throws on the machine of whoever opens the file rather than here.
+      // is 1238 bytes (`anim-03`/`anim-19`'s own `skeletonIndex`/`shapeSet` per
+      // object plus the top-level `skeletons`/`clips` arrays, all written even
+      // empty, widened it from the 1101 an earlier version of this fixture
+      // measured), which ends at 1350 and is not a multiple of four. So the
+      // mesh table starts at 1352, two bytes of padding later. Those two bytes
+      // are the whole test — a reader building an `Int32List.view` over the
+      // blob throws on an offset that is not a multiple of four, and it throws
+      // on the machine of whoever opens the file rather than here.
       expect(directory.map((entry) => entry.kind), <int>[
         ProjectSection.manifest,
         ProjectSection.editMeshes,
@@ -490,11 +624,11 @@ void main() {
         ProjectSection.checksums,
       ]);
       expect(directory[0].offset, 112);
-      expect(directory[0].length, 1101);
-      expect(directory[1].offset, 1216);
+      expect(directory[0].length, 1238);
+      expect(directory[1].offset, 1352);
       expect(directory[1].length, 16);
       expect(directory[1].count, 2);
-      expect(directory[2].offset, 1232);
+      expect(directory[2].offset, 1368);
       // This project has nothing imported and nothing textured, and both tables
       // are written all the same: every file this build produces has the same
       // five-section directory, so a reader is never deciding between "none of
@@ -504,14 +638,14 @@ void main() {
       // One row per other section, so the table grows with the directory.
       expect(directory[5].count, 5);
       expect(directory[5].length, 5 * kProjectChecksumEntryBytes);
-      expect(bytes.length, 3848);
+      expect(bytes.length, 3984);
 
       for (final entry in directory) {
         expect(entry.offset % 4, 0, reason: 'section ${entry.kind}');
       }
 
       // Mutation: return `value` from the writer's `_align` and the table lands
-      // at 1213 with the blob behind it at 1229; the assertions above and the
+      // at 1350 with the blob behind it at 1366; the assertions above and the
       // two below go red together.
       final view = ByteData.sublistView(bytes);
       final blob = directory[2];
@@ -585,7 +719,7 @@ void main() {
     }
 
     test('every object\'s keys come out sorted, top to bottom', () {
-      final project = sample().copyWith(
+      final project = riggedSample().copyWith(
         materials: <ProjectMaterial>[
           ProjectMaterial(surface: SurfaceMaterial()),
         ],
@@ -707,7 +841,7 @@ void main() {
       expect(
         refusal(bytes),
         'The header claims 500 sections, whose directory ends at byte 8016, '
-        'past the end of a 3844-byte file.',
+        'past the end of a 3984-byte file.',
       );
     });
 
@@ -724,8 +858,8 @@ void main() {
       final cut = Uint8List.sublistView(whole, 0, whole.length - 8);
       expect(
         refusal(cut),
-        'Section 6 runs from byte 3804 for 40 bytes, past the end of a '
-        '3836-byte file.',
+        'Section 6 runs from byte 3944 for 40 bytes, past the end of a '
+        '3976-byte file.',
       );
     });
 
@@ -857,6 +991,89 @@ void main() {
           ),
         ),
         'Object 0 ("thing") is edited mesh 3 and this file holds 0.',
+      );
+    });
+
+    test('an object\'s shape keys and weights that do not move together', () {
+      final object = objectJson()
+        ..['shapeSet'] = <String, Object?>{
+          'keys': <Object?>[
+            <String, Object?>{'name': 'a', 'positions': <double>[0, 0, 0]},
+          ],
+          'weights': <double>[0.1, 0.2],
+        };
+      expect(
+        refusal(forge(manifestOf(<Map<String, Object?>>[object]))),
+        'Object 0 ("thing") has 1 shape keys but 2 weights; those move '
+        'together.',
+      );
+    });
+
+    test('a shape key whose position count is not three a vertex', () {
+      final object = objectJson()
+        ..['shapeSet'] = <String, Object?>{
+          'keys': <Object?>[
+            <String, Object?>{
+              'name': 'a',
+              'positions': <double>[0, 0, 0, 1, 1],
+            },
+          ],
+          'weights': <double>[0.1],
+        };
+      expect(
+        refusal(forge(manifestOf(<Map<String, Object?>>[object]))),
+        'Object 0 ("thing")\'s shape key 0 ("a") has 5 position numbers, '
+        'and a vertex is three.',
+      );
+    });
+
+    test(
+      'a track whose times and values do not fit its interpolation and '
+      'component count',
+      () {
+        final bytes = forge(<String, Object?>{
+          ...manifestOf(<Map<String, Object?>>[]),
+          'clips': <Object?>[
+            <String, Object?>{
+              'name': 'broken',
+              'tracks': <Object?>[
+                <String, Object?>{
+                  'objectId': 0,
+                  'path': 'translation',
+                  'interpolation': 'LINEAR',
+                  'componentCount': 3,
+                  'times': <double>[0, 1, 2],
+                  'values': <double>[0, 0],
+                },
+              ],
+            },
+          ],
+        });
+        expect(
+          refusal(bytes),
+          'Clip 0, track 0 cannot be read: Track for node 0 has 3 keys and 2 '
+          'values; linear interpolation of 3 components needs 9.',
+        );
+      },
+    );
+
+    test('a skeleton\'s joints and inverse bind matrices that do not move '
+        'together', () {
+      final bytes = forge(<String, Object?>{
+        ...manifestOf(<Map<String, Object?>>[objectJson()]),
+        'skeletons': <Object?>[
+          <String, Object?>{
+            'name': 'rig',
+            'joints': <int>[1],
+            'inverseBindMatrices': <Object?>[],
+            'skeletonRoot': null,
+          },
+        ],
+      });
+      expect(
+        refusal(bytes),
+        'Skeleton 0 has 1 joints but 0 inverse bind matrices; those move '
+        'together.',
       );
     });
 

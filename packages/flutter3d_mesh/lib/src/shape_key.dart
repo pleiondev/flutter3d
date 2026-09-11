@@ -45,6 +45,13 @@ final class ShapeKey {
 
   int get vertexCount => _positions.length ~/ 3;
 
+  /// Every vertex this key stores, three floats each, in one copy — for a
+  /// caller (project-file persistence) that needs the whole array rather
+  /// than one vertex at a time through [positionOf]. A copy, not a view
+  /// over the same buffer, so nothing outside this class can mutate a key
+  /// without going through [setPosition].
+  Float32List get positions => Float32List.fromList(_positions);
+
   Vector3 positionOf(int vertex) => Vector3(
     _positions[vertex * 3],
     _positions[vertex * 3 + 1],

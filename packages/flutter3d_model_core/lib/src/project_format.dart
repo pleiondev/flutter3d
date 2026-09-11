@@ -18,11 +18,13 @@
 /// when an existing record changes meaning — adding a section does not need it.
 ///
 /// **What is in the file today.** A manifest in JSON — the profile, and each
-/// object with its id, name, parent, transform, material slots and which kind
-/// of geometry it has, and the material table those slots index — plus three
-/// tables of bulk and the blob they all point into. An edited mesh is one chunk
-/// written by `EditMesh.toBytes`, so there is exactly one half-edge encoding in
-/// this repository; an imported one is its vertex and index buffers as they
+/// object with its id, name, parent, transform, material slots, which kind of
+/// geometry it has, which skeleton (if any) its mesh is skinned to and its
+/// own shape keys — the material table those slots index, the project's own
+/// skeletons and animation clips — plus three tables of bulk and the blob
+/// they all point into. An edited mesh is one chunk written by
+/// `EditMesh.toBytes`, so there is exactly one half-edge encoding in this
+/// repository; an imported one is its vertex and index buffers as they
 /// arrived, with the layout that says how to read them kept in the manifest
 /// beside its row; and an image is its encoded bytes, never decoded here,
 /// because decoding needs `dart:ui` and this package has no window.
@@ -32,13 +34,21 @@
 /// where a person can read it; the PNG it samples is a hundred kilobytes, so it
 /// goes in the blob. That is why there is a material *section* in the plan and
 /// none here: what the plan wanted was for materials to survive, and a section
-/// of their own would be a second encoding to keep working.
+/// of their own would be a second encoding to keep working. A skeleton's
+/// joints and inverse bind matrices, and a clip's own tracks, are the same
+/// shape of small, structured data — `anim-03`'s own `ProjectSkeleton`/
+/// `ProjectClip` — so they live in the manifest beside the materials rather
+/// than in a section of their own, for the identical reason.
 ///
 /// **What is not, and is not pretended to be.** The history is not written
 /// here: the file carries the document, and putting the undo stack in it is
 /// `doc-31d`, which wants the steps to address chunks already lying in the blob
-/// rather than a second copy of every mesh. Skins and animations have sections
-/// of their own in the plan and none of them yet.
+/// rather than a second copy of every mesh. A shape key's own positions are
+/// written as plain JSON numbers in the manifest, not blob-encoded the way a
+/// mesh's own vertex buffer is — the simpler choice, and the honest cost of
+/// it is a project with several heavily sculpted shape keys writing a larger
+/// manifest than one with none; nothing in this row's own acceptance needs
+/// more than that.
 ///
 /// Morph targets on an imported mesh are still refused by [writeProject] rather
 /// than written half. See the throw there for why refusing beats saving a model
@@ -58,6 +68,8 @@ import 'history.dart';
 import 'material.dart';
 import 'parametric_json.dart';
 import 'project.dart';
+import 'project_animation.dart';
+import 'project_morphs.dart';
 import 'selection.dart';
 import 'texture_budget.dart';
 import 'texture_graph.dart';
@@ -350,6 +362,12 @@ Uint8List writeProject(
         'transform': <double>[...object.transform.storage],
         'materialSlots': <int>[...object.materialSlots],
         'geometry': geometry,
+        // `anim-03`/`anim-19`, both younger than the rest of this record and
+        // read back the same optional way every other field grown since v1
+        // is: absent means unskinned and shapeless, the ordinary case for
+        // most objects most files ever hold.
+        'skeletonIndex': object.skeletonIndex,
+        'shapeSet': _shapeSetJson(object.shapeSet),
       });
     }
     return out;
@@ -437,6 +455,18 @@ Uint8List writeProject(
         'images': <Object?>[
           for (final EncodedImage each in project.images)
             <String, Object?>{'name': each.name, 'mimeType': each.mimeType},
+        ],
+        // `anim-03`, the same "structure, not bulk" reasoning as materials
+        // above — a skeleton's own joints and matrices, and a clip's own
+        // tracks, are numbers and names, not the multi-kilobyte buffer a
+        // mesh chunk is. Written even when there are none, for the same
+        // reason `images` is.
+        'skeletons': <Object?>[
+          for (final ProjectSkeleton each in project.skeletons)
+            _skeletonJson(each),
+        ],
+        'clips': <Object?>[
+          for (final ProjectClip each in project.clips) _clipJson(each),
         ],
         'objects': objects,
       }),
@@ -742,6 +772,16 @@ ProjectRead readProject(Uint8List bytes) {
   );
   if (materialRefusal != null) return ProjectRefused(materialRefusal);
 
+  final (List<ProjectSkeleton> skeletons, String? skeletonRefusal) = _readSkeletons(
+    document is Map<String, Object?> ? document['skeletons'] : null,
+  );
+  if (skeletonRefusal != null) return ProjectRefused(skeletonRefusal);
+
+  final (List<ProjectClip> clips, String? clipRefusal) = _readClips(
+    document is Map<String, Object?> ? document['clips'] : null,
+  );
+  if (clipRefusal != null) return ProjectRefused(clipRefusal);
+
   if (document case {
     'profile': final Object? profileJson,
     'nextId': final int nextId,
@@ -776,6 +816,8 @@ ProjectRead readProject(Uint8List bytes) {
       profile: profile,
       materials: materials,
       images: images,
+      skeletons: skeletons,
+      clips: clips,
       nextId: nextId,
     );
     if (historyRefusal != null) return ProjectRefused(historyRefusal);
@@ -786,6 +828,8 @@ ProjectRead readProject(Uint8List bytes) {
         objects: objects,
         materials: materials,
         images: images,
+        skeletons: skeletons,
+        clips: clips,
         nextId: nextId,
       ),
       warnings: warnings,
@@ -808,13 +852,13 @@ ProjectRead readProject(Uint8List bytes) {
 /// identical `editMeshes`/`importedMeshes` indices, since [writeProject]
 /// built both from the same shared tables.
 ///
-/// **[profile], [materials], [images] and [nextId] are the live project's
-/// own, not written per step.** Only the object list is stored once for
-/// every historical moment; a material or an image added or changed inside
-/// the three commands a caller undoes is not what this row's own acceptance
-/// asks to round-trip, and every `before` project below borrows the current
-/// ones rather than carrying a second, empty-by-default copy of tables
-/// nothing wrote a history of.
+/// **[profile], [materials], [images], [skeletons], [clips] and [nextId] are
+/// the live project's own, not written per step.** Only the object list is
+/// stored once for every historical moment; a material, an image, a
+/// skeleton or a clip added or changed inside the commands a caller undoes
+/// is not what this row's own acceptance asks to round-trip, and every
+/// `before` project below borrows the current ones rather than carrying a
+/// second, empty-by-default copy of tables nothing wrote a history of.
 (List<HistoryStep>, String?) _readHistory(
   Uint8List bytes,
   Map<int, ({int offset, int length})> sections,
@@ -824,6 +868,8 @@ ProjectRead readProject(Uint8List bytes) {
   required ProjectProfile profile,
   required List<ProjectMaterial> materials,
   required List<EncodedImage> images,
+  required List<ProjectSkeleton> skeletons,
+  required List<ProjectClip> clips,
   required int nextId,
 }) {
   final at = sections[ProjectSection.history];
@@ -896,6 +942,8 @@ ProjectRead readProject(Uint8List bytes) {
             objects: objects,
             materials: materials,
             images: images,
+            skeletons: skeletons,
+            clips: clips,
             nextId: nextId,
           ),
           selectionBefore: selection,
@@ -1050,6 +1098,47 @@ ProjectRead readProject(Uint8List bytes) {
 /// build does not know reads back as the default rather than refusing, because
 /// an alpha mode from a newer build is a material that draws slightly wrong,
 /// not a project nobody can open.
+/// [shapeSet] as JSON — `null` for the ordinary, shapeless object, so a
+/// project that never touched `anim-19` writes exactly the file it would
+/// have written before that row existed, modulo the `skeletonIndex`/
+/// `shapeSet` keys themselves both being present and `null`.
+Map<String, Object?>? _shapeSetJson(ShapeSet shapeSet) {
+  if (shapeSet.isEmpty) return null;
+  return <String, Object?>{
+    'keys': <Object?>[for (final ShapeKey key in shapeSet.keys) _shapeKeyJson(key)],
+    'weights': <double>[...shapeSet.weights],
+  };
+}
+
+Map<String, Object?> _shapeKeyJson(ShapeKey key) => <String, Object?>{
+  'name': key.name,
+  'positions': <double>[...key.positions],
+};
+
+Map<String, Object?> _skeletonJson(ProjectSkeleton skeleton) => <String, Object?>{
+  'name': skeleton.name,
+  'joints': <int>[...skeleton.joints],
+  'inverseBindMatrices': <Object?>[
+    for (final Matrix4 m in skeleton.inverseBindMatrices) <double>[...m.storage],
+  ],
+  'skeletonRoot': skeleton.skeletonRoot,
+};
+
+Map<String, Object?> _clipJson(ProjectClip clip) => <String, Object?>{
+  'name': clip.name,
+  'tracks': <Object?>[for (final ProjectTrack track in clip.tracks) _trackJson(track)],
+  'extras': clip.extras,
+};
+
+Map<String, Object?> _trackJson(ProjectTrack track) => <String, Object?>{
+  'objectId': track.objectId,
+  'path': track.track.path.toGltf(),
+  'interpolation': track.track.interpolation.toGltf(),
+  'componentCount': track.track.componentCount,
+  'times': <double>[...track.track.times],
+  'values': <double>[...track.track.values],
+};
+
 Map<String, Object?> _materialJson(ProjectMaterial material) {
   final surface = material.surface;
   return <String, Object?>{
@@ -1726,6 +1815,254 @@ VertexLayout? _layoutFrom(Object? json, Map<String, String> pool) {
   return (meshes, null);
 }
 
+/// [json] as a [ShapeSet], or the sentence that stops the file — `(null,
+/// null)` for the ordinary absent case, an object that has never had a shape
+/// key added to it.
+(ShapeSet?, String?) _readShapeSet(Object? json, int index, String name) {
+  if (json == null) return (null, null);
+  if (json case {
+    'keys': final List<Object?> keyEntries,
+    'weights': final List<Object?> weightEntries,
+  }) {
+    if (keyEntries.length != weightEntries.length) {
+      return (
+        null,
+        'Object $index ("$name") has ${keyEntries.length} shape keys but '
+            '${weightEntries.length} weights; those move together.',
+      );
+    }
+    final keys = <ShapeKey>[];
+    for (var i = 0; i < keyEntries.length; i++) {
+      if (keyEntries[i] case {
+        'name': final String keyName,
+        'positions': final List<Object?> positions,
+      }) {
+        if (positions.any((Object? v) => v is! num)) {
+          return (
+            null,
+            'Object $index ("$name")\'s shape key $i ("$keyName") has a '
+                'position that is not a number.',
+          );
+        }
+        // `ShapeKey`'s own constructor throws on this, and a file is not an
+        // argument somebody in this program got wrong — checked here so a
+        // corrupted position count is a sentence rather than a stack trace.
+        if (positions.length % 3 != 0) {
+          return (
+            null,
+            'Object $index ("$name")\'s shape key $i ("$keyName") has '
+                '${positions.length} position numbers, and a vertex is '
+                'three.',
+          );
+        }
+        keys.add(
+          ShapeKey(
+            keyName,
+            Float32List.fromList(<double>[
+              for (final Object? v in positions) (v! as num).toDouble(),
+            ]),
+          ),
+        );
+      } else {
+        return (
+          null,
+          'Object $index ("$name")\'s shape key $i is missing a name or its '
+              'positions.',
+        );
+      }
+    }
+    if (weightEntries.any((Object? v) => v is! num)) {
+      return (
+        null,
+        'Object $index ("$name") has a shape weight that is not a number.',
+      );
+    }
+    return (
+      ShapeSet(
+        keys: keys,
+        weights: <double>[for (final Object? v in weightEntries) (v! as num).toDouble()],
+      ),
+      null,
+    );
+  }
+  return (
+    null,
+    'Object $index ("$name") has a shapeSet that is missing its keys or its '
+        'weights.',
+  );
+}
+
+/// The skeletons [json] describes, or the sentence that stops the file.
+///
+/// Absent (a file saved before `anim-03` existed) reads as no skeletons at
+/// all, the same optional-field rule every other row named after `doc-13`
+/// already follows in this file.
+(List<ProjectSkeleton>, String?) _readSkeletons(Object? json) {
+  if (json == null) return (const <ProjectSkeleton>[], null);
+  if (json is! List) {
+    return (const <ProjectSkeleton>[], 'The manifest\'s skeletons are not a list.');
+  }
+  final skeletons = <ProjectSkeleton>[];
+  for (var i = 0; i < json.length; i++) {
+    if (json[i] case {
+      'joints': final List<Object?> joints,
+      'inverseBindMatrices': final List<Object?> matrices,
+      'skeletonRoot': final int? skeletonRoot,
+      'name': final String? name,
+    }) {
+      if (joints.any((Object? v) => v is! int)) {
+        return (const <ProjectSkeleton>[], 'Skeleton $i has a joint that is not an id.');
+      }
+      if (matrices.length != joints.length) {
+        return (
+          const <ProjectSkeleton>[],
+          'Skeleton $i has ${joints.length} joints but ${matrices.length} '
+              'inverse bind matrices; those move together.',
+        );
+      }
+      final readMatrices = <Matrix4>[];
+      for (var m = 0; m < matrices.length; m++) {
+        final Object? entry = matrices[m];
+        if (entry is! List || entry.length != 16 || entry.any((Object? v) => v is! num)) {
+          return (
+            const <ProjectSkeleton>[],
+            'Skeleton $i\'s inverse bind matrix $m is not sixteen numbers.',
+          );
+        }
+        readMatrices.add(
+          Matrix4.fromList(<double>[
+            for (final Object? v in entry) (v! as num).toDouble(),
+          ]),
+        );
+      }
+      skeletons.add(
+        ProjectSkeleton(
+          joints: <int>[for (final Object? v in joints) v! as int],
+          inverseBindMatrices: readMatrices,
+          skeletonRoot: skeletonRoot,
+          name: name,
+        ),
+      );
+    } else {
+      return (
+        const <ProjectSkeleton>[],
+        'Skeleton $i is missing its joints or its inverse bind matrices.',
+      );
+    }
+  }
+  return (skeletons, null);
+}
+
+/// The clips [json] describes, or the sentence that stops the file.
+///
+/// Absent reads as no clips at all, the same rule [_readSkeletons] follows.
+(List<ProjectClip>, String?) _readClips(Object? json) {
+  if (json == null) return (const <ProjectClip>[], null);
+  if (json is! List) {
+    return (const <ProjectClip>[], 'The manifest\'s clips are not a list.');
+  }
+  final clips = <ProjectClip>[];
+  for (var i = 0; i < json.length; i++) {
+    if (json[i] case {'tracks': final List<Object?> trackEntries}) {
+      final tracks = <ProjectTrack>[];
+      for (var t = 0; t < trackEntries.length; t++) {
+        final (ProjectTrack? track, String? refusal) = _readTrack(
+          trackEntries[t],
+          i,
+          t,
+        );
+        if (refusal != null) return (const <ProjectClip>[], refusal);
+        tracks.add(track!);
+      }
+      final entry = json[i]! as Map<String, Object?>;
+      clips.add(
+        ProjectClip(
+          name: entry['name'] as String?,
+          tracks: tracks,
+          extras: entry['extras'] as Map<String, Object?>?,
+        ),
+      );
+    } else {
+      return (const <ProjectClip>[], 'Clip $i is missing its tracks.');
+    }
+  }
+  return (clips, null);
+}
+
+(ProjectTrack?, String?) _readTrack(
+  Object? json,
+  int clipIndex,
+  int trackIndex,
+) {
+  if (json case {
+    'objectId': final int objectId,
+    'path': final String pathName,
+    'interpolation': final String interpolationName,
+    'componentCount': final int componentCount,
+    'times': final List<Object?> times,
+    'values': final List<Object?> values,
+  }) {
+    if (times.any((Object? v) => v is! num) || values.any((Object? v) => v is! num)) {
+      return (
+        null,
+        'Clip $clipIndex, track $trackIndex has a time or a value that is '
+            'not a number.',
+      );
+    }
+    final path = AnimationPath.fromGltf(pathName);
+    if (path == null) {
+      return (
+        null,
+        'Clip $clipIndex, track $trackIndex names path "$pathName", which '
+            'this build does not know.',
+      );
+    }
+    // `AnimationInterpolation.fromGltf` already defaults an unrecognised
+    // string to `linear`, the same permissive rule the glTF spec itself
+    // states for an omitted or unknown sampler interpolation — the same
+    // default this file's own writer never omits, so the only way to reach
+    // it here is a hand-edited or future-written file.
+    final interpolation = AnimationInterpolation.fromGltf(interpolationName);
+    try {
+      return (
+        ProjectTrack(
+          objectId: objectId,
+          track: AnimationTrack(
+            nodeIndex: 0,
+            path: path,
+            interpolation: interpolation,
+            componentCount: componentCount,
+            times: Float32List.fromList(<double>[
+              for (final Object? v in times) (v! as num).toDouble(),
+            ]),
+            values: Float32List.fromList(<double>[
+              for (final Object? v in values) (v! as num).toDouble(),
+            ]),
+          ),
+        ),
+        null,
+      );
+    } on ArgumentError catch (error) {
+      // What `AnimationTrack`'s own constructor throws for a times/values
+      // count that does not match `componentCount` and `interpolation`
+      // together — caught here for the same reason `_readMeshes` catches
+      // `EditMesh.fromBytes`'s: a file is not an argument somebody in this
+      // program got wrong, and a reader that throws is a reader an
+      // application has to wrap in a try, and the sentence is then a stack
+      // trace instead of a sentence about the file.
+      return (
+        null,
+        'Clip $clipIndex, track $trackIndex cannot be read: ${error.message}',
+      );
+    }
+  }
+  return (
+    null,
+    'Clip $clipIndex, track $trackIndex is missing a field: an object id, a '
+        'path, an interpolation, a component count, times and values.',
+  );
+}
+
 (ModelObject?, String?) _readObject(
   Object? entry,
   int index,
@@ -1765,6 +2102,13 @@ VertexLayout? _layoutFrom(Object? json, Map<String, String> pool) {
     );
     if (refusal != null) return (null, refusal);
 
+    final (ShapeSet? shapeSet, String? shapeRefusal) = _readShapeSet(
+      entry['shapeSet'],
+      index,
+      name,
+    );
+    if (shapeRefusal != null) return (null, shapeRefusal);
+
     return (
       ModelObject(
         id: id,
@@ -1776,6 +2120,12 @@ VertexLayout? _layoutFrom(Object? json, Map<String, String> pool) {
         parent: parent,
         version: version,
         materialSlots: <int>[for (final Object? slot in slots) slot! as int],
+        // `anim-03`/`anim-19`, both younger than the rest of this record —
+        // absent (a file saved before either existed) reads as unskinned
+        // and shapeless, the ordinary case `ModelObject`'s own defaults
+        // already are.
+        skeletonIndex: entry['skeletonIndex'] as int?,
+        shapeSet: shapeSet ?? const ShapeSet(),
       ),
       null,
     );
