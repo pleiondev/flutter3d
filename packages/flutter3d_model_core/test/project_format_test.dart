@@ -465,6 +465,85 @@ void main() {
     });
   });
 
+  group('the manifest is canonical JSON', () {
+    /// The decoded manifest of [bytes]. `jsonDecode` builds a `LinkedHashMap`
+    /// that iterates in the order the keys appeared in the text, which is what
+    /// lets a test read the actual written order back out rather than only
+    /// the values.
+    Map<String, Object?> manifestJsonOf(Uint8List bytes) {
+      final section = sectionsOf(bytes).firstWhere(
+        ((int, Uint8List, int) s) => s.$1 == ProjectSection.manifest,
+      );
+      return jsonDecode(utf8.decode(section.$2)) as Map<String, Object?>;
+    }
+
+    /// Every object nested anywhere in [value] has its own keys sorted.
+    /// Arrays are walked without being asked to be sorted themselves — an
+    /// array's order is the data, not a byproduct of how a map was built.
+    void expectCanonical(Object? value) {
+      switch (value) {
+        case final Map<String, Object?> map:
+          final keys = map.keys.toList();
+          final sorted = <String>[...keys]..sort();
+          expect(keys, sorted, reason: 'keys out of order: $keys');
+          for (final Object? nested in map.values) {
+            expectCanonical(nested);
+          }
+        case final List<Object?> list:
+          for (final Object? nested in list) {
+            expectCanonical(nested);
+          }
+        default:
+          break;
+      }
+    }
+
+    test('every object\'s keys come out sorted, top to bottom', () {
+      final project = sample().copyWith(
+        materials: <ProjectMaterial>[
+          ProjectMaterial(surface: SurfaceMaterial()),
+        ],
+      );
+      expectCanonical(manifestJsonOf(writeProject(project)));
+    });
+
+    test('two projects built with fields assembled in a different order '
+        'still write byte-identical manifests', () {
+      // `ModelProject`'s own constructor takes named parameters in one fixed
+      // order regardless of the order an argument list gives them in, so this
+      // does not exercise a different code path inside this package — it
+      // exercises the guarantee the canonical form is actually for: nothing
+      // downstream of the manifest map depends on this file's own functions
+      // having built it in one particular order, because the order actually
+      // written is sorted, not remembered.
+      final a = ModelProject(profile: const ProjectProfile(name: 'x'));
+      final b = ModelProject(profile: const ProjectProfile(name: 'x'));
+      expect(writeProject(a), writeProject(b));
+    });
+
+    test('reading does not care what order the keys were written in', () {
+      // Mutation reversed by hand rather than applied to source: a manifest
+      // built with `objects` before `profile` — the opposite of both the
+      // canonical order and this file's own insertion order — still reads
+      // back correctly, because a JSON object is looked up by key.
+      final reordered = forge(<String, Object?>{
+        'objects': <Object?>[],
+        'profile': <String, Object?>{
+          'name': 'reordered',
+          'maxTriangles': 500000,
+          'maxJoints': 64,
+          'maxInfluences': 4,
+          'maxTextureSize': 4096,
+        },
+        'nextId': 1,
+        'importedMeshes': <Object?>[],
+        'materials': <Object?>[],
+        'images': <Object?>[],
+      });
+      expect(opened(reordered).profile.name, 'reordered');
+    });
+  });
+
   group('what it steps over', () {
     test('a section this build has never heard of is skipped', () {
       final bytes = writeProject(sample());

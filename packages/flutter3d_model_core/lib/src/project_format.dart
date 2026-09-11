@@ -296,50 +296,52 @@ Uint8List writeProject(ModelProject project) {
   }
 
   final manifest = utf8.encode(
-    jsonEncode(<String, Object?>{
-      'profile': <String, Object?>{
-        'name': project.profile.name,
-        'maxTriangles': project.profile.maxTriangles,
-        'maxJoints': project.profile.maxJoints,
-        'maxInfluences': project.profile.maxInfluences,
-        'maxTextureSize': project.profile.maxTextureSize,
-        // Written from `doc-13` on, and read back as a default rather than
-        // required when absent — see `_readProfileExtras` — so a v1 file
-        // written before these existed still opens.
-        'target': project.profile.target.name,
-        'maxTextureBytes': project.profile.maxTextureBytes,
-        'requireTriangles': project.profile.requireTriangles,
-        'requireManifold': project.profile.requireManifold,
-      },
-      // Written down rather than worked out from the objects on the way back
-      // in: an id belonging to something deleted must not be handed out again,
-      // and `objects.length + 1` after a delete is exactly that mistake — a
-      // step of history that named the old object would start naming the new
-      // one the moment it was undone.
-      'nextId': project.nextId,
-      // Parallel to the imported-mesh table, one entry each: the table holds
-      // where the bytes are and this holds how to read them. The layout is
-      // structure rather than bulk, and structure lives in the manifest — a
-      // layout encoded into a fixed-width table row would need a length and a
-      // name table of its own to hold "position", "texcoord" and the rest.
-      'importedMeshes': importedJson,
-      // Materials are structure rather than bulk — a handful of numbers and
-      // five texture slots each — so they live in the manifest with everything
-      // else that is not a buffer. Only the images they sample go in the blob.
-      'materials': <Object?>[
-        for (final ProjectMaterial each in project.materials)
-          _materialJson(each),
-      ],
-      // Parallel to the image table: the table says where the bytes are and
-      // this says what they are called and what they were encoded as. Both are
-      // written even when there are none, so the manifest's shape does not
-      // depend on what the project happens to hold.
-      'images': <Object?>[
-        for (final EncodedImage each in project.images)
-          <String, Object?>{'name': each.name, 'mimeType': each.mimeType},
-      ],
-      'objects': objects,
-    }),
+    jsonEncode(
+      _canonical(<String, Object?>{
+        'profile': <String, Object?>{
+          'name': project.profile.name,
+          'maxTriangles': project.profile.maxTriangles,
+          'maxJoints': project.profile.maxJoints,
+          'maxInfluences': project.profile.maxInfluences,
+          'maxTextureSize': project.profile.maxTextureSize,
+          // Written from `doc-13` on, and read back as a default rather than
+          // required when absent — see `_readProfileExtras` — so a v1 file
+          // written before these existed still opens.
+          'target': project.profile.target.name,
+          'maxTextureBytes': project.profile.maxTextureBytes,
+          'requireTriangles': project.profile.requireTriangles,
+          'requireManifold': project.profile.requireManifold,
+        },
+        // Written down rather than worked out from the objects on the way back
+        // in: an id belonging to something deleted must not be handed out again,
+        // and `objects.length + 1` after a delete is exactly that mistake — a
+        // step of history that named the old object would start naming the new
+        // one the moment it was undone.
+        'nextId': project.nextId,
+        // Parallel to the imported-mesh table, one entry each: the table holds
+        // where the bytes are and this holds how to read them. The layout is
+        // structure rather than bulk, and structure lives in the manifest — a
+        // layout encoded into a fixed-width table row would need a length and a
+        // name table of its own to hold "position", "texcoord" and the rest.
+        'importedMeshes': importedJson,
+        // Materials are structure rather than bulk — a handful of numbers and
+        // five texture slots each — so they live in the manifest with everything
+        // else that is not a buffer. Only the images they sample go in the blob.
+        'materials': <Object?>[
+          for (final ProjectMaterial each in project.materials)
+            _materialJson(each),
+        ],
+        // Parallel to the image table: the table says where the bytes are and
+        // this says what they are called and what they were encoded as. Both are
+        // written even when there are none, so the manifest's shape does not
+        // depend on what the project happens to hold.
+        'images': <Object?>[
+          for (final EncodedImage each in project.images)
+            <String, Object?>{'name': each.name, 'mimeType': each.mimeType},
+        ],
+        'objects': objects,
+      }),
+    ),
   );
 
   // One blob for both tables. Everything that goes in it is placed here, in
@@ -1177,6 +1179,34 @@ String? _verifyChecksums(
 }
 
 int _align(int value) => (value + 3) & ~3;
+
+/// [value] with every JSON object's keys sorted, recursively.
+///
+/// **The manifest is built by code, and code builds a map in whatever order
+/// its own lines happen to run.** `writeProject`'s own doc comment already
+/// promised "the same project writes the same bytes" — true as long as the
+/// building code never changes — but a canonical form makes that true for a
+/// reason that has nothing to do with which order this file's own functions
+/// run in: two builds that construct the identical manifest map through
+/// different code paths (a refactor that reorders which field is added
+/// first, say) still write the same bytes, because the order actually
+/// written is sorted rather than remembered. `readProject` needs no
+/// matching change — a JSON object is looked up by key, and nothing here
+/// reads position out of one.
+///
+/// Arrays are walked but never reordered: `objects`, `materialSlots`, a
+/// transform's sixteen numbers — position there is the object's own data,
+/// not an accident of how the encoder visited a map.
+Object? _canonical(Object? value) => switch (value) {
+  final Map<String, Object?> map => <String, Object?>{
+    for (final String key in map.keys.toList()..sort())
+      key: _canonical(map[key]),
+  },
+  final List<Object?> list => <Object?>[
+    for (final item in list) _canonical(item),
+  ],
+  _ => value,
+};
 
 /// [data]'s bytes as they sit in memory.
 ///
