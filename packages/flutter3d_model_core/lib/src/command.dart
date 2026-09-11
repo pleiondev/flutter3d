@@ -49,6 +49,7 @@ import 'world_transform.dart';
 
 part 'job_commands.dart';
 part 'joint_commands.dart';
+part 'keyframe_commands.dart';
 part 'material_commands.dart';
 part 'mesh_commands.dart';
 part 'modifier_commands.dart';
@@ -499,6 +500,11 @@ const List<String> modelCommandNames = <String>[
   'reparentJoint',
   'setRestPose',
   'mirrorJoints',
+  'setKey',
+  'moveKeys',
+  'deleteKeys',
+  'setInterpolation',
+  'setTangent',
 ];
 
 /// Reads a command back out of a journal, or null.
@@ -895,6 +901,93 @@ ModelCommand? modelCommandFromJson(Object? json) {
             (key, value) => MapEntry(int.parse(key), value! as int),
           ),
         ),
+      _ => null,
+    },
+    'setKey' => switch ((
+      json['clipIndex'],
+      json['trackIndex'],
+      json['time'],
+      json['values'],
+    )) {
+      (
+        final int clipIndex,
+        final int trackIndex,
+        final num time,
+        final List<Object?> valuesJson,
+      ) =>
+        switch (_doubleListFrom(valuesJson)) {
+          final List<double> values => SetKey(
+            clipIndex: clipIndex,
+            trackIndex: trackIndex,
+            time: time.toDouble(),
+            values: values,
+            inTangent: _doubleListFrom(json['inTangent']),
+            outTangent: _doubleListFrom(json['outTangent']),
+          ),
+          null => null,
+        },
+      _ => null,
+    },
+    'moveKeys' => switch ((
+      json['clipIndex'],
+      json['trackIndex'],
+      json['indices'],
+      json['deltaTime'],
+    )) {
+      (
+        final int clipIndex,
+        final int trackIndex,
+        final List<Object?> indicesJson,
+        final num deltaTime,
+      )
+          when indicesJson.every((Object? each) => each is int) =>
+        MoveKeys(
+          clipIndex: clipIndex,
+          trackIndex: trackIndex,
+          indices: <int>[for (final Object? each in indicesJson) each! as int],
+          deltaTime: deltaTime.toDouble(),
+        ),
+      _ => null,
+    },
+    'deleteKeys' => switch ((json['clipIndex'], json['trackIndex'], json['indices'])) {
+      (
+        final int clipIndex,
+        final int trackIndex,
+        final List<Object?> indicesJson,
+      )
+          when indicesJson.every((Object? each) => each is int) =>
+        DeleteKeys(
+          clipIndex: clipIndex,
+          trackIndex: trackIndex,
+          indices: <int>[for (final Object? each in indicesJson) each! as int],
+        ),
+      _ => null,
+    },
+    'setInterpolation' => switch ((
+      json['clipIndex'],
+      json['trackIndex'],
+      _interpolationFrom(json['interpolation']),
+    )) {
+      (
+        final int clipIndex,
+        final int trackIndex,
+        final AnimationInterpolation interpolation,
+      ) =>
+        SetInterpolation(
+          clipIndex: clipIndex,
+          trackIndex: trackIndex,
+          interpolation: interpolation,
+        ),
+      _ => null,
+    },
+    'setTangent' => switch ((json['clipIndex'], json['trackIndex'], json['index'])) {
+      (final int clipIndex, final int trackIndex, final int index) => SetTangent(
+        clipIndex: clipIndex,
+        trackIndex: trackIndex,
+        index: index,
+        inTangent: _doubleListFrom(json['inTangent']),
+        outTangent: _doubleListFrom(json['outTangent']),
+      ),
       _ => null,
     },
     _ => null,

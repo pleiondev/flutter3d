@@ -2122,6 +2122,28 @@ void main() {
           worldTransform: Matrix4.identity(),
         ),
         const MirrorJoints(skeletonIndex: 0, axis: 0, jointMirror: <int, int>{1: 2, 2: 1}),
+        const SetKey(
+          clipIndex: 0,
+          trackIndex: 0,
+          time: 0.5,
+          values: <double>[1, 2, 3],
+          inTangent: <double>[0, 0, 0],
+          outTangent: <double>[0, 0, 0],
+        ),
+        const MoveKeys(clipIndex: 0, trackIndex: 0, indices: <int>[0, 1], deltaTime: 0.25),
+        const DeleteKeys(clipIndex: 0, trackIndex: 0, indices: <int>[1]),
+        const SetInterpolation(
+          clipIndex: 0,
+          trackIndex: 0,
+          interpolation: AnimationInterpolation.cubicSpline,
+        ),
+        const SetTangent(
+          clipIndex: 0,
+          trackIndex: 0,
+          index: 0,
+          inTangent: <double>[0, 0, 0],
+          outTangent: <double>[1, 1, 1],
+        ),
       ];
 
       // Every name has a sample, which is what stops a command being added to
@@ -2790,6 +2812,185 @@ void main() {
         expect(out[1], closeTo(0.3, 1e-6));
       },
     );
+  });
+
+  group('keyframe commands', () {
+    // A cube (from `edited()`) with one clip, one translation track: two
+    // keys, t=0 at the origin and t=1 at (1,2,3), linear.
+    ModelHistory withTrack() {
+      final history = edited();
+      final project = history.project.copyWith(
+        clips: <ProjectClip>[
+          ProjectClip(
+            name: 'idle',
+            tracks: <ProjectTrack>[
+              ProjectTrack(
+                objectId: 1,
+                track: AnimationTrack(
+                  nodeIndex: 0,
+                  path: AnimationPath.translation,
+                  interpolation: AnimationInterpolation.linear,
+                  componentCount: 3,
+                  times: Float32List.fromList(<double>[0, 1]),
+                  values: Float32List.fromList(<double>[0, 0, 0, 1, 2, 3]),
+                ),
+              ),
+            ],
+          ),
+        ],
+      );
+      return ModelHistory(project)..selection = history.selection;
+    }
+
+    test('SetKey writes a new keyframe, sampled back', () {
+      final history = withTrack();
+      expect(
+        history.run(
+          const SetKey(clipIndex: 0, trackIndex: 0, time: 0.5, values: <double>[9, 9, 9]),
+        ),
+        isNull,
+      );
+      final track = history.project.clips.single.tracks.single.track;
+      expect(track.keyCount, 3);
+      final out = Float32List(3);
+      track.sample(0.5, out);
+      expect(out, <double>[9, 9, 9]);
+    });
+
+    test('SetKey refuses a component count that does not match the track', () {
+      final history = withTrack();
+      expect(
+        history.run(
+          const SetKey(clipIndex: 0, trackIndex: 0, time: 0.5, values: <double>[1, 2]),
+        ),
+        isNotNull,
+      );
+    });
+
+    test('MoveKeys shifts the named keys, re-sorting afterward', () {
+      final history = withTrack();
+      expect(
+        history.run(
+          const MoveKeys(clipIndex: 0, trackIndex: 0, indices: <int>[0], deltaTime: 2.0),
+        ),
+        isNull,
+      );
+      final track = history.project.clips.single.tracks.single.track;
+      // key 0 moved from t=0 past key 1 (t=1) to t=2 — resorted, so times
+      // ascend rather than reading back in their old order.
+      expect(track.times, <double>[1.0, 2.0]);
+    });
+
+    test('MoveKeys refuses an index the track does not have', () {
+      final history = withTrack();
+      expect(
+        history.run(
+          const MoveKeys(clipIndex: 0, trackIndex: 0, indices: <int>[5], deltaTime: 1.0),
+        ),
+        isNotNull,
+      );
+    });
+
+    test('DeleteKeys drops the named key, keeping the rest', () {
+      final history = withTrack();
+      expect(
+        history.run(const DeleteKeys(clipIndex: 0, trackIndex: 0, indices: <int>[0])),
+        isNull,
+      );
+      final track = history.project.clips.single.tracks.single.track;
+      expect(track.keyCount, 1);
+      expect(track.times, <double>[1.0]);
+    });
+
+    test('DeleteKeys refuses to empty a track down to nothing', () {
+      final history = withTrack();
+      expect(
+        history.run(const DeleteKeys(clipIndex: 0, trackIndex: 0, indices: <int>[0, 1])),
+        isNotNull,
+      );
+      // Refused, not applied — the track still has both its own keys.
+      expect(history.project.clips.single.tracks.single.track.keyCount, 2);
+    });
+
+    test('SetInterpolation switches how the track blends, keys unchanged', () {
+      final history = withTrack();
+      expect(
+        history.run(
+          const SetInterpolation(
+            clipIndex: 0,
+            trackIndex: 0,
+            interpolation: AnimationInterpolation.step,
+          ),
+        ),
+        isNull,
+      );
+      final track = history.project.clips.single.tracks.single.track;
+      expect(track.interpolation, AnimationInterpolation.step);
+      expect(track.keyCount, 2);
+    });
+
+    test(
+      "SetTangent sets one key's own tangents, its time and value untouched",
+      () {
+        final history = withTrack();
+        history.run(
+          const SetInterpolation(
+            clipIndex: 0,
+            trackIndex: 0,
+            interpolation: AnimationInterpolation.cubicSpline,
+          ),
+        );
+        expect(
+          history.run(
+            const SetTangent(
+              clipIndex: 0,
+              trackIndex: 0,
+              index: 0,
+              outTangent: <double>[1, 0, 0],
+            ),
+          ),
+          isNull,
+        );
+        final table = KeyTable.fromAnimationTrack(
+          history.project.clips.single.tracks.single.track,
+        );
+        expect(table.keys[0].outTangent, <double>[1, 0, 0]);
+        expect(table.keys[0].time, 0.0);
+        expect(table.keys[0].values, <double>[0, 0, 0]);
+      },
+    );
+
+    test('SetTangent refuses an index the track does not have', () {
+      final history = withTrack();
+      expect(
+        history.run(
+          const SetTangent(
+            clipIndex: 0,
+            trackIndex: 0,
+            index: 9,
+            outTangent: <double>[1, 0, 0],
+          ),
+        ),
+        isNotNull,
+      );
+    });
+
+    test('a clip or a track index the project does not have is refused', () {
+      final history = withTrack();
+      const interpolation = AnimationInterpolation.step;
+      expect(
+        history.run(
+          const SetInterpolation(clipIndex: 9, trackIndex: 0, interpolation: interpolation),
+        ),
+        isNotNull,
+      );
+      expect(
+        history.run(
+          const SetInterpolation(clipIndex: 0, trackIndex: 9, interpolation: interpolation),
+        ),
+        isNotNull,
+      );
+    });
   });
 
   group('joint commands', () {
