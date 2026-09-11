@@ -47,6 +47,7 @@ export 'src/parametric_json.dart';
 export 'src/png_decoder.dart';
 export 'src/png_encoder.dart';
 export 'src/project.dart';
+export 'src/project_animation.dart';
 export 'src/project_document.dart';
 export 'src/project_format.dart';
 export 'src/readiness.dart';

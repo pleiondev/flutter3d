@@ -26,6 +26,7 @@ import 'package:vector_math/vector_math.dart';
 import 'material.dart';
 import 'modifier_slot.dart';
 import 'param_hint.dart';
+import 'project_animation.dart';
 import 'selection.dart';
 import 'texture_budget.dart';
 
@@ -299,6 +300,7 @@ final class ModelObject {
     this.version = 1,
     this.materialSlots = const <int>[],
     this.modifiers = const <ModifierSlot>[],
+    this.skeletonIndex,
   });
 
   /// Stable for the life of the object, and not reused after a delete.
@@ -326,6 +328,12 @@ final class ModelObject {
   /// commands are what will.
   final List<ModifierSlot> modifiers;
 
+  /// Which of [ModelProject.skeletons] this object's own mesh is skinned
+  /// to, when it is skinned at all — `anim-03`'s own row, the project-side
+  /// [ModelSurface.skinIndex]. Null for almost every object, the ordinary
+  /// case of a mesh that is not a character.
+  final int? skeletonIndex;
+
   /// A copy with some fields replaced and [version] moved on.
   ///
   /// **The version moves here rather than at the call sites**, so that an edit
@@ -339,6 +347,8 @@ final class ModelObject {
     bool clearParent = false,
     List<int>? materialSlots,
     List<ModifierSlot>? modifiers,
+    int? skeletonIndex,
+    bool clearSkeletonIndex = false,
   }) => ModelObject(
     id: id,
     name: name ?? this.name,
@@ -348,6 +358,9 @@ final class ModelObject {
     version: version + 1,
     materialSlots: materialSlots ?? this.materialSlots,
     modifiers: modifiers ?? this.modifiers,
+    skeletonIndex: clearSkeletonIndex
+        ? null
+        : (skeletonIndex ?? this.skeletonIndex),
   );
 
   @override
@@ -362,6 +375,8 @@ final class ModelProject implements ModelProjectView {
     this.materials = const <ProjectMaterial>[],
     this.images = const <EncodedImage>[],
     this.nextId = 1,
+    this.skeletons = const <ProjectSkeleton>[],
+    this.clips = const <ProjectClip>[],
   });
 
   final ProjectProfile profile;
@@ -375,6 +390,13 @@ final class ModelProject implements ModelProjectView {
   /// [TextureBinding]s. See `material.dart` for why they are a table of their
   /// own rather than fields inside a material.
   final List<EncodedImage> images;
+
+  /// What the objects are skinned to. [ModelObject.skeletonIndex] indexes
+  /// this — `anim-03`'s own row.
+  final List<ProjectSkeleton> skeletons;
+
+  /// Animation clips, each track naming an object by id.
+  final List<ProjectClip> clips;
 
   /// In the order they were added, which is the order the outliner shows and
   /// the order an export writes. A map by id would make a lookup cheaper and
@@ -429,6 +451,8 @@ final class ModelProject implements ModelProjectView {
       materials: materials,
       images: images,
       nextId: nextId,
+      skeletons: skeletons,
+      clips: clips,
     );
   }
 
@@ -443,6 +467,8 @@ final class ModelProject implements ModelProjectView {
     materials: materials,
     images: images,
     nextId: nextId + 1,
+    skeletons: skeletons,
+    clips: clips,
   );
 
   /// This project without the object [id], and without anything under it.
@@ -473,9 +499,14 @@ final class ModelProject implements ModelProjectView {
       // The tables stay whole. A material is shared, so deleting the last
       // object that used one is not a reason to throw the material away —
       // undo would have to put it back, and a person who deletes a bolt has
-      // not asked to lose the steel.
+      // not asked to lose the steel. A skeleton or a clip stays for the same
+      // reason; a joint left dangling by this is `anim-29`'s own row
+      // (`RemoveJoint`), not something this method reaches into a skeleton
+      // to repair.
       materials: materials,
       images: images,
+      skeletons: skeletons,
+      clips: clips,
       // Unchanged on purpose: an id belonging to something deleted must not
       // come back, or a step of history that names it starts naming something
       // else the moment it is undone and redone.
@@ -487,12 +518,16 @@ final class ModelProject implements ModelProjectView {
     ProjectProfile? profile,
     List<ProjectMaterial>? materials,
     List<EncodedImage>? images,
+    List<ProjectSkeleton>? skeletons,
+    List<ProjectClip>? clips,
   }) => ModelProject(
     profile: profile ?? this.profile,
     objects: objects,
     materials: materials ?? this.materials,
     images: images ?? this.images,
     nextId: nextId,
+    skeletons: skeletons ?? this.skeletons,
+    clips: clips ?? this.clips,
   );
 
   @override

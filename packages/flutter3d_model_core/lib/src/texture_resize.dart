@@ -179,6 +179,8 @@ ModelProject FitTexturesToProfile(ModelProject project, {TextureBudget? budget})
     materials: project.materials,
     images: resized,
     nextId: project.nextId,
+    skeletons: project.skeletons,
+    clips: project.clips,
   );
 }
 

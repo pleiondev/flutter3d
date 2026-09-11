@@ -23,6 +23,7 @@ import 'package:vector_math/vector_math.dart';
 
 import 'material.dart';
 import 'project.dart';
+import 'project_animation.dart';
 
 /// [project] as the document `F3dWriter` — and the glTF and OBJ writers when
 /// they arrive — already accepts.
@@ -119,6 +120,12 @@ final class ProjectModelDocument extends ModelDocument {
 
   @override
   List<EncodedImage> images = const <EncodedImage>[];
+
+  @override
+  List<ModelSkin> skins = const <ModelSkin>[];
+
+  @override
+  List<AnimationClip> animations = const <AnimationClip>[];
 
   /// The mesh for [object], built once per `(id, version)` and reused after.
   MeshData _meshFor(ModelObject object) => _meshCache.putIfAbsent((
@@ -223,11 +230,18 @@ final class ProjectModelDocument extends ModelDocument {
 
       final surfaceIndex = mesh.vertexCount == 0 ? null : surfaces.length;
       if (surfaceIndex != null) {
+        // A skinned surface's vertices are already in the skin's own space,
+        // so the placement must not be baked in a second time — the joints
+        // place it. This is the identical rule `gltf_loader_scene.dart`'s
+        // own scene walk follows for the same reason, stated there in full.
+        final skinIndex = _skeletonIndexOf(object, project.skeletons.length);
         surfaces.add(
           ModelSurface(
             name: object.name,
             mesh: mesh,
-            transform: placement.clone(),
+            transform: skinIndex == null
+                ? placement.clone()
+                : Matrix4.identity(),
             // The slot names a row of the project's table, and the table is
             // written across whole — so two objects painted the same steel come
             // out pointing at one material rather than at two copies of it. A
@@ -235,11 +249,13 @@ final class ProjectModelDocument extends ModelDocument {
             // written: an index no material answers to is a dangling reference
             // in the file, and a reader given one either guesses or refuses.
             materialIndex: _slotOf(object, project.materials.length),
+            skinIndex: skinIndex,
             // A mirrored object — a scale of −1 on one axis, which is how a
             // modeller makes the other glove — reverses on-screen winding, and
             // backface culling then discards exactly the faces meant to be seen.
-            // The renderer flips for it when the surface says so.
-            flipWinding: placement.determinant() < 0.0,
+            // The renderer flips for it when the surface says so — except for
+            // a skinned one, where the joints (not this placement) decide it.
+            flipWinding: skinIndex == null && placement.determinant() < 0.0,
           ),
         );
       }
@@ -285,6 +301,42 @@ final class ProjectModelDocument extends ModelDocument {
       for (final ProjectMaterial each in project.materials) each.surface,
     ];
     images = project.images;
+    // `indexOfId` already maps an object id to its own output node index —
+    // built above for the parent walk, and exactly the map a skin's joints
+    // and a track's own target need too.
+    skins = <ModelSkin>[
+      for (final ProjectSkeleton skeleton in project.skeletons)
+        ModelSkin(
+          name: skeleton.name,
+          joints: <int>[
+            for (final int objectId in skeleton.joints)
+              indexOfId[objectId] ?? -1,
+          ],
+          inverseBindMatrices: skeleton.inverseBindMatrices,
+          skeletonRoot: skeleton.skeletonRoot == null
+              ? null
+              : indexOfId[skeleton.skeletonRoot!],
+        ),
+    ];
+    animations = <AnimationClip>[
+      for (final ProjectClip clip in project.clips)
+        AnimationClip(
+          name: clip.name,
+          extras: clip.extras,
+          tracks: <AnimationTrack>[
+            for (final ProjectTrack track in clip.tracks)
+              if (indexOfId[track.objectId] case final int nodeIndex)
+                AnimationTrack(
+                  nodeIndex: nodeIndex,
+                  path: track.track.path,
+                  interpolation: track.track.interpolation,
+                  times: track.track.times,
+                  values: track.track.values,
+                  componentCount: track.track.componentCount,
+                ),
+          ],
+        ),
+    ];
     return this;
   }
 
@@ -304,6 +356,15 @@ int? _slotOf(ModelObject object, int materialCount) {
   if (object.materialSlots.isEmpty) return null;
   final slot = object.materialSlots.first;
   return slot >= 0 && slot < materialCount ? slot : null;
+}
+
+/// [object]'s own skeleton index, dropped rather than written when it
+/// points past [skeletonCount] — the same "an index nothing answers to is
+/// a dangling reference" rule [_slotOf] states for a material slot.
+int? _skeletonIndexOf(ModelObject object, int skeletonCount) {
+  final index = object.skeletonIndex;
+  if (index == null || index < 0 || index >= skeletonCount) return null;
+  return index;
 }
 
 /// [document] as a project of imported objects, which is what opening a glTF
@@ -394,6 +455,12 @@ ModelProject fromModelDocument(
     images: document.images,
   );
 
+  // A skin's own joints and a track's own target both name a document node
+  // by index; a project names an object by id. This is the map between the
+  // two, filled in as each node becomes an object below — `anim-03`'s own
+  // row reads it once the walk is done, in `_skeletonsOf`/`_clipsOf`.
+  final objectIdOfNode = <int, int>{};
+
   void drain() {
     while (pending.isNotEmpty) {
       final (int index, int? parentId) = pending.removeLast();
@@ -410,6 +477,7 @@ ModelProject fromModelDocument(
       // `nextId` rather than the id `added` hands the closure, because the
       // children below need it before the closure has run.
       final id = project.nextId;
+      objectIdOfNode[index] = id;
       project = project.added(
         (int newId) => ModelObject(
           id: newId,
@@ -428,6 +496,12 @@ ModelProject fromModelDocument(
           materialSlots: drawn.isEmpty
               ? const <int>[]
               : _slotsOf(document.surfaces[drawn.first]),
+          // The skeleton index space is not remapped — `_skeletonsOf` builds
+          // `project.skeletons` in the exact order of `document.skins`, so
+          // the surface's own index into that list is already the right one.
+          skeletonIndex: drawn.isEmpty
+              ? null
+              : document.surfaces[drawn.first].skinIndex,
         ),
       );
 
@@ -441,6 +515,7 @@ ModelProject fromModelDocument(
             transform: Matrix4.identity(),
             parent: id,
             materialSlots: _slotsOf(surface),
+            skeletonIndex: surface.skinIndex,
           ),
         );
       }
@@ -465,6 +540,11 @@ ModelProject fromModelDocument(
     pending.add((i, null));
     drain();
   }
+
+  project = project.copyWith(
+    skeletons: _skeletonsOf(document.skins, objectIdOfNode),
+    clips: _clipsOf(document.animations, objectIdOfNode),
+  );
 
   if (options.scale != 1.0 || options.upAxis == UpAxis.z) {
     // Scale in the file's own axes first, then reorient — unit conversion
@@ -572,6 +652,57 @@ ImportReport importReportOf(
     ),
   );
 }
+
+/// [skins] retargeted from node indices onto the object ids
+/// [objectIdOfNode] assigned them — `anim-03`'s own row.
+///
+/// **Never drops a skeleton.** A surface's own `skinIndex` addresses this
+/// list positionally, the same reason `_decodeMaterials` never drops a
+/// material in the glTF loader: dropping one here would shift every skin
+/// after it onto the wrong surface. A joint this walk never reached — which
+/// should not happen for a well-formed file, since every node the document
+/// names becomes an object — reads as object id `-1` rather than throwing;
+/// nothing in this project can hold that id, so a lookup against it fails
+/// loudly wherever it is actually read rather than here, off in an importer
+/// that has no context to explain the failure with.
+List<ProjectSkeleton> _skeletonsOf(
+  List<ModelSkin> skins,
+  Map<int, int> objectIdOfNode,
+) => <ProjectSkeleton>[
+  for (final ModelSkin skin in skins)
+    ProjectSkeleton(
+      name: skin.name,
+      joints: <int>[
+        for (final int node in skin.joints) objectIdOfNode[node] ?? -1,
+      ],
+      inverseBindMatrices: skin.inverseBindMatrices,
+      skeletonRoot: skin.skeletonRoot == null
+          ? null
+          : objectIdOfNode[skin.skeletonRoot!],
+    ),
+];
+
+/// [animations] retargeted the same way [_skeletonsOf] retargets a skin: a
+/// track naming a node index the walk never reached (out of range, or a
+/// document malformed enough that `objectIdOfNode` has no entry for it) is
+/// dropped rather than kept under a fabricated id — a track is one entry in
+/// a clip, not a positional slot anything else addresses, so dropping one
+/// costs nothing downstream the way dropping a skeleton would.
+List<ProjectClip> _clipsOf(
+  List<AnimationClip> animations,
+  Map<int, int> objectIdOfNode,
+) => <ProjectClip>[
+  for (final AnimationClip clip in animations)
+    ProjectClip(
+      name: clip.name,
+      extras: clip.extras,
+      tracks: <ProjectTrack>[
+        for (final AnimationTrack track in clip.tracks)
+          if (objectIdOfNode[track.nodeIndex] case final int objectId)
+            ProjectTrack(objectId: objectId, track: track),
+      ],
+    ),
+];
 
 /// The slot list an imported surface arrives with.
 ///

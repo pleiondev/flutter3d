@@ -96,6 +96,8 @@ final class RemoveMaterial extends ModelCommand {
         materials: materials,
         images: project.images,
         nextId: project.nextId,
+        skeletons: project.skeletons,
+        clips: project.clips,
       ),
     );
   }
