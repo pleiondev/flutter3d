@@ -682,6 +682,13 @@ boundaryEnumExempt = <String, Map<String, String>>{
         'the four channels a colour has — r, g, b, a — which is not a '
         "number this format is ever going to grow a fifth of",
   },
+  'flutter3d_model_core/lib/src/texture_resize.dart': <String, String>{
+    'ResizeFilter':
+        'the two ways `resizeRgba` samples a source image — an average '
+        'over an area, or an interpolation between four points. A third '
+        'resampling algorithm is a real feature, worth its own review, not '
+        'a value slipped into the switch these two already are',
+  },
   'flutter3d_formats/lib/src/stl/stl_loader.dart': <String, String>{
     'StlNormals':
         'whether a facet\'s own normal record is trusted or recomputed from '

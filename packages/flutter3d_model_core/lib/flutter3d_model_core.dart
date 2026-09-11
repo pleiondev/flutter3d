@@ -56,3 +56,4 @@ export 'src/texture_bake.dart';
 export 'src/texture_budget.dart';
 export 'src/texture_graph.dart';
 export 'src/texture_info.dart';
+export 'src/texture_resize.dart';
