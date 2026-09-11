@@ -46,6 +46,13 @@ final class F3dWriter {
   final BytesBuilder _attributes = BytesBuilder();
   int _attributeCount = 0;
 
+  /// What [write] could not carry — `fmt-12`'s own row. `.f3d` is this
+  /// engine's own container, built to hold everything a `ModelDocument`
+  /// can, so this is empty for every document today — present for the
+  /// same uniform shape `ExportReport` reads off every writer, not
+  /// because this format is known to drop anything yet.
+  List<String> get warnings => const <String>[];
+
   /// Encodes the document. The result is a complete file.
   Uint8List write() {
     // Order matters only in that the blob and the string table must be built

@@ -35,6 +35,42 @@ final class StlWriter {
       ? surface.mesh
       : surface.mesh.transformed(surface.transform);
 
+  /// What [write]/[writeAscii] could not carry — `fmt-12`'s own row. STL
+  /// has no material, no colour, no skin, no animation and no boundary
+  /// between one surface and the next; this says which of those the
+  /// document actually had, rather than a fixed list a caller has to
+  /// already know to distrust.
+  late final List<String> warnings = _buildWarnings();
+
+  List<String> _buildWarnings() {
+    final found = <String>[];
+    if (document.surfaces.length > 1) {
+      found.add(
+        '${document.surfaces.length} surfaces were merged into one solid; '
+        'STL has no boundary between them',
+      );
+    }
+    if (document.materials.isNotEmpty) {
+      found.add(
+        '${document.materials.length} material(s) were not written; STL '
+        'has no material record',
+      );
+    }
+    if (document.skins.isNotEmpty) {
+      found.add(
+        '${document.skins.length} skin(s) were not written; STL has no '
+        'skinning',
+      );
+    }
+    if (document.animations.isNotEmpty) {
+      found.add(
+        '${document.animations.length} animation(s) were not written; '
+        'STL has no animation',
+      );
+    }
+    return found;
+  }
+
   /// Every triangle of every surface, corners already in winding order —
   /// mirrored where [ModelSurface.transform] flips handedness, the same
   /// `determinant() < 0.0` check [ObjWriter] reads off the baked matrix

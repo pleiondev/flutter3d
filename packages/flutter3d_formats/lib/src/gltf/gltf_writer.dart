@@ -59,6 +59,16 @@ final class GltfWriter {
   /// what the file needs rather than every extension this writer knows about.
   final Set<String> _extensionsUsed = <String>{};
 
+  /// What [writeGlb] could not carry — `fmt-12`'s own row, and empty for
+  /// every document this engine has ever handed it: glTF is the format
+  /// everything else in this package is measured against for
+  /// completeness (materials, skins, animations, morph targets, vertex
+  /// colour all have somewhere to go), so there is nothing this writer
+  /// knows to warn about yet. The getter exists for the same reason every
+  /// writer's does — one shape `ExportReport` can read uniformly — not
+  /// because this one currently has anything to say through it.
+  List<String> get warnings => const <String>[];
+
   /// Encodes the document. The result is a complete `.glb` file.
   Uint8List writeGlb() {
     final (materials, samplers, textures) = _writeMaterials();

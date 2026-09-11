@@ -65,6 +65,53 @@ final class ObjWriter {
   /// The filename the `mtllib` record points at.
   String get materialLibraryName => '$name.mtl';
 
+  /// What [write] could not carry, since OBJ has no record for it —
+  /// `fmt-12`'s own row, and its own literal example: a skinned document
+  /// writes a warning about the skin it could not keep, not a file that
+  /// looks like a faithful copy and is not.
+  ///
+  /// Computed once, lazily, over the same baked meshes [write] itself
+  /// reads, so this costs nothing [write] was not already paying for the
+  /// moment something actually asks.
+  late final List<String> warnings = _buildWarnings();
+
+  List<String> _buildWarnings() {
+    final found = <String>[];
+    if (document.skins.isNotEmpty) {
+      found.add(
+        '${document.skins.length} skin(s) were not written; OBJ has no '
+        'skinning',
+      );
+    }
+    if (document.animations.isNotEmpty) {
+      found.add(
+        '${document.animations.length} animation(s) were not written; OBJ '
+        'has no animation',
+      );
+    }
+    var withColor = 0;
+    var withMorphs = 0;
+    for (final surface in document.surfaces) {
+      final mesh = _bake(surface);
+      if (mesh.triangleCount == 0) continue;
+      if (_usedOffset(mesh, VertexLayout.color) >= 0) withColor++;
+      if (mesh.morphTargets.isNotEmpty) withMorphs++;
+    }
+    if (withColor > 0) {
+      found.add(
+        '$withColor surface(s) carry vertex colours that were not '
+        'written; OBJ has no colour record',
+      );
+    }
+    if (withMorphs > 0) {
+      found.add(
+        '$withMorphs surface(s) carry morph targets that were not '
+        'written; OBJ has no shape keys',
+      );
+    }
+    return found;
+  }
+
   /// Encodes the `.obj`. The result is a complete file.
   Uint8List write() {
     final out = StringBuffer()
