@@ -60,6 +60,20 @@ final class Selection {
     );
   }
 
+  /// Every live element of [level] — `view-24n`'s own 'A', which selects
+  /// everything at the level a person is working in.
+  ///
+  /// Built on the same [_forEachElement] walk [convertedTo], [grown] and
+  /// [shrunk] already use, rather than a second enumeration kept beside it:
+  /// an edge here is still [EditMesh.edgeOf]'s own chosen half, and a dead
+  /// vertex, edge or face is still left out, for the reasons those methods
+  /// already give.
+  factory Selection.all(EditMesh mesh, ElementLevel level) {
+    final found = <int>[];
+    _forEachElement(mesh, level, found.add);
+    return Selection.of(level, found);
+  }
+
   /// Every face carrying [slot].
   ///
   /// What "select all faces with this material" is, and what an exporter uses
