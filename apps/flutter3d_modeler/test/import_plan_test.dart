@@ -51,16 +51,16 @@ void main() {
     });
   });
 
-  test('triangleCountOf sums every surface\'s own triangles', () {
+  test('ImportPlan.triangleCount reads the document\'s own count, not a '
+      'copy of it', () {
     final document = PlainModelDocument(
       surfaces: <ModelSurface>[
         ModelSurface(mesh: CuboidShape(size: Vector3(1, 1, 1)).build()),
         ModelSurface(mesh: CuboidShape(size: Vector3(1, 1, 1)).build()),
       ],
     );
-    // One cuboid is twelve triangles; two independent ones are twice that.
-    final perCuboid = CuboidShape(size: Vector3(1, 1, 1)).build().triangleCount;
-    expect(triangleCountOf(document), perCuboid * 2);
+    final plan = ImportPlan(document: document, profile: const ProjectProfile());
+    expect(plan.triangleCount, document.triangleCount);
   });
 
   group('ImportPlan', () {

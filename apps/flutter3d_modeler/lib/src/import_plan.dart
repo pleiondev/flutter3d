@@ -45,15 +45,6 @@ String? refuseBeforeDecoding({
       '${limitMb.toStringAsFixed(0)} MB a browser tab can decode safely.';
 }
 
-/// [document]'s own triangle count, added across every surface it carries.
-int triangleCountOf(ModelDocument document) {
-  var total = 0;
-  for (final surface in document.surfaces) {
-    total += surface.mesh.triangleCount;
-  }
-  return total;
-}
-
 /// What an import screen shows once [document] has decoded: how many
 /// warnings it carries, whether [profile] can hold it, and its own bounds
 /// read in [unit].
@@ -62,16 +53,16 @@ final class ImportPlan {
     required this.document,
     required this.profile,
     this.unit = ImportUnit.metres,
-  }) : triangleCount = triangleCountOf(document);
+  });
 
   final ModelDocument document;
   final ProjectProfile profile;
   final ImportUnit unit;
 
-  /// The number of triangles [document] carries, computed once at
-  /// construction rather than on every read — the same reason
-  /// [ModelAsset.triangleCount] the engine already has exists at all.
-  final int triangleCount;
+  /// [document]'s own [ModelDocument.triangleCount] — named again here only
+  /// so an import screen reads one thing, rather than knowing to reach past
+  /// this class into the document it wraps for one of its own numbers.
+  int get triangleCount => document.triangleCount;
 
   List<String> get warnings => document.warnings;
 

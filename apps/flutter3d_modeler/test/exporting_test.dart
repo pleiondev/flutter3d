@@ -196,6 +196,36 @@ void main() {
     });
   });
 
+  group('GLB, out and back', () {
+    test('a cube and a lathed vase come back with the same meshes and '
+        'triangles — ui-17\'s own worked example', () async {
+      final project = workshop();
+      final files = written(
+        planExport(project, format: ExportFormat.glb),
+      ).files;
+
+      expect(files, hasLength(1));
+      expect(files.single.name, 'model.glb');
+
+      final source = toModelDocument(project);
+      final back = await GltfLoader().load(files.single.bytes);
+
+      expect(back.surfaces, hasLength(source.surfaces.length));
+      expect(back.triangleCount, source.triangleCount);
+      // Unlike OBJ, glTF keeps a node tree — each object's own transform
+      // travels as a node rather than being baked into its vertices, so the
+      // round trip is held to the same zero-tolerance geometry check `fmt-06`
+      // is measured against everywhere else.
+      expect(compareModelDocuments(source, back), isEmpty);
+    });
+
+    test('an object with no faces still blocks a GLB export, the same as '
+        'any other format', () {
+      final result = planExport(withEmptyObject(), format: ExportFormat.glb);
+      expect(result, isA<ExportBlocked>());
+    });
+  });
+
   group('what stops an export', () {
     test('an empty project is refused, not written empty', () {
       final result = planExport(const ModelProject(), format: ExportFormat.obj);

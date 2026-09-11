@@ -20,8 +20,9 @@ import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 
 /// What the model can be taken out as.
 ///
-/// Two, and both are already written. glTF is `fmt-06` and joins this enum with
-/// nothing else to change here: the shape of the work is `document → writer →
+/// Three, and all of them are already written elsewhere. glTF joined this
+/// enum with nothing else to change here, exactly as this doc comment once
+/// predicted it would: the shape of the work is `document → writer →
 /// bytes`, and the writer is the only part that differs.
 enum ExportFormat {
   /// The engine's own container: every surface, material, image, node and
@@ -31,7 +32,13 @@ enum ExportFormat {
   /// Wavefront OBJ with its `.mtl` beside it. The oldest thing every tool
   /// reads, and the least it can carry: triangles, a placement baked into
   /// them, and a Phong approximation of each material.
-  obj('.obj', 'triangles that every tool reads');
+  obj('.obj', 'triangles that every tool reads'),
+
+  /// A self-contained glTF binary — `fmt-06`'s own `GltfWriter`, the format
+  /// most of the rest of the world actually opens. Everything OBJ cannot
+  /// carry survives this one: the node tree, materials with textures,
+  /// skins and animation.
+  glb('.glb', 'a glTF binary most other tools open');
 
   const ExportFormat(this.suffix, this.says);
 
@@ -150,6 +157,11 @@ ExportResult planExport(
     case ExportFormat.f3d:
       return ExportWritten(<ExportFile>[
         ExportFile('$name.f3d', F3dWriter(document).write()),
+      ], warnings);
+
+    case ExportFormat.glb:
+      return ExportWritten(<ExportFile>[
+        ExportFile('$name.glb', GltfWriter(document).writeGlb()),
       ], warnings);
 
     case ExportFormat.obj:
