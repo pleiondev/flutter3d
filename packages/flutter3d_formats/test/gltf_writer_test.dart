@@ -21,7 +21,7 @@ Uint8List _sample(String relativePath) =>
     File('../flutter3d_samples/assets/$relativePath').readAsBytesSync();
 
 void main() {
-  group('8 models round-trip through writeGlb with nothing lost', () {
+  group('9 models round-trip through writeGlb with nothing lost', () {
     final cases = <String, Future<ModelDocument> Function()>{
       'Box.glb': () => GltfLoader().load(_sample('Box.glb')),
       'BoxTextured.glb': () => GltfLoader().load(_sample('BoxTextured.glb')),
@@ -38,6 +38,9 @@ void main() {
       ),
       'teapot.obj (a different decoder, the same writer)': () =>
           ObjLoader().load(_sample('teapot.obj')),
+      'teapot.stl (a third decoder, real curvature rather than only '
+              'synthetic edge cases)':
+          () => StlLoader().load(_sample('teapot.stl')),
     };
 
     for (final entry in cases.entries) {

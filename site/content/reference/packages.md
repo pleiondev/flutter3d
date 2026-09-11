@@ -4,7 +4,7 @@ description: Every package in the workspace, what it owns, what it depends on, a
 
 # Package index
 
-Thirty-three packages and seven applications, resolved as one [pub workspace](https://dart.dev/tools/pub/workspaces), so a single `flutter pub get` covers everything against one lock file. Twenty-seven of the packages are on pub.dev at the 0.6.0 set — `pad_input` and `pointer_lock` on a line of their own at 0.4.1, `flutter3d_samples` on its at 0.4.2. `flutter3d_game_strategy` is the one that lives in this checkout only, because its types still encode how many sides a match may have.
+Thirty-three packages and seven applications, resolved as one [pub workspace](https://dart.dev/tools/pub/workspaces), so a single `flutter pub get` covers everything against one lock file. Twenty-seven of the packages are on pub.dev at the 0.6.0 set — `pad_input` and `pointer_lock` on a line of their own at 0.4.1, `flutter3d_samples` on its at 0.4.3. `flutter3d_game_strategy` is the one that lives in this checkout only, because its types still encode how many sides a match may have.
 
 ## Engine
 

@@ -1864,7 +1864,7 @@ entities a game defines.
 |---|---|
 | Style | `dart format` |
 | Analysis | `flutter analyze` clean across the workspace, no warnings |
-| Unit tests | **6009 tests** across 34 packages and 7 applications |
+| Unit tests | **6010 tests** across 34 packages and 7 applications |
 | Structure rules | 32, `dart run tool/structure.dart`, the first CI step |
 | CI | GitHub Actions over `tool/ci.sh`, on `ubuntu-latest`, with no graphics card |
 
@@ -2720,8 +2720,10 @@ twenty-eight that is not on pub.dev.
 names a sibling in its pubspec, nothing in either was built against an engine
 release, and both sat out the whole 0.5 series. They take 0.4.1, a documentation
 patch for a README footer that pub.dev renders as a link to nothing, and every
-dependent's `^0.4.0` covers it. `flutter3d_samples` stays at 0.4.2: it is
-assets, it names no sibling either, and it is byte for byte what went out.
+dependent's `^0.4.0` covers it. `flutter3d_samples` moved to 0.4.3 on its own
+line for `teapot.stl` (`qa-08`) and otherwise stays put the same way: it is
+assets, it names no sibling, and every existing file in it is byte for byte
+what went out at 0.4.2.
 
 - **Licence: MIT**, `Copyright (c) 2026 Dmitrii Zolotov`. One `LICENSE` at the root
   and a copy in every package, because pub wants the file inside the archive.

@@ -1,3 +1,10 @@
+## 0.4.3
+
+* `teapot.stl`: the same geometry as `teapot.obj`, converted by this
+  repository's own `StlWriter` — `qa-08`'s own STL fixture, so `fmt-09`'s
+  decoder gets a round trip against real curvature to sit beside the
+  synthetic edge cases `flutter3d_formats/test/fixtures/stl/` already holds.
+
 ## 0.4.2
 
 * `AnimatedMorphCube.glb`, the Khronos sample for morph targets: two shapes

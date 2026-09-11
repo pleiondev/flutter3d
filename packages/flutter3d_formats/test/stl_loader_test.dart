@@ -74,6 +74,21 @@ void main() {
       final document = await StlLoader().load(_fixture('tetrahedron.stl'));
       expect(document.surfaces, isNotEmpty);
     });
+
+    test('the one surface has a node pointing at it, not an empty document '
+        'nothing can walk', () async {
+      // `PlainModelDocument`'s own `nodes` field is empty by design — see its
+      // doc comment — which shadows `ModelDocument`'s "one node per surface"
+      // fallback rather than falling through to it. A document with a
+      // surface but no node naming it is invisible to anything that walks
+      // nodes to find geometry: a writer, or the engine's own scene
+      // assembly. Found by `qa-08`'s own STL fixture failing a GltfWriter
+      // round trip with "surfaces: 1 in, 0 out".
+      final document = await StlLoader().load(_fixture('tetrahedron.stl'));
+      expect(document.nodes, hasLength(1));
+      expect(document.nodes.single.surfaces, <int>[0]);
+      expect(document.roots, <int>[0]);
+    });
   });
 
   group('the two dialects agree', () {

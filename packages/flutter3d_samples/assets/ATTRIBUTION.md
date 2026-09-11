@@ -12,6 +12,7 @@ chosen to cover the different loading paths.
 | `AnimatedMorphCube.glb` | [KhronosGroup/glTF-Sample-Assets](https://github.com/KhronosGroup/glTF-Sample-Assets), CC0-1.0 |
 | `RobotExpressive.glb` | [Tomás Laulhé](https://www.patreon.com/quaternius), CC0-1.0, with facial morph targets added by [Don McCurdy](https://donmccurdy.com/); taken from [three.js examples](https://github.com/mrdoob/three.js/tree/dev/examples/models/gltf/RobotExpressive) |
 | `teapot.obj` | [mauricelam/Teapot](https://github.com/mauricelam/Teapot) — the Utah teapot |
+| `teapot.stl` | The same geometry as `teapot.obj` above, converted by this repository's own `StlWriter` — a derived work, same licence as the source. `qa-08`'s own STL fixture: `fmt-09`'s decoder tested through `fmt-06`'s writer round trip against a model with real curvature, not only the synthetic edge cases `flutter3d_formats/test/fixtures/stl/` holds. |
 
 Why these specifically: between them they cover all three ways glTF can carry its
 data (a binary chunk in GLB, an embedded base64 buffer, an external `.bin`), plus

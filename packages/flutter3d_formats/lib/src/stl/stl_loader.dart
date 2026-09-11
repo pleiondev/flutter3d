@@ -112,6 +112,16 @@ final class StlLoader implements ModelDecoder {
           authoredAttributes: const <String>{'position', 'normal'},
         ),
       ],
+      // Explicit rather than left to fall through to `ModelDocument`'s own
+      // "one node per surface" default: `PlainModelDocument`'s own `nodes`
+      // field is an empty list by design (see its doc comment — a document
+      // built there has exactly the fields it was given), which shadows
+      // that fallback rather than inheriting it. Left implicit, a decoded
+      // `.stl` had a surface nothing in its own node list ever pointed at —
+      // invisible to a writer or a scene built by walking nodes, `qa-08`'s
+      // own STL fixture round-tripping through `GltfWriter` is what found
+      // it.
+      nodes: <ModelNode>[ModelNode(surfaces: <int>[0])],
       warnings: warnings,
     );
   }
