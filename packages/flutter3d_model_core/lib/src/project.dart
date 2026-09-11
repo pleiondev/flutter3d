@@ -27,6 +27,7 @@ import 'material.dart';
 import 'modifier_slot.dart';
 import 'param_hint.dart';
 import 'selection.dart';
+import 'texture_budget.dart';
 
 /// What kind of machine a profile is written for.
 ///
@@ -59,11 +60,15 @@ final class ProjectProfile {
     this.maxTextureSize = 4096,
     // Null rather than a guessed number: nothing reads this yet, and a figure
     // presented as a budget with no measurement behind it is worse than
-    // admitting none has been taken. `mat-28`'s `TextureBudget` is where a
-    // real one lands, on top of an actual format and device measurement.
+    // admitting none has been taken. `mat-28`'s `TextureBudget` (below) is
+    // the real one, on top of an actual format and device measurement —
+    // this stays null even now that `textures` exists, since the two are not
+    // the same number: this one is a flat cap `doc-14` already reads, that
+    // one a re-encode estimate `measure` computes.
     this.maxTextureBytes,
     this.requireTriangles = true,
     this.requireManifold = false,
+    this.textures = TextureBudget.desktop,
   });
 
   /// What a handset can be asked for, which is the tightest of the three the
@@ -75,6 +80,7 @@ final class ProjectProfile {
     maxTriangles: 100000,
     maxJoints: 64,
     maxTextureSize: 2048,
+    textures: TextureBudget.mobile,
   );
 
   final String name;
@@ -87,6 +93,15 @@ final class ProjectProfile {
   /// A budget in bytes across every texture at once, or null for none
   /// declared. See the constructor for why nothing sets one yet.
   final int? maxTextureBytes;
+
+  /// How big a texture may be and what it should end up encoded as, for
+  /// `mat-28`'s `measure`. Defaults to [TextureBudget.desktop] rather than
+  /// null — a profile with no budget at all is a state nothing in this plan
+  /// asks for — the same way [target] defaults to [ProfileTarget.desktop];
+  /// a profile built for [ProfileTarget.web] wants [TextureBudget.web] set
+  /// alongside it explicitly, the way [mobile] sets every one of its own
+  /// fields together rather than deriving them from `target`.
+  final TextureBudget textures;
 
   /// Whether the target format can hold a face with more than three corners.
   /// Read by `ExportReadiness.check` when its own `trianglesOnly` is not
@@ -117,6 +132,14 @@ final class ProjectProfile {
   /// constructor's own default already repeats it — both are mirrored against
   /// the real constant by `apps/flutter3d_modeler/test/profile_limits_test.dart`,
   /// not by this file.
+  ///
+  /// **`textures` has no entry here.** Every other field is one number or one
+  /// flag a `HintRow` shows as a single control; `textures` is four fields at
+  /// once (`maxSide`, `maxBytesOnDevice`, `targetFormat`, `requirePowerOfTwo`)
+  /// with no `ParamHint` variant that groups them — `mat-20`'s own stack panel
+  /// is the precedent for what a compound value like this gets instead of a
+  /// generic row: a small dedicated picker over the three presets, not a
+  /// `HintRow` this map would have to invent a new `ParamHint` case for.
   Map<String, ParamHint> get profileHints => {
     'target': EnumHint([...ProfileTarget.values.map((t) => t.name)]),
     'maxTriangles': const IntHint(min: 1000, max: 2000000, step: 1000),
@@ -139,7 +162,8 @@ final class ProjectProfile {
       other.maxTextureSize == maxTextureSize &&
       other.maxTextureBytes == maxTextureBytes &&
       other.requireTriangles == requireTriangles &&
-      other.requireManifold == requireManifold;
+      other.requireManifold == requireManifold &&
+      other.textures == textures;
 
   @override
   int get hashCode => Object.hash(
@@ -152,6 +176,7 @@ final class ProjectProfile {
     maxTextureBytes,
     requireTriangles,
     requireManifold,
+    textures,
   );
 }
 

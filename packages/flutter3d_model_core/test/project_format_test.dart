@@ -283,6 +283,7 @@ void main() {
         maxTextureBytes: 12345678,
         requireTriangles: false,
         requireManifold: true,
+        textures: TextureBudget.mobile,
       );
       final after = opened(writeProject(ModelProject(profile: before))).profile;
 
@@ -291,12 +292,13 @@ void main() {
       expect(after.maxTextureBytes, 12345678);
       expect(after.requireTriangles, isFalse);
       expect(after.requireManifold, isTrue);
+      expect(after.textures, TextureBudget.mobile);
     });
 
     test('a manifest written before doc-13 opens with the new fields at '
         'their defaults', () {
       // `manifestOf` is exactly this shape: the five original keys and none
-      // of the four this test is about, which is what every project saved
+      // of the five this test is about, which is what every project saved
       // before this change looks like on disk. Mutation: require the new
       // keys the way the five original ones are required, and this file —
       // and every real one like it — stops opening at all.
@@ -306,6 +308,36 @@ void main() {
       expect(read.profile.maxTextureBytes, isNull);
       expect(read.profile.requireTriangles, isTrue);
       expect(read.profile.requireManifold, isFalse);
+      // `textures` is younger than even `target`/`requireTriangles` — a
+      // manifest with none of the five still opens with `mat-28`'s own
+      // default rather than refusing or reading a budget of zero.
+      expect(read.profile.textures, TextureBudget.desktop);
+    });
+
+    test('an unknown texture budget format opens as other, and says so', () {
+      final bytes = forge(<String, Object?>{
+        ...manifestOf(<Map<String, Object?>>[objectJson()]),
+        'profile': <String, Object?>{
+          'name': 'x',
+          'maxTriangles': 500000,
+          'maxJoints': 64,
+          'maxInfluences': 4,
+          'maxTextureSize': 4096,
+          'textures': <String, Object?>{
+            'maxSide': 2048,
+            'maxBytesOnDevice': 1000,
+            'targetFormat': 'bc9',
+          },
+        },
+      });
+
+      final read = readProject(bytes);
+      expect(read, isA<ProjectOpened>());
+      expect(
+        (read as ProjectOpened).project.profile.textures.targetFormat,
+        TextureFileFormat.other,
+      );
+      expect(read.warnings.single, contains('bc9'));
     });
 
     test('a parametric object keeps its parameters', () {
@@ -399,8 +431,8 @@ void main() {
 
       // The numbers this project's file actually lands on: a 16-byte header and
       // six 16-byte directory entries put the manifest at 112, and the manifest
-      // is 974 bytes, which ends at 1086 and is not a multiple of four. So the
-      // mesh table starts at 1088, two bytes of padding later. Those two
+      // is 1078 bytes, which ends at 1190 and is not a multiple of four. So the
+      // mesh table starts at 1192, two bytes of padding later. Those two
       // bytes are the whole test — a reader building an `Int32List.view` over
       // the blob throws on an offset that is not a multiple of four, and it
       // throws on the machine of whoever opens the file rather than here.
@@ -413,11 +445,11 @@ void main() {
         ProjectSection.checksums,
       ]);
       expect(directory[0].offset, 112);
-      expect(directory[0].length, 974);
-      expect(directory[1].offset, 1088);
+      expect(directory[0].length, 1078);
+      expect(directory[1].offset, 1192);
       expect(directory[1].length, 16);
       expect(directory[1].count, 2);
-      expect(directory[2].offset, 1104);
+      expect(directory[2].offset, 1208);
       // This project has nothing imported and nothing textured, and both tables
       // are written all the same: every file this build produces has the same
       // five-section directory, so a reader is never deciding between "none of
@@ -427,7 +459,7 @@ void main() {
       // One row per other section, so the table grows with the directory.
       expect(directory[5].count, 5);
       expect(directory[5].length, 5 * kProjectChecksumEntryBytes);
-      expect(bytes.length, 3720);
+      expect(bytes.length, 3824);
 
       for (final entry in directory) {
         expect(entry.offset % 4, 0, reason: 'section ${entry.kind}');
@@ -630,7 +662,7 @@ void main() {
       expect(
         refusal(bytes),
         'The header claims 500 sections, whose directory ends at byte 8016, '
-        'past the end of a 3720-byte file.',
+        'past the end of a 3824-byte file.',
       );
     });
 
@@ -647,8 +679,8 @@ void main() {
       final cut = Uint8List.sublistView(whole, 0, whole.length - 8);
       expect(
         refusal(cut),
-        'Section 6 runs from byte 3680 for 40 bytes, past the end of a '
-        '3712-byte file.',
+        'Section 6 runs from byte 3784 for 40 bytes, past the end of a '
+        '3816-byte file.',
       );
     });
 

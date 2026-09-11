@@ -56,6 +56,8 @@ import 'package:vector_math/vector_math.dart';
 import 'material.dart';
 import 'parametric_json.dart';
 import 'project.dart';
+import 'texture_budget.dart';
+import 'texture_info.dart';
 
 /// `F3DP`, little-endian, so a file opened in a text editor announces itself on
 /// the first line and does not collide with `.f3d`'s own `F3D\n`.
@@ -317,6 +319,14 @@ Uint8List writeProject(ModelProject project) {
           'maxTextureBytes': project.profile.maxTextureBytes,
           'requireTriangles': project.profile.requireTriangles,
           'requireManifold': project.profile.requireManifold,
+          // `mat-28`, younger still than the four above and read back the
+          // same optional way.
+          'textures': <String, Object?>{
+            'maxSide': project.profile.textures.maxSide,
+            'maxBytesOnDevice': project.profile.textures.maxBytesOnDevice,
+            'targetFormat': project.profile.textures.targetFormat.name,
+            'requirePowerOfTwo': project.profile.textures.requirePowerOfTwo,
+          },
         },
         // Written down rather than worked out from the objects on the way back
         // in: an id belonging to something deleted must not be handed out again,
@@ -1037,13 +1047,14 @@ TextureBinding? _bindingFrom(
 /// The profile [json] describes, or null when it is missing one of the five
 /// original limits.
 ///
-/// **Four fields younger than the other five, and each one optional here.**
+/// **Five fields younger than the other five, and each one optional here.**
 /// `target`, `maxTextureBytes`, `requireTriangles` and `requireManifold`
-/// arrived with `doc-13`; a v1 file predates them and has none of the four,
-/// and reading them as required would refuse every project saved before this
-/// change over a difference that changes what a *new* save means, not what an
-/// old one did — exactly the version bump `doc-28` says not to spend on this.
-/// Each reads back as the default `ProjectProfile` already has.
+/// arrived with `doc-13`; `textures` arrived later still with `mat-28`. A v1
+/// file predates all five, and reading them as required would refuse every
+/// project saved before this change over a difference that changes what a
+/// *new* save means, not what an old one did — exactly the version bump
+/// `doc-28` says not to spend on this. Each reads back as the default
+/// `ProjectProfile` already has.
 ProjectProfile? _readProfile(Object? json, List<String> warnings) {
   if (json case {
     'name': final String name,
@@ -1077,6 +1088,36 @@ ProjectProfile? _readProfile(Object? json, List<String> warnings) {
           json['requireTriangles'] as bool? ?? fallback.requireTriangles,
       requireManifold:
           json['requireManifold'] as bool? ?? fallback.requireManifold,
+      textures:
+          _readTextureBudget(json['textures'], warnings) ?? fallback.textures,
+    );
+  }
+  return null;
+}
+
+/// [json]'s `textures` object as a [TextureBudget], or null if it is absent
+/// or not the shape a `mat-28` write makes — a v1 or v2 file, or a hand-edited
+/// one, either of which falls back to the caller's own default the same way
+/// every other field younger than `doc-13` does.
+TextureBudget? _readTextureBudget(Object? json, List<String> warnings) {
+  if (json case {
+    'maxSide': final int maxSide,
+    'maxBytesOnDevice': final int maxBytesOnDevice,
+  }) {
+    return TextureBudget(
+      maxSide: maxSide,
+      maxBytesOnDevice: maxBytesOnDevice,
+      targetFormat: switch (json['targetFormat']) {
+        final String word => _named(
+          TextureFileFormat.values,
+          word,
+          TextureFileFormat.other,
+          warnings: warnings,
+          context: 'A texture budget\'s target format',
+        ),
+        _ => TextureFileFormat.other,
+      },
+      requirePowerOfTwo: json['requirePowerOfTwo'] as bool? ?? false,
     );
   }
   return null;

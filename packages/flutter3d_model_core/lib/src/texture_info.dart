@@ -145,32 +145,42 @@ abstract final class _VkFormat {
   static const int astc4x4SrgbBlock = 158;
 }
 
-final class _BlockLayout {
-  const _BlockLayout(
-    this.format,
-    this.blockWidth,
-    this.blockHeight,
-    this.bytesPerBlock,
-  );
-
-  final TextureFileFormat format;
-  final int blockWidth;
-  final int blockHeight;
-  final int bytesPerBlock;
-}
-
-_BlockLayout? _blockLayoutFor(int vkFormat) => switch (vkFormat) {
-  _VkFormat.bc1RgbaUNormBlock || _VkFormat.bc1RgbaSrgbBlock =>
-    const _BlockLayout(TextureFileFormat.bc1, 4, 4, 8),
-  _VkFormat.bc3UNormBlock ||
-  _VkFormat.bc3SrgbBlock => const _BlockLayout(TextureFileFormat.bc3, 4, 4, 16),
-  _VkFormat.bc7UNormBlock ||
-  _VkFormat.bc7SrgbBlock => const _BlockLayout(TextureFileFormat.bc7, 4, 4, 16),
-  _VkFormat.etc2R8g8b8a8UNormBlock || _VkFormat.etc2R8g8b8a8SrgbBlock =>
-    const _BlockLayout(TextureFileFormat.etc2Rgba8, 4, 4, 16),
-  _VkFormat.astc4x4UNormBlock || _VkFormat.astc4x4SrgbBlock =>
-    const _BlockLayout(TextureFileFormat.astc4x4, 4, 4, 16),
+TextureFileFormat? _fileFormatFor(int vkFormat) => switch (vkFormat) {
+  _VkFormat.bc1RgbaUNormBlock ||
+  _VkFormat.bc1RgbaSrgbBlock => TextureFileFormat.bc1,
+  _VkFormat.bc3UNormBlock || _VkFormat.bc3SrgbBlock => TextureFileFormat.bc3,
+  _VkFormat.bc7UNormBlock || _VkFormat.bc7SrgbBlock => TextureFileFormat.bc7,
+  _VkFormat.etc2R8g8b8a8UNormBlock ||
+  _VkFormat.etc2R8g8b8a8SrgbBlock => TextureFileFormat.etc2Rgba8,
+  _VkFormat.astc4x4UNormBlock ||
+  _VkFormat.astc4x4SrgbBlock => TextureFileFormat.astc4x4,
   _ => null,
+};
+
+/// The block a compressed [format] is stored in — [blockWidth] by
+/// [blockHeight] texels, [bytesPerBlock] bytes each — or null for
+/// [TextureFileFormat.rgba8] (one texel a value, no block at all) and
+/// [TextureFileFormat.other] (unknown, so no block size to name).
+///
+/// Shared with `texture_budget.dart`'s own re-encode estimate, so a block's
+/// byte size is stated in exactly one place rather than twice.
+({int blockWidth, int blockHeight, int bytesPerBlock})? blockLayoutFor(
+  TextureFileFormat format,
+) => switch (format) {
+  TextureFileFormat.bc1 => (blockWidth: 4, blockHeight: 4, bytesPerBlock: 8),
+  TextureFileFormat.bc3 => (blockWidth: 4, blockHeight: 4, bytesPerBlock: 16),
+  TextureFileFormat.bc7 => (blockWidth: 4, blockHeight: 4, bytesPerBlock: 16),
+  TextureFileFormat.etc2Rgba8 => (
+    blockWidth: 4,
+    blockHeight: 4,
+    bytesPerBlock: 16,
+  ),
+  TextureFileFormat.astc4x4 => (
+    blockWidth: 4,
+    blockHeight: 4,
+    bytesPerBlock: 16,
+  ),
+  TextureFileFormat.rgba8 || TextureFileFormat.other => null,
 };
 
 const int _kKtx2HeaderOffset = 12;
@@ -189,12 +199,13 @@ TextureInfo? _ktx2Info(Uint8List bytes) {
   final levelCount = header(28);
   final levels = levelCount == 0 ? 1 : levelCount;
 
-  final layout = _blockLayoutFor(vkFormat);
-  if (layout != null) {
+  final fileFormat = _fileFormatFor(vkFormat);
+  final layout = fileFormat == null ? null : blockLayoutFor(fileFormat);
+  if (fileFormat != null && layout != null) {
     return TextureInfo(
       width: pixelWidth,
       height: pixelHeight,
-      format: layout.format,
+      format: fileFormat,
       bytesOnDevice: _compressedBytes(pixelWidth, pixelHeight, levels, layout),
       hasOwnMips: levels > 1,
     );
@@ -215,7 +226,12 @@ TextureInfo? _ktx2Info(Uint8List bytes) {
 /// (never below one pixel), of blocks-per-mip times [layout]'s own
 /// `bytesPerBlock` — a block-compressed format's bytes on disk and its bytes
 /// on the GPU are the same bytes, so this needs no file read past the header.
-int _compressedBytes(int width, int height, int levels, _BlockLayout layout) {
+int _compressedBytes(
+  int width,
+  int height,
+  int levels,
+  ({int blockWidth, int blockHeight, int bytesPerBlock}) layout,
+) {
   var total = 0;
   var w = width;
   var h = height;
