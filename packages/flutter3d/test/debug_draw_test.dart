@@ -394,4 +394,108 @@ void main() {
       );
     });
   });
+
+  group('skeleton overlay', () {
+    test('a bone octahedron has twelve edges, none past the waist width', () {
+      final draw = DebugDraw();
+      draw.addBoneOctahedron(
+        Vector3(0, 0, 0),
+        Vector3(0, 2, 0),
+        0.3,
+        red,
+      );
+      expect(draw.lineCount, 12);
+
+      var sawFrom = false;
+      var sawTo = false;
+      for (var i = 0; i < draw.vertexCount; i++) {
+        final p = _vertexAt(draw, i).position;
+        if (p == Vector3(0, 0, 0)) sawFrom = true;
+        if (p == Vector3(0, 2, 0)) sawTo = true;
+        // Every point is either an endpoint or on the waist ring 10% of the
+        // way along, radius `width` from the axis.
+        if (p != Vector3(0, 0, 0) && p != Vector3(0, 2, 0)) {
+          expect(p.y, closeTo(0.2, 1e-6));
+          final radial = math.sqrt(p.x * p.x + p.z * p.z);
+          expect(radial, closeTo(0.3, 1e-6));
+        }
+      }
+      expect(sawFrom, isTrue);
+      expect(sawTo, isTrue);
+    });
+
+    test('a zero-length bone draws nothing rather than NaN lines', () {
+      final draw = DebugDraw();
+      draw.addBoneOctahedron(Vector3(1, 1, 1), Vector3(1, 1, 1), 0.1, red);
+      expect(draw.lineCount, 0);
+    });
+
+    test('a joint cross is three lines meeting at the centre', () {
+      final draw = DebugDraw();
+      draw.addJointCross(Vector3(1, 2, 3), 0.1, red);
+      expect(draw.lineCount, 3);
+      for (var i = 0; i < draw.vertexCount; i += 2) {
+        final a = _vertexAt(draw, i).position;
+        final b = _vertexAt(draw, i + 1).position;
+        expect((a + b) / 2, Vector3(1, 2, 3));
+      }
+    });
+
+    test(
+      'a root-mid-leaf chain draws two bones and one cross, at the leaf',
+      () {
+        final draw = DebugDraw();
+        // Joint 0 is the root, 1 its child, 2 a leaf under 1.
+        draw.addSkeletonOverlay(
+          <Vector3>[Vector3(0, 0, 0), Vector3(0, 1, 0), Vector3(0, 2, 0)],
+          <int>[-1, 0, 1],
+          color: red,
+        );
+        // Two bones (12 lines each) plus one cross (3 lines): 27.
+        expect(draw.lineCount, 27);
+      },
+    );
+
+    test('a problem joint draws in its own colour, not the caller\'s', () {
+      final draw = DebugDraw();
+      draw.addSkeletonOverlay(
+        <Vector3>[Vector3(0, 0, 0), Vector3(0, 1, 0)],
+        <int>[-1, 0],
+        color: red,
+        problem: <int>{0},
+      );
+      // Joint 0 has a child, so it draws a bone, in the problem colour;
+      // joint 1 has none, so it draws a cross, in the caller's own colour —
+      // only joint 0 named `problem`, and the split between the two shapes'
+      // colours is what proves it, not just that one colour appears
+      // somewhere in the buffer.
+      final bone = <({Vector3 position, Vector4 color})>[
+        for (var i = 0; i < 24; i++) _vertexAt(draw, i),
+      ];
+      final cross = <({Vector3 position, Vector4 color})>[
+        for (var i = 24; i < draw.vertexCount; i++) _vertexAt(draw, i),
+      ];
+      expect(cross, hasLength(6));
+      for (final vertex in bone) {
+        expect(vertex.color, DebugColors.jointProblem);
+      }
+      for (final vertex in cross) {
+        expect(vertex.color, red);
+      }
+    });
+
+    test('with no colour given, the overlay falls back to the selection '
+        'colour', () {
+      final draw = DebugDraw();
+      draw.addJointCross(Vector3.zero(), 0.1, DebugColors.selection);
+      final first = _vertexAt(draw, 0).color;
+
+      final defaulted = DebugDraw();
+      defaulted.addSkeletonOverlay(
+        <Vector3>[Vector3.zero()],
+        <int>[-1],
+      );
+      expect(_vertexAt(defaulted, 0).color, first);
+    });
+  });
 }

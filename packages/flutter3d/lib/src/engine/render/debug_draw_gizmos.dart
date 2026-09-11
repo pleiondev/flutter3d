@@ -263,6 +263,116 @@ extension DebugDrawGizmos on DebugDraw {
     }
   }
 
+  /// A bone: an octahedron stretched from [from] toward [to], the standard
+  /// rig-viewport shape — the twelve edges of a real octahedron, one waist
+  /// ring a tenth of the way along rather than in the middle, which is what
+  /// makes the shape read as *pointing* from a joint toward its child
+  /// instead of as a bulge sitting between two unrelated points.
+  ///
+  /// Draws nothing when [from] and [to] coincide — a zero-length bone has no
+  /// direction to build a ring around, and dividing by that length would
+  /// produce lines of `NaN`.
+  void addBoneOctahedron(Vector3 from, Vector3 to, double width, Vector4 color) {
+    final axis = to - from;
+    final length = axis.length;
+    if (length < 1e-9) return;
+    final direction = axis / length;
+    final basis = _perpendicularBasis(direction);
+    final waist = from + axis * 0.1;
+    final ring = <Vector3>[
+      waist + basis.$1 * width,
+      waist + basis.$2 * width,
+      waist - basis.$1 * width,
+      waist - basis.$2 * width,
+    ];
+    for (var i = 0; i < ring.length; i++) {
+      addLine(from, ring[i], color);
+      addLine(ring[i], ring[(i + 1) % ring.length], color);
+      addLine(ring[i], to, color);
+    }
+  }
+
+  /// A three-line crosshair at [center] — what a joint with no child to
+  /// stretch a bone toward ([addBoneOctahedron] needs two ends) is drawn as
+  /// instead, the same way a light with no cone still needs a marker.
+  void addJointCross(Vector3 center, double size, Vector4 color) {
+    addLineXyz(
+      center.x - size,
+      center.y,
+      center.z,
+      center.x + size,
+      center.y,
+      center.z,
+      color,
+    );
+    addLineXyz(
+      center.x,
+      center.y - size,
+      center.z,
+      center.x,
+      center.y + size,
+      center.z,
+      color,
+    );
+    addLineXyz(
+      center.x,
+      center.y,
+      center.z - size,
+      center.x,
+      center.y,
+      center.z + size,
+      color,
+    );
+  }
+
+  /// A skeleton, drawn one [addBoneOctahedron] per parent/child pair and one
+  /// [addJointCross] at every joint [parents] gives no child — `anim-08`'s
+  /// own row.
+  ///
+  /// [worldPositions] and [parents] are index-aligned and [parents] holds
+  /// each joint's own parent index, or a value outside `0..worldPositions
+  /// .length` for a root — the same convention `Pose.parents` already
+  /// keeps, so a caller already holding one hands it straight through.
+  /// [problem] names indices to draw in [DebugColors.jointProblem] instead
+  /// of [color] — built from `anim-13`'s own `rigIssues` by a caller that
+  /// has one; empty draws every joint the same colour.
+  ///
+  /// **What this does not do.** Screen-space picking (`anim-08`'s own "клик
+  /// по суставу 7 выбирает 7") and the golden frame `skeleton-overlay` are
+  /// both app-layer, and neither is here — this is the drawing this row's
+  /// picking half would need a joint to already be visible to hit.
+  void addSkeletonOverlay(
+    List<Vector3> worldPositions,
+    List<int> parents, {
+    Vector4? color,
+    double boneWidth = 0.02,
+    double crossSize = 0.03,
+    Set<int> problem = const <int>{},
+  }) {
+    final normal = color ?? DebugColors.selection;
+    final hasChild = List<bool>.filled(worldPositions.length, false);
+    for (final parent in parents) {
+      if (parent >= 0 && parent < hasChild.length) hasChild[parent] = true;
+    }
+    for (var joint = 0; joint < worldPositions.length; joint++) {
+      final own = problem.contains(joint) ? DebugColors.jointProblem : normal;
+      if (hasChild[joint]) {
+        for (var child = 0; child < parents.length; child++) {
+          if (parents[child] == joint) {
+            addBoneOctahedron(
+              worldPositions[joint],
+              worldPositions[child],
+              boneWidth,
+              own,
+            );
+          }
+        }
+      } else {
+        addJointCross(worldPositions[joint], crossSize, own);
+      }
+    }
+  }
+
   static (Vector3, Vector3) _perpendicularBasis(Vector3 direction) {
     final n = direction.normalized();
     final helper = n.z.abs() < 0.9

@@ -77,6 +77,11 @@ abstract final class DebugColors {
   static Vector4 get axisX => Vector4(1.0, 0.25, 0.25, 1.0);
   static Vector4 get axisY => Vector4(0.25, 1.0, 0.35, 1.0);
   static Vector4 get axisZ => Vector4(0.3, 0.5, 1.0, 1.0);
+
+  /// `#FF458E` — a joint the skeleton overlay draws to say something is
+  /// wrong with it (`anim-13`'s own `rigIssues`, once a caller has one).
+  static Vector4 get jointProblem =>
+      Vector4(1.0, 0x45 / 255.0, 0x8E / 255.0, 1.0);
 }
 
 /// Accumulates debug line segments into one reusable interleaved buffer.
