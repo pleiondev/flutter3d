@@ -61,6 +61,7 @@ export 'src/engine/animation/animation_player.dart';
 export 'src/engine/animation/animation_target.dart';
 export 'src/engine/animation/baked_poses.dart';
 export 'src/engine/animation/pose.dart';
+export 'src/engine/animation/skin_blend.dart';
 // What could not go with them, each because it needs something this package may
 // name and that one may not: the isolate loader and the two asset sources
 // (Flutter's bundle, and `dart:io`), the bundle resolvers, the KTX2 reader with

@@ -3,6 +3,7 @@
   "checked": "2026-09-11",
   "status": {
     "anim-01": "done",
+    "anim-02": "done",
     "anim-31": "done",
     "doc-00": "done",
     "doc-01": "done",
@@ -172,8 +173,7 @@
       "bufferSubData": "то же: имя из прототипа в ветке, а не из этого дерева"
     },
     "anim-31": {
-      "SkinBlend": "строка прямо говорит, что это код фазы 3 и мерить его будет anim-31a-n",
-      "bindWeights": "то же"
+      "bindWeights": "строка прямо говорит, что это код фазы 3 и мерить его будет anim-31a-n"
     },
     "doc-10": {
       "ProjectReader": "project_format.dart работает функциями readProject/writeProject плюс запечатанные ProjectRead/ProjectOpened/ProjectRefused для результата, а не парой классов Reader/Writer — тот же выбор, что и у остального файла"
