@@ -54,6 +54,7 @@ export 'src/project_document.dart';
 export 'src/project_format.dart';
 export 'src/readiness.dart';
 export 'src/readiness_cache.dart';
+export 'src/rig_issues.dart';
 export 'src/selection.dart';
 export 'src/texture_bake.dart';
 export 'src/texture_budget.dart';
