@@ -90,6 +90,13 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
 
+  # Real-device e2e: `integration_test/`, driven on an actual macOS window
+  # rather than the headless harness every other test here uses — the one
+  # place a layout claim is checked against the real platform rather than a
+  # `TestWidgetsFlutterBinding`-simulated one.
+  integration_test:
+    sdk: flutter
+
   # A renderer with no GPU under it, so the tests draw the real frame the way
   # the application draws it. Everything this repository knows about testing a
   # picture goes through here.
