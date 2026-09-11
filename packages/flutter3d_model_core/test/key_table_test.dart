@@ -209,4 +209,41 @@ void main() {
       );
     });
   });
+
+  group('frame/time conversion — syn-03\'s own row', () {
+    test('timeOfFrame and frameOfTime are exact inverses at whole frames', () {
+      const fps = 24.0;
+      for (var frame = 0; frame < 100; frame++) {
+        final time = KeyTable.timeOfFrame(frame, fps);
+        expect(KeyTable.frameOfTime(time, fps), frame);
+      }
+    });
+
+    test('frameOfTime rounds rather than truncates', () {
+      // A hair past frame 10's own instant, at 30 fps — still frame 10, not
+      // 9: a person's own drag rarely lands exactly on 1/30 s.
+      expect(KeyTable.frameOfTime(10 / 30.0 + 0.0001, 30.0), 10);
+      // A hair before frame 11's own instant — rounds up to 11, not down.
+      expect(KeyTable.frameOfTime(11 / 30.0 - 0.0001, 30.0), 11);
+    });
+
+    test('snappedToFrame lands exactly on a frame\'s own time, not near it', () {
+      final snapped = KeyTable.snappedToFrame(10 / 30.0 + 0.0037, 30.0);
+      expect(snapped, KeyTable.timeOfFrame(10, 30.0));
+      expect(snapped, closeTo(10 / 30.0, 1e-12));
+    });
+
+    test(
+      'reads fps from a project\'s own profile — syn-03\'s own acceptance, '
+      'literally',
+      () {
+        const project = ModelProject(profile: ProjectProfile(fps: 24.0));
+        // The row's own acceptance: KeyTable reading fps from the profile,
+        // not a hard-coded rate — checked by handing the profile's own
+        // field straight to the static method rather than repeating 24.0.
+        expect(KeyTable.timeOfFrame(48, project.profile.fps), 2.0);
+        expect(KeyTable.frameOfTime(2.0, project.profile.fps), 48);
+      },
+    );
+  });
 }

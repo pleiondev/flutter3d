@@ -136,6 +136,8 @@ void main() {
           'requireTriangles',
           'requireManifold',
           'texelsPerMeter',
+          'fps',
+          'frameSnap',
         ]),
       );
     });

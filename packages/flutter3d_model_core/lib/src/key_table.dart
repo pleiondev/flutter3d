@@ -168,6 +168,28 @@ final class KeyTable {
     ).sample(time, out);
   }
 
+  /// The time frame [frame] plays at, given [fps] frames a second —
+  /// `syn-03`'s own row: a project's own [ProjectProfile.fps], read by a
+  /// caller and handed in here rather than this class holding a profile
+  /// of its own, the same way every other per-vertex or per-key primitive
+  /// in this package stays decoupled from the project structure around it.
+  static double timeOfFrame(int frame, double fps) => frame / fps;
+
+  /// The frame nearest [time], given [fps] frames a second — the inverse
+  /// of [timeOfFrame]. Rounds rather than truncates, so a key captured a
+  /// hair past a frame boundary — the ordinary case, a person's own drag
+  /// landing a float away from the exact instant — still reads as the
+  /// frame it was meant for rather than the one before it.
+  static int frameOfTime(double time, double fps) => (time * fps).round();
+
+  /// [time], snapped to the nearest frame boundary at [fps] —
+  /// [frameOfTime] and [timeOfFrame] composed, named separately because a
+  /// caller wants the snapped instant itself far more often than the frame
+  /// number that produced it. What [ProjectProfile.frameSnap] asks a drag
+  /// to do when it is switched on; this is the arithmetic, not the switch.
+  static double snappedToFrame(double time, double fps) =>
+      timeOfFrame(frameOfTime(time, fps), fps);
+
   void _resort() => _keys.sort((a, b) => a.time.compareTo(b.time));
 
   /// Writes (or replaces) the key at [time]. An existing key at exactly

@@ -428,6 +428,9 @@ Uint8List writeProject(
           // `doc-35n`, younger even than `textures`, read back the same
           // optional way.
           'texelsPerMeter': project.profile.texelsPerMeter,
+          // `syn-03`, younger still, read back the same optional way.
+          'fps': project.profile.fps,
+          'frameSnap': project.profile.frameSnap,
         },
         // Written down rather than worked out from the objects on the way back
         // in: an id belonging to something deleted must not be handed out again,
@@ -1376,11 +1379,12 @@ TextureBinding? _bindingFrom(
 /// The profile [json] describes, or null when it is missing one of the five
 /// original limits.
 ///
-/// **Six fields younger than the other five, and each one optional here.**
+/// **Eight fields younger than the other five, and each one optional here.**
 /// `target`, `maxTextureBytes`, `requireTriangles` and `requireManifold`
-/// arrived with `doc-13`; `textures` arrived later still with `mat-28`, and
-/// `texelsPerMeter` later still with `doc-35n`. A v1 file predates all six,
-/// and reading them as required would refuse every
+/// arrived with `doc-13`; `textures` arrived later still with `mat-28`,
+/// `texelsPerMeter` later still with `doc-35n`, and `fps`/`frameSnap` later
+/// even than that with `syn-03`. A v1 file predates all eight, and reading
+/// them as required would refuse every
 /// project saved before this change over a difference that changes what a
 /// *new* save means, not what an old one did — exactly the version bump
 /// `doc-28` says not to spend on this. Each reads back as the default
@@ -1424,6 +1428,11 @@ ProjectProfile? _readProfile(Object? json, List<String> warnings) {
         final num value => value.toDouble(),
         _ => fallback.texelsPerMeter,
       },
+      fps: switch (json['fps']) {
+        final num value => value.toDouble(),
+        _ => fallback.fps,
+      },
+      frameSnap: json['frameSnap'] as bool? ?? fallback.frameSnap,
     );
   }
   return null;

@@ -72,6 +72,8 @@ final class ProjectProfile {
     this.requireManifold = false,
     this.textures = TextureBudget.desktop,
     this.texelsPerMeter,
+    this.fps = 30.0,
+    this.frameSnap = false,
   });
 
   /// What a handset can be asked for, which is the tightest of the three the
@@ -127,6 +129,22 @@ final class ProjectProfile {
   /// with no UV of its own — there is no area to measure a density over.
   final double? texelsPerMeter;
 
+  /// The time base a keyframe is authored against — `syn-03`'s own gap:
+  /// `KeyShape` (`anim-19`) and every other frame-facing command take a
+  /// time in seconds directly rather than a frame number, because nothing
+  /// on the project converted one to the other. [KeyTable.frameOfTime] and
+  /// [KeyTable.timeOfFrame] are that conversion; this is where the number
+  /// they need comes from. Defaults to 30, the same rate `KeyShape`'s own
+  /// test already assumed before this field existed.
+  final double fps;
+
+  /// Whether an edit that moves a key in time lands on a frame boundary
+  /// rather than wherever the pointer happened to be — off by default, the
+  /// same "a new field does not change old behaviour" rule every other
+  /// field on this class already follows. Read by whichever command or
+  /// tool actually drags a key; this class only carries the setting.
+  final bool frameSnap;
+
   /// What control a profile editor should offer for each of this class's own
   /// fields, keyed by field name.
   ///
@@ -169,6 +187,8 @@ final class ProjectProfile {
     'requireTriangles': const BoolHint(),
     'requireManifold': const BoolHint(),
     'texelsPerMeter': const DoubleHint(min: 0, unit: 'texels/m'),
+    'fps': const DoubleHint(min: 1, unit: 'fps'),
+    'frameSnap': const BoolHint(),
   };
 
   /// [this], with named fields replaced.
@@ -186,6 +206,8 @@ final class ProjectProfile {
     TextureBudget? textures,
     double? texelsPerMeter,
     bool clearTexelsPerMeter = false,
+    double? fps,
+    bool? frameSnap,
   }) => ProjectProfile(
     name: name ?? this.name,
     target: target ?? this.target,
@@ -202,6 +224,8 @@ final class ProjectProfile {
     texelsPerMeter: clearTexelsPerMeter
         ? null
         : (texelsPerMeter ?? this.texelsPerMeter),
+    fps: fps ?? this.fps,
+    frameSnap: frameSnap ?? this.frameSnap,
   );
 
   @override
@@ -217,7 +241,9 @@ final class ProjectProfile {
       other.requireTriangles == requireTriangles &&
       other.requireManifold == requireManifold &&
       other.textures == textures &&
-      other.texelsPerMeter == texelsPerMeter;
+      other.texelsPerMeter == texelsPerMeter &&
+      other.fps == fps &&
+      other.frameSnap == frameSnap;
 
   @override
   int get hashCode => Object.hash(
@@ -232,6 +258,8 @@ final class ProjectProfile {
     requireManifold,
     textures,
     texelsPerMeter,
+    fps,
+    frameSnap,
   );
 }
 

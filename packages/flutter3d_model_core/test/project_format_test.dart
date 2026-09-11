@@ -440,6 +440,8 @@ void main() {
         requireManifold: true,
         textures: TextureBudget.mobile,
         texelsPerMeter: 512.5,
+        fps: 24.0,
+        frameSnap: true,
       );
       final after = opened(writeProject(ModelProject(profile: before))).profile;
 
@@ -450,6 +452,8 @@ void main() {
       expect(after.requireManifold, isTrue);
       expect(after.textures, TextureBudget.mobile);
       expect(after.texelsPerMeter, 512.5);
+      expect(after.fps, 24.0);
+      expect(after.frameSnap, isTrue);
     });
 
     test('a manifest written before doc-13 opens with the new fields at '
@@ -472,6 +476,11 @@ void main() {
       // `texelsPerMeter` is younger still — `doc-35n`'s own default is
       // null, "nothing measured", not a fabricated number.
       expect(read.profile.texelsPerMeter, isNull);
+      // `fps`/`frameSnap` are `syn-03`'s own, younger even than
+      // `texelsPerMeter` — a manifest from before either existed opens at
+      // 30 fps, unsnapped, the same defaults a fresh project already has.
+      expect(read.profile.fps, 30.0);
+      expect(read.profile.frameSnap, isFalse);
     });
 
     test('an unknown texture budget format opens as other, and says so', () {
@@ -607,14 +616,14 @@ void main() {
 
       // The numbers this project's file actually lands on: a 16-byte header and
       // six 16-byte directory entries put the manifest at 112, and the manifest
-      // is 1238 bytes (`anim-03`/`anim-19`'s own `skeletonIndex`/`shapeSet` per
-      // object plus the top-level `skeletons`/`clips` arrays, all written even
-      // empty, widened it from the 1101 an earlier version of this fixture
-      // measured), which ends at 1350 and is not a multiple of four. So the
-      // mesh table starts at 1352, two bytes of padding later. Those two bytes
-      // are the whole test — a reader building an `Int32List.view` over the
-      // blob throws on an offset that is not a multiple of four, and it throws
-      // on the machine of whoever opens the file rather than here.
+      // is 1267 bytes (`syn-03`'s own `fps`/`frameSnap`, written even at their
+      // defaults the same way every other profile field is, widened it from
+      // the 1238 an earlier version of this fixture measured), which ends at
+      // 1379 and is not a multiple of four. So the mesh table starts at 1380,
+      // one byte of padding later. That one byte is the whole test — a reader
+      // building an `Int32List.view` over the blob throws on an offset that is
+      // not a multiple of four, and it throws on the machine of whoever opens
+      // the file rather than here.
       expect(directory.map((entry) => entry.kind), <int>[
         ProjectSection.manifest,
         ProjectSection.editMeshes,
@@ -624,11 +633,11 @@ void main() {
         ProjectSection.checksums,
       ]);
       expect(directory[0].offset, 112);
-      expect(directory[0].length, 1238);
-      expect(directory[1].offset, 1352);
+      expect(directory[0].length, 1267);
+      expect(directory[1].offset, 1380);
       expect(directory[1].length, 16);
       expect(directory[1].count, 2);
-      expect(directory[2].offset, 1368);
+      expect(directory[2].offset, 1396);
       // This project has nothing imported and nothing textured, and both tables
       // are written all the same: every file this build produces has the same
       // five-section directory, so a reader is never deciding between "none of
@@ -638,14 +647,14 @@ void main() {
       // One row per other section, so the table grows with the directory.
       expect(directory[5].count, 5);
       expect(directory[5].length, 5 * kProjectChecksumEntryBytes);
-      expect(bytes.length, 3984);
+      expect(bytes.length, 4012);
 
       for (final entry in directory) {
         expect(entry.offset % 4, 0, reason: 'section ${entry.kind}');
       }
 
       // Mutation: return `value` from the writer's `_align` and the table lands
-      // at 1350 with the blob behind it at 1366; the assertions above and the
+      // at 1379 with the blob behind it at 1395; the assertions above and the
       // two below go red together.
       final view = ByteData.sublistView(bytes);
       final blob = directory[2];
@@ -841,7 +850,7 @@ void main() {
       expect(
         refusal(bytes),
         'The header claims 500 sections, whose directory ends at byte 8016, '
-        'past the end of a 3984-byte file.',
+        'past the end of a 4012-byte file.',
       );
     });
 
@@ -858,8 +867,8 @@ void main() {
       final cut = Uint8List.sublistView(whole, 0, whole.length - 8);
       expect(
         refusal(cut),
-        'Section 6 runs from byte 3944 for 40 bytes, past the end of a '
-        '3976-byte file.',
+        'Section 6 runs from byte 3972 for 40 bytes, past the end of a '
+        '4004-byte file.',
       );
     });
 
