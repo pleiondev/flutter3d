@@ -204,6 +204,66 @@ animations: 1 in, 0 out''');
     });
   });
 
+  group('morph targets', () {
+    MeshData withTarget(MeshData mesh, {String? name, double delta = 0.1}) =>
+        MeshData(
+          layout: mesh.layout,
+          vertices: mesh.vertices,
+          indices: mesh.indices,
+          morphTargets: <MorphTarget>[
+            MorphTarget(
+              vertexCount: mesh.vertexCount,
+              positions: Float32List.fromList(<double>[
+                for (var i = 0; i < mesh.vertexCount * 3; i++) delta,
+              ]),
+              name: name,
+            ),
+          ],
+        );
+
+    test('the same named target on both sides has nothing to report', () {
+      expect(
+        compareModelDocuments(
+          docOf(withTarget(triangle(), name: 'smile')),
+          docOf(withTarget(triangle(), name: 'smile')),
+        ),
+        isEmpty,
+      );
+    });
+
+    test('a target that lost its name is reported — the row\'s own '
+        '"обнулённое имя — красный"', () {
+      final source = docOf(withTarget(triangle(), name: 'smile'));
+      final readBack = docOf(withTarget(triangle()));
+
+      final found = compareModelDocuments(source, readBack);
+
+      expect(found, hasLength(1));
+      expect(found.single.said, contains('"smile"'));
+      expect(found.single.said, contains('nothing'));
+    });
+
+    test('a dropped target is named with both counts', () {
+      final source = docOf(withTarget(triangle(), name: 'smile'));
+      final readBack = docOf(triangle());
+
+      final found = compareModelDocuments(source, readBack);
+
+      expect(found, hasLength(1));
+      expect(found.single.said, contains('1 morph targets in, 0 out'));
+    });
+
+    test('a moved position delta is reported with both numbers', () {
+      final source = docOf(withTarget(triangle(), name: 'smile'));
+      final readBack = docOf(withTarget(triangle(), name: 'smile', delta: 0.2));
+
+      final found = compareModelDocuments(source, readBack);
+
+      expect(found, hasLength(1));
+      expect(found.single.said, contains('position float 0'));
+    });
+  });
+
   group('tolerance', () {
     test('a rounded vertex passes when the writer was allowed to round', () {
       final source = docOf(triangle());

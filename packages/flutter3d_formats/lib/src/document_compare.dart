@@ -16,6 +16,8 @@
 /// it, and a writer shipped without it is a writer nobody has checked.
 library;
 
+import 'package:flutter3d_geometry/flutter3d_geometry.dart';
+
 import 'model_document.dart';
 
 /// One thing a round trip did not preserve.
@@ -134,7 +136,66 @@ List<DocumentDifference> compareModelDocuments(
         break;
       }
     }
+
+    _compareMorphTargets(problems, i, a.morphTargets, b.morphTargets, tolerance);
   }
 
   return problems;
+}
+
+/// [source]'s own morph targets against [readBack]'s, for surface [i] —
+/// `anim-27`'s own "имя формы в F3dRecord.morphTarget": a target's own
+/// [MorphTarget.name] is a value nothing upstream of this reconstructs from
+/// anything else, so a writer that dropped it or a loader that misread it
+/// would otherwise go unnoticed by every caller that already trusts this
+/// function for "the round trip held".
+void _compareMorphTargets(
+  List<DocumentDifference> problems,
+  int i,
+  List<MorphTarget> source,
+  List<MorphTarget> readBack,
+  double tolerance,
+) {
+  if (source.length != readBack.length) {
+    problems.add(
+      DocumentDifference(
+        'surfaces[$i]: ${source.length} morph targets in, '
+        '${readBack.length} out',
+      ),
+    );
+    return;
+  }
+  for (var t = 0; t < source.length; t++) {
+    final a = source[t];
+    final b = readBack[t];
+    if (a.name != b.name) {
+      problems.add(
+        DocumentDifference(
+          'surfaces[$i]: morph target $t is named '
+          '${a.name == null ? 'nothing' : '"${a.name}"'} in, '
+          '${b.name == null ? 'nothing' : '"${b.name}"'} out',
+        ),
+      );
+    }
+    if (a.positions.length != b.positions.length) {
+      problems.add(
+        DocumentDifference(
+          'surfaces[$i]: morph target $t has ${a.positions.length} '
+          'position floats in, ${b.positions.length} out',
+        ),
+      );
+      continue;
+    }
+    for (var v = 0; v < a.positions.length; v++) {
+      if (!((a.positions[v] - b.positions[v]).abs() <= tolerance)) {
+        problems.add(
+          DocumentDifference(
+            'surfaces[$i]: morph target $t position float $v is '
+            '${a.positions[v]} in, ${b.positions[v]} out',
+          ),
+        );
+        break;
+      }
+    }
+  }
 }

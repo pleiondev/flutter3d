@@ -4,6 +4,8 @@
 ///     dart test test/export_report_test.dart
 library;
 
+import 'dart:typed_data';
+
 import 'package:flutter3d_formats/flutter3d_formats.dart';
 import 'package:flutter3d_geometry/flutter3d_geometry.dart';
 import 'package:test/test.dart';
@@ -166,6 +168,33 @@ void main() {
       expect(report.files.keys, <String>['model.f3d']);
       expect(report.writerWarnings, isEmpty);
       expect(report.differences, isEmpty);
+    });
+
+    test('a named morph target survives the round trip — anim-27\'s own '
+        'worked example', () {
+      final base = _triangle();
+      final named = MeshData(
+        layout: base.layout,
+        vertices: base.vertices,
+        indices: base.indices,
+        morphTargets: <MorphTarget>[
+          MorphTarget(
+            vertexCount: base.vertexCount,
+            positions: Float32List(base.vertexCount * 3)
+              ..fillRange(0, base.vertexCount * 3, 0.1),
+            name: 'smile',
+          ),
+        ],
+      );
+      final document = PlainModelDocument(
+        surfaces: <ModelSurface>[_surface('a', named)],
+      );
+
+      final report = exportToF3d(document);
+
+      expect(report.differences, isEmpty);
+      final readBack = F3dDocument.parse(report.files['model.f3d']!);
+      expect(readBack.surfaces.single.mesh.morphTargets.single.name, 'smile');
     });
   });
 }
