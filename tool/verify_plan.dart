@@ -57,7 +57,21 @@ final class PlanItem {
 
 final RegExp _backticked = RegExp(r'`([^`]+)`');
 final RegExp _escape = RegExp(r'\\[nrt]');
-final RegExp _rowId = RegExp(r'^`?([a-z][a-z0-9]*(?:-[a-z]+)?-[0-9]+[a-z]*)`?');
+// A trailing `-n` or `-d` beyond the digit run — the two suffixes the plan's
+// own intro names, "-n" for a row added by critique and "-d" for one added
+// by an owner decision — sometimes glued straight onto the digits
+// (`mat-09n`, already matched by the trailing `[a-z]*` alone) and sometimes
+// its own dash-separated letter on a row that already had a letter suffix
+// of its own (`doc-11a-n`, `mat-04a-n`, `anim-31a-n`), which the single
+// trailing `[a-z]*` cannot also cover since it has already been spent on
+// the "a". Deliberately `[nd]` and not `[a-z]+`: several rows carry a
+// *descriptive* dash-slug after their number instead (`view-01-bench`,
+// `view-02-viewport-skeleton`), which `plan-status.json` keys by the bare
+// number alone — a wider trailing group would fold that slug into the id
+// and break every one of those rows the same way this one was broken.
+final RegExp _rowId = RegExp(
+  r'^`?([a-z][a-z0-9]*(?:-[a-z]+)?-[0-9]+[a-z]*(?:-[nd])?)`?',
+);
 
 /// A Dart identifier worth looking for: a type, a member or a function.
 ///

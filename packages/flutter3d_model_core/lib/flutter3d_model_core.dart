@@ -34,6 +34,7 @@ export 'src/command.dart';
 export 'src/command_journal.dart';
 export 'src/history.dart';
 export 'src/image_dimensions.dart';
+export 'src/import_into.dart';
 export 'src/job.dart';
 export 'src/listing.dart';
 export 'src/material.dart';

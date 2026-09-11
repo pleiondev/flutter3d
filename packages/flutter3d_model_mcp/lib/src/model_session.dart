@@ -260,9 +260,12 @@ final class ModelSession {
   }
 
   /// Brings in a glTF, OBJ, `.f3d` or STL file as new objects in this
-  /// project — merged in, not replacing it, the way `ImportInto` (`doc-11a-n`)
-  /// will once it exists; today this is [fromModelDocument] on a project of
-  /// one and its objects copied across.
+  /// project — merged in, not replacing it, through `doc-11a-n`'s own
+  /// `importInto`: materials and images the file shares with this project
+  /// (down to matching every field a `.f3dproj` manifest would write) come
+  /// in once rather than doubling the tables, and the file's own hierarchy —
+  /// parent and child alike — is preserved rather than flattened to the top
+  /// level.
   Future<Answer> import(String from) async {
     final file = File(from);
     if (!file.existsSync()) {
@@ -274,22 +277,8 @@ final class ModelSession {
     } catch (error) {
       return (did: false, says: 'could not read $from: $error');
     }
-    final imported = fromModelDocument(document);
-    var next = project;
-    final made = <int>[];
-    for (final ModelObject object in imported.objects) {
-      next = next.added(
-        (int id) => ModelObject(
-          id: id,
-          name: object.name,
-          geometry: object.geometry,
-          transform: object.transform,
-          materialSlots: object.materialSlots,
-        ),
-      );
-      made.add(next.objects.last.id);
-    }
-    if (made.isEmpty) {
+    final report = importInto(project, document);
+    if (report.counts.objects == 0) {
       return (did: false, says: '$from has nothing this reader could place');
     }
     // `ReplaceDocument` rather than a run of `AddPrimitive`-style commands,
@@ -299,12 +288,12 @@ final class ModelSession {
     // deliberately not recorded to `_journal`, since it carries a whole
     // `ModelProject` a JSON Lines file has no way to hold; an import does not
     // appear in the recovery journal, only in the undo stack.
-    history.run(ReplaceDocument(next, 'import $from'));
+    history.run(ReplaceDocument(report.project, 'import $from'));
     return (
       did: true,
       says:
-          'imported ${made.length} '
-          '${made.length == 1 ? 'object' : 'objects'} from $from',
+          'imported ${report.counts.objects} '
+          '${report.counts.objects == 1 ? 'object' : 'objects'} from $from',
     );
   }
 
