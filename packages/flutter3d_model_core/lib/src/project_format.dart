@@ -783,6 +783,7 @@ Map<String, Object?> _materialJson(ProjectMaterial material) {
   final surface = material.surface;
   return <String, Object?>{
     'version': material.version,
+    'fmat': material.fmat,
     'name': surface.name,
     'baseColor': <double>[
       surface.baseColor.x,
@@ -820,6 +821,7 @@ Map<String, Object?>? _bindingJson(TextureBinding? binding) => binding == null
         'magLinear': binding.sampling.magLinear,
         'minLinear': binding.sampling.minLinear,
         'useMipmaps': binding.sampling.useMipmaps,
+        'mipLinear': binding.sampling.mipLinear,
         'wrapS': binding.sampling.wrapS.name,
         'wrapT': binding.sampling.wrapT.name,
       };
@@ -874,6 +876,10 @@ Map<String, Object?>? _bindingJson(TextureBinding? binding) => binding == null
       materials.add(
         ProjectMaterial(
           version: version,
+          // Younger than the rest of this record (`doc-10`), read the same
+          // optional way `mipLinear` above is: absent means the ordinary
+          // case, a material with no external file, not a refusal.
+          fmat: entry['fmat'] as String?,
           surface: SurfaceMaterial(
             name: name,
             baseColor: Vector4(
@@ -939,6 +945,10 @@ TextureBinding? _bindingFrom(Object? json) {
         magLinear: magLinear,
         minLinear: minLinear,
         useMipmaps: useMipmaps,
+        // Younger than the other four (`fmt-05`) and read the way `doc-13`'s
+        // profile fields are: optional, so a file saved before it existed
+        // opens as the default it already meant rather than being refused.
+        mipLinear: json['mipLinear'] as bool? ?? true,
         wrapS: _named(TextureWrap.values, wrapS, TextureWrap.repeat),
         wrapT: _named(TextureWrap.values, wrapT, TextureWrap.repeat),
       ),

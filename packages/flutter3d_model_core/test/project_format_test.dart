@@ -893,6 +893,112 @@ void main() {
       expect(after.materials.first.surface.normalTexture!.imageIndex, 0);
     });
 
+    test('a sampler\'s mipLinear survives, both ways', () {
+      // `fmt-05` added this field to `TextureSampling` after the rest of a
+      // binding's sampler was already written here — a fixture and a round
+      // trip that only ever exercised `false` would not have caught it being
+      // silently dropped, so both values get their own project.
+      ModelProject withMipLinear(bool value) => ModelProject(
+        materials: <ProjectMaterial>[
+          ProjectMaterial(
+            surface: SurfaceMaterial(
+              baseColorTexture: TextureBinding(
+                imageIndex: 0,
+                sampling: TextureSampling(mipLinear: value),
+              ),
+            ),
+          ),
+        ],
+        images: <EncodedImage>[
+          EncodedImage(bytes: Uint8List.fromList(<int>[1])),
+        ],
+      );
+
+      // Mutation: never write `mipLinear` at all — `_bindingJson` gains no
+      // key, `_bindingFrom` never reads one, and both projects below come
+      // back `true` regardless of which was saved.
+      expect(
+        opened(
+          writeProject(withMipLinear(false)),
+        ).materials.single.surface.baseColorTexture!.sampling.mipLinear,
+        isFalse,
+      );
+      expect(
+        opened(
+          writeProject(withMipLinear(true)),
+        ).materials.single.surface.baseColorTexture!.sampling.mipLinear,
+        isTrue,
+      );
+    });
+
+    test('a sampler with no mipLinear key opens as the default', () {
+      // What every project saved before `fmt-05`'s field existed looks like:
+      // the five original sampler keys and none of the sixth. No images
+      // section exists in this forged file at all, which is fine —
+      // `_readImages` returns empty before it ever looks at what the
+      // manifest names, so a texture's `imageIndex` here is free to dangle;
+      // nothing about that is what this test is asking.
+      final bytes = forge(<String, Object?>{
+        ...manifestOf(<Map<String, Object?>>[]),
+        'materials': <Object?>[
+          <String, Object?>{
+            'version': 1,
+            'name': null,
+            'baseColor': <double>[1, 1, 1, 1],
+            'metallic': 0.0,
+            'roughness': 0.5,
+            'baseColorTexture': <String, Object?>{
+              'imageIndex': 0,
+              'texCoordSet': 0,
+              'magLinear': true,
+              'minLinear': true,
+              'useMipmaps': true,
+              'wrapS': 'repeat',
+              'wrapT': 'repeat',
+            },
+            'metallicRoughnessTexture': null,
+            'normalTexture': null,
+            'normalScale': 1.0,
+            'occlusionTexture': null,
+            'occlusionStrength': 1.0,
+            'emissiveTexture': null,
+            'emissive': <double>[0, 0, 0],
+            'emissiveStrength': 1.0,
+            'alphaMode': 'opaque',
+            'alphaCutoff': 0.5,
+            'doubleSided': false,
+            'unlit': false,
+          },
+        ],
+      });
+
+      expect(
+        opened(
+          bytes,
+        ).materials.single.surface.baseColorTexture!.sampling.mipLinear,
+        isTrue,
+      );
+    });
+
+    test('a material\'s .fmat survives, and defaults to none', () {
+      final withFmat = ModelProject(
+        materials: <ProjectMaterial>[
+          ProjectMaterial(
+            surface: SurfaceMaterial(),
+            fmat: 'materials/brass.fmat',
+          ),
+          ProjectMaterial(surface: SurfaceMaterial()),
+        ],
+      );
+
+      final after = opened(writeProject(withFmat));
+      // Mutation: never write the `fmat` key, or read it as required rather
+      // than optional. The first loses every project that names one; the
+      // second refuses every project saved before this field existed.
+      expect(after.materials[0].fmat, 'materials/brass.fmat');
+      expect(after.materials[1].fmat, isNull);
+    });
+
     test('the image bytes come back whole, with what they were called', () {
       final after = opened(writeProject(painting()));
 
