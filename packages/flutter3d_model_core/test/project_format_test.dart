@@ -91,6 +91,15 @@ ModelProject opened(Uint8List bytes) {
   );
 }
 
+/// What opening [bytes] warned about, or the failure the refusal describes.
+List<String> warningsOf(Uint8List bytes) {
+  final read = readProject(bytes);
+  if (read case ProjectOpened(:final List<String> warnings)) return warnings;
+  fail(
+    'expected a project, and it refused: ${(read as ProjectRefused).because}',
+  );
+}
+
 /// The sentence [bytes] are refused with, or a failure if they were read.
 String refusal(Uint8List bytes) {
   final read = readProject(bytes);
@@ -1128,6 +1137,11 @@ void main() {
         opened(bytes).materials.single.surface.alphaMode,
         SurfaceAlphaMode.opaque,
       );
+      // Mutation: fall back to `opaque` without appending anything to
+      // `warnings` — the project still opens, correctly, and a silent
+      // downgrade is exactly the case `doc-10`'s `warnings` field exists to
+      // surface rather than hide.
+      expect(warningsOf(bytes).single, contains('dither'));
     });
 
     test('a material missing a field is refused, and says which kind', () {
@@ -1186,6 +1200,117 @@ void main() {
 
       expect(refusal(bytes), contains('table holds 1'));
       expect(refusal(bytes), contains('names 0'));
+    });
+  });
+
+  group('warnings', () {
+    test('a project with nothing to warn about opens with none', () {
+      expect(warningsOf(writeProject(sample())), isEmpty);
+    });
+
+    test(
+      'an unknown wrapS or wrapT is opened as repeat, and both are named',
+      () {
+        final bytes = forge(<String, Object?>{
+          ...manifestOf(<Map<String, Object?>>[objectJson()]),
+          'materials': <Object?>[
+            <String, Object?>{
+              'version': 1,
+              'name': null,
+              'baseColor': <double>[1, 1, 1, 1],
+              'metallic': 0.0,
+              'roughness': 0.5,
+              'normalScale': 1.0,
+              'occlusionStrength': 1.0,
+              'emissive': <double>[0, 0, 0],
+              'emissiveStrength': 1.0,
+              'alphaMode': 'opaque',
+              'alphaCutoff': 0.5,
+              'doubleSided': false,
+              'unlit': false,
+              'baseColorTexture': <String, Object?>{
+                'imageIndex': 0,
+                'texCoordSet': 0,
+                'magLinear': true,
+                'minLinear': true,
+                'useMipmaps': true,
+                'wrapS': 'mirror',
+                'wrapT': 'repeat',
+              },
+            },
+          ],
+          'images': <Object?>[
+            <String, Object?>{'name': 'a', 'mimeType': 'image/png'},
+          ],
+        });
+
+        // Mutation: swap which of `wrapS`/`wrapT` is checked, or drop the
+        // `context` argument down to a bare "wrap mode" — either leaves a
+        // person reading the warning unable to tell which of a material's five
+        // texture slots it came from.
+        expect(warningsOf(bytes).single, contains('baseColorTexture'));
+        expect(warningsOf(bytes).single, contains('wrapS'));
+        expect(warningsOf(bytes).single, contains('mirror'));
+      },
+    );
+
+    test('an unknown profile target opens as desktop, and says so', () {
+      final bytes = forge(<String, Object?>{
+        ...manifestOf(<Map<String, Object?>>[objectJson()]),
+        'profile': <String, Object?>{
+          'name': 'x',
+          'maxTriangles': 500000,
+          'maxJoints': 64,
+          'maxInfluences': 4,
+          'maxTextureSize': 4096,
+          'target': 'quantum',
+        },
+      });
+
+      final read = readProject(bytes);
+      expect(read, isA<ProjectOpened>());
+      expect(
+        (read as ProjectOpened).project.profile.target,
+        ProfileTarget.desktop,
+      );
+      expect(read.warnings.single, contains('quantum'));
+    });
+
+    test('two things worth a warning both make it into the list', () {
+      final bytes = forge(<String, Object?>{
+        ...manifestOf(<Map<String, Object?>>[objectJson()]),
+        'profile': <String, Object?>{
+          'name': 'x',
+          'maxTriangles': 500000,
+          'maxJoints': 64,
+          'maxInfluences': 4,
+          'maxTextureSize': 4096,
+          'target': 'quantum',
+        },
+        'materials': <Object?>[
+          <String, Object?>{
+            'version': 1,
+            'name': null,
+            'baseColor': <double>[1, 1, 1, 1],
+            'metallic': 0.0,
+            'roughness': 0.5,
+            'normalScale': 1.0,
+            'occlusionStrength': 1.0,
+            'emissive': <double>[0, 0, 0],
+            'emissiveStrength': 1.0,
+            'alphaMode': 'dither',
+            'alphaCutoff': 0.5,
+            'doubleSided': false,
+            'unlit': false,
+          },
+        ],
+      });
+
+      // Mutation: overwrite `warnings` instead of appending to it in one of
+      // the two call sites — a material's own warning would then silently
+      // erase the profile's, or the other way round, and only ever one of
+      // the two problems a file actually has would reach whoever opened it.
+      expect(warningsOf(bytes), hasLength(2));
     });
   });
 

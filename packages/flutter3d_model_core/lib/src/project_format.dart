@@ -185,9 +185,15 @@ sealed class ProjectRead {
 
 /// The file read.
 final class ProjectOpened extends ProjectRead {
-  const ProjectOpened(this.project);
+  const ProjectOpened(this.project, {this.warnings = const <String>[]});
 
   final ModelProject project;
+
+  /// What the file held that this build read rather than refused, in its own
+  /// words: an unrecognised alpha mode, wrap mode or profile target from a
+  /// newer build, opened as the fallback that name names above. Empty for a
+  /// file with nothing to say about — every field it named, this build knew.
+  final List<String> warnings;
 }
 
 /// The file not read, and one sentence saying what is wrong with it.
@@ -598,11 +604,18 @@ ProjectRead readProject(Uint8List bytes) {
   );
   if (imageRefusal != null) return ProjectRefused(imageRefusal);
 
+  // Collected rather than returned as they are found, because a warning is
+  // never the reason to stop: everything that could add one already has a
+  // fallback in hand, and a file worth opening at all is a file worth opening
+  // whole.
+  final warnings = <String>[];
+
   final (
     List<ProjectMaterial> materials,
     String? materialRefusal,
   ) = _readMaterials(
     document is Map<String, Object?> ? document['materials'] : null,
+    warnings,
   );
   if (materialRefusal != null) return ProjectRefused(materialRefusal);
 
@@ -611,7 +624,7 @@ ProjectRead readProject(Uint8List bytes) {
     'nextId': final int nextId,
     'objects': final List<Object?> entries,
   }) {
-    final ProjectProfile? profile = _readProfile(profileJson);
+    final ProjectProfile? profile = _readProfile(profileJson, warnings);
     if (profile == null) {
       return const ProjectRefused(
         'The manifest is not shaped like a project: it needs a profile with '
@@ -637,6 +650,7 @@ ProjectRead readProject(Uint8List bytes) {
         images: images,
         nextId: nextId,
       ),
+      warnings: warnings,
     );
   }
 
@@ -834,7 +848,10 @@ Map<String, Object?>? _bindingJson(TextureBinding? binding) => binding == null
 /// the rule for an unknown enum name and is the right way round: a name this
 /// build has not heard of is something a newer build wrote, and a missing
 /// `baseColor` is a file that was truncated or was never a project.
-(List<ProjectMaterial>, String?) _readMaterials(Object? json) {
+(List<ProjectMaterial>, String?) _readMaterials(
+  Object? json,
+  List<String> warnings,
+) {
   if (json == null) return (const <ProjectMaterial>[], null);
   if (json is! List) {
     return (
@@ -892,15 +909,33 @@ Map<String, Object?>? _bindingJson(TextureBinding? binding) => binding == null
             ),
             metallic: metallic.toDouble(),
             roughness: roughness.toDouble(),
-            baseColorTexture: _bindingFrom(entry['baseColorTexture']),
+            baseColorTexture: _bindingFrom(
+              entry['baseColorTexture'],
+              warnings,
+              'Material $i\'s baseColorTexture',
+            ),
             metallicRoughnessTexture: _bindingFrom(
               entry['metallicRoughnessTexture'],
+              warnings,
+              'Material $i\'s metallicRoughnessTexture',
             ),
-            normalTexture: _bindingFrom(entry['normalTexture']),
+            normalTexture: _bindingFrom(
+              entry['normalTexture'],
+              warnings,
+              'Material $i\'s normalTexture',
+            ),
             normalScale: normalScale.toDouble(),
-            occlusionTexture: _bindingFrom(entry['occlusionTexture']),
+            occlusionTexture: _bindingFrom(
+              entry['occlusionTexture'],
+              warnings,
+              'Material $i\'s occlusionTexture',
+            ),
             occlusionStrength: occlusionStrength.toDouble(),
-            emissiveTexture: _bindingFrom(entry['emissiveTexture']),
+            emissiveTexture: _bindingFrom(
+              entry['emissiveTexture'],
+              warnings,
+              'Material $i\'s emissiveTexture',
+            ),
             emissive: Vector3(
               (emissive[0]! as num).toDouble(),
               (emissive[1]! as num).toDouble(),
@@ -911,6 +946,8 @@ Map<String, Object?>? _bindingJson(TextureBinding? binding) => binding == null
               SurfaceAlphaMode.values,
               alphaMode,
               SurfaceAlphaMode.opaque,
+              warnings: warnings,
+              context: 'Material $i\'s alphaMode',
             ),
             alphaCutoff: alphaCutoff.toDouble(),
             doubleSided: doubleSided,
@@ -930,7 +967,11 @@ Map<String, Object?>? _bindingJson(TextureBinding? binding) => binding == null
   return (materials, null);
 }
 
-TextureBinding? _bindingFrom(Object? json) {
+TextureBinding? _bindingFrom(
+  Object? json,
+  List<String> warnings,
+  String context,
+) {
   if (json case <String, Object?>{
     'imageIndex': final int imageIndex,
     'texCoordSet': final int texCoordSet,
@@ -951,8 +992,20 @@ TextureBinding? _bindingFrom(Object? json) {
         // profile fields are: optional, so a file saved before it existed
         // opens as the default it already meant rather than being refused.
         mipLinear: json['mipLinear'] as bool? ?? true,
-        wrapS: _named(TextureWrap.values, wrapS, TextureWrap.repeat),
-        wrapT: _named(TextureWrap.values, wrapT, TextureWrap.repeat),
+        wrapS: _named(
+          TextureWrap.values,
+          wrapS,
+          TextureWrap.repeat,
+          warnings: warnings,
+          context: '$context\'s wrapS',
+        ),
+        wrapT: _named(
+          TextureWrap.values,
+          wrapT,
+          TextureWrap.repeat,
+          warnings: warnings,
+          context: '$context\'s wrapT',
+        ),
       ),
     );
   }
@@ -972,7 +1025,7 @@ TextureBinding? _bindingFrom(Object? json) {
 /// change over a difference that changes what a *new* save means, not what an
 /// old one did — exactly the version bump `doc-28` says not to spend on this.
 /// Each reads back as the default `ProjectProfile` already has.
-ProjectProfile? _readProfile(Object? json) {
+ProjectProfile? _readProfile(Object? json, List<String> warnings) {
   if (json case {
     'name': final String name,
     'maxTriangles': final int maxTriangles,
@@ -988,6 +1041,8 @@ ProjectProfile? _readProfile(Object? json) {
           ProfileTarget.values,
           word,
           fallback.target,
+          warnings: warnings,
+          context: 'The profile\'s target',
         ),
         _ => fallback.target,
       },
@@ -1008,11 +1063,27 @@ ProjectProfile? _readProfile(Object? json) {
   return null;
 }
 
-/// The value of [values] called [name], or [fallback].
-T _named<T extends Enum>(List<T> values, String name, T fallback) {
+/// The value of [values] called [name], or [fallback] with a note in
+/// [warnings] naming [context] — the rule for an unknown enum name (see
+/// `_readMaterials`'s own doc comment): a name this build has never heard of
+/// is something a newer build wrote, read rather than refused, but silently
+/// is not the same as safely. `doc-10`'s own `warnings` gap is exactly this:
+/// a project that opens with an alpha mode or a wrap mode quietly downgraded
+/// is a project whose next save can no longer tell the two apart.
+T _named<T extends Enum>(
+  List<T> values,
+  String name,
+  T fallback, {
+  required List<String> warnings,
+  required String context,
+}) {
   for (final T value in values) {
     if (value.name == name) return value;
   }
+  warnings.add(
+    '$context names "$name", which this build does not know; opened as '
+    '${fallback.name}.',
+  );
   return fallback;
 }
 
