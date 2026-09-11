@@ -1,4 +1,5 @@
 import 'package:dart_mcp/server.dart';
+import 'package:flutter3d_formats/flutter3d_formats.dart';
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 
@@ -65,6 +66,22 @@ UntitledSingleSelectEnumSchema _space(String about) =>
       description: about,
       values: <String>[for (final s in TransformSpace.values) s.name],
     );
+
+UntitledSingleSelectEnumSchema _interpolation(String about) =>
+    UntitledSingleSelectEnumSchema(
+      description: about,
+      values: <String>[for (final i in AnimationInterpolation.values) i.name],
+    );
+
+/// A list of numbers whose own length is a track's `componentCount` — not
+/// known ahead of time the way [_vector]'s always-three or [_matrix16]'s
+/// always-sixteen are, so no `minItems`/`maxItems` here; the command itself
+/// is what checks the count matches the track it targets.
+ListSchema _numbers(String about) =>
+    ListSchema(description: about, items: NumberSchema());
+
+ListSchema _ints(String about) =>
+    ListSchema(description: about, items: IntegerSchema());
 
 /// Runs the command [name] stands for, built out of the call's own arguments
 /// through [modelCommandFromJson] — the same reader the project file and
@@ -1008,6 +1025,325 @@ List<ModelTool> get _commandTools => <ModelTool>[
       ),
     ),
     _command('applyJobResult'),
+  ),
+  ModelTool(
+    Tool(
+      name: 'setProfileLimits',
+      description:
+          'Change the project\'s own rig limits — maxJoints and/or '
+          'maxInfluences. Refused when a value is out of range: maxJoints '
+          'past 64 (the skinning shader\'s own ceiling) or maxInfluences '
+          'past 4 (a vertex stores four joint/weight pairs). Either field '
+          'left out keeps the project\'s current value for it.',
+      inputSchema: ObjectSchema(
+        properties: <String, Schema>{
+          'maxJoints': IntegerSchema(description: 'new ceiling, 1 through 64'),
+          'maxInfluences': IntegerSchema(
+            description: 'new ceiling, 1 through 4',
+          ),
+        },
+      ),
+    ),
+    _command('setProfileLimits'),
+  ),
+  ModelTool(
+    Tool(
+      name: 'setShapeWeight',
+      description:
+          'Set one of an object\'s shape keys to a live preview weight — '
+          'not a keyframe. keyShape is what records the current weights as '
+          'one.',
+      inputSchema: ObjectSchema(
+        properties: <String, Schema>{
+          'id': IntegerSchema(description: 'the object'),
+          'shapeIndex': IntegerSchema(description: 'the shape key, from list'),
+          'weight': NumberSchema(description: 'the new weight'),
+        },
+        required: <String>['id', 'shapeIndex', 'weight'],
+      ),
+    ),
+    _command('setShapeWeight'),
+  ),
+  ModelTool(
+    Tool(
+      name: 'addShapeFromMesh',
+      description:
+          'Add a new shape key to an object, captured from the mesh\'s '
+          'own current vertex positions — sculpt the mesh first, then call '
+          'this to save it as a shape. Starts at weight 0.0.',
+      inputSchema: ObjectSchema(
+        properties: <String, Schema>{
+          'id': IntegerSchema(description: 'the object; needs an edited mesh'),
+          'shapeName': StringSchema(description: 'the new shape key\'s name'),
+        },
+        required: <String>['id', 'shapeName'],
+      ),
+    ),
+    _command('addShapeFromMesh'),
+  ),
+  ModelTool(
+    Tool(
+      name: 'renameShape',
+      description: 'Rename one of an object\'s own shape keys.',
+      inputSchema: ObjectSchema(
+        properties: <String, Schema>{
+          'id': IntegerSchema(description: 'the object'),
+          'shapeIndex': IntegerSchema(description: 'the shape key, from list'),
+          'to': StringSchema(description: 'the new name; may not be blank'),
+        },
+        required: <String>['id', 'shapeIndex', 'to'],
+      ),
+    ),
+    _command('renameShape'),
+  ),
+  ModelTool(
+    Tool(
+      name: 'deleteShape',
+      description:
+          'Remove one of an object\'s own shape keys, shifting the ones '
+          'after it down one index. Also drops that shape\'s own component '
+          'from any weights animation track driving this object, so the '
+          'track keeps driving the survivors rather than reading a dead '
+          'shape\'s old slot.',
+      inputSchema: ObjectSchema(
+        properties: <String, Schema>{
+          'id': IntegerSchema(description: 'the object'),
+          'shapeIndex': IntegerSchema(description: 'the shape key, from list'),
+        },
+        required: <String>['id', 'shapeIndex'],
+      ),
+    ),
+    _command('deleteShape'),
+  ),
+  ModelTool(
+    Tool(
+      name: 'keyShape',
+      description:
+          'Record an object\'s own current shape weights (whatever '
+          'setShapeWeight last set) as a keyframe, at a given time, in a '
+          'clip. Creates the object\'s weights track in that clip if it '
+          'does not have one yet.',
+      inputSchema: ObjectSchema(
+        properties: <String, Schema>{
+          'id': IntegerSchema(description: 'the object; needs shape keys'),
+          'clipIndex': IntegerSchema(description: 'which clip, from list'),
+          'time': NumberSchema(description: 'when, in seconds'),
+        },
+        required: <String>['id', 'clipIndex', 'time'],
+      ),
+    ),
+    _command('keyShape'),
+  ),
+  ModelTool(
+    Tool(
+      name: 'addJoint',
+      description:
+          'Add an existing object to a skeleton as a new joint, appended '
+          'at the end of the joint list. Refused if the object is already '
+          'a joint in that skeleton.',
+      inputSchema: ObjectSchema(
+        properties: <String, Schema>{
+          'skeletonIndex': IntegerSchema(description: 'which skeleton, from list'),
+          'objectId': IntegerSchema(description: 'the object to make a joint'),
+          'inverseBindMatrix': _matrix16(
+            'optional; identity\'s own inverse (identity) when left out',
+          ),
+        },
+        required: <String>['skeletonIndex', 'objectId'],
+      ),
+    ),
+    _command('addJoint'),
+  ),
+  ModelTool(
+    Tool(
+      name: 'removeJoint',
+      description:
+          'Remove a joint from a skeleton. Every vertex weight on it moves '
+          'to the joint\'s own parent (or is dropped, renormalized, if it '
+          'has none), and every later joint\'s index shifts down by one.',
+      inputSchema: ObjectSchema(
+        properties: <String, Schema>{
+          'skeletonIndex': IntegerSchema(description: 'which skeleton, from list'),
+          'jointIndex': IntegerSchema(description: 'the joint, from list'),
+        },
+        required: <String>['skeletonIndex', 'jointIndex'],
+      ),
+    ),
+    _command('removeJoint'),
+  ),
+  ModelTool(
+    Tool(
+      name: 'renameJoint',
+      description:
+          'Rename a joint — really just its own underlying object, so '
+          'the new name shows up everywhere else that object does too.',
+      inputSchema: ObjectSchema(
+        properties: <String, Schema>{
+          'skeletonIndex': IntegerSchema(description: 'which skeleton, from list'),
+          'jointIndex': IntegerSchema(description: 'the joint, from list'),
+          'to': StringSchema(description: 'the new name; may not be blank'),
+        },
+        required: <String>['skeletonIndex', 'jointIndex', 'to'],
+      ),
+    ),
+    _command('renameJoint'),
+  ),
+  ModelTool(
+    Tool(
+      name: 'reparentJoint',
+      description:
+          'Reparent a joint to a different object — delegates to setParent, '
+          'reached through the skeleton\'s own joint index. Refused on a cycle, '
+          'the same way setParent refuses one.',
+      inputSchema: ObjectSchema(
+        properties: <String, Schema>{
+          'skeletonIndex': IntegerSchema(description: 'which skeleton, from list'),
+          'jointIndex': IntegerSchema(description: 'the joint, from list'),
+          'to': IntegerSchema(description: 'the new parent object\'s id'),
+        },
+        required: <String>['skeletonIndex', 'jointIndex', 'to'],
+      ),
+    ),
+    _command('reparentJoint'),
+  ),
+  ModelTool(
+    Tool(
+      name: 'setRestPose',
+      description:
+          'Move a joint to a new rest-pose world transform, recomputing '
+          'both its own local transform (against its actual current parent) '
+          'and its skeleton\'s own inverse bind matrix, so the mesh does not '
+          'jump when this is applied.',
+      inputSchema: ObjectSchema(
+        properties: <String, Schema>{
+          'skeletonIndex': IntegerSchema(description: 'which skeleton, from list'),
+          'jointIndex': IntegerSchema(description: 'the joint, from list'),
+          'worldTransform': _matrix16('the joint\'s own new world transform'),
+        },
+        required: <String>['skeletonIndex', 'jointIndex', 'worldTransform'],
+      ),
+    ),
+    _command('setRestPose'),
+  ),
+  ModelTool(
+    Tool(
+      name: 'mirrorJoints',
+      description:
+          'Mirror one or more joints across an axis-aligned plane, by '
+          'reflecting each named source joint\'s own current world transform '
+          'onto its named target. Name a pair both ways (left to right and '
+          'right to left) to mirror a symmetric rig in one call; name a joint '
+          'to itself to mirror it in place, for one that straddles the plane.',
+      inputSchema: ObjectSchema(
+        properties: <String, Schema>{
+          'skeletonIndex': IntegerSchema(description: 'which skeleton, from list'),
+          'axis': IntegerSchema(description: '0 for x, 1 for y, 2 for z'),
+          'jointMirror': ObjectSchema(
+            description:
+                'source joint index (as a string key) to target joint index',
+            additionalProperties: IntegerSchema(),
+          ),
+        },
+        required: <String>['skeletonIndex', 'axis', 'jointMirror'],
+      ),
+    ),
+    _command('mirrorJoints'),
+  ),
+  ModelTool(
+    Tool(
+      name: 'setKey',
+      description:
+          'Write (or replace) a keyframe at a given time, on a named '
+          'track in a named clip. values needs one number per the track\'s '
+          'own component count; inTangent/outTangent are read only while the '
+          'track is in cubic interpolation.',
+      inputSchema: ObjectSchema(
+        properties: <String, Schema>{
+          'clipIndex': IntegerSchema(description: 'which clip, from list'),
+          'trackIndex': IntegerSchema(description: 'which track in that clip'),
+          'time': NumberSchema(description: 'when, in seconds'),
+          'values': _numbers('one number a component'),
+          'inTangent': _numbers('optional; one number a component'),
+          'outTangent': _numbers('optional; one number a component'),
+        },
+        required: <String>['clipIndex', 'trackIndex', 'time', 'values'],
+      ),
+    ),
+    _command('setKey'),
+  ),
+  ModelTool(
+    Tool(
+      name: 'moveKeys',
+      description:
+          'Shift the named keyframes on a track by a fixed amount of '
+          'time, re-sorting afterward if any crossed another key on the way.',
+      inputSchema: ObjectSchema(
+        properties: <String, Schema>{
+          'clipIndex': IntegerSchema(description: 'which clip, from list'),
+          'trackIndex': IntegerSchema(description: 'which track in that clip'),
+          'indices': _ints('which keys, by their current index'),
+          'deltaTime': NumberSchema(description: 'how far to shift, in seconds'),
+        },
+        required: <String>['clipIndex', 'trackIndex', 'indices', 'deltaTime'],
+      ),
+    ),
+    _command('moveKeys'),
+  ),
+  ModelTool(
+    Tool(
+      name: 'deleteKeys',
+      description:
+          'Remove the named keyframes from a track. Refused, rather than '
+          'applied, if doing so would leave the track with no keys at all — '
+          'a track needs at least one.',
+      inputSchema: ObjectSchema(
+        properties: <String, Schema>{
+          'clipIndex': IntegerSchema(description: 'which clip, from list'),
+          'trackIndex': IntegerSchema(description: 'which track in that clip'),
+          'indices': _ints('which keys, by their current index'),
+        },
+        required: <String>['clipIndex', 'trackIndex', 'indices'],
+      ),
+    ),
+    _command('deleteKeys'),
+  ),
+  ModelTool(
+    Tool(
+      name: 'setInterpolation',
+      description:
+          'Switch how a track blends between its own keys — linear, '
+          'step, or cubicSpline. Every key\'s own tangents survive the '
+          'switch even while it is not the mode currently showing.',
+      inputSchema: ObjectSchema(
+        properties: <String, Schema>{
+          'clipIndex': IntegerSchema(description: 'which clip, from list'),
+          'trackIndex': IntegerSchema(description: 'which track in that clip'),
+          'interpolation': _interpolation('the new interpolation mode'),
+        },
+        required: <String>['clipIndex', 'trackIndex', 'interpolation'],
+      ),
+    ),
+    _command('setInterpolation'),
+  ),
+  ModelTool(
+    Tool(
+      name: 'setTangent',
+      description:
+          'Set one keyframe\'s own in/out tangents, leaving its time and '
+          'value untouched. Either tangent left out keeps whatever that key '
+          'already had.',
+      inputSchema: ObjectSchema(
+        properties: <String, Schema>{
+          'clipIndex': IntegerSchema(description: 'which clip, from list'),
+          'trackIndex': IntegerSchema(description: 'which track in that clip'),
+          'index': IntegerSchema(description: 'the key, from its own track'),
+          'inTangent': _numbers('optional; one number a component'),
+          'outTangent': _numbers('optional; one number a component'),
+        },
+        required: <String>['clipIndex', 'trackIndex', 'index'],
+      ),
+    ),
+    _command('setTangent'),
   ),
 ];
 
