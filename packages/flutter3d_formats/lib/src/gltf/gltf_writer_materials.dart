@@ -26,6 +26,11 @@ extension _GltfWriterMaterials on GltfWriter {
     // material's.
     final extensionsUsed = <String>{};
 
+    // `KHR_texture_basisu` is the only extension this writer ever needs
+    // here: every other one degrades gracefully in a reader that ignores
+    // it, but a texture with no core `source` has nothing to fall back to.
+    final extensionsRequired = <String>{};
+
     int? samplerIndexFor(TextureSampling sampling) {
       // The all-default sampler needs no `samplers` entry at all — a texture
       // with no `sampler` key already means exactly this under the spec, and
@@ -53,10 +58,23 @@ extension _GltfWriterMaterials on GltfWriter {
       final key = (binding.imageIndex, samplerIndex);
       final existing = textureIndexByValue[key];
       if (existing != null) return existing;
+
+      final image = document.images[binding.imageIndex];
+      final isBasis = isKtx2BasisUniversal(image.bytes);
       textures.add(<String, Object?>{
-        'source': binding.imageIndex,
         'sampler': ?samplerIndex,
+        if (isBasis)
+          'extensions': <String, Object?>{
+            'KHR_texture_basisu': <String, Object?>{'source': binding.imageIndex},
+          }
+        else
+          'source': binding.imageIndex,
       });
+      if (isBasis) {
+        extensionsUsed.add('KHR_texture_basisu');
+        extensionsRequired.add('KHR_texture_basisu');
+      }
+
       final index = textures.length - 1;
       textureIndexByValue[key] = index;
       return index;
@@ -148,6 +166,9 @@ extension _GltfWriterMaterials on GltfWriter {
 
     if (extensionsUsed.isNotEmpty) {
       _extensionsUsed.addAll(extensionsUsed);
+    }
+    if (extensionsRequired.isNotEmpty) {
+      _extensionsRequired.addAll(extensionsRequired);
     }
     return (materials, samplers, textures);
   }

@@ -28,6 +28,33 @@ String? sniffImageMimeType(Uint8List bytes) {
   return null;
 }
 
+/// Whether [bytes] is a KTX2 file Basis Universal produced — `fmt-21`'s own
+/// row, the check that decides whether a texture can travel as
+/// `KHR_texture_basisu` or has to be embedded the ordinary way instead.
+///
+/// **`vkFormat` is the whole test, per `KHR_texture_basisu`'s own spec**:
+/// a container Basis Universal wrote — ETC1S or UASTC, transcodable at load
+/// time — always leaves `vkFormat` at `VK_FORMAT_UNDEFINED` (`0`), the
+/// header field at byte offset 12 (right after the 12-byte identifier this
+/// file's own [sniffImageMimeType] already checks). A KTX2 container
+/// already baked to one final block format — BC1, BC3, ASTC — names that
+/// format there instead, which is exactly the case `fmt-21`'s own row
+/// wants a warning for rather than a texture reference nothing can read.
+///
+/// **Not called `isBasisUniversalKtx2`, though that reads better.**
+/// `flutter3d`'s own `ktx2_loader.dart` already has a function by that
+/// exact name, for the identical check, for its own runtime reason — this
+/// package cannot depend on `flutter3d` to reuse it, and `flutter3d`
+/// re-exports this package, so the two names collide the moment anything
+/// imports both. Renamed here rather than there, since this is the newer
+/// of the two.
+bool isKtx2BasisUniversal(Uint8List bytes) {
+  if (!_startsWith(bytes, _ktx2)) return false;
+  if (bytes.length < 16) return false;
+  final vkFormat = ByteData.sublistView(bytes, 12, 16).getUint32(0, Endian.little);
+  return vkFormat == 0;
+}
+
 bool _startsWith(Uint8List bytes, List<int> magic) {
   if (bytes.length < magic.length) return false;
   for (var i = 0; i < magic.length; i++) {

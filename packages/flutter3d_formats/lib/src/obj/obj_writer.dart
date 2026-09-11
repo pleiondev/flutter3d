@@ -3,6 +3,7 @@ import 'dart:typed_data';
 
 import 'package:flutter3d_geometry/flutter3d_geometry.dart';
 
+import '../image_sniff.dart';
 import '../model_document.dart';
 
 /// Encodes any [ModelDocument] as Wavefront OBJ, with its `.mtl` beside it.
@@ -107,6 +108,20 @@ final class ObjWriter {
       found.add(
         '$withMorphs surface(s) carry morph targets that were not '
         'written; OBJ has no shape keys',
+      );
+    }
+    final ktx2Materials = document.materials.where((material) {
+      final index = material.baseColorTexture?.imageIndex;
+      if (index == null || index < 0 || index >= document.images.length) {
+        return false;
+      }
+      return sniffImageMimeType(document.images[index].bytes) == 'image/ktx2';
+    }).length;
+    if (ktx2Materials > 0) {
+      found.add(
+        '$ktx2Materials material(s) reference a KTX2 texture; `map_Kd` '
+        'names it anyway, which nothing reading plain OBJ can decode '
+        '— fmt-21',
       );
     }
     return found;

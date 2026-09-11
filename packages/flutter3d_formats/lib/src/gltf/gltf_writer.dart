@@ -59,15 +59,38 @@ final class GltfWriter {
   /// what the file needs rather than every extension this writer knows about.
   final Set<String> _extensionsUsed = <String>{};
 
-  /// What [writeGlb] could not carry — `fmt-12`'s own row, and empty for
-  /// every document this engine has ever handed it: glTF is the format
-  /// everything else in this package is measured against for
-  /// completeness (materials, skins, animations, morph targets, vertex
-  /// colour all have somewhere to go), so there is nothing this writer
-  /// knows to warn about yet. The getter exists for the same reason every
-  /// writer's does — one shape `ExportReport` can read uniformly — not
-  /// because this one currently has anything to say through it.
-  List<String> get warnings => const <String>[];
+  /// The subset of [_extensionsUsed] a reader cannot fall back without —
+  /// `fmt-21`'s own `KHR_texture_basisu`, whose texture has no core
+  /// `source` to read instead. Every other extension this writer emits
+  /// degrades gracefully in a reader that ignores it, so nothing else is
+  /// ever added here.
+  final Set<String> _extensionsRequired = <String>{};
+
+  /// What [writeGlb] could not carry — `fmt-12`'s own row. Mostly empty:
+  /// glTF is the format everything else in this package is measured
+  /// against for completeness. The one case this writer knows about is
+  /// `fmt-21`'s own: a KTX2 image that is not Basis Universal (its own
+  /// `vkFormat` names a real, already-compressed block format rather than
+  /// `VK_FORMAT_UNDEFINED`) still gets embedded as the core image — the
+  /// best this writer can do for it — but a plain reader has no
+  /// `KHR_texture_basisu` transcoder to fall back on either, so it is
+  /// warned about rather than silently written as if it were PNG or JPEG.
+  List<String> get warnings {
+    final nonBasisKtx2 = document.images
+        .where(
+          (image) =>
+              sniffImageMimeType(image.bytes) == 'image/ktx2' &&
+              !isKtx2BasisUniversal(image.bytes),
+        )
+        .length;
+    if (nonBasisKtx2 == 0) return const <String>[];
+    final message =
+        '$nonBasisKtx2 image(s) are KTX2 but not Basis Universal '
+        '(vkFormat names a real format, not VK_FORMAT_UNDEFINED); written '
+        'as the core image, which core glTF has no room to say is KTX2 at '
+        'all';
+    return <String>[message];
+  }
 
   /// Encodes the document. The result is a complete `.glb` file.
   Uint8List writeGlb() {
@@ -93,6 +116,8 @@ final class GltfWriter {
       if (document.asset?.extras != null) 'extras': document.asset!.extras,
       if (_extensionsUsed.isNotEmpty)
         'extensionsUsed': _extensionsUsed.toList(),
+      if (_extensionsRequired.isNotEmpty)
+        'extensionsRequired': _extensionsRequired.toList(),
       if (lights.isNotEmpty)
         'extensions': <String, Object?>{
           'KHR_lights_punctual': <String, Object?>{'lights': lights},
