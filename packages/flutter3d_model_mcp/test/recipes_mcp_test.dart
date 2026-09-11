@@ -92,6 +92,23 @@ void main() {
     expect(cleaned.says, contains('nothing needed cleaning'));
   });
 
+  test('makeGameReady refuses an unknown profile name over the protocol', () async {
+    final refused = await call('makeGameReady', <String, Object?>{
+      'profile': 'potato',
+    });
+    expect(refused.did, isFalse);
+    expect(refused.says, contains('potato'));
+  });
+
+  test('makeGameReady triangulates a baked mesh over the protocol', () async {
+    await call('addPrimitive', <String, Object?>{'kind': 'box'});
+    await call('bakeToMesh', <String, Object?>{'id': 1});
+    final made = await call('makeGameReady', <String, Object?>{
+      'profile': 'desktop',
+    });
+    expect(made.did, isTrue, reason: made.says);
+  });
+
   test('inspect reports through the protocol what list and check would '
       'separately', () async {
     await call('addPrimitive', <String, Object?>{'kind': 'box'});

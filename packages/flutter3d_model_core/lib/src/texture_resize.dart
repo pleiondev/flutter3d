@@ -11,6 +11,7 @@ import 'image_dimensions.dart';
 import 'png_decoder.dart';
 import 'png_encoder.dart';
 import 'project.dart';
+import 'texture_budget.dart';
 
 /// Which algorithm [resizeRgba] samples with.
 enum ResizeFilter {
@@ -147,17 +148,29 @@ int toPowerOfTwo(int n) {
 /// full resolution always, and this is the shrink an export path calls on
 /// a copy when its own "shrink at export" option is on, not something
 /// that happens to the open project itself.
+///
+/// [budget] defaults to [project]'s own [ProjectProfile.textures] — a
+/// caller with a profile already set on the project, the ordinary case.
+/// `mcp-09n`'s own `makeGameReady(profile)` is the one that passes a
+/// different [TextureBudget] explicitly: an agent asking for "mobile"
+/// textures on a project whose own profile is still "desktop" is not
+/// asking to change the project's profile, only to fit its images to a
+/// budget for this one call.
 // The row's own text names this `FitTexturesToProfile`, capitalised unlike
 // its two neighbours (`resizeRgba`, `toPowerOfTwo`) in the same row; kept
 // literal since `verify_plan.dart` reads names off that text, not off
 // Dart's own naming convention.
 // ignore: non_constant_identifier_names
-ModelProject FitTexturesToProfile(ModelProject project) {
-  final budget = project.profile.textures;
+ModelProject FitTexturesToProfile(ModelProject project, {TextureBudget? budget}) {
+  final effectiveBudget = budget ?? project.profile.textures;
   var changed = false;
   final resized = <EncodedImage>[
     for (final image in project.images)
-      _fitOne(image, budget.maxSide, (bool didResize) => changed |= didResize),
+      _fitOne(
+        image,
+        effectiveBudget.maxSide,
+        (bool didResize) => changed |= didResize,
+      ),
   ];
   if (!changed) return project;
   return ModelProject(

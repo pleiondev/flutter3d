@@ -172,5 +172,26 @@ void main() {
       FitTexturesToProfile(project);
       expect(project.images.single.bytes, before);
     });
+
+    test('an explicit budget overrides the project\'s own profile, without '
+        'changing it', () {
+      // Desktop's own 2048px budget would leave a 1000x600 image untouched;
+      // the override below is the only reason it shrinks.
+      final project = ModelProject(
+        profile: const ProjectProfile(textures: TextureBudget.desktop),
+        images: <EncodedImage>[EncodedImage(bytes: solidPng(1000, 600))],
+      );
+      const override = TextureBudget(
+        maxSide: 512,
+        maxBytesOnDevice: 999999999,
+        targetFormat: TextureFileFormat.rgba8,
+      );
+      // Mutation: read `project.profile.textures` unconditionally, ignoring
+      // the `budget` parameter — this image would come back untouched.
+      final fitted = FitTexturesToProfile(project, budget: override);
+      final dims = imageDimensions(fitted.images.single.bytes);
+      expect(dims, ImageDimensions(512, 512));
+      expect(fitted.profile.textures, TextureBudget.desktop); // unchanged
+    });
   });
 }

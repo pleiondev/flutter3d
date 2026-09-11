@@ -1233,6 +1233,32 @@ List<ModelTool> get modelTools => <ModelTool>[
   ),
   ModelTool(
     Tool(
+      name: 'makeGameReady',
+      description:
+          'Triangulate every mesh, recalculate normals, and fit '
+          'every image to a texture budget — "desktop", "mobile" or "web" '
+          '— all in one undo step. The project\'s own profile is not '
+          'changed; this only fits images to the named budget for this '
+          'call.',
+      inputSchema: ObjectSchema(
+        properties: <String, Schema>{
+          'profile': UntitledSingleSelectEnumSchema(
+            values: <String>['desktop', 'mobile', 'web'],
+          ),
+        },
+        required: <String>['profile'],
+      ),
+    ),
+    _sync((ModelSession session, Map<String, Object?> arguments) {
+      final profile = arguments['profile'];
+      if (profile is! String) {
+        return (did: false, says: 'makeGameReady needs a "profile"');
+      }
+      return session.makeGameReady(profile);
+    }),
+  ),
+  ModelTool(
+    Tool(
       name: 'buildFrom',
       description:
           'Add a batch of primitives in one undo step. Each entry '

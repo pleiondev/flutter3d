@@ -39,6 +39,7 @@ void main() {
       'import',
       'journal',
       'cleanup',
+      'makeGameReady',
       'buildFrom',
       'inspect',
     };

@@ -392,6 +392,72 @@ final class ModelSession {
     );
   }
 
+  /// Triangulates every mesh, recalculates its normals, and fits every
+  /// image in the project to [profile]'s own texture budget — one of
+  /// "desktop", "mobile" or "web" — all as one undo step.
+  ///
+  /// **[profile] picks a [TextureBudget], not the project's own
+  /// [ProjectProfile]** — nothing in this plan lets an agent change a
+  /// project's profile yet, and this recipe does not need to: an agent
+  /// asking for mobile-sized textures on a project whose own profile is
+  /// still "desktop" is asking to fit its images to that budget for this
+  /// one call, which is exactly what `FitTexturesToProfile`'s own
+  /// `budget` override is for. The project's [ModelProject.profile] comes
+  /// back untouched.
+  Answer makeGameReady(String profile) {
+    final TextureBudget? budget = switch (profile) {
+      'desktop' => TextureBudget.desktop,
+      'mobile' => TextureBudget.mobile,
+      'web' => TextureBudget.web,
+      _ => null,
+    };
+    if (budget == null) {
+      return (
+        did: false,
+        says: '"$profile" is not a profile this knows; it is desktop, '
+            'mobile or web',
+      );
+    }
+    final ids = <int>[
+      for (final ModelObject object in project.objects)
+        if (object.geometry is EditedGeometry) object.id,
+    ];
+    var didAnything = false;
+    history.transaction(() {
+      for (final int id in ids) {
+        // `Triangulate` refuses on an empty selection rather than
+        // defaulting to "every face" the way `MergeByDistance` does, so
+        // every live face is named first — `SelectAll` already does that
+        // correctly in mesh mode (live faces, not dead slots), which is
+        // worth reusing rather than re-deriving here.
+        history.selection = ProjectSelection(
+          mode: SelectionMode.mesh,
+          objects: <int>[id],
+          level: ElementLevel.face,
+        );
+        run(const SelectAll());
+        if (run(const Triangulate()).did) didAnything = true;
+
+        history.selection = ProjectSelection(objects: <int>[id]);
+        if (run(const RecalculateNormals()).did) didAnything = true;
+      }
+      final ModelProject fitted = FitTexturesToProfile(
+        project,
+        budget: budget,
+      );
+      if (!identical(fitted, project)) {
+        run(ReplaceDocument(fitted, 'fit textures to $profile'));
+        didAnything = true;
+      }
+    });
+    return (
+      did: didAnything,
+      says: didAnything
+          ? 'made game ready for $profile'
+          : 'already game ready for $profile',
+    );
+  }
+
   /// A batch of primitives, each optionally naming an earlier entry in
   /// [spec] as its parent, built as one undo step.
   ///

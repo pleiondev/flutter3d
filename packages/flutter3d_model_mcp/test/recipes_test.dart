@@ -1,10 +1,13 @@
-/// `mcp-09n`'s own composite verbs: `cleanup()`, `buildFrom(spec)` and
-/// `inspect()` — a recipe run through the whole session, not one
-/// `ModelCommand` at a time.
+/// `mcp-09n`'s own composite verbs: `cleanup()`, `makeGameReady(profile)`,
+/// `buildFrom(spec)` and `inspect()` — a recipe run through the whole
+/// session, not one `ModelCommand` at a time.
 ///
 ///     dart test test/recipes_test.dart
 library;
 
+import 'dart:typed_data';
+
+import 'package:flutter3d_formats/flutter3d_formats.dart';
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 import 'package:flutter3d_model_mcp/flutter3d_model_mcp.dart';
@@ -139,6 +142,75 @@ void main() {
       final restoredOther =
           (session.project.objects.last.geometry as EditedGeometry).mesh;
       expect(restoredOther.faceCount, 1); // the degenerate triangle, back
+    });
+  });
+
+  group('makeGameReady', () {
+    Uint8List solidPng(int width, int height) {
+      final rgba = Uint8List(width * height * 4);
+      for (var i = 3; i < rgba.length; i += 4) {
+        rgba[i] = 255;
+      }
+      return encodePng(width, height, rgba);
+    }
+
+    test('triangulates and recalculates normals, one undo step', () {
+      final session = _sessionWith(<EditMesh>[EditMesh.cuboid()]);
+      final before = (session.project.objects.single.geometry as EditedGeometry)
+          .mesh;
+      expect(before.faceCount, 6); // six quads
+
+      final answer = session.makeGameReady('desktop');
+      expect(answer.did, isTrue, reason: answer.says);
+      expect(session.history.steps, hasLength(1));
+
+      final after = (session.project.objects.single.geometry as EditedGeometry)
+          .mesh;
+      // Mutation: skip the Triangulate call. Face count stays 6, all quads.
+      expect(after.faceCount, 12);
+    });
+
+    test('fits images to the named budget without touching the project\'s '
+        'own profile', () {
+      var project = const ModelProject(
+        profile: ProjectProfile(textures: TextureBudget.desktop),
+      );
+      // Bigger than mobile's own 1024px budget on both axes, and small
+      // enough that desktop's 2048px would leave it untouched — the only
+      // way this test can tell "fitted to mobile" from "not fitted at
+      // all."
+      project = project.copyWith(
+        images: <EncodedImage>[EncodedImage(bytes: solidPng(2000, 1200))],
+      );
+      final session = ModelSession(ModelHistory(project));
+
+      final answer = session.makeGameReady('mobile');
+      expect(answer.did, isTrue, reason: answer.says);
+
+      final dims = imageDimensions(session.project.images.single.bytes);
+      // Mutation: pass no `budget` override to `FitTexturesToProfile` (or
+      // the project's own profile's budget) — desktop's 2048px would leave
+      // this image untouched.
+      expect(
+        dims,
+        ImageDimensions(TextureBudget.mobile.maxSide, TextureBudget.mobile.maxSide),
+      );
+      expect(session.project.profile.textures, TextureBudget.desktop);
+    });
+
+    test('refuses a profile name it does not know', () {
+      final session = ModelSession(ModelHistory(const ModelProject()));
+      final answer = session.makeGameReady('potato');
+      expect(answer.did, isFalse);
+      expect(answer.says, contains('potato'));
+    });
+
+    test('nothing needed is reported, not silently accepted as done', () {
+      final session = ModelSession(ModelHistory(const ModelProject()));
+      final answer = session.makeGameReady('desktop');
+      expect(answer.did, isFalse);
+      expect(answer.says, contains('already game ready'));
+      expect(session.history.canUndo, isFalse);
     });
   });
 
