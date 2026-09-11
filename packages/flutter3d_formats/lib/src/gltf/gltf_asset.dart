@@ -16,6 +16,8 @@ final class GltfAsset extends ModelDocument {
     required this.roots,
     this.animations = const <AnimationClip>[],
     this.skins = const <ModelSkin>[],
+    this.lights = const <ModelLight>[],
+    this.cameras = const <ModelCamera>[],
     this.asset,
   });
 
@@ -44,6 +46,12 @@ final class GltfAsset extends ModelDocument {
 
   @override
   final List<ModelSkin> skins;
+
+  @override
+  final List<ModelLight> lights;
+
+  @override
+  final List<ModelCamera> cameras;
 
   @override
   final DocumentAsset? asset;

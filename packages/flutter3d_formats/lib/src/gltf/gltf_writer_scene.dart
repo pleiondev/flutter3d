@@ -56,6 +56,13 @@ extension _GltfWriterScene on GltfWriter {
       return index;
     }
 
+    // Registered up front rather than inside the node loop below, which
+    // builds a list literal and has no room for a side-effecting statement
+    // without turning each entry into its own closure.
+    if (document.nodes.any((node) => node.lightIndex != null)) {
+      _extensionsUsed.add('KHR_lights_punctual');
+    }
+
     final nodes = <Map<String, Object?>>[
       for (final node in document.nodes)
         <String, Object?>{
@@ -78,6 +85,13 @@ extension _GltfWriterScene on GltfWriter {
           if (node.children.isNotEmpty) 'children': node.children,
           if (node.extras != null) 'extras': node.extras,
           'mesh': ?meshIndexFor(node.surfaces),
+          'camera': ?node.cameraIndex,
+          if (node.lightIndex != null)
+            'extensions': <String, Object?>{
+              'KHR_lights_punctual': <String, Object?>{
+                'light': node.lightIndex,
+              },
+            },
           // Per-node in glTF and per-surface here (`ModelSurface.skinIndex`,
           // since a skin binds vertices, not a mesh entry) — every surface a
           // node draws shares one skin already, the decoder's own invariant,

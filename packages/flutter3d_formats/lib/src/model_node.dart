@@ -100,6 +100,8 @@ final class ModelNode {
     List<int>? children,
     List<int>? surfaces,
     this.extras,
+    this.lightIndex,
+    this.cameraIndex,
   }) : translation = translation ?? Vector3.zero(),
        rotation = rotation ?? Quaternion.identity(),
        scale = scale ?? Vector3(1.0, 1.0, 1.0),
@@ -124,6 +126,15 @@ final class ModelNode {
   /// tool put here survives a round trip even though nothing in this engine
   /// interprets it.
   final Map<String, Object?>? extras;
+
+  /// Index into `ModelDocument.lights`, when a `KHR_lights_punctual` light
+  /// is attached to this node — `fmt-28`'s own row. Null for the ordinary
+  /// node, which is nearly all of them.
+  final int? lightIndex;
+
+  /// Index into `ModelDocument.cameras`, when glTF's own `camera` key
+  /// names one on this node.
+  final int? cameraIndex;
 
   Matrix4 toMatrix() => Matrix4.compose(translation, rotation, scale);
 

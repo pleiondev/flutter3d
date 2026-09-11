@@ -2,14 +2,20 @@ import 'package:vector_math/vector_math.dart';
 
 import 'animation/animation_clip.dart';
 import 'animation/animation_mask.dart';
+import 'model_camera.dart';
+import 'model_light.dart';
 import 'model_node.dart';
 import 'surface_material.dart';
 
 // `SurfaceMaterial` and its texture inputs describe how a surface looks;
 // `ModelSurface`/`ModelNode`/`ModelSkin` describe the hierarchy they hang
-// from. Neither group touches anything private in the other or in this file,
-// so they are ordinary files, re-exported here so every existing import of
-// `model_document.dart` keeps seeing the whole document vocabulary.
+// from; `ModelLight`/`ModelCamera` are the two things a node can point at
+// besides a mesh. None of the four touches anything private in another or
+// in this file, so they are ordinary files, re-exported here so every
+// existing import of `model_document.dart` keeps seeing the whole document
+// vocabulary.
+export 'model_camera.dart';
+export 'model_light.dart';
 export 'model_node.dart';
 export 'surface_material.dart';
 
@@ -166,6 +172,16 @@ abstract class ModelDocument {
 
   /// Skeletons. Empty for formats that carry no skinning.
   List<ModelSkin> get skins => const <ModelSkin>[];
+
+  /// Punctual lights a node in [nodes] may point at, by
+  /// [ModelNode.lightIndex] — `fmt-28`'s own row. Empty for formats that
+  /// carry no light, which is every one of them except glTF's own
+  /// `KHR_lights_punctual`.
+  List<ModelLight> get lights => const <ModelLight>[];
+
+  /// Cameras a node in [nodes] may point at, by [ModelNode.cameraIndex].
+  /// Empty for formats that carry none — OBJ and `.f3d` among them.
+  List<ModelCamera> get cameras => const <ModelCamera>[];
 
   /// Non-fatal findings from decoding: ignored extensions, skipped primitives,
   /// unresolved references. Surfaced rather than logged so callers can decide

@@ -141,6 +141,14 @@ const Map<String, String> notARigCamera = <String, String>{
   'flutter3d_editor/lib/src/fly_camera.dart':
       'a tool, not a game: it flies where the author points it, so it follows '
       'nothing and has no impulse, no shake and no wall to be pulled out of',
+  'flutter3d_formats/lib/src/model_camera.dart':
+      'data, not a rig: `ModelCamera` is what a glTF file said its camera\'s '
+      'projection was — yfov, znear, an aspect ratio that may be absent on '
+      'purpose — with no subject to follow and nothing that ever moves it',
+  'flutter3d_formats/lib/src/gltf/gltf_loader_lights_cameras.dart':
+      'reads that same data out of glTF JSON; still nothing to follow',
+  'flutter3d_formats/lib/src/gltf/gltf_writer_lights_cameras.dart':
+      'writes it back; still nothing to follow',
 };
 
 /// Packages the repeatable-step rule does **not** apply to, and why.
@@ -702,6 +710,12 @@ boundaryEnumExempt = <String, Map<String, String>>{
         'its triangle. Unlike OBJ, STL always carries a normal, so this is a '
         'choice about how much to trust it rather than what to do when it is '
         'missing — and there is no third answer there either',
+  },
+  'flutter3d_formats/lib/src/model_light.dart': <String, String>{
+    'ModelLightType':
+        "`KHR_lights_punctual`'s own three light shapes. The extension "
+        'defines exactly directional, point and spot; a fourth is not a '
+        'thing a decoded document can honestly claim to hold',
   },
   'flutter3d/lib/src/engine/assets/model_writer.dart': <String, String>{
     'ModelWriteFormat':

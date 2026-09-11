@@ -17,6 +17,8 @@ extension _GltfSceneWalk on GltfLoader {
     Map<String, Object?> json,
     GltfAccessorReader reader,
     List<String> warnings,
+    int lightCount,
+    int cameraCount,
   ) {
     final nodes = _mapList(json['nodes']);
     final meshes = _mapList(json['meshes']);
@@ -50,7 +52,8 @@ extension _GltfSceneWalk on GltfLoader {
     // channels address. Every node is kept, including the transform-only ones:
     // those are precisely the ones an animation moves.
     final modelNodes = <ModelNode>[
-      for (final node in nodes) _modelNodeFrom(node),
+      for (var i = 0; i < nodes.length; i++)
+        _modelNodeFrom(nodes[i], i, lightCount, cameraCount, warnings),
     ];
 
     void visit(int nodeIndex, Matrix4 parentTransform) {
@@ -133,7 +136,13 @@ extension _GltfSceneWalk on GltfLoader {
   /// three.js and Babylon make, and shear in authored assets is vanishingly
   /// rare. TRS is what the scene graph stores and what animation interpolates,
   /// so keeping a matrix here would only move the decomposition later.
-  ModelNode _modelNodeFrom(Map<String, Object?> node) {
+  ModelNode _modelNodeFrom(
+    Map<String, Object?> node,
+    int nodeIndex,
+    int lightCount,
+    int cameraCount,
+    List<String> warnings,
+  ) {
     final name = node['name'];
     final translation = Vector3.zero();
     final rotation = Quaternion.identity();
@@ -160,6 +169,33 @@ extension _GltfSceneWalk on GltfLoader {
       }
     }
 
+    var cameraIndex = _asInt(node['camera']);
+    if (cameraIndex != null &&
+        (cameraIndex < 0 || cameraIndex >= cameraCount)) {
+      warnings.add(
+        'Node $nodeIndex names camera $cameraIndex, out of range; ignored.',
+      );
+      cameraIndex = null;
+    }
+
+    // `node.extensions.KHR_lights_punctual.light` — distinct from the
+    // document-level `extensions.KHR_lights_punctual.lights` array
+    // `_decodeLights` reads; this is only which of those a node points at.
+    int? lightIndex;
+    final nodeExtensions = node['extensions'];
+    if (nodeExtensions is Map) {
+      final block = nodeExtensions['KHR_lights_punctual'];
+      if (block is Map) {
+        lightIndex = _asInt(block['light']);
+      }
+    }
+    if (lightIndex != null && (lightIndex < 0 || lightIndex >= lightCount)) {
+      warnings.add(
+        'Node $nodeIndex names light $lightIndex, out of range; ignored.',
+      );
+      lightIndex = null;
+    }
+
     return ModelNode(
       name: name is String ? name : null,
       translation: translation,
@@ -167,6 +203,8 @@ extension _GltfSceneWalk on GltfLoader {
       scale: scale,
       children: _intList(node['children']),
       extras: _extrasOf(node),
+      lightIndex: lightIndex,
+      cameraIndex: cameraIndex,
     );
   }
 

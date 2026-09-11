@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:flutter3d_geometry/flutter3d_geometry.dart';
@@ -18,6 +19,7 @@ import 'gltf_loader.dart';
 // loader's own parts.
 part 'gltf_writer_animation.dart';
 part 'gltf_writer_images.dart';
+part 'gltf_writer_lights_cameras.dart';
 part 'gltf_writer_materials.dart';
 part 'gltf_writer_mesh.dart';
 part 'gltf_writer_scene.dart';
@@ -67,6 +69,8 @@ final class GltfWriter {
     final (meshes, nodes, scenes) = _writeScene(primitives);
     final skins = _writeSkins();
     final animations = _writeAnimations();
+    final lights = _writeLights();
+    final cameras = _writeCameras();
 
     final json = <String, Object?>{
       'asset': <String, Object?>{
@@ -79,10 +83,15 @@ final class GltfWriter {
       if (document.asset?.extras != null) 'extras': document.asset!.extras,
       if (_extensionsUsed.isNotEmpty)
         'extensionsUsed': _extensionsUsed.toList(),
+      if (lights.isNotEmpty)
+        'extensions': <String, Object?>{
+          'KHR_lights_punctual': <String, Object?>{'lights': lights},
+        },
       if (scenes.isNotEmpty) 'scene': 0,
       if (scenes.isNotEmpty) 'scenes': scenes,
       if (nodes.isNotEmpty) 'nodes': nodes,
       if (meshes.isNotEmpty) 'meshes': meshes,
+      if (cameras.isNotEmpty) 'cameras': cameras,
       if (skins.isNotEmpty) 'skins': skins,
       if (animations.isNotEmpty) 'animations': animations,
       if (materials.isNotEmpty) 'materials': materials,

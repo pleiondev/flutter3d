@@ -23,6 +23,8 @@ final class PlainModelDocument extends ModelDocument {
     this.nodes = const <ModelNode>[],
     this.animations = const <AnimationClip>[],
     this.skins = const <ModelSkin>[],
+    this.lights = const <ModelLight>[],
+    this.cameras = const <ModelCamera>[],
     this.warnings = const <String>[],
     this.asset,
   });
@@ -44,6 +46,12 @@ final class PlainModelDocument extends ModelDocument {
 
   @override
   final List<ModelSkin> skins;
+
+  @override
+  final List<ModelLight> lights;
+
+  @override
+  final List<ModelCamera> cameras;
 
   @override
   final List<String> warnings;

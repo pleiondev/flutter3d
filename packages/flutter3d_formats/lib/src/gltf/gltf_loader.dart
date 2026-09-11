@@ -16,6 +16,7 @@ export 'gltf_primitive_mode.dart';
 
 part 'gltf_loader_animation.dart';
 part 'gltf_loader_images.dart';
+part 'gltf_loader_lights_cameras.dart';
 part 'gltf_loader_materials.dart';
 part 'gltf_loader_mesh.dart';
 // This file is the top of the decode pipeline: `load()` and the checks that
@@ -86,7 +87,15 @@ final class GltfLoader {
     final warnings = <String>[];
     final images = await _decodeImages(json, buffers, resolveUri, warnings);
     final materials = _decodeMaterials(json, warnings);
-    final graph = _decodeScene(json, reader, warnings);
+    final lights = _decodeLights(json, warnings);
+    final cameras = _decodeCameras(json, warnings);
+    final graph = _decodeScene(
+      json,
+      reader,
+      warnings,
+      lights.length,
+      cameras.length,
+    );
     final animations = _decodeAnimations(json, reader, graph.nodes, warnings);
     final skins = _decodeSkins(json, reader, graph.nodes.length, warnings);
 
@@ -108,6 +117,8 @@ final class GltfLoader {
       roots: graph.roots,
       animations: animations,
       skins: skins,
+      lights: lights,
+      cameras: cameras,
       asset: generator is String || documentExtras != null
           ? DocumentAsset(
               generator: generator is String ? generator : null,
@@ -136,6 +147,10 @@ final class GltfLoader {
       // material rather than a refusal of the whole file, since the geometry
       // and every other texture are still worth having.
       'KHR_texture_basisu',
+      // `fmt-28`: lights round-trip in full — type, colour, intensity,
+      // range, spot angles — so a file naming this as required loses
+      // nothing by being let through.
+      'KHR_lights_punctual',
     };
     final unsupported = required.whereType<String>().where(
       (e) => !supported.contains(e),
