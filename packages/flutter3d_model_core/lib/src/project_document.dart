@@ -488,6 +488,87 @@ ModelProject fromModelDocument(
   return project;
 }
 
+/// A tally of what an import actually produced, for a screen that wants to say
+/// "312 objects, 4 materials" before anyone opens the outliner to count.
+final class ImportCounts {
+  const ImportCounts({
+    required this.objects,
+    required this.materials,
+    required this.images,
+    required this.triangles,
+  });
+
+  final int objects;
+  final int materials;
+  final int images;
+  final int triangles;
+
+  @override
+  bool operator ==(Object other) =>
+      other is ImportCounts &&
+      other.objects == objects &&
+      other.materials == materials &&
+      other.images == images &&
+      other.triangles == triangles;
+
+  @override
+  int get hashCode => Object.hash(objects, materials, images, triangles);
+
+  @override
+  String toString() =>
+      'ImportCounts(objects: $objects, materials: $materials, '
+      'images: $images, triangles: $triangles)';
+}
+
+/// What [importReportOf] found, beyond the project itself.
+///
+/// **`fromModelDocument` stays exactly what it was** — a plain
+/// `ModelDocument -> ModelProject` function, with call sites already wired to
+/// it — because widening its return type would have meant touching every one
+/// of them, including `apps/flutter3d_modeler/lib/main.dart`, on a file this
+/// session was asked not to edit. `importReportOf` wraps it instead: the same
+/// project, plus [issues] and [counts] for a caller that wants them, so
+/// nothing that already calls `fromModelDocument` has to change.
+final class ImportReport {
+  const ImportReport({
+    required this.project,
+    required this.issues,
+    required this.counts,
+  });
+
+  final ModelProject project;
+
+  /// The decoder's own [ModelDocument.warnings], passed through verbatim — an
+  /// ignored extension or a skipped primitive is the decoder's finding, not
+  /// this function's, and rephrasing it here would be a second chance to get
+  /// the wording wrong.
+  final List<String> issues;
+
+  final ImportCounts counts;
+}
+
+/// [fromModelDocument], with the decoder's warnings and a tally of what came
+/// in alongside the project it produces.
+ImportReport importReportOf(
+  ModelDocument document, {
+  ImportOptions options = const ImportOptions(),
+}) {
+  final project = fromModelDocument(document, options: options);
+  return ImportReport(
+    project: project,
+    issues: List<String>.unmodifiable(document.warnings),
+    counts: ImportCounts(
+      objects: project.objects.length,
+      materials: project.materials.length,
+      images: project.images.length,
+      triangles: project.objects.fold(
+        0,
+        (int sum, ModelObject o) => sum + o.geometry.triangleCount,
+      ),
+    ),
+  );
+}
+
 /// The slot list an imported surface arrives with.
 ///
 /// Empty when the file named no material, which is not the same as naming

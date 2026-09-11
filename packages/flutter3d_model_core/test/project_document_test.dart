@@ -52,6 +52,7 @@ final class _Doc extends ModelDocument {
     required this.roots,
     this.materials = const <SurfaceMaterial>[],
     this.images = const <EncodedImage>[],
+    this.warnings = const <String>[],
   });
 
   @override
@@ -70,7 +71,7 @@ final class _Doc extends ModelDocument {
   final List<EncodedImage> images;
 
   @override
-  List<String> get warnings => const <String>[];
+  final List<String> warnings;
 }
 
 void main() {
@@ -475,6 +476,93 @@ void main() {
         expect(child.transform.getTranslation(), Vector3(0.0, 0.0, 1.0));
       },
     );
+  });
+
+  group('importReportOf', () {
+    test('the decoder\'s warnings come back verbatim', () {
+      final document = _Doc(
+        surfaces: <ModelSurface>[
+          ModelSurface(mesh: EditMesh.cuboid().toMeshData()),
+        ],
+        nodes: <ModelNode>[
+          ModelNode(name: 'cube', surfaces: <int>[0]),
+        ],
+        roots: <int>[0],
+        warnings: <String>['an unsupported extension was ignored'],
+      );
+
+      // Mutation: report `const <String>[]` instead of `document.warnings`,
+      // or paraphrase the string instead of passing it through — either
+      // leaves a decoder's own finding unreachable from the import screen
+      // this is for.
+      expect(importReportOf(document).issues, <String>[
+        'an unsupported extension was ignored',
+      ]);
+    });
+
+    test('no warnings is an empty list, not null or a placeholder', () {
+      final document = _Doc(
+        surfaces: <ModelSurface>[
+          ModelSurface(mesh: EditMesh.cuboid().toMeshData()),
+        ],
+        nodes: <ModelNode>[
+          ModelNode(name: 'cube', surfaces: <int>[0]),
+        ],
+        roots: <int>[0],
+      );
+      expect(importReportOf(document).issues, isEmpty);
+    });
+
+    test('counts objects, materials, images and triangles the way the '
+        'project itself would', () {
+      final mesh = EditMesh.cuboid().toMeshData();
+      final document = _Doc(
+        surfaces: <ModelSurface>[
+          ModelSurface(mesh: mesh, materialIndex: 0),
+          ModelSurface(mesh: mesh, materialIndex: 0),
+        ],
+        nodes: <ModelNode>[
+          ModelNode(name: 'a', surfaces: <int>[0]),
+          ModelNode(name: 'b', surfaces: <int>[1]),
+        ],
+        roots: <int>[0, 1],
+        materials: <SurfaceMaterial>[SurfaceMaterial()],
+      );
+
+      final report = importReportOf(document);
+      // Mutation: count `document.surfaces`/`nodes` instead of the project's
+      // own `objects`/`materials` — the two agree here, but only because
+      // nothing in this fixture was dropped, deduped or split on the way in.
+      expect(report.counts.objects, report.project.objects.length);
+      expect(report.counts.materials, report.project.materials.length);
+      expect(report.counts.images, report.project.images.length);
+      expect(report.counts.objects, 2);
+      expect(report.counts.materials, 1);
+      expect(report.counts.images, 0);
+      expect(report.counts.triangles, mesh.triangleCount * 2);
+    });
+
+    test('the project inside is the same fromModelDocument would build', () {
+      final document = _Doc(
+        surfaces: <ModelSurface>[
+          ModelSurface(mesh: EditMesh.cuboid().toMeshData()),
+        ],
+        nodes: <ModelNode>[
+          ModelNode(
+            name: 'cube',
+            translation: Vector3(1.0, 2.0, 3.0),
+            surfaces: <int>[0],
+          ),
+        ],
+        roots: <int>[0],
+      );
+      final report = importReportOf(document);
+      final direct = fromModelDocument(document);
+      expect(
+        report.project.objects.single.transform,
+        direct.objects.single.transform,
+      );
+    });
   });
 
   group('out and back', () {
