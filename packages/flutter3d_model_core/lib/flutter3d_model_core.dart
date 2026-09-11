@@ -33,6 +33,7 @@ export 'src/autosave.dart';
 export 'src/command.dart';
 export 'src/command_journal.dart';
 export 'src/history.dart';
+export 'src/job.dart';
 export 'src/listing.dart';
 export 'src/material.dart';
 export 'src/modifier_evaluation_cache.dart';

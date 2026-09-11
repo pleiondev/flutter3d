@@ -2023,6 +2023,11 @@ void main() {
         const ReorderModifier(id: 1, from: 0, to: 1),
         const RemoveModifier(id: 1, index: 0),
         const ApplyModifier(id: 1, index: 0),
+        ApplyJobResult(
+          objectId: 1,
+          baseVersion: 1,
+          meshBytes: Uint8List.fromList(<int>[1, 2, 3]),
+        ),
       ];
 
       // Every name has a sample, which is what stops a command being added to
@@ -2438,5 +2443,73 @@ void main() {
     // these six, by "every name has a sample and round-trips through JSON"
     // in the journal group above — no need for a second copy of that
     // assertion here.
+  });
+
+  group('ApplyJobResult', () {
+    test('writes the job\'s own mesh in when the version still matches', () {
+      final history = edited();
+      final before = history.project[1]!;
+      final baked = EditMesh.fromBytes(
+        (before.geometry as EditedGeometry).mesh.toBytes(),
+      );
+      baked.beginStep();
+      baked.addVertex(Vector3(9, 9, 9));
+      baked.endStep();
+
+      expect(
+        history.run(
+          ApplyJobResult(
+            objectId: 1,
+            baseVersion: before.version,
+            meshBytes: baked.toBytes(),
+          ),
+        ),
+        isNull,
+      );
+
+      final after = history.project[1]!;
+      // Mutation: keep the object's own mesh instead of writing the job's —
+      // a background bake that never reaches the document is
+      // indistinguishable from one that silently failed.
+      expect(
+        (after.geometry as EditedGeometry).mesh.vertexCount,
+        (before.geometry as EditedGeometry).mesh.vertexCount + 1,
+      );
+    });
+
+    test('refuses a result whose baseVersion is stale', () {
+      final history = edited();
+      final before = history.project[1]!;
+      // The object changes after the (imagined) job started.
+      history.run(const Rename(id: 1, to: 'renamed'));
+
+      final refusal = history.run(
+        ApplyJobResult(
+          objectId: 1,
+          baseVersion: before.version,
+          meshBytes: (before.geometry as EditedGeometry).mesh.toBytes(),
+        ),
+      );
+
+      // Mutation: compare against the *new* version instead of the one the
+      // job actually started from, or skip the check outright — either lets
+      // a stale bake silently overwrite an edit that happened while it ran.
+      expect(refusal, contains('changed since this job started'));
+      expect(history.project[1]!.name, 'renamed');
+    });
+
+    test('refuses an object that no longer exists', () {
+      final history = edited();
+      expect(
+        history.run(
+          ApplyJobResult(objectId: 99, baseVersion: 1, meshBytes: Uint8List(0)),
+        ),
+        contains('no object 99'),
+      );
+    });
+
+    // JSON round-tripping is covered once, for every command including this
+    // one, by "every name has a sample and round-trips through JSON" in the
+    // journal group above.
   });
 }

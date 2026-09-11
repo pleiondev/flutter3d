@@ -32,6 +32,7 @@ import 'package:flutter3d_formats/flutter3d_formats.dart' hide EnumHint;
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 import 'package:vector_math/vector_math.dart';
 
+import 'job.dart';
 import 'material.dart';
 import 'modifier_slot.dart';
 import 'param_hint.dart';
@@ -39,6 +40,7 @@ import 'parametric_json.dart';
 import 'project.dart';
 import 'selection.dart';
 
+part 'job_commands.dart';
 part 'material_commands.dart';
 part 'mesh_commands.dart';
 part 'modifier_commands.dart';
@@ -471,6 +473,7 @@ const List<String> modelCommandNames = <String>[
   'reorderModifier',
   'removeModifier',
   'applyModifier',
+  'applyJobResult',
 ];
 
 /// Reads a command back out of a journal, or null.
@@ -725,6 +728,19 @@ ModelCommand? modelCommandFromJson(Object? json) {
     },
     'applyModifier' => switch ((json['id'], json['index'])) {
       (final int id, final int index) => ApplyModifier(id: id, index: index),
+      _ => null,
+    },
+    'applyJobResult' => switch ((
+      json['objectId'],
+      json['baseVersion'],
+      json['meshBytes'],
+    )) {
+      (final int objectId, final int baseVersion, final String encoded) =>
+        ApplyJobResult(
+          objectId: objectId,
+          baseVersion: baseVersion,
+          meshBytes: base64Decode(encoded),
+        ),
       _ => null,
     },
     _ => null,

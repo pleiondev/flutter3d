@@ -885,6 +885,31 @@ List<ModelTool> get _commandTools => <ModelTool>[
     ),
     _command('applyModifier'),
   ),
+  ModelTool(
+    Tool(
+      name: 'applyJobResult',
+      description:
+          'Write the mesh a background job finished into the object '
+          'it answers for. Refused when baseVersion no longer matches the '
+          'object\'s own current version — something else changed it while '
+          'the job ran, and its answer no longer applies. Nothing here '
+          'starts a job or waits for one; an agent that wants a modifier '
+          'baked synchronously should call applyModifier instead.',
+      inputSchema: ObjectSchema(
+        properties: <String, Schema>{
+          'objectId': IntegerSchema(description: 'the object'),
+          'baseVersion': IntegerSchema(
+            description: 'the object\'s version when the job started',
+          ),
+          'meshBytes': StringSchema(
+            description: 'the baked mesh, base64-encoded EditMesh.toBytes',
+          ),
+        },
+        required: <String>['objectId', 'baseVersion', 'meshBytes'],
+      ),
+    ),
+    _command('applyJobResult'),
+  ),
 ];
 
 // ------------------------------------------------------------ session tools
