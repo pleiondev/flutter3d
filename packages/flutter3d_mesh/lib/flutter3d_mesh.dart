@@ -38,6 +38,7 @@ export 'src/operations.dart';
 export 'src/parametric.dart';
 export 'src/parts.dart';
 export 'src/picker.dart';
+export 'src/qem_simplify.dart';
 export 'src/selection.dart';
 export 'src/shape_key.dart';
 export 'src/skin/vertex_weights.dart';
