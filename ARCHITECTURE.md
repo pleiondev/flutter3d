@@ -2751,7 +2751,7 @@ what went out at 0.4.2.
    `flutter3d_audio`, `flutter3d_geometry`, `pad_input`, `pointer_lock`
 2. `flutter3d_formats`, `flutter3d_mesh`
 3. `flutter3d_conformance`, `flutter3d_model_core`
-4. `flutter3d`, `flutter3d_physics`
+4. `flutter3d`, `flutter3d_physics`, `flutter3d_cloth`
 5. `flutter3d_impeller`, `flutter3d_webgl`, `flutter3d_webgpu`, `flutter3d_cpu`,
    `flutter3d_particles`, `flutter3d_sim`, `flutter3d_stereo`
 6. `flutter3d_game`, `flutter3d_editor_core`, `flutter3d_net`
