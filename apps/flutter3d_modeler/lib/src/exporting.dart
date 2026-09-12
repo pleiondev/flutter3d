@@ -111,17 +111,53 @@ final class ExportBlocked extends ExportResult {
       'model will not load where it is going. Export anyway?';
 }
 
+/// [project] with every object's own node transform baked into its geometry,
+/// where that is possible — `ui-17`'s own "bake node transforms" checkbox.
+///
+/// **Reuses `ApplyTransform` rather than a second transform-baking
+/// implementation.** That command already does exactly this for one object
+/// at a time — moves the vertices, flips normals on a mirroring determinant,
+/// resets the node to identity — and a copy of it here would be a second
+/// place that math could drift from the first. Called against a project a
+/// caller is about to throw away for something exported instead, never
+/// against the live, undoable one.
+///
+/// **Not every object can be baked, and this does not stop for the ones that
+/// cannot.** `ApplyTransform` refuses a parametric shape, an imported mesh
+/// and a socket — each for its own reason, all already explained on
+/// `ApplyTransform` itself — and an object already at the identity leaves
+/// nothing to bake. Every one of those keeps its own node transform exactly
+/// as it was; only the objects `ApplyTransform` actually accepts end up with
+/// an identity matrix on the other side.
+ModelProject bakeAllTransforms(ModelProject project) {
+  var next = project;
+  for (final ModelObject object in project.objects) {
+    final outcome = ApplyTransform(
+      object.id,
+    ).apply(next, ProjectSelection.none);
+    if (outcome.ok) next = outcome.project!;
+  }
+  return next;
+}
+
 /// [project] as files, or the reason it is not.
 ///
 /// [force] carries a person's answer to [ExportBlocked] back in. It skips the
 /// error gate and nothing else: the warnings still come back with the bytes,
 /// because "I know" is an answer to a question and not a reason to stop asking.
+///
+/// [bakeTransforms] runs [bakeAllTransforms] first, so the readiness check
+/// and the writer both see the baked project — a transform that collapses a
+/// shell of positive volume into one of zero should be caught before export,
+/// not discovered by whoever opens the file next.
 ExportResult planExport(
   ModelProject project, {
   required ExportFormat format,
   String name = 'model',
   bool force = false,
+  bool bakeTransforms = false,
 }) {
+  if (bakeTransforms) project = bakeAllTransforms(project);
   // An empty project is refused rather than written, and this is the one place
   // that differs from `ObjWriter`, which writes an empty file on purpose and
   // says why. The difference is the caller: a format has to represent nothing,

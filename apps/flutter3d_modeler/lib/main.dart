@@ -51,6 +51,7 @@ import 'src/staging.dart';
 import 'src/transform_fields.dart';
 import 'src/transform_gizmo.dart';
 import 'src/transform_modal.dart';
+import 'src/ui/export_screen.dart';
 import 'src/ui/layout_class.dart';
 import 'src/ui/modifier_stack_panel.dart';
 import 'src/ui/number_field.dart';
@@ -580,15 +581,27 @@ class _ModelerScreenState extends State<ModelerScreen>
   /// cylinder knows itself by and the hierarchy, and an OBJ keeps triangles and
   /// a colour. So the person is told rather than protected — the errors stop
   /// the write until they answer, and the warnings ride along with it.
-  Future<void> _exportFile(ExportFormat format) async {
+  Future<void> _exportFile(
+    ExportFormat format, {
+    bool bakeTransforms = false,
+  }) async {
     if (_state is! ModelerReady) return;
 
-    var planned = planExport(_history.project, format: format);
+    var planned = planExport(
+      _history.project,
+      format: format,
+      bakeTransforms: bakeTransforms,
+    );
 
     if (planned case final ExportBlocked blocked) {
       final go = await _askAnyway(blocked, blocked.issues);
       if (!go || !mounted) return;
-      planned = planExport(_history.project, format: format, force: true);
+      planned = planExport(
+        _history.project,
+        format: format,
+        force: true,
+        bakeTransforms: bakeTransforms,
+      );
     }
 
     switch (planned) {
@@ -622,24 +635,31 @@ class _ModelerScreenState extends State<ModelerScreen>
     }
   }
 
-  /// `ui-10`'s own "клик → диалог экспорта": the status line's readiness
-  /// sentence opens this instead of the person having to notice the small
-  /// export button in the corner is the thing to press.
+  /// `ui-17`'s own export screen — format, every readiness issue with a way
+  /// to see what it is about, the triangle budget as a bar, and the "bake
+  /// node transforms" flag. `ui-10`'s own row ("клик → диалог экспорта")
+  /// wired the status line's readiness sentence and `⌘E` to a much smaller
+  /// format-only dialog as a placeholder for this; both now open this
+  /// screen instead, so there is one export entry point rather than two
+  /// that could drift apart.
   Future<void> _showExportDialog() async {
-    final format = await showDialog<ExportFormat>(
-      context: context,
-      builder: (BuildContext context) => SimpleDialog(
-        title: const Text('Export'),
-        children: <Widget>[
-          for (final ExportFormat format in ExportFormat.values)
-            SimpleDialogOption(
-              onPressed: () => Navigator.of(context).pop(format),
-              child: Text('${format.suffix}  ${format.says}'),
-            ),
-        ],
-      ),
+    if (_state is! ModelerReady) return;
+    final choice = await showExportScreen(
+      context,
+      project: _history.project,
+      onShow: (int id) {
+        _history.selection = _history.selection.copyWith(
+          mode: SelectionMode.object,
+          objects: <int>[id],
+        );
+        _cubit.documentMoved();
+      },
     );
-    if (format != null) unawaited(_exportFile(format));
+    if (choice != null) {
+      unawaited(
+        _exportFile(choice.format, bakeTransforms: choice.bakeTransforms),
+      );
+    }
   }
 
   /// Asks whether to export a model that will not load cleanly.
@@ -1306,7 +1326,7 @@ class _ModelerScreenState extends State<ModelerScreen>
       onKey: _modalKey,
       onUndo: _undo,
       onRedo: _redo,
-      onExport: () => _exportFile(ExportFormat.f3d),
+      onExport: _showExportDialog,
       onTool: _ranTool,
       onSelectAll: () => _runSelection(const SelectAll()),
       onSelectNone: () => _runSelection(const SelectNone()),
