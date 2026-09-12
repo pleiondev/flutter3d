@@ -50,6 +50,7 @@ import 'src/transform_gizmo.dart';
 import 'src/transform_modal.dart';
 import 'src/ui/number_field.dart';
 import 'src/ui/operation_card.dart';
+import 'src/ui/selection_key_bindings.dart';
 import 'src/ui/shell.dart';
 import 'src/ui/status_line.dart';
 import 'src/ui/theme.dart';
@@ -1917,6 +1918,12 @@ class _Keys extends StatelessWidget {
             SingleActivator(level.shortcut): () => onLevel(level),
           for (final ModelerTool tool in tools)
             SingleActivator(tool.shortcut): () => onTool(tool.id),
+          ...selectionKeyBindings(
+            tools: tools,
+            onSelectAll: onSelectAll,
+            onSelectNone: onSelectNone,
+            onInvertSelection: onInvertSelection,
+          ),
         },
         child: child,
       ),
