@@ -492,6 +492,35 @@ TextureHandle? _webgpuCreateCompressedTextureFromPixels(
   );
 }
 
+/// Writes [rgba] into [rect] of [target]'s base level. See
+/// `GraphicsDevice.overwriteTexture` — the caller already refused a
+/// compressed format and a non-zero mip level, so this is always a plain
+/// RGBA8 region.
+void webgpuOverwriteTexture(
+  GPUDevice gpu,
+  TextureHandle target,
+  ByteData rgba,
+  ScreenRect rect,
+) {
+  final texture = (target.backend as WebGpuTexture).texture;
+  final layout = gpuBlockLayoutOf(TextureFormat.r8g8b8a8UNormInt, rect.width, rect.height);
+  gpu.queue.writeTexture(
+    GPUTexelCopyTextureInfo(
+      texture: texture,
+      mipLevel: 0,
+      origin: GPUOrigin3DDict(x: rect.x, y: rect.y, z: 0),
+      aspect: 'all',
+    ),
+    rgba.buffer.asUint8List(rgba.offsetInBytes, rgba.lengthInBytes).toJS,
+    GPUTexelCopyBufferLayout(
+      offset: 0,
+      bytesPerRow: layout.bytesPerRow,
+      rowsPerImage: layout.rowsPerImage,
+    ),
+    GPUExtent3DDict(width: rect.width, height: rect.height, depthOrArrayLayers: 1),
+  );
+}
+
 /// [faces] in `+X, −X, +Y, −Y, +Z, −Z` order as one cube texture. See
 /// `GraphicsDevice.createCubeTextureFromPixels`.
 ///

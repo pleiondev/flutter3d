@@ -450,6 +450,62 @@ final class GpuRenderBackend implements GraphicsDevice {
     buffer.flush(offsetInBytes: at, lengthInBytes: bytes.lengthInBytes);
   }
 
+  /// `gpu.Texture.overwrite` replaces a whole mip level at once — there is
+  /// no partial-region write on this backend — so a region write here means
+  /// [readback]ing the level first, patching it in memory, and writing the
+  /// whole level back through `overwrite`. The one call on this backend
+  /// that is genuinely asynchronous for its own reason, not [loadShaders]'s.
+  @override
+  Future<void> overwriteTexture(
+    TextureHandle target,
+    ByteData rgba, {
+    ScreenRect? region,
+    int mipLevel = 0,
+  }) async {
+    if (!readbackFormats.contains(target.format)) {
+      throw UnsupportedError(
+        'overwriteTexture: TextureFormat.${target.format.name} is not one '
+        'of readbackFormats — the two this call, like readback, insists on.',
+      );
+    }
+    if (mipLevel != 0) {
+      throw UnsupportedError(
+        'overwriteTexture: mip level $mipLevel is refused; only the base '
+        'level (0) may be overwritten.',
+      );
+    }
+    final rect = region ?? ScreenRect(width: target.width, height: target.height);
+    if (rect.x < 0 ||
+        rect.y < 0 ||
+        rect.x + rect.width > target.width ||
+        rect.y + rect.height > target.height) {
+      throw ArgumentError('overwriteTexture: $rect does not fit inside a '
+          '${target.width}x${target.height} texture');
+    }
+    if (rgba.lengthInBytes != rect.width * rect.height * 4) {
+      throw ArgumentError(
+        'overwriteTexture: ${rgba.lengthInBytes} bytes does not match '
+        '${rect.width}x${rect.height} RGBA8',
+      );
+    }
+
+    final whole = await readback(target);
+    final patched = Uint8List.fromList(
+      whole.buffer.asUint8List(whole.offsetInBytes, whole.lengthInBytes),
+    );
+    final rowBytes = target.width * 4;
+    for (var y = 0; y < rect.height; y++) {
+      final srcRowStart = y * rect.width * 4;
+      final dstRowStart = (rect.y + y) * rowBytes + rect.x * 4;
+      patched.setRange(
+        dstRowStart,
+        dstRowStart + rect.width * 4,
+        rgba.buffer.asUint8List(rgba.offsetInBytes + srcRowStart, rect.width * 4),
+      );
+    }
+    target.gpuTexture.overwrite(ByteData.sublistView(patched), mipLevel: 0);
+  }
+
   @override
   TextureHandle? createTextureFromPixels({
     required int width,

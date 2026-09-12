@@ -305,6 +305,53 @@ final class FakeBackend implements GraphicsDevice {
     return createTexture(spec);
   }
 
+  /// Every call [overwriteTexture] has recorded, in order — wiring, not
+  /// content, the same promise [uploadedPixels] already makes for a whole
+  /// upload.
+  final List<({TextureFormat format, ScreenRect region, int mipLevel})>
+  overwrittenTextures =
+      <({TextureFormat format, ScreenRect region, int mipLevel})>[];
+
+  @override
+  Future<void> overwriteTexture(
+    TextureHandle target,
+    ByteData rgba, {
+    ScreenRect? region,
+    int mipLevel = 0,
+  }) async {
+    if (!readbackFormats.contains(target.format)) {
+      throw UnsupportedError(
+        'overwriteTexture: TextureFormat.${target.format.name} is not one '
+        'of readbackFormats — the two this call, like readback, insists on.',
+      );
+    }
+    if (mipLevel != 0) {
+      throw UnsupportedError(
+        'overwriteTexture: mip level $mipLevel is refused; only the base '
+        'level (0) may be overwritten.',
+      );
+    }
+    final rect = region ?? ScreenRect(width: target.width, height: target.height);
+    if (rect.x < 0 ||
+        rect.y < 0 ||
+        rect.x + rect.width > target.width ||
+        rect.y + rect.height > target.height) {
+      throw ArgumentError('overwriteTexture: $rect does not fit inside a '
+          '${target.width}x${target.height} texture');
+    }
+    if (rgba.lengthInBytes != rect.width * rect.height * 4) {
+      throw ArgumentError(
+        'overwriteTexture: ${rgba.lengthInBytes} bytes does not match '
+        '${rect.width}x${rect.height} RGBA8',
+      );
+    }
+    overwrittenTextures.add((
+      format: target.format,
+      region: rect,
+      mipLevel: mipLevel,
+    ));
+  }
+
   /// Every pair linked so far, by name and in order, so a test can tell
   /// whether a frame linked anything — a renderer that relinked drops every
   /// pipeline it held and links each one again, and one it forgot to drop

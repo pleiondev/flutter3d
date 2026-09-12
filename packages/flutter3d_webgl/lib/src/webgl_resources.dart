@@ -346,6 +346,31 @@ TextureHandle? webglCreateTextureFromPixels(
   return handle;
 }
 
+/// Writes [rgba] into [rect] of [target]'s base level. See
+/// `GraphicsDevice.overwriteTexture` — the caller already refused any
+/// format but [readbackFormats]' own two, so this is always a plain RGBA8
+/// region, `UNSIGNED_BYTE` and nothing else.
+void webglOverwriteTexture(
+  web.WebGL2RenderingContext gl,
+  TextureHandle target,
+  ByteData rgba,
+  ScreenRect rect,
+) {
+  final backend = target.backend as WebGlTexture;
+  gl.bindTexture(web.WebGLRenderingContext.TEXTURE_2D, backend.texture);
+  gl.texSubImage2D(
+    web.WebGLRenderingContext.TEXTURE_2D,
+    0,
+    rect.x,
+    rect.y,
+    rect.width.toJS,
+    rect.height.toJS,
+    web.WebGLRenderingContext.RGBA.toJS,
+    web.WebGLRenderingContext.UNSIGNED_BYTE,
+    Uint8List.view(rgba.buffer, rgba.offsetInBytes, rgba.lengthInBytes).toJS,
+  );
+}
+
 /// The compressed-format half of [webglCreateTextureFromPixels].
 ///
 /// Split out rather than threaded through the RGBA8 path above as another

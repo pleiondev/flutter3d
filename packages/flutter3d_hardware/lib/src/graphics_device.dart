@@ -390,6 +390,42 @@ abstract interface class GraphicsDevice implements TextureAllocator {
     List<ByteData>? mipLevels,
   });
 
+  /// Overwrites [region] (the whole texture by default) of [target]'s base
+  /// level with [rgba] — raw RGBA8 bytes, `region.width * region.height * 4`
+  /// of them, row-major from the top the same way [readback] answers them.
+  ///
+  /// **[readbackFormats] again, and only the base level.** The same two
+  /// linear eight-bit layouts [readback] insists on, for the same reason: a
+  /// caller round-tripping a region — read it, edit it, write it back —
+  /// needs the two ends to agree on what the bytes mean, and a third format
+  /// each backend would decode differently is exactly the mismatch
+  /// [readback] already refuses. Refuses (throws `UnsupportedError`) any
+  /// other [target].format, including every compressed one — a block
+  /// covers a 4x4 texel footprint, and a region write that lands mid-block
+  /// would ask a backend to rewrite a compressed block from decoded bytes
+  /// it does not carry — and refuses [mipLevel] other than zero, because
+  /// patching one level of a chain that carries more would leave the rest
+  /// silently stale, with nothing anywhere saying the picture at another
+  /// level is no longer the one this level was built from.
+  ///
+  /// Visible starting the next pass, the same promise [overwriteGeometry]
+  /// makes and for the same reason: nothing here rewinds a pass already
+  /// submitted against the old bytes.
+  ///
+  /// **Asynchronous because one backend's own write is.** Three of the four
+  /// can patch a region of an existing texture directly; flutter_gpu's own
+  /// `Texture` can only overwrite a *whole* mip level at once, so writing a
+  /// region there means reading the level back first — [readback]'s own
+  /// asynchronous half — patching it in memory, and writing the whole level
+  /// back. On the other three the future completes in the same turn, the
+  /// same shape [loadShaders] is asynchronous for.
+  Future<void> overwriteTexture(
+    TextureHandle target,
+    ByteData rgba, {
+    ScreenRect? region,
+    int mipLevel = 0,
+  });
+
   /// Uploads six square images as one cube texture.
   ///
   /// [faces] are in the order every graphics API in use agrees on:

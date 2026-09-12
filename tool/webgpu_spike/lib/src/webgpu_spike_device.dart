@@ -482,6 +482,18 @@ final class WebGpuSpikeDevice implements GraphicsDevice {
   );
 
   @override
+  Future<void> overwriteTexture(
+    TextureHandle target,
+    ByteData rgba, {
+    ScreenRect? region,
+    int mipLevel = 0,
+  }) => throw UnimplementedError(
+    'ordinary work this spike did not do: this backend never uploaded a '
+    'texture from pixels at all, so there is nothing here yet to overwrite '
+    'a region of.',
+  );
+
+  @override
   TextureHandle? createCubeTextureFromPixels({
     required int size,
     required TextureFormat format,

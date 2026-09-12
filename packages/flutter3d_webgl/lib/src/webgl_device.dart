@@ -528,6 +528,42 @@ final class WebGlDevice implements GraphicsDevice {
     mipLevels: mipLevels,
   );
 
+  @override
+  Future<void> overwriteTexture(
+    TextureHandle target,
+    ByteData rgba, {
+    ScreenRect? region,
+    int mipLevel = 0,
+  }) async {
+    if (!readbackFormats.contains(target.format)) {
+      throw UnsupportedError(
+        'overwriteTexture: TextureFormat.${target.format.name} is not one '
+        'of readbackFormats — the two this call, like readback, insists on.',
+      );
+    }
+    if (mipLevel != 0) {
+      throw UnsupportedError(
+        'overwriteTexture: mip level $mipLevel is refused; only the base '
+        'level (0) may be overwritten.',
+      );
+    }
+    final rect = region ?? ScreenRect(width: target.width, height: target.height);
+    if (rect.x < 0 ||
+        rect.y < 0 ||
+        rect.x + rect.width > target.width ||
+        rect.y + rect.height > target.height) {
+      throw ArgumentError('overwriteTexture: $rect does not fit inside a '
+          '${target.width}x${target.height} texture');
+    }
+    if (rgba.lengthInBytes != rect.width * rect.height * 4) {
+      throw ArgumentError(
+        'overwriteTexture: ${rgba.lengthInBytes} bytes does not match '
+        '${rect.width}x${rect.height} RGBA8',
+      );
+    }
+    webglOverwriteTexture(_gl, target, rgba, rect);
+  }
+
   /// Nothing to rotate.
   ///
   /// The flutter_gpu backend cycles a ring of uniform allocators here, because
