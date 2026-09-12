@@ -2097,18 +2097,40 @@ class _Keys extends StatelessWidget {
           redo: onRedo,
           export: onExport,
           for (final MeshSubmode level in MeshSubmode.values)
-            SingleActivator(level.shortcut): () => onLevel(level),
+            SingleActivator(level.shortcut): _typingSafe(() => onLevel(level)),
           for (final ModelerTool tool in tools)
-            SingleActivator(tool.shortcut): () => onTool(tool.id),
-          ...selectionKeyBindings(
-            tools: tools,
-            onSelectAll: onSelectAll,
-            onSelectNone: onSelectNone,
-            onInvertSelection: onInvertSelection,
-          ),
+            SingleActivator(tool.shortcut): _typingSafe(() => onTool(tool.id)),
+          for (final MapEntry<ShortcutActivator, VoidCallback> entry
+              in selectionKeyBindings(
+                tools: tools,
+                onSelectAll: onSelectAll,
+                onSelectNone: onSelectNone,
+                onInvertSelection: onInvertSelection,
+              ).entries)
+            entry.key: _typingSafe(entry.value),
         },
         child: child,
       ),
     );
   }
+
+  /// [action], unless a text field currently holds the keyboard focus.
+  ///
+  /// **`ui-12`'s own "фокус в `NumberField` перехватывает."** A bare letter or
+  /// digit reaches this widget's own `CallbackShortcuts` whether or not a
+  /// `TextField` further down the tree is focused — Flutter delivers the
+  /// character to the field through the text-input channel, a path separate
+  /// from the raw key event this binding sees, so nothing here stops a
+  /// keystroke from doing both at once unless it is told to. Checked against
+  /// the currently focused element's own ancestry rather than one field's
+  /// `FocusNode`, since any `NumberField` anywhere in the panel needs the
+  /// same protection, not just one.
+  static VoidCallback _typingSafe(VoidCallback action) => () {
+    final context = FocusManager.instance.primaryFocus?.context;
+    if (context != null &&
+        context.findAncestorWidgetOfExactType<EditableText>() != null) {
+      return;
+    }
+    action();
+  };
 }
