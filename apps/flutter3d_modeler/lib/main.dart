@@ -61,6 +61,7 @@ import 'src/transform_gizmo.dart';
 import 'src/transform_modal.dart';
 import 'src/ui/export_screen.dart';
 import 'src/ui/import_screen.dart';
+import 'src/ui/lathe_dialog.dart';
 import 'src/ui/layout_class.dart';
 import 'src/ui/modifier_stack_panel.dart';
 import 'src/ui/number_field.dart';
@@ -899,6 +900,27 @@ class _ModelerScreenState extends State<ModelerScreen>
     }
   }
 
+  /// `ui-13`'s own lathe dialog: `AddLathe` needs a profile, and this is the
+  /// only place one gets drawn. Cancelling runs nothing at all — a person
+  /// backing out of the dialog should not have to undo a box they never
+  /// asked for.
+  Future<void> _openLatheDialog() async {
+    if (_state is! ModelerReady) return;
+    final choice = await showLatheDialog(
+      context,
+      renderer: (_state as ModelerReady).renderer,
+    );
+    if (choice != null) {
+      _cubit.ran(
+        AddLathe(
+          profile: choice.profile,
+          segments: choice.segments,
+          closedProfile: choice.closedProfile,
+        ),
+      );
+    }
+  }
+
   /// `ui-32n`'s own shortcut-help screen, opened by `?` or the Help button.
   void _showShortcutHelp() {
     if (_state is! ModelerReady) return;
@@ -1429,6 +1451,15 @@ class _ModelerScreenState extends State<ModelerScreen>
     if (kDragTools.contains(id) || id.endsWith('.select')) {
       // Arming rather than acting: these wait for a pointer.
       _cubit.tool(id);
+      return;
+    }
+    if (id == 'object.lathe') {
+      // A dialog, not a command run straight from the rail: `AddLathe`
+      // needs a profile nobody has drawn yet, so this arms the button and
+      // opens `lathe_dialog.dart` rather than going through `_commandFor`,
+      // which only ever answers with a command ready to run immediately.
+      _cubit.tool(id);
+      unawaited(_openLatheDialog());
       return;
     }
     final ModelCommand? command = _commandFor(id);

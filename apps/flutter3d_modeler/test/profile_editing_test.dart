@@ -295,4 +295,123 @@ void main() {
       expect(snappedToAxis(Vector2(10, 123.5)).y, 123.5);
     });
   });
+
+  group('nearestSegmentWithin — profile_editor.dart\'s own Curve chip', () {
+    final single = ProfileCurve(
+      points: <ProfilePoint>[
+        ProfilePoint(Vector2(0, 0)),
+        ProfilePoint(Vector2(10, 0)),
+      ],
+      segments: const <ProfileSegment>[LineSegment()],
+    );
+
+    test('a tap on the middle of a chord hits its segment', () {
+      expect(single.nearestSegmentWithin(Vector2(5, 0)), 0);
+    });
+
+    test('a tap just inside the radius still hits', () {
+      expect(single.nearestSegmentWithin(Vector2(5, 5.9)), 0);
+    });
+
+    test('a tap just outside the radius misses', () {
+      expect(single.nearestSegmentWithin(Vector2(5, 6.1)), isNull);
+    });
+
+    test('a tap well past the end reads as distance to that end, not to '
+        'the infinite line through it', () {
+      // Straight out along the segment's own line, ten units past its
+      // last point — nowhere near the segment itself, even though it is
+      // dead on the line the segment's chord sits on.
+      expect(single.nearestSegmentWithin(Vector2(20, 0)), isNull);
+    });
+
+    test('picks the nearer of two segments within range', () {
+      final curve = ProfileCurve(
+        points: <ProfilePoint>[
+          ProfilePoint(Vector2(0, 0)),
+          ProfilePoint(Vector2(10, 0)),
+          ProfilePoint(Vector2(10, 10)),
+        ],
+        segments: const <ProfileSegment>[LineSegment(), LineSegment()],
+      );
+      // 1 unit from the first segment's own chord, ~3.16 from the
+      // second's — both within radius 6, the first is nearer.
+      expect(curve.nearestSegmentWithin(Vector2(7, -1)), 0);
+    });
+  });
+
+  group('withPointMoved', () {
+    test('replaces only the point at the given index', () {
+      final curve = ProfileCurve(
+        points: <ProfilePoint>[
+          ProfilePoint(Vector2(0, 0)),
+          ProfilePoint(Vector2(10, 0)),
+        ],
+        segments: const <ProfileSegment>[LineSegment()],
+      );
+      final moved = curve.withPointMoved(1, Vector2(20, 5));
+      expect(moved.points[0].position, Vector2(0, 0));
+      expect(moved.points[1].position, Vector2(20, 5));
+      expect(moved.segments, curve.segments);
+    });
+  });
+
+  group('withPointAdded', () {
+    test('appends a point joined to the previous last by a line', () {
+      final curve = ProfileCurve(
+        points: <ProfilePoint>[ProfilePoint(Vector2(0, 0))],
+        segments: const <ProfileSegment>[],
+      );
+      final grown = curve.withPointAdded(Vector2(10, 0));
+      expect(grown.points.length, 2);
+      expect(grown.points[1].position, Vector2(10, 0));
+      expect(grown.segments, const <ProfileSegment>[LineSegment()]);
+    });
+
+    test('a closed curve stays closed and correctly wound after growing', () {
+      final curve = ProfileCurve(
+        points: <ProfilePoint>[
+          ProfilePoint(Vector2(0, 0)),
+          ProfilePoint(Vector2(10, 0)),
+          ProfilePoint(Vector2(10, 10)),
+        ],
+        segments: const <ProfileSegment>[
+          LineSegment(),
+          LineSegment(),
+          LineSegment(),
+        ],
+        closed: true,
+      );
+      final grown = curve.withPointAdded(Vector2(0, 10));
+      expect(grown.closed, isTrue);
+      expect(grown.points.length, 4);
+      expect(grown.segments.length, 4);
+      // The new point closes the loop: its own polyline visits every point
+      // in order and returns to the first.
+      expect(grown.toPolyline(), <Vector2>[
+        Vector2(0, 0),
+        Vector2(10, 0),
+        Vector2(10, 10),
+        Vector2(0, 10),
+        Vector2(0, 0),
+      ]);
+    });
+  });
+
+  group('withSegment', () {
+    test('replaces only the segment at the given index', () {
+      final curve = ProfileCurve(
+        points: <ProfilePoint>[
+          ProfilePoint(Vector2(0, 0)),
+          ProfilePoint(Vector2(10, 0)),
+          ProfilePoint(Vector2(20, 0)),
+        ],
+        segments: const <ProfileSegment>[LineSegment(), LineSegment()],
+      );
+      final bent = curve.withSegment(0, QuadraticSegment(Vector2(5, 5)));
+      expect(bent.segments[0], isA<QuadraticSegment>());
+      expect(bent.segments[1], isA<LineSegment>());
+      expect(curve.segments[0], isA<LineSegment>());
+    });
+  });
 }

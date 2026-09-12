@@ -196,6 +196,78 @@ final class ProfileCurve {
     }
     return best;
   }
+
+  /// The index of whichever [segments] entry's own chord — the straight line
+  /// between the two points it joins, regardless of what shape the segment
+  /// actually draws — sits closest to [at], when that distance is within
+  /// [radius]. `profile_editor.dart`'s own `Curve` chip: a drag that starts
+  /// near a segment (not a point) is what bends a [LineSegment] into a
+  /// [QuadraticSegment], the same [radius] as [nearestPointWithin] because a
+  /// segment is picked with the same finger a point is.
+  int? nearestSegmentWithin(Vector2 at, {double radius = 6}) {
+    int? best;
+    var bestDistance = double.infinity;
+    for (var i = 0; i < segments.length; i++) {
+      final from = points[i].position;
+      final to = points[(i + 1) % points.length].position;
+      final distance = _distanceToSegment(at, from, to);
+      if (distance <= radius && distance < bestDistance) {
+        best = i;
+        bestDistance = distance;
+      }
+    }
+    return best;
+  }
+
+  /// Perpendicular distance from [point] to the segment `a`–`b`, clamped to
+  /// the segment itself — unlike [_distanceToLine], a point past either end
+  /// reads as the distance to that end rather than to the infinite line
+  /// through both.
+  static double _distanceToSegment(Vector2 point, Vector2 a, Vector2 b) {
+    final ab = b - a;
+    final length2 = ab.length2;
+    if (length2 < 1e-12) return (point - a).length;
+    final t = ((point - a).dot(ab) / length2).clamp(0.0, 1.0);
+    final projected = a + ab * t;
+    return (point - projected).length;
+  }
+
+  /// A copy with the point at [index] moved to [to] — `Point` and `Axis`
+  /// mode's own drag, the latter after [snappedToAxis] has already run.
+  ProfileCurve withPointMoved(int index, Vector2 to) {
+    final next = List<ProfilePoint>.of(points);
+    next[index] = ProfilePoint(to);
+    return ProfileCurve(points: next, segments: segments, closed: closed);
+  }
+
+  /// A copy with a new point at [at] appended, joined to whatever was
+  /// previously last by a straight line — `Point` mode's own "an empty tap
+  /// adds a point."
+  ///
+  /// Appending both a point and a [LineSegment] keeps a closed curve closed
+  /// without extra bookkeeping: [segments] already reads its own last entry
+  /// as "back to point zero" through the `% points.length` in [toPolyline],
+  /// so appending reinterprets that entry as reaching the new point instead
+  /// and the fresh segment becomes the new closing edge.
+  ProfileCurve withPointAdded(Vector2 at) {
+    final nextPoints = List<ProfilePoint>.of(points)..add(ProfilePoint(at));
+    final nextSegments = List<ProfileSegment>.of(segments);
+    if (points.isNotEmpty) nextSegments.add(const LineSegment());
+    return ProfileCurve(
+      points: nextPoints,
+      segments: nextSegments,
+      closed: closed,
+    );
+  }
+
+  /// A copy with the segment at [index] replaced by [segment] — `Curve`
+  /// mode's own drag, whether it is bending a straight edge for the first
+  /// time or moving a handle that curve already had.
+  ProfileCurve withSegment(int index, ProfileSegment segment) {
+    final next = List<ProfileSegment>.of(segments);
+    next[index] = segment;
+    return ProfileCurve(points: points, segments: next, closed: closed);
+  }
 }
 
 /// [position], pulled onto the axis of revolution (`x = 0`, the left edge of

@@ -28,6 +28,7 @@ import 'package:flutter3d_mesh/testing.dart';
 import 'package:flutter3d_modeler/src/display_modes.dart';
 import 'package:flutter3d_modeler/src/ground_grid.dart';
 import 'package:flutter3d_modeler/src/mesh_overlay_builder.dart';
+import 'package:flutter3d_modeler/src/profile_editing.dart';
 import 'package:flutter3d_modeler/src/staging.dart';
 import 'package:flutter3d_testing/flutter3d_testing.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -632,6 +633,53 @@ void main() {
       );
 
       await expectMatchesGolden(frame, 'test/goldens/lod-uv.png');
+    });
+  });
+
+  group('the lathe dialog\'s own preview, drawn', () {
+    // `ui-13`'s own "кадр предпросмотра = golden" — `lathe_dialog.dart`'s
+    // live preview is `ModelerStage.build`'s own cube subject, replaced on
+    // every edit with a mesh built from the authored `ProfileCurve`
+    // exactly the way the dialog itself does it: flattened through
+    // `toPolyline`, then `ParametricLathe.toEditMesh`. Built here directly
+    // rather than through the dialog's own chrome, the same call this
+    // package's own `mesh-lathe` fixture above already makes for a
+    // pre-flattened polyline — this one instead exercises the curved half
+    // of the row's own worked example, a quadratic bend into a line, the
+    // one `mesh-lathe`'s own fixture (an already-flat profile) does not
+    // touch.
+    test('a curved profile\'s flattened preview matches its reference', () async {
+      final curve = ProfileCurve(
+        points: <ProfilePoint>[
+          ProfilePoint(Vector2(0, -0.6)),
+          ProfilePoint(Vector2(0.5, 0.0)),
+          ProfilePoint(Vector2(0.2, 0.6)),
+        ],
+        segments: <ProfileSegment>[
+          QuadraticSegment(Vector2(0.65, -0.3)),
+          const LineSegment(),
+        ],
+      );
+
+      final frame = await renderFrame(
+        width: 240,
+        height: 160,
+        build: (FrameRequest request) {
+          final stage = ModelerStage.build(device: request.device);
+          final node = stage.subject as MeshNode;
+          node.mesh = DeviceMesh.upload(
+            request.device,
+            ParametricLathe(
+              profile: curve.toPolyline(),
+              segments: 24,
+            ).toEditMesh().toMeshData(),
+          );
+          stage.frameSubject();
+          return (scene: stage.scene, camera: stage.camera);
+        },
+      );
+
+      await expectMatchesGolden(frame, 'test/goldens/lathe-dialog-preview.png');
     });
   });
 }

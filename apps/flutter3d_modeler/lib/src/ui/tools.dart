@@ -175,6 +175,13 @@ List<ModelerTool> toolsFor(ModelerMode mode) => switch (mode) {
       group: 'create',
     ),
     ModelerTool(
+      id: 'object.lathe',
+      label: 'Add a lathe',
+      icon: Icons.wine_bar_outlined,
+      shortcut: LogicalKeyboardKey.keyL,
+      group: 'create',
+    ),
+    ModelerTool(
       id: 'object.origin',
       label: 'Origin to the bottom',
       icon: Icons.vertical_align_bottom_outlined,
