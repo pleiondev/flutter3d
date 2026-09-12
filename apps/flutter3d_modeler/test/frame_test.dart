@@ -593,4 +593,45 @@ void main() {
       await expectMatchesGolden(frame, 'test/goldens/modeler-morphs.png');
     });
   });
+
+  group('the simplified UV, drawn', () {
+    // `pro-lod-02`'s own row: a disc, its rim faceting cut by two thirds,
+    // recoloured by its own surviving UV — `r = u`, `g = v` — so a texture
+    // coordinate `simplifyMeshWithAttributes` blended or dropped wrong would
+    // show as a colour seam or a flat patch rather than needing a bound
+    // texture to see at all.
+    test('lod-uv matches its reference', () async {
+      final disc = DiscShape(
+        radius: 1.0,
+        segments: 64,
+      ).build(layout: VertexLayout.positionNormalTexcoord);
+      final simplified = simplifyMeshWithAttributes(disc, targetTriangleCount: 24);
+      final rebuilt = simplified.withGeneratedTangents().convertedTo(VertexLayout.standard);
+
+      final stride = rebuilt.layout.floatsPerVertex;
+      final uvOffset = rebuilt.layout.floatOffsetOf(VertexLayout.texcoord.name);
+      final colorOffset = rebuilt.layout.floatOffsetOf(VertexLayout.color.name);
+      for (var v = 0; v < rebuilt.vertexCount; v++) {
+        final base = v * stride;
+        rebuilt.vertices[base + colorOffset] = rebuilt.vertices[base + uvOffset];
+        rebuilt.vertices[base + colorOffset + 1] = rebuilt.vertices[base + uvOffset + 1];
+        rebuilt.vertices[base + colorOffset + 2] = 0.5;
+        rebuilt.vertices[base + colorOffset + 3] = 1.0;
+      }
+
+      final frame = await renderFrame(
+        width: 240,
+        height: 160,
+        build: (FrameRequest request) {
+          final stage = ModelerStage.build(device: request.device);
+          final node = stage.subject as MeshNode;
+          node.mesh = DeviceMesh.upload(request.device, rebuilt);
+          stage.frameSubject();
+          return (scene: stage.scene, camera: stage.camera);
+        },
+      );
+
+      await expectMatchesGolden(frame, 'test/goldens/lod-uv.png');
+    });
+  });
 }
