@@ -251,6 +251,89 @@ void main() {
     });
   });
 
+  group('a seam-marked edge', () {
+    test('draws in the seam colour, and only that edge does', () {
+      final mesh = EditMesh.cuboid();
+      final overlay = _overlay();
+
+      // One edge of the cube, marked through the mesh's own flag directly —
+      // this file is about what the builder draws from a mesh, not about how
+      // a caller (`MarkSeam`, in `flutter3d_model_core`) gets one into that
+      // state.
+      var marked = -1;
+      mesh.forEachHalfEdge(0, (int half) {
+        if (marked < 0 && mesh.edgeOf(half) == half) marked = half;
+      });
+      expect(marked, greaterThanOrEqualTo(0));
+      mesh.beginStep();
+      mesh.setEdgeFlag(marked, EdgeFlags.seam, on: true);
+      mesh.endStep();
+
+      final colours = MeshOverlayColours();
+      MeshOverlayBuilder(colours: colours).build(
+        overlay,
+        mesh: mesh,
+        selection: Selection.empty(ElementLevel.vertex),
+        meshVersion: 1,
+        selectionVersion: 1,
+        view: _view(),
+      );
+
+      // Twelve edges, two vertices each; one of them is the seam.
+      expect(_countColoured(overlay.lines, colours.seam), 2);
+      expect(_countColoured(overlay.lines, colours.wire), 22);
+    });
+
+    test('with nothing marked, every edge is plain wire', () {
+      final mesh = EditMesh.cuboid();
+      final overlay = _overlay();
+      final colours = MeshOverlayColours();
+
+      MeshOverlayBuilder(colours: colours).build(
+        overlay,
+        mesh: mesh,
+        selection: Selection.empty(ElementLevel.vertex),
+        meshVersion: 1,
+        selectionVersion: 1,
+        view: _view(),
+      );
+
+      expect(_countColoured(overlay.lines, colours.seam), 0);
+      expect(_countColoured(overlay.lines, colours.wire), 24);
+    });
+
+    test('clearing the flag returns the edge to plain wire', () {
+      final mesh = EditMesh.cuboid();
+      final overlay = _overlay();
+      var marked = -1;
+      mesh.forEachHalfEdge(0, (int half) {
+        if (marked < 0 && mesh.edgeOf(half) == half) marked = half;
+      });
+      mesh.beginStep();
+      mesh.setEdgeFlag(marked, EdgeFlags.seam, on: true);
+      mesh.endStep();
+      mesh.beginStep();
+      mesh.setEdgeFlag(marked, EdgeFlags.seam, on: false);
+      mesh.endStep();
+
+      final colours = MeshOverlayColours();
+      // A fresh builder and version 1: nothing has been drawn by this
+      // instance yet, so this is a first build rather than a rebuild — the
+      // versions-unchanged short circuit is not what is under test here.
+      MeshOverlayBuilder(colours: colours).build(
+        overlay,
+        mesh: mesh,
+        selection: Selection.empty(ElementLevel.vertex),
+        meshVersion: 1,
+        selectionVersion: 1,
+        view: _view(),
+      );
+
+      expect(_countColoured(overlay.lines, colours.seam), 0);
+      expect(_countColoured(overlay.lines, colours.wire), 24);
+    });
+  });
+
   group('the level decides what the selection is drawn as', () {
     test('vertex level puts a handle on every vertex, selected or not', () {
       final mesh = EditMesh.cuboid();

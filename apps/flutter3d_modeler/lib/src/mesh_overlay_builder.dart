@@ -82,10 +82,15 @@ final class MeshOverlayView {
 /// sits on both. The selected colour is warm because everything the renderer
 /// puts under it — a lit grey model on a near-black background — is not.
 final class MeshOverlayColours {
-  MeshOverlayColours({Vector4? wire, Vector4? vertex, Vector4? selected})
-    : wire = wire ?? Vector4(0.55, 0.58, 0.60, 1.0),
-      vertex = vertex ?? Vector4(0.72, 0.76, 0.78, 1.0),
-      selected = selected ?? Vector4(1.0, 0.60, 0.15, 1.0);
+  MeshOverlayColours({
+    Vector4? wire,
+    Vector4? vertex,
+    Vector4? selected,
+    Vector4? seam,
+  }) : wire = wire ?? Vector4(0.55, 0.58, 0.60, 1.0),
+       vertex = vertex ?? Vector4(0.72, 0.76, 0.78, 1.0),
+       selected = selected ?? Vector4(1.0, 0.60, 0.15, 1.0),
+       seam = seam ?? Vector4(0.35, 0.75, 1.0, 1.0);
 
   /// Every edge of the mesh, drawn as a line.
   final Vector4 wire;
@@ -95,6 +100,12 @@ final class MeshOverlayColours {
 
   /// A selected element, whatever it is drawn as.
   final Vector4 selected;
+
+  /// An edge [EdgeFlags.seam] marks — `pro-uv-01`'s own overlay half. A cool
+  /// blue rather than [selected]'s warm orange, so a person marking seams
+  /// while something is also selected can tell the two apart at a glance
+  /// instead of reading a seam as a stray selection.
+  final Vector4 seam;
 }
 
 /// Which of the three batches a call to [MeshOverlayBuilder.build] refilled.
@@ -394,7 +405,11 @@ final class MeshOverlayBuilder {
         if (!thinning.take()) return;
         mesh.positionOf(mesh.originOf(half), _from);
         mesh.positionOf(mesh.originOf(mesh.nextOf(half)), _to);
-        overlay.edge(_from, _to, colours.wire);
+        overlay.edge(
+          _from,
+          _to,
+          mesh.edgeHas(half, EdgeFlags.seam) ? colours.seam : colours.wire,
+        );
       });
     }
   }
