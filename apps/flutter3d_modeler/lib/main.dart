@@ -46,6 +46,7 @@ import 'src/files/project_files.dart';
 import 'src/files/sandbox_probe.dart';
 import 'src/ground_grid.dart';
 import 'src/import_plan.dart';
+import 'src/material_pool.dart' show clay;
 import 'src/modeler_cubit.dart';
 import 'src/modeler_viewport.dart';
 import 'src/object_picking.dart';
@@ -63,6 +64,7 @@ import 'src/ui/export_screen.dart';
 import 'src/ui/import_screen.dart';
 import 'src/ui/lathe_dialog.dart';
 import 'src/ui/layout_class.dart';
+import 'src/ui/material_studio_dialog.dart';
 import 'src/ui/modifier_stack_panel.dart';
 import 'src/ui/number_field.dart';
 import 'src/ui/operation_card.dart';
@@ -919,6 +921,31 @@ class _ModelerScreenState extends State<ModelerScreen>
         ),
       );
     }
+  }
+
+  /// `mat-15`'s own studio: previews whatever material the active selection
+  /// carries — or clay, when nothing is selected or the pool has not built
+  /// one for it yet — on a body of its own, under a sky of its own. Nothing
+  /// it does is undoable, because nothing it does changes the document: it
+  /// hands back no result at all.
+  Future<void> _openMaterialStudio() async {
+    if (_state is! ModelerReady) return;
+    final ready = _state as ModelerReady;
+    final selectedId = ready.selection.activeObject;
+    final selectedObject = selectedId == null
+        ? null
+        : ready.project[selectedId];
+    final material = selectedObject == null
+        ? null
+        : ready.stage.materials?.forObject(selectedObject);
+    await showMaterialStudioDialog(
+      context,
+      renderer: ready.renderer,
+      material: material ?? clay(),
+      selectedObjectMesh: selectedId == null
+          ? null
+          : ready.stage.sync?.nodeOf(selectedId)?.mesh,
+    );
   }
 
   /// `ui-32n`'s own shortcut-help screen, opened by `?` or the Help button.
@@ -1832,6 +1859,20 @@ class _ModelerScreenState extends State<ModelerScreen>
               child: const Padding(
                 padding: EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                 child: Text('Export', style: TextStyle(fontSize: 13)),
+              ),
+            ),
+            // `mat-15`'s own entry: a preview tool rather than a command,
+            // so it sits beside Export rather than on the object tool
+            // rail — nothing it opens is a shape to add to the document.
+            MergeSemantics(
+              child: Semantics(
+                label: 'Material Studio',
+                button: true,
+                child: IconButton(
+                  tooltip: 'Material Studio — preview a material',
+                  onPressed: () => unawaited(_openMaterialStudio()),
+                  icon: const Icon(Icons.tonality_outlined, size: 20),
+                ),
               ),
             ),
             // `ui-23`'s own pass: `IconButton.tooltip` sets

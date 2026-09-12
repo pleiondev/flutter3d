@@ -30,6 +30,7 @@ import 'package:flutter3d_modeler/src/ground_grid.dart';
 import 'package:flutter3d_modeler/src/mesh_overlay_builder.dart';
 import 'package:flutter3d_modeler/src/profile_editing.dart';
 import 'package:flutter3d_modeler/src/staging.dart';
+import 'package:flutter3d_modeler/src/ui/material_studio_dialog.dart';
 import 'package:flutter3d_testing/flutter3d_testing.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart';
@@ -680,6 +681,64 @@ void main() {
       );
 
       await expectMatchesGolden(frame, 'test/goldens/lathe-dialog-preview.png');
+    });
+  });
+
+  group('the material studio\'s own preview, drawn', () {
+    // `mat-15`'s own "кадр material-studio на CPU": the sphere body under the
+    // Daylight preset, built the same way the dialog itself does it —
+    // `ModelerStage.build`'s own cube subject swapped for a sphere and
+    // painted with a material worth telling apart from clay, a floor added
+    // beside it, and the scene's own environment bound to the preset's sky —
+    // rather than through the dialog's chrome, the same shortcut the lathe
+    // preview above already takes.
+    test('the sphere body under the Daylight preset matches its reference', () async {
+      final preset = materialStudioSkyPresets()[1];
+
+      final frame = await renderFrame(
+        width: 240,
+        height: 160,
+        settings: RenderSettings(sky: preset.sky),
+        build: (FrameRequest request) {
+          final stage = ModelerStage.build(device: request.device);
+          (stage.subject as MeshNode)
+            ..mesh = DeviceMesh.upload(
+              request.device,
+              const ParametricSphere().toEditMesh().toMeshData(),
+            )
+            ..material = Material(
+              name: 'preview',
+              lighting: LightingModel.pbr,
+              baseColor: Vector4(0.75, 0.15, 0.12, 1.0),
+              roughness: 0.25,
+              metallic: 0.8,
+            );
+          final environment = MaterialStudioEnvironment(
+            device: request.device,
+            scene: stage.scene,
+          )..apply(preset.sky);
+          addTearDown(environment.dispose);
+          stage.scene.add(
+            MeshNode(
+              DeviceMesh.upload(
+                request.device,
+                const ParametricPlane(width: 8, depth: 8).toEditMesh().toMeshData(),
+              ),
+              Material(
+                name: 'floor',
+                lighting: LightingModel.pbr,
+                baseColor: Vector4(0.5, 0.5, 0.52, 1.0),
+                roughness: 0.85,
+              ),
+              name: 'floor',
+            )..setPosition(0, -0.5, 0),
+          );
+          stage.frameSubject();
+          return (scene: stage.scene, camera: stage.camera);
+        },
+      );
+
+      await expectMatchesGolden(frame, 'test/goldens/material-studio.png');
     });
   });
 }

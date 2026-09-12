@@ -94,6 +94,7 @@
     "mat-10": "done",
     "mat-11": "done",
     "mat-12": "done",
+    "mat-15": "done",
     "mat-16": "done",
     "mat-18": "done",
     "mat-19": "done",
@@ -239,6 +240,7 @@
     "view-12": "done",
     "view-13": "done",
     "view-14": "done",
+    "view-16": "done",
     "view-23n": "done",
     "view-24n": "done",
     "view-25n": "done"
@@ -280,6 +282,9 @@
     },
     "doc-25": {
       "LinkFmat": "класс называется LinkMaterialFile в packages/flutter3d_model_core/lib/src/material_commands.dart (mat-08's own commit 5b8c22d9: «LinkMaterialFile and EmbedMaterial join the material command table») — то же действие, что называет строка (привязать материал к внешнему .fmat), просто под именем, которое совпадает с остальными командами файла (AddMaterial, RemoveMaterial, SetTexture…), а не с сокращением из текста плана. AddMaterial/SetMaterialField/SetTexture/AddImage/RemoveMaterial все присутствуют под собственными именами в том же файле; публичный кодек SurfaceMaterial ↔ Map, который строка называет «остаётся», уже существует как surfaceMaterialToJson/surfaceMaterialFromJson в packages/flutter3d_formats/lib/src/fmat/fmat.dart — формулировка плана устарела относительно факта. Приёмка строки буквально «см. mat-01/08» — обе зависимости закрыты"
+    },
+    "mat-15": {
+      "MaterialStudio": "неформальное имя инструмента в тексте плана, не имя символа: экран собран в apps/flutter3d_modeler/lib/src/ui/material_studio_dialog.dart как showMaterialStudioDialog/_MaterialStudioDialog — приватный класс диалога, тот же стиль приватности, что и у lathe_dialog.dart's own _LatheDialog в этом же приложении. Заводить публичный класс с именем MaterialStudio ради этой строки было бы нарушением уже установленного в файле соглашения о приватности диалоговых виджетов ради совпадения с прозой плана. Renderer, Scene и EnvironmentMap.fromSky, которые строка называет отдельно, присутствуют под собственными именами и используются буквально так, как строка описывает; view-16-material-preview поглощён (⇢ mat-15 в его собственном тексте, приёмка «см. mat-15»)"
     }
   }
 }
