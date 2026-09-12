@@ -28,6 +28,7 @@ export 'src/inset.dart';
 export 'src/isolate.dart';
 export 'src/journal.dart';
 export 'src/layout_plan.dart';
+export 'src/lscm.dart';
 export 'src/merge.dart';
 export 'src/mesh_bvh.dart';
 export 'src/mesh_repair.dart';
