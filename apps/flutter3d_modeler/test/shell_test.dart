@@ -226,14 +226,17 @@ void main() {
       final scheme = modelerTheme().colorScheme;
 
       // A handful, spelled out: the surface the panels sit on, the text on it,
-      // the container the selection wash already uses, and the outline that is
-      // the grid's own colour. Mutation: build the scheme with
-      // `ColorScheme.fromSeed` and every one of these moves — which is the
-      // whole reason the scheme is written out rather than generated.
+      // the container the selection wash already uses, and the outline the
+      // design hand-over gives captions and utility values — not the grid's
+      // own colour, which this test used to assert before an intermediate UI
+      // review caught the mismatch; `theme_test.dart` holds the rest of the
+      // scheme's own roles to the same hand-over. Mutation: build the scheme
+      // with `ColorScheme.fromSeed` and every one of these moves — which is
+      // the whole reason the scheme is written out rather than generated.
       expect(scheme.surface, const Color(0xFF14181A));
       expect(scheme.onSurface, const Color(0xFFE6E9EA));
       expect(scheme.primaryContainer, const Color(0xFF004F58));
-      expect(scheme.outline, const Color(0xFF2A3234));
+      expect(scheme.outline, const Color(0xFF899295));
       expect(scheme.brightness, Brightness.dark);
     });
 

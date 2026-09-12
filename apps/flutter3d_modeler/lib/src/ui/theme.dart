@@ -155,7 +155,7 @@ final class ModelerColors extends ThemeExtension<ModelerColors> {
 /// renderer puts under it — a grey model on a near-black background — is not.
 const ColorScheme kModelerScheme = ColorScheme(
   brightness: Brightness.dark,
-  primary: Color(0xFF62D4E3),
+  primary: Color(0xFF5FD4E4),
   onPrimary: Color(0xFF00363D),
   primaryContainer: Color(0xFF004F58),
   onPrimaryContainer: Color(0xFFA2EEFF),
@@ -173,14 +173,14 @@ const ColorScheme kModelerScheme = ColorScheme(
   onErrorContainer: Color(0xFFFFDAD6),
   surface: Color(0xFF14181A),
   onSurface: Color(0xFFE6E9EA),
-  surfaceContainerLowest: Color(0xFF0E1112),
-  surfaceContainerLow: Color(0xFF171C1E),
-  surfaceContainer: Color(0xFF1B2123),
-  surfaceContainerHigh: Color(0xFF1E2426),
-  surfaceContainerHighest: Color(0xFF232A2C),
-  onSurfaceVariant: Color(0xFF9AA3A6),
-  outline: Color(0xFF2A3234),
-  outlineVariant: Color(0xFF202729),
+  surfaceContainerLowest: Color(0xFF0B0E0F),
+  surfaceContainerLow: Color(0xFF131617),
+  surfaceContainer: Color(0xFF171A1B),
+  surfaceContainerHigh: Color(0xFF1B1F20),
+  surfaceContainerHighest: Color(0xFF262A2B),
+  onSurfaceVariant: Color(0xFFBFC8CA),
+  outline: Color(0xFF899295),
+  outlineVariant: Color(0xFF3F484A),
   inverseSurface: Color(0xFFE6E9EA),
   onInverseSurface: Color(0xFF14181A),
   inversePrimary: Color(0xFF006874),
@@ -205,8 +205,12 @@ ThemeData modelerTheme() {
   return base.copyWith(
     extensions: const <ThemeExtension<dynamic>>[ModelerColors.dark],
     scaffoldBackgroundColor: scheme.surface,
-    dividerTheme: const DividerThemeData(
-      color: Color(0xFF232A2C),
+    dividerTheme: DividerThemeData(
+      // The design spec's own table assigns outlineVariant to "dividers,
+      // slider tracks" by name — this used to duplicate a surface tone as a
+      // literal instead, which drifted from the palette the moment that tone
+      // did.
+      color: scheme.outlineVariant,
       thickness: 1,
       space: 1,
     ),
@@ -241,8 +245,8 @@ ThemeData modelerTheme() {
         textStyle: const WidgetStatePropertyAll<TextStyle>(
           TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
         ),
-        side: const WidgetStatePropertyAll<BorderSide>(
-          BorderSide(color: Color(0xFF2A3234)),
+        side: WidgetStatePropertyAll<BorderSide>(
+          BorderSide(color: scheme.outlineVariant),
         ),
       ),
     ),
