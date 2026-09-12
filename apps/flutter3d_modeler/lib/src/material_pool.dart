@@ -15,6 +15,8 @@
 /// than a frame that did not happen.
 library;
 
+import 'dart:typed_data';
+
 import 'package:flutter3d/flutter3d.dart' hide Material;
 import 'package:flutter3d/flutter3d.dart' as engine show Material;
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
@@ -32,13 +34,25 @@ final class MaterialPool {
 
   final Map<int, _Built> _built = <int, _Built>{};
 
-  /// Uploaded images, keyed by index **and by whether a mip chain was asked
-  /// for**, which is the key `ModelAsset` uses and for the reason it gives: a
-  /// chain is part of the texture rather than of the sampler, so two materials
-  /// sampling one atlas differently must not be handed whichever answer the
-  /// first of them happened to ask for.
+  /// Uploaded images, keyed by **the bytes' own content hash, and by whether
+  /// a mip chain was asked for**. A chain is part of the texture rather than
+  /// of the sampler, so two materials sampling one atlas differently must not
+  /// be handed whichever answer the first of them happened to ask for.
+  ///
+  /// Keyed by content rather than by table index so that two different rows
+  /// of `project.images` holding the same bytes — a texture imported twice,
+  /// or split across two glTF images that happened to encode identically —
+  /// upload once. A roughness slider dragged across a hundred materials that
+  /// all point at one shared image must not decode that image a hundred
+  /// times.
   final Map<(int, bool), TextureHandle?> _textures =
       <(int, bool), TextureHandle?>{};
+
+  /// A cheap, collision-resistant-enough stand-in for the bytes themselves:
+  /// two images this pool ever sees differing only where this hash agrees
+  /// would need a deliberately crafted collision, not an accident.
+  static int _contentHash(Uint8List bytes) =>
+      Object.hash(bytes.length, Object.hashAll(bytes));
 
   /// What could not be decoded, in sentences, for the status line.
   final List<String> warnings = <String>[];
@@ -70,12 +84,13 @@ final class MaterialPool {
       TextureSampling sampling,
     ) async {
       if (index < 0 || index >= project.images.length) return null;
-      final key = (index, sampling.useMipmaps);
+      final bytes = project.images[index].bytes;
+      final key = (_contentHash(bytes), sampling.useMipmaps);
       if (_textures.containsKey(key)) return _textures[key];
 
       final uploaded = await uploadEncodedImage(
         device,
-        project.images[index].bytes,
+        bytes,
         sampling: sampling,
         report: (String message) => warnings.add('image $index: $message'),
       );
