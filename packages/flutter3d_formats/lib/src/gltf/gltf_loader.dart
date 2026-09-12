@@ -151,6 +151,13 @@ final class GltfLoader {
       // range, spot angles — so a file naming this as required loses
       // nothing by being let through.
       'KHR_lights_punctual',
+      // `fmt-30n`: a normalized integer accessor on NORMAL/TANGENT/
+      // TEXCOORD_0/COLOR_0/POSITION was already read correctly before this
+      // extension existed — `GltfAccessorReader` applies `normalized` per
+      // spec regardless of which attribute it is on, in
+      // `GltfComponentType.readDouble`. The extension names a component-type
+      // choice this reader already knew how to make, not new behaviour.
+      'KHR_mesh_quantization',
     };
     final unsupported = required.whereType<String>().where(
       (e) => !supported.contains(e),

@@ -40,9 +40,48 @@ part 'gltf_writer_scene.dart';
 /// image bytes alike — so [writeGlb] always produces one self-contained file,
 /// never a `.gltf` with siblings to lose track of.
 final class GltfWriter {
-  GltfWriter(this.document);
+  GltfWriter(this.document, {this.compressGeometry = false});
 
   final ModelDocument document;
+
+  /// `fmt-30n`'s own row: when true, `NORMAL`/`TANGENT`/`TEXCOORD_0`/`COLOR_0`
+  /// are written as normalized integers (`KHR_mesh_quantization`) instead of
+  /// `FLOAT`, whenever an attribute's own values actually fit the type
+  /// losslessly enough to normalize — a quarter to an eighth the bytes per
+  /// component, real size on a file whose vertex data is often more
+  /// attribute bytes than position bytes.
+  ///
+  /// **`POSITION` is not quantized.** `KHR_mesh_quantization`'s own normalized
+  /// integer only reaches `[-1, 1]`; recovering real coordinates from that
+  /// needs a per-mesh dequantization transform this writer's reader has no
+  /// path for applying, and shipping one half of that pair — a writer that
+  /// quantizes and a loader that does not know to undo it — would silently
+  /// corrupt every position in the file rather than merely round it. Every
+  /// other quantized attribute here is one this package's own `GltfLoader`
+  /// already reads correctly as-is, because normalized-integer decoding is
+  /// already a property of `GltfComponentType.readDouble`, not something new.
+  ///
+  /// **Vertex-cache reordering — index and vertex order for a GPU's post-
+  /// transform cache — is deliberately not part of this**, for a sharper
+  /// reason than "not done yet": `compareModelDocuments`, the row's own named
+  /// round-trip check, compares vertex and index buffers position by
+  /// position, not as sets. A reordering that changes which byte offset a
+  /// vertex or index lands at — the entire point of cache-friendly reordering
+  /// — reads to that check as data loss, whether or not the two meshes draw
+  /// identically. Proving reordering correct needs a different check (the
+  /// same triangle set, plus a cache-miss simulation showing it improved),
+  /// not a smaller version of this one; that is real work this row's own `M`
+  /// size does not leave room for beside quantization, so it is left named
+  /// and undone rather than tested against the wrong tool to make it look
+  /// covered.
+  final bool compressGeometry;
+
+  /// Whether [compressGeometry] actually quantized anything — some documents
+  /// have no attribute whose values fit a normalized integer, and a file that
+  /// asked for compression but got none of it should not claim the extension
+  /// it never used. Valid only after [writeGlb] has run.
+  bool get usedGeometryQuantization => _usedQuantization;
+  bool _usedQuantization = false;
 
   final BytesBuilder _binary = BytesBuilder();
   int _binaryLength = 0;

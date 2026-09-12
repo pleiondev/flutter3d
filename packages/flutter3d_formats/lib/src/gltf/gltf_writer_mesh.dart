@@ -21,7 +21,129 @@ const List<(String, VertexAttribute)> _kOptionalGltfAttributes = [
   ('WEIGHTS_0', VertexLayout.weights),
 ];
 
+/// The normalized-integer encoding `fmt-30n` uses for one glTF attribute name,
+/// or null when that attribute is never quantized (`JOINTS_0` stays an
+/// explicit unsigned type already, handled on its own; `WEIGHTS_0` is left
+/// float since a weight already carries the precision its own renormalization
+/// needs).
+///
+/// `signed` picks the value range a component is checked and encoded against:
+/// `[-1, 1]` for a direction, `[0, 1]` for a coordinate or colour channel.
+({GltfComponentType componentType, bool signed})? _quantizationOf(
+  String attributeName,
+) => switch (attributeName) {
+  'NORMAL' ||
+  'TANGENT' => (componentType: GltfComponentType.byte, signed: true),
+  'TEXCOORD_0' => (
+    componentType: GltfComponentType.unsignedShort,
+    signed: false,
+  ),
+  'COLOR_0' => (componentType: GltfComponentType.unsignedByte, signed: false),
+  _ => null,
+};
+
 extension _GltfWriterMesh on GltfWriter {
+  /// [floats] written as a normalized-integer accessor of [glTFType] when
+  /// [name] has a quantization rule ([_quantizationOf]) and every value in
+  /// [floats] actually falls inside that rule's own range — with enough
+  /// margin that quantizing it back out reads as the same number, not a
+  /// clamp — else the ordinary `FLOAT` accessor `compressGeometry: false`
+  /// would have written.
+  ///
+  /// **Never clamps a value that does not fit.** A texture tiled past `[0,
+  /// 1]`, or a normal that came in already denormalized past `[-1, 1]` by
+  /// more than rounding, would lose real information to a `[-1, 1]`/`[0, 1]`
+  /// squeeze — exactly the "understates the row's own claim" failure this
+  /// session does not ship. Falling back to float for that one attribute on
+  /// that one primitive costs nothing but the bytes it would have saved.
+  int _quantizedOrFloatAccessor(String name, Float32List floats, String type) {
+    final rule = _quantizationOf(name);
+    if (rule != null && _fitsQuantization(floats, signed: rule.signed)) {
+      _usedQuantization = true;
+      _extensionsUsed.add('KHR_mesh_quantization');
+      _extensionsRequired.add('KHR_mesh_quantization');
+      final encoded = _encodeNormalized(
+        floats,
+        rule.componentType,
+        rule.signed,
+      );
+      return _addAccessor(<String, Object?>{
+        'bufferView': _appendBufferView(encoded, target: 34962),
+        'componentType': rule.componentType.code,
+        'normalized': true,
+        'type': type,
+        'count':
+            floats.length ~/
+            (type == GltfAccessorType.vec2.name
+                ? 2
+                : type == GltfAccessorType.vec3.name
+                ? 3
+                : 4),
+      });
+    }
+    return _addAccessor(<String, Object?>{
+      'bufferView': _appendBufferView(floats, target: 34962),
+      'componentType': GltfComponentType.float.code,
+      'type': type,
+      'count':
+          floats.length ~/
+          (type == GltfAccessorType.vec2.name
+              ? 2
+              : type == GltfAccessorType.vec3.name
+              ? 3
+              : 4),
+    });
+  }
+
+  /// Whether every value in [floats] sits within the range a normalized
+  /// integer can represent without clamping — `[-1, 1]` when [signed],
+  /// `[0, 1]` otherwise — allowing `1e-4` of slack for the ordinary rounding
+  /// error a computed normal or an interpolated colour already carries.
+  bool _fitsQuantization(Float32List floats, {required bool signed}) {
+    const slack = 1e-4;
+    final low = signed ? -1.0 - slack : -slack;
+    const high = 1.0 + slack;
+    for (final v in floats) {
+      if (v < low || v > high) return false;
+    }
+    return true;
+  }
+
+  /// [floats] packed into [componentType]'s own bytes, each value clamped to
+  /// exactly `[-1, 1]`/`[0, 1]` first (the `1e-4` slack [_fitsQuantization]
+  /// allowed in is rounding error, not room the encoded value should keep)
+  /// and rounded to the nearest representable integer — the same asymmetric
+  /// signed range [GltfComponentType.readDouble] decodes, so the round trip
+  /// through this package's own loader is exact up to that rounding.
+  TypedData _encodeNormalized(
+    Float32List floats,
+    GltfComponentType componentType,
+    bool signed,
+  ) {
+    switch (componentType) {
+      case GltfComponentType.byte:
+        final out = Int8List(floats.length);
+        for (var i = 0; i < floats.length; i++) {
+          out[i] = (floats[i].clamp(-1.0, 1.0) * 127.0).round();
+        }
+        return out;
+      case GltfComponentType.unsignedByte:
+        final out = Uint8List(floats.length);
+        for (var i = 0; i < floats.length; i++) {
+          out[i] = (floats[i].clamp(0.0, 1.0) * 255.0).round();
+        }
+        return out;
+      case GltfComponentType.unsignedShort:
+        final out = Uint16List(floats.length);
+        for (var i = 0; i < floats.length; i++) {
+          out[i] = (floats[i].clamp(0.0, 1.0) * 65535.0).round();
+        }
+        return out;
+      default:
+        throw StateError('$componentType is not a quantization target.');
+    }
+  }
+
   /// The `attributes`/`indices`/`material` object for `document.surfaces[i]`.
   ///
   /// The accessors underneath are cached by [MeshData] identity: two surfaces
@@ -104,16 +226,20 @@ extension _GltfWriterMesh on GltfWriter {
         continue;
       }
 
-      attributes[name] = _addAccessor(<String, Object?>{
-        'bufferView': _appendBufferView(column(attribute), target: 34962),
-        'componentType': GltfComponentType.float.code,
-        'type': attribute.componentCount == 2
-            ? GltfAccessorType.vec2.name
-            : attribute.componentCount == 3
-            ? GltfAccessorType.vec3.name
-            : GltfAccessorType.vec4.name,
-        'count': vertexCount,
-      });
+      final type = attribute.componentCount == 2
+          ? GltfAccessorType.vec2.name
+          : attribute.componentCount == 3
+          ? GltfAccessorType.vec3.name
+          : GltfAccessorType.vec4.name;
+      final floats = column(attribute);
+      attributes[name] = compressGeometry
+          ? _quantizedOrFloatAccessor(name, floats, type)
+          : _addAccessor(<String, Object?>{
+              'bufferView': _appendBufferView(floats, target: 34962),
+              'componentType': GltfComponentType.float.code,
+              'type': type,
+              'count': vertexCount,
+            });
     }
 
     final packed = mesh.packIndices();
