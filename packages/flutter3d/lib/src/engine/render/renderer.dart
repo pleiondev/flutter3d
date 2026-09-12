@@ -2723,10 +2723,13 @@ final class Renderer implements RenderServices {
     // written for this and had no caller; it has one now, and the throw the
     // resource layer raises when a node breaks its `keeps` promise is the first
     // thing likely to use it.
+    final passTimings = <({String name, bool active, int micros})>[];
     try {
       for (var i = 0; i < frameGraph.order.length; i++) {
         resources.beginNode(i);
-        (frameGraph.order[i] as RenderNode).execute(
+        final node = frameGraph.order[i] as RenderNode;
+        final passClock = Stopwatch()..start();
+        node.execute(
           NodeFrame(
             device: device,
             resources: resources,
@@ -2750,6 +2753,11 @@ final class Renderer implements RenderServices {
                 : resources.tryTexture(FrameResourceIds.hdrColour),
           ),
         );
+        passTimings.add((
+          name: node.name,
+          active: node.isActive,
+          micros: passClock.elapsedMicroseconds,
+        ));
         resources.endNode(i);
       }
     } catch (error, stack) {
@@ -2865,6 +2873,7 @@ final class Renderer implements RenderServices {
       shadowsDenied: _shadowsDenied,
       skinnedDraws: passState.skinnedDraws,
       exposure: _lastExposure,
+      passes: passTimings,
     );
   }
 

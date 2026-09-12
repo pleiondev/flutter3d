@@ -31,6 +31,7 @@ final class FrameResult {
     this.shadowsDenied = 0,
     this.wireframeDeclined = false,
     this.exposure = RenderSettings.defaultExposure,
+    this.passes = const <({String name, bool active, int micros})>[],
   });
 
   /// The exposure the composite used: the setting's, or — with auto exposure
@@ -122,4 +123,19 @@ final class FrameResult {
 
   /// Draws that went through the skinned vertex stage.
   final int skinnedDraws;
+
+  /// One entry per node `CompiledFrameGraph.order` actually kept this frame,
+  /// in that same order — `pro-eng-05`'s own row.
+  ///
+  /// **Absence is the signal, not `active: false`.** `_compileFrameGraph`
+  /// drops every node whose own `RenderNode.isActive` answers false before
+  /// `order` is even built — bloom, with bloom off, is never asked and never
+  /// appears here at all, rather than appearing with `active: false`. So
+  /// `active` reads `isActive` at the same node this frame's own timing
+  /// came from, and is therefore always true for anything in this list
+  /// today; it is reported as its own field rather than assumed, because the
+  /// two questions — "did the graph keep this node" and "what did the node
+  /// itself say about its own readiness" — happen to agree now and are not
+  /// the same question.
+  final List<({String name, bool active, int micros})> passes;
 }
