@@ -30,10 +30,27 @@ class NumberField extends StatefulWidget {
     required this.value,
     required this.onChanged,
     this.enabled = true,
+    this.showLabel = true,
+    this.semanticLabel,
   });
 
   /// What it is: `X`, `Y`, `Segments`.
   final String label;
+
+  /// Whether [label] draws as the field's own visible left-hand text.
+  ///
+  /// A grid that already carries the label as a column header (`Position`
+  /// `Rotation` `Scale` × `X` `Y` `Z`) does not want it repeated inside every
+  /// cell — but a screen reader, which never sees the header's own row/column
+  /// position, still needs to be told which cell this is. That is
+  /// [semanticLabel]'s job, kept independent of whether [label] is drawn.
+  final bool showLabel;
+
+  /// What a screen reader announces this field as, when it needs to say more
+  /// than [label] alone would — `"Position X"` rather than a bare `"X"`
+  /// repeated nine times across a grid with nothing else to tell the fields
+  /// apart. Falls back to [label] when not given.
+  final String? semanticLabel;
 
   /// What it holds now. A field whose value arrives from outside rather than
   /// being kept here: the document is the truth, and a field that remembered
@@ -144,87 +161,65 @@ class _NumberFieldState extends State<NumberField> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return SizedBox(
-      height: ModelerMetrics.row,
-      child: Row(
-        children: <Widget>[
-          SizedBox(
-            width: 18,
-            child: Text(
-              widget.label,
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
-            ),
-          ),
-          Expanded(
-            child: TextField(
-              controller: _text,
-              focusNode: _focus,
-              enabled: widget.enabled,
-              textAlign: TextAlign.right,
-              style: theme.textTheme.bodyMedium?.copyWith(
-                fontFeatures: const <FontFeature>[FontFeature.tabularFigures()],
-              ),
-              // A keyboard on a handset, and nothing on a desktop. `signed` and
-              // `decimal` both, because a coordinate is either.
-              keyboardType: const TextInputType.numberWithOptions(
-                signed: true,
-                decimal: true,
-              ),
-              decoration: const InputDecoration(
-                isDense: true,
-                contentPadding: EdgeInsets.symmetric(
-                  horizontal: 6,
-                  vertical: 4,
-                ),
-                border: OutlineInputBorder(),
-              ),
-              onSubmitted: (_) => _commit(),
-              onTapOutside: (_) => _focus.unfocus(),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// Three of them, for a vector.
-class VectorField extends StatelessWidget {
-  const VectorField({
-    super.key,
-    required this.value,
-    required this.onChanged,
-    this.enabled = true,
-  });
-
-  final List<double> value;
-
-  /// Called with the whole vector, not the component that changed: what the
-  /// document takes is a transform, and reassembling one from three separate
-  /// callbacks is three chances to use a stale pair.
-  final void Function(List<double> to) onChanged;
-
-  final bool enabled;
-
-  static const List<String> _labels = <String>['X', 'Y', 'Z'];
-
-  @override
-  Widget build(BuildContext context) => Column(
-    children: <Widget>[
-      for (var axis = 0; axis < 3; axis++)
-        Padding(
-          padding: const EdgeInsets.only(bottom: 4),
-          child: NumberField(
-            label: _labels[axis],
-            value: value[axis],
-            enabled: enabled,
-            onChanged: (double to) => onChanged(<double>[
-              for (var i = 0; i < 3; i++) i == axis ? to : value[i],
-            ]),
+    final field = Semantics(
+      // The visible label is one `Text` widget among several in a row or a
+      // grid cell; nothing ties it to this specific `TextField` in the
+      // semantics tree unless something here says so explicitly — a screen
+      // reader otherwise announces a bare number with no idea what it is a
+      // number of.
+      label: widget.semanticLabel ?? widget.label,
+      textField: true,
+      child: TextField(
+        controller: _text,
+        focusNode: _focus,
+        enabled: widget.enabled,
+        textAlign: TextAlign.right,
+        style: theme.textTheme.bodyMedium?.copyWith(
+          fontFeatures: const <FontFeature>[FontFeature.tabularFigures()],
+        ),
+        // A keyboard on a handset, and nothing on a desktop. `signed` and
+        // `decimal` both, because a coordinate is either.
+        keyboardType: const TextInputType.numberWithOptions(
+          signed: true,
+          decimal: true,
+        ),
+        decoration: const InputDecoration(
+          isDense: true,
+          // The hand-over's own metric: padding 6×8-10, radius 6 — this file
+          // had the two axes swapped and the corner square until now.
+          contentPadding: EdgeInsets.symmetric(horizontal: 9, vertical: 6),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.all(Radius.circular(6)),
           ),
         ),
-    ],
-  );
+        onSubmitted: (_) => _commit(),
+        onTapOutside: (_) => _focus.unfocus(),
+      ),
+    );
+    return SizedBox(
+      height: ModelerMetrics.row,
+      child: widget.showLabel
+          ? Row(
+              children: <Widget>[
+                SizedBox(
+                  width: 18,
+                  // Excluded from the semantics tree: the `Semantics` wrapping
+                  // `field` above already announces this same text, and a
+                  // screen reader that also finds this plain `Text` widget
+                  // would say "X" twice for one field.
+                  child: ExcludeSemantics(
+                    child: Text(
+                      widget.label,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ),
+                ),
+                Expanded(child: field),
+              ],
+            )
+          : field,
+    );
+  }
 }

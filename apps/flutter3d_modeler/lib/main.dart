@@ -56,6 +56,7 @@ import 'src/ui/layout_class.dart';
 import 'src/ui/modifier_stack_panel.dart';
 import 'src/ui/number_field.dart';
 import 'src/ui/operation_card.dart';
+import 'src/ui/properties_sections.dart';
 import 'src/ui/section_label.dart';
 import 'src/ui/selection_key_bindings.dart';
 import 'src/ui/shell.dart';
@@ -1438,6 +1439,7 @@ class _ModelerScreenState extends State<ModelerScreen>
             onExport: _showExportDialog,
           );
           final properties = _Properties(
+            mode: state.mode,
             stage: stage,
             project: state.project,
             selection: state.selection,
@@ -1458,6 +1460,16 @@ class _ModelerScreenState extends State<ModelerScreen>
                 _cubit.ran(ToggleModifier(id: id, index: index)),
             onReorderModifier: (int id, int from, int to) =>
                 _cubit.ran(ReorderModifier(id: id, from: from, to: to)),
+            // Phase one's own stack has exactly one buildable kind — the
+            // mirror `mesh-41` already gives it. `ui-08`'s own "Add" link
+            // reaches for it directly rather than opening a picker with one
+            // entry in it.
+            onAddModifier: (int id) => _cubit.ran(
+              AddModifier(
+                id: id,
+                modifier: MirrorModifier(normal: vm.Vector3(1, 0, 0)),
+              ),
+            ),
             lastCommand: state.history.journal.isEmpty
                 ? null
                 : state.history.journal.last,
@@ -1635,6 +1647,7 @@ class _ModelerScreenState extends State<ModelerScreen>
 /// below are what a panel free to write to the document actually looks like.
 class _Properties extends StatelessWidget {
   const _Properties({
+    required this.mode,
     required this.stage,
     required this.project,
     required this.selection,
@@ -1643,6 +1656,7 @@ class _Properties extends StatelessWidget {
     required this.onRename,
     required this.onToggleModifier,
     required this.onReorderModifier,
+    required this.onAddModifier,
     required this.lastCommand,
     required this.onAmend,
     required this.shading,
@@ -1651,6 +1665,14 @@ class _Properties extends StatelessWidget {
     required this.onLens,
     required this.onView,
   });
+
+  /// **`ui-04`'s own "content is replaced wholesale."** Object mode wants the
+  /// object list, the transform grid and the modifier stack; mesh mode wants
+  /// the last-operation card and the selection summary. Display/View/Budget
+  /// are cross-mode utility — the camera and the export budget mean the same
+  /// thing regardless of what is being edited — so they stay in every mode
+  /// rather than disappearing along with the mode-specific sections.
+  final ModelerMode mode;
 
   final ModelerStage stage;
   final ModelProject project;
@@ -1669,6 +1691,9 @@ class _Properties extends StatelessWidget {
   /// A modifier was dragged to a new place in the stack.
   final void Function(int id, int from, int to) onReorderModifier;
 
+  /// The stack's own "Add" link was pressed, for the held object.
+  final ValueChanged<int> onAddModifier;
+
   /// What the operation card is showing, and where an adjustment goes.
   final ModelCommand? lastCommand;
   final ValueChanged<ModelCommand> onAmend;
@@ -1685,6 +1710,8 @@ class _Properties extends StatelessWidget {
       EditedGeometry(:final mesh) => mesh,
       _ => null,
     };
+    final held = project[selection.activeObject ?? -1];
+    final sections = sectionsFor(mode);
     return ListView(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       children: <Widget>[
@@ -1742,15 +1769,17 @@ class _Properties extends StatelessWidget {
               ),
           ],
         ),
-        SectionLabel('Objects'),
-        for (final ModelObject object in project.objects)
-          _ObjectRow(
-            object: object,
-            selected: selection.objects.contains(object.id),
-            onTap: () => onSelect(object.id),
-          ),
-        if (project[selection.activeObject ?? -1]
-            case final ModelObject held) ...<Widget>[
+        if (sections.contains(PropertiesSection.objects)) ...<Widget>[
+          SectionLabel('Objects'),
+          for (final ModelObject object in project.objects)
+            _ObjectRow(
+              object: object,
+              selected: selection.objects.contains(object.id),
+              onTap: () => onSelect(object.id),
+            ),
+        ],
+        if (held != null &&
+            sections.contains(PropertiesSection.transform)) ...<Widget>[
           SectionLabel('Transform'),
           _NameField(
             key: ValueKey<int>(held.id),
@@ -1763,6 +1792,9 @@ class _Properties extends StatelessWidget {
             fields: transformFieldsOf(held.transform),
             onChanged: (TransformFields to) => onTransform(held.id, to),
           ),
+        ],
+        if (held != null &&
+            sections.contains(PropertiesSection.modifiers)) ...<Widget>[
           SectionLabel('Modifiers'),
           ModifierStackPanel(
             key: ValueKey<int>(held.id),
@@ -1770,13 +1802,19 @@ class _Properties extends StatelessWidget {
             onToggle: (int index) => onToggleModifier(held.id, index),
             onReorder: (int from, int to) =>
                 onReorderModifier(held.id, from, to),
+            onAdd: () => onAddModifier(held.id),
           ),
         ],
-        SectionLabel('Last operation'),
-        OperationCard(command: lastCommand, onAmend: onAmend),
-        SectionLabel('Selection'),
-        _Row('What', selection.says),
-        if (mesh != null) ...<Widget>[
+        if (sections.contains(PropertiesSection.lastOperation)) ...<Widget>[
+          SectionLabel('Last operation'),
+          OperationCard(command: lastCommand, onAmend: onAmend),
+        ],
+        if (sections.contains(PropertiesSection.selection)) ...<Widget>[
+          SectionLabel('Selection'),
+          _Row('What', selection.says),
+        ],
+        if (mesh != null &&
+            sections.contains(PropertiesSection.mesh)) ...<Widget>[
           SectionLabel('Mesh'),
           _Row('Vertices', '${mesh.vertexCount}'),
           _Row('Faces', '${mesh.faceCount}'),
@@ -1820,57 +1858,93 @@ class _TransformRows extends StatelessWidget {
   final TransformFields fields;
   final ValueChanged<TransformFields> onChanged;
 
-  @override
-  Widget build(BuildContext context) => Column(
-    crossAxisAlignment: CrossAxisAlignment.stretch,
-    children: <Widget>[
-      _label(context, 'Position'),
-      VectorField(
-        value: <double>[
-          fields.position.x,
-          fields.position.y,
-          fields.position.z,
-        ],
-        onChanged: (List<double> to) => onChanged((
-          position: vm.Vector3(to[0], to[1], to[2]),
-          rotationDegrees: fields.rotationDegrees,
-          scale: fields.scale,
-        )),
-      ),
-      _label(context, 'Rotation'),
-      VectorField(
-        value: <double>[
-          fields.rotationDegrees.x,
-          fields.rotationDegrees.y,
-          fields.rotationDegrees.z,
-        ],
-        onChanged: (List<double> to) => onChanged((
-          position: fields.position,
-          rotationDegrees: vm.Vector3(to[0], to[1], to[2]),
-          scale: fields.scale,
-        )),
-      ),
-      _label(context, 'Scale'),
-      VectorField(
-        value: <double>[fields.scale.x, fields.scale.y, fields.scale.z],
-        onChanged: (List<double> to) => onChanged((
-          position: fields.position,
-          rotationDegrees: fields.rotationDegrees,
-          scale: vm.Vector3(to[0], to[1], to[2]),
-        )),
-      ),
-    ],
-  );
+  static const List<String> _axisLabels = <String>['X', 'Y', 'Z'];
+  static const List<String> _rowLabels = <String>['Position', 'Rotation', 'Scale'];
 
-  static Widget _label(BuildContext context, String said) => Padding(
-    padding: const EdgeInsets.only(top: 6, bottom: 2),
-    child: Text(
-      said,
-      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-        color: Theme.of(context).colorScheme.onSurfaceVariant,
-      ),
-    ),
-  );
+  /// [fields], with [row]'s own [axis] component replaced by [to] — the one
+  /// piece three separate `VectorField` callbacks used to reassemble, now
+  /// done in one place since a grid cell only ever changes one number.
+  TransformFields _withAxis(int row, int axis, double to) {
+    vm.Vector3 replace(vm.Vector3 v) => vm.Vector3(
+      axis == 0 ? to : v.x,
+      axis == 1 ? to : v.y,
+      axis == 2 ? to : v.z,
+    );
+    return (
+      position: row == 0 ? replace(fields.position) : fields.position,
+      rotationDegrees: row == 1
+          ? replace(fields.rotationDegrees)
+          : fields.rotationDegrees,
+      scale: row == 2 ? replace(fields.scale) : fields.scale,
+    );
+  }
+
+  List<double> _rowValues(int row) => switch (row) {
+    0 => <double>[fields.position.x, fields.position.y, fields.position.z],
+    1 => <double>[
+      fields.rotationDegrees.x,
+      fields.rotationDegrees.y,
+      fields.rotationDegrees.z,
+    ],
+    _ => <double>[fields.scale.x, fields.scale.y, fields.scale.z],
+  };
+
+  /// The hand-over's own "3x3 transform grid": `Position`/`Rotation`/`Scale`
+  /// down the rows, `X`/`Y`/`Z` across the columns — a `Table`, not three
+  /// stacked full-width fields, so a person can scan one axis across all
+  /// three properties in one eyeful rather than hunting through nine rows.
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final TextStyle? captionStyle = theme.textTheme.bodySmall?.copyWith(
+      color: theme.colorScheme.onSurfaceVariant,
+    );
+
+    Widget axisHeader(String said) => Padding(
+      padding: const EdgeInsets.only(bottom: 2),
+      child: Text(said, textAlign: TextAlign.center, style: captionStyle),
+    );
+    Widget rowLabel(String said) => Padding(
+      padding: const EdgeInsets.only(top: 6, right: 4),
+      child: Text(said, style: captionStyle),
+    );
+
+    return Table(
+      columnWidths: const <int, TableColumnWidth>{
+        0: FixedColumnWidth(56),
+        1: FlexColumnWidth(),
+        2: FlexColumnWidth(),
+        3: FlexColumnWidth(),
+      },
+      defaultVerticalAlignment: TableCellVerticalAlignment.middle,
+      children: <TableRow>[
+        TableRow(
+          children: <Widget>[
+            const SizedBox.shrink(),
+            for (final String axis in _axisLabels) axisHeader(axis),
+          ],
+        ),
+        for (var row = 0; row < 3; row++)
+          TableRow(
+            children: <Widget>[
+              rowLabel(_rowLabels[row]),
+              for (var axis = 0; axis < 3; axis++)
+                Padding(
+                  padding: const EdgeInsets.only(left: 2, bottom: 4),
+                  child: NumberField(
+                    label: _axisLabels[axis],
+                    showLabel: false,
+                    semanticLabel: '${_rowLabels[row]} ${_axisLabels[axis]}',
+                    value: _rowValues(row)[axis],
+                    onChanged: (double to) =>
+                        onChanged(_withAxis(row, axis, to)),
+                  ),
+                ),
+            ],
+          ),
+      ],
+    );
+  }
 }
 
 /// The object's name, editable.
@@ -1931,17 +2005,24 @@ class _NameFieldState extends State<_NameField> {
   @override
   Widget build(BuildContext context) => SizedBox(
     height: ModelerMetrics.row,
-    child: TextField(
-      controller: _text,
-      focusNode: _focus,
-      style: Theme.of(context).textTheme.bodyMedium,
-      decoration: const InputDecoration(
-        isDense: true,
-        contentPadding: EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-        border: OutlineInputBorder(),
+    child: Semantics(
+      // The row it sits in already reads "Objects" above the list, but a
+      // screen reader stepping field by field through the panel has no other
+      // way to tell this box apart from a `NumberField`'s own bare value.
+      label: 'Name',
+      textField: true,
+      child: TextField(
+        controller: _text,
+        focusNode: _focus,
+        style: Theme.of(context).textTheme.bodyMedium,
+        decoration: const InputDecoration(
+          isDense: true,
+          contentPadding: EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+          border: OutlineInputBorder(),
+        ),
+        onSubmitted: (_) => _commit(),
+        onTapOutside: (_) => _focus.unfocus(),
       ),
-      onSubmitted: (_) => _commit(),
-      onTapOutside: (_) => _focus.unfocus(),
     ),
   );
 }

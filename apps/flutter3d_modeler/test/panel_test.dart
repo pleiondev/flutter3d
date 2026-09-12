@@ -111,6 +111,53 @@ void main() {
       // history, and ⌘Z three times takes back nothing visible.
       expect(said, isEmpty);
     });
+
+    testWidgets('a screen reader is told what the field is, by default', (
+      WidgetTester tester,
+    ) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: modelerTheme(),
+          home: Scaffold(
+            body: NumberField(label: 'X', value: 1, onChanged: (_) {}),
+          ),
+        ),
+      );
+
+      // Mutation: drop the `Semantics` wrapper. A screen reader would then
+      // announce a bare "1" with nothing to say it is X, Y, Z, or anything
+      // else — the exact gap the review found on this app's own most-used
+      // control.
+      expect(find.bySemanticsLabel('X'), findsOneWidget);
+    });
+
+    testWidgets(
+      'a grid cell hides its own visible label but keeps a fuller one for '
+      'a screen reader',
+      (WidgetTester tester) async {
+        await tester.pumpWidget(
+          MaterialApp(
+            theme: modelerTheme(),
+            home: Scaffold(
+              body: NumberField(
+                label: 'X',
+                value: 1,
+                showLabel: false,
+                semanticLabel: 'Position X',
+                onChanged: (_) {},
+              ),
+            ),
+          ),
+        );
+
+        // The visible "X" is gone (a grid already has a column header for
+        // it) but the field is still findable by a richer semantic label
+        // that says which row and column it is, not just "X" three times
+        // with nothing to tell them apart.
+        expect(find.text('X'), findsNothing);
+        expect(find.bySemanticsLabel('Position X'), findsOneWidget);
+      },
+    );
   });
 
   group('the operation card', () {
@@ -290,5 +337,70 @@ void main() {
       await tester.pump();
       expect(find.byType(NumberField), findsWidgets);
     });
+
+    testWidgets(
+      'a screen reader is told which parameter the slider adjusts, not a '
+      'bare number',
+      (WidgetTester tester) async {
+        await tester.pumpWidget(
+          MaterialApp(
+            theme: modelerTheme(),
+            home: Scaffold(
+              body: OperationCard(
+                command: const LoopCut(cuts: 1, factor: 0.5),
+                onAmend: (_) {},
+              ),
+            ),
+          ),
+        );
+
+        // Mutation: drop `semanticFormatterCallback`. The design hand-over's
+        // own KEY REQUIREMENT names this exact slider as the worked example
+        // of "a mouse operation, immediately editable" — a screen-reader
+        // user who cannot see which row the slider sits in still needs to
+        // be told. Every slider gets its own label rather than assuming an
+        // order: `cuts` (an `IntHint` range) and `factor` both draw one.
+        final List<Slider> sliders = tester
+            .widgetList<Slider>(find.byType(Slider))
+            .toList();
+        expect(sliders, isNotEmpty);
+        for (final Slider slider in sliders) {
+          expect(slider.semanticFormatterCallback, isNotNull);
+        }
+        final Iterable<String> announced = sliders.map(
+          (Slider s) => s.semanticFormatterCallback!(0.5),
+        );
+        expect(announced, contains(contains('factor')));
+      },
+    );
+
+    testWidgets(
+      'the card reads as a card — a coloured, rounded container, not a bare '
+      'column blending into the panel around it',
+      (WidgetTester tester) async {
+        await tester.pumpWidget(
+          MaterialApp(
+            theme: modelerTheme(),
+            home: Scaffold(
+              body: OperationCard(
+                command: const LoopCut(cuts: 2),
+                onAmend: (_) {},
+              ),
+            ),
+          ),
+        );
+
+        // Mutation: return the bare `Column` again, with no `Container`
+        // around it. `finder.container` below would then find nothing with
+        // a non-null `BoxDecoration`.
+        final Finder container = find.byWidgetPredicate(
+          (Widget w) => w is Container && w.decoration is BoxDecoration,
+        );
+        expect(container, findsOneWidget);
+        final BoxDecoration decoration =
+            tester.widget<Container>(container).decoration! as BoxDecoration;
+        expect(decoration.borderRadius, isNotNull);
+      },
+    );
   });
 }

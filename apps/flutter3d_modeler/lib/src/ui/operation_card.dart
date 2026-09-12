@@ -128,33 +128,46 @@ class _OperationCardState extends State<OperationCard> {
       ),
     );
 
-    if (_dismissed) return header;
-
     final Map<String, num> numbers = OperationCard.numbersOf(last);
     final Map<String, ParamHint> hints = last.hints;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: <Widget>[
-        header,
-        if (numbers.isEmpty)
-          Text(
-            'nothing to adjust',
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
-          )
-        else
-          for (final MapEntry<String, num> each in numbers.entries)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 4),
-              child: _paramControl(
-                label: each.key,
-                value: each.value.toDouble(),
-                hint: hints[each.key],
-                onChanged: (double to) => _amend(last, each.key, to),
-              ),
-            ),
-      ],
+    final body = _dismissed
+        ? header
+        : Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: <Widget>[
+              header,
+              if (numbers.isEmpty)
+                Text(
+                  'nothing to adjust',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                )
+              else
+                for (final MapEntry<String, num> each in numbers.entries)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 4),
+                    child: _paramControl(
+                      label: each.key,
+                      value: each.value.toDouble(),
+                      hint: hints[each.key],
+                      onChanged: (double to) => _amend(last, each.key, to),
+                    ),
+                  ),
+            ],
+          );
+
+    // **The design hand-over's own KEY REQUIREMENT**: a card, not a section
+    // that reads like every other one in the panel around it — the whole
+    // point is that a person can tell at a glance "this is still editable"
+    // apart from "this is just information."
+    return Container(
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerHigh,
+        borderRadius: const BorderRadius.all(Radius.circular(12)),
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      child: body,
     );
   }
 
@@ -194,6 +207,13 @@ class _OperationCardState extends State<OperationCard> {
             min: min,
             max: max,
             onChanged: onChanged,
+            // Without this a screen reader announces a bare number — the
+            // hand-over's own KEY REQUIREMENT for this exact control, and a
+            // slider has no adjacent label the way `NumberField` does to
+            // fall back on.
+            label: NumberField.show(value.clamp(min, max)),
+            semanticFormatterCallback: (double v) =>
+                '$label ${NumberField.show(v)}',
           ),
         ),
       ],

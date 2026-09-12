@@ -12,6 +12,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 
+import 'theme.dart';
+
 /// The active object's own stack, empty or not.
 ///
 /// A phase-one project's stack is ordinarily empty — the only modifier this
@@ -24,6 +26,7 @@ final class ModifierStackPanel extends StatelessWidget {
     required this.slots,
     required this.onToggle,
     required this.onReorder,
+    required this.onAdd,
   });
 
   final List<ModifierSlot> slots;
@@ -34,6 +37,12 @@ final class ModifierStackPanel extends StatelessWidget {
   /// The modifier at [from] belongs at [to] now.
   final void Function(int from, int to) onReorder;
 
+  /// The hand-over's own "Add" link at the foot of the stack. Phase one's
+  /// own commands can only ever build one kind (`mesh-41`'s mirror), so
+  /// there is no picker to offer yet — a real, if currently one-item, choice
+  /// point, not a stand-in for one.
+  final VoidCallback onAdd;
+
   static String _labelOf(Modifier modifier) => switch (modifier) {
     ArrayModifier() => 'Array',
     MirrorModifier() => 'Mirror',
@@ -43,45 +52,58 @@ final class ModifierStackPanel extends StatelessWidget {
   };
 
   @override
-  Widget build(BuildContext context) {
-    if (slots.isEmpty) {
-      return Padding(
-        padding: const EdgeInsets.symmetric(vertical: 4),
-        child: Text(
-          'No modifiers',
-          style: Theme.of(
-            context,
-          ).textTheme.bodySmall?.copyWith(fontStyle: FontStyle.italic),
+  Widget build(BuildContext context) => Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: <Widget>[
+      if (slots.isEmpty)
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 4),
+          child: Text(
+            'No modifiers',
+            style: Theme.of(
+              context,
+            ).textTheme.bodySmall?.copyWith(fontStyle: FontStyle.italic),
+          ),
+        )
+      else
+        ReorderableListView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          buildDefaultDragHandles: false,
+          itemCount: slots.length,
+          // `onReorderItem`, not the deprecated `onReorder`: its own
+          // `toIndex` is already adjusted for the removed item at
+          // `fromIndex`, which is what `ReorderModifier` itself expects — an
+          // index into the list as it will be once `fromIndex` is gone, not
+          // as it is now.
+          onReorderItem: onReorder,
+          itemBuilder: (BuildContext context, int index) {
+            final slot = slots[index];
+            return ListTile(
+              key: ValueKey<int>(index),
+              dense: true,
+              contentPadding: EdgeInsets.zero,
+              leading: ReorderableDragStartListener(
+                index: index,
+                child: const Icon(Icons.drag_handle, size: 18),
+              ),
+              title: Text(_labelOf(slot.modifier)),
+              trailing: Switch(
+                value: slot.enabled,
+                onChanged: (_) => onToggle(index),
+              ),
+            );
+          },
         ),
-      );
-    }
-    return ReorderableListView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      buildDefaultDragHandles: false,
-      itemCount: slots.length,
-      // `onReorderItem`, not the deprecated `onReorder`: its own `toIndex` is
-      // already adjusted for the removed item at `fromIndex`, which is what
-      // `ReorderModifier` itself expects — an index into the list as it will
-      // be once `fromIndex` is gone, not as it is now.
-      onReorderItem: onReorder,
-      itemBuilder: (BuildContext context, int index) {
-        final slot = slots[index];
-        return ListTile(
-          key: ValueKey<int>(index),
-          dense: true,
-          contentPadding: EdgeInsets.zero,
-          leading: ReorderableDragStartListener(
-            index: index,
-            child: const Icon(Icons.drag_handle, size: 18),
-          ),
-          title: Text(_labelOf(slot.modifier)),
-          trailing: Switch(
-            value: slot.enabled,
-            onChanged: (_) => onToggle(index),
-          ),
-        );
-      },
-    );
-  }
+      TextButton(
+        onPressed: onAdd,
+        style: TextButton.styleFrom(
+          padding: EdgeInsets.zero,
+          minimumSize: const Size(0, ModelerMetrics.row - 4),
+          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        ),
+        child: const Text('Add'),
+      ),
+    ],
+  );
 }

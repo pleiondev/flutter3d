@@ -21,6 +21,7 @@ Future<void> _pump(
   required List<ModifierSlot> slots,
   ValueChanged<int>? onToggle,
   void Function(int from, int to)? onReorder,
+  VoidCallback? onAdd,
 }) => tester.pumpWidget(
   MaterialApp(
     theme: modelerTheme(),
@@ -29,6 +30,7 @@ Future<void> _pump(
         slots: slots,
         onToggle: onToggle ?? (_) {},
         onReorder: onReorder ?? (_, __) {},
+        onAdd: onAdd ?? () {},
       ),
     ),
   ),
@@ -98,5 +100,33 @@ void main() {
     list.onReorderItem!(0, 1);
 
     expect(reordered, <(int, int)>[(0, 1)]);
+  });
+
+  testWidgets('the Add link is always present, and calls onAdd', (
+    tester,
+  ) async {
+    var added = 0;
+    await _pump(
+      tester,
+      slots: const <ModifierSlot>[],
+      onAdd: () => added++,
+    );
+
+    // Mutation: only show "Add" when `slots` is non-empty. A phase-one stack
+    // starts empty, so an "Add" link that only appears once something is
+    // already there would be a dead end for the very first modifier.
+    final add = find.widgetWithText(TextButton, 'Add');
+    expect(add, findsOneWidget);
+
+    await tester.tap(add);
+    expect(added, 1);
+  });
+
+  testWidgets('the Add link still shows beside an existing stack', (
+    tester,
+  ) async {
+    await _pump(tester, slots: <ModifierSlot>[_mirror()]);
+
+    expect(find.widgetWithText(TextButton, 'Add'), findsOneWidget);
   });
 }
