@@ -9,6 +9,7 @@
 /// holding a mesh that still has the cut in it.
 library;
 
+import 'dart:convert';
 import 'dart:math' as math;
 import 'dart:typed_data';
 
@@ -1345,6 +1346,153 @@ void main() {
         everyElement(0),
       );
     });
+
+    group('linking and embedding an external .fmat, mat-08\'s own row', () {
+      test('linking with no bytes just remembers the path', () {
+        final history = painted();
+
+        expect(
+          history.run(const LinkMaterialFile(index: 0, path: 'steel.fmat')),
+          isNull,
+        );
+        expect(history.project.materials.single.fmat, 'steel.fmat');
+        // Mutation: adopt `document.surface` even when `bytes` is null. The
+        // surface a material had before linking is exactly what a link with
+        // nothing to read should leave alone.
+        expect(history.project.materials.single.surface.name, 'steel');
+      });
+
+      test('linking with bytes adopts the file\'s own look, textures aside', () {
+        final history = painted();
+        final bytes = Uint8List.fromList(
+          utf8.encode(
+            writeFmat(
+              MaterialDocument(
+                surface: SurfaceMaterial(
+                  name: 'brushed steel',
+                  metallic: 0.9,
+                  roughness: 0.2,
+                  unlit: true,
+                ),
+              ),
+            ),
+          ),
+        );
+
+        expect(
+          history.run(
+            LinkMaterialFile(index: 0, path: 'brushed.fmat', bytes: bytes),
+          ),
+          isNull,
+        );
+        final linked = history.project.materials.single;
+        expect(linked.fmat, 'brushed.fmat');
+        expect(linked.surface.name, 'brushed steel');
+        expect(linked.surface.metallic, closeTo(0.9, 1e-6));
+        expect(linked.surface.roughness, closeTo(0.2, 1e-6));
+        // Mutation: forget `unlit` in the field list `LinkMaterialFile` reads
+        // off `document.surface` and this reads back the default `false`.
+        expect(linked.surface.unlit, isTrue);
+      });
+
+      test('a file that does not even parse as a material is refused, not '
+          'thrown', () {
+        final history = painted();
+
+        expect(
+          history.run(
+            LinkMaterialFile(
+              index: 0,
+              path: 'broken.fmat',
+              bytes: Uint8List.fromList(utf8.encode('not json')),
+            ),
+          ),
+          contains('broken.fmat'),
+        );
+        // Refused, so the row is untouched — still the surface it had before.
+        expect(history.project.materials.single.surface.name, 'steel');
+      });
+
+      test('a file naming a shader this engine does not ship reads as a '
+          'warning rather than a crash', () {
+        // `mat-08`'s own acceptance line, the second half: readFmat does not
+        // throw on an unrecognised shader, and LinkMaterialFile — which
+        // decodes through the identical readFmat — does not either.
+        final bytes = Uint8List.fromList(
+          utf8.encode('{"fmat": 1, "lighting": "toon-ramp-v2"}'),
+        );
+
+        final document = readFmat(bytes, name: 'toon.fmat');
+        expect(document.warnings, isNotEmpty);
+        expect(document.warnings.single, contains('toon-ramp-v2'));
+
+        final history = painted();
+        expect(
+          history.run(
+            LinkMaterialFile(index: 0, path: 'toon.fmat', bytes: bytes),
+          ),
+          isNull,
+        );
+      });
+
+      test('embedding clears the link and leaves the look untouched', () {
+        final history = painted();
+        history.run(const LinkMaterialFile(index: 0, path: 'steel.fmat'));
+
+        expect(history.run(const EmbedMaterial(0)), isNull);
+        expect(history.project.materials.single.fmat, isNull);
+        expect(history.project.materials.single.surface.name, 'steel');
+      });
+
+      test('linking, editing, writing and reading a material back leaves no '
+          'warnings', () {
+        final history = painted();
+        history.run(const LinkMaterialFile(index: 0, path: 'steel.fmat'));
+        history.run(
+          const SetMaterialField(index: 0, field: 'roughness', value: 0.35),
+        );
+
+        // `MaterialFileWriter.write`'s own half of this row lives in the app
+        // (mat-08's "диск в app"); what it writes is exactly `writeFmat` on
+        // this material's own surface, which this reproduces to keep the
+        // round trip's own promise measured here rather than assumed.
+        final written = writeFmat(
+          MaterialDocument(surface: history.project.materials.single.surface),
+        );
+        final readBack = readFmat(
+          Uint8List.fromList(utf8.encode(written)),
+          name: 'steel.fmat',
+        );
+        // Mutation: writeFmat or readFmat dropping the edited `roughness`
+        // (writing the material's un-edited default, or reading a written
+        // value back to the wrong field) fails this rather than the
+        // `warnings` check below, which is the whole point of asserting both.
+        expect(readBack.surface.roughness, closeTo(0.35, 1e-6));
+        expect(readBack.warnings, isEmpty);
+      });
+
+      test('an out-of-range row is refused for both link and embed', () {
+        final history = painted();
+
+        expect(
+          history.run(const LinkMaterialFile(index: 4, path: 'x.fmat')),
+          contains('material 4'),
+        );
+        expect(
+          history.run(const EmbedMaterial(4)),
+          contains('material 4'),
+        );
+      });
+
+      test('embedding a material that is not linked is refused', () {
+        final history = painted();
+
+        expect(
+          history.run(const EmbedMaterial(0)),
+          contains('not linked'),
+        );
+      });
+    });
   });
 
   group('the origin and the transform', () {
@@ -2241,6 +2389,12 @@ void main() {
         ),
         AddImage(bytes: Uint8List.fromList(<int>[1, 2, 3]), imageName: 'atlas'),
         const AssignMaterial(id: 1, to: 0),
+        LinkMaterialFile(
+          index: 0,
+          path: 'steel.fmat',
+          bytes: Uint8List.fromList(utf8.encode('{"fmat": 1}')),
+        ),
+        const EmbedMaterial(0),
         SetMaterialGraph(
           materialIndex: 0,
           graph: TextureGraph(

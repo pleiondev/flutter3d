@@ -483,6 +483,8 @@ const List<String> modelCommandNames = <String>[
   'setTexture',
   'addImage',
   'assignMaterial',
+  'linkMaterialFile',
+  'embedMaterial',
   'setMaterialGraph',
   'bakeTextureGraph',
   'addModifier',
@@ -748,6 +750,21 @@ ModelCommand? modelCommandFromJson(Object? json) {
     },
     'assignMaterial' => switch ((json['id'], json['to'])) {
       (final int id, final int? to) => AssignMaterial(id: id, to: to),
+      _ => null,
+    },
+    'linkMaterialFile' => switch ((json['index'], json['path'])) {
+      (final int index, final String path) => LinkMaterialFile(
+        index: index,
+        path: path,
+        bytes: switch (json['bytes']) {
+          final String encoded => base64Decode(encoded),
+          _ => null,
+        },
+      ),
+      _ => null,
+    },
+    'embedMaterial' => switch (json['index']) {
+      final int index => EmbedMaterial(index),
       _ => null,
     },
     'setMaterialGraph' => switch (json['materialIndex']) {

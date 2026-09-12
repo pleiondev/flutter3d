@@ -579,6 +579,150 @@ final class AssignMaterial extends ModelCommand {
   }
 }
 
+/// Points a material row at a standalone `.fmat` on disk — [mat-08]'s own
+/// verb for what [ProjectMaterial.fmat] already had a field for.
+///
+/// **Disk stays out of core.** [bytes] are the file already read by whoever
+/// calls this — the app, per the row's own "core + app" split — so this
+/// command only decodes what it is handed, the same division [AddImage]
+/// already draws for a texture's own bytes. Handed no [bytes] at all, it only
+/// remembers [path]: a link to a file that does not exist yet, ready for
+/// `MaterialFileWriter.write` (the app's own half of this row) to create.
+///
+/// **A bad file is refused, not thrown.** [readFmat] already turns an unknown
+/// key or an unrecognised shader into a warning rather than a failure — see
+/// its own doc comment — so the only way decoding [bytes] fails at all is a
+/// version this engine does not read or JSON that is not even a material, and
+/// either is exactly the kind of thing a command answers with a sentence for.
+///
+/// **Texture slots are left exactly as they were.** A decoded
+/// [MaterialDocument.surface]'s own texture bindings index
+/// [MaterialDocument.images] — paths the file names itself — and
+/// [ModelProject.images] is a different table addressed a different way;
+/// resolving one into the other is texture import's own job (`mat-05`), not
+/// this command's. Every other field [writeFmat] writes — colour, the scalar
+/// factors, alpha, whether the surface is double-sided or unlit — comes
+/// across, because those are exactly the fields [SetMaterialField] already
+/// edits by the same names, and "link" ought to mean the file's whole look,
+/// minus only the one part this row does not resolve.
+final class LinkMaterialFile extends ModelCommand {
+  const LinkMaterialFile({required this.index, required this.path, this.bytes});
+
+  final int index;
+  final String path;
+
+  /// The `.fmat` already read from disk, or null to link without adopting a
+  /// look yet.
+  final Uint8List? bytes;
+
+  @override
+  String get name => 'linkMaterialFile';
+
+  @override
+  String get says => 'link "$path"';
+
+  @override
+  Map<String, Object?> get arguments => <String, Object?>{
+    'index': index,
+    'path': path,
+    if (bytes != null) 'bytes': base64Encode(bytes!),
+  };
+
+  @override
+  Outcome apply(ModelProject project, ProjectSelection selection) {
+    if (index < 0 || index >= project.materials.length) {
+      return Outcome.refused('there is no material $index');
+    }
+    final ProjectMaterial material = project.materials[index];
+    final Uint8List? read = bytes;
+    var surface = material.surface;
+    if (read != null) {
+      final MaterialDocument document;
+      try {
+        document = readFmat(read, name: path);
+      } on FormatException catch (error) {
+        return Outcome.refused(
+          '$path did not read as a material: ${error.message}',
+        );
+      }
+      surface = _surfaceWith(
+        surface,
+        name: document.surface.name,
+        baseColor: document.surface.baseColor,
+        metallic: document.surface.metallic,
+        roughness: document.surface.roughness,
+        normalScale: document.surface.normalScale,
+        occlusionStrength: document.surface.occlusionStrength,
+        emissive: document.surface.emissive,
+        emissiveStrength: document.surface.emissiveStrength,
+        alphaMode: document.surface.alphaMode,
+        alphaCutoff: document.surface.alphaCutoff,
+        doubleSided: document.surface.doubleSided,
+        unlit: document.surface.unlit,
+      );
+    }
+    return Outcome.done(
+      project.copyWith(
+        materials: <ProjectMaterial>[
+          for (var i = 0; i < project.materials.length; i++)
+            if (i == index)
+              ProjectMaterial(
+                surface: surface,
+                version: material.version + 1,
+                fmat: path,
+                graph: material.graph,
+                bakedAtVersion: material.bakedAtVersion,
+              )
+            else
+              project.materials[i],
+        ],
+      ),
+    );
+  }
+}
+
+/// Takes a material off the `.fmat` it deferred to, so its look is owned by
+/// the project alone from here on — the inverse of [LinkMaterialFile].
+///
+/// **Cheaper than it sounds.** [ProjectMaterial.surface] does not change:
+/// the material already looks exactly how it looked with the file linked,
+/// since nothing but [LinkMaterialFile] and the ordinary field-editing
+/// commands ever touch it. Only [ProjectMaterial.fmat] is cleared, the same
+/// null [ProjectMaterial.withFmat]'s own doc comment already describes.
+final class EmbedMaterial extends ModelCommand {
+  const EmbedMaterial(this.index);
+
+  final int index;
+
+  @override
+  String get name => 'embedMaterial';
+
+  @override
+  String get says => 'embed the material';
+
+  @override
+  Map<String, Object?> get arguments => <String, Object?>{'index': index};
+
+  @override
+  Outcome apply(ModelProject project, ProjectSelection selection) {
+    if (index < 0 || index >= project.materials.length) {
+      return Outcome.refused('there is no material $index');
+    }
+    final ProjectMaterial material = project.materials[index];
+    if (material.fmat == null) {
+      return Outcome.refused('material $index is not linked to a file');
+    }
+    return Outcome.done(
+      project.copyWith(
+        materials: <ProjectMaterial>[
+          for (var i = 0; i < project.materials.length; i++)
+            i == index ? material.withFmat(null) : project.materials[i],
+        ],
+      ),
+    );
+  }
+}
+
 /// A value no caller could pass, so its presence in a default marks a
 /// parameter [_surfaceWith] was not asked to change.
 const Object _unset = Object();
