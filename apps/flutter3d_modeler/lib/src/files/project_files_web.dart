@@ -21,45 +21,76 @@ import 'dart:typed_data';
 
 import 'package:web/web.dart' as web;
 
+import 'gltf_siblings.dart';
 import 'picked_file.dart';
 
 export 'picked_file.dart';
 
-/// Asks for a model and reads it.
+/// Reads every file [input] came back with, name to bytes.
 ///
-/// Null when the person dismissed the picker — which a browser reports by
-/// never firing `change` at all, so this also resolves to null when the input
-/// is closed by other means. See the note on the timeout below.
-Future<PickedFile?> openModel() async {
-  final input = web.HTMLInputElement()
-    ..type = 'file'
-    ..accept = '.glb,.gltf,.obj,.f3d,.f3dproj';
-
-  final completer = Completer<PickedFile?>();
+/// **A cancel is silence.** No browser fires an event when the file dialogue
+/// is dismissed, and the newer `cancel` event is not in every engine this has
+/// to run in. So the click happens and the caller waits; a caller that needs
+/// to move on regardless treats a pending future as "still choosing", which
+/// is what the modeller's own screen does.
+Future<Map<String, Uint8List>> _pickFiles(web.HTMLInputElement input) {
+  final completer = Completer<Map<String, Uint8List>>();
   input.onchange = (web.Event _) {
     final files = input.files;
     if (files == null || files.length == 0) {
-      if (!completer.isCompleted) completer.complete(null);
+      if (!completer.isCompleted) completer.complete(const <String, Uint8List>{});
       return;
     }
-    final file = files.item(0)!;
-    // `arrayBuffer()` rather than a `FileReader`: the promise is one await,
-    // and the reader is three callbacks and an error path.
-    file.arrayBuffer().toDart.then((JSArrayBuffer buffer) {
-      if (completer.isCompleted) return;
-      completer.complete(
-        PickedFile(name: file.name, bytes: buffer.toDart.asUint8List()),
+    final reads = <Future<void>>[];
+    final byName = <String, Uint8List>{};
+    for (var i = 0; i < files.length; i++) {
+      final file = files.item(i)!;
+      // `arrayBuffer()` rather than a `FileReader`: the promise is one
+      // await, and the reader is three callbacks and an error path.
+      reads.add(
+        file.arrayBuffer().toDart.then((JSArrayBuffer buffer) {
+          byName[file.name] = buffer.toDart.asUint8List();
+        }),
       );
+    }
+    Future.wait(reads).then((_) {
+      if (!completer.isCompleted) completer.complete(byName);
     });
   }.toJS;
-
-  // **A cancel is silence.** No browser fires an event when the file dialogue
-  // is dismissed, and the newer `cancel` event is not in every engine this has
-  // to run in. So the click happens and the caller waits; a caller that needs
-  // to move on regardless treats a pending future as "still choosing", which
-  // is what the modeller's own screen does.
   input.click();
   return completer.future;
+}
+
+/// Asks for a model and reads it.
+///
+/// Null when the person dismissed the picker.
+///
+/// **A `.gltf` naming an external `.bin` or texture gets a second dialogue,
+/// not a guess.** A browser hands over bytes with no folder behind them at
+/// all — there is nothing here even resembling the sandboxed grant `project_
+/// files_io.dart`'s own note describes, only ever what a person picked. So
+/// the second dialogue asks for however many files the `.gltf` itself names,
+/// selected together. `ui-36n`'s own row.
+Future<PickedFile?> openModel() async {
+  final byName = await _pickFiles(
+    web.HTMLInputElement()
+      ..type = 'file'
+      ..accept = '.glb,.gltf,.obj,.f3d,.f3dproj',
+  );
+  if (byName.isEmpty) return null;
+  final name = byName.keys.single;
+  final bytes = byName.values.single;
+
+  final needed = gltfSiblingUris(bytes);
+  if (needed.isEmpty) {
+    return PickedFile(name: name, bytes: bytes);
+  }
+  final siblings = await _pickFiles(
+    web.HTMLInputElement()
+      ..type = 'file'
+      ..multiple = true,
+  );
+  return PickedFile(name: name, bytes: embedGltfSiblings(bytes, siblings));
 }
 
 /// Hands [bytes] to the browser as a download named [suggestedName].

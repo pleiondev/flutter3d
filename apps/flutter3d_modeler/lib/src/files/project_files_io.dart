@@ -16,6 +16,7 @@ import 'dart:typed_data';
 
 import 'package:file_selector/file_selector.dart';
 
+import 'gltf_siblings.dart';
 import 'picked_file.dart';
 
 export 'picked_file.dart';
@@ -29,12 +30,34 @@ const XTypeGroup _models = XTypeGroup(
 /// Asks for a model and reads it.
 ///
 /// Null when the person dismissed the picker.
+///
+/// **A `.gltf` naming an external `.bin` or texture gets a second dialogue,
+/// not a guess.** The sandbox's own grant is for the file just chosen and
+/// nothing beside it — `PickedFile.path`'s own doc comment says as much —
+/// so there is no directory here to go looking in even when the sibling
+/// sits right next to the file that named it. `ui-36n`'s own row.
 Future<PickedFile?> openModel() async {
   final file = await openFile(acceptedTypeGroups: const <XTypeGroup>[_models]);
   if (file == null) return null;
+  final bytes = await file.readAsBytes();
+
+  final needed = gltfSiblingUris(bytes);
+  if (needed.isEmpty) {
+    return PickedFile(name: file.name, bytes: bytes, path: file.path);
+  }
+  // The path grants nothing to read from directly — see the doc above — but
+  // pointing the second dialogue at the same folder is not a read, only a
+  // starting place, and it is usually exactly where these files already are.
+  final siblings = await openFiles(
+    initialDirectory: File(file.path).parent.path,
+    confirmButtonText: 'Use these files',
+  );
+  final byName = <String, Uint8List>{
+    for (final sibling in siblings) sibling.name: await sibling.readAsBytes(),
+  };
   return PickedFile(
     name: file.name,
-    bytes: await file.readAsBytes(),
+    bytes: embedGltfSiblings(bytes, byName),
     path: file.path,
   );
 }
