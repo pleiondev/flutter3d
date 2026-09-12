@@ -131,10 +131,10 @@
     "mesh-41": "done",
     "mesh-42": "done",
     "mesh-43": "done",
-    "mesh-44": "partial",
+    "mesh-44": "done",
     "mesh-45": "done",
     "mesh-46": "done",
-    "mesh-47": "partial",
+    "mesh-47": "done",
     "mesh-48": "done",
     "mesh-60": "done",
     "mesh-61": "done",
@@ -235,6 +235,9 @@
     },
     "doc-26": {
       "SetJointRest": "реализовано как SetRestPose в joint_commands.dart; anim-29, которая поглощает doc-26 в части скелета, прямо называет этот класс своим — доккомент класса цитирует «SetRestPose/MirrorJoints» как её собственный недостающий кусок"
+    },
+    "mesh-47": {
+      "fromPolygons": "функция называется _fromPolygons в bsp.dart — приватная, потому что у неё нет вызывающего вне файла; публичной она нарушила бы «a public member nothing calls says who it is for» (tool/structure.dart). Формулировка плана «выход через fromPolygons» описывает форму конвейера, а не буквальное требование к видимости"
     }
   }
 }
