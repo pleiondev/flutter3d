@@ -64,6 +64,7 @@ final class ModelerReady extends ModelerState {
     this.submode = MeshSubmode.vertex,
     this.tool = 'object.select',
     this.said,
+    this.saidIsImportant = false,
     this.jobs = const <ActiveJob>[],
   });
 
@@ -96,6 +97,15 @@ final class ModelerReady extends ModelerState {
   /// describing the selection.
   final String? said;
 
+  /// Whether [said] should survive a routine clear — a selection change from
+  /// a click or a box-drag, which happens far more often than a person reads
+  /// the status line, and is not itself news worth burying a save/open/export
+  /// outcome under. Only `ModelerCubit.say`'s own routine clear (a `null`
+  /// passed by code that has nothing new to add) checks this; a mode change
+  /// or a fresh `say` with something to report still replace [said]
+  /// unconditionally, the same as before this field existed.
+  final bool saidIsImportant;
+
   /// Background bakes in progress, for a `JobButton` to show — `ui-25`'s own
   /// row. Empty whenever nothing is baking, which is almost always.
   final List<ActiveJob> jobs;
@@ -114,6 +124,7 @@ final class ModelerReady extends ModelerState {
     bool clearTool = false,
     String? said,
     bool clearSaid = false,
+    bool saidIsImportant = false,
     List<ActiveJob>? jobs,
   }) => ModelerReady(
     renderer: renderer,
@@ -124,6 +135,9 @@ final class ModelerReady extends ModelerState {
     submode: submode ?? this.submode,
     tool: clearTool ? null : (tool ?? this.tool),
     said: clearSaid ? null : (said ?? this.said),
+    saidIsImportant: clearSaid
+        ? false
+        : (said != null ? saidIsImportant : this.saidIsImportant),
     jobs: jobs ?? this.jobs,
   );
 }

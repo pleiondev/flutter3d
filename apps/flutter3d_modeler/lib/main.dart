@@ -549,7 +549,7 @@ class _ModelerScreenState extends State<ModelerScreen>
       // What the format has no section for yet — a mesh carrying morph
       // targets. The message names the object, and it belongs in front of the
       // person rather than in a stack trace.
-      _cubit.say('not saved: ${error.message}');
+      _cubit.say('not saved: ${error.message}', important: true);
       return false;
     }
     final result = await saveAs(bytes, suggestedName: 'model.f3dproj');
@@ -571,7 +571,10 @@ class _ModelerScreenState extends State<ModelerScreen>
     // actual write clears dirty, the same way `ModelHistory.markSaved`'s
     // own doc comment already puts it.
     if (written) _history.markSaved();
-    if (mounted) _cubit.say(said);
+    // Written or not, this is the direct outcome of a save a person just
+    // asked for — worth reading, not something a stray selection click after
+    // it should erase before they get the chance.
+    if (mounted) _cubit.say(said, important: true);
     return written;
   }
 
@@ -607,12 +610,12 @@ class _ModelerScreenState extends State<ModelerScreen>
 
     switch (planned) {
       case ExportRefused(:final String because):
-        _cubit.say(because);
+        _cubit.say(because, important: true);
       case ExportBlocked():
         // Unreachable: the branch above either forced or returned. Named rather
         // than defaulted, so that adding a case to `ExportResult` is a compile
         // error here instead of a silent nothing.
-        _cubit.say('not exported');
+        _cubit.say('not exported', important: true);
       case ExportWritten(
         :final List<ExportFile> files,
         :final List<String> warnings,
@@ -631,7 +634,7 @@ class _ModelerScreenState extends State<ModelerScreen>
           if (result.outcome != SaveOutcome.written) break;
         }
         if (mounted) {
-          _cubit.say(<String>[...said, ...warnings].join('\n'));
+          _cubit.say(<String>[...said, ...warnings].join('\n'), important: true);
         }
     }
   }
@@ -1155,12 +1158,21 @@ class _ModelerScreenState extends State<ModelerScreen>
     if (state is! ModelerReady) return;
     final sync = state.stage.sync;
     if (sync == null) return;
-    final vm.Frustum frustum = view.frustumOver(box.rect);
-    final Set<int> caught = <int>{
-      for (final ModelObject object in _history.project.objects)
-        if (sync.nodeOf(object.id) case final MeshNode node)
-          if (frustum.containsVector3(node.worldBounds.center)) object.id,
-    };
+    // A rectangle with no area — a drag that never left one axis — reaches
+    // here as an ordinary release, not a mistake to refuse. `frustumOverBox`
+    // answers it the same way `pickElementsIn` already does for the
+    // mesh-mode branch above: nothing caught, rather than letting
+    // `frustumOver`'s own divide-by-zero guard throw into the pointer
+    // handler.
+    final vm.Frustum? frustum = frustumOverBox(view, box.rect);
+    final Set<int> caught = frustum == null
+        ? const <int>{}
+        : <int>{
+            for (final ModelObject object in _history.project.objects)
+              if (sync.nodeOf(object.id) case final MeshNode node)
+                if (frustum.containsVector3(node.worldBounds.center))
+                  object.id,
+          };
     final Set<int> next = applyBox<int>(
       was.objects.toSet(),
       caught,

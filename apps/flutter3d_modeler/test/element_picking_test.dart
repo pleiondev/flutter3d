@@ -704,6 +704,61 @@ void main() {
     });
   });
 
+  group('frustumOverBox', () {
+    test('answers null for a rectangle of no area, not the refusal above', () {
+      final view = viewLookingAtTheCube();
+      final at = screenOf(Vector3(0.0, 0.0, 1.0));
+
+      // The exact shape of drag the test above pins `frustumOver` itself
+      // refusing — object-mode box-select's own caller (`main.dart`'s
+      // `_boxed`) has no mesh to hand `pickElementsIn`, so it goes through
+      // this function instead, and it is the one this session's own
+      // intermediate UI review found reaching `frustumOver` unguarded: a box
+      // dragged along a straight line, released with a mouse-up that never
+      // left one axis, crashed the pointer handler.
+      //
+      // Mutation: the `box.isEmpty` guard removed, so this calls
+      // `frustumOver` directly and throws instead of answering null. Run,
+      // and this test is the one that catches it — nothing above reaches
+      // `frustumOverBox` at all.
+      expect(
+        frustumOverBox(view, Rect.fromPoints(at, at.translate(40.0, 0.0))),
+        isNull,
+      );
+      // Straight up and down is the other axis a drag can collapse to.
+      expect(
+        frustumOverBox(view, Rect.fromPoints(at, at.translate(0.0, 40.0))),
+        isNull,
+      );
+      // A single point — a click Flutter delivered as a zero-pixel drag.
+      expect(frustumOverBox(view, Rect.fromPoints(at, at)), isNull);
+    });
+
+    test('answers the same frustum frustumOver itself would, for a real box', () {
+      final view = viewLookingAtTheCube();
+      final corner = screenOf(Vector3(1.0, 1.0, 1.0));
+      final rect = Rect.fromPoints(
+        corner.translate(-20.0, -20.0),
+        corner.translate(30.0, 20.0),
+      );
+
+      // The guard answers null only for an empty rectangle; anything else
+      // still reaches `frustumOver`, and reaches it built from the same
+      // rectangle — not a looser or tighter one the guard quietly
+      // substituted. Mutation: `frustumOverBox` returns a frustum built from
+      // the full viewport instead of `rect` whenever `rect` is non-empty.
+      // Run, and this test is the one that notices: the two planes would
+      // stop being the pair `frustumOver(rect)` itself produces.
+      final direct = view.frustumOver(rect);
+      final viaHelper = frustumOverBox(view, rect);
+      expect(viaHelper, isNotNull);
+      expect(viaHelper!.plane0.normal, direct.plane0.normal);
+      expect(viaHelper.plane0.constant, direct.plane0.constant);
+      expect(viaHelper.plane2.normal, direct.plane2.normal);
+      expect(viaHelper.plane2.constant, direct.plane2.constant);
+    });
+  });
+
   group('a viewport', () {
     test('of no area is refused rather than picked in', () {
       expect(

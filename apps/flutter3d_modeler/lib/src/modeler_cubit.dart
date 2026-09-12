@@ -251,12 +251,23 @@ final class ModelerCubit extends Cubit<ModelerState> {
 
   /// Something worth saying that changed nothing — a file written, a refusal
   /// from outside a command, a measurement.
-  void say(String? said) {
+  ///
+  /// [important], when [said] is set, marks it to survive a later routine
+  /// clear (`say(null)` called by code with nothing new to report, such as a
+  /// selection change) rather than being silently replaced by whatever the
+  /// status line falls back to. A `say(null)` call itself is always routine:
+  /// it clears [ModelerReady.said] unless the sentence sitting there was
+  /// marked important, in which case it is left for a person to actually
+  /// read — the whole point of marking it that way.
+  void say(String? said, {bool important = false}) {
     final ModelerReady? now = _ready;
     if (now == null) return;
-    emit(
-      said == null ? now.copyWith(clearSaid: true) : now.copyWith(said: said),
-    );
+    if (said == null) {
+      if (now.saidIsImportant) return;
+      emit(now.copyWith(clearSaid: true));
+      return;
+    }
+    emit(now.copyWith(said: said, saidIsImportant: important));
   }
 
   /// Brings the scene to the project and the readiness with it.

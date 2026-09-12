@@ -345,6 +345,19 @@ Selection pickElementsIn(
   );
 }
 
+/// The frustum a dragged [rect] casts through [view], or null for a
+/// rectangle of no area — the same normalise-then-refuse-emptiness this
+/// file already gives [pickElementsIn], pulled out on its own so object-
+/// mode box-select (which has no mesh to hand [pickElementsIn] and picks by
+/// bounds instead) can answer the identical case for a drag that never left
+/// one axis without calling [PickingView.frustumOver] itself, which throws
+/// on exactly that input.
+Frustum? frustumOverBox(PickingView view, Rect rect, {Matrix4? objectToWorld}) {
+  final box = Rect.fromPoints(rect.topLeft, rect.bottomRight);
+  if (box.isEmpty) return null;
+  return view.frustumOver(box, objectToWorld: objectToWorld);
+}
+
 /// A world ray in the mesh's own space, with how much shorter world lengths are
 /// there.
 ///

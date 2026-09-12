@@ -287,6 +287,57 @@ void main() {
       // something else happens, and a stale one is a bar that lies quietly.
       expect(ready(cubit).said, isNull);
     });
+
+    test('a routine clear erases an ordinary sentence', () {
+      // What every selection change already asked for, before `important`
+      // existed: `_pickedElement`/`_picked`/`_boxed` all call `say(null)`
+      // to fall the status line back to describing the selection, and a
+      // sentence that was never marked important is exactly the case that
+      // should still work that way.
+      final cubit = opened().cubit..say('fetching model…');
+      cubit.say(null);
+      expect(ready(cubit).said, isNull);
+    });
+
+    test('a routine clear leaves an important sentence for a person to read', () {
+      // An intermediate UI review found this one missing: a save/open/export
+      // outcome shown by `important: true` used to vanish behind the very
+      // next selection change — a click, a box-select — before anyone had a
+      // real chance to read it. `say(null)` is exactly what those selection
+      // handlers call.
+      final cubit = opened().cubit
+        ..say('not saved: a mesh carries morph targets', important: true);
+      cubit.say(null);
+      expect(ready(cubit).said, 'not saved: a mesh carries morph targets');
+
+      // Mutation: `if (now.saidIsImportant) return;` deleted from `say`'s
+      // null branch. Run, and this line is the one that fails — the message
+      // above is gone, replaced by nothing, the same silent loss the review
+      // found.
+    });
+
+    test('a fresh sentence always replaces whatever was there, important or not', () {
+      // Importance only changes what happens to a *clear*; a real new
+      // sentence — the next save's own outcome, say — still overwrites the
+      // old one immediately, important or not. Otherwise an error could
+      // wedge the status line and refuse to update even when there is
+      // something new and more relevant to say.
+      final cubit = opened().cubit
+        ..say('not saved: a mesh carries morph targets', important: true);
+      cubit.say('wrote 40 bytes to model.f3dproj', important: true);
+      expect(ready(cubit).said, 'wrote 40 bytes to model.f3dproj');
+    });
+
+    test('importance itself does not linger past the sentence it named', () {
+      // A routine sentence sent right after an important one must not
+      // inherit the importance of what it replaced — otherwise the flag
+      // would stick to the status line forever rather than to one message.
+      final cubit = opened().cubit
+        ..say('not saved: a mesh carries morph targets', important: true)
+        ..say('fetching model…');
+      cubit.say(null);
+      expect(ready(cubit).said, isNull);
+    });
   });
 
   group('baking a modifier stack in the background', () {
