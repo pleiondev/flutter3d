@@ -87,7 +87,7 @@
     "gfx-14n": "done",
     "mat-01": "done",
     "mat-02": "done",
-    "mat-03": "partial",
+    "mat-03": "done",
     "mat-07": "done",
     "mat-09n": "done",
     "mat-10": "done",
@@ -268,6 +268,9 @@
     },
     "pro-eng-06": {
       "LODS": "поле называется F3dSection.lods (строчными, как и все соседние поля этого класса — layouts, materials, surfaces…) в packages/flutter3d_formats/lib/src/f3d/f3d_format.dart; секция уже занимает kind 21, а не 24 из текста строки — 21 был первым свободным слотом на момент, когда эта секция была добавлена (до pro-eng-06 дошла очередь), а формулировка плана просто устарела относительно факта. Чтение/запись через F3dSection.lods и F3dRecord.lod уже реализованы и покрыты тестами (model_lod_test.dart) до этой правки; этой правкой добавлено только чтение/запись через glTF (MSFT_lod) и автоматическая сборка LodGroup при instantiate()"
+    },
+    "mat-03": {
+      "editor_core": "неформальное короткое имя пакета в тексте строки («`editor_core` — плоский пакет...»), а не имя символа для поиска; реальный пакет — flutter3d_editor_core, куда materialWith/materialDocumentFields/materialDocumentHint/_fits/_sameJson уже перенесены в lib/src/material_edit.dart и покрыты тестами (107/107, dart analyze чист, qa-03 держит правило «плоский пакет резолвится без Flutter SDK» зелёным в tool/structure.dart)"
     }
   }
 }
