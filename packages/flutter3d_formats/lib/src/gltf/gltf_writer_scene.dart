@@ -62,6 +62,9 @@ extension _GltfWriterScene on GltfWriter {
     if (document.nodes.any((node) => node.lightIndex != null)) {
       _extensionsUsed.add('KHR_lights_punctual');
     }
+    if (document.nodes.any((node) => node.lods.isNotEmpty)) {
+      _extensionsUsed.add('MSFT_lod');
+    }
 
     final nodes = <Map<String, Object?>>[
       for (final node in document.nodes)
@@ -101,6 +104,53 @@ extension _GltfWriterScene on GltfWriter {
               : document.surfaces[node.surfaces.first].skinIndex),
         },
     ];
+
+    // `MSFT_lod`'s own shape names *sibling nodes*, not surface lists on one
+    // node — see `ModelLod`'s own doc comment on why that is a real,
+    // different shape from this document's. Each level becomes one new node,
+    // appended after every node this document already named, so every index
+    // written above (children, roots, skins, lights) stays exactly what it
+    // was; nothing already on the list moves.
+    //
+    // A LOD sibling is placed at identity and never listed in `children` or
+    // `roots` — nothing walks to it on its own, the way a viewer that does
+    // not understand `MSFT_lod` would draw the base node's own mesh and never
+    // notice the sibling exists. `extras.MSFT_screencoverage` carries one
+    // entry per id, in the same order — this writer's own reader is the only
+    // consumer proven against, since no third-party MSFT_lod validator or
+    // reference implementation is available here to check the exact
+    // convention (whether the base node's own coverage belongs in that array
+    // too) against; this pairs each id with its own [ModelLod.maxScreenFraction]
+    // and nothing else, which round-trips through this package's own writer
+    // and loader exactly.
+    for (var i = 0; i < document.nodes.length; i++) {
+      final node = document.nodes[i];
+      if (node.lods.isEmpty) continue;
+
+      final ids = <int>[];
+      final coverage = <double>[];
+      for (final lod in node.lods) {
+        final meshIndex = meshIndexFor(lod.surfaceIndices);
+        ids.add(nodes.length);
+        coverage.add(lod.maxScreenFraction);
+        nodes.add(<String, Object?>{
+          'translation': const <double>[0, 0, 0],
+          'rotation': const <double>[0, 0, 0, 1],
+          'scale': const <double>[1, 1, 1],
+          'mesh': ?meshIndex,
+        });
+      }
+
+      final base = nodes[i];
+      base['extensions'] = <String, Object?>{
+        ...?base['extensions'] as Map<String, Object?>?,
+        'MSFT_lod': <String, Object?>{'ids': ids},
+      };
+      base['extras'] = <String, Object?>{
+        ...?base['extras'] as Map<String, Object?>?,
+        'MSFT_screencoverage': coverage,
+      };
+    }
 
     final scenes = nodes.isEmpty
         ? const <Map<String, Object?>>[]

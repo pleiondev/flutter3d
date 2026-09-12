@@ -5,6 +5,7 @@ import 'package:vector_math/vector_math.dart';
 import '../animation/animation.dart';
 import '../geometry/device_mesh.dart';
 import '../render/material.dart';
+import '../scene/lod_group.dart';
 import '../scene/mesh_node.dart';
 import '../scene/morph_state.dart';
 import '../scene/scene.dart';

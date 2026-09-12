@@ -111,15 +111,14 @@ extension ModelAssetInstantiate on ModelAsset {
       parentNode.add(node);
       created[index] = node;
 
-      for (final surfaceIndex in model.surfaces) {
-        if (surfaceIndex < 0 || surfaceIndex >= parts.length) continue;
+      MeshNode? addSurface(int surfaceIndex) {
+        if (surfaceIndex < 0 || surfaceIndex >= parts.length) return null;
         final part = parts[surfaceIndex];
         final mesh = MeshNode(
           part.mesh,
           materialFor(part.material),
           name: part.name,
         );
-        node.add(mesh);
         meshNodes.add(mesh);
         if (part.skinIndex != null) pendingSkins.add((mesh, part.skinIndex!));
 
@@ -132,6 +131,39 @@ extension ModelAssetInstantiate on ModelAsset {
           )..setWeights(part.morphWeights);
           mesh.morph = state;
           (morphSinks[index] ??= <MorphState>[]).add(state);
+        }
+        return mesh;
+      }
+
+      // `pro-eng-06`'s own row: a node with lods draws through an `LodGroup`
+      // instead of its surfaces directly, so the engine actually picks a
+      // level rather than drawing every one of them at once. Scoped to the
+      // case an `LodGroup` can express without new machinery of its own:
+      // `LodLevel.node` is one `MeshNode`, so this only builds automatically
+      // when the base surfaces and every `ModelLod` are each exactly one
+      // surface — a node split across several materials at any level falls
+      // back to the ordinary path below, still correct, just not switched by
+      // distance. `maxScreenFraction: 2.0` on the base level is past the
+      // largest fraction `LodGroup.screenFraction` can ever return (capped at
+      // 1.0), so it is always the finest and always sorts first.
+      final singleSurfaceLevels =
+          model.surfaces.length == 1 &&
+          model.lods.every((lod) => lod.surfaceIndices.length == 1);
+      if (model.lods.isNotEmpty && singleSurfaceLevels) {
+        final baseMesh = addSurface(model.surfaces.single);
+        if (baseMesh != null) {
+          final levels = <LodLevel>[
+            LodLevel(node: baseMesh, maxScreenFraction: 2.0),
+            for (final lod in model.lods)
+              if (addSurface(lod.surfaceIndices.single) case final MeshNode m)
+                LodLevel(node: m, maxScreenFraction: lod.maxScreenFraction),
+          ];
+          node.add(LodGroup(levels: levels, name: model.name));
+        }
+      } else {
+        for (final surfaceIndex in model.surfaces) {
+          final mesh = addSurface(surfaceIndex);
+          if (mesh != null) node.add(mesh);
         }
       }
 

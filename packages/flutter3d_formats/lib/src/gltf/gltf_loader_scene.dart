@@ -114,6 +114,76 @@ extension _GltfSceneWalk on GltfLoader {
         }
       }
 
+      // `MSFT_lod`: alternate, lower-detail *nodes* rather than an alternate
+      // surface list on this one — this package's own document shape wants
+      // the latter (`ModelNode.lods`, `ModelLod.surfaceIndices`), so each
+      // sibling's own mesh is decoded here, at the base node's own place in
+      // the walk, and folded into a `ModelLod` rather than left to become a
+      // `ModelNode` of its own that nothing would ever draw. The sibling is
+      // NOT visited through `children`/`roots` — same reasoning as the
+      // writer's own: a level lives only inside `lods` once decoded.
+      final nodeExtensionsForLod = node['extensions'];
+      if (nodeExtensionsForLod is Map) {
+        final lodBlock = nodeExtensionsForLod['MSFT_lod'];
+        if (lodBlock is Map) {
+          final ids = _intList(lodBlock['ids']);
+          final extras = node['extras'];
+          final coverage = extras is Map
+              ? _doubleList(extras['MSFT_screencoverage'])
+              : const <double>[];
+          for (var levelIndex = 0; levelIndex < ids.length; levelIndex++) {
+            final siblingIndex = ids[levelIndex];
+            if (siblingIndex < 0 || siblingIndex >= nodes.length) {
+              warnings.add(
+                'Node $nodeIndex names MSFT_lod sibling $siblingIndex, out '
+                'of range; that level skipped.',
+              );
+              continue;
+            }
+            final siblingMeshIndex = _asInt(nodes[siblingIndex]['mesh']);
+            if (siblingMeshIndex == null ||
+                siblingMeshIndex < 0 ||
+                siblingMeshIndex >= meshes.length) {
+              continue;
+            }
+            final siblingPrimitives = meshCache.putIfAbsent(
+              siblingMeshIndex,
+              () => _decodeMesh(
+                meshes[siblingMeshIndex],
+                siblingMeshIndex,
+                reader,
+                warnings,
+              ),
+            );
+            final surfaceIndices = <int>[];
+            for (final primitive in siblingPrimitives) {
+              surfaceIndices.add(instances.length);
+              instances.add(
+                ModelSurface(
+                  mesh: primitive.mesh,
+                  // The level replaces the base node's own surfaces at the
+                  // same placement, so it draws with the base node's own
+                  // world transform — not the (identity, per this writer)
+                  // sibling node's, which nothing here walks to on its own.
+                  transform: world.clone(),
+                  materialIndex: primitive.materialIndex,
+                  authoredAttributes: primitive.authoredAttributes,
+                  meshName: primitive.meshName,
+                ),
+              );
+            }
+            modelNodes[nodeIndex].lods.add(
+              ModelLod(
+                surfaceIndices: surfaceIndices,
+                maxScreenFraction: levelIndex < coverage.length
+                    ? coverage[levelIndex]
+                    : 0.0,
+              ),
+            );
+          }
+        }
+      }
+
       for (final child in _intList(node['children'])) {
         visit(child, world);
       }

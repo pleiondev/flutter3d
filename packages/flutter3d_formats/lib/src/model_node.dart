@@ -136,7 +136,11 @@ final class ModelNode {
        scale = scale ?? Vector3(1.0, 1.0, 1.0),
        children = children ?? <int>[],
        surfaces = surfaces ?? <int>[],
-       lods = lods ?? const <ModelLod>[];
+       // Growable, not `const`, matching [surfaces]'s own default: glTF's
+       // `MSFT_lod` decode appends to this in place as it discovers a node's
+       // lower-detail siblings, the same way the scene walk appends to
+       // `surfaces` as it discovers primitives.
+       lods = lods ?? <ModelLod>[];
 
   final String? name;
 
