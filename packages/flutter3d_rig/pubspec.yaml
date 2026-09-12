@@ -1,0 +1,24 @@
+name: flutter3d_rig
+description: "Bone-name mapping and rest-relative clip retargeting between two skeletons, with a two-bone-IK foot lock. No Flutter, no renderer."
+version: 0.6.0
+repository: https://github.com/pleiondev/flutter3d
+homepage: https://flutter3d.pleion.dev
+issue_tracker: https://github.com/pleiondev/flutter3d/issues
+topics:
+  - animation
+  - rigging
+  - retargeting
+  - game-development
+resolution: workspace
+
+environment:
+  sdk: ^3.12.2
+
+dependencies:
+  vector_math: ^2.2.0
+  flutter3d_model_core: ^0.6.0
+  flutter3d_formats: ^0.6.0
+
+dev_dependencies:
+  test: ^1.25.0
+  flutter_lints: ^6.0.0

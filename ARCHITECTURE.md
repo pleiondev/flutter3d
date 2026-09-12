@@ -169,7 +169,7 @@ copy, and is the bridge into the widget tree.
 
 ## 3. The package map
 
-Thirty-four packages and seven applications in one pub workspace — one
+Thirty-five packages and seven applications in one pub workspace — one
 `flutter pub get` for the repository.
 
 ### 3.1 The layering rule
@@ -208,6 +208,7 @@ point of §3.3.
 | `flutter3d_particles` | CPU emitters and the particle pass contributor |
 | `flutter3d_physics` | Collision world, character controller, rigid bodies, spatial grid |
 | `flutter3d_cloth` | An XPBD cloth solver — distance and cross-edge bending constraints, pins, wind, collision against `flutter3d_physics`'s own shapes. Plain Dart |
+| `flutter3d_rig` | Bone-name mapping and rest-relative clip retargeting between two skeletons, with a two-bone-IK foot lock. Plain Dart |
 | `flutter3d_sim` | The simulation: fixed step, ECS, level format, actors, navigation, saves, replays, camera rig. Plain Dart |
 | `flutter3d_game` | The Flutter half of the game layer: touch and keyboard input, accessibility settings, diagnostics. Re-exports `flutter3d_sim` |
 | `flutter3d_game_shooter` | Shooter rules: weapons, hitscan, projectiles, inventory, monsters |
@@ -2752,7 +2753,7 @@ what went out at 0.4.2.
    `flutter3d_audio`, `flutter3d_geometry`, `pad_input`, `pointer_lock`
 2. `flutter3d_formats`, `flutter3d_mesh`
 3. `flutter3d_conformance`, `flutter3d_model_core`
-4. `flutter3d`, `flutter3d_physics`, `flutter3d_cloth`
+4. `flutter3d`, `flutter3d_physics`, `flutter3d_cloth`, `flutter3d_rig`
 5. `flutter3d_impeller`, `flutter3d_webgl`, `flutter3d_webgpu`, `flutter3d_cpu`,
    `flutter3d_particles`, `flutter3d_sim`, `flutter3d_stereo`
 6. `flutter3d_game`, `flutter3d_editor_core`, `flutter3d_net`
