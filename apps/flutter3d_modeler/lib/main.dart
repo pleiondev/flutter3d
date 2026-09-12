@@ -28,6 +28,7 @@ import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart' hide Outcome;
 import 'package:flutter3d_session/flutter3d_session.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:vector_math/vector_math.dart' as vm;
 
 import 'src/backend.dart';
@@ -36,6 +37,7 @@ import 'src/close_beforeunload.dart';
 import 'src/close_guard.dart';
 import 'src/display_modes.dart';
 import 'src/element_picking.dart';
+import 'src/environment_summary.dart';
 import 'src/exporting.dart';
 import 'src/files/project_files.dart';
 import 'src/files/sandbox_probe.dart';
@@ -47,6 +49,7 @@ import 'src/opening.dart';
 import 'src/orbit_run.dart';
 import 'src/orientation_dial.dart';
 import 'src/recent_projects.dart';
+import 'src/report_problem.dart';
 import 'src/selection_box.dart';
 import 'src/staging.dart';
 import 'src/transform_fields.dart';
@@ -694,6 +697,19 @@ class _ModelerScreenState extends State<ModelerScreen>
   void _showShortcutHelp() {
     if (_state is! ModelerReady) return;
     unawaited(showShortcutHelp(context));
+  }
+
+  /// `rel-15`'s own "Report a problem" button: opens a GitHub issue draft
+  /// against `modeler_report.yml`, prefilled and sent nowhere on its own —
+  /// [reportProblemUrl]'s own doc comment is the whole design here.
+  /// [environmentSummary]'s own doc comment explains what "environment"
+  /// actually holds and why.
+  void _reportProblem() {
+    unawaited(
+      launchUrl(
+        reportProblemUrl(environment: 'Flutter, ${environmentSummary()}'),
+      ),
+    );
   }
 
   /// `ui-15`'s own start screen: "Open file", "New project" with a profile,
@@ -1590,6 +1606,11 @@ class _ModelerScreenState extends State<ModelerScreen>
               tooltip: 'Start screen — open a file or start a new project',
               onPressed: () => unawaited(_showStartScreen()),
               icon: const Icon(Icons.home_outlined, size: 20),
+            ),
+            IconButton(
+              tooltip: 'Report a problem',
+              onPressed: _reportProblem,
+              icon: const Icon(Icons.bug_report_outlined, size: 20),
             ),
           ];
           final status = StatusLine(
