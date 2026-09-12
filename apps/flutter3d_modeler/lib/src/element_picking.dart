@@ -112,6 +112,26 @@ final class PickingView {
     return Ray(from, to - from).normalizeDirection();
   }
 
+  /// Where [world] lands on screen, in the same logical pixels [rayThrough]
+  /// reads them in — or null when it is behind the camera.
+  ///
+  /// **The inverse of [rayThrough]'s own NDC step, run forward rather than
+  /// back.** A point behind the eye clips to a negative `w`, which would
+  /// divide the numerator by a negative and land the point on the wrong side
+  /// of the screen rather than off it — `anim-08`'s own joint picker needs
+  /// "not there" rather than a mirrored answer for a joint standing behind
+  /// the camera.
+  Offset? project(Vector3 world) {
+    final clip = _worldToClip.transform(Vector4(world.x, world.y, world.z, 1.0));
+    if (clip.w <= 0.0) return null;
+    final ndcX = clip.x / clip.w;
+    final ndcY = clip.y / clip.w;
+    return Offset(
+      (ndcX + 1.0) / 2.0 * size.width,
+      (1.0 - ndcY) / 2.0 * size.height,
+    );
+  }
+
   /// How wide [pixels] logical pixels are in world units, [distance] along the
   /// ray through [at].
   ///

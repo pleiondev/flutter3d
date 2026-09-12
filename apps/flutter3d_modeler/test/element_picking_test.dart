@@ -720,4 +720,34 @@ void main() {
       // refusal.
     });
   });
+
+  group('project', () {
+    test('a world point lands where the hand-worked projection says — '
+        'anim-08\'s own joint picker needs the same answer rayThrough '
+        'already gives in reverse', () {
+      final view = viewLookingAtTheCube();
+      final point = Vector3(0.4, -0.2, 0.3);
+
+      final projected = view.project(point);
+
+      expect(projected, isNotNull);
+      final expected = screenOf(point);
+      expect(projected!.dx, closeTo(expected.dx, 1e-3));
+      expect(projected.dy, closeTo(expected.dy, 1e-3));
+    });
+
+    test('a point behind the camera is refused rather than mirrored', () {
+      final view = viewLookingAtTheCube();
+
+      // The camera stands at +Z five units out looking down -Z; a point
+      // further out on +Z is behind it.
+      final projected = view.project(Vector3(0.0, 0.0, eyeZ + 1.0));
+
+      // Mutation: drop the `w <= 0` guard. `x / w` and `y / w` both flip
+      // sign against a negative `w`, so the point would land on screen at
+      // its own mirror image instead of nowhere — indistinguishable from a
+      // real joint standing in front of the camera at that same spot.
+      expect(projected, isNull);
+    });
+  });
 }
