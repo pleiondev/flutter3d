@@ -3,9 +3,8 @@ import 'dart:typed_data';
 
 import 'package:flutter3d/src/engine/render/debug_draw.dart';
 import 'package:flutter3d/src/engine/render/debug_draw_gizmos.dart';
-import 'package:flutter3d/src/engine/scene/camera_node.dart';
-import 'package:flutter3d/src/engine/scene/projection.dart';
-import 'package:flutter3d/src/engine/scene/scene.dart';
+import 'package:flutter3d/src/engine/render/material.dart';
+import 'package:flutter3d/src/engine/scene/scene_graph.dart';
 import 'package:flutter3d_geometry/flutter3d_geometry.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart';
@@ -496,6 +495,85 @@ void main() {
         <int>[-1],
       );
       expect(_vertexAt(defaulted, 0).color, first);
+    });
+  });
+
+  group('skeletons option over a scene', () {
+    // A root joint, a mid joint under it, and a mesh skinned to both — the
+    // same root/mid/leaf shape `addSkeletonOverlay` is already tested with
+    // directly, reached this time through `buildForScene`'s own option.
+    ({Scene scene, SceneNode root, SceneNode mid}) skinnedScene() {
+      final scene = Scene(name: 'rigged');
+      final root = scene.add(SceneNode(name: 'root'));
+      final mid = SceneNode(name: 'mid')..setPosition(0.0, 1.0, 0.0);
+      root.add(mid);
+
+      final skeleton = Skeleton(
+        joints: <SceneNode>[root, mid],
+        inverseBindMatrices: <Matrix4>[
+          Matrix4.copy(root.worldMatrix)..invert(),
+          Matrix4.copy(mid.worldMatrix)..invert(),
+        ],
+      );
+      scene.root.add(
+        MeshNode(CpuMesh(CuboidShape().build()), Material())
+          ..skeleton = skeleton,
+      );
+      return (scene: scene, root: root, mid: mid);
+    }
+
+    test('a skinned mesh draws one bone and one leaf cross', () {
+      final it = skinnedScene();
+      final draw = DebugDraw()
+        ..buildForScene(it.scene, const DebugDrawOptions(skeletons: true));
+
+      // Root has a child: one bone, twelve edges. Mid has none: one cross,
+      // three edges. Fifteen in all, an endpoint at each joint.
+      expect(draw.lineCount, 15);
+      var sawRoot = false;
+      var sawMid = false;
+      for (var i = 0; i < draw.vertexCount; i++) {
+        final p = _vertexAt(draw, i).position;
+        if (p == Vector3(0, 0, 0)) sawRoot = true;
+        if (p == Vector3(0, 1, 0)) sawMid = true;
+      }
+      expect(sawRoot, isTrue);
+      expect(sawMid, isTrue);
+    });
+
+    test('moving the root carries the overlay with it', () {
+      // Mutation check by hand: reading local rather than world positions
+      // would leave this overlay at the origin regardless of the node's own
+      // placement in the scene.
+      final it = skinnedScene();
+      it.root.setPosition(5.0, 0.0, 0.0);
+
+      final draw = DebugDraw()
+        ..buildForScene(it.scene, const DebugDrawOptions(skeletons: true));
+
+      var sawMovedRoot = false;
+      for (var i = 0; i < draw.vertexCount; i++) {
+        if (_vertexAt(draw, i).position == Vector3(5, 0, 0)) {
+          sawMovedRoot = true;
+        }
+      }
+      expect(sawMovedRoot, isTrue);
+    });
+
+    test('the option off draws nothing for a rigged scene', () {
+      final it = skinnedScene();
+      final draw = DebugDraw()
+        ..buildForScene(it.scene, const DebugDrawOptions());
+      expect(draw.isEmpty, isTrue);
+    });
+
+    test('an unskinned mesh in the same scene contributes nothing', () {
+      final scene = Scene(name: 'plain');
+      scene.root.add(MeshNode(CpuMesh(CuboidShape().build()), Material()));
+
+      final draw = DebugDraw()
+        ..buildForScene(scene, const DebugDrawOptions(skeletons: true));
+      expect(draw.isEmpty, isTrue);
     });
   });
 }

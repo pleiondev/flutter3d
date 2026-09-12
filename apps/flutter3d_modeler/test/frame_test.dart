@@ -30,6 +30,7 @@ import 'package:flutter3d_modeler/src/mesh_overlay_builder.dart';
 import 'package:flutter3d_modeler/src/staging.dart';
 import 'package:flutter3d_testing/flutter3d_testing.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:vector_math/vector_math.dart';
 
 const int _width = 160;
 const int _height = 100;
@@ -449,5 +450,54 @@ void main() {
         await expectMatchesGolden(frame, 'test/goldens/${subject.$1}.png');
       });
     }
+  });
+
+  group('the skeleton overlay, drawn', () {
+    // `anim-08`: the octahedra and crosses `DebugDrawGizmos.addSkeletonOverlay`
+    // already draws, reached this time through `RenderSettings.debug` the way
+    // the application would ask for them, rather than by calling the overlay
+    // builder directly the way `debug_draw_test.dart` already does.
+    test('a two-joint rig over the cube matches its reference', () async {
+      final frame = await renderFrame(
+        width: 240,
+        height: 160,
+        build: (FrameRequest request) {
+          final stage = ModelerStage.build(device: request.device);
+          final subject = stage.subject as MeshNode;
+          // Every vertex is bound wholly to joint 0 by the builder's own
+          // default weight, and joint 0 stays at the origin — the cube's own
+          // bind pose — so giving it a skeleton does not move it. `tip` is
+          // the second joint purely to give the overlay a bone to draw.
+          subject.mesh = DeviceMesh.upload(
+            request.device,
+            CuboidShape().build(layout: VertexLayout.skinned),
+          );
+
+          final root = SceneNode(name: 'root');
+          final tip = SceneNode(name: 'tip')..setPosition(0.0, 0.5, 0.0);
+          stage.scene.root.add(root);
+          root.add(tip);
+          subject.skeleton = Skeleton(
+            joints: <SceneNode>[root, tip],
+            inverseBindMatrices: <Matrix4>[
+              Matrix4.copy(root.worldMatrix)..invert(),
+              Matrix4.copy(tip.worldMatrix)..invert(),
+            ],
+          );
+          // A skinned mesh's own bounds describe the bind pose, so framing
+          // uses the joints instead — padded by this, or the frame would zoom
+          // to a box no wider than the distance between two joint points and
+          // never show the cube hanging off them.
+          subject.skinReach = 1.0;
+          stage.frameSubject();
+          return (scene: stage.scene, camera: stage.camera);
+        },
+        settings: const RenderSettings(
+          debug: DebugDrawOptions(skeletons: true),
+        ),
+      );
+
+      await expectMatchesGolden(frame, 'test/goldens/skeleton-overlay.png');
+    });
   });
 }

@@ -463,6 +463,27 @@ extension DebugDrawGizmos on DebugDraw {
       }
     }
 
+    if (options.skeletons) {
+      final position = Vector3.zero();
+      for (final node in scene.meshes) {
+        final skeleton = node.skeleton;
+        if (skeleton == null || !node.visibleInHierarchy) continue;
+        final joints = skeleton.joints;
+        final worldPositions = List<Vector3>.generate(joints.length, (i) {
+          joints[i].readWorldPosition(position);
+          return position.clone();
+        });
+        final indexOf = <SceneNode, int>{
+          for (var i = 0; i < joints.length; i++) joints[i]: i,
+        };
+        final parents = List<int>.generate(
+          joints.length,
+          (i) => indexOf[joints[i].parent] ?? -1,
+        );
+        addSkeletonOverlay(worldPositions, parents);
+      }
+    }
+
     for (final node in highlighted) {
       // **A group is outlined by what is under it.** A caller marking a
       // selection does not always hand over a mesh: an editor's marker is a

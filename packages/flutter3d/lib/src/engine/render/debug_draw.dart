@@ -15,6 +15,7 @@ final class DebugDrawOptions {
     this.lightGizmos = false,
     this.axes = false,
     this.cameraFrustums = false,
+    this.skeletons = false,
     this.normalLength = 0.0,
   });
 
@@ -34,13 +35,17 @@ final class DebugDrawOptions {
   /// reason culling is inspectable at all.
   final bool cameraFrustums;
 
+  /// One octahedron per bone and one cross per leaf joint, for every skinned
+  /// mesh node in the scene — `anim-08`'s own overlay.
+  final bool skeletons;
+
   /// Length of a normal segment in world units. Zero picks a length from the
   /// scene size, which is the only way one setting suits both a 1-unit cube and
   /// a 200-unit model.
   final double normalLength;
 
   bool get anyEnabled =>
-      bounds || normals || lightGizmos || axes || cameraFrustums;
+      bounds || normals || lightGizmos || axes || cameraFrustums || skeletons;
 
   DebugDrawOptions copyWith({
     bool? bounds,
@@ -48,6 +53,7 @@ final class DebugDrawOptions {
     bool? lightGizmos,
     bool? axes,
     bool? cameraFrustums,
+    bool? skeletons,
     double? normalLength,
   }) => DebugDrawOptions(
     bounds: bounds ?? this.bounds,
@@ -55,6 +61,7 @@ final class DebugDrawOptions {
     lightGizmos: lightGizmos ?? this.lightGizmos,
     axes: axes ?? this.axes,
     cameraFrustums: cameraFrustums ?? this.cameraFrustums,
+    skeletons: skeletons ?? this.skeletons,
     normalLength: normalLength ?? this.normalLength,
   );
 }
