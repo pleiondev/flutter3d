@@ -243,6 +243,54 @@ void main() {
     expect(rgba[at + 2], closeTo(128, 2));
   });
 
+  test('an orthographic picture does not change size as the camera moves '
+      'back — view-04\'s own "орто не зависит от distance"', () async {
+    final it = cpuTestDevice(width: _width, height: _height);
+    final renderer = Renderer.create(device: it.device);
+    final stage = ModelerStage.build(device: it.device);
+    stage.frameSubject();
+    lookFrom(stage.orbit, StandardView.front, seconds: 0.0);
+    useLens(stage.camera, ViewLens.orthographic, stage.orbit);
+
+    final near = await _draw(it.device, renderer, stage);
+    final nearEye = stage.camera.readWorldPosition().clone();
+
+    // Walked straight back along the view axis rather than zoomed: `zoom`
+    // scales `orthoHeight` along with `distance` on purpose, which is a
+    // person asking the model to look bigger or smaller. Setting `distance`
+    // directly is a camera moving without anybody having asked for that —
+    // `OrbitController.orthoHeight`'s own doc comment is explicit that an
+    // orthographic picture must not answer that with a different size.
+    stage.orbit.distance *= 4.0;
+    stage.orbit.apply();
+
+    final far = await _draw(it.device, renderer, stage);
+
+    // The camera really did move — otherwise the picture matching itself
+    // would prove nothing at all.
+    expect(
+      (stage.camera.readWorldPosition() - nearEye).length,
+      greaterThan(1.0),
+    );
+
+    // A tolerance of two rather than an exact match: the light is a direction
+    // and the cube's own silhouette does not move, but a lit material still
+    // reads the eye position for its own specular term, and that has moved
+    // even though nothing about the picture's own size has. Mutation: derive
+    // the projection's height from `orbit.distance` on every frame instead of
+    // reading the value `useLens` fixed in place, and the cube shrinks to a
+    // quarter of its own width the moment the camera backs away — exactly the
+    // shrink a perspective lens gives, and exactly what an orthographic one
+    // must refuse to; a shrunk silhouette moves thousands of pixels this
+    // tolerance does not absorb, not one.
+    expect(far.length, near.length);
+    var moved = 0;
+    for (var i = 0; i < far.length; i++) {
+      if ((far[i] - near[i]).abs() > 2) moved++;
+    }
+    expect(moved, 0, reason: 'the picture changed size or position');
+  });
+
   test('the cube a project starts as is drawn, and it is lit', () async {
     final it = cpuTestDevice(width: _width, height: _height);
     final renderer = Renderer.create(device: it.device);

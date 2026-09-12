@@ -69,8 +69,16 @@ final RegExp _escape = RegExp(r'\\[nrt]');
 // `view-02-viewport-skeleton`), which `plan-status.json` keys by the bare
 // number alone — a wider trailing group would fold that slug into the id
 // and break every one of those rows the same way this one was broken.
+//
+// The negative lookahead after `[nd]` is the same guard for the opposite
+// direction: `view-04-display-modes` starts its own descriptive slug with
+// "display", and `-d` alone matched the "d" of it — reading the id as
+// `view-04-d` and hiding the row from every status the same way the missing
+// guard hid this comment's own three examples before it existed. A `-d` or
+// `-n` that is really the suffix is followed by a backtick or the row ends;
+// one that is really the first letter of a word is followed by another one.
 final RegExp _rowId = RegExp(
-  r'^`?([a-z][a-z0-9]*(?:-[a-z]+)?-[0-9]+[a-z]*(?:-[nd])?)`?',
+  r'^`?([a-z][a-z0-9]*(?:-[a-z]+)?-[0-9]+[a-z]*(?:-[nd](?![a-z]))?)`?',
 );
 
 /// A Dart identifier worth looking for: a type, a member or a function.
