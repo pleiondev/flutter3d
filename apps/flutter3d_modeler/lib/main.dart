@@ -55,6 +55,7 @@ import 'src/ui/shell.dart';
 import 'src/ui/status_line.dart';
 import 'src/ui/theme.dart';
 import 'src/ui/tools.dart';
+import 'src/ui/undo_redo_buttons.dart';
 
 /// The model this build opens, as an asset path. Empty means the cube.
 ///
@@ -1220,6 +1221,15 @@ class _ModelerScreenState extends State<ModelerScreen>
         activeTool: state.tool,
         onTool: _ranTool,
         actions: <Widget>[
+          UndoRedoButtons(
+            canUndo: state.history.canUndo,
+            canRedo: state.history.canRedo,
+            undoSays: state.history.undoSays,
+            redoSays: state.history.redoSays,
+            onUndo: _undo,
+            onRedo: _redo,
+          ),
+          const SizedBox(width: 4),
           // **A menu rather than five buttons on the rail.** The rail is for
           // the tools a hand rests on; adding a shape is something done once
           // and then not again for an hour, and five of anything on a rail of

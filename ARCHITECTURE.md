@@ -1864,7 +1864,7 @@ entities a game defines.
 |---|---|
 | Style | `dart format` |
 | Analysis | `flutter analyze` clean across the workspace, no warnings |
-| Unit tests | **6369 tests** across 34 packages and 7 applications |
+| Unit tests | **6375 tests** across 34 packages and 7 applications |
 | Structure rules | 32, `dart run tool/structure.dart`, the first CI step |
 | CI | GitHub Actions over `tool/ci.sh`, on `ubuntu-latest`, with no graphics card |
 
@@ -2754,7 +2754,7 @@ what went out at 0.4.2.
 4. `flutter3d`, `flutter3d_physics`
 5. `flutter3d_impeller`, `flutter3d_webgl`, `flutter3d_webgpu`, `flutter3d_cpu`,
    `flutter3d_particles`, `flutter3d_sim`, `flutter3d_stereo`
-6. `flutter3d_game`, `flutter3d_editor_core`
+6. `flutter3d_game`, `flutter3d_editor_core`, `flutter3d_net`
 7. `flutter3d_screens`, `flutter3d_bridge`, `flutter3d_backend`,
    `flutter3d_testing`, `flutter3d_editor_mcp`, `flutter3d_model_mcp`
 8. `flutter3d_session`

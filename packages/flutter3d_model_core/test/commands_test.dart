@@ -4318,6 +4318,73 @@ void main() {
       },
     );
   });
+
+  group('a transaction, ui-11\'s own acceptance', () {
+    test('forty commands inside one transaction leave one step, and undo '
+        'restores every vertex exactly', () {
+      final history = edited();
+      history.selection = history.selection.copyWith(
+        level: ElementLevel.vertex,
+        elements: <int>[0, 1, 2, 3, 4, 5, 6, 7],
+      );
+      final mesh = meshOf(history);
+      final before = <Vector3>[
+        for (var v = 0; v < mesh.vertexCount; v++) mesh.positionOf(v),
+      ];
+
+      history.transaction(() {
+        for (var i = 0; i < 40; i++) {
+          history.run(TransformElements(Matrix4.translation(Vector3(0.01, 0, 0))));
+        }
+      });
+
+      expect(
+        history.steps,
+        hasLength(1),
+        reason: 'forty pointer reports during one drag are one undo step',
+      );
+
+      expect(history.undo(), isTrue);
+      for (var v = 0; v < mesh.vertexCount; v++) {
+        final restored = mesh.positionOf(v);
+        expect(restored.x, closeTo(before[v].x, 1e-6));
+        expect(restored.y, closeTo(before[v].y, 1e-6));
+        expect(restored.z, closeTo(before[v].z, 1e-6));
+      }
+
+      // The mesh itself is never replaced across a transaction — it is the
+      // same journalled object throughout, undone by rolling its journal
+      // back rather than by swapping in an old copy — so its own identity
+      // survives the round trip as well as its content does.
+      expect(identical(meshOf(history), mesh), isTrue);
+    });
+
+    test('a command that refuses inside a transaction leaves no step at all', () {
+      final history = edited();
+      history.selection = history.selection.copyWith(
+        level: ElementLevel.vertex,
+        elements: <int>[0],
+      );
+
+      history.transaction(() {
+        // `TransformPivot.individual` is refused unconditionally (see
+        // `TransformElements.apply`), so nothing here ever mutates the
+        // project — the transaction closes over zero real commands.
+        history.run(
+          TransformElements(
+            Matrix4.translation(Vector3(1, 0, 0)),
+            pivot: TransformPivot.individual,
+          ),
+        );
+      });
+
+      expect(
+        history.steps,
+        isEmpty,
+        reason: 'a transaction in which nothing succeeded leaves no step',
+      );
+    });
+  });
 }
 
 /// A project holding two coplanar quads sharing one edge — vertices 1 and 4 —
