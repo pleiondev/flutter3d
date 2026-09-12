@@ -1,0 +1,21 @@
+name: Modeler report
+description: Something in the model editor renders, saves, imports or exports wrongly
+labels: [modeler]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happens, and what should
+      description: |
+        The smallest project (`.f3dproj`) or import that shows it is the
+        clearest report there is.
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Output of `flutter --version`, and the platform you ran on.
+      render: text
+    validations:
+      required: true

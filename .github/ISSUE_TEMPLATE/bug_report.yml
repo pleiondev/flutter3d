@@ -28,11 +28,12 @@ body:
     attributes:
       label: Which backend
       description: |
-        Three exist and they fail differently. `flutter3d_cpu` is the reference
+        Four exist and they fail differently. `flutter3d_cpu` is the reference
         one — a defect that shows there is in the engine and not in a driver.
       options:
         - flutter3d_impeller (desktop, Flutter GPU)
         - flutter3d_webgl (web)
+        - flutter3d_webgpu (web, WebGPU)
         - flutter3d_cpu (software rasteriser)
         - more than one
         - not a rendering bug
