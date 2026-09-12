@@ -149,6 +149,18 @@ final List<GoldenScene> kGoldenScenes = <GoldenScene>[
       normalLength: 0.25,
     ),
   ),
+  // `qa-10`'s own golden: `view-05`'s `MeshOverlay`, drawn over the same
+  // cube `debug-overlay` uses, with all three of its batches populated —
+  // lines, handles and fill — matching `view-05`'s own "N edges, 3 draws"
+  // in a picture rather than only in a unit test. See
+  // `_populateMeshOverlayGolden` in main.dart.
+  const GoldenScene(
+    name: 'mesh-overlay',
+    source: 'Cube',
+    shadows: false,
+    bloom: false,
+    ground: false,
+  ),
   // The particle plugin, which the plugin seam moved out of the renderer and
   // which nothing automatic had drawn since. A fixed seed and a whole number
   // of fixed steps, so the burst is the same burst every run.

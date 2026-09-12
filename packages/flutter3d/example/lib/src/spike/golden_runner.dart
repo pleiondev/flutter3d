@@ -24,8 +24,8 @@ import 'png.dart';
 /// a match and 1 on a mismatch, so `tool/golden.sh` can launch the built
 /// application once per scene and read the code. The same three names still work
 /// as `--dart-define`s for a run driven by hand, but the environment is what the
-/// harness uses, because a define is a compile-time input and forty-three of
-/// them are forty-three builds.
+/// harness uses, because a define is a compile-time input and forty-four of
+/// them are forty-four builds.
 final class GoldenRunner {
   GoldenRunner._(this.scene, {required this.update, required this.directory});
 
@@ -107,7 +107,7 @@ final class GoldenRunner {
       scene,
       // The store's answer wins where it has one. A desktop run takes the
       // direction from the environment and a browser run from the URL, for the
-      // same reason on both: one build has to serve forty-three scenes in both
+      // same reason on both: one build has to serve forty-four scenes in both
       // directions, and anything the compiler sees is another build.
       update:
           updateOverride ??

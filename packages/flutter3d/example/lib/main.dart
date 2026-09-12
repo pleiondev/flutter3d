@@ -54,6 +54,10 @@ class _SpikePageState extends State<SpikePage>
 
   TextureHandle? _checkerAlbedo;
 
+  /// `qa-10`'s own golden: populated once the scene is staged and the camera
+  /// has its final position, since `MeshOverlay.lookFrom` needs both.
+  MeshOverlay? _meshOverlay;
+
   late final Scene _scene;
   late final SceneNode _modelPivot;
   late final CameraNode _camera;
@@ -452,6 +456,18 @@ class _SpikePageState extends State<SpikePage>
       if (goldenScene.viewModel) {
         renderer.addNode(GoldenExtras.viewModel(device));
       }
+      if (goldenScene.name == 'mesh-overlay') {
+        // Content is filled in once the scene is staged and the camera has
+        // its final position — see `_populateMeshOverlayGolden`. Added empty
+        // here so the contributor's own frame ordering is fixed from the
+        // first frame like every other one above; `isActive` is false until
+        // then, so an empty overlay draws nothing and costs nothing.
+        _meshOverlay = MeshOverlay(
+          vertexShader: renderer.debugLineVertexShader,
+          fragmentShader: renderer.debugLineFragmentShader,
+        );
+        renderer.addContributor(_meshOverlay!);
+      }
     }
 
     _assets = ResourceCache<String, ModelAsset>(
@@ -796,11 +812,85 @@ class _SpikePageState extends State<SpikePage>
       _orbit.syncProjectionDepth(_camera);
       _placeSceneLights(bounds);
       _placeGoldenCamera(bounds);
+      _populateMeshOverlayGolden(bounds);
       // Last, inside the same setState as the placing: a golden's first frame
       // is the first frame after this line, and it must see everything above
       // it already done. See [_staged].
       _staged = true;
     });
+  }
+
+  /// `qa-10`'s own golden: a wireframe cube (lines), two vertex handles and
+  /// one selected edge as a ribbon (handles), and a translucent wash over one
+  /// face at the design's own `#004F58` (fill) — all three of `MeshOverlay`'s
+  /// batches populated in one scene, so the frame proves out `view-05`'s own
+  /// "N edges, 3 draws" in a picture rather than only in a unit test.
+  ///
+  /// Called once the camera has its final, frozen position for this golden —
+  /// `lookFrom` needs the eye and basis vectors, and nothing here moves again
+  /// before the frame is captured.
+  void _populateMeshOverlayGolden(Aabb3 bounds) {
+    final overlay = _meshOverlay;
+    final golden = _golden?.scene;
+    if (overlay == null || golden == null) return;
+    if (!bounds.min.x.isFinite) return;
+
+    final world = _camera.worldMatrix.storage;
+    final eye = Vector3(world[12], world[13], world[14]);
+    final right = Vector3(world[0], world[1], world[2]);
+    final up = Vector3(world[4], world[5], world[6]);
+    final projection = _camera.projection;
+    final fovY = projection is PerspectiveProjection
+        ? projection.fovYRadians
+        : math.pi / 4;
+    overlay.lookFrom(
+      eye: eye,
+      right: right,
+      up: up,
+      pixel: 2 * math.tan(fovY / 2) / golden.height,
+    );
+
+    // Drawn on the model's own bounds rather than an assumed unit cube: the
+    // pivot that frames the model onto the camera moves and scales it, and
+    // the overlay's positions are world-space, not the model's local space.
+    final lo = bounds.min;
+    final hi = bounds.max;
+    final c000 = Vector3(lo.x, lo.y, lo.z);
+    final c001 = Vector3(lo.x, lo.y, hi.z);
+    final c010 = Vector3(lo.x, hi.y, lo.z);
+    final c011 = Vector3(lo.x, hi.y, hi.z);
+    final c100 = Vector3(hi.x, lo.y, lo.z);
+    final c101 = Vector3(hi.x, lo.y, hi.z);
+    final c110 = Vector3(hi.x, hi.y, lo.z);
+    final c111 = Vector3(hi.x, hi.y, hi.z);
+
+    // High-contrast, chosen for legibility against the checkerboard rather
+    // than to match any UI palette — this is a technical scene, not a
+    // rendering of the app's own selection colours.
+    final wire = Vector4(0.0, 1.0, 1.0, 1.0);
+    overlay
+      ..edge(c000, c100, wire)
+      ..edge(c100, c110, wire)
+      ..edge(c110, c010, wire)
+      ..edge(c010, c000, wire)
+      ..edge(c001, c101, wire)
+      ..edge(c101, c111, wire)
+      ..edge(c111, c011, wire)
+      ..edge(c011, c001, wire)
+      ..edge(c000, c001, wire)
+      ..edge(c100, c101, wire)
+      ..edge(c110, c111, wire)
+      ..edge(c010, c011, wire);
+
+    // Two vertex handles and one selected edge, distinct from the wireframe.
+    final selected = Vector4(1.0, 1.0, 0.0, 1.0);
+    overlay
+      ..point(c111, selected)
+      ..point(c110, selected)
+      ..ribbon(c111, c110, selected);
+
+    // `#004F58` — the design's own fill colour, converted from sRGB bytes.
+    overlay.wash(c010, c110, c111, Vector4(0 / 255, 79 / 255, 88 / 255, 1.0));
   }
 
   /// Puts the second camera where the overlay can draw its whole frustum.

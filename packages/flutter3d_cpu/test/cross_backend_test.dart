@@ -207,6 +207,13 @@ const Map<String, double> _budgets = <String, double>{
   // never place identically; the caption on the site says the picture has them
   // because it does now.
   'debug-overlay': 0.37,
+  // 1.04% measured. `qa-10`'s own scene, and the highest overlay budget of
+  // the two for the same reason `debug-overlay` sits above the model
+  // scenes: `MeshOverlay`'s own lines, handles and fill are drawn in the
+  // scene pass rather than after it, so a rasteriser's own multisampling
+  // — and this scene draws twelve thin lines and two quads where
+  // `debug-overlay` draws five — has more silhouette to disagree about.
+  'mesh-overlay': 1.1,
   // 0.226% measured, which is a silhouette and nothing else — the same band
   // `skinned-figure` sits in, and for the same reason: both scenes are one
   // model whose vertices were moved by a stage before anything shaded them, so
