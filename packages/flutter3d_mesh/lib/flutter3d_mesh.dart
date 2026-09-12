@@ -44,4 +44,5 @@ export 'src/skin/vertex_weights.dart';
 export 'src/smooth.dart';
 export 'src/subdivide.dart';
 export 'src/triangulate.dart';
+export 'src/uv_project.dart';
 export 'src/weight_ops.dart';
