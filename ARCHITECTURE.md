@@ -169,7 +169,7 @@ copy, and is the bridge into the widget tree.
 
 ## 3. The package map
 
-Thirty-three packages and seven applications in one pub workspace — one
+Thirty-four packages and seven applications in one pub workspace — one
 `flutter pub get` for the repository.
 
 ### 3.1 The layering rule
@@ -207,6 +207,7 @@ point of §3.3.
 | `flutter3d_samples` | The Khronos test models the decoders are checked against and the demo browses. Fixtures, so that a game depending on the engine does not carry them |
 | `flutter3d_particles` | CPU emitters and the particle pass contributor |
 | `flutter3d_physics` | Collision world, character controller, rigid bodies, spatial grid |
+| `flutter3d_cloth` | An XPBD cloth solver — distance and cross-edge bending constraints, pins, wind, collision against `flutter3d_physics`'s own shapes. Plain Dart |
 | `flutter3d_sim` | The simulation: fixed step, ECS, level format, actors, navigation, saves, replays, camera rig. Plain Dart |
 | `flutter3d_game` | The Flutter half of the game layer: touch and keyboard input, accessibility settings, diagnostics. Re-exports `flutter3d_sim` |
 | `flutter3d_game_shooter` | Shooter rules: weapons, hitscan, projectiles, inventory, monsters |

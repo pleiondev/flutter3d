@@ -11,7 +11,7 @@ wrapper around another engine, and it is not affiliated with the Flutter team.
 On pub.dev: twenty-seven packages, published by
 [pleion.dev](https://pub.dev/publishers/pleion.dev/packages) — start with
 [`flutter3d`](https://pub.dev/packages/flutter3d) and a backend. The workspace
-holds thirty-three; `flutter3d_game_strategy` is the one that is not published,
+holds thirty-four; `flutter3d_game_strategy` is the one that is not published,
 because its types still encode how many sides a match may have, and
 `flutter3d_geometry` and `flutter3d_formats` were written after the set went out
 and go with the next one, so the counts differ. The set is **0.6.0**, twenty-five packages at one number,
@@ -36,6 +36,7 @@ genres, and the generated API reference.
 | [`packages/flutter3d`](packages/flutter3d) | The renderer: scene graph, glTF/OBJ/`.f3d` loading, six lighting models, shadows, bloom, skinning, BVH culling, picking. [README](packages/flutter3d/README.md) |
 | [`packages/flutter3d_game`](packages/flutter3d_game) | The game layer: a fixed timestep, interpolation, input that has forgotten which device it came from, levels and mechanisms. [README](packages/flutter3d_game/README.md) |
 | [`packages/flutter3d_physics`](packages/flutter3d_physics) | Collision shapes, a broadphase, queries and a character controller. Plain Dart — no Flutter, no renderer |
+| [`packages/flutter3d_cloth`](packages/flutter3d_cloth) | An XPBD cloth solver: distance and cross-edge bending constraints, pins, wind, collision against `flutter3d_physics`'s own shapes. Plain Dart |
 | [`packages/flutter3d_game_shooter`](packages/flutter3d_game_shooter) | One genre: monsters, weapons, an inventory, the step order that ties them together, and the weapon held in the hands |
 | [`packages/flutter3d_game_platformer`](packages/flutter3d_game_platformer) | A second genre, and the instrument that tests the first: a runner who jumps twice, coins, hazards and checkpoints |
 | [`packages/flutter3d_bridge`](packages/flutter3d_bridge) | Where the two meet: level geometry to mesh nodes, an actor to its visual, a fixture to the light it drives |
