@@ -152,6 +152,65 @@ void main() {
       expect(remaining, greaterThan(17.0));
     });
 
+    test(
+      'a chain already bent at rest keeps bending the same way, not back '
+      'through straight',
+      () {
+        // mid bent 90° at rest: root(0) at the origin, mid(1) one unit along
+        // +X, tip(2) one more unit along mid's own +Y (rotated 90° about Z
+        // from mid's local +X) — so the tip starts at (1, 1, 0), not on a
+        // straight line through root and mid the way every chain above does.
+        final quarterTurn = Quaternion.axisAngle(
+          Vector3(0.0, 0.0, 1.0),
+          1.5707963267948966,
+        );
+        final pose = Pose(
+          parents: <int>[-1, 0, 1],
+          restTranslations: Float32List.fromList(<double>[
+            0, 0, 0, //
+            1, 0, 0, //
+            1, 0, 0, //
+          ]),
+          restRotations: Float32List.fromList(<double>[
+            0, 0, 0, 1, //
+            quarterTurn.x, quarterTurn.y, quarterTurn.z, quarterTurn.w, //
+            0, 0, 0, 1, //
+          ]),
+          restScales: Float32List.fromList(<double>[
+            1, 1, 1, //
+            1, 1, 1, //
+            1, 1, 1, //
+          ]),
+        );
+
+        // Reachable (chain spans 0..2) and only a little past the rest tip
+        // position of (1, 1, 0) — a target the wrong-sign bend the mutation
+        // below reproduces lands nowhere near, roughly (0.65, 0.68, 0) short
+        // of it, which is why `1e-4` alone is enough to catch it without a
+        // separate direct check on the sign.
+        final target = Vector3(1.3, 1.1, 0.0);
+        final remaining = TwoBoneIk.solve(
+          pose,
+          root: 0,
+          mid: 1,
+          tip: 2,
+          target: target,
+          pole: Vector3(0.0, 1.0, 0.0),
+        );
+        // Mutation: swap this step's own `oldAngle - newAngle` back to
+        // `newAngle - oldAngle` — every test above still passes, since a
+        // chain starting exactly straight cannot tell the two apart; this
+        // target needs the chain to bend *less* from an already-bent rest
+        // pose, which only the correct sign reaches.
+        expect(remaining, lessThan(1e-4));
+
+        final tip = pose.worldMatrices()[2].getTranslation();
+        expect(tip.x, closeTo(target.x, 1e-4));
+        expect(tip.y, closeTo(target.y, 1e-4));
+        expect(tip.z, closeTo(target.z, 1e-4));
+      },
+    );
+
     test('a target inside the two bones cannot fold to is clamped, not NaN', () {
       // Unequal lengths: upper 2, lower 1 (tip local translation shortened).
       final pose = Pose(

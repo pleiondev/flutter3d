@@ -1132,6 +1132,17 @@ Map<String, Object?> _skeletonJson(ProjectSkeleton skeleton) => <String, Object?
     for (final Matrix4 m in skeleton.inverseBindMatrices) <double>[...m.storage],
   ],
   'skeletonRoot': skeleton.skeletonRoot,
+  'constraints': <Object?>[
+    for (final IkConstraint c in skeleton.constraints) _ikConstraintJson(c),
+  ],
+};
+
+Map<String, Object?> _ikConstraintJson(IkConstraint c) => <String, Object?>{
+  'rootJointId': c.rootJointId,
+  'midJointId': c.midJointId,
+  'effectorJointId': c.effectorJointId,
+  'target': <double>[c.target.x, c.target.y, c.target.z],
+  'pole': <double>[c.pole.x, c.pole.y, c.pole.z],
 };
 
 Map<String, Object?> _clipJson(ProjectClip clip) => <String, Object?>{
@@ -1951,12 +1962,19 @@ VertexLayout? _layoutFrom(Object? json, Map<String, String> pool) {
           ]),
         );
       }
+      final (readConstraints, constraintRefusal) = _readIkConstraints(
+        (json[i] as Map)['constraints'],
+      );
+      if (constraintRefusal != null) {
+        return (const <ProjectSkeleton>[], 'Skeleton $i: $constraintRefusal');
+      }
       skeletons.add(
         ProjectSkeleton(
           joints: <int>[for (final Object? v in joints) v! as int],
           inverseBindMatrices: readMatrices,
           skeletonRoot: skeletonRoot,
           name: name,
+          constraints: readConstraints,
         ),
       );
     } else {
@@ -1967,6 +1985,40 @@ VertexLayout? _layoutFrom(Object? json, Map<String, String> pool) {
     }
   }
   return (skeletons, null);
+}
+
+/// The `IkConstraint`s [json] describes, or the sentence that stops the
+/// file. Absent — every skeleton saved before `anim-15` existed — reads as
+/// no constraints at all, the same optional-field rule [_readSkeletons]
+/// itself follows for a whole absent skeleton list.
+(List<IkConstraint>, String?) _readIkConstraints(Object? json) {
+  if (json == null) return (const <IkConstraint>[], null);
+  if (json is! List) {
+    return (const <IkConstraint>[], 'its constraints are not a list.');
+  }
+  final constraints = <IkConstraint>[];
+  for (var i = 0; i < json.length; i++) {
+    if (json[i] case {
+      'rootJointId': final int rootJointId,
+      'midJointId': final int midJointId,
+      'effectorJointId': final int effectorJointId,
+      'target': [final num tx, final num ty, final num tz],
+      'pole': [final num px, final num py, final num pz],
+    }) {
+      constraints.add(
+        IkConstraint(
+          rootJointId: rootJointId,
+          midJointId: midJointId,
+          effectorJointId: effectorJointId,
+          target: Vector3(tx.toDouble(), ty.toDouble(), tz.toDouble()),
+          pole: Vector3(px.toDouble(), py.toDouble(), pz.toDouble()),
+        ),
+      );
+    } else {
+      return (const <IkConstraint>[], 'constraint $i is not a well-formed IkConstraint.');
+    }
+  }
+  return (constraints, null);
 }
 
 /// The clips [json] describes, or the sentence that stops the file.

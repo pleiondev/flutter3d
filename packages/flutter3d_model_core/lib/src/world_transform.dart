@@ -25,12 +25,25 @@ import 'project.dart';
 /// answer past that point is whatever had been composed so far, not a
 /// claim about what the cycle "really" means, since a ring has no root to
 /// measure from.
-Matrix4 worldTransformOf(ModelProject project, int id) {
+///
+/// **[rotationOverrides], for a caller that has a rotation `anim-15`'s own
+/// `IkConstraint` needs but [project] does not carry.** A joint's animated
+/// rotation lives in a clip, not in [ModelObject.transform], so a solve run
+/// at a particular time needs this hierarchy walk without needing a live
+/// scene to ask for it: the override replaces one ancestor's own rotation
+/// component for this call only, keeping its translation and scale exactly
+/// as [project] has them.
+Matrix4 worldTransformOf(
+  ModelProject project,
+  int id, {
+  Map<int, Quaternion>? rotationOverrides,
+}) {
   final chain = <Matrix4>[];
   final visited = <int>{};
   var current = project[id];
   while (current != null && visited.add(current.id)) {
-    chain.add(current.transform);
+    final override = rotationOverrides?[current.id];
+    chain.add(override == null ? current.transform : _withRotation(current.transform, override));
     current = current.parent == null ? null : project[current.parent!];
   }
   // Steps, not `Matrix4 * Matrix4`: that operator is declared to return
@@ -41,4 +54,15 @@ Matrix4 worldTransformOf(ModelProject project, int id) {
     world.multiply(transform);
   }
   return world;
+}
+
+/// [base], with its own rotation component replaced by [rotation] — its
+/// translation and scale survive the round trip through [Matrix4.decompose]
+/// untouched.
+Matrix4 _withRotation(Matrix4 base, Quaternion rotation) {
+  final translation = Vector3.zero();
+  final currentRotation = Quaternion.identity();
+  final scale = Vector3.zero();
+  base.decompose(translation, currentRotation, scale);
+  return Matrix4.compose(translation, rotation, scale);
 }

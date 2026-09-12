@@ -22,7 +22,9 @@ final class ProjectSkeleton {
     required this.inverseBindMatrices,
     this.skeletonRoot,
     this.name,
-  }) : joints = List.unmodifiable(joints) {
+    List<IkConstraint> constraints = const <IkConstraint>[],
+  }) : joints = List.unmodifiable(joints),
+       constraints = List.unmodifiable(constraints) {
     if (inverseBindMatrices.length != joints.length) {
       throw ArgumentError(
         'ProjectSkeleton "${name ?? 'unnamed'}" has ${joints.length} joints '
@@ -44,6 +46,11 @@ final class ProjectSkeleton {
   /// The object the skeleton hangs from, by id, when the source named one.
   final int? skeletonRoot;
 
+  /// Two-bone solves applied after FK — `anim-15`'s own row. Empty for
+  /// almost every skeleton, the ordinary case until a rig actually needs
+  /// one.
+  final List<IkConstraint> constraints;
+
   int get jointCount => joints.length;
 
   /// [this], with named fields replaced.
@@ -53,16 +60,58 @@ final class ProjectSkeleton {
     int? skeletonRoot,
     bool clearSkeletonRoot = false,
     String? name,
+    List<IkConstraint>? constraints,
   }) => ProjectSkeleton(
     joints: joints ?? this.joints,
     inverseBindMatrices: inverseBindMatrices ?? this.inverseBindMatrices,
     skeletonRoot: clearSkeletonRoot ? null : (skeletonRoot ?? this.skeletonRoot),
     name: name ?? this.name,
+    constraints: constraints ?? this.constraints,
   );
 
   @override
   String toString() =>
       'ProjectSkeleton(${name ?? 'unnamed'}, ${joints.length} joints)';
+}
+
+/// A two-bone IK solve, root → mid → effector, bent after FK so the
+/// effector reaches [target] — `anim-15`'s own row, `IkConstraint` in
+/// `ProjectSkeleton.constraints`.
+///
+/// **Three joints, not a general chain.** `FabrikIk` (`anim-14`, engine
+/// package) solves a chain of any length; this row's own acceptance only
+/// ever exercises the textbook two-bone case — an arm or a leg — and a
+/// general N-bone project-level solver is a bigger thing this row does not
+/// ask for. [rootJointId], [midJointId] and [effectorJointId] are
+/// [ModelObject.id]s, the same addressing [ProjectSkeleton.joints] and
+/// [ProjectTrack.objectId] already use; [midJointId] is expected to be
+/// [rootJointId]'s own child and [effectorJointId] [midJointId]'s, the
+/// ordinary shape of an upper-arm/forearm or thigh/shin pair.
+final class IkConstraint {
+  const IkConstraint({
+    required this.rootJointId,
+    required this.midJointId,
+    required this.effectorJointId,
+    required this.target,
+    required this.pole,
+  });
+
+  final int rootJointId;
+  final int midJointId;
+  final int effectorJointId;
+
+  /// Where [effectorJointId] should land, in the space [rootJointId]'s own
+  /// ancestors share.
+  final Vector3 target;
+
+  /// A point the middle joint bends toward — the only input that decides
+  /// which of the two ways a two-bone chain can fold, the same role
+  /// `TwoBoneIk.solve`'s own `pole` plays in the engine.
+  final Vector3 pole;
+
+  @override
+  String toString() =>
+      'IkConstraint($rootJointId → $midJointId → $effectorJointId → $target)';
 }
 
 /// One [AnimationTrack], retargeted from a node index onto an object id.

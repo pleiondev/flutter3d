@@ -136,10 +136,27 @@ abstract final class TwoBoneIk {
         : _arbitraryPerpendicular(midPos0 - rootPos);
 
     // Step 1: bend the middle joint to the desired interior angle.
+    //
+    // `oldAngle - newAngle`, not `newAngle - oldAngle`: for any two
+    // non-parallel vectors `U = midPos0 - rootPos` and `L = tipPos0 -
+    // midPos0`, rotating `U` by `+arccos(U·L)` about `bendAxis = U.cross(L)`
+    // lands exactly on `L` — the right-hand rule that defines `bendAxis`
+    // guarantees it. The interior angle this solves for is the angle
+    // between `-U` and `L`, which is `180° - arccos(U·L)`, so rotating `-U`
+    // to `L` about `bendAxis` sweeps `-(oldAngle)`, not `+oldAngle` — a
+    // fixed, negative relationship to `bendAxis` that holds regardless of
+    // how the chain is bent. Reaching a new interior angle of `newAngle`
+    // by the same reasoning needs the swept angle to change from
+    // `-oldAngle` to `-newAngle`, a delta of `oldAngle - newAngle` — and
+    // only at the degenerate `oldAngle == 180°` boundary (`_twoBoneChain`'s
+    // own straight rest pose, every existing test below) do `+` and `-`
+    // that delta agree on magnitude, which is how the wrong sign passed
+    // unnoticed until a bent starting pose (`anim-15`'s own project-level
+    // reimplementation, checked against this function) exposed it.
     _rotateJointWorld(
       pose,
       mid,
-      Quaternion.axisAngle(bendAxis, newAngle - oldAngle),
+      Quaternion.axisAngle(bendAxis, oldAngle - newAngle),
     );
 
     // Step 2: aim the root so the now-correctly-bent chain points at the

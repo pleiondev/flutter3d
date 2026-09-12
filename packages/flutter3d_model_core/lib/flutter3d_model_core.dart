@@ -35,6 +35,7 @@ export 'src/command_journal.dart';
 export 'src/curve_display.dart';
 export 'src/deflate.dart';
 export 'src/history.dart';
+export 'src/ik_constraint.dart';
 export 'src/image_dimensions.dart';
 export 'src/import_into.dart';
 export 'src/inflate.dart';
