@@ -46,7 +46,7 @@
     "doc-22": "done",
     "doc-23": "done",
     "doc-24": "done",
-    "doc-26": "partial",
+    "doc-26": "done",
     "doc-25": "partial",
     "doc-27": "done",
     "doc-28": "done",
@@ -232,6 +232,9 @@
     },
     "doc-10": {
       "ProjectReader": "project_format.dart работает функциями readProject/writeProject плюс запечатанные ProjectRead/ProjectOpened/ProjectRefused для результата, а не парой классов Reader/Writer — тот же выбор, что и у остального файла"
+    },
+    "doc-26": {
+      "SetJointRest": "реализовано как SetRestPose в joint_commands.dart; anim-29, которая поглощает doc-26 в части скелета, прямо называет этот класс своим — доккомент класса цитирует «SetRestPose/MirrorJoints» как её собственный недостающий кусок"
     }
   }
 }
