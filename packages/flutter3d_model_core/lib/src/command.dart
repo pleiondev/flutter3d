@@ -42,6 +42,7 @@ import 'png_encoder.dart';
 import 'project.dart';
 import 'project_animation.dart';
 import 'project_morphs.dart';
+import 'scene_lighting.dart';
 import 'selection.dart';
 import 'texture_bake.dart';
 import 'texture_graph.dart';
@@ -50,6 +51,7 @@ import 'world_transform.dart';
 part 'job_commands.dart';
 part 'joint_commands.dart';
 part 'keyframe_commands.dart';
+part 'lighting_commands.dart';
 part 'material_commands.dart';
 part 'mesh_commands.dart';
 part 'modifier_commands.dart';
@@ -476,6 +478,11 @@ const List<String> modelCommandNames = <String>[
   'selectEdgeLoop',
   'selectEdgeRing',
   'selectByMaterial',
+  'addLight',
+  'removeLight',
+  'setLightField',
+  'setEnvironment',
+  'setSceneLightingField',
   'addMaterial',
   'removeMaterial',
   'duplicateMaterial',
@@ -706,6 +713,43 @@ ModelCommand? modelCommandFromJson(Object? json) {
     },
     'selectByMaterial' => switch (json['slot']) {
       final int slot => SelectByMaterial(slot),
+      _ => null,
+    },
+    'addLight' => AddLight(
+      type: switch (json['type']) {
+        final String type => ProjectLightType.values.firstWhere(
+          (ProjectLightType t) => t.name == type,
+          orElse: () => ProjectLightType.directional,
+        ),
+        _ => ProjectLightType.directional,
+      },
+    ),
+    'removeLight' => switch (json['index']) {
+      final int index => RemoveLight(index),
+      _ => null,
+    },
+    'setLightField' => switch ((json['index'], json['field'])) {
+      (final int index, final String field) => SetLightField(
+        index: index,
+        field: field,
+        value: json['value'],
+      ),
+      _ => null,
+    },
+    'setEnvironment' => switch (json['preset']) {
+      final String preset => SetEnvironment(
+        SceneEnvironmentPreset.values.firstWhere(
+          (SceneEnvironmentPreset p) => p.name == preset,
+          orElse: () => SceneEnvironmentPreset.none,
+        ),
+      ),
+      _ => null,
+    },
+    'setSceneLightingField' => switch (json['field']) {
+      final String field => SetSceneLightingField(
+        field: field,
+        value: json['value'],
+      ),
       _ => null,
     },
     'addMaterial' => AddMaterial(materialName: json['materialName'] as String?),

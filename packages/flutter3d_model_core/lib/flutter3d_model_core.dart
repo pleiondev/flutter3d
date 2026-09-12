@@ -61,6 +61,7 @@ export 'src/readiness.dart';
 export 'src/readiness_cache.dart';
 export 'src/rig_issues.dart';
 export 'src/rig_template.dart';
+export 'src/scene_lighting.dart';
 export 'src/selection.dart';
 export 'src/shape_driver.dart';
 export 'src/texture_bake.dart';

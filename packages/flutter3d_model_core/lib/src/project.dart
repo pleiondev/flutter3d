@@ -28,6 +28,7 @@ import 'modifier_slot.dart';
 import 'param_hint.dart';
 import 'project_animation.dart';
 import 'project_morphs.dart';
+import 'scene_lighting.dart';
 import 'selection.dart';
 import 'texture_budget.dart';
 
@@ -451,6 +452,7 @@ final class ModelProject implements ModelProjectView {
     this.nextId = 1,
     this.skeletons = const <ProjectSkeleton>[],
     this.clips = const <ProjectClip>[],
+    this.lighting = const SceneLighting(),
   });
 
   final ProjectProfile profile;
@@ -471,6 +473,13 @@ final class ModelProject implements ModelProjectView {
 
   /// Animation clips, each track naming an object by id.
   final List<ProjectClip> clips;
+
+  /// The project's own lights, environment, ambient level, shadow request
+  /// and post-processing — `mat-23`'s own row. Not written to the file
+  /// format yet: a project saved and reopened comes back with the default
+  /// (no lights, no environment), the same honest gap `fromModelDocument`'s
+  /// own doc comment already keeps for [profile].
+  final SceneLighting lighting;
 
   /// In the order they were added, which is the order the outliner shows and
   /// the order an export writes. A map by id would make a lookup cheaper and
@@ -527,6 +536,7 @@ final class ModelProject implements ModelProjectView {
       nextId: nextId,
       skeletons: skeletons,
       clips: clips,
+      lighting: lighting,
     );
   }
 
@@ -543,6 +553,7 @@ final class ModelProject implements ModelProjectView {
     nextId: nextId + 1,
     skeletons: skeletons,
     clips: clips,
+    lighting: lighting,
   );
 
   /// This project without the object [id], and without anything under it.
@@ -581,6 +592,7 @@ final class ModelProject implements ModelProjectView {
       images: images,
       skeletons: skeletons,
       clips: clips,
+      lighting: lighting,
       // Unchanged on purpose: an id belonging to something deleted must not
       // come back, or a step of history that names it starts naming something
       // else the moment it is undone and redone.
@@ -594,6 +606,7 @@ final class ModelProject implements ModelProjectView {
     List<EncodedImage>? images,
     List<ProjectSkeleton>? skeletons,
     List<ProjectClip>? clips,
+    SceneLighting? lighting,
   }) => ModelProject(
     profile: profile ?? this.profile,
     objects: objects,
@@ -602,6 +615,7 @@ final class ModelProject implements ModelProjectView {
     nextId: nextId,
     skeletons: skeletons ?? this.skeletons,
     clips: clips ?? this.clips,
+    lighting: lighting ?? this.lighting,
   );
 
   @override
