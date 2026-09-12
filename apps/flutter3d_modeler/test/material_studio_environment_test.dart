@@ -4,8 +4,8 @@
 ///     flutter test test/material_studio_environment_test.dart
 library;
 
-import 'package:flutter3d_hardware/testing.dart';
 import 'package:flutter3d/flutter3d.dart';
+import 'package:flutter3d_hardware/testing.dart';
 import 'package:flutter3d_modeler/src/ui/material_studio_dialog.dart';
 import 'package:flutter_test/flutter_test.dart';
 
