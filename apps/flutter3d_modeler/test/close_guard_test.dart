@@ -58,4 +58,14 @@ void main() {
       expect(closed, isFalse);
     });
   });
+
+  group('windowTitleFor', () {
+    test('a dirty document gets a leading marker', () {
+      expect(windowTitleFor(isDirty: true), '• flutter3d modeller');
+    });
+
+    test('a clean document gets the plain title, no marker', () {
+      expect(windowTitleFor(isDirty: false), 'flutter3d modeller');
+    });
+  });
 }

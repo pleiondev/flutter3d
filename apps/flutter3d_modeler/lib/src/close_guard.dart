@@ -29,6 +29,12 @@ enum UnsavedChoice {
 /// about.
 bool needsConfirmation({required bool isDirty}) => isDirty;
 
+/// The window/tab title's own marker for unsaved work — `ui-24`'s own "маркер
+/// в заголовке", kept a pure string function so it is testable the same way
+/// as everything else in this file, without a `BuildContext` to build one in.
+String windowTitleFor({required bool isDirty}) =>
+    isDirty ? '• flutter3d modeller' : 'flutter3d modeller';
+
 /// What actually closing means, once a person has answered the dialog
 /// [needsConfirmation] asked for.
 ///

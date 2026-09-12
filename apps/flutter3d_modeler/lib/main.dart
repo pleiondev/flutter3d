@@ -17,6 +17,7 @@
 library;
 
 import 'dart:async';
+import 'dart:ui' as ui show AppExitResponse;
 
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart' hide Material;
@@ -31,6 +32,8 @@ import 'package:vector_math/vector_math.dart' as vm;
 
 import 'src/backend.dart';
 import 'src/churn_run.dart';
+import 'src/close_beforeunload.dart';
+import 'src/close_guard.dart';
 import 'src/display_modes.dart';
 import 'src/element_picking.dart';
 import 'src/exporting.dart';
@@ -240,6 +243,11 @@ class _ModelerScreenState extends State<ModelerScreen>
   /// half measure: the log costs a callback per frame and reports nothing.
   final FrameTimingLog _timings = FrameTimingLog(label: 'modeller');
 
+  /// `ui-24`'s own window-close interception on desktop, where there is no
+  /// `Navigator` route for `PopScope` to guard — the OS asks the app
+  /// directly rather than routing a back gesture through one.
+  late final AppLifecycleListener _lifecycle;
+
   @override
   void initState() {
     super.initState();
@@ -248,7 +256,60 @@ class _ModelerScreenState extends State<ModelerScreen>
     _ticker = createTicker(_onTick)..start();
     _timings.start();
     unawaited(_open());
+    _lifecycle = AppLifecycleListener(onExitRequested: _onExitRequested);
+    installBeforeUnloadGuard(() => _history.isDirty);
   }
+
+  /// Answers the OS's own "can you close now?" — `ui-24`'s "при isDirty —
+  /// диалог" on the platforms that ask this way rather than through a
+  /// `Navigator` pop.
+  Future<ui.AppExitResponse> _onExitRequested() async {
+    if (!needsConfirmation(isDirty: _history.isDirty)) {
+      return ui.AppExitResponse.exit;
+    }
+    final UnsavedChoice? choice = await _askUnsavedChoice();
+    if (choice == null) return ui.AppExitResponse.cancel;
+    final closed = await shouldClose(choice, write: _saveFile);
+    return closed ? ui.AppExitResponse.exit : ui.AppExitResponse.cancel;
+  }
+
+  /// `PopScope`'s own callback when [canPop] blocked a pop — the in-app-nav
+  /// half of `ui-24`'s dialog, for whatever platform routes an exit attempt
+  /// through a `Navigator` pop rather than asking the OS directly.
+  Future<void> _onPopInvoked(bool didPop, Object? result) async {
+    if (didPop) return;
+    final UnsavedChoice? choice = await _askUnsavedChoice();
+    if (choice == null) return;
+    final closed = await shouldClose(choice, write: _saveFile);
+    if (closed && mounted) await SystemNavigator.pop();
+  }
+
+  /// The three answers `close_guard.dart`'s own [UnsavedChoice] names, put
+  /// in front of a person once — every caller that finds the document
+  /// dirty on the way out asks through this one dialog rather than each
+  /// growing a slightly different one.
+  Future<UnsavedChoice?> _askUnsavedChoice() => showDialog<UnsavedChoice>(
+    context: context,
+    builder: (BuildContext context) => AlertDialog(
+      title: const Text('Unsaved changes'),
+      content: const Text('This model has changes that have not been saved.'),
+      actions: <Widget>[
+        TextButton(
+          onPressed: () =>
+              Navigator.of(context).pop(UnsavedChoice.keepEditing),
+          child: const Text('Keep editing'),
+        ),
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(UnsavedChoice.discard),
+          child: const Text('Discard'),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.of(context).pop(UnsavedChoice.save),
+          child: const Text('Save and close'),
+        ),
+      ],
+    ),
+  );
 
   void _onTick(Duration elapsed) {
     // Clamped because the first tick is measured from zero and a tab that was
@@ -299,6 +360,7 @@ class _ModelerScreenState extends State<ModelerScreen>
   void dispose() {
     _ticker?.dispose();
     _timings.stop();
+    _lifecycle.dispose();
     _cubit.close();
     super.dispose();
   }
@@ -473,8 +535,10 @@ class _ModelerScreenState extends State<ModelerScreen>
   /// The spike part is what follows the write: `p0-13n` asks whether the same
   /// directory would have taken a temporary file and a rename, and the answer
   /// goes on the screen beside the result.
-  Future<void> _saveFile() async {
-    if (_state is! ModelerReady) return;
+  /// Answers whether bytes actually landed on disk — `ui-24`'s own
+  /// "неудачная запись не закрывает" needs to know, not just report.
+  Future<bool> _saveFile() async {
+    if (_state is! ModelerReady) return false;
 
     final Uint8List bytes;
     try {
@@ -484,7 +548,7 @@ class _ModelerScreenState extends State<ModelerScreen>
       // targets. The message names the object, and it belongs in front of the
       // person rather than in a stack trace.
       _cubit.say('not saved: ${error.message}');
-      return;
+      return false;
     }
     final result = await saveAs(bytes, suggestedName: 'model.f3dproj');
     var said = switch (result.outcome) {
@@ -499,7 +563,14 @@ class _ModelerScreenState extends State<ModelerScreen>
           ? '\na temporary file and a rename would also have worked'
           : '\na temporary file and a rename would not: $why';
     }
+    final written = result.outcome == SaveOutcome.written;
+    // A cancelled picker or a refusal has not put the document in the state
+    // a person who chose "save and close" asked to leave it in — only an
+    // actual write clears dirty, the same way `ModelHistory.markSaved`'s
+    // own doc comment already puts it.
+    if (written) _history.markSaved();
     if (mounted) _cubit.say(said);
+    return written;
   }
 
   /// Takes the document out to a format somebody else reads.
@@ -1220,7 +1291,18 @@ class _ModelerScreenState extends State<ModelerScreen>
         ),
       ),
     ),
-    ModelerReady(:final renderer, :final stage) => _Keys(
+    ModelerReady(:final renderer, :final stage) => Title(
+      title: windowTitleFor(isDirty: state.history.isDirty),
+      color: Colors.black,
+      // `ui-24`'s own "при isDirty — диалог" on the platforms that route an
+      // exit attempt through a `Navigator` pop — Android's back gesture,
+      // chiefly, since this single-screen app has nothing else to pop to.
+      // `_onExitRequested` covers the desktop window-close case, which
+      // never goes through here at all.
+      child: PopScope(
+        canPop: !state.history.isDirty,
+        onPopInvokedWithResult: _onPopInvoked,
+        child: _Keys(
       onKey: _modalKey,
       onUndo: _undo,
       onRedo: _redo,
@@ -1492,6 +1574,8 @@ class _ModelerScreenState extends State<ModelerScreen>
         },
       ),
     ),
+        ),
+      ),
   };
 }
 
