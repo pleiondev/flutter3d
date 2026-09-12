@@ -82,6 +82,34 @@ final class ModelSurface {
   final Set<String> authoredAttributes;
 }
 
+/// One level of detail a node offers in place of its own full surface list
+/// — `pro-eng-06`'s own row.
+///
+/// **Surfaces, not sibling nodes.** glTF's own `MSFT_lod` extension names
+/// alternate *nodes* of decreasing detail rather than alternate surface
+/// lists on one node, which is a real, different shape from this one — a
+/// `.f3d` file round-trips [ModelNode.lods] directly; a glTF file does not
+/// yet, because doing so correctly means deciding how this node's own
+/// surface-level LODs become `MSFT_lod`'s sibling-node ones, and that
+/// mapping is not built.
+final class ModelLod {
+  const ModelLod({required this.surfaceIndices, required this.maxScreenFraction});
+
+  /// Indices into `ModelDocument.surfaces`, replacing the node's own
+  /// [ModelNode.surfaces] when this level is the one in use.
+  final List<int> surfaceIndices;
+
+  /// The largest fraction of the screen this level is meant for — a viewer
+  /// switches to a coarser level once the node would cover less of the
+  /// screen than the next level's own threshold.
+  final double maxScreenFraction;
+
+  @override
+  String toString() =>
+      'ModelLod(${surfaceIndices.length} surfaces, '
+      'maxScreenFraction: $maxScreenFraction)';
+}
+
 /// A node in a decoded model's hierarchy.
 ///
 /// The hierarchy exists so animation has something to target. A flattened list
@@ -102,11 +130,13 @@ final class ModelNode {
     this.extras,
     this.lightIndex,
     this.cameraIndex,
+    List<ModelLod>? lods,
   }) : translation = translation ?? Vector3.zero(),
        rotation = rotation ?? Quaternion.identity(),
        scale = scale ?? Vector3(1.0, 1.0, 1.0),
        children = children ?? <int>[],
-       surfaces = surfaces ?? <int>[];
+       surfaces = surfaces ?? <int>[],
+       lods = lods ?? const <ModelLod>[];
 
   final String? name;
 
@@ -135,6 +165,14 @@ final class ModelNode {
   /// Index into `ModelDocument.cameras`, when glTF's own `camera` key
   /// names one on this node.
   final int? cameraIndex;
+
+  /// Coarser stand-ins for [surfaces], each good up to its own
+  /// [ModelLod.maxScreenFraction] — `pro-eng-06`'s own row. Empty for the
+  /// ordinary node, which is nearly all of them, and for every node in a
+  /// `.f3d` written before this field existed: the section is absent
+  /// rather than empty, and an absent section reads as no LODs for exactly
+  /// that file.
+  final List<ModelLod> lods;
 
   Matrix4 toMatrix() => Matrix4.compose(translation, rotation, scale);
 

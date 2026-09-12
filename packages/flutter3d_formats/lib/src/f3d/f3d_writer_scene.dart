@@ -154,6 +154,31 @@ extension _F3dWriteScene on F3dWriter {
     return table;
   }
 
+  /// One record per `ModelLod`, across every node that has any — sparse,
+  /// the same shape [_writeMorphTargets] already writes for surfaces.
+  (Uint8List, int) _writeLods() {
+    final records = BytesBuilder();
+    var count = 0;
+
+    for (var i = 0; i < document.nodes.length; i++) {
+      for (final lod in document.nodes[i].lods) {
+        final surfaceOffset = _blobAppend(
+          Int32List.fromList(lod.surfaceIndices),
+        );
+
+        final record = ByteData(F3dRecord.lod);
+        record.setUint32(0, i, Endian.little);
+        record.setFloat32(4, lod.maxScreenFraction, Endian.little);
+        record.setUint32(8, surfaceOffset, Endian.little);
+        record.setUint32(12, lod.surfaceIndices.length, Endian.little);
+
+        records.add(record.buffer.asUint8List());
+        count++;
+      }
+    }
+    return (records.toBytes(), count);
+  }
+
   Uint8List _writeRoots() {
     final roots = Int32List.fromList(document.roots);
     return Uint8List.view(

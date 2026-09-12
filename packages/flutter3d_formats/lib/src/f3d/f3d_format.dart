@@ -116,6 +116,13 @@ abstract final class F3dSection {
   /// Where each image's bytes came from, one record per image in [images]
   /// order — see `EncodedImage.sourceUri`.
   static const int imageUris = 20;
+
+  /// Sparse, one record per `ModelLod` across every node that has any, not
+  /// one per node — the same shape [morphTargets] already holds for
+  /// surfaces, and for the same reason: nearly every node has none, and a
+  /// record naming its own node index costs less than a table of zeros in
+  /// every file that never uses the feature. See `ModelNode.lods`.
+  static const int lods = 21;
 }
 
 /// Fixed record sizes, in bytes. All multiples of four.
@@ -189,6 +196,10 @@ abstract final class F3dRecord {
 
   /// u32 uriOffset, u32 uriLength into the strings section
   static const int imageUri = 8;
+
+  /// u32 nodeIndex, f32 maxScreenFraction, u32 surfaceOffset, u32
+  /// surfaceCount
+  static const int lod = 16;
 }
 
 /// Bit positions inside a `surfaceAttributes` record — one per name

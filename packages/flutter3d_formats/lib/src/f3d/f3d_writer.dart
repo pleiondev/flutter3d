@@ -69,6 +69,7 @@ final class F3dWriter {
     final materialTable = _writeMaterials();
     final imageTable = _writeImages();
     final nodeTable = _writeNodes();
+    final (lodTable, lodCount) = _writeLods();
     final rootTable = _writeRoots();
     final (animationTable, trackTable, animationCount, trackCount) =
         _writeAnimations();
@@ -94,6 +95,7 @@ final class F3dWriter {
       (F3dSection.materials, materialTable, document.materials.length),
       (F3dSection.images, imageTable, document.images.length),
       (F3dSection.nodes, nodeTable, document.nodes.length),
+      (F3dSection.lods, lodTable, lodCount),
       (F3dSection.roots, rootTable, document.roots.length),
       (F3dSection.animations, animationTable, animationCount),
       (F3dSection.tracks, trackTable, trackCount),

@@ -184,6 +184,7 @@ final class F3dDocument extends ModelDocument {
 
   late final Map<int, List<MorphTarget>> _morphTargets = _readMorphTargets();
   late final Map<int, List<double>> _morphWeights = _readMorphWeights();
+  late final Map<int, List<ModelLod>> _lods = _readLods();
 
   @override
   late final List<ModelSurface> surfaces = _readSurfaces();

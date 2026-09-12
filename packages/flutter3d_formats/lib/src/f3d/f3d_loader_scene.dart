@@ -86,6 +86,33 @@ extension _F3dScene on F3dDocument {
 
   // -------------------------------------------------------------------- nodes
 
+  /// [ModelNode.lods], grouped by their own node index — sparse, the same
+  /// shape [_readMorphTargets] already reads for surfaces. Absent (a file
+  /// written before this section existed) reads as an empty map, and
+  /// [_readNodes] below turns a missing entry into `const <ModelLod>[]`.
+  Map<int, List<ModelLod>> _readLods() {
+    final table = _section(F3dSection.lods);
+    final grouped = <int, List<ModelLod>>{};
+
+    for (var i = 0; i < table.count; i++) {
+      final o = table.offset + i * F3dRecord.lod;
+      final nodeIndex = _view.getUint32(o, Endian.little);
+      final maxScreenFraction = _view.getFloat32(o + 4, Endian.little);
+      final surfaceIndices = _int32s(
+        _view.getUint32(o + 8, Endian.little),
+        _view.getUint32(o + 12, Endian.little),
+      ).toList();
+
+      (grouped[nodeIndex] ??= <ModelLod>[]).add(
+        ModelLod(
+          surfaceIndices: surfaceIndices,
+          maxScreenFraction: maxScreenFraction,
+        ),
+      );
+    }
+    return grouped;
+  }
+
   List<ModelNode> _readNodes() {
     final table = _section(F3dSection.nodes);
     return <ModelNode>[
@@ -134,6 +161,7 @@ extension _F3dScene on F3dDocument {
               _view.getUint32(o + 8, Endian.little),
               _view.getUint32(o + 12, Endian.little),
             ).toList(),
+            lods: _lods[i],
           );
         }(),
     ];
