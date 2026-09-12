@@ -49,8 +49,10 @@ import 'src/transform_fields.dart';
 import 'src/transform_gizmo.dart';
 import 'src/transform_modal.dart';
 import 'src/ui/layout_class.dart';
+import 'src/ui/modifier_stack_panel.dart';
 import 'src/ui/number_field.dart';
 import 'src/ui/operation_card.dart';
+import 'src/ui/section_label.dart';
 import 'src/ui/selection_key_bindings.dart';
 import 'src/ui/shell.dart';
 import 'src/ui/shell_phone.dart';
@@ -1304,6 +1306,10 @@ class _ModelerScreenState extends State<ModelerScreen>
             },
             onTransform: _setTransform,
             onRename: (int id, String to) => _cubit.ran(Rename(id: id, to: to)),
+            onToggleModifier: (int id, int index) =>
+                _cubit.ran(ToggleModifier(id: id, index: index)),
+            onReorderModifier: (int id, int from, int to) =>
+                _cubit.ran(ReorderModifier(id: id, from: from, to: to)),
             lastCommand: state.history.journal.isEmpty
                 ? null
                 : state.history.journal.last,
@@ -1468,20 +1474,15 @@ class _ModelerScreenState extends State<ModelerScreen>
   };
 }
 
-/// The line along the bottom: what just happened, and what the last frame cost.
+/// The right-hand panel: `ui-08`'s own object list, transform grid and
+/// modifier stack, plus what the viewport knows about display and camera.
 ///
-/// The metrics `ui-10` asks for — the mode's own counts, and the first issue
-/// from an export readiness — need a document to count and a readiness to ask,
-/// so what is here is what the application actually knows.
-/// The right-hand panel.
-///
-/// **Thin, and honest about why.** `ui-08` puts an object list, three-by-three
-/// number fields and a modifier stack here, and every one of those edits a
-/// `ModelProject` through a command — which is `doc-03` and `doc-05`, and is
-/// the step this application is waiting on. What a panel can show today is what
-/// the viewport knows: what is selected, how the surface is drawn, and where
-/// the camera is standing. Those are real controls that belong here rather than
-/// floating over the picture, which is where they were.
+/// **No longer as thin as the row that first drew it.** An earlier draft of
+/// this comment called the panel thin on purpose, waiting on `doc-03`/
+/// `doc-05` before an object list or a number field could edit a
+/// `ModelProject` through a command at all — both are done now, `doc-06` and
+/// `doc-23` besides, and `_ObjectRow`/`_TransformRows`/`ModifierStackPanel`
+/// below are what a panel free to write to the document actually looks like.
 class _Properties extends StatelessWidget {
   const _Properties({
     required this.stage,
@@ -1490,6 +1491,8 @@ class _Properties extends StatelessWidget {
     required this.onSelect,
     required this.onTransform,
     required this.onRename,
+    required this.onToggleModifier,
+    required this.onReorderModifier,
     required this.lastCommand,
     required this.onAmend,
     required this.shading,
@@ -1510,6 +1513,12 @@ class _Properties extends StatelessWidget {
   /// The name box was committed.
   final void Function(int id, String to) onRename;
 
+  /// A modifier's own enabled switch was flipped.
+  final void Function(int id, int index) onToggleModifier;
+
+  /// A modifier was dragged to a new place in the stack.
+  final void Function(int id, int from, int to) onReorderModifier;
+
   /// What the operation card is showing, and where an adjustment goes.
   final ModelCommand? lastCommand;
   final ValueChanged<ModelCommand> onAmend;
@@ -1529,7 +1538,7 @@ class _Properties extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       children: <Widget>[
-        _Section('Display'),
+        SectionLabel('Display'),
         SegmentedButton<ShadingMode>(
           showSelectedIcon: false,
           segments: const <ButtonSegment<ShadingMode>>[
@@ -1566,7 +1575,7 @@ class _Properties extends StatelessWidget {
           selected: <ViewLens>{lens},
           onSelectionChanged: (Set<ViewLens> picked) => onLens(picked.first),
         ),
-        _Section('View'),
+        SectionLabel('View'),
         Wrap(
           spacing: 4,
           runSpacing: 4,
@@ -1583,7 +1592,7 @@ class _Properties extends StatelessWidget {
               ),
           ],
         ),
-        _Section('Objects'),
+        SectionLabel('Objects'),
         for (final ModelObject object in project.objects)
           _ObjectRow(
             object: object,
@@ -1592,7 +1601,7 @@ class _Properties extends StatelessWidget {
           ),
         if (project[selection.activeObject ?? -1]
             case final ModelObject held) ...<Widget>[
-          _Section('Transform'),
+          SectionLabel('Transform'),
           _NameField(
             key: ValueKey<int>(held.id),
             name: held.name,
@@ -1604,17 +1613,25 @@ class _Properties extends StatelessWidget {
             fields: transformFieldsOf(held.transform),
             onChanged: (TransformFields to) => onTransform(held.id, to),
           ),
+          SectionLabel('Modifiers'),
+          ModifierStackPanel(
+            key: ValueKey<int>(held.id),
+            slots: held.modifiers,
+            onToggle: (int index) => onToggleModifier(held.id, index),
+            onReorder: (int from, int to) =>
+                onReorderModifier(held.id, from, to),
+          ),
         ],
-        _Section('Last operation'),
+        SectionLabel('Last operation'),
         OperationCard(command: lastCommand, onAmend: onAmend),
-        _Section('Selection'),
+        SectionLabel('Selection'),
         _Row('What', selection.says),
         if (mesh != null) ...<Widget>[
-          _Section('Mesh'),
+          SectionLabel('Mesh'),
           _Row('Vertices', '${mesh.vertexCount}'),
           _Row('Faces', '${mesh.faceCount}'),
         ],
-        _Section('Budget'),
+        SectionLabel('Budget'),
         _Row('Triangles', '${project.triangleCount}'),
         _Row('Profile', project.profile.name),
       ],
@@ -1834,26 +1851,6 @@ class _ObjectRow extends StatelessWidget {
       ),
     );
   }
-}
-
-/// A heading in the properties panel. `ui-08` calls this `section_label.dart`
-/// and shares it between the two editors; it is four lines until then.
-class _Section extends StatelessWidget {
-  const _Section(this.said);
-
-  final String said;
-
-  @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.only(top: 14, bottom: 6),
-    child: Text(
-      said.toUpperCase(),
-      style: Theme.of(context).textTheme.labelMedium?.copyWith(
-        color: Theme.of(context).colorScheme.onSurfaceVariant,
-        letterSpacing: 0.6,
-      ),
-    ),
-  );
 }
 
 /// A label and a value, on one row of the height the design names.
