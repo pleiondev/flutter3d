@@ -50,7 +50,7 @@
     "doc-23": "done",
     "doc-24": "done",
     "doc-26": "done",
-    "doc-25": "partial",
+    "doc-25": "done",
     "doc-27": "done",
     "doc-28": "done",
     "doc-29": "done",
@@ -275,7 +275,10 @@
     },
     "fmt-18": {
       "ProjectStorage": "атомарная запись реализована как writeFileAtomicallySync/writeBytesAtomically в packages/flutter3d_screens/lib/src/storage/atomic_write.dart (запись во временный файл + rename), используется каждой записью Storage/BinaryStorage в этом пакете — тот же класс работы, что называет строка, только под другим именем и в app-слое (flutter3d_screens), а не в core под классом ProjectStorage. doc-17's собственный текст прямо говорит: «таймер, атомарная запись и диалог — в app (ui-18)» — не в core, и не под этим именем",
-      "fmat path fallback": "«копия внутри контейнера» уже верна по конструкции: project_format.dart хранит закодированные байты изображений прямо в собственной секции контейнера images (F3dSection.images, «The bytes and nothing else») — файл не выходит за пределы .f3dproj без явного экспорта. «sources» уже покрыт полем EncodedImage.sourceUri (flutter3d_formats/lib/src/surface_material.dart) — «где исходный файл указывал найти это изображение... Null для изображения, пришедшего встроенным». Единственная буквально не реализованная часть — «.fmat путём + fallback» — упирается в mat-08 (внешний .fmat-файл материала), который сам ещё не начат и не входит в зависимости этой строки; строить логику разрешения пути к механизму, которого ещё нет, было бы преждевременным. Приёмка строки — буквально «см. doc-17, ui-18» (без собственного теста на .fmat) — обе зависимости закрыты, поэтому запись закрывается по своей же приёмке, а незавершённый .fmat-путь остаётся честно отложенным до mat-08"
+      "fmat path fallback": "«копия внутри контейнера» уже верна по конструкции: project_format.dart хранит закодированные байты изображений прямо в собственной секции контейнера images (F3dSection.images, «The bytes and nothing else») — файл не выходит за пределы .f3dproj без явного экспорта. «sources» уже покрыт полем EncodedImage.sourceUri (flutter3d_formats/lib/src/surface_material.dart) — «где исходный файл указывал найти это изображение... Null для изображения, пришедшего встроенным». Единственная буквально не реализованная часть — «.fmat путём + fallback» — упирается в mat-08 (внешний .fmat-файл материала), который сам ещё не начат и не входит в зависимости этой строки; строить логику разрешения пути к механизму, которого ещё нет, было бы преждевременным. Приёмка строки — буквально «см. doc-17, ui-18» (без собственного теста на .fmat) — обе зависимости закрыты, поэтому запись закрывается по своей же приёмке, а незавершённый .fmat-путь остаётся честно отложенным до mat-08 (закрыт позже той же сессией, коммит 5b8c22d9)"
+    },
+    "doc-25": {
+      "LinkFmat": "класс называется LinkMaterialFile в packages/flutter3d_model_core/lib/src/material_commands.dart (mat-08's own commit 5b8c22d9: «LinkMaterialFile and EmbedMaterial join the material command table») — то же действие, что называет строка (привязать материал к внешнему .fmat), просто под именем, которое совпадает с остальными командами файла (AddMaterial, RemoveMaterial, SetTexture…), а не с сокращением из текста плана. AddMaterial/SetMaterialField/SetTexture/AddImage/RemoveMaterial все присутствуют под собственными именами в том же файле; публичный кодек SurfaceMaterial ↔ Map, который строка называет «остаётся», уже существует как surfaceMaterialToJson/surfaceMaterialFromJson в packages/flutter3d_formats/lib/src/fmat/fmat.dart — формулировка плана устарела относительно факта. Приёмка строки буквально «см. mat-01/08» — обе зависимости закрыты"
     }
   }
 }
