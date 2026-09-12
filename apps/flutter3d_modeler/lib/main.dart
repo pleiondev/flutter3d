@@ -27,11 +27,13 @@ import 'package:flutter/services.dart';
 import 'package:flutter3d/flutter3d.dart' hide Material;
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart' hide Outcome;
+import 'package:flutter3d_screens/flutter3d_screens.dart';
 import 'package:flutter3d_session/flutter3d_session.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:vector_math/vector_math.dart' as vm;
 
+import 'src/autosaving.dart';
 import 'src/backend.dart';
 import 'src/churn_run.dart';
 import 'src/close_beforeunload.dart';
@@ -133,10 +135,50 @@ class ModelerApp extends StatelessWidget {
 /// What the screen is doing. Three states, and no more until there is a
 /// document to have states about.
 class ModelerScreen extends StatefulWidget {
-  const ModelerScreen({super.key});
+  const ModelerScreen({super.key, this.autosaveStorage});
+
+  /// Where `ui-18`'s own autosave writes — null in every real build, which
+  /// falls back to the platform's own `defaultBinaryStorage`. A test hands
+  /// in a fake here instead of standing up a real filesystem or IndexedDB.
+  final BinaryStorage? autosaveStorage;
 
   @override
   State<ModelerScreen> createState() => _ModelerScreenState();
+}
+
+/// `ui-18`'s own autosave key, for the one document this single-window app
+/// ever has open at a time.
+///
+/// **A fixed string, not one minted per launch.** `recoveryPathFor`'s own
+/// doc comment warns two different new documents must not collide on the
+/// session id the way two openings of one saved file are meant to — but
+/// that is a worry for an app that can hold several unsaved documents at
+/// once, and this one cannot: there is exactly one `ModelerScreen`, so
+/// exactly one autosave slot is exactly what a crash-recovery key needs. A
+/// fresh id every launch would instead lose the previous session's own
+/// autosave the moment the app that wrote it closed — the one case
+/// autosave exists for.
+const String _kAutosaveSessionId = 'single-window';
+
+/// Whatever `sessionId`'s own autosave slot in `storage` holds, decoded —
+/// null when there is nothing there, or when what is there does not read
+/// back as a project at all.
+///
+/// **Pure IO and decode, no `BuildContext`, no dialog** — the part of
+/// `ui-18`'s own "предложение восстановить" that a test can drive with
+/// `FakeBinaryStorage` directly, the same split `autosave.dart`'s own
+/// `shouldSave`/`decideRecovery` already make between deciding and doing.
+/// A stale entry (one `readProject` refuses) is removed here rather than
+/// left for the caller to notice twice — there is nothing for a person to
+/// decide about a recovery copy this build itself could not have written.
+Future<ProjectOpened?> findRecovery(BinaryStorage storage, String sessionId) async {
+  final key = recoveryPathFor(null, sessionId: sessionId);
+  final bytes = await storage.read(key);
+  if (bytes == null) return null;
+  final read = readProject(bytes);
+  if (read is ProjectOpened) return read;
+  await storage.remove(key);
+  return null;
 }
 
 class _ModelerScreenState extends State<ModelerScreen>
@@ -259,6 +301,13 @@ class _ModelerScreenState extends State<ModelerScreen>
   /// directly rather than routing a back gesture through one.
   late final AppLifecycleListener _lifecycle;
 
+  /// `ui-18`'s own background writer. Watches `_cubit` from the moment this
+  /// screen exists, not from whenever a document happens to open — the same
+  /// `ModelerCubit` instance moves between states as files come and go, so
+  /// one controller for the state's whole lifetime is what its own stream
+  /// subscription already expects.
+  AutosaveController? _autosave;
+
   @override
   void initState() {
     super.initState();
@@ -266,6 +315,12 @@ class _ModelerScreenState extends State<ModelerScreen>
     // whatever the camera is now, and the frame is what asks for the next one.
     _ticker = createTicker(_onTick)..start();
     _timings.start();
+    _autosave = AutosaveController(
+      cubit: _cubit,
+      storage: widget.autosaveStorage ?? defaultBinaryStorage('flutter3d_modeler'),
+      sessionId: _kAutosaveSessionId,
+      onIssue: (String said) => _cubit.say(said, important: true),
+    );
     unawaited(_open());
     _lifecycle = AppLifecycleListener(onExitRequested: _onExitRequested);
     installBeforeUnloadGuard(() => _history.isDirty);
@@ -371,6 +426,7 @@ class _ModelerScreenState extends State<ModelerScreen>
   void dispose() {
     _ticker?.dispose();
     _timings.stop();
+    _autosave?.dispose();
     _lifecycle.dispose();
     _cubit.close();
     super.dispose();
@@ -445,10 +501,73 @@ class _ModelerScreenState extends State<ModelerScreen>
         // With no run to wait for, the opening cost is the whole report.
         if (kOrbit <= 0) _report = 'opened in $_openedInMs ms';
       });
+      if (kModel.isEmpty && kOrbit <= 0 && !kSandboxProbe) {
+        // `ui-18`'s own "предложение восстановить" — checked once, on an
+        // ordinary interactive launch only. A `--dart-define` measurement
+        // run (`kModel`, `kOrbit`, `kSandboxProbe`) has nobody to answer a
+        // dialog, and a link-open is about to replace the document anyway.
+        unawaited(_offerRecovery(device));
+      }
     } catch (error) {
       if (!mounted) return;
       _cubit.failed('$error');
     }
+  }
+
+  /// `ui-18`'s own "предложение восстановить": an autosave from a session
+  /// that never closed cleanly, offered once, right after the ordinary open
+  /// already put a cube on screen — never in place of it, since a recovery
+  /// copy that itself fails to read (it should not, `_autosave` is the only
+  /// thing that ever wrote this key) is not a reason to keep someone looking
+  /// at a blank screen.
+  Future<void> _offerRecovery(GraphicsDevice device) async {
+    final storage = _autosave?.storage;
+    if (storage == null) return;
+    final read = await findRecovery(storage, _kAutosaveSessionId);
+    if (read == null || !mounted) return;
+
+    final restore = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext context) => AlertDialog(
+        title: const Text('Restore unsaved changes?'),
+        content: Text(
+          'An autosave from a session that did not close cleanly was found '
+          '(${_count(read.project.objects.length, 'object')}).',
+        ),
+        actions: <Widget>[
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Discard'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Restore'),
+          ),
+        ],
+      ),
+    );
+    if (!mounted) return;
+
+    if (restore != true) {
+      await storage.remove(recoveryPathFor(null, sessionId: _kAutosaveSessionId));
+      return;
+    }
+    final stage = ModelerStage.fromProject(
+      device: device,
+      project: read.project,
+    );
+    stage.frameSubject();
+    _cubit.opened(
+      ModelHistory(read.project),
+      renderer: (_state as ModelerReady).renderer,
+      stage: stage,
+      documentName: 'recovered',
+      said: 'restored an autosave from a session that did not close cleanly',
+    );
+    setState(() {
+      _picker = null;
+      _pickerVersion = -1;
+    });
   }
 
   /// Opens a model the person chose, and puts it in the document.
