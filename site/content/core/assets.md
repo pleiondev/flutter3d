@@ -1,19 +1,20 @@
 ---
-description: glTF 2.0 and GLB, Wavefront OBJ, the .f3d container, isolate decoding and the reference-counted cache, plus clips, skinning and crossfades.
+description: glTF 2.0 and GLB, Wavefront OBJ, STL, the .f3d container, isolate decoding and the reference-counted cache, plus clips, skinning and crossfades.
 ---
 
 # Assets & animation
 
-Three decoders, one abstraction, one upload path. Decoding runs on a background isolate; nothing in the decoding layer names `flutter_gpu`, `dart:io` or `dart:ui`.
+Four decoders, one abstraction, one upload path. Decoding runs on a background isolate; nothing in the decoding layer names `flutter_gpu`, `dart:io` or `dart:ui`.
 
-## One abstraction, three formats
+## One abstraction, four formats
 
-Both decoders, and the binary container — emit the same `ModelDocument`: a list of `ModelSurface`, a list of `SurfaceMaterial`, a list of `EncodedImage`, and `warnings`.
+Every one of them — the two text formats, the binary container, and STL — emit the same `ModelDocument`: a list of `ModelSurface`, a list of `SurfaceMaterial`, a list of `EncodedImage`, and `warnings`.
 
 ```mermaid
 flowchart LR
   gltf[".gltf / .glb"] --> doc
   obj[".obj + .mtl"] --> doc
+  stl[".stl"] --> doc
   f3d[".f3d"] --> doc
   doc["ModelDocument<br><i>surfaces · materials · images · warnings</i>"]
   doc --> asset["ModelAsset.fromDocument<br><i>mesh + image dedup, material conversion</i>"]
@@ -21,7 +22,7 @@ flowchart LR
   instance --> nodes["SceneNode tree · MeshNodes<br>Skeletons · AnimationPlayer"]
 ```
 
-That is what makes `ModelAsset.fromDocument` the single upload path, and it means adding a fourth format is a matter of writing a decoder rather than touching the loader.
+That is what makes `ModelAsset.fromDocument` the single upload path, and it means adding a fifth format is a matter of writing a decoder rather than touching the loader.
 
 ## Loading a model
 
@@ -110,6 +111,19 @@ OBJ predates PBR, so its parameters are **explicitly approximated**: `Kd` become
 <div class="note">
 <p>Flipped V is the single most common cause of upside-down textures on OBJ imports, and generating smooth normals rather than flat ones matters more than it sounds: the format prescribes nothing, files routinely omit them, and the geometry they omit them for is curved. Flat normals on a teapot look broken.</p>
 </div>
+
+## STL
+
+| | |
+|---|---|
+| Dialect | Binary and ASCII, chosen by size rather than by a `solid` prefix — a binary file's own 80-byte free-text header very often starts with `solid <name>` too, so the prefix alone misreads a binary file as text. A binary file is exactly its header plus 50 bytes a facet; an ASCII file, spelled out in words, never lands on that number by accident |
+| Normals | `StlNormals.fromFile` (default) reads the facet's own record, falling back to the triangle's own cross product when it is the zero vector some exporters write instead of computing one; `StlNormals.recomputed` always takes the cross product |
+| Materials, hierarchy | Neither exists in the format: one surface, named by the file, and nothing else set — the plainest document any decoder here produces |
+| Robustness | A truncated binary file or a malformed ASCII facet goes to `warnings` |
+
+Nothing about STL is approximated the way OBJ's materials are, because there is nothing to approximate — a triangle soup with an optional normal a facet either does or does not carry.
+
+Writing goes the other way: `StlWriter` bakes every surface's own transform into its positions the same way `ObjWriter` does, and a document of more than one surface merges them into the single flat list STL has room for, with a warning naming the merge — STL has no boundary between surfaces to keep them apart on the way back in.
 
 ## The `.f3d` container
 

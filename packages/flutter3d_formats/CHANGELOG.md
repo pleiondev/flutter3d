@@ -11,10 +11,10 @@ intact.
   `ModelDocument` and the nodes, surfaces, skins, animations and images it
   holds; `SurfaceMaterial`, `MaterialDocument`, `MaterialHint` and
   `LightingModel`; the glTF/GLB reader with its accessors and GLB container;
-  the OBJ reader with its `.mtl`; the engine's own `.f3d` reader and writer and
-  its `.fmat`; `AnimationClip` and `AnimationTrack`; and the synchronous half of
-  loading — `ModelFormat`, `ModelDecoder`, `decodeModel`, `decodeModelBytes`
-  and `sniffModelFormat`.
+  the OBJ reader with its `.mtl`; the STL reader and writer, binary and ASCII;
+  the engine's own `.f3d` reader and writer and its `.fmat`; `AnimationClip`
+  and `AnimationTrack`; and the synchronous half of loading — `ModelFormat`,
+  `ModelDecoder`, `decodeModel`, `decodeModelBytes` and `sniffModelFormat`.
 
 * **The split is at the bytes.** What fetches them stayed in `flutter3d`:
   `decodeModelInIsolate` with its `kIsWeb`, `BundleAssetSource` on Flutter's

@@ -2,8 +2,8 @@
 
 The formats [flutter3d](https://flutter3d.pleion.dev) reads and writes, with no
 Flutter SDK behind them: `ModelDocument` and everything a decoder fills in, the
-materials it names, and readers for glTF/GLB, OBJ, the engine's own `.f3d`
-container and its `.fmat` material.
+materials it names, and readers for glTF/GLB, OBJ, STL, the engine's own
+`.f3d` container and its `.fmat` material.
 
 **Plain Dart.** `dart test` runs the suite with no binding, and a program that
 opens a `.glb` needs no window.
