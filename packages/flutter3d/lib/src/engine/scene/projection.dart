@@ -334,6 +334,90 @@ final class OffAxisProjection extends Projection {
   );
 }
 
+/// One tile of a larger virtual frame, out of [tilesX] × [tilesY] — `pro-
+/// eng-04`'s own row: a tiled screenshot at a resolution no single render
+/// target holds, stitched afterwards from tiles rendered one at a time.
+///
+/// **A crop of NDC space, not a narrower frustum computed from [base]'s own
+/// angles.** Every [Projection] already maps its full view volume to the
+/// cube `[-1, 1]³`; a tile is exactly the sub-square of that cube [tileX],
+/// [tileY] names, linearly rescaled back out to fill `[-1, 1]` on its own.
+/// That holds for [base] whatever concrete projection it is — perspective,
+/// orthographic, already off-axis — because it never asks [base] anything
+/// beyond the one matrix every [Projection] already builds; recomputing a
+/// narrower field of view would have to special-case each subclass's own
+/// parameters instead, and would still land on the same matrix.
+///
+/// [aspect] passed to [toMatrix] is the *stitched frame's* own aspect ratio,
+/// not one tile's — a tile is not rendered as though it were the whole
+/// picture, it is rendered as the piece of the whole picture it is, and
+/// [base] has to be handed the whole picture's shape to place that piece
+/// correctly. A caller rendering `tilesX × tilesY` tiles at `width ×
+/// height` each passes `(width * tilesX) / (height * tilesY)` here for
+/// every one of them.
+final class TiledProjection extends Projection {
+  const TiledProjection(
+    this.base, {
+    required this.tileX,
+    required this.tileY,
+    required this.tilesX,
+    required this.tilesY,
+  });
+
+  final Projection base;
+
+  /// Which tile this is, zero-based: `tileX` across, `tileY` down.
+  final int tileX;
+  final int tileY;
+
+  /// The grid this tile is one square of.
+  final int tilesX;
+  final int tilesY;
+
+  @override
+  double get near => base.near;
+
+  @override
+  double get far => base.far;
+
+  /// [base]'s own field of view over the whole stitched frame — a tile's own
+  /// share of it is narrower, but nothing here asks for that number, and
+  /// answering with it would silently disagree with what a caller measuring
+  /// the whole picture already expects from [base].
+  @override
+  double? get verticalFieldOfView => base.verticalFieldOfView;
+
+  @override
+  Matrix4 toMatrix(double aspect) {
+    // [tileX] runs the way NDC x already does — left to right — so its own
+    // low corner is `-1 + 2 * tileX / tilesX` and [offsetX] solves
+    // `scale * low + offset == -1` directly. [tileY] runs the other way:
+    // down, the way an image's own rows do, while NDC y runs up (this
+    // file's own convention: Y is never flipped). Tile row 0's own *high*
+    // y-corner is `1 - 2 * tileY / tilesY`, and solving `scale * high +
+    // offset == 1` for that gives [offsetY]'s own, differently-signed
+    // formula. Neither needs trigonometry: both are a linear crop of a
+    // cube, read in the direction each axis actually runs.
+    final scaleX = tilesX.toDouble();
+    final scaleY = tilesY.toDouble();
+    final offsetX = (tilesX - 1 - 2 * tileX).toDouble();
+    // The sign here is not [offsetX]'s own, mirrored — it is [tileY]'s own
+    // direction against NDC y read the other way round. [tileY] counts down
+    // the way an image's own rows do, `0` at the top; NDC y counts up, `+1`
+    // at the top. The same "solve `scale * low + offset == -1`" [offsetX]
+    // used, worked out for a tile whose low *row* is its high *y*, lands
+    // here rather than at [offsetX]'s own formula with `tileY` swapped in.
+    final offsetY = (2 * tileY - (tilesY - 1)).toDouble();
+
+    final crop = Matrix4.identity()
+      ..setEntry(0, 0, scaleX)
+      ..setEntry(0, 3, offsetX)
+      ..setEntry(1, 1, scaleY)
+      ..setEntry(1, 3, offsetY);
+    return crop * base.toMatrix(aspect);
+  }
+}
+
 /// [projection] expressed for [range].
 ///
 /// Cameras here build for [DepthRange.zeroToOne] — the Metal and Vulkan
