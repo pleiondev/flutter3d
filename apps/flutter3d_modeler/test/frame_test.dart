@@ -453,6 +453,41 @@ void main() {
     }
   });
 
+  group('the phase-two operations, drawn', () {
+    // `mesh-49`: four more fixtures from `flutter3d_mesh/testing.dart`, the
+    // same shape `mesh-33`'s own group already established — bevel,
+    // Catmull-Clark, a BSP boolean and a mirror, each already proven by
+    // arithmetic in its own package test and now checked as a picture, which
+    // is what catches a corner cap at the wrong valence, a subdivision that
+    // pinched a pole, a boolean that bit into the wrong face, or a mirror
+    // seam that never welded.
+    for (final subject in <(String, EditMesh Function())>[
+      ('mesh-bevel', bevelledCube),
+      ('mesh-catmull-clark', subdividedCube),
+      ('mesh-cube-minus-sphere', cubeMinusSphere),
+      ('mesh-mirror-vase', mirroredVase),
+    ]) {
+      test('${subject.$1} matches its reference', () async {
+        final frame = await renderFrame(
+          width: 240,
+          height: 160,
+          build: (FrameRequest request) {
+            final stage = ModelerStage.build(device: request.device);
+            final node = stage.subject as MeshNode;
+            node.mesh = DeviceMesh.upload(
+              request.device,
+              subject.$2().toMeshData(),
+            );
+            stage.frameSubject();
+            return (scene: stage.scene, camera: stage.camera);
+          },
+        );
+
+        await expectMatchesGolden(frame, 'test/goldens/${subject.$1}.png');
+      });
+    }
+  });
+
   group('the skeleton overlay, drawn', () {
     // `anim-08`: the octahedra and crosses `DebugDrawGizmos.addSkeletonOverlay`
     // already draws, reached this time through `RenderSettings.debug` the way

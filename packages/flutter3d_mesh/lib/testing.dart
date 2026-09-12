@@ -14,16 +14,22 @@
 /// tests and by anything else that wants a mesh with something to look at.
 library;
 
+import 'dart:math' as math;
+
 import 'package:vector_math/vector_math.dart';
 
 import 'src/attributes.dart';
+import 'src/bevel.dart';
+import 'src/bsp.dart';
 import 'src/cut.dart';
 import 'src/edit_mesh.dart';
 import 'src/extrude.dart';
+import 'src/mirror.dart';
 import 'src/operations.dart';
 import 'src/parametric.dart';
 import 'src/parts.dart';
 import 'src/selection.dart';
+import 'src/subdivide.dart';
 
 /// Every live face of [mesh].
 Selection _allFaces(EditMesh mesh) => Selection.of(ElementLevel.face, <int>[
@@ -163,4 +169,93 @@ EditMesh sharpAgainstSmooth() {
     ..endStep()
     ..clearJournal();
   return mesh;
+}
+
+/// A cube with every edge given a shallow, flat bevel.
+///
+/// `mesh-44`'s own acceptance is the vertex and face count on exactly this
+/// shape; this is the same construction kept as a picture, since a count
+/// cannot say whether a corner cap landed at the right valence or a bridge
+/// quad came out inverted.
+EditMesh bevelledCube() {
+  final mesh = EditMesh.cuboid();
+  final edges = <int>[
+    for (var half = 0; half < mesh.halfEdgeSlotCount; half++)
+      if (mesh.edgeOf(half) == half && mesh.faceOf(half) != EditMesh.none)
+        half,
+  ];
+  mesh.beginStep();
+  bevelEdges(mesh, Selection.of(ElementLevel.edge, edges), width: 0.12);
+  mesh
+    ..endStep()
+    ..clearJournal();
+  return mesh;
+}
+
+/// A cube, twice Catmull-Clark subdivided.
+///
+/// `mesh-45`'s own acceptance is one level's vertex and face count; two
+/// levels is what a person actually turns on to round a box off, and is
+/// dense enough that a missing crease or an inverted quad reads as a visible
+/// dent rather than a number one level off.
+EditMesh subdividedCube() => catmullClark(EditMesh.cuboid(), levels: 2);
+
+/// A cube with a sphere cut from one corner of it.
+///
+/// **Off-centre on purpose, unlike `bsp_test.dart`'s own fixture.** A sphere
+/// cut from dead centre and fully inside the cube — the case that fixture's
+/// own volume tolerance is built to check — leaves the cube's outer surface
+/// untouched, so a boolean that silently did nothing would draw the same
+/// picture as a correct one. Pushing the sphere half out through a corner
+/// carves a real, visible crater into two faces at once, which is what
+/// `mesh-47`'s own row asks a picture to show that a volume number cannot.
+EditMesh cubeMinusSphere() {
+  final cube = EditMesh.cuboid(size: Vector3(1.4, 1.4, 1.4));
+  final sphere = const ParametricSphere(
+    radius: 0.55,
+    segments: 24,
+    rings: 12,
+  ).toEditMesh();
+  final corner = Vector3(0.7, 0.7, 0.7);
+  sphere.beginStep();
+  for (var v = 0; v < sphere.vertexSlotCount; v++) {
+    if (!sphere.isVertexAlive(v)) continue;
+    sphere.moveVertex(v, sphere.positionOf(v) + corner);
+  }
+  sphere.endStep();
+  final result = booleanSubtract(cube, sphere);
+  if (result == null) {
+    throw StateError('cube minus sphere refused to build a fixture');
+  }
+  return result.mesh;
+}
+
+/// Half a vase, lathed with a 180° sweep and mirrored across the plane it
+/// already touches.
+///
+/// **Why a half sweep rather than a whole one mirrored again.** `mirror`'s
+/// own doc comment describes its ordinary case as a base that already
+/// touches the plane it is reflected across — a lathe swept from `-π/2` to
+/// `π/2` puts both its open edges exactly on the plane `x = 0` (`cos(±π/2) ==
+/// 0`), which is precisely that case rather than a shape built to sit near
+/// the plane by construction. `mesh-41`'s own row is the reason this picture
+/// is named for the mirror rather than for the vase: a whole lathed vase
+/// would look identical whether or not `mirror` ran at all.
+EditMesh mirroredVase() {
+  final half = ParametricLathe(
+    profile: <Vector2>[
+      Vector2(0, -0.75),
+      Vector2(0.34, -0.75),
+      Vector2(0.20, -0.55),
+      Vector2(0.42, -0.15),
+      Vector2(0.46, 0.25),
+      Vector2(0.26, 0.55),
+      Vector2(0.34, 0.75),
+    ],
+    segments: 12,
+    startAngle: -math.pi / 2,
+    sweepAngle: math.pi,
+    name: 'half-vase',
+  ).toEditMesh();
+  return mirror(half, normal: Vector3(1, 0, 0), mergeDistance: 1e-4);
 }
