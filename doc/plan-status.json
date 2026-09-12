@@ -194,6 +194,7 @@
     "ui-03": "done",
     "ui-04": "done",
     "ui-05": "partial",
+    "ui-06": "done",
     "ui-07": "done",
     "ui-08": "partial",
     "ui-09": "partial",
@@ -241,6 +242,9 @@
     },
     "mesh-47": {
       "fromPolygons": "функция называется _fromPolygons в bsp.dart — приватная, потому что у неё нет вызывающего вне файла; публичной она нарушила бы «a public member nothing calls says who it is for» (tool/structure.dart). Формулировка плана «выход через fromPolygons» описывает форму конвейера, а не буквальное требование к видимости"
+    },
+    "ui-06": {
+      "manipulator_drag_test": "приёмка построена: apps/flutter3d_modeler/test/transform_gizmo_test.dart содержит тест «the whole drag is one step, not one per pointer report», который и есть этот сценарий под именем файла, отражающим содержимое (gizmo), а не роль в плане"
     }
   }
 }
