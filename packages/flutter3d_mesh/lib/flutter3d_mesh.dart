@@ -20,6 +20,7 @@ export 'src/attributes.dart';
 export 'src/bevel.dart';
 export 'src/bsp.dart';
 export 'src/checks.dart';
+export 'src/collision_shapes.dart';
 export 'src/cut.dart';
 export 'src/edit_mesh.dart';
 export 'src/extrude.dart';
