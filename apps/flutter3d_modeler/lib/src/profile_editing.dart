@@ -178,4 +178,38 @@ final class ProfileCurve {
     _flattenCubic(p0, p01, p012, mid, tolerance, out, depth: depth + 1);
     _flattenCubic(mid, p123, p23, p1, tolerance, out, depth: depth + 1);
   }
+
+  /// The index of whichever [points] entry sits closest to [at], when that
+  /// distance is within [radius] — `ui-13`'s own "hit ⌀12" (a radius of 6,
+  /// half the diameter the row names). Null when nothing on the profile is
+  /// that close, so a tap in empty space adds a point instead of dragging
+  /// one that was never under the finger.
+  int? nearestPointWithin(Vector2 at, {double radius = 6}) {
+    int? best;
+    var bestDistance = double.infinity;
+    for (var i = 0; i < points.length; i++) {
+      final distance = (points[i].position - at).length;
+      if (distance <= radius && distance < bestDistance) {
+        best = i;
+        bestDistance = distance;
+      }
+    }
+    return best;
+  }
 }
+
+/// [position], pulled onto the axis of revolution (`x = 0`, the left edge of
+/// the (radius, height) half-plane every profile is authored in) when it
+/// already sits within [snapDistance] of it — `ui-13`'s own "привязка 40".
+///
+/// **Why the axis and not a grid.** A lathe seals its own seam where the
+/// profile meets the axis it turns around; a point that lands at `x = 1e-6`
+/// instead of exactly `0` leaves a hairline gap (or a sliver of
+/// self-intersecting geometry) at every one of [AddLathe.segments] — a fault
+/// invisible in the profile editor and obvious the moment the shape spins.
+/// Snapping the one coordinate that seam actually depends on is cheaper and
+/// more honest than snapping to an arbitrary grid this row never asked for.
+Vector2 snappedToAxis(Vector2 position, {double snapDistance = 40}) =>
+    position.x.abs() <= snapDistance
+        ? Vector2(0, position.y)
+        : position;

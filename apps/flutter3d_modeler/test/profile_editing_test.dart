@@ -226,4 +226,73 @@ void main() {
       Vector2(0, 0),
     ]);
   });
+
+  group('nearestPointWithin — ui-13\'s own "hit ⌀12"', () {
+    final curve = ProfileCurve(
+      points: <ProfilePoint>[
+        ProfilePoint(Vector2(0, 0)),
+        ProfilePoint(Vector2(10, 0)),
+        ProfilePoint(Vector2(10, 10)),
+      ],
+      segments: const <ProfileSegment>[LineSegment(), LineSegment()],
+    );
+
+    test('a tap dead on a point hits it', () {
+      expect(curve.nearestPointWithin(Vector2(10, 0)), 1);
+    });
+
+    test('a tap just inside the radius still hits', () {
+      expect(curve.nearestPointWithin(Vector2(10 + 5.9, 0)), 1);
+    });
+
+    test('a tap just outside the radius misses', () {
+      expect(curve.nearestPointWithin(Vector2(10 + 6.1, 0)), isNull);
+    });
+
+    test('picks the nearer of two points within range, not the first', () {
+      final tight = ProfileCurve(
+        points: <ProfilePoint>[
+          ProfilePoint(Vector2(0, 0)),
+          ProfilePoint(Vector2(4, 0)),
+        ],
+        segments: const <ProfileSegment>[LineSegment()],
+      );
+      // 3 units from point 0, 1 unit from point 1 — both within radius 6.
+      expect(tight.nearestPointWithin(Vector2(3, 0)), 1);
+    });
+
+    test('picks the nearer point even when it comes before the farther '
+        'one, not whichever is checked last', () {
+      // The mirror of the case above: the nearer point now sits EARLIER in
+      // the list, so an implementation that just remembers the last in-range
+      // match (rather than the closest one) would answer 1 instead of 0.
+      final tight = ProfileCurve(
+        points: <ProfilePoint>[
+          ProfilePoint(Vector2(0, 0)),
+          ProfilePoint(Vector2(4, 0)),
+        ],
+        segments: const <ProfileSegment>[LineSegment()],
+      );
+      // 1 unit from point 0, 3 units from point 1 — both within radius 6.
+      expect(tight.nearestPointWithin(Vector2(1, 0)), 0);
+    });
+  });
+
+  group('snappedToAxis — ui-13\'s own "привязка 40"', () {
+    test('a point already on the axis is unchanged', () {
+      expect(snappedToAxis(Vector2(0, 5)), Vector2(0, 5));
+    });
+
+    test('a point within the snap distance is pulled to x = 0', () {
+      expect(snappedToAxis(Vector2(39, 5)), Vector2(0, 5));
+    });
+
+    test('a point just past the snap distance is left alone', () {
+      expect(snappedToAxis(Vector2(40.1, 5)), Vector2(40.1, 5));
+    });
+
+    test('height is never touched, only the axis coordinate', () {
+      expect(snappedToAxis(Vector2(10, 123.5)).y, 123.5);
+    });
+  });
 }
