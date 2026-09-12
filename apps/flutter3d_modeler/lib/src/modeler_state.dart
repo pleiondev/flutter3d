@@ -64,6 +64,7 @@ final class ModelerReady extends ModelerState {
     this.submode = MeshSubmode.vertex,
     this.tool = 'object.select',
     this.said,
+    this.jobs = const <ActiveJob>[],
   });
 
   /// Live, and mutated by the frame loop.
@@ -95,6 +96,10 @@ final class ModelerReady extends ModelerState {
   /// describing the selection.
   final String? said;
 
+  /// Background bakes in progress, for a `JobButton` to show — `ui-25`'s own
+  /// row. Empty whenever nothing is baking, which is almost always.
+  final List<ActiveJob> jobs;
+
   /// The project, which is what nearly every reader actually wants.
   ModelProject get project => history.project;
 
@@ -109,6 +114,7 @@ final class ModelerReady extends ModelerState {
     bool clearTool = false,
     String? said,
     bool clearSaid = false,
+    List<ActiveJob>? jobs,
   }) => ModelerReady(
     renderer: renderer,
     stage: stage ?? this.stage,
@@ -118,7 +124,38 @@ final class ModelerReady extends ModelerState {
     submode: submode ?? this.submode,
     tool: clearTool ? null : (tool ?? this.tool),
     said: clearSaid ? null : (said ?? this.said),
+    jobs: jobs ?? this.jobs,
   );
+}
+
+/// One background bake in progress, as far as a screen needs to know —
+/// `ui-25`'s own row.
+///
+/// **Progress only, not the [Job] itself.** The running `Job<JobResult?>`
+/// stays inside `ModelerCubit`'s own bookkeeping, since a `Job` carries a
+/// callback closure and a mutable cancel flag, neither of which belongs in a
+/// value a screen compares with `==` to decide whether to rebuild.
+final class ActiveJob {
+  const ActiveJob({required this.objectId, required this.progress});
+
+  /// Which object this bake answers for — the same id
+  /// `ModelerCubit.cancelBake` takes to stop it.
+  final int objectId;
+
+  /// 0 to 1, [Job.progress]'s own number at the moment this was built.
+  final double progress;
+
+  @override
+  bool operator ==(Object other) =>
+      other is ActiveJob &&
+      other.objectId == objectId &&
+      other.progress == progress;
+
+  @override
+  int get hashCode => Object.hash(objectId, progress);
+
+  @override
+  String toString() => 'ActiveJob(objectId: $objectId, progress: $progress)';
 }
 
 /// Nothing to draw with, or nothing that would open, and the sentence saying

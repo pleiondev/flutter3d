@@ -35,6 +35,20 @@ ModelProject cubes(int count) {
   return project;
 }
 
+/// A single object with one enabled `MirrorModifier` on its stack — enough
+/// for `jobRequestFor` to hand back a real `JobRequest`.
+ModelProject withOneModifier() => const ModelProject().added(
+  (int id) => ModelObject(
+    id: id,
+    name: 'a',
+    geometry: EditedGeometry(EditMesh.cuboid()),
+    transform: Matrix4.identity(),
+    modifiers: <ModifierSlot>[
+      ModifierSlot(modifier: MirrorModifier(normal: Vector3(1, 0, 0))),
+    ],
+  ),
+);
+
 /// A cubit with a document open and a real scene behind it, drawn by the
 /// software rasteriser so there is no GPU and no window anywhere.
 ({ModelerCubit cubit, ModelerStage stage}) opened({int count = 2}) =>
@@ -272,6 +286,81 @@ void main() {
       // A sentence about the last thing that happened stops being true when
       // something else happens, and a stale one is a bar that lies quietly.
       expect(ready(cubit).said, isNull);
+    });
+  });
+
+  group('baking a modifier stack in the background', () {
+    test('lands: the object bakes, and jobs empties out afterwards', () async {
+      final cubit = openedWith(withOneModifier()).cubit;
+      final objectId = ready(cubit).project.objects.first.id;
+      final versionBefore = ready(cubit).project.objects.first.version;
+
+      final landed = await cubit.bakeInBackground(objectId, 0);
+
+      expect(landed, isTrue);
+      final object = ready(cubit).project[objectId]!;
+      expect(object.version, greaterThan(versionBefore));
+      // A mirrored cube's own baked mesh has more vertices than the plain
+      // cube it started from — the modifier actually ran, not a no-op.
+      expect(
+        (object.geometry as EditedGeometry).mesh.vertexCount,
+        greaterThan(EditMesh.cuboid().vertexCount),
+      );
+      expect(ready(cubit).jobs, isEmpty);
+    });
+
+    test('jobs carries the object while a bake is in flight', () async {
+      final cubit = openedWith(withOneModifier()).cubit;
+      final objectId = ready(cubit).project.objects.first.id;
+
+      final future = cubit.bakeInBackground(objectId, 0);
+      // The one chunk has been started (a real isolate spawned) but not
+      // necessarily finished — this is the same instant `job_runner_test.dart`
+      // itself reads betweeen `run()` starting and its first `await` landing.
+      expect(ready(cubit).jobs, <ActiveJob>[ActiveJob(objectId: objectId, progress: 0.0)]);
+
+      await future;
+      expect(ready(cubit).jobs, isEmpty);
+    });
+
+    test('cancelling before the isolate call starts leaves the object '
+        'untouched', () async {
+      final cubit = openedWith(withOneModifier()).cubit;
+      final objectId = ready(cubit).project.objects.first.id;
+      final versionBefore = ready(cubit).project.objects.first.version;
+
+      // Mutation: call `cancelBake` after awaiting the bake instead of
+      // synchronously alongside it. `Job.run`'s own first thing is checking
+      // `_cancelRequested` before its one chunk starts — cancelling in the
+      // same synchronous stretch that starts the future is what actually
+      // exercises that check; cancelling after `await`ing the result cannot,
+      // since by then the one chunk has already run to completion.
+      final future = cubit.bakeInBackground(objectId, 0);
+      cubit.cancelBake(objectId);
+      final landed = await future;
+
+      expect(landed, isFalse);
+      expect(ready(cubit).project[objectId]!.version, versionBefore);
+      expect(ready(cubit).jobs, isEmpty);
+    });
+
+    test('a second bake for the same object while one runs is refused', () async {
+      final cubit = openedWith(withOneModifier()).cubit;
+      final objectId = ready(cubit).project.objects.first.id;
+
+      final first = cubit.bakeInBackground(objectId, 0);
+      final second = await cubit.bakeInBackground(objectId, 0);
+      expect(second, isFalse);
+
+      await first;
+    });
+
+    test('an object with no modifier stack has nothing to bake', () async {
+      final cubit = opened().cubit;
+      final objectId = ready(cubit).project.objects.first.id;
+
+      final landed = await cubit.bakeInBackground(objectId, 0);
+      expect(landed, isFalse);
     });
   });
 

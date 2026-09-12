@@ -26,6 +26,7 @@ import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import 'job_runner.dart';
 import 'modeler_state.dart';
 import 'staging.dart';
 import 'ui/tools.dart';
@@ -41,6 +42,12 @@ final class ModelerCubit extends Cubit<ModelerState> {
   /// when a project changed: every path that changes one goes through [ran],
   /// [undo], [redo] or [opened].
   final ReadinessCache _readiness = ReadinessCache();
+
+  /// Every background bake actually running, by the object it answers for —
+  /// `ui-25`'s own row. [ModelerReady.jobs] is this map's own progress,
+  /// copied out for a screen to read; the running [Job] itself stays here,
+  /// since [cancelBake] needs to reach it and a screen never does.
+  final Map<int, Job<JobResult?>> _activeJobs = <int, Job<JobResult?>>{};
 
   /// A document opened, with the world that draws it.
   void opened(
@@ -122,6 +129,83 @@ final class ModelerCubit extends Cubit<ModelerState> {
     final ModelerReady? now = _ready;
     if (now == null) return;
     _synced(now, said: said);
+  }
+
+  /// Bakes [objectId]'s own modifier stack up to and including [uptoIndex] in
+  /// the background — `ui-25`'s own row, `doc-24`'s `JobRequest` the value it
+  /// runs.
+  ///
+  /// Answers whether the bake actually landed. False for every way it can
+  /// come back empty-handed: there is nothing to bake, one is already running
+  /// for this object, it was cancelled, or [ApplyJobResult] itself refused a
+  /// [JobRequest.baseVersion] the object has since moved past.
+  ///
+  /// **One chunk, because [JobRequest.run] is one opaque call.** It already
+  /// crosses to another isolate on its own (`editInIsolate`), which is the
+  /// row's own "`Isolate.run` на native" — chunking further would mean
+  /// splitting one modifier stack's bake into per-modifier isolate hops,
+  /// several times the cost for a stack that is rarely more than a handful of
+  /// steps. The trade this makes: [cancelBake] stops a bake that has not
+  /// started running its one chunk yet, the same as the last of
+  /// `job_runner_test.dart`'s own cases (`cancel` before `run` prevents every
+  /// chunk); once the isolate call is under way there is no checkpoint inside
+  /// it to stop at, so it runs to its own finish either way — an honest limit
+  /// of wrapping one atomic call in a job, not a broken promise about what
+  /// [cancelBake] does.
+  ///
+  /// **One microtask yield before the chunk starts**, so a caller who calls
+  /// [cancelBake] in the same synchronous stretch that started this (the
+  /// ordinary shape: fire the bake, then wire the cancel button to stop it)
+  /// still lands before [Job.run] takes its own first look at whether it was
+  /// asked to stop — without the yield, this function would already have run
+  /// straight past that check by the time control ever returned to whoever
+  /// called it.
+  Future<bool> bakeInBackground(int objectId, int uptoIndex) async {
+    final ModelerReady? now = _ready;
+    if (now == null) return false;
+    if (_activeJobs.containsKey(objectId)) return false;
+    final JobRequest? request = jobRequestFor(now.project, objectId, uptoIndex);
+    if (request == null) return false;
+
+    JobResult? result;
+    final job = Job<JobResult?>(
+      chunkCount: 1,
+      runChunk: (int _) async => result = await request.run(),
+      onProgress: (double _) => _syncJobs(),
+    );
+    _activeJobs[objectId] = job;
+    _syncJobs();
+    await Future<void>.value();
+
+    final JobOutcome<JobResult?> outcome = await job.run(() => result);
+    _activeJobs.remove(objectId);
+    _syncJobs();
+
+    if (outcome is! JobFinished<JobResult?> || outcome.value == null) {
+      return false;
+    }
+    return ran(
+      ApplyJobResult.of(outcome.value!),
+      said: 'baked in the background',
+    );
+  }
+
+  /// Asks [objectId]'s own background bake to stop, if one is running — see
+  /// [bakeInBackground] for what that can and cannot still catch.
+  void cancelBake(int objectId) => _activeJobs[objectId]?.cancel();
+
+  void _syncJobs() {
+    final ModelerReady? now = _ready;
+    if (now == null) return;
+    emit(
+      now.copyWith(
+        jobs: <ActiveJob>[
+          for (final MapEntry<int, Job<JobResult?>> entry
+              in _activeJobs.entries)
+            ActiveJob(objectId: entry.key, progress: entry.value.progress),
+        ],
+      ),
+    );
   }
 
   /// Switches between placing objects and editing one.
