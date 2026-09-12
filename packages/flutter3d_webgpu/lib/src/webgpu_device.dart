@@ -810,6 +810,13 @@ final class WebGpuDevice implements GraphicsDevice, WgslModuleCompiler {
     () => webgpuUploadGeometry(gpuDevice, _buffers, bytes, usage),
   );
 
+  @override
+  void overwriteGeometry(GeometryBuffer target, int offsetInBytes, ByteData bytes) =>
+      guard(
+        'a ${bytes.lengthInBytes}-byte overwrite at $offsetInBytes',
+        () => webgpuOverwriteGeometry(gpuDevice, target, offsetInBytes, bytes),
+      );
+
   /// Records the stage pair, its layout and the reflection a bind group will
   /// need. Nothing is built: see [WebGpuPipeline], and `webgpu_encoder.dart`
   /// for what a draw does with it.

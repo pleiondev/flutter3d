@@ -336,6 +336,27 @@ abstract interface class GraphicsDevice implements TextureAllocator {
   /// backend that binds a buffer to its target permanently.
   GeometryBuffer uploadGeometry(ByteData bytes, GeometryUsage usage);
 
+  /// Writes [bytes] into [target] starting [offsetInBytes] into it, in place.
+  ///
+  /// **Visible starting the next pass, never the one already encoded.** None
+  /// of the four backends here promise anything about a draw already recorded
+  /// against the old bytes — WebGL2's `bufferSubData`, WebGPU's
+  /// `queue.writeBuffer` and flutter_gpu's `DeviceBuffer.overwrite` are all
+  /// queued relative to *submission*, not to the moment this call returns, so
+  /// a pass encoded and submitted before this call still draws what it was
+  /// given. A caller that needs the new bytes in the frame being built has to
+  /// call this before recording the draw, not after.
+  ///
+  /// [offsetInBytes] and `bytes.lengthInBytes` must together fit inside
+  /// [target] — `offsetInBytes + bytes.lengthInBytes <= target.lengthInBytes`
+  /// — checked here rather than left to a backend, because a backend that
+  /// caught it would report three different exceptions for one mistake.
+  ///
+  /// [target] must be a buffer this device itself returned from
+  /// [uploadGeometry], not a slice of unrelated bytes — the same requirement
+  /// [releaseGeometry] already carries.
+  void overwriteGeometry(GeometryBuffer target, int offsetInBytes, ByteData bytes);
+
   /// Creates a texture already holding [pixels].
   ///
   /// One call rather than create-then-write, because that is what the engine

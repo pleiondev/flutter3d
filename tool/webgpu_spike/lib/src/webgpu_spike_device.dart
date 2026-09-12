@@ -329,6 +329,26 @@ final class WebGpuSpikeDevice implements GraphicsDevice {
     );
   }
 
+  /// Ordinary work this spike had not been asked for yet, not a contract gap:
+  /// `queue.writeBuffer` is exactly [uploadGeometry]'s own call, aimed at an
+  /// offset instead of the start.
+  @override
+  void overwriteGeometry(GeometryBuffer target, int offsetInBytes, ByteData bytes) {
+    if (offsetInBytes < 0 ||
+        offsetInBytes + bytes.lengthInBytes > target.lengthInBytes) {
+      throw ArgumentError(
+        'overwriteGeometry: $offsetInBytes + ${bytes.lengthInBytes} does not '
+        'fit inside a ${target.lengthInBytes}-byte buffer',
+      );
+    }
+    final at = target.offsetInBytes + offsetInBytes;
+    if (at % 4 != 0) {
+      throw ArgumentError('overwriteGeometry: offset $at is not four-byte aligned');
+    }
+    final buffer = (target.backend as WebGpuSpikeBuffer).buffer;
+    gpuDevice.queue.writeBuffer(buffer, at, gpuWritableBytes(bytes).toJS);
+  }
+
   @override
   void releaseGeometry(GeometryBuffer geometry) =>
       (geometry.backend as WebGpuSpikeBuffer).buffer.destroy();

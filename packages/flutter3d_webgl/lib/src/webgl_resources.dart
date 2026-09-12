@@ -447,6 +447,7 @@ TextureHandle? _webglCreateCompressedTextureFromPixels(
 GeometryBuffer webglUploadGeometry(
   web.WebGL2RenderingContext gl,
   List<web.WebGLBuffer> persistentBuffers,
+  Map<web.WebGLBuffer, int> bufferTargets,
   ByteData bytes,
   GeometryUsage usage,
 ) {
@@ -471,10 +472,44 @@ GeometryBuffer webglUploadGeometry(
     bytes.buffer.asUint8List(bytes.offsetInBytes, bytes.lengthInBytes).toJS,
     web.WebGLRenderingContext.STATIC_DRAW,
   );
+  // Remembered so `webglOverwriteGeometry` can rebind the same buffer to the
+  // target it was made against, since nothing in `GeometryBuffer` itself
+  // carries a `GeometryUsage` to ask a second time.
+  if (buffer != null) bufferTargets[buffer] = target;
   return GeometryBuffer(
     backend: buffer!,
     offsetInBytes: 0,
     lengthInBytes: bytes.lengthInBytes,
+  );
+}
+
+/// Writes into an existing buffer, bound to whatever target
+/// [webglUploadGeometry] made it against. See `GraphicsDevice.overwriteGeometry`.
+void webglOverwriteGeometry(
+  web.WebGL2RenderingContext gl,
+  Map<web.WebGLBuffer, int> bufferTargets,
+  GeometryBuffer geometryTarget,
+  int offsetInBytes,
+  ByteData bytes,
+) {
+  final buffer = geometryTarget.backend as web.WebGLBuffer;
+  final glTarget = bufferTargets[buffer];
+  if (glTarget == null) {
+    throw ArgumentError('overwriteGeometry: $buffer was not made by this device');
+  }
+  if (offsetInBytes < 0 ||
+      offsetInBytes + bytes.lengthInBytes > geometryTarget.lengthInBytes) {
+    throw ArgumentError(
+      'overwriteGeometry: $offsetInBytes + ${bytes.lengthInBytes} does not '
+      'fit inside a ${geometryTarget.lengthInBytes}-byte buffer',
+    );
+  }
+  final at = geometryTarget.offsetInBytes + offsetInBytes;
+  gl.bindBuffer(glTarget, buffer);
+  gl.bufferSubData(
+    glTarget,
+    at,
+    bytes.buffer.asUint8List(bytes.offsetInBytes, bytes.lengthInBytes).toJS,
   );
 }
 

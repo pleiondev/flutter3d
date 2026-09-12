@@ -21,6 +21,8 @@
 /// two files apart.
 library;
 
+import 'dart:typed_data';
+
 import 'package:flutter3d_geometry/flutter3d_geometry.dart';
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:vector_math/vector_math.dart';
@@ -144,5 +146,45 @@ final class DeviceMesh implements DrawableGeometry {
   double get boundingRadius {
     final extent = (bounds.max - bounds.min)..scale(0.5);
     return extent.length;
+  }
+
+  /// Overwrites [vertexCount] vertices' worth of interleaved attribute bytes
+  /// starting at [firstVertex], in place — `pro-eng-01`.
+  ///
+  /// **[bounds] is not refitted.** A caller whose overwrite can move a vertex
+  /// outside the box this mesh was uploaded with — sculpting, cloth, anything
+  /// that is not a fixed-shape skinning pose — has to widen [bounds] itself or
+  /// accept that culling may be wrong; recomputing it here would need either
+  /// the whole mesh's current positions (this call sees only the overwritten
+  /// range) or a running min/max this class does not keep. That is real work
+  /// still open under `view-14-overwrite-geometry`, not a promise this method
+  /// makes and breaks.
+  ///
+  /// [vertexBytes]' own length must be an exact multiple of this mesh's vertex
+  /// stride — `vertices.lengthInBytes ~/ vertexCount` — and
+  /// `firstVertex + (vertexBytes.lengthInBytes ~/ stride)` must not exceed
+  /// [vertexCount]; both are checked here rather than left to
+  /// [GraphicsDevice.overwriteGeometry], which knows bytes and offsets but not
+  /// that they mean vertices.
+  void overwriteVertices(
+    GraphicsDevice device,
+    int firstVertex,
+    ByteData vertexBytes,
+  ) {
+    final stride = vertices.lengthInBytes ~/ vertexCount;
+    if (vertexBytes.lengthInBytes % stride != 0) {
+      throw ArgumentError(
+        'overwriteVertices: ${vertexBytes.lengthInBytes} bytes is not a '
+        'whole number of $stride-byte vertices',
+      );
+    }
+    final count = vertexBytes.lengthInBytes ~/ stride;
+    if (firstVertex < 0 || firstVertex + count > vertexCount) {
+      throw ArgumentError(
+        'overwriteVertices: vertices $firstVertex..${firstVertex + count} '
+        'do not fit in a $vertexCount-vertex mesh',
+      );
+    }
+    device.overwriteGeometry(vertices, firstVertex * stride, vertexBytes);
   }
 }

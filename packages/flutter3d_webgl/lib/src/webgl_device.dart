@@ -223,6 +223,13 @@ final class WebGlDevice implements GraphicsDevice {
   /// reason as [_persistentTextures].
   final List<web.WebGLBuffer> _persistentBuffers = <web.WebGLBuffer>[];
 
+  /// The GL target each buffer in [_persistentBuffers] was bound to when made
+  /// — `ARRAY_BUFFER` or `ELEMENT_ARRAY_BUFFER` — since a buffer bound to one
+  /// for life cannot be rebound to the other, and [overwriteGeometry] needs to
+  /// bind it again without being told a second time. See
+  /// `webglUploadGeometry`.
+  final Map<web.WebGLBuffer, int> _bufferTargets = <web.WebGLBuffer, int>{};
+
   /// Whether [dispose] has already run. Guards against deleting the same GL
   /// object twice, which is harmless by the WebGL spec but worth refusing
   /// anyway: a second [dispose] call is a caller mistake worth surfacing rather
@@ -486,7 +493,11 @@ final class WebGlDevice implements GraphicsDevice {
 
   @override
   GeometryBuffer uploadGeometry(ByteData bytes, GeometryUsage usage) =>
-      webglUploadGeometry(_gl, _persistentBuffers, bytes, usage);
+      webglUploadGeometry(_gl, _persistentBuffers, _bufferTargets, bytes, usage);
+
+  @override
+  void overwriteGeometry(GeometryBuffer target, int offsetInBytes, ByteData bytes) =>
+      webglOverwriteGeometry(_gl, _bufferTargets, target, offsetInBytes, bytes);
 
   @override
   TextureHandle createTexture(RenderTargetSpec spec, {int levels = 1}) =>

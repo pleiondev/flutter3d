@@ -326,6 +326,30 @@ final class CpuDevice implements GraphicsDevice {
     );
   }
 
+  /// Writes straight into the `Uint8List` [uploadGeometry] copied the
+  /// original bytes into — there is no separate device-side copy to keep in
+  /// step, which is the one respect in which this backend's write is simpler
+  /// than the other three's.
+  @override
+  void overwriteGeometry(GeometryBuffer target, int offsetInBytes, ByteData bytes) {
+    final backend =
+        target.backend as ({ByteData bytes, GeometryUsage usage});
+    if (offsetInBytes < 0 ||
+        offsetInBytes + bytes.lengthInBytes > target.lengthInBytes) {
+      throw ArgumentError(
+        'overwriteGeometry: $offsetInBytes + ${bytes.lengthInBytes} does not '
+        'fit inside a ${target.lengthInBytes}-byte buffer',
+      );
+    }
+    final at = target.offsetInBytes + offsetInBytes;
+    backend.bytes.buffer
+        .asUint8List(backend.bytes.offsetInBytes + at, bytes.lengthInBytes)
+        .setAll(
+          0,
+          bytes.buffer.asUint8List(bytes.offsetInBytes, bytes.lengthInBytes),
+        );
+  }
+
   @override
   PipelineHandle createPipeline(
     ShaderHandle vertex,

@@ -708,6 +708,35 @@ GeometryBuffer webgpuUploadGeometry(
   );
 }
 
+/// Writes into an existing buffer through the same queue [webgpuUploadGeometry]
+/// uploads with. See `GraphicsDevice.overwriteGeometry`.
+///
+/// **`writeBuffer` demands a four-byte-aligned offset as well as a
+/// four-byte-aligned length**, and only the length is padded for by
+/// [gpuWritableBytes] — an unaligned offset is refused outright rather than
+/// silently rounded, because rounding it would write over bytes the caller
+/// never named.
+void webgpuOverwriteGeometry(
+  GPUDevice gpu,
+  GeometryBuffer target,
+  int offsetInBytes,
+  ByteData bytes,
+) {
+  if (offsetInBytes < 0 ||
+      offsetInBytes + bytes.lengthInBytes > target.lengthInBytes) {
+    throw ArgumentError(
+      'overwriteGeometry: $offsetInBytes + ${bytes.lengthInBytes} does not '
+      'fit inside a ${target.lengthInBytes}-byte buffer',
+    );
+  }
+  final at = target.offsetInBytes + offsetInBytes;
+  if (at % 4 != 0) {
+    throw ArgumentError('overwriteGeometry: offset $at is not four-byte aligned');
+  }
+  final buffer = (target.backend as WebGpuGeometry).buffer;
+  gpu.queue.writeBuffer(buffer, at, gpuWritableBytes(bytes).toJS);
+}
+
 /// Destroys one texture and stops tracking it, or answers false for a handle
 /// this device does not hold — a double release, or one from another device.
 ///

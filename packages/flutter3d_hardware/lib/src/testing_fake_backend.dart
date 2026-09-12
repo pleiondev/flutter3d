@@ -338,6 +338,28 @@ final class FakeBackend implements GraphicsDevice {
     lengthInBytes: bytes.lengthInBytes,
   );
 
+  /// Every call [overwriteGeometry] has recorded, in order — a test asks this
+  /// rather than the bytes themselves, because this backend keeps none: it
+  /// records wiring, not content, the same promise [uploads] already makes.
+  final List<({Object backend, int offsetInBytes, int lengthInBytes})>
+  overwrites = <({Object backend, int offsetInBytes, int lengthInBytes})>[];
+
+  @override
+  void overwriteGeometry(GeometryBuffer target, int offsetInBytes, ByteData bytes) {
+    if (offsetInBytes < 0 ||
+        offsetInBytes + bytes.lengthInBytes > target.lengthInBytes) {
+      throw ArgumentError(
+        'overwriteGeometry: $offsetInBytes + ${bytes.lengthInBytes} does not '
+        'fit inside a ${target.lengthInBytes}-byte buffer',
+      );
+    }
+    overwrites.add((
+      backend: target.backend,
+      offsetInBytes: target.offsetInBytes + offsetInBytes,
+      lengthInBytes: bytes.lengthInBytes,
+    ));
+  }
+
   @override
   void beginFrame() => frames++;
 

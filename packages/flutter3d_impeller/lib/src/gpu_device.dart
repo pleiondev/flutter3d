@@ -420,6 +420,36 @@ final class GpuRenderBackend implements GraphicsDevice {
     );
   }
 
+  /// `createDeviceBufferWithCopy` always makes a [gpu.StorageMode.hostVisible]
+  /// buffer — see its own implementation — which is the one storage mode
+  /// [gpu.DeviceBuffer.overwrite] accepts; every buffer [uploadGeometry] hands
+  /// out here can therefore always be overwritten.
+  ///
+  /// [gpu.DeviceBuffer.flush] follows the write. On unified memory it is a
+  /// no-op; on a discrete GPU without coherent host memory it is what actually
+  /// moves the new bytes across, and skipping it there would leave the write
+  /// visible to nothing until some unrelated flush happened to cover the same
+  /// range.
+  @override
+  void overwriteGeometry(GeometryBuffer target, int offsetInBytes, ByteData bytes) {
+    final buffer = target.backend as gpu.DeviceBuffer;
+    if (offsetInBytes < 0 ||
+        offsetInBytes + bytes.lengthInBytes > target.lengthInBytes) {
+      throw ArgumentError(
+        'overwriteGeometry: $offsetInBytes + ${bytes.lengthInBytes} does not '
+        'fit inside a ${target.lengthInBytes}-byte buffer',
+      );
+    }
+    final at = target.offsetInBytes + offsetInBytes;
+    final ok = buffer.overwrite(bytes, destinationOffsetInBytes: at);
+    if (!ok) {
+      throw StateError(
+        'DeviceBuffer.overwrite refused ${bytes.lengthInBytes} bytes at $at',
+      );
+    }
+    buffer.flush(offsetInBytes: at, lengthInBytes: bytes.lengthInBytes);
+  }
+
   @override
   TextureHandle? createTextureFromPixels({
     required int width,
