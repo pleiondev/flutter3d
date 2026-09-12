@@ -2877,6 +2877,145 @@ final class Renderer implements RenderServices {
     );
   }
 
+  /// Bloom and the composite — tone map, look, debug overlay — over an
+  /// already-rendered HDR colour buffer, standalone.
+  ///
+  /// `pro-eng-03`'s own row. [hdr] arrives from outside this method's own
+  /// graph rather than from a node registered in it, so it is registered
+  /// with [FrameGraph.addExternal] at version zero — the first real caller
+  /// that primitive has had since the migration [_compileFrameGraph]'s own
+  /// doc comment describes ("nothing is external any more"). Bloom is the
+  /// one reader: it consumes `hdr_colour@0` and writes `bloom@1`, and the
+  /// graph this method builds never asks for a version of `hdr_colour`
+  /// past zero — nothing here registers a node that would produce one.
+  /// `frame_graph_test.dart`'s own coverage is what happens when something
+  /// does: a read the graph cannot trace to a producer is refused at
+  /// [FrameGraph.compile], before a single pass runs.
+  ///
+  /// Reflections and ambient occlusion are deliberately not part of this
+  /// call: both read the surface (G-)buffer the scene pass writes, which a
+  /// caller handing in only a finished colour buffer has no way to supply.
+  /// A scene rendered with `RenderSettings.reflections` and
+  /// `.ambientOcclusion` off, and `.bloom`/composite left to this method
+  /// rather than run inline, reproduces the exact picture [render] would
+  /// have drawn whole for the same scene and settings with every effect
+  /// on — see `renderer_post_standalone_test.dart`'s own `post-only` scene,
+  /// this row's own acceptance.
+  ///
+  /// [keepHdr] additionally returns the bloomed-but-not-yet-tonemapped HDR
+  /// buffer as [PostFrameResult.hdr], for a caller with another
+  /// linear-space step still to run before display. Left null otherwise —
+  /// a pooled texture nobody outside this call has a reason to hold onto.
+  ///
+  /// [target] is where the tonemapped result is drawn; a caller that omits
+  /// it gets a freshly allocated texture in the device's own default colour
+  /// format, owned by the caller from the moment this method returns — it
+  /// is not pooled, the way [render]'s own `frame` is, because nothing here
+  /// knows when a standalone caller is done with it. Release it with
+  /// `GraphicsDevice.releaseTexture` once it is.
+  PostFrameResult renderPost({
+    required TextureHandle hdr,
+    RenderSettings settings = const RenderSettings(),
+    bool keepHdr = false,
+    TextureHandle? target,
+  }) {
+    developer.Timeline.startSync('Renderer.renderPost');
+    final clock = Stopwatch()..start();
+
+    final bloomNode = _BloomNode(this, settings.bloom);
+    final graph = FrameGraph()
+      ..addExternal(FrameResourceIds.hdrColour)
+      ..addNode(bloomNode);
+    final compiled = graph.compile(
+      outputs: <ResourceId>[
+        if (bloomNode.isActive) FrameResourceIds.bloom,
+      ],
+    );
+
+    final resources =
+        FrameResources(
+            source: _DeferredTextureSource(this),
+            graph: compiled,
+            frameWidth: hdr.width,
+            frameHeight: hdr.height,
+          )
+          // Half the frame in HDR, the same declaration `_compileFrameGraph`
+          // gives it — a resource is named the same way wherever it is
+          // produced.
+          ..declare(
+            ResourceDesc(
+              id: FrameResourceIds.bloom,
+              format: hdrFormat,
+              size: const FrameFraction(2),
+            ),
+          );
+    // Between nodes, which is what binds a name's version zero rather than a
+    // node's own output — see `FrameResources.provide`'s own doc comment.
+    resources.provide(FrameResourceIds.hdrColour, hdr);
+
+    // Unlike `render`'s own loop, nothing here reads `bloom` back through the
+    // graph — composite is called directly below rather than registered as a
+    // node, precisely to avoid its own hardcoded `_ldrColor` target (see the
+    // doc comment above). With no reader declared, `bloom`'s last use is its
+    // own write, at this one node's own index, and `endNode` hands a
+    // resource back to the pool the moment its last use has passed — so it
+    // has to be read *before* `endNode` runs, not after, the one place this
+    // loop cannot simply mirror `render`'s.
+    TextureHandle? bloom;
+    final passState = FramePassState();
+    for (var i = 0; i < compiled.order.length; i++) {
+      resources.beginNode(i);
+      (compiled.order[i] as RenderNode).execute(
+        NodeFrame(
+          device: device,
+          resources: resources,
+          services: this,
+          state: passState,
+          settings: settings,
+          width: hdr.width,
+          height: hdr.height,
+          sceneColor: hdr,
+        ),
+      );
+      bloom = resources.tryTexture(FrameResourceIds.bloom);
+      resources.endNode(i);
+    }
+
+    final output =
+        target ??
+        device.createTexture(
+          RenderTargetSpec(
+            width: hdr.width,
+            height: hdr.height,
+            format: device.defaultColorFormat,
+            storageMode: StorageMode.devicePrivate,
+          ),
+        );
+
+    _encodeComposite(
+      target: output,
+      scene: hdr,
+      bloom: bloom,
+      ao: null,
+      surface: null,
+      shadowView: null,
+      sceneGraph: Scene(),
+      views: const <RenderView>[],
+      settings: settings,
+      width: hdr.width,
+      height: hdr.height,
+    );
+
+    clock.stop();
+    developer.Timeline.finishSync();
+
+    return PostFrameResult(
+      frame: output,
+      hdr: keepHdr ? hdr : null,
+      cpuMicros: clock.elapsedMicroseconds,
+    );
+  }
+
   final Float32List _ssaoParams = Float32List(4);
   final Float32List _ssaoScreen = Float32List(4);
   final Float32List _ssaoCameraData = Float32List(4);

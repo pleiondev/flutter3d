@@ -139,3 +139,33 @@ final class FrameResult {
   /// the same question.
   final List<({String name, bool active, int micros})> passes;
 }
+
+/// What [Renderer.renderPost] handed back.
+///
+/// `pro-eng-03`'s own row: a standalone bloom-and-composite pass over a
+/// colour buffer the caller supplies rather than one a scene node in the
+/// same graph produced. Deliberately its own type rather than a narrower
+/// [FrameResult] — a scene's own draw counts, light counts and shadow
+/// counts do not exist for a call with no scene at all, and filling them
+/// with zeros would read as "nothing was shaded" rather than "there was
+/// never anything to shade".
+final class PostFrameResult {
+  const PostFrameResult({
+    required this.frame,
+    required this.cpuMicros,
+    this.hdr,
+  });
+
+  /// The tone-mapped, sRGB-encoded output — the same picture the composite
+  /// node inside [Renderer.render] would have written, for the same
+  /// [hdr]/settings pair.
+  final TextureHandle frame;
+
+  /// The bloomed HDR buffer [renderPost] composited from, kept only when
+  /// `keepHdr: true` was asked for. Null otherwise: a pooled texture
+  /// nothing outside this call has a reason to hold a reference to.
+  final TextureHandle? hdr;
+
+  /// Wall-clock time spent inside [Renderer.renderPost].
+  final int cpuMicros;
+}
