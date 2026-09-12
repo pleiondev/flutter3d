@@ -18,6 +18,7 @@
 /// and that framing it put it in front of the camera.
 library;
 
+import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter3d/flutter3d.dart';
@@ -498,6 +499,63 @@ void main() {
       );
 
       await expectMatchesGolden(frame, 'test/goldens/skeleton-overlay.png');
+    });
+  });
+
+  group('the morphed shape, drawn', () {
+    // `anim-19`'s own acceptance names a golden frame. `AnimatedMorphCube`
+    // is the Khronos sample `morph_pipeline_test.dart` already loads through
+    // the whole pipeline — decode, upload, node, weights — so this reaches
+    // that same node through `ModelerStage.build`'s own `asset:` parameter
+    // rather than building a scene by hand.
+    test('a weighted target matches its reference frame', () async {
+      final it = cpuTestDevice(width: 240, height: 160);
+      // `kSamplesPath` is relative to a package under `packages/`; this app
+      // lives under `apps/`, one directory further from the repo root — the
+      // same reason `texture_info_upload_test.dart` spells its own sample
+      // path out rather than using the constant.
+      final document = await GltfLoader().load(
+        File(
+          '../../packages/flutter3d_samples/assets/AnimatedMorphCube.glb',
+        ).readAsBytesSync(),
+      );
+      final asset = await ModelAsset.fromDocument(document, device: it.device);
+      final stage = ModelerStage.build(device: it.device, asset: asset);
+
+      MeshNode? morphed;
+      stage.subject.traverse((SceneNode node) {
+        if (node is MeshNode && node.morph != null) morphed = node;
+      });
+      expect(morphed, isNotNull, reason: 'the sample carries a morph target');
+      morphed!.morph!.setWeights(<double>[1.0, 0.0]);
+      stage.frameSubject();
+
+      final renderer = Renderer.create(
+        device: it.device,
+        fallbackAlbedo: it.albedo,
+        fallbackNormal: it.normal,
+      );
+      final result = renderer.render(
+        width: 240,
+        height: 160,
+        scene: stage.scene,
+        views: <RenderView>[
+          RenderView(
+            camera: stage.camera,
+            clearColor: Vector4(0.0, 0.0, 0.0, 1.0),
+          ),
+        ],
+      );
+      final pixels = await it.device.readPixels(result.frame);
+      expect(pixels, isNotNull, reason: 'the frame could not be read back');
+      final frame = (
+        pixels: pixels!.buffer.asUint8List(),
+        width: 240,
+        height: 160,
+        drawCalls: result.drawCalls,
+      );
+
+      await expectMatchesGolden(frame, 'test/goldens/modeler-morphs.png');
     });
   });
 }
