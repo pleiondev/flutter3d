@@ -3,6 +3,8 @@
 ///     dart test test/job_runner_test.dart
 library;
 
+import 'dart:async';
+
 import 'package:flutter3d_modeler/src/job_runner.dart';
 import 'package:test/test.dart';
 
@@ -25,6 +27,34 @@ void main() {
         0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0,
       ]);
       expect(job.progress, 1.0);
+    });
+
+    test('a foreign microtask scheduled before the job still gets its own '
+        'turn between chunks — pro-job-01\'s own "чужой microtask между '
+        'шагами"', () async {
+      // Mutation: run every chunk in a tight loop with no `await` between
+      // them (call `runChunk` but never actually wait on the future it
+      // returns before moving to the next index). Every other test in this
+      // file still passes, because none of them schedule anything of their
+      // own to compete for a turn — this is the one that notices a job
+      // greedy enough to finish before yielding once.
+      final order = <String>[];
+      final job = Job<void>(
+        chunkCount: 3,
+        runChunk: (int index) async => order.add('chunk $index'),
+      );
+      scheduleMicrotask(() => order.add('foreign'));
+
+      await job.run(() {});
+
+      expect(order, contains('foreign'));
+      // Scheduled before the job started and after only its first chunk had
+      // an `await` point to yield at, so it lands after chunk 0 and before
+      // the job has run every chunk to completion — neither first (the job
+      // did not idle before starting) nor absent (the job did not run to
+      // completion without yielding once).
+      expect(order.first, 'chunk 0');
+      expect(order, isNot(orderedEquals(<String>['chunk 0', 'chunk 1', 'chunk 2', 'foreign'])));
     });
 
     test('cancelling during the third chunk gives no result, and no chunk '
