@@ -17,7 +17,34 @@ import 'dart:math' as math;
 
 import 'package:vector_math/vector_math.dart';
 
-enum ProjectLightType { directional, point, spot }
+/// Which kind of light a [ProjectLight] is.
+///
+/// **A value class rather than an enum, for the reason `LightingModel`'s
+/// own class comment gives: this list is not closed.** `LightNode`'s own
+/// `LightType` — a package this one does not depend on — can add a fourth
+/// kind (an area light, a rect light) without this file ever knowing, and a
+/// published package's own enum would break every switch written against
+/// it the day that happens.
+final class ProjectLightType {
+  const ProjectLightType._(this.name);
+
+  final String name;
+
+  static const ProjectLightType directional = ProjectLightType._(
+    'directional',
+  );
+  static const ProjectLightType point = ProjectLightType._('point');
+  static const ProjectLightType spot = ProjectLightType._('spot');
+
+  static const List<ProjectLightType> values = <ProjectLightType>[
+    directional,
+    point,
+    spot,
+  ];
+
+  @override
+  String toString() => 'ProjectLightType.$name';
+}
 
 /// One light in [SceneLighting.lights], addressed by its position in the
 /// list — the same convention [ProjectMaterial]'s own table uses, and for
@@ -85,7 +112,35 @@ final class ProjectLight {
 /// panorama — that is `mat-15`'s own concern, one document scene down from
 /// this one, and giving this field an open-ended value now would be
 /// building the bigger feature nobody asked this row for.
-enum SceneEnvironmentPreset { none, studio, daylight, sunset }
+/// A value class rather than an enum, for the reason [ProjectLightType] is
+/// one: a fourth preset is a name this file can add without breaking a
+/// switch a caller already wrote against the first three.
+final class SceneEnvironmentPreset {
+  const SceneEnvironmentPreset._(this.name);
+
+  final String name;
+
+  static const SceneEnvironmentPreset none = SceneEnvironmentPreset._('none');
+  static const SceneEnvironmentPreset studio = SceneEnvironmentPreset._(
+    'studio',
+  );
+  static const SceneEnvironmentPreset daylight = SceneEnvironmentPreset._(
+    'daylight',
+  );
+  static const SceneEnvironmentPreset sunset = SceneEnvironmentPreset._(
+    'sunset',
+  );
+
+  static const List<SceneEnvironmentPreset> values = <SceneEnvironmentPreset>[
+    none,
+    studio,
+    daylight,
+    sunset,
+  ];
+
+  @override
+  String toString() => 'SceneEnvironmentPreset.$name';
+}
 
 /// Post-processing knobs a project carries as document state.
 ///

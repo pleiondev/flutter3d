@@ -38,9 +38,14 @@ final class LightingSync {
     for (final ProjectLight light in lighting.lights) {
       final node = LightNode(
         type: switch (light.type) {
-          ProjectLightType.directional => LightType.directional,
           ProjectLightType.point => LightType.point,
           ProjectLightType.spot => LightType.spot,
+          // ProjectLightType is a value class, not a sealed one — see its
+          // own doc comment — so this switch cannot be exhaustive over its
+          // cases. Directional is both the default `ProjectLight` itself
+          // takes and the sensible fallback for a value class that grows a
+          // fourth kind this file has not been taught yet.
+          _ => LightType.directional,
         },
         color: light.color,
         intensity: light.intensity,
