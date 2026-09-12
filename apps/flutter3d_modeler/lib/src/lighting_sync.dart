@@ -61,9 +61,20 @@ final class LightingSync {
 
   /// [settings] with [lighting]'s own exposure and shadow request folded in
   /// — the `RenderSettings` half of `LightingSync → LightNode/RenderSettings`.
+  ///
+  /// **`mat-25`'s own gizmo switch lives here too.** `DebugDrawGizmos
+  /// .addLightGizmo` — the arrow, marker sphere and spot cone — is already
+  /// built into the renderer's own debug-overlay pass (`view-05`); turning it
+  /// on for a project's own lights is a one-field flip on the same
+  /// `RenderSettings` this method already produces, not a second seam.
+  /// Gated on there being a light at all, so a project with none pays
+  /// nothing extra building an empty overlay every frame.
   RenderSettings apply(RenderSettings settings, SceneLighting lighting) =>
       settings.copyWith(
         exposure: lighting.exposure,
         shadows: settings.shadows.copyWith(enabled: lighting.shadows),
+        debug: settings.debug.copyWith(
+          lightGizmos: lighting.lights.isNotEmpty,
+        ),
       );
 }
