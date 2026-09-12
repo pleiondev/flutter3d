@@ -434,6 +434,57 @@ final class DissolveEdges extends ModelCommand {
       });
 }
 
+/// Marks or clears the UV seam flag on the selected edges — `pro-uv-01`.
+///
+/// **A flag, not a topology change**, which is why this is the shortest
+/// command in the file: `EditMesh.setEdgeFlag` already writes both halves of
+/// an edge (`mesh-12`), and marking one changes nothing a layout plan or a
+/// BVH built against this mesh would need to hear about — the same
+/// `topologyChanged: false` a transform answers with. The mesh a UV unwrap
+/// walks later is unchanged in shape; only what it is willing to cut along
+/// is.
+final class MarkSeam extends ModelCommand {
+  const MarkSeam({this.on = true});
+
+  /// True to mark the selected edges as a seam, false to clear it — a caller
+  /// choosing between a "mark seam" and a "clear seam" menu item is choosing
+  /// this, not two different commands.
+  final bool on;
+
+  @override
+  String get name => 'markSeam';
+
+  @override
+  String get says => on ? 'mark the seam' : 'clear the seam';
+
+  @override
+  Map<String, Object?> get arguments => <String, Object?>{'on': on};
+
+  @override
+  Map<String, ParamHint> get hints => const <String, ParamHint>{
+    'on': BoolHint(),
+  };
+
+  @override
+  Outcome apply(ModelProject project, ProjectSelection selection) =>
+      _asMeshStep(project, selection, (_MeshTarget target) {
+        final edges = target.elements.convertedTo(
+          target.mesh,
+          ElementLevel.edge,
+        );
+        if (edges.isEmpty) {
+          return OpResult.refused(
+            'no edges are selected to ${on ? 'mark as a seam' : 'clear'}',
+            selection: target.elements,
+          );
+        }
+        for (final half in edges.ids) {
+          target.mesh.setEdgeFlag(half, EdgeFlags.seam, on: on);
+        }
+        return OpResult.done(selection: target.elements);
+      });
+}
+
 /// Cuts every selected face into triangles.
 final class Triangulate extends ModelCommand {
   const Triangulate();

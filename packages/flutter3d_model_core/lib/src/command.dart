@@ -464,6 +464,7 @@ const List<String> modelCommandNames = <String>[
   'separate',
   'triangulate',
   'recalculateNormals',
+  'markSeam',
   'selectAll',
   'selectNone',
   'invertSelection',
@@ -657,6 +658,7 @@ ModelCommand? modelCommandFromJson(Object? json) {
     'recalculateNormals' => RecalculateNormals(
       flip: json['flip'] as bool? ?? false,
     ),
+    'markSeam' => MarkSeam(on: json['on'] as bool? ?? true),
     'transformElements' => switch ((
       _doubles(json['by'], 16),
       json['what'],

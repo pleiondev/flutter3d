@@ -492,6 +492,100 @@ void main() {
       expect(history.undoSays, 'flip the normals');
     });
 
+    test('marking a seam sets the flag on both halves, and undo lifts it', () {
+      final history = edited();
+      history.selection = history.selection.copyWith(
+        level: ElementLevel.edge,
+        elements: <int>[0],
+      );
+      final mesh = meshOf(history);
+      final twin = mesh.twinOf(0);
+
+      expect(history.run(const MarkSeam()), isNull);
+      expect(mesh.edgeHas(0, EdgeFlags.seam), isTrue);
+      expect(mesh.edgeHas(twin, EdgeFlags.seam), isTrue);
+
+      history.undo();
+      expect(mesh.edgeHas(0, EdgeFlags.seam), isFalse);
+    });
+
+    test('every selected edge is marked, not just the first', () {
+      // Mutation: mark only `edges.ids.first`. A single-edge selection (the
+      // test above) cannot tell that apart from marking every edge — this is
+      // the one that needs more than one edge selected at once.
+      final history = edited();
+      history.selection = history.selection.copyWith(
+        level: ElementLevel.edge,
+        elements: <int>[0, 1, 2],
+      );
+      final mesh = meshOf(history);
+
+      expect(history.run(const MarkSeam()), isNull);
+      for (final half in <int>[0, 1, 2]) {
+        expect(mesh.edgeHas(half, EdgeFlags.seam), isTrue, reason: 'edge $half');
+      }
+    });
+
+    test('clearing a seam is the other half, not a second command', () {
+      final history = edited();
+      history.selection = history.selection.copyWith(
+        level: ElementLevel.edge,
+        elements: <int>[0],
+      );
+      final mesh = meshOf(history);
+
+      history.run(const MarkSeam());
+      expect(mesh.edgeHas(0, EdgeFlags.seam), isTrue);
+
+      expect(history.run(const MarkSeam(on: false)), isNull);
+      expect(mesh.edgeHas(0, EdgeFlags.seam), isFalse);
+    });
+
+    test('nothing selected is refused with a sentence, not a silent no-op', () {
+      final history = edited();
+      history.selection = history.selection.copyWith(
+        level: ElementLevel.edge,
+        elements: const <int>[],
+      );
+      expect(history.run(const MarkSeam()), contains('no edges'));
+      expect(history.canUndo, isFalse);
+    });
+
+    test('a seam survives an extrusion elsewhere on the mesh — `pro-uv-01`\'s '
+        'own worked example', () {
+      final history = edited();
+      history.selection = history.selection.copyWith(
+        level: ElementLevel.edge,
+        elements: <int>[0],
+      );
+      final mesh = meshOf(history);
+      history.run(const MarkSeam());
+      expect(mesh.edgeHas(0, EdgeFlags.seam), isTrue);
+
+      // A face that does not touch edge 0's two vertices, so the extrusion
+      // cannot be mistaken for the thing that happens to preserve the flag.
+      final origin = mesh.originOf(0);
+      final twinOrigin = mesh.originOf(mesh.twinOf(0));
+      int? untouched;
+      for (var face = 0; face < mesh.faceSlotCount; face++) {
+        if (!mesh.isFaceAlive(face)) continue;
+        var touches = false;
+        mesh.forEachHalfEdge(face, (int half) {
+          final v = mesh.originOf(half);
+          if (v == origin || v == twinOrigin) touches = true;
+        });
+        if (!touches) {
+          untouched = face;
+          break;
+        }
+      }
+      expect(untouched, isNotNull);
+      history.selection = faces(history, <int>[untouched!]);
+      expect(history.run(const Extrude(0.25)), isNull);
+
+      expect(mesh.edgeHas(0, EdgeFlags.seam), isTrue);
+    });
+
     test('a turn is about the middle of what is selected, once', () {
       final history = edited();
       // The four corners of one face of the cube, which sit at x = ±0.5 and
@@ -2123,6 +2217,7 @@ void main() {
         const Separate(),
         const Triangulate(),
         const RecalculateNormals(flip: true),
+        const MarkSeam(),
         const SelectAll(),
         const SelectNone(),
         const InvertSelection(),
@@ -2322,6 +2417,7 @@ void main() {
       TransformElements(Matrix4.identity()),
       const MergeByDistance(distance: 0.001),
       const RecalculateNormals(flip: true),
+      const MarkSeam(),
     ];
 
     test('a hint\'s keys are always among the command\'s own arguments', () {
@@ -2357,6 +2453,10 @@ void main() {
       // a field that does not exist on `Extrude` today (it takes only
       // `distance`). `flip` is the flag this build actually has.
       expect(const RecalculateNormals().hints['flip'], isA<BoolHint>());
+    });
+
+    test('MarkSeam.on is a flag, not a range', () {
+      expect(const MarkSeam().hints['on'], isA<BoolHint>());
     });
 
     test('MergeByDistance hints nothing when there is nothing to hint', () {
