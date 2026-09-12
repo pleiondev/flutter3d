@@ -61,6 +61,7 @@ import 'src/ui/selection_key_bindings.dart';
 import 'src/ui/shell.dart';
 import 'src/ui/shell_phone.dart';
 import 'src/ui/shell_tablet.dart';
+import 'src/ui/shortcut_help_screen.dart';
 import 'src/ui/status_line.dart';
 import 'src/ui/theme.dart';
 import 'src/ui/tools.dart';
@@ -660,6 +661,12 @@ class _ModelerScreenState extends State<ModelerScreen>
         _exportFile(choice.format, bakeTransforms: choice.bakeTransforms),
       );
     }
+  }
+
+  /// `ui-32n`'s own shortcut-help screen, opened by `?` or the Help button.
+  void _showShortcutHelp() {
+    if (_state is! ModelerReady) return;
+    unawaited(showShortcutHelp(context));
   }
 
   /// Asks whether to export a model that will not load cleanly.
@@ -1331,6 +1338,7 @@ class _ModelerScreenState extends State<ModelerScreen>
       onSelectAll: () => _runSelection(const SelectAll()),
       onSelectNone: () => _runSelection(const SelectNone()),
       onInvertSelection: () => _runSelection(const InvertSelection()),
+      onShortcutHelp: _showShortcutHelp,
       onLevel: _cubit.submode,
       tools: toolsFor(state.mode),
       // **`ui-05`'s own three shells, built once and picked by width.** The
@@ -1396,6 +1404,11 @@ class _ModelerScreenState extends State<ModelerScreen>
                 padding: EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                 child: Text('Export', style: TextStyle(fontSize: 13)),
               ),
+            ),
+            IconButton(
+              tooltip: 'Keyboard shortcuts (?)',
+              onPressed: _showShortcutHelp,
+              icon: const Icon(Icons.help_outline, size: 20),
             ),
           ];
           final status = StatusLine(
@@ -2030,6 +2043,7 @@ class _Keys extends StatelessWidget {
     required this.onSelectAll,
     required this.onSelectNone,
     required this.onInvertSelection,
+    required this.onShortcutHelp,
     required this.tools,
     required this.child,
   });
@@ -2049,6 +2063,9 @@ class _Keys extends StatelessWidget {
   final VoidCallback onSelectAll;
   final VoidCallback onSelectNone;
   final VoidCallback onInvertSelection;
+
+  /// `?`. `ui-32n`'s own way in, beside the Help button in the top bar.
+  final VoidCallback onShortcutHelp;
   final List<ModelerTool> tools;
   final Widget child;
 
@@ -2108,6 +2125,8 @@ class _Keys extends StatelessWidget {
                 onInvertSelection: onInvertSelection,
               ).entries)
             entry.key: _typingSafe(entry.value),
+          const SingleActivator(LogicalKeyboardKey.slash, shift: true):
+              _typingSafe(onShortcutHelp),
         },
         child: child,
       ),

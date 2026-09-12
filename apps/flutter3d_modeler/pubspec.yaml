@@ -86,6 +86,12 @@ dependencies:
   # `DateTime.now()` directly.
   clock: ^1.1.1
 
+  # Opening the tutorial link (`ui-32n`) in the system browser. Unlike the
+  # file picker above, "open this URL" has no honest ten-line native answer —
+  # every desktop platform has its own way to hand a link to a browser — so
+  # this is the one place a real plugin buys more than it costs.
+  url_launcher: ^6.3.0
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
