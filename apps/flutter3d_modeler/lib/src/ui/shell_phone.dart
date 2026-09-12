@@ -73,10 +73,20 @@ class ModelerPhoneShell extends StatelessWidget {
                 // them in directly. `_openToolSheet` below already opens an
                 // interactive bottom sheet for the same reason a menu won't
                 // do; this reuses that same shape for the top-bar actions.
-                IconButton(
-                  tooltip: 'More',
-                  icon: const Icon(Icons.more_vert),
-                  onPressed: () => _openActionsSheet(context),
+                // `ui-23`'s own pass: `tooltip:` alone sets
+                // `SemanticsNode.tooltip`, not `.label`. `MergeSemantics`
+                // folds the label onto the button's own inner, actually
+                // tappable node.
+                MergeSemantics(
+                  child: Semantics(
+                    label: 'More',
+                    button: true,
+                    child: IconButton(
+                      tooltip: 'More',
+                      icon: const Icon(Icons.more_vert),
+                      onPressed: () => _openActionsSheet(context),
+                    ),
+                  ),
                 ),
               ],
             ),
@@ -95,7 +105,10 @@ class ModelerPhoneShell extends StatelessWidget {
                   color: colours.viewport,
                   child: Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 10),
-                    child: Align(alignment: Alignment.centerLeft, child: status),
+                    child: Align(
+                      alignment: Alignment.centerLeft,
+                      child: status,
+                    ),
                   ),
                 ),
               ),

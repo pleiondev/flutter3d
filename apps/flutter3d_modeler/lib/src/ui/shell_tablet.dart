@@ -176,20 +176,35 @@ class _TabletPalette extends StatelessWidget {
                     padding: EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                     child: Divider(height: 1),
                   ),
-                Tooltip(
-                  message:
-                      '${tool.label}  ·  '
-                      '${tool.shortcut.keyLabel.toUpperCase()}',
-                  child: IconButton(
-                    onPressed: () => onTool(tool.id),
-                    icon: Icon(tool.icon, size: 16),
-                    style: IconButton.styleFrom(
-                      backgroundColor: armed
-                          ? theme.colorScheme.primaryContainer
-                          : null,
-                      foregroundColor: armed
-                          ? theme.colorScheme.onPrimaryContainer
-                          : theme.colorScheme.onSurfaceVariant,
+                // `ui-23`'s own pass: a `Tooltip` labels `SemanticsNode.tooltip`
+                // alone, not `.label`. `MergeSemantics` folds this node's
+                // label down onto `IconButton`'s own inner, actually-tappable
+                // node rather than leaving it on a separate sibling node.
+                MergeSemantics(
+                  child: Semantics(
+                    label: tool.label,
+                    button: true,
+                    child: Tooltip(
+                      message:
+                          '${tool.label}  ·  '
+                          '${tool.shortcut.keyLabel.toUpperCase()}',
+                      child: IconButton(
+                        onPressed: () => onTool(tool.id),
+                        icon: Icon(tool.icon, size: 16),
+                        // The shared `iconButtonTheme` sizes a button for a
+                        // mouse (`ModelerMetrics.railButton`, 36) — right for
+                        // the desktop rail, short of a touch target's own 48 on
+                        // the shell a thumb actually uses this on.
+                        style: IconButton.styleFrom(
+                          minimumSize: const Size.square(48),
+                          backgroundColor: armed
+                              ? theme.colorScheme.primaryContainer
+                              : null,
+                          foregroundColor: armed
+                              ? theme.colorScheme.onPrimaryContainer
+                              : theme.colorScheme.onSurfaceVariant,
+                        ),
+                      ),
                     ),
                   ),
                 ),

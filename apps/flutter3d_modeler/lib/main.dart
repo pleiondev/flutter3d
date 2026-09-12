@@ -1834,20 +1834,43 @@ class _ModelerScreenState extends State<ModelerScreen>
                 child: Text('Export', style: TextStyle(fontSize: 13)),
               ),
             ),
-            IconButton(
-              tooltip: 'Keyboard shortcuts (?)',
-              onPressed: _showShortcutHelp,
-              icon: const Icon(Icons.help_outline, size: 20),
+            // `ui-23`'s own pass: `IconButton.tooltip` sets
+            // `SemanticsNode.tooltip`, not `.label`. `MergeSemantics`
+            // folds the label below down onto the button's own inner,
+            // actually-tappable node.
+            MergeSemantics(
+              child: Semantics(
+                label: 'Keyboard shortcuts',
+                button: true,
+                child: IconButton(
+                  tooltip: 'Keyboard shortcuts (?)',
+                  onPressed: _showShortcutHelp,
+                  icon: const Icon(Icons.help_outline, size: 20),
+                ),
+              ),
             ),
-            IconButton(
-              tooltip: 'Start screen — open a file or start a new project',
-              onPressed: () => unawaited(_showStartScreen()),
-              icon: const Icon(Icons.home_outlined, size: 20),
+            MergeSemantics(
+              child: Semantics(
+                label: 'Start screen',
+                button: true,
+                child: IconButton(
+                  tooltip:
+                      'Start screen — open a file or start a new project',
+                  onPressed: () => unawaited(_showStartScreen()),
+                  icon: const Icon(Icons.home_outlined, size: 20),
+                ),
+              ),
             ),
-            IconButton(
-              tooltip: 'Report a problem',
-              onPressed: _reportProblem,
-              icon: const Icon(Icons.bug_report_outlined, size: 20),
+            MergeSemantics(
+              child: Semantics(
+                label: 'Report a problem',
+                button: true,
+                child: IconButton(
+                  tooltip: 'Report a problem',
+                  onPressed: _reportProblem,
+                  icon: const Icon(Icons.bug_report_outlined, size: 20),
+                ),
+              ),
             ),
           ];
           final status = StatusLine(
@@ -2476,36 +2499,52 @@ class _ObjectRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return InkWell(
-      onTap: onTap,
-      child: SizedBox(
-        height: ModelerMetrics.row,
-        child: Row(
-          children: <Widget>[
-            Icon(
-              switch (object.geometry) {
-                ParametricGeometry() => Icons.category_outlined,
-                EditedGeometry() => Icons.hexagon_outlined,
-                ImportedGeometry() => Icons.download_outlined,
-              },
-              size: 14,
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                object.name,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: selected
-                      ? theme.colorScheme.primary
-                      : theme.colorScheme.onSurface,
-                  fontWeight: selected ? FontWeight.w500 : FontWeight.w400,
+    // `ui-23`'s own pass: the row already showed selection with colour and
+    // weight, which a screen reader cannot read. `button: true` names what a
+    // tap here does; `MergeSemantics` folds it onto `InkWell`'s own inner
+    // node, the one that actually carries the tap action, rather than
+    // leaving it on a separate parent node.
+    return MergeSemantics(
+      child: Semantics(
+        button: true,
+        selected: selected,
+        label: object.name,
+        child: InkWell(
+          onTap: onTap,
+          child: SizedBox(
+            height: ModelerMetrics.row,
+            child: Row(
+              children: <Widget>[
+                Icon(
+                  switch (object.geometry) {
+                    ParametricGeometry() => Icons.category_outlined,
+                    EditedGeometry() => Icons.hexagon_outlined,
+                    ImportedGeometry() => Icons.download_outlined,
+                  },
+                  size: 14,
+                  color: theme.colorScheme.onSurfaceVariant,
                 ),
-              ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: ExcludeSemantics(
+                    child: Text(
+                      object.name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: selected
+                            ? theme.colorScheme.primary
+                            : theme.colorScheme.onSurface,
+                        fontWeight: selected
+                            ? FontWeight.w500
+                            : FontWeight.w400,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ),
-          ],
+          ),
         ),
       ),
     );

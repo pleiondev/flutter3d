@@ -50,10 +50,19 @@ final class JobButton extends StatelessWidget {
         ),
         const SizedBox(width: 8),
         Text('${(running * 100).round()}%'),
-        IconButton(
-          icon: const Icon(Icons.close),
-          tooltip: 'Cancel',
-          onPressed: onCancel,
+        // `ui-23`'s own pass: `tooltip:` alone sets `SemanticsNode.tooltip`,
+        // not `.label`. `MergeSemantics` folds the label onto the button's
+        // own inner, actually tappable node.
+        MergeSemantics(
+          child: Semantics(
+            label: 'Cancel',
+            button: true,
+            child: IconButton(
+              icon: const Icon(Icons.close),
+              tooltip: 'Cancel',
+              onPressed: onCancel,
+            ),
+          ),
         ),
       ],
     );

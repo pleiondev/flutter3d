@@ -110,19 +110,26 @@ class _OperationCardState extends State<OperationCard> {
       height: ModelerMetrics.row,
       child: Row(
         children: <Widget>[
-          Expanded(
-            child: Text(last.says, style: theme.textTheme.titleSmall),
-          ),
+          Expanded(child: Text(last.says, style: theme.textTheme.titleSmall)),
           // **Dismisses the card, not the operation.** `_dismissed` is this
           // widget's own state; nothing here calls `onAmend` or reaches
           // `ModelHistory` at all, so the step this card describes stays
           // exactly where it was on the stack.
-          IconButton(
-            iconSize: 16,
-            visualDensity: VisualDensity.compact,
-            tooltip: 'Hide this card without undoing it',
-            icon: const Icon(Icons.close),
-            onPressed: () => setState(() => _dismissed = true),
+          // `ui-23`'s own pass: `tooltip:` alone sets `SemanticsNode.tooltip`,
+          // not `.label`. `MergeSemantics` folds the label onto the button's
+          // own inner, actually tappable node.
+          MergeSemantics(
+            child: Semantics(
+              label: 'Hide this card',
+              button: true,
+              child: IconButton(
+                iconSize: 16,
+                visualDensity: VisualDensity.compact,
+                tooltip: 'Hide this card without undoing it',
+                icon: const Icon(Icons.close),
+                onPressed: () => setState(() => _dismissed = true),
+              ),
+            ),
           ),
         ],
       ),

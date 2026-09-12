@@ -230,7 +230,15 @@ class ModelerModeSwitcher extends StatelessWidget {
           for (final ModelerMode each in ModelerMode.values)
             ButtonSegment<ModelerMode>(
               value: each,
-              icon: Icon(each.icon, size: 15),
+              // `ui-23`'s own pass: `tooltip:` below sets
+              // `SemanticsNode.tooltip`, not `.label` — wrapping the icon is
+              // what actually names the segment for a screen reader, since
+              // `showSelectedIcon: false` above means there is no visible
+              // `Text` label for its semantics to merge from.
+              icon: Semantics(
+                label: each.label,
+                child: Icon(each.icon, size: 15),
+              ),
               // Only phase one answers. The rest are drawn and
               // refused, so that what the modeller is going to be is
               // visible from the first build rather than arriving as a
@@ -301,20 +309,33 @@ class _Rail extends StatelessWidget {
                     padding: EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                     child: Divider(height: 1),
                   ),
-                Tooltip(
-                  message:
-                      '${tool.label}  ·  '
-                      '${tool.shortcut.keyLabel.toUpperCase()}',
-                  child: IconButton(
-                    onPressed: () => onTool(tool.id),
-                    icon: Icon(tool.icon, size: 18),
-                    style: IconButton.styleFrom(
-                      backgroundColor: armed
-                          ? theme.colorScheme.primaryContainer
-                          : null,
-                      foregroundColor: armed
-                          ? theme.colorScheme.onPrimaryContainer
-                          : theme.colorScheme.onSurfaceVariant,
+                // `ui-23`'s own pass: `Tooltip.message` lands in
+                // `SemanticsNode.tooltip`, not `.label` — the field
+                // `labeledTapTargetGuideline` and most screen readers
+                // actually read. `MergeSemantics` folds the label down onto
+                // `IconButton`'s own inner node, the one that actually
+                // carries the tap action; an outer `Semantics` alone would
+                // sit beside it as a second, still-unlabelled node.
+                MergeSemantics(
+                  child: Semantics(
+                    label: tool.label,
+                    button: true,
+                    child: Tooltip(
+                      message:
+                          '${tool.label}  ·  '
+                          '${tool.shortcut.keyLabel.toUpperCase()}',
+                      child: IconButton(
+                        onPressed: () => onTool(tool.id),
+                        icon: Icon(tool.icon, size: 18),
+                        style: IconButton.styleFrom(
+                          backgroundColor: armed
+                              ? theme.colorScheme.primaryContainer
+                              : null,
+                          foregroundColor: armed
+                              ? theme.colorScheme.onPrimaryContainer
+                              : theme.colorScheme.onSurfaceVariant,
+                        ),
+                      ),
                     ),
                   ),
                 ),

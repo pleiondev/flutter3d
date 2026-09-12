@@ -39,23 +39,43 @@ class UndoRedoButtons extends StatelessWidget {
   final VoidCallback onRedo;
 
   @override
-  Widget build(BuildContext context) => Row(
-    mainAxisSize: MainAxisSize.min,
-    children: <Widget>[
-      Tooltip(
-        message: undoSays == null ? 'nothing to undo' : 'undo $undoSays',
-        child: IconButton(
-          onPressed: canUndo ? onUndo : null,
-          icon: const Icon(Icons.undo, size: 18),
+  Widget build(BuildContext context) {
+    // `ui-23`'s own pass: `Tooltip.message` becomes a `SemanticsNode.tooltip`,
+    // not its `label` — a hover hint most screen readers never read.
+    // `MergeSemantics` folds an explicit `Semantics(label:)` down onto
+    // `IconButton`'s own inner, actually-tappable node.
+    final undoLabel = undoSays == null ? 'nothing to undo' : 'undo $undoSays';
+    final redoLabel = redoSays == null ? 'nothing to redo' : 'redo $redoSays';
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: <Widget>[
+        MergeSemantics(
+          child: Semantics(
+            label: undoLabel,
+            button: true,
+            child: Tooltip(
+              message: undoLabel,
+              child: IconButton(
+                onPressed: canUndo ? onUndo : null,
+                icon: const Icon(Icons.undo, size: 18),
+              ),
+            ),
+          ),
         ),
-      ),
-      Tooltip(
-        message: redoSays == null ? 'nothing to redo' : 'redo $redoSays',
-        child: IconButton(
-          onPressed: canRedo ? onRedo : null,
-          icon: const Icon(Icons.redo, size: 18),
+        MergeSemantics(
+          child: Semantics(
+            label: redoLabel,
+            button: true,
+            child: Tooltip(
+              message: redoLabel,
+              child: IconButton(
+                onPressed: canRedo ? onRedo : null,
+                icon: const Icon(Icons.redo, size: 18),
+              ),
+            ),
+          ),
         ),
-      ),
-    ],
-  );
+      ],
+    );
+  }
 }
