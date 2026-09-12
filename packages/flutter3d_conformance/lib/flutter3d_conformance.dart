@@ -14,7 +14,7 @@
 ///
 /// **Two tiers, and the split is a correction.** This file used to say it was
 /// shader-free as a whole, and that stopped being true the day a check needed a
-/// pipeline: twenty-five of the thirty-three link stages and draw. A new
+/// pipeline: twenty-five of the thirty-four link stages and draw. A new
 /// backend following the old promise would have met twenty-five shader checks
 /// it could do nothing about, so the lists say which is which — [coreChecks]
 /// needs clears, uploads and readback alone, [shaderChecks] needs the bundle.
@@ -226,6 +226,10 @@ List<ConformanceCheck> get coreChecks => <ConformanceCheck>[
   (
     name: 'a readback returns the frame before',
     run: checkReadbackReturnsTheFrameBefore,
+  ),
+  (
+    name: 'a texture region overwrite lands only where it was aimed',
+    run: checkTextureOverwriteRegion,
   ),
 ];
 

@@ -445,3 +445,66 @@ Future<void> checkPixelBufferSize(GraphicsDevice device) async {
     'a mip level the size of the base was accepted',
   );
 }
+
+/// A region overwrite lands exactly where it was aimed, and nowhere else —
+/// `pro-eng-02`'s own acceptance, "область читается обратно" (the region
+/// reads back the same).
+///
+/// The picture this makes rather than states: a whole texture cleared to one
+/// colour, one quadrant of it overwritten to a second, then every quadrant
+/// read back on its own. Getting the region's own offset wrong — the same
+/// row/column swap [checkRowOrder] exists to catch for a whole upload — reads
+/// as the wrong quadrant changing, or two changing where only one should.
+Future<void> checkTextureOverwriteRegion(GraphicsDevice device) async {
+  const width = 4;
+  const height = 4;
+  final base = Uint8List(width * height * 4);
+  for (var i = 0; i < width * height; i++) {
+    base[i * 4] = 200; // red, opaque
+    base[i * 4 + 3] = 255;
+  }
+
+  final texture = device.createTextureFromPixels(
+    width: width,
+    height: height,
+    format: TextureFormat.r8g8b8a8UNormInt,
+    pixels: ByteData.sublistView(base),
+  );
+  require(texture != null, 'the device made no texture from four by four RGBA8 pixels');
+
+  // The bottom-right quadrant only, so a caller reading the wrong offset in
+  // either axis lands on a quadrant this check can name by its own colour.
+  const region = ScreenRect(x: 2, y: 2, width: 2, height: 2);
+  final patch = Uint8List(region.width * region.height * 4);
+  for (var i = 0; i < region.width * region.height; i++) {
+    patch[i * 4 + 1] = 200; // green, opaque
+    patch[i * 4 + 3] = 255;
+  }
+  await device.overwriteTexture(texture!, ByteData.sublistView(patch), region: region);
+
+  final read = await device.readback(texture);
+  final bytes = read.buffer.asUint8List();
+
+  for (var y = 0; y < height; y++) {
+    for (var x = 0; x < width; x++) {
+      final at = (y * width + x) * 4;
+      final inRegion = x >= region.x && x < region.x + region.width &&
+          y >= region.y && y < region.y + region.height;
+      if (inRegion) {
+        require(
+          bytes[at + 1] > bytes[at],
+          'texel ($x,$y) inside the overwritten region reads back red '
+          '(${bytes[at]}) rather than green (${bytes[at + 1]}) — the '
+          'overwrite missed the region it was aimed at',
+        );
+      } else {
+        require(
+          bytes[at] > bytes[at + 1],
+          'texel ($x,$y) outside the overwritten region reads back green '
+          '(${bytes[at + 1]}) rather than red (${bytes[at]}) — the '
+          'overwrite reached a texel it was not aimed at',
+        );
+      }
+    }
+  }
+}
