@@ -8,6 +8,17 @@ import 'animation_layer.dart';
 import 'animation_target.dart';
 import 'morph_sink.dart';
 
+/// The key a clip's own extracted root motion sits under in
+/// [AnimationClip.extras] — `anim-16`'s own `flutter3dRootMotion`.
+///
+/// **Matched by value to `flutter3d_model_core`'s own `kRootMotionExtra`,
+/// not by importing it.** This engine package cannot depend on an
+/// editor-specific one, the same boundary every other cross-package
+/// convention in this repository holds by agreeing on a value rather than
+/// sharing a declaration — `mat-02`'s own `_VkFormat` numbers are the same
+/// choice for the same reason.
+const String kRootMotionExtra = 'flutter3dRootMotion';
+
 /// Plays [AnimationClip]s onto animation targets.
 ///
 /// The player writes through `setPosition` / `setRotation` / `setScale`, which
@@ -260,6 +271,85 @@ final class AnimationPlayer {
   double get time => _time;
 
   double get duration => clip?.duration ?? 0.0;
+
+  /// The current clip's own extracted root motion, replayed from [fromTime]
+  /// to [toTime] on [rootNodeIndex] — the runtime half `anim-16`'s own
+  /// `root_motion_commands.dart` names as a separate, later piece: that file
+  /// flattens a root joint's translation track to its first key so the
+  /// engine sees a root that stands still, saving what it overwrote under
+  /// [kRootMotionExtra]; this reads that back and hands a character
+  /// controller the delta the clip would have moved the root by, so a walk
+  /// cycle can drive the object it belongs to instead of dragging it across
+  /// the level by itself.
+  ///
+  /// Null for a clip with nothing extracted for [rootNodeIndex] — an
+  /// ordinary clip, not a malformed one — or for a track whose
+  /// interpolation carries tangents this does not reconstruct: `anim-16`'s
+  /// own row is linear root motion, and a cubic one would need the saved
+  /// in/out tangents replayed too, not only the value in the middle of them.
+  ///
+  /// **[toTime] may be less than [fromTime].** That is what a clip wrapping
+  /// from its own end back to its start looks like — [update]'s own `%=`
+  /// against the clip's duration — and the delta then covers both legs: from
+  /// [fromTime] to the track's own last key, and from its first key to
+  /// [toTime]. A caller driving this every frame passes the playhead before
+  /// and after [update] moved it, in that order, whether or not a wrap
+  /// happened to fall in between.
+  Vector3? rootMotionDelta(
+    int rootNodeIndex, {
+    required double fromTime,
+    required double toTime,
+  }) {
+    final active = clip;
+    if (active == null) return null;
+    final extra = active.extras?[kRootMotionExtra];
+    if (extra is! List) return null;
+
+    AnimationTrack? track;
+    for (final candidate in active.tracks) {
+      if (candidate.nodeIndex == rootNodeIndex &&
+          candidate.path == AnimationPath.translation) {
+        track = candidate;
+        break;
+      }
+    }
+    if (track == null) return null;
+    // Cubic tangents are not saved as anything this can tell apart from a
+    // plain value, so a track carrying them is refused rather than replayed
+    // wrongly and silently.
+    if (track.interpolation.valuesPerKey != 1) return null;
+    if (extra.length != track.times.length) return null;
+
+    final values = Float32List(track.times.length * 3);
+    for (var i = 0; i < extra.length; i++) {
+      final key = extra[i];
+      if (key is! List || key.length != 3) return null;
+      values[i * 3] = (key[0] as num).toDouble();
+      values[i * 3 + 1] = (key[1] as num).toDouble();
+      values[i * 3 + 2] = (key[2] as num).toDouble();
+    }
+
+    final real = AnimationTrack(
+      nodeIndex: track.nodeIndex,
+      path: track.path,
+      interpolation: track.interpolation,
+      times: track.times,
+      values: values,
+      componentCount: 3,
+    );
+
+    final out = Float32List(3);
+    Vector3 sampleAt(double time) {
+      real.sample(time, out);
+      return Vector3(out[0], out[1], out[2]);
+    }
+
+    if (toTime >= fromTime) {
+      return sampleAt(toTime) - sampleAt(fromTime);
+    }
+    return (sampleAt(track.endTime) - sampleAt(fromTime)) +
+        (sampleAt(toTime) - sampleAt(track.startTime));
+  }
 
   /// Names of the clips, for a UI that lets the user pick one.
   List<String> get clipNames => <String>[
