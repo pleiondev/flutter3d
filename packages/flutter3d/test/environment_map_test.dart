@@ -186,4 +186,91 @@ void main() {
       }
     });
   });
+
+  group('equirectToCubeFaces', () {
+    /// A panorama with no horizontal variation at all: every row is one flat
+    /// grey level from [top] at row zero to [bottom] at the last row. Nothing
+    /// here depends on longitude, which is the row's own acceptance — "top
+    /// white / bottom black → +Y/−Y" says nothing about which way the seam
+    /// runs.
+    ByteData panorama({required int width, required int height, required int top, required int bottom}) {
+      final data = ByteData(width * height * 4);
+      for (var y = 0; y < height; y++) {
+        final level = height == 1 ? top : (top + (bottom - top) * y / (height - 1)).round();
+        for (var x = 0; x < width; x++) {
+          final at = (y * width + x) * 4;
+          data
+            ..setUint8(at, level)
+            ..setUint8(at + 1, level)
+            ..setUint8(at + 2, level)
+            ..setUint8(at + 3, 255);
+        }
+      }
+      return data;
+    }
+
+    test('a white top and a black bottom read back as +Y and −Y — the '
+        'row\'s own acceptance', () {
+      // Mutation: swap `0.5 - lat / pi` for `0.5 + lat / pi`, which reads the
+      // panorama upside down. Every other test in this group still passes,
+      // because they only check that the whole cube is one flat value or
+      // that a bad input is refused — this is the one that actually reads
+      // top from bottom.
+      final faces = EnvironmentMap.equirectToCubeFaces(
+        panorama(width: 32, height: 16, top: 255, bottom: 0),
+        width: 32,
+        height: 16,
+        size: 8,
+      );
+      expect(faces, isNotNull);
+
+      // Face order is `_directionFor`'s: +X, −X, +Y, −Y, +Z, −Z.
+      expect(_texel(faces!, 2, 8, 4, 4)[0], greaterThan(200), reason: '+Y should read near white');
+      expect(_texel(faces, 3, 8, 4, 4)[0], lessThan(55), reason: '−Y should read near black');
+    });
+
+    test('a face reads one flat value when the source has none of its own', () {
+      // A grey panorama with no vertical gradient at all: every direction
+      // reads the same texel regardless of which way it looks, so every
+      // corner of every face should agree — a face that does not is reading
+      // the wrong row or column somewhere.
+      final faces = EnvironmentMap.equirectToCubeFaces(
+        panorama(width: 16, height: 8, top: 128, bottom: 128),
+        width: 16,
+        height: 8,
+        size: 4,
+      )!;
+      for (final face in faces) {
+        for (var i = 0; i < 4 * 4; i++) {
+          expect(face.getUint8(i * 4), 128);
+        }
+      }
+    });
+
+    test('feeds prefilter directly, in the order it already expects', () {
+      // The whole reason this function exists: its own output, unchanged,
+      // is a valid `prefilter` input.
+      final faces = EnvironmentMap.equirectToCubeFaces(
+        panorama(width: 16, height: 8, top: 200, bottom: 40),
+        width: 16,
+        height: 8,
+        size: 8,
+      )!;
+      expect(EnvironmentMap.prefilter(faces, size: 8, levels: 2), isNotNull);
+    });
+
+    test('refuses bytes that do not hold width × height pixels', () {
+      expect(
+        EnvironmentMap.equirectToCubeFaces(ByteData(4), width: 4, height: 4, size: 8),
+        isNull,
+      );
+    });
+
+    test('refuses a non-positive width, height or size', () {
+      final ok = panorama(width: 4, height: 2, top: 1, bottom: 1);
+      expect(EnvironmentMap.equirectToCubeFaces(ok, width: 0, height: 2, size: 8), isNull);
+      expect(EnvironmentMap.equirectToCubeFaces(ok, width: 4, height: 0, size: 8), isNull);
+      expect(EnvironmentMap.equirectToCubeFaces(ok, width: 4, height: 2, size: 0), isNull);
+    });
+  });
 }

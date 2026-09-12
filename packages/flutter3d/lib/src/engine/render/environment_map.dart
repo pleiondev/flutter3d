@@ -66,6 +66,78 @@ abstract final class EnvironmentMap {
     return chain;
   }
 
+  /// Reads six cube faces off a single LDR panorama — `mat-16`'s own
+  /// "custom panorama" preset, feeding straight into [prefilter].
+  ///
+  /// [panorama] is a plain equirectangular image: longitude wraps the whole
+  /// width, latitude runs from the north pole at row zero to the south pole
+  /// at the last row — the ordinary layout every panorama tool exports to,
+  /// and the same one `.hdr` (`mat-17`, a separate row for the float and
+  /// RGBE-decoded half of this) will read too.
+  ///
+  /// Faces come out in [_directionFor]'s own order, so a caller hands them
+  /// to [prefilter] unchanged. **Nearest-texel, not bilinear** — this is the
+  /// convolution's base level, and [prefilter] already reads it through
+  /// [_Cube.sample], which is nearest for the same reason stated there: nine
+  /// times out of ten in this pipeline a texel is one tap among dozens
+  /// averaged together, and interpolating it first buys nothing a golden can
+  /// see. A caller wanting a sharp base level of a real photograph would
+  /// want bilinear here specifically; this is the version worth having
+  /// first.
+  ///
+  /// Returns null when [panorama] does not hold `width × height` pixels, or
+  /// when either dimension or [size] is not positive — the same "cost a
+  /// texture, not a frame" rule [prefilter] and the upload path already
+  /// keep.
+  static List<ByteData>? equirectToCubeFaces(
+    ByteData panorama, {
+    required int width,
+    required int height,
+    required int size,
+  }) {
+    if (width <= 0 || height <= 0 || size <= 0) return null;
+    if (panorama.lengthInBytes != width * height * 4) return null;
+
+    final faces = <ByteData>[];
+    for (var face = 0; face < 6; face++) {
+      final data = ByteData(size * size * 4);
+      for (var y = 0; y < size; y++) {
+        final v = (y + 0.5) / size * 2.0 - 1.0;
+        for (var x = 0; x < size; x++) {
+          final u = (x + 0.5) / size * 2.0 - 1.0;
+          final dir = _directionFor(face, u, v);
+
+          // Longitude about the up axis, zero at −Z so a panorama's own
+          // centre column faces the same way `_directionFor(4, 0, 0)` (+Z)
+          // does not — an arbitrary seam placement, and the one thing this
+          // function does not have an acceptance test for.
+          final lon = math.atan2(dir.x, -dir.z);
+          final lat = math.asin(dir.y.clamp(-1.0, 1.0));
+          final px = ((lon / (2 * math.pi) + 0.5) * width)
+              .floor()
+              .clamp(0, width - 1);
+          // Row zero is the north pole (`lat` at its most positive), which
+          // is the acceptance this row names directly: a panorama whose top
+          // row is white and bottom row is black reads back as a white +Y
+          // face and a black −Y face.
+          final py = ((0.5 - lat / math.pi) * height)
+              .floor()
+              .clamp(0, height - 1);
+
+          final src = (py * width + px) * 4;
+          final dst = (y * size + x) * 4;
+          data
+            ..setUint8(dst, panorama.getUint8(src))
+            ..setUint8(dst + 1, panorama.getUint8(src + 1))
+            ..setUint8(dst + 2, panorama.getUint8(src + 2))
+            ..setUint8(dst + 3, panorama.getUint8(src + 3));
+        }
+      }
+      faces.add(data);
+    }
+    return faces;
+  }
+
   /// The environment a scene's own sky makes, uploaded and ready to reflect.
   ///
   /// **The cheapest environment there is: one a scene already has.** A sky is a
