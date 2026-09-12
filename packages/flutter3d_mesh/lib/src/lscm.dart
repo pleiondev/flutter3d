@@ -47,12 +47,19 @@ import 'edit_mesh.dart';
 ///
 /// Each island is a plain list of face indices — the same shape `projectUv`'s
 /// own `island` parameter already expects, and the shape [lscm] takes here.
-List<List<int>> splitIslands(EditMesh mesh) {
+///
+/// [restrictToFaces], when given, walks only those faces — a neighbour not in
+/// the set is treated exactly like a dead one, so a selection unwrapped on
+/// its own never spills onto a face nobody asked to touch. Null (the
+/// default) walks every live face, unchanged from before this parameter
+/// existed.
+List<List<int>> splitIslands(EditMesh mesh, {Set<int>? restrictToFaces}) {
   final visited = Uint8List(mesh.faceSlotCount);
   final islands = <List<int>>[];
+  bool included(int face) => restrictToFaces == null || restrictToFaces.contains(face);
 
   for (var start = 0; start < mesh.faceSlotCount; start++) {
-    if (!mesh.isFaceAlive(start) || visited[start] != 0) continue;
+    if (!mesh.isFaceAlive(start) || visited[start] != 0 || !included(start)) continue;
 
     final island = <int>[];
     final stack = <int>[start];
@@ -64,6 +71,7 @@ List<List<int>> splitIslands(EditMesh mesh) {
         if (!mesh.hasLiveTwin(half)) return;
         if (mesh.edgeHas(half, EdgeFlags.seam)) return;
         final neighbor = mesh.faceOf(mesh.twinOf(half));
+        if (!included(neighbor)) return;
         if (visited[neighbor] == 0) {
           visited[neighbor] = 1;
           stack.add(neighbor);

@@ -58,6 +58,7 @@ part 'profile_commands.dart';
 part 'root_motion_commands.dart';
 part 'selection_commands.dart';
 part 'shape_commands.dart';
+part 'uv_commands.dart';
 
 /// What a command did.
 final class Outcome {
@@ -465,6 +466,7 @@ const List<String> modelCommandNames = <String>[
   'triangulate',
   'recalculateNormals',
   'markSeam',
+  'unwrap',
   'selectAll',
   'selectNone',
   'invertSelection',
@@ -659,6 +661,13 @@ ModelCommand? modelCommandFromJson(Object? json) {
       flip: json['flip'] as bool? ?? false,
     ),
     'markSeam' => MarkSeam(on: json['on'] as bool? ?? true),
+    'unwrap' => UnwrapCommand(
+      margin: switch (json['margin']) {
+        final num margin => margin.toDouble(),
+        _ => 0.01,
+      },
+      autoPack: json['autoPack'] as bool? ?? true,
+    ),
     'transformElements' => switch ((
       _doubles(json['by'], 16),
       json['what'],

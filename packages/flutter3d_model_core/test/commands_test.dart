@@ -13,6 +13,7 @@ import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:flutter3d_formats/flutter3d_formats.dart';
+import 'package:flutter3d_geometry/flutter3d_geometry.dart' show VertexLayout;
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 import 'package:test/test.dart';
@@ -2218,6 +2219,7 @@ void main() {
         const Triangulate(),
         const RecalculateNormals(flip: true),
         const MarkSeam(),
+        const UnwrapCommand(margin: 0.02, autoPack: false),
         const SelectAll(),
         const SelectNone(),
         const InvertSelection(),
@@ -4169,4 +4171,240 @@ void main() {
       expect(history.run(const SetProfileLimits(maxInfluences: -1)), isNotNull);
     });
   });
+
+  group('unwrap', () {
+    test('`pro-uv-06`\'s own acceptance: toMeshData carries texcoord', () {
+      final history = edited();
+      expect(history.run(const UnwrapCommand()), isNull);
+      final drawn = meshOf(history).toMeshData();
+      expect(drawn.layout.has(VertexLayout.texcoord), isTrue);
+    });
+
+    test('nothing selected unwraps the whole mesh, not nothing', () {
+      final history = edited();
+      final mesh = meshOf(history);
+      expect(history.run(const UnwrapCommand()), isNull);
+
+      var sawNonZero = false;
+      for (var face = 0; face < mesh.faceSlotCount; face++) {
+        if (!mesh.isFaceAlive(face)) continue;
+        mesh.forEachHalfEdge(face, (half) {
+          final uv = mesh.uvOf(half);
+          if (uv.x != 0 || uv.y != 0) sawNonZero = true;
+        });
+      }
+      expect(sawNonZero, isTrue);
+    });
+
+    test(
+      '`pro-uv-06`\'s own acceptance: vertices grow at a seam a smooth '
+      'shading would never split on its own',
+      () {
+        final history = rectangleHistory();
+        final mesh = meshOf(history);
+        final before = mesh.toMeshData().vertexCount;
+
+        // The shared edge of two coplanar quads: nothing here gives a normal
+        // splitter a reason to duplicate vertex 1 or vertex 4 — the two faces
+        // already agree on a normal. A seam does not change that; only a UV
+        // that disagrees across it does.
+        final shared = _halfEdgeFromTo(mesh, 1, 4);
+        history.selection = history.selection.copyWith(
+          level: ElementLevel.edge,
+          elements: <int>[shared],
+        );
+        expect(history.run(const MarkSeam()), isNull);
+
+        history.selection = history.selection.copyWith(
+          level: ElementLevel.face,
+          elements: const <int>[],
+        );
+        expect(history.run(const UnwrapCommand()), isNull);
+
+        final after = mesh.toMeshData().vertexCount;
+        // Two islands packed apart give the shared edge's two vertices two
+        // different absolute UVs each — one per side — so both split.
+        expect(after, before + 2);
+      },
+    );
+
+    test('undo puts the mesh back to its pre-unwrap UV, not just its shape', () {
+      final history = rectangleHistory();
+      final mesh = meshOf(history);
+      final before = mesh.toMeshData().vertexCount;
+
+      final shared = _halfEdgeFromTo(mesh, 1, 4);
+      history.selection = history.selection.copyWith(
+        level: ElementLevel.edge,
+        elements: <int>[shared],
+      );
+      history.run(const MarkSeam());
+      history.selection = history.selection.copyWith(
+        level: ElementLevel.face,
+        elements: const <int>[],
+      );
+      expect(history.run(const UnwrapCommand()), isNull);
+      expect(mesh.toMeshData().vertexCount, before + 2);
+
+      history.undo(); // Lifts the unwrap; the seam mark is its own step.
+      var sawNonZero = false;
+      for (var face = 0; face < mesh.faceSlotCount; face++) {
+        if (!mesh.isFaceAlive(face)) continue;
+        mesh.forEachHalfEdge(face, (half) {
+          final uv = mesh.uvOf(half);
+          if (uv.x != 0 || uv.y != 0) sawNonZero = true;
+        });
+      }
+      expect(sawNonZero, isFalse);
+      expect(mesh.toMeshData().vertexCount, before);
+    });
+
+    test('a selection narrower than the whole mesh leaves the rest untouched', () {
+      final history = rectangleHistory();
+      final mesh = meshOf(history);
+
+      history.selection = history.selection.copyWith(
+        level: ElementLevel.face,
+        elements: <int>[0],
+      );
+      expect(history.run(const UnwrapCommand()), isNull);
+
+      // Face 1 was never in the selection `splitIslands` was restricted to,
+      // so it never reached `lscm` and still carries the neutral default.
+      var face1Touched = false;
+      mesh.forEachHalfEdge(1, (half) {
+        final uv = mesh.uvOf(half);
+        if (uv.x != 0 || uv.y != 0) face1Touched = true;
+      });
+      expect(face1Touched, isFalse);
+    });
+
+    test(
+      'autoPack moves the two islands apart; leaving it off lets both '
+      'carry a corner at (0, 0), `lscm`\'s own default pin',
+      () {
+        void markTheSeam(ModelHistory history) {
+          final mesh = meshOf(history);
+          final shared = _halfEdgeFromTo(mesh, 1, 4);
+          history.selection = history.selection.copyWith(
+            level: ElementLevel.edge,
+            elements: <int>[shared],
+          );
+          history.run(const MarkSeam());
+          history.selection = history.selection.copyWith(
+            level: ElementLevel.face,
+            elements: const <int>[],
+          );
+        }
+
+        final unpacked = rectangleHistory();
+        markTheSeam(unpacked);
+        expect(unpacked.run(const UnwrapCommand(autoPack: false)), isNull);
+        final unpackedMesh = meshOf(unpacked);
+        expect(_cornerAt(unpackedMesh, 0, Vector2.zero()), isTrue);
+        expect(_cornerAt(unpackedMesh, 1, Vector2.zero()), isTrue);
+
+        final packed = rectangleHistory();
+        markTheSeam(packed);
+        expect(packed.run(const UnwrapCommand()), isNull);
+        final packedMesh = meshOf(packed);
+        expect(
+          _uvBoxesOverlap(
+            _uvBoundsOf(packedMesh, 0),
+            _uvBoundsOf(packedMesh, 1),
+          ),
+          isFalse,
+        );
+      },
+    );
+  });
 }
+
+/// A project holding two coplanar quads sharing one edge — vertices 1 and 4 —
+/// marked smooth so that nothing but a UV seam could ever split them apart.
+/// `EditMesh.fromFaces` leaves a fresh face flat-shaded (`FaceFlags.smooth`
+/// unset), which alone would already give every corner its own GPU vertex
+/// regardless of any seam — marking both faces smooth here is what makes a
+/// later seam the only reason two of these ever separate.
+///
+///     3---4---5
+///     |   |   |
+///     0---1---2
+ModelHistory rectangleHistory() {
+  final mesh = EditMesh.fromFaces(
+    <Vector3>[
+      Vector3(0, 0, 0),
+      Vector3(1, 0, 0),
+      Vector3(2, 0, 0),
+      Vector3(0, 1, 0),
+      Vector3(1, 1, 0),
+      Vector3(2, 1, 0),
+    ],
+    <List<int>>[
+      <int>[0, 1, 4, 3],
+      <int>[1, 2, 5, 4],
+    ],
+  );
+  mesh.beginStep();
+  mesh.setFaceFlag(0, FaceFlags.smooth, on: true);
+  mesh.setFaceFlag(1, FaceFlags.smooth, on: true);
+  mesh.endStep();
+  final project = const ModelProject().added(
+    (int id) => ModelObject(
+      id: id,
+      name: 'rectangle',
+      geometry: EditedGeometry(mesh),
+      transform: Matrix4.identity(),
+    ),
+  );
+  return ModelHistory(project)
+    ..selection = const ProjectSelection(
+      mode: SelectionMode.mesh,
+      objects: <int>[1],
+    );
+}
+
+/// The half-edge running from vertex [a] to vertex [b], found by scanning
+/// rather than looked up — there is no faster path from a bare vertex pair to
+/// a half-edge index, and a fixture this small does not need one.
+int _halfEdgeFromTo(EditMesh mesh, int a, int b) {
+  for (var half = 0; half < mesh.halfEdgeCount; half++) {
+    if (mesh.originOf(half) == a && mesh.originOf(mesh.nextOf(half)) == b) {
+      return half;
+    }
+  }
+  throw StateError('no half-edge runs from $a to $b');
+}
+
+/// Whether some corner of [face] carries [uv], within a tight tolerance.
+bool _cornerAt(EditMesh mesh, int face, Vector2 uv) {
+  var found = false;
+  mesh.forEachHalfEdge(face, (half) {
+    final at = mesh.uvOf(half);
+    if ((at - uv).length < 1e-9) found = true;
+  });
+  return found;
+}
+
+/// The axis-aligned UV bounding box of [face]'s own corners.
+({double minU, double minV, double maxU, double maxV}) _uvBoundsOf(
+  EditMesh mesh,
+  int face,
+) {
+  var minU = double.infinity, minV = double.infinity;
+  var maxU = -double.infinity, maxV = -double.infinity;
+  mesh.forEachHalfEdge(face, (half) {
+    final uv = mesh.uvOf(half);
+    if (uv.x < minU) minU = uv.x;
+    if (uv.y < minV) minV = uv.y;
+    if (uv.x > maxU) maxU = uv.x;
+    if (uv.y > maxV) maxV = uv.y;
+  });
+  return (minU: minU, minV: minV, maxU: maxU, maxV: maxV);
+}
+
+/// Whether two axis-aligned UV boxes share any area.
+bool _uvBoxesOverlap(
+  ({double minU, double minV, double maxU, double maxV}) a,
+  ({double minU, double minV, double maxU, double maxV}) b,
+) => a.minU < b.maxU && b.minU < a.maxU && a.minV < b.maxV && b.minV < a.maxV;

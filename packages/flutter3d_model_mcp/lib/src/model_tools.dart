@@ -531,6 +531,44 @@ List<ModelTool> get _commandTools => <ModelTool>[
   ),
   ModelTool(
     Tool(
+      name: 'markSeam',
+      description:
+          'Mark the selected edges as a UV seam, or clear that mark. '
+          'unwrap only cuts an island apart at a seam.',
+      inputSchema: ObjectSchema(
+        properties: <String, Schema>{
+          'on': BooleanSchema(
+            description: 'true to mark (default), false to clear',
+          ),
+        },
+      ),
+    ),
+    _command('markSeam'),
+  ),
+  ModelTool(
+    Tool(
+      name: 'unwrap',
+      description:
+          'Lay out a UV for the selected faces, or the whole mesh '
+          'when nothing is selected, cutting islands apart at seams '
+          'markSeam left. autoPack lays every island into one shared '
+          '[0, 1] square afterward.',
+      inputSchema: ObjectSchema(
+        properties: <String, Schema>{
+          'margin': NumberSchema(
+            description: 'gap autoPack leaves between islands, default 0.01',
+          ),
+          'autoPack': BooleanSchema(
+            description:
+                'pack every island into one shared square, default true',
+          ),
+        },
+      ),
+    ),
+    _command('unwrap'),
+  ),
+  ModelTool(
+    Tool(
       name: 'separate',
       description:
           'Pull the selected faces out of their object into a new '
