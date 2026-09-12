@@ -129,7 +129,19 @@ final class DeviceMesh implements DrawableGeometry {
   final IndexType indexType;
 
   @override
-  final Aabb3 bounds;
+  Aabb3 bounds;
+
+  /// Bumped on every [overwriteVertices] call.
+  ///
+  /// [bounds] is compared by a caller that caches it — `MeshNode.
+  /// markBoundsDirty` is the escape hatch for that cache today, since
+  /// `MeshNode`'s own invalidation compares this mesh by identity and an
+  /// in-place overwrite changes nothing an identity check can see. This
+  /// counter is for a future caller that would rather poll than remember to
+  /// call one, the same reason `MorphState.version` and `SceneNode.
+  /// worldVersion` already exist.
+  int get version => _version;
+  int _version = 0;
 
   /// The geometry this was uploaded from, retained for anything the CPU still
   /// has to answer about the mesh: raycasting against triangles, drawing
@@ -151,14 +163,22 @@ final class DeviceMesh implements DrawableGeometry {
   /// Overwrites [vertexCount] vertices' worth of interleaved attribute bytes
   /// starting at [firstVertex], in place — `pro-eng-01`.
   ///
-  /// **[bounds] is not refitted.** A caller whose overwrite can move a vertex
-  /// outside the box this mesh was uploaded with — sculpting, cloth, anything
-  /// that is not a fixed-shape skinning pose — has to widen [bounds] itself or
-  /// accept that culling may be wrong; recomputing it here would need either
-  /// the whole mesh's current positions (this call sees only the overwritten
-  /// range) or a running min/max this class does not keep. That is real work
-  /// still open under `view-14-overwrite-geometry`, not a promise this method
-  /// makes and breaks.
+  /// **[bounds] grows to cover the overwritten range; it never shrinks.**
+  /// Every layout in this engine starts with `position` — `VertexLayout.
+  /// positionOnly` through `skinned` all list it first — so the first three
+  /// floats of each vertex are read as a position with no layout of its own
+  /// needed here. The result is unioned into the existing box rather than
+  /// replacing it: this call sees only the overwritten range, and a vertex
+  /// untouched by it may still be the one holding the box's own far corner.
+  /// A box that only grows stays a correct, if not always tight, answer;
+  /// tightening it back down would need the whole mesh's current positions,
+  /// which this call does not have and `keepSourceData: false` may mean
+  /// nothing has.
+  ///
+  /// [version] is bumped once regardless of how many vertices changed.
+  /// `MeshNode`'s own bounds cache compares this mesh by identity, which an
+  /// in-place overwrite does not change — a caller also holding a node this
+  /// mesh belongs to still has to call `MeshNode.markBoundsDirty` itself.
   ///
   /// [vertexBytes]' own length must be an exact multiple of this mesh's vertex
   /// stride — `vertices.lengthInBytes ~/ vertexCount` — and
@@ -186,5 +206,31 @@ final class DeviceMesh implements DrawableGeometry {
       );
     }
     device.overwriteGeometry(vertices, firstVertex * stride, vertexBytes);
+
+    final floatsPerVertex = stride ~/ 4;
+    bounds.hull(_boundsOf(vertexBytes, count, floatsPerVertex));
+    _version++;
+  }
+
+  /// The bounding box of the positions in [vertexBytes], read as [count]
+  /// vertices of [floatsPerVertex] floats each with position first.
+  static Aabb3 _boundsOf(ByteData vertexBytes, int count, int floatsPerVertex) {
+    var minX = double.infinity, minY = double.infinity, minZ = double.infinity;
+    var maxX = -double.infinity,
+        maxY = -double.infinity,
+        maxZ = -double.infinity;
+    for (var v = 0; v < count; v++) {
+      final base = (v * floatsPerVertex) * 4;
+      final x = vertexBytes.getFloat32(base, Endian.host);
+      final y = vertexBytes.getFloat32(base + 4, Endian.host);
+      final z = vertexBytes.getFloat32(base + 8, Endian.host);
+      if (x < minX) minX = x;
+      if (y < minY) minY = y;
+      if (z < minZ) minZ = z;
+      if (x > maxX) maxX = x;
+      if (y > maxY) maxY = y;
+      if (z > maxZ) maxZ = z;
+    }
+    return Aabb3.minMax(Vector3(minX, minY, minZ), Vector3(maxX, maxY, maxZ));
   }
 }

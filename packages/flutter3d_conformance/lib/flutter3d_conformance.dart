@@ -14,8 +14,8 @@
 ///
 /// **Two tiers, and the split is a correction.** This file used to say it was
 /// shader-free as a whole, and that stopped being true the day a check needed a
-/// pipeline: twenty-five of the thirty-four link stages and draw. A new
-/// backend following the old promise would have met twenty-five shader checks
+/// pipeline: twenty-six of the thirty-five link stages and draw. A new
+/// backend following the old promise would have met twenty-six shader checks
 /// it could do nothing about, so the lists say which is which — [coreChecks]
 /// needs clears, uploads and readback alone, [shaderChecks] needs the bundle.
 /// The tiers answer "can this be asked yet", not "does this matter": the
@@ -56,6 +56,7 @@ import 'src/blend_checks.dart';
 import 'src/compressed_checks.dart';
 import 'src/core_checks.dart';
 import 'src/draw_checks.dart';
+import 'src/geometry_overwrite_checks.dart';
 import 'src/loaded_bundle_checks.dart';
 import 'src/multisample_checks.dart';
 import 'src/pass_coverage_checks.dart';
@@ -210,7 +211,7 @@ void runDeviceConformance({
 /// **This list is why the two exist separately.** The library used to say it
 /// was shader-free as a whole, and it stopped being true the day the third
 /// check needed a pipeline — so a new backend, following the promise, would
-/// have hit twenty-five shader checks it had no way to act on yet. Clears,
+/// have hit twenty-six shader checks it had no way to act on yet. Clears,
 /// uploads and readback only: the answers here are the cheapest ones to get,
 /// and they are the ones worth having first.
 List<ConformanceCheck> get coreChecks => <ConformanceCheck>[
@@ -354,6 +355,13 @@ List<ConformanceCheck> get shaderChecks => <ConformanceCheck>[
   (
     name: 'an object id survives the draw and the readback',
     run: checkObjectIdDrawsAndDecodes,
+  ),
+  // `view-14`'s own row: a partial overwrite of a vertex buffer has to draw
+  // what a fresh upload of the same bytes would, not merely reach the
+  // device somehow.
+  (
+    name: 'a geometry overwrite draws what a fresh upload draws',
+    run: checkGeometryOverwriteMatchesFreshUpload,
   ),
 ];
 

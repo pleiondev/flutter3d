@@ -68,4 +68,52 @@ void main() {
     );
     expect(device.overwrites, isEmpty);
   });
+
+  /// One vertex's worth of bytes with [x], [y], [z] as its position — the
+  /// rest of the stride stays zero, which no test here reads.
+  ByteData vertexAt(double x, double y, double z) {
+    final bytes = ByteData(stride);
+    bytes
+      ..setFloat32(0, x, Endian.host)
+      ..setFloat32(4, y, Endian.host)
+      ..setFloat32(8, z, Endian.host);
+    return bytes;
+  }
+
+  group('bounds', () {
+    test('grow to cover a vertex moved outside the mesh\'s own box', () {
+      // The cuboid is size 1, so its own bounds run ±0.5 on every axis.
+      final before = Aabb3.copy(mesh.bounds);
+      expect(before.max.x, closeTo(0.5, 1e-9));
+
+      mesh.overwriteVertices(device, 0, vertexAt(5.0, 0.0, 0.0));
+
+      expect(mesh.bounds.max.x, closeTo(5.0, 1e-9));
+      // Mutation: replace rather than union, and this drops to the single
+      // moved vertex's own y/z instead of keeping the cuboid's.
+      expect(mesh.bounds.max.y, closeTo(before.max.y, 1e-9));
+      expect(mesh.bounds.min.x, closeTo(before.min.x, 1e-9));
+    });
+
+    test('do not shrink for a vertex moved inside the mesh\'s own box', () {
+      final before = Aabb3.copy(mesh.bounds);
+      mesh.overwriteVertices(device, 0, vertexAt(0.0, 0.0, 0.0));
+
+      // Mutation: recompute from only the overwritten range instead of
+      // unioning with what was already there, and this box collapses to a
+      // single point at the origin.
+      expect(mesh.bounds.min.x, closeTo(before.min.x, 1e-9));
+      expect(mesh.bounds.max.x, closeTo(before.max.x, 1e-9));
+    });
+  });
+
+  group('version', () {
+    test('bumps once per call, regardless of how many vertices it touched', () {
+      expect(mesh.version, 0);
+      mesh.overwriteVertices(device, 0, vertexAt(0, 0, 0));
+      expect(mesh.version, 1);
+      mesh.overwriteVertices(device, 0, ByteData(stride * 4));
+      expect(mesh.version, 2);
+    });
+  });
 }
