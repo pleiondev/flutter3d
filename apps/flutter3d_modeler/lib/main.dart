@@ -427,7 +427,12 @@ class _ModelerScreenState extends State<ModelerScreen>
         // same way. See `saveAs`.
         if (kSandboxPick) await _saveFile();
       }
-      _cubit.opened(opening3, renderer: renderer, stage: stage);
+      _cubit.opened(
+        opening3,
+        renderer: renderer,
+        stage: stage,
+        documentName: kModel.isEmpty ? 'cube' : kModel,
+      );
       setState(() {
         // With no run to wait for, the opening cost is the whole report.
         if (kOrbit <= 0) _report = 'opened in $_openedInMs ms';
@@ -502,6 +507,7 @@ class _ModelerScreenState extends State<ModelerScreen>
             ModelHistory(project),
             renderer: (_state as ModelerReady).renderer,
             stage: stage,
+            documentName: picked.name,
             said: <String>[said, ...opened.warnings].join('\n'),
           );
           setState(() {
@@ -589,6 +595,13 @@ class _ModelerScreenState extends State<ModelerScreen>
   Future<void> _exportFile(
     ExportFormat format, {
     bool bakeTransforms = false,
+    // The export screen's own "Export anyway" label already showed every
+    // issue this would otherwise ask about a second time — `ui-17`'s own
+    // row, and the review's own finding that the two dialogs partly
+    // duplicated each other. `_askAnyway` still exists for the top-bar's
+    // own smaller entry points, which show no issue list of their own
+    // first.
+    bool skipConfirm = false,
   }) async {
     if (_state is! ModelerReady) return;
 
@@ -596,9 +609,13 @@ class _ModelerScreenState extends State<ModelerScreen>
       _history.project,
       format: format,
       bakeTransforms: bakeTransforms,
+      force: skipConfirm,
     );
 
     if (planned case final ExportBlocked blocked) {
+      // Unreachable when skipConfirm is true: the first planExport call
+      // above already passed force: skipConfirm, so a blocked plan only
+      // ever reaches here when nobody has been asked yet.
       final go = await _askAnyway(blocked, blocked.issues);
       if (!go || !mounted) return;
       planned = planExport(
@@ -662,7 +679,11 @@ class _ModelerScreenState extends State<ModelerScreen>
     );
     if (choice != null) {
       unawaited(
-        _exportFile(choice.format, bakeTransforms: choice.bakeTransforms),
+        _exportFile(
+          choice.format,
+          bakeTransforms: choice.bakeTransforms,
+          skipConfirm: choice.acknowledgedWarnings,
+        ),
       );
     }
   }
@@ -1601,6 +1622,8 @@ class _ModelerScreenState extends State<ModelerScreen>
                     status: status,
                     properties: properties,
                     viewport: viewport,
+                    documentName: state.documentName,
+                    isDirty: state.history.isDirty,
                   ),
                   LayoutClass.tablet => ModelerTabletShell(
                     mode: state.mode,

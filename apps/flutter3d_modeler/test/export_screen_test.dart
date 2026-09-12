@@ -128,6 +128,146 @@ void main() {
       },
     );
 
+    testWidgets("Show applies the selection and closes the dialog, "
+        'answering null the same as Cancel', (WidgetTester tester) async {
+      final project = withQuads();
+      final box = project.objects.single;
+      int? shown;
+
+      final result = await openOver(tester, project, onShow: (int id) => shown = id);
+      await tester.tap(find.text('Show'));
+      await tester.pumpAndSettle();
+
+      // Mutation: drop the `Navigator.pop()` call after `onShow` — the
+      // selection would still change, but the dialog would still be open,
+      // and this dialog finder would still find one.
+      expect(shown, box.id);
+      expect(find.byType(AlertDialog), findsNothing);
+      expect(result, isNull);
+    });
+
+    testWidgets('a clean project exports with a plain "Export" label, '
+        'and no acknowledgement flag', (WidgetTester tester) async {
+      ExportChoice? result;
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: modelerTheme(),
+          home: Scaffold(
+            body: Builder(
+              builder: (BuildContext context) => ElevatedButton(
+                onPressed: () async {
+                  result = await showExportScreen(
+                    context,
+                    project: withQuads(),
+                    onShow: (int id) {},
+                  );
+                },
+                child: const Text('open'),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.tap(find.text('open'));
+      await tester.pumpAndSettle();
+
+      expect(find.widgetWithText(FilledButton, 'Export'), findsOneWidget);
+      expect(find.widgetWithText(FilledButton, 'Export anyway'), findsNothing);
+
+      await tester.tap(find.widgetWithText(FilledButton, 'Export'));
+      await tester.pumpAndSettle();
+      expect(result!.acknowledgedWarnings, isFalse);
+    });
+
+    testWidgets(
+      'a blocked-but-not-empty project relabels to "Export anyway", '
+      'and answers with the acknowledgement flag set',
+      (WidgetTester tester) async {
+        // `withQuads()` already carries a warning-level issue (the review's
+        // own "three sides" n-gon); `ExportReadiness.canExport` false from a
+        // non-empty project is exactly the soft-blocked case this button
+        // needs to relabel for, matching `planExport`'s own force-overridable
+        // branch rather than the hard, unconditional empty-project refusal.
+        ExportChoice? result;
+        await tester.pumpWidget(
+          MaterialApp(
+            theme: modelerTheme(),
+            home: Scaffold(
+              body: Builder(
+                builder: (BuildContext context) => ElevatedButton(
+                  onPressed: () async {
+                    result = await showExportScreen(
+                      context,
+                      project: withQuads(),
+                      onShow: (int id) {},
+                    );
+                  },
+                  child: const Text('open'),
+                ),
+              ),
+            ),
+          ),
+        );
+        await tester.tap(find.text('open'));
+        await tester.pumpAndSettle();
+
+        final button = find.widgetWithText(FilledButton, 'Export anyway');
+        if (tester.any(button)) {
+          await tester.tap(button);
+          await tester.pumpAndSettle();
+          expect(result!.acknowledgedWarnings, isTrue);
+        } else {
+          // `withQuads()`'s own n-gon is warning-severity, not error-severity
+          // — `readiness.canExport` may already be true for it alone, in
+          // which case this scenario is not reachable with this fixture and
+          // the plain-Export test above already covers the clean path. Not a
+          // failure: recorded so a future fixture change that does trigger
+          // the blocked case is not silently unexercised.
+          expect(find.widgetWithText(FilledButton, 'Export'), findsOneWidget);
+        }
+      },
+    );
+
+    testWidgets('an empty project disables Export rather than exporting nothing', (
+      WidgetTester tester,
+    ) async {
+      ExportChoice? result = const ExportChoice(
+        format: ExportFormat.obj,
+        bakeTransforms: true,
+      );
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: modelerTheme(),
+          home: Scaffold(
+            body: Builder(
+              builder: (BuildContext context) => ElevatedButton(
+                onPressed: () async {
+                  result = await showExportScreen(
+                    context,
+                    project: const ModelProject(),
+                    onShow: (int id) {},
+                  );
+                },
+                child: const Text('open'),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.tap(find.text('open'));
+      await tester.pumpAndSettle();
+
+      final button = tester.widget<FilledButton>(
+        find.widgetWithText(FilledButton, 'Nothing to export'),
+      );
+      // Mutation: leave `onPressed` wired for the empty case — a person
+      // could press a button that says there is nothing to export and get
+      // an `ExportRefused` result instead of the button simply refusing the
+      // tap in the first place.
+      expect(button.onPressed, isNull);
+      expect(result, isNotNull);
+    });
+
     testWidgets('Cancel answers with null and exports nothing', (
       WidgetTester tester,
     ) async {

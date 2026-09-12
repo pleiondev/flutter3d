@@ -60,6 +60,7 @@ final class ModelerReady extends ModelerState {
     required this.stage,
     required this.history,
     required this.readiness,
+    this.documentName = 'untitled',
     this.mode = ModelerMode.object,
     this.submode = MeshSubmode.vertex,
     this.tool = 'object.select',
@@ -80,6 +81,12 @@ final class ModelerReady extends ModelerState {
   /// What the model will refuse to export as, computed when a command lands
   /// rather than when a frame is drawn.
   final ExportReadiness readiness;
+
+  /// What opened this document, or the profile's own default subject when
+  /// nothing was — the top bar's and the window title's own single source
+  /// for "which file is this," which neither read from before this field
+  /// existed.
+  final String documentName;
 
   final ModelerMode mode;
 
@@ -131,6 +138,7 @@ final class ModelerReady extends ModelerState {
     stage: stage ?? this.stage,
     history: history,
     readiness: readiness ?? this.readiness,
+    documentName: documentName,
     mode: mode ?? this.mode,
     submode: submode ?? this.submode,
     tool: clearTool ? null : (tool ?? this.tool),

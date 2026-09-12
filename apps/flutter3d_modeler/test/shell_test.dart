@@ -26,6 +26,8 @@ Future<void> pumpShell(
   String? activeTool,
   ValueChanged<String>? onTool,
   Size size = const Size(1440, 900),
+  String documentName = 'untitled',
+  bool isDirty = false,
 }) async {
   tester.view
     ..physicalSize = size
@@ -48,6 +50,8 @@ Future<void> pumpShell(
         properties: const Text('properties'),
         status: const Text('status'),
         actions: const <Widget>[Text('actions')],
+        documentName: documentName,
+        isDirty: isDirty,
       ),
     ),
   );
@@ -250,6 +254,25 @@ void main() {
       expect(colours, isNotNull);
       expect(colours!.viewport, const Color(0xFF0E1112));
       expect(colours.gridMinor, const Color(0xFF2A3234));
+    });
+  });
+
+  group('the top bar names what is open', () {
+    testWidgets('the document name is visible, plain when clean', (
+      WidgetTester tester,
+    ) async {
+      await pumpShell(tester, documentName: 'teapot.f3dproj');
+      expect(find.text('teapot.f3dproj'), findsOneWidget);
+    });
+
+    testWidgets('a dirty document is marked, not just named', (
+      WidgetTester tester,
+    ) async {
+      await pumpShell(tester, documentName: 'teapot.f3dproj', isDirty: true);
+      // Mutation: read `documentName` alone and drop the dirty branch — the
+      // plain name would still be findsOneWidget and this would not notice.
+      expect(find.text('teapot.f3dproj'), findsNothing);
+      expect(find.text('• teapot.f3dproj'), findsOneWidget);
     });
   });
 }

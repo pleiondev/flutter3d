@@ -26,13 +26,25 @@ import '../exporting.dart';
 /// What the person chose, or null from [showExportScreen] when they backed
 /// out without exporting.
 final class ExportChoice {
-  const ExportChoice({required this.format, required this.bakeTransforms});
+  const ExportChoice({
+    required this.format,
+    required this.bakeTransforms,
+    this.acknowledgedWarnings = false,
+  });
 
   final ExportFormat format;
 
   /// `ui-17`'s own "запечь трансформации узлов": [bakeAllTransforms] runs
   /// before the write when true.
   final bool bakeTransforms;
+
+  /// True when this screen's own Export button already read as "Export
+  /// anyway" — the person has already seen every issue in the list above
+  /// before pressing it, so the caller should write straight through
+  /// (`planExport(force: true)`) rather than asking again with a second
+  /// dialog that repeats the same list. Meaningless when the project is
+  /// empty: that case never reaches a pressable button at all.
+  final bool acknowledgedWarnings;
 }
 
 /// Opens `ui-17`'s own export screen over [project]. [onShow] is called with
@@ -70,6 +82,14 @@ class _ExportScreenState extends State<_ExportScreen> {
     final triangles = widget.project.triangleCount;
     final budget = widget.project.profile.maxTriangles;
     final overBudget = budget > 0 && triangles > budget;
+    // Mirrors `planExport`'s own two-step refusal exactly: an empty project
+    // is refused outright regardless of `force`, and is the ONLY case that
+    // is — the row's own "отказ только при пустой геометрии." Anything else
+    // `readiness` flags is the soft, force-overridable case, which this
+    // screen now represents as a relabeled button rather than a second
+    // dialog repeating the same issue list.
+    final isEmpty = widget.project.objects.isEmpty;
+    final blocked = !isEmpty && !readiness.canExport;
 
     return AlertDialog(
       title: const Text('Export'),
@@ -136,10 +156,18 @@ class _ExportScreenState extends State<_ExportScreen> {
           child: const Text('Cancel'),
         ),
         FilledButton(
-          onPressed: () => Navigator.of(context).pop(
-            ExportChoice(format: _format, bakeTransforms: _bakeTransforms),
+          onPressed: isEmpty
+              ? null
+              : () => Navigator.of(context).pop(
+                  ExportChoice(
+                    format: _format,
+                    bakeTransforms: _bakeTransforms,
+                    acknowledgedWarnings: blocked,
+                  ),
+                ),
+          child: Text(
+            isEmpty ? 'Nothing to export' : (blocked ? 'Export anyway' : 'Export'),
           ),
-          child: const Text('Export'),
         ),
       ],
     );
@@ -187,7 +215,16 @@ class _IssueRow extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(horizontal: 8),
                 textStyle: const TextStyle(fontSize: 12),
               ),
-              onPressed: () => onShow(object.id),
+              // Closes the dialog after selecting, rather than changing the
+              // selection behind it where nobody could see it happen — the
+              // review's own finding. `bakeTransforms`/`_format` are lost on
+              // reopening, the same as `Cancel` already costs; going to fix
+              // a flagged object is worth more than a checkbox somebody can
+              // tick again in two taps.
+              onPressed: () {
+                onShow(object.id);
+                Navigator.of(context).pop();
+              },
               child: const Text('Show'),
             ),
         ],

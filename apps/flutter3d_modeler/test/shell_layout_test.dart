@@ -259,5 +259,85 @@ void main() {
       expect(fabBox.width, 56);
       expect(fabBox.height, 56);
     });
+
+    testWidgets('an action in the "More" sheet is actually tappable', (
+      WidgetTester tester,
+    ) async {
+      // The review's own bug: `PopupMenuItem(enabled: false, ...)` reads as
+      // a disabled action even though the widget it wraps has a real
+      // `onPressed`, because the disabled item swallows the tap before it
+      // ever reaches its own child. This action's `onPressed` is the fact
+      // under test, not the finder — a mutation that put the disabled
+      // wrapper back would leave this button unreachable, not merely
+      // relabelled.
+      var pressed = false;
+      tester.view
+        ..physicalSize = const Size(360, 800)
+        ..devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: modelerTheme(),
+          home: ModelerPhoneShell(
+            mode: ModelerMode.object,
+            onMode: (_) {},
+            submode: MeshSubmode.vertex,
+            onSubmode: (_) {},
+            activeTool: null,
+            onTool: (_) {},
+            viewport: const SizedBox.expand(),
+            properties: const Text('properties'),
+            status: const Text('status'),
+            actions: <Widget>[
+              ElevatedButton(
+                onPressed: () => pressed = true,
+                child: const Text('Save'),
+              ),
+            ],
+          ),
+        ),
+      );
+
+      await tester.tap(find.byIcon(Icons.more_vert));
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(ElevatedButton, 'Save'));
+      await tester.pump();
+
+      expect(pressed, isTrue);
+    });
+
+    testWidgets('the status widget actually renders, not just declared', (
+      WidgetTester tester,
+    ) async {
+      // The review's own other bug: `status` was a required constructor
+      // parameter this shell never placed in its own build() tree, so
+      // nothing set through it was ever visible at this width.
+      tester.view
+        ..physicalSize = const Size(360, 800)
+        ..devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: modelerTheme(),
+          home: const ModelerPhoneShell(
+            mode: ModelerMode.object,
+            onMode: _noOnMode,
+            submode: MeshSubmode.vertex,
+            onSubmode: _noOnSubmode,
+            activeTool: null,
+            onTool: _noOnTool,
+            viewport: SizedBox.expand(),
+            properties: Text('properties'),
+            status: Text('could not save: disk full'),
+          ),
+        ),
+      );
+
+      expect(find.text('could not save: disk full'), findsOneWidget);
+    });
   });
 }
+
+void _noOnMode(ModelerMode mode) {}
+void _noOnSubmode(MeshSubmode submode) {}
+void _noOnTool(String id) {}

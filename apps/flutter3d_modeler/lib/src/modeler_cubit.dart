@@ -54,6 +54,7 @@ final class ModelerCubit extends Cubit<ModelerState> {
     ModelHistory history, {
     required Renderer renderer,
     required ModelerStage stage,
+    String documentName = 'untitled',
     String? said,
   }) {
     // A different document entirely: the old answers name ids this project
@@ -65,6 +66,7 @@ final class ModelerCubit extends Cubit<ModelerState> {
         stage: stage,
         history: history,
         readiness: _readiness.of(history.project),
+        documentName: documentName,
         said: said,
       ),
     );

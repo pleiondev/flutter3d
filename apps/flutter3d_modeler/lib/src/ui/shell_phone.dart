@@ -66,12 +66,17 @@ class ModelerPhoneShell extends StatelessWidget {
           : AppBar(
               toolbarHeight: ModelerMetrics.statusBar + 22,
               actions: <Widget>[
-                PopupMenuButton<int>(
+                // **A bottom sheet, not a `PopupMenuItem`.** A menu item's
+                // own `enabled: false` blocks taps to whatever it wraps —
+                // the review found this made Save/Open/Export dead buttons
+                // on phone width, the only width without a top bar to put
+                // them in directly. `_openToolSheet` below already opens an
+                // interactive bottom sheet for the same reason a menu won't
+                // do; this reuses that same shape for the top-bar actions.
+                IconButton(
                   tooltip: 'More',
-                  itemBuilder: (BuildContext context) => <PopupMenuEntry<int>>[
-                    for (var i = 0; i < actions.length; i++)
-                      PopupMenuItem<int>(enabled: false, child: actions[i]),
-                  ],
+                  icon: const Icon(Icons.more_vert),
+                  onPressed: () => _openActionsSheet(context),
                 ),
               ],
             ),
@@ -79,6 +84,21 @@ class ModelerPhoneShell extends StatelessWidget {
         children: <Widget>[
           Column(
             children: <Widget>[
+              // **Declared, but never placed until now.** `status` was
+              // already a required parameter here — the review found phone
+              // width was the one place a save/open/export message, or the
+              // crash-adjacent selection status, had nowhere to appear at
+              // all.
+              SizedBox(
+                height: ModelerMetrics.statusBar,
+                child: ColoredBox(
+                  color: colours.viewport,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 10),
+                    child: Align(alignment: Alignment.centerLeft, child: status),
+                  ),
+                ),
+              ),
               if (mode == ModelerMode.mesh)
                 Padding(
                   padding: const EdgeInsets.symmetric(
@@ -148,6 +168,26 @@ class ModelerPhoneShell extends StatelessWidget {
     if (tools.isEmpty) return Icons.touch_app_outlined;
     final armed = tools.where((t) => t.id == active);
     return armed.isNotEmpty ? armed.first.icon : tools.first.icon;
+  }
+
+  /// [actions] laid out where a thumb can reach and a tap actually lands —
+  /// the fix for the same disabled-`PopupMenuItem` bug `_openToolSheet`
+  /// never had, since it always opened a real sheet instead.
+  void _openActionsSheet(BuildContext context) {
+    showModalBottomSheet<void>(
+      context: context,
+      builder: (BuildContext context) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Wrap(
+            alignment: WrapAlignment.center,
+            spacing: 8,
+            runSpacing: 8,
+            children: actions,
+          ),
+        ),
+      ),
+    );
   }
 
   /// Every tool [toolsFor] gives this mode, in a sheet a thumb can reach —

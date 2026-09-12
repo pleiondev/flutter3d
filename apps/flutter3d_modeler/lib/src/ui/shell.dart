@@ -34,6 +34,8 @@ class ModelerShell extends StatelessWidget {
     required this.properties,
     required this.status,
     this.actions = const <Widget>[],
+    this.documentName = 'untitled',
+    this.isDirty = false,
   });
 
   final ModelerMode mode;
@@ -53,6 +55,16 @@ class ModelerShell extends StatelessWidget {
   /// What sits at the right of the top bar: opening, saving, exporting.
   final List<Widget> actions;
 
+  /// What is open, for the top bar's own leading label — the review found
+  /// nothing in the running app showed this anywhere but the OS window
+  /// title, invisible maximized, in a webview, or on phone.
+  final String documentName;
+
+  /// Whether [documentName] carries unsaved changes, for the same leading
+  /// label — the marker `windowTitleFor` already puts in the window title,
+  /// read here off the same source rather than a second one.
+  final bool isDirty;
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -67,6 +79,8 @@ class ModelerShell extends StatelessWidget {
             submode: submode,
             onSubmode: onSubmode,
             actions: actions,
+            documentName: documentName,
+            isDirty: isDirty,
           ),
           const Divider(),
           Expanded(
@@ -122,6 +136,8 @@ class _TopBar extends StatelessWidget {
     required this.submode,
     required this.onSubmode,
     required this.actions,
+    required this.documentName,
+    required this.isDirty,
   });
 
   final ModelerMode mode;
@@ -129,6 +145,8 @@ class _TopBar extends StatelessWidget {
   final MeshSubmode submode;
   final ValueChanged<MeshSubmode> onSubmode;
   final List<Widget> actions;
+  final String documentName;
+  final bool isDirty;
 
   @override
   Widget build(BuildContext context) {
@@ -141,6 +159,19 @@ class _TopBar extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 10),
           child: Row(
             children: <Widget>[
+              // The design spec's own layout reads "filename | mode switcher
+              // | undo redo Export" — a fixed-width label rather than
+              // Flexible, so it never steals room the mode switcher's own
+              // horizontal scroll already needs on a narrow window.
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 160),
+                child: Text(
+                  isDirty ? '• $documentName' : documentName,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.titleSmall,
+                ),
+              ),
+              const SizedBox(width: 12),
               // **The modes and the level take what is left after the actions,
               // and scroll inside it.** A top bar that overflows is not a
               // cosmetic fault: Flutter paints the striped banner over the
