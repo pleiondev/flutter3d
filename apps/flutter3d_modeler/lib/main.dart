@@ -48,10 +48,13 @@ import 'src/staging.dart';
 import 'src/transform_fields.dart';
 import 'src/transform_gizmo.dart';
 import 'src/transform_modal.dart';
+import 'src/ui/layout_class.dart';
 import 'src/ui/number_field.dart';
 import 'src/ui/operation_card.dart';
 import 'src/ui/selection_key_bindings.dart';
 import 'src/ui/shell.dart';
+import 'src/ui/shell_phone.dart';
+import 'src/ui/shell_tablet.dart';
 import 'src/ui/status_line.dart';
 import 'src/ui/theme.dart';
 import 'src/ui/tools.dart';
@@ -1206,213 +1209,260 @@ class _ModelerScreenState extends State<ModelerScreen>
       onInvertSelection: () => _runSelection(const InvertSelection()),
       onLevel: _cubit.submode,
       tools: toolsFor(state.mode),
-      child: ModelerShell(
-        mode: state.mode,
-        onMode: (ModelerMode mode) {
-          _cubit
-            ..mode(mode)
-            // The armed tool belongs to the mode it came from, so a mode change
-            // arms that mode's pointer rather than leaving a tool id from the
-            // old one that nothing here would recognise.
-            ..tool(toolsFor(mode).isEmpty ? null : toolsFor(mode).first.id);
-        },
-        submode: state.submode,
-        onSubmode: _cubit.submode,
-        activeTool: state.tool,
-        onTool: _ranTool,
-        actions: <Widget>[
-          UndoRedoButtons(
-            canUndo: state.history.canUndo,
-            canRedo: state.history.canRedo,
-            undoSays: state.history.undoSays,
-            redoSays: state.history.redoSays,
-            onUndo: _undo,
-            onRedo: _redo,
-          ),
-          const SizedBox(width: 4),
-          // **A menu rather than five buttons on the rail.** The rail is for
-          // the tools a hand rests on; adding a shape is something done once
-          // and then not again for an hour, and five of anything on a rail of
-          // fifty-two pixels is a rail nobody can read. `A` still adds a box,
-          // which is the one people reach for without looking.
-          PopupMenuButton<String>(
-            tooltip: 'Add a primitive',
-            onSelected: (String kind) => _cubit.ran(AddPrimitive(kind: kind)),
-            itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
-              for (final String kind in AddPrimitive.primitiveKinds)
-                PopupMenuItem<String>(
-                  value: kind,
-                  height: ModelerMetrics.row,
-                  child: Text(kind, style: const TextStyle(fontSize: 13)),
+      // **`ui-05`'s own three shells, built once and picked by width.** The
+      // actions/status/properties/viewport widgets below are the same
+      // objects whichever shell draws them — `ui-05`'s own acceptance is
+      // that the same tools answer to the same keys in all three, and
+      // building them once here rather than once per shell branch is what
+      // makes that true by construction rather than by three call sites
+      // staying in sync by hand.
+      child: Builder(
+        builder: (BuildContext context) {
+          final actions = <Widget>[
+            UndoRedoButtons(
+              canUndo: state.history.canUndo,
+              canRedo: state.history.canRedo,
+              undoSays: state.history.undoSays,
+              redoSays: state.history.redoSays,
+              onUndo: _undo,
+              onRedo: _redo,
+            ),
+            const SizedBox(width: 4),
+            // **A menu rather than five buttons on the rail.** The rail is for
+            // the tools a hand rests on; adding a shape is something done once
+            // and then not again for an hour, and five of anything on a rail of
+            // fifty-two pixels is a rail nobody can read. `A` still adds a box,
+            // which is the one people reach for without looking.
+            PopupMenuButton<String>(
+              tooltip: 'Add a primitive',
+              onSelected: (String kind) => _cubit.ran(AddPrimitive(kind: kind)),
+              itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
+                for (final String kind in AddPrimitive.primitiveKinds)
+                  PopupMenuItem<String>(
+                    value: kind,
+                    height: ModelerMetrics.row,
+                    child: Text(kind, style: const TextStyle(fontSize: 13)),
+                  ),
+              ],
+              child: const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                child: Text('Add', style: TextStyle(fontSize: 13)),
+              ),
+            ),
+            TextButton(onPressed: _openFile, child: const Text('Open')),
+            const SizedBox(width: 4),
+            FilledButton.tonal(onPressed: _saveFile, child: const Text('Save')),
+            const SizedBox(width: 4),
+            PopupMenuButton<ExportFormat>(
+              tooltip: 'Export a copy',
+              onSelected: _exportFile,
+              itemBuilder: (BuildContext context) =>
+                  <PopupMenuEntry<ExportFormat>>[
+                    for (final ExportFormat format in ExportFormat.values)
+                      PopupMenuItem<ExportFormat>(
+                        value: format,
+                        height: ModelerMetrics.row,
+                        child: Text(
+                          '${format.suffix}  ${format.says}',
+                          style: const TextStyle(fontSize: 13),
+                        ),
+                      ),
+                  ],
+              child: const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                child: Text('Export', style: TextStyle(fontSize: 13)),
+              ),
+            ),
+          ];
+          final status = StatusLine(
+            // One sentence, carried by the state. There used to be two — one for
+            // files and one for operations — with the operation's winning by
+            // sitting first in a `??` chain, which meant a file that failed to
+            // open said nothing at all if an operation had run before it.
+            said: state.said ?? _selectionSaid,
+            // A value on the state, refreshed when a command lands rather than
+            // computed while a frame is drawn. It cannot go stale behind a check
+            // that never runs, which is what a getter here could do.
+            readiness: state.readiness,
+            triangles: state.project.triangleCount,
+            micros: _lastRenderMicros,
+          );
+          final properties = _Properties(
+            stage: stage,
+            project: state.project,
+            selection: state.selection,
+            onSelect: (int id) {
+              // Straight onto the history's selection rather than through a
+              // command: `doc-32n` gave the *set* operations commands — all,
+              // none, invert, grow — and picking one object out of the outliner
+              // is not one of them yet. When it is, this becomes `_cubit.ran`.
+              state.history.selection = state.selection.copyWith(
+                mode: SelectionMode.object,
+                objects: <int>[id],
+              );
+              _cubit.documentMoved();
+            },
+            onTransform: _setTransform,
+            onRename: (int id, String to) => _cubit.ran(Rename(id: id, to: to)),
+            lastCommand: state.history.journal.isEmpty
+                ? null
+                : state.history.journal.last,
+            onAmend: _amend,
+            shading: _shading,
+            onShading: (ShadingMode mode) => setState(() => _shading = mode),
+            lens: _lens,
+            onLens: (ViewLens lens) => setState(() => _lens = lens),
+            onView: (StandardView view) => lookFrom(stage.orbit, view),
+          );
+          final viewport = Stack(
+            children: <Widget>[
+              Positioned.fill(
+                child: ModelerViewport(
+                  renderer: renderer,
+                  stage: stage,
+                  onFrame: () {},
+                  onRendered: (int micros) => _lastRenderMicros = micros,
+                  // One or the other, never both: a click in the mesh mode is a
+                  // question about this mesh's elements and is answered on the
+                  // CPU, and asking the renderer for a node as well would cost a
+                  // whole frame to answer a question nobody asked.
+                  onPick: _mode == ModelerMode.mesh ? null : _picked,
+                  onElementPick: _mode == ModelerMode.mesh && _editMesh != null
+                      ? _pickedElement
+                      : null,
+                  // One or the other: with a transform tool armed a left drag is
+                  // the transform, and with none it is a rectangle. A viewport
+                  // that offered both would have to guess, and the guess would be
+                  // wrong on the frame a person changed their mind.
+                  onDragTool: kDragTools.contains(_tool) ? _dragged : null,
+                  onDragDone: _endDrag,
+                  onBox: _boxed,
+                  // The gizmo stands on the selection and offers the transform
+                  // the armed tool asks for. On a tablet it is the only way in:
+                  // there is no `G` key on an iPad, so this is not a second path
+                  // to the same place — on three of the five platforms phase 1
+                  // ships to it is the path.
+                  gizmoPivot: _gizmoPivot,
+                  gizmoKind: _gizmoKind,
+                  onGizmoDrag: _grabbedGizmo,
+                  editMesh: _mode == ModelerMode.mesh ? _editMesh : null,
+                  elements: _history.selection.asMeshSelection,
+                  meshVersion:
+                      _history
+                          .project[_history.selection.activeObject ?? -1]
+                          ?.version ??
+                      0,
+                  elementsVersion: _history.selection.elements.length,
+                  settings: settingsFor(
+                    _shading,
+                    // The outline is the renderer's until the overlay draws the
+                    // selection itself and can say which *part* of an object is
+                    // selected. Until then this is what tells a person their click
+                    // landed.
+                    RenderSettings(
+                      highlighted: <SceneNode>[
+                        for (final int id in _history.selection.objects)
+                          if (stage.sync?.nodeOf(id) case final SceneNode n) n,
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              Positioned(
+                right: 12,
+                bottom: 12,
+                child: OrientationDial(
+                  yaw: stage.orbit.yaw,
+                  pitch: stage.orbit.pitch,
+                  onPressed: (ViewAxis axis) {
+                    // The dial says where; the controller does the turning, and
+                    // takes the short way round because `viewAlong` already chose
+                    // the turn nearest the yaw the camera is at.
+                    final view = const OrientationGizmo().viewAlong(
+                      axis,
+                      fromYaw: stage.orbit.yaw,
+                    );
+                    stage.orbit.animateTo(yaw: view.yaw, pitch: view.pitch);
+                  },
+                ),
+              ),
+              if (_report case final String said)
+                Positioned(
+                  left: 12,
+                  top: 12,
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      color: const Color(0xCC000000),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.all(10),
+                      child: Text(
+                        said,
+                        style: const TextStyle(
+                          fontFamily: 'monospace',
+                          fontFamilyFallback: <String>['Courier'],
+                          fontSize: 13,
+                          height: 1.35,
+                        ),
+                      ),
+                    ),
+                  ),
                 ),
             ],
-            child: const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-              child: Text('Add', style: TextStyle(fontSize: 13)),
-            ),
-          ),
-          TextButton(onPressed: _openFile, child: const Text('Open')),
-          const SizedBox(width: 4),
-          FilledButton.tonal(onPressed: _saveFile, child: const Text('Save')),
-          const SizedBox(width: 4),
-          PopupMenuButton<ExportFormat>(
-            tooltip: 'Export a copy',
-            onSelected: _exportFile,
-            itemBuilder: (BuildContext context) =>
-                <PopupMenuEntry<ExportFormat>>[
-                  for (final ExportFormat format in ExportFormat.values)
-                    PopupMenuItem<ExportFormat>(
-                      value: format,
-                      height: ModelerMetrics.row,
-                      child: Text(
-                        '${format.suffix}  ${format.says}',
-                        style: const TextStyle(fontSize: 13),
-                      ),
-                    ),
-                ],
-            child: const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-              child: Text('Export', style: TextStyle(fontSize: 13)),
-            ),
-          ),
-        ],
-        status: StatusLine(
-          // One sentence, carried by the state. There used to be two — one for
-          // files and one for operations — with the operation's winning by
-          // sitting first in a `??` chain, which meant a file that failed to
-          // open said nothing at all if an operation had run before it.
-          said: state.said ?? _selectionSaid,
-          // A value on the state, refreshed when a command lands rather than
-          // computed while a frame is drawn. It cannot go stale behind a check
-          // that never runs, which is what a getter here could do.
-          readiness: state.readiness,
-          triangles: state.project.triangleCount,
-          micros: _lastRenderMicros,
-        ),
-        properties: _Properties(
-          stage: stage,
-          project: state.project,
-          selection: state.selection,
-          onSelect: (int id) {
-            // Straight onto the history's selection rather than through a
-            // command: `doc-32n` gave the *set* operations commands — all,
-            // none, invert, grow — and picking one object out of the outliner
-            // is not one of them yet. When it is, this becomes `_cubit.ran`.
-            state.history.selection = state.selection.copyWith(
-              mode: SelectionMode.object,
-              objects: <int>[id],
-            );
-            _cubit.documentMoved();
-          },
-          onTransform: _setTransform,
-          onRename: (int id, String to) => _cubit.ran(Rename(id: id, to: to)),
-          lastCommand: state.history.journal.isEmpty
-              ? null
-              : state.history.journal.last,
-          onAmend: _amend,
-          shading: _shading,
-          onShading: (ShadingMode mode) => setState(() => _shading = mode),
-          lens: _lens,
-          onLens: (ViewLens lens) => setState(() => _lens = lens),
-          onView: (StandardView view) => lookFrom(stage.orbit, view),
-        ),
-        viewport: Stack(
-          children: <Widget>[
-            Positioned.fill(
-              child: ModelerViewport(
-                renderer: renderer,
-                stage: stage,
-                onFrame: () {},
-                onRendered: (int micros) => _lastRenderMicros = micros,
-                // One or the other, never both: a click in the mesh mode is a
-                // question about this mesh's elements and is answered on the
-                // CPU, and asking the renderer for a node as well would cost a
-                // whole frame to answer a question nobody asked.
-                onPick: _mode == ModelerMode.mesh ? null : _picked,
-                onElementPick: _mode == ModelerMode.mesh && _editMesh != null
-                    ? _pickedElement
-                    : null,
-                // One or the other: with a transform tool armed a left drag is
-                // the transform, and with none it is a rectangle. A viewport
-                // that offered both would have to guess, and the guess would be
-                // wrong on the frame a person changed their mind.
-                onDragTool: kDragTools.contains(_tool) ? _dragged : null,
-                onDragDone: _endDrag,
-                onBox: _boxed,
-                // The gizmo stands on the selection and offers the transform
-                // the armed tool asks for. On a tablet it is the only way in:
-                // there is no `G` key on an iPad, so this is not a second path
-                // to the same place — on three of the five platforms phase 1
-                // ships to it is the path.
-                gizmoPivot: _gizmoPivot,
-                gizmoKind: _gizmoKind,
-                onGizmoDrag: _grabbedGizmo,
-                editMesh: _mode == ModelerMode.mesh ? _editMesh : null,
-                elements: _history.selection.asMeshSelection,
-                meshVersion:
-                    _history
-                        .project[_history.selection.activeObject ?? -1]
-                        ?.version ??
-                    0,
-                elementsVersion: _history.selection.elements.length,
-                settings: settingsFor(
-                  _shading,
-                  // The outline is the renderer's until the overlay draws the
-                  // selection itself and can say which *part* of an object is
-                  // selected. Until then this is what tells a person their click
-                  // landed.
-                  RenderSettings(
-                    highlighted: <SceneNode>[
-                      for (final int id in _history.selection.objects)
-                        if (stage.sync?.nodeOf(id) case final SceneNode n) n,
-                    ],
+          );
+
+          void onMode(ModelerMode mode) {
+            _cubit
+              ..mode(mode)
+              // The armed tool belongs to the mode it came from, so a mode change
+              // arms that mode's pointer rather than leaving a tool id from the
+              // old one that nothing here would recognise.
+              ..tool(toolsFor(mode).isEmpty ? null : toolsFor(mode).first.id);
+          }
+
+          return LayoutBuilder(
+            builder: (BuildContext context, BoxConstraints constraints) =>
+                switch (LayoutClass.of(constraints.maxWidth)) {
+                  LayoutClass.desktop => ModelerShell(
+                    mode: state.mode,
+                    onMode: onMode,
+                    submode: state.submode,
+                    onSubmode: _cubit.submode,
+                    activeTool: state.tool,
+                    onTool: _ranTool,
+                    actions: actions,
+                    status: status,
+                    properties: properties,
+                    viewport: viewport,
                   ),
-                ),
-              ),
-            ),
-            Positioned(
-              right: 12,
-              bottom: 12,
-              child: OrientationDial(
-                yaw: stage.orbit.yaw,
-                pitch: stage.orbit.pitch,
-                onPressed: (ViewAxis axis) {
-                  // The dial says where; the controller does the turning, and
-                  // takes the short way round because `viewAlong` already chose
-                  // the turn nearest the yaw the camera is at.
-                  final view = const OrientationGizmo().viewAlong(
-                    axis,
-                    fromYaw: stage.orbit.yaw,
-                  );
-                  stage.orbit.animateTo(yaw: view.yaw, pitch: view.pitch);
+                  LayoutClass.tablet => ModelerTabletShell(
+                    mode: state.mode,
+                    onMode: onMode,
+                    submode: state.submode,
+                    onSubmode: _cubit.submode,
+                    activeTool: state.tool,
+                    onTool: _ranTool,
+                    actions: actions,
+                    status: status,
+                    properties: properties,
+                    viewport: viewport,
+                  ),
+                  LayoutClass.phone => ModelerPhoneShell(
+                    mode: state.mode,
+                    onMode: onMode,
+                    submode: state.submode,
+                    onSubmode: _cubit.submode,
+                    activeTool: state.tool,
+                    onTool: _ranTool,
+                    actions: actions,
+                    status: status,
+                    properties: properties,
+                    viewport: viewport,
+                  ),
                 },
-              ),
-            ),
-            if (_report case final String said)
-              Positioned(
-                left: 12,
-                top: 12,
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    color: const Color(0xCC000000),
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.all(10),
-                    child: Text(
-                      said,
-                      style: const TextStyle(
-                        fontFamily: 'monospace',
-                        fontFamilyFallback: <String>['Courier'],
-                        fontSize: 13,
-                        height: 1.35,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-          ],
-        ),
+          );
+        },
       ),
     ),
   };

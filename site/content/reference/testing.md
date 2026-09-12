@@ -12,7 +12,7 @@ description: Three independent golden sets and a fourth being recorded, mutation
 | | | | `flutter3d_bridge` | 65 |
 | | | | `flutter3d_formats` | 159 |
 | | | | `flutter3d_mesh` | 467 |
-| | | | `apps/flutter3d_modeler` | 395 |
+| | | | `apps/flutter3d_modeler` | 399 |
 | `flutter3d_sim` | 511 | | `pad_input` | 59 |
 | `flutter3d_game_shooter` | 340 | | `flutter3d_audio` | 55 |
 | `flutter3d_game_racing` | 223 | | `flutter3d_webgl` | 55 |

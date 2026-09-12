@@ -37,6 +37,26 @@ abstract final class ModelerMetrics {
   /// A row in a properties panel, and a button on the rail.
   static const double row = 32;
   static const double railButton = 36;
+
+  /// `ui-05`'s own tablet shell: a narrower rail, since a tablet's own hand
+  /// does not need the desktop's full 52 to land a tap.
+  static const double tabletPalette = 48;
+
+  /// `ui-05`'s own tablet shell: the properties bottom sheet, tall enough for
+  /// a drag handle and the same rows the side panel already shows.
+  static const double tabletPropertiesSheet = 200;
+
+  /// `ui-05`'s own phone shell: tall enough for five destinations and their
+  /// labels, one for each `ModelerMode` phase one is ready for and beyond.
+  static const double phoneNavBar = 80;
+
+  /// `ui-05`'s own phone shell: the primary-action FAB, sized for a thumb
+  /// rather than a mouse.
+  static const double phoneFab = 56;
+
+  /// `ui-05`'s own phone shell: the properties sheet, shorter than the
+  /// tablet's own since a phone's own screen has less height to spend on it.
+  static const double phonePropertiesSheet = 130;
 }
 
 /// The colours that are the modeller's own rather than Material's.

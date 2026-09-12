@@ -152,7 +152,7 @@ class _TopBar extends StatelessWidget {
               Flexible(
                 child: SingleChildScrollView(
                   scrollDirection: Axis.horizontal,
-                  child: _Modes(
+                  child: ModelerModeSwitcher(
                     mode: mode,
                     onMode: onMode,
                     submode: submode,
@@ -171,8 +171,14 @@ class _TopBar extends StatelessWidget {
 }
 
 /// The two segmented buttons, as one row.
-class _Modes extends StatelessWidget {
-  const _Modes({
+///
+/// Public, and not `_Modes` any more: `ui-05`'s tablet and phone shells show
+/// the same mode/submode switch this desktop one does, in `shell_tablet.dart`
+/// and `shell_phone.dart`, and a private class in this file could not have
+/// been their caller.
+class ModelerModeSwitcher extends StatelessWidget {
+  const ModelerModeSwitcher({
+    super.key,
     required this.mode,
     required this.onMode,
     required this.submode,

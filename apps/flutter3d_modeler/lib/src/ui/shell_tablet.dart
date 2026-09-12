@@ -1,0 +1,253 @@
+/// The tablet layout — `ui-05`'s own row, the half of it `shell.dart`'s
+/// desktop `ModelerShell` left unbuilt.
+///
+/// **Same frame, narrower palette, properties moved to a sheet.** A tablet's
+/// own hand does not need the desktop's 52-wide rail, and its own screen does
+/// not have the width to spare for a fixed side panel — so the rail becomes a
+/// [ModelerMetrics.tabletPalette]-wide icon column and the properties panel
+/// becomes a bottom sheet with a drag handle, [ModelerMetrics.tabletPropertiesSheet]
+/// tall by default. Everything else — the top bar, the mode switch, the
+/// viewport, the status line — is unchanged from the desktop shell, because
+/// `ui-05`'s own acceptance is that the same tools answer the same keys in
+/// every shell, not that a tablet redesigns what a desktop already got right.
+library;
+
+import 'package:flutter/material.dart';
+
+import 'shell.dart';
+import 'theme.dart';
+import 'tools.dart';
+
+/// The tablet shell: a palette instead of a rail, a sheet instead of a panel.
+class ModelerTabletShell extends StatelessWidget {
+  const ModelerTabletShell({
+    super.key,
+    required this.mode,
+    required this.onMode,
+    required this.submode,
+    required this.onSubmode,
+    required this.activeTool,
+    required this.onTool,
+    required this.viewport,
+    required this.properties,
+    required this.status,
+    this.actions = const <Widget>[],
+  });
+
+  final ModelerMode mode;
+  final ValueChanged<ModelerMode> onMode;
+
+  final MeshSubmode submode;
+  final ValueChanged<MeshSubmode> onSubmode;
+
+  /// The id of the armed tool, from [ModelerTool.id]. Null is the pointer.
+  final String? activeTool;
+  final ValueChanged<String> onTool;
+
+  final Widget viewport;
+  final Widget properties;
+  final Widget status;
+
+  /// What sits at the right of the top bar: opening, saving, exporting.
+  final List<Widget> actions;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colours = theme.extension<ModelerColors>() ?? ModelerColors.dark;
+    return Scaffold(
+      backgroundColor: theme.colorScheme.surface,
+      body: Column(
+        children: <Widget>[
+          SizedBox(
+            height: ModelerMetrics.topBar,
+            child: ColoredBox(
+              color: theme.colorScheme.surfaceContainer,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 10),
+                child: Row(
+                  children: <Widget>[
+                    Flexible(
+                      child: SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: ModelerModeSwitcher(
+                          mode: mode,
+                          onMode: onMode,
+                          submode: submode,
+                          onSubmode: onSubmode,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    ...actions,
+                  ],
+                ),
+              ),
+            ),
+          ),
+          const Divider(),
+          Expanded(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: <Widget>[
+                // Outside the viewport's own `Stack` below, and not a fourth
+                // element inside it: the sheet overlays the picture, which is
+                // what a person reaches past to see more of it, never the
+                // palette a thumb still needs while the sheet is open.
+                _TabletPalette(mode: mode, active: activeTool, onTool: onTool),
+                const VerticalDivider(width: 1, thickness: 1),
+                Expanded(
+                  child: Stack(
+                    children: <Widget>[
+                      ColoredBox(color: colours.viewport, child: viewport),
+                      // A sheet over the viewport's own bottom edge rather
+                      // than a fourth column: the properties panel is
+                      // something reached for and put away, not something a
+                      // tablet's own narrower width can afford to keep
+                      // permanently beside the picture.
+                      Positioned(
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        child: ModelerPropertiesSheet(
+                          height: ModelerMetrics.tabletPropertiesSheet,
+                          child: properties,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const Divider(),
+          SizedBox(
+            height: ModelerMetrics.statusBar,
+            child: ColoredBox(
+              color: theme.colorScheme.surfaceContainer,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 10),
+                child: Align(alignment: Alignment.centerLeft, child: status),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// The narrow icon column `ui-05`'s own row asks for in place of the
+/// desktop's [ModelerMetrics.rail]-wide one — same [toolsFor], same order,
+/// same shortcuts, only the column is narrower and the label lives in the
+/// tooltip alone.
+class _TabletPalette extends StatelessWidget {
+  const _TabletPalette({
+    required this.mode,
+    required this.active,
+    required this.onTool,
+  });
+
+  final ModelerMode mode;
+  final String? active;
+  final ValueChanged<String> onTool;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final tools = toolsFor(mode);
+    return SizedBox(
+      width: ModelerMetrics.tabletPalette,
+      child: ColoredBox(
+        color: theme.colorScheme.surfaceContainerLow,
+        child: ListView.builder(
+          padding: const EdgeInsets.symmetric(vertical: 6),
+          itemCount: tools.length,
+          itemBuilder: (BuildContext context, int index) {
+            final tool = tools[index];
+            final startsGroup =
+                index > 0 && tools[index - 1].group != tool.group;
+            final armed = tool.id == active;
+            return Column(
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                if (startsGroup)
+                  const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    child: Divider(height: 1),
+                  ),
+                Tooltip(
+                  message:
+                      '${tool.label}  ·  '
+                      '${tool.shortcut.keyLabel.toUpperCase()}',
+                  child: IconButton(
+                    onPressed: () => onTool(tool.id),
+                    icon: Icon(tool.icon, size: 16),
+                    style: IconButton.styleFrom(
+                      backgroundColor: armed
+                          ? theme.colorScheme.primaryContainer
+                          : null,
+                      foregroundColor: armed
+                          ? theme.colorScheme.onPrimaryContainer
+                          : theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ),
+              ],
+            );
+          },
+        ),
+      ),
+    );
+  }
+}
+
+/// A bottom sheet with a drag handle at [height] — the tablet's own
+/// properties panel and, at a different [height], the phone's
+/// (`shell_phone.dart`, which is why this is public rather than private to
+/// this file).
+///
+/// A fixed height with a handle drawn on it rather than a
+/// `DraggableScrollableSheet`: `ui-05`'s own acceptance asks for a sheet at a
+/// stated height and for the same tools to be reachable through it, not for a
+/// person to be able to resize it — that is a real, later refinement this
+/// does not need to carry to close honestly.
+class ModelerPropertiesSheet extends StatelessWidget {
+  const ModelerPropertiesSheet({
+    super.key,
+    required this.height,
+    required this.child,
+  });
+
+  final double height;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return SizedBox(
+      height: height,
+      child: Material(
+        color: theme.colorScheme.surfaceContainerLow,
+        elevation: 4,
+        child: Column(
+          children: <Widget>[
+            const SizedBox(height: 6),
+            Container(
+              width: 32,
+              height: 4,
+              decoration: BoxDecoration(
+                color: theme.colorScheme.onSurfaceVariant.withValues(
+                  alpha: 0.4,
+                ),
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(height: 6),
+            Expanded(child: child),
+          ],
+        ),
+      ),
+    );
+  }
+}
