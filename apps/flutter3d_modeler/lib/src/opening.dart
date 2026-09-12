@@ -96,23 +96,34 @@ Future<FileOpened> openBytes(
 
   final ModelDocument document;
   try {
-    document = await decodeModel(ModelLoadRequest(source: _Bytes(name, bytes)));
+    document = await decodeBytes(bytes, name);
   } catch (error) {
     return OpenRefused('$name could not be read: $error');
   }
-  // **A decode that succeeded and found nothing is a refusal, not an empty
-  // document.** The OBJ reader takes any text at all and answers with a
-  // document of no surfaces and no nodes, so a photograph or a log file opens
-  // without complaint — and opening replaces what the person was working on.
-  // Trading the empty scene nobody authors for the wrong file everybody
-  // eventually picks is the right way round.
-  if (document.surfaces.isEmpty && document.nodes.isEmpty) {
-    return OpenRefused(
-      'There is nothing in $name that this build can read: no meshes and no '
-      'nodes came out of it.',
-    );
-  }
+  final empty = emptyDecodeRefusal(document, name);
+  if (empty != null) return OpenRefused(empty);
   return openDocument(document, device: device);
+}
+
+/// [bytes] decoded as a model — `ui-16`'s own lower half of [openBytes],
+/// pulled out so an import screen can decode a file, ask a person about
+/// units/axis/cleanup, and only then call [openDocument] with the
+/// [ImportOptions] they chose, instead of always getting the defaults
+/// [openBytes] itself commits to.
+Future<ModelDocument> decodeBytes(Uint8List bytes, String name) =>
+    decodeModel(ModelLoadRequest(source: _Bytes(name, bytes)));
+
+/// **A decode that succeeded and found nothing is a refusal, not an empty
+/// document.** The OBJ reader takes any text at all and answers with a
+/// document of no surfaces and no nodes, so a photograph or a log file opens
+/// without complaint — and opening replaces what the person was working on.
+/// Trading the empty scene nobody authors for the wrong file everybody
+/// eventually picks is the right way round. Null when [document] is worth
+/// showing.
+String? emptyDecodeRefusal(ModelDocument document, String name) {
+  if (document.surfaces.isNotEmpty || document.nodes.isNotEmpty) return null;
+  return 'There is nothing in $name that this build can read: no meshes and '
+      'no nodes came out of it.';
 }
 
 /// A model whose bytes are already in memory.
@@ -163,7 +174,8 @@ final class _Bytes extends AssetSource {
 Future<OpenedModel> openDocument(
   ModelDocument document, {
   required GraphicsDevice device,
-}) => openProject(fromModelDocument(document), device: device);
+  ImportOptions options = const ImportOptions(),
+}) => openProject(fromModelDocument(document, options: options), device: device);
 
 /// [project] and a stage drawing it, with the materials on.
 ///

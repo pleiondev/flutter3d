@@ -139,5 +139,50 @@ void main() {
       expect(options.scale, 0.01);
       expect(options.upAxis, UpAxis.z);
     });
+
+    test('exceedsMobileTriangleBudget is true over the mobile preset even '
+        'when the active profile is desktop', () {
+      final document = PlainModelDocument(
+        surfaces: <ModelSurface>[
+          for (var i = 0; i < ProjectProfile.mobile.maxTriangles ~/ 12 + 1; i++)
+            ModelSurface(mesh: CuboidShape(size: Vector3(1, 1, 1)).build()),
+        ],
+      );
+      final plan = ImportPlan(
+        document: document,
+        profile: const ProjectProfile(), // desktop, a much wider budget
+      );
+      expect(document.triangleCount, greaterThan(ProjectProfile.mobile.maxTriangles));
+      expect(plan.exceedsMobileTriangleBudget, isTrue);
+    });
+
+    test('exceedsMobileTriangleBudget is false comfortably under the '
+        'mobile preset', () {
+      final plan = ImportPlan(
+        document: _documentWithCuboid(Vector3(1, 1, 1)),
+        profile: const ProjectProfile(),
+      );
+      expect(plan.exceedsMobileTriangleBudget, isFalse);
+    });
+
+    test('weld/fixNormals/triangulate default to sensible values', () {
+      final plan = ImportPlan(
+        document: _documentWithCuboid(Vector3(1, 1, 1)),
+        profile: const ProjectProfile(),
+      );
+      expect(plan.weld, isTrue);
+      expect(plan.fixNormals, isFalse);
+      expect(plan.triangulate, isFalse);
+    });
+  });
+
+  group('weldEpsilonFor', () {
+    test('null (importMeshData\'s own default epsilon) when weld is on', () {
+      expect(weldEpsilonFor(weld: true), isNull);
+    });
+
+    test('zero (exact duplicates only) when weld is off', () {
+      expect(weldEpsilonFor(weld: false), 0.0);
+    });
   });
 }

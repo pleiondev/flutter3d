@@ -468,4 +468,50 @@ void main() {
       expect((opened as OpenRefused).because, contains('holiday.jpg'));
     });
   });
+
+  group('ui-16\'s own lower half', () {
+    test('decodeBytes hands back the same document openBytes would use',
+        () async {
+      final document = decoded();
+      final bytes = F3dWriter(document).write();
+
+      final redecoded = await decodeBytes(bytes, 'thing.f3d');
+
+      expect(redecoded.nodes.length, document.nodes.length);
+      expect(redecoded.surfaces.length, document.surfaces.length);
+    });
+
+    test('emptyDecodeRefusal is null for a document with content', () {
+      expect(emptyDecodeRefusal(decoded(), 'thing.f3d'), isNull);
+    });
+
+    test('emptyDecodeRefusal names the file for one with neither meshes nor '
+        'nodes', () {
+      final blank = _Decoded(surfaces: const <ModelSurface>[], nodes: const <ModelNode>[], roots: const <int>[]);
+      final because = emptyDecodeRefusal(blank, 'empty.obj');
+      expect(because, isNotNull);
+      expect(because, contains('empty.obj'));
+    });
+
+    test('openDocument reads the ImportOptions it is given, not always the '
+        'default', () async {
+      final document = decoded();
+      final it = cpuTestDevice(width: 8, height: 8);
+
+      // A .stl in millimetres, imported with "mm" chosen — the same worked
+      // example import_plan_test proves at the pure-Dart layer, now proven
+      // through the real openDocument call site. The fixture's own "rig"
+      // node sits at x=5 in the file; at a 0.001 scale that reads as 0.005.
+      final opened = await openDocument(
+        document,
+        device: it.device,
+        options: const ImportOptions(scale: 0.001),
+      );
+
+      final rig = opened.project.objects.firstWhere(
+        (ModelObject o) => o.name == 'rig',
+      );
+      expect(rig.transform.getTranslation().x, closeTo(0.005, 1e-9));
+    });
+  });
 }

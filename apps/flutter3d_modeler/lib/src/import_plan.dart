@@ -53,11 +53,31 @@ final class ImportPlan {
     required this.document,
     required this.profile,
     this.unit = ImportUnit.metres,
+    this.weld = true,
+    this.fixNormals = false,
+    this.triangulate = false,
   });
 
   final ModelDocument document;
   final ProjectProfile profile;
   final ImportUnit unit;
+
+  /// Whether coincident vertices weld at [importMeshData]'s own default
+  /// epsilon (on) or only exact duplicates (off) — the screen's "сварить"
+  /// checkbox. `importMeshData` always welds something; this chooses how
+  /// loosely, it is not a switch for skipping welding altogether.
+  final bool weld;
+
+  /// Whether [RecalculateNormals] runs once the file's own objects land in
+  /// the project — the screen's "нормали" checkbox, for a file whose own
+  /// normals read as wrong (flat-shaded where the surface is not, or
+  /// flipped) more often than trusting what it shipped with is worth.
+  final bool fixNormals;
+
+  /// Whether [Triangulate] runs on every imported object — the screen's
+  /// own "триангулировать" checkbox, for a file whose n-gons this
+  /// project's own editing operations would rather not meet later.
+  final bool triangulate;
 
   /// [document]'s own [ModelDocument.triangleCount] — named again here only
   /// so an import screen reads one thing, rather than knowing to reach past
@@ -73,6 +93,15 @@ final class ImportPlan {
   /// not triangle count.
   bool get exceedsTriangleBudget => triangleCount > profile.maxTriangles;
 
+  /// Whether [document] would already be over [ProjectProfile.mobile]'s
+  /// own triangle budget, regardless of which [profile] this project is
+  /// actually targeting — `ui-16`'s own "треугольников против мобильного
+  /// пресета": a warning worth showing before import even when the active
+  /// profile is desktop, since a model this heavy will need attention the
+  /// day the target changes, not just the day it is exceeded.
+  bool get exceedsMobileTriangleBudget =>
+      triangleCount > ProjectProfile.mobile.maxTriangles;
+
   /// [document]'s own bounds, in [unit] read as this project's metres —
   /// `ui-16`'s own worked example: an `.stl` in millimetres, opened with
   /// "mm" chosen, reads its bounds back in metres.
@@ -87,3 +116,10 @@ final class ImportPlan {
   ImportOptions optionsWith({UpAxis upAxis = UpAxis.y}) =>
       ImportOptions(scale: unit.scale, upAxis: upAxis);
 }
+
+/// `weld`'s own epsilon for [importMeshData]: the default (a millionth of
+/// the mesh's own diagonal) when [weld] is on, `0` (exact duplicates only)
+/// when it is off — [ImportPlan.weld] chooses between the two, it does not
+/// turn welding off altogether, since a mesh built from separate triangles
+/// needs at least exact-match welding to have edges at all.
+double? weldEpsilonFor({required bool weld}) => weld ? null : 0.0;

@@ -19,6 +19,7 @@ library;
 import 'dart:async';
 import 'dart:ui' as ui show AppExitResponse;
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart' hide Material;
 import 'package:flutter/scheduler.dart';
@@ -42,6 +43,7 @@ import 'src/exporting.dart';
 import 'src/files/project_files.dart';
 import 'src/files/sandbox_probe.dart';
 import 'src/ground_grid.dart';
+import 'src/import_plan.dart';
 import 'src/modeler_cubit.dart';
 import 'src/modeler_viewport.dart';
 import 'src/object_picking.dart';
@@ -56,6 +58,7 @@ import 'src/transform_fields.dart';
 import 'src/transform_gizmo.dart';
 import 'src/transform_modal.dart';
 import 'src/ui/export_screen.dart';
+import 'src/ui/import_screen.dart';
 import 'src/ui/layout_class.dart';
 import 'src/ui/modifier_stack_panel.dart';
 import 'src/ui/number_field.dart';
@@ -479,10 +482,10 @@ class _ModelerScreenState extends State<ModelerScreen>
         return;
       }
       final opening = Stopwatch()..start();
-      final opened = await openBytes(
+      final opened = await _openBytesWithImportScreen(
+        picked.name,
         picked.bytes,
-        name: picked.name,
-        device: device,
+        device,
       );
       opening.stop();
       if (!mounted) return;
@@ -526,6 +529,90 @@ class _ModelerScreenState extends State<ModelerScreen>
     } catch (error) {
       if (mounted) _cubit.say('could not open it: $error');
     }
+  }
+
+  /// `ui-16`'s own import screen, threaded between a decoded [ModelDocument]
+  /// and the [ImportOptions] `fromModelDocument` reads — a saved project
+  /// skips straight past this, since it is not a model to be asked about.
+  ///
+  /// **Refused before decoding is a refusal, not a screen.** `ui-16`'s own
+  /// worked example: a file over the web size limit never reaches
+  /// [decodeBytes] at all, the same "cost nothing rather than something
+  /// wrong" this file already keeps for a file that will not read.
+  ///
+  /// **Cancelling the screen is not an error.** [OpenRefused] is reused for
+  /// it anyway, the same neutral tone `_openFile`'s own "nothing chosen"
+  /// already reads in — the document on screen is untouched either way.
+  Future<FileOpened> _openBytesWithImportScreen(
+    String name,
+    Uint8List bytes,
+    GraphicsDevice device,
+  ) async {
+    if (isProjectFile(bytes)) {
+      return openBytes(bytes, name: name, device: device);
+    }
+
+    final limitRefusal = refuseBeforeDecoding(
+      fileSizeBytes: bytes.length,
+      onWeb: kIsWeb,
+    );
+    if (limitRefusal != null) return OpenRefused(limitRefusal);
+
+    final ModelDocument document;
+    try {
+      document = await decodeBytes(bytes, name);
+    } catch (error) {
+      return OpenRefused('$name could not be read: $error');
+    }
+    final empty = emptyDecodeRefusal(document, name);
+    if (empty != null) return OpenRefused(empty);
+
+    if (!mounted) return OpenRefused('import cancelled');
+    final choice = await showImportScreen(
+      context,
+      document: document,
+      profile: _history.project.profile,
+    );
+    if (choice == null) return OpenRefused('import cancelled');
+
+    return openDocument(
+      document,
+      device: device,
+      options: ImportOptions(scale: choice.unit.scale, upAxis: choice.upAxis),
+    ).then(
+      (OpenedModel opened) => OpenedModel(
+        _applyImportCleanup(opened.project, choice),
+        opened.stage,
+      ),
+    );
+  }
+
+  /// [project], with every `ImportedGeometry` object turned into real
+  /// `EditMesh` topology via `importMeshData` when [choice] asks for any of
+  /// weld/normals/triangulate — `BakeToMesh`'s own doc comment names this as
+  /// where that conversion belongs. An object left untouched stays
+  /// `ImportedGeometry`, byte for byte, which is this project's own default.
+  ModelProject _applyImportCleanup(ModelProject project, ImportChoice choice) {
+    if (!choice.weld && !choice.fixNormals && !choice.triangulate) {
+      return project;
+    }
+    var result = project;
+    for (final object in project.objects) {
+      if (object.geometry case ImportedGeometry(:final data)) {
+        final (mesh, _, _) = importMeshData(
+          data,
+          weldEpsilon: weldEpsilonFor(weld: choice.weld),
+        );
+        if (choice.fixNormals) mesh.makeConsistent();
+        if (choice.triangulate) {
+          triangulateFaces(mesh, Selection.all(mesh, ElementLevel.face));
+        }
+        result = result.withObject(
+          object.copyWith(geometry: EditedGeometry(mesh)),
+        );
+      }
+    }
+    return result;
   }
 
   /// "1 object" and "2 objects", because a status line that says "1 objects"
