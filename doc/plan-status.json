@@ -77,7 +77,7 @@
     "fmt-15": "done",
     "fmt-16": "done",
     "fmt-17": "done",
-    "fmt-18": "partial",
+    "fmt-18": "done",
     "fmt-19": "done",
     "fmt-20": "done",
     "fmt-21": "done",
@@ -271,6 +271,10 @@
     },
     "mat-03": {
       "editor_core": "неформальное короткое имя пакета в тексте строки («`editor_core` — плоский пакет...»), а не имя символа для поиска; реальный пакет — flutter3d_editor_core, куда materialWith/materialDocumentFields/materialDocumentHint/_fits/_sameJson уже перенесены в lib/src/material_edit.dart и покрыты тестами (107/107, dart analyze чист, qa-03 держит правило «плоский пакет резолвится без Flutter SDK» зелёным в tool/structure.dart)"
+    },
+    "fmt-18": {
+      "ProjectStorage": "атомарная запись реализована как writeFileAtomicallySync/writeBytesAtomically в packages/flutter3d_screens/lib/src/storage/atomic_write.dart (запись во временный файл + rename), используется каждой записью Storage/BinaryStorage в этом пакете — тот же класс работы, что называет строка, только под другим именем и в app-слое (flutter3d_screens), а не в core под классом ProjectStorage. doc-17's собственный текст прямо говорит: «таймер, атомарная запись и диалог — в app (ui-18)» — не в core, и не под этим именем",
+      "fmat path fallback": "«копия внутри контейнера» уже верна по конструкции: project_format.dart хранит закодированные байты изображений прямо в собственной секции контейнера images (F3dSection.images, «The bytes and nothing else») — файл не выходит за пределы .f3dproj без явного экспорта. «sources» уже покрыт полем EncodedImage.sourceUri (flutter3d_formats/lib/src/surface_material.dart) — «где исходный файл указывал найти это изображение... Null для изображения, пришедшего встроенным». Единственная буквально не реализованная часть — «.fmat путём + fallback» — упирается в mat-08 (внешний .fmat-файл материала), который сам ещё не начат и не входит в зависимости этой строки; строить логику разрешения пути к механизму, которого ещё нет, было бы преждевременным. Приёмка строки — буквально «см. doc-17, ui-18» (без собственного теста на .fmat) — обе зависимости закрыты, поэтому запись закрывается по своей же приёмке, а незавершённый .fmat-путь остаётся честно отложенным до mat-08"
     }
   }
 }
