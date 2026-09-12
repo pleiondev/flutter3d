@@ -46,6 +46,7 @@ export 'src/material.dart';
 export 'src/modifier_evaluation_cache.dart';
 export 'src/modifier_slot.dart';
 export 'src/paint_layer.dart';
+export 'src/paint_weights.dart';
 export 'src/param_hint.dart';
 export 'src/parametric_json.dart';
 export 'src/png_decoder.dart';
