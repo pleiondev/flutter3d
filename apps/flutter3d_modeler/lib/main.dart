@@ -551,6 +551,26 @@ class _ModelerScreenState extends State<ModelerScreen>
     }
   }
 
+  /// `ui-10`'s own "клик → диалог экспорта": the status line's readiness
+  /// sentence opens this instead of the person having to notice the small
+  /// export button in the corner is the thing to press.
+  Future<void> _showExportDialog() async {
+    final format = await showDialog<ExportFormat>(
+      context: context,
+      builder: (BuildContext context) => SimpleDialog(
+        title: const Text('Export'),
+        children: <Widget>[
+          for (final ExportFormat format in ExportFormat.values)
+            SimpleDialogOption(
+              onPressed: () => Navigator.of(context).pop(format),
+              child: Text('${format.suffix}  ${format.says}'),
+            ),
+        ],
+      ),
+    );
+    if (format != null) unawaited(_exportFile(format));
+  }
+
   /// Asks whether to export a model that will not load cleanly.
   ///
   /// A dialog rather than a refusal, because the alternative is this
@@ -1288,6 +1308,7 @@ class _ModelerScreenState extends State<ModelerScreen>
             readiness: state.readiness,
             triangles: state.project.triangleCount,
             micros: _lastRenderMicros,
+            onExport: _showExportDialog,
           );
           final properties = _Properties(
             stage: stage,

@@ -43,11 +43,17 @@ Future<void> show(
   ExportReadiness readiness, {
   int triangles = 12,
   String said = 'ready',
+  VoidCallback? onExport,
 }) => tester.pumpWidget(
   MaterialApp(
     theme: modelerTheme(),
     home: Scaffold(
-      body: StatusLine(said: said, readiness: readiness, triangles: triangles),
+      body: StatusLine(
+        said: said,
+        readiness: readiness,
+        triangles: triangles,
+        onExport: onExport,
+      ),
     ),
   ),
 );
@@ -150,6 +156,40 @@ void main() {
         find.textContaining('1${thinSpace}240${thinSpace}000'),
         findsOneWidget,
       );
+    });
+  });
+
+  group("ui-10's own click", () {
+    testWidgets('tapping the readiness sentence calls onExport', (
+      WidgetTester tester,
+    ) async {
+      var taps = 0;
+      await show(
+        tester,
+        ExportReadiness.check(withQuads()),
+        onExport: () => taps++,
+      );
+
+      await tester.tap(find.textContaining('exports with a warning'));
+      await tester.pump();
+
+      // Mutation: drop the GestureDetector, or wire it to something else.
+      // Either way the count stays 0 and this test is the one that notices.
+      expect(taps, 1);
+    });
+
+    testWidgets('a null onExport leaves the sentence untappable', (
+      WidgetTester tester,
+    ) async {
+      // Mutation: call onExport! unconditionally, which throws the moment a
+      // caller — a test, or a screen with nowhere to send an export yet —
+      // passes none.
+      await show(tester, ExportReadiness.check(withQuads()));
+
+      await tester.tap(find.textContaining('exports with a warning'));
+      await tester.pump();
+
+      expect(tester.takeException(), isNull);
     });
   });
 

@@ -70,6 +70,7 @@ class StatusLine extends StatelessWidget {
     required this.readiness,
     required this.triangles,
     this.micros,
+    this.onExport,
   });
 
   /// What just happened, or what is selected when nothing has.
@@ -85,6 +86,11 @@ class StatusLine extends StatelessWidget {
 
   /// What the last frame cost. Null before one has been drawn.
   final int? micros;
+
+  /// Called when the readiness sentence is tapped — `ui-10`'s own "клик →
+  /// диалог экспорта". Null makes the sentence plain text again, for a test
+  /// that has no export flow to hand it.
+  final VoidCallback? onExport;
 
   @override
   Widget build(BuildContext context) {
@@ -120,11 +126,20 @@ class StatusLine extends StatelessWidget {
           flex: 3,
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 12),
-            child: Text(
-              readiness.says,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: small?.copyWith(color: toneColour),
+            child: MouseRegion(
+              cursor: onExport == null
+                  ? MouseCursor.defer
+                  : SystemMouseCursors.click,
+              child: GestureDetector(
+                onTap: onExport,
+                behavior: HitTestBehavior.translucent,
+                child: Text(
+                  readiness.says,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: small?.copyWith(color: toneColour),
+                ),
+              ),
             ),
           ),
         ),
