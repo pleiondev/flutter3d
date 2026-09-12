@@ -202,5 +202,93 @@ void main() {
 
       expect(find.text('nothing done yet'), findsOneWidget);
     });
+
+    testWidgets(
+      "ui-09's own acceptance: a slider on a ranged argument calls amend",
+      (WidgetTester tester) async {
+        final amended = <ModelCommand>[];
+        await tester.pumpWidget(
+          MaterialApp(
+            theme: modelerTheme(),
+            home: Scaffold(
+              body: OperationCard(
+                // `factor` carries `DoubleHint(min: 0.0, max: 1.0)` — full
+                // bounds, which is what makes a slider possible at all.
+                command: const LoopCut(cuts: 1, factor: 0.5),
+                onAmend: amended.add,
+              ),
+            ),
+          ),
+        );
+
+        expect(find.byType(Slider), findsNWidgets(2));
+
+        // Dragging is many `onChanged` frames, each one `amend`, never a new
+        // step — `ModelHistory`'s own "amend adjusts the last step instead of
+        // adding one" test already proves the document side of that; this
+        // proves the widget actually offers the drag at all.
+        await tester.drag(find.byType(Slider).first, const Offset(80, 0));
+        await tester.pump();
+
+        expect(amended, isNotEmpty);
+        expect((amended.last as LoopCut).cuts, greaterThan(1));
+      },
+    );
+
+    testWidgets(
+      "ui-09's own acceptance: the close button hides the card without "
+      'touching amend',
+      (WidgetTester tester) async {
+        final amended = <ModelCommand>[];
+        await tester.pumpWidget(
+          MaterialApp(
+            theme: modelerTheme(),
+            home: Scaffold(
+              body: OperationCard(
+                command: const LoopCut(cuts: 2),
+                onAmend: amended.add,
+              ),
+            ),
+          ),
+        );
+
+        expect(find.byType(NumberField), findsWidgets);
+
+        await tester.tap(find.byIcon(Icons.close));
+        await tester.pump();
+
+        // Mutation: have the close button call `onAmend` or reach for
+        // `ModelHistory` some other way. The row's own "крестик не трогает
+        // историю" is exactly this — the step this card was showing stays
+        // exactly where it was, only the card's own detail disappears.
+        expect(amended, isEmpty);
+        expect(find.byType(NumberField), findsNothing);
+        expect(find.byType(Slider), findsNothing);
+        expect(find.text('cut 2 loops'), findsOneWidget);
+      },
+    );
+
+    testWidgets('a new command reopens a card the old one had dismissed', (
+      WidgetTester tester,
+    ) async {
+      Widget cardFor(ModelCommand? command) => MaterialApp(
+        theme: modelerTheme(),
+        home: Scaffold(
+          body: OperationCard(command: command, onAmend: (_) {}),
+        ),
+      );
+
+      await tester.pumpWidget(cardFor(const LoopCut(cuts: 2)));
+      await tester.tap(find.byIcon(Icons.close));
+      await tester.pump();
+      expect(find.byType(NumberField), findsNothing);
+
+      // A different command arriving — a new step landed on top of the one
+      // that was dismissed — gets its own, undismissed card rather than
+      // inheriting the old one's hidden state.
+      await tester.pumpWidget(cardFor(const LoopCut(cuts: 3)));
+      await tester.pump();
+      expect(find.byType(NumberField), findsWidgets);
+    });
   });
 }
