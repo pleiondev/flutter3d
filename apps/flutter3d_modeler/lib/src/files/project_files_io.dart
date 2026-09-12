@@ -121,6 +121,30 @@ Future<SaveResult> saveOver(PickedFile original, Uint8List bytes) async {
   }
 }
 
+/// [path] read back, or null when it no longer exists or the sandbox no
+/// longer grants this run access to it.
+///
+/// **A grant that does not outlive the run that earned it.** `openModel`'s
+/// own doc comment already says the sandbox's grant is for the file a person
+/// just chose — a path written down in `ui-15`'s own recent-models list can
+/// name a file that opens fine again in the same run and refuses on the
+/// next one, with no way to tell which until it is tried. So this is the one
+/// place in this file that swallows [FileSystemException] into a null rather
+/// than reporting it: the caller's own answer to "couldn't reopen this" is
+/// the ordinary file picker, not a message about sandboxes.
+Future<Uint8List?> readRecentModel(String path) async {
+  try {
+    return await File(path).readAsBytes();
+  } on FileSystemException {
+    return null;
+  }
+}
+
+/// Whether [path] is a file this run can still see — [RecentModels]'s own
+/// [bool Function(String)] seam, real here since there is a file system to
+/// ask.
+bool pathExists(String path) => File(path).existsSync();
+
 /// Whether writing a temporary file beside [path] and renaming it over the
 /// target is allowed here.
 ///

@@ -46,6 +46,7 @@ import 'src/object_picking.dart';
 import 'src/opening.dart';
 import 'src/orbit_run.dart';
 import 'src/orientation_dial.dart';
+import 'src/recent_projects.dart';
 import 'src/selection_box.dart';
 import 'src/staging.dart';
 import 'src/transform_fields.dart';
@@ -63,6 +64,7 @@ import 'src/ui/shell.dart';
 import 'src/ui/shell_phone.dart';
 import 'src/ui/shell_tablet.dart';
 import 'src/ui/shortcut_help_screen.dart';
+import 'src/ui/start_screen.dart';
 import 'src/ui/status_line.dart';
 import 'src/ui/theme.dart';
 import 'src/ui/tools.dart';
@@ -692,6 +694,146 @@ class _ModelerScreenState extends State<ModelerScreen>
   void _showShortcutHelp() {
     if (_state is! ModelerReady) return;
     unawaited(showShortcutHelp(context));
+  }
+
+  /// `ui-15`'s own start screen: "Open file", "New project" with a profile,
+  /// and the recent-models list `RecentModels` already keeps.
+  Future<void> _showStartScreen() async {
+    final device = _device;
+    if (device == null || _state is! ModelerReady) return;
+    final recent = RecentModels().read(exists: pathExists);
+    if (!mounted) return;
+    final choice = await showStartScreen(context, recentPaths: recent);
+    if (!mounted || choice == null) return;
+    switch (choice) {
+      case OpenFileChoice():
+        await _openFileAndRemember(device);
+      case OpenRecentChoice(:final String path):
+        await _openRecent(path, device);
+      case NewProjectChoice(:final ProjectProfile profile):
+        _newProjectWith(profile);
+    }
+  }
+
+  /// "Open file" from the start screen — the same picker `_openFile` uses,
+  /// with the chosen path written into `RecentModels` on success.
+  Future<void> _openFileAndRemember(GraphicsDevice device) async {
+    _cubit.say('choosing…');
+    try {
+      final picked = await openModel();
+      if (picked == null) {
+        if (mounted) _cubit.say('nothing chosen');
+        return;
+      }
+      final opening = Stopwatch()..start();
+      final opened = await openBytes(
+        picked.bytes,
+        name: picked.name,
+        device: device,
+      );
+      opening.stop();
+      if (!mounted) return;
+      switch (opened) {
+        case OpenRefused(:final String because):
+          _cubit.say(because);
+        case OpenedModel(
+          :final ModelProject project,
+          :final ModelerStage stage,
+        ):
+          stage.frameSubject();
+          _surfaces.forget();
+          final said =
+              '${picked.name}: '
+              '${_count(project.objects.length, 'object')}, '
+              '${_count(project.triangleCount, 'triangle')}, '
+              '${_count(project.materials.length, 'material')}, '
+              'opened in ${opening.elapsedMilliseconds} ms';
+          _cubit.opened(
+            ModelHistory(project),
+            renderer: (_state as ModelerReady).renderer,
+            stage: stage,
+            documentName: picked.name,
+            said: <String>[said, ...opened.warnings].join('\n'),
+          );
+          setState(() {
+            _picker = null;
+            _pickerVersion = -1;
+          });
+      }
+      // A browser's own PickedFile has no path — nothing to remember there,
+      // and RecentModels reads that the same way a first launch does.
+      if (picked.path case final String path) {
+        RecentModels().remember(path, exists: pathExists);
+      }
+    } catch (error) {
+      if (mounted) _cubit.say('could not open it: $error');
+    }
+  }
+
+  /// A row from the start screen's own recent list, tapped. The sandbox's
+  /// grant for a path it did not just hand out itself does not outlive the
+  /// run that earned it — `readRecentModel`'s own doc comment — so a null
+  /// here is the ordinary case to expect on a later launch, not a bug.
+  Future<void> _openRecent(String path, GraphicsDevice device) async {
+    final bytes = await readRecentModel(path);
+    if (!mounted) return;
+    if (bytes == null) {
+      _cubit.say('could not reopen $path; use Open file instead');
+      return;
+    }
+    final opening = Stopwatch()..start();
+    final name = path.split(RegExp(r'[\\/]')).lastOrNull ?? path;
+    final opened = await openBytes(bytes, name: name, device: device);
+    opening.stop();
+    if (!mounted) return;
+    switch (opened) {
+      case OpenRefused(:final String because):
+        _cubit.say(because);
+      case OpenedModel(
+        :final ModelProject project,
+        :final ModelerStage stage,
+      ):
+        stage.frameSubject();
+        _surfaces.forget();
+        final said =
+            '$name: '
+            '${_count(project.objects.length, 'object')}, '
+            '${_count(project.triangleCount, 'triangle')}, '
+            '${_count(project.materials.length, 'material')}, '
+            'opened in ${opening.elapsedMilliseconds} ms';
+        _cubit.opened(
+          ModelHistory(project),
+          renderer: (_state as ModelerReady).renderer,
+          stage: stage,
+          documentName: name,
+          said: <String>[said, ...opened.warnings].join('\n'),
+        );
+        setState(() {
+          _picker = null;
+          _pickerVersion = -1;
+        });
+    }
+    RecentModels().remember(path, exists: pathExists);
+  }
+
+  /// "New project" from the start screen, with the profile picked there.
+  void _newProjectWith(ProjectProfile profile) {
+    final device = _device;
+    if (device == null || _state is! ModelerReady) return;
+    final project = _newProject().copyWith(profile: profile);
+    final stage = ModelerStage.fromProject(device: device, project: project);
+    stage.frameSubject();
+    _surfaces.forget();
+    _cubit.opened(
+      ModelHistory(project),
+      renderer: (_state as ModelerReady).renderer,
+      stage: stage,
+      documentName: 'untitled (${profile.name})',
+    );
+    setState(() {
+      _picker = null;
+      _pickerVersion = -1;
+    });
   }
 
   /// Asks whether to export a model that will not load cleanly.
@@ -1443,6 +1585,11 @@ class _ModelerScreenState extends State<ModelerScreen>
               tooltip: 'Keyboard shortcuts (?)',
               onPressed: _showShortcutHelp,
               icon: const Icon(Icons.help_outline, size: 20),
+            ),
+            IconButton(
+              tooltip: 'Start screen — open a file or start a new project',
+              onPressed: () => unawaited(_showStartScreen()),
+              icon: const Icon(Icons.home_outlined, size: 20),
             ),
           ];
           final status = StatusLine(

@@ -130,3 +130,12 @@ Future<SaveResult> saveOver(PickedFile original, Uint8List bytes) async =>
 /// Not a question a browser has: there is no directory to write beside.
 Future<String?> whyAtomicWriteFails(String path) async =>
     'a browser has no file system to rename within';
+
+/// A browser's own [PickedFile] never carries a path, so nothing is ever
+/// written into [RecentModels] here in the first place — this is never
+/// actually called, and returns null rather than asserting so a caller
+/// shared with the io build does not need its own web branch.
+Future<Uint8List?> readRecentModel(String path) async => null;
+
+/// See [readRecentModel] — nothing here is ever a path worth asking about.
+bool pathExists(String path) => false;
