@@ -1,5 +1,7 @@
 import 'dart:typed_data';
 
+import '../meshopt/meshopt_index_codec.dart';
+import '../meshopt/meshopt_vertex_codec.dart';
 import 'gltf_accessor_type.dart';
 
 // `GltfComponentType` and `GltfAccessorType` are self-contained value
@@ -25,6 +27,11 @@ final class GltfAccessorReader {
 
   final List<Map<String, Object?>> _accessors;
   final List<Map<String, Object?>> _bufferViews;
+
+  /// `EXT_meshopt_compression`'s own decoded bytes, by `bufferViews` index —
+  /// decompressed once no matter how many accessors (an interleaved vertex
+  /// buffer's several attributes, typically) read the same view.
+  final Map<int, Uint8List> _decompressed = <int, Uint8List>{};
 
   /// Buffers already resolved by [GlbContainer.resolveBuffers], indexed the same
   /// way the glTF `buffers` array is.
@@ -217,6 +224,23 @@ final class GltfAccessorReader {
       );
     }
     final view = _bufferViews[index];
+
+    final extensions = view['extensions'];
+    final compression = extensions is Map
+        ? extensions['EXT_meshopt_compression']
+        : null;
+    if (compression is Map) {
+      final compressionMap = compression.cast<String, Object?>();
+      final decoded = _decompressed.putIfAbsent(
+        index,
+        () => _decodeMeshopt(compressionMap, index),
+      );
+      return _ResolvedView(
+        data: ByteData.sublistView(decoded),
+        byteStride: _optionalInt(compressionMap, 'byteStride'),
+      );
+    }
+
     final bufferIndex = _requireInt(view, 'buffer', index);
     if (bufferIndex < 0 || bufferIndex >= buffers.length) {
       throw FormatException(
@@ -239,6 +263,94 @@ final class GltfAccessorReader {
       data: ByteData.sublistView(buffer, byteOffset, byteOffset + byteLength),
       byteStride: _optionalInt(view, 'byteStride'),
     );
+  }
+
+  /// [compression] is `bufferViews[bufferViewIndex]`'s own
+  /// `extensions.EXT_meshopt_compression` object — `buffer`/`byteOffset`/
+  /// `byteLength` name where the *compressed* bytes actually live (not the
+  /// outer view, which this writer never gives a fallback of its own —
+  /// `fmt-30n`'s own row), and `mode`/`count`/`byteStride` say how to read
+  /// them back. `filter` is not read: this package's own writer never
+  /// requests one, and a file that does would need the same octahedral/
+  /// quaternion/exponential/colour math `meshopt_vertex_codec.dart`'s own
+  /// top comment already named as out of scope.
+  Uint8List _decodeMeshopt(Map<String, Object?> compression, int viewIndex) {
+    final bufferIndex = _requireInt(compression, 'buffer', viewIndex);
+    if (bufferIndex < 0 || bufferIndex >= buffers.length) {
+      throw FormatException(
+        'bufferViews[$viewIndex]\'s EXT_meshopt_compression references '
+        'buffers[$bufferIndex], which was not resolved.',
+      );
+    }
+    final buffer = buffers[bufferIndex];
+    final byteOffset = _optionalInt(compression, 'byteOffset') ?? 0;
+    final byteLength = _requireInt(compression, 'byteLength', viewIndex);
+    final count = _requireInt(compression, 'count', viewIndex);
+    final byteStride = _optionalInt(compression, 'byteStride') ?? 0;
+    final mode = compression['mode'] as String?;
+
+    if (byteOffset + byteLength > buffer.length) {
+      throw FormatException(
+        'bufferViews[$viewIndex]\'s EXT_meshopt_compression spans '
+        '${byteOffset + byteLength} bytes but buffers[$bufferIndex] holds '
+        'only ${buffer.length}.',
+      );
+    }
+    final compressed = Uint8List.sublistView(
+      buffer,
+      byteOffset,
+      byteOffset + byteLength,
+    );
+
+    return switch (mode) {
+      // The codec's own decoder always answers in 32-bit indices;
+      // `byteStride` is the extension's own name for the size an index
+      // *accessor* actually reads (2 or 4) — `_narrowIndices` repacks into
+      // that width, the same distinction `_forEachElement` already draws
+      // between `componentType.sizeInBytes` and what a producer chose to
+      // store.
+      'TRIANGLES' => _narrowIndices(
+        decodeMeshoptIndexBuffer(compressed, count),
+        byteStride,
+        viewIndex,
+      ),
+      'ATTRIBUTES' => decodeMeshoptVertexBufferV0(
+        compressed,
+        count,
+        byteStride,
+      ),
+      _ => throw FormatException(
+        'bufferViews[$viewIndex]\'s EXT_meshopt_compression names mode '
+        '"$mode", which this reader does not decode (only ATTRIBUTES and '
+        'TRIANGLES).',
+      ),
+    };
+  }
+
+  static Uint8List _narrowIndices(
+    Uint32List indices,
+    int byteStride,
+    int viewIndex,
+  ) {
+    switch (byteStride) {
+      case 4:
+        return indices.buffer.asUint8List(
+          indices.offsetInBytes,
+          indices.lengthInBytes,
+        );
+      case 2:
+        final narrow = Uint16List(indices.length);
+        for (var i = 0; i < indices.length; i++) {
+          narrow[i] = indices[i];
+        }
+        return narrow.buffer.asUint8List();
+      default:
+        throw FormatException(
+          'bufferViews[$viewIndex]\'s EXT_meshopt_compression names a '
+          'TRIANGLES byteStride of $byteStride, and an index is 2 or 4 '
+          'bytes.',
+        );
+    }
   }
 
   Map<String, Object?> _accessor(int index) {

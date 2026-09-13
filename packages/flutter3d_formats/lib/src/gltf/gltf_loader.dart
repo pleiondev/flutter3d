@@ -160,6 +160,11 @@ final class GltfLoader {
       // `GltfComponentType.readDouble`. The extension names a component-type
       // choice this reader already knew how to make, not new behaviour.
       'KHR_mesh_quantization',
+      // `fmt-30n`: `GltfAccessorReader._resolveView` decodes
+      // `EXT_meshopt_compression`'s own vertex and index bitstreams before
+      // an accessor ever reads a byte, so a file naming this as required
+      // reads exactly as it would uncompressed.
+      'EXT_meshopt_compression',
     };
     final unsupported = required.whereType<String>().where(
       (e) => !supported.contains(e),

@@ -5,6 +5,8 @@ import 'package:flutter3d_geometry/flutter3d_geometry.dart';
 
 import '../animation/animation_track.dart';
 import '../image_sniff.dart';
+import '../meshopt/meshopt_index_codec.dart';
+import '../meshopt/meshopt_vertex_codec.dart';
 import '../model_document.dart';
 import 'glb_container.dart';
 import 'gltf_accessor.dart';
@@ -250,5 +252,117 @@ final class GltfWriter {
   int _addAccessor(Map<String, Object?> accessor) {
     _accessors.add(accessor);
     return _accessors.length - 1;
+  }
+
+  /// [floats] — [elementCount] `vec3`s, tightly packed — written through
+  /// `EXT_meshopt_compression`'s own vertex codec rather than as a plain
+  /// `FLOAT` accessor. Only ever called for `POSITION`: it is the one
+  /// attribute [_quantizedOrFloatAccessor] leaves untouched (see that
+  /// method's own doc comment on why `KHR_mesh_quantization` cannot reach
+  /// it), and the one this codec's own compression buys the most on, since
+  /// nothing else has quantized it down already.
+  int _compressedPositionBufferView(Float32List floats, int elementCount) {
+    final raw = floats.buffer.asUint8List(
+      floats.offsetInBytes,
+      floats.lengthInBytes,
+    );
+    return _compressedVertexBufferView(
+      raw,
+      elementCount: elementCount,
+      byteStride: 12,
+      target: 34962,
+    );
+  }
+
+  /// [bytes] — [elementCount] elements of [byteStride] bytes each, already
+  /// whatever shape the caller wants an accessor to read back (a quantized
+  /// normalized integer, in [_GltfWriterMesh._quantizedOrFloatAccessor]'s
+  /// own case; a plain float, in [_compressedPositionBufferView]'s) —
+  /// written through `EXT_meshopt_compression`'s vertex codec.
+  int _compressedVertexBufferView(
+    Uint8List bytes, {
+    required int elementCount,
+    required int byteStride,
+    required int target,
+  }) {
+    final compressed = encodeMeshoptVertexBufferV0(
+      bytes,
+      elementCount,
+      byteStride,
+    );
+    return _appendCompressedBufferView(
+      compressed,
+      target: target,
+      byteStride: byteStride,
+      count: elementCount,
+      mode: 'ATTRIBUTES',
+    );
+  }
+
+  /// [indices] — a flat triangle list — written through
+  /// `EXT_meshopt_compression`'s own index codec. [componentSize] is 2 or 4,
+  /// the width [indices] itself is already packed at (`ModelSurface.packIndices`'s
+  /// own choice), and what this writes back as `byteStride` so a reader
+  /// narrows the codec's own always-32-bit output to the same width.
+  int _compressedIndexBufferView(List<int> indices, int componentSize) {
+    final compressed = encodeMeshoptIndexBuffer(indices);
+    return _appendCompressedBufferView(
+      compressed,
+      target: 34963,
+      byteStride: componentSize,
+      count: indices.length,
+      mode: 'TRIANGLES',
+    );
+  }
+
+  /// Appends [compressed] bytes as a `bufferViews` entry carrying its own
+  /// `EXT_meshopt_compression` extension object, and declares the
+  /// extension used and required — there is no uncompressed fallback here,
+  /// the same choice `KHR_mesh_quantization` above never has to make since
+  /// a plain reader can already read a normalized-integer accessor without
+  /// knowing that name.
+  ///
+  /// The outer `bufferView` points at the same compressed bytes the
+  /// extension object does, rather than at a real, separate fallback: a
+  /// reader that ignores `extensionsRequired` and reads this view as
+  /// ordinary bytes would draw a wrong picture regardless of what the outer
+  /// fields name, so there is nothing a real fallback would buy that this
+  /// does not already say honestly — the extension is required precisely
+  /// because there is no other way to read this view correctly.
+  int _appendCompressedBufferView(
+    Uint8List compressed, {
+    required int target,
+    required int byteStride,
+    required int count,
+    required String mode,
+  }) {
+    _extensionsUsed.add('EXT_meshopt_compression');
+    _extensionsRequired.add('EXT_meshopt_compression');
+
+    while (_binaryLength % 4 != 0) {
+      _binary.addByte(0);
+      _binaryLength++;
+    }
+    final byteOffset = _binaryLength;
+    _binary.add(compressed);
+    _binaryLength += compressed.length;
+
+    _bufferViews.add(<String, Object?>{
+      'buffer': 0,
+      'byteOffset': byteOffset,
+      'byteLength': compressed.length,
+      'target': target,
+      'extensions': <String, Object?>{
+        'EXT_meshopt_compression': <String, Object?>{
+          'buffer': 0,
+          'byteOffset': byteOffset,
+          'byteLength': compressed.length,
+          'byteStride': byteStride,
+          'count': count,
+          'mode': mode,
+        },
+      },
+    });
+    return _bufferViews.length - 1;
   }
 }

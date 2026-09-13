@@ -83,19 +83,26 @@ extension _GltfWriterMesh on GltfWriter {
       final naturalStride = componentCount * rule.componentType.sizeInBytes;
       final paddedStride = (naturalStride + 3) & ~3;
       final bufferData = paddedStride == naturalStride
-          ? encoded
+          ? Uint8List.sublistView(
+              encoded.buffer.asUint8List(
+                encoded.offsetInBytes,
+                encoded.lengthInBytes,
+              ),
+            )
           : _paddedToStride(encoded, naturalStride, paddedStride);
 
+      final elementCount = floats.length ~/ componentCount;
       return _addAccessor(<String, Object?>{
-        'bufferView': _appendBufferView(
+        'bufferView': _compressedVertexBufferView(
           bufferData,
+          elementCount: elementCount,
+          byteStride: paddedStride,
           target: 34962,
-          byteStride: paddedStride == naturalStride ? null : paddedStride,
         ),
         'componentType': rule.componentType.code,
         'normalized': true,
         'type': type,
-        'count': floats.length ~/ componentCount,
+        'count': elementCount,
       });
     }
     return _addAccessor(<String, Object?>{
@@ -236,7 +243,9 @@ extension _GltfWriterMesh on GltfWriter {
     final bounds = source.computeBounds();
     final positions = column(VertexLayout.position);
     final positionAccessor = _addAccessor(<String, Object?>{
-      'bufferView': _appendBufferView(positions, target: 34962),
+      'bufferView': compressGeometry
+          ? _compressedPositionBufferView(positions, vertexCount)
+          : _appendBufferView(positions, target: 34962),
       'componentType': GltfComponentType.float.code,
       'type': GltfAccessorType.vec3.name,
       'count': vertexCount,
@@ -297,7 +306,14 @@ extension _GltfWriterMesh on GltfWriter {
             packed.count,
           );
     final indicesAccessor = _addAccessor(<String, Object?>{
-      'bufferView': _appendBufferView(packedIndices, target: 34963),
+      'bufferView': compressGeometry
+          ? _compressedIndexBufferView(
+              packed.is16Bit
+                  ? packedIndices as Uint16List
+                  : packedIndices as Uint32List,
+              packed.is16Bit ? 2 : 4,
+            )
+          : _appendBufferView(packedIndices, target: 34963),
       'componentType':
           (packed.is16Bit
                   ? GltfComponentType.unsignedShort

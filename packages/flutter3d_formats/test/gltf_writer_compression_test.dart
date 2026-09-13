@@ -16,38 +16,51 @@
 ///   integers (`KHR_mesh_quantization`) whenever their own values fit —
 ///   `gltf_writer.dart`'s own `compressGeometry` doc comment has the exact
 ///   rule and the fallback for one that does not.
-/// - `POSITION` is never quantized — see the same doc comment for the real
-///   blocker (`ModelNode.surfaces` can list more than one primitive per
-///   node, and they do not all share one bounding box) rather than a
-///   simpler one that no longer applies.
-/// - `EXT_meshopt_compression`'s own bitstream is not implemented — no
-///   pure-Dart implementation exists to depend on (checked against pub.dev),
-///   and nothing in this repository can decode a real one to check a
-///   from-scratch encoder against.
+/// - `POSITION` is never quantized (`KHR_mesh_quantization` cannot reach it
+///   — see the same doc comment for why), but is compressed through
+///   `EXT_meshopt_compression`'s own vertex codec instead, in
+///   `_compressedPositionBufferView`. Every other float or already-quantized
+///   attribute, and the index buffer, goes through the same codec —
+///   `meshopt_vertex_codec.dart`/`meshopt_index_codec.dart`, this package's
+///   own encoder for a format whose only readable reference is its decoder
+///   (the real encoder ships as compiled WebAssembly with no source to
+///   port), checked against that reference decoder running under Node
+///   rather than only against this package's own inverse.
 ///
 /// **What this measures, honestly:** on a fully-attributed sphere
 /// (`VertexLayout.standard`, so every quantizable attribute is present),
 /// compression brings the GLB down by the ratio printed in `'geometry byte
 /// reduction on a fully-attributed mesh'` below. Measured while writing this
-/// file: **1.90x** — short of the plan row's own "three times smaller".
-/// `POSITION` is 12 of the 64 bytes `VertexLayout.standard` spends per vertex
-/// and the index buffer's own bytes are untouched by quantization (vertex
-/// cache reordering does not shrink a file — it changes an order, not a byte
-/// count — so it does not move this ratio either); together they are most of
-/// the floor this session's scope cannot compress past without the
-/// node/surface-aware position-quantization machinery named above, or the
-/// real `EXT_meshopt_compression` bitstream. The last sliver of it is spec
-/// compliance's own cost: `NORMAL`'s signed-byte `vec3` packs 3 bytes a
-/// vertex, one short of the 4-byte alignment the official glTF validator
-/// requires of vertex attribute data, so it is padded to 4 — one wasted byte
-/// a vertex, checked against a real `.glb` (not merely asserted) in `'every
-/// quantized vertex attribute lands on a 4-byte-aligned stride'` below, and
-/// against the actual Khronos validator (`npm install gltf-validator`, which
-/// this machine could reach) while this file was written: zero errors, zero
-/// warnings, on both the plain and the compressed GLB.
+/// file: **2.70x** — closer to the plan row's own "three times smaller" than
+/// quantization and reordering alone ever reached (1.90x), though still
+/// short of it: this encoder does not exploit `EXT_meshopt_compression`'s
+/// own triangle-strip FIFO reuse for the index buffer (see
+/// `meshopt_index_codec.dart`'s own top comment for why — every triangle
+/// takes the format's always-correct fallback path instead, which is real
+/// compression but not the ratio a full encoder would reach), and version 1's
+/// wider "channel" deltas for vertex data are not implemented either (see
+/// `meshopt_vertex_codec.dart`'s own top comment).
 ///
-/// `doc/plan-status.json` marks this row `partial`, not `done`, for exactly
-/// that shortfall — the honest categorization this session already uses for
+/// **The official Khronos validator does not know this extension.** The
+/// newest npm release (`gltf-validator@2.0.0-dev.3.10`, checked while this
+/// file was written — there is no newer one) answers `UNSUPPORTED_EXTENSION`
+/// for `EXT_meshopt_compression` and then, not understanding that a
+/// bufferView's real data lives in its own extension object rather than at
+/// its outer `byteOffset`/`byteLength`, reports every compressed accessor as
+/// too long for its view — a byproduct of the validator's own ignorance of
+/// the extension, not a finding about this file. What is independently
+/// checked instead: `meshopt_reference_check.mjs`/
+/// `meshopt_index_reference_check.mjs` decode this package's own encoder
+/// output with the format's real reference decoder (not written by this
+/// repository); `compareModelDocuments` below is this package's own,
+/// separately-written reader agreeing with what its writer wrote. Before
+/// `EXT_meshopt_compression` existed here, the plain quantization-only GLB
+/// this same test built passed the validator with zero errors and zero
+/// warnings — nothing about that half of this row changed.
+///
+/// `doc/plan-status.json` marks this row `partial`, not `done`, for the
+/// shortfall against "three times smaller" and the Khronos validator's own
+/// blind spot — the honest categorization this session already uses for
 /// real, working, incomplete rows (`fmt-18` among them), rather than either
 /// claiming a number this file's own comment disproves or discarding working
 /// code because it falls short of one.
@@ -114,10 +127,10 @@ void main() {
       );
 
       // This session's own honestly-measured number, not the row's "3x": see
-      // this file's own doc comment for why POSITION staying unquantized and
-      // the index buffer being untouched by either compression technique
-      // keep this short of that claim.
-      expect(ratio, greaterThan(1.5));
+      // this file's own doc comment for why the index codec's own
+      // always-correct fallback path (no FIFO reuse) and the vertex codec's
+      // own version-0-only scope keep this short of that claim.
+      expect(ratio, greaterThan(2.5));
     });
 
     test(
@@ -227,8 +240,18 @@ void main() {
         final naturalStride =
             componentSize[accessor['componentType']]! *
             componentCount[accessor['type']]!;
+        // A compressed view's own stride is the extension object's, not the
+        // outer bufferView's — the outer byteLength/byteStride describe the
+        // compressed bytes on disk, which have nothing to do with the
+        // alignment a decoded vertex eventually needs.
+        final compression =
+            (bufferView['extensions']
+                    as Map<String, Object?>?)?['EXT_meshopt_compression']
+                as Map<String, Object?>?;
         final effectiveStride =
-            bufferView['byteStride'] as int? ?? naturalStride;
+            (compression?['byteStride'] as int?) ??
+            (bufferView['byteStride'] as int?) ??
+            naturalStride;
         expect(
           effectiveStride % 4,
           0,
