@@ -1,7 +1,7 @@
 /// Picking by pixel, drawn: the node under a point is the node whose pixels
 /// are there.
 ///
-///     flutter test test/pick_pixel_test.dart
+///     flutter test test/cpu_pick_pixel_test.dart
 ///
 /// The pass is pinned against the fake device in
 /// `flutter3d/test/pick_pixel_test.dart`; this is the pass run through the

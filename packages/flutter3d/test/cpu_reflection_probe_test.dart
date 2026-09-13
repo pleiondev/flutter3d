@@ -1,6 +1,6 @@
 /// A mirror ball between two coloured walls shows each wall on its own side.
 ///
-///     flutter test test/reflection_probe_test.dart
+///     flutter test test/cpu_reflection_probe_test.dart
 ///
 /// The whole chain, through the software backend: a probe captures six views
 /// into a cube face by face, the prefilter writes the chain level by level,

@@ -1,7 +1,7 @@
 /// Auto exposure, drawn: a dark room climbs to the ceiling and a bright one
 /// falls to the floor, through the luminance pass, the readback and the meter.
 ///
-///     flutter test test/auto_exposure_test.dart
+///     flutter test test/cpu_auto_exposure_test.dart
 ///
 /// The arithmetic is pinned by hand in `flutter3d/test/auto_exposure_test.dart`.
 /// This is the other half: that `luminance.frag`'s transcription encodes what

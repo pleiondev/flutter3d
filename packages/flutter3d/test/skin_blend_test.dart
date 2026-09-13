@@ -2,8 +2,8 @@
 /// hand-checked numbers.
 ///
 /// The arithmetic-parity claim against `MeshSkinnedVertexShader` — the whole
-/// point of this row — lives in `flutter3d_cpu/test/skin_blend_test.dart`
-/// instead, since `flutter3d_cpu` is the package allowed to depend on both.
+/// point of this row — lives in `cpu_skin_blend_test.dart` instead, in this
+/// same directory since mcp-02n moved it here from `flutter3d_cpu/test/`.
 ///
 ///     dart test test/skin_blend_test.dart
 library;

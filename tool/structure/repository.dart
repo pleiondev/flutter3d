@@ -367,7 +367,7 @@ goldenCountExempt = <String, Map<String, String>>{
     'thirty goldens leaked thirty of them':
         'the leak as it was found, and the second number is the first',
   },
-  'packages/flutter3d_cpu/test/ssao_test.dart': <String, String>{
+  'packages/flutter3d/test/ssao_test.dart': <String, String>{
     'carried "thirty-one goldens" for eight scenes':
         'the wrong number this rule was extended to catch, quoted. Both '
         'numbers in it are about the drift, not about today',
@@ -411,7 +411,7 @@ goldenCountExempt = <String, Map<String, String>>{
     'the twenty-seven scenes that have no mip chain':
         'the scenes without a mip chain, which is fewer than all of them',
   },
-  'packages/flutter3d_cpu/test/engine_parity_test.dart': <String, String>{
+  'packages/flutter3d/test/engine_parity_test.dart': <String, String>{
     'the lesson of two goldens that sat at 0.178%':
         'the two that sat under a threshold nobody was reading',
   },

@@ -1,6 +1,6 @@
 /// A bundle loaded from bytes on the backend that compiles nothing.
 ///
-///     flutter test test/loaded_shaders_test.dart
+///     dart test test/loaded_shaders_test.dart
 ///
 /// The rule under test is the one `CpuLoadedShaderLibrary` states: the
 /// bundle's names are answered with the device's own Dart stages, a name the
@@ -14,7 +14,7 @@ import 'dart:typed_data';
 
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
-import 'package:flutter_test/flutter_test.dart';
+import 'package:test/test.dart';
 import 'package:vector_math/vector_math.dart';
 
 final class _Magenta implements CpuFragmentShader {

@@ -145,7 +145,7 @@ final class _SnapshotBuffer {
   /// supersampled frame — the same eye and look-at as every other tile,
   /// [TiledProjection] cropping this one's own share of the frustum
   /// (`pro-eng-04`), the same shape
-  /// `packages/flutter3d_cpu/test/tiled_projection_stitch_test.dart` already
+  /// `packages/flutter3d/test/tiled_projection_stitch_test.dart` already
   /// proves stitches back byte for byte.
   Future<void> renderTile(
     ModelProject project,

@@ -1,14 +1,14 @@
-/// `GraphicsDevice.overwriteTexture`, on the one backend a plain `flutter
+/// `GraphicsDevice.overwriteTexture`, on the one backend a plain `dart
 /// test` can check content against without a GPU or a browser — `pro-eng-02`.
 ///
-///     flutter test test/texture_overwrite_test.dart
+///     dart test test/texture_overwrite_test.dart
 library;
 
 import 'dart:typed_data';
 
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
-import 'package:flutter_test/flutter_test.dart';
+import 'package:test/test.dart';
 
 CpuDevice _device() =>
     CpuDevice(width: 8, height: 8, shaders: CpuShaderLibrary(builtinCpuShaders()));

@@ -4,7 +4,7 @@
 ///
 /// What is pinned here needs no device: the shape of the buffer the vertex
 /// stage reads, the bounds a batch reports for culling, and the two things a
-/// write has to invalidate. `flutter3d_cpu/test/instancing_test.dart` is
+/// write has to invalidate. `flutter3d/test/instancing_test.dart` is
 /// where the picture is held against the same field drawn one node at a time.
 library;
 

@@ -8,7 +8,7 @@ description: Four independent golden sets, mutation-checking every new test, det
 
 | Package | Tests | | Package | Tests |
 |---|---|---|---|---|
-| `flutter3d` | 958 | | `flutter3d_geometry` | 93 |
+| `flutter3d` | 1109 | | `flutter3d_geometry` | 93 |
 | | | | `flutter3d_bridge` | 74 |
 | | | | `flutter3d_formats` | 214 |
 | | | | `flutter3d_mesh` | 515 |
@@ -19,7 +19,7 @@ description: Four independent golden sets, mutation-checking every new test, det
 | `flutter3d_game_racing` | 223 | | `flutter3d_webgl` | 58 |
 | `flutter3d_game_platformer` | 221 | | `flutter3d_hardware` | 54 |
 | `apps/flutter3d_demo_platformer` | 198 | | `flutter3d_impeller` | 54 |
-| `flutter3d_cpu` | 214 | | `apps/flutter3d_demo_strategy` | 43 |
+| `flutter3d_cpu` | 63 | | `apps/flutter3d_demo_strategy` | 43 |
 | `apps/flutter3d_editor` | 203 | | `flutter3d_session` | 192 |
 | `apps/flutter3d_demo_racing` | 153 | | `pointer_lock` | 28 |
 | `flutter3d_physics` | 173 | | `flutter3d_webgpu` | 175 |

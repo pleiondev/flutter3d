@@ -7,7 +7,8 @@
 /// questions here are about what the pass *is*: which target, cleared to
 /// what, which id each draw was handed, and which pixel was read back. That a
 /// real backend answers with the right node is
-/// `flutter3d_cpu/test/pick_pixel_test.dart`.
+/// `flutter3d/test/cpu_pick_pixel_test.dart` — moved here from
+/// `flutter3d_cpu/test/` once that package went flat (mcp-02n).
 library;
 
 import 'dart:typed_data';

@@ -775,7 +775,7 @@ release-сборка, `--dart-define=sandbox=true`; зонд —
   Строку с результатом надо дописать сюда после ручного прогона.
 
 **pro-sc-01 — мазок на 1,2 млн треугольников.**
-`packages/flutter3d_cpu/test/sculpt_budget_benchmark_test.dart`, тот же класс
+`packages/flutter3d/test/sculpt_budget_benchmark_test.dart`, тот же класс
 машины, что у замеров выше (MacBook Pro, Apple M3 Pro, macOS 27.0), но
 `flutter test` (JIT), а не `dart compile exe`: `DeviceMesh`/`GraphicsDevice`
 называют Flutter SDK, а значит AOT для них недостижим — та же граница, что и

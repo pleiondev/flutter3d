@@ -12,7 +12,7 @@
 ///
 /// So each room is drawn twice through the software rasteriser — once with its
 /// effect on and once off — and what is asserted is that the two differ. That
-/// is a claim about the *fixture*; `flutter3d_cpu/test/reflections_test.dart`
+/// is a claim about the *fixture*; `flutter3d/test/reflections_test.dart`
 /// and `ssao_test.dart` are where the arithmetic behind each effect is pinned.
 ///
 /// The camera is the demo's own `OrbitController`, framed on the room and set

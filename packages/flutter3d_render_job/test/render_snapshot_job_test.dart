@@ -17,7 +17,7 @@
 ///
 /// So this file builds a small `ModelProject` instead, reusing the exact
 /// shapes, positions, colours and camera pose
-/// `packages/flutter3d_cpu/test/tiled_projection_stitch_test.dart` already
+/// `packages/flutter3d/test/tiled_projection_stitch_test.dart` already
 /// established as this repository's own deterministic "two cubes off the
 /// axis, lit from one side" render-test scene — translated into
 /// `ParametricGeometry`/`SurfaceMaterial` terms rather than built directly

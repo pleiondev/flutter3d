@@ -4,8 +4,9 @@
 ///     flutter test test/auto_exposure_test.dart
 ///
 /// The rendered half — a dark scene climbing to the ceiling through a real
-/// luminance pass and a real readback — is
-/// `flutter3d_cpu/test/auto_exposure_test.dart`. What is here is everything
+/// luminance pass and a real readback — is `cpu_auto_exposure_test.dart`, in
+/// this same directory since mcp-02n moved it here from `flutter3d_cpu/test/`.
+/// What is here is everything
 /// that can be pinned with bytes handed in by hand, which is most of it: a
 /// meter that read the wrong band of the histogram, an adapter that lerped the
 /// multiplier instead of the stops, or a frame that ran the pass with the

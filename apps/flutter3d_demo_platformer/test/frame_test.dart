@@ -10,7 +10,7 @@
 ///
 /// So this renders one. `CpuDevice` is a `GraphicsDevice` with no GPU under it
 /// and `readPixels` gives the frame back as bytes — the arrangement
-/// `packages/flutter3d_cpu/test/engine_parity_test.dart` already uses. What is
+/// `packages/flutter3d/test/engine_parity_test.dart` already uses. What is
 /// assembled here is the real thing: the shipped level document, the real
 /// registry, the real `FixtureVisuals` with the game's own `PlatformerLooks`,
 /// and the real `PlatformerSimulation` stepping at sixty hertz. The only piece

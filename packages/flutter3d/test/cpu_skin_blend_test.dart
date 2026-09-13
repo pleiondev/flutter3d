@@ -1,11 +1,11 @@
 /// `anim-02`'s own acceptance line: `SkinBlend`'s positions equal
 /// `MeshSkinnedVertexShader`'s — the software rasteriser's own copy of
-/// `mesh_skinned.vert`. Checked from here rather than from `flutter3d`'s own
-/// test suite, since this is the one direction the dependency runs:
-/// `flutter3d_cpu` depends on `flutter3d`, never the reverse, so this is the
-/// only package that can see both at once.
+/// `mesh_skinned.vert`. Checked from here — a `flutter3d` test dev-depending
+/// on `flutter3d_cpu` (mcp-02n) — rather than from `flutter3d_cpu`'s own
+/// suite, since `flutter3d_cpu` resolves without the Flutter SDK and cannot
+/// carry a test importing the engine as a real dependency.
 ///
-///     flutter test test/skin_blend_test.dart
+///     flutter test test/cpu_skin_blend_test.dart
 library;
 
 import 'dart:typed_data';

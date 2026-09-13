@@ -400,7 +400,7 @@ List<EditorTool> get editorTools => <EditorTool>[
     // returns a Flutter `Widget`, so a process that can draw a level is a
     // Flutter process — and `dart run` cannot resolve a package that depends
     // on the Flutter SDK, which is what
-    // `packages/flutter3d_cpu/tool/dump_fixture.dart` records finding out.
+    // `packages/flutter3d/tool/dump_fixture.dart` records finding out.
     (EditorSession session, Map<String, Object?> arguments) => (
       did: false,
       says:

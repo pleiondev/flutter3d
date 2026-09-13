@@ -58,6 +58,18 @@ dev_dependencies:
   # decoders and not the fixtures they were checked with.
   flutter3d_samples: ^0.4.2
 
+  # The one direction this dependency can run in: `flutter3d_cpu` depends on
+  # `flutter3d_hardware`, never on this package, so the tests that draw a real
+  # frame through the software rasteriser and hold it against the numbers
+  # pinned elsewhere in this suite live here instead, dev-depending on the
+  # backend rather than the reverse (mcp-02n, once `flutter3d_cpu` could no
+  # longer carry a test naming the Flutter SDK-dependent engine).
+  flutter3d_cpu: ^0.7.0
+  # `pro-sc-01`'s own benchmark alone: an `EditMesh` big enough to sculpt is
+  # built here and uploaded through `flutter3d_cpu`. Not a real dependency —
+  # nothing in `lib/` reaches it.
+  flutter3d_mesh: ^0.6.0
+
 # **This package declares no assets, and that is a decision worth the paragraph.**
 #
 # Two things used to be here. The shader bundle went first: it is `impellerc`

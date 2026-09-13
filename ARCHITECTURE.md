@@ -668,7 +668,7 @@ non-uniform one skews the normal and the stage says so rather than paying an
 inverse transpose per vertex. Each is a limit the class states, and each is a
 thing to add when a scene asks.
 
-The picture is held twice. `flutter3d_cpu/test/instancing_test.dart` draws a
+The picture is held twice. `flutter3d/test/instancing_test.dart` draws a
 grid of sixteen cubes under a sun that casts, once as a batch and once as
 sixteen nodes, and holds the two to within a silhouette's worth of pixels —
 not byte-identical, because the instanced stage multiplies the instance
@@ -2630,7 +2630,7 @@ document, and both of its limits follow from that. It cannot draw, because
 `presentFrame` in `flutter3d_app` — the one place a finished frame becomes a
 Flutter widget, whichever backend drew it — needs a Flutter process, and
 `dart run` cannot resolve a package that depends on the Flutter SDK, which
-`packages/flutter3d_cpu/tool/dump_fixture.dart` records finding out. The
+`packages/flutter3d/tool/dump_fixture.dart` records finding out. The
 `screenshot` tool is therefore declared and refuses with that reason rather than
 being left out, because a missing tool reads as an incomplete server and sends
 whatever is calling it looking for another way. `validate` is the question this

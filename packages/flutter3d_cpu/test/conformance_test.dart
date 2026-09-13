@@ -1,6 +1,6 @@
 /// The thirty-six checks, against a backend with no GPU underneath it.
 ///
-/// This is the only backend that can run them in a plain `flutter test`: the
+/// This is the only backend that can run them in a plain `dart test`: the
 /// other two need a device, so Impeller runs them from an application and
 /// WebGL from a browser. Which makes this suite worth more than its own
 /// correctness — it is the first place a change to `flutter3d_conformance`

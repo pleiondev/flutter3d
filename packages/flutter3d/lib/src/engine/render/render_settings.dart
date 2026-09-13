@@ -25,7 +25,7 @@ export 'shadow_settings.dart';
 /// on the two backends whose row zero is at the top it read the surface buffer
 /// mirrored about the middle of the frame and found nothing to do with the ray.
 /// And it compared [thickness] in window depth, which is not a distance. Both
-/// are covered now by `flutter3d_cpu/test/reflections_test.dart` and by the
+/// are covered now by `flutter3d/test/reflections_test.dart` and by the
 /// `screen-space-reflections` golden.
 final class ReflectionSettings {
   const ReflectionSettings({
@@ -92,7 +92,7 @@ final class ReflectionSettings {
 ///
 /// **One backend drew it in a check; the other two only proved it links, and
 /// that lasted long enough to hide a real defect.** The software rasteriser's
-/// `flutter3d_cpu/test/ssao_test.dart` was the only place in the tree where the
+/// `flutter3d/test/ssao_test.dart` was the only place in the tree where the
 /// occlusion was compared against a picture, and even there the two rows it
 /// compared had been read off a frame the pass was drawing upside down: it
 /// turned clip space into a texture coordinate the opposite way from every

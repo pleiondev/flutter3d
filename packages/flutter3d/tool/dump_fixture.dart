@@ -9,8 +9,10 @@
 /// that was upside down agreed with three pixel assertions and needed a person
 /// to notice.
 ///
-/// A test file rather than a script because the package depends on the Flutter
-/// SDK, so `dart run` cannot resolve it. Nothing here asserts anything.
+/// A test file rather than a script because this package depends on the
+/// Flutter SDK, so `dart run` cannot resolve it. Nothing here asserts
+/// anything. Moved here from `flutter3d_cpu/tool/` once that package went
+/// flat (mcp-02n) and could no longer carry a file importing `flutter3d`.
 library;
 
 import 'dart:io';

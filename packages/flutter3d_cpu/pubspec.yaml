@@ -17,28 +17,27 @@ environment:
   flutter: '>=3.47.0'
 
 dependencies:
-  flutter:
-    sdk: flutter
   flutter3d_hardware: ^0.7.0
   vector_math: ^2.2.0
 
 dev_dependencies:
+  test: ^1.25.0
+  # For `cross_backend_test.dart` alone: it decodes the committed golden PNGs
+  # through `dart:ui` and runs under `testWidgets`, which mcp-04n's pure-Dart
+  # PNG decoder (not built yet) will let it drop. Until then this is the one
+  # file — and the one reason — this package cannot join `flatDartPackages`
+  # despite `lib/` and every other test naming no Flutter at all (mcp-02n).
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0
   flutter3d_conformance: ^0.7.0
-  # Test-only, and deliberately so: the backend itself must not depend on the
-  # engine. A backend that could not be compiled without it would not be an
-  # implementation of an interface, it would be a part of the engine.
-  flutter3d: ^0.6.0
+  # For `shader_names_test.dart` alone: the entry-point names it checks
+  # against are `flutter3d_shaders`'s own. Not a real dependency — nothing in
+  # `lib/` reaches it.
   flutter3d_shaders: ^0.6.0
   # For `mip_chain_quality_test.dart` alone: `ap-08`'s own Kaiser-filtered
   # chain, sampled at a distant footprint. Not a real dependency — nothing in
   # `lib/` reaches it.
   flutter3d_formats: ^0.6.0
-  # `pro-sc-01`'s own benchmark: an `EditMesh` big enough to sculpt is built
-  # here and uploaded through this backend, which is test-only for the same
-  # reason the two lines above are.
-  flutter3d_mesh: ^0.6.0
 
 resolution: workspace

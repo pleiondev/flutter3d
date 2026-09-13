@@ -13,11 +13,10 @@ import 'package:flutter3d_geometry/flutter3d_geometry.dart';
 /// tangents (a joint that only rotates and translates, which is every rig in
 /// practice — see that shader's own comment on why a non-uniformly scaled
 /// joint is the trade this does not make).
-/// `flutter3d_cpu/test/skin_blend_test.dart` holds this to
-/// `MeshSkinnedVertexShader`, the software rasteriser's own copy of that
-/// shader — from the other package, since that is the one direction this
-/// dependency can run in — rather than assuming two arithmetic paths agree
-/// because they were written to look alike.
+/// `cpu_skin_blend_test.dart` holds this to `MeshSkinnedVertexShader`, the
+/// software rasteriser's own copy of that shader — from `flutter3d_cpu`,
+/// dev-depended on for this one test rather than assuming two arithmetic
+/// paths agree because they were written to look alike.
 ///
 /// **Nothing is recomputed when nothing moved.** [blend] returns false when
 /// the joint matrices it was handed are the ones already applied, the same
