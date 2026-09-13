@@ -25,8 +25,8 @@ description: Four independent golden sets, mutation-checking every new test, det
 | `flutter3d_physics` | 173 | | `flutter3d_webgpu` | 175 |
 | `flutter3d_game_strategy` | 131 | | `flutter3d_editor_mcp` | 20 |
 | | | | `flutter3d_testing` | 13 |
-| `flutter3d_editor_core` | 125 | | `apps/flutter3d_template_app` | 21 |
-| `apps/flutter3d_demo_dungeon` | 111 | | `flutter3d_app` | 4 |
+| `flutter3d_editor_core` | 125 | | `apps/flutter3d_template_app` | 24 |
+| `apps/flutter3d_demo_dungeon` | 108 | | `flutter3d_app` | 4 |
 | `flutter3d_game` | 79 | | `flutter3d_shaders` | 1 |
 | `flutter3d_particles` | 10 | | `flutter3d_stereo` | 47 |
 | `flutter3d_model_core` | 835 | | `flutter3d_model_mcp` | 83 |

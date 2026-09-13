@@ -3,9 +3,8 @@ import 'package:flutter/material.dart';
 
 /// `wg-02`'s second demo scene: an operator's dashboard, driven by a live
 /// [ValueListenable] rather than a fixed string — the shape a `WidgetSurface`
-/// bound to `edu-05`'s `SamplerDataSource` would sit behind once `tpl-04`
-/// exists to host it (see this file's own test for the wiring, absent a
-/// template to put it in).
+/// bound to `edu-05`'s `SamplerDataSource` sits behind in `tpl-04`'s own
+/// `twin.json` (`template_widgets.dart`'s `'twin-dashboard'` entry).
 final class OperatorPanel extends StatelessWidget {
   const OperatorPanel({
     super.key,

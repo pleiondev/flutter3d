@@ -20,7 +20,7 @@ import 'package:flutter3d_bridge/flutter3d_bridge.dart';
 import 'package:flutter3d_demo_dungeon/src/staging.dart';
 import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:flutter3d_game_shooter/flutter3d_game_shooter.dart';
-import 'package:flutter3d_game_shooter/sample.dart';
+import 'package:flutter3d_game_shooter/sample.dart' hide Staged, stage;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart';
 

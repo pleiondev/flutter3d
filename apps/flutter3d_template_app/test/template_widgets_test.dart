@@ -43,7 +43,7 @@ void main() {
     final registry = templateWidgetRegistry(
       viewerTour: tour,
       configurator: ConfiguratorController(),
-      twinReading: ValueNotifier<Object?>(null),
+      twinReading: ValueNotifier<double>(0.0),
     );
 
     await tester.pumpWidget(
@@ -89,7 +89,7 @@ void main() {
     final registry = templateWidgetRegistry(
       viewerTour: ViewerTourController(),
       configurator: configurator,
-      twinReading: ValueNotifier<Object?>(null),
+      twinReading: ValueNotifier<double>(0.0),
     );
 
     await tester.pumpWidget(
@@ -103,26 +103,30 @@ void main() {
     expect(configurator.current.$1, 'Blue');
   });
 
-  testWidgets('the twin dashboard shows the live reading, not a placeholder '
-      'once one has come in', (tester) async {
-    final reading = ValueNotifier<Object?>(null);
-    final registry = templateWidgetRegistry(
-      viewerTour: ViewerTourController(),
-      configurator: ConfiguratorController(),
-      twinReading: reading,
-    );
+  testWidgets(
+    "the twin dashboard is wg-02's own OperatorPanel, and tracks the live "
+    'reading',
+    (tester) async {
+      final reading = ValueNotifier<double>(0.0);
+      final registry = templateWidgetRegistry(
+        viewerTour: ViewerTourController(),
+        configurator: ConfiguratorController(),
+        twinReading: reading,
+      );
 
-    await tester.pumpWidget(
-      MaterialApp(home: Builder(builder: registry['twin-dashboard']!)),
-    );
-    expect(find.text('— °C'), findsOneWidget);
+      await tester.pumpWidget(
+        MaterialApp(home: Builder(builder: registry['twin-dashboard']!)),
+      );
+      expect(find.text('SPINDLE TEMP'), findsOneWidget);
+      expect(find.text('0.0°C'), findsOneWidget);
 
-    reading.value = 63.4;
-    await tester.pump();
-    expect(find.text('63.4 °C'), findsOneWidget);
+      reading.value = 63.4;
+      await tester.pump();
+      expect(find.text('63.4°C'), findsOneWidget);
 
-    reading.value = 71.28;
-    await tester.pump();
-    expect(find.text('71.3 °C'), findsOneWidget);
-  });
+      reading.value = 71.28;
+      await tester.pump();
+      expect(find.text('71.3°C'), findsOneWidget);
+    },
+  );
 }

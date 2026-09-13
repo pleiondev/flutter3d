@@ -1,7 +1,7 @@
-/// `wg-02`'s second demo scene, proven without `tpl-04` to host it in —
-/// `edu-05`'s own write-up names that gap, and this file is the honest
-/// substitute: the same `SamplerDataSource`/`WidgetSurface` wiring `tpl-04`
-/// would use, driving a real widget rather than a description of one.
+/// `wg-02`'s second demo scene — the operator panel `tpl-04`'s own
+/// `twin.json` now hosts (`template_widgets.dart`'s `'twin-dashboard'`
+/// entry). `edu-05`'s own `SamplerDataSource`/`WidgetSurface` wiring, driving
+/// a real widget rather than a description of one.
 library;
 
 import 'dart:math' as math;
@@ -9,9 +9,9 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter3d/flutter3d.dart' hide Material;
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
-import 'package:flutter3d_demo_dungeon/src/operator_panel.dart';
 import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:flutter3d_session/flutter3d_session.dart';
+import 'package:flutter3d_template_app/src/operator_panel.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 /// Sixteen by nine: only `WidgetSurface`'s own upload path needs a device

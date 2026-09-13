@@ -8,6 +8,8 @@ library;
 
 import 'package:flutter/material.dart';
 
+import 'operator_panel.dart';
+
 /// The viewer's own steps, walked one at a time — `edu_step` captions, in
 /// `edu_sequence.steps`'s own order. [captions] is itself a [ValueNotifier]
 /// rather than a plain field: the level a `widget_surface` names this widget
@@ -119,32 +121,21 @@ Widget _configuratorPanelWidget(ConfiguratorController controller) =>
       },
     );
 
-/// The twin's own live reading — `edu-05`'s `resolveBindings` writes into
-/// this every tick; the widget only ever reads it back.
-Widget _twinDashboardWidget(ValueNotifier<Object?> reading) =>
-    ValueListenableBuilder<Object?>(
-      valueListenable: reading,
-      builder: (context, value, _) => ColoredBox(
-        color: const Color(0xFF14161A),
-        child: Center(
-          child: Text(
-            value is num ? '${value.toStringAsFixed(1)} °C' : '— °C',
-            style: const TextStyle(color: Colors.white, fontSize: 22),
-          ),
-        ),
-      ),
-    );
-
 /// The three widgets a `widget_surface` entity in one of `tpl-04`'s levels
 /// may name — the "reistry the application hands over" `wg-01`'s own write-up
 /// describes, superset over all three templates because only the level
 /// actually open ever names one of these keys.
+///
+/// `'twin-dashboard'` is `wg-02`'s own [OperatorPanel] — `edu-05`'s
+/// `resolveBindings` writes [twinReading] every tick; the panel only ever
+/// reads it back.
 Map<String, WidgetBuilder> templateWidgetRegistry({
   required ViewerTourController viewerTour,
   required ConfiguratorController configurator,
-  required ValueNotifier<Object?> twinReading,
+  required ValueNotifier<double> twinReading,
 }) => <String, WidgetBuilder>{
   'viewer-caption': (_) => _viewerCaptionWidget(viewerTour),
   'configurator-panel': (_) => _configuratorPanelWidget(configurator),
-  'twin-dashboard': (_) => _twinDashboardWidget(twinReading),
+  'twin-dashboard': (_) =>
+      OperatorPanel(label: 'spindle temp', unit: '°C', value: twinReading),
 };
