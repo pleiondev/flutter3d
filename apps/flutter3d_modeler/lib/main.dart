@@ -2051,18 +2051,19 @@ class _ModelerScreenState extends State<ModelerScreen>
         SetModifierField(id: id, index: index, field: field, value: value),
       );
 
-  void _clearBaseColorTexture(int index) =>
-      _cubit.ran(SetTexture(materialIndex: index, slot: 'albedo'));
+  void _clearTexture(int index, String slot) =>
+      _cubit.ran(SetTexture(materialIndex: index, slot: slot));
 
-  /// Opens a picker for an image and points a material's base colour slot at
-  /// it.
+  /// Opens a picker for an image and points one of a material's five texture
+  /// slots at it — `mat-04`'s own row generalises `mat-04a-n`'s base colour
+  /// slot alone over every name [SetTexture.slot] takes.
   ///
   /// **Two commands, two steps of history.** [AddImage] interns the bytes —
   /// or reuses the row a duplicate already sits in — and [SetTexture] is the
   /// only command that can then name the slot; there is no single command
   /// that does both, so a texture pick is honestly two edits rather than one
   /// pretending to be one.
-  Future<void> _chooseBaseColorTexture(int materialIndex) async {
+  Future<void> _chooseTexture(int materialIndex, String slot) async {
     final PickedFile? file = await openImage();
     if (file == null) return;
     if (!_cubit.ran(AddImage(bytes: file.bytes, imageName: file.name))) {
@@ -2073,7 +2074,7 @@ class _ModelerScreenState extends State<ModelerScreen>
     _cubit.ran(
       SetTexture(
         materialIndex: materialIndex,
-        slot: 'albedo',
+        slot: slot,
         imageIndex: index,
       ),
     );
@@ -2425,8 +2426,8 @@ class _ModelerScreenState extends State<ModelerScreen>
                 onAssignMaterial: _assignMaterial,
                 onAddMaterial: _addMaterial,
                 onSetMaterialField: _setMaterialField,
-                onChooseBaseColorTexture: _chooseBaseColorTexture,
-                onClearBaseColorTexture: _clearBaseColorTexture,
+                onChooseTexture: _chooseTexture,
+                onClearTexture: _clearTexture,
                 lastCommand: state.history.journal.isEmpty
                     ? null
                     : state.history.journal.last,
@@ -2632,8 +2633,8 @@ class _Properties extends StatelessWidget {
     required this.onAssignMaterial,
     required this.onAddMaterial,
     required this.onSetMaterialField,
-    required this.onChooseBaseColorTexture,
-    required this.onClearBaseColorTexture,
+    required this.onChooseTexture,
+    required this.onClearTexture,
     required this.lastCommand,
     required this.onAmend,
     required this.shading,
@@ -2699,11 +2700,13 @@ class _Properties extends StatelessWidget {
   final void Function(int materialIndex, String field, Object? value)
   onSetMaterialField;
 
-  /// "Choose…" was pressed for the base colour texture slot.
-  final void Function(int materialIndex) onChooseBaseColorTexture;
+  /// "Choose…" was pressed for one of a material's five texture slots —
+  /// `albedo`, `normal`, `metallicRoughness`, `occlusion`, `emissive`, the
+  /// same names [SetTexture.slot] takes.
+  final void Function(int materialIndex, String slot) onChooseTexture;
 
-  /// "Clear" was pressed for the base colour texture slot.
-  final void Function(int materialIndex) onClearBaseColorTexture;
+  /// "Clear" was pressed for one of a material's texture slots.
+  final void Function(int materialIndex, String slot) onClearTexture;
 
   /// What the operation card is showing, and where an adjustment goes.
   final ModelCommand? lastCommand;
@@ -2728,13 +2731,21 @@ class _Properties extends StatelessWidget {
         activeMaterial != null && activeMaterial < project.materials.length
         ? project.materials[activeMaterial]
         : null;
-    final baseColorTexture = activeMaterialRow?.surface.baseColorTexture;
-    final String? textureName = baseColorTexture == null
-        ? null
-        : (baseColorTexture.imageIndex < project.images.length
-              ? (project.images[baseColorTexture.imageIndex].name ??
-                    'image ${baseColorTexture.imageIndex}')
-              : 'image ${baseColorTexture.imageIndex}');
+    String? imageNameOf(TextureBinding? binding) {
+      if (binding == null) return null;
+      return binding.imageIndex < project.images.length
+          ? (project.images[binding.imageIndex].name ??
+                'image ${binding.imageIndex}')
+          : 'image ${binding.imageIndex}';
+    }
+
+    final Map<String, TextureBinding?> textureBySlot = <String, TextureBinding?>{
+      'albedo': activeMaterialRow?.surface.baseColorTexture,
+      'normal': activeMaterialRow?.surface.normalTexture,
+      'metallicRoughness': activeMaterialRow?.surface.metallicRoughnessTexture,
+      'occlusion': activeMaterialRow?.surface.occlusionTexture,
+      'emissive': activeMaterialRow?.surface.emissiveTexture,
+    };
     return ListView(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       children: <Widget>[
@@ -2855,13 +2866,18 @@ class _Properties extends StatelessWidget {
                 : metallicIsMeaningful(
                     lightingModelOf(activeMaterialRow.surface),
                   ),
-            onChooseBaseColorTexture: activeMaterial == null
-                ? () {}
-                : () => onChooseBaseColorTexture(activeMaterial),
-            onClearBaseColorTexture: baseColorTexture == null
-                ? null
-                : () => onClearBaseColorTexture(activeMaterial!),
-            textureName: textureName,
+            textureSlots: activeMaterial == null
+                ? const <String, TextureSlotController>{}
+                : <String, TextureSlotController>{
+                    for (final entry in textureBySlot.entries)
+                      entry.key: (
+                        name: imageNameOf(entry.value),
+                        onChoose: () => onChooseTexture(activeMaterial, entry.key),
+                        onClear: entry.value == null
+                            ? null
+                            : () => onClearTexture(activeMaterial, entry.key),
+                      ),
+                  },
           ),
         ],
         if (sections.contains(PropertiesSection.lastOperation)) ...<Widget>[

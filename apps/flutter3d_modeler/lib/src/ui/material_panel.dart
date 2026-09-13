@@ -1,7 +1,6 @@
-/// `mat-04a-n`'s own cut of the full "Панель «Материал»" row: a list of the
-/// project's materials, a way to paint the held object with one of them, and
-/// — for the material it is painted with — base colour, metallic,
-/// roughness, and one texture slot.
+/// `mat-04`'s own full "Панель «Материал»": every field `SurfaceMaterial`
+/// carries, not `mat-04a-n`'s cut of base colour, metallic, roughness and one
+/// texture slot.
 ///
 /// **A list of the project's whole table, not of the object's own paint.**
 /// [ModelObject.materialSlots] holds at most one row today (`AssignMaterial`
@@ -9,15 +8,21 @@
 /// assigned" are the same fact; what a person needs a list *for* is picking
 /// a different one to assign, which means seeing every material there is.
 ///
-/// **Alpha, emissive, the other four texture slots and a shader picker are
-/// `mat-04`'s fuller row**, the one this cut stands in for while the
-/// scenario `doc-25`'s own row names — clean a mesh, fix its material,
-/// export to GLB — waits on nothing bigger.
+/// **Not built here: a shader picker.** `builtInMaterialHints['lighting']`
+/// already names the six models `LightingModel.builtIn` offers, but nothing
+/// in `SurfaceMaterial` or `ProjectMaterial` carries which of them a material
+/// asked for — only `unlit`, a single bit, which `lightingModelOf` already
+/// reads. Adding a real field is a `SurfaceMaterial` schema change reaching
+/// every reader and writer of it (glTF, OBJ, `.f3d`, the MCP tools, the
+/// renderer's own material binding) — a second row's worth of work this one
+/// does not fold in as a side effect. `metallicIsMeaningful` is already
+/// written against [LightingModel] rather than against this panel for
+/// exactly that day.
 library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter3d_formats/flutter3d_formats.dart';
-import 'package:flutter3d_model_core/flutter3d_model_core.dart';
+import 'package:flutter3d_model_core/flutter3d_model_core.dart' hide EnumHint;
 
 import 'color_field.dart';
 import 'theme.dart';
@@ -63,7 +68,7 @@ class _SliderRowState extends State<_SliderRow> {
     return Row(
       children: <Widget>[
         SizedBox(
-          width: 64,
+          width: 96,
           child: Text(
             widget.label,
             style: theme.textTheme.bodySmall?.copyWith(
@@ -107,6 +112,66 @@ class _SliderRowState extends State<_SliderRow> {
   }
 }
 
+/// What one texture slot needs: what it is called today, and how to change
+/// or clear it — the same trio `mat-04a-n` gave the base colour slot alone,
+/// generalised over [MaterialPanel.textureSlots]' five keys instead of one
+/// hand-written parameter each.
+typedef TextureSlotController = ({
+  String? name,
+  VoidCallback onChoose,
+  VoidCallback? onClear,
+});
+
+/// One texture slot's own row: a label, the image it holds (or none), and
+/// the choose/clear pair [MaterialPanel.textureSlots] hands it.
+class _TextureSlotRow extends StatelessWidget {
+  const _TextureSlotRow({
+    required this.label,
+    required this.controller,
+  });
+
+  final String label;
+  final TextureSlotController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.only(top: 4),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Text(label, style: theme.textTheme.bodySmall),
+          Row(
+            children: <Widget>[
+              Expanded(
+                child: Text(
+                  controller.name ?? 'None',
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    fontStyle: controller.name == null
+                        ? FontStyle.italic
+                        : FontStyle.normal,
+                  ),
+                ),
+              ),
+              TextButton(
+                onPressed: controller.onChoose,
+                child: const Text('Choose…'),
+              ),
+              if (controller.onClear != null)
+                TextButton(
+                  onPressed: controller.onClear,
+                  child: const Text('Clear'),
+                ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 /// The selected object's materials, and the fields of whichever it is
 /// painted with.
 class MaterialPanel extends StatelessWidget {
@@ -118,9 +183,7 @@ class MaterialPanel extends StatelessWidget {
     required this.onAddMaterial,
     required this.onSetField,
     this.metallicEnabled = true,
-    required this.onChooseBaseColorTexture,
-    this.onClearBaseColorTexture,
-    this.textureName,
+    required this.textureSlots,
   });
 
   /// Every material the project has, so a person can paint the held object
@@ -138,7 +201,8 @@ class MaterialPanel extends StatelessWidget {
 
   /// A field of [activeIndex]'s own material committed —
   /// [SetMaterialField]'s own vocabulary (`baseColor`, `metallic`,
-  /// `roughness`).
+  /// `roughness`, `emissive`, `emissiveStrength`, `normalScale`,
+  /// `occlusionStrength`, `alphaMode`, `alphaCutoff`).
   final void Function(String field, Object? value) onSetField;
 
   /// Whether the metallic slider should respond — false for a shader with no
@@ -146,15 +210,12 @@ class MaterialPanel extends StatelessWidget {
   /// [metallicIsMeaningful] in `material_editing.dart`.
   final bool metallicEnabled;
 
-  /// "Choose an image…" was pressed for the base colour slot.
-  final VoidCallback onChooseBaseColorTexture;
-
-  /// Null when the slot is already empty — nothing to clear.
-  final VoidCallback? onClearBaseColorTexture;
-
-  /// What the base colour slot's own image is called, or null for an empty
-  /// slot.
-  final String? textureName;
+  /// One controller per [SetTexture] slot name — `albedo`, `normal`,
+  /// `metallicRoughness`, `occlusion`, `emissive` — the same five
+  /// `writeFmat` names under `textures`. A slot missing from the map is not
+  /// drawn, rather than drawn disabled, since every caller today supplies
+  /// all five.
+  final Map<String, TextureSlotController> textureSlots;
 
   @override
   Widget build(BuildContext context) {
@@ -172,6 +233,14 @@ class MaterialPanel extends StatelessWidget {
         builtInMaterialHints['metallic']!.kind as RangeHint;
     final RangeHint roughnessHint =
         builtInMaterialHints['roughness']!.kind as RangeHint;
+    final ColorHint emissiveHint =
+        builtInMaterialHints['emissive']!.kind as ColorHint;
+    final RangeHint normalScaleHint =
+        builtInMaterialHints['normalScale']!.kind as RangeHint;
+    final RangeHint occlusionStrengthHint =
+        builtInMaterialHints['occlusionStrength']!.kind as RangeHint;
+    final EnumHint alphaModeHint =
+        builtInMaterialHints['alphaMode']!.kind as EnumHint;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -241,33 +310,181 @@ class MaterialPanel extends StatelessWidget {
             onChanged: (double v) => onSetField('roughness', v),
           ),
           const SizedBox(height: 6),
-          Text('Base colour texture', style: theme.textTheme.bodySmall),
+          Text(
+            builtInMaterialHints['emissive']!.label ?? 'Emissive',
+            style: theme.textTheme.bodySmall,
+          ),
+          ColorField(
+            value: <double>[surface.emissive.x, surface.emissive.y, surface.emissive.z],
+            channels: emissiveHint.channels,
+            // Stored the same way `baseColor` is — see that field's own
+            // comment; nothing in this engine's writers gamma-corrects
+            // either on the way in or out.
+            linear: false,
+            onChanged: (List<double> next) => onSetField('emissive', next),
+          ),
+          const SizedBox(height: 6),
           Row(
             children: <Widget>[
-              Expanded(
+              SizedBox(
+                width: 96,
                 child: Text(
-                  textureName ?? 'None',
-                  overflow: TextOverflow.ellipsis,
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    fontStyle: textureName == null
-                        ? FontStyle.italic
-                        : FontStyle.normal,
-                  ),
+                  builtInMaterialHints['alphaMode']!.label ?? 'Alpha',
+                  style: theme.textTheme.bodySmall,
                 ),
               ),
-              TextButton(
-                onPressed: onChooseBaseColorTexture,
-                child: const Text('Choose…'),
-              ),
-              if (onClearBaseColorTexture != null)
-                TextButton(
-                  onPressed: onClearBaseColorTexture,
-                  child: const Text('Clear'),
+              Expanded(
+                child: DropdownButton<String>(
+                  isDense: true,
+                  isExpanded: true,
+                  value: surface.alphaMode.name,
+                  items: <DropdownMenuItem<String>>[
+                    for (final value in alphaModeHint.values)
+                      DropdownMenuItem<String>(
+                        value: value.value,
+                        child: Text(value.label),
+                      ),
+                  ],
+                  onChanged: (String? mode) {
+                    if (mode != null) onSetField('alphaMode', mode);
+                  },
                 ),
+              ),
             ],
+          ),
+          if (surface.alphaMode == SurfaceAlphaMode.mask)
+            _SliderRow(
+              label: 'Cutoff',
+              value: surface.alphaCutoff,
+              min: 0.0,
+              max: 1.0,
+              onChanged: (double v) => onSetField('alphaCutoff', v),
+            ),
+          for (final entry in textureSlots.entries)
+            _TextureSlotRow(
+              label: switch (entry.key) {
+                'albedo' => 'Base colour texture',
+                'normal' => 'Normal map',
+                'metallicRoughness' => 'Metallic-roughness map',
+                'occlusion' => 'Occlusion map',
+                'emissive' => 'Emissive map',
+                _ => entry.key,
+              },
+              controller: entry.value,
+            ),
+          const SizedBox(height: 4),
+          _MaterialAdvancedSection(
+            normalScale: surface.normalTexture == null
+                ? null
+                : (
+                    min: normalScaleHint.min,
+                    max: normalScaleHint.max,
+                    value: surface.normalScale,
+                    onChanged: (double v) => onSetField('normalScale', v),
+                  ),
+            occlusionStrength: surface.occlusionTexture == null
+                ? null
+                : (
+                    min: occlusionStrengthHint.min,
+                    max: occlusionStrengthHint.max,
+                    value: surface.occlusionStrength,
+                    onChanged: (double v) =>
+                        onSetField('occlusionStrength', v),
+                  ),
+            emissiveStrength: (
+              min: 0.0,
+              max: 8.0,
+              value: surface.emissiveStrength,
+              onChanged: (double v) => onSetField('emissiveStrength', v),
+            ),
+            doubleSided: (
+              value: surface.doubleSided,
+              onChanged: (bool v) => onSetField('doubleSided', v),
+            ),
           ),
         ],
       ],
+    );
+  }
+}
+
+/// One `(min, max, value, onChanged)` quadruple for an advanced slider — the
+/// two texture-modulated ones only applying while the map they modulate is
+/// actually bound, [MaterialPanel.build] decides; emissive strength has no
+/// [builtInMaterialHints] entry of its own, so this carries its own bounds
+/// rather than a [RangeHint] every slider would otherwise need one of.
+typedef _AdvancedSlider = ({
+  double min,
+  double max,
+  double value,
+  ValueChanged<double> onChanged,
+});
+
+/// A checkbox's own value and setter, the same shape [_AdvancedSlider] is.
+typedef _AdvancedToggle = ({bool value, ValueChanged<bool> onChanged});
+
+/// The parameters a material rarely needs to touch, behind one disclosure —
+/// `mat-04`'s own "«Дополнительно»": [normalScale] and [occlusionStrength]
+/// only mean anything once their own map is bound, and
+/// [SurfaceMaterial.doubleSided] is a flag most materials never set.
+class _MaterialAdvancedSection extends StatelessWidget {
+  const _MaterialAdvancedSection({
+    required this.normalScale,
+    required this.occlusionStrength,
+    required this.emissiveStrength,
+    required this.doubleSided,
+  });
+
+  final _AdvancedSlider? normalScale;
+  final _AdvancedSlider? occlusionStrength;
+  final _AdvancedSlider emissiveStrength;
+  final _AdvancedToggle doubleSided;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Theme(
+      data: theme.copyWith(dividerColor: Colors.transparent),
+      child: ExpansionTile(
+        key: const ValueKey<String>('materialAdvanced'),
+        tilePadding: EdgeInsets.zero,
+        title: Text('Advanced', style: theme.textTheme.bodySmall),
+        childrenPadding: EdgeInsets.zero,
+        children: <Widget>[
+          _SliderRow(
+            label: 'Emissive strength',
+            value: emissiveStrength.value,
+            min: emissiveStrength.min,
+            max: emissiveStrength.max,
+            onChanged: emissiveStrength.onChanged,
+          ),
+          if (normalScale != null)
+            _SliderRow(
+              label: 'Normal scale',
+              value: normalScale!.value,
+              min: normalScale!.min,
+              max: normalScale!.max,
+              onChanged: normalScale!.onChanged,
+            ),
+          if (occlusionStrength != null)
+            _SliderRow(
+              label: 'Occlusion strength',
+              value: occlusionStrength!.value,
+              min: occlusionStrength!.min,
+              max: occlusionStrength!.max,
+              onChanged: occlusionStrength!.onChanged,
+            ),
+          CheckboxListTile(
+            key: const ValueKey<String>('doubleSidedCheckbox'),
+            dense: true,
+            contentPadding: EdgeInsets.zero,
+            controlAffinity: ListTileControlAffinity.leading,
+            title: Text('Double-sided', style: theme.textTheme.bodySmall),
+            value: doubleSided.value,
+            onChanged: (bool? v) => doubleSided.onChanged(v ?? false),
+          ),
+        ],
+      ),
     );
   }
 }
