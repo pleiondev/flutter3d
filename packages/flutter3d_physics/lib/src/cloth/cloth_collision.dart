@@ -1,7 +1,8 @@
 import 'dart:typed_data';
 
-import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:vector_math/vector_math.dart';
+
+import '../collision_shape.dart';
 
 /// One [CollisionShape], positioned, for a cloth to push itself out of.
 final class ClothObstacle {

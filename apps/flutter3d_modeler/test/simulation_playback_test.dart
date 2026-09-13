@@ -12,7 +12,6 @@ library;
 import 'dart:typed_data';
 
 import 'package:flutter3d/flutter3d.dart';
-import 'package:flutter3d_cloth/flutter3d_cloth.dart';
 import 'package:flutter3d_hardware/testing.dart';
 import 'package:flutter3d_modeler/src/simulation_collision_draw.dart';
 import 'package:flutter3d_modeler/src/simulation_playback.dart';

@@ -1,3 +1,14 @@
+## 0.7.0
+
+**Breaking.** Accepted `flutter3d_cloth`, because a package that only ever
+reacted to this one's own `CollisionShape`s and depended on nothing else had
+no boundary left to justify standing apart — an XPBD solver, not a second
+layer of physics. `ClothMesh`, `ClothSettings`, `ClothObstacle`,
+`pushOutsideObstacle` and `stepCloth` now live under `src/cloth/` and export
+through this package's own barrel; `flutter3d_cloth` itself is gone from the
+workspace. It was never published, so there is nothing to discontinue on
+pub.dev.
+
 ## 0.6.0
 
 * **No code, and no floor to move.** `lib/` is byte for byte 0.5.1's — the

@@ -28,7 +28,7 @@ dependencies:
   # step, the levels, the actors and the saves live since they stopped needing
   # Flutter — `flutter3d_game` still re-exports it, and this package uses it
   # directly enough to say so.
-  flutter3d_physics: ^0.6.0
+  flutter3d_physics: ^0.7.0
   flutter3d_sim: ^0.6.0
 
   # Only `bridge.dart` imports this — the view model of a weapon held in the

@@ -1,9 +1,15 @@
-/// Collision and character movement, with nothing above them.
+/// Collision, character movement and cloth, with nothing above them.
 ///
 /// Shapes that overlap exactly, a broadphase over a uniform grid, sweeps and
 /// rays that do not tunnel, and a controller that walks, jumps, climbs a step
 /// and rides a lift. Nothing here knows what a monster is, what a level is, or
 /// how a frame is drawn.
+///
+/// **`src/cloth/` was its own package once** — an XPBD solver reacting to
+/// this package's own [CollisionShape]s and depending on nothing else, which
+/// made "a package of its own" the only reason it stayed apart. It moved
+/// here rather than the other way round because collision is the older,
+/// larger half and cloth is the one thing that only ever pushed against it.
 ///
 /// **Plain Dart.** No Flutter and no `flutter3d`, so the whole of it runs under
 /// `dart test` on the VM. That is not tidiness: the failures this code has are
@@ -24,6 +30,10 @@
 library;
 
 export 'src/character_controller.dart';
+export 'src/cloth/cloth_collision.dart';
+export 'src/cloth/cloth_mesh.dart';
+export 'src/cloth/cloth_settings.dart';
+export 'src/cloth/xpbd_solver.dart';
 export 'src/collider.dart';
 export 'src/collision_shape.dart';
 export 'src/collision_world.dart';

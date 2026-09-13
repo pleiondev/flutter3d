@@ -49,7 +49,6 @@ workspace:
   - packages/flutter3d_game_platformer
   - packages/flutter3d_game_racing
   - packages/flutter3d_physics
-  - packages/flutter3d_cloth
   - packages/flutter3d_rig
   - packages/flutter3d_render_job
   - packages/flutter3d_screens

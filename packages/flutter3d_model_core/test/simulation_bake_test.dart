@@ -4,8 +4,8 @@
 ///     dart test test/simulation_bake_test.dart
 library;
 
-import 'package:flutter3d_cloth/flutter3d_cloth.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
+import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:test/test.dart';
 
 BakeSimulationCommand bake({int frameCount = 120}) => BakeSimulationCommand(

@@ -49,14 +49,11 @@ dependencies:
     path: ../../packages/flutter3d_model_mcp
 
   # `CollisionShape`, for drawing what a played-back simulation collides
-  # against — `pro-sim-04`.
+  # against — `pro-sim-04` — and `ClothObstacle`, the position+shape pair
+  # `pro-sim-01`'s solver collides a cloth against, reused for the same
+  # overlay. One package now: cloth moved into `flutter3d_physics` itself.
   flutter3d_physics:
     path: ../../packages/flutter3d_physics
-
-  # `ClothObstacle`, the position+shape pair `pro-sim-01`'s solver collides
-  # a cloth against — reused, not reimplemented, for the same overlay.
-  flutter3d_cloth:
-    path: ../../packages/flutter3d_cloth
 
   # The surface a frame reaches Flutter through, and the frame clock with it.
   flutter3d_session:

@@ -15,7 +15,7 @@ import 'dart:typed_data';
 ///
 /// **Every frame the same length, `3 * vertexCount`** — x/y/z per vertex,
 /// flat, the same layout `ClothMesh.positions` already uses in
-/// `flutter3d_cloth`, so a frame can be set straight into a mesh upload
+/// `flutter3d_physics`, so a frame can be set straight into a mesh upload
 /// without walking it into vectors first. [BakeSimulationCommand] is what
 /// fills one of these in, one frame — one chunk — at a time.
 final class SimulationCache {

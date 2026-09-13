@@ -21,7 +21,7 @@ dependencies:
   # The engine half. Everything here is content it takes as an argument.
   flutter3d_game: ^0.6.0
 
-  flutter3d_physics: ^0.6.0
+  flutter3d_physics: ^0.7.0
 
   # The renderer, spent by exactly one file — `bridge.dart`, which the isolation
   # test names. The road has to become triangles somewhere.
