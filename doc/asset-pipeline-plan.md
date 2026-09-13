@@ -1,851 +1,872 @@
-# Конвейер ассетов — план первого трека тулинга
+# The asset pipeline — the first tooling track's plan
 
-Свод от 2026-09-11. Основание — решения владельца 2026-09-11 после гэп-анализа
-тулинга (16 вопросов, ответы — в §3) и раздел ROADMAP «Assets that build
-themselves». Всё, что сказано о коде, проверено по дереву на ветке `modeler`
-в тот же день.
+Compiled 2026-09-11. Grounded in the owner's own 2026-09-11 decisions
+following the tooling gap analysis (16 questions, answers in §3) and the
+ROADMAP's "Assets that build themselves" section. Everything said about the
+code was checked against the tree on the `modeler` branch the same day.
 
-Обозначения — как в [model-editor-plan.md](model-editor-plan.md): **р.** —
-размер для одного человека (S — до недели, M — две–три, L — месяц и больше);
-**⚙** — правка движка; **⇢ X** — пункт поглощает пункт X другого плана, id там
-остаётся для ссылок. Пакеты: `build` = новый `flutter3d_build`, `formats` =
-`flutter3d_formats`, `engine` = `flutter3d`, `impeller` = `flutter3d_impeller`,
-`template` = `apps/flutter3d_template_app`.
-
----
-
-## 1. Коротко
-
-1. **Цель.** Новый проект доходит до первого кадра с текстурированной моделью
-   так: `flutter create`, `flutter pub add flutter3d`, `dart run flutter3d:init`,
-   `flutter run`. Ни одного скрипта руками — ни сборки шейдеров, ни конвертера.
-2. **Механизм — build hook, а не отдельный шаг.** Hook конвертирует исходники
-   моделей в `.f3d`, сжимает текстуры в KTX2 с мипами и собирает шейдерный
-   бандл. Тот же код доступен как `dart run flutter3d:convert`.
-3. **Data assets на stable нет.** В Flutter 3.47 hooks включены по умолчанию на
-   stable, а `dartDataAssets` доступен только на master
-   (`flutter_tools/lib/src/features.dart`). Поэтому hook пишет в
-   сгенерированный каталог, который перечислен в pubspec; спайк ap-00
-   подтверждает это на четырёх платформах до того, как на этом что-то строится.
-4. **Hook — это Dart без Flutter.** Всё, что он вызывает, живёт в пакетах без
-   Flutter SDK. Декодеры уже там (`formats`); контейнер KTX2 и транскодер ETC1S
-   ещё в движке и переезжают (ap-01).
-5. **Сроки.** 12 S и 3 M. Сумма по верхней границе — ≈ 19,5 недели одного
-   человека. Критический путь при параллельных дорожках — ≈ 10 недель
-   (§4.2). ROADMAP уже признаёт квартал переполненным; этот трек — тот, что
-   остаётся при сокращении.
+Notation — as in [model-editor-plan.md](model-editor-plan.md): **size** —
+how big for one person (S up to a week, M two to three, L a month or more);
+**⚙** — an engine change; **⇢ X** — an item absorbs item X from another
+plan, whose id stays for reference. Packages: `build` = the new
+`flutter3d_build`, `formats` = `flutter3d_formats`, `engine` = `flutter3d`,
+`impeller` = `flutter3d_impeller`, `template` = `apps/flutter3d_template_app`.
 
 ---
 
-## 2. Что есть сейчас
+## 1. In short
 
-| Что | Где | Состояние |
+1. **The goal.** A new project reaches its first frame with a textured model
+   through: `flutter create`, `flutter pub add flutter3d`, `dart run
+   flutter3d:init`, `flutter run`. Not one manual script — no shader build,
+   no converter.
+2. **The mechanism is a build hook, not a separate step.** The hook converts
+   source models into `.f3d`, compresses textures into KTX2 with mip chains,
+   and assembles the shader bundle. The same code is also available as
+   `dart run flutter3d:convert`.
+3. **There are no data assets on stable.** In Flutter 3.47, hooks are on by
+   default on stable, but `dartDataAssets` is only available on master
+   (`flutter_tools/lib/src/features.dart`). So the hook writes to a
+   generated directory listed in the pubspec; spike ap-00 confirms this on
+   four platforms before anything is built on top of it.
+4. **A hook is Dart with no Flutter.** Everything it calls lives in packages
+   with no Flutter SDK. The decoders are already there (`formats`); the KTX2
+   container and the ETC1S transcoder are still in the engine and are moving
+   (ap-01).
+5. **Timing.** 12 S items and 3 M items. Summed at the upper bound, ≈ 19.5
+   weeks for one person. The critical path with parallel tracks is ≈ 10
+   weeks (§4.2). The ROADMAP already admits the quarter is overbooked; this
+   track is the one that survives a cut.
+
+---
+
+## 2. What exists today
+
+| What | Where | State |
 |---|---|---|
-| Конвертер в `.f3d` | `packages/flutter3d/tool/convert_asset.dart` | glTF/GLB/OBJ → `.f3d`, единственная опция `-o`. Лежит в `tool/`, поэтому из чужого проекта `dart run` его не находит |
-| Писатель контейнера | `F3dWriter` в `formats` | есть, без Flutter |
-| Сравнение документов | `document_compare.dart` в `formats` | есть — основа приёмки «конвертированное = исходное» |
-| Чтение KTX2, транскодер ETC1S | `packages/flutter3d/lib/src/engine/assets/ktx2/` | есть, **в пакете с Flutter SDK** |
-| Энкодер текстур | — | нет; пункт ROADMAP, в плане моделлера `fmt-22` и `mat-30` |
-| Шейдерный бандл Impeller | `dart run flutter3d_impeller:build_shaders` → `tool/build_shaders.sh` | ручной шаг; стоит в quickstart и однажды сделал красной macOS-сборку |
-| GLSL для WebGL2/WebGPU | `flutter3d_webgl/tool/generate_shaders.dart` | генерируется в репозитории и коммитится; в hook не нужен |
-| Загрузка модели | `decodeModelInIsolate` + `BundleAssetSource` | по пути ассета, формат по расширению или магии |
-| Шаблон приложения | `apps/flutter3d_template_app` | ассеты `assets/levels/`, `assets/models/` объявлены каталогами |
-| Сборщик бандла из hook | `flutter_gpu_shaders` 0.5.2 на pub.dev | существует, зависит от `hooks` ^2.0 и `data_assets` ^0.20 |
+| A `.f3d` converter | `packages/flutter3d/tool/convert_asset.dart` | glTF/GLB/OBJ → `.f3d`, one option, `-o`. Lives under `tool/`, so `dart run` from another project can't find it |
+| A container writer | `F3dWriter` in `formats` | exists, no Flutter |
+| Document comparison | `document_compare.dart` in `formats` | exists — the basis for a "converted equals original" acceptance check |
+| Reading KTX2, the ETC1S transcoder | `packages/flutter3d/lib/src/engine/assets/ktx2/` | exists, **in a package with the Flutter SDK** |
+| A texture encoder | — | none; a ROADMAP item, `fmt-22` and `mat-30` in the modeler plan |
+| The Impeller shader bundle | `dart run flutter3d_impeller:build_shaders` → `tool/build_shaders.sh` | a manual step; it's in the quickstart and once broke a macOS build |
+| GLSL for WebGL2/WebGPU | `flutter3d_webgl/tool/generate_shaders.dart` | generated in the repo and committed; not needed in the hook |
+| Model loading | `decodeModelInIsolate` + `BundleAssetSource` | by asset path, format by extension or magic bytes |
+| The app template | `apps/flutter3d_template_app` | template models and textures declared as `assets/levels/`, `assets/models/` directories |
+| A hook bundle assembler | `flutter_gpu_shaders` 0.5.2 on pub.dev | exists, depends on `hooks` ^2.0 and `data_assets` ^0.20 |
 
 ---
 
-## 3. Решения, на которых стоит план
+## 3. The decisions this plan is built on
 
-Приняты владельцем 2026-09-11.
+Made by the owner on 2026-09-11.
 
-| Вопрос | Решение |
+| Question | Decision |
 |---|---|
-| Hook или CLI | **Оба на одном коде**: hook от `init`, CLI `flutter3d:convert` |
-| Сжатие текстур | **В этом треке**, KTX2 с полными цепочками мипов |
-| Hot reload моделей и текстур | Да, но **следующим треком** («The editors reach the running game») — он строится на выходе этого |
-| Префабы | Поверх документов уровней, **вне этого трека** |
-| Формат сцены | Новый не вводим |
-| Облачная конвертация | Нет: кодирование на машине, которая собирает |
+| A hook or a CLI | **Both, on the same code**: a hook from `init`, a CLI `flutter3d:convert` |
+| Texture compression | **In this track**, KTX2 with full mip chains |
+| Hot reload for models and textures | Yes, but **a separate, later track** ("The editors reach the running game") — it builds on this one's output |
+| Prefabs | On top of level documents, **outside this track** |
+| A scene format | No new one is introduced |
+| Cloud conversion | No: encoding happens on the machine doing the build |
 
 ---
 
-## 4. Пункты
+## 4. Items
 
-### 4.1 Таблица
+### 4.1 Table
 
-| id | Что | пакет | р. | зависит | приёмка |
+| id | What | package | size | depends | acceptance |
 |---|---|---|---|---|---|
-| ap-00 | **Спайк: hook на stable.** Пакетный hook пишет в свой `flutter3d_generated/`, перечисленный в pubspec; тот же вывод из hook приложения в его дерево. Проверка на macOS, в браузере, на Android и iOS: попал ли файл в бандл, время холодной и тёплой сборки, поведение после `flutter clean`, общий pub cache у двух проектов на разных версиях Flutter (штамп движка на выходе) | spike в `tool/` | S | — | таблица «платформа × способ → в бандле / время» в §5 этого файла; выбранный способ записан в ap-05 |
-| ap-01 ⚙ | **KTX2 ниже Flutter.** Контейнер KTX2, формат и транскодер ETC1S переезжают из `engine` в `formats`; `flutter3d` реэкспортирует, импорты снаружи не меняются | formats, engine | S | — | `dart test` в `formats` без Flutter SDK проходит на KTX2-фикстурах; сканер слоёв зелёный; публичный API `flutter3d` не изменился |
-| ap-02 | **Каркас `flutter3d_build`.** Плоский Dart (`hooks`, `formats`, `geometry`), `resolution: workspace`, баррел, регистрация в workspace, `flatDartPackages`, порядке публикации и таблице пакетов; числа пакетов в README и ARCHITECTURE в том же коммите | build | S | — | сканер и `publish_check.sh` зелёные с пакетом; `dart pub get` в пакете без Flutter SDK |
-| ap-03 | **`dart run flutter3d:convert`.** Код конвертера из `engine/tool/` в `build/lib`; тонкая обёртка в `flutter3d/bin/convert.dart`; опции `-o`, каталог на входе, `--textures auto\|bc\|etc2\|none`, `--no-mips`. Старый `tool/convert_asset.dart` удаляется в том же коммите | build, engine | S | ap-02 | из чужого проекта `dart run flutter3d:convert assets_src/Box.glb` пишет `.f3d`, который грузится без предупреждений; `--help` описывает все опции |
-| ap-04 | **Манифест и соглашение о каталогах.** Без манифеста: всё под `assets_src/` → `flutter3d_generated/` с тем же относительным путём. С `flutter3d_assets.yaml`: правила по glob (текстуры, мипы, нормали OBJ, исключения). Ошибка манифеста — предложение с номером строки | build | S | ap-02 | пустой проект собирается без манифеста; неизвестный ключ и неверный glob называют строку |
-| ap-05 | **Hook `buildAssets(input, output)`.** Обходит исходники, конвертирует через ap-03, пишет туда, куда решил ap-00, штампует выход версией формата и движка, объявляет зависимости, чтобы Flutter перезапускал hook при изменении исходника; кэш по хешу содержимого | build | M | ap-00, ap-03, ap-04 | вторая сборка без изменений ничего не конвертирует (счётчик в логе hook); изменение одного `.glb` пересобирает ровно его; штамп другой версии движка вызывает пересборку |
-| ap-06 ⚙ | **Шейдеры из hook.** Собственный `hook/build.dart` в `impeller` собирает бандл при сборке приложения (через `flutter_gpu_shaders` или прямой вызов `impellerc` — решает ap-00); `build_shaders` остаётся как ручной путь для разработки движка | impeller | M | ap-00 | macOS-сборка шаблона без вызова скрипта рисует кадр; CI-шаг ручной сборки бандла для примеров удалён и остаётся зелёным |
-| ap-07 ⚙ | **`Ktx2Writer` и энкодеры BC1/BC3/ETC2 на Dart.** ⇢ fmt-22, mat-30 (одна реализация) | formats | M | ap-01 | PSNR ≥ 30 dB на наборе Khronos через тестовый распаковщик; файл из энкодера проходит конформанс чтения на всех бэкендах; время на 2048² записано |
-| ap-08 | **Цепочка мипов.** Линейное пространство для sRGB-текстур, фильтр Кайзера, перенормировка карт нормалей на каждом уровне; альфа с сохранением покрытия для alpha-test | formats | S | ap-07 | эталонный кадр на CPU-бэкенде с моделью вдали отличается от кадра без мипов меньше порога шума; нормали на мипах единичной длины |
-| ap-09 | **Семейство сжатия по цели.** Настольные — BC; Android и iOS — ETC2; веб — оба набора, выбор при загрузке по расширениям контекста; PNG как запасной путь, когда контекст не читает ни одного | build, engine | S | ap-05, ap-08 | сборка под каждую цель содержит только нужное семейство; веб-демо на телефоне и на ноутбуке загружает разные файлы, консоль говорит какие |
-| ap-10 | **`dart run flutter3d:init`.** Пишет `hook/build.dart`, строку ассетов в pubspec, `.gitignore` для сгенерированного, dev-зависимость на `flutter3d_build`; повторный запуск ничего не меняет; `--check` сообщает о расхождениях; изменённый человеком hook не перезаписывается без `--force` | build, engine | S | ap-05 | чистый `flutter create` + `init` + `flutter run` рисует модель; второй `init` — пустой diff |
-| ap-11 ⚙ | **Загрузка по пути исходника.** `loadModelAsset('assets_src/chair.glb')` берёт сгенерированный `.f3d`; в debug без сгенерированного файла декодирует исходник и один раз предупреждает, в release — ошибка с подсказкой про `init` | engine | S | ap-05 | тест с bundle-фикстурой на оба пути; предупреждение не повторяется на каждый кадр |
-| ap-12 | **Шаблон и четыре демо на конвейере.** Модели и текстуры шаблона и игр — исходниками в `assets_src/`, сгенерированное не коммитится | template, apps | S | ap-09, ap-10, ap-11 | размер веб-сборки каждой игры до и после записан в CHANGELOG; эталонные кадры игр не изменились |
-| ap-13 | **CI и замеры.** Шаблон собирается через hook на macOS, в браузере, на Android и iOS; «конвертированное = исходное» через `document_compare` для набора Khronos; вторая сборка ничего не конвертирует; install-to-first-frame перезамерен скриптом из раздела Measurement | tool | S | ap-06, ap-12 | четыре зелёных задания; число из замера опубликовано рядом с прежним |
-| ap-14 | **Документация.** Страница «Assets» на сайте (исходники, манифест, семейства, CLI, что делать при ошибке hook); quickstart без шага шейдеров; README пакетов; CHANGELOG; числа тестов и пакетов по правилу «says N» | site, docs | S | ap-13 | `tool/structure.dart` зелёный; quickstart пройден на чистой машине по тексту страницы |
+| ap-00 | **Spike: a hook on stable.** A package hook writes into its own `flutter3d_generated/`, listed in the pubspec; the same output from an app's own hook lands in that app's own tree. Checked on macOS, in-browser, on Android and iOS: did the file land in the bundle, cold and warm build time, behavior after `flutter clean`, a shared pub cache across two projects on different Flutter versions (an engine stamp on the output) | a spike under `tool/` | S | — | a "platform × approach → in bundle / time" table in §5 of this file; the chosen approach is recorded in ap-05 |
+| ap-01 ⚙ | **KTX2 below Flutter.** The KTX2 container, format, and ETC1S transcoder move from `engine` to `formats`; `flutter3d` re-exports; outside imports don't change | formats, engine | S | — | `dart test` in `formats` with no Flutter SDK passes on KTX2 fixtures; the layer scanner is green; `flutter3d`'s public API is unchanged |
+| ap-02 | **The `flutter3d_build` skeleton.** Flat Dart (`hooks`, `formats`, `geometry`), `resolution: workspace`, a barrel, registered in the workspace, in `flatDartPackages`, in the publishing order and the package table; package counts in README and ARCHITECTURE in the same commit | build | S | — | the scanner and `publish_check.sh` are green with the package; `dart pub get` in the package with no Flutter SDK |
+| ap-03 | **`dart run flutter3d:convert`.** Converter code moves from `engine/tool/` into `build/lib`; a thin wrapper at `flutter3d/bin/convert.dart`; options `-o`, a directory as input, `--textures auto\|bc\|etc2\|none`, `--no-mips`. The old `tool/convert_asset.dart` is deleted in the same commit | build, engine | S | ap-02 | from another project, `dart run flutter3d:convert assets_src/Box.glb` writes a `.f3d` that loads with no warnings; `--help` describes every option |
+| ap-04 | **A manifest and directory convention.** With no manifest: everything under `assets_src/` → `flutter3d_generated/` at the same relative path. With `flutter3d_assets.yaml`: glob-based rules (textures, mips, OBJ normals, exclusions). A manifest error names a line number | build | S | ap-02 | an empty project builds with no manifest; an unknown key and an invalid glob name the line |
+| ap-05 | **The `buildAssets(input, output)` hook.** Walks the sources, converts via ap-03, writes to wherever ap-00 decided, stamps the output with the format and engine version, declares dependencies so Flutter reruns the hook when a source changes; a content-hash cache | build | M | ap-00, ap-03, ap-04 | a second build with no changes converts nothing (a counter in the hook's log); changing one `.glb` rebuilds exactly that file; a stamp from a different engine version triggers a rebuild |
+| ap-06 ⚙ | **Shaders from a hook.** A dedicated `hook/build.dart` in `impeller` assembles the bundle during the app build (via `flutter_gpu_shaders` or a direct `impellerc` call — ap-00 decides); `build_shaders` stays as the manual path for engine development | impeller | M | ap-00 | a macOS build of the template with no script call draws a frame; the CI step for manually building the bundle for the examples is removed and stays green |
+| ap-07 ⚙ | **A `Ktx2Writer` and BC1/BC3/ETC2 encoders in Dart.** ⇢ fmt-22, mat-30 (one implementation) | formats | M | ap-01 | PSNR ≥ 30 dB on the Khronos set via a test unpacker; a file from the encoder passes read conformance on every backend; time on 2048² is recorded |
+| ap-08 | **A mip chain.** Linear space for sRGB textures, a Kaiser filter, renormalizing normal maps at each level; coverage-preserving alpha for alpha-test | formats | S | ap-07 | a golden frame on the CPU backend with a distant model differs from the frame with no mips by less than the noise threshold; normals on mips are unit length |
+| ap-09 | **A per-target compression family.** Desktop — BC; Android and iOS — ETC2; web — both sets, chosen at load time from context extensions; PNG as a fallback when the context reads neither | build, engine | S | ap-05, ap-08 | a build for each target contains only the needed family; a web demo on a phone and on a laptop loads different files, and the console says which |
+| ap-10 | **`dart run flutter3d:init`.** Writes `hook/build.dart`, the assets line in the pubspec, a `.gitignore` for the generated directory, a dev dependency on `flutter3d_build`; running it again changes nothing; `--check` reports mismatches; a hand-edited hook is not overwritten without `--force` | build, engine | S | ap-05 | a clean `flutter create` + `init` + `flutter run` draws the model; a second `init` is an empty diff |
+| ap-11 ⚙ | **Loading by source path.** `loadModelAsset('assets_src/chair.glb')` reads the generated `.f3d`; in debug with no generated file it decodes the source and warns once, in release it errors with a hint about `init` | engine | S | ap-05 | a test with a bundle fixture covers both paths; the warning doesn't repeat every frame |
+| ap-12 | **The template and four demos on the pipeline.** Template and game models/textures live as sources under `assets_src/`, generated output is not committed | template, apps | S | ap-09, ap-10, ap-11 | each game's web-build size before and after is recorded in the CHANGELOG; game golden frames are unchanged |
+| ap-13 | **CI and measurements.** The template builds via the hook on macOS, in-browser, on Android and iOS; "converted equals original" via `document_compare` on the Khronos set; a second build converts nothing; install-to-first-frame is re-measured with the script from the Measurement section | tool | S | ap-06, ap-12 | four green jobs; the measured number is published alongside the prior one |
+| ap-14 | **Documentation.** An "Assets" page on the site (sources, the manifest, families, the CLI, what to do on a hook error); a quickstart with no shader step; package READMEs; the CHANGELOG; test and package counts under the "says N" rule | site, docs | S | ap-13 | `tool/structure.dart` is green; the quickstart works end to end on a clean machine following the page's own text |
 
-### 4.2 Порядок и критический путь
+### 4.2 Order and the critical path
 
-Две дорожки идут параллельно и встречаются в ap-09:
+Two tracks run in parallel and meet at ap-09:
 
-- **Сборка:** ap-00 → ap-02 → ap-03 → ap-04 → ap-05 — 4 S + M ≈ 6,5 недели по
-  верхней границе; ap-06 уходит в сторону сразу после ap-00.
-- **Текстуры:** ap-01 → ap-07 → ap-08 — 2 S + M ≈ 4,5 недели; готовы раньше,
-  чем ap-05.
+- **Build:** ap-00 → ap-02 → ap-03 → ap-04 → ap-05 — 4 S + M ≈ 6.5 weeks at
+  the upper bound; ap-06 branches off right after ap-00.
+- **Textures:** ap-01 → ap-07 → ap-08 — 2 S + M ≈ 4.5 weeks; ready before
+  ap-05.
 
-Дальше ap-09 → ap-10 → ap-12 → ap-13 → ap-14 (ap-11 рядом с ap-10). Критический
-путь — **ap-00, 02, 03, 04, 05, 09, 10, 12, 13, 14**: 9 S + M ≈ 11,5 недели по
-верхней границе, ≈ 10 при S в четыре дня. Сумма всех пунктов для одного
-исполнителя без параллели — 12 S + 3 M ≈ 19,5 недели.
+Then ap-09 → ap-10 → ap-12 → ap-13 → ap-14 (ap-11 alongside ap-10). The
+critical path is **ap-00, 02, 03, 04, 05, 09, 10, 12, 13, 14**: 9 S + M ≈
+11.5 weeks at the upper bound, ≈ 10 at a four-day S. The total across every
+item for a single person with no parallelism is 12 S + 3 M ≈ 19.5 weeks.
 
-С агентами хорошо отдаются ap-01 (механический перенос под сканером), ap-07 и
-ap-08 (чистая арифметика с численной приёмкой) и ap-14; плохо — ap-00 и ap-06,
-где ответ зависит от поведения тулчейна на реальных устройствах.
+Items that hand off well to agents: ap-01 (a mechanical move under the
+scanner), ap-07 and ap-08 (pure arithmetic with a numeric acceptance), and
+ap-14; items that don't: ap-00 and ap-06, where the answer depends on
+toolchain behavior on real devices.
 
 ---
 
-## 5. Итог спайка ap-00
+## 5. Spike ap-00's result
 
-Проведён 2026-09-12 на реальном тестовом Flutter-приложении
-(`ap00_spike`, полноценный проект `flutter create`, не флаг и не
-предположение) — `hook/build.dart`, зависящий только от `package:hooks`
-(не от `package:data_assets`), пишет `flutter3d_generated/stamp.txt`
-внутрь `input.packageRoot` (корень приложения, владеющего hook'ом), а
-`flutter3d_generated/` объявлен обычной строкой в `flutter: assets:`
-этого же приложения — ни одного вызова экспериментального API.
+Run 2026-09-12 on a real test Flutter application (`ap00_spike`, a full
+`flutter create` project, not a flag or an assumption) — a `hook/build.dart`
+depending only on `package:hooks` (not `package:data_assets`) writes
+`flutter3d_generated/stamp.txt` inside `input.packageRoot` (the root of the
+app that owns the hook), and `flutter3d_generated/` is declared as an
+ordinary line under this same app's `flutter: assets:` — not one call to an
+experimental API.
 
-**Способ подтверждён на всех четырёх целях.** Таблица — попал ли файл в
-собранный бандл (проверено распаковкой самого артефакта, не логом),
-холодная сборка (после `flutter clean`) и тёплая (без изменений):
+**The approach is confirmed on all four targets.** The table below shows
+whether the file landed in the built bundle (checked by unpacking the actual
+artifact, not by reading a log), a cold build (after `flutter clean`), and a
+warm one (nothing changed):
 
-| Платформа | В бандле | Холодная сборка | Тёплая сборка (не тронуто) |
+| Platform | In the bundle | Cold build | Warm build (untouched) |
 |---|---|---|---|
-| macOS (`flutter build macos --debug`) | да — `App.framework/.../flutter_assets/flutter3d_generated/stamp.txt` | 18,3 с (14,4 с сразу после `flutter clean`) | 7,5–7,8 с |
-| Chrome/web (`flutter build web --release`) | да — `build/web/assets/flutter3d_generated/stamp.txt` | 14,2 с | 13,5 с (разница тонет в самой JS/Wasm-компиляции — вклад hook отдельно не виден) |
-| Android (`flutter build apk --debug`, эмулятор `f3d probe`) | да — `assets/flutter_assets/flutter3d_generated/stamp.txt` внутри `.apk`, реально проверено запуском на эмуляторе (скриншот: экран показывает ровно то, что записал hook, через настоящий `rootBundle.loadString`, не только присутствие файла) | 29,8 с | 4,2 с |
-| iOS (`flutter build ios --debug --simulator`, симулятор `iPhone 17`) | да — `Runner.app/Frameworks/App.framework/flutter_assets/flutter3d_generated/stamp.txt` | 22,1 с | 8,7 с |
+| macOS (`flutter build macos --debug`) | yes — `App.framework/.../flutter_assets/flutter3d_generated/stamp.txt` | 18.3 s (14.4 s right after `flutter clean`) | 7.5–7.8 s |
+| Chrome/web (`flutter build web --release`) | yes — `build/web/assets/flutter3d_generated/stamp.txt` | 14.2 s | 13.5 s (the difference drowns in the JS/Wasm compilation itself — the hook's own contribution isn't separately visible) |
+| Android (`flutter build apk --debug`, emulator `f3d probe`) | yes — `assets/flutter_assets/flutter3d_generated/stamp.txt` inside the `.apk`, actually checked by running on the emulator (a screenshot: the screen shows exactly what the hook wrote, via a real `rootBundle.loadString`, not just the file's presence) | 29.8 s | 4.2 s |
+| iOS (`flutter build ios --debug --simulator`, simulator `iPhone 17`) | yes — `Runner.app/Frameworks/App.framework/flutter_assets/flutter3d_generated/stamp.txt` | 22.1 s | 8.7 s |
 
-**Кэш по зависимости работает, и это проверено сменой содержимого, а не
-только временем сборки.** Hook объявляет источник (`output.addDependency`)
-на реальный файл (`assets_src/source.txt`, аналог будущего `.glb`).
-Три состояния, все воспроизведены на macOS: (1) сборка без изменений —
-штамп не меняется вообще, ни по времени, ни по содержимому; (2) правка
-самого `hook/build.dart` без реального изменения текста — тоже не
-перезапускает (кэш дословный, не по mtime и не по факту «файл тронут»);
-(3) правка `assets_src/source.txt` — hook реально перезапускается,
-`stamp.txt` получает новое содержимое источника. Ровно то, что просит
-приёмка `ap-05`: «вторая сборка без изменений ничего не конвертирует;
-изменение одного `.glb` пересобирает ровно его».
+**The dependency-based cache works, and this was checked by changing
+content, not just by build time.** The hook declares a source
+(`output.addDependency`) on a real file (`assets_src/source.txt`, standing
+in for a future `.glb`). Three states, all reproduced on macOS: (1) an
+unchanged build — the stamp doesn't change at all, neither timestamp nor
+content; (2) editing `hook/build.dart` itself with no real text change —
+also doesn't rerun (the cache is content-exact, not by mtime or by "the file
+was touched"); (3) editing `assets_src/source.txt` — the hook actually
+reruns, `stamp.txt` picks up the new source content. Exactly what ap-05's
+own acceptance asks for: "a second build with no changes converts nothing;
+changing one `.glb` rebuilds exactly that file."
 
-**`flutter clean` не оставляет сирот.** Удаляет `.dart_tool` (где живёт
-состояние hooks_runner) и `build/`; следующая сборка честно пересобирает
-`stamp.txt` заново, никакого зависшего файла или неверного кэша.
+**`flutter clean` leaves no orphans.** It removes `.dart_tool` (where the
+hooks_runner state lives) and `build/`; the next build honestly rebuilds
+`stamp.txt` from scratch, no stale file, no stale cache.
 
-**Гипотеза §7 про общий pub cache — не подтвердилась, и причина в самом
-протоколе hooks, а не в удаче.** Прогнан второй, независимый проект на
-другой версии Flutter/Dart (через `fvm`, Flutter 3.47.2 / Dart 3.13.2 —
-основной 3.47.0 / 3.13.0) с тем же `hook/build.dart` — собрался чисто
-(после `flutter clean`, устраняющего артефакт совсем другого рода —
-абсолютные пути в сгенерированных Xcode-конфигах, которые скопировались
-вместе с уже собранным проектом; это находка про `cp -r` тестовой
-методики, а не про hooks), дал свой собственный, не совпадающий с первым
-проектом `stamp.txt`, и не тронул чужой. **Причина, почему риска нет
-именно в этой архитектуре:** `input.packageRoot` в протоколе `hooks`
-всегда указывает на пакет, которому ПРИНАДЛЕЖИТ исполняемый `hook/build.dart`
-— а `ap-10` пишет этот файл в САМО приложение, не в `flutter3d_build`.
-Значит вывод hook'а всегда попадает в дерево приложения, а не в
-`~/.pub-cache/hosted/pub.dev/flutter3d_build-x.y.z/`, где он был бы
-общим для всех проектов, зависящих от этой версии пакета — риск из §7
-описывает опасность, которая была бы реальной при другой раскладке
-(вывод внутри пакета-зависимости), но не материализуется при той, что
-уже выбрана этим планом («Оба на одном коде»: `flutter3d_build` даёт
-код `buildAssets()`, тонкий `hook/build.dart` в приложении его вызывает
-и владеет своим собственным `packageRoot`). **Следствие: штамп версии
-движка на выходе — не защита от коллизии кэша (её и не требовалось), а
-отдельный вопрос ap-05 — нужен ли он для совместимости ФОРМАТА
-(`.f3d`/KTX2 могут поменять кодировку между версиями движка), что
-решает уже сам ap-05, не этот спайк.**
+**§7's shared-pub-cache hypothesis did not hold up, and the reason is the
+hooks protocol itself, not luck.** A second, independent project was run on
+a different Flutter/Dart version (via `fvm`, Flutter 3.47.2 / Dart 3.13.2 —
+the primary one being 3.47.0 / 3.13.0) with the same `hook/build.dart` — it
+built cleanly (after a `flutter clean` that cleared an entirely different
+kind of artifact — absolute paths in generated Xcode configs that had been
+copied along with the already-built project; a finding about the `cp -r`
+step of the test methodology itself, not about hooks), produced its own
+`stamp.txt`, distinct from the first project's, and didn't touch the other
+one. **Why there is no risk in this exact architecture:** in the `hooks`
+protocol, `input.packageRoot` always points to the package that OWNS the
+running `hook/build.dart` — and `ap-10` writes this file into the
+application ITSELF, not into `flutter3d_build`. So the hook's output always
+lands in the application's own tree, never in
+`~/.pub-cache/hosted/pub.dev/flutter3d_build-x.y.z/`, where it would be
+shared across every project depending on that package version — §7's risk
+describes a real danger under a different layout (output living inside a
+dependency package), but it doesn't materialize under the one this plan
+already chose ("Both, on the same code": `flutter3d_build` provides the
+`buildAssets()` code, and a thin `hook/build.dart` in the application calls
+it and owns its own `packageRoot`). **Consequence: the engine-version stamp
+on the output is not a defense against a cache collision (none was needed)
+— it's a separate ap-05 question, whether it's needed for FORMAT
+compatibility (`.f3d`/KTX2 encoding could change between engine versions),
+which ap-05 itself decides, not this spike.**
 
-**Настоящая находка, не предполагавшаяся заранее.** `package:data_assets`'s
-собственная документация (не только `dartDataAssets`'s отсутствие на
-stable/beta в `flutter_tools/lib/src/features.dart` — там ровно одна
-запись, `master: FeatureChannelSetting(available: true)`, без `beta`/
-`stable` вовсе) прямо помечена «Status: Experimental» и живёт в паблишере
-`labs.dart.dev`; а сам пакет `hooks`'s собственный пример «assets вручную»
-комментирует альтернативный путь — протащить произвольные байты как
-`CodeAsset` с `DynamicLoadingBundled()` — строкой `// TODO: Change to
-DataAsset once the Dart/Flutter SDK can consume it`. То есть отсутствие
-data-asset пути на stable признаёт сам пакет, а не только внешнее
-наблюдение этого плана. Путь через `CodeAsset` отклонён для `ap-05`: он
-рассчитан на динамическую библиотеку, читаемую через `dart:ffi`, а не
-через `rootBundle` — для модели/текстуры это худшее соответствие, чем
-обычный файл в объявленном `assets:`-каталоге, который уже работает и
-не тянет FFI туда, где ему нечего делать.
+**A real finding, not anticipated in advance.** `package:data_assets`'s own
+documentation (not only `dartDataAssets`'s absence on stable/beta in
+`flutter_tools/lib/src/features.dart` — that file has exactly one entry,
+`master: FeatureChannelSetting(available: true)`, with no `beta`/`stable`
+entries at all) is directly marked "Status: Experimental" and lives under
+the `labs.dart.dev` publisher; and the `hooks` package's own "manual assets"
+example comments on an alternative path — smuggling arbitrary bytes through
+as a `CodeAsset` with `DynamicLoadingBundled()` — with the line `// TODO:
+Change to DataAsset once the Dart/Flutter SDK can consume it`. So the
+package itself, not just this plan's outside observation, admits there is
+no data-asset path on stable. The `CodeAsset` path is rejected for `ap-05`:
+it's meant for a dynamic library read through `dart:ffi`, not through
+`rootBundle` — a worse fit for a model or texture than an ordinary file in a
+declared `assets:` directory, which already works and doesn't drag FFI in
+where it has no business being.
 
-**Выбранный способ — записан для `ap-05`:** hook (`package:hooks`, без
-`package:data_assets`) пишет обычные файлы в `flutter3d_generated/`
-внутри `input.packageRoot` приложения; этот каталог объявлен как
-`flutter: assets:` в `pubspec.yaml` приложения (пишет `ap-10`); кэш
-пересборки — через `output.addDependency` на каждый реальный исходник,
-не на сам скрипт hook'а. Работает одинаково на всех четырёх целях без
-специального кода на платформу.
+**The chosen approach — recorded for `ap-05`:** a hook (`package:hooks`,
+no `package:data_assets`) writes ordinary files into `flutter3d_generated/`
+inside the application's `input.packageRoot`; that directory is declared as
+`flutter: assets:` in the application's `pubspec.yaml` (written by `ap-10`);
+rebuild caching goes through `output.addDependency` on each real source
+file, not on the hook script itself. Works the same way on all four targets
+with no platform-specific code.
 
-**Что не проверено, честно:** ни один из четырёх симуляторов/эмуляторов
-не «настоящий телефон» (та же оговорка, что и у `wg-00`/`rp-00` во всей
-предыдущей сессии) — но это то же самое окружение, что уже использовалось
-там для аналогичных замеров, не занижение усилий. Тестовое Flutter-
-приложение спайка (`ap00_spike`) не оставлено в дереве: его форма —
-полноценный `flutter create` со сгенерированными `macos/`/`ios/`/
-`android/`/`web/`-каталогами — не совпадает с уже принятым видом спайков
-под `tool/` (`webgpu_spike` — плоский Dart-пакет без платформенных
-каталогов); ценность спайка — в записанном здесь выводе, а не в
-одноразовом харнессе, который устареет вместе с версией Flutter SDK,
-под которую он сгенерирован. Реальный `.glb`/KTX2-конвертер здесь не
-запускался — только текстовый файл-заглушка; время работы настоящего
-конвертера на реальных ассетах — вопрос `ap-05`/`ap-07`, не этого спайка.
-
----
-
-## 6. Открытые вопросы — до старта ap-02
-
-1. **Отдельный пакет `flutter3d_build` или hook-хелперы в `formats`.** План
-   исходит из отдельного: `formats` тогда не тянет `hooks` в каждое приложение,
-   которому нужен только декодер. Цена — ещё один пакет в наборе.
-2. **`assets_src/` рядом с `assets/` или исходники прямо в `assets/`.** План
-   исходит из отдельного каталога: в бандл не попадают исходные `.glb` рядом со
-   своими `.f3d`.
-3. **Веб: оба семейства или Basis ETC1S.** Оба набора — вдвое больше файлов на
-   сервере, но работает сейчас; Basis — один файл, но это `fmt-23` размера L и
-   решение «порт / FFI / сервер».
-4. **ASTC в этом треке или позже.** iOS и современный Android читают ASTC лучше
-   ETC2 по качеству, но энкодер сложнее; план ставит ETC2 и откладывает ASTC.
+**What wasn't checked, honestly:** none of the four simulators/emulators is
+"a real phone" (the same caveat `wg-00`/`rp-00` carried through the whole
+prior session) — but this is the same environment already used there for
+similar measurements, not a lowered effort. The spike's test Flutter app
+(`ap00_spike`) isn't left in the tree: its shape — a full `flutter create`
+with generated `macos/`/`ios/`/`android/`/`web/` directories — doesn't match
+the already-accepted shape of spikes under `tool/` (`webgpu_spike` is a flat
+Dart package with no platform directories); the spike's value is in the
+result recorded here, not in a one-off harness that will go stale along
+with the Flutter SDK version it was generated against. No real `.glb`/KTX2
+converter ran here — only a placeholder text file; the real converter's
+running time on real assets is a question for `ap-05`/`ap-07`, not this
+spike.
 
 ---
 
-## 7. Риски
+## 6. Open questions — before ap-02 starts
 
-- **Hook на stable ведёт себя по-разному на платформах.** Поэтому ap-00 — первым
-  и с таблицей, а не с мнением — снят: таблица в §5 одинакова на всех
-  четырёх целях.
-- **Запись в каталог пакета внутри pub cache.** ~~Работает, но один кэш на
-  несколько проектов с разными версиями Flutter даст чужой бандл~~ — не
-  подтвердилось спайком ap-00 (§5): вывод hook'а попадает в
-  `input.packageRoot` приложения, которому принадлежит `hook/build.dart`
-  (его пишет `ap-10`, в само приложение), а не в каталог `flutter3d_build`
-  внутри `~/.pub-cache` — там просто нечего писать общего. Проверено
-  двумя проектами на разных версиях Flutter (`fvm`) без взаимного влияния.
-  Штамп движка на выходе остаётся вопросом `ap-05`, но по другой причине —
-  совместимость формата `.f3d`/KTX2 между версиями движка, а не защита от
-  коллизии кэша.
-- **Скорость энкодера на Dart.** Если 2048² в BC кодируется дольше нескольких
-  секунд, тёплая сборка становится медленной; кэш ap-05 делает это стоимостью
-  одной сборки, а не каждой, но замер в ap-07 решает, нужен ли изолят на
-  текстуру.
-- **Квартал переполнен.** Этот трек добавлен в *Committed* без того, чтобы
-  что-то оттуда ушло; ревизия 28 сентября решает, что уходит вниз.
+1. **A separate `flutter3d_build` package, or hook helpers inside
+   `formats`.** The plan assumes a separate package: `formats` then doesn't
+   drag `hooks` into every app that only needs a decoder. The cost is one
+   more package in the set.
+2. **`assets_src/` alongside `assets/`, or sources right inside `assets/`.**
+   The plan assumes a separate directory: source `.glb` files don't end up
+   in the bundle next to their own `.f3d` output.
+3. **Web: both families, or Basis ETC1S.** Both sets mean twice as many
+   files on the server, but it works now; Basis is one file, but that's
+   `fmt-23`, an L-sized item and a "port / FFI / server" decision.
+4. **ASTC in this track or later.** iOS and modern Android read ASTC better
+   than ETC2 quality-wise, but the encoder is more complex; the plan settles
+   on ETC2 and defers ASTC.
 
 ---
 
-## 8. Что строится на этом треке дальше
+## 7. Risks
 
-- **Hot reload моделей и текстур в запущенной игре** берёт выход ap-05 и путь
-  ap-11: сохранённый файл пересобирается hook-кодом и подменяется через VM
-  service.
-- **Облако models.pleion.dev** может отдавать уже сжатую `.f3d`, собранную тем
-  же `flutter3d_build` на сервере, — сервис и сейчас читает модели пакетами
-  без Flutter.
-- **Моделлер** экспортирует в `assets_src/` проекта, и hook делает остальное.
+- **A hook on stable behaves differently across platforms.** That's why
+  ap-00 runs first, with a table rather than an opinion — resolved: the
+  table in §5 is the same across all four targets.
+- **Writing into a package directory inside the pub cache.** ~~Works, but
+  one cache shared by several projects on different Flutter versions would
+  produce someone else's bundle~~ — not confirmed by spike ap-00 (§5): the
+  hook's output lands in the `input.packageRoot` of the app that owns
+  `hook/build.dart` (written by `ap-10`, into the app itself), not into
+  `flutter3d_build`'s own directory inside `~/.pub-cache` — there's simply
+  nothing shared to write there. Checked with two projects on different
+  Flutter versions (`fvm`) with no cross-influence. The engine stamp on the
+  output stays an `ap-05` question, but for a different reason — `.f3d`/KTX2
+  format compatibility across engine versions, not cache-collision defense.
+- **Dart encoder speed.** If encoding 2048² in BC takes longer than a few
+  seconds, a warm build becomes slow; ap-05's cache makes this a one-time
+  build cost rather than a per-build one, but the measurement in ap-07
+  decides whether an isolate per texture is needed.
+- **The quarter is overbooked.** This track was added to *Committed* with
+  nothing removed to make room; the September 28 review decides what drops.
 
 ---
 
-## 9. Итоги пунктов
+## 8. What builds on this track next
 
-По мере закрытия — тем же форматом, что `doc/tooling-plan.md` уже ведёт для
-своих пунктов: что построено, что честно не сделано, что показали тесты.
+- **Hot reload for models and textures in a running game** takes ap-05's
+  output and ap-11's path: a saved file gets rebuilt by the hook's own code
+  and swapped in through the VM service.
+- **The models.pleion.dev cloud** can serve an already-compressed `.f3d`
+  built by the same `flutter3d_build` on a server — the service already
+  reads models package-side with no Flutter today.
+- **The modeler** exports into a project's `assets_src/`, and the hook does
+  the rest.
 
-### ap-02: каркас `flutter3d_build` — закрыт
+---
 
-Закрыт 2026-09-12. Новый плоский Dart-пакет
-(`packages/flutter3d_build/pubspec.yaml`) — `flutter3d_formats` и
-`flutter3d_geometry` (декодеры, через которые пойдёт конвертер `ap-03`) и
-`package:hooks` (контракт, который `ap-00`'s спайк уже проверил на всех
-четырёх целях — не `package:data_assets`, который сам `ap-00` отклонил как
-экспериментальный). Барель (`lib/flutter3d_build.dart`) пока ничего не
-экспортирует — «каркас» в формулировке пункта означает ровно это: пакет
-есть, резолвится, следующий код (`buildAssets()`, конвертер) ложится в него
-пунктами `ap-03`–`ap-05`.
+## 9. Item outcomes
 
-Зарегистрирован в workspace, добавлен в `flatDartPackages`
-(`tool/structure/repository.dart`) с обоснованием (тот же класс причины,
-что у `flutter3d_sim`/`flutter3d_net`: `hook/build.dart` — отдельный процесс
-без окна и без разрешимого Flutter SDK, а не более тяжёлый хук), в порядок
-публикации ARCHITECTURE.md (третий тир — сразу после `flutter3d_formats`,
-своей единственной зависимости за пределами первого тира). Числа пакетов в
-ARCHITECTURE.md/README.md/site (38 → 39) пересинхронизированы —
-`dart run tool/structure.dart` сам называет, где именно, без догадок.
+As items close — in the same format `doc/tooling-plan.md` already uses for
+its own items: what got built, what was honestly left undone, what the
+tests showed.
 
-**Настоящая находка по пути, не входившая в формулировку пункта: `tool/
-publish_check.sh` был красным ещё до этой задачи.** Четыре пакета,
-появившихся раньше в этой же сессии (`flutter3d_net`, `flutter3d_net_webrtc`,
-`flutter3d_sim_mcp`, `flutter3d_render_mcp`), не несли собственной копии
-`LICENSE` — `dart pub publish --dry-run` называл это ошибкой, а не
-предупреждением, и скрипт уже выходил не нулём до того, как `flutter3d_build`
-появился. Раз новый пакет обязан оставить `publish_check.sh` зелёным «с
-собой», дешевле и честнее было закрыть тот же класс пробела у всех пяти
-разом, чем добавить копию `LICENSE` только себе и промолчать про остальные
-четыре — им она тоже скопирована, вместе с `README.md`/`CHANGELOG.md`,
-которых тоже не хватало (та же команда `dart pub publish --dry-run`
-называла их отдельным предупреждением, тоже помешавшим бы «зелёному»
-скрипту). Заодно найдена и удалена `packages/flutter3d_xr/` — пустая, не
-отслеженная git'ом директория со сборочным кэшем от какого-то более
-раннего, оставленного эксперимента; она не значилась в workspace ни разу,
-но `publish_check.sh`'s `for dir in packages/*/` подбирал её вслепую и
-падал на отсутствующем `pubspec.yaml`, а не на реальной проверке пакета.
+### ap-02: the `flutter3d_build` skeleton — closed
 
-Проверено: `dart pub get` и `dart analyze` в `flutter3d_build` — чисто, без
-Flutter на пути резолвинга (тот же смысл, что уже даёт «flat Dart package
-resolves without the Flutter SDK» — статическая проверка графа зависимостей,
-а не буквальное удаление Flutter с машины). `bash tool/publish_check.sh` —
-`exit 0`, все пакеты `ready`, включая новый. `dart run tool/structure.dart`
+Closed 2026-09-12. A new flat Dart package
+(`packages/flutter3d_build/pubspec.yaml`) — `flutter3d_formats` and
+`flutter3d_geometry` (the decoders the `ap-03` converter will use) and
+`package:hooks` (the contract `ap-00`'s spike already checked on all four
+targets — not `package:data_assets`, which `ap-00` itself rejected as
+experimental). The barrel (`lib/flutter3d_build.dart`) exports nothing yet —
+that's exactly what "skeleton" means in the item's own wording: the package
+exists, resolves, and the next code (`buildAssets()`, the converter) lands
+in it via items `ap-03`–`ap-05`.
+
+Registered in the workspace, added to `flatDartPackages`
+(`tool/structure/repository.dart`) with a justification (the same reason
+class as `flutter3d_sim`/`flutter3d_net`: `hook/build.dart` is a separate
+process with no window and no resolvable Flutter SDK, not a heavier hook),
+into ARCHITECTURE.md's publishing order (the third tier, right after
+`flutter3d_formats`, its only dependency outside the first tier). Package
+counts in ARCHITECTURE.md/README.md/the site (38 → 39) were resynced —
+`dart run tool/structure.dart` names exactly where, with no guessing.
+
+**A real finding along the way, not part of the item's own wording:
+`tool/publish_check.sh` was already red before this task.** Four packages
+that appeared earlier in this same session (`flutter3d_net`,
+`flutter3d_net_webrtc`, `flutter3d_sim_mcp`, `flutter3d_render_mcp`) carried
+no `LICENSE` file of their own — `dart pub publish --dry-run` called this an
+error, not a warning, and the script already exited non-zero before
+`flutter3d_build` existed. Since a new package is required to keep
+`publish_check.sh` green "for itself," it was cheaper and more honest to
+close the same class of gap for all five at once than to add a `LICENSE`
+copy only to the new package and stay silent about the other four — they
+each got one too, along with `README.md`/`CHANGELOG.md`, also missing (the
+same `dart pub publish --dry-run` called those out as a separate warning,
+which would also have kept the script from being "green"). Also found and
+removed: `packages/flutter3d_xr/` — an empty, git-untracked directory
+holding a build cache from some earlier, abandoned experiment; it was never
+listed in the workspace, but `publish_check.sh`'s `for dir in packages/*/`
+picked it up blindly and failed on a missing `pubspec.yaml`, not on an
+actual package check.
+
+Checked: `dart pub get` and `dart analyze` in `flutter3d_build` — clean,
+with no Flutter on the resolution path (the same sense already given by "a
+flat Dart package resolves without the Flutter SDK" — a static dependency-
+graph check, not literally removing Flutter from the machine).
+`bash tool/publish_check.sh` — `exit 0`, every package `ready`, including
+the new one. `dart run tool/structure.dart` — 32/32.
+
+Not done, and not meant to be: the hook's actual logic (`buildAssets()`, the
+converter) — `ap-03`–`ap-05`, the next items. Separately, honestly noted —
+not something a rule checks, but noticed along the way: the prose numbers
+"Thirty-three packages"/"twenty-seven"/"twenty-five" in ARCHITECTURE.md §3
+and README.md stay whatever they were before this session (no structural
+rule reads them) — already stale before `ap-02`, along with four packages
+added earlier in this same session that also never made it in; left
+untouched here deliberately, so as not to guess at numbers nothing checks,
+not because the task judged them correct.
+
+### ap-03: `dart run flutter3d:convert` — closed
+
+Closed 2026-09-12. The converter code
+(`packages/flutter3d/tool/convert_asset.dart` and
+`convert_asset_options.dart`) moved into
+`flutter3d_build/lib/src/convert.dart`; a thin wrapper —
+`packages/flutter3d/bin/convert.dart` (`import
+'package:flutter3d_build/flutter3d_build.dart'; ... exitCode = await
+runConvert(arguments);` — exactly what the wording asks for). `flutter3d_build`
+was added to `dependencies:` (not `dev_dependencies:`) of `flutter3d`
+itself: `dart run flutter3d:convert` is called from another project, not
+from inside this repository, so only an ordinary dependency needs to travel
+with the published archive. The old
+`tool/convert_asset.dart`/`convert_asset_options.dart` were removed in the
+same commit; every real mention of the old path in doc comments, README,
+the site, and one error message (`f3d_loader.dart`'s "Re-run
+tool/convert_asset.dart" — the one place where the text was actually
+exercised by a test, `f3d_test.dart` checked exactly that string) were
+rewritten to `dart run flutter3d:convert`.
+
+**Options beyond the original `-o`, as the wording asked.** A directory as
+input — `ConvertOptions.parse` accepts a file or a directory; for a
+directory, a recursive walk over `recognisedExtensions`
+(`.obj`/`.gltf`/`.glb`/`.stl`), with `-o` in that case being a destination
+directory mirroring the sources' relative paths, and with no `-o`, a `.f3d`
+next to each source file, the same rule already used for a single file.
+`--textures auto|bc|etc2|none` — `TextureFamily`, a `final class` with
+`const` instances, not an `enum`: the plan itself already names a fifth
+candidate (ASTC) as deferred rather than rejected, meaning the set grows
+rather than closes forever — exactly the distinction the "an enum in a
+published package is machinery or is not an enum" rule asks to be made.
+`--no-mips` — a boolean flag.
+
+**Honestly, not silently: neither new flag has any effect on the output
+today, and the tool says so itself rather than pretending.** There is no
+texture encoder yet (`ap-07`), no mip-chain generator yet (`ap-08`) —
+`F3dWriter` today writes images as-is, with no re-encoding of any kind,
+whatever `--textures` value is given. Every call with `--textures` set to
+anything but `none` prints `note: --textures <value> accepted, no encoder
+yet (ap-07) — textures pass through unencoded`; `--no-mips` prints a similar
+line about `ap-08`. `--textures none` prints nothing, because there's
+nothing to warn about — it's the only value whose behavior already honestly
+matches what it promises.
+
+**A real finding along the way: using `flutter3d_samples` as a fixture for
+`flutter3d_build`'s own tests would have broken the very thing the package
+is meant to solve.** `flutter3d_samples`'s pubspec carries `flutter: sdk:
+flutter` for its own `flutter.assets:`; an ordinary `dev_dependency` on it
+(the way `flutter3d`/other packages already do) would have dragged the
+Flutter SDK right back into `flutter3d_build`'s own dependency graph — the
+whole point of this item (and `ap-00`'s spike before it) is to keep that
+graph flat. `dart run tool/structure.dart` caught this immediately ("a flat
+Dart package resolves without the Flutter SDK", path
+`flutter3d_build -> flutter3d_samples`) — the tests use their own,
+hand-written minimal OBJ triangle (`test/fixtures/triangle.obj`) instead of
+`flutter3d_samples`'s real models.
+
+**A second finding, in the same vein: the converter uses `Stopwatch` to
+time itself for the CLI output, and this was the first time that code fell
+under the "a step reaches for no clock and no loose dice" rule's scan.** The
+old file lived under `tool/` (outside `lib/`) and was never scanned; moving
+it into `flutter3d_build/lib/src/` made the code visible to the rule for the
+first time. An exception entry was added to `notARepeatableStep` —
+`flutter3d_build`: "a build-time tool, not a step," the same reason class
+`flutter3d_sim`'s own `step_time_trace.dart` already carries (a profiler
+observing a step from outside, not a step itself).
+
+Thirteen tests in `flutter3d_build/test/convert_test.dart`: `--help` and no
+arguments print usage rather than crashing; a single file converts and
+round-trips against its own source; with no `-o`, the result lands next to
+the source; a directory converts everything recognizable recursively and
+leaves the unrecognized alone; a directory with `-o` mirrors relative
+paths; an unknown `--textures` value is a usage error, not a crash; both
+honest warnings print, and don't print, exactly where they should; a
+missing file names the path rather than throwing a stack trace; an already-
+`.f3d` file refuses to convert again.
+
+**Acceptance checked literally, by a second process from a neighboring
+project, not only by a unit test.** From `apps/flutter3d_editor` (a real
+project depending on `flutter3d` as an ordinary package, not from inside
+`packages/flutter3d`) — `dart run flutter3d:convert /tmp/…triangle.obj -o
+/tmp/…triangle.f3d` really resolved by the package's own name, really wrote
+the file, `dart run flutter3d:convert --help` really printed the
+description of every option. Full test suites for `flutter3d` (995),
+`flutter3d_formats` (188), `flutter3d_build` (13) — all green.
+`bash tool/publish_check.sh` — `exit 0`. `dart run tool/structure.dart` —
+32/32.
+
+Not done, honestly: actually converting textures/mip chains
+(`ap-07`/`ap-08`, the next items) — the CLI accepts and validates flags for
+them, but doesn't execute them; a call from the hook (`ap-05`) — this is the
+same function the hook will call, but the hook itself isn't written yet.
+
+### ap-04: a manifest and directory convention — closed
+
+Closed 2026-09-12. Two new files in `flutter3d_build`:
+`lib/src/layout.dart` (`AssetLayout`, the default convention) and
+`lib/src/manifest.dart` (`AssetManifest`, the optional
+`flutter3d_assets.yaml`) — both tested independently of `ap-05`'s hook,
+which doesn't exist yet: planning ("what to convert and where") and actual
+execution are two different questions, and this item answers only the
+first.
+
+**With no manifest.** `AssetLayout.plan()` walks `assets_src/` (if the
+directory doesn't exist at all, an empty plan, no error at all — this is
+what "an empty project builds with no manifest" from the acceptance means
+— not through `flutter build`, which has nowhere to come from without
+`ap-05`, but through the same method the hook will later call) and returns,
+for every recognized file, a path in `flutter3d_generated/` at the same
+relative path with the extension replaced by `.f3d` — exactly the
+convention `ap-00`'s spike already checked on all four platforms for an
+`assets:` directory.
+
+**With a manifest.** `flutter3d_assets.yaml` is a list of rules, each a
+glob plus what it overrides: `textures` (`TextureFamily` from `ap-03`),
+`mips` (bool), `objNormals` (the same `enum ObjNormals` from
+`flutter3d_formats` — a closed decoder set, hence an `enum` rather than a
+`final class`, unlike `TextureFamily`), `exclude`. The last matching rule
+wins, not the first — a broad rule on top, a narrow exclusion below it, the
+same reading order as a `.gitignore`-style overlay.
+
+**A manifest error names a line, as the acceptance asked.**
+`AssetManifest.parse` reads not a bare `Map` via `loadYaml`, but a node tree
+via `loadYamlNode` (`package:yaml`), and keeps each `YamlNode`'s `span` at
+every check — an unknown top-level key, an unknown key inside a rule, a
+syntactically invalid glob, a rule with no required `glob`, a wrong value
+type (`textures: solid` instead of one of `auto|bc|etc2|none`, `mips: "yes"`
+instead of a boolean) — each names its line through
+`ManifestFormatException.toString()`, formatted as
+`flutter3d_assets.yaml:N: message`, which an editor picks up like an
+ordinary compiler error.
+
+**A real finding, caught by a test rather than anticipated: `"**/*.obj"`
+doesn't match a file at the root of `assets_src/`.** `package:glob`'s own
+rule for `**/` requires at least one path segment before the asterisk; a
+manifest written by someone with the intuition "just add `**/` to catch
+everything" silently fails to do so for a project with no subfolder at all
+inside `assets_src/`. Documented in `manifest.dart`'s own doc comment and
+pinned down by a dedicated test (`"**.obj"` with no slash matches both the
+root and subfolders — also checked, not just claimed).
+
+Twenty tests: eleven in `manifest_test.dart` (an empty file, an empty
+`rules: []`, one glob, all four options at once, the last rule wins, the
+`**/` finding, and one per error class — an unknown top-level key and an
+unknown key inside a rule, a broken glob, an unknown `textures` value, a
+rule with no `glob`, `rules` as a non-list, syntactically broken YAML — with
+an exact line number in each case except the YAML parser's own inherent
+syntax errors); nine in `layout_test.dart` (an empty project;
+`assets_src/` with no recognizable files; the default convention for a
+top-level and a nested file; a rule-based exclusion; a rule travels with
+the plan; a broken manifest surfaces through `AssetLayout` too). The full
+`flutter3d_build` suite — 32 tests, all green. `dart run tool/structure.dart`
 — 32/32.
 
-Не сделано и не должно быть: сама логика хука (`buildAssets()`, конвертер)
-— `ap-03`–`ap-05`, следующие пункты. Отдельно, честно — не рулом
-проверяемая, но замеченная попутно стал разница: прозаические числа
-«Thirty-three packages»/«twenty-seven»/«twenty-five» в ARCHITECTURE.md §3 и
-README.md остаются такими, какими были до этой сессии (ни один
-структурный рул их не читает) — устарели ещё до `ap-02`, вместе с четырьмя
-пакетами, добавленными раньше в этой же сессии и тоже туда не попавшими;
-не тронуты здесь намеренно, чтобы не гадать на числах, которые ничто не
-проверяет, а не потому что задача сочла их верными.
+Not done, and not meant to be here: calling `AssetLayout.plan()` from the
+hook — `ap-05`, the next item; converting the files the plan named —
+`ap-03` already does this file-by-file and directory-by-directory, `ap-05`
+brings the two together.
 
-### ap-03: `dart run flutter3d:convert` — закрыт
+### ap-05: the `buildAssets(input, output)` hook — closed
 
-Закрыт 2026-09-12. Код конвертера (`packages/flutter3d/tool/convert_asset.dart`
-и `convert_asset_options.dart`) перенесён в `flutter3d_build/lib/src/convert.dart`,
-тонкая обёртка — `packages/flutter3d/bin/convert.dart` (`import
-'package:flutter3d_build/flutter3d_build.dart'; ... exitCode = await
-runConvert(arguments);` — ровно то, что просит формулировка). `flutter3d_build`
-добавлен в `dependencies:` (не `dev_dependencies:`) самого `flutter3d`: `dart
-run flutter3d:convert` вызывается из чужого проекта, а не изнутри этого
-репозитория, значит только обычная зависимость едет вместе с опубликованным
-архивом. Старые `tool/convert_asset.dart`/`convert_asset_options.dart`
-удалены в том же коммите; все реальные упоминания старого пути в
-докстрингах, README, сайте и одном сообщении об ошибке (`f3d_loader.dart`'s
-«Re-run tool/convert_asset.dart» — единственное место, где текст реально
-исполнялся тестом, `f3d_test.dart` проверял именно эту строку) переписаны на
-`dart run flutter3d:convert`.
+Closed 2026-09-12. `flutter3d_build/lib/src/build_assets.dart` —
+`buildAssets(BuildInput input, BuildOutputBuilder output)`, exactly the
+signature `package:hooks`'s own `build()` calls (actually checked by
+reading the `hooks-2.0.2` sources from `~/.pub-cache`, not assumed from
+documentation). The real logic lives in `runAssetBuild(Directory
+projectRoot, {IOSink? log})`, which `buildAssets` simply wraps: planning
+("what and where" — `ap-04`) and execution ("convert or skip" — this item)
+are two separate functions precisely because the first was already testable
+with no hook at all by `ap-04`, and the second can be tested the same way,
+with no need to construct a `BuildInput` where it isn't needed.
 
-**Опции сверх исходных `-o`, как и просила формулировка.** Каталог на входе —
-`ConvertOptions.parse` принимает файл или директорию; для директории —
-рекурсивный обход по `recognisedExtensions` (`.obj`/`.gltf`/`.glb`/`.stl`),
-`-o` в этом случае — каталог назначения, зеркалящий относительные пути
-исходников, без `-o` — `.f3d` рядом с каждым исходным файлом, тем же
-правилом, что уже было для одного файла. `--textures auto|bc|etc2|none` —
-`TextureFamily`, `final class` с `const`-экземплярами, а не `enum`: сам план
-уже называет пятого кандидата (ASTC) как отложенного, а не отвергнутого,
-значит набор растёт, а не закрыт навсегда — ровно то различие, которое
-правило «an enum in a published package is machinery or is not an enum»
-просит различать. `--no-mips` — булев флаг.
+**A content-hash cache, not a modification-time one.** For every file from
+`AssetLayout.plan()`: a SHA-256 of the source bytes (`package:crypto`), the
+format version (`kF3dVersion` from `flutter3d_formats`, already existing),
+and the pipeline version (`kAssetPipelineVersion` — a new constant, the same
+hand-written technique already giving `kF3dVersion`, applied to the pipeline
+itself rather than the container: two different questions — "will this
+build read this format version" and "has the tool that wrote it changed" —
+hence two separate stamps, not one for both). The cache is JSON, sitting
+next to the output in
+`flutter3d_generated/.flutter3d_cache.json`; a broken or missing cache file
+reads as empty (converts everything rather than crashing) — the same
+conservative decision `AssetManifest`/`AssetLayout` already made for a
+missing project.
 
-**Честно, а не молча: у обоих новых флагов сегодня нет эффекта на результат,
-и инструмент говорит об этом сам, а не притворяется.** Энкодера текстур нет
-(`ap-07`), генератора мип-цепочек нет (`ap-08`) — `F3dWriter` сегодня пишет
-изображения как есть, без какой-либо перекодировки, при любом значении
-`--textures`. Каждый вызов с `--textures`, отличным от `none`, печатает
-`note: --textures <значение> accepted, no encoder yet (ap-07) — textures
-pass through unencoded`; `--no-mips` — аналогичную строку про `ap-08`.
-`--textures none` не печатает ничего, потому что предупреждать не о чем —
-это единственное значение, чьё поведение уже честно совпадает с тем, что
-оно обещает.
+**Both acceptance lines aren't just claimed — a test shows them with an
+actual number.** "A second build with no changes converts nothing, a
+counter in the log" — `runAssetBuild` writes `flutter3d_build: N converted,
+M unchanged` to the log, and a test on two real sources checks exactly the
+string `0 converted, 2 unchanged` after the second call. "Changing one
+`.glb` rebuilds exactly that file" — a test with two sources, one actually
+rewritten with different vertices (not just a touched mtime), checks that
+`converted` contains exactly the changed file's path and `skipped` contains
+exactly the other one. "A stamp from a different engine version triggers a
+rebuild" — checked twice, separately for `pipelineVersion` and for
+`formatVersion`: the cache file is rewritten with a shifted number, and the
+next call reconverts even though the source bytes never changed.
 
-**Настоящая находка по пути: `flutter3d_samples` как фикстура для тестов
-`flutter3d_build` сломала бы саму задачу, которую пакет решает.**
-`flutter3d_samples`'s пубспек несёт `flutter: sdk: flutter` ради собственного
-`flutter.assets:` — обычный `dev_dependency` на него (как уже делают
-`flutter3d`/другие пакеты) протащил бы Flutter SDK обратно в граф
-зависимостей `flutter3d_build`, который весь пункт (и `ap-00`'s спайк до
-него) существует, чтобы держать плоским. `dart run tool/structure.dart`
-поймал это немедленно («a flat Dart package resolves without the Flutter
-SDK», путь `flutter3d_build -> flutter3d_samples`) — тесты используют
-собственный, написанный вручную минимальный OBJ-треугольник
-(`test/fixtures/triangle.obj`) вместо реальных моделей `flutter3d_samples`.
+**Acceptance checked through real `package:hooks` objects, not stand-ins.**
+`BuildInputBuilder().setupShared(packageRoot: ..., ...)` builds a real
+`BuildInput` with an explicit `packageRoot` (the library's actual class, not
+hand-rolled JSON), `buildAssets` is called directly,
+`BuildOutput(output.json)` reads back what `output.dependencies.add(...)`
+actually wrote. `package:hooks` itself offers `testBuildHook` for an
+end-to-end check through a real `main`/`input.json` on disk — not chosen
+here for a found, not anticipated, reason: `testBuildHook` hard-codes
+`Directory.current.uri` as `packageRoot`, and swapping the global working
+directory for the duration of one test really broke five other tests in
+`convert_test.dart`, because `dart test` runs a file's tests in one process
+where the current directory is shared across every isolate, not per-
+isolate. Found by running the package's full suite, not guessed —
+`BuildInputBuilder`'s own explicit `packageRoot` parameter (the same real
+class `testBuildHook` itself uses internally) gives the same honesty with
+none of that risk.
 
-**Вторая находка, туда же: конвертер использует `Stopwatch` для замера
-времени в CLI-выводе, и это впервые попало под сканирование правила «a step
-reaches for no clock and no loose dice».** Старый файл лежал в `tool/` (вне
-`lib/`) и никогда не сканировался; переезд в `flutter3d_build/lib/src/`
-сделал код видимым для правила впервые. Добавлена запись-исключение в
-`notARepeatableStep` — `flutter3d_build`: «a build-time tool, not a step»,
-тем же классом причины, что уже есть у `flutter3d_sim`'s `step_time_trace.dart`
-(профилировщик, наблюдающий шаг снаружи, а не шаг сам).
+**A real finding along the way, caught by this same test.**
+`input.packageRoot` is a directory `Uri`, so its own path ends in `/`;
+`Directory.fromUri(...).path` doesn't strip that slash, and every path built
+from it (the cache file, the logged conversion line, a declared dependency)
+would carry a doubled slash — harmless for the OS, but not for string
+comparison, and not for cache keys staying the same string across calls.
+Fixed — `buildAssets` trims `packageRoot`'s trailing slash before building
+an `AssetLayout` from it.
 
-Тринадцать тестов в `flutter3d_build/test/convert_test.dart`: `--help` и
-пустые аргументы просят usage, а не падают; один файл конвертируется и
-раунд-трип совпадает с исходником; без `-o` результат ложится рядом с
-исходником; каталог конвертирует всё распознаваемое рекурсивно и не трогает
-нераспознанное; каталог с `-o` зеркалит относительные пути; неизвестное
-значение `--textures` — ошибка использования, а не крах; оба честных
-предупреждения печатаются и не печатаются ровно там, где должны;
-отсутствующий файл называет путь, а не бросает трассу; уже `.f3d`-файл
-отказывается конвертироваться повторно.
+Twenty tests: eleven in `build_assets_test.dart` (an empty project; a fresh
+source converts once; both acceptance lines verbatim; a vanished conversion
+result is rebuilt even when the cache agrees; both version stamps
+separately; every planned source is a declared dependency whether it's
+converted or skipped; a broken cache file isn't fatal) and one in
+`build_hook_test.dart` (real `package:hooks` objects, described above). The
+full `flutter3d_build` suite — 42 tests, three runs in a row with no
+flakiness. `dart run tool/structure.dart` — 32/32.
 
-**Приёмка проверена буквально, вторым процессом из соседнего проекта, а не
-только юнит-тестом.** Из `apps/flutter3d_editor` (реального проекта,
-зависящего от `flutter3d` как от обычного пакета, а не изнутри
-`packages/flutter3d`) — `dart run flutter3d:convert /tmp/…triangle.obj -o
-/tmp/…triangle.f3d` реально резолвился по имени пакета, реально писал файл,
-`dart run flutter3d:convert --help` реально печатал описание всех опций.
-Полные наборы тестов `flutter3d` (995), `flutter3d_formats` (188),
-`flutter3d_build` (13) — зелёные. `bash tool/publish_check.sh` — `exit 0`.
+Not done, honestly: actually calling `buildAssets` from a real
+`hook/build.dart` inside a real `flutter build` — that's `ap-10`, which
+doesn't yet write that file into a project; an end-to-end check via
+`testBuildHook`/a real `flutter build` on all four platforms — `ap-00`'s
+spike already did this for the hook mechanism itself, and repeating the
+same thing here for the same mechanism with a different payload would be
+duplication, not new evidence — traded for a test that lives safely
+alongside the other forty-one in the same package.
+
+### ap-06: the shader hook — closed, except one honestly named line
+
+Closed 2026-09-12. `packages/flutter3d_impeller/hook/build.dart` — a real
+hook, calling `impellerc` directly (not `package:flutter_gpu_shaders`, which
+depends on the experimental `package:data_assets` already rejected by
+`ap-00`). Narrower than `tool/build_shaders.sh` on purpose: no
+`--package-include`, no manifest discovery, no binding table for engine
+development — only `flutter3d_impeller`'s own canonical bundle, the one
+whose names `LightingModel` already knows by heart. The manual script stays
+exactly what it was, for the broader needs of engine development.
+
+**The real logic isn't in the hook itself.**
+`lib/src/shader_bundle_build.dart`'s `buildShaderBundle(packageRoot: ...)`
+is a testable function with no `BuildInput` anywhere in its signature, the
+same split `ap-05`'s `runAssetBuild`/`buildAssets` already established.
+`hook/build.dart` is a thin wrapper under `package:hooks`'s own `build()`; a
+new `bin/build_shader_bundle.dart` is a second caller, for a reason found
+along the way, not anticipated in advance (see below).
+
+**Proven on a real build, not on a unit test with stand-ins.** The bundle
+was removed from `packages/flutter3d_impeller/assets/shaders/`, `flutter
+build macos --debug` for `apps/flutter3d_demo_dungeon` was actually run —
+the hook fired on its own, the bundle reappeared (1.1 MB, a fresh
+timestamp), the app built. With that same bundle, that same run —
+`bash packages/flutter3d_impeller/tool/conformance.sh` (real GPU, real
+Impeller/Metal) answers **35 passed, 0 failed, 0 declined**: not just
+"it built," but the whole backend contract passing on a bundle the hook
+wrote, not a person.
+
+**Real finding #1: `Platform.resolvedExecutable` isn't what it looked
+like.** Checked with `flutter build macos -v` on a throwaway project: inside
+the hook this is `<flutter_root>/bin/cache/dart-sdk/bin/dart`, and
+`$FLUTTER_ROOT` is `null` (hooks don't inherit it, so
+`build_shaders.sh`'s own fallback path, `flutter --version --machine`, has
+nowhere to run from inside a hook). This function's own test found a second
+form: `flutter test` runs code not under this Dart VM at all, but under
+`flutter_tester` — a separate headless engine at a neighboring path inside
+the same `bin/cache/artifacts/engine/`. Both forms are real, both are
+checked, `_flutterSdkRoot()` handles both.
+
+**Real finding #2: `Isolate.resolvePackageUri` is a working trick in
+`bin/skills.dart`, but not inside `flutter_test`.** The first version of
+`buildShaderBundle` resolved `flutter3d_shaders`'s directory this way — it
+worked from a real hook and from `bin/`, but failed with `Unsupported
+operation: Isolate.resolvePackageUriSync` specifically in the test
+environment. Rewritten to read `.dart_tool/package_config.json` directly —
+the same way `tool/package_root.dart` already resolves `flutter3d_shaders`
+for `build_shaders.sh` itself — ported into the package rather than reused
+directly (a `tool/` script isn't something a package can depend on). Works
+in all three contexts at once: hook, `bin/`, test.
+
+**Real finding #3, also the honest limit of one acceptance line.** "The
+manual bundle-build CI step is removed" was checked literally: the bundle
+was removed, `flutter analyze` in `flutter3d_impeller` returns `exit 1`,
+`asset_does_not_exist` on `pubspec.yaml:96`. **`flutter analyze` doesn't run
+build hooks at all** — hooks only fire on a real build, and a
+`flutter.assets:` entry is required to exist on disk by the time analysis
+runs. The only mechanism by which a hook could satisfy analysis with no
+physical file — `package:data_assets` — is the very one `ap-00` rejected as
+unstable. So "the step is removed, nothing replaces it" is, literally,
+unreachable on the current stable toolchain — not an assumption, the result
+of a direct check. Done instead: the CI step (`tool/ci.sh`, both halves of
+`.github/workflows/ci.yml` — macOS and Android) was switched from
+`./tool/build_shaders.sh` to a new, fast `dart run
+bin/build_shader_bundle.dart`, calling the exact same function the hook
+does — with no full app build, in seconds rather than `flutter build`'s own
+time. The Android (Gradle) path was not empirically checked in this
+environment the same way macOS was — an honest note was left in `ci.yml`
+itself.
+
+Two tests: `shader_bundle_build_test.dart`'s real call through a real
+`impellerc` (not a mock) with real assertions on size and on the dependency
+list; and (described above) the build + conformance run as a second, unit-
+test-external pass. The full `flutter3d_impeller` suite — 161 tests, green.
 `dart run tool/structure.dart` — 32/32.
 
-Не сделано, честно: сама конвертация текстур/мип-цепочек (`ap-07`/`ap-08`,
-следующие пункты) — CLI принимает и валидирует флаги для них, но не
-исполняет; вызов из хука (`ap-05`) — эта функция та же самая, что вызовет
-хук, но сам хук ещё не написан.
+Not done, honestly: literally "the CI step is removed with nothing
+replacing it" is unreachable on the stable toolchain, for the reason named
+above; the Android CI path isn't confirmed by a real build in this session,
+only by the same honest bash-to-Dart move as macOS;
+`packages/flutter3d/example`'s own separate bundle
+(`example.shaderbundle.json`) is untouched, outside `ap-06`'s scope, which
+names only `flutter3d_impeller`'s canonical bundle.
 
-### ap-04: манифест и соглашение о каталогах — закрыт
+### ap-01: KTX2 below Flutter — closed
 
-Закрыт 2026-09-12. Два новых файла в `flutter3d_build`:
-`lib/src/layout.dart` (`AssetLayout`, соглашение по умолчанию) и
-`lib/src/manifest.dart` (`AssetManifest`, необязательный
-`flutter3d_assets.yaml`) — оба протестированы отдельно от `ap-05`'s хука,
-которого ещё нет: планирование («что конвертировать и куда») и само
-исполнение — два разных вопроса, и этот пункт отвечает только на первый.
+Closed 2026-09-12. `packages/flutter3d_formats/lib/src/ktx2/` — the KTX2
+container (`ktx2_format.dart`), a loader (`ktx2_loader.dart`), and the ETC1S
+transcoder (`basis_universal/`), moved from `flutter3d` verbatim, with one
+signature change: `Ktx2Texture` here carries `vkFormat` (`int`, a Khronos
+number) instead of `TextureFormat`. `flutter3d`'s own `ktx2/ktx2.dart`
+shrank to a thin wrapper — `Ktx2Texture.parse` calls the container's own
+parser and maps `vkFormat` to `TextureFormat` once, through `_engineFormat`
+(moved unchanged, including the paired sRGB/UNorm handling and the error
+message for an unknown `vkFormat`), plus `export ... show` for whatever
+doesn't change between the layers (`Ktx2FormatException`, `VkFormat`,
+`isKtx2File`, `isBasisUniversalKtx2`, and the byte constants).
 
-**Без манифеста.** `AssetLayout.plan()` обходит `assets_src/` (если каталога
-нет вовсе — пустой план, ни одной ошибки; это и есть «пустой проект
-собирается без манифеста» из приёмки — не через `flutter build`, которому
-неоткуда взяться без `ap-05`, а через тот же самый метод, который хук потом
-вызовет) и отдаёт для каждого распознанного файла путь в
-`flutter3d_generated/` с тем же относительным путём и заменённым на `.f3d`
-расширением — ровно то соглашение, которое `ap-00`'s спайк уже проверил на
-всех четырёх платформах для каталога `assets:`.
+**The real reason, not a guess.** `flutter3d_hardware` (where
+`TextureFormat` lives) declares `flutter: sdk: flutter` in its own pubspec,
+even though `formats.dart` itself doesn't import Flutter in a single line —
+this isn't about a file, it's about the package resolution graph: any
+package depending on `flutter3d_hardware` for even one enum inherits the
+Flutter SDK at `dart pub get`, before a single line of source is read.
+Exactly what `the flat Dart package resolves without the Flutter SDK` in
+`tool/structure.dart` checks by walking the graph, not by grepping imports.
+So the container and the `TextureFormat` mapping couldn't stay one class
+without dragging Flutter into `flutter3d_formats` — the split into
+`vkFormat`/`TextureFormat` wasn't a stylistic choice, it was the only way to
+keep the acceptance criterion true.
 
-**С манифестом.** `flutter3d_assets.yaml` — список правил, каждое — glob
-плюс то, что оно переопределяет: `textures` (`TextureFamily` из `ap-03`),
-`mips` (bool), `objNormals` (тот же `enum ObjNormals` из `flutter3d_formats`
-— закрытый набор декодера, поэтому именно `enum`, а не `final class`, в
-отличие от `TextureFamily`), `exclude`. Побеждает последнее совпавшее
-правило, не первое — широкое правило сверху, узкое исключение под ним,
-тем же порядком чтения, что у `.gitignore`-подобных оверлеев.
+**A side fact, found along the way rather than looked for:**
+`flutter3d_formats` was already mentioned in `_flatDartResolvesWithoutFlutter`'s
+own doc comment as an example package the rule exists for — but it wasn't
+actually in the `flatDartPackages` map, so the rule simply never checked it.
+Added now, with the justification named by this same plan item — KTX2 under
+it is now exactly as guaranteed flat-Dart as `flutter3d_geometry` was from
+the start.
 
-**Ошибка манифеста называет строку, как и просила приёмка.** `AssetManifest.parse`
-читает не голый `Map` через `loadYaml`, а узловое дерево через `loadYamlNode`
-(`package:yaml`) и держит `YamlNode`'s `span` при каждой проверке —
-неизвестный ключ верхнего уровня, неизвестный ключ внутри правила,
-синтаксически неверный glob, правило без обязательного `glob`, неверный тип
-значения (`textures: solid` вместо одного из `auto|bc|etc2|none`,
-`mips: "да"` вместо булева) — каждая называет строку через
-`ManifestFormatException.toString()` в формате
-`flutter3d_assets.yaml:N: сообщение`, который редактор подхватывает как
-обычную ошибку компилятора.
+**Tests are split along the same line as the code.**
+`flutter3d_formats/test/ktx2_test.dart` (18 tests) holds everything about
+the container — the header, the level index, key/value refusals,
+`isKtx2File`, plus a new test confirming an unknown `vkFormat` is now
+*accepted* at this layer (interpretation is the caller's job, alongside
+`GraphicsDevice`). `flutter3d_formats/test/ktx2_etc1s_test.dart` (3 tests)
+holds transcoding against `basisu`'s own real output — three `.ktx2` files
+copied from `flutter3d_samples/assets/ktx2/` alongside the test, not
+imported from there: `flutter3d_samples` itself declares `flutter: sdk:
+flutter` for its own `flutter: assets:`, and adding it as a
+`flutter3d_formats` dependency would have broken the very property this
+whole item exists for. `flutter3d/test/ktx2_test.dart` shrank to two tests,
+checking not the container but exactly what the wrapper adds: the sRGB/UNorm
+pairing and the by-name refusal for an unknown `vkFormat`.
+`helpers/build_ktx2.dart` exists in both `test/` folders as two independent
+files with identical bodies — one package's `test/` cannot import another's,
+and `flutter3d_formats` cannot depend on `flutter3d`, so there is no shared
+place for it.
 
-**Настоящая находка, пойманная тестом, а не предугаданная: `"**/*.obj"` не
-матчит файл в корне `assets_src/`.** `package:glob`'s собственное правило
-для `**/` — требует хотя бы один сегмент пути перед звёздочкой; манифест,
-написанный кем-то с интуицией «просто добавь `**/`, чтобы захватить всё»,
-для проекта без единой подпапки в `assets_src/` тихо не сработает.
-Задокументировано в докстринге `manifest.dart` и закреплено отдельным
-тестом (`"**.obj"` без слэша матчит и корень, и подпапки — тоже проверено,
-не только заявлено).
+**`flutter3d`'s public API is unchanged** — checked, not just claimed:
+`Ktx2Texture.parse`, the `pixelWidth`/`pixelHeight`/`format`/`levels`
+fields, `Ktx2FormatException`, `isKtx2File`, `isBasisUniversalKtx2` — same
+names, same signature, same import path. What did change is internal:
+`flutter3d.dart` and three files that re-exported the whole of
+`flutter3d_formats` (`animation.dart`, `material_loader.dart`, and
+`flutter3d.dart` itself) now do so with `hide Ktx2Texture`, because
+`flutter3d_formats` started naming its own container `Ktx2Texture` under
+the same name. Found not by reasoning but by `flutter_analyze`:
+`ambiguous_export` on `flutter3d.dart:71`, then again on a new line after
+the first fix — both times from a re-export, not from direct use.
 
-Двадцать тестов: одиннадцать в `manifest_test.dart` (пустой файл, пустой
-`rules: []`, один glob, все четыре опции разом, последнее правило побеждает,
-находка про `**/`, и по одному на каждый класс ошибки — неизвестный
-ключ верхнего уровня и внутри правила, битый glob, неизвестное значение
-`textures`, правило без `glob`, `rules` не-списком, синтаксически битый
-YAML — с точным номером строки в каждом, кроме заведомо синтаксической
-ошибки самого YAML-парсера); девять в `layout_test.dart` (пустой проект;
-`assets_src/` без распознаваемых файлов; соглашение по умолчанию для файла
-и вложенного файла; исключение по правилу; правило едет вместе с планом;
-битый манифест всплывает и через `AssetLayout`). Полный набор
-`flutter3d_build` — 32 теста, все зелёные. `dart run tool/structure.dart` —
-32/32.
+`dart test` in `flutter3d_formats` — 208 tests, green, with no Flutter SDK
+(`dart pub get` in the package never resolves `flutter:`). `flutter
+analyze` and `flutter test` in `flutter3d` — clean, the whole suite green.
+`dart run tool/structure.dart` — 32/32, including the updated
+`flatDartPackages` map. Test and package counts are synced under the "says
+N" rule in `ARCHITECTURE.md`, `README.md`,
+`site/content/quickstart.md`, `site/content/reference/testing.md`, and
+`packages/flutter3d/README.md` — drift from concurrent sessions (an extra
+`flutter3d_cloth` package missing a table row, four counters out of date)
+was fixed in the same pass.
 
-Не сделано, и не должно быть здесь: сам вызов `AssetLayout.plan()` из
-хука — `ap-05`, следующий пункт; конвертация файлов, которые план назвал —
-`ap-03` уже умеет это делать поштучно и по каталогу, `ap-05` сведёт то и
-другое вместе.
+Not done, honestly: `flutter3d_model_core/lib/src/texture_info.dart` still
+holds its own copy of the KTX2 constants, unrelated to this loader — its
+doc comment used to cite the reason this item just eliminated ("that
+loader lives in `flutter3d`, which needs the Flutter SDK" — no longer true,
+`flutter3d_formats`'s version needs no SDK and this package already depends
+on it), so the comment was rewritten to the real reason (the
+`flutter3d_formats` loader throws on things the texture panel is required
+to show as an icon, not silence), but the code itself wasn't switched to
+reuse the other parser — a separate simplification, outside `ap-01`'s
+scope.
 
-### ap-05: хук `buildAssets(input, output)` — закрыт
+### ap-07: a `Ktx2Writer` and BC1/BC3/ETC2 encoders in Dart — closed
 
-Закрыт 2026-09-12. `flutter3d_build/lib/src/build_assets.dart` —
-`buildAssets(BuildInput input, BuildOutputBuilder output)`, ровно та
-сигнатура, которую `package:hooks`'s собственный `build()` вызывает (реально
-проверено чтением исходников `hooks-2.0.2` из `~/.pub-cache`, а не
-предположено по документации). Реальная логика вынесена в
-`runAssetBuild(Directory projectRoot, {IOSink? log})`, которую `buildAssets`
-просто оборачивает: планирование («что и куда» — `ap-04`) и исполнение
-(«конвертировать или пропустить» — этот пункт) — две разные функции ровно
-потому, что первую тестировать без единого хука уже научился `ap-04`, а
-вторую можно тестировать так же, без конструирования `BuildInput` там, где
-это не нужно.
+Closed 2026-09-12. `packages/flutter3d_formats/lib/src/ktx2/encode/` —
+`rgba8_image.dart` (`Rgba8Image`, the shared input for every encoder),
+`bc1_encoder.dart`, `bc3_encoder.dart`, `etc2_encoder.dart`, and
+`ktx2_writer.dart`. Public exports from `flutter3d_formats.dart`:
+`Rgba8Image`, `encodeBc1`, `encodeBc3`, `encodeEtc2Rgb8`
+(+`encodeEtc2Rgb8Block` for tests), `writeKtx2` — alongside
+`Ktx2Texture`/`vkFormat`, which is what makes `writeKtx2 → Ktx2Texture.parse`
+a real round trip inside one package, not just an agreement on paper.
 
-**Кэш по хешу содержимого, а не по времени изменения.** Для каждого файла
-из `AssetLayout.plan()` — SHA-256 от байт исходника (`package:crypto`),
-версия формата (`kF3dVersion` из `flutter3d_formats`, уже существующая) и
-версия конвейера (`kAssetPipelineVersion` — новая константа, тот же
-рукописный приём, что уже даёт `kF3dVersion`, применённый к самому
-конвейеру, а не к контейнеру: два разных вопроса — «прочитает ли эту версию
-формата сборка» и «менялся ли инструмент, который это писал» — поэтому два
-разных штампа, а не один на двоих). Кэш — JSON рядом в
-`flutter3d_generated/.flutter3d_cache.json`; сломанный или отсутствующий
-файл кэша читается как пустой (конвертирует всё, а не падает) — то же
-консервативное решение, что уже приняли `AssetManifest`/`AssetLayout` для
-отсутствующего проекта.
+**Format coverage, honestly named rather than implied.** BC1 — PCA over the
+block's covariance (a power-iteration method, eight iterations), not a
+bounding box: the two pixels farthest apart under projection onto the
+principal axis become the palette endpoints, not the axis's own extremes
+(which need not be the color of any real pixel). BC3 reuses BC1 for the
+color half and always writes alpha in the eight-level mode (`a0 > a1`),
+never the six-level mode with hard 0/255 — this block is for a soft alpha
+edge, not a cutout. ETC2 RGB8 — only the ETC1-compatible subset (individual
+and differential modes, per-block choice by error; flip is always 0, T/H/
+planar aren't implemented) — real, not full, spec coverage, named in
+`encodeEtc2Rgb8Block`'s own doc comment, not hidden. **ETC2 RGBA8 (EAC
+alpha) isn't implemented at all** — the EAC format has no ground-truth point
+checked against real hardware anywhere in this repository (unlike RGB8,
+which `flutter3d_conformance`'s `checkCompressedTextureSamples` already
+holds against real Metal/WebGL2), and guessing an 11-bit bit layout with no
+such ground truth is exactly the kind of guessing `ktx2_format.dart`'s own
+doc comment names as a reason to refuse loudly, not quietly. BC3 already
+closes the "compressed format with alpha" case for desktop; ETC2 RGBA8
+stays an open item, not a secretly skipped one.
 
-**Обе строки приёмки — не только заявлены, а показаны тестом с числом.**
-«Вторая сборка без изменений ничего не конвертирует, счётчик в логе» —
-`runAssetBuild` пишет `flutter3d_build: N converted, M unchanged` в лог, и
-тест на два реальных исходника проверяет именно строку `0 converted, 2
-unchanged` после второго вызова. «Изменение одного `.glb` пересобирает
-ровно его» — тест с двумя исходниками, один реально переписан другими
-вершинами (не тронутый mtime), проверяет, что `converted` содержит ровно
-путь к изменённому файлу, а `skipped` — ровно второй. «Штамп другой версии
-движка вызывает пересборку» — проверено дважды, отдельно для
-`pipelineVersion` и для `formatVersion`: кэш-файл переписан со сдвинутым
-номером, следующий вызов реконвертирует, хотя байты источника не менялись.
+**A real finding, not a guess: `flutter3d_hardware`'s own single-block check
+code is not just an acceptance test but a table of ETC modifiers.**
+`flutter3d_conformance/lib/src/compressed_checks.dart`'s
+`checkCompressedTextureSamples` is the only place in the repository where
+BC1's and ETC2's byte layout has already been checked against real Metal
+and WebGL2 (its own doc comment: "every number checked against
+flutter_gpu's, and not one block ever drawn" — before it existed). Its
+`_bc1Solid()`/`_etc2Solid()` gave not just an example of a valid file but a
+constant: `(msb=0, lsb=0)` under table 0 decodes to `+2`, which is what
+fixed `_modifierTables[0] == [2, 8]` and the code direction `(0,0)→+table[0]`,
+`(1,1)→−table[1]` in `etc2_encoder.dart` before a single test on an
+arbitrary block was written.
 
-**Приёмка проверена через настоящие объекты `package:hooks`, не через
-заглушки.** `BuildInputBuilder().setupShared(packageRoot: ..., ...)` строит
-настоящий `BuildInput` с явным `packageRoot` (реальный класс библиотеки, не
-JSON руками), `buildAssets` вызывается напрямую, `BuildOutput(output.json)`
-читает обратно то, что реально записал `output.dependencies.add(...)`.
-`package:hooks` сам предлагает `testBuildHook` для end-to-end проверки через
-настоящий `main`/`input.json` на диске — не выбран здесь по найденной,
-не предугаданной причине: `testBuildHook` жёстко использует
-`Directory.current.uri` как `packageRoot`, и подмена глобального
-рабочего каталога на время одного теста реально сломала пять других тестов
-в `convert_test.dart`, потому что `dart test` гоняет файлы теста в одном
-процессе, где текущий каталог общий на все изоляты, а не per-isolate.
-Найдено прогоном полного набора пакета, а не предположено — и
-`BuildInputBuilder`'s явный параметр `packageRoot` (тот же реальный класс,
-которым пользуется сам `testBuildHook` внутри) даёт ту же честность без
-этого риска.
+**Three real bugs, each found by a test, not by reasoning.** (1) BC1:
+`_orderEndpoints`, on equal packed endpoints, **decremented** `pack0`,
+leaving `pack0 < pack1` — exactly the three-color-plus-transparent mode
+this encoder is required to avoid; a test, "a solid block is stored as
+four-color," caught it immediately, and the fix was `pack0 += 1` (with an
+explicit case for `0xFFFF`, where there's nowhere to grow and `pack1` is
+decremented instead). (2) ETC2: `_fitIndividual` scored the best modifier
+table against the **4-bit** average (`(8, 4, 12)`) rather than the
+**expanded 8-bit** base color (`(136, 68, 204)`) — the individual mode's
+final error was inflated to 154304 instead of the real 192, which made the
+differential mode win every time even where individual was more accurate.
+Found not by reading the code but because a solid block stopped matching
+`compressed_checks.dart`'s own bytes; the fix was to score the table against
+the same expanded color already computed for the block's own bytes. (3) The
+"four quadrants" test originally split the block by columns (left/right) —
+exactly the cut (`flip = 1`) this encoder deliberately never tries; the test
+was reporting not an encoder bug but its own unfitness for that shape —
+rewritten to a row-wise split, the one `flip = 0` actually represents.
 
-**Настоящая находка по пути, тоже пойманная этим же тестом.**
-`input.packageRoot` — `Uri` каталога, значит его собственный путь
-заканчивается на `/`; `Directory.fromUri(...).path` этот слэш не убирает,
-и каждый путь, построенный от него (файл кэша, залогированная строка
-конвертации, объявленная зависимость), нёс бы задвоенный слэш — безобидный
-для ОС, но не для сравнения строк, и не для того, чтобы ключи кэша
-оставались одной и той же строкой при разных вызовах. Исправлено —
-`buildAssets` обрезает завершающий слэш `packageRoot` перед тем, как
-строить от него `AssetLayout`.
+**PSNR, for real, on a Khronos file, not on homemade synthetics.**
+`flutter3d_samples/assets/animated_cube/AnimatedCube_BaseColor.png`
+(512×512, a real glTF-Sample-Models texture) was read via `package:image`
+(a `dev_dependency`, pure Dart — checked by the same
+`dart run tool/structure.dart` pass that checked `flutter3d_formats`
+itself) and run through the encoder → a test unpacker
+(`test/helpers/bc_test_decoders.dart`, `etc2_test_decoder.dart` — not
+production code, none of it is exported). Result: **BC1 32.81 dB, BC3
+32.81 dB (color; alpha is a separate synthetic ramp, since the file has no
+alpha channel of its own), ETC2 RGB8 34.27 dB** — all three above `ap-07`'s
+own 30 dB threshold. Encoding time for 2048×2048 (tiling the same file 4×4,
+rather than vendoring a second asset for one number): **BC1 ≈ 510 ms, BC3
+≈ 530 ms, ETC2 RGB8 ≈ 2.5 s** — ETC2 is noticeably slower from exhaustively
+trying all eight tables for both modes (individual and differential) across
+both halves of the block; a build-time tool, not a runtime path, so this
+isn't a frame budget.
 
-Двадцать тестов: одиннадцать в `build_assets_test.dart` (пустой проект;
-свежий исходник конвертируется один раз; обе строки приёмки дословно;
-исчезнувший результат конвертации пересобирается, даже если кэш согласен;
-оба штампа версии по отдельности; каждый спланированный исходник — в
-зависимостях независимо от того, конвертирован он или пропущен; битый файл
-кэша не фатален) и одна в `build_hook_test.dart` (настоящие объекты
-`package:hooks`, описано выше). Полный набор `flutter3d_build` — 42 теста,
-трижды подряд без нестабильности. `dart run tool/structure.dart` — 32/32.
+**Conformance on real hardware — WebGL2, not just the in-house unpacker.**
+`packages/flutter3d_webgl/test/formats_encoder_conformance_test.dart`
+(`@TestOn('browser')`, `flutter test --platform chrome`) encodes a real
+two-block image (not a solid color — already covered by
+`checkCompressedTextureSamples`) through
+`encodeBc1`/`encodeBc3`/`encodeEtc2Rgb8`, loads it on a `WebGlDevice`, draws
+it, and reads both blocks back through two real render passes in real
+headless Chrome. The first run failed identically across all three formats
+— not a coincidence, a sign the problem wasn't the codec: the test's own
+vertex format was built as `pos.xyzw + color.rgba + uv` (10 floats per
+vertex), while `ParticleVertex` expects `pos.xyz + color.rgba + uv` (9
+floats) — a four-byte vertex-stride mismatch that
+`checkCompressedTextureSamples`'s own `1, 1, 1, 0.5, 0.5` triples (nine
+numbers, not ten) already showed line by line, had anyone recounted them.
+After the fix — three for three, both blocks, all three formats, `flutter
+analyze` on the package clean. **Impeller/Metal was not separately
+empirically checked** in this session, the same honest gap as `ap-06`'s
+Android path: WebGL2 is a real GPU and a real driver, but not the same
+backend games actually draw with on desktop.
 
-Не сделано, честно: сам вызов `buildAssets` из настоящего `hook/build.dart`
-внутри настоящего `flutter build` — это `ap-10`, который ещё не пишет этот
-файл в проект; end-to-end проверка через `testBuildHook`/реальный `flutter
-build` на всех четырёх платформах — сделал `ap-00`'s спайк для механизма
-хука вообще, повторять то же самое здесь для того же самого механизма с
-другой полезной нагрузкой было бы дублированием, а не новым доказательством
-— пожертвовано ради теста, который безопасно живёт рядом с остальными
-сорока одним в том же пакете.
+`dart test` in `flutter3d_formats` — 226 tests, green, with no Flutter SDK.
+`flutter analyze`/`flutter test` in `flutter3d_webgl` — clean (plus three
+new tests on real Chrome). `dart run tool/structure.dart` — the test-and-
+package-count rule is green (6834 tests, 41 packages — the
+`site/content/reference/testing.md` table and the numeral list in the rule
+itself were updated in the same pass, including the word "forty-one," which
+hadn't been in any numeral list before). The three remaining broken rules
+(about the "mesh-overlay" golden scene, the publishing order for
+`flutter3d_rig`, and `math.acos` in
+`flutter3d_rig/lib/src/two_bone_ik.dart`) aren't from this session or this
+plan item: `flutter3d_rig` is parallel work, untouched here.
 
-### ap-06: хук для шейдеров — закрыт, кроме одной честно названной строки
-
-Закрыт 2026-09-12. `packages/flutter3d_impeller/hook/build.dart` — реальный
-хук, вызывающий `impellerc` напрямую (не `package:flutter_gpu_shaders`,
-который зависит от экспериментального `package:data_assets`, отвергнутого
-ещё `ap-00`). Уже, чем `tool/build_shaders.sh`, специально: не
-`--package-include`, не обнаружение манифеста, не таблица биндингов для
-разработки движка — только собственный канонический бандл
-`flutter3d_impeller`, тот, чьи имена `LightingModel` уже знает наизусть.
-Ручной скрипт остаётся ровно тем, чем был, для более широких нужд
-разработки движка.
-
-**Реальная логика — не в самом хуке.**
-`lib/src/shader_bundle_build.dart`'s `buildShaderBundle(packageRoot: ...)` —
-тестируемая функция без единого `BuildInput` в сигнатуре, тем же
-разделением, что `ap-05`'s `runAssetBuild`/`buildAssets`. `hook/build.dart`
-— тонкая обёртка под `package:hooks`'s `build()`; новый
-`bin/build_shader_bundle.dart` — второй вызывающий, для причины, найденной
-по пути, а не предугаданной заранее (см. ниже).
-
-**Доказано на настоящей сборке, не на юните с заглушками.** Бандл убран из
-`packages/flutter3d_impeller/assets/shaders/`, `flutter build macos --debug`
-для `apps/flutter3d_demo_dungeon` запущен реально — хук сработал сам,
-бандл появился заново (1,1 МБ, свежая метка времени), приложение собралось.
-Тем же бандлом, тем же прогоном — `bash
-packages/flutter3d_impeller/tool/conformance.sh` (настоящий GPU, настоящий
-Impeller/Metal) отвечает **35 passed, 0 failed, 0 declined**: не просто
-«собралось», а прошёл полный контракт бэкенда на бандле, который написал
-хук, а не человек.
-
-**Настоящая находка №1: `Platform.resolvedExecutable` — не то, чем
-казалось.** Проверено `flutter build macos -v` на одноразовом проекте:
-внутри хука это `<flutter_root>/bin/cache/dart-sdk/bin/dart`, а
-`$FLUTTER_ROOT` — `null` (хуки его не наследуют, значит запасной путь
-`build_shaders.sh`'s `flutter --version --machine` хуку взять неоткуда).
-Собственный тест этой функции нашёл вторую форму: `flutter test` выполняет
-код не под этим Dart VM вовсе, а под `flutter_tester` — отдельным
-headless-движком по соседнему пути в том же `bin/cache/artifacts/engine/`.
-Обе формы — реальные, обе проверены, `_flutterSdkRoot()` понимает обе.
-
-**Настоящая находка №2: `Isolate.resolvePackageUri` — рабочий приём
-`bin/skills.dart`, но не внутри `flutter_test`.** Первая версия
-`buildShaderBundle` резолвила `flutter3d_shaders`'s каталог этим способом —
-работал из настоящего хука и из `bin/`, но падал `Unsupported operation:
-Isolate.resolvePackageUriSync` именно в тестовом окружении. Переписано на
-чтение `.dart_tool/package_config.json` напрямую — тем же способом, каким
-`tool/package_root.dart` уже резолвит `flutter3d_shaders` для самого
-`build_shaders.sh` — портировано в пакет, а не переиспользовано напрямую
-(`tool/`-скрипт не то, от чего пакет может зависеть). Работает во всех
-трёх контекстах разом: хук, `bin/`, тест.
-
-**Настоящая находка №3, и она же — честная граница по одной строке
-приёмки.** «CI-шаг ручной сборки бандла удалён» проверялось буквально:
-бандл убран, `flutter analyze` в `flutter3d_impeller` — `exit 1`,
-`asset_does_not_exist` на `pubspec.yaml:96`. **`flutter analyze` не
-запускает build hooks вообще** — хуки срабатывают только при настоящей
-сборке, а `flutter.assets:`-запись обязана существовать на диске уже к
-моменту анализа. Единственный механизм, которым хук мог бы удовлетворить
-анализ без физического файла — `package:data_assets` — тот самый,
-отвергнутый `ap-00` как нестабильный. Значит буквально «шаг убран, ничего
-не делается взамен» на нынешнем стабильном тулчейне недостижимо — не
-предположение, а результат прямой проверки. Сделано вместо этого: CI-шаг
-(`tool/ci.sh`, обе части `.github/workflows/ci.yml` — macOS и Android)
-переведён с `./tool/build_shaders.sh` на новый быстрый `dart run
-bin/build_shader_bundle.dart`, вызывающий ровно ту же функцию, что и
-хук — без полной сборки приложения, за секунды, не за то время, что берёт
-`flutter build`. Android-путь (Gradle) не проверен эмпирически в этой
-среде тем же образом, что macOS — оставлена честная пометка в самом
-`ci.yml`.
-
-Два теста: `shader_bundle_build_test.dart`'s настоящий вызов через
-настоящий `impellerc` (не мок) с реальным assert на размер и на список
-зависимостей; и (описано выше) сборка + conformance как второй,
-внешний по отношению к юнит-тесту, прогон. Полный набор
-`flutter3d_impeller` — 161 тест, зелёный. `dart run tool/structure.dart` —
-32/32.
-
-Не сделано, честно: буквальное «шаг CI убран без замены» — недостижимо на
-стабильном тулчейне по названной выше причине; Android CI-путь не
-подтверждён реальной сборкой в этой сессии, только тем же честным
-переносом с bash на Dart, что и для macOS; `packages/flutter3d/example`'s
-собственный, отдельный бандл (`example.shaderbundle.json`) — не тронут,
-вне периметра `ap-06`, которая называет только `flutter3d_impeller`'s
-канонический бандл.
-
-### ap-01: KTX2 ниже Flutter — закрыт
-
-Закрыт 2026-09-12. `packages/flutter3d_formats/lib/src/ktx2/` — контейнер
-KTX2 (`ktx2_format.dart`), загрузчик (`ktx2_loader.dart`) и транскодер
-ETC1S (`basis_universal/`), перенесённые из `flutter3d` дословно, с одним
-изменением сигнатуры: `Ktx2Texture` здесь несёт `vkFormat` (`int`, число
-Khronos) вместо `TextureFormat`. `flutter3d`'s собственный
-`ktx2/ktx2.dart` сжался до тонкой обёртки — `Ktx2Texture.parse` вызывает
-контейнерный парсер и один раз отображает `vkFormat` в `TextureFormat`
-через `_engineFormat` (перенесена без изменений, включая парную обработку
-sRGB/UNorm и сообщение об ошибке для неизвестного `vkFormat`), плюс
-`export ... show` для того, что не меняется между слоями
-(`Ktx2FormatException`, `VkFormat`, `isKtx2File`, `isBasisUniversalKtx2` и
-байтовые константы).
-
-**Настоящая причина, а не предположение.** `flutter3d_hardware` (где живёт
-`TextureFormat`) объявляет `flutter: sdk: flutter` в своём pubspec, даже
-притом что сам `formats.dart` не импортирует Flutter ни строкой — это не
-файл, это граф резолюции пакета: любой пакет, зависящий от
-`flutter3d_hardware` хотя бы ради одного перечисления, наследует Flutter
-SDK на `dart pub get`, до чтения единой строчки исходника. Ровно то, что
-`the flat Dart package resolves without the Flutter SDK` в
-`tool/structure.dart` проверяет обходом графа, а не грепом импортов.
-Значит контейнер и `TextureFormat`-отображение не могли остаться одним
-классом без протаскивания Flutter в `flutter3d_formats` — расщепление на
-`vkFormat`/`TextureFormat` было не стилистическим выбором, а единственным
-способом сохранить приёмку.
-
-**Побочный факт, найденный по пути, а не искавшийся:** `flutter3d_formats`
-уже упоминалась в док-комментарии `_flatDartResolvesWithoutFlutter` как
-пример пакета, ради которого правило написано — но самой её не было в
-карте `flatDartPackages`, так что правило её попросту не проверяло.
-Добавлена сейчас, с обоснованием, названным этим же пунктом плана — теперь
-KTX2 под ней настолько же гарантированно плоский Dart, насколько
-`flutter3d_geometry` был с самого начала.
-
-**Тесты расщеплены по той же линии, что и код.**
-`flutter3d_formats/test/ktx2_test.dart` (18 тестов) держит всё про контейнер
-— заголовок, индекс уровней, отказы по ключ/значению, `isKtx2File`, плюс
-новый тест на то, что неизвестный `vkFormat` теперь *принимается* этим
-слоем (интерпретация — дело вызывающего с `GraphicsDevice`).
-`flutter3d_formats/test/ktx2_etc1s_test.dart` (3 теста) держит
-транскодирование против настоящего вывода `basisu` — три `.ktx2`-файла
-скопированы из `flutter3d_samples/assets/ktx2/` рядом с тестом, а не
-взяты оттуда импортом: `flutter3d_samples` сама объявляет `flutter: sdk:
-flutter` ради собственного `flutter: assets:`, и добавление её в
-зависимости `flutter3d_formats` сломало бы именно то свойство, ради
-которого весь пункт затевался. `flutter3d/test/ktx2_test.dart` сжат до
-двух тестов, которые проверяют не контейнер, а ровно то, что добавляет
-обёртка: парность sRGB/UNorm и отказ по имени для неизвестного
-`vkFormat`. `helpers/build_ktx2.dart` существует в обеих `test/`-папках
-как два независимых файла с одинаковым телом — `test/` одного пакета не
-может импортировать `test/` другого, а `flutter3d_formats` не может
-зависеть от `flutter3d`, так что общего места для него нет.
-
-**Публичный API `flutter3d` не изменился** — проверено, а не продекларировано:
-`Ktx2Texture.parse`, поля `pixelWidth`/`pixelHeight`/`format`/`levels`,
-`Ktx2FormatException`, `isKtx2File`, `isBasisUniversalKtx2` те же имена,
-та же сигнатура, тот же путь импорта. Что действительно изменилось —
-внутреннее: `flutter3d.dart` и три файла, реэкспортировавшие
-`flutter3d_formats` целиком (`animation.dart`, `material_loader.dart`, и
-сам `flutter3d.dart`), теперь делают это с `hide Ktx2Texture`, потому что
-`flutter3d_formats` начала называть контейнерный `Ktx2Texture` тем же
-именем. Найдено не рассуждением, а `flutter_analyze`: `ambiguous_export`
-на `flutter3d.dart:71`, затем ещё раз на новой строке после первого
-исправления — оба раза из реэкспорта, а не из прямого использования.
-
-`dart test` в `flutter3d_formats` — 208 тестов, зелёные, без Flutter SDK
-(`dart pub get` в пакете не резолвит `flutter:` ни разу). `flutter analyze`
-и `flutter test` в `flutter3d` — чисто, весь набор зелёный.
-`dart run tool/structure.dart` — 32/32, включая обновлённую карту
-`flatDartPackages`. Числа тестов и пакетов синхронизированы по правилу
-«says N» в `ARCHITECTURE.md`, `README.md`, `site/content/quickstart.md`,
-`site/content/reference/testing.md` и `packages/flutter3d/README.md` —
-дрейф от параллельных сессий (лишний пакет `flutter3d_cloth` без строки в
-таблице, четыре изменившихся счётчика) исправлен тем же проходом.
-
-Не сделано, честно: `flutter3d_model_core/lib/src/texture_info.dart`
-хранит собственную, не связанную с этим лоадером копию констант KTX2 —
-её док-комментарий ссылался на причину, которую этот пункт как раз
-устранил («тот загрузчик живёт в `flutter3d`, которому нужен Flutter
-SDK» — больше не так, `flutter3d_formats`'s версия не нуждается в SDK и
-этот пакет уже от неё зависит), поэтому комментарий переписан на настоящую
-причину (лоадер `flutter3d_formats` бросает исключение на том, что панель
-текстур обязана показать значком, а не молчанием), но сам код не
-переведён на переиспользование чужого парсера — это отдельное упрощение,
-не входящее в периметр `ap-01`.
-
-### ap-07: `Ktx2Writer` и энкодеры BC1/BC3/ETC2 на Dart — закрыт
-
-Закрыт 2026-09-12. `packages/flutter3d_formats/lib/src/ktx2/encode/` —
-`rgba8_image.dart` (`Rgba8Image`, общий вход всех энкодеров), `bc1_encoder.dart`,
-`bc3_encoder.dart`, `etc2_encoder.dart` и `ktx2_writer.dart`. Публичный экспорт
-из `flutter3d_formats.dart`: `Rgba8Image`, `encodeBc1`, `encodeBc3`,
-`encodeEtc2Rgb8` (+`encodeEtc2Rgb8Block` для тестов), `writeKtx2` — рядом с
-`Ktx2Texture`/`vkFormat`, что и делает `writeKtx2 → Ktx2Texture.parse` настоящим
-круговым проходом внутри одного пакета, не только договорённостью на бумаге.
-
-**Область по формату, честно названная, а не подразумеваемая.** BC1 — PCA по
-ковариации блока (степенной метод, восемь итераций), а не bounding box: два
-пикселя, наиболее удалённых при проекции на главную ось, становятся
-конечными точками палитры, а не сами крайние точки оси (которые не обязаны
-быть цветом реального пикселя). BC3 переиспользует BC1 для цветовой половины
-и всегда пишет альфу в восьмиуровневом режиме (`a0 > a1`), никогда в
-шестиуровневом с жёсткими 0/255 — этот блок не для вырезки, а для мягкого
-альфа-края. ETC2 RGB8 — только ETC1-совместимое подмножество (individual и
-differential режимы, per-block выбор по ошибке; flip всегда 0, T/H/planar не
-реализованы) — реальное, а не полное покрытие спецификации, названное в
-доккомментарии `encodeEtc2Rgb8Block`, а не спрятанное. **ETC2 RGBA8 (EAC
-альфа) не реализован вовсе** — формат EAC не имеет в этом репозитории ни
-одной проверенной на настоящем железе точки отсчёта (в отличие от RGB8,
-которую `flutter3d_conformance`'s `checkCompressedTextureSamples` уже держит
-за реальный Metal/WebGL2), и угадывать 11-битный битовый макет без такой
-точки — это ровно то гадание, которое `ktx2_format.dart`'s собственный
-доккомментарий называет причиной отказывать громко, а не тихо. BC3 уже
-закрывает случай «сжатый формат с альфой» для десктопа; ETC2 RGBA8 остаётся
-открытым пунктом, а не тайно пропущенным.
-
-**Настоящая находка, а не предположение: `flutter3d_hardware`'s собственный
-код одноблочной проверки — не только приёмка, но и таблица модификаторов
-ETC.** `flutter3d_conformance/lib/src/compressed_checks.dart`'s
-`checkCompressedTextureSamples` — единственное место в репозитории, где
-байтовый макет BC1 и ETC2 уже проверен на настоящем Metal и WebGL2 (её
-собственный доккомментарий: «every number checked against flutter_gpu's, and
-not one block ever drawn» — до неё). Её `_bc1Solid()`/`_etc2Solid()` дали не
-просто пример валидного файла, а константу: `(msb=0, lsb=0)` под таблицей 0
-декодируется в `+2`, что и зафиксировало `_modifierTables[0] == [2, 8]` и
-направление кодов `(0,0)→+table[0]`, `(1,1)→−table[1]` в `etc2_encoder.dart`
-до того, как был написан хоть один тест на произвольный блок.
-
-**Три настоящие ошибки, каждая найдена тестом, а не рассуждением.** (1) BC1:
-`_orderEndpoints` при равенстве упакованных конечных точек **уменьшал**
-`pack0`, что оставляло `pack0 < pack1` — ровно тот трёхцветный+прозрачный
-режим, которого этот энкодер обязан избегать; тест «сплошной блок хранится
-как four-color» поймал это сразу, исправление — `pack0 += 1` (с явным
-случаем `0xFFFF`, где расти некуда и уменьшается `pack1`). (2) ETC2:
-`_fitIndividual` считал лучшую таблицу модификаторов против **4-битного**
-среднего (`(8, 4, 12)`), а не против **развёрнутого 8-битного** базового
-цвета (`(136, 68, 204)`) — итоговая ошибка индивидуального режима была
-раздута до 154304 вместо настоящих 192, из-за чего дифференциальный режим
-неизменно выигрывал даже там, где индивидуальный точнее. Найдено не чтением
-кода, а тем, что сплошной блок перестал совпадать с байтами
-`compressed_checks.dart`; исправление — считать таблицу против того же
-развёрнутого цвета, что уже вычислен для самих байт блока. (3) Тест «четыре
-квадранта» изначально делил блок по столбцам (лево/право) — том самом
-разрезе (`flip = 1`), который этот энкодер сознательно не пробует; тест
-сообщал не о баге энкодера, а о собственной непригодности для той формы —
-переписан на разрез по строкам, который `flip = 0` действительно
-представляет.
-
-**PSNR — по-настоящему, на файле Khronos, не на собственной синтетике.**
-`flutter3d_samples/assets/animated_cube/AnimatedCube_BaseColor.png` (512×512,
-настоящая glTF-Sample-Models текстура) прочитан через `package:image`
-(`dev_dependency`, чистый Dart — проверено тем же проходом `dart run
-tool/structure.dart`, каким проверялся сам `flutter3d_formats`) и прогнан
-через энкодер → тестовый распаковщик (`test/helpers/bc_test_decoders.dart`,
-`etc2_test_decoder.dart` — не производственный код, ничего из них не
-экспортируется). Результат: **BC1 32.81 dB, BC3 32.81 dB (цвет; альфа —
-отдельная синтетическая рампа, поскольку у файла нет своего альфа-канала),
-ETC2 RGB8 34.27 dB** — все три выше порога 30 dB из самой строки `ap-07`.
-Время кодирования 2048×2048 (тайлинг того же файла 4×4, без второго
-вендоренного ассета ради одного числа): **BC1 ≈ 510 мс, BC3 ≈ 530 мс, ETC2
-RGB8 ≈ 2,5 с** — ETC2 заметно медленнее из-за исчерпывающего перебора восьми
-таблиц на оба режима (individual и differential) для обеих половин блока;
-инструмент сборки, а не рантайм-путь, так что это не бюджет кадра.
-
-**Конформанс на настоящем железе — WebGL2, не только собственный
-распаковщик.** `packages/flutter3d_webgl/test/
-formats_encoder_conformance_test.dart` (`@TestOn('browser')`,
-`flutter test --platform chrome`) кодирует настоящее двухблочное
-изображение (не сплошной цвет — то, что `checkCompressedTextureSamples`
-уже покрывает) через `encodeBc1`/`encodeBc3`/`encodeEtc2Rgb8`, грузит на
-`WebGlDevice`, рисует и читает оба блока через два реальных прохода
-рендера в настоящем headless Chrome. Первый прогон провалился на всех трёх
-форматах одинаково — не совпадением, а признаком, что дело не в кодеке:
-вершинный формат теста был собран как `pos.xyzw + color.rgba + uv` (10
-float на вершину), тогда как `ParticleVertex` ожидает `pos.xyz + color.rgba
-+ uv` (9 float) — расхождение шага вершин на четыре байта, которое
-`checkCompressedTextureSamples`'s собственные тройки `1, 1, 1, 0.5, 0.5`
-(девять чисел, не десять) уже показывали построчно, если бы их пересчитать.
-После исправления — три из трёх, оба блока, все три формата, `flutter
-analyze` на пакете чист. **Impeller/Metal отдельно эмпирически не
-проверен** в этой сессии, тем же честным разрывом, что и Android-путь
-`ap-06`: WebGL2 — реальный GPU и реальный драйвер, но не тот же бэкенд,
-которым игры реально рисуют на десктопе.
-
-`dart test` в `flutter3d_formats` — 226 тестов, зелёные, без Flutter SDK.
-`flutter analyze`/`flutter test` в `flutter3d_webgl` — чисто (плюс три новых
-теста на реальном Chrome). `dart run tool/structure.dart` — правило про
-число тестов и пакетов зелёное (6834 теста, 41 пакет — таблица
-`site/content/reference/testing.md` и список числительных в самом правиле
-обновлены тем же проходом, включая слово «forty-one», которого раньше не
-было ни в одном списке числительных). Три оставшиеся сломанные правила
-(про golden-сцену «mesh-overlay», порядок публикации для `flutter3d_rig`, и
-`math.acos` в `flutter3d_rig/lib/src/two_bone_ik.dart`) — не из этой сессии
-и не из этого пункта плана: `flutter3d_rig` — параллельная работа, не
-тронутая здесь.
-
-Не сделано, честно: ETC2 RGBA8 (EAC-альфа) не реализован — см. выше; T/H/
-planar режимы ETC2 не реализованы — реальная, а не мнимая потеря качества
-на блоках с резким одноцветным пятном или гладким градиентом по диагонали,
-которую индивидуальный/дифференциальный режим не ловит так же хорошо;
-`flip = 1` (разрез по столбцам) никогда не пробуется, только `flip = 0`;
-Impeller/Metal не проверен эмпирически, только WebGL2.
+Not done, honestly: ETC2 RGBA8 (EAC alpha) isn't implemented — see above;
+ETC2's T/H/planar modes aren't implemented — a real, not imagined, quality
+loss on blocks with a sharp single-color spot or a smooth diagonal gradient
+that the individual/differential modes don't catch as well; `flip = 1`
+(a column-wise cut) is never tried, only `flip = 0`; Impeller/Metal wasn't
+empirically checked, only WebGL2.
