@@ -40,8 +40,18 @@ void main() {
     );
     addTearDown(surface.dispose);
     scene.add(surface.node);
-    await tester.pumpAndSettle();
-    await surface.tick();
+    // Not `pumpAndSettle()`: a live `WidgetSurface` keeps scheduling frames
+    // for its own redraw-on-dirty pipeline, so a settle-based pump never
+    // sees "nothing left to draw" and hangs — the same reason every other
+    // `WidgetSurface` test in this repository (`widget_surface_test.dart`,
+    // `operator_panel_test.dart`) pumps a fixed number of frames instead.
+    await tester.pump();
+    // `tick()` reaches `WidgetSurfacePipeline.currentImage()`, which asks the
+    // engine to rasterise a frame for real — `wg-01`'s own test (and
+    // `operator_panel_test.dart` after it) found a bare `await` on this
+    // deadlocks inside `testWidgets`'s fake async zone, since the rasteriser
+    // needs the real event loop `runAsync` escapes to.
+    await tester.runAsync(surface.tick);
 
     final result = renderer.render(
       width: 64,
