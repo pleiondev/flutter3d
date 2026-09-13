@@ -235,7 +235,9 @@ final class SetMaterialGraph extends ModelCommand {
       project.copyWith(
         materials: <ProjectMaterial>[
           for (var i = 0; i < project.materials.length; i++)
-            i == materialIndex ? material.withGraph(graph) : project.materials[i],
+            i == materialIndex
+                ? material.withGraph(graph)
+                : project.materials[i],
         ],
       ),
     );
@@ -308,7 +310,8 @@ final class BakeTextureGraph extends ModelCommand {
     }
 
     final images = <int, Uint8List>{
-      for (var i = 0; i < project.images.length; i++) i: project.images[i].bytes,
+      for (var i = 0; i < project.images.length; i++)
+        i: project.images[i].bytes,
     };
     final cache = TextureBakeCache();
     var nextImages = List<EncodedImage>.of(project.images);
@@ -760,6 +763,7 @@ SurfaceMaterial _surfaceWith(
   double? alphaCutoff,
   bool? doubleSided,
   bool? unlit,
+  Object? lightingModel = _unset,
 }) => SurfaceMaterial(
   name: identical(name, _unset) ? s.name : name as String?,
   baseColor: baseColor ?? s.baseColor,
@@ -780,14 +784,19 @@ SurfaceMaterial _surfaceWith(
   alphaCutoff: alphaCutoff ?? s.alphaCutoff,
   doubleSided: doubleSided ?? s.doubleSided,
   unlit: unlit ?? s.unlit,
+  lightingModel: identical(lightingModel, _unset)
+      ? s.lightingModel
+      : lightingModel as LightingModel?,
 );
 
 /// [s] with [field] set to [value], or null when [field] is not a field or
 /// [value] is not its shape.
 ///
 /// The shapes: `name` is a string or null; `baseColor` and `emissive` are four
-/// and three numbers; `alphaMode` is one of [SurfaceAlphaMode]'s names; every
-/// other field is a number or, for `doubleSided`/`unlit`, a bool.
+/// and three numbers; `alphaMode` is one of [SurfaceAlphaMode]'s names;
+/// `lightingModel` is one of [LightingModel.builtIn]'s `shaderName`s or null
+/// to clear it; every other field is a number or, for `doubleSided`/`unlit`,
+/// a bool.
 SurfaceMaterial? _fieldSet(SurfaceMaterial s, String field, Object? value) {
   switch (field) {
     case 'name':
@@ -840,6 +849,15 @@ SurfaceMaterial? _fieldSet(SurfaceMaterial s, String field, Object? value) {
       return value is bool ? _surfaceWith(s, doubleSided: value) : null;
     case 'unlit':
       return value is bool ? _surfaceWith(s, unlit: value) : null;
+    case 'lightingModel':
+      if (value == null) return _surfaceWith(s, lightingModel: null);
+      if (value is! String) return null;
+      for (final LightingModel model in LightingModel.builtIn) {
+        if (model.shaderName == value) {
+          return _surfaceWith(s, lightingModel: model);
+        }
+      }
+      return null;
     default:
       return null;
   }

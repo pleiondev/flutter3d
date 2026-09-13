@@ -2,6 +2,8 @@ import 'dart:typed_data';
 
 import 'package:vector_math/vector_math.dart';
 
+import 'lighting_model.dart';
+
 /// How a surface treats the alpha channel.
 enum SurfaceAlphaMode { opaque, mask, blend }
 
@@ -155,6 +157,7 @@ final class SurfaceMaterial {
     this.alphaCutoff = 0.5,
     this.doubleSided = false,
     this.unlit = false,
+    this.lightingModel,
     this.extras,
   }) : baseColor = baseColor ?? Vector4(1.0, 1.0, 1.0, 1.0),
        emissive = emissive ?? Vector3.zero();
@@ -184,6 +187,19 @@ final class SurfaceMaterial {
   /// Shade with albedo only, from glTF's `KHR_materials_unlit` or an OBJ material
   /// with no specular response at all.
   final bool unlit;
+
+  /// Which of [LightingModel.builtIn] this surface asks the renderer to shade
+  /// with, or null when the document never said — every decoder built before
+  /// this field existed leaves it null, and a null reader falls back to
+  /// [LightingModel.unlit] or [LightingModel.pbr] by [unlit] the same way the
+  /// renderer's own default already did.
+  ///
+  /// Deliberately separate from [unlit] rather than replacing it: [unlit] is
+  /// what glTF and OBJ can actually express on decode, while this field is
+  /// the modeler's own richer choice among all six models — round-tripping
+  /// through a format that has no such concept just drops it, the same way
+  /// [extras] would.
+  final LightingModel? lightingModel;
 
   /// glTF's own `extras` on this material, carried opaquely — see
   /// [ModelNode.extras] for what that means and why.

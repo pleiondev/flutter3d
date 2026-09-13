@@ -62,9 +62,12 @@ Future<MaterialDocument> loadMaterialDocument(
 /// is the one to pass, and is what makes the paths relative to the material file
 /// rather than to the working directory.
 ///
-/// [lighting] is the scene's preferred model, used when the file names none. A
-/// file that does name one wins: it knows which shader it was authored against,
-/// and the scene does not.
+/// [lighting] is the scene's preferred model, used when neither the file nor
+/// the material names one. [MaterialDocument.lighting] (the whole file's own
+/// shader, which may be a custom one this engine does not ship) wins over
+/// [SurfaceMaterial.lightingModel] (one material's own choice among the six
+/// built-in models), which wins over [lighting]: each is more specific than
+/// the one after it about what this material was authored against.
 ///
 /// **An image that cannot be read is a warning, not a failure.** A missing
 /// normal map should cost a normal map, not the level — the renderer binds a
@@ -163,7 +166,9 @@ Future<Material> bindMaterial(
   return Material(
     name: surface.name,
     lighting:
-        document.lighting ?? (surface.unlit ? LightingModel.unlit : lighting),
+        document.lighting ??
+        surface.lightingModel ??
+        (surface.unlit ? LightingModel.unlit : lighting),
     baseColor: surface.baseColor.clone(),
     metallic: surface.metallic,
     roughness: surface.roughness,
@@ -256,9 +261,12 @@ Future<Material> bindSurfaceMaterial(
 
   return Material(
     name: source.name,
-    // An unlit material asks for unlit shading regardless of the scene's
-    // preferred model; ignoring the flag would light something authored flat.
-    lighting: source.unlit ? LightingModel.unlit : lighting,
+    // A material that names its own model wins outright; failing that, an
+    // unlit material asks for unlit shading regardless of the scene's
+    // preferred model, since ignoring the flag would light something
+    // authored flat.
+    lighting:
+        source.lightingModel ?? (source.unlit ? LightingModel.unlit : lighting),
     baseColor: source.baseColor.clone(),
     metallic: source.metallic,
     roughness: source.roughness,

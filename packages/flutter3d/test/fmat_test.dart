@@ -244,6 +244,27 @@ void main() {
       );
     });
 
+    test('mat-04: a material\'s own lightingModel round-trips separately '
+        'from the file\'s own shader', () {
+      // `_steel` names no `lightingModel` of its own, only the file-level
+      // `lighting` — the two fields are read from different keys.
+      final steel = readFmat(_bytes(_steel));
+      expect(steel.surface.lightingModel, isNull);
+
+      final lit = readFmat(
+        _bytes('''
+        {"fmat": 1, "name": "cloth", "lightingModel": "Lambert",
+         "baseColor": [0.5, 0.5, 0.5, 1.0]}
+      '''),
+      );
+      expect(lit.surface.lightingModel, LightingModel.lambert);
+      expect(lit.lighting, isNull);
+
+      final again = readFmat(_bytes(writeFmat(lit)));
+      expect(again.surface.lightingModel, LightingModel.lambert);
+      expect(again.warnings, isEmpty);
+    });
+
     test('and that an unusual sampler is written long and a plain one short', () {
       // Not a formatting preference: a file an artist edits by hand should show,
       // in a diff, that only the path changed. Mutation: always write the object
@@ -379,7 +400,7 @@ void main() {
         SurfaceAlphaMode.values.map((mode) => mode.name),
       );
       expect(
-        (builtInMaterialHints['lighting']!.kind as EnumHint).values.map(
+        (builtInMaterialHints['lightingModel']!.kind as EnumHint).values.map(
           (v) => v.value,
         ),
         LightingModel.builtIn.map((model) => model.shaderName),

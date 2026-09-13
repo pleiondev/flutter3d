@@ -786,7 +786,10 @@ ProjectRead readProject(Uint8List bytes) {
   );
   if (materialRefusal != null) return ProjectRefused(materialRefusal);
 
-  final (List<ProjectSkeleton> skeletons, String? skeletonRefusal) = _readSkeletons(
+  final (
+    List<ProjectSkeleton> skeletons,
+    String? skeletonRefusal,
+  ) = _readSkeletons(
     document is Map<String, Object?> ? document['skeletons'] : null,
   );
   if (skeletonRefusal != null) return ProjectRefused(skeletonRefusal);
@@ -892,10 +895,15 @@ ProjectRead readProject(Uint8List bytes) {
   final Object? document;
   try {
     document = jsonDecode(
-      utf8.decode(Uint8List.sublistView(bytes, at.offset, at.offset + at.length)),
+      utf8.decode(
+        Uint8List.sublistView(bytes, at.offset, at.offset + at.length),
+      ),
     );
   } on FormatException catch (error) {
-    return (const <HistoryStep>[], 'The history section is not JSON: ${error.message}');
+    return (
+      const <HistoryStep>[],
+      'The history section is not JSON: ${error.message}',
+    );
   }
   if (document is! Map<String, Object?> || document['steps'] is! List) {
     return (
@@ -1119,7 +1127,9 @@ ProjectRead readProject(Uint8List bytes) {
 Map<String, Object?>? _shapeSetJson(ShapeSet shapeSet) {
   if (shapeSet.isEmpty) return null;
   return <String, Object?>{
-    'keys': <Object?>[for (final ShapeKey key in shapeSet.keys) _shapeKeyJson(key)],
+    'keys': <Object?>[
+      for (final ShapeKey key in shapeSet.keys) _shapeKeyJson(key),
+    ],
     'weights': <double>[...shapeSet.weights],
   };
 }
@@ -1144,17 +1154,19 @@ List<Object?>? _lodsJson(List<LodSpec> lods) {
   ];
 }
 
-Map<String, Object?> _skeletonJson(ProjectSkeleton skeleton) => <String, Object?>{
-  'name': skeleton.name,
-  'joints': <int>[...skeleton.joints],
-  'inverseBindMatrices': <Object?>[
-    for (final Matrix4 m in skeleton.inverseBindMatrices) <double>[...m.storage],
-  ],
-  'skeletonRoot': skeleton.skeletonRoot,
-  'constraints': <Object?>[
-    for (final IkConstraint c in skeleton.constraints) _ikConstraintJson(c),
-  ],
-};
+Map<String, Object?> _skeletonJson(ProjectSkeleton skeleton) =>
+    <String, Object?>{
+      'name': skeleton.name,
+      'joints': <int>[...skeleton.joints],
+      'inverseBindMatrices': <Object?>[
+        for (final Matrix4 m in skeleton.inverseBindMatrices)
+          <double>[...m.storage],
+      ],
+      'skeletonRoot': skeleton.skeletonRoot,
+      'constraints': <Object?>[
+        for (final IkConstraint c in skeleton.constraints) _ikConstraintJson(c),
+      ],
+    };
 
 Map<String, Object?> _ikConstraintJson(IkConstraint c) => <String, Object?>{
   'rootJointId': c.rootJointId,
@@ -1166,7 +1178,9 @@ Map<String, Object?> _ikConstraintJson(IkConstraint c) => <String, Object?>{
 
 Map<String, Object?> _clipJson(ProjectClip clip) => <String, Object?>{
   'name': clip.name,
-  'tracks': <Object?>[for (final ProjectTrack track in clip.tracks) _trackJson(track)],
+  'tracks': <Object?>[
+    for (final ProjectTrack track in clip.tracks) _trackJson(track),
+  ],
   'extras': clip.extras,
 };
 
@@ -1212,6 +1226,13 @@ Map<String, Object?> _materialJson(ProjectMaterial material) {
     'alphaCutoff': surface.alphaCutoff,
     'doubleSided': surface.doubleSided,
     'unlit': surface.unlit,
+    // Younger than the rest of this record (`mat-04`), read the same
+    // optional way `fmat`/`graph` above are: absent means a material with
+    // no shader of its own, not a refusal. Only a built-in name is written
+    // here — a custom shader is a `.fmat`'s own concept, carried by `fmat`
+    // above rather than baked into this compact form.
+    if (surface.lightingModel case final LightingModel model)
+      'lightingModel': model.shaderName,
   };
 }
 
@@ -1350,6 +1371,14 @@ Map<String, Object?>? _bindingJson(TextureBinding? binding) => binding == null
             alphaCutoff: alphaCutoff.toDouble(),
             doubleSided: doubleSided,
             unlit: unlit,
+            lightingModel: switch (entry['lightingModel']) {
+              final String name => _lightingModelNamed(
+                name,
+                warnings: warnings,
+                context: 'Material $i\'s lightingModel',
+              ),
+              _ => null,
+            },
           ),
         ),
       );
@@ -1525,6 +1554,25 @@ T _named<T extends Enum>(
     '${fallback.name}.',
   );
   return fallback;
+}
+
+/// [LightingModel.builtIn]'s own member named [name], or null with a warning
+/// for one this build does not ship — [LightingModel] cannot use [_named]
+/// above, since it is a value class rather than an [Enum] (deliberately, so
+/// an application can hand the renderer a shader of its own).
+LightingModel? _lightingModelNamed(
+  String name, {
+  required List<String> warnings,
+  required String context,
+}) {
+  for (final LightingModel model in LightingModel.builtIn) {
+    if (model.shaderName == name) return model;
+  }
+  warnings.add(
+    '$context names "$name", which this build does not know; opened as '
+    'unset.',
+  );
+  return null;
 }
 
 /// The images, or the sentence that stops the file being read.
@@ -1926,7 +1974,9 @@ VertexLayout? _layoutFrom(Object? json, Map<String, String> pool) {
     return (
       ShapeSet(
         keys: keys,
-        weights: <double>[for (final Object? v in weightEntries) (v! as num).toDouble()],
+        weights: <double>[
+          for (final Object? v in weightEntries) (v! as num).toDouble(),
+        ],
       ),
       null,
     );
@@ -1980,7 +2030,10 @@ VertexLayout? _layoutFrom(Object? json, Map<String, String> pool) {
 (List<ProjectSkeleton>, String?) _readSkeletons(Object? json) {
   if (json == null) return (const <ProjectSkeleton>[], null);
   if (json is! List) {
-    return (const <ProjectSkeleton>[], 'The manifest\'s skeletons are not a list.');
+    return (
+      const <ProjectSkeleton>[],
+      'The manifest\'s skeletons are not a list.',
+    );
   }
   final skeletons = <ProjectSkeleton>[];
   for (var i = 0; i < json.length; i++) {
@@ -1991,7 +2044,10 @@ VertexLayout? _layoutFrom(Object? json, Map<String, String> pool) {
       'name': final String? name,
     }) {
       if (joints.any((Object? v) => v is! int)) {
-        return (const <ProjectSkeleton>[], 'Skeleton $i has a joint that is not an id.');
+        return (
+          const <ProjectSkeleton>[],
+          'Skeleton $i has a joint that is not an id.',
+        );
       }
       if (matrices.length != joints.length) {
         return (
@@ -2003,7 +2059,9 @@ VertexLayout? _layoutFrom(Object? json, Map<String, String> pool) {
       final readMatrices = <Matrix4>[];
       for (var m = 0; m < matrices.length; m++) {
         final Object? entry = matrices[m];
-        if (entry is! List || entry.length != 16 || entry.any((Object? v) => v is! num)) {
+        if (entry is! List ||
+            entry.length != 16 ||
+            entry.any((Object? v) => v is! num)) {
           return (
             const <ProjectSkeleton>[],
             'Skeleton $i\'s inverse bind matrix $m is not sixteen numbers.',
@@ -2068,7 +2126,10 @@ VertexLayout? _layoutFrom(Object? json, Map<String, String> pool) {
         ),
       );
     } else {
-      return (const <IkConstraint>[], 'constraint $i is not a well-formed IkConstraint.');
+      return (
+        const <IkConstraint>[],
+        'constraint $i is not a well-formed IkConstraint.',
+      );
     }
   }
   return (constraints, null);
@@ -2123,7 +2184,8 @@ VertexLayout? _layoutFrom(Object? json, Map<String, String> pool) {
     'times': final List<Object?> times,
     'values': final List<Object?> values,
   }) {
-    if (times.any((Object? v) => v is! num) || values.any((Object? v) => v is! num)) {
+    if (times.any((Object? v) => v is! num) ||
+        values.any((Object? v) => v is! num)) {
       return (
         null,
         'Clip $clipIndex, track $trackIndex has a time or a value that is '

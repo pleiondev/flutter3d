@@ -524,7 +524,11 @@ void main() {
 
       expect(history.run(const MarkSeam()), isNull);
       for (final half in <int>[0, 1, 2]) {
-        expect(mesh.edgeHas(half, EdgeFlags.seam), isTrue, reason: 'edge $half');
+        expect(
+          mesh.edgeHas(half, EdgeFlags.seam),
+          isTrue,
+          reason: 'edge $half',
+        );
       }
     });
 
@@ -966,9 +970,7 @@ void main() {
       final history = ModelHistory(const ModelProject());
 
       expect(
-        history.run(
-          AddSocket(label: 'weapon mount', at: Vector3(0, 1.4, 0.2)),
-        ),
+        history.run(AddSocket(label: 'weapon mount', at: Vector3(0, 1.4, 0.2))),
         isNull,
       );
 
@@ -1225,6 +1227,42 @@ void main() {
         isNull,
       );
       expect(history.project.materials.single.surface.unlit, isTrue);
+
+      expect(
+        history.run(
+          const SetMaterialField(
+            index: 0,
+            field: 'lightingModel',
+            value: 'Lambert',
+          ),
+        ),
+        isNull,
+      );
+      expect(
+        history.project.materials.single.surface.lightingModel,
+        LightingModel.lambert,
+      );
+
+      // Clearing it back is the same command with a null value, not a
+      // separate one — `_fieldSet`'s own convention for every other slot.
+      expect(
+        history.run(
+          const SetMaterialField(index: 0, field: 'lightingModel', value: null),
+        ),
+        isNull,
+      );
+      expect(history.project.materials.single.surface.lightingModel, isNull);
+
+      expect(
+        history.run(
+          const SetMaterialField(
+            index: 0,
+            field: 'lightingModel',
+            value: 'not-a-real-shader',
+          ),
+        ),
+        isNotNull,
+      );
     });
 
     test('an unknown field and a wrongly shaped value are both refused', () {
@@ -1362,38 +1400,41 @@ void main() {
         expect(history.project.materials.single.surface.name, 'steel');
       });
 
-      test('linking with bytes adopts the file\'s own look, textures aside', () {
-        final history = painted();
-        final bytes = Uint8List.fromList(
-          utf8.encode(
-            writeFmat(
-              MaterialDocument(
-                surface: SurfaceMaterial(
-                  name: 'brushed steel',
-                  metallic: 0.9,
-                  roughness: 0.2,
-                  unlit: true,
+      test(
+        'linking with bytes adopts the file\'s own look, textures aside',
+        () {
+          final history = painted();
+          final bytes = Uint8List.fromList(
+            utf8.encode(
+              writeFmat(
+                MaterialDocument(
+                  surface: SurfaceMaterial(
+                    name: 'brushed steel',
+                    metallic: 0.9,
+                    roughness: 0.2,
+                    unlit: true,
+                  ),
                 ),
               ),
             ),
-          ),
-        );
+          );
 
-        expect(
-          history.run(
-            LinkMaterialFile(index: 0, path: 'brushed.fmat', bytes: bytes),
-          ),
-          isNull,
-        );
-        final linked = history.project.materials.single;
-        expect(linked.fmat, 'brushed.fmat');
-        expect(linked.surface.name, 'brushed steel');
-        expect(linked.surface.metallic, closeTo(0.9, 1e-6));
-        expect(linked.surface.roughness, closeTo(0.2, 1e-6));
-        // Mutation: forget `unlit` in the field list `LinkMaterialFile` reads
-        // off `document.surface` and this reads back the default `false`.
-        expect(linked.surface.unlit, isTrue);
-      });
+          expect(
+            history.run(
+              LinkMaterialFile(index: 0, path: 'brushed.fmat', bytes: bytes),
+            ),
+            isNull,
+          );
+          final linked = history.project.materials.single;
+          expect(linked.fmat, 'brushed.fmat');
+          expect(linked.surface.name, 'brushed steel');
+          expect(linked.surface.metallic, closeTo(0.9, 1e-6));
+          expect(linked.surface.roughness, closeTo(0.2, 1e-6));
+          // Mutation: forget `unlit` in the field list `LinkMaterialFile` reads
+          // off `document.surface` and this reads back the default `false`.
+          expect(linked.surface.unlit, isTrue);
+        },
+      );
 
       test('a file that does not even parse as a material is refused, not '
           'thrown', () {
@@ -1478,19 +1519,13 @@ void main() {
           history.run(const LinkMaterialFile(index: 4, path: 'x.fmat')),
           contains('material 4'),
         );
-        expect(
-          history.run(const EmbedMaterial(4)),
-          contains('material 4'),
-        );
+        expect(history.run(const EmbedMaterial(4)), contains('material 4'));
       });
 
       test('embedding a material that is not linked is refused', () {
         final history = painted();
 
-        expect(
-          history.run(const EmbedMaterial(0)),
-          contains('not linked'),
-        );
+        expect(history.run(const EmbedMaterial(0)), contains('not linked'));
       });
     });
   });
@@ -2460,7 +2495,11 @@ void main() {
         const RenameShape(id: 1, shapeIndex: 0, to: 'grin'),
         const DeleteShape(id: 1, shapeIndex: 0),
         const KeyShape(id: 1, clipIndex: 0, time: 0.5),
-        AddJoint(skeletonIndex: 0, objectId: 2, inverseBindMatrix: Matrix4.identity()),
+        AddJoint(
+          skeletonIndex: 0,
+          objectId: 2,
+          inverseBindMatrix: Matrix4.identity(),
+        ),
         const RemoveJoint(skeletonIndex: 0, jointIndex: 1),
         const RenameJoint(skeletonIndex: 0, jointIndex: 0, to: 'shoulder'),
         const ReparentJoint(skeletonIndex: 0, jointIndex: 1, to: 2),
@@ -2469,7 +2508,11 @@ void main() {
           jointIndex: 0,
           worldTransform: Matrix4.identity(),
         ),
-        const MirrorJoints(skeletonIndex: 0, axis: 0, jointMirror: <int, int>{1: 2, 2: 1}),
+        const MirrorJoints(
+          skeletonIndex: 0,
+          axis: 0,
+          jointMirror: <int, int>{1: 2, 2: 1},
+        ),
         const SetKey(
           clipIndex: 0,
           trackIndex: 0,
@@ -2478,7 +2521,12 @@ void main() {
           inTangent: <double>[0, 0, 0],
           outTangent: <double>[0, 0, 0],
         ),
-        const MoveKeys(clipIndex: 0, trackIndex: 0, indices: <int>[0, 1], deltaTime: 0.25),
+        const MoveKeys(
+          clipIndex: 0,
+          trackIndex: 0,
+          indices: <int>[0, 1],
+          deltaTime: 0.25,
+        ),
         const DeleteKeys(clipIndex: 0, trackIndex: 0, indices: <int>[1]),
         const SetInterpolation(
           clipIndex: 0,
@@ -3136,7 +3184,10 @@ void main() {
   group('shape keys', () {
     test('AddShapeFromMesh captures the current mesh, at weight zero', () {
       final history = edited();
-      expect(history.run(const AddShapeFromMesh(id: 1, shapeName: 'smile')), isNull);
+      expect(
+        history.run(const AddShapeFromMesh(id: 1, shapeName: 'smile')),
+        isNull,
+      );
       final shapes = history.project[1]!.shapeSet;
       expect(shapes.keys, hasLength(1));
       expect(shapes.keys.single.name, 'smile');
@@ -3150,46 +3201,58 @@ void main() {
       }
     });
 
-    test('SetShapeWeight changes one shape\'s weight, refuses an unknown index', () {
-      final history = edited();
-      history.run(const AddShapeFromMesh(id: 1, shapeName: 'a'));
-      history.run(const AddShapeFromMesh(id: 1, shapeName: 'b'));
+    test(
+      'SetShapeWeight changes one shape\'s weight, refuses an unknown index',
+      () {
+        final history = edited();
+        history.run(const AddShapeFromMesh(id: 1, shapeName: 'a'));
+        history.run(const AddShapeFromMesh(id: 1, shapeName: 'b'));
 
-      expect(
-        history.run(const SetShapeWeight(id: 1, shapeIndex: 1, weight: 0.7)),
-        isNull,
-      );
-      expect(history.project[1]!.shapeSet.weights, <double>[0.0, 0.7]);
+        expect(
+          history.run(const SetShapeWeight(id: 1, shapeIndex: 1, weight: 0.7)),
+          isNull,
+        );
+        expect(history.project[1]!.shapeSet.weights, <double>[0.0, 0.7]);
 
-      expect(
-        history.run(const SetShapeWeight(id: 1, shapeIndex: 5, weight: 0.1)),
-        isNotNull,
-      );
-    });
+        expect(
+          history.run(const SetShapeWeight(id: 1, shapeIndex: 5, weight: 0.1)),
+          isNotNull,
+        );
+      },
+    );
 
     test('RenameShape refuses a blank name without touching the weight', () {
       final history = edited();
       history.run(const AddShapeFromMesh(id: 1, shapeName: 'a'));
 
-      expect(history.run(const RenameShape(id: 1, shapeIndex: 0, to: 'renamed')), isNull);
+      expect(
+        history.run(const RenameShape(id: 1, shapeIndex: 0, to: 'renamed')),
+        isNull,
+      );
       expect(history.project[1]!.shapeSet.keys.single.name, 'renamed');
 
-      expect(history.run(const RenameShape(id: 1, shapeIndex: 0, to: '  ')), isNotNull);
+      expect(
+        history.run(const RenameShape(id: 1, shapeIndex: 0, to: '  ')),
+        isNotNull,
+      );
       expect(history.project[1]!.shapeSet.keys.single.name, 'renamed');
     });
 
-    test('DeleteShape drops one key and its weight, keeping the rest in order', () {
-      final history = edited();
-      history.run(const AddShapeFromMesh(id: 1, shapeName: 'a'));
-      history.run(const AddShapeFromMesh(id: 1, shapeName: 'b'));
-      history.run(const AddShapeFromMesh(id: 1, shapeName: 'c'));
-      history.run(const SetShapeWeight(id: 1, shapeIndex: 1, weight: 0.4));
+    test(
+      'DeleteShape drops one key and its weight, keeping the rest in order',
+      () {
+        final history = edited();
+        history.run(const AddShapeFromMesh(id: 1, shapeName: 'a'));
+        history.run(const AddShapeFromMesh(id: 1, shapeName: 'b'));
+        history.run(const AddShapeFromMesh(id: 1, shapeName: 'c'));
+        history.run(const SetShapeWeight(id: 1, shapeIndex: 1, weight: 0.4));
 
-      expect(history.run(const DeleteShape(id: 1, shapeIndex: 0)), isNull);
-      final shapes = history.project[1]!.shapeSet;
-      expect(shapes.keys.map((k) => k.name), <String>['b', 'c']);
-      expect(shapes.weights, <double>[0.4, 0.0]);
-    });
+        expect(history.run(const DeleteShape(id: 1, shapeIndex: 0)), isNull);
+        final shapes = history.project[1]!.shapeSet;
+        expect(shapes.keys.map((k) => k.name), <String>['b', 'c']);
+        expect(shapes.weights, <double>[0.4, 0.0]);
+      },
+    );
 
     test(
       'KeyShape records the current weights at frame 10 (10/30 s), sampled back',
@@ -3201,14 +3264,19 @@ void main() {
         history.run(const SetShapeWeight(id: 1, shapeIndex: 1, weight: 0.75));
 
         final withClip = history.project.copyWith(
-          clips: const <ProjectClip>[ProjectClip(name: 'idle', tracks: <ProjectTrack>[])],
+          clips: const <ProjectClip>[
+            ProjectClip(name: 'idle', tracks: <ProjectTrack>[]),
+          ],
         );
         final replayed = ModelHistory(withClip)..selection = history.selection;
 
         const frame = 10;
         const fps = 30.0;
         const time = frame / fps;
-        expect(replayed.run(const KeyShape(id: 1, clipIndex: 0, time: time)), isNull);
+        expect(
+          replayed.run(const KeyShape(id: 1, clipIndex: 0, time: time)),
+          isNull,
+        );
 
         final track = replayed.project.clips.single.tracks.single;
         expect(track.objectId, 1);
@@ -3222,36 +3290,35 @@ void main() {
       },
     );
 
-    test(
-      'DeleteShape does not break the weights AnimationTrack: the remaining '
-      'components sample at their new positions',
-      () {
-        final history = edited();
-        history.run(const AddShapeFromMesh(id: 1, shapeName: 'a'));
-        history.run(const AddShapeFromMesh(id: 1, shapeName: 'b'));
-        history.run(const AddShapeFromMesh(id: 1, shapeName: 'c'));
-        history.run(const SetShapeWeight(id: 1, shapeIndex: 0, weight: 0.1));
-        history.run(const SetShapeWeight(id: 1, shapeIndex: 1, weight: 0.2));
-        history.run(const SetShapeWeight(id: 1, shapeIndex: 2, weight: 0.3));
+    test('DeleteShape does not break the weights AnimationTrack: the remaining '
+        'components sample at their new positions', () {
+      final history = edited();
+      history.run(const AddShapeFromMesh(id: 1, shapeName: 'a'));
+      history.run(const AddShapeFromMesh(id: 1, shapeName: 'b'));
+      history.run(const AddShapeFromMesh(id: 1, shapeName: 'c'));
+      history.run(const SetShapeWeight(id: 1, shapeIndex: 0, weight: 0.1));
+      history.run(const SetShapeWeight(id: 1, shapeIndex: 1, weight: 0.2));
+      history.run(const SetShapeWeight(id: 1, shapeIndex: 2, weight: 0.3));
 
-        final project = history.project.copyWith(
-          clips: const <ProjectClip>[ProjectClip(name: 'idle', tracks: <ProjectTrack>[])],
-        );
-        final replayed = ModelHistory(project)..selection = history.selection;
-        replayed.run(const KeyShape(id: 1, clipIndex: 0, time: 0.0));
+      final project = history.project.copyWith(
+        clips: const <ProjectClip>[
+          ProjectClip(name: 'idle', tracks: <ProjectTrack>[]),
+        ],
+      );
+      final replayed = ModelHistory(project)..selection = history.selection;
+      replayed.run(const KeyShape(id: 1, clipIndex: 0, time: 0.0));
 
-        expect(replayed.run(const DeleteShape(id: 1, shapeIndex: 1)), isNull);
+      expect(replayed.run(const DeleteShape(id: 1, shapeIndex: 1)), isNull);
 
-        final track = replayed.project.clips.single.tracks.single;
-        expect(track.track.componentCount, 2);
-        final out = Float32List(2);
-        track.track.sample(0.0, out);
-        // 'b' (weight 0.2) was dropped; 'a' and 'c' keep their own weights,
-        // shifted down one slot rather than reading each other's.
-        expect(out[0], closeTo(0.1, 1e-6));
-        expect(out[1], closeTo(0.3, 1e-6));
-      },
-    );
+      final track = replayed.project.clips.single.tracks.single;
+      expect(track.track.componentCount, 2);
+      final out = Float32List(2);
+      track.track.sample(0.0, out);
+      // 'b' (weight 0.2) was dropped; 'a' and 'c' keep their own weights,
+      // shifted down one slot rather than reading each other's.
+      expect(out[0], closeTo(0.1, 1e-6));
+      expect(out[1], closeTo(0.3, 1e-6));
+    });
   });
 
   group('levels of detail', () {
@@ -3340,135 +3407,143 @@ void main() {
       },
     );
 
-    test('LodMeshCache regenerates once the base mesh\'s own version moves', () {
-      final history = edited();
-      history.run(const AddLod(id: 1, ratio: 0.5, maxScreenFraction: 0.3));
-      final cache = LodMeshCache();
-
-      final object = history.project[1]!;
-      final firstMesh = cache.meshFor(object, 0);
-      expect(firstMesh, isNotNull);
-      // Asking again for the same version hands back the very same mesh —
-      // proof this came from the cache rather than a second simplify pass.
-      expect(identical(cache.meshFor(object, 0), firstMesh), isTrue);
-
-      // Editing the base mesh — an extrude, which both changes the topology
-      // and bumps `ModelObject.version` — must not leave the cache serving
-      // the mesh it built for the shape before the edit.
-      history.selection = faces(history, <int>[0]);
-      history.run(const Extrude(0.5));
-      final editedObject = history.project[1]!;
-      expect(editedObject.version, greaterThan(object.version));
-
-      final secondMesh = cache.meshFor(editedObject, 0);
-      expect(secondMesh, isNotNull);
-      expect(identical(secondMesh, firstMesh), isFalse);
-    });
-
     test(
-      'LodMeshCache.invalidate forces a fresh mesh regardless of version — '
-      'RegenerateLods\'s own reason for existing',
+      'LodMeshCache regenerates once the base mesh\'s own version moves',
       () {
         final history = edited();
         history.run(const AddLod(id: 1, ratio: 0.5, maxScreenFraction: 0.3));
         final cache = LodMeshCache();
-        final object = history.project[1]!;
 
+        final object = history.project[1]!;
         final firstMesh = cache.meshFor(object, 0);
-        cache.invalidate(object.id);
-        // Same object, same version — an ordinary cache would answer with
-        // `firstMesh` again; `invalidate` says the algorithm itself changed
-        // underneath it, so a plain version match is not enough this once.
-        final secondMesh = cache.meshFor(object, 0);
+        expect(firstMesh, isNotNull);
+        // Asking again for the same version hands back the very same mesh —
+        // proof this came from the cache rather than a second simplify pass.
+        expect(identical(cache.meshFor(object, 0), firstMesh), isTrue);
+
+        // Editing the base mesh — an extrude, which both changes the topology
+        // and bumps `ModelObject.version` — must not leave the cache serving
+        // the mesh it built for the shape before the edit.
+        history.selection = faces(history, <int>[0]);
+        history.run(const Extrude(0.5));
+        final editedObject = history.project[1]!;
+        expect(editedObject.version, greaterThan(object.version));
+
+        final secondMesh = cache.meshFor(editedObject, 0);
+        expect(secondMesh, isNotNull);
         expect(identical(secondMesh, firstMesh), isFalse);
       },
     );
+
+    test('LodMeshCache.invalidate forces a fresh mesh regardless of version — '
+        'RegenerateLods\'s own reason for existing', () {
+      final history = edited();
+      history.run(const AddLod(id: 1, ratio: 0.5, maxScreenFraction: 0.3));
+      final cache = LodMeshCache();
+      final object = history.project[1]!;
+
+      final firstMesh = cache.meshFor(object, 0);
+      cache.invalidate(object.id);
+      // Same object, same version — an ordinary cache would answer with
+      // `firstMesh` again; `invalidate` says the algorithm itself changed
+      // underneath it, so a plain version match is not enough this once.
+      final secondMesh = cache.meshFor(object, 0);
+      expect(identical(secondMesh, firstMesh), isFalse);
+    });
   });
 
-  group(
-    'shape keys survive a topology edit — mesh-61\'s own "loop cut '
-    'сохраняет ключи"',
-    () {
-      test('LoopCut grows a shape key to cover the vertices it adds', () {
-        final history = edited();
-        expect(history.run(const AddShapeFromMesh(id: 1, shapeName: 'a')), isNull);
-        final before = meshOf(history).vertexSlotCount;
-        expect(history.project[1]!.shapeSet.keys.single.vertexCount, before);
+  group('shape keys survive a topology edit — mesh-61\'s own "loop cut '
+      'сохраняет ключи"', () {
+    test('LoopCut grows a shape key to cover the vertices it adds', () {
+      final history = edited();
+      expect(
+        history.run(const AddShapeFromMesh(id: 1, shapeName: 'a')),
+        isNull,
+      );
+      final before = meshOf(history).vertexSlotCount;
+      expect(history.project[1]!.shapeSet.keys.single.vertexCount, before);
 
-        history.selection = history.selection.copyWith(
-          mode: SelectionMode.mesh,
-          level: ElementLevel.edge,
-          elements: <int>[0],
-        );
-        expect(history.run(const LoopCut(cuts: 1)), isNull);
+      history.selection = history.selection.copyWith(
+        mode: SelectionMode.mesh,
+        level: ElementLevel.edge,
+        elements: <int>[0],
+      );
+      expect(history.run(const LoopCut(cuts: 1)), isNull);
 
-        final mesh = meshOf(history);
-        expect(mesh.vertexSlotCount, greaterThan(before));
-        final key = history.project[1]!.shapeSet.keys.single;
-        // Mutation: leave the key at its own old vertex count instead of
-        // calling `grownTo` — the next line is what actually catches it,
-        // not merely that the command succeeded.
-        expect(key.vertexCount, mesh.vertexSlotCount);
+      final mesh = meshOf(history);
+      expect(mesh.vertexSlotCount, greaterThan(before));
+      final key = history.project[1]!.shapeSet.keys.single;
+      // Mutation: leave the key at its own old vertex count instead of
+      // calling `grownTo` — the next line is what actually catches it,
+      // not merely that the command succeeded.
+      expect(key.vertexCount, mesh.vertexSlotCount);
 
-        // Every new vertex the cut added reads, in this key, as wherever
-        // the mesh itself currently has it — a zero delta, not the origin
-        // `grownTo` would leave an un-seeded slot at.
-        for (var v = before; v < mesh.vertexSlotCount; v++) {
-          final base = mesh.positionOf(v);
-          final shaped = key.positionOf(v);
-          expect(shaped.x, closeTo(base.x, 1e-6));
-          expect(shaped.y, closeTo(base.y, 1e-6));
-          expect(shaped.z, closeTo(base.z, 1e-6));
-        }
+      // Every new vertex the cut added reads, in this key, as wherever
+      // the mesh itself currently has it — a zero delta, not the origin
+      // `grownTo` would leave an un-seeded slot at.
+      for (var v = before; v < mesh.vertexSlotCount; v++) {
+        final base = mesh.positionOf(v);
+        final shaped = key.positionOf(v);
+        expect(shaped.x, closeTo(base.x, 1e-6));
+        expect(shaped.y, closeTo(base.y, 1e-6));
+        expect(shaped.z, closeTo(base.z, 1e-6));
+      }
 
-        // The key's own original sculpted positions are untouched by the
-        // grow — checked against the mesh's own original vertices, still
-        // the ordinary case (LoopCut moves nothing that already existed).
-        for (var v = 0; v < before; v++) {
-          final base = mesh.positionOf(v);
-          final shaped = key.positionOf(v);
-          expect(shaped.x, closeTo(base.x, 1e-6));
-        }
-      });
+      // The key's own original sculpted positions are untouched by the
+      // grow — checked against the mesh's own original vertices, still
+      // the ordinary case (LoopCut moves nothing that already existed).
+      for (var v = 0; v < before; v++) {
+        final base = mesh.positionOf(v);
+        final shaped = key.positionOf(v);
+        expect(shaped.x, closeTo(base.x, 1e-6));
+      }
+    });
 
-      test('Extrude grows a shape key the same way', () {
-        final history = edited();
-        history.run(const AddShapeFromMesh(id: 1, shapeName: 'a'));
-        final before = meshOf(history).vertexSlotCount;
+    test('Extrude grows a shape key the same way', () {
+      final history = edited();
+      history.run(const AddShapeFromMesh(id: 1, shapeName: 'a'));
+      final before = meshOf(history).vertexSlotCount;
 
-        history.selection = faces(history, <int>[0]);
-        expect(history.run(const Extrude(0.5)), isNull);
+      history.selection = faces(history, <int>[0]);
+      expect(history.run(const Extrude(0.5)), isNull);
 
-        final mesh = meshOf(history);
-        expect(mesh.vertexSlotCount, greaterThan(before));
-        expect(history.project[1]!.shapeSet.keys.single.vertexCount, mesh.vertexSlotCount);
-      });
+      final mesh = meshOf(history);
+      expect(mesh.vertexSlotCount, greaterThan(before));
+      expect(
+        history.project[1]!.shapeSet.keys.single.vertexCount,
+        mesh.vertexSlotCount,
+      );
+    });
 
-      test('an object with no shape keys is unaffected — no shapeSet field '
-          'is created where there was none', () {
-        final history = edited();
-        history.selection = faces(history, <int>[0]);
-        expect(history.run(const Extrude(0.5)), isNull);
-        expect(history.project[1]!.shapeSet.isEmpty, isTrue);
-      });
+    test('an object with no shape keys is unaffected — no shapeSet field '
+        'is created where there was none', () {
+      final history = edited();
+      history.selection = faces(history, <int>[0]);
+      expect(history.run(const Extrude(0.5)), isNull);
+      expect(history.project[1]!.shapeSet.isEmpty, isTrue);
+    });
 
-      test('Separate keeps the source object\'s own shape key in step', () {
-        final history = edited();
-        history.run(const AddShapeFromMesh(id: 1, shapeName: 'a'));
+    test('Separate keeps the source object\'s own shape key in step', () {
+      final history = edited();
+      history.run(const AddShapeFromMesh(id: 1, shapeName: 'a'));
 
-        history.selection = faces(history, <int>[0]);
-        expect(history.run(const Separate()), isNull);
+      history.selection = faces(history, <int>[0]);
+      expect(history.run(const Separate()), isNull);
 
-        final mesh = meshOf(history);
-        expect(history.project[1]!.shapeSet.keys.single.vertexCount, mesh.vertexSlotCount);
-        // The new piece starts shapeless — a shape key captured on the
-        // whole original mesh names vertices this smaller piece may not
-        // even have, so it does not follow along.
-        final pieceId = history.project.objects.firstWhere((o) => o.name == 'cube part').id;
-        expect(history.project[pieceId]!.shapeSet.isEmpty, isTrue);
-      });
-    },
-  );
+      final mesh = meshOf(history);
+      expect(
+        history.project[1]!.shapeSet.keys.single.vertexCount,
+        mesh.vertexSlotCount,
+      );
+      // The new piece starts shapeless — a shape key captured on the
+      // whole original mesh names vertices this smaller piece may not
+      // even have, so it does not follow along.
+      final pieceId = history.project.objects
+          .firstWhere((o) => o.name == 'cube part')
+          .id;
+      expect(history.project[pieceId]!.shapeSet.isEmpty, isTrue);
+    });
+  });
 
   group('keyframe commands', () {
     // A cube (from `edited()`) with one clip, one translation track: two
@@ -3502,7 +3577,12 @@ void main() {
       final history = withTrack();
       expect(
         history.run(
-          const SetKey(clipIndex: 0, trackIndex: 0, time: 0.5, values: <double>[9, 9, 9]),
+          const SetKey(
+            clipIndex: 0,
+            trackIndex: 0,
+            time: 0.5,
+            values: <double>[9, 9, 9],
+          ),
         ),
         isNull,
       );
@@ -3517,7 +3597,12 @@ void main() {
       final history = withTrack();
       expect(
         history.run(
-          const SetKey(clipIndex: 0, trackIndex: 0, time: 0.5, values: <double>[1, 2]),
+          const SetKey(
+            clipIndex: 0,
+            trackIndex: 0,
+            time: 0.5,
+            values: <double>[1, 2],
+          ),
         ),
         isNotNull,
       );
@@ -3527,7 +3612,12 @@ void main() {
       final history = withTrack();
       expect(
         history.run(
-          const MoveKeys(clipIndex: 0, trackIndex: 0, indices: <int>[0], deltaTime: 2.0),
+          const MoveKeys(
+            clipIndex: 0,
+            trackIndex: 0,
+            indices: <int>[0],
+            deltaTime: 2.0,
+          ),
         ),
         isNull,
       );
@@ -3541,7 +3631,12 @@ void main() {
       final history = withTrack();
       expect(
         history.run(
-          const MoveKeys(clipIndex: 0, trackIndex: 0, indices: <int>[5], deltaTime: 1.0),
+          const MoveKeys(
+            clipIndex: 0,
+            trackIndex: 0,
+            indices: <int>[5],
+            deltaTime: 1.0,
+          ),
         ),
         isNotNull,
       );
@@ -3550,7 +3645,9 @@ void main() {
     test('DeleteKeys drops the named key, keeping the rest', () {
       final history = withTrack();
       expect(
-        history.run(const DeleteKeys(clipIndex: 0, trackIndex: 0, indices: <int>[0])),
+        history.run(
+          const DeleteKeys(clipIndex: 0, trackIndex: 0, indices: <int>[0]),
+        ),
         isNull,
       );
       final track = history.project.clips.single.tracks.single.track;
@@ -3561,7 +3658,9 @@ void main() {
     test('DeleteKeys refuses to empty a track down to nothing', () {
       final history = withTrack();
       expect(
-        history.run(const DeleteKeys(clipIndex: 0, trackIndex: 0, indices: <int>[0, 1])),
+        history.run(
+          const DeleteKeys(clipIndex: 0, trackIndex: 0, indices: <int>[0, 1]),
+        ),
         isNotNull,
       );
       // Refused, not applied — the track still has both its own keys.
@@ -3636,13 +3735,21 @@ void main() {
       const interpolation = AnimationInterpolation.step;
       expect(
         history.run(
-          const SetInterpolation(clipIndex: 9, trackIndex: 0, interpolation: interpolation),
+          const SetInterpolation(
+            clipIndex: 9,
+            trackIndex: 0,
+            interpolation: interpolation,
+          ),
         ),
         isNotNull,
       );
       expect(
         history.run(
-          const SetInterpolation(clipIndex: 0, trackIndex: 9, interpolation: interpolation),
+          const SetInterpolation(
+            clipIndex: 0,
+            trackIndex: 9,
+            interpolation: interpolation,
+          ),
         ),
         isNotNull,
       );
@@ -3655,7 +3762,9 @@ void main() {
     ModelHistory withClip() {
       final history = edited();
       final project = history.project.copyWith(
-        clips: <ProjectClip>[const ProjectClip(name: 'idle', tracks: <ProjectTrack>[])],
+        clips: <ProjectClip>[
+          const ProjectClip(name: 'idle', tracks: <ProjectTrack>[]),
+        ],
       );
       return ModelHistory(project)..selection = history.selection;
     }
@@ -3696,11 +3805,7 @@ void main() {
         Vector3(1, 2, 3).normalized(),
         math.pi / 3,
       );
-      final tilted = Matrix4.compose(
-        Vector3.zero(),
-        expected,
-        Vector3.all(1),
-      );
+      final tilted = Matrix4.compose(Vector3.zero(), expected, Vector3.all(1));
       history.run(SetTransform(id: 1, to: tilted));
 
       history.run(
@@ -3722,79 +3827,103 @@ void main() {
       expect(out[3], closeTo(expected.w, 1e-6));
     });
 
-    test('a second PoseJoint on the same track adds a key, not a new track', () {
-      final history = withClip();
-      history.run(
-        const PoseJoint(
-          joint: 1,
-          path: AnimationPath.translation,
-          clipIndex: 0,
-          frame: 0,
-        ),
-      );
-      history.run(SetTransform(id: 1, to: Matrix4.identity()..setTranslationRaw(1, 0, 0)));
-      history.run(
-        const PoseJoint(
-          joint: 1,
-          path: AnimationPath.translation,
-          clipIndex: 0,
-          frame: 30,
-        ),
-      );
-
-      expect(history.project.clips.single.tracks, hasLength(1));
-      expect(history.project.clips.single.tracks.single.track.keyCount, 2);
-    });
-
     test(
-      'three PoseJoint calls in one transaction, frame unchanged, read back '
-      'as one key and one step',
+      'a second PoseJoint on the same track adds a key, not a new track',
       () {
-        // The shape a gizmo drag actually makes: the object moves between
-        // calls, frame does not.
         final history = withClip();
-        history.transaction(() {
-          history.run(SetTransform(id: 1, to: Matrix4.identity()..setTranslationRaw(1, 0, 0)));
-          history.run(
-            const PoseJoint(
-              joint: 1,
-              path: AnimationPath.translation,
-              clipIndex: 0,
-              frame: 10,
-            ),
-          );
-          history.run(SetTransform(id: 1, to: Matrix4.identity()..setTranslationRaw(2, 0, 0)));
-          history.run(
-            const PoseJoint(
-              joint: 1,
-              path: AnimationPath.translation,
-              clipIndex: 0,
-              frame: 10,
-            ),
-          );
-          history.run(SetTransform(id: 1, to: Matrix4.identity()..setTranslationRaw(3, 0, 0)));
-          history.run(
-            const PoseJoint(
-              joint: 1,
-              path: AnimationPath.translation,
-              clipIndex: 0,
-              frame: 10,
-            ),
-          );
-        });
+        history.run(
+          const PoseJoint(
+            joint: 1,
+            path: AnimationPath.translation,
+            clipIndex: 0,
+            frame: 0,
+          ),
+        );
+        history.run(
+          SetTransform(
+            id: 1,
+            to: Matrix4.identity()..setTranslationRaw(1, 0, 0),
+          ),
+        );
+        history.run(
+          const PoseJoint(
+            joint: 1,
+            path: AnimationPath.translation,
+            clipIndex: 0,
+            frame: 30,
+          ),
+        );
 
-        expect(history.canUndo, isTrue);
-        final track = history.project.clips.single.tracks.single.track;
-        expect(track.keyCount, 1, reason: 'one key, not three — the last call wins');
-        final out = Float32List(3);
-        track.sample(track.times.first, out);
-        expect(out, <double>[3, 0, 0]);
-
-        // One step: undo puts the whole transaction back at once.
-        history.undo();
-        expect(history.project.clips.single.tracks, isEmpty);
+        expect(history.project.clips.single.tracks, hasLength(1));
+        expect(history.project.clips.single.tracks.single.track.keyCount, 2);
       },
     );
+
+    test('three PoseJoint calls in one transaction, frame unchanged, read back '
+        'as one key and one step', () {
+      // The shape a gizmo drag actually makes: the object moves between
+      // calls, frame does not.
+      final history = withClip();
+      history.transaction(() {
+        history.run(
+          SetTransform(
+            id: 1,
+            to: Matrix4.identity()..setTranslationRaw(1, 0, 0),
+          ),
+        );
+        history.run(
+          const PoseJoint(
+            joint: 1,
+            path: AnimationPath.translation,
+            clipIndex: 0,
+            frame: 10,
+          ),
+        );
+        history.run(
+          SetTransform(
+            id: 1,
+            to: Matrix4.identity()..setTranslationRaw(2, 0, 0),
+          ),
+        );
+        history.run(
+          const PoseJoint(
+            joint: 1,
+            path: AnimationPath.translation,
+            clipIndex: 0,
+            frame: 10,
+          ),
+        );
+        history.run(
+          SetTransform(
+            id: 1,
+            to: Matrix4.identity()..setTranslationRaw(3, 0, 0),
+          ),
+        );
+        history.run(
+          const PoseJoint(
+            joint: 1,
+            path: AnimationPath.translation,
+            clipIndex: 0,
+            frame: 10,
+          ),
+        );
+      });
+
+      expect(history.canUndo, isTrue);
+      final track = history.project.clips.single.tracks.single.track;
+      expect(
+        track.keyCount,
+        1,
+        reason: 'one key, not three — the last call wins',
+      );
+      final out = Float32List(3);
+      track.sample(track.times.first, out);
+      expect(out, <double>[3, 0, 0]);
+
+      // One step: undo puts the whole transaction back at once.
+      history.undo();
+      expect(history.project.clips.single.tracks, isEmpty);
+    });
 
     test('refuses a clip the project does not have', () {
       final history = edited();
@@ -3863,9 +3992,15 @@ void main() {
                   componentCount: 3,
                   times: Float32List.fromList(<double>[0, 0.5, 1]),
                   values: Float32List.fromList(<double>[
-                    0, 0, 0,
-                    1, 0, 0,
-                    2, 0, 0,
+                    0,
+                    0,
+                    0,
+                    1,
+                    0,
+                    0,
+                    2,
+                    0,
+                    0,
                   ]),
                 ),
               ),
@@ -3876,20 +4011,23 @@ void main() {
       return ModelHistory(project)..selection = history.selection;
     }
 
-    test('the root stands still: every key reads the first key\'s own value', () {
-      final history = withWalkingRoot();
-      expect(
-        history.run(const ExtractRootMotion(clipIndex: 0, rootJoint: 1)),
-        isNull,
-      );
+    test(
+      'the root stands still: every key reads the first key\'s own value',
+      () {
+        final history = withWalkingRoot();
+        expect(
+          history.run(const ExtractRootMotion(clipIndex: 0, rootJoint: 1)),
+          isNull,
+        );
 
-      final track = history.project.clips.single.tracks.single.track;
-      final out = Float32List(3);
-      for (final time in <double>[0, 0.5, 1]) {
-        track.sample(time, out);
-        expect(out, <double>[0, 0, 0]);
-      }
-    });
+        final track = history.project.clips.single.tracks.single.track;
+        final out = Float32List(3);
+        for (final time in <double>[0, 0.5, 1]) {
+          track.sample(time, out);
+          expect(out, <double>[0, 0, 0]);
+        }
+      },
+    );
 
     test('the sum of the extracted deltas over the cycle is 2 metres', () {
       final history = withWalkingRoot();
@@ -3976,10 +4114,7 @@ void main() {
   group('AddSkeleton, BindSkin, AddClip', () {
     test('AddSkeleton appends an empty skeleton, ready for AddJoint', () {
       final history = edited();
-      expect(
-        history.run(const AddSkeleton(skeletonName: 'rig')),
-        isNull,
-      );
+      expect(history.run(const AddSkeleton(skeletonName: 'rig')), isNull);
 
       expect(history.project.skeletons, hasLength(1));
       expect(history.project.skeletons.single.name, 'rig');
@@ -4141,12 +4276,11 @@ void main() {
 
     test('AddJoint appends, refuses an object already a joint', () {
       final history = riggedChain();
-      final bodyId = history.project.objects.firstWhere((o) => o.name == 'body').id;
+      final bodyId = history.project.objects
+          .firstWhere((o) => o.name == 'body')
+          .id;
 
-      expect(
-        history.run(AddJoint(skeletonIndex: 0, objectId: bodyId)),
-        isNull,
-      );
+      expect(history.run(AddJoint(skeletonIndex: 0, objectId: bodyId)), isNull);
       expect(history.project.skeletons.single.jointCount, 4);
 
       final rootId = history.project.skeletons.single.joints.first;
@@ -4156,20 +4290,27 @@ void main() {
       );
     });
 
-    test('RenameJoint renames the joint\'s own object, refuses a blank name', () {
-      final history = riggedChain();
-      expect(
-        history.run(const RenameJoint(skeletonIndex: 0, jointIndex: 0, to: 'pelvis')),
-        isNull,
-      );
-      final rootId = history.project.skeletons.single.joints.first;
-      expect(history.project[rootId]!.name, 'pelvis');
+    test(
+      'RenameJoint renames the joint\'s own object, refuses a blank name',
+      () {
+        final history = riggedChain();
+        expect(
+          history.run(
+            const RenameJoint(skeletonIndex: 0, jointIndex: 0, to: 'pelvis'),
+          ),
+          isNull,
+        );
+        final rootId = history.project.skeletons.single.joints.first;
+        expect(history.project[rootId]!.name, 'pelvis');
 
-      expect(
-        history.run(const RenameJoint(skeletonIndex: 0, jointIndex: 0, to: ' ')),
-        isNotNull,
-      );
-    });
+        expect(
+          history.run(
+            const RenameJoint(skeletonIndex: 0, jointIndex: 0, to: ' '),
+          ),
+          isNotNull,
+        );
+      },
+    );
 
     test('ReparentJoint delegates to SetParent, cycle refusal included', () {
       final history = riggedChain();
@@ -4187,54 +4328,66 @@ void main() {
       expect(history.project[rootId]!.parent, isNull);
     });
 
-    test(
-      'RemoveJoint reassigns weight to the parent joint, sum stays 1±1e-6 — '
-      "anim-29's own acceptance",
-      () {
-        final history = riggedChain();
-        // Remove 'mid' (joint 1): vertex 0's own 0.3 on joint 1 should move
-        // to joint 0 (mid's own parent, 'root'), joint 2 shifts down to 1.
-        expect(history.run(const RemoveJoint(skeletonIndex: 0, jointIndex: 1)), isNull);
-
-        final skeleton = history.project.skeletons.single;
-        expect(skeleton.jointCount, 2);
-        expect(skeleton.joints.map((id) => history.project[id]!.name), <String>['root', 'tip']);
-
-        final mesh = bodyMesh(history);
-        final pairs = weightsOf(mesh, 0);
-        final sum = pairs.fold<double>(0, (s, p) => s + p.weight);
-        expect(sum, closeTo(1.0, 1e-6));
-        // joint 0 (root) absorbed mid's own 0.3, on top of its own 0.5;
-        // the old joint 2 (tip) is now joint 1.
-        final root = pairs.firstWhere((p) => p.joint == 0).weight;
-        final tip = pairs.firstWhere((p) => p.joint == 1).weight;
-        expect(root, closeTo(0.8, 1e-6));
-        expect(tip, closeTo(0.2, 1e-6));
-
-        // Skeleton actually builds from the result — the acceptance's own
-        // "Skeleton строится", checked by the plain fact that every joint
-        // index a remaining vertex weight names is within the new,
-        // shorter joint count.
-        for (var v = 0; v < mesh.vertexSlotCount; v++) {
-          for (final pair in weightsOf(mesh, v)) {
-            expect(pair.joint, inInclusiveRange(0, skeleton.jointCount - 1));
-          }
-        }
-      },
-    );
-
-    test('RemoveJoint on a joint with no parent drops its weight, renormalized', () {
+    test('RemoveJoint reassigns weight to the parent joint, sum stays 1±1e-6 — '
+        "anim-29's own acceptance", () {
       final history = riggedChain();
-      // Remove 'root' (joint 0, no parent of its own in this skeleton):
-      // vertex 0's own 0.5 on it is dropped outright.
-      expect(history.run(const RemoveJoint(skeletonIndex: 0, jointIndex: 0)), isNull);
+      // Remove 'mid' (joint 1): vertex 0's own 0.3 on joint 1 should move
+      // to joint 0 (mid's own parent, 'root'), joint 2 shifts down to 1.
+      expect(
+        history.run(const RemoveJoint(skeletonIndex: 0, jointIndex: 1)),
+        isNull,
+      );
+
+      final skeleton = history.project.skeletons.single;
+      expect(skeleton.jointCount, 2);
+      expect(skeleton.joints.map((id) => history.project[id]!.name), <String>[
+        'root',
+        'tip',
+      ]);
 
       final mesh = bodyMesh(history);
       final pairs = weightsOf(mesh, 0);
       final sum = pairs.fold<double>(0, (s, p) => s + p.weight);
       expect(sum, closeTo(1.0, 1e-6));
-      expect(pairs.map((p) => p.joint).toSet(), <int>{0, 1}); // mid, tip — shifted down
+      // joint 0 (root) absorbed mid's own 0.3, on top of its own 0.5;
+      // the old joint 2 (tip) is now joint 1.
+      final root = pairs.firstWhere((p) => p.joint == 0).weight;
+      final tip = pairs.firstWhere((p) => p.joint == 1).weight;
+      expect(root, closeTo(0.8, 1e-6));
+      expect(tip, closeTo(0.2, 1e-6));
+
+      // Skeleton actually builds from the result — the acceptance's own
+      // "Skeleton строится", checked by the plain fact that every joint
+      // index a remaining vertex weight names is within the new,
+      // shorter joint count.
+      for (var v = 0; v < mesh.vertexSlotCount; v++) {
+        for (final pair in weightsOf(mesh, v)) {
+          expect(pair.joint, inInclusiveRange(0, skeleton.jointCount - 1));
+        }
+      }
     });
+
+    test(
+      'RemoveJoint on a joint with no parent drops its weight, renormalized',
+      () {
+        final history = riggedChain();
+        // Remove 'root' (joint 0, no parent of its own in this skeleton):
+        // vertex 0's own 0.5 on it is dropped outright.
+        expect(
+          history.run(const RemoveJoint(skeletonIndex: 0, jointIndex: 0)),
+          isNull,
+        );
+
+        final mesh = bodyMesh(history);
+        final pairs = weightsOf(mesh, 0);
+        final sum = pairs.fold<double>(0, (s, p) => s + p.weight);
+        expect(sum, closeTo(1.0, 1e-6));
+        expect(pairs.map((p) => p.joint).toSet(), <int>{
+          0,
+          1,
+        }); // mid, tip — shifted down
+      },
+    );
 
     test('SetRestPose moves the joint in world space and recomputes its own '
         'inverse bind matrix', () {
@@ -4244,7 +4397,13 @@ void main() {
 
       final newWorld = Matrix4.translation(Vector3(0, 2, 0));
       expect(
-        history.run(SetRestPose(skeletonIndex: 0, jointIndex: 1, worldTransform: newWorld)),
+        history.run(
+          SetRestPose(
+            skeletonIndex: 0,
+            jointIndex: 1,
+            worldTransform: newWorld,
+          ),
+        ),
         isNull,
       );
 
@@ -4264,7 +4423,10 @@ void main() {
         history.project.skeletons.single.inverseBindMatrices[1],
       )..multiply(newWorld);
       for (var i = 0; i < 16; i++) {
-        expect(rebuilt.storage[i], closeTo(Matrix4.identity().storage[i], 1e-6));
+        expect(
+          rebuilt.storage[i],
+          closeTo(Matrix4.identity().storage[i], 1e-6),
+        );
       }
     });
 
@@ -4274,10 +4436,18 @@ void main() {
       final rootId = skeleton.joints[0];
       final tipId = skeleton.joints[2];
 
-      history.run(SetTransform(id: rootId, to: Matrix4.translation(Vector3(5, 0, 0))));
+      history.run(
+        SetTransform(id: rootId, to: Matrix4.translation(Vector3(5, 0, 0))),
+      );
       const target = <double>[1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 5, 7, 0, 1];
       final worldTarget = Matrix4.fromList(target);
-      history.run(SetRestPose(skeletonIndex: 0, jointIndex: 2, worldTransform: worldTarget));
+      history.run(
+        SetRestPose(
+          skeletonIndex: 0,
+          jointIndex: 2,
+          worldTransform: worldTarget,
+        ),
+      );
 
       final world = worldTransformOf(history.project, tipId);
       for (var i = 0; i < 16; i++) {
@@ -4316,32 +4486,33 @@ void main() {
       }
     }
 
-    test(
-      'MirrorJoints satisfies mirrored·reflect(p) == reflect(original·p), '
-      'self-mirrored joint, every axis',
-      () {
-        for (var axis = 0; axis < 3; axis++) {
-          final history = riggedChain();
-          final skeleton = history.project.skeletons.single;
-          final rootId = skeleton.joints[0];
+    test('MirrorJoints satisfies mirrored·reflect(p) == reflect(original·p), '
+        'self-mirrored joint, every axis', () {
+      for (var axis = 0; axis < 3; axis++) {
+        final history = riggedChain();
+        final skeleton = history.project.skeletons.single;
+        final rootId = skeleton.joints[0];
 
-          final original = Matrix4.translation(Vector3(3, -2, 4))
-            ..multiply(Matrix4.rotationY(0.7))
-            ..multiply(Matrix4.rotationX(0.3));
-          expect(history.run(SetTransform(id: rootId, to: original)), isNull);
+        final original = Matrix4.translation(Vector3(3, -2, 4))
+          ..multiply(Matrix4.rotationY(0.7))
+          ..multiply(Matrix4.rotationX(0.3));
+        expect(history.run(SetTransform(id: rootId, to: original)), isNull);
 
-          expect(
-            history.run(
-              MirrorJoints(skeletonIndex: 0, axis: axis, jointMirror: const <int, int>{0: 0}),
+        expect(
+          history.run(
+            MirrorJoints(
+              skeletonIndex: 0,
+              axis: axis,
+              jointMirror: const <int, int>{0: 0},
             ),
-            isNull,
-          );
+          ),
+          isNull,
+        );
 
-          final mirrored = worldTransformOf(history.project, rootId);
-          expectMirroredTransform(mirrored, original, axis);
-        }
-      },
-    );
+        final mirrored = worldTransformOf(history.project, rootId);
+        expectMirroredTransform(mirrored, original, axis);
+      }
+    });
 
     test(
       'MirrorJoints reads every source world before writing any target — '
@@ -4396,8 +4567,14 @@ void main() {
         );
         final history = ModelHistory(project);
 
-        final leftWorldBefore = worldTransformOf(history.project, leftId).clone();
-        final rightWorldBefore = worldTransformOf(history.project, rightId).clone();
+        final leftWorldBefore = worldTransformOf(
+          history.project,
+          leftId,
+        ).clone();
+        final rightWorldBefore = worldTransformOf(
+          history.project,
+          rightId,
+        ).clone();
 
         // A buggy interleaved read/write would, for this exact pairing, read
         // joint 2's own world back after it had already been overwritten from
@@ -4406,7 +4583,11 @@ void main() {
         // both sources up front (which this asserts) is what rules that out.
         expect(
           history.run(
-            const MirrorJoints(skeletonIndex: 0, axis: 0, jointMirror: <int, int>{1: 2, 2: 1}),
+            const MirrorJoints(
+              skeletonIndex: 0,
+              axis: 0,
+              jointMirror: <int, int>{1: 2, 2: 1},
+            ),
           ),
           isNull,
         );
@@ -4418,21 +4599,32 @@ void main() {
       },
     );
 
-    test('MirrorJoints refuses a source or target joint index out of range', () {
-      final history = riggedChain();
-      expect(
-        history.run(
-          const MirrorJoints(skeletonIndex: 0, axis: 0, jointMirror: <int, int>{5: 0}),
-        ),
-        isNotNull,
-      );
-      expect(
-        history.run(
-          const MirrorJoints(skeletonIndex: 0, axis: 0, jointMirror: <int, int>{0: 5}),
-        ),
-        isNotNull,
-      );
-    });
+    test(
+      'MirrorJoints refuses a source or target joint index out of range',
+      () {
+        final history = riggedChain();
+        expect(
+          history.run(
+            const MirrorJoints(
+              skeletonIndex: 0,
+              axis: 0,
+              jointMirror: <int, int>{5: 0},
+            ),
+          ),
+          isNotNull,
+        );
+        expect(
+          history.run(
+            const MirrorJoints(
+              skeletonIndex: 0,
+              axis: 0,
+              jointMirror: <int, int>{0: 5},
+            ),
+          ),
+          isNotNull,
+        );
+      },
+    );
   });
 
   group('worldTransformOf', () {
@@ -4463,46 +4655,43 @@ void main() {
       expect(translation, Vector3(1, 2, 0));
     });
 
-    test(
-      "a parent's own rotation carries a child's local translation with it "
-      '— order, not just presence, has to be right',
-      () {
-        // A pure-translation chain composes the same whichever order the
-        // ancestors are multiplied in, since translations commute — this
-        // fixture adds a rotation specifically so a reversed composition
-        // order gives a different, wrong answer rather than coincidentally
-        // matching the right one.
-        var project = const ModelProject().added(
-          (id) => ModelObject(
-            id: id,
-            name: 'a',
-            geometry: const SocketGeometry(),
-            transform: Matrix4.rotationZ(math.pi / 2),
-          ),
-        );
-        final aId = project.objects.last.id;
-        project = project.added(
-          (id) => ModelObject(
-            id: id,
-            name: 'b',
-            geometry: const SocketGeometry(),
-            transform: Matrix4.translation(Vector3(1, 0, 0)),
-            parent: aId,
-          ),
-        );
-        final bId = project.objects.last.id;
+    test("a parent's own rotation carries a child's local translation with it "
+        '— order, not just presence, has to be right', () {
+      // A pure-translation chain composes the same whichever order the
+      // ancestors are multiplied in, since translations commute — this
+      // fixture adds a rotation specifically so a reversed composition
+      // order gives a different, wrong answer rather than coincidentally
+      // matching the right one.
+      var project = const ModelProject().added(
+        (id) => ModelObject(
+          id: id,
+          name: 'a',
+          geometry: const SocketGeometry(),
+          transform: Matrix4.rotationZ(math.pi / 2),
+        ),
+      );
+      final aId = project.objects.last.id;
+      project = project.added(
+        (id) => ModelObject(
+          id: id,
+          name: 'b',
+          geometry: const SocketGeometry(),
+          transform: Matrix4.translation(Vector3(1, 0, 0)),
+          parent: aId,
+        ),
+      );
+      final bId = project.objects.last.id;
 
-        final world = worldTransformOf(project, bId);
-        final translation = Vector3.zero();
-        world.decompose(translation, Quaternion.identity(), Vector3.zero());
-        // b's own local +X, carried through a's 90° turn about Z, lands on
-        // +Y — not at (1, 0, 0), which is what b's own local translation
-        // would be read as if a's rotation were dropped or applied after
-        // rather than before it.
-        expect(translation.x, closeTo(0.0, 1e-6));
-        expect(translation.y, closeTo(1.0, 1e-6));
-      },
-    );
+      final world = worldTransformOf(project, bId);
+      final translation = Vector3.zero();
+      world.decompose(translation, Quaternion.identity(), Vector3.zero());
+      // b's own local +X, carried through a's 90° turn about Z, lands on
+      // +Y — not at (1, 0, 0), which is what b's own local translation
+      // would be read as if a's rotation were dropped or applied after
+      // rather than before it.
+      expect(translation.x, closeTo(0.0, 1e-6));
+      expect(translation.y, closeTo(1.0, 1e-6));
+    });
 
     test('an object with no parent is its own world transform', () {
       final project = const ModelProject().added(
@@ -4541,23 +4730,35 @@ void main() {
       final history = ModelHistory(const ModelProject());
       history.run(const SetProfileLimits(maxJoints: 16));
       expect(history.project.profile.maxJoints, 16);
-      expect(history.project.profile.maxInfluences, const ProjectProfile().maxInfluences);
+      expect(
+        history.project.profile.maxInfluences,
+        const ProjectProfile().maxInfluences,
+      );
     });
 
-    test('a maxInfluences past what a vertex stores is refused, and says so', () {
-      final history = ModelHistory(const ModelProject());
-      final said = history.run(const SetProfileLimits(maxInfluences: 5));
-      expect(said, contains('maxInfluences'));
-      expect(said, contains('4'));
-      expect(history.project.profile.maxInfluences, const ProjectProfile().maxInfluences);
-    });
+    test(
+      'a maxInfluences past what a vertex stores is refused, and says so',
+      () {
+        final history = ModelHistory(const ModelProject());
+        final said = history.run(const SetProfileLimits(maxInfluences: 5));
+        expect(said, contains('maxInfluences'));
+        expect(said, contains('4'));
+        expect(
+          history.project.profile.maxInfluences,
+          const ProjectProfile().maxInfluences,
+        );
+      },
+    );
 
     test('a maxJoints past the shader\'s own cap is refused, and says so', () {
       final history = ModelHistory(const ModelProject());
       final said = history.run(const SetProfileLimits(maxJoints: 128));
       expect(said, contains('maxJoints'));
       expect(said, contains('64'));
-      expect(history.project.profile.maxJoints, const ProjectProfile().maxJoints);
+      expect(
+        history.project.profile.maxJoints,
+        const ProjectProfile().maxJoints,
+      );
     });
 
     test('zero or negative is refused for either field', () {
@@ -4591,127 +4792,124 @@ void main() {
       expect(sawNonZero, isTrue);
     });
 
-    test(
-      '`pro-uv-06`\'s own acceptance: vertices grow at a seam a smooth '
-      'shading would never split on its own',
-      () {
-        final history = rectangleHistory();
-        final mesh = meshOf(history);
-        final before = mesh.toMeshData().vertexCount;
-
-        // The shared edge of two coplanar quads: nothing here gives a normal
-        // splitter a reason to duplicate vertex 1 or vertex 4 — the two faces
-        // already agree on a normal. A seam does not change that; only a UV
-        // that disagrees across it does.
-        final shared = _halfEdgeFromTo(mesh, 1, 4);
-        history.selection = history.selection.copyWith(
-          level: ElementLevel.edge,
-          elements: <int>[shared],
-        );
-        expect(history.run(const MarkSeam()), isNull);
-
-        history.selection = history.selection.copyWith(
-          level: ElementLevel.face,
-          elements: const <int>[],
-        );
-        expect(history.run(const UnwrapCommand()), isNull);
-
-        final after = mesh.toMeshData().vertexCount;
-        // Two islands packed apart give the shared edge's two vertices two
-        // different absolute UVs each — one per side — so both split.
-        expect(after, before + 2);
-      },
-    );
-
-    test('undo puts the mesh back to its pre-unwrap UV, not just its shape', () {
+    test('`pro-uv-06`\'s own acceptance: vertices grow at a seam a smooth '
+        'shading would never split on its own', () {
       final history = rectangleHistory();
       final mesh = meshOf(history);
       final before = mesh.toMeshData().vertexCount;
 
+      // The shared edge of two coplanar quads: nothing here gives a normal
+      // splitter a reason to duplicate vertex 1 or vertex 4 — the two faces
+      // already agree on a normal. A seam does not change that; only a UV
+      // that disagrees across it does.
       final shared = _halfEdgeFromTo(mesh, 1, 4);
       history.selection = history.selection.copyWith(
         level: ElementLevel.edge,
         elements: <int>[shared],
       );
-      history.run(const MarkSeam());
+      expect(history.run(const MarkSeam()), isNull);
+
       history.selection = history.selection.copyWith(
         level: ElementLevel.face,
         elements: const <int>[],
       );
       expect(history.run(const UnwrapCommand()), isNull);
-      expect(mesh.toMeshData().vertexCount, before + 2);
 
-      history.undo(); // Lifts the unwrap; the seam mark is its own step.
-      var sawNonZero = false;
-      for (var face = 0; face < mesh.faceSlotCount; face++) {
-        if (!mesh.isFaceAlive(face)) continue;
-        mesh.forEachHalfEdge(face, (half) {
-          final uv = mesh.uvOf(half);
-          if (uv.x != 0 || uv.y != 0) sawNonZero = true;
-        });
-      }
-      expect(sawNonZero, isFalse);
-      expect(mesh.toMeshData().vertexCount, before);
-    });
-
-    test('a selection narrower than the whole mesh leaves the rest untouched', () {
-      final history = rectangleHistory();
-      final mesh = meshOf(history);
-
-      history.selection = history.selection.copyWith(
-        level: ElementLevel.face,
-        elements: <int>[0],
-      );
-      expect(history.run(const UnwrapCommand()), isNull);
-
-      // Face 1 was never in the selection `splitIslands` was restricted to,
-      // so it never reached `lscm` and still carries the neutral default.
-      var face1Touched = false;
-      mesh.forEachHalfEdge(1, (half) {
-        final uv = mesh.uvOf(half);
-        if (uv.x != 0 || uv.y != 0) face1Touched = true;
-      });
-      expect(face1Touched, isFalse);
+      final after = mesh.toMeshData().vertexCount;
+      // Two islands packed apart give the shared edge's two vertices two
+      // different absolute UVs each — one per side — so both split.
+      expect(after, before + 2);
     });
 
     test(
-      'autoPack moves the two islands apart; leaving it off lets both '
-      'carry a corner at (0, 0), `lscm`\'s own default pin',
+      'undo puts the mesh back to its pre-unwrap UV, not just its shape',
       () {
-        void markTheSeam(ModelHistory history) {
-          final mesh = meshOf(history);
-          final shared = _halfEdgeFromTo(mesh, 1, 4);
-          history.selection = history.selection.copyWith(
-            level: ElementLevel.edge,
-            elements: <int>[shared],
-          );
-          history.run(const MarkSeam());
-          history.selection = history.selection.copyWith(
-            level: ElementLevel.face,
-            elements: const <int>[],
-          );
-        }
+        final history = rectangleHistory();
+        final mesh = meshOf(history);
+        final before = mesh.toMeshData().vertexCount;
 
-        final unpacked = rectangleHistory();
-        markTheSeam(unpacked);
-        expect(unpacked.run(const UnwrapCommand(autoPack: false)), isNull);
-        final unpackedMesh = meshOf(unpacked);
-        expect(_cornerAt(unpackedMesh, 0, Vector2.zero()), isTrue);
-        expect(_cornerAt(unpackedMesh, 1, Vector2.zero()), isTrue);
-
-        final packed = rectangleHistory();
-        markTheSeam(packed);
-        expect(packed.run(const UnwrapCommand()), isNull);
-        final packedMesh = meshOf(packed);
-        expect(
-          _uvBoxesOverlap(
-            _uvBoundsOf(packedMesh, 0),
-            _uvBoundsOf(packedMesh, 1),
-          ),
-          isFalse,
+        final shared = _halfEdgeFromTo(mesh, 1, 4);
+        history.selection = history.selection.copyWith(
+          level: ElementLevel.edge,
+          elements: <int>[shared],
         );
+        history.run(const MarkSeam());
+        history.selection = history.selection.copyWith(
+          level: ElementLevel.face,
+          elements: const <int>[],
+        );
+        expect(history.run(const UnwrapCommand()), isNull);
+        expect(mesh.toMeshData().vertexCount, before + 2);
+
+        history.undo(); // Lifts the unwrap; the seam mark is its own step.
+        var sawNonZero = false;
+        for (var face = 0; face < mesh.faceSlotCount; face++) {
+          if (!mesh.isFaceAlive(face)) continue;
+          mesh.forEachHalfEdge(face, (half) {
+            final uv = mesh.uvOf(half);
+            if (uv.x != 0 || uv.y != 0) sawNonZero = true;
+          });
+        }
+        expect(sawNonZero, isFalse);
+        expect(mesh.toMeshData().vertexCount, before);
       },
     );
+
+    test(
+      'a selection narrower than the whole mesh leaves the rest untouched',
+      () {
+        final history = rectangleHistory();
+        final mesh = meshOf(history);
+
+        history.selection = history.selection.copyWith(
+          level: ElementLevel.face,
+          elements: <int>[0],
+        );
+        expect(history.run(const UnwrapCommand()), isNull);
+
+        // Face 1 was never in the selection `splitIslands` was restricted to,
+        // so it never reached `lscm` and still carries the neutral default.
+        var face1Touched = false;
+        mesh.forEachHalfEdge(1, (half) {
+          final uv = mesh.uvOf(half);
+          if (uv.x != 0 || uv.y != 0) face1Touched = true;
+        });
+        expect(face1Touched, isFalse);
+      },
+    );
+
+    test('autoPack moves the two islands apart; leaving it off lets both '
+        'carry a corner at (0, 0), `lscm`\'s own default pin', () {
+      void markTheSeam(ModelHistory history) {
+        final mesh = meshOf(history);
+        final shared = _halfEdgeFromTo(mesh, 1, 4);
+        history.selection = history.selection.copyWith(
+          level: ElementLevel.edge,
+          elements: <int>[shared],
+        );
+        history.run(const MarkSeam());
+        history.selection = history.selection.copyWith(
+          level: ElementLevel.face,
+          elements: const <int>[],
+        );
+      }
+
+      final unpacked = rectangleHistory();
+      markTheSeam(unpacked);
+      expect(unpacked.run(const UnwrapCommand(autoPack: false)), isNull);
+      final unpackedMesh = meshOf(unpacked);
+      expect(_cornerAt(unpackedMesh, 0, Vector2.zero()), isTrue);
+      expect(_cornerAt(unpackedMesh, 1, Vector2.zero()), isTrue);
+
+      final packed = rectangleHistory();
+      markTheSeam(packed);
+      expect(packed.run(const UnwrapCommand()), isNull);
+      final packedMesh = meshOf(packed);
+      expect(
+        _uvBoxesOverlap(_uvBoundsOf(packedMesh, 0), _uvBoundsOf(packedMesh, 1)),
+        isFalse,
+      );
+    });
   });
 
   group('a transaction, ui-11\'s own acceptance', () {
@@ -4729,7 +4927,9 @@ void main() {
 
       history.transaction(() {
         for (var i = 0; i < 40; i++) {
-          history.run(TransformElements(Matrix4.translation(Vector3(0.01, 0, 0))));
+          history.run(
+            TransformElements(Matrix4.translation(Vector3(0.01, 0, 0))),
+          );
         }
       });
 
@@ -4754,31 +4954,34 @@ void main() {
       expect(identical(meshOf(history), mesh), isTrue);
     });
 
-    test('a command that refuses inside a transaction leaves no step at all', () {
-      final history = edited();
-      history.selection = history.selection.copyWith(
-        level: ElementLevel.vertex,
-        elements: <int>[0],
-      );
-
-      history.transaction(() {
-        // `TransformPivot.individual` is refused unconditionally (see
-        // `TransformElements.apply`), so nothing here ever mutates the
-        // project — the transaction closes over zero real commands.
-        history.run(
-          TransformElements(
-            Matrix4.translation(Vector3(1, 0, 0)),
-            pivot: TransformPivot.individual,
-          ),
+    test(
+      'a command that refuses inside a transaction leaves no step at all',
+      () {
+        final history = edited();
+        history.selection = history.selection.copyWith(
+          level: ElementLevel.vertex,
+          elements: <int>[0],
         );
-      });
 
-      expect(
-        history.steps,
-        isEmpty,
-        reason: 'a transaction in which nothing succeeded leaves no step',
-      );
-    });
+        history.transaction(() {
+          // `TransformPivot.individual` is refused unconditionally (see
+          // `TransformElements.apply`), so nothing here ever mutates the
+          // project — the transaction closes over zero real commands.
+          history.run(
+            TransformElements(
+              Matrix4.translation(Vector3(1, 0, 0)),
+              pivot: TransformPivot.individual,
+            ),
+          );
+        });
+
+        expect(
+          history.steps,
+          isEmpty,
+          reason: 'a transaction in which nothing succeeded leaves no step',
+        );
+      },
+    );
   });
 }
 

@@ -1,7 +1,5 @@
 /// `mat-04`'s own full panel: a list of the project's materials, and — for
-/// the one an object is painted with — every field `SurfaceMaterial` carries
-/// except a shader picker (see the panel's own doc comment for why that one
-/// waits).
+/// the one an object is painted with — every field `SurfaceMaterial` carries.
 ///
 ///     flutter test test/material_panel_test.dart
 library;
@@ -145,6 +143,46 @@ void main() {
   });
 
   group('the active material\'s own fields', () {
+    testWidgets('the shader dropdown offers the six built-in models and '
+        'edits `lightingModel`', (WidgetTester tester) async {
+      final said = <Object?>[];
+      await _pump(
+        tester,
+        materials: <ProjectMaterial>[_material(name: 'Cloth')],
+        activeIndex: 0,
+        onSetField: (String field, Object? value) {
+          if (field == 'lightingModel') said.add(value);
+        },
+      );
+
+      await tester.tap(
+        find.byKey(const ValueKey<String>('lightingModelDropdown')),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Lambert'), findsOneWidget);
+      expect(find.text('Toon'), findsOneWidget);
+      await tester.tap(find.text('Lambert').last);
+      await tester.pumpAndSettle();
+
+      expect(said, <String>['Lambert']);
+    });
+
+    testWidgets(
+      'a material with no shader field of its own shows PBR selected',
+      (WidgetTester tester) async {
+        await _pump(
+          tester,
+          materials: <ProjectMaterial>[_material(name: 'Steel')],
+          activeIndex: 0,
+        );
+
+        final DropdownButton<String> dropdown = tester.widget(
+          find.byKey(const ValueKey<String>('lightingModelDropdown')),
+        );
+        expect(dropdown.value, 'Pbr');
+      },
+    );
+
     testWidgets('mat-04\'s own acceptance: Lambert disables metallic', (
       WidgetTester tester,
     ) async {
@@ -247,26 +285,29 @@ void main() {
       expect(said.single, hasLength(3));
     });
 
-    testWidgets('alpha mode offers the three glTF modes and edits `alphaMode`', (
-      WidgetTester tester,
-    ) async {
-      final said = <String>[];
-      await _pump(
-        tester,
-        materials: <ProjectMaterial>[_material(name: 'Glass')],
-        activeIndex: 0,
-        onSetField: (String field, Object? value) {
-          if (field == 'alphaMode') said.add(value! as String);
-        },
-      );
+    testWidgets(
+      'alpha mode offers the three glTF modes and edits `alphaMode`',
+      (WidgetTester tester) async {
+        final said = <String>[];
+        await _pump(
+          tester,
+          materials: <ProjectMaterial>[_material(name: 'Glass')],
+          activeIndex: 0,
+          onSetField: (String field, Object? value) {
+            if (field == 'alphaMode') said.add(value! as String);
+          },
+        );
 
-      await tester.tap(find.byType(DropdownButton<String>).first);
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Blended').last);
-      await tester.pumpAndSettle();
+        await tester.tap(
+          find.byKey(const ValueKey<String>('alphaModeDropdown')),
+        );
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Blended').last);
+        await tester.pumpAndSettle();
 
-      expect(said, <String>['blend']);
-    });
+        expect(said, <String>['blend']);
+      },
+    );
 
     testWidgets('a cutoff slider appears only in mask mode', (
       WidgetTester tester,
@@ -353,8 +394,10 @@ void main() {
         await tester.pumpAndSettle();
 
         expect(find.text('Emissive strength'), findsOneWidget);
-        expect(find.byKey(const ValueKey<String>('doubleSidedCheckbox')),
-            findsOneWidget);
+        expect(
+          find.byKey(const ValueKey<String>('doubleSidedCheckbox')),
+          findsOneWidget,
+        );
         // No map bound to either slot, so neither slider that only means
         // something once one is shows up.
         expect(find.text('Normal scale'), findsNothing);
@@ -398,7 +441,9 @@ void main() {
 
       await tester.tap(find.text('Advanced'));
       await tester.pumpAndSettle();
-      await tester.tap(find.byKey(const ValueKey<String>('doubleSidedCheckbox')));
+      await tester.tap(
+        find.byKey(const ValueKey<String>('doubleSidedCheckbox')),
+      );
       await tester.pump();
 
       expect(said, <bool>[true]);

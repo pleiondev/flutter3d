@@ -8,24 +8,29 @@
 /// assigned" are the same fact; what a person needs a list *for* is picking
 /// a different one to assign, which means seeing every material there is.
 ///
-/// **Not built here: a shader picker.** `builtInMaterialHints['lighting']`
-/// already names the six models `LightingModel.builtIn` offers, but nothing
-/// in `SurfaceMaterial` or `ProjectMaterial` carries which of them a material
-/// asked for — only `unlit`, a single bit, which `lightingModelOf` already
-/// reads. Adding a real field is a `SurfaceMaterial` schema change reaching
-/// every reader and writer of it (glTF, OBJ, `.f3d`, the MCP tools, the
-/// renderer's own material binding) — a second row's worth of work this one
-/// does not fold in as a side effect. `metallicIsMeaningful` is already
-/// written against [LightingModel] rather than against this panel for
-/// exactly that day.
+/// **The shader picker shows [LightingModel.builtIn]'s six models, not a
+/// custom shader.** `SurfaceMaterial.lightingModel` can carry one a `.fmat`
+/// named on its own — that value round-trips, it just has no row here to
+/// pick it from, since a picker can only offer what it can name.
 library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter3d_formats/flutter3d_formats.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart' hide EnumHint;
 
+import '../material_editing.dart';
 import 'color_field.dart';
 import 'theme.dart';
+
+/// [lighting]'s own name among [LightingModel.builtIn], or null when it is a
+/// custom shader none of the six are — the dropdown's own `value` must be
+/// one of its `items` or null, and a custom shader has no item to match.
+String? _builtInShaderName(LightingModel lighting) {
+  for (final LightingModel model in LightingModel.builtIn) {
+    if (model.shaderName == lighting.shaderName) return model.shaderName;
+  }
+  return null;
+}
 
 /// A number bound to one material field, committing once per drag the same
 /// way [ColorField] does — [Slider.onChanged] only ever updates what is
@@ -125,10 +130,7 @@ typedef TextureSlotController = ({
 /// One texture slot's own row: a label, the image it holds (or none), and
 /// the choose/clear pair [MaterialPanel.textureSlots] hands it.
 class _TextureSlotRow extends StatelessWidget {
-  const _TextureSlotRow({
-    required this.label,
-    required this.controller,
-  });
+  const _TextureSlotRow({required this.label, required this.controller});
 
   final String label;
   final TextureSlotController controller;
@@ -202,7 +204,7 @@ class MaterialPanel extends StatelessWidget {
   /// A field of [activeIndex]'s own material committed —
   /// [SetMaterialField]'s own vocabulary (`baseColor`, `metallic`,
   /// `roughness`, `emissive`, `emissiveStrength`, `normalScale`,
-  /// `occlusionStrength`, `alphaMode`, `alphaCutoff`).
+  /// `occlusionStrength`, `alphaMode`, `alphaCutoff`, `lightingModel`).
   final void Function(String field, Object? value) onSetField;
 
   /// Whether the metallic slider should respond — false for a shader with no
@@ -241,6 +243,8 @@ class MaterialPanel extends StatelessWidget {
         builtInMaterialHints['occlusionStrength']!.kind as RangeHint;
     final EnumHint alphaModeHint =
         builtInMaterialHints['alphaMode']!.kind as EnumHint;
+    final EnumHint lightingModelHint =
+        builtInMaterialHints['lightingModel']!.kind as EnumHint;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -293,6 +297,36 @@ class MaterialPanel extends StatelessWidget {
             linear: false,
             onChanged: (List<double> next) => onSetField('baseColor', next),
           ),
+          const SizedBox(height: 6),
+          Row(
+            children: <Widget>[
+              SizedBox(
+                width: 96,
+                child: Text(
+                  builtInMaterialHints['lightingModel']!.label ?? 'Shader',
+                  style: theme.textTheme.bodySmall,
+                ),
+              ),
+              Expanded(
+                child: DropdownButton<String>(
+                  key: const ValueKey<String>('lightingModelDropdown'),
+                  isDense: true,
+                  isExpanded: true,
+                  value: _builtInShaderName(lightingModelOf(surface)),
+                  items: <DropdownMenuItem<String>>[
+                    for (final value in lightingModelHint.values)
+                      DropdownMenuItem<String>(
+                        value: value.value,
+                        child: Text(value.label),
+                      ),
+                  ],
+                  onChanged: (String? shader) {
+                    if (shader != null) onSetField('lightingModel', shader);
+                  },
+                ),
+              ),
+            ],
+          ),
           const SizedBox(height: 4),
           _SliderRow(
             label: builtInMaterialHints['metallic']!.label ?? 'Metallic',
@@ -315,7 +349,11 @@ class MaterialPanel extends StatelessWidget {
             style: theme.textTheme.bodySmall,
           ),
           ColorField(
-            value: <double>[surface.emissive.x, surface.emissive.y, surface.emissive.z],
+            value: <double>[
+              surface.emissive.x,
+              surface.emissive.y,
+              surface.emissive.z,
+            ],
             channels: emissiveHint.channels,
             // Stored the same way `baseColor` is — see that field's own
             // comment; nothing in this engine's writers gamma-corrects
@@ -335,6 +373,7 @@ class MaterialPanel extends StatelessWidget {
               ),
               Expanded(
                 child: DropdownButton<String>(
+                  key: const ValueKey<String>('alphaModeDropdown'),
                   isDense: true,
                   isExpanded: true,
                   value: surface.alphaMode.name,
@@ -388,8 +427,7 @@ class MaterialPanel extends StatelessWidget {
                     min: occlusionStrengthHint.min,
                     max: occlusionStrengthHint.max,
                     value: surface.occlusionStrength,
-                    onChanged: (double v) =>
-                        onSetField('occlusionStrength', v),
+                    onChanged: (double v) => onSetField('occlusionStrength', v),
                   ),
             emissiveStrength: (
               min: 0.0,

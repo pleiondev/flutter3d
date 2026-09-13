@@ -75,6 +75,7 @@ MaterialDocument readFmat(Uint8List bytes, {String name = ''}) {
     'fmat',
     'name',
     'lighting',
+    'lightingModel',
     'baseColor',
     'metallic',
     'roughness',
@@ -249,26 +250,36 @@ String writeFmat(MaterialDocument document) {
 /// to one, or interning a new one, is a whole document's business, not one
 /// material's, which is why [readFmat] still does that part itself before
 /// handing the result to [surfaceMaterialFromJson].
-Map<String, Object?> surfaceMaterialToJson(SurfaceMaterial surface) => <String, Object?>{
-  if (surface.name != null) 'name': surface.name,
-  'baseColor': <double>[
-    surface.baseColor.r,
-    surface.baseColor.g,
-    surface.baseColor.b,
-    surface.baseColor.a,
-  ],
-  if (surface.metallic != 0.0) 'metallic': surface.metallic,
-  if (surface.roughness != 0.5) 'roughness': surface.roughness,
-  if (surface.normalScale != 1.0) 'normalScale': surface.normalScale,
-  if (surface.occlusionStrength != 1.0) 'occlusionStrength': surface.occlusionStrength,
-  if (surface.emissive.length2 != 0.0)
-    'emissive': <double>[surface.emissive.r, surface.emissive.g, surface.emissive.b],
-  if (surface.emissiveStrength != 1.0) 'emissiveStrength': surface.emissiveStrength,
-  if (surface.alphaMode != SurfaceAlphaMode.opaque) 'alphaMode': surface.alphaMode.name,
-  if (surface.alphaCutoff != 0.5) 'alphaCutoff': surface.alphaCutoff,
-  if (surface.doubleSided) 'doubleSided': true,
-  if (surface.unlit) 'unlit': true,
-};
+Map<String, Object?> surfaceMaterialToJson(SurfaceMaterial surface) =>
+    <String, Object?>{
+      if (surface.name != null) 'name': surface.name,
+      'baseColor': <double>[
+        surface.baseColor.r,
+        surface.baseColor.g,
+        surface.baseColor.b,
+        surface.baseColor.a,
+      ],
+      if (surface.metallic != 0.0) 'metallic': surface.metallic,
+      if (surface.roughness != 0.5) 'roughness': surface.roughness,
+      if (surface.normalScale != 1.0) 'normalScale': surface.normalScale,
+      if (surface.occlusionStrength != 1.0)
+        'occlusionStrength': surface.occlusionStrength,
+      if (surface.emissive.length2 != 0.0)
+        'emissive': <double>[
+          surface.emissive.r,
+          surface.emissive.g,
+          surface.emissive.b,
+        ],
+      if (surface.emissiveStrength != 1.0)
+        'emissiveStrength': surface.emissiveStrength,
+      if (surface.alphaMode != SurfaceAlphaMode.opaque)
+        'alphaMode': surface.alphaMode.name,
+      if (surface.alphaCutoff != 0.5) 'alphaCutoff': surface.alphaCutoff,
+      if (surface.doubleSided) 'doubleSided': true,
+      if (surface.unlit) 'unlit': true,
+      if (surface.lightingModel case final LightingModel model)
+        'lightingModel': _writeLighting(model),
+    };
 
 /// The inverse of [surfaceMaterialToJson]: a [SurfaceMaterial] built from
 /// [json]'s own scalar and colour fields, with [name] as the fallback for a
@@ -307,6 +318,11 @@ SurfaceMaterial surfaceMaterialFromJson(
   alphaCutoff: _number(json['alphaCutoff'], 0.5),
   doubleSided: json['doubleSided'] as bool? ?? false,
   unlit: json['unlit'] as bool? ?? false,
+  lightingModel: _readLighting(
+    json['lightingModel'],
+    warnings ?? <String>[],
+    key: 'lightingModel',
+  ),
 );
 
 TextureSampling _readSampling(Map<String, Object?> json) => TextureSampling(
@@ -328,7 +344,11 @@ TextureWrap _wrap(Object? value) => switch (value) {
 /// A string names one the engine ships; an object describes one it does not, and
 /// must then declare what the compiled shader binds. The flags default to the
 /// same values [LightingModel] does, so a custom lit shader is three keys.
-LightingModel? _readLighting(Object? value, List<String> warnings) {
+LightingModel? _readLighting(
+  Object? value,
+  List<String> warnings, {
+  String key = 'lighting',
+}) {
   if (value == null) return null;
   if (value is String) {
     for (final model in LightingModel.builtIn) {
@@ -342,12 +362,12 @@ LightingModel? _readLighting(Object? value, List<String> warnings) {
     return null;
   }
   if (value is! Map<String, Object?>) {
-    warnings.add('"lighting" is neither a name nor an object; ignored');
+    warnings.add('"$key" is neither a name nor an object; ignored');
     return null;
   }
   final shader = value['shader'];
   if (shader is! String) {
-    warnings.add('"lighting" has no "shader" name; ignored');
+    warnings.add('"$key" has no "shader" name; ignored');
     return null;
   }
   return LightingModel(

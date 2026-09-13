@@ -156,7 +156,7 @@ final Map<String, MaterialHint> builtInMaterialHints = <String, MaterialHint>{
     ]),
     label: 'Alpha',
   ),
-  'lighting': MaterialHint(
+  'lightingModel': MaterialHint(
     EnumHint(<EnumHintValue>[
       for (final model in LightingModel.builtIn)
         EnumHintValue(model.shaderName, model.label),

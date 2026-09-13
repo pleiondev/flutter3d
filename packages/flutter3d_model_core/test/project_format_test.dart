@@ -342,104 +342,101 @@ void main() {
       }
     });
 
-    test(
-      'a skeleton, a clip and a shape key all survive the round trip — '
-      "anim-03/anim-19's own gap",
-      () {
-        final before = riggedSample();
-        final after = opened(writeProject(before));
+    test('a skeleton, a clip and a shape key all survive the round trip — '
+        "anim-03/anim-19's own gap", () {
+      final before = riggedSample();
+      final after = opened(writeProject(before));
 
-        expect(after.skeletons, hasLength(1));
-        final skeletonBefore = before.skeletons.single;
-        final skeletonAfter = after.skeletons.single;
-        expect(skeletonAfter.name, skeletonBefore.name);
-        // Mutation: drop `skeletonRoot`/`name` from `_skeletonJson` and both
-        // come back null — this fixture would not notice unless both are
-        // set to something a default could not produce by accident.
-        expect(skeletonAfter.skeletonRoot, skeletonBefore.skeletonRoot);
-        expect(skeletonAfter.joints, skeletonBefore.joints);
-        expect(skeletonAfter.inverseBindMatrices, hasLength(1));
-        for (var i = 0; i < 16; i++) {
-          expect(
-            skeletonAfter.inverseBindMatrices[0].storage[i],
-            closeTo(skeletonBefore.inverseBindMatrices[0].storage[i], 1e-9),
-          );
-        }
-
-        expect(after.clips, hasLength(1));
-        final clipBefore = before.clips.single;
-        final clipAfter = after.clips.single;
-        expect(clipAfter.name, clipBefore.name);
-        expect(clipAfter.extras, clipBefore.extras);
-        expect(clipAfter.tracks, hasLength(1));
-        final trackBefore = clipBefore.tracks.single.track;
-        final trackAfter = clipAfter.tracks.single.track;
-        expect(clipAfter.tracks.single.objectId, clipBefore.tracks.single.objectId);
-        expect(trackAfter.path, trackBefore.path);
-        expect(trackAfter.interpolation, trackBefore.interpolation);
-        expect(trackAfter.componentCount, trackBefore.componentCount);
-        expect(trackAfter.times, trackBefore.times);
-        expect(trackAfter.values, trackBefore.values);
-
-        final bodyBefore = before.objects.firstWhere((o) => o.name == 'body');
-        final bodyAfter = after.objects.firstWhere((o) => o.name == 'body');
-        // Mutation: read `skeletonIndex` back as `null` unconditionally and
-        // this fails directly — the object would read as unskinned.
-        expect(bodyAfter.skeletonIndex, bodyBefore.skeletonIndex);
-        expect(bodyAfter.shapeSet.keys, hasLength(1));
-        expect(bodyAfter.shapeSet.keys.single.name, 'smile');
-        expect(bodyAfter.shapeSet.weights, bodyBefore.shapeSet.weights);
+      expect(after.skeletons, hasLength(1));
+      final skeletonBefore = before.skeletons.single;
+      final skeletonAfter = after.skeletons.single;
+      expect(skeletonAfter.name, skeletonBefore.name);
+      // Mutation: drop `skeletonRoot`/`name` from `_skeletonJson` and both
+      // come back null — this fixture would not notice unless both are
+      // set to something a default could not produce by accident.
+      expect(skeletonAfter.skeletonRoot, skeletonBefore.skeletonRoot);
+      expect(skeletonAfter.joints, skeletonBefore.joints);
+      expect(skeletonAfter.inverseBindMatrices, hasLength(1));
+      for (var i = 0; i < 16; i++) {
         expect(
-          bodyAfter.shapeSet.keys.single.positions,
-          bodyBefore.shapeSet.keys.single.positions,
+          skeletonAfter.inverseBindMatrices[0].storage[i],
+          closeTo(skeletonBefore.inverseBindMatrices[0].storage[i], 1e-9),
         );
+      }
 
-        // The plain, unrigged objects in `sample()` still read back with no
-        // skeleton and no shape keys — the absent case is `null`/empty, not
-        // some other default a dropped field could be mistaken for.
-        final plain = opened(writeProject(sample())).objects.first;
-        expect(plain.skeletonIndex, isNull);
-        expect(plain.shapeSet.isEmpty, isTrue);
-      },
-    );
+      expect(after.clips, hasLength(1));
+      final clipBefore = before.clips.single;
+      final clipAfter = after.clips.single;
+      expect(clipAfter.name, clipBefore.name);
+      expect(clipAfter.extras, clipBefore.extras);
+      expect(clipAfter.tracks, hasLength(1));
+      final trackBefore = clipBefore.tracks.single.track;
+      final trackAfter = clipAfter.tracks.single.track;
+      expect(
+        clipAfter.tracks.single.objectId,
+        clipBefore.tracks.single.objectId,
+      );
+      expect(trackAfter.path, trackBefore.path);
+      expect(trackAfter.interpolation, trackBefore.interpolation);
+      expect(trackAfter.componentCount, trackBefore.componentCount);
+      expect(trackAfter.times, trackBefore.times);
+      expect(trackAfter.values, trackBefore.values);
 
-    test(
-      "an object's own levels of detail survive the round trip — "
-      "pro-lod-03's own gap",
-      () {
-        final baseProject = sample();
-        final before = baseProject.withObject(
-          baseProject.objects.first.copyWith(
-            lods: const <LodSpec>[
-              LodSpec(ratio: 0.5, maxScreenFraction: 0.3),
-              LodSpec(ratio: 0.1, maxScreenFraction: 0.05),
-            ],
-          ),
+      final bodyBefore = before.objects.firstWhere((o) => o.name == 'body');
+      final bodyAfter = after.objects.firstWhere((o) => o.name == 'body');
+      // Mutation: read `skeletonIndex` back as `null` unconditionally and
+      // this fails directly — the object would read as unskinned.
+      expect(bodyAfter.skeletonIndex, bodyBefore.skeletonIndex);
+      expect(bodyAfter.shapeSet.keys, hasLength(1));
+      expect(bodyAfter.shapeSet.keys.single.name, 'smile');
+      expect(bodyAfter.shapeSet.weights, bodyBefore.shapeSet.weights);
+      expect(
+        bodyAfter.shapeSet.keys.single.positions,
+        bodyBefore.shapeSet.keys.single.positions,
+      );
+
+      // The plain, unrigged objects in `sample()` still read back with no
+      // skeleton and no shape keys — the absent case is `null`/empty, not
+      // some other default a dropped field could be mistaken for.
+      final plain = opened(writeProject(sample())).objects.first;
+      expect(plain.skeletonIndex, isNull);
+      expect(plain.shapeSet.isEmpty, isTrue);
+    });
+
+    test("an object's own levels of detail survive the round trip — "
+        "pro-lod-03's own gap", () {
+      final baseProject = sample();
+      final before = baseProject.withObject(
+        baseProject.objects.first.copyWith(
+          lods: const <LodSpec>[
+            LodSpec(ratio: 0.5, maxScreenFraction: 0.3),
+            LodSpec(ratio: 0.1, maxScreenFraction: 0.05),
+          ],
+        ),
+      );
+
+      final after = opened(writeProject(before));
+      final bodyBefore = before.objects.first;
+      final bodyAfter = after.objects.first;
+
+      // Mutation: drop `lods` from `objectsJsonFor`'s own map and this
+      // reads back empty, since an absent key and a genuinely empty list
+      // are indistinguishable once dropped.
+      expect(bodyAfter.lods, hasLength(2));
+      for (var i = 0; i < 2; i++) {
+        expect(bodyAfter.lods[i].ratio, bodyBefore.lods[i].ratio);
+        expect(
+          bodyAfter.lods[i].maxScreenFraction,
+          bodyBefore.lods[i].maxScreenFraction,
         );
+      }
 
-        final after = opened(writeProject(before));
-        final bodyBefore = before.objects.first;
-        final bodyAfter = after.objects.first;
-
-        // Mutation: drop `lods` from `objectsJsonFor`'s own map and this
-        // reads back empty, since an absent key and a genuinely empty list
-        // are indistinguishable once dropped.
-        expect(bodyAfter.lods, hasLength(2));
-        for (var i = 0; i < 2; i++) {
-          expect(bodyAfter.lods[i].ratio, bodyBefore.lods[i].ratio);
-          expect(
-            bodyAfter.lods[i].maxScreenFraction,
-            bodyBefore.lods[i].maxScreenFraction,
-          );
-        }
-
-        // The other objects in `sample()` never had a LOD added — the
-        // absent case is an empty list, not some other default a dropped
-        // field could be mistaken for.
-        final plain = opened(writeProject(sample())).objects.first;
-        expect(plain.lods, isEmpty);
-      },
-    );
+      // The other objects in `sample()` never had a LOD added — the
+      // absent case is an empty list, not some other default a dropped
+      // field could be mistaken for.
+      final plain = opened(writeProject(sample())).objects.first;
+      expect(plain.lods, isEmpty);
+    });
 
     test('a socket writes and reads back with no mesh behind it', () {
       final before = ModelProject().added(
@@ -1046,7 +1043,10 @@ void main() {
       final object = objectJson()
         ..['shapeSet'] = <String, Object?>{
           'keys': <Object?>[
-            <String, Object?>{'name': 'a', 'positions': <double>[0, 0, 0]},
+            <String, Object?>{
+              'name': 'a',
+              'positions': <double>[0, 0, 0],
+            },
           ],
           'weights': <double>[0.1, 0.2],
         };
@@ -1075,35 +1075,32 @@ void main() {
       );
     });
 
-    test(
-      'a track whose times and values do not fit its interpolation and '
-      'component count',
-      () {
-        final bytes = forge(<String, Object?>{
-          ...manifestOf(<Map<String, Object?>>[]),
-          'clips': <Object?>[
-            <String, Object?>{
-              'name': 'broken',
-              'tracks': <Object?>[
-                <String, Object?>{
-                  'objectId': 0,
-                  'path': 'translation',
-                  'interpolation': 'LINEAR',
-                  'componentCount': 3,
-                  'times': <double>[0, 1, 2],
-                  'values': <double>[0, 0],
-                },
-              ],
-            },
-          ],
-        });
-        expect(
-          refusal(bytes),
-          'Clip 0, track 0 cannot be read: Track for node 0 has 3 keys and 2 '
-          'values; linear interpolation of 3 components needs 9.',
-        );
-      },
-    );
+    test('a track whose times and values do not fit its interpolation and '
+        'component count', () {
+      final bytes = forge(<String, Object?>{
+        ...manifestOf(<Map<String, Object?>>[]),
+        'clips': <Object?>[
+          <String, Object?>{
+            'name': 'broken',
+            'tracks': <Object?>[
+              <String, Object?>{
+                'objectId': 0,
+                'path': 'translation',
+                'interpolation': 'LINEAR',
+                'componentCount': 3,
+                'times': <double>[0, 1, 2],
+                'values': <double>[0, 0],
+              },
+            ],
+          },
+        ],
+      });
+      expect(
+        refusal(bytes),
+        'Clip 0, track 0 cannot be read: Track for node 0 has 3 keys and 2 '
+        'values; linear interpolation of 3 components needs 9.',
+      );
+    });
 
     test('a skeleton\'s joints and inverse bind matrices that do not move '
         'together', () {
@@ -1252,6 +1249,7 @@ void main() {
       alphaCutoff: 0.875,
       doubleSided: true,
       unlit: true,
+      lightingModel: LightingModel.lambert,
     );
 
     ModelProject painting() =>
@@ -1303,6 +1301,13 @@ void main() {
       expect(surface.alphaCutoff, 0.875);
       expect(surface.doubleSided, isTrue);
       expect(surface.unlit, isTrue);
+      expect(surface.lightingModel, LightingModel.lambert);
+    });
+
+    test('a material with no lightingModel of its own opens with none, not a '
+        'refusal — mat-04 is younger than the rest of this record', () {
+      final after = opened(writeProject(painting()));
+      expect(after.materials[1].surface.lightingModel, isNull);
     });
 
     test('a texture binding keeps its image, its set and its sampler', () {
@@ -1593,6 +1598,37 @@ void main() {
         expect(warningsOf(bytes).single, contains('baseColorTexture'));
         expect(warningsOf(bytes).single, contains('wrapS'));
         expect(warningsOf(bytes).single, contains('mirror'));
+      },
+    );
+
+    test(
+      'a lightingModel this build does not ship opens unset, and says so',
+      () {
+        final bytes = forge(<String, Object?>{
+          ...manifestOf(<Map<String, Object?>>[objectJson()]),
+          'materials': <Object?>[
+            <String, Object?>{
+              'version': 1,
+              'name': null,
+              'baseColor': <double>[1, 1, 1, 1],
+              'metallic': 0.0,
+              'roughness': 0.5,
+              'normalScale': 1.0,
+              'occlusionStrength': 1.0,
+              'emissive': <double>[0, 0, 0],
+              'emissiveStrength': 1.0,
+              'alphaMode': 'opaque',
+              'alphaCutoff': 0.5,
+              'doubleSided': false,
+              'unlit': false,
+              'lightingModel': 'Subsurface',
+            },
+          ],
+        });
+
+        expect(warningsOf(bytes).single, contains('lightingModel'));
+        expect(warningsOf(bytes).single, contains('Subsurface'));
+        expect(opened(bytes).materials.single.surface.lightingModel, isNull);
       },
     );
 
