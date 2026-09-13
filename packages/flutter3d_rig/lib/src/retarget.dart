@@ -1,50 +1,108 @@
-/// Rest-relative clip retargeting between two skeletons — `anim-17`'s own
-/// `retargetClip`.
+/// Rest-relative retargeting of animation tracks between two rigs —
+/// `anim-17`'s own `retargetClip`, over the rig as nodes and tracks.
+///
+/// **Nothing here knows what a project is.** A rig is read as [RigNode]s — a
+/// name, a parent and a rest pose — and a clip as [RigTrack]s naming the node
+/// each one moves. That is the whole of what retargeting needs, and it is what
+/// lets anything with a skeleton call this: the modeller's own document adapts
+/// to it in `flutter3d_model_core`'s `retargetClip`, and an engine or a game
+/// holding a glTF skin builds the same two values without depending on a
+/// modeller. The algorithm package depends on the vocabulary of animation;
+/// the document depends on the algorithm.
 library;
 
 import 'dart:typed_data';
 
 import 'package:flutter3d_formats/flutter3d_formats.dart';
-import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 import 'package:vector_math/vector_math.dart';
 
 import 'bone_map.dart';
 import 'two_bone_ik.dart';
 
-Quaternion _rotationOf(Matrix4 local) => Quaternion.fromRotation(
-  local.getRotation(),
-);
+/// One node of a rig as retargeting reads it.
+final class RigNode {
+  const RigNode({
+    required this.id,
+    required this.name,
+    required this.restLocal,
+    this.parent,
+  });
 
-/// The world-space standing height of [skeleton]'s own rig in [project]'s
-/// rest pose — the highest joint (a humanoid's own `head`) above the lowest
-/// (an ankle), which is what "рост" (height) means for `retargetClip`'s own
-/// hip-translation scale. Falls back to the full Y span of every joint in
-/// the skeleton when neither a `head` nor an `*nkle` name is present, so a
-/// non-humanoid rig still gets *some* defensible height rather than a
-/// division by a made-up number.
-double _standingHeight(ModelProject project, ProjectSkeleton skeleton) {
+  /// What [RigTrack.nodeId] and [RigNode.parent] name it by.
+  final int id;
+
+  /// What a [BoneMap] matches it by.
+  final String name;
+
+  /// The rest pose, relative to [parent].
+  final Matrix4 restLocal;
+
+  final int? parent;
+}
+
+/// A skeleton as retargeting reads it: every node a joint hangs from, and
+/// which of them are the joints.
+///
+/// **More nodes than joints, on purpose.** A leg's world position starts at
+/// whatever the hips hang from, and that is often not a joint at all — an
+/// armature root, an empty the whole rig is parented to. Retargeting walks
+/// those parents for heights and for the foot lock, so a rig carries them.
+final class RetargetRig {
+  RetargetRig({required Iterable<RigNode> nodes, required List<int> joints})
+    : _nodes = <int, RigNode>{for (final RigNode node in nodes) node.id: node},
+      joints = List<int>.unmodifiable(joints);
+
+  final Map<int, RigNode> _nodes;
+
+  /// The ids of the nodes that are joints, in the skeleton's own order.
+  final List<int> joints;
+
+  /// The node with [id], or null when the rig does not carry it.
+  RigNode? operator [](int id) => _nodes[id];
+}
+
+/// A track and the node it moves.
+final class RigTrack {
+  const RigTrack({required this.nodeId, required this.track});
+
+  final int nodeId;
+
+  final AnimationTrack track;
+}
+
+Quaternion _rotationOf(Matrix4 local) =>
+    Quaternion.fromRotation(local.getRotation());
+
+/// The world-space standing height of [rig] in its rest pose — the highest
+/// joint (a humanoid's own `head`) above the lowest (an ankle), which is what
+/// "рост" (height) means for [retargetTracks]' own hip-translation scale.
+/// Falls back to the full Y span of every joint when neither a `head` nor an
+/// `*nkle` name is present, so a non-humanoid rig still gets *some*
+/// defensible height rather than a division by a made-up number.
+double _standingHeight(RetargetRig rig) {
   final worldY = <String, double>{};
   final worldOf = <int, Vector3>{};
   Vector3 worldPositionOf(int id) {
     final cached = worldOf[id];
     if (cached != null) return cached;
-    final object = project[id];
-    if (object == null) return Vector3.zero();
-    final parentWorld = object.parent == null
+    final node = rig[id];
+    if (node == null) return Vector3.zero();
+    final parentWorld = node.parent == null
         ? Vector3.zero()
-        : worldPositionOf(object.parent!);
-    final parentRot = object.parent == null
+        : worldPositionOf(node.parent!);
+    final parentRot = node.parent == null
         ? Quaternion.identity()
-        : _rotationOf(_worldMatrix(project, object.parent!));
-    final world = parentWorld + parentRot.rotated(object.transform.getTranslation());
+        : _rotationOf(_worldMatrix(rig, node.parent!));
+    final world =
+        parentWorld + parentRot.rotated(node.restLocal.getTranslation());
     worldOf[id] = world;
     return world;
   }
 
-  for (final id in skeleton.joints) {
-    final object = project[id];
-    if (object == null) continue;
-    worldY[object.name] = worldPositionOf(id).y;
+  for (final id in rig.joints) {
+    final node = rig[id];
+    if (node == null) continue;
+    worldY[node.name] = worldPositionOf(id).y;
   }
   if (worldY.isEmpty) return 1.0;
 
@@ -59,20 +117,21 @@ double _standingHeight(ModelProject project, ProjectSkeleton skeleton) {
   }
 
   final values = worldY.values;
-  final height = values.reduce((a, b) => a > b ? a : b) -
+  final height =
+      values.reduce((a, b) => a > b ? a : b) -
       values.reduce((a, b) => a < b ? a : b);
   return height > 1e-6 ? height : 1.0;
 }
 
-/// [id]'s own world transform in [project], composed by walking its
-/// ancestors — used only where a caller needs the *rotation* half; the
-/// simpler [_standingHeight]'s own accumulation above handles translation
-/// itself so as not to build a full `Matrix4` per joint per call there.
-Matrix4 _worldMatrix(ModelProject project, int id) {
-  final object = project[id];
-  if (object == null) return Matrix4.identity();
-  if (object.parent == null) return object.transform.clone();
-  return _worldMatrix(project, object.parent!) * object.transform;
+/// [id]'s own world transform in [rig], composed by walking its ancestors —
+/// used only where a caller needs the *rotation* half; [_standingHeight]'s own
+/// accumulation above handles translation itself so as not to build a full
+/// `Matrix4` per joint per call there.
+Matrix4 _worldMatrix(RetargetRig rig, int id) {
+  final node = rig[id];
+  if (node == null) return Matrix4.identity();
+  if (node.parent == null) return node.restLocal.clone();
+  return _worldMatrix(rig, node.parent!) * node.restLocal;
 }
 
 /// One leg's own three joint names, humanoid convention — see
@@ -89,93 +148,95 @@ const _legChains = <_LegChain>[
   _LegChain('rightHip', 'rightKnee', 'rightAnkle'),
 ];
 
-/// Retargets [sourceClip] — a clip whose tracks address [sourceSkeleton]'s
-/// own joints in [sourceProject] — onto [targetSkeleton]'s joints in
-/// [targetProject], through [boneMap].
+/// Retargets [tracks] — tracks moving [source]'s own nodes — onto [target]'s
+/// joints, through [boneMap].
 ///
 /// **Rest-relative, not a raw copy.** Each rotation keyframe is expressed
-/// relative to the *source* bone's own rest rotation, then re-applied on
-/// top of the *target* bone's own rest rotation — the standard technique
-/// that keeps a retarget correct across two skeletons whose rest poses
-/// (a T-pose here, an A-pose there) or bone lengths differ. Translation
-/// keyframes (ordinarily only the root/hips track carries one) are instead
-/// re-based on the target's own rest translation and scaled by the ratio
-/// of the two skeletons' own standing heights, so a root-motion clip
-/// retargeted onto a taller rig covers proportionally more ground. A track
-/// whose source bone [boneMap] does not answer for is dropped rather than
-/// guessed at.
+/// relative to the *source* bone's own rest rotation, then re-applied on top
+/// of the *target* bone's own rest rotation — the standard technique that
+/// keeps a retarget correct across two skeletons whose rest poses (a T-pose
+/// here, an A-pose there) or bone lengths differ. Translation keyframes
+/// (ordinarily only the root/hips track carries one) are instead re-based on
+/// the target's own rest translation and scaled by the ratio of the two rigs'
+/// own standing heights, so a root-motion clip retargeted onto a taller rig
+/// covers proportionally more ground. A track whose source node [boneMap]
+/// does not answer for is dropped rather than guessed at.
 ///
-/// **Retargeting a skeleton onto itself is the identity.** When
-/// [sourceSkeleton] and [targetSkeleton] are the same rig ([boneMap] the
-/// identity on every name), every rest rotation/translation above is the
-/// bone's own, the height ratio is exactly `1.0`, and "relative to rest,
-/// then re-applied on top of rest" composes back to the original value bit
-/// for bit — `anim-17`'s own first acceptance clause.
+/// **Retargeting a rig onto itself is the identity.** When [source] and
+/// [target] are the same rig ([boneMap] the identity on every name), every
+/// rest rotation/translation above is the bone's own, the height ratio is
+/// exactly `1.0`, and "relative to rest, then re-applied on top of rest"
+/// composes back to the original value bit for bit — `anim-17`'s own first
+/// acceptance clause.
 ///
 /// [lockFeet] runs a two-bone IK correction (`solveTwoBoneIk`) after
 /// retargeting, per humanoid leg (`leftHip`/`leftKnee`/`leftAnkle` and the
-/// right-side mirror), snapping each foot back to [groundY] at every
-/// keyframe the retargeted hip or knee track carries — the row's own
-/// "прижим стоп" (foot clamp), needed because scaling only the root
-/// translation by a height ratio does not, by itself, guarantee a leg of a
-/// different proportion still reaches the ground exactly.
-ProjectClip retargetClip({
-  required ProjectClip sourceClip,
-  required ModelProject sourceProject,
-  required ProjectSkeleton sourceSkeleton,
-  required ModelProject targetProject,
-  required ProjectSkeleton targetSkeleton,
+/// right-side mirror), snapping each foot back to [groundY] at every keyframe
+/// the retargeted hip or knee track carries — the row's own "прижим стоп"
+/// (foot clamp), needed because scaling only the root translation by a height
+/// ratio does not, by itself, guarantee a leg of a different proportion still
+/// reaches the ground exactly.
+List<RigTrack> retargetTracks({
+  required List<RigTrack> tracks,
+  required RetargetRig source,
+  required RetargetRig target,
   required BoneMap boneMap,
   bool lockFeet = true,
   double groundY = 0.0,
   double footTolerance = 1e-3,
 }) {
-  final heightRatio =
-      _standingHeight(targetProject, targetSkeleton) /
-      _standingHeight(sourceProject, sourceSkeleton);
+  final heightRatio = _standingHeight(target) / _standingHeight(source);
 
-  final targetJointByName = <String, ModelObject>{};
-  for (final id in targetSkeleton.joints) {
-    final object = targetProject[id];
-    if (object != null) targetJointByName[object.name] = object;
-  }
+  final targetJointByName = <String, RigNode>{
+    for (final id in target.joints)
+      if (target[id] case final RigNode node) node.name: node,
+  };
 
-  final newTracks = <ProjectTrack>[];
-  for (final track in sourceClip.tracks) {
-    final sourceObject = sourceProject[track.objectId];
-    if (sourceObject == null) continue;
-    final targetName = boneMap.targetOf(sourceObject.name);
-    if (targetName == null) continue;
-    final targetObject = targetJointByName[targetName];
-    if (targetObject == null) continue;
+  final retargeted = <RigTrack>[
+    for (final track in tracks)
+      if (_retargetOne(
+            track,
+            source: source,
+            targetJointByName: targetJointByName,
+            boneMap: boneMap,
+            heightRatio: heightRatio,
+          )
+          case final RigTrack moved)
+        moved,
+  ];
 
-    final retargeted = _retargetTrack(
-      track.track,
-      sourceRestLocal: sourceObject.transform,
-      targetRestLocal: targetObject.transform,
-      heightRatio: heightRatio,
-    );
-    if (retargeted == null) continue;
-    newTracks.add(ProjectTrack(objectId: targetObject.id, track: retargeted));
-  }
+  return lockFeet
+      ? _lockFeet(
+          retargeted,
+          target: target,
+          groundY: groundY,
+          tolerance: footTolerance,
+        )
+      : retargeted;
+}
 
-  var clip = ProjectClip(
-    name: sourceClip.name,
-    tracks: newTracks,
-    extras: sourceClip.extras,
+/// [track] moved onto the target joint [boneMap] names for its source node, or
+/// null when there is no such node, no such name or no such joint.
+RigTrack? _retargetOne(
+  RigTrack track, {
+  required RetargetRig source,
+  required Map<String, RigNode> targetJointByName,
+  required BoneMap boneMap,
+  required double heightRatio,
+}) {
+  final sourceNode = source[track.nodeId];
+  if (sourceNode == null) return null;
+  final targetName = boneMap.targetOf(sourceNode.name);
+  if (targetName == null) return null;
+  final targetNode = targetJointByName[targetName];
+  if (targetNode == null) return null;
+  final moved = _retargetTrack(
+    track.track,
+    sourceRestLocal: sourceNode.restLocal,
+    targetRestLocal: targetNode.restLocal,
+    heightRatio: heightRatio,
   );
-
-  if (lockFeet) {
-    clip = _lockFeet(
-      clip,
-      targetProject: targetProject,
-      targetSkeleton: targetSkeleton,
-      groundY: groundY,
-      tolerance: footTolerance,
-    );
-  }
-
-  return clip;
+  return moved == null ? null : RigTrack(nodeId: targetNode.id, track: moved);
 }
 
 AnimationTrack? _retargetTrack(
@@ -260,27 +321,25 @@ AnimationTrack? _retargetTrack(
   }
 }
 
-ProjectClip _lockFeet(
-  ProjectClip clip, {
-  required ModelProject targetProject,
-  required ProjectSkeleton targetSkeleton,
+List<RigTrack> _lockFeet(
+  List<RigTrack> tracks, {
+  required RetargetRig target,
   required double groundY,
   required double tolerance,
 }) {
-  final jointByName = <String, ModelObject>{};
-  for (final id in targetSkeleton.joints) {
-    final object = targetProject[id];
-    if (object != null) jointByName[object.name] = object;
-  }
-  final tracksByObjectId = <int, ProjectTrack>{
-    for (final track in clip.tracks) track.objectId: track,
+  final jointByName = <String, RigNode>{
+    for (final id in target.joints)
+      if (target[id] case final RigNode node) node.name: node,
+  };
+  final tracksByNodeId = <int, RigTrack>{
+    for (final track in tracks) track.nodeId: track,
   };
 
   final replaced = Map<int, AnimationTrack>.fromEntries(
-    tracksByObjectId.entries.map((e) => MapEntry(e.key, e.value.track)),
+    tracksByNodeId.entries.map((e) => MapEntry(e.key, e.value.track)),
   );
 
-  final newTrackObjectIds = <int>{};
+  final newTrackNodeIds = <int>{};
 
   for (final chain in _legChains) {
     final hip = jointByName[chain.hip];
@@ -292,13 +351,13 @@ ProjectClip _lockFeet(
     // rotation and translation tracks, when present, since the leg chain's
     // own FK starts from wherever the pelvis actually is at this keyframe,
     // not from its rest pose.
-    final rootObject = hip.parent == null ? null : targetProject[hip.parent!];
-    final rootTrack = rootObject == null
+    final rootNode = hip.parent == null ? null : target[hip.parent!];
+    final rootTrack = rootNode == null
         ? null
-        : tracksByObjectId[rootObject.id]?.track;
+        : tracksByNodeId[rootNode.id]?.track;
 
-    final hipTrack = tracksByObjectId[hip.id]?.track;
-    final kneeTrack = tracksByObjectId[knee.id]?.track;
+    final hipTrack = tracksByNodeId[hip.id]?.track;
+    final kneeTrack = tracksByNodeId[knee.id]?.track;
 
     // Every bone in this rig is a pure translation at rest (`rig_template
     // .dart`'s own doc comment), so a bone with no rotation track at all is
@@ -307,8 +366,7 @@ ProjectClip _lockFeet(
     // that order) is what lets a clip that only ever animates the root
     // translation — a crouch with the legs otherwise held straight, this
     // row's own acceptance case — still get its foot corrected.
-    final times =
-        hipTrack?.times ?? kneeTrack?.times ?? rootTrack?.times;
+    final times = hipTrack?.times ?? kneeTrack?.times ?? rootTrack?.times;
     if (times == null) continue;
 
     Float32List identityRotations() {
@@ -326,21 +384,21 @@ ProjectClip _lockFeet(
       replaced[knee.id]?.values ?? kneeTrack?.values ?? identityRotations(),
     );
 
-    final rootRestT = rootObject?.transform.getTranslation() ?? Vector3.zero();
-    final rootRestR = rootObject == null
+    final rootRestT = rootNode?.restLocal.getTranslation() ?? Vector3.zero();
+    final rootRestR = rootNode == null
         ? Quaternion.identity()
-        : _rotationOf(rootObject.transform);
-    final hipOffset = hip.transform.getTranslation();
-    final kneeOffset = knee.transform.getTranslation();
-    final ankleOffset = ankle.transform.getTranslation();
+        : _rotationOf(rootNode.restLocal);
+    final hipOffset = hip.restLocal.getTranslation();
+    final kneeOffset = knee.restLocal.getTranslation();
+    final ankleOffset = ankle.restLocal.getTranslation();
 
-    final rootTranslationValues = rootTrack != null &&
-            rootTrack.path == AnimationPath.translation
-        ? (replaced[rootObject!.id]?.values ?? rootTrack.values)
+    final rootTranslationValues =
+        rootTrack != null && rootTrack.path == AnimationPath.translation
+        ? (replaced[rootNode!.id]?.values ?? rootTrack.values)
         : null;
     final rootRotationValues =
         rootTrack != null && rootTrack.path == AnimationPath.rotation
-        ? (replaced[rootObject!.id]?.values ?? rootTrack.values)
+        ? (replaced[rootNode!.id]?.values ?? rootTrack.values)
         : null;
 
     for (var key = 0; key < times.length; key++) {
@@ -384,7 +442,7 @@ ProjectClip _lockFeet(
 
       if ((ankleWorldPos.y - groundY).abs() <= tolerance) continue;
 
-      final target = Vector3(ankleWorldPos.x, groundY, ankleWorldPos.z);
+      final goal = Vector3(ankleWorldPos.x, groundY, ankleWorldPos.z);
       final pole = kneeWorldPos + Vector3(0.0, 0.0, 1.0);
       final result = solveTwoBoneIk(
         rootWorldPosition: hipWorldPos,
@@ -393,7 +451,7 @@ ProjectClip _lockFeet(
         rootParentWorldRotation: rootWorldR,
         rootWorldRotation: hipWorldR,
         midWorldRotation: kneeWorldR,
-        target: target,
+        target: goal,
         pole: pole,
       );
 
@@ -415,30 +473,25 @@ ProjectClip _lockFeet(
       values: hipValues,
       componentCount: 4,
     );
-    if (hipTrack == null) newTrackObjectIds.add(hip.id);
+    if (hipTrack == null) newTrackNodeIds.add(hip.id);
     replaced[knee.id] = AnimationTrack(
       nodeIndex: kneeTrack?.nodeIndex ?? 0,
       path: AnimationPath.rotation,
-      interpolation:
-          kneeTrack?.interpolation ?? AnimationInterpolation.linear,
+      interpolation: kneeTrack?.interpolation ?? AnimationInterpolation.linear,
       times: times,
       values: kneeValues,
       componentCount: 4,
     );
-    if (kneeTrack == null) newTrackObjectIds.add(knee.id);
+    if (kneeTrack == null) newTrackNodeIds.add(knee.id);
   }
 
-  return ProjectClip(
-    name: clip.name,
-    tracks: [
-      for (final track in clip.tracks)
-        ProjectTrack(
-          objectId: track.objectId,
-          track: replaced[track.objectId] ?? track.track,
-        ),
-      for (final objectId in newTrackObjectIds)
-        ProjectTrack(objectId: objectId, track: replaced[objectId]!),
-    ],
-    extras: clip.extras,
-  );
+  return <RigTrack>[
+    for (final track in tracks)
+      RigTrack(
+        nodeId: track.nodeId,
+        track: replaced[track.nodeId] ?? track.track,
+      ),
+    for (final nodeId in newTrackNodeIds)
+      RigTrack(nodeId: nodeId, track: replaced[nodeId]!),
+  ];
 }

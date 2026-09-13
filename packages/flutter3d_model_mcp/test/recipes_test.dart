@@ -151,7 +151,7 @@ void main() {
       for (var i = 3; i < rgba.length; i += 4) {
         rgba[i] = 255;
       }
-      return encodePng(width, height, rgba);
+      return encodeCompressedPng(width, height, rgba);
     }
 
     test('triangulates and recalculates normals, one undo step', () {

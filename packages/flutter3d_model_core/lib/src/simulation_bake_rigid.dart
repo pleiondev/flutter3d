@@ -41,8 +41,8 @@ List<Vector3> _boxCorners(Vector3 halfExtents) => <Vector3>[
 /// from the result names both itself. [label] is the row's own "с
 /// подписью" — what a cache-status strip shows for a bake nothing else here
 /// distinguishes from another rigid body's.
-final class BakeRigidBodyCommand {
-  BakeRigidBodyCommand({
+final class BakeRigidBodyJobRequest implements SimulationBakeRequest {
+  BakeRigidBodyJobRequest({
     required this.objectId,
     required this.baseVersion,
     required this.halfExtents,
@@ -53,16 +53,20 @@ final class BakeRigidBodyCommand {
     this.label = 'Rigid body',
   });
 
+  @override
   final int objectId;
+  @override
   final int baseVersion;
   final Vector3 halfExtents;
   final Vector3 startPosition;
   final double mass;
+  @override
   final int frameCount;
   final double dt;
   final String label;
 
   /// Always eight — the box's own corners, never resampled.
+  @override
   int get vertexCount => 8;
 
   /// Runs the whole drop and hands back the finished cache.
@@ -106,4 +110,7 @@ final class BakeRigidBodyCommand {
 
     return SimulationCache(vertexCount: vertexCount, frames: frames);
   }
+
+  @override
+  Future<SimulationCache> bake() => buildCache();
 }

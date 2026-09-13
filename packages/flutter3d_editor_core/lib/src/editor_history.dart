@@ -3,12 +3,14 @@ import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'editing.dart';
 import 'editor_command.dart';
 
-/// One step back: what the document was, and what was done to it.
+/// One step back: what the document was, what was done to it, and which state
+/// of the document the snapshot is.
 ///
 /// The snapshot is beside the sentence rather than under it, because both
 /// answers are wanted at once — a bar says "undo move by 0.25, 0, 0" and then
-/// has to put that document back.
-typedef _Step = ({String says, Map<String, Object?> document});
+/// has to put that document back. [state] is the token [EditorHistory] gave
+/// that document when it came into being; see [EditorHistory.isDirty].
+typedef _Step = ({String says, Map<String, Object?> document, int state});
 
 /// Everything that has been done to a document, and the way back.
 ///
@@ -24,12 +26,17 @@ typedef _Step = ({String says, Map<String, Object?> document});
 /// **It also knows what has been saved**, which looks like two jobs and is one.
 /// "Is there unsaved work" is not a flag that a change sets and a save clears:
 /// undoing back past a save has to answer no, and redoing forward past it has
-/// to answer yes again. That is a comparison between how deep the stack is now
-/// and how deep it was when the file was written — [saved] records the depth,
-/// [isDirty] compares against it — and it can only be made where the stack is.
-/// The question hangs on the dialog that closing a window raises, so a wrong
-/// answer is either a lost afternoon or a question about a document with
-/// nothing in it to lose.
+/// to answer yes again. So every state the document passes through gets a
+/// token of its own, a save remembers the token of the state it wrote, and
+/// [isDirty] compares the two.
+///
+/// **A token, not the depth of the stack.** The depth was the first answer and
+/// it was wrong in the ordinary case: save, undo, change something, undo, redo
+/// — the stack is back at the depth of the save and the document on screen is
+/// a change nobody wrote down. Two states at one depth are two different
+/// documents, and only something minted per state can tell them apart. It is
+/// the question `ModelHistory` answers by identity, asked of a document that
+/// is rebuilt from JSON and so has no identity to ask about.
 final class EditorHistory {
   EditorHistory(this.editing);
 
@@ -127,12 +134,14 @@ final class EditorHistory {
   }
 
   void _push(String says, Map<String, Object?> document) {
-    _undo.add((says: says, document: document));
+    _undo.add((says: says, document: document, state: _state));
     if (_undo.length > undoDepth) _undo.removeAt(0);
     // A new change is a new future. Keeping the old one would let redo put back
     // a document that never followed from what is on screen.
     _redo.clear();
-    _dirty = true;
+    // The document about to exist has never existed before, so it has never
+    // been saved either — whatever depth the stack happens to be at.
+    _state = ++_minted;
   }
 
   /// Whether a transaction is open, and so who owns the next step.
@@ -145,7 +154,8 @@ final class EditorHistory {
   void undo() {
     if (_undo.isEmpty) return;
     final step = _undo.removeLast();
-    _redo.add((says: step.says, document: editing.level.toJson()));
+    _redo.add((says: step.says, document: editing.level.toJson(), state: _state));
+    _state = step.state;
     _restore(step.document);
   }
 
@@ -153,7 +163,8 @@ final class EditorHistory {
   void redo() {
     if (_redo.isEmpty) return;
     final step = _redo.removeLast();
-    _undo.add((says: step.says, document: editing.level.toJson()));
+    _undo.add((says: step.says, document: editing.level.toJson(), state: _state));
+    _state = step.state;
     _restore(step.document);
   }
 
@@ -170,24 +181,24 @@ final class EditorHistory {
       editing.kind = null;
       editing.selected = null;
     }
-    // **Not unconditionally true.** Undoing back to the state that was last
-    // written is a document with nothing unsaved in it, and saying otherwise
-    // means the bar reads "— unsaved" over work that is on the disk, and that
-    // closing the window asks a question it already knows the answer to.
-    _dirty = _undo.length != _savedDepth;
   }
 
   /// Whether anything has been changed since the last save.
-  bool get isDirty => _dirty;
-  bool _dirty = false;
+  ///
+  /// **Not "has anything happened since".** Undoing back to the state that was
+  /// last written is a document with nothing unsaved in it, and saying
+  /// otherwise means the bar reads "— unsaved" over work that is on the disk,
+  /// and that closing the window asks a question it already knows the answer
+  /// to.
+  bool get isDirty => _state != _savedState;
 
   /// Says the document has been written, so it stops calling itself unsaved.
-  void saved() {
-    _dirty = false;
-    _savedDepth = _undo.length;
-  }
+  void saved() => _savedState = _state;
 
-  /// Where the stack stood when the document was written, so undoing back to
-  /// here is "nothing unsaved" rather than "one more change".
-  int _savedDepth = 0;
+  /// The token of the document as it stands, of the one last written, and the
+  /// last token handed out. The document a history opens on is token zero and
+  /// counts as saved: nothing has been done to it yet.
+  int _state = 0;
+  int _savedState = 0;
+  int _minted = 0;
 }

@@ -523,7 +523,7 @@ void main() {
       // `AnimatedMorphCube` is one primitive with two shapes; this is the other
       // shape a file takes — a head split across three primitives that share
       // three expressions, with a weights channel in every one of fourteen
-      // clips. It is what `dart run flutter3d:convert` was run against by hand
+      // clips. It is what `dart run flutter3d_build:convert` was run against by hand
       // before this test existed, and running it by hand is what this replaces.
       final source = await GltfLoader().load(readSample('RobotExpressive.glb'));
       final reloaded = roundTrip(source);
@@ -660,7 +660,7 @@ void main() {
           isA<F3dFormatException>().having(
             (e) => e.message,
             'message',
-            allOf(contains('version'), contains('flutter3d:convert')),
+            allOf(contains('version'), contains('flutter3d_build:convert')),
           ),
         ),
       );

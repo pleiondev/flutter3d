@@ -1,4 +1,4 @@
-/// `ap-03`: `dart run flutter3d:convert` — the same converter
+/// `ap-03`: `dart run flutter3d_build:convert` — the same converter
 /// `packages/flutter3d/tool/convert_asset.dart` was, moved here so a build
 /// hook (`ap-05`) and a project that only has the published `flutter3d`
 /// package can both reach it, plus what that tool never had: a directory on
@@ -52,7 +52,7 @@ final class TextureFamily {
 }
 
 const String usage = '''
-Usage: dart run flutter3d:convert <model-or-directory> [options]
+Usage: dart run flutter3d_build:convert <model-or-directory> [options]
 
 Converts a glTF, GLB, OBJ or STL model into the engine's .f3d container. A
 directory converts every recognised model file under it, recursively.
@@ -135,19 +135,31 @@ final class ConvertOptions {
   }
 }
 
-/// The extensions [convertOne] knows how to read, in the order a directory
-/// walk reports them — not an order this function chooses.
-const Set<String> recognisedExtensions = <String>{
-  '.obj',
-  '.gltf',
-  '.glb',
-  '.stl',
+/// The extensions [convertOne] reads without being handed a decoder: every
+/// suffix `flutter3d_formats` has a built-in reader for, except `.f3d`, which
+/// is what this writes.
+///
+/// **Read off [builtInModelExtensions] rather than listed here again.** It was
+/// a second list once, and a format added to the decoders would have been one
+/// `dart run flutter3d_build:convert` silently walked past.
+final Set<String> recognisedExtensions = <String>{
+  for (final String suffix in builtInModelExtensions.keys)
+    if (suffix != '.f3d') suffix,
 };
 
-/// `dart run flutter3d:convert`'s own `main`, factored out so
+/// `dart run flutter3d_build:convert`'s own `main`, factored out so
 /// `packages/flutter3d/bin/convert.dart` can be the thin wrapper `ap-03`
 /// asks for and a test can drive this without a second process.
-Future<int> runConvert(List<String> arguments, {IOSink? out, IOSink? err}) async {
+///
+/// [decoders] are an application's own readers, asked before the built-in
+/// ones exactly as `decodeModel` asks them, and a directory walk picks up any
+/// file one of them claims by name.
+Future<int> runConvert(
+  List<String> arguments, {
+  IOSink? out,
+  IOSink? err,
+  List<ModelDecoder> decoders = const <ModelDecoder>[],
+}) async {
   final stdoutSink = out ?? stdout;
   final stderrSink = err ?? stderr;
 
@@ -178,7 +190,7 @@ Future<int> runConvert(List<String> arguments, {IOSink? out, IOSink? err}) async
   }
 
   final jobs = inputEntity == FileSystemEntityType.directory
-      ? _planDirectory(options.input, options.output)
+      ? _planDirectory(options.input, options.output, decoders)
       : <(String, String)>[
           (options.input, options.output ?? _defaultOutput(options.input)),
         ];
@@ -191,17 +203,31 @@ Future<int> runConvert(List<String> arguments, {IOSink? out, IOSink? err}) async
       stdoutSink,
       stderrSink,
       textures: options.textures,
+      decoders: decoders,
     );
     if (!ok) failures++;
   }
   return failures == 0 ? 0 : 1;
 }
 
-List<(String, String)> _planDirectory(String directory, String? outputRoot) {
+/// Whether [path] is a model this converter reads: a built-in suffix other
+/// than `.f3d`, or a file one of [decoders] claims by name.
+bool _recognised(String path, List<ModelDecoder> decoders) {
+  if (recognisedExtensions.contains(_extensionOf(path))) return true;
+  final name = path.substring(path.lastIndexOf('/') + 1).toLowerCase();
+  final nothing = Uint8List(0);
+  return decoders.any((ModelDecoder decoder) => decoder.handles(name, nothing));
+}
+
+List<(String, String)> _planDirectory(
+  String directory,
+  String? outputRoot,
+  List<ModelDecoder> decoders,
+) {
   final root = Directory(directory);
   return <(String, String)>[
     for (final entity in root.listSync(recursive: true))
-      if (entity is File && recognisedExtensions.contains(_extensionOf(entity.path)))
+      if (entity is File && _recognised(entity.path, decoders))
         (
           entity.path,
           outputRoot == null
@@ -244,6 +270,7 @@ Future<bool> convertOne(
   IOSink out,
   IOSink err, {
   TextureFamily textures = TextureFamily.auto,
+  List<ModelDecoder> decoders = const <ModelDecoder>[],
 }) async {
   final input = File(inputPath);
   if (!input.existsSync()) {
@@ -256,7 +283,7 @@ Future<bool> convertOne(
 
   ModelDocument document;
   try {
-    document = await _decode(bytes, inputPath);
+    document = await _decode(bytes, inputPath, decoders);
   } on Object catch (error) {
     err.writeln('Could not decode $inputPath: $error');
     return false;
@@ -312,23 +339,47 @@ Future<bool> convertOne(
   return true;
 }
 
-Future<ModelDocument> _decode(Uint8List bytes, String path) {
-  final resolve = fileUriResolverFor(path);
-  final lower = path.toLowerCase();
+/// [bytes] decoded the way `decodeModel` decodes them — [decoders] first,
+/// then the built-in reader for the suffix — rather than through a `switch`
+/// of this file's own that an application's decoder could never reach.
+Future<ModelDocument> _decode(
+  Uint8List bytes,
+  String path,
+  List<ModelDecoder> decoders,
+) {
+  if (!_recognised(path, decoders)) {
+    if (isF3dFile(bytes)) {
+      throw const FormatException('That is already a .f3d file.');
+    }
+    throw FormatException('Unrecognised extension: $path');
+  }
+  return decodeModelBytes(
+    ModelLoadRequest(
+      source: _PathSource(path),
+      layout: VertexLayout.standard,
+      decoders: decoders,
+    ),
+    bytes,
+    fileUriResolverFor(path),
+  );
+}
 
-  if (lower.endsWith('.obj')) {
-    return ObjLoader(layout: VertexLayout.standard).load(bytes, resolveUri: resolve);
-  }
-  if (lower.endsWith('.gltf') || lower.endsWith('.glb')) {
-    return GltfLoader(layout: VertexLayout.standard).load(bytes, resolveUri: resolve);
-  }
-  if (lower.endsWith('.stl')) {
-    return StlLoader(layout: VertexLayout.standard).load(bytes);
-  }
-  if (isF3dFile(bytes)) {
-    throw const FormatException('That is already a .f3d file.');
-  }
-  throw FormatException('Unrecognised extension: $path');
+/// A model named by its path, for the request [_decode] builds. Nothing reads
+/// through it — [convertOne] has the bytes already — but a decoder is chosen
+/// by the file name a source carries.
+final class _PathSource extends AssetSource {
+  const _PathSource(this.path);
+
+  final String path;
+
+  @override
+  String get key => 'file:$path';
+
+  @override
+  Future<Uint8List> read() => File(path).readAsBytes();
+
+  @override
+  AssetUriResolver get resolveUri => fileUriResolverFor(path);
 }
 
 /// Reads sibling files relative to the model, the way the decoders expect.

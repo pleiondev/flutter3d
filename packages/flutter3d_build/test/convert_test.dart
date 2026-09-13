@@ -24,7 +24,7 @@ void main() {
     final err = _BufferSink();
     final code = await runConvert(<String>['--help'], out: out, err: err);
     expect(code, 2);
-    expect(err.text, contains('Usage: dart run flutter3d:convert'));
+    expect(err.text, contains('Usage: dart run flutter3d_build:convert'));
     expect(err.text, contains('--textures'));
     expect(err.text, contains('--no-mips'));
   });

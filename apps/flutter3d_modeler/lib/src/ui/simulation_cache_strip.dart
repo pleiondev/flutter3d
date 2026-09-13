@@ -4,7 +4,7 @@
 /// **Presentational only, the same split every other control in this shell
 /// keeps.** `SimulationCache.coverage` in `flutter3d_model_core` is the pure
 /// number this reads; nothing here knows about a `SimulationCache`, a
-/// `BakeSimulationCommand`, or where either one lives — the same way
+/// `BakeClothJobRequest`, or where either one lives — the same way
 /// `JobButton` reads a bare `double?` rather than a `Job` itself.
 library;
 
@@ -27,7 +27,7 @@ final class SimulationCacheStrip extends StatelessWidget {
   /// `frameCount`.
   final int bakedFrameCount;
 
-  /// How many frames the bake is aiming for — a `BakeSimulationCommand`'s
+  /// How many frames the bake is aiming for — a `BakeClothJobRequest`'s
   /// own `frameCount`.
   final int targetFrameCount;
 

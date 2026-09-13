@@ -37,7 +37,7 @@ genres, and the generated API reference.
 | [`packages/flutter3d_game`](packages/flutter3d_game) | The game layer: a fixed timestep, interpolation, input that has forgotten which device it came from, levels and mechanisms. [README](packages/flutter3d_game/README.md) |
 | [`packages/flutter3d_physics`](packages/flutter3d_physics) | Collision shapes, a broadphase, queries and a character controller. Plain Dart — no Flutter, no renderer |
 | [`packages/flutter3d_cloth`](packages/flutter3d_cloth) | An XPBD cloth solver: distance and cross-edge bending constraints, pins, wind, collision against `flutter3d_physics`'s own shapes. Plain Dart |
-| [`packages/flutter3d_rig`](packages/flutter3d_rig) | Bone-name mapping and rest-relative clip retargeting between two skeletons, with a two-bone-IK foot lock. Plain Dart |
+| [`packages/flutter3d_rig`](packages/flutter3d_rig) | Bone-name mapping and rest-relative clip retargeting between two skeletons, with a two-bone-IK foot lock, over a rig read as nodes and tracks rather than a project. Plain Dart |
 | [`packages/flutter3d_fbx`](packages/flutter3d_fbx) | A `ModelDecoder` for Autodesk's FBX — the skeleton for now, recognising a file and refusing to read it with a clear reason. Plain Dart |
 | [`packages/flutter3d_game_shooter`](packages/flutter3d_game_shooter) | One genre: monsters, weapons, an inventory, the step order that ties them together, and the weapon held in the hands |
 | [`packages/flutter3d_game_platformer`](packages/flutter3d_game_platformer) | A second genre, and the instrument that tests the first: a runner who jumps twice, coins, hazards and checkpoints |
@@ -67,6 +67,7 @@ genres, and the generated API reference.
 | [`packages/flutter3d_game_strategy`](packages/flutter3d_game_strategy) | A fourth genre, and the first without a protagonist: ground made of samples, a crowd that takes orders and shoves itself apart, flow fields shared by destination, an economy, a fight, fog a side has to walk into, and a policy that plays a side without a mouse |
 | [`packages/flutter3d_editor_core`](packages/flutter3d_editor_core) | The level editor with the editor taken out: the document being selected in, nudged, undone and written back, the handles a pointer hits, the palette a level builds out of itself, and the project a template becomes. Plain Dart, so a linter or a service can depend on it |
 | [`packages/flutter3d_editor_mcp`](packages/flutter3d_editor_mcp) | The same editor offered to an agent: an MCP server over stdio whose tools are the editor's own commands, one document per process |
+| [`packages/flutter3d_mcp_kit`](packages/flutter3d_mcp_kit) | What every MCP server here shares: a tool paired with its handler, a server that is a list of them over one session, answers that refuse without failing, and a loopback HTTP transport. Plain Dart |
 | [`packages/flutter3d_mesh`](packages/flutter3d_mesh) | The mesh a modeller edits, with the topology still in it: faces of any valency, half-edges that know their twin, and the operations that change them. Plain Dart. [README](packages/flutter3d_mesh/README.md) |
 | [`packages/flutter3d_model_core`](packages/flutter3d_model_core) | The headless half of the model editor: the project of objects, the sealed command every edit is one of, the history that takes them back, and what it refuses to export |
 | [`packages/flutter3d_model_mcp`](packages/flutter3d_model_mcp) | The same modeller offered to an agent, over MCP on stdio. An entry point today; the tools follow the document layer |
@@ -160,7 +161,7 @@ Or one package at a time:
 (cd packages/flutter3d_physics && dart test)   # plain Dart, no Flutter needed
 ```
 
-7330 tests across forty-five packages and eight applications, and the only
+7362 tests across forty-six packages and nine applications, and the only
 ones that need a GPU are the
 Impeller half of the golden set. The other half is rendered by the software
 backend, which is what makes 43 scenes checkable in a headless run.
@@ -189,7 +190,7 @@ the environment map is prefiltered through it. Compressed pixel formats are
 here too: the BC, ETC2 and ASTC families are in `TextureFormat`, every backend
 answers `supportsTextureFormat` for itself, and a KTX2 that arrives is read.
 What no asset in this repository *ships* is a compressed texture, because
-`dart run flutter3d:convert` has no encoder to make one — a gap upstream of the
+`dart run flutter3d_build:convert` has no encoder to make one — a gap upstream of the
 engine rather than in it.
 
 So one entry is left on the list: compute passes, and with them GPU particles,

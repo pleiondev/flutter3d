@@ -9,11 +9,11 @@ import 'package:test/test.dart';
 import 'package:vector_math/vector_math.dart';
 
 void main() {
-  group('BakeRigidBodyCommand', () {
+  group('BakeRigidBodyJobRequest', () {
     test(
       "pro-sim-02's own acceptance: a cube falls and stops",
       () async {
-        final command = BakeRigidBodyCommand(
+        final command = BakeRigidBodyJobRequest(
           objectId: 1,
           baseVersion: 0,
           halfExtents: Vector3.all(0.25),
@@ -55,7 +55,7 @@ void main() {
     );
 
     test('the bake is deterministic: two runs give the same cache', () async {
-      Future<SimulationCache> run() => BakeRigidBodyCommand(
+      Future<SimulationCache> run() => BakeRigidBodyJobRequest(
         objectId: 1,
         baseVersion: 0,
         halfExtents: Vector3.all(0.3),
@@ -72,7 +72,7 @@ void main() {
     });
 
     test('every frame has exactly 8 vertices, the box\'s own corners', () async {
-      final cache = await BakeRigidBodyCommand(
+      final cache = await BakeRigidBodyJobRequest(
         objectId: 1,
         baseVersion: 0,
         halfExtents: Vector3.all(0.5),

@@ -1,4 +1,4 @@
-/// `ap-02`'s scaffold, filled in by `ap-03`: `dart run flutter3d:convert`,
+/// `ap-02`'s scaffold, filled in by `ap-03`: `dart run flutter3d_build:convert`,
 /// the same converter `packages/flutter3d/tool/convert_asset.dart` was,
 /// moved here so a build hook (`ap-05`) and a project that only has the
 /// published `flutter3d` package can both reach it.

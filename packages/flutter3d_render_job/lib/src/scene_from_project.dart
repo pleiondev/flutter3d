@@ -36,13 +36,12 @@
 /// live behaviour; switching both sides over to `SceneLighting` together is
 /// `mat-23`'s own integration to finish, not a divergence to introduce here.
 ///
-/// **No parent hierarchy either.** `ModelObject.parent` is read by nothing
-/// here; every object attaches directly to the scene root in its own local
-/// transform. A project that nests a child under a moved parent would
-/// therefore render that child in the wrong place. `ModelerStage.fromProject`
-/// already walks the hierarchy correctly for the live viewport; duplicating
-/// that walk here is exactly the kind of scope a "job wrapper" row should
-/// not absorb on its own initiative.
+/// **The hierarchy is walked.** An object's transform is local to its parent,
+/// so each node hangs under its parent's node and the renderer composes the
+/// two — a child under a moved parent renders where the viewport shows it,
+/// not at its local offset from the world origin. It used to attach every
+/// object to the scene root, which is only right for a project with no
+/// parents in it.
 library;
 
 import 'dart:typed_data';
@@ -72,14 +71,25 @@ Scene sceneFromProject(ModelProject project, GraphicsDevice device) {
       ..setLocalForward(Vector3(0.7, -0.3, 0.8)),
   );
 
+  // Two passes, because an object may be listed before its parent: every node
+  // made first, then each hung under its parent's node — or under the scene,
+  // for an object with no parent or one the project no longer holds.
+  final nodes = <int, MeshNode>{
+    for (final ModelObject object in project.objects)
+      object.id: MeshNode(
+        DeviceMesh.upload(device, _dataOf(object.geometry)),
+        _materialFor(project, object),
+        name: object.name,
+      )..setLocalMatrix(object.transform),
+  };
   for (final ModelObject object in project.objects) {
-    final data = _dataOf(object.geometry);
-    final node = MeshNode(
-      DeviceMesh.upload(device, data),
-      _materialFor(project, object),
-      name: object.name,
-    )..setLocalMatrix(object.transform);
-    scene.add(node);
+    final MeshNode node = nodes[object.id]!;
+    switch (nodes[object.parent]) {
+      case final MeshNode parent:
+        parent.add(node);
+      case null:
+        scene.add(node);
+    }
   }
   return scene;
 }

@@ -867,6 +867,45 @@ void main() {
       expect(shape.segments, 24);
     });
 
+    test('a slider on a mesh command re-runs it against the geometry before '
+        'it, not on top of it', () {
+      List<String> corners(EditMesh mesh) => <String>[
+        for (var v = 0; v < mesh.vertexSlotCount; v++)
+          if (mesh.isVertexAlive(v))
+            mesh
+                .positionOf(v)
+                .storage
+                .map((double c) => c.toStringAsFixed(4))
+                .join(','),
+      ]..sort();
+
+      final history = edited();
+      history.selection = faces(history, <int>[0]);
+      final mesh = meshOf(history);
+      final before = mesh.faceCount;
+
+      expect(history.run(const Extrude(0.5)), isNull);
+      expect(history.amend(const Extrude(0.8)), isNull);
+
+      final fresh = edited();
+      fresh.selection = faces(fresh, <int>[0]);
+      fresh.run(const Extrude(0.8));
+
+      // Mutation: re-run the replacement against `step.before` without
+      // rolling the mesh back. `before` holds the very mesh the extrusion
+      // edited in place, so the slider extrudes a second time on top of the
+      // first — four more faces for every frame of the drag.
+      expect(mesh.faceCount, before + 4);
+      expect(corners(mesh), corners(meshOf(fresh)));
+
+      // Mutation: build the amended step without `meshSteps`. Undo then
+      // swaps the document back and leaves the extrusion in the mesh.
+      history.undo();
+      expect(mesh.faceCount, before);
+      history.redo();
+      expect(corners(mesh), corners(meshOf(fresh)));
+    });
+
     test('a mesh is refused by name rather than quietly replaced', () {
       final history = edited();
 

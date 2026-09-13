@@ -8,8 +8,6 @@ import 'dart:typed_data';
 import 'package:flutter3d_formats/flutter3d_formats.dart';
 
 import 'image_dimensions.dart';
-import 'png_decoder.dart';
-import 'png_encoder.dart';
 import 'project.dart';
 import 'texture_budget.dart';
 
@@ -209,7 +207,7 @@ EncodedImage _fitOne(EncodedImage image, int maxSide, void Function(bool) mark) 
   );
   mark(true);
   return EncodedImage(
-    bytes: encodePng(newWidth, newHeight, resized),
+    bytes: encodeCompressedPng(newWidth, newHeight, resized),
     name: image.name,
     mimeType: 'image/png',
     sourceUri: image.sourceUri,

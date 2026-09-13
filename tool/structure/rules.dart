@@ -1528,6 +1528,8 @@ List<Finding> _testCount() {
     'forty-four',
     // And the day `flutter3d_lab` became the forty-fifth.
     'forty-five',
+    // And the day `flutter3d_mcp_kit` became the forty-sixth.
+    'forty-six',
   ];
   final readme = File('${root.path}/README.md').readAsStringSync();
   final saidInProse = RegExp(
@@ -2502,7 +2504,7 @@ const List<String> _countedInWords = <String>[
   'twenty-seven', 'twenty-eight', 'twenty-nine', 'thirty', 'thirty-one',
   'thirty-two', 'thirty-three', 'thirty-four', 'thirty-five', 'thirty-six',
   'thirty-seven', 'thirty-eight', 'thirty-nine', 'forty', 'forty-one',
-  'forty-two', 'forty-three', 'forty-four', 'forty-five',
+  'forty-two', 'forty-three', 'forty-four', 'forty-five', 'forty-six',
 ];
 
 /// A count said both ways, so a finding can be read and searched for.

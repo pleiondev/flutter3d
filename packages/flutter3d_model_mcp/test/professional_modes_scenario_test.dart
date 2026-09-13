@@ -10,7 +10,7 @@
 ///     dart test test/professional_modes_scenario_test.dart
 ///
 /// **What this does not prove.** `applySimulationCache` is handed a cache
-/// built directly in this file rather than one `BakeSimulationCommand`
+/// built directly in this file rather than one `BakeClothJobRequest`
 /// produced — that command has no synchronous, single-call shape a tool
 /// call could wait on, exactly `applySimulationCache`'s own tool
 /// description says, so an agent always arrives with a cache from

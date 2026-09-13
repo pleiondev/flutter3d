@@ -18,34 +18,37 @@ import 'dart:typed_data';
 import 'package:flutter3d_formats/flutter3d_formats.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 
-/// What the model can be taken out as.
+/// What the model can be taken out as: the writers this application offers
+/// out of `flutter3d_formats`' own list.
 ///
-/// Three, and all of them are already written elsewhere. glTF joined this
-/// enum with nothing else to change here, exactly as this doc comment once
-/// predicted it would: the shape of the work is `document → writer →
-/// bytes`, and the writer is the only part that differs.
+/// **A choice of writers, not a second list of formats.** The shape of the
+/// work is `document → writer → files`, and the writer — its suffix, its
+/// sentence, how many files it makes — is `flutter3d_formats`' own
+/// [ModelWriter]; what is decided here is only which of them this menu shows.
 enum ExportFormat {
   /// The engine's own container: every surface, material, image, node and
   /// animation this repository knows how to write.
-  f3d('.f3d', 'the engine container'),
+  f3d(F3dModelWriter()),
 
   /// Wavefront OBJ with its `.mtl` beside it. The oldest thing every tool
   /// reads, and the least it can carry: triangles, a placement baked into
   /// them, and a Phong approximation of each material.
-  obj('.obj', 'triangles that every tool reads'),
+  obj(ObjModelWriter()),
 
   /// A self-contained glTF binary — `fmt-06`'s own `GltfWriter`, the format
   /// most of the rest of the world actually opens. Everything OBJ cannot
   /// carry survives this one: the node tree, materials with textures,
   /// skins and animation.
-  glb('.glb', 'a glTF binary most other tools open');
+  glb(GlbModelWriter());
 
-  const ExportFormat(this.suffix, this.says);
+  const ExportFormat(this.writer);
 
-  final String suffix;
+  final ModelWriter writer;
+
+  String get suffix => writer.suffix;
 
   /// One line for a menu, in the words a person recognises.
-  final String says;
+  String get says => writer.says;
 }
 
 /// How a texture's pixels are written — mat-30's own row: "an encoder …, an
@@ -224,42 +227,33 @@ ExportResult planExport(
   // trip.
   warnings.addAll(document.warnings);
 
-  switch (format) {
-    case ExportFormat.f3d:
-      final encoded = textureEncoding == TextureEncoding.ktx2
-          ? _withKtx2Textures(document)
-          : document;
-      return ExportWritten(<ExportFile>[
-        ExportFile('$name.f3d', F3dWriter(encoded).write()),
-      ], warnings);
+  // Only `.f3d` has a reader of its own that takes a compressed texture; see
+  // [TextureEncoding].
+  final ModelDocument encoded =
+      format == ExportFormat.f3d && textureEncoding == TextureEncoding.ktx2
+      ? _withKtx2Textures(document)
+      : document;
+  final ModelWrite written = format.writer.write(encoded, baseName: name);
 
-    case ExportFormat.glb:
-      return ExportWritten(<ExportFile>[
-        ExportFile('$name.glb', GltfWriter(document).writeGlb()),
-      ], warnings);
-
-    case ExportFormat.obj:
-      final writer = ObjWriter(document, name: name);
-      final library = writer.writeMaterialLibrary();
-      // Said once, here, rather than per object: OBJ has no node tree at all,
-      // so a hierarchy does not survive it and every child comes back at the
-      // place its parent put it. Somebody exporting a rig to OBJ should hear
-      // that before they open it somewhere else and find it flat.
-      const flattened =
-          'OBJ has no node tree, so the hierarchy is baked into the vertices: '
-          'the model looks right and comes back as one level of objects.';
-      return ExportWritten(
-        <ExportFile>[
-          ExportFile('$name.obj', writer.write()),
-          if (library != null) ExportFile(writer.materialLibraryName, library),
-        ],
-        <String>[
-          ...warnings,
-          if (project.objects.any((ModelObject o) => o.parent != null))
-            flattened,
-        ],
-      );
-  }
+  // Said once, here, rather than per object: OBJ has no node tree at all, so a
+  // hierarchy does not survive it and every child comes back at the place its
+  // parent put it. Somebody exporting a rig to OBJ should hear that before they
+  // open it somewhere else and find it flat.
+  const flattened =
+      'OBJ has no node tree, so the hierarchy is baked into the vertices: '
+      'the model looks right and comes back as one level of objects.';
+  return ExportWritten(
+    <ExportFile>[
+      for (final WrittenFile each in written.files)
+        ExportFile(each.name, each.bytes),
+    ],
+    <String>[
+      ...warnings,
+      if (format == ExportFormat.obj &&
+          project.objects.any((ModelObject o) => o.parent != null))
+        flattened,
+    ],
+  );
 }
 
 /// [document] with every image [_encodeAsKtx2] can decode replaced by its

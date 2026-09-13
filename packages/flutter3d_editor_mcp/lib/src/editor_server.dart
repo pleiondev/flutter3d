@@ -1,6 +1,4 @@
-import 'dart:async';
-
-import 'package:dart_mcp/server.dart';
+import 'package:flutter3d_mcp_kit/flutter3d_mcp_kit.dart';
 
 import 'editor_session.dart';
 import 'editor_tools.dart';
@@ -19,51 +17,20 @@ const String editorMcpVersion = '0.1.0';
 /// it, deterministic text out, and a suite that drives the real protocol over a
 /// pair of streams in memory.
 ///
-/// Everything it can do to the document is an [EditorCommand] — the same values
+/// Everything it can do to the document is an `EditorCommand` — the same values
 /// the keyboard and the inspector in `apps/flutter3d_editor` go through — so an
 /// agent's edit and a person's edit land on the document by one route, get one
-/// name in the history, and are undone by the same key.
-base class EditorMcpServer extends MCPServer with ToolsSupport {
-  EditorMcpServer(super.channel, {required this.session})
-    : super.fromStreamChannel(
-        implementation: Implementation(
-          name: 'flutter3d_editor_mcp',
-          version: editorMcpVersion,
-        ),
+/// name in the history, and are undone by the same key. What a server is beyond
+/// its tools is `flutter3d_mcp_kit`'s [ToolTableServer].
+base class EditorMcpServer extends ToolTableServer<EditorSession, Answer> {
+  EditorMcpServer(super.channel, {required super.session})
+    : super(
+        name: 'flutter3d_editor_mcp',
+        version: editorMcpVersion,
         instructions: _instructions,
+        tools: editorTools,
+        toResult: resultOf,
       );
-
-  /// The document being edited, for the life of the process.
-  final EditorSession session;
-
-  @override
-  FutureOr<InitializeResult> initialize(InitializeRequest request) {
-    for (final offered in editorTools) {
-      registerTool(
-        offered.tool,
-        (CallToolRequest request) => _call(offered, request),
-      );
-    }
-    return super.initialize(request);
-  }
-
-  /// Runs one tool and turns its answer into a result.
-  ///
-  /// **A refusal comes back as an error result, not as a thrown exception**, and
-  /// the protocol is explicit about why: a tool error inside the result is
-  /// something the model sees and can act on, while an exception is reported to
-  /// the host as the server having failed. "Resize did nothing because a light
-  /// is selected" is information for whoever called; it is not a broken server.
-  CallToolResult _call(EditorTool offered, CallToolRequest request) {
-    final answer = offered.run(
-      session,
-      request.arguments ?? const <String, Object?>{},
-    );
-    return CallToolResult(
-      content: <Content>[Content.text(text: answer.says)],
-      isError: answer.did ? null : true,
-    );
-  }
 }
 
 /// What the host puts in front of the model before it calls anything.

@@ -31,7 +31,7 @@ Future<Answer> _call(
   ModelSession session,
   String name,
   Map<String, Object?> arguments,
-) => _toolNamed(name).run(session, arguments);
+) async => _toolNamed(name).run(session, arguments);
 
 /// The world-space AABB of every mesh object's own live geometry — used to
 /// scale a plausible marker set to whatever this particular imported model's

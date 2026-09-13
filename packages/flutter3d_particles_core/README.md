@@ -5,7 +5,7 @@ affectors, curves and gradients.
 
 **No Flutter and no renderer in it.** That is the boundary this package exists
 to keep: it runs under `dart test`, and `flutter3d_model_core`'s
-`BakeParticleSystemCommand` depends on it directly so baking a particle system
+`BakeParticleSystemJobRequest` depends on it directly so baking a particle system
 into a cache stays a headless operation, the same way baking a rigid body
 already runs through `flutter3d_physics` rather than through a package that
 needs a window.

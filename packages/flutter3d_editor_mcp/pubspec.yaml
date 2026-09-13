@@ -35,6 +35,10 @@ dependencies:
   # default somebody accepted.
   dart_mcp: ">=0.5.2 <0.6.0"
 
+  # The tool table, the answers and the server underneath this one — what
+  # every server here shares.
+  flutter3d_mcp_kit: ^0.6.0
+
   vector_math: ^2.2.0
 
 dev_dependencies:

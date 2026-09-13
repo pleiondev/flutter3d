@@ -1,5 +1,6 @@
 import 'package:dart_mcp/server.dart';
 import 'package:flutter3d_formats/flutter3d_formats.dart';
+import 'package:flutter3d_mcp_kit/flutter3d_mcp_kit.dart';
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 // `EnumHint` is hidden here because `flutter3d_formats`'s own — used below to
 // build `setMaterialField`'s schema from `MaterialHint` — collides with this
@@ -8,29 +9,10 @@ import 'package:flutter3d_model_core/flutter3d_model_core.dart' hide EnumHint;
 
 import 'model_session.dart';
 
-/// One tool: what an agent is offered, and what calling it does.
-///
-/// **A pair rather than a table and a switch**, for the reason
-/// `flutter3d_editor_mcp`'s `EditorTool` gives: a tool that is offered is a
-/// tool that has a body, because they are the same object, so the two halves
-/// cannot drift the way a `tools/list` array and a `tools/call` switch can.
-final class ModelTool {
-  const ModelTool(this.tool, this.run);
-
-  /// What `tools/list` hands the agent: a name, a sentence and a schema.
-  final Tool tool;
-
-  /// What calling it does to the session. Async because [ModelSession.import]
-  /// decodes a file, which every decoder in this repository does off the
-  /// synchronous path.
-  final Future<Answer> Function(
-    ModelSession session,
-    Map<String, Object?> arguments,
-  )
-  run;
-
-  String get name => tool.name;
-}
+/// One tool: what an agent is offered, and what calling it does — see
+/// `flutter3d_mcp_kit`'s [OfferedTool] for why a pair rather than a table and
+/// a switch.
+typedef ModelTool = OfferedTool<ModelSession, Answer>;
 
 Future<Answer> Function(ModelSession, Map<String, Object?>) _sync(
   Answer Function(ModelSession, Map<String, Object?>) body,
@@ -1205,7 +1187,7 @@ List<ModelTool> get _commandTools => <ModelTool>[
           'for. Refused when baseVersion no longer matches the object\'s own '
           'current version — something else changed it while the bake ran, '
           'and its answer no longer applies. Nothing here runs a bake; that '
-          'is BakeSimulationCommand, off this tool table entirely since it '
+          'is BakeClothJobRequest, off this tool table entirely since it '
           'has no synchronous, single-call shape a tool call could wait on.',
       inputSchema: ObjectSchema(
         properties: <String, Schema>{
@@ -2127,10 +2109,11 @@ List<ModelTool> get modelTools => <ModelTool>[
     Tool(
       name: 'export',
       description:
-          'Take the project out to a format a game or another tool '
-          'reads: "f3d" or "obj" today. glTF/GLB is not built yet and this '
-          'says so if asked for it. Refused when the project has an error-level '
-          'issue unless force is set.',
+          'Take the project out to a format a game or another tool reads: '
+          '${builtInModelWriters.map((ModelWriter w) => '"${w.name}" (${w.says})').join(', ')}. '
+          'The format is the extension of "to" unless named; a JSON ".gltf" '
+          'with a separate ".bin" is not built and this says so. Refused when '
+          'the project has an error-level issue unless force is set.',
       inputSchema: ObjectSchema(
         properties: <String, Schema>{
           'to': StringSchema(description: 'the path to write'),
@@ -2166,7 +2149,8 @@ List<ModelTool> get modelTools => <ModelTool>[
       description:
           'Bring a glTF, GLB, OBJ, `.f3d` or STL file in as new '
           'objects, added beside what is already here. Every object it '
-          'brings arrives as one undo step.',
+          'brings arrives as one undo step. An FBX file is recognised and '
+          'refused with the reason.',
       inputSchema: ObjectSchema(
         properties: <String, Schema>{
           'from': StringSchema(description: 'the path to read'),

@@ -1,17 +1,13 @@
 import 'dart:io';
 
 import 'package:flutter3d_editor_core/flutter3d_editor_core.dart';
+import 'package:flutter3d_mcp_kit/flutter3d_mcp_kit.dart' show Answer;
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 
-/// What a tool call actually did, and the sentence to say about it.
-///
-/// **A refusal is an answer here, not an exception.** `EditorCommand.apply`
-/// already decided that: resizing with a light selected is a question whose
-/// answer is no, and a caller that has to catch something to find out is a
-/// caller that will eventually catch it in the wrong place. The protocol layer
-/// turns a [did] of false into a tool result marked as an error, which is how
-/// an agent is told to try something else rather than told nothing.
-typedef Answer = ({bool did, String says});
+// What a tool call did, and the sentence to say about it — the one `Answer`
+// every server here shares. A refusal is an answer, not an exception:
+// `EditorCommand.apply` already decided that.
+export 'package:flutter3d_mcp_kit/flutter3d_mcp_kit.dart' show Answer;
 
 /// One level document, open, with the editor's own verbs on it.
 ///

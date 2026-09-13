@@ -39,7 +39,6 @@ import 'material.dart';
 import 'modifier_slot.dart';
 import 'param_hint.dart';
 import 'parametric_json.dart';
-import 'png_encoder.dart';
 import 'project.dart';
 import 'project_animation.dart';
 import 'project_morphs.dart';
@@ -447,104 +446,16 @@ final class DuplicateObjects extends ModelCommand {
   }
 }
 
-/// Every command name there is, for the agent's tool table and for the test
-/// that says each of them has a sample.
-const List<String> modelCommandNames = <String>[
-  'rename',
-  'setTransform',
-  'moveBy',
-  'rotateBy',
-  'scaleBy',
-  'setParent',
-  'setOrigin',
-  'applyTransform',
-  'addPrimitive',
-  'addLathe',
-  'addSocket',
-  'setParametric',
-  'bakeToMesh',
-  'deleteObjects',
-  'duplicateObjects',
-  'extrude',
-  'loopCut',
-  'deleteElements',
-  'transformElements',
-  'mergeByDistance',
-  'dissolveEdges',
-  'separate',
-  'triangulate',
-  'recalculateNormals',
-  'markSeam',
-  'unwrap',
-  'selectAll',
-  'selectNone',
-  'invertSelection',
-  'growSelection',
-  'shrinkSelection',
-  'selectLinked',
-  'selectEdgeLoop',
-  'selectEdgeRing',
-  'selectByMaterial',
-  'addLight',
-  'removeLight',
-  'setLightField',
-  'setLightTransform',
-  'setEnvironment',
-  'setSceneLightingField',
-  'addMaterial',
-  'removeMaterial',
-  'duplicateMaterial',
-  'setMaterialField',
-  'setTexture',
-  'addImage',
-  'assignMaterial',
-  'linkMaterialFile',
-  'embedMaterial',
-  'setMaterialGraph',
-  'bakeTextureGraph',
-  'addNode',
-  'link',
-  'unlink',
-  'setNodeField',
-  'moveNode',
-  'removeNode',
-  'addModifier',
-  'setModifierField',
-  'toggleModifier',
-  'reorderModifier',
-  'removeModifier',
-  'applyModifier',
-  'applyJobResult',
-  'applySimulationCache',
-  'bakeSimulationToShapes',
-  'setProfileLimits',
-  'setShapeWeight',
-  'addShapeFromMesh',
-  'renameShape',
-  'deleteShape',
-  'keyShape',
-  'addJoint',
-  'removeJoint',
-  'renameJoint',
-  'reparentJoint',
-  'setRestPose',
-  'mirrorJoints',
-  'setKey',
-  'moveKeys',
-  'deleteKeys',
-  'setInterpolation',
-  'setTangent',
-  'fillHoles',
-  'poseJoint',
-  'extractRootMotion',
-  'bakeRootMotionIntoClip',
-  'addSkeleton',
-  'bindSkin',
-  'addClip',
-  'addLod',
-  'setLodRatio',
-  'regenerateLods',
-];
+/// Every command a journal, a project file or an agent can name — the keys
+/// of [_modelCommandReaders], in the order they are written there.
+///
+/// **One table rather than a list beside a `switch`.** A command's name and
+/// the code that reads it back used to be written twice, ninety-odd lines
+/// apart, and kept in step by a test; a name is now the key its reader sits
+/// under, so there is nothing left to keep in step.
+final List<String> modelCommandNames = List<String>.unmodifiable(
+  _modelCommandReaders.keys,
+);
 
 /// Reads a command back out of a journal, or null.
 ///
@@ -554,713 +465,756 @@ const List<String> modelCommandNames = <String>[
 /// over.
 ModelCommand? modelCommandFromJson(Object? json) {
   if (json is! Map<String, Object?>) return null;
-  return switch (json['name']) {
-    'rename' => switch ((json['id'], json['to'])) {
-      (final int id, final String to) => Rename(id: id, to: to),
-      _ => null,
-    },
-    'setTransform' => switch ((json['id'], _doubles(json['to'], 16))) {
-      (final int id, final List<double> to) => SetTransform(
-        id: id,
-        to: Matrix4.fromList(to),
-      ),
-      _ => null,
-    },
-    'moveBy' => switch (_doubles(json['by'], 3)) {
-      final List<double> by => MoveBy(Vector3(by[0], by[1], by[2])),
-      _ => null,
-    },
-    'rotateBy' => switch ((
-      _doubles(json['axis'], 3),
-      json['radians'],
-      _pivot(json['pivot']),
-      _space(json['space']),
-    )) {
-      (
-        final List<double> axis,
-        final num radians,
-        final TransformPivot pivot,
-        final TransformSpace space,
-      ) =>
-        RotateBy(
-          axis: Vector3(axis[0], axis[1], axis[2]),
-          radians: radians.toDouble(),
+  final Object? name = json['name'];
+  return name is String ? _modelCommandReaders[name]?.call(json) : null;
+}
+
+/// How each command is read back out of its own [ModelCommand.toJson],
+/// keyed by [ModelCommand.name]. A reader answers null for arguments it
+/// cannot read, never a half-built command.
+final Map<String, ModelCommand? Function(Map<String, Object?> json)>
+_modelCommandReaders =
+    <String, ModelCommand? Function(Map<String, Object?> json)>{
+      'rename': (json) => switch ((json['id'], json['to'])) {
+        (final int id, final String to) => Rename(id: id, to: to),
+        _ => null,
+      },
+      'setTransform': (json) =>
+          switch ((json['id'], _doubles(json['to'], 16))) {
+            (final int id, final List<double> to) => SetTransform(
+              id: id,
+              to: Matrix4.fromList(to),
+            ),
+            _ => null,
+          },
+      'moveBy': (json) => switch (_doubles(json['by'], 3)) {
+        final List<double> by => MoveBy(Vector3(by[0], by[1], by[2])),
+        _ => null,
+      },
+      'rotateBy': (json) => switch ((
+        _doubles(json['axis'], 3),
+        json['radians'],
+        _pivot(json['pivot']),
+        _space(json['space']),
+      )) {
+        (
+          final List<double> axis,
+          final num radians,
+          final TransformPivot pivot,
+          final TransformSpace space,
+        ) =>
+          RotateBy(
+            axis: Vector3(axis[0], axis[1], axis[2]),
+            radians: radians.toDouble(),
+            pivot: pivot,
+            space: space,
+          ),
+        _ => null,
+      },
+      'scaleBy': (json) => switch ((json['by'], _pivot(json['pivot']))) {
+        (final num by, final TransformPivot pivot) => ScaleBy(
+          by.toDouble(),
           pivot: pivot,
-          space: space,
         ),
-      _ => null,
-    },
-    'scaleBy' => switch ((json['by'], _pivot(json['pivot']))) {
-      (final num by, final TransformPivot pivot) => ScaleBy(
-        by.toDouble(),
-        pivot: pivot,
-      ),
-      _ => null,
-    },
-    'setParent' => switch ((json['id'], json['to'])) {
-      (final int id, final int? to) => SetParent(id: id, to: to),
-      _ => null,
-    },
-    'setOrigin' => switch ((json['id'], _placement(json['to']))) {
-      (final int id, final OriginPlacement to) => SetOrigin(id: id, to: to),
-      _ => null,
-    },
-    'applyTransform' => switch (json['id']) {
-      final int id => ApplyTransform(id),
-      _ => null,
-    },
-    'addLathe' => switch (_points(json['profile'])) {
-      final List<Vector2> profile => AddLathe(
-        profile: profile,
-        segments: switch (json['segments']) {
-          final int segments => segments,
-          _ => 32,
-        },
-        closedProfile: json['closedProfile'] as bool? ?? false,
-        shapeName: json['label'] as String? ?? 'lathe',
+        _ => null,
+      },
+      'setParent': (json) => switch ((json['id'], json['to'])) {
+        (final int id, final int? to) => SetParent(id: id, to: to),
+        _ => null,
+      },
+      'setOrigin': (json) => switch ((json['id'], _placement(json['to']))) {
+        (final int id, final OriginPlacement to) => SetOrigin(id: id, to: to),
+        _ => null,
+      },
+      'applyTransform': (json) => switch (json['id']) {
+        final int id => ApplyTransform(id),
+        _ => null,
+      },
+      'addLathe': (json) => switch (_points(json['profile'])) {
+        final List<Vector2> profile => AddLathe(
+          profile: profile,
+          segments: switch (json['segments']) {
+            final int segments => segments,
+            _ => 32,
+          },
+          closedProfile: json['closedProfile'] as bool? ?? false,
+          shapeName: json['label'] as String? ?? 'lathe',
+          at: switch (_doubles(json['at'], 3)) {
+            final List<double> at => Vector3(at[0], at[1], at[2]),
+            _ => null,
+          },
+        ),
+        _ => null,
+      },
+      'addSocket': (json) => AddSocket(
+        label: json['label'] as String? ?? 'socket',
         at: switch (_doubles(json['at'], 3)) {
           final List<double> at => Vector3(at[0], at[1], at[2]),
           _ => null,
         },
       ),
-      _ => null,
-    },
-    'addSocket' => AddSocket(
-      label: json['label'] as String? ?? 'socket',
-      at: switch (_doubles(json['at'], 3)) {
-        final List<double> at => Vector3(at[0], at[1], at[2]),
+      'setParametric': (json) => switch ((json['id'], _shapeOf(json['to']))) {
+        (final int id, final ParametricShape to) => SetParametric(
+          id: id,
+          to: to,
+        ),
         _ => null,
       },
-    ),
-    'setParametric' => switch ((json['id'], _shapeOf(json['to']))) {
-      (final int id, final ParametricShape to) => SetParametric(id: id, to: to),
-      _ => null,
-    },
-    'addPrimitive' => switch (json['kind']) {
-      final String kind => AddPrimitive(
-        kind: kind,
-        size: switch (json['size']) {
-          final num size => size.toDouble(),
-          _ => 1.0,
-        },
-        segments: switch (json['segments']) {
-          final int segments => segments,
-          _ => 32,
-        },
-        at: switch (_doubles(json['at'], 3)) {
-          final List<double> at => Vector3(at[0], at[1], at[2]),
-          _ => null,
-        },
-      ),
-      _ => null,
-    },
-    'bakeToMesh' => switch (json['id']) {
-      final int id => BakeToMesh(id),
-      _ => null,
-    },
-    'deleteObjects' => const DeleteObjects(),
-    'duplicateObjects' => const DuplicateObjects(),
-    'extrude' => switch (json['distance']) {
-      final num distance => Extrude(distance.toDouble()),
-      _ => null,
-    },
-    'loopCut' => LoopCut(
-      cuts: switch (json['cuts']) {
-        final int cuts => cuts,
-        _ => 1,
-      },
-      factor: switch (json['factor']) {
-        final num factor => factor.toDouble(),
-        _ => 0.5,
-      },
-    ),
-    'deleteElements' => const DeleteElements(),
-    'mergeByDistance' => MergeByDistance(
-      distance: switch (json['distance']) {
-        final num how => how.toDouble(),
+      'addPrimitive': (json) => switch (json['kind']) {
+        final String kind => AddPrimitive(
+          kind: kind,
+          size: switch (json['size']) {
+            final num size => size.toDouble(),
+            _ => 1.0,
+          },
+          segments: switch (json['segments']) {
+            final int segments => segments,
+            _ => 32,
+          },
+          at: switch (_doubles(json['at'], 3)) {
+            final List<double> at => Vector3(at[0], at[1], at[2]),
+            _ => null,
+          },
+        ),
         _ => null,
       },
-    ),
-    'dissolveEdges' => const DissolveEdges(),
-    'separate' => const Separate(),
-    'fillHoles' => const FillHoles(),
-    'triangulate' => const Triangulate(),
-    'recalculateNormals' => RecalculateNormals(
-      flip: json['flip'] as bool? ?? false,
-    ),
-    'markSeam' => MarkSeam(on: json['on'] as bool? ?? true),
-    'unwrap' => UnwrapCommand(
-      margin: switch (json['margin']) {
-        final num margin => margin.toDouble(),
-        _ => 0.01,
+      'bakeToMesh': (json) => switch (json['id']) {
+        final int id => BakeToMesh(id),
+        _ => null,
       },
-      autoPack: json['autoPack'] as bool? ?? true,
-    ),
-    'transformElements' => switch ((
-      _doubles(json['by'], 16),
-      json['what'],
-      _pivot(json['pivot']),
-      _space(json['space']),
-    )) {
-      (
-        final List<double> by,
-        final String what,
-        final TransformPivot pivot,
-        final TransformSpace space,
-      ) =>
-        TransformElements(
-          Matrix4.fromList(by),
-          what: what,
-          pivot: pivot,
-          space: space,
-        ),
-      _ => null,
-    },
-    'selectAll' => const SelectAll(),
-    'selectNone' => const SelectNone(),
-    'invertSelection' => const InvertSelection(),
-    'growSelection' => const GrowSelection(),
-    'shrinkSelection' => const ShrinkSelection(),
-    'selectLinked' => const SelectLinked(),
-    'selectEdgeLoop' => switch (json['edge']) {
-      final int edge => SelectEdgeLoop(edge),
-      _ => null,
-    },
-    'selectEdgeRing' => switch (json['edge']) {
-      final int edge => SelectEdgeRing(edge),
-      _ => null,
-    },
-    'selectByMaterial' => switch (json['slot']) {
-      final int slot => SelectByMaterial(slot),
-      _ => null,
-    },
-    'addLight' => AddLight(
-      type: switch (json['type']) {
-        final String type => ProjectLightType.values.firstWhere(
-          (ProjectLightType t) => t.name == type,
-          orElse: () => ProjectLightType.directional,
-        ),
-        _ => ProjectLightType.directional,
+      'deleteObjects': (json) => const DeleteObjects(),
+      'duplicateObjects': (json) => const DuplicateObjects(),
+      'extrude': (json) => switch (json['distance']) {
+        final num distance => Extrude(distance.toDouble()),
+        _ => null,
       },
-    ),
-    'removeLight' => switch (json['index']) {
-      final int index => RemoveLight(index),
-      _ => null,
-    },
-    'setLightField' => switch ((json['index'], json['field'])) {
-      (final int index, final String field) => SetLightField(
-        index: index,
-        field: field,
-        value: json['value'],
+      'loopCut': (json) => LoopCut(
+        cuts: switch (json['cuts']) {
+          final int cuts => cuts,
+          _ => 1,
+        },
+        factor: switch (json['factor']) {
+          final num factor => factor.toDouble(),
+          _ => 0.5,
+        },
       ),
-      _ => null,
-    },
-    'setLightTransform' => switch ((json['index'], _doubles(json['to'], 16))) {
-      (final int index, final List<double> to) => SetLightTransform(
-        index: index,
-        to: Matrix4.fromList(to),
-      ),
-      _ => null,
-    },
-    'setEnvironment' => switch (json['preset']) {
-      final String preset => SetEnvironment(
-        SceneEnvironmentPreset.values.firstWhere(
-          (SceneEnvironmentPreset p) => p.name == preset,
-          orElse: () => SceneEnvironmentPreset.none,
-        ),
-      ),
-      _ => null,
-    },
-    'setSceneLightingField' => switch (json['field']) {
-      final String field => SetSceneLightingField(
-        field: field,
-        value: json['value'],
-      ),
-      _ => null,
-    },
-    'addMaterial' => AddMaterial(materialName: json['materialName'] as String?),
-    'removeMaterial' => switch (json['index']) {
-      final int index => RemoveMaterial(index),
-      _ => null,
-    },
-    'duplicateMaterial' => switch (json['index']) {
-      final int index => DuplicateMaterial(index),
-      _ => null,
-    },
-    'setMaterialField' => switch ((json['index'], json['field'])) {
-      (final int index, final String field) => SetMaterialField(
-        index: index,
-        field: field,
-        value: json['value'],
-      ),
-      _ => null,
-    },
-    'setTexture' => switch ((json['materialIndex'], json['slot'])) {
-      (final int materialIndex, final String slot) => SetTexture(
-        materialIndex: materialIndex,
-        slot: slot,
-        imageIndex: json['imageIndex'] as int?,
-        sampling: TextureSampling(
-          magLinear: json['magLinear'] as bool? ?? true,
-          minLinear: json['minLinear'] as bool? ?? true,
-          useMipmaps: json['useMipmaps'] as bool? ?? true,
-          wrapS: _wrapNamed(json['wrapS']),
-          wrapT: _wrapNamed(json['wrapT']),
-        ),
-      ),
-      _ => null,
-    },
-    'addImage' => switch (json['bytes']) {
-      final String encoded => AddImage(
-        bytes: base64Decode(encoded),
-        imageName: json['imageName'] as String?,
-        mimeType: json['mimeType'] as String?,
-      ),
-      _ => null,
-    },
-    'assignMaterial' => switch ((json['id'], json['to'])) {
-      (final int id, final int? to) => AssignMaterial(id: id, to: to),
-      _ => null,
-    },
-    'linkMaterialFile' => switch ((json['index'], json['path'])) {
-      (final int index, final String path) => LinkMaterialFile(
-        index: index,
-        path: path,
-        bytes: switch (json['bytes']) {
-          final String encoded => base64Decode(encoded),
+      'deleteElements': (json) => const DeleteElements(),
+      'mergeByDistance': (json) => MergeByDistance(
+        distance: switch (json['distance']) {
+          final num how => how.toDouble(),
           _ => null,
         },
       ),
-      _ => null,
-    },
-    'embedMaterial' => switch (json['index']) {
-      final int index => EmbedMaterial(index),
-      _ => null,
-    },
-    'setMaterialGraph' => switch (json['materialIndex']) {
-      final int materialIndex => SetMaterialGraph(
-        materialIndex: materialIndex,
-        graph: switch (json['graph']) {
-          final Map<String, Object?> g => TextureGraph.fromJson(g),
-          _ => null,
+      'dissolveEdges': (json) => const DissolveEdges(),
+      'separate': (json) => const Separate(),
+      'fillHoles': (json) => const FillHoles(),
+      'triangulate': (json) => const Triangulate(),
+      'recalculateNormals': (json) =>
+          RecalculateNormals(flip: json['flip'] as bool? ?? false),
+      'markSeam': (json) => MarkSeam(on: json['on'] as bool? ?? true),
+      'unwrap': (json) => UnwrapCommand(
+        margin: switch (json['margin']) {
+          final num margin => margin.toDouble(),
+          _ => 0.01,
+        },
+        autoPack: json['autoPack'] as bool? ?? true,
+      ),
+      'transformElements': (json) => switch ((
+        _doubles(json['by'], 16),
+        json['what'],
+        _pivot(json['pivot']),
+        _space(json['space']),
+      )) {
+        (
+          final List<double> by,
+          final String what,
+          final TransformPivot pivot,
+          final TransformSpace space,
+        ) =>
+          TransformElements(
+            Matrix4.fromList(by),
+            what: what,
+            pivot: pivot,
+            space: space,
+          ),
+        _ => null,
+      },
+      'selectAll': (json) => const SelectAll(),
+      'selectNone': (json) => const SelectNone(),
+      'invertSelection': (json) => const InvertSelection(),
+      'growSelection': (json) => const GrowSelection(),
+      'shrinkSelection': (json) => const ShrinkSelection(),
+      'selectLinked': (json) => const SelectLinked(),
+      'selectEdgeLoop': (json) => switch (json['edge']) {
+        final int edge => SelectEdgeLoop(edge),
+        _ => null,
+      },
+      'selectEdgeRing': (json) => switch (json['edge']) {
+        final int edge => SelectEdgeRing(edge),
+        _ => null,
+      },
+      'selectByMaterial': (json) => switch (json['slot']) {
+        final int slot => SelectByMaterial(slot),
+        _ => null,
+      },
+      'addLight': (json) => AddLight(
+        type: switch (json['type']) {
+          final String type => ProjectLightType.values.firstWhere(
+            (ProjectLightType t) => t.name == type,
+            orElse: () => ProjectLightType.directional,
+          ),
+          _ => ProjectLightType.directional,
         },
       ),
-      _ => null,
-    },
-    'bakeTextureGraph' => switch (json['materialIndex']) {
-      final int materialIndex => BakeTextureGraph(
-        materialIndex: materialIndex,
-        size: json['size'] as int? ?? 1024,
-      ),
-      _ => null,
-    },
-    'addNode' => switch ((json['materialIndex'], json['kind'])) {
-      (final int materialIndex, final String kind) => AddNode(
-        materialIndex: materialIndex,
-        kind: kind,
-        fields: switch (json['fields']) {
-          final Map<String, Object?> fields => fields,
-          _ => const <String, Object?>{},
-        },
-        position: (
-          (json['x'] as num?)?.toDouble() ?? 0.0,
-          (json['y'] as num?)?.toDouble() ?? 0.0,
-        ),
-      ),
-      _ => null,
-    },
-    'link' => switch ((
-      json['materialIndex'],
-      json['nodeId'],
-      json['input'],
-      json['from'],
-    )) {
-      (
-        final int materialIndex,
-        final int nodeId,
-        final String input,
-        final int from,
-      ) =>
-        Link(materialIndex: materialIndex, nodeId: nodeId, input: input, from: from),
-      _ => null,
-    },
-    'unlink' => switch ((json['materialIndex'], json['nodeId'], json['input'])) {
-      (final int materialIndex, final int nodeId, final String input) => Unlink(
-        materialIndex: materialIndex,
-        nodeId: nodeId,
-        input: input,
-      ),
-      _ => null,
-    },
-    'setNodeField' => switch ((
-      json['materialIndex'],
-      json['nodeId'],
-      json['field'],
-    )) {
-      (final int materialIndex, final int nodeId, final String field) =>
-        SetNodeField(
-          materialIndex: materialIndex,
-          nodeId: nodeId,
+      'removeLight': (json) => switch (json['index']) {
+        final int index => RemoveLight(index),
+        _ => null,
+      },
+      'setLightField': (json) => switch ((json['index'], json['field'])) {
+        (final int index, final String field) => SetLightField(
+          index: index,
           field: field,
           value: json['value'],
         ),
-      _ => null,
-    },
-    'moveNode' => switch ((
-      json['materialIndex'],
-      json['nodeId'],
-      json['x'],
-      json['y'],
-    )) {
-      (
-        final int materialIndex,
-        final int nodeId,
-        final num x,
-        final num y,
-      ) =>
-        MoveNode(
+        _ => null,
+      },
+      'setLightTransform': (json) =>
+          switch ((json['index'], _doubles(json['to'], 16))) {
+            (final int index, final List<double> to) => SetLightTransform(
+              index: index,
+              to: Matrix4.fromList(to),
+            ),
+            _ => null,
+          },
+      'setEnvironment': (json) => switch (json['preset']) {
+        final String preset => SetEnvironment(
+          SceneEnvironmentPreset.values.firstWhere(
+            (SceneEnvironmentPreset p) => p.name == preset,
+            orElse: () => SceneEnvironmentPreset.none,
+          ),
+        ),
+        _ => null,
+      },
+      'setSceneLightingField': (json) => switch (json['field']) {
+        final String field => SetSceneLightingField(
+          field: field,
+          value: json['value'],
+        ),
+        _ => null,
+      },
+      'addMaterial': (json) =>
+          AddMaterial(materialName: json['materialName'] as String?),
+      'removeMaterial': (json) => switch (json['index']) {
+        final int index => RemoveMaterial(index),
+        _ => null,
+      },
+      'duplicateMaterial': (json) => switch (json['index']) {
+        final int index => DuplicateMaterial(index),
+        _ => null,
+      },
+      'setMaterialField': (json) => switch ((json['index'], json['field'])) {
+        (final int index, final String field) => SetMaterialField(
+          index: index,
+          field: field,
+          value: json['value'],
+        ),
+        _ => null,
+      },
+      'setTexture': (json) => switch ((json['materialIndex'], json['slot'])) {
+        (final int materialIndex, final String slot) => SetTexture(
+          materialIndex: materialIndex,
+          slot: slot,
+          imageIndex: json['imageIndex'] as int?,
+          sampling: TextureSampling(
+            magLinear: json['magLinear'] as bool? ?? true,
+            minLinear: json['minLinear'] as bool? ?? true,
+            useMipmaps: json['useMipmaps'] as bool? ?? true,
+            wrapS: _wrapNamed(json['wrapS']),
+            wrapT: _wrapNamed(json['wrapT']),
+          ),
+        ),
+        _ => null,
+      },
+      'addImage': (json) => switch (json['bytes']) {
+        final String encoded => AddImage(
+          bytes: base64Decode(encoded),
+          imageName: json['imageName'] as String?,
+          mimeType: json['mimeType'] as String?,
+        ),
+        _ => null,
+      },
+      'assignMaterial': (json) => switch ((json['id'], json['to'])) {
+        (final int id, final int? to) => AssignMaterial(id: id, to: to),
+        _ => null,
+      },
+      'linkMaterialFile': (json) => switch ((json['index'], json['path'])) {
+        (final int index, final String path) => LinkMaterialFile(
+          index: index,
+          path: path,
+          bytes: switch (json['bytes']) {
+            final String encoded => base64Decode(encoded),
+            _ => null,
+          },
+        ),
+        _ => null,
+      },
+      'embedMaterial': (json) => switch (json['index']) {
+        final int index => EmbedMaterial(index),
+        _ => null,
+      },
+      'setMaterialGraph': (json) => switch (json['materialIndex']) {
+        final int materialIndex => SetMaterialGraph(
+          materialIndex: materialIndex,
+          graph: switch (json['graph']) {
+            final Map<String, Object?> g => TextureGraph.fromJson(g),
+            _ => null,
+          },
+        ),
+        _ => null,
+      },
+      'bakeTextureGraph': (json) => switch (json['materialIndex']) {
+        final int materialIndex => BakeTextureGraph(
+          materialIndex: materialIndex,
+          size: json['size'] as int? ?? 1024,
+        ),
+        _ => null,
+      },
+      'addNode': (json) => switch ((json['materialIndex'], json['kind'])) {
+        (final int materialIndex, final String kind) => AddNode(
+          materialIndex: materialIndex,
+          kind: kind,
+          fields: switch (json['fields']) {
+            final Map<String, Object?> fields => fields,
+            _ => const <String, Object?>{},
+          },
+          position: (
+            (json['x'] as num?)?.toDouble() ?? 0.0,
+            (json['y'] as num?)?.toDouble() ?? 0.0,
+          ),
+        ),
+        _ => null,
+      },
+      'link': (json) => switch ((
+        json['materialIndex'],
+        json['nodeId'],
+        json['input'],
+        json['from'],
+      )) {
+        (
+          final int materialIndex,
+          final int nodeId,
+          final String input,
+          final int from,
+        ) =>
+          Link(
+            materialIndex: materialIndex,
+            nodeId: nodeId,
+            input: input,
+            from: from,
+          ),
+        _ => null,
+      },
+      'unlink': (json) => switch ((
+        json['materialIndex'],
+        json['nodeId'],
+        json['input'],
+      )) {
+        (final int materialIndex, final int nodeId, final String input) =>
+          Unlink(materialIndex: materialIndex, nodeId: nodeId, input: input),
+        _ => null,
+      },
+      'setNodeField': (json) =>
+          switch ((json['materialIndex'], json['nodeId'], json['field'])) {
+            (final int materialIndex, final int nodeId, final String field) =>
+              SetNodeField(
+                materialIndex: materialIndex,
+                nodeId: nodeId,
+                field: field,
+                value: json['value'],
+              ),
+            _ => null,
+          },
+      'moveNode': (json) => switch ((
+        json['materialIndex'],
+        json['nodeId'],
+        json['x'],
+        json['y'],
+      )) {
+        (final int materialIndex, final int nodeId, final num x, final num y) =>
+          MoveNode(
+            materialIndex: materialIndex,
+            nodeId: nodeId,
+            x: x.toDouble(),
+            y: y.toDouble(),
+          ),
+        _ => null,
+      },
+      'removeNode': (json) => switch ((json['materialIndex'], json['nodeId'])) {
+        (final int materialIndex, final int nodeId) => RemoveNode(
           materialIndex: materialIndex,
           nodeId: nodeId,
-          x: x.toDouble(),
-          y: y.toDouble(),
         ),
-      _ => null,
-    },
-    'removeNode' => switch ((json['materialIndex'], json['nodeId'])) {
-      (final int materialIndex, final int nodeId) => RemoveNode(
-        materialIndex: materialIndex,
-        nodeId: nodeId,
-      ),
-      _ => null,
-    },
-    'addModifier' => switch ((json['id'], json['modifier'])) {
-      (final int id, final Object? modifierJson) => switch (modifierFromJson(
-        modifierJson,
-      )) {
-        final Modifier modifier => AddModifier(id: id, modifier: modifier),
-        null => null,
+        _ => null,
       },
-      _ => null,
-    },
-    'setModifierField' => switch ((json['id'], json['index'], json['field'])) {
-      (final int id, final int index, final String field) => SetModifierField(
-        id: id,
-        index: index,
-        field: field,
-        value: json['value'],
+      'addModifier': (json) => switch ((json['id'], json['modifier'])) {
+        (final int id, final Object? modifierJson) => switch (modifierFromJson(
+          modifierJson,
+        )) {
+          final Modifier modifier => AddModifier(id: id, modifier: modifier),
+          null => null,
+        },
+        _ => null,
+      },
+      'setModifierField': (json) => switch ((
+        json['id'],
+        json['index'],
+        json['field'],
+      )) {
+        (final int id, final int index, final String field) => SetModifierField(
+          id: id,
+          index: index,
+          field: field,
+          value: json['value'],
+        ),
+        _ => null,
+      },
+      'toggleModifier': (json) => switch ((json['id'], json['index'])) {
+        (final int id, final int index) => ToggleModifier(id: id, index: index),
+        _ => null,
+      },
+      'reorderModifier': (json) =>
+          switch ((json['id'], json['from'], json['to'])) {
+            (final int id, final int from, final int to) => ReorderModifier(
+              id: id,
+              from: from,
+              to: to,
+            ),
+            _ => null,
+          },
+      'removeModifier': (json) => switch ((json['id'], json['index'])) {
+        (final int id, final int index) => RemoveModifier(id: id, index: index),
+        _ => null,
+      },
+      'applyModifier': (json) => switch ((json['id'], json['index'])) {
+        (final int id, final int index) => ApplyModifier(id: id, index: index),
+        _ => null,
+      },
+      'applyJobResult': (json) =>
+          switch ((json['objectId'], json['baseVersion'], json['meshBytes'])) {
+            (final int objectId, final int baseVersion, final String encoded) =>
+              ApplyJobResult(
+                objectId: objectId,
+                baseVersion: baseVersion,
+                meshBytes: base64Decode(encoded),
+              ),
+            _ => null,
+          },
+      'applySimulationCache': (json) =>
+          switch ((json['objectId'], json['baseVersion'], json['cache'])) {
+            (
+              final int objectId,
+              final int baseVersion,
+              final Map<String, Object?> cacheJson,
+            ) =>
+              switch (SimulationCache.fromJson(cacheJson)) {
+                final SimulationCache cache => ApplySimulationCache(
+                  objectId: objectId,
+                  baseVersion: baseVersion,
+                  cache: cache,
+                ),
+                null => null,
+              },
+            _ => null,
+          },
+      'bakeSimulationToShapes': (json) => switch (json['id']) {
+        final int id => BakeSimulationToShapes(
+          id: id,
+          maxKeys: json['maxKeys'] as int? ?? 8,
+        ),
+        _ => null,
+      },
+      'setProfileLimits': (json) => SetProfileLimits(
+        maxJoints: json['maxJoints'] as int?,
+        maxInfluences: json['maxInfluences'] as int?,
       ),
-      _ => null,
-    },
-    'toggleModifier' => switch ((json['id'], json['index'])) {
-      (final int id, final int index) => ToggleModifier(id: id, index: index),
-      _ => null,
-    },
-    'reorderModifier' => switch ((json['id'], json['from'], json['to'])) {
-      (final int id, final int from, final int to) => ReorderModifier(
-        id: id,
-        from: from,
-        to: to,
-      ),
-      _ => null,
-    },
-    'removeModifier' => switch ((json['id'], json['index'])) {
-      (final int id, final int index) => RemoveModifier(id: id, index: index),
-      _ => null,
-    },
-    'applyModifier' => switch ((json['id'], json['index'])) {
-      (final int id, final int index) => ApplyModifier(id: id, index: index),
-      _ => null,
-    },
-    'applyJobResult' => switch ((
-      json['objectId'],
-      json['baseVersion'],
-      json['meshBytes'],
-    )) {
-      (final int objectId, final int baseVersion, final String encoded) =>
-        ApplyJobResult(
+      'setShapeWeight': (json) =>
+          switch ((json['id'], json['shapeIndex'], json['weight'])) {
+            (final int id, final int shapeIndex, final num weight) =>
+              SetShapeWeight(
+                id: id,
+                shapeIndex: shapeIndex,
+                weight: weight.toDouble(),
+              ),
+            _ => null,
+          },
+      'addShapeFromMesh': (json) => switch ((json['id'], json['shapeName'])) {
+        (final int id, final String shapeName) => AddShapeFromMesh(
+          id: id,
+          shapeName: shapeName,
+        ),
+        _ => null,
+      },
+      'renameShape': (json) =>
+          switch ((json['id'], json['shapeIndex'], json['to'])) {
+            (final int id, final int shapeIndex, final String to) =>
+              RenameShape(id: id, shapeIndex: shapeIndex, to: to),
+            _ => null,
+          },
+      'deleteShape': (json) => switch ((json['id'], json['shapeIndex'])) {
+        (final int id, final int shapeIndex) => DeleteShape(
+          id: id,
+          shapeIndex: shapeIndex,
+        ),
+        _ => null,
+      },
+      'keyShape': (json) =>
+          switch ((json['id'], json['clipIndex'], json['time'])) {
+            (final int id, final int clipIndex, final num time) => KeyShape(
+              id: id,
+              clipIndex: clipIndex,
+              time: time.toDouble(),
+            ),
+            _ => null,
+          },
+      'addSkeleton': (json) =>
+          AddSkeleton(skeletonName: json['skeletonName'] as String?),
+      'bindSkin': (json) => switch ((json['objectId'], json['skeletonIndex'])) {
+        (final int objectId, final int skeletonIndex) => BindSkin(
           objectId: objectId,
-          baseVersion: baseVersion,
-          meshBytes: base64Decode(encoded),
-        ),
-      _ => null,
-    },
-    'applySimulationCache' => switch ((
-      json['objectId'],
-      json['baseVersion'],
-      json['cache'],
-    )) {
-      (
-        final int objectId,
-        final int baseVersion,
-        final Map<String, Object?> cacheJson,
-      ) =>
-        switch (SimulationCache.fromJson(cacheJson)) {
-          final SimulationCache cache => ApplySimulationCache(
-            objectId: objectId,
-            baseVersion: baseVersion,
-            cache: cache,
-          ),
-          null => null,
-        },
-      _ => null,
-    },
-    'bakeSimulationToShapes' => switch (json['id']) {
-      final int id => BakeSimulationToShapes(
-        id: id,
-        maxKeys: json['maxKeys'] as int? ?? 8,
-      ),
-      _ => null,
-    },
-    'setProfileLimits' => SetProfileLimits(
-      maxJoints: json['maxJoints'] as int?,
-      maxInfluences: json['maxInfluences'] as int?,
-    ),
-    'setShapeWeight' => switch ((json['id'], json['shapeIndex'], json['weight'])) {
-      (final int id, final int shapeIndex, final num weight) => SetShapeWeight(
-        id: id,
-        shapeIndex: shapeIndex,
-        weight: weight.toDouble(),
-      ),
-      _ => null,
-    },
-    'addShapeFromMesh' => switch ((json['id'], json['shapeName'])) {
-      (final int id, final String shapeName) => AddShapeFromMesh(
-        id: id,
-        shapeName: shapeName,
-      ),
-      _ => null,
-    },
-    'renameShape' => switch ((json['id'], json['shapeIndex'], json['to'])) {
-      (final int id, final int shapeIndex, final String to) => RenameShape(
-        id: id,
-        shapeIndex: shapeIndex,
-        to: to,
-      ),
-      _ => null,
-    },
-    'deleteShape' => switch ((json['id'], json['shapeIndex'])) {
-      (final int id, final int shapeIndex) => DeleteShape(id: id, shapeIndex: shapeIndex),
-      _ => null,
-    },
-    'keyShape' => switch ((json['id'], json['clipIndex'], json['time'])) {
-      (final int id, final int clipIndex, final num time) => KeyShape(
-        id: id,
-        clipIndex: clipIndex,
-        time: time.toDouble(),
-      ),
-      _ => null,
-    },
-    'addSkeleton' => AddSkeleton(skeletonName: json['skeletonName'] as String?),
-    'bindSkin' => switch ((json['objectId'], json['skeletonIndex'])) {
-      (final int objectId, final int skeletonIndex) =>
-        BindSkin(objectId: objectId, skeletonIndex: skeletonIndex),
-      _ => null,
-    },
-    'addJoint' => switch ((json['skeletonIndex'], json['objectId'])) {
-      (final int skeletonIndex, final int objectId) => AddJoint(
-        skeletonIndex: skeletonIndex,
-        objectId: objectId,
-        inverseBindMatrix: switch (_doubles(json['inverseBindMatrix'], 16)) {
-          final List<double> m => Matrix4.fromList(m),
-          null => null,
-        },
-      ),
-      _ => null,
-    },
-    'removeJoint' => switch ((json['skeletonIndex'], json['jointIndex'])) {
-      (final int skeletonIndex, final int jointIndex) => RemoveJoint(
-        skeletonIndex: skeletonIndex,
-        jointIndex: jointIndex,
-      ),
-      _ => null,
-    },
-    'renameJoint' => switch ((json['skeletonIndex'], json['jointIndex'], json['to'])) {
-      (final int skeletonIndex, final int jointIndex, final String to) => RenameJoint(
-        skeletonIndex: skeletonIndex,
-        jointIndex: jointIndex,
-        to: to,
-      ),
-      _ => null,
-    },
-    'reparentJoint' => switch ((json['skeletonIndex'], json['jointIndex'])) {
-      (final int skeletonIndex, final int jointIndex) => ReparentJoint(
-        skeletonIndex: skeletonIndex,
-        jointIndex: jointIndex,
-        to: json['to'] as int?,
-      ),
-      _ => null,
-    },
-    'setRestPose' => switch ((
-      json['skeletonIndex'],
-      json['jointIndex'],
-      _doubles(json['worldTransform'], 16),
-    )) {
-      (
-        final int skeletonIndex,
-        final int jointIndex,
-        final List<double> worldTransform,
-      ) =>
-        SetRestPose(
           skeletonIndex: skeletonIndex,
-          jointIndex: jointIndex,
-          worldTransform: Matrix4.fromList(worldTransform),
         ),
-      _ => null,
-    },
-    'mirrorJoints' => switch ((json['skeletonIndex'], json['axis'], json['jointMirror'])) {
-      (
-        final int skeletonIndex,
-        final int axis,
-        final Map<String, Object?> jointMirror,
-      ) =>
-        MirrorJoints(
+        _ => null,
+      },
+      'addJoint': (json) => switch ((json['skeletonIndex'], json['objectId'])) {
+        (final int skeletonIndex, final int objectId) => AddJoint(
           skeletonIndex: skeletonIndex,
-          axis: axis,
-          jointMirror: jointMirror.map(
-            (key, value) => MapEntry(int.parse(key), value! as int),
-          ),
+          objectId: objectId,
+          inverseBindMatrix: switch (_doubles(json['inverseBindMatrix'], 16)) {
+            final List<double> m => Matrix4.fromList(m),
+            null => null,
+          },
         ),
-      _ => null,
-    },
-    'setKey' => switch ((
-      json['clipIndex'],
-      json['trackIndex'],
-      json['time'],
-      json['values'],
-    )) {
-      (
-        final int clipIndex,
-        final int trackIndex,
-        final num time,
-        final List<Object?> valuesJson,
-      ) =>
-        switch (_doubleListFrom(valuesJson)) {
-          final List<double> values => SetKey(
+        _ => null,
+      },
+      'removeJoint': (json) =>
+          switch ((json['skeletonIndex'], json['jointIndex'])) {
+            (final int skeletonIndex, final int jointIndex) => RemoveJoint(
+              skeletonIndex: skeletonIndex,
+              jointIndex: jointIndex,
+            ),
+            _ => null,
+          },
+      'renameJoint': (json) =>
+          switch ((json['skeletonIndex'], json['jointIndex'], json['to'])) {
+            (final int skeletonIndex, final int jointIndex, final String to) =>
+              RenameJoint(
+                skeletonIndex: skeletonIndex,
+                jointIndex: jointIndex,
+                to: to,
+              ),
+            _ => null,
+          },
+      'reparentJoint': (json) =>
+          switch ((json['skeletonIndex'], json['jointIndex'])) {
+            (final int skeletonIndex, final int jointIndex) => ReparentJoint(
+              skeletonIndex: skeletonIndex,
+              jointIndex: jointIndex,
+              to: json['to'] as int?,
+            ),
+            _ => null,
+          },
+      'setRestPose': (json) => switch ((
+        json['skeletonIndex'],
+        json['jointIndex'],
+        _doubles(json['worldTransform'], 16),
+      )) {
+        (
+          final int skeletonIndex,
+          final int jointIndex,
+          final List<double> worldTransform,
+        ) =>
+          SetRestPose(
+            skeletonIndex: skeletonIndex,
+            jointIndex: jointIndex,
+            worldTransform: Matrix4.fromList(worldTransform),
+          ),
+        _ => null,
+      },
+      'mirrorJoints': (json) =>
+          switch ((json['skeletonIndex'], json['axis'], json['jointMirror'])) {
+            (
+              final int skeletonIndex,
+              final int axis,
+              final Map<String, Object?> jointMirror,
+            ) =>
+              MirrorJoints(
+                skeletonIndex: skeletonIndex,
+                axis: axis,
+                jointMirror: jointMirror.map(
+                  (key, value) => MapEntry(int.parse(key), value! as int),
+                ),
+              ),
+            _ => null,
+          },
+      'setKey': (json) => switch ((
+        json['clipIndex'],
+        json['trackIndex'],
+        json['time'],
+        json['values'],
+      )) {
+        (
+          final int clipIndex,
+          final int trackIndex,
+          final num time,
+          final List<Object?> valuesJson,
+        ) =>
+          switch (_doubleListFrom(valuesJson)) {
+            final List<double> values => SetKey(
+              clipIndex: clipIndex,
+              trackIndex: trackIndex,
+              time: time.toDouble(),
+              values: values,
+              inTangent: _doubleListFrom(json['inTangent']),
+              outTangent: _doubleListFrom(json['outTangent']),
+            ),
+            null => null,
+          },
+        _ => null,
+      },
+      'moveKeys': (json) => switch ((
+        json['clipIndex'],
+        json['trackIndex'],
+        json['indices'],
+        json['deltaTime'],
+      )) {
+        (
+          final int clipIndex,
+          final int trackIndex,
+          final List<Object?> indicesJson,
+          final num deltaTime,
+        )
+            when indicesJson.every((Object? each) => each is int) =>
+          MoveKeys(
             clipIndex: clipIndex,
             trackIndex: trackIndex,
-            time: time.toDouble(),
-            values: values,
-            inTangent: _doubleListFrom(json['inTangent']),
-            outTangent: _doubleListFrom(json['outTangent']),
+            indices: <int>[
+              for (final Object? each in indicesJson) each! as int,
+            ],
+            deltaTime: deltaTime.toDouble(),
           ),
-          null => null,
-        },
-      _ => null,
-    },
-    'moveKeys' => switch ((
-      json['clipIndex'],
-      json['trackIndex'],
-      json['indices'],
-      json['deltaTime'],
-    )) {
-      (
-        final int clipIndex,
-        final int trackIndex,
-        final List<Object?> indicesJson,
-        final num deltaTime,
-      )
-          when indicesJson.every((Object? each) => each is int) =>
-        MoveKeys(
+        _ => null,
+      },
+      'deleteKeys': (json) =>
+          switch ((json['clipIndex'], json['trackIndex'], json['indices'])) {
+            (
+              final int clipIndex,
+              final int trackIndex,
+              final List<Object?> indicesJson,
+            )
+                when indicesJson.every((Object? each) => each is int) =>
+              DeleteKeys(
+                clipIndex: clipIndex,
+                trackIndex: trackIndex,
+                indices: <int>[
+                  for (final Object? each in indicesJson) each! as int,
+                ],
+              ),
+            _ => null,
+          },
+      'setInterpolation': (json) => switch ((
+        json['clipIndex'],
+        json['trackIndex'],
+        _interpolationFrom(json['interpolation']),
+      )) {
+        (
+          final int clipIndex,
+          final int trackIndex,
+          final AnimationInterpolation interpolation,
+        ) =>
+          SetInterpolation(
+            clipIndex: clipIndex,
+            trackIndex: trackIndex,
+            interpolation: interpolation,
+          ),
+        _ => null,
+      },
+      'setTangent': (json) =>
+          switch ((json['clipIndex'], json['trackIndex'], json['index'])) {
+            (final int clipIndex, final int trackIndex, final int index) =>
+              SetTangent(
+                clipIndex: clipIndex,
+                trackIndex: trackIndex,
+                index: index,
+                inTangent: _doubleListFrom(json['inTangent']),
+                outTangent: _doubleListFrom(json['outTangent']),
+              ),
+            _ => null,
+          },
+      'poseJoint': (json) => switch ((
+        json['joint'],
+        _pathFrom(json['path']),
+        json['clipIndex'],
+        json['frame'],
+      )) {
+        (
+          final int joint,
+          final AnimationPath path,
+          final int clipIndex,
+          final int frame,
+        ) =>
+          PoseJoint(
+            joint: joint,
+            path: path,
+            clipIndex: clipIndex,
+            frame: frame,
+          ),
+        _ => null,
+      },
+      'extractRootMotion': (json) =>
+          switch ((json['clipIndex'], json['rootJoint'])) {
+            (final int clipIndex, final int rootJoint) => ExtractRootMotion(
+              clipIndex: clipIndex,
+              rootJoint: rootJoint,
+            ),
+            _ => null,
+          },
+      'bakeRootMotionIntoClip': (json) => switch ((
+        json['clipIndex'],
+        json['rootJoint'],
+      )) {
+        (final int clipIndex, final int rootJoint) => BakeRootMotionIntoClip(
           clipIndex: clipIndex,
-          trackIndex: trackIndex,
-          indices: <int>[for (final Object? each in indicesJson) each! as int],
-          deltaTime: deltaTime.toDouble(),
+          rootJoint: rootJoint,
         ),
-      _ => null,
-    },
-    'deleteKeys' => switch ((json['clipIndex'], json['trackIndex'], json['indices'])) {
-      (
-        final int clipIndex,
-        final int trackIndex,
-        final List<Object?> indicesJson,
-      )
-          when indicesJson.every((Object? each) => each is int) =>
-        DeleteKeys(
-          clipIndex: clipIndex,
-          trackIndex: trackIndex,
-          indices: <int>[for (final Object? each in indicesJson) each! as int],
+        _ => null,
+      },
+      'addClip': (json) => AddClip(clipName: json['clipName'] as String?),
+      'addLod': (json) => switch ((
+        json['id'],
+        json['ratio'],
+        json['maxScreenFraction'],
+      )) {
+        (final int id, final num ratio, final num maxScreenFraction) => AddLod(
+          id: id,
+          ratio: ratio.toDouble(),
+          maxScreenFraction: maxScreenFraction.toDouble(),
         ),
-      _ => null,
-    },
-    'setInterpolation' => switch ((
-      json['clipIndex'],
-      json['trackIndex'],
-      _interpolationFrom(json['interpolation']),
-    )) {
-      (
-        final int clipIndex,
-        final int trackIndex,
-        final AnimationInterpolation interpolation,
-      ) =>
-        SetInterpolation(
-          clipIndex: clipIndex,
-          trackIndex: trackIndex,
-          interpolation: interpolation,
-        ),
-      _ => null,
-    },
-    'setTangent' => switch ((json['clipIndex'], json['trackIndex'], json['index'])) {
-      (final int clipIndex, final int trackIndex, final int index) => SetTangent(
-        clipIndex: clipIndex,
-        trackIndex: trackIndex,
-        index: index,
-        inTangent: _doubleListFrom(json['inTangent']),
-        outTangent: _doubleListFrom(json['outTangent']),
-      ),
-      _ => null,
-    },
-    'poseJoint' => switch ((
-      json['joint'],
-      _pathFrom(json['path']),
-      json['clipIndex'],
-      json['frame'],
-    )) {
-      (
-        final int joint,
-        final AnimationPath path,
-        final int clipIndex,
-        final int frame,
-      ) =>
-        PoseJoint(joint: joint, path: path, clipIndex: clipIndex, frame: frame),
-      _ => null,
-    },
-    'extractRootMotion' => switch ((json['clipIndex'], json['rootJoint'])) {
-      (final int clipIndex, final int rootJoint) =>
-        ExtractRootMotion(clipIndex: clipIndex, rootJoint: rootJoint),
-      _ => null,
-    },
-    'bakeRootMotionIntoClip' => switch ((
-      json['clipIndex'],
-      json['rootJoint'],
-    )) {
-      (final int clipIndex, final int rootJoint) =>
-        BakeRootMotionIntoClip(clipIndex: clipIndex, rootJoint: rootJoint),
-      _ => null,
-    },
-    'addClip' => AddClip(clipName: json['clipName'] as String?),
-    'addLod' => switch ((json['id'], json['ratio'], json['maxScreenFraction'])) {
-      (final int id, final num ratio, final num maxScreenFraction) => AddLod(
-        id: id,
-        ratio: ratio.toDouble(),
-        maxScreenFraction: maxScreenFraction.toDouble(),
-      ),
-      _ => null,
-    },
-    'setLodRatio' => switch ((json['id'], json['lodIndex'], json['ratio'])) {
-      (final int id, final int lodIndex, final num ratio) => SetLodRatio(
-        id: id,
-        lodIndex: lodIndex,
-        ratio: ratio.toDouble(),
-      ),
-      _ => null,
-    },
-    'regenerateLods' => switch (json['id']) {
-      final int id => RegenerateLods(id),
-      _ => null,
-    },
-    _ => null,
-  };
-}
+        _ => null,
+      },
+      'setLodRatio': (json) =>
+          switch ((json['id'], json['lodIndex'], json['ratio'])) {
+            (final int id, final int lodIndex, final num ratio) => SetLodRatio(
+              id: id,
+              lodIndex: lodIndex,
+              ratio: ratio.toDouble(),
+            ),
+            _ => null,
+          },
+      'regenerateLods': (json) => switch (json['id']) {
+        final int id => RegenerateLods(id),
+        _ => null,
+      },
+    };
 
 /// The pivot [json] names, [TransformPivot.median] when it says nothing, or
 /// null when it names one this version has never heard of.

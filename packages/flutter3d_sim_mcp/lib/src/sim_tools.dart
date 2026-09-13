@@ -1,35 +1,29 @@
-import 'dart:async';
-
 import 'package:dart_mcp/server.dart';
+import 'package:flutter3d_mcp_kit/flutter3d_mcp_kit.dart';
+import 'package:flutter3d_sim/flutter3d_sim.dart';
 
 import 'sim_session.dart';
 
-/// One tool: what an agent is offered, and what calling it does — the same
-/// pair-not-a-table shape `flutter3d_editor_mcp`'s own `EditorTool` is, and
-/// the same reason: a tool `tools/list` offers and a tool `tools/call` can
-/// actually run are one object, so neither can name one the other forgot.
-final class SimTool {
-  const SimTool(this.tool, this.run);
+/// One tool: what an agent is offered, and what calling it does — see
+/// `flutter3d_mcp_kit`'s [OfferedTool].
+typedef SimTool = OfferedTool<SimSession, PictureAnswer>;
 
-  final Tool tool;
-  final FutureOr<Answer> Function(SimSession session, Map<String, Object?> arguments)
-  run;
+double _number(
+  Map<String, Object?> args,
+  String key, [
+  double fallback = 0.0,
+]) => (args[key] as num?)?.toDouble() ?? fallback;
 
-  String get name => tool.name;
-}
-
-double _number(Map<String, Object?> args, String key, [double fallback = 0.0]) =>
-    (args[key] as num?)?.toDouble() ?? fallback;
-
-/// The six verbs `ai-00` asks for.
-List<SimTool> get simTools => <SimTool>[
+/// The six verbs `ai-00` asks for, with `step` offering [game]'s own buttons
+/// as its own arguments — `fire` for the shooter, whatever another game names.
+List<SimTool> simToolsFor(HeadlessGame game) => <SimTool>[
   SimTool(
     Tool(
       name: 'open',
       description:
-          'Open a shooter level (a .json level document, e.g. a crypt) and '
-          'stand the player up at its spawn. Replaces whatever run this '
-          'process had going — call writeRun first if it is worth keeping.',
+          'Open a ${game.name} level (a .json level document) and stand the '
+          'player up at its spawn. Replaces whatever run this process had '
+          'going — call writeRun first if it is worth keeping.',
       inputSchema: ObjectSchema(
         properties: <String, Schema>{
           'path': StringSchema(description: 'a level document on disk'),
@@ -47,16 +41,21 @@ List<SimTool> get simTools => <SimTool>[
           'is a stick (forward/back, strafe); lookX/lookY is a look delta, added '
           'once per step — asking for ten steps with a look of 0.02 turns ten '
           'times as far as asking for one does, the same as ten real frames of '
-          'that mouse motion would. fire is held down for the whole call when '
-          'true.',
+          'that mouse motion would.'
+          '${game.buttons.isEmpty ? '' : ' ${game.buttons.keys.join(', ')}: held down for the whole call when true.'}',
       inputSchema: ObjectSchema(
         properties: <String, Schema>{
-          'steps': IntegerSchema(description: 'how many fixed steps, at least 1'),
+          'steps': IntegerSchema(
+            description: 'how many fixed steps, at least 1',
+          ),
           'moveX': NumberSchema(description: 'strafe, -1..1, default 0'),
           'moveY': NumberSchema(description: 'forward/back, -1..1, default 0'),
           'lookX': NumberSchema(description: 'look delta per step, default 0'),
           'lookY': NumberSchema(description: 'look delta per step, default 0'),
-          'fire': BooleanSchema(description: 'held for the whole call, default false'),
+          for (final String button in game.buttons.keys)
+            button: BooleanSchema(
+              description: 'held for the whole call, default false',
+            ),
         },
         required: <String>['steps'],
       ),
@@ -67,16 +66,19 @@ List<SimTool> get simTools => <SimTool>[
       moveY: _number(args, 'moveY'),
       lookX: _number(args, 'lookX'),
       lookY: _number(args, 'lookY'),
-      fire: (args['fire'] as bool?) ?? false,
+      held: <String, bool>{
+        for (final String button in game.buttons.keys)
+          if (args[button] case final bool down) button: down,
+      },
     ),
   ),
   SimTool(
     Tool(
       name: 'snapshot',
       description:
-          'Where things stand right now, in words: the player\'s position, '
-          'facing, and health, and the same for every actor the level spawned '
-          '(a monster, most often) — position, health, and whether it is still '
+          'Where things stand right now, as JSON: the step, and what the game '
+          'reads out — for the player, position, facing and health; for every '
+          'actor the level spawned, position, health, and whether it is still '
           'up. Call this rather than guessing from how many steps you asked for.',
       inputSchema: ObjectSchema(),
     ),

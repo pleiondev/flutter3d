@@ -1,0 +1,33 @@
+name: flutter3d_mcp_kit
+description: "What every flutter3d MCP server shares: a table of tools that are their own handlers, answers that refuse without failing, and a loopback HTTP transport a running application can offer a session over."
+version: 0.6.0
+repository: https://github.com/pleiondev/flutter3d
+homepage: https://flutter3d.pleion.dev
+issue_tracker: https://github.com/pleiondev/flutter3d/issues
+topics:
+  - mcp
+  - tooling
+  - ai
+resolution: workspace
+
+environment:
+  sdk: ^3.12.2
+
+dependencies:
+  # The protocol, pinned to one minor for the reason every server here gives:
+  # its own README opens with "still experimental and likely to evolve
+  # quickly", and the narrowness is a decision rather than a default.
+  dart_mcp: ">=0.5.2 <0.6.0"
+
+  # The channel a server is built on — `stdioChannel` for a process, a pair of
+  # controllers fed by HTTP requests for `LoopbackMcpServer`, an in-memory pair
+  # for a suite. One type for all three.
+  stream_channel: ^2.1.4
+
+dev_dependencies:
+  test: ^1.25.0
+  flutter_lints: ^6.0.0
+
+# **A plain Dart package.** Two of the servers built on it are started by
+# `dart run`, which cannot resolve a package that depends on the Flutter SDK;
+# a Flutter import here would be a server that will not start.

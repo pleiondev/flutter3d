@@ -4,6 +4,7 @@
 ///     flutter test test/playtest_test.dart
 library;
 
+import 'package:flutter3d_game_shooter/staging.dart';
 import 'package:flutter3d_sim_mcp/flutter3d_sim_mcp.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -13,6 +14,7 @@ void main() {
   test('eight playthroughs each reach an outcome, and the heatmap accounts '
       'for every one of them', () async {
     final runs = await const Playtest(
+      game: ShooterHeadlessGame(),
       maxSteps: 600,
       sampleEvery: 30,
     ).run(_crypt, 8);
@@ -35,7 +37,11 @@ void main() {
   }, timeout: const Timeout(Duration(seconds: 60)));
 
   test('the same seed plays the same run twice', () async {
-    const playtest = Playtest(maxSteps: 300, sampleEvery: 20);
+    const playtest = Playtest(
+      game: ShooterHeadlessGame(),
+      maxSteps: 300,
+      sampleEvery: 20,
+    );
     final first = await playtest.run(_crypt, 1);
     final second = await playtest.run(_crypt, 1);
 
@@ -52,6 +58,7 @@ void main() {
     // asserting it on one specific seed that could stop being true the
     // day the crypt's own geometry changes.
     final runs = await const Playtest(
+      game: ShooterHeadlessGame(),
       maxSteps: 1800,
       stuckAfter: 120,
       stuckStride: 0.5,

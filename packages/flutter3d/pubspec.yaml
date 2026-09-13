@@ -41,11 +41,10 @@ dependencies:
 
   vector_math: ^2.2.0
 
-  # `bin/convert.dart` — `ap-03`'s thin wrapper needs the real converter
-  # resolvable, and a `dev_dependency` would not be: a consumer running
-  # `dart run flutter3d:convert` is not working inside this repository, so
-  # only a regular dependency travels with the published archive.
-  flutter3d_build: ^0.6.0
+  # Not `flutter3d_build`. The converter's command is that package's own
+  # `dart run flutter3d_build:convert`; a runtime engine that named it would put
+  # `image`, `glob`, `yaml`, `crypto` and `hooks` under every game that draws a
+  # frame, for a program no game runs.
 
 dev_dependencies:
 

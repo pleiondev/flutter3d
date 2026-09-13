@@ -18,6 +18,7 @@ workspace:
   - packages/flutter3d_mesh
   - packages/flutter3d_model_core
   - packages/flutter3d_model_mcp
+  - packages/flutter3d_mcp_kit
   - packages/flutter3d_samples
   - packages/flutter3d_app
   - packages/flutter3d_backend
@@ -68,6 +69,7 @@ workspace:
   - apps/flutter3d_demo_strategy
   - apps/flutter3d_template_app
   - apps/flutter3d_lesson_viewer
+  - apps/flutter3d_lab_pendulum
   # Not a package and not an application: a program this repository runs on
   # itself, kept where `tool/`'s other programs are. See its own pubspec for
   # why it is not in `packages/`.

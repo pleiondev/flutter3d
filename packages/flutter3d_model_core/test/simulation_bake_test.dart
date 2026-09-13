@@ -1,4 +1,4 @@
-/// `BakeSimulationCommand`: `pro-sim-01`'s cloth solver, run frame by frame
+/// `BakeClothJobRequest`: `pro-sim-01`'s cloth solver, run frame by frame
 /// into a `SimulationCache` — `pro-sim-03`'s own row.
 ///
 ///     dart test test/simulation_bake_test.dart
@@ -8,7 +8,7 @@ import 'package:flutter3d_cloth/flutter3d_cloth.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 import 'package:test/test.dart';
 
-BakeSimulationCommand bake({int frameCount = 120}) => BakeSimulationCommand(
+BakeClothJobRequest bake({int frameCount = 120}) => BakeClothJobRequest(
   objectId: 1,
   baseVersion: 1,
   mesh: ClothMesh.grid(cols: 20, rows: 20, spacing: 0.03, mass: 0.01),
@@ -67,7 +67,7 @@ void main() {
     });
   });
 
-  group('BakeSimulationCommand', () {
+  group('BakeClothJobRequest', () {
     test('every captured frame is the mesh\'s own particleCount × 3 long', () async {
       final job = bake(frameCount: 3);
       for (var i = 0; i < job.frameCount; i++) {
@@ -106,7 +106,7 @@ void main() {
 
     test('rejects a bake of zero frames', () {
       expect(
-        () => BakeSimulationCommand(
+        () => BakeClothJobRequest(
           objectId: 1,
           baseVersion: 1,
           mesh: ClothMesh.grid(cols: 2, rows: 2),

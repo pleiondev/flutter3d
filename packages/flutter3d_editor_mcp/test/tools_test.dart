@@ -64,7 +64,7 @@ void main() {
     }
   });
 
-  test('an argument the format cannot read is refused, not defaulted', () {
+  test('an argument the format cannot read is refused, not defaulted', () async {
     // Through the table rather than through the protocol, because this is about
     // what a body does with a map: the schema would have refused this call
     // before it arrived, and the reader behind it still has to answer no.
@@ -74,7 +74,9 @@ void main() {
     final moveBy = editorTools.firstWhere(
       (EditorTool it) => it.name == 'moveBy',
     );
-    final refused = moveBy.run(session, <String, Object?>{'by': 'sideways'});
+    final refused = await moveBy.run(session, <String, Object?>{
+      'by': 'sideways',
+    });
     expect(refused.did, isFalse);
     expect(refused.says, contains('cannot be read'));
   });

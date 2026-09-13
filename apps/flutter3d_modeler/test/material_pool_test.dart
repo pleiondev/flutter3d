@@ -13,7 +13,7 @@ import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter3d_formats/flutter3d_formats.dart';
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:flutter3d_hardware/testing.dart';
-import 'package:flutter3d_model_core/flutter3d_model_core.dart' hide encodePng;
+import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 import 'package:flutter3d_modeler/src/material_pool.dart';
 import 'package:flutter_test/flutter_test.dart';
 

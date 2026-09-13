@@ -7,6 +7,7 @@ import 'package:vector_math/vector_math.dart';
 
 import '../asset_resolver.dart';
 import '../model_document.dart';
+import '../model_loader.dart';
 import 'obj_document.dart';
 
 // The per-line dispatch below is the top of the decode pipeline. Building
@@ -42,7 +43,7 @@ enum ObjNormals {
 /// permissive by design — unknown directives are recorded as warnings and
 /// skipped rather than treated as errors. That holds for the `.mtl` half too:
 /// see [parseMtl], which reports its own once each.
-final class ObjLoader {
+final class ObjLoader implements ModelDecoder {
   ObjLoader({
     this.layout = VertexLayout.standard,
     this.normals = ObjNormals.smooth,
@@ -65,6 +66,20 @@ final class ObjLoader {
   /// glTF both put it at the top left, so V is flipped by default. This is the
   /// single most common cause of upside-down textures on OBJ imports.
   final bool flipTexcoordV;
+
+  /// An `.obj` by name, and only by name: OBJ has no magic, and plain text
+  /// that happens to begin with `v` is not a claim worth making before any
+  /// other reader has had its turn.
+  @override
+  bool handles(String fileName, Uint8List bytes) =>
+      fileName.toLowerCase().endsWith('.obj');
+
+  @override
+  Future<ModelDocument> decode(
+    Uint8List bytes,
+    ModelLoadRequest request,
+    AssetUriResolver resolveUri,
+  ) => load(bytes, resolveUri: resolveUri);
 
   Future<ObjDocument> load(
     Uint8List bytes, {

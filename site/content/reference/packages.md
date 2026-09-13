@@ -190,7 +190,7 @@ Extracted when the second game wanted it, which is this repository's habit rathe
 ### `flutter3d_particles`
 One pool for the whole application, one draw call, plugged in through `PassContributor`. Emitters, affectors, curves and gradients, flipbooks, mesh particles, and `ParticleGlow` — the light a fire casts, measured from the fire's own particles.
 
-The simulation itself — `ParticleSystem`, emission, affectors, curves — lives in `flutter3d_particles_core`, a plain Dart package this one depends on and re-exports unchanged. Only the two files that draw a system ever imported Flutter, so the split is what lets `flutter3d_model_core`'s `BakeParticleSystemCommand` bake a system into a cache with no window in front of it.
+The simulation itself — `ParticleSystem`, emission, affectors, curves — lives in `flutter3d_particles_core`, a plain Dart package this one depends on and re-exports unchanged. Only the two files that draw a system ever imported Flutter, so the split is what lets `flutter3d_model_core`'s `BakeParticleSystemJobRequest` bake a system into a cache with no window in front of it.
 
 ### `flutter3d_audio`
 Positional audio: attenuation curves, panning, occlusion through a callback, voice limiting, buses. `SilentBackend` and `SoLoudBackend`, so a machine with no audio device still plays the game.
@@ -258,6 +258,9 @@ Twenty-eight commands so far, each carrying its own name, a sentence for the men
 The modeller offered to an agent, over MCP on stdio, one project per process — the shape `flutter3d_editor_mcp` has for levels.
 
 An entry point and a usage line today; running it says the server is not built yet and exits non-zero. What it already proves is the property everything under it is arranged for: a machine with the Dart SDK and no Flutter can resolve this package and start it, which CI asks in a container of exactly that kind.
+
+### `flutter3d_mcp_kit`
+What the four MCP servers share, written once: `OfferedTool`, a tool and the code that runs it as one value; `ToolTableServer`, a server that is a list of those over one session; `Answer` and `PictureAnswer`, with the functions that turn a refusal into an error result an agent reads rather than a server that failed; and `LoopbackMcpServer`, any of those servers over `127.0.0.1` HTTP with a token per server, for an application handing an agent the session a person already has open. Plain Dart.
 
 ## Applications
 

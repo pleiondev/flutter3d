@@ -27,11 +27,11 @@ ParticleSystem _burningTorch({int seed = 7, int capacity = 64}) {
 }
 
 void main() {
-  group('BakeParticleSystemCommand', () {
+  group('BakeParticleSystemJobRequest', () {
     test(
       "pro-sim-02's own acceptance: particles are deterministic",
       () async {
-        Future<SimulationCache> run() => BakeParticleSystemCommand(
+        Future<SimulationCache> run() => BakeParticleSystemJobRequest(
           objectId: 1,
           baseVersion: 0,
           system: _burningTorch(),
@@ -49,7 +49,7 @@ void main() {
     );
 
     test('a fresh system with nothing emitting yet bakes to all zeros', () async {
-      final cache = await BakeParticleSystemCommand(
+      final cache = await BakeParticleSystemJobRequest(
         objectId: 1,
         baseVersion: 0,
         system: ParticleSystem(capacity: 16, seed: 1),
@@ -64,7 +64,7 @@ void main() {
 
     test('vertexCount is the system\'s own capacity, not how many are alive', () async {
       final system = _burningTorch(capacity: 32);
-      final cache = await BakeParticleSystemCommand(
+      final cache = await BakeParticleSystemJobRequest(
         objectId: 1,
         baseVersion: 0,
         system: system,
@@ -76,7 +76,7 @@ void main() {
     });
 
     test('emission actually moves some particles away from the origin', () async {
-      final cache = await BakeParticleSystemCommand(
+      final cache = await BakeParticleSystemJobRequest(
         objectId: 1,
         baseVersion: 0,
         system: _burningTorch(),

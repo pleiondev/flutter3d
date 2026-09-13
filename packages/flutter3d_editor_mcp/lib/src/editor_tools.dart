@@ -1,28 +1,13 @@
 import 'package:dart_mcp/server.dart';
 import 'package:flutter3d_editor_core/flutter3d_editor_core.dart';
+import 'package:flutter3d_mcp_kit/flutter3d_mcp_kit.dart';
 
 import 'editor_session.dart';
 
-/// One tool: what an agent is offered, and what calling it does.
-///
-/// **A pair rather than a table and a switch.** The obvious arrangement is a
-/// list of [Tool] for `tools/list` and a `switch` on the name in `tools/call`,
-/// and the two drift the moment somebody adds one and forgets the other — an
-/// offered tool that answers "no tool registered with that name", which nothing
-/// notices because both halves compile. Here a tool that is offered is a tool
-/// that has a body, because they are the same object.
-final class EditorTool {
-  const EditorTool(this.tool, this.run);
-
-  /// What `tools/list` hands the agent: a name, a sentence and a schema.
-  final Tool tool;
-
-  /// What calling it does to the document.
-  final Answer Function(EditorSession session, Map<String, Object?> arguments)
-  run;
-
-  String get name => tool.name;
-}
+/// One tool: what an agent is offered, and what calling it does to the
+/// document — see `flutter3d_mcp_kit`'s [OfferedTool] for why a pair rather
+/// than a table and a switch.
+typedef EditorTool = OfferedTool<EditorSession, Answer>;
 
 /// Three numbers, which is how the document spells every position and size.
 ListSchema _vector(String about) => ListSchema(

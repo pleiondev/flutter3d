@@ -40,7 +40,8 @@ import 'dart:isolate';
 import 'dart:math' as math;
 import 'dart:typed_data';
 
-import 'png_decoder.dart';
+import 'package:flutter3d_formats/flutter3d_formats.dart' show decodePng;
+
 import 'texture_graph.dart';
 
 /// Whether this build has no isolates — `dart:isolate` compiles for the web

@@ -185,18 +185,42 @@ abstract final class ProjectSection {
   static const int checksums = 6;
 
   /// `doc-31d`'s own section: JSON, the same shape the manifest itself is —
-  /// `{'steps': [...]}`, oldest step first, each `{says, command,
-  /// selectionBefore, author, objects}` — `objects` shaped exactly like the
-  /// manifest's own, so a step's `geometry.mesh` index addresses the same
-  /// [editMeshes]/[importedMeshes] tables the live project's objects do.
+  /// `{'steps': [...], 'images': [...]}`, oldest step first, each `{says,
+  /// command, selectionBefore, author, objects}` — `objects` shaped exactly
+  /// like the manifest's own, so a step's `geometry.mesh` index addresses the
+  /// same [editMeshes]/[importedMeshes] tables the live project's objects do.
   /// `author` (`mcp-10n`) is optional, read back as a person's own step when
   /// absent — a file written before that row existed named nobody.
+  ///
+  /// **A step's mesh index names that step's own geometry.** A mesh command
+  /// edits its `EditMesh` in place, so a kept `before` project and the live one
+  /// hold the same instance; the writer rolls that mesh's journal back step by
+  /// step while it writes, and a chunk is shared only between moments whose
+  /// geometry really is the same.
+  ///
+  /// **`profile`, `nextId`, `materials`, `images`, `skeletons` and `clips` are
+  /// optional on a step, and absent means "as in the state after it"** — the
+  /// next step's `before`, or the live project for the newest. So a step
+  /// carries a table only where a command changed it, and trimming the oldest
+  /// steps never strands a newer one. `images` is a list of rows: below the
+  /// live image table's length a row of [images], at or above it a row of
+  /// [historyImages], whose names are the section's own top-level `images`.
   ///
   /// Absent, not present-and-empty, for a file nobody asked to carry history
   /// for — [writeProject]'s own `history` parameter is null far more often
   /// than not, and a section that is never written is one an older reader
   /// never has to skip.
   static const int history = 7;
+
+  /// `count` entries of [kProjectImageEntryBytes], addressing [blob]: images a
+  /// step of [history] still samples and the live project no longer holds —
+  /// a texture replaced or removed somewhere inside the kept steps.
+  ///
+  /// A table of its own rather than more rows in [images], because the
+  /// manifest names exactly the rows of that table and an older reader holds
+  /// it to that count; rows only history needs would open in that reader as
+  /// images the project does not have. Absent when history needs none.
+  static const int historyImages = 8;
 }
 
 /// What [readProject] gives back.
@@ -303,15 +327,35 @@ Uint8List writeProject(
 }) {
   final meshes = <Uint8List>[];
 
-  // Edited meshes, deduplicated by identity: `doc-31d`'s own reason this
-  // exists at all — a history step's `before` project and the live one
-  // share every `EditMesh` neither of them touched, and writing each of
-  // those once, addressed by index, is the whole of what keeps a file with
-  // history from costing one full mesh copy a step. `EditMesh` has no `==`,
-  // so a plain `Map` is already identity-keyed, the same fact this
-  // session's own caches (`ModifierStack`, `TextureBakeCache`) already
-  // lean on.
-  final meshAt = <EditMesh, int>{};
+  // Edited meshes, deduplicated by identity *and* by how far that mesh's
+  // journal has been rolled back: `doc-31d`'s own reason this exists at all —
+  // a history step's `before` project and the live one share every
+  // `EditMesh` neither of them touched, and writing each of those once,
+  // addressed by index, is the whole of what keeps a file with history from
+  // costing one full mesh copy a step. Identity alone is not enough, because
+  // a mesh command edits its mesh in place: the step before an extrusion
+  // holds the very instance the live project does, at a different point in
+  // its journal. `EditMesh` has no `==`, so a record of the instance and a
+  // depth is identity-keyed on the mesh and value-keyed on the depth.
+  final meshAt = <(EditMesh, int), int>{};
+
+  // How many journal steps each mesh has been rolled back while the history
+  // is walked newest first; every one is rolled forward again before this
+  // function returns, whatever it returns with.
+  final rolledBack = <EditMesh, int>{};
+
+  // Every image row the file names. The live project's own come first and
+  // keep their order — they are the image table the manifest describes —
+  // and an image only a kept step still samples is appended after them.
+  final imageAt = Map<EncodedImage, int>.identity();
+  for (var i = 0; i < project.images.length; i++) {
+    imageAt.putIfAbsent(project.images[i], () => i);
+  }
+  final historyImages = <EncodedImage>[];
+  int imageRow(EncodedImage image) => imageAt.putIfAbsent(image, () {
+    historyImages.add(image);
+    return project.images.length + historyImages.length - 1;
+  });
 
   // Imported buffers, deduplicated by identity: two objects drawing the same
   // `MeshData` — which is what an instanced prop becomes — write it once and
@@ -333,7 +377,7 @@ Uint8List writeProject(
             ...parametricShapeJson(shape),
           };
         case EditedGeometry(:final EditMesh mesh):
-          final at = meshAt.putIfAbsent(mesh, () {
+          final at = meshAt.putIfAbsent((mesh, rolledBack[mesh] ?? 0), () {
             meshes.add(mesh.toBytes());
             return meshes.length - 1;
           });
@@ -384,65 +428,56 @@ Uint8List writeProject(
     return out;
   }
 
+  // The live project first, with every mesh where the document holds it.
   final objects = objectsJsonFor(project.objects);
 
-  // Every history step's own objects, walked oldest first so a step that
-  // shares a mesh with an *earlier* step (not just with the live project)
-  // still finds it already in `meshAt` — order only matters for which step
-  // pays for a chunk's first appearance, never for whether one is shared.
-  // `history` is null for the overwhelming majority of calls (every
-  // existing fixture and every writer that does not ask for it), and stays
-  // that way rather than defaulting to an empty `ModelHistory`: a file with
-  // no `history` section and a file with an empty one both open with an
-  // empty history, so there is nothing an empty-but-present section would
-  // say that omitting it does not.
-  final stepJson = history == null
-      ? const <Map<String, Object?>>[]
-      : <Map<String, Object?>>[
-          for (final HistoryStep step in history.steps)
-            <String, Object?>{
-              'says': step.command.says,
-              'command': step.command.toJson(),
-              'selectionBefore': step.selectionBefore.toJson(),
-              // `mcp-10n`, younger than the section itself — read back as
-              // `StepAuthor.person` when absent, the same optional shape
-              // every field this file has grown since v1 already takes.
-              'author': step.author.name,
-              'objects': objectsJsonFor(step.before.objects),
-            },
-        ];
+  // Every history step's own objects and tables, walked **newest first**,
+  // because that is the only direction a journal can be walked: each step's
+  // mesh steps are rolled back before its `before` is written, so a mesh
+  // chunk names the geometry of that moment rather than of now. `history`
+  // is null for the overwhelming majority of calls (every existing fixture
+  // and every writer that does not ask for it), and stays that way rather
+  // than defaulting to an empty `ModelHistory`: a file with no `history`
+  // section and a file with an empty one both open with an empty history.
+  //
+  // A step whose meshes cannot be rolled back far enough — a journal cleared
+  // underneath the history — stops the walk, and it and everything older are
+  // left out: a step that would reopen holding the wrong geometry is worse
+  // than one that is not there. `project` is `history.project`, so a
+  // transaction still open has taken mesh steps no kept step accounts for,
+  // and those go back first.
+  final List<HistoryStep> steps = history?.steps ?? const <HistoryStep>[];
+  final walked = List<Map<String, Object?>?>.filled(steps.length, null);
+  var oldestWritten = steps.length;
+  try {
+    if (history != null && _rollBack(history.openMeshSteps, rolledBack)) {
+      for (var k = steps.length - 1; k >= 0; k--) {
+        final HistoryStep step = steps[k];
+        if (!_rollBack(step.meshSteps, rolledBack)) break;
+        walked[k] = _stepJson(
+          step,
+          after: k == steps.length - 1 ? project : steps[k + 1].before,
+          objects: objectsJsonFor(step.before.objects),
+          imageRow: imageRow,
+        );
+        oldestWritten = k;
+      }
+    }
+  } finally {
+    for (final MapEntry<EditMesh, int> each in rolledBack.entries) {
+      for (var i = 0; i < each.value; i++) {
+        each.key.redo();
+      }
+    }
+  }
+  final stepJson = <Map<String, Object?>>[
+    for (var k = oldestWritten; k < steps.length; k++) walked[k]!,
+  ];
 
   final manifest = utf8.encode(
     jsonEncode(
       _canonical(<String, Object?>{
-        'profile': <String, Object?>{
-          'name': project.profile.name,
-          'maxTriangles': project.profile.maxTriangles,
-          'maxJoints': project.profile.maxJoints,
-          'maxInfluences': project.profile.maxInfluences,
-          'maxTextureSize': project.profile.maxTextureSize,
-          // Written from `doc-13` on, and read back as a default rather than
-          // required when absent — see `_readProfileExtras` — so a v1 file
-          // written before these existed still opens.
-          'target': project.profile.target.name,
-          'maxTextureBytes': project.profile.maxTextureBytes,
-          'requireTriangles': project.profile.requireTriangles,
-          'requireManifold': project.profile.requireManifold,
-          // `mat-28`, younger still than the four above and read back the
-          // same optional way.
-          'textures': <String, Object?>{
-            'maxSide': project.profile.textures.maxSide,
-            'maxBytesOnDevice': project.profile.textures.maxBytesOnDevice,
-            'targetFormat': project.profile.textures.targetFormat.name,
-            'requirePowerOfTwo': project.profile.textures.requirePowerOfTwo,
-          },
-          // `doc-35n`, younger even than `textures`, read back the same
-          // optional way.
-          'texelsPerMeter': project.profile.texelsPerMeter,
-          // `syn-03`, younger still, read back the same optional way.
-          'fps': project.profile.fps,
-          'frameSnap': project.profile.frameSnap,
-        },
+        'profile': _profileJson(project.profile),
         // Written down rather than worked out from the objects on the way back
         // in: an id belonging to something deleted must not be handed out again,
         // and `objects.length + 1` after a delete is exactly that mistake — a
@@ -519,6 +554,10 @@ Uint8List writeProject(
     for (final EncodedImage each in project.images)
       (place(each.bytes), each.bytes.lengthInBytes),
   ];
+  final historyImageOffsets = <(int, int)>[
+    for (final EncodedImage each in historyImages)
+      (place(each.bytes), each.bytes.lengthInBytes),
+  ];
 
   final blob = Uint8List(blobLength);
   for (var i = 0; i < chunks.length; i++) {
@@ -559,6 +598,17 @@ Uint8List writeProject(
       ..setUint32(i * kProjectImageEntryBytes + 4, length, Endian.little);
   }
 
+  final historyImageTable = Uint8List(
+    historyImages.length * kProjectImageEntryBytes,
+  );
+  final historyImageView = ByteData.view(historyImageTable.buffer);
+  for (var i = 0; i < historyImageOffsets.length; i++) {
+    final (int at, int length) = historyImageOffsets[i];
+    historyImageView
+      ..setUint32(i * kProjectImageEntryBytes, at, Endian.little)
+      ..setUint32(i * kProjectImageEntryBytes + 4, length, Endian.little);
+  }
+
   // Г5's own byte limit, trimming the *oldest* steps first — the same
   // direction `ModelHistory`'s own depth limit already trims in
   // (`_done.removeAt(0)`). A mesh a trimmed step alone referenced stays in
@@ -582,9 +632,27 @@ Uint8List writeProject(
       (
         ProjectSection.history,
         utf8.encode(
-          jsonEncode(_canonical(<String, Object?>{'steps': trimmedSteps})),
+          jsonEncode(
+            _canonical(<String, Object?>{
+              'steps': trimmedSteps,
+              if (historyImages.isNotEmpty)
+                'images': <Object?>[
+                  for (final EncodedImage each in historyImages)
+                    <String, Object?>{
+                      'name': each.name,
+                      'mimeType': each.mimeType,
+                    },
+                ],
+            }),
+          ),
         ),
         trimmedSteps.length,
+      ),
+    if (historyImages.isNotEmpty)
+      (
+        ProjectSection.historyImages,
+        historyImageTable,
+        historyImages.length,
       ),
   ];
 
@@ -833,6 +901,7 @@ ProjectRead readProject(Uint8List bytes) {
       skeletons: skeletons,
       clips: clips,
       nextId: nextId,
+      warnings: warnings,
     );
     if (historyRefusal != null) return ProjectRefused(historyRefusal);
 
@@ -867,12 +936,13 @@ ProjectRead readProject(Uint8List bytes) {
 /// built both from the same shared tables.
 ///
 /// **[profile], [materials], [images], [skeletons], [clips] and [nextId] are
-/// the live project's own, not written per step.** Only the object list is
-/// stored once for every historical moment; a material, an image, a
-/// skeleton or a clip added or changed inside the commands a caller undoes
-/// is not what this row's own acceptance asks to round-trip, and every
-/// `before` project below borrows the current ones rather than carrying a
-/// second, empty-by-default copy of tables nothing wrote a history of.
+/// the live project's own, and they are where the walk starts.** Steps are
+/// read newest first: a table a step names is that step's `before`, and a
+/// table it leaves out is the one the state after it holds — so a file whose
+/// steps name no tables, which is every file written before steps could,
+/// opens exactly as it always did, every `before` borrowing the current
+/// tables. Image rows address the live table first and the
+/// [ProjectSection.historyImages] table after it; see [ProjectSection.history].
 (List<HistoryStep>, String?) _readHistory(
   Uint8List bytes,
   Map<int, ({int offset, int length})> sections,
@@ -885,6 +955,7 @@ ProjectRead readProject(Uint8List bytes) {
   required List<ProjectSkeleton> skeletons,
   required List<ProjectClip> clips,
   required int nextId,
+  required List<String> warnings,
 }) {
   final at = sections[ProjectSection.history];
   if (at == null) return (const <HistoryStep>[], null);
@@ -905,9 +976,33 @@ ProjectRead readProject(Uint8List bytes) {
   }
 
   final entries = document['steps']! as List;
-  final steps = <HistoryStep>[];
-  for (var i = 0; i < entries.length; i++) {
-    if (entries[i] case {
+
+  final (List<EncodedImage> historyImages, String? imageRefusal) = _readImages(
+    bytes,
+    sections,
+    document['images'],
+    pool,
+    tableKind: ProjectSection.historyImages,
+  );
+  if (imageRefusal != null) {
+    return (const <HistoryStep>[], 'The history\'s own images: $imageRefusal');
+  }
+  final rows = <EncodedImage>[...images, ...historyImages];
+
+  // What the state after the step being read holds, table by table — the
+  // live project's to begin with, then each `before` in turn. State, because
+  // the walk is what it describes.
+  var carriedProfile = profile;
+  var carriedNextId = nextId;
+  var carriedMaterials = materials;
+  var carriedImages = images;
+  var carriedSkeletons = skeletons;
+  var carriedClips = clips;
+  final noticed = <String>[];
+
+  final steps = List<HistoryStep?>.filled(entries.length, null);
+  for (var i = entries.length - 1; i >= 0; i--) {
+    if (entries[i] case final Map<String, Object?> step && {
       'says': final String says,
       'command': final Map<String, Object?> commandJson,
       'selectionBefore': final Object? selectionJson,
@@ -948,21 +1043,85 @@ ProjectRead readProject(Uint8List bytes) {
         {'author': 'agent'} => StepAuthor.agent,
         _ => StepAuthor.person,
       };
-      steps.add(
-        HistoryStep(
-          command: command,
-          before: ModelProject(
-            profile: profile,
-            objects: objects,
-            materials: materials,
-            images: images,
-            skeletons: skeletons,
-            clips: clips,
-            nextId: nextId,
-          ),
-          selectionBefore: selection,
-          author: author,
+      if (step.containsKey('profile')) {
+        final ProjectProfile? read = _readProfile(step['profile'], noticed);
+        if (read == null) {
+          return (
+            const <HistoryStep>[],
+            'History step $i ("$says") has a profile this build cannot read.',
+          );
+        }
+        carriedProfile = read;
+      }
+      if (step.containsKey('nextId')) {
+        final Object? id = step['nextId'];
+        if (id is! int) {
+          return (
+            const <HistoryStep>[],
+            'History step $i ("$says") has a nextId that is not a whole '
+                'number.',
+          );
+        }
+        carriedNextId = id;
+      }
+      if (step.containsKey('materials')) {
+        final (List<ProjectMaterial> read, String? refusal) = _readMaterials(
+          step['materials'],
+          noticed,
+          pool,
+        );
+        if (refusal != null) {
+          return (const <HistoryStep>[], 'History step $i: $refusal');
+        }
+        carriedMaterials = read;
+      }
+      if (step.containsKey('images')) {
+        final Object? picked = step['images'];
+        if (picked is! List ||
+            !picked.every(
+              (Object? row) => row is int && row >= 0 && row < rows.length,
+            )) {
+          return (
+            const <HistoryStep>[],
+            'History step $i ("$says") names image rows that are not among '
+                'the ${rows.length} the file holds.',
+          );
+        }
+        carriedImages = <EncodedImage>[
+          for (final Object? row in picked) rows[row! as int],
+        ];
+      }
+      if (step.containsKey('skeletons')) {
+        final (List<ProjectSkeleton> read, String? refusal) = _readSkeletons(
+          step['skeletons'],
+        );
+        if (refusal != null) {
+          return (const <HistoryStep>[], 'History step $i: $refusal');
+        }
+        carriedSkeletons = read;
+      }
+      if (step.containsKey('clips')) {
+        final (List<ProjectClip> read, String? refusal) = _readClips(
+          step['clips'],
+        );
+        if (refusal != null) {
+          return (const <HistoryStep>[], 'History step $i: $refusal');
+        }
+        carriedClips = read;
+      }
+      steps[i] = HistoryStep(
+        command: command,
+        before: ModelProject(
+          profile: carriedProfile,
+          objects: objects,
+          materials: carriedMaterials,
+          images: carriedImages,
+          skeletons: carriedSkeletons,
+          clips: carriedClips,
+          nextId: carriedNextId,
         ),
+        selectionBefore: selection,
+        author: author,
       );
     } else {
       return (
@@ -972,7 +1131,12 @@ ProjectRead readProject(Uint8List bytes) {
       );
     }
   }
-  return (steps, null);
+  // Said once rather than once a step: a newer build's value a kept table
+  // names is the same news however many steps carry it.
+  for (final String each in noticed) {
+    if (!warnings.contains(each)) warnings.add(each);
+  }
+  return (<HistoryStep>[for (final HistoryStep? each in steps) each!], null);
 }
 
 /// The imported meshes, or the sentence that stops the file being read.
@@ -1143,6 +1307,96 @@ List<Object?>? _lodsJson(List<LodSpec> lods) {
       },
   ];
 }
+
+/// Rolls each mesh in [steps] back by its count, noting every step taken in
+/// [rolledBack] so the caller can roll exactly that far forward again. False
+/// the moment a journal has nothing further back to give.
+bool _rollBack(Map<EditMesh, int> steps, Map<EditMesh, int> rolledBack) {
+  for (final MapEntry<EditMesh, int> each in steps.entries) {
+    for (var i = 0; i < each.value; i++) {
+      if (!each.key.undo()) return false;
+      rolledBack[each.key] = (rolledBack[each.key] ?? 0) + 1;
+    }
+  }
+  return true;
+}
+
+/// One history step as the `history` section writes it: what was done, and
+/// the project before it — its objects always, and each table only where it
+/// differs from [after], the state the step led to. See
+/// [ProjectSection.history] for why absent means "as in the state after".
+///
+/// Compared by identity, the way `ModelProject` shares what an edit did not
+/// touch: a false "changed" only costs a table written twice, never a wrong
+/// one read back.
+Map<String, Object?> _stepJson(
+  HistoryStep step, {
+  required ModelProject after,
+  required List<Map<String, Object?>> objects,
+  required int Function(EncodedImage image) imageRow,
+}) {
+  final ModelProject before = step.before;
+  return <String, Object?>{
+    'says': step.command.says,
+    'command': step.command.toJson(),
+    'selectionBefore': step.selectionBefore.toJson(),
+    // `mcp-10n`, younger than the section itself — read back as
+    // `StepAuthor.person` when absent, the same optional shape every field
+    // this file has grown since v1 already takes.
+    'author': step.author.name,
+    'objects': objects,
+    if (!identical(before.profile, after.profile))
+      'profile': _profileJson(before.profile),
+    if (before.nextId != after.nextId) 'nextId': before.nextId,
+    if (!identical(before.materials, after.materials))
+      'materials': <Object?>[
+        for (final ProjectMaterial each in before.materials)
+          _materialJson(each),
+      ],
+    if (!identical(before.images, after.images))
+      'images': <int>[
+        for (final EncodedImage each in before.images) imageRow(each),
+      ],
+    if (!identical(before.skeletons, after.skeletons))
+      'skeletons': <Object?>[
+        for (final ProjectSkeleton each in before.skeletons)
+          _skeletonJson(each),
+      ],
+    if (!identical(before.clips, after.clips))
+      'clips': <Object?>[
+        for (final ProjectClip each in before.clips) _clipJson(each),
+      ],
+  };
+}
+
+Map<String, Object?> _profileJson(ProjectProfile profile) => <String, Object?>{
+  'name': profile.name,
+  'maxTriangles': profile.maxTriangles,
+  'maxJoints': profile.maxJoints,
+  'maxInfluences': profile.maxInfluences,
+  'maxTextureSize': profile.maxTextureSize,
+  // Written from `doc-13` on, and read back as a default rather than
+  // required when absent — see `_readProfileExtras` — so a v1 file
+  // written before these existed still opens.
+  'target': profile.target.name,
+  'maxTextureBytes': profile.maxTextureBytes,
+  'requireTriangles': profile.requireTriangles,
+  'requireManifold': profile.requireManifold,
+  // `mat-28`, younger still than the four above and read back the
+  // same optional way.
+  'textures': <String, Object?>{
+    'maxSide': profile.textures.maxSide,
+    'maxBytesOnDevice': profile.textures.maxBytesOnDevice,
+    'targetFormat': profile.textures.targetFormat.name,
+    'requirePowerOfTwo': profile.textures.requirePowerOfTwo,
+  },
+  // `doc-35n`, younger even than `textures`, read back the same
+  // optional way.
+  'texelsPerMeter': profile.texelsPerMeter,
+  // `syn-03`, younger still, read back the same optional way.
+  'fps': profile.fps,
+  'frameSnap': profile.frameSnap,
+};
 
 Map<String, Object?> _skeletonJson(ProjectSkeleton skeleton) => <String, Object?>{
   'name': skeleton.name,
@@ -1536,9 +1790,10 @@ T _named<T extends Enum>(
   Uint8List bytes,
   Map<int, ({int offset, int length})> sections,
   Object? described,
-  Map<String, String> pool,
-) {
-  final table = sections[ProjectSection.images];
+  Map<String, String> pool, {
+  int tableKind = ProjectSection.images,
+}) {
+  final table = sections[tableKind];
   final blob = sections[ProjectSection.blob];
   if (table == null || table.length == 0) return (const <EncodedImage>[], null);
   if (blob == null) {

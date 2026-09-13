@@ -11,12 +11,38 @@ library;
 import 'dart:convert';
 import 'dart:typed_data';
 
+/// One bake that fills a [SimulationCache] for one object — what
+/// `ApplySimulationCache` needs to know about whatever produced the frames.
+///
+/// **The contract a new solver meets, so the modeller does not learn it.**
+/// Cloth, a rigid body and a particle system each bake differently; what a
+/// cache strip, a job runner and the apply command need is the same five
+/// answers, and a soft body or a fluid arriving later is one more class that
+/// gives them rather than one more branch wherever a bake is shown or applied.
+abstract interface class SimulationBakeRequest {
+  /// Which object the finished cache answers for.
+  int get objectId;
+
+  /// `ModelObject.version` when this was built; `ApplySimulationCache` refuses
+  /// a cache whose object has moved past it.
+  int get baseVersion;
+
+  /// How many frames the bake aims for.
+  int get frameCount;
+
+  /// How many vertices each frame holds.
+  int get vertexCount;
+
+  /// Runs the whole bake and answers with the cache.
+  Future<SimulationCache> bake();
+}
+
 /// [vertexCount] vertices, snapshotted once per frame in [frames].
 ///
 /// **Every frame the same length, `3 * vertexCount`** — x/y/z per vertex,
 /// flat, the same layout `ClothMesh.positions` already uses in
 /// `flutter3d_cloth`, so a frame can be set straight into a mesh upload
-/// without walking it into vectors first. [BakeSimulationCommand] is what
+/// without walking it into vectors first. [BakeClothJobRequest] is what
 /// fills one of these in, one frame — one chunk — at a time.
 final class SimulationCache {
   /// [frames] is copied into an unmodifiable list; mutating the [List] handed

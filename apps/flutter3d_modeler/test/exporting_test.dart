@@ -68,7 +68,7 @@ ModelProject texturedProject() {
   return ModelProject(
     images: <EncodedImage>[
       EncodedImage(
-        bytes: encodePng(8, 8, pixels),
+        bytes: encodeCompressedPng(8, 8, pixels),
         name: 'checker',
         mimeType: 'image/png',
       ),

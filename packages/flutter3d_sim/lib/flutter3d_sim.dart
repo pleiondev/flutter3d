@@ -76,6 +76,7 @@ export 'src/loop/difficulty.dart';
 export 'src/loop/fixed_step.dart';
 export 'src/loop/game_event.dart';
 export 'src/loop/game_loop.dart';
+export 'src/loop/headless_run.dart';
 export 'src/loop/interpolated.dart';
 export 'src/loop/pace.dart';
 export 'src/loop/pause_gate.dart';

@@ -23,7 +23,20 @@ enum ModelWriteFormat {
   stl,
 
   /// `StlWriter.writeAscii()`.
-  stlAscii,
+  stlAscii;
+
+  /// The writer `flutter3d_formats` keeps for this format.
+  ///
+  /// [encodeModel] is that writer's first file, so the engine, the modeller
+  /// and the MCP server write one format one way — they used to be three
+  /// `switch`es with three different lists.
+  ModelWriter get writer => switch (this) {
+    ModelWriteFormat.glb => const GlbModelWriter(),
+    ModelWriteFormat.obj => const ObjModelWriter(),
+    ModelWriteFormat.f3d => const F3dModelWriter(),
+    ModelWriteFormat.stl => const StlModelWriter(),
+    ModelWriteFormat.stlAscii => const StlModelWriter(ascii: true),
+  };
 }
 
 /// What to encode, and as which format — `fmt-13`'s own row, the write-side
@@ -49,16 +62,11 @@ final class ModelWriteRequest {
 /// produce, run on the calling isolate instead of handed off. What
 /// [encodeModelInIsolate] falls back to on the web, and what a caller with
 /// no isolate to spare can call directly.
-Uint8List encodeModel(ModelWriteRequest request) => switch (request.format) {
-  ModelWriteFormat.glb => GltfWriter(request.document).writeGlb(),
-  ModelWriteFormat.obj => ObjWriter(request.document, name: request.name).write(),
-  ModelWriteFormat.f3d => F3dWriter(request.document).write(),
-  ModelWriteFormat.stl => StlWriter(request.document, name: request.name).write(),
-  ModelWriteFormat.stlAscii => StlWriter(
-    request.document,
-    name: request.name,
-  ).writeAscii(),
-};
+Uint8List encodeModel(ModelWriteRequest request) => request.format.writer
+    .write(request.document, baseName: request.name)
+    .files
+    .first
+    .bytes;
 
 /// Encodes a model on a background isolate — the write-side mirror of
 /// `decodeModelInIsolate` (`model_loader.dart`), for the same reason:

@@ -7,6 +7,7 @@ import '../animation/animation_clip.dart';
 import '../animation/animation_track.dart';
 import '../asset_resolver.dart';
 import '../model_document.dart';
+import '../model_loader.dart';
 import 'glb_container.dart';
 import 'gltf_accessor.dart';
 import 'gltf_asset.dart';
@@ -48,7 +49,7 @@ part 'gltf_loader_skins.dart';
 /// Compressed extensions (`KHR_draco_mesh_compression`, `EXT_meshopt_compression`)
 /// are not supported and are reported through [GltfAsset.warnings] rather than
 /// throwing, so a file that merely *offers* a compressed variant still loads.
-final class GltfLoader {
+final class GltfLoader implements ModelDecoder {
   GltfLoader({
     this.layout = VertexLayout.standard,
     this.skinnedLayout = VertexLayout.skinned,
@@ -73,6 +74,29 @@ final class GltfLoader {
   /// needs per-face normals, which forces the mesh to be de-indexed. Set false
   /// to leave normals at zero instead.
   final bool generateFlatNormalsWhenMissing;
+
+  /// A `.gltf` or `.glb` by name, or a GLB by its `glTF` magic.
+  ///
+  /// Not a JSON brace with no name: a `.fmat` and a level are JSON too, and a
+  /// decoder in an application's own list is asked before anything is sniffed.
+  @override
+  bool handles(String fileName, Uint8List bytes) {
+    final name = fileName.toLowerCase();
+    return name.endsWith('.gltf') ||
+        name.endsWith('.glb') ||
+        (bytes.length >= 4 &&
+            bytes[0] == 0x67 &&
+            bytes[1] == 0x6C &&
+            bytes[2] == 0x54 &&
+            bytes[3] == 0x46);
+  }
+
+  @override
+  Future<ModelDocument> decode(
+    Uint8List bytes,
+    ModelLoadRequest request,
+    AssetUriResolver resolveUri,
+  ) => load(bytes, resolveUri: resolveUri);
 
   Future<GltfAsset> load(
     Uint8List bytes, {

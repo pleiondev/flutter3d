@@ -248,7 +248,7 @@ text than as a binary buffer, and native code does not close that. `.f3d` moves
 the parse off the device entirely.
 
 ```bash
-dart run flutter3d:convert ../flutter3d_samples/assets/teapot.obj \
+dart run flutter3d_build:convert ../flutter3d_samples/assets/teapot.obj \
   -o ../flutter3d_samples/assets/f3d/teapot.f3d
 ```
 

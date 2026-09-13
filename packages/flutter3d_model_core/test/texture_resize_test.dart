@@ -123,7 +123,7 @@ void main() {
       for (var i = 3; i < rgba.length; i += 4) {
         rgba[i] = 255;
       }
-      return encodePng(width, height, rgba);
+      return encodeCompressedPng(width, height, rgba);
     }
 
     test('mat-29\'s own acceptance: 1000x600 against a 512px budget '

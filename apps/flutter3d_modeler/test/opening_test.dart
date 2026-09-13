@@ -543,6 +543,27 @@ void main() {
       expect(because, contains('scene.dae'));
     });
 
+    test('an FBX is let through to the decoder that says why it will not '
+        'open', () async {
+      // Mutation: ask `recognizedModelFormat` alone, as the guard did. The
+      // window refuses an FBX with "not a file type", while a picked one
+      // decodes as OBJ and opens empty — two answers for one file.
+      expect(
+        unopenableDropRefusal('rig.fbx', Uint8List.fromList(<int>[1, 2, 3])),
+        isNull,
+      );
+      await expectLater(
+        decodeBytes(Uint8List.fromList(<int>[1, 2, 3]), 'rig.fbx'),
+        throwsA(
+          isA<FormatException>().having(
+            (FormatException e) => e.message,
+            'message',
+            contains('FBX'),
+          ),
+        ),
+      );
+    });
+
     test('a name with no extension at all is refused the same way', () {
       final because = unopenableDropRefusal(
         'README',

@@ -26,12 +26,18 @@ dependencies:
   # engine does, rather than knowing about glTF or OBJ themselves.
   flutter3d_formats: ^0.6.0
 
+  # `FbxDecoder`, handed to `import`'s decode, so an agent asking for an FBX
+  # is told what the file is and why it will not read rather than handed an
+  # empty OBJ.
+  flutter3d_fbx: ^0.6.0
+
   # `ElementLevel`, for the `select` verb's mesh-mode argument.
   flutter3d_mesh: ^0.6.0
 
-  # `retargetClip`/`BoneMap`/`autoMap` — `anim-30`'s `retargetClip` tool
-  # wraps this package's own row directly rather than re-deriving bone
-  # mapping or rest-relative retargeting here.
+  # `BoneMap`/`autoMap` — `anim-30`'s `retargetClip` tool builds the bone map
+  # with this package's own row rather than re-deriving name matching here;
+  # the retarget itself is `flutter3d_model_core`'s `retargetClip`, which runs
+  # this package's `retargetTracks` over the project's own skeletons.
   flutter3d_rig: ^0.6.0
 
   # `Vector3`/`Matrix4` — `anim-30`'s rig-pipeline tools (`autoRig`,
@@ -44,6 +50,10 @@ dependencies:
   # gives: its own README opens with "still experimental and likely to evolve
   # quickly", and the narrowness is a decision rather than a default.
   dart_mcp: ">=0.5.2 <0.6.0"
+
+  # The tool table, the answers and the server underneath this one — what
+  # every server here shares.
+  flutter3d_mcp_kit: ^0.6.0
 
   # The channel `ModelMcpServer` is built on. `model_http_server.dart` wires
   # one to a pair of controllers fed by real HTTP requests — the same
