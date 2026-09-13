@@ -286,7 +286,7 @@ class _LevelScreenState extends State<LevelScreen>
   /// open — a level with none of these entities simply never touches them.
   final ViewerTourController _tour = ViewerTourController();
   final ConfiguratorController _configurator = ConfiguratorController();
-  final ValueNotifier<Object?> _twinReading = ValueNotifier<Object?>(null);
+  final ValueNotifier<double> _twinReading = ValueNotifier<double>(0.0);
   final DataSourceRegistry _dataSources = DataSourceRegistry(
     <String, EduDataSource>{
       'spindle-temp': SamplerDataSource(
@@ -391,7 +391,7 @@ class _LevelScreenState extends State<LevelScreen>
       _twinStep++;
       final resolved = resolveBindings(boundStep, _twinStep, _dataSources);
       final value = resolved['dashboard.temperature'];
-      if (value != null) _twinReading.value = value;
+      if (value is num) _twinReading.value = value.toDouble();
     }
 
     if (mounted) setState(() {});
@@ -546,6 +546,7 @@ class _LevelScreenState extends State<LevelScreen>
               view: _view,
               settings: () => const RenderSettings(),
               onBeforeFrame: _place,
+              presentFrame: presentFrame,
             ),
             const Positioned(
               left: 0,
