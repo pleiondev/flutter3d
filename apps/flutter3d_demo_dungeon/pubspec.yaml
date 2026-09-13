@@ -56,6 +56,12 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
 
+  # `rp-05`'s own golden half — `expectMatchesGolden`/`DigestTrace`, used by
+  # `test/replay_golden_test.dart` to check a replayed frame against a
+  # committed reference.
+  flutter3d_testing:
+    path: ../../packages/flutter3d_testing
+
   # Real-device e2e — see `apps/flutter3d_demo_platformer/pubspec.yaml` for the
   # note. Carries `rp-00`'s determinism probe onto Android and iOS.
   integration_test:
