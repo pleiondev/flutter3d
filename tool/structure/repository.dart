@@ -60,6 +60,17 @@ const List<String> applications = <String>[
 /// is not here, because nothing has yet needed it to and a rule kept for
 /// nobody is a rule somebody eventually deletes.
 const Map<String, String> flatDartPackages = <String, String>{
+  'flutter3d_core':
+      'mcp-03n\'s own split: a modeller\'s document layer, the tool an agent '
+      'starts with `dart run`, and a service checking an uploaded asset all '
+      'want a `Renderer` that draws a frame with no window in front of it — '
+      'the same want that already moved `MeshData` to `flutter3d_geometry` '
+      'and the decoders to `flutter3d_formats`. `flutter3d` stays the thin '
+      'Flutter shell three seams could not leave: `BundleAssetSource` and '
+      '`assetUriResolver` name `rootBundle`, `defaultImageDecoder` names '
+      '`dart:ui`, and `ModelAsset`/`bindMaterial`/`loadMaterial` default to '
+      'that decoder so every existing caller of either keeps compiling '
+      'unchanged',
   'flutter3d_formats':
       'a modeller\'s document layer, the tool an agent starts with `dart '
       'run`, and a service that checks an uploaded asset all want to read a '
@@ -173,7 +184,7 @@ const Map<String, Set<String>> genreMayDraw = <String, Set<String>>{
 /// it does instead: a camera with no subject to follow has no rig to turn, and
 /// that is a reason; "it was easier" is not.
 const Map<String, String> notARigCamera = <String, String>{
-  'flutter3d/lib/src/engine/scene/camera_node.dart':
+  'flutter3d_core/lib/src/engine/scene/camera_node.dart':
       'the scene-graph camera the rig steers, not a camera that follows '
       'anything: it holds the projection and the view, sits below '
       'flutter3d_sim, and could not name CameraRig without inverting the '
@@ -207,7 +218,8 @@ const Map<String, String> notARigCamera = <String, String>{
 /// checks this list the way it checks every other: a name here that is not a
 /// package is a rule that has outlived its subject.
 const Map<String, String> notARepeatableStep = <String, String>{
-  'flutter3d': 'a renderer draws a frame; the clock it reads is the frame\'s',
+  'flutter3d_core':
+      'a renderer draws a frame; the clock it reads is the frame\'s',
   'flutter3d_geometry':
       'geometry, not a step: a lathe turns a profile with `math.sin` once, at '
       'the moment a shape is built, and a run that stepped it would be a run '
@@ -293,21 +305,15 @@ const Map<String, Map<String, String>> repeatableStepExempt =
 /// documenting a loophole rather than a decision.
 const Map<String, String> hardwareMayUseFlutter = <String, String>{};
 
-/// Files in `flutter3d` held to a stricter rule than the rest, and why.
-const Map<String, String> engineAlsoFreeOfDartUi = <String, String>{
-  'lib/src/engine/render/frame_resources.dart':
-      'the frame graph would stop being unit-testable off a device — a dart:ui '
-      'import would not break the build, it would break the suite, and the '
-      'analyser would report only that a test no longer compiles',
-};
-
 /// Files in `flutter3d` that must still compile with `dart compile exe`, and
 /// why — checked **through their imports**, not just their own text.
 ///
-/// The difference from [engineAlsoFreeOfDartUi] is the whole point. That map
-/// reads one file and asks what it imports; this one follows the imports until
-/// they stop, because the way this breaks is never a `dart:ui` line in the file
-/// named. It broke exactly once, like this: `mesh_geometry.dart` declared both
+/// **Checked through imports rather than one file's own text is the whole
+/// point.** A rule reading a single file's own source for `dart:ui` — this
+/// package's `flutter3d_core` used to carry exactly one, for the same reason
+/// `frame_resources.dart` needed one before mcp-03n moved it there, and
+/// `flatDartPackages` now holds every file in that package to it, not one —
+/// would have missed how this actually broke: `mesh_geometry.dart` declared both
 /// `MeshGeometry`, which needs no device, and `DeviceMesh`, which holds two
 /// buffers a device made. One `flutter3d_hardware` import served both. Through
 /// it `geometry.dart` reached `GraphicsDevice`, whose `present` returns a
@@ -355,10 +361,11 @@ goldenCountExempt = <String, Map<String, String>>{
         'all twenty-seven goldens came back byte-identical':
             'the run that found the pool bug, on the day it was run',
       },
-  'packages/flutter3d/lib/src/engine/render/renderer.dart': <String, String>{
-    'gives all twenty-seven goldens byte-identical':
-        'the experiment that settled the registration order, as it was run',
-  },
+  'packages/flutter3d_core/lib/src/engine/render/renderer.dart':
+      <String, String>{
+        'gives all twenty-seven goldens byte-identical':
+            'the experiment that settled the registration order, as it was run',
+      },
   'packages/flutter3d/test/xray_test.dart': <String, String>{
     'a call thirty-four goldens were recorded without':
         'the recording those goldens came from; a later set does not '
@@ -572,7 +579,7 @@ boundaryEnumExempt = <String, Map<String, String>>{
         'the three wrap modes glTF names, which are also the three every '
         'GPU sampler has',
   },
-  'flutter3d/lib/src/engine/render/material.dart': <String, String>{
+  'flutter3d_core/lib/src/engine/render/material.dart': <String, String>{
     'MaterialAlphaMode':
         'the engine side of SurfaceAlphaMode, and a fourth would need a '
         'pipeline the shaders do not have',
@@ -584,47 +591,47 @@ boundaryEnumExempt = <String, Map<String, String>>{
         'the four channel targets glTF defines. A fifth is not a thing the '
         'format can express',
   },
-  'flutter3d/lib/src/engine/animation/animation_target.dart': <String, String>{
+  'flutter3d_core/lib/src/engine/animation/animation_target.dart': <String, String>{
     'AnimationWrap':
         'how a clip ends. Each value is a branch in the sampler, so a fifth '
         'is code rather than a name',
   },
-  'flutter3d/lib/src/engine/scene/light_node.dart': <String, String>{
+  'flutter3d_core/lib/src/engine/scene/light_node.dart': <String, String>{
     'LightType':
         'the three the lit shaders have code for. A fourth kind of light is '
         'a shader, not a value',
   },
-  'flutter3d/lib/src/engine/scene/mesh_node.dart': <String, String>{
+  'flutter3d_core/lib/src/engine/scene/mesh_node.dart': <String, String>{
     'ShadowCastingMode':
         "the engine side of the level document's ShadowCasting, which is "
         'closed for the reason that one is',
   },
-  'flutter3d/lib/src/engine/render/render_node.dart': <String, String>{
+  'flutter3d_core/lib/src/engine/render/render_node.dart': <String, String>{
     'FramePhase':
         "the renderer's own passes, in the order it runs them. A phase it "
         'does not run is not a phase',
   },
-  'flutter3d/lib/src/engine/render/render_view.dart': <String, String>{
+  'flutter3d_core/lib/src/engine/render/render_view.dart': <String, String>{
     'SortMode':
         'the orders the renderer knows how to sort in. Each is code in the '
         'sort, not a label',
   },
-  'flutter3d/lib/src/engine/render/composite_mix.dart': <String, String>{
+  'flutter3d_core/lib/src/engine/render/composite_mix.dart': <String, String>{
     'CompositeView':
         'which buffer the composite shows. Each value is a branch in a '
         'shader that ships compiled',
   },
-  'flutter3d/lib/src/engine/render/resource_desc.dart': <String, String>{
+  'flutter3d_core/lib/src/engine/render/resource_desc.dart': <String, String>{
     'ResourceOrigin':
         'where a frame resource comes from, which the frame graph switches '
         'on to allocate it',
   },
-  'flutter3d/lib/src/engine/render/shadow_settings.dart': <String, String>{
+  'flutter3d_core/lib/src/engine/render/shadow_settings.dart': <String, String>{
     'ShadowCasterFaces':
         'which faces go into the shadow map. Three ways to set cull state, '
         'and there is no fourth',
   },
-  'flutter3d/lib/src/engine/render/parity_scene.dart': <String, String>{
+  'flutter3d_core/lib/src/engine/render/parity_scene.dart': <String, String>{
     'ParityScene':
         'names the fixtures this repository compares across backends. '
         'Adding one is recording three golden sets, which is not something '
@@ -782,7 +789,7 @@ boundaryEnumExempt = <String, Map<String, String>>{
         'defines exactly directional, point and spot; a fourth is not a '
         'thing a decoded document can honestly claim to hold',
   },
-  'flutter3d/lib/src/engine/assets/model_writer.dart': <String, String>{
+  'flutter3d_core/lib/src/engine/assets/model_writer.dart': <String, String>{
     'ModelWriteFormat':
         'the writers `flutter3d_formats` has: `ObjWriter`, `GltfWriter`, '
         '`F3dWriter`, `StlWriter` (binary and ASCII). A fifth value needs a '

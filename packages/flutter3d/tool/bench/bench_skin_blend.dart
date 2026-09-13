@@ -15,7 +15,7 @@ library;
 
 import 'dart:typed_data';
 
-import 'package:flutter3d/src/engine/animation/skin_blend.dart';
+import 'package:flutter3d_core/src/engine/animation/skin_blend.dart';
 import 'package:flutter3d_geometry/flutter3d_geometry.dart';
 import 'package:vector_math/vector_math.dart' hide Ray;
 

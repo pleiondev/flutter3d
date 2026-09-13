@@ -2,7 +2,6 @@ import 'dart:developer' as developer;
 import 'dart:isolate';
 import 'dart:typed_data';
 
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter3d_formats/flutter3d_formats.dart';
 
 export 'package:flutter3d_formats/flutter3d_formats.dart'
@@ -14,14 +13,21 @@ export 'package:flutter3d_formats/flutter3d_formats.dart'
         decodeModelBytes,
         sniffModelFormat;
 
-// **What is left here is the isolate**, and that is the whole of what this file
-// still owes Flutter: `kIsWeb` for the platform with no isolates, and an asset
-// bundle at the other end of the port. Deciding *which* decoder reads a file
-// and running it is `flutter3d_formats` — `ModelFormat`, `ModelDecoder`,
-// `decodeModel`, `decodeModelBytes` and `sniffModelFormat` — because a
-// modeller, a server and a plain `dart test` all want that half and none of
-// them can resolve a Flutter SDK to get it.
+// **What is left here is the isolate**, and mcp-03n was the question of
+// whether that owed Flutter anything: only `kIsWeb`, for the platform with no
+// isolates, which is a compile-time constant naming no SDK —
+// `bool.fromEnvironment('dart.library.js_interop')` is the same fact asked
+// the way a flat package can ask it, and `flutter3d_mesh`/`flutter3d_model_core`
+// already answer the identical question this way. Deciding *which* decoder
+// reads a file and running it is `flutter3d_formats` — `ModelFormat`,
+// `ModelDecoder`, `decodeModel`, `decodeModelBytes` and `sniffModelFormat` —
+// because a modeller, a server and a plain `dart test` all want that half and
+// none of them can resolve a Flutter SDK to get it.
 export 'asset_source.dart';
+
+/// Whether this build has no isolates in it — the question `kIsWeb` used to
+/// answer here, asked the way a package with no Flutter SDK behind it can.
+const bool _isWeb = bool.fromEnvironment('dart.library.js_interop');
 
 /// Decodes a model on a background isolate.
 ///
@@ -51,7 +57,7 @@ Future<ModelDocument> decodeModelInIsolate(ModelLoadRequest request) async {
   // Decoding on the main thread instead, which is what the name promises not to
   // do and the only thing available. A parse that janks is worse than one that
   // does not; a parse that throws is worse than both.
-  if (kIsWeb) return decodeModel(request);
+  if (_isWeb) return decodeModel(request);
 
   // An async span, not startSync/finishSync: the read and the isolate round trip
   // both suspend, and a synchronous span would close on the first await and

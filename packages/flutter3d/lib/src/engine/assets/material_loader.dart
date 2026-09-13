@@ -1,10 +1,8 @@
 import 'dart:typed_data';
 
-import 'package:flutter3d_formats/flutter3d_formats.dart';
-import 'package:flutter3d_hardware/flutter3d_hardware.dart';
+import 'package:flutter3d_core/flutter3d_core.dart';
 
-import '../render/material.dart';
-import 'texture_upload.dart';
+import 'default_image_decoder.dart';
 
 // `Ktx2Texture` hidden: `flutter3d.dart` re-exports this package's own thin
 // wrapper of the same name from `ktx2/ktx2.dart` instead — see its doc
@@ -85,6 +83,7 @@ Future<Material> bindMaterial(
   required AssetUriResolver resolveUri,
   LightingModel lighting = LightingModel.pbr,
   List<String>? warnings,
+  ImageDecoder decodeImage = defaultImageDecoder,
 }) async {
   // Keyed on the path **and on whether it carries a chain**, for the reason
   // spelled out where a model does the same: the chain is part of the texture,
@@ -112,6 +111,7 @@ Future<Material> bindMaterial(
           : await uploadEncodedImage(
               device,
               bytes,
+              decodeImage: decodeImage,
               sampling: binding.sampling,
               report: (message) =>
                   warnings?.add('${document.images[index]}: $message'),
@@ -201,6 +201,7 @@ Future<Material> loadMaterial(
   List<MaterialDecoder> decoders = const <MaterialDecoder>[],
   LightingModel lighting = LightingModel.pbr,
   List<String>? warnings,
+  ImageDecoder decodeImage = defaultImageDecoder,
 }) async {
   final document = await loadMaterialDocument(source, decoders: decoders);
   warnings?.addAll(document.warnings);
@@ -210,6 +211,7 @@ Future<Material> loadMaterial(
     resolveUri: source.resolveUri,
     lighting: lighting,
     warnings: warnings,
+    decodeImage: decodeImage,
   );
 }
 

@@ -1,19 +1,8 @@
-import 'package:flutter3d_geometry/flutter3d_geometry.dart';
-import 'package:flutter3d_hardware/flutter3d_hardware.dart';
+import 'package:flutter3d_core/flutter3d_core.dart';
 import 'package:vector_math/vector_math.dart';
 
-import '../animation/animation.dart';
-import '../geometry/device_mesh.dart';
-import '../render/material.dart';
-import '../scene/lod_group.dart';
-import '../scene/mesh_node.dart';
-import '../scene/morph_state.dart';
-import '../scene/scene.dart';
-import '../scene/scene_node.dart';
-import '../scene/skeleton.dart';
+import 'default_image_decoder.dart';
 import 'material_loader.dart';
-import 'model_part.dart';
-import 'texture_upload.dart';
 
 // `ModelPart` is a plain value type with no coupling to the loading logic
 // below, so it is re-exported from its own file rather than declared here —
@@ -22,7 +11,7 @@ import 'texture_upload.dart';
 // reachable through every existing import of this file, which is what a
 // `part` buys and an ordinary file cannot — see `model_instance.dart`'s doc
 // comment.
-export 'model_part.dart';
+export 'package:flutter3d_core/flutter3d_core.dart' show ModelPart;
 
 part 'model_instance.dart';
 
@@ -152,6 +141,7 @@ final class ModelAsset {
     required GraphicsDevice device,
     LightingModel lighting = LightingModel.pbr,
     String? name,
+    ImageDecoder decodeImage = defaultImageDecoder,
   }) async {
     final warnings = <String>[...document.warnings];
 
@@ -186,6 +176,7 @@ final class ModelAsset {
       final uploaded = await uploadEncodedImage(
         device,
         document.images[imageIndex].bytes,
+        decodeImage: decodeImage,
         sampling: sampling,
         report: (message) => warnings.add('images[$imageIndex]: $message'),
       );

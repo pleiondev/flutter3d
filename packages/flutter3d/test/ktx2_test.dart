@@ -12,7 +12,7 @@
 /// same property `f3d_test.dart` and `gpu_formats_test.dart` rely on.
 library;
 
-import 'package:flutter3d/src/engine/assets/ktx2/ktx2.dart';
+import 'package:flutter3d_core/src/engine/assets/ktx2/ktx2.dart';
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:flutter_test/flutter_test.dart';
 

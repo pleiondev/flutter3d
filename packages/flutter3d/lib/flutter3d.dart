@@ -26,6 +26,12 @@
 /// after every Flutter SDK change.
 library;
 
+// The rendering core: animation, assets, the render graph and the scene
+// graph — everything that resolves without the Flutter SDK, which mcp-03n
+// moved to its own package once the four files that did not were down to
+// four small seams. See `flutter3d_core`'s own doc comment for the full
+// account of what moved and why.
+export 'package:flutter3d_core/flutter3d_core.dart';
 // Assets: the formats and the documents they decode into are
 // `package:flutter3d_formats` — glTF/GLB, OBJ, the project's own .f3d container
 // and its .fmat material, `ModelDocument`, `SurfaceMaterial`, `LightingModel`
@@ -54,75 +60,15 @@ export 'package:flutter3d_geometry/flutter3d_geometry.dart';
 // pubspec.
 export 'package:flutter3d_hardware/flutter3d_hardware.dart';
 
-// Animation: clips, tracks, sampling, playback. A clip, a track and the mask a
-// layer is filtered through are `flutter3d_formats`, because a clip is
-// something a `.glb` carries and a program that reads one has no scene to play
-// it in; what is here is what applies a pose.
-export 'src/engine/animation/animation.dart';
-export 'src/engine/animation/animation_player.dart';
-export 'src/engine/animation/animation_target.dart';
-export 'src/engine/animation/baked_poses.dart';
-export 'src/engine/animation/inverse_kinematics.dart';
-export 'src/engine/animation/pose.dart';
-export 'src/engine/animation/skin_blend.dart';
-// What could not go with them, each because it needs something this package may
-// name and that one may not: the isolate loader and the two asset sources
-// (Flutter's bundle, and `dart:io`), the bundle resolvers, the KTX2 reader with
-// its HAL formats, and everything from `ModelAsset` down that has met a device.
+// What could not go with it, each because it needs something this package may
+// name and that one may not: the two Flutter-named asset sources and glTF
+// resolvers, `defaultImageDecoder`, and everything from `ModelAsset` down
+// that defaults to it.
+export 'src/engine/assets/bundle_asset_source.dart';
+export 'src/engine/assets/default_image_decoder.dart';
 export 'src/engine/assets/gltf_resolvers.dart';
-export 'src/engine/assets/ktx2/ktx2.dart';
 export 'src/engine/assets/material_loader.dart';
 export 'src/engine/assets/model_asset.dart';
-export 'src/engine/assets/model_loader.dart';
-export 'src/engine/assets/model_writer.dart';
-export 'src/engine/assets/resource_cache.dart';
-export 'src/engine/assets/texture_upload.dart';
-// `device_mesh.dart` is the rest of that layer by subject matter and stayed
-// here, because it holds the two types that have met a device — and a package
-// that named `GraphicsDevice` would be a package with Flutter behind it again.
-export 'src/engine/geometry/device_mesh.dart';
 // Particles are `package:flutter3d_particles` and are named nowhere here.
 // The engine defines what a contributor is; what draws through one is not its
 // business, which is the whole test of the extension model.
-
-// Rendering.
-export 'src/engine/render/debug_draw.dart';
-export 'src/engine/render/debug_draw_gizmos.dart';
-export 'src/engine/render/empty_frame.dart';
-export 'src/engine/render/environment_map.dart';
-export 'src/engine/render/frame_graph.dart';
-export 'src/engine/render/frame_plan.dart';
-export 'src/engine/render/frame_resources.dart';
-export 'src/engine/render/key_sort.dart';
-export 'src/engine/render/material.dart';
-export 'src/engine/render/mesh_overlay.dart';
-export 'src/engine/render/pass_contributor.dart';
-export 'src/engine/render/probe_faces.dart';
-export 'src/engine/render/procedural_texture.dart';
-export 'src/engine/render/render_list.dart';
-export 'src/engine/render/render_node.dart';
-export 'src/engine/render/render_view.dart';
-export 'src/engine/render/renderer.dart';
-export 'src/engine/render/shadow_slots.dart';
-export 'src/engine/render/sky_settings.dart';
-export 'src/engine/render/view_model_node.dart';
-// The scene graph and everything that walks it.
-export 'src/engine/scene/bvh.dart';
-export 'src/engine/scene/camera_node.dart';
-export 'src/engine/scene/instanced_mesh_node.dart';
-export 'src/engine/scene/light_buffer.dart';
-export 'src/engine/scene/light_node.dart';
-export 'src/engine/scene/lod_group.dart';
-export 'src/engine/scene/mesh_node.dart';
-export 'src/engine/scene/morph_state.dart';
-export 'src/engine/scene/orbit_controller.dart';
-export 'src/engine/scene/projection.dart';
-export 'src/engine/scene/raycaster.dart';
-export 'src/engine/scene/reflection_probe_node.dart';
-export 'src/engine/scene/scene.dart';
-export 'src/engine/scene/scene_graph.dart';
-export 'src/engine/scene/scene_node.dart';
-export 'src/engine/scene/scene_spheres.dart';
-export 'src/engine/scene/skeleton.dart';
-export 'src/engine/scene/sky.dart';
-export 'src/engine/scene/sky_gradient.dart';

@@ -6,14 +6,16 @@
 /// rendering library, where a reader has no way to tell it from something they
 /// are meant to use.
 ///
-/// It stays inside this package rather than moving to a test folder for the
-/// reason its own file gives: an application on one backend and a test on
-/// another both have to reach it, and writing the scene twice makes every
-/// difference in the two pictures as likely to be a difference in the two
-/// transcriptions.
+/// It stays reachable through the engine rather than moving to a test folder
+/// for the reason its own file gives: an application on one backend and a
+/// test on another both have to reach it, and writing the scene twice makes
+/// every difference in the two pictures as likely to be a difference in the
+/// two transcriptions. mcp-03n moved the scene itself into
+/// `flutter3d_core`, which names no Flutter — this stays a thin re-export so
+/// every existing `import 'package:flutter3d/parity_scene.dart'` keeps
+/// resolving.
 ///
 ///     import 'package:flutter3d/parity_scene.dart';
 library;
 
-export 'src/engine/render/parity_grid.dart';
-export 'src/engine/render/parity_scene.dart';
+export 'package:flutter3d_core/parity_scene.dart';

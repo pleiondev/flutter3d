@@ -19,6 +19,14 @@ dependencies:
   flutter:
     sdk: flutter
 
+  # The rendering core this package is a thin Flutter shell over (mcp-03n):
+  # the scene graph, the render graph, animation, and everything in the asset
+  # layer that resolves without the Flutter SDK. `BundleAssetSource`,
+  # `assetUriResolver`, `defaultImageDecoder`, `ModelAsset` and
+  # `bindMaterial`/`loadMaterial` are what stayed, each because a default
+  # value or a Flutter type has to be declared somewhere that can name one.
+  flutter3d_core: ^0.1.0
+
   # The graphics vocabulary this package is written against. **Not** a
   # backend: `flutter3d` names no graphics API at all, which is what lets an
   # application choose one — `flutter3d_impeller` today — and what would let a WebGL

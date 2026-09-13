@@ -743,6 +743,7 @@ final class LevelLoader {
       return await uploadEncodedImage(
         device,
         bytes.buffer.asUint8List(),
+        decodeImage: defaultImageDecoder,
         sampling: const TextureSampling(),
         // A KTX2 the device does not sample, or a feature of one the reader
         // does not have, is a flat wall with a sentence beside it — the same

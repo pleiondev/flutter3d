@@ -1,0 +1,48 @@
+name: flutter3d_core
+description: "The engine's rendering core with no Flutter SDK behind it: scene graph, animation, the render graph, and model/material loading down to the one call each still needs an injected reader or decoder for."
+version: 0.1.0
+repository: https://github.com/pleiondev/flutter3d
+homepage: https://flutter3d.pleion.dev
+issue_tracker: https://github.com/pleiondev/flutter3d/issues
+topics:
+  - graphics
+  - game-engine
+  - rendering
+resolution: workspace
+
+environment:
+  sdk: ^3.12.2
+
+dependencies:
+  flutter3d_formats: ^0.6.0
+  flutter3d_geometry: ^0.6.0
+  flutter3d_hardware: ^0.7.0
+  vector_math: ^2.2.0
+
+dev_dependencies:
+  test: ^1.25.0
+  flutter_lints: ^6.0.0
+
+# **The Flutter-free half of `flutter3d`, mcp-03n's own split.** `flutter3d`
+# named Flutter in five files out of eighty-nine, all of them in
+# `engine/assets/`, and all for one of three reasons: `rootBundle` to read the
+# asset bundle, `kIsWeb` to skip a background isolate the web does not have,
+# and `dart:ui` to decode a PNG or JPEG. None of those three questions is
+# "how does a scene graph work" or "what does a render pass do" — they are
+# platform seams around three functions, and everything else in the engine
+# already resolved without Flutter and simply lived in a package that
+# declared it anyway.
+#
+# So the seam moves rather than the whole file: `AssetSource`'s `dart:io`
+# half and glTF's file-relative URI resolver stay here, next to
+# `BundleAssetSource` and the asset-bundle resolver in `flutter3d` itself;
+# `model_loader.dart`/`model_writer.dart` ask `dart.library.js_interop`
+# instead of `kIsWeb` — the same substitution `flutter3d_mesh` and
+# `flutter3d_model_core` already use for the identical question; and
+# `uploadEncodedImage` takes an `ImageDecoder` it is handed rather than
+# calling `dart:ui` itself, with `flutter3d`'s own `defaultImageDecoder`
+# supplying one for every caller that reaches it through
+# `ModelAsset.fromDocument` or `bindMaterial` — both of which stay in
+# `flutter3d` for exactly that reason: an optional parameter's default value
+# is decided where it is declared, and a flat package cannot declare one that
+# names `dart:ui`.

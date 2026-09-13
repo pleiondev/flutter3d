@@ -1,6 +1,6 @@
 import 'dart:async';
 
-import 'package:flutter3d/src/engine/assets/resource_cache.dart';
+import 'package:flutter3d_core/src/engine/assets/resource_cache.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {

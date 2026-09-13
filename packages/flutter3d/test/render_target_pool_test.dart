@@ -7,7 +7,7 @@
 /// graph or node in sight.
 library;
 
-import 'package:flutter3d/src/engine/render/frame_resources.dart';
+import 'package:flutter3d_core/src/engine/render/frame_resources.dart';
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:flutter_test/flutter_test.dart';
 

@@ -1,4 +1,4 @@
-import 'package:flutter3d/src/engine/render/frame_graph.dart';
+import 'package:flutter3d_core/src/engine/render/frame_graph.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 /// A node that does nothing but declare what it touches.

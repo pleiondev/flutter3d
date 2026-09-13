@@ -485,15 +485,23 @@ List<Finding> _hardwareNamesNoApi() {
 }
 
 List<Finding> _engineNamesNoBackend() {
-  final dir = packages['flutter3d'];
-  if (dir == null) return <Finding>[const Finding('flutter3d', 'is not there')];
+  // mcp-03n moved the rendering core this check is about into
+  // `flutter3d_core` — `flutter3d` itself is a thin Flutter shell over it
+  // now (`ModelAsset`, `bindMaterial`, the two Flutter-named asset sources),
+  // none of which reaches a backend either, but the package the guarantee
+  // below is actually *for* is the one that used to be five files short of
+  // naming no Flutter at all.
+  final core = packages['flutter3d_core'];
+  if (core == null) {
+    return <Finding>[const Finding('flutter3d_core', 'is not there')];
+  }
   final found = <Finding>[];
 
-  for (final file in dartFilesIn(Directory('${dir.path}/lib'))) {
+  for (final file in dartFilesIn(Directory('${core.path}/lib'))) {
     if (reaches(file.readAsStringSync(), 'flutter_gpu')) {
       found.add(
         Finding(
-          'flutter3d/${relative(file, dir)}',
+          'flutter3d_core/${relative(file, core)}',
           'names flutter_gpu, which this package must not know exists — '
               'whatever it needs belongs on GraphicsDevice or CommandEncoder',
         ),
@@ -501,49 +509,46 @@ List<Finding> _engineNamesNoBackend() {
     }
   }
 
-  final pubspec = File('${dir.path}/pubspec.yaml').readAsStringSync();
+  final corePubspec = File('${core.path}/pubspec.yaml').readAsStringSync();
   for (final forbidden in <String>['flutter_gpu', 'flutter3d_impeller']) {
     // The import scan misses this: depending on a backend and using it through
     // the umbrella library names nothing textually and still welds the engine
     // to one.
-    if (pubspec.contains('\n  $forbidden:')) {
+    if (corePubspec.contains('\n  $forbidden:')) {
       found.add(
         Finding(
-          'flutter3d',
+          'flutter3d_core',
           'depends on $forbidden — an application chooses a backend, the '
               'engine does not',
         ),
       );
     }
   }
-  if (!pubspec.contains('flutter3d_hardware:')) {
+  if (!corePubspec.contains('flutter3d_hardware:')) {
     found.add(
       const Finding(
-        'flutter3d',
+        'flutter3d_core',
         'no longer depends on the hardware layer, so it is written against '
             'nothing and the two checks above are vacuous',
       ),
     );
   }
 
-  for (final entry in engineAlsoFreeOfDartUi.entries) {
-    final file = File('${dir.path}/${entry.key}');
-    if (!file.existsSync()) {
-      found.add(
-        Finding(
-          'flutter3d/${entry.key}',
-          'moved or was renamed; the rule moves with it',
-        ),
-      );
-    } else if (reaches(file.readAsStringSync(), 'dart:ui')) {
-      found.add(
-        Finding('flutter3d/${entry.key}', 'reaches dart:ui — ${entry.value}'),
-      );
-    }
-  }
+  // `engineAlsoFreeOfDartUi` held one file to a stricter rule than the rest
+  // of `flutter3d` — `frame_resources.dart`, so the frame graph stayed
+  // unit-testable off a device. It moved to `flutter3d_core` with the rest
+  // of the render graph (mcp-03n), where `flatDartPackages`'s own check
+  // already holds *every* file to that rule, not one — the exemption this
+  // loop existed to apply has nothing left to apply that the wider rule does
+  // not already cover.
 
+  final engine = packages['flutter3d'];
+  if (engine == null) {
+    found.add(const Finding('flutter3d', 'is not there'));
+    return found;
+  }
   for (final entry in engineCompilesOffDevice.entries) {
-    final file = File('${dir.path}/${entry.key}');
+    final file = File('${engine.path}/${entry.key}');
     if (!file.existsSync()) {
       found.add(
         Finding(
@@ -1181,9 +1186,6 @@ List<Finding> _exemptionsResolve() {
         ),
       );
     }
-  }
-  for (final path in engineAlsoFreeOfDartUi.keys) {
-    check('engineAlsoFreeOfDartUi', 'flutter3d', path);
   }
   for (final path in engineCompilesOffDevice.keys) {
     check('engineCompilesOffDevice', 'flutter3d', path);

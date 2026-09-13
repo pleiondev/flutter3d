@@ -1,24 +1,34 @@
 import 'dart:isolate';
 import 'dart:typed_data';
-import 'dart:ui' as ui;
 
-import 'package:flutter/foundation.dart' show kIsWeb;
 // `Ktx2Texture` hidden: this package's own thin wrapper of the same name,
 // imported below from `ktx2/ktx2.dart`, is the one that maps to a
 // `TextureFormat` — see that file's doc comment for why the two exist.
 import 'package:flutter3d_formats/flutter3d_formats.dart' hide Ktx2Texture;
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 
+import 'image_decoder.dart';
 import 'ktx2/ktx2.dart';
+
+export 'image_decoder.dart';
+
+/// Whether this build has no isolates in it — see `model_loader.dart`'s own
+/// copy of this constant for why it replaces `kIsWeb` here (mcp-03n).
+const bool _isWeb = bool.fromEnvironment('dart.library.js_interop');
 
 /// Decodes an encoded image (PNG, JPEG, KTX2, …) and uploads it through
 /// [device].
 ///
-/// PNG/JPEG decoding goes through `dart:ui`, which is why this sits beside the
-/// decoders rather than in the glTF layer: keeping the parser free of
-/// `dart:ui` is what lets it be unit tested without a Flutter binding. KTX2 is
-/// sniffed and routed to [Ktx2Texture] before `dart:ui` ever sees the bytes —
-/// see [_uploadKtx2].
+/// **[decodeImage] is required, and asks nothing about how.** PNG/JPEG
+/// decoding used to go straight through `dart:ui`, here in this file — which
+/// is exactly the one call that could not survive mcp-03n's split, since a
+/// flat package cannot name `dart:ui` and stay flat. `flutter3d`'s own
+/// `defaultImageDecoder` supplies it for every existing caller reaching this
+/// through `ModelAsset.fromDocument` or `bindMaterial`; a `dart run` caller
+/// with no Flutter SDK passes one of its own. KTX2 is sniffed and routed to
+/// [Ktx2Texture] before [decodeImage] ever sees the bytes — see
+/// [_uploadKtx2] — so a headless caller with no PNG decoder at all can still
+/// upload every KTX2 asset a build ships.
 ///
 /// It used to live in the backend directory, because uploading needed the
 /// backend context. Nothing about decoding a PNG was ever backend-specific;
@@ -54,6 +64,7 @@ import 'ktx2/ktx2.dart';
 Future<TextureHandle?> uploadEncodedImage(
   GraphicsDevice device,
   Uint8List encoded, {
+  required ImageDecoder decodeImage,
   TextureSampling sampling = const TextureSampling(),
   void Function(String message)? report,
 }) async {
@@ -63,42 +74,31 @@ Future<TextureHandle?> uploadEncodedImage(
     return _uploadKtx2(device, sampling, encoded, report);
   }
 
-  final ui.Codec codec;
+  final Rgba8Image? image;
   try {
-    codec = await ui.instantiateImageCodec(encoded);
+    image = await decodeImage(encoded);
   } catch (_) {
     // An unsupported or corrupt image should degrade to "no texture", not take
     // the whole model down with it.
     return null;
   }
+  if (image == null) return null;
 
-  final frame = await codec.getNextFrame();
-  final image = frame.image;
-  try {
-    // Straight, not premultiplied: base-colour textures are sampled and then
-    // multiplied by the material factor, so premultiplied alpha would darken
-    // translucent texels twice.
-    final data = await image.toByteData(
-      format: ui.ImageByteFormat.rawStraightRgba,
-    );
-    if (data == null) return null;
-
-    // Built here, from the bytes that were just decoded, rather than anywhere
-    // downstream: this is the one place in the engine that holds an image's
-    // pixels and its dimensions at the same moment, and building the chain
-    // elsewhere would mean decoding the PNG twice. `ModelAsset` caches by image
-    // index, so each distinct image pays for its chain once.
-    return _uploadRgba8(device, sampling, image.width, image.height, data);
-  } finally {
-    // Both halves of the decode: the frame image, and the codec it came from.
-    // The codec is a native decoder instance, and leaking one per texture is
-    // exactly the kind of leak the image's own dispose was added to prevent.
-    image.dispose();
-    codec.dispose();
-  }
+  // Built here, from the bytes that were just decoded, rather than anywhere
+  // downstream: this is the one place in the engine that holds an image's
+  // pixels and its dimensions at the same moment, and building the chain
+  // elsewhere would mean decoding the PNG twice. `ModelAsset` caches by image
+  // index, so each distinct image pays for its chain once.
+  return _uploadRgba8(
+    device,
+    sampling,
+    image.width,
+    image.height,
+    ByteData.sublistView(image.pixels),
+  );
 }
 
-/// The tail [uploadEncodedImage] shares between a `dart:ui` decode and an
+/// The tail [uploadEncodedImage] shares between a [decodeImage] result and an
 /// ETC1S transcode: both end up holding straight RGBA8 bytes and a
 /// width/height at the same moment, which is exactly what [buildsMipChain]
 /// and [MipChain.build] want, and a second call site building the chain
@@ -152,7 +152,7 @@ Future<TextureHandle?> _uploadKtx2(
 ) async {
   final Ktx2Texture texture;
   try {
-    texture = kIsWeb || !isBasisUniversalKtx2(encoded)
+    texture = _isWeb || !isBasisUniversalKtx2(encoded)
         ? Ktx2Texture.parse(encoded)
         : await Isolate.run(() => Ktx2Texture.parse(encoded));
   } on Ktx2FormatException catch (error) {

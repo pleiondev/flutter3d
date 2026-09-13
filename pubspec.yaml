@@ -11,6 +11,7 @@ environment:
 
 workspace:
   - packages/flutter3d
+  - packages/flutter3d_core
   - packages/flutter3d_geometry
   - packages/flutter3d_formats
   - packages/flutter3d_fbx

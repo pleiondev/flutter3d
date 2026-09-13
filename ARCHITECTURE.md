@@ -202,7 +202,8 @@ point of §3.3.
 | `flutter3d_cpu` | A software rasteriser: a second reference, and rendering with no GPU |
 | `flutter3d_conformance` | The contract suite every backend passes |
 | `flutter3d_shaders` | The GLSL both hardware backends compile, and the list of required entry points |
-| `flutter3d` | The engine: scene graph, render list, passes, materials, assets, animation |
+| `flutter3d` | The engine's thin Flutter shell over `flutter3d_core`: `BundleAssetSource`, `defaultImageDecoder`, `ModelAsset`, `bindMaterial` |
+| `flutter3d_core` | The engine's rendering core with no Flutter SDK behind it (mcp-03n): scene graph, render list, passes, materials, animation, and asset loading down to an injected reader or decoder |
 | `flutter3d_samples` | The Khronos test models the decoders are checked against and the demo browses. Fixtures, so that a game depending on the engine does not carry them |
 | `flutter3d_particles` | CPU emitters and the particle pass contributor |
 | `flutter3d_particles_core` | The particle simulation `flutter3d_particles` draws: `ParticleSystem`, emission, affectors, curves. No Flutter, so `flutter3d_model_core`'s `BakeParticleSystemCommand` depends on it directly. Plain Dart |
@@ -1873,7 +1874,7 @@ entities a game defines.
 |---|---|
 | Style | `dart format` |
 | Analysis | `flutter analyze` clean across the workspace, no warnings |
-| Unit tests | **7331 tests** across 42 packages and 8 applications |
+| Unit tests | **7332 tests** across 43 packages and 8 applications |
 | Structure rules | 32, `dart run tool/structure.dart`, the first CI step |
 | CI | GitHub Actions over `tool/ci.sh`, on `ubuntu-latest`, with no graphics card |
 
@@ -2760,7 +2761,8 @@ what went out at 0.4.2.
    `flutter3d_audio`, `flutter3d_geometry`, `flutter3d_particles_core`,
    `pad_input`, `pointer_lock`
 2. `flutter3d_formats`, `flutter3d_mesh`, `flutter3d_fbx`
-3. `flutter3d_conformance`, `flutter3d_model_core`, `flutter3d_build`
+3. `flutter3d_conformance`, `flutter3d_core`, `flutter3d_model_core`,
+   `flutter3d_build`
 4. `flutter3d`, `flutter3d_physics`, `flutter3d_rig`
 5. `flutter3d_impeller`, `flutter3d_webgl`, `flutter3d_webgpu`, `flutter3d_cpu`,
    `flutter3d_particles`, `flutter3d_sim`, `flutter3d_stereo`

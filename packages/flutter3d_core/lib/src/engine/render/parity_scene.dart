@@ -21,9 +21,8 @@
 /// every number agreed with it.
 library;
 
+import 'package:flutter3d_core/flutter3d_core.dart';
 import 'package:vector_math/vector_math.dart';
-
-import '../../../flutter3d.dart';
 
 /// Builds the shared comparison scene on `device`.
 ///

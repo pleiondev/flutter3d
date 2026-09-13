@@ -37,7 +37,11 @@ void main() {
     expect(info, isNotNull, reason: 'a real KTX2 file should read a header');
 
     final it = cpuTestDevice();
-    final handle = await uploadEncodedImage(it.device, bytes);
+    final handle = await uploadEncodedImage(
+      it.device,
+      bytes,
+      decodeImage: defaultImageDecoder,
+    );
 
     expect(handle, isNotNull, reason: 'a plain RGBA8 upload should not be '
         'refused by a device that samples everything uncompressed');

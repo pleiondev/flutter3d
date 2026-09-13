@@ -2,8 +2,11 @@ import 'dart:developer' as developer;
 import 'dart:isolate';
 import 'dart:typed_data';
 
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter3d_formats/flutter3d_formats.dart';
+
+/// Whether this build has no isolates in it — see `model_loader.dart`'s own
+/// copy of this constant for why it replaces `kIsWeb` here (mcp-03n).
+const bool _isWeb = bool.fromEnvironment('dart.library.js_interop');
 
 /// Which format [encodeModel]/[encodeModelInIsolate] writes.
 enum ModelWriteFormat {
@@ -76,7 +79,7 @@ Future<Uint8List> encodeModelInIsolate(ModelWriteRequest request) async {
   // this fails at run time rather than build time if it were tried —
   // encoding in place is what the name promises not to do and the only
   // thing available.
-  if (kIsWeb) return encodeModel(request);
+  if (_isWeb) return encodeModel(request);
 
   final task = developer.TimelineTask()
     ..start(

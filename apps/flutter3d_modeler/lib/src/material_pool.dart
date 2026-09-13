@@ -91,6 +91,7 @@ final class MaterialPool {
       final uploaded = await uploadEncodedImage(
         device,
         bytes,
+        decodeImage: defaultImageDecoder,
         sampling: sampling,
         report: (String message) => warnings.add('image $index: $message'),
       );

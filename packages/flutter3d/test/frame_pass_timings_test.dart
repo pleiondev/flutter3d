@@ -4,10 +4,10 @@
 ///     flutter test test/frame_pass_timings_test.dart
 library;
 
-import 'package:flutter3d/src/engine/render/render_view.dart';
-import 'package:flutter3d/src/engine/render/renderer.dart';
-import 'package:flutter3d/src/engine/scene/camera_node.dart';
-import 'package:flutter3d/src/engine/scene/scene.dart';
+import 'package:flutter3d_core/src/engine/render/render_view.dart';
+import 'package:flutter3d_core/src/engine/render/renderer.dart';
+import 'package:flutter3d_core/src/engine/scene/camera_node.dart';
+import 'package:flutter3d_core/src/engine/scene/scene.dart';
 import 'package:flutter3d_hardware/testing.dart';
 import 'package:flutter_test/flutter_test.dart';
 
