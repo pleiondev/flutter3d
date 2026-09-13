@@ -119,6 +119,8 @@
     "mat-29": "done",
     "mat-20": "done",
     "mat-30": "done",
+    "mcp-01n": "partial",
+    "mcp-03n": "done",
     "mcp-09n": "done",
     "mcp-10n": "done",
     "mcp-11n": "done",
@@ -307,6 +309,9 @@
     "fmt-29d": "done"
   },
   "absent": {
+    "pro-sim-01": {
+      "flutter3d_cloth": "the row's own history: the package existed under this name until doc/package-merge-plan.md §3.1 folded it into flutter3d_physics, and the row says so in the same sentence — the name is cited as what it used to be called, not as a claim that it still exists"
+    },
     "view-20": {
       "ViewportPane": "поглощено pro-lod-04, чья собственная строка называет тот же виджет `RenderView` — тип, который приложение уже называет своим вьюпортом (`ModelerViewport`/`RenderView`, см. object_picking.dart). `ViewportPane` — рабочее имя из этой более ранней строки, а не отдельный тип, который нужно построить"
     },

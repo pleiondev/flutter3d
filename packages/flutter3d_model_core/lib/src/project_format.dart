@@ -1478,6 +1478,14 @@ Map<String, Object?> _materialJson(ProjectMaterial material) {
     'alphaCutoff': surface.alphaCutoff,
     'doubleSided': surface.doubleSided,
     'unlit': surface.unlit,
+    // Younger than the fields above, read the same optional way `fmat` and
+    // `graph` are (`_readMaterials`'s own doc comment): absent means no
+    // shader has been chosen, not a refusal. Only a built-in shader's own
+    // name travels here — `.fmat`'s own `_writeLighting` also writes a
+    // custom shader as an object, which a project file has no reader for
+    // yet, since nothing here builds one.
+    if (surface.lightingModel case final LightingModel model)
+      'lightingModel': model.shaderName,
   };
 }
 
@@ -1616,6 +1624,11 @@ Map<String, Object?>? _bindingJson(TextureBinding? binding) => binding == null
             alphaCutoff: alphaCutoff.toDouble(),
             doubleSided: doubleSided,
             unlit: unlit,
+            lightingModel: _lightingModelNamed(
+              entry['lightingModel'],
+              warnings,
+              'Material $i\'s lightingModel',
+            ),
           ),
         ),
       );
@@ -1791,6 +1804,36 @@ T _named<T extends Enum>(
     '${fallback.name}.',
   );
   return fallback;
+}
+
+/// The [LightingModel] [value] names by its `shaderName`, or null.
+///
+/// Unlike [_named], a missing [value] is not a refusal or a fallback — it is
+/// `mat-04`'s own "not chosen" case, the same as a material with no [fmat]
+/// bound. `LightingModel` is not an [Enum] (it is `final` with `const`
+/// instances, the shape a genre-open vocabulary takes in this repository),
+/// so the lookup is by [LightingModel.shaderName] rather than [_named]'s
+/// `Enum.name`. Only [LightingModel.builtIn] is searched: a custom shader
+/// `.fmat` can describe as an object has no representation here yet, since
+/// nothing that writes a project file builds one.
+LightingModel? _lightingModelNamed(
+  Object? value,
+  List<String> warnings,
+  String context,
+) {
+  if (value == null) return null;
+  if (value is! String) {
+    warnings.add('$context is not a shader name; ignored.');
+    return null;
+  }
+  for (final LightingModel model in LightingModel.builtIn) {
+    if (model.shaderName == value) return model;
+  }
+  warnings.add(
+    '$context names "$value", which this build does not know; opened as '
+    'unset.',
+  );
+  return null;
 }
 
 /// The images, or the sentence that stops the file being read.
