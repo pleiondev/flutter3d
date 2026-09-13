@@ -69,8 +69,9 @@ Map<String, String> cookiesOf(Request request) => {
 /// instead of every form having a first-visit branch.
 Middleware csrfCookie(CookiePolicy policy) =>
     (Handler inner) => (Request request) async {
-      if (cookiesOf(request).containsKey(policy.csrfName))
+      if (cookiesOf(request).containsKey(policy.csrfName)) {
         return inner(request);
+      }
 
       final token = newToken();
       final existing = request.headers['cookie'];

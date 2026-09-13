@@ -289,8 +289,9 @@ Handler buildHandler(Services services) {
       );
     })
     ..post('/api/v1/models', (Request request) async {
-      if (!scriptIsOurs(request))
+      if (!scriptIsOurs(request)) {
         return json(403, {'error': 'This page is out of date. Reload it.'});
+      }
       final user = await userOf(request);
       if (user == null) return json(401, {'error': 'Sign in again.'});
       if (!canUpload(user)) {
@@ -335,12 +336,14 @@ Handler buildHandler(Services services) {
     ..get('/m/<ref>', (Request request, String ref) async {
       final viewer = await userOf(request);
       final model = await _modelOf(services, ref);
-      if (model == null || !canView(model, viewer))
+      if (model == null || !canView(model, viewer)) {
         return _notFound(request, viewer: viewer);
+      }
       // An old or hand-typed slug still finds the model; the address it is
       // shown at is the current one.
-      if (ref != '${model.id}-${model.slug}')
+      if (ref != '${model.id}-${model.slug}') {
         return Response.movedPermanently(model.path);
+      }
       return htmlPage(
         ModelPage(
           model: model,
@@ -371,8 +374,9 @@ Handler buildHandler(Services services) {
       return _editing(services, request, form, id, (model) async {
         final hashes = await services.models.delete(model.id);
         for (final hash in hashes.toSet()) {
-          if (!await services.models.isReferenced(hash))
+          if (!await services.models.isReferenced(hash)) {
             await services.blobs.delete(hash);
+          }
         }
         return seeOther('/me?said=deleted');
       });
@@ -380,8 +384,9 @@ Handler buildHandler(Services services) {
     ..get('/files/<id|[0-9]+>/source', (Request request, String id) async {
       final viewer = await userOf(request);
       final model = await services.models.byId(int.parse(id));
-      if (model == null || !canView(model, viewer))
+      if (model == null || !canView(model, viewer)) {
         return _notFound(request, viewer: viewer);
+      }
       final file = await services.models.fileOf(model.id, FileKind.source);
       if (file == null) return _notFound(request, viewer: viewer);
       return _serveBlob(services, request, file, public: model.isPublic);
@@ -490,8 +495,9 @@ Future<Response> _editing(
   if (!formIsOurs(request, form, services.cookies)) return _staleForm(request);
   final user = await userOf(request);
   final model = await services.models.byId(int.parse(id));
-  if (model == null || !canEdit(model, user))
+  if (model == null || !canEdit(model, user)) {
     return _notFound(request, viewer: user);
+  }
   return change(model);
 }
 
@@ -516,8 +522,9 @@ Future<Response> _serveBlob(
     );
   }
   final stream = await services.blobs.open(file.blobSha256);
-  if (stream == null)
+  if (stream == null) {
     return Response.internalServerError(body: 'The file is missing.');
+  }
 
   final inline = request.url.queryParameters.containsKey('inline');
   final name = file.filename.replaceAll('"', '');

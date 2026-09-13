@@ -1,7 +1,6 @@
 {
   "version": 1,
   "name": "tpl-04 viewer",
-  "generatedBy": "tpl-04",
   "fogColor": [0.05, 0.04, 0.06],
   "fogDensity": 0.0,
   "materials": {

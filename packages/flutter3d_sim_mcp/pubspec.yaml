@@ -53,6 +53,12 @@ dev_dependencies:
   # decision and the suite is the host here.
   flutter3d_game_shooter: ^0.7.0
 
+  # `WidgetSurfaceKind` — the shipped crypt names a `widget_surface` entity
+  # (`wg-02`'s own terminal), and `ShooterHeadlessGame`'s own vocabulary does
+  # not know the word without a host handing it in, the same way
+  # `flutter3d_demo_dungeon`'s `main.dart` does for the real app.
+  flutter3d_bridge: ^0.6.0
+
 # **Why this package needs Flutter, unlike `flutter3d_editor_mcp` and
 # `flutter3d_model_mcp`.** `frame` draws the level, and the renderer it draws
 # with (`flutter3d_cpu`, under `flutter3d_render_mcp`) needs `dart:ui`, which

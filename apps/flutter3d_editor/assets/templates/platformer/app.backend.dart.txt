@@ -17,4 +17,4 @@
 /// One line, and the web build comes free with it.
 library;
 
-export 'package:flutter3d_app/flutter3d_app.dart' show openDevice;
+export 'package:flutter3d_app/flutter3d_app.dart' show openDevice, presentFrame;

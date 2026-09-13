@@ -230,6 +230,15 @@ step "analyze cloud/server" in_dir cloud/server dart analyze --fatal-infos
 step "migrations cloud/server" in_dir cloud/server dart run tool/embed_migrations.dart --check
 step "test cloud/server" in_dir cloud/server dart test -x db
 
+# **The lessons service, same reason as the models one above.** `edu-02`'s own
+# public page and iframe embed for a lesson document — `flutter3d_lessons`,
+# serving `lessons.pleion.dev` — sat here with nobody running its `pub get`,
+# `analyze` or `test` at all: not a package under `packages/`, not part of the
+# pub workspace, and until this line, not part of this script either.
+step "pub get cloud/lessons/server" in_dir cloud/lessons/server dart pub get
+step "analyze cloud/lessons/server" in_dir cloud/lessons/server dart analyze --fatal-infos
+step "test cloud/lessons/server" in_dir cloud/lessons/server dart test
+
 # **Five test files that nothing had ever run.** `flutter3d_webgl` marks them
 # `@TestOn('browser')` — the conformance suite, the parity comparison against
 # Impeller, a whole engine frame — so the loop above skips every one of them and

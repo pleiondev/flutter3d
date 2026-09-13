@@ -41,6 +41,22 @@ dependencies:
   flutter3d_model_core:
     path: ../../packages/flutter3d_model_core
 
+  # `flutter3d_model_core`'s own retargeting and binding algorithms, read the
+  # same way here as everywhere else that reads a project.
+  flutter3d_rig:
+    path: ../../packages/flutter3d_rig
+
+  # `ParticleSystem`, what a baked simulation cache reads back — the same
+  # package `flutter3d_model_core` depends on for `pro-sim-02`'s own row.
+  flutter3d_particles_core:
+    path: ../../packages/flutter3d_particles_core
+
+  # Published, but not yet at the `0.7.0` `flutter3d_model_core` now asks
+  # for (`doc/package-merge-plan.md` §3.1 folded cloth in here) — a path
+  # dependency until that release actually goes out.
+  flutter3d_physics:
+    path: ../../packages/flutter3d_physics
+
   # Argon2id for passwords, in Dart. The FFI binding to libargon2 stopped at
   # Dart 2, and a password hash is the one place where a dependency that has
   # stopped is not a trade worth making.
@@ -56,14 +72,16 @@ dev_dependencies:
   lints: ^6.0.0
   test: ^1.25.0
 
-# **Four packages by path, because none of them is on pub.dev yet.** The
+# **Seven packages by path** — six not on pub.dev yet, one (`flutter3d_physics`)
+# published but not at the version `flutter3d_model_core` now asks for. The
 # geometry and format packages were split out after the 0.6.0 set went out and
-# go with the next one; the mesh and document layers are newer still. Until
-# they are published, a path is the only way to name them, and an override is
-# what makes the path win over the `^0.6.0` they ask of each other.
+# go with the next one; the mesh, document, rig and particle layers are newer
+# still. Until they are all published at a matching version, a path is the
+# only way to name them, and an override is what makes the path win over the
+# version they ask of each other.
 #
-# When the next set is published, these four lines go and the two dependencies
-# above become ordinary hosted ones.
+# When the next set is published, these seven lines go and the five
+# dependencies above become ordinary hosted ones.
 dependency_overrides:
   flutter3d_geometry:
     path: ../../packages/flutter3d_geometry
@@ -73,6 +91,12 @@ dependency_overrides:
     path: ../../packages/flutter3d_mesh
   flutter3d_model_core:
     path: ../../packages/flutter3d_model_core
+  flutter3d_rig:
+    path: ../../packages/flutter3d_rig
+  flutter3d_particles_core:
+    path: ../../packages/flutter3d_particles_core
+  flutter3d_physics:
+    path: ../../packages/flutter3d_physics
 
 jaspr:
   mode: server

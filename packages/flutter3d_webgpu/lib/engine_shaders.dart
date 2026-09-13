@@ -10495,12 +10495,6 @@ fn main(@location(5) v_uv: vec2<f32>) -> FragmentOutput {
     ),
     'ShadowDepth': WebGpuStage(
       wgsl: r'''
-struct FogInfo {
-    fog: vec4<f32>,
-    eye: vec4<f32>,
-    forward: vec4<f32>,
-}
-
 var<private> g_debug_surface: vec3<f32>;
 var<private> g_debug_surface_on: bool;
 var<private> frag_color: vec4<f32>;
@@ -10511,14 +10505,12 @@ var<private> v_texcoord_1: vec2<f32>;
 var<private> v_tangent_1: vec4<f32>;
 var<private> v_color_1: vec4<f32>;
 var<private> v_lightmap_uv_1: vec2<f32>;
-@group(1) @binding(0) 
-var<uniform> fog_info: FogInfo;
 
 fn main_1() {
     g_debug_surface = vec3<f32>(0f, 0f, 0f);
     g_debug_surface_on = false;
-    let _e18 = gl_FragCoord_1[2u];
-    frag_color = vec4<f32>(_e18, 0f, 0f, 1f);
+    let _e17 = gl_FragCoord_1[2u];
+    frag_color = vec4<f32>(_e17, 0f, 0f, 1f);
     return;
 }
 
@@ -10537,23 +10529,7 @@ fn main(@builtin(position) gl_FragCoord: vec4<f32>, @location(6) v_world_positio
 }
 ''',
       attributes: <WebGpuAttribute>[],
-      blocks: <WebGpuBlock>[
-        WebGpuBlock(
-          name: 'FogInfo',
-          group: 1,
-          binding: 0,
-          sizeInBytes: 48,
-          members: <WebGpuBlockMember>[
-            WebGpuBlockMember(name: 'fog', offsetInBytes: 0, sizeInBytes: 16),
-            WebGpuBlockMember(name: 'eye', offsetInBytes: 16, sizeInBytes: 16),
-            WebGpuBlockMember(
-              name: 'forward',
-              offsetInBytes: 32,
-              sizeInBytes: 16,
-            ),
-          ],
-        ),
-      ],
+      blocks: <WebGpuBlock>[],
       samplers: <WebGpuSampler>[],
     ),
     'Particle': WebGpuStage(

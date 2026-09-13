@@ -503,11 +503,10 @@ void webgpuOverwriteTexture(
   ScreenRect rect,
 ) {
   final texture = (target.backend as WebGpuTexture).texture;
-  final layout = gpuBlockLayoutOf(
-    TextureFormat.r8g8b8a8UNormInt,
-    rect.width,
-    rect.height,
-  );
+  // Not `gpuBlockLayoutOf`: that reads `TextureFormat.blockLayout`, which
+  // only a compressed format carries — `r8g8b8a8UNormInt` is what this
+  // function's own doc comment says it always is, four bytes a pixel with
+  // no block to round up to.
   gpu.queue.writeTexture(
     GPUTexelCopyTextureInfo(
       texture: texture,
@@ -518,8 +517,8 @@ void webgpuOverwriteTexture(
     rgba.buffer.asUint8List(rgba.offsetInBytes, rgba.lengthInBytes).toJS,
     GPUTexelCopyBufferLayout(
       offset: 0,
-      bytesPerRow: layout.bytesPerRow,
-      rowsPerImage: layout.rowsPerImage,
+      bytesPerRow: rect.width * 4,
+      rowsPerImage: rect.height,
     ),
     GPUExtent3DDict(
       width: rect.width,

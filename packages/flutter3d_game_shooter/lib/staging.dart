@@ -256,7 +256,16 @@ Staged stage(
 /// A host composes this with `flutter3d_sim_mcp`'s session and playtest; the
 /// tool names no genre and this package names no tool.
 final class ShooterHeadlessGame implements HeadlessGame {
-  const ShooterHeadlessGame();
+  const ShooterHeadlessGame({this.extra = const <EntityKind>[]});
+
+  /// A kind this package cannot know about without depending on whoever
+  /// defines it — `sampleRegistry`'s own `extra` parameter, threaded through
+  /// rather than duplicated. A host that plays a real shipped level headless
+  /// (`flutter3d_sim_mcp`'s own crypt) passes `WidgetSurfaceKind()` here the
+  /// same way `flutter3d_demo_dungeon`'s `main.dart` does for the real app,
+  /// since a level naming a word this game's own vocabulary does not know
+  /// refuses to load rather than silently dropping the entity.
+  final List<EntityKind> extra;
 
   @override
   String get name => 'shooter';
@@ -267,7 +276,7 @@ final class ShooterHeadlessGame implements HeadlessGame {
   };
 
   @override
-  EntityRegistry registry() => sampleRegistry();
+  EntityRegistry registry() => sampleRegistry(extra: extra);
 
   @override
   HeadlessRun start(Level level, CollisionWorld world, InputState input) =>

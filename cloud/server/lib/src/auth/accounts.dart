@@ -156,8 +156,9 @@ class Accounts {
     final user = await users.byEmail(address);
     final stored = user == null ? null : await users.passwordHashOf(user.id);
     final matches = await _verify(password, stored ?? await _decoy);
-    if (user == null || stored == null || !matches)
+    if (user == null || stored == null || !matches) {
       return const SignInRefused();
+    }
 
     await limiter.clear('signin:to:$address');
     if (needsRehash(stored)) {
@@ -260,8 +261,9 @@ class Accounts {
     );
     if (weak.isNotEmpty) return weak.join(' ');
     if (confirmation != next) return 'The two new passwords do not match.';
-    if (next == current)
+    if (next == current) {
       return 'The new password is the same as the current one.';
+    }
 
     await _replacePassword(user, next);
     return null;

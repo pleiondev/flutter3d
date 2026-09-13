@@ -245,6 +245,27 @@ packages:
       relative: true
     source: path
     version: "0.6.0"
+  flutter3d_particles_core:
+    dependency: "direct main"
+    description:
+      path: "../../packages/flutter3d_particles_core"
+      relative: true
+    source: path
+    version: "0.6.0"
+  flutter3d_physics:
+    dependency: "direct main"
+    description:
+      path: "../../packages/flutter3d_physics"
+      relative: true
+    source: path
+    version: "0.7.0"
+  flutter3d_rig:
+    dependency: "direct main"
+    description:
+      path: "../../packages/flutter3d_rig"
+      relative: true
+    source: path
+    version: "0.6.0"
   frontend_server_client:
     dependency: transitive
     description:
