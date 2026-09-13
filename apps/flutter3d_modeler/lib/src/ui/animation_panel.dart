@@ -10,15 +10,14 @@
 /// [onAddClip] are the only two things this panel ever asks a caller to run
 /// as a real command.
 ///
-/// **Not built here: a live pose.** Nothing in this application yet
-/// evaluates a sampled clip back onto the scene nodes a `ModelInstance`
-/// holds — `anim-08`'s own skeleton overlay draws the rest pose, not a
-/// played one. Wiring an `AnimationPlayer` to the viewport so scrubbing this
-/// timeline moves the mesh on screen is real, separate work this row's own
-/// acceptance does not ask for: `MoveKeys` reaching history and the
-/// `modeler-timeline` golden are both already true of [TimelinePanel] on
-/// its own, and this file's job is only to give the four widgets `anim-07`
-/// names a screen to share.
+/// **The live pose is reported, not applied, here.** [onSelectClip] and
+/// [onTimeChanged] fire alongside this panel's own local selection and
+/// scrub state, so a caller holding the real scene — `main.dart`'s own
+/// `TimelinePlayback` — can sample the clip onto it. This widget still has
+/// no `ModelProject` and no scene of its own to apply a pose to; it only
+/// ever names which clip and which moment. `anim-08`'s own skeleton overlay
+/// still draws the rest pose regardless — a played pose moving the mesh and
+/// an overlay drawn over it are two different screens' worth of work.
 library;
 
 import 'package:flutter/material.dart';
@@ -38,6 +37,8 @@ class AnimationPanel extends StatefulWidget {
     this.skeleton,
     required this.onMoveKeys,
     required this.onAddClip,
+    this.onSelectClip,
+    this.onTimeChanged,
   });
 
   /// The project's own actions — [ModelProject.clips].
@@ -59,6 +60,15 @@ class AnimationPanel extends StatefulWidget {
   /// "Add" was pressed under the action list — [AddClip], `anim-04`'s own
   /// row.
   final VoidCallback onAddClip;
+
+  /// Which clip is open changed — including to null, when a clip closes or
+  /// the selection is clamped out from under it — so a caller previewing a
+  /// pose knows to stop.
+  final ValueChanged<int?>? onSelectClip;
+
+  /// The scrub position moved, in seconds into the open clip. Never fires
+  /// with no clip open, the same way [TimelinePanel] itself only exists then.
+  final ValueChanged<double>? onTimeChanged;
 
   @override
   State<AnimationPanel> createState() => _AnimationPanelState();
@@ -82,15 +92,19 @@ class _AnimationPanelState extends State<AnimationPanel> {
       _selectedClip = null;
       _selectedTrack = null;
       _selectedKey = null;
+      widget.onSelectClip?.call(null);
     }
   }
 
-  void _selectClip(int index) => setState(() {
-    _selectedClip = index;
-    _selectedTrack = null;
-    _selectedKey = null;
-    _time = 0.0;
-  });
+  void _selectClip(int index) {
+    setState(() {
+      _selectedClip = index;
+      _selectedTrack = null;
+      _selectedKey = null;
+      _time = 0.0;
+    });
+    widget.onSelectClip?.call(index);
+  }
 
   String _jointName(int jointId) {
     for (final object in widget.objects) {
@@ -130,7 +144,10 @@ class _AnimationPanelState extends State<AnimationPanel> {
               selectedTrack: _selectedTrack,
               selectedKey: _selectedKey,
               onMoveKeys: widget.onMoveKeys,
-              onSeek: (double t) => setState(() => _time = t),
+              onSeek: (double t) {
+                setState(() => _time = t);
+                widget.onTimeChanged?.call(t);
+              },
               onSelectKey: (int track, int key) => setState(() {
                 _selectedTrack = track;
                 _selectedKey = key;

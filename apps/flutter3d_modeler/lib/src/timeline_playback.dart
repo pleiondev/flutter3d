@@ -18,6 +18,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 
+import 'scene_sync.dart';
+
 /// The coarse half of a timeline's own transport — what a `Cubit` would hold
 /// as `playback`.
 enum PlaybackStatus {
@@ -69,6 +71,49 @@ final class Playback {
 
   @override
   String toString() => 'Playback($status, clip $clipIndex, ${speed}x)';
+}
+
+/// An [AnimationPlayer] over [project]'s own clips, targeting the live scene
+/// [sync] tracks — the same [ProjectTrack.objectId] → node remap
+/// `ProjectModelDocument.toModelDocument` already does for an export, done
+/// here against [SceneSync.nodeOf] instead of a fresh [ModelNode] list.
+///
+/// **One player for every clip, not one per clip**, because
+/// [AnimationPlayer.targets] is shared across whichever of [AnimationPlayer.clips]
+/// is playing — the same reason [AnimationPanel.onSelectClip] hands this
+/// class a clip *index* rather than asking for a new player each time.
+///
+/// A target is null wherever [SceneSync] has not built a node for that
+/// object — closed over a socket, say, or a track outliving the object it
+/// named — and [AnimationPlayer] already skips a null target on its own.
+AnimationPlayer buildPreviewPlayer(ModelProject project, SceneSync sync) {
+  final ids = <int>{
+    for (final ProjectClip clip in project.clips)
+      for (final ProjectTrack track in clip.tracks) track.objectId,
+  }.toList(growable: false);
+  final indexOfId = <int, int>{for (var i = 0; i < ids.length; i++) ids[i]: i};
+
+  return AnimationPlayer(
+    clips: <AnimationClip>[
+      for (final ProjectClip clip in project.clips)
+        AnimationClip(
+          name: clip.name,
+          extras: clip.extras,
+          tracks: <AnimationTrack>[
+            for (final ProjectTrack track in clip.tracks)
+              AnimationTrack(
+                nodeIndex: indexOfId[track.objectId]!,
+                path: track.track.path,
+                interpolation: track.track.interpolation,
+                times: track.track.times,
+                values: track.track.values,
+                componentCount: track.track.componentCount,
+              ),
+          ],
+        ),
+    ],
+    targets: <AnimationTarget?>[for (final int id in ids) sync.nodeOf(id)],
+  );
 }
 
 /// Drives one [AnimationPlayer] — play, pause, seek, and a per-frame tick a

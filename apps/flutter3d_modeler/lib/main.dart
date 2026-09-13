@@ -61,8 +61,10 @@ import 'src/orbit_run.dart';
 import 'src/orientation_dial.dart';
 import 'src/recent_projects.dart';
 import 'src/report_problem.dart';
+import 'src/scene_sync.dart';
 import 'src/selection_box.dart';
 import 'src/staging.dart';
+import 'src/timeline_playback.dart';
 import 'src/transform_dispatch.dart';
 import 'src/transform_fields.dart';
 import 'src/transform_gizmo.dart';
@@ -157,22 +159,24 @@ void main() {
   };
   runZonedGuarded(
     () => runApp(const ModelerApp()),
-    (Object error, StackTrace stack) => unawaited(_onUncaughtError(error, stack)),
+    (Object error, StackTrace stack) =>
+        unawaited(_onUncaughtError(error, stack)),
   );
 }
 
 /// Reaches whatever `ModelerScreen` is on screen right now — see
 /// [_liveCrashScreen]'s own doc comment for why a top-level error handler
 /// needs a door like this at all.
-Future<void> _onUncaughtError(Object error, StackTrace stackTrace) => handleCrash(
-  error: error,
-  stackTrace: stackTrace,
-  cubit: _liveCrashScreen?._cubit,
-  storage: _liveCrashScreen?._autosave?.storage,
-  sessionId: _kAutosaveSessionId,
-  environment: 'Flutter, ${environmentSummary()}',
-  dialogContext: () => _rootNavigatorKey.currentContext,
-);
+Future<void> _onUncaughtError(Object error, StackTrace stackTrace) =>
+    handleCrash(
+      error: error,
+      stackTrace: stackTrace,
+      cubit: _liveCrashScreen?._cubit,
+      storage: _liveCrashScreen?._autosave?.storage,
+      sessionId: _kAutosaveSessionId,
+      environment: 'Flutter, ${environmentSummary()}',
+      dialogContext: () => _rootNavigatorKey.currentContext,
+    );
 
 /// Where the dialog [_onUncaughtError] shows actually opens — a
 /// `Navigator` above every route this application ever pushes, rather than
@@ -401,6 +405,55 @@ class _ModelerScreenState extends State<ModelerScreen>
   /// nobody can aim.
   Duration _lastTick = Duration.zero;
 
+  /// `anim-07`'s own live pose: whichever clip [AnimationPanel] has open,
+  /// sampled onto the scene nodes [ModelerStage.sync] tracks — see
+  /// `timeline_playback.dart`.
+  ///
+  /// Rebuilt only when [ModelProject.clips] or the [SceneSync] it targets
+  /// change identity, not every frame: an [AnimationPlayer] is a small object,
+  /// but a fresh one forgets which clip was open and where the playhead was,
+  /// and a frame is drawn far more often than either of those actually moves.
+  TimelinePlayback? _preview;
+  List<ProjectClip>? _previewClips;
+  SceneSync? _previewSync;
+
+  /// [_preview], built against [project] and [sync] if it is not already —
+  /// null when there is nothing to preview yet (no clips) or nowhere to draw
+  /// one onto (the stage has not synced a scene).
+  TimelinePlayback? _previewFor(ModelProject project, SceneSync? sync) {
+    if (sync == null || project.clips.isEmpty) return null;
+    if (!identical(project.clips, _previewClips) ||
+        !identical(sync, _previewSync)) {
+      _previewClips = project.clips;
+      _previewSync = sync;
+      _preview = TimelinePlayback(player: buildPreviewPlayer(project, sync));
+    }
+    return _preview;
+  }
+
+  /// [AnimationPanel.onSelectClip]: shows [index]'s first pose, paused —
+  /// scrubbing is what plays it, not a transport this panel does not have —
+  /// or the rest pose again once nothing is selected.
+  void _selectAnimationClip(int? index) {
+    if (_state case ModelerReady(:final project, :final stage)) {
+      final TimelinePlayback? preview = _previewFor(project, stage.sync);
+      if (preview == null) return;
+      if (index == null) {
+        preview.stop();
+      } else {
+        preview.play(index);
+        preview.pause();
+      }
+    }
+  }
+
+  /// [AnimationPanel.onTimeChanged]: the scrubber moved, so the pose it names
+  /// is applied straight onto the live scene — nothing here calls `setState`,
+  /// because [SceneNode.setPosition] and its neighbours are mutations the
+  /// next tick's own repaint already picks up, the same way dragging the
+  /// orbit camera does.
+  void _scrubAnimation(double time) => _preview?.seek(time);
+
   /// What the finished run measured, shown over the viewport.
   ///
   /// **On the screen and not only in the console**, because the console is the
@@ -514,6 +567,7 @@ class _ModelerScreenState extends State<ModelerScreen>
       // has to inherit, and a state that is reasserted cannot be got out of
       // step with the interface by anything.
       useLens(stage.camera, _lens, stage.orbit);
+      _preview?.tick(seconds);
     }
     _churn?.step();
     final run = _orbit;
@@ -618,16 +672,16 @@ class _ModelerScreenState extends State<ModelerScreen>
       final devicePixelRatio = view?.devicePixelRatio ?? 1.0;
       final width = view == null
           ? 1600
-          : (view.physicalSize.width / devicePixelRatio).round().clamp(
-              1,
-              8192,
-            ).toInt();
+          : (view.physicalSize.width / devicePixelRatio)
+                .round()
+                .clamp(1, 8192)
+                .toInt();
       final height = view == null
           ? 1000
-          : (view.physicalSize.height / devicePixelRatio).round().clamp(
-              1,
-              8192,
-            ).toInt();
+          : (view.physicalSize.height / devicePixelRatio)
+                .round()
+                .clamp(1, 8192)
+                .toInt();
       final device = await openDevice(width: width, height: height);
       if (!mounted) return;
       _device = device;
@@ -1655,7 +1709,8 @@ class _ModelerScreenState extends State<ModelerScreen>
     // delta measured against a moving start would not be the delta a byte-
     // for-byte match needs.
     _snapAnchorStart =
-        kind == TransformKind.move && _history.selection.mode == SelectionMode.mesh
+        kind == TransformKind.move &&
+            _history.selection.mode == SelectionMode.mesh
         ? _middleOfSelection()
         : null;
     return _modal = TransformModal(kind);
@@ -2083,11 +2138,7 @@ class _ModelerScreenState extends State<ModelerScreen>
     final int? index = indexOfImageBytes(_history.project.images, file.bytes);
     if (index == null) return;
     _cubit.ran(
-      SetTexture(
-        materialIndex: materialIndex,
-        slot: slot,
-        imageIndex: index,
-      ),
+      SetTexture(materialIndex: materialIndex, slot: slot, imageIndex: index),
     );
   }
 
@@ -2441,6 +2492,8 @@ class _ModelerScreenState extends State<ModelerScreen>
                 onClearTexture: _clearTexture,
                 onMoveKeys: _moveKeys,
                 onAddClip: _addClip,
+                onSelectAnimationClip: _selectAnimationClip,
+                onScrubAnimation: _scrubAnimation,
                 lastCommand: state.history.journal.isEmpty
                     ? null
                     : state.history.journal.last,
@@ -2650,6 +2703,8 @@ class _Properties extends StatelessWidget {
     required this.onClearTexture,
     required this.onMoveKeys,
     required this.onAddClip,
+    required this.onSelectAnimationClip,
+    required this.onScrubAnimation,
     required this.lastCommand,
     required this.onAmend,
     required this.shading,
@@ -2728,6 +2783,11 @@ class _Properties extends StatelessWidget {
   final ValueChanged<MoveKeys> onMoveKeys;
   final VoidCallback onAddClip;
 
+  /// `anim-07`'s own live pose: which clip the action list has open, or null
+  /// for none, and where the panel's own scrubber sits inside it.
+  final ValueChanged<int?> onSelectAnimationClip;
+  final ValueChanged<double> onScrubAnimation;
+
   /// What the operation card is showing, and where an adjustment goes.
   final ModelCommand? lastCommand;
   final ValueChanged<ModelCommand> onAmend;
@@ -2759,13 +2819,15 @@ class _Properties extends StatelessWidget {
           : 'image ${binding.imageIndex}';
     }
 
-    final Map<String, TextureBinding?> textureBySlot = <String, TextureBinding?>{
-      'albedo': activeMaterialRow?.surface.baseColorTexture,
-      'normal': activeMaterialRow?.surface.normalTexture,
-      'metallicRoughness': activeMaterialRow?.surface.metallicRoughnessTexture,
-      'occlusion': activeMaterialRow?.surface.occlusionTexture,
-      'emissive': activeMaterialRow?.surface.emissiveTexture,
-    };
+    final Map<String, TextureBinding?> textureBySlot =
+        <String, TextureBinding?>{
+          'albedo': activeMaterialRow?.surface.baseColorTexture,
+          'normal': activeMaterialRow?.surface.normalTexture,
+          'metallicRoughness':
+              activeMaterialRow?.surface.metallicRoughnessTexture,
+          'occlusion': activeMaterialRow?.surface.occlusionTexture,
+          'emissive': activeMaterialRow?.surface.emissiveTexture,
+        };
     return ListView(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       children: <Widget>[
@@ -2892,7 +2954,8 @@ class _Properties extends StatelessWidget {
                     for (final entry in textureBySlot.entries)
                       entry.key: (
                         name: imageNameOf(entry.value),
-                        onChoose: () => onChooseTexture(activeMaterial, entry.key),
+                        onChoose: () =>
+                            onChooseTexture(activeMaterial, entry.key),
                         onClear: entry.value == null
                             ? null
                             : () => onClearTexture(activeMaterial, entry.key),
@@ -2911,6 +2974,8 @@ class _Properties extends StatelessWidget {
                 : null,
             onMoveKeys: onMoveKeys,
             onAddClip: onAddClip,
+            onSelectClip: onSelectAnimationClip,
+            onTimeChanged: onScrubAnimation,
           ),
         if (sections.contains(PropertiesSection.lastOperation)) ...<Widget>[
           SectionLabel('Last operation'),
@@ -3123,8 +3188,7 @@ class _SpaceChips extends StatelessWidget {
         ),
       ],
       selected: <TransformSpace>{space},
-      onSelectionChanged: (Set<TransformSpace> picked) =>
-          onSpace(picked.first),
+      onSelectionChanged: (Set<TransformSpace> picked) => onSpace(picked.first),
     ),
   );
 }

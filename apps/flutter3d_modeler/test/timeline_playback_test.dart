@@ -8,8 +8,13 @@ library;
 import 'dart:typed_data';
 
 import 'package:flutter3d/flutter3d.dart';
+import 'package:flutter3d_cpu/testing.dart';
+import 'package:flutter3d_mesh/flutter3d_mesh.dart';
+import 'package:flutter3d_model_core/flutter3d_model_core.dart';
+import 'package:flutter3d_modeler/src/staging.dart';
 import 'package:flutter3d_modeler/src/timeline_playback.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:vector_math/vector_math.dart';
 
 /// One clip, one second long at 30fps, translating node 0 from the origin to
 /// (1, 0, 0).
@@ -170,5 +175,86 @@ void main() {
     playback.seek(1.0);
 
     expect(rig.target.readWorldPosition().x, closeTo(1.0, 1e-6));
+  });
+
+  group('buildPreviewPlayer — anim-07\'s own scene wiring', () {
+    /// A project of one cube, with a clip that walks it from the origin to
+    /// (1, 0, 0) over a second, keyed by the cube's own object id rather
+    /// than by a node index — [ProjectClip]'s own addressing.
+    (ModelProject, int cubeId) walkingCube() {
+      var project = const ModelProject();
+      late int id;
+      project = project.added((int i) {
+        id = i;
+        return ModelObject(
+          id: i,
+          name: 'cube',
+          geometry: EditedGeometry(EditMesh.cuboid()),
+          transform: Matrix4.identity(),
+        );
+      });
+      project = project.copyWith(
+        clips: <ProjectClip>[
+          ProjectClip(
+            name: 'walk',
+            tracks: <ProjectTrack>[
+              ProjectTrack(
+                objectId: id,
+                track: AnimationTrack(
+                  nodeIndex: 0, // Unread — see ProjectTrack's own doc comment.
+                  path: AnimationPath.translation,
+                  interpolation: AnimationInterpolation.linear,
+                  times: Float32List.fromList(<double>[0.0, 1.0]),
+                  values: Float32List.fromList(<double>[0, 0, 0, 1, 0, 0]),
+                  componentCount: 3,
+                ),
+              ),
+            ],
+          ),
+        ],
+      );
+      return (project, id);
+    }
+
+    test(
+      'the real scene node the project\'s own cube got moves, not a copy',
+      () {
+        final (project, cubeId) = walkingCube();
+        final it = cpuTestDevice(width: 8, height: 8);
+        final stage = ModelerStage.fromProject(
+          device: it.device,
+          project: project,
+        );
+        final sync = stage.sync!;
+
+        final playback = TimelinePlayback(
+          player: buildPreviewPlayer(project, sync),
+        )..play(0);
+        playback.seek(1.0);
+
+        expect(sync.nodeOf(cubeId)!.readWorldPosition().x, closeTo(1.0, 1e-6));
+      },
+    );
+
+    test('an object with no clip is simply not among the targets', () {
+      final it = cpuTestDevice(width: 8, height: 8);
+      final project = const ModelProject().added(
+        (int i) => ModelObject(
+          id: i,
+          name: 'bystander',
+          geometry: EditedGeometry(EditMesh.cuboid()),
+          transform: Matrix4.identity(),
+        ),
+      );
+      final stage = ModelerStage.fromProject(
+        device: it.device,
+        project: project,
+      );
+
+      final player = buildPreviewPlayer(project, stage.sync!);
+
+      expect(player.clips, isEmpty);
+      expect(player.targets, isEmpty);
+    });
   });
 }
