@@ -212,4 +212,30 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get close => 'Закрыть';
+
+  @override
+  String sceneStatusLabel(int lightCount, int shadowedCount, int shadowCap) {
+    return 'Источников $lightCount · теневых $shadowedCount из $shadowCap';
+  }
+
+  @override
+  String get sceneEnvironmentSectionLabel => 'Окружение';
+
+  @override
+  String get sceneShadowsSectionLabel => 'Тени';
+
+  @override
+  String get sceneShadowsToggleLabel => 'Тени';
+
+  @override
+  String get sceneSourcesSectionLabel => 'Источники';
+
+  @override
+  String get scenePostSectionLabel => 'Пост';
+
+  @override
+  String get bakeTextureButtonLabel => 'Запечь 2048²';
+
+  @override
+  String get resetPoseButtonLabel => 'Сбросить позу';
 }

@@ -6,6 +6,8 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
+import 'package:flutter3d_modeler/l10n/app_localizations.dart';
+import 'package:flutter3d_modeler/l10n/app_localizations_en.dart';
 import 'package:flutter3d_modeler/src/scene_mode.dart';
 import 'package:flutter3d_modeler/src/ui/scene_shadows_panel.dart';
 import 'package:flutter3d_modeler/src/ui/theme.dart';
@@ -19,6 +21,9 @@ Future<void> _pump(
 }) => tester.pumpWidget(
   MaterialApp(
     theme: modelerTheme(),
+    locale: const Locale('en'),
+    localizationsDelegates: AppLocalizations.localizationsDelegates,
+    supportedLocales: AppLocalizations.supportedLocales,
     home: Scaffold(
       body: SceneShadowsPanel(
         shadows: shadows,
@@ -29,12 +34,18 @@ Future<void> _pump(
   ),
 );
 
+/// The words `AppLocalizations.of(context).sceneStatusLabel` would build for
+/// [status] under `Locale('en')` — the same locale [_pump] fixes the harness
+/// to, so this stays the one place both sides of the comparison could drift.
+String _statusText(SceneStatus status) => AppLocalizationsEn()
+    .sceneStatusLabel(status.lightCount, status.shadowedCount, status.shadowCap);
+
 void main() {
   testWidgets('draws the status text verbatim', (tester) async {
     final status = computeSceneStatus(lights: const <ProjectLight>[]);
     await _pump(tester, status: status);
 
-    expect(find.text(status.text), findsOneWidget);
+    expect(find.text(_statusText(status)), findsOneWidget);
   });
 
   testWidgets('the toggle reflects the shadows flag', (tester) async {
@@ -69,7 +80,7 @@ void main() {
       warning: false,
     );
     await _pump(tester, status: clean);
-    final Text text = tester.widget(find.text(clean.text));
+    final Text text = tester.widget(find.text(_statusText(clean)));
     expect(text.style?.fontWeight, isNot(FontWeight.bold));
 
     const warned = SceneStatus(
@@ -79,7 +90,7 @@ void main() {
       warning: true,
     );
     await _pump(tester, status: warned);
-    final Text warnedText = tester.widget(find.text(warned.text));
+    final Text warnedText = tester.widget(find.text(_statusText(warned)));
     // Mutation: draw the same style regardless of `status.warning` — a
     // status line that never changed weight or colour would tell nobody
     // the frame dropped anything.

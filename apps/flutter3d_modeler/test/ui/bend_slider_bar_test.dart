@@ -1,6 +1,6 @@
 /// `BendSliderBar`: `anim-12`'s own bar — a slider that bends a joint's live
-/// `SceneNode` and a "Сбросить позу" link back to `Pose.restOf`, both
-/// entirely outside `ModelHistory`.
+/// `SceneNode` and a reset-pose link back to `Pose.restOf`, both entirely
+/// outside `ModelHistory`.
 ///
 ///     flutter test test/ui/bend_slider_bar_test.dart
 library;
@@ -10,6 +10,7 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart' hide Matrix4;
 import 'package:flutter3d/flutter3d.dart' hide Material;
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
+import 'package:flutter3d_modeler/l10n/app_localizations.dart';
 import 'package:flutter3d_modeler/src/ui/bend_slider_bar.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart' show Matrix4, Quaternion;
@@ -49,6 +50,9 @@ Future<void> _show(
   ValueChanged<int>? onPoseChanged,
 }) => tester.pumpWidget(
   MaterialApp(
+    locale: const Locale('en'),
+    localizationsDelegates: AppLocalizations.localizationsDelegates,
+    supportedLocales: AppLocalizations.supportedLocales,
     home: Scaffold(
       body: BendSliderBar(
         joint: fixture.joint,
@@ -63,14 +67,14 @@ Future<void> _show(
 );
 
 void main() {
-  testWidgets('at rest the bar reads 0° and offers Сбросить позу', (
+  testWidgets('at rest the bar reads 0° and offers Reset pose', (
     WidgetTester tester,
   ) async {
     final _Fixture fixture = _buildFixture();
     await _show(tester, fixture);
 
     expect(find.text('0°'), findsOneWidget);
-    expect(find.text('Сбросить позу'), findsOneWidget);
+    expect(find.text('Reset pose'), findsOneWidget);
     expect(find.text('Elbow'), findsOneWidget);
   });
 
@@ -142,7 +146,7 @@ void main() {
   });
 
   testWidgets(
-    'Сбросить позу puts the joint back at Pose.restOf, and reports the '
+    'Reset pose puts the joint back at Pose.restOf, and reports the '
     'version again',
     (WidgetTester tester) async {
       final _Fixture fixture = _buildFixture();
@@ -155,7 +159,7 @@ void main() {
       expect(find.text('-45°'), findsOneWidget);
       reported.clear();
 
-      await tester.tap(find.text('Сбросить позу'));
+      await tester.tap(find.text('Reset pose'));
       await tester.pump();
 
       final Matrix4 rest = fixture.pose.restOf(0);
@@ -185,7 +189,7 @@ void main() {
     await tester.pump();
 
     final int stepsBefore = history.steps.length;
-    await tester.tap(find.text('Сбросить позу'));
+    await tester.tap(find.text('Reset pose'));
     await tester.pump();
 
     expect(history.steps.length, stepsBefore);

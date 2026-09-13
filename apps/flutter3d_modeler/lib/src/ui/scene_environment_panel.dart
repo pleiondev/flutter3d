@@ -10,6 +10,7 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 
+import '../../l10n/app_localizations.dart';
 import 'number_field.dart';
 import 'section_label.dart';
 
@@ -42,7 +43,7 @@ final class SceneEnvironmentPanel extends StatelessWidget {
   Widget build(BuildContext context) => Column(
     crossAxisAlignment: CrossAxisAlignment.start,
     children: <Widget>[
-      const SectionLabel('Окружение'),
+      SectionLabel(AppLocalizations.of(context).sceneEnvironmentSectionLabel),
       Padding(
         padding: const EdgeInsets.symmetric(vertical: 4),
         child: DropdownButton<SceneEnvironmentPreset>(

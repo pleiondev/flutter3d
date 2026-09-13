@@ -39,6 +39,7 @@ import 'package:flutter3d/flutter3d.dart';
 import 'package:vector_math/vector_math.dart'
     show Matrix4, Quaternion, Vector3, radians;
 
+import '../../l10n/app_localizations.dart';
 import 'theme.dart';
 
 /// One joint's bend control: a label, a slider, a degree readout and a
@@ -182,7 +183,7 @@ class _BendSliderBarState extends State<BendSliderBar> {
                   minimumSize: Size.zero,
                   tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                 ),
-                child: const Text('Сбросить позу'),
+                child: Text(AppLocalizations.of(context).resetPoseButtonLabel),
               ),
             ),
           ),

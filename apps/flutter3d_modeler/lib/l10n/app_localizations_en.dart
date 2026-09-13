@@ -205,4 +205,30 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get close => 'Close';
+
+  @override
+  String sceneStatusLabel(int lightCount, int shadowedCount, int shadowCap) {
+    return '$lightCount sources · $shadowedCount shadowed of $shadowCap';
+  }
+
+  @override
+  String get sceneEnvironmentSectionLabel => 'Environment';
+
+  @override
+  String get sceneShadowsSectionLabel => 'Shadows';
+
+  @override
+  String get sceneShadowsToggleLabel => 'Shadows';
+
+  @override
+  String get sceneSourcesSectionLabel => 'Sources';
+
+  @override
+  String get scenePostSectionLabel => 'Post';
+
+  @override
+  String get bakeTextureButtonLabel => 'Bake 2048²';
+
+  @override
+  String get resetPoseButtonLabel => 'Reset pose';
 }

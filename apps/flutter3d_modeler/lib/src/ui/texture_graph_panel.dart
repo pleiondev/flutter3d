@@ -38,6 +38,7 @@ import 'package:flutter3d_formats/flutter3d_formats.dart';
 // apart the same way `command.dart` itself keeps them apart.
 import 'package:flutter3d_model_core/flutter3d_model_core.dart' hide EnumHint;
 
+import '../../l10n/app_localizations.dart';
 import 'job_button.dart';
 import 'theme.dart';
 
@@ -695,7 +696,7 @@ class _TextureGraphPanelState extends State<TextureGraphPanel> {
               ),
               const Spacer(),
               JobButton(
-                label: 'Запечь 2048²',
+                label: AppLocalizations.of(context).bakeTextureButtonLabel,
                 progress: widget.bakeProgress,
                 onStart: widget.onBake,
                 onCancel: widget.onCancelBake,

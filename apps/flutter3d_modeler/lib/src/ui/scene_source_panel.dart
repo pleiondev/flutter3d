@@ -12,6 +12,7 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 
+import '../../l10n/app_localizations.dart';
 import 'number_field.dart';
 import 'section_label.dart';
 import 'theme.dart';
@@ -75,7 +76,7 @@ final class SceneSourcePanel extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
-        const SectionLabel('Источники'),
+        SectionLabel(AppLocalizations.of(context).sceneSourcesSectionLabel),
         if (lights.isEmpty)
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 4),

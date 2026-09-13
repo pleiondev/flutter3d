@@ -9,6 +9,7 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
+import 'package:flutter3d_modeler/l10n/app_localizations.dart';
 import 'package:flutter3d_modeler/src/ui/job_button.dart';
 import 'package:flutter3d_modeler/src/ui/texture_graph_panel.dart';
 import 'package:flutter3d_modeler/src/ui/theme.dart';
@@ -64,6 +65,9 @@ Future<_Calls> _pump(
   await tester.pumpWidget(
     MaterialApp(
       theme: modelerTheme(),
+      locale: const Locale('en'),
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      supportedLocales: AppLocalizations.supportedLocales,
       home: Scaffold(
         body: TextureGraphPanel(
           graph: graph ?? _graph(),
@@ -303,7 +307,7 @@ void main() {
     ) async {
       final calls = await _pump(tester, initiallyExpanded: true);
 
-      expect(find.text('Запечь 2048²'), findsOneWidget);
+      expect(find.text('Bake 2048²'), findsOneWidget);
       await tester.tap(find.byType(JobButton));
       expect(calls.baked, isTrue);
     });
@@ -313,7 +317,7 @@ void main() {
     ) async {
       await _pump(tester, initiallyExpanded: true, bakeProgress: 0.42);
 
-      expect(find.text('Запечь 2048²'), findsNothing);
+      expect(find.text('Bake 2048²'), findsNothing);
       expect(find.text('42%'), findsOneWidget);
       expect(find.byType(CircularProgressIndicator), findsOneWidget);
     });
@@ -337,6 +341,9 @@ void main() {
         StatefulBuilder(
           builder: (context, setState) => MaterialApp(
             theme: modelerTheme(),
+            locale: const Locale('en'),
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
             home: Scaffold(
               body: TextureGraphPanel(
                 graph: _graph(),
@@ -363,7 +370,7 @@ void main() {
       await tester.pump();
 
       expect(find.byType(CircularProgressIndicator), findsNothing);
-      expect(find.text('Запечь 2048²'), findsOneWidget);
+      expect(find.text('Bake 2048²'), findsOneWidget);
       await tester.tap(find.byType(ElevatedButton));
       expect(calls.baked, isTrue);
     });

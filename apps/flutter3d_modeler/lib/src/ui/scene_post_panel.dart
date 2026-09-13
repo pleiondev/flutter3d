@@ -13,6 +13,7 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 
+import '../../l10n/app_localizations.dart';
 import 'number_field.dart';
 import 'section_label.dart';
 
@@ -38,7 +39,7 @@ final class ScenePostPanel extends StatelessWidget {
   Widget build(BuildContext context) => Column(
     crossAxisAlignment: CrossAxisAlignment.start,
     children: <Widget>[
-      const SectionLabel('Пост'),
+      SectionLabel(AppLocalizations.of(context).scenePostSectionLabel),
       SwitchListTile(
         dense: true,
         contentPadding: EdgeInsets.zero,

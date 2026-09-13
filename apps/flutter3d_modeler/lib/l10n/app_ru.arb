@@ -79,5 +79,27 @@
   "newProject": "Новый проект",
   "recent": "Недавние",
   "tutorial": "Обучение",
-  "close": "Закрыть"
+  "close": "Закрыть",
+  "sceneStatusLabel": "Источников {lightCount} · теневых {shadowedCount} из {shadowCap}",
+  "@sceneStatusLabel": {
+    "description": "mat-24's own status line — how many lights, how many are shadowed, and the cap.",
+    "placeholders": {
+      "lightCount": {
+        "type": "int"
+      },
+      "shadowedCount": {
+        "type": "int"
+      },
+      "shadowCap": {
+        "type": "int"
+      }
+    }
+  },
+  "sceneEnvironmentSectionLabel": "Окружение",
+  "sceneShadowsSectionLabel": "Тени",
+  "sceneShadowsToggleLabel": "Тени",
+  "sceneSourcesSectionLabel": "Источники",
+  "scenePostSectionLabel": "Пост",
+  "bakeTextureButtonLabel": "Запечь 2048²",
+  "resetPoseButtonLabel": "Сбросить позу"
 }

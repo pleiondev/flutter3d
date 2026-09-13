@@ -463,6 +463,54 @@ abstract class AppLocalizations {
   /// In ru, this message translates to:
   /// **'Закрыть'**
   String get close;
+
+  /// mat-24's own status line — how many lights, how many are shadowed, and the cap.
+  ///
+  /// In ru, this message translates to:
+  /// **'Источников {lightCount} · теневых {shadowedCount} из {shadowCap}'**
+  String sceneStatusLabel(int lightCount, int shadowedCount, int shadowCap);
+
+  /// No description provided for @sceneEnvironmentSectionLabel.
+  ///
+  /// In ru, this message translates to:
+  /// **'Окружение'**
+  String get sceneEnvironmentSectionLabel;
+
+  /// No description provided for @sceneShadowsSectionLabel.
+  ///
+  /// In ru, this message translates to:
+  /// **'Тени'**
+  String get sceneShadowsSectionLabel;
+
+  /// No description provided for @sceneShadowsToggleLabel.
+  ///
+  /// In ru, this message translates to:
+  /// **'Тени'**
+  String get sceneShadowsToggleLabel;
+
+  /// No description provided for @sceneSourcesSectionLabel.
+  ///
+  /// In ru, this message translates to:
+  /// **'Источники'**
+  String get sceneSourcesSectionLabel;
+
+  /// No description provided for @scenePostSectionLabel.
+  ///
+  /// In ru, this message translates to:
+  /// **'Пост'**
+  String get scenePostSectionLabel;
+
+  /// No description provided for @bakeTextureButtonLabel.
+  ///
+  /// In ru, this message translates to:
+  /// **'Запечь 2048²'**
+  String get bakeTextureButtonLabel;
+
+  /// No description provided for @resetPoseButtonLabel.
+  ///
+  /// In ru, this message translates to:
+  /// **'Сбросить позу'**
+  String get resetPoseButtonLabel;
 }
 
 class _AppLocalizationsDelegate

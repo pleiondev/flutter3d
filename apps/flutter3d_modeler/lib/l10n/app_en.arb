@@ -76,5 +76,13 @@
   "newProject": "New project",
   "recent": "Recent",
   "tutorial": "Tutorial",
-  "close": "Close"
+  "close": "Close",
+  "sceneStatusLabel": "{lightCount} sources · {shadowedCount} shadowed of {shadowCap}",
+  "sceneEnvironmentSectionLabel": "Environment",
+  "sceneShadowsSectionLabel": "Shadows",
+  "sceneShadowsToggleLabel": "Shadows",
+  "sceneSourcesSectionLabel": "Sources",
+  "scenePostSectionLabel": "Post",
+  "bakeTextureButtonLabel": "Bake 2048²",
+  "resetPoseButtonLabel": "Reset pose"
 }
