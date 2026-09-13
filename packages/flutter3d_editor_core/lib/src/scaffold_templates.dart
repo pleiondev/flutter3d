@@ -56,7 +56,7 @@ dependencies:
   flutter3d_audio: ^0.6.0
 
   vector_math: ^2.2.0
-  # State management — see the note in `packages/flutter3d_screens/pubspec.yaml`.
+  # State management — see the note in `packages/flutter3d_session/pubspec.yaml`.
   flutter_bloc: ^9.1.1
 
 dev_dependencies:

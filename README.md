@@ -43,7 +43,6 @@ genres, and the generated API reference.
 | [`packages/flutter3d_bridge`](packages/flutter3d_bridge) | Where the two meet: level geometry to mesh nodes, an actor to its visual, a fixture to the light it drives |
 | [`packages/flutter3d_audio`](packages/flutter3d_audio) | Positional audio: attenuation, panning and voice limiting, with a pluggable backend |
 | [`packages/pad_input`](packages/pad_input) | A gamepad, read as a snapshot once per frame. Button names are physical positions, because they end up in a player's config file; the web backend is pure Dart. [README](packages/pad_input/README.md) |
-| [`packages/flutter3d_screens`](packages/flutter3d_screens) | The screens that are not the game: settings, volumes, rebinding, credits. Shared by both games |
 | [`packages/pointer_lock`](packages/pointer_lock) | Relative mouse deltas: a method channel on macOS, the browser's own Pointer Lock API on the web. Flutter surfaces neither |
 | [`packages/flutter3d_samples`](packages/flutter3d_samples) | The Khronos test models, as fixtures rather than as the engine's own assets — so a game built on it carries the decoders and not the 4.1 MB they were checked against |
 | [`packages/flutter3d_geometry`](packages/flutter3d_geometry) | The geometry the engine is written in, with no Flutter SDK behind it: vertex layouts, mesh data, shape generators, tangents, morph targets and ray intersections. Plain Dart, so a modeller's document layer or a tool an agent starts can name a mesh without a window. [README](packages/flutter3d_geometry/README.md) |
@@ -58,7 +57,7 @@ genres, and the generated API reference.
 | [`packages/flutter3d_shaders`](packages/flutter3d_shaders) | The GLSL, and the headers an extension package includes |
 | [`packages/flutter3d_particles`](packages/flutter3d_particles) | One pool, one draw call, whatever is in it |
 | [`packages/flutter3d_particles_core`](packages/flutter3d_particles_core) | The simulation `flutter3d_particles` draws. No Flutter |
-| [`packages/flutter3d_session`](packages/flutter3d_session) | A run that can be started, saved, resumed and ended, with no widget in it |
+| [`packages/flutter3d_session`](packages/flutter3d_session) | A run that can be started, saved, resumed and ended, with no widget in it, and the screens that are not the game: settings, volumes, rebinding, credits |
 | [`packages/flutter3d_stereo`](packages/flutter3d_stereo) | Two eyes and a head: the rig, the widget that draws a pair into one frame, and the settings a pair can have. A phone in a holder today, a headset when there is one |
 | [`packages/flutter3d_app`](packages/flutter3d_app) | What every application repeats: storage, settings, the frame clock, the screens, and which of the four backends `openDevice()` opens |
 | [`packages/flutter3d_game_racing`](packages/flutter3d_game_racing) | A third genre: a car simulated as a sphere, a circuit read from a spline, lap timing and a ghost |
@@ -158,7 +157,7 @@ Or one package at a time:
 (cd packages/flutter3d_physics && dart test)   # plain Dart, no Flutter needed
 ```
 
-7331 tests across forty-three packages and eight applications, and the only
+7331 tests across forty-two packages and eight applications, and the only
 ones that need a GPU are the
 Impeller half of the golden set. The other half is rendered by the software
 backend, which is what makes 43 scenes checkable in a headless run.

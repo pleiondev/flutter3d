@@ -12,13 +12,13 @@ library;
 
 import 'dart:typed_data';
 
-import 'package:flutter3d_screens/flutter3d_screens.dart';
+import 'package:flutter3d_session/flutter3d_session.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   group('the binary storage this build actually gets', () {
     test('keeps bytes across two of its own instances', () async {
-      final storage = defaultBinaryStorage('flutter3d_screens_test');
+      final storage = defaultBinaryStorage('flutter3d_session_test');
       addTearDown(() => storage.remove('probe.bin'));
 
       final bytes = Uint8List.fromList(<int>[
@@ -33,7 +33,7 @@ void main() {
       expect(await storage.write('probe.bin', bytes), isTrue);
 
       final readBack = await defaultBinaryStorage(
-        'flutter3d_screens_test',
+        'flutter3d_session_test',
       ).read('probe.bin');
       // Mutation: store a `Blob`/base64 detour and unwrap it wrong, or read
       // back a truncated buffer. Bytes past 255 and a length past one
@@ -42,7 +42,7 @@ void main() {
     });
 
     test('and forgets one when asked', () async {
-      final storage = defaultBinaryStorage('flutter3d_screens_test');
+      final storage = defaultBinaryStorage('flutter3d_session_test');
       await storage.write('probe.bin', Uint8List.fromList(<int>[1, 2, 3]));
 
       await storage.remove('probe.bin');
@@ -52,13 +52,13 @@ void main() {
 
     test('and reading what was never written is null, not a throw', () async {
       expect(
-        await defaultBinaryStorage('flutter3d_screens_test').read('absent.bin'),
+        await defaultBinaryStorage('flutter3d_session_test').read('absent.bin'),
         isNull,
       );
     });
 
     test('two documents under one storage do not collide', () async {
-      final storage = defaultBinaryStorage('flutter3d_screens_test');
+      final storage = defaultBinaryStorage('flutter3d_session_test');
       addTearDown(() async {
         await storage.remove('a.bin');
         await storage.remove('b.bin');
@@ -72,7 +72,7 @@ void main() {
     });
 
     test('writing again replaces rather than appends', () async {
-      final storage = defaultBinaryStorage('flutter3d_screens_test');
+      final storage = defaultBinaryStorage('flutter3d_session_test');
       addTearDown(() => storage.remove('probe.bin'));
 
       await storage.write('probe.bin', Uint8List.fromList(<int>[1, 2, 3]));

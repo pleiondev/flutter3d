@@ -55,7 +55,10 @@ dependencies:
   flutter3d_physics:
     path: ../../packages/flutter3d_physics
 
-  # The surface a frame reaches Flutter through, and the frame clock with it.
+  # The surface a frame reaches Flutter through, the frame clock with it, and
+  # `BinaryStorage`/`defaultBinaryStorage`, autosave's own read/write: a
+  # model project is binary and can be megabytes, past what `Storage`'s
+  # `localStorage` backing allows on the web.
   flutter3d_session:
     path: ../../packages/flutter3d_session
 
@@ -90,12 +93,6 @@ dependencies:
   # Where a sandboxed process may write without asking: the container the
   # autosave lives in. Used by `sandbox_probe.dart`.
   path_provider: ^2.1.4
-
-  # `BinaryStorage`/`defaultBinaryStorage`, autosave's own read/write: a
-  # model project is binary and can be megabytes, past what `Storage`'s
-  # `localStorage` backing allows on the web.
-  flutter3d_screens:
-    path: ../../packages/flutter3d_screens
 
   # `clock.now()` rather than `DateTime.now()` in `AutosaveController`, so
   # `autosaving_test.dart` can drive it through `FakeAsync` at test speed —

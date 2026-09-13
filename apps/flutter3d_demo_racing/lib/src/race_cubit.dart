@@ -198,7 +198,7 @@ final class RaceProgress {
 ///
 /// A wrapper and nothing more, which is the point: [RaceProgress] decides
 /// nothing about state management, and this game happens to use BLoC — see
-/// the note in `packages/flutter3d_screens/pubspec.yaml`.
+/// the note in `packages/flutter3d_session/pubspec.yaml`.
 final class RaceCubit extends Cubit<RaceStatus> {
   RaceCubit(this.progress) : super(progress.status) {
     progress.onChanged = emit;

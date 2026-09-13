@@ -94,7 +94,7 @@ the default renderer on macOS, and a default is a thing that can change.
 **Dependencies are close to none.** The render core, the physics, the game layer,
 the software rasteriser and the particle system are written here. External:
 `vector_math`, an audio backend, the Flutter SDK, and `flutter_bloc` in
-`flutter3d_screens` and two applications. That is not an end in itself: there is no
+`flutter3d_session` and two applications. That is not an end in itself: there is no
 Dart equivalent of Jolt, assimp or miniaudio, and an FFI wrapper breaks the web.
 The price is that all of this code is tested here
 ([§13](#13-how-correctness-is-held)). Licences are MIT/BSD/Apache/zlib; no GPL.
@@ -219,8 +219,7 @@ point of §3.3.
 | `flutter3d_game_strategy` | Strategy rules: ground made of samples, a crowd that takes orders, flow fields shared by destination, an economy, a policy that plays a side, fog each side has to walk into |
 | `flutter3d_bridge` | Simulation state to scene: actor visuals, fixture visuals, particle effects |
 | `flutter3d_audio` | Loading, streaming, 3D positioning, voice limits, mix buses |
-| `flutter3d_screens` | Screens that are not the game: menus, settings, rebinding, storage |
-| `flutter3d_session` | The run lifecycle that ties a game, a device and a screen together |
+| `flutter3d_session` | The run lifecycle that ties a game, a device and a screen together, and the screens that are not the game: menus, settings, rebinding, storage |
 | `flutter3d_app` | The assembly layer, as one import — including which backend a build draws through, conditional import plus `openDevice` |
 | `flutter3d_editor_core` | The headless half of a level editor: the document being changed and undone, the handles a pointer hits, the palette a level builds out of itself, the project a template becomes. Plain Dart |
 | `flutter3d_editor_mcp` | The same editor offered to an agent: `EditorCommand` as a table of MCP tools over stdio, one document per process, plus the two verbs a caller with no screen needs — a flat listing, and the validator. Plain Dart |
@@ -1813,7 +1812,7 @@ every wall of every room with a ceiling. A map pickup floods without a radius
 from where the player stands, which is also what keeps the roof and the
 sealed rooms off the map. What was seen is in the snapshot as runs of bits —
 the crypt's bitset would be four kilobytes however little was seen — and
-`AutomapView` in `flutter3d_screens` paints it, centred on the player and
+`AutomapView` in `flutter3d_session` paints it, centred on the player and
 turned to face the way they do. The dungeon shows it on M and keeps the fight
 running underneath.
 
@@ -1869,7 +1868,7 @@ entities a game defines.
 |---|---|
 | Style | `dart format` |
 | Analysis | `flutter analyze` clean across the workspace, no warnings |
-| Unit tests | **7331 tests** across 43 packages and 8 applications |
+| Unit tests | **7331 tests** across 42 packages and 8 applications |
 | Structure rules | 32, `dart run tool/structure.dart`, the first CI step |
 | CI | GitHub Actions over `tool/ci.sh`, on `ubuntu-latest`, with no graphics card |
 
@@ -2762,11 +2761,10 @@ what went out at 0.4.2.
    `flutter3d_particles`, `flutter3d_sim`, `flutter3d_stereo`
 6. `flutter3d_game`, `flutter3d_editor_core`, `flutter3d_net`, `flutter3d_render_job`,
    `flutter3d_lab`
-7. `flutter3d_screens`, `flutter3d_bridge`,
-   `flutter3d_testing`, `flutter3d_editor_mcp`, `flutter3d_model_mcp`,
-   `flutter3d_net_webrtc`, `flutter3d_render_mcp`
-8. `flutter3d_session`
-9. `flutter3d_app`
+7. `flutter3d_bridge`, `flutter3d_testing`, `flutter3d_editor_mcp`,
+   `flutter3d_model_mcp`, `flutter3d_net_webrtc`, `flutter3d_render_mcp`,
+   `flutter3d_session`
+8. `flutter3d_app`
 10. `flutter3d_game_shooter`, `flutter3d_game_platformer`, `flutter3d_game_racing`,
     `flutter3d_game_strategy`
 11. `flutter3d_sim_mcp`

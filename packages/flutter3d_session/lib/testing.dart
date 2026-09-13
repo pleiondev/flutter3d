@@ -1,6 +1,6 @@
 /// Comparing what a game credits against what it actually ships.
 ///
-///     import 'package:flutter3d_screens/testing.dart';
+///     import 'package:flutter3d_session/testing.dart';
 ///
 ///     final gaps = creditGaps(Credits.models, shippedFrom: 'assets/models');
 ///     expect(gaps.uncredited, isEmpty);
@@ -28,7 +28,7 @@ library;
 
 import 'dart:io';
 
-import 'src/credits.dart';
+import 'src/screens/credits.dart';
 
 /// What is shipped and uncredited, and what is credited and not shipped.
 ///

@@ -18,7 +18,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
-import 'package:flutter3d_screens/flutter3d_screens.dart';
+import 'package:flutter3d_session/flutter3d_session.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import 'autosaving.dart';

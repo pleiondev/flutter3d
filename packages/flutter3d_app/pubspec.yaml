@@ -10,14 +10,16 @@ topics:
   - game-engine
   - application
 
-# A barrel over four sibling packages, plus the backend choice this package
-# now makes directly — flutter3d_session, flutter3d_screens, pad_input,
-# pointer_lock were the three games' own imports; the backend choice was
-# `flutter3d_backend` until most of its consumers turned out to already be
-# reaching it through this barrel rather than by name, and the handful that
-# still named it directly cost nothing to repoint — which left the separate
-# package with no boundary of its own (package-merge-plan.md §3.6).
-# None of the four sibling packages know about each other and none of them
+# A barrel over three sibling packages, plus the backend choice this package
+# now makes directly — flutter3d_session, pad_input, pointer_lock were the
+# three games' own imports; the backend choice was `flutter3d_backend` until
+# most of its consumers turned out to already be reaching it through this
+# barrel rather than by name, and the handful that still named it directly
+# cost nothing to repoint — which left the separate package with no boundary
+# of its own (package-merge-plan.md §3.6). `flutter3d_screens` was folded into
+# `flutter3d_session` the same way (§3.7); this barrel still re-exports it
+# transitively, so nothing here changed on that account.
+# None of the three sibling packages know about each other and none of them
 # should start to. This package adds only the backend choice as code of its
 # own; it exists so an application's own pubspec and main.dart say "the
 # assembly layer" once instead of five names, the way `flutter3d` already says
@@ -51,8 +53,7 @@ dependencies:
   flutter3d_cpu: ^0.6.0
   flutter3d_webgpu: ^0.6.0
 
-  flutter3d_session: ^0.6.0
-  flutter3d_screens: ^0.6.0
+  flutter3d_session: ^0.7.0
   pad_input: ^0.4.0
   pointer_lock: ^0.4.0
 

@@ -1,5 +1,5 @@
 ---
-name: flutter3d-screens-settings-and-saves
+name: flutter3d-session-settings-and-saves
 description: Use when a flutter3d game needs settings, volumes, control rebinding or credits, or when deciding where a save and a settings document live per platform.
 ---
 

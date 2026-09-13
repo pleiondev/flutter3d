@@ -43,7 +43,7 @@ dependencies:
     path: ../../packages/flutter3d_bridge
 
   vector_math: ^2.2.0
-  # State management — see the note in `packages/flutter3d_screens/pubspec.yaml`.
+  # State management — see the note in `packages/flutter3d_session/pubspec.yaml`.
   # What goes through it is the screen: loading, pause, settings, the run's
   # state and what the HUD shows. What does **not** is the sixty-hertz step,
   # the camera, the particles and the scene; a state object per simulation step
@@ -65,11 +65,6 @@ dev_dependencies:
   # does. `LevelLoader` needs a device and does not need a window.
   flutter3d_cpu:
     path: ../../packages/flutter3d_cpu
-
-  # `testing.dart`'s `creditGaps` — comparing shipped assets against the
-  # credits list. Test-only, so it is not behind the flutter3d_app barrel.
-  flutter3d_screens:
-    path: ../../packages/flutter3d_screens
 
   # `net-04`'s `diffRuns` — see `test/desync_diff_test.dart` for why the
   # genre-aware half of it lives here rather than in `flutter3d_net` itself.

@@ -1,3 +1,16 @@
+## 0.7.0
+
+**Breaking.** Accepted `flutter3d_screens`, because this package already
+depended on it for the one thing a run needs — `SaveFile` — and nothing
+anywhere depended on `flutter3d_screens` without also depending on this
+package (package-merge-plan.md §3.7). `SettingsOverlay`, `SaveFile`,
+`SettingsFile`, `DemoFile`, `Storage`, rebinding, credits and the rest now
+live under `src/screens/` and export through this package's own barrel and
+its `native.dart`/`testing.dart` entry points; `flutter3d_screens` itself is
+gone from the workspace. Nothing an application imports through
+`flutter3d_app` changed; a caller that named `flutter3d_screens` directly
+now names `flutter3d_session` instead.
+
 ## 0.6.0
 
 * **Floors, and no code.** A run that can be started, saved, resumed and ended,

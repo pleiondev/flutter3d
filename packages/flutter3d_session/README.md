@@ -1,18 +1,26 @@
 # flutter3d_session
 
-The part of a game that is neither its simulation nor its screens: the seam a
-rendered frame reaches Flutter through, and the run being played.
+The part of a game that is neither its simulation nor the rest of the engine:
+the seam a rendered frame reaches Flutter through, the run being played, and
+the screens a player uses that are not the game itself.
 
 ## Why it is its own package
 
 A session reads a level and writes a save. Reading a level needs
-`flutter3d_bridge`, and therefore the renderer. Writing a save needs
-`flutter3d_screens`, and therefore storage. **Those two packages do not know about
-each other**, deliberately — the bridge has no business knowing what a settings
+`flutter3d_bridge`, and therefore the renderer. Writing a save needs storage,
+`lib/src/screens/`'s own job. **Those two things do not know about each
+other**, deliberately — the bridge has no business knowing what a settings
 file is, and the UI has no business knowing what a scene is.
 
 So the code that needs both cannot live in either. It lived, instead, in three
 `main.dart` files, written out three times.
+
+`lib/src/screens/` was its own package once, `flutter3d_screens` — extracted
+when the second game wanted control rebinding, which mattered for
+accessibility more than for convenience. It merged back in because this
+package already depended on it for the one thing a run needs, `SaveFile`, and
+nothing anywhere depended on `flutter3d_screens` without also depending on
+this package.
 
 ## What is in it
 
@@ -20,11 +28,17 @@ So the code that needs both cannot live in either. It lived, instead, in three
 |---|---|
 | `SceneSurface` | The widget that hands a frame to Flutter. Its settings are a **function called per frame**, not an object, so anything derived from where the camera ended up is derived after it got there. |
 | `RunSession` | Loading a level, restarting it, moving to the next, saving and resuming, and reporting how the run ended. |
+| `SettingsOverlay` | Volumes, a gamepad and accessibility sliders, a rebinding list that takes a key or a pad button, and where a licence's attribution goes. |
+| `SaveFile` / `SettingsFile` / `DemoFile` | The three documents a game keeps, through one `Storage` interface per platform. |
 
 ## What is deliberately not in it
 
 **The title card and the loss screen.** Those are the face of a particular game.
 Three identical title screens would be a loss, not a saving.
+
+**Anything a particular game says.** The credits are a widget the caller hands
+in, the list of rebindable actions is the caller's, and the panel has never
+known what a coin or a monster is.
 
 **`backend.dart` and its two halves.** All three games carry it and all three
 copies are near enough byte-identical, which looks like the clearest extraction

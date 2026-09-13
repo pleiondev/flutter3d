@@ -50,7 +50,6 @@ workspace:
   - packages/flutter3d_physics
   - packages/flutter3d_rig
   - packages/flutter3d_render_job
-  - packages/flutter3d_screens
   - packages/flutter3d_session
   - packages/flutter3d_stereo
   - packages/flutter3d_stereo/example

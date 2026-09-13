@@ -6,7 +6,7 @@
 ///     // ... SceneSurface, RunSession, SettingsOverlay, Gamepad, PointerLock —
 ///     // all reachable from here.
 ///
-/// Four packages, plus the backend choice this one now makes directly, exist
+/// Three packages, plus the backend choice this one now makes directly, exist
 /// because the wiring they hold was written out, close to identically, in
 /// three `main.dart` files before any of them existed:
 ///
@@ -17,12 +17,13 @@
 ///   it, and the handful that still named it directly cost nothing to
 ///   repoint, which left nothing for a separate package to be the boundary of.
 /// * `flutter3d_session` — `SceneSurface`, the widget that hands a frame to
-///   Flutter, and `RunSession`, a level's load/restart/save/advance sequence.
-/// * `flutter3d_screens` — the settings, rebinding and save screens no game owns.
+///   Flutter, `RunSession`, a level's load/restart/save/advance sequence, and
+///   the settings, rebinding and save screens no game owns (once
+///   `flutter3d_screens`, absorbed for the same reason as the backend choice).
 /// * `pad_input` — a gamepad, read once per frame.
 /// * `pointer_lock` — desktop mouse capture, for an FPS-style camera.
 ///
-/// None of the four sibling packages know about each other, and this package
+/// None of the three sibling packages know about each other, and this package
 /// does not change that — it re-exports them, and holds only the backend
 /// choice as code of its own. What it buys is that an application says "the
 /// assembly layer" once, the same way importing `flutter3d` says "the
@@ -37,7 +38,6 @@ library;
 export 'src/backend_native.dart'
     if (dart.library.js_interop) 'src/backend_web.dart'
     show kFixedResolution, openDevice;
-export 'package:flutter3d_screens/flutter3d_screens.dart';
 export 'package:flutter3d_session/flutter3d_session.dart';
 export 'package:pad_input/pad_input.dart';
 export 'package:pointer_lock/pointer_lock.dart';
