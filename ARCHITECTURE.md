@@ -891,10 +891,12 @@ Changing any of these breaks a backend, and that is the bar for changing them.
 
 - **`GraphicsDevice` — every member.** What formats it prefers, what it can do,
   how a pass is opened, how geometry and textures arrive. Not how a finished
-  frame reaches the screen — that moved to `presentFrame` in `flutter3d_app`,
-  which dispatches on the concrete backend a caller cannot know statically
-  (`GraphicsDevice` cannot be `sealed`: its four implementations live in four
-  different packages).
+  frame reaches the screen — that moved to `flutter3d_hardware`'s own device
+  registry (`registerDevicePresenter`/`lookUpDevicePresenter`), which a backend
+  adds itself to rather than `presentFrame` in `flutter3d_app` checking the
+  concrete type of a `GraphicsDevice` it cannot know statically (`GraphicsDevice`
+  cannot be `sealed`: its four implementations live in four different
+  packages).
 - **`CommandEncoder` and `PassEncoder`.** The split is deliberate: `PassEncoder`
   is the recording half without `submit`, so handing a contributor an
   already-submitted pass is a type error rather than a comment warning about one.

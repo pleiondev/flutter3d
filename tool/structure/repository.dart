@@ -118,8 +118,9 @@ const Map<String, String> flatDartPackages = <String, String>{
   'flutter3d_hardware':
       'the vocabulary a backend implements named no graphics API already; '
       '`GraphicsDevice.present` was its one Flutter import, returning the '
-      'widget a finished frame becomes, and moving that to `presentFrame` in '
-      '`flutter3d_app` (mcp-01n) left nothing here that names Flutter at all',
+      'widget a finished frame becomes, and replacing it with a device '
+      'registry a backend adds itself to (mcp-01n) left nothing here that '
+      'names Flutter at all',
 };
 
 /// Packages the genre rule does not apply to, and why.
