@@ -25,9 +25,11 @@ import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_cpu/testing.dart';
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 import 'package:flutter3d_mesh/testing.dart';
+import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 import 'package:flutter3d_modeler/src/display_modes.dart';
 import 'package:flutter3d_modeler/src/ground_grid.dart';
 import 'package:flutter3d_modeler/src/mesh_overlay_builder.dart';
+import 'package:flutter3d_modeler/src/modeler_cubit.dart';
 import 'package:flutter3d_modeler/src/profile_editing.dart';
 import 'package:flutter3d_modeler/src/staging.dart';
 import 'package:flutter3d_modeler/src/ui/material_studio_dialog.dart';
@@ -387,6 +389,60 @@ void main() {
     );
   });
 
+  group('the picture follows the document', () {
+    // `ui-26`'s own claim, drawn rather than read off the scene graph:
+    // `modeler_cubit_test.dart` already asks `sync.nodeOf` whether a node
+    // exists after a command lands, which is a fact about the tree and not
+    // about a pixel. This asks the rasteriser instead, through the same
+    // `ModelerCubit` a screen drives, so a `SceneSync.apply` that ran and
+    // uploaded the wrong thing — or that `_synced` simply stopped calling —
+    // shows up as two identical frames rather than as a passing tree.
+    test('a command that changes the document changes what is drawn', () async {
+      final it = cpuTestDevice(width: _width, height: _height);
+      final renderer = Renderer.create(device: it.device);
+      final project = const ModelProject().added(
+        (int id) => ModelObject(
+          id: id,
+          name: 'a',
+          geometry: EditedGeometry(EditMesh.cuboid()),
+          transform: Matrix4.identity(),
+        ),
+      );
+      final history = ModelHistory(project);
+      final stage = ModelerStage.fromProject(
+        device: it.device,
+        project: history.project,
+      );
+      stage.frameSubject();
+      final cubit = ModelerCubit()
+        ..opened(history, renderer: renderer, stage: stage);
+
+      final before = _describe(await _draw(it.device, renderer, stage));
+
+      // Scaling the one object up is a command like any other — it goes
+      // through `ModelHistory.run` and then `ModelerCubit._synced`, the
+      // same path a rename or an extrude takes.
+      cubit
+        ..ran(const SelectAll())
+        ..ran(const ScaleBy(2.5));
+
+      final after = _describe(await _draw(it.device, renderer, stage));
+
+      // Mutation: comment out `now.stage.sync?.apply(now.project)` in
+      // `ModelerCubit._synced`. The document doubles the object's size,
+      // the history and the readiness both move on, and the picture stays
+      // exactly the frame the cube was drawn at before — nothing else in
+      // the repository draws this document twice and compares the pixels.
+      expect(
+        after.subject,
+        greaterThan(before.subject),
+        reason:
+            'the object grew in the document and the picture did not grow '
+            'with it',
+      );
+    });
+  });
+
   group('the spike, drawn', () {
     // `mesh-01`'s last line: the half-edge cube with a face extruded, rendered
     // by the software rasteriser and held to a recorded picture. Everything
@@ -696,8 +752,10 @@ void main() {
       final preset = materialStudioSkyPresets()[1];
 
       final frame = await renderFrame(
-        width: 240,
-        height: 160,
+        // `mat-31`'s own size for the three material/scene goldens this
+        // app's own tests keep in `test/goldens`.
+        width: 320,
+        height: 200,
         settings: RenderSettings(sky: preset.sky),
         build: (FrameRequest request) {
           final stage = ModelerStage.build(device: request.device);

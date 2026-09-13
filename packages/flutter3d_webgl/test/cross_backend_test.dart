@@ -206,6 +206,10 @@ const Map<String, double> _budgets = <String, double>{
   // that order wrong moves limbs rather than edges.
   'morph-skinned': 0.7,
   'surface-buffer': 0.01,
+  // 0.443% measured: the checkerboard cube's silhouette plus the overlay
+  // batch's own edges — the thin lines, the camera-facing point quad and the
+  // filled selection — on top of it.
+  'mesh-overlay': 0.46,
 };
 
 /// Scenes budgeted before this set had a picture of them.

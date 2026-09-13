@@ -32,5 +32,13 @@ dev_dependencies:
   # implementation of an interface, it would be a part of the engine.
   flutter3d: ^0.6.0
   flutter3d_shaders: ^0.6.0
+  # For `mip_chain_quality_test.dart` alone: `ap-08`'s own Kaiser-filtered
+  # chain, sampled at a distant footprint. Not a real dependency — nothing in
+  # `lib/` reaches it.
+  flutter3d_formats: ^0.6.0
+  # `pro-sc-01`'s own benchmark: an `EditMesh` big enough to sculpt is built
+  # here and uploaded through this backend, which is test-only for the same
+  # reason the two lines above are.
+  flutter3d_mesh: ^0.6.0
 
 resolution: workspace

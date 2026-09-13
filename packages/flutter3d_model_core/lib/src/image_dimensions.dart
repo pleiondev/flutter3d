@@ -146,7 +146,7 @@ const List<int> _ktx2Identifier = <int>[
 ];
 
 /// KTX2: a fixed 12-byte identifier, then a 36-byte header of little-endian
-/// `u32` fields (`ktx2_format.dart` in the engine package states the same
+/// `u32` fields (`ktx2_format.dart` in `flutter3d_formats` states the same
 /// layout for the loader that reads the rest of the file) — `pixelWidth` and
 /// `pixelHeight` are the third and fourth fields, at offsets 20 and 24.
 ImageDimensions? _ktx2Dimensions(Uint8List bytes) {

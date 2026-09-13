@@ -4,5 +4,14 @@
 <dict>
 	<key>com.apple.security.app-sandbox</key>
 	<true/>
+	<!-- The level editor next door turned the sandbox off over exactly this:
+	     writing a document back failed with `PathAccessException` because
+	     nothing had granted it a directory to write into. This is the grant
+	     Apple actually offers for that — access to the one file a person
+	     chose in `openFile`/`getSaveLocation`, for as long as this run keeps
+	     it open — and `project_files_io.dart`'s own `saveAs`/`saveOver`
+	     already write within exactly that grant. See `p0-13n`. -->
+	<key>com.apple.security.files.user-selected.read-write</key>
+	<true/>
 </dict>
 </plist>

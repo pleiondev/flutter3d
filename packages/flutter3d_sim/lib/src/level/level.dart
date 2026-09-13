@@ -1,5 +1,6 @@
 import 'package:vector_math/vector_math.dart';
 
+import '../save/state_digest.dart';
 import 'brush.dart';
 import 'entity_def.dart';
 import 'heightfield.dart';
@@ -99,6 +100,15 @@ final class Level {
   /// wrong-looking geometry rather than a crash. The validator reports it.
   LevelMaterial materialFor(Brush brush) =>
       materials[brush.material] ?? LevelMaterial();
+
+  /// This level's document, as an eight-digit hex digest — [StateDigest] over
+  /// [toJson], the same instrument a run's checkpoints use.
+  ///
+  /// What a `Demo` compares against to know whether the level underneath its
+  /// tape is the one it was recorded against or one that has since been
+  /// edited — a question a modification time cannot answer, because a level
+  /// saved with no change still gets a new one.
+  String get digestHex => contentDigestHex(toJson());
 
   factory Level.fromJson(Map<String, Object?> json) {
     final version = json['version'];

@@ -97,6 +97,30 @@ void main() {
       right.add(child);
       expect(child.readWorldPosition().x, closeTo(10.0, 1e-6));
     });
+
+    test(
+      'a second setLocalMatrix moves a node whose world was already read',
+      () {
+        final parent = SceneNode();
+        final child = SceneNode();
+        parent.add(child);
+
+        child.setLocalMatrix(Matrix4.identity());
+        // Forces the cache to fill once, the way the very first frame drawn
+        // after a node is created always does.
+        expect(child.readWorldPosition().x, closeTo(0.0, 1e-6));
+
+        // Mutation: have `setLocalMatrix` call `_bumpWorld` instead of
+        // `_invalidateWorld`. The version stamp moves, so a reader keyed off
+        // `worldVersion` alone thinks the node did, but `worldMatrix`'s own
+        // cache is keyed off `_seenParentVersion` — which nothing here
+        // touches — and the read below keeps answering with the matrix from
+        // before this call, forever, because neither the parent nor this
+        // node's own dirty flag ever gives it a reason to look again.
+        child.setLocalMatrix(Matrix4.translation(Vector3(5.0, 0.0, 0.0)));
+        expect(child.readWorldPosition().x, closeTo(5.0, 1e-6));
+      },
+    );
   });
 
   group('hierarchy', () {

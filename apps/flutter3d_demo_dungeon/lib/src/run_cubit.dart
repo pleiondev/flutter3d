@@ -1,3 +1,4 @@
+import 'package:flutter/widgets.dart' show WidgetBuilder;
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_app/flutter3d_app.dart'; // RunSession, RunStatus
 import 'package:flutter3d_bridge/flutter3d_bridge.dart';
@@ -24,6 +25,7 @@ final class LevelReady {
     required this.staged,
     required this.actorVisuals,
     required this.fixtureVisuals,
+    required this.widgetSurfaces,
     this.exitModel,
   });
 
@@ -31,6 +33,10 @@ final class LevelReady {
   final Staged staged;
   final ActorVisuals actorVisuals;
   final FixtureVisuals fixtureVisuals;
+
+  /// `wg-02`: every `widget_surface` entity this level named, resolved
+  /// against `DungeonRun.widgetRegistry`.
+  final WidgetSurfaceVisuals widgetSurfaces;
 
   /// The doorway's uploaded model, held so `DungeonRun.close` can release it.
   /// Null when the level has no exit or the file would not read.
@@ -100,12 +106,20 @@ final class DungeonRun extends RunSession<LevelReady> {
     required this.input,
     required this.inventory,
     required this.device,
+    this.widgetRegistry = const <String, WidgetBuilder>{},
     this.eyeOffset = 0.7,
     this.lookSensitivity = 0.0022,
   });
 
   /// One registry validates the document and then spawns it.
   final EntityRegistry registry;
+
+  /// What a `widget_surface` entity's `widget` name resolves to — `wg-02`'s
+  /// own reason this exists: a level naming `"run-terminal"` says nothing
+  /// about what that widget is, on purpose, the same principle
+  /// `doc/edu-00-interactive-format.md`'s `edu_annotation.widget` already
+  /// settled on.
+  final Map<String, WidgetBuilder> widgetRegistry;
 
   final InputState input;
 
@@ -182,11 +196,28 @@ final class DungeonRun extends RunSession<LevelReady> {
       eyeOffset: eyeOffset,
       lookSensitivity: lookSensitivity,
     );
+
+    // `wg-02`: every `widget_surface` entity, resolved against
+    // `widgetRegistry` — not fed through `SpawnContext` like a fixture or an
+    // actor, because a live widget on a wall names no monster, no key, no
+    // mover; `WidgetSurfaceVisuals.add` already answers `null` for anything
+    // that is not its own entity type, so handing it the whole document is
+    // exactly as cheap as handing it a filtered one.
+    final widgets = WidgetSurfaceVisuals(
+      loaded.scene,
+      device: device,
+      registry: widgetRegistry,
+    );
+    for (final entity in loaded.level.entities) {
+      widgets.add(entity);
+    }
+
     return LevelReady(
       loaded: loaded,
       staged: staged,
       actorVisuals: scene.actors,
       fixtureVisuals: scene.fixtures,
+      widgetSurfaces: widgets,
       exitModel: exitModel,
     );
   }
@@ -202,6 +233,7 @@ final class DungeonRun extends RunSession<LevelReady> {
   void close(LevelReady level) {
     level.actorVisuals.dispose();
     level.fixtureVisuals.dispose();
+    level.widgetSurfaces.dispose();
     level.exitModel?.release(device);
     level.loaded.dispose(device);
   }

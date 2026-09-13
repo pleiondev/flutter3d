@@ -1,0 +1,59 @@
+name: flutter3d_render_mcp
+description: "Why is the frame wrong, without guessing: a headless frame, a debug view of its normals and depth, the HDR value of one pixel, and a scan for the first NaN — par-02."
+version: 0.6.0
+repository: https://github.com/pleiondev/flutter3d
+homepage: https://flutter3d.pleion.dev
+issue_tracker: https://github.com/pleiondev/flutter3d/issues
+topics:
+  - game-development
+  - mcp
+  - tooling
+  - ai
+resolution: workspace
+
+environment:
+  sdk: ^3.12.2
+  flutter: '>=3.47.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # A level's own scene, a device with no GPU behind it, and the debug views
+  # `RenderSettings` already carries — `showSurfaceBuffer`, `showShadowMap` —
+  # rather than anything this package invents. See the package doc for why
+  # that rules out literal stdio, the same reason `flutter3d_sim_mcp` gives.
+  flutter3d: ^0.6.0
+  flutter3d_bridge: ^0.6.0
+  flutter3d_cpu: ^0.6.0
+  flutter3d_sim: ^0.6.0
+
+  vector_math: ^2.2.0
+
+  dart_mcp: ">=0.5.2 <0.6.0"
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+  # `@TestOn('vm')` and a plain `test()` — the real subprocess and real socket
+  # `test/render_mcp_test.dart` drives, the same shape `flutter3d_sim_mcp`
+  # already settled on.
+  test: ^1.25.0
+
+# **Genre-agnostic on purpose, unlike `flutter3d_sim_mcp`.** A frame's own
+# normals, depth and NaNs are not a property of any genre, so `open`'s
+# `EntityRegistry` is a parameter this package's own code never fills in —
+# only its tests do, with an empty one, since diagnosing a picture needs no
+# monster or weapon the level might otherwise reference. That is what keeps
+# this beside `flutter3d_editor_mcp` and `flutter3d_model_mcp` rather than
+# beside `flutter3d_sim_mcp`, whose own `genreRuleExempt` entry this package
+# does not need.
+#
+# **And still needs Flutter, for the same reason `flutter3d_sim_mcp` does.**
+# `flutter3d_cpu` needs `dart:ui` for a rendered frame, so this runs inside
+# `flutter test` rather than under plain `dart run`, over a socket rather
+# than literal stdio — `flutter test` turns everything a test writes to
+# `stdout` into a line prefixed `Shell: ` before a real terminal ever sees
+# it, which a wire protocol keyed on exact line framing does not survive.

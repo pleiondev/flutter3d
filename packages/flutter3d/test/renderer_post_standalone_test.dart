@@ -77,9 +77,11 @@ void main() {
       final graph = FrameGraph()
         ..addExternal(colour)
         ..addNode(
-          const _TestNode('bloom', reads: <ResourceId>[colour], writes: [
-            bloom,
-          ]),
+          const _TestNode(
+            'bloom',
+            reads: <ResourceId>[colour],
+            writes: [bloom],
+          ),
         );
       final compiled = graph.compile(outputs: <ResourceId>[bloom]);
 
@@ -87,31 +89,30 @@ void main() {
       expect(compiled.writeVersionOf(0, bloom), 1);
     });
 
-    test(
-      'a node that expects version one of a resource nothing produced is '
-      'refused at compile, not at runtime',
-      () {
-        // Mutation: register `colour` as a normal node's write instead of
-        // `addExternal`, or drop the `addExternal` call in `renderPost`
-        // itself — either turns this from "refused before a pass runs" into
-        // "silently reads whatever version zero happens to hold", which is
-        // exactly the failure the graph's own compile-time check exists to
-        // catch instead of a blank frame at runtime.
-        final graph = FrameGraph()
-          // No `addExternal(colour)` here: nothing hands the graph a version
-          // zero of it at all, so a reader has nothing to bind to.
-          ..addNode(
-            const _TestNode('bloom', reads: <ResourceId>[colour], writes: [
-              bloom,
-            ]),
-          );
-
-        expect(
-          () => graph.compile(outputs: <ResourceId>[bloom]),
-          throwsA(isA<FrameGraphError>()),
+    test('a node that expects version one of a resource nothing produced is '
+        'refused at compile, not at runtime', () {
+      // Mutation: register `colour` as a normal node's write instead of
+      // `addExternal`, or drop the `addExternal` call in `renderPost`
+      // itself — either turns this from "refused before a pass runs" into
+      // "silently reads whatever version zero happens to hold", which is
+      // exactly the failure the graph's own compile-time check exists to
+      // catch instead of a blank frame at runtime.
+      final graph = FrameGraph()
+        // No `addExternal(colour)` here: nothing hands the graph a version
+        // zero of it at all, so a reader has nothing to bind to.
+        ..addNode(
+          const _TestNode(
+            'bloom',
+            reads: <ResourceId>[colour],
+            writes: [bloom],
+          ),
         );
-      },
-    );
+
+      expect(
+        () => graph.compile(outputs: <ResourceId>[bloom]),
+        throwsA(isA<FrameGraphError>()),
+      );
+    });
   });
 
   group('Renderer.renderPost', () {
@@ -134,13 +135,15 @@ void main() {
       expect(
         sceneReaders,
         isNotEmpty,
-        reason: 'the composite pass reads the hdr buffer under the same '
+        reason:
+            'the composite pass reads the hdr buffer under the same '
             'slot name render\'s own composite node does',
       );
       expect(
         sceneReaders.every((t) => identical(t.texture, hdr)),
         isTrue,
-        reason: 'composite reads exactly the texture renderPost was handed, '
+        reason:
+            'composite reads exactly the texture renderPost was handed, '
             'not a copy or the wrong version',
       );
     });
@@ -181,9 +184,7 @@ void main() {
 
       final result = it.renderer.renderPost(
         hdr: hdr,
-        settings: const RenderSettings(
-          bloom: BloomSettings(enabled: false),
-        ),
+        settings: const RenderSettings(bloom: BloomSettings(enabled: false)),
       );
 
       expect(result.frame, isNotNull);
@@ -192,7 +193,10 @@ void main() {
           .where((t) => t.slot == 'bloom_texture');
       // The glow slot still has to be satisfied — a sampler cannot be left
       // unbound — and `_encodeComposite`'s own fallback is the scene itself.
-      expect(compositeBloomBindings.every((t) => identical(t.texture, hdr)), isTrue);
+      expect(
+        compositeBloomBindings.every((t) => identical(t.texture, hdr)),
+        isTrue,
+      );
     });
 
     test('the output texture matches the hdr buffer\'s own dimensions', () {
@@ -256,6 +260,70 @@ void main() {
       expect(identical(result.hdr, hdr), isTrue);
     });
 
+    test('keepHdr lets two calls with different settings reuse the same '
+        'buffer without redoing a scene pass', () {
+      // The claim `keepHdr` exists for: a caller re-runs post over the same
+      // HDR data with a different look rather than re-rendering the scene.
+      // Nothing here ever registers a scene-drawing node — `renderPost`'s
+      // own graph is bloom and composite only — so the proof is that a
+      // second call with different settings costs exactly the same passes
+      // and textures as the first, never more: if `renderPost` reached back
+      // into the scene on the second call, this would grow.
+      //
+      // Mutation: have a second `renderPost` call allocate a fresh internal
+      // texture per call regardless of `keepHdr`, or run an extra pass —
+      // either moves `secondPasses`/`secondTextures` away from
+      // `firstPasses`/`firstTextures`, which this test would catch as a
+      // mismatch rather than as growth, since the two are asserted equal.
+      final it = _engine();
+      final hdr = _hdr(it.device);
+
+      final passesBefore = it.device.passes.length;
+      final texturesBefore = it.device.createdTextures.length;
+
+      final first = it.renderer.renderPost(
+        hdr: hdr,
+        settings: const RenderSettings(exposure: 1.0),
+        keepHdr: true,
+      );
+      final firstPasses = it.device.passes.length - passesBefore;
+      final firstTextures = it.device.createdTextures.length - texturesBefore;
+
+      expect(
+        identical(first.hdr, hdr),
+        isTrue,
+        reason:
+            'keepHdr should hand back the exact buffer this call was '
+            'given, for the next call to reuse',
+      );
+
+      final second = it.renderer.renderPost(
+        hdr: first.hdr!,
+        settings: const RenderSettings(exposure: 3.0, tonemap: false),
+        keepHdr: true,
+      );
+      final secondPasses =
+          it.device.passes.length - (passesBefore + firstPasses);
+      final secondTextures =
+          it.device.createdTextures.length - (texturesBefore + firstTextures);
+
+      expect(identical(second.hdr, hdr), isTrue);
+      expect(
+        secondPasses,
+        equals(firstPasses),
+        reason:
+            'a second call over the kept buffer ran a different shape '
+            'of work than the first — the scene was touched again',
+      );
+      expect(
+        secondTextures,
+        equals(firstTextures),
+        reason:
+            'a second call over the kept buffer allocated a different '
+            'number of textures than the first',
+      );
+    });
+
     test('two calls on the same buffer bind the composite to the same '
         'exposure and tonemap settings — no state leaks between them', () {
       final it = _engine();
@@ -270,10 +338,7 @@ void main() {
           .where((b) => b.block == 'CompositeInfo')
           .toList();
       expect(blocks.length, 2);
-      expect(
-        blocks[0].members['params'],
-        equals(blocks[1].members['params']),
-      );
+      expect(blocks[0].members['params'], equals(blocks[1].members['params']));
     });
 
     test('renderPost does not touch the scene the renderer also draws with '

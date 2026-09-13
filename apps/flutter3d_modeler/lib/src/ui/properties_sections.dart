@@ -17,6 +17,7 @@ enum PropertiesSection {
   objects,
   transform,
   modifiers,
+  materials,
   lastOperation,
   selection,
   mesh,
@@ -29,10 +30,14 @@ enum PropertiesSection {
 /// budget mean the same thing regardless of what is being edited — so they
 /// answer `true` in every mode rather than disappearing along with the
 /// mode-specific sections. Object mode owns the object list, the transform
-/// grid and the modifier stack; mesh mode owns the last-operation card, the
-/// selection summary and the mesh row counts. A mode with no sections of its
-/// own yet (material, animation, scene — not built this phase) gets only the
-/// cross-mode ones.
+/// grid, the modifier stack and — `mat-04a-n`'s own row — the material
+/// panel: a full `Material` workspace of its own is `ModelerMode.material`'s
+/// phase-2 row, but phase 1's own scenario ("clean a mesh, fix its
+/// material, export to GLB") needs a way to paint an object today, and
+/// object mode is where that object already is. Mesh mode owns the
+/// last-operation card, the selection summary and the mesh row counts. A
+/// mode with no sections of its own yet (animation, scene — not built this
+/// phase) gets only the cross-mode ones.
 Set<PropertiesSection> sectionsFor(ModelerMode mode) => <PropertiesSection>{
   PropertiesSection.display,
   PropertiesSection.view,
@@ -42,6 +47,7 @@ Set<PropertiesSection> sectionsFor(ModelerMode mode) => <PropertiesSection>{
       PropertiesSection.objects,
       PropertiesSection.transform,
       PropertiesSection.modifiers,
+      PropertiesSection.materials,
     },
     ModelerMode.mesh => const <PropertiesSection>{
       PropertiesSection.lastOperation,

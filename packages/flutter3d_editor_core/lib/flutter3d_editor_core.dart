@@ -47,10 +47,12 @@
 /// field ever gets edited from does not have to write the gate again.
 library;
 
+export 'src/binding_lookup.dart';
 export 'src/editing.dart';
 export 'src/editor_command.dart';
 export 'src/editor_history.dart';
 export 'src/gizmos.dart';
+export 'src/lesson_authoring.dart';
 export 'src/listing.dart';
 export 'src/looks.dart';
 export 'src/material_edit.dart';

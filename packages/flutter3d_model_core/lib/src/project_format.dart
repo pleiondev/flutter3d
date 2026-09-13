@@ -72,6 +72,7 @@ import 'package:vector_math/vector_math.dart';
 
 import 'command.dart';
 import 'history.dart';
+import 'lod_spec.dart';
 import 'material.dart';
 import 'parametric_json.dart';
 import 'project.dart';
@@ -375,6 +376,9 @@ Uint8List writeProject(
         // most objects most files ever hold.
         'skeletonIndex': object.skeletonIndex,
         'shapeSet': _shapeSetJson(object.shapeSet),
+        // `pro-lod-03`, younger still — absent reads back as `<LodSpec>[]`,
+        // the ordinary case of an object nobody has asked to simplify.
+        'lods': _lodsJson(object.lods),
       });
     }
     return out;
@@ -1124,6 +1128,21 @@ Map<String, Object?> _shapeKeyJson(ShapeKey key) => <String, Object?>{
   'name': key.name,
   'positions': <double>[...key.positions],
 };
+
+/// [lods] as JSON — `null` for the ordinary object with no levels of detail,
+/// the same absent-means-empty shape [_shapeSetJson] keeps for the same
+/// reason: a project that never touched `pro-lod-03` writes exactly the
+/// file it would have written before this row existed.
+List<Object?>? _lodsJson(List<LodSpec> lods) {
+  if (lods.isEmpty) return null;
+  return <Object?>[
+    for (final LodSpec lod in lods)
+      <String, Object?>{
+        'ratio': lod.ratio,
+        'maxScreenFraction': lod.maxScreenFraction,
+      },
+  ];
+}
 
 Map<String, Object?> _skeletonJson(ProjectSkeleton skeleton) => <String, Object?>{
   'name': skeleton.name,
@@ -1919,6 +1938,40 @@ VertexLayout? _layoutFrom(Object? json, Map<String, String> pool) {
   );
 }
 
+/// [json] as a list of [LodSpec], or the sentence that stops the file —
+/// `(null, null)` for the ordinary absent case, an object that has never
+/// had a level of detail added to it. Mirrors [_readShapeSet]'s own shape.
+(List<LodSpec>?, String?) _readLods(Object? json, int index, String name) {
+  if (json == null) return (null, null);
+  if (json is! List<Object?>) {
+    return (
+      null,
+      'Object $index ("$name") has a lods entry that is not a list.',
+    );
+  }
+  final lods = <LodSpec>[];
+  for (var i = 0; i < json.length; i++) {
+    if (json[i] case {
+      'ratio': final num ratio,
+      'maxScreenFraction': final num maxScreenFraction,
+    }) {
+      lods.add(
+        LodSpec(
+          ratio: ratio.toDouble(),
+          maxScreenFraction: maxScreenFraction.toDouble(),
+        ),
+      );
+    } else {
+      return (
+        null,
+        'Object $index ("$name")\'s level of detail $i is missing its ratio '
+            'or its maxScreenFraction.',
+      );
+    }
+  }
+  return (lods, null);
+}
+
 /// The skeletons [json] describes, or the sentence that stops the file.
 ///
 /// Absent (a file saved before `anim-03` existed) reads as no skeletons at
@@ -2177,6 +2230,13 @@ VertexLayout? _layoutFrom(Object? json, Map<String, String> pool) {
     );
     if (shapeRefusal != null) return (null, shapeRefusal);
 
+    final (List<LodSpec>? lods, String? lodsRefusal) = _readLods(
+      entry['lods'],
+      index,
+      name,
+    );
+    if (lodsRefusal != null) return (null, lodsRefusal);
+
     return (
       ModelObject(
         id: id,
@@ -2194,6 +2254,7 @@ VertexLayout? _layoutFrom(Object? json, Map<String, String> pool) {
         // already are.
         skeletonIndex: entry['skeletonIndex'] as int?,
         shapeSet: shapeSet ?? const ShapeSet(),
+        lods: lods ?? const <LodSpec>[],
       ),
       null,
     );

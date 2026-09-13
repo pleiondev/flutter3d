@@ -6,7 +6,8 @@
 /// return, must never learn what a monster is. Neither rule leaves anywhere for
 /// the mapping between them to live, and this package is that place: level
 /// geometry to mesh nodes, an actor to its visual, a glowing fixture to the
-/// light it drives.
+/// light it drives, a widget named in the document to the surface it draws
+/// on.
 ///
 /// Everything here is mechanism. What a torch looks like and what colour a
 /// runner is are decided by the game and handed in — see [FixtureAppearance]
@@ -22,8 +23,10 @@ library;
 
 export 'src/actor_visuals.dart';
 export 'src/fixture_visuals.dart';
+export 'src/lesson_player.dart';
 export 'src/level_loader.dart';
 export 'src/shared_meshes.dart';
 export 'src/sound_occlusion.dart';
 export 'src/surface_mesh.dart';
 export 'src/visibility_culler.dart';
+export 'src/widget_surface_visuals.dart';

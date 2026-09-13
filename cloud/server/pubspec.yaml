@@ -1,0 +1,78 @@
+name: flutter3d_models
+description: >-
+  The account, the models a person keeps in it, and the catalogue they can be
+  published to. Serves models.pleion.dev.
+publish_to: none
+version: 0.1.0
+
+# **Outside the workspace on purpose.** The repository root lists the packages
+# that go to pub.dev, and every one of them is counted in the README, checked by
+# `tool/structure.dart` and released together. This is a service, not a package:
+# it is never published, its version means nothing to anybody else, and it
+# depends on the engine the way an outside application does — by version, from
+# pub.dev. Naming no `resolution` is what keeps it out: the root pubspec does
+# not list this directory, so pub resolves it on its own and writes its own
+# lock file here.
+
+environment:
+  # Below the 3.12.2 the workspace asks for, because the server it runs on has
+  # Dart 3.11 and the packages here need none of what came after 3.10.
+  sdk: ^3.10.0
+
+dependencies:
+  # The page, rendered on the server. A cabinet that arrives as finished HTML
+  # opens in one request, and a catalogue that arrives that way is a catalogue a
+  # crawler can read.
+  jaspr: ^0.23.4
+
+  # Everything that is not a page: the form handlers, the JSON API and the file
+  # downloads. `serveApp` from jaspr is itself a shelf handler, so the two share
+  # one server rather than one proxying the other.
+  shelf: ^1.4.2
+  shelf_router: ^1.1.4
+
+  postgres: ^3.5.12
+
+  # What a model is, read on the server by the same code that reads it in the
+  # editor: `sniffModelFormat`, `decodeModel`, `readProject`. An upload that
+  # does not parse here never reaches the disk.
+  flutter3d_formats:
+    path: ../../packages/flutter3d_formats
+  flutter3d_model_core:
+    path: ../../packages/flutter3d_model_core
+
+  # Argon2id for passwords, in Dart. The FFI binding to libargon2 stopped at
+  # Dart 2, and a password hash is the one place where a dependency that has
+  # stopped is not a trade worth making.
+  pointycastle: ^4.0.0
+
+  crypto: ^3.0.7
+  http: ^1.2.0
+
+dev_dependencies:
+  build_runner: ^2.6.0
+  build_web_compilers: ^4.2.0
+  jaspr_builder: ^0.23.4
+  lints: ^6.0.0
+  test: ^1.25.0
+
+# **Four packages by path, because none of them is on pub.dev yet.** The
+# geometry and format packages were split out after the 0.6.0 set went out and
+# go with the next one; the mesh and document layers are newer still. Until
+# they are published, a path is the only way to name them, and an override is
+# what makes the path win over the `^0.6.0` they ask of each other.
+#
+# When the next set is published, these four lines go and the two dependencies
+# above become ordinary hosted ones.
+dependency_overrides:
+  flutter3d_geometry:
+    path: ../../packages/flutter3d_geometry
+  flutter3d_formats:
+    path: ../../packages/flutter3d_formats
+  flutter3d_mesh:
+    path: ../../packages/flutter3d_mesh
+  flutter3d_model_core:
+    path: ../../packages/flutter3d_model_core
+
+jaspr:
+  mode: server

@@ -461,6 +461,28 @@ final class CpuDevice implements GraphicsDevice {
     return ByteData.sublistView(out);
   }
 
+  /// [texture]'s own RGBA floats, unclamped and unconverted — what
+  /// [readPixels] throws away on the way to an 8-bit picture.
+  ///
+  /// **Only this backend can answer this, and only this backend needs to.**
+  /// A hardware texture's bytes live on the GPU in whatever layout the driver
+  /// chose; reading them back as linear floats is the round trip
+  /// `GraphicsDevice.readback` already declines for anything but its two
+  /// 8-bit formats. This backend's own texture already *is* a `Float32List`
+  /// — see `CpuTexture` — so there is nothing to convert and nothing to ask
+  /// a driver for.
+  ///
+  /// A diagnostic wants exactly what a picture cannot show: a depth of forty
+  /// metres does not fit in `0..1`, and a `double.nan` a broken shader wrote
+  /// clamps to `1.0` before it ever reaches [readPixels] — silently, since
+  /// `1.0` is a perfectly ordinary channel value. Reading the texture as it
+  /// actually stands is the only way to tell a NaN or an out-of-range value
+  /// apart from the picture it happens to resemble once rounded.
+  Float32List readHdrPixels(TextureHandle texture) {
+    final backend = texture.backend as CpuTexture;
+    return Float32List.fromList(backend.pixels);
+  }
+
   /// The region, converted on the spot.
   ///
   /// Nothing here is in flight: the pass that wrote these floats ran to the

@@ -23,6 +23,8 @@
 /// wrapped round the widget.
 library;
 
+import 'dart:async';
+
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 
 import 'command.dart';
@@ -203,6 +205,35 @@ final class ModelHistory {
   StepAuthor? _authorOfTransaction;
   final Map<EditMesh, int> _meshStepsOfTransaction = <EditMesh, int>{};
 
+  /// Completed by [endTransaction] and awaited by [whenNotInTransaction] —
+  /// `mcp-14n`'s own lock, held by whichever modal transform is mid-drag.
+  Completer<void>? _transactionClosed;
+
+  /// Resolves once no transaction is open — immediately, when none is.
+  ///
+  /// **The whole of `mcp-14n`'s own fix lives in this one `await`,** called
+  /// from `flutter3d_model_mcp`'s generic command tool before it runs an
+  /// agent's command. [ModelHistory.run] folds a command into whichever
+  /// transaction happens to be open when it is called — right, for the
+  /// gesture that opened it, wrong for a command that arrives from
+  /// somewhere else entirely while a person is mid-drag: it would land
+  /// inside a step it never asked to be part of, at whatever intermediate
+  /// position the drag has reached that frame, and the picture a person is
+  /// watching would disagree with the document an agent just read back.
+  ///
+  /// **A loop, not a single await, because a drag can end and start again
+  /// before this resolves.** Every iteration re-reads [_inTransaction]
+  /// after waking, so this only returns at a moment nothing is open — and
+  /// because everything here runs on one isolate's one event loop, nothing
+  /// can call [beginTransaction] between this returning and the very next
+  /// synchronous line the caller runs, which is what lets that caller call
+  /// [run] right after `await`ing this with no window between the two.
+  Future<void> get whenNotInTransaction async {
+    while (_inTransaction) {
+      await (_transactionClosed ??= Completer<void>()).future;
+    }
+  }
+
   /// Runs [body] and records everything it did as one step.
   T transaction<T>(T Function() body) {
     beginTransaction();
@@ -257,6 +288,11 @@ final class ModelHistory {
     _projectBeforeTransaction = null;
     _selectionBeforeTransaction = null;
     _meshStepsOfTransaction.clear();
+    // Whoever is in `whenNotInTransaction`'s loop wakes here — before the
+    // early return below, so a drag that moved nothing still releases a
+    // command that has been waiting on it.
+    _transactionClosed?.complete();
+    _transactionClosed = null;
     if (first == null || identical(_project, before)) return;
     _done.add(
       HistoryStep(

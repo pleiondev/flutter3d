@@ -1,0 +1,43 @@
+# /etc/systemd/system/flutter3d-models.service
+[Unit]
+Description=models.pleion.dev (flutter3d models)
+After=network-online.target docker.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/opt/flutter3d-models/models
+WorkingDirectory=/opt/flutter3d-models
+# Secrets live here and nowhere else: the database password, the Resend key,
+# the signing secret. Read by systemd as root before the user is dropped, so the
+# file itself stays root-only.
+EnvironmentFile=/etc/flutter3d-models.env
+Environment=MODELS_PORT=8794
+Environment=MODELS_BLOB_DIR=/var/lib/flutter3d-models/blobs
+Environment=MODELS_ASSETS_DIR=/opt/flutter3d-models/assets
+Restart=on-failure
+RestartSec=5
+# SIGTERM lets uploads in flight finish; after this long they are cut.
+TimeoutStopSec=30
+
+# The same confinement as tooth-api: a user systemd makes up, a state directory
+# it owns, and a read-only view of everything else.
+DynamicUser=yes
+StateDirectory=flutter3d-models
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+NoNewPrivileges=yes
+ProtectKernelTunables=yes
+ProtectControlGroups=yes
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+RestrictNamespaces=yes
+LockPersonality=yes
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=flutter3d-models
+
+[Install]
+WantedBy=multi-user.target

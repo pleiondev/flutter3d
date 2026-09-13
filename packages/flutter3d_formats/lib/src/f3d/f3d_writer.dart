@@ -22,8 +22,9 @@ part 'f3d_writer_scene.dart';
 /// reason that abstraction exists: one converter serves every decoder the engine
 /// has, and a third format needs a decoder rather than a second writer.
 ///
-/// Runs offline, in `tool/convert_asset.dart`. Nothing here is on a frame path,
-/// so it favours being obviously correct over being quick.
+/// Runs offline, in `dart run flutter3d:convert` (`flutter3d_build`).
+/// Nothing here is on a frame path, so it favours being obviously correct
+/// over being quick.
 final class F3dWriter {
   F3dWriter(this.document);
 

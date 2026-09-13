@@ -17,7 +17,7 @@
 library;
 
 import 'dart:async';
-import 'dart:ui' as ui show AppExitResponse;
+import 'dart:ui' as ui show AppExitResponse, PlatformDispatcher;
 
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/gestures.dart';
@@ -33,20 +33,27 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:vector_math/vector_math.dart' as vm;
 
+import 'l10n/app_localizations.dart';
 import 'src/autosaving.dart';
 import 'src/backend.dart';
 import 'src/churn_run.dart';
 import 'src/close_beforeunload.dart';
 import 'src/close_guard.dart';
+import 'src/crash_handling.dart';
 import 'src/display_modes.dart';
 import 'src/element_picking.dart';
 import 'src/environment_summary.dart';
 import 'src/exporting.dart';
+import 'src/files/fetch_model.dart';
+import 'src/files/file_drop.dart';
 import 'src/files/project_files.dart';
 import 'src/files/sandbox_probe.dart';
+import 'src/geometry_snap.dart';
 import 'src/ground_grid.dart';
 import 'src/import_plan.dart';
+import 'src/material_editing.dart';
 import 'src/material_pool.dart' show clay;
+import 'src/mcp_bootstrap.dart';
 import 'src/modeler_cubit.dart';
 import 'src/modeler_viewport.dart';
 import 'src/object_picking.dart';
@@ -57,6 +64,7 @@ import 'src/recent_projects.dart';
 import 'src/report_problem.dart';
 import 'src/selection_box.dart';
 import 'src/staging.dart';
+import 'src/transform_dispatch.dart';
 import 'src/transform_fields.dart';
 import 'src/transform_gizmo.dart';
 import 'src/transform_modal.dart';
@@ -64,11 +72,13 @@ import 'src/ui/export_screen.dart';
 import 'src/ui/import_screen.dart';
 import 'src/ui/lathe_dialog.dart';
 import 'src/ui/layout_class.dart';
+import 'src/ui/material_panel.dart';
 import 'src/ui/material_studio_dialog.dart';
 import 'src/ui/modifier_stack_panel.dart';
 import 'src/ui/number_field.dart';
 import 'src/ui/operation_card.dart';
 import 'src/ui/properties_sections.dart';
+import 'src/ui/save_as_dialog.dart';
 import 'src/ui/section_label.dart';
 import 'src/ui/selection_key_bindings.dart';
 import 'src/ui/shell.dart';
@@ -80,6 +90,7 @@ import 'src/ui/status_line.dart';
 import 'src/ui/theme.dart';
 import 'src/ui/tools.dart';
 import 'src/ui/undo_redo_buttons.dart';
+import 'src/viewport_metrics.dart';
 
 /// The model this build opens, as an asset path. Empty means the cube.
 ///
@@ -121,16 +132,76 @@ const bool kSandboxProbe = bool.fromEnvironment('sandbox');
 /// half of `p0-13n` that no process can answer without a person.
 const bool kSandboxPick = bool.fromEnvironment('sandboxPick');
 
-void main() => runApp(const ModelerApp());
+/// `mcp-13n`: also serve this session's own live document over a local HTTP
+/// socket, on this port — `0` picks any free one. Negative (the default)
+/// starts nothing, the same "opt in by naming a value" `kStress` already
+/// uses.
+///
+///     flutter run -d macos --dart-define=mcpPort=0
+const int kMcpPort = int.fromEnvironment('mcpPort', defaultValue: -1);
+
+/// `ui-30n`: wires an exception nobody caught to the same response wherever
+/// it surfaces. `FlutterError.onError` catches one the framework itself
+/// caught mid-callback (a build, a gesture, a layout) and would otherwise
+/// only dump to the console; `runZonedGuarded`'s own handler catches one that
+/// got past that — thrown from a `Future` callback with nobody awaiting it,
+/// say. Both call [_onUncaughtError] with the same two arguments, so a
+/// command's `apply()` throwing lands the same emergency autosave and the
+/// same dialog regardless of which door it went out.
+void main() {
+  FlutterError.onError = (FlutterErrorDetails details) {
+    FlutterError.presentError(details);
+    unawaited(
+      _onUncaughtError(details.exception, details.stack ?? StackTrace.current),
+    );
+  };
+  runZonedGuarded(
+    () => runApp(const ModelerApp()),
+    (Object error, StackTrace stack) => unawaited(_onUncaughtError(error, stack)),
+  );
+}
+
+/// Reaches whatever `ModelerScreen` is on screen right now — see
+/// [_liveCrashScreen]'s own doc comment for why a top-level error handler
+/// needs a door like this at all.
+Future<void> _onUncaughtError(Object error, StackTrace stackTrace) => handleCrash(
+  error: error,
+  stackTrace: stackTrace,
+  cubit: _liveCrashScreen?._cubit,
+  storage: _liveCrashScreen?._autosave?.storage,
+  sessionId: _kAutosaveSessionId,
+  environment: 'Flutter, ${environmentSummary()}',
+  dialogContext: () => _rootNavigatorKey.currentContext,
+);
+
+/// Where the dialog [_onUncaughtError] shows actually opens — a
+/// `Navigator` above every route this application ever pushes, rather than
+/// `ModelerScreen`'s own `BuildContext`: the crash that needs showing might
+/// be the one that unmounted a dialog already open on top of it.
+final GlobalKey<NavigatorState> _rootNavigatorKey = GlobalKey<NavigatorState>();
+
+/// Set for as long as one `_ModelerScreenState` is alive, cleared on
+/// `dispose` — [_onUncaughtError] is a top-level function with no `State` of
+/// its own, and this is how it reaches the one document this single-window
+/// application ever has open, the same single-instance reasoning
+/// `_kAutosaveSessionId`'s own doc comment already relies on.
+_ModelerScreenState? _liveCrashScreen;
 
 class ModelerApp extends StatelessWidget {
   const ModelerApp({super.key});
 
   @override
   Widget build(BuildContext context) => MaterialApp(
+    navigatorKey: _rootNavigatorKey,
     title: 'flutter3d modeller',
     debugShowCheckedModeBanner: false,
     theme: modelerTheme(),
+    // `ui-22`: Russian and English both from the first version. What
+    // `_cubit.say(...)` shows stays English on purpose — that is the
+    // diagnostic language this repository already uses in core and MCP,
+    // not the interface language.
+    localizationsDelegates: AppLocalizations.localizationsDelegates,
+    supportedLocales: AppLocalizations.supportedLocales,
     home: const ModelerScreen(),
   );
 }
@@ -174,7 +245,10 @@ const String _kAutosaveSessionId = 'single-window';
 /// A stale entry (one `readProject` refuses) is removed here rather than
 /// left for the caller to notice twice — there is nothing for a person to
 /// decide about a recovery copy this build itself could not have written.
-Future<ProjectOpened?> findRecovery(BinaryStorage storage, String sessionId) async {
+Future<ProjectOpened?> findRecovery(
+  BinaryStorage storage,
+  String sessionId,
+) async {
   final key = recoveryPathFor(null, sessionId: sessionId);
   final bytes = await storage.read(key);
   if (bytes == null) return null;
@@ -217,11 +291,31 @@ class _ModelerScreenState extends State<ModelerScreen>
   /// The device, kept so a model opened later can be uploaded through it.
   GraphicsDevice? _device;
 
+  /// The viewport size and pixel ratio the current [_device] was opened at,
+  /// so a later resize past that fixed canvas can be noticed.
+  int _deviceWidth = 0;
+  int _deviceHeight = 0;
+  double _deviceDevicePixelRatio = 1;
+
+  /// Set while a stale device is being swapped for a freshly sized one, so a
+  /// second resize during the swap does not start a redundant reopen.
+  bool _reopeningDevice = false;
+
   /// What the last file operation said, shown beside the buttons.
 
   /// Which lens the viewport looks through, and what the surface is drawn as.
   ViewLens _lens = ViewLens.perspective;
   ShadingMode _shading = ShadingMode.material;
+
+  /// Where a rotation or a scale from the transform panel is centred, and
+  /// whose axes a rotation is given in.
+  ///
+  /// **Plain fields, the way [_lens] and [_shading] are.** Neither is part of
+  /// the document — undoing to before a rotation does not put the pivot chip
+  /// back where it was either — so there is nothing here for `ModelerCubit`
+  /// to keep in step with a command landing.
+  PivotChip _pivot = PivotChip.median;
+  TransformSpace _space = TransformSpace.global;
 
   /// Remembers what the materials were, so the normals view can be left.
   final SurfaceShading _surfaces = SurfaceShading();
@@ -277,6 +371,28 @@ class _ModelerScreenState extends State<ModelerScreen>
     return _picker;
   }
 
+  /// Pickers over every other mesh object's geometry — `view-26n`'s own
+  /// candidates for a geometry snap — rebuilt only when that object's own
+  /// version moves, the same cache [_elementPicker] keeps for the one being
+  /// edited.
+  final Map<int, ({int version, MeshPicker picker})> _otherPickers =
+      <int, ({int version, MeshPicker picker})>{};
+
+  /// Where the selection's own median stood when the current move began, so
+  /// `view-26n`'s geometry snap has something to measure a delta from. Null
+  /// outside a mesh-mode move.
+  vm.Vector3? _snapAnchorStart;
+
+  /// What the drag is about to snap onto, or null. Read by the viewport to
+  /// draw the ring and by nothing else — the delta it implies already lives
+  /// on the modal itself.
+  SnapTarget? _snapTarget;
+
+  /// The camera and viewport the last drag report was measured against, so a
+  /// keyboard-driven change mid-drag (`X`, a typed digit) can re-run the same
+  /// geometry search the pointer itself last ran.
+  PickingView? _lastPickingView;
+
   /// What the last operation said when it refused, shown in the status line
   /// until something else happens.
 
@@ -320,13 +436,15 @@ class _ModelerScreenState extends State<ModelerScreen>
     _timings.start();
     _autosave = AutosaveController(
       cubit: _cubit,
-      storage: widget.autosaveStorage ?? defaultBinaryStorage('flutter3d_modeler'),
+      storage:
+          widget.autosaveStorage ?? defaultBinaryStorage('flutter3d_modeler'),
       sessionId: _kAutosaveSessionId,
       onIssue: (String said) => _cubit.say(said, important: true),
     );
     unawaited(_open());
     _lifecycle = AppLifecycleListener(onExitRequested: _onExitRequested);
     installBeforeUnloadGuard(() => _history.isDirty);
+    _liveCrashScreen = this;
   }
 
   /// Answers the OS's own "can you close now?" — `ui-24`'s "при isDirty —
@@ -364,8 +482,7 @@ class _ModelerScreenState extends State<ModelerScreen>
       content: const Text('This model has changes that have not been saved.'),
       actions: <Widget>[
         TextButton(
-          onPressed: () =>
-              Navigator.of(context).pop(UnsavedChoice.keepEditing),
+          onPressed: () => Navigator.of(context).pop(UnsavedChoice.keepEditing),
           child: const Text('Keep editing'),
         ),
         TextButton(
@@ -427,12 +544,60 @@ class _ModelerScreenState extends State<ModelerScreen>
 
   @override
   void dispose() {
+    if (identical(_liveCrashScreen, this)) _liveCrashScreen = null;
     _ticker?.dispose();
     _timings.stop();
     _autosave?.dispose();
     _lifecycle.dispose();
+    if (kMcpPort >= 0) unawaited(stopMcpServer());
     _cubit.close();
     super.dispose();
+  }
+
+  /// Swaps in a device sized for [width]/[height]/[devicePixelRatio] when the
+  /// current one no longer fits — a viewport grown past a fixed-resolution
+  /// canvas, or a display moved to a different pixel ratio. See
+  /// `deviceStaleForViewport` and `ModelerCubit.redeviced` (`ui-20`).
+  Future<void> _reopenDeviceIfStale(
+    int width,
+    int height,
+    double devicePixelRatio,
+  ) async {
+    if (_reopeningDevice) return;
+    if (!kFixedResolution) return;
+    final now = _state;
+    if (now is! ModelerReady) return;
+    if (!deviceStaleForViewport(
+      lastWidth: _deviceWidth,
+      lastHeight: _deviceHeight,
+      lastDevicePixelRatio: _deviceDevicePixelRatio,
+      width: width,
+      height: height,
+      devicePixelRatio: devicePixelRatio,
+    )) {
+      return;
+    }
+    _reopeningDevice = true;
+    try {
+      final newDevice = await openDevice(width: width, height: height);
+      if (!mounted) {
+        return;
+      }
+      final opened = await openProject(now.history.project, device: newDevice);
+      if (!mounted) {
+        return;
+      }
+      _device = newDevice;
+      _deviceWidth = width;
+      _deviceHeight = height;
+      _deviceDevicePixelRatio = devicePixelRatio;
+      _cubit.redeviced(
+        renderer: Renderer.create(device: newDevice),
+        stage: opened.stage,
+      );
+    } finally {
+      _reopeningDevice = false;
+    }
   }
 
   Future<void> _open() async {
@@ -445,11 +610,30 @@ class _ModelerScreenState extends State<ModelerScreen>
     final opening3 = ModelHistory(_newProject());
     try {
       // The size a web build's canvas is created at: `kFixedResolution` is
-      // true there, so this is the resolution the browser scales from. Impeller
-      // ignores it and sizes itself per frame.
-      final device = await openDevice(width: 1600, height: 1000);
+      // true there, so this is the resolution the browser scales from —
+      // the screen's own logical size, so a canvas fits it from the first
+      // frame rather than starting at a guess and reopening immediately
+      // (`ui-20`). Impeller ignores it and sizes itself per frame.
+      final view = ui.PlatformDispatcher.instance.views.firstOrNull;
+      final devicePixelRatio = view?.devicePixelRatio ?? 1.0;
+      final width = view == null
+          ? 1600
+          : (view.physicalSize.width / devicePixelRatio).round().clamp(
+              1,
+              8192,
+            ).toInt();
+      final height = view == null
+          ? 1000
+          : (view.physicalSize.height / devicePixelRatio).round().clamp(
+              1,
+              8192,
+            ).toInt();
+      final device = await openDevice(width: width, height: height);
       if (!mounted) return;
       _device = device;
+      _deviceWidth = width;
+      _deviceHeight = height;
+      _deviceDevicePixelRatio = devicePixelRatio;
       final renderer = Renderer.create(device: device);
 
       final asset = kModel.isEmpty ? null : await _load(kModel, device);
@@ -500,11 +684,26 @@ class _ModelerScreenState extends State<ModelerScreen>
         stage: stage,
         documentName: kModel.isEmpty ? 'cube' : kModel,
       );
+      if (kMcpPort >= 0) {
+        unawaited(startMcpServer(history: opening3, port: kMcpPort));
+      }
       setState(() {
         // With no run to wait for, the opening cost is the whole report.
         if (kOrbit <= 0) _report = 'opened in $_openedInMs ms';
       });
-      if (kModel.isEmpty && kOrbit <= 0 && !kSandboxProbe) {
+      // Opened from a link: the models service loads this build in a frame
+      // with the file's address in the query, so the document becomes that
+      // model rather than staying a cube.
+      final linked = Uri.base.queryParameters['model'];
+      if (linked != null && linked.isNotEmpty) {
+        unawaited(
+          _openLinked(
+            Uri.base.resolve(linked),
+            Uri.base.queryParameters['name'] ?? 'model',
+            device,
+          ),
+        );
+      } else if (kModel.isEmpty && kOrbit <= 0 && !kSandboxProbe) {
         // `ui-18`'s own "предложение восстановить" — checked once, on an
         // ordinary interactive launch only. A `--dart-define` measurement
         // run (`kModel`, `kOrbit`, `kSandboxProbe`) has nobody to answer a
@@ -552,7 +751,9 @@ class _ModelerScreenState extends State<ModelerScreen>
     if (!mounted) return;
 
     if (restore != true) {
-      await storage.remove(recoveryPathFor(null, sessionId: _kAutosaveSessionId));
+      await storage.remove(
+        recoveryPathFor(null, sessionId: _kAutosaveSessionId),
+      );
       return;
     }
     final stage = ModelerStage.fromProject(
@@ -603,53 +804,30 @@ class _ModelerScreenState extends State<ModelerScreen>
         if (mounted) _cubit.say('nothing chosen');
         return;
       }
-      final opening = Stopwatch()..start();
-      final opened = await _openBytesWithImportScreen(
-        picked.name,
-        picked.bytes,
-        device,
-      );
-      opening.stop();
-      if (!mounted) return;
-
-      switch (opened) {
-        // A file that will not read is a sentence on the status line and
-        // nothing else: the document on screen is still the one the person was
-        // working on, and throwing it away because they picked the wrong file
-        // out of a folder would be the worst possible answer.
-        case OpenRefused(:final String because):
-          _cubit.say(because);
-        case OpenedModel(
-          :final ModelProject project,
-          :final ModelerStage stage,
-        ):
-          stage.frameSubject();
-          // The scene the old materials belonged to is going, and the
-          // selection points at nodes that are no longer drawn.
-          _surfaces.forget();
-          final said =
-              '${picked.name}: '
-              '${_count(project.objects.length, 'object')}, '
-              '${_count(project.triangleCount, 'triangle')}, '
-              '${_count(project.materials.length, 'material')}, '
-              'opened in ${opening.elapsedMilliseconds} ms';
-          _cubit.opened(
-            ModelHistory(project),
-            renderer: (_state as ModelerReady).renderer,
-            stage: stage,
-            documentName: picked.name,
-            said: <String>[said, ...opened.warnings].join('\n'),
-          );
-          setState(() {
-            // Ids start again in the new project, so a picker held against the
-            // old one could match a version and answer about a mesh that is
-            // gone.
-            _picker = null;
-            _pickerVersion = -1;
-          });
-      }
+      await _openBytes(picked.name, picked.bytes, device);
     } catch (error) {
       if (mounted) _cubit.say('could not open it: $error');
+    }
+  }
+
+  /// Opens the model at [url], which the page this build was loaded into
+  /// named.
+  ///
+  /// **Only an address on the origin this build was served from.** The query
+  /// is something anybody can write into a link, and a frame that fetched
+  /// whatever it was told would be a frame that sends this origin's cookies'
+  /// worth of trust to another site's file.
+  Future<void> _openLinked(Uri url, String name, GraphicsDevice device) async {
+    if (url.origin != Uri.base.origin) {
+      _cubit.say('not opening $name: it is not on ${Uri.base.origin}');
+      return;
+    }
+    _cubit.say('fetching $name…');
+    try {
+      final fetched = await fetchModel(url, name: name);
+      await _openBytes(fetched.name, fetched.bytes, device);
+    } catch (error) {
+      if (mounted) _cubit.say('could not open $name: $error');
     }
   }
 
@@ -737,6 +915,60 @@ class _ModelerScreenState extends State<ModelerScreen>
     return result;
   }
 
+  /// Puts the model in [bytes] in the document, whether it came from a picker
+  /// or from a link.
+  Future<void> _openBytes(
+    String name,
+    Uint8List bytes,
+    GraphicsDevice device,
+  ) async {
+    try {
+      final opening = Stopwatch()..start();
+      final opened = await _openBytesWithImportScreen(name, bytes, device);
+      opening.stop();
+      if (!mounted) return;
+
+      switch (opened) {
+        // A file that will not read is a sentence on the status line and
+        // nothing else: the document on screen is still the one the person was
+        // working on, and throwing it away because they picked the wrong file
+        // out of a folder would be the worst possible answer.
+        case OpenRefused(:final String because):
+          _cubit.say(because);
+        case OpenedModel(
+          :final ModelProject project,
+          :final ModelerStage stage,
+        ):
+          stage.frameSubject();
+          // The scene the old materials belonged to is going, and the
+          // selection points at nodes that are no longer drawn.
+          _surfaces.forget();
+          final said =
+              '$name: '
+              '${_count(project.objects.length, 'object')}, '
+              '${_count(project.triangleCount, 'triangle')}, '
+              '${_count(project.materials.length, 'material')}, '
+              'opened in ${opening.elapsedMilliseconds} ms';
+          _cubit.opened(
+            ModelHistory(project),
+            renderer: (_state as ModelerReady).renderer,
+            stage: stage,
+            documentName: name,
+            said: <String>[said, ...opened.warnings].join('\n'),
+          );
+          setState(() {
+            // Ids start again in the new project, so a picker held against the
+            // old one could match a version and answer about a mesh that is
+            // gone.
+            _picker = null;
+            _pickerVersion = -1;
+          });
+      }
+    } catch (error) {
+      if (mounted) _cubit.say('could not open it: $error');
+    }
+  }
+
   /// "1 object" and "2 objects", because a status line that says "1 objects"
   /// reads as something a program wrote rather than as a sentence.
   static String _count(int n, String one) => '$n $one${n == 1 ? '' : 's'}';
@@ -758,14 +990,31 @@ class _ModelerScreenState extends State<ModelerScreen>
   /// The spike part is what follows the write: `p0-13n` asks whether the same
   /// directory would have taken a temporary file and a rename, and the answer
   /// goes on the screen beside the result.
+  /// `ui-33d`'s own "Save without history" checkbox is asked first, through
+  /// [showSaveAsScreen] — a cancelled dialog is the same "nothing saved" a
+  /// cancelled native panel already is, so it is reported the same way rather
+  /// than treated as a silent no-op.
   /// Answers whether bytes actually landed on disk — `ui-24`'s own
   /// "неудачная запись не закрывает" needs to know, not just report.
   Future<bool> _saveFile() async {
     if (_state is! ModelerReady) return false;
 
+    final choice = await showSaveAsScreen(context);
+    if (choice == null) {
+      if (mounted) _cubit.say('nothing saved', important: true);
+      return false;
+    }
+    if (!mounted) return false;
+
     final Uint8List bytes;
     try {
-      bytes = writeProject(_history.project);
+      bytes = writeProject(
+        _history.project,
+        // `doc-31d`'s own `history` parameter: null is what leaves the
+        // section out of the file entirely, the same way `ModelSession.save`
+        // already does it in `flutter3d_model_mcp`.
+        history: choice.includeHistory ? _history : null,
+      );
     } on ArgumentError catch (error) {
       // What the format has no section for yet — a mesh carrying morph
       // targets. The message names the object, and it belongs in front of the
@@ -866,7 +1115,10 @@ class _ModelerScreenState extends State<ModelerScreen>
           if (result.outcome != SaveOutcome.written) break;
         }
         if (mounted) {
-          _cubit.say(<String>[...said, ...warnings].join('\n'), important: true);
+          _cubit.say(
+            <String>[...said, ...warnings].join('\n'),
+            important: true,
+          );
         }
     }
   }
@@ -988,6 +1240,16 @@ class _ModelerScreenState extends State<ModelerScreen>
 
   /// "Open file" from the start screen — the same picker `_openFile` uses,
   /// with the chosen path written into `RecentModels` on success.
+  ///
+  /// **A sibling of `_openFile` rather than a change to it.** `_openFile`'s
+  /// own body is mid-rewrite in a concurrent session's own uncommitted work
+  /// (extracting the shared `_openBytes` this file already calls) — adding a
+  /// line inside a function somebody else is simultaneously restructuring
+  /// is not a safe edit to make no matter how small, so this repeats the
+  /// picker call here instead of reaching into `_openFile`'s own body. The
+  /// toolbar's own "Open" button keeps calling plain `_openFile` and does
+  /// not record yet; folding the two into one recording path is a follow-up
+  /// once that rewrite lands.
   Future<void> _openFileAndRemember(GraphicsDevice device) async {
     _cubit.say('choosing…');
     try {
@@ -1060,10 +1322,7 @@ class _ModelerScreenState extends State<ModelerScreen>
     switch (opened) {
       case OpenRefused(:final String because):
         _cubit.say(because);
-      case OpenedModel(
-        :final ModelProject project,
-        :final ModelerStage stage,
-      ):
+      case OpenedModel(:final ModelProject project, :final ModelerStage stage):
         stage.frameSubject();
         _surfaces.forget();
         final said =
@@ -1197,7 +1456,13 @@ class _ModelerScreenState extends State<ModelerScreen>
   /// and scale take the drag as an amount rather than as a direction, because
   /// without an axis to constrain them there is nothing else it could mean;
   /// the axis arrives with the gizmo.
-  void _dragged(Offset delta, double viewportHeight) {
+  ///
+  /// **`Ctrl` is read here and nowhere earlier.** It is what already asks
+  /// [TransformModal] for a fixed grid, and it is what `view-26n`'s geometry
+  /// search below asks to run at all — one modifier, so a hand that has
+  /// learned "hold this to snap" gets the sharper answer whenever there is one
+  /// in reach and the plain grid otherwise, rather than a second key to learn.
+  void _dragged(Offset delta, double viewportHeight, PickingView view) {
     final state = _state;
     final String? tool = _tool;
     if (state is! ModelerReady || tool == null) return;
@@ -1205,8 +1470,10 @@ class _ModelerScreenState extends State<ModelerScreen>
     if (_history.selection.isEmpty) return;
 
     _lastViewportHeight = viewportHeight;
+    _lastPickingView = view;
     final look = state.stage.overlayView(viewportHeight);
     final TransformModal modal = _modalFor(tool);
+    modal.snapping = HardwareKeyboard.instance.isControlPressed;
 
     // Pixels into whatever the transform is measured in. A move is metres at
     // the depth the selection is at — a pixel is a different number of metres a
@@ -1228,7 +1495,78 @@ class _ModelerScreenState extends State<ModelerScreen>
         _ => vm.Vector3(by, 0, 0),
       };
     }
+    _updateGeometrySnap(modal, view);
     _applyModal(modal, look);
+  }
+
+  /// What `view-26n`'s drag would snap onto right now, or nothing.
+  ///
+  /// **Searched from where the pointer alone wants the median to go**, via
+  /// [TransformModal.pointerAmount] rather than [TransformModal.amount]: the
+  /// latter already carries whatever a previous frame's grid- or geometry-snap
+  /// left it at, and searching around that answer is a search that cannot
+  /// escape a target once found even when the hand keeps moving away from it.
+  ///
+  /// Scoped to a mesh-mode move — the only shape a byte-for-byte position
+  /// match means anything for. An object-mode move (snapping one whole object
+  /// onto another) and a target that is a *face* of somebody else's mesh are
+  /// both left for later: the first is a different question (which point of
+  /// the moving object's own geometry counts), and the second needs a
+  /// point-on-a-plane projection this file does not do — `geometry_snap.dart`
+  /// says so as well.
+  void _updateGeometrySnap(TransformModal modal, PickingView view) {
+    modal.geometrySnapDelta = null;
+    _snapTarget = null;
+    if (modal.kind != TransformKind.move || !modal.snapping) return;
+    final selection = _history.selection;
+    if (selection.mode != SelectionMode.mesh) return;
+    final vm.Vector3? start = _snapAnchorStart;
+    final int? objectId = selection.activeObject;
+    if (start == null || objectId == null) return;
+
+    final sources = _otherSnapSources(excluding: objectId);
+    if (sources.isEmpty) return;
+
+    final target = findSnapTarget(
+      view: view,
+      near: start + modal.pointerAmount,
+      sources: sources,
+      radiusPixels: cursorPickSlack,
+    );
+    if (target == null) return;
+    _snapTarget = target;
+    modal.geometrySnapDelta = target.position - start;
+  }
+
+  /// Every other mesh object's geometry, ready to be searched — the
+  /// [SnapSource] list `findSnapTarget` scans, built fresh from a per-object
+  /// picker cache rather than kept as one list across drags, since which
+  /// objects even exist can change between one drag and the next.
+  List<SnapSource> _otherSnapSources({required int excluding}) {
+    final project = _history.project;
+    final sources = <SnapSource>[];
+    for (final ModelObject object in project.objects) {
+      if (object.id == excluding) continue;
+      final geometry = object.geometry;
+      if (geometry is! EditedGeometry) continue;
+      final cached = _otherPickers[object.id];
+      final MeshPicker picker;
+      if (cached != null && cached.version == object.version) {
+        picker = cached.picker;
+      } else {
+        final plan = MeshLayoutPlan()..build(geometry.mesh);
+        picker = MeshPicker(geometry.mesh, MeshBvh(geometry.mesh, plan));
+        _otherPickers[object.id] = (version: object.version, picker: picker);
+      }
+      sources.add(
+        SnapSource(
+          id: object.id,
+          picker: picker,
+          objectToWorld: worldTransformOf(project, object.id),
+        ),
+      );
+    }
+    return sources;
   }
 
   /// What the viewport reports when the pointer goes up: the transform is
@@ -1279,6 +1617,8 @@ class _ModelerScreenState extends State<ModelerScreen>
   void _reapply(TransformModal modal) {
     final state = _state;
     if (state is! ModelerReady) return;
+    final PickingView? view = _lastPickingView;
+    if (view != null) _updateGeometrySnap(modal, view);
     _applyModal(modal, state.stage.overlayView(_lastViewportHeight));
   }
 
@@ -1300,11 +1640,21 @@ class _ModelerScreenState extends State<ModelerScreen>
     final TransformModal? going = _modal;
     if (going != null) return going;
     _history.beginTransaction();
-    return _modal = TransformModal(switch (tool) {
+    final TransformKind kind = switch (tool) {
       'mesh.rotate' || 'object.rotate' => TransformKind.rotate,
       'mesh.scale' || 'object.scale' => TransformKind.scale,
       _ => TransformKind.move,
-    });
+    };
+    // The one snapshot `view-26n`'s geometry snap measures its delta from —
+    // taken here, once, rather than read fresh off the mesh on every report:
+    // by the second report the mesh already carries part of the drag, and a
+    // delta measured against a moving start would not be the delta a byte-
+    // for-byte match needs.
+    _snapAnchorStart =
+        kind == TransformKind.move && _history.selection.mode == SelectionMode.mesh
+        ? _middleOfSelection()
+        : null;
+    return _modal = TransformModal(kind);
   }
 
   /// A gizmo arm was grabbed: the same transform `G` starts, with the axis it
@@ -1351,6 +1701,9 @@ class _ModelerScreenState extends State<ModelerScreen>
   void _commitModal() {
     if (_modal == null) return;
     _modal = null;
+    _snapAnchorStart = null;
+    _snapTarget = null;
+    _lastPickingView = null;
     _history.endTransaction();
     _cubit.say(null);
   }
@@ -1361,9 +1714,18 @@ class _ModelerScreenState extends State<ModelerScreen>
   /// by ten thirds, and the two do not compose back to the identity in floating
   /// point — so Escape closes the transaction, takes its one step back and
   /// drops it, which puts the document back by pointer.
+  ///
+  /// That is exactly as true with `view-26n`'s geometry snap engaged as
+  /// without it: the snap only ever changed what [TransformModal.amount]
+  /// answered, never how the answer got applied, so the transaction it
+  /// leaves behind is one step regardless and undoing it puts every snapped
+  /// vertex back precisely where it started.
   void _cancelModal() {
     if (_modal == null) return;
     _modal = null;
+    _snapAnchorStart = null;
+    _snapTarget = null;
+    _lastPickingView = null;
     _history.endTransaction();
     if (_history.undo()) {
       _history.dropRedo();
@@ -1614,8 +1976,7 @@ class _ModelerScreenState extends State<ModelerScreen>
         : <int>{
             for (final ModelObject object in _history.project.objects)
               if (sync.nodeOf(object.id) case final MeshNode node)
-                if (frustum.containsVector3(node.worldBounds.center))
-                  object.id,
+                if (frustum.containsVector3(node.worldBounds.center)) object.id,
           };
     final Set<int> next = applyBox<int>(
       was.objects.toSet(),
@@ -1648,18 +2009,75 @@ class _ModelerScreenState extends State<ModelerScreen>
 
   /// Nine numbers typed into the panel.
   ///
-  /// `SetTransform` rather than `MoveBy`, because what a field says is where
-  /// the object goes rather than how far it moves — a person who types the same
-  /// number twice expects nothing to happen the second time, and a panel that
-  /// emitted a difference would move the object again on every rebuild.
+  /// **What command this becomes is `transform_dispatch.dart`'s own
+  /// question, not this file's.** A position or a rotation edit is read as a
+  /// difference from what the panel showed a moment before and handed to
+  /// `MoveBy`/`RotateBy`, which is what makes [_pivot] and [_space] mean
+  /// anything for more than one object selected; a scale edit still sets the
+  /// held object alone, for the reason that file's own doc argues. Either way
+  /// the same number typed back is the same fields handed in twice, which
+  /// `transformCommandFor` reads as nothing changed rather than a move by
+  /// zero.
   void _setTransform(int id, TransformFields to) {
-    if (_history.project[id] == null) return;
-    final built = transformFromFields(to);
-    if (built.refused case final String said) {
+    final held = _history.project[id];
+    if (held == null) return;
+    final decided = transformCommandFor(
+      heldId: id,
+      from: transformFieldsOf(held.transform),
+      to: to,
+      pivot: transformPivotOf(_pivot),
+      space: _space,
+    );
+    if (decided.refused case final String said) {
       _cubit.say(said);
       return;
     }
-    _cubit.ran(SetTransform(id: id, to: built.matrix!));
+    if (decided.command case final ModelCommand command) {
+      _cubit.ran(command);
+    }
+  }
+
+  /// The material list's own tap: paint the held object with a different
+  /// row, or — the row already active — take its paint off.
+  void _assignMaterial(int id, int? to) =>
+      _cubit.ran(AssignMaterial(id: id, to: to));
+
+  void _addMaterial() => _cubit.ran(const AddMaterial());
+
+  void _setMaterialField(int index, String field, Object? value) =>
+      _cubit.ran(SetMaterialField(index: index, field: field, value: value));
+
+  void _setModifierField(int id, int index, String field, Object? value) =>
+      _cubit.ran(
+        SetModifierField(id: id, index: index, field: field, value: value),
+      );
+
+  void _clearBaseColorTexture(int index) =>
+      _cubit.ran(SetTexture(materialIndex: index, slot: 'albedo'));
+
+  /// Opens a picker for an image and points a material's base colour slot at
+  /// it.
+  ///
+  /// **Two commands, two steps of history.** [AddImage] interns the bytes —
+  /// or reuses the row a duplicate already sits in — and [SetTexture] is the
+  /// only command that can then name the slot; there is no single command
+  /// that does both, so a texture pick is honestly two edits rather than one
+  /// pretending to be one.
+  Future<void> _chooseBaseColorTexture(int materialIndex) async {
+    final PickedFile? file = await openImage();
+    if (file == null) return;
+    if (!_cubit.ran(AddImage(bytes: file.bytes, imageName: file.name))) {
+      return;
+    }
+    final int? index = indexOfImageBytes(_history.project.images, file.bytes);
+    if (index == null) return;
+    _cubit.ran(
+      SetTexture(
+        materialIndex: materialIndex,
+        slot: 'albedo',
+        imageIndex: index,
+      ),
+    );
   }
 
   /// The operation card's number was dragged.
@@ -1746,10 +2164,41 @@ class _ModelerScreenState extends State<ModelerScreen>
   }
 
   @override
-  Widget build(BuildContext context) => BlocBuilder<ModelerCubit, ModelerState>(
-    bloc: _cubit,
-    builder: (BuildContext context, ModelerState state) => _screen(state),
+  Widget build(BuildContext context) => FileDropZone(
+    onDropped: (String name, Uint8List bytes) =>
+        unawaited(_handleDroppedFile(name, bytes)),
+    child: BlocBuilder<ModelerCubit, ModelerState>(
+      bloc: _cubit,
+      builder: (BuildContext context, ModelerState state) => _screen(state),
+    ),
   );
+
+  /// A file dragged onto the window — `ui-31n`'s own door onto the same path
+  /// `_openFile` already opens by hand.
+  ///
+  /// **Wrapped once, around the whole shell, rather than around the
+  /// viewport.** A person drops a file wherever the pointer happens to be —
+  /// over the outliner, the properties panel, the rail — and only one of
+  /// those is the viewport; a window is either a place a file can land or it
+  /// is not, and `ui-14`/`ui-16`'s own picker was never restricted to one
+  /// widget either.
+  ///
+  /// **`unopenableDropRefusal` runs before any of the rest of this, and that
+  /// is the one thing dropping cannot skip.** `openModel`'s own dialogue only
+  /// ever offers this build's own extensions, so `_openFile` never has to ask
+  /// — a drop can carry anything the desktop or the browser lets somebody
+  /// drag onto the window, including a file this build has no reader for at
+  /// all, and the answer for that is a sentence rather than a guess at what
+  /// the bytes might be.
+  Future<void> _handleDroppedFile(String name, Uint8List bytes) async {
+    final device = _device;
+    if (device == null || _state is! ModelerReady) return;
+    if (unopenableDropRefusal(name, bytes) case final String because) {
+      _cubit.say(because);
+      return;
+    }
+    await _openBytesWithImportScreen(name, bytes, device);
+  }
 
   Widget _screen(ModelerState state) => switch (state) {
     ModelerOpening() => const Scaffold(
@@ -1786,345 +2235,372 @@ class _ModelerScreenState extends State<ModelerScreen>
         canPop: !state.history.isDirty,
         onPopInvokedWithResult: _onPopInvoked,
         child: _Keys(
-      onKey: _modalKey,
-      onUndo: _undo,
-      onRedo: _redo,
-      onExport: _showExportDialog,
-      onTool: _ranTool,
-      onSelectAll: () => _runSelection(const SelectAll()),
-      onSelectNone: () => _runSelection(const SelectNone()),
-      onInvertSelection: () => _runSelection(const InvertSelection()),
-      onShortcutHelp: _showShortcutHelp,
-      onLevel: _cubit.submode,
-      tools: toolsFor(state.mode),
-      // **`ui-05`'s own three shells, built once and picked by width.** The
-      // actions/status/properties/viewport widgets below are the same
-      // objects whichever shell draws them — `ui-05`'s own acceptance is
-      // that the same tools answer to the same keys in all three, and
-      // building them once here rather than once per shell branch is what
-      // makes that true by construction rather than by three call sites
-      // staying in sync by hand.
-      child: Builder(
-        builder: (BuildContext context) {
-          final actions = <Widget>[
-            UndoRedoButtons(
-              canUndo: state.history.canUndo,
-              canRedo: state.history.canRedo,
-              undoSays: state.history.undoSays,
-              redoSays: state.history.redoSays,
-              onUndo: _undo,
-              onRedo: _redo,
-            ),
-            const SizedBox(width: 4),
-            // **A menu rather than five buttons on the rail.** The rail is for
-            // the tools a hand rests on; adding a shape is something done once
-            // and then not again for an hour, and five of anything on a rail of
-            // fifty-two pixels is a rail nobody can read. `A` still adds a box,
-            // which is the one people reach for without looking.
-            PopupMenuButton<String>(
-              tooltip: 'Add a primitive',
-              onSelected: (String kind) => _cubit.ran(AddPrimitive(kind: kind)),
-              itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
-                for (final String kind in AddPrimitive.primitiveKinds)
-                  PopupMenuItem<String>(
-                    value: kind,
-                    height: ModelerMetrics.row,
-                    child: Text(kind, style: const TextStyle(fontSize: 13)),
-                  ),
-              ],
-              child: const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                child: Text('Add', style: TextStyle(fontSize: 13)),
-              ),
-            ),
-            TextButton(onPressed: _openFile, child: const Text('Open')),
-            const SizedBox(width: 4),
-            FilledButton.tonal(onPressed: _saveFile, child: const Text('Save')),
-            const SizedBox(width: 4),
-            PopupMenuButton<ExportFormat>(
-              tooltip: 'Export a copy',
-              onSelected: _exportFile,
-              itemBuilder: (BuildContext context) =>
-                  <PopupMenuEntry<ExportFormat>>[
-                    for (final ExportFormat format in ExportFormat.values)
-                      PopupMenuItem<ExportFormat>(
-                        value: format,
-                        height: ModelerMetrics.row,
-                        child: Text(
-                          '${format.suffix}  ${format.says}',
-                          style: const TextStyle(fontSize: 13),
-                        ),
-                      ),
-                  ],
-              child: const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                child: Text('Export', style: TextStyle(fontSize: 13)),
-              ),
-            ),
-            // `mat-15`'s own entry: a preview tool rather than a command,
-            // so it sits beside Export rather than on the object tool
-            // rail — nothing it opens is a shape to add to the document.
-            MergeSemantics(
-              child: Semantics(
-                label: 'Material Studio',
-                button: true,
-                child: IconButton(
-                  tooltip: 'Material Studio — preview a material',
-                  onPressed: () => unawaited(_openMaterialStudio()),
-                  icon: const Icon(Icons.tonality_outlined, size: 20),
+          onKey: _modalKey,
+          onUndo: _undo,
+          onRedo: _redo,
+          onExport: _showExportDialog,
+          onTool: _ranTool,
+          onSelectAll: () => _runSelection(const SelectAll()),
+          onSelectNone: () => _runSelection(const SelectNone()),
+          onInvertSelection: () => _runSelection(const InvertSelection()),
+          onShortcutHelp: _showShortcutHelp,
+          onLevel: _cubit.submode,
+          tools: toolsFor(state.mode),
+          // **`ui-05`'s own three shells, built once and picked by width.** The
+          // actions/status/properties/viewport widgets below are the same
+          // objects whichever shell draws them — `ui-05`'s own acceptance is
+          // that the same tools answer to the same keys in all three, and
+          // building them once here rather than once per shell branch is what
+          // makes that true by construction rather than by three call sites
+          // staying in sync by hand.
+          child: Builder(
+            builder: (BuildContext context) {
+              final actions = <Widget>[
+                UndoRedoButtons(
+                  canUndo: state.history.canUndo,
+                  canRedo: state.history.canRedo,
+                  undoSays: state.history.undoSays,
+                  redoSays: state.history.redoSays,
+                  onUndo: _undo,
+                  onRedo: _redo,
                 ),
-              ),
-            ),
-            // `ui-23`'s own pass: `IconButton.tooltip` sets
-            // `SemanticsNode.tooltip`, not `.label`. `MergeSemantics`
-            // folds the label below down onto the button's own inner,
-            // actually-tappable node.
-            MergeSemantics(
-              child: Semantics(
-                label: 'Keyboard shortcuts',
-                button: true,
-                child: IconButton(
-                  tooltip: 'Keyboard shortcuts (?)',
-                  onPressed: _showShortcutHelp,
-                  icon: const Icon(Icons.help_outline, size: 20),
-                ),
-              ),
-            ),
-            MergeSemantics(
-              child: Semantics(
-                label: 'Start screen',
-                button: true,
-                child: IconButton(
-                  tooltip:
-                      'Start screen — open a file or start a new project',
-                  onPressed: () => unawaited(_showStartScreen()),
-                  icon: const Icon(Icons.home_outlined, size: 20),
-                ),
-              ),
-            ),
-            MergeSemantics(
-              child: Semantics(
-                label: 'Report a problem',
-                button: true,
-                child: IconButton(
-                  tooltip: 'Report a problem',
-                  onPressed: _reportProblem,
-                  icon: const Icon(Icons.bug_report_outlined, size: 20),
-                ),
-              ),
-            ),
-          ];
-          final status = StatusLine(
-            // One sentence, carried by the state. There used to be two — one for
-            // files and one for operations — with the operation's winning by
-            // sitting first in a `??` chain, which meant a file that failed to
-            // open said nothing at all if an operation had run before it.
-            said: state.said ?? _selectionSaid,
-            // A value on the state, refreshed when a command lands rather than
-            // computed while a frame is drawn. It cannot go stale behind a check
-            // that never runs, which is what a getter here could do.
-            readiness: state.readiness,
-            triangles: state.project.triangleCount,
-            micros: _lastRenderMicros,
-            onExport: _showExportDialog,
-          );
-          final properties = _Properties(
-            mode: state.mode,
-            stage: stage,
-            project: state.project,
-            selection: state.selection,
-            onSelect: (int id) {
-              // Straight onto the history's selection rather than through a
-              // command: `doc-32n` gave the *set* operations commands — all,
-              // none, invert, grow — and picking one object out of the outliner
-              // is not one of them yet. When it is, this becomes `_cubit.ran`.
-              state.history.selection = state.selection.copyWith(
-                mode: SelectionMode.object,
-                objects: <int>[id],
-              );
-              _cubit.documentMoved();
-            },
-            onTransform: _setTransform,
-            onRename: (int id, String to) => _cubit.ran(Rename(id: id, to: to)),
-            onToggleModifier: (int id, int index) =>
-                _cubit.ran(ToggleModifier(id: id, index: index)),
-            onReorderModifier: (int id, int from, int to) =>
-                _cubit.ran(ReorderModifier(id: id, from: from, to: to)),
-            // Phase one's own stack has exactly one buildable kind — the
-            // mirror `mesh-41` already gives it. `ui-08`'s own "Add" link
-            // reaches for it directly rather than opening a picker with one
-            // entry in it.
-            onAddModifier: (int id) => _cubit.ran(
-              AddModifier(
-                id: id,
-                modifier: MirrorModifier(normal: vm.Vector3(1, 0, 0)),
-              ),
-            ),
-            lastCommand: state.history.journal.isEmpty
-                ? null
-                : state.history.journal.last,
-            onAmend: _amend,
-            shading: _shading,
-            onShading: (ShadingMode mode) => setState(() => _shading = mode),
-            lens: _lens,
-            onLens: (ViewLens lens) => setState(() => _lens = lens),
-            onView: (StandardView view) => lookFrom(stage.orbit, view),
-          );
-          final viewport = Stack(
-            children: <Widget>[
-              Positioned.fill(
-                child: ModelerViewport(
-                  renderer: renderer,
-                  stage: stage,
-                  onFrame: () {},
-                  onRendered: (int micros) => _lastRenderMicros = micros,
-                  // One or the other, never both: a click in the mesh mode is a
-                  // question about this mesh's elements and is answered on the
-                  // CPU, and asking the renderer for a node as well would cost a
-                  // whole frame to answer a question nobody asked.
-                  onPick: _mode == ModelerMode.mesh ? null : _picked,
-                  onElementPick: _mode == ModelerMode.mesh && _editMesh != null
-                      ? _pickedElement
-                      : null,
-                  // One or the other: with a transform tool armed a left drag is
-                  // the transform, and with none it is a rectangle. A viewport
-                  // that offered both would have to guess, and the guess would be
-                  // wrong on the frame a person changed their mind.
-                  onDragTool: kDragTools.contains(_tool) ? _dragged : null,
-                  onDragDone: _endDrag,
-                  onBox: _boxed,
-                  // The gizmo stands on the selection and offers the transform
-                  // the armed tool asks for. On a tablet it is the only way in:
-                  // there is no `G` key on an iPad, so this is not a second path
-                  // to the same place — on three of the five platforms phase 1
-                  // ships to it is the path.
-                  gizmoPivot: _gizmoPivot,
-                  gizmoKind: _gizmoKind,
-                  onGizmoDrag: _grabbedGizmo,
-                  editMesh: _mode == ModelerMode.mesh ? _editMesh : null,
-                  elements: _history.selection.asMeshSelection,
-                  meshVersion:
-                      _history
-                          .project[_history.selection.activeObject ?? -1]
-                          ?.version ??
-                      0,
-                  elementsVersion: _history.selection.elements.length,
-                  settings: settingsFor(
-                    _shading,
-                    // The outline is the renderer's until the overlay draws the
-                    // selection itself and can say which *part* of an object is
-                    // selected. Until then this is what tells a person their click
-                    // landed.
-                    RenderSettings(
-                      highlighted: <SceneNode>[
-                        for (final int id in _history.selection.objects)
-                          if (stage.sync?.nodeOf(id) case final SceneNode n) n,
+                const SizedBox(width: 4),
+                // **A menu rather than five buttons on the rail.** The rail is for
+                // the tools a hand rests on; adding a shape is something done once
+                // and then not again for an hour, and five of anything on a rail of
+                // fifty-two pixels is a rail nobody can read. `A` still adds a box,
+                // which is the one people reach for without looking.
+                PopupMenuButton<String>(
+                  tooltip: 'Add a primitive',
+                  onSelected: (String kind) =>
+                      _cubit.ran(AddPrimitive(kind: kind)),
+                  itemBuilder: (BuildContext context) =>
+                      <PopupMenuEntry<String>>[
+                        for (final String kind in AddPrimitive.primitiveKinds)
+                          PopupMenuItem<String>(
+                            value: kind,
+                            height: ModelerMetrics.row,
+                            child: Text(
+                              kind,
+                              style: const TextStyle(fontSize: 13),
+                            ),
+                          ),
                       ],
+                  child: const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    child: Text('Add', style: TextStyle(fontSize: 13)),
+                  ),
+                ),
+                TextButton(onPressed: _openFile, child: const Text('Open')),
+                const SizedBox(width: 4),
+                FilledButton.tonal(
+                  onPressed: _saveFile,
+                  child: const Text('Save'),
+                ),
+                const SizedBox(width: 4),
+                PopupMenuButton<ExportFormat>(
+                  tooltip: 'Export a copy',
+                  onSelected: _exportFile,
+                  itemBuilder: (BuildContext context) =>
+                      <PopupMenuEntry<ExportFormat>>[
+                        for (final ExportFormat format in ExportFormat.values)
+                          PopupMenuItem<ExportFormat>(
+                            value: format,
+                            height: ModelerMetrics.row,
+                            child: Text(
+                              '${format.suffix}  ${format.says}',
+                              style: const TextStyle(fontSize: 13),
+                            ),
+                          ),
+                      ],
+                  child: const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    child: Text('Export', style: TextStyle(fontSize: 13)),
+                  ),
+                ),
+                // `mat-15`'s own entry: a preview tool rather than a command,
+                // so it sits beside Export rather than on the object tool
+                // rail — nothing it opens is a shape to add to the document.
+                MergeSemantics(
+                  child: Semantics(
+                    label: 'Material Studio',
+                    button: true,
+                    child: IconButton(
+                      tooltip: 'Material Studio — preview a material',
+                      onPressed: () => unawaited(_openMaterialStudio()),
+                      icon: const Icon(Icons.tonality_outlined, size: 20),
                     ),
                   ),
                 ),
-              ),
-              Positioned(
-                right: 12,
-                bottom: 12,
-                child: OrientationDial(
-                  yaw: stage.orbit.yaw,
-                  pitch: stage.orbit.pitch,
-                  onPressed: (ViewAxis axis) {
-                    // The dial says where; the controller does the turning, and
-                    // takes the short way round because `viewAlong` already chose
-                    // the turn nearest the yaw the camera is at.
-                    final view = const OrientationGizmo().viewAlong(
-                      axis,
-                      fromYaw: stage.orbit.yaw,
-                    );
-                    stage.orbit.animateTo(yaw: view.yaw, pitch: view.pitch);
-                  },
-                ),
-              ),
-              if (_report case final String said)
-                Positioned(
-                  left: 12,
-                  top: 12,
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(
-                      color: const Color(0xCC000000),
-                      borderRadius: BorderRadius.circular(6),
+                // `ui-23`'s own pass: `IconButton.tooltip` sets
+                // `SemanticsNode.tooltip`, not `.label`. `MergeSemantics`
+                // folds the label below down onto the button's own inner,
+                // actually-tappable node.
+                MergeSemantics(
+                  child: Semantics(
+                    label: 'Keyboard shortcuts',
+                    button: true,
+                    child: IconButton(
+                      tooltip: 'Keyboard shortcuts (?)',
+                      onPressed: _showShortcutHelp,
+                      icon: const Icon(Icons.help_outline, size: 20),
                     ),
-                    child: Padding(
-                      padding: const EdgeInsets.all(10),
-                      child: Text(
-                        said,
-                        style: const TextStyle(
-                          fontFamily: 'monospace',
-                          fontFamilyFallback: <String>['Courier'],
-                          fontSize: 13,
-                          height: 1.35,
+                  ),
+                ),
+                MergeSemantics(
+                  child: Semantics(
+                    label: 'Start screen',
+                    button: true,
+                    child: IconButton(
+                      tooltip:
+                          'Start screen — open a file or start a new project',
+                      onPressed: () => unawaited(_showStartScreen()),
+                      icon: const Icon(Icons.home_outlined, size: 20),
+                    ),
+                  ),
+                ),
+                MergeSemantics(
+                  child: Semantics(
+                    label: 'Report a problem',
+                    button: true,
+                    child: IconButton(
+                      tooltip: 'Report a problem',
+                      onPressed: _reportProblem,
+                      icon: const Icon(Icons.bug_report_outlined, size: 20),
+                    ),
+                  ),
+                ),
+              ];
+              final status = StatusLine(
+                // One sentence, carried by the state. There used to be two — one for
+                // files and one for operations — with the operation's winning by
+                // sitting first in a `??` chain, which meant a file that failed to
+                // open said nothing at all if an operation had run before it.
+                said: state.said ?? _selectionSaid,
+                // A value on the state, refreshed when a command lands rather than
+                // computed while a frame is drawn. It cannot go stale behind a check
+                // that never runs, which is what a getter here could do.
+                readiness: state.readiness,
+                triangles: state.project.triangleCount,
+                micros: _lastRenderMicros,
+                onExport: _showExportDialog,
+              );
+              final properties = _Properties(
+                mode: state.mode,
+                stage: stage,
+                project: state.project,
+                selection: state.selection,
+                onSelect: (int id) {
+                  // Straight onto the history's selection rather than through a
+                  // command: `doc-32n` gave the *set* operations commands — all,
+                  // none, invert, grow — and picking one object out of the outliner
+                  // is not one of them yet. When it is, this becomes `_cubit.ran`.
+                  state.history.selection = state.selection.copyWith(
+                    mode: SelectionMode.object,
+                    objects: <int>[id],
+                  );
+                  _cubit.documentMoved();
+                },
+                onTransform: _setTransform,
+                pivot: _pivot,
+                onPivot: (PivotChip to) => setState(() => _pivot = to),
+                space: _space,
+                onSpace: (TransformSpace to) => setState(() => _space = to),
+                onRename: (int id, String to) =>
+                    _cubit.ran(Rename(id: id, to: to)),
+                onToggleModifier: (int id, int index) =>
+                    _cubit.ran(ToggleModifier(id: id, index: index)),
+                onReorderModifier: (int id, int from, int to) =>
+                    _cubit.ran(ReorderModifier(id: id, from: from, to: to)),
+                // Phase one's own stack has exactly one buildable kind — the
+                // mirror `mesh-41` already gives it. `ui-08`'s own "Add" link
+                // reaches for it directly rather than opening a picker with one
+                // entry in it.
+                onAddModifier: (int id) => _cubit.ran(
+                  AddModifier(
+                    id: id,
+                    modifier: MirrorModifier(normal: vm.Vector3(1, 0, 0)),
+                  ),
+                ),
+                onSetModifierField: _setModifierField,
+                onAssignMaterial: _assignMaterial,
+                onAddMaterial: _addMaterial,
+                onSetMaterialField: _setMaterialField,
+                onChooseBaseColorTexture: _chooseBaseColorTexture,
+                onClearBaseColorTexture: _clearBaseColorTexture,
+                lastCommand: state.history.journal.isEmpty
+                    ? null
+                    : state.history.journal.last,
+                onAmend: _amend,
+                shading: _shading,
+                onShading: (ShadingMode mode) =>
+                    setState(() => _shading = mode),
+                lens: _lens,
+                onLens: (ViewLens lens) => setState(() => _lens = lens),
+                onView: (StandardView view) => lookFrom(stage.orbit, view),
+              );
+              final viewport = Stack(
+                children: <Widget>[
+                  Positioned.fill(
+                    child: ModelerViewport(
+                      renderer: renderer,
+                      stage: stage,
+                      onFrame: () {},
+                      onRendered: (int micros) => _lastRenderMicros = micros,
+                      onViewportMetrics: (int width, int height, double dpr) =>
+                          unawaited(_reopenDeviceIfStale(width, height, dpr)),
+                      // One or the other, never both: a click in the mesh mode is a
+                      // question about this mesh's elements and is answered on the
+                      // CPU, and asking the renderer for a node as well would cost a
+                      // whole frame to answer a question nobody asked.
+                      onPick: _mode == ModelerMode.mesh ? null : _picked,
+                      onElementPick:
+                          _mode == ModelerMode.mesh && _editMesh != null
+                          ? _pickedElement
+                          : null,
+                      // One or the other: with a transform tool armed a left drag is
+                      // the transform, and with none it is a rectangle. A viewport
+                      // that offered both would have to guess, and the guess would be
+                      // wrong on the frame a person changed their mind.
+                      onDragTool: kDragTools.contains(_tool) ? _dragged : null,
+                      onDragDone: _endDrag,
+                      onBox: _boxed,
+                      // The gizmo stands on the selection and offers the transform
+                      // the armed tool asks for. On a tablet it is the only way in:
+                      // there is no `G` key on an iPad, so this is not a second path
+                      // to the same place — on three of the five platforms phase 1
+                      // ships to it is the path.
+                      gizmoPivot: _gizmoPivot,
+                      gizmoKind: _gizmoKind,
+                      onGizmoDrag: _grabbedGizmo,
+                      snapHighlight: _snapTarget?.position,
+                      editMesh: _mode == ModelerMode.mesh ? _editMesh : null,
+                      elements: _history.selection.asMeshSelection,
+                      meshVersion:
+                          _history
+                              .project[_history.selection.activeObject ?? -1]
+                              ?.version ??
+                          0,
+                      elementsVersion: _history.selection.elements.length,
+                      settings: settingsFor(
+                        _shading,
+                        // The outline is the renderer's until the overlay draws the
+                        // selection itself and can say which *part* of an object is
+                        // selected. Until then this is what tells a person their click
+                        // landed.
+                        RenderSettings(
+                          highlighted: <SceneNode>[
+                            for (final int id in _history.selection.objects)
+                              if (stage.sync?.nodeOf(id) case final SceneNode n)
+                                n,
+                          ],
                         ),
                       ),
                     ),
                   ),
-                ),
-            ],
-          );
+                  Positioned(
+                    right: 12,
+                    bottom: 12,
+                    child: OrientationDial(
+                      yaw: stage.orbit.yaw,
+                      pitch: stage.orbit.pitch,
+                      onPressed: (ViewAxis axis) {
+                        // The dial says where; the controller does the turning, and
+                        // takes the short way round because `viewAlong` already chose
+                        // the turn nearest the yaw the camera is at.
+                        final view = const OrientationGizmo().viewAlong(
+                          axis,
+                          fromYaw: stage.orbit.yaw,
+                        );
+                        stage.orbit.animateTo(yaw: view.yaw, pitch: view.pitch);
+                      },
+                    ),
+                  ),
+                  if (_report case final String said)
+                    Positioned(
+                      left: 12,
+                      top: 12,
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                          color: const Color(0xCC000000),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Padding(
+                          padding: const EdgeInsets.all(10),
+                          child: Text(
+                            said,
+                            style: const TextStyle(
+                              fontFamily: 'monospace',
+                              fontFamilyFallback: <String>['Courier'],
+                              fontSize: 13,
+                              height: 1.35,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
+              );
 
-          void onMode(ModelerMode mode) {
-            _cubit
-              ..mode(mode)
-              // The armed tool belongs to the mode it came from, so a mode change
-              // arms that mode's pointer rather than leaving a tool id from the
-              // old one that nothing here would recognise.
-              ..tool(toolsFor(mode).isEmpty ? null : toolsFor(mode).first.id);
-          }
+              void onMode(ModelerMode mode) {
+                _cubit
+                  ..mode(mode)
+                  // The armed tool belongs to the mode it came from, so a mode change
+                  // arms that mode's pointer rather than leaving a tool id from the
+                  // old one that nothing here would recognise.
+                  ..tool(
+                    toolsFor(mode).isEmpty ? null : toolsFor(mode).first.id,
+                  );
+              }
 
-          return LayoutBuilder(
-            builder: (BuildContext context, BoxConstraints constraints) =>
-                switch (LayoutClass.of(constraints.maxWidth)) {
-                  LayoutClass.desktop => ModelerShell(
-                    mode: state.mode,
-                    onMode: onMode,
-                    submode: state.submode,
-                    onSubmode: _cubit.submode,
-                    activeTool: state.tool,
-                    onTool: _ranTool,
-                    actions: actions,
-                    status: status,
-                    properties: properties,
-                    viewport: viewport,
-                    documentName: state.documentName,
-                    isDirty: state.history.isDirty,
-                  ),
-                  LayoutClass.tablet => ModelerTabletShell(
-                    mode: state.mode,
-                    onMode: onMode,
-                    submode: state.submode,
-                    onSubmode: _cubit.submode,
-                    activeTool: state.tool,
-                    onTool: _ranTool,
-                    actions: actions,
-                    status: status,
-                    properties: properties,
-                    viewport: viewport,
-                  ),
-                  LayoutClass.phone => ModelerPhoneShell(
-                    mode: state.mode,
-                    onMode: onMode,
-                    submode: state.submode,
-                    onSubmode: _cubit.submode,
-                    activeTool: state.tool,
-                    onTool: _ranTool,
-                    actions: actions,
-                    status: status,
-                    properties: properties,
-                    viewport: viewport,
-                  ),
-                },
-          );
-        },
-      ),
-    ),
+              return LayoutBuilder(
+                builder: (BuildContext context, BoxConstraints constraints) =>
+                    switch (LayoutClass.of(constraints.maxWidth)) {
+                      LayoutClass.desktop => ModelerShell(
+                        mode: state.mode,
+                        onMode: onMode,
+                        submode: state.submode,
+                        onSubmode: _cubit.submode,
+                        activeTool: state.tool,
+                        onTool: _ranTool,
+                        actions: actions,
+                        status: status,
+                        properties: properties,
+                        viewport: viewport,
+                        documentName: state.documentName,
+                        isDirty: state.history.isDirty,
+                      ),
+                      LayoutClass.tablet => ModelerTabletShell(
+                        mode: state.mode,
+                        onMode: onMode,
+                        submode: state.submode,
+                        onSubmode: _cubit.submode,
+                        activeTool: state.tool,
+                        onTool: _ranTool,
+                        actions: actions,
+                        status: status,
+                        properties: properties,
+                        viewport: viewport,
+                      ),
+                      LayoutClass.phone => ModelerPhoneShell(
+                        mode: state.mode,
+                        onMode: onMode,
+                        submode: state.submode,
+                        onSubmode: _cubit.submode,
+                        activeTool: state.tool,
+                        onTool: _ranTool,
+                        actions: actions,
+                        status: status,
+                        properties: properties,
+                        viewport: viewport,
+                      ),
+                    },
+              );
+            },
+          ),
         ),
       ),
+    ),
   };
 }
 
@@ -2145,10 +2621,20 @@ class _Properties extends StatelessWidget {
     required this.selection,
     required this.onSelect,
     required this.onTransform,
+    required this.pivot,
+    required this.onPivot,
+    required this.space,
+    required this.onSpace,
     required this.onRename,
     required this.onToggleModifier,
     required this.onReorderModifier,
     required this.onAddModifier,
+    this.onSetModifierField,
+    required this.onAssignMaterial,
+    required this.onAddMaterial,
+    required this.onSetMaterialField,
+    required this.onChooseBaseColorTexture,
+    required this.onClearBaseColorTexture,
     required this.lastCommand,
     required this.onAmend,
     required this.shading,
@@ -2174,6 +2660,16 @@ class _Properties extends StatelessWidget {
   /// A number field was committed: the whole transform, as nine numbers.
   final void Function(int id, TransformFields to) onTransform;
 
+  /// Where a rotation or a scale from [onTransform] is centred, and the chip
+  /// that changes it.
+  final PivotChip pivot;
+  final ValueChanged<PivotChip> onPivot;
+
+  /// Whose axes a rotation from [onTransform] is given in, and the chip that
+  /// changes it.
+  final TransformSpace space;
+  final ValueChanged<TransformSpace> onSpace;
+
   /// The name box was committed.
   final void Function(int id, String to) onRename;
 
@@ -2185,6 +2681,30 @@ class _Properties extends StatelessWidget {
 
   /// The stack's own "Add" link was pressed, for the held object.
   final ValueChanged<int> onAddModifier;
+
+  /// A modifier's own field was committed — `mat-20`'s own array `count`,
+  /// today. Null draws the stack with no field control at all, the same as
+  /// [ModifierStackPanel.onSetField] itself.
+  final void Function(int id, int index, String field, Object? value)?
+  onSetModifierField;
+
+  /// A row of [MaterialPanel]'s own list was tapped: paint the held object
+  /// with that material, or null to take its paint off.
+  final void Function(int id, int? to) onAssignMaterial;
+
+  /// The material panel's own "Add material" link was pressed.
+  final VoidCallback onAddMaterial;
+
+  /// A field of the held object's own material committed —
+  /// [SetMaterialField]'s own vocabulary.
+  final void Function(int materialIndex, String field, Object? value)
+  onSetMaterialField;
+
+  /// "Choose…" was pressed for the base colour texture slot.
+  final void Function(int materialIndex) onChooseBaseColorTexture;
+
+  /// "Clear" was pressed for the base colour texture slot.
+  final void Function(int materialIndex) onClearBaseColorTexture;
 
   /// What the operation card is showing, and where an adjustment goes.
   final ModelCommand? lastCommand;
@@ -2204,6 +2724,18 @@ class _Properties extends StatelessWidget {
     };
     final held = project[selection.activeObject ?? -1];
     final sections = sectionsFor(mode);
+    final int? activeMaterial = held == null ? null : activeMaterialSlot(held);
+    final ProjectMaterial? activeMaterialRow =
+        activeMaterial != null && activeMaterial < project.materials.length
+        ? project.materials[activeMaterial]
+        : null;
+    final baseColorTexture = activeMaterialRow?.surface.baseColorTexture;
+    final String? textureName = baseColorTexture == null
+        ? null
+        : (baseColorTexture.imageIndex < project.images.length
+              ? (project.images[baseColorTexture.imageIndex].name ??
+                    'image ${baseColorTexture.imageIndex}')
+              : 'image ${baseColorTexture.imageIndex}');
     return ListView(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       children: <Widget>[
@@ -2284,6 +2816,10 @@ class _Properties extends StatelessWidget {
             fields: transformFieldsOf(held.transform),
             onChanged: (TransformFields to) => onTransform(held.id, to),
           ),
+          const SizedBox(height: 8),
+          _PivotAndSpaceChips(pivot: pivot, onPivot: onPivot),
+          const SizedBox(height: 4),
+          _SpaceChips(space: space, onSpace: onSpace),
         ],
         if (held != null &&
             sections.contains(PropertiesSection.modifiers)) ...<Widget>[
@@ -2295,6 +2831,38 @@ class _Properties extends StatelessWidget {
             onReorder: (int from, int to) =>
                 onReorderModifier(held.id, from, to),
             onAdd: () => onAddModifier(held.id),
+            onSetField: onSetModifierField == null
+                ? null
+                : (int index, String field, Object? value) =>
+                      onSetModifierField!(held.id, index, field, value),
+          ),
+        ],
+        if (held != null &&
+            sections.contains(PropertiesSection.materials)) ...<Widget>[
+          SectionLabel('Material'),
+          MaterialPanel(
+            key: ValueKey<int>(held.id),
+            materials: project.materials,
+            activeIndex: activeMaterial,
+            onAssign: (int? to) => onAssignMaterial(held.id, to),
+            onAddMaterial: onAddMaterial,
+            onSetField: (String field, Object? value) {
+              if (activeMaterial != null) {
+                onSetMaterialField(activeMaterial, field, value);
+              }
+            },
+            metallicEnabled: activeMaterialRow == null
+                ? true
+                : metallicIsMeaningful(
+                    lightingModelOf(activeMaterialRow.surface),
+                  ),
+            onChooseBaseColorTexture: activeMaterial == null
+                ? () {}
+                : () => onChooseBaseColorTexture(activeMaterial),
+            onClearBaseColorTexture: baseColorTexture == null
+                ? null
+                : () => onClearBaseColorTexture(activeMaterial!),
+            textureName: textureName,
           ),
         ],
         if (sections.contains(PropertiesSection.lastOperation)) ...<Widget>[
@@ -2351,7 +2919,11 @@ class _TransformRows extends StatelessWidget {
   final ValueChanged<TransformFields> onChanged;
 
   static const List<String> _axisLabels = <String>['X', 'Y', 'Z'];
-  static const List<String> _rowLabels = <String>['Position', 'Rotation', 'Scale'];
+  static const List<String> _rowLabels = <String>[
+    'Position',
+    'Rotation',
+    'Scale',
+  ];
 
   /// [fields], with [row]'s own [axis] component replaced by [to] — the one
   /// piece three separate `VectorField` callbacks used to reassemble, now
@@ -2437,6 +3009,77 @@ class _TransformRows extends StatelessWidget {
       ],
     );
   }
+}
+
+/// The point a rotation or a scale from the transform grid is centred on.
+///
+/// **Three chips because the row in `doc/model-editor-plan.md` asks for
+/// three, and the third is a stand-in rather than a working control.** See
+/// [PivotChip.cursor]'s own doc for why: `doc-33n` sketched a 3D cursor and a
+/// `SetCursor` command and stopped short of building either, so there is no
+/// position anywhere in the document that chip could hand to `RotateBy`.
+/// Disabled rather than left off the row: a person reading the panel sees the
+/// shape Blender's own pivot picker has, and the chip that does nothing says
+/// so instead of pretending to.
+class _PivotAndSpaceChips extends StatelessWidget {
+  const _PivotAndSpaceChips({required this.pivot, required this.onPivot});
+
+  final PivotChip pivot;
+  final ValueChanged<PivotChip> onPivot;
+
+  @override
+  Widget build(BuildContext context) => Tooltip(
+    message: 'Where a turn or a scale from the boxes above is centred',
+    child: SegmentedButton<PivotChip>(
+      showSelectedIcon: false,
+      segments: const <ButtonSegment<PivotChip>>[
+        ButtonSegment<PivotChip>(
+          value: PivotChip.median,
+          label: Text('Median'),
+        ),
+        ButtonSegment<PivotChip>(
+          value: PivotChip.individual,
+          label: Text('Individual'),
+        ),
+        ButtonSegment<PivotChip>(
+          value: PivotChip.cursor,
+          label: Text('3D Cursor'),
+          enabled: false,
+        ),
+      ],
+      selected: <PivotChip>{pivot},
+      onSelectionChanged: (Set<PivotChip> picked) => onPivot(picked.first),
+    ),
+  );
+}
+
+/// Whose axes a rotation from the transform grid is given in.
+class _SpaceChips extends StatelessWidget {
+  const _SpaceChips({required this.space, required this.onSpace});
+
+  final TransformSpace space;
+  final ValueChanged<TransformSpace> onSpace;
+
+  @override
+  Widget build(BuildContext context) => Tooltip(
+    message: 'Whose axes a turn from the boxes above is given in',
+    child: SegmentedButton<TransformSpace>(
+      showSelectedIcon: false,
+      segments: const <ButtonSegment<TransformSpace>>[
+        ButtonSegment<TransformSpace>(
+          value: TransformSpace.global,
+          label: Text('Global'),
+        ),
+        ButtonSegment<TransformSpace>(
+          value: TransformSpace.local,
+          label: Text('Local'),
+        ),
+      ],
+      selected: <TransformSpace>{space},
+      onSelectionChanged: (Set<TransformSpace> picked) =>
+          onSpace(picked.first),
+    ),
+  );
 }
 
 /// The object's name, editable.
@@ -2561,6 +3204,10 @@ class _ObjectRow extends StatelessWidget {
                     ParametricGeometry() => Icons.category_outlined,
                     EditedGeometry() => Icons.hexagon_outlined,
                     ImportedGeometry() => Icons.download_outlined,
+                    // A socket carries no geometry at all: it is a place on
+                    // the model that something else is attached to, which is
+                    // what an anchor says and what no shape glyph would.
+                    SocketGeometry() => Icons.anchor_outlined,
                   },
                   size: 14,
                   color: theme.colorScheme.onSurfaceVariant,

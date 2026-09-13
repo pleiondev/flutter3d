@@ -16,8 +16,10 @@
 /// loader never completes under `testWidgets`.
 library;
 
+import 'package:flutter/widgets.dart' show SizedBox, WidgetBuilder;
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_app/flutter3d_app.dart'; // RunSession, SettingsOverlay
+import 'package:flutter3d_bridge/flutter3d_bridge.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter3d_demo_dungeon/src/run_cubit.dart';
 import 'package:flutter3d_demo_dungeon/src/staging.dart';
@@ -57,7 +59,10 @@ final class _Storage implements Storage {
 }
 
 /// A cubit over the shipped documents, with a real device and no window.
-({RunCubit run, _Storage storage}) _game({String first = _crypt}) {
+({RunCubit run, _Storage storage}) _game({
+  String first = _crypt,
+  Map<String, WidgetBuilder> widgetRegistry = const <String, WidgetBuilder>{},
+}) {
   final device = _device();
   final storage = _Storage();
   return (
@@ -65,10 +70,13 @@ final class _Storage implements Storage {
     run: RunCubit(
       DungeonRun(
         firstLevel: first,
-        registry: sampleRegistry(),
+        registry: sampleRegistry(
+          extra: const <EntityKind>[WidgetSurfaceKind()],
+        ),
         input: InputState(),
         inventory: startingInventory(),
         saves: SaveFile(appName: 'dungeon', storage: storage),
+        widgetRegistry: widgetRegistry,
         // **The device, and nothing else.** Forty lines of the game's own
         // assembly used to sit here — the loader and both sets of visuals,
         // copied — and the copy had lost `bindLights()`, so every torch in this
@@ -254,6 +262,43 @@ void main() {
         isA<RunPlaying<LevelReady>>(),
         reason: 'a level with no next unloaded itself',
       );
+    });
+  });
+
+  group('wg-02: the crypt\'s own widget_surface', () {
+    test(
+      'resolves against the application\'s widget registry into a real node',
+      () async {
+        var built = 0;
+        final it = _game(
+          widgetRegistry: <String, WidgetBuilder>{
+            'run-terminal': (context) {
+              built++;
+              return const SizedBox.shrink();
+            },
+          },
+        );
+
+        await it.run.begin();
+        final level = (it.run.state as RunPlaying<LevelReady>).level;
+
+        expect(level.widgetSurfaces.surfaces, hasLength(1));
+        expect(built, 1, reason: 'the registry builder actually ran once');
+        expect(
+          level.loaded.scene.meshes,
+          contains(level.widgetSurfaces.surfaces.single.node),
+          reason: 'the surface\'s mesh is really in the scene the game draws',
+        );
+      },
+    );
+
+    test('an unregistered widget name reports an issue but still loads', () async {
+      final it = _game();
+      await it.run.begin();
+      final level = (it.run.state as RunPlaying<LevelReady>).level;
+
+      expect(level.widgetSurfaces.surfaces, isEmpty);
+      expect(it.run.state, isA<RunPlaying<LevelReady>>());
     });
   });
 }

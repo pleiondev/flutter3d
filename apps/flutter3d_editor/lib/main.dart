@@ -22,6 +22,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:math' as math;
 
+import 'package:file_selector/file_selector.dart';
 import 'package:flutter/gestures.dart'
     show PointerScrollEvent, PointerSignalEvent;
 import 'package:flutter/material.dart' hide Material;
@@ -45,9 +46,16 @@ import 'src/editor_inspector.dart';
 import 'src/editor_legend.dart';
 import 'src/editor_palette.dart';
 import 'src/fly_camera.dart';
+import 'src/open_run_channel.dart';
+import 'src/playtest_report_screen.dart';
 import 'src/recent_projects.dart';
+import 'src/run_info.dart';
+import 'src/run_info_screen.dart';
 import 'src/scene_dressing.dart';
 import 'src/shader_watch.dart';
+import 'src/step_panel.dart';
+import 'src/timeline_attach_screen.dart';
+import 'src/timeline_client.dart';
 
 /// The document opened on launch, when one is named on the command line.
 ///
@@ -163,6 +171,13 @@ class _EditorScreenState extends State<EditorScreen>
   bool _stale = false;
   bool _rebuilding = false;
 
+  /// `edu-01`: whether the step panel is open.
+  bool _showSteps = false;
+
+  /// `rp-04`: the macOS side of file association calls back through this —
+  /// a double-click on a `.f3drun` in Finder, or a drop on the dock icon.
+  OpenRunChannel? _openRunChannel;
+
   /// The editor's own light, which the level does not contain.
   ///
   /// **A level you cannot see is a level you cannot edit.** The crypt is lit by
@@ -196,6 +211,7 @@ class _EditorScreenState extends State<EditorScreen>
   void initState() {
     super.initState();
     _ticker = createTicker(_onTick)..start();
+    _openRunChannel = OpenRunChannel(onPath: _openRunAt);
     unawaited(_open());
   }
 
@@ -486,32 +502,40 @@ class _EditorScreenState extends State<EditorScreen>
   }
 
   /// Writes a new project and opens the level in it.
-  Future<void> _create(Template template) async {
-    final where = projectAt(
+  ///
+  /// `tpl-03`: [name] is what a person typed into `EditorChooser`'s own
+  /// dialog — `packageName` cleans it into both the directory's name and the
+  /// pubspec's — and the project lands beside [kLevelPath]'s own directory,
+  /// not inside it, so a second template does not have to fight the first
+  /// one for the same folder.
+  Future<void> _create(Template template, String name) async {
+    final defaultRoot = projectAt(
       File(kLevelPath).isAbsolute
           ? kLevelPath
           : '${Directory.current.path}/$kLevelPath',
-    );
+    ).root;
+    final projectName = packageName(name);
+    final root = '${File(defaultRoot).parent.path}/$projectName';
     try {
-      final directory = Directory(where.root);
+      final directory = Directory(root);
       if (directory.existsSync() && directory.listSync().isNotEmpty) {
-        _cubit.choosingSaid('${where.root} is not empty');
+        _cubit.choosingSaid('$root is not empty');
         return;
       }
 
       final project = scaffold(
         template: template,
-        project: where.root.split('/').last,
+        project: projectName,
         sources: <String, Uint8List>{
-          for (final name in template.files.keys)
-            name: (await rootBundle.load(
-              'assets/templates/${template.id}/$name',
+          for (final file in template.files.keys)
+            file: (await rootBundle.load(
+              'assets/templates/${template.id}/$file',
             )).buffer.asUint8List(),
         },
       );
 
       for (final entry in project.entries) {
-        final file = File('${where.root}/${entry.key}');
+        final file = File('$root/${entry.key}');
         file.parent.createSync(recursive: true);
         file.writeAsBytesSync(entry.value);
       }
@@ -520,7 +544,7 @@ class _EditorScreenState extends State<EditorScreen>
       // Straight into the new project's level: the "made N files" moment
       // is never on screen for it to be told apart from "opened N brushes" —
       // the picture is still a spinner until `_build` finishes either way.
-      await _openAt(where.level);
+      await _openAt('$root/assets/levels/first.json');
     } catch (error) {
       if (mounted) _cubit.choosingSaid('could not create it: $error');
     }
@@ -1102,6 +1126,7 @@ class _EditorScreenState extends State<EditorScreen>
 
   @override
   void dispose() {
+    _openRunChannel?.dispose();
     _shaders?.dispose();
     _ticker?.dispose();
     _keyboard.dispose();
@@ -1309,10 +1334,28 @@ class _EditorScreenState extends State<EditorScreen>
                   bottom: 64,
                   child: Align(
                     alignment: Alignment.centerRight,
-                    child: EditorInspector(
-                      state: state,
-                      onChanged: (String what) =>
-                          _changed('$what — ${state.editing.says}'),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: <Widget>[
+                        // `edu-01`: a step panel selects; `EditorInspector`
+                        // below still edits whatever that selects, field by
+                        // field, the same as it does for any other entity.
+                        if (_showSteps)
+                          SizedBox(
+                            width: 260,
+                            child: StepPanel(
+                              editing: state.editing,
+                              onChanged: (String what) =>
+                                  _changed('$what — ${state.editing.says}'),
+                            ),
+                          ),
+                        EditorInspector(
+                          state: state,
+                          onChanged: (String what) =>
+                              _changed('$what — ${state.editing.says}'),
+                        ),
+                      ],
                     ),
                   ),
                 ),
@@ -1322,12 +1365,166 @@ class _EditorScreenState extends State<EditorScreen>
                   bottom: 0,
                   child: EditorLegend(state: state),
                 ),
+                // `rp-02`: attaches to a game already running elsewhere,
+                // over the same VM service channel DevTools uses — this
+                // editor still edits no simulation of its own.
+                Positioned(
+                  top: 4,
+                  right: 12,
+                  child: IconButton(
+                    icon: const Icon(Icons.podcasts, color: Color(0xFFE6EAF0)),
+                    tooltip: 'Attach to a running game',
+                    onPressed: _attachToRunningGame,
+                  ),
+                ),
+                // `ai-02`: a heatmap `ai-01` wrote to disk, read back and
+                // drawn over the level's own footprint.
+                Positioned(
+                  top: 4,
+                  right: 52,
+                  child: IconButton(
+                    icon: const Icon(
+                      Icons.grain,
+                      color: Color(0xFFE6EAF0),
+                    ),
+                    tooltip: 'Open a playtest report',
+                    onPressed: _openPlaytestReport,
+                  ),
+                ),
+                // `edu-01`: the step panel — adds, reorders and deletes
+                // `edu_step`s and drops an `edu_annotation`/`edu_clip_plane`,
+                // all through the same commands the palette and the arrow
+                // keys already use.
+                Positioned(
+                  top: 4,
+                  right: 92,
+                  child: IconButton(
+                    icon: Icon(
+                      _showSteps ? Icons.view_list : Icons.view_list_outlined,
+                      color: const Color(0xFFE6EAF0),
+                    ),
+                    tooltip: 'Open the lesson step panel',
+                    onPressed: () => setState(() => _showSteps = !_showSteps),
+                  ),
+                ),
+                // `rp-04`: the same screen file association and the open
+                // panel both land on.
+                Positioned(
+                  top: 4,
+                  right: 132,
+                  child: IconButton(
+                    icon: const Icon(
+                      Icons.bug_report,
+                      color: Color(0xFFE6EAF0),
+                    ),
+                    tooltip: 'Open a run (.f3drun)',
+                    onPressed: _openRunFromPanel,
+                  ),
+                ),
               ],
             );
           },
         ),
       ),
     );
+  }
+
+  /// Opens `ai-02`'s own screen — the report itself is opened from inside
+  /// it, since that is where the file picker and the "no report open" state
+  /// already live.
+  Future<void> _openPlaytestReport() async {
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(builder: (_) => const PlaytestReportScreen()),
+    );
+  }
+
+  /// `rp-04`: opens a `.f3drun` at [path] — from `OpenRunChannel` (a
+  /// double-click in Finder) or from [_openRunFromPanel]'s own dialogue.
+  /// Not a scrubber: see `RunInfoScreen`'s own doc comment for why this
+  /// editor says what the file claims rather than replaying it.
+  Future<void> _openRunAt(String path) async {
+    final Demo run;
+    try {
+      run = parseRunFile(File(path).readAsStringSync());
+    } on DemoFormatException catch (error) {
+      if (!mounted) return;
+      _changed('could not read $path as a run: ${error.message}');
+      return;
+    } on FormatException catch (error) {
+      if (!mounted) return;
+      _changed('could not read $path as a run: $error');
+      return;
+    }
+    if (!mounted) return;
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(
+        builder: (_) => RunInfoScreen(run: run, sourceDescription: path),
+      ),
+    );
+  }
+
+  Future<void> _openRunFromPanel() async {
+    const runFiles = XTypeGroup(
+      label: 'flutter3d runs',
+      extensions: <String>['f3drun'],
+    );
+    final file = await openFile(acceptedTypeGroups: const <XTypeGroup>[runFiles]);
+    if (file == null || !mounted) return;
+    await _openRunAt(file.path);
+  }
+
+  /// Asks for a running game's VM service address, connects, and opens the
+  /// timeline panel on it — `rp-02`'s door, from the editor's side.
+  Future<void> _attachToRunningGame() async {
+    final controller = TextEditingController(
+      text: 'http://127.0.0.1:8181/',
+    );
+    final uri = await showDialog<String>(
+      context: context,
+      builder: (BuildContext context) => AlertDialog(
+        title: const Text('Attach to a running game'),
+        content: TextField(
+          controller: controller,
+          decoration: const InputDecoration(
+            labelText: 'VM service URI',
+            hintText: 'printed by the running game on startup',
+          ),
+          autofocus: true,
+          onSubmitted: (String value) => Navigator.of(context).pop(value),
+        ),
+        actions: <Widget>[
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(controller.text),
+            child: const Text('Connect'),
+          ),
+        ],
+      ),
+    );
+    controller.dispose();
+    if (uri == null || uri.isEmpty || !mounted) return;
+
+    final TimelineClient client;
+    try {
+      client = await VmServiceTimelineClient.connect(uri);
+    } catch (error) {
+      if (!mounted) return;
+      _changed('could not attach: $error');
+      return;
+    }
+    if (!mounted) {
+      await client.dispose();
+      return;
+    }
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(
+        builder: (_) => TimelineAttachScreen(client: client),
+      ),
+    );
+    await client.dispose();
   }
 }
 

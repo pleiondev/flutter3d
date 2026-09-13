@@ -33,4 +33,5 @@ export 'src/morph_texture.dart';
 export 'src/revolved_shapes.dart';
 export 'src/shape.dart';
 export 'src/triangle_bvh.dart';
+export 'src/vertex_cache_optimizer.dart';
 export 'src/vertex_layout.dart';

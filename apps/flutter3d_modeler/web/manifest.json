@@ -1,12 +1,12 @@
 {
-    "name": "flutter3d_modeler",
-    "short_name": "flutter3d_modeler",
+    "name": "flutter3d Modeler",
+    "short_name": "Modeler",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
-    "orientation": "portrait-primary",
+    "background_color": "#0E1112",
+    "theme_color": "#0E1112",
+    "description": "Open, edit and export 3D models — meshes, materials and modifiers, in the browser.",
+    "orientation": "any",
     "prefer_related_applications": false,
     "icons": [
         {

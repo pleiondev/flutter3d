@@ -11,6 +11,74 @@
 	<true/>
 	<key>FLTEnableImpeller</key>
 	<true/>
+	<!-- What Finder hands this app on a double-click or a drag onto the dock
+	     icon, and the list `openModel`'s own `XTypeGroup` in
+	     project_files_io.dart already speaks for the file picker: glb, gltf,
+	     obj and f3d as models to import, f3dproj as the project this app
+	     actually saves. Extensions rather than declared UTIs, because none of
+	     the five have a system-owned one worth claiming and a `CFBundleTypeExtensions`
+	     entry is what the OS already knows how to route without this app also
+	     exporting a UTI nothing else on the machine reads. -->
+	<key>CFBundleDocumentTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeName</key>
+			<string>flutter3d Project</string>
+			<key>CFBundleTypeExtensions</key>
+			<array>
+				<string>f3dproj</string>
+			</array>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>LSHandlerRank</key>
+			<string>Owner</string>
+			<key>LSItemContentTypes</key>
+			<array>
+				<string>dev.flutter3d.modeler.project</string>
+			</array>
+		</dict>
+		<dict>
+			<key>CFBundleTypeName</key>
+			<string>3D Model</string>
+			<key>CFBundleTypeExtensions</key>
+			<array>
+				<string>glb</string>
+				<string>gltf</string>
+				<string>obj</string>
+				<string>f3d</string>
+			</array>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>LSHandlerRank</key>
+			<string>Alternate</string>
+		</dict>
+	</array>
+	<!-- The one entry `LSItemContentTypes` above names and no system UTI
+	     covers: a project file is this app's own format, not glTF wearing a
+	     different extension, so it gets a UTI of its own rather than being
+	     declared as a plain extension the way the four import formats are —
+	     Launch Services otherwise treats every `.f3dproj` as public.data and
+	     hands it to whatever else claims that. -->
+	<key>UTExportedTypeDeclarations</key>
+	<array>
+		<dict>
+			<key>UTTypeIdentifier</key>
+			<string>dev.flutter3d.modeler.project</string>
+			<key>UTTypeDescription</key>
+			<string>flutter3d Project</string>
+			<key>UTTypeConformsTo</key>
+			<array>
+				<string>public.data</string>
+			</array>
+			<key>UTTypeTagSpecification</key>
+			<dict>
+				<key>public.filename-extension</key>
+				<array>
+					<string>f3dproj</string>
+				</array>
+			</dict>
+		</dict>
+	</array>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleExecutable</key>

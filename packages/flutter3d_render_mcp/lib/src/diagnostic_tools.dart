@@ -1,0 +1,135 @@
+import 'dart:async';
+
+import 'package:dart_mcp/server.dart';
+
+import 'diagnostic_renderer.dart';
+import 'diagnostic_session.dart';
+
+/// One tool: what an agent is offered, and what calling it does — the same
+/// pair-not-a-table shape `flutter3d_sim_mcp`'s own `SimTool` is.
+final class DiagnosticTool {
+  const DiagnosticTool(this.tool, this.run);
+
+  final Tool tool;
+  final FutureOr<Answer> Function(
+    DiagnosticSession session,
+    Map<String, Object?> arguments,
+  )
+  run;
+
+  String get name => tool.name;
+}
+
+double _number(
+  Map<String, Object?> args,
+  String key, [
+  double fallback = 0.0,
+]) => (args[key] as num?)?.toDouble() ?? fallback;
+
+DiagnosticView _view(Map<String, Object?> args) {
+  final name = args['view'] as String?;
+  return DiagnosticView.values.firstWhere(
+    (v) => v.name == name,
+    orElse: () => DiagnosticView.lit,
+  );
+}
+
+const String _viewDescription =
+    'lit (the ordinary frame), normals (the surface buffer: octahedral '
+    'normal, roughness, view depth in metres), shadowMap or staticShadowMap '
+    '(the point-shadow cube atlases). Default lit.';
+
+/// The five verbs `par-02` asks for.
+List<DiagnosticTool> get diagnosticTools => <DiagnosticTool>[
+  DiagnosticTool(
+    Tool(
+      name: 'open',
+      description:
+          'Open a level document for diagnosis. No genre vocabulary is '
+          'known here, so a level whose entities need one will fail to '
+          'validate — this tool only ever looks at the picture, not at what '
+          'plays in it.',
+      inputSchema: ObjectSchema(
+        properties: <String, Schema>{
+          'path': StringSchema(description: 'a level document on disk'),
+        },
+        required: <String>['path'],
+      ),
+    ),
+    (session, args) => session.open(args['path']! as String),
+  ),
+  DiagnosticTool(
+    Tool(
+      name: 'frame',
+      description:
+          'Draw a frame with no GPU, from a given eye position looking in a '
+          'given direction, in one of the renderer\'s own debug views. Every '
+          'later call (pixel, passes, scanNaN) reads back this same frame, '
+          'so draw it again after moving the eye or changing the view.',
+      inputSchema: ObjectSchema(
+        properties: <String, Schema>{
+          'atX': NumberSchema(description: 'eye position, default 0'),
+          'atY': NumberSchema(description: 'eye position, default 0'),
+          'atZ': NumberSchema(description: 'eye position, default 0'),
+          'aimX': NumberSchema(
+            description: 'look direction (not a point), default 0,0,-1',
+          ),
+          'aimY': NumberSchema(description: 'look direction, default 0'),
+          'aimZ': NumberSchema(description: 'look direction, default -1'),
+          'view': StringSchema(description: _viewDescription),
+        },
+      ),
+    ),
+    (session, args) => session.frame(
+      atX: _number(args, 'atX'),
+      atY: _number(args, 'atY'),
+      atZ: _number(args, 'atZ'),
+      aimX: _number(args, 'aimX'),
+      aimY: _number(args, 'aimY'),
+      aimZ: _number(args, 'aimZ', -1.0),
+      view: _view(args),
+    ),
+  ),
+  DiagnosticTool(
+    Tool(
+      name: 'pixel',
+      description:
+          'The raw, unclamped value of one pixel in the last frame drawn — '
+          'a depth past one metre and a NaN both survive here, where the '
+          'picture itself would have rounded either into an ordinary-looking '
+          'colour. Says which pass produced the value, too.',
+      inputSchema: ObjectSchema(
+        properties: <String, Schema>{
+          'x': IntegerSchema(description: '0-based, from the left'),
+          'y': IntegerSchema(description: '0-based, from the top'),
+        },
+        required: <String>['x', 'y'],
+      ),
+    ),
+    (session, args) => session.pixel(
+      (args['x']! as num).toInt(),
+      (args['y']! as num).toInt(),
+    ),
+  ),
+  DiagnosticTool(
+    Tool(
+      name: 'passes',
+      description:
+          'Every pass the frame graph kept for the last frame drawn, in the '
+          'order it ran, with its own timing — what actually happened, '
+          'rather than what the settings asked for.',
+      inputSchema: ObjectSchema(),
+    ),
+    (session, args) => session.passes(),
+  ),
+  DiagnosticTool(
+    Tool(
+      name: 'scanNaN',
+      description:
+          'The first pixel in the last frame drawn where any channel is a '
+          'NaN or an infinity, and which pass is answerable for it.',
+      inputSchema: ObjectSchema(),
+    ),
+    (session, args) => session.scanNaN(),
+  ),
+];

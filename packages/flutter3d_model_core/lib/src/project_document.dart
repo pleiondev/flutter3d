@@ -19,11 +19,13 @@ import 'dart:typed_data';
 
 import 'package:flutter3d_formats/flutter3d_formats.dart';
 import 'package:flutter3d_geometry/flutter3d_geometry.dart';
+import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 import 'package:vector_math/vector_math.dart';
 
 import 'material.dart';
 import 'project.dart';
 import 'project_animation.dart';
+import 'project_morphs.dart';
 
 /// [project] as the document `F3dWriter` — and the glTF and OBJ writers when
 /// they arrive — already accepts.
@@ -131,7 +133,7 @@ final class ProjectModelDocument extends ModelDocument {
   MeshData _meshFor(ModelObject object) => _meshCache.putIfAbsent((
     object.id,
     object.version,
-  ), () => _meshOf(object.geometry));
+  ), () => _meshOf(object.geometry, object.shapeSet));
 
   /// Rebuilds this document from [project] and returns it.
   ///
@@ -256,6 +258,7 @@ final class ProjectModelDocument extends ModelDocument {
             // The renderer flips for it when the surface says so — except for
             // a skinned one, where the joints (not this placement) decide it.
             flipWinding: skinIndex == null && placement.determinant() < 0.0,
+            morphWeights: object.shapeSet.weights,
           ),
         );
       }
@@ -724,12 +727,29 @@ List<int> _slotsOf(ModelSurface surface) => switch (surface.materialIndex) {
 /// would either drop attributes the file brought or invent zeros for ones it
 /// did not, and the container stores a layout per mesh precisely so it does not
 /// have to.
-MeshData _meshOf(Geometry geometry) => switch (geometry) {
-  ParametricGeometry(:final shape) => shape.drawn.build(),
-  EditedGeometry(:final mesh) => mesh.toMeshData(),
-  ImportedGeometry(:final MeshData data) => data,
-  SocketGeometry() => _nothing,
-};
+///
+/// **[shapeSet]'s keys ride along as [MorphTarget]s, on the edited case only.**
+/// A shape key is authored against an `EditMesh`'s own vertex ids — `mesh-61`'s
+/// row, and [ShapeKey.grownTo]/[remappedBy] track exactly that mesh's edits —
+/// so there is no vertex a parametric or imported geometry's shape key could
+/// mean. [MeshLayoutPlan] is rebuilt here rather than reused from
+/// [EditMesh.toMeshData] — which keeps its own plan private — but built with
+/// the identical defaults that call already used, so [shapeKeyMorphTargets]'s
+/// own `gpuVertexToVertex` lines up with the vertices [mesh] just wrote.
+MeshData _meshOf(Geometry geometry, ShapeSet shapeSet) {
+  final mesh = switch (geometry) {
+    ParametricGeometry(:final shape) => shape.drawn.build(),
+    EditedGeometry(:final mesh) => mesh.toMeshData(),
+    ImportedGeometry(:final MeshData data) => data,
+    SocketGeometry() => _nothing,
+  };
+  if (shapeSet.isEmpty) return mesh;
+  if (geometry is! EditedGeometry) return mesh;
+  final plan = MeshLayoutPlan()..build(geometry.mesh);
+  return mesh.withMorphTargets(
+    shapeKeyMorphTargets(plan, geometry.mesh, shapeSet.keys),
+  );
+}
 
 /// Whether recomposing [translation], [rotation] and [scale] gives [matrix]
 /// back.

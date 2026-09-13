@@ -53,7 +53,7 @@ generator: the mirror variant's tangents come from a real exporter, so comparing
 against them is comparing against the rest of the ecosystem rather than against
 our own derivation.
 
-The files in `f3d/` are those same models converted by `tool/convert_asset.dart`
+The files in `f3d/` are those same models converted by `dart run flutter3d:convert`
 into the engine's own container. They are derived works of the sources above and
 carry the same licences.
 

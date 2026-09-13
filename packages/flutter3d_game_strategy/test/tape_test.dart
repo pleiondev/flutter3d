@@ -142,8 +142,11 @@ void main() {
   group('a recorded match', () {
     MatchDemo demo({OrderTape? tape}) => MatchDemo(
       level: 'assets/levels/map_a.json',
+      levelHash: 'deadbeef',
       start: const Snapshot(<String, Object?>{'random': 7}),
       tape: tape ?? OrderTape(seed: 7),
+      buildStamp: 'test-build',
+      checkpoints: DigestTrace(),
     );
 
     Map<String, Object?> written({OrderTape? tape}) =>
@@ -191,8 +194,11 @@ void main() {
       for (final String missing in <String>[
         'version',
         'level',
+        'levelHash',
         'tape',
         'run',
+        'buildStamp',
+        'checkpoints',
       ]) {
         expect(
           () => MatchDemo.fromJson(<String, Object?>{

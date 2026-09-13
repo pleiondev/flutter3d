@@ -40,3 +40,4 @@ library;
 
 export 'src/golden.dart';
 export 'src/render_frame.dart';
+export 'src/replay_golden.dart';

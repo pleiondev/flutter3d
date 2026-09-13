@@ -1,9 +1,12 @@
 # Roadmap
 
-Revised 8 September 2026. It is revised again on 28 September, 26 October and
-23 November, and the quarter it describes closes on 27 December 2026. Those
-dates are when this file is rewritten, not when the work is due: a plan that is
-only rewritten when it succeeds is a plan nobody can read.
+Revised 8 September 2026, and again on 11 September, off the calendar, because
+the tooling decisions below changed what the quarter is for and waiting two
+weeks to say so would have been the quiet kind of move this file forbids. It is
+revised next on 28 September, then on 26 October and 23 November, and the
+quarter it describes closes on 27 December 2026. Those dates are when this file
+is rewritten, not when the work is due: a plan that is only rewritten when it
+succeeds is a plan nobody can read.
 
 **What has already shipped is not here.** It is in each package's
 `CHANGELOG.md`, beside the version that carries it, which is the one place it
@@ -41,6 +44,11 @@ in the last place. None of the three is the simulation being wrong: a step
 still asks no machine for an answer, and the determinism it promises held
 through all of it. What was red was the instrument. Until green runs stand in a
 row, believe the badge and read this paragraph for the reason.
+
+**The quarter is over-full, and the 11 September revision made it more so.**
+Two tooling sections joined *Committed* without anything leaving it. The order
+inside them is the order they are cut in if the 28 September revision finds
+the calendar short, and the asset build is the one that stays.
 
 ## Committed
 
@@ -123,6 +131,67 @@ warnings and glTF-Validator accepts; the same run driven by an agent over MCP
 and diffed in CI against a reference project; the editable mesh holding its
 invariants over five hundred random operations; and the application built for
 macOS, the browser, Android and iOS.*
+
+### Assets that build themselves
+
+Today a new project reaches its first frame through two manual steps a
+newcomer has no reason to guess: a shell script that builds the shader bundle,
+and a converter that lives in the engine's `tool/` directory where `dart run`
+cannot find it. The first of those is also what turned the macOS job red. Both
+go into a build hook. `dart run flutter3d:init` writes the hook and the one
+pubspec entry it needs, and from then on `flutter run` converts glTF, GLB and
+OBJ sources into the `.f3d` container, compresses their textures into KTX2 with
+full mip chains in the block family each target reads, and builds the shader
+bundle. The same code is `dart run flutter3d:convert` for anybody who would
+rather run the step by hand or from another build system.
+
+A hook runs in plain Dart, so everything it calls has to live below Flutter:
+the KTX2 container and its transcoder move out of the engine into
+`flutter3d_formats`, where the decoders already are. The texture encoder the
+games section used to promise is this section's encoder. Data assets are not
+on the stable channel of Flutter 3.47, so the hook writes into a generated
+directory that the pubspec lists; a spike on all four platforms confirms that
+before anything is built on it.
+
+*Acceptance: `flutter create`, `flutter pub add flutter3d` and `dart run
+flutter3d:init` reach a first frame with a textured GLB on macOS, the browser,
+Android and iOS with no script run by hand; a converted model compares equal to
+decoding its source with `document_compare`; a second build with no source
+changed converts nothing; and the quickstart page loses its shader step.*
+
+### The editors reach the running game, and an agent sees the frame
+
+In the order these are cut in, last first.
+
+A diagnostic MCP server beside the two document servers, for the question an
+agent otherwise answers by guessing: why is the frame wrong? A screenshot of the
+viewport and of the window in both editors; debug views of normals, depth,
+shadow cascades, overdraw and texture coordinates; the output of any pass in
+the frame graph and the HDR value of a pixel in it; and a scan that names the
+first pass producing a NaN or an empty target. Every server keeps stdio for CI
+and gains attaching to an editor that is already open, over loopback, so the
+person and the agent are looking at one document rather than two copies of it.
+
+Then the desktop editors run the project itself: a device picker, a build
+configuration, hot reload and restart through the VM service, and the console
+in a panel. Saving a model in the modeller or a texture anywhere replaces it in
+the running game without a restart. That was on *Not doing* until 11
+September, on the grounds that Play covered the need; it does inside the
+editor, and does nothing for the game on a phone, which is where a material is
+finally judged. Levels stay out, because a replay has to survive the swap and
+nobody has worked out how. The browser editors cannot start a build, and do not
+pretend to.
+
+Then one editor shell in its own package, used by both applications: docking,
+a command palette over the same commands the MCP servers call, a console, a
+history panel and an asset browser. The applications stay two. What they
+stop being is two separate implementations of the same panels.
+
+*Acceptance: an agent over MCP names the pass that turns a deliberately broken
+normal map black; a model saved in the modeller appears in a demo running on a
+phone without restarting it; an agent attached to an open editor makes an edit
+the person watches happen; and both applications built on the shared shell,
+with the palette and the history panel coming from it.*
 
 ### Strategy as the fourth genre
 
@@ -223,14 +292,14 @@ with a target under three minutes.*
 ### The games, in front of people
 
 Three games built for the web and put where they can be played without an
-install, then the fourth when it exists. A texture encoder in the asset
-converter, so the compressed formats the loader already reads can be produced
-here rather than found elsewhere. Two releases — one at the middle revision
-date, one at the quarter's close — with the unreleased section of each
-changelog kept as the work happens rather than written at the end.
+install, then the fourth when it exists, with their textures compressed by the
+asset build above rather than by a step somebody has to remember. Two releases
+— one at the middle revision date, one at the quarter's close — with the
+unreleased section of each changelog kept as the work happens rather than
+written at the end.
 
 *Acceptance: four games playable in a browser from the site; the assets of all
-four compressed by the converter; two releases tagged, one on each of 26
+four compressed by the asset build; two releases tagged, one on each of 26
 October and 27 December.*
 
 ## If the committed work lands on time
@@ -256,6 +325,20 @@ In this order, and only in this order.
 5. **Clustered light assignment** — and only if the per-object measurement asks
    for it. A technique adopted without a measurement is a technique nobody can
    remove later.
+6. **The editors and models.pleion.dev** — opening, saving and placing a model
+   from the account in the desktop editors as well as the browser ones, which
+   needs a sign-in a native application can hold where a browser holds a
+   cookie.
+7. **Golden images from real GPUs in CI** — Impeller on a macOS runner and
+   WebGL2 and WebGPU in Chrome, held to the same reference images the software
+   backend draws, so a difference between a driver and the contract is caught
+   in a pull request rather than on the nightly machine the morning after.
+8. **Agent skills for people using the engine** — its idioms and the traps that
+   fail silently, lighting and post-processing that read as deliberate, and
+   performance, beside the skills already written for working on the engine.
+9. **A guide per subsystem with a live demo in it, and an examples
+   application** those guides point into, beside the genre tutorials rather
+   than instead of them.
 
 ## After this quarter
 
@@ -274,6 +357,19 @@ conformance contract. And a 1.0: one version across every package, an API
 freeze two months ahead of it, and a written support policy, because that is
 what a team asks before taking a dependency.
 
+Prefabs over the level documents: a model or a group placed by reference, from
+a file or from the account, without a second scene format. Hot reload of
+levels, once a replay has a way to survive one.
+
+Three items came off *Not doing* on 11 September and wait here rather than in
+the quarter. **Flutter widgets on 3D surfaces**, because an engine for Flutter
+that cannot put a widget into a scene leaves out the one thing no other engine
+could offer. **Rigid bodies with rotation and joints**, because three genres
+shipping without them showed they do not block those three, and a vehicle, a
+ragdoll or a stack of crates is what the next game reaches for first. And
+**temporal antialiasing with motion blur**, because the cheap wave above
+settles a still frame and cannot settle the shimmer of a moving camera.
+
 ## Not doing, and why
 
 - **Comparison tables against other engines.** The question this project
@@ -288,19 +384,11 @@ what a team asks before taking a dependency.
   is the point.
 - **An entity-component renderer.** The scene graph is not the bottleneck any
   profile has found, and rewriting it would spend the quarter.
-- **Temporal antialiasing and motion blur.** Both want a history buffer and
-  motion vectors; the cheap wave above buys most of the appearance for a
-  fraction of the frame.
 - **Order-independent transparency**, beyond the alpha hashing named above.
-- **Rigid bodies with rotation and joints.** Three genres shipped without them,
-  which is the evidence that they are not what is blocking a game.
 - **Static and dynamic node separation, and refitting the culling tree.** Worth
   doing when a scene is large enough for it to show; no scene here is yet.
 - **Terrain clipmaps.** The heightfield above is collision and gameplay; making
   it a rendering system is a separate quarter.
-- **Flutter widgets on 3D surfaces.**
-- **Hot reload of models and levels.** The editor's Play and snapshot cover the
-  need until 1.0.
 - **Quality presets as an API.** They would be assembled from knobs whose
   spread is about to change; a preset written now is a preset rewritten in
   three months.

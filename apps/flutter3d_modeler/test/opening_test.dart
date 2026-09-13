@@ -514,4 +514,41 @@ void main() {
       expect(rig.transform.getTranslation().x, closeTo(0.005, 1e-9));
     });
   });
+
+  group('ui-31n\'s own drop guard', () {
+    test('a recognised extension is not refused', () {
+      expect(
+        unopenableDropRefusal('helmet.glb', Uint8List.fromList(<int>[1, 2])),
+        isNull,
+      );
+    });
+
+    test('a project file is not refused, whatever it is named', () {
+      final bytes = writeProject(const ModelProject());
+      // Mutation: check the extension instead of the bytes, and a project
+      // saved with the wrong suffix on it — `.dae`, say — gets turned away at
+      // the window even though `openBytes` would have read it fine.
+      expect(unopenableDropRefusal('backup.dae', bytes), isNull);
+    });
+
+    test('an extension this build has no reader for is refused', () {
+      final because = unopenableDropRefusal(
+        'scene.dae',
+        Uint8List.fromList(<int>[1, 2, 3]),
+      );
+      // Mutation: fall through to `sniffModelFormat` instead of refusing, and
+      // a Collada file starting with whitespace and a brace opens as a
+      // (wrong) glTF instead of naming itself in the status line.
+      expect(because, isNotNull);
+      expect(because, contains('scene.dae'));
+    });
+
+    test('a name with no extension at all is refused the same way', () {
+      final because = unopenableDropRefusal(
+        'README',
+        Uint8List.fromList(<int>[0x25, 0x50, 0x44, 0x46]),
+      );
+      expect(because, isNotNull);
+    });
+  });
 }

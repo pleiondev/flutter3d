@@ -32,12 +32,53 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:vector_math/vector_math.dart' hide Colors;
 
 import 'src/backend.dart';
+import 'src/template_widgets.dart';
 
 /// The level this project opens with.
 const String kLevel = String.fromEnvironment(
   'level',
   defaultValue: 'assets/levels/first.json',
 );
+
+/// `tpl-04`'s viewer: an `edu_sequence`'s own `steps`, resolved to the
+/// caption each named `edu_step` carries, in the order the sequence names
+/// them — the same ordering rule `edu-01`'s `orderedSteps` already proved,
+/// repeated here in five lines rather than pulling a document-authoring
+/// package into a running game's dependencies. A level with no `edu_sequence`
+/// answers with nothing, which [ViewerTourController.setCaptions] already
+/// turns into its own placeholder.
+///
+/// Public rather than private: `test/tpl04_levels_test.dart` calls this
+/// directly against a level read with no window, the same way
+/// `test/level_cubit_test.dart` already drives [LevelCubit] with no window.
+List<String> stepCaptions(Level level) {
+  EntityDef? sequence;
+  for (final entity in level.entities) {
+    if (entity.type == 'edu_sequence') {
+      sequence = entity;
+      break;
+    }
+  }
+  final names = sequence?.properties['steps'];
+  if (names is! List) return const <String>[];
+
+  return <String>[
+    for (final name in names)
+      if (name is String) level.named(name)?.string('caption') ?? '?',
+  ];
+}
+
+/// `tpl-04`'s twin: the one `edu_step` naming `bindings`, if this level has
+/// one — `edu-05`'s own format keeps a binding on a step rather than on the
+/// document, so this is where a level names which step's reading is live.
+EntityDef? stepWithBindings(Level level) {
+  for (final entity in level.entities) {
+    if (entity.type == 'edu_step' && entity.properties['bindings'] is List) {
+      return entity;
+    }
+  }
+  return null;
+}
 
 void main() => runApp(const TemplateApp());
 
@@ -83,13 +124,29 @@ final class LevelLoading extends LevelState {
 
 /// The level is built: a scene to draw, a body to walk it with.
 final class LevelReady extends LevelState {
-  const LevelReady(this.scene, this.body, {required this.yaw});
+  const LevelReady(
+    this.scene,
+    this.body, {
+    required this.yaw,
+    required this.level,
+    this.widgetSurfaces,
+  });
 
   final Scene scene;
   final CharacterController body;
 
   /// Which way the spawn faces, in radians.
   final double yaw;
+
+  /// The document itself, kept rather than thrown away once built — `tpl-04`'s
+  /// three templates read an `edu_step`'s caption or bindings back off it
+  /// every frame, which nothing before `tpl-04` needed a live `Level` for.
+  final Level level;
+
+  /// `wg-01`'s bridge for this level's `widget_surface` entities, or null when
+  /// [level] named none. Ticked once a frame by [LevelScreen] and raycast
+  /// against on a tap, the same two calls `wg-02`'s own demo already proved.
+  final WidgetSurfaceVisuals? widgetSurfaces;
 }
 
 /// The level would not load, and why.
@@ -121,6 +178,7 @@ class LevelCubit extends Cubit<LevelState> {
     required CollisionWorld world,
     required CameraNode camera,
     String asset = kLevel,
+    Map<String, WidgetBuilder> widgetRegistry = const <String, WidgetBuilder>{},
   }) async {
     try {
       // Read first, build second: the registry is made out of what the
@@ -146,16 +204,38 @@ class LevelCubit extends Cubit<LevelState> {
           .firstOrNull;
       final at = (spawn?.position ?? Vector3.zero()) + Vector3(0.0, 0.9, 0.0);
 
+      // `tpl-04`: every `widget_surface` this document names, resolved
+      // through whatever the caller's own registry knows — a level with none
+      // gets a `WidgetSurfaceVisuals` that never adds a node, not a null
+      // check scattered through the render loop.
+      final widgetSurfaces = WidgetSurfaceVisuals(
+        loaded.scene,
+        device: device,
+        registry: widgetRegistry,
+      );
+      for (final entity in level.entities) {
+        widgetSurfaces.add(entity);
+      }
+
       emit(
         LevelReady(
           loaded.scene..add(camera),
           CharacterController(world: world, position: at),
           yaw: spawn?.yaw ?? 0.0,
+          level: level,
+          widgetSurfaces: widgetSurfaces,
         ),
       );
     } catch (error) {
       emit(LevelFailed(error));
     }
+  }
+
+  @override
+  Future<void> close() {
+    final current = state;
+    if (current is LevelReady) current.widgetSurfaces?.dispose();
+    return super.close();
   }
 }
 
@@ -202,6 +282,31 @@ class _LevelScreenState extends State<LevelScreen>
   /// state directly, sixty times a second, which is no place for a lookup.
   final LevelCubit _level = LevelCubit();
 
+  /// `tpl-04`'s own state, shared by whichever of the three templates is
+  /// open — a level with none of these entities simply never touches them.
+  final ViewerTourController _tour = ViewerTourController();
+  final ConfiguratorController _configurator = ConfiguratorController();
+  final ValueNotifier<Object?> _twinReading = ValueNotifier<Object?>(null);
+  final DataSourceRegistry _dataSources = DataSourceRegistry(
+    <String, EduDataSource>{
+      'spindle-temp': SamplerDataSource(
+        (step) => <String, Object?>{
+          'value': 60.0 + 15.0 * math.sin(step * 0.05),
+        },
+      ),
+    },
+  );
+  int _twinStep = 0;
+
+  /// The `edu_step` naming this level's `bindings`, if any — resolved once at
+  /// load rather than searched for every frame.
+  EntityDef? _boundStep;
+
+  /// For a tap: `wg-01`'s own chain, against the render scene rather than
+  /// [CollisionWorld] — a `widget_surface` is a mesh in [Scene], not
+  /// something a player collides with.
+  final Raycaster _raycaster = Raycaster();
+
   @override
   void initState() {
     super.initState();
@@ -229,7 +334,21 @@ class _LevelScreenState extends State<LevelScreen>
     }
     // The cubit handles its own failures from here — see [LevelFailed] —
     // so nothing thrown by a bad document reaches this `try` at all.
-    await _level.open(device, world: _world, camera: _camera);
+    await _level.open(
+      device,
+      world: _world,
+      camera: _camera,
+      widgetRegistry: templateWidgetRegistry(
+        viewerTour: _tour,
+        configurator: _configurator,
+        twinReading: _twinReading,
+      ),
+    );
+    final ready = _level.state;
+    if (ready is LevelReady) {
+      _tour.setCaptions(stepCaptions(ready.level));
+      _boundStep = stepWithBindings(ready.level);
+    }
   }
 
   void _onTick(Duration _) {
@@ -257,6 +376,24 @@ class _LevelScreenState extends State<LevelScreen>
       sprint: _input.held(GameAction.sprint),
     );
 
+    // `tpl-04`: redraws every `widget_surface` this level named, only when
+    // its own pipeline actually asked to (`wg-00`'s own rule, not repeated
+    // here).
+    final widgetSurfaces = state.widgetSurfaces;
+    if (widgetSurfaces != null) unawaited(widgetSurfaces.tickAll());
+
+    // `edu-05`'s own mechanism: a data source sampled every step, written to
+    // wherever the level's own `bindings` say — here, straight into the
+    // dashboard's own notifier, since this seed has nowhere else for a
+    // "sensor value" to live.
+    final boundStep = _boundStep;
+    if (boundStep != null) {
+      _twinStep++;
+      final resolved = resolveBindings(boundStep, _twinStep, _dataSources);
+      final value = resolved['dashboard.temperature'];
+      if (value != null) _twinReading.value = value;
+    }
+
     if (mounted) setState(() {});
   }
 
@@ -277,6 +414,59 @@ class _LevelScreenState extends State<LevelScreen>
             ),
         up: Vector3(0.0, 1.0, 0.0),
       );
+  }
+
+  /// `tpl-04`: the first place in this repository that raycasts a real
+  /// pointer against a running scene to find a `widget_surface` — every
+  /// earlier proof of `wg-00`/`wg-01`'s own chain (raycast → `uvAt` →
+  /// `dispatchAtUv`) built its ray by hand in a test; this builds it from an
+  /// actual tap, through [Raycaster], since a `widget_surface` is a node in
+  /// [Scene] rather than a [CollisionWorld] collider.
+  ///
+  /// Dispatches a whole tap (down and up together) rather than tracking a
+  /// captured pointer across [onPointerMove]/[onPointerUp]: `wg-01`'s own
+  /// write-up found that a drag through this same path never reaches a
+  /// `Scrollable` at all, so a tap is the one gesture this seed can offer
+  /// honestly.
+  bool _tapWidgetSurface(Offset local) {
+    final state = _level.state;
+    if (state is! LevelReady) return false;
+    final surfaces = state.widgetSurfaces?.surfaces;
+    if (surfaces == null || surfaces.isEmpty) return false;
+
+    final size = context.size;
+    if (size == null || size.width <= 0.0 || size.height <= 0.0) return false;
+
+    final hit = _raycaster
+        .setFromScreen(
+          _camera,
+          local.dx,
+          local.dy,
+          width: size.width,
+          height: size.height,
+        )
+        .intersectScene(state.scene);
+    if (hit == null) return false;
+
+    for (final surface in surfaces) {
+      if (hit.node != surface.node) continue;
+      final uv = surface.uvAt(hit.point);
+      if (uv == null) return false;
+
+      const pointer = 9000;
+      surface.pipeline.announcePointer(pointer, added: true);
+      surface.pipeline.dispatchAtUv(
+        uv,
+        (local) => PointerDownEvent(pointer: pointer, position: local),
+      );
+      surface.pipeline.dispatchAtUv(
+        uv,
+        (local) => PointerUpEvent(pointer: pointer, position: local),
+      );
+      surface.pipeline.announcePointer(pointer, added: false);
+      return true;
+    }
+    return false;
   }
 
   @override
@@ -335,6 +525,7 @@ class _LevelScreenState extends State<LevelScreen>
       child: Listener(
         onPointerDown: (PointerDownEvent event) {
           _keyboard.requestFocus();
+          if (_tapWidgetSurface(event.localPosition)) return;
           _dragged = event.localPosition;
         },
         onPointerMove: (PointerMoveEvent event) {

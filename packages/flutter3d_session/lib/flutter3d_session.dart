@@ -29,9 +29,15 @@
 ///   would be a package deciding something it cannot see.
 library;
 
+export 'src/bug_report.dart';
+export 'src/demo_timeline.dart';
 export 'src/did_not_start.dart';
 export 'src/frame_clock.dart';
 export 'src/frame_timing_log.dart';
 export 'src/run_session.dart';
+export 'src/run_timeline.dart';
+export 'src/run_timeline_extensions.dart';
 export 'src/scene_surface.dart';
+export 'src/widget_surface.dart';
+export 'src/widget_surface_pipeline.dart';
 export 'src/widget_texture.dart';

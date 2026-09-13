@@ -25,6 +25,21 @@ dependencies:
   # `MeshData` and `VertexLayout`, which an imported object holds as it arrived.
   flutter3d_geometry: ^0.6.0
 
+  # `ClothMesh`/`stepCloth`, what `BakeSimulationCommand` runs one frame at a
+  # time into a `SimulationCache` — `pro-sim-03`'s own row.
+  flutter3d_cloth: ^0.6.0
+
+  # `Dynamics`/`RigidBody`/`CollisionWorld`, what `BakeRigidBodyCommand` runs
+  # one frame at a time into the same `SimulationCache` — `pro-sim-02`'s own
+  # row, the sibling `pro-sim-01`'s cloth solver has here.
+  flutter3d_physics: ^0.6.0
+
+  # `ParticleSystem`, what `BakeParticleSystemCommand` bakes into a
+  # `SimulationCache` the same way — `pro-sim-02`'s own other half. The core
+  # package, not `flutter3d_particles` itself, which depends on the Flutter
+  # SDK for the contributor that draws a system rather than the system.
+  flutter3d_particles_core: ^0.6.0
+
   vector_math: ^2.2.0
 
 dev_dependencies:

@@ -26,6 +26,7 @@ dependencies:
 dev_dependencies:
   test: ^1.25.0
   flutter_lints: ^6.0.0
+  image: ^4.9.2
 
 # **A plain Dart package, and reading a `.glb` without a Flutter SDK is the
 # whole of what it is for.**
@@ -38,6 +39,8 @@ dev_dependencies:
 #
 # What did not come is what actually needs the SDK: the isolate loader with its
 # `kIsWeb`, the asset-bundle and `dart:io` sources, the bundle resolvers, and
-# everything that names a `GraphicsDevice` — the KTX2 reader, `ModelAsset`,
-# `ModelPart`, `texture_upload`. `flutter3d` keeps those and exports this
-# package whole, so nothing above the split knows it happened.
+# everything that names a `GraphicsDevice` — `ModelAsset`, `ModelPart`,
+# `texture_upload`. `flutter3d` keeps those and exports this package whole, so
+# nothing above the split knows it happened. The KTX2 container came later,
+# for the same reason (`ap-01`): `flutter3d`'s own copy kept only a thin
+# wrapper mapping this package's `vkFormat` to `TextureFormat`.

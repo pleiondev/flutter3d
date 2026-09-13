@@ -85,12 +85,21 @@ String recoveryPathFor(String? path, {required String sessionId}) {
 /// this is for, and the whole point of picking a named, specified algorithm
 /// over `String.hashCode` is that the latter is not guaranteed stable across
 /// Dart versions, which a recovery key spanning app restarts cannot risk.
+///
+/// **[BigInt], not a native `int`.** The offset basis alone,
+/// `0xcbf29ce484222325`, is a literal dart2js refuses to compile: it cannot be
+/// represented exactly as a JavaScript number, and neither can the running
+/// hash once a byte has folded a high bit in. A web build never reaches that
+/// error — it never reaches a frame either, `Renderer.render` being past the
+/// point a build that does not compile gets to. [BigInt] costs more than a
+/// native 64-bit multiply, immaterial next to the once-per-debounce rate
+/// [shouldSave] already limits this to.
 String _fnv1a64(String value) {
-  const prime = 0x100000001b3;
-  const mask64 = 0xFFFFFFFFFFFFFFFF;
-  var hash = 0xcbf29ce484222325;
+  final prime = BigInt.parse('100000001b3', radix: 16);
+  final mask64 = (BigInt.one << 64) - BigInt.one;
+  var hash = BigInt.parse('cbf29ce484222325', radix: 16);
   for (final byte in utf8.encode(value)) {
-    hash = (hash ^ byte) & mask64;
+    hash = (hash ^ BigInt.from(byte)) & mask64;
     hash = (hash * prime) & mask64;
   }
   return hash.toRadixString(16).padLeft(16, '0');

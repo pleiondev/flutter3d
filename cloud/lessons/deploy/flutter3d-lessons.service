@@ -1,0 +1,40 @@
+# /etc/systemd/system/flutter3d-lessons.service
+[Unit]
+Description=lessons.pleion.dev (flutter3d lessons)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/opt/flutter3d-lessons/lessons
+WorkingDirectory=/opt/flutter3d-lessons
+# No secrets: no database, no signing key, no mail key — this service holds
+# nothing an env file needs to keep root-only. LESSONS_BASE_URL is still an
+# env file rather than an inline Environment= line only so that changing it
+# never means editing a unit tracked in this repository's deploy/ directory.
+EnvironmentFile=/etc/flutter3d-lessons.env
+Environment=LESSONS_PORT=8796
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=30
+
+# Same confinement as flutter3d-models.service.
+DynamicUser=yes
+StateDirectory=flutter3d-lessons
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+NoNewPrivileges=yes
+ProtectKernelTunables=yes
+ProtectControlGroups=yes
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+RestrictNamespaces=yes
+LockPersonality=yes
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=flutter3d-lessons
+
+[Install]
+WantedBy=multi-user.target

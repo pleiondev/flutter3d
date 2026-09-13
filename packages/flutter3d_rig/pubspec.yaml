@@ -18,6 +18,8 @@ dependencies:
   vector_math: ^2.2.0
   flutter3d_model_core: ^0.6.0
   flutter3d_formats: ^0.6.0
+  flutter3d_geometry: ^0.6.0
+  flutter3d_mesh: ^0.6.0
 
 dev_dependencies:
   test: ^1.25.0

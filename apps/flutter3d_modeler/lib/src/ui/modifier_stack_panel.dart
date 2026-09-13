@@ -1,17 +1,21 @@
 /// `ui-08`'s own modifier stack: what runs, in what order, on or off.
 ///
-/// **Fields are a later row's own work.** `doc-23`'s `SetModifierField`
-/// already exists and `mat-19` is where a control for it lands; what this
-/// panel offers today is the stack's own shape — which steps exist, whether
-/// each runs, and the order they run in — the three things `ToggleModifier`
-/// and `ReorderModifier` already commit to history without a field editor
-/// anywhere near them.
+/// **`mat-20`'s own field: an array's own `count`.** The stack's own shape —
+/// which steps exist, whether each runs, and the order they run in — is
+/// `ToggleModifier`/`ReorderModifier`'s work, committed with no field editor
+/// anywhere near them. `count` is the one field `mat-20`'s own acceptance
+/// names ("`count` массива — одна `SetModifierField`"), so it is the one
+/// this panel draws a control for; a card for every other modifier's own
+/// fields (`HintRow` tokens, the `M3` "Дополнительно" section the plan's
+/// fuller description asks for) is still later work, the same honest gap
+/// `mat-04a-n`'s own file draws around the rest of `mat-04`'s row.
 library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 
+import 'number_field.dart';
 import 'theme.dart';
 
 /// The active object's own stack, empty or not.
@@ -27,6 +31,7 @@ final class ModifierStackPanel extends StatelessWidget {
     required this.onToggle,
     required this.onReorder,
     required this.onAdd,
+    this.onSetField,
   });
 
   final List<ModifierSlot> slots;
@@ -36,6 +41,12 @@ final class ModifierStackPanel extends StatelessWidget {
 
   /// The modifier at [from] belongs at [to] now.
   final void Function(int from, int to) onReorder;
+
+  /// A field of the modifier at [index] committed — `SetModifierField`'s own
+  /// vocabulary (`'count'`, today). Null hides the field control this panel
+  /// would otherwise draw, so a caller can still show the stack's own shape
+  /// without wiring edits.
+  final void Function(int index, String field, Object? value)? onSetField;
 
   /// The hand-over's own "Add" link at the foot of the stack. Phase one's
   /// own commands can only ever build one kind (`mesh-41`'s mirror), so
@@ -79,6 +90,12 @@ final class ModifierStackPanel extends StatelessWidget {
           onReorderItem: onReorder,
           itemBuilder: (BuildContext context, int index) {
             final slot = slots[index];
+            final ArrayModifier? array = onSetField == null
+                ? null
+                : switch (slot.modifier) {
+                    final ArrayModifier m => m,
+                    _ => null,
+                  };
             return ListTile(
               key: ValueKey<int>(index),
               dense: true,
@@ -88,6 +105,18 @@ final class ModifierStackPanel extends StatelessWidget {
                 child: const Icon(Icons.drag_handle, size: 18),
               ),
               title: Text(_labelOf(slot.modifier)),
+              subtitle: array == null
+                  ? null
+                  : SizedBox(
+                      width: 96,
+                      child: NumberField(
+                        label: 'Count',
+                        semanticLabel: 'Array count',
+                        value: array.count.toDouble(),
+                        onChanged: (double value) =>
+                            onSetField!(index, 'count', value.round()),
+                      ),
+                    ),
               trailing: Switch(
                 value: slot.enabled,
                 onChanged: (_) => onToggle(index),

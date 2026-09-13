@@ -12,6 +12,7 @@ library;
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter3d_bridge/flutter3d_bridge.dart';
 import 'package:flutter3d_demo_dungeon/src/staging.dart';
 import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:flutter3d_game_shooter/flutter3d_game_shooter.dart';
@@ -56,7 +57,7 @@ Level _crypt() => Level.fromJson(
     level,
     world,
     input: input,
-    registry: sampleRegistry(),
+    registry: sampleRegistry(extra: const <EntityKind>[WidgetSurfaceKind()]),
     inventory: startingInventory(),
   );
   world.update();
@@ -79,17 +80,24 @@ void _play(InputState input, int step) {
 String _bytes(Snapshot snapshot) => jsonEncode(snapshot.toJson());
 
 void main() {
-  test('a run through the crypt replays to the same snapshot', () {
+  test('a run through the crypt replays to the same snapshot and digests', () {
     const steps = 600;
+    final levelHash = _crypt().digestHex;
 
-    // Live: play, recording as we go.
+    // Live: play, recording as we go, a checkpoint every 25 steps the same
+    // way the shipped game takes one — see `main.dart`'s own `_step`.
     final live = _stageCrypt();
     final start = live.staged.sim.save();
     final recorder = InputTapeRecorder(seed: start.data.integer('random'));
+    final liveCheckpoints = DigestTrace();
     for (var i = 0; i < steps; i++) {
       _play(live.input, i);
       recorder.record(live.input);
       live.staged.sim.step(_dt);
+      liveCheckpoints.observe(
+        recorder.tape.steps,
+        live.staged.sim.save().toJson(),
+      );
       live.input.endStep();
     }
     final ending = _bytes(live.staged.sim.save());
@@ -103,25 +111,41 @@ void main() {
     final sent = jsonEncode(
       Demo(
         level: 'assets/levels/crypt.json',
+        levelHash: levelHash,
         start: start,
         tape: recorder.tape,
+        buildStamp: 'test-build',
+        checkpoints: liveCheckpoints,
       ).toJson(),
     );
     final demo = Demo.fromJson(jsonDecode(sent) as Map<String, Object?>);
     expect(demo.steps, steps);
+    expect(demo.levelHash, levelHash);
 
     // Replay: a fresh crypt, the demo's start restored into it, the tape
-    // driving the input instead of the script above.
+    // driving the input instead of the script above — and a checkpoint taken
+    // at every one of the recorded document's own steps, so the replay is
+    // checked against the trace rather than only watched to the end.
     final replay = _stageCrypt();
     replay.staged.sim.restore(demo.start);
     final playback = InputTapePlayback(demo.tape);
+    final replayCheckpoints = DigestTrace();
+    var replayedSteps = 0;
     while (!playback.isFinished) {
       playback.applyTo(replay.input);
       replay.staged.sim.step(_dt);
+      replayedSteps++;
+      replayCheckpoints.observe(replayedSteps, replay.staged.sim.save().toJson());
       replay.input.endStep();
     }
 
     expect(_bytes(replay.staged.sim.save()), ending);
+    expect(
+      replayCheckpoints.divergenceFromHex(demo.checkpoints.hexDigests),
+      isNull,
+      reason: 'the replay should check out against the document\'s own trace, '
+          'not only end at the same byte',
+    );
   });
 
   test('and the demo the game writes on a death is readable', () {
@@ -130,10 +154,12 @@ void main() {
     final live = _stageCrypt();
     final start = live.staged.sim.save();
     final recorder = InputTapeRecorder(seed: start.data.integer('random'));
+    final checkpoints = DigestTrace();
     for (var i = 0; i < 30; i++) {
       _play(live.input, i);
       recorder.record(live.input);
       live.staged.sim.step(_dt);
+      checkpoints.observe(recorder.tape.steps, live.staged.sim.save().toJson());
       live.input.endStep();
     }
     final issues = <String>[];
@@ -147,8 +173,13 @@ void main() {
       file.write(
         Demo(
           level: 'assets/levels/crypt.json',
+          levelHash: _crypt().digestHex,
           start: start,
           tape: recorder.tape,
+          buildStamp: 'test-build',
+          checkpoints: checkpoints,
+          platform: 'macos',
+          recordedBy: 'dmitrii',
         ),
       ),
       isTrue,
@@ -158,6 +189,8 @@ void main() {
     expect(read, isNotNull);
     expect(read!.steps, 30);
     expect(read.level, 'assets/levels/crypt.json');
+    expect(read.platform, 'macos');
+    expect(read.recordedBy, 'dmitrii');
     expect(issues, isEmpty);
   });
 }

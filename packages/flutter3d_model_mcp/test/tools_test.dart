@@ -33,6 +33,7 @@ void main() {
   test('every tool is a command or one of the named session verbs', () {
     const beyondTheCommands = <String>{
       'list',
+      'listMaterials',
       'select',
       'undo',
       'redo',
@@ -45,6 +46,21 @@ void main() {
       'makeGameReady',
       'buildFrom',
       'inspect',
+      // `anim-30`: session recipes over real functions that are not, and
+      // cannot be (`command.dart`'s own sealed hierarchy), a `ModelCommand`
+      // — see `model_session.dart`'s own "anim-30" section. `addShape` is
+      // the one exception with a command underneath it (`AddShapeFromMesh`,
+      // already offered as `addShapeFromMesh` too); it is a second name
+      // for that same command, not a session recipe, and belongs here for
+      // the same reason: this set is "what a tool is besides its own
+      // command name," and `addShape`'s own command name is not "addShape".
+      'autoRig',
+      'paintWeights',
+      'retargetClip',
+      'bakeIk',
+      'bakeDrivers',
+      'addShape',
+      'validateRig',
     };
     expect(
       namesOf(modelTools).difference(modelCommandNames.toSet()),
@@ -438,6 +454,61 @@ void main() {
         expect(clip.did, isTrue);
         expect(session.history.project.clips.single.name, 'idle');
         expect(session.history.project.clips.single.tracks, isEmpty);
+      },
+    );
+
+    test(
+      'removeNode reaches the real command: it deletes the node and '
+      'unlinks a dangling reference to it, not just a schema match',
+      () async {
+        final session = ModelSession(
+          ModelHistory(
+            ModelProject(
+              materials: <ProjectMaterial>[
+                ProjectMaterial(surface: SurfaceMaterial()),
+              ],
+            ),
+          ),
+        );
+        final added = await toolNamed('addNode').run(session, <String, Object?>{
+          'materialIndex': 0,
+          'kind': 'color',
+          'fields': <String, Object?>{
+            'value': <double>[1, 0, 0, 1],
+          },
+        });
+        expect(added.did, isTrue);
+        final colorId = session.history.project.materials.single.graph!.nodes
+            .single
+            .id;
+
+        final addedOutput = await toolNamed('addNode').run(session, <String, Object?>{
+          'materialIndex': 0,
+          'kind': 'output',
+        });
+        expect(addedOutput.did, isTrue);
+        final outputId = session.history.project.materials.single.graph!.nodes
+            .last
+            .id;
+
+        final linked = await toolNamed('link').run(session, <String, Object?>{
+          'materialIndex': 0,
+          'nodeId': outputId,
+          'input': 'result',
+          'from': colorId,
+        });
+        expect(linked.did, isTrue);
+
+        final removed = await toolNamed('removeNode').run(session, <String, Object?>{
+          'materialIndex': 0,
+          'nodeId': colorId,
+        });
+        expect(removed.did, isTrue);
+
+        final graph = session.history.project.materials.single.graph!;
+        expect(graph.nodeById(colorId), isNull);
+        final output = graph.nodeById(outputId)! as OutputTextureNode;
+        expect(output.result, isNull);
       },
     );
   });

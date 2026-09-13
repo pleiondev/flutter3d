@@ -50,6 +50,48 @@ ModelProject withEmptyObject() => workshop().added(
   ),
 );
 
+/// A textured project: an 8×8 opaque checkerboard PNG, built with this
+/// package's own [encodePng] rather than a fixture file, bound as one
+/// material's base-colour texture — mat-30's own worked example.
+ModelProject texturedProject() {
+  final pixels = Uint8List(8 * 8 * 4);
+  for (var y = 0; y < 8; y++) {
+    for (var x = 0; x < 8; x++) {
+      final on = (x + y).isEven ? 220 : 40;
+      final at = (y * 8 + x) * 4;
+      pixels[at] = on;
+      pixels[at + 1] = on;
+      pixels[at + 2] = on;
+      pixels[at + 3] = 255;
+    }
+  }
+  return ModelProject(
+    images: <EncodedImage>[
+      EncodedImage(
+        bytes: encodePng(8, 8, pixels),
+        name: 'checker',
+        mimeType: 'image/png',
+      ),
+    ],
+    materials: <ProjectMaterial>[
+      ProjectMaterial(
+        surface: SurfaceMaterial(
+          name: 'checker',
+          baseColorTexture: const TextureBinding(imageIndex: 0),
+        ),
+      ),
+    ],
+  ).added(
+    (int id) => ModelObject(
+      id: id,
+      name: 'panel',
+      geometry: EditedGeometry(EditMesh.cuboid()),
+      transform: Matrix4.identity(),
+      materialSlots: const <int>[0],
+    ),
+  );
+}
+
 ExportWritten written(ExportResult result) {
   expect(result, isA<ExportWritten>(), reason: '$result');
   return result as ExportWritten;
@@ -194,6 +236,50 @@ void main() {
       expect(compareModelDocuments(toModelDocument(project), back), isEmpty);
       expect(back.nodes, hasLength(project.objects.length));
     });
+
+    test('mat-30: the KTX2 texture-encoding option writes a KTX2 image '
+        'that loads back without warnings', () {
+      final project = texturedProject();
+      final files = written(
+        planExport(
+          project,
+          format: ExportFormat.f3d,
+          textureEncoding: TextureEncoding.ktx2,
+        ),
+      ).files;
+
+      final back = F3dDocument.parse(files.single.bytes);
+      expect(back.warnings, isEmpty);
+      expect(back.images, hasLength(1));
+
+      final imageBytes = back.images.single.bytes;
+      expect(
+        isKtx2File(imageBytes),
+        isTrue,
+        reason: 'the option should have replaced the PNG with a KTX2 file',
+      );
+      // `Ktx2Texture.parse` throws `Ktx2FormatException` on anything it
+      // cannot make sense of — this not throwing, and reporting the
+      // checkerboard's own (pre-padding) size back, is the literal
+      // "loads without warnings" acceptance mat-30's row asks for.
+      final texture = Ktx2Texture.parse(imageBytes);
+      expect(texture.pixelWidth, 8);
+      expect(texture.pixelHeight, 8);
+      // Fully opaque source: BC1, not BC3.
+      expect(texture.vkFormat, VkFormat.bc1RgbaUNormBlock);
+      expect(back.images.single.mimeType, 'image/ktx2');
+    });
+
+    test('the default texture encoding keeps writing PNG, unchanged', () {
+      final project = texturedProject();
+      final files = written(
+        planExport(project, format: ExportFormat.f3d),
+      ).files;
+
+      final back = F3dDocument.parse(files.single.bytes);
+      expect(isKtx2File(back.images.single.bytes), isFalse);
+      expect(back.images.single.bytes, project.images.single.bytes);
+    });
   });
 
   group('GLB, out and back', () {
@@ -223,6 +309,26 @@ void main() {
         'any other format', () {
       final result = planExport(withEmptyObject(), format: ExportFormat.glb);
       expect(result, isA<ExportBlocked>());
+    });
+
+    test('mat-30: the KTX2 texture-encoding option is ignored — glTF keeps '
+        'PNG', () async {
+      final project = texturedProject();
+      final files = written(
+        planExport(
+          project,
+          format: ExportFormat.glb,
+          textureEncoding: TextureEncoding.ktx2,
+        ),
+      ).files;
+
+      final back = await GltfLoader().load(files.single.bytes);
+      expect(back.images, hasLength(1));
+      expect(
+        isKtx2File(back.images.single.bytes),
+        isFalse,
+        reason: 'the option names only .f3d — GltfWriter never sees it',
+      );
     });
   });
 

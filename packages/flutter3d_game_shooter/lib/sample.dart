@@ -241,26 +241,35 @@ List<EntityKind> sampleLightKinds() => <EntityKind>[
 /// what the content seam is worth. A game without them gets a registry with no
 /// `monster` in it, and the word stops being part of the language its levels
 /// are written in.
-EntityRegistry sampleRegistry({bool monsters = true}) =>
-    EntityRegistry(<EntityKind>[
-      const PlayerSpawnKind(),
-      if (monsters) MonsterKind(Monsters.byName),
-      PickupKind(sampleGifts),
-      const KeyKind(),
-      const DoorKind(),
-      const LiftKind(),
-      const PlatformKind(),
-      const ButtonKind(),
-      const TriggerKind(),
-      const NoteKind(),
-      const SecretKind(),
-      const ExitKind(),
-      ...sampleLightKinds(),
-      // The format's own word, spoken here because this game's rooms are lit
-      // by torches and nothing else: a probe per room is what lets a key or
-      // a barrel reflect the room it is in rather than a sky it cannot see.
-      const ReflectionProbeKind(),
-    ]);
+///
+/// [extra] is where an application adds a kind this package cannot know
+/// about without depending on it — `wg-02`'s `WidgetSurfaceKind`
+/// (`flutter3d_bridge`) is the reason this exists: a genre package must not
+/// gain a dependency on the bridge layer just so its sample registry can
+/// speak a word the bridge, not the genre, defines.
+EntityRegistry sampleRegistry({
+  bool monsters = true,
+  Iterable<EntityKind> extra = const <EntityKind>[],
+}) => EntityRegistry(<EntityKind>[
+  const PlayerSpawnKind(),
+  if (monsters) MonsterKind(Monsters.byName),
+  PickupKind(sampleGifts),
+  const KeyKind(),
+  const DoorKind(),
+  const LiftKind(),
+  const PlatformKind(),
+  const ButtonKind(),
+  const TriggerKind(),
+  const NoteKind(),
+  const SecretKind(),
+  const ExitKind(),
+  ...sampleLightKinds(),
+  // The format's own word, spoken here because this game's rooms are lit
+  // by torches and nothing else: a probe per room is what lets a key or
+  // a barrel reflect the room it is in rather than a sky it cannot see.
+  const ReflectionProbeKind(),
+  ...extra,
+]);
 
 /// What this game asks of a level as a whole.
 ///

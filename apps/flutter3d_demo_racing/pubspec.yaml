@@ -53,6 +53,11 @@ dependencies:
 
   vector_math: ^2.2.0
 
+  # `net-03`: the second player's input arrives through this rather than
+  # through a controller — see `lib/src/net_race.dart`.
+  flutter3d_net:
+    path: ../../packages/flutter3d_net
+
   # State management — see the note in `packages/flutter3d_screens/pubspec.yaml`.
   # What goes through it is the screen: which circuit is up, whether one just
   # failed to read, and what comes after the one just won. What does **not**
@@ -66,6 +71,11 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0
+
+  # Real-device e2e — see `apps/flutter3d_demo_platformer/pubspec.yaml` for the
+  # note. Carries `rp-00`'s determinism probe onto Android and iOS.
+  integration_test:
+    sdk: flutter
 
   # Only the tests use it, and only to draw a frame without a GPU. The
   # platformer shipped three bugs that every simulation test passed and a single

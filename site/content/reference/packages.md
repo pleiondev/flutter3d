@@ -72,7 +72,7 @@ It is how forty-four golden scenes are checkable with no GPU in the room, and it
 ### `flutter3d_conformance`
 The suite any fourth backend would have to pass before it counted as one, plus the cross-backend comparison with per-scene budgets.
 
-Two tiers, and the split is a correction. The library said it was shader-free as a whole, and that stopped being true the day a check needed a pipeline: twenty-six of the thirty-five link stages and draw. `coreChecks` is what runs on clears, uploads and readback alone, so a backend can ask it before compiling a single shader; `shaderChecks` is the rest. A backend that believed the old promise would have met every one of those failures with nothing it could do about them yet — and the phrasing here is the one `tool/structure.dart` holds to the lists themselves, so the sentence cannot go stale again without the scan saying so.
+Two tiers, and the split is a correction. The library said it was shader-free as a whole, and that stopped being true the day a check needed a pipeline: twenty-seven of the thirty-six link stages and draw. `coreChecks` is what runs on clears, uploads and readback alone, so a backend can ask it before compiling a single shader; `shaderChecks` is the rest. A backend that believed the old promise would have met every one of those failures with nothing it could do about them yet — and the phrasing here is the one `tool/structure.dart` holds to the lists themselves, so the sentence cannot go stale again without the scan saying so.
 
 → [Writing a HAL backend](/core/backends/)
 
@@ -189,6 +189,8 @@ Extracted when the second game wanted it, which is this repository's habit rathe
 
 ### `flutter3d_particles`
 One pool for the whole application, one draw call, plugged in through `PassContributor`. Emitters, affectors, curves and gradients, flipbooks, mesh particles, and `ParticleGlow` — the light a fire casts, measured from the fire's own particles.
+
+The simulation itself — `ParticleSystem`, emission, affectors, curves — lives in `flutter3d_particles_core`, a plain Dart package this one depends on and re-exports unchanged. Only the two files that draw a system ever imported Flutter, so the split is what lets `flutter3d_model_core`'s `BakeParticleSystemCommand` bake a system into a cache with no window in front of it.
 
 ### `flutter3d_audio`
 Positional audio: attenuation curves, panning, occlusion through a callback, voice limiting, buses. `SilentBackend` and `SoLoudBackend`, so a machine with no audio device still plays the game.

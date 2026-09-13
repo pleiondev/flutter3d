@@ -23,7 +23,7 @@ enum ModelFormat {
   gltf,
   obj,
 
-  /// The engine's own container, produced by `tool/convert_asset.dart`.
+  /// The engine's own container, produced by `dart run flutter3d:convert`.
   f3d,
 
   stl,

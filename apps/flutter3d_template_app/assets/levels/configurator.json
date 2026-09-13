@@ -1,0 +1,36 @@
+{
+  "version": 1,
+  "name": "tpl-04 configurator",
+  "generatedBy": "tpl-04",
+  "fogColor": [0.05, 0.04, 0.06],
+  "fogDensity": 0.0,
+  "materials": {
+    "floor": { "baseColor": [0.42, 0.4, 0.38, 1.0], "roughness": 0.9 },
+    "wall": { "baseColor": [0.5, 0.47, 0.44, 1.0], "roughness": 0.85 },
+    "product": { "baseColor": [0.75, 0.2, 0.2, 1.0], "roughness": 0.4 }
+  },
+  "brushes": [
+    { "at": [0.0, -0.5, 0.0], "size": [12.0, 1.0, 12.0], "material": "floor" },
+    { "at": [0.0, 4.5, 0.0], "size": [12.0, 1.0, 12.0], "material": "wall" },
+    { "at": [0.0, 2.0, -6.5], "size": [12.0, 4.0, 1.0], "material": "wall" },
+    { "at": [0.0, 2.0, 6.5], "size": [12.0, 4.0, 1.0], "material": "wall" },
+    { "at": [-6.5, 2.0, 0.0], "size": [1.0, 4.0, 14.0], "material": "wall" },
+    { "at": [6.5, 2.0, 0.0], "size": [1.0, 4.0, 14.0], "material": "wall" },
+    { "at": [0.0, 0.75, 0.0], "size": [1.2, 1.5, 1.2], "material": "product" }
+  ],
+  "lights": [
+    { "type": "point", "at": [0.0, 3.2, 0.0], "color": [1.0, 0.95, 0.85], "intensity": 9.0, "range": 14.0 }
+  ],
+  "entities": [
+    { "type": "player_spawn", "at": [0.0, 0.0, 4.0], "yaw": 3.1416 },
+    {
+      "type": "widget_surface",
+      "name": "config-panel",
+      "at": [2.0, 1.6, 0.5],
+      "yaw": -1.5708,
+      "widget": "configurator-panel",
+      "width": 1.6,
+      "height": 1.4
+    }
+  ]
+}

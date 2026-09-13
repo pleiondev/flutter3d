@@ -15,6 +15,7 @@ library;
 import 'dart:math' as math;
 
 import 'package:flutter3d/flutter3d.dart';
+import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 
 /// What the camera projects through.
 enum ViewLens {
@@ -49,6 +50,33 @@ enum ShadingMode {
 /// instruction — stand on `+X` and look back along the axis — and giving the
 /// two of them one name here is what stops the pair drifting apart.
 enum StandardView { front, back, left, right, top, bottom }
+
+/// The transform panel's own pivot options — one more than [TransformPivot]
+/// carries.
+///
+/// **[cursor] is a name with nothing behind it.** `doc-33n` sketched a third
+/// pivot, a 3D cursor, and a `SetCursor` command to place it, and stopped
+/// short of building either — there is no position anywhere in the document
+/// this could hand to a `RotateBy`. It stays in this enum, and the chip that
+/// draws it stays disabled (see `_PivotAndSpaceChips` in `main.dart`), so the
+/// panel shows the three-way choice `ui-35n`'s own row asks for rather than
+/// quietly shrinking it to the two that work.
+enum PivotChip { median, individual, cursor }
+
+/// What [chip] means to a command that only knows [TransformPivot].
+///
+/// Total rather than partial on purpose: a `switch` that assumes [chip] can
+/// never be [PivotChip.cursor] because the chip is disabled today is a
+/// `switch` waiting to be wrong the day it stops being disabled, silently
+/// rather than at a case a compiler could have caught.
+TransformPivot transformPivotOf(PivotChip chip) => switch (chip) {
+  PivotChip.median => TransformPivot.median,
+  PivotChip.individual => TransformPivot.individual,
+  // Unreachable while the chip stays disabled. Median rather than a throw: an
+  // agent driving the modeller through some future door this enum did not
+  // anticipate gets the default a person would have gotten too, not a crash.
+  PivotChip.cursor => TransformPivot.median,
+};
 
 /// Where the camera stands for [view].
 ///

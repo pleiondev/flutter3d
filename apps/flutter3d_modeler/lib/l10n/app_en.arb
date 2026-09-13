@@ -1,0 +1,80 @@
+{
+  "@@locale": "en",
+  "appTitle": "flutter3d modeller",
+  "unsavedChangesTitle": "Unsaved changes",
+  "unsavedChangesBody": "This model has changes that have not been saved.",
+  "keepEditing": "Keep editing",
+  "discard": "Discard",
+  "saveAndClose": "Save and close",
+  "restoreUnsavedChangesTitle": "Restore unsaved changes?",
+  "restoreUnsavedChangesBody": "{count, plural, one {An autosave from a session that did not close cleanly was found ({count} object).} other {An autosave from a session that did not close cleanly was found ({count} objects).}}",
+  "@restoreUnsavedChangesBody": {
+    "description": "Dialog body offered after a session that did not close cleanly.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "restore": "Restore",
+  "exportAnywayTitle": "Export anyway?",
+  "exportAnywayMoreIssues": "and {count} more",
+  "@exportAnywayMoreIssues": {
+    "description": "Line under the truncated list of export issues.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "cancel": "Cancel",
+  "exportAnyway": "Export anyway",
+  "addPrimitiveTooltip": "Add a primitive",
+  "add": "Add",
+  "open": "Open",
+  "save": "Save",
+  "exportTooltip": "Export a copy",
+  "export": "Export",
+  "materialStudioSemanticsLabel": "Material Studio",
+  "materialStudioTooltip": "Material Studio — preview a material",
+  "keyboardShortcuts": "Keyboard shortcuts",
+  "keyboardShortcutsTooltip": "Keyboard shortcuts (?)",
+  "startScreenSemanticsLabel": "Start screen",
+  "startScreenTooltip": "Start screen — open a file or start a new project",
+  "reportProblem": "Report a problem",
+  "sectionDisplay": "Display",
+  "sectionView": "View",
+  "sectionObjects": "Objects",
+  "sectionTransform": "Transform",
+  "sectionModifiers": "Modifiers",
+  "sectionLastOperation": "Last operation",
+  "sectionSelection": "Selection",
+  "sectionMesh": "Mesh",
+  "sectionBudget": "Budget",
+  "rowWhat": "What",
+  "rowVertices": "Vertices",
+  "rowFaces": "Faces",
+  "rowTriangles": "Triangles",
+  "rowProfile": "Profile",
+  "shadingMaterial": "Material",
+  "shadingNormals": "Normals",
+  "shadingWire": "Wire",
+  "lensPerspective": "Perspective",
+  "lensOrthographic": "Orthographic",
+  "viewFront": "Front",
+  "viewBack": "Back",
+  "viewLeft": "Left",
+  "viewRight": "Right",
+  "viewTop": "Top",
+  "viewBottom": "Bottom",
+  "recoverUnsavedChangesTitle": "Recover unsaved changes?",
+  "recoverUnsavedChangesBody": "A more recent autosave was found than the last saved file. Restore it, or open the file as it was last saved?",
+  "openSavedFile": "Open saved file",
+  "restoreAutosave": "Restore autosave",
+  "startTitle": "Start",
+  "openFile": "Open file",
+  "newProject": "New project",
+  "recent": "Recent",
+  "tutorial": "Tutorial",
+  "close": "Close"
+}

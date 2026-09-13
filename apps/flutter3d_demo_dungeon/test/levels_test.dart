@@ -15,6 +15,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:math' as math;
 
+import 'package:flutter3d_bridge/flutter3d_bridge.dart';
 import 'package:flutter3d_demo_dungeon/src/staging.dart';
 import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:flutter3d_game_shooter/flutter3d_game_shooter.dart';
@@ -70,7 +71,7 @@ void main() {
     // the two cannot disagree about what a document may contain.
     for (final step in _chain()) {
       final issues = LevelValidator(
-        registry: sampleRegistry(),
+        registry: sampleRegistry(extra: const <EntityKind>[WidgetSurfaceKind()]),
         rules: sampleRules(),
       ).validate(step.level);
 
@@ -126,7 +127,7 @@ void main() {
         step.level,
         world,
         input: InputState(),
-        registry: sampleRegistry(),
+        registry: sampleRegistry(extra: const <EntityKind>[WidgetSurfaceKind()]),
         inventory: startingInventory(),
       );
       world.update();

@@ -1,0 +1,15 @@
+name: skills
+description: "par-03's own row: writes agent skills for people building a game on flutter3d — not the ones under packages/*/skills, which are for people working on the engine itself."
+publish_to: 'none'
+resolution: workspace
+
+# **Under `tool/` and not under `packages/`, deliberately** — the same reason
+# `tool/convert_asset`'s own pubspec gives: a package under `packages/` is
+# checked against ARCHITECTURE.md's publishing list by `tool/structure.dart`'s
+# "the publishing order names every package" rule, and this is never going out.
+
+environment:
+  sdk: ^3.12.2
+
+dev_dependencies:
+  test: ^1.24.0

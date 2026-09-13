@@ -23,6 +23,7 @@ import 'package:flutter3d_geometry/flutter3d_geometry.dart';
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 import 'package:vector_math/vector_math.dart';
 
+import 'lod_spec.dart';
 import 'material.dart';
 import 'modifier_slot.dart';
 import 'param_hint.dart';
@@ -30,6 +31,7 @@ import 'project_animation.dart';
 import 'project_morphs.dart';
 import 'scene_lighting.dart';
 import 'selection.dart';
+import 'simulation_cache.dart';
 import 'texture_budget.dart';
 
 /// What kind of machine a profile is written for.
@@ -369,6 +371,8 @@ final class ModelObject {
     this.modifiers = const <ModifierSlot>[],
     this.skeletonIndex,
     this.shapeSet = const ShapeSet(),
+    this.lods = const <LodSpec>[],
+    this.simulationCache,
   });
 
   /// Stable for the life of the object, and not reused after a delete.
@@ -407,6 +411,22 @@ final class ModelObject {
   /// of a mesh with no sculpted alternate shapes.
   final ShapeSet shapeSet;
 
+  /// This object's own levels of detail, finest declared first —
+  /// `pro-lod-03`'s own row. Empty for almost every object, the ordinary
+  /// case of a mesh nobody has asked to simplify; `LodMeshCache` is what
+  /// turns one of these into an actual mesh, keyed by [version] so an edit
+  /// to [geometry] regenerates exactly the entries that are now stale.
+  final List<LodSpec> lods;
+
+  /// This object's own baked simulation frames — `pro-sim-03`'s own row.
+  /// Null for almost every object, the ordinary case of one nobody has run
+  /// `BakeSimulationCommand`/`ApplySimulationCache` against; a project saved
+  /// and reopened comes back with the same null a fresh object starts with,
+  /// the same honest gap [ModelProject.lighting]'s own doc comment already
+  /// keeps — a bake is derived, re-runnable data, not something the file
+  /// format commits to carrying yet.
+  final SimulationCache? simulationCache;
+
   /// A copy with some fields replaced and [version] moved on.
   ///
   /// **The version moves here rather than at the call sites**, so that an edit
@@ -423,6 +443,9 @@ final class ModelObject {
     int? skeletonIndex,
     bool clearSkeletonIndex = false,
     ShapeSet? shapeSet,
+    List<LodSpec>? lods,
+    SimulationCache? simulationCache,
+    bool clearSimulationCache = false,
   }) => ModelObject(
     id: id,
     name: name ?? this.name,
@@ -436,6 +459,10 @@ final class ModelObject {
         ? null
         : (skeletonIndex ?? this.skeletonIndex),
     shapeSet: shapeSet ?? this.shapeSet,
+    lods: lods ?? this.lods,
+    simulationCache: clearSimulationCache
+        ? null
+        : (simulationCache ?? this.simulationCache),
   );
 
   @override

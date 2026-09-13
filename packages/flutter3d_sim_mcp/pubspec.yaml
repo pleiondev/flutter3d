@@ -1,0 +1,77 @@
+name: flutter3d_sim_mcp
+description: "A shooter level an agent can play blind: open it, step it with input, read back positions and health in words, and hand over the run it made — ai-00."
+version: 0.6.0
+repository: https://github.com/pleiondev/flutter3d
+homepage: https://flutter3d.pleion.dev
+issue_tracker: https://github.com/pleiondev/flutter3d/issues
+topics:
+  - game-development
+  - mcp
+  - tooling
+  - ai
+resolution: workspace
+
+environment:
+  sdk: ^3.12.2
+  flutter: '>=3.47.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # The genre this server actually plays — see the package doc for why that
+  # means this server needs Flutter at all, unlike `flutter3d_editor_mcp` and
+  # `flutter3d_model_mcp`, which do not.
+  flutter3d_game_shooter: ^0.6.0
+  flutter3d_sim: ^0.6.0
+
+  # The picture half of `frame` — a level's own scene, a device with no GPU
+  # behind it, and the PNG writer that turns what it reads back into bytes
+  # an agent's host can actually show. The same trio every demo's own
+  # `frame_test.dart` draws through.
+  flutter3d: ^0.6.0
+  flutter3d_bridge: ^0.6.0
+  flutter3d_cpu: ^0.6.0
+
+  vector_math: ^2.2.0
+
+  dart_mcp: ">=0.5.2 <0.6.0"
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+  # `@TestOn('vm')` and a plain `test()` — `test/sim_mcp_test.dart` and
+  # `test/fixtures/sim_mcp_server.dart`'s own launcher spawn a real
+  # subprocess and open a real socket, neither of which exists on the web,
+  # and `flutter_test`'s own re-export is not enough to name that
+  # dependency directly.
+  test: ^1.25.0
+
+  # `test/fixtures/sim_mcp_server.dart` is started as a real subprocess and
+  # driven over a real socket — see that file's own doc and
+  # `test/sim_mcp_test.dart` for why a mock of the protocol would prove less
+  # than nothing here.
+
+# **Why this package needs Flutter, unlike its two siblings.** `ai-00` asks
+# for two things `flutter3d_editor_mcp` and `flutter3d_model_mcp` both went
+# without on purpose: the actual gameplay of a genre (`flutter3d_game_shooter`
+# names `flutter: sdk: flutter` directly) and a rendered frame
+# (`flutter3d_cpu` needs `dart:ui`). Neither compiles under plain `dart run`
+# — checked empirically, the same way `rp-05` found it out for genre
+# packages generally.
+#
+# **And why that rules out literal stdio.** A process with Flutter behind it
+# has no `bin/` this workspace's own `dart run flutter3d_sim_mcp:...` could
+# start — it has to run inside `flutter test`, the way `rp-02`'s
+# `timeline_target.dart` does, and `flutter test` turns everything a test
+# writes to `stdout` into a line prefixed `Shell: ` before a real terminal
+# ever sees it — checked directly, with a two-line probe file, before writing
+# any of the code here. A wire protocol keyed on exact line framing cannot
+# survive that prefix. This server therefore speaks the same
+# newline-delimited JSON `dart_mcp`'s own `stdioChannel` uses, over a plain
+# TCP socket instead of real stdio — `stdioChannel` takes any
+# `Stream<List<int>>`/`StreamSink<List<int>>` pair, and a `Socket` already is
+# both, so nothing about the protocol itself had to change to make that
+# swap.

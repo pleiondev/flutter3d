@@ -173,6 +173,7 @@ const Map<String, double> _budgets = <String, double>{
   'lighting-pbr': 0.01,
   'lighting-toon': 0.01,
   'lighting-normals': 0.01,
+  'mesh-overlay': 0.01,
 };
 
 /// Scenes this set holds no picture of, and why the picture was refused.

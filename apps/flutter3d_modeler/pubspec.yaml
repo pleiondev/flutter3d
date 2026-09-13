@@ -44,6 +44,20 @@ dependencies:
   flutter3d_mesh:
     path: ../../packages/flutter3d_mesh
 
+  # The same editor over a local HTTP socket — `mcp-13n`'s `--mcp-port`.
+  flutter3d_model_mcp:
+    path: ../../packages/flutter3d_model_mcp
+
+  # `CollisionShape`, for drawing what a played-back simulation collides
+  # against — `pro-sim-04`.
+  flutter3d_physics:
+    path: ../../packages/flutter3d_physics
+
+  # `ClothObstacle`, the position+shape pair `pro-sim-01`'s solver collides
+  # a cloth against — reused, not reimplemented, for the same overlay.
+  flutter3d_cloth:
+    path: ../../packages/flutter3d_cloth
+
   # The surface a frame reaches Flutter through, and the frame clock with it.
   flutter3d_session:
     path: ../../packages/flutter3d_session
@@ -64,6 +78,12 @@ dependencies:
   # `package:web` below — see `lib/src/files/project_files.dart` for why the
   # two are a conditional export rather than a `kIsWeb` branch.
   file_selector: ^1.1.0
+
+  # `ui-31n`'s own desktop half: a window that already has a file dragged onto
+  # it, from the OS rather than from a picker. There is no ten-line answer
+  # here the way there is for the web's `dragover`/`drop` — a native channel
+  # needs a platform-side registration this package already carries.
+  desktop_drop: ^0.8.4
 
   # The browser's own file input and download anchor, which is all the web half
   # needs. A plugin would be a dependency whose web implementation is these same
@@ -91,6 +111,19 @@ dependencies:
   # every desktop platform has its own way to hand a link to a browser — so
   # this is the one place a real plugin buys more than it costs.
   url_launcher: ^6.3.0
+
+  # `AppLocalizations`'s own delegates (`GlobalMaterialLocalizations` and
+  # friends) — `ui-22`'s own русский/английский, so the framework's stock
+  # widgets (a date picker this app does not have yet, a text field's own
+  # context menu) read in the same language the panels around them do.
+  flutter_localizations:
+    sdk: flutter
+
+  # The generated `AppLocalizations`'s own runtime — plural rules for
+  # `_offerRecovery`'s own object count and `_askAnyway`'s own "N more" —
+  # pinned to what `flutter_localizations` itself already resolves to on
+  # this SDK, so `flutter pub get` never has two answers for one package.
+  intl: ^0.20.3
 
 dev_dependencies:
   flutter_test:
@@ -133,3 +166,9 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+
+  # `ui-22`: build `AppLocalizations` from `l10n.yaml` and `lib/l10n/*.arb`
+  # on every `flutter pub get`, rather than a generated file committed and
+  # left to drift from the templates the moment somebody edits an `.arb`
+  # by hand and forgets to re-run the generator.
+  generate: true

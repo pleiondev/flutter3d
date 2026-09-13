@@ -66,7 +66,11 @@ final class EditorChooser extends StatelessWidget {
   /// them still on the disk — see `RecentProjects`.
   final List<String> recent;
 
-  final Future<void> Function(Template template) onCreate;
+  /// `tpl-03`: the name is whatever a person typed into [_askForName]'s
+  /// dialog, run through `packageName` on the way in — never the empty
+  /// string, since that dialog's own Create button stays disabled until
+  /// there is something to clean up.
+  final Future<void> Function(Template template, String name) onCreate;
 
   /// Opens the document at a path a person picked, whether out of the panel or
   /// out of [recent].
@@ -129,7 +133,7 @@ final class EditorChooser extends StatelessWidget {
                   _Row(
                     title: template.name,
                     about: template.about,
-                    onTap: () => unawaited(onCreate(template)),
+                    onTap: () => unawaited(_startFrom(context, template)),
                   ),
                 const SizedBox(height: 10),
                 Text(
@@ -153,6 +157,73 @@ final class EditorChooser extends StatelessWidget {
     if (path == null) return;
     await onOpen(path);
   }
+
+  /// `tpl-03`'s own step: a template picks *what*, this dialog asks *what to
+  /// call it* — the one field `packageName` was always ready to clean up and
+  /// nothing here typed in until now.
+  ///
+  /// The dialog is its own [StatefulWidget] (`_NameDialog` below) rather than
+  /// a bare `TextEditingController` built and disposed around `showDialog`:
+  /// `Navigator.pop` starts a route's exit transition, and the future
+  /// `showDialog` returns resolves before that transition's last frame — a
+  /// controller disposed the moment it resolves is disposed while the
+  /// closing `TextField` is still on screen, mid-animation, which is exactly
+  /// what a `State.dispose()` timed by the framework itself does not do.
+  Future<void> _startFrom(BuildContext context, Template template) async {
+    final name = await showDialog<String>(
+      context: context,
+      builder: (context) => _NameDialog(template: template),
+    );
+    if (name == null || name.trim().isEmpty) return;
+    await onCreate(template, name);
+  }
+}
+
+/// `tpl-03`: what to call the project a template is about to become.
+///
+/// A [StatefulWidget] so its [TextEditingController] is disposed by the
+/// framework when this dialog's own element leaves the tree — after its
+/// exit transition, not the moment `Navigator.pop` is asked for one.
+final class _NameDialog extends StatefulWidget {
+  const _NameDialog({required this.template});
+
+  final Template template;
+
+  @override
+  State<_NameDialog> createState() => _NameDialogState();
+}
+
+final class _NameDialogState extends State<_NameDialog> {
+  late final TextEditingController _controller = TextEditingController(
+    text: widget.template.id,
+  );
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+    title: Text('New ${widget.template.name} project'),
+    content: TextField(
+      controller: _controller,
+      autofocus: true,
+      decoration: const InputDecoration(labelText: 'Project name'),
+      onSubmitted: (value) => Navigator.of(context).pop(value),
+    ),
+    actions: <Widget>[
+      TextButton(
+        onPressed: () => Navigator.of(context).pop(),
+        child: const Text('Cancel'),
+      ),
+      FilledButton(
+        onPressed: () => Navigator.of(context).pop(_controller.text),
+        child: const Text('Create'),
+      ),
+    ],
+  );
 }
 
 /// One line of the screen that names what is under it.

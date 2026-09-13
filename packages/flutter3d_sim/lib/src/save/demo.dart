@@ -1,5 +1,7 @@
 import '../input/input_tape.dart';
+import 'data_source_trace.dart';
 import 'snapshot.dart';
+import 'state_digest.dart';
 
 /// A run, as a file somebody can send: where it started and what they did.
 ///
@@ -33,11 +35,41 @@ import 'snapshot.dart';
 /// build is refused with a sentence rather than misread, and a missing field
 /// is refused rather than defaulted, because a demo with no tape is not a
 /// demo with an empty tape — it is a file that was not written all the way.
+///
+/// ## `rp-01`: what a run needs to be verified, not only replayed
+///
+/// [levelHash] and [buildStamp] answer "is this still the run it claims to
+/// be" — a tape played into a level that has since been edited walks into
+/// geometry that is not there any more, and a bug reproduced on a different
+/// build may be reproducing a bug that was already fixed. [checkpoints] is
+/// what turns "replayed to the end" into "replayed to the bit": the same
+/// [DigestTrace] `rp-00`'s parity files compare platforms with, taken while
+/// this run was recorded, so that a replay's own trace can be checked
+/// against it rather than merely watched. All three are required, the same
+/// strictness [tape] already had — a run nobody can verify is a run that
+/// silently degrades to a video. [platform] and [recordedBy] are the
+/// genuinely optional half: worth keeping when known, meaningless to invent
+/// when not.
 final class Demo {
-  const Demo({required this.level, required this.start, required this.tape});
+  const Demo({
+    required this.level,
+    required this.levelHash,
+    required this.start,
+    required this.tape,
+    required this.buildStamp,
+    required this.checkpoints,
+    this.platform,
+    this.recordedBy,
+    this.dataSources,
+  });
 
   /// Bumped when an existing field changes meaning.
   static const int formatVersion = 1;
+
+  /// The extension a run is written under — `.f3drun`, wherever it becomes an
+  /// actual file: attached to a bug report, downloaded from the cloud, or
+  /// dropped on an editor window.
+  static const String fileExtension = '.f3drun';
 
   /// The asset path of the level the run was played in.
   ///
@@ -45,6 +77,13 @@ final class Demo {
   /// the wrong level walks the player into a wall, and the positions that
   /// follow are real numbers that mean nothing there.
   final String level;
+
+  /// [Level.digestHex] of the level this was recorded against.
+  ///
+  /// Checked rather than assumed the moment a level might have changed
+  /// underneath a tape — `rp-03`'s whole reason for existing. A path staying
+  /// the same says nothing about the content behind it; this does.
+  final String levelHash;
 
   /// The state the tape starts from, dice included.
   ///
@@ -56,14 +95,44 @@ final class Demo {
   /// What the player did, one entry per fixed step.
   final InputTape tape;
 
+  /// Which build wrote this file, free text.
+  ///
+  /// `sim` has no opinion on what a build number looks like on any platform
+  /// it runs on — a package version, a git commit, a CI run id — the caller's
+  /// own name for itself is whatever goes here.
+  final String buildStamp;
+
+  /// A digest every so many steps, taken while this run was recorded.
+  final DigestTrace checkpoints;
+
+  /// Which platform recorded this, free text — `'macos'`, `'chrome'`,
+  /// `'android'` — or null when the caller does not know or does not say.
+  final String? platform;
+
+  /// Who recorded it — an account name, a player id — or null for anonymous.
+  final String? recordedBy;
+
+  /// `edu-05`: every `edu_data_source` this run read, one entry per fixed
+  /// step it was read at — null for a run that bound none, the same
+  /// genuinely-optional shape [platform]/[recordedBy] already have. Additive
+  /// like they are: an older reader ignoring a field it never knew is a run
+  /// with no recorded bindings, not a run misread.
+  final DataSourceTrace? dataSources;
+
   /// How many fixed steps the run lasted.
   int get steps => tape.steps;
 
   Map<String, Object?> toJson() => <String, Object?>{
     'version': formatVersion,
     'level': level,
+    'levelHash': levelHash,
     'run': start.toJson(),
     'tape': tape.toJson(),
+    'buildStamp': buildStamp,
+    'checkpoints': checkpoints.toJson(),
+    if (platform != null) 'platform': platform,
+    if (recordedBy != null) 'recordedBy': recordedBy,
+    if (dataSources != null) 'dataSources': dataSources!.toJson(),
   };
 
   /// Reads a demo, or throws a [DemoFormatException] that says why not.
@@ -80,12 +149,19 @@ final class Demo {
     if (version > formatVersion) {
       throw DemoFormatException(
         'the demo was written by a newer build (format $version, this build '
-        'reads $formatVersion)',
+        'reads $formatVersion) — update flutter3d to open it',
       );
     }
     final level = json['level'];
     if (level is! String || level.isEmpty) {
       throw const DemoFormatException('the demo names no level');
+    }
+    final levelHash = json['levelHash'];
+    if (levelHash is! String || levelHash.isEmpty) {
+      throw const DemoFormatException(
+        'the demo names no level hash, so it cannot say whether the level '
+        'has changed since it was recorded',
+      );
     }
     final run = json['run'];
     if (run is! Map<String, Object?>) {
@@ -97,13 +173,50 @@ final class Demo {
         'the demo has no tape, so it was not written all the way',
       );
     }
+    final buildStamp = json['buildStamp'];
+    if (buildStamp is! String || buildStamp.isEmpty) {
+      throw const DemoFormatException('the demo names no build stamp');
+    }
+    final checkpoints = json['checkpoints'];
+    if (checkpoints is! Map<String, Object?>) {
+      throw const DemoFormatException(
+        'the demo has no checkpoints, so a replay of it cannot be verified',
+      );
+    }
     final Snapshot start;
     try {
       start = Snapshot.fromJson(run);
     } on SnapshotFormatException catch (error) {
       throw DemoFormatException('the starting state: ${error.message}');
     }
-    return Demo(level: level, start: start, tape: InputTape.fromJson(tape));
+    final DigestTrace trace;
+    try {
+      trace = DigestTrace.fromJson(checkpoints);
+    } on DigestTraceFormatException catch (error) {
+      throw DemoFormatException('the checkpoints: ${error.message}');
+    }
+    final platform = json['platform'];
+    final recordedBy = json['recordedBy'];
+    final rawDataSources = json['dataSources'];
+    DataSourceTrace? dataSources;
+    if (rawDataSources is Map<String, Object?>) {
+      try {
+        dataSources = DataSourceTrace.fromJson(rawDataSources);
+      } on DataSourceTraceFormatException catch (error) {
+        throw DemoFormatException('the data sources: ${error.message}');
+      }
+    }
+    return Demo(
+      level: level,
+      levelHash: levelHash,
+      start: start,
+      tape: InputTape.fromJson(tape),
+      buildStamp: buildStamp,
+      checkpoints: trace,
+      platform: platform is String ? platform : null,
+      recordedBy: recordedBy is String ? recordedBy : null,
+      dataSources: dataSources,
+    );
   }
 }
 

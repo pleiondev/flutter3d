@@ -38,6 +38,7 @@ genres, and the generated API reference.
 | [`packages/flutter3d_physics`](packages/flutter3d_physics) | Collision shapes, a broadphase, queries and a character controller. Plain Dart — no Flutter, no renderer |
 | [`packages/flutter3d_cloth`](packages/flutter3d_cloth) | An XPBD cloth solver: distance and cross-edge bending constraints, pins, wind, collision against `flutter3d_physics`'s own shapes. Plain Dart |
 | [`packages/flutter3d_rig`](packages/flutter3d_rig) | Bone-name mapping and rest-relative clip retargeting between two skeletons, with a two-bone-IK foot lock. Plain Dart |
+| [`packages/flutter3d_fbx`](packages/flutter3d_fbx) | A `ModelDecoder` for Autodesk's FBX — the skeleton for now, recognising a file and refusing to read it with a clear reason. Plain Dart |
 | [`packages/flutter3d_game_shooter`](packages/flutter3d_game_shooter) | One genre: monsters, weapons, an inventory, the step order that ties them together, and the weapon held in the hands |
 | [`packages/flutter3d_game_platformer`](packages/flutter3d_game_platformer) | A second genre, and the instrument that tests the first: a runner who jumps twice, coins, hazards and checkpoints |
 | [`packages/flutter3d_bridge`](packages/flutter3d_bridge) | Where the two meet: level geometry to mesh nodes, an actor to its visual, a fixture to the light it drives |
@@ -58,6 +59,7 @@ genres, and the generated API reference.
 | [`packages/flutter3d_backend`](packages/flutter3d_backend) | Picks one of the four, so an application says `openDevice()` and not which: web or native at compile time by conditional import, Impeller or software and WebGL2 or WebGPU at run time, because neither of those is visible to a compiler |
 | [`packages/flutter3d_shaders`](packages/flutter3d_shaders) | The GLSL, and the headers an extension package includes |
 | [`packages/flutter3d_particles`](packages/flutter3d_particles) | One pool, one draw call, whatever is in it |
+| [`packages/flutter3d_particles_core`](packages/flutter3d_particles_core) | The simulation `flutter3d_particles` draws. No Flutter |
 | [`packages/flutter3d_session`](packages/flutter3d_session) | A run that can be started, saved, resumed and ended, with no widget in it |
 | [`packages/flutter3d_stereo`](packages/flutter3d_stereo) | Two eyes and a head: the rig, the widget that draws a pair into one frame, and the settings a pair can have. A phone in a holder today, a headset when there is one |
 | [`packages/flutter3d_app`](packages/flutter3d_app) | What every application repeats: storage, settings, the frame clock, the screens |
@@ -158,7 +160,7 @@ Or one package at a time:
 (cd packages/flutter3d_physics && dart test)   # plain Dart, no Flutter needed
 ```
 
-6670 tests across thirty-eight packages and seven applications, and the only
+7330 tests across forty-five packages and eight applications, and the only
 ones that need a GPU are the
 Impeller half of the golden set. The other half is rendered by the software
 backend, which is what makes 43 scenes checkable in a headless run.
@@ -187,7 +189,7 @@ the environment map is prefiltered through it. Compressed pixel formats are
 here too: the BC, ETC2 and ASTC families are in `TextureFormat`, every backend
 answers `supportsTextureFormat` for itself, and a KTX2 that arrives is read.
 What no asset in this repository *ships* is a compressed texture, because
-`tool/convert_asset.dart` has no encoder to make one — a gap upstream of the
+`dart run flutter3d:convert` has no encoder to make one — a gap upstream of the
 engine rather than in it.
 
 So one entry is left on the list: compute passes, and with them GPU particles,

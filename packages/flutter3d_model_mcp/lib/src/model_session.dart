@@ -1,9 +1,17 @@
 import 'dart:io';
+import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:flutter3d_formats/flutter3d_formats.dart';
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
+// Prefixed rather than shown/hidden alongside the unprefixed import above:
+// `rig.retargetClip` reads at every call site as what it is — the
+// `flutter3d_rig` package's own row — without a second, unprefixed import of
+// the same package fighting the first over which `BoneMap` a bare name
+// means.
+import 'package:flutter3d_rig/flutter3d_rig.dart' as rig;
+import 'package:vector_math/vector_math.dart';
 
 /// What a tool call actually did, and the sentence to say about it.
 ///
@@ -90,6 +98,52 @@ final class ModelSession {
   }
 
   String _line(Listed row) => '${row.id} ${row.name} (${row.kind})';
+
+  /// The material table, one line a row — every field `setMaterialField`
+  /// can set, which texture slots are painted and with which image, and
+  /// whether a row is linked to a `.fmat` or carries a texture graph still
+  /// waiting to be baked.
+  ///
+  /// **More than [listing] says about them.** `listing`'s own materials
+  /// section exists so an id or a selection reads on one screen with
+  /// everything else; an agent about to paint a table wants a row's real
+  /// numbers first, and this is that agent's alternative to walking
+  /// `SurfaceMaterial`'s fields itself.
+  String listMaterials() {
+    final materials = project.materials;
+    if (materials.isEmpty) return 'no materials — call addMaterial';
+    return <String>[
+      for (var i = 0; i < materials.length; i++)
+        _materialLine(i, materials[i]),
+    ].join('\n');
+  }
+
+  String _materialLine(int index, ProjectMaterial material) {
+    final SurfaceMaterial s = material.surface;
+    final textures = <String>[
+      if (s.baseColorTexture != null)
+        'albedo=${s.baseColorTexture!.imageIndex}',
+      if (s.normalTexture != null) 'normal=${s.normalTexture!.imageIndex}',
+      if (s.metallicRoughnessTexture != null)
+        'metallicRoughness=${s.metallicRoughnessTexture!.imageIndex}',
+      if (s.occlusionTexture != null)
+        'occlusion=${s.occlusionTexture!.imageIndex}',
+      if (s.emissiveTexture != null)
+        'emissive=${s.emissiveTexture!.imageIndex}',
+    ];
+    return '$index ${s.name ?? 'material $index'}: '
+        'baseColor ${s.baseColor.storage.toList()}, '
+        'metallic ${s.metallic}, roughness ${s.roughness}, '
+        'alphaMode ${s.alphaMode.name}, doubleSided ${s.doubleSided}, '
+        'unlit ${s.unlit}'
+        '${textures.isEmpty ? '' : ', textures: ${textures.join(', ')}'}'
+        '${material.fmat == null ? '' : ', linked to ${material.fmat}'}'
+        '${material.graph == null
+            ? ''
+            : material.isGraphStale
+            ? ', graph not yet baked'
+            : ', graph baked'}';
+  }
 
   /// What is selected, said to something that has no mouse.
   String get selection {
@@ -338,6 +392,12 @@ final class ModelSession {
     // deliberately not recorded to `_journal`, since it carries a whole
     // `ModelProject` a JSON Lines file has no way to hold; an import does not
     // appear in the recovery journal, only in the undo stack.
+    //
+    // `mcp-14n`'s own lock, the same reason `model_tools.dart`'s generic
+    // command tool waits for it: an import landing mid-drag would replace
+    // the whole document out from under a transform the picture is still
+    // mid-way through showing.
+    await history.whenNotInTransaction;
     history.run(ReplaceDocument(report.project, 'import $from'));
     return (
       did: true,
@@ -566,6 +626,490 @@ final class ModelSession {
               '${vertices == 1 ? 'vertex' : 'vertices'}, $faces '
               '${faces == 1 ? 'face' : 'faces'}'}'
         '\n${check()}';
+  }
+
+  // --------------------------------------------------------------- anim-30
+  //
+  // MCP tools over `anim-21`'s `buildSkeleton`, `anim-10`'s `paintWeights`,
+  // `anim-15`'s `bakeIk`, `anim-20`'s `bakeShapeDrivers`, `anim-13`'s
+  // `rigIssues` and `flutter3d_rig`'s own `retargetClip` — none of them a
+  // `ModelCommand` (`command.dart`'s own sealed hierarchy cannot be
+  // extended from outside `flutter3d_model_core`), so each is a session
+  // recipe the same shape `cleanup`/`makeGameReady`/`buildFrom` above
+  // already are: read the project, call the real function, and hand the
+  // result to `ReplaceDocument` for one undo step through `run` —
+  // `paintSkinWeights` alone does not, for the reason its own doc comment
+  // gives.
+
+  /// Builds a [template]-shaped skeleton from [markers] (a world-space
+  /// position per name `requiredMarkers(template)` asks for) and adds it —
+  /// every new joint object, then the skeleton itself — to this project as
+  /// one undo step. [skinObjectId], when given, is bound to the new
+  /// skeleton in that same step: the "`SetSkeleton` + `SetWeights`
+  /// transaction" `anim-23`'s own row describes, minus the weights half,
+  /// which is [paintSkinWeights]'s own job.
+  ///
+  /// [bounds] is 6 numbers, `[minX, minY, minZ, maxX, maxY, maxZ]`; left
+  /// out, this computes a box around every marker [template] actually
+  /// reads, padded by one unit each way — [buildSkeleton]'s own `bounds` is
+  /// a sanity check, not a shape a caller normally has reason to hand-pick.
+  Answer autoRig({
+    required String template,
+    required Map<String, List<double>> markers,
+    int? skinObjectId,
+    String? skeletonName,
+    String mirrorAxis = 'x',
+    List<double>? bounds,
+  }) {
+    final RigTemplate? chosen = switch (template) {
+      'humanoid' => RigTemplate.humanoid,
+      'quadruped' => RigTemplate.quadruped,
+      _ => null,
+    };
+    if (chosen == null) {
+      return (
+        did: false,
+        says:
+            '"$template" is not a rig template; it is humanoid or quadruped',
+      );
+    }
+    final RigMirrorAxis axis = switch (mirrorAxis) {
+      'y' => RigMirrorAxis.y,
+      'z' => RigMirrorAxis.z,
+      _ => RigMirrorAxis.x,
+    };
+
+    final required = requiredMarkers(chosen);
+    final missing = <String>[
+      for (final key in required)
+        if (!markers.containsKey(key)) key,
+    ];
+    if (missing.isNotEmpty) {
+      return (
+        did: false,
+        says:
+            'autoRig(${chosen.name}) is missing markers: '
+            '${missing.join(', ')}',
+      );
+    }
+    final markerVectors = <String, Vector3>{
+      for (final entry in markers.entries)
+        entry.key: Vector3(entry.value[0], entry.value[1], entry.value[2]),
+    };
+
+    Aabb3 box;
+    if (bounds != null) {
+      if (bounds.length != 6) {
+        return (
+          did: false,
+          says: 'bounds needs 6 numbers: minX minY minZ maxX maxY maxZ',
+        );
+      }
+      box = Aabb3.minMax(
+        Vector3(bounds[0], bounds[1], bounds[2]),
+        Vector3(bounds[3], bounds[4], bounds[5]),
+      );
+    } else {
+      var min = Vector3(double.infinity, double.infinity, double.infinity);
+      var max = Vector3(
+        double.negativeInfinity,
+        double.negativeInfinity,
+        double.negativeInfinity,
+      );
+      for (final key in required) {
+        final v = markerVectors[key]!;
+        min = Vector3(
+          math.min(min.x, v.x),
+          math.min(min.y, v.y),
+          math.min(min.z, v.z),
+        );
+        max = Vector3(
+          math.max(max.x, v.x),
+          math.max(max.y, v.y),
+          math.max(max.z, v.z),
+        );
+      }
+      box = Aabb3.minMax(min - Vector3.all(1.0), max + Vector3.all(1.0));
+    }
+
+    if (skinObjectId != null && project[skinObjectId] == null) {
+      return (did: false, says: 'there is no object $skinObjectId to skin');
+    }
+
+    final BuiltRig built;
+    try {
+      built = buildSkeleton(
+        chosen,
+        markerVectors,
+        bounds: box,
+        options: RigBuildOptions(mirrorAxis: axis),
+        firstObjectId: project.nextId,
+        skeletonName: skeletonName,
+      );
+    } on ArgumentError catch (error) {
+      return (did: false, says: 'autoRig refused: ${error.message}');
+    }
+
+    var next = project;
+    for (final object in built.objects) {
+      next = next.added(
+        (int id) => ModelObject(
+          id: id,
+          name: object.name,
+          geometry: object.geometry,
+          transform: object.transform,
+          parent: object.parent,
+        ),
+      );
+    }
+    final skeletonIndex = next.skeletons.length;
+    next = next.copyWith(
+      skeletons: <ProjectSkeleton>[...next.skeletons, built.skeleton],
+    );
+    if (skinObjectId != null) {
+      next = next.withObject(
+        next[skinObjectId]!.copyWith(skeletonIndex: skeletonIndex),
+      );
+    }
+
+    return run(
+      ReplaceDocument(
+        next,
+        'auto-rig ${chosen.name} (${built.skeleton.jointCount} joints)',
+      ),
+    );
+  }
+
+  /// Paints `anim-10`'s own brush (`paintWeights`, `paint_weights.dart`)
+  /// over one or more samples on [objectId]'s own mesh, at [joint] — a
+  /// joint of skeleton [skeletonIndex].
+  ///
+  /// **Not an undo step.** `paint_weights.dart`'s own doc comment calls
+  /// itself "not a `ModelCommand`" on purpose — `command.dart`'s own sealed
+  /// hierarchy cannot be extended from `flutter3d_model_mcp` — so this
+  /// mutates the live `EditMesh` already inside this session's own project
+  /// directly, the same limit `select`'s own doc comment already accepts
+  /// for the same reason. The paint itself is real, and is what an export
+  /// afterward reads; only the ability to undo it specifically is missing.
+  Answer paintSkinWeights({
+    required int objectId,
+    required int skeletonIndex,
+    required int joint,
+    required List<Map<String, Object?>> samples,
+    required double strength,
+    String mode = 'paint',
+    Map<String, Object?>? mirror,
+    bool normalize = false,
+  }) {
+    final object = project[objectId];
+    if (object == null) {
+      return (did: false, says: 'there is no object $objectId');
+    }
+    if (object.geometry is! EditedGeometry) {
+      return (
+        did: false,
+        says:
+            'object $objectId has no mesh to paint weights on — bakeToMesh '
+            'it first',
+      );
+    }
+    if (skeletonIndex < 0 || skeletonIndex >= project.skeletons.length) {
+      return (did: false, says: 'there is no skeleton $skeletonIndex');
+    }
+    final skeleton = project.skeletons[skeletonIndex];
+    if (!skeleton.joints.contains(joint)) {
+      return (
+        did: false,
+        says: 'object $joint is not a joint of skeleton $skeletonIndex',
+      );
+    }
+    if (samples.isEmpty) {
+      return (did: false, says: 'paintWeights needs at least one sample');
+    }
+
+    final brushSamples = <BrushSample>[];
+    for (final sample in samples) {
+      final center = sample['center'];
+      final radius = sample['radius'];
+      if (center is! List || center.length != 3 || radius is! num) {
+        return (
+          did: false,
+          says: 'each sample needs a 3-number "center" and a "radius"',
+        );
+      }
+      brushSamples.add(
+        BrushSample(
+          center: Vector3(
+            (center[0] as num).toDouble(),
+            (center[1] as num).toDouble(),
+            (center[2] as num).toDouble(),
+          ),
+          radius: radius.toDouble(),
+        ),
+      );
+    }
+
+    PaintMirror? paintMirror;
+    if (mirror != null) {
+      final axis = mirror['axis'];
+      final jointMirrorJson = mirror['jointMirror'];
+      if (axis is! int || jointMirrorJson is! Map) {
+        return (
+          did: false,
+          says: 'mirror needs an integer "axis" and a "jointMirror" map',
+        );
+      }
+      paintMirror = PaintMirror(
+        axis: axis,
+        jointMirror: <int, int>{
+          for (final entry in jointMirrorJson.entries)
+            int.parse(entry.key as String): entry.value as int,
+        },
+        plane: (mirror['plane'] as num?)?.toDouble() ?? 0.0,
+        tolerance: (mirror['tolerance'] as num?)?.toDouble() ?? 1e-4,
+      );
+    }
+
+    final mesh = (object.geometry as EditedGeometry).mesh;
+    paintWeights(
+      project: project,
+      mesh: mesh,
+      skeleton: skeleton,
+      joint: joint,
+      samples: brushSamples,
+      strength: strength,
+      mode: mode == 'assign'
+          ? PaintWeightsMode.assign
+          : PaintWeightsMode.paint,
+      mirror: paintMirror,
+      normalize: normalize,
+    );
+    return (
+      did: true,
+      says:
+          'painted weights for joint $joint on object $objectId over '
+          '${brushSamples.length} '
+          'sample${brushSamples.length == 1 ? '' : 's'} — not recorded as '
+          'an undo step',
+    );
+  }
+
+  /// Retargets [sourceClipIndex] — a clip whose tracks address
+  /// [sourceSkeletonIndex]'s own joints — onto [targetSkeletonIndex]'s
+  /// joints, both in this same project, through [boneMap] (source name to
+  /// target name) or, left out, `flutter3d_rig`'s own `autoMap` guess from
+  /// the two skeletons' own joint names. Appends the retargeted clip to
+  /// this project's own clip list as one undo step.
+  Answer retargetClip({
+    required int sourceClipIndex,
+    required int sourceSkeletonIndex,
+    required int targetSkeletonIndex,
+    Map<String, String>? boneMap,
+    bool lockFeet = true,
+    double groundY = 0.0,
+    double footTolerance = 1e-3,
+    String? clipName,
+  }) {
+    if (sourceClipIndex < 0 || sourceClipIndex >= project.clips.length) {
+      return (did: false, says: 'there is no clip $sourceClipIndex');
+    }
+    if (sourceSkeletonIndex < 0 ||
+        sourceSkeletonIndex >= project.skeletons.length) {
+      return (did: false, says: 'there is no skeleton $sourceSkeletonIndex');
+    }
+    if (targetSkeletonIndex < 0 ||
+        targetSkeletonIndex >= project.skeletons.length) {
+      return (did: false, says: 'there is no skeleton $targetSkeletonIndex');
+    }
+    final sourceSkeleton = project.skeletons[sourceSkeletonIndex];
+    final targetSkeleton = project.skeletons[targetSkeletonIndex];
+    final sourceNames = <String>[
+      for (final id in sourceSkeleton.joints) project[id]?.name ?? '',
+    ];
+    final targetNames = <String>[
+      for (final id in targetSkeleton.joints) project[id]?.name ?? '',
+    ];
+    final map = boneMap != null
+        ? rig.BoneMap(boneMap)
+        : rig.autoMap(sourceNames, targetNames);
+    if (map.isEmpty) {
+      return (
+        did: false,
+        says:
+            'no bone of skeleton $sourceSkeletonIndex maps onto skeleton '
+            '$targetSkeletonIndex — name them the same or give a "boneMap"',
+      );
+    }
+
+    final retargeted = rig.retargetClip(
+      sourceClip: project.clips[sourceClipIndex],
+      sourceProject: project,
+      sourceSkeleton: sourceSkeleton,
+      targetProject: project,
+      targetSkeleton: targetSkeleton,
+      boneMap: map,
+      lockFeet: lockFeet,
+      groundY: groundY,
+      footTolerance: footTolerance,
+    );
+    final named = clipName == null
+        ? retargeted
+        : ProjectClip(
+            name: clipName,
+            tracks: retargeted.tracks,
+            extras: retargeted.extras,
+          );
+
+    return run(
+      ReplaceDocument(
+        project.copyWith(clips: <ProjectClip>[...project.clips, named]),
+        'retarget clip $sourceClipIndex onto skeleton $targetSkeletonIndex',
+      ),
+    );
+  }
+
+  /// Bakes `anim-15`'s `IkConstraint` — root/mid/effector joints reaching
+  /// for [target], bending toward [pole] — into ordinary rotation
+  /// keyframes on [clipIndex]'s own root and middle tracks, sampled every
+  /// `1/[fps]` seconds, and replaces that clip with the baked result as one
+  /// undo step.
+  Answer bakeIkOnClip({
+    required int clipIndex,
+    required int rootJointId,
+    required int midJointId,
+    required int effectorJointId,
+    required List<double> target,
+    required List<double> pole,
+    double fps = 30,
+  }) {
+    if (clipIndex < 0 || clipIndex >= project.clips.length) {
+      return (did: false, says: 'there is no clip $clipIndex');
+    }
+    for (final id in <int>[rootJointId, midJointId, effectorJointId]) {
+      if (project[id] == null) {
+        return (did: false, says: 'there is no object $id');
+      }
+    }
+    if (target.length != 3 || pole.length != 3) {
+      return (did: false, says: '"target" and "pole" each need 3 numbers');
+    }
+    final constraint = IkConstraint(
+      rootJointId: rootJointId,
+      midJointId: midJointId,
+      effectorJointId: effectorJointId,
+      target: Vector3(target[0], target[1], target[2]),
+      pole: Vector3(pole[0], pole[1], pole[2]),
+    );
+    final ProjectClip baked;
+    try {
+      baked = bakeIk(
+        project: project,
+        clip: project.clips[clipIndex],
+        constraint: constraint,
+        fps: fps,
+      );
+    } on ArgumentError catch (error) {
+      return (did: false, says: 'bakeIk refused: ${error.message}');
+    }
+    final clips = List<ProjectClip>.of(project.clips)..[clipIndex] = baked;
+    return run(
+      ReplaceDocument(
+        project.copyWith(clips: clips),
+        'bake IK into clip $clipIndex',
+      ),
+    );
+  }
+
+  /// Bakes `anim-20`'s `ShapeDriver`s — each a shape key driven by how far
+  /// one joint has turned — into one more weights track on [clipIndex],
+  /// naming [shapeTargetObjectId]'s own shape keys, and replaces that clip
+  /// with the baked result as one undo step.
+  Answer bakeDrivers({
+    required int clipIndex,
+    required int shapeTargetObjectId,
+    required List<Map<String, Object?>> drivers,
+  }) {
+    if (clipIndex < 0 || clipIndex >= project.clips.length) {
+      return (did: false, says: 'there is no clip $clipIndex');
+    }
+    final target = project[shapeTargetObjectId];
+    if (target == null) {
+      return (did: false, says: 'there is no object $shapeTargetObjectId');
+    }
+    final shapeCount = target.shapeSet.keys.length;
+    if (shapeCount == 0) {
+      return (
+        did: false,
+        says: 'object $shapeTargetObjectId has no shape keys to drive',
+      );
+    }
+    if (drivers.isEmpty) {
+      return (did: false, says: 'bakeDrivers needs at least one driver');
+    }
+    final parsed = <ShapeDriver>[];
+    for (final driver in drivers) {
+      final shapeIndex = driver['shapeIndex'];
+      final jointId = driver['jointId'];
+      final from = driver['from'];
+      final to = driver['to'];
+      if (shapeIndex is! int ||
+          jointId is! int ||
+          from is! num ||
+          to is! num) {
+        return (
+          did: false,
+          says:
+              'each driver needs a "shapeIndex", a "jointId", a "from" and '
+              'a "to"',
+        );
+      }
+      final axis = switch (driver['axis']) {
+        'y' => DriverAxis.y,
+        'z' => DriverAxis.z,
+        _ => DriverAxis.x,
+      };
+      parsed.add(
+        ShapeDriver(
+          shapeIndex: shapeIndex,
+          jointId: jointId,
+          axis: axis,
+          from: from.toDouble(),
+          to: to.toDouble(),
+        ),
+      );
+    }
+    final baked = bakeShapeDrivers(
+      clip: project.clips[clipIndex],
+      drivers: parsed,
+      shapeTargetObjectId: shapeTargetObjectId,
+      shapeCount: shapeCount,
+    );
+    final clips = List<ProjectClip>.of(project.clips)..[clipIndex] = baked;
+    return run(
+      ReplaceDocument(
+        project.copyWith(clips: clips),
+        'bake ${parsed.length} shape '
+            'driver${parsed.length == 1 ? '' : 's'} into clip $clipIndex',
+      ),
+    );
+  }
+
+  /// Everything `anim-13`'s `rigIssues` finds wrong with this project's
+  /// skeletons and clips, against its own profile — `check`'s own shape,
+  /// for the half of export readiness `check` itself does not cover.
+  String validateRig() {
+    final issues = rigIssues(project, project.profile);
+    if (issues.isEmpty) return 'no rig issues';
+    final errors = issues
+        .where((ExportIssue i) => i.severity == ExportSeverity.error)
+        .length;
+    final headline =
+        '${issues.length} ${issues.length == 1 ? 'issue' : 'issues'}, '
+        '$errors of them fatal';
+    return <String>[
+      headline,
+      for (final ExportIssue issue in issues) '  $issue',
+    ].join('\n');
   }
 }
 

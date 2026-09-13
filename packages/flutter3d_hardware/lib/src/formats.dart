@@ -97,7 +97,7 @@ enum TextureFormat {
   //
   // No asset the engine's own three games ship allocates one of these yet —
   // KTX2 is a decoder for other tools' output, not something
-  // `tool/convert_asset.dart` produces — but every backend now has an answer
+  // `dart run flutter3d:convert` produces — but every backend now has an answer
   // for one that arrives: Impeller allocates them (`gpu_device.dart`), WebGL2
   // uploads what its context's extensions allow and names what they do not
   // (`webgl_formats.dart`), and the software rasteriser refuses by name

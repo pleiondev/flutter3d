@@ -1,0 +1,24 @@
+name: init
+description: "tpl-01's own row: dart run flutter3d:init, minus the flutter3d_build namespace it needs and does not have yet — reuses flutter3d_editor_core's already-tested Scaffold, does not reinvent it."
+publish_to: 'none'
+resolution: workspace
+
+# **Under `tool/` and not under `packages/`, deliberately** — the same reason
+# `tool/skills`'s own pubspec gives: a package under `packages/` is checked
+# against ARCHITECTURE.md's publishing list by `tool/structure.dart`'s "the
+# publishing order names every package" rule, and this is never going out.
+
+environment:
+  sdk: ^3.12.2
+
+dependencies:
+  # `Template`, `scaffold`, `projectAt`, `packageName` — the editor's own "new
+  # project" wizard already calls these (see `apps/flutter3d_editor/lib/main.dart`)
+  # from inside a running Flutter app, reading template bytes through
+  # `rootBundle`. This package is the same three functions, called from plain
+  # `dart run` instead, reading the same bytes with `dart:io` — not a second
+  # scaffolder.
+  flutter3d_editor_core: ^0.6.0
+
+dev_dependencies:
+  test: ^1.24.0

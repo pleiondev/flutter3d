@@ -34,9 +34,8 @@ import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:flutter3d/flutter3d.dart';
+import 'package:flutter3d_particles_core/flutter3d_particles_core.dart';
 import 'package:vector_math/vector_math.dart' as vm;
-
-import 'particle_system.dart';
 
 /// Additive, unculled, depth-tested but never written — the same request the
 /// billboard path makes, and for the same reasons.

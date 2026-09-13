@@ -8,4 +8,5 @@
 /// the first version here rather than a later one.
 library;
 
-export 'package:flutter3d_app/flutter3d_app.dart' show openDevice;
+export 'package:flutter3d_app/flutter3d_app.dart'
+    show kFixedResolution, openDevice;

@@ -17,6 +17,10 @@ void main() {
       expect(sections, contains(PropertiesSection.objects));
       expect(sections, contains(PropertiesSection.transform));
       expect(sections, contains(PropertiesSection.modifiers));
+      // mat-04a-n's own row: phase 1 gets a material panel before the
+      // phase-2 `Material` workspace exists, and object mode is where it
+      // lives until then.
+      expect(sections, contains(PropertiesSection.materials));
       // Mutation: leave `lastOperation`/`selection`/`mesh` in every mode
       // instead of just mesh mode's own. Object mode has no mesh element
       // selection to summarise and no per-element operation to adjust.
@@ -37,6 +41,7 @@ void main() {
       expect(sections, isNot(contains(PropertiesSection.objects)));
       expect(sections, isNot(contains(PropertiesSection.transform)));
       expect(sections, isNot(contains(PropertiesSection.modifiers)));
+      expect(sections, isNot(contains(PropertiesSection.materials)));
     });
 
     test('display, view and budget show in every mode', () {

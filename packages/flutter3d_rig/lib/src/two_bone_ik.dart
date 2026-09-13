@@ -19,6 +19,8 @@ import 'dart:math' as math;
 
 import 'package:vector_math/vector_math.dart';
 
+import 'portable_math.dart';
+
 /// The result of one [solveTwoBoneIk] call: the corrected *local* rotations
 /// for `root` and `mid` — `tip` never rotates, the same convention its own
 /// engine namesake uses.
@@ -43,7 +45,7 @@ double _triangleAngle(double opposite, double a, double b) {
     -1.0,
     1.0,
   );
-  return math.acos(cos);
+  return Portable.acos(cos);
 }
 
 Vector3 _arbitraryPerpendicular(Vector3 v) {
@@ -58,7 +60,7 @@ Vector3 _perpendicularComponent(Vector3 v, Vector3 axis) =>
     v - axis * v.dot(axis);
 
 double _signedAngle(Vector3 a, Vector3 b, Vector3 axis) {
-  final unsigned = math.acos(a.dot(b).clamp(-1.0, 1.0));
+  final unsigned = Portable.acos(a.dot(b).clamp(-1.0, 1.0));
   final sign = a.cross(b).dot(axis) < 0.0 ? -1.0 : 1.0;
   return unsigned * sign;
 }

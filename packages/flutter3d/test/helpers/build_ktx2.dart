@@ -16,13 +16,17 @@
 /// read that, to refuse an orientation, a swizzle or a premultiplication it
 /// cannot honour.
 ///
-/// Shared by `ktx2_test.dart`, which pushes fields out of range, and
-/// `texture_upload_test.dart`, which hands the results to a device.
+/// Shared by the two `_engineFormat`-mapping tests left in `ktx2_test.dart`
+/// and by `texture_upload_test.dart`, which hands the results to a device.
+///
+/// Kept as its own copy rather than imported from `flutter3d_formats`'s
+/// identical helper — a package's `test/` directory cannot import another
+/// package's `test/` directory, only its `lib/`.
 library;
 
 import 'dart:typed_data';
 
-import 'package:flutter3d/src/engine/assets/ktx2/ktx2.dart';
+import 'package:flutter3d_formats/flutter3d_formats.dart';
 
 Uint8List buildKtx2({
   int vkFormat = VkFormat.bc7UNormBlock,

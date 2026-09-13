@@ -4,6 +4,14 @@
   still with no widget in it — byte for byte 0.5.0's. The floors on
   `flutter3d`, `flutter3d_game` and `flutter3d_screens`, and the dev floor on
   `flutter3d_cpu`, are `^0.6.0`.
+* **`WidgetSurface` (`wg-01`), without an accessibility tree.** A live widget
+  as a mesh in the 3D scene — placement, UV-accurate pointer routing, a
+  diagnostic redraw counter, and an isolated `FocusManager` a tap inside it
+  can request focus on. **Semantics is deliberately not part of it**: a
+  screen reader has no way to describe a control painted onto an arbitrary
+  mesh in world space rather than laid out on the window, and building that
+  tree is its own question, cut from this one rather than answered badly by
+  it.
 
 ## 0.5.0
 

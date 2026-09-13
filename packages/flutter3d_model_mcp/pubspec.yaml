@@ -29,24 +29,33 @@ dependencies:
   # `ElementLevel`, for the `select` verb's mesh-mode argument.
   flutter3d_mesh: ^0.6.0
 
+  # `retargetClip`/`BoneMap`/`autoMap` — `anim-30`'s `retargetClip` tool
+  # wraps this package's own row directly rather than re-deriving bone
+  # mapping or rest-relative retargeting here.
+  flutter3d_rig: ^0.6.0
+
+  # `Vector3`/`Matrix4` — `anim-30`'s rig-pipeline tools (`autoRig`,
+  # `paintWeights`, `bakeIk`) build these directly from a tool call's own
+  # JSON, rather than only using them in a test the way this package once
+  # did.
+  vector_math: ^2.2.0
+
   # The protocol, pinned to one minor for the reason `flutter3d_editor_mcp`
   # gives: its own README opens with "still experimental and likely to evolve
   # quickly", and the narrowness is a decision rather than a default.
   dart_mcp: ">=0.5.2 <0.6.0"
 
+  # The channel `ModelMcpServer` is built on. `model_http_server.dart` wires
+  # one to a pair of controllers fed by real HTTP requests — the same
+  # `StreamChannel<String>` shape `stdioChannel` gives the process's own
+  # stdin/stdout, and what the suite's in-memory pair (dev-only, below) also
+  # is, so all three transports hand `ModelMcpServer` the identical type.
+  stream_channel: ^2.1.4
+
 dev_dependencies:
   test: ^1.25.0
   flutter_lints: ^6.0.0
-
-  # An in-memory pair of channels, so the suite drives the real server through
-  # the real protocol without starting a process.
-  stream_channel: ^2.1.4
-
-  # `Vector3`/`Matrix4`, for a test that builds a `ModelObject` directly
-  # rather than through a tool call's own JSON — already a transitive
-  # dependency through `flutter3d_model_core`, declared here too since a
-  # test imports it by name.
-  vector_math: ^2.2.0
+  flutter3d_geometry: ^0.6.0
 
 # **A host starts this with `dart run`, and that is the whole of why every
 # package under it is plain Dart.** `dart run` cannot resolve a package that

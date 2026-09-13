@@ -27,6 +27,7 @@ import 'dart:typed_data';
 
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_app/flutter3d_app.dart'; // RunSession, SettingsOverlay
+import 'package:flutter3d_bridge/flutter3d_bridge.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter3d_cpu/testing.dart';
 import 'package:flutter3d_demo_dungeon/src/run_cubit.dart';
@@ -76,7 +77,7 @@ Future<({LevelReady level, CpuDevice device, Renderer renderer})> _shown({
   final run = RunCubit(
     DungeonRun(
       firstLevel: asset,
-      registry: sampleRegistry(),
+      registry: sampleRegistry(extra: const <EntityKind>[WidgetSurfaceKind()]),
       input: InputState(),
       inventory: startingInventory(),
       saves: SaveFile(appName: 'dungeon', storage: _Storage()),

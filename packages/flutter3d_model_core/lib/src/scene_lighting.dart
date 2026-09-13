@@ -61,7 +61,9 @@ final class ProjectLight {
     this.castsShadow = false,
     this.innerConeAngle = 0.0,
     this.outerConeAngle = math.pi / 4.0,
-  }) : color = color ?? Vector3(1.0, 1.0, 1.0);
+    Matrix4? transform,
+  }) : color = color ?? Vector3(1.0, 1.0, 1.0),
+       transform = transform ?? Matrix4.identity();
 
   final ProjectLightType type;
 
@@ -82,6 +84,15 @@ final class ProjectLight {
   final double innerConeAngle;
   final double outerConeAngle;
 
+  /// Where the light sits and which way it points, local to the scene's
+  /// own root — the same single [Matrix4] `ModelObject.transform` carries
+  /// for an object, rather than a separate position/rotation pair, so a
+  /// light is placed the same way everything else in a project already is.
+  /// Identity by default, matching `LightNode`'s own default of "at the
+  /// scene's own origin, pointing down -Z" — the gap `LightingSync` used to
+  /// leave every light in before `mat-24` closed it.
+  final Matrix4 transform;
+
   ProjectLight copyWith({
     ProjectLightType? type,
     Vector3? color,
@@ -90,6 +101,7 @@ final class ProjectLight {
     bool? castsShadow,
     double? innerConeAngle,
     double? outerConeAngle,
+    Matrix4? transform,
   }) => ProjectLight(
     type: type ?? this.type,
     color: color ?? this.color,
@@ -98,6 +110,7 @@ final class ProjectLight {
     castsShadow: castsShadow ?? this.castsShadow,
     innerConeAngle: innerConeAngle ?? this.innerConeAngle,
     outerConeAngle: outerConeAngle ?? this.outerConeAngle,
+    transform: transform ?? this.transform,
   );
 }
 

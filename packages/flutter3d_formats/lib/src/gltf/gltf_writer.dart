@@ -44,36 +44,56 @@ final class GltfWriter {
 
   final ModelDocument document;
 
-  /// `fmt-30n`'s own row: when true, `NORMAL`/`TANGENT`/`TEXCOORD_0`/`COLOR_0`
-  /// are written as normalized integers (`KHR_mesh_quantization`) instead of
-  /// `FLOAT`, whenever an attribute's own values actually fit the type
-  /// losslessly enough to normalize — a quarter to an eighth the bytes per
-  /// component, real size on a file whose vertex data is often more
-  /// attribute bytes than position bytes.
+  /// `fmt-30n`'s own row: when true, this writer does two independent things
+  /// to the geometry on its way into the file.
+  ///
+  /// **Vertex/triangle order is optimized for a GPU's caches**
+  /// (`flutter3d_geometry`'s own `optimizeVertexCache`) before anything else
+  /// below reads the mesh: Tom Forsyth's greedy vertex-cache scoring reorders
+  /// triangles for the post-transform cache, then vertices are renumbered by
+  /// first use for the pre-transform ("fetch") one. The mesh this draws is
+  /// unchanged — same triangles, same winding — only which byte offset a
+  /// vertex or an index lands at moves, which is why `compareModelDocuments`
+  /// needs its own `allowVertexReorder` to keep proving that rather than
+  /// reading the move as data loss.
+  ///
+  /// **`NORMAL`/`TANGENT`/`TEXCOORD_0`/`COLOR_0` are written as normalized
+  /// integers** (`KHR_mesh_quantization`) instead of `FLOAT`, whenever an
+  /// attribute's own values actually fit the type losslessly enough to
+  /// normalize — a quarter to an eighth the bytes per component, real size on
+  /// a file whose vertex data is often more attribute bytes than position
+  /// bytes.
   ///
   /// **`POSITION` is not quantized.** `KHR_mesh_quantization`'s own normalized
   /// integer only reaches `[-1, 1]`; recovering real coordinates from that
-  /// needs a per-mesh dequantization transform this writer's reader has no
-  /// path for applying, and shipping one half of that pair — a writer that
-  /// quantizes and a loader that does not know to undo it — would silently
-  /// corrupt every position in the file rather than merely round it. Every
-  /// other quantized attribute here is one this package's own `GltfLoader`
-  /// already reads correctly as-is, because normalized-integer decoding is
-  /// already a property of `GltfComponentType.readDouble`, not something new.
+  /// needs a per-mesh dequantization scale baked into the placement of every
+  /// node that draws the mesh — correct on its own, and exactly what
+  /// `gltfpack` and similar tools do. What blocks it here is `ModelNode`:
+  /// `node.surfaces` may list more than one surface (`_writeScene`'s own
+  /// multi-primitive mesh), and those surfaces do not all share one
+  /// bounding box, so a compensating scale correct for one primitive would
+  /// silently misplace every vertex of another primitive sharing that node.
+  /// Doing this right needs the node/surface grouping computed before any
+  /// mesh is encoded, so a shared node can refuse the compensation rather
+  /// than apply the wrong one — real work `EXT_meshopt_compression`'s own
+  /// scope note below already explains this row does not have room for
+  /// alongside a correct quantizer and a correct reordering pass. Every
+  /// attribute that *is* quantized here is one this package's own
+  /// `GltfLoader` already reads correctly as-is, because normalized-integer
+  /// decoding is already a property of `GltfComponentType.readDouble`, not
+  /// something new.
   ///
-  /// **Vertex-cache reordering — index and vertex order for a GPU's post-
-  /// transform cache — is deliberately not part of this**, for a sharper
-  /// reason than "not done yet": `compareModelDocuments`, the row's own named
-  /// round-trip check, compares vertex and index buffers position by
-  /// position, not as sets. A reordering that changes which byte offset a
-  /// vertex or index lands at — the entire point of cache-friendly reordering
-  /// — reads to that check as data loss, whether or not the two meshes draw
-  /// identically. Proving reordering correct needs a different check (the
-  /// same triangle set, plus a cache-miss simulation showing it improved),
-  /// not a smaller version of this one; that is real work this row's own `M`
-  /// size does not leave room for beside quantization, so it is left named
-  /// and undone rather than tested against the wrong tool to make it look
-  /// covered.
+  /// **`EXT_meshopt_compression` — the actual meshopt bitstream (delta-coded,
+  /// byte-transposed blocks, then a byte-oriented entropy coder) — is not
+  /// implemented.** No pure-Dart implementation or port exists to depend on
+  /// (checked against pub.dev while this row was worked), and nothing in this
+  /// repository can decode a real one to check a from-scratch encoder
+  /// against — an encoder and decoder written by the same hand, with no
+  /// third party to disagree with, can share one mistake and still
+  /// round-trip clean through this package's own `GltfLoader` while still
+  /// being wrong. `GltfLoader`'s own `extensionsRequired` gate already lets
+  /// `KHR_mesh_quantization` through instead, the real, narrower Khronos
+  /// extension this row uses in its place.
   final bool compressGeometry;
 
   /// Whether [compressGeometry] actually quantized anything — some documents
@@ -82,6 +102,12 @@ final class GltfWriter {
   /// it never used. Valid only after [writeGlb] has run.
   bool get usedGeometryQuantization => _usedQuantization;
   bool _usedQuantization = false;
+
+  /// Whether [compressGeometry] actually reordered a mesh's triangles and
+  /// vertices for GPU cache reuse — false only when every surface's mesh had
+  /// no triangles to begin with. Valid only after [writeGlb] has run.
+  bool get usedVertexCacheReordering => _usedVertexCacheReordering;
+  bool _usedVertexCacheReordering = false;
 
   final BytesBuilder _binary = BytesBuilder();
   int _binaryLength = 0;
@@ -192,7 +218,14 @@ final class GltfWriter {
   /// `bufferViews` entry for it. `target` is glTF's `ARRAY_BUFFER` (34962) or
   /// `ELEMENT_ARRAY_BUFFER` (34963), omitted for data — like images — that a
   /// GPU never binds directly.
-  int _appendBufferView(TypedData data, {int? target}) {
+  ///
+  /// [byteStride] declares the file's own gap between consecutive vertex
+  /// elements when [data] already has one baked in — a quantized `vec3`
+  /// `NORMAL` packed 3 signed bytes per vertex is 3, not a multiple of 4, and
+  /// the spec requires attribute data aligned to 4 (`ACCESSOR_UNALIGNED`
+  /// otherwise, which the official validator does flag). Only meaningful
+  /// with `target: 34962`; an index buffer has no per-vertex stride to name.
+  int _appendBufferView(TypedData data, {int? target, int? byteStride}) {
     while (_binaryLength % 4 != 0) {
       _binary.addByte(0);
       _binaryLength++;
@@ -209,6 +242,7 @@ final class GltfWriter {
       'byteOffset': byteOffset,
       'byteLength': bytes.length,
       'target': ?target,
+      'byteStride': ?byteStride,
     });
     return _bufferViews.length - 1;
   }

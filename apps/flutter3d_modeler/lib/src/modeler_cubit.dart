@@ -33,6 +33,17 @@ import 'ui/tools.dart';
 
 export 'modeler_state.dart';
 
+/// The command most recently handed to [ModelerCubit.ran], regardless of
+/// whether it landed, refused, or threw.
+///
+/// **A global, because the reader is not a widget.** `ui-30n`'s own crash
+/// handler in `main.dart` is a top-level function wired to `FlutterError.
+/// onError`/`runZonedGuarded`: by the time it runs, the command that threw is
+/// off the call stack and nowhere else still names it. Set on the line
+/// before [ModelHistory.run] is called, so a throw from inside
+/// [ModelCommand.apply] leaves this holding exactly the command that threw.
+ModelCommand? lastAttemptedCommand;
+
 final class ModelerCubit extends Cubit<ModelerState> {
   ModelerCubit() : super(const ModelerOpening());
 
@@ -72,6 +83,31 @@ final class ModelerCubit extends Cubit<ModelerState> {
     );
   }
 
+  /// The same document, drawn through a new [renderer] and [stage] — a device
+  /// reopened under it because the old one no longer fit the viewport
+  /// (`ui-20`), not a new file. Mode, tool, selection and running jobs are
+  /// left exactly as they were: this answers "what draws this" and nothing
+  /// else, which is also why it does nothing off [ModelerReady].
+  void redeviced({required Renderer renderer, required ModelerStage stage}) {
+    final ModelerReady? now = _ready;
+    if (now == null) return;
+    emit(
+      ModelerReady(
+        renderer: renderer,
+        stage: stage,
+        history: now.history,
+        readiness: now.readiness,
+        documentName: now.documentName,
+        mode: now.mode,
+        submode: now.submode,
+        tool: now.tool,
+        said: now.said,
+        saidIsImportant: now.saidIsImportant,
+        jobs: now.jobs,
+      ),
+    );
+  }
+
   /// Nothing could be opened at all — a device that would not start, or a file
   /// that would not read.
   void failed(String said) => emit(ModelerFailed(said));
@@ -88,6 +124,7 @@ final class ModelerCubit extends Cubit<ModelerState> {
     final ModelerReady? now = _ready;
     if (now == null) return false;
 
+    lastAttemptedCommand = command;
     // `run` answers with the refusal, or null when it landed — a refusal is an
     // answer rather than a failure, and the history is not touched by one.
     final String? refused = now.history.run(command);

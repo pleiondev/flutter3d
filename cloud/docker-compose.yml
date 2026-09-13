@@ -1,0 +1,21 @@
+# The database the service needs, for development and the integration tests.
+#
+#   docker compose -f cloud/docker-compose.yml up -d
+#
+# The same image and settings as `models-postgres` on bob, on a port nothing
+# else on a developer's machine is likely to hold.
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: models-postgres
+    environment:
+      POSTGRES_USER: models
+      POSTGRES_PASSWORD: models
+      POSTGRES_DB: models
+    ports:
+      - "127.0.0.1:55432:5432"
+    volumes:
+      - models-postgres:/var/lib/postgresql/data
+
+volumes:
+  models-postgres:

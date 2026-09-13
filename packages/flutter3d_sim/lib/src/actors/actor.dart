@@ -47,10 +47,23 @@ final class Actor implements Damageable, Rider {
   /// One handle per entity, kept by the system, because [onDamage] is on it: a
   /// second handle made on the side would answer every question correctly and
   /// route damage past the thing that counts deaths.
-  Actor(this.entities, this.entity);
+  Actor(this.entities, this.entity, {this.name});
 
   final EcsWorld entities;
   final Entity entity;
+
+  /// The level entity this was spawned from, when it named one — `null` for
+  /// an actor a level document never named, or one spawned by the game
+  /// itself rather than by a document at all.
+  ///
+  /// **What [ordinal] is not, on purpose.** [ordinal] is `entity.index`,
+  /// stable within one run and reused by [EcsWorld] the moment an actor
+  /// despawns — exactly what a level edited between two loads breaks, since
+  /// removing or reordering an entity shifts every index after it. A name
+  /// survives that edit because it is not an allocation, it is a fact about
+  /// which monster this is; `entity_remap.dart`'s whole mechanism is built on
+  /// having one to match by.
+  final String? name;
 
   /// Which actor this is, for anything that needs a stable order.
   ///

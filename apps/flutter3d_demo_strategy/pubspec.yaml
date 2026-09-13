@@ -37,6 +37,11 @@ dev_dependencies:
   flutter3d_cpu: ^0.6.0
   flutter_lints: ^6.0.0
 
+  # Real-device e2e — see `apps/flutter3d_demo_platformer/pubspec.yaml` for the
+  # note. Carries `rp-00`'s determinism probe onto Android and iOS.
+  integration_test:
+    sdk: flutter
+
 flutter:
   uses-material-design: true
 

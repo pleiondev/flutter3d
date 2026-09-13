@@ -8,10 +8,12 @@
 /// showing "256×128" also wants to show a format badge and "170 KB" before
 /// anything uploads a pixel.
 ///
-/// **Why this does not call the engine's own `Ktx2Texture.parse`.** That
-/// loader lives in `flutter3d`, which depends on the Flutter SDK for
-/// `dart:ui`; this package does not, by the same choice
-/// `flutter3d_editor_core` made for the same reason (`qa-03`). The `vkFormat`
+/// **Why this does not call `flutter3d_formats`'s own `Ktx2Texture.parse`,**
+/// even though this package already depends on it for `ModelDocument`. That
+/// loader throws on anything a texture upload could not honour — an array, a
+/// cube map, an orientation it will not flip, a supercompression scheme
+/// nothing decompresses — and a texture panel wants a badge for every file it
+/// is shown, including the ones an upload would refuse. The `vkFormat`
 /// numbers and block sizes below are the same ones `ktx2_format.dart` and
 /// `flutter3d_hardware`'s `formats.dart` state for the engine's own loader —
 /// copied rather than imported, for the reason both of those files give for

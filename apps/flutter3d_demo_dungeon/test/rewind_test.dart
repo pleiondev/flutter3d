@@ -13,6 +13,7 @@ library;
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter3d_bridge/flutter3d_bridge.dart';
 import 'package:flutter3d_demo_dungeon/src/staging.dart';
 import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:flutter3d_game_shooter/flutter3d_game_shooter.dart';
@@ -33,7 +34,7 @@ Level _crypt() => Level.fromJson(
     level,
     world,
     input: input,
-    registry: sampleRegistry(),
+    registry: sampleRegistry(extra: const <EntityKind>[WidgetSurfaceKind()]),
     inventory: startingInventory(),
   );
   world.update();

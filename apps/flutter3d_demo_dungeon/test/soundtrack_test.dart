@@ -20,6 +20,7 @@ import 'dart:io';
 
 import 'package:flutter3d_audio/flutter3d_audio.dart';
 import 'package:flutter3d_audio/testing.dart';
+import 'package:flutter3d_bridge/flutter3d_bridge.dart';
 import 'package:flutter3d_demo_dungeon/src/sounds.dart';
 import 'package:flutter3d_demo_dungeon/src/soundtrack.dart';
 import 'package:flutter3d_demo_dungeon/src/staging.dart';
@@ -47,7 +48,8 @@ Level _crypt() => Level.fromJson(
 /// The shipped level, the shipped registry, and ears on the result.
 final class _Run {
   _Run({EntityRegistry? registry}) {
-    final kinds = registry ?? sampleRegistry();
+    final kinds =
+        registry ?? sampleRegistry(extra: const <EntityKind>[WidgetSurfaceKind()]);
     level.addTo(world);
     staged = stage(
       level,

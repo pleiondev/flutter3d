@@ -1,0 +1,74 @@
+{
+  "version": 1,
+  "name": "edu-02 tour",
+  "generatedBy": "edu-02",
+  "fogColor": [0.05, 0.04, 0.06],
+  "fogDensity": 0.0,
+  "materials": {
+    "floor": { "baseColor": [0.42, 0.4, 0.38, 1.0], "roughness": 0.9 },
+    "wall": { "baseColor": [0.5, 0.47, 0.44, 1.0], "roughness": 0.85 },
+    "pedestal": { "baseColor": [0.6, 0.56, 0.4, 1.0], "roughness": 0.5 }
+  },
+  "brushes": [
+    { "at": [0.0, -0.5, 0.0], "size": [12.0, 1.0, 12.0], "material": "floor" },
+    { "at": [0.0, 4.5, 0.0], "size": [12.0, 1.0, 12.0], "material": "wall" },
+    { "at": [0.0, 2.0, -6.5], "size": [12.0, 4.0, 1.0], "material": "wall" },
+    { "at": [0.0, 2.0, 6.5], "size": [12.0, 4.0, 1.0], "material": "wall" },
+    { "at": [-6.5, 2.0, 0.0], "size": [1.0, 4.0, 14.0], "material": "wall" },
+    { "at": [6.5, 2.0, 0.0], "size": [1.0, 4.0, 14.0], "material": "wall" },
+    { "at": [0.0, 0.5, 0.0], "size": [1.5, 1.0, 1.5], "material": "pedestal" }
+  ],
+  "lights": [
+    { "type": "point", "at": [0.0, 3.2, 0.0], "color": [1.0, 0.95, 0.85], "intensity": 9.0, "range": 14.0 }
+  ],
+  "entities": [
+    {
+      "type": "edu_sequence",
+      "name": "tour",
+      "title": "Обойти изделие",
+      "steps": ["view-front", "view-side", "view-top", "quiz-steps"]
+    },
+    {
+      "type": "edu_step",
+      "name": "view-front",
+      "at": [0.0, 1.5, 3.0],
+      "yaw": 0.0,
+      "caption": "Вид спереди"
+    },
+    {
+      "type": "edu_step",
+      "name": "view-side",
+      "at": [3.0, 1.5, 0.0],
+      "yaw": 1.5708,
+      "caption": "Вид сбоку"
+    },
+    {
+      "type": "edu_step",
+      "name": "view-top",
+      "at": [0.0, 3.0, 5.0],
+      "yaw": 0.0,
+      "caption": "Вид сверху"
+    },
+    {
+      "type": "edu_step",
+      "name": "quiz-steps",
+      "at": [0.0, 1.5, 3.0],
+      "yaw": 0.0,
+      "caption": "Проверка",
+      "check": {
+        "question": "Сколько видов показывает этот тур?",
+        "answers": ["3", "три"],
+        "attempts": 3
+      }
+    },
+    {
+      "type": "widget_surface",
+      "name": "view-caption",
+      "at": [0.0, 2.2, -6.4],
+      "yaw": 3.1416,
+      "widget": "viewer-caption",
+      "width": 2.4,
+      "height": 1.0
+    }
+  ]
+}

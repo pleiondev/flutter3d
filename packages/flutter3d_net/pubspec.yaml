@@ -1,0 +1,37 @@
+name: flutter3d_net
+description: "Rollback netcode over `sim`: input frames per step, prediction, correction, and the transport behind an interface so a game never names WebRTC or a socket."
+version: 0.6.0
+repository: https://github.com/pleiondev/flutter3d
+homepage: https://flutter3d.pleion.dev
+issue_tracker: https://github.com/pleiondev/flutter3d/issues
+topics:
+  - game-development
+  - game-engine
+  - networking
+  - multiplayer
+resolution: workspace
+
+environment:
+  sdk: ^3.12.2
+
+dependencies:
+  # `Snapshot`, `GameRandom` for the test transport's loss, nothing that
+  # draws or reads a device — the same reason `net-01`'s own row gives for
+  # sitting on this package and not on `flutter3d_game`.
+  flutter3d_sim: ^0.6.0
+
+  # `WebSocketTransport` — net-02's fallback transport, and the one client
+  # class in this package that has to compile for the web as well as
+  # native, which `dart:io`'s own `WebSocket` cannot.
+  web_socket_channel: ^3.0.0
+
+dev_dependencies:
+  test: ^1.25.0
+  flutter_lints: ^6.0.0
+
+# **A plain Dart package, same reasoning as `flutter3d_physics`.** A relay and
+# a WebRTC signalling client are both ordinary Dart processes or ordinary
+# Flutter widgets reaching into this — neither needs the Flutter SDK to ask
+# "did this step's remote input arrive, and if not, what do I predict" — and a
+# rollback engine that required one would be untestable under plain `dart
+# test`, the same loss `flutter3d_sim` itself was carved out to avoid.

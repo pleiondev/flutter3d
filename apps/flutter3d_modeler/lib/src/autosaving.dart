@@ -120,3 +120,26 @@ final class AutosaveController {
     unawaited(_subscription.cancel());
   }
 }
+
+/// Writes [cubit]'s open document to [sessionId]'s own recovery slot right
+/// now, bypassing [AutosavePolicy] entirely.
+///
+/// `ui-30n`'s own "аварийная запись автосохранения до показа ошибки": a
+/// crash is not a moment to wait out a debounce, and [AutosaveController]'s
+/// last poll may predate the very edit that is about to be lost. Same key,
+/// same [writeProject] as the periodic write, so a session that crashed
+/// offers the same "предложение восстановить" on its next launch as one that
+/// autosaved on schedule.
+///
+/// A no-op when there is no open document — nothing here throws a second
+/// exception on top of the first.
+Future<void> emergencyAutosave(
+  ModelerCubit cubit,
+  BinaryStorage storage,
+  String sessionId,
+) async {
+  final ModelerState state = cubit.state;
+  if (state is! ModelerReady) return;
+  final Uint8List bytes = writeProject(state.history.project);
+  await storage.write(recoveryPathFor(null, sessionId: sessionId), bytes);
+}

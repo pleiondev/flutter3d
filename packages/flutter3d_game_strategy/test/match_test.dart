@@ -261,7 +261,16 @@ void main() {
       final recorder = OrderTapeRecorder(seed: start.data.integer('random'));
       live.simulation.orders.recorder = recorder;
 
-      final int steps = play(live);
+      // `play`, with a checkpoint added every so many steps — `rp-01`'s
+      // reason a replay below is checked against a trace and not only
+      // watched to the end.
+      final liveCheckpoints = DigestTrace();
+      var steps = 0;
+      while (steps < 6000 && !live.standing.isOver) {
+        live.step(1.0 / 30.0);
+        steps++;
+        liveCheckpoints.observe(steps, live.simulation.save().toJson());
+      }
       final String ending = bytesOf(live.simulation.save());
 
       expect(steps, lessThan(6000), reason: 'the match never finished');
@@ -271,12 +280,20 @@ void main() {
         reason: 'a match in which nothing happened would prove nothing',
       );
 
-      // Through the document as it would travel: a string.
+      // Through the document as it would travel: a string. There is no real
+      // map document behind `mirror`'s arrangement, so the hash is taken of
+      // the same description that identifies it here.
       final String sent = jsonEncode(
         MatchDemo(
           level: 'the mirror',
+          levelHash: contentDigestHex(<String, Object?>{
+            'name': 'the mirror',
+            'seamTwo': 34.0,
+          }),
           start: start,
           tape: recorder.tape,
+          buildStamp: 'test-build',
+          checkpoints: liveCheckpoints,
         ).toJson(),
       );
       final demo = MatchDemo.fromJson(jsonDecode(sent) as Map<String, Object?>);
@@ -292,13 +309,26 @@ void main() {
       final replay = mirror(seamTwo: 34.0, policies: false);
       replay.simulation.restore(demo.start);
       final playback = OrderTapePlayback(demo.tape);
+      final replayCheckpoints = DigestTrace();
+      var replayedSteps = 0;
       while (!playback.isFinished) {
         playback.applyTo(replay.simulation.orders);
         replay.step(1.0 / 30.0);
+        replayedSteps++;
+        replayCheckpoints.observe(
+          replayedSteps,
+          replay.simulation.save().toJson(),
+        );
       }
 
       expect(bytesOf(replay.simulation.save()), ending);
       expect(replay.standing.winner, live.standing.winner);
+      expect(
+        replayCheckpoints.divergenceFromHex(demo.checkpoints.hexDigests),
+        isNull,
+        reason: 'the replay should check out against the document\'s own '
+            'trace, not only end at the same byte',
+      );
     });
 
     test('is not replayed by a start a centimetre away', () {

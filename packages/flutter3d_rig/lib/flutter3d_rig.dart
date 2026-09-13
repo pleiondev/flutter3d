@@ -3,6 +3,8 @@
 /// piece of `flutter3d_rig`.
 library;
 
+export 'src/bind_weights.dart';
 export 'src/bone_map.dart';
 export 'src/retarget.dart';
+export 'src/rig_job.dart';
 export 'src/two_bone_ik.dart';

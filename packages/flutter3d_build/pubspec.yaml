@@ -1,0 +1,58 @@
+name: flutter3d_build
+description: "The build hook behind `dart run flutter3d:init`: converts model and texture sources into what the engine loads, on every build rather than as a step somebody remembers to run."
+version: 0.6.0
+repository: https://github.com/pleiondev/flutter3d
+homepage: https://flutter3d.pleion.dev
+issue_tracker: https://github.com/pleiondev/flutter3d/issues
+topics:
+  - game-development
+  - game-engine
+  - build-hook
+resolution: workspace
+
+environment:
+  sdk: ^3.12.2
+
+dependencies:
+  # The decoders a hook converts through — glTF/OBJ/`.f3d` in, `.f3d` out
+  # (`ap-03`) — and neither needs the Flutter SDK to read a source file, which
+  # is the whole reason this package can be a hook in the first place: `dart
+  # pub get` inside a `hook/build.dart` process has no window to ask for.
+  flutter3d_formats: ^0.6.0
+  flutter3d_geometry: ^0.6.0
+
+  # `hook/build.dart`'s own contract — `ap-00`'s spike proved this is the half
+  # of the build-hook feature that is stable on Flutter 3.47/Dart 3.13; the
+  # other half, `package:data_assets`, stays out (see `ap-00`'s own writeup
+  # in `doc/asset-pipeline-plan.md` for why: "Status: Experimental", and this
+  # package writes ordinary files into an ordinary `assets:` directory rather
+  # than the data-asset API that formalises that same act).
+  hooks: ^2.0.0
+
+  # `ap-04`'s manifest: `glob` matches a rule's pattern against a source
+  # path, `yaml` parses `flutter3d_assets.yaml` as a node tree rather than a
+  # plain `Map` so a bad key or a bad glob can name the line it came from.
+  glob: ^2.1.0
+  yaml: ^3.1.0
+
+  # `ap-05`'s cache key — a content hash of each source, alongside the
+  # format and pipeline version stamps, so a rebuild with nothing changed
+  # converts nothing.
+  crypto: ^3.0.0
+
+  # `ap-07`'s encoders take raw RGBA8, and a source image is PNG or JPEG
+  # bytes — decoding one is the one thing `dart:ui` usually does that this
+  # package cannot reach. Pure Dart, no Flutter SDK behind it either, the
+  # same as every other dependency here.
+  image: ^4.9.0
+
+dev_dependencies:
+  test: ^1.25.0
+  flutter_lints: ^6.0.0
+
+# **A plain Dart package, same reasoning as `flutter3d_sim`/`flutter3d_net`.**
+# `hook/build.dart` is invoked by the Flutter tool as a separate process with
+# no window and no Flutter SDK resolvable inside it — a package depending on
+# Flutter here is not a heavier hook, it is a hook that will not start. See
+# `tool/structure/repository.dart`'s `flatDartPackages` for the check that
+# holds this.

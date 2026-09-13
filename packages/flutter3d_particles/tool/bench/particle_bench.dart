@@ -23,10 +23,7 @@
 
 import 'dart:typed_data';
 
-import 'package:flutter3d_particles/src/particle.dart';
-import 'package:flutter3d_particles/src/particle_affector.dart';
-import 'package:flutter3d_particles/src/particle_emitter.dart';
-import 'package:flutter3d_particles/src/particle_system.dart';
+import 'package:flutter3d_particles_core/flutter3d_particles_core.dart';
 import 'package:vector_math/vector_math.dart';
 
 void bench(

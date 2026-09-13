@@ -459,6 +459,17 @@ const LookSettings(
 
 The order inside the composite is the one a camera imposes: the lens disperses colour before the sensor sees it, grading is a decision about a displayable image and follows the tone map, and grain and vignette are the film and the barrel, so they come last.
 
+Every setting above is on this page as a number; the same pipeline running
+against six torches and a lot of dark stone is easier to read as a picture.
+
+<div class="demo">
+  <iframe class="demo-frame" src="/demo/shooter/" title="The shooter demo, lit by six torches and nothing else" allow="autoplay; pointer-lock"></iframe>
+  <p class="demo-bar">
+    <span>Same shadows, bloom and tone map this page describes · <a href="/shooter/demo/">full page ↗</a></span>
+    <span><a href="/gallery/">All four demos ↗</a></span>
+  </p>
+</div>
+
 ## Loadable shader bundles
 
 The engine's shaders are compiled ahead of time and loaded by asset path. A bundle can also arrive as **bytes** — downloaded, read off a disk, rebuilt while the application is running — and every backend reads its own part of it.

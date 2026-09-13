@@ -1,7 +1,10 @@
 import 'package:dart_mcp/server.dart';
 import 'package:flutter3d_formats/flutter3d_formats.dart';
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
-import 'package:flutter3d_model_core/flutter3d_model_core.dart';
+// `EnumHint` is hidden here because `flutter3d_formats`'s own — used below to
+// build `setMaterialField`'s schema from `MaterialHint` — collides with this
+// package's unrelated modifier-parameter `EnumHint`, which nothing here reads.
+import 'package:flutter3d_model_core/flutter3d_model_core.dart' hide EnumHint;
 
 import 'model_session.dart';
 
@@ -95,6 +98,58 @@ ListSchema _numbers(String about) =>
 ListSchema _ints(String about) =>
     ListSchema(description: about, items: IntegerSchema());
 
+/// The material fields `setMaterialField` accepts — `_fieldSet`'s own switch
+/// in `material_commands.dart`, named again here because that switch is
+/// private. Kept in the order `SurfaceMaterial`'s own constructor declares
+/// them, so the schema reads the way the class does.
+const List<String> _materialFields = <String>[
+  'name',
+  'baseColor',
+  'metallic',
+  'roughness',
+  'normalScale',
+  'occlusionStrength',
+  'emissive',
+  'emissiveStrength',
+  'alphaMode',
+  'alphaCutoff',
+  'doubleSided',
+  'unlit',
+];
+
+/// What `setMaterialField`'s schema says about one field — derived from
+/// [builtInMaterialHints] when a hint exists for it, so the shape and the
+/// help text an agent reads come from the same table an inspector's slider
+/// does, rather than a second, hand-written description that can drift from
+/// it.
+String _materialFieldHelp(String field) {
+  final MaterialHint? hint = builtInMaterialHints[field];
+  final String shape = switch (hint?.kind) {
+    RangeHint(:final min, :final max) => 'a number, $min..$max',
+    ColorHint(:final channels) => '$channels numbers',
+    EnumHint(:final values) =>
+      'one of ${values.map((EnumHintValue v) => v.value).join('/')}',
+    TextureHint() || null => switch (field) {
+      'name' => 'a string, or omit to clear it',
+      'doubleSided' || 'unlit' => 'a bool',
+      _ => 'a number',
+    },
+  };
+  final String? help = hint?.help;
+  return help == null ? shape : '$shape — $help';
+}
+
+/// `setMaterialField`'s own "field" enum, its description built one line a
+/// field from [_materialFieldHelp] — see that function's own doc comment.
+UntitledSingleSelectEnumSchema _materialField() =>
+    UntitledSingleSelectEnumSchema(
+      description: <String>[
+        for (final String field in _materialFields)
+          '$field: ${_materialFieldHelp(field)}',
+      ].join('; '),
+      values: _materialFields,
+    );
+
 /// Runs the command [name] stands for, built out of the call's own arguments
 /// through [modelCommandFromJson] — the same reader the project file and
 /// `CommandJournal` use, so a tool call is that map with the tool's own name
@@ -114,6 +169,11 @@ Future<Answer> Function(ModelSession, Map<String, Object?>) _command(
           'that tools/list gave for it',
     );
   }
+  // `mcp-14n`'s own lock: a modal transform — a drag, mid-gesture — holds
+  // one open, and this command waits its turn rather than landing inside a
+  // step it had no part in, at whatever intermediate position the drag has
+  // reached the instant this call arrived.
+  await session.history.whenNotInTransaction;
   return session.run(command);
 };
 
@@ -678,6 +738,24 @@ List<ModelTool> get _commandTools => <ModelTool>[
   ),
   ModelTool(
     Tool(
+      name: 'setLightTransform',
+      description:
+          'Place one of the project\'s own lights: replace its whole '
+          'local transform at once, as a 16-number column-major matrix — '
+          'the same shape setTransform gives an object. This is what moves '
+          'a light off the origin every light starts at.',
+      inputSchema: ObjectSchema(
+        properties: <String, Schema>{
+          'index': IntegerSchema(description: 'the light, from list'),
+          'to': _matrix16('the new transform, Matrix4.storage order'),
+        },
+        required: <String>['index', 'to'],
+      ),
+    ),
+    _command('setLightTransform'),
+  ),
+  ModelTool(
+    Tool(
       name: 'addMaterial',
       description:
           'Add a new row to the material table, painted with '
@@ -730,16 +808,14 @@ List<ModelTool> get _commandTools => <ModelTool>[
     Tool(
       name: 'setMaterialField',
       description:
-          'Set one field of a material by the name `.fmat` writes '
-          'it under: name, baseColor (4 numbers), metallic, roughness, '
-          'normalScale, occlusionStrength, emissive (3 numbers), '
-          'emissiveStrength, alphaMode ("opaque"/"mask"/"blend"), '
-          'alphaCutoff, doubleSided, unlit (the last two, booleans). Texture '
-          'slots go through setTexture instead.',
+          'Set one field of a material by the name `.fmat` writes it '
+          'under. See the "field" enum for what each one takes — the same '
+          'range, colour and enum shapes an inspector\'s own slider reads '
+          'from MaterialHint. Texture slots go through setTexture instead.',
       inputSchema: ObjectSchema(
         properties: <String, Schema>{
           'index': IntegerSchema(description: 'the material row'),
-          'field': StringSchema(description: 'the field name'),
+          'field': _materialField(),
           'value': Schema.combined(
             description:
                 'a number, a string, a bool, or a list of 3 or 4 '
@@ -885,6 +961,51 @@ List<ModelTool> get _commandTools => <ModelTool>[
       ),
     ),
     _command('bakeTextureGraph'),
+  ),
+  ModelTool(
+    Tool(
+      name: 'linkMaterialFile',
+      description:
+          'Point a material row at a standalone .fmat on disk. With '
+          '"bytes" given (the file already read, base64-encoded), the '
+          'material adopts that file\'s whole look — colour, the scalar '
+          'factors, alpha, whether it is double-sided or unlit — except its '
+          'texture slots, which are left exactly as they were; import '
+          'textures separately. With "bytes" left out, only the path is '
+          'remembered, for a file that does not exist yet.',
+      inputSchema: ObjectSchema(
+        properties: <String, Schema>{
+          'index': IntegerSchema(description: 'the material row'),
+          'path': StringSchema(
+            description: 'the .fmat path, relative to the project',
+          ),
+          'bytes': StringSchema(
+            description:
+                'the .fmat file already read from disk, '
+                'base64-encoded; omit to link without adopting a look yet',
+          ),
+        },
+        required: <String>['index', 'path'],
+      ),
+    ),
+    _command('linkMaterialFile'),
+  ),
+  ModelTool(
+    Tool(
+      name: 'embedMaterial',
+      description:
+          'Take a material off the .fmat it was linked to (by '
+          'linkMaterialFile), so its look is owned by the project alone '
+          'from here on. Its look does not change — only the link is '
+          'cleared.',
+      inputSchema: ObjectSchema(
+        properties: <String, Schema>{
+          'index': IntegerSchema(description: 'the material row'),
+        },
+        required: <String>['index'],
+      ),
+    ),
+    _command('embedMaterial'),
   ),
   ModelTool(
     Tool(
@@ -1075,6 +1196,64 @@ List<ModelTool> get _commandTools => <ModelTool>[
       ),
     ),
     _command('applyJobResult'),
+  ),
+  ModelTool(
+    Tool(
+      name: 'applySimulationCache',
+      description:
+          'Write a baked simulation cache into the object it answers '
+          'for. Refused when baseVersion no longer matches the object\'s own '
+          'current version — something else changed it while the bake ran, '
+          'and its answer no longer applies. Nothing here runs a bake; that '
+          'is BakeSimulationCommand, off this tool table entirely since it '
+          'has no synchronous, single-call shape a tool call could wait on.',
+      inputSchema: ObjectSchema(
+        properties: <String, Schema>{
+          'objectId': IntegerSchema(description: 'the object'),
+          'baseVersion': IntegerSchema(
+            description: 'the object\'s version when the bake started',
+          ),
+          'cache': ObjectSchema(
+            description: 'the baked SimulationCache, as its own toJson',
+            properties: <String, Schema>{
+              'vertexCount': IntegerSchema(
+                description: 'vertices per frame',
+              ),
+              'frames': ListSchema(
+                description:
+                    'one base64-encoded Float32List per frame, each '
+                    'vertexCount × 3 values long',
+                items: StringSchema(),
+              ),
+            },
+            required: <String>['vertexCount', 'frames'],
+          ),
+        },
+        required: <String>['objectId', 'baseVersion', 'cache'],
+      ),
+    ),
+    _command('applySimulationCache'),
+  ),
+  ModelTool(
+    Tool(
+      name: 'bakeSimulationToShapes',
+      description:
+          'Turn an object\'s own baked simulation cache into up to '
+          'maxKeys shape keys, appended to whatever shape set it already '
+          'has, each named for the cache frame it came from. Refused when '
+          'there is no baked cache, no mesh to hold a shape key, or the '
+          'cache\'s own vertex count does not match the mesh\'s.',
+      inputSchema: ObjectSchema(
+        properties: <String, Schema>{
+          'id': IntegerSchema(description: 'the object'),
+          'maxKeys': IntegerSchema(
+            description: 'how many shape keys at most; defaults to 8',
+          ),
+        },
+        required: <String>['id'],
+      ),
+    ),
+    _command('bakeSimulationToShapes'),
   ),
   ModelTool(
     Tool(
@@ -1515,6 +1694,294 @@ List<ModelTool> get _commandTools => <ModelTool>[
     ),
     _command('addClip'),
   ),
+  ModelTool(
+    Tool(
+      name: 'addLight',
+      description:
+          'Add a light to the project\'s own lighting, appended at the '
+          'end of the light list — its index is the list\'s length before '
+          'this runs. Lit with nothing in particular; setLightField sets '
+          'its colour, intensity and the rest afterward.',
+      inputSchema: ObjectSchema(
+        properties: <String, Schema>{
+          'type': UntitledSingleSelectEnumSchema(
+            description: 'directional (default), point or spot',
+            values: <String>[for (final t in ProjectLightType.values) t.name],
+          ),
+        },
+      ),
+    ),
+    _command('addLight'),
+  ),
+  ModelTool(
+    Tool(
+      name: 'removeLight',
+      description:
+          'Drop a light out of the project\'s own lighting. A document '
+          'edit only — the LightNode a synced viewport built for it comes '
+          'down the next time LightingSync runs, not here.',
+      inputSchema: ObjectSchema(
+        properties: <String, Schema>{
+          'index': IntegerSchema(description: 'the light, from list'),
+        },
+        required: <String>['index'],
+      ),
+    ),
+    _command('removeLight'),
+  ),
+  ModelTool(
+    Tool(
+      name: 'setLightField',
+      description:
+          'Set one field of a light by name: type ("directional", '
+          '"point" or "spot"), color (3 numbers, linear RGB), intensity, '
+          'range (0 is unbounded), castsShadow (a bool, a request rather '
+          'than a promise), innerConeAngle and outerConeAngle (spot only, '
+          'radians).',
+      inputSchema: ObjectSchema(
+        properties: <String, Schema>{
+          'index': IntegerSchema(description: 'the light, from list'),
+          'field': StringSchema(description: 'the field name'),
+          'value': Schema.combined(
+            description:
+                'a number, a string, a bool, or a list of 3 numbers, '
+                'matching the field',
+            anyOf: <Schema>[
+              StringSchema(),
+              NumberSchema(),
+              BooleanSchema(),
+              ListSchema(items: NumberSchema()),
+            ],
+          ),
+        },
+        required: <String>['index', 'field', 'value'],
+      ),
+    ),
+    _command('setLightField'),
+  ),
+  ModelTool(
+    Tool(
+      name: 'setEnvironment',
+      description:
+          'Set the project\'s own built-in sky — one of a fixed handful '
+          'of presets, not an imported panorama.',
+      inputSchema: ObjectSchema(
+        properties: <String, Schema>{
+          'preset': UntitledSingleSelectEnumSchema(
+            values: <String>[
+              for (final p in SceneEnvironmentPreset.values) p.name,
+            ],
+          ),
+        },
+        required: <String>['preset'],
+      ),
+    ),
+    _command('setEnvironment'),
+  ),
+  ModelTool(
+    Tool(
+      name: 'setSceneLightingField',
+      description:
+          'Set one scene-wide lighting field that is not a light or the '
+          'environment: ambientIntensity (a number, the flat ambient '
+          'term), shadows (a bool — whether this project\'s lights ask the '
+          'viewport for a shadow map at all), or exposure (a number).',
+      inputSchema: ObjectSchema(
+        properties: <String, Schema>{
+          'field': UntitledSingleSelectEnumSchema(
+            values: <String>['ambientIntensity', 'shadows', 'exposure'],
+          ),
+          'value': Schema.combined(
+            description:
+                'a number for ambientIntensity/exposure, a bool for '
+                'shadows',
+            anyOf: <Schema>[NumberSchema(), BooleanSchema()],
+          ),
+        },
+        required: <String>['field', 'value'],
+      ),
+    ),
+    _command('setSceneLightingField'),
+  ),
+  ModelTool(
+    Tool(
+      name: 'addNode',
+      description:
+          'Add a node to a material\'s texture graph: image, color, '
+          'blend, channels, levels, invert, uvTransform, checker, noise, '
+          'normalFromHeight or output. "fields" carries whatever that kind '
+          'needs beyond id and kind — image\'s own imageId, blend\'s own '
+          'mode, and so on.',
+      inputSchema: ObjectSchema(
+        properties: <String, Schema>{
+          'materialIndex': IntegerSchema(description: 'the material row'),
+          'kind': StringSchema(description: 'the node kind'),
+          'fields': ObjectSchema(
+            description: 'the kind\'s own fields beyond id and kind',
+            additionalProperties: true,
+          ),
+          'x': NumberSchema(description: 'canvas position, default 0'),
+          'y': NumberSchema(description: 'canvas position, default 0'),
+        },
+        required: <String>['materialIndex', 'kind'],
+      ),
+    ),
+    _command('addNode'),
+  ),
+  ModelTool(
+    Tool(
+      name: 'link',
+      description:
+          'Wire a node\'s output into another node\'s input socket. '
+          'Refused before anything changes if the link would not type-check '
+          '— a colour output into a scalar input, for one.',
+      inputSchema: ObjectSchema(
+        properties: <String, Schema>{
+          'materialIndex': IntegerSchema(description: 'the material row'),
+          'nodeId': IntegerSchema(description: 'the node being wired into'),
+          'input': StringSchema(description: 'which of its inputs'),
+          'from': IntegerSchema(description: 'the node whose output feeds it'),
+        },
+        required: <String>['materialIndex', 'nodeId', 'input', 'from'],
+      ),
+    ),
+    _command('link'),
+  ),
+  ModelTool(
+    Tool(
+      name: 'unlink',
+      description: 'Take whatever is wired into a node\'s input back off it.',
+      inputSchema: ObjectSchema(
+        properties: <String, Schema>{
+          'materialIndex': IntegerSchema(description: 'the material row'),
+          'nodeId': IntegerSchema(description: 'the node'),
+          'input': StringSchema(description: 'which of its inputs'),
+        },
+        required: <String>['materialIndex', 'nodeId', 'input'],
+      ),
+    ),
+    _command('unlink'),
+  ),
+  ModelTool(
+    Tool(
+      name: 'setNodeField',
+      description:
+          'Set one non-link field of a texture-graph node. A field '
+          'that is actually a link (an input socket name) is refused — use '
+          'link or unlink for those.',
+      inputSchema: ObjectSchema(
+        properties: <String, Schema>{
+          'materialIndex': IntegerSchema(description: 'the material row'),
+          'nodeId': IntegerSchema(description: 'the node'),
+          'field': StringSchema(description: 'the field name'),
+          'value': Schema.combined(
+            description:
+                'a number, a string, a bool, or a list of 2, 3 or 4 '
+                'numbers, matching the field',
+            anyOf: <Schema>[
+              StringSchema(),
+              NumberSchema(),
+              BooleanSchema(),
+              ListSchema(items: NumberSchema()),
+            ],
+          ),
+        },
+        required: <String>['materialIndex', 'nodeId', 'field', 'value'],
+      ),
+    ),
+    _command('setNodeField'),
+  ),
+  ModelTool(
+    Tool(
+      name: 'moveNode',
+      description:
+          'Move a texture-graph node to a new canvas position. Purely '
+          'presentational — it never marks the graph\'s bake stale.',
+      inputSchema: ObjectSchema(
+        properties: <String, Schema>{
+          'materialIndex': IntegerSchema(description: 'the material row'),
+          'nodeId': IntegerSchema(description: 'the node'),
+          'x': NumberSchema(description: 'new canvas position'),
+          'y': NumberSchema(description: 'new canvas position'),
+        },
+        required: <String>['materialIndex', 'nodeId', 'x', 'y'],
+      ),
+    ),
+    _command('moveNode'),
+  ),
+  ModelTool(
+    Tool(
+      name: 'removeNode',
+      description:
+          'Delete a node from a material\'s texture graph. Every other '
+          'node\'s own link that pointed at it is cleared in the same step, '
+          'so the graph never comes back with a dangling reference. Nothing '
+          'is protected from this, including an output node — bakeTextureGraph '
+          'is what refuses when a graph is left feeding no material slot.',
+      inputSchema: ObjectSchema(
+        properties: <String, Schema>{
+          'materialIndex': IntegerSchema(description: 'the material row'),
+          'nodeId': IntegerSchema(description: 'the node to delete'),
+        },
+        required: <String>['materialIndex', 'nodeId'],
+      ),
+    ),
+    _command('removeNode'),
+  ),
+  ModelTool(
+    Tool(
+      name: 'addLod',
+      description:
+          'Add a level of detail to an object: a target triangle '
+          'ratio in (0, 1] and the screen-height fraction below which it '
+          'takes over.',
+      inputSchema: ObjectSchema(
+        properties: <String, Schema>{
+          'id': IntegerSchema(description: 'the object'),
+          'ratio': NumberSchema(description: 'target triangle ratio, (0, 1]'),
+          'maxScreenFraction': NumberSchema(
+            description: 'screen-height fraction this level takes over below',
+          ),
+        },
+        required: <String>['id', 'ratio', 'maxScreenFraction'],
+      ),
+    ),
+    _command('addLod'),
+  ),
+  ModelTool(
+    Tool(
+      name: 'setLodRatio',
+      description:
+          'Change one of an object\'s levels of detail\' own target '
+          'ratio, leaving its screen threshold alone.',
+      inputSchema: ObjectSchema(
+        properties: <String, Schema>{
+          'id': IntegerSchema(description: 'the object'),
+          'lodIndex': IntegerSchema(description: 'which level, from addLod'),
+          'ratio': NumberSchema(description: 'the new target ratio, (0, 1]'),
+        },
+        required: <String>['id', 'lodIndex', 'ratio'],
+      ),
+    ),
+    _command('setLodRatio'),
+  ),
+  ModelTool(
+    Tool(
+      name: 'regenerateLods',
+      description:
+          'Force every one of an object\'s cached level-of-detail '
+          'meshes to regenerate on the next ask — for after the '
+          'simplification algorithm itself changed, not for an ordinary '
+          'edit to the base mesh (a version bump already covers that).',
+      inputSchema: ObjectSchema(
+        properties: <String, Schema>{
+          'id': IntegerSchema(description: 'the object'),
+        },
+        required: <String>['id'],
+      ),
+    ),
+    _command('regenerateLods'),
+  ),
 ];
 
 // ------------------------------------------------------------ session tools
@@ -1541,6 +2008,23 @@ List<ModelTool> get modelTools => <ModelTool>[
     _sync(
       (ModelSession session, Map<String, Object?> arguments) =>
           (did: true, says: session.listing()),
+    ),
+  ),
+  ModelTool(
+    Tool(
+      name: 'listMaterials',
+      description:
+          'The material table, one line a row — every field '
+          'setMaterialField can set, which texture slots are painted and '
+          'with which image, whether the material is linked to a .fmat, '
+          'and whether it carries a texture graph still waiting for '
+          'bakeTextureGraph. Call this before setMaterialField or '
+          'assignMaterial to see what a row already looks like.',
+      inputSchema: ObjectSchema(),
+    ),
+    _sync(
+      (ModelSession session, Map<String, Object?> arguments) =>
+          (did: true, says: session.listMaterials()),
     ),
   ),
   ModelTool(
@@ -1820,6 +2304,418 @@ List<ModelTool> get modelTools => <ModelTool>[
     _sync(
       (ModelSession session, Map<String, Object?> arguments) =>
           (did: true, says: session.inspect()),
+    ),
+  ),
+  ..._rigPipelineTools,
+];
+
+// ------------------------------------------------------------- anim-30
+//
+// MCP tools over `anim-21`'s `buildSkeleton`, `anim-10`'s `paintWeights`,
+// `anim-15`'s `bakeIk`, `anim-20`'s `bakeShapeDrivers`, `anim-13`'s
+// `rigIssues` and `flutter3d_rig`'s own `retargetClip`, plus `addShape` — a
+// second, plan-facing name for the already-offered `addShapeFromMesh` tool.
+// Kept as one block, appended after every other tool, rather than woven in
+// beside the rig/keyframe tools above: `setKey`, `extractRootMotion` and
+// `addShapeFromMesh` already existed on this branch before this row and
+// are untouched; everything here is new, and a merge that finds this file
+// changed elsewhere too only has to reconcile one seam, not several.
+List<ModelTool> get _rigPipelineTools => <ModelTool>[
+  ModelTool(
+    Tool(
+      name: 'autoRig',
+      description:
+          'Build a humanoid or quadruped skeleton from a handful of '
+          'world-space marker positions (one per joint the template asks '
+          'for — call this with a wrong or missing marker to see which) '
+          'and add it to the project as one undo step. Every right-side '
+          'joint is the mirror of its left-side marker; only the left half '
+          'and the centerline need naming. skinObjectId, when given, binds '
+          'that object\'s own mesh to the new skeleton in the same step — '
+          'paintWeights is what then puts real weights on its vertices.',
+      inputSchema: ObjectSchema(
+        properties: <String, Schema>{
+          'template': UntitledSingleSelectEnumSchema(
+            description: 'humanoid or quadruped',
+            values: <String>['humanoid', 'quadruped'],
+          ),
+          'markers': ObjectSchema(
+            description:
+                'marker name to a 3-number world position; see the '
+                'refusal this gives for which names a template needs',
+            additionalProperties: _vector('a marker\'s world position'),
+          ),
+          'skinObjectId': IntegerSchema(
+            description: 'an object to bind to the new skeleton; optional',
+          ),
+          'skeletonName': StringSchema(description: 'optional'),
+          'mirrorAxis': UntitledSingleSelectEnumSchema(
+            description: 'x (default), y or z',
+            values: <String>['x', 'y', 'z'],
+          ),
+          'bounds': ListSchema(
+            description:
+                'optional sanity box, 6 numbers: minX minY minZ maxX maxY '
+                'maxZ; computed from the markers themselves when left out',
+            items: NumberSchema(),
+            minItems: 6,
+            maxItems: 6,
+          ),
+        },
+        required: <String>['template', 'markers'],
+      ),
+    ),
+    (ModelSession session, Map<String, Object?> arguments) async {
+      final template = arguments['template'];
+      final markersJson = arguments['markers'];
+      if (template is! String || markersJson is! Map) {
+        return (did: false, says: 'autoRig needs a "template" and "markers"');
+      }
+      final markers = <String, List<double>>{};
+      for (final entry in markersJson.entries) {
+        final value = entry.value;
+        if (value is! List || value.length != 3) {
+          return (
+            did: false,
+            says: 'marker "${entry.key}" needs a 3-number position',
+          );
+        }
+        markers[entry.key as String] = <double>[
+          for (final n in value) (n as num).toDouble(),
+        ];
+      }
+      final bounds = arguments['bounds'];
+      return session.autoRig(
+        template: template,
+        markers: markers,
+        skinObjectId: arguments['skinObjectId'] as int?,
+        skeletonName: arguments['skeletonName'] as String?,
+        mirrorAxis: arguments['mirrorAxis'] as String? ?? 'x',
+        bounds: bounds is List
+            ? <double>[for (final n in bounds) (n as num).toDouble()]
+            : null,
+      );
+    },
+  ),
+  ModelTool(
+    Tool(
+      name: 'paintWeights',
+      description:
+          'Paint one joint\'s skin weight influence over one or more brush '
+          'samples on an object\'s own mesh, hit-tested against the '
+          'mesh\'s current posed shape. mode "paint" blends onto whatever a '
+          'vertex already has; "assign" replaces its whole influence list '
+          'with this one joint. Not recorded as an undo step — the mesh is '
+          'changed for real (an export afterward sees it), but undo cannot '
+          'take just this back yet.',
+      inputSchema: ObjectSchema(
+        properties: <String, Schema>{
+          'objectId': IntegerSchema(description: 'the object, with a mesh'),
+          'skeletonIndex': IntegerSchema(
+            description: 'which skeleton, from list',
+          ),
+          'joint': IntegerSchema(
+            description: 'the joint\'s own object id, from that skeleton',
+          ),
+          'samples': ListSchema(
+            description: 'one or more brush hits making up this stroke',
+            items: ObjectSchema(
+              properties: <String, Schema>{
+                'center': _vector('where the brush hit, in world space'),
+                'radius': NumberSchema(
+                  description: 'how far the hit reaches',
+                ),
+              },
+              required: <String>['center', 'radius'],
+            ),
+          ),
+          'strength': NumberSchema(description: 'how much weight to add'),
+          'mode': UntitledSingleSelectEnumSchema(
+            description: 'paint (default) or assign',
+            values: <String>['paint', 'assign'],
+          ),
+          'mirror': ObjectSchema(
+            description: 'optional; mirror the stroke across a plane',
+            properties: <String, Schema>{
+              'axis': IntegerSchema(description: '0 for x, 1 for y, 2 for z'),
+              'jointMirror': ObjectSchema(
+                description: 'source joint index (string key) to target',
+                additionalProperties: IntegerSchema(),
+              ),
+              'plane': NumberSchema(description: 'default 0'),
+              'tolerance': NumberSchema(description: 'default 1e-4'),
+            },
+            required: <String>['axis', 'jointMirror'],
+          ),
+          'normalize': BooleanSchema(
+            description: 'renormalize every touched vertex after, default false',
+          ),
+        },
+        required: <String>['objectId', 'skeletonIndex', 'joint', 'samples', 'strength'],
+      ),
+    ),
+    (ModelSession session, Map<String, Object?> arguments) async {
+      final objectId = arguments['objectId'];
+      final skeletonIndex = arguments['skeletonIndex'];
+      final joint = arguments['joint'];
+      final samplesJson = arguments['samples'];
+      final strength = arguments['strength'];
+      if (objectId is! int ||
+          skeletonIndex is! int ||
+          joint is! int ||
+          samplesJson is! List ||
+          strength is! num) {
+        return (
+          did: false,
+          says:
+              'paintWeights needs "objectId", "skeletonIndex", "joint", '
+              '"samples" and "strength"',
+        );
+      }
+      return session.paintSkinWeights(
+        objectId: objectId,
+        skeletonIndex: skeletonIndex,
+        joint: joint,
+        samples: <Map<String, Object?>>[
+          for (final s in samplesJson) Map<String, Object?>.from(s! as Map),
+        ],
+        strength: strength.toDouble(),
+        mode: arguments['mode'] as String? ?? 'paint',
+        mirror: arguments['mirror'] == null
+            ? null
+            : Map<String, Object?>.from(arguments['mirror']! as Map),
+        normalize: arguments['normalize'] == true,
+      );
+    },
+  ),
+  ModelTool(
+    Tool(
+      name: 'retargetClip',
+      description:
+          'Retarget a clip authored for one skeleton onto another '
+          'skeleton\'s own joints — rest-relative rotation, height-scaled '
+          'translation, with a two-bone IK foot lock by default — and '
+          'append the result as a new clip. boneMap left out guesses one '
+          'from matching joint names.',
+      inputSchema: ObjectSchema(
+        properties: <String, Schema>{
+          'sourceClipIndex': IntegerSchema(description: 'the clip to read'),
+          'sourceSkeletonIndex': IntegerSchema(
+            description: 'the skeleton that clip\'s tracks address',
+          ),
+          'targetSkeletonIndex': IntegerSchema(
+            description: 'the skeleton to retarget onto',
+          ),
+          'boneMap': ObjectSchema(
+            description:
+                'optional; source joint name to target joint name. Left '
+                'out, matching names are mapped automatically',
+            additionalProperties: StringSchema(),
+          ),
+          'lockFeet': BooleanSchema(description: 'default true'),
+          'groundY': NumberSchema(description: 'default 0'),
+          'footTolerance': NumberSchema(description: 'default 1e-3'),
+          'clipName': StringSchema(description: 'optional'),
+        },
+        required: <String>[
+          'sourceClipIndex',
+          'sourceSkeletonIndex',
+          'targetSkeletonIndex',
+        ],
+      ),
+    ),
+    _sync((ModelSession session, Map<String, Object?> arguments) {
+      final sourceClipIndex = arguments['sourceClipIndex'];
+      final sourceSkeletonIndex = arguments['sourceSkeletonIndex'];
+      final targetSkeletonIndex = arguments['targetSkeletonIndex'];
+      if (sourceClipIndex is! int ||
+          sourceSkeletonIndex is! int ||
+          targetSkeletonIndex is! int) {
+        return (
+          did: false,
+          says:
+              'retargetClip needs "sourceClipIndex", "sourceSkeletonIndex" '
+              'and "targetSkeletonIndex"',
+        );
+      }
+      final boneMapJson = arguments['boneMap'];
+      return session.retargetClip(
+        sourceClipIndex: sourceClipIndex,
+        sourceSkeletonIndex: sourceSkeletonIndex,
+        targetSkeletonIndex: targetSkeletonIndex,
+        boneMap: boneMapJson is Map
+            ? <String, String>{
+                for (final e in boneMapJson.entries)
+                  e.key as String: e.value as String,
+              }
+            : null,
+        lockFeet: arguments['lockFeet'] as bool? ?? true,
+        groundY: (arguments['groundY'] as num?)?.toDouble() ?? 0.0,
+        footTolerance:
+            (arguments['footTolerance'] as num?)?.toDouble() ?? 1e-3,
+        clipName: arguments['clipName'] as String?,
+      );
+    }),
+  ),
+  ModelTool(
+    Tool(
+      name: 'bakeIk',
+      description:
+          'Solve a two-bone IK chain (root, mid, effector reaching for '
+          'target, bending toward pole) at every 1/fps second of a clip, '
+          'and write the result as the root and mid joints\' own baked '
+          'rotation keyframes — export always plays the baked clip, never '
+          'a live IK constraint.',
+      inputSchema: ObjectSchema(
+        properties: <String, Schema>{
+          'clipIndex': IntegerSchema(description: 'which clip, from list'),
+          'rootJointId': IntegerSchema(description: 'the chain\'s own root'),
+          'midJointId': IntegerSchema(description: 'the chain\'s own middle'),
+          'effectorJointId': IntegerSchema(
+            description: 'the chain\'s own tip',
+          ),
+          'target': _vector('where the effector should reach'),
+          'pole': _vector('which side the middle joint bends toward'),
+          'fps': NumberSchema(description: 'sampling rate, default 30'),
+        },
+        required: <String>[
+          'clipIndex',
+          'rootJointId',
+          'midJointId',
+          'effectorJointId',
+          'target',
+          'pole',
+        ],
+      ),
+    ),
+    _sync((ModelSession session, Map<String, Object?> arguments) {
+      final clipIndex = arguments['clipIndex'];
+      final rootJointId = arguments['rootJointId'];
+      final midJointId = arguments['midJointId'];
+      final effectorJointId = arguments['effectorJointId'];
+      final target = arguments['target'];
+      final pole = arguments['pole'];
+      if (clipIndex is! int ||
+          rootJointId is! int ||
+          midJointId is! int ||
+          effectorJointId is! int ||
+          target is! List ||
+          pole is! List) {
+        return (
+          did: false,
+          says:
+              'bakeIk needs "clipIndex", "rootJointId", "midJointId", '
+              '"effectorJointId", "target" and "pole"',
+        );
+      }
+      return session.bakeIkOnClip(
+        clipIndex: clipIndex,
+        rootJointId: rootJointId,
+        midJointId: midJointId,
+        effectorJointId: effectorJointId,
+        target: <double>[for (final n in target) (n as num).toDouble()],
+        pole: <double>[for (final n in pole) (n as num).toDouble()],
+        fps: (arguments['fps'] as num?)?.toDouble() ?? 30,
+      );
+    }),
+  ),
+  ModelTool(
+    Tool(
+      name: 'bakeDrivers',
+      description:
+          'Bake one or more shape-key drivers (each reading how far a '
+          'joint has turned about one axis) into one more weights track on '
+          'a clip, naming the shape-owning object — additive, so drivers '
+          'naming the same shape add rather than the second overwriting '
+          'the first.',
+      inputSchema: ObjectSchema(
+        properties: <String, Schema>{
+          'clipIndex': IntegerSchema(description: 'which clip, from list'),
+          'shapeTargetObjectId': IntegerSchema(
+            description: 'the object whose shape keys are driven',
+          ),
+          'drivers': ListSchema(
+            description: 'one or more drivers, combined additively',
+            items: ObjectSchema(
+              properties: <String, Schema>{
+                'shapeIndex': IntegerSchema(
+                  description: 'the shape key, from list',
+                ),
+                'jointId': IntegerSchema(description: 'the joint to read'),
+                'axis': UntitledSingleSelectEnumSchema(
+                  description: 'x (default), y or z',
+                  values: <String>['x', 'y', 'z'],
+                ),
+                'from': NumberSchema(
+                  description: 'the angle, in radians, that reads as 0',
+                ),
+                'to': NumberSchema(
+                  description: 'the angle, in radians, that reads as 1',
+                ),
+              },
+              required: <String>['shapeIndex', 'jointId', 'from', 'to'],
+            ),
+          ),
+        },
+        required: <String>['clipIndex', 'shapeTargetObjectId', 'drivers'],
+      ),
+    ),
+    _sync((ModelSession session, Map<String, Object?> arguments) {
+      final clipIndex = arguments['clipIndex'];
+      final shapeTargetObjectId = arguments['shapeTargetObjectId'];
+      final driversJson = arguments['drivers'];
+      if (clipIndex is! int ||
+          shapeTargetObjectId is! int ||
+          driversJson is! List) {
+        return (
+          did: false,
+          says:
+              'bakeDrivers needs "clipIndex", "shapeTargetObjectId" and '
+              '"drivers"',
+        );
+      }
+      return session.bakeDrivers(
+        clipIndex: clipIndex,
+        shapeTargetObjectId: shapeTargetObjectId,
+        drivers: <Map<String, Object?>>[
+          for (final d in driversJson) Map<String, Object?>.from(d! as Map),
+        ],
+      );
+    }),
+  ),
+  ModelTool(
+    Tool(
+      name: 'addShape',
+      description:
+          'Add a new shape key to an object, captured from the mesh\'s own '
+          'current vertex positions — the same command addShapeFromMesh '
+          'already offers, under the name the rig-pipeline scenario '
+          'knows it by. Sculpt the mesh first, then call this to save it '
+          'as a shape; it starts at weight 0.0.',
+      inputSchema: ObjectSchema(
+        properties: <String, Schema>{
+          'id': IntegerSchema(description: 'the object; needs an edited mesh'),
+          'shapeName': StringSchema(description: 'the new shape key\'s name'),
+        },
+        required: <String>['id', 'shapeName'],
+      ),
+    ),
+    _command('addShapeFromMesh'),
+  ),
+  ModelTool(
+    Tool(
+      name: 'validateRig',
+      description:
+          'Everything wrong with this project\'s skeletons and clips — '
+          'bone counts over budget, weights that do not sum to one, a '
+          'weight naming a joint that is not there, a joint no vertex '
+          'weighs to. Read-only, the rig-shaped half of what check already '
+          'covers for geometry and materials.',
+      inputSchema: ObjectSchema(),
+    ),
+    _sync(
+      (ModelSession session, Map<String, Object?> arguments) =>
+          (did: true, says: session.validateRig()),
     ),
   ),
 ];

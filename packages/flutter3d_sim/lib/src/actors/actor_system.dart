@@ -192,6 +192,7 @@ final class ActorSystem {
     Health? health,
     Brain? brain,
     Facing? facing,
+    String? name,
   }) {
     final entity = entities.spawn();
     if (body != null) entities.set(entity, Body(body));
@@ -199,12 +200,40 @@ final class ActorSystem {
     if (facing != null) entities.set(entity, facing);
     if (brain != null) entities.set(entity, Thinking(brain));
 
-    final actor = Actor(entities, entity)
+    final actor = Actor(entities, entity, name: name)
       ..onDamage = (double amount, Object? from) =>
           hurt(_handles[entity.index]!, amount, from: from);
     _handles[entity.index] = actor;
     body?.collider.userData = actor;
     return actor;
+  }
+
+  /// The actor a level document named [name], or null if none is spawned
+  /// and alive under it — the same lookup [MechanismWorld] already offers
+  /// for doors and switches, so a game can ask for a monster by name the
+  /// same way it asks for a mechanism by name.
+  Actor? byName(String name) {
+    for (final actor in actors) {
+      if (actor.name == name) return actor;
+    }
+    return null;
+  }
+
+  /// Every currently-live actor's name, by its entity index — `null` where
+  /// an index is unused or its actor was never named.
+  ///
+  /// The shape [remapEntitySave] asks for as `oldNames`/`newNames`: a save
+  /// taken before a level edit hands its own list to `oldNames`, and a
+  /// world re-staged from the edited level hands its to `newNames`, and
+  /// nothing else about either run needs to be read to remap one onto the
+  /// other.
+  List<String?> nameList() {
+    if (_handles.isEmpty) return const <String?>[];
+    var maxIndex = 0;
+    for (final index in _handles.keys) {
+      if (index > maxIndex) maxIndex = index;
+    }
+    return List<String?>.generate(maxIndex + 1, (i) => _handles[i]?.name);
   }
 
   /// Takes an actor out of the world entirely.

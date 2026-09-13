@@ -1,0 +1,11 @@
+# /etc/cloudflared/models.yml
+#
+# `<TUNNEL_ID>` is what `cloudflared tunnel create flutter3d-models` prints; the
+# credentials file of the same name is written beside it.
+tunnel: <TUNNEL_ID>
+credentials-file: /etc/cloudflared/<TUNNEL_ID>.json
+
+ingress:
+  - hostname: models.pleion.dev
+    service: http://127.0.0.1:8793
+  - service: http_status:404

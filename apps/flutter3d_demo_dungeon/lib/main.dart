@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:math' as math;
 
+import 'package:flutter/foundation.dart' show defaultTargetPlatform;
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
@@ -27,12 +28,24 @@ import 'src/hud.dart';
 import 'src/layers.dart';
 import 'src/reactions.dart';
 import 'src/run_cubit.dart';
+import 'src/run_terminal.dart';
 import 'src/shooter_keys.dart';
 import 'src/sounds.dart';
 import 'src/soundtrack.dart';
 import 'src/staging.dart';
 import 'src/touch_crypt.dart';
 import 'src/weapon_models.dart';
+
+/// Which build wrote a `.f3drun` — `Demo.buildStamp` is free text this
+/// package has no opinion on the shape of, and this application's opinion is
+/// "whatever the release process passes in, `dev` otherwise". A real release
+/// train sets `--dart-define=FLUTTER3D_BUILD_STAMP=<version>`; nothing here
+/// reads a package version at runtime, because that needs a plugin this
+/// application does not otherwise carry.
+const String _buildStamp = String.fromEnvironment(
+  'FLUTTER3D_BUILD_STAMP',
+  defaultValue: 'dev',
+);
 
 /// The game: five levels of a crypt, the things in them, and a run that
 /// carries what the player is holding from one to the next.
@@ -195,7 +208,12 @@ class _GameScreenState extends State<GameScreen>
   ///
   /// Built once and shared by the loader's validator and the spawner, so the
   /// two cannot disagree about what a level is allowed to contain.
-  final EntityRegistry _entityKinds = sampleRegistry();
+  final EntityRegistry _entityKinds = sampleRegistry(
+    // `wg-02`: `widget_surface` is a bridge word, not a shooter word — see
+    // `sampleRegistry`'s own doc for why it arrives through `extra` rather
+    // than as a new dependency of `flutter3d_game_shooter`.
+    extra: const <EntityKind>[WidgetSurfaceKind()],
+  );
 
   final ParticleSystem _particles = ParticleSystem(capacity: 3000);
 
@@ -327,6 +345,7 @@ class _GameScreenState extends State<GameScreen>
 
   MechanismWorld? get _mechanisms => _level?.staged.mechanisms;
   FixtureVisuals? get _fixtureVisuals => _level?.fixtureVisuals;
+  WidgetSurfaceVisuals? get _widgetSurfaces => _level?.widgetSurfaces;
 
   final Vector3 _eye = Vector3.zero();
   final Vector3 _target = Vector3.zero();
@@ -373,6 +392,14 @@ class _GameScreenState extends State<GameScreen>
     }
     _loop = GameLoop(input: _input, onStep: _step, drainLook: _drainLook)
       ..recorders.add(_rewind.recorder);
+    // `rp-02`: harmless where the VM service is off (a release build, or a
+    // debug run nobody attaches to) — `registerExtension` just adds an
+    // entry nothing ever asks for.
+    registerTimelineExtensions(
+      _timeline,
+      frameTimes: _frameTimes,
+      bugReport: _remoteBugReport,
+    );
 
     _view = RenderView(camera: _camera);
 
@@ -546,6 +573,11 @@ class _GameScreenState extends State<GameScreen>
         input: _input,
         inventory: startingInventory(),
         saves: SaveFile(appName: 'dungeon', onIssue: _sayIssue),
+        widgetRegistry: <String, WidgetBuilder>{
+          // `wg-02`'s first demo scene: a terminal on the crypt's own wall,
+          // echoing what `_effects.say` already tells the HUD.
+          'run-terminal': (context) => RunTerminal(log: _effects.log),
+        },
         eyeOffset: _eyeOffset,
         lookSensitivity: _lookSensitivity,
         device: device,
@@ -560,6 +592,11 @@ class _GameScreenState extends State<GameScreen>
   /// Where the run being recorded started, and in which level.
   Snapshot? _demoStart;
   String? _demoLevel;
+  String? _demoLevelHash;
+
+  /// A checkpoint every so many steps, taken live while the run is recorded
+  /// — `rp-01`'s reason a `.f3drun` can be verified rather than only watched.
+  DigestTrace? _demoCheckpoints;
 
   /// Starts writing the run down, from the state the level is in now.
   ///
@@ -570,6 +607,8 @@ class _GameScreenState extends State<GameScreen>
     final start = level.staged.sim.save();
     _demoStart = start;
     _demoLevel = asset;
+    _demoLevelHash = level.loaded.level.digestHex;
+    _demoCheckpoints = DigestTrace();
     // A kill camera still playing when the next level arrives — a restart
     // pressed through it — is over, and the level it was replaying is gone.
     _endKillcam(restorePresent: false);
@@ -660,6 +699,43 @@ class _GameScreenState extends State<GameScreen>
   /// buffer's own doc puts a number on.
   final RewindBuffer _rewind = RewindBuffer(stepsPerSecond: 60, history: 10.0);
 
+  /// `rp-02`'s door onto this run, over the VM service — see
+  /// `registerTimelineExtensions`. Reads `_sim` fresh on every call rather
+  /// than capturing it, the same way everything else in this file does,
+  /// because which simulation that getter answers changes every time a
+  /// level does.
+  late final RunTimeline _timeline = RunTimeline(
+    rewind: _rewind,
+    input: _input,
+    stepSim: (double dt) => _sim?.step(dt),
+    restore: (Snapshot snapshot) => _sim?.restore(snapshot),
+  );
+
+  /// `rp-06`: how long each step of `sim.step` cost, read back over the same
+  /// VM service `_timeline` is on.
+  final StepTimeTrace _frameTimes = StepTimeTrace();
+  int _frameTimeStep = 0;
+
+  /// `rp-04`'s "send this run", called remotely rather than from a button
+  /// this game draws itself — the last few seconds `_rewind` has kept, as
+  /// plain JSON. Null (and the extension answers with an error) when there
+  /// is nothing to report yet, the same case `bugReportTape` itself returns
+  /// null for.
+  Map<String, Object?> _remoteBugReport() {
+    final report = bugReportTape(_rewind);
+    if (report == null) {
+      throw StateError('nothing has been recorded yet');
+    }
+    return <String, Object?>{
+      'level': _demoLevel ?? 'unknown',
+      'levelHash': _demoLevelHash ?? '',
+      'start': report.start.toJson(),
+      'tape': report.tape.toJson(),
+      'buildStamp': _buildStamp,
+      'platform': defaultTargetPlatform.name,
+    };
+  }
+
   /// Stops the demo's recorder, leaving the rewind buffer's in place.
   InputTapeRecorder? _endRecording() {
     final recorder = _demoRecorder;
@@ -678,8 +754,26 @@ class _GameScreenState extends State<GameScreen>
     final recorder = _endRecording();
     final start = _demoStart;
     final level = _demoLevel;
-    if (recorder == null || start == null || level == null) return;
-    _demos?.write(Demo(level: level, start: start, tape: recorder.tape));
+    final levelHash = _demoLevelHash;
+    final checkpoints = _demoCheckpoints;
+    if (recorder == null ||
+        start == null ||
+        level == null ||
+        levelHash == null ||
+        checkpoints == null) {
+      return;
+    }
+    _demos?.write(
+      Demo(
+        level: level,
+        levelHash: levelHash,
+        start: start,
+        tape: recorder.tape,
+        buildStamp: _buildStamp,
+        checkpoints: checkpoints,
+        platform: defaultTargetPlatform.name,
+      ),
+    );
   }
 
   /// Everything the widget has to do when a level arrives.
@@ -893,6 +987,11 @@ class _GameScreenState extends State<GameScreen>
     // monster's stride depend on how far behind the machine is.
     _actorVisuals?.animate(dt);
     _fixtureVisuals?.sync(_frames.elapsed);
+    // `wg-02`: once a frame, fire-and-forget — `WidgetSurface.tick` uploads
+    // a texture only when its own pipeline is actually dirty, the same
+    // budget `wg-00` measured, so a terminal nobody wrote to this frame
+    // costs one boolean check.
+    unawaited(_widgetSurfaces?.tickAll());
     setState(() {});
   }
 
@@ -911,7 +1010,19 @@ class _GameScreenState extends State<GameScreen>
     // Before the step, so the keyframe is the state this step's recorded
     // entry acts on — the moment `RewindBuffer` and the loop agree about.
     if (_rewind.keyframeDue) _rewind.keyframe(sim.save());
-    sim.step(dt);
+    // `rp-06`: timed here rather than around the whole of `_step`, because
+    // this is the fixed-cost part a spike in monster count or a level's own
+    // geometry would show up in — the noise, the sparks and the flashes
+    // below run on the frame's own clock, not this one.
+    _frameTimes.record(++_frameTimeStep, () => sim.step(dt));
+    // The demo's own checkpoint, taken here rather than replayed later from
+    // the finished tape: recording it live is what a bug report's file needs
+    // to carry, and the step number is the recorder's own, so a later replay
+    // that steps the tape one entry at a time lands on the same numbering.
+    final demoRecorder = _demoRecorder;
+    if (demoRecorder != null) {
+      _demoCheckpoints?.observe(demoRecorder.tape.steps, sim.save().toJson());
+    }
     // Drained once, here, and handed to everything that wants it. Draining
     // empties the buffer, so two readers each draining would each get half of
     // what happened, and which half would depend on the order they ran in.

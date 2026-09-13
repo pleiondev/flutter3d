@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter3d/flutter3d.dart' hide Material;
 
 import 'stereo_rig.dart';
+import 'stereo_viewer.dart';
 
 /// The widget that draws a stereo pair and hands it to Flutter.
 ///
@@ -29,6 +30,8 @@ class StereoSurface extends StatelessWidget {
     required this.settings,
     required this.onBeforeFrame,
     this.verticalFieldOfView = 1.0,
+    this.viewer,
+    this.screen,
   });
 
   final Renderer renderer;
@@ -43,8 +46,27 @@ class StereoSurface extends StatelessWidget {
   /// The last thing before the frame: place the rig, advance the simulation.
   final VoidCallback onBeforeFrame;
 
-  /// What one eye sees vertically while no runtime has said otherwise.
+  /// What one eye sees vertically while no runtime has said otherwise, and
+  /// while no [viewer] is given.
   final double verticalFieldOfView;
+
+  /// The holder the phone is in, when it is in one.
+  ///
+  /// With a holder the frusta come from its lenses: off centre, wider away
+  /// from the nose, and taller above the lens axis than below. Without one
+  /// they are a centred pair as wide as half the surface, which is right for a
+  /// phone held in the hands and wrong the moment there is a lens in front of
+  /// it.
+  final StereoViewer? viewer;
+
+  /// How big the screen actually is, when a [viewer] is given.
+  ///
+  /// Left out, it is estimated from the surface's own size at 160 logical
+  /// pixels to the inch — see [StereoScreen.fromLogicalPixels] for how much of
+  /// an estimate that is. An application that knows the figure should pass it,
+  /// because the lens arithmetic is a ratio of two lengths and this is one of
+  /// them.
+  final StereoScreen? screen;
 
   @override
   Widget build(BuildContext context) {
@@ -56,11 +78,22 @@ class StereoSurface extends StatelessWidget {
         // halves to divide into.
         final width = (constraints.maxWidth * dpr).round().clamp(2, 8192);
         final height = (constraints.maxHeight * dpr).round().clamp(1, 8192);
-        rig.fitToViewport(
-          width: width,
-          height: height,
-          verticalFieldOfView: verticalFieldOfView,
-        );
+        if (viewer case final StereoViewer holder?) {
+          rig.applyViewer(
+            holder,
+            screen ??
+                StereoScreen.fromLogicalPixels(
+                  width: constraints.maxWidth,
+                  height: constraints.maxHeight,
+                ),
+          );
+        } else {
+          rig.fitToViewport(
+            width: width,
+            height: height,
+            verticalFieldOfView: verticalFieldOfView,
+          );
+        }
         final frame = renderer.render(
           width: width,
           height: height,

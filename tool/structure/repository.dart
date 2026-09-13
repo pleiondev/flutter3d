@@ -39,6 +39,7 @@ const List<String> applications = <String>[
   'flutter3d_editor',
   'flutter3d_modeler',
   'flutter3d_template_app',
+  'flutter3d_lesson_viewer',
 ];
 
 /// Packages that must run with no Flutter SDK anywhere near them, and what
@@ -59,15 +60,32 @@ const List<String> applications = <String>[
 /// is not here, because nothing has yet needed it to and a rule kept for
 /// nobody is a rule somebody eventually deletes.
 const Map<String, String> flatDartPackages = <String, String>{
+  'flutter3d_formats':
+      'a modeller\'s document layer, the tool an agent starts with `dart '
+      'run`, and a service that checks an uploaded asset all want to read a '
+      '`.glb` or a `.ktx2` with no window in front of them — `ap-01` in '
+      '`doc/asset-pipeline-plan.md` moved the KTX2 reader below `flutter3d` '
+      'for exactly this, splitting `vkFormat` from the `TextureFormat` '
+      'mapping that needs `flutter3d_hardware`\'s own Flutter dependency',
   'flutter3d_geometry':
       'a mesh is described here and drawn elsewhere: a modeller\'s document '
       'layer, the tool an agent starts with `dart run`, and this repository\'s '
       'own AOT benches all need to say `MeshData` with no window in front of '
       'them, which is what depending on `flutter3d` for it cost them',
+  'flutter3d_fbx':
+      '`fmt-29d`\'s own row: an FBX decoder is read by the same callers '
+      '`flutter3d_formats`\' own decoders are — a modeller\'s document layer, '
+      'a service checking an uploaded asset, the tool an agent starts with '
+      '`dart run` — none of which has a window in front of it',
   'flutter3d_mesh':
       'the mesh a modeller edits is a document before it is a picture: a bench '
       'compiled by `dart compile exe`, the tool an agent starts with `dart '
       'run`, and a test of a loop cut all hold one and none of them draws',
+  'flutter3d_particles_core':
+      '`pro-sim-02`\'s own row: `flutter3d_model_core`\'s '
+      '`BakeParticleSystemCommand` bakes a `ParticleSystem` into a cache from '
+      'a command line or a service with no window in front of it, the same '
+      'way `BakeRigidBodyCommand` already does through `flutter3d_physics`',
   'flutter3d_model_core':
       'a model is a document, and the programs that check, convert or drive '
       'one — an exporter on a command line, a service validating an upload, '
@@ -80,6 +98,15 @@ const Map<String, String> flatDartPackages = <String, String>{
   'flutter3d_sim':
       'a server replays a run through it, in a container with no '
       'Flutter SDK in it',
+  'flutter3d_lab':
+      'a server verifies a student\'s submitted lab run the same way it '
+      'verifies a game run — by replaying it, in a container with no '
+      'Flutter SDK in it',
+  'flutter3d_build':
+      '`hook/build.dart` is a separate process the Flutter tool starts with '
+      'no window and no Flutter SDK to resolve — `ap-00`\'s spike is the '
+      'reason this is stated as a fact rather than assumed: a hook that '
+      'named Flutter would not fail loudly, it would simply not start',
   'flutter3d_editor_core':
       'a level is a document, and the programs that check one — a linter, a '
       'service, a tool an agent speaks to — have no window',
@@ -96,6 +123,13 @@ const Map<String, String> genreRuleExempt = <String, String>{
   'flutter3d_game_platformer': 'it is a genre',
   'flutter3d_game_racing': 'it is a genre',
   'flutter3d_game_strategy': 'it is a genre',
+  // `ai-00`: an MCP server that plays one specific genre on purpose, unlike
+  // `flutter3d_editor_mcp`/`flutter3d_model_mcp`, which stay genre-agnostic
+  // because a document editor has no business knowing what a monster is.
+  // This one exists to let an agent walk the crypt, and the crypt is a
+  // shooter — nothing about its own tools could read "monster" or "weapon"
+  // without naming the genre they belong to.
+  'flutter3d_sim_mcp': 'it deliberately plays one genre, the shooter',
 };
 
 /// Which files of a genre package are allowed to reach a renderer.
@@ -194,9 +228,14 @@ const Map<String, String> notARepeatableStep = <String, String>{
   'flutter3d_conformance': 'a test suite for backends',
   'flutter3d_shaders': 'GLSL and a manifest',
   'flutter3d_samples': 'fixtures',
-  'flutter3d_particles':
-      'display: particles are drawn, never simulated in a '
-      'fixed step, and their emitters take the frame\'s delta',
+  'flutter3d_particles_core':
+      'display and preview, not a verified replay: `flutter3d_particles` '
+      'draws with the frame\'s own delta, and `flutter3d_model_core`\'s '
+      '`BakeParticleSystemCommand` steps it at a fixed `dt` only to fill a '
+      '`SimulationCache` a modeller scrubs locally — nothing here is a run a '
+      'server replays against a client\'s own answer the way `flutter3d_sim`\'s '
+      'is, so the platform\'s libm disagreeing with itself across machines has '
+      'nothing to fail',
   'flutter3d_testing': 'a test helper',
   'flutter3d_screens': 'screens, which run on the frame clock and say so',
   'flutter3d_session':
@@ -208,6 +247,12 @@ const Map<String, String> notARepeatableStep = <String, String>{
   'flutter3d_audio': 'display: a mix is recomputed once a frame',
   'pad_input': 'a device, read once a frame',
   'pointer_lock': 'a platform channel',
+  'flutter3d_build':
+      'a build-time tool, not a step: `dart run flutter3d:convert` reads a '
+      'wall clock to report how long a decode or an encode took a human '
+      'watching it run, the same way `step_time_trace.dart` does for a '
+      'step from outside it — there is no simulation here to replay, only '
+      'a CLI printing what it just measured',
 };
 
 /// Files inside a scanned package that are allowed to be unrepeatable, and why.
@@ -215,6 +260,12 @@ const Map<String, Map<String, String>> repeatableStepExempt =
     <String, Map<String, String>>{
       'flutter3d_sim': <String, String>{
         'lib/src/save/game_random.dart': 'it is the seeded generator',
+        'lib/src/save/step_time_trace.dart':
+            'a profiler observing a step from outside it, not a step: '
+            '`record` reads a `Stopwatch` to measure how long a caller\'s '
+            'step took and writes the answer into a trace nothing in the '
+            'simulation reads back, the same one-way relationship '
+            '`FrameTimingLog` already has with the render loop it watches',
       },
     };
 
@@ -322,6 +373,13 @@ goldenCountExempt = <String, Map<String, String>>{
     'thirty-two goldens did not':
         'the set on the day a flipped blit got past it',
   },
+  'packages/flutter3d/example/lib/src/spike/golden_store_io.dart':
+      <String, String>{
+        'so forty-three scenes meant':
+            'the size of the set on the day the dart-define build was '
+            'measured and abandoned; the megabytes and the count are both '
+            'about that afternoon',
+      },
   'tool/structure/rules.dart': <String, String>{
     '"thirty scenes" in `tool/ci.sh`':
         'the three wrong answers this rule was written for, quoted',
@@ -377,6 +435,9 @@ goldenCountExempt = <String, Map<String, String>>{
         'the six the third set found on the day it was recorded',
     'the three scenes that were': 'the three that were exactly zero',
     'Six scenes were in whole percents': 'the same six',
+    'While WebGPU had 42 of the 43 scenes recorded':
+        'the count as it stood on the branch that recorded WebGPU\'s set, '
+        'before mesh-overlay existed to make either number bigger',
   },
 };
 
@@ -788,6 +849,23 @@ boundaryEnumExempt = <String, Map<String, String>>{
         'countdown, running, finished. The lights, the race and the end of '
         'it, driven by this package',
   },
+  'flutter3d_sim_mcp/lib/src/playtest.dart': <String, String>{
+    'PlaytestOutcome':
+        'died, exited, stuck, or timed out — the four ways `Playtest.run`\'s '
+        'own loop can decide a playthrough is over, tied to the parameters '
+        '(`maxSteps`, `stuckAfter`) that same loop reads. Not content: a '
+        'fifth way to end would be a fifth branch in that loop, not a '
+        "monster or a weapon this package has never heard of",
+  },
+  'flutter3d_render_mcp/lib/src/diagnostic_renderer.dart': <String, String>{
+    'DiagnosticView':
+        'lit, normals, shadowMap, staticShadowMap — the four debug outputs '
+        '`RenderSettings` itself already knows how to produce. A fifth view '
+        'would need a fifth setting on that class before this package could '
+        'read it back at all; this enum only names what is already there, '
+        'the same reason `RenderSettings.showShadowMap` and its siblings are '
+        'booleans and not a growing list',
+  },
 };
 
 /// Whole packages whose enums are all machinery, and the one reason each time.
@@ -853,6 +931,14 @@ const Map<String, Map<String, String>> portableStepExempt =
             'answer is compared against the boxes on one machine and then '
             'thrown away, and the document only ever records which box was '
             'chosen',
+      },
+      'flutter3d_stereo': <String, String>{
+        'lib/src/stereo_viewer.dart':
+            'the frustum a holder lens gives an eye, worked out on the device '
+            'from the size of its own screen. A pose is stepped on; the shape '
+            'of the picture around it is not, and two phones disagreeing in '
+            'the last bit of a field of view change nothing a replay could '
+            'notice',
       },
       'flutter3d_game_racing': <String, String>{
         'lib/src/sky.dart': 'the colour of the sky',

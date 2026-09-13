@@ -154,17 +154,36 @@ final class OrderTapePlayback {
 /// missing field is refused rather than defaulted — a demo with no tape is not
 /// a demo of a match in which nobody did anything, it is a file that was not
 /// written all the way.
+///
+/// ## `rp-01`, written out a second time for the reason this file gives
+/// itself
+///
+/// [levelHash], [buildStamp] and [checkpoints] are `Demo`'s own answer to "is
+/// this still the match it claims to be, and can a replay of it be checked
+/// rather than only watched" — see `flutter3d_sim`'s `Demo` for the fuller
+/// argument. All three are required, the same strictness [tape] already had.
+/// [platform] and [recordedBy] are optional, the same as there.
 final class MatchDemo {
   /// A match played in [level], starting at [start], and everything asked for
   /// after that in [tape].
   const MatchDemo({
     required this.level,
+    required this.levelHash,
     required this.start,
     required this.tape,
+    required this.buildStamp,
+    required this.checkpoints,
+    this.platform,
+    this.recordedBy,
   });
 
   /// Bumped when an existing field changes meaning.
   static const int formatVersion = 1;
+
+  /// The extension a match is written under — the same one `Demo` uses,
+  /// because both are read the same way once opened: a `.f3drun` on disk, its
+  /// contents deciding which tape type reads it back.
+  static const String fileExtension = '.f3drun';
 
   /// The asset path of the map the match was played on.
   ///
@@ -173,6 +192,9 @@ final class MatchDemo {
   /// mean nothing, and the run that follows looks like a broken simulation
   /// rather than like the wrong file.
   final String level;
+
+  /// `contentDigestHex` of the map document this was recorded against.
+  final String levelHash;
 
   /// The state the tape starts from, dice and fog included.
   ///
@@ -184,14 +206,31 @@ final class MatchDemo {
   /// What was asked for, one entry per step.
   final OrderTape tape;
 
+  /// Which build wrote this file, free text — see `Demo.buildStamp`.
+  final String buildStamp;
+
+  /// A digest every so many steps, taken while this match was recorded.
+  final DigestTrace checkpoints;
+
+  /// Which platform recorded this, free text, or null when unknown.
+  final String? platform;
+
+  /// Who recorded it, or null for anonymous.
+  final String? recordedBy;
+
   /// How many steps the match lasted.
   int get steps => tape.steps;
 
   Map<String, Object?> toJson() => <String, Object?>{
     'version': formatVersion,
     'level': level,
+    'levelHash': levelHash,
     'run': start.toJson(),
     'tape': tape.toJson(),
+    'buildStamp': buildStamp,
+    'checkpoints': checkpoints.toJson(),
+    if (platform != null) 'platform': platform,
+    if (recordedBy != null) 'recordedBy': recordedBy,
   };
 
   /// Reads a demo, or throws a [DemoFormatException] that says why not.
@@ -209,12 +248,19 @@ final class MatchDemo {
     if (version > formatVersion) {
       throw DemoFormatException(
         'the match was recorded by a newer build (format $version, this build '
-        'reads $formatVersion)',
+        'reads $formatVersion) — update flutter3d to open it',
       );
     }
     final Object? level = json['level'];
     if (level is! String || level.isEmpty) {
       throw const DemoFormatException('the recording names no map');
+    }
+    final Object? levelHash = json['levelHash'];
+    if (levelHash is! String || levelHash.isEmpty) {
+      throw const DemoFormatException(
+        'the recording names no map hash, so it cannot say whether the map '
+        'has changed since it was recorded',
+      );
     }
     final Object? run = json['run'];
     if (run is! Map) {
@@ -226,16 +272,40 @@ final class MatchDemo {
         'the recording has no tape, so it was not written all the way',
       );
     }
+    final Object? buildStamp = json['buildStamp'];
+    if (buildStamp is! String || buildStamp.isEmpty) {
+      throw const DemoFormatException('the recording names no build stamp');
+    }
+    final Object? checkpoints = json['checkpoints'];
+    if (checkpoints is! Map) {
+      throw const DemoFormatException(
+        'the recording has no checkpoints, so a replay of it cannot be '
+        'verified',
+      );
+    }
     final Snapshot start;
     try {
       start = Snapshot.fromJson(run.cast<String, Object?>());
     } on SnapshotFormatException catch (error) {
       throw DemoFormatException('the starting state: ${error.message}');
     }
+    final DigestTrace trace;
+    try {
+      trace = DigestTrace.fromJson(checkpoints.cast<String, Object?>());
+    } on DigestTraceFormatException catch (error) {
+      throw DemoFormatException('the checkpoints: ${error.message}');
+    }
+    final Object? platform = json['platform'];
+    final Object? recordedBy = json['recordedBy'];
     return MatchDemo(
       level: level,
+      levelHash: levelHash,
       start: start,
       tape: OrderTape.fromJson(tape.cast<String, Object?>()),
+      buildStamp: buildStamp,
+      checkpoints: trace,
+      platform: platform is String ? platform : null,
+      recordedBy: recordedBy is String ? recordedBy : null,
     );
   }
 }

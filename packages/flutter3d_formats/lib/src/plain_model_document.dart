@@ -15,6 +15,14 @@ import 'model_document.dart';
 /// given and nothing a later change to that fallback could move underneath a
 /// test that never asked for it. A test of the fallback itself constructs
 /// [ModelDocument] some other way.
+///
+/// **A second, real use: rebuilding a document with one field changed.**
+/// `flutter3d_build`'s converter (`ap-07`) reads every field off a decoded
+/// document and rebuilds one with [images] alone re-encoded to a compressed
+/// format — every other decoder-specific override (a real node hierarchy, a
+/// skin) already resolved to a plain value by the time it is read, so
+/// copying the values rather than wrapping the original loses nothing and
+/// needs no decorator that forwards every current and future getter.
 final class PlainModelDocument extends ModelDocument {
   const PlainModelDocument({
     this.surfaces = const <ModelSurface>[],

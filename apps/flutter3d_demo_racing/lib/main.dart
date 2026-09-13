@@ -37,6 +37,7 @@ import 'src/ending.dart';
 import 'src/ghost_car.dart';
 import 'src/hud.dart';
 import 'src/looks.dart';
+import 'src/net_race_screen.dart';
 import 'src/race_cubit.dart';
 import 'src/race_readout.dart';
 import 'src/reactions.dart';
@@ -45,6 +46,16 @@ import 'src/sounds.dart';
 import 'src/staging.dart';
 import 'src/title_card.dart';
 import 'src/touch_drive.dart';
+
+/// `net-03`'s relay — `bin/relay.dart` in `flutter3d_net`, wherever one is
+/// actually running. Defaults to a loopback address because no relay ships
+/// deployed anywhere this game can name for itself; a real one is a
+/// `--dart-define=relay=ws://host:port/` away, the same override pattern
+/// `apps/flutter3d_editor`'s `kLevelPath` already uses for "something only
+/// the person launching this build knows".
+final Uri kRelayBase = Uri.parse(
+  const String.fromEnvironment('relay', defaultValue: 'ws://127.0.0.1:8199/'),
+);
 
 void main() {
   // **This game had none of it.** The other two locked to landscape and hid
@@ -1327,6 +1338,32 @@ class _RaceScreenState extends State<RaceScreen>
                 // this a handset read "touch to start the season" and had
                 // nothing that would.
                 onBegin: _begin,
+              ),
+            // `net-03`: the door into `NetRaceSession` — its own screen,
+            // not this one's render loop. Only offered before the season
+            // starts, the same visibility `TitleCard` already has, so a
+            // race in progress is never one stray tap away from being
+            // replaced by a different game entirely.
+            if (!_started && !_seasonIsOver)
+              Positioned(
+                left: 0,
+                right: 0,
+                bottom: 24.0,
+                child: Center(
+                  child: TextButton(
+                    onPressed: () => unawaited(
+                      Navigator.of(context).push(
+                        MaterialPageRoute<void>(
+                          builder: (_) => NetRaceScreen(relayBase: kRelayBase),
+                        ),
+                      ),
+                    ),
+                    child: const Text(
+                      'Race with a friend',
+                      style: TextStyle(color: Colors.white70),
+                    ),
+                  ),
+                ),
               ),
             SettingsOverlay(
               settings: _settings,

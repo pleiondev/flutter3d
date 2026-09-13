@@ -118,6 +118,7 @@ final class EnemyKind extends EntityKind {
         ),
         _ => Patrol(route: route, speed: speed),
       },
+      name: entity.name,
     );
 
     context.reveal(entity, collider: body.collider, size: size);

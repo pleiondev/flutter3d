@@ -34,6 +34,7 @@ import 'package:vector_math/vector_math.dart';
 
 import 'job.dart';
 import 'key_table.dart';
+import 'lod_spec.dart';
 import 'material.dart';
 import 'modifier_slot.dart';
 import 'param_hint.dart';
@@ -44,6 +45,8 @@ import 'project_animation.dart';
 import 'project_morphs.dart';
 import 'scene_lighting.dart';
 import 'selection.dart';
+import 'simulation_bake.dart';
+import 'simulation_cache.dart';
 import 'texture_bake.dart';
 import 'texture_graph.dart';
 import 'world_transform.dart';
@@ -52,14 +55,18 @@ part 'job_commands.dart';
 part 'joint_commands.dart';
 part 'keyframe_commands.dart';
 part 'lighting_commands.dart';
+part 'lod_commands.dart';
 part 'material_commands.dart';
 part 'mesh_commands.dart';
 part 'modifier_commands.dart';
 part 'object_commands.dart';
 part 'profile_commands.dart';
+part 'rig_job_commands.dart';
 part 'root_motion_commands.dart';
 part 'selection_commands.dart';
 part 'shape_commands.dart';
+part 'simulation_commands.dart';
+part 'texture_graph_commands.dart';
 part 'uv_commands.dart';
 
 /// What a command did.
@@ -481,6 +488,7 @@ const List<String> modelCommandNames = <String>[
   'addLight',
   'removeLight',
   'setLightField',
+  'setLightTransform',
   'setEnvironment',
   'setSceneLightingField',
   'addMaterial',
@@ -494,6 +502,12 @@ const List<String> modelCommandNames = <String>[
   'embedMaterial',
   'setMaterialGraph',
   'bakeTextureGraph',
+  'addNode',
+  'link',
+  'unlink',
+  'setNodeField',
+  'moveNode',
+  'removeNode',
   'addModifier',
   'setModifierField',
   'toggleModifier',
@@ -501,6 +515,8 @@ const List<String> modelCommandNames = <String>[
   'removeModifier',
   'applyModifier',
   'applyJobResult',
+  'applySimulationCache',
+  'bakeSimulationToShapes',
   'setProfileLimits',
   'setShapeWeight',
   'addShapeFromMesh',
@@ -525,6 +541,9 @@ const List<String> modelCommandNames = <String>[
   'addSkeleton',
   'bindSkin',
   'addClip',
+  'addLod',
+  'setLodRatio',
+  'regenerateLods',
 ];
 
 /// Reads a command back out of a journal, or null.
@@ -736,6 +755,13 @@ ModelCommand? modelCommandFromJson(Object? json) {
       ),
       _ => null,
     },
+    'setLightTransform' => switch ((json['index'], _doubles(json['to'], 16))) {
+      (final int index, final List<double> to) => SetLightTransform(
+        index: index,
+        to: Matrix4.fromList(to),
+      ),
+      _ => null,
+    },
     'setEnvironment' => switch (json['preset']) {
       final String preset => SetEnvironment(
         SceneEnvironmentPreset.values.firstWhere(
@@ -828,6 +854,85 @@ ModelCommand? modelCommandFromJson(Object? json) {
       ),
       _ => null,
     },
+    'addNode' => switch ((json['materialIndex'], json['kind'])) {
+      (final int materialIndex, final String kind) => AddNode(
+        materialIndex: materialIndex,
+        kind: kind,
+        fields: switch (json['fields']) {
+          final Map<String, Object?> fields => fields,
+          _ => const <String, Object?>{},
+        },
+        position: (
+          (json['x'] as num?)?.toDouble() ?? 0.0,
+          (json['y'] as num?)?.toDouble() ?? 0.0,
+        ),
+      ),
+      _ => null,
+    },
+    'link' => switch ((
+      json['materialIndex'],
+      json['nodeId'],
+      json['input'],
+      json['from'],
+    )) {
+      (
+        final int materialIndex,
+        final int nodeId,
+        final String input,
+        final int from,
+      ) =>
+        Link(materialIndex: materialIndex, nodeId: nodeId, input: input, from: from),
+      _ => null,
+    },
+    'unlink' => switch ((json['materialIndex'], json['nodeId'], json['input'])) {
+      (final int materialIndex, final int nodeId, final String input) => Unlink(
+        materialIndex: materialIndex,
+        nodeId: nodeId,
+        input: input,
+      ),
+      _ => null,
+    },
+    'setNodeField' => switch ((
+      json['materialIndex'],
+      json['nodeId'],
+      json['field'],
+    )) {
+      (final int materialIndex, final int nodeId, final String field) =>
+        SetNodeField(
+          materialIndex: materialIndex,
+          nodeId: nodeId,
+          field: field,
+          value: json['value'],
+        ),
+      _ => null,
+    },
+    'moveNode' => switch ((
+      json['materialIndex'],
+      json['nodeId'],
+      json['x'],
+      json['y'],
+    )) {
+      (
+        final int materialIndex,
+        final int nodeId,
+        final num x,
+        final num y,
+      ) =>
+        MoveNode(
+          materialIndex: materialIndex,
+          nodeId: nodeId,
+          x: x.toDouble(),
+          y: y.toDouble(),
+        ),
+      _ => null,
+    },
+    'removeNode' => switch ((json['materialIndex'], json['nodeId'])) {
+      (final int materialIndex, final int nodeId) => RemoveNode(
+        materialIndex: materialIndex,
+        nodeId: nodeId,
+      ),
+      _ => null,
+    },
     'addModifier' => switch ((json['id'], json['modifier'])) {
       (final int id, final Object? modifierJson) => switch (modifierFromJson(
         modifierJson,
@@ -877,6 +982,33 @@ ModelCommand? modelCommandFromJson(Object? json) {
           baseVersion: baseVersion,
           meshBytes: base64Decode(encoded),
         ),
+      _ => null,
+    },
+    'applySimulationCache' => switch ((
+      json['objectId'],
+      json['baseVersion'],
+      json['cache'],
+    )) {
+      (
+        final int objectId,
+        final int baseVersion,
+        final Map<String, Object?> cacheJson,
+      ) =>
+        switch (SimulationCache.fromJson(cacheJson)) {
+          final SimulationCache cache => ApplySimulationCache(
+            objectId: objectId,
+            baseVersion: baseVersion,
+            cache: cache,
+          ),
+          null => null,
+        },
+      _ => null,
+    },
+    'bakeSimulationToShapes' => switch (json['id']) {
+      final int id => BakeSimulationToShapes(
+        id: id,
+        maxKeys: json['maxKeys'] as int? ?? 8,
+      ),
       _ => null,
     },
     'setProfileLimits' => SetProfileLimits(
@@ -1106,6 +1238,26 @@ ModelCommand? modelCommandFromJson(Object? json) {
       _ => null,
     },
     'addClip' => AddClip(clipName: json['clipName'] as String?),
+    'addLod' => switch ((json['id'], json['ratio'], json['maxScreenFraction'])) {
+      (final int id, final num ratio, final num maxScreenFraction) => AddLod(
+        id: id,
+        ratio: ratio.toDouble(),
+        maxScreenFraction: maxScreenFraction.toDouble(),
+      ),
+      _ => null,
+    },
+    'setLodRatio' => switch ((json['id'], json['lodIndex'], json['ratio'])) {
+      (final int id, final int lodIndex, final num ratio) => SetLodRatio(
+        id: id,
+        lodIndex: lodIndex,
+        ratio: ratio.toDouble(),
+      ),
+      _ => null,
+    },
+    'regenerateLods' => switch (json['id']) {
+      final int id => RegenerateLods(id),
+      _ => null,
+    },
     _ => null,
   };
 }

@@ -93,6 +93,21 @@ Future<PickedFile?> openModel() async {
   return PickedFile(name: name, bytes: embedGltfSiblings(bytes, siblings));
 }
 
+/// Asks for an image and reads it, for a material's texture slot.
+///
+/// Null when the person dismissed the picker — `mat-04a-n`'s own "Choose…"
+/// button.
+Future<PickedFile?> openImage() async {
+  final byName = await _pickFiles(
+    web.HTMLInputElement()
+      ..type = 'file'
+      ..accept = '.png,.jpg,.jpeg',
+  );
+  if (byName.isEmpty) return null;
+  final name = byName.keys.single;
+  return PickedFile(name: name, bytes: byName.values.single);
+}
+
 /// Hands [bytes] to the browser as a download named [suggestedName].
 Future<SaveResult> saveAs(
   Uint8List bytes, {

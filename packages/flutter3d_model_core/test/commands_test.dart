@@ -2380,6 +2380,7 @@ void main() {
         const AddLight(type: ProjectLightType.point),
         const RemoveLight(0),
         const SetLightField(index: 0, field: 'intensity', value: 2.0),
+        SetLightTransform(index: 0, to: Matrix4.identity()),
         const SetEnvironment(SceneEnvironmentPreset.daylight),
         const SetSceneLightingField(field: 'exposure', value: 2.0),
         const AddMaterial(materialName: 'brass'),
@@ -2410,6 +2411,24 @@ void main() {
           ),
         ),
         const BakeTextureGraph(materialIndex: 0, size: 64),
+        AddNode(
+          materialIndex: 0,
+          kind: 'color',
+          fields: <String, Object?>{
+            'value': <double>[1, 1, 1, 1],
+          },
+          position: (12, 34),
+        ),
+        const Link(materialIndex: 0, nodeId: 2, input: 'result', from: 1),
+        const Unlink(materialIndex: 0, nodeId: 2, input: 'result'),
+        const SetNodeField(
+          materialIndex: 0,
+          nodeId: 1,
+          field: 'value',
+          value: <double>[0, 1, 0, 1],
+        ),
+        const MoveNode(materialIndex: 0, nodeId: 1, x: 5, y: 6),
+        const RemoveNode(materialIndex: 0, nodeId: 1),
         AddModifier(
           id: 1,
           modifier: ArrayModifier(count: 2, offset: Vector3(1, 0, 0)),
@@ -2424,6 +2443,17 @@ void main() {
           baseVersion: 1,
           meshBytes: Uint8List.fromList(<int>[1, 2, 3]),
         ),
+        ApplySimulationCache(
+          objectId: 1,
+          baseVersion: 1,
+          cache: SimulationCache(
+            vertexCount: 1,
+            frames: <Float32List>[
+              Float32List.fromList(<double>[1, 2, 3]),
+            ],
+          ),
+        ),
+        const BakeSimulationToShapes(id: 1, maxKeys: 4),
         const SetProfileLimits(maxJoints: 32, maxInfluences: 2),
         const SetShapeWeight(id: 1, shapeIndex: 0, weight: 0.5),
         const AddShapeFromMesh(id: 1, shapeName: 'smile'),
@@ -2474,6 +2504,9 @@ void main() {
         const AddSkeleton(skeletonName: 'rig'),
         const BindSkin(objectId: 1, skeletonIndex: 0),
         const AddClip(clipName: 'idle'),
+        const AddLod(id: 1, ratio: 0.5, maxScreenFraction: 0.3),
+        const SetLodRatio(id: 1, lodIndex: 0, ratio: 0.25),
+        const RegenerateLods(1),
       ];
 
       // Every name has a sample, which is what stops a command being added to
@@ -3028,6 +3061,78 @@ void main() {
     // journal group above.
   });
 
+  group('ApplySimulationCache', () {
+    SimulationCache cacheOf(int frames) => SimulationCache(
+      vertexCount: 2,
+      frames: <Float32List>[
+        for (var i = 0; i < frames; i++)
+          Float32List.fromList(<double>[i.toDouble(), 0, 0, 0, 0, 0]),
+      ],
+    );
+
+    test('writes the bake\'s own cache in when the version still matches', () {
+      final history = edited();
+      final before = history.project[1]!;
+      final cache = cacheOf(3);
+
+      expect(
+        history.run(
+          ApplySimulationCache(
+            objectId: 1,
+            baseVersion: before.version,
+            cache: cache,
+          ),
+        ),
+        isNull,
+      );
+
+      final after = history.project[1]!;
+      // Mutation: keep the object's own simulationCache as null (or as
+      // whatever it was before) instead of writing the bake's — a bake that
+      // never reaches the document is indistinguishable from one that
+      // silently failed.
+      expect(after.simulationCache, isNotNull);
+      expect(after.simulationCache!.frameCount, 3);
+      expect(after.simulationCache!.vertexCount, 2);
+    });
+
+    test('refuses a cache whose baseVersion is stale', () {
+      final history = edited();
+      final before = history.project[1]!;
+      // The object changes after the (imagined) bake started.
+      history.run(const Rename(id: 1, to: 'renamed'));
+
+      final refusal = history.run(
+        ApplySimulationCache(
+          objectId: 1,
+          baseVersion: before.version,
+          cache: cacheOf(3),
+        ),
+      );
+
+      // Mutation: compare against the *new* version instead of the one the
+      // bake actually started from, or skip the check outright — either lets
+      // a stale bake silently overwrite an edit that happened while it ran.
+      expect(refusal, contains('changed since this bake started'));
+      expect(history.project[1]!.name, 'renamed');
+      expect(history.project[1]!.simulationCache, isNull);
+    });
+
+    test('refuses an object that no longer exists', () {
+      final history = edited();
+      expect(
+        history.run(
+          ApplySimulationCache(objectId: 99, baseVersion: 1, cache: cacheOf(1)),
+        ),
+        contains('no object 99'),
+      );
+    });
+
+    // JSON round-tripping is covered once, for every command including this
+    // one, by "every name has a sample and round-trips through JSON" in the
+    // journal group above.
+  });
+
   group('shape keys', () {
     test('AddShapeFromMesh captures the current mesh, at weight zero', () {
       final history = edited();
@@ -3145,6 +3250,137 @@ void main() {
         // shifted down one slot rather than reading each other's.
         expect(out[0], closeTo(0.1, 1e-6));
         expect(out[1], closeTo(0.3, 1e-6));
+      },
+    );
+  });
+
+  group('levels of detail', () {
+    test('AddLod appends a level, refusing a bad ratio or fraction', () {
+      final history = edited();
+      expect(
+        history.run(const AddLod(id: 1, ratio: 0.5, maxScreenFraction: 0.3)),
+        isNull,
+      );
+      expect(history.project[1]!.lods, hasLength(1));
+      expect(history.project[1]!.lods.single.ratio, 0.5);
+      expect(history.project[1]!.lods.single.maxScreenFraction, 0.3);
+
+      expect(
+        history.run(const AddLod(id: 1, ratio: 0.0, maxScreenFraction: 0.3)),
+        isNotNull,
+      );
+      expect(
+        history.run(const AddLod(id: 1, ratio: 1.5, maxScreenFraction: 0.3)),
+        isNotNull,
+      );
+      expect(
+        history.run(const AddLod(id: 1, ratio: 0.5, maxScreenFraction: 0.0)),
+        isNotNull,
+      );
+      // The refusals above did not sneak a second level in.
+      expect(history.project[1]!.lods, hasLength(1));
+
+      history.undo();
+      expect(history.project[1]!.lods, isEmpty);
+    });
+
+    test(
+      'SetLodRatio changes one level\'s ratio, refusing an unknown index',
+      () {
+        final history = edited();
+        history.run(const AddLod(id: 1, ratio: 0.5, maxScreenFraction: 0.3));
+        history.run(const AddLod(id: 1, ratio: 0.25, maxScreenFraction: 0.1));
+
+        expect(
+          history.run(const SetLodRatio(id: 1, lodIndex: 1, ratio: 0.1)),
+          isNull,
+        );
+        expect(history.project[1]!.lods[0].ratio, 0.5);
+        expect(history.project[1]!.lods[1].ratio, 0.1);
+        // The threshold is untouched by a ratio change.
+        expect(history.project[1]!.lods[1].maxScreenFraction, 0.1);
+
+        expect(
+          history.run(const SetLodRatio(id: 1, lodIndex: 5, ratio: 0.1)),
+          isNotNull,
+        );
+        expect(
+          history.run(const SetLodRatio(id: 1, lodIndex: 0, ratio: 0.0)),
+          isNotNull,
+        );
+
+        history.undo();
+        expect(history.project[1]!.lods[1].ratio, 0.25);
+      },
+    );
+
+    test(
+      'RegenerateLods bumps the object\'s version without touching its LODs, '
+      'refusing an object with none',
+      () {
+        final history = edited();
+        history.run(const AddLod(id: 1, ratio: 0.5, maxScreenFraction: 0.3));
+        final beforeVersion = history.project[1]!.version;
+        final beforeLods = history.project[1]!.lods;
+
+        expect(history.run(const RegenerateLods(1)), isNull);
+        expect(history.project[1]!.version, beforeVersion + 1);
+        expect(history.project[1]!.lods, hasLength(1));
+        expect(history.project[1]!.lods.single.ratio, beforeLods.single.ratio);
+        expect(
+          history.project[1]!.lods.single.maxScreenFraction,
+          beforeLods.single.maxScreenFraction,
+        );
+
+        history.undo();
+        expect(history.project[1]!.version, beforeVersion);
+
+        final bare = edited();
+        expect(bare.run(const RegenerateLods(1)), isNotNull);
+      },
+    );
+
+    test('LodMeshCache regenerates once the base mesh\'s own version moves', () {
+      final history = edited();
+      history.run(const AddLod(id: 1, ratio: 0.5, maxScreenFraction: 0.3));
+      final cache = LodMeshCache();
+
+      final object = history.project[1]!;
+      final firstMesh = cache.meshFor(object, 0);
+      expect(firstMesh, isNotNull);
+      // Asking again for the same version hands back the very same mesh —
+      // proof this came from the cache rather than a second simplify pass.
+      expect(identical(cache.meshFor(object, 0), firstMesh), isTrue);
+
+      // Editing the base mesh — an extrude, which both changes the topology
+      // and bumps `ModelObject.version` — must not leave the cache serving
+      // the mesh it built for the shape before the edit.
+      history.selection = faces(history, <int>[0]);
+      history.run(const Extrude(0.5));
+      final editedObject = history.project[1]!;
+      expect(editedObject.version, greaterThan(object.version));
+
+      final secondMesh = cache.meshFor(editedObject, 0);
+      expect(secondMesh, isNotNull);
+      expect(identical(secondMesh, firstMesh), isFalse);
+    });
+
+    test(
+      'LodMeshCache.invalidate forces a fresh mesh regardless of version — '
+      'RegenerateLods\'s own reason for existing',
+      () {
+        final history = edited();
+        history.run(const AddLod(id: 1, ratio: 0.5, maxScreenFraction: 0.3));
+        final cache = LodMeshCache();
+        final object = history.project[1]!;
+
+        final firstMesh = cache.meshFor(object, 0);
+        cache.invalidate(object.id);
+        // Same object, same version — an ordinary cache would answer with
+        // `firstMesh` again; `invalidate` says the algorithm itself changed
+        // underneath it, so a plain version match is not enough this once.
+        final secondMesh = cache.meshFor(object, 0);
+        expect(identical(secondMesh, firstMesh), isFalse);
       },
     );
   });

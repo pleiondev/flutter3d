@@ -245,6 +245,27 @@ final class StateDigest {
   static final ByteData _scratch = ByteData(8);
 }
 
+/// A JSON document's content as an eight-digit hex digest — [StateDigest]
+/// over the document itself.
+///
+/// What `Level.digestHex` is built from, and what any other genre's own level
+/// format — a `TrackDocument`, a match's own map — can be hashed the same way
+/// with, since every one of them already has a `toJson()` and this package
+/// has no reason to know the rest of their shape. A `.f3drun`'s `levelHash`
+/// compares this, whatever document type recorded it.
+String contentDigestHex(Map<String, Object?> json) =>
+    StateDigest.of(json).toRadixString(16).padLeft(8, '0');
+
+/// Thrown when a [DigestTrace] cannot be read back at all.
+final class DigestTraceFormatException implements Exception {
+  const DigestTraceFormatException(this.message);
+
+  final String message;
+
+  @override
+  String toString() => 'DigestTraceFormatException: $message';
+}
+
 /// Where two runs of the same tape parted company.
 final class Divergence {
   const Divergence({
@@ -291,7 +312,16 @@ final class Divergence {
 /// before.
 final class DigestTrace {
   DigestTrace({this.every = 25})
-    : assert(every > 0, 'a checkpoint every no steps is no checkpoints');
+    : _steps = <int>[],
+      _digests = <int>[],
+      assert(every > 0, 'a checkpoint every no steps is no checkpoints');
+
+  /// Rebuilds a trace already computed elsewhere — a `.f3drun`'s recorded
+  /// checkpoints, read back rather than played. [steps] and [digests] must be
+  /// the same length; nothing here re-derives one from the tape, because a
+  /// trace read off a file is exactly the trace [divergenceFrom] is for
+  /// comparing a fresh one against.
+  DigestTrace._parts(this.every, this._steps, this._digests);
 
   /// How many steps pass between checkpoints.
   ///
@@ -301,8 +331,8 @@ final class DigestTrace {
   /// that a divergence is bracketed to under half a second of play.
   final int every;
 
-  final List<int> _steps = <int>[];
-  final List<int> _digests = <int>[];
+  final List<int> _steps;
+  final List<int> _digests;
 
   /// The step numbers checkpointed, in order.
   List<int> get steps => List<int>.unmodifiable(_steps);
@@ -314,6 +344,57 @@ final class DigestTrace {
   List<String> get hexDigests => <String>[
     for (final digest in _digests) digest.toRadixString(16).padLeft(8, '0'),
   ];
+
+  /// Writes this trace down — `every`, the checkpointed steps, and their
+  /// digests as hex — the shape a `.f3drun`'s `checkpoints` field holds.
+  Map<String, Object?> toJson() => <String, Object?>{
+    'every': every,
+    'steps': List<int>.of(_steps),
+    'digests': hexDigests,
+  };
+
+  /// Reads a trace back, or throws a [DigestTraceFormatException] that says
+  /// why not.
+  factory DigestTrace.fromJson(Map<String, Object?> json) {
+    final every = json['every'];
+    if (every is! num || every <= 0) {
+      throw const DigestTraceFormatException(
+        'a checkpoint every no steps is no checkpoints',
+      );
+    }
+    final rawSteps = json['steps'];
+    final rawDigests = json['digests'];
+    if (rawSteps is! List || rawDigests is! List) {
+      throw const DigestTraceFormatException(
+        'the trace has no steps or no digests',
+      );
+    }
+    if (rawSteps.length != rawDigests.length) {
+      throw const DigestTraceFormatException(
+        'the trace has a different number of steps and digests',
+      );
+    }
+    final steps = <int>[];
+    final digests = <int>[];
+    for (var i = 0; i < rawSteps.length; i++) {
+      final step = rawSteps[i];
+      final digest = rawDigests[i];
+      if (step is! num || digest is! String) {
+        throw const DigestTraceFormatException(
+          'a checkpoint is a step number and a hexadecimal digest',
+        );
+      }
+      final parsed = int.tryParse(digest, radix: 16);
+      if (parsed == null) {
+        throw DigestTraceFormatException(
+          '"$digest" is not a hexadecimal digest',
+        );
+      }
+      steps.add(step.toInt());
+      digests.add(parsed);
+    }
+    return DigestTrace._parts(every.toInt(), steps, digests);
+  }
 
   /// Takes a checkpoint if [step] is one, and does nothing if it is not.
   ///

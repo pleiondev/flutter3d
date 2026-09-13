@@ -14,6 +14,8 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 
+import '../../l10n/app_localizations.dart';
+
 /// What the person chose, or null from [showStartScreen] when they backed
 /// out without picking anything.
 sealed class StartChoice {
@@ -69,8 +71,9 @@ class _StartScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final l10n = AppLocalizations.of(context);
     return AlertDialog(
-      title: const Text('Start'),
+      title: Text(l10n.startTitle),
       content: SizedBox(
         width: 420,
         child: Column(
@@ -80,25 +83,23 @@ class _StartScreen extends StatelessWidget {
             ListTile(
               contentPadding: EdgeInsets.zero,
               leading: const Icon(Icons.folder_open_outlined),
-              title: const Text('Open file'),
-              onTap: () =>
-                  Navigator.of(context).pop(const OpenFileChoice()),
+              title: Text(l10n.openFile),
+              onTap: () => Navigator.of(context).pop(const OpenFileChoice()),
             ),
             const Divider(height: 1),
             const SizedBox(height: 8),
-            Text('New project', style: theme.textTheme.labelMedium),
+            Text(l10n.newProject, style: theme.textTheme.labelMedium),
             for (final ProjectProfile profile in kStartProfiles)
               ListTile(
                 contentPadding: EdgeInsets.zero,
                 leading: const Icon(Icons.add_box_outlined),
                 title: Text(profile.name),
-                onTap: () => Navigator.of(
-                  context,
-                ).pop(NewProjectChoice(profile)),
+                onTap: () =>
+                    Navigator.of(context).pop(NewProjectChoice(profile)),
               ),
             if (recentPaths.isNotEmpty) ...<Widget>[
               const SizedBox(height: 8),
-              Text('Recent', style: theme.textTheme.labelMedium),
+              Text(l10n.recent, style: theme.textTheme.labelMedium),
               Flexible(
                 child: ListView(
                   shrinkWrap: true,
@@ -117,9 +118,8 @@ class _StartScreen extends StatelessWidget {
                           overflow: TextOverflow.ellipsis,
                           style: theme.textTheme.bodySmall,
                         ),
-                        onTap: () => Navigator.of(
-                          context,
-                        ).pop(OpenRecentChoice(path)),
+                        onTap: () =>
+                            Navigator.of(context).pop(OpenRecentChoice(path)),
                       ),
                   ],
                 ),
@@ -131,7 +131,7 @@ class _StartScreen extends StatelessWidget {
       actions: <Widget>[
         TextButton(
           onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Cancel'),
+          child: Text(l10n.cancel),
         ),
       ],
     );

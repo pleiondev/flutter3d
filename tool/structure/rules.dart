@@ -1518,6 +1518,16 @@ List<Finding> _testCount() {
     'thirty-eight',
     'thirty-nine',
     'forty',
+    // And the day `flutter3d_rig` became the forty-first.
+    'forty-one',
+    // And the day `flutter3d_render_job` became the forty-second.
+    'forty-two',
+    // And the day `flutter3d_fbx` became the forty-third.
+    'forty-three',
+    // And the day `flutter3d_particles_core` became the forty-fourth.
+    'forty-four',
+    // And the day `flutter3d_lab` became the forty-fifth.
+    'forty-five',
   ];
   final readme = File('${root.path}/README.md').readAsStringSync();
   final saidInProse = RegExp(

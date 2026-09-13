@@ -611,9 +611,24 @@ final class OutputTextureNode extends TextureNode {
 
 /// An immutable network of [TextureNode]s.
 final class TextureGraph {
-  const TextureGraph({this.nodes = const <TextureNode>[]});
+  const TextureGraph({
+    this.nodes = const <TextureNode>[],
+    this.positions = const <int, (double, double)>{},
+  });
 
   final List<TextureNode> nodes;
+
+  /// Where `TextureGraphPanel` (`mat-13`) draws each node, by id — an (x, y)
+  /// pair in the panel's own canvas space.
+  ///
+  /// **Presentation only.** Neither [validate] nor `bakeTextureGraph` reads
+  /// this: two graphs that differ only in where their nodes are drawn bake to
+  /// the same pixels, the same way two `ModelObject`s that differ only in
+  /// which order the outliner happens to list them render the same scene. A
+  /// node with no entry here is one `TextureGraphPanel` has never been told
+  /// where to put — laid out however the panel's own default placement does,
+  /// not treated as a graph a decoder failed to read.
+  final Map<int, (double x, double y)> positions;
 
   /// The node with this id, or null when nothing in [nodes] has it.
   TextureNode? nodeById(int id) {
@@ -693,6 +708,15 @@ final class TextureGraph {
       for (final node in nodes)
         <String, Object?>{'id': node.id, 'kind': node.kind, ...node.toJson()},
     ],
+    // Omitted rather than written empty, so a graph nothing has ever
+    // positioned round-trips to exactly the JSON it would have before
+    // `positions` existed — the same "silent unless there is something to
+    // say" shape `LinkMaterialFile`'s own optional `bytes` already keeps.
+    if (positions.isNotEmpty)
+      'positions': <String, Object?>{
+        for (final entry in positions.entries)
+          '${entry.key}': <double>[entry.value.$1, entry.value.$2],
+      },
   };
 
   static TextureGraph fromJson(Map<String, Object?> json) {
@@ -700,11 +724,19 @@ final class TextureGraph {
       final List<Object?> value => value,
       _ => throw const FormatException('a texture graph with no "nodes" list'),
     };
+    final positionsJson = json['positions'];
     return TextureGraph(
       nodes: <TextureNode>[
         for (final entry in entries)
           TextureNode.fromJson(entry! as Map<String, Object?>),
       ],
+      positions: <int, (double, double)>{
+        if (positionsJson is Map<String, Object?>)
+          for (final entry in positionsJson.entries)
+            if (int.tryParse(entry.key) case final int id)
+              if (entry.value case final List<Object?> xy when xy.length == 2)
+                id: ((xy[0]! as num).toDouble(), (xy[1]! as num).toDouble()),
+      },
     );
   }
 }

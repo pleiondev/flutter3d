@@ -111,6 +111,18 @@ final class TransformModal {
   /// Whether the snap modifier is held.
   bool snapping = false;
 
+  /// The exact amount `view-26n`'s geometry search wants applied instead of
+  /// whatever the pointer or the grid would give, or null when nothing is in
+  /// reach right now.
+  ///
+  /// **Still just a number, so this file still owes nothing to a mesh.** The
+  /// caller with a `MeshPicker` and a scene works out that some other object's
+  /// vertex sits within reach of where the drag currently wants to go, turns
+  /// that into "the active element should move by exactly this much instead",
+  /// and hands over the one [Vector3] that says so — leaving the arithmetic
+  /// below exactly as ignorant of triangles as [dragged] already is.
+  Vector3? geometrySnapDelta;
+
   /// How coarse a snap is, per kind.
   ///
   /// A tenth of a unit, fifteen degrees and a tenth of a factor: the three
@@ -162,8 +174,16 @@ final class TransformModal {
   /// able to type one: `G X 5` is five, however far the mouse went. With no
   /// constraint a typed number goes along X, because a number with no axis has
   /// to mean something and the first axis is what every modeller picks.
+  ///
+  /// Next after a typed number is [geometrySnapDelta], when there is one: a
+  /// vertex found within reach of somebody else's geometry has an exact
+  /// position to land on, and rounding that to the nearest tenth of a metre
+  /// afterwards — or clamping it to whatever [axis] is confined to — would
+  /// turn "matches it byte for byte" back into "close to it".
   Vector3 get amount {
     final double? said = typedValue;
+    final Vector3? snapped = said == null ? geometrySnapDelta : null;
+    if (snapped != null) return Vector3.copy(snapped);
     final Vector3 raw = said == null
         ? Vector3.copy(dragged)
         : switch (axis) {
@@ -182,6 +202,25 @@ final class TransformModal {
       TransformKind.scale => scaleStep,
     };
     return Vector3(_snap(raw.x, step), _snap(raw.y, step), _snap(raw.z, step));
+  }
+
+  /// What [amount] would be with no snap of either kind and no typed number —
+  /// [dragged], confined by [axis] and nothing else.
+  ///
+  /// **What a geometry search aims with.** Finding out whether some other
+  /// object's vertex is within reach needs to know where the pointer alone is
+  /// asking the drag to go *before* anything rounds that answer — asking with
+  /// [amount] itself would search around wherever last frame's grid-snap or
+  /// geometry-snap left off rather than around the pointer, which is a search
+  /// that cannot escape a target once it has found one even when the hand
+  /// keeps moving away from it.
+  Vector3 get pointerAmount {
+    final Vector3 raw = Vector3.copy(dragged);
+    final allows = axis.allows;
+    if (!allows.x) raw.x = 0;
+    if (!allows.y) raw.y = 0;
+    if (!allows.z) raw.z = 0;
+    return raw;
   }
 
   static double _snap(double value, double step) =>

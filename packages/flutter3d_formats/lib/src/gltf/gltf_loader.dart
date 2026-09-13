@@ -37,11 +37,13 @@ part 'gltf_loader_skins.dart';
 /// `ModelSkin` and the skinned vertex stage, and a channel becomes an
 /// `AnimationClip` an `AnimationPlayer` runs.
 ///
-/// **Morph targets are the third**, and are genuinely absent: a primitive's
-/// `targets` are read past, so a mesh with them loads its base shape and is
-/// drawn unmoved. That is reported through [GltfAsset.warnings] like every
-/// other non-fatal gap — it was not, and a model that loaded "fine" and simply
-/// never changed shape is the sort of thing somebody chases in the wrong file.
+/// **Morph targets are the third**, and this paragraph also used to say they
+/// were read past and dropped. A primitive's `targets` become
+/// [MeshData.morphTargets], its `extras.targetNames` become their names, and
+/// a target with no `POSITION` — legal glTF, meaning "morphs only normals",
+/// which nothing here blends — is skipped with a warning through
+/// [GltfAsset.warnings] rather than silently, the same channel every other
+/// non-fatal gap in this loader already reports through.
 ///
 /// Compressed extensions (`KHR_draco_mesh_compression`, `EXT_meshopt_compression`)
 /// are not supported and are reported through [GltfAsset.warnings] rather than

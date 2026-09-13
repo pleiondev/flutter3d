@@ -126,6 +126,29 @@ String? emptyDecodeRefusal(ModelDocument document, String name) {
       'no nodes came out of it.';
 }
 
+/// Whether [name] paired with [bytes] is even worth handing to [openBytes] —
+/// `ui-31n`'s own guard on a dropped file.
+///
+/// **A picker never has to ask this.** `openModel`'s own file dialogue only
+/// ever offers the extensions it was built with, so `_openFile` hands
+/// whatever comes back straight to [openBytes]. A drop can carry anything the
+/// desktop or the browser lets somebody drag onto the window, and for a name
+/// [recognizedModelFormat] does not know, [openBytes] would fall back to
+/// [sniffModelFormat] — which is right for a `.glb` a person renamed and wrong
+/// for a `.dae` or a spreadsheet, both of which would otherwise be read as
+/// whichever format the first few bytes happen to resemble.
+/// [recognizedModelFormat]'s own doc comment names this exact caller.
+///
+/// Null when the file is worth opening; a sentence for the status line
+/// otherwise. [isProjectFile] is asked first, since a saved project's own
+/// extension is whatever a person renamed it to, and is never in
+/// [recognizedModelFormat]'s list.
+String? unopenableDropRefusal(String name, Uint8List bytes) {
+  if (isProjectFile(bytes)) return null;
+  if (recognizedModelFormat(name) != null) return null;
+  return '$name: not a file type this build can open';
+}
+
 /// A model whose bytes are already in memory.
 ///
 /// Both halves of `ProjectFiles` hand over bytes rather than a path — a browser

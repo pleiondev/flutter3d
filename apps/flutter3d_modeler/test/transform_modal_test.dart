@@ -161,6 +161,58 @@ void main() {
     });
   });
 
+  group('view-26n geometry snap', () {
+    test('an exact delta wins over the grid, bit for bit', () {
+      final modal = dragged(Vector3(0.34, -0.06, 1.27))
+        ..snapping = true
+        ..geometrySnapDelta = Vector3(1.23456789, -2.3456789, 0.0);
+
+      // Not `closeTo`: the whole point of `view-26n`'s acceptance is that the
+      // dragged element lands on the target's own numbers, not near them.
+      // Mutation: fall through to the grid-snapped value regardless, and this
+      // is the test that tells the two apart — grid-snapping either number
+      // gives a different tenth than the one handed in.
+      expect(modal.amount, Vector3(1.23456789, -2.3456789, 0.0));
+    });
+
+    test('the axis constraint is not applied on top of it', () {
+      // A geometry snap already answers "where should this land", which can
+      // disagree with whatever axis a hand happens to still be holding down —
+      // the target is not obliged to sit on that line. Zeroing the components
+      // `axis` disallows would turn an exact match back into an approximate
+      // one for no reason a person watching the vertex land exactly on its
+      // target would understand.
+      final modal = dragged(Vector3.zero())
+        ..axis = TransformAxis.x
+        ..geometrySnapDelta = Vector3(1.0, 2.0, 3.0);
+
+      expect(modal.amount, Vector3(1.0, 2.0, 3.0));
+    });
+
+    test('a typed number still wins over it', () {
+      final modal = dragged(Vector3.zero())
+        ..geometrySnapDelta = Vector3(9, 9, 9)
+        ..type('4');
+
+      // The same precedence a typed number already has over the grid: it is
+      // the one way a person overrides whatever the pointer or a search is
+      // otherwise doing.
+      expect(modal.amount, Vector3(4, 0, 0));
+    });
+
+    test('pointerAmount ignores the snap, for the search that finds it', () {
+      // `pointerAmount` is what a caller searches around *before* deciding
+      // whether anything is in reach — asking with `amount` instead would
+      // search around wherever a snap already landed, which cannot notice the
+      // hand moving away from the target it found a moment ago.
+      final modal = dragged(Vector3(2, 0, 0))
+        ..axis = TransformAxis.x
+        ..geometrySnapDelta = Vector3(9, 9, 9);
+
+      expect(modal.pointerAmount, Vector3(2, 0, 0));
+    });
+  });
+
   group('what the status line says', () {
     test('names the constraint and the amount', () {
       final modal = dragged(Vector3(1.5, 0, 0))..axis = TransformAxis.x;

@@ -11,7 +11,6 @@ library;
 import 'dart:io';
 import 'dart:typed_data';
 
-import 'package:flutter3d/src/engine/assets/ktx2/ktx2.dart';
 import 'package:flutter3d/src/engine/assets/texture_upload.dart';
 import 'package:flutter3d_formats/flutter3d_formats.dart';
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';

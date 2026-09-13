@@ -111,6 +111,47 @@ void main() {
     });
   });
 
+  group('placing a light', () {
+    test('ProjectLight defaults to identity, at the origin', () {
+      final light = ProjectLight();
+      expect(light.transform, Matrix4.identity());
+    });
+
+    test('copyWith replaces the transform and leaves everything else', () {
+      final moved = Matrix4.identity()..setTranslationRaw(1, 2, 3);
+      final light = ProjectLight(intensity: 2.0).copyWith(transform: moved);
+
+      expect(light.transform, moved);
+      expect(light.intensity, 2.0);
+    });
+
+    test('SetLightTransform moves a light, and is one undo step', () {
+      final history = ModelHistory(const ModelProject());
+      history.run(const AddLight());
+      final to = Matrix4.identity()..setTranslationRaw(1, 2, 3);
+
+      expect(history.run(SetLightTransform(index: 0, to: to)), isNull);
+      expect(history.project.lighting.lights.single.transform, to);
+      expect(history.undoSays, 'move a light');
+
+      history.undo();
+      expect(
+        history.project.lighting.lights.single.transform,
+        Matrix4.identity(),
+      );
+    });
+
+    test('SetLightTransform on a light that is not there is refused', () {
+      final history = ModelHistory(const ModelProject());
+
+      final said = history.run(
+        SetLightTransform(index: 0, to: Matrix4.identity()),
+      );
+
+      expect(said, contains('no light'));
+    });
+  });
+
   group('the environment and scene-wide fields', () {
     test('SetEnvironment sets the preset', () {
       final history = ModelHistory(const ModelProject());

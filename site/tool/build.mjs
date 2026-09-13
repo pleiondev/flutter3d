@@ -121,6 +121,7 @@ const NAV = [
     slug: 'start',
     pages: [
       { file: 'index.md', url: '/', title: 'flutter3d' },
+      { file: 'gallery.md', url: '/gallery/', title: 'Gallery', kind: 'demo' },
       { file: 'quickstart.md', url: '/quickstart/', title: 'Quickstart' },
       { file: 'first-project.md', url: '/first-project/', title: 'Your first project', kind: 'guide' },
     ],

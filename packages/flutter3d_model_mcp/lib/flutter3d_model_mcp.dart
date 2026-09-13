@@ -36,6 +36,7 @@
 /// ```
 library;
 
+export 'src/model_http_server.dart';
 export 'src/model_server.dart';
 export 'src/model_session.dart';
 export 'src/model_tools.dart';

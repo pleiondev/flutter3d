@@ -206,10 +206,14 @@ point of §3.3.
 | `flutter3d` | The engine: scene graph, render list, passes, materials, assets, animation |
 | `flutter3d_samples` | The Khronos test models the decoders are checked against and the demo browses. Fixtures, so that a game depending on the engine does not carry them |
 | `flutter3d_particles` | CPU emitters and the particle pass contributor |
+| `flutter3d_particles_core` | The particle simulation `flutter3d_particles` draws: `ParticleSystem`, emission, affectors, curves. No Flutter, so `flutter3d_model_core`'s `BakeParticleSystemCommand` depends on it directly. Plain Dart |
 | `flutter3d_physics` | Collision world, character controller, rigid bodies, spatial grid |
 | `flutter3d_cloth` | An XPBD cloth solver — distance and cross-edge bending constraints, pins, wind, collision against `flutter3d_physics`'s own shapes. Plain Dart |
 | `flutter3d_rig` | Bone-name mapping and rest-relative clip retargeting between two skeletons, with a two-bone-IK foot lock. Plain Dart |
+| `flutter3d_fbx` | A `ModelDecoder` for Autodesk's FBX — the skeleton for now, recognising a file and refusing to read it with a clear reason. Plain Dart |
 | `flutter3d_sim` | The simulation: fixed step, ECS, level format, actors, navigation, saves, replays, camera rig. Plain Dart |
+| `flutter3d_lab` | Virtual laboratory simulations built on `flutter3d_sim`'s stepping and recording primitives — `edu-04`'s pendulum is the first. Plain Dart |
+| `flutter3d_render_job` | `RenderSnapshotJob`: a project rendered offscreen through its own `CpuDevice`, tiled, at SSAA ×1/×2, to a PNG — `pro-rn-02` |
 | `flutter3d_game` | The Flutter half of the game layer: touch and keyboard input, accessibility settings, diagnostics. Re-exports `flutter3d_sim` |
 | `flutter3d_game_shooter` | Shooter rules: weapons, hitscan, projectiles, inventory, monsters |
 | `flutter3d_game_platformer` | Platformer rules: runner, coins, hazards, checkpoints |
@@ -1177,8 +1181,8 @@ That is a statement about the assets rather than about the engine.
 `TextureFormat` names the BC, ETC2 and ASTC families,
 `GraphicsDevice.supportsTextureFormat` answers for each of them per backend, and
 a KTX2 that arrives carrying blocks those answers allow goes to the device as
-blocks. The gap is upstream, where `tool/convert_asset.dart` has no encoder to
-produce one; [§15](#15-limits) tells that half at length.
+blocks. The gap is upstream, where `dart run flutter3d:convert` has no encoder
+to produce one; [§15](#15-limits) tells that half at length.
 
 Mip chains are built on the CPU by `MipChain.build` and every backend uploads
 the same bytes, because WebGL2 has `glGenerateMipmap`, Impeller has nothing of the
@@ -1866,7 +1870,7 @@ entities a game defines.
 |---|---|
 | Style | `dart format` |
 | Analysis | `flutter analyze` clean across the workspace, no warnings |
-| Unit tests | **6670 tests** across 38 packages and 7 applications |
+| Unit tests | **7330 tests** across 45 packages and 8 applications |
 | Structure rules | 32, `dart run tool/structure.dart`, the first CI step |
 | CI | GitHub Actions over `tool/ci.sh`, on `ubuntu-latest`, with no graphics card |
 
@@ -1906,7 +1910,7 @@ material parameter — is the case `doc/boundary-0.5.0.md` worked through for
 set belongs to whoever builds on the package rather than to the package
 itself.
 
-**Golden render tests.** 43 scenes against **four complete independent
+**Golden render tests.** 44 scenes against **four complete independent
 reference sets** — Impeller, the software rasteriser, WebGL2 and WebGPU — each
 held to zero differing pixels against its own set, with a per-channel tolerance
 of 8.
@@ -2133,7 +2137,7 @@ BC1 and one ETC2 block on every backend that claims the family and reads
 the colour back, which is the first time an Impeller compressed upload was
 drawn rather than only allocated. Still refused by name: UASTC, Zstandard
 and ZLIB supercompression, arrays, cube maps, 3D textures. What is missing
-is upstream: `tool/convert_asset.dart` has no encoder, so nothing produces a
+is upstream: `dart run flutter3d:convert` has no encoder, so nothing produces a
 compressed KTX2 for this engine's own pipeline to read.
 
 **A material hint describes a control and refuses nothing.** `MaterialHintKind`
@@ -2244,7 +2248,7 @@ metres. The directional light's cascades fit the view up to that distance and
 nothing beyond it casts — a level whose far end matters visually wants the
 number raised, and pays for it in texels.
 
-**The web backend draws all forty-three golden scenes the way Impeller does**,
+**The web backend draws all forty-four golden scenes the way Impeller does**,
 between 0.01% and 0.42% of pixels differing by more than 8 per channel — the
 silhouette's worth of disagreement two rasterisers always have. Two of those
 numbers fell when the minification filter learned to read a sampler's
@@ -2360,7 +2364,7 @@ and charge each of them the bytes, and neither is a change to make on somebody
 else's behalf. A build that wants it says so in one flag, and the engine's own
 example takes the same answer from `?backend=webgpu` in the URL — a query
 parameter rather than a define, because the browser golden stand's whole saving
-is one dart2js run serving forty-three scenes and both browser backends.
+is one dart2js run serving forty-four scenes and both browser backends.
 
 **`flutter3d_shaders` is one text and no two backends take it the same way.**
 Impeller compiles the GLSL with `impellerc`; the WebGL2 generator translates it
@@ -2750,13 +2754,15 @@ what went out at 0.4.2.
 **The order, used on the day**, is set by the dependency graph:
 
 1. `flutter3d_hardware`, `flutter3d_shaders`, `flutter3d_samples`,
-   `flutter3d_audio`, `flutter3d_geometry`, `pad_input`, `pointer_lock`
-2. `flutter3d_formats`, `flutter3d_mesh`
-3. `flutter3d_conformance`, `flutter3d_model_core`
+   `flutter3d_audio`, `flutter3d_geometry`, `flutter3d_particles_core`,
+   `pad_input`, `pointer_lock`
+2. `flutter3d_formats`, `flutter3d_mesh`, `flutter3d_fbx`
+3. `flutter3d_conformance`, `flutter3d_model_core`, `flutter3d_build`
 4. `flutter3d`, `flutter3d_physics`, `flutter3d_cloth`, `flutter3d_rig`
 5. `flutter3d_impeller`, `flutter3d_webgl`, `flutter3d_webgpu`, `flutter3d_cpu`,
    `flutter3d_particles`, `flutter3d_sim`, `flutter3d_stereo`
-6. `flutter3d_game`, `flutter3d_editor_core`, `flutter3d_net`
+6. `flutter3d_game`, `flutter3d_editor_core`, `flutter3d_net`, `flutter3d_render_job`,
+   `flutter3d_lab`
 7. `flutter3d_screens`, `flutter3d_bridge`, `flutter3d_backend`,
    `flutter3d_testing`, `flutter3d_editor_mcp`, `flutter3d_model_mcp`,
    `flutter3d_net_webrtc`, `flutter3d_render_mcp`

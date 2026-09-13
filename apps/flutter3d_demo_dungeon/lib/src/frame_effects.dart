@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter3d_audio/flutter3d_audio.dart';
 import 'package:flutter3d_bridge/flutter3d_bridge.dart';
 import 'package:flutter3d_particles/flutter3d_particles.dart';
@@ -32,6 +33,21 @@ final class FrameEffects {
   String message = '';
   double messageFor = 0.0;
 
+  /// Every message the level has said, capped at [logCapacity] — `wg-02`'s
+  /// own reuse of the same words the HUD already shows one at a time,
+  /// echoed to a `WidgetSurface` terminal in the crypt so a run keeps more
+  /// than the last three seconds of what it said.
+  ///
+  /// A [ValueNotifier] rather than a plain list: the terminal is built by a
+  /// `WidgetSurfacePipeline` with its own, separate `BuildOwner`, so nothing
+  /// short of an explicit notification reaches it — `setState` on the main
+  /// app's tree does not touch a tree that tree does not own.
+  final ValueNotifier<List<String>> log = ValueNotifier<List<String>>(
+    const <String>[],
+  );
+
+  static const int logCapacity = 8;
+
   /// Held while a mover is travelling, stopped when it arrives. A one-shot
   /// would be a stone slab that grinds for exactly as long as the sample.
   final Map<Object, SoundEmitter> moverVoices = <Object, SoundEmitter>{};
@@ -60,6 +76,10 @@ final class FrameEffects {
     if (said == null) return;
     message = said;
     messageFor = 3.0;
+    final kept = <String>[...log.value, said];
+    log.value = kept.length > logCapacity
+        ? kept.sublist(kept.length - logCapacity)
+        : kept;
   }
 
   /// Scaled rather than skipped, so the day a platform reports the two apart a

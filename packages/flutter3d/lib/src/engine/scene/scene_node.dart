@@ -120,11 +120,25 @@ base class SceneNode implements AnimationTarget {
   /// Lossy for shear: the node stores TRS, so a sheared matrix cannot round
   /// trip. glTF `matrix` nodes are decomposed the same way by three.js and
   /// Babylon, and shear in authored assets is vanishingly rare.
+  ///
+  /// **`_invalidateWorld`, not `_bumpWorld`.** `_localMatrix` is already
+  /// current here — [value] was written straight into it — so what is stale
+  /// is [_worldMatrix], and [worldMatrix]'s own cache is keyed off
+  /// `_seenParentVersion` rather than off [_localDirty], which this method
+  /// leaves false. Calling `_bumpWorld` here changed the version stamp
+  /// without changing the cached matrix underneath it, and — for a node whose
+  /// `worldMatrix` had already been read once, which by the time a second
+  /// call to this reaches it, it almost always has — the mismatch this
+  /// creates between the version and the matrix it names never repairs
+  /// itself, because nothing about the parent has moved and there is nothing
+  /// else pending recomputation on the node's own account. A second move of
+  /// an object already on screen stayed on screen at its first position; a
+  /// third undid nothing either.
   void setLocalMatrix(Matrix4 value) {
     value.decompose(_position, _rotation, _scale);
     _localMatrix.setFrom(value);
     _localDirty = false;
-    _bumpWorld();
+    _invalidateWorld();
   }
 
   /// Reads the local position into [out] to avoid allocating.

@@ -1,0 +1,9 @@
+# A minimal, hand-written OBJ triangle — not `flutter3d_samples`'s fixtures,
+# on purpose: that package declares `flutter: sdk: flutter` for its own
+# `flutter.assets:` entry, and a dev_dependency on it would put the Flutter
+# SDK back on `flutter3d_build`'s own dependency graph, which is exactly the
+# thing `flatDartPackages` exists to catch (see `tool/structure/repository.dart`).
+v 0.0 0.0 0.0
+v 1.0 0.0 0.0
+v 0.0 1.0 0.0
+f 1 2 3

@@ -59,6 +59,12 @@ dependencies:
   flutter3d_screens:
     path: ../../packages/flutter3d_screens
 
+  # `rp-04`: `Demo.fromJson` — reading a `.f3drun` a player sent back, not
+  # just writing one from a live game (`flutter3d_editor_mcp`/`ai-00` write
+  # them; nothing here read one until now).
+  flutter3d_sim:
+    path: ../../packages/flutter3d_sim
+
   # **The first plugin here that was not written here, and it is asked one
   # question.** There are two others — `pad_input` and `pointer_lock` — and both
   # are packages in this repository, whose platform code can be read and fixed
@@ -75,6 +81,14 @@ dependencies:
 
   vector_math: ^2.2.0
 
+  # `TimelineAttachScreen` connects to a running game's VM service to drive
+  # its `RunTimeline` — `rp-02`'s answer to "the editor runs the project",
+  # over the same channel DevTools and `flutter attach` use, per
+  # `doc/tooling-plan.md`. Not a plugin: this package speaks the VM service
+  # protocol over a plain WebSocket, which this application already has
+  # through `dart:io` on every platform it ships to.
+  vm_service: ^15.0.0
+
   # State management — see the note in `packages/flutter3d_screens/pubspec.yaml`.
   # What goes through it is the screen: which document is open, why one is
   # not, and what the strip along the bottom says. What does **not** is the
@@ -87,6 +101,14 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0
+
+  # `timeline_attach_screen_test.dart`'s "Save bug report" test swaps
+  # `FileSelectorPlatform.instance` for a fake that answers with a path
+  # under this test's own temp directory, rather than opening a real save
+  # panel — `file_selector` itself depends on both already; naming them
+  # here is only making that transitive dependency direct.
+  file_selector_platform_interface: ^2.6.0
+  plugin_platform_interface: ^2.1.7
 
   # Draws a level without a GPU, which is how the one thing this application
   # does that a unit test cannot reach — turning a document into a scene — is

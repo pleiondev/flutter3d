@@ -56,6 +56,11 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
 
+  # Real-device e2e — see `apps/flutter3d_demo_platformer/pubspec.yaml` for the
+  # note. Carries `rp-00`'s determinism probe onto Android and iOS.
+  integration_test:
+    sdk: flutter
+
   # A renderer with no GPU under it, so a test can load a level the way the game
   # does. `LevelLoader` needs a device and does not need a window.
   flutter3d_cpu:
@@ -65,6 +70,31 @@ dev_dependencies:
   # credits list. Test-only, so it is not behind the flutter3d_app barrel.
   flutter3d_screens:
     path: ../../packages/flutter3d_screens
+
+  # `net-04`'s `diffRuns` — see `test/desync_diff_test.dart` for why the
+  # genre-aware half of it lives here rather than in `flutter3d_net` itself.
+  flutter3d_net:
+    path: ../../packages/flutter3d_net
+
+  # `wg-02`'s own `WidgetSurface` — `flutter3d_bridge` depends on this
+  # already for `WidgetSurfaceVisuals`, but a test that builds one by hand
+  # (`operator_panel_test.dart`, proving `edu-05`'s data source against a
+  # live surface with no `tpl-04` to host it in yet) needs the class itself.
+  flutter3d_session:
+    path: ../../packages/flutter3d_session
+
+  # `edu-04`'s pendulum — plain-Dart physics from a package that names no
+  # Flutter, the same reason `flutter3d_session` above needs naming
+  # directly: `flutter3d_game_shooter` depends on it transitively, but a new
+  # file importing it directly needs it in this pubspec, not a neighbour's.
+  flutter3d_sim:
+    path: ../../packages/flutter3d_sim
+  # `PendulumSimulation` itself, moved out of `flutter3d_sim` into its own
+  # package — a lab experiment is domain content, not simulation
+  # infrastructure, the same relationship a genre package already has with
+  # the engine underneath it.
+  flutter3d_lab:
+    path: ../../packages/flutter3d_lab
   flutter_lints: ^6.0.0
 
 flutter:

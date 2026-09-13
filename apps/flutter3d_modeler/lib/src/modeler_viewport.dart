@@ -47,6 +47,7 @@ class ModelerViewport extends StatefulWidget {
     required this.stage,
     required this.onFrame,
     this.onRendered,
+    this.onViewportMetrics,
     this.onPick,
     this.onElementPick,
     this.onDragTool,
@@ -61,6 +62,7 @@ class ModelerViewport extends StatefulWidget {
     this.gizmoPivot,
     this.gizmoKind = TransformKind.move,
     this.onGizmoDrag,
+    this.snapHighlight,
   });
 
   final Renderer renderer;
@@ -117,6 +119,18 @@ class ModelerViewport extends StatefulWidget {
   /// layout as well and cannot tell the two apart.
   final void Function(int micros)? onRendered;
 
+  /// The render target size this frame asked for, in device pixels, and the
+  /// pixel ratio it came from.
+  ///
+  /// Reported every frame rather than read once, because both can change
+  /// under this widget without it being rebuilt with a new key — a window
+  /// resized, or dragged to a screen of a different pixel ratio. What to do
+  /// about that is the caller's own call: it owns the device this draws
+  /// through and knows whether that device even has a fixed-size surface to
+  /// go stale.
+  final void Function(int width, int height, double devicePixelRatio)?
+  onViewportMetrics;
+
   /// What a click landed on, once the frame that answers it has been drawn.
   ///
   /// A [PickResult] rather than a position, because the half of picking that
@@ -142,12 +156,18 @@ class ModelerViewport extends StatefulWidget {
   onElementPick;
 
   /// A left-button drag with a tool armed, in logical pixels, with the height
-  /// the picture was laid out at so a caller can turn it into world units.
+  /// the picture was laid out at so a caller can turn it into world units, and
+  /// a [PickingView] built from the camera and the size this widget was laid
+  /// out at — `view-26n`'s own geometry snap needs to project a world point
+  /// back to screen and cast a ray through it, which needs the aspect ratio
+  /// only this widget has, the same reason [onElementPick] and [onBox] already
+  /// carry one.
   ///
   /// The camera never sees these: `OrbitGestures` leaves the left button to the
   /// tools, which is the rule that lets a drag mean "move this vertex" without
   /// the model swinging away underneath it.
-  final void Function(Offset delta, double viewportHeight)? onDragTool;
+  final void Function(Offset delta, double viewportHeight, PickingView view)?
+  onDragTool;
 
   /// A rectangle was dragged with no tool armed, and let go.
   ///
@@ -170,6 +190,16 @@ class ModelerViewport extends StatefulWidget {
   /// document — see `mesh_commands.dart`. The stage draws whatever the project
   /// says; this is the one the *overlay* is about.
   final EditMesh? editMesh;
+
+  /// Where `view-26n`'s geometry snap would land the drag, or null when
+  /// nothing is in reach right now.
+  ///
+  /// **Drawn in Flutter, the way [SelectionBox] is, and for the same reason:**
+  /// the mark is a screen-space ring round wherever the target projects to,
+  /// with no position of its own in the world once the frame that drew it is
+  /// gone, so putting it in the mesh overlay would mean unprojecting it back
+  /// out on every frame to draw a shape that was never anywhere but the glass.
+  final Vector3? snapHighlight;
 
   @override
   State<ModelerViewport> createState() => _ModelerViewportState();
@@ -414,12 +444,21 @@ class _ModelerViewportState extends State<ModelerViewport> {
           // the last one, and a grid a frame behind is a grid that swims under
           // a model while somebody orbits.
           _buildOverlay(widget.renderer);
+          // Clamped because a zero-sized viewport is a real state — a panel
+          // animating open, a window dragged to nothing — and a render
+          // target of no pixels is not.
+          final int width = (constraints.maxWidth * dpr).round().clamp(
+            1,
+            8192,
+          );
+          final int height = (constraints.maxHeight * dpr).round().clamp(
+            1,
+            8192,
+          );
+          widget.onViewportMetrics?.call(width, height, dpr);
           final frame = widget.renderer.render(
-            // Clamped because a zero-sized viewport is a real state — a panel
-            // animating open, a window dragged to nothing — and a render
-            // target of no pixels is not.
-            width: (constraints.maxWidth * dpr).round().clamp(1, 8192),
-            height: (constraints.maxHeight * dpr).round().clamp(1, 8192),
+            width: width,
+            height: height,
             scene: widget.stage.scene,
             views: widget.stage.views(),
             settings: widget.settings,
@@ -431,21 +470,40 @@ class _ModelerViewportState extends State<ModelerViewport> {
           // both can give.
           final Widget picture = widget.renderer.device.present(frame.frame);
           final SelectionBox? box = _box;
+          final bool showBox = box != null && box.isBox;
+          // Re-projected every frame rather than cached: the target does not
+          // move, but the camera can — an orbit mid-drag has to carry the
+          // ring with it the same way it carries the gizmo.
+          final Vector3? snapAt = widget.snapHighlight;
+          final Offset? snapScreen = snapAt == null || _viewport.isEmpty
+              ? null
+              : PickingView(
+                  camera: widget.stage.camera,
+                  size: _viewport,
+                ).project(snapAt);
           // Drawn in Flutter rather than into the overlay, and that is the one
           // thing in this viewport that belongs on top of the picture rather
-          // than in it: a selection rectangle is a screen-space thing with no
-          // position in the world, and putting it in the overlay would mean
-          // unprojecting it back out every frame to draw a shape that was
-          // never anywhere but the glass.
-          if (box == null || !box.isBox) return picture;
+          // than in it: a selection rectangle — and `view-26n`'s own snap
+          // target — are screen-space things with no position in the world,
+          // and putting either in the overlay would mean unprojecting it back
+          // out every frame to draw a shape that was never anywhere but the
+          // glass.
+          if (!showBox && snapScreen == null) return picture;
           return Stack(
             children: <Widget>[
               Positioned.fill(child: picture),
-              Positioned.fill(
-                child: IgnorePointer(
-                  child: CustomPaint(painter: _BoxPainter(box)),
+              if (showBox)
+                Positioned.fill(
+                  child: IgnorePointer(
+                    child: CustomPaint(painter: _BoxPainter(box)),
+                  ),
                 ),
-              ),
+              if (snapScreen != null)
+                Positioned.fill(
+                  child: IgnorePointer(
+                    child: CustomPaint(painter: _SnapPainter(snapScreen)),
+                  ),
+                ),
             ],
           );
         },
@@ -513,12 +571,17 @@ class _ModelerViewportState extends State<ModelerViewport> {
     if (onDrag != null &&
         start != null &&
         start.button == GestureButton.primary &&
-        _travelled.contains(event.pointer)) {
+        _travelled.contains(event.pointer) &&
+        !_viewport.isEmpty) {
       // The tool takes the drag and the camera does not see it. Reported as a
       // delta rather than a position because that is what a transform is, and
       // because a tool that had to remember where the drag began would be a
       // second copy of what this map already holds.
-      onDrag(event.delta, _viewport.height);
+      onDrag(
+        event.delta,
+        _viewport.height,
+        PickingView(camera: widget.stage.camera, size: _viewport),
+      );
       return;
     }
     _apply(_gestures.pointerMove(event.pointer, _pointOf(event.localPosition)));
@@ -761,4 +824,37 @@ class _BoxPainter extends CustomPainter {
   @override
   bool shouldRepaint(_BoxPainter old) =>
       old.box.rect != box.rect || old.box.mode != box.mode;
+}
+
+/// The ring `view-26n` draws round whatever a snapped drag is about to land
+/// on, before the pointer that would commit it comes up.
+///
+/// A warm ring rather than [_BoxPainter]'s teal: the box states a region that
+/// is about to become the selection, and this states a single point the
+/// selection is about to become — the same distinction `MeshOverlayColours`
+/// draws between an unselected vertex and one that is, in the one warm colour
+/// this file already reads that as.
+class _SnapPainter extends CustomPainter {
+  const _SnapPainter(this.at);
+
+  final Offset at;
+
+  static const Color _colour = Color(0xFFFF9926);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    canvas
+      ..drawCircle(
+        at,
+        9.0,
+        Paint()
+          ..color = _colour
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 2,
+      )
+      ..drawCircle(at, 2.0, Paint()..color = _colour);
+  }
+
+  @override
+  bool shouldRepaint(_SnapPainter old) => old.at != at;
 }

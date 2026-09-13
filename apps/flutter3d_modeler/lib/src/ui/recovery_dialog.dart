@@ -15,6 +15,8 @@ library;
 
 import 'package:flutter/material.dart';
 
+import '../../l10n/app_localizations.dart';
+
 class RecoveryDialog extends StatelessWidget {
   const RecoveryDialog({super.key});
 
@@ -31,21 +33,21 @@ class RecoveryDialog extends StatelessWidget {
       false;
 
   @override
-  Widget build(BuildContext context) => AlertDialog(
-    title: const Text('Recover unsaved changes?'),
-    content: const Text(
-      'A more recent autosave was found than the last saved file. Restore '
-      'it, or open the file as it was last saved?',
-    ),
-    actions: <Widget>[
-      TextButton(
-        onPressed: () => Navigator.of(context).pop(false),
-        child: const Text('Open saved file'),
-      ),
-      FilledButton(
-        onPressed: () => Navigator.of(context).pop(true),
-        child: const Text('Restore autosave'),
-      ),
-    ],
-  );
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    return AlertDialog(
+      title: Text(l10n.recoverUnsavedChangesTitle),
+      content: Text(l10n.recoverUnsavedChangesBody),
+      actions: <Widget>[
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(false),
+          child: Text(l10n.openSavedFile),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.of(context).pop(true),
+          child: Text(l10n.restoreAutosave),
+        ),
+      ],
+    );
+  }
 }

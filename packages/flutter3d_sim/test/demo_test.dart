@@ -16,17 +16,28 @@ import 'package:vector_math/vector_math.dart';
 
 const GameAction _fire = GameAction('fire');
 
-Demo _demo({int steps = 3}) => Demo(
-  level: 'assets/levels/crypt.json',
-  start: const Snapshot(<String, Object?>{'random': 7, 'health': 100}),
-  tape: InputTape(
-    seed: 7,
-    frames: <InputFrame>[
-      for (var i = 0; i < steps; i++)
-        InputFrame(pressed: i == 0 ? const <String>['fire'] : const <String>[]),
-    ],
-  ),
-);
+Demo _demo({int steps = 3}) {
+  final checkpoints = DigestTrace(every: 1);
+  for (var step = 1; step <= steps; step++) {
+    checkpoints.observe(step, <String, Object?>{'step': step});
+  }
+  return Demo(
+    level: 'assets/levels/crypt.json',
+    levelHash: 'deadbeef',
+    start: const Snapshot(<String, Object?>{'random': 7, 'health': 100}),
+    tape: InputTape(
+      seed: 7,
+      frames: <InputFrame>[
+        for (var i = 0; i < steps; i++)
+          InputFrame(
+            pressed: i == 0 ? const <String>['fire'] : const <String>[],
+          ),
+      ],
+    ),
+    buildStamp: 'test-build',
+    checkpoints: checkpoints,
+  );
+}
 
 void main() {
   group('the document', () {
@@ -38,10 +49,36 @@ void main() {
       );
 
       expect(read.level, written.level);
+      expect(read.levelHash, written.levelHash);
       expect(read.start.data, written.start.data);
       expect(read.tape.seed, written.tape.seed);
       expect(read.steps, written.steps);
       expect(read.tape.frames.first.pressed, <String>['fire']);
+      expect(read.buildStamp, written.buildStamp);
+      expect(read.checkpoints.hexDigests, written.checkpoints.hexDigests);
+      expect(read.checkpoints.steps, written.checkpoints.steps);
+      expect(read.platform, isNull);
+      expect(read.recordedBy, isNull);
+    });
+
+    test('carries platform and who recorded it, when given them', () {
+      final written = Demo(
+        level: 'assets/levels/crypt.json',
+        levelHash: 'deadbeef',
+        start: const Snapshot(<String, Object?>{}),
+        tape: InputTape(seed: 1, frames: const <InputFrame>[]),
+        buildStamp: 'test-build',
+        checkpoints: DigestTrace(every: 1),
+        platform: 'macos',
+        recordedBy: 'dmitrii',
+      );
+
+      final read = Demo.fromJson(
+        jsonDecode(jsonEncode(written.toJson())) as Map<String, Object?>,
+      );
+
+      expect(read.platform, 'macos');
+      expect(read.recordedBy, 'dmitrii');
     });
 
     test('refuses a demo from a newer build, and says so', () {
@@ -78,21 +115,31 @@ void main() {
       );
     });
 
-    test('refuses a demo with no level or no start', () {
-      expect(
-        () => Demo.fromJson(_demo().toJson()..remove('level')),
-        throwsA(isA<DemoFormatException>()),
-      );
-      expect(
-        () => Demo.fromJson(_demo().toJson()..remove('run')),
-        throwsA(isA<DemoFormatException>()),
-      );
-      expect(
-        () => Demo.fromJson(<String, Object?>{}),
-        throwsA(isA<DemoFormatException>()),
-        reason: 'an empty object has no version, which is the first thing said',
-      );
-    });
+    test(
+      'refuses a demo with no level, no start, no hash, no stamp or no '
+      'checkpoints',
+      () {
+        for (final field in <String>[
+          'level',
+          'run',
+          'levelHash',
+          'buildStamp',
+          'checkpoints',
+        ]) {
+          expect(
+            () => Demo.fromJson(_demo().toJson()..remove(field)),
+            throwsA(isA<DemoFormatException>()),
+            reason: 'missing "$field" should be refused',
+          );
+        }
+        expect(
+          () => Demo.fromJson(<String, Object?>{}),
+          throwsA(isA<DemoFormatException>()),
+          reason:
+              'an empty object has no version, which is the first thing said',
+        );
+      },
+    );
 
     test('and a starting state from the future is refused through it', () {
       final json = _demo().toJson();
@@ -106,6 +153,24 @@ void main() {
             (e) => e.message,
             'message',
             contains('starting state'),
+          ),
+        ),
+      );
+    });
+
+    test('and malformed checkpoints are refused through it', () {
+      final json = _demo().toJson();
+      (json['checkpoints']! as Map<String, Object?>)['digests'] = <String>[
+        'onlyone',
+      ];
+
+      expect(
+        () => Demo.fromJson(json),
+        throwsA(
+          isA<DemoFormatException>().having(
+            (e) => e.message,
+            'message',
+            contains('checkpoints'),
           ),
         ),
       );

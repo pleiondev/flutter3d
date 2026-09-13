@@ -1,0 +1,38 @@
+# /etc/systemd/system/flutter3d-net-relay.service
+[Unit]
+Description=flutter3d_net relay (net-02: signalling + WebSocket fallback)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/dart run bin/relay.dart ${RELAY_PORT}
+WorkingDirectory=/opt/flutter3d-net-relay
+Environment=RELAY_PORT=8790
+Restart=on-failure
+RestartSec=5
+# A room holds at most two sockets and nothing this process keeps outlives
+# a dropped connection, so there is nothing in flight worth waiting out —
+# unlike flutter3d-models, which gets thirty seconds to let uploads finish.
+TimeoutStopSec=5
+
+# No accounts, no secrets, no state on disk — the same confinement as
+# flutter3d-models with the parts a relay has no use for removed.
+DynamicUser=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+NoNewPrivileges=yes
+ProtectKernelTunables=yes
+ProtectControlGroups=yes
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+RestrictNamespaces=yes
+LockPersonality=yes
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=flutter3d-net-relay
+
+[Install]
+WantedBy=multi-user.target

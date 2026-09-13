@@ -48,6 +48,36 @@ enum ExportFormat {
   final String says;
 }
 
+/// How a texture's pixels are written — mat-30's own row: "an encoder …, an
+/// option de export; в glTF PNG."
+///
+/// **Only `.f3d` ever reads this.** `GltfWriter` and `ObjWriter` always keep
+/// [png]: glTF's own ecosystem compatibility is the reason the plan names for
+/// staying PNG there (`KHR_texture_basisu` exists for KTX2 in glTF, but
+/// nothing here writes that extension, and OBJ's `map_Kd` cannot name a
+/// compressed format at all — see `ktx2_texture_export_test.dart`). `.f3d` is
+/// this engine's own container with its own loader, so it is the one place a
+/// choice made here does not have to satisfy anybody else's reader.
+enum TextureEncoding {
+  /// What every writer already did before this option existed.
+  png,
+
+  /// BC3 for a texture with any translucent texel, BC1 otherwise — the same
+  /// per-image choice `fmt-22`'s own encoders were built and PSNR-verified
+  /// against — written into a KTX2 container via `writeKtx2`.
+  ///
+  /// **sRGB vs. linear is not distinguished.** A base-colour or emissive
+  /// texture is gamma-encoded and a normal or metallic-roughness map is not,
+  /// and a real pipeline picks `_SRGB` or `_UNORM` `vkFormat` accordingly —
+  /// which binding(s) use a given image is a fact this function does not
+  /// have (an image is shared by index, not tagged with a colour space), so
+  /// every image here writes as the `_UNORM` variant. Named rather than
+  /// guessed at: the bytes still decode to the same channel values a real
+  /// GPU would sample, only without the sampler's own automatic gamma
+  /// decode a `_SRGB` format would have asked for.
+  ktx2,
+}
+
 /// One file an export produced.
 final class ExportFile {
   const ExportFile(this.name, this.bytes);
@@ -150,12 +180,17 @@ ModelProject bakeAllTransforms(ModelProject project) {
 /// and the writer both see the baked project — a transform that collapses a
 /// shell of positive volume into one of zero should be caught before export,
 /// not discovered by whoever opens the file next.
+///
+/// [textureEncoding] chooses how a texture's bytes are written — see
+/// [TextureEncoding]'s own doc comment for why only [ExportFormat.f3d]
+/// listens to it.
 ExportResult planExport(
   ModelProject project, {
   required ExportFormat format,
   String name = 'model',
   bool force = false,
   bool bakeTransforms = false,
+  TextureEncoding textureEncoding = TextureEncoding.png,
 }) {
   if (bakeTransforms) project = bakeAllTransforms(project);
   // An empty project is refused rather than written, and this is the one place
@@ -191,8 +226,11 @@ ExportResult planExport(
 
   switch (format) {
     case ExportFormat.f3d:
+      final encoded = textureEncoding == TextureEncoding.ktx2
+          ? _withKtx2Textures(document)
+          : document;
       return ExportWritten(<ExportFile>[
-        ExportFile('$name.f3d', F3dWriter(document).write()),
+        ExportFile('$name.f3d', F3dWriter(encoded).write()),
       ], warnings);
 
     case ExportFormat.glb:
@@ -222,4 +260,139 @@ ExportResult planExport(
         ],
       );
   }
+}
+
+/// [document] with every image [_encodeAsKtx2] can decode replaced by its
+/// KTX2 encoding — everything else (surfaces, materials, the node tree,
+/// skins, animation) is the exact same instance [document] already had.
+///
+/// A wrapper rather than a copy through `PlainModelDocument`: that class'
+/// own `roots` is `ModelDocument`'s default — every node its own root, the
+/// fallback a format with no real hierarchy (OBJ) reads — and this
+/// document's actual `roots` came from `toModelDocument`'s real walk of the
+/// project. Copying through `PlainModelDocument` would silently flatten
+/// every parent/child edge in the file this writes; forwarding every getter
+/// but [images] cannot.
+ModelDocument _withKtx2Textures(ModelDocument document) => _ImagesOverride(
+  document,
+  <EncodedImage>[for (final EncodedImage image in document.images) _encodeAsKtx2(image)],
+);
+
+final class _ImagesOverride extends ModelDocument {
+  const _ImagesOverride(this._inner, this.images);
+
+  final ModelDocument _inner;
+
+  @override
+  final List<EncodedImage> images;
+
+  @override
+  List<ModelSurface> get surfaces => _inner.surfaces;
+
+  @override
+  List<SurfaceMaterial> get materials => _inner.materials;
+
+  @override
+  DocumentAsset? get asset => _inner.asset;
+
+  @override
+  List<ModelNode> get nodes => _inner.nodes;
+
+  @override
+  List<int> get roots => _inner.roots;
+
+  @override
+  List<AnimationClip> get animations => _inner.animations;
+
+  @override
+  List<ModelSkin> get skins => _inner.skins;
+
+  @override
+  List<ModelLight> get lights => _inner.lights;
+
+  @override
+  List<ModelCamera> get cameras => _inner.cameras;
+
+  @override
+  List<String> get warnings => _inner.warnings;
+}
+
+/// [image] re-encoded as KTX2 (BC3 for any translucent texel, BC1
+/// otherwise) — or [image] itself, unchanged, when neither of
+/// `flutter3d_model_core`'s own [decodePng]/[decodeJpeg] can make sense of
+/// its bytes (an already-KTX2 image from a previous export, or a format
+/// this pipeline does not decode at all, such as `.webp`).
+///
+/// **`flutter3d_model_core`'s own decoders, not a new dependency.**
+/// `flutter3d_formats` cannot decode a PNG itself — `png_encoder_test.dart`
+/// and this same file's own earlier survey found no pure-Dart image decoder
+/// in its `lib/`, only a writer — but `mat-09n` already built one one layer
+/// up, in `flutter3d_model_core`, for the texture graph's own bake
+/// (`mat-11`) to read a painted layer's pixels with. This app already
+/// depends on that package, so reusing it here costs nothing a new
+/// dependency on `package:image` would have, and keeps one PNG decoder in
+/// this repository rather than two.
+///
+/// **Padded to whole 4×4 blocks, not cropped.** Every encoder in
+/// `flutter3d_formats`'s `encode/` refuses a partial block; a crop would
+/// lose the texture's own edge pixels, so a source whose size is not a
+/// multiple of four is padded by replicating its last row and column, and
+/// the KTX2 header still declares the *original* width and height — a
+/// texture upload reads exactly that many texels and never looks at the
+/// padding, the same way a GPU's own compressed-texture upload path treats
+/// a non-block-sized mip.
+EncodedImage _encodeAsKtx2(EncodedImage image) {
+  final decoded = decodePng(image.bytes) ?? decodeJpeg(image.bytes);
+  if (decoded == null) return image;
+
+  final width = decoded.width;
+  final height = decoded.height;
+  final paddedWidth = (width + 3) & ~3;
+  final paddedHeight = (height + 3) & ~3;
+
+  final pixels = Uint8List(paddedWidth * paddedHeight * 4);
+  var hasAlpha = false;
+  for (var y = 0; y < paddedHeight; y++) {
+    final sy = y < height ? y : height - 1;
+    for (var x = 0; x < paddedWidth; x++) {
+      final sx = x < width ? x : width - 1;
+      final srcAt = (sy * width + sx) * 4;
+      final dstAt = (y * paddedWidth + x) * 4;
+      pixels[dstAt] = decoded.rgba[srcAt];
+      pixels[dstAt + 1] = decoded.rgba[srcAt + 1];
+      pixels[dstAt + 2] = decoded.rgba[srcAt + 2];
+      final a = decoded.rgba[srcAt + 3];
+      pixels[dstAt + 3] = a;
+      if (a != 255) hasAlpha = true;
+    }
+  }
+  final source = Rgba8Image(
+    width: paddedWidth,
+    height: paddedHeight,
+    pixels: pixels,
+  );
+
+  final Uint8List blockBytes;
+  final int vkFormat;
+  if (hasAlpha) {
+    blockBytes = encodeBc3(source);
+    vkFormat = VkFormat.bc3UNormBlock;
+  } else {
+    blockBytes = encodeBc1(source);
+    vkFormat = VkFormat.bc1RgbaUNormBlock;
+  }
+
+  final ktx2Bytes = writeKtx2(
+    vkFormat: vkFormat,
+    pixelWidth: width,
+    pixelHeight: height,
+    levels: <Uint8List>[blockBytes],
+  );
+
+  return EncodedImage(
+    bytes: ktx2Bytes,
+    name: image.name,
+    mimeType: 'image/ktx2',
+    sourceUri: image.sourceUri,
+  );
 }

@@ -1,0 +1,57 @@
+name: flutter3d_net_webrtc
+description: "A NetTransport over a real WebRTC data channel — net-01's rollback engine, P2P, with net-02's relay carrying only the SDP/ICE handshake."
+version: 0.6.0
+repository: https://github.com/pleiondev/flutter3d
+homepage: https://flutter3d.pleion.dev
+issue_tracker: https://github.com/pleiondev/flutter3d/issues
+topics:
+  - game-development
+  - networking
+  - multiplayer
+  - webrtc
+resolution: workspace
+
+environment:
+  sdk: ^3.12.2
+  flutter: '>=3.47.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # The `NetTransport` interface this implements, and nothing else from it —
+  # `flutter3d_net` itself stays flat Dart, so the Flutter and native cost of
+  # a real peer connection lives only in a package that opted into it.
+  flutter3d_net: ^0.6.0
+
+  # The actual peer connection: `RTCPeerConnection`, `RTCDataChannel`, ICE
+  # candidate gathering. Native platform code on every platform but the web,
+  # where the browser already has WebRTC and this package talks to it
+  # through the same plugin's web implementation.
+  flutter_webrtc: ^1.6.2
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+# **Why this is a package of its own, and not `flutter3d_net`'s problem.**
+# `flutter_webrtc` is a real plugin — native code registered per platform,
+# camera/microphone permission plumbing it carries even when nothing here
+# ever asks for either — and `flutter3d_net`'s whole reason for existing is
+# that a rollback engine and a relay are ordinary Dart that does not need
+# any of that. Splitting it here keeps that claim true: a game, a test, or
+# `LoopbackTransport` never resolves `flutter_webrtc` unless something
+# actually imports this package.
+#
+# **What is proven and what is not.** `WebRtcTransport`'s signalling
+# handshake — the offer, the answer, the ICE candidates, over whatever
+# `NetTransport` a caller hands it for signalling — is real code, written
+# against `flutter_webrtc`'s real API. What it is not, in this repository as
+# it stands: two real peer connections actually completing that handshake
+# and exchanging a data-channel message. That needs either two real devices
+# or two real browser tabs and a signalling relay both can reach, none of
+# which this workspace's own tests can stand up — the same class of gap
+# `rp-02` named for "a real game, actively played" and net-02's own
+# acceptance names for "two browsers on different machines through a relay
+# on a VPS".

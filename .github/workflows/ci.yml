@@ -64,6 +64,21 @@ jobs:
             | sudo tar -xz -C /usr/local bin/glslang bin/glslangValidator
           glslangValidator --version
 
+      # The "gltf validate" step in `tool/ci.sh` runs the real Khronos
+      # validator against every glTF/GLB this repository ships. It is not the
+      # npm package of the same name — that one has no `bin` entry, it is the
+      # validator compiled to a JS library, meant to be `require()`d, and
+      # `npx` finds nothing to run — so this fetches the actual command-line
+      # tool Khronos ships as a native binary on its GitHub releases, the same
+      # shape glslang's is fetched in above. Pinned, since a validator that
+      # updates itself out from under a commit is a step whose answer nobody
+      # could reproduce a week later.
+      - name: gltf_validator
+        run: |
+          curl -fsSL https://github.com/KhronosGroup/glTF-Validator/releases/download/2.0.0-dev.3.10/gltf_validator-2.0.0-dev.3.10-linux64.tar.xz \
+            | sudo tar -xJ -C /usr/local/bin gltf_validator
+          gltf_validator --help >/dev/null
+
       # naga has no package anywhere, so it is built once and kept. The cache
       # key is the version, which means a bump here fetches a fresh build
       # rather than a stale binary under a matching name.
@@ -172,7 +187,11 @@ jobs:
 
       - run: flutter precache --macos --ios
       - run: flutter pub get
-      - run: (cd packages/flutter3d_impeller && ./tool/build_shaders.sh)
+      # `ap-06`: the same real logic `hook/build.dart` uses for a real
+      # `flutter build`/`flutter run`, called directly — `flutter analyze`
+      # below does not run build hooks at all, so the declared asset has to
+      # exist before it runs regardless of the hook existing.
+      - run: (cd packages/flutter3d_impeller && dart run bin/build_shader_bundle.dart)
 
       # The example's bundle, for the reason ubuntu builds it in tool/ci.sh: it
       # is gitignored and the example declares it as an asset, so a checkout
@@ -284,9 +303,15 @@ jobs:
       # gives. The bundle is gitignored and `flutter3d_impeller` declares it as
       # an asset, so without it the APK build fails in Gradle's asset step with
       # a message about a missing file and nothing about shaders.
+      #
+      # `ap-06`'s hook builds this same bundle automatically once a real
+      # `flutter build` starts — not verified here to fire early enough for
+      # Gradle's own asset step specifically, so this direct call to the
+      # hook's own logic stays, producing the identical file the old script
+      # did.
       - run: flutter precache --linux
       - run: flutter pub get
-      - run: (cd packages/flutter3d_impeller && ./tool/build_shaders.sh)
+      - run: (cd packages/flutter3d_impeller && dart run bin/build_shader_bundle.dart)
 
       - run: flutter build apk --debug
         working-directory: apps/flutter3d_demo_${{ matrix.demo }}

@@ -7,6 +7,7 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter3d_modeler/l10n/app_localizations.dart';
 import 'package:flutter3d_modeler/src/ui/number_field.dart';
 import 'package:flutter3d_modeler/src/ui/shortcut_help.dart';
 import 'package:flutter3d_modeler/src/ui/shortcut_help_screen.dart';
@@ -43,6 +44,9 @@ void main() {
     ) async {
       await tester.pumpWidget(
         MaterialApp(
+          locale: const Locale('en'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
           home: Scaffold(
             body: Builder(
               builder: (context) => TextButton(

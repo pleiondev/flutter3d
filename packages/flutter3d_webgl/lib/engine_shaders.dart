@@ -1449,6 +1449,15 @@ vec2 EncodeOctahedral(vec3 n) {
 vec3 g_debug_surface = vec3(0.0);
 bool g_debug_surface_on = false;
 
+// **A stage that needs none of this must be able to declare none of it.** On
+// Vulkan both stages' descriptors are merged into one set layout, and two
+// bindings with the same number in it is not a layout the specification
+// allows. A driver may accept it anyway; a Galaxy A55's refuses the pipeline
+// with `ErrorUnknown` and no other word, which is how the shadow pass came to
+// build everywhere except there — its only uniform block was this one, and it
+// landed on the same binding as the vertex stage's first.
+#ifndef F3D_NO_FOG
+
 /// Distance fog, in its own block rather than folded into FragInfo.
 ///
 /// Its own because color.glsl is included before FragInfo is declared, and
@@ -1492,6 +1501,17 @@ float EyeDistance() { return distance(v_world_position, fog_info.eye.xyz); }
 float ViewDepth() {
   return dot(v_world_position - fog_info.eye.xyz, fog_info.forward.xyz);
 }
+
+#else  // F3D_NO_FOG
+
+// The same two questions, answered without the block: a stage that declares no
+// fog has no eye position to measure from either. Stubs rather than a guard at
+// every call site, so that what includes this file reads the same whichever
+// way it was compiled.
+float EyeDistance() { return 0.0; }
+float ViewDepth() { return 0.0; }
+
+#endif  // F3D_NO_FOG
 
 /// Records the geometry of this fragment for whatever runs after the scene.
 ///
@@ -1541,10 +1561,14 @@ void WriteSurfaceGeometry(float roughness) {
 /// Exponential rather than linear, because linear fog has a visible plane
 /// where it starts and a dungeon corridor is exactly where that shows.
 vec3 ApplyFog(vec3 color) {
+#ifdef F3D_NO_FOG
+  return color;
+#else
   float density = fog_info.fog.w;
   if (density <= 0.0) return color;
   float d = EyeDistance();
   return mix(fog_info.fog.rgb, color, clamp(exp(-density * d), 0.0, 1.0));
+#endif
 }
 
 /// sRGB to linear. Textures are authored in sRGB, but lighting is only correct
@@ -2433,6 +2457,15 @@ vec2 EncodeOctahedral(vec3 n) {
 vec3 g_debug_surface = vec3(0.0);
 bool g_debug_surface_on = false;
 
+// **A stage that needs none of this must be able to declare none of it.** On
+// Vulkan both stages' descriptors are merged into one set layout, and two
+// bindings with the same number in it is not a layout the specification
+// allows. A driver may accept it anyway; a Galaxy A55's refuses the pipeline
+// with `ErrorUnknown` and no other word, which is how the shadow pass came to
+// build everywhere except there — its only uniform block was this one, and it
+// landed on the same binding as the vertex stage's first.
+#ifndef F3D_NO_FOG
+
 /// Distance fog, in its own block rather than folded into FragInfo.
 ///
 /// Its own because color.glsl is included before FragInfo is declared, and
@@ -2476,6 +2509,17 @@ float EyeDistance() { return distance(v_world_position, fog_info.eye.xyz); }
 float ViewDepth() {
   return dot(v_world_position - fog_info.eye.xyz, fog_info.forward.xyz);
 }
+
+#else  // F3D_NO_FOG
+
+// The same two questions, answered without the block: a stage that declares no
+// fog has no eye position to measure from either. Stubs rather than a guard at
+// every call site, so that what includes this file reads the same whichever
+// way it was compiled.
+float EyeDistance() { return 0.0; }
+float ViewDepth() { return 0.0; }
+
+#endif  // F3D_NO_FOG
 
 /// Records the geometry of this fragment for whatever runs after the scene.
 ///
@@ -2525,10 +2569,14 @@ void WriteSurfaceGeometry(float roughness) {
 /// Exponential rather than linear, because linear fog has a visible plane
 /// where it starts and a dungeon corridor is exactly where that shows.
 vec3 ApplyFog(vec3 color) {
+#ifdef F3D_NO_FOG
+  return color;
+#else
   float density = fog_info.fog.w;
   if (density <= 0.0) return color;
   float d = EyeDistance();
   return mix(fog_info.fog.rgb, color, clamp(exp(-density * d), 0.0, 1.0));
+#endif
 }
 
 /// sRGB to linear. Textures are authored in sRGB, but lighting is only correct
@@ -3407,6 +3455,15 @@ vec2 EncodeOctahedral(vec3 n) {
 vec3 g_debug_surface = vec3(0.0);
 bool g_debug_surface_on = false;
 
+// **A stage that needs none of this must be able to declare none of it.** On
+// Vulkan both stages' descriptors are merged into one set layout, and two
+// bindings with the same number in it is not a layout the specification
+// allows. A driver may accept it anyway; a Galaxy A55's refuses the pipeline
+// with `ErrorUnknown` and no other word, which is how the shadow pass came to
+// build everywhere except there — its only uniform block was this one, and it
+// landed on the same binding as the vertex stage's first.
+#ifndef F3D_NO_FOG
+
 /// Distance fog, in its own block rather than folded into FragInfo.
 ///
 /// Its own because color.glsl is included before FragInfo is declared, and
@@ -3450,6 +3507,17 @@ float EyeDistance() { return distance(v_world_position, fog_info.eye.xyz); }
 float ViewDepth() {
   return dot(v_world_position - fog_info.eye.xyz, fog_info.forward.xyz);
 }
+
+#else  // F3D_NO_FOG
+
+// The same two questions, answered without the block: a stage that declares no
+// fog has no eye position to measure from either. Stubs rather than a guard at
+// every call site, so that what includes this file reads the same whichever
+// way it was compiled.
+float EyeDistance() { return 0.0; }
+float ViewDepth() { return 0.0; }
+
+#endif  // F3D_NO_FOG
 
 /// Records the geometry of this fragment for whatever runs after the scene.
 ///
@@ -3499,10 +3567,14 @@ void WriteSurfaceGeometry(float roughness) {
 /// Exponential rather than linear, because linear fog has a visible plane
 /// where it starts and a dungeon corridor is exactly where that shows.
 vec3 ApplyFog(vec3 color) {
+#ifdef F3D_NO_FOG
+  return color;
+#else
   float density = fog_info.fog.w;
   if (density <= 0.0) return color;
   float d = EyeDistance();
   return mix(fog_info.fog.rgb, color, clamp(exp(-density * d), 0.0, 1.0));
+#endif
 }
 
 /// sRGB to linear. Textures are authored in sRGB, but lighting is only correct
@@ -4608,6 +4680,15 @@ vec2 EncodeOctahedral(vec3 n) {
 vec3 g_debug_surface = vec3(0.0);
 bool g_debug_surface_on = false;
 
+// **A stage that needs none of this must be able to declare none of it.** On
+// Vulkan both stages' descriptors are merged into one set layout, and two
+// bindings with the same number in it is not a layout the specification
+// allows. A driver may accept it anyway; a Galaxy A55's refuses the pipeline
+// with `ErrorUnknown` and no other word, which is how the shadow pass came to
+// build everywhere except there — its only uniform block was this one, and it
+// landed on the same binding as the vertex stage's first.
+#ifndef F3D_NO_FOG
+
 /// Distance fog, in its own block rather than folded into FragInfo.
 ///
 /// Its own because color.glsl is included before FragInfo is declared, and
@@ -4651,6 +4732,17 @@ float EyeDistance() { return distance(v_world_position, fog_info.eye.xyz); }
 float ViewDepth() {
   return dot(v_world_position - fog_info.eye.xyz, fog_info.forward.xyz);
 }
+
+#else  // F3D_NO_FOG
+
+// The same two questions, answered without the block: a stage that declares no
+// fog has no eye position to measure from either. Stubs rather than a guard at
+// every call site, so that what includes this file reads the same whichever
+// way it was compiled.
+float EyeDistance() { return 0.0; }
+float ViewDepth() { return 0.0; }
+
+#endif  // F3D_NO_FOG
 
 /// Records the geometry of this fragment for whatever runs after the scene.
 ///
@@ -4700,10 +4792,14 @@ void WriteSurfaceGeometry(float roughness) {
 /// Exponential rather than linear, because linear fog has a visible plane
 /// where it starts and a dungeon corridor is exactly where that shows.
 vec3 ApplyFog(vec3 color) {
+#ifdef F3D_NO_FOG
+  return color;
+#else
   float density = fog_info.fog.w;
   if (density <= 0.0) return color;
   float d = EyeDistance();
   return mix(fog_info.fog.rgb, color, clamp(exp(-density * d), 0.0, 1.0));
+#endif
 }
 
 /// sRGB to linear. Textures are authored in sRGB, but lighting is only correct
@@ -5824,6 +5920,15 @@ vec2 EncodeOctahedral(vec3 n) {
 vec3 g_debug_surface = vec3(0.0);
 bool g_debug_surface_on = false;
 
+// **A stage that needs none of this must be able to declare none of it.** On
+// Vulkan both stages' descriptors are merged into one set layout, and two
+// bindings with the same number in it is not a layout the specification
+// allows. A driver may accept it anyway; a Galaxy A55's refuses the pipeline
+// with `ErrorUnknown` and no other word, which is how the shadow pass came to
+// build everywhere except there — its only uniform block was this one, and it
+// landed on the same binding as the vertex stage's first.
+#ifndef F3D_NO_FOG
+
 /// Distance fog, in its own block rather than folded into FragInfo.
 ///
 /// Its own because color.glsl is included before FragInfo is declared, and
@@ -5867,6 +5972,17 @@ float EyeDistance() { return distance(v_world_position, fog_info.eye.xyz); }
 float ViewDepth() {
   return dot(v_world_position - fog_info.eye.xyz, fog_info.forward.xyz);
 }
+
+#else  // F3D_NO_FOG
+
+// The same two questions, answered without the block: a stage that declares no
+// fog has no eye position to measure from either. Stubs rather than a guard at
+// every call site, so that what includes this file reads the same whichever
+// way it was compiled.
+float EyeDistance() { return 0.0; }
+float ViewDepth() { return 0.0; }
+
+#endif  // F3D_NO_FOG
 
 /// Records the geometry of this fragment for whatever runs after the scene.
 ///
@@ -5916,10 +6032,14 @@ void WriteSurfaceGeometry(float roughness) {
 /// Exponential rather than linear, because linear fog has a visible plane
 /// where it starts and a dungeon corridor is exactly where that shows.
 vec3 ApplyFog(vec3 color) {
+#ifdef F3D_NO_FOG
+  return color;
+#else
   float density = fog_info.fog.w;
   if (density <= 0.0) return color;
   float d = EyeDistance();
   return mix(fog_info.fog.rgb, color, clamp(exp(-density * d), 0.0, 1.0));
+#endif
 }
 
 /// sRGB to linear. Textures are authored in sRGB, but lighting is only correct
@@ -7133,6 +7253,15 @@ vec2 EncodeOctahedral(vec3 n) {
 vec3 g_debug_surface = vec3(0.0);
 bool g_debug_surface_on = false;
 
+// **A stage that needs none of this must be able to declare none of it.** On
+// Vulkan both stages' descriptors are merged into one set layout, and two
+// bindings with the same number in it is not a layout the specification
+// allows. A driver may accept it anyway; a Galaxy A55's refuses the pipeline
+// with `ErrorUnknown` and no other word, which is how the shadow pass came to
+// build everywhere except there — its only uniform block was this one, and it
+// landed on the same binding as the vertex stage's first.
+#ifndef F3D_NO_FOG
+
 /// Distance fog, in its own block rather than folded into FragInfo.
 ///
 /// Its own because color.glsl is included before FragInfo is declared, and
@@ -7176,6 +7305,17 @@ float EyeDistance() { return distance(v_world_position, fog_info.eye.xyz); }
 float ViewDepth() {
   return dot(v_world_position - fog_info.eye.xyz, fog_info.forward.xyz);
 }
+
+#else  // F3D_NO_FOG
+
+// The same two questions, answered without the block: a stage that declares no
+// fog has no eye position to measure from either. Stubs rather than a guard at
+// every call site, so that what includes this file reads the same whichever
+// way it was compiled.
+float EyeDistance() { return 0.0; }
+float ViewDepth() { return 0.0; }
+
+#endif  // F3D_NO_FOG
 
 /// Records the geometry of this fragment for whatever runs after the scene.
 ///
@@ -7225,10 +7365,14 @@ void WriteSurfaceGeometry(float roughness) {
 /// Exponential rather than linear, because linear fog has a visible plane
 /// where it starts and a dungeon corridor is exactly where that shows.
 vec3 ApplyFog(vec3 color) {
+#ifdef F3D_NO_FOG
+  return color;
+#else
   float density = fog_info.fog.w;
   if (density <= 0.0) return color;
   float d = EyeDistance();
   return mix(fog_info.fog.rgb, color, clamp(exp(-density * d), 0.0, 1.0));
+#endif
 }
 
 /// sRGB to linear. Textures are authored in sRGB, but lighting is only correct
@@ -8317,6 +8461,15 @@ vec2 EncodeOctahedral(vec3 n) {
 vec3 g_debug_surface = vec3(0.0);
 bool g_debug_surface_on = false;
 
+// **A stage that needs none of this must be able to declare none of it.** On
+// Vulkan both stages' descriptors are merged into one set layout, and two
+// bindings with the same number in it is not a layout the specification
+// allows. A driver may accept it anyway; a Galaxy A55's refuses the pipeline
+// with `ErrorUnknown` and no other word, which is how the shadow pass came to
+// build everywhere except there — its only uniform block was this one, and it
+// landed on the same binding as the vertex stage's first.
+#ifndef F3D_NO_FOG
+
 /// Distance fog, in its own block rather than folded into FragInfo.
 ///
 /// Its own because color.glsl is included before FragInfo is declared, and
@@ -8360,6 +8513,17 @@ float EyeDistance() { return distance(v_world_position, fog_info.eye.xyz); }
 float ViewDepth() {
   return dot(v_world_position - fog_info.eye.xyz, fog_info.forward.xyz);
 }
+
+#else  // F3D_NO_FOG
+
+// The same two questions, answered without the block: a stage that declares no
+// fog has no eye position to measure from either. Stubs rather than a guard at
+// every call site, so that what includes this file reads the same whichever
+// way it was compiled.
+float EyeDistance() { return 0.0; }
+float ViewDepth() { return 0.0; }
+
+#endif  // F3D_NO_FOG
 
 /// Records the geometry of this fragment for whatever runs after the scene.
 ///
@@ -8409,10 +8573,14 @@ void WriteSurfaceGeometry(float roughness) {
 /// Exponential rather than linear, because linear fog has a visible plane
 /// where it starts and a dungeon corridor is exactly where that shows.
 vec3 ApplyFog(vec3 color) {
+#ifdef F3D_NO_FOG
+  return color;
+#else
   float density = fog_info.fog.w;
   if (density <= 0.0) return color;
   float d = EyeDistance();
   return mix(fog_info.fog.rgb, color, clamp(exp(-density * d), 0.0, 1.0));
+#endif
 }
 
 /// sRGB to linear. Textures are authored in sRGB, but lighting is only correct
@@ -8931,7 +9099,11 @@ precision highp samplerCube;
 // vertex shader's outputs does not link, and mesh.vert emits all five.
 // One attachment, not two: this pass writes a shadow map, and the surface
 // buffer belongs to the scene pass.
+// And no fog block either: this shader reads neither, and a uniform block it
+// declares without using is a descriptor that collides with the vertex stage's
+// on Vulkan. See the guard in lib/color.glsl.
 #define F3D_NO_SURFACE_BUFFER
+#define F3D_NO_FOG
 // --- lib/color.glsl ---
 // Colour space helpers and the fragment output interface.
 //
@@ -9011,6 +9183,15 @@ vec2 EncodeOctahedral(vec3 n) {
 vec3 g_debug_surface = vec3(0.0);
 bool g_debug_surface_on = false;
 
+// **A stage that needs none of this must be able to declare none of it.** On
+// Vulkan both stages' descriptors are merged into one set layout, and two
+// bindings with the same number in it is not a layout the specification
+// allows. A driver may accept it anyway; a Galaxy A55's refuses the pipeline
+// with `ErrorUnknown` and no other word, which is how the shadow pass came to
+// build everywhere except there — its only uniform block was this one, and it
+// landed on the same binding as the vertex stage's first.
+#ifndef F3D_NO_FOG
+
 /// Distance fog, in its own block rather than folded into FragInfo.
 ///
 /// Its own because color.glsl is included before FragInfo is declared, and
@@ -9054,6 +9235,17 @@ float EyeDistance() { return distance(v_world_position, fog_info.eye.xyz); }
 float ViewDepth() {
   return dot(v_world_position - fog_info.eye.xyz, fog_info.forward.xyz);
 }
+
+#else  // F3D_NO_FOG
+
+// The same two questions, answered without the block: a stage that declares no
+// fog has no eye position to measure from either. Stubs rather than a guard at
+// every call site, so that what includes this file reads the same whichever
+// way it was compiled.
+float EyeDistance() { return 0.0; }
+float ViewDepth() { return 0.0; }
+
+#endif  // F3D_NO_FOG
 
 /// Records the geometry of this fragment for whatever runs after the scene.
 ///
@@ -9103,10 +9295,14 @@ void WriteSurfaceGeometry(float roughness) {
 /// Exponential rather than linear, because linear fog has a visible plane
 /// where it starts and a dungeon corridor is exactly where that shows.
 vec3 ApplyFog(vec3 color) {
+#ifdef F3D_NO_FOG
+  return color;
+#else
   float density = fog_info.fog.w;
   if (density <= 0.0) return color;
   float d = EyeDistance();
   return mix(fog_info.fog.rgb, color, clamp(exp(-density * d), 0.0, 1.0));
+#endif
 }
 
 /// sRGB to linear. Textures are authored in sRGB, but lighting is only correct
@@ -10107,6 +10303,15 @@ vec2 EncodeOctahedral(vec3 n) {
 vec3 g_debug_surface = vec3(0.0);
 bool g_debug_surface_on = false;
 
+// **A stage that needs none of this must be able to declare none of it.** On
+// Vulkan both stages' descriptors are merged into one set layout, and two
+// bindings with the same number in it is not a layout the specification
+// allows. A driver may accept it anyway; a Galaxy A55's refuses the pipeline
+// with `ErrorUnknown` and no other word, which is how the shadow pass came to
+// build everywhere except there — its only uniform block was this one, and it
+// landed on the same binding as the vertex stage's first.
+#ifndef F3D_NO_FOG
+
 /// Distance fog, in its own block rather than folded into FragInfo.
 ///
 /// Its own because color.glsl is included before FragInfo is declared, and
@@ -10150,6 +10355,17 @@ float EyeDistance() { return distance(v_world_position, fog_info.eye.xyz); }
 float ViewDepth() {
   return dot(v_world_position - fog_info.eye.xyz, fog_info.forward.xyz);
 }
+
+#else  // F3D_NO_FOG
+
+// The same two questions, answered without the block: a stage that declares no
+// fog has no eye position to measure from either. Stubs rather than a guard at
+// every call site, so that what includes this file reads the same whichever
+// way it was compiled.
+float EyeDistance() { return 0.0; }
+float ViewDepth() { return 0.0; }
+
+#endif  // F3D_NO_FOG
 
 /// Records the geometry of this fragment for whatever runs after the scene.
 ///
@@ -10199,10 +10415,14 @@ void WriteSurfaceGeometry(float roughness) {
 /// Exponential rather than linear, because linear fog has a visible plane
 /// where it starts and a dungeon corridor is exactly where that shows.
 vec3 ApplyFog(vec3 color) {
+#ifdef F3D_NO_FOG
+  return color;
+#else
   float density = fog_info.fog.w;
   if (density <= 0.0) return color;
   float d = EyeDistance();
   return mix(fog_info.fog.rgb, color, clamp(exp(-density * d), 0.0, 1.0));
+#endif
 }
 
 /// sRGB to linear. Textures are authored in sRGB, but lighting is only correct
@@ -10644,6 +10864,15 @@ vec2 EncodeOctahedral(vec3 n) {
 vec3 g_debug_surface = vec3(0.0);
 bool g_debug_surface_on = false;
 
+// **A stage that needs none of this must be able to declare none of it.** On
+// Vulkan both stages' descriptors are merged into one set layout, and two
+// bindings with the same number in it is not a layout the specification
+// allows. A driver may accept it anyway; a Galaxy A55's refuses the pipeline
+// with `ErrorUnknown` and no other word, which is how the shadow pass came to
+// build everywhere except there — its only uniform block was this one, and it
+// landed on the same binding as the vertex stage's first.
+#ifndef F3D_NO_FOG
+
 /// Distance fog, in its own block rather than folded into FragInfo.
 ///
 /// Its own because color.glsl is included before FragInfo is declared, and
@@ -10687,6 +10916,17 @@ float EyeDistance() { return distance(v_world_position, fog_info.eye.xyz); }
 float ViewDepth() {
   return dot(v_world_position - fog_info.eye.xyz, fog_info.forward.xyz);
 }
+
+#else  // F3D_NO_FOG
+
+// The same two questions, answered without the block: a stage that declares no
+// fog has no eye position to measure from either. Stubs rather than a guard at
+// every call site, so that what includes this file reads the same whichever
+// way it was compiled.
+float EyeDistance() { return 0.0; }
+float ViewDepth() { return 0.0; }
+
+#endif  // F3D_NO_FOG
 
 /// Records the geometry of this fragment for whatever runs after the scene.
 ///
@@ -10736,10 +10976,14 @@ void WriteSurfaceGeometry(float roughness) {
 /// Exponential rather than linear, because linear fog has a visible plane
 /// where it starts and a dungeon corridor is exactly where that shows.
 vec3 ApplyFog(vec3 color) {
+#ifdef F3D_NO_FOG
+  return color;
+#else
   float density = fog_info.fog.w;
   if (density <= 0.0) return color;
   float d = EyeDistance();
   return mix(fog_info.fog.rgb, color, clamp(exp(-density * d), 0.0, 1.0));
+#endif
 }
 
 /// sRGB to linear. Textures are authored in sRGB, but lighting is only correct

@@ -11,10 +11,12 @@
 /// the same number of vertices arrives, each of them somewhere else. This is
 /// the check that costs a pass over the buffers and catches that.
 ///
-/// It lived in `tool/convert_asset.dart` and had one caller, which is a poor
+/// It lived in `dart run flutter3d:convert` and had one caller, which is a poor
 /// place for the one thing that says whether a writer works. Every writer wants
 /// it, and a writer shipped without it is a writer nobody has checked.
 library;
+
+import 'dart:typed_data';
 
 import 'package:flutter3d_geometry/flutter3d_geometry.dart';
 
@@ -49,10 +51,24 @@ final class DocumentDifference {
 /// compares geometry in full. Those are the checks the tool it came from had,
 /// and widening them is worth doing against a format that would fail them —
 /// adding a check nothing exercises is a check nobody has seen work.
+///
+/// [allowVertexReorder] is `fmt-30n`'s own accommodation for
+/// `GltfWriter(compressGeometry: true)`'s vertex-cache reordering pass: a
+/// mesh whose triangles and vertices were moved for GPU cache reuse fails the
+/// default position-by-position check even though it draws identically,
+/// since reordering's entire point is to move which byte offset a vertex or
+/// index lands at. When true, a surface whose vertex/index *counts* still
+/// match is instead compared as the multiset of triangles it draws — each
+/// found in the other side allowing any of its three cyclic rotations (same
+/// winding, different starting corner) and [tolerance] per float — rather
+/// than by position. Off by default: every other writer in this repository
+/// is held to the stricter check, and turning this on for a writer that
+/// never reorders would let a real positional bug through as a "reorder".
 List<DocumentDifference> compareModelDocuments(
   ModelDocument source,
   ModelDocument readBack, {
   double tolerance = 0.0,
+  bool allowVertexReorder = false,
 }) {
   final problems = <DocumentDifference>[];
 
@@ -109,35 +125,58 @@ List<DocumentDifference> compareModelDocuments(
       );
       continue;
     }
-    // The first difference in each buffer and then on to the next surface: a
-    // surface whose floats are all shifted has every one of them wrong, and a
-    // list of forty thousand identical complaints hides the second surface
-    // that is wrong for another reason.
-    for (var v = 0; v < a.vertices.length; v++) {
-      // Negated rather than `> tolerance`, so a NaN — which loses every
-      // comparison it is in — is reported as a difference instead of passing.
-      if (!((a.vertices[v] - b.vertices[v]).abs() <= tolerance)) {
-        problems.add(
-          DocumentDifference(
-            'surfaces[$i]: vertex float $v is ${a.vertices[v]} in, '
-            '${b.vertices[v]} out',
-          ),
-        );
-        break;
+    if (allowVertexReorder) {
+      final mismatch = _findUnmatchedTriangle(a, b, tolerance);
+      if (mismatch != null) {
+        problems.add(DocumentDifference('surfaces[$i]: $mismatch'));
       }
-    }
-    for (var v = 0; v < a.indices.length; v++) {
-      if (a.indices[v] != b.indices[v]) {
-        problems.add(
-          DocumentDifference(
-            'surfaces[$i]: index $v is ${a.indices[v]} in, ${b.indices[v]} out',
-          ),
-        );
-        break;
+    } else {
+      // The first difference in each buffer and then on to the next surface:
+      // a surface whose floats are all shifted has every one of them wrong,
+      // and a list of forty thousand identical complaints hides the second
+      // surface that is wrong for another reason.
+      for (var v = 0; v < a.vertices.length; v++) {
+        // Negated rather than `> tolerance`, so a NaN — which loses every
+        // comparison it is in — is reported as a difference instead of
+        // passing.
+        if (!((a.vertices[v] - b.vertices[v]).abs() <= tolerance)) {
+          problems.add(
+            DocumentDifference(
+              'surfaces[$i]: vertex float $v is ${a.vertices[v]} in, '
+              '${b.vertices[v]} out',
+            ),
+          );
+          break;
+        }
+      }
+      for (var v = 0; v < a.indices.length; v++) {
+        if (a.indices[v] != b.indices[v]) {
+          problems.add(
+            DocumentDifference(
+              'surfaces[$i]: index $v is ${a.indices[v]} in, '
+              '${b.indices[v]} out',
+            ),
+          );
+          break;
+        }
       }
     }
 
-    _compareMorphTargets(problems, i, a.morphTargets, b.morphTargets, tolerance);
+    // A reordered mesh's morph target deltas moved with their base vertex
+    // exactly the way its positions did, but this function has no vertex
+    // correspondence to check them against once triangle order is allowed to
+    // differ — the triangle match above only proves the *base* geometry
+    // survived. Nothing in this repository compresses a mesh with morph
+    // targets yet, so this is a documented gap rather than a silent one.
+    if (!allowVertexReorder) {
+      _compareMorphTargets(
+        problems,
+        i,
+        a.morphTargets,
+        b.morphTargets,
+        tolerance,
+      );
+    }
   }
 
   return problems;
@@ -198,4 +237,88 @@ void _compareMorphTargets(
       }
     }
   }
+}
+
+/// One triangle of a mesh, as its three vertices' full attribute rows in
+/// winding order — the unit [_findUnmatchedTriangle] matches on, since a
+/// reordered mesh keeps every float of a vertex together but not at any
+/// particular index.
+List<Float32List> _triangleAt(MeshData mesh, int triangle) {
+  final stride = mesh.layout.floatsPerVertex;
+  Float32List vertexAt(int v) =>
+      Float32List.sublistView(mesh.vertices, v * stride, v * stride + stride);
+  return <Float32List>[
+    for (var corner = 0; corner < 3; corner++)
+      vertexAt(mesh.indices[triangle * 3 + corner]),
+  ];
+}
+
+bool _sameVertex(Float32List a, Float32List b, double tolerance) {
+  for (var c = 0; c < a.length; c++) {
+    if (!((a[c] - b[c]).abs() <= tolerance)) return false;
+  }
+  return true;
+}
+
+/// Whether [a] and [b] draw the same triangle: the same three vertices in
+/// the same winding, allowing the three to start at a different corner —
+/// `(v0,v1,v2)` and `(v1,v2,v0)` are the same triangle, `(v0,v2,v1)` faces
+/// the other way and is not.
+bool _sameTriangle(List<Float32List> a, List<Float32List> b, double tolerance) {
+  for (var rotation = 0; rotation < 3; rotation++) {
+    if (_sameVertex(a[0], b[rotation], tolerance) &&
+        _sameVertex(a[1], b[(rotation + 1) % 3], tolerance) &&
+        _sameVertex(a[2], b[(rotation + 2) % 3], tolerance)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/// A one-line description of the first triangle [source] draws that
+/// [readBack] does not, checked as an unordered multiset with [tolerance] per
+/// float — or null when every one of [source]'s triangles has a match. Vertex
+/// and index *counts* are assumed already equal; a mismatch there is caught
+/// before this runs.
+///
+/// `O(triangleCount²)`, the same trade this row's own vertex-cache optimizer
+/// makes: correctness over asymptotic speed, on the thousands of triangles a
+/// real test model has rather than a production-sized one.
+String? _findUnmatchedTriangle(
+  MeshData source,
+  MeshData readBack,
+  double tolerance,
+) {
+  final triangleCount = source.triangleCount;
+  if (triangleCount != readBack.triangleCount) {
+    return '${source.triangleCount} triangles in, ${readBack.triangleCount} '
+        'out';
+  }
+  final candidates = <List<Float32List>>[
+    for (var t = 0; t < triangleCount; t++) _triangleAt(readBack, t),
+  ];
+  final matched = List<bool>.filled(triangleCount, false);
+  for (var t = 0; t < triangleCount; t++) {
+    final triangle = _triangleAt(source, t);
+    final found = _firstUnmatched(candidates, matched, triangle, tolerance);
+    if (found == null) {
+      return 'triangle $t has no match — reordered, but not the same '
+          'geometry — in the read-back mesh';
+    }
+    matched[found] = true;
+  }
+  return null;
+}
+
+int? _firstUnmatched(
+  List<List<Float32List>> candidates,
+  List<bool> matched,
+  List<Float32List> triangle,
+  double tolerance,
+) {
+  for (var i = 0; i < candidates.length; i++) {
+    if (matched[i]) continue;
+    if (_sameTriangle(triangle, candidates[i], tolerance)) return i;
+  }
+  return null;
 }

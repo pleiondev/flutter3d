@@ -9,7 +9,7 @@
 #
 # What it does NOT do, stated so the gap is not mistaken for coverage:
 #
-#   * The Impeller half of the golden set. Those forty-three scenes render through
+#   * The Impeller half of the golden set. Those forty-four scenes render through
 #     flutter_gpu and need a real device, so they run from
 #     packages/flutter3d/tool/golden.sh on a machine with a GPU. The software
 #     half runs here, and cross_backend_test.dart compares the two committed
@@ -70,7 +70,17 @@ step "pub get" flutter pub get
 # a fresh checkout has none. A test asserts it was built — deliberately a
 # failure rather than a skip, because "CI built only one bundle" is one of the
 # traps that test exists to catch.
-step "shaders" in_dir packages/flutter3d_impeller ./tool/build_shaders.sh
+#
+# `ap-06`: `hook/build.dart` now builds this same bundle automatically for a
+# real `flutter build`/`flutter run` — but `flutter analyze`, two lines
+# below, does not run build hooks at all, and reports the declared asset as
+# missing before any real build ever gets the chance to trigger one. This
+# calls the same real logic the hook does (`lib/src/shader_bundle_build.dart`),
+# directly, fast, with no full build — the manual `tool/build_shaders.sh`
+# this replaced stays for the wider engine-development surface it alone
+# offers (cross-package includes, a discoverable manifest, the binding
+# table); this package's own single, fixed bundle needs none of that.
+step "shaders" in_dir packages/flutter3d_impeller dart run bin/build_shader_bundle.dart
 
 # The example's own loadable bundle — the engine's build script pointed at the
 # example's manifest, then the WebGL package's packer. Gitignored like the
@@ -149,6 +159,19 @@ step "webgl shaders" bash -c 'cd packages/flutter3d_webgl && dart run tool/gener
 # than no check, because it reports green.
 step "webgpu shaders" bash -c 'cd packages/flutter3d_webgpu && dart run tool/generate_shaders.dart >/dev/null && git diff --exit-code -- lib/engine_shaders.dart'
 
+# **`qa-09`: the real Khronos validator, against a fresh `GltfWriter` export.**
+# `fmt-11`'s own checker
+# (`packages/flutter3d_formats/lib/src/gltf/gltf_validate.dart`) only ever
+# checks that a declared `min`/`max` is the data's own, by design — see its
+# doc comment for why the package that writes glTF has no business reaching
+# for Node. This step is the other half: the actual validator, which knows
+# the rest of the 2.0 spec, run from `tool/` the way `glslangValidator` and
+# `naga` already are above — see tool/validate_gltf.dart's own doc comment for
+# what it exports and validates, and what it deliberately does not. Needs
+# `gltf_validator` on `PATH` and fails rather than skips without it, for the
+# same reason those two do.
+step "gltf validate" dart run tool/validate_gltf.dart
+
 step "analyze" flutter analyze
 
 # What `pub publish` would say about each package, without publishing anything.
@@ -194,6 +217,18 @@ for package in packages/*/; do
     step "test $name" in_dir "$package" flutter test
   fi
 done
+
+# **The models service, which the loop above cannot see.** `cloud/server` is a
+# service rather than a package, so it sits outside `packages/` and outside the
+# pub workspace, resolves on its own, and would otherwise have no step at all.
+# The migrations check fails when a `.sql` was edited and the Dart file the
+# binary carries was not regenerated. The journey test against Postgres is
+# `-t db` and is not run here: this script starts no database, and a step that
+# skips when one is missing would be green whether or not the journey works.
+step "pub get cloud/server" in_dir cloud/server dart pub get
+step "analyze cloud/server" in_dir cloud/server dart analyze --fatal-infos
+step "migrations cloud/server" in_dir cloud/server dart run tool/embed_migrations.dart --check
+step "test cloud/server" in_dir cloud/server dart test -x db
 
 # **Five test files that nothing had ever run.** `flutter3d_webgl` marks them
 # `@TestOn('browser')` — the conformance suite, the parity comparison against

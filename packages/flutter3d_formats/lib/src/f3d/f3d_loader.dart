@@ -70,7 +70,7 @@ final class F3dDocument extends ModelDocument {
     if (version != kF3dVersion) {
       throw F3dFormatException(
         'File is version $version, this build reads $kF3dVersion. Re-run '
-        'tool/convert_asset.dart.',
+        'dart run flutter3d:convert.',
       );
     }
 

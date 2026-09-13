@@ -16,12 +16,18 @@ ModifierSlot _mirror({bool enabled = true}) => ModifierSlot(
   enabled: enabled,
 );
 
+ModifierSlot _array({int count = 2, bool enabled = true}) => ModifierSlot(
+  modifier: ArrayModifier(count: count, offset: Vector3(1, 0, 0)),
+  enabled: enabled,
+);
+
 Future<void> _pump(
   WidgetTester tester, {
   required List<ModifierSlot> slots,
   ValueChanged<int>? onToggle,
   void Function(int from, int to)? onReorder,
   VoidCallback? onAdd,
+  void Function(int index, String field, Object? value)? onSetField,
 }) => tester.pumpWidget(
   MaterialApp(
     theme: modelerTheme(),
@@ -31,6 +37,7 @@ Future<void> _pump(
         onToggle: onToggle ?? (_) {},
         onReorder: onReorder ?? (_, __) {},
         onAdd: onAdd ?? () {},
+        onSetField: onSetField,
       ),
     ),
   ),
@@ -128,5 +135,52 @@ void main() {
     await _pump(tester, slots: <ModifierSlot>[_mirror()]);
 
     expect(find.widgetWithText(TextButton, 'Add'), findsOneWidget);
+  });
+
+  group('mat-20\'s own field: an array\'s own count', () {
+    testWidgets('draws no count field when onSetField is not given', (
+      tester,
+    ) async {
+      await _pump(tester, slots: <ModifierSlot>[_array()]);
+
+      expect(find.byType(TextField), findsNothing);
+    });
+
+    testWidgets('draws no count field for a modifier that is not an array', (
+      tester,
+    ) async {
+      final set = <(int, String, Object?)>[];
+      await _pump(
+        tester,
+        slots: <ModifierSlot>[_mirror()],
+        onSetField: (int index, String field, Object? value) =>
+            set.add((index, field, value)),
+      );
+
+      // Mutation: draw the count field regardless of the modifier's own
+      // kind. `MirrorModifier` has no `count` for it to name.
+      expect(find.byType(TextField), findsNothing);
+    });
+
+    testWidgets('shows the array\'s own count, and edits it as one '
+        'SetModifierField', (tester) async {
+      final set = <(int, String, Object?)>[];
+      await _pump(
+        tester,
+        slots: <ModifierSlot>[_mirror(), _array(count: 3)],
+        onSetField: (int index, String field, Object? value) =>
+            set.add((index, field, value)),
+      );
+
+      expect(find.text('3'), findsOneWidget);
+
+      await tester.enterText(find.byType(TextField), '5');
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+
+      // mat-20's own acceptance: one edit is one `SetModifierField`, naming
+      // the array's own index (1, not 0 — the mirror ahead of it) and an
+      // `int`, the shape `_modifierFieldSet`'s own `'count'` case expects.
+      expect(set, <(int, String, Object?)>[(1, 'count', 5)]);
+    });
   });
 }

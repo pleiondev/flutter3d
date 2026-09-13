@@ -57,6 +57,11 @@ extension _GltfWriterMesh on GltfWriter {
   /// session does not ship. Falling back to float for that one attribute on
   /// that one primitive costs nothing but the bytes it would have saved.
   int _quantizedOrFloatAccessor(String name, Float32List floats, String type) {
+    final componentCount = type == GltfAccessorType.vec2.name
+        ? 2
+        : type == GltfAccessorType.vec3.name
+        ? 3
+        : 4;
     final rule = _quantizationOf(name);
     if (rule != null && _fitsQuantization(floats, signed: rule.signed)) {
       _usedQuantization = true;
@@ -67,32 +72,61 @@ extension _GltfWriterMesh on GltfWriter {
         rule.componentType,
         rule.signed,
       );
+
+      // glTF requires vertex attribute data aligned to 4 bytes
+      // (`MESH_PRIMITIVE_ACCESSOR_UNALIGNED` in the official validator). A
+      // `vec3` of a 1-byte component — `NORMAL`, quantized to a signed byte —
+      // packs 3 bytes a vertex, which is not; every other quantized shape
+      // here (`vec4` bytes, `vec2` shorts) already lands on 4. Padding to a
+      // 4-byte stride costs one wasted byte a vertex, still far short of the
+      // 12 a `FLOAT` vec3 would have spent.
+      final naturalStride = componentCount * rule.componentType.sizeInBytes;
+      final paddedStride = (naturalStride + 3) & ~3;
+      final bufferData = paddedStride == naturalStride
+          ? encoded
+          : _paddedToStride(encoded, naturalStride, paddedStride);
+
       return _addAccessor(<String, Object?>{
-        'bufferView': _appendBufferView(encoded, target: 34962),
+        'bufferView': _appendBufferView(
+          bufferData,
+          target: 34962,
+          byteStride: paddedStride == naturalStride ? null : paddedStride,
+        ),
         'componentType': rule.componentType.code,
         'normalized': true,
         'type': type,
-        'count':
-            floats.length ~/
-            (type == GltfAccessorType.vec2.name
-                ? 2
-                : type == GltfAccessorType.vec3.name
-                ? 3
-                : 4),
+        'count': floats.length ~/ componentCount,
       });
     }
     return _addAccessor(<String, Object?>{
       'bufferView': _appendBufferView(floats, target: 34962),
       'componentType': GltfComponentType.float.code,
       'type': type,
-      'count':
-          floats.length ~/
-          (type == GltfAccessorType.vec2.name
-              ? 2
-              : type == GltfAccessorType.vec3.name
-              ? 3
-              : 4),
+      'count': floats.length ~/ componentCount,
     });
+  }
+
+  /// [source]'s bytes, packed [naturalStride] bytes a vertex, repacked at
+  /// [paddedStride] bytes a vertex with the gap zero-filled.
+  Uint8List _paddedToStride(
+    TypedData source,
+    int naturalStride,
+    int paddedStride,
+  ) {
+    final bytes = Uint8List.sublistView(
+      source.buffer.asUint8List(source.offsetInBytes, source.lengthInBytes),
+    );
+    final vertexCount = bytes.length ~/ naturalStride;
+    final out = Uint8List(vertexCount * paddedStride);
+    for (var v = 0; v < vertexCount; v++) {
+      out.setRange(
+        v * paddedStride,
+        v * paddedStride + naturalStride,
+        bytes,
+        v * naturalStride,
+      );
+    }
+    return out;
   }
 
   /// Whether every value in [floats] sits within the range a normalized
@@ -174,9 +208,17 @@ extension _GltfWriterMesh on GltfWriter {
     final cached = _meshAccessorCache[mesh];
     if (cached != null) return cached;
 
-    final layout = mesh.layout;
+    // Reordered for GPU cache reuse before anything below reads a single
+    // float, so every accessor built past this line already carries the
+    // compressed geometry's own vertex/triangle order — `_meshAccessorCache`
+    // stays keyed by the original mesh's identity so a mesh shared by two
+    // surfaces is still reordered and encoded once.
+    final source = compressGeometry ? optimizeVertexCache(mesh) : mesh;
+    if (!identical(source, mesh)) _usedVertexCacheReordering = true;
+
+    final layout = source.layout;
     final stride = layout.floatsPerVertex;
-    final vertexCount = mesh.vertexCount;
+    final vertexCount = source.vertexCount;
 
     Float32List column(VertexAttribute attribute) {
       final offset = layout.floatOffsetOf(attribute.name);
@@ -185,13 +227,13 @@ extension _GltfWriterMesh on GltfWriter {
         final from = v * stride + offset;
         final to = v * attribute.componentCount;
         for (var c = 0; c < attribute.componentCount; c++) {
-          out[to + c] = mesh.vertices[from + c];
+          out[to + c] = source.vertices[from + c];
         }
       }
       return out;
     }
 
-    final bounds = mesh.computeBounds();
+    final bounds = source.computeBounds();
     final positions = column(VertexLayout.position);
     final positionAccessor = _addAccessor(<String, Object?>{
       'bufferView': _appendBufferView(positions, target: 34962),
@@ -242,7 +284,7 @@ extension _GltfWriterMesh on GltfWriter {
             });
     }
 
-    final packed = mesh.packIndices();
+    final packed = source.packIndices();
     final TypedData packedIndices = packed.is16Bit
         ? Uint16List.view(
             packed.bytes.buffer,
@@ -266,7 +308,7 @@ extension _GltfWriterMesh on GltfWriter {
     });
 
     final targets = <Map<String, Object?>>[
-      for (final target in mesh.morphTargets)
+      for (final target in source.morphTargets)
         <String, Object?>{
           'POSITION': _addAccessor(<String, Object?>{
             'bufferView': _appendBufferView(target.positions),
@@ -314,7 +356,7 @@ extension _GltfWriterMesh on GltfWriter {
       // `primitive.targets[i]` — so a target with no name still holds its
       // place with `null` rather than shifting every name after it left.
       targetNames: <String?>[
-        for (final target in mesh.morphTargets) target.name,
+        for (final target in source.morphTargets) target.name,
       ],
     );
     _meshAccessorCache[mesh] = result;

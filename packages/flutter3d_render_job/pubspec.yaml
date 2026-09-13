@@ -1,0 +1,66 @@
+name: flutter3d_render_job
+description: "A model project rendered off the main viewport's own device: RenderSnapshotJob, RenderPreset and the PNG it produces."
+version: 0.1.0
+repository: https://github.com/pleiondev/flutter3d
+homepage: https://flutter3d.pleion.dev
+issue_tracker: https://github.com/pleiondev/flutter3d/issues
+topics:
+  - modelling
+  - 3d
+  - rendering
+  - tooling
+resolution: workspace
+
+environment:
+  sdk: ^3.12.2
+  flutter: '>=3.47.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # `ModelProject`, `ModelObject`, `Geometry`, `SurfaceMaterial`'s home, and
+  # `encodePng` — the project this job renders and the encoder it renders to,
+  # both already real and tested there.
+  flutter3d_model_core: ^0.6.0
+
+  # `Scene`, `MeshNode`, `LightNode`, `CameraNode`, `Renderer`, `RenderView`,
+  # `RenderSettings`, `TiledProjection`, `Projection` — the same renderer and
+  # the same tiling the live viewport draws with.
+  flutter3d: ^0.6.0
+
+  # `CpuDevice` — this job's own device, separate from whatever backend the
+  # live viewport is actually drawing with, so a snapshot never contends with
+  # it for the GPU and never depends on a display existing at all.
+  flutter3d_cpu: ^0.6.0
+
+  # `EditMesh.toMeshData()`, and `meshWorkStaysHere` — the same "no isolates
+  # on the web" flag `editInIsolate` already answers this question with,
+  # reused here rather than a second copy of the same environment check.
+  flutter3d_mesh: ^0.6.0
+
+  vector_math: ^2.2.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+  # `expectMatchesGolden`/`compareFrames`, for this package's own acceptance
+  # test — the same golden convention every rendering package in this
+  # workspace already tests against.
+  flutter3d_testing: ^0.6.0
+
+# **A Flutter package, and that is the split `flutter3d_model_core` itself
+# cannot make.** `ModelProject` lives in a plain Dart package on purpose —
+# `flutter3d_model_mcp` starts under a bare `dart run`, and a single Flutter
+# import anywhere upstream of it is a server that will not start on a machine
+# without the Flutter SDK (see that package's own pubspec). `CpuDevice` and
+# `Renderer` are exactly such an import: `flutter3d_hardware`'s own
+# `GraphicsDevice.readPixels` takes a `FilterQuality` from
+# `package:flutter/widgets.dart`, so nothing that renders can be plain Dart.
+# `RenderSnapshotJob` needs both a project and a renderer, so it lives above
+# both rather than inside either — the same reason `flutter3d_rig` is its own
+# package, with its dependency the other way round: `flutter3d_rig` split out
+# to *stay* Flutter-free next to a document layer that already was; this
+# package exists because staying Flutter-free was never an option for it.

@@ -33,7 +33,7 @@ final class DemoFile {
   /// Where this says what it could not read.
   final IssueSink onIssue;
 
-  static const String _name = 'demo.json';
+  static const String _name = 'demo${Demo.fileExtension}';
 
   /// The last run, or null with a reason said through [onIssue].
   ///

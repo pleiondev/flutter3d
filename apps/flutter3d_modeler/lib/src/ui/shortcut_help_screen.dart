@@ -17,6 +17,7 @@ library;
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../l10n/app_localizations.dart';
 import 'shortcut_help.dart';
 
 /// The site's own root — see this file's own doc comment for why not a
@@ -35,9 +36,10 @@ class _ShortcutHelpScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final l10n = AppLocalizations.of(context);
     final entries = shortcutTable();
     return AlertDialog(
-      title: const Text('Keyboard shortcuts'),
+      title: Text(l10n.keyboardShortcuts),
       content: SizedBox(
         width: 360,
         height: 420,
@@ -61,7 +63,10 @@ class _ShortcutHelpScreen extends StatelessWidget {
                       ),
                     ),
                     Expanded(
-                      child: Text(entry.label, style: theme.textTheme.bodyMedium),
+                      child: Text(
+                        entry.label,
+                        style: theme.textTheme.bodyMedium,
+                      ),
                     ),
                   ],
                 ),
@@ -72,11 +77,11 @@ class _ShortcutHelpScreen extends StatelessWidget {
       actions: <Widget>[
         TextButton(
           onPressed: () => launchUrl(tutorialUrl),
-          child: const Text('Tutorial'),
+          child: Text(l10n.tutorial),
         ),
         TextButton(
           onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Close'),
+          child: Text(l10n.close),
         ),
       ],
     );

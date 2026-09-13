@@ -1,0 +1,8 @@
+# `ui-22`: Russian is the template (Е2 — Russian and English both from the
+# first version); `app_en.arb` follows `app_ru.arb`'s own keys, not the
+# other way round.
+arb-dir: lib/l10n
+template-arb-file: app_ru.arb
+output-localization-file: app_localizations.dart
+output-class: AppLocalizations
+nullable-getter: false

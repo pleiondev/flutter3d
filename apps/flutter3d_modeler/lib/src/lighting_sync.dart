@@ -53,7 +53,7 @@ final class LightingSync {
         castsShadow: light.castsShadow,
         innerConeAngle: light.innerConeAngle,
         outerConeAngle: light.outerConeAngle,
-      );
+      )..setLocalMatrix(light.transform);
       scene.add(node);
       _managed.add(node);
     }

@@ -1,0 +1,16 @@
+# /etc/cloudflared/lessons.yml
+#
+# A tunnel of its own, not an ingress rule added to models.yml — the same
+# "each service gets its own tunnel" pattern already on bob for its other
+# services, and what keeps lessons.pleion.dev's DNS and credentials
+# independent of the models service's.
+#
+# `<TUNNEL_ID>` is what `cloudflared tunnel create flutter3d-lessons` prints;
+# the credentials file of the same name is written beside it.
+tunnel: <TUNNEL_ID>
+credentials-file: /etc/cloudflared/<TUNNEL_ID>.json
+
+ingress:
+  - hostname: lessons.pleion.dev
+    service: http://127.0.0.1:8795
+  - service: http_status:404

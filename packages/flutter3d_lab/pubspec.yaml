@@ -1,0 +1,33 @@
+name: flutter3d_lab
+description: "Virtual laboratory simulations — edu-04's pendulum is the first. Plain Dart, so a server can replay a lab run with no Flutter SDK in it."
+version: 0.1.0
+repository: https://github.com/pleiondev/flutter3d
+homepage: https://flutter3d.pleion.dev
+issue_tracker: https://github.com/pleiondev/flutter3d/issues
+topics:
+  - game-development
+  - simulation
+  - education
+resolution: workspace
+
+environment:
+  sdk: ^3.12.2
+
+dependencies:
+  # The stepping and recording primitives a lab experiment is built on:
+  # `Portable` (a step asks no machine for an answer), `DigestTrace`
+  # (verification), `DataSourceTrace` (a value with no controller behind
+  # it), `Demo`/`Snapshot`/`InputTape` (a run, wrapped as a real `.f3drun`).
+  # A lab experiment is domain content on top of these, the same relation a
+  # genre package already has with the engine underneath it — not a reason
+  # for `flutter3d_sim` itself to know what a pendulum is.
+  flutter3d_sim: ^0.6.0
+
+dev_dependencies:
+  test: ^1.25.0
+  flutter_lints: ^6.0.0
+
+# Plain Dart, same reason `flutter3d_sim` is one: a server verifies a
+# student's submitted run by replaying it through the same simulation, in a
+# container with no Flutter SDK in it. Held by `tool/structure.dart`, not by
+# this comment.

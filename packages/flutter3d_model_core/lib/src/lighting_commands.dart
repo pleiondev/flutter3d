@@ -126,6 +126,59 @@ final class SetLightField extends ModelCommand {
   }
 }
 
+/// Puts a transform on one light, replacing whatever it had — the same
+/// shape [SetTransform] gives an object, scoped to [SceneLighting.lights]'
+/// own index addressing the way [RemoveLight] and [SetLightField] already
+/// are.
+///
+/// **A dedicated command rather than a `SetLightField` case.** Every other
+/// field `_lightFieldSet` dispatches on on is a number, a bool, or a
+/// three-number colour; a transform is sixteen numbers read through
+/// `_doubles(value, 16)` the same way [SetTransform] itself reads one, which
+/// is a different shape from anything `SetLightField`'s `value` already
+/// carries — mirroring `SetTransform` exactly keeps that reader in the one
+/// place it already exists rather than teaching `_lightFieldSet` a second
+/// one.
+final class SetLightTransform extends ModelCommand {
+  const SetLightTransform({required this.index, required this.to});
+
+  final int index;
+  final Matrix4 to;
+
+  @override
+  String get name => 'setLightTransform';
+
+  @override
+  String get says => 'move a light';
+
+  @override
+  Map<String, Object?> get arguments => <String, Object?>{
+    'index': index,
+    'to': to.storage.toList(),
+  };
+
+  @override
+  Outcome apply(ModelProject project, ProjectSelection selection) {
+    final List<ProjectLight> lights = project.lighting.lights;
+    if (index < 0 || index >= lights.length) {
+      return Outcome.refused('there is no light $index');
+    }
+    final ProjectLight next = lights[index].copyWith(
+      transform: Matrix4.copy(to),
+    );
+    return Outcome.done(
+      project.copyWith(
+        lighting: project.lighting.copyWith(
+          lights: <ProjectLight>[
+            for (var i = 0; i < lights.length; i++)
+              i == index ? next : lights[i],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 /// Sets the project's own built-in sky.
 final class SetEnvironment extends ModelCommand {
   const SetEnvironment(this.preset);

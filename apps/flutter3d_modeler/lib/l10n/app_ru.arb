@@ -1,0 +1,83 @@
+{
+  "@@locale": "ru",
+  "appTitle": "flutter3d modeller",
+  "@appTitle": {
+    "description": "Заголовок окна/вкладки — имя приложения, не переводится по смыслу."
+  },
+  "unsavedChangesTitle": "Несохранённые изменения",
+  "unsavedChangesBody": "В этой модели есть изменения, которые не были сохранены.",
+  "keepEditing": "Продолжить редактирование",
+  "discard": "Не сохранять",
+  "saveAndClose": "Сохранить и закрыть",
+  "restoreUnsavedChangesTitle": "Восстановить несохранённые изменения?",
+  "restoreUnsavedChangesBody": "{count, plural, one {Найден автосохранённый файл сессии, которая закрылась некорректно ({count} объект).} few {Найден автосохранённый файл сессии, которая закрылась некорректно ({count} объекта).} many {Найден автосохранённый файл сессии, которая закрылась некорректно ({count} объектов).} other {Найден автосохранённый файл сессии, которая закрылась некорректно ({count} объекта).}}",
+  "@restoreUnsavedChangesBody": {
+    "description": "Текст диалога восстановления после аварийного завершения сессии.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "restore": "Восстановить",
+  "exportAnywayTitle": "Всё равно экспортировать?",
+  "exportAnywayMoreIssues": "и ещё {count}",
+  "@exportAnywayMoreIssues": {
+    "description": "Строка под усечённым списком проблем экспорта.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "cancel": "Отмена",
+  "exportAnyway": "Всё равно экспортировать",
+  "addPrimitiveTooltip": "Добавить примитив",
+  "add": "Добавить",
+  "open": "Открыть",
+  "save": "Сохранить",
+  "exportTooltip": "Экспортировать копию",
+  "export": "Экспорт",
+  "materialStudioSemanticsLabel": "Материал-студия",
+  "materialStudioTooltip": "Материал-студия — предпросмотр материала",
+  "keyboardShortcuts": "Горячие клавиши",
+  "keyboardShortcutsTooltip": "Горячие клавиши (?)",
+  "startScreenSemanticsLabel": "Стартовый экран",
+  "startScreenTooltip": "Стартовый экран — открыть файл или начать новый проект",
+  "reportProblem": "Сообщить о проблеме",
+  "sectionDisplay": "Отображение",
+  "sectionView": "Вид",
+  "sectionObjects": "Объекты",
+  "sectionTransform": "Трансформация",
+  "sectionModifiers": "Модификаторы",
+  "sectionLastOperation": "Последняя операция",
+  "sectionSelection": "Выделение",
+  "sectionMesh": "Меш",
+  "sectionBudget": "Бюджет",
+  "rowWhat": "Что",
+  "rowVertices": "Вершины",
+  "rowFaces": "Грани",
+  "rowTriangles": "Треугольники",
+  "rowProfile": "Профиль",
+  "shadingMaterial": "Материал",
+  "shadingNormals": "Нормали",
+  "shadingWire": "Каркас",
+  "lensPerspective": "Перспектива",
+  "lensOrthographic": "Ортографическая",
+  "viewFront": "Спереди",
+  "viewBack": "Сзади",
+  "viewLeft": "Слева",
+  "viewRight": "Справа",
+  "viewTop": "Сверху",
+  "viewBottom": "Снизу",
+  "recoverUnsavedChangesTitle": "Восстановить несохранённые изменения?",
+  "recoverUnsavedChangesBody": "Найдена автосохранённая версия новее последнего сохранённого файла. Восстановить её или открыть файл в том виде, в каком он был сохранён?",
+  "openSavedFile": "Открыть сохранённый файл",
+  "restoreAutosave": "Восстановить автосохранение",
+  "startTitle": "Начало",
+  "openFile": "Открыть файл",
+  "newProject": "Новый проект",
+  "recent": "Недавние",
+  "tutorial": "Обучение",
+  "close": "Закрыть"
+}

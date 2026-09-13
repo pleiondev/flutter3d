@@ -62,6 +62,30 @@ Future<PickedFile?> openModel() async {
   );
 }
 
+/// The image types a texture slot can be filled from — [TextureHint]'s own
+/// default suffixes, minus `.ktx2`: `file_selector` picks by platform MIME
+/// type and this app has no encoder for it, so offering it would be a filter
+/// entry that only ever produces a file `AddImage`'s own PNG/JPEG decoders
+/// refuse.
+const XTypeGroup _images = XTypeGroup(
+  label: 'images',
+  extensions: <String>['png', 'jpg', 'jpeg'],
+);
+
+/// Asks for an image and reads it, for a material's texture slot.
+///
+/// Null when the person dismissed the picker — `mat-04a-n`'s own "Choose…"
+/// button.
+Future<PickedFile?> openImage() async {
+  final file = await openFile(acceptedTypeGroups: const <XTypeGroup>[_images]);
+  if (file == null) return null;
+  return PickedFile(
+    name: file.name,
+    bytes: await file.readAsBytes(),
+    path: file.path,
+  );
+}
+
 /// Writes [bytes] to a file the person chooses, offering [suggestedName].
 ///
 /// **Straight into the chosen path, and not through a temporary file.** The

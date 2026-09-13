@@ -3,7 +3,10 @@ import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'package:flutter/foundation.dart' show kIsWeb;
-import 'package:flutter3d_formats/flutter3d_formats.dart';
+// `Ktx2Texture` hidden: this package's own thin wrapper of the same name,
+// imported below from `ktx2/ktx2.dart`, is the one that maps to a
+// `TextureFormat` — see that file's doc comment for why the two exist.
+import 'package:flutter3d_formats/flutter3d_formats.dart' hide Ktx2Texture;
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 
 import 'ktx2/ktx2.dart';
@@ -27,8 +30,9 @@ import 'ktx2/ktx2.dart';
 /// minification gets a chain and one that asks for a single level does not.
 ///
 /// **A KTX2 file reaches the device in its own format when the device
-/// samples it.** Basis Universal (`ktx2/basis_universal/`) transcodes to
-/// plain RGBA8, so it costs what a PNG of the same dimensions always cost;
+/// samples it.** Basis Universal (`flutter3d_formats`'s
+/// `ktx2/basis_universal/`) transcodes to plain RGBA8, so it costs what a
+/// PNG of the same dimensions always cost;
 /// a file carrying BC, ETC2 or ASTC blocks is uploaded as those blocks —
 /// the upload that actually shrinks device memory — after
 /// [GraphicsDevice.supportsTextureFormat] has said yes, and left out with a

@@ -20,5 +20,8 @@ library;
 
 export 'src/head_pose.dart';
 export 'src/head_tracker.dart';
+export 'src/lesson_player.dart';
+export 'src/lesson_stereo_view.dart';
 export 'src/stereo_rig.dart';
 export 'src/stereo_surface.dart';
+export 'src/stereo_viewer.dart';

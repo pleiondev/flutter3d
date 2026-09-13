@@ -13,6 +13,7 @@ library;
 
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_app/flutter3d_app.dart'; // RunSession, SettingsOverlay
+import 'package:flutter3d_bridge/flutter3d_bridge.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter3d_demo_dungeon/src/run_cubit.dart';
 import 'package:flutter3d_demo_dungeon/src/staging.dart';
@@ -61,7 +62,7 @@ final class _Storage implements Storage {
     run: RunCubit(
       DungeonRun(
         firstLevel: first,
-        registry: sampleRegistry(),
+        registry: sampleRegistry(extra: const <EntityKind>[WidgetSurfaceKind()]),
         input: InputState(),
         inventory: startingInventory(),
         saves: SaveFile(appName: 'dungeon', storage: storage),

@@ -33,7 +33,7 @@ final class Bestiary {
   /// not of the roster: a level does not author some of its monsters hard.
   final Difficulty difficulty;
 
-  Actor spawn(MonsterDef def, Vector3 position, {double yaw = 0.0}) {
+  Actor spawn(MonsterDef def, Vector3 position, {double yaw = 0.0, String? name}) {
     return actors.spawn(
       body: CharacterController(
         world: actors.world,
@@ -58,6 +58,7 @@ final class Bestiary {
       // A monster has all four. Something else in the same system may have one
       // — see `ActorSystem.spawn`.
       facing: Facing(yaw: yaw, turnRate: def.turnRate),
+      name: name,
     );
   }
 }
@@ -93,6 +94,7 @@ final class MonsterKind extends EntityKind {
       // the body is positioned by its centre.
       entity.position + Vector3(0.0, def.height / 2.0, 0.0),
       yaw: entity.yaw,
+      name: entity.name,
     );
     context.onActorSpawned?.call(actor);
   }
