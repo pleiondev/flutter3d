@@ -21,7 +21,7 @@
 @TestOn('vm')
 library;
 
-import 'package:flutter3d_backend/flutter3d_backend.dart';
+import 'package:flutter3d_app/flutter3d_app.dart';
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:flutter_test/flutter_test.dart';
 

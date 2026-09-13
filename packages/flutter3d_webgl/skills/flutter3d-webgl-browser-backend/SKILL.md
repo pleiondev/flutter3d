@@ -9,7 +9,7 @@ description: Use when a flutter3d build runs in a browser through WebGL2 — ope
 final device = await openWebGl(width: 1280, height: 720);
 ```
 
-Most applications call `openDevice` from `flutter3d_backend` and never name this
+Most applications call `openDevice` from `flutter3d_app` and never name this
 package: web against native is a conditional export there, and a file importing
 both this and `flutter_gpu` compiles for nothing.
 

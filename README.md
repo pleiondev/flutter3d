@@ -55,13 +55,12 @@ genres, and the generated API reference.
 | [`packages/flutter3d_cpu`](packages/flutter3d_cpu) | A software rasteriser. Not a teaching exercise: it gives a second, independent set of reference images and lets the renderer be tested in CI with no GPU |
 | [`packages/flutter3d_testing`](packages/flutter3d_testing) | Pixel regression tests for a game built on this engine, with no GPU: draw a frame through the software backend and hold it to a reference image. Nothing else on this platform can do it without a real device |
 | [`packages/flutter3d_conformance`](packages/flutter3d_conformance) | The contract every backend must pass, as runnable checks rather than a document |
-| [`packages/flutter3d_backend`](packages/flutter3d_backend) | Picks one of the four, so an application says `openDevice()` and not which: web or native at compile time by conditional import, Impeller or software and WebGL2 or WebGPU at run time, because neither of those is visible to a compiler |
 | [`packages/flutter3d_shaders`](packages/flutter3d_shaders) | The GLSL, and the headers an extension package includes |
 | [`packages/flutter3d_particles`](packages/flutter3d_particles) | One pool, one draw call, whatever is in it |
 | [`packages/flutter3d_particles_core`](packages/flutter3d_particles_core) | The simulation `flutter3d_particles` draws. No Flutter |
 | [`packages/flutter3d_session`](packages/flutter3d_session) | A run that can be started, saved, resumed and ended, with no widget in it |
 | [`packages/flutter3d_stereo`](packages/flutter3d_stereo) | Two eyes and a head: the rig, the widget that draws a pair into one frame, and the settings a pair can have. A phone in a holder today, a headset when there is one |
-| [`packages/flutter3d_app`](packages/flutter3d_app) | What every application repeats: storage, settings, the frame clock, the screens |
+| [`packages/flutter3d_app`](packages/flutter3d_app) | What every application repeats: storage, settings, the frame clock, the screens, and which of the four backends `openDevice()` opens |
 | [`packages/flutter3d_game_racing`](packages/flutter3d_game_racing) | A third genre: a car simulated as a sphere, a circuit read from a spline, lap timing and a ghost |
 | [`packages/flutter3d_game_strategy`](packages/flutter3d_game_strategy) | A fourth genre, and the first without a protagonist: ground made of samples, a crowd that takes orders and shoves itself apart, flow fields shared by destination, an economy, a fight, fog a side has to walk into, and a policy that plays a side without a mouse |
 | [`packages/flutter3d_editor_core`](packages/flutter3d_editor_core) | The level editor with the editor taken out: the document being selected in, nudged, undone and written back, the handles a pointer hits, the palette a level builds out of itself, and the project a template becomes. Plain Dart, so a linter or a service can depend on it |
@@ -144,7 +143,7 @@ Flutter GPU and Impeller are enabled **per application** through `Info.plist`,
 so every app in this repository sets `FLTEnableFlutterGPU` and
 `FLTEnableImpeller` for itself. A new one that skips them fails to initialise
 the shader library and renders nothing. Neither setting means anything to a
-browser build, which reaches WebGL2 through `flutter3d_backend` instead.
+browser build, which reaches WebGL2 through `flutter3d_app` instead.
 
 ## Tests
 
@@ -159,13 +158,13 @@ Or one package at a time:
 (cd packages/flutter3d_physics && dart test)   # plain Dart, no Flutter needed
 ```
 
-7331 tests across forty-four packages and eight applications, and the only
+7331 tests across forty-three packages and eight applications, and the only
 ones that need a GPU are the
 Impeller half of the golden set. The other half is rendered by the software
 backend, which is what makes 43 scenes checkable in a headless run.
 
 Several of the steps are browser steps — `flutter test --platform chrome` for
-the two web backends, for `flutter3d_backend`'s browser half and for the browser
+the two web backends, for `flutter3d_app`'s browser half and for the browser
 half of `pointer_lock` — and one of them compiles a game to WebAssembly, because
 a build nobody runs is a platform nobody supports. The WebGPU backend is the one
 that gets something out of that arrangement no other backend can: Chrome has a

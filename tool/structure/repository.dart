@@ -241,8 +241,7 @@ const Map<String, String> notARepeatableStep = <String, String>{
   'flutter3d_session':
       'a run\'s lifecycle: it loads and saves, and steps '
       'nothing itself',
-  'flutter3d_app': 'a barrel with no code in it',
-  'flutter3d_backend': 'chooses a device and steps nothing',
+  'flutter3d_app': 'chooses a device and steps nothing',
   'flutter3d_bridge': 'display: it reads a simulation and moves nodes',
   'flutter3d_audio': 'display: a mix is recomputed once a frame',
   'pad_input': 'a device, read once a frame',

@@ -21,7 +21,7 @@ import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter3d/flutter3d.dart' hide Material;
 import 'package:flutter3d/flutter3d.dart' as engine show Material;
-import 'package:flutter3d_backend/flutter3d_backend.dart';
+import 'package:flutter3d_app/flutter3d_app.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter3d_stereo/flutter3d_stereo.dart';
 import 'package:vector_math/vector_math.dart' hide Colors;

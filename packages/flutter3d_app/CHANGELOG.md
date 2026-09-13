@@ -1,3 +1,17 @@
+## 0.7.0
+
+**Breaking.** Accepted `flutter3d_backend`, because most of its consumers
+already reached it through this barrel rather than by naming it, and the
+handful that still named it directly — two package examples, and one game's
+now-redundant line — cost nothing to repoint, which left the separate
+package with no boundary of its own (package-merge-plan.md §3.6). The
+conditional export deciding which backend a
+build draws through — `openDevice`, `kFixedResolution` — now lives directly
+in this package's own `src/backend_native.dart`/`src/backend_web.dart`, and
+this package depends directly on `flutter3d_hardware`, `flutter3d_impeller`,
+`flutter3d_webgl`, `flutter3d_cpu` and `flutter3d_webgpu` instead of on
+`flutter3d_backend`. Nothing an application imports changed.
+
 ## 0.6.0
 
 * **Floors, and no code.** Storage, settings, the frame clock and the screens

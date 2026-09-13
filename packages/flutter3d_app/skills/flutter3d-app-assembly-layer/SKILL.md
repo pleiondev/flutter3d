@@ -1,28 +1,62 @@
 ---
 name: flutter3d-app-assembly-layer
-description: Use when starting or wiring a flutter3d application — this one import is the assembly layer, and a game still names the engine and its genre for itself.
+description: Use when starting or wiring a flutter3d application — this one import is the assembly layer, picks the GraphicsDevice, and a game still names the engine and its genre for itself.
 ---
 
-# One import for the wiring, and no code of its own
+# One import for the wiring, and one real decision of its own
 
 ```dart
 import 'package:flutter3d_app/flutter3d_app.dart';
 
 final device = await openDevice(width: 1280, height: 720);
+final renderer = Renderer.create(device: device);
 ```
 
-Five `export` lines over the packages an application needs beyond the renderer
-and the simulation:
+Four `export` lines over sibling packages, plus the backend choice this
+package makes directly (it absorbed the former `flutter3d_backend`, whose
+consumers mostly reached it through this same barrel already):
 
 | Behind the facade | What it gives |
 |---|---|
-| `flutter3d_backend` | `openDevice`, `kFixedResolution` |
+| the backend choice | `openDevice`, `kFixedResolution` |
 | `flutter3d_session` | `SceneSurface`, `RunSession`, the frame clock |
 | `flutter3d_screens` | settings, volumes, rebinding, credits, saves |
 | `pad_input` | a gamepad, as a snapshot the caller asks for |
 | `pointer_lock` | desktop mouse capture, which Flutter offers nowhere |
 
-None of the five know about each other, and this does not change that.
+None of the four sibling packages know about each other, and this does not
+change that.
+
+## The backend choice, and the two run-time fallbacks
+
+On a desktop or phone the device is `flutter3d_impeller`'s; in a browser it is
+`flutter3d_webgl`'s. **Web against native is a conditional export, not an
+`if`**: `flutter_gpu` does not compile for the web and `dart:js_interop` does
+not compile for macOS, so a file importing both targets nothing. Call
+`openDevice`; do not write such a file.
+
+The software rasteriser is where a native build lands when Impeller will not
+start, so a machine with no working GPU still draws. WebGPU is asked for only
+when a build asks:
+
+```sh
+flutter build web --dart-define=FLUTTER3D_WEBGPU=true
+```
+
+and falls back to WebGL2 where the browser has no `navigator.gpu` or hands out
+no adapter. Off by default because of size: the probe has to call both
+openers, so a build carrying it carries both backends — 376,649 bytes of
+`main.dart.js` on the strategy demo, 14.9% more script. An ordinary web build
+draws through WebGL2, which is the browser backend with a recorded reference
+set behind it.
+
+`kFixedResolution` says whether the backend renders into a fixed internal
+target — true in a browser, where a WebGL canvas resets its drawing buffer on
+resize — and what that size should be is the game's own trade:
+
+```dart
+final size = kFixedResolution ? const Size(960, 540) : screenSize;
+```
 
 ## What is deliberately not behind it
 
@@ -30,6 +64,12 @@ None of the five know about each other, and this does not change that.
 content — what a scene looks like and what kind of game this is — and a facade
 cannot pick a genre on an application's behalf. Import them by name, so the
 choice is visible in the pubspec.
+
+`flutter3d_session` deliberately does not depend on this package: pulling in
+every backend it can choose between would keep a session from being mounted
+over a `CpuDevice` in its own tests, and would drag WebGL into a tool like the
+level editor that has no browser target. An application wires the device in;
+everything below takes one as a value.
 
 ## The shape of a main file
 

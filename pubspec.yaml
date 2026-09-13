@@ -20,7 +20,6 @@ workspace:
   - packages/flutter3d_model_mcp
   - packages/flutter3d_samples
   - packages/flutter3d_app
-  - packages/flutter3d_backend
   - packages/flutter3d_conformance
   - packages/flutter3d_cpu
   - packages/flutter3d_particles

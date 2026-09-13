@@ -4,9 +4,8 @@
 /// and `kFixedResolution` were three files in this game and the same three,
 /// byte for byte, in the crypt — down to the paragraph explaining why a
 /// conditional import rather than a runtime branch. They live in
-/// `flutter3d_backend` now, reached through the `flutter3d_app` barrel this
-/// file re-exports rather than naming `flutter3d_backend` directly, since the
-/// app's own pubspec no longer lists it by name either.
+/// `flutter3d_app` now, reached through the same barrel this file
+/// re-exports.
 ///
 /// What stays is the part that was never shared: the size this game draws at
 /// when the backend renders to a fixed internal resolution.

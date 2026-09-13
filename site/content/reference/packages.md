@@ -67,7 +67,7 @@ A rasteriser written in Dart. `CpuDevice` implements the same HAL, plus PNG outp
 
 Not a fallback. Two hardware backends agreeing proves less than it looks like: both are driven by a C API and both rasterise on a GPU, so an assumption shared by graphics hardware would be invisible to the pair of them. This one shares nothing with either, no driver, no shading language, no command buffer.
 
-It is how forty-four golden scenes are checkable with no GPU in the room, and it is a dev dependency of every game because three shipped bugs would have been caught by rendering a single frame in a test. It stopped being *only* a dev dependency once `flutter3d_backend` started reaching for it as the runtime fallback when Impeller will not start — a real, if last-resort, production path now, not just a test one.
+It is how forty-four golden scenes are checkable with no GPU in the room, and it is a dev dependency of every game because three shipped bugs would have been caught by rendering a single frame in a test. It stopped being *only* a dev dependency once `flutter3d_app` started reaching for it as the runtime fallback when Impeller will not start — a real, if last-resort, production path now, not just a test one.
 
 ### `flutter3d_conformance`
 The suite any fourth backend would have to pass before it counted as one, plus the cross-backend comparison with per-scene budgets.
@@ -151,7 +151,7 @@ The detectors prove they fire before a single file is scanned, and a broken dete
 
 ## Assembling an application
 
-Three packages exist because the same wiring was written out, close to identically, in three `main.dart` files. A fourth is a barrel over them.
+Two packages exist because the same wiring was written out, close to identically, in three `main.dart` files. A third is a barrel over them, plus the backend choice, which used to be its own package until most of its consumers turned out to already reach it through this same barrel — and the handful that didn't cost nothing to repoint.
 
 ### `flutter3d_app`
 One import for the assembly layer:
@@ -162,16 +162,15 @@ import 'package:flutter3d_app/flutter3d_app.dart';
 final device = await openDevice(width: 1280, height: 720);
 ```
 
-Thirty-five lines, all of them `export`. It re-exports `flutter3d_backend`, `flutter3d_session`, `flutter3d_screens`, `pad_input` and `pointer_lock`. None of those know about each other, and this does not change that. What it buys is that an application says "the assembly layer" once, the way importing `flutter3d` says "the renderer" once instead of naming `flutter3d_hardware`.
+Thirty-five lines of `export`, plus which graphics backend a build draws through: `openDevice({required width, required height})` returns a `GraphicsDevice`. It re-exports `flutter3d_session`, `flutter3d_screens`, `pad_input` and `pointer_lock`. None of those four know about each other, and this does not change that. What it buys is that an application says "the assembly layer" once, the way importing `flutter3d` says "the renderer" once instead of naming `flutter3d_hardware`.
 
-Deliberately **not** behind it: `flutter3d`, `flutter3d_bridge`, `flutter3d_game` and a genre package. Those are content, meaning what a scene looks like and what kind of game this is, and a facade cannot choose a genre on an application's behalf.
+**Three decisions, made three different ways.** Web or native is a conditional export, picked at compile time, because `flutter_gpu` does not compile for the web and `dart:js_interop` does not compile for macOS. On the native half, Impeller or software is a runtime `try`/`catch` instead: `GpuRenderBackend.create()` is tried first, and a throw — Flutter GPU refusing to start on Skia, or a platform where Impeller was never enabled — falls back to `flutter3d_cpu`'s `CpuDevice`, since `flutter_gpu` ships with the SDK and no compile-time check can see whether it will actually start. On the browser half, WebGPU or WebGL2 is the same shape of `try`/`catch` — `navigator.gpu` may be absent, or present and hand out no adapter on a blocklisted driver, and no `dart.library.*` check sees either — but it is reached only behind `--dart-define=FLUTTER3D_WEBGPU=true`, because a probe that can call both openers keeps both backends reachable and dart2js ships what it can reach: 376,649 bytes of `main.dart.js` on the strategy demo, 14.9%, measured on two builds of the same checkout. Deliberately does not decide resolution or shadow budget — `kFixedResolution` reports whether the *primary* backend renders to a fixed internal target, and the size stays the application's own choice.
+
+The backend choice is kept out of `flutter3d_session`, which would otherwise have to depend on both backends and drag WebGL into `apps/flutter3d_editor`, which has no browser build to choose for.
+
+Deliberately **not** behind this barrel: `flutter3d`, `flutter3d_bridge`, `flutter3d_game` and a genre package. Those are content, meaning what a scene looks like and what kind of game this is, and a facade cannot choose a genre on an application's behalf.
 
 Six of the seven applications import it — the four games, the template and the modeller, which reaches `openDevice` through it in one exported line. `flutter3d_editor` is the one that does not, and that is a gap rather than a second pattern: see [Assembling an application](/core/session/).
-
-### `flutter3d_backend`
-Which graphics backend a build draws through: `openDevice({required width, required height})` returns a `GraphicsDevice`. **Three decisions, made three different ways.** Web or native is a conditional export, picked at compile time, because `flutter_gpu` does not compile for the web and `dart:js_interop` does not compile for macOS. On the native half, Impeller or software is a runtime `try`/`catch` instead: `GpuRenderBackend.create()` is tried first, and a throw — Flutter GPU refusing to start on Skia, or a platform where Impeller was never enabled — falls back to `flutter3d_cpu`'s `CpuDevice`, since `flutter_gpu` ships with the SDK and no compile-time check can see whether it will actually start. On the browser half, WebGPU or WebGL2 is the same shape of `try`/`catch` — `navigator.gpu` may be absent, or present and hand out no adapter on a blocklisted driver, and no `dart.library.*` check sees either — but it is reached only behind `--dart-define=FLUTTER3D_WEBGPU=true`, because a probe that can call both openers keeps both backends reachable and dart2js ships what it can reach: 376,649 bytes of `main.dart.js` on the strategy demo, 14.9%, measured on two builds of the same checkout. Deliberately does not decide resolution or shadow budget — `kFixedResolution` reports whether the *primary* backend renders to a fixed internal target, and the size stays the application's own choice.
-
-Kept out of `flutter3d_session`, which would otherwise have to depend on both backends and drag WebGL into `apps/flutter3d_editor`, which has no browser build to choose for.
 
 ### `flutter3d_session`
 The seam a rendered frame reaches Flutter through, and the run being played — neither the simulation nor the screens, so it belongs to neither `flutter3d_bridge` nor `flutter3d_screens`. `SceneSurface` is the widget that hands a frame to Flutter, with its `RenderSettings` read from a function called once per frame rather than stored, so anything derived from the camera is derived after it moved. `RunSession<L>` is loading a level, restarting it, moving to the next, saving, resuming, and reporting how a run ended — an ordinary class that two of the three games wrap in a cubit, which the package neither knows nor requires. `FrameClock` is how long since the last frame, measured on the wall clock rather than read off the ticker: five applications had written that out, three said a sixtieth of a second on the first frame and one said nought, and a ticker's timestamp is the vsync a frame was aimed at, which steps in pairs when the GPU falls behind.
@@ -277,7 +276,7 @@ A map, two sides and a match played to a finish: a camera over the ground, a box
 The first application here that is not a game: opens a level document with the same `LevelLoader` the games use, and lets somebody fly around it, drag what's in it, and write it back. What it keeps is the half that reaches a device — the window, the disk, the camera, the frame; everything else is `flutter3d_editor_core`. → [The level editor](/core/editor/)
 
 ### `apps/flutter3d_template_app`
-The application a new project starts as: a level you can walk around, with no genre package. It opens its device through `flutter3d_backend`'s `openDevice` in one exported line, which is what gives a scaffolded project the web build and the software fallback without its author deciding anything — see [Assembling an application](/core/session/).
+The application a new project starts as: a level you can walk around, with no genre package. It opens its device through `flutter3d_app`'s `openDevice` in one exported line, which is what gives a scaffolded project the web build and the software fallback without its author deciding anything — see [Assembling an application](/core/session/).
 
 ### `packages/flutter3d/example`
 The engine's own demo: a model browser with every feature switchable, and the frame-capture hook.
@@ -289,7 +288,7 @@ flowchart TB
   apps["apps/*"] --> genres["flutter3d_game_shooter<br>flutter3d_game_platformer<br>flutter3d_game_racing<br>flutter3d_game_strategy"]
   apps --> bridge["flutter3d_bridge"]
   apps --> session["flutter3d_session<br>flutter3d_screens"]
-  apps --> picker["flutter3d_backend"]
+  apps --> picker["flutter3d_app<br>(backend choice)"]
   picker --> gfx["flutter3d_hardware<br><b>the HAL</b>"]
   picker -.-> onebackend["one backend<br><i>impeller · webgl · webgpu · cpu</i>"]
   session --> bridge

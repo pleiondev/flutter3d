@@ -14,7 +14,7 @@ dependencies:
   # The engine, and the backend that opens a device and falls back to the
   # software rasteriser when Impeller will not start.
   flutter3d: ^0.6.0
-  flutter3d_backend: ^0.6.0
+  flutter3d_app: ^0.7.0
 
   # The software rasteriser, so a device whose driver refuses the engine can
   # still show the picture: `--dart-define=software=true`.
