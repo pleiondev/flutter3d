@@ -31,6 +31,7 @@ import 'package:flutter3d_editor_core/flutter3d_editor_core.dart';
 import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:flutter3d_session/flutter3d_session.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:vector_math/vector_math.dart' show Vector3;
 
 import 'src/backend.dart';
 import 'src/lesson_view.dart';
@@ -70,6 +71,39 @@ final class OpenKind extends EntityKind {
   const OpenKind(super.type);
 }
 
+/// [level]'s own `part` entities — `ls-e-00`'s removable pieces — as plain
+/// boxed [MeshNode]s, named after their own entity so an `edu_step`'s
+/// `visible`/`hidden` list has something to reach.
+///
+/// **Not [SpawnContext]/[FixtureVisuals].** That machinery is a game's own —
+/// it wants a [CollisionWorld], an [ActorSystem], a [MechanismWorld] and a
+/// [FixtureAppearance] this read-only viewer has none of (see this file's
+/// own top doc comment: no `CollisionWorld` at all). A part is scenery with
+/// a name, which is exactly what `LevelLoader.materialFrom` and a
+/// [SharedMeshes] box already build for a brush — called directly here
+/// rather than through the door built for a genre's own doors and lifts.
+void _addParts(Level level, LoadedLevel loaded, GraphicsDevice device) {
+  final meshes = SharedMeshes(device);
+  for (final entity in level.entities) {
+    if (entity.type != 'part') continue;
+    final name = entity.name;
+    if (name == null) continue;
+    final materialName = entity.string('material');
+    final source = materialName == null
+        ? null
+        : level.materials[materialName];
+    final material = LevelLoader.materialFrom(
+      source ?? LevelMaterial(),
+      const <String, TextureHandle?>{},
+      name: materialName,
+    );
+    final size = entity.vector('size') ?? Vector3.all(1.0);
+    final node = MeshNode(meshes.box(size), material, name: name)
+      ..setPositionFrom(entity.position);
+    loaded.scene.add(node);
+  }
+}
+
 sealed class LessonState {
   const LessonState();
 }
@@ -84,12 +118,18 @@ final class LessonReady extends LessonState {
     this.camera,
     this.player, {
     this.widgetSurfaces,
+    this.nodes = const <String, SceneNode>{},
   });
 
   final Scene scene;
   final CameraNode camera;
   final LessonPlayer player;
   final WidgetSurfaceVisuals? widgetSurfaces;
+
+  /// Every fixture the level placed, by the name its own entity carries —
+  /// what a step's `visible`/`hidden` list reaches through
+  /// `applyLessonStepToCamera`.
+  final Map<String, SceneNode> nodes;
 }
 
 final class LessonFailed extends LessonState {
@@ -125,6 +165,16 @@ class LessonCubit extends Cubit<LessonState> {
             OpenKind(type),
         ]),
       );
+      _addParts(level, loaded, device);
+
+      // `ls-e-00`'s own nodes map: every fixture the level placed, by the
+      // name its own entity carries — `applyLessonStepToCamera`'s own doc
+      // comment names this split (the engine says what a step means, an
+      // application says which node that name resolves to), and nothing in
+      // this repository had actually built the map yet before this row.
+      final nodes = <String, SceneNode>{
+        for (final mesh in loaded.scene.meshes) ?mesh.name: mesh,
+      };
 
       String? sequenceName;
       for (final entity in level.entities) {
@@ -152,6 +202,7 @@ class LessonCubit extends Cubit<LessonState> {
           camera,
           LessonPlayer(steps),
           widgetSurfaces: widgetSurfaces,
+          nodes: nodes,
         ),
       );
     } catch (error) {
@@ -232,12 +283,14 @@ class _LessonScreenState extends State<LessonScreen>
       builder: (BuildContext context, LessonState state) => switch (state) {
         LessonFailed(:final error) => _didNotStart(error),
         LessonLoading() => _loading(),
-        LessonReady(:final scene, :final camera, :final player) => LessonView(
-          renderer: renderer,
-          scene: scene,
-          camera: camera,
-          player: player,
-        ),
+        LessonReady(:final scene, :final camera, :final player, :final nodes) =>
+          LessonView(
+            renderer: renderer,
+            scene: scene,
+            camera: camera,
+            player: player,
+            nodes: nodes,
+          ),
       },
     );
   }
