@@ -38,20 +38,20 @@ dependencies:
 
   # The vocabulary the backend choice is made in. Neither backend appears in
   # any signature here — `openDevice` returns a `GraphicsDevice`.
-  flutter3d_hardware: ^0.6.0
+  flutter3d_hardware: ^0.7.0
 
   # The two implementations the conditional export in `backend_native.dart`/
   # `backend_web.dart` picks between by `dart.library.js_interop`, because the
   # two pull in incompatible worlds — `flutter_gpu` does not compile for the
   # web and `dart:js_interop` does not compile for macOS.
-  flutter3d_impeller: ^0.6.0
-  flutter3d_webgl: ^0.6.0
+  flutter3d_impeller: ^0.7.0
+  flutter3d_webgl: ^0.7.0
 
   # Two more that are not branches of that export — each is what one half
   # falls back to, or up to, at runtime, because the question each answers is
   # one no `dart.library.*` check can see.
-  flutter3d_cpu: ^0.6.0
-  flutter3d_webgpu: ^0.6.0
+  flutter3d_cpu: ^0.7.0
+  flutter3d_webgpu: ^0.7.0
 
   flutter3d_session: ^0.7.0
   pad_input: ^0.4.0

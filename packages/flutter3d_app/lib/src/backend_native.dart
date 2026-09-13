@@ -2,7 +2,7 @@
 /// software rasteriser to fall back to if Impeller will not start.
 library;
 
-import 'package:flutter/foundation.dart' show debugPrint;
+import 'package:flutter/widgets.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:flutter3d_impeller/flutter3d_impeller.dart';
@@ -52,4 +52,31 @@ Future<GraphicsDevice> openDevice({
       shaders: CpuShaderLibrary(builtinCpuShaders()),
     );
   }
+}
+
+/// The widget that shows [frame], for whichever [device] this build's
+/// [openDevice] actually returned.
+///
+/// **A runtime `if`, not a `switch` on a sealed type**, because `GraphicsDevice`
+/// cannot be sealed: its four implementations live in four different packages,
+/// and Dart requires every subtype of a sealed type in the same library. The
+/// same runtime fact that makes [openDevice] a `try`/`catch` — Impeller either
+/// starts or it does not, and nothing at compile time can see which — is why
+/// this checks the concrete type it actually got rather than dispatching on
+/// one this file chose.
+Widget presentFrame(
+  GraphicsDevice device,
+  TextureHandle frame, {
+  BoxFit fit = BoxFit.fill,
+  FilterQuality quality = FilterQuality.none,
+}) {
+  if (device is GpuRenderBackend) {
+    return GpuFrameImage(frame: frame, fit: fit, quality: quality);
+  }
+  if (device is CpuDevice) {
+    return CpuFrame(texture: frame.backend as CpuTexture, fit: fit, quality: quality);
+  }
+  throw ArgumentError(
+    'presentFrame: unrecognised GraphicsDevice ${device.runtimeType}',
+  );
 }

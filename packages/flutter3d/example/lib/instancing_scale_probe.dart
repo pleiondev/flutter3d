@@ -269,7 +269,7 @@ class _InstancingScaleProbeState extends State<InstancingScaleProbe> {
         );
         encode.stop();
         _tick(encode.elapsedMicroseconds);
-        return renderer.device.present(frame.frame);
+        return presentFrame(renderer.device, frame.frame);
       },
     );
   }

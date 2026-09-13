@@ -587,7 +587,9 @@ class _MapState extends State<_Map> with SingleTickerProviderStateMixin {
             );
             return Stack(
               children: <Widget>[
-                Positioned.fill(child: renderer.device.present(frame.frame)),
+                Positioned.fill(
+                  child: presentFrame(renderer.device, frame.frame),
+                ),
                 if (_bandFrom case final Offset from)
                   if (_bandTo case final Offset to)
                     // Drawn from the corners rather than from the units it

@@ -1264,6 +1264,7 @@ class _RaceScreenState extends State<RaceScreen>
                   resolution: kShadowResolution,
                 ),
               ),
+              presentFrame: presentFrame,
             ),
             // A platform view takes the pointer events over it, so the click
             // that hands the keyboard back has to be caught above the frame

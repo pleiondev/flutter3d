@@ -50,7 +50,7 @@ library;
 import 'dart:async';
 
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
-import 'package:flutter_test/flutter_test.dart' show markTestSkipped, test;
+import 'package:test/test.dart' show markTestSkipped, test;
 
 import 'src/blend_checks.dart';
 import 'src/compressed_checks.dart';

@@ -14,18 +14,17 @@
 /// Split across a few files by cohesive concern, all re-exported from here:
 /// [CpuShaderLibrary] and `CpuPipeline` are `cpu_shader_library.dart`;
 /// [CpuEncoder] — the pass that records state and rasterises on `draw` — is
-/// `cpu_encoder.dart`; the widget [present] returns is `cpu_frame_widget.dart`;
-/// and the per-vertex attribute assembly instancing needs is
+/// `cpu_encoder.dart`; `CpuFrame`, the widget `presentFrame` in
+/// `flutter3d_app` returns for this backend, is `cpu_frame_widget.dart`; and
+/// the per-vertex attribute assembly instancing needs is
 /// `cpu_vertex_fetch.dart`.
 library;
 
 import 'dart:typed_data';
 
-import 'package:flutter/widgets.dart';
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 
 import 'cpu_encoder.dart';
-import 'cpu_frame_widget.dart';
 import 'cpu_shader.dart';
 import 'cpu_shader_library.dart';
 
@@ -50,9 +49,6 @@ final class CpuDevice implements GraphicsDevice {
   @override
   Future<LoadedShaderLibrary> loadShaders(ByteData bytes) async =>
       CpuLoadedShaderLibrary.load(shaders, bytes);
-
-  /// What [present] shows: the last frame handed to it.
-  CpuTexture? _presented;
 
   @override
   // The engine's own convention, and here it is a choice rather than a
@@ -504,16 +500,6 @@ final class CpuDevice implements GraphicsDevice {
       }
     }
     return Future<ByteData>.value(ByteData.sublistView(out));
-  }
-
-  @override
-  Widget present(
-    TextureHandle frame, {
-    BoxFit fit = BoxFit.fill,
-    FilterQuality quality = FilterQuality.none,
-  }) {
-    _presented = frame.backend as CpuTexture;
-    return CpuFrame(texture: _presented!, fit: fit, quality: quality);
   }
 
   /// A no-op, and honestly one: every texture and buffer this backend hands

@@ -24,7 +24,7 @@ dependencies:
   # engine and implemented here, which is what makes this an extension rather
   # than a fork.
   flutter3d: ^0.6.0
-  flutter3d_hardware: ^0.6.0
+  flutter3d_hardware: ^0.7.0
   flutter3d_particles_core: ^0.6.0
   vector_math: ^2.2.0
 

@@ -32,7 +32,7 @@ dependencies:
   # `CpuDevice` — this job's own device, separate from whatever backend the
   # live viewport is actually drawing with, so a snapshot never contends with
   # it for the GPU and never depends on a display existing at all.
-  flutter3d_cpu: ^0.6.0
+  flutter3d_cpu: ^0.7.0
 
   # `EditMesh.toMeshData()`, and `meshWorkStaysHere` — the same "no isolates
   # on the web" flag `editInIsolate` already answers this question with,

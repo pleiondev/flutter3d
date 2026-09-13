@@ -195,7 +195,7 @@ point of §3.3.
 
 | Package | Owns |
 |---|---|
-| `flutter3d_hardware` | The graphics vocabulary a backend implements: devices, encoders, handles, formats. Names no graphics API |
+| `flutter3d_hardware` | The graphics vocabulary a backend implements: devices, encoders, handles, formats. Names no graphics API. Plain Dart |
 | `flutter3d_impeller` | The backend over `flutter_gpu`, and the compiled shader bundle |
 | `flutter3d_webgl` | The WebGL2 backend, and GLSL translated from `flutter3d_shaders` |
 | `flutter3d_webgpu` | The WebGPU backend, and WGSL with its reflection, translated from `flutter3d_shaders`. The only backend whose shaders are not the same text the others read |
@@ -890,8 +890,11 @@ in transitively.
 Changing any of these breaks a backend, and that is the bar for changing them.
 
 - **`GraphicsDevice` — every member.** What formats it prefers, what it can do,
-  how a pass is opened, how geometry and textures arrive, how a finished frame
-  reaches the screen.
+  how a pass is opened, how geometry and textures arrive. Not how a finished
+  frame reaches the screen — that moved to `presentFrame` in `flutter3d_app`,
+  which dispatches on the concrete backend a caller cannot know statically
+  (`GraphicsDevice` cannot be `sealed`: its four implementations live in four
+  different packages).
 - **`CommandEncoder` and `PassEncoder`.** The split is deliberate: `PassEncoder`
   is the recording half without `submit`, so handing a contributor an
   already-submitted pass is a type error rather than a comment warning about one.
@@ -2593,7 +2596,7 @@ buffer, so a backend with one pass per buffer could have used it.
 so the value is pinned in the Dart wrapper rather than read from the engine —
 the answer to "what does `outOfDate` do on resize" is read off the source, not
 off a run. Reading the API rather than running it, the shape would fit
-`SceneSurface` unchanged — `present` still returns a widget — but the
+`SceneSurface` unchanged — `presentFrame` still returns a widget — but the
 renderer's final target would have to come from the device per frame, a
 `TextureHandle` per acquire rather than one per texture, and `readPixels` on a
 presented frame would have to go through `currentImage`, since `present`
@@ -2623,10 +2626,10 @@ rather than a flag.
 
 **An agent editing a level cannot see it, and cannot join a session somebody
 else has open.** `flutter3d_editor_mcp` is a `dart run` process holding one
-document, and both of its limits follow from that. It cannot draw, because every
-backend here reaches a `GraphicsDevice` whose `present` returns a Flutter widget
-— so rendering a level needs a Flutter process, and `dart run` cannot resolve a
-package that depends on the Flutter SDK, which
+document, and both of its limits follow from that. It cannot draw, because
+`presentFrame` in `flutter3d_app` — the one place a finished frame becomes a
+Flutter widget, whichever backend drew it — needs a Flutter process, and
+`dart run` cannot resolve a package that depends on the Flutter SDK, which
 `packages/flutter3d_cpu/tool/dump_fixture.dart` records finding out. The
 `screenshot` tool is therefore declared and refuses with that reason rather than
 being left out, because a missing tool reads as an incomplete server and sends

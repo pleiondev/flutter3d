@@ -1,3 +1,13 @@
+## 0.7.0
+
+**Breaking.** `markTestSkipped` and `test`, this package's one Flutter
+import, come from `package:test` instead of `flutter_test` — the same two
+symbols, so no check changes. Nothing else here ever named Flutter directly;
+the import outlived the reason for it, from before `flutter3d_hardware` had a
+`dart:ui`-free `GraphicsDevice` of its own to test. Still resolves the
+Flutter SDK transitively through `flutter3d_shaders`, which is unrelated and
+unchanged. Floors to `flutter3d_hardware` `^0.7.0`.
+
 ## 0.6.0
 
 * **A device factory may now answer with a `Future`.** `DeviceFactory` returns

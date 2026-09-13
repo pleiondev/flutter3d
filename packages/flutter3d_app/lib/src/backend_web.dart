@@ -2,7 +2,7 @@
 /// only when a build asks for it — WebGPU tried first.
 library;
 
-import 'package:flutter/foundation.dart' show debugPrint;
+import 'package:flutter/widgets.dart';
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:flutter3d_webgl/flutter3d_webgl.dart';
 import 'package:flutter3d_webgpu/flutter3d_webgpu_web.dart';
@@ -12,8 +12,8 @@ import 'package:flutter3d_webgpu/flutter3d_webgpu_web.dart';
 /// True here, and it is a property of the backend rather than a choice: a
 /// `WebGlDevice` owns the canvas it was created with, and a WebGL canvas resets
 /// its drawing buffer when it is resized. So the frame is drawn at one size and
-/// the element is stretched to the layout by CSS — which is also why `present`
-/// takes a `BoxFit`.
+/// the element is stretched to the layout by CSS — which is also why
+/// [presentFrame] takes a `BoxFit`.
 ///
 /// It stays true when [_tryWebGpu] is on, and for a related but not identical
 /// reason: a `WebGpuDevice` draws into textures of its own and *copies* the
@@ -88,4 +88,31 @@ Future<GraphicsDevice> openDevice({
     }
   }
   return openWebGl(width: width, height: height);
+}
+
+/// The widget that shows [frame], for whichever [device] this build's
+/// [openDevice] actually returned.
+///
+/// **A runtime `if`, not a `switch` on a sealed type**, because `GraphicsDevice`
+/// cannot be sealed: its four implementations live in four different packages,
+/// and Dart requires every subtype of a sealed type in the same library. The
+/// same runtime fact that makes [openDevice] a `try`/`catch` — WebGPU either
+/// starts or it does not, and nothing at compile time can see which — is why
+/// this checks the concrete type it actually got rather than dispatching on
+/// one this file chose.
+Widget presentFrame(
+  GraphicsDevice device,
+  TextureHandle frame, {
+  BoxFit fit = BoxFit.fill,
+  FilterQuality quality = FilterQuality.none,
+}) {
+  if (device is WebGpuDevice) {
+    return WebGpuFramePresenter(device: device, frame: frame, fit: fit, quality: quality);
+  }
+  if (device is WebGlDevice) {
+    return WebGlFramePresenter(device: device, frame: frame, fit: fit, quality: quality);
+  }
+  throw ArgumentError(
+    'presentFrame: unrecognised GraphicsDevice ${device.runtimeType}',
+  );
 }

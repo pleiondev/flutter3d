@@ -1,6 +1,6 @@
 name: flutter3d_hardware
-description: "The graphics vocabulary flutter3d is written against: formats, handles, a command encoder and a device. Names no graphics API."
-version: 0.6.0
+description: "The graphics vocabulary flutter3d is written against: formats, handles, a command encoder and a device. Names no graphics API. No Flutter, no renderer."
+version: 0.7.0
 repository: https://github.com/pleiondev/flutter3d
 homepage: https://flutter3d.pleion.dev
 issue_tracker: https://github.com/pleiondev/flutter3d/issues
@@ -17,18 +17,17 @@ resolution: workspace
 # engine, so writing a second backend meant depending on the scene graph, the
 # asset loaders and the frame graph to get at eight files.
 #
-# It depends on Flutter only for `dart:ui`, and only for one member —
-# `GraphicsDevice.imageOf`. See the note there.
+# **Flat as of 0.7.0.** It depended on Flutter for one member,
+# `GraphicsDevice.present`, which returned the Flutter `Widget` a finished
+# frame becomes — the one thing this vocabulary could not describe without
+# naming the framework it is otherwise silent about. `present` moved to
+# `presentFrame` in `flutter3d_app`, and nothing here names Flutter any more.
 environment:
   sdk: ^3.12.2
 
 dependencies:
-  flutter:
-    sdk: flutter
-
   vector_math: ^2.2.0
 
 dev_dependencies:
-  flutter_test:
-    sdk: flutter
+  test: ^1.25.0
   flutter_lints: ^6.0.0

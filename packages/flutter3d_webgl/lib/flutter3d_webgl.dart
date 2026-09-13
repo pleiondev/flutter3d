@@ -31,4 +31,5 @@ export 'src/open.dart';
 /// device reads it. No browser in it, so a harness on the VM can write one.
 export 'src/webgl_bundle_section.dart';
 export 'src/webgl_device.dart';
+export 'src/webgl_frame_presenter.dart';
 export 'src/webgl_shaders.dart';

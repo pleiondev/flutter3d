@@ -110,7 +110,7 @@ class _MinimalPageState extends State<MinimalPage> {
           views: <RenderView>[_view],
           settings: const RenderSettings(),
         );
-        return renderer.device.present(frame.frame);
+        return presentFrame(renderer.device, frame.frame);
       },
     );
   }

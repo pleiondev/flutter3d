@@ -25,7 +25,7 @@ dependencies:
   # that rules out literal stdio, the same reason `flutter3d_sim_mcp` gives.
   flutter3d: ^0.6.0
   flutter3d_bridge: ^0.6.0
-  flutter3d_cpu: ^0.6.0
+  flutter3d_cpu: ^0.7.0
   flutter3d_sim: ^0.6.0
 
   vector_math: ^2.2.0

@@ -184,7 +184,7 @@ class _StereoScreenState extends State<StereoScreen>
               views: <RenderView>[RenderView(camera: _rig.camera(Eye.left))],
               settings: const RenderSettings(exposure: 1.2).forStereo(),
             );
-            return renderer.device.present(frame.frame);
+            return presentFrame(renderer.device, frame.frame);
           },
         ),
       );

@@ -31,6 +31,7 @@ import 'package:flutter/material.dart'
     as widgets_material
     show Material, MaterialType;
 import 'package:flutter3d/flutter3d.dart' hide Material;
+import 'package:flutter3d_app/flutter3d_app.dart' show presentFrame;
 import 'package:flutter3d_bridge/flutter3d_bridge.dart' show LessonPlayer;
 import 'package:flutter3d_session/flutter3d_session.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -210,6 +211,7 @@ class _LessonViewState extends State<LessonView> {
                               // calling it again on an unrelated rebuild costs
                               // nothing.
                               onBeforeFrame: () => _orbit.orbit.apply(),
+                              presentFrame: presentFrame,
                             );
                           },
                     );

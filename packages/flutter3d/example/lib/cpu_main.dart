@@ -126,7 +126,11 @@ class _CpuAppState extends State<CpuApp> with SingleTickerProviderStateMixin {
     final ms = DateTime.now().difference(started).inMicroseconds / 1000.0;
 
     setState(() {
-      _frame = _device.present(result.frame, fit: BoxFit.contain);
+      _frame = CpuFrame(
+        texture: result.frame.backend as CpuTexture,
+        fit: BoxFit.contain,
+        quality: FilterQuality.none,
+      );
       _smoothed = _frames == 0 ? ms : _smoothed * 0.9 + ms * 0.1;
       _frames++;
     });

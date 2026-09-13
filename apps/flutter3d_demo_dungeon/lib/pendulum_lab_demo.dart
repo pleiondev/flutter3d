@@ -221,6 +221,7 @@ class _PendulumLabScreenState extends State<PendulumLabScreen>
           view: RenderView(camera: _camera),
           settings: () => const RenderSettings(),
           onBeforeFrame: () {},
+          presentFrame: presentFrame,
         ),
       ),
     );

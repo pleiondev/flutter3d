@@ -33,7 +33,7 @@ dev_dependencies:
     sdk: flutter
 
   # A device with no GPU behind it, for the frame test.
-  flutter3d_cpu: ^0.6.0
+  flutter3d_cpu: ^0.7.0
   flutter_lints: ^6.0.0
 
   # Real-device e2e — see `apps/flutter3d_demo_platformer/pubspec.yaml` for the

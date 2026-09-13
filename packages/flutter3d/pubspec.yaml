@@ -23,7 +23,7 @@ dependencies:
   # backend: `flutter3d` names no graphics API at all, which is what lets an
   # application choose one — `flutter3d_impeller` today — and what would let a WebGL
   # backend exist without touching the engine.
-  flutter3d_hardware: ^0.6.0
+  flutter3d_hardware: ^0.7.0
 
   # The geometry this package is written in — `MeshData`, `VertexLayout`, the
   # shape generators, tangents, morph targets and `Ray`. A package rather than

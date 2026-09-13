@@ -1072,6 +1072,7 @@ class _GameScreenState extends State<GameScreen>
                   // shadow is a visible flight of steps beside it.
                   shadows: const ShadowSettings(cascades: 3, resolution: 2048),
                 ),
+                presentFrame: presentFrame,
               ),
               // The web build draws into a platform view, and a platform view
               // takes every pointer event over it — the `Listener` outside this

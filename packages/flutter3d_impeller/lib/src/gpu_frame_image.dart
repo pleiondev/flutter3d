@@ -20,7 +20,8 @@ import 'gpu_texture.dart';
 
 /// A [RawImage] over the flutter_gpu texture inside [frame].
 ///
-/// The backend's `present` returns one of these; nothing else should need to.
+/// `presentFrame` in `flutter3d_app` returns one of these for a
+/// `GpuRenderBackend`; nothing else should need to.
 final class GpuFrameImage extends StatefulWidget {
   const GpuFrameImage({
     super.key,

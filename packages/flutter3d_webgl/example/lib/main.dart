@@ -285,7 +285,7 @@ class _HarnessAppState extends State<HarnessApp> {
 
     // --- what came out -----------------------------------------------------
     unawaited(_verify(device, colour));
-    _frame = device.present(colour, fit: BoxFit.contain);
+    _frame = WebGlFramePresenter(device: device, frame: colour, fit: BoxFit.contain);
   }
 
   Future<void> _verify(WebGlDevice device, TextureHandle colour) async {

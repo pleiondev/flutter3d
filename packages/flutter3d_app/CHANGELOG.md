@@ -12,6 +12,17 @@ this package depends directly on `flutter3d_hardware`, `flutter3d_impeller`,
 `flutter3d_webgl`, `flutter3d_cpu` and `flutter3d_webgpu` instead of on
 `flutter3d_backend`. Nothing an application imports changed.
 
+**`presentFrame(device, frame, {fit, quality})`, new.** `GraphicsDevice.present`
+is gone (mcp-01n) — `GraphicsDevice` cannot be `sealed`, since its four
+implementations live in four different packages, so this dispatches on the
+concrete backend a caller cannot know statically: `GpuFrameImage` for
+Impeller, `CpuFrame` for the software rasteriser, and a new
+`WebGlFramePresenter`/`WebGpuFramePresenter` per web backend. `SceneSurface`
+in `flutter3d_session` now takes a `presentFrame`-shaped callback as a
+required constructor argument rather than naming this package — the
+dependency runs the other way — so every existing `SceneSurface` call site
+needs one line added: `presentFrame: presentFrame`.
+
 ## 0.6.0
 
 * **Floors, and no code.** Storage, settings, the frame clock and the screens

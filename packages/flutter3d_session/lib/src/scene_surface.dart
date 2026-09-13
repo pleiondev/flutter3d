@@ -1,6 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:flutter3d/flutter3d.dart' hide Material;
 
+/// The shape of `presentFrame` in `flutter3d_app`.
+///
+/// Named here rather than reached by depending on that package, because
+/// `flutter3d_app` depends on this one — for [SceneSurface] among other
+/// things — and a package cannot depend on its own dependent. [SceneSurface]
+/// takes one of these as a constructor argument instead; every real caller
+/// already depends on both packages, so passing `presentFrame` itself costs
+/// nothing.
+typedef FramePresenter =
+    Widget Function(
+      GraphicsDevice device,
+      TextureHandle frame, {
+      BoxFit fit,
+      FilterQuality quality,
+    });
+
 /// The widget that hands a rendered frame to Flutter.
 ///
 /// **The third copy is what made this a package, and the third copy argued
@@ -39,6 +55,7 @@ class SceneSurface extends StatelessWidget {
     required this.view,
     required this.settings,
     required this.onBeforeFrame,
+    required this.presentFrame,
   });
 
   final Renderer renderer;
@@ -55,6 +72,10 @@ class SceneSurface extends StatelessWidget {
   /// The last thing to happen before the frame: place the camera, sync the
   /// visuals, advance whatever is drawn but not simulated.
   final VoidCallback onBeforeFrame;
+
+  /// `presentFrame` from `flutter3d_app` — see [FramePresenter] for why this
+  /// is a parameter rather than an import.
+  final FramePresenter presentFrame;
 
   @override
   Widget build(BuildContext context) {
@@ -73,9 +94,9 @@ class SceneSurface extends StatelessWidget {
           settings: settings(),
         );
         // From the device rather than painted from an image: a backend whose
-        // frame is composited elsewhere has no image to paint, and `present` is
-        // the one answer both can give.
-        return renderer.device.present(frame.frame);
+        // frame is composited elsewhere has no image to paint, and
+        // presentFrame is the one answer every backend can give.
+        return presentFrame(renderer.device, frame.frame);
       },
     );
   }

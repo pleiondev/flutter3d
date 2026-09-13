@@ -4,8 +4,6 @@ library;
 
 import 'dart:typed_data';
 
-import 'package:flutter/widgets.dart';
-
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 
 import 'testing_fake_pass.dart';
@@ -409,19 +407,6 @@ final class FakeBackend implements GraphicsDevice {
 
   @override
   void beginFrame() => frames++;
-
-  /// Nothing was drawn, so there is nothing to show, and pretending otherwise
-  /// would be worse than refusing: a test handed a blank widget could assert
-  /// something about a frame that never existed. Nothing under test here
-  /// reaches this — only an application does, once per frame.
-  @override
-  Widget present(
-    TextureHandle frame, {
-    BoxFit fit = BoxFit.fill,
-    FilterQuality quality = FilterQuality.none,
-  }) => throw UnsupportedError(
-    'FakeBackend draws nothing, so there is nothing to present of $frame',
-  );
 
   /// Null, which is a legitimate answer rather than a refusal: it is what a
   /// real device says about a texture whose pixels cannot be read.

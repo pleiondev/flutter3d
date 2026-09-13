@@ -180,10 +180,15 @@ class SceneSurface extends StatelessWidget {
           views: <RenderView>[view],
           settings: settings,
         );
-        // From the device rather than painted from an image: a backend whose
-        // frame is composited elsewhere has no image to paint, and `present`
-        // is the one answer both can give.
-        return renderer.device.present(frame.frame);
+        // The widget that shows a frame, for the one backend this page
+        // names directly. An application that opens whichever backend a
+        // build ends up with calls `presentFrame` from `flutter3d_app`
+        // instead — see [Assembling an application](/core/session/).
+        return GpuFrameImage(
+          frame: frame.frame,
+          fit: BoxFit.fill,
+          quality: FilterQuality.none,
+        );
       },
     );
   }

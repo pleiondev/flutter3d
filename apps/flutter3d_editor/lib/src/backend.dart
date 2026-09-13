@@ -9,4 +9,4 @@
 library;
 
 export 'package:flutter3d_impeller/flutter3d_impeller.dart'
-    show GpuRenderBackend;
+    show GpuRenderBackend, GpuFrameImage;

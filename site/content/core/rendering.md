@@ -17,11 +17,11 @@ final frame = renderer.render(
     shadows: const ShadowSettings(cascades: 3, resolution: 1024),
   ),
 );
-return renderer.device.present(frame.frame);
+return presentFrame(renderer.device, frame.frame);
 ```
 
 <div class="note">
-<p><code>device.present</code> rather than painting an image: a backend whose frame is composited elsewhere has no image to paint, and <code>present</code> is the one answer both can give.</p>
+<p><code>presentFrame</code>, from <code>flutter3d_app</code>, rather than painting an image: a backend whose frame is composited elsewhere has no image to paint, and a widget built for the concrete backend is the one answer every backend can give.</p>
 </div>
 
 ## The pass order

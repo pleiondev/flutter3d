@@ -1,3 +1,12 @@
+## 0.7.0
+
+**Breaking.** `CpuDevice.present` is gone with `GraphicsDevice.present`
+itself (mcp-01n), and with it the dead `_presented` field it was the only
+reader of. `CpuFrame`, the widget it used to return, is unchanged and still
+exported from this package's own barrel, so `presentFrame` in `flutter3d_app`
+can build one directly. Floors to `flutter3d_hardware` `^0.7.0` and
+`flutter3d_conformance` `^0.7.0`.
+
 ## 0.6.0
 
 * **Two reference pictures, and no code.** `cube-shadow-crowded` and

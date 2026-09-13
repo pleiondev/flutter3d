@@ -18,7 +18,7 @@ dependencies:
 
   # The software rasteriser, so a device whose driver refuses the engine can
   # still show the picture: `--dart-define=software=true`.
-  flutter3d_cpu: ^0.6.0
+  flutter3d_cpu: ^0.7.0
 
   flutter3d_stereo:
     path: ../

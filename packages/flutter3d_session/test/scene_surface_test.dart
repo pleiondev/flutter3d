@@ -33,6 +33,17 @@ import 'package:flutter_test/flutter_test.dart';
   );
 }
 
+/// A stand-in for `presentFrame` from `flutter3d_app` — this package cannot
+/// depend on that one, since it depends on this one for [SceneSurface]
+/// itself. [_stage] only ever opens a [CpuDevice], so this only ever needs to
+/// answer for that.
+Widget _presentFrame(
+  GraphicsDevice device,
+  TextureHandle frame, {
+  BoxFit fit = BoxFit.fill,
+  FilterQuality quality = FilterQuality.none,
+}) => CpuFrame(texture: frame.backend as CpuTexture, fit: fit, quality: quality);
+
 void main() {
   testWidgets('asks what to draw with after the camera has been placed', (
     WidgetTester tester,
@@ -56,6 +67,7 @@ void main() {
             order.add('settings');
             return const RenderSettings();
           },
+          presentFrame: _presentFrame,
         ),
       ),
     );
@@ -89,6 +101,7 @@ void main() {
               asked++;
               return const RenderSettings();
             },
+            presentFrame: _presentFrame,
           ),
         ),
       ),
@@ -126,6 +139,7 @@ void main() {
               view: it.view,
               onBeforeFrame: () {},
               settings: () => const RenderSettings(),
+              presentFrame: _presentFrame,
             ),
           ),
         ),

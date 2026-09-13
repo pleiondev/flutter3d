@@ -1,3 +1,15 @@
+## 0.7.0
+
+**Breaking.** `WebGpuDevice.present` is gone with `GraphicsDevice.present`
+itself (mcp-01n), split into two public methods a presenter builds from:
+`copyToCanvas` and `applyCanvasStyle`. The canvas itself stays private — this
+package depends on neither `package:web` nor anything else that would hand an
+element to a caller outside its own file — so, unlike `flutter3d_webgl`,
+`applyCanvasStyle` carries the CSS-mapping switch rather than a presenter
+widget doing it externally. The new `WebGpuFramePresenter` widget calls both;
+`presentFrame` in `flutter3d_app` builds one. Floors to `flutter3d_hardware`
+`^0.7.0` and `flutter3d_conformance` `^0.7.0`.
+
 ## 0.6.0
 
 **The first release, and it takes the set's number rather than a first number of

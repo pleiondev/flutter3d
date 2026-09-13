@@ -24,7 +24,7 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart' hide Material;
 import 'package:flutter/services.dart';
 import 'package:flutter3d/flutter3d.dart' hide Material;
-
+import 'package:flutter3d_app/flutter3d_app.dart' show presentFrame;
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 import 'package:vector_math/vector_math.dart' show Vector3;
 
@@ -466,9 +466,9 @@ class _ModelerViewportState extends State<ModelerViewport> {
           widget.onRendered?.call(frame.cpuMicros);
           // From the device rather than painted from an image, for the
           // reason `SceneSurface` gives: a backend whose frame is composited
-          // elsewhere has no image to paint, and `present` is the one answer
-          // both can give.
-          final Widget picture = widget.renderer.device.present(frame.frame);
+          // elsewhere has no image to paint, and presentFrame is the one
+          // answer every backend can give.
+          final Widget picture = presentFrame(widget.renderer.device, frame.frame);
           final SelectionBox? box = _box;
           final bool showBox = box != null && box.isBox;
           // Re-projected every frame rather than cached: the target does not

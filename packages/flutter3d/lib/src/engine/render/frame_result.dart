@@ -47,8 +47,9 @@ final class FrameResult {
   /// A handle and not a `ui.Image`, which is the whole of the change: an image
   /// is what *one* backend can produce for free, and asking every backend for
   /// one costs a GPU->CPU->GPU round trip on any that cannot. Show it with
-  /// `GraphicsDevice.present`, read it with `GraphicsDevice.readPixels`, and
-  /// let the backend decide which of those is cheap.
+  /// `presentFrame` from `flutter3d_app`, read it with
+  /// `GraphicsDevice.readPixels`, and let the backend decide which of those
+  /// is cheap.
   ///
   /// It is the renderer's own target and is reused every frame, so it is valid
   /// until the next [Renderer.render] and not beyond.

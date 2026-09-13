@@ -546,6 +546,7 @@ class _LevelScreenState extends State<LevelScreen>
               view: _view,
               settings: () => const RenderSettings(),
               onBeforeFrame: _place,
+              presentFrame: presentFrame,
             ),
             const Positioned(
               left: 0,

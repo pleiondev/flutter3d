@@ -498,7 +498,7 @@ final frame = renderer.render(
     shadows: const ShadowSettings(cascades: 3, resolution: 1024),
   ),
 );
-return renderer.device.present(frame.frame);
+return GpuFrameImage(frame: frame.frame, fit: BoxFit.fill, quality: FilterQuality.none);
 ```
 
 <div class="why">

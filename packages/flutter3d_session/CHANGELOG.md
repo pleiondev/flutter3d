@@ -11,6 +11,13 @@ gone from the workspace. Nothing an application imports through
 `flutter3d_app` changed; a caller that named `flutter3d_screens` directly
 now names `flutter3d_session` instead.
 
+**`SceneSurface` takes a new required `presentFrame` argument.**
+`GraphicsDevice.present` is gone (mcp-01n), moved to `presentFrame` in
+`flutter3d_app` — but that package depends on this one for `SceneSurface`
+itself, so this package cannot depend back on it. `FramePresenter` names the
+shape instead; every real caller already depends on both packages, so
+passing `presentFrame: presentFrame` at the call site costs one line.
+
 ## 0.6.0
 
 * **Floors, and no code.** A run that can be started, saved, resumed and ended,

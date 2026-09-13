@@ -1,3 +1,10 @@
+## 0.1.1
+
+* **No API change.** `StereoSurface` shows a frame through `presentFrame` from
+  `flutter3d_app` now, since `GraphicsDevice.present` is gone (mcp-01n) — a
+  new dependency, not a new parameter, so nothing that already built against
+  `StereoSurface` has to change.
+
 ## 0.1.0
 
 **The stereo half of a headset, on hardware that is not one.** `StereoRig`

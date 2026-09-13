@@ -31,7 +31,7 @@ dependencies:
   # `frame_test.dart` draws through.
   flutter3d: ^0.6.0
   flutter3d_bridge: ^0.6.0
-  flutter3d_cpu: ^0.6.0
+  flutter3d_cpu: ^0.7.0
 
   vector_math: ^2.2.0
 

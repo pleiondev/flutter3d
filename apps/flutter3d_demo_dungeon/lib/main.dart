@@ -1375,6 +1375,7 @@ class _GameScreenState extends State<GameScreen>
                       ? const XraySettings(layerMask: DungeonLayers.actors)
                       : const XraySettings(),
                 ),
+                presentFrame: presentFrame,
               ),
               // Hold to fire and drag to aim, which is what a captured pointer
               // already does at once — so the two are the same gesture here

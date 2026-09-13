@@ -1,3 +1,11 @@
+## 0.7.0
+
+**Breaking.** `WebGlDevice.present` is gone with `GraphicsDevice.present`
+itself (mcp-01n). Its blit half is now the public `blitToCanvas`, and its
+canvas is now the public `canvas` field; the CSS-styling half moved to a new
+`WebGlFramePresenter` widget, which `presentFrame` in `flutter3d_app` builds.
+Floors to `flutter3d_hardware` `^0.7.0` and `flutter3d_conformance` `^0.7.0`.
+
 ## 0.6.0
 
 * **The generated shader table is rebuilt against `flutter3d_shaders` 0.6.0.**

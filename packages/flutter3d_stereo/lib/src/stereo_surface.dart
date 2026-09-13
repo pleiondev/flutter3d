@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter3d/flutter3d.dart' hide Material;
+import 'package:flutter3d_app/flutter3d_app.dart' show presentFrame;
 
 import 'stereo_rig.dart';
 import 'stereo_viewer.dart';
@@ -101,7 +102,7 @@ class StereoSurface extends StatelessWidget {
           views: rig.views,
           settings: settings().forStereo(),
         );
-        return renderer.device.present(frame.frame);
+        return presentFrame(renderer.device, frame.frame);
       },
     );
   }

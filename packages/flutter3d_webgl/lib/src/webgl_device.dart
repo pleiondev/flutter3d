@@ -17,7 +17,6 @@ import 'dart:js_interop';
 import 'dart:typed_data';
 import 'dart:ui_web' as ui_web;
 
-import 'package:flutter/widgets.dart';
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:web/web.dart' as web;
 
@@ -35,7 +34,7 @@ export 'webgl_types.dart';
 
 /// WebGL2 as a [GraphicsDevice].
 final class WebGlDevice implements GraphicsDevice {
-  WebGlDevice._(this._gl, this._canvas, this._library);
+  WebGlDevice._(this._gl, this.canvas, this._library);
 
   /// Vertex attribute locations currently switched on in this context.
   ///
@@ -65,7 +64,7 @@ final class WebGlDevice implements GraphicsDevice {
 
   /// Builds a device over a canvas of [width] by [height].
   ///
-  /// The canvas is the thing the browser composites; see [present]. It is
+  /// The canvas is the thing the browser composites; see [blitToCanvas]. It is
   /// created here rather than taken as an argument so that nothing above has to
   /// know a DOM element is involved.
   static WebGlDevice? create({
@@ -200,7 +199,7 @@ final class WebGlDevice implements GraphicsDevice {
   }
 
   final web.WebGL2RenderingContext _gl;
-  final web.HTMLCanvasElement _canvas;
+  final web.HTMLCanvasElement canvas;
   final WebGlShaderLibrary _library;
 
   /// Every persistent texture and renderbuffer this device has handed out,
@@ -307,12 +306,12 @@ final class WebGlDevice implements GraphicsDevice {
 
     // What can be released of the canvas and the context, released honestly.
     // The platform-view registry has no unregister, and the factory closure
-    // [_register] handed it holds [_canvas] for the life of the app — that pin
+    // [_register] handed it holds [canvas] for the life of the app — that pin
     // is not this device's to undo. What *is*: the element's place in the
     // document, and the GPU-side context behind it. `WEBGL_lose_context` is
     // the one sanctioned way to free a context before its canvas is collected,
     // so it is asked for here and used where the browser has it.
-    _canvas.remove();
+    canvas.remove();
     final lose =
         _gl.getExtension('WEBGL_lose_context') as web.WEBGL_lose_context?;
     lose?.loseContext();
@@ -588,43 +587,6 @@ final class WebGlDevice implements GraphicsDevice {
   CommandEncoder beginRenderPass(RenderPassDescriptor descriptor) =>
       WebGlEncoder(this, _gl, descriptor);
 
-  /// The canvas, in the widget tree.
-  ///
-  /// [frame] is blitted onto the default framebuffer first, because the engine
-  /// draws into a texture it owns and the browser composites the canvas. That
-  /// blit is the price of this route, and it is one GPU copy rather than the
-  /// GPU→CPU→GPU round trip a `ui.Image` would have cost.
-  ///
-  /// [fit] and [quality] are honoured through CSS on the element rather than by
-  /// Flutter, since Flutter does not composite these pixels.
-  @override
-  Widget present(
-    TextureHandle frame, {
-    BoxFit fit = BoxFit.fill,
-    FilterQuality quality = FilterQuality.none,
-  }) {
-    _blitToCanvas(frame);
-    _canvas.style
-      ..width = '100%'
-      ..height = '100%'
-      // A display surface, not a control. Left interactive, the canvas takes
-      // the pointer events over it and the Flutter widgets above the platform
-      // view never see them — which reads as an application whose camera does
-      // not turn while its keyboard works fine.
-      ..pointerEvents = 'none'
-      ..objectFit = switch (fit) {
-        BoxFit.contain => 'contain',
-        BoxFit.cover => 'cover',
-        BoxFit.fill => 'fill',
-        BoxFit.fitWidth ||
-        BoxFit.fitHeight ||
-        BoxFit.none ||
-        BoxFit.scaleDown => 'contain',
-      }
-      ..imageRendering = quality == FilterQuality.none ? 'pixelated' : 'auto';
-    return HtmlElementView(viewType: viewType);
-  }
-
   /// The platform view type this device's canvas is registered under.
   ///
   /// Registered here rather than by the application, because the canvas is this
@@ -642,7 +604,7 @@ final class WebGlDevice implements GraphicsDevice {
     final type = 'flutter3d-webgl-${identityHashCode(this)}';
     ui_web.platformViewRegistry.registerViewFactory(
       type,
-      (int viewId) => _canvas,
+      (int viewId) => canvas,
     );
     return type;
   }
@@ -661,8 +623,8 @@ final class WebGlDevice implements GraphicsDevice {
     final pixels = Uint8List(4 * 4 * 4);
     final js = pixels.toJS;
     _gl.readPixels(
-      _canvas.width ~/ 2 - 2,
-      _canvas.height ~/ 2 - 2,
+      canvas.width ~/ 2 - 2,
+      canvas.height ~/ 2 - 2,
       4,
       4,
       web.WebGLRenderingContext.RGBA,
@@ -672,8 +634,8 @@ final class WebGlDevice implements GraphicsDevice {
     final read = js.toDart.sublist(0, 16);
     final error = _gl.getError();
     final nonZero = read.where((int b) => b != 0).length;
-    return 'canvas ${_canvas.width}x${_canvas.height} '
-        'attached=${_canvas.isConnected} '
+    return 'canvas ${canvas.width}x${canvas.height} '
+        'attached=${canvas.isConnected} '
         'centre=${read.take(4).toList()} nonzero=$nonZero/16 '
         'blitError=$lastBlitError readError=$error';
   }
@@ -701,7 +663,14 @@ final class WebGlDevice implements GraphicsDevice {
     return js.toDart.sublist(0, 4);
   }
 
-  void _blitToCanvas(TextureHandle frame) {
+  /// Blits [frame] onto the canvas the browser composites.
+  ///
+  /// `presentFrame` in `flutter3d_app` calls this before building the
+  /// `HtmlElementView` that shows [canvas], because the engine draws into a
+  /// texture it owns and the browser composites the canvas instead. That blit
+  /// is the price of this route, and it is one GPU copy rather than the
+  /// GPU→CPU→GPU round trip a `ui.Image` would have cost.
+  void blitToCanvas(TextureHandle frame) {
     final source = _gl.createFramebuffer();
     _gl.bindFramebuffer(web.WebGL2RenderingContext.READ_FRAMEBUFFER, source);
     attachToFramebuffer(
@@ -714,9 +683,9 @@ final class WebGlDevice implements GraphicsDevice {
       web.WebGL2RenderingContext.READ_FRAMEBUFFER,
     );
     if (status != web.WebGLRenderingContext.FRAMEBUFFER_COMPLETE) {
-      // The status in words first, the delete second: present() runs every
-      // frame, so a frame that stays unreadable would otherwise leak one
-      // framebuffer per frame for as long as the caller keeps trying.
+      // The status in words first, the delete second: this runs every frame,
+      // so a frame that stays unreadable would otherwise leak one framebuffer
+      // per frame for as long as the caller keeps trying.
       final why = debugFramebufferStatus();
       _gl.deleteFramebuffer(source);
       throw StateError('the frame cannot be read for presenting: $why');
@@ -744,7 +713,7 @@ final class WebGlDevice implements GraphicsDevice {
     // drew nothing, while the one that does not was fine. Widening the
     // rectangle un-clips this blit and leaves the flag where the rest of the
     // engine expects it.
-    _gl.scissor(0, 0, _canvas.width, _canvas.height);
+    _gl.scissor(0, 0, canvas.width, canvas.height);
 
     // Drained first, so the code below reports this blit rather than whatever
     // the frame left behind. An error queue is cumulative and getError clears
@@ -772,8 +741,8 @@ final class WebGlDevice implements GraphicsDevice {
       frame.height, //
       0,
       0,
-      _canvas.width,
-      _canvas.height, //
+      canvas.width,
+      canvas.height, //
       web.WebGLRenderingContext.COLOR_BUFFER_BIT,
       web.WebGLRenderingContext.NEAREST,
     );

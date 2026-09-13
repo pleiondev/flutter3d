@@ -115,6 +115,11 @@ const Map<String, String> flatDartPackages = <String, String>{
       'which cannot resolve a package that depends on the Flutter SDK — so a '
       'single Flutter import here is not a heavier process, it is a server '
       'that will not start on any machine that has not got the Flutter tool',
+  'flutter3d_hardware':
+      'the vocabulary a backend implements named no graphics API already; '
+      '`GraphicsDevice.present` was its one Flutter import, returning the '
+      'widget a finished frame becomes, and moving that to `presentFrame` in '
+      '`flutter3d_app` (mcp-01n) left nothing here that names Flutter at all',
 };
 
 /// Packages the genre rule does not apply to, and why.
@@ -269,6 +274,13 @@ const Map<String, Map<String, String>> repeatableStepExempt =
 
 /// Files in `flutter3d_hardware` allowed to name Flutter, and why.
 ///
+/// **Empty since `GraphicsDevice.present` moved to `presentFrame` in
+/// `flutter3d_app` (mcp-01n).** `graphics_device.dart` and
+/// `testing_fake_backend.dart` were the only two files this ever excused, both
+/// for the same method; nothing here names Flutter now, and this map stays
+/// rather than being deleted so a future exception has to be written down
+/// again rather than the check quietly reopening.
+///
 /// The `flutter_gpu` half of that rule has no exceptions and never will. The
 /// Flutter half is narrower than it looks: it is there to stop Flutter's
 /// vocabulary leaking into this one, and `PixelFormat` is the collision it was
@@ -276,16 +288,9 @@ const Map<String, Map<String, String>> repeatableStepExempt =
 ///
 /// **`package:flutter/` is banned as well as `dart:ui`, on purpose.** Widgets
 /// re-export half of `dart:ui`, so a rule naming only `dart:ui` would let the
-/// whole of Flutter in through a technicality, and the exemptions below would
-/// be documenting a loophole rather than a decision.
-const Map<String, String> hardwareMayUseFlutter = <String, String>{
-  'graphics_device.dart':
-      'GraphicsDevice.present returns a widget showing the finished frame, '
-      'which every backend must produce and only Flutter can name',
-  'testing_fake_backend.dart':
-      'FakeBackend implements GraphicsDevice.present, which is a '
-      'widget by the line above',
-};
+/// whole of Flutter in through a technicality, and an exemption here would be
+/// documenting a loophole rather than a decision.
+const Map<String, String> hardwareMayUseFlutter = <String, String>{};
 
 /// Files in `flutter3d` held to a stricter rule than the rest, and why.
 const Map<String, String> engineAlsoFreeOfDartUi = <String, String>{

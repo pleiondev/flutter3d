@@ -1,8 +1,9 @@
 name: flutter3d_conformance
 description: >-
   The behaviour a flutter3d_hardware backend has to have, as tests it can run
-  against itself.
-version: 0.6.0
+  against itself. No Flutter import of its own; still resolves the Flutter
+  SDK transitively through flutter3d_shaders.
+version: 0.7.0
 repository: https://github.com/pleiondev/flutter3d
 homepage: https://flutter3d.pleion.dev
 issue_tracker: https://github.com/pleiondev/flutter3d/issues
@@ -14,19 +15,17 @@ topics:
 
 environment:
   sdk: ^3.12.2
-  flutter: '>=3.47.0'
 
 dependencies:
-  flutter:
-    sdk: flutter
   # A test library in `dependencies` rather than `dev_dependencies`, which is
   # deliberate and unusual: this package *is* tests, and the backends that run
   # them take it as a dev dependency of their own.
-  flutter_test:
-    sdk: flutter
-  flutter3d_hardware: ^0.6.0
+  test: ^1.25.0
+  flutter3d_hardware: ^0.7.0
   vector_math: ^2.2.0
-  # The list of entry points a bundle must answer to.
+  # The list of entry points a bundle must answer to. Still Flutter-dependent
+  # itself, so this package resolves the Flutter SDK transitively through it —
+  # a separate, larger question than mcp-01n asked, and not one this touches.
   flutter3d_shaders: ^0.6.0
 
 dev_dependencies:

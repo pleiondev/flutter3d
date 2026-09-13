@@ -1,3 +1,13 @@
+## 0.7.0
+
+**Breaking.** `GraphicsDevice.present` is gone. It was the one member that
+returned a Flutter `Widget`, and the one reason this package depended on
+Flutter at all — moved to `presentFrame` in `flutter3d_app`, which dispatches
+on the concrete backend a caller cannot know statically. `FakeBackend`'s own
+override, a bare `throw UnsupportedError`, is deleted rather than migrated.
+Nothing else in this package names Flutter; it resolves on the Dart VM alone
+now, and its tests run under plain `dart test`.
+
 ## 0.6.0
 
 * **Nothing of its own changed.** Every file under `lib/` is byte for byte what

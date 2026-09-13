@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter3d/flutter3d.dart';
+import 'package:flutter3d_app/flutter3d_app.dart' show presentFrame;
 
 /// Renders the scene at the widget's physical pixel size and paints the result.
 class SceneSurface extends StatelessWidget {
@@ -52,7 +53,7 @@ class SceneSurface extends StatelessWidget {
 
         // From the device, not painted from an image. A backend that composites
         // its frame elsewhere — a browser canvas — has no image to paint, and
-        // `present` is the one thing both can answer.
+        // presentFrame is the one thing every backend can answer.
         //
         // `contain` letterboxes rather than stretching, and only the golden
         // path needs it: a golden renders at a size it names, so the frame is
@@ -60,7 +61,8 @@ class SceneSurface extends StatelessWidget {
         // visibly squashed model on screen while the recorded file is perfectly
         // correct, and anybody watching a recording run would reasonably
         // conclude the renderer was broken.
-        return renderer.device.present(
+        return presentFrame(
+          renderer.device,
           frame.frame,
           fit: fixedSize != null ? BoxFit.contain : BoxFit.fill,
         );

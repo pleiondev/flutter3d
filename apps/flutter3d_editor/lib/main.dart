@@ -57,6 +57,19 @@ import 'src/step_panel.dart';
 import 'src/timeline_attach_screen.dart';
 import 'src/timeline_client.dart';
 
+/// The widget that shows [frame] — always drawn through [GpuRenderBackend],
+/// the one backend this desktop-only application names.
+///
+/// Not `presentFrame` from `flutter3d_app`, because that barrel depends on a
+/// web backend this application has no reason to carry — see `src/backend.dart`
+/// for why there is no conditional import here at all.
+Widget _presentFrame(
+  GraphicsDevice device,
+  TextureHandle frame, {
+  BoxFit fit = BoxFit.fill,
+  FilterQuality quality = FilterQuality.none,
+}) => GpuFrameImage(frame: frame, fit: fit, quality: quality);
+
 /// The document opened on launch, when one is named on the command line.
 ///
 /// **The define stays, and it is no longer the only way in.** `⌘O` and the rows
@@ -1305,6 +1318,7 @@ class _EditorScreenState extends State<EditorScreen>
                         _fly.position.z,
                       );
                     },
+                    presentFrame: _presentFrame,
                   ),
                 ),
                 Positioned(

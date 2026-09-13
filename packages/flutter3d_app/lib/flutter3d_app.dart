@@ -3,8 +3,9 @@
 ///     import 'package:flutter3d_app/flutter3d_app.dart';
 ///
 ///     final device = await openDevice(width: 1280, height: 720);
-///     // ... SceneSurface, RunSession, SettingsOverlay, Gamepad, PointerLock —
-///     // all reachable from here.
+///     final renderer = Renderer.create(device: device);
+///     // ... presentFrame, SceneSurface, RunSession, SettingsOverlay, Gamepad,
+///     // PointerLock — all reachable from here.
 ///
 /// Three packages, plus the backend choice this one now makes directly, exist
 /// because the wiring they hold was written out, close to identically, in
@@ -35,9 +36,9 @@
 /// genre on an application's behalf.
 library;
 
-export 'src/backend_native.dart'
-    if (dart.library.js_interop) 'src/backend_web.dart'
-    show kFixedResolution, openDevice;
 export 'package:flutter3d_session/flutter3d_session.dart';
 export 'package:pad_input/pad_input.dart';
 export 'package:pointer_lock/pointer_lock.dart';
+export 'src/backend_native.dart'
+    if (dart.library.js_interop) 'src/backend_web.dart'
+    show kFixedResolution, openDevice, presentFrame;

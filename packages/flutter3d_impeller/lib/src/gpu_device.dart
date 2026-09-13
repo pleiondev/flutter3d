@@ -14,14 +14,12 @@ library;
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
-import 'package:flutter/widgets.dart';
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:flutter_gpu/gpu.dart' as gpu;
 
 import 'gpu_command_encoder.dart';
 import 'gpu_formats.dart';
 import 'gpu_frame.dart';
-import 'gpu_frame_image.dart';
 import 'gpu_loaded_shaders.dart';
 import 'gpu_readback.dart';
 import 'gpu_shader_library.dart';
@@ -30,6 +28,7 @@ import 'host_buffer_grid.dart';
 
 export 'gpu_command_encoder.dart';
 export 'gpu_frame.dart';
+export 'gpu_frame_image.dart';
 export 'gpu_loaded_shaders.dart';
 export 'gpu_shader_library.dart';
 
@@ -728,19 +727,6 @@ final class GpuRenderBackend implements GraphicsDevice {
   @override
   void onFrameComplete(void Function() whenDone) =>
       _openFrame.whenDone.add(whenDone);
-
-  @override
-  Widget present(
-    TextureHandle frame, {
-    BoxFit fit = BoxFit.fill,
-    FilterQuality quality = FilterQuality.none,
-  }) =>
-      // A stateful widget rather than `asImage()` inline into a `RawImage`,
-      // which is what this was: the inline image was never disposed, so every
-      // frame left a `ui.Image` for the collector and pinned the frame texture
-      // in the engine's image accounting past the frames-in-flight ring. The
-      // widget owns the image and closes it — see `gpu_frame_image.dart`.
-      GpuFrameImage(frame: frame, fit: fit, quality: quality);
 
   @override
   Future<ByteData?> readPixels(TextureHandle texture) {
