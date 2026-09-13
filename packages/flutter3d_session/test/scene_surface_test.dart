@@ -35,14 +35,15 @@ import 'package:flutter_test/flutter_test.dart';
 
 /// A stand-in for `presentFrame` from `flutter3d_app` — this package cannot
 /// depend on that one, since it depends on this one for [SceneSurface]
-/// itself. [_stage] only ever opens a [CpuDevice], so this only ever needs to
-/// answer for that.
+/// itself. What is checked here is the order [SceneSurface] calls things in
+/// and how often, never the picture, so a placeholder answers as well as the
+/// real widget would.
 Widget _presentFrame(
   GraphicsDevice device,
   TextureHandle frame, {
   BoxFit fit = BoxFit.fill,
   FilterQuality quality = FilterQuality.none,
-}) => CpuFrame(texture: frame.backend as CpuTexture, fit: fit, quality: quality);
+}) => const SizedBox.shrink();
 
 void main() {
   testWidgets('asks what to draw with after the camera has been placed', (

@@ -3,8 +3,13 @@
 **Breaking.** `GpuRenderBackend.present` is gone with `GraphicsDevice.present`
 itself (mcp-01n). `GpuFrameImage`, the widget it used to return, is unchanged
 and now exported from this package's own barrel (`gpu_device.dart` re-exports
-`gpu_frame_image.dart`) so `presentFrame` in `flutter3d_app` can build one
-directly. Floors to `flutter3d_hardware` `^0.7.0`.
+`gpu_frame_image.dart`).
+
+**`ensureGpuBackendRegistered`, new.** This backend registers its own opener
+and presenter with `flutter3d_hardware`'s device registry, rather than
+waiting for `flutter3d_app` to know it exists — calling it once is now the
+whole of what an assembly layer owes this package. Floors to
+`flutter3d_hardware` `^0.7.0`.
 
 ## 0.6.0
 

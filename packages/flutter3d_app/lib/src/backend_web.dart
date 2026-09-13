@@ -1,9 +1,20 @@
 /// The browser backend: WebGL2 over a canvas the browser composites, and —
 /// only when a build asks for it — WebGPU tried first.
+///
+/// **WebGL2 is not named here either** — it registers itself with
+/// `flutter3d_hardware`'s device registry, the same way the native half's
+/// two backends do; see `flutter3d_webgl/src/webgl_backend_registration.dart`.
+/// **WebGPU is the one backend this file still registers directly**, and
+/// deliberately: registering it from inside `flutter3d_webgpu` itself would
+/// make the `--dart-define=FLUTTER3D_WEBGPU=true` flag pointless, since the
+/// registration call would still reach `openWebGpu` and keep the whole
+/// backend reachable — and reachable code is code dart2js ships — in every
+/// web build, flag or not. See [_tryWebGpu] for the measurement.
 library;
 
 import 'package:flutter/widgets.dart';
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
+import 'package:flutter3d_session/flutter3d_session.dart' show FramePresenter;
 import 'package:flutter3d_webgl/flutter3d_webgl.dart';
 import 'package:flutter3d_webgpu/flutter3d_webgpu_web.dart';
 
@@ -61,58 +72,62 @@ const bool kFixedResolution = true;
 /// like without anybody having asked for it.
 const bool _tryWebGpu = bool.fromEnvironment('FLUTTER3D_WEBGPU');
 
+bool _registered = false;
+void _ensureRegistered() {
+  if (_registered) return;
+  _registered = true;
+  ensureWebGlBackendRegistered();
+  if (_tryWebGpu) {
+    registerBackendOpener('WebGPU', openWebGpu);
+    registerDevicePresenter<WebGpuDevice>(
+      (
+        GraphicsDevice device,
+        TextureHandle frame, {
+        BoxFit fit = BoxFit.fill,
+        FilterQuality quality = FilterQuality.none,
+      }) => WebGpuFramePresenter(
+        device: device as WebGpuDevice,
+        frame: frame,
+        fit: fit,
+        quality: quality,
+      ),
+    );
+  }
+}
+
 /// Opens the backend, or throws with something worth putting on screen.
-///
-/// The whole of it is the backend packages': what a browser has to provide is
-/// their knowledge, and three games had been repeating it.
-///
-/// **The fall back is a `try`/`catch` for the same reason the native half's
-/// is.** There, `flutter_gpu` is always importable and only trying says whether
-/// Impeller starts; here, `navigator.gpu` may be absent, or present and hand
-/// back no adapter because the machine's GPU is blocklisted. `openWebGpu`
-/// already turns both of those into one [StateError], so this catches it and
-/// says on the console which backend the frame is actually coming from —
-/// silence would leave a WebGL2 picture being read as a WebGPU one.
 Future<GraphicsDevice> openDevice({
   required int width,
   required int height,
-}) async {
-  if (_tryWebGpu) {
-    try {
-      return await openWebGpu(width: width, height: height);
-    } catch (error) {
-      debugPrint(
-        'flutter3d_app: WebGPU would not start ($error), '
-        'falling back to WebGL2',
-      );
-    }
-  }
-  return openWebGl(width: width, height: height);
+}) {
+  _ensureRegistered();
+  return openRegisteredDevice(
+    width: width,
+    height: height,
+    onFallback: (message) => debugPrint('flutter3d_app: $message'),
+  );
 }
 
 /// The widget that shows [frame], for whichever [device] this build's
-/// [openDevice] actually returned.
+/// [openDevice] actually returned — or for any other [GraphicsDevice] a
+/// caller registered with `registerDevicePresenter`, web backend or not.
 ///
-/// **A runtime `if`, not a `switch` on a sealed type**, because `GraphicsDevice`
-/// cannot be sealed: its four implementations live in four different packages,
-/// and Dart requires every subtype of a sealed type in the same library. The
-/// same runtime fact that makes [openDevice] a `try`/`catch` — WebGPU either
-/// starts or it does not, and nothing at compile time can see which — is why
-/// this checks the concrete type it actually got rather than dispatching on
-/// one this file chose.
+/// A registry lookup rather than a `switch` on a sealed type — see
+/// `backend_native.dart`'s twin for why.
 Widget presentFrame(
   GraphicsDevice device,
   TextureHandle frame, {
   BoxFit fit = BoxFit.fill,
   FilterQuality quality = FilterQuality.none,
 }) {
-  if (device is WebGpuDevice) {
-    return WebGpuFramePresenter(device: device, frame: frame, fit: fit, quality: quality);
+  _ensureRegistered();
+  final presenter = lookUpDevicePresenter(device) as FramePresenter?;
+  if (presenter == null) {
+    throw ArgumentError(
+      'presentFrame: no presenter registered for ${device.runtimeType} — '
+      'call registerDevicePresenter<${device.runtimeType}>(...) once, '
+      'before presenting a frame from this backend',
+    );
   }
-  if (device is WebGlDevice) {
-    return WebGlFramePresenter(device: device, frame: frame, fit: fit, quality: quality);
-  }
-  throw ArgumentError(
-    'presentFrame: unrecognised GraphicsDevice ${device.runtimeType}',
-  );
+  return presenter(device, frame, fit: fit, quality: quality);
 }

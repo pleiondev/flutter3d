@@ -2,10 +2,15 @@
 
 **Breaking.** `CpuDevice.present` is gone with `GraphicsDevice.present`
 itself (mcp-01n), and with it the dead `_presented` field it was the only
-reader of. `CpuFrame`, the widget it used to return, is unchanged and still
-exported from this package's own barrel, so `presentFrame` in `flutter3d_app`
-can build one directly. Floors to `flutter3d_hardware` `^0.7.0` and
-`flutter3d_conformance` `^0.7.0`.
+reader of. `CpuFrame`, the widget it used to return, moved to
+`flutter3d_app` (mcp-02n) — this package resolves without the Flutter SDK
+and cannot also build a Flutter `Widget`.
+
+**`ensureCpuBackendRegistered`, new.** This backend registers its own
+opener as the native fallback with `flutter3d_hardware`'s device registry.
+Its presenter is registered by `flutter3d_app` instead, on its behalf, since
+this package has nothing Flutter-shaped to register it with. Floors to
+`flutter3d_hardware` `^0.7.0` and `flutter3d_conformance` `^0.7.0`.
 
 ## 0.6.0
 

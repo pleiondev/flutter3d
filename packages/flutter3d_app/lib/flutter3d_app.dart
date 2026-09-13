@@ -17,6 +17,10 @@
 ///   consumers already reached it through this barrel rather than by naming
 ///   it, and the handful that still named it directly cost nothing to
 ///   repoint, which left nothing for a separate package to be the boundary of.
+///   `openDevice` and `presentFrame` are themselves a lookup into
+///   `flutter3d_hardware`'s own device registry now, not a fixed list of
+///   backends this package happens to know about — each backend registers
+///   itself, so a new one costs this file nothing to add.
 /// * `flutter3d_session` — `SceneSurface`, the widget that hands a frame to
 ///   Flutter, `RunSession`, a level's load/restart/save/advance sequence, and
 ///   the settings, rebinding and save screens no game owns (once

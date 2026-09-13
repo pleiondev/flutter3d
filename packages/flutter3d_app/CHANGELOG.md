@@ -12,16 +12,24 @@ this package depends directly on `flutter3d_hardware`, `flutter3d_impeller`,
 `flutter3d_webgl`, `flutter3d_cpu` and `flutter3d_webgpu` instead of on
 `flutter3d_backend`. Nothing an application imports changed.
 
-**`presentFrame(device, frame, {fit, quality})`, new.** `GraphicsDevice.present`
-is gone (mcp-01n) — `GraphicsDevice` cannot be `sealed`, since its four
-implementations live in four different packages, so this dispatches on the
-concrete backend a caller cannot know statically: `GpuFrameImage` for
-Impeller, `CpuFrame` for the software rasteriser, and a new
-`WebGlFramePresenter`/`WebGpuFramePresenter` per web backend. `SceneSurface`
-in `flutter3d_session` now takes a `presentFrame`-shaped callback as a
-required constructor argument rather than naming this package — the
-dependency runs the other way — so every existing `SceneSurface` call site
-needs one line added: `presentFrame: presentFrame`.
+**`presentFrame(device, frame, {fit, quality})`, new — a registry lookup, not
+a fixed list.** `GraphicsDevice.present` is gone (mcp-01n), and what replaces
+it is `flutter3d_hardware`'s own device registry: `registerBackendOpener` and
+`registerDevicePresenter`, which every backend — including a third-party one
+this repository has never heard of — calls on itself. `flutter3d_impeller`
+and `flutter3d_webgl` register both halves from their own packages;
+`flutter3d_cpu` registers only its opener, since the flat package that went
+through mcp-02n cannot also build a Flutter `Widget` for `CpuFrame`, which
+moved here. This package's `openDevice`/`presentFrame` are the batteries-
+included default: they make sure the four backends this repository ships
+have registered themselves, then hand the question to the registry — a
+caller who wants a fifth backend, or none of these four, can register
+directly with `flutter3d_hardware` and never name this package at all.
+
+**`SceneSurface` in `flutter3d_session` now takes a `presentFrame`-shaped
+callback** as a required constructor argument rather than naming this
+package — the dependency runs the other way — so every existing
+`SceneSurface` call site needs one line added: `presentFrame: presentFrame`.
 
 ## 0.6.0
 

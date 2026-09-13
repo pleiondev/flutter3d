@@ -1,4 +1,9 @@
-/// Shows a [CpuTexture] by decoding it into an image.
+/// Shows a `CpuTexture` by decoding it into an image.
+///
+/// **Moved here from `flutter3d_cpu` (mcp-02n)**, once that package went flat:
+/// a Flutter-facing widget file could not stay in a package that resolves
+/// without the Flutter SDK. `presentFrame` in `backend_native.dart` builds
+/// one of these for a `CpuDevice`.
 ///
 /// The round trip this backend cannot avoid and the other two can: the pixels
 /// are already in CPU memory, so getting them onto the screen means handing
@@ -10,8 +15,7 @@ import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'package:flutter/widgets.dart';
-
-import 'cpu_texture.dart';
+import 'package:flutter3d_cpu/flutter3d_cpu.dart' show CpuTexture;
 
 final class CpuFrame extends StatefulWidget {
   const CpuFrame({

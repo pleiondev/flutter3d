@@ -2,11 +2,23 @@
 
 **Breaking.** `GraphicsDevice.present` is gone. It was the one member that
 returned a Flutter `Widget`, and the one reason this package depended on
-Flutter at all — moved to `presentFrame` in `flutter3d_app`, which dispatches
-on the concrete backend a caller cannot know statically. `FakeBackend`'s own
-override, a bare `throw UnsupportedError`, is deleted rather than migrated.
-Nothing else in this package names Flutter; it resolves on the Dart VM alone
-now, and its tests run under plain `dart test`.
+Flutter at all. `FakeBackend`'s own override, a bare `throw
+UnsupportedError`, is deleted rather than migrated. Nothing else in this
+package names Flutter; it resolves on the Dart VM alone now, and its tests
+run under plain `dart test`.
+
+**`registerBackendOpener`/`openRegisteredDevice` and
+`registerDevicePresenter`/`lookUpDevicePresenter`, new.** What replaced
+`present` is a registry a backend adds itself to rather than a fixed list an
+assembly layer would have to already know every entry of — a hardware
+abstraction layer that a new backend could only extend by editing another
+package's source was not one. Opening a device names no framework, so the
+whole of that registry lives here, typed; presenting one returns a Flutter
+`Widget`, which this package still must not name, so only the generic half
+— registered and looked up by a device's own runtime `Type`, holding
+whatever a caller registered as `Object` — lives here. `flutter3d_app`
+supplies the typed `FramePresenter` shape and the cast back to it for the
+four backends this repository ships, and is not required for a fifth.
 
 ## 0.6.0
 

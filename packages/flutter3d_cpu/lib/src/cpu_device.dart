@@ -8,16 +8,16 @@
 ///
 /// It is also useful rather than only instructive. Rendering on this backend
 /// needs no device, so the engine's frames can be checked under a plain
-/// `flutter test` on the VM, in seconds, where the golden suite currently
+/// `dart test` on the VM, in seconds, where the golden suite currently
 /// drives an application for twelve minutes.
 ///
 /// Split across a few files by cohesive concern, all re-exported from here:
 /// [CpuShaderLibrary] and `CpuPipeline` are `cpu_shader_library.dart`;
 /// [CpuEncoder] — the pass that records state and rasterises on `draw` — is
-/// `cpu_encoder.dart`; `CpuFrame`, the widget `presentFrame` in
-/// `flutter3d_app` returns for this backend, is `cpu_frame_widget.dart`; and
-/// the per-vertex attribute assembly instancing needs is
-/// `cpu_vertex_fetch.dart`.
+/// `cpu_encoder.dart`; and the per-vertex attribute assembly instancing needs
+/// is `cpu_vertex_fetch.dart`. `CpuFrame`, the widget `presentFrame` in
+/// `flutter3d_app` returns for this backend, moved there with it (mcp-02n) —
+/// this package is flat, and a Flutter-facing widget file could not stay.
 library;
 
 import 'dart:typed_data';
@@ -29,7 +29,6 @@ import 'cpu_shader.dart';
 import 'cpu_shader_library.dart';
 
 export 'cpu_encoder.dart';
-export 'cpu_frame_widget.dart';
 export 'cpu_shader_library.dart';
 export 'cpu_vertex_fetch.dart';
 

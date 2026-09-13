@@ -1,11 +1,22 @@
 /// The desktop and mobile backend: `flutter_gpu`, through Impeller — with a
 /// software rasteriser to fall back to if Impeller will not start.
+///
+/// **Neither backend is named here.** Each registers itself with
+/// `flutter3d_hardware`'s device registry — see
+/// `flutter3d_impeller/src/gpu_backend_registration.dart` and
+/// `flutter3d_cpu/src/cpu_backend_registration.dart` — and this file only
+/// makes sure both have, then asks the registry to open one. A third,
+/// native backend registers itself the same way, from its own package;
+/// nothing here would have to change for it to be tried.
 library;
 
 import 'package:flutter/widgets.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:flutter3d_impeller/flutter3d_impeller.dart';
+import 'package:flutter3d_session/flutter3d_session.dart' show FramePresenter;
+
+import 'cpu_frame_presenter.dart';
 
 /// Whether this build renders at a fixed internal resolution.
 ///
@@ -22,61 +33,66 @@ import 'package:flutter3d_impeller/flutter3d_impeller.dart';
 /// constant, not something this file resolves.
 const bool kFixedResolution = false;
 
+bool _registered = false;
+void _ensureRegistered() {
+  if (_registered) return;
+  _registered = true;
+  ensureGpuBackendRegistered();
+  ensureCpuBackendRegistered();
+  // The one presenter this file still registers directly: `CpuFrame` moved
+  // here from `flutter3d_cpu` once that package went flat (mcp-02n), so
+  // nowhere else can build it.
+  registerDevicePresenter<CpuDevice>(
+    (
+      GraphicsDevice device,
+      TextureHandle frame, {
+      BoxFit fit = BoxFit.fill,
+      FilterQuality quality = FilterQuality.none,
+    }) => CpuFrame(texture: frame.backend as CpuTexture, fit: fit, quality: quality),
+  );
+}
+
 /// Opens the backend, or throws with something worth putting on screen.
 ///
 /// [width] and [height] are ignored by Impeller, which sizes itself per frame.
 /// They are still in the signature because the other half of the conditional
 /// needs them — and because the software rasteriser, the one this backend
 /// falls back to, cannot size itself per frame and needs them for real.
-///
-/// **Falling back is a runtime decision because it has to be.** `flutter_gpu`
-/// ships with the Flutter SDK, so it is always there to import; whether
-/// Impeller actually starts depends on the platform and how the engine was
-/// launched, and no `dart.library.*` check can see that. Trying is the only
-/// way to find out, which is why this is a `try`/`catch` inside the native half
-/// of the conditional export rather than a third branch of it.
 Future<GraphicsDevice> openDevice({
   required int width,
   required int height,
-}) async {
-  try {
-    return await GpuRenderBackend.create();
-  } catch (error) {
-    debugPrint(
-      'flutter3d_app: Impeller would not start ($error), '
-      'falling back to the software rasteriser',
-    );
-    return CpuDevice(
-      width: width,
-      height: height,
-      shaders: CpuShaderLibrary(builtinCpuShaders()),
-    );
-  }
+}) {
+  _ensureRegistered();
+  return openRegisteredDevice(
+    width: width,
+    height: height,
+    onFallback: (message) => debugPrint('flutter3d_app: $message'),
+  );
 }
 
 /// The widget that shows [frame], for whichever [device] this build's
-/// [openDevice] actually returned.
+/// [openDevice] actually returned — or for any other [GraphicsDevice] a
+/// caller registered with `registerDevicePresenter`, native backend or not.
 ///
-/// **A runtime `if`, not a `switch` on a sealed type**, because `GraphicsDevice`
-/// cannot be sealed: its four implementations live in four different packages,
-/// and Dart requires every subtype of a sealed type in the same library. The
-/// same runtime fact that makes [openDevice] a `try`/`catch` — Impeller either
-/// starts or it does not, and nothing at compile time can see which — is why
-/// this checks the concrete type it actually got rather than dispatching on
-/// one this file chose.
+/// A registry lookup rather than a `switch` on a sealed type, because
+/// `GraphicsDevice` cannot be sealed: its implementations live in separate
+/// packages, and Dart requires every subtype of a sealed type in the same
+/// library. See `flutter3d_hardware/src/device_registry.dart` for why the
+/// registry itself lives there rather than here.
 Widget presentFrame(
   GraphicsDevice device,
   TextureHandle frame, {
   BoxFit fit = BoxFit.fill,
   FilterQuality quality = FilterQuality.none,
 }) {
-  if (device is GpuRenderBackend) {
-    return GpuFrameImage(frame: frame, fit: fit, quality: quality);
+  _ensureRegistered();
+  final presenter = lookUpDevicePresenter(device) as FramePresenter?;
+  if (presenter == null) {
+    throw ArgumentError(
+      'presentFrame: no presenter registered for ${device.runtimeType} — '
+      'call registerDevicePresenter<${device.runtimeType}>(...) once, '
+      'before presenting a frame from this backend',
+    );
   }
-  if (device is CpuDevice) {
-    return CpuFrame(texture: frame.backend as CpuTexture, fit: fit, quality: quality);
-  }
-  throw ArgumentError(
-    'presentFrame: unrecognised GraphicsDevice ${device.runtimeType}',
-  );
+  return presenter(device, frame, fit: fit, quality: quality);
 }
