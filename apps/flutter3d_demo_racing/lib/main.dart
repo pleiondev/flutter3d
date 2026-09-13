@@ -15,6 +15,7 @@ library;
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart' show defaultTargetPlatform;
 import 'package:flutter/material.dart' hide Material;
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart'
@@ -55,6 +56,13 @@ import 'src/touch_drive.dart';
 /// the person launching this build knows".
 final Uri kRelayBase = Uri.parse(
   const String.fromEnvironment('relay', defaultValue: 'ws://127.0.0.1:8199/'),
+);
+
+/// `rp-04`'s own build stamp, the same convention `flutter3d_demo_dungeon`
+/// established: whatever the release process passes in, `dev` otherwise.
+const String _buildStamp = String.fromEnvironment(
+  'FLUTTER3D_BUILD_STAMP',
+  defaultValue: 'dev',
 );
 
 void main() {
@@ -310,6 +318,47 @@ class _RaceScreenState extends State<RaceScreen>
 
   final InputState _input = InputState();
 
+  /// `rp-04`'s last ten seconds, every step of them — the same window and the
+  /// same reasoning as `flutter3d_demo_dungeon`'s own `_rewind`.
+  final RewindBuffer _rewind = RewindBuffer(stepsPerSecond: 60, history: 10.0);
+
+  /// `rp-02`'s door onto this run, over the VM service. Reads `_simulation`
+  /// fresh on every call rather than capturing it, since which simulation
+  /// that field answers changes every time a circuit does.
+  late final RunTimeline _timeline = RunTimeline(
+    rewind: _rewind,
+    input: _input,
+    stepSim: (double dt) => _simulation?.step(dt),
+    restore: (Snapshot snapshot) => _simulation?.restore(snapshot),
+  );
+
+  /// `rp-04`'s "send this run", called remotely rather than from a button
+  /// this game draws itself — the last few seconds `_rewind` has kept, as
+  /// plain JSON. Null (and the extension answers with an error) when there
+  /// is nothing to report yet, the same case `bugReportTape` itself returns
+  /// null for.
+  ///
+  /// **No `levelHash` here, honestly.** `TrackDocument` does not write JSON
+  /// back and does not give a `Level` the way the other genres' `Demo` rows
+  /// hash — `rp-01`'s own finding — and reading the raw track document again
+  /// just to hash it would make this callback asynchronous for a field
+  /// nothing here needs to reproduce the run: the tape and the snapshot
+  /// already do that on their own.
+  Map<String, Object?> _remoteBugReport() {
+    final report = bugReportTape(_rewind);
+    if (report == null) {
+      throw StateError('nothing has been recorded yet');
+    }
+    return <String, Object?>{
+      'level': _circuit.track,
+      'levelHash': '',
+      'start': report.start.toJson(),
+      'tape': report.tape.toJson(),
+      'buildStamp': _buildStamp,
+      'platform': defaultTargetPlatform.name,
+    };
+  }
+
   /// What the player has changed, and where it is kept.
   ///
   /// **This game had none of it**: no volumes, no rebinding, no way to turn
@@ -363,7 +412,8 @@ class _RaceScreenState extends State<RaceScreen>
   /// no pause, no `beginStep`/`endStep` around a step — so `InputState.pressed`
   /// never worked here at all — and no reading of the simulated time the clock
   /// refused to run.
-  late final GameLoop _loop = GameLoop(input: _input, onStep: _driveOneStep);
+  late final GameLoop _loop = GameLoop(input: _input, onStep: _driveOneStep)
+    ..recorders.add(_rewind.recorder);
 
   /// Whether the machine is keeping up, and what it cost when it was not.
   final Pace _pace = Pace();
@@ -493,6 +543,9 @@ class _RaceScreenState extends State<RaceScreen>
     // the loop simply returns early until it is.
     _ticker = createTicker(_onTick)..start();
     _timings.start();
+    // `rp-02`: harmless where the VM service is off — `registerExtension`
+    // just adds an entry nothing ever asks for.
+    registerTimelineExtensions(_timeline, bugReport: _remoteBugReport);
     await _loadCircuit(device);
   }
 
@@ -898,6 +951,9 @@ class _RaceScreenState extends State<RaceScreen>
     _readDriver(simulation);
     _readPitStop();
     _driveTheRest(simulation, race);
+    // Before the step, so the keyframe is the state this step's recorded
+    // entry acts on — the moment `RewindBuffer` and the loop agree about.
+    if (_rewind.keyframeDue) _rewind.keyframe(simulation.save());
     simulation.step(stepSeconds);
     // Drained once, here, and kept for the frame. `_listen` runs before the
     // step and so reads the step before it — which is exactly what the

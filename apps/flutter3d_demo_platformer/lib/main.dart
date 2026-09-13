@@ -10,6 +10,7 @@ library;
 
 import 'dart:async';
 
+import 'package:flutter/foundation.dart' show defaultTargetPlatform;
 import 'package:flutter/material.dart' hide Material;
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart' show KeyDownEvent, LogicalKeyboardKey;
@@ -38,6 +39,13 @@ import 'src/sounds.dart';
 import 'src/soundtrack.dart';
 import 'src/title_card.dart';
 import 'src/touch_runner.dart';
+
+/// `rp-04`'s own build stamp, the same convention `flutter3d_demo_dungeon`
+/// established: whatever the release process passes in, `dev` otherwise.
+const String _buildStamp = String.fromEnvironment(
+  'FLUTTER3D_BUILD_STAMP',
+  defaultValue: 'dev',
+);
 
 void main() {
   // Landscape and no system bars on a handset — see `configureForTouch`,
@@ -141,6 +149,41 @@ class _GameScreenState extends State<GameScreen>
   final InputState _input = InputState();
   late final DesktopInput _devices;
   late final PadInput _pad;
+
+  /// `rp-04`'s last ten seconds, every step of them — the same window and the
+  /// same reasoning as `flutter3d_demo_dungeon`'s own `_rewind`.
+  final RewindBuffer _rewind = RewindBuffer(stepsPerSecond: 60, history: 10.0);
+
+  /// `rp-02`'s door onto this run, over the VM service. Reads `_sim` fresh on
+  /// every call rather than capturing it, since which simulation that getter
+  /// answers changes every time a level does.
+  late final RunTimeline _timeline = RunTimeline(
+    rewind: _rewind,
+    input: _input,
+    stepSim: (double dt) => _sim?.step(dt),
+    restore: (Snapshot snapshot) => _sim?.restore(snapshot),
+  );
+
+  /// `rp-04`'s "send this run", called remotely rather than from a button
+  /// this game draws itself — the last few seconds `_rewind` has kept, as
+  /// plain JSON. Null (and the extension answers with an error) when there
+  /// is nothing to report yet, the same case `bugReportTape` itself returns
+  /// null for.
+  Map<String, Object?> _remoteBugReport() {
+    final report = bugReportTape(_rewind);
+    if (report == null) {
+      throw StateError('nothing has been recorded yet');
+    }
+    final level = _level?.loaded.level;
+    return <String, Object?>{
+      'level': level?.name ?? 'unknown',
+      'levelHash': level?.digestHex ?? '',
+      'start': report.start.toJson(),
+      'tape': report.tape.toJson(),
+      'buildStamp': _buildStamp,
+      'platform': defaultTargetPlatform.name,
+    };
+  }
 
   /// The settings screen, which is a state machine and now says so.
   ///
@@ -323,7 +366,11 @@ class _GameScreenState extends State<GameScreen>
       apply: _applyConfig,
     );
     _applyConfig(_config);
-    _loop = GameLoop(input: _input, onStep: _step, drainLook: _drainLook);
+    _loop = GameLoop(input: _input, onStep: _step, drainLook: _drainLook)
+      ..recorders.add(_rewind.recorder);
+    // `rp-02`: harmless where the VM service is off — `registerExtension`
+    // just adds an entry nothing ever asks for.
+    registerTimelineExtensions(_timeline, bugReport: _remoteBugReport);
     _view = RenderView(camera: _camera);
     unawaited(_openGraphics());
   }
@@ -764,6 +811,9 @@ class _GameScreenState extends State<GameScreen>
 
     // The camera owns "forward", and the simulation takes it as a number.
     sim.cameraYaw = camera.yaw;
+    // Before the step, so the keyframe is the state this step's recorded
+    // entry acts on — the moment `RewindBuffer` and the loop agree about.
+    if (_rewind.keyframeDue) _rewind.keyframe(sim.save());
     sim.step(dt);
     // Drained once, here, and handed to everything that wants it. Draining
     // empties the buffer, so two readers each draining would each get half of
