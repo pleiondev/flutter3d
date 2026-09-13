@@ -1,23 +1,23 @@
-# edu-00: формат интерактива
+# edu-00: the interactive format
 
-Написан 2026-09-12, как формат — до какого-либо кода авторинга (`edu-01`)
-или воспроизведения (`wg-01`). Обслуживает четыре сегмента из
-[doc/lesson-scenarios-plan.md](lesson-scenarios-plan.md): игры,
-образование, промышленность, VR/XR — одним и тем же документом, без
-четырёх версий формата под каждый.
+Written 2026-09-12, as a format — ahead of any authoring code (`edu-01`)
+or playback code (`wg-01`). Serves all four segments from
+[doc/lesson-scenarios-plan.md](lesson-scenarios-plan.md) — games,
+education, industry, VR/XR — through one document, not four format
+versions, one per segment.
 
-## 1. Решение: второго формата сцены нет
+## 1. Decision: there is no second scene format
 
-Интерактив — это ещё несколько типов сущностей (`EntityDef`) в том же
-`Level`-документе (`packages/flutter3d_sim/lib/src/level/level.dart`),
-который уже читают игра, редактор и MCP-серверы. Не отдельный `.json` со
-своей схемой, не новый узел в дереве пакетов.
+An interactive is just a few more entity types (`EntityDef`) in the same
+`Level` document (`packages/flutter3d_sim/lib/src/level/level.dart`)
+already read by the game, the editor and the MCP servers — not a separate
+`.json` with its own schema, not a new node in the package tree.
 
-Это не компромисс ради простоты — это то, что уже устроено так, чтобы
-принять новый тип бесплатно. `EntityDef` — «одно типизированное поле плюс
-мешок свойств», намеренно без класса на вид (см. докстринг самого класса);
-редактор проверяет геометрию, материалы и свет, но **типы сущностей у него
-открытый список**, а не закрытый реестр:
+This is not a shortcut for simplicity — it is how the format was already
+built, to accept a new type for free. `EntityDef` is "one typed field plus
+a bag of properties," deliberately with no visible class per kind (see the
+class's own doc comment); the editor validates geometry, materials and
+light, but its **entity-type list is open**, not a closed registry:
 
 ```dart
 // packages/flutter3d_editor_core/lib/src/vocabulary.dart
@@ -31,33 +31,34 @@ EntityRegistry vocabularyOf(Level level) => EntityRegistry(<EntityKind>[
 ]);
 ```
 
-Значит: документ ниже открывается, сохраняется и проходит валидацию
-редактора сегодня, безо всякой правки `flutter3d_editor_core` — новый тип
-сущности превращается в `OpenKind` автоматически, и это проверено
-настоящим прогоном `Level.fromJson` + `vocabularyOf` на примере из §11, не
-только предположено (§12). `edu-01` пишет панель авторинга поверх этого;
-`edu-00` — только словарь свойств, который эта панель будет читать и
-писать.
+Meaning: the document below opens, saves and passes editor validation
+today, with no edit to `flutter3d_editor_core` at all — a new entity type
+turns into an `OpenKind` automatically, and this is confirmed by an actual
+run of `Level.fromJson` + `vocabularyOf` on the example in §11, not just
+assumed (§12). `edu-01` writes an authoring panel on top of this;
+`edu-00` is only the property vocabulary that panel will read and write.
 
-Формат аддитивен по тому же правилу, что уже описано в докстринге
-`Level.formatVersion`: версия двигается, когда меняется *смысл*
-существующего поля, а не когда появляется новое. Ничего из `edu-00` не
-меняет смысл `brushes`/`entities`/`lights` — только добавляет сущности с
-новыми `type`. `formatVersion` не двигается.
+The format is additive under the same rule already stated in
+`Level.formatVersion`'s own doc comment: the version moves when the
+*meaning* of an existing field changes, not when a new one appears.
+Nothing in `edu-00` changes the meaning of `brushes`/`entities`/`lights` —
+it only adds entities with new `type` values. `formatVersion` does not
+move.
 
-## 2. Свойства лежат плоско, без обёртки `"properties"`
+## 2. Properties sit flat, with no `"properties"` wrapper
 
-**Важная деталь формата, найденная проверкой примера, а не угаданная
-заранее.** `EntityDef.fromJson` не читает вложенный объект `properties` —
-оно берёт весь JSON сущности и относит в `properties`-мешок всё, что не
-входит в четыре зарезервированных ключа (`type`, `at`, `yaw`, `name`).
-Ключ `properties` в самом документе ничем не зарезервирован: если бы шаг
-ниже был записан как `{"type": "edu_step", ..., "properties": {"caption":
-"..."}}`, всё содержимое ушло бы в `entity.properties['properties']`
-целиком, одним вложенным объектом, а не в `entity.properties['caption']`.
-Реальный формат — плоский, как у любой существующей сущности уровня
-(`door` несёт `size`/`travel`/`speed`/`wait` прямо рядом с `type`/`at`/
-`name`, не под отдельным ключом), и `edu_step` следует тому же виду:
+**An important format detail found by checking the example, not guessed
+in advance.** `EntityDef.fromJson` does not read a nested `properties`
+object — it takes the whole entity JSON and puts everything outside the
+four reserved keys (`type`, `at`, `yaw`, `name`) into the `properties`
+bag. The key `properties` inside the document itself is not reserved at
+all: if the step below had been written as `{"type": "edu_step", ...,
+"properties": {"caption": "..."}}`, the whole contents would have landed
+in `entity.properties['properties']` as one nested object, not in
+`entity.properties['caption']`. The real format is flat, like any
+existing level entity (`door` carries `size`/`travel`/`speed`/`wait`
+directly alongside `type`/`at`/`name`, not under a separate key), and
+`edu_step` follows the same shape:
 
 ```json
 {
@@ -65,47 +66,48 @@ EntityRegistry vocabularyOf(Level level) => EntityRegistry(<EntityKind>[
   "name": "step-2",
   "at": [1.2, 1.6, -0.4],
   "yaw": 2.1,
-  "caption": "Снимаем крышку клапанов",
+  "caption": "Removing the valve cover",
   "offsets": {"engine-body#valve_cover": [0.0, 0.35, 0.0]}
 }
 ```
 
-Каждое поле ниже (`caption`, `visible`, `offsets`, `annotations`, ...) —
-ключ прямо на сущности, не под `properties`.
+Every field below (`caption`, `visible`, `offsets`, `annotations`, ...) is
+a key directly on the entity, not under `properties`.
 
-## 3. Именование — snake_case, тот же стиль, что у остального формата
+## 3. Naming — snake_case, the same style as the rest of the format
 
-Существующие уровни называют типы через `snake_case`
-(`player_spawn`, `reflection_probe`, `door`) — не `camelCase`. Новые типы
-следуют тому же соглашению: `edu_sequence`, `edu_step`, `edu_annotation`,
+Existing levels name types in `snake_case`
+(`player_spawn`, `reflection_probe`, `door`) — not `camelCase`. New types
+follow the same convention: `edu_sequence`, `edu_step`, `edu_annotation`,
 `edu_clip_plane`, `edu_data_source`.
 
-Ссылки между сущностями — по `EntityDef.name`, тем же приёмом, что уже
-работает: «дверь, которую открывает кнопка» сегодня называет кнопку по
-имени в своих свойствах; шаг, который подсвечивает деталь, называет её по
-имени точно так же.
+References between entities go by `EntityDef.name`, the same technique
+already at work: "the door that a button opens" today names the button by
+name in its own properties; a step that highlights a part names it by
+name exactly the same way.
 
-## 4. `edu_sequence` — порядок шагов
+## 4. `edu_sequence` — the order of steps
 
-Один на документ (или на изолированный интерактив внутри документа — ничто
-не запрещает второй `edu_sequence` для второго независимого урока в той же
-сцене, но первая реализация не обязана это поддерживать).
+One per document (or one per self-contained interactive inside a
+document — nothing forbids a second `edu_sequence` for a second,
+independent lesson in the same scene, but the first implementation need
+not support that).
 
 ```json
 {
   "type": "edu_sequence",
   "name": "engine-teardown",
-  "title": "Разборка двигателя",
+  "title": "Engine teardown",
   "steps": ["step-1", "step-2", "step-3", "step-4", "step-5"]
 }
 ```
 
-`steps` — массив имён `edu_step`-сущностей, в порядке прохождения. Порядок
-задаёт документ, а не сортировка по имени или по позиции в массиве
-`entities` — то же решение, что `Level.next` уже принял для перехода между
-уровнями (явное поле, а не угаданный порядок).
+`steps` is an array of `edu_step` entity names, in playback order. The
+document sets the order, not a sort by name or by position in the
+`entities` array — the same decision `Level.next` already made for moving
+between levels (an explicit field, not a guessed order).
 
-## 5. `edu_step` — один шаг
+## 5. `edu_step` — a single step
 
 ```json
 {
@@ -113,7 +115,7 @@ EntityRegistry vocabularyOf(Level level) => EntityRegistry(<EntityKind>[
   "name": "step-2",
   "at": [1.2, 1.6, -0.4],
   "yaw": 2.1,
-  "caption": "Снимаем крышку клапанов",
+  "caption": "Removing the valve cover",
   "visible": ["engine-body", "valve-cover"],
   "hidden": ["cylinder-head"],
   "highlight": ["valve-cover"],
@@ -125,63 +127,67 @@ EntityRegistry vocabularyOf(Level level) => EntityRegistry(<EntityKind>[
 }
 ```
 
-Поля, которые шаг уже наследует от `EntityDef` бесплатно:
+Fields a step already inherits from `EntityDef` for free:
 
-- **Камера** — `at`/`yaw`, те же два поля, что несёт любая сущность
-  сегодня. Отдельного вложенного объекта под камеру нет: шаг сам — точка в
-  пространстве с направлением, и это ровно то, чем должна быть позиция
-  камеры. Хост интерпретирует `at` как позицию глаза, `yaw` — как поворот
-  вокруг Y (питч в формат пока не входит — ни одна сущность в движке
-  сегодня не наклоняется, см. докстринг `EntityDef.yaw`: «Nothing in this
-  game tilts»; если разборке понадобится взгляд сверху, это отдельное
-  решение, не часть `edu-00`).
+- **Camera** — `at`/`yaw`, the same two fields any entity carries today.
+  There is no separate nested camera object: the step itself is a point in
+  space with a direction, and that is exactly what a camera position
+  should be. A host reads `at` as the eye position and `yaw` as rotation
+  around Y (pitch is not in the format yet — no entity in the engine tilts
+  today, see `EntityDef.yaw`'s own doc comment: "Nothing in this game
+  tilts"; if a teardown ever needs a top-down look, that is a separate
+  decision, not part of `edu-00`).
 
-Поля, специфичные для шага:
+Fields specific to a step:
 
-| Поле | Тип | Смысл |
+| Field | Type | Meaning |
 |---|---|---|
-| `caption` | строка | Текст шага — то, что показывает панель шагов |
-| `visible` | `[имя]` | Сущности/узлы, видимые на этом шаге |
-| `hidden` | `[имя]` | Сущности/узлы, скрытые на этом шаге |
-| `highlight` | `[имя]` | Подсветка — визуальное выделение без изменения видимости |
-| `offsets` | `{путь: [x,y,z]}` | Разборка по слоям — §6 |
-| `annotations` | `[имя]` | Имена `edu_annotation`-сущностей, активных на шаге |
-| `clip` | имя или `null` | Имя `edu_clip_plane`-сущности, активной на шаге |
-| `bindings` | `[{...}]` | Привязки свойств к данным, активные на шаге — §7 |
-| `check` | объект или `null` | Вопрос с проверкой — §8 |
+| `caption` | string | The step's text — what the step panel shows |
+| `visible` | `[name]` | Entities/nodes visible on this step |
+| `hidden` | `[name]` | Entities/nodes hidden on this step |
+| `highlight` | `[name]` | A highlight — visual emphasis with no visibility change |
+| `offsets` | `{path: [x,y,z]}` | Layer-by-layer disassembly — §6 |
+| `annotations` | `[name]` | Names of `edu_annotation` entities active on this step |
+| `clip` | name or `null` | Name of the `edu_clip_plane` entity active on this step |
+| `bindings` | `[{...}]` | Property-to-data bindings active on this step — §7 |
+| `check` | object or `null` | A checked question — §8 |
 
-`visible`/`hidden` называют либо имя целой сущности, либо `имя#узел` (тот
-же синтаксис путей, что и `offsets` — см. §6) — так шаг может спрятать один
-узел модели, не трогая остальную сущность.
+`visible`/`hidden` name either a whole entity's name or `name#node` (the
+same path syntax as `offsets` — see §6) — so a step can hide a single
+model node without touching the rest of the entity.
 
-Хост не обязан хранить состояние между шагами как diff: каждый шаг несёт
-**полное** состояние того, что он трогает (весь список видимых, весь набор
-офсетов), а не «плюс к предыдущему». Так шаг воспроизводим сам по себе —
-свойство, которое уже требует `rp-02`/`ai-01` от прогона игры (перемотка
-на шаг без переигрывания всех предыдущих), и `edu-04`'s «воспроизводимо на
-слабом ноутбуке» требует того же для урока.
+A host is not required to store state between steps as a diff: each step
+carries the **full** state of everything it touches (the whole visible
+list, the whole set of offsets), not "plus the previous one." This makes
+a step reproducible on its own — a property already required of
+`rp-02`/`ai-01` from a game run (scrubbing to a step without replaying
+every earlier one), and `edu-04`'s "reproducible on a weak laptop"
+requires the same thing for a lesson.
 
-## 6. Разборка по слоям — `offsets` и адресация узла
+## 6. Layer-by-layer disassembly — `offsets` and node addressing
 
-Модель, которую разбирают, приходит в сцену как обычная сущность
-(`type: "model"` или как угодно назовёт её жанр — формат не решает это за
-хост) со ссылкой на `.f3d`/glTF-ассет. Внутри модели узлы уже именованы
-(`ModelNode.name`, `packages/flutter3d_formats/lib/src/model_node.dart`) —
-тот же механизм, которым модель называет любую свою часть сегодня, до
-всякого урока.
+The model being disassembled arrives in the scene as an ordinary entity
+(`type: "model"`, or whatever name the genre gives it — the format does
+not decide this for the host) referencing an `.f3d`/glTF asset. Nodes
+inside the model are already named (`ModelNode.name`,
+`packages/flutter3d_formats/lib/src/model_node.dart`) — the same
+mechanism a model already uses to name any of its parts today, well
+before any lesson.
 
-Путь `"engine-body#valve_cover"` — имя сущности, `#`, имя узла внутри
-модели этой сущности. Значение — смещение в метрах, **относительно
-исходной позы узла**, не абсолютная координата: узел с офсетом `[0, 0, 0]`
-или без записи в `offsets` стоит там, где стоит в самой модели.
+The path `"engine-body#valve_cover"` is an entity name, a `#`, and a node
+name inside that entity's model. The value is an offset in meters,
+**relative to the node's original pose**, not an absolute coordinate: a
+node with offset `[0, 0, 0]` or with no entry in `offsets` sits wherever
+it sits in the model itself.
 
-Интерполяция между соседними шагами (деталь плавно отъезжает, а не
-телепортируется) — решение хоста воспроизведения (`wg-01`/движок сцены),
-не формата: формат называет целевое смещение на шаге, не траекторию между
-шагами. Хост волен анимировать переход или переключать мгновенно — то же
-разделение ответственности, что между `Level` (что) и рендерером (как).
+Interpolating between neighboring steps (a part smoothly pulling away
+rather than teleporting) is a decision for the playback host
+(`wg-01`/the scene engine), not the format: the format names the target
+offset at a step, not the trajectory between steps. A host is free to
+animate the transition or switch instantly — the same split of
+responsibility as between `Level` (what) and the renderer (how).
 
-## 7. Аннотация как виджет — `edu_annotation`
+## 7. An annotation as a widget — `edu_annotation`
 
 ```json
 {
@@ -193,18 +199,20 @@ EntityRegistry vocabularyOf(Level level) => EntityRegistry(<EntityKind>[
 }
 ```
 
-`widget` — имя из реестра приложения, тот же реестр, на который уже
-ссылается `wg-01`'s «В документе уровня — ссылка на виджет по имени из
-реестра приложения». `edu-00` не изобретает второй способ назвать виджет:
-аннотация — это `WidgetSurface`, позиционированный относительно узла
-(`attachTo` + `offset`), а не новая примитива.
+`widget` is a name from the application's own registry — the same
+registry `wg-01`'s own "the level document references a widget by name
+from the application's registry" already refers to. `edu-00` does not
+invent a second way to name a widget: an annotation is a `WidgetSurface`
+positioned relative to a node (`attachTo` + `offset`), not a new
+primitive.
 
-До `wg-01` ссылка `widget` ничего не рендерит — хост без `WidgetSurface`
-читает `edu_annotation` как данные (что показать, если бы мог) и не обязан
-уметь её нарисовать. Формат не ждёт `wg-01`, чтобы быть читаемым; ждёт его,
-чтобы аннотация появилась на экране.
+Before `wg-01`, a `widget` reference renders nothing — a host with no
+`WidgetSurface` reads `edu_annotation` as data (what it would show, if it
+could) and is not required to be able to draw it. The format does not
+wait for `wg-01` to be readable; it waits for `wg-01` for the annotation
+to appear on screen.
 
-## 8. Срез — `edu_clip_plane`
+## 8. A cross-section — `edu_clip_plane`
 
 ```json
 {
@@ -215,14 +223,15 @@ EntityRegistry vocabularyOf(Level level) => EntityRegistry(<EntityKind>[
 }
 ```
 
-Плоскость отсечения: точка (`at`, унаследовано от `EntityDef`) и нормаль.
-Геометрия по одну сторону от плоскости не рисуется, пока `clip` шага
-называет эту сущность. Формат называет только плоскость — сам проход
-отсечения (шейдер, отдельный материал для среза) реализация движка решает
-отдельно, вне `edu-00`; ROADMAP уже не даёт этому отдельной задачи, только
-предполагает, что срез существует к моменту `edu-01`.
+A clipping plane: a point (`at`, inherited from `EntityDef`) and a normal.
+Geometry on one side of the plane is not drawn while a step's `clip`
+names this entity. The format names only the plane — the clipping pass
+itself (a shader, a separate cross-section material) is a decision for the
+engine implementation, outside `edu-00`; the ROADMAP does not give it a
+separate ticket, only assumes the cross-section exists by the time
+`edu-01` lands.
 
-## 9. Привязка свойства к данным — `edu_data_source` и `bindings`
+## 9. A property-to-data binding — `edu_data_source` and `bindings`
 
 ```json
 {
@@ -233,13 +242,13 @@ EntityRegistry vocabularyOf(Level level) => EntityRegistry(<EntityKind>[
 }
 ```
 
-`kind` — `mqtt`, `websocket` или `sampler` (последний — синтетический
-источник для демо и тестов без реального брокера, обязателен для того,
-чтобы `edu-05`/`ls-i-00` были воспроизводимы без сети). Формат называет
-источник, не транспорт: как именно `edu-05` подключается к MQTT — решение
-кода `edu-05`, не формата.
+`kind` is `mqtt`, `websocket`, or `sampler` (the last is a synthetic
+source for demos and tests with no real broker, required so that
+`edu-05`/`ls-i-00` are reproducible with no network). The format names
+the source, not the transport: exactly how `edu-05` connects to MQTT is a
+decision for `edu-05`'s own code, not the format's.
 
-Привязка внутри шага (значение поля `bindings`):
+A binding inside a step (the value of the `bindings` field):
 
 ```json
 "bindings": [
@@ -247,42 +256,43 @@ EntityRegistry vocabularyOf(Level level) => EntityRegistry(<EntityKind>[
 ]
 ```
 
-`path` — путь внутри JSON-полезной нагрузки источника (`temperature`,
-`sensors.spindle.rpm` — точечная нотация, на один уровень глубже, чем уже
-читают `EntityDef.vector`/`.number` свои собственные свойства). `target` —
-путь `сущность.путь-свойства`, который решает хост (для свойства материала
-это `материал.поле`, для трансформа — `at`/`yaw`).
+`path` is a path inside the source's JSON payload (`temperature`,
+`sensors.spindle.rpm` — dot notation, one level deeper than
+`EntityDef.vector`/`.number` already read their own properties). `target`
+is an `entity.property-path` decided by the host (for a material property
+that is `material.field`, for a transform it is `at`/`yaw`).
 
-**Почему привязка — часть шага, а не глобальное свойство документа.**
-`ls-i-00`'s приёмка требует, чтобы «что если» создавало видимую ветку от
-текущего шага, а не переписывало историю — то есть привязка обязана быть
-частью состояния шага, привязанного к ленте ввода, точно как `rp-02`/`ai-01`
-уже читают состояние симуляции по шагам. Значение из источника, once
-считанное, становится **вводом** для этого шага ленты — тем же способом,
-каким управление джойстиком становится вводом для `GameSimulation` — и
-поэтому двойник перематывается и ветвится как игра, а не как отдельный
-живой поток без истории.
+**Why a binding is part of a step, not a document-wide property.**
+`ls-i-00`'s own acceptance requires that "what if" create a visible branch
+from the current step rather than rewriting history — meaning a binding
+must be part of the step's own state, tied to the input tape, exactly the
+way `rp-02`/`ai-01` already read simulation state step by step. A value
+from the source, once read, becomes an **input** for that tape step — the
+same way joystick input becomes an input for `GameSimulation` — which is
+why the twin scrubs and branches the way a game does, not as a separate
+live stream with no history.
 
-## 10. Вопрос с проверкой — `check`
+## 10. A checked question — `check`
 
 ```json
 "check": {
-  "question": "Какой момент затяжки у крышки клапанов?",
-  "answers": ["80 Нм", "80 нм", "80"],
+  "question": "What torque does the valve cover use?",
+  "answers": ["80 Nm", "80 nm", "80"],
   "attempts": 3
 }
 ```
 
-`answers` — список принимаемых ответов как текста (сравнение без учёта
-регистра и лишних пробелов — решение хоста, не формата, но список
-нескольких написаний в самом документе, как в примере выше, снимает
-основную часть проблемы на уровне контента). `attempts` — сколько попыток
-даёт хост, прежде чем показать ответ. Формат не решает, куда уходит
-результат: локально (`ls-e-02` — «результат виден преподавателю») или
-наружу через LTI/xAPI (`ls-e-03`, `edu-03`) — оба читают одно и то же поле
-`check`, разница в том, что делает хост с результатом.
+`answers` is a list of accepted answers as text (case- and
+extra-whitespace-insensitive comparison is a host decision, not a format
+one, but listing several spellings in the document itself, as in the
+example above, removes most of the problem at the content level).
+`attempts` is how many tries a host gives before showing the answer. The
+format does not decide where the result goes: locally (`ls-e-02` — "the
+result is visible to the instructor") or out through LTI/xAPI (`ls-e-03`,
+`edu-03`) — both read the same `check` field, the difference is what the
+host does with the result.
 
-## 11. Пример — три шага разборки двигателя целиком
+## 11. An example — three full steps of an engine teardown
 
 ```json
 {
@@ -291,13 +301,13 @@ EntityRegistry vocabularyOf(Level level) => EntityRegistry(<EntityKind>[
     {"type": "model", "name": "engine-body", "at": [0, 0, 0],
      "asset": "assets/models/engine.f3d"},
     {"type": "edu_sequence", "name": "engine-teardown",
-     "title": "Разборка двигателя",
+     "title": "Engine teardown",
      "steps": ["step-1", "step-2", "step-3"]},
     {"type": "edu_step", "name": "step-1", "at": [2, 1.5, 2], "yaw": 2.4,
-     "caption": "Двигатель в сборе",
+     "caption": "The assembled engine",
      "visible": ["engine-body"], "highlight": []},
     {"type": "edu_step", "name": "step-2", "at": [1.2, 1.6, -0.4], "yaw": 2.1,
-     "caption": "Снимаем крышку клапанов",
+     "caption": "Removing the valve cover",
      "highlight": ["step-2-note"],
      "offsets": {"engine-body#valve_cover": [0, 0.35, 0]},
      "annotations": ["step-2-note"]},
@@ -306,59 +316,61 @@ EntityRegistry vocabularyOf(Level level) => EntityRegistry(<EntityKind>[
      "attachTo": "engine-body#valve_cover",
      "offset": [0.1, 0.1, 0]},
     {"type": "edu_step", "name": "step-3", "at": [1.2, 1.6, -0.4], "yaw": 2.1,
-     "caption": "Момент затяжки крышки",
-     "check": {"question": "Какой момент затяжки?",
-               "answers": ["80 Нм", "80 нм", "80"],
+     "caption": "The cover's torque spec",
+     "check": {"question": "What torque does it use?",
+               "answers": ["80 Nm", "80 nm", "80"],
                "attempts": 3}}
   ]
 }
 ```
 
-Проверено настоящим прогоном, не только глазами: `Level.fromJson` читает
-все шесть сущностей без исключений; `vocabularyOf(level).knows(type)`
-истинно для каждого из пяти новых `type`, без единой правки
-`flutter3d_editor_core`; `Level.toJson()` → повторный `Level.fromJson()`
-сохраняет `offsets`, `steps`, `widget`/`attachTo` и `check.attempts` в
-неизменном виде — путь, на котором версия §2 этого документа (с
-вложенным `properties`) как раз ломалась молча (весь объект уходил одним
-свойством `properties`, а не своими полями), пока это не поймал именно
-такой прогон.
+Checked by an actual run, not just by eye: `Level.fromJson` reads all six
+entities with no exceptions; `vocabularyOf(level).knows(type)` is true for
+each of the five new `type` values, with not one edit to
+`flutter3d_editor_core`; `Level.toJson()` followed by a fresh
+`Level.fromJson()` preserves `offsets`, `steps`, `widget`/`attachTo` and
+`check.attempts` unchanged — exactly the path on which §2's earlier
+version of this document (with a nested `properties`) silently broke (the
+whole object landed in one `properties` field, rather than in its own
+fields), until exactly this kind of run caught it.
 
-## 12. Что уже работает бесплатно, и что ждёт кода
+## 12. What already works for free, and what waits on code
 
-**Бесплатно, с сегодняшним деревом:**
-- документ с `edu_sequence`/`edu_step`/`edu_annotation`/`edu_clip_plane`/
-  `edu_data_source` открывается `Level.fromJson`, сохраняется
-  `Level.toJson`, проходит валидацию `flutter3d_editor_core` — ни строчки
-  правки, `OpenKind` принимает любой `type`, которого раньше не видел;
-- `EntityDef.name`, `.at`/`.yaw`, плоский мешок свойств уже несут всё, что
-  описано выше — ни одного нового поля на уровне самого `EntityDef`.
+**Free, with today's tree:**
+- a document with `edu_sequence`/`edu_step`/`edu_annotation`/
+  `edu_clip_plane`/`edu_data_source` opens through `Level.fromJson`, saves
+  through `Level.toJson`, passes `flutter3d_editor_core` validation — not
+  one line of edit, `OpenKind` accepts any `type` it has not seen before;
+- `EntityDef.name`, `.at`/`.yaw`, the flat property bag already carry
+  everything described above — not one new field on `EntityDef` itself.
 
-**Ждёт кода, явно вне `edu-00`:**
-- рисование, подсветка, отсечение по `edu_clip_plane`, интерполяция
-  `offsets` между шагами — вся визуализация не входит в формат;
-- панель авторинга, которая пишет эти сущности перетаскиванием, а не
-  руками в JSON — `edu-01`;
-- `WidgetSurface`, без которого `edu_annotation.widget` не рисуется — `wg-01`;
-- реальное MQTT/WebSocket-подключение за `edu_data_source` — `edu-05`;
-- перемотка и ветвление ленты, куда `bindings` пишут значение как ввод —
-  `edu-04`/`rp-02`;
-- LTI/xAPI-экспорт результата `check` — `edu-03`.
+**Waits on code, explicitly outside `edu-00`:**
+- drawing, highlighting, clipping by `edu_clip_plane`, interpolating
+  `offsets` between steps — all of the visualization is outside the
+  format;
+- an authoring panel that writes these entities by dragging, not by hand
+  in JSON — `edu-01`;
+- `WidgetSurface`, without which `edu_annotation.widget` does not draw —
+  `wg-01`;
+- a real MQTT/WebSocket connection behind `edu_data_source` — `edu-05`;
+- scrubbing and branching the tape that `bindings` write a value into as
+  an input — `edu-04`/`rp-02`;
+- LTI/xAPI export of a `check` result — `edu-03`.
 
-## 13. Что не закрыто этим документом
+## 13. What this document does not close
 
-Приёмка `edu-00` в `doc/tooling-plan.md` — «документ прочитан двумя
-людьми, у которых разные сегменты (преподаватель, инженер), замечания
-внесены». Это шаг живого ревью, а не то, что этот сеанс может выполнить
-сам за себя: здесь нет второго человека, тем более с профилем
-преподавателя или инженера завода, чьё замечание можно было бы честно
-внести. Документ выше — то, что предлагается на такое ревью, не
-подтверждение, что оно состоялось. Пока это не сделано, `edu-00`
-формально не закрыт по своему собственному критерию приёмки — он готов к
-чтению, а не прочитан.
+`edu-00`'s acceptance in `doc/tooling-plan.md` is "the document has been
+read by two people with different backgrounds (an instructor, an
+engineer), and their notes have been folded in." That is a live-review
+step, one this session cannot perform on its own: there is no second
+person here, let alone one with an instructor's or a plant engineer's
+background, whose note could honestly be folded in. The document above is
+what gets offered for that review, not confirmation that the review
+happened. Until that is done, `edu-00` is not formally closed by its own
+acceptance criterion — it is ready to read, not read.
 
-Отдельно проверено программно (это сеанс может и должен был сделать сам,
-и сделал): пример из §11 — валидный документ, соответствующий реальному
-формату `Level`/`EntityDef`, включая находку §2 про отсутствие обёртки
-`properties`, пойманную настоящим прогоном кода, а не вычитыванием
-докстринга.
+Checked separately by running code (this is something this session could
+and did do on its own): the example in §11 is a valid document matching
+the real `Level`/`EntityDef` format, including the §2 finding about the
+missing `properties` wrapper, caught by an actual code run, not by
+reading a doc comment.
