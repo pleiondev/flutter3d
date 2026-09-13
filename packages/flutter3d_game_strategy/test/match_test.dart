@@ -326,7 +326,8 @@ void main() {
       expect(
         replayCheckpoints.divergenceFromHex(demo.checkpoints.hexDigests),
         isNull,
-        reason: 'the replay should check out against the document\'s own '
+        reason:
+            'the replay should check out against the document\'s own '
             'trace, not only end at the same byte',
       );
     });

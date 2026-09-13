@@ -43,8 +43,13 @@ part of 'command.dart';
   return (skeleton: project.skeletons[skeletonIndex], refused: null);
 }
 
-ModelProject _withSkeleton(ModelProject project, int index, ProjectSkeleton skeleton) {
-  final skeletons = List<ProjectSkeleton>.of(project.skeletons)..[index] = skeleton;
+ModelProject _withSkeleton(
+  ModelProject project,
+  int index,
+  ProjectSkeleton skeleton,
+) {
+  final skeletons = List<ProjectSkeleton>.of(project.skeletons)
+    ..[index] = skeleton;
   return project.copyWith(skeletons: skeletons);
 }
 
@@ -72,8 +77,9 @@ final class AddSkeleton extends ModelCommand {
       skeletonName == null ? 'add a skeleton' : 'add skeleton "$skeletonName"';
 
   @override
-  Map<String, Object?> get arguments =>
-      <String, Object?>{'skeletonName': skeletonName};
+  Map<String, Object?> get arguments => <String, Object?>{
+    'skeletonName': skeletonName,
+  };
 
   @override
   Outcome apply(ModelProject project, ProjectSelection selection) =>
@@ -108,8 +114,10 @@ final class BindSkin extends ModelCommand {
   String get says => 'bind to a skeleton';
 
   @override
-  Map<String, Object?> get arguments =>
-      <String, Object?>{'objectId': objectId, 'skeletonIndex': skeletonIndex};
+  Map<String, Object?> get arguments => <String, Object?>{
+    'objectId': objectId,
+    'skeletonIndex': skeletonIndex,
+  };
 
   @override
   Outcome apply(ModelProject project, ProjectSelection selection) {
@@ -130,7 +138,11 @@ final class BindSkin extends ModelCommand {
 /// [inverseBindMatrix] (identity when the object's own bind pose is
 /// already its rest pose).
 final class AddJoint extends ModelCommand {
-  const AddJoint({required this.skeletonIndex, required this.objectId, this.inverseBindMatrix});
+  const AddJoint({
+    required this.skeletonIndex,
+    required this.objectId,
+    this.inverseBindMatrix,
+  });
 
   final int skeletonIndex;
   final int objectId;
@@ -146,7 +158,8 @@ final class AddJoint extends ModelCommand {
   Map<String, Object?> get arguments => <String, Object?>{
     'skeletonIndex': skeletonIndex,
     'objectId': objectId,
-    if (inverseBindMatrix != null) 'inverseBindMatrix': inverseBindMatrix!.storage,
+    if (inverseBindMatrix != null)
+      'inverseBindMatrix': inverseBindMatrix!.storage,
   };
 
   @override
@@ -157,7 +170,9 @@ final class AddJoint extends ModelCommand {
       return Outcome.refused('there is no object $objectId');
     }
     if (skeleton.joints.contains(objectId)) {
-      return Outcome.refused('object $objectId is already a joint of this skeleton');
+      return Outcome.refused(
+        'object $objectId is already a joint of this skeleton',
+      );
     }
     final next = skeleton.copyWith(
       joints: <int>[...skeleton.joints, objectId],
@@ -188,8 +203,10 @@ final class RemoveJoint extends ModelCommand {
   String get says => 'remove a joint';
 
   @override
-  Map<String, Object?> get arguments =>
-      <String, Object?>{'skeletonIndex': skeletonIndex, 'jointIndex': jointIndex};
+  Map<String, Object?> get arguments => <String, Object?>{
+    'skeletonIndex': skeletonIndex,
+    'jointIndex': jointIndex,
+  };
 
   @override
   Outcome apply(ModelProject project, ProjectSelection selection) {
@@ -240,11 +257,16 @@ final class RemoveJoint extends ModelCommand {
               if (p.joint != jointIndex)
                 WeightPair(
                   p.joint > jointIndex ? p.joint - 1 : p.joint,
-                  p.joint == parentJointIndex ? p.weight + removedWeight : p.weight,
+                  p.joint == parentJointIndex
+                      ? p.weight + removedWeight
+                      : p.weight,
                 ),
-            if (parentJointIndex != null && !pairs.any((p) => p.joint == parentJointIndex))
+            if (parentJointIndex != null &&
+                !pairs.any((p) => p.joint == parentJointIndex))
               WeightPair(
-                parentJointIndex > jointIndex ? parentJointIndex - 1 : parentJointIndex,
+                parentJointIndex > jointIndex
+                    ? parentJointIndex - 1
+                    : parentJointIndex,
                 removedWeight,
               ),
           ];
@@ -258,7 +280,8 @@ final class RemoveJoint extends ModelCommand {
     }
 
     final joints = List<int>.of(skeleton.joints)..removeAt(jointIndex);
-    final matrices = List<Matrix4>.of(skeleton.inverseBindMatrices)..removeAt(jointIndex);
+    final matrices = List<Matrix4>.of(skeleton.inverseBindMatrices)
+      ..removeAt(jointIndex);
     next = _withSkeleton(
       next,
       skeletonIndex,
@@ -272,7 +295,11 @@ final class RemoveJoint extends ModelCommand {
 /// [Rename]'s own refusal for a blank name, reached through a skeleton's
 /// own joint index rather than an id directly.
 final class RenameJoint extends ModelCommand {
-  const RenameJoint({required this.skeletonIndex, required this.jointIndex, required this.to});
+  const RenameJoint({
+    required this.skeletonIndex,
+    required this.jointIndex,
+    required this.to,
+  });
 
   final int skeletonIndex;
   final int jointIndex;
@@ -285,8 +312,11 @@ final class RenameJoint extends ModelCommand {
   String get says => 'rename a joint to "$to"';
 
   @override
-  Map<String, Object?> get arguments =>
-      <String, Object?>{'skeletonIndex': skeletonIndex, 'jointIndex': jointIndex, 'to': to};
+  Map<String, Object?> get arguments => <String, Object?>{
+    'skeletonIndex': skeletonIndex,
+    'jointIndex': jointIndex,
+    'to': to,
+  };
 
   @override
   Outcome apply(ModelProject project, ProjectSelection selection) {
@@ -298,7 +328,10 @@ final class RenameJoint extends ModelCommand {
         '$jointIndex is not one of them',
       );
     }
-    return Rename(id: skeleton.joints[jointIndex], to: to).apply(project, selection);
+    return Rename(
+      id: skeleton.joints[jointIndex],
+      to: to,
+    ).apply(project, selection);
   }
 }
 
@@ -309,7 +342,11 @@ final class RenameJoint extends ModelCommand {
 /// through a skeleton's own joint index rather than an id directly — the
 /// cycle check and the refusals are [SetParent]'s own, not repeated here.
 final class ReparentJoint extends ModelCommand {
-  const ReparentJoint({required this.skeletonIndex, required this.jointIndex, required this.to});
+  const ReparentJoint({
+    required this.skeletonIndex,
+    required this.jointIndex,
+    required this.to,
+  });
 
   final int skeletonIndex;
   final int jointIndex;
@@ -421,7 +458,11 @@ final class SetRestPose extends ModelCommand {
 /// otherwise have the second write read the first write's own
 /// already-mirrored result instead of the original.
 final class MirrorJoints extends ModelCommand {
-  const MirrorJoints({required this.skeletonIndex, required this.axis, required this.jointMirror});
+  const MirrorJoints({
+    required this.skeletonIndex,
+    required this.axis,
+    required this.jointMirror,
+  });
 
   final int skeletonIndex;
 

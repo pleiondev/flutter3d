@@ -25,10 +25,7 @@ void main() {
     });
 
     test('surfaceContainerLowest', () {
-      expect(
-        kModelerScheme.surfaceContainerLowest,
-        const Color(0xFF0B0E0F),
-      );
+      expect(kModelerScheme.surfaceContainerLowest, const Color(0xFF0B0E0F));
     });
 
     test('surfaceContainerLow', () {
@@ -44,10 +41,7 @@ void main() {
     });
 
     test('surfaceContainerHighest', () {
-      expect(
-        kModelerScheme.surfaceContainerHighest,
-        const Color(0xFF262A2B),
-      );
+      expect(kModelerScheme.surfaceContainerHighest, const Color(0xFF262A2B));
     });
 
     test('onSurfaceVariant', () {

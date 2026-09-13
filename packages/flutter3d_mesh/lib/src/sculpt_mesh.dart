@@ -82,14 +82,20 @@ final class _VertexChunk {
   /// arrays.
   final int version;
 
-  _VertexChunk copy() =>
-      _VertexChunk(Float32List.fromList(positions), Float32List.fromList(uvs), version + 1);
+  _VertexChunk copy() => _VertexChunk(
+    Float32List.fromList(positions),
+    Float32List.fromList(uvs),
+    version + 1,
+  );
 }
 
 /// What a brush stroke touched: which vertices moved and which chunks had to
 /// be copied to record it.
 final class BrushResult {
-  const BrushResult({required this.touchedVertices, required this.touchedChunks});
+  const BrushResult({
+    required this.touchedVertices,
+    required this.touchedChunks,
+  });
 
   /// Every vertex the stroke's radius reached, in the order the spatial grid
   /// visited them.
@@ -166,8 +172,11 @@ final class SculptMesh {
   Vector3 positionOf(int vertex, [Vector3? out]) {
     final chunk = _chunks[chunkOf(vertex)];
     final at = _localOf(vertex) * 3;
-    return (out ?? Vector3.zero())
-      ..setValues(chunk.positions[at], chunk.positions[at + 1], chunk.positions[at + 2]);
+    return (out ?? Vector3.zero())..setValues(
+      chunk.positions[at],
+      chunk.positions[at + 1],
+      chunk.positions[at + 2],
+    );
   }
 
   /// The texture coordinate of [vertex], written into [out] when one is given.
@@ -282,7 +291,9 @@ final class SculptMesh {
     }
 
     var minX = double.infinity, minY = double.infinity, minZ = double.infinity;
-    var maxX = -double.infinity, maxY = -double.infinity, maxZ = -double.infinity;
+    var maxX = -double.infinity,
+        maxY = -double.infinity,
+        maxZ = -double.infinity;
     final p = Vector3.zero();
     for (var v = 0; v < _vertexCount; v++) {
       positionOf(v, p);
@@ -373,7 +384,8 @@ final class SculptMesh {
   BrushResult applyBrush({
     required Vector3 center,
     required double radius,
-    required Vector3 Function(int vertex, Vector3 position, double falloff) displace,
+    required Vector3 Function(int vertex, Vector3 position, double falloff)
+    displace,
   }) {
     final touchedVertices = verticesWithinRadius(center, radius);
     final touchedChunks = <int>{};
@@ -384,7 +396,11 @@ final class SculptMesh {
       final chunkIndex = chunkOf(vertex);
       final chunk = copied[chunkIndex] ??= _chunks[chunkIndex].copy();
       final local = _localOf(vertex) * 3;
-      p.setValues(chunk.positions[local], chunk.positions[local + 1], chunk.positions[local + 2]);
+      p.setValues(
+        chunk.positions[local],
+        chunk.positions[local + 1],
+        chunk.positions[local + 2],
+      );
       final distance = radius <= 0 ? 0.0 : (p - center).length / radius;
       final falloff = (1 - distance).clamp(0.0, 1.0);
       final next = displace(vertex, p, falloff);
@@ -400,7 +416,10 @@ final class SculptMesh {
     _dirtyChunks.addAll(touchedChunks);
 
     final sortedChunks = touchedChunks.toList()..sort();
-    return BrushResult(touchedVertices: touchedVertices, touchedChunks: sortedChunks);
+    return BrushResult(
+      touchedVertices: touchedVertices,
+      touchedChunks: sortedChunks,
+    );
   }
 
   // ------------------------------------------------------------- conversion
@@ -521,8 +540,15 @@ final class SculptMesh {
     return SculptMesh._(chunks, vertexCount, Uint32List.fromList(trianglesOut));
   }
 
-  static int _end(int chunk, int chunkCount, int vertexCount, int arrayLength, int perVertex) =>
-      chunk == chunkCount - 1 ? arrayLength : (chunk + 1) * chunkSize * perVertex;
+  static int _end(
+    int chunk,
+    int chunkCount,
+    int vertexCount,
+    int arrayLength,
+    int perVertex,
+  ) => chunk == chunkCount - 1
+      ? arrayLength
+      : (chunk + 1) * chunkSize * perVertex;
 
   /// [vertices] (slot indices into [mesh]), ordered by the Morton code of
   /// each one's own quantized position — the sort [fromEditMesh]'s own doc
@@ -532,7 +558,9 @@ final class SculptMesh {
 
     final position = Vector3.zero();
     var minX = double.infinity, minY = double.infinity, minZ = double.infinity;
-    var maxX = -double.infinity, maxY = -double.infinity, maxZ = -double.infinity;
+    var maxX = -double.infinity,
+        maxY = -double.infinity,
+        maxZ = -double.infinity;
     for (final v in vertices) {
       mesh.positionOf(v, position);
       if (position.x < minX) minX = position.x;

@@ -11,7 +11,7 @@
 /// the same number of vertices arrives, each of them somewhere else. This is
 /// the check that costs a pass over the buffers and catches that.
 ///
-/// It lived in `dart run flutter3d:convert` and had one caller, which is a poor
+/// It lived in `dart run flutter3d_build:convert` and had one caller, which is a poor
 /// place for the one thing that says whether a writer works. Every writer wants
 /// it, and a writer shipped without it is a writer nobody has checked.
 library;

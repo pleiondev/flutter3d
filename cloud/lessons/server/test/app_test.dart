@@ -7,8 +7,9 @@ void main() {
   const config = Config(port: 0, baseUrl: 'https://lessons.pleion.dev');
   final handler = buildHandler(config);
 
-  Future<Response> get(String path) =>
-      Future.sync(() => handler(Request('GET', Uri.parse('https://lessons.pleion.dev$path'))));
+  Future<Response> get(String path) => Future.sync(
+    () => handler(Request('GET', Uri.parse('https://lessons.pleion.dev$path'))),
+  );
 
   group('/health', () {
     test('answers ok', () async {
@@ -78,20 +79,29 @@ void main() {
     // `cloud/lessons/deploy/nginx-lessons.pleion.dev.conf`'s `location /e/`
     // block (`proxy_hide_header X-Frame-Options`), which no `dart test` run
     // exercises — see that file and `app.dart`'s own `_securityHeaders` doc.
-    test('carries no header that would stop a third party from framing it', () async {
-      final response = await get('/e/engine-tour');
-      expect(response.headers.containsKey('x-frame-options'), isFalse);
-      expect(response.headers.containsKey('content-security-policy'), isFalse);
-    });
+    test(
+      'carries no header that would stop a third party from framing it',
+      () async {
+        final response = await get('/e/engine-tour');
+        expect(response.headers.containsKey('x-frame-options'), isFalse);
+        expect(
+          response.headers.containsKey('content-security-policy'),
+          isFalse,
+        );
+      },
+    );
   });
 
   group('unmatched routes', () {
-    test('answer 404 with the generic not-found page, not the lesson one', () async {
-      final response = await get('/nothing-here');
-      expect(response.statusCode, 404);
-      final body = await response.readAsString();
-      expect(body, contains('Страница не найдена'));
-      expect(body, isNot(contains('Урок не найден')));
-    });
+    test(
+      'answer 404 with the generic not-found page, not the lesson one',
+      () async {
+        final response = await get('/nothing-here');
+        expect(response.statusCode, 404);
+        final body = await response.readAsString();
+        expect(body, contains('Страница не найдена'));
+        expect(body, isNot(contains('Урок не найден')));
+      },
+    );
   });
 }

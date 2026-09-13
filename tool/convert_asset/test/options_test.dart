@@ -9,7 +9,11 @@ import 'package:test/test.dart';
 void main() {
   group('ConvertAssetOptions.parse', () {
     test('the input and format are read, name defaults from the input', () {
-      final options = ConvertAssetOptions.parse(<String>['teapot.glb', '-f', 'f3d']);
+      final options = ConvertAssetOptions.parse(<String>[
+        'teapot.glb',
+        '-f',
+        'f3d',
+      ]);
       expect(options, isNotNull);
       expect(options!.input, 'teapot.glb');
       expect(options.format, 'f3d');
@@ -37,23 +41,44 @@ void main() {
     });
 
     test('--format is accepted as a long flag too', () {
-      final options = ConvertAssetOptions.parse(<String>['teapot.glb', '--format', 'stl']);
+      final options = ConvertAssetOptions.parse(<String>[
+        'teapot.glb',
+        '--format',
+        'stl',
+      ]);
       expect(options!.format, 'stl');
     });
 
     test('--textures keep is accepted; anything else is refused', () {
       expect(
-        ConvertAssetOptions.parse(<String>['teapot.glb', '-f', 'obj', '--textures', 'keep']),
+        ConvertAssetOptions.parse(<String>[
+          'teapot.glb',
+          '-f',
+          'obj',
+          '--textures',
+          'keep',
+        ]),
         isNotNull,
       );
       expect(
-        ConvertAssetOptions.parse(<String>['teapot.glb', '-f', 'obj', '--textures', 'external']),
+        ConvertAssetOptions.parse(<String>[
+          'teapot.glb',
+          '-f',
+          'obj',
+          '--textures',
+          'external',
+        ]),
         isNull,
       );
     });
 
     test('a second bare argument does not replace the input already found', () {
-      final options = ConvertAssetOptions.parse(<String>['teapot.glb', 'stray.txt', '-f', 'obj']);
+      final options = ConvertAssetOptions.parse(<String>[
+        'teapot.glb',
+        'stray.txt',
+        '-f',
+        'obj',
+      ]);
       expect(options!.input, 'teapot.glb');
     });
 
@@ -70,7 +95,11 @@ void main() {
     });
 
     test('a dotfile with no other dot keeps its own leading dot', () {
-      final options = ConvertAssetOptions.parse(<String>['.gitignore', '-f', 'obj']);
+      final options = ConvertAssetOptions.parse(<String>[
+        '.gitignore',
+        '-f',
+        'obj',
+      ]);
       expect(options!.name, '.gitignore');
     });
   });

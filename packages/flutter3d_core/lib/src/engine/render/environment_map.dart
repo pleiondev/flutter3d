@@ -113,16 +113,18 @@ abstract final class EnvironmentMap {
           // function does not have an acceptance test for.
           final lon = math.atan2(dir.x, -dir.z);
           final lat = math.asin(dir.y.clamp(-1.0, 1.0));
-          final px = ((lon / (2 * math.pi) + 0.5) * width)
-              .floor()
-              .clamp(0, width - 1);
+          final px = ((lon / (2 * math.pi) + 0.5) * width).floor().clamp(
+            0,
+            width - 1,
+          );
           // Row zero is the north pole (`lat` at its most positive), which
           // is the acceptance this row names directly: a panorama whose top
           // row is white and bottom row is black reads back as a white +Y
           // face and a black −Y face.
-          final py = ((0.5 - lat / math.pi) * height)
-              .floor()
-              .clamp(0, height - 1);
+          final py = ((0.5 - lat / math.pi) * height).floor().clamp(
+            0,
+            height - 1,
+          );
 
           final src = (py * width + px) * 4;
           final dst = (y * size + x) * 4;

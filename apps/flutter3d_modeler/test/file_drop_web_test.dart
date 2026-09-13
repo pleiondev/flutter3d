@@ -33,35 +33,34 @@ web.DragEvent _dropOf(String name, Uint8List bytes) {
 }
 
 void main() {
-  testWidgets(
-    'a dropped .glb reaches onDropped with its name and bytes',
-    (WidgetTester tester) async {
-      final dropped = <(String, Uint8List)>[];
+  testWidgets('a dropped .glb reaches onDropped with its name and bytes', (
+    WidgetTester tester,
+  ) async {
+    final dropped = <(String, Uint8List)>[];
 
-      await tester.pumpWidget(
-        MaterialApp(
-          home: FileDropZone(
-            onDropped: (String name, Uint8List bytes) =>
-                dropped.add((name, bytes)),
-            child: const SizedBox.expand(),
-          ),
+    await tester.pumpWidget(
+      MaterialApp(
+        home: FileDropZone(
+          onDropped: (String name, Uint8List bytes) =>
+              dropped.add((name, bytes)),
+          child: const SizedBox.expand(),
         ),
+      ),
+    );
+
+    await tester.runAsync(() async {
+      web.document.dispatchEvent(
+        _dropOf('helmet.glb', Uint8List.fromList(<int>[1, 2, 3, 4])),
       );
+      // `arrayBuffer()` is a real promise; nothing here resolves it but the
+      // browser's own event loop.
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+    });
 
-      await tester.runAsync(() async {
-        web.document.dispatchEvent(
-          _dropOf('helmet.glb', Uint8List.fromList(<int>[1, 2, 3, 4])),
-        );
-        // `arrayBuffer()` is a real promise; nothing here resolves it but the
-        // browser's own event loop.
-        await Future<void>.delayed(const Duration(milliseconds: 20));
-      });
-
-      expect(dropped, hasLength(1));
-      expect(dropped.single.$1, 'helmet.glb');
-      expect(dropped.single.$2, Uint8List.fromList(<int>[1, 2, 3, 4]));
-    },
-  );
+    expect(dropped, hasLength(1));
+    expect(dropped.single.$1, 'helmet.glb');
+    expect(dropped.single.$2, Uint8List.fromList(<int>[1, 2, 3, 4]));
+  });
 
   testWidgets(
     'dragover is prevented, or the browser would navigate to the file',

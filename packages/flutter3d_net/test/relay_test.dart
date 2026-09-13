@@ -68,11 +68,11 @@ Map<String, Object?> _sideB(int step) => <String, Object?>{
 };
 
 Future<({Process process, int port})> _startRelay() async {
-  final process = await Process.start(
-    'dart',
-    <String>['run', 'bin/relay.dart', '0'],
-    workingDirectory: Directory.current.path,
-  );
+  final process = await Process.start('dart', <String>[
+    'run',
+    'bin/relay.dart',
+    '0',
+  ], workingDirectory: Directory.current.path);
   final portFound = Completer<int>();
   final subscription = process.stdout
       .transform(utf8.decoder)
@@ -97,74 +97,68 @@ Future<({Process process, int port})> _startRelay() async {
 }
 
 void main() {
-  test(
-    'two NetSessions over a real relay and real sockets converge on the '
-    'same digests',
-    () async {
-      final relay = await _startRelay();
-      addTearDown(() => relay.process.kill());
+  test('two NetSessions over a real relay and real sockets converge on the '
+      'same digests', () async {
+    final relay = await _startRelay();
+    addTearDown(() => relay.process.kill());
 
-      final room = 'test-room-${DateTime.now().microsecondsSinceEpoch}';
-      final roomUri = Uri.parse(
-        'ws://127.0.0.1:${relay.port}/room/$room',
-      );
-      final transportA = await WebSocketTransport.connect(roomUri);
-      final transportB = await WebSocketTransport.connect(roomUri);
-      addTearDown(transportA.close);
-      addTearDown(transportB.close);
+    final room = 'test-room-${DateTime.now().microsecondsSinceEpoch}';
+    final roomUri = Uri.parse('ws://127.0.0.1:${relay.port}/room/$room');
+    final transportA = await WebSocketTransport.connect(roomUri);
+    final transportB = await WebSocketTransport.connect(roomUri);
+    addTearDown(transportA.close);
+    addTearDown(transportB.close);
 
-      final toyA = _Toy(1);
-      final toyB = _Toy(1);
-      final digestsA = DigestTrace();
-      final digestsB = DigestTrace();
-      late final NetSession sessionA;
-      late final NetSession sessionB;
-      sessionA = NetSession(
-        transport: transportA,
-        captureLocalFrame: () => _sideA(sessionA.step),
-        applyAndStep: (local, remote) => toyA.step(local, remote),
-        save: toyA.save,
-        restore: toyA.restore,
-        inputDelay: 2,
-        maxRollbackFrames: 16,
-        onSettled: (step, after) => digestsA.observe(step + 1, after.toJson()),
-      );
-      sessionB = NetSession(
-        transport: transportB,
-        captureLocalFrame: () => _sideB(sessionB.step),
-        applyAndStep: (local, remote) => toyB.step(remote, local),
-        save: toyB.save,
-        restore: toyB.restore,
-        inputDelay: 2,
-        maxRollbackFrames: 16,
-        onSettled: (step, after) => digestsB.observe(step + 1, after.toJson()),
-      );
+    final toyA = _Toy(1);
+    final toyB = _Toy(1);
+    final digestsA = DigestTrace();
+    final digestsB = DigestTrace();
+    late final NetSession sessionA;
+    late final NetSession sessionB;
+    sessionA = NetSession(
+      transport: transportA,
+      captureLocalFrame: () => _sideA(sessionA.step),
+      applyAndStep: (local, remote) => toyA.step(local, remote),
+      save: toyA.save,
+      restore: toyA.restore,
+      inputDelay: 2,
+      maxRollbackFrames: 16,
+      onSettled: (step, after) => digestsA.observe(step + 1, after.toJson()),
+    );
+    sessionB = NetSession(
+      transport: transportB,
+      captureLocalFrame: () => _sideB(sessionB.step),
+      applyAndStep: (local, remote) => toyB.step(remote, local),
+      save: toyB.save,
+      restore: toyB.restore,
+      inputDelay: 2,
+      maxRollbackFrames: 16,
+      onSettled: (step, after) => digestsB.observe(step + 1, after.toJson()),
+    );
 
-      // A real socket introduces real, if small, scheduling delay — steps
-      // are paced on a timer rather than driven back-to-back in a tight
-      // loop, so messages have an actual chance to round-trip through the
-      // relay between one side's step and the other's.
-      const steps = 200;
-      for (var i = 0; i < steps + 40; i++) {
-        sessionA.advance();
-        sessionB.advance();
-        await Future<void>.delayed(const Duration(milliseconds: 2));
-      }
+    // A real socket introduces real, if small, scheduling delay — steps
+    // are paced on a timer rather than driven back-to-back in a tight
+    // loop, so messages have an actual chance to round-trip through the
+    // relay between one side's step and the other's.
+    const steps = 200;
+    for (var i = 0; i < steps + 40; i++) {
+      sessionA.advance();
+      sessionB.advance();
+      await Future<void>.delayed(const Duration(milliseconds: 2));
+    }
 
-      final divergence = digestsA.divergenceFromHex(digestsB.hexDigests);
-      expect(
-        divergence,
-        isNull,
-        reason:
-            'the two sides should agree on every settled checkpoint through '
-            'the real relay: $divergence',
-      );
-      expect(digestsA.steps, isNotEmpty);
-      expect(sessionA.droppedCorrections, 0);
-      expect(sessionB.droppedCorrections, 0);
-    },
-    timeout: const Timeout(Duration(seconds: 30)),
-  );
+    final divergence = digestsA.divergenceFromHex(digestsB.hexDigests);
+    expect(
+      divergence,
+      isNull,
+      reason:
+          'the two sides should agree on every settled checkpoint through '
+          'the real relay: $divergence',
+    );
+    expect(digestsA.steps, isNotEmpty);
+    expect(sessionA.droppedCorrections, 0);
+    expect(sessionB.droppedCorrections, 0);
+  }, timeout: const Timeout(Duration(seconds: 30)));
 
   test(
     'a third socket asking for a room that already has two is refused',

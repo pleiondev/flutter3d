@@ -77,61 +77,58 @@ Demo _record(_Toy toy, int seed, int steps) {
 }
 
 void main() {
-  test(
-    'a RunTimeline built on the reconstructed buffer reaches the very '
-    'start of a run a live ten-second buffer never would',
-    () {
-      final recordingToy = _Toy(7);
-      final demo = _record(recordingToy, 7, 600);
+  test('a RunTimeline built on the reconstructed buffer reaches the very '
+      'start of a run a live ten-second buffer never would', () {
+    final recordingToy = _Toy(7);
+    final demo = _record(recordingToy, 7, 600);
 
-      final toy = _Toy(0);
-      final input = InputState();
-      final buffer = rewindBufferFromDemo(
-        demo: demo,
-        stepsPerSecond: 60,
-        input: input,
-        restore: toy.restore,
-        save: toy.save,
-        stepSim: (dt) => toy.step(input),
-      );
-      final timeline = RunTimeline(
-        rewind: buffer,
-        input: input,
-        stepSim: (dt) => toy.step(input),
-        restore: toy.restore,
-      );
+    final toy = _Toy(0);
+    final input = InputState();
+    final buffer = rewindBufferFromDemo(
+      demo: demo,
+      stepsPerSecond: 60,
+      input: input,
+      restore: toy.restore,
+      save: toy.save,
+      stepSim: (dt) => toy.step(input),
+    );
+    final timeline = RunTimeline(
+      rewind: buffer,
+      input: input,
+      stepSim: (dt) => toy.step(input),
+      restore: toy.restore,
+    );
 
-      // Ten seconds is the default live history — this run is also ten
-      // seconds long (600 steps at 60/s), so scrubbing to a step near its
-      // very beginning only reaches this far because the whole tape was
-      // replayed into keyframes, not because of a generous default.
-      final point = timeline.preview(9.5);
-      expect(
-        point,
-        isNotNull,
-        reason: 'the reconstruction keeps the whole run reachable',
-      );
-      expect(point!.step, lessThan(50));
+    // Ten seconds is the default live history — this run is also ten
+    // seconds long (600 steps at 60/s), so scrubbing to a step near its
+    // very beginning only reaches this far because the whole tape was
+    // replayed into keyframes, not because of a generous default.
+    final point = timeline.preview(9.5);
+    expect(
+      point,
+      isNotNull,
+      reason: 'the reconstruction keeps the whole run reachable',
+    );
+    expect(point!.step, lessThan(50));
 
-      timeline.releaseAt(point);
+    timeline.releaseAt(point);
 
-      final independent = _Toy(0)..restore(demo.start);
-      final independentInput = InputState();
-      for (var step = 0; step < point.step; step++) {
-        _play(independentInput, step);
-        independentInput.beginStep();
-        independent.step(independentInput);
-        independentInput.endStep();
-      }
-      expect(
-        toy.state,
-        independent.state,
-        reason:
-            'the reconstructed buffer must land on the same state an '
-            'independent replay of the demo to that step does',
-      );
-    },
-  );
+    final independent = _Toy(0)..restore(demo.start);
+    final independentInput = InputState();
+    for (var step = 0; step < point.step; step++) {
+      _play(independentInput, step);
+      independentInput.beginStep();
+      independent.step(independentInput);
+      independentInput.endStep();
+    }
+    expect(
+      toy.state,
+      independent.state,
+      reason:
+          'the reconstructed buffer must land on the same state an '
+          'independent replay of the demo to that step does',
+    );
+  });
 
   test('preview beyond the end of the tape finds nothing', () {
     final recordingToy = _Toy(3);

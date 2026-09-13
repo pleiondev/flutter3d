@@ -44,7 +44,8 @@ Uint8List encodeBc1(Rgba8Image image) {
 /// eight bytes of a single BC1 block. Alpha is ignored — BC1 has none.
 Uint8List encodeBc1Block(List<(int, int, int, int)> pixels) {
   final rgb = <(double, double, double)>[
-    for (final (r, g, b, _) in pixels) (r.toDouble(), g.toDouble(), b.toDouble()),
+    for (final (r, g, b, _) in pixels)
+      (r.toDouble(), g.toDouble(), b.toDouble()),
   ];
 
   var meanR = 0.0, meanG = 0.0, meanB = 0.0;

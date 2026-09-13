@@ -123,9 +123,7 @@ TwoBoneIkResult solveTwoBoneIk({
   final localMidOffset = rootWorldRotation.inverted().rotated(
     midPos0 - rootPos,
   );
-  final localTipOffset = midWorldRotation.inverted().rotated(
-    tipPos0 - midPos0,
-  );
+  final localTipOffset = midWorldRotation.inverted().rotated(tipPos0 - midPos0);
 
   // **Composition order.** This build of `vector_math` composes `A * B` as
   // "apply `A`'s rotation first, `B`'s second" — `(A * B).rotated(v) ==
@@ -162,8 +160,7 @@ TwoBoneIkResult solveTwoBoneIk({
   final aimDelta = Quaternion.fromTwoVectors(toTarget, toTip);
   final rootWorldRotAfterAim = (rootWorldRotation * aimDelta)..normalize();
 
-  final midPosAfterAim =
-      rootPos + rootWorldRotAfterAim.rotated(localMidOffset);
+  final midPosAfterAim = rootPos + rootWorldRotAfterAim.rotated(localMidOffset);
   final midWorldRotAfterAim = (midWorldRotAfterBend * aimDelta)..normalize();
 
   // Step 3: twist `root` around the root→target axis so `mid` sits on
@@ -189,8 +186,7 @@ TwoBoneIkResult solveTwoBoneIk({
   }
 
   final midPosFinal = rootPos + rootWorldRotFinal.rotated(localMidOffset);
-  final tipPosFinal =
-      midPosFinal + midWorldRotFinal.rotated(localTipOffset);
+  final tipPosFinal = midPosFinal + midWorldRotFinal.rotated(localTipOffset);
 
   final rootLocalRotation =
       (rootParentWorldRotation.inverted() * rootWorldRotFinal)..normalize();

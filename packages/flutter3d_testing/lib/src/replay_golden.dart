@@ -65,5 +65,10 @@ Future<void> replayGolden({
     height: height,
     build: frame,
   );
-  await expectMatchesGolden(rendered, goldenPath, tolerance: tolerance, reason: reason);
+  await expectMatchesGolden(
+    rendered,
+    goldenPath,
+    tolerance: tolerance,
+    reason: reason,
+  );
 }

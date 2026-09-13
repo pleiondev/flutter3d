@@ -40,11 +40,11 @@ final class PendulumLabPanel extends StatelessWidget {
               style: TextStyle(
                 color: Color(0xFF8FA0B3),
                 fontFamily: 'monospace',
-                fontSize: 13.0,
-                letterSpacing: 1.5,
+                fontSize: 20.0,
+                letterSpacing: 2.0,
               ),
             ),
-            const SizedBox(height: 6.0),
+            const SizedBox(height: 10.0),
             ValueListenableBuilder<double>(
               valueListenable: lengthMeters,
               builder: (context, length, _) => Text(
@@ -52,17 +52,17 @@ final class PendulumLabPanel extends StatelessWidget {
                 style: const TextStyle(
                   color: Color(0xFFE7C46E),
                   fontFamily: 'monospace',
-                  fontSize: 26.0,
+                  fontSize: 44.0,
                   fontWeight: FontWeight.bold,
                 ),
               ),
             ),
-            const SizedBox(height: 10.0),
+            const SizedBox(height: 16.0),
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: <Widget>[
                 _PanelButton(label: '-', onTap: () => _nudge(-step)),
-                const SizedBox(width: 18.0),
+                const SizedBox(width: 28.0),
                 _PanelButton(label: '+', onTap: () => _nudge(step)),
               ],
             ),
@@ -85,18 +85,18 @@ final class _PanelButton extends StatelessWidget {
       behavior: HitTestBehavior.opaque,
       onTap: onTap,
       child: Container(
-        width: 44.0,
-        height: 44.0,
+        width: 68.0,
+        height: 68.0,
         alignment: Alignment.center,
         decoration: BoxDecoration(
           color: const Color(0xFF283040),
-          borderRadius: BorderRadius.circular(8.0),
+          borderRadius: BorderRadius.circular(12.0),
         ),
         child: Text(
           label,
           style: const TextStyle(
             color: Color(0xFFE6EAF0),
-            fontSize: 22.0,
+            fontSize: 34.0,
             fontWeight: FontWeight.bold,
           ),
         ),

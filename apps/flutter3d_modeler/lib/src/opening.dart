@@ -25,9 +25,20 @@ library;
 import 'dart:typed_data';
 
 import 'package:flutter3d/flutter3d.dart';
+import 'package:flutter3d_fbx/flutter3d_fbx.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 
 import 'staging.dart';
+
+/// The readers this application hands every decode on top of the built-in
+/// ones — `ModelLoadRequest.decoders`, the plugin boundary `ARCHITECTURE.md`
+/// §12 describes, used rather than only described.
+///
+/// FBX is recognised and refused with its own sentence (`fmt-29d`), so a file
+/// a person picked names the format it is instead of opening as an empty OBJ.
+/// One list, read by both the decode and the drop guard below, so the window
+/// never turns away a file the decode would have taken.
+const List<ModelDecoder> modelerDecoders = <ModelDecoder>[FbxDecoder()];
 
 /// What a chosen file turned out to be.
 ///
@@ -110,8 +121,9 @@ Future<FileOpened> openBytes(
 /// units/axis/cleanup, and only then call [openDocument] with the
 /// [ImportOptions] they chose, instead of always getting the defaults
 /// [openBytes] itself commits to.
-Future<ModelDocument> decodeBytes(Uint8List bytes, String name) =>
-    decodeModel(ModelLoadRequest(source: _Bytes(name, bytes)));
+Future<ModelDocument> decodeBytes(Uint8List bytes, String name) => decodeModel(
+  ModelLoadRequest(source: _Bytes(name, bytes), decoders: modelerDecoders),
+);
 
 /// **A decode that succeeded and found nothing is a refusal, not an empty
 /// document.** The OBJ reader takes any text at all and answers with a
@@ -137,7 +149,8 @@ String? emptyDecodeRefusal(ModelDocument document, String name) {
 /// [sniffModelFormat] — which is right for a `.glb` a person renamed and wrong
 /// for a `.dae` or a spreadsheet, both of which would otherwise be read as
 /// whichever format the first few bytes happen to resemble.
-/// [recognizedModelFormat]'s own doc comment names this exact caller.
+/// [recognizedModelFormat]'s own doc comment names this exact caller, and
+/// [canDecodeFileName] is that question with [modelerDecoders] in it.
 ///
 /// Null when the file is worth opening; a sentence for the status line
 /// otherwise. [isProjectFile] is asked first, since a saved project's own
@@ -145,7 +158,7 @@ String? emptyDecodeRefusal(ModelDocument document, String name) {
 /// [recognizedModelFormat]'s list.
 String? unopenableDropRefusal(String name, Uint8List bytes) {
   if (isProjectFile(bytes)) return null;
-  if (recognizedModelFormat(name) != null) return null;
+  if (canDecodeFileName(name, decoders: modelerDecoders)) return null;
   return '$name: not a file type this build can open';
 }
 
@@ -198,7 +211,8 @@ Future<OpenedModel> openDocument(
   ModelDocument document, {
   required GraphicsDevice device,
   ImportOptions options = const ImportOptions(),
-}) => openProject(fromModelDocument(document, options: options), device: device);
+}) =>
+    openProject(fromModelDocument(document, options: options), device: device);
 
 /// [project] and a stage drawing it, with the materials on.
 ///

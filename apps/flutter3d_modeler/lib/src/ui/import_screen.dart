@@ -145,7 +145,10 @@ class _ImportScreenState extends State<_ImportScreen> {
                     setState(() => _unit = picked.first),
               ),
               const SizedBox(height: 12),
-              const Text('Up axis', style: TextStyle(fontWeight: FontWeight.w500)),
+              const Text(
+                'Up axis',
+                style: TextStyle(fontWeight: FontWeight.w500),
+              ),
               SegmentedButton<UpAxis>(
                 showSelectedIcon: false,
                 segments: const <ButtonSegment<UpAxis>>[

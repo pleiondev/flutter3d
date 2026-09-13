@@ -11,38 +11,47 @@ import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:flutter3d_stereo_lesson_viewer/main.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-GraphicsDevice _device() =>
-    CpuDevice(width: 16, height: 9, shaders: CpuShaderLibrary(builtinCpuShaders()));
+GraphicsDevice _device() => CpuDevice(
+  width: 16,
+  height: 9,
+  shaders: CpuShaderLibrary(builtinCpuShaders()),
+);
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  test('opening the shipped teardown resolves its five steps in order', () async {
-    final cubit = LessonCubit();
-    expect(cubit.state, isA<LessonLoading>());
+  test(
+    'opening the shipped teardown resolves its five steps in order',
+    () async {
+      final cubit = LessonCubit();
+      expect(cubit.state, isA<LessonLoading>());
 
-    await cubit.open(_device());
+      await cubit.open(_device());
 
-    final state = cubit.state;
-    expect(state, isA<LessonReady>());
-    final ready = state as LessonReady;
-    expect(ready.player.steps.map((EntityDef e) => e.name), <String>[
-      'step-1',
-      'step-2',
-      'step-3',
-      'step-4',
-      'step-5',
-    ]);
-    expect(ready.player.current?.string('caption'), 'Двигатель в сборе');
-  });
+      final state = cubit.state;
+      expect(state, isA<LessonReady>());
+      final ready = state as LessonReady;
+      expect(ready.player.steps.map((EntityDef e) => e.name), <String>[
+        'step-1',
+        'step-2',
+        'step-3',
+        'step-4',
+        'step-5',
+      ]);
+      expect(ready.player.current?.string('caption'), 'Двигатель в сборе');
+    },
+  );
 
-  test('a lesson that is not there fails loudly rather than silently', () async {
-    final cubit = LessonCubit();
+  test(
+    'a lesson that is not there fails loudly rather than silently',
+    () async {
+      final cubit = LessonCubit();
 
-    await cubit.open(_device(), asset: 'assets/levels/no_such_lesson.json');
+      await cubit.open(_device(), asset: 'assets/levels/no_such_lesson.json');
 
-    expect(cubit.state, isA<LessonFailed>());
-  });
+      expect(cubit.state, isA<LessonFailed>());
+    },
+  );
 
   test('every part the level places is a real, named node', () async {
     final cubit = LessonCubit();

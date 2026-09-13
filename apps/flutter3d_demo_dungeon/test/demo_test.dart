@@ -135,7 +135,10 @@ void main() {
       playback.applyTo(replay.input);
       replay.staged.sim.step(_dt);
       replayedSteps++;
-      replayCheckpoints.observe(replayedSteps, replay.staged.sim.save().toJson());
+      replayCheckpoints.observe(
+        replayedSteps,
+        replay.staged.sim.save().toJson(),
+      );
       replay.input.endStep();
     }
 
@@ -143,7 +146,8 @@ void main() {
     expect(
       replayCheckpoints.divergenceFromHex(demo.checkpoints.hexDigests),
       isNull,
-      reason: 'the replay should check out against the document\'s own trace, '
+      reason:
+          'the replay should check out against the document\'s own trace, '
           'not only end at the same byte',
     );
   });

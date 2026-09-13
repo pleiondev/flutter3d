@@ -353,7 +353,11 @@ Staged stage(Level level, CollisionWorld world, {required InputState input}) {
   actors.navigation = navigation;
 
   final hitscan = Hitscan(world: world, random: dice);
-  final shot = WeaponShot(world: world, hitscan: hitscan, projectiles: projectiles);
+  final shot = WeaponShot(
+    world: world,
+    hitscan: hitscan,
+    projectiles: projectiles,
+  );
   final mechanisms = MechanismWorld(world);
 
   final registry = sampleRegistry();

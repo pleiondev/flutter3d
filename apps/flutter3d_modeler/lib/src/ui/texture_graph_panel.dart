@@ -153,20 +153,22 @@ final class HintRow extends StatelessWidget {
     final ThemeData theme = Theme.of(context);
     final String label = hint.label ?? field;
     final Widget control = switch (hint.kind) {
-      RangeHint(:final double min, :final double max, :final double? step) => Slider(
-        value: _asDouble(value).clamp(min, max),
-        min: min,
-        max: max,
-        divisions: step == null || step <= 0
-            ? null
-            : ((max - min) / step).round().clamp(1, 1000000),
-        onChanged: (double v) => onChanged(v),
-      ),
+      RangeHint(:final double min, :final double max, :final double? step) =>
+        Slider(
+          value: _asDouble(value).clamp(min, max),
+          min: min,
+          max: max,
+          divisions: step == null || step <= 0
+              ? null
+              : ((max - min) / step).round().clamp(1, 1000000),
+          onChanged: (double v) => onChanged(v),
+        ),
       EnumHint(:final values) => DropdownButton<String>(
         isDense: true,
         isExpanded: true,
         value: switch (value) {
-          final String s when values.any((EnumHintValue v) => v.value == s) => s,
+          final String s when values.any((EnumHintValue v) => v.value == s) =>
+            s,
           _ => values.first.value,
         },
         items: <DropdownMenuItem<String>>[
@@ -184,7 +186,8 @@ final class HintRow extends StatelessWidget {
             _ => _swatches.first,
           };
           var index = _swatches.indexWhere(
-            (List<double> s) => s.take(channels).toList().toString() ==
+            (List<double> s) =>
+                s.take(channels).toList().toString() ==
                 current.take(channels).toList().toString(),
           );
           index = (index + 1) % _swatches.length;
@@ -258,7 +261,8 @@ Offset _outputAnchor(Offset topLeft, double width) =>
 Offset _inputAnchor(TextureNode node, String input, Offset topLeft) {
   final int index = node.inputs.keys.toList(growable: false).indexOf(input);
   final int row = index < 0 ? 0 : index;
-  return topLeft + Offset(0, _kHeaderHeight + row * _kPortRowHeight + _kPortRowHeight / 2);
+  return topLeft +
+      Offset(0, _kHeaderHeight + row * _kPortRowHeight + _kPortRowHeight / 2);
 }
 
 /// One node, drawn as a box 170–210 px wide — wider the more ports and
@@ -329,7 +333,8 @@ final class _NodeCard extends StatelessWidget {
           Listener(
             key: ValueKey<String>('textureNodeHeader-${node.id}'),
             onPointerDown: (_) => onDragStart(node.id),
-            onPointerMove: (PointerMoveEvent e) => onDragDelta(node.id, e.localDelta),
+            onPointerMove: (PointerMoveEvent e) =>
+                onDragDelta(node.id, e.localDelta),
             onPointerUp: (_) => onDragEnd(node.id),
             onPointerCancel: (_) => onDragEnd(node.id),
             child: SizedBox(
@@ -376,13 +381,16 @@ final class _NodeCard extends StatelessWidget {
               ),
             ),
           ),
-          for (final MapEntry<String, TextureInputSocket> entry in inputs.entries)
+          for (final MapEntry<String, TextureInputSocket> entry
+              in inputs.entries)
             SizedBox(
               height: _kPortRowHeight,
               child: Row(
                 children: <Widget>[
                   GestureDetector(
-                    key: ValueKey<String>('textureNodeInput-${node.id}-${entry.key}'),
+                    key: ValueKey<String>(
+                      'textureNodeInput-${node.id}-${entry.key}',
+                    ),
                     onTap: () => onInputTap(node.id, entry.key),
                     child: Container(
                       width: 10,
@@ -405,7 +413,9 @@ final class _NodeCard extends StatelessWidget {
                   ),
                   if (entry.value.from != null)
                     GestureDetector(
-                      key: ValueKey<String>('textureNodeUnlink-${node.id}-${entry.key}'),
+                      key: ValueKey<String>(
+                        'textureNodeUnlink-${node.id}-${entry.key}',
+                      ),
                       onTap: () => onUnlinkTap(node.id, entry.key),
                       child: const Padding(
                         padding: EdgeInsets.only(right: 4),
@@ -428,7 +438,9 @@ final class _NodeCard extends StatelessWidget {
                       gaplessPlayback: true,
                     )
                   : Container(
-                      key: ValueKey<String>('textureNodeThumbnailPlaceholder-${node.id}'),
+                      key: ValueKey<String>(
+                        'textureNodeThumbnailPlaceholder-${node.id}',
+                      ),
                       width: 64,
                       height: 64,
                       color: theme.colorScheme.surfaceContainerLow,
@@ -444,12 +456,15 @@ final class _NodeCard extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 4),
               child: KeyedSubtree(
-                key: ValueKey<String>('textureNodeHint-${node.id}-${entry.key}'),
+                key: ValueKey<String>(
+                  'textureNodeHint-${node.id}-${entry.key}',
+                ),
                 child: HintRow(
                   field: entry.key,
                   hint: entry.value,
                   value: json[entry.key],
-                  onChanged: (Object? v) => onFieldChanged(node.id, entry.key, v),
+                  onChanged: (Object? v) =>
+                      onFieldChanged(node.id, entry.key, v),
                 ),
               ),
             ),
@@ -488,7 +503,8 @@ final class _LinksPainter extends CustomPainter {
     for (final TextureNode node in graph.nodes) {
       final Offset? targetTopLeft = positions[node.id];
       if (targetTopLeft == null) continue;
-      for (final MapEntry<String, TextureInputSocket> entry in node.inputs.entries) {
+      for (final MapEntry<String, TextureInputSocket> entry
+          in node.inputs.entries) {
         final int? from = entry.value.from;
         if (from == null) continue;
         final Offset? sourceTopLeft = positions[from];
@@ -556,7 +572,11 @@ final class TextureGraphPanel extends StatefulWidget {
 
   /// The "Add" menu picked [kind]; [fields] and [position] are
   /// [AddNode.fields] and [AddNode.position] ready to hand straight to it.
-  final void Function(String kind, Map<String, Object?> fields, (double x, double y) position)
+  final void Function(
+    String kind,
+    Map<String, Object?> fields,
+    (double x, double y) position,
+  )
   onAddNode;
 
   /// A pending link was completed onto [nodeId]'s [input] socket, from
@@ -594,7 +614,8 @@ class _TextureGraphPanelState extends State<TextureGraphPanel> {
   /// for it, so an outside edit (undo, another view) is trusted over a stale
   /// gesture. The one piece of mutable state this widget keeps beyond
   /// [_expanded] and [_pendingLinkFrom], per the panel's own standards.
-  final Map<int, (double x, double y)> _dragPositions = <int, (double x, double y)>{};
+  final Map<int, (double x, double y)> _dragPositions =
+      <int, (double x, double y)>{};
 
   /// The node id a link is armed from, or null — set by tapping an output
   /// port, cleared by completing (or abandoning, by tapping another output)
@@ -639,7 +660,8 @@ class _TextureGraphPanelState extends State<TextureGraphPanel> {
   /// no further division by the current zoom.
   void _onNodeDragDelta(int nodeId, Offset base, Offset delta) {
     setState(() {
-      final (double x, double y) current = _dragPositions[nodeId] ?? (base.dx, base.dy);
+      final (double x, double y) current =
+          _dragPositions[nodeId] ?? (base.dx, base.dy);
       _dragPositions[nodeId] = (current.$1 + delta.dx, current.$2 + delta.dy);
     });
   }
@@ -651,7 +673,9 @@ class _TextureGraphPanelState extends State<TextureGraphPanel> {
   }
 
   void _onOutputTap(int nodeId) {
-    setState(() => _pendingLinkFrom = _pendingLinkFrom == nodeId ? null : nodeId);
+    setState(
+      () => _pendingLinkFrom = _pendingLinkFrom == nodeId ? null : nodeId,
+    );
   }
 
   void _onInputTap(int nodeId, String input) {
@@ -772,7 +796,9 @@ class _TextureGraphPanelState extends State<TextureGraphPanel> {
       // panel is measured against and overflow it. A 1 px hairline painted
       // on top of the content is not a border anything sits behind anyway.
       foregroundDecoration: BoxDecoration(
-        border: Border(top: BorderSide(color: theme.colorScheme.outlineVariant)),
+        border: Border(
+          top: BorderSide(color: theme.colorScheme.outlineVariant),
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,

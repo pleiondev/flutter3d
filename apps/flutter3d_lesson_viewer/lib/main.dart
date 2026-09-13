@@ -89,9 +89,7 @@ void _addParts(Level level, LoadedLevel loaded, GraphicsDevice device) {
     final name = entity.name;
     if (name == null) continue;
     final materialName = entity.string('material');
-    final source = materialName == null
-        ? null
-        : level.materials[materialName];
+    final source = materialName == null ? null : level.materials[materialName];
     final material = LevelLoader.materialFrom(
       source ?? LevelMaterial(),
       const <String, TextureHandle?>{},

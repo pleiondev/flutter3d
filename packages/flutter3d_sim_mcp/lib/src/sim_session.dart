@@ -2,29 +2,25 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
-import 'package:flutter3d_bridge/flutter3d_bridge.dart' show WidgetSurfaceKind;
-import 'package:flutter3d_game_shooter/flutter3d_game_shooter.dart' show ShooterActions;
-import 'package:flutter3d_game_shooter/sample.dart' show Staged, sampleRegistry, stage;
+import 'package:flutter3d_mcp_kit/flutter3d_mcp_kit.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:vector_math/vector_math.dart';
 
 import 'sim_renderer.dart';
 
-/// What a tool call actually did, the sentence to say about it, and — for
-/// `frame` alone — the PNG that goes with it.
-///
-/// The same shape `flutter3d_editor_mcp`'s own `Answer` is, widened by one
-/// field rather than split into two types: every other tool leaves [png]
-/// null, and a caller that only ever reads [says] never has to know the
-/// field exists.
-typedef Answer = ({bool did, String says, Uint8List? png});
-
-Answer _ok(String says, [Uint8List? png]) =>
+PictureAnswer _ok(String says, [Uint8List? png]) =>
     (did: true, says: says, png: png);
-Answer _refuse(String says) => (did: false, says: says, png: null);
+PictureAnswer _refuse(String says) => (did: false, says: says, png: null);
 
-/// One shooter level, open for the life of the process, an agent can walk
+/// One level of [game], open for the life of the process, an agent can walk
 /// through blind.
+///
+/// **The game is handed in, not imported.** This server used to import the
+/// shooter and call its player, its inventory and its fire button directly,
+/// and kept a copy of the dungeon's own assembly to do it — so it could play
+/// one genre, and a second would have been a second server. What it needs of a
+/// game is what `flutter3d_sim`'s [HeadlessGame] says: start a run, step it,
+/// read it back, and the buttons an agent may hold. A host composes the rest.
 ///
 /// **One level at a time, the same discipline `EditorSession` keeps.** A
 /// second `open` mid-run would leave the recorded tape and the digest trace
@@ -32,7 +28,13 @@ Answer _refuse(String says) => (did: false, says: says, png: null);
 /// has anything worth keeping is the only time it is allowed to replace
 /// what came before.
 final class SimSession {
-  Staged? _staged;
+  SimSession({required this.game});
+
+  /// What this session plays — `flutter3d_game_shooter`'s
+  /// `ShooterHeadlessGame`, for the crypt.
+  final HeadlessGame game;
+
+  HeadlessRun? _run;
   InputTapeRecorder? _recorder;
   DigestTrace? _digests;
   String? _levelPath;
@@ -46,9 +48,9 @@ final class SimSession {
   static const double _dt = 1.0 / 60.0;
   static const int _every = 25;
 
-  bool get isOpen => _staged != null;
+  bool get isOpen => _run != null;
 
-  Answer open(String path) {
+  PictureAnswer open(String path) {
     final Level level;
     try {
       final json = jsonDecode(File(path).readAsStringSync());
@@ -58,74 +60,83 @@ final class SimSession {
     }
     final world = CollisionWorld();
     level.addTo(world);
-    final staged = stage(level, world, input: _input);
+    final run = game.start(level, world, _input);
     world.update();
 
-    _staged = staged;
+    _run = run;
     _levelPath = path;
     _levelHash = level.digestHex;
     _recorder = InputTapeRecorder(seed: _seed);
     _digests = DigestTrace(every: _every);
     _step = 0;
-    _start = staged.sim.save();
+    _start = run.save();
     _renderer = null;
 
-    return _ok('opened "$path" (hash $_levelHash). ${_describe(staged)}');
+    return _ok('opened "$path" (hash $_levelHash). ${run.summary}');
   }
 
   /// Steps [steps] fixed steps, holding the same intent for all of them —
   /// [moveX]/[moveY] as a stick, [lookX]/[lookY] added once per step (not
   /// once for the whole call: a look this size held for ten steps is a turn
   /// ten times that size, matching what ten real frames of the same mouse
-  /// delta would do), and [fire] held for the whole call when true.
-  Answer step({
+  /// delta would do), and every one of [game]'s buttons down for the whole
+  /// call when [held] names it true and up otherwise.
+  PictureAnswer step({
     required int steps,
     double moveX = 0.0,
     double moveY = 0.0,
     double lookX = 0.0,
     double lookY = 0.0,
-    bool fire = false,
+    Map<String, bool> held = const <String, bool>{},
   }) {
-    final staged = _staged;
+    final run = _run;
     final recorder = _recorder;
     final digests = _digests;
-    if (staged == null || recorder == null || digests == null) {
+    if (run == null || recorder == null || digests == null) {
       return _refuse('no level open — call open first');
     }
     if (steps <= 0) {
       return _refuse('steps must be at least 1');
     }
+    for (final String name in held.keys) {
+      if (!game.buttons.containsKey(name)) {
+        return _refuse(
+          'the ${game.name} has no button called "$name"; it has '
+          '${game.buttons.keys.join(', ')}',
+        );
+      }
+    }
 
-    var wasFiring = _input.pressed(ShooterActions.fire);
+    // A button changes at most once a call, before the first step reads it.
+    for (final MapEntry<String, GameAction> button in game.buttons.entries) {
+      final bool down = held[button.key] ?? false;
+      if (down == _input.pressed(button.value)) continue;
+      down ? _input.press(button.value) : _input.release(button.value);
+    }
     for (var i = 0; i < steps; i++) {
       _input.setStickAxis(moveX, moveY);
       _input.addLook(lookX, lookY);
-      if (fire != wasFiring) {
-        fire
-            ? _input.press(ShooterActions.fire)
-            : _input.release(ShooterActions.fire);
-        wasFiring = fire;
-      }
       recorder.record(_input);
       _input.beginStep();
-      staged.sim.step(_dt);
+      run.step(_dt);
       _step++;
       if (_step % _every == 0) {
-        digests.observe(_step, staged.sim.save().toJson());
+        digests.observe(_step, run.save().toJson());
       }
       _input.endStep();
     }
 
-    return _ok('stepped to $_step. ${_describe(staged)}');
+    return _ok('stepped to $_step. ${run.summary}');
   }
 
-  Answer snapshot() {
-    final staged = _staged;
-    if (staged == null) return _refuse('no level open');
-    return _ok(jsonEncode(_words(staged)));
+  /// How things stand as data: the step, then whatever the game reads out.
+  PictureAnswer snapshot() {
+    final run = _run;
+    if (run == null) return _refuse('no level open');
+    return _ok(jsonEncode(<String, Object?>{'step': _step, ...run.reading}));
   }
 
-  Answer digest() {
+  PictureAnswer digest() {
     final digests = _digests;
     if (digests == null) return _refuse('no level open');
     if (digests.hexDigests.isEmpty) {
@@ -136,15 +147,12 @@ final class SimSession {
     return _ok('step ${digests.steps.last}: ${digests.hexDigests.last}');
   }
 
-  Answer writeRun(String path) {
-    final staged = _staged;
+  PictureAnswer writeRun(String path) {
+    final run = _run;
     final recorder = _recorder;
     final digests = _digests;
     final start = _start;
-    if (staged == null ||
-        recorder == null ||
-        digests == null ||
-        start == null) {
+    if (run == null || recorder == null || digests == null || start == null) {
       return _refuse('no level open — nothing recorded to write');
     }
     final demo = Demo(
@@ -165,81 +173,30 @@ final class SimSession {
     );
   }
 
-  /// A PNG from the player's own eye, looking where they are looking — the
-  /// one tool here that needs a device, built lazily on first call and kept
-  /// for the rest of the run rather than rebuilt every time.
-  Future<Answer> frame() async {
-    final staged = _staged;
+  /// A PNG from the eye of whoever the input moves, looking where they look —
+  /// the one tool here that needs a device, built lazily on first call and
+  /// kept for the rest of the run rather than rebuilt every time.
+  Future<PictureAnswer> frame() async {
+    final run = _run;
     final path = _levelPath;
-    if (staged == null || path == null) return _refuse('no level open');
+    if (run == null || path == null) return _refuse('no level open');
     try {
-      // `wg-02`'s own kind, added here rather than to `stage`'s own registry
-      // (`flutter3d_game_shooter`'s `sample.dart`): a genre package must not
-      // gain a dependency on the bridge layer just so its sample registry
-      // can speak a word the bridge, not the genre, defines — the same
-      // reason `sampleRegistry`'s own `extra` parameter exists.
       final renderer = _renderer ??= await SimRenderer.open(
         path,
-        registry: sampleRegistry(extra: const <EntityKind>[WidgetSurfaceKind()]),
+        registry: game.registry(),
       );
       final eye = Vector3.zero();
       final aim = Vector3.zero();
-      staged.player
+      run
         ..eye(eye)
         ..aim(aim);
       final png = await renderer.frame(at: eye, aim: aim);
-      return _ok('a frame from the player\'s own eye, ${png.length} bytes', png);
+      return _ok(
+        'a frame from the player\'s own eye, ${png.length} bytes',
+        png,
+      );
     } catch (error) {
       return _refuse('could not draw a frame: $error');
     }
-  }
-
-  /// A one-line summary — alive, health, where — of the player and every
-  /// actor still worth mentioning, for a tool answer that reads as a
-  /// sentence rather than as a document.
-  String _describe(Staged staged) {
-    final player = staged.player;
-    final at = player.body.position;
-    final health = player.inventory.health;
-    final alive = staged.actors.actors.where((a) => a.isAlive).length;
-    final total = staged.actors.actors.length;
-    return 'player at (${at.x.toStringAsFixed(1)}, ${at.y.toStringAsFixed(1)}, '
-        '${at.z.toStringAsFixed(1)}), health ${health.current.toStringAsFixed(0)}'
-        '/${health.maximum.toStringAsFixed(0)}, $alive of $total actors still up.';
-  }
-
-  /// The full "positions, health, events" reading `snapshot` promises, as
-  /// JSON rather than as a sentence — one row per actor, named by
-  /// [Actor.name] when the level gave it one and by its index otherwise, so
-  /// an agent can tell two monsters of the same kind apart across calls.
-  Map<String, Object?> _words(Staged staged) {
-    final player = staged.player;
-    final at = player.body.position;
-    final health = player.inventory.health;
-    return <String, Object?>{
-      'step': _step,
-      'player': <String, Object?>{
-        'position': <double>[at.x, at.y, at.z],
-        'yaw': player.yaw,
-        'health': health.current,
-        'maxHealth': health.maximum,
-        'alive': player.isAlive,
-      },
-      'actors': <Map<String, Object?>>[
-        for (final actor in staged.actors.actors)
-          <String, Object?>{
-            'name': actor.name ?? '#${actor.entity.index}',
-            'position': actor.position == null
-                ? null
-                : <double>[
-                    actor.position!.x,
-                    actor.position!.y,
-                    actor.position!.z,
-                  ],
-            'health': actor.health?.current,
-            'alive': actor.isAlive,
-          },
-      ],
-    };
   }
 }

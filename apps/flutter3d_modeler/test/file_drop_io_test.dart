@@ -49,73 +49,71 @@ void main() {
     await messenger.handlePlatformMessage(channel.name, message, (_) {});
   }
 
-  testWidgets(
-    'a file dropped on the window reaches onDropped with its bytes',
-    (WidgetTester tester) async {
-      final file = File('${dir.path}/helmet.glb')
-        ..writeAsBytesSync(<int>[1, 2, 3, 4]);
-      final dropped = <(String, Uint8List)>[];
+  testWidgets('a file dropped on the window reaches onDropped with its bytes', (
+    WidgetTester tester,
+  ) async {
+    final file = File('${dir.path}/helmet.glb')
+      ..writeAsBytesSync(<int>[1, 2, 3, 4]);
+    final dropped = <(String, Uint8List)>[];
 
-      await tester.pumpWidget(
-        MaterialApp(
-          home: FileDropZone(
-            onDropped: (String name, Uint8List bytes) =>
-                dropped.add((name, bytes)),
-            child: const SizedBox.expand(),
-          ),
+    await tester.pumpWidget(
+      MaterialApp(
+        home: FileDropZone(
+          onDropped: (String name, Uint8List bytes) =>
+              dropped.add((name, bytes)),
+          child: const SizedBox.expand(),
         ),
-      );
+      ),
+    );
 
-      // `runAsync`, because reading the dropped file is real `dart:io`, not a
-      // microtask `pump` alone would let finish.
-      await tester.runAsync(() async {
-        // A pointer has to enter the drop target before `desktop_drop` itself
-        // will report a drop inside it — see `_DropTargetState._onDropEvent`.
-        await send('entered', <double>[10, 10]);
-        await send('performOperation', <String>[file.path]);
-        await Future<void>.delayed(const Duration(milliseconds: 20));
-      });
+    // `runAsync`, because reading the dropped file is real `dart:io`, not a
+    // microtask `pump` alone would let finish.
+    await tester.runAsync(() async {
+      // A pointer has to enter the drop target before `desktop_drop` itself
+      // will report a drop inside it — see `_DropTargetState._onDropEvent`.
+      await send('entered', <double>[10, 10]);
+      await send('performOperation', <String>[file.path]);
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+    });
 
-      expect(dropped, hasLength(1));
-      expect(dropped.single.$1, 'helmet.glb');
-      expect(dropped.single.$2, Uint8List.fromList(<int>[1, 2, 3, 4]));
-    },
-  );
+    expect(dropped, hasLength(1));
+    expect(dropped.single.$1, 'helmet.glb');
+    expect(dropped.single.$2, Uint8List.fromList(<int>[1, 2, 3, 4]));
+  });
 
-  testWidgets(
-    'a drop outside the target is not reported',
-    (WidgetTester tester) async {
-      final file = File('${dir.path}/helmet.glb')
-        ..writeAsBytesSync(<int>[1, 2, 3, 4]);
-      final dropped = <(String, Uint8List)>[];
+  testWidgets('a drop outside the target is not reported', (
+    WidgetTester tester,
+  ) async {
+    final file = File('${dir.path}/helmet.glb')
+      ..writeAsBytesSync(<int>[1, 2, 3, 4]);
+    final dropped = <(String, Uint8List)>[];
 
-      await tester.pumpWidget(
-        MaterialApp(
-          home: Column(
-            children: <Widget>[
-              SizedBox(
-                height: 100,
-                child: FileDropZone(
-                  onDropped: (String name, Uint8List bytes) =>
-                      dropped.add((name, bytes)),
-                  child: const SizedBox.expand(),
-                ),
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Column(
+          children: <Widget>[
+            SizedBox(
+              height: 100,
+              child: FileDropZone(
+                onDropped: (String name, Uint8List bytes) =>
+                    dropped.add((name, bytes)),
+                child: const SizedBox.expand(),
               ),
-            ],
-          ),
+            ),
+          ],
         ),
-      );
+      ),
+    );
 
-      await tester.runAsync(() async {
-        // Mutation: drop this guard and every file dragged anywhere onto the
-        // window — including over a menu that happens to sit outside the
-        // zone in some future layout — opens as if it landed on the target.
-        await send('entered', <double>[10, 500]);
-        await send('performOperation', <String>[file.path]);
-        await Future<void>.delayed(const Duration(milliseconds: 20));
-      });
+    await tester.runAsync(() async {
+      // Mutation: drop this guard and every file dragged anywhere onto the
+      // window — including over a menu that happens to sit outside the
+      // zone in some future layout — opens as if it landed on the target.
+      await send('entered', <double>[10, 500]);
+      await send('performOperation', <String>[file.path]);
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+    });
 
-      expect(dropped, isEmpty);
-    },
-  );
+    expect(dropped, isEmpty);
+  });
 }

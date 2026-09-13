@@ -65,7 +65,10 @@ final class CommandJournal {
   /// person's step exactly as the live session would have.
   void record(ModelCommand command, {StepAuthor author = StepAuthor.person}) =>
       _lines.add(
-        jsonEncode(<String, Object?>{...command.toJson(), 'author': author.name}),
+        jsonEncode(<String, Object?>{
+          ...command.toJson(),
+          'author': author.name,
+        }),
       );
 
   /// Brackets the commands recorded between this and the matching

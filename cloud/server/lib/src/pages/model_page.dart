@@ -68,10 +68,14 @@ class ModelPage extends StatelessComponent {
               if (viewerAvailable)
                 button([Component.text('Open in 3D')], type: ButtonType.button)
               else
-                p([Component.text('The 3D view is not deployed on this server.')]),
+                p([
+                  Component.text('The 3D view is not deployed on this server.'),
+                ]),
               p([
-                Component.text('Loads the flutter3d renderer: WebGPU where the browser '
-                    'has it, WebGL2 where it does not.'),
+                Component.text(
+                  'Loads the flutter3d renderer: WebGPU where the browser '
+                  'has it, WebGL2 where it does not.',
+                ),
               ]),
             ], classes: 'poster'),
           ],
@@ -104,10 +108,16 @@ class ModelPage extends StatelessComponent {
               dd([Component.text(isoDate(model.createdAt))]),
               if (model.licence case final licence?) ...[
                 dt([Component.text('Licence')]),
-                dd([a([Component.text(licence.spdx)], href: licence.url)]),
+                dd([
+                  a([Component.text(licence.spdx)], href: licence.url),
+                ]),
               ],
             ], classes: 'facts'),
-            a([Component.text('Download')], href: '/files/${model.id}/source', classes: 'button quiet'),
+            a(
+              [Component.text('Download')],
+              href: '/files/${model.id}/source',
+              classes: 'button quiet',
+            ),
           ]),
         ], classes: 'model-grid'),
       ],
@@ -136,8 +146,10 @@ class _DescribeForm extends StatelessComponent {
           rows: 5,
         ),
         p([
-          Component.text('What it is, how it was made, anything somebody opening it '
-              'would want to know.'),
+          Component.text(
+            'What it is, how it was made, anything somebody opening it '
+            'would want to know.',
+          ),
         ], classes: 'hint'),
       ], classes: 'field'),
       div([submit('Save')]),
@@ -158,7 +170,11 @@ class _DeleteForm extends StatelessComponent {
       action: '/m/${model.id}/delete',
       csrf: csrf,
       children: [
-        p([Component.text('The file is removed at once, and this address stops working.')]),
+        p([
+          Component.text(
+            'The file is removed at once, and this address stops working.',
+          ),
+        ]),
         div([submit('Delete model', classes: 'danger')]),
       ],
     ),

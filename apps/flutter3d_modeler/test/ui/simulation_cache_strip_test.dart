@@ -75,10 +75,7 @@ void main() {
   ) async {
     final handle = tester.ensureSemantics();
     await show(tester, bakedFrameCount: 0, targetFrameCount: 0);
-    expect(
-      tester.getSemantics(find.byType(SimulationCacheStrip)).value,
-      '0%',
-    );
+    expect(tester.getSemantics(find.byType(SimulationCacheStrip)).value, '0%');
     handle.dispose();
   });
 }

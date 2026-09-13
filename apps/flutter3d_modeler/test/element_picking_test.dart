@@ -734,29 +734,32 @@ void main() {
       expect(frustumOverBox(view, Rect.fromPoints(at, at)), isNull);
     });
 
-    test('answers the same frustum frustumOver itself would, for a real box', () {
-      final view = viewLookingAtTheCube();
-      final corner = screenOf(Vector3(1.0, 1.0, 1.0));
-      final rect = Rect.fromPoints(
-        corner.translate(-20.0, -20.0),
-        corner.translate(30.0, 20.0),
-      );
+    test(
+      'answers the same frustum frustumOver itself would, for a real box',
+      () {
+        final view = viewLookingAtTheCube();
+        final corner = screenOf(Vector3(1.0, 1.0, 1.0));
+        final rect = Rect.fromPoints(
+          corner.translate(-20.0, -20.0),
+          corner.translate(30.0, 20.0),
+        );
 
-      // The guard answers null only for an empty rectangle; anything else
-      // still reaches `frustumOver`, and reaches it built from the same
-      // rectangle — not a looser or tighter one the guard quietly
-      // substituted. Mutation: `frustumOverBox` returns a frustum built from
-      // the full viewport instead of `rect` whenever `rect` is non-empty.
-      // Run, and this test is the one that notices: the two planes would
-      // stop being the pair `frustumOver(rect)` itself produces.
-      final direct = view.frustumOver(rect);
-      final viaHelper = frustumOverBox(view, rect);
-      expect(viaHelper, isNotNull);
-      expect(viaHelper!.plane0.normal, direct.plane0.normal);
-      expect(viaHelper.plane0.constant, direct.plane0.constant);
-      expect(viaHelper.plane2.normal, direct.plane2.normal);
-      expect(viaHelper.plane2.constant, direct.plane2.constant);
-    });
+        // The guard answers null only for an empty rectangle; anything else
+        // still reaches `frustumOver`, and reaches it built from the same
+        // rectangle — not a looser or tighter one the guard quietly
+        // substituted. Mutation: `frustumOverBox` returns a frustum built from
+        // the full viewport instead of `rect` whenever `rect` is non-empty.
+        // Run, and this test is the one that notices: the two planes would
+        // stop being the pair `frustumOver(rect)` itself produces.
+        final direct = view.frustumOver(rect);
+        final viaHelper = frustumOverBox(view, rect);
+        expect(viaHelper, isNotNull);
+        expect(viaHelper!.plane0.normal, direct.plane0.normal);
+        expect(viaHelper.plane0.constant, direct.plane0.constant);
+        expect(viaHelper.plane2.normal, direct.plane2.normal);
+        expect(viaHelper.plane2.constant, direct.plane2.constant);
+      },
+    );
   });
 
   group('a viewport', () {

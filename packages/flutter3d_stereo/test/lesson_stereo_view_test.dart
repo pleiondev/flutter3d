@@ -12,8 +12,11 @@ import 'package:flutter3d_stereo/flutter3d_stereo.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart' hide Colors;
 
-GraphicsDevice _device() =>
-    CpuDevice(width: 16, height: 8, shaders: CpuShaderLibrary(builtinCpuShaders()));
+GraphicsDevice _device() => CpuDevice(
+  width: 16,
+  height: 8,
+  shaders: CpuShaderLibrary(builtinCpuShaders()),
+);
 
 List<EntityDef> _steps() => <EntityDef>[
   EntityDef(

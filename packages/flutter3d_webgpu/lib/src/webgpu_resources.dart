@@ -503,7 +503,11 @@ void webgpuOverwriteTexture(
   ScreenRect rect,
 ) {
   final texture = (target.backend as WebGpuTexture).texture;
-  final layout = gpuBlockLayoutOf(TextureFormat.r8g8b8a8UNormInt, rect.width, rect.height);
+  final layout = gpuBlockLayoutOf(
+    TextureFormat.r8g8b8a8UNormInt,
+    rect.width,
+    rect.height,
+  );
   gpu.queue.writeTexture(
     GPUTexelCopyTextureInfo(
       texture: texture,
@@ -517,7 +521,11 @@ void webgpuOverwriteTexture(
       bytesPerRow: layout.bytesPerRow,
       rowsPerImage: layout.rowsPerImage,
     ),
-    GPUExtent3DDict(width: rect.width, height: rect.height, depthOrArrayLayers: 1),
+    GPUExtent3DDict(
+      width: rect.width,
+      height: rect.height,
+      depthOrArrayLayers: 1,
+    ),
   );
 }
 
@@ -760,7 +768,9 @@ void webgpuOverwriteGeometry(
   }
   final at = target.offsetInBytes + offsetInBytes;
   if (at % 4 != 0) {
-    throw ArgumentError('overwriteGeometry: offset $at is not four-byte aligned');
+    throw ArgumentError(
+      'overwriteGeometry: offset $at is not four-byte aligned',
+    );
   }
   final buffer = (target.backend as WebGpuGeometry).buffer;
   gpu.queue.writeBuffer(buffer, at, gpuWritableBytes(bytes).toJS);

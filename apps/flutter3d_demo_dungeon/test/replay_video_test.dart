@@ -55,7 +55,9 @@ final class _Storage implements Storage {
 /// The crypt, loaded and dressed — the same assembly `frame_test.dart` uses,
 /// so a replay is drawn the way the shipped game draws rather than the way a
 /// harness imagines it.
-Future<({LevelReady level, InputState input, CpuDevice device, Renderer renderer})>
+Future<
+  ({LevelReady level, InputState input, CpuDevice device, Renderer renderer})
+>
 _shown() async {
   final it = cpuTestDevice(width: _width, height: _height);
   final input = InputState();
@@ -95,7 +97,8 @@ void _play(InputState input, int step) {
 /// One frame, from where the player stands right now — the same camera
 /// `frame_test.dart`'s `_drawFromTheStart` builds.
 Future<Uint8List> _drawOne(
-  ({LevelReady level, InputState input, CpuDevice device, Renderer renderer}) shown,
+  ({LevelReady level, InputState input, CpuDevice device, Renderer renderer})
+  shown,
 ) async {
   final player = shown.level.staged.player;
   final scene = shown.level.loaded.scene;
@@ -200,7 +203,10 @@ Future<Demo> _recordAShortRun({int steps = 20}) async {
     _play(input, i);
     recorder.record(input);
     live.level.staged.sim.step(_dt);
-    checkpoints.observe(recorder.tape.steps, live.level.staged.sim.save().toJson());
+    checkpoints.observe(
+      recorder.tape.steps,
+      live.level.staged.sim.save().toJson(),
+    );
     input.endStep();
   }
   return Demo(
@@ -216,11 +222,14 @@ Future<Demo> _recordAShortRun({int steps = 20}) async {
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  test('--check: a genuine replay matches its own recorded checkpoints', () async {
-    final demo = await _recordAShortRun();
-    final divergence = await checkReplay(demo);
-    expect(divergence, isNull);
-  });
+  test(
+    '--check: a genuine replay matches its own recorded checkpoints',
+    () async {
+      final demo = await _recordAShortRun();
+      final divergence = await checkReplay(demo);
+      expect(divergence, isNull);
+    },
+  );
 
   test('--check: a tampered checkpoint is named by step', () async {
     final demo = await _recordAShortRun();
@@ -244,20 +253,24 @@ void main() {
     expect(divergence!.step, demo.checkpoints.steps[1]);
   });
 
-  test('--video: a replay renders to an actual playable file via ffmpeg', () async {
-    final demo = await _recordAShortRun(steps: 8);
-    final dir = Directory.systemTemp.createTempSync('replay_video_test');
-    addTearDown(() => dir.deleteSync(recursive: true));
-    final outputPath = '${dir.path}/replay.mp4';
+  test(
+    '--video: a replay renders to an actual playable file via ffmpeg',
+    () async {
+      final demo = await _recordAShortRun(steps: 8);
+      final dir = Directory.systemTemp.createTempSync('replay_video_test');
+      addTearDown(() => dir.deleteSync(recursive: true));
+      final outputPath = '${dir.path}/replay.mp4';
 
-    await renderReplayVideo(demo, outputPath);
+      await renderReplayVideo(demo, outputPath);
 
-    final output = File(outputPath);
-    expect(output.existsSync(), isTrue);
-    expect(
-      output.lengthSync(),
-      greaterThan(0),
-      reason: 'ffmpeg produced an empty file, which is not a video',
-    );
-  }, timeout: const Timeout(Duration(minutes: 2)));
+      final output = File(outputPath);
+      expect(output.existsSync(), isTrue);
+      expect(
+        output.lengthSync(),
+        greaterThan(0),
+        reason: 'ffmpeg produced an empty file, which is not a video',
+      );
+    },
+    timeout: const Timeout(Duration(minutes: 2)),
+  );
 }

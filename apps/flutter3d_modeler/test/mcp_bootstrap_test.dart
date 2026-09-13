@@ -62,10 +62,7 @@ void main() {
         final response = await request.close();
         // A notification (no `id`) gets `202 Accepted` and no body; a
         // request gets `200` and its reply.
-        expect(
-          response.statusCode,
-          anyOf(HttpStatus.ok, HttpStatus.accepted),
-        );
+        expect(response.statusCode, anyOf(HttpStatus.ok, HttpStatus.accepted));
         final text = await response.transform(utf8.decoder).join();
         return text.isEmpty
             ? const <String, Object?>{}
@@ -106,8 +103,9 @@ void main() {
         'id': 2,
         'method': 'tools/list',
       });
-      final tools = (listed['result']! as Map<String, Object?>)['tools']!
-          as List<Object?>;
+      final tools =
+          (listed['result']! as Map<String, Object?>)['tools']!
+              as List<Object?>;
       expect(tools, isNotEmpty);
     },
   );

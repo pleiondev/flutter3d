@@ -80,10 +80,7 @@ const double _sameEnough = 1e-6;
   if (changed == 0) return (command: null, refused: null);
 
   if (changed == 1 && positionChanged) {
-    return (
-      command: MoveBy(to.position - from.position),
-      refused: null,
-    );
+    return (command: MoveBy(to.position - from.position), refused: null);
   }
 
   if (changed == 1 && rotationChanged) {
@@ -94,7 +91,12 @@ const double _sameEnough = 1e-6;
     if (turn == null) return (command: null, refused: null);
     final (Vector3 axis, double radians) = turn;
     return (
-      command: RotateBy(axis: axis, radians: radians, pivot: pivot, space: space),
+      command: RotateBy(
+        axis: axis,
+        radians: radians,
+        pivot: pivot,
+        space: space,
+      ),
       refused: null,
     );
   }
@@ -128,7 +130,6 @@ bool _closeVector(Vector3 a, Vector3 b) =>
 
 /// The same `Rx · Ry · Rz` composition `transformFromFields` builds, with no
 /// translation or scale to read back out of.
-Matrix3 _rotationOf(Vector3 degrees) =>
-    Matrix3.rotationX(radians(degrees.x))
-      ..multiply(Matrix3.rotationY(radians(degrees.y)))
-      ..multiply(Matrix3.rotationZ(radians(degrees.z)));
+Matrix3 _rotationOf(Vector3 degrees) => Matrix3.rotationX(radians(degrees.x))
+  ..multiply(Matrix3.rotationY(radians(degrees.y)))
+  ..multiply(Matrix3.rotationZ(radians(degrees.z)));

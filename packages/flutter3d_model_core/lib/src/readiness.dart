@@ -198,8 +198,7 @@ List<ExportIssue> _issuesWith(
   // point rather than a shape, the same way an empty group already writes as
   // a node with no surface, and warning about geometry nobody meant to add
   // would send somebody hunting for faces that were never supposed to exist.
-  if (object.geometry.triangleCount == 0 &&
-      object.geometry is! SocketGeometry)
+  if (object.geometry.triangleCount == 0 && object.geometry is! SocketGeometry)
     ExportIssue(
       ExportSeverity.error,
       '"${object.name}" has no faces; it would be written as an empty mesh, '
@@ -477,20 +476,17 @@ List<ExportIssue> textureBudgetIssues(ModelProject project) {
   final usage = measure(project, budget);
   return <ExportIssue>[
     for (final int index in usage.overs)
-      ExportIssue(
-        ExportSeverity.warning,
-        () {
-          final label = project.images[index].name == null
-              ? 'image $index'
-              : 'image $index ("${project.images[index].name}")';
-          final dimensions = imageDimensions(project.images[index].bytes);
-          return '$label is '
-              '${dimensions == null ? 'wider or taller' : '${dimensions.width}×${dimensions.height}'} '
-              'and the ${project.profile.name} profile allows '
-              '${budget.maxSide}px a side; it will need resizing before it '
-              'reaches that target';
-        }(),
-      ),
+      ExportIssue(ExportSeverity.warning, () {
+        final label = project.images[index].name == null
+            ? 'image $index'
+            : 'image $index ("${project.images[index].name}")';
+        final dimensions = imageDimensions(project.images[index].bytes);
+        return '$label is '
+            '${dimensions == null ? 'wider or taller' : '${dimensions.width}×${dimensions.height}'} '
+            'and the ${project.profile.name} profile allows '
+            '${budget.maxSide}px a side; it will need resizing before it '
+            'reaches that target';
+      }()),
     // A warning rather than an error, the same reasoning `_budget` gives for
     // triangles: every image still loads and draws, and what is over is a
     // total the device this profile describes cannot actually hold once

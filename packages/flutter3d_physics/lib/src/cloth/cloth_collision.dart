@@ -32,7 +32,11 @@ final class ClothObstacle {
 /// and a wedge, and gives a heightfield's own bounding box rather than its
 /// true, dented surface. Cloth resting on textured ground is out of this
 /// package's own first pass; nothing in its own test suite asks for it.
-bool pushOutsideObstacle(Vector3 point, ClothObstacle obstacle, double thickness) {
+bool pushOutsideObstacle(
+  Vector3 point,
+  ClothObstacle obstacle,
+  double thickness,
+) {
   final shape = obstacle.shape;
   final planeCount = shape.expandedPlaneCount;
   final planes = Float64List(planeCount * 4);

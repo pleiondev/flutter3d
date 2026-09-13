@@ -535,7 +535,10 @@ final class EditMesh {
     layer.padSteps(undoDepth);
     // A layer created inside an open step joins it, so an undo of that step
     // takes its writes back with everything else.
-    if (_inStep) layer.beginStep();
+    if (_inStep) {
+      layer.beginStep();
+      _bornInStep.add(layer);
+    }
     store(layer);
     return layer;
   }
@@ -547,7 +550,10 @@ final class EditMesh {
   ) {
     if (existing != null) return existing;
     final layer = JournalledInts(count)..padSteps(undoDepth);
-    if (_inStep) layer.beginStep();
+    if (_inStep) {
+      layer.beginStep();
+      _bornInStep.add(layer);
+    }
     store(layer);
     return layer;
   }
@@ -801,10 +807,15 @@ final class EditMesh {
   int _openFaceSlots = 0;
   int _openHalfEdgeSlots = 0;
 
+  /// Layers the open step created, so [abandonStep] can take them away again
+  /// rather than leave an empty layer that `toBytes` would then write.
+  final List<Object> _bornInStep = <Object>[];
+
   /// Opens a step of history. Every edit until [endStep] is one undo away.
   void beginStep() {
     _wrote = false;
     _inStep = true;
+    _bornInStep.clear();
     _openVertexSlots = _vertexSlots;
     _openFaceSlots = _faceSlots;
     _openHalfEdgeSlots = _halfEdgeSlots;
@@ -861,7 +872,53 @@ final class EditMesh {
     }
     _wrote = false;
     _inStep = false;
+    _bornInStep.clear();
     return wrote;
+  }
+
+  /// Closes the open step by taking back everything it wrote — values, slot
+  /// counts and any layer it created — and leaves the undo and redo stacks
+  /// exactly as they were before [beginStep].
+  ///
+  /// **What a refused edit calls.** `endStep` followed by `undo` looks like the
+  /// same thing and is not: pushing the step clears the redo stack, so a
+  /// command refused halfway through its walk would quietly destroy whatever
+  /// an earlier undo had left to redo, while the document history above it
+  /// still offered that redo. See `JournalledFloats.abandonStep`.
+  void abandonStep() {
+    if (!_inStep) throw StateError('no step is open');
+    _positions.abandonStep();
+    _origin.abandonStep();
+    _next.abandonStep();
+    _twin.abandonStep();
+    _halfEdgeFace.abandonStep();
+    _faceHalfEdge.abandonStep();
+    _outgoing.abandonStep();
+    _vertexAlive.abandonStep();
+    _faceAlive.abandonStep();
+    for (final layer in _floatLayers) {
+      layer.abandonStep();
+    }
+    for (final layer in _intLayers) {
+      layer.abandonStep();
+    }
+    for (final Object born in _bornInStep) {
+      if (identical(born, _uv0)) _uv0 = null;
+      if (identical(born, _colour)) _colour = null;
+      if (identical(born, _weights)) _weights = null;
+      if (identical(born, _joints)) _joints = null;
+      if (identical(born, _crease)) _crease = null;
+      if (identical(born, _edgeFlags)) _edgeFlags = null;
+      if (identical(born, _faceFlags)) _faceFlags = null;
+      if (identical(born, _materialSlot)) _materialSlot = null;
+    }
+    _bornInStep.clear();
+    _vertexSlots = _openVertexSlots;
+    _faceSlots = _openFaceSlots;
+    _halfEdgeSlots = _openHalfEdgeSlots;
+    _wrote = false;
+    _inStep = false;
+    _recount();
   }
 
   /// Takes the last step back, counts and all.

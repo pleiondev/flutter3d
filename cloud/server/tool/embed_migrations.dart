@@ -26,15 +26,17 @@ void main(List<String> arguments) {
     exit(2);
   }
 
-  final files = source
-      .listSync()
-      .whereType<File>()
-      .where((file) => file.path.endsWith('.sql'))
-      .toList()
-    ..sort((a, b) => a.path.compareTo(b.path));
+  final files =
+      source
+          .listSync()
+          .whereType<File>()
+          .where((file) => file.path.endsWith('.sql'))
+          .toList()
+        ..sort((a, b) => a.path.compareTo(b.path));
 
   final generated = _render([
-    for (final file in files) (name: _basename(file.path), sql: file.readAsStringSync()),
+    for (final file in files)
+      (name: _basename(file.path), sql: file.readAsStringSync()),
   ]);
 
   if (check) {

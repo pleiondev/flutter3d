@@ -7,9 +7,8 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter3d/flutter3d.dart' hide Material;
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
-import 'package:flutter3d_demo_dungeon/src/pendulum_lab_panel.dart';
-import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:flutter3d_lab/flutter3d_lab.dart';
+import 'package:flutter3d_lab_pendulum/src/pendulum_lab_panel.dart';
 import 'package:flutter3d_session/flutter3d_session.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -34,7 +33,9 @@ void main() {
       expect(find.text('1.00 m'), findsOneWidget);
     });
 
-    testWidgets('+ calls back with the length nudged up by step', (tester) async {
+    testWidgets('+ calls back with the length nudged up by step', (
+      tester,
+    ) async {
       final length = ValueNotifier<double>(1.0);
       double? changedTo;
       await tester.pumpWidget(
@@ -141,7 +142,8 @@ void main() {
         expect(
           pendulum.lengthMeters,
           closeTo(1.1, 1e-9),
-          reason: 'the tap reached the real callback through the real '
+          reason:
+              'the tap reached the real callback through the real '
               'pipeline, not a copy of it',
         );
         expect(trace.length, 2, reason: 'exactly one change was recorded');
@@ -149,7 +151,8 @@ void main() {
         expect(
           trace.valueAt(1)!['length'],
           closeTo(1.1, 1e-9),
-          reason: 'the new length is recorded at the step it changed, '
+          reason:
+              'the new length is recorded at the step it changed, '
               'not retroactively at step zero',
         );
       },

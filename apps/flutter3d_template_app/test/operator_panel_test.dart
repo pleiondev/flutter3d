@@ -30,7 +30,11 @@ void main() {
       final reading = ValueNotifier<double>(41.2);
       await tester.pumpWidget(
         MaterialApp(
-          home: OperatorPanel(label: 'spindle temp', unit: '°C', value: reading),
+          home: OperatorPanel(
+            label: 'spindle temp',
+            unit: '°C',
+            value: reading,
+          ),
         ),
       );
       expect(find.text('41.2°C'), findsOneWidget);
@@ -40,7 +44,9 @@ void main() {
     testWidgets('redraws when the value changes underneath it', (tester) async {
       final reading = ValueNotifier<double>(20.0);
       await tester.pumpWidget(
-        MaterialApp(home: OperatorPanel(label: 'temp', unit: '°C', value: reading)),
+        MaterialApp(
+          home: OperatorPanel(label: 'temp', unit: '°C', value: reading),
+        ),
       );
       expect(find.text('20.0°C'), findsOneWidget);
 
@@ -70,7 +76,11 @@ void main() {
         final device = _device();
         final surface = WidgetSurface(
           device: device,
-          child: OperatorPanel(label: 'spindle temp', unit: '°C', value: reading),
+          child: OperatorPanel(
+            label: 'spindle temp',
+            unit: '°C',
+            value: reading,
+          ),
         );
         addTearDown(surface.dispose);
 
@@ -110,7 +120,8 @@ void main() {
         expect(
           surface.redrawCount,
           greaterThan(steadyCount),
-          reason: 'twenty real samples moved the panel, so the surface '
+          reason:
+              'twenty real samples moved the panel, so the surface '
               'above it had something to redraw',
         );
       },

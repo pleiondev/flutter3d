@@ -161,7 +161,10 @@ Future<MeshData?> _teapotMeshData() async {
   if (cached != null) return cached;
   try {
     final data = await rootBundle.load('$kSamplesAsset/teapot.obj');
-    final bytes = data.buffer.asUint8List(data.offsetInBytes, data.lengthInBytes);
+    final bytes = data.buffer.asUint8List(
+      data.offsetInBytes,
+      data.lengthInBytes,
+    );
     final document = await ObjLoader().load(bytes);
     if (document.surfaces.isEmpty) return null;
     final mesh = document.surfaces.first.mesh;

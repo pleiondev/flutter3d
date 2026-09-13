@@ -319,20 +319,43 @@ final class ModelHistory {
   /// arguments are refused — and leaves the old step in place, so the model is
   /// still what it was rather than reverted to before an operation the person
   /// did not ask to undo.
+  ///
+  /// **A mesh the step edited is rolled back first.** `step.before` is a kept
+  /// document, but an `EditMesh` inside it is the same mesh the step edited in
+  /// place — so re-running an extrusion against it without rolling its journal
+  /// back would extrude a second time on top of the first. The journal goes
+  /// back by [HistoryStep.meshSteps], the replacement runs, and the new step
+  /// records the mesh it touched, so the next undo moves the geometry with the
+  /// document. A refusal rolls the journal forward again: refused commands
+  /// abandon their open step rather than pushing one, so the redo is still
+  /// there to take.
   String? amend(ModelCommand replacement) {
     if (_done.isEmpty) return 'there is nothing to adjust';
     final HistoryStep step = _done.last;
+    _rollMeshes(step.meshSteps, forward: false);
     final Outcome outcome = replacement.apply(
       step.before,
       step.selectionBefore,
     );
-    if (!outcome.ok) return outcome.refused;
+    if (!outcome.ok) {
+      _rollMeshes(step.meshSteps, forward: true);
+      return outcome.refused;
+    }
+    final EditMesh? touched = outcome.meshTouched;
     _done[_done.length - 1] = HistoryStep(
       command: replacement,
       before: step.before,
       selectionBefore: step.selectionBefore,
+      meshSteps: touched == null
+          ? const <EditMesh, int>{}
+          : <EditMesh, int>{touched: 1},
       author: step.author,
     );
+    // A different result is a different future, the same rule [run] keeps: a
+    // redo recorded against the old one would put back a document that no
+    // longer follows from this one, and its mesh steps are gone from the
+    // journal the moment the replacement wrote.
+    _undone.clear();
     _project = outcome.project!;
     _selection = outcome.selection ?? step.selectionBefore;
     return null;
@@ -432,4 +455,14 @@ final class ModelHistory {
   /// [_undone] is what a person has already taken back, and a save keeps
   /// what happened, not what somebody is one ⇧⌘Z away from doing again.
   List<HistoryStep> get steps => List<HistoryStep>.unmodifiable(_done);
+
+  /// Journal steps an open transaction has taken on each mesh so far, which no
+  /// entry of [steps] accounts for yet — empty when none is open.
+  ///
+  /// `writeProject` reads this before [steps]: a save that lands mid-drag has
+  /// to roll the drag's own mesh steps back before the newest kept step's
+  /// `before` is the geometry it names.
+  Map<EditMesh, int> get openMeshSteps => _inTransaction
+      ? Map<EditMesh, int>.unmodifiable(_meshStepsOfTransaction)
+      : const <EditMesh, int>{};
 }

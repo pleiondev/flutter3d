@@ -259,7 +259,11 @@ void main() {
   test('empty bytes upload nothing', () async {
     final device = FakeBackend();
     expect(
-      await uploadEncodedImage(device, Uint8List(0), decodeImage: _neverDecodes),
+      await uploadEncodedImage(
+        device,
+        Uint8List(0),
+        decodeImage: _neverDecodes,
+      ),
       isNull,
     );
     expect(device.uploadedTextures, isEmpty);

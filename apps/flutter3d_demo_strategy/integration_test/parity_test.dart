@@ -83,7 +83,11 @@ Match _mirror({
     }
     if (policies) bots.add(Bot(side: side, base: base));
   }
-  return Match(simulation: sim, bots: bots, goal: MatchGoal(delivered: target));
+  return Match(
+    simulation: sim,
+    bots: bots,
+    goal: MatchGoal(delivered: target),
+  );
 }
 
 DigestTrace _play({double seamTwo = 20.0, int steps = 1200, int every = 30}) {

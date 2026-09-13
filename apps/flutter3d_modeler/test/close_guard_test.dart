@@ -48,13 +48,19 @@ void main() {
     });
 
     test('a save that lands closes — the row\'s own worked example', () async {
-      final closed = await shouldClose(UnsavedChoice.save, write: () async => true);
+      final closed = await shouldClose(
+        UnsavedChoice.save,
+        write: () async => true,
+      );
       expect(closed, isTrue);
     });
 
     test('a save that fails to land does not close — the row\'s own worked '
         'example', () async {
-      final closed = await shouldClose(UnsavedChoice.save, write: () async => false);
+      final closed = await shouldClose(
+        UnsavedChoice.save,
+        write: () async => false,
+      );
       expect(closed, isFalse);
     });
   });

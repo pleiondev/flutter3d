@@ -119,57 +119,54 @@ void main() {
   });
 
   group('releaseAt', () {
-    test(
-      'rewinding three seconds back and releasing lands the live state '
-      'exactly where a fresh replay to that step would',
-      () {
-        final toy = _Toy(7);
-        final input = InputState();
-        final rewind = RewindBuffer(stepsPerSecond: 60, history: 10.0);
-        final timeline = RunTimeline(
-          rewind: rewind,
-          input: input,
-          stepSim: (dt) => toy.step(input),
-          restore: toy.restore,
-        );
+    test('rewinding three seconds back and releasing lands the live state '
+        'exactly where a fresh replay to that step would', () {
+      final toy = _Toy(7);
+      final input = InputState();
+      final rewind = RewindBuffer(stepsPerSecond: 60, history: 10.0);
+      final timeline = RunTimeline(
+        rewind: rewind,
+        input: input,
+        stepSim: (dt) => toy.step(input),
+        restore: toy.restore,
+      );
 
-        // Play five seconds, keyframing and recording exactly the way a game
-        // loop does — see `GameLoop` for why both happen at this moment.
-        for (var step = 0; step < 300; step++) {
-          _play(input, step);
-          rewind.recorder.record(input);
-          input.beginStep();
-          if (rewind.keyframeDue) rewind.keyframe(toy.save());
-          toy.step(input);
-          input.endStep();
-        }
-        final atFiveSeconds = toy.state;
+      // Play five seconds, keyframing and recording exactly the way a game
+      // loop does — see `GameLoop` for why both happen at this moment.
+      for (var step = 0; step < 300; step++) {
+        _play(input, step);
+        rewind.recorder.record(input);
+        input.beginStep();
+        if (rewind.keyframeDue) rewind.keyframe(toy.save());
+        toy.step(input);
+        input.endStep();
+      }
+      final atFiveSeconds = toy.state;
 
-        final point = timeline.preview(3.0);
-        expect(point, isNotNull, reason: 'ten seconds of history holds three');
-        timeline.releaseAt(point!);
+      final point = timeline.preview(3.0);
+      expect(point, isNotNull, reason: 'ten seconds of history holds three');
+      timeline.releaseAt(point!);
 
-        expect(timeline.isPaused, isFalse, reason: 'a release keeps playing');
-        expect(
-          timeline.history.last,
-          isA<TimelineBranched>().having((c) => c.step, 'step', point.step),
-        );
+      expect(timeline.isPaused, isFalse, reason: 'a release keeps playing');
+      expect(
+        timeline.history.last,
+        isA<TimelineBranched>().having((c) => c.step, 'step', point.step),
+      );
 
-        // The independent check: replay the same tape from scratch to the
-        // branch point and compare states, rather than trusting the
-        // mechanism to grade its own homework.
-        final independent = _Toy(7);
-        final independentInput = InputState();
-        for (var step = 0; step < point.step; step++) {
-          _play(independentInput, step);
-          independentInput.beginStep();
-          independent.step(independentInput);
-          independentInput.endStep();
-        }
-        expect(toy.state, independent.state);
-        expect(toy.state, isNot(atFiveSeconds), reason: 'time really moved back');
-      },
-    );
+      // The independent check: replay the same tape from scratch to the
+      // branch point and compare states, rather than trusting the
+      // mechanism to grade its own homework.
+      final independent = _Toy(7);
+      final independentInput = InputState();
+      for (var step = 0; step < point.step; step++) {
+        _play(independentInput, step);
+        independentInput.beginStep();
+        independent.step(independentInput);
+        independentInput.endStep();
+      }
+      expect(toy.state, independent.state);
+      expect(toy.state, isNot(atFiveSeconds), reason: 'time really moved back');
+    });
 
     test('cuts the buffer, so a keyframe past the branch cannot be reached '
         'again', () {

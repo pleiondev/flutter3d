@@ -114,9 +114,8 @@ class _ZoneBands extends StatelessWidget {
     // laid out left to right in the same order the axis reads in.
     final List<int> byThreshold = List<int>.generate(lods.length, (i) => i)
       ..sort(
-        (int a, int b) => lods[a].maxScreenFraction.compareTo(
-          lods[b].maxScreenFraction,
-        ),
+        (int a, int b) =>
+            lods[a].maxScreenFraction.compareTo(lods[b].maxScreenFraction),
       );
 
     final List<Widget> segments = <Widget>[];
@@ -194,9 +193,9 @@ class _MarkerState extends State<_Marker> {
 
   void _dragUpdate(DragUpdateDetails details) {
     if (widget.width <= 0) return;
-    final double next = ((_dragFraction ?? widget.fraction) +
-            details.delta.dx / widget.width)
-        .clamp(0.0, 1.0);
+    final double next =
+        ((_dragFraction ?? widget.fraction) + details.delta.dx / widget.width)
+            .clamp(0.0, 1.0);
     _dragFraction = next;
     widget.onChanged(widget.lodIndex, next);
   }

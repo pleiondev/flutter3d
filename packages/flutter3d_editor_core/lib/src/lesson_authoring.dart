@@ -58,7 +58,11 @@ List<EntityDef> orderedSteps(Level level, String sequenceName) {
 /// pixels — the caller (a viewport that knows its own scale) converts a drag
 /// distance to a world delta before this ever runs; this function only
 /// merges, and merges the same way regardless of what produced the number.
-Map<String, Object?> mergedOffsets(EntityDef step, String nodePath, Vector3 delta) {
+Map<String, Object?> mergedOffsets(
+  EntityDef step,
+  String nodePath,
+  Vector3 delta,
+) {
   final existing = step.properties['offsets'];
   final offsets = <String, Object?>{
     if (existing is Map)

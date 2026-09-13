@@ -10,7 +10,7 @@ library;
 import 'dart:io';
 import 'dart:typed_data';
 
-import 'package:flutter3d_model_core/flutter3d_model_core.dart';
+import 'package:flutter3d_formats/flutter3d_formats.dart';
 import 'package:test/test.dart';
 
 /// Bits packed DEFLATE's own two ways at once — plain fields
@@ -50,9 +50,8 @@ final class _BitWriter {
   }
 }
 
-Uint8List _zlib(List<int> raw, {int level = 6}) => Uint8List.fromList(
-  ZLibCodec(level: level).encode(raw),
-);
+Uint8List _zlib(List<int> raw, {int level = 6}) =>
+    Uint8List.fromList(ZLibCodec(level: level).encode(raw));
 
 void main() {
   group('against dart:io\'s own zlib — an independently written encoder', () {
@@ -100,7 +99,9 @@ void main() {
 
     test('every byte value, so every literal code in the fixed and '
         'dynamic tables gets exercised at least once', () {
-      final data = List<int>.generate(256, (i) => i) + List<int>.generate(256, (i) => 255 - i);
+      final data =
+          List<int>.generate(256, (i) => i) +
+          List<int>.generate(256, (i) => 255 - i);
       expect(zlibInflate(_zlib(data)), data);
     });
 

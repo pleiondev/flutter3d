@@ -96,10 +96,7 @@ void _ensureRegistered() {
 }
 
 /// Opens the backend, or throws with something worth putting on screen.
-Future<GraphicsDevice> openDevice({
-  required int width,
-  required int height,
-}) {
+Future<GraphicsDevice> openDevice({required int width, required int height}) {
   _ensureRegistered();
   return openRegisteredDevice(
     width: width,

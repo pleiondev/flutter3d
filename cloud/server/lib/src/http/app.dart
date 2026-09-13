@@ -37,7 +37,10 @@ Handler buildHandler(Services services) {
     ..get('/health', (Request request) => Response.ok('ok'))
     ..mount(
       '/assets/',
-      staticDirectory(services.config.assetsDirectory, cacheControl: 'public, max-age=300'),
+      staticDirectory(
+        services.config.assetsDirectory,
+        cacheControl: 'public, max-age=300',
+      ),
     );
 
   // Nothing a Flutter build emits carries a hash in its name, so the viewer is
@@ -50,8 +53,16 @@ Handler buildHandler(Services services) {
   // --- pages anybody can open -----------------------------------------------
 
   router
-    ..get('/', (Request request) async => htmlPage(HomePage(signedIn: await userOf(request))))
-    ..get('/privacy', (Request request) async => htmlPage(PrivacyPage(signedIn: await userOf(request))));
+    ..get(
+      '/',
+      (Request request) async =>
+          htmlPage(HomePage(signedIn: await userOf(request))),
+    )
+    ..get(
+      '/privacy',
+      (Request request) async =>
+          htmlPage(PrivacyPage(signedIn: await userOf(request))),
+    );
 
   // --- registration ------------------------------------------------------------
 
@@ -75,7 +86,9 @@ Handler buildHandler(Services services) {
       return switch (outcome) {
         Registered(:final sessionToken) => seeOther(
           '/me?said=welcome',
-          headers: {'set-cookie': policy.session(sessionToken, sessionLifetime)},
+          headers: {
+            'set-cookie': policy.session(sessionToken, sessionLifetime),
+          },
         ),
         RegisterInvalid(:final problems) => htmlPage(
           RegisterPage(
@@ -89,7 +102,8 @@ Handler buildHandler(Services services) {
         RegisterLimited() => htmlPage(
           const MessagePage(
             title: 'Too many accounts from here',
-            body: 'This address has created several accounts in the last hour. '
+            body:
+                'This address has created several accounts in the last hour. '
                 'Try again later.',
           ),
           status: 429,
@@ -100,7 +114,10 @@ Handler buildHandler(Services services) {
       final token = request.url.queryParameters['token'] ?? '';
       final verified = token.isEmpty ? null : await accounts.verify(token);
       return htmlPage(
-        VerifiedPage(signedIn: await userOf(request), confirmed: verified != null),
+        VerifiedPage(
+          signedIn: await userOf(request),
+          confirmed: verified != null,
+        ),
         status: verified == null ? 400 : 200,
       );
     })
@@ -109,8 +126,13 @@ Handler buildHandler(Services services) {
       if (!formIsOurs(request, form, policy)) return _staleForm(request);
       final user = await userOf(request);
       if (user == null) return seeOther('/login');
-      final sent = await accounts.resendVerification(user, ip: clientIp(request));
-      return seeOther(sent ? '/me?said=verify-sent' : '/me?said=letters-limited');
+      final sent = await accounts.resendVerification(
+        user,
+        ip: clientIp(request),
+      );
+      return seeOther(
+        sent ? '/me?said=verify-sent' : '/me?said=letters-limited',
+      );
     });
 
   // --- signing in and out --------------------------------------------------------
@@ -141,7 +163,9 @@ Handler buildHandler(Services services) {
       return switch (outcome) {
         SignedIn(:final sessionToken) => seeOther(
           next,
-          headers: {'set-cookie': policy.session(sessionToken, sessionLifetime)},
+          headers: {
+            'set-cookie': policy.session(sessionToken, sessionLifetime),
+          },
         ),
         SignInRefused() => htmlPage(
           SignInPage(
@@ -157,7 +181,8 @@ Handler buildHandler(Services services) {
             csrf: csrfOf(request),
             next: next,
             email: form['email'] ?? '',
-            error: 'Too many attempts. Wait fifteen minutes, or reset the password.',
+            error:
+                'Too many attempts. Wait fifteen minutes, or reset the password.',
           ),
           status: 429,
         ),
@@ -168,31 +193,45 @@ Handler buildHandler(Services services) {
       if (!formIsOurs(request, form, policy)) return _staleForm(request);
       final token = cookiesOf(request)[policy.sessionName];
       if (token != null) await accounts.signOut(token);
-      return seeOther('/login?said=signed-out', headers: {'set-cookie': policy.clearSession()});
+      return seeOther(
+        '/login?said=signed-out',
+        headers: {'set-cookie': policy.clearSession()},
+      );
     });
 
   // --- getting back in ------------------------------------------------------------
 
   router
-    ..get('/forgot', (Request request) async => htmlPage(ForgotPage(csrf: csrfOf(request))))
+    ..get(
+      '/forgot',
+      (Request request) async => htmlPage(ForgotPage(csrf: csrfOf(request))),
+    )
     ..post('/forgot', (Request request) async {
       final form = await readForm(request);
       if (!formIsOurs(request, form, policy)) return _staleForm(request);
       final email = form['email'] ?? '';
       if (!isPlausibleEmail(email.trim())) {
         return htmlPage(
-          ForgotPage(csrf: csrfOf(request), email: email, error: 'That does not look like an email address.'),
+          ForgotPage(
+            csrf: csrfOf(request),
+            email: email,
+            error: 'That does not look like an email address.',
+          ),
           status: 422,
         );
       }
-      final allowed = await accounts.requestReset(email: email, ip: clientIp(request));
+      final allowed = await accounts.requestReset(
+        email: email,
+        ip: clientIp(request),
+      );
       return allowed
           ? htmlPage(ForgotPage(csrf: csrfOf(request), sentTo: email.trim()))
           : htmlPage(
               ForgotPage(
                 csrf: csrfOf(request),
                 email: email,
-                error: 'Several letters have gone out already. Check the inbox and '
+                error:
+                    'Several letters have gone out already. Check the inbox and '
                     'the spam folder, or try again in an hour.',
               ),
               status: 429,
@@ -223,7 +262,8 @@ Handler buildHandler(Services services) {
         ResetLinkInvalid() => htmlPage(
           const MessagePage(
             title: 'This link no longer works',
-            body: 'Reset links work once and for an hour, and asking for a new '
+            body:
+                'Reset links work once and for an hour, and asking for a new '
                 'letter retires the old one. Ask for another from the sign-in page.',
             action: ('Ask for a new link', '/forgot'),
           ),
@@ -249,18 +289,23 @@ Handler buildHandler(Services services) {
       );
     })
     ..post('/api/v1/models', (Request request) async {
-      if (!scriptIsOurs(request)) return json(403, {'error': 'This page is out of date. Reload it.'});
+      if (!scriptIsOurs(request))
+        return json(403, {'error': 'This page is out of date. Reload it.'});
       final user = await userOf(request);
       if (user == null) return json(401, {'error': 'Sign in again.'});
       if (!canUpload(user)) {
         return json(403, {'error': 'Confirm your address before uploading.'});
       }
 
-      final fileName = Uri.decodeComponent(request.headers['x-filename'] ?? 'model');
+      final fileName = Uri.decodeComponent(
+        request.headers['x-filename'] ?? 'model',
+      );
       final limit = services.config.uploadLimitBytes;
       final bytes = await readBody(request, limit: limit);
       if (bytes == null) {
-        return json(413, {'error': '$fileName is larger than ${formatBytes(limit)}.'});
+        return json(413, {
+          'error': '$fileName is larger than ${formatBytes(limit)}.',
+        });
       }
 
       switch (await inspectUpload(bytes, fileName: fileName)) {
@@ -290,10 +335,12 @@ Handler buildHandler(Services services) {
     ..get('/m/<ref>', (Request request, String ref) async {
       final viewer = await userOf(request);
       final model = await _modelOf(services, ref);
-      if (model == null || !canView(model, viewer)) return _notFound(request, viewer: viewer);
+      if (model == null || !canView(model, viewer))
+        return _notFound(request, viewer: viewer);
       // An old or hand-typed slug still finds the model; the address it is
       // shown at is the current one.
-      if (ref != '${model.id}-${model.slug}') return Response.movedPermanently(model.path);
+      if (ref != '${model.id}-${model.slug}')
+        return Response.movedPermanently(model.path);
       return htmlPage(
         ModelPage(
           model: model,
@@ -310,7 +357,9 @@ Handler buildHandler(Services services) {
         final title = (form['title'] ?? '').trim();
         await services.models.describe(
           model.id,
-          title: title.isEmpty ? model.title : (title.length > 80 ? title.substring(0, 80) : title),
+          title: title.isEmpty
+              ? model.title
+              : (title.length > 80 ? title.substring(0, 80) : title),
           description: (form['description'] ?? '').trim(),
         );
         final updated = await services.models.byId(model.id);
@@ -322,7 +371,8 @@ Handler buildHandler(Services services) {
       return _editing(services, request, form, id, (model) async {
         final hashes = await services.models.delete(model.id);
         for (final hash in hashes.toSet()) {
-          if (!await services.models.isReferenced(hash)) await services.blobs.delete(hash);
+          if (!await services.models.isReferenced(hash))
+            await services.blobs.delete(hash);
         }
         return seeOther('/me?said=deleted');
       });
@@ -330,7 +380,8 @@ Handler buildHandler(Services services) {
     ..get('/files/<id|[0-9]+>/source', (Request request, String id) async {
       final viewer = await userOf(request);
       final model = await services.models.byId(int.parse(id));
-      if (model == null || !canView(model, viewer)) return _notFound(request, viewer: viewer);
+      if (model == null || !canView(model, viewer))
+        return _notFound(request, viewer: viewer);
       final file = await services.models.fileOf(model.id, FileKind.source);
       if (file == null) return _notFound(request, viewer: viewer);
       return _serveBlob(services, request, file, public: model.isPublic);
@@ -343,7 +394,11 @@ Handler buildHandler(Services services) {
       final user = await userOf(request);
       if (user == null) return seeOther('/login?next=/settings');
       return htmlPage(
-        SettingsPage(user: user, csrf: csrfOf(request), said: request.url.queryParameters['said']),
+        SettingsPage(
+          user: user,
+          csrf: csrfOf(request),
+          said: request.url.queryParameters['said'],
+        ),
       );
     })
     ..post('/settings/name', (Request request) async {
@@ -378,27 +433,44 @@ Handler buildHandler(Services services) {
       );
       if (refused != null) {
         return htmlPage(
-          SettingsPage(user: user, csrf: csrfOf(request), passwordError: refused),
+          SettingsPage(
+            user: user,
+            csrf: csrfOf(request),
+            passwordError: refused,
+          ),
           status: 422,
         );
       }
       // Every session ended with the change, this one included, so the person
       // signs in again with the password they just chose.
-      return seeOther('/login?said=password-changed', headers: {'set-cookie': policy.clearSession()});
+      return seeOther(
+        '/login?said=password-changed',
+        headers: {'set-cookie': policy.clearSession()},
+      );
     })
     ..post('/settings/delete', (Request request) async {
       final form = await readForm(request);
       if (!formIsOurs(request, form, policy)) return _staleForm(request);
       final user = await userOf(request);
       if (user == null) return seeOther('/login?next=/settings');
-      final deleted = await accounts.deleteAccount(user, password: form['password'] ?? '');
+      final deleted = await accounts.deleteAccount(
+        user,
+        password: form['password'] ?? '',
+      );
       if (!deleted) {
         return htmlPage(
-          SettingsPage(user: user, csrf: csrfOf(request), deleteError: 'That password is not right.'),
+          SettingsPage(
+            user: user,
+            csrf: csrfOf(request),
+            deleteError: 'That password is not right.',
+          ),
           status: 422,
         );
       }
-      return seeOther('/?said=account-deleted', headers: {'set-cookie': policy.clearSession()});
+      return seeOther(
+        '/?said=account-deleted',
+        headers: {'set-cookie': policy.clearSession()},
+      );
     });
 
   return const Pipeline()
@@ -418,7 +490,8 @@ Future<Response> _editing(
   if (!formIsOurs(request, form, services.cookies)) return _staleForm(request);
   final user = await userOf(request);
   final model = await services.models.byId(int.parse(id));
-  if (model == null || !canEdit(model, user)) return _notFound(request, viewer: user);
+  if (model == null || !canEdit(model, user))
+    return _notFound(request, viewer: user);
   return change(model);
 }
 
@@ -438,10 +511,13 @@ Future<Response> _serveBlob(
   // bytes, they are exactly the bytes it would be sent.
   final cache = public ? 'public, max-age=300' : 'private, no-cache';
   if (request.headers['if-none-match'] == etag) {
-    return Response.notModified(headers: {'etag': etag, 'cache-control': cache});
+    return Response.notModified(
+      headers: {'etag': etag, 'cache-control': cache},
+    );
   }
   final stream = await services.blobs.open(file.blobSha256);
-  if (stream == null) return Response.internalServerError(body: 'The file is missing.');
+  if (stream == null)
+    return Response.internalServerError(body: 'The file is missing.');
 
   final inline = request.url.queryParameters.containsKey('inline');
   final name = file.filename.replaceAll('"', '');
@@ -463,11 +539,15 @@ String _fileNameFor(String uploaded, SourceFormat format) {
   final base = uploaded.split(RegExp(r'[/\\]')).last.trim();
   final safe = base.replaceAll(RegExp(r'[\x00-\x1f"]'), '');
   if (safe.isEmpty) return 'model${format.suffix}';
-  return safe.toLowerCase().endsWith(format.suffix) ? safe : '$safe${format.suffix}';
+  return safe.toLowerCase().endsWith(format.suffix)
+      ? safe
+      : '$safe${format.suffix}';
 }
 
-Future<Response> _notFound(Request request, {User? viewer}) async =>
-    htmlPage(NotFoundPage(signedIn: viewer ?? await userOf(request)), status: 404);
+Future<Response> _notFound(Request request, {User? viewer}) async => htmlPage(
+  NotFoundPage(signedIn: viewer ?? await userOf(request)),
+  status: 404,
+);
 
 /// A form whose token does not match — almost always a page left open across
 /// a sign-out or a restart of the browser, rarely an attack. Either way the
@@ -475,34 +555,38 @@ Future<Response> _notFound(Request request, {User? viewer}) async =>
 Future<Response> _staleForm(Request request) async => htmlPage(
   MessagePage(
     title: 'This page was out of date',
-    body: 'The form was sent from a page opened before something changed — a '
+    body:
+        'The form was sent from a page opened before something changed — a '
         'sign-out, or cookies being cleared. Go back, reload, and send it again.',
     signedIn: await userOf(request),
   ),
   status: 403,
 );
 
-Middleware _securityHeaders() => (Handler inner) => (Request request) async {
-  final response = await inner(request);
-  final isPage = response.headers['content-type']?.startsWith('text/html') ?? false;
-  final isViewer = request.url.path.startsWith('app/');
-  return response.change(
-    headers: {
-      'x-content-type-options': 'nosniff',
-      'referrer-policy': 'same-origin',
-      if (isPage && !isViewer) ...{
-        // Nothing inline and nothing from elsewhere: every script and style is a
-        // file under /assets/, so a string that got into a page through a model
-        // title has nothing it can run.
-        'content-security-policy':
-            "default-src 'self'; img-src 'self' data:; style-src 'self'; "
-            "script-src 'self'; frame-src 'self'; frame-ancestors 'none'; "
-            "form-action 'self'; base-uri 'self'; object-src 'none'",
-        'x-frame-options': 'DENY',
-      },
-      if (isViewer) 'x-frame-options': 'SAMEORIGIN',
-      if (request.requestedUri.scheme == 'https' || request.headers['x-forwarded-proto'] == 'https')
-        'strict-transport-security': 'max-age=31536000',
-    },
-  );
-};
+Middleware _securityHeaders() =>
+    (Handler inner) => (Request request) async {
+      final response = await inner(request);
+      final isPage =
+          response.headers['content-type']?.startsWith('text/html') ?? false;
+      final isViewer = request.url.path.startsWith('app/');
+      return response.change(
+        headers: {
+          'x-content-type-options': 'nosniff',
+          'referrer-policy': 'same-origin',
+          if (isPage && !isViewer) ...{
+            // Nothing inline and nothing from elsewhere: every script and style is a
+            // file under /assets/, so a string that got into a page through a model
+            // title has nothing it can run.
+            'content-security-policy':
+                "default-src 'self'; img-src 'self' data:; style-src 'self'; "
+                "script-src 'self'; frame-src 'self'; frame-ancestors 'none'; "
+                "form-action 'self'; base-uri 'self'; object-src 'none'",
+            'x-frame-options': 'DENY',
+          },
+          if (isViewer) 'x-frame-options': 'SAMEORIGIN',
+          if (request.requestedUri.scheme == 'https' ||
+              request.headers['x-forwarded-proto'] == 'https')
+            'strict-transport-security': 'max-age=31536000',
+        },
+      );
+    };

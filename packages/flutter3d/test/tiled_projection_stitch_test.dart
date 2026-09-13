@@ -32,22 +32,30 @@ const int _tileHeight = _fullHeight ~/ _tiles;
   scene.add(
     MeshNode(
       DeviceMesh.upload(device, CuboidShape(size: Vector3.all(1.4)).build()),
-      Material(lighting: LightingModel.pbr, baseColor: Vector4(0.8, 0.3, 0.2, 1.0)),
+      Material(
+        lighting: LightingModel.pbr,
+        baseColor: Vector4(0.8, 0.3, 0.2, 1.0),
+      ),
       name: 'a',
     )..setPosition(0.6, 0.2, 0.0),
   );
   scene.add(
     MeshNode(
       DeviceMesh.upload(device, CuboidShape(size: Vector3.all(0.9)).build()),
-      Material(lighting: LightingModel.pbr, baseColor: Vector4(0.2, 0.4, 0.9, 1.0)),
+      Material(
+        lighting: LightingModel.pbr,
+        baseColor: Vector4(0.2, 0.4, 0.9, 1.0),
+      ),
       name: 'b',
     )..setPosition(-0.8, -0.3, 0.5),
   );
-  final camera = CameraNode(
-    name: 'eye',
-    projection: const PerspectiveProjection(fovYRadians: 0.9),
-  )..setPosition(2.2, 1.4, 3.4)
-   ..lookAt(Vector3.zero());
+  final camera =
+      CameraNode(
+          name: 'eye',
+          projection: const PerspectiveProjection(fovYRadians: 0.9),
+        )
+        ..setPosition(2.2, 1.4, 3.4)
+        ..lookAt(Vector3.zero());
   scene.add(camera);
   return (scene: scene, camera: camera);
 }
@@ -95,78 +103,76 @@ void _blit(
     final srcOffset = row * tileWidth * 4;
     final dstY = tileY * tileHeight + row;
     final dstOffset = (dstY * fullWidth + tileX * tileWidth) * 4;
-    into.setRange(
-      dstOffset,
-      dstOffset + tileWidth * 4,
-      tile,
-      srcOffset,
-    );
+    into.setRange(dstOffset, dstOffset + tileWidth * 4, tile, srcOffset);
   }
 }
 
 void main() {
-  test('a 2x2 grid of tiles stitches into the whole frame, byte for byte', () async {
-    final wholeDevice = CpuDevice(
-      width: _fullWidth,
-      height: _fullHeight,
-      shaders: CpuShaderLibrary(builtinCpuShaders()),
-    );
-    final wholeRenderer = Renderer.create(device: wholeDevice);
-    final whole = _scene(wholeDevice);
-    final reference = await _render(
-      wholeDevice,
-      wholeRenderer,
-      whole.camera,
-      whole.scene,
-      width: _fullWidth,
-      height: _fullHeight,
-    );
+  test(
+    'a 2x2 grid of tiles stitches into the whole frame, byte for byte',
+    () async {
+      final wholeDevice = CpuDevice(
+        width: _fullWidth,
+        height: _fullHeight,
+        shaders: CpuShaderLibrary(builtinCpuShaders()),
+      );
+      final wholeRenderer = Renderer.create(device: wholeDevice);
+      final whole = _scene(wholeDevice);
+      final reference = await _render(
+        wholeDevice,
+        wholeRenderer,
+        whole.camera,
+        whole.scene,
+        width: _fullWidth,
+        height: _fullHeight,
+      );
 
-    final stitched = Uint8List(_fullWidth * _fullHeight * 4);
-    for (var tileY = 0; tileY < _tiles; tileY++) {
-      for (var tileX = 0; tileX < _tiles; tileX++) {
-        final tileDevice = CpuDevice(
-          width: _tileWidth,
-          height: _tileHeight,
-          shaders: CpuShaderLibrary(builtinCpuShaders()),
-        );
-        final tileRenderer = Renderer.create(device: tileDevice);
-        final tileScene = _scene(tileDevice);
-        // `_scene` already put this camera at the same eye and look-at as
-        // the reference's; only the projection changes here, to the one
-        // tile of it this iteration is answering for.
-        tileScene.camera.projection = TiledProjection(
-          whole.camera.projection,
-          tileX: tileX,
-          tileY: tileY,
-          tilesX: _tiles,
-          tilesY: _tiles,
-        );
+      final stitched = Uint8List(_fullWidth * _fullHeight * 4);
+      for (var tileY = 0; tileY < _tiles; tileY++) {
+        for (var tileX = 0; tileX < _tiles; tileX++) {
+          final tileDevice = CpuDevice(
+            width: _tileWidth,
+            height: _tileHeight,
+            shaders: CpuShaderLibrary(builtinCpuShaders()),
+          );
+          final tileRenderer = Renderer.create(device: tileDevice);
+          final tileScene = _scene(tileDevice);
+          // `_scene` already put this camera at the same eye and look-at as
+          // the reference's; only the projection changes here, to the one
+          // tile of it this iteration is answering for.
+          tileScene.camera.projection = TiledProjection(
+            whole.camera.projection,
+            tileX: tileX,
+            tileY: tileY,
+            tilesX: _tiles,
+            tilesY: _tiles,
+          );
 
-        final tile = await _render(
-          tileDevice,
-          tileRenderer,
-          tileScene.camera,
-          tileScene.scene,
-          width: _tileWidth,
-          height: _tileHeight,
-        );
-        _blit(
-          stitched,
-          tile,
-          tileX: tileX,
-          tileY: tileY,
-          tileWidth: _tileWidth,
-          tileHeight: _tileHeight,
-          fullWidth: _fullWidth,
-        );
+          final tile = await _render(
+            tileDevice,
+            tileRenderer,
+            tileScene.camera,
+            tileScene.scene,
+            width: _tileWidth,
+            height: _tileHeight,
+          );
+          _blit(
+            stitched,
+            tile,
+            tileX: tileX,
+            tileY: tileY,
+            tileWidth: _tileWidth,
+            tileHeight: _tileHeight,
+            fullWidth: _fullWidth,
+          );
+        }
       }
-    }
 
-    // Both cubes are on screen and off-axis, so a seam at the tile boundary
-    // — a projection built from the tile's own aspect instead of the whole
-    // frame's, or an off-by-one in the crop's own offset — moves real
-    // geometry across it rather than leaving a background pixel unchanged.
-    expect(stitched, orderedEquals(reference));
-  });
+      // Both cubes are on screen and off-axis, so a seam at the tile boundary
+      // — a projection built from the tile's own aspect instead of the whole
+      // frame's, or an off-by-one in the crop's own offset — moves real
+      // geometry across it rather than leaving a background pixel unchanged.
+      expect(stitched, orderedEquals(reference));
+    },
+  );
 }

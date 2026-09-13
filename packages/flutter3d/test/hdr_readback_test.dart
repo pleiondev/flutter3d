@@ -25,7 +25,10 @@ void main() {
       final scene = Scene()
         ..add(
           MeshNode(
-            DeviceMesh.upload(it.device, const PlaneShape(width: 4.0, depth: 4.0).build()),
+            DeviceMesh.upload(
+              it.device,
+              const PlaneShape(width: 4.0, depth: 4.0).build(),
+            ),
             Material(name: 'floor', baseColor: Vector4(0.6, 0.6, 0.6, 1.0)),
           ),
         );
@@ -33,7 +36,11 @@ void main() {
       // alpha (view depth) should read close to ten, far past readPixels's
       // `0..1` ceiling.
       final camera = CameraNode(
-        projection: const PerspectiveProjection(fovYRadians: 1.0, near: 0.05, far: 50.0),
+        projection: const PerspectiveProjection(
+          fovYRadians: 1.0,
+          near: 0.05,
+          far: 50.0,
+        ),
       )..setPositionFrom(Vector3(0.0, 10.0, 0.0));
       camera.lookAt(Vector3.zero());
       scene.add(camera);
@@ -48,7 +55,10 @@ void main() {
         height: _height,
         scene: scene,
         views: <RenderView>[RenderView(camera: camera)],
-        settings: const RenderSettings(surfaceBuffer: true, showSurfaceBuffer: true),
+        settings: const RenderSettings(
+          surfaceBuffer: true,
+          showSurfaceBuffer: true,
+        ),
       );
 
       final raw = it.device.readHdrPixels(result.frame);

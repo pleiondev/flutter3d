@@ -16,8 +16,11 @@ import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:flutter3d_lesson_viewer/main.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-GraphicsDevice _device() =>
-    CpuDevice(width: 16, height: 9, shaders: CpuShaderLibrary(builtinCpuShaders()));
+GraphicsDevice _device() => CpuDevice(
+  width: 16,
+  height: 9,
+  shaders: CpuShaderLibrary(builtinCpuShaders()),
+);
 
 Future<LessonReady> _opened() async {
   final cubit = LessonCubit();
@@ -48,27 +51,33 @@ void main() {
 
   test('every part the level places is a real, named node', () async {
     final ready = await _opened();
-    expect(ready.nodes.keys, containsAll(<String>[
-      'engine-block',
-      'valve-cover',
-      'air-filter',
-      'spark-plug',
-    ]));
+    expect(
+      ready.nodes.keys,
+      containsAll(<String>[
+        'engine-block',
+        'valve-cover',
+        'air-filter',
+        'spark-plug',
+      ]),
+    );
     for (final node in ready.nodes.values) {
       expect(node.visible, isTrue, reason: 'nothing has been torn down yet');
     }
   });
 
-  test('stepping to "remove the valve cover" actually hides it, and only it', () async {
-    final ready = await _opened();
-    ready.player.next(); // step-2: "Снимаем крышку клапанов"
-    ready.player.applyCurrent(ready.camera, nodes: ready.nodes);
+  test(
+    'stepping to "remove the valve cover" actually hides it, and only it',
+    () async {
+      final ready = await _opened();
+      ready.player.next(); // step-2: "Снимаем крышку клапанов"
+      ready.player.applyCurrent(ready.camera, nodes: ready.nodes);
 
-    expect(ready.nodes['valve-cover']!.visible, isFalse);
-    expect(ready.nodes['engine-block']!.visible, isTrue);
-    expect(ready.nodes['air-filter']!.visible, isTrue);
-    expect(ready.nodes['spark-plug']!.visible, isTrue);
-  });
+      expect(ready.nodes['valve-cover']!.visible, isFalse);
+      expect(ready.nodes['engine-block']!.visible, isTrue);
+      expect(ready.nodes['air-filter']!.visible, isTrue);
+      expect(ready.nodes['spark-plug']!.visible, isTrue);
+    },
+  );
 
   test('by the last step, everything but the block has been removed', () async {
     final ready = await _opened();

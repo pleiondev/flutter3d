@@ -51,11 +51,12 @@ void main() {
 
     test('a min moved away from the data it describes', () async {
       final container = GlbContainer.parse(valid);
-      final json = jsonDecode(jsonEncode(container.json)) as Map<String, Object?>;
+      final json =
+          jsonDecode(jsonEncode(container.json)) as Map<String, Object?>;
       final accessors = json['accessors']! as List;
-      final position = accessors.firstWhere(
-        (Object? a) => (a! as Map)['min'] != null,
-      ) as Map<String, Object?>;
+      final position =
+          accessors.firstWhere((Object? a) => (a! as Map)['min'] != null)
+              as Map<String, Object?>;
       final min = (position['min']! as List).cast<Object?>();
       min[0] = (min[0]! as num).toDouble() - 5.0;
 
@@ -73,11 +74,12 @@ void main() {
 
     test('a max moved away from the data it describes', () async {
       final container = GlbContainer.parse(valid);
-      final json = jsonDecode(jsonEncode(container.json)) as Map<String, Object?>;
+      final json =
+          jsonDecode(jsonEncode(container.json)) as Map<String, Object?>;
       final accessors = json['accessors']! as List;
-      final position = accessors.firstWhere(
-        (Object? a) => (a! as Map)['max'] != null,
-      ) as Map<String, Object?>;
+      final position =
+          accessors.firstWhere((Object? a) => (a! as Map)['max'] != null)
+              as Map<String, Object?>;
       final max = (position['max']! as List).cast<Object?>();
       max[1] = (max[1]! as num).toDouble() + 5.0;
 

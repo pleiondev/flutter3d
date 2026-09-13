@@ -182,11 +182,7 @@ List<_BoneSpec> _quadrupedBones() => const <_BoneSpec>[
     'chest',
     mirrorOfMarkerKey: 'leftFrontShoulder',
   ),
-  _BoneSpec(
-    'leftFrontPaw',
-    'leftFrontShoulder',
-    markerKey: 'leftFrontPaw',
-  ),
+  _BoneSpec('leftFrontPaw', 'leftFrontShoulder', markerKey: 'leftFrontPaw'),
   _BoneSpec(
     'rightFrontPaw',
     'rightFrontShoulder',
@@ -195,11 +191,7 @@ List<_BoneSpec> _quadrupedBones() => const <_BoneSpec>[
   _BoneSpec('leftBackHip', 'pelvis', markerKey: 'leftBackHip'),
   _BoneSpec('rightBackHip', 'pelvis', mirrorOfMarkerKey: 'leftBackHip'),
   _BoneSpec('leftBackPaw', 'leftBackHip', markerKey: 'leftBackPaw'),
-  _BoneSpec(
-    'rightBackPaw',
-    'rightBackHip',
-    mirrorOfMarkerKey: 'leftBackPaw',
-  ),
+  _BoneSpec('rightBackPaw', 'rightBackHip', mirrorOfMarkerKey: 'leftBackPaw'),
 ];
 
 List<_BoneSpec> _tableFor(RigTemplate template) {

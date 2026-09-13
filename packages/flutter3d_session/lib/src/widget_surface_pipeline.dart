@@ -70,17 +70,16 @@ final class WidgetSurfacePipeline {
       onBuildScheduled: _markDirty,
       focusManager: FocusManager(),
     );
-    _element =
-        RenderObjectToWidgetAdapter<RenderBox>(
-          container: _boundary,
-          child: Directionality(
-            textDirection: TextDirection.ltr,
-            child: MediaQuery(
-              data: MediaQueryData(size: _logical, devicePixelRatio: pixelRatio),
-              child: child,
-            ),
-          ),
-        ).attachToRenderTree(_build);
+    _element = RenderObjectToWidgetAdapter<RenderBox>(
+      container: _boundary,
+      child: Directionality(
+        textDirection: TextDirection.ltr,
+        child: MediaQuery(
+          data: MediaQueryData(size: _logical, devicePixelRatio: pixelRatio),
+          child: child,
+        ),
+      ),
+    ).attachToRenderTree(_build);
 
     // The first frame is drawn unconditionally — nothing has marked itself
     // dirty yet because nothing has run yet, and a pipeline nobody has drawn
@@ -176,7 +175,10 @@ final class WidgetSurfacePipeline {
   /// the symptom.
   final Map<int, HitTestResult> _activeHitTests = <int, HitTestResult>{};
 
-  void dispatchAtLocal(Offset local, PointerEvent Function(Offset local) event) {
+  void dispatchAtLocal(
+    Offset local,
+    PointerEvent Function(Offset local) event,
+  ) {
     final built = event(local);
     final pointer = built.pointer;
     final HitTestResult result;

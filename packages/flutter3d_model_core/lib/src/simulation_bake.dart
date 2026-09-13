@@ -6,7 +6,7 @@
 /// `apps/flutter3d_modeler`'s own generic `Job` (`ui-25`'s runner) is what a
 /// `JobButton` drives — `chunkCount`, `runChunk`, `progress`, `cancel` — and
 /// this package has no window to hand one to.
-/// [BakeSimulationCommand.runChunk] has exactly the shape a `Job`'s own
+/// [BakeClothJobRequest.runChunk] has exactly the shape a `Job`'s own
 /// `runChunk` field wants, `Future<void> Function(int index)`, so a caller
 /// with a `Job` on hand builds one with `chunkCount: bake.frameCount` and
 /// `runChunk: bake.runChunk` and never has to adapt anything; a caller
@@ -32,8 +32,8 @@ import 'simulation_cache.dart';
 /// `stepCloth` call per frame — cheap enough, at the scale this cache is
 /// meant for, to fit inside a `Job` chunk's own per-step time budget on the
 /// web without batching several frames into one chunk.
-final class BakeSimulationCommand {
-  BakeSimulationCommand({
+final class BakeClothJobRequest implements SimulationBakeRequest {
+  BakeClothJobRequest({
     required this.objectId,
     required this.baseVersion,
     required ClothMesh mesh,
@@ -47,12 +47,14 @@ final class BakeSimulationCommand {
 
   /// Which object this will answer for, once [ApplySimulationCache] writes
   /// the finished [SimulationCache] in.
+  @override
   final int objectId;
 
   /// [ModelObject.version] at the moment this was built. [ApplySimulationCache]
   /// refuses a [SimulationCache] whose own bake started at a [baseVersion]
   /// the object has since moved past — the same contract [ApplyJobResult]
   /// already keeps for a modifier bake.
+  @override
   final int baseVersion;
 
   final ClothSettings settings;
@@ -62,12 +64,14 @@ final class BakeSimulationCommand {
 
   /// How many frames this bake is aiming for — [buildCache] may hold fewer,
   /// never more.
+  @override
   final int frameCount;
 
   final List<ClothObstacle> obstacles;
 
   /// [ClothMesh.particleCount] at the moment this was built — every captured
   /// frame is this many vertices long.
+  @override
   final int vertexCount;
 
   final ClothMesh _mesh;
@@ -93,4 +97,14 @@ final class BakeSimulationCommand {
   /// cancelled bake, not only a finished one.
   SimulationCache buildCache() =>
       SimulationCache(vertexCount: vertexCount, frames: _frames);
+
+  /// Every chunk [runChunk] has not run yet, then [buildCache] — the whole
+  /// bake at once, for a caller with no `Job` to drive it a chunk at a time.
+  @override
+  Future<SimulationCache> bake() async {
+    for (var index = bakedFrameCount; index < frameCount; index++) {
+      await runChunk(index);
+    }
+    return buildCache();
+  }
 }

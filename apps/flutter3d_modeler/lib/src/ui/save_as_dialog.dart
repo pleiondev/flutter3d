@@ -56,7 +56,8 @@ class _SaveAsScreenState extends State<_SaveAsScreen> {
             'Undo will not be available after this file is reopened.',
           ),
           value: _withoutHistory,
-          onChanged: (bool? to) => setState(() => _withoutHistory = to ?? false),
+          onChanged: (bool? to) =>
+              setState(() => _withoutHistory = to ?? false),
         ),
       ),
       actions: <Widget>[

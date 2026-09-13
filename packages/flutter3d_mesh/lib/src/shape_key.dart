@@ -141,9 +141,7 @@ final class ShapeKey {
     List<double> weights,
   ) {
     if (keys.length != weights.length) {
-      throw ArgumentError(
-        '${keys.length} keys but ${weights.length} weights.',
-      );
+      throw ArgumentError('${keys.length} keys but ${weights.length} weights.');
     }
 
     final slots = base.vertexSlotCount;
@@ -226,5 +224,9 @@ MorphTarget _morphTargetOf(
     deltas[g * 3 + 1] = shaped.y - base.y;
     deltas[g * 3 + 2] = shaped.z - base.z;
   }
-  return MorphTarget(vertexCount: vertexCount, positions: deltas, name: key.name);
+  return MorphTarget(
+    vertexCount: vertexCount,
+    positions: deltas,
+    name: key.name,
+  );
 }

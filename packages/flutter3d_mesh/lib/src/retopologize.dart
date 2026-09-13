@@ -63,7 +63,8 @@ Vector3 _triangleNormal(EditMesh mesh, int face) {
   final c = mesh.positionOf(vertices[2]);
   final normal = (b - a).cross(c - a);
   final length = normal.length;
-  return length < 1e-12 ? Vector3.zero() : normal..scale(1 / length);
+  return length < 1e-12 ? Vector3.zero() : normal
+    ..scale(1 / length);
 }
 
 /// Walks every triangle once, dissolving the first live, still-triangular,
@@ -90,10 +91,12 @@ void _greedyQuadrangulate(EditMesh mesh, double coplanarThreshold) {
       if (!mesh.hasLiveTwin(edge)) continue;
       final neighbourFace = mesh.faceOf(mesh.twinOf(edge));
       if (neighbourFace == face) continue;
-      if (!mesh.isFaceAlive(neighbourFace) || mesh.valencyOf(neighbourFace) != 3) {
+      if (!mesh.isFaceAlive(neighbourFace) ||
+          mesh.valencyOf(neighbourFace) != 3) {
         continue;
       }
-      if (normal.dot(_triangleNormal(mesh, neighbourFace)) < coplanarThreshold) {
+      if (normal.dot(_triangleNormal(mesh, neighbourFace)) <
+          coplanarThreshold) {
         continue;
       }
       if (mesh.dissolveEdge(half)) break;
@@ -137,9 +140,10 @@ void _shrinkWrap(EditMesh mesh, TriangleBvh sourceBvh) {
     final fromInward = sourceBvh.raycast(inward, maxDistance: margin * 2);
 
     final Vector3? landed = switch ((fromOutward, fromInward)) {
-      (final o?, final i?) => (o.distance - margin).abs() <= (i.distance - margin).abs()
-          ? o.point
-          : i.point,
+      (final o?, final i?) =>
+        (o.distance - margin).abs() <= (i.distance - margin).abs()
+            ? o.point
+            : i.point,
       (final o?, null) => o.point,
       (null, final i?) => i.point,
       (null, null) => null,
@@ -169,7 +173,8 @@ Vector3 _vertexNormal(EditMesh mesh, int vertex) {
     if (half == start) break;
   }
   final length = sum.length;
-  return length < 1e-12 ? sum : sum..scale(1 / length);
+  return length < 1e-12 ? sum : sum
+    ..scale(1 / length);
 }
 
 /// The length of the diagonal of [positions]' own bounding box — three

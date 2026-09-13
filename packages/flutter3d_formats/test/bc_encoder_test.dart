@@ -15,18 +15,20 @@ import 'helpers/bc_test_decoders.dart';
 Rgba8Image _solid(int r, int g, int b, int a) => Rgba8Image(
   width: 4,
   height: 4,
-  pixels: Uint8List.fromList(List<int>.generate(64, (i) {
-    switch (i % 4) {
-      case 0:
-        return r;
-      case 1:
-        return g;
-      case 2:
-        return b;
-      default:
-        return a;
-    }
-  })),
+  pixels: Uint8List.fromList(
+    List<int>.generate(64, (i) {
+      switch (i % 4) {
+        case 0:
+          return r;
+        case 1:
+          return g;
+        case 2:
+          return b;
+        default:
+          return a;
+      }
+    }),
+  ),
 );
 
 /// A 4×4 block ramping red left to right, alpha top to bottom — enough
@@ -103,16 +105,19 @@ void main() {
       }
     });
 
-    test('a flat-alpha block still writes strictly ordered alpha endpoints', () {
-      final encoded = encodeBc3(_solid(0, 0, 0, 255));
-      expect(
-        encoded[0],
-        greaterThan(encoded[1]),
-        reason:
-            'a tied alpha endpoint would read as the punch-through mode this '
-            'encoder never writes indices for',
-      );
-    });
+    test(
+      'a flat-alpha block still writes strictly ordered alpha endpoints',
+      () {
+        final encoded = encodeBc3(_solid(0, 0, 0, 255));
+        expect(
+          encoded[0],
+          greaterThan(encoded[1]),
+          reason:
+              'a tied alpha endpoint would read as the punch-through mode this '
+              'encoder never writes indices for',
+        );
+      },
+    );
 
     test('an alpha ramp decodes within one BC3 level of the source', () {
       final source = _ramp();

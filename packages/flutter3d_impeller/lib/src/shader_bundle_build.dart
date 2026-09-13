@@ -54,8 +54,9 @@ Future<List<Uri>> buildShaderBundle({
   }
   final shaderLib = '$sdkRoot/bin/cache/artifacts/engine/$platform/shader_lib';
 
-  final outFile = File('${packageRoot.path}/assets/shaders/flutter3d.shaderbundle')
-    ..parent.createSync(recursive: true);
+  final outFile = File(
+    '${packageRoot.path}/assets/shaders/flutter3d.shaderbundle',
+  )..parent.createSync(recursive: true);
 
   final result = await Process.run(impellerc.path, <String>[
     '--shader-bundle=${manifest.readAsStringSync()}',
@@ -77,7 +78,9 @@ Future<List<Uri>> buildShaderBundle({
 
   return <Uri>[
     manifest.uri,
-    for (final entity in Directory('${shadersRoot.path}/shaders').listSync(recursive: true))
+    for (final entity in Directory(
+      '${shadersRoot.path}/shaders',
+    ).listSync(recursive: true))
       if (entity is File) entity.uri,
   ];
 }

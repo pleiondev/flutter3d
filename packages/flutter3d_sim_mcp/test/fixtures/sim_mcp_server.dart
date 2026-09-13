@@ -22,6 +22,7 @@ library;
 import 'dart:io';
 
 import 'package:dart_mcp/stdio.dart';
+import 'package:flutter3d_game_shooter/staging.dart';
 import 'package:flutter3d_sim_mcp/src/sim_server.dart';
 import 'package:flutter3d_sim_mcp/src/sim_session.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -38,7 +39,8 @@ void main() {
     server.listen((socket) {
       SimMcpServer(
         stdioChannel(input: socket, output: socket),
-        session: SimSession(),
+        // The host decides what is played; this suite plays the crypt.
+        session: SimSession(game: const ShooterHeadlessGame()),
       );
     });
 

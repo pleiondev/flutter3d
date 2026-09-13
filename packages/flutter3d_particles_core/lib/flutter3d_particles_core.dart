@@ -10,7 +10,7 @@
 /// `flutter3d_particles` that ever imported Flutter; everything else already
 /// lived here, one `import` line away from the sibling packages this depends
 /// on. That is what lets a headless caller — `flutter3d_model_core`'s own
-/// `BakeParticleSystemCommand` — bake a system into a cache on the Dart VM,
+/// `BakeParticleSystemJobRequest` — bake a system into a cache on the Dart VM,
 /// the same way it already bakes a rigid body through `flutter3d_physics`.
 library;
 

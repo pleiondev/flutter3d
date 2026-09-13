@@ -20,10 +20,7 @@ void main() {
 
     test('rejects a non-positive length', () {
       expect(() => PendulumSimulation(lengthMeters: 0.0), throwsArgumentError);
-      expect(
-        () => PendulumSimulation(lengthMeters: -1.0),
-        throwsArgumentError,
-      );
+      expect(() => PendulumSimulation(lengthMeters: -1.0), throwsArgumentError);
       final p = PendulumSimulation(lengthMeters: 1.0);
       expect(() => p.lengthMeters = 0.0, throwsArgumentError);
     });
@@ -48,7 +45,9 @@ void main() {
         steps: 300,
         checkpointEvery: 10,
       );
-      final divergence = short.checkpoints.divergenceFrom(long.checkpoints.digests);
+      final divergence = short.checkpoints.divergenceFrom(
+        long.checkpoints.digests,
+      );
       // A bit-exact digest has no tolerance: two different lengths already
       // read different `theta` after one step, so the very first checkpoint
       // already disagrees — found by running this, not assumed beforehand.
@@ -68,11 +67,7 @@ void main() {
       final originalDigestsBefore = List<int>.of(original.checkpoints.digests);
       final originalLengthsBefore = original.lengths.toJson();
 
-      final branch = original.branchAt(
-        100,
-        200,
-        (step, currentLength) => 2.0,
-      );
+      final branch = original.branchAt(100, 200, (step, currentLength) => 2.0);
 
       // The original is untouched — same object, same recorded numbers.
       expect(original.checkpoints.digests, originalDigestsBefore);
@@ -91,18 +86,16 @@ void main() {
 
     test('branchAt refuses a step outside the run', () {
       final run = PendulumLabRun(startLength: 1.0, steps: 50);
-      expect(
-        () => run.branchAt(51, 60, (step, l) => l),
-        throwsArgumentError,
-      );
-      expect(
-        () => run.branchAt(-1, 60, (step, l) => l),
-        throwsArgumentError,
-      );
+      expect(() => run.branchAt(51, 60, (step, l) => l), throwsArgumentError);
+      expect(() => run.branchAt(-1, 60, (step, l) => l), throwsArgumentError);
     });
 
     test('toDemo writes a genuine, replayable-shaped .f3drun', () {
-      final run = PendulumLabRun(startLength: 1.2, steps: 90, checkpointEvery: 15);
+      final run = PendulumLabRun(
+        startLength: 1.2,
+        steps: 90,
+        checkpointEvery: 15,
+      );
       final level = Level(name: 'pendulum-lab');
       final demo = run.toDemo(
         levelPath: 'assets/levels/pendulum_lab.json',
@@ -122,15 +115,18 @@ void main() {
       expect(reread.dataSources!.toJson(), demo.dataSources!.toJson());
     });
 
-    test('a panel that changes length mid-run is recorded at the step it changed', () {
-      final run = PendulumLabRun(
-        startLength: 1.0,
-        steps: 40,
-        lengthAt: (step, currentLength) => step < 20 ? 1.0 : 1.5,
-      );
-      expect(run.lengths.valueAt(19)!['length'], 1.0);
-      expect(run.lengths.valueAt(20)!['length'], 1.5);
-      expect(run.lengths.valueAt(40)!['length'], 1.5);
-    });
+    test(
+      'a panel that changes length mid-run is recorded at the step it changed',
+      () {
+        final run = PendulumLabRun(
+          startLength: 1.0,
+          steps: 40,
+          lengthAt: (step, currentLength) => step < 20 ? 1.0 : 1.5,
+        );
+        expect(run.lengths.valueAt(19)!['length'], 1.0);
+        expect(run.lengths.valueAt(20)!['length'], 1.5);
+        expect(run.lengths.valueAt(40)!['length'], 1.5);
+      },
+    );
   });
 }

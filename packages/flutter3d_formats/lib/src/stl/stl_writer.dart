@@ -94,11 +94,7 @@ final class StlWriter {
         final int ia = mesh.indices[t];
         final int ib = mesh.indices[t + 1];
         final int ic = mesh.indices[t + 2];
-        facets.add((
-          at(reversed ? ic : ia),
-          at(ib),
-          at(reversed ? ia : ic),
-        ));
+        facets.add((at(reversed ? ic : ia), at(ib), at(reversed ? ia : ic)));
       }
     }
     return facets;
@@ -120,9 +116,9 @@ final class StlWriter {
 
     final out = BytesBuilder()..add(header);
     out.add(
-      (ByteData(4)..setUint32(0, facets.length, Endian.little))
-          .buffer
-          .asUint8List(),
+      (ByteData(
+        4,
+      )..setUint32(0, facets.length, Endian.little)).buffer.asUint8List(),
     );
 
     // Reused across facets rather than allocated fresh each time:

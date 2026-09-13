@@ -30,8 +30,12 @@ void main() {
         'teapot.obj': Uint8List(0),
         'teapot.mtl': Uint8List(0),
       },
-      writerWarnings: const <String>['1 skin(s) were not written; OBJ has no skinning'],
-      differences: <DocumentDifference>[const DocumentDifference('nodes: 2 in, 1 out')],
+      writerWarnings: const <String>[
+        '1 skin(s) were not written; OBJ has no skinning',
+      ],
+      differences: <DocumentDifference>[
+        const DocumentDifference('nodes: 2 in, 1 out'),
+      ],
     );
     final out = StringBuffer();
     writeReport(report, out);

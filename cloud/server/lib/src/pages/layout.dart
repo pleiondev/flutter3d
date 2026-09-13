@@ -54,10 +54,7 @@ class Page extends StatelessComponent {
     return Document(
       title: '$title · flutter3d models',
       lang: 'en',
-      meta: {
-        'description': ?description,
-        'color-scheme': 'dark light',
-      },
+      meta: {'description': ?description, 'color-scheme': 'dark light'},
       head: [
         link(href: '/assets/styles.css', rel: 'stylesheet'),
         link(href: '/assets/favicon.svg', rel: 'icon'),
@@ -65,9 +62,17 @@ class Page extends StatelessComponent {
           script(src: '/assets/$name', attributes: const {'defer': ''}),
       ],
       body: div([
-        a([Component.text('Skip to content')], href: '#content', classes: 'skip'),
+        a(
+          [Component.text('Skip to content')],
+          href: '#content',
+          classes: 'skip',
+        ),
         _TopBar(signedIn: signedIn),
-        main_(children, id: 'content', classes: wide ? 'content wide' : 'content'),
+        main_(
+          children,
+          id: 'content',
+          classes: wide ? 'content wide' : 'content',
+        ),
         const _Footer(),
       ], classes: 'shell'),
     );
@@ -82,17 +87,29 @@ class _TopBar extends StatelessComponent {
   @override
   Component build(BuildContext context) {
     return header([
-      a([
-        Component.text('flutter3d'),
-        span([Component.text('models')], classes: 'brand-tail'),
-      ], href: '/', classes: 'brand'),
+      a(
+        [
+          Component.text('flutter3d'),
+          span([Component.text('models')], classes: 'brand-tail'),
+        ],
+        href: '/',
+        classes: 'brand',
+      ),
       nav([
         if (signedIn case final user?) ...[
           a([Component.text('My models')], href: '/me'),
-          a([Component.text(user.displayName)], href: '/settings', classes: 'who'),
+          a(
+            [Component.text(user.displayName)],
+            href: '/settings',
+            classes: 'who',
+          ),
         ] else ...[
           a([Component.text('Sign in')], href: '/login'),
-          a([Component.text('Create account')], href: '/register', classes: 'cta'),
+          a(
+            [Component.text('Create account')],
+            href: '/register',
+            classes: 'cta',
+          ),
         ],
       ]),
     ], classes: 'topbar');
@@ -105,8 +122,12 @@ class _Footer extends StatelessComponent {
   @override
   Component build(BuildContext context) {
     return footer([
-      a([Component.text('Documentation')], href: 'https://flutter3d.pleion.dev/'),
-      a([Component.text('Source')], href: 'https://github.com/pleiondev/flutter3d'),
+      a([
+        Component.text('Documentation'),
+      ], href: 'https://flutter3d.pleion.dev/'),
+      a([
+        Component.text('Source'),
+      ], href: 'https://github.com/pleiondev/flutter3d'),
       a([Component.text('Privacy')], href: '/privacy'),
     ], classes: 'foot');
   }

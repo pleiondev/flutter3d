@@ -37,14 +37,70 @@ import 'dart:typed_data';
 import 'png_decoder.dart' show DecodedImage;
 
 const List<int> _zigzag = <int>[
-  0, 1, 8, 16, 9, 2, 3, 10,
-  17, 24, 32, 25, 18, 11, 4, 5,
-  12, 19, 26, 33, 40, 48, 41, 34,
-  27, 20, 13, 6, 7, 14, 21, 28,
-  35, 42, 49, 56, 57, 50, 43, 36,
-  29, 22, 15, 23, 30, 37, 44, 51,
-  58, 59, 52, 45, 38, 31, 39, 46,
-  53, 60, 61, 54, 47, 55, 62, 63,
+  0,
+  1,
+  8,
+  16,
+  9,
+  2,
+  3,
+  10,
+  17,
+  24,
+  32,
+  25,
+  18,
+  11,
+  4,
+  5,
+  12,
+  19,
+  26,
+  33,
+  40,
+  48,
+  41,
+  34,
+  27,
+  20,
+  13,
+  6,
+  7,
+  14,
+  21,
+  28,
+  35,
+  42,
+  49,
+  56,
+  57,
+  50,
+  43,
+  36,
+  29,
+  22,
+  15,
+  23,
+  30,
+  37,
+  44,
+  51,
+  58,
+  59,
+  52,
+  45,
+  38,
+  31,
+  39,
+  46,
+  53,
+  60,
+  61,
+  54,
+  47,
+  55,
+  62,
+  63,
 ];
 
 final class _Component {
@@ -220,8 +276,11 @@ DecodedImage? decodeJpeg(Uint8List bytes) {
             p += 64;
           } else {
             for (var i = 0; i < 64; i++) {
-              table[_zigzag[i]] = ((bytes[p + i * 2] << 8) | bytes[p + i * 2 + 1])
-                  .clamp(0, 255);
+              table[_zigzag[i]] =
+                  ((bytes[p + i * 2] << 8) | bytes[p + i * 2 + 1]).clamp(
+                    0,
+                    255,
+                  );
             }
             p += 128;
           }
@@ -271,10 +330,18 @@ DecodedImage? decodeJpeg(Uint8List bytes) {
           );
           p += 3;
         }
-      case 0xC1: case 0xC2: case 0xC3: // Extended/progressive/lossless SOF.
-      case 0xC5: case 0xC6: case 0xC7:
-      case 0xC9: case 0xCA: case 0xCB:
-      case 0xCD: case 0xCE: case 0xCF:
+      case 0xC1:
+      case 0xC2:
+      case 0xC3: // Extended/progressive/lossless SOF.
+      case 0xC5:
+      case 0xC6:
+      case 0xC7:
+      case 0xC9:
+      case 0xCA:
+      case 0xCB:
+      case 0xCD:
+      case 0xCE:
+      case 0xCF:
         return null; // Not baseline — refused, per this file's own contract.
       case 0xDD: // DRI
         restartInterval = (bytes[segmentStart] << 8) | bytes[segmentStart + 1];
@@ -422,12 +489,15 @@ DecodedImage? _decodeScan({
     final cr = components[2];
     for (var py = 0; py < height; py++) {
       for (var px = 0; px < width; px++) {
-        final yv = yc.plane![_planeYFor(py, yc, maxV) * yc.planeWidth +
-            _planeXFor(px, yc, maxH)];
-        final cbv = cb.plane![_planeYFor(py, cb, maxV) * cb.planeWidth +
-            _planeXFor(px, cb, maxH)];
-        final crv = cr.plane![_planeYFor(py, cr, maxV) * cr.planeWidth +
-            _planeXFor(px, cr, maxH)];
+        final yv =
+            yc.plane![_planeYFor(py, yc, maxV) * yc.planeWidth +
+                _planeXFor(px, yc, maxH)];
+        final cbv =
+            cb.plane![_planeYFor(py, cb, maxV) * cb.planeWidth +
+                _planeXFor(px, cb, maxH)];
+        final crv =
+            cr.plane![_planeYFor(py, cr, maxV) * cr.planeWidth +
+                _planeXFor(px, cr, maxH)];
         final out = (py * width + px) * 4;
         final rgb = _ycbcrToRgb(yv, cbv, crv);
         rgba[out] = rgb.$1;

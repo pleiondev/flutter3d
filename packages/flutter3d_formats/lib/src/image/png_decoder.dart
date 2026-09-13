@@ -40,7 +40,16 @@ final class DecodedImage {
   final Uint8List rgba;
 }
 
-const List<int> _signature = <int>[0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A];
+const List<int> _signature = <int>[
+  0x89,
+  0x50,
+  0x4E,
+  0x47,
+  0x0D,
+  0x0A,
+  0x1A,
+  0x0A,
+];
 
 /// [bytes] decoded, or null on anything this reader cannot make sense of:
 /// a signature that does not match, a chunk running past the end of the

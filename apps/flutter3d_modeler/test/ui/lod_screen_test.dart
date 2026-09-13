@@ -92,11 +92,10 @@ void main() {
         tester,
         object: object,
         cache: cache,
-        viewportBuilder:
-            (BuildContext context, int lodIndex, MeshData? mesh) {
-              triangleCounts[lodIndex] = mesh?.triangleCount;
-              return const SizedBox.shrink();
-            },
+        viewportBuilder: (BuildContext context, int lodIndex, MeshData? mesh) {
+          triangleCounts[lodIndex] = mesh?.triangleCount;
+          return const SizedBox.shrink();
+        },
       );
 
       expect(triangleCounts.length, 3);

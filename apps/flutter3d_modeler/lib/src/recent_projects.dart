@@ -27,7 +27,8 @@ import 'package:flutter3d_session/flutter3d_session.dart'
 /// in and which of them have been deleted since are all decided here, which is
 /// why they are tested against a map in memory.
 final class RecentModels {
-  RecentModels({Storage? storage}) : storage = storage ?? defaultStorage(appName);
+  RecentModels({Storage? storage})
+    : storage = storage ?? defaultStorage(appName);
 
   /// Which application this list belongs to, and so which directory it sits
   /// in. Two programs sharing one document would each overwrite the other's.

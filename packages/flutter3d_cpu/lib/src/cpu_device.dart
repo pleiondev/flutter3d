@@ -325,13 +325,16 @@ final class CpuDevice implements GraphicsDevice {
         'level (0) may be overwritten.',
       );
     }
-    final rect = region ?? ScreenRect(width: target.width, height: target.height);
+    final rect =
+        region ?? ScreenRect(width: target.width, height: target.height);
     if (rect.x < 0 ||
         rect.y < 0 ||
         rect.x + rect.width > target.width ||
         rect.y + rect.height > target.height) {
-      throw ArgumentError('overwriteTexture: $rect does not fit inside a '
-          '${target.width}x${target.height} texture');
+      throw ArgumentError(
+        'overwriteTexture: $rect does not fit inside a '
+        '${target.width}x${target.height} texture',
+      );
     }
     if (rgba.lengthInBytes != rect.width * rect.height * 4) {
       throw ArgumentError(
@@ -372,9 +375,12 @@ final class CpuDevice implements GraphicsDevice {
   /// step, which is the one respect in which this backend's write is simpler
   /// than the other three's.
   @override
-  void overwriteGeometry(GeometryBuffer target, int offsetInBytes, ByteData bytes) {
-    final backend =
-        target.backend as ({ByteData bytes, GeometryUsage usage});
+  void overwriteGeometry(
+    GeometryBuffer target,
+    int offsetInBytes,
+    ByteData bytes,
+  ) {
+    final backend = target.backend as ({ByteData bytes, GeometryUsage usage});
     if (offsetInBytes < 0 ||
         offsetInBytes + bytes.lengthInBytes > target.lengthInBytes) {
       throw ArgumentError(

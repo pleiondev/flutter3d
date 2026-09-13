@@ -263,13 +263,9 @@ ProjectLight? _lightFieldSet(ProjectLight l, String field, Object? value) {
     case 'castsShadow':
       return value is bool ? l.copyWith(castsShadow: value) : null;
     case 'innerConeAngle':
-      return value is num
-          ? l.copyWith(innerConeAngle: value.toDouble())
-          : null;
+      return value is num ? l.copyWith(innerConeAngle: value.toDouble()) : null;
     case 'outerConeAngle':
-      return value is num
-          ? l.copyWith(outerConeAngle: value.toDouble())
-          : null;
+      return value is num ? l.copyWith(outerConeAngle: value.toDouble()) : null;
     default:
       return null;
   }
@@ -282,7 +278,9 @@ SceneLighting? _sceneLightingFieldSet(
 ) {
   switch (field) {
     case 'ambientIntensity':
-      return value is num ? s.copyWith(ambientIntensity: value.toDouble()) : null;
+      return value is num
+          ? s.copyWith(ambientIntensity: value.toDouble())
+          : null;
     case 'shadows':
       return value is bool ? s.copyWith(shadows: value) : null;
     case 'exposure':

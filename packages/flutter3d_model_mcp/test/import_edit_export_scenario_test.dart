@@ -25,7 +25,9 @@ void main() {
   late ModelSession session;
 
   setUp(() async {
-    workspace = Directory.systemTemp.createTempSync('flutter3d_model_mcp_import');
+    workspace = Directory.systemTemp.createTempSync(
+      'flutter3d_model_mcp_import',
+    );
     session = ModelSession.open('${workspace.path}/scene.f3dproj');
 
     final pipe = StreamChannelController<String>(sync: true);
@@ -85,7 +87,9 @@ void main() {
       // built itself: rename the top, and give it a level of detail — the
       // table might be one prop among many in a scene, and most of them
       // will be far from the camera.
-      final tableTop = session.project.objects.firstWhere((o) => o.name == 'top');
+      final tableTop = session.project.objects.firstWhere(
+        (o) => o.name == 'top',
+      );
       final renamed = await call('rename', <String, Object?>{
         'id': tableTop.id,
         'to': 'coffee table top',
@@ -106,7 +110,9 @@ void main() {
       });
       expect(exported.did, isTrue, reason: exported.says);
 
-      final bytes = await File('${workspace.path}/coffee_table.glb').readAsBytes();
+      final bytes = await File(
+        '${workspace.path}/coffee_table.glb',
+      ).readAsBytes();
       final decoded = await GltfLoader().load(bytes);
       // Five surfaces still, the material still one shared row, and the
       // edited object's new name carried all the way to the file a caller
@@ -114,10 +120,7 @@ void main() {
       expect(decoded.surfaces, hasLength(5));
       expect(decoded.materials, hasLength(1));
       expect(decoded.materials.single.name, 'oak');
-      expect(
-        decoded.nodes.map((n) => n.name),
-        contains('coffee table top'),
-      );
+      expect(decoded.nodes.map((n) => n.name), contains('coffee table top'));
     },
   );
 }

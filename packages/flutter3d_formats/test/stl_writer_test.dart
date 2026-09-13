@@ -62,19 +62,22 @@ MeshData _bake(ModelSurface surface) => surface.transform.isIdentity()
 
 void main() {
   group('fmt-20\'s own acceptance: Box.glb through StlWriter', () {
-    test('12 triangles, and a binary file of exactly 84 + 50 * count bytes', () async {
-      final source = await GltfLoader().load(_sample('Box.glb'));
-      final bytes = StlWriter(source).write();
+    test(
+      '12 triangles, and a binary file of exactly 84 + 50 * count bytes',
+      () async {
+        final source = await GltfLoader().load(_sample('Box.glb'));
+        final bytes = StlWriter(source).write();
 
-      // Mutation: write an extra byte anywhere, or drop one facet's own 50 —
-      // this is the row's own size formula, checked as arithmetic rather than
-      // trusted from the byte count alone.
-      expect(bytes.length, 84 + 50 * 12);
-      expect(isBinaryStl(bytes), isTrue);
+        // Mutation: write an extra byte anywhere, or drop one facet's own 50 —
+        // this is the row's own size formula, checked as arithmetic rather than
+        // trusted from the byte count alone.
+        expect(bytes.length, 84 + 50 * 12);
+        expect(isBinaryStl(bytes), isTrue);
 
-      final readBack = await StlLoader().load(bytes);
-      expect(readBack.surfaces.single.mesh.indices.length ~/ 3, 12);
-    });
+        final readBack = await StlLoader().load(bytes);
+        expect(readBack.surfaces.single.mesh.indices.length ~/ 3, 12);
+      },
+    );
 
     test('the binary round trip holds exactly — a transform baked in, not '
         'dropped', () async {

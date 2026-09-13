@@ -31,7 +31,7 @@ Future<Answer> _call(
   ModelSession session,
   String name,
   Map<String, Object?> arguments,
-) => _toolNamed(name).run(session, arguments);
+) async => _toolNamed(name).run(session, arguments);
 
 /// The world-space AABB of every mesh object's own live geometry — used to
 /// scale a plausible marker set to whatever this particular imported model's
@@ -117,203 +117,207 @@ int _biggestMeshObject(ModelProject project) {
 }
 
 void main() {
-  test(
-    'RobotExpressive, unskinned: autoRig, paintWeights, setKey, export to '
-    'GLB with a real skeleton and a real clip',
-    () async {
-      final session = ModelSession(ModelHistory(const ModelProject()));
+  test('RobotExpressive, unskinned: autoRig, paintWeights, setKey, export to '
+      'GLB with a real skeleton and a real clip', () async {
+    final session = ModelSession(ModelHistory(const ModelProject()));
 
-      // 1. Import — mesh and silhouette only; see the library comment for
-      // why this file's own skin never enters the picture.
-      final imported = await _call(session, 'import', <String, Object?>{
-        'from': '../flutter3d_samples/assets/RobotExpressive.glb',
-      });
-      expect(imported.did, isTrue, reason: imported.says);
-      expect(session.history.project.objects, isNotEmpty);
-      expect(session.history.project.skeletons, isEmpty);
+    // 1. Import — mesh and silhouette only; see the library comment for
+    // why this file's own skin never enters the picture.
+    final imported = await _call(session, 'import', <String, Object?>{
+      'from': '../flutter3d_samples/assets/RobotExpressive.glb',
+    });
+    expect(imported.did, isTrue, reason: imported.says);
+    expect(session.history.project.objects, isNotEmpty);
+    expect(session.history.project.skeletons, isEmpty);
 
-      // 1b. Real topology for every imported mesh — see the helper's own
-      // doc comment for why this scenario does this itself.
-      _buildTopologyForImportedMeshes(session);
-      expect(
-        session.history.project.objects.any(
-          (ModelObject o) => o.geometry is EditedGeometry,
-        ),
-        isTrue,
-      );
+    // 1b. Real topology for every imported mesh — see the helper's own
+    // doc comment for why this scenario does this itself.
+    _buildTopologyForImportedMeshes(session);
+    expect(
+      session.history.project.objects.any(
+        (ModelObject o) => o.geometry is EditedGeometry,
+      ),
+      isTrue,
+    );
 
-      // 2. A plausible humanoid marker set, scaled to this model's own
-      // bounding box rather than to hard-coded centimetres.
-      final bounds = _meshBounds(session.history.project);
-      final size = bounds.max - bounds.min;
-      final height = size.y;
-      final cx = (bounds.min.x + bounds.max.x) / 2;
-      final cz = (bounds.min.z + bounds.max.z) / 2;
-      final baseY = bounds.min.y;
-      final halfWidth = size.x / 2;
+    // 2. A plausible humanoid marker set, scaled to this model's own
+    // bounding box rather than to hard-coded centimetres.
+    final bounds = _meshBounds(session.history.project);
+    final size = bounds.max - bounds.min;
+    final height = size.y;
+    final cx = (bounds.min.x + bounds.max.x) / 2;
+    final cz = (bounds.min.z + bounds.max.z) / 2;
+    final baseY = bounds.min.y;
+    final halfWidth = size.x / 2;
 
-      List<double> at(double xFrac, double yFrac, {double zFrac = 0}) => <double>[
-        cx + xFrac * halfWidth,
-        baseY + yFrac * height,
-        cz + zFrac * (size.z / 2),
-      ];
+    List<double> at(double xFrac, double yFrac, {double zFrac = 0}) => <double>[
+      cx + xFrac * halfWidth,
+      baseY + yFrac * height,
+      cz + zFrac * (size.z / 2),
+    ];
 
-      final markers = <String, List<double>>{
-        'hips': at(0, 0.5),
-        'spine': at(0, 0.6),
-        'chest': at(0, 0.7),
-        'neck': at(0, 0.85),
-        'head': at(0, 0.95),
-        'leftShoulder': at(0.3, 0.7),
-        'leftElbow': at(0.5, 0.55),
-        'leftWrist': at(0.6, 0.4),
-        'leftHip': at(0.15, 0.48),
-        'leftKnee': at(0.15, 0.25),
-        'leftAnkle': at(0.15, 0.02),
-      };
+    final markers = <String, List<double>>{
+      'hips': at(0, 0.5),
+      'spine': at(0, 0.6),
+      'chest': at(0, 0.7),
+      'neck': at(0, 0.85),
+      'head': at(0, 0.95),
+      'leftShoulder': at(0.3, 0.7),
+      'leftElbow': at(0.5, 0.55),
+      'leftWrist': at(0.6, 0.4),
+      'leftHip': at(0.15, 0.48),
+      'leftKnee': at(0.15, 0.25),
+      'leftAnkle': at(0.15, 0.02),
+    };
 
-      final mainObjectId = _biggestMeshObject(session.history.project);
-      expect(mainObjectId, greaterThan(0));
+    final mainObjectId = _biggestMeshObject(session.history.project);
+    expect(mainObjectId, greaterThan(0));
 
-      // 3. Auto-rig: a skeleton built from the markers above, bound to the
-      // biggest mesh in the same undo step.
-      final rigged = await _call(session, 'autoRig', <String, Object?>{
-        'template': 'humanoid',
-        'markers': markers,
-        'skinObjectId': mainObjectId,
-        'skeletonName': 'auto',
-      });
-      expect(rigged.did, isTrue, reason: rigged.says);
-      expect(session.history.project.skeletons, hasLength(1));
-      final skeleton = session.history.project.skeletons.single;
-      expect(skeleton.jointCount, lessThanOrEqualTo(64));
-      expect(session.history.project[mainObjectId]!.skeletonIndex, 0);
+    // 3. Auto-rig: a skeleton built from the markers above, bound to the
+    // biggest mesh in the same undo step.
+    final rigged = await _call(session, 'autoRig', <String, Object?>{
+      'template': 'humanoid',
+      'markers': markers,
+      'skinObjectId': mainObjectId,
+      'skeletonName': 'auto',
+    });
+    expect(rigged.did, isTrue, reason: rigged.says);
+    expect(session.history.project.skeletons, hasLength(1));
+    final skeleton = session.history.project.skeletons.single;
+    expect(skeleton.jointCount, lessThanOrEqualTo(64));
+    expect(session.history.project[mainObjectId]!.skeletonIndex, 0);
 
-      final hipsId = skeleton.joints.firstWhere(
-        (int id) => session.history.project[id]!.name == 'hips',
-      );
+    final hipsId = skeleton.joints.firstWhere(
+      (int id) => session.history.project[id]!.name == 'hips',
+    );
 
-      // 4. Paint weights: assign every vertex of the skinned mesh fully to
-      // the hips joint — a real call to the real brush, not the deepest
-      // possible rig, but a genuine, checkable one (every weight ends up
-      // summing to exactly one).
-      final diagonal = size.length + 1.0;
-      final painted = await _call(session, 'paintWeights', <String, Object?>{
-        'objectId': mainObjectId,
-        'skeletonIndex': 0,
-        'joint': hipsId,
-        'samples': <Map<String, Object?>>[
-          <String, Object?>{
-            'center': <double>[cx, baseY + height / 2, cz],
-            'radius': diagonal,
-          },
-        ],
-        'strength': 1.0,
-        'mode': 'assign',
-      });
-      expect(painted.did, isTrue, reason: painted.says);
+    // 4. Paint weights: assign every vertex of the skinned mesh fully to
+    // the hips joint — a real call to the real brush, not the deepest
+    // possible rig, but a genuine, checkable one (every weight ends up
+    // summing to exactly one).
+    final diagonal = size.length + 1.0;
+    final painted = await _call(session, 'paintWeights', <String, Object?>{
+      'objectId': mainObjectId,
+      'skeletonIndex': 0,
+      'joint': hipsId,
+      'samples': <Map<String, Object?>>[
+        <String, Object?>{
+          'center': <double>[cx, baseY + height / 2, cz],
+          'radius': diagonal,
+        },
+      ],
+      'strength': 1.0,
+      'mode': 'assign',
+    });
+    expect(painted.did, isTrue, reason: painted.says);
 
-      // 5. A clip, a track (via poseJoint, which creates one on demand) and
-      // a couple of explicit setKey calls on it.
-      final clipAdded = await _call(session, 'addClip', <String, Object?>{
-        'clipName': 'idle',
-      });
-      expect(clipAdded.did, isTrue, reason: clipAdded.says);
-      const clipIndex = 0;
+    // 5. A clip, a track (via poseJoint, which creates one on demand) and
+    // a couple of explicit setKey calls on it.
+    final clipAdded = await _call(session, 'addClip', <String, Object?>{
+      'clipName': 'idle',
+    });
+    expect(clipAdded.did, isTrue, reason: clipAdded.says);
+    const clipIndex = 0;
 
-      final posed = await _call(session, 'poseJoint', <String, Object?>{
-        'joint': hipsId,
-        'path': 'translation',
-        'clipIndex': clipIndex,
-        'frame': 0,
-      });
-      expect(posed.did, isTrue, reason: posed.says);
-      expect(
-        session.history.project.clips[clipIndex].tracks,
-        hasLength(1),
-      );
-      const trackIndex = 0;
-      final hipsTranslation = session.history.project[hipsId]!.transform
-          .getTranslation();
+    final posed = await _call(session, 'poseJoint', <String, Object?>{
+      'joint': hipsId,
+      'path': 'translation',
+      'clipIndex': clipIndex,
+      'frame': 0,
+    });
+    expect(posed.did, isTrue, reason: posed.says);
+    expect(session.history.project.clips[clipIndex].tracks, hasLength(1));
+    const trackIndex = 0;
+    final hipsTranslation = session.history.project[hipsId]!.transform
+        .getTranslation();
 
-      final firstKey = await _call(session, 'setKey', <String, Object?>{
-        'clipIndex': clipIndex,
-        'trackIndex': trackIndex,
-        'time': 0.5,
-        'values': <double>[
-          hipsTranslation.x,
-          hipsTranslation.y + 0.1,
-          hipsTranslation.z,
-        ],
-      });
-      expect(firstKey.did, isTrue, reason: firstKey.says);
+    final firstKey = await _call(session, 'setKey', <String, Object?>{
+      'clipIndex': clipIndex,
+      'trackIndex': trackIndex,
+      'time': 0.5,
+      'values': <double>[
+        hipsTranslation.x,
+        hipsTranslation.y + 0.1,
+        hipsTranslation.z,
+      ],
+    });
+    expect(firstKey.did, isTrue, reason: firstKey.says);
 
-      final secondKey = await _call(session, 'setKey', <String, Object?>{
-        'clipIndex': clipIndex,
-        'trackIndex': trackIndex,
-        'time': 1.0,
-        'values': <double>[
-          hipsTranslation.x,
-          hipsTranslation.y,
-          hipsTranslation.z,
-        ],
-      });
-      expect(secondKey.did, isTrue, reason: secondKey.says);
-      expect(
-        session.history.project.clips[clipIndex].tracks[trackIndex].track
-            .keyCount,
-        3,
-      );
+    final secondKey = await _call(session, 'setKey', <String, Object?>{
+      'clipIndex': clipIndex,
+      'trackIndex': trackIndex,
+      'time': 1.0,
+      'values': <double>[
+        hipsTranslation.x,
+        hipsTranslation.y,
+        hipsTranslation.z,
+      ],
+    });
+    expect(secondKey.did, isTrue, reason: secondKey.says);
+    expect(
+      session
+          .history
+          .project
+          .clips[clipIndex]
+          .tracks[trackIndex]
+          .track
+          .keyCount,
+      3,
+    );
 
-      // 6. `validateRig` is read-only and must not refuse to run; it is not
-      // asked to come back clean (a skeleton with sixteen joints and one
-      // painted still has fifteen "no vertex weighs to me" warnings, which
-      // is real and expected of this minimal a paint).
-      final validated = await _call(session, 'validateRig', const <String, Object?>{});
-      expect(validated.did, isTrue, reason: validated.says);
-      expect(
-        validated.says,
-        isNot(contains('error:')),
-        reason: 'no error-level rig issue was expected: ${validated.says}',
-      );
+    // 6. `validateRig` is read-only and must not refuse to run; it is not
+    // asked to come back clean (a skeleton with sixteen joints and one
+    // painted still has fifteen "no vertex weighs to me" warnings, which
+    // is real and expected of this minimal a paint).
+    final validated = await _call(
+      session,
+      'validateRig',
+      const <String, Object?>{},
+    );
+    expect(validated.did, isTrue, reason: validated.says);
+    expect(
+      validated.says,
+      isNot(contains('error:')),
+      reason: 'no error-level rig issue was expected: ${validated.says}',
+    );
 
-      // 7. Export to GLB, and read it back through the real glTF loader —
-      // the acceptance line itself: a skeleton and a clip, not just a
-      // ModelProject that says it has them.
-      final tempDir = Directory.systemTemp.createTempSync('anim30_rig_test');
-      addTearDown(() => tempDir.deleteSync(recursive: true));
-      final glbPath = '${tempDir.path}/robot.glb';
+    // 7. Export to GLB, and read it back through the real glTF loader —
+    // the acceptance line itself: a skeleton and a clip, not just a
+    // ModelProject that says it has them.
+    final tempDir = Directory.systemTemp.createTempSync('anim30_rig_test');
+    addTearDown(() => tempDir.deleteSync(recursive: true));
+    final glbPath = '${tempDir.path}/robot.glb';
 
-      final exported = await _call(session, 'export', <String, Object?>{
-        'to': glbPath,
-        'format': 'glb',
-        'force': true,
-      });
-      expect(exported.did, isTrue, reason: exported.says);
+    final exported = await _call(session, 'export', <String, Object?>{
+      'to': glbPath,
+      'format': 'glb',
+      'force': true,
+    });
+    expect(exported.did, isTrue, reason: exported.says);
 
-      final bytes = File(glbPath).readAsBytesSync();
-      final document = await GltfLoader().load(bytes);
+    final bytes = File(glbPath).readAsBytesSync();
+    final document = await GltfLoader().load(bytes);
 
-      expect(
-        document.skins,
-        isNotEmpty,
-        reason: 'the exported GLB has no skin — no skeleton made it across',
-      );
-      expect(
-        document.animations,
-        isNotEmpty,
-        reason: 'the exported GLB has no animation — no clip made it across',
-      );
-      final hasRealKeys = document.animations.any(
-        (AnimationClip clip) =>
-            clip.tracks.any((AnimationTrack track) => track.times.length >= 2),
-      );
-      expect(
-        hasRealKeys,
-        isTrue,
-        reason: 'no animation track in the exported GLB carries more than '
-            'one key',
-      );
-    },
-  );
+    expect(
+      document.skins,
+      isNotEmpty,
+      reason: 'the exported GLB has no skin — no skeleton made it across',
+    );
+    expect(
+      document.animations,
+      isNotEmpty,
+      reason: 'the exported GLB has no animation — no clip made it across',
+    );
+    final hasRealKeys = document.animations.any(
+      (AnimationClip clip) =>
+          clip.tracks.any((AnimationTrack track) => track.times.length >= 2),
+    );
+    expect(
+      hasRealKeys,
+      isTrue,
+      reason:
+          'no animation track in the exported GLB carries more than '
+          'one key',
+    );
+  });
 }

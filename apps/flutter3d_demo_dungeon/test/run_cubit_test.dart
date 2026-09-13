@@ -292,13 +292,16 @@ void main() {
       },
     );
 
-    test('an unregistered widget name reports an issue but still loads', () async {
-      final it = _game();
-      await it.run.begin();
-      final level = (it.run.state as RunPlaying<LevelReady>).level;
+    test(
+      'an unregistered widget name reports an issue but still loads',
+      () async {
+        final it = _game();
+        await it.run.begin();
+        final level = (it.run.state as RunPlaying<LevelReady>).level;
 
-      expect(level.widgetSurfaces.surfaces, isEmpty);
-      expect(it.run.state, isA<RunPlaying<LevelReady>>());
-    });
+        expect(level.widgetSurfaces.surfaces, isEmpty);
+        expect(it.run.state, isA<RunPlaying<LevelReady>>());
+      },
+    );
   });
 }

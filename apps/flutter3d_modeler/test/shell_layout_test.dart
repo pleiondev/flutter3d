@@ -222,7 +222,10 @@ void main() {
       // together and this test would never notice.
       final palette = tester.getSize(
         find
-            .ancestor(of: find.byType(ListView), matching: find.byType(SizedBox))
+            .ancestor(
+              of: find.byType(ListView),
+              matching: find.byType(SizedBox),
+            )
             .first,
       );
       expect(palette.width, 48);

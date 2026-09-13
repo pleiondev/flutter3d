@@ -34,8 +34,12 @@ final class WidgetSurfaceKind extends EntityKind {
 /// `Widget` subclass would make `flutter3d_sim` (which reads levels) depend
 /// on an application's own screens, which is exactly backwards.
 final class WidgetSurfaceVisuals {
-  WidgetSurfaceVisuals(this.scene, {required this.device, required this.registry, IssueSink? onIssue})
-    : onIssue = onIssue ?? printIssue;
+  WidgetSurfaceVisuals(
+    this.scene, {
+    required this.device,
+    required this.registry,
+    IssueSink? onIssue,
+  }) : onIssue = onIssue ?? printIssue;
 
   final Scene scene;
   final GraphicsDevice device;
@@ -51,7 +55,8 @@ final class WidgetSurfaceVisuals {
   /// Every surface this has built, for a caller that wants to route a
   /// raycast hit at one of them (`WidgetSurface.uvAt`) or ask which one is
   /// focused.
-  List<WidgetSurface> get surfaces => List<WidgetSurface>.unmodifiable(_surfaces);
+  List<WidgetSurface> get surfaces =>
+      List<WidgetSurface>.unmodifiable(_surfaces);
 
   static const String entityType = 'widget_surface';
 

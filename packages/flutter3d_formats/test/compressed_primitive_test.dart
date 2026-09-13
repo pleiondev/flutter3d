@@ -32,7 +32,10 @@ final class _BytesSource extends AssetSource {
 /// A handwritten glTF: one mesh, one primitive, `extensionName` named on it,
 /// and a `POSITION` accessor with [bufferView] set or left out — the two
 /// shapes this row's own acceptance line distinguishes.
-Uint8List _compressedPrimitiveGltf(String extensionName, {bool bufferView = false}) {
+Uint8List _compressedPrimitiveGltf(
+  String extensionName, {
+  bool bufferView = false,
+}) {
   final document = <String, Object?>{
     'asset': <String, Object?>{'version': '2.0'},
     'scene': 0,
@@ -49,9 +52,7 @@ Uint8List _compressedPrimitiveGltf(String extensionName, {bool bufferView = fals
         'primitives': <Object?>[
           <String, Object?>{
             'attributes': <String, Object?>{'POSITION': 0},
-            'extensions': <String, Object?>{
-              extensionName: <String, Object?>{},
-            },
+            'extensions': <String, Object?>{extensionName: <String, Object?>{}},
           },
         ],
       },

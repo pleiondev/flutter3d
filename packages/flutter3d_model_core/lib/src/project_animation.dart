@@ -64,7 +64,9 @@ final class ProjectSkeleton {
   }) => ProjectSkeleton(
     joints: joints ?? this.joints,
     inverseBindMatrices: inverseBindMatrices ?? this.inverseBindMatrices,
-    skeletonRoot: clearSkeletonRoot ? null : (skeletonRoot ?? this.skeletonRoot),
+    skeletonRoot: clearSkeletonRoot
+        ? null
+        : (skeletonRoot ?? this.skeletonRoot),
     name: name ?? this.name,
     constraints: constraints ?? this.constraints,
   );

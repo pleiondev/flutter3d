@@ -37,8 +37,11 @@ Future<void> _pump(
 /// The words `AppLocalizations.of(context).sceneStatusLabel` would build for
 /// [status] under `Locale('en')` — the same locale [_pump] fixes the harness
 /// to, so this stays the one place both sides of the comparison could drift.
-String _statusText(SceneStatus status) => AppLocalizationsEn()
-    .sceneStatusLabel(status.lightCount, status.shadowedCount, status.shadowCap);
+String _statusText(SceneStatus status) => AppLocalizationsEn().sceneStatusLabel(
+  status.lightCount,
+  status.shadowedCount,
+  status.shadowCap,
+);
 
 void main() {
   testWidgets('draws the status text verbatim', (tester) async {
@@ -59,11 +62,7 @@ void main() {
   testWidgets('toggling reports the new value', (tester) async {
     final reported = <bool>[];
     final status = computeSceneStatus(lights: const <ProjectLight>[]);
-    await _pump(
-      tester,
-      status: status,
-      onShadowsChanged: reported.add,
-    );
+    await _pump(tester, status: status, onShadowsChanged: reported.add);
 
     await tester.tap(find.byType(Switch));
 

@@ -77,7 +77,9 @@ class ColorField extends StatefulWidget {
   /// The inverse of [encodeSrgb].
   static double decodeSrgb(double encoded) {
     final double c = encoded.clamp(0.0, 1.0);
-    return c <= 0.04045 ? c / 12.92 : math.pow((c + 0.055) / 1.055, 2.4).toDouble();
+    return c <= 0.04045
+        ? c / 12.92
+        : math.pow((c + 0.055) / 1.055, 2.4).toDouble();
   }
 
   /// Three sRGB-space components, `0..1`, as `#RRGGBB`.
@@ -179,11 +181,12 @@ class _ColorFieldState extends State<ColorField> {
 
   /// Local hue/saturation/value, source of truth while a slider is being
   /// dragged, for the reason above.
-  late ({double hue, double saturation, double value}) _hsv = ColorField.rgbToHsv(
-    _lastReportedRgb[0],
-    _lastReportedRgb[1],
-    _lastReportedRgb[2],
-  );
+  late ({double hue, double saturation, double value}) _hsv =
+      ColorField.rgbToHsv(
+        _lastReportedRgb[0],
+        _lastReportedRgb[1],
+        _lastReportedRgb[2],
+      );
 
   static List<double> _displayRgb(List<double> value, bool linear) => linear
       ? <double>[for (final double c in value.take(3)) ColorField.encodeSrgb(c)]

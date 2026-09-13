@@ -10,7 +10,7 @@
 ///     dart test test/professional_modes_scenario_test.dart
 ///
 /// **What this does not prove.** `applySimulationCache` is handed a cache
-/// built directly in this file rather than one `BakeSimulationCommand`
+/// built directly in this file rather than one `BakeClothJobRequest`
 /// produced — that command has no synchronous, single-call shape a tool
 /// call could wait on, exactly `applySimulationCache`'s own tool
 /// description says, so an agent always arrives with a cache from
@@ -78,7 +78,9 @@ void main() {
     'unwrap, a level of detail, a baked simulation turned into shapes, exported to GLB',
     () async {
       // A box, the same shape `agent_builds_a_table_test.dart` starts from.
-      final built = await call('addPrimitive', <String, Object?>{'kind': 'box'});
+      final built = await call('addPrimitive', <String, Object?>{
+        'kind': 'box',
+      });
       expect(built.did, isTrue, reason: built.says);
       const id = 1;
 
@@ -108,8 +110,9 @@ void main() {
       // `pro-sim-02`/`pro-sim-05`: a cache an agent arrived with (see the
       // library comment for why this file builds it rather than baking one
       // live), applied and turned into shape keys.
-      final vertexSlots =
-          (session.project[id]!.geometry as EditedGeometry).mesh.vertexSlotCount;
+      final vertexSlots = (session.project[id]!.geometry as EditedGeometry)
+          .mesh
+          .vertexSlotCount;
       final cache = SimulationCache(
         vertexCount: vertexSlots,
         frames: <Float32List>[

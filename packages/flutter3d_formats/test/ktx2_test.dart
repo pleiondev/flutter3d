@@ -142,10 +142,13 @@ void main() {
   // this package, in `flutter3d`'s thin wrapper — this container stage reads
   // whatever number the file names and leaves interpreting it to a caller
   // with a `GraphicsDevice` to check it against.
-  test('an unrecognised vkFormat is accepted; interpreting it is a caller\'s job', () {
-    final texture = Ktx2Texture.parse(buildKtx2(vkFormat: 999999));
-    expect(texture.vkFormat, 999999);
-  });
+  test(
+    'an unrecognised vkFormat is accepted; interpreting it is a caller\'s job',
+    () {
+      final texture = Ktx2Texture.parse(buildKtx2(vkFormat: 999999));
+      expect(texture.vkFormat, 999999);
+    },
+  );
 
   test('a texture array (layerCount > 0) is refused', () {
     final bytes = buildKtx2(layerCount: 2);

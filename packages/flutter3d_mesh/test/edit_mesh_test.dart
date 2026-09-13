@@ -88,6 +88,33 @@ void main() {
     });
   });
 
+  group('abandoning a step', () {
+    test('takes back what it wrote and keeps the redo an undo left', () {
+      final cube = EditMesh.cuboid();
+      cube.beginStep();
+      cube.addVertex(Vector3(2, 0, 0));
+      expect(cube.endStep(), isTrue);
+      expect(cube.undo(), isTrue);
+      final bytes = cube.toBytes();
+
+      cube.beginStep();
+      cube.addVertex(Vector3(5, 0, 0));
+      cube.setFaceFlag(0, 1, on: true);
+      cube.abandonStep();
+
+      expect(cube.vertexCount, 8);
+      // The flag layer the step created goes with it, so a refused edit
+      // leaves the file a save would write exactly as it was.
+      expect(cube.toBytes(), bytes);
+      // Mutation: end the step and undo it instead. Pushing the step clears
+      // the redo stack, so the vertex the undo above took away can never be
+      // put back — while the document history still offers to.
+      expect(cube.redo(), isTrue);
+      expect(cube.vertexCount, 9);
+      expect(cube.positionOf(8), Vector3(2, 0, 0));
+    });
+  });
+
   group('handing it back to the engine', () {
     test('a cube becomes the twenty-four vertices a GPU needs', () {
       final mesh = EditMesh.cuboid().toMeshData();

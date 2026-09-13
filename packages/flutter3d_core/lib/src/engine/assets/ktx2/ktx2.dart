@@ -42,7 +42,12 @@ export 'package:flutter3d_formats/flutter3d_formats.dart'
 /// A KTX2 file, read down to what a texture upload needs: dimensions, an
 /// engine [TextureFormat], and each mip level's bytes.
 final class Ktx2Texture {
-  const Ktx2Texture._(this.pixelWidth, this.pixelHeight, this.format, this.levels);
+  const Ktx2Texture._(
+    this.pixelWidth,
+    this.pixelHeight,
+    this.format,
+    this.levels,
+  );
 
   final int pixelWidth;
   final int pixelHeight;

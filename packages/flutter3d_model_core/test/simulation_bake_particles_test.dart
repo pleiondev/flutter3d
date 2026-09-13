@@ -27,72 +27,78 @@ ParticleSystem _burningTorch({int seed = 7, int capacity = 64}) {
 }
 
 void main() {
-  group('BakeParticleSystemCommand', () {
+  group('BakeParticleSystemJobRequest', () {
+    test("pro-sim-02's own acceptance: particles are deterministic", () async {
+      Future<SimulationCache> run() => BakeParticleSystemJobRequest(
+        objectId: 1,
+        baseVersion: 0,
+        system: _burningTorch(),
+        frameCount: 90,
+      ).buildCache();
+
+      final a = await run();
+      final b = await run();
+
+      expect(a.frameCount, b.frameCount);
+      for (var f = 0; f < a.frameCount; f++) {
+        expect(a.frame(f), equals(b.frame(f)), reason: 'frame $f');
+      }
+    });
+
     test(
-      "pro-sim-02's own acceptance: particles are deterministic",
+      'a fresh system with nothing emitting yet bakes to all zeros',
       () async {
-        Future<SimulationCache> run() => BakeParticleSystemCommand(
+        final cache = await BakeParticleSystemJobRequest(
           objectId: 1,
           baseVersion: 0,
-          system: _burningTorch(),
-          frameCount: 90,
+          system: ParticleSystem(capacity: 16, seed: 1),
+          frameCount: 5,
         ).buildCache();
 
-        final a = await run();
-        final b = await run();
-
-        expect(a.frameCount, b.frameCount);
-        for (var f = 0; f < a.frameCount; f++) {
-          expect(a.frame(f), equals(b.frame(f)), reason: 'frame $f');
+        expect(cache.vertexCount, 16);
+        for (var f = 0; f < cache.frameCount; f++) {
+          expect(cache.frame(f), everyElement(0.0));
         }
       },
     );
 
-    test('a fresh system with nothing emitting yet bakes to all zeros', () async {
-      final cache = await BakeParticleSystemCommand(
-        objectId: 1,
-        baseVersion: 0,
-        system: ParticleSystem(capacity: 16, seed: 1),
-        frameCount: 5,
-      ).buildCache();
+    test(
+      'vertexCount is the system\'s own capacity, not how many are alive',
+      () async {
+        final system = _burningTorch(capacity: 32);
+        final cache = await BakeParticleSystemJobRequest(
+          objectId: 1,
+          baseVersion: 0,
+          system: system,
+          frameCount: 3,
+        ).buildCache();
 
-      expect(cache.vertexCount, 16);
-      for (var f = 0; f < cache.frameCount; f++) {
-        expect(cache.frame(f), everyElement(0.0));
-      }
-    });
+        expect(cache.vertexCount, 32);
+        expect(cache.frame(0).length, 32 * 3);
+      },
+    );
 
-    test('vertexCount is the system\'s own capacity, not how many are alive', () async {
-      final system = _burningTorch(capacity: 32);
-      final cache = await BakeParticleSystemCommand(
-        objectId: 1,
-        baseVersion: 0,
-        system: system,
-        frameCount: 3,
-      ).buildCache();
+    test(
+      'emission actually moves some particles away from the origin',
+      () async {
+        final cache = await BakeParticleSystemJobRequest(
+          objectId: 1,
+          baseVersion: 0,
+          system: _burningTorch(),
+          frameCount: 30,
+        ).buildCache();
 
-      expect(cache.vertexCount, 32);
-      expect(cache.frame(0).length, 32 * 3);
-    });
-
-    test('emission actually moves some particles away from the origin', () async {
-      final cache = await BakeParticleSystemCommand(
-        objectId: 1,
-        baseVersion: 0,
-        system: _burningTorch(),
-        frameCount: 30,
-      ).buildCache();
-
-      final last = cache.frame(cache.frameCount - 1);
-      var anyMoved = false;
-      for (var v = 0; v < cache.vertexCount; v++) {
-        final x = last[v * 3], y = last[v * 3 + 1], z = last[v * 3 + 2];
-        if (x != 0.0 || y != 0.0 || z != 0.0) {
-          anyMoved = true;
-          break;
+        final last = cache.frame(cache.frameCount - 1);
+        var anyMoved = false;
+        for (var v = 0; v < cache.vertexCount; v++) {
+          final x = last[v * 3], y = last[v * 3 + 1], z = last[v * 3 + 2];
+          if (x != 0.0 || y != 0.0 || z != 0.0) {
+            anyMoved = true;
+            break;
+          }
         }
-      }
-      expect(anyMoved, isTrue);
-    });
+        expect(anyMoved, isTrue);
+      },
+    );
   });
 }

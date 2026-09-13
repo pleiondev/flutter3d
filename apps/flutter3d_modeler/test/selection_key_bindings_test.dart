@@ -22,23 +22,20 @@ const _extrude = ModelerTool(
 
 void main() {
   group("view-24n's own acceptance", () {
-    test(
-      'A selects all when no tool in this mode already claims that key',
-      () {
-        var calls = 0;
-        final bindings = selectionKeyBindings(
-          tools: const <ModelerTool>[_extrude],
-          onSelectAll: () => calls++,
-          onSelectNone: () {},
-          onInvertSelection: () {},
-        );
-        final activator = bindings.keys.firstWhere(
-          (a) => a == const SingleActivator(LogicalKeyboardKey.keyA),
-        );
-        bindings[activator]!();
-        expect(calls, 1);
-      },
-    );
+    test('A selects all when no tool in this mode already claims that key', () {
+      var calls = 0;
+      final bindings = selectionKeyBindings(
+        tools: const <ModelerTool>[_extrude],
+        onSelectAll: () => calls++,
+        onSelectNone: () {},
+        onInvertSelection: () {},
+      );
+      final activator = bindings.keys.firstWhere(
+        (a) => a == const SingleActivator(LogicalKeyboardKey.keyA),
+      );
+      bindings[activator]!();
+      expect(calls, 1);
+    });
 
     test(
       'A is left for object.add in object mode, not offered for select-all',

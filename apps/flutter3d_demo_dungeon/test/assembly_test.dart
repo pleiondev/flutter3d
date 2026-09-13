@@ -62,7 +62,9 @@ final class _Storage implements Storage {
     run: RunCubit(
       DungeonRun(
         firstLevel: first,
-        registry: sampleRegistry(extra: const <EntityKind>[WidgetSurfaceKind()]),
+        registry: sampleRegistry(
+          extra: const <EntityKind>[WidgetSurfaceKind()],
+        ),
         input: InputState(),
         inventory: startingInventory(),
         saves: SaveFile(appName: 'dungeon', storage: storage),

@@ -12,13 +12,16 @@ void main() {
   const policy = InputPolicy();
 
   group('classify', () {
-    test('touch in sculpt goes to the camera — the row\'s own worked example', () {
-      final intent = policy.classify(
-        kind: PointerKind.touch,
-        tool: ToolCategory.sculpting,
-      );
-      expect(intent, isA<CameraInput>());
-    });
+    test(
+      'touch in sculpt goes to the camera — the row\'s own worked example',
+      () {
+        final intent = policy.classify(
+          kind: PointerKind.touch,
+          tool: ToolCategory.sculpting,
+        );
+        expect(intent, isA<CameraInput>());
+      },
+    );
 
     test('a mouse strokes at full force — the row\'s own worked example', () {
       final intent = policy.classify(

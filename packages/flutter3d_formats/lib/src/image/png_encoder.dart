@@ -1,4 +1,4 @@
-/// [encodePng]: plain RGBA8 written out as a real, compressed PNG —
+/// [encodeCompressedPng]: plain RGBA8 written out as a real, compressed PNG —
 /// `mat-12`'s own writing half, built on [zlibCompress].
 ///
 /// **Adaptive per-row filtering, the thing `cpu_png.dart`'s own writer
@@ -17,11 +17,20 @@ import 'dart:typed_data';
 
 import 'deflate.dart';
 
-const List<int> _signature = <int>[0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A];
+const List<int> _signature = <int>[
+  0x89,
+  0x50,
+  0x4E,
+  0x47,
+  0x0D,
+  0x0A,
+  0x1A,
+  0x0A,
+];
 
 /// [rgba] ([width] × [height], four bytes a pixel, top row first — the same
 /// shape [DecodedImage.rgba] reads back) written as an 8-bit RGBA PNG.
-Uint8List encodePng(int width, int height, Uint8List rgba) {
+Uint8List encodeCompressedPng(int width, int height, Uint8List rgba) {
   const bpp = 4;
   final rowBytes = width * bpp;
   final filtered = Uint8List(height * (rowBytes + 1));
@@ -55,7 +64,9 @@ Uint8List encodePng(int width, int height, Uint8List rgba) {
 }
 
 void _writeChunk(BytesBuilder out, String type, List<int> data) {
-  out.add((ByteData(4)..setUint32(0, data.length, Endian.big)).buffer.asUint8List());
+  out.add(
+    (ByteData(4)..setUint32(0, data.length, Endian.big)).buffer.asUint8List(),
+  );
   final body = <int>[..._ascii(type), ...data];
   out.add(body.sublist(0, 4));
   out.add(data);

@@ -26,7 +26,11 @@ void main() {
       );
       addTearDown(pipeline.dispose);
 
-      expect(pipeline.isDirty, isFalse, reason: 'the first frame is already drawn');
+      expect(
+        pipeline.isDirty,
+        isFalse,
+        reason: 'the first frame is already drawn',
+      );
       expect(pipeline.redrawIfDirty(), isFalse);
       expect(pipeline.redrawIfDirty(), isFalse);
       expect(pipeline.redrawCount, 0);
@@ -53,7 +57,8 @@ void main() {
       expect(
         pipeline.isDirty,
         isTrue,
-        reason: 'ValueListenableBuilder calls setState, which schedules a '
+        reason:
+            'ValueListenableBuilder calls setState, which schedules a '
             'build through BuildOwner.onBuildScheduled',
       );
       expect(pipeline.redrawIfDirty(), isTrue);
@@ -150,7 +155,12 @@ void main() {
         // way up its face, chosen off-centre so a bug that reads the wrong
         // axis or flips a sign lands somewhere else on the widget and is
         // caught by the same assertion.
-        world.raycast(Vector3(-1.0, 2.0, -5.0), Vector3(0.0, 0.0, 1.0), 20.0, hit);
+        world.raycast(
+          Vector3(-1.0, 2.0, -5.0),
+          Vector3(0.0, 0.0, 1.0),
+          20.0,
+          hit,
+        );
         expect(hit.hit, isTrue, reason: 'the ray was aimed at the wall');
 
         final uv = _uvOnBoxFace(
@@ -205,7 +215,8 @@ void main() {
         expect(
           taps,
           1,
-          reason: 'the ray, the hit, the UV and the dispatch each did their '
+          reason:
+              'the ray, the hit, the UV and the dispatch each did their '
               'part: $uv should have landed inside the button',
         );
       },

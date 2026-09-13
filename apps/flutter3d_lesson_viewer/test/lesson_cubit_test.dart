@@ -13,8 +13,11 @@ import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:flutter3d_lesson_viewer/main.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-GraphicsDevice _device() =>
-    CpuDevice(width: 16, height: 9, shaders: CpuShaderLibrary(builtinCpuShaders()));
+GraphicsDevice _device() => CpuDevice(
+  width: 16,
+  height: 9,
+  shaders: CpuShaderLibrary(builtinCpuShaders()),
+);
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -37,15 +40,18 @@ void main() {
     expect(player.current?.string('caption'), 'Вид спереди');
   });
 
-  test('a lesson that is not there fails loudly rather than silently', () async {
-    final cubit = LessonCubit();
+  test(
+    'a lesson that is not there fails loudly rather than silently',
+    () async {
+      final cubit = LessonCubit();
 
-    await cubit.open(
-      _device(),
-      camera: CameraNode(),
-      asset: 'assets/levels/no_such_lesson.json',
-    );
+      await cubit.open(
+        _device(),
+        camera: CameraNode(),
+        asset: 'assets/levels/no_such_lesson.json',
+      );
 
-    expect(cubit.state, isA<LessonFailed>());
-  });
+      expect(cubit.state, isA<LessonFailed>());
+    },
+  );
 }

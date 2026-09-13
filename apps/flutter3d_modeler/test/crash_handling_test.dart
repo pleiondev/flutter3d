@@ -81,7 +81,8 @@ void main() {
   // `FlutterError.onError` is a mutable static the test framework itself
   // relies on to fail a test that throws — every test here replaces it on
   // purpose, so it has to come back for whichever test runs next.
-  final void Function(FlutterErrorDetails)? defaultOnError = FlutterError.onError;
+  final void Function(FlutterErrorDetails)? defaultOnError =
+      FlutterError.onError;
   tearDown(() {
     FlutterError.onError = defaultOnError;
     lastAttemptedCommand = null;
@@ -153,52 +154,54 @@ void main() {
       // a person typed as an argument, which is not a stable label a bug
       // report should be filtered or grouped by.
       expect(find.textContaining('Command: rename'), findsOneWidget);
-      expect(find.textContaining('Recent commands: rename, rename'), findsOneWidget);
+      expect(
+        find.textContaining('Recent commands: rename, rename'),
+        findsOneWidget,
+      );
     },
   );
 
-  testWidgets(
-    'no open document: the dialog still shows, with nothing to log',
-    (WidgetTester tester) async {
-      final storage = FakeBinaryStorage();
-      final navigatorKey = GlobalKey<NavigatorState>();
+  testWidgets('no open document: the dialog still shows, with nothing to log', (
+    WidgetTester tester,
+  ) async {
+    final storage = FakeBinaryStorage();
+    final navigatorKey = GlobalKey<NavigatorState>();
 
-      FlutterError.onError = (FlutterErrorDetails details) {
-        unawaited(
-          handleCrash(
-            error: details.exception,
-            stackTrace: details.stack ?? StackTrace.current,
-            cubit: null,
-            storage: storage,
-            sessionId: 'crash-test-session',
-            environment: 'Flutter, test',
-            dialogContext: () => navigatorKey.currentContext,
-          ),
-        );
-      };
+    FlutterError.onError = (FlutterErrorDetails details) {
+      unawaited(
+        handleCrash(
+          error: details.exception,
+          stackTrace: details.stack ?? StackTrace.current,
+          cubit: null,
+          storage: storage,
+          sessionId: 'crash-test-session',
+          environment: 'Flutter, test',
+          dialogContext: () => navigatorKey.currentContext,
+        ),
+      );
+    };
 
-      await tester.pumpWidget(
-        MaterialApp(
-          navigatorKey: navigatorKey,
-          home: Scaffold(
-            body: Builder(
-              builder: (BuildContext context) => ElevatedButton(
-                onPressed: () => throw StateError('no document was open yet'),
-                child: const Text('crash'),
-              ),
+    await tester.pumpWidget(
+      MaterialApp(
+        navigatorKey: navigatorKey,
+        home: Scaffold(
+          body: Builder(
+            builder: (BuildContext context) => ElevatedButton(
+              onPressed: () => throw StateError('no document was open yet'),
+              child: const Text('crash'),
             ),
           ),
         ),
-      );
+      ),
+    );
 
-      await tester.tap(find.text('crash'));
-      await tester.pumpAndSettle();
+    await tester.tap(find.text('crash'));
+    await tester.pumpAndSettle();
 
-      expect(storage.documents, isEmpty);
-      expect(find.text('Something went wrong'), findsOneWidget);
-      expect(find.textContaining('Command:'), findsNothing);
-    },
-  );
+    expect(storage.documents, isEmpty);
+    expect(find.text('Something went wrong'), findsOneWidget);
+    expect(find.textContaining('Command:'), findsNothing);
+  });
 
   test('describe() puts the command and the trail in one paragraph', () {
     const report = CrashReport(

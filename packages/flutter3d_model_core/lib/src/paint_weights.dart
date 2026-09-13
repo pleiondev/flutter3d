@@ -160,7 +160,8 @@ Map<int, Vector3> _posedPositions(
   List<Matrix4> jointWorldTransforms,
 ) => <int, Vector3>{
   for (var v = 0; v < mesh.vertexSlotCount; v++)
-    if (mesh.isVertexAlive(v)) v: _posedPositionOf(mesh, v, skeleton, jointWorldTransforms),
+    if (mesh.isVertexAlive(v))
+      v: _posedPositionOf(mesh, v, skeleton, jointWorldTransforms),
 };
 
 /// Paints [joint]'s influence over every vertex [samples] touches, hit-tested

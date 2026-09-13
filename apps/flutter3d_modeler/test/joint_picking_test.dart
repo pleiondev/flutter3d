@@ -7,7 +7,8 @@ library;
 import 'dart:math' as math;
 import 'dart:ui' show Offset, Size;
 
-import 'package:flutter3d/flutter3d.dart' show CameraNode, PerspectiveProjection;
+import 'package:flutter3d/flutter3d.dart'
+    show CameraNode, PerspectiveProjection;
 import 'package:flutter3d_modeler/src/element_picking.dart';
 import 'package:flutter3d_modeler/src/joint_picking.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -32,7 +33,11 @@ Offset _screenOf(Vector3 world) {
 
 PickingView _view() => PickingView(
   camera: CameraNode(
-    projection: PerspectiveProjection(fovYRadians: _fovY, near: 0.1, far: 100.0),
+    projection: PerspectiveProjection(
+      fovYRadians: _fovY,
+      near: 0.1,
+      far: 100.0,
+    ),
   )..setPosition(0.0, 0.0, _eyeZ),
   size: _viewport,
 );
@@ -65,10 +70,7 @@ void main() {
     final near = _screenOf(centre);
     // A second joint a few pixels further from the click than joint 0, both
     // within an 8-pixel radius of it.
-    final joints = <int, Vector3>{
-      0: centre,
-      1: Vector3(0.1, 0.02, 0.0),
-    };
+    final joints = <int, Vector3>{0: centre, 1: Vector3(0.1, 0.02, 0.0)};
 
     expect(pickJointAt(view, near, joints: joints, radius: 8.0), 0);
   });
@@ -78,11 +80,17 @@ void main() {
     final view = _view();
     final joints = <int, Vector3>{0: Vector3(0.0, 0.0, _eyeZ + 1.0)};
 
-    expect(pickJointAt(view, const Offset(400.0, 300.0), joints: joints), isNull);
+    expect(
+      pickJointAt(view, const Offset(400.0, 300.0), joints: joints),
+      isNull,
+    );
   });
 
   test('an empty skeleton picks nothing', () {
     final view = _view();
-    expect(pickJointAt(view, const Offset(400.0, 300.0), joints: const {}), isNull);
+    expect(
+      pickJointAt(view, const Offset(400.0, 300.0), joints: const {}),
+      isNull,
+    );
   });
 }

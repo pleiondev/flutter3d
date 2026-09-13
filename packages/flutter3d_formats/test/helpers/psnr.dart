@@ -11,8 +11,10 @@ import 'package:flutter3d_formats/flutter3d_formats.dart';
 
 double psnr(Rgba8Image a, Rgba8Image b, {bool includeAlpha = false}) {
   if (a.width != b.width || a.height != b.height) {
-    throw ArgumentError('psnr needs equal dimensions: ${a.width}x${a.height} '
-        'vs ${b.width}x${b.height}');
+    throw ArgumentError(
+      'psnr needs equal dimensions: ${a.width}x${a.height} '
+      'vs ${b.width}x${b.height}',
+    );
   }
   var sumSquares = 0.0;
   var count = 0;

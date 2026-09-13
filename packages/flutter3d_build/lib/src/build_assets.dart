@@ -133,8 +133,7 @@ Future<AssetBuildReport> runAssetBuild(
     );
     next[job.source] = entry;
 
-    final unchanged =
-        previous[job.source]?.matches(entry) ?? false;
+    final unchanged = previous[job.source]?.matches(entry) ?? false;
     if (unchanged && File(job.destination).existsSync()) {
       skipped.add(job.source);
       continue;
@@ -179,7 +178,9 @@ Future<void> buildAssets(BuildInput input, BuildOutputBuilder output) async {
   // keys staying the same string across two different callers of this same
   // function. Found by a real end-to-end test, not by reading the API.
   final root = Directory.fromUri(input.packageRoot).path;
-  final projectRoot = Directory(root.endsWith('/') ? root.substring(0, root.length - 1) : root);
+  final projectRoot = Directory(
+    root.endsWith('/') ? root.substring(0, root.length - 1) : root,
+  );
 
   final report = await runAssetBuild(projectRoot);
   for (final source in report.dependencies) {

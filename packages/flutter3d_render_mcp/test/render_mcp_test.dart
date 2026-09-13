@@ -23,15 +23,11 @@ import 'package:flutter3d_render_mcp/flutter3d_render_mcp.dart';
 import 'package:test/test.dart';
 
 Future<({Process process, int port})> _startServer() async {
-  final process = await Process.start(
-    'flutter',
-    <String>[
-      'test',
-      '--reporter=silent',
-      'test/fixtures/render_mcp_server.dart',
-    ],
-    workingDirectory: Directory.current.path,
-  );
+  final process = await Process.start('flutter', <String>[
+    'test',
+    '--reporter=silent',
+    'test/fixtures/render_mcp_server.dart',
+  ], workingDirectory: Directory.current.path);
   final portFound = Completer<int>();
   final subscription = process.stdout
       .transform(utf8.decoder)
@@ -70,20 +66,18 @@ List<int> _texel(List<int> rgb) =>
 /// engine's guarded PBR path actually produces from a plausible authoring
 /// mistake (a placeholder texture where a tangent-space map belongs).
 Directory _writeWorkspace() {
-  final workspace = Directory.systemTemp.createTempSync(
-    'flutter3d_render_mcp',
-  );
+  final workspace = Directory.systemTemp.createTempSync('flutter3d_render_mcp');
   final textures = Directory('${workspace.path}/assets/textures')
     ..createSync(recursive: true);
   final levels = Directory('${workspace.path}/assets/levels')
     ..createSync(recursive: true);
 
-  File('${textures.path}/good_normal.png').writeAsBytesSync(
-    _texel(<int>[128, 128, 255]),
-  );
-  File('${textures.path}/broken_normal.png').writeAsBytesSync(
-    _texel(<int>[0, 0, 0]),
-  );
+  File(
+    '${textures.path}/good_normal.png',
+  ).writeAsBytesSync(_texel(<int>[128, 128, 255]));
+  File(
+    '${textures.path}/broken_normal.png',
+  ).writeAsBytesSync(_texel(<int>[0, 0, 0]));
 
   final level = <String, Object?>{
     'version': 1,
@@ -183,10 +177,13 @@ void main() {
 
   test('the five tools an agent is offered are the ones it can call', () async {
     final offered = await connection.listTools(ListToolsRequest());
-    expect(
-      offered.tools.map((t) => t.name).toSet(),
-      <String>{'open', 'frame', 'pixel', 'passes', 'scanNaN'},
-    );
+    expect(offered.tools.map((t) => t.name).toSet(), <String>{
+      'open',
+      'frame',
+      'pixel',
+      'passes',
+      'scanNaN',
+    });
   });
 
   test('pixel before a frame is refused, not crashed', () async {
@@ -195,99 +192,104 @@ void main() {
     expect(result.says, contains('no frame drawn'));
   });
 
-  test(
-    'a broken normal map reads back darker than a correct one, and the '
-    'answer names the pass responsible',
-    () async {
-      final opened = await call('open', <String, Object?>{
-        'path': '${workspace.path}/assets/levels/probe.json',
-      });
-      expect(opened.did, isTrue, reason: opened.says);
+  test('a broken normal map reads back darker than a correct one, and the '
+      'answer names the pass responsible', () async {
+    final opened = await call('open', <String, Object?>{
+      'path': '${workspace.path}/assets/levels/probe.json',
+    });
+    expect(opened.did, isTrue, reason: opened.says);
 
-      final drawn = await call('frame', <String, Object?>{
-        'atX': 0.0,
-        'atY': 1.0,
-        'atZ': 8.0,
-        'aimX': 0.0,
-        'aimY': 0.0,
-        'aimZ': -1.0,
-        'view': 'lit',
-      });
-      expect(drawn.did, isTrue, reason: drawn.says);
-      expect(drawn.png, isNotNull);
-      expect(
-        drawn.says,
-        contains('scene'),
-        reason: 'the lit view names its own lighting pass unprompted',
-      );
+    final drawn = await call('frame', <String, Object?>{
+      'atX': 0.0,
+      'atY': 1.0,
+      'atZ': 8.0,
+      'aimX': 0.0,
+      'aimY': 0.0,
+      'aimZ': -1.0,
+      'view': 'lit',
+    });
+    expect(drawn.did, isTrue, reason: drawn.says);
+    expect(drawn.png, isNotNull);
+    expect(
+      drawn.says,
+      contains('scene'),
+      reason: 'the lit view names its own lighting pass unprompted',
+    );
 
-      // The PNG signature — proof this is actually a PNG.
-      expect(
-        drawn.png!.sublist(0, 8),
-        <int>[0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A],
-      );
+    // The PNG signature — proof this is actually a PNG.
+    expect(drawn.png!.sublist(0, 8), <int>[
+      0x89,
+      0x50,
+      0x4E,
+      0x47,
+      0x0D,
+      0x0A,
+      0x1A,
+      0x0A,
+    ]);
 
-      // The brightest pixel in each half of the frame is that half's own
-      // wall — found by scanning rather than assumed from hand projection,
-      // since the exact pixel a world position lands on is the renderer's
-      // to decide, not this test's. Read through `pixel` itself, sampling a
-      // grid and keeping the brightest cell each side of the frame's own
-      // midline.
-      const width = 320, height = 200;
-      double bestLeft = -1, bestRight = -1;
-      var bestRightXY = (0, 0);
-      for (var y = 20; y < height; y += 20) {
-        for (var x = 10; x < width; x += 10) {
-          final read = await call('pixel', <String, Object?>{'x': x, 'y': y});
-          expect(read.did, isTrue, reason: read.says);
-          final words = jsonDecode(read.says) as Map<String, Object?>;
-          final rgba = (words['rgba']! as List<Object?>).cast<num>();
-          final luma = rgba[0] + rgba[1] + rgba[2];
-          if (x < width ~/ 2 && luma > bestLeft) {
-            bestLeft = luma.toDouble();
-          }
-          if (x >= width ~/ 2 && luma > bestRight) {
-            bestRight = luma.toDouble();
-            bestRightXY = (x, y);
-          }
+    // The brightest pixel in each half of the frame is that half's own
+    // wall — found by scanning rather than assumed from hand projection,
+    // since the exact pixel a world position lands on is the renderer's
+    // to decide, not this test's. Read through `pixel` itself, sampling a
+    // grid and keeping the brightest cell each side of the frame's own
+    // midline.
+    const width = 320, height = 200;
+    double bestLeft = -1, bestRight = -1;
+    var bestRightXY = (0, 0);
+    for (var y = 20; y < height; y += 20) {
+      for (var x = 10; x < width; x += 10) {
+        final read = await call('pixel', <String, Object?>{'x': x, 'y': y});
+        expect(read.did, isTrue, reason: read.says);
+        final words = jsonDecode(read.says) as Map<String, Object?>;
+        final rgba = (words['rgba']! as List<Object?>).cast<num>();
+        final luma = rgba[0] + rgba[1] + rgba[2];
+        if (x < width ~/ 2 && luma > bestLeft) {
+          bestLeft = luma.toDouble();
+        }
+        if (x >= width ~/ 2 && luma > bestRight) {
+          bestRight = luma.toDouble();
+          bestRightXY = (x, y);
         }
       }
-      expect(
-        bestLeft,
-        greaterThan(0.3),
-        reason: 'the good wall (world x = -2.5, left of screen) should be '
-            'clearly lit somewhere in the left half',
-      );
-      expect(
-        bestRight,
-        lessThan(bestLeft * 0.6),
-        reason: 'the broken wall (world x = +2.5, right of screen) should '
-            'read back markedly darker than the good one, from the same '
-            'light, the same material otherwise, and nothing different but '
-            'the normal map',
-      );
+    }
+    expect(
+      bestLeft,
+      greaterThan(0.3),
+      reason:
+          'the good wall (world x = -2.5, left of screen) should be '
+          'clearly lit somewhere in the left half',
+    );
+    expect(
+      bestRight,
+      lessThan(bestLeft * 0.6),
+      reason:
+          'the broken wall (world x = +2.5, right of screen) should '
+          'read back markedly darker than the good one, from the same '
+          'light, the same material otherwise, and nothing different but '
+          'the normal map',
+    );
 
-      final passes = await call('passes');
-      expect(passes.did, isTrue);
-      final passList = (jsonDecode(passes.says) as List<Object?>)
-          .cast<Map<String, Object?>>();
-      expect(
-        passList.any((p) => p['name'] == 'scene' && p['active'] == true),
-        isTrue,
-        reason: 'the pass `pixel` already named should actually be in the '
-            'graph this frame ran',
-      );
+    final passes = await call('passes');
+    expect(passes.did, isTrue);
+    final passList = (jsonDecode(passes.says) as List<Object?>)
+        .cast<Map<String, Object?>>();
+    expect(
+      passList.any((p) => p['name'] == 'scene' && p['active'] == true),
+      isTrue,
+      reason:
+          'the pass `pixel` already named should actually be in the '
+          'graph this frame ran',
+    );
 
-      // What an agent reasons from: `pixel` at the dark spot names the same
-      // pass `passes` says ran — that is the naming this acceptance asks
-      // for, stated as data rather than as a free-text guess.
-      final darkPixel = await call('pixel', <String, Object?>{
-        'x': bestRightXY.$1,
-        'y': bestRightXY.$2,
-      });
-      expect(darkPixel.says, contains('"pass"'));
-      expect(darkPixel.says, contains('scene'));
-    },
-    timeout: const Timeout(Duration(seconds: 60)),
-  );
+    // What an agent reasons from: `pixel` at the dark spot names the same
+    // pass `passes` says ran — that is the naming this acceptance asks
+    // for, stated as data rather than as a free-text guess.
+    final darkPixel = await call('pixel', <String, Object?>{
+      'x': bestRightXY.$1,
+      'y': bestRightXY.$2,
+    });
+    expect(darkPixel.says, contains('"pass"'));
+    expect(darkPixel.says, contains('scene'));
+  }, timeout: const Timeout(Duration(seconds: 60)));
 }

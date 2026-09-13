@@ -6,7 +6,9 @@ import 'package:vector_math/vector_math.dart';
 
 import '../animation/animation_clip.dart';
 import '../animation/animation_track.dart';
+import '../asset_resolver.dart';
 import '../model_document.dart';
+import '../model_loader.dart';
 import 'f3d_format.dart';
 
 // The header and section directory are parsed here; reading each section's
@@ -70,7 +72,7 @@ final class F3dDocument extends ModelDocument {
     if (version != kF3dVersion) {
       throw F3dFormatException(
         'File is version $version, this build reads $kF3dVersion. Re-run '
-        'dart run flutter3d:convert.',
+        'dart run flutter3d_build:convert.',
       );
     }
 
@@ -261,6 +263,26 @@ final class _Section {
 
   /// Elements, for the fixed-record tables; zero for raw byte sections.
   final int count;
+}
+
+/// `.f3d` through the same [ModelDecoder] boundary an application's own
+/// formats come through, so every built-in reader is one: see
+/// `builtInModelDecoder`.
+final class F3dDecoder implements ModelDecoder {
+  const F3dDecoder();
+
+  @override
+  bool handles(String fileName, Uint8List bytes) =>
+      fileName.toLowerCase().endsWith('.f3d') || isF3dFile(bytes);
+
+  /// Synchronous underneath: the header is read and every array becomes a
+  /// view over [bytes] when it is asked for.
+  @override
+  Future<ModelDocument> decode(
+    Uint8List bytes,
+    ModelLoadRequest request,
+    AssetUriResolver resolveUri,
+  ) => Future<ModelDocument>.value(F3dDocument.parse(bytes));
 }
 
 /// True when [bytes] begins with the `.f3d` magic.

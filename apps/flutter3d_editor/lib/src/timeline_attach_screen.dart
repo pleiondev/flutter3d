@@ -118,13 +118,16 @@ final class _TimelineAttachScreenState extends State<TimelineAttachScreen> {
             Row(
               children: [
                 FilledButton(
-                  onPressed: () =>
-                      _run(_paused ? widget.client.resume : widget.client.pause),
+                  onPressed: () => _run(
+                    _paused ? widget.client.resume : widget.client.pause,
+                  ),
                   child: Text(_paused ? 'Resume' : 'Pause'),
                 ),
                 const SizedBox(width: 8.0),
                 OutlinedButton(
-                  onPressed: _paused ? () => _run(widget.client.stepOnce) : null,
+                  onPressed: _paused
+                      ? () => _run(widget.client.stepOnce)
+                      : null,
                   child: const Text('Step'),
                 ),
               ],
@@ -154,13 +157,11 @@ final class _TimelineAttachScreenState extends State<TimelineAttachScreen> {
                   child: const Text('Preview'),
                 ),
                 const SizedBox(width: 16.0),
-                Text(
-                  switch (_preview) {
-                    null => '',
-                    (found: false, step: _) => 'not far enough back',
-                    (found: true, step: final step) => 'at step $step',
-                  },
-                ),
+                Text(switch (_preview) {
+                  null => '',
+                  (found: false, step: _) => 'not far enough back',
+                  (found: true, step: final step) => 'at step $step',
+                }),
               ],
             ),
             const SizedBox(height: 8.0),
@@ -175,7 +176,10 @@ final class _TimelineAttachScreenState extends State<TimelineAttachScreen> {
             ),
             if (_said != null) ...[
               const SizedBox(height: 8.0),
-              Text(_said!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
+              Text(
+                _said!,
+                style: TextStyle(color: Theme.of(context).colorScheme.error),
+              ),
             ],
             const SizedBox(height: 16.0),
             Row(
@@ -228,7 +232,9 @@ final class _FrameTimeStrip extends StatelessWidget {
     if (costs == null || costs.steps.isEmpty) {
       return const SizedBox(
         height: _height,
-        child: Center(child: Text('no frame times yet', style: TextStyle(fontSize: 12))),
+        child: Center(
+          child: Text('no frame times yet', style: TextStyle(fontSize: 12)),
+        ),
       );
     }
     final worst = costs.millis.fold<double>(0.0, (a, b) => a > b ? a : b);
@@ -242,7 +248,8 @@ final class _FrameTimeStrip extends StatelessWidget {
               key: ValueKey<int>(costs.steps[i]),
               onTap: () => onTapStep(costs.steps[i]),
               child: Tooltip(
-                message: 'step ${costs.steps[i]}: ${costs.millis[i].toStringAsFixed(2)}ms',
+                message:
+                    'step ${costs.steps[i]}: ${costs.millis[i].toStringAsFixed(2)}ms',
                 child: Align(
                   alignment: Alignment.bottomCenter,
                   child: Container(
@@ -250,7 +257,10 @@ final class _FrameTimeStrip extends StatelessWidget {
                     margin: const EdgeInsets.symmetric(horizontal: 0.5),
                     height: worst <= 0
                         ? 2.0
-                        : (_height * costs.millis[i] / worst).clamp(2.0, _height),
+                        : (_height * costs.millis[i] / worst).clamp(
+                            2.0,
+                            _height,
+                          ),
                     color: Theme.of(context).colorScheme.primary,
                   ),
                 ),

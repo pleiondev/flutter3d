@@ -12,16 +12,14 @@ import 'package:flutter_test/flutter_test.dart';
 
 final Uint8List _thumbnailBytes = Uint8List.fromList(<int>[1, 2, 3, 4]);
 
-TextureSlotDisplay _displayWith({
-  String? formatBadge,
-  Uint8List? thumbnail,
-}) => TextureSlotDisplay(
-  name: 'albedo.png',
-  dimensionsText: '256×128',
-  weightText: '170 КБ',
-  formatBadge: formatBadge,
-  thumbnail: thumbnail ?? _thumbnailBytes,
-);
+TextureSlotDisplay _displayWith({String? formatBadge, Uint8List? thumbnail}) =>
+    TextureSlotDisplay(
+      name: 'albedo.png',
+      dimensionsText: '256×128',
+      weightText: '170 КБ',
+      formatBadge: formatBadge,
+      thumbnail: thumbnail ?? _thumbnailBytes,
+    );
 
 Future<void> _show(
   WidgetTester tester, {
@@ -76,11 +74,7 @@ void main() {
       WidgetTester tester,
     ) async {
       var picked = false;
-      await _show(
-        tester,
-        display: _displayWith(),
-        onPick: () => picked = true,
-      );
+      await _show(tester, display: _displayWith(), onPick: () => picked = true);
 
       await tester.tap(find.byType(TextureSlotRow));
       expect(picked, isTrue);

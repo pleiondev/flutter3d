@@ -13,19 +13,30 @@ Uint8List _pngOf({required bool alpha}) {
   final image = img.Image(width: 8, height: 8, numChannels: alpha ? 4 : 3);
   for (var y = 0; y < 8; y++) {
     for (var x = 0; x < 8; x++) {
-      image.setPixelRgba(x, y, (x * 30) & 0xFF, 80, (y * 30) & 0xFF, alpha ? 128 : 255);
+      image.setPixelRgba(
+        x,
+        y,
+        (x * 30) & 0xFF,
+        80,
+        (y * 30) & 0xFF,
+        alpha ? 128 : 255,
+      );
     }
   }
   return Uint8List.fromList(img.encodePng(image));
 }
 
-EncodedImage _image(Uint8List bytes) => EncodedImage(bytes: bytes, name: 'test');
+EncodedImage _image(Uint8List bytes) =>
+    EncodedImage(bytes: bytes, name: 'test');
 
 void main() {
   test('none and auto leave every image untouched', () async {
     final document = PlainModelDocument(images: [_image(_pngOf(alpha: false))]);
 
-    for (final family in <TextureFamily>[TextureFamily.none, TextureFamily.auto]) {
+    for (final family in <TextureFamily>[
+      TextureFamily.none,
+      TextureFamily.auto,
+    ]) {
       final result = await encodeDocumentTextures(document, family);
       expect(result.images.single.bytes, same(document.images.single.bytes));
     }

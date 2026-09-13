@@ -33,7 +33,12 @@ final class Bestiary {
   /// not of the roster: a level does not author some of its monsters hard.
   final Difficulty difficulty;
 
-  Actor spawn(MonsterDef def, Vector3 position, {double yaw = 0.0, String? name}) {
+  Actor spawn(
+    MonsterDef def,
+    Vector3 position, {
+    double yaw = 0.0,
+    String? name,
+  }) {
     return actors.spawn(
       body: CharacterController(
         world: actors.world,

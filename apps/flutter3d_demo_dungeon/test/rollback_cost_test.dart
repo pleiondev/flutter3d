@@ -93,15 +93,14 @@ void main() {
 
     // ignore: avoid_print
     print(
-      'net-00 dungeon (crypt): ${[
-        for (final k in results.keys) 'k=$k ${results[k]!.toStringAsFixed(4)}ms',
-      ].join(', ')}',
+      'net-00 dungeon (crypt): ${[for (final k in results.keys) 'k=$k ${results[k]!.toStringAsFixed(4)}ms'].join(', ')}',
     );
 
     expect(
       results[8],
       isNotNull,
-      reason: 'net-00 states its budget at k=8; the table must have a row for it',
+      reason:
+          'net-00 states its budget at k=8; the table must have a row for it',
     );
     // Structural check rather than a hard number: restoring once and running
     // more steps costs at least as much as running fewer, since a step never

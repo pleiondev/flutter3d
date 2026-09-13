@@ -470,16 +470,18 @@ void main() {
   });
 
   group('ui-16\'s own lower half', () {
-    test('decodeBytes hands back the same document openBytes would use',
-        () async {
-      final document = decoded();
-      final bytes = F3dWriter(document).write();
+    test(
+      'decodeBytes hands back the same document openBytes would use',
+      () async {
+        final document = decoded();
+        final bytes = F3dWriter(document).write();
 
-      final redecoded = await decodeBytes(bytes, 'thing.f3d');
+        final redecoded = await decodeBytes(bytes, 'thing.f3d');
 
-      expect(redecoded.nodes.length, document.nodes.length);
-      expect(redecoded.surfaces.length, document.surfaces.length);
-    });
+        expect(redecoded.nodes.length, document.nodes.length);
+        expect(redecoded.surfaces.length, document.surfaces.length);
+      },
+    );
 
     test('emptyDecodeRefusal is null for a document with content', () {
       expect(emptyDecodeRefusal(decoded(), 'thing.f3d'), isNull);
@@ -487,7 +489,11 @@ void main() {
 
     test('emptyDecodeRefusal names the file for one with neither meshes nor '
         'nodes', () {
-      final blank = _Decoded(surfaces: const <ModelSurface>[], nodes: const <ModelNode>[], roots: const <int>[]);
+      final blank = _Decoded(
+        surfaces: const <ModelSurface>[],
+        nodes: const <ModelNode>[],
+        roots: const <int>[],
+      );
       final because = emptyDecodeRefusal(blank, 'empty.obj');
       expect(because, isNotNull);
       expect(because, contains('empty.obj'));
@@ -541,6 +547,27 @@ void main() {
       // (wrong) glTF instead of naming itself in the status line.
       expect(because, isNotNull);
       expect(because, contains('scene.dae'));
+    });
+
+    test('an FBX is let through to the decoder that says why it will not '
+        'open', () async {
+      // Mutation: ask `recognizedModelFormat` alone, as the guard did. The
+      // window refuses an FBX with "not a file type", while a picked one
+      // decodes as OBJ and opens empty — two answers for one file.
+      expect(
+        unopenableDropRefusal('rig.fbx', Uint8List.fromList(<int>[1, 2, 3])),
+        isNull,
+      );
+      await expectLater(
+        decodeBytes(Uint8List.fromList(<int>[1, 2, 3]), 'rig.fbx'),
+        throwsA(
+          isA<FormatException>().having(
+            (FormatException e) => e.message,
+            'message',
+            contains('FBX'),
+          ),
+        ),
+      );
     });
 
     test('a name with no extension at all is refused the same way', () {

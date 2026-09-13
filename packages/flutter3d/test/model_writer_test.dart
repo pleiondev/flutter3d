@@ -51,22 +51,13 @@ void main() {
       final document = await box();
       final results = await Future.wait(<Future<Object>>[
         encodeModelInIsolate(
-          ModelWriteRequest(
-            document: document,
-            format: ModelWriteFormat.glb,
-          ),
+          ModelWriteRequest(document: document, format: ModelWriteFormat.glb),
         ),
         encodeModelInIsolate(
-          ModelWriteRequest(
-            document: document,
-            format: ModelWriteFormat.obj,
-          ),
+          ModelWriteRequest(document: document, format: ModelWriteFormat.obj),
         ),
         encodeModelInIsolate(
-          ModelWriteRequest(
-            document: document,
-            format: ModelWriteFormat.stl,
-          ),
+          ModelWriteRequest(document: document, format: ModelWriteFormat.stl),
         ),
       ]);
       expect(results, hasLength(3));

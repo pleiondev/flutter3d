@@ -30,22 +30,19 @@ void main() {
   });
 
   group('setting a light field', () {
-    test(
-      "mat-23's own acceptance: SetLightField('intensity', 'много') is "
-      'rejected',
-      () {
-        final history = ModelHistory(const ModelProject());
-        history.run(const AddLight());
+    test("mat-23's own acceptance: SetLightField('intensity', 'много') is "
+        'rejected', () {
+      final history = ModelHistory(const ModelProject());
+      history.run(const AddLight());
 
-        final said = history.run(
-          const SetLightField(index: 0, field: 'intensity', value: 'много'),
-        );
+      final said = history.run(
+        const SetLightField(index: 0, field: 'intensity', value: 'много'),
+      );
 
-        expect(said, isNotNull);
-        // Refused, not silently ignored: the light's own field is unchanged.
-        expect(history.project.lighting.lights.single.intensity, 1.0);
-      },
-    );
+      expect(said, isNotNull);
+      // Refused, not silently ignored: the light's own field is unchanged.
+      expect(history.project.lighting.lights.single.intensity, 1.0);
+    });
 
     test('a real number is accepted', () {
       final history = ModelHistory(const ModelProject());
@@ -166,36 +163,36 @@ void main() {
       );
     });
 
-    test('SetSceneLightingField accepts ambientIntensity, shadows, exposure', () {
-      final history = ModelHistory(const ModelProject());
+    test(
+      'SetSceneLightingField accepts ambientIntensity, shadows, exposure',
+      () {
+        final history = ModelHistory(const ModelProject());
 
-      expect(
-        history.run(
-          const SetSceneLightingField(
-            field: 'ambientIntensity',
-            value: 0.5,
+        expect(
+          history.run(
+            const SetSceneLightingField(field: 'ambientIntensity', value: 0.5),
           ),
-        ),
-        isNull,
-      );
-      expect(history.project.lighting.ambientIntensity, 0.5);
+          isNull,
+        );
+        expect(history.project.lighting.ambientIntensity, 0.5);
 
-      expect(
-        history.run(
-          const SetSceneLightingField(field: 'shadows', value: true),
-        ),
-        isNull,
-      );
-      expect(history.project.lighting.shadows, isTrue);
+        expect(
+          history.run(
+            const SetSceneLightingField(field: 'shadows', value: true),
+          ),
+          isNull,
+        );
+        expect(history.project.lighting.shadows, isTrue);
 
-      expect(
-        history.run(
-          const SetSceneLightingField(field: 'exposure', value: 2.0),
-        ),
-        isNull,
-      );
-      expect(history.project.lighting.exposure, 2.0);
-    });
+        expect(
+          history.run(
+            const SetSceneLightingField(field: 'exposure', value: 2.0),
+          ),
+          isNull,
+        );
+        expect(history.project.lighting.exposure, 2.0);
+      },
+    );
 
     test('a bad value for a scene-wide field is refused', () {
       final history = ModelHistory(const ModelProject());

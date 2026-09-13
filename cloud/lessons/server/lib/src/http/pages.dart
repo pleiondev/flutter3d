@@ -138,7 +138,8 @@ String notFoundPage() => '''
 
 /// The viewer build's own address for [lesson] — `/app/?level=<asset>`, the
 /// same query-parameter door `flutter3d_modeler` opens for `?model=`.
-String assetSrc(Lesson lesson) => '/app/?level=${Uri.encodeQueryComponent(lesson.levelAsset)}';
+String assetSrc(Lesson lesson) =>
+    '/app/?level=${Uri.encodeQueryComponent(lesson.levelAsset)}';
 
 String _iframe(String src) =>
     '<iframe src="$src" allow="fullscreen" allowfullscreen loading="lazy"></iframe>';

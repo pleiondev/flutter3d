@@ -39,8 +39,8 @@ void main() {
       'teapot.obj (a different decoder, the same writer)': () =>
           ObjLoader().load(_sample('teapot.obj')),
       'teapot.stl (a third decoder, real curvature rather than only '
-              'synthetic edge cases)':
-          () => StlLoader().load(_sample('teapot.stl')),
+          'synthetic edge cases)': () =>
+          StlLoader().load(_sample('teapot.stl')),
     };
 
     for (final entry in cases.entries) {

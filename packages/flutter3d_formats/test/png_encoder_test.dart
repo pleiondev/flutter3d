@@ -10,7 +10,7 @@ library;
 import 'dart:io';
 import 'dart:typed_data';
 
-import 'package:flutter3d_model_core/flutter3d_model_core.dart';
+import 'package:flutter3d_formats/flutter3d_formats.dart';
 import 'package:test/test.dart';
 
 /// The `IDAT` chunk's own bytes out of a PNG this file wrote — enough to
@@ -41,7 +41,7 @@ void main() {
         rgba[i + 2] = 200;
         rgba[i + 3] = 255;
       }
-      final png = encodePng(side, side, rgba);
+      final png = encodeCompressedPng(side, side, rgba);
       final decoded = decodePng(png);
       expect(decoded, isNotNull);
       expect(decoded!.width, side);
@@ -61,7 +61,7 @@ void main() {
           rgba[at + 3] = 255;
         }
       }
-      final png = encodePng(side, side, rgba);
+      final png = encodeCompressedPng(side, side, rgba);
       expect(decodePng(png)!.rgba, rgba);
     });
 
@@ -73,13 +73,13 @@ void main() {
         seed = (seed * 1103515245 + 12345) & 0x7fffffff;
         rgba[i] = seed & 0xFF;
       }
-      final png = encodePng(side, side, rgba);
+      final png = encodeCompressedPng(side, side, rgba);
       expect(decodePng(png)!.rgba, rgba);
     });
 
     test('a single pixel', () {
       final rgba = Uint8List.fromList(<int>[1, 2, 3, 4]);
-      final png = encodePng(1, 1, rgba);
+      final png = encodeCompressedPng(1, 1, rgba);
       expect(decodePng(png)!.rgba, rgba);
     });
   });
@@ -90,7 +90,7 @@ void main() {
     for (var i = 0; i < rgba.length; i++) {
       rgba[i] = i % 256;
     }
-    final png = encodePng(side, side, rgba);
+    final png = encodeCompressedPng(side, side, rgba);
     final idat = _idatOf(png);
     // Not a pixel comparison — just proof the compressed bytes this
     // encoder wrote are a real zlib stream and not only one this
@@ -113,7 +113,7 @@ void main() {
     // 255 distinct values, four to a run — that LZ77 alone crushes it
     // regardless of which filter wrote the bytes; the test below is the
     // one that actually depends on `_bestFilter` choosing well.
-    final png = encodePng(side, side, rgba);
+    final png = encodeCompressedPng(side, side, rgba);
     expect(png.length, lessThan(rgba.length * 0.25));
     expect(decodePng(png)!.rgba, rgba);
   });
@@ -148,7 +148,7 @@ void main() {
         rgba[at + 3] = 255;
       }
     }
-    final png = encodePng(side, side, rgba);
+    final png = encodeCompressedPng(side, side, rgba);
     expect(png.length, lessThan(rgba.length * 0.25));
     expect(decodePng(png)!.rgba, rgba);
   });

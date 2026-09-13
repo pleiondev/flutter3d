@@ -181,7 +181,11 @@ void main() {
         images: source.images,
         nodes: source.nodes,
         animations: <AnimationClip>[
-          AnimationClip(name: clip.name, tracks: clip.tracks, extras: _sampleExtras),
+          AnimationClip(
+            name: clip.name,
+            tracks: clip.tracks,
+            extras: _sampleExtras,
+          ),
         ],
       );
 
@@ -243,7 +247,8 @@ void main() {
       final bytes = GltfWriter(annotated).writeGlb();
       final readBack = await GltfLoader().load(bytes);
 
-      final readTransform = readBack.materials.first.baseColorTexture!.transform;
+      final readTransform =
+          readBack.materials.first.baseColorTexture!.transform;
       expect(readTransform, isNotNull);
       // Mutation: read `offset`/`scale` swapped, or drop `rotation` — any of
       // these three numbers wrong is exactly what this line catches.

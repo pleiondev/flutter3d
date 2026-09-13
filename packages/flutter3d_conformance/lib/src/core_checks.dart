@@ -470,7 +470,10 @@ Future<void> checkTextureOverwriteRegion(GraphicsDevice device) async {
     format: TextureFormat.r8g8b8a8UNormInt,
     pixels: ByteData.sublistView(base),
   );
-  require(texture != null, 'the device made no texture from four by four RGBA8 pixels');
+  require(
+    texture != null,
+    'the device made no texture from four by four RGBA8 pixels',
+  );
 
   // The bottom-right quadrant only, so a caller reading the wrong offset in
   // either axis lands on a quadrant this check can name by its own colour.
@@ -480,7 +483,11 @@ Future<void> checkTextureOverwriteRegion(GraphicsDevice device) async {
     patch[i * 4 + 1] = 200; // green, opaque
     patch[i * 4 + 3] = 255;
   }
-  await device.overwriteTexture(texture!, ByteData.sublistView(patch), region: region);
+  await device.overwriteTexture(
+    texture!,
+    ByteData.sublistView(patch),
+    region: region,
+  );
 
   final read = await device.readback(texture);
   final bytes = read.buffer.asUint8List();
@@ -488,8 +495,11 @@ Future<void> checkTextureOverwriteRegion(GraphicsDevice device) async {
   for (var y = 0; y < height; y++) {
     for (var x = 0; x < width; x++) {
       final at = (y * width + x) * 4;
-      final inRegion = x >= region.x && x < region.x + region.width &&
-          y >= region.y && y < region.y + region.height;
+      final inRegion =
+          x >= region.x &&
+          x < region.x + region.width &&
+          y >= region.y &&
+          y < region.y + region.height;
       if (inRegion) {
         require(
           bytes[at + 1] > bytes[at],

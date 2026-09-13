@@ -91,73 +91,102 @@ double _sampledHausdorffDistance(
   return math.max(sampleOneDirection(a, b), sampleOneDirection(b, a));
 }
 
-MeshData _sphere({required double radius, required int segments, required int rings}) =>
-    SphereShape(radius: radius, segments: segments, rings: rings)
-        .build(layout: VertexLayout.positionOnly);
+MeshData _sphere({
+  required double radius,
+  required int segments,
+  required int rings,
+}) => SphereShape(
+  radius: radius,
+  segments: segments,
+  rings: rings,
+).build(layout: VertexLayout.positionOnly);
 
 void main() {
   group("pro-lod-01's own acceptance", () {
-    test('a sphere simplified from 20k to 2k triangles stays within 1% of its radius', () {
-      const radius = 2.0;
-      final sphere = _sphere(radius: radius, segments: 100, rings: 100);
-      expect(sphere.triangleCount, greaterThanOrEqualTo(19800));
+    test(
+      'a sphere simplified from 20k to 2k triangles stays within 1% of its radius',
+      () {
+        const radius = 2.0;
+        final sphere = _sphere(radius: radius, segments: 100, rings: 100);
+        expect(sphere.triangleCount, greaterThanOrEqualTo(19800));
 
-      final simplified = simplifyMesh(sphere, targetTriangleCount: 2000);
-      expect(simplified.triangleCount, lessThanOrEqualTo(2000));
+        final simplified = simplifyMesh(sphere, targetTriangleCount: 2000);
+        expect(simplified.triangleCount, lessThanOrEqualTo(2000));
 
-      final hausdorff = _sampledHausdorffDistance(sphere, simplified);
-      expect(hausdorff, lessThan(radius * 0.01));
-    });
+        final hausdorff = _sampledHausdorffDistance(sphere, simplified);
+        expect(hausdorff, lessThan(radius * 0.01));
+      },
+    );
 
-    test('a 200k-triangle sphere simplified to 20k completes well under 3 seconds', () {
-      // This measures the VM running under `dart test`, not an AOT binary —
-      // the row's own words say "AOT". Compiled with `dart compile exe` and
-      // timed by hand outside this suite, the same reduction took 734ms on
-      // this machine; the 3-second budget here is generous enough that the
-      // gap between a JIT and an AOT run does not matter to whether it
-      // passes, so the honest, slower measurement is the one this test makes.
-      final sphere = _sphere(radius: 1.0, segments: 295, rings: 339);
-      expect(sphere.triangleCount, closeTo(200000, 1000));
+    test(
+      'a 200k-triangle sphere simplified to 20k completes well under 3 seconds',
+      () {
+        // This measures the VM running under `dart test`, not an AOT binary —
+        // the row's own words say "AOT". Compiled with `dart compile exe` and
+        // timed by hand outside this suite, the same reduction took 734ms on
+        // this machine; the 3-second budget here is generous enough that the
+        // gap between a JIT and an AOT run does not matter to whether it
+        // passes, so the honest, slower measurement is the one this test makes.
+        final sphere = _sphere(radius: 1.0, segments: 295, rings: 339);
+        expect(sphere.triangleCount, closeTo(200000, 1000));
 
-      final stopwatch = Stopwatch()..start();
-      final simplified = simplifyMesh(sphere, targetTriangleCount: 20000);
-      stopwatch.stop();
+        final stopwatch = Stopwatch()..start();
+        final simplified = simplifyMesh(sphere, targetTriangleCount: 20000);
+        stopwatch.stop();
 
-      expect(simplified.triangleCount, lessThanOrEqualTo(20000));
-      expect(stopwatch.elapsed, lessThan(const Duration(seconds: 3)));
-    });
+        expect(simplified.triangleCount, lessThanOrEqualTo(20000));
+        expect(stopwatch.elapsed, lessThan(const Duration(seconds: 3)));
+      },
+    );
   });
 
-  group('a mesh with a shared apex, welded down to far fewer positions than slots', () {
-    test('a capped cone reaches its exact target instead of collapsing past it', () {
-      // A regression case: a capped cone's apex is one 3D point repeated once
-      // per side face (for a per-face UV/normal), and its base ring is
-      // repeated again as the cap's own rim — so welding coincident vertices
-      // (needed for `pro-lod-01`'s own seam fix) drops this mesh from 164
-      // vertex slots to 42 real positions, and 160 triangle slots to 80 real
-      // triangles, before a single collapse runs. A collapse budget computed
-      // from the raw *slot* counts instead of the true post-weld count asks
-      // for roughly twice the reduction the mesh actually needs, and for a
-      // small, thin double-fan topology like this one — every rim vertex
-      // shared between the side fan and the cap fan — running that far past
-      // what the shape can sensibly lose collapses it to almost nothing.
-      final cone = ConeShape(radius: 1.0, height: 3.0, segments: 40).build(layout: VertexLayout.positionOnly);
-      expect(cone.triangleCount, greaterThan(64));
+  group(
+    'a mesh with a shared apex, welded down to far fewer positions than slots',
+    () {
+      test(
+        'a capped cone reaches its exact target instead of collapsing past it',
+        () {
+          // A regression case: a capped cone's apex is one 3D point repeated once
+          // per side face (for a per-face UV/normal), and its base ring is
+          // repeated again as the cap's own rim — so welding coincident vertices
+          // (needed for `pro-lod-01`'s own seam fix) drops this mesh from 164
+          // vertex slots to 42 real positions, and 160 triangle slots to 80 real
+          // triangles, before a single collapse runs. A collapse budget computed
+          // from the raw *slot* counts instead of the true post-weld count asks
+          // for roughly twice the reduction the mesh actually needs, and for a
+          // small, thin double-fan topology like this one — every rim vertex
+          // shared between the side fan and the cap fan — running that far past
+          // what the shape can sensibly lose collapses it to almost nothing.
+          final cone = ConeShape(
+            radius: 1.0,
+            height: 3.0,
+            segments: 40,
+          ).build(layout: VertexLayout.positionOnly);
+          expect(cone.triangleCount, greaterThan(64));
 
-      final simplified = simplifyMesh(cone, targetTriangleCount: 64);
-      expect(simplified.triangleCount, equals(64));
-      expect(simplified.vertexCount, greaterThan(3));
-    });
+          final simplified = simplifyMesh(cone, targetTriangleCount: 64);
+          expect(simplified.triangleCount, equals(64));
+          expect(simplified.vertexCount, greaterThan(3));
+        },
+      );
 
-    test('asking for more than the true post-weld triangle count is a no-op', () {
-      final cone = ConeShape(radius: 1.0, height: 3.0, segments: 40).build(layout: VertexLayout.positionOnly);
-      // 150 is below the raw 160 slots but above the true ~80 alive
-      // triangles the weld leaves — this must not try to collapse further.
-      final simplified = simplifyMesh(cone, targetTriangleCount: 150);
-      expect(simplified.triangleCount, lessThan(150));
-      expect(simplified.triangleCount, greaterThan(0));
-    });
-  });
+      test(
+        'asking for more than the true post-weld triangle count is a no-op',
+        () {
+          final cone = ConeShape(
+            radius: 1.0,
+            height: 3.0,
+            segments: 40,
+          ).build(layout: VertexLayout.positionOnly);
+          // 150 is below the raw 160 slots but above the true ~80 alive
+          // triangles the weld leaves — this must not try to collapse further.
+          final simplified = simplifyMesh(cone, targetTriangleCount: 150);
+          expect(simplified.triangleCount, lessThan(150));
+          expect(simplified.triangleCount, greaterThan(0));
+        },
+      );
+    },
+  );
 
   group('no degeneration', () {
     test('every surviving triangle has real area and a finite normal', () {
@@ -169,77 +198,99 @@ void main() {
         final b = simplified.positionAt(simplified.indices[t * 3 + 1]);
         final c = simplified.positionAt(simplified.indices[t * 3 + 2]);
         final normal = (b - a).cross(c - a);
-        expect(normal.length, greaterThan(1e-9), reason: 'triangle $t is degenerate');
-        expect(normal.x.isFinite && normal.y.isFinite && normal.z.isFinite, isTrue);
+        expect(
+          normal.length,
+          greaterThan(1e-9),
+          reason: 'triangle $t is degenerate',
+        );
+        expect(
+          normal.x.isFinite && normal.y.isFinite && normal.z.isFinite,
+          isTrue,
+        );
       }
     });
 
-    test('total surface area is close to the original, not collapsed to nothing', () {
-      final sphere = _sphere(radius: 1.0, segments: 60, rings: 60);
-      final simplified = simplifyMesh(sphere, targetTriangleCount: 500);
+    test(
+      'total surface area is close to the original, not collapsed to nothing',
+      () {
+        final sphere = _sphere(radius: 1.0, segments: 60, rings: 60);
+        final simplified = simplifyMesh(sphere, targetTriangleCount: 500);
 
-      double areaOf(MeshData mesh) {
-        var total = 0.0;
-        for (var t = 0; t < mesh.triangleCount; t++) {
-          final a = mesh.positionAt(mesh.indices[t * 3]);
-          final b = mesh.positionAt(mesh.indices[t * 3 + 1]);
-          final c = mesh.positionAt(mesh.indices[t * 3 + 2]);
-          total += (b - a).cross(c - a).length / 2;
+        double areaOf(MeshData mesh) {
+          var total = 0.0;
+          for (var t = 0; t < mesh.triangleCount; t++) {
+            final a = mesh.positionAt(mesh.indices[t * 3]);
+            final b = mesh.positionAt(mesh.indices[t * 3 + 1]);
+            final c = mesh.positionAt(mesh.indices[t * 3 + 2]);
+            total += (b - a).cross(c - a).length / 2;
+          }
+          return total;
         }
-        return total;
-      }
 
-      final originalArea = areaOf(sphere);
-      final simplifiedArea = areaOf(simplified);
-      expect(simplifiedArea, greaterThan(originalArea * 0.9));
-      expect(simplifiedArea, lessThan(originalArea * 1.1));
-    });
+        final originalArea = areaOf(sphere);
+        final simplifiedArea = areaOf(simplified);
+        expect(simplifiedArea, greaterThan(originalArea * 0.9));
+        expect(simplifiedArea, lessThan(originalArea * 1.1));
+      },
+    );
   });
 
   group('boundary behavior', () {
     test('a target at or above the current triangle count is a no-op', () {
       final sphere = _sphere(radius: 1.0, segments: 20, rings: 20);
-      final unchanged = simplifyMesh(sphere, targetTriangleCount: sphere.triangleCount);
+      final unchanged = simplifyMesh(
+        sphere,
+        targetTriangleCount: sphere.triangleCount,
+      );
       expect(identical(unchanged, sphere), isTrue);
 
-      final alsoUnchanged = simplifyMesh(sphere, targetTriangleCount: sphere.triangleCount + 500);
+      final alsoUnchanged = simplifyMesh(
+        sphere,
+        targetTriangleCount: sphere.triangleCount + 500,
+      );
       expect(identical(alsoUnchanged, sphere), isTrue);
     });
 
-    test('onProgress is called with monotonically increasing counts, bounded by its own total', () {
-      final sphere = _sphere(radius: 1.0, segments: 60, rings: 60);
-      final calls = <(int, int)>[];
-      simplifyMesh(
-        sphere,
-        targetTriangleCount: 500,
-        onProgress: (done, total) => calls.add((done, total)),
-      );
+    test(
+      'onProgress is called with monotonically increasing counts, bounded by its own total',
+      () {
+        final sphere = _sphere(radius: 1.0, segments: 60, rings: 60);
+        final calls = <(int, int)>[];
+        simplifyMesh(
+          sphere,
+          targetTriangleCount: 500,
+          onProgress: (done, total) => calls.add((done, total)),
+        );
 
-      expect(calls, isNotEmpty);
-      for (var i = 1; i < calls.length; i++) {
-        expect(calls[i].$1, greaterThan(calls[i - 1].$1));
-      }
-      expect(calls.last.$1, lessThanOrEqualTo(calls.last.$2));
-    });
+        expect(calls, isNotEmpty);
+        for (var i = 1; i < calls.length; i++) {
+          expect(calls[i].$1, greaterThan(calls[i - 1].$1));
+        }
+        expect(calls.last.$1, lessThanOrEqualTo(calls.last.$2));
+      },
+    );
 
-    test('isCancelled stops early with a valid, still-larger-than-target mesh', () {
-      final sphere = _sphere(radius: 1.0, segments: 60, rings: 60);
-      var progressCalls = 0;
-      final simplified = simplifyMesh(
-        sphere,
-        targetTriangleCount: 10,
-        onProgress: (_, _) => progressCalls++,
-        isCancelled: () => progressCalls >= 1,
-      );
+    test(
+      'isCancelled stops early with a valid, still-larger-than-target mesh',
+      () {
+        final sphere = _sphere(radius: 1.0, segments: 60, rings: 60);
+        var progressCalls = 0;
+        final simplified = simplifyMesh(
+          sphere,
+          targetTriangleCount: 10,
+          onProgress: (_, _) => progressCalls++,
+          isCancelled: () => progressCalls >= 1,
+        );
 
-      expect(simplified.triangleCount, greaterThan(10));
-      expect(simplified.triangleCount, lessThan(sphere.triangleCount));
-      // Still a well-formed mesh: indices point at real vertices.
-      for (final index in simplified.indices) {
-        expect(index, greaterThanOrEqualTo(0));
-        expect(index, lessThan(simplified.vertexCount));
-      }
-    });
+        expect(simplified.triangleCount, greaterThan(10));
+        expect(simplified.triangleCount, lessThan(sphere.triangleCount));
+        // Still a well-formed mesh: indices point at real vertices.
+        for (final index in simplified.indices) {
+          expect(index, greaterThanOrEqualTo(0));
+          expect(index, lessThan(simplified.vertexCount));
+        }
+      },
+    );
   });
 
   group("pro-lod-02's own acceptance", () {
@@ -255,7 +306,10 @@ void main() {
       () {
         const segments = 64;
         const radius = 1.0;
-        final disc = DiscShape(radius: radius, segments: segments).build(layout: VertexLayout.standard);
+        final disc = DiscShape(
+          radius: radius,
+          segments: segments,
+        ).build(layout: VertexLayout.standard);
         final originalBoundary = _boundaryEdges(disc);
         // Roughly one boundary edge per rim wedge — a sanity check on the
         // fixture itself, not on the algorithm under test. Not pinned exactly
@@ -265,7 +319,10 @@ void main() {
         // the mesh's real topology.
         expect(originalBoundary.length, closeTo(segments, segments * 0.1));
 
-        final simplified = simplifyMeshWithAttributes(disc, targetTriangleCount: segments ~/ 2);
+        final simplified = simplifyMeshWithAttributes(
+          disc,
+          targetTriangleCount: segments ~/ 2,
+        );
         expect(simplified.triangleCount, lessThan(disc.triangleCount));
         final simplifiedBoundary = _boundaryEdges(simplified);
         expect(simplifiedBoundary, isNotEmpty);
@@ -284,91 +341,115 @@ void main() {
             expect(
               (p - centre).length,
               greaterThan(radius * 0.5),
-              reason: 'the shared centre point must never read as a boundary vertex',
+              reason:
+                  'the shared centre point must never read as a boundary vertex',
             );
           }
         }
       },
     );
 
-    test('a heavier boundary weight holds the rim closer than a lighter one', () {
-      const segments = 48;
-      final disc = DiscShape(radius: 1.0, segments: segments).build(layout: VertexLayout.standard);
-      final originalBoundary = _boundaryEdges(disc);
+    test(
+      'a heavier boundary weight holds the rim closer than a lighter one',
+      () {
+        const segments = 48;
+        final disc = DiscShape(
+          radius: 1.0,
+          segments: segments,
+        ).build(layout: VertexLayout.standard);
+        final originalBoundary = _boundaryEdges(disc);
 
-      double maxDrift(MeshData simplified) {
-        var worst = 0.0;
-        for (final edge in _boundaryEdges(simplified)) {
-          for (final p in <Vector3>[edge.$1, edge.$2]) {
-            final d = _distanceToPolyline(p, originalBoundary);
-            if (d > worst) worst = d;
+        double maxDrift(MeshData simplified) {
+          var worst = 0.0;
+          for (final edge in _boundaryEdges(simplified)) {
+            for (final p in <Vector3>[edge.$1, edge.$2]) {
+              final d = _distanceToPolyline(p, originalBoundary);
+              if (d > worst) worst = d;
+            }
           }
+          return worst;
         }
-        return worst;
-      }
 
-      final heavy = simplifyMeshWithAttributes(
-        disc,
-        targetTriangleCount: segments ~/ 3,
-        boundaryWeight: 1000.0,
-      );
-      final light = simplifyMeshWithAttributes(
-        disc,
-        targetTriangleCount: segments ~/ 3,
-        boundaryWeight: 1.0,
-      );
+        final heavy = simplifyMeshWithAttributes(
+          disc,
+          targetTriangleCount: segments ~/ 3,
+          boundaryWeight: 1000.0,
+        );
+        final light = simplifyMeshWithAttributes(
+          disc,
+          targetTriangleCount: segments ~/ 3,
+          boundaryWeight: 1.0,
+        );
 
-      expect(maxDrift(heavy), lessThanOrEqualTo(maxDrift(light) + 1e-9));
-    });
+        expect(maxDrift(heavy), lessThanOrEqualTo(maxDrift(light) + 1e-9));
+      },
+    );
 
-    test('skin weights still sum to one, and no vertex exceeds four influences', () {
-      final strip = _skinnedStrip(columns: 12, rows: 4);
-      expect(strip.triangleCount, greaterThan(40));
+    test(
+      'skin weights still sum to one, and no vertex exceeds four influences',
+      () {
+        final strip = _skinnedStrip(columns: 12, rows: 4);
+        expect(strip.triangleCount, greaterThan(40));
 
-      final simplified = simplifyMeshWithAttributes(strip, targetTriangleCount: 20);
-      expect(simplified.layout.has(VertexLayout.joints), isTrue);
-      expect(simplified.layout.has(VertexLayout.weights), isTrue);
+        final simplified = simplifyMeshWithAttributes(
+          strip,
+          targetTriangleCount: 20,
+        );
+        expect(simplified.layout.has(VertexLayout.joints), isTrue);
+        expect(simplified.layout.has(VertexLayout.weights), isTrue);
 
-      final weightsOffset = simplified.layout.floatOffsetOf(VertexLayout.weights.name);
-      final stride = simplified.layout.floatsPerVertex;
-      for (var v = 0; v < simplified.vertexCount; v++) {
-        final base = v * stride;
-        var sum = 0.0;
-        var nonZero = 0;
-        for (var k = 0; k < 4; k++) {
-          final w = simplified.vertices[base + weightsOffset + k];
-          if (w > 0) nonZero++;
-          sum += w;
+        final weightsOffset = simplified.layout.floatOffsetOf(
+          VertexLayout.weights.name,
+        );
+        final stride = simplified.layout.floatsPerVertex;
+        for (var v = 0; v < simplified.vertexCount; v++) {
+          final base = v * stride;
+          var sum = 0.0;
+          var nonZero = 0;
+          for (var k = 0; k < 4; k++) {
+            final w = simplified.vertices[base + weightsOffset + k];
+            if (w > 0) nonZero++;
+            sum += w;
+          }
+          expect(sum, closeTo(1.0, 1e-6), reason: 'vertex $v');
+          expect(nonZero, lessThanOrEqualTo(4), reason: 'vertex $v');
         }
-        expect(sum, closeTo(1.0, 1e-6), reason: 'vertex $v');
-        expect(nonZero, lessThanOrEqualTo(4), reason: 'vertex $v');
-      }
-    });
+      },
+    );
 
-    test('a mesh with no optional attributes still simplifies, position-only', () {
-      final sphere = _sphere(radius: 1.0, segments: 30, rings: 30);
-      final simplified = simplifyMeshWithAttributes(sphere, targetTriangleCount: 200);
-      expect(simplified.layout.floatsPerVertex, equals(3));
-      expect(simplified.triangleCount, lessThanOrEqualTo(200));
-    });
+    test(
+      'a mesh with no optional attributes still simplifies, position-only',
+      () {
+        final sphere = _sphere(radius: 1.0, segments: 30, rings: 30);
+        final simplified = simplifyMeshWithAttributes(
+          sphere,
+          targetTriangleCount: 200,
+        );
+        expect(simplified.layout.floatsPerVertex, equals(3));
+        expect(simplified.triangleCount, lessThanOrEqualTo(200));
+      },
+    );
 
-    test('onProgress and isCancelled behave the same as the position-only pass', () {
-      // Enough segments that the collapse count clears the 1000-collapse
-      // cadence `onProgress`/`isCancelled` are polled at — the same reason
-      // `simplifyMesh`'s own version of this test uses a 60x60 sphere rather
-      // than a handful of triangles, where the loop would finish before the
-      // first checkpoint and never give cancellation a chance to bite.
-      final sphere = _sphere(radius: 1.0, segments: 60, rings: 60);
-      var progressCalls = 0;
-      final simplified = simplifyMeshWithAttributes(
-        sphere,
-        targetTriangleCount: 10,
-        onProgress: (_, _) => progressCalls++,
-        isCancelled: () => progressCalls >= 1,
-      );
-      expect(progressCalls, greaterThanOrEqualTo(1));
-      expect(simplified.triangleCount, greaterThan(10));
-    });
+    test(
+      'onProgress and isCancelled behave the same as the position-only pass',
+      () {
+        // Enough segments that the collapse count clears the 1000-collapse
+        // cadence `onProgress`/`isCancelled` are polled at — the same reason
+        // `simplifyMesh`'s own version of this test uses a 60x60 sphere rather
+        // than a handful of triangles, where the loop would finish before the
+        // first checkpoint and never give cancellation a chance to bite.
+        final sphere = _sphere(radius: 1.0, segments: 60, rings: 60);
+        var progressCalls = 0;
+        final simplified = simplifyMeshWithAttributes(
+          sphere,
+          targetTriangleCount: 10,
+          onProgress: (_, _) => progressCalls++,
+          isCancelled: () => progressCalls >= 1,
+        );
+        expect(progressCalls, greaterThanOrEqualTo(1));
+        expect(simplified.triangleCount, greaterThan(10));
+      },
+    );
   });
 }
 
@@ -391,8 +472,12 @@ List<(Vector3, Vector3)> _boundaryEdges(MeshData mesh) {
   final counts = <String, int>{};
   final edgeAt = <String, (Vector3, Vector3)>{};
   for (var t = 0; t < mesh.triangleCount; t++) {
-    final i0 = mesh.indices[t * 3], i1 = mesh.indices[t * 3 + 1], i2 = mesh.indices[t * 3 + 2];
-    final p0 = mesh.positionAt(i0), p1 = mesh.positionAt(i1), p2 = mesh.positionAt(i2);
+    final i0 = mesh.indices[t * 3],
+        i1 = mesh.indices[t * 3 + 1],
+        i2 = mesh.indices[t * 3 + 2];
+    final p0 = mesh.positionAt(i0),
+        p1 = mesh.positionAt(i1),
+        p2 = mesh.positionAt(i2);
     // A pole — every angular column meeting at one coincident point — is
     // real geometry with a real index per column, but zero area, and the raw
     // index-per-column triangles a shape builder emits there are not
@@ -436,7 +521,11 @@ double _distanceToPolyline(Vector3 p, List<(Vector3, Vector3)> edges) {
 /// across the grid, so a collapsed vertex's blended weight is a real,
 /// checkable number rather than always the trivial 100%-on-one-joint case.
 MeshData _skinnedStrip({required int columns, required int rows}) {
-  const layout = VertexLayout([VertexLayout.position, VertexLayout.joints, VertexLayout.weights]);
+  const layout = VertexLayout([
+    VertexLayout.position,
+    VertexLayout.joints,
+    VertexLayout.weights,
+  ]);
   final vertexCount = (columns + 1) * (rows + 1);
   final vertices = Float32List(vertexCount * layout.floatsPerVertex);
 

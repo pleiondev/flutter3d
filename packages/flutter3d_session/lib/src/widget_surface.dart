@@ -29,7 +29,10 @@ final class WidgetSurface {
          height: (height * pixelsPerMetre).round(),
        ),
        node = MeshNode(
-         DeviceMesh.upload(device, PlaneShape(width: width, depth: height).build()),
+         DeviceMesh.upload(
+           device,
+           PlaneShape(width: width, depth: height).build(),
+         ),
          Material(name: name, lighting: LightingModel.unlit),
          name: name,
        ) {

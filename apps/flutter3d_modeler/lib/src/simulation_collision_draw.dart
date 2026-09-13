@@ -39,7 +39,11 @@ void drawClothObstacles(
 }
 
 /// Draws a wireframe box around one obstacle's world-space bounds.
-void drawClothObstacle(DebugDraw draw, ClothObstacle obstacle, {Vector4? color}) {
+void drawClothObstacle(
+  DebugDraw draw,
+  ClothObstacle obstacle, {
+  Vector4? color,
+}) {
   final bounds = Aabb3();
   obstacle.shape.computeBounds(obstacle.position, bounds);
   _drawWireBox(draw, bounds, color ?? DebugColors.bounds);

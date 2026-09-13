@@ -52,14 +52,17 @@ void main() {
   });
 
   group('sRGB colour', () {
-    test('a black-and-white checkerboard\'s small level is near mid-grey, not dark', () {
-      // The textbook artifact this treatment exists to avoid: averaging 0 and
-      // 255 as gamma-encoded bytes gives 128, but the *linear-light* average
-      // of black and white decodes back to about 188 — nowhere near 128.
-      final chain = buildMipChain(_checkerboard(), srgb: true);
-      final small = chain[chain.length - 3]; // small enough to have averaged
-      expect(small.red(0, 0), greaterThan(160));
-    });
+    test(
+      'a black-and-white checkerboard\'s small level is near mid-grey, not dark',
+      () {
+        // The textbook artifact this treatment exists to avoid: averaging 0 and
+        // 255 as gamma-encoded bytes gives 128, but the *linear-light* average
+        // of black and white decodes back to about 188 — nowhere near 128.
+        final chain = buildMipChain(_checkerboard(), srgb: true);
+        final small = chain[chain.length - 3]; // small enough to have averaged
+        expect(small.red(0, 0), greaterThan(160));
+      },
+    );
 
     test('a flat colour survives the round trip through linear space', () {
       final flat = _checkerboard(a: 136, b: 136);
@@ -79,7 +82,9 @@ void main() {
       final pixels = Uint8List(size * size * 4);
       for (var y = 0; y < size; y++) {
         for (var x = 0; x < size; x++) {
-          final (nx, ny, nz) = (x + y).isEven ? (1.0, 0.0, 0.0) : (0.0, 1.0, 0.0);
+          final (nx, ny, nz) = (x + y).isEven
+              ? (1.0, 0.0, 0.0)
+              : (0.0, 1.0, 0.0);
           final at = (y * size + x) * 4;
           pixels[at] = ((nx + 1) / 2 * 255).round();
           pixels[at + 1] = ((ny + 1) / 2 * 255).round();

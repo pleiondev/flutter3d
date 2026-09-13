@@ -90,7 +90,11 @@ void main() {
       }
 
       final skippedMs = skipped.elapsedMicroseconds / iterations / 1000.0;
-      expect(dirtyMs, isNotNull, reason: 'runAsync only returns null if it never ran');
+      expect(
+        dirtyMs,
+        isNotNull,
+        reason: 'runAsync only returns null if it never ran',
+      );
 
       // ignore: avoid_print
       print(

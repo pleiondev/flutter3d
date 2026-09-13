@@ -58,7 +58,11 @@ final class ConvertAssetOptions {
     if (input == null || format == null) return null;
     if (textures != 'keep') return null;
 
-    return ConvertAssetOptions(input: input, format: format, name: name ?? _baseNameOf(input));
+    return ConvertAssetOptions(
+      input: input,
+      format: format,
+      name: name ?? _baseNameOf(input),
+    );
   }
 }
 

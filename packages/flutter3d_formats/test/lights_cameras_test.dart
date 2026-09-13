@@ -229,115 +229,106 @@ void main() {
   });
 
   group('absences the spec gives meaning to', () {
-    test(
-      'a perspective camera with no aspectRatio or zfar reads back null, '
-      'not a default value',
-      () async {
-        final positions = Float32List.fromList(<double>[
-          0,
-          0,
-          0,
-          1,
-          0,
-          0,
-          0,
-          1,
-          0,
-        ]);
-        final buffer = base64Encode(positions.buffer.asUint8List());
-        final bare = <String, Object?>{
-          'asset': <String, Object?>{'version': '2.0'},
-          'cameras': <Object?>[
-            <String, Object?>{
-              'type': 'perspective',
-              'perspective': <String, Object?>{'yfov': 0.5, 'znear': 0.05},
-            },
-          ],
-          'scene': 0,
-          'scenes': <Object?>[
-            <String, Object?>{
-              'nodes': <Object?>[0, 1],
-            },
-          ],
-          'nodes': <Object?>[
-            <String, Object?>{'mesh': 0},
-            <String, Object?>{'camera': 0},
-          ],
-          'meshes': <Object?>[
-            <String, Object?>{
-              'primitives': <Object?>[
-                <String, Object?>{
-                  'attributes': <String, Object?>{'POSITION': 0},
-                },
-              ],
-            },
-          ],
-          'accessors': <Object?>[
-            <String, Object?>{
-              'bufferView': 0,
-              'componentType': 5126,
-              'count': 3,
-              'type': 'VEC3',
-              'min': <Object?>[0, 0, 0],
-              'max': <Object?>[1, 1, 0],
-            },
-          ],
-          'bufferViews': <Object?>[
-            <String, Object?>{
-              'buffer': 0,
-              'byteOffset': 0,
-              'byteLength': positions.lengthInBytes,
-            },
-          ],
-          'buffers': <Object?>[
-            <String, Object?>{
-              'byteLength': positions.lengthInBytes,
-              'uri': 'data:application/octet-stream;base64,$buffer',
-            },
-          ],
-        };
-        final document = await GltfLoader().load(
-          Uint8List.fromList(utf8.encode(jsonEncode(bare))),
-        );
-        final projection =
-            document.cameras.single.projection as ModelPerspectiveCamera;
-        // Mutation: default `aspectRatio`/`zfar` to a number (e.g. 1.0,
-        // 1000.0) instead of leaving them null — a caller that treats this as
-        // "follow the viewport" / "infinite far plane" would silently stop
-        // doing that.
-        expect(projection.aspectRatio, isNull);
-        expect(projection.zfar, isNull);
+    test('a perspective camera with no aspectRatio or zfar reads back null, '
+        'not a default value', () async {
+      final positions = Float32List.fromList(<double>[
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        1,
+        0,
+      ]);
+      final buffer = base64Encode(positions.buffer.asUint8List());
+      final bare = <String, Object?>{
+        'asset': <String, Object?>{'version': '2.0'},
+        'cameras': <Object?>[
+          <String, Object?>{
+            'type': 'perspective',
+            'perspective': <String, Object?>{'yfov': 0.5, 'znear': 0.05},
+          },
+        ],
+        'scene': 0,
+        'scenes': <Object?>[
+          <String, Object?>{
+            'nodes': <Object?>[0, 1],
+          },
+        ],
+        'nodes': <Object?>[
+          <String, Object?>{'mesh': 0},
+          <String, Object?>{'camera': 0},
+        ],
+        'meshes': <Object?>[
+          <String, Object?>{
+            'primitives': <Object?>[
+              <String, Object?>{
+                'attributes': <String, Object?>{'POSITION': 0},
+              },
+            ],
+          },
+        ],
+        'accessors': <Object?>[
+          <String, Object?>{
+            'bufferView': 0,
+            'componentType': 5126,
+            'count': 3,
+            'type': 'VEC3',
+            'min': <Object?>[0, 0, 0],
+            'max': <Object?>[1, 1, 0],
+          },
+        ],
+        'bufferViews': <Object?>[
+          <String, Object?>{
+            'buffer': 0,
+            'byteOffset': 0,
+            'byteLength': positions.lengthInBytes,
+          },
+        ],
+        'buffers': <Object?>[
+          <String, Object?>{
+            'byteLength': positions.lengthInBytes,
+            'uri': 'data:application/octet-stream;base64,$buffer',
+          },
+        ],
+      };
+      final document = await GltfLoader().load(
+        Uint8List.fromList(utf8.encode(jsonEncode(bare))),
+      );
+      final projection =
+          document.cameras.single.projection as ModelPerspectiveCamera;
+      // Mutation: default `aspectRatio`/`zfar` to a number (e.g. 1.0,
+      // 1000.0) instead of leaving them null — a caller that treats this as
+      // "follow the viewport" / "infinite far plane" would silently stop
+      // doing that.
+      expect(projection.aspectRatio, isNull);
+      expect(projection.zfar, isNull);
 
-        final bytes = GltfWriter(document).writeGlb();
-        final readBack = await GltfLoader().load(bytes);
-        final readProjection =
-            readBack.cameras.single.projection as ModelPerspectiveCamera;
-        // Mutation: write `'aspectRatio': projection.aspectRatio ?? 1.0` —
-        // the round trip above would still pass with a fixed aspect ratio;
-        // this null check on the far side is what actually catches it.
-        expect(readProjection.aspectRatio, isNull);
-        expect(readProjection.zfar, isNull);
-      },
-    );
+      final bytes = GltfWriter(document).writeGlb();
+      final readBack = await GltfLoader().load(bytes);
+      final readProjection =
+          readBack.cameras.single.projection as ModelPerspectiveCamera;
+      // Mutation: write `'aspectRatio': projection.aspectRatio ?? 1.0` —
+      // the round trip above would still pass with a fixed aspect ratio;
+      // this null check on the far side is what actually catches it.
+      expect(readProjection.aspectRatio, isNull);
+      expect(readProjection.zfar, isNull);
+    });
 
-    test(
-      'a spot light with default cone angles round-trips without writing '
-      'them',
-      () async {
-        final light = ModelLight(type: ModelLightType.spot);
-        expect(light.innerConeAngle, 0.0);
-        expect(light.outerConeAngle, closeTo(math.pi / 4, 1e-9));
+    test('a spot light with default cone angles round-trips without writing '
+        'them', () async {
+      final light = ModelLight(type: ModelLightType.spot);
+      expect(light.innerConeAngle, 0.0);
+      expect(light.outerConeAngle, closeTo(math.pi / 4, 1e-9));
 
-        final document = PlainModelDocument(lights: <ModelLight>[light]);
-        final bytes = GltfWriter(document).writeGlb();
-        final readBack = await GltfLoader().load(bytes);
-        expect(readBack.lights.single.innerConeAngle, 0.0);
-        expect(
-          readBack.lights.single.outerConeAngle,
-          closeTo(math.pi / 4, 1e-9),
-        );
-      },
-    );
+      final document = PlainModelDocument(lights: <ModelLight>[light]);
+      final bytes = GltfWriter(document).writeGlb();
+      final readBack = await GltfLoader().load(bytes);
+      expect(readBack.lights.single.innerConeAngle, 0.0);
+      expect(readBack.lights.single.outerConeAngle, closeTo(math.pi / 4, 1e-9));
+    });
   });
 
   group('out-of-range indices are ignored, with a warning', () {

@@ -78,7 +78,10 @@ void main() {
       const narrow = StereoScreen(width: 0.05, height: 0.02);
       final left = StereoViewer.cardboardV2.projectionFor(Eye.left, narrow);
       expect(left.tanLeft.abs(), greaterThan(0.0));
-      expect(left.toMatrix(1.0).storage.every((double v) => v.isFinite), isTrue);
+      expect(
+        left.toMatrix(1.0).storage.every((double v) => v.isFinite),
+        isTrue,
+      );
     });
 
     test('carries the near and far planes it was given', () {

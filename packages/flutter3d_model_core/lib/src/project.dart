@@ -420,7 +420,7 @@ final class ModelObject {
 
   /// This object's own baked simulation frames — `pro-sim-03`'s own row.
   /// Null for almost every object, the ordinary case of one nobody has run
-  /// `BakeSimulationCommand`/`ApplySimulationCache` against; a project saved
+  /// `BakeClothJobRequest`/`ApplySimulationCache` against; a project saved
   /// and reopened comes back with the same null a fresh object starts with,
   /// the same honest gap [ModelProject.lighting]'s own doc comment already
   /// keeps — a bake is derived, re-runnable data, not something the file

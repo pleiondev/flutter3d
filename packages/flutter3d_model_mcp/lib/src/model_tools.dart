@@ -1,5 +1,6 @@
 import 'package:dart_mcp/server.dart';
 import 'package:flutter3d_formats/flutter3d_formats.dart';
+import 'package:flutter3d_mcp_kit/flutter3d_mcp_kit.dart';
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 // `EnumHint` is hidden here because `flutter3d_formats`'s own — used below to
 // build `setMaterialField`'s schema from `MaterialHint` — collides with this
@@ -8,29 +9,10 @@ import 'package:flutter3d_model_core/flutter3d_model_core.dart' hide EnumHint;
 
 import 'model_session.dart';
 
-/// One tool: what an agent is offered, and what calling it does.
-///
-/// **A pair rather than a table and a switch**, for the reason
-/// `flutter3d_editor_mcp`'s `EditorTool` gives: a tool that is offered is a
-/// tool that has a body, because they are the same object, so the two halves
-/// cannot drift the way a `tools/list` array and a `tools/call` switch can.
-final class ModelTool {
-  const ModelTool(this.tool, this.run);
-
-  /// What `tools/list` hands the agent: a name, a sentence and a schema.
-  final Tool tool;
-
-  /// What calling it does to the session. Async because [ModelSession.import]
-  /// decodes a file, which every decoder in this repository does off the
-  /// synchronous path.
-  final Future<Answer> Function(
-    ModelSession session,
-    Map<String, Object?> arguments,
-  )
-  run;
-
-  String get name => tool.name;
-}
+/// One tool: what an agent is offered, and what calling it does — see
+/// `flutter3d_mcp_kit`'s [OfferedTool] for why a pair rather than a table and
+/// a switch.
+typedef ModelTool = OfferedTool<ModelSession, Answer>;
 
 Future<Answer> Function(ModelSession, Map<String, Object?>) _sync(
   Answer Function(ModelSession, Map<String, Object?>) body,
@@ -1205,7 +1187,7 @@ List<ModelTool> get _commandTools => <ModelTool>[
           'for. Refused when baseVersion no longer matches the object\'s own '
           'current version — something else changed it while the bake ran, '
           'and its answer no longer applies. Nothing here runs a bake; that '
-          'is BakeSimulationCommand, off this tool table entirely since it '
+          'is BakeClothJobRequest, off this tool table entirely since it '
           'has no synchronous, single-call shape a tool call could wait on.',
       inputSchema: ObjectSchema(
         properties: <String, Schema>{
@@ -1216,9 +1198,7 @@ List<ModelTool> get _commandTools => <ModelTool>[
           'cache': ObjectSchema(
             description: 'the baked SimulationCache, as its own toJson',
             properties: <String, Schema>{
-              'vertexCount': IntegerSchema(
-                description: 'vertices per frame',
-              ),
+              'vertexCount': IntegerSchema(description: 'vertices per frame'),
               'frames': ListSchema(
                 description:
                     'one base64-encoded Float32List per frame, each '
@@ -1389,7 +1369,9 @@ List<ModelTool> get _commandTools => <ModelTool>[
       inputSchema: ObjectSchema(
         properties: <String, Schema>{
           'objectId': IntegerSchema(description: 'the object to bind'),
-          'skeletonIndex': IntegerSchema(description: 'which skeleton, from list'),
+          'skeletonIndex': IntegerSchema(
+            description: 'which skeleton, from list',
+          ),
         },
         required: <String>['objectId', 'skeletonIndex'],
       ),
@@ -1405,7 +1387,9 @@ List<ModelTool> get _commandTools => <ModelTool>[
           'a joint in that skeleton.',
       inputSchema: ObjectSchema(
         properties: <String, Schema>{
-          'skeletonIndex': IntegerSchema(description: 'which skeleton, from list'),
+          'skeletonIndex': IntegerSchema(
+            description: 'which skeleton, from list',
+          ),
           'objectId': IntegerSchema(description: 'the object to make a joint'),
           'inverseBindMatrix': _matrix16(
             'optional; identity\'s own inverse (identity) when left out',
@@ -1425,7 +1409,9 @@ List<ModelTool> get _commandTools => <ModelTool>[
           'has none), and every later joint\'s index shifts down by one.',
       inputSchema: ObjectSchema(
         properties: <String, Schema>{
-          'skeletonIndex': IntegerSchema(description: 'which skeleton, from list'),
+          'skeletonIndex': IntegerSchema(
+            description: 'which skeleton, from list',
+          ),
           'jointIndex': IntegerSchema(description: 'the joint, from list'),
         },
         required: <String>['skeletonIndex', 'jointIndex'],
@@ -1441,7 +1427,9 @@ List<ModelTool> get _commandTools => <ModelTool>[
           'the new name shows up everywhere else that object does too.',
       inputSchema: ObjectSchema(
         properties: <String, Schema>{
-          'skeletonIndex': IntegerSchema(description: 'which skeleton, from list'),
+          'skeletonIndex': IntegerSchema(
+            description: 'which skeleton, from list',
+          ),
           'jointIndex': IntegerSchema(description: 'the joint, from list'),
           'to': StringSchema(description: 'the new name; may not be blank'),
         },
@@ -1459,7 +1447,9 @@ List<ModelTool> get _commandTools => <ModelTool>[
           'the same way setParent refuses one.',
       inputSchema: ObjectSchema(
         properties: <String, Schema>{
-          'skeletonIndex': IntegerSchema(description: 'which skeleton, from list'),
+          'skeletonIndex': IntegerSchema(
+            description: 'which skeleton, from list',
+          ),
           'jointIndex': IntegerSchema(description: 'the joint, from list'),
           'to': IntegerSchema(description: 'the new parent object\'s id'),
         },
@@ -1478,7 +1468,9 @@ List<ModelTool> get _commandTools => <ModelTool>[
           'jump when this is applied.',
       inputSchema: ObjectSchema(
         properties: <String, Schema>{
-          'skeletonIndex': IntegerSchema(description: 'which skeleton, from list'),
+          'skeletonIndex': IntegerSchema(
+            description: 'which skeleton, from list',
+          ),
           'jointIndex': IntegerSchema(description: 'the joint, from list'),
           'worldTransform': _matrix16('the joint\'s own new world transform'),
         },
@@ -1498,7 +1490,9 @@ List<ModelTool> get _commandTools => <ModelTool>[
           'to itself to mirror it in place, for one that straddles the plane.',
       inputSchema: ObjectSchema(
         properties: <String, Schema>{
-          'skeletonIndex': IntegerSchema(description: 'which skeleton, from list'),
+          'skeletonIndex': IntegerSchema(
+            description: 'which skeleton, from list',
+          ),
           'axis': IntegerSchema(description: '0 for x, 1 for y, 2 for z'),
           'jointMirror': ObjectSchema(
             description:
@@ -1544,7 +1538,9 @@ List<ModelTool> get _commandTools => <ModelTool>[
           'clipIndex': IntegerSchema(description: 'which clip, from list'),
           'trackIndex': IntegerSchema(description: 'which track in that clip'),
           'indices': _ints('which keys, by their current index'),
-          'deltaTime': NumberSchema(description: 'how far to shift, in seconds'),
+          'deltaTime': NumberSchema(
+            description: 'how far to shift, in seconds',
+          ),
         },
         required: <String>['clipIndex', 'trackIndex', 'indices', 'deltaTime'],
       ),
@@ -1633,7 +1629,9 @@ List<ModelTool> get _commandTools => <ModelTool>[
           'joint': IntegerSchema(description: 'the object id to key'),
           'path': _posablePath('translation, rotation or scale'),
           'clipIndex': IntegerSchema(description: 'which clip, from list'),
-          'frame': IntegerSchema(description: 'which frame, at the project\'s own fps'),
+          'frame': IntegerSchema(
+            description: 'which frame, at the project\'s own fps',
+          ),
         },
         required: <String>['joint', 'path', 'clipIndex', 'frame'],
       ),
@@ -2127,10 +2125,11 @@ List<ModelTool> get modelTools => <ModelTool>[
     Tool(
       name: 'export',
       description:
-          'Take the project out to a format a game or another tool '
-          'reads: "f3d" or "obj" today. glTF/GLB is not built yet and this '
-          'says so if asked for it. Refused when the project has an error-level '
-          'issue unless force is set.',
+          'Take the project out to a format a game or another tool reads: '
+          '${builtInModelWriters.map((ModelWriter w) => '"${w.name}" (${w.says})').join(', ')}. '
+          'The format is the extension of "to" unless named; a JSON ".gltf" '
+          'with a separate ".bin" is not built and this says so. Refused when '
+          'the project has an error-level issue unless force is set.',
       inputSchema: ObjectSchema(
         properties: <String, Schema>{
           'to': StringSchema(description: 'the path to write'),
@@ -2166,7 +2165,8 @@ List<ModelTool> get modelTools => <ModelTool>[
       description:
           'Bring a glTF, GLB, OBJ, `.f3d` or STL file in as new '
           'objects, added beside what is already here. Every object it '
-          'brings arrives as one undo step.',
+          'brings arrives as one undo step. An FBX file is recognised and '
+          'refused with the reason.',
       inputSchema: ObjectSchema(
         properties: <String, Schema>{
           'from': StringSchema(description: 'the path to read'),
@@ -2422,9 +2422,7 @@ List<ModelTool> get _rigPipelineTools => <ModelTool>[
             items: ObjectSchema(
               properties: <String, Schema>{
                 'center': _vector('where the brush hit, in world space'),
-                'radius': NumberSchema(
-                  description: 'how far the hit reaches',
-                ),
+                'radius': NumberSchema(description: 'how far the hit reaches'),
               },
               required: <String>['center', 'radius'],
             ),
@@ -2448,10 +2446,17 @@ List<ModelTool> get _rigPipelineTools => <ModelTool>[
             required: <String>['axis', 'jointMirror'],
           ),
           'normalize': BooleanSchema(
-            description: 'renormalize every touched vertex after, default false',
+            description:
+                'renormalize every touched vertex after, default false',
           ),
         },
-        required: <String>['objectId', 'skeletonIndex', 'joint', 'samples', 'strength'],
+        required: <String>[
+          'objectId',
+          'skeletonIndex',
+          'joint',
+          'samples',
+          'strength',
+        ],
       ),
     ),
     (ModelSession session, Map<String, Object?> arguments) async {
@@ -2551,8 +2556,7 @@ List<ModelTool> get _rigPipelineTools => <ModelTool>[
             : null,
         lockFeet: arguments['lockFeet'] as bool? ?? true,
         groundY: (arguments['groundY'] as num?)?.toDouble() ?? 0.0,
-        footTolerance:
-            (arguments['footTolerance'] as num?)?.toDouble() ?? 1e-3,
+        footTolerance: (arguments['footTolerance'] as num?)?.toDouble() ?? 1e-3,
         clipName: arguments['clipName'] as String?,
       );
     }),
@@ -2571,9 +2575,7 @@ List<ModelTool> get _rigPipelineTools => <ModelTool>[
           'clipIndex': IntegerSchema(description: 'which clip, from list'),
           'rootJointId': IntegerSchema(description: 'the chain\'s own root'),
           'midJointId': IntegerSchema(description: 'the chain\'s own middle'),
-          'effectorJointId': IntegerSchema(
-            description: 'the chain\'s own tip',
-          ),
+          'effectorJointId': IntegerSchema(description: 'the chain\'s own tip'),
           'target': _vector('where the effector should reach'),
           'pole': _vector('which side the middle joint bends toward'),
           'fps': NumberSchema(description: 'sampling rate, default 30'),

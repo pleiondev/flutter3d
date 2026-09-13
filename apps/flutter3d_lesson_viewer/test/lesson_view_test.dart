@@ -17,8 +17,11 @@ import 'package:flutter3d_session/flutter3d_session.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart' hide Colors;
 
-GraphicsDevice _device() =>
-    CpuDevice(width: 16, height: 8, shaders: CpuShaderLibrary(builtinCpuShaders()));
+GraphicsDevice _device() => CpuDevice(
+  width: 16,
+  height: 8,
+  shaders: CpuShaderLibrary(builtinCpuShaders()),
+);
 
 List<EntityDef> _steps() => <EntityDef>[
   EntityDef(
@@ -75,7 +78,12 @@ void main() {
 
       await tester.pumpWidget(
         MaterialApp(
-          home: LessonView(renderer: renderer, scene: scene, camera: camera, player: player),
+          home: LessonView(
+            renderer: renderer,
+            scene: scene,
+            camera: camera,
+            player: player,
+          ),
         ),
       );
       await tester.pump();
@@ -142,7 +150,12 @@ void main() {
 
       await tester.pumpWidget(
         MaterialApp(
-          home: LessonView(renderer: renderer, scene: scene, camera: camera, player: player),
+          home: LessonView(
+            renderer: renderer,
+            scene: scene,
+            camera: camera,
+            player: player,
+          ),
         ),
       );
       await tester.pump();
@@ -184,7 +197,12 @@ void main() {
 
       await tester.pumpWidget(
         MaterialApp(
-          home: LessonView(renderer: renderer, scene: scene, camera: camera, player: player),
+          home: LessonView(
+            renderer: renderer,
+            scene: scene,
+            camera: camera,
+            player: player,
+          ),
         ),
       );
       await tester.pump();

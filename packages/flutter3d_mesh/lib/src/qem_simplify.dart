@@ -108,15 +108,22 @@ const int _quadricSize = 10;
 /// Top-level rather than private to `_Simplifier` because `pro-lod-02`'s
 /// attribute-aware simplifier needs the identical welding pass before it can
 /// tell a real boundary edge from a seam that only looks like one.
-Int32List weldCoincidentPositions(Float64List positions, {double epsilonScale = 1e-5}) {
+Int32List weldCoincidentPositions(
+  Float64List positions, {
+  double epsilonScale = 1e-5,
+}) {
   final vertexCount = positions.length ~/ 3;
-  final canonical = Int32List.fromList(List<int>.generate(vertexCount, (i) => i));
+  final canonical = Int32List.fromList(
+    List<int>.generate(vertexCount, (i) => i),
+  );
   if (vertexCount == 0) return canonical;
 
   var minX = double.infinity, minY = double.infinity, minZ = double.infinity;
   var maxX = -double.infinity, maxY = -double.infinity, maxZ = -double.infinity;
   for (var i = 0; i < vertexCount; i++) {
-    final x = positions[i * 3], y = positions[i * 3 + 1], z = positions[i * 3 + 2];
+    final x = positions[i * 3],
+        y = positions[i * 3 + 1],
+        z = positions[i * 3 + 2];
     if (x < minX) minX = x;
     if (y < minY) minY = y;
     if (z < minZ) minZ = z;
@@ -125,7 +132,9 @@ Int32List weldCoincidentPositions(Float64List positions, {double epsilonScale = 
     if (z > maxZ) maxZ = z;
   }
   final diagonal = math.sqrt(
-    (maxX - minX) * (maxX - minX) + (maxY - minY) * (maxY - minY) + (maxZ - minZ) * (maxZ - minZ),
+    (maxX - minX) * (maxX - minX) +
+        (maxY - minY) * (maxY - minY) +
+        (maxZ - minZ) * (maxZ - minZ),
   );
   final cellSize = math.max(diagonal * epsilonScale, 1e-12);
 
@@ -138,7 +147,11 @@ Int32List weldCoincidentPositions(Float64List positions, {double epsilonScale = 
 
   final byCell = <int, List<int>>{};
   for (var i = 0; i < vertexCount; i++) {
-    final key = cellKeyOf(positions[i * 3], positions[i * 3 + 1], positions[i * 3 + 2]);
+    final key = cellKeyOf(
+      positions[i * 3],
+      positions[i * 3 + 1],
+      positions[i * 3 + 2],
+    );
     (byCell[key] ??= <int>[]).add(i);
   }
 
@@ -194,9 +207,14 @@ class _Simplifier {
     final triangleAlive = Uint8List(triangleCount);
     final vertexAlive = Uint8List(vertexCount);
     final vertexVersion = Int32List(vertexCount);
-    final vertexTriangles = List<Set<int>>.generate(vertexCount, (_) => <int>{});
+    final vertexTriangles = List<Set<int>>.generate(
+      vertexCount,
+      (_) => <int>{},
+    );
     for (var t = 0; t < triangleCount; t++) {
-      final i0 = triangles[t * 3], i1 = triangles[t * 3 + 1], i2 = triangles[t * 3 + 2];
+      final i0 = triangles[t * 3],
+          i1 = triangles[t * 3 + 1],
+          i2 = triangles[t * 3 + 2];
       // A triangle that straddled a welded seam on all three corners, or lost
       // a corner to it, is degenerate now and was never real geometry — drop
       // it the same way any other zero-area triangle is dropped.
@@ -245,9 +263,15 @@ class _Simplifier {
     final i0 = triangles[triangle * 3];
     final i1 = triangles[triangle * 3 + 1];
     final i2 = triangles[triangle * 3 + 2];
-    final ax = positions[i0 * 3], ay = positions[i0 * 3 + 1], az = positions[i0 * 3 + 2];
-    final bx = positions[i1 * 3], by = positions[i1 * 3 + 1], bz = positions[i1 * 3 + 2];
-    final cx = positions[i2 * 3], cy = positions[i2 * 3 + 1], cz = positions[i2 * 3 + 2];
+    final ax = positions[i0 * 3],
+        ay = positions[i0 * 3 + 1],
+        az = positions[i0 * 3 + 2];
+    final bx = positions[i1 * 3],
+        by = positions[i1 * 3 + 1],
+        bz = positions[i1 * 3 + 2];
+    final cx = positions[i2 * 3],
+        cy = positions[i2 * 3 + 1],
+        cz = positions[i2 * 3 + 2];
 
     final ux = bx - ax, uy = by - ay, uz = bz - az;
     final vx = cx - ax, vy = cy - ay, vz = cz - az;
@@ -294,16 +318,27 @@ class _Simplifier {
     double by,
     double bz,
   ) {
-    final a2 = q[offset + 0], ab = q[offset + 1], ac = q[offset + 2], ad = q[offset + 3];
+    final a2 = q[offset + 0],
+        ab = q[offset + 1],
+        ac = q[offset + 2],
+        ad = q[offset + 3];
     final b2 = q[offset + 4], bc = q[offset + 5], bd = q[offset + 6];
     final c2 = q[offset + 7], cd = q[offset + 8], dd = q[offset + 9];
 
     double costAt(double x, double y, double z) =>
-        a2 * x * x + b2 * y * y + c2 * z * z +
-        2 * ab * x * y + 2 * ac * x * z + 2 * bc * y * z +
-        2 * ad * x + 2 * bd * y + 2 * cd * z + dd;
+        a2 * x * x +
+        b2 * y * y +
+        c2 * z * z +
+        2 * ab * x * y +
+        2 * ac * x * z +
+        2 * bc * y * z +
+        2 * ad * x +
+        2 * bd * y +
+        2 * cd * z +
+        dd;
 
-    final det = a2 * (b2 * c2 - bc * bc) -
+    final det =
+        a2 * (b2 * c2 - bc * bc) -
         ab * (ab * c2 - bc * ac) +
         ac * (ab * bc - b2 * ac);
 
@@ -311,12 +346,21 @@ class _Simplifier {
       final invDet = 1.0 / det;
       // Cramer's rule for A x = -[ad, bd, cd].
       final rx = -ad, ry = -bd, rz = -cd;
-      final x = invDet *
-          (rx * (b2 * c2 - bc * bc) - ab * (ry * c2 - bc * rz) + ac * (ry * bc - b2 * rz));
-      final y = invDet *
-          (a2 * (ry * c2 - bc * rz) - rx * (ab * c2 - bc * ac) + ac * (ab * rz - ry * ac));
-      final z = invDet *
-          (a2 * (b2 * rz - ry * bc) - ab * (ab * rz - ry * ac) + rx * (ab * bc - b2 * ac));
+      final x =
+          invDet *
+          (rx * (b2 * c2 - bc * bc) -
+              ab * (ry * c2 - bc * rz) +
+              ac * (ry * bc - b2 * rz));
+      final y =
+          invDet *
+          (a2 * (ry * c2 - bc * rz) -
+              rx * (ab * c2 - bc * ac) +
+              ac * (ab * rz - ry * ac));
+      final z =
+          invDet *
+          (a2 * (b2 * rz - ry * bc) -
+              ab * (ab * rz - ry * ac) +
+              rx * (ab * bc - b2 * ac));
       return (x: x, y: y, z: z, cost: costAt(x, y, z));
     }
 
@@ -324,8 +368,10 @@ class _Simplifier {
     final costA = costAt(ax, ay, az);
     final costB = costAt(bx, by, bz);
     final costM = costAt(mx, my, mz);
-    if (costA <= costB && costA <= costM) return (x: ax, y: ay, z: az, cost: costA);
-    if (costB <= costA && costB <= costM) return (x: bx, y: by, z: bz, cost: costB);
+    if (costA <= costB && costA <= costM)
+      return (x: ax, y: ay, z: az, cost: costA);
+    if (costB <= costA && costB <= costM)
+      return (x: bx, y: by, z: bz, cost: costB);
     return (x: mx, y: my, z: mz, cost: costM);
   }
 
@@ -335,22 +381,36 @@ class _Simplifier {
   List<int> _survivingNeighborTriangles(int a, int b) {
     final result = <int>[];
     for (final t in _vertexTriangles[a]) {
-      final i0 = _triangles[t * 3], i1 = _triangles[t * 3 + 1], i2 = _triangles[t * 3 + 2];
+      final i0 = _triangles[t * 3],
+          i1 = _triangles[t * 3 + 1],
+          i2 = _triangles[t * 3 + 2];
       final hasB = i0 == b || i1 == b || i2 == b;
       if (!hasB) result.add(t);
     }
     for (final t in _vertexTriangles[b]) {
-      final i0 = _triangles[t * 3], i1 = _triangles[t * 3 + 1], i2 = _triangles[t * 3 + 2];
+      final i0 = _triangles[t * 3],
+          i1 = _triangles[t * 3 + 1],
+          i2 = _triangles[t * 3 + 2];
       final hasA = i0 == a || i1 == a || i2 == a;
       if (!hasA) result.add(t);
     }
     return result;
   }
 
-  Vector3 _triangleNormal(int i0, int i1, int i2, {int? replace, Vector3? withPosition}) {
+  Vector3 _triangleNormal(
+    int i0,
+    int i1,
+    int i2, {
+    int? replace,
+    Vector3? withPosition,
+  }) {
     Vector3 posOf(int i) {
       if (i == replace) return withPosition!;
-      return Vector3(_positions[i * 3], _positions[i * 3 + 1], _positions[i * 3 + 2]);
+      return Vector3(
+        _positions[i * 3],
+        _positions[i * 3 + 1],
+        _positions[i * 3 + 2],
+      );
     }
 
     final a = posOf(i0), b = posOf(i1), c = posOf(i2);
@@ -363,18 +423,27 @@ class _Simplifier {
   /// surface back on itself.
   bool _wouldFlip(int from, int to, Vector3 target, double flipThreshold) {
     for (final t in _survivingNeighborTriangles(to, from)) {
-      final i0 = _triangles[t * 3], i1 = _triangles[t * 3 + 1], i2 = _triangles[t * 3 + 2];
+      final i0 = _triangles[t * 3],
+          i1 = _triangles[t * 3 + 1],
+          i2 = _triangles[t * 3 + 2];
       final replaced = (i0 == to || i0 == from)
           ? i0
           : (i1 == to || i1 == from)
-              ? i1
-              : i2;
+          ? i1
+          : i2;
       final before = _triangleNormal(i0, i1, i2);
-      final after = _triangleNormal(i0, i1, i2, replace: replaced, withPosition: target);
+      final after = _triangleNormal(
+        i0,
+        i1,
+        i2,
+        replace: replaced,
+        withPosition: target,
+      );
       final beforeLength = before.length;
       final afterLength = after.length;
       if (afterLength < 1e-20) return true; // Degenerates to a line or point.
-      if (beforeLength < 1e-20) continue; // Was already degenerate; nothing to compare to.
+      if (beforeLength < 1e-20)
+        continue; // Was already degenerate; nothing to compare to.
       final cos = before.dot(after) / (beforeLength * afterLength);
       if (cos < flipThreshold) return true;
     }
@@ -387,7 +456,10 @@ class _Simplifier {
     void Function(int collapsesDone, int collapsesTotal)? onProgress,
     bool Function()? isCancelled,
   }) {
-    var liveTriangleCount = _triangleAlive.fold<int>(0, (sum, alive) => sum + alive);
+    var liveTriangleCount = _triangleAlive.fold<int>(
+      0,
+      (sum, alive) => sum + alive,
+    );
     final collapsesNeeded = liveTriangleCount - targetTriangleCount;
     if (collapsesNeeded <= 0) return;
 
@@ -427,14 +499,18 @@ class _Simplifier {
       // b merges into a; a survives at the solved position.
       final removedTriangles = <int>[];
       for (final t in _vertexTriangles[a]) {
-        final i0 = _triangles[t * 3], i1 = _triangles[t * 3 + 1], i2 = _triangles[t * 3 + 2];
+        final i0 = _triangles[t * 3],
+            i1 = _triangles[t * 3 + 1],
+            i2 = _triangles[t * 3 + 2];
         if (i0 == b || i1 == b || i2 == b) removedTriangles.add(t);
       }
       for (final t in removedTriangles) {
         _triangleAlive[t] = 0;
         _vertexTriangles[a].remove(t);
         _vertexTriangles[b].remove(t);
-        final i0 = _triangles[t * 3], i1 = _triangles[t * 3 + 1], i2 = _triangles[t * 3 + 2];
+        final i0 = _triangles[t * 3],
+            i1 = _triangles[t * 3 + 1],
+            i2 = _triangles[t * 3 + 2];
         for (final v in [i0, i1, i2]) {
           if (v != a && v != b) _vertexTriangles[v].remove(t);
         }
@@ -460,7 +536,9 @@ class _Simplifier {
 
       final neighbors = <int>{};
       for (final t in _vertexTriangles[a]) {
-        final i0 = _triangles[t * 3], i1 = _triangles[t * 3 + 1], i2 = _triangles[t * 3 + 2];
+        final i0 = _triangles[t * 3],
+            i1 = _triangles[t * 3 + 1],
+            i2 = _triangles[t * 3 + 2];
         if (i0 != a) neighbors.add(i0);
         if (i1 != a) neighbors.add(i1);
         if (i2 != a) neighbors.add(i2);
@@ -481,7 +559,8 @@ class _Simplifier {
   void _pushEdge(_EdgeHeap heap, int a, int b) {
     final combined = Float64List(_quadricSize);
     for (var k = 0; k < _quadricSize; k++) {
-      combined[k] = _quadrics[a * _quadricSize + k] + _quadrics[b * _quadricSize + k];
+      combined[k] =
+          _quadrics[a * _quadricSize + k] + _quadrics[b * _quadricSize + k];
     }
     final solved = _solve(
       combined,
@@ -545,14 +624,14 @@ class _Simplifier {
 /// mid-run is the common case, not the exception.
 class _EdgeHeap {
   _EdgeHeap(int initialCapacity)
-      : _cost = Float64List(math.max(1, initialCapacity)),
-        _a = Int32List(math.max(1, initialCapacity)),
-        _b = Int32List(math.max(1, initialCapacity)),
-        _verA = Int32List(math.max(1, initialCapacity)),
-        _verB = Int32List(math.max(1, initialCapacity)),
-        _tx = Float64List(math.max(1, initialCapacity)),
-        _ty = Float64List(math.max(1, initialCapacity)),
-        _tz = Float64List(math.max(1, initialCapacity));
+    : _cost = Float64List(math.max(1, initialCapacity)),
+      _a = Int32List(math.max(1, initialCapacity)),
+      _b = Int32List(math.max(1, initialCapacity)),
+      _verA = Int32List(math.max(1, initialCapacity)),
+      _verB = Int32List(math.max(1, initialCapacity)),
+      _tx = Float64List(math.max(1, initialCapacity)),
+      _ty = Float64List(math.max(1, initialCapacity)),
+      _tz = Float64List(math.max(1, initialCapacity));
 
   Float64List _cost;
   Int32List _a, _b, _verA, _verB;
@@ -563,8 +642,10 @@ class _EdgeHeap {
 
   void _grow() {
     final newCapacity = _cost.length * 2;
-    Float64List growF(Float64List old) => Float64List(newCapacity)..setRange(0, _size, old);
-    Int32List growI(Int32List old) => Int32List(newCapacity)..setRange(0, _size, old);
+    Float64List growF(Float64List old) =>
+        Float64List(newCapacity)..setRange(0, _size, old);
+    Int32List growI(Int32List old) =>
+        Int32List(newCapacity)..setRange(0, _size, old);
     _cost = growF(_cost);
     _a = growI(_a);
     _b = growI(_b);
@@ -575,7 +656,16 @@ class _EdgeHeap {
     _tz = growF(_tz);
   }
 
-  void push(double cost, int a, int b, int verA, int verB, double tx, double ty, double tz) {
+  void push(
+    double cost,
+    int a,
+    int b,
+    int verA,
+    int verB,
+    double tx,
+    double ty,
+    double tz,
+  ) {
     if (_size == _cost.length) _grow();
     var i = _size++;
     _cost[i] = cost;
@@ -621,7 +711,17 @@ class _EdgeHeap {
     _tz[j] = ttz;
   }
 
-  ({double cost, int a, int b, int verA, int verB, double tx, double ty, double tz}) pop() {
+  ({
+    double cost,
+    int a,
+    int b,
+    int verA,
+    int verB,
+    double tx,
+    double ty,
+    double tz,
+  })
+  pop() {
     final result = (
       cost: _cost[0],
       a: _a[0],
@@ -702,7 +802,10 @@ MeshData simplifyMeshWithAttributes(
 }) {
   if (mesh.triangleCount <= targetTriangleCount) return mesh;
 
-  final simplifier = _AttributedSimplifier.fromMesh(mesh, boundaryWeight: boundaryWeight);
+  final simplifier = _AttributedSimplifier.fromMesh(
+    mesh,
+    boundaryWeight: boundaryWeight,
+  );
   simplifier.run(
     targetTriangleCount: targetTriangleCount,
     flipThreshold: flipThreshold,
@@ -728,7 +831,10 @@ class _AttributedSimplifier {
     this._weights,
   );
 
-  factory _AttributedSimplifier.fromMesh(MeshData mesh, {required double boundaryWeight}) {
+  factory _AttributedSimplifier.fromMesh(
+    MeshData mesh, {
+    required double boundaryWeight,
+  }) {
     final layout = mesh.layout;
     final stride = layout.floatsPerVertex;
     final vertexCount = mesh.vertexCount;
@@ -780,9 +886,14 @@ class _AttributedSimplifier {
     final triangleAlive = Uint8List(triangleCount);
     final vertexAlive = Uint8List(vertexCount);
     final vertexVersion = Int32List(vertexCount);
-    final vertexTriangles = List<Set<int>>.generate(vertexCount, (_) => <int>{});
+    final vertexTriangles = List<Set<int>>.generate(
+      vertexCount,
+      (_) => <int>{},
+    );
     for (var t = 0; t < triangleCount; t++) {
-      final i0 = triangles[t * 3], i1 = triangles[t * 3 + 1], i2 = triangles[t * 3 + 2];
+      final i0 = triangles[t * 3],
+          i1 = triangles[t * 3 + 1],
+          i2 = triangles[t * 3 + 2];
       if (i0 == i1 || i1 == i2 || i0 == i2) continue;
       triangleAlive[t] = 1;
       vertexAlive[i0] = 1;
@@ -808,7 +919,9 @@ class _AttributedSimplifier {
     int edgeKey(int a, int b) => math.min(a, b) * vertexCount + math.max(a, b);
     for (var t = 0; t < triangleCount; t++) {
       if (triangleAlive[t] == 0) continue;
-      final i0 = triangles[t * 3], i1 = triangles[t * 3 + 1], i2 = triangles[t * 3 + 2];
+      final i0 = triangles[t * 3],
+          i1 = triangles[t * 3 + 1],
+          i2 = triangles[t * 3 + 2];
       for (final pair in <(int, int)>[(i0, i1), (i1, i2), (i2, i0)]) {
         final key = edgeKey(pair.$1, pair.$2);
         edgeTriangleCount[key] = (edgeTriangleCount[key] ?? 0) + 1;
@@ -817,7 +930,8 @@ class _AttributedSimplifier {
     }
 
     final isBoundary = Uint8List(vertexCount);
-    Vector3 posOf(int i) => Vector3(positions[i * 3], positions[i * 3 + 1], positions[i * 3 + 2]);
+    Vector3 posOf(int i) =>
+        Vector3(positions[i * 3], positions[i * 3 + 1], positions[i * 3 + 2]);
     edgeTriangleCount.forEach((key, count) {
       if (count != 1) return;
       final a = key ~/ vertexCount;
@@ -827,8 +941,12 @@ class _AttributedSimplifier {
       if (boundaryWeight <= 0) return;
 
       final t = edgeOwner[key]!;
-      final ti0 = triangles[t * 3], ti1 = triangles[t * 3 + 1], ti2 = triangles[t * 3 + 2];
-      final faceNormal = (posOf(ti1) - posOf(ti0)).cross(posOf(ti2) - posOf(ti0));
+      final ti0 = triangles[t * 3],
+          ti1 = triangles[t * 3 + 1],
+          ti2 = triangles[t * 3 + 2];
+      final faceNormal = (posOf(ti1) - posOf(ti0)).cross(
+        posOf(ti2) - posOf(ti0),
+      );
       if (faceNormal.length2 < 1e-24) return;
       faceNormal.normalize();
 
@@ -901,28 +1019,48 @@ class _AttributedSimplifier {
     double by,
     double bz,
   ) {
-    final a2 = q[offset + 0], ab = q[offset + 1], ac = q[offset + 2], ad = q[offset + 3];
+    final a2 = q[offset + 0],
+        ab = q[offset + 1],
+        ac = q[offset + 2],
+        ad = q[offset + 3];
     final b2 = q[offset + 4], bc = q[offset + 5], bd = q[offset + 6];
     final c2 = q[offset + 7], cd = q[offset + 8], dd = q[offset + 9];
 
     double costAt(double x, double y, double z) =>
-        a2 * x * x + b2 * y * y + c2 * z * z +
-        2 * ab * x * y + 2 * ac * x * z + 2 * bc * y * z +
-        2 * ad * x + 2 * bd * y + 2 * cd * z + dd;
+        a2 * x * x +
+        b2 * y * y +
+        c2 * z * z +
+        2 * ab * x * y +
+        2 * ac * x * z +
+        2 * bc * y * z +
+        2 * ad * x +
+        2 * bd * y +
+        2 * cd * z +
+        dd;
 
-    final det = a2 * (b2 * c2 - bc * bc) -
+    final det =
+        a2 * (b2 * c2 - bc * bc) -
         ab * (ab * c2 - bc * ac) +
         ac * (ab * bc - b2 * ac);
 
     if (det.abs() > 1e-9) {
       final invDet = 1.0 / det;
       final rx = -ad, ry = -bd, rz = -cd;
-      final x = invDet *
-          (rx * (b2 * c2 - bc * bc) - ab * (ry * c2 - bc * rz) + ac * (ry * bc - b2 * rz));
-      final y = invDet *
-          (a2 * (ry * c2 - bc * rz) - rx * (ab * c2 - bc * ac) + ac * (ab * rz - ry * ac));
-      final z = invDet *
-          (a2 * (b2 * rz - ry * bc) - ab * (ab * rz - ry * ac) + rx * (ab * bc - b2 * ac));
+      final x =
+          invDet *
+          (rx * (b2 * c2 - bc * bc) -
+              ab * (ry * c2 - bc * rz) +
+              ac * (ry * bc - b2 * rz));
+      final y =
+          invDet *
+          (a2 * (ry * c2 - bc * rz) -
+              rx * (ab * c2 - bc * ac) +
+              ac * (ab * rz - ry * ac));
+      final z =
+          invDet *
+          (a2 * (b2 * rz - ry * bc) -
+              ab * (ab * rz - ry * ac) +
+              rx * (ab * bc - b2 * ac));
       return (x: x, y: y, z: z, cost: costAt(x, y, z));
     }
 
@@ -930,30 +1068,46 @@ class _AttributedSimplifier {
     final costA = costAt(ax, ay, az);
     final costB = costAt(bx, by, bz);
     final costM = costAt(mx, my, mz);
-    if (costA <= costB && costA <= costM) return (x: ax, y: ay, z: az, cost: costA);
-    if (costB <= costA && costB <= costM) return (x: bx, y: by, z: bz, cost: costB);
+    if (costA <= costB && costA <= costM)
+      return (x: ax, y: ay, z: az, cost: costA);
+    if (costB <= costA && costB <= costM)
+      return (x: bx, y: by, z: bz, cost: costB);
     return (x: mx, y: my, z: mz, cost: costM);
   }
 
   List<int> _survivingNeighborTriangles(int a, int b) {
     final result = <int>[];
     for (final t in _vertexTriangles[a]) {
-      final i0 = _triangles[t * 3], i1 = _triangles[t * 3 + 1], i2 = _triangles[t * 3 + 2];
+      final i0 = _triangles[t * 3],
+          i1 = _triangles[t * 3 + 1],
+          i2 = _triangles[t * 3 + 2];
       final hasB = i0 == b || i1 == b || i2 == b;
       if (!hasB) result.add(t);
     }
     for (final t in _vertexTriangles[b]) {
-      final i0 = _triangles[t * 3], i1 = _triangles[t * 3 + 1], i2 = _triangles[t * 3 + 2];
+      final i0 = _triangles[t * 3],
+          i1 = _triangles[t * 3 + 1],
+          i2 = _triangles[t * 3 + 2];
       final hasA = i0 == a || i1 == a || i2 == a;
       if (!hasA) result.add(t);
     }
     return result;
   }
 
-  Vector3 _triangleNormal(int i0, int i1, int i2, {int? replace, Vector3? withPosition}) {
+  Vector3 _triangleNormal(
+    int i0,
+    int i1,
+    int i2, {
+    int? replace,
+    Vector3? withPosition,
+  }) {
     Vector3 posOf(int i) {
       if (i == replace) return withPosition!;
-      return Vector3(_positions[i * 3], _positions[i * 3 + 1], _positions[i * 3 + 2]);
+      return Vector3(
+        _positions[i * 3],
+        _positions[i * 3 + 1],
+        _positions[i * 3 + 2],
+      );
     }
 
     final a = posOf(i0), b = posOf(i1), c = posOf(i2);
@@ -962,14 +1116,22 @@ class _AttributedSimplifier {
 
   bool _wouldFlip(int from, int to, Vector3 target, double flipThreshold) {
     for (final t in _survivingNeighborTriangles(to, from)) {
-      final i0 = _triangles[t * 3], i1 = _triangles[t * 3 + 1], i2 = _triangles[t * 3 + 2];
+      final i0 = _triangles[t * 3],
+          i1 = _triangles[t * 3 + 1],
+          i2 = _triangles[t * 3 + 2];
       final replaced = (i0 == to || i0 == from)
           ? i0
           : (i1 == to || i1 == from)
-              ? i1
-              : i2;
+          ? i1
+          : i2;
       final before = _triangleNormal(i0, i1, i2);
-      final after = _triangleNormal(i0, i1, i2, replace: replaced, withPosition: target);
+      final after = _triangleNormal(
+        i0,
+        i1,
+        i2,
+        replace: replaced,
+        withPosition: target,
+      );
       final beforeLength = before.length;
       final afterLength = after.length;
       if (afterLength < 1e-20) return true;
@@ -986,7 +1148,10 @@ class _AttributedSimplifier {
     void Function(int collapsesDone, int collapsesTotal)? onProgress,
     bool Function()? isCancelled,
   }) {
-    var liveTriangleCount = _triangleAlive.fold<int>(0, (sum, alive) => sum + alive);
+    var liveTriangleCount = _triangleAlive.fold<int>(
+      0,
+      (sum, alive) => sum + alive,
+    );
     final collapsesNeeded = liveTriangleCount - targetTriangleCount;
     if (collapsesNeeded <= 0) return;
 
@@ -1031,14 +1196,18 @@ class _AttributedSimplifier {
 
       final removedTriangles = <int>[];
       for (final t in _vertexTriangles[a]) {
-        final i0 = _triangles[t * 3], i1 = _triangles[t * 3 + 1], i2 = _triangles[t * 3 + 2];
+        final i0 = _triangles[t * 3],
+            i1 = _triangles[t * 3 + 1],
+            i2 = _triangles[t * 3 + 2];
         if (i0 == b || i1 == b || i2 == b) removedTriangles.add(t);
       }
       for (final t in removedTriangles) {
         _triangleAlive[t] = 0;
         _vertexTriangles[a].remove(t);
         _vertexTriangles[b].remove(t);
-        final i0 = _triangles[t * 3], i1 = _triangles[t * 3 + 1], i2 = _triangles[t * 3 + 2];
+        final i0 = _triangles[t * 3],
+            i1 = _triangles[t * 3 + 1],
+            i2 = _triangles[t * 3 + 2];
         for (final v in [i0, i1, i2]) {
           if (v != a && v != b) _vertexTriangles[v].remove(t);
         }
@@ -1078,12 +1247,32 @@ class _AttributedSimplifier {
       if (_joints != null && _weights != null) {
         final merged = VertexAttributes.lerp(
           VertexAttributes(
-            joints: Vector4(_joints[a * 4], _joints[a * 4 + 1], _joints[a * 4 + 2], _joints[a * 4 + 3]),
-            weights: Vector4(_weights[a * 4], _weights[a * 4 + 1], _weights[a * 4 + 2], _weights[a * 4 + 3]),
+            joints: Vector4(
+              _joints[a * 4],
+              _joints[a * 4 + 1],
+              _joints[a * 4 + 2],
+              _joints[a * 4 + 3],
+            ),
+            weights: Vector4(
+              _weights[a * 4],
+              _weights[a * 4 + 1],
+              _weights[a * 4 + 2],
+              _weights[a * 4 + 3],
+            ),
           ),
           VertexAttributes(
-            joints: Vector4(_joints[b * 4], _joints[b * 4 + 1], _joints[b * 4 + 2], _joints[b * 4 + 3]),
-            weights: Vector4(_weights[b * 4], _weights[b * 4 + 1], _weights[b * 4 + 2], _weights[b * 4 + 3]),
+            joints: Vector4(
+              _joints[b * 4],
+              _joints[b * 4 + 1],
+              _joints[b * 4 + 2],
+              _joints[b * 4 + 3],
+            ),
+            weights: Vector4(
+              _weights[b * 4],
+              _weights[b * 4 + 1],
+              _weights[b * 4 + 2],
+              _weights[b * 4 + 3],
+            ),
           ),
           0.5,
         );
@@ -1104,7 +1293,9 @@ class _AttributedSimplifier {
 
       final neighbors = <int>{};
       for (final t in _vertexTriangles[a]) {
-        final i0 = _triangles[t * 3], i1 = _triangles[t * 3 + 1], i2 = _triangles[t * 3 + 2];
+        final i0 = _triangles[t * 3],
+            i1 = _triangles[t * 3 + 1],
+            i2 = _triangles[t * 3 + 2];
         if (i0 != a) neighbors.add(i0);
         if (i1 != a) neighbors.add(i1);
         if (i2 != a) neighbors.add(i2);
@@ -1126,7 +1317,8 @@ class _AttributedSimplifier {
   void _pushEdge(_EdgeHeap heap, int a, int b) {
     final combined = Float64List(_quadricSize);
     for (var k = 0; k < _quadricSize; k++) {
-      combined[k] = _quadrics[a * _quadricSize + k] + _quadrics[b * _quadricSize + k];
+      combined[k] =
+          _quadrics[a * _quadricSize + k] + _quadrics[b * _quadricSize + k];
     }
     final solved = _solve(
       combined,

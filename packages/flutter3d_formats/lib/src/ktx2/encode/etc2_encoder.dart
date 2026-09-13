@@ -75,7 +75,9 @@ Uint8List encodeEtc2Rgb8Block(List<(int, int, int, int)> pixels) {
 
   final individual = _fitIndividual(top, bottom);
   final differential = _fitDifferential(top, bottom);
-  final chosen = individual.error <= differential.error ? individual : differential;
+  final chosen = individual.error <= differential.error
+      ? individual
+      : differential;
 
   final out = Uint8List(8);
   out[0] = chosen.byte0;
@@ -171,7 +173,11 @@ _BlockFit _fitDifferential(
 
   int expand5(int v) => (v << 3) | (v >> 2);
   final topBase = (expand5(tr5), expand5(tg5), expand5(tb5));
-  final bottomBase = (expand5(clampedBr), expand5(clampedBg), expand5(clampedBb));
+  final bottomBase = (
+    expand5(clampedBr),
+    expand5(clampedBg),
+    expand5(clampedBb),
+  );
 
   final (topTable, topError) = _bestTable(top, topBase);
   final (bottomTable, bottomError) = _bestTable(bottom, bottomBase);

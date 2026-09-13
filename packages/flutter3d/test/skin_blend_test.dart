@@ -51,26 +51,29 @@ MeshData _triangle() {
     data[at + 23] = weights[3];
   }
 
-  vertex(0, Vector3(1, 0, 0), Vector3(0, 1, 0), <double>[
+  vertex(
     0,
-    0,
-    0,
-    0,
-  ], <double>[1.0, 0.0, 0.0, 0.0]);
-  vertex(1, Vector3(0, 1, 0), Vector3(0, 1, 0), <double>[
+    Vector3(1, 0, 0),
+    Vector3(0, 1, 0),
+    <double>[0, 0, 0, 0],
+    <double>[1.0, 0.0, 0.0, 0.0],
+  );
+  vertex(
     1,
-    0,
-    0,
-    0,
-  ], <double>[1.0, 0.0, 0.0, 0.0]);
+    Vector3(0, 1, 0),
+    Vector3(0, 1, 0),
+    <double>[1, 0, 0, 0],
+    <double>[1.0, 0.0, 0.0, 0.0],
+  );
   // Weights sum to 0.6, not 1 — an exporter's rounding error, exercising the
   // renormalization every other vertex here has no reason to touch.
-  vertex(2, Vector3(0, 0, 1), Vector3(0, 1, 0), <double>[
-    0,
-    1,
-    0,
-    0,
-  ], <double>[0.3, 0.3, 0.0, 0.0]);
+  vertex(
+    2,
+    Vector3(0, 0, 1),
+    Vector3(0, 1, 0),
+    <double>[0, 1, 0, 0],
+    <double>[0.3, 0.3, 0.0, 0.0],
+  );
 
   return MeshData(
     layout: layout,
@@ -81,10 +84,7 @@ MeshData _triangle() {
 
 /// [maxJoints] joint matrices, all identity, then [overrides] written on top —
 /// the shape `Skeleton.matrices`/`Pose.jointMatrices` hand a caller.
-Float32List _jointMatrices(
-  Map<int, Matrix4> overrides, {
-  int maxJoints = 64,
-}) {
+Float32List _jointMatrices(Map<int, Matrix4> overrides, {int maxJoints = 64}) {
   final out = Float32List(maxJoints * 16);
   for (var i = 0; i < maxJoints; i++) {
     final m = overrides[i] ?? Matrix4.identity();
@@ -148,7 +148,8 @@ void main() {
         'first joint', () {
       const layout = VertexLayout.skinned;
       final data = Float32List(layout.floatsPerVertex)
-        ..[0] = 1.0 // position.x
+        ..[0] =
+            1.0 // position.x
         ..[4] = 1.0; // normal.y
       final mesh = MeshData(
         layout: layout,
@@ -170,21 +171,24 @@ void main() {
   });
 
   group('normals and tangents rotate, but never translate', () {
-    test('a pure-translation joint leaves a rigidly bound normal unchanged', () {
-      final skin = SkinBlend(_triangle());
-      final matrices = _jointMatrices(<int, Matrix4>{
-        0: Matrix4.translation(Vector3(2.0, 0.0, 0.0)),
-        1: Matrix4.translation(Vector3(0.0, 3.0, 0.0)),
-      });
-      skin.blend(matrices);
+    test(
+      'a pure-translation joint leaves a rigidly bound normal unchanged',
+      () {
+        final skin = SkinBlend(_triangle());
+        final matrices = _jointMatrices(<int, Matrix4>{
+          0: Matrix4.translation(Vector3(2.0, 0.0, 0.0)),
+          1: Matrix4.translation(Vector3(0.0, 3.0, 0.0)),
+        });
+        skin.blend(matrices);
 
-      // Vertex 0's normal is (0, 1, 0) at rest. Mutation: apply the
-      // translation term to normals the way `_transformPoint` does to
-      // positions — this would shift it to (2, 1, 0).
-      expect(skin.vertices[3], closeTo(0.0, 1e-6), reason: 'normal.x');
-      expect(skin.vertices[4], closeTo(1.0, 1e-6), reason: 'normal.y');
-      expect(skin.vertices[5], closeTo(0.0, 1e-6), reason: 'normal.z');
-    });
+        // Vertex 0's normal is (0, 1, 0) at rest. Mutation: apply the
+        // translation term to normals the way `_transformPoint` does to
+        // positions — this would shift it to (2, 1, 0).
+        expect(skin.vertices[3], closeTo(0.0, 1e-6), reason: 'normal.x');
+        expect(skin.vertices[4], closeTo(1.0, 1e-6), reason: 'normal.y');
+        expect(skin.vertices[5], closeTo(0.0, 1e-6), reason: 'normal.z');
+      },
+    );
 
     test('a rotating joint carries the normal with it', () {
       const layout = VertexLayout.skinned;

@@ -2927,9 +2927,7 @@ final class Renderer implements RenderServices {
       ..addExternal(FrameResourceIds.hdrColour)
       ..addNode(bloomNode);
     final compiled = graph.compile(
-      outputs: <ResourceId>[
-        if (bloomNode.isActive) FrameResourceIds.bloom,
-      ],
+      outputs: <ResourceId>[if (bloomNode.isActive) FrameResourceIds.bloom],
     );
 
     final resources =

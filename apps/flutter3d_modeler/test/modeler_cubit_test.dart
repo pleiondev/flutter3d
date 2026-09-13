@@ -299,34 +299,40 @@ void main() {
       expect(ready(cubit).said, isNull);
     });
 
-    test('a routine clear leaves an important sentence for a person to read', () {
-      // An intermediate UI review found this one missing: a save/open/export
-      // outcome shown by `important: true` used to vanish behind the very
-      // next selection change — a click, a box-select — before anyone had a
-      // real chance to read it. `say(null)` is exactly what those selection
-      // handlers call.
-      final cubit = opened().cubit
-        ..say('not saved: a mesh carries morph targets', important: true);
-      cubit.say(null);
-      expect(ready(cubit).said, 'not saved: a mesh carries morph targets');
+    test(
+      'a routine clear leaves an important sentence for a person to read',
+      () {
+        // An intermediate UI review found this one missing: a save/open/export
+        // outcome shown by `important: true` used to vanish behind the very
+        // next selection change — a click, a box-select — before anyone had a
+        // real chance to read it. `say(null)` is exactly what those selection
+        // handlers call.
+        final cubit = opened().cubit
+          ..say('not saved: a mesh carries morph targets', important: true);
+        cubit.say(null);
+        expect(ready(cubit).said, 'not saved: a mesh carries morph targets');
 
-      // Mutation: `if (now.saidIsImportant) return;` deleted from `say`'s
-      // null branch. Run, and this line is the one that fails — the message
-      // above is gone, replaced by nothing, the same silent loss the review
-      // found.
-    });
+        // Mutation: `if (now.saidIsImportant) return;` deleted from `say`'s
+        // null branch. Run, and this line is the one that fails — the message
+        // above is gone, replaced by nothing, the same silent loss the review
+        // found.
+      },
+    );
 
-    test('a fresh sentence always replaces whatever was there, important or not', () {
-      // Importance only changes what happens to a *clear*; a real new
-      // sentence — the next save's own outcome, say — still overwrites the
-      // old one immediately, important or not. Otherwise an error could
-      // wedge the status line and refuse to update even when there is
-      // something new and more relevant to say.
-      final cubit = opened().cubit
-        ..say('not saved: a mesh carries morph targets', important: true);
-      cubit.say('wrote 40 bytes to model.f3dproj', important: true);
-      expect(ready(cubit).said, 'wrote 40 bytes to model.f3dproj');
-    });
+    test(
+      'a fresh sentence always replaces whatever was there, important or not',
+      () {
+        // Importance only changes what happens to a *clear*; a real new
+        // sentence — the next save's own outcome, say — still overwrites the
+        // old one immediately, important or not. Otherwise an error could
+        // wedge the status line and refuse to update even when there is
+        // something new and more relevant to say.
+        final cubit = opened().cubit
+          ..say('not saved: a mesh carries morph targets', important: true);
+        cubit.say('wrote 40 bytes to model.f3dproj', important: true);
+        expect(ready(cubit).said, 'wrote 40 bytes to model.f3dproj');
+      },
+    );
 
     test('importance itself does not linger past the sentence it named', () {
       // A routine sentence sent right after an important one must not
@@ -368,7 +374,9 @@ void main() {
       // The one chunk has been started (a real isolate spawned) but not
       // necessarily finished — this is the same instant `job_runner_test.dart`
       // itself reads betweeen `run()` starting and its first `await` landing.
-      expect(ready(cubit).jobs, <ActiveJob>[ActiveJob(objectId: objectId, progress: 0.0)]);
+      expect(ready(cubit).jobs, <ActiveJob>[
+        ActiveJob(objectId: objectId, progress: 0.0),
+      ]);
 
       await future;
       expect(ready(cubit).jobs, isEmpty);
@@ -395,16 +403,19 @@ void main() {
       expect(ready(cubit).jobs, isEmpty);
     });
 
-    test('a second bake for the same object while one runs is refused', () async {
-      final cubit = openedWith(withOneModifier()).cubit;
-      final objectId = ready(cubit).project.objects.first.id;
+    test(
+      'a second bake for the same object while one runs is refused',
+      () async {
+        final cubit = openedWith(withOneModifier()).cubit;
+        final objectId = ready(cubit).project.objects.first.id;
 
-      final first = cubit.bakeInBackground(objectId, 0);
-      final second = await cubit.bakeInBackground(objectId, 0);
-      expect(second, isFalse);
+        final first = cubit.bakeInBackground(objectId, 0);
+        final second = await cubit.bakeInBackground(objectId, 0);
+        expect(second, isFalse);
 
-      await first;
-    });
+        await first;
+      },
+    );
 
     test('an object with no modifier stack has nothing to bake', () async {
       final cubit = opened().cubit;

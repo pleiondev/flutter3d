@@ -29,29 +29,35 @@ void main() {
       expect(sections, isNot(contains(PropertiesSection.mesh)));
     });
 
-    test('mesh mode owns the operation/selection sections, not object ones', () {
-      final sections = sectionsFor(ModelerMode.mesh);
+    test(
+      'mesh mode owns the operation/selection sections, not object ones',
+      () {
+        final sections = sectionsFor(ModelerMode.mesh);
 
-      expect(sections, contains(PropertiesSection.lastOperation));
-      expect(sections, contains(PropertiesSection.selection));
-      expect(sections, contains(PropertiesSection.mesh));
-      // Mutation: leave `objects`/`transform`/`modifiers` showing in mesh
-      // mode too. A person editing a mesh does not need the whole scene's
-      // object list scrolled past to reach the card they are actually using.
-      expect(sections, isNot(contains(PropertiesSection.objects)));
-      expect(sections, isNot(contains(PropertiesSection.transform)));
-      expect(sections, isNot(contains(PropertiesSection.modifiers)));
-      expect(sections, isNot(contains(PropertiesSection.materials)));
-    });
+        expect(sections, contains(PropertiesSection.lastOperation));
+        expect(sections, contains(PropertiesSection.selection));
+        expect(sections, contains(PropertiesSection.mesh));
+        // Mutation: leave `objects`/`transform`/`modifiers` showing in mesh
+        // mode too. A person editing a mesh does not need the whole scene's
+        // object list scrolled past to reach the card they are actually using.
+        expect(sections, isNot(contains(PropertiesSection.objects)));
+        expect(sections, isNot(contains(PropertiesSection.transform)));
+        expect(sections, isNot(contains(PropertiesSection.modifiers)));
+        expect(sections, isNot(contains(PropertiesSection.materials)));
+      },
+    );
 
-    test('anim-07\'s own row: animation mode owns the animation section alone', () {
-      final sections = sectionsFor(ModelerMode.animation);
+    test(
+      'anim-07\'s own row: animation mode owns the animation section alone',
+      () {
+        final sections = sectionsFor(ModelerMode.animation);
 
-      expect(sections, contains(PropertiesSection.animation));
-      expect(sections, isNot(contains(PropertiesSection.objects)));
-      expect(sections, isNot(contains(PropertiesSection.mesh)));
-      expect(sections, isNot(contains(PropertiesSection.materials)));
-    });
+        expect(sections, contains(PropertiesSection.animation));
+        expect(sections, isNot(contains(PropertiesSection.objects)));
+        expect(sections, isNot(contains(PropertiesSection.mesh)));
+        expect(sections, isNot(contains(PropertiesSection.materials)));
+      },
+    );
 
     test('display, view and budget show in every mode', () {
       for (final ModelerMode mode in ModelerMode.values) {

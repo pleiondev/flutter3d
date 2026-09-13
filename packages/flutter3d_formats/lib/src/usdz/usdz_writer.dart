@@ -72,7 +72,10 @@ final class UsdzWriter {
 
   void _writeMesh(StringBuffer out, ModelSurface surface, int index) {
     final mesh = _bake(surface);
-    final prim = _identifier(surface.name ?? 'Mesh$index', fallback: 'Mesh$index');
+    final prim = _identifier(
+      surface.name ?? 'Mesh$index',
+      fallback: 'Mesh$index',
+    );
     final layout = mesh.layout;
     final stride = layout.floatsPerVertex;
     final positionAt = layout.floatOffsetOf(VertexLayout.position.name);
@@ -143,7 +146,9 @@ final class UsdzWriter {
     // still reads in the result instead of vanishing into another
     // underscore.
     var result = buffer.toString();
-    if (result.isNotEmpty && result.codeUnitAt(0) >= 48 && result.codeUnitAt(0) <= 57) {
+    if (result.isNotEmpty &&
+        result.codeUnitAt(0) >= 48 &&
+        result.codeUnitAt(0) <= 57) {
       result = '_$result';
     }
     return result.isEmpty ? fallback : result;

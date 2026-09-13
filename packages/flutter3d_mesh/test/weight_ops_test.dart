@@ -91,35 +91,37 @@ void main() {
     });
 
     test('fewer pairs than the cap are kept as-is, only renormalized', () {
-      final limited = limitInfluences(<WeightPair>[
-        WeightPair(7, 0.4),
-      ], 4);
+      final limited = limitInfluences(<WeightPair>[WeightPair(7, 0.4)], 4);
       expect(limited, hasLength(1));
       expect(limited.single.weight, closeTo(1.0, 1e-9));
     });
   });
 
   group('toVertexAttributes', () {
-    test('a loop cut between two full-weight endpoints lands at (0.5, 0.5)', () {
-      // The same case `VertexAttributes.lerp` already covers for a split —
-      // named here as `mesh-60`'s own acceptance line for it.
-      final a = VertexAttributes(
-        joints: Vector4(1, 0, 0, 0),
-        weights: Vector4(1, 0, 0, 0),
-      );
-      final b = VertexAttributes(
-        joints: Vector4(3, 0, 0, 0),
-        weights: Vector4(1, 0, 0, 0),
-      );
-      final mid = VertexAttributes.lerp(a, b, 0.5);
-      final pairs = <WeightPair>[
-        for (var i = 0; i < 4; i++)
-          if (mid.weights[i] > 0) WeightPair(mid.joints[i].round(), mid.weights[i]),
-      ];
-      final result = toVertexAttributes(pairs);
-      expect(result.weights.x, closeTo(0.5, 1e-9));
-      expect(result.weights.y, closeTo(0.5, 1e-9));
-    });
+    test(
+      'a loop cut between two full-weight endpoints lands at (0.5, 0.5)',
+      () {
+        // The same case `VertexAttributes.lerp` already covers for a split —
+        // named here as `mesh-60`'s own acceptance line for it.
+        final a = VertexAttributes(
+          joints: Vector4(1, 0, 0, 0),
+          weights: Vector4(1, 0, 0, 0),
+        );
+        final b = VertexAttributes(
+          joints: Vector4(3, 0, 0, 0),
+          weights: Vector4(1, 0, 0, 0),
+        );
+        final mid = VertexAttributes.lerp(a, b, 0.5);
+        final pairs = <WeightPair>[
+          for (var i = 0; i < 4; i++)
+            if (mid.weights[i] > 0)
+              WeightPair(mid.joints[i].round(), mid.weights[i]),
+        ];
+        final result = toVertexAttributes(pairs);
+        expect(result.weights.x, closeTo(0.5, 1e-9));
+        expect(result.weights.y, closeTo(0.5, 1e-9));
+      },
+    );
 
     test('more than four candidates keep only the four heaviest', () {
       final result = toVertexAttributes(<WeightPair>[
@@ -130,7 +132,10 @@ void main() {
         WeightPair(4, 0.10),
       ]);
       final total =
-          result.weights.x + result.weights.y + result.weights.z + result.weights.w;
+          result.weights.x +
+          result.weights.y +
+          result.weights.z +
+          result.weights.w;
       expect(total, closeTo(1.0, 1e-6));
       expect(result.joints.storage, isNot(contains(4.0)));
     });

@@ -115,23 +115,24 @@ class ModelsRepository {
         return [for (final row in rows) _record(row)];
       });
 
-  Future<StoredFile?> fileOf(int modelId, FileKind kind) => _db.run((session) async {
-    final rows = await session.execute(
-      Sql.named('''
+  Future<StoredFile?> fileOf(int modelId, FileKind kind) =>
+      _db.run((session) async {
+        final rows = await session.execute(
+          Sql.named('''
         select blob_sha256, bytes, content_type, filename from model_files
         where model_id = @id and kind = @kind
       '''),
-      parameters: {'id': modelId, 'kind': kind.column},
-    );
-    if (rows.isEmpty) return null;
-    final map = rows.first.toColumnMap();
-    return StoredFile(
-      blobSha256: map['blob_sha256'] as String,
-      bytes: map['bytes'] as int,
-      contentType: map['content_type'] as String,
-      filename: map['filename'] as String,
-    );
-  });
+          parameters: {'id': modelId, 'kind': kind.column},
+        );
+        if (rows.isEmpty) return null;
+        final map = rows.first.toColumnMap();
+        return StoredFile(
+          blobSha256: map['blob_sha256'] as String,
+          bytes: map['bytes'] as int,
+          contentType: map['content_type'] as String,
+          filename: map['filename'] as String,
+        );
+      });
 
   /// Sets the preview picture, replacing any earlier one.
   ///
@@ -149,38 +150,42 @@ class ModelsRepository {
         return previous.isEmpty ? null : previous.first[0]! as String;
       });
 
-  Future<void> describe(int modelId, {required String title, required String description}) =>
-      _db.run((session) async {
-        await session.execute(
-          Sql.named('''
+  Future<void> describe(
+    int modelId, {
+    required String title,
+    required String description,
+  }) => _db.run((session) async {
+    await session.execute(
+      Sql.named('''
             update models
             set title = @title, slug = @slug, description = @description, updated_at = now()
             where id = @id
           '''),
-          parameters: {
-            'id': modelId,
-            'title': title,
-            'slug': slugify(title),
-            'description': description,
-          },
-        );
-      });
+      parameters: {
+        'id': modelId,
+        'title': title,
+        'slug': slugify(title),
+        'description': description,
+      },
+    );
+  });
 
   /// Makes a model public under [licence].
   ///
   /// `published_at` is kept from the first publication: taking a model down and
   /// putting it back should not move it to the top of the catalogue.
-  Future<void> publish(int modelId, Licence licence) => _db.run((session) async {
-    await session.execute(
-      Sql.named('''
+  Future<void> publish(int modelId, Licence licence) =>
+      _db.run((session) async {
+        await session.execute(
+          Sql.named('''
         update models
         set visibility = 'public', licence = @licence,
             published_at = coalesce(published_at, now()), updated_at = now()
         where id = @id
       '''),
-      parameters: {'id': modelId, 'licence': licence.spdx},
-    );
-  });
+          parameters: {'id': modelId, 'licence': licence.spdx},
+        );
+      });
 
   /// Makes a model private again. The licence stays recorded: whoever
   /// downloaded it while it was public received it under those terms.
@@ -231,9 +236,13 @@ class ModelsRepository {
     return rows.isNotEmpty;
   });
 
-  Future<void> _putFile(Session session, int modelId, FileKind kind, StoredFile file) =>
-      session.execute(
-        Sql.named('''
+  Future<void> _putFile(
+    Session session,
+    int modelId,
+    FileKind kind,
+    StoredFile file,
+  ) => session.execute(
+    Sql.named('''
           insert into model_files (model_id, kind, blob_sha256, bytes, content_type, filename)
           values (@id, @kind, @sha, @bytes, @type, @name)
           on conflict (model_id, kind) do update
@@ -241,15 +250,15 @@ class ModelsRepository {
               content_type = excluded.content_type, filename = excluded.filename,
               created_at = now()
         '''),
-        parameters: {
-          'id': modelId,
-          'kind': kind.column,
-          'sha': file.blobSha256,
-          'bytes': file.bytes,
-          'type': file.contentType,
-          'name': file.filename,
-        },
-      );
+    parameters: {
+      'id': modelId,
+      'kind': kind.column,
+      'sha': file.blobSha256,
+      'bytes': file.bytes,
+      'type': file.contentType,
+      'name': file.filename,
+    },
+  );
 
   Future<ModelRecord?> _byId(Session session, int id) async {
     final rows = await session.execute(

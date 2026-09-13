@@ -71,7 +71,9 @@ void main() {
     // the two cannot disagree about what a document may contain.
     for (final step in _chain()) {
       final issues = LevelValidator(
-        registry: sampleRegistry(extra: const <EntityKind>[WidgetSurfaceKind()]),
+        registry: sampleRegistry(
+          extra: const <EntityKind>[WidgetSurfaceKind()],
+        ),
         rules: sampleRules(),
       ).validate(step.level);
 
@@ -127,7 +129,9 @@ void main() {
         step.level,
         world,
         input: InputState(),
-        registry: sampleRegistry(extra: const <EntityKind>[WidgetSurfaceKind()]),
+        registry: sampleRegistry(
+          extra: const <EntityKind>[WidgetSurfaceKind()],
+        ),
         inventory: startingInventory(),
       );
       world.update();

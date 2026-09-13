@@ -48,61 +48,66 @@ import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter3d_session/flutter3d_session.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-GraphicsDevice _device() =>
-    CpuDevice(width: 4, height: 4, shaders: CpuShaderLibrary(builtinCpuShaders()));
+GraphicsDevice _device() => CpuDevice(
+  width: 4,
+  height: 4,
+  shaders: CpuShaderLibrary(builtinCpuShaders()),
+);
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  testWidgets(
-    'a tap requests focus for a control inside the surface, on the '
-    'surface\'s own isolated FocusManager rather than the real one',
-    (tester) async {
-      final focusNode = FocusNode();
-      addTearDown(focusNode.dispose);
-      var tapped = false;
-      final surface = WidgetSurface(
-        device: _device(),
-        width: 2.0,
-        height: 1.0,
-        child: GestureDetector(
-          behavior: HitTestBehavior.opaque,
-          onTap: () {
-            tapped = true;
-            focusNode.requestFocus();
-          },
-          child: Focus(focusNode: focusNode, child: const ColoredBox(color: Color(0xFF224466))),
+  testWidgets('a tap requests focus for a control inside the surface, on the '
+      'surface\'s own isolated FocusManager rather than the real one', (
+    tester,
+  ) async {
+    final focusNode = FocusNode();
+    addTearDown(focusNode.dispose);
+    var tapped = false;
+    final surface = WidgetSurface(
+      device: _device(),
+      width: 2.0,
+      height: 1.0,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: () {
+          tapped = true;
+          focusNode.requestFocus();
+        },
+        child: Focus(
+          focusNode: focusNode,
+          child: const ColoredBox(color: Color(0xFF224466)),
         ),
-      );
-      addTearDown(surface.dispose);
+      ),
+    );
+    addTearDown(surface.dispose);
 
-      // Nothing here ever called `tester.pumpWidget` on this widget — the
-      // real application tree, whatever it is, is untouched — so this is
-      // the isolated manager's own opinion, not a borrowed one.
-      expect(focusNode.hasFocus, isFalse);
+    // Nothing here ever called `tester.pumpWidget` on this widget — the
+    // real application tree, whatever it is, is untouched — so this is
+    // the isolated manager's own opinion, not a borrowed one.
+    expect(focusNode.hasFocus, isFalse);
 
-      const pointer = 5;
-      surface.pipeline.announcePointer(pointer, added: true);
-      surface.pipeline.dispatchAtUv(
-        const Offset(0.5, 0.5),
-        (local) => PointerDownEvent(pointer: pointer, position: local),
-      );
-      surface.pipeline.dispatchAtUv(
-        const Offset(0.5, 0.5),
-        (local) => PointerUpEvent(pointer: pointer, position: local),
-      );
-      surface.pipeline.announcePointer(pointer, added: false);
+    const pointer = 5;
+    surface.pipeline.announcePointer(pointer, added: true);
+    surface.pipeline.dispatchAtUv(
+      const Offset(0.5, 0.5),
+      (local) => PointerDownEvent(pointer: pointer, position: local),
+    );
+    surface.pipeline.dispatchAtUv(
+      const Offset(0.5, 0.5),
+      (local) => PointerUpEvent(pointer: pointer, position: local),
+    );
+    surface.pipeline.announcePointer(pointer, added: false);
 
-      // Focus changes are applied on a scheduled microtask
-      // (`FocusManager._markNeedsUpdate`) rather than synchronously —
-      // `pump(Duration.zero)` drains it the same way it would for the real
-      // application tree.
-      await tester.pump();
+    // Focus changes are applied on a scheduled microtask
+    // (`FocusManager._markNeedsUpdate`) rather than synchronously —
+    // `pump(Duration.zero)` drains it the same way it would for the real
+    // application tree.
+    await tester.pump();
 
-      expect(tapped, isTrue);
-      expect(focusNode.hasFocus, isTrue);
-    },
-  );
+    expect(tapped, isTrue);
+    expect(focusNode.hasFocus, isTrue);
+  });
 
   testWidgets(
     'two surfaces hold focus independently — each has its own manager, so '
@@ -120,7 +125,10 @@ void main() {
         child: GestureDetector(
           behavior: HitTestBehavior.opaque,
           onTap: node.requestFocus,
-          child: Focus(focusNode: node, child: const ColoredBox(color: Color(0xFF224466))),
+          child: Focus(
+            focusNode: node,
+            child: const ColoredBox(color: Color(0xFF224466)),
+          ),
         ),
       );
 
@@ -151,13 +159,15 @@ void main() {
       expect(
         focusB.hasFocus,
         isTrue,
-        reason: 'each surface has its own isolated manager, so nothing '
+        reason:
+            'each surface has its own isolated manager, so nothing '
             'about focusing B needed A to release anything first',
       );
       expect(
         focusA.hasFocus,
         isTrue,
-        reason: 'and for the same reason, B taking focus never told A\'s '
+        reason:
+            'and for the same reason, B taking focus never told A\'s '
             'own manager anything happened — the two are not one shared '
             'focus tree, which is exactly what keeps them from colliding, '
             'and exactly why nothing here can arbitrate "the one focused '

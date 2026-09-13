@@ -85,10 +85,10 @@ Outcome _asMeshStep(
   target.mesh.beginStep();
   final OpResult result = edit(target);
   if (!result.ok) {
-    // `endStep` discards a step that wrote nothing and says so, so an
-    // unconditional undo here would take back the *previous* edit — the loop
-    // cut before the extrude that was refused.
-    if (target.mesh.endStep()) target.mesh.undo();
+    // Abandoned rather than ended and undone: pushing the step would clear
+    // the mesh's redo stack, so a refusal right after an undo would leave
+    // `ModelHistory` offering a redo the mesh could no longer perform.
+    target.mesh.abandonStep();
     return Outcome.refused(result.reason!);
   }
   target.mesh.endStep();
@@ -96,9 +96,10 @@ Outcome _asMeshStep(
     project.withObject(
       // A new `EditedGeometry` round the same mesh: the value that changed is
       // the object, and its version is what tells a viewport to upload again.
-      _resyncShapeSet(target.object, target.mesh).copyWith(
-        geometry: EditedGeometry(target.mesh),
-      ),
+      _resyncShapeSet(
+        target.object,
+        target.mesh,
+      ).copyWith(geometry: EditedGeometry(target.mesh)),
     ),
     selection: selection.copyWith(
       elements: result.selection.ids.toList(),
@@ -619,7 +620,7 @@ final class Separate extends ModelCommand {
     target.mesh.beginStep();
     final OpResult cut = deleteSelection(target.mesh, faces);
     if (!cut.ok) {
-      if (target.mesh.endStep()) target.mesh.undo();
+      target.mesh.abandonStep();
       return Outcome.refused(cut.reason!);
     }
     target.mesh.endStep();
@@ -691,7 +692,7 @@ final class FillHoles extends ModelCommand {
     final firstNewFace = target.mesh.faceSlotCount;
     final closed = fillHoles(target.mesh);
     if (closed == 0) {
-      if (target.mesh.endStep()) target.mesh.undo();
+      target.mesh.abandonStep();
       return Outcome.refused(
         '"${target.object.name}" has no open boundary to close',
       );
@@ -708,7 +709,9 @@ final class FillHoles extends ModelCommand {
         target.object.copyWith(geometry: EditedGeometry(target.mesh)),
       ),
       selection: selection.copyWith(
-        elements: <int>[for (var f = firstNewFace; f < target.mesh.faceSlotCount; f++) f],
+        elements: <int>[
+          for (var f = firstNewFace; f < target.mesh.faceSlotCount; f++) f,
+        ],
         level: ElementLevel.face,
       ),
       meshTouched: target.mesh,

@@ -93,7 +93,10 @@ final class ModelSurface {
 /// surface-level LODs become `MSFT_lod`'s sibling-node ones, and that
 /// mapping is not built.
 final class ModelLod {
-  const ModelLod({required this.surfaceIndices, required this.maxScreenFraction});
+  const ModelLod({
+    required this.surfaceIndices,
+    required this.maxScreenFraction,
+  });
 
   /// Indices into `ModelDocument.surfaces`, replacing the node's own
   /// [ModelNode.surfaces] when this level is the one in use.

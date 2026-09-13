@@ -35,6 +35,11 @@ dependencies:
   flutter3d_formats:
     path: ../../packages/flutter3d_formats
 
+  # `FbxDecoder`, handed to every decode this application makes, so an FBX file
+  # names its own format and why it will not open instead of reading as OBJ.
+  flutter3d_fbx:
+    path: ../../packages/flutter3d_fbx
+
   # The mesh being edited, with the topology still in it.
   # The document: a project of objects, the commands that change one, and the
   # history that takes them back.

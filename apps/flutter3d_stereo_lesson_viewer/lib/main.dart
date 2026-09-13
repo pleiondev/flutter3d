@@ -69,9 +69,7 @@ void _addParts(Level level, LoadedLevel loaded, GraphicsDevice device) {
     final name = entity.name;
     if (name == null) continue;
     final materialName = entity.string('material');
-    final source = materialName == null
-        ? null
-        : level.materials[materialName];
+    final source = materialName == null ? null : level.materials[materialName];
     final material = LevelLoader.materialFrom(
       source ?? LevelMaterial(),
       const <String, TextureHandle?>{},
@@ -93,7 +91,12 @@ final class LessonLoading extends LessonState {
 }
 
 final class LessonReady extends LessonState {
-  const LessonReady(this.scene, this.rig, this.player, {this.nodes = const <String, SceneNode>{}});
+  const LessonReady(
+    this.scene,
+    this.rig,
+    this.player, {
+    this.nodes = const <String, SceneNode>{},
+  });
 
   final Scene scene;
   final StereoRig rig;

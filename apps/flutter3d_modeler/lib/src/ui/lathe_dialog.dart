@@ -29,7 +29,11 @@ import 'profile_editor.dart';
 /// What the dialog hands back when confirmed — [AddLathe]'s own two
 /// user-facing fields, read off the profile authored inside.
 final class LatheChoice {
-  const LatheChoice({required this.profile, required this.segments, required this.closedProfile});
+  const LatheChoice({
+    required this.profile,
+    required this.segments,
+    required this.closedProfile,
+  });
 
   final List<Vector2> profile;
   final int segments;
@@ -48,11 +52,7 @@ ProfileCurve _startingProfile() => ProfileCurve(
     ProfilePoint(Vector2(40, 60)),
     ProfilePoint(Vector2(0, 60)),
   ],
-  segments: const <ProfileSegment>[
-    LineSegment(),
-    LineSegment(),
-    LineSegment(),
-  ],
+  segments: const <ProfileSegment>[LineSegment(), LineSegment(), LineSegment()],
 );
 
 /// Opens `ui-13`'s own lathe dialog, drawing its live preview through

@@ -5,7 +5,9 @@
 /// and a scan for the first pixel that is not finite.
 library;
 
+export 'package:flutter3d_mcp_kit/flutter3d_mcp_kit.dart' show PictureAnswer;
+
 export 'src/diagnostic_renderer.dart';
 export 'src/diagnostic_server.dart';
-export 'src/diagnostic_session.dart' show Answer, describePass;
+export 'src/diagnostic_session.dart' show describePass;
 export 'src/diagnostic_tools.dart';

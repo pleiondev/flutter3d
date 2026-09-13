@@ -13,7 +13,9 @@ import 'package:vector_math/vector_math.dart';
 void main() {
   test('a default material writes only baseColor — everything else is '
       'already the reader\'s own default', () {
-    expect(surfaceMaterialToJson(SurfaceMaterial()).keys, <String>['baseColor']);
+    expect(surfaceMaterialToJson(SurfaceMaterial()).keys, <String>[
+      'baseColor',
+    ]);
   });
 
   test('an empty json reads back every field at the same default '

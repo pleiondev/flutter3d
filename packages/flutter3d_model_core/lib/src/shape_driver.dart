@@ -135,7 +135,9 @@ final class ShapeDriver {
   /// past 1 or back down the far side of the curve.
   double evaluate(Quaternion rotation) {
     final span = to - from;
-    final t = span == 0.0 ? 0.0 : ((angleOf(rotation) - from) / span).clamp(0.0, 1.0);
+    final t = span == 0.0
+        ? 0.0
+        : ((angleOf(rotation) - from) / span).clamp(0.0, 1.0);
     return curve.apply(t);
   }
 
@@ -179,7 +181,8 @@ List<double> evaluateShapeDriversLive({
   final weights = List<double>.filled(shapeCount, 0.0);
   for (final driver in drivers) {
     if (driver.shapeIndex < 0 || driver.shapeIndex >= shapeCount) continue;
-    final rotation = _jointRotationAt(clip, driver.jointId, time) ?? Quaternion.identity();
+    final rotation =
+        _jointRotationAt(clip, driver.jointId, time) ?? Quaternion.identity();
     weights[driver.shapeIndex] += driver.evaluate(rotation);
   }
   return weights;
@@ -233,7 +236,10 @@ ProjectClip bakeShapeDrivers({
       ...clip.tracks,
       ProjectTrack(
         objectId: shapeTargetObjectId,
-        track: table.toAnimationTrack(nodeIndex: 0, path: AnimationPath.weights),
+        track: table.toAnimationTrack(
+          nodeIndex: 0,
+          path: AnimationPath.weights,
+        ),
       ),
     ],
     extras: clip.extras,

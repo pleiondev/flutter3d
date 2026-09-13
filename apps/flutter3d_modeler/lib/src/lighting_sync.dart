@@ -73,8 +73,6 @@ final class LightingSync {
       settings.copyWith(
         exposure: lighting.exposure,
         shadows: settings.shadows.copyWith(enabled: lighting.shadows),
-        debug: settings.debug.copyWith(
-          lightGizmos: lighting.lights.isNotEmpty,
-        ),
+        debug: settings.debug.copyWith(lightGizmos: lighting.lights.isNotEmpty),
       );
 }

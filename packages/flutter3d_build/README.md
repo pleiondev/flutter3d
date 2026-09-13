@@ -13,6 +13,6 @@ the SDK would not start on any machine that has not got it.
 
 This is `ap-02`'s own scaffold: the package exists, `dart pub get`
 resolves it, and it has nothing to export yet. What lands here next is
-`doc/asset-pipeline-plan.md`'s own order — `dart run flutter3d:convert`
+`doc/asset-pipeline-plan.md`'s own order — `dart run flutter3d_build:convert`
 (`ap-03`), the manifest and directory convention (`ap-04`), and
 `buildAssets()` itself, the function `hook/build.dart` calls (`ap-05`).

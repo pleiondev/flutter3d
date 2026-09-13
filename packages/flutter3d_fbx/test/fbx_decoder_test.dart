@@ -64,7 +64,12 @@ void main() {
     });
 
     test('a glTF file is not an FBX file', () {
-      final glb = Uint8List.fromList(utf8.encode('glTF' '\x02\x00\x00\x00'));
+      final glb = Uint8List.fromList(
+        utf8.encode(
+          'glTF'
+          '\x02\x00\x00\x00',
+        ),
+      );
       expect(decoder.handles('model.glb', glb), isFalse);
     });
 

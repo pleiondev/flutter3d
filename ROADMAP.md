@@ -142,7 +142,7 @@ go into a build hook. `dart run flutter3d:init` writes the hook and the one
 pubspec entry it needs, and from then on `flutter run` converts glTF, GLB and
 OBJ sources into the `.f3d` container, compresses their textures into KTX2 with
 full mip chains in the block family each target reads, and builds the shader
-bundle. The same code is `dart run flutter3d:convert` for anybody who would
+bundle. The same code is `dart run flutter3d_build:convert` for anybody who would
 rather run the step by hand or from another build system.
 
 A hook runs in plain Dart, so everything it calls has to live below Flutter:

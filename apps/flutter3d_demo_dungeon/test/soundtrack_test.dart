@@ -49,7 +49,8 @@ Level _crypt() => Level.fromJson(
 final class _Run {
   _Run({EntityRegistry? registry}) {
     final kinds =
-        registry ?? sampleRegistry(extra: const <EntityKind>[WidgetSurfaceKind()]);
+        registry ??
+        sampleRegistry(extra: const <EntityKind>[WidgetSurfaceKind()]);
     level.addTo(world);
     staged = stage(
       level,

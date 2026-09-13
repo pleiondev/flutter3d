@@ -1,24 +1,12 @@
-import 'dart:async';
-
 import 'package:dart_mcp/server.dart';
+import 'package:flutter3d_mcp_kit/flutter3d_mcp_kit.dart';
 
 import 'diagnostic_renderer.dart';
 import 'diagnostic_session.dart';
 
-/// One tool: what an agent is offered, and what calling it does — the same
-/// pair-not-a-table shape `flutter3d_sim_mcp`'s own `SimTool` is.
-final class DiagnosticTool {
-  const DiagnosticTool(this.tool, this.run);
-
-  final Tool tool;
-  final FutureOr<Answer> Function(
-    DiagnosticSession session,
-    Map<String, Object?> arguments,
-  )
-  run;
-
-  String get name => tool.name;
-}
+/// One tool: what an agent is offered, and what calling it does — see
+/// `flutter3d_mcp_kit`'s [OfferedTool].
+typedef DiagnosticTool = OfferedTool<DiagnosticSession, PictureAnswer>;
 
 double _number(
   Map<String, Object?> args,
@@ -106,10 +94,8 @@ List<DiagnosticTool> get diagnosticTools => <DiagnosticTool>[
         required: <String>['x', 'y'],
       ),
     ),
-    (session, args) => session.pixel(
-      (args['x']! as num).toInt(),
-      (args['y']! as num).toInt(),
-    ),
+    (session, args) =>
+        session.pixel((args['x']! as num).toInt(), (args['y']! as num).toInt()),
   ),
   DiagnosticTool(
     Tool(

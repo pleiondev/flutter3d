@@ -25,18 +25,24 @@ dependencies:
   # `MeshData` and `VertexLayout`, which an imported object holds as it arrived.
   flutter3d_geometry: ^0.6.0
 
-  # `ClothMesh`/`stepCloth` — `pro-sim-03`'s own row, what `BakeSimulationCommand`
+  # `ClothMesh`/`stepCloth` — `pro-sim-03`'s own row, what `BakeClothJobRequest`
   # runs one frame at a time into a `SimulationCache` — and `Dynamics`/`RigidBody`/
-  # `CollisionWorld`, what `BakeRigidBodyCommand` runs one frame at a time into
+  # `CollisionWorld`, what `BakeRigidBodyJobRequest` runs one frame at a time into
   # the same `SimulationCache` for `pro-sim-02`'s own row. One package now:
   # cloth moved into `flutter3d_physics` itself, reacting to its own shapes.
   flutter3d_physics: ^0.7.0
 
-  # `ParticleSystem`, what `BakeParticleSystemCommand` bakes into a
+  # `ParticleSystem`, what `BakeParticleSystemJobRequest` bakes into a
   # `SimulationCache` the same way — `pro-sim-02`'s own other half. The core
   # package, not `flutter3d_particles` itself, which depends on the Flutter
   # SDK for the contributor that draws a system rather than the system.
   flutter3d_particles_core: ^0.6.0
+
+  # `retargetTracks`, `bindWeights` and the rig vocabulary they read — what a
+  # project's own `retargetClip` and rig jobs run. The document depends on the
+  # algorithms and not the other way round: `flutter3d_rig` reads a rig as
+  # nodes and tracks and has no idea what a project is.
+  flutter3d_rig: ^0.6.0
 
   vector_math: ^2.2.0
 

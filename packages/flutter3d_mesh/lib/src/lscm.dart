@@ -56,10 +56,12 @@ import 'edit_mesh.dart';
 List<List<int>> splitIslands(EditMesh mesh, {Set<int>? restrictToFaces}) {
   final visited = Uint8List(mesh.faceSlotCount);
   final islands = <List<int>>[];
-  bool included(int face) => restrictToFaces == null || restrictToFaces.contains(face);
+  bool included(int face) =>
+      restrictToFaces == null || restrictToFaces.contains(face);
 
   for (var start = 0; start < mesh.faceSlotCount; start++) {
-    if (!mesh.isFaceAlive(start) || visited[start] != 0 || !included(start)) continue;
+    if (!mesh.isFaceAlive(start) || visited[start] != 0 || !included(start))
+      continue;
 
     final island = <int>[];
     final stack = <int>[start];
@@ -192,7 +194,13 @@ void lscm(
     mesh.forEachHalfEdge(face, (half) => corners.add(mesh.originOf(half)));
     if (corners.length < 3) continue;
     for (var i = 1; i < corners.length - 1; i++) {
-      _accumulateTriangle(mesh, corners[0], corners[i], corners[i + 1], accumulateRow);
+      _accumulateTriangle(
+        mesh,
+        corners[0],
+        corners[i],
+        corners[i + 1],
+        accumulateRow,
+      );
     }
   }
 
@@ -226,7 +234,11 @@ void unwrapMesh(
   }
 }
 
-void _writeIslandUv(EditMesh mesh, List<int> island, Map<int, Vector2> uvByVertex) {
+void _writeIslandUv(
+  EditMesh mesh,
+  List<int> island,
+  Map<int, Vector2> uvByVertex,
+) {
   for (final face in island) {
     mesh.forEachHalfEdge(face, (half) {
       final uv = uvByVertex[mesh.originOf(half)];
@@ -303,7 +315,8 @@ void _accumulateTriangle(
   int v0,
   int v1,
   int v2,
-  void Function(List<(int vertex, double coefU, double coefV)> row) accumulateRow,
+  void Function(List<(int vertex, double coefU, double coefV)> row)
+  accumulateRow,
 ) {
   final p0 = mesh.positionOf(v0);
   final p1 = mesh.positionOf(v1);

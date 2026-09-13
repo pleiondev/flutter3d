@@ -50,6 +50,10 @@ dev_dependencies:
   test: ^1.25.0
   flutter_lints: ^6.0.0
 
+  # `Vector3` and friends, for the one-triangle document
+  # `convert_decoders_test.dart`'s own decoder builds.
+  vector_math: ^2.2.0
+
 # **A plain Dart package, same reasoning as `flutter3d_sim`/`flutter3d_net`.**
 # `hook/build.dart` is invoked by the Flutter tool as a separate process with
 # no window and no Flutter SDK resolvable inside it — a package depending on

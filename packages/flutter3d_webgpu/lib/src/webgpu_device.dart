@@ -773,13 +773,16 @@ final class WebGpuDevice implements GraphicsDevice, WgslModuleCompiler {
         'level (0) may be overwritten.',
       );
     }
-    final rect = region ?? ScreenRect(width: target.width, height: target.height);
+    final rect =
+        region ?? ScreenRect(width: target.width, height: target.height);
     if (rect.x < 0 ||
         rect.y < 0 ||
         rect.x + rect.width > target.width ||
         rect.y + rect.height > target.height) {
-      throw ArgumentError('overwriteTexture: $rect does not fit inside a '
-          '${target.width}x${target.height} texture');
+      throw ArgumentError(
+        'overwriteTexture: $rect does not fit inside a '
+        '${target.width}x${target.height} texture',
+      );
     }
     if (rgba.lengthInBytes != rect.width * rect.height * 4) {
       throw ArgumentError(
@@ -850,11 +853,14 @@ final class WebGpuDevice implements GraphicsDevice, WgslModuleCompiler {
   );
 
   @override
-  void overwriteGeometry(GeometryBuffer target, int offsetInBytes, ByteData bytes) =>
-      guard(
-        'a ${bytes.lengthInBytes}-byte overwrite at $offsetInBytes',
-        () => webgpuOverwriteGeometry(gpuDevice, target, offsetInBytes, bytes),
-      );
+  void overwriteGeometry(
+    GeometryBuffer target,
+    int offsetInBytes,
+    ByteData bytes,
+  ) => guard(
+    'a ${bytes.lengthInBytes}-byte overwrite at $offsetInBytes',
+    () => webgpuOverwriteGeometry(gpuDevice, target, offsetInBytes, bytes),
+  );
 
   /// Records the stage pair, its layout and the reflection a bind group will
   /// need. Nothing is built: see [WebGpuPipeline], and `webgpu_encoder.dart`

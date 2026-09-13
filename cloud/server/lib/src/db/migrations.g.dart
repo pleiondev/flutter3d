@@ -6,10 +6,7 @@ import 'database.dart';
 
 /// Every migration, in the order their numbers put them.
 const migrations = <Migration>[
-  Migration(
-    1,
-    '001_accounts_and_models.sql',
-    r'''
+  Migration(1, '001_accounts_and_models.sql', r'''
 -- The whole schema the first release needs: who has an account, who is signed
 -- in, what was uploaded, and what is being rate limited.
 --
@@ -117,6 +114,5 @@ create table rate_events (
 );
 
 create index rate_events_by_bucket on rate_events (bucket, at desc);
-''',
-  ),
+'''),
 ];

@@ -57,14 +57,7 @@ void main() {
         rgba[i + 2] = 56;
         rgba[i + 3] = 255;
       }
-      final resized = resizeRgba(
-        rgba,
-        6,
-        6,
-        3,
-        3,
-        filter: ResizeFilter.box,
-      );
+      final resized = resizeRgba(rgba, 6, 6, 3, 3, filter: ResizeFilter.box);
       for (var i = 0; i < resized.length; i += 4) {
         expect(resized.sublist(i, i + 4), <int>[12, 34, 56, 255]);
       }
@@ -95,7 +88,9 @@ void main() {
       // Mutation: sample nearest instead of interpolating — the middle two
       // output pixels would then jump straight from 0 to 200 rather than
       // stepping through, which is exactly what this checks for.
-      final reds = <int>[for (var i = 0; i < resized.length; i += 4) resized[i]];
+      final reds = <int>[
+        for (var i = 0; i < resized.length; i += 4) resized[i],
+      ];
       expect(reds[0], lessThan(reds[1]));
       expect(reds[1], lessThan(reds[2]));
       expect(reds[2], lessThan(reds[3]));
@@ -123,7 +118,7 @@ void main() {
       for (var i = 3; i < rgba.length; i += 4) {
         rgba[i] = 255;
       }
-      return encodePng(width, height, rgba);
+      return encodeCompressedPng(width, height, rgba);
     }
 
     test('mat-29\'s own acceptance: 1000x600 against a 512px budget '

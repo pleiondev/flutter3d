@@ -83,7 +83,11 @@ double shapeFalloff(BrushFalloff falloff, double t) {
     BrushFalloff.linear => clamped,
     BrushFalloff.smooth => clamped * clamped * (3 - 2 * clamped),
     BrushFalloff.sharp => clamped * clamped,
-    _ => throw ArgumentError.value(falloff, 'falloff', 'not a known BrushFalloff'),
+    _ => throw ArgumentError.value(
+      falloff,
+      'falloff',
+      'not a known BrushFalloff',
+    ),
   };
 }
 
@@ -108,7 +112,8 @@ class Brush {
 /// every triangle in [mesh] that uses it, from [mesh.triangles] and
 /// [SculptMesh.positionOf] — the "local normal" several brushes need and
 /// `SculptMesh` itself does not compute.
-Vector3 vertexNormal(SculptMesh mesh, int vertex) => vertexNormals(mesh, <int>[vertex])[vertex]!;
+Vector3 vertexNormal(SculptMesh mesh, int vertex) =>
+    vertexNormals(mesh, <int>[vertex])[vertex]!;
 
 /// [vertexNormal], for every vertex in [vertices] at once — one pass over
 /// [mesh.triangles] rather than one per vertex.
@@ -176,11 +181,18 @@ BrushResult applyBrushStroke(
   Vector3? previousCenter,
   bool symmetryX = false,
 }) {
-  final primary = _applyOneSide(mesh, brush, center: center, previousCenter: previousCenter);
+  final primary = _applyOneSide(
+    mesh,
+    brush,
+    center: center,
+    previousCenter: previousCenter,
+  );
   if (!symmetryX) return primary;
 
   final mirroredCenter = mirrorAcrossX(center);
-  final mirroredPrevious = previousCenter == null ? null : mirrorAcrossX(previousCenter);
+  final mirroredPrevious = previousCenter == null
+      ? null
+      : mirrorAcrossX(previousCenter);
   final mirrored = _applyOneSide(
     mesh,
     brush,
@@ -189,8 +201,14 @@ BrushResult applyBrushStroke(
   );
 
   return BrushResult(
-    touchedVertices: <int>[...primary.touchedVertices, ...mirrored.touchedVertices],
-    touchedChunks: <int>{...primary.touchedChunks, ...mirrored.touchedChunks}.toList(),
+    touchedVertices: <int>[
+      ...primary.touchedVertices,
+      ...mirrored.touchedVertices,
+    ],
+    touchedChunks: <int>{
+      ...primary.touchedChunks,
+      ...mirrored.touchedChunks,
+    }.toList(),
   );
 }
 
@@ -208,7 +226,8 @@ BrushResult _applyOneSide(
         center: center,
         radius: brush.radius,
         displace: (vertex, position, falloff) =>
-            position + normal * (brush.strength * shapeFalloff(brush.falloff, falloff)),
+            position +
+            normal * (brush.strength * shapeFalloff(brush.falloff, falloff)),
       );
 
     case BrushKind.inflate:
@@ -219,7 +238,8 @@ BrushResult _applyOneSide(
         radius: brush.radius,
         displace: (vertex, position, falloff) =>
             position +
-            normals[vertex]! * (brush.strength * shapeFalloff(brush.falloff, falloff)),
+            normals[vertex]! *
+                (brush.strength * shapeFalloff(brush.falloff, falloff)),
       );
 
     case BrushKind.clay:
@@ -282,7 +302,9 @@ BrushResult _applyOneSide(
       );
 
     case BrushKind.grab:
-      final drag = previousCenter == null ? Vector3.zero() : center - previousCenter;
+      final drag = previousCenter == null
+          ? Vector3.zero()
+          : center - previousCenter;
       return mesh.applyBrush(
         center: center,
         radius: brush.radius,
@@ -317,12 +339,17 @@ BrushResult _applyOneSide(
           final toward = center - position;
           final tangent = toward - normal * toward.dot(normal);
           final pinch = tangent * (brush.strength * shaped);
-          final fold = normal * (-brush.strength * shaped * brush.radius * 0.25);
+          final fold =
+              normal * (-brush.strength * shaped * brush.radius * 0.25);
           return position + pinch + fold;
         },
       );
 
     default:
-      throw ArgumentError.value(brush.kind, 'brush.kind', 'not a known BrushKind');
+      throw ArgumentError.value(
+        brush.kind,
+        'brush.kind',
+        'not a known BrushKind',
+      );
   }
 }

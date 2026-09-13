@@ -492,10 +492,20 @@ final class WebGlDevice implements GraphicsDevice {
 
   @override
   GeometryBuffer uploadGeometry(ByteData bytes, GeometryUsage usage) =>
-      webglUploadGeometry(_gl, _persistentBuffers, _bufferTargets, bytes, usage);
+      webglUploadGeometry(
+        _gl,
+        _persistentBuffers,
+        _bufferTargets,
+        bytes,
+        usage,
+      );
 
   @override
-  void overwriteGeometry(GeometryBuffer target, int offsetInBytes, ByteData bytes) =>
+  void overwriteGeometry(
+    GeometryBuffer target,
+    int offsetInBytes,
+    ByteData bytes,
+  ) =>
       webglOverwriteGeometry(_gl, _bufferTargets, target, offsetInBytes, bytes);
 
   @override
@@ -546,13 +556,16 @@ final class WebGlDevice implements GraphicsDevice {
         'level (0) may be overwritten.',
       );
     }
-    final rect = region ?? ScreenRect(width: target.width, height: target.height);
+    final rect =
+        region ?? ScreenRect(width: target.width, height: target.height);
     if (rect.x < 0 ||
         rect.y < 0 ||
         rect.x + rect.width > target.width ||
         rect.y + rect.height > target.height) {
-      throw ArgumentError('overwriteTexture: $rect does not fit inside a '
-          '${target.width}x${target.height} texture');
+      throw ArgumentError(
+        'overwriteTexture: $rect does not fit inside a '
+        '${target.width}x${target.height} texture',
+      );
     }
     if (rgba.lengthInBytes != rect.width * rect.height * 4) {
       throw ArgumentError(

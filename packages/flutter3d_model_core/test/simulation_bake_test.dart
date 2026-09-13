@@ -1,4 +1,4 @@
-/// `BakeSimulationCommand`: `pro-sim-01`'s cloth solver, run frame by frame
+/// `BakeClothJobRequest`: `pro-sim-01`'s cloth solver, run frame by frame
 /// into a `SimulationCache` — `pro-sim-03`'s own row.
 ///
 ///     dart test test/simulation_bake_test.dart
@@ -8,7 +8,7 @@ import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:test/test.dart';
 
-BakeSimulationCommand bake({int frameCount = 120}) => BakeSimulationCommand(
+BakeClothJobRequest bake({int frameCount = 120}) => BakeClothJobRequest(
   objectId: 1,
   baseVersion: 1,
   mesh: ClothMesh.grid(cols: 20, rows: 20, spacing: 0.03, mass: 0.01),
@@ -53,32 +53,38 @@ void main() {
       expect(cache.vertexCount, 400);
     });
 
-    test('cancelling before any chunk runs leaves an empty cache, not a null one', () async {
-      final job = bake(frameCount: 120);
+    test(
+      'cancelling before any chunk runs leaves an empty cache, not a null one',
+      () async {
+        final job = bake(frameCount: 120);
 
-      final cache = job.buildCache();
+        final cache = job.buildCache();
 
-      expect(job.bakedFrameCount, 0);
-      expect(cache.frameCount, 0);
-      expect(cache.isEmpty, isTrue);
-      // vertexCount is known from the mesh up front, independent of how many
-      // frames actually ran.
-      expect(cache.vertexCount, 400);
-    });
+        expect(job.bakedFrameCount, 0);
+        expect(cache.frameCount, 0);
+        expect(cache.isEmpty, isTrue);
+        // vertexCount is known from the mesh up front, independent of how many
+        // frames actually ran.
+        expect(cache.vertexCount, 400);
+      },
+    );
   });
 
-  group('BakeSimulationCommand', () {
-    test('every captured frame is the mesh\'s own particleCount × 3 long', () async {
-      final job = bake(frameCount: 3);
-      for (var i = 0; i < job.frameCount; i++) {
-        await job.runChunk(i);
-      }
+  group('BakeClothJobRequest', () {
+    test(
+      'every captured frame is the mesh\'s own particleCount × 3 long',
+      () async {
+        final job = bake(frameCount: 3);
+        for (var i = 0; i < job.frameCount; i++) {
+          await job.runChunk(i);
+        }
 
-      final cache = job.buildCache();
-      for (var f = 0; f < cache.frameCount; f++) {
-        expect(cache.frame(f).length, 400 * 3);
-      }
-    });
+        final cache = job.buildCache();
+        for (var f = 0; f < cache.frameCount; f++) {
+          expect(cache.frame(f).length, 400 * 3);
+        }
+      },
+    );
 
     test('each frame is a snapshot, not a live view into the solver', () async {
       final job = bake(frameCount: 2);
@@ -94,19 +100,22 @@ void main() {
       expect(firstFrame[0], firstX);
     });
 
-    test('buildCache called mid-bake does not see frames captured afterwards', () async {
-      final job = bake(frameCount: 5);
-      await job.runChunk(0);
-      final partial = job.buildCache();
-      await job.runChunk(1);
+    test(
+      'buildCache called mid-bake does not see frames captured afterwards',
+      () async {
+        final job = bake(frameCount: 5);
+        await job.runChunk(0);
+        final partial = job.buildCache();
+        await job.runChunk(1);
 
-      expect(partial.frameCount, 1);
-      expect(job.buildCache().frameCount, 2);
-    });
+        expect(partial.frameCount, 1);
+        expect(job.buildCache().frameCount, 2);
+      },
+    );
 
     test('rejects a bake of zero frames', () {
       expect(
-        () => BakeSimulationCommand(
+        () => BakeClothJobRequest(
           objectId: 1,
           baseVersion: 1,
           mesh: ClothMesh.grid(cols: 2, rows: 2),

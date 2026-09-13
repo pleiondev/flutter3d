@@ -62,14 +62,20 @@ class Accounts {
     final name = displayName.trim().isEmpty
         ? address.split('@').first
         : displayName.trim();
-    final weak = passwordProblems(password, email: address, displayName: displayName.trim());
+    final weak = passwordProblems(
+      password,
+      email: address,
+      displayName: displayName.trim(),
+    );
 
     final problems = {
-      if (!isPlausibleEmail(address)) 'email': 'That does not look like an email address.',
+      if (!isPlausibleEmail(address))
+        'email': 'That does not look like an email address.',
       if (weak.isNotEmpty) 'password': weak.join(' '),
       // Compared exactly, spaces and all: a confirmation exists to catch the
       // typo, and trimming would hide the one typo a phrase is prone to.
-      if (passwordConfirmation != password) 'passwordConfirm': 'The two passwords do not match.',
+      if (passwordConfirmation != password)
+        'passwordConfirm': 'The two passwords do not match.',
       if (name.length > 60) 'displayName': 'Keep the name under 60 characters.',
     };
     if (problems.isNotEmpty) return RegisterInvalid(problems);
@@ -84,7 +90,8 @@ class Accounts {
     // revisited, not made quietly.
     if (await users.byEmail(address) != null) {
       return const RegisterInvalid({
-        'email': 'An account with this address already exists. Sign in, or '
+        'email':
+            'An account with this address already exists. Sign in, or '
             'reset the password if it is forgotten.',
       });
     }
@@ -103,7 +110,11 @@ class Accounts {
     }
 
     await _sendVerification(created);
-    final session = await sessions.start(created.id, userAgent: userAgent, ip: ip);
+    final session = await sessions.start(
+      created.id,
+      userAgent: userAgent,
+      ip: ip,
+    );
     return Registered(created, session);
   }
 
@@ -111,7 +122,10 @@ class Accounts {
   Future<bool> resendVerification(User user, {required String ip}) async {
     if (user.emailVerified) return true;
     final allowed =
-        await limiter.allow('letters:to:${user.email.toLowerCase()}', RateRule.lettersPerAddress) &&
+        await limiter.allow(
+          'letters:to:${user.email.toLowerCase()}',
+          RateRule.lettersPerAddress,
+        ) &&
         await limiter.allow('letters:ip:$ip', RateRule.lettersPerIp);
     if (!allowed) return false;
     await _sendVerification(user);
@@ -142,7 +156,8 @@ class Accounts {
     final user = await users.byEmail(address);
     final stored = user == null ? null : await users.passwordHashOf(user.id);
     final matches = await _verify(password, stored ?? await _decoy);
-    if (user == null || stored == null || !matches) return const SignInRefused();
+    if (user == null || stored == null || !matches)
+      return const SignInRefused();
 
     await limiter.clear('signin:to:$address');
     if (needsRehash(stored)) {
@@ -171,7 +186,11 @@ class Accounts {
 
     final token = await tokens.issue(user.id, LetterPurpose.reset);
     await mailer.send(
-      resetLetter(to: user.email, name: user.displayName, link: _link('/reset', token)),
+      resetLetter(
+        to: user.email,
+        name: user.displayName,
+        link: _link('/reset', token),
+      ),
     );
     return true;
   }
@@ -190,7 +209,11 @@ class Accounts {
     final account = owner == null ? null : await users.byId(owner);
     if (account == null) return const ResetLinkInvalid();
 
-    final weak = passwordProblems(password, email: account.email, displayName: account.displayName);
+    final weak = passwordProblems(
+      password,
+      email: account.email,
+      displayName: account.displayName,
+    );
     if (weak.isNotEmpty) return ResetPasswordRefused(weak.join(' '));
     if (passwordConfirmation != password) {
       return const ResetPasswordRefused('The two passwords do not match.');
@@ -220,17 +243,25 @@ class Accounts {
   }) async {
     // Counted against the same bucket as signing in: a stolen session should
     // not be an unlimited way to guess the password it was not given.
-    if (!await limiter.allow('signin:to:${user.email.toLowerCase()}', RateRule.signInPerAccount)) {
+    if (!await limiter.allow(
+      'signin:to:${user.email.toLowerCase()}',
+      RateRule.signInPerAccount,
+    )) {
       return 'Too many attempts. Wait fifteen minutes and try again.';
     }
     final stored = await users.passwordHashOf(user.id);
     if (stored == null || !await _verify(current, stored)) {
       return 'The current password is not right.';
     }
-    final weak = passwordProblems(next, email: user.email, displayName: user.displayName);
+    final weak = passwordProblems(
+      next,
+      email: user.email,
+      displayName: user.displayName,
+    );
     if (weak.isNotEmpty) return weak.join(' ');
     if (confirmation != next) return 'The two new passwords do not match.';
-    if (next == current) return 'The new password is the same as the current one.';
+    if (next == current)
+      return 'The new password is the same as the current one.';
 
     await _replacePassword(user, next);
     return null;
@@ -264,16 +295,22 @@ class Accounts {
   Future<void> _sendVerification(User user) async {
     final token = await tokens.issue(user.id, LetterPurpose.verify);
     await mailer.send(
-      verificationLetter(to: user.email, name: user.displayName, link: _link('/verify', token)),
+      verificationLetter(
+        to: user.email,
+        name: user.displayName,
+        link: _link('/verify', token),
+      ),
     );
   }
 
-  Uri _link(String path, String token) => Uri.parse('$baseUrl$path?token=$token');
+  Uri _link(String path, String token) =>
+      Uri.parse('$baseUrl$path?token=$token');
 
   // Argon2 is a hundred-odd milliseconds of arithmetic. On the request isolate
   // that is a hundred milliseconds in which no other page is served, so it goes
   // to its own isolate and the event loop keeps turning.
-  static Future<String> _hash(String password) => Isolate.run(() => hashPassword(password));
+  static Future<String> _hash(String password) =>
+      Isolate.run(() => hashPassword(password));
 
   static Future<bool> _verify(String password, String stored) =>
       Isolate.run(() => verifyPassword(password, stored));
@@ -282,7 +319,8 @@ class Accounts {
 /// Good enough to catch a typo, deliberately not a validator. The only real
 /// check of an address is a letter that arrives.
 bool isPlausibleEmail(String value) =>
-    value.length <= 254 && RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(value);
+    value.length <= 254 &&
+    RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(value);
 
 sealed class RegisterOutcome {
   const RegisterOutcome();

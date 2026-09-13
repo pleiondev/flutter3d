@@ -32,9 +32,8 @@ final class ViewerTourController {
 
   void next() => index.value = (index.value + 1) % captions.value.length;
 
-  void previous() =>
-      index.value =
-          (index.value - 1 + captions.value.length) % captions.value.length;
+  void previous() => index.value =
+      (index.value - 1 + captions.value.length) % captions.value.length;
 }
 
 Widget _viewerCaptionWidget(ViewerTourController tour) =>

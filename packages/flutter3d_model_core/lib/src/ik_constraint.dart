@@ -68,7 +68,9 @@ Quaternion _currentRotationOf(
   int jointId,
   ProjectClip? clip,
   double time,
-) => _animatedRotationAt(clip, jointId, time) ?? _restRotationOf(project, jointId);
+) =>
+    _animatedRotationAt(clip, jointId, time) ??
+    _restRotationOf(project, jointId);
 
 Quaternion _worldRotation(
   ModelProject project,
@@ -102,20 +104,26 @@ Quaternion _newLocalRotation(
 /// the angle, zero rather than `NaN` when either other side is degenerate.
 double _triangleAngle(double opposite, double a, double b) {
   if (a <= 0.0 || b <= 0.0) return 0.0;
-  final cos = ((a * a + b * b - opposite * opposite) / (2.0 * a * b)).clamp(-1.0, 1.0);
+  final cos = ((a * a + b * b - opposite * opposite) / (2.0 * a * b)).clamp(
+    -1.0,
+    1.0,
+  );
   return math.acos(cos);
 }
 
 /// Any unit vector perpendicular to [v] — used only when [v] is degenerate
 /// for the purpose that wanted a bend axis.
 Vector3 _arbitraryPerpendicular(Vector3 v) {
-  final reference = v.x.abs() < 0.9 ? Vector3(1.0, 0.0, 0.0) : Vector3(0.0, 1.0, 0.0);
+  final reference = v.x.abs() < 0.9
+      ? Vector3(1.0, 0.0, 0.0)
+      : Vector3(0.0, 1.0, 0.0);
   final axis = v.cross(reference);
   return axis.length2 > 1e-12 ? axis.normalized() : Vector3(0.0, 0.0, 1.0);
 }
 
 /// The component of [v] perpendicular to the unit vector [axis].
-Vector3 _perpendicularComponent(Vector3 v, Vector3 axis) => v - axis * v.dot(axis);
+Vector3 _perpendicularComponent(Vector3 v, Vector3 axis) =>
+    v - axis * v.dot(axis);
 
 /// The signed angle from unit vector [a] to unit vector [b], both already
 /// perpendicular to unit vector [axis] — positive when the shortest
@@ -191,9 +199,14 @@ const double _epsilon = 1e-6;
   // about `bendAxis` always sweeps `+oldAngle`, never `-oldAngle`, so
   // reaching the *interior* angle (measured from the reversed first vector)
   // needs the swept angle to move from `-oldAngle` to `-newAngle`.
-  final worldMidBefore = _worldRotation(project, constraint.midJointId, overrides);
+  final worldMidBefore = _worldRotation(
+    project,
+    constraint.midJointId,
+    overrides,
+  );
   final newWorldMid =
-      (Quaternion.axisAngle(bendAxis, oldAngle - newAngle) * worldMidBefore)..normalize();
+      (Quaternion.axisAngle(bendAxis, oldAngle - newAngle) * worldMidBefore)
+        ..normalize();
   overrides[constraint.midJointId] = _newLocalRotation(
     project,
     constraint.midJointId,
@@ -211,9 +224,14 @@ const double _epsilon = 1e-6;
   // (clamped-distance, true-direction) target.
   final toTip = (tipPos - rootPos).normalized();
   final toTarget = (constraint.target - rootPos).normalized();
-  final worldRootBefore = _worldRotation(project, constraint.rootJointId, overrides);
+  final worldRootBefore = _worldRotation(
+    project,
+    constraint.rootJointId,
+    overrides,
+  );
   var newWorldRoot =
-      (Quaternion.fromTwoVectors(toTip, toTarget) * worldRootBefore)..normalize();
+      (Quaternion.fromTwoVectors(toTip, toTarget) * worldRootBefore)
+        ..normalize();
   overrides[constraint.rootJointId] = _newLocalRotation(
     project,
     constraint.rootJointId,
@@ -231,14 +249,18 @@ const double _epsilon = 1e-6;
   // joint sits on the side the pole names.
   final twistAxis = toTarget;
   final currentPoleDir = _perpendicularComponent(midPos - rootPos, twistAxis);
-  final desiredPoleDir = _perpendicularComponent(constraint.pole - rootPos, twistAxis);
+  final desiredPoleDir = _perpendicularComponent(
+    constraint.pole - rootPos,
+    twistAxis,
+  );
   if (currentPoleDir.length2 > _epsilon && desiredPoleDir.length2 > _epsilon) {
     final twistAngle = _signedAngle(
       currentPoleDir.normalized(),
       desiredPoleDir.normalized(),
       twistAxis,
     );
-    newWorldRoot = (Quaternion.axisAngle(twistAxis, twistAngle) * newWorldRoot)..normalize();
+    newWorldRoot = (Quaternion.axisAngle(twistAxis, twistAngle) * newWorldRoot)
+      ..normalize();
     overrides[constraint.rootJointId] = _newLocalRotation(
       project,
       constraint.rootJointId,
@@ -319,22 +341,34 @@ ProjectClip bakeIk({
       solved.root.z,
       solved.root.w,
     ]);
-    midTable.setKey(time, <double>[solved.mid.x, solved.mid.y, solved.mid.z, solved.mid.w]);
+    midTable.setKey(time, <double>[
+      solved.mid.x,
+      solved.mid.y,
+      solved.mid.z,
+      solved.mid.w,
+    ]);
   }
 
   return ProjectClip(
     name: clip.name,
     tracks: <ProjectTrack>[
       for (final track in clip.tracks)
-        if (track.objectId != constraint.rootJointId && track.objectId != constraint.midJointId)
+        if (track.objectId != constraint.rootJointId &&
+            track.objectId != constraint.midJointId)
           track,
       ProjectTrack(
         objectId: constraint.rootJointId,
-        track: rootTable.toAnimationTrack(nodeIndex: 0, path: AnimationPath.rotation),
+        track: rootTable.toAnimationTrack(
+          nodeIndex: 0,
+          path: AnimationPath.rotation,
+        ),
       ),
       ProjectTrack(
         objectId: constraint.midJointId,
-        track: midTable.toAnimationTrack(nodeIndex: 0, path: AnimationPath.rotation),
+        track: midTable.toAnimationTrack(
+          nodeIndex: 0,
+          path: AnimationPath.rotation,
+        ),
       ),
     ],
     extras: clip.extras,

@@ -276,21 +276,18 @@ void main() {
       expect(row.count, 2);
     });
 
-    test(
-      'placing another part copies the last one\'s own size and material, '
-      'not a bare 1×1×1 box',
-      () {
-        final editing = Editing.parse(teardownDocument(), path: '/t.json');
+    test('placing another part copies the last one\'s own size and material, '
+        'not a bare 1×1×1 box', () {
+      final editing = Editing.parse(teardownDocument(), path: '/t.json');
 
-        editing.place(_row(editing, 'part'), Vector3(2.0, 1.75, 0.0));
+      editing.place(_row(editing, 'part'), Vector3(2.0, 1.75, 0.0));
 
-        expect(editing.level.entities.length, 3);
-        final placed = editing.entity!;
-        expect(placed.type, 'part');
-        expect(placed.vector('size'), Vector3(0.9, 0.3, 0.9));
-        expect(placed.string('material'), 'cover');
-        expect(placed.position, Vector3(2.0, 1.75, 0.0));
-      },
-    );
+      expect(editing.level.entities.length, 3);
+      final placed = editing.entity!;
+      expect(placed.type, 'part');
+      expect(placed.vector('size'), Vector3(0.9, 0.3, 0.9));
+      expect(placed.string('material'), 'cover');
+      expect(placed.position, Vector3(2.0, 1.75, 0.0));
+    });
   });
 }

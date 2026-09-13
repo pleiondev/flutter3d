@@ -14,7 +14,10 @@ User _user(int id, {bool verified = true}) => User(
   emailVerifiedAt: verified ? DateTime.utc(2026) : null,
 );
 
-ModelRecord _model({required int owner, Visibility visibility = Visibility.private}) => ModelRecord(
+ModelRecord _model({
+  required int owner,
+  Visibility visibility = Visibility.private,
+}) => ModelRecord(
   id: 1,
   ownerId: owner,
   slug: 'chair',
@@ -38,14 +41,17 @@ void main() {
       expect(canView(model, null), isFalse);
     });
 
-    test('a public model is anybody\'s to see and still only its owner\'s to change', () {
-      final model = _model(owner: 1, visibility: Visibility.public);
-      expect(canView(model, null), isTrue);
-      expect(canView(model, _user(2)), isTrue);
-      expect(canEdit(model, _user(2)), isFalse);
-      expect(canEdit(model, null), isFalse);
-      expect(canEdit(model, _user(1)), isTrue);
-    });
+    test(
+      'a public model is anybody\'s to see and still only its owner\'s to change',
+      () {
+        final model = _model(owner: 1, visibility: Visibility.public);
+        expect(canView(model, null), isTrue);
+        expect(canView(model, _user(2)), isTrue);
+        expect(canEdit(model, _user(2)), isFalse);
+        expect(canEdit(model, null), isFalse);
+        expect(canEdit(model, _user(1)), isTrue);
+      },
+    );
 
     test('uploading waits for a confirmed address', () {
       expect(canUpload(_user(1)), isTrue);
@@ -112,7 +118,11 @@ void main() {
 
     test('both forms carry the link', () {
       final link = Uri.parse('https://models.pleion.dev/reset?token=abc');
-      final letter = resetLetter(to: 'ann@example.com', name: 'Ann', link: link);
+      final letter = resetLetter(
+        to: 'ann@example.com',
+        name: 'Ann',
+        link: link,
+      );
       expect(letter.text, contains('$link'));
       expect(letter.html, contains('$link'));
       expect(letter.subject, isNotEmpty);

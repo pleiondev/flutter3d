@@ -17,57 +17,63 @@ Uint8List _sample(String relativePath) =>
 
 void main() {
   group('InterpolationTest.glb: every track round-trips byte for byte', () {
-    test('fromAnimationTrack then toAnimationTrack reproduces every track', () async {
-      final document = await GltfLoader().load(_sample('InterpolationTest.glb'));
-      expect(document.animations, isNotEmpty);
+    test(
+      'fromAnimationTrack then toAnimationTrack reproduces every track',
+      () async {
+        final document = await GltfLoader().load(
+          _sample('InterpolationTest.glb'),
+        );
+        expect(document.animations, isNotEmpty);
 
-      // A real mixed-interpolation fixture is expected to carry more than
-      // one kind — checked so this test cannot pass by accident on a file
-      // that turned out to be all-linear.
-      final interpolationsSeen = <AnimationInterpolation>{};
+        // A real mixed-interpolation fixture is expected to carry more than
+        // one kind — checked so this test cannot pass by accident on a file
+        // that turned out to be all-linear.
+        final interpolationsSeen = <AnimationInterpolation>{};
 
-      for (final clip in document.animations) {
-        for (final track in clip.tracks) {
-          interpolationsSeen.add(track.interpolation);
+        for (final clip in document.animations) {
+          for (final track in clip.tracks) {
+            interpolationsSeen.add(track.interpolation);
 
-          final table = KeyTable.fromAnimationTrack(track);
-          final rebuilt = table.toAnimationTrack(
-            nodeIndex: track.nodeIndex,
-            path: track.path,
-          );
+            final table = KeyTable.fromAnimationTrack(track);
+            final rebuilt = table.toAnimationTrack(
+              nodeIndex: track.nodeIndex,
+              path: track.path,
+            );
 
-          // Mutation: read the cubic triple's slots in the wrong order
-          // (value/in/out instead of in/value/out) — this fails on the
-          // first cubic-spline track InterpolationTest carries and passes
-          // for every linear or step one, which is why the interpolation
-          // set below is checked too rather than trusting one track kind
-          // to stand in for all three.
-          expect(
-            rebuilt.times,
-            orderedEquals(track.times),
-            reason: 'node ${track.nodeIndex} ${track.path.name} times',
-          );
-          expect(
-            rebuilt.values,
-            orderedEquals(track.values),
-            reason: 'node ${track.nodeIndex} ${track.path.name} values',
-          );
-          expect(rebuilt.interpolation, track.interpolation);
-          expect(rebuilt.componentCount, track.componentCount);
+            // Mutation: read the cubic triple's slots in the wrong order
+            // (value/in/out instead of in/value/out) — this fails on the
+            // first cubic-spline track InterpolationTest carries and passes
+            // for every linear or step one, which is why the interpolation
+            // set below is checked too rather than trusting one track kind
+            // to stand in for all three.
+            expect(
+              rebuilt.times,
+              orderedEquals(track.times),
+              reason: 'node ${track.nodeIndex} ${track.path.name} times',
+            );
+            expect(
+              rebuilt.values,
+              orderedEquals(track.values),
+              reason: 'node ${track.nodeIndex} ${track.path.name} values',
+            );
+            expect(rebuilt.interpolation, track.interpolation);
+            expect(rebuilt.componentCount, track.componentCount);
+          }
         }
-      }
 
-      expect(
-        interpolationsSeen,
-        containsAll(<AnimationInterpolation>[
-          AnimationInterpolation.step,
-          AnimationInterpolation.linear,
-          AnimationInterpolation.cubicSpline,
-        ]),
-        reason: 'fixture should carry all three, or this test proves less '
-            'than it looks like',
-      );
-    });
+        expect(
+          interpolationsSeen,
+          containsAll(<AnimationInterpolation>[
+            AnimationInterpolation.step,
+            AnimationInterpolation.linear,
+            AnimationInterpolation.cubicSpline,
+          ]),
+          reason:
+              'fixture should carry all three, or this test proves less '
+              'than it looks like',
+        );
+      },
+    );
   });
 
   group('sample() after an edit', () {
@@ -152,10 +158,16 @@ void main() {
 
   group('setInterpolation', () {
     test('switching modes never drops a key\'s own tangents', () {
-      final table = KeyTable(
-        componentCount: 1,
-        interpolation: AnimationInterpolation.cubicSpline,
-      )..setKey(0.0, <double>[1.0], inTangent: <double>[9.0], outTangent: <double>[8.0]);
+      final table =
+          KeyTable(
+            componentCount: 1,
+            interpolation: AnimationInterpolation.cubicSpline,
+          )..setKey(
+            0.0,
+            <double>[1.0],
+            inTangent: <double>[9.0],
+            outTangent: <double>[8.0],
+          );
 
       table.setInterpolation(AnimationInterpolation.linear);
       table.setInterpolation(AnimationInterpolation.cubicSpline);
@@ -183,12 +195,13 @@ void main() {
 
   group('setTangent', () {
     test('changes only the named key\'s tangents', () {
-      final table = KeyTable(
-        componentCount: 1,
-        interpolation: AnimationInterpolation.cubicSpline,
-      )
-        ..setKey(0.0, <double>[1.0])
-        ..setKey(1.0, <double>[2.0]);
+      final table =
+          KeyTable(
+              componentCount: 1,
+              interpolation: AnimationInterpolation.cubicSpline,
+            )
+            ..setKey(0.0, <double>[1.0])
+            ..setKey(1.0, <double>[2.0]);
       table.setTangent(1, inTangent: <double>[5.0], outTangent: <double>[6.0]);
 
       expect(table.keys[0].inTangent, isNull);
@@ -198,16 +211,19 @@ void main() {
   });
 
   group('an empty table', () {
-    test('toAnimationTrack refuses it, the same as AnimationTrack itself would', () {
-      final table = KeyTable(componentCount: 3);
-      expect(
-        () => table.toAnimationTrack(
-          nodeIndex: 0,
-          path: AnimationPath.translation,
-        ),
-        throwsArgumentError,
-      );
-    });
+    test(
+      'toAnimationTrack refuses it, the same as AnimationTrack itself would',
+      () {
+        final table = KeyTable(componentCount: 3);
+        expect(
+          () => table.toAnimationTrack(
+            nodeIndex: 0,
+            path: AnimationPath.translation,
+          ),
+          throwsArgumentError,
+        );
+      },
+    );
   });
 
   group('frame/time conversion — syn-03\'s own row', () {
@@ -227,23 +243,23 @@ void main() {
       expect(KeyTable.frameOfTime(11 / 30.0 - 0.0001, 30.0), 11);
     });
 
-    test('snappedToFrame lands exactly on a frame\'s own time, not near it', () {
-      final snapped = KeyTable.snappedToFrame(10 / 30.0 + 0.0037, 30.0);
-      expect(snapped, KeyTable.timeOfFrame(10, 30.0));
-      expect(snapped, closeTo(10 / 30.0, 1e-12));
-    });
-
     test(
-      'reads fps from a project\'s own profile — syn-03\'s own acceptance, '
-      'literally',
+      'snappedToFrame lands exactly on a frame\'s own time, not near it',
       () {
-        const project = ModelProject(profile: ProjectProfile(fps: 24.0));
-        // The row's own acceptance: KeyTable reading fps from the profile,
-        // not a hard-coded rate — checked by handing the profile's own
-        // field straight to the static method rather than repeating 24.0.
-        expect(KeyTable.timeOfFrame(48, project.profile.fps), 2.0);
-        expect(KeyTable.frameOfTime(2.0, project.profile.fps), 48);
+        final snapped = KeyTable.snappedToFrame(10 / 30.0 + 0.0037, 30.0);
+        expect(snapped, KeyTable.timeOfFrame(10, 30.0));
+        expect(snapped, closeTo(10 / 30.0, 1e-12));
       },
     );
+
+    test('reads fps from a project\'s own profile — syn-03\'s own acceptance, '
+        'literally', () {
+      const project = ModelProject(profile: ProjectProfile(fps: 24.0));
+      // The row's own acceptance: KeyTable reading fps from the profile,
+      // not a hard-coded rate — checked by handing the profile's own
+      // field straight to the static method rather than repeating 24.0.
+      expect(KeyTable.timeOfFrame(48, project.profile.fps), 2.0);
+      expect(KeyTable.frameOfTime(2.0, project.profile.fps), 48);
+    });
   });
 }

@@ -54,7 +54,9 @@ final class _Storage implements Storage {
 /// The crypt, loaded and dressed — the same assembly `frame_test.dart` and
 /// `replay_video_test.dart` both use, so a golden is drawn the way the
 /// shipped game draws rather than the way a harness imagines it.
-Future<({LevelReady level, InputState input, CpuDevice device, Renderer renderer})>
+Future<
+  ({LevelReady level, InputState input, CpuDevice device, Renderer renderer})
+>
 _shown() async {
   final it = cpuTestDevice(width: _width, height: _height);
   final input = InputState();
@@ -95,7 +97,8 @@ void _play(InputState input, int step) {
 /// `frame_test.dart`'s `_drawFromTheStart` and `replay_video_test.dart`'s
 /// `_drawOne` both build.
 Future<RenderedFrame> _drawOne(
-  ({LevelReady level, InputState input, CpuDevice device, Renderer renderer}) shown,
+  ({LevelReady level, InputState input, CpuDevice device, Renderer renderer})
+  shown,
 ) async {
   final player = shown.level.staged.player;
   final scene = shown.level.loaded.scene;
@@ -148,7 +151,10 @@ Future<Demo> _recordAShortRun({int steps = 30}) async {
     _play(input, i);
     recorder.record(input);
     live.level.staged.sim.step(_dt);
-    checkpoints.observe(recorder.tape.steps, live.level.staged.sim.save().toJson());
+    checkpoints.observe(
+      recorder.tape.steps,
+      live.level.staged.sim.save().toJson(),
+    );
     input.endStep();
   }
   return Demo(
@@ -164,12 +170,28 @@ Future<Demo> _recordAShortRun({int steps = 30}) async {
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  test(
-    "rp-05's own literal row: the frame at the tape's own last step matches "
-    'a committed reference',
-    () async {
-      final demo = await _recordAShortRun();
+  test("rp-05's own literal row: the frame at the tape's own last step matches "
+      'a committed reference', () async {
+    final demo = await _recordAShortRun();
 
+    final shown = await _shown();
+    shown.level.staged.sim.restore(demo.start);
+    final playback = InputTapePlayback(demo.tape);
+    while (!playback.isFinished) {
+      playback.applyTo(shown.input);
+      shown.level.staged.sim.step(_dt);
+      shown.input.endStep();
+    }
+
+    final frame = await _drawOne(shown);
+    await expectMatchesGolden(frame, 'test/goldens/replay-frame.png');
+  });
+
+  test('replaying the same recorded tape twice, fresh each time, draws the '
+      'same bytes both times', () async {
+    final demo = await _recordAShortRun(steps: 12);
+
+    Future<Uint8List> replayed() async {
       final shown = await _shown();
       shown.level.staged.sim.restore(demo.start);
       final playback = InputTapePlayback(demo.tape);
@@ -178,33 +200,11 @@ void main() {
         shown.level.staged.sim.step(_dt);
         shown.input.endStep();
       }
+      return (await _drawOne(shown)).pixels;
+    }
 
-      final frame = await _drawOne(shown);
-      await expectMatchesGolden(frame, 'test/goldens/replay-frame.png');
-    },
-  );
-
-  test(
-    'replaying the same recorded tape twice, fresh each time, draws the '
-    'same bytes both times',
-    () async {
-      final demo = await _recordAShortRun(steps: 12);
-
-      Future<Uint8List> replayed() async {
-        final shown = await _shown();
-        shown.level.staged.sim.restore(demo.start);
-        final playback = InputTapePlayback(demo.tape);
-        while (!playback.isFinished) {
-          playback.applyTo(shown.input);
-          shown.level.staged.sim.step(_dt);
-          shown.input.endStep();
-        }
-        return (await _drawOne(shown)).pixels;
-      }
-
-      final first = await replayed();
-      final second = await replayed();
-      expect(second, first);
-    },
-  );
+    final first = await replayed();
+    final second = await replayed();
+    expect(second, first);
+  });
 }

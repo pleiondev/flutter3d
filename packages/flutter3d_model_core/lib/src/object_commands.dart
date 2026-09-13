@@ -649,7 +649,7 @@ final class SetOrigin extends ModelCommand {
     mesh.beginStep();
     final OpResult moved = translateSelection(mesh, vertices, by: -origin);
     if (!moved.ok) {
-      if (mesh.endStep()) mesh.undo();
+      mesh.abandonStep();
       return Outcome.refused(moved.reason!);
     }
     mesh.endStep();
@@ -732,7 +732,7 @@ final class ApplyTransform extends ModelCommand {
     mesh.beginStep();
     final OpResult moved = transformSelection(mesh, vertices, by: node);
     if (!moved.ok) {
-      if (mesh.endStep()) mesh.undo();
+      mesh.abandonStep();
       return Outcome.refused(moved.reason!);
     }
     if (node.determinant() < 0) mesh.flipNormals();

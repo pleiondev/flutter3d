@@ -1,7 +1,4 @@
-import 'dart:async';
-import 'dart:convert';
-
-import 'package:dart_mcp/server.dart';
+import 'package:flutter3d_mcp_kit/flutter3d_mcp_kit.dart';
 
 import 'diagnostic_session.dart';
 import 'diagnostic_tools.dart';
@@ -11,49 +8,18 @@ const String renderMcpVersion = '0.1.0';
 
 /// A rendered frame, offered to an agent as a table of tools — `par-02`.
 ///
-/// One level, one process, no window — the same shape
-/// `flutter3d_sim_mcp`/`flutter3d_editor_mcp` already settled on.
-base class DiagnosticMcpServer extends MCPServer with ToolsSupport {
-  DiagnosticMcpServer(super.channel, {required this.session})
-    : super.fromStreamChannel(
-        implementation: Implementation(
-          name: 'flutter3d_render_mcp',
-          version: renderMcpVersion,
-        ),
+/// One level, one process, no window — the same shape every server here
+/// settled on, and the same [ToolTableServer] underneath it.
+base class DiagnosticMcpServer
+    extends ToolTableServer<DiagnosticSession, PictureAnswer> {
+  DiagnosticMcpServer(super.channel, {required super.session})
+    : super(
+        name: 'flutter3d_render_mcp',
+        version: renderMcpVersion,
         instructions: _instructions,
+        tools: diagnosticTools,
+        toResult: pictureResultOf,
       );
-
-  final DiagnosticSession session;
-
-  @override
-  FutureOr<InitializeResult> initialize(InitializeRequest request) {
-    for (final offered in diagnosticTools) {
-      registerTool(
-        offered.tool,
-        (CallToolRequest request) => _call(offered, request),
-      );
-    }
-    return super.initialize(request);
-  }
-
-  Future<CallToolResult> _call(
-    DiagnosticTool offered,
-    CallToolRequest request,
-  ) async {
-    final answer = await offered.run(
-      session,
-      request.arguments ?? const <String, Object?>{},
-    );
-    final png = answer.png;
-    return CallToolResult(
-      content: <Content>[
-        Content.text(text: answer.says),
-        if (png != null)
-          Content.image(data: base64Encode(png), mimeType: 'image/png'),
-      ],
-      isError: answer.did ? null : true,
-    );
-  }
 }
 
 const String _instructions = '''

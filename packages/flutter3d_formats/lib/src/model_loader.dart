@@ -23,7 +23,7 @@ enum ModelFormat {
   gltf,
   obj,
 
-  /// The engine's own container, produced by `dart run flutter3d:convert`.
+  /// The engine's own container, produced by `dart run flutter3d_build:convert`.
   f3d,
 
   stl,
@@ -134,32 +134,68 @@ Future<ModelDocument> decodeModelBytes(
       arguments: <String, Object?>{'bytes': bytes.length},
     );
 
-  final Future<ModelDocument> decoded;
-  switch (format) {
-    case ModelFormat.f3d:
-      // Synchronous and essentially free: the header is read and everything
-      // else becomes a view over these bytes when it is asked for.
-      decoded = Future<ModelDocument>.value(F3dDocument.parse(bytes));
+  return builtInModelDecoder(
+    format,
+    request,
+  ).decode(bytes, request, resolveUri).whenComplete(task.finish);
+}
 
-    case ModelFormat.obj:
-      decoded = ObjLoader(
-        layout: request.layout,
-        normals: request.objNormals,
-      ).load(bytes, resolveUri: resolveUri);
+/// The decoder this package ships for [format], configured from [request].
+///
+/// **The built-in readers are [ModelDecoder]s too**, and this is the one place
+/// they are made: [decodeModelBytes] reaches them here after an application's
+/// own decoders have passed, and anything else that wants "what this package
+/// would read this with" — a converter, a drop target — asks the same
+/// function rather than keeping a `switch` of its own that could fall behind.
+/// An application that wants a built-in reader configured differently puts
+/// one in [ModelLoadRequest.decoders], where it is asked first.
+ModelDecoder builtInModelDecoder(
+  ModelFormat format,
+  ModelLoadRequest request,
+) => switch (format) {
+  // Synchronous and essentially free: the header is read and everything
+  // else becomes a view over these bytes when it is asked for.
+  ModelFormat.f3d => const F3dDecoder(),
+  ModelFormat.obj => ObjLoader(
+    layout: request.layout,
+    normals: request.objNormals,
+  ),
+  ModelFormat.stl => StlLoader(
+    layout: request.layout,
+    normals: request.stlNormals,
+  ),
+  ModelFormat.gltf || ModelFormat.auto => GltfLoader(layout: request.layout),
+};
 
-    case ModelFormat.stl:
-      decoded = StlLoader(
-        layout: request.layout,
-        normals: request.stlNormals,
-      ).load(bytes);
+/// Every file suffix a built-in reader answers to, and which reader.
+///
+/// Read by [recognizedModelFormat] and by `flutter3d_build`'s converter, which
+/// walks a directory for the files it can convert — two readers of one list,
+/// where there used to be two lists.
+const Map<String, ModelFormat> builtInModelExtensions = <String, ModelFormat>{
+  '.f3d': ModelFormat.f3d,
+  '.obj': ModelFormat.obj,
+  '.stl': ModelFormat.stl,
+  '.gltf': ModelFormat.gltf,
+  '.glb': ModelFormat.gltf,
+};
 
-    case ModelFormat.gltf:
-    case ModelFormat.auto:
-      decoded = GltfLoader(
-        layout: request.layout,
-      ).load(bytes, resolveUri: resolveUri);
-  }
-  return decoded.whenComplete(task.finish);
+/// Whether a file called [fileName] is one [decodeModelBytes] would read on
+/// its name alone — a built-in suffix, or one of [decoders] claiming it.
+///
+/// **By name, with no bytes**, because the callers are the ones that have not
+/// read the file yet or should not trust what it starts with: a drop target
+/// deciding whether to try at all, and a converter walking a directory. A
+/// decoder that recognises its format only by magic answers false here, which
+/// is the honest answer to a question asked without the bytes.
+bool canDecodeFileName(
+  String fileName, {
+  List<ModelDecoder> decoders = const <ModelDecoder>[],
+}) {
+  if (recognizedModelFormat(fileName) != null) return true;
+  final name = fileName.toLowerCase();
+  final nothing = Uint8List(0);
+  return decoders.any((ModelDecoder decoder) => decoder.handles(name, nothing));
 }
 
 /// Chooses a decoder from the file name, then from the bytes.
@@ -175,19 +211,20 @@ ModelFormat _resolveFormat(ModelLoadRequest request, Uint8List bytes) {
 /// The format [fileName]'s own extension names, or null when it names none
 /// of the four this package reads.
 ///
-/// **The one place this package's own list of extensions is written down.**
-/// `_resolveFormat` reads it for the same reason a drop target does — `ui-
-/// 31n`'s own "drop неизвестного расширения": a caller deciding whether a
-/// dropped file is one this application can open needs the same answer
-/// `decodeModel` itself would give, not a second list of suffixes kept
-/// beside this one that could name a fifth format this package still could
-/// not read.
+/// **Read off [builtInModelExtensions], the one place this package's own list
+/// of extensions is written down.** `_resolveFormat` reads it for the same
+/// reason a drop target does — `ui-31n`'s own "drop неизвестного расширения":
+/// a caller deciding whether a dropped file is one this application can open
+/// needs the same answer `decodeModel` itself would give, not a second list
+/// of suffixes kept beside this one that could name a fifth format this
+/// package still could not read. A caller with decoders of its own asks
+/// [canDecodeFileName] instead.
 ModelFormat? recognizedModelFormat(String fileName) {
   final name = fileName.toLowerCase();
-  if (name.endsWith('.f3d')) return ModelFormat.f3d;
-  if (name.endsWith('.obj')) return ModelFormat.obj;
-  if (name.endsWith('.stl')) return ModelFormat.stl;
-  if (name.endsWith('.gltf') || name.endsWith('.glb')) return ModelFormat.gltf;
+  for (final MapEntry<String, ModelFormat> each
+      in builtInModelExtensions.entries) {
+    if (name.endsWith(each.key)) return each.value;
+  }
   return null;
 }
 

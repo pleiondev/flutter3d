@@ -24,7 +24,16 @@ void main() {
       expect(outcome, isA<JobFinished<int>>());
       expect((outcome as JobFinished<int>).value, 42);
       expect(progresses, <double>[
-        0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0,
+        0.1,
+        0.2,
+        0.3,
+        0.4,
+        0.5,
+        0.6,
+        0.7,
+        0.8,
+        0.9,
+        1.0,
       ]);
       expect(job.progress, 1.0);
     });
@@ -54,7 +63,12 @@ void main() {
       // did not idle before starting) nor absent (the job did not run to
       // completion without yielding once).
       expect(order.first, 'chunk 0');
-      expect(order, isNot(orderedEquals(<String>['chunk 0', 'chunk 1', 'chunk 2', 'foreign'])));
+      expect(
+        order,
+        isNot(
+          orderedEquals(<String>['chunk 0', 'chunk 1', 'chunk 2', 'foreign']),
+        ),
+      );
     });
 
     test('cancelling during the third chunk gives no result, and no chunk '

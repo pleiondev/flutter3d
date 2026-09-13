@@ -39,7 +39,8 @@ void main() {
       expect(
         result!.path,
         'entities.7.health',
-        reason: 'the path should read like an address into the JSON, '
+        reason:
+            'the path should read like an address into the JSON, '
             'naming the entity a caller would recognise',
       );
       expect(result.a, 100);
@@ -56,8 +57,12 @@ void main() {
 
     test('walks into lists by index', () {
       final result = firstDifferingPath(
-        <String, Object?>{'shots': <Object?>[1, 2, 3]},
-        <String, Object?>{'shots': <Object?>[1, 9, 3]},
+        <String, Object?>{
+          'shots': <Object?>[1, 2, 3],
+        },
+        <String, Object?>{
+          'shots': <Object?>[1, 9, 3],
+        },
       );
       expect(result!.path, 'shots[1]');
       expect(result.a, 2);
@@ -66,8 +71,12 @@ void main() {
 
     test('a list of different lengths names the length itself', () {
       final result = firstDifferingPath(
-        <String, Object?>{'shots': <Object?>[1, 2]},
-        <String, Object?>{'shots': <Object?>[1, 2, 3]},
+        <String, Object?>{
+          'shots': <Object?>[1, 2],
+        },
+        <String, Object?>{
+          'shots': <Object?>[1, 2, 3],
+        },
       );
       expect(result!.path, 'shots.<length>');
       expect(result.a, 2);
@@ -77,8 +86,14 @@ void main() {
     test('equal trees find nothing', () {
       expect(
         firstDifferingPath(
-          <String, Object?>{'x': 1.0, 'nested': <String, Object?>{'y': 2}},
-          <String, Object?>{'x': 1.0, 'nested': <String, Object?>{'y': 2}},
+          <String, Object?>{
+            'x': 1.0,
+            'nested': <String, Object?>{'y': 2},
+          },
+          <String, Object?>{
+            'x': 1.0,
+            'nested': <String, Object?>{'y': 2},
+          },
         ),
         isNull,
       );
@@ -100,53 +115,48 @@ void main() {
       expect(result, isNull);
     });
 
-    test(
-      'names the checkpoint step from the digests and the field from the '
-      'full snapshots handed back for it',
-      () {
-        final a = DigestTrace()
-          ..observe(25, snap(1.0))
-          ..observe(50, snap(4.0));
-        final b = DigestTrace()
-          ..observe(25, snap(1.0))
-          ..observe(50, snap(5.0));
+    test('names the checkpoint step from the digests and the field from the '
+        'full snapshots handed back for it', () {
+      final a = DigestTrace()
+        ..observe(25, snap(1.0))
+        ..observe(50, snap(4.0));
+      final b = DigestTrace()
+        ..observe(25, snap(1.0))
+        ..observe(50, snap(5.0));
 
-        final result = diffRuns(
+      final result = diffRuns(
+        a: a,
+        b: b,
+        snapshotAtA: (step) => step == 50 ? snap(4.0) : snap(1.0),
+        snapshotAtB: (step) => step == 50 ? snap(5.0) : snap(1.0),
+      );
+
+      expect(result, isNotNull);
+      expect(
+        result!.step,
+        50,
+        reason:
+            'the first checkpoint, at 25, matched — the divergence '
+            'should be named at the one that did not',
+      );
+      expect(result.path, 'x');
+      expect(result.expected, 4.0);
+      expect(result.found, 5.0);
+    });
+
+    test('throws rather than reporting no divergence when the digests '
+        'disagreed but the snapshots handed back do not', () {
+      final a = DigestTrace()..observe(25, snap(1.0));
+      final b = DigestTrace()..observe(25, snap(2.0));
+      expect(
+        () => diffRuns(
           a: a,
           b: b,
-          snapshotAtA: (step) => step == 50 ? snap(4.0) : snap(1.0),
-          snapshotAtB: (step) => step == 50 ? snap(5.0) : snap(1.0),
-        );
-
-        expect(result, isNotNull);
-        expect(
-          result!.step,
-          50,
-          reason: 'the first checkpoint, at 25, matched — the divergence '
-              'should be named at the one that did not',
-        );
-        expect(result.path, 'x');
-        expect(result.expected, 4.0);
-        expect(result.found, 5.0);
-      },
-    );
-
-    test(
-      'throws rather than reporting no divergence when the digests '
-      'disagreed but the snapshots handed back do not',
-      () {
-        final a = DigestTrace()..observe(25, snap(1.0));
-        final b = DigestTrace()..observe(25, snap(2.0));
-        expect(
-          () => diffRuns(
-            a: a,
-            b: b,
-            snapshotAtA: (_) => snap(9.0),
-            snapshotAtB: (_) => snap(9.0),
-          ),
-          throwsStateError,
-        );
-      },
-    );
+          snapshotAtA: (_) => snap(9.0),
+          snapshotAtB: (_) => snap(9.0),
+        ),
+        throwsStateError,
+      );
+    });
   });
 }

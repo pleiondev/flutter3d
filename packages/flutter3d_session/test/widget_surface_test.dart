@@ -16,8 +16,11 @@ import 'package:flutter3d_session/flutter3d_session.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart' show Vector3;
 
-GraphicsDevice _device() =>
-    CpuDevice(width: 4, height: 4, shaders: CpuShaderLibrary(builtinCpuShaders()));
+GraphicsDevice _device() => CpuDevice(
+  width: 4,
+  height: 4,
+  shaders: CpuShaderLibrary(builtinCpuShaders()),
+);
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -98,8 +101,16 @@ void main() {
       );
       addTearDown(surface.dispose);
 
-      expect(surface.uvAt(Vector3(0.0, 0.0, 1.0)), isNull, reason: 'behind the plane');
-      expect(surface.uvAt(Vector3(5.0, 0.0, 0.0)), isNull, reason: 'past its width');
+      expect(
+        surface.uvAt(Vector3(0.0, 0.0, 1.0)),
+        isNull,
+        reason: 'behind the plane',
+      );
+      expect(
+        surface.uvAt(Vector3(5.0, 0.0, 0.0)),
+        isNull,
+        reason: 'past its width',
+      );
     });
   });
 
@@ -128,7 +139,11 @@ void main() {
       await tester.runAsync(surface.tick);
       await tester.runAsync(surface.tick);
       await tester.runAsync(surface.tick);
-      expect(surface.redrawCount, 0, reason: 'nothing inside the widget changed');
+      expect(
+        surface.redrawCount,
+        0,
+        reason: 'nothing inside the widget changed',
+      );
 
       notifier.value = const Color(0xFF00FF00);
       await tester.runAsync(surface.tick);
@@ -136,7 +151,11 @@ void main() {
 
       await tester.runAsync(surface.tick);
       await tester.runAsync(surface.tick);
-      expect(surface.redrawCount, 1, reason: 'caught up after the one real change');
+      expect(
+        surface.redrawCount,
+        1,
+        reason: 'caught up after the one real change',
+      );
     });
 
     testWidgets('a redrawn frame is uploaded as the mesh\'s own texture', (
@@ -201,7 +220,12 @@ void main() {
       final world = CollisionWorld()
         ..addBox(Vector3(0.0, 1.0, 0.0), Vector3(2.0, 1.0, 0.1));
       final hit = RayHit();
-      world.raycast(Vector3(-0.5, 0.75, -5.0), Vector3(0.0, 0.0, 1.0), 20.0, hit);
+      world.raycast(
+        Vector3(-0.5, 0.75, -5.0),
+        Vector3(0.0, 0.0, 1.0),
+        20.0,
+        hit,
+      );
       expect(hit.hit, isTrue, reason: 'the ray was aimed at the surface');
 
       // The collision box is 0.1 deep (half-thickness 0.05) standing in for

@@ -11,7 +11,7 @@ import 'dart:io';
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
-import 'package:flutter3d_model_core/flutter3d_model_core.dart';
+import 'package:flutter3d_formats/flutter3d_formats.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 /// [path] decoded through `dart:ui`, straight (non-premultiplied) RGBA —
@@ -24,7 +24,9 @@ Future<({int width, int height, Uint8List rgba})> _decodeWithDartUi(
   final codec = await ui.instantiateImageCodec(bytes);
   final frame = await codec.getNextFrame();
   final image = frame.image;
-  final data = await image.toByteData(format: ui.ImageByteFormat.rawStraightRgba);
+  final data = await image.toByteData(
+    format: ui.ImageByteFormat.rawStraightRgba,
+  );
   return (
     width: image.width,
     height: image.height,
@@ -70,7 +72,8 @@ void main() {
     // on this fixture: a max single-channel delta of 2; the bound below
     // gives it room without hiding a real regression.
     test('gradient_444.jpg', () async {
-      final path = '../../packages/flutter3d_model_core/test/fixtures/gradient_444.jpg';
+      final path =
+          '../../packages/flutter3d_formats/test/fixtures/gradient_444.jpg';
       final fromDartUi = await _decodeWithDartUi(path);
       final ours = decodeJpeg(File(path).readAsBytesSync());
       expect(ours, isNotNull);
@@ -80,7 +83,8 @@ void main() {
     });
 
     test('solid_8x8.jpg — one exact MCU, no rounding to hide behind', () async {
-      final path = '../../packages/flutter3d_model_core/test/fixtures/solid_8x8.jpg';
+      final path =
+          '../../packages/flutter3d_formats/test/fixtures/solid_8x8.jpg';
       final fromDartUi = await _decodeWithDartUi(path);
       final ours = decodeJpeg(File(path).readAsBytesSync());
       expect(ours, isNotNull);
@@ -88,7 +92,8 @@ void main() {
     });
 
     test('gray_16x16.jpg — single component, no chroma at all', () async {
-      final path = '../../packages/flutter3d_model_core/test/fixtures/gray_16x16.jpg';
+      final path =
+          '../../packages/flutter3d_formats/test/fixtures/gray_16x16.jpg';
       final fromDartUi = await _decodeWithDartUi(path);
       final ours = decodeJpeg(File(path).readAsBytesSync());
       expect(ours, isNotNull);
@@ -102,27 +107,33 @@ void main() {
     // this fixture: a max single-channel delta of 13 — the documented,
     // expected difference the library comment above explains, not slack
     // added after the fact to make a failing test pass.
-    test('gradient_420.jpg — subsampled chroma, wider documented tolerance', () async {
-      final path = '../../packages/flutter3d_model_core/test/fixtures/gradient_420.jpg';
-      final fromDartUi = await _decodeWithDartUi(path);
-      final ours = decodeJpeg(File(path).readAsBytesSync());
-      expect(ours, isNotNull);
-      expect(ours!.width, fromDartUi.width);
-      expect(ours.height, fromDartUi.height);
-      expect(_maxDelta(ours.rgba, fromDartUi.rgba), lessThanOrEqualTo(20));
-    });
+    test(
+      'gradient_420.jpg — subsampled chroma, wider documented tolerance',
+      () async {
+        final path =
+            '../../packages/flutter3d_formats/test/fixtures/gradient_420.jpg';
+        final fromDartUi = await _decodeWithDartUi(path);
+        final ours = decodeJpeg(File(path).readAsBytesSync());
+        expect(ours, isNotNull);
+        expect(ours!.width, fromDartUi.width);
+        expect(ours.height, fromDartUi.height);
+        expect(_maxDelta(ours.rgba, fromDartUi.rgba), lessThanOrEqualTo(20));
+      },
+    );
   });
 
   group('truncated files refuse by value, not by throwing', () {
     test('a JPEG cut off mid-scan', () {
-      final path = '../../packages/flutter3d_model_core/test/fixtures/gradient_444.jpg';
+      final path =
+          '../../packages/flutter3d_formats/test/fixtures/gradient_444.jpg';
       final bytes = File(path).readAsBytesSync();
       final truncated = Uint8List.sublistView(bytes, 0, bytes.length ~/ 2);
       expect(decodeJpeg(truncated), isNull);
     });
 
     test('a JPEG cut off before any scan at all', () {
-      final path = '../../packages/flutter3d_model_core/test/fixtures/gradient_444.jpg';
+      final path =
+          '../../packages/flutter3d_formats/test/fixtures/gradient_444.jpg';
       final bytes = File(path).readAsBytesSync();
       final truncated = Uint8List.sublistView(bytes, 0, 4);
       expect(decodeJpeg(truncated), isNull);

@@ -92,10 +92,7 @@ final class _LyingTransport implements NetTransport {
     _inner.send(<String, Object?>{
       'frames': <String, Object?>{
         ...frames,
-        key: <String, Object?>{
-          ...lied as Map<String, Object?>,
-          'move': 999.0,
-        },
+        key: <String, Object?>{...lied as Map<String, Object?>, 'move': 999.0},
       },
     });
   }
@@ -161,40 +158,37 @@ _play(
 }
 
 void main() {
-  test(
-    'two peers 120ms apart with 5% loss converge on the same digests',
-    () {
-      final (transportA, transportB) = LoopbackTransport.pair(
-        stepsPerSecond: 60,
-        delaySeconds: 0.120,
-        lossRate: 0.05,
-        seed: 20260912,
-      );
-      final result = _play(
-        (transportA, transportB),
-        steps: 600,
-        tickA: transportA.tick,
-        tickB: transportB.tick,
-      );
+  test('two peers 120ms apart with 5% loss converge on the same digests', () {
+    final (transportA, transportB) = LoopbackTransport.pair(
+      stepsPerSecond: 60,
+      delaySeconds: 0.120,
+      lossRate: 0.05,
+      seed: 20260912,
+    );
+    final result = _play(
+      (transportA, transportB),
+      steps: 600,
+      tickA: transportA.tick,
+      tickB: transportB.tick,
+    );
 
-      final divergence = result.a.divergenceFromHex(result.b.hexDigests);
-      expect(
-        divergence,
-        isNull,
-        reason:
-            'the two sides should agree on every checkpoint despite the '
-            'delay and the loss: $divergence',
-      );
-      expect(
-        result.sessionA.droppedCorrections,
-        0,
-        reason:
-            'a correction falling outside the rollback window would mean '
-            'the window is undersized for this delay, not a passing test',
-      );
-      expect(result.sessionB.droppedCorrections, 0);
-    },
-  );
+    final divergence = result.a.divergenceFromHex(result.b.hexDigests);
+    expect(
+      divergence,
+      isNull,
+      reason:
+          'the two sides should agree on every checkpoint despite the '
+          'delay and the loss: $divergence',
+    );
+    expect(
+      result.sessionA.droppedCorrections,
+      0,
+      reason:
+          'a correction falling outside the rollback window would mean '
+          'the window is undersized for this delay, not a passing test',
+    );
+    expect(result.sessionB.droppedCorrections, 0);
+  });
 
   test(
     'a frame rewritten in flight on one side gives a desync, named by step',

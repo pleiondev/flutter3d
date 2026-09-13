@@ -4,10 +4,10 @@
 /// [Raycaster] the same way `flutter3d_template_app`'s own
 /// `_tapWidgetSurface` already proved for `tpl-04`.
 ///
-/// Its own entrypoint, not a mode of the crypt's `main.dart`: nothing here
+/// Its own application, not a mode of the crypt's `main.dart`: nothing here
 /// is a level, a genre or a save — it is a demonstration, run with
 ///
-///     flutter run -d chrome -t lib/pendulum_lab_demo.dart
+///     flutter run -d chrome
 library;
 
 import 'dart:async';
@@ -48,7 +48,12 @@ class PendulumLabScreen extends StatefulWidget {
 
 class _PendulumLabScreenState extends State<PendulumLabScreen>
     with SingleTickerProviderStateMixin {
-  static final Vector3 _pivot = Vector3(0.0, 2.0, 0.0);
+  // A getter, not a `static final` — a shared `Vector3` instance is mutable,
+  // and `tool/structure.dart`'s own rule against that is not theoretical: the
+  // first caller that scaled or normalized this in place would corrupt it
+  // for every frame after. A fresh vector each read costs nothing a pivot
+  // that never moves needs to avoid.
+  static Vector3 get _pivot => Vector3(0.0, 2.0, 0.0);
 
   final PendulumSimulation _pendulum = PendulumSimulation(
     lengthMeters: 1.2,
@@ -62,6 +67,7 @@ class _PendulumLabScreenState extends State<PendulumLabScreen>
   late Scene _scene;
   late CameraNode _camera;
   late MeshNode _bob;
+  late MeshNode _string;
   late WidgetSurface _panel;
   Ticker? _ticker;
   Duration _lastElapsed = Duration.zero;
@@ -103,41 +109,95 @@ class _PendulumLabScreenState extends State<PendulumLabScreen>
 
     final pivotMesh = MeshNode(
       DeviceMesh.upload(device, const SphereShape(radius: 0.06).build()),
-      Material(lighting: LightingModel.unlit, baseColor: Vector4(0.6, 0.62, 0.66, 1.0)),
+      Material(
+        lighting: LightingModel.unlit,
+        baseColor: Vector4(0.6, 0.62, 0.66, 1.0),
+      ),
       name: 'pivot',
     )..setPositionFrom(_pivot);
     scene.add(pivotMesh);
 
     final bob = MeshNode(
       DeviceMesh.upload(device, const SphereShape(radius: 0.16).build()),
-      Material(lighting: LightingModel.pbr, baseColor: Vector4(0.86, 0.71, 0.32, 1.0), roughness: 0.4),
+      Material(
+        lighting: LightingModel.pbr,
+        baseColor: Vector4(0.86, 0.71, 0.32, 1.0),
+        roughness: 0.4,
+      ),
       name: 'bob',
     );
     scene.add(bob);
 
+    // The string: a unit-height cylinder, thin, unlit (a shading model has
+    // nothing to add to a thread nobody looks at closely) — stretched and
+    // aimed fresh every frame in `_placeString`, since its own length and
+    // direction are exactly `edu-04`'s one live number and its swing.
+    final string = MeshNode(
+      DeviceMesh.upload(
+        device,
+        const CylinderShape(
+          radiusTop: 0.012,
+          radiusBottom: 0.012,
+          height: 1.0,
+          segments: 8,
+          capped: false,
+        ).build(),
+      ),
+      Material(
+        lighting: LightingModel.unlit,
+        baseColor: Vector4(0.75, 0.75, 0.72, 1.0),
+      ),
+      name: 'string',
+    );
+    scene.add(string);
+
     // Left at its default `yaw = 0.0`: that already faces `-Z`, which is
     // where the camera stands (see the comment on `camera` above for why
     // turning the panel instead would render it upside down).
+    //
+    // **`Transform.flip(flipX/flipY: true)` — a full 180° turn — is a local
+    // workaround, not a fix.** Empirically, live, in two rounds: `flipY`
+    // alone (a vertical mirror) turned upside-down text right-side up but
+    // left it mirrored left-to-right (backward letters, `+`/`-` swapped) —
+    // which only a *rotation*, not a single-axis mirror, explains. So a
+    // `WidgetSurface`'s content is rendered rotated a half turn from what
+    // its geometry says, not merely flipped on one axis. Root-causing that
+    // (texture upload row/column order, or the plane's own UV winding)
+    // did not finish inside this session's budget, and a probe built to
+    // chase it hung on `pumpAndSettle` and then, worked around with
+    // `runAsync`, read back an unrelated all-black frame — a second,
+    // unexplained finding, not a confirmation of the first. Turning the
+    // child here a half turn fixes what this app shows without touching
+    // `flutter3d_session` blind; `doc/tooling-plan.md`'s own edu-04 entry
+    // names the open question for whoever next hosts a `WidgetSurface`
+    // with legible content — `edu-00` §7's own annotation widget among
+    // them.
     final panel = WidgetSurface(
       device: device,
-      width: 1.0,
-      height: 0.7,
+      width: 1.8,
+      height: 1.1,
       name: 'pendulum-panel',
-      child: PendulumLabPanel(
-        lengthMeters: _length,
-        onChangeLength: (value) {
-          _pendulum.lengthMeters = value;
-          _length.value = value;
-        },
+      child: Transform.flip(
+        flipX: true,
+        flipY: true,
+        child: PendulumLabPanel(
+          lengthMeters: _length,
+          onChangeLength: (value) {
+            _pendulum.lengthMeters = value;
+            _length.value = value;
+          },
+        ),
       ),
-    )..setPosition(Vector3(1.3, 1.8, -0.4));
+    )..setPosition(Vector3(1.6, 1.9, -1.6));
     scene.add(panel.node);
 
     _scene = scene;
     _camera = camera;
     _bob = bob;
+    _string = string;
     _panel = panel;
     _placeBob();
+    _placeString();
 
     _ticker = createTicker(_onTick)..start();
     if (mounted) setState(() => _renderer = Renderer.create(device: device));
@@ -155,6 +215,26 @@ class _PendulumLabScreenState extends State<PendulumLabScreen>
     );
   }
 
+  /// Stretches and aims the unit-height cylinder from the pivot to wherever
+  /// [_placeBob] just put the bob — a string has no simulation of its own,
+  /// only the two points [PendulumSimulation] already gives a reason to
+  /// know.
+  void _placeString() {
+    final pivot = _pivot;
+    final bobAt = _bob.readPosition();
+    final delta = bobAt - pivot;
+    final length = math.max(delta.length, 1e-6);
+    _string
+      ..setScale(1.0, length, 1.0)
+      // The cylinder's own local +Y is its long axis (`CylinderShape`'s own
+      // doc comment); this is the rotation that takes that axis to wherever
+      // the bob actually is, not a yaw/pitch pair guessed and checked.
+      ..setRotation(
+        Quaternion.fromTwoVectors(Vector3(0.0, 1.0, 0.0), delta.normalized()),
+      )
+      ..setPositionFrom(pivot + delta.scaled(0.5));
+  }
+
   void _onTick(Duration elapsed) {
     final dt = (elapsed - _lastElapsed).inMicroseconds / 1e6;
     _lastElapsed = elapsed;
@@ -163,6 +243,7 @@ class _PendulumLabScreenState extends State<PendulumLabScreen>
     // clamping is what stands in for "skip the first frame" without a bool.
     _pendulum.step(dt.clamp(0.0, 0.05));
     _placeBob();
+    _placeString();
     unawaited(_panel.tick());
     if (mounted) setState(() {});
   }
@@ -174,16 +255,40 @@ class _PendulumLabScreenState extends State<PendulumLabScreen>
     final size = context.size;
     if (size == null || size.width <= 0.0 || size.height <= 0.0) return false;
     final hit = _raycaster
-        .setFromScreen(_camera, local.dx, local.dy, width: size.width, height: size.height)
+        .setFromScreen(
+          _camera,
+          local.dx,
+          local.dy,
+          width: size.width,
+          height: size.height,
+        )
         .intersectScene(_scene);
     if (hit == null || hit.node != _panel.node) return false;
-    final uv = _panel.uvAt(hit.point);
-    if (uv == null) return false;
+    final surfaceUv = _panel.uvAt(hit.point);
+    if (surfaceUv == null) return false;
+
+    // `uvAt` answers in mesh-UV — where the tap physically landed on the
+    // panel's surface, purely from geometry. Empirically, not by the same
+    // reasoning that fixed display: inverting both axes here (the naive
+    // mirror of `Transform.flip(flipX: true, flipY: true)`) hit a real
+    // button, but the wrong one — `+` acted as `-`. `uvAt`'s own `u` must
+    // already run the opposite way from the pipeline's, independently of
+    // the display bug, so only `v` wants inverting here. Found live, by a
+    // person actually pressing the buttons — not re-derived from the
+    // display fix a second time, since the first re-derivation already
+    // predicted the wrong answer once.
+    final uv = Offset(surfaceUv.dx, 1.0 - surfaceUv.dy);
 
     const pointer = 9001;
     _panel.pipeline.announcePointer(pointer, added: true);
-    _panel.pipeline.dispatchAtUv(uv, (local) => PointerDownEvent(pointer: pointer, position: local));
-    _panel.pipeline.dispatchAtUv(uv, (local) => PointerUpEvent(pointer: pointer, position: local));
+    _panel.pipeline.dispatchAtUv(
+      uv,
+      (local) => PointerDownEvent(pointer: pointer, position: local),
+    );
+    _panel.pipeline.dispatchAtUv(
+      uv,
+      (local) => PointerUpEvent(pointer: pointer, position: local),
+    );
     _panel.pipeline.announcePointer(pointer, added: false);
     return true;
   }
@@ -214,7 +319,8 @@ class _PendulumLabScreenState extends State<PendulumLabScreen>
     return Scaffold(
       backgroundColor: const Color(0xFF14161A),
       body: Listener(
-        onPointerDown: (PointerDownEvent event) => _tapPanel(event.localPosition),
+        onPointerDown: (PointerDownEvent event) =>
+            _tapPanel(event.localPosition),
         child: SceneSurface(
           renderer: renderer,
           scene: _scene,

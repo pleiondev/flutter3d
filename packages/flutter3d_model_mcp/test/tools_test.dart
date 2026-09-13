@@ -187,275 +187,278 @@ void main() {
 
     test('setProfileLimits changes the project\'s own limits', () async {
       final session = ModelSession(ModelHistory(const ModelProject()));
-      final result = await toolNamed('setProfileLimits').run(session, <String, Object?>{
-        'maxJoints': 32,
-        'maxInfluences': 2,
-      });
+      final result = await toolNamed(
+        'setProfileLimits',
+      ).run(session, <String, Object?>{'maxJoints': 32, 'maxInfluences': 2});
       expect(result.did, isTrue);
       expect(session.history.project.profile.maxJoints, 32);
       expect(session.history.project.profile.maxInfluences, 2);
     });
 
-    test(
-      'addJoint and mirrorJoints refuse a skeleton that is not there — '
-      'a real refusal from the command, not a schema mismatch',
-      () async {
-        final session = ModelSession(ModelHistory(const ModelProject()));
-        await toolNamed('addPrimitive').run(session, <String, Object?>{'kind': 'box'});
+    test('addJoint and mirrorJoints refuse a skeleton that is not there — '
+        'a real refusal from the command, not a schema mismatch', () async {
+      final session = ModelSession(ModelHistory(const ModelProject()));
+      await toolNamed(
+        'addPrimitive',
+      ).run(session, <String, Object?>{'kind': 'box'});
 
-        final addJoint = await toolNamed('addJoint').run(session, <String, Object?>{
-          'skeletonIndex': 0,
-          'objectId': 1,
-        });
-        expect(addJoint.did, isFalse);
-        expect(addJoint.says, contains('there is no skeleton 0'));
+      final addJoint = await toolNamed(
+        'addJoint',
+      ).run(session, <String, Object?>{'skeletonIndex': 0, 'objectId': 1});
+      expect(addJoint.did, isFalse);
+      expect(addJoint.says, contains('there is no skeleton 0'));
 
-        final mirror = await toolNamed('mirrorJoints').run(session, <String, Object?>{
+      final mirror = await toolNamed('mirrorJoints').run(
+        session,
+        <String, Object?>{
           'skeletonIndex': 0,
           'axis': 0,
           'jointMirror': <String, Object?>{'0': 1},
-        });
-        expect(mirror.did, isFalse);
-        expect(mirror.says, contains('there is no skeleton 0'));
-      },
-    );
+        },
+      );
+      expect(mirror.did, isFalse);
+      expect(mirror.says, contains('there is no skeleton 0'));
+    });
 
-    test(
-      'addShapeFromMesh, setShapeWeight, renameShape and deleteShape all '
-      'reach the real shape set',
-      () async {
-        final session = ModelSession(ModelHistory(const ModelProject()));
-        await toolNamed('addPrimitive').run(session, <String, Object?>{'kind': 'box'});
-        await toolNamed('bakeToMesh').run(session, <String, Object?>{'id': 1});
+    test('addShapeFromMesh, setShapeWeight, renameShape and deleteShape all '
+        'reach the real shape set', () async {
+      final session = ModelSession(ModelHistory(const ModelProject()));
+      await toolNamed(
+        'addPrimitive',
+      ).run(session, <String, Object?>{'kind': 'box'});
+      await toolNamed('bakeToMesh').run(session, <String, Object?>{'id': 1});
 
-        final added = await toolNamed('addShapeFromMesh').run(session, <String, Object?>{
-          'id': 1,
-          'shapeName': 'smile',
-        });
-        expect(added.did, isTrue);
-        expect(session.history.project[1]!.shapeSet.keys.single.name, 'smile');
+      final added = await toolNamed(
+        'addShapeFromMesh',
+      ).run(session, <String, Object?>{'id': 1, 'shapeName': 'smile'});
+      expect(added.did, isTrue);
+      expect(session.history.project[1]!.shapeSet.keys.single.name, 'smile');
 
-        final weighted = await toolNamed('setShapeWeight').run(session, <String, Object?>{
-          'id': 1,
-          'shapeIndex': 0,
-          'weight': 0.6,
-        });
-        expect(weighted.did, isTrue);
-        expect(session.history.project[1]!.shapeSet.weights, <double>[0.6]);
+      final weighted = await toolNamed('setShapeWeight').run(
+        session,
+        <String, Object?>{'id': 1, 'shapeIndex': 0, 'weight': 0.6},
+      );
+      expect(weighted.did, isTrue);
+      expect(session.history.project[1]!.shapeSet.weights, <double>[0.6]);
 
-        final renamed = await toolNamed('renameShape').run(session, <String, Object?>{
-          'id': 1,
-          'shapeIndex': 0,
-          'to': 'grin',
-        });
-        expect(renamed.did, isTrue);
-        expect(session.history.project[1]!.shapeSet.keys.single.name, 'grin');
+      final renamed = await toolNamed(
+        'renameShape',
+      ).run(session, <String, Object?>{'id': 1, 'shapeIndex': 0, 'to': 'grin'});
+      expect(renamed.did, isTrue);
+      expect(session.history.project[1]!.shapeSet.keys.single.name, 'grin');
 
-        final deleted = await toolNamed('deleteShape').run(session, <String, Object?>{
-          'id': 1,
-          'shapeIndex': 0,
-        });
-        expect(deleted.did, isTrue);
-        expect(session.history.project[1]!.shapeSet.keys, isEmpty);
-      },
-    );
+      final deleted = await toolNamed(
+        'deleteShape',
+      ).run(session, <String, Object?>{'id': 1, 'shapeIndex': 0});
+      expect(deleted.did, isTrue);
+      expect(session.history.project[1]!.shapeSet.keys, isEmpty);
+    });
 
-    test(
-      'setKey, setInterpolation, moveKeys, setTangent and deleteKeys all '
-      'reach a real track',
-      () async {
-        var project = const ModelProject().added(
-          (int id) => ModelObject(
-            id: id,
-            name: 'a',
-            geometry: const SocketGeometry(),
-            transform: Matrix4.identity(),
-          ),
-        );
-        project = project.copyWith(
-          clips: <ProjectClip>[
-            ProjectClip(
-              name: 'idle',
-              tracks: <ProjectTrack>[
-                ProjectTrack(
-                  objectId: 1,
-                  track: AnimationTrack(
-                    nodeIndex: 0,
-                    path: AnimationPath.translation,
-                    interpolation: AnimationInterpolation.linear,
-                    componentCount: 3,
-                    times: Float32List.fromList(<double>[0, 1]),
-                    values: Float32List.fromList(<double>[0, 0, 0, 1, 1, 1]),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        );
-        final session = ModelSession(ModelHistory(project));
-
-        final keyed = await toolNamed('setKey').run(session, <String, Object?>{
-          'clipIndex': 0,
-          'trackIndex': 0,
-          'time': 0.5,
-          'values': <double>[5, 5, 5],
-        });
-        expect(keyed.did, isTrue);
-        expect(session.history.project.clips.single.tracks.single.track.keyCount, 3);
-
-        final interpolated = await toolNamed('setInterpolation').run(session, <String, Object?>{
-          'clipIndex': 0,
-          'trackIndex': 0,
-          'interpolation': 'step',
-        });
-        expect(interpolated.did, isTrue);
-        expect(
-          session.history.project.clips.single.tracks.single.track.interpolation,
-          AnimationInterpolation.step,
-        );
-
-        final moved = await toolNamed('moveKeys').run(session, <String, Object?>{
-          'clipIndex': 0,
-          'trackIndex': 0,
-          'indices': <int>[0],
-          'deltaTime': 10.0,
-        });
-        expect(moved.did, isTrue);
-
-        final tangented = await toolNamed('setTangent').run(session, <String, Object?>{
-          'clipIndex': 0,
-          'trackIndex': 0,
-          'index': 0,
-        });
-        expect(tangented.did, isTrue);
-
-        final deleted = await toolNamed('deleteKeys').run(session, <String, Object?>{
-          'clipIndex': 0,
-          'trackIndex': 0,
-          'indices': <int>[0],
-        });
-        expect(deleted.did, isTrue);
-        expect(session.history.project.clips.single.tracks.single.track.keyCount, 2);
-      },
-    );
-
-    test('poseJoint keys the object\'s own live transform, not an argument', () async {
+    test('setKey, setInterpolation, moveKeys, setTangent and deleteKeys all '
+        'reach a real track', () async {
       var project = const ModelProject().added(
         (int id) => ModelObject(
           id: id,
           name: 'a',
           geometry: const SocketGeometry(),
-          transform: Matrix4.identity()..setTranslationRaw(1, 2, 3),
+          transform: Matrix4.identity(),
         ),
       );
       project = project.copyWith(
-        clips: <ProjectClip>[const ProjectClip(name: 'idle', tracks: <ProjectTrack>[])],
+        clips: <ProjectClip>[
+          ProjectClip(
+            name: 'idle',
+            tracks: <ProjectTrack>[
+              ProjectTrack(
+                objectId: 1,
+                track: AnimationTrack(
+                  nodeIndex: 0,
+                  path: AnimationPath.translation,
+                  interpolation: AnimationInterpolation.linear,
+                  componentCount: 3,
+                  times: Float32List.fromList(<double>[0, 1]),
+                  values: Float32List.fromList(<double>[0, 0, 0, 1, 1, 1]),
+                ),
+              ),
+            ],
+          ),
+        ],
       );
       final session = ModelSession(ModelHistory(project));
 
-      final posed = await toolNamed('poseJoint').run(session, <String, Object?>{
-        'joint': 1,
-        'path': 'translation',
+      final keyed = await toolNamed('setKey').run(session, <String, Object?>{
         'clipIndex': 0,
-        'frame': 0,
+        'trackIndex': 0,
+        'time': 0.5,
+        'values': <double>[5, 5, 5],
       });
-      expect(posed.did, isTrue);
-      final track = session.history.project.clips.single.tracks.single.track;
-      expect(track.path, AnimationPath.translation);
-      final out = Float32List(3);
-      track.sample(0.0, out);
-      expect(out, <double>[1, 2, 3]);
+      expect(keyed.did, isTrue);
+      expect(
+        session.history.project.clips.single.tracks.single.track.keyCount,
+        3,
+      );
+
+      final interpolated = await toolNamed('setInterpolation').run(
+        session,
+        <String, Object?>{
+          'clipIndex': 0,
+          'trackIndex': 0,
+          'interpolation': 'step',
+        },
+      );
+      expect(interpolated.did, isTrue);
+      expect(
+        session.history.project.clips.single.tracks.single.track.interpolation,
+        AnimationInterpolation.step,
+      );
+
+      final moved = await toolNamed('moveKeys').run(session, <String, Object?>{
+        'clipIndex': 0,
+        'trackIndex': 0,
+        'indices': <int>[0],
+        'deltaTime': 10.0,
+      });
+      expect(moved.did, isTrue);
+
+      final tangented = await toolNamed('setTangent').run(
+        session,
+        <String, Object?>{'clipIndex': 0, 'trackIndex': 0, 'index': 0},
+      );
+      expect(tangented.did, isTrue);
+
+      final deleted = await toolNamed('deleteKeys').run(
+        session,
+        <String, Object?>{
+          'clipIndex': 0,
+          'trackIndex': 0,
+          'indices': <int>[0],
+        },
+      );
+      expect(deleted.did, isTrue);
+      expect(
+        session.history.project.clips.single.tracks.single.track.keyCount,
+        2,
+      );
     });
 
     test(
-      'extractRootMotion and bakeRootMotionIntoClip reach a real track, '
-      'exactly reversing each other',
+      'poseJoint keys the object\'s own live transform, not an argument',
       () async {
         var project = const ModelProject().added(
           (int id) => ModelObject(
             id: id,
             name: 'a',
             geometry: const SocketGeometry(),
-            transform: Matrix4.identity(),
+            transform: Matrix4.identity()..setTranslationRaw(1, 2, 3),
           ),
         );
         project = project.copyWith(
           clips: <ProjectClip>[
-            ProjectClip(
-              name: 'walk',
-              tracks: <ProjectTrack>[
-                ProjectTrack(
-                  objectId: 1,
-                  track: AnimationTrack(
-                    nodeIndex: 0,
-                    path: AnimationPath.translation,
-                    interpolation: AnimationInterpolation.linear,
-                    componentCount: 3,
-                    times: Float32List.fromList(<double>[0, 1]),
-                    values: Float32List.fromList(<double>[0, 0, 0, 2, 0, 0]),
-                  ),
-                ),
-              ],
-            ),
+            const ProjectClip(name: 'idle', tracks: <ProjectTrack>[]),
           ],
         );
         final session = ModelSession(ModelHistory(project));
 
-        final extracted = await toolNamed(
-          'extractRootMotion',
-        ).run(session, <String, Object?>{'clipIndex': 0, 'rootJoint': 1});
-        expect(extracted.did, isTrue);
-        final flat = session.history.project.clips.single.tracks.single.track;
-        final out = Float32List(3);
-        flat.sample(1.0, out);
-        expect(out, <double>[0, 0, 0]);
-
-        final baked = await toolNamed(
-          'bakeRootMotionIntoClip',
-        ).run(session, <String, Object?>{'clipIndex': 0, 'rootJoint': 1});
-        expect(baked.did, isTrue);
-        final restored =
-            session.history.project.clips.single.tracks.single.track;
-        restored.sample(1.0, out);
-        expect(out, <double>[2, 0, 0]);
-        expect(session.history.project.clips.single.extras, isNull);
-      },
-    );
-
-    test(
-      'addSkeleton, bindSkin and addClip reach the real project — a '
-      'skeleton and a clip neither existed before',
-      () async {
-        final project = const ModelProject().added(
-          (int id) => ModelObject(
-            id: id,
-            name: 'a',
-            geometry: const SocketGeometry(),
-            transform: Matrix4.identity(),
-          ),
+        final posed = await toolNamed('poseJoint').run(
+          session,
+          <String, Object?>{
+            'joint': 1,
+            'path': 'translation',
+            'clipIndex': 0,
+            'frame': 0,
+          },
         );
-        final session = ModelSession(ModelHistory(project));
-
-        final skeleton = await toolNamed(
-          'addSkeleton',
-        ).run(session, <String, Object?>{'skeletonName': 'rig'});
-        expect(skeleton.did, isTrue);
-        expect(session.history.project.skeletons.single.name, 'rig');
-
-        final bound = await toolNamed(
-          'bindSkin',
-        ).run(session, <String, Object?>{'objectId': 1, 'skeletonIndex': 0});
-        expect(bound.did, isTrue);
-        expect(session.history.project[1]!.skeletonIndex, 0);
-
-        final clip = await toolNamed(
-          'addClip',
-        ).run(session, <String, Object?>{'clipName': 'idle'});
-        expect(clip.did, isTrue);
-        expect(session.history.project.clips.single.name, 'idle');
-        expect(session.history.project.clips.single.tracks, isEmpty);
+        expect(posed.did, isTrue);
+        final track = session.history.project.clips.single.tracks.single.track;
+        expect(track.path, AnimationPath.translation);
+        final out = Float32List(3);
+        track.sample(0.0, out);
+        expect(out, <double>[1, 2, 3]);
       },
     );
+
+    test('extractRootMotion and bakeRootMotionIntoClip reach a real track, '
+        'exactly reversing each other', () async {
+      var project = const ModelProject().added(
+        (int id) => ModelObject(
+          id: id,
+          name: 'a',
+          geometry: const SocketGeometry(),
+          transform: Matrix4.identity(),
+        ),
+      );
+      project = project.copyWith(
+        clips: <ProjectClip>[
+          ProjectClip(
+            name: 'walk',
+            tracks: <ProjectTrack>[
+              ProjectTrack(
+                objectId: 1,
+                track: AnimationTrack(
+                  nodeIndex: 0,
+                  path: AnimationPath.translation,
+                  interpolation: AnimationInterpolation.linear,
+                  componentCount: 3,
+                  times: Float32List.fromList(<double>[0, 1]),
+                  values: Float32List.fromList(<double>[0, 0, 0, 2, 0, 0]),
+                ),
+              ),
+            ],
+          ),
+        ],
+      );
+      final session = ModelSession(ModelHistory(project));
+
+      final extracted = await toolNamed(
+        'extractRootMotion',
+      ).run(session, <String, Object?>{'clipIndex': 0, 'rootJoint': 1});
+      expect(extracted.did, isTrue);
+      final flat = session.history.project.clips.single.tracks.single.track;
+      final out = Float32List(3);
+      flat.sample(1.0, out);
+      expect(out, <double>[0, 0, 0]);
+
+      final baked = await toolNamed(
+        'bakeRootMotionIntoClip',
+      ).run(session, <String, Object?>{'clipIndex': 0, 'rootJoint': 1});
+      expect(baked.did, isTrue);
+      final restored = session.history.project.clips.single.tracks.single.track;
+      restored.sample(1.0, out);
+      expect(out, <double>[2, 0, 0]);
+      expect(session.history.project.clips.single.extras, isNull);
+    });
+
+    test('addSkeleton, bindSkin and addClip reach the real project — a '
+        'skeleton and a clip neither existed before', () async {
+      final project = const ModelProject().added(
+        (int id) => ModelObject(
+          id: id,
+          name: 'a',
+          geometry: const SocketGeometry(),
+          transform: Matrix4.identity(),
+        ),
+      );
+      final session = ModelSession(ModelHistory(project));
+
+      final skeleton = await toolNamed(
+        'addSkeleton',
+      ).run(session, <String, Object?>{'skeletonName': 'rig'});
+      expect(skeleton.did, isTrue);
+      expect(session.history.project.skeletons.single.name, 'rig');
+
+      final bound = await toolNamed(
+        'bindSkin',
+      ).run(session, <String, Object?>{'objectId': 1, 'skeletonIndex': 0});
+      expect(bound.did, isTrue);
+      expect(session.history.project[1]!.skeletonIndex, 0);
+
+      final clip = await toolNamed(
+        'addClip',
+      ).run(session, <String, Object?>{'clipName': 'idle'});
+      expect(clip.did, isTrue);
+      expect(session.history.project.clips.single.name, 'idle');
+      expect(session.history.project.clips.single.tracks, isEmpty);
+    });
 
     test(
       'removeNode reaches the real command: it deletes the node and '
@@ -478,18 +481,15 @@ void main() {
           },
         });
         expect(added.did, isTrue);
-        final colorId = session.history.project.materials.single.graph!.nodes
-            .single
-            .id;
+        final colorId =
+            session.history.project.materials.single.graph!.nodes.single.id;
 
-        final addedOutput = await toolNamed('addNode').run(session, <String, Object?>{
-          'materialIndex': 0,
-          'kind': 'output',
-        });
+        final addedOutput = await toolNamed(
+          'addNode',
+        ).run(session, <String, Object?>{'materialIndex': 0, 'kind': 'output'});
         expect(addedOutput.did, isTrue);
-        final outputId = session.history.project.materials.single.graph!.nodes
-            .last
-            .id;
+        final outputId =
+            session.history.project.materials.single.graph!.nodes.last.id;
 
         final linked = await toolNamed('link').run(session, <String, Object?>{
           'materialIndex': 0,
@@ -499,10 +499,10 @@ void main() {
         });
         expect(linked.did, isTrue);
 
-        final removed = await toolNamed('removeNode').run(session, <String, Object?>{
-          'materialIndex': 0,
-          'nodeId': colorId,
-        });
+        final removed = await toolNamed('removeNode').run(
+          session,
+          <String, Object?>{'materialIndex': 0, 'nodeId': colorId},
+        );
         expect(removed.did, isTrue);
 
         final graph = session.history.project.materials.single.graph!;

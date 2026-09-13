@@ -17,9 +17,7 @@ List<ProjectLight> _lights(int count, {bool shadowed = false}) =>
 void main() {
   group('the status numbers', () {
     test('names the light count and the shadowed count out of the cap', () {
-      final status = computeSceneStatus(
-        lights: _lights(3, shadowed: true),
-      );
+      final status = computeSceneStatus(lights: _lights(3, shadowed: true));
 
       // Mutation: swap the two numbers, or hard-code the cap as something
       // other than what `kSceneShadowCap` names. The words themselves are
@@ -72,10 +70,7 @@ void main() {
       // dropped drawing the frame — passed in here exactly as `Renderer
       // .render` would hand it back on its `FrameResult` — not a threshold
       // this file invents from `lights.length` alone.
-      final status = computeSceneStatus(
-        lights: _lights(9),
-        lightsDropped: 1,
-      );
+      final status = computeSceneStatus(lights: _lights(9), lightsDropped: 1);
 
       expect(status.warning, isTrue);
     });
@@ -100,9 +95,7 @@ void main() {
     });
 
     test('neither dropped nor denied leaves the status green', () {
-      final status = computeSceneStatus(
-        lights: _lights(6, shadowed: true),
-      );
+      final status = computeSceneStatus(lights: _lights(6, shadowed: true));
 
       expect(status.warning, isFalse);
     });

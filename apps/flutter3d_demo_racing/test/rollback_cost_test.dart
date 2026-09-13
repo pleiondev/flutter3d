@@ -48,7 +48,10 @@ void _readDriver(RacingSimulation sim, InputState input) {
 
 void _play(InputState input, int step) {
   input.setActionValue(_throttle, step % 40 < 30 ? 1.0 : 0.0);
-  input.setActionValue(_brake, (step % 200 >= 150 && step % 200 < 170) ? 0.6 : 0.0);
+  input.setActionValue(
+    _brake,
+    (step % 200 >= 150 && step % 200 < 170) ? 0.6 : 0.0,
+  );
   final steeringRight = step % 80 < 40;
   input.setActionValue(_right, steeringRight ? 0.4 : 0.0);
   input.setActionValue(_left, steeringRight ? 0.0 : 0.4);
@@ -96,9 +99,7 @@ void main() {
 
     // ignore: avoid_print
     print(
-      'net-00 racing (ring): ${[
-        for (final k in results.keys) 'k=$k ${results[k]!.toStringAsFixed(4)}ms',
-      ].join(', ')}',
+      'net-00 racing (ring): ${[for (final k in results.keys) 'k=$k ${results[k]!.toStringAsFixed(4)}ms'].join(', ')}',
     );
 
     expect(results[8], isNotNull);

@@ -55,7 +55,10 @@ void main() {
         ModelNode(
           surfaces: <int>[0],
           lods: <ModelLod>[
-            const ModelLod(surfaceIndices: <int>[2, 1, 0], maxScreenFraction: 0.4),
+            const ModelLod(
+              surfaceIndices: <int>[2, 1, 0],
+              maxScreenFraction: 0.4,
+            ),
           ],
         ),
       ],
@@ -92,7 +95,9 @@ void main() {
       '— an old file reads exactly like one', () {
     final document = PlainModelDocument(
       surfaces: <ModelSurface>[_surface()],
-      nodes: <ModelNode>[ModelNode(surfaces: <int>[0])],
+      nodes: <ModelNode>[
+        ModelNode(surfaces: <int>[0]),
+      ],
     );
 
     final bytes = F3dWriter(document).write();

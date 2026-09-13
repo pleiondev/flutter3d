@@ -148,8 +148,7 @@ final class NetRaceSession {
       transport: transport,
       inputDelay: inputDelay,
       maxRollbackFrames: maxRollbackFrames,
-      onSettled: (step, after) =>
-          checkpoints.observe(step + 1, after.toJson()),
+      onSettled: (step, after) => checkpoints.observe(step + 1, after.toJson()),
     );
 
     return NetRaceSession._(

@@ -110,7 +110,11 @@ final class UnwrapCommand extends ModelCommand {
 /// write it back" round trip a caller doing this by hand would make, done
 /// once so [UnwrapCommand] does not have to carry [lscm]'s own per-triangle
 /// bookkeeping to know where an island's corners ended up.
-void _packIslandsInPlace(EditMesh mesh, List<List<int>> islands, double margin) {
+void _packIslandsInPlace(
+  EditMesh mesh,
+  List<List<int>> islands,
+  double margin,
+) {
   if (islands.isEmpty) return;
 
   final bounds = <(double minU, double minV, double maxU, double maxV)>[];
@@ -139,7 +143,8 @@ void _packIslandsInPlace(EditMesh mesh, List<List<int>> islands, double margin) 
   }
 
   final sizes = <Vector2>[
-    for (final (minU, minV, maxU, maxV) in bounds) Vector2(maxU - minU, maxV - minV),
+    for (final (minU, minV, maxU, maxV) in bounds)
+      Vector2(maxU - minU, maxV - minV),
   ];
   final packed = packIslands(sizes, margin: margin, allowRotate90: true);
   if (packed == null) return; // Nothing sane to pack into — leave the raw UVs.

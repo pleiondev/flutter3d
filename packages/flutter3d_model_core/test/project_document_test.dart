@@ -631,35 +631,38 @@ void main() {
       expect(after.name, 'barrel');
     });
 
-    test('a socket writes as a node with no surface and reads back a socket', () {
-      final project = projectOf(<ModelObject Function(int)>[
-        (int id) => ModelObject(
-          id: id,
-          name: 'weapon mount',
-          geometry: const SocketGeometry(),
-          transform: Matrix4.translation(Vector3(0.0, 1.4, 0.2)),
-        ),
-        cube(name: 'sword', parent: 1),
-      ]);
+    test(
+      'a socket writes as a node with no surface and reads back a socket',
+      () {
+        final project = projectOf(<ModelObject Function(int)>[
+          (int id) => ModelObject(
+            id: id,
+            name: 'weapon mount',
+            geometry: const SocketGeometry(),
+            transform: Matrix4.translation(Vector3(0.0, 1.4, 0.2)),
+          ),
+          cube(name: 'sword', parent: 1),
+        ]);
 
-      final document = toModelDocument(project);
-      // Mutation: give the socket a surface anyway and the file gains an
-      // empty draw call every loader downstream then has to guard against.
-      expect(document.surfaces.length, 1);
-      expect(document.nodes[0].surfaces, isEmpty);
+        final document = toModelDocument(project);
+        // Mutation: give the socket a surface anyway and the file gains an
+        // empty draw call every loader downstream then has to guard against.
+        expect(document.surfaces.length, 1);
+        expect(document.nodes[0].surfaces, isEmpty);
 
-      final Uint8List bytes = F3dWriter(document).write();
-      final reopened = fromModelDocument(F3dDocument.parse(bytes));
+        final Uint8List bytes = F3dWriter(document).write();
+        final reopened = fromModelDocument(F3dDocument.parse(bytes));
 
-      expect(reopened.objects.length, 2);
-      expect(reopened.objects[0].name, 'weapon mount');
-      expect(reopened.objects[0].geometry, isA<SocketGeometry>());
-      expect(
-        reopened.objects[0].transform.getTranslation(),
-        Vector3(0.0, 1.4, 0.2),
-      );
-      expect(reopened.objects[1].parent, reopened.objects[0].id);
-    });
+        expect(reopened.objects.length, 2);
+        expect(reopened.objects[0].name, 'weapon mount');
+        expect(reopened.objects[0].geometry, isA<SocketGeometry>());
+        expect(
+          reopened.objects[0].transform.getTranslation(),
+          Vector3(0.0, 1.4, 0.2),
+        );
+        expect(reopened.objects[1].parent, reopened.objects[0].id);
+      },
+    );
   });
 
   group('materials', () {

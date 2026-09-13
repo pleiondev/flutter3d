@@ -36,8 +36,8 @@ import 'simulation_cache.dart';
 ///
 /// [system] is read, not owned: nothing here calls [ParticleSystem.clear],
 /// so a caller keeps whatever else it wanted the same instance for.
-final class BakeParticleSystemCommand {
-  BakeParticleSystemCommand({
+final class BakeParticleSystemJobRequest implements SimulationBakeRequest {
+  BakeParticleSystemJobRequest({
     required this.objectId,
     required this.baseVersion,
     required this.system,
@@ -47,9 +47,12 @@ final class BakeParticleSystemCommand {
     this.label = 'Particles',
   }) : advancePerFrame = advancePerFrame ?? system.advance;
 
+  @override
   final int objectId;
+  @override
   final int baseVersion;
   final ParticleSystem system;
+  @override
   final int frameCount;
   final double dt;
   final String label;
@@ -60,6 +63,7 @@ final class BakeParticleSystemCommand {
   /// behaviour without naming this at all.
   final void Function(double dt) advancePerFrame;
 
+  @override
   int get vertexCount => system.capacity;
 
   Future<SimulationCache> buildCache() async {
@@ -85,4 +89,7 @@ final class BakeParticleSystemCommand {
 
     return SimulationCache(vertexCount: vertexCount, frames: frames);
   }
+
+  @override
+  Future<SimulationCache> bake() => buildCache();
 }

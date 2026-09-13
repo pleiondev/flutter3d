@@ -90,7 +90,8 @@ EditMesh buildScrambledTiledGridMesh({
     }
   }
 
-  final permutation = List<int>.generate(points.length, (i) => i)..shuffle(math.Random(seed));
+  final permutation = List<int>.generate(points.length, (i) => i)
+    ..shuffle(math.Random(seed));
   final scrambledPoints = List<Vector3>.filled(points.length, Vector3.zero());
   for (var oldIndex = 0; oldIndex < points.length; oldIndex++) {
     scrambledPoints[permutation[oldIndex]] = points[oldIndex];
@@ -147,7 +148,11 @@ void main() {
       const tilesX = 10;
       const tilesZ = 10;
       const tileSize = 32;
-      final editMesh = buildTiledGridMesh(tilesX: tilesX, tilesZ: tilesZ, tileSize: tileSize);
+      final editMesh = buildTiledGridMesh(
+        tilesX: tilesX,
+        tilesZ: tilesZ,
+        tileSize: tileSize,
+      );
       final sculpt = SculptMesh.fromEditMesh(editMesh);
 
       final totalVertices = sculpt.vertexCount;
@@ -206,10 +211,18 @@ void main() {
       for (var c = 0; c < totalChunks; c++) {
         final same = identical(before[c], sculpt.chunkPositions(c));
         if (result.touchedChunks.contains(c)) {
-          expect(same, isFalse, reason: 'chunk $c was touched and should have been copied');
+          expect(
+            same,
+            isFalse,
+            reason: 'chunk $c was touched and should have been copied',
+          );
           expect(sculpt.chunkVersion(c), 1);
         } else {
-          expect(same, isTrue, reason: 'chunk $c was not touched and should be untouched');
+          expect(
+            same,
+            isTrue,
+            reason: 'chunk $c was not touched and should be untouched',
+          );
           expect(sculpt.chunkVersion(c), 0);
         }
       }
@@ -237,63 +250,60 @@ void main() {
       expect(sculpt.dirtyChunks, isEmpty);
     });
 
-    test(
-      'pro-sc-02\'s own acceptance: the ≤2% bound holds even when the input '
-      'has no spatial locality at all',
-      () {
-        const tilesX = 10;
-        const tilesZ = 10;
-        const tileSize = 32;
-        final editMesh = buildScrambledTiledGridMesh(
-          tilesX: tilesX,
-          tilesZ: tilesZ,
-          tileSize: tileSize,
-        );
-        final sculpt = SculptMesh.fromEditMesh(editMesh);
+    test('pro-sc-02\'s own acceptance: the ≤2% bound holds even when the input '
+        'has no spatial locality at all', () {
+      const tilesX = 10;
+      const tilesZ = 10;
+      const tileSize = 32;
+      final editMesh = buildScrambledTiledGridMesh(
+        tilesX: tilesX,
+        tilesZ: tilesZ,
+        tileSize: tileSize,
+      );
+      final sculpt = SculptMesh.fromEditMesh(editMesh);
 
-        final totalVertices = sculpt.vertexCount;
-        final totalChunks = sculpt.chunkCount;
-        expect(totalVertices, tilesX * tilesZ * tileSize * tileSize);
-        expect(totalChunks, tilesX * tilesZ);
+      final totalVertices = sculpt.vertexCount;
+      final totalChunks = sculpt.chunkCount;
+      expect(totalVertices, tilesX * tilesZ * tileSize * tileSize);
+      expect(totalChunks, tilesX * tilesZ);
 
-        // The same physical tile `buildTiledGridMesh`'s own acceptance test
-        // targets — scrambling the input's vertex slot order changes nothing
-        // about where the geometry actually sits in space.
-        const targetTx = 5;
-        const targetTz = 5;
-        const tileGap = 1000.0;
-        final centre = Vector3(
-          targetTx * tileGap + (tileSize - 1) / 2,
-          0,
-          targetTz * tileGap + (tileSize - 1) / 2,
-        );
-        const radius = 25.0;
+      // The same physical tile `buildTiledGridMesh`'s own acceptance test
+      // targets — scrambling the input's vertex slot order changes nothing
+      // about where the geometry actually sits in space.
+      const targetTx = 5;
+      const targetTz = 5;
+      const tileGap = 1000.0;
+      final centre = Vector3(
+        targetTx * tileGap + (tileSize - 1) / 2,
+        0,
+        targetTz * tileGap + (tileSize - 1) / 2,
+      );
+      const radius = 25.0;
 
-        final result = sculpt.applyBrush(
-          center: centre,
-          radius: radius,
-          displace: (int vertex, Vector3 position, double falloff) =>
-              position + Vector3(0, falloff, 0),
-        );
+      final result = sculpt.applyBrush(
+        center: centre,
+        radius: radius,
+        displace: (int vertex, Vector3 position, double falloff) =>
+            position + Vector3(0, falloff, 0),
+      );
 
-        final vertexFraction = result.touchedVertices.length / totalVertices;
-        final chunkFraction = result.touchedChunks.length / totalChunks;
-        // ignore: avoid_print
-        print(
-          'scrambled input: brush touched ${result.touchedVertices.length}/$totalVertices '
-          'vertices (${(vertexFraction * 100).toStringAsFixed(3)}%) and '
-          '${result.touchedChunks.length}/$totalChunks chunks '
-          '(${(chunkFraction * 100).toStringAsFixed(3)}%)',
-        );
+      final vertexFraction = result.touchedVertices.length / totalVertices;
+      final chunkFraction = result.touchedChunks.length / totalChunks;
+      // ignore: avoid_print
+      print(
+        'scrambled input: brush touched ${result.touchedVertices.length}/$totalVertices '
+        'vertices (${(vertexFraction * 100).toStringAsFixed(3)}%) and '
+        '${result.touchedChunks.length}/$totalChunks chunks '
+        '(${(chunkFraction * 100).toStringAsFixed(3)}%)',
+      );
 
-        // Without `fromEditMesh`'s own Morton reordering, a stroke this
-        // compact over an input with no spatial locality would scatter its
-        // touched vertices over nearly every chunk — this is the assertion
-        // that fails without the fix `pro-sc-02` asks for.
-        expect(result.touchedVertices.length, tileSize * tileSize);
-        expect(chunkFraction, lessThanOrEqualTo(0.02));
-      },
-    );
+      // Without `fromEditMesh`'s own Morton reordering, a stroke this
+      // compact over an input with no spatial locality would scatter its
+      // touched vertices over nearly every chunk — this is the assertion
+      // that fails without the fix `pro-sc-02` asks for.
+      expect(result.touchedVertices.length, tileSize * tileSize);
+      expect(chunkFraction, lessThanOrEqualTo(0.02));
+    });
   });
 
   group('SculptMesh EditMesh conversion', () {
@@ -351,7 +361,11 @@ void main() {
           roundTripped.positionOf(vertex, scratchPosition);
           roundTripped.uvOf(half, scratchUv);
           final expectedUv = originalUvByPosition[key(scratchPosition)];
-          expect(expectedUv, isNotNull, reason: 'no original vertex at $scratchPosition');
+          expect(
+            expectedUv,
+            isNotNull,
+            reason: 'no original vertex at $scratchPosition',
+          );
           expect(scratchUv.x, closeTo(expectedUv!.x, 1e-9));
           expect(scratchUv.y, closeTo(expectedUv.y, 1e-9));
         });
@@ -430,7 +444,10 @@ void main() {
     test('empty result far from every vertex', () {
       final mesh = buildSmallUvGridMesh(cols: 3, rows: 3);
       final sculpt = SculptMesh.fromEditMesh(mesh);
-      expect(sculpt.verticesWithinRadius(Vector3(1000, 1000, 1000), 1), isEmpty);
+      expect(
+        sculpt.verticesWithinRadius(Vector3(1000, 1000, 1000), 1),
+        isEmpty,
+      );
     });
   });
 }

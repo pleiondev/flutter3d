@@ -359,12 +359,7 @@ Ktx2Texture _parseBasisEtc1s(
     levels.add(ByteData.view(rgba8.buffer, 0, rgba8.lengthInBytes));
   }
 
-  return Ktx2Texture._(
-    pixelWidth,
-    pixelHeight,
-    VkFormat.r8g8b8a8UNorm,
-    levels,
-  );
+  return Ktx2Texture._(pixelWidth, pixelHeight, VkFormat.r8g8b8a8UNorm, levels);
 }
 
 /// Refuses a file whose key/value data asks for something the upload does

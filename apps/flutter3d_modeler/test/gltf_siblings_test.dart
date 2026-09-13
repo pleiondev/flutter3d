@@ -30,10 +30,10 @@ void main() {
           <String, Object?>{'uri': 'textures/base.png'},
         ],
       });
-      expect(
-        gltfSiblingUris(gltf),
-        <String>{'scene data.bin', 'textures/base.png'},
-      );
+      expect(gltfSiblingUris(gltf), <String>{
+        'scene data.bin',
+        'textures/base.png',
+      });
     });
 
     test('a data: URI names nothing to go and find', () {
@@ -45,21 +45,33 @@ void main() {
       expect(gltfSiblingUris(gltf), isEmpty);
     });
 
-    test('a buffer with no uri at all — the GLB binary chunk case — names nothing', () {
-      final gltf = _gltf(<String, Object?>{
-        'buffers': <Object?>[
-          <String, Object?>{'byteLength': 4},
-        ],
-      });
-      expect(gltfSiblingUris(gltf), isEmpty);
-    });
+    test(
+      'a buffer with no uri at all — the GLB binary chunk case — names nothing',
+      () {
+        final gltf = _gltf(<String, Object?>{
+          'buffers': <Object?>[
+            <String, Object?>{'byteLength': 4},
+          ],
+        });
+        expect(gltfSiblingUris(gltf), isEmpty);
+      },
+    );
 
-    test('a .glb or other non-JSON bytes name nothing rather than throwing', () {
-      expect(gltfSiblingUris(Uint8List.fromList(<int>[0x67, 0x6c, 0x54, 0x46])), isEmpty);
-    });
+    test(
+      'a .glb or other non-JSON bytes name nothing rather than throwing',
+      () {
+        expect(
+          gltfSiblingUris(Uint8List.fromList(<int>[0x67, 0x6c, 0x54, 0x46])),
+          isEmpty,
+        );
+      },
+    );
 
     test('no buffers or images at all names nothing', () {
-      expect(gltfSiblingUris(_gltf(<String, Object?>{'asset': <String, Object?>{}})), isEmpty);
+      expect(
+        gltfSiblingUris(_gltf(<String, Object?>{'asset': <String, Object?>{}})),
+        isEmpty,
+      );
     });
   });
 
@@ -154,40 +166,37 @@ void main() {
   });
 
   group('a real sample', () {
-    test(
-      'Cube.gltf, with its own external Cube.bin embedded, decodes with no '
-      'resolver at all — the row\'s own "opens ... and gives the same '
-      'document as .glb of the same mesh"',
-      () async {
-        final gltfBytes = File(
-          '../../packages/flutter3d_samples/assets/cube/Cube.gltf',
-        ).readAsBytesSync();
-        final binBytes = File(
-          '../../packages/flutter3d_samples/assets/cube/Cube.bin',
-        ).readAsBytesSync();
+    test('Cube.gltf, with its own external Cube.bin embedded, decodes with no '
+        'resolver at all — the row\'s own "opens ... and gives the same '
+        'document as .glb of the same mesh"', () async {
+      final gltfBytes = File(
+        '../../packages/flutter3d_samples/assets/cube/Cube.gltf',
+      ).readAsBytesSync();
+      final binBytes = File(
+        '../../packages/flutter3d_samples/assets/cube/Cube.bin',
+      ).readAsBytesSync();
 
-        // The real file also names a base-colour texture this fixture does
-        // not carry — the sample was never shipped with one. Embedding only
-        // the geometry buffer and leaving the texture unresolved is the
-        // honest case a person handing over an incomplete folder produces,
-        // and this is what proves it degrades rather than refuses.
-        final needed = gltfSiblingUris(gltfBytes);
-        expect(needed, containsAll(<String>['Cube.bin']));
+      // The real file also names a base-colour texture this fixture does
+      // not carry — the sample was never shipped with one. Embedding only
+      // the geometry buffer and leaving the texture unresolved is the
+      // honest case a person handing over an incomplete folder produces,
+      // and this is what proves it degrades rather than refuses.
+      final needed = gltfSiblingUris(gltfBytes);
+      expect(needed, containsAll(<String>['Cube.bin']));
 
-        final embedded = embedGltfSiblings(gltfBytes, <String, Uint8List>{
-          'Cube.bin': binBytes,
-        });
-        // The buffer is gone from what is still missing; the texture, never
-        // supplied, is still there for the decoder's own warning to name.
-        expect(gltfSiblingUris(embedded), <String>{'Cube_BaseColor.png'});
+      final embedded = embedGltfSiblings(gltfBytes, <String, Uint8List>{
+        'Cube.bin': binBytes,
+      });
+      // The buffer is gone from what is still missing; the texture, never
+      // supplied, is still there for the decoder's own warning to name.
+      expect(gltfSiblingUris(embedded), <String>{'Cube_BaseColor.png'});
 
-        // No `resolveUri` passed — if the geometry still needed one, this
-        // would throw rather than silently decode something smaller than
-        // the real mesh; only the texture is left to warn about.
-        final asset = await GltfLoader().load(embedded);
-        expect(asset.surfaces, isNotEmpty);
-        expect(asset.surfaces.first.mesh.vertexCount, greaterThan(0));
-      },
-    );
+      // No `resolveUri` passed — if the geometry still needed one, this
+      // would throw rather than silently decode something smaller than
+      // the real mesh; only the texture is left to warn about.
+      final asset = await GltfLoader().load(embedded);
+      expect(asset.surfaces, isNotEmpty);
+      expect(asset.surfaces.first.mesh.vertexCount, greaterThan(0));
+    });
   });
 }

@@ -346,6 +346,27 @@ void main() {
 
       expect(editing.isDirty, isTrue);
     });
+
+    test('a change made after undoing past the save is unsaved, even back at '
+        'the depth the save was made at', () {
+      // Mutation: compare the undo stack's depth with the depth at the save.
+      // Save at one step, undo to none, change something else (one step
+      // again), undo, redo: the stack is exactly as deep as when the file was
+      // written and the document on screen is the change nobody wrote down —
+      // and closing the window would drop it without asking.
+      final editing = _open()..select(Piece.brush, 0);
+      editing.nudge(Vector3(1.0, 0.0, 0.0));
+      editing.saved();
+
+      editing.undo();
+      editing.nudge(Vector3(0.0, 0.0, 4.0));
+      editing.undo();
+      expect(editing.isDirty, isTrue);
+
+      editing.redo();
+
+      expect(editing.isDirty, isTrue);
+    });
   });
 
   test('and the document knows it has been changed', () {

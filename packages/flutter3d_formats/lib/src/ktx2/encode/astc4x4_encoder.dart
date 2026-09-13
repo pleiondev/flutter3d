@@ -83,7 +83,8 @@ const int _kCemLdrRgbDirect = 8;
 /// the block's 128 bits, the rest zero.
 Uint8List encodeAstc4x4Block(List<(int, int, int, int)> pixels) {
   final rgb = <(double, double, double)>[
-    for (final (r, g, b, _) in pixels) (r.toDouble(), g.toDouble(), b.toDouble()),
+    for (final (r, g, b, _) in pixels)
+      (r.toDouble(), g.toDouble(), b.toDouble()),
   ];
 
   var meanR = 0.0, meanG = 0.0, meanB = 0.0;

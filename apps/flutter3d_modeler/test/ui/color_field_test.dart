@@ -145,11 +145,7 @@ void main() {
     testWidgets('has no alpha control anywhere in the tree', (
       WidgetTester tester,
     ) async {
-      await show(
-        tester,
-        value: <double>[0.373, 0.831, 0.894],
-        channels: 3,
-      );
+      await show(tester, value: <double>[0.373, 0.831, 0.894], channels: 3);
 
       // Not a disabled fourth slider — no fourth slider at all, and no 'A'
       // label sitting beside one.
@@ -205,11 +201,7 @@ void main() {
       // plain 0..1-to-byte mapping with no transfer function in between,
       // matching `mat-04`'s own acceptance for `baseColor`.
       const double value = 0.21404114048223255;
-      await show(
-        tester,
-        value: <double>[value, value, value],
-        channels: 3,
-      );
+      await show(tester, value: <double>[value, value, value], channels: 3);
 
       expect(find.text('#373737'), findsOneWidget);
     });

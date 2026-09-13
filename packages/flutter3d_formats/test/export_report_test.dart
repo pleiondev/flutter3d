@@ -67,7 +67,9 @@ void main() {
       // fixture names one explicitly.
       final document = PlainModelDocument(
         surfaces: <ModelSurface>[_surface('a', _fullTriangle())],
-        nodes: <ModelNode>[ModelNode(name: 'a', surfaces: <int>[0])],
+        nodes: <ModelNode>[
+          ModelNode(name: 'a', surfaces: <int>[0]),
+        ],
       );
       final report = await exportToGlb(document);
       expect(report.files.keys, <String>['model.glb']);
@@ -87,27 +89,24 @@ void main() {
       expect(report.writerWarnings, isEmpty);
     });
 
-    test(
-      'a skinned document warns about the skin OBJ cannot carry — '
-      "fmt-12's own literal example",
-      () async {
-        final document = PlainModelDocument(
-          surfaces: <ModelSurface>[_surface('a', _triangle())],
-          skins: <ModelSkin>[
-            ModelSkin(
-              joints: <int>[0],
-              inverseBindMatrices: <Matrix4>[Matrix4.identity()],
-              name: 'rig',
-            ),
-          ],
-        );
-        final report = await exportToObj(document);
-        expect(
-          report.writerWarnings,
-          contains(predicate<String>((w) => w.contains('skin'))),
-        );
-      },
-    );
+    test('a skinned document warns about the skin OBJ cannot carry — '
+        "fmt-12's own literal example", () async {
+      final document = PlainModelDocument(
+        surfaces: <ModelSurface>[_surface('a', _triangle())],
+        skins: <ModelSkin>[
+          ModelSkin(
+            joints: <int>[0],
+            inverseBindMatrices: <Matrix4>[Matrix4.identity()],
+            name: 'rig',
+          ),
+        ],
+      );
+      final report = await exportToObj(document);
+      expect(
+        report.writerWarnings,
+        contains(predicate<String>((w) => w.contains('skin'))),
+      );
+    });
 
     test('a document naming a material writes the .mtl file too', () async {
       final document = PlainModelDocument(

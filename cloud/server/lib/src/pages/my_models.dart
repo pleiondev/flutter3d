@@ -52,17 +52,23 @@ class MyModelsPage extends StatelessComponent {
           ),
         div([
           h1([Component.text('My models')]),
-          span([Component.text(plural(models.length, 'model'))], classes: 'count'),
+          span([
+            Component.text(plural(models.length, 'model')),
+          ], classes: 'count'),
         ], classes: 'page-head'),
         if (uploads) _UploadZone(csrf: csrf, limit: uploadLimitBytes),
         if (models.isEmpty)
           p([
-            Component.text(uploads
-                ? 'Nothing here yet. Drop a model above to keep it.'
-                : 'Nothing here yet.'),
+            Component.text(
+              uploads
+                  ? 'Nothing here yet. Drop a model above to keep it.'
+                  : 'Nothing here yet.',
+            ),
           ], classes: 'empty')
         else
-          ul([for (final model in models) li([_Card(model: model)])], classes: 'cards'),
+          ul([
+            for (final model in models) li([_Card(model: model)]),
+          ], classes: 'cards'),
       ],
     );
   }
@@ -78,18 +84,27 @@ class _UploadZone extends StatelessComponent {
   Component build(BuildContext context) => div(
     [
       p([Component.text('Drop a model here, or')]),
-      label([Component.text('Choose a file')], htmlFor: 'upload-file', classes: 'button'),
+      label(
+        [Component.text('Choose a file')],
+        htmlFor: 'upload-file',
+        classes: 'button',
+      ),
       input(
         type: InputType.file,
         id: 'upload-file',
         attributes: const {'accept': '.glb,.gltf,.obj,.f3d,.f3dproj'},
       ),
       p([
-        Component.text('glTF — a .glb, or a .gltf with its buffers embedded — OBJ, '
-            '.f3d and flutter3d projects, up to ${formatBytes(limit)}. Every file '
-            'is read before it is kept, and stays private.'),
+        Component.text(
+          'glTF — a .glb, or a .gltf with its buffers embedded — OBJ, '
+          '.f3d and flutter3d projects, up to ${formatBytes(limit)}. Every file '
+          'is read before it is kept, and stays private.',
+        ),
       ], classes: 'formats'),
-      p(const [], attributes: const {'data-upload-status': '', 'aria-live': 'polite'}),
+      p(
+        const [],
+        attributes: const {'data-upload-status': '', 'aria-live': 'polite'},
+      ),
     ],
     classes: 'upload',
     attributes: {'data-upload': '', 'data-limit': '$limit', 'data-csrf': csrf},
@@ -108,11 +123,12 @@ class _Card extends StatelessComponent {
       div([
         h2([Component.text(model.title)]),
         p([
-          Component.text('${plural(model.triangleCount, 'triangle')} · ${formatBytes(model.sizeBytes)} '),
-          span(
-            [Component.text(model.isPublic ? 'public' : 'private')],
-            classes: model.isPublic ? 'badge public' : 'badge',
+          Component.text(
+            '${plural(model.triangleCount, 'triangle')} · ${formatBytes(model.sizeBytes)} ',
           ),
+          span([
+            Component.text(model.isPublic ? 'public' : 'private'),
+          ], classes: model.isPublic ? 'badge public' : 'badge'),
         ], classes: 'meta'),
       ], classes: 'body'),
     ],

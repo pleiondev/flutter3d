@@ -121,7 +121,9 @@ final class StlLoader implements ModelDecoder {
       // invisible to a writer or a scene built by walking nodes, `qa-08`'s
       // own STL fixture round-tripping through `GltfWriter` is what found
       // it.
-      nodes: <ModelNode>[ModelNode(surfaces: <int>[0])],
+      nodes: <ModelNode>[
+        ModelNode(surfaces: <int>[0]),
+      ],
       warnings: warnings,
     );
   }

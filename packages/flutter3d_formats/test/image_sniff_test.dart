@@ -91,7 +91,26 @@ void main() {
 
     test('a non-KTX2 file, even one long enough, is not Basis Universal', () {
       expect(
-        isKtx2BasisUniversal(Uint8List.fromList(<int>[0x89, 0x50, 0x4E, 0x47, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])),
+        isKtx2BasisUniversal(
+          Uint8List.fromList(<int>[
+            0x89,
+            0x50,
+            0x4E,
+            0x47,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+          ]),
+        ),
         isFalse,
       );
     });

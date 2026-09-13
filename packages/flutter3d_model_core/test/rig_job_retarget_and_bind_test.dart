@@ -1,9 +1,9 @@
 /// `anim-25`'s own `RetargetClipJobRequest` and `BindWeightsJobRequest` —
-/// the two `RigJob` kinds that live in this package rather than in
-/// `flutter3d_model_core`. See this package's own `lib/src/rig_job.dart`
-/// for why.
+/// the two `RigJob` kinds that run `flutter3d_rig`'s algorithms. They lived in
+/// that package while it depended on this one; see `lib/src/rig_job.dart` for
+/// why they are beside the other three now.
 ///
-///     dart test test/rig_job_test.dart
+///     dart test test/rig_job_retarget_and_bind_test.dart
 library;
 
 import 'dart:typed_data';
@@ -287,12 +287,19 @@ void main() {
           if (!direct.isFaceAlive(face)) continue;
           final loop = direct.verticesOf(face);
           for (var i = 1; i < loop.length - 1; i++) {
-            triangles..add(loop[0])..add(loop[i])..add(loop[i + 1]);
+            triangles
+              ..add(loop[0])
+              ..add(loop[i])
+              ..add(loop[i + 1]);
           }
         }
         final normalized = normalizeSkinWeights(
           pruneSkinWeights(
-            bindWeights(positions: positions, triangles: triangles, bones: bones),
+            bindWeights(
+              positions: positions,
+              triangles: triangles,
+              bones: bones,
+            ),
           ),
         );
         direct.beginStep();

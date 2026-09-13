@@ -122,7 +122,9 @@ final class PickingView {
   /// "not there" rather than a mirrored answer for a joint standing behind
   /// the camera.
   Offset? project(Vector3 world) {
-    final clip = _worldToClip.transform(Vector4(world.x, world.y, world.z, 1.0));
+    final clip = _worldToClip.transform(
+      Vector4(world.x, world.y, world.z, 1.0),
+    );
     if (clip.w <= 0.0) return null;
     final ndcX = clip.x / clip.w;
     final ndcY = clip.y / clip.w;

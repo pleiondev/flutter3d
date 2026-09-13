@@ -282,6 +282,4 @@ final class ProfileCurve {
 /// Snapping the one coordinate that seam actually depends on is cheaper and
 /// more honest than snapping to an arbitrary grid this row never asked for.
 Vector2 snappedToAxis(Vector2 position, {double snapDistance = 40}) =>
-    position.x.abs() <= snapDistance
-        ? Vector2(0, position.y)
-        : position;
+    position.x.abs() <= snapDistance ? Vector2(0, position.y) : position;

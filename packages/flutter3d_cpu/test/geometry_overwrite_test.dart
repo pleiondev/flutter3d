@@ -10,8 +10,11 @@ import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:test/test.dart';
 
-CpuDevice _device() =>
-    CpuDevice(width: 4, height: 4, shaders: CpuShaderLibrary(builtinCpuShaders()));
+CpuDevice _device() => CpuDevice(
+  width: 4,
+  height: 4,
+  shaders: CpuShaderLibrary(builtinCpuShaders()),
+);
 
 Uint8List _bytesHeldBy(GeometryBuffer buffer) {
   final backend = buffer.backend as ({ByteData bytes, GeometryUsage usage});
@@ -43,24 +46,27 @@ void main() {
     ]);
   });
 
-  test('uploadGeometry made its own copy, so the caller\'s array is untouched', () {
-    // Mutation: pass `bytes` straight through instead of copying it in
-    // `uploadGeometry`. This test would still pass, because it only reads
-    // back through the buffer — the point belongs to the next one, which
-    // reads `original` itself.
-    final device = _device();
-    final original = Uint8List.fromList(<int>[1, 2, 3, 4]);
-    final buffer = device.uploadGeometry(
-      ByteData.sublistView(original),
-      GeometryUsage.vertices,
-    );
-    device.overwriteGeometry(
-      buffer,
-      0,
-      ByteData.sublistView(Uint8List.fromList(<int>[9, 9, 9, 9])),
-    );
-    expect(original, <int>[1, 2, 3, 4]);
-  });
+  test(
+    'uploadGeometry made its own copy, so the caller\'s array is untouched',
+    () {
+      // Mutation: pass `bytes` straight through instead of copying it in
+      // `uploadGeometry`. This test would still pass, because it only reads
+      // back through the buffer — the point belongs to the next one, which
+      // reads `original` itself.
+      final device = _device();
+      final original = Uint8List.fromList(<int>[1, 2, 3, 4]);
+      final buffer = device.uploadGeometry(
+        ByteData.sublistView(original),
+        GeometryUsage.vertices,
+      );
+      device.overwriteGeometry(
+        buffer,
+        0,
+        ByteData.sublistView(Uint8List.fromList(<int>[9, 9, 9, 9])),
+      );
+      expect(original, <int>[1, 2, 3, 4]);
+    },
+  );
 
   test('a write past the end is refused rather than silently truncated', () {
     final device = _device();
@@ -119,30 +125,33 @@ void main() {
     );
   });
 
-  test('a slice carries its own offset into the write, not just its length', () {
-    // Mutation: drop `target.offsetInBytes +` from the absolute-offset sum.
-    // Nothing above this line ever uploads through a slice, so a mutation
-    // there would sail through every other test in this file — this is the
-    // one that actually exercises `GeometryBuffer.slice`'s own offset.
-    final device = _device();
-    final original = Uint8List.fromList(List<int>.generate(16, (i) => i));
-    final whole = device.uploadGeometry(
-      ByteData.sublistView(original),
-      GeometryUsage.vertices,
-    );
-    final second = whole.slice(offset: 8, length: 8);
+  test(
+    'a slice carries its own offset into the write, not just its length',
+    () {
+      // Mutation: drop `target.offsetInBytes +` from the absolute-offset sum.
+      // Nothing above this line ever uploads through a slice, so a mutation
+      // there would sail through every other test in this file — this is the
+      // one that actually exercises `GeometryBuffer.slice`'s own offset.
+      final device = _device();
+      final original = Uint8List.fromList(List<int>.generate(16, (i) => i));
+      final whole = device.uploadGeometry(
+        ByteData.sublistView(original),
+        GeometryUsage.vertices,
+      );
+      final second = whole.slice(offset: 8, length: 8);
 
-    device.overwriteGeometry(
-      second,
-      4,
-      ByteData.sublistView(Uint8List.fromList(<int>[9, 9])),
-    );
+      device.overwriteGeometry(
+        second,
+        4,
+        ByteData.sublistView(Uint8List.fromList(<int>[9, 9])),
+      );
 
-    expect(_bytesHeldBy(whole), <int>[
-      0, 1, 2, 3, 4, 5, 6, 7, // untouched: before the slice
-      8, 9, 10, 11, // untouched: inside the slice, before its own offset
-      9, 9, // overwritten: slice offset 8 + write offset 4 = byte 12
-      14, 15, // untouched: after the write
-    ]);
-  });
+      expect(_bytesHeldBy(whole), <int>[
+        0, 1, 2, 3, 4, 5, 6, 7, // untouched: before the slice
+        8, 9, 10, 11, // untouched: inside the slice, before its own offset
+        9, 9, // overwritten: slice offset 8 + write offset 4 = byte 12
+        14, 15, // untouched: after the write
+      ]);
+    },
+  );
 }

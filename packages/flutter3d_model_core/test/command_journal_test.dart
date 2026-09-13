@@ -141,7 +141,10 @@ void main() {
       history.run(command, author: StepAuthor.agent);
       journal.record(command, author: StepAuthor.agent);
 
-      final replay = CommandJournal.replay(journal.toBytes(), const ModelProject());
+      final replay = CommandJournal.replay(
+        journal.toBytes(),
+        const ModelProject(),
+      );
       expect(replay.ok, isTrue);
       // Mutation: `replay` ignoring the line's own `author` key and always
       // calling `history.run(command)` with no author — every step would
@@ -153,7 +156,10 @@ void main() {
     test('a line recorded with no author reads back as StepAuthor.person, '
         'the same as a journal written before this row existed', () {
       final journal = CommandJournal()..record(const AddPrimitive(kind: 'box'));
-      final replay = CommandJournal.replay(journal.toBytes(), const ModelProject());
+      final replay = CommandJournal.replay(
+        journal.toBytes(),
+        const ModelProject(),
+      );
       expect(replay.ok, isTrue);
       expect(replay.history!.topStepAuthor, StepAuthor.person);
     });
@@ -178,7 +184,10 @@ void main() {
         });
       });
 
-      final replay = CommandJournal.replay(journal.toBytes(), const ModelProject());
+      final replay = CommandJournal.replay(
+        journal.toBytes(),
+        const ModelProject(),
+      );
       expect(replay.ok, isTrue);
       expect(replay.history!.steps, hasLength(2)); // the add, then the drag
       expect(replay.history!.topStepAuthor, StepAuthor.agent);
@@ -201,7 +210,10 @@ void main() {
 
       // "A clean process" — nothing here is the `history` or `journal`
       // above, only the bytes either one could be handed on disk.
-      final replay = CommandJournal.replay(journal.toBytes(), const ModelProject());
+      final replay = CommandJournal.replay(
+        journal.toBytes(),
+        const ModelProject(),
+      );
       expect(replay.ok, isTrue);
 
       // Mutation: read the author back but never pass it into
@@ -211,7 +223,10 @@ void main() {
       // would have already caught it; this line is the row's own literal
       // acceptance, kept as its own assertion rather than folded into one
       // that also happens to prove something else.
-      expect(writeProject(replay.history!.project), writeProject(history.project));
+      expect(
+        writeProject(replay.history!.project),
+        writeProject(history.project),
+      );
     });
   });
 

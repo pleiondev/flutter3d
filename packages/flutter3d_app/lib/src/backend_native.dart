@@ -48,7 +48,11 @@ void _ensureRegistered() {
       TextureHandle frame, {
       BoxFit fit = BoxFit.fill,
       FilterQuality quality = FilterQuality.none,
-    }) => CpuFrame(texture: frame.backend as CpuTexture, fit: fit, quality: quality),
+    }) => CpuFrame(
+      texture: frame.backend as CpuTexture,
+      fit: fit,
+      quality: quality,
+    ),
   );
 }
 
@@ -58,10 +62,7 @@ void _ensureRegistered() {
 /// They are still in the signature because the other half of the conditional
 /// needs them — and because the software rasteriser, the one this backend
 /// falls back to, cannot size itself per frame and needs them for real.
-Future<GraphicsDevice> openDevice({
-  required int width,
-  required int height,
-}) {
+Future<GraphicsDevice> openDevice({required int width, required int height}) {
   _ensureRegistered();
   return openRegisteredDevice(
     width: width,

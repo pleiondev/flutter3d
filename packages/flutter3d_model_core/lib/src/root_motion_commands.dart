@@ -25,7 +25,11 @@ const String kRootMotionExtra = 'flutter3dRootMotion';
   int rootJoint,
 ) {
   if (clipIndex < 0 || clipIndex >= project.clips.length) {
-    return (trackIndex: -1, track: null, refused: 'there is no clip $clipIndex');
+    return (
+      trackIndex: -1,
+      track: null,
+      refused: 'there is no clip $clipIndex',
+    );
   }
   final clip = project.clips[clipIndex];
   final trackIndex = clip.tracks.indexWhere(
@@ -41,7 +45,11 @@ const String kRootMotionExtra = 'flutter3dRootMotion';
           '$clipIndex',
     );
   }
-  return (trackIndex: trackIndex, track: clip.tracks[trackIndex].track, refused: null);
+  return (
+    trackIndex: trackIndex,
+    track: clip.tracks[trackIndex].track,
+    refused: null,
+  );
 }
 
 /// Flattens clip [clipIndex]'s own translation track for [rootJoint] to its
@@ -65,8 +73,10 @@ final class ExtractRootMotion extends ModelCommand {
   String get says => 'extract root motion';
 
   @override
-  Map<String, Object?> get arguments =>
-      <String, Object?>{'clipIndex': clipIndex, 'rootJoint': rootJoint};
+  Map<String, Object?> get arguments => <String, Object?>{
+    'clipIndex': clipIndex,
+    'rootJoint': rootJoint,
+  };
 
   @override
   Outcome apply(ModelProject project, ProjectSelection selection) {
@@ -92,7 +102,9 @@ final class ExtractRootMotion extends ModelCommand {
 
     final keys = table.keys;
     final anchor = List<double>.of(keys.first.values);
-    final saved = <Object?>[for (final key in keys) List<double>.of(key.values)];
+    final saved = <Object?>[
+      for (final key in keys) List<double>.of(key.values),
+    ];
     for (final key in keys) {
       table.setKey(
         key.time,
@@ -102,7 +114,16 @@ final class ExtractRootMotion extends ModelCommand {
       );
     }
 
-    return Outcome.done(_withRootTrack(project, clipIndex, trackIndex, rootJoint, table, extra: saved));
+    return Outcome.done(
+      _withRootTrack(
+        project,
+        clipIndex,
+        trackIndex,
+        rootJoint,
+        table,
+        extra: saved,
+      ),
+    );
   }
 }
 
@@ -130,8 +151,10 @@ final class BakeRootMotionIntoClip extends ModelCommand {
   String get says => 'bake root motion back into the clip';
 
   @override
-  Map<String, Object?> get arguments =>
-      <String, Object?>{'clipIndex': clipIndex, 'rootJoint': rootJoint};
+  Map<String, Object?> get arguments => <String, Object?>{
+    'clipIndex': clipIndex,
+    'rootJoint': rootJoint,
+  };
 
   @override
   Outcome apply(ModelProject project, ProjectSelection selection) {
@@ -162,7 +185,9 @@ final class BakeRootMotionIntoClip extends ModelCommand {
     for (var i = 0; i < keys.length; i++) {
       final restored = _doubleListFrom(saved[i]);
       if (restored == null) {
-        return Outcome.refused('the saved root motion at key $i is not a list of numbers');
+        return Outcome.refused(
+          'the saved root motion at key $i is not a list of numbers',
+        );
       }
       final key = keys[i];
       table.setKey(
@@ -205,7 +230,9 @@ ModelProject _withRootTrack(
   final tracks = List<ProjectTrack>.of(clip.tracks)
     ..[trackIndex] = ProjectTrack(objectId: rootJoint, track: newTrack);
 
-  final extras = Map<String, Object?>.of(clip.extras ?? const <String, Object?>{});
+  final extras = Map<String, Object?>.of(
+    clip.extras ?? const <String, Object?>{},
+  );
   if (extra == null) {
     extras.remove(kRootMotionExtra);
   } else {

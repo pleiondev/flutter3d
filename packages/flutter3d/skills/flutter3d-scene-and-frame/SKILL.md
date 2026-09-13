@@ -40,7 +40,7 @@ Prefer `.f3d` for anything loaded at run time — 4.54 ms as OBJ text against
 views rather than copies:
 
 ```bash
-dart run flutter3d:convert model.glb -o model.f3d
+dart run flutter3d_build:convert model.glb -o model.f3d
 ```
 
 ## RenderSettings is per frame

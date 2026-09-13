@@ -65,7 +65,9 @@ extension _GltfWriterMaterials on GltfWriter {
         'sampler': ?samplerIndex,
         if (isBasis)
           'extensions': <String, Object?>{
-            'KHR_texture_basisu': <String, Object?>{'source': binding.imageIndex},
+            'KHR_texture_basisu': <String, Object?>{
+              'source': binding.imageIndex,
+            },
           }
         else
           'source': binding.imageIndex,

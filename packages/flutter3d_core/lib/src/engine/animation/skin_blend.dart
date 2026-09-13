@@ -81,7 +81,13 @@ final class SkinBlend {
         // xyz only — w is the tangent's handedness, untouched by anything
         // that only rotates and translates, the same reason `mesh_skinned
         // .vert` writes `morphed_tangent.w` straight through.
-        _transformDirection(skin, base, at + tangentAt, _blended, at + tangentAt);
+        _transformDirection(
+          skin,
+          base,
+          at + tangentAt,
+          _blended,
+          at + tangentAt,
+        );
       }
     }
     return true;

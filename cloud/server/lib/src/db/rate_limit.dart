@@ -39,7 +39,9 @@ class RateLimiter {
   /// **An attempt over the limit is not recorded.** Otherwise somebody who keeps
   /// hammering would keep the window full forever, and a person locked out by
   /// their own typos would stay locked out while an attacker waited next door.
-  Future<bool> allow(String bucket, RateRule rule) => _db.transaction((session) async {
+  Future<bool> allow(String bucket, RateRule rule) => _db.transaction((
+    session,
+  ) async {
     // Serialises attempts on the same bucket, so two requests arriving together
     // cannot both read "one under the limit" and both be let through.
     await session.execute(
@@ -51,7 +53,10 @@ class RateLimiter {
         select count(*) from rate_events
         where bucket = @bucket and at > now() - @window::interval
       '''),
-      parameters: {'bucket': bucket, 'window': '${rule.window.inSeconds} seconds'},
+      parameters: {
+        'bucket': bucket,
+        'window': '${rule.window.inSeconds} seconds',
+      },
     );
     if ((counted.first[0]! as int) >= rule.limit) return false;
 

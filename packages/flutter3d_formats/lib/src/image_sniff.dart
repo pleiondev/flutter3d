@@ -51,7 +51,11 @@ String? sniffImageMimeType(Uint8List bytes) {
 bool isKtx2BasisUniversal(Uint8List bytes) {
   if (!_startsWith(bytes, _ktx2)) return false;
   if (bytes.length < 16) return false;
-  final vkFormat = ByteData.sublistView(bytes, 12, 16).getUint32(0, Endian.little);
+  final vkFormat = ByteData.sublistView(
+    bytes,
+    12,
+    16,
+  ).getUint32(0, Endian.little);
   return vkFormat == 0;
 }
 

@@ -1397,10 +1397,7 @@ class _EditorScreenState extends State<EditorScreen>
                   top: 4,
                   right: 52,
                   child: IconButton(
-                    icon: const Icon(
-                      Icons.grain,
-                      color: Color(0xFFE6EAF0),
-                    ),
+                    icon: const Icon(Icons.grain, color: Color(0xFFE6EAF0)),
                     tooltip: 'Open a playtest report',
                     onPressed: _openPlaytestReport,
                   ),
@@ -1482,7 +1479,9 @@ class _EditorScreenState extends State<EditorScreen>
       label: 'flutter3d runs',
       extensions: <String>['f3drun'],
     );
-    final file = await openFile(acceptedTypeGroups: const <XTypeGroup>[runFiles]);
+    final file = await openFile(
+      acceptedTypeGroups: const <XTypeGroup>[runFiles],
+    );
     if (file == null || !mounted) return;
     await _openRunAt(file.path);
   }
@@ -1490,9 +1489,7 @@ class _EditorScreenState extends State<EditorScreen>
   /// Asks for a running game's VM service address, connects, and opens the
   /// timeline panel on it — `rp-02`'s door, from the editor's side.
   Future<void> _attachToRunningGame() async {
-    final controller = TextEditingController(
-      text: 'http://127.0.0.1:8181/',
-    );
+    final controller = TextEditingController(text: 'http://127.0.0.1:8181/');
     final uri = await showDialog<String>(
       context: context,
       builder: (BuildContext context) => AlertDialog(

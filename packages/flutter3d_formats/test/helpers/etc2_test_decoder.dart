@@ -75,7 +75,11 @@ List<int> decodeEtc2Rgb8Block(Uint8List block) {
     );
   } else {
     int both4(int v) => (v << 4) | v;
-    topBase = (both4(block[0] >> 4), both4(block[1] >> 4), both4(block[2] >> 4));
+    topBase = (
+      both4(block[0] >> 4),
+      both4(block[1] >> 4),
+      both4(block[2] >> 4),
+    );
     bottomBase = (
       both4(block[0] & 0xF),
       both4(block[1] & 0xF),
@@ -83,15 +87,16 @@ List<int> decodeEtc2Rgb8Block(Uint8List block) {
     );
   }
 
-  final indexWord =
-      ByteData.sublistView(block, 4, 8).getUint32(0, Endian.big);
+  final indexWord = ByteData.sublistView(block, 4, 8).getUint32(0, Endian.big);
   final msb = (indexWord >> 16) & 0xFFFF;
   final lsb = indexWord & 0xFFFF;
 
   final out = List<int>.filled(64, 0);
   for (var p = 0; p < 16; p++) {
     final inTop = (p % 4) < 2;
-    final (base, table) = inTop ? (topBase, topTable) : (bottomBase, bottomTable);
+    final (base, table) = inTop
+        ? (topBase, topTable)
+        : (bottomBase, bottomTable);
     final m = (msb >> p) & 1;
     final l = (lsb >> p) & 1;
     final magnitude = _modifierTables[table][l];

@@ -16,18 +16,20 @@ import 'helpers/astc4x4_test_decoder.dart';
 Rgba8Image _solid(int r, int g, int b) => Rgba8Image(
   width: 4,
   height: 4,
-  pixels: Uint8List.fromList(List<int>.generate(64, (i) {
-    switch (i % 4) {
-      case 0:
-        return r;
-      case 1:
-        return g;
-      case 2:
-        return b;
-      default:
-        return 255;
-    }
-  })),
+  pixels: Uint8List.fromList(
+    List<int>.generate(64, (i) {
+      switch (i % 4) {
+        case 0:
+          return r;
+        case 1:
+          return g;
+        case 2:
+          return b;
+        default:
+          return 255;
+      }
+    }),
+  ),
 );
 
 /// A 4×4 block ramping red left to right, green and blue held constant — a
@@ -51,7 +53,10 @@ Rgba8Image _ramp() {
 
 void main() {
   test('a block is exactly 16 bytes', () {
-    expect(encodeAstc4x4Block(List.generate(16, (_) => (0, 0, 0, 255))), hasLength(16));
+    expect(
+      encodeAstc4x4Block(List.generate(16, (_) => (0, 0, 0, 255))),
+      hasLength(16),
+    );
   });
 
   test('a solid block round-trips to the same colour', () {

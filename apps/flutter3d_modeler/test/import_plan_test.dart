@@ -11,7 +11,10 @@ import 'package:flutter3d_modeler/src/import_plan.dart';
 import 'package:test/test.dart';
 import 'package:vector_math/vector_math.dart';
 
-ModelDocument _documentWithCuboid(Vector3 size, {List<String> warnings = const <String>[]}) {
+ModelDocument _documentWithCuboid(
+  Vector3 size, {
+  List<String> warnings = const <String>[],
+}) {
   final mesh = CuboidShape(size: size).build();
   return PlainModelDocument(
     surfaces: <ModelSurface>[ModelSurface(mesh: mesh)],
@@ -22,10 +25,7 @@ ModelDocument _documentWithCuboid(Vector3 size, {List<String> warnings = const <
 void main() {
   group('refuseBeforeDecoding', () {
     test('a file under the web limit is not refused', () {
-      expect(
-        refuseBeforeDecoding(fileSizeBytes: 1024, onWeb: true),
-        isNull,
-      );
+      expect(refuseBeforeDecoding(fileSizeBytes: 1024, onWeb: true), isNull);
     });
 
     test('a file over the web limit is refused, naming both sizes', () {
@@ -59,7 +59,10 @@ void main() {
         ModelSurface(mesh: CuboidShape(size: Vector3(1, 1, 1)).build()),
       ],
     );
-    final plan = ImportPlan(document: document, profile: const ProjectProfile());
+    final plan = ImportPlan(
+      document: document,
+      profile: const ProjectProfile(),
+    );
     expect(plan.triangleCount, document.triangleCount);
   });
 
@@ -152,7 +155,10 @@ void main() {
         document: document,
         profile: const ProjectProfile(), // desktop, a much wider budget
       );
-      expect(document.triangleCount, greaterThan(ProjectProfile.mobile.maxTriangles));
+      expect(
+        document.triangleCount,
+        greaterThan(ProjectProfile.mobile.maxTriangles),
+      );
       expect(plan.exceedsMobileTriangleBudget, isTrue);
     });
 

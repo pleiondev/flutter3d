@@ -53,7 +53,9 @@ PlainModelDocument _documentWithImage(Uint8List ktx2) {
         materialIndex: 0,
       ),
     ],
-    nodes: <ModelNode>[ModelNode(name: 'a', surfaces: <int>[0])],
+    nodes: <ModelNode>[
+      ModelNode(name: 'a', surfaces: <int>[0]),
+    ],
     materials: <SurfaceMaterial>[
       SurfaceMaterial(baseColorTexture: const TextureBinding(imageIndex: 0)),
     ],
@@ -63,40 +65,37 @@ PlainModelDocument _documentWithImage(Uint8List ktx2) {
 
 void main() {
   group('GltfWriter and Basis Universal KTX2', () {
-    test(
-      'a Basis Universal texture writes through KHR_texture_basisu, no '
-      'warning, and the loader reads it back',
-      () async {
-        final document = _documentWithImage(_ktx2Of(vkFormat: 0));
-        final writer = GltfWriter(document);
-        final bytes = writer.writeGlb();
+    test('a Basis Universal texture writes through KHR_texture_basisu, no '
+        'warning, and the loader reads it back', () async {
+      final document = _documentWithImage(_ktx2Of(vkFormat: 0));
+      final writer = GltfWriter(document);
+      final bytes = writer.writeGlb();
 
-        expect(writer.warnings, isEmpty);
+      expect(writer.warnings, isEmpty);
 
-        // The texture's own JSON shape, not just the loader's own answer:
-        // a texture carrying *both* a core `source` and the extension
-        // would still read back correctly (the loader prefers the core
-        // one when it is there), which would hide a writer that stopped
-        // omitting it.
-        final json = GlbContainer.parse(bytes).json;
-        final textures = json['textures']! as List<Object?>;
-        final texture = textures.single! as Map<String, Object?>;
-        expect(texture.containsKey('source'), isFalse);
-        expect(
-          texture['extensions'],
-          equals(<String, Object?>{
-            'KHR_texture_basisu': <String, Object?>{'source': 0},
-          }),
-        );
-        expect(json['extensionsUsed'], contains('KHR_texture_basisu'));
-        expect(json['extensionsRequired'], contains('KHR_texture_basisu'));
+      // The texture's own JSON shape, not just the loader's own answer:
+      // a texture carrying *both* a core `source` and the extension
+      // would still read back correctly (the loader prefers the core
+      // one when it is there), which would hide a writer that stopped
+      // omitting it.
+      final json = GlbContainer.parse(bytes).json;
+      final textures = json['textures']! as List<Object?>;
+      final texture = textures.single! as Map<String, Object?>;
+      expect(texture.containsKey('source'), isFalse);
+      expect(
+        texture['extensions'],
+        equals(<String, Object?>{
+          'KHR_texture_basisu': <String, Object?>{'source': 0},
+        }),
+      );
+      expect(json['extensionsUsed'], contains('KHR_texture_basisu'));
+      expect(json['extensionsRequired'], contains('KHR_texture_basisu'));
 
-        final readBack = await GltfLoader().load(bytes);
-        expect(readBack.materials.single.baseColorTexture, isNotNull);
-        final imageIndex = readBack.materials.single.baseColorTexture!.imageIndex;
-        expect(readBack.images[imageIndex].bytes, _ktx2Of(vkFormat: 0));
-      },
-    );
+      final readBack = await GltfLoader().load(bytes);
+      expect(readBack.materials.single.baseColorTexture, isNotNull);
+      final imageIndex = readBack.materials.single.baseColorTexture!.imageIndex;
+      expect(readBack.images[imageIndex].bytes, _ktx2Of(vkFormat: 0));
+    });
 
     test(
       'a non-Basis KTX2 (a real vkFormat) writes as the core image and warns',
@@ -125,14 +124,17 @@ void main() {
   });
 
   group('ObjWriter and KTX2', () {
-    test('a material referencing a KTX2 texture is warned about either way', () {
-      final document = _documentWithImage(_ktx2Of(vkFormat: 0));
-      final writer = ObjWriter(document);
-      expect(
-        writer.warnings,
-        contains(predicate<String>((w) => w.contains('KTX2'))),
-      );
-    });
+    test(
+      'a material referencing a KTX2 texture is warned about either way',
+      () {
+        final document = _documentWithImage(_ktx2Of(vkFormat: 0));
+        final writer = ObjWriter(document);
+        expect(
+          writer.warnings,
+          contains(predicate<String>((w) => w.contains('KTX2'))),
+        );
+      },
+    );
 
     test('a material referencing a PNG texture gets no KTX2 warning', () {
       final png = Uint8List.fromList(<int>[

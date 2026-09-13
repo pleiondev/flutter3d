@@ -127,7 +127,8 @@ class ProfileEditorPainter extends CustomPainter {
     final polyline = curve.toPolyline();
     if (polyline.length >= 2) {
       final locals = <Offset>[
-        for (final point in polyline) profileEditorToLocal(point, size, axisMargin),
+        for (final point in polyline)
+          profileEditorToLocal(point, size, axisMargin),
       ];
 
       // The fill closes back to the axis at the first and last point's own

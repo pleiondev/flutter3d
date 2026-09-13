@@ -41,6 +41,7 @@ const List<String> applications = <String>[
   'flutter3d_template_app',
   'flutter3d_lesson_viewer',
   'flutter3d_stereo_lesson_viewer',
+  'flutter3d_lab_pendulum',
 ];
 
 /// Packages that must run with no Flutter SDK anywhere near them, and what
@@ -95,9 +96,9 @@ const Map<String, String> flatDartPackages = <String, String>{
       'run`, and a test of a loop cut all hold one and none of them draws',
   'flutter3d_particles_core':
       '`pro-sim-02`\'s own row: `flutter3d_model_core`\'s '
-      '`BakeParticleSystemCommand` bakes a `ParticleSystem` into a cache from '
+      '`BakeParticleSystemJobRequest` bakes a `ParticleSystem` into a cache from '
       'a command line or a service with no window in front of it, the same '
-      'way `BakeRigidBodyCommand` already does through `flutter3d_physics`',
+      'way `BakeRigidBodyJobRequest` already does through `flutter3d_physics`',
   'flutter3d_model_core':
       'a model is a document, and the programs that check, convert or drive '
       'one — an exporter on a command line, a service validating an upload, '
@@ -133,6 +134,10 @@ const Map<String, String> flatDartPackages = <String, String>{
       'widget a finished frame becomes, and replacing it with a device '
       'registry a backend adds itself to (mcp-01n) left nothing here that '
       'names Flutter at all',
+  'flutter3d_mcp_kit':
+      'the servers built on it — the level editor\'s and the modeller\'s — are '
+      'started with `dart run`, so a Flutter import here is every one of them '
+      'failing to start at once',
 };
 
 /// Packages the genre rule does not apply to, and why.
@@ -141,13 +146,10 @@ const Map<String, String> genreRuleExempt = <String, String>{
   'flutter3d_game_platformer': 'it is a genre',
   'flutter3d_game_racing': 'it is a genre',
   'flutter3d_game_strategy': 'it is a genre',
-  // `ai-00`: an MCP server that plays one specific genre on purpose, unlike
-  // `flutter3d_editor_mcp`/`flutter3d_model_mcp`, which stay genre-agnostic
-  // because a document editor has no business knowing what a monster is.
-  // This one exists to let an agent walk the crypt, and the crypt is a
-  // shooter — nothing about its own tools could read "monster" or "weapon"
-  // without naming the genre they belong to.
-  'flutter3d_sim_mcp': 'it deliberately plays one genre, the shooter',
+  // `flutter3d_sim_mcp` used to be here — "it deliberately plays one genre,
+  // the shooter". It plays whatever `HeadlessGame` a host hands it now, and
+  // the shooter's side of that lives in the shooter, so the rule holds it like
+  // any other package.
 };
 
 /// Which files of a genre package are allowed to reach a renderer.
@@ -250,7 +252,7 @@ const Map<String, String> notARepeatableStep = <String, String>{
   'flutter3d_particles_core':
       'display and preview, not a verified replay: `flutter3d_particles` '
       'draws with the frame\'s own delta, and `flutter3d_model_core`\'s '
-      '`BakeParticleSystemCommand` steps it at a fixed `dt` only to fill a '
+      '`BakeParticleSystemJobRequest` steps it at a fixed `dt` only to fill a '
       '`SimulationCache` a modeller scrubs locally — nothing here is a run a '
       'server replays against a client\'s own answer the way `flutter3d_sim`\'s '
       'is, so the platform\'s libm disagreeing with itself across machines has '
@@ -265,7 +267,7 @@ const Map<String, String> notARepeatableStep = <String, String>{
   'pad_input': 'a device, read once a frame',
   'pointer_lock': 'a platform channel',
   'flutter3d_build':
-      'a build-time tool, not a step: `dart run flutter3d:convert` reads a '
+      'a build-time tool, not a step: `dart run flutter3d_build:convert` reads a '
       'wall clock to report how long a decode or an encode took a human '
       'watching it run, the same way `step_time_trace.dart` does for a '
       'step from outside it — there is no simulation here to replay, only '
@@ -592,11 +594,12 @@ boundaryEnumExempt = <String, Map<String, String>>{
         'the four channel targets glTF defines. A fifth is not a thing the '
         'format can express',
   },
-  'flutter3d_core/lib/src/engine/animation/animation_target.dart': <String, String>{
-    'AnimationWrap':
-        'how a clip ends. Each value is a branch in the sampler, so a fifth '
-        'is code rather than a name',
-  },
+  'flutter3d_core/lib/src/engine/animation/animation_target.dart':
+      <String, String>{
+        'AnimationWrap':
+            'how a clip ends. Each value is a branch in the sampler, so a fifth '
+            'is code rather than a name',
+      },
   'flutter3d_core/lib/src/engine/scene/light_node.dart': <String, String>{
     'LightType':
         'the three the lit shaders have code for. A fourth kind of light is '

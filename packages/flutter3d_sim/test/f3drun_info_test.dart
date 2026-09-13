@@ -51,11 +51,7 @@ void main() {
       file.path,
     ], workingDirectory: Directory.current.path);
 
-    expect(
-      result.exitCode,
-      0,
-      reason: 'stderr was: ${result.stderr}',
-    );
+    expect(result.exitCode, 0, reason: 'stderr was: ${result.stderr}');
     final out = result.stdout as String;
     expect(out, contains('level:      assets/levels/crypt.json'));
     expect(out, contains('levelHash:  deadbeef'));

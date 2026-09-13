@@ -88,7 +88,8 @@ void main() {
         expect(
           tester.testTextInput.isVisible,
           isTrue,
-          reason: 'the field must actually hold focus for this test to mean anything',
+          reason:
+              'the field must actually hold focus for this test to mean anything',
         );
 
         // The raw key event is what `_typingSafe` guards against — Flutter
@@ -111,6 +112,5 @@ void main() {
         expect(reported, 1.5);
       },
     );
-
   });
 }

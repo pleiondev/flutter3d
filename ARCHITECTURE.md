@@ -169,7 +169,7 @@ copy, and is the bridge into the widget tree.
 
 ## 3. The package map
 
-Thirty-five packages and seven applications in one pub workspace — one
+Forty-six packages and seven applications in one pub workspace — one
 `flutter pub get` for the repository.
 
 ### 3.1 The layering rule
@@ -206,9 +206,9 @@ point of §3.3.
 | `flutter3d_core` | The engine's rendering core with no Flutter SDK behind it (mcp-03n): scene graph, render list, passes, materials, animation, and asset loading down to an injected reader or decoder |
 | `flutter3d_samples` | The Khronos test models the decoders are checked against and the demo browses. Fixtures, so that a game depending on the engine does not carry them |
 | `flutter3d_particles` | CPU emitters and the particle pass contributor |
-| `flutter3d_particles_core` | The particle simulation `flutter3d_particles` draws: `ParticleSystem`, emission, affectors, curves. No Flutter, so `flutter3d_model_core`'s `BakeParticleSystemCommand` depends on it directly. Plain Dart |
+| `flutter3d_particles_core` | The particle simulation `flutter3d_particles` draws: `ParticleSystem`, emission, affectors, curves. No Flutter, so `flutter3d_model_core`'s `BakeParticleSystemJobRequest` depends on it directly. Plain Dart |
 | `flutter3d_physics` | Collision world, character controller, rigid bodies, spatial grid, an XPBD cloth solver |
-| `flutter3d_rig` | Bone-name mapping and rest-relative clip retargeting between two skeletons, with a two-bone-IK foot lock. Plain Dart |
+| `flutter3d_rig` | Bone-name mapping and rest-relative clip retargeting between two skeletons, with a two-bone-IK foot lock, and automatic skin weights. Reads a rig as nodes and tracks and knows nothing of a project — `flutter3d_model_core` depends on it, not the other way round. Plain Dart |
 | `flutter3d_fbx` | A `ModelDecoder` for Autodesk's FBX — the skeleton for now, recognising a file and refusing to read it with a clear reason. Plain Dart |
 | `flutter3d_sim` | The simulation: fixed step, ECS, level format, actors, navigation, saves, replays, camera rig. Plain Dart |
 | `flutter3d_lab` | Virtual laboratory simulations built on `flutter3d_sim`'s stepping and recording primitives — `edu-04`'s pendulum is the first. Plain Dart |
@@ -224,9 +224,13 @@ point of §3.3.
 | `flutter3d_app` | The assembly layer, as one import — including which backend a build draws through, conditional import plus `openDevice` |
 | `flutter3d_editor_core` | The headless half of a level editor: the document being changed and undone, the handles a pointer hits, the palette a level builds out of itself, the project a template becomes. Plain Dart |
 | `flutter3d_editor_mcp` | The same editor offered to an agent: `EditorCommand` as a table of MCP tools over stdio, one document per process, plus the two verbs a caller with no screen needs — a flat listing, and the validator. Plain Dart |
+| `flutter3d_mcp_kit` | What every MCP server here shares: a tool paired with its handler, a server that is a list of them over one session, the two shapes of answer, and a loopback HTTP transport an open application offers its session over. Plain Dart |
+| `flutter3d_render_mcp` | A rendered frame offered to an agent: a level drawn with no GPU in one of the renderer's debug views, one pixel read back unclamped, the passes the frame graph ran |
+| `flutter3d_sim_mcp` | A level an agent plays blind, of whatever `HeadlessGame` a host hands it — step, read back, digest, hand over the run — and many seeded playtests in isolates. Names no genre |
+| `flutter3d_build` | The converter behind `dart run flutter3d_build:convert` and the build hook that runs it on every build. Not a dependency of the engine: no game that draws a frame runs it. Plain Dart |
 | `flutter3d_testing` | Rendering a scene with no GPU and comparing it against a reference image |
 | `flutter3d_geometry` | The mesh vocabulary every decoder and every editable mesh share: `MeshData`, `VertexLayout`, tangents, morph targets, `TriangleBvh` |
-| `flutter3d_formats` | Model documents and their decoders/writers — glTF, OBJ, STL, `.f3d`, `.usdz` — and material files. No Flutter, so an MCP server exports without one ([§8.1](#81-model-decoding), [§8.6](#86-writers)) |
+| `flutter3d_formats` | Model documents, their decoders (glTF, OBJ, STL, `.f3d`) and writers (the same four and `.usdz`) as `ModelDecoder`/`ModelWriter` values, material files, and the PNG, JPEG and zlib codecs a texture needs. No Flutter, so an MCP server exports without one ([§8.1](#81-model-decoding), [§8.6](#86-writers)) |
 | `flutter3d_mesh` | The editable half-edge mesh — `EditMesh`, its journal, its operations — that a model decodes into once somebody starts editing it |
 | `flutter3d_model_core` | The modeller's own document: `ModelProject`, commands, undo, `ExportReadiness`, its own project file ([§8.7](#87-the-project-file-and-three-undo-models)). Plain Dart, for the identical Flutter-SDK-boundary reason `flutter3d_formats` is |
 | `flutter3d_model_mcp` | The modeller's own commands offered to an agent over MCP, the same shape `flutter3d_editor_mcp` already gives the level editor |
@@ -1116,7 +1120,10 @@ returns an exit code.
 
 ### 8.1 Model decoding
 
-glTF 2.0 / GLB, Wavefront OBJ, STL and the engine's own `.f3d` — four decoders —
+glTF 2.0 / GLB, Wavefront OBJ, STL and the engine's own `.f3d` — four decoders,
+each a `ModelDecoder` like any an application adds, made in one place
+(`builtInModelDecoder`) and found by one table of suffixes
+(`builtInModelExtensions`) that the drop target and the converter read too —
 all produce one `ModelDocument` — surfaces, `SurfaceMaterial`s, `EncodedImage`s,
 a node hierarchy, skins, animations and `warnings`. That is what makes
 `ModelAsset.fromDocument()` the single upload path, with mesh and image
@@ -1185,7 +1192,7 @@ That is a statement about the assets rather than about the engine.
 `TextureFormat` names the BC, ETC2 and ASTC families,
 `GraphicsDevice.supportsTextureFormat` answers for each of them per backend, and
 a KTX2 that arrives carrying blocks those answers allow goes to the device as
-blocks. The gap is upstream, where `dart run flutter3d:convert` has no encoder
+blocks. The gap is upstream, where `dart run flutter3d_build:convert` has no encoder
 to produce one; [§15](#15-limits) tells that half at length.
 
 Mip chains are built on the CPU by `MipChain.build` and every backend uploads
@@ -1293,6 +1300,16 @@ loading one: `GltfWriter`, `ObjWriter`, `StlWriter`, `F3dWriter` and `UsdzWriter
 all live in `flutter3d_formats`, next to the decoders rather than in the engine,
 so an MCP server can export a GLB with no Flutter SDK in the process.
 
+**A writer is a `ModelWriter` value, and the list is `builtInModelWriters`.**
+Choosing one was a `switch` in three places — the engine's `encodeModel`, the
+modeller's export menu, the MCP server's `export` — with three different lists,
+and the engine could write STL while an agent could not. Now each of them looks
+a writer up by name or suffix in one list, and an application that ships its own
+format appends to it. A writer this package can also read back is a
+`CheckedModelWriter`, which is what `exportChecked` round-trips; `.usdz` is not
+one, because nothing here reads it, and saying so in the type is better than a
+`readBack` that throws.
+
 **`GltfWriter` is the one every other writer is measured against**, because it
 is the one format that can hold everything a document carries: hierarchy,
 materials, images, skins, animation and morph targets. It writes the extensions
@@ -1342,9 +1359,10 @@ boundary, and a section kind the reader does not know stepped over rather than
 refused — the same rule for the same reason: somebody opening a project a
 newer build wrote should get their objects back, missing only what the new
 section carried, and the version only moves when an existing record's own
-meaning changes. Seven section kinds exist today: the manifest; edited-mesh
+meaning changes. Eight section kinds exist today: the manifest; edited-mesh
 and imported-mesh tables; the blob those two tables address; an image table;
-a per-section checksum table; and the undo stack itself.
+a per-section checksum table; the undo stack itself; and a second image table
+for the images only a kept step still samples.
 
 **The manifest and the blob split on bulk, not on importance.** A material is a
 dozen numbers and five texture slots, small enough to read in a diff, so it is
@@ -1373,15 +1391,28 @@ other two done differently.**
   mesh, `HistoryStep.meshSteps` names how many journal steps that one
   `EditMesh` took, and undo rolls both back together — a document swap and a
   journal roll, one step of each, not two undo stacks disagreeing about how
-  far back they are.
+  far back they are. `amend` — the operation card's slider re-running the
+  top step with a new number — rolls that step's meshes back before it runs
+  the replacement, or it would extrude on top of the extrusion it is
+  adjusting; and a refused mesh command abandons its open journal step
+  rather than pushing and popping one, because pushing clears the redo a
+  document-level redo is still counting on.
 - **A reopened file's own history needs neither.** Every step the file's
-  `history` section carries already names its own, distinct `EditMesh` for
-  that moment — `writeProject`'s own mesh table deduplicates by identity as it
-  writes, so two steps that share an unedited mesh, or share one with the live
-  document, cost the file nothing extra to carry. `ModelHistory.withSteps`
-  reading that back is therefore a swap of which `ModelProject` is current and
-  nothing else: the copy a live journal would have paid for was already paid
-  once, at write time, by construction.
+  `history` section carries names its own `EditMesh` for that moment, and
+  that is work the writer does rather than a property it gets for free: a
+  mesh command edits its mesh in place, so the step before an extrusion holds
+  the very instance the live project does. `writeProject` walks the kept
+  steps newest first, rolls each mesh's journal back by the step's
+  `meshSteps` before writing that step's `before`, and deduplicates a chunk
+  by the mesh *and* how far it had been rolled back — two moments with the
+  same geometry share a chunk, the moments either side of an extrusion do
+  not — then rolls every journal forward again before it returns. The tables
+  a step changed (materials, images, skeletons, clips, the profile, `nextId`)
+  go beside it wherever they differ from the state after it, so a step that
+  touched none of them costs its objects and nothing more. `ModelHistory.withSteps`
+  reading that back is therefore a swap of which `ModelProject` is current
+  and nothing else: the copy a live journal would have paid for is paid once,
+  at write time.
 
 ---
 
@@ -1859,7 +1890,12 @@ runs of one tape must call the same systems in the same order, or determinism is
 gone. Systems run by explicit `order`, then by registration order, and never by
 whatever a hash map returns.
 
-Beyond the three: `PassContributor` extends a render pass,
+Beyond the three: `ModelWriter` is the write side of `ModelDecoder` (§8.6);
+`HeadlessGame` is what a tool that plays a level blind asks of a genre — start a
+run, step it, read it back, the buttons an agent may hold — so the simulation's
+MCP server and its playtests name no genre and a host hands one in;
+`SimulationBakeRequest` is what the modeller needs of a solver it bakes into a
+cache, so a new one is a class rather than a branch; `PassContributor` extends a render pass,
 `LightingModel` is open to an application that builds its own shader bundle —
 shipped as an asset or loaded from bytes through `GraphicsDevice.loadShaders`,
 and refreshed in place while the application runs — and `EntityKind` catalogues
@@ -1874,7 +1910,7 @@ entities a game defines.
 |---|---|
 | Style | `dart format` |
 | Analysis | `flutter analyze` clean across the workspace, no warnings |
-| Unit tests | **7373 tests** across 43 packages and 9 applications |
+| Unit tests | **7405 tests** across 44 packages and 9 applications |
 | Structure rules | 32, `dart run tool/structure.dart`, the first CI step |
 | CI | GitHub Actions over `tool/ci.sh`, on `ubuntu-latest`, with no graphics card |
 
@@ -2141,7 +2177,7 @@ BC1 and one ETC2 block on every backend that claims the family and reads
 the colour back, which is the first time an Impeller compressed upload was
 drawn rather than only allocated. Still refused by name: UASTC, Zstandard
 and ZLIB supercompression, arrays, cube maps, 3D textures. What is missing
-is upstream: `dart run flutter3d:convert` has no encoder, so nothing produces a
+is upstream: `dart run flutter3d_build:convert` has no encoder, so nothing produces a
 compressed KTX2 for this engine's own pipeline to read.
 
 **A material hint describes a control and refuses nothing.** `MaterialHintKind`
@@ -2759,22 +2795,20 @@ what went out at 0.4.2.
 
 1. `flutter3d_hardware`, `flutter3d_shaders`, `flutter3d_samples`,
    `flutter3d_audio`, `flutter3d_geometry`, `flutter3d_particles_core`,
-   `pad_input`, `pointer_lock`
+   `flutter3d_physics`, `flutter3d_mcp_kit`, `pad_input`, `pointer_lock`
 2. `flutter3d_formats`, `flutter3d_mesh`, `flutter3d_fbx`
-3. `flutter3d_conformance`, `flutter3d_core`, `flutter3d_model_core`,
-   `flutter3d_build`
-4. `flutter3d`, `flutter3d_physics`, `flutter3d_rig`
+3. `flutter3d_conformance`, `flutter3d_core`, `flutter3d_rig`, `flutter3d_build`
+4. `flutter3d`, `flutter3d_model_core`
 5. `flutter3d_impeller`, `flutter3d_webgl`, `flutter3d_webgpu`, `flutter3d_cpu`,
-   `flutter3d_particles`, `flutter3d_sim`, `flutter3d_stereo`
+   `flutter3d_particles`, `flutter3d_sim`
 6. `flutter3d_game`, `flutter3d_editor_core`, `flutter3d_net`, `flutter3d_render_job`,
-   `flutter3d_lab`
-7. `flutter3d_bridge`, `flutter3d_testing`, `flutter3d_editor_mcp`,
-   `flutter3d_model_mcp`, `flutter3d_net_webrtc`, `flutter3d_render_mcp`,
-   `flutter3d_session`
-8. `flutter3d_app`
-10. `flutter3d_game_shooter`, `flutter3d_game_platformer`, `flutter3d_game_racing`,
-    `flutter3d_game_strategy`
-11. `flutter3d_sim_mcp`
+   `flutter3d_lab`, `flutter3d_stereo`
+7. `flutter3d_session`, `flutter3d_testing`, `flutter3d_editor_mcp`,
+   `flutter3d_model_mcp`, `flutter3d_net_webrtc`
+8. `flutter3d_bridge`, `flutter3d_app`
+9. `flutter3d_game_shooter`, `flutter3d_game_platformer`, `flutter3d_game_racing`,
+   `flutter3d_game_strategy`, `flutter3d_render_mcp`
+10. `flutter3d_sim_mcp`
 
 Six positions are not obvious and so are written down rather than re-derived:
 `flutter3d_geometry` is in the first tier and ahead of `flutter3d`, which is the
@@ -2783,12 +2817,14 @@ engine depends on it for `MeshData`; `flutter3d_formats` is a tier of its own
 between them, because it needs the geometry a decoder fills in and the engine
 needs the documents it produces; the modeller's three sit where their
 dependencies put them and nowhere near the engine — `flutter3d_mesh` beside
-`flutter3d_formats` on geometry alone, `flutter3d_model_core` a tier below both,
-and `flutter3d_model_mcp` beside `flutter3d_editor_mcp`, because it is a
+`flutter3d_formats` on geometry alone, `flutter3d_model_core` below both and
+below `flutter3d_rig`, whose algorithms it runs (the rig reads nodes and tracks
+and knows nothing of a project, so the arrow points that way), and
+`flutter3d_model_mcp` beside `flutter3d_editor_mcp`, because it is a
 published package that happens to have a `bin/` rather than a program that
 happens to be in this repository; `flutter3d_samples` is in the first tier
 although nothing depends on it at run time, because `flutter3d`'s tests do and a
-dev dependency has to resolve for the archive to be accepted; `flutter3d_app` is second to last because it is the
+dev dependency has to resolve for the archive to be accepted; `flutter3d_app` sits just ahead of the genre packages because it is the
 assembly layer; `flutter3d_editor_core` is beside `flutter3d_game` rather
 than behind it, because the editor's document layer never wanted the Flutter
 half, which is why it could leave an application at all — it needed only

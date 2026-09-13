@@ -128,7 +128,11 @@ Rgba8Image _toRgba8(img.Image decoded) {
       at += 4;
     }
   }
-  return Rgba8Image(width: decoded.width, height: decoded.height, pixels: pixels);
+  return Rgba8Image(
+    width: decoded.width,
+    height: decoded.height,
+    pixels: pixels,
+  );
 }
 
 bool _hasAlpha(Rgba8Image image) {

@@ -329,13 +329,16 @@ final class FakeBackend implements GraphicsDevice {
         'level (0) may be overwritten.',
       );
     }
-    final rect = region ?? ScreenRect(width: target.width, height: target.height);
+    final rect =
+        region ?? ScreenRect(width: target.width, height: target.height);
     if (rect.x < 0 ||
         rect.y < 0 ||
         rect.x + rect.width > target.width ||
         rect.y + rect.height > target.height) {
-      throw ArgumentError('overwriteTexture: $rect does not fit inside a '
-          '${target.width}x${target.height} texture');
+      throw ArgumentError(
+        'overwriteTexture: $rect does not fit inside a '
+        '${target.width}x${target.height} texture',
+      );
     }
     if (rgba.lengthInBytes != rect.width * rect.height * 4) {
       throw ArgumentError(
@@ -390,7 +393,11 @@ final class FakeBackend implements GraphicsDevice {
   overwrites = <({Object backend, int offsetInBytes, int lengthInBytes})>[];
 
   @override
-  void overwriteGeometry(GeometryBuffer target, int offsetInBytes, ByteData bytes) {
+  void overwriteGeometry(
+    GeometryBuffer target,
+    int offsetInBytes,
+    ByteData bytes,
+  ) {
     if (offsetInBytes < 0 ||
         offsetInBytes + bytes.lengthInBytes > target.lengthInBytes) {
       throw ArgumentError(

@@ -42,7 +42,12 @@ enum Licence {
     requiresAttribution: true,
   );
 
-  const Licence(this.spdx, this.label, this.url, {required this.requiresAttribution});
+  const Licence(
+    this.spdx,
+    this.label,
+    this.url, {
+    required this.requiresAttribution,
+  });
 
   /// What is stored, and what goes into an exported file's metadata.
   final String spdx;
@@ -129,6 +134,8 @@ String slugify(String title) {
       .toLowerCase()
       .replaceAll(RegExp('[^a-z0-9]+'), '-')
       .replaceAll(RegExp(r'^-+|-+$'), '');
-  final bounded = slug.length > 60 ? slug.substring(0, 60).replaceAll(RegExp(r'-+$'), '') : slug;
+  final bounded = slug.length > 60
+      ? slug.substring(0, 60).replaceAll(RegExp(r'-+$'), '')
+      : slug;
   return bounded.isEmpty ? 'model' : bounded;
 }

@@ -30,9 +30,7 @@ final class ProjectLightType {
 
   final String name;
 
-  static const ProjectLightType directional = ProjectLightType._(
-    'directional',
-  );
+  static const ProjectLightType directional = ProjectLightType._('directional');
   static const ProjectLightType point = ProjectLightType._('point');
   static const ProjectLightType spot = ProjectLightType._('spot');
 

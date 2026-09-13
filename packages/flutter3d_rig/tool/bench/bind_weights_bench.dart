@@ -77,7 +77,8 @@ void bench(String name, int iterations, void Function() body, {int? items}) {
       : '${perIteration.toStringAsFixed(1)} us';
   var line = '${name.padRight(44)} $label';
   if (items != null && items > 0) {
-    line += '   (${(perIteration * 1000 / items).toStringAsFixed(2)} ns/vertex)';
+    line +=
+        '   (${(perIteration * 1000 / items).toStringAsFixed(2)} ns/vertex)';
   }
   print(line);
 }
@@ -98,12 +99,15 @@ void main() {
     final triangles = gridTriangles(side);
     final bones = spineOf(20);
     print('');
-    print('$side x $side grid: ${positions.length} vertices, ${bones.length} bones');
+    print(
+      '$side x $side grid: ${positions.length} vertices, ${bones.length} bones',
+    );
 
     bench(
       'bindWeights (useVisibility: true)',
       1,
-      () => bindWeights(positions: positions, triangles: triangles, bones: bones),
+      () =>
+          bindWeights(positions: positions, triangles: triangles, bones: bones),
       items: positions.length,
     );
     bench(
@@ -126,7 +130,9 @@ void main() {
   final triangles = gridTriangles(side);
   final bones = spineOf(20);
   print('');
-  print('$side x $side grid: ${positions.length} vertices, ${bones.length} bones');
+  print(
+    '$side x $side grid: ${positions.length} vertices, ${bones.length} bones',
+  );
   bench(
     'bindWeights (useVisibility: false)',
     1,

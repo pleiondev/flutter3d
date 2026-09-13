@@ -24,7 +24,9 @@ import 'package:jaspr/server.dart';
 import 'package:test/test.dart';
 
 const _base = 'http://localhost:8793';
-final _triangle = Uint8List.fromList(utf8.encode('v 0 0 0\nv 1 0 0\nv 0 1 0\nf 1 2 3\n'));
+final _triangle = Uint8List.fromList(
+  utf8.encode('v 0 0 0\nv 1 0 0\nv 0 1 0\nf 1 2 3\n'),
+);
 
 /// A browser's cookie jar, reduced to what this service sets.
 class _Browser {
@@ -35,14 +37,18 @@ class _Browser {
 
   String get csrf => cookies['csrf'] ?? '';
 
-  Future<Response> get(String path) => _send(Request('GET', Uri.parse('$_base$path')));
+  Future<Response> get(String path) =>
+      _send(Request('GET', Uri.parse('$_base$path')));
 
   Future<Response> post(String path, Map<String, String> form) => _send(
     Request(
       'POST',
       Uri.parse('$_base$path'),
       body: Uri(queryParameters: {'csrf': csrf, ...form}).query,
-      headers: {'content-type': 'application/x-www-form-urlencoded', 'origin': _base},
+      headers: {
+        'content-type': 'application/x-www-form-urlencoded',
+        'origin': _base,
+      },
     ),
   );
 
@@ -63,11 +69,16 @@ class _Browser {
   Future<Response> _send(Request request) async {
     final withCookies = cookies.isEmpty
         ? request
-        : request.change(headers: {
-            'cookie': cookies.entries.map((e) => '${e.key}=${e.value}').join('; '),
-          });
+        : request.change(
+            headers: {
+              'cookie': cookies.entries
+                  .map((e) => '${e.key}=${e.value}')
+                  .join('; '),
+            },
+          );
     final response = await handler(withCookies);
-    for (final header in response.headersAll['set-cookie'] ?? const <String>[]) {
+    for (final header
+        in response.headersAll['set-cookie'] ?? const <String>[]) {
       final pair = header.split(';').first;
       final eq = pair.indexOf('=');
       final name = pair.substring(0, eq);
@@ -82,7 +93,8 @@ class _Browser {
   }
 }
 
-String _tokenIn(Letter letter) => RegExp(r'token=([A-Za-z0-9_-]+)').firstMatch(letter.text)!.group(1)!;
+String _tokenIn(Letter letter) =>
+    RegExp(r'token=([A-Za-z0-9_-]+)').firstMatch(letter.text)!.group(1)!;
 
 void main() {
   late Database db;
@@ -93,10 +105,13 @@ void main() {
 
   setUpAll(() async {
     Jaspr.initializeApp(options: defaultServerOptions);
-    final url = Platform.environment['MODELS_TEST_DATABASE_URL'] ??
+    final url =
+        Platform.environment['MODELS_TEST_DATABASE_URL'] ??
         'postgres://models:models@localhost:55432/models';
     db = await Database.open(url);
-    await db.run((s) => s.execute('truncate users, rate_events restart identity cascade'));
+    await db.run(
+      (s) => s.execute('truncate users, rate_events restart identity cascade'),
+    );
 
     mailer = ConsoleMailer(quiet: true);
     blobs = MemoryBlobStore();
@@ -142,7 +157,10 @@ void main() {
       'passwordConfirm': 'correct horse batterx',
     });
     expect(mistyped.statusCode, 422);
-    expect(await mistyped.readAsString(), contains('The two passwords do not match.'));
+    expect(
+      await mistyped.readAsString(),
+      contains('The two passwords do not match.'),
+    );
 
     // So is a password on every list, however well it is typed twice.
     final common = await ann.post('/register', {
@@ -178,18 +196,28 @@ void main() {
     expect((await ann.get('/me')).statusCode, 200);
     expect((await ann.upload('triangle.obj', _triangle)).statusCode, 403);
 
-    final verifyToken = _tokenIn(mailer.sent.firstWhere((l) => l.subject.contains('Confirm')));
+    final verifyToken = _tokenIn(
+      mailer.sent.firstWhere((l) => l.subject.contains('Confirm')),
+    );
     expect((await ann.get('/verify?token=$verifyToken')).statusCode, 200);
-    expect((await ann.get('/verify?token=$verifyToken')).statusCode, 400, reason: 'a link works once');
+    expect(
+      (await ann.get('/verify?token=$verifyToken')).statusCode,
+      400,
+      reason: 'a link works once',
+    );
 
     // Something that is not a model is refused and not stored.
-    final diary = await ann.upload('diary.obj', Uint8List.fromList(utf8.encode('dear diary')));
+    final diary = await ann.upload(
+      'diary.obj',
+      Uint8List.fromList(utf8.encode('dear diary')),
+    );
     expect(diary.statusCode, 422);
     expect(blobs.length, 0);
 
     final uploaded = await ann.upload('tiny_triangle.obj', _triangle);
     expect(uploaded.statusCode, 201);
-    final body = jsonDecode(await uploaded.readAsString()) as Map<String, Object?>;
+    final body =
+        jsonDecode(await uploaded.readAsString()) as Map<String, Object?>;
     final path = body['path']! as String;
     final id = body['id']! as int;
     expect(path, '/m/$id-tiny-triangle');
@@ -229,7 +257,10 @@ void main() {
     expect(ann.cookies['session'], isNull);
     expect((await ann.get('/me')).headers['location'], '/login?next=/me');
 
-    final wrong = await ann.post('/login', {'email': 'ann@example.com', 'password': 'not it at all'});
+    final wrong = await ann.post('/login', {
+      'email': 'ann@example.com',
+      'password': 'not it at all',
+    });
     expect(wrong.statusCode, 401);
     final right = await ann.post('/login', {
       'email': 'ann@example.com',
@@ -246,11 +277,15 @@ void main() {
     expect(asked.statusCode, 200);
     // An unknown address gets the same page, and no letter.
     final lettersBefore = mailer.sent.length;
-    final unknown = await elsewhere.post('/forgot', {'email': 'nobody@example.com'});
+    final unknown = await elsewhere.post('/forgot', {
+      'email': 'nobody@example.com',
+    });
     expect(unknown.statusCode, 200);
     expect(mailer.sent.length, lettersBefore);
 
-    final resetToken = _tokenIn(mailer.sent.lastWhere((l) => l.subject.contains('Reset')));
+    final resetToken = _tokenIn(
+      mailer.sent.lastWhere((l) => l.subject.contains('Reset')),
+    );
     // A refused password leaves the link working for the next attempt.
     final refused = await elsewhere.post('/reset', {
       'token': resetToken,
@@ -265,14 +300,24 @@ void main() {
     });
     expect(reset.statusCode, 303);
     expect(mailer.sent.last.subject, contains('was changed'));
-    expect((await ann.get('/me')).statusCode, 303, reason: 'every session ends with a reset');
     expect(
-      (await elsewhere.post('/reset', {'token': resetToken, 'password': 'yet another password'})).statusCode,
+      (await ann.get('/me')).statusCode,
+      303,
+      reason: 'every session ends with a reset',
+    );
+    expect(
+      (await elsewhere.post('/reset', {
+        'token': resetToken,
+        'password': 'yet another password',
+      })).statusCode,
       400,
       reason: 'a reset link works once',
     );
 
-    final signedIn = await ann.post('/login', {'email': 'ann@example.com', 'password': 'a brand new password'});
+    final signedIn = await ann.post('/login', {
+      'email': 'ann@example.com',
+      'password': 'a brand new password',
+    });
     expect(signedIn.statusCode, 303);
 
     // Deleting the model deletes its file, since nobody else points at it.
@@ -286,7 +331,10 @@ void main() {
     await guesser.get('/login');
     final codes = [
       for (var i = 0; i < 11; i++)
-        (await guesser.post('/login', {'email': 'bob@example.com', 'password': 'guess number $i'})).statusCode,
+        (await guesser.post('/login', {
+          'email': 'bob@example.com',
+          'password': 'guess number $i',
+        })).statusCode,
     ];
     expect(codes.take(10), everyElement(401));
     expect(codes.last, 429);

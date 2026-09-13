@@ -92,15 +92,16 @@ class UsersRepository {
     return rows.isEmpty ? null : rows.first[0]! as String;
   });
 
-  Future<void> setPasswordHash(int userId, String hash) => _db.run((session) async {
-    await session.execute(
-      Sql.named('''
+  Future<void> setPasswordHash(int userId, String hash) =>
+      _db.run((session) async {
+        await session.execute(
+          Sql.named('''
         update users set password_hash = @hash, updated_at = now()
         where id = @id
       '''),
-      parameters: {'id': userId, 'hash': hash},
-    );
-  });
+          parameters: {'id': userId, 'hash': hash},
+        );
+      });
 
   /// Marks the address confirmed. Confirming twice changes nothing.
   Future<void> markEmailVerified(int userId) => _db.run((session) async {

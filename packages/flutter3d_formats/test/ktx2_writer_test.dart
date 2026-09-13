@@ -51,63 +51,69 @@ void main() {
     }
   });
 
-  test('encodeBc1 into writeKtx2 into Ktx2Texture.parse round-trips a real texture', () {
-    final source = Rgba8Image(
-      width: 8,
-      height: 8,
-      pixels: Uint8List.fromList(
-        List<int>.generate(8 * 8 * 4, (i) => (i * 7) & 0xFF),
-      ),
-    );
-    final encoded = encodeBc1(source);
-    final bytes = writeKtx2(
-      vkFormat: VkFormat.bc1RgbaUNormBlock,
-      pixelWidth: source.width,
-      pixelHeight: source.height,
-      levels: [encoded],
-    );
+  test(
+    'encodeBc1 into writeKtx2 into Ktx2Texture.parse round-trips a real texture',
+    () {
+      final source = Rgba8Image(
+        width: 8,
+        height: 8,
+        pixels: Uint8List.fromList(
+          List<int>.generate(8 * 8 * 4, (i) => (i * 7) & 0xFF),
+        ),
+      );
+      final encoded = encodeBc1(source);
+      final bytes = writeKtx2(
+        vkFormat: VkFormat.bc1RgbaUNormBlock,
+        pixelWidth: source.width,
+        pixelHeight: source.height,
+        levels: [encoded],
+      );
 
-    final texture = Ktx2Texture.parse(bytes);
-    expect(texture.vkFormat, VkFormat.bc1RgbaUNormBlock);
-    expect(texture.pixelWidth, 8);
-    expect(texture.pixelHeight, 8);
-    expect(
-      texture.levels.single.buffer.asUint8List(
-        texture.levels.single.offsetInBytes,
-        texture.levels.single.lengthInBytes,
-      ),
-      encoded,
-    );
-  });
+      final texture = Ktx2Texture.parse(bytes);
+      expect(texture.vkFormat, VkFormat.bc1RgbaUNormBlock);
+      expect(texture.pixelWidth, 8);
+      expect(texture.pixelHeight, 8);
+      expect(
+        texture.levels.single.buffer.asUint8List(
+          texture.levels.single.offsetInBytes,
+          texture.levels.single.lengthInBytes,
+        ),
+        encoded,
+      );
+    },
+  );
 
-  test('encodeAstc4x4 into writeKtx2 into Ktx2Texture.parse round-trips a real texture', () {
-    final source = Rgba8Image(
-      width: 8,
-      height: 8,
-      pixels: Uint8List.fromList(
-        List<int>.generate(8 * 8 * 4, (i) => (i * 5) & 0xFF),
-      ),
-    );
-    final encoded = encodeAstc4x4(source);
-    final bytes = writeKtx2(
-      vkFormat: VkFormat.astc4x4UNormBlock,
-      pixelWidth: source.width,
-      pixelHeight: source.height,
-      levels: [encoded],
-    );
+  test(
+    'encodeAstc4x4 into writeKtx2 into Ktx2Texture.parse round-trips a real texture',
+    () {
+      final source = Rgba8Image(
+        width: 8,
+        height: 8,
+        pixels: Uint8List.fromList(
+          List<int>.generate(8 * 8 * 4, (i) => (i * 5) & 0xFF),
+        ),
+      );
+      final encoded = encodeAstc4x4(source);
+      final bytes = writeKtx2(
+        vkFormat: VkFormat.astc4x4UNormBlock,
+        pixelWidth: source.width,
+        pixelHeight: source.height,
+        levels: [encoded],
+      );
 
-    final texture = Ktx2Texture.parse(bytes);
-    expect(texture.vkFormat, VkFormat.astc4x4UNormBlock);
-    expect(texture.pixelWidth, 8);
-    expect(texture.pixelHeight, 8);
-    expect(
-      texture.levels.single.buffer.asUint8List(
-        texture.levels.single.offsetInBytes,
-        texture.levels.single.lengthInBytes,
-      ),
-      encoded,
-    );
-  });
+      final texture = Ktx2Texture.parse(bytes);
+      expect(texture.vkFormat, VkFormat.astc4x4UNormBlock);
+      expect(texture.pixelWidth, 8);
+      expect(texture.pixelHeight, 8);
+      expect(
+        texture.levels.single.buffer.asUint8List(
+          texture.levels.single.offsetInBytes,
+          texture.levels.single.lengthInBytes,
+        ),
+        encoded,
+      );
+    },
+  );
 
   test('at least one level is required', () {
     expect(

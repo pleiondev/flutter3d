@@ -253,9 +253,7 @@ List<PlanItem> _readPlan(File plan) {
     if (line.startsWith('## 3. ')) inside = false;
     if (line.startsWith('## 4. ')) break;
     if (!inside || !line.startsWith('| ')) continue;
-    final cells = _splitRow(
-      line.trim(),
-    ).map((String c) => c.trim()).toList();
+    final cells = _splitRow(line.trim()).map((String c) => c.trim()).toList();
     // A leading and a trailing empty cell from the pipes at both ends.
     if (cells.length != 9) continue;
     final match = _rowId.firstMatch(cells[1]);

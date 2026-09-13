@@ -113,9 +113,7 @@ DigestTrace _play(
       forward = wish.forward;
     }
     if (wish.jump != jump) {
-      wish.jump
-          ? input.press(GameAction.jump)
-          : input.release(GameAction.jump);
+      wish.jump ? input.press(GameAction.jump) : input.release(GameAction.jump);
       jump = wish.jump;
     }
     if (wish.crouch != crouch) {

@@ -191,8 +191,7 @@ final class NetSession {
     _recentSent.removeWhere((s, _) => s < appliesAt - redundancy);
     transport.send(<String, Object?>{
       'frames': <String, Object?>{
-        for (final entry in _recentSent.entries)
-          '${entry.key}': entry.value,
+        for (final entry in _recentSent.entries) '${entry.key}': entry.value,
       },
     });
 
@@ -281,8 +280,8 @@ final class NetSession {
       // it began in — its own `snapshotBefore` describes only the moment
       // before it ran. Only fired when that next entry is still on hand,
       // which it always is: exactly one step crosses the horizon per call.
-      for (final s in _history.keys.where((s) => s < horizon).toList()
-        ..sort()) {
+      for (final s
+          in _history.keys.where((s) => s < horizon).toList()..sort()) {
         final after = _history[s + 1];
         if (after != null) settled(s, after.snapshotBefore);
       }

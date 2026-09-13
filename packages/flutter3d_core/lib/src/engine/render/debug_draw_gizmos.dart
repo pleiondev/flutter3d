@@ -272,7 +272,12 @@ extension DebugDrawGizmos on DebugDraw {
   /// Draws nothing when [from] and [to] coincide — a zero-length bone has no
   /// direction to build a ring around, and dividing by that length would
   /// produce lines of `NaN`.
-  void addBoneOctahedron(Vector3 from, Vector3 to, double width, Vector4 color) {
+  void addBoneOctahedron(
+    Vector3 from,
+    Vector3 to,
+    double width,
+    Vector4 color,
+  ) {
     final axis = to - from;
     final length = axis.length;
     if (length < 1e-9) return;

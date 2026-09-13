@@ -109,46 +109,45 @@ void main() {
     );
   });
 
-  test(
-    'input that diverged partway through names the checkpoint step and the '
-    'field that actually differed',
-    () {
-      const divergeAt = 150;
-      final truthful = _run(steps: 400);
-      final corrupted = _run(steps: 400, divergeAt: divergeAt);
+  test('input that diverged partway through names the checkpoint step and the '
+      'field that actually differed', () {
+    const divergeAt = 150;
+    final truthful = _run(steps: 400);
+    final corrupted = _run(steps: 400, divergeAt: divergeAt);
 
-      final divergence = diffRuns(
-        a: truthful.digests,
-        b: corrupted.digests,
-        snapshotAtA: truthful.snapshotAt,
-        snapshotAtB: corrupted.snapshotAt,
-      );
+    final divergence = diffRuns(
+      a: truthful.digests,
+      b: corrupted.digests,
+      snapshotAtA: truthful.snapshotAt,
+      snapshotAtB: corrupted.snapshotAt,
+    );
 
-      expect(
-        divergence,
-        isNotNull,
-        reason: 'a run that turned the other way from step $divergeAt on '
-            'must eventually land somewhere different',
-      );
-      expect(
-        divergence!.step,
-        greaterThanOrEqualTo(divergeAt),
-        reason: 'every checkpoint before the input actually diverged '
-            'should still have matched',
-      );
-      expect(
-        divergence.path,
-        contains('.'),
-        reason:
-            'the path should have walked into the saved JSON rather than '
-            'stopping at the first key — this run found the corruption '
-            'first moved a monster\'s own focus (`actors.lastFocus[0]`) '
-            'before it ever moved the player\'s own recorded position, '
-            'which is itself the honest finding: turning changes who the '
-            'nearest monster is looking at sooner than it changes where '
-            'the walk has carried the player',
-      );
-      expect(divergence.expected, isNot(divergence.found));
-    },
-  );
+    expect(
+      divergence,
+      isNotNull,
+      reason:
+          'a run that turned the other way from step $divergeAt on '
+          'must eventually land somewhere different',
+    );
+    expect(
+      divergence!.step,
+      greaterThanOrEqualTo(divergeAt),
+      reason:
+          'every checkpoint before the input actually diverged '
+          'should still have matched',
+    );
+    expect(
+      divergence.path,
+      contains('.'),
+      reason:
+          'the path should have walked into the saved JSON rather than '
+          'stopping at the first key — this run found the corruption '
+          'first moved a monster\'s own focus (`actors.lastFocus[0]`) '
+          'before it ever moved the player\'s own recorded position, '
+          'which is itself the honest finding: turning changes who the '
+          'nearest monster is looking at sooner than it changes where '
+          'the walk has carried the player',
+    );
+    expect(divergence.expected, isNot(divergence.found));
+  });
 }

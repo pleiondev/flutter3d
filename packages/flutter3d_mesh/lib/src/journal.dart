@@ -26,8 +26,10 @@ import 'dart:typed_data';
 
 /// One step of a journal: which slots an edit wrote, and what they held.
 ///
-/// Public because `doc-08`'s history and `doc-31d`'s file format both read it —
-/// the file's history section is these records, not a second encoding of them.
+/// Public because `doc-08`'s history reads it. The file's history section does
+/// not hold these records: a save rolls the journal back to write each kept
+/// step's own mesh chunk, and `EditMesh.toBytes` carries no journal — see
+/// `writeProject` in `flutter3d_model_core`.
 final class JournalStep {
   const JournalStep(this.indices, this.before);
 
@@ -153,6 +155,29 @@ final class JournalledFloats {
     // it anywhere else is how a redo comes back as somebody else's edit.
     _redo.clear();
     return true;
+  }
+
+  /// Closes the open step by taking back everything it wrote, and leaves both
+  /// stacks exactly as they were before [beginStep].
+  ///
+  /// **The way out of a refused edit, and it is not `endStep` then `undo`.**
+  /// That pair pushes the step, which clears the redo stack, and only then pops
+  /// it — so a refusal found halfway through a walk would silently throw away
+  /// whatever an earlier undo left to redo. A caller that decides to refuse
+  /// has not made a new future and must not lose the old one.
+  void abandonStep() {
+    final indices = _openIndices;
+    final before = _openBefore;
+    if (indices == null || before == null) {
+      throw StateError('no step is open');
+    }
+    _openIndices = null;
+    _openBefore = null;
+    // Backwards, for the reason `_backwards` gives: a slot written twice goes
+    // back to what it held before its first write.
+    for (var i = indices.length - 1; i >= 0; i--) {
+      _values[indices[i]] = before[i];
+    }
   }
 
   /// Writes [value] at [index], recording what was there.
@@ -357,6 +382,20 @@ final class JournalledInts {
     );
     _redo.clear();
     return true;
+  }
+
+  /// See [JournalledFloats.abandonStep].
+  void abandonStep() {
+    final indices = _openIndices;
+    final before = _openBefore;
+    if (indices == null || before == null) {
+      throw StateError('no step is open');
+    }
+    _openIndices = null;
+    _openBefore = null;
+    for (var i = indices.length - 1; i >= 0; i--) {
+      _values[indices[i]] = before[i];
+    }
   }
 
   void write(int index, int value) {

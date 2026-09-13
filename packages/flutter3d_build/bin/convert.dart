@@ -1,9 +1,9 @@
 // Converts a model into the engine's .f3d container — from any project that
 // depends on this package, not only from a checkout of this repository.
 //
-//   dart run flutter3d:convert assets_src/Box.glb
-//   dart run flutter3d:convert assets_src -o build/assets
-//   dart run flutter3d:convert --help
+//   dart run flutter3d_build:convert assets_src/Box.glb
+//   dart run flutter3d_build:convert assets_src -o build/assets
+//   dart run flutter3d_build:convert --help
 //
 // `ap-03` in doc/asset-pipeline-plan.md: the thin wrapper the plan asks for.
 // The actual conversion — decoding, writing `.f3d`, the round-trip check —

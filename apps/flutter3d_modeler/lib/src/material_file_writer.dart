@@ -42,10 +42,9 @@ final class MaterialFileWriter {
   /// back in. Colour, the scalar factors, alpha and the two flags are the
   /// whole of what a project-owned material has to say, and it round-trips
   /// exactly.
-  static Uint8List bytesFor(ProjectMaterial material) =>
-      Uint8List.fromList(
-        utf8.encode(writeFmat(MaterialDocument(surface: material.surface))),
-      );
+  static Uint8List bytesFor(ProjectMaterial material) => Uint8List.fromList(
+    utf8.encode(writeFmat(MaterialDocument(surface: material.surface))),
+  );
 
   /// Writes [material]'s own `.fmat` to disk, resolved against [baseDir] —
   /// the directory [ProjectMaterial.fmat]'s own doc comment says a linked

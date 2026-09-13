@@ -82,8 +82,7 @@ void main() {
     await tester.tap(find.byType(DropdownButton<SceneEnvironmentPreset>));
     await tester.pumpAndSettle();
 
-    for (final SceneEnvironmentPreset preset
-        in SceneEnvironmentPreset.values) {
+    for (final SceneEnvironmentPreset preset in SceneEnvironmentPreset.values) {
       final label = switch (preset) {
         SceneEnvironmentPreset.studio => 'Studio',
         SceneEnvironmentPreset.daylight => 'Daylight',

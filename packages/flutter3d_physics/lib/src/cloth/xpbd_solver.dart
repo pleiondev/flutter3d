@@ -61,12 +61,22 @@ void stepCloth(
       );
     }
 
-    _resolveCollisions(predicted, mesh.invMass, obstacles, settings.collisionThickness);
+    _resolveCollisions(
+      predicted,
+      mesh.invMass,
+      obstacles,
+      settings.collisionThickness,
+    );
     _integrate(mesh, predicted, subDt);
   }
 }
 
-void _predict(ClothMesh mesh, ClothSettings settings, double subDt, Float64List predicted) {
+void _predict(
+  ClothMesh mesh,
+  ClothSettings settings,
+  double subDt,
+  Float64List predicted,
+) {
   final positions = mesh.positions;
   final velocities = mesh.velocities;
   final invMass = mesh.invMass;
@@ -118,9 +128,15 @@ void _applyWind(
   final tris = mesh.triangles;
   for (var t = 0; t < tris.length; t += 3) {
     final a = tris[t], b = tris[t + 1], c = tris[t + 2];
-    final ax = predicted[3 * a], ay = predicted[3 * a + 1], az = predicted[3 * a + 2];
-    final bx = predicted[3 * b], by = predicted[3 * b + 1], bz = predicted[3 * b + 2];
-    final cx = predicted[3 * c], cy = predicted[3 * c + 1], cz = predicted[3 * c + 2];
+    final ax = predicted[3 * a],
+        ay = predicted[3 * a + 1],
+        az = predicted[3 * a + 2];
+    final bx = predicted[3 * b],
+        by = predicted[3 * b + 1],
+        bz = predicted[3 * b + 2];
+    final cx = predicted[3 * c],
+        cy = predicted[3 * c + 1],
+        cz = predicted[3 * c + 2];
 
     final e1x = bx - ax, e1y = by - ay, e1z = bz - az;
     final e2x = cx - ax, e2y = cy - ay, e2z = cz - az;
@@ -135,7 +151,8 @@ void _applyWind(
     ny /= len;
     nz /= len;
 
-    final relative = nx * wind.velocityX + ny * wind.velocityY + nz * wind.velocityZ;
+    final relative =
+        nx * wind.velocityX + ny * wind.velocityY + nz * wind.velocityZ;
     // Half the cross product's own length is the triangle's own area; the
     // force below is already split three ways, so a sixth of it each.
     final force = relative * wind.drag * (len * 0.5) / 3.0;
@@ -212,7 +229,11 @@ void _resolveCollisions(
   final n = predicted.length ~/ 3;
   for (var i = 0; i < n; i++) {
     if (invMass[i] == 0) continue;
-    _scratchPoint.setValues(predicted[3 * i], predicted[3 * i + 1], predicted[3 * i + 2]);
+    _scratchPoint.setValues(
+      predicted[3 * i],
+      predicted[3 * i + 1],
+      predicted[3 * i + 2],
+    );
     for (final obstacle in obstacles) {
       pushOutsideObstacle(_scratchPoint, obstacle, thickness);
     }
@@ -230,8 +251,10 @@ void _integrate(ClothMesh mesh, Float64List predicted, double subDt) {
   for (var i = 0; i < mesh.particleCount; i++) {
     if (invMass[i] == 0) continue;
     velocities[3 * i] = (predicted[3 * i] - positions[3 * i]) * inverseDt;
-    velocities[3 * i + 1] = (predicted[3 * i + 1] - positions[3 * i + 1]) * inverseDt;
-    velocities[3 * i + 2] = (predicted[3 * i + 2] - positions[3 * i + 2]) * inverseDt;
+    velocities[3 * i + 1] =
+        (predicted[3 * i + 1] - positions[3 * i + 1]) * inverseDt;
+    velocities[3 * i + 2] =
+        (predicted[3 * i + 2] - positions[3 * i + 2]) * inverseDt;
     positions[3 * i] = predicted[3 * i];
     positions[3 * i + 1] = predicted[3 * i + 1];
     positions[3 * i + 2] = predicted[3 * i + 2];

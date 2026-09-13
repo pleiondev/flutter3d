@@ -447,10 +447,7 @@ class _ModelerViewportState extends State<ModelerViewport> {
           // Clamped because a zero-sized viewport is a real state — a panel
           // animating open, a window dragged to nothing — and a render
           // target of no pixels is not.
-          final int width = (constraints.maxWidth * dpr).round().clamp(
-            1,
-            8192,
-          );
+          final int width = (constraints.maxWidth * dpr).round().clamp(1, 8192);
           final int height = (constraints.maxHeight * dpr).round().clamp(
             1,
             8192,
@@ -468,7 +465,10 @@ class _ModelerViewportState extends State<ModelerViewport> {
           // reason `SceneSurface` gives: a backend whose frame is composited
           // elsewhere has no image to paint, and presentFrame is the one
           // answer every backend can give.
-          final Widget picture = presentFrame(widget.renderer.device, frame.frame);
+          final Widget picture = presentFrame(
+            widget.renderer.device,
+            frame.frame,
+          );
           final SelectionBox? box = _box;
           final bool showBox = box != null && box.isBox;
           // Re-projected every frame rather than cached: the target does not

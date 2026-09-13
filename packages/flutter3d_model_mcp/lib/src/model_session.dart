@@ -2,24 +2,26 @@ import 'dart:io';
 import 'dart:math' as math;
 import 'dart:typed_data';
 
+import 'package:flutter3d_fbx/flutter3d_fbx.dart';
 import 'package:flutter3d_formats/flutter3d_formats.dart';
+import 'package:flutter3d_mcp_kit/flutter3d_mcp_kit.dart' show Answer;
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
-// Prefixed rather than shown/hidden alongside the unprefixed import above:
-// `rig.retargetClip` reads at every call site as what it is — the
-// `flutter3d_rig` package's own row — without a second, unprefixed import of
-// the same package fighting the first over which `BoneMap` a bare name
-// means.
+// `retargetClip` again, prefixed: this class has a method of that name, and a
+// bare call inside it would be the method calling itself.
+import 'package:flutter3d_model_core/flutter3d_model_core.dart'
+    as core
+    show retargetClip;
+// Prefixed rather than shown/hidden alongside the unprefixed imports above:
+// `rig.autoMap` reads at every call site as what it is — the `flutter3d_rig`
+// package's own row — without an unprefixed import fighting over which
+// `BoneMap` a bare name means.
 import 'package:flutter3d_rig/flutter3d_rig.dart' as rig;
 import 'package:vector_math/vector_math.dart';
 
-/// What a tool call actually did, and the sentence to say about it.
-///
-/// **A refusal is an answer here, not an exception**, for the reason
-/// `flutter3d_editor_mcp`'s own `Answer` gives: the protocol layer turns a
-/// [did] of false into a tool result marked as an error, which is how an
-/// agent is told to try something else rather than told nothing.
-typedef Answer = ({bool did, String says});
+// What a tool call did, and the sentence to say about it — the one `Answer`
+// every server here shares, so a host importing two of them has one name.
+export 'package:flutter3d_mcp_kit/flutter3d_mcp_kit.dart' show Answer;
 
 /// One model project, open, with the editor's own verbs on it.
 ///
@@ -113,8 +115,7 @@ final class ModelSession {
     final materials = project.materials;
     if (materials.isEmpty) return 'no materials — call addMaterial';
     return <String>[
-      for (var i = 0; i < materials.length; i++)
-        _materialLine(i, materials[i]),
+      for (var i = 0; i < materials.length; i++) _materialLine(i, materials[i]),
     ].join('\n');
   }
 
@@ -290,25 +291,28 @@ final class ModelSession {
 
   /// Takes the project out to a format a game or another tool reads.
   ///
-  /// **`.f3d`, `.obj` and GLB today; a `.gltf` + `.bin` + loose images is not
-  /// built.** `GltfWriter.writeGlb` (`fmt-06`) embeds vertex data and images in
-  /// one binary chunk, which is what a GLB is; splitting that into a JSON
-  /// `.gltf` beside a `.bin` and per-image files is a second entry point onto
-  /// the same writer that nothing has asked for yet. Skins, animations and
-  /// morph targets do not travel through GLB either — `fmt-07`'s part of
-  /// `GltfWriter`, not written — so a rigged project exports its geometry and
-  /// materials only, with no warning of its own beyond what `ExportReadiness`
-  /// already checks.
+  /// **Any writer in `flutter3d_formats`' own [builtInModelWriters]**, named
+  /// by [format] or by the suffix of [to] — the same list the engine's
+  /// `encodeModel` and the modeller's export menu choose from, so an agent can
+  /// write exactly what a person can. The first file lands at [to] and any
+  /// others (an OBJ's `.mtl`) beside it, under the names the writer gave them.
+  ///
+  /// **A `.gltf` + `.bin` + loose images is not built.** `GltfWriter.writeGlb`
+  /// (`fmt-06`) embeds vertex data and images in one binary chunk, which is
+  /// what a GLB is; splitting that into a JSON `.gltf` beside a `.bin` and
+  /// per-image files is a second entry point onto the same writer that nothing
+  /// has asked for yet, so asking for one says so and names the GLB instead.
   Answer export(String to, {String? format, bool force = false}) {
     final String kind = format ?? _formatFromSuffix(to);
-    if (kind != 'f3d' && kind != 'obj' && kind != 'glb') {
+    final ModelWriter? writer = modelWriterNamed(kind);
+    if (writer == null) {
       return (
         did: false,
         says: kind == 'gltf'
             ? '".gltf" (JSON plus a separate .bin) is not built; export ".glb" '
                   'instead — same writer, one self-contained file'
-            : '"$kind" is not a format this can export; it is "f3d", "obj" or '
-                  '"glb"',
+            : '"$kind" is not a format this can export; it is one of '
+                  '${builtInModelWriters.map((ModelWriter w) => '"${w.name}"').join(', ')}',
       );
     }
     if (project.objects.isEmpty) {
@@ -330,24 +334,22 @@ final class ModelSession {
       );
     }
 
-    final document = _document.of(project);
-    if (kind == 'f3d') {
-      File(to).writeAsBytesSync(F3dWriter(document).write());
-    } else if (kind == 'glb') {
-      File(to).writeAsBytesSync(GltfWriter(document).writeGlb());
-    } else {
-      final name = to
-          .split(RegExp(r'[\\/]'))
-          .last
-          .replaceAll(RegExp(r'\.obj$'), '');
-      final writer = ObjWriter(document, name: name);
-      File(to).writeAsBytesSync(writer.write());
-      if (writer.writeMaterialLibrary() case final Uint8List mtl) {
-        final dir = to.contains('/')
-            ? to.substring(0, to.lastIndexOf('/'))
-            : '.';
-        File('$dir/${writer.materialLibraryName}').writeAsBytesSync(mtl);
-      }
+    final String file = to.split(RegExp(r'[\\/]')).last;
+    final String baseName = file.toLowerCase().endsWith(writer.suffix)
+        ? file.substring(0, file.length - writer.suffix.length)
+        : file;
+    final String directory = to.contains('/')
+        ? to.substring(0, to.lastIndexOf('/'))
+        : '.';
+    final ModelWrite written = writer.write(
+      _document.of(project),
+      baseName: baseName,
+    );
+    for (var i = 0; i < written.files.length; i++) {
+      final WrittenFile each = written.files[i];
+      File(
+        i == 0 ? to : '$directory/${each.name}',
+      ).writeAsBytesSync(each.bytes);
     }
     final warnings = <String>[
       for (final ExportIssue issue in readiness.issues)
@@ -377,7 +379,14 @@ final class ModelSession {
     }
     final ModelDocument document;
     try {
-      document = await decodeModel(ModelLoadRequest(source: _FileSource(file)));
+      document = await decodeModel(
+        ModelLoadRequest(
+          source: _FileSource(file),
+          // FBX is recognised and refused with its own reason rather than
+          // sniffed into an empty OBJ — the plugin boundary, used.
+          decoders: const <ModelDecoder>[FbxDecoder()],
+        ),
+      );
     } catch (error) {
       return (did: false, says: 'could not read $from: $error');
     }
@@ -491,7 +500,8 @@ final class ModelSession {
     if (budget == null) {
       return (
         did: false,
-        says: '"$profile" is not a profile this knows; it is desktop, '
+        says:
+            '"$profile" is not a profile this knows; it is desktop, '
             'mobile or web',
       );
     }
@@ -518,10 +528,7 @@ final class ModelSession {
         history.selection = ProjectSelection(objects: <int>[id]);
         if (run(const RecalculateNormals()).did) didAnything = true;
       }
-      final ModelProject fitted = FitTexturesToProfile(
-        project,
-        budget: budget,
-      );
+      final ModelProject fitted = FitTexturesToProfile(project, budget: budget);
       if (!identical(fitted, project)) {
         run(ReplaceDocument(fitted, 'fit textures to $profile'));
         didAnything = true;
@@ -623,8 +630,8 @@ final class ModelSession {
     return '${project.objects.length} '
         '${project.objects.length == 1 ? 'object' : 'objects'}'
         '${meshObjects == 0 ? '' : ', $meshObjects with topology: $vertices '
-              '${vertices == 1 ? 'vertex' : 'vertices'}, $faces '
-              '${faces == 1 ? 'face' : 'faces'}'}'
+                  '${vertices == 1 ? 'vertex' : 'vertices'}, $faces '
+                  '${faces == 1 ? 'face' : 'faces'}'}'
         '\n${check()}';
   }
 
@@ -669,8 +676,7 @@ final class ModelSession {
     if (chosen == null) {
       return (
         did: false,
-        says:
-            '"$template" is not a rig template; it is humanoid or quadruped',
+        says: '"$template" is not a rig template; it is humanoid or quadruped',
       );
     }
     final RigMirrorAxis axis = switch (mirrorAxis) {
@@ -878,9 +884,7 @@ final class ModelSession {
       joint: joint,
       samples: brushSamples,
       strength: strength,
-      mode: mode == 'assign'
-          ? PaintWeightsMode.assign
-          : PaintWeightsMode.paint,
+      mode: mode == 'assign' ? PaintWeightsMode.assign : PaintWeightsMode.paint,
       mirror: paintMirror,
       normalize: normalize,
     );
@@ -941,7 +945,7 @@ final class ModelSession {
       );
     }
 
-    final retargeted = rig.retargetClip(
+    final retargeted = core.retargetClip(
       sourceClip: project.clips[sourceClipIndex],
       sourceProject: project,
       sourceSkeleton: sourceSkeleton,
@@ -1052,10 +1056,7 @@ final class ModelSession {
       final jointId = driver['jointId'];
       final from = driver['from'];
       final to = driver['to'];
-      if (shapeIndex is! int ||
-          jointId is! int ||
-          from is! num ||
-          to is! num) {
+      if (shapeIndex is! int || jointId is! int || from is! num || to is! num) {
         return (
           did: false,
           says:
@@ -1089,7 +1090,7 @@ final class ModelSession {
       ReplaceDocument(
         project.copyWith(clips: clips),
         'bake ${parsed.length} shape '
-            'driver${parsed.length == 1 ? '' : 's'} into clip $clipIndex',
+        'driver${parsed.length == 1 ? '' : 's'} into clip $clipIndex',
       ),
     );
   }

@@ -15,12 +15,14 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
-import 'package:flutter3d_model_core/flutter3d_model_core.dart';
+import 'package:flutter3d_formats/flutter3d_formats.dart';
 import 'package:test/test.dart';
 
 Uint8List _chunk(String type, List<int> data) {
   final out = BytesBuilder();
-  out.add((ByteData(4)..setUint32(0, data.length, Endian.big)).buffer.asUint8List());
+  out.add(
+    (ByteData(4)..setUint32(0, data.length, Endian.big)).buffer.asUint8List(),
+  );
   out.add(ascii.encode(type));
   out.add(data);
   out.add(const <int>[0, 0, 0, 0]); // CRC — this decoder does not read it
@@ -247,10 +249,7 @@ void main() {
         height: 2,
         bitDepth: 8,
         colorType: 0,
-        scanlines: <int>[
-          0, 5, 15, 25,
-          2, 3, (10 - 15) & 0xFF, 5,
-        ],
+        scanlines: <int>[0, 5, 15, 25, 2, 3, (10 - 15) & 0xFF, 5],
       );
       final decoded = decodePng(png);
       expect(decoded!.rgba.sublist(12), <int>[
@@ -269,10 +268,7 @@ void main() {
         height: 2,
         bitDepth: 8,
         colorType: 0,
-        scanlines: <int>[
-          0, 4, 8, 12,
-          3, 8, 11, 14,
-        ],
+        scanlines: <int>[0, 4, 8, 12, 3, 8, 11, 14],
       );
       final decoded = decodePng(png);
       expect(decoded!.rgba.sublist(12), <int>[
@@ -291,10 +287,7 @@ void main() {
         height: 2,
         bitDepth: 8,
         colorType: 0,
-        scanlines: <int>[
-          0, 6, 9, 20,
-          4, 1, 16, 249,
-        ],
+        scanlines: <int>[0, 6, 9, 20, 4, 1, 16, 249],
       );
       final decoded = decodePng(png);
       expect(decoded!.rgba.sublist(12), <int>[

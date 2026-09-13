@@ -58,7 +58,10 @@ void _readDriver(RacingSimulation sim, InputState input) {
 /// carries, not a lap anybody would post.
 void _play(InputState input, int step) {
   input.setActionValue(_throttle, step % 40 < 30 ? 1.0 : 0.0);
-  input.setActionValue(_brake, (step % 200 >= 150 && step % 200 < 170) ? 0.6 : 0.0);
+  input.setActionValue(
+    _brake,
+    (step % 200 >= 150 && step % 200 < 170) ? 0.6 : 0.0,
+  );
   final steeringRight = step % 80 < 40;
   input.setActionValue(_right, steeringRight ? 0.4 : 0.0);
   input.setActionValue(_left, steeringRight ? 0.0 : 0.4);

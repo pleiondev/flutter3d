@@ -622,6 +622,20 @@ Iterable<String> _importedUris(String source) => RegExp(
 ).allMatches(source).map((RegExpMatch m) => m.group(1)!);
 
 /// Where an import URI lands on disk, or null when it leaves the workspace.
+///
+/// **Normalized, not just made absolute.** A relative import climbing out of
+/// its own directory (`../asset_source.dart`, common wherever
+/// `flutter3d_formats/lib/src/{f3d,gltf,obj,stl,usdz}/` reaches a sibling)
+/// used to come back as a literal `.../f3d/../asset_source.dart` — a
+/// different string for the same file depending on which directory imported
+/// it from. `_pathToFlutter`'s `seen` set dedupes by string, so five
+/// spellings of one file were five unvisited files, and revisiting a file
+/// under a fresh spelling re-walked its own `../` imports into even longer,
+/// still-distinct strings. What looked like a bounded breadth-first search
+/// over roughly ninety real files instead grew past twenty thousand queued
+/// entries before this was caught. `Uri.normalizePath()` collapses `..`
+/// segments the way `File.absolute.path` never promises to, so the same file
+/// reached two ways resolves to the same string both times.
 String? _resolveImport(String uri, String from, Map<String, String> roots) {
   if (uri.startsWith('dart:')) return null;
   if (uri.startsWith('package:')) {
@@ -629,9 +643,15 @@ String? _resolveImport(String uri, String from, Map<String, String> roots) {
     final slash = rest.indexOf('/');
     if (slash < 0) return null;
     final root = roots[rest.substring(0, slash)];
-    return root == null ? null : '$root/${rest.substring(slash + 1)}';
+    return root == null
+        ? null
+        : Uri.file(
+            '$root/${rest.substring(slash + 1)}',
+          ).normalizePath().toFilePath();
   }
-  return File('${File(from).parent.path}/$uri').absolute.path;
+  return Uri.file(
+    '${File(from).parent.path}/$uri',
+  ).normalizePath().toFilePath();
 }
 
 // ------------------------------------------------------------ one assembly
@@ -1530,6 +1550,8 @@ List<Finding> _testCount() {
     'forty-four',
     // And the day `flutter3d_lab` became the forty-fifth.
     'forty-five',
+    // And the day `flutter3d_mcp_kit` became the forty-sixth.
+    'forty-six',
   ];
   final readme = File('${root.path}/README.md').readAsStringSync();
   final saidInProse = RegExp(
@@ -2504,7 +2526,7 @@ const List<String> _countedInWords = <String>[
   'twenty-seven', 'twenty-eight', 'twenty-nine', 'thirty', 'thirty-one',
   'thirty-two', 'thirty-three', 'thirty-four', 'thirty-five', 'thirty-six',
   'thirty-seven', 'thirty-eight', 'thirty-nine', 'forty', 'forty-one',
-  'forty-two', 'forty-three', 'forty-four', 'forty-five',
+  'forty-two', 'forty-three', 'forty-four', 'forty-five', 'forty-six',
 ];
 
 /// A count said both ways, so a finding can be read and searched for.

@@ -92,90 +92,80 @@ void main() {
       expect((tipAfter - expectedTip).length, lessThan(1e-4));
     });
 
-    test(
-      "mat-25's own acceptance: a spot's cone pixels are where its angle "
-      'and direction put them',
-      () {
-        final light = LightNode(
-          type: LightType.spot,
-          outerConeAngle: math.pi / 6.0, // 30°
-        )..setLocalForward(Vector3(0.0, 0.0, -1.0));
+    test("mat-25's own acceptance: a spot's cone pixels are where its angle "
+        'and direction put them', () {
+      final light = LightNode(
+        type: LightType.spot,
+        outerConeAngle: math.pi / 6.0, // 30°
+      )..setLocalForward(Vector3(0.0, 0.0, -1.0));
 
-        const size = 0.4;
-        final draw = DebugDraw()..addLightGizmo(light, size: size);
-        final origin = light.readWorldPosition();
-        final ribs = _linesFrom(draw, origin);
+      const size = 0.4;
+      final draw = DebugDraw()..addLightGizmo(light, size: size);
+      final origin = light.readWorldPosition();
+      final ribs = _linesFrom(draw, origin);
 
-        // The direction line plus four cone ribs, all starting at the light.
-        expect(ribs, hasLength(5));
+      // The direction line plus four cone ribs, all starting at the light.
+      expect(ribs, hasLength(5));
 
-        final direction = light.readDirection();
-        final tip = origin + (direction * (size * 4.0));
-        final coneLength = (tip - origin).length;
-        final expectedRadius = coneLength * math.tan(light.outerConeAngle);
+      final direction = light.readDirection();
+      final tip = origin + (direction * (size * 4.0));
+      final coneLength = (tip - origin).length;
+      final expectedRadius = coneLength * math.tan(light.outerConeAngle);
 
-        // Every rib but the direction line itself lands on the circle the
-        // cone angle predicts, `expectedRadius` from the axis at the tip —
-        // not merely "a cone-shaped blob somewhere near the light".
-        var ribsOnCircle = 0;
-        for (final (_, to) in ribs) {
-          if ((to - tip).length < 1e-6) continue; // the direction line itself
-          final offset = to - tip;
-          expect(offset.dot(direction).abs(), lessThan(1e-4));
-          expect((offset.length - expectedRadius).abs(), lessThan(1e-4));
-          ribsOnCircle++;
-        }
-        expect(ribsOnCircle, 4);
-      },
-    );
+      // Every rib but the direction line itself lands on the circle the
+      // cone angle predicts, `expectedRadius` from the axis at the tip —
+      // not merely "a cone-shaped blob somewhere near the light".
+      var ribsOnCircle = 0;
+      for (final (_, to) in ribs) {
+        if ((to - tip).length < 1e-6) continue; // the direction line itself
+        final offset = to - tip;
+        expect(offset.dot(direction).abs(), lessThan(1e-4));
+        expect((offset.length - expectedRadius).abs(), lessThan(1e-4));
+        ribsOnCircle++;
+      }
+      expect(ribsOnCircle, 4);
+    });
 
-    test(
-      'end to end: LightingSync.apply turns the gizmo on, and the rendered '
-      'frame changes because of it',
-      () async {
-        final it = cpuTestDevice(width: 96, height: 72);
-        final renderer = Renderer.create(device: it.device);
-        final stage = ModelerStage.build(device: it.device);
-        stage.frameSubject();
+    test('end to end: LightingSync.apply turns the gizmo on, and the rendered '
+        'frame changes because of it', () async {
+      final it = cpuTestDevice(width: 96, height: 72);
+      final renderer = Renderer.create(device: it.device);
+      final stage = ModelerStage.build(device: it.device);
+      stage.frameSubject();
 
-        final sync = LightingSync();
-        const noLights = SceneLighting();
-        final withSpot = SceneLighting(
-          lights: <ProjectLight>[
-            ProjectLight(
-              type: ProjectLightType.spot,
-              range: 5.0,
-              intensity: 6.0,
-            ),
-          ],
+      final sync = LightingSync();
+      const noLights = SceneLighting();
+      final withSpot = SceneLighting(
+        lights: <ProjectLight>[
+          ProjectLight(type: ProjectLightType.spot, range: 5.0, intensity: 6.0),
+        ],
+      );
+
+      Future<Uint8List> frameFor(SceneLighting lighting) async {
+        sync.sync(stage.scene, lighting);
+        final settings = sync.apply(const RenderSettings(), lighting);
+        final result = renderer.render(
+          width: 96,
+          height: 72,
+          scene: stage.scene,
+          views: stage.views(),
+          settings: settings,
         );
+        final pixels = await it.device.readPixels(result.frame);
+        expect(pixels, isNotNull);
+        return pixels!.buffer.asUint8List();
+      }
 
-        Future<Uint8List> frameFor(SceneLighting lighting) async {
-          sync.sync(stage.scene, lighting);
-          final settings = sync.apply(const RenderSettings(), lighting);
-          final result = renderer.render(
-            width: 96,
-            height: 72,
-            scene: stage.scene,
-            views: stage.views(),
-            settings: settings,
-          );
-          final pixels = await it.device.readPixels(result.frame);
-          expect(pixels, isNotNull);
-          return pixels!.buffer.asUint8List();
-        }
+      final without = await frameFor(noLights);
+      final with_ = await frameFor(withSpot);
 
-        final without = await frameFor(noLights);
-        final with_ = await frameFor(withSpot);
-
-        expect(
-          without,
-          isNot(equals(with_)),
-          reason:
-              'adding a light and syncing should turn DebugDrawOptions'
-              '.lightGizmos on (LightingSync.apply) and draw something new',
-        );
-      },
-    );
+      expect(
+        without,
+        isNot(equals(with_)),
+        reason:
+            'adding a light and syncing should turn DebugDrawOptions'
+            '.lightGizmos on (LightingSync.apply) and draw something new',
+      );
+    });
   });
 }

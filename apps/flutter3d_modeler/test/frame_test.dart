@@ -663,16 +663,23 @@ void main() {
         radius: 1.0,
         segments: 64,
       ).build(layout: VertexLayout.positionNormalTexcoord);
-      final simplified = simplifyMeshWithAttributes(disc, targetTriangleCount: 24);
-      final rebuilt = simplified.withGeneratedTangents().convertedTo(VertexLayout.standard);
+      final simplified = simplifyMeshWithAttributes(
+        disc,
+        targetTriangleCount: 24,
+      );
+      final rebuilt = simplified.withGeneratedTangents().convertedTo(
+        VertexLayout.standard,
+      );
 
       final stride = rebuilt.layout.floatsPerVertex;
       final uvOffset = rebuilt.layout.floatOffsetOf(VertexLayout.texcoord.name);
       final colorOffset = rebuilt.layout.floatOffsetOf(VertexLayout.color.name);
       for (var v = 0; v < rebuilt.vertexCount; v++) {
         final base = v * stride;
-        rebuilt.vertices[base + colorOffset] = rebuilt.vertices[base + uvOffset];
-        rebuilt.vertices[base + colorOffset + 1] = rebuilt.vertices[base + uvOffset + 1];
+        rebuilt.vertices[base + colorOffset] =
+            rebuilt.vertices[base + uvOffset];
+        rebuilt.vertices[base + colorOffset + 1] =
+            rebuilt.vertices[base + uvOffset + 1];
         rebuilt.vertices[base + colorOffset + 2] = 0.5;
         rebuilt.vertices[base + colorOffset + 3] = 1.0;
       }
@@ -705,39 +712,45 @@ void main() {
     // of the row's own worked example, a quadratic bend into a line, the
     // one `mesh-lathe`'s own fixture (an already-flat profile) does not
     // touch.
-    test('a curved profile\'s flattened preview matches its reference', () async {
-      final curve = ProfileCurve(
-        points: <ProfilePoint>[
-          ProfilePoint(Vector2(0, -0.6)),
-          ProfilePoint(Vector2(0.5, 0.0)),
-          ProfilePoint(Vector2(0.2, 0.6)),
-        ],
-        segments: <ProfileSegment>[
-          QuadraticSegment(Vector2(0.65, -0.3)),
-          const LineSegment(),
-        ],
-      );
+    test(
+      'a curved profile\'s flattened preview matches its reference',
+      () async {
+        final curve = ProfileCurve(
+          points: <ProfilePoint>[
+            ProfilePoint(Vector2(0, -0.6)),
+            ProfilePoint(Vector2(0.5, 0.0)),
+            ProfilePoint(Vector2(0.2, 0.6)),
+          ],
+          segments: <ProfileSegment>[
+            QuadraticSegment(Vector2(0.65, -0.3)),
+            const LineSegment(),
+          ],
+        );
 
-      final frame = await renderFrame(
-        width: 240,
-        height: 160,
-        build: (FrameRequest request) {
-          final stage = ModelerStage.build(device: request.device);
-          final node = stage.subject as MeshNode;
-          node.mesh = DeviceMesh.upload(
-            request.device,
-            ParametricLathe(
-              profile: curve.toPolyline(),
-              segments: 24,
-            ).toEditMesh().toMeshData(),
-          );
-          stage.frameSubject();
-          return (scene: stage.scene, camera: stage.camera);
-        },
-      );
+        final frame = await renderFrame(
+          width: 240,
+          height: 160,
+          build: (FrameRequest request) {
+            final stage = ModelerStage.build(device: request.device);
+            final node = stage.subject as MeshNode;
+            node.mesh = DeviceMesh.upload(
+              request.device,
+              ParametricLathe(
+                profile: curve.toPolyline(),
+                segments: 24,
+              ).toEditMesh().toMeshData(),
+            );
+            stage.frameSubject();
+            return (scene: stage.scene, camera: stage.camera);
+          },
+        );
 
-      await expectMatchesGolden(frame, 'test/goldens/lathe-dialog-preview.png');
-    });
+        await expectMatchesGolden(
+          frame,
+          'test/goldens/lathe-dialog-preview.png',
+        );
+      },
+    );
   });
 
   group('the material studio\'s own preview, drawn', () {
@@ -748,55 +761,61 @@ void main() {
     // beside it, and the scene's own environment bound to the preset's sky —
     // rather than through the dialog's chrome, the same shortcut the lathe
     // preview above already takes.
-    test('the sphere body under the Daylight preset matches its reference', () async {
-      final preset = materialStudioSkyPresets()[1];
+    test(
+      'the sphere body under the Daylight preset matches its reference',
+      () async {
+        final preset = materialStudioSkyPresets()[1];
 
-      final frame = await renderFrame(
-        // `mat-31`'s own size for the three material/scene goldens this
-        // app's own tests keep in `test/goldens`.
-        width: 320,
-        height: 200,
-        settings: RenderSettings(sky: preset.sky),
-        build: (FrameRequest request) {
-          final stage = ModelerStage.build(device: request.device);
-          (stage.subject as MeshNode)
-            ..mesh = DeviceMesh.upload(
-              request.device,
-              const ParametricSphere().toEditMesh().toMeshData(),
-            )
-            ..material = Material(
-              name: 'preview',
-              lighting: LightingModel.pbr,
-              baseColor: Vector4(0.75, 0.15, 0.12, 1.0),
-              roughness: 0.25,
-              metallic: 0.8,
-            );
-          final environment = MaterialStudioEnvironment(
-            device: request.device,
-            scene: stage.scene,
-          )..apply(preset.sky);
-          addTearDown(environment.dispose);
-          stage.scene.add(
-            MeshNode(
-              DeviceMesh.upload(
+        final frame = await renderFrame(
+          // `mat-31`'s own size for the three material/scene goldens this
+          // app's own tests keep in `test/goldens`.
+          width: 320,
+          height: 200,
+          settings: RenderSettings(sky: preset.sky),
+          build: (FrameRequest request) {
+            final stage = ModelerStage.build(device: request.device);
+            (stage.subject as MeshNode)
+              ..mesh = DeviceMesh.upload(
                 request.device,
-                const ParametricPlane(width: 8, depth: 8).toEditMesh().toMeshData(),
-              ),
-              Material(
-                name: 'floor',
+                const ParametricSphere().toEditMesh().toMeshData(),
+              )
+              ..material = Material(
+                name: 'preview',
                 lighting: LightingModel.pbr,
-                baseColor: Vector4(0.5, 0.5, 0.52, 1.0),
-                roughness: 0.85,
-              ),
-              name: 'floor',
-            )..setPosition(0, -0.5, 0),
-          );
-          stage.frameSubject();
-          return (scene: stage.scene, camera: stage.camera);
-        },
-      );
+                baseColor: Vector4(0.75, 0.15, 0.12, 1.0),
+                roughness: 0.25,
+                metallic: 0.8,
+              );
+            final environment = MaterialStudioEnvironment(
+              device: request.device,
+              scene: stage.scene,
+            )..apply(preset.sky);
+            addTearDown(environment.dispose);
+            stage.scene.add(
+              MeshNode(
+                DeviceMesh.upload(
+                  request.device,
+                  const ParametricPlane(
+                    width: 8,
+                    depth: 8,
+                  ).toEditMesh().toMeshData(),
+                ),
+                Material(
+                  name: 'floor',
+                  lighting: LightingModel.pbr,
+                  baseColor: Vector4(0.5, 0.5, 0.52, 1.0),
+                  roughness: 0.85,
+                ),
+                name: 'floor',
+              )..setPosition(0, -0.5, 0),
+            );
+            stage.frameSubject();
+            return (scene: stage.scene, camera: stage.camera);
+          },
+        );
 
-      await expectMatchesGolden(frame, 'test/goldens/material-studio.png');
-    });
+        await expectMatchesGolden(frame, 'test/goldens/material-studio.png');
+      },
+    );
   });
 }

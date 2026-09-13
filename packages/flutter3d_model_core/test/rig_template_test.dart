@@ -10,10 +10,7 @@ import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 import 'package:test/test.dart';
 import 'package:vector_math/vector_math.dart';
 
-final _humanoidBounds = Aabb3.minMax(
-  Vector3(-1, -1, -1),
-  Vector3(1, 2, 1),
-);
+final _humanoidBounds = Aabb3.minMax(Vector3(-1, -1, -1), Vector3(1, 2, 1));
 
 final _humanoidMarkers = <String, Vector3>{
   'hips': Vector3(0, 1.0, 0),
@@ -224,11 +221,7 @@ void main() {
     });
 
     test('quadruped', () {
-      checkIdentity(
-        RigTemplate.quadruped,
-        _quadrupedMarkers,
-        _quadrupedBounds,
-      );
+      checkIdentity(RigTemplate.quadruped, _quadrupedMarkers, _quadrupedBounds);
     });
   });
 
@@ -263,8 +256,14 @@ void main() {
   });
 
   test('required markers list matches the table exactly', () {
-    expect(requiredMarkers(RigTemplate.humanoid).toSet(), _humanoidMarkers.keys.toSet());
-    expect(requiredMarkers(RigTemplate.quadruped).toSet(), _quadrupedMarkers.keys.toSet());
+    expect(
+      requiredMarkers(RigTemplate.humanoid).toSet(),
+      _humanoidMarkers.keys.toSet(),
+    );
+    expect(
+      requiredMarkers(RigTemplate.quadruped).toSet(),
+      _quadrupedMarkers.keys.toSet(),
+    );
   });
 
   test('object ids start at firstObjectId and are consecutive', () {

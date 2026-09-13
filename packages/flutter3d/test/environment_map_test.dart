@@ -193,10 +193,17 @@ void main() {
     /// here depends on longitude, which is the row's own acceptance — "top
     /// white / bottom black → +Y/−Y" says nothing about which way the seam
     /// runs.
-    ByteData panorama({required int width, required int height, required int top, required int bottom}) {
+    ByteData panorama({
+      required int width,
+      required int height,
+      required int top,
+      required int bottom,
+    }) {
       final data = ByteData(width * height * 4);
       for (var y = 0; y < height; y++) {
-        final level = height == 1 ? top : (top + (bottom - top) * y / (height - 1)).round();
+        final level = height == 1
+            ? top
+            : (top + (bottom - top) * y / (height - 1)).round();
         for (var x = 0; x < width; x++) {
           final at = (y * width + x) * 4;
           data
@@ -225,8 +232,16 @@ void main() {
       expect(faces, isNotNull);
 
       // Face order is `_directionFor`'s: +X, −X, +Y, −Y, +Z, −Z.
-      expect(_texel(faces!, 2, 8, 4, 4)[0], greaterThan(200), reason: '+Y should read near white');
-      expect(_texel(faces, 3, 8, 4, 4)[0], lessThan(55), reason: '−Y should read near black');
+      expect(
+        _texel(faces!, 2, 8, 4, 4)[0],
+        greaterThan(200),
+        reason: '+Y should read near white',
+      );
+      expect(
+        _texel(faces, 3, 8, 4, 4)[0],
+        lessThan(55),
+        reason: '−Y should read near black',
+      );
     });
 
     test('a face reads one flat value when the source has none of its own', () {
@@ -261,16 +276,30 @@ void main() {
 
     test('refuses bytes that do not hold width × height pixels', () {
       expect(
-        EnvironmentMap.equirectToCubeFaces(ByteData(4), width: 4, height: 4, size: 8),
+        EnvironmentMap.equirectToCubeFaces(
+          ByteData(4),
+          width: 4,
+          height: 4,
+          size: 8,
+        ),
         isNull,
       );
     });
 
     test('refuses a non-positive width, height or size', () {
       final ok = panorama(width: 4, height: 2, top: 1, bottom: 1);
-      expect(EnvironmentMap.equirectToCubeFaces(ok, width: 0, height: 2, size: 8), isNull);
-      expect(EnvironmentMap.equirectToCubeFaces(ok, width: 4, height: 0, size: 8), isNull);
-      expect(EnvironmentMap.equirectToCubeFaces(ok, width: 4, height: 2, size: 0), isNull);
+      expect(
+        EnvironmentMap.equirectToCubeFaces(ok, width: 0, height: 2, size: 8),
+        isNull,
+      );
+      expect(
+        EnvironmentMap.equirectToCubeFaces(ok, width: 4, height: 0, size: 8),
+        isNull,
+      );
+      expect(
+        EnvironmentMap.equirectToCubeFaces(ok, width: 4, height: 2, size: 0),
+        isNull,
+      );
     });
   });
 }

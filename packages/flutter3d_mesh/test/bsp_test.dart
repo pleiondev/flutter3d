@@ -150,26 +150,23 @@ void main() {
       expect(result, isNull);
     });
 
-    test(
-      'a working set that grows past maxPolygons mid-split, even though '
-      'the two inputs alone did not',
-      () {
-        // Two 12-triangle cubes overlapping off-axis: 24 triangles going
-        // in, at or under either budget below — the upfront check (input
-        // size alone) lets both calls through. The splitting itself is
-        // what pushes the working set past 36: cutting each solid against
-        // the other's own planes turns several triangles into two, and
-        // this specific union's own polygon count (measured directly, not
-        // guessed, and smaller than the final mesh's own fan-triangulated
-        // count) lands between 36 and 100.
-        final (dx, dy, dz) = _ordinaryOffset;
-        final a = EditMesh.cuboid();
-        final b = translatedCuboid(Vector3(dx, dy, dz));
+    test('a working set that grows past maxPolygons mid-split, even though '
+        'the two inputs alone did not', () {
+      // Two 12-triangle cubes overlapping off-axis: 24 triangles going
+      // in, at or under either budget below — the upfront check (input
+      // size alone) lets both calls through. The splitting itself is
+      // what pushes the working set past 36: cutting each solid against
+      // the other's own planes turns several triangles into two, and
+      // this specific union's own polygon count (measured directly, not
+      // guessed, and smaller than the final mesh's own fan-triangulated
+      // count) lands between 36 and 100.
+      final (dx, dy, dz) = _ordinaryOffset;
+      final a = EditMesh.cuboid();
+      final b = translatedCuboid(Vector3(dx, dy, dz));
 
-        expect(booleanUnion(a, b, maxPolygons: 24 + 12), isNull);
-        expect(booleanUnion(a, b, maxPolygons: 100), isNotNull);
-      },
-    );
+      expect(booleanUnion(a, b, maxPolygons: 24 + 12), isNull);
+      expect(booleanUnion(a, b, maxPolygons: 100), isNotNull);
+    });
   });
 
   group('booleanOp: the three named functions by a stored operation field', () {

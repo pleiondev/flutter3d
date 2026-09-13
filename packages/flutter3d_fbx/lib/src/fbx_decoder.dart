@@ -45,7 +45,10 @@ final class FbxDecoder implements ModelDecoder {
     // decoded twice just to answer "is this one of yours".
     final prefixLength = bytes.length < 64 ? bytes.length : 64;
     try {
-      final prefix = utf8.decode(bytes.sublist(0, prefixLength), allowMalformed: true);
+      final prefix = utf8.decode(
+        bytes.sublist(0, prefixLength),
+        allowMalformed: true,
+      );
       if (prefix.trimLeft().startsWith('; FBX')) return true;
     } on FormatException {
       // Not text at all — already answered by the binary check above.

@@ -26,7 +26,11 @@ part of 'command.dart';
 /// object is drawn, not a keyframe; [KeyShape] is what records one of
 /// those, from whatever this last set.
 final class SetShapeWeight extends ModelCommand {
-  const SetShapeWeight({required this.id, required this.shapeIndex, required this.weight});
+  const SetShapeWeight({
+    required this.id,
+    required this.shapeIndex,
+    required this.weight,
+  });
 
   final int id;
   final int shapeIndex;
@@ -39,8 +43,11 @@ final class SetShapeWeight extends ModelCommand {
   String get says => 'change a shape key\'s weight';
 
   @override
-  Map<String, Object?> get arguments =>
-      <String, Object?>{'id': id, 'shapeIndex': shapeIndex, 'weight': weight};
+  Map<String, Object?> get arguments => <String, Object?>{
+    'id': id,
+    'shapeIndex': shapeIndex,
+    'weight': weight,
+  };
 
   @override
   Outcome apply(ModelProject project, ProjectSelection selection) {
@@ -80,8 +87,10 @@ final class AddShapeFromMesh extends ModelCommand {
   String get says => 'add a shape key from the mesh';
 
   @override
-  Map<String, Object?> get arguments =>
-      <String, Object?>{'id': id, 'shapeName': shapeName};
+  Map<String, Object?> get arguments => <String, Object?>{
+    'id': id,
+    'shapeName': shapeName,
+  };
 
   @override
   Outcome apply(ModelProject project, ProjectSelection selection) {
@@ -108,13 +117,19 @@ final class AddShapeFromMesh extends ModelCommand {
         ),
       );
     }
-    return Outcome.refused('"${object.name}" has no mesh to sculpt a shape from');
+    return Outcome.refused(
+      '"${object.name}" has no mesh to sculpt a shape from',
+    );
   }
 }
 
 /// Renames [shapeIndex] in [id]'s own shape set.
 final class RenameShape extends ModelCommand {
-  const RenameShape({required this.id, required this.shapeIndex, required this.to});
+  const RenameShape({
+    required this.id,
+    required this.shapeIndex,
+    required this.to,
+  });
 
   final int id;
   final int shapeIndex;
@@ -127,8 +142,11 @@ final class RenameShape extends ModelCommand {
   String get says => 'rename a shape key to "$to"';
 
   @override
-  Map<String, Object?> get arguments =>
-      <String, Object?>{'id': id, 'shapeIndex': shapeIndex, 'to': to};
+  Map<String, Object?> get arguments => <String, Object?>{
+    'id': id,
+    'shapeIndex': shapeIndex,
+    'to': to,
+  };
 
   @override
   Outcome apply(ModelProject project, ProjectSelection selection) {
@@ -156,7 +174,9 @@ final class RenameShape extends ModelCommand {
     }
     keys[shapeIndex] = ShapeKey(to, positions);
     return Outcome.done(
-      project.withObject(object.copyWith(shapeSet: shapes.copyWith(keys: keys))),
+      project.withObject(
+        object.copyWith(shapeSet: shapes.copyWith(keys: keys)),
+      ),
     );
   }
 }
@@ -179,7 +199,10 @@ final class DeleteShape extends ModelCommand {
   String get says => 'delete a shape key';
 
   @override
-  Map<String, Object?> get arguments => <String, Object?>{'id': id, 'shapeIndex': shapeIndex};
+  Map<String, Object?> get arguments => <String, Object?>{
+    'id': id,
+    'shapeIndex': shapeIndex,
+  };
 
   @override
   Outcome apply(ModelProject project, ProjectSelection selection) {
@@ -205,7 +228,8 @@ final class DeleteShape extends ModelCommand {
           extras: clip.extras,
           tracks: <ProjectTrack>[
             for (final track in clip.tracks)
-              if (track.objectId == id && track.track.path == AnimationPath.weights)
+              if (track.objectId == id &&
+                  track.track.path == AnimationPath.weights)
                 ...?_withComponentDropped(track, shapeIndex)
               else
                 track,
@@ -213,9 +237,7 @@ final class DeleteShape extends ModelCommand {
         ),
     ];
 
-    return Outcome.done(
-      project.withObject(next).copyWith(clips: clips),
-    );
+    return Outcome.done(project.withObject(next).copyWith(clips: clips));
   }
 }
 
@@ -225,7 +247,8 @@ final class DeleteShape extends ModelCommand {
 /// leftover.
 List<ProjectTrack>? _withComponentDropped(ProjectTrack track, int dropped) {
   final table = KeyTable.fromAnimationTrack(track.track);
-  if (dropped < 0 || dropped >= table.componentCount) return <ProjectTrack>[track];
+  if (dropped < 0 || dropped >= table.componentCount)
+    return <ProjectTrack>[track];
   if (table.componentCount <= 1) return null;
 
   List<double>? without(List<double>? values) {
@@ -265,7 +288,11 @@ List<ProjectTrack>? _withComponentDropped(ProjectTrack track, int dropped) {
 /// Creates the object's `weights` track in that clip when it does not have
 /// one yet, sized to the shape set's own current key count.
 final class KeyShape extends ModelCommand {
-  const KeyShape({required this.id, required this.clipIndex, required this.time});
+  const KeyShape({
+    required this.id,
+    required this.clipIndex,
+    required this.time,
+  });
 
   final int id;
   final int clipIndex;
@@ -278,8 +305,11 @@ final class KeyShape extends ModelCommand {
   String get says => 'key the shape weights';
 
   @override
-  Map<String, Object?> get arguments =>
-      <String, Object?>{'id': id, 'clipIndex': clipIndex, 'time': time};
+  Map<String, Object?> get arguments => <String, Object?>{
+    'id': id,
+    'clipIndex': clipIndex,
+    'time': time,
+  };
 
   @override
   Outcome apply(ModelProject project, ProjectSelection selection) {
@@ -319,7 +349,11 @@ final class KeyShape extends ModelCommand {
       tracks.add(newTrack);
     }
     final clips = List<ProjectClip>.of(project.clips)
-      ..[clipIndex] = ProjectClip(name: clip.name, extras: clip.extras, tracks: tracks);
+      ..[clipIndex] = ProjectClip(
+        name: clip.name,
+        extras: clip.extras,
+        tracks: tracks,
+      );
 
     return Outcome.done(project.copyWith(clips: clips));
   }

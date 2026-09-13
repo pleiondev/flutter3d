@@ -37,28 +37,26 @@ List<UvIslandData> _islands() => const <UvIslandData>[
   ),
 ];
 
-Widget _screen({
-  int? selectedIslandId,
-  ValueChanged<int>? onIslandSelected,
-}) => MaterialApp(
-  home: Material(
-    child: UvScreen(
-      // A real caller hands in `ModelerViewport`; this screen's own doc
-      // comment says its job stops at composing screens, so a placeholder
-      // proves the composition without needing a `Renderer`/`ModelerStage`
-      // this test has no business building.
-      viewport: const Placeholder(key: ValueKey<String>('viewport')),
-      islands: _islands(),
-      methods: const <UnwrapMethod>[UnwrapMethod.lscm],
-      method: UnwrapMethod.lscm,
-      onMethodChanged: (_) {},
-      margin: 0.01,
-      onMarginChanged: (_) {},
-      selectedIslandId: selectedIslandId,
-      onIslandSelected: onIslandSelected,
-    ),
-  ),
-);
+Widget _screen({int? selectedIslandId, ValueChanged<int>? onIslandSelected}) =>
+    MaterialApp(
+      home: Material(
+        child: UvScreen(
+          // A real caller hands in `ModelerViewport`; this screen's own doc
+          // comment says its job stops at composing screens, so a placeholder
+          // proves the composition without needing a `Renderer`/`ModelerStage`
+          // this test has no business building.
+          viewport: const Placeholder(key: ValueKey<String>('viewport')),
+          islands: _islands(),
+          methods: const <UnwrapMethod>[UnwrapMethod.lscm],
+          method: UnwrapMethod.lscm,
+          onMethodChanged: (_) {},
+          margin: 0.01,
+          onMarginChanged: (_) {},
+          selectedIslandId: selectedIslandId,
+          onIslandSelected: onIslandSelected,
+        ),
+      ),
+    );
 
 void main() {
   testWidgets('composes the viewport, the layout and the panel', (
@@ -78,9 +76,7 @@ void main() {
     'callback',
     (WidgetTester tester) async {
       final selected = <int>[];
-      await tester.pumpWidget(
-        _screen(onIslandSelected: selected.add),
-      );
+      await tester.pumpWidget(_screen(onIslandSelected: selected.add));
 
       // The centroid of island 1's own triangle in `UvLayoutView`'s own
       // 400×400 painter — the same point `uv_layout_view_test.dart` taps.
@@ -108,9 +104,7 @@ void main() {
     (WidgetTester tester) async {
       await tester.pumpWidget(_screen(selectedIslandId: 1));
 
-      final layoutView = tester.widget<UvLayoutView>(
-        find.byType(UvLayoutView),
-      );
+      final layoutView = tester.widget<UvLayoutView>(find.byType(UvLayoutView));
       final panel = tester.widget<UvUnwrapPanel>(find.byType(UvUnwrapPanel));
       expect(layoutView.selectedIslandId, 1);
       expect(panel.selectedIslandId, 1);

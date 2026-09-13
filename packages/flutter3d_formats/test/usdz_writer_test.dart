@@ -42,9 +42,7 @@ List<_ZipEntry> _readLocalEntries(Uint8List zip) {
     final compressedSize = data.getUint32(at + 18, Endian.little);
     final nameLength = data.getUint16(at + 26, Endian.little);
     final extraLength = data.getUint16(at + 28, Endian.little);
-    final name = ascii.decode(
-      zip.sublist(at + 30, at + 30 + nameLength),
-    );
+    final name = ascii.decode(zip.sublist(at + 30, at + 30 + nameLength));
     final dataOffset = at + 30 + nameLength + extraLength;
     entries.add(
       _ZipEntry(
@@ -82,10 +80,7 @@ void main() {
       zip
         ..store('a.usda', Uint8List(3))
         ..store('a-somewhat-longer-name.png', Uint8List(17))
-        ..store(
-          'an-even-longer-file-name-than-that-one.bin',
-          Uint8List(129),
-        );
+        ..store('an-even-longer-file-name-than-that-one.bin', Uint8List(129));
       final bytes = zip.build();
       final entries = _readLocalEntries(bytes);
 
@@ -181,9 +176,7 @@ void main() {
         name: '1 not/a.valid name',
       );
       final withBadName = PlainModelDocument(surfaces: <ModelSurface>[renamed]);
-      final usda = utf8.decode(
-        _usdaOf(UsdzWriter(withBadName).write()),
-      );
+      final usda = utf8.decode(_usdaOf(UsdzWriter(withBadName).write()));
       // Mutation: pass the surface name through unsanitized — this would
       // write `def Mesh "1 not/a.valid name"`, which is not `.usda` a
       // parser can read past the first token of.

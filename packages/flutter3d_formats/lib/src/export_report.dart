@@ -17,13 +17,8 @@ import 'dart:typed_data';
 import 'document_compare.dart';
 import 'f3d/f3d_loader.dart';
 import 'f3d/f3d_writer.dart';
-import 'gltf/gltf_loader.dart';
-import 'gltf/gltf_writer.dart';
 import 'model_document.dart';
-import 'obj/obj_loader.dart';
-import 'obj/obj_writer.dart';
-import 'stl/stl_loader.dart';
-import 'stl/stl_writer.dart';
+import 'model_writer.dart';
 
 /// One write, read back and checked against what went in.
 final class ExportReport {
@@ -59,64 +54,58 @@ final class ExportReport {
       'difference(s))';
 }
 
-/// Writes [document] as glTF, reads the result back and compares — a
-/// binary format, so the round trip is held to a tolerance of `0.0`.
-Future<ExportReport> exportToGlb(ModelDocument document, {String name = 'model'}) async {
-  final writer = GltfWriter(document);
-  final bytes = writer.writeGlb();
-  final readBack = await GltfLoader().load(bytes);
+/// Writes [document] through [writer], reads the files back through the same
+/// writer and compares at [CheckedModelWriter.tolerance].
+///
+/// The one body every `exportTo…` below is, so a writer an application adds
+/// is checked the same way the built-in ones are.
+Future<ExportReport> exportChecked(
+  ModelDocument document,
+  CheckedModelWriter writer, {
+  String name = 'model',
+}) async {
+  final ModelWrite written = writer.write(document, baseName: name);
+  final ModelDocument readBack = await writer.readBack(written);
   return ExportReport(
-    files: <String, Uint8List>{'$name.glb': bytes},
-    writerWarnings: writer.warnings,
-    differences: compareModelDocuments(document, readBack),
+    files: <String, Uint8List>{
+      for (final WrittenFile each in written.files) each.name: each.bytes,
+    },
+    writerWarnings: written.warnings,
+    differences: compareModelDocuments(
+      document,
+      readBack,
+      tolerance: writer.tolerance,
+    ),
   );
 }
 
+/// Writes [document] as glTF, reads the result back and compares — a
+/// binary format, so the round trip is held to a tolerance of `0.0`.
+Future<ExportReport> exportToGlb(
+  ModelDocument document, {
+  String name = 'model',
+}) => exportChecked(document, const GlbModelWriter(), name: name);
+
 /// Writes [document] as OBJ (with its `.mtl` beside it, when the document
 /// names a material), reads the result back and compares — held to
-/// [ObjWriter.decimals]' own precision rather than `0.0`, since a decimal
+/// `ObjWriter.decimals`' own precision rather than `0.0`, since a decimal
 /// text format rounds on the way out by design.
-Future<ExportReport> exportToObj(ModelDocument document, {String name = 'model'}) async {
-  final writer = ObjWriter(document, name: name);
-  final objBytes = writer.write();
-  final mtlBytes = writer.writeMaterialLibrary();
-  final files = <String, Uint8List>{
-    '$name.obj': objBytes,
-    writer.materialLibraryName: ?mtlBytes,
-  };
-  final readBack = await ObjLoader().load(
-    objBytes,
-    resolveUri: mtlBytes == null
-        ? null
-        : (request) async {
-            if (request.uri == writer.materialLibraryName) return mtlBytes;
-            throw ArgumentError('unresolved OBJ asset: ${request.uri}');
-          },
-  );
-  return ExportReport(
-    files: files,
-    writerWarnings: writer.warnings,
-    differences: compareModelDocuments(document, readBack, tolerance: 5e-6),
-  );
-}
+Future<ExportReport> exportToObj(
+  ModelDocument document, {
+  String name = 'model',
+}) => exportChecked(document, const ObjModelWriter(), name: name);
 
 /// Writes [document] as binary STL, reads the result back and compares.
 ///
 /// **A surface-count difference is expected, not a bug**, the moment
 /// [document] holds more than one: STL has no boundary between surfaces,
-/// so [StlWriter.warnings] already says so, and [ExportReport.differences]
+/// so `StlWriter.warnings` already says so, and [ExportReport.differences]
 /// will report the merge as well — the two are meant to be read together,
 /// not as a pass/fail on their own.
-Future<ExportReport> exportToStl(ModelDocument document, {String name = 'model'}) async {
-  final writer = StlWriter(document, name: name);
-  final bytes = writer.write();
-  final readBack = await StlLoader().load(bytes);
-  return ExportReport(
-    files: <String, Uint8List>{'$name.stl': bytes},
-    writerWarnings: writer.warnings,
-    differences: compareModelDocuments(document, readBack),
-  );
-}
+Future<ExportReport> exportToStl(
+  ModelDocument document, {
+  String name = 'model',
+}) => exportChecked(document, const StlModelWriter(), name: name);
 
 /// Writes [document] to this engine's own `.f3d` container, reads the
 /// result back and compares. Synchronous, unlike the other three: `.f3d`

@@ -197,7 +197,9 @@ class _ExportScreenState extends State<_ExportScreen> {
                   ),
                 ),
           child: Text(
-            isEmpty ? 'Nothing to export' : (blocked ? 'Export anyway' : 'Export'),
+            isEmpty
+                ? 'Nothing to export'
+                : (blocked ? 'Export anyway' : 'Export'),
           ),
         ),
       ],

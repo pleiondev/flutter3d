@@ -35,20 +35,23 @@ void main() {
     expect(db, greaterThanOrEqualTo(30), reason: 'measured $db dB');
   });
 
-  test('BC3 reaches at least 30 dB PSNR (colour and alpha) on a real texture', () {
-    // The Khronos fixture has no alpha channel of its own; a synthetic ramp
-    // stands in for it here since BC3's colour half is BC1's and is already
-    // checked above — this adds only the alpha half's real-content bound.
-    final withAlpha = Rgba8Image(
-      width: source.width,
-      height: source.height,
-      pixels: source.pixels,
-    );
-    final encoded = encodeBc3(withAlpha);
-    final decoded = decodeBc3(encoded, source.width, source.height);
-    final db = psnr(source, decoded, includeAlpha: true);
-    expect(db, greaterThanOrEqualTo(30), reason: 'measured $db dB');
-  });
+  test(
+    'BC3 reaches at least 30 dB PSNR (colour and alpha) on a real texture',
+    () {
+      // The Khronos fixture has no alpha channel of its own; a synthetic ramp
+      // stands in for it here since BC3's colour half is BC1's and is already
+      // checked above — this adds only the alpha half's real-content bound.
+      final withAlpha = Rgba8Image(
+        width: source.width,
+        height: source.height,
+        pixels: source.pixels,
+      );
+      final encoded = encodeBc3(withAlpha);
+      final decoded = decodeBc3(encoded, source.width, source.height);
+      final db = psnr(source, decoded, includeAlpha: true);
+      expect(db, greaterThanOrEqualTo(30), reason: 'measured $db dB');
+    },
+  );
 
   test('ETC2 RGB8 reaches at least 30 dB PSNR on the Khronos texture', () {
     final encoded = encodeEtc2Rgb8(source);

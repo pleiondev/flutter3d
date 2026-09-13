@@ -74,7 +74,10 @@ final class LessonPlayer {
   /// Applies [current] to [rig] and [nodes] — a no-op on an empty lesson,
   /// the same way an empty `edu_sequence` already resolves to no steps in
   /// `orderedSteps` rather than throwing.
-  void applyCurrent(StereoRig rig, {Map<String, SceneNode> nodes = const <String, SceneNode>{}}) {
+  void applyCurrent(
+    StereoRig rig, {
+    Map<String, SceneNode> nodes = const <String, SceneNode>{},
+  }) {
     final step = current;
     if (step != null) applyLessonStep(rig, step, nodes: nodes);
   }

@@ -70,9 +70,33 @@ Future<List<int>> _sampleAt(
     ),
   );
   final triangle = Float32List.fromList(<double>[
-    -1, -1, 0.5, 1, 1, 1, 1, u, v,
-    3, -1, 0.5, 1, 1, 1, 1, u, v,
-    -1, 3, 0.5, 1, 1, 1, 1, u, v,
+    -1,
+    -1,
+    0.5,
+    1,
+    1,
+    1,
+    1,
+    u,
+    v,
+    3,
+    -1,
+    0.5,
+    1,
+    1,
+    1,
+    1,
+    u,
+    v,
+    -1,
+    3,
+    0.5,
+    1,
+    1,
+    1,
+    1,
+    u,
+    v,
   ]);
   final indices = Uint16List.fromList(<int>[0, 1, 2]);
 
@@ -169,15 +193,27 @@ void main() {
     device.dispose();
   }
 
-  test('a real BC1 file samples both its blocks\' colours on a real GPU', () async {
-    await checkTwoBlocks(TextureFormat.bc1RGBAUNormInt, encodeBc1(source));
-  });
+  test(
+    'a real BC1 file samples both its blocks\' colours on a real GPU',
+    () async {
+      await checkTwoBlocks(TextureFormat.bc1RGBAUNormInt, encodeBc1(source));
+    },
+  );
 
-  test('a real BC3 file samples both its blocks\' colours on a real GPU', () async {
-    await checkTwoBlocks(TextureFormat.bc3RGBAUNormInt, encodeBc3(source));
-  });
+  test(
+    'a real BC3 file samples both its blocks\' colours on a real GPU',
+    () async {
+      await checkTwoBlocks(TextureFormat.bc3RGBAUNormInt, encodeBc3(source));
+    },
+  );
 
-  test('a real ETC2 RGB8 file samples both its blocks\' colours on a real GPU', () async {
-    await checkTwoBlocks(TextureFormat.etc2RGB8UNormInt, encodeEtc2Rgb8(source));
-  });
+  test(
+    'a real ETC2 RGB8 file samples both its blocks\' colours on a real GPU',
+    () async {
+      await checkTwoBlocks(
+        TextureFormat.etc2RGB8UNormInt,
+        encodeEtc2Rgb8(source),
+      );
+    },
+  );
 }

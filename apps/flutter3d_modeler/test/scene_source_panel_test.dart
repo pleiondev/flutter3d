@@ -101,32 +101,20 @@ void main() {
 
   testWidgets('the Add link is always present', (tester) async {
     var added = 0;
-    await _pump(
-      tester,
-      lights: const <ProjectLight>[],
-      onAdd: () => added++,
-    );
+    await _pump(tester, lights: const <ProjectLight>[], onAdd: () => added++);
 
     await tester.tap(find.widgetWithText(TextButton, 'Add'));
     expect(added, 1);
   });
 
   testWidgets('no field section when nothing is selected', (tester) async {
-    await _pump(
-      tester,
-      lights: <ProjectLight>[ProjectLight()],
-      selected: null,
-    );
+    await _pump(tester, lights: <ProjectLight>[ProjectLight()], selected: null);
 
     expect(find.text('SOURCE'), findsNothing);
   });
 
   testWidgets('an out-of-range selection is treated as none', (tester) async {
-    await _pump(
-      tester,
-      lights: <ProjectLight>[ProjectLight()],
-      selected: 5,
-    );
+    await _pump(tester, lights: <ProjectLight>[ProjectLight()], selected: 5);
 
     // Mutation: index into `lights` with the raw `selected` value regardless
     // of range — this would throw building the widget instead of quietly
@@ -139,9 +127,7 @@ void main() {
   ) async {
     await _pump(
       tester,
-      lights: <ProjectLight>[
-        ProjectLight(intensity: 2.5, range: 4.0),
-      ],
+      lights: <ProjectLight>[ProjectLight(intensity: 2.5, range: 4.0)],
       selected: 0,
     );
 

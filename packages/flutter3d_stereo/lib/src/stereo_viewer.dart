@@ -176,8 +176,9 @@ final class StereoViewer {
   }
 
   /// Where [eye] sits, relative to the head, for this holder.
-  double eyeOffset(Eye eye) =>
-      identical(eye, Eye.left) ? -interLensDistance / 2.0 : interLensDistance / 2.0;
+  double eyeOffset(Eye eye) => identical(eye, Eye.left)
+      ? -interLensDistance / 2.0
+      : interLensDistance / 2.0;
 
   double _edge({required double limit, required double reach}) {
     final double allowed = math.tan(limit);

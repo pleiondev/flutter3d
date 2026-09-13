@@ -32,11 +32,17 @@ final class _PlaytestReportScreenState extends State<PlaytestReportScreen> {
   }
 
   Future<void> _open() async {
-    const jsonFiles = XTypeGroup(label: 'playtest reports', extensions: <String>['json']);
-    final file = await openFile(acceptedTypeGroups: const <XTypeGroup>[jsonFiles]);
+    const jsonFiles = XTypeGroup(
+      label: 'playtest reports',
+      extensions: <String>['json'],
+    );
+    final file = await openFile(
+      acceptedTypeGroups: const <XTypeGroup>[jsonFiles],
+    );
     if (file == null) return;
     try {
-      final json = jsonDecode(await file.readAsString()) as Map<String, Object?>;
+      final json =
+          jsonDecode(await file.readAsString()) as Map<String, Object?>;
       setState(() {
         _report = PlaytestReport.fromJson(json);
         _said = null;
@@ -90,7 +96,12 @@ final class _PlaytestReportScreenState extends State<PlaytestReportScreen> {
                   const Text('No report open.'),
                   if (_said != null) ...<Widget>[
                     const SizedBox(height: 8.0),
-                    Text(_said!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
+                    Text(
+                      _said!,
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.error,
+                      ),
+                    ),
                   ],
                 ],
               ),

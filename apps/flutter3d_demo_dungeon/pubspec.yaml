@@ -84,18 +84,6 @@ dev_dependencies:
   flutter3d_session:
     path: ../../packages/flutter3d_session
 
-  # `edu-04`'s pendulum — plain-Dart physics from a package that names no
-  # Flutter, the same reason `flutter3d_session` above needs naming
-  # directly: `flutter3d_game_shooter` depends on it transitively, but a new
-  # file importing it directly needs it in this pubspec, not a neighbour's.
-  flutter3d_sim:
-    path: ../../packages/flutter3d_sim
-  # `PendulumSimulation` itself, moved out of `flutter3d_sim` into its own
-  # package — a lab experiment is domain content, not simulation
-  # infrastructure, the same relationship a genre package already has with
-  # the engine underneath it.
-  flutter3d_lab:
-    path: ../../packages/flutter3d_lab
   flutter_lints: ^6.0.0
 
 flutter:

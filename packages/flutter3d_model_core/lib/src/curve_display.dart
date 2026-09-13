@@ -70,10 +70,7 @@ List<(double, double)> curveSamples(
   final inSlope = key.inTangent?[component] ?? 0.0;
   final outSlope = key.outTangent?[component] ?? 0.0;
   return (
-    inHandle: Vector2(
-      key.time - handleLength,
-      value - inSlope * handleLength,
-    ),
+    inHandle: Vector2(key.time - handleLength, value - inSlope * handleLength),
     outHandle: Vector2(
       key.time + handleLength,
       value + outSlope * handleLength,

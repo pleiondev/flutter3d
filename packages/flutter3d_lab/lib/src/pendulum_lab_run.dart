@@ -39,7 +39,9 @@ final class PendulumLabRun {
       fromStep: 0,
       steps: steps,
       checkpointEvery: checkpointEvery,
-      priorStates: <Map<String, Object?>>[Map<String, Object?>.of(pendulum.state)],
+      priorStates: <Map<String, Object?>>[
+        Map<String, Object?>.of(pendulum.state),
+      ],
       lengthAt: lengthAt,
     );
   }

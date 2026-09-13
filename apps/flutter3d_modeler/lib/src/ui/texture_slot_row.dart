@@ -119,9 +119,12 @@ class _Thumbnail extends StatelessWidget {
                 // Flutter's own codec does not know, say. The row still shows
                 // the name, size and badge either way; only the pixels are
                 // missing.
-                errorBuilder: (BuildContext context, Object error,
-                        StackTrace? stackTrace) =>
-                    ColoredBox(color: colors.surfaceContainerHighest),
+                errorBuilder:
+                    (
+                      BuildContext context,
+                      Object error,
+                      StackTrace? stackTrace,
+                    ) => ColoredBox(color: colors.surfaceContainerHighest),
               ),
       ),
     );
@@ -144,9 +147,9 @@ class _Badge extends StatelessWidget {
       ),
       child: Text(
         text,
-        style: Theme.of(context).textTheme.labelMedium?.copyWith(
-              color: colors.onSecondaryContainer,
-            ),
+        style: Theme.of(
+          context,
+        ).textTheme.labelMedium?.copyWith(color: colors.onSecondaryContainer),
       ),
     );
   }

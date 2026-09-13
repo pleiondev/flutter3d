@@ -1,0 +1,59 @@
+name: flutter3d_lab_pendulum
+description: "edu-04: a live pendulum lab — a real swinging PendulumSimulation, a WidgetSurface parameter panel, a real tap raycast to reach it."
+publish_to: 'none'
+version: 0.1.0
+resolution: workspace
+
+environment:
+  sdk: ^3.12.2
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # The backend chooser with its software fallback, and — via its own
+  # barrel — `flutter3d_session`'s `SceneSurface`/`WidgetSurface`. See
+  # `lib/src/pendulum_lab_panel.dart` for the one thing built here that
+  # `flutter3d_app` does not carry.
+  flutter3d_app:
+    path: ../../packages/flutter3d_app
+
+  # The scene graph this app builds by hand — no `Level`/`EntityDef` here,
+  # unlike `flutter3d_lesson_viewer`: a lab is one mesh, one light and one
+  # panel, not a document worth a format.
+  flutter3d:
+    path: ../../packages/flutter3d
+
+  # `PendulumSimulation`/`PendulumLabRun` — `edu-04`'s own physics, plain
+  # Dart, moved out of `flutter3d_sim` into its own package for the reason
+  # `flutter3d_lab`'s own doc comment gives: a lab experiment is domain
+  # content, not simulation infrastructure.
+  flutter3d_lab:
+    path: ../../packages/flutter3d_lab
+
+  # `DataSourceTrace` — `edu-05`'s mechanism, reused here for the one
+  # parameter a tap on the panel changes.
+  flutter3d_sim:
+    path: ../../packages/flutter3d_sim
+
+  # `WidgetSurface` directly, in the panel's own integration test — the app
+  # itself reaches it through `flutter3d_app`'s barrel, but a test file
+  # importing it needs it named here too.
+  flutter3d_session:
+    path: ../../packages/flutter3d_session
+
+  vector_math: ^2.2.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+  # A renderer with no GPU under it, so a test can drive the panel and the
+  # physics without a window.
+  flutter3d_cpu:
+    path: ../../packages/flutter3d_cpu
+
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true

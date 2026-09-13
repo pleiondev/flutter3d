@@ -8,8 +8,6 @@ import 'dart:typed_data';
 import 'package:flutter3d_formats/flutter3d_formats.dart';
 
 import 'image_dimensions.dart';
-import 'png_decoder.dart';
-import 'png_encoder.dart';
 import 'project.dart';
 import 'texture_budget.dart';
 
@@ -111,11 +109,9 @@ Uint8List _resizeBilinear(
       final fx = sx - x0;
       final at = (oy * newWidth + ox) * 4;
       for (var c = 0; c < 4; c++) {
-        final top =
-            sample(x0, y0, c) * (1 - fx) + sample(x0 + 1, y0, c) * fx;
+        final top = sample(x0, y0, c) * (1 - fx) + sample(x0 + 1, y0, c) * fx;
         final bottom =
-            sample(x0, y0 + 1, c) * (1 - fx) +
-            sample(x0 + 1, y0 + 1, c) * fx;
+            sample(x0, y0 + 1, c) * (1 - fx) + sample(x0 + 1, y0 + 1, c) * fx;
         out[at + c] = (top * (1 - fy) + bottom * fy).round().clamp(0, 255);
       }
     }
@@ -161,7 +157,10 @@ int toPowerOfTwo(int n) {
 // literal since `verify_plan.dart` reads names off that text, not off
 // Dart's own naming convention.
 // ignore: non_constant_identifier_names
-ModelProject FitTexturesToProfile(ModelProject project, {TextureBudget? budget}) {
+ModelProject FitTexturesToProfile(
+  ModelProject project, {
+  TextureBudget? budget,
+}) {
   final effectiveBudget = budget ?? project.profile.textures;
   var changed = false;
   final resized = <EncodedImage>[
@@ -185,7 +184,11 @@ ModelProject FitTexturesToProfile(ModelProject project, {TextureBudget? budget})
   );
 }
 
-EncodedImage _fitOne(EncodedImage image, int maxSide, void Function(bool) mark) {
+EncodedImage _fitOne(
+  EncodedImage image,
+  int maxSide,
+  void Function(bool) mark,
+) {
   final dimensions = imageDimensions(image.bytes);
   if (dimensions == null ||
       (dimensions.width <= maxSide && dimensions.height <= maxSide)) {
@@ -209,7 +212,7 @@ EncodedImage _fitOne(EncodedImage image, int maxSide, void Function(bool) mark) 
   );
   mark(true);
   return EncodedImage(
-    bytes: encodePng(newWidth, newHeight, resized),
+    bytes: encodeCompressedPng(newWidth, newHeight, resized),
     name: image.name,
     mimeType: 'image/png',
     sourceUri: image.sourceUri,

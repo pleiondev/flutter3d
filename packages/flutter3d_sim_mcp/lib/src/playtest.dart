@@ -2,18 +2,16 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:isolate';
 
-import 'package:flutter3d_game_shooter/flutter3d_game_shooter.dart' show GameState, ShooterActions;
-import 'package:flutter3d_game_shooter/sample.dart' show stage;
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 
 const double _dt = 1.0 / 60.0;
 
 /// How one playthrough ended.
 enum PlaytestOutcome {
-  /// [GameSimulation.state] reached [GameState.dead].
+  /// The run ended badly — [RunOutcome.lost].
   died,
 
-  /// [GameSimulation.state] reached [GameState.complete].
+  /// The run ended well — [RunOutcome.won].
   exited,
 
   /// The player's own position moved less than [Playtest.stuckStride]
@@ -30,6 +28,7 @@ enum PlaytestOutcome {
 /// value to send rather than several — everything in it is data, which is
 /// the whole reason it can cross an isolate boundary at all.
 typedef _PlaytestArgs = ({
+  HeadlessGame game,
   String levelPath,
   int seed,
   int maxSteps,
@@ -57,17 +56,16 @@ final class PlaytestRun {
   final List<(double x, double z)> positions;
 }
 
-/// `ai-01`: many independent playthroughs of the same level, run in
+/// `ai-01`: many independent playthroughs of the same level of [game], run in
 /// parallel isolates, driven by nothing but a seeded random policy — where
 /// a level swallows a player who never learns it, rather than where one
 /// who is choosing well happens to go.
 ///
 /// **Not `dart run flutter3d:playtest`, the literal command the plan
-/// names.** Checked the same way `rp-05`, `net-04` and `ai-00` each found
-/// out for themselves: the shooter genre this plays needs the Flutter SDK,
-/// so the terminal command is `flutter3d_build`/`ap-10`'s to build, not
-/// this package's — what is here is the mechanism `ap-10`'s command would
-/// call, proven under `flutter test` the same way `ai-00`'s own tools are.
+/// names.** This package draws frames, and the renderer it draws with needs
+/// the Flutter SDK, so the terminal command is `ap-10`'s to build — what is
+/// here is the mechanism that command would call, proven under `flutter test`
+/// the same way `ai-00`'s own tools are.
 ///
 /// **Isolates, because 200 runs of a crypt are 200 independent worlds and
 /// nothing between them is shared** — one `Isolate.run` per playthrough
@@ -77,11 +75,17 @@ final class PlaytestRun {
 /// isolate would report nothing about why.
 final class Playtest {
   const Playtest({
+    required this.game,
     this.maxSteps = 3600,
     this.sampleEvery = 10,
     this.stuckAfter = 300,
     this.stuckStride = 0.5,
   });
+
+  /// What is played. It travels to every isolate a playthrough runs in, so it
+  /// must be sendable — a const value holding plain data, the way
+  /// `flutter3d_game_shooter`'s `ShooterHeadlessGame` is.
+  final HeadlessGame game;
 
   /// A cap this run stops at regardless of outcome — a minute at sixty
   /// steps a second, long enough for a policy this blind to reach a
@@ -99,21 +103,21 @@ final class Playtest {
 
   /// Plays [levelPath] [runs] times, seeded `0` through `runs - 1` so the
   /// same call reproduces the same batch.
-  Future<List<PlaytestRun>> run(String levelPath, int runs) => Future.wait(
-    <Future<PlaytestRun>>[
-      for (var seed = 0; seed < runs; seed++)
-        Isolate.run(
-          () => _playOneForIsolate((
-            levelPath: levelPath,
-            seed: seed,
-            maxSteps: maxSteps,
-            sampleEvery: sampleEvery,
-            stuckAfter: stuckAfter,
-            stuckStride: stuckStride,
-          )),
-        ),
-    ],
-  );
+  Future<List<PlaytestRun>> run(String levelPath, int runs) =>
+      Future.wait(<Future<PlaytestRun>>[
+        for (var seed = 0; seed < runs; seed++)
+          Isolate.run(
+            () => _playOneForIsolate((
+              game: game,
+              levelPath: levelPath,
+              seed: seed,
+              maxSteps: maxSteps,
+              sampleEvery: sampleEvery,
+              stuckAfter: stuckAfter,
+              stuckStride: stuckStride,
+            )),
+          ),
+      ]);
 
   /// Bins every sampled position from [runs] into square cells [cellSize]
   /// metres on a side, counting how many positions from how many distinct
@@ -166,13 +170,17 @@ final class Playtest {
 /// this repository does that: noise averages to standing still, and a wall
 /// a level is worth mapping is a wall this has to actually walk into.
 final class _RandomDriver {
-  _RandomDriver(this._dice);
+  _RandomDriver(this._dice, this._buttons);
 
   final GameRandom _dice;
+
+  /// The game's own buttons, one of which may be held for a stretch.
+  final List<GameAction> _buttons;
+
   double _moveX = 0.0;
   double _moveY = 0.0;
   double _lookX = 0.0;
-  bool _firing = false;
+  GameAction? _holding;
   int _holdFor = 0;
 
   void apply(InputState input) {
@@ -180,16 +188,24 @@ final class _RandomDriver {
       _moveX = _dice.nextDouble() * 2.0 - 1.0;
       _moveY = _dice.nextDouble() < 0.7 ? 1.0 : -0.3;
       _lookX = (_dice.nextDouble() * 2.0 - 1.0) * 0.05;
-      _firing = _dice.nextDouble() < 0.1;
+      // One roll for whether a button is down, as there always was, and a
+      // second only when there is more than one to choose between — so a
+      // one-button game plays exactly the seeds it always played.
+      final bool pressing = _dice.nextDouble() < 0.1;
+      _holding = !pressing || _buttons.isEmpty
+          ? null
+          : _buttons.length == 1
+          ? _buttons.single
+          : _buttons[_dice.nextInt(_buttons.length)];
       _holdFor = 20 + _dice.nextInt(80);
     }
     _holdFor--;
     input.setStickAxis(_moveX, _moveY);
     input.addLook(_lookX, 0.0);
-    if (_firing) {
-      if (!input.pressed(ShooterActions.fire)) input.press(ShooterActions.fire);
-    } else {
-      if (input.pressed(ShooterActions.fire)) input.release(ShooterActions.fire);
+    for (final GameAction button in _buttons) {
+      final bool down = button == _holding;
+      if (down == input.pressed(button)) continue;
+      down ? input.press(button) : input.release(button);
     }
   }
 }
@@ -204,30 +220,33 @@ PlaytestRun _playOneForIsolate(_PlaytestArgs args) {
   final world = CollisionWorld();
   level.addTo(world);
   final input = InputState();
-  final staged = stage(level, world, input: input);
+  final run = args.game.start(level, world, input);
   world.update();
 
-  final driver = _RandomDriver(GameRandom(args.seed + 1));
+  final driver = _RandomDriver(
+    GameRandom(args.seed + 1),
+    args.game.buttons.values.toList(),
+  );
   final positions = <(double, double)>[];
   var stuckSince = 0;
-  var lastStuckCheck = staged.player.body.position.clone();
+  var lastStuckCheck = run.position.clone();
 
   for (var step = 1; step <= args.maxSteps; step++) {
     driver.apply(input);
     input.beginStep();
-    staged.sim.step(_dt);
+    run.step(_dt);
     input.endStep();
 
     if (step % args.sampleEvery == 0) {
-      final at = staged.player.body.position;
+      final at = run.position;
       positions.add((at.x, at.z));
     }
 
-    if (staged.sim.state != GameState.playing) {
+    if (run.outcome.isOver) {
       return PlaytestRun(
         seed: args.seed,
         steps: step,
-        outcome: staged.sim.state == GameState.dead
+        outcome: run.outcome == RunOutcome.lost
             ? PlaytestOutcome.died
             : PlaytestOutcome.exited,
         positions: positions,
@@ -236,7 +255,7 @@ PlaytestRun _playOneForIsolate(_PlaytestArgs args) {
 
     stuckSince++;
     if (stuckSince >= args.stuckAfter) {
-      final now = staged.player.body.position;
+      final now = run.position;
       if ((now - lastStuckCheck).length < args.stuckStride) {
         return PlaytestRun(
           seed: args.seed,

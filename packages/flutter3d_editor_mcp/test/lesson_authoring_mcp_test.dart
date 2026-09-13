@@ -99,9 +99,24 @@ void main() {
       });
       expect(sequencePlaced.did, isTrue, reason: sequencePlaced.says);
       const sequenceIndex = 1;
-      expect((await call('setField', {'key': 'name', 'value': 'engine-teardown'})).did, isTrue);
-      expect((await call('setField', {'key': 'title', 'value': 'Разборка двигателя'})).did, isTrue);
-      expect((await call('setField', {'key': 'steps', 'value': <String>[]})).did, isTrue);
+      expect(
+        (await call('setField', {
+          'key': 'name',
+          'value': 'engine-teardown',
+        })).did,
+        isTrue,
+      );
+      expect(
+        (await call('setField', {
+          'key': 'title',
+          'value': 'Разборка двигателя',
+        })).did,
+        isTrue,
+      );
+      expect(
+        (await call('setField', {'key': 'steps', 'value': <String>[]})).did,
+        isTrue,
+      );
 
       const captions = <String>[
         'Двигатель в сборе',
@@ -119,19 +134,31 @@ void main() {
           'at': <double>[1.0, 1.5, -0.5],
         });
         expect(placed.did, isTrue, reason: placed.says);
-        expect((await call('setField', {'key': 'name', 'value': name})).did, isTrue);
         expect(
-          (await call('setField', {'key': 'caption', 'value': captions[i]})).did,
+          (await call('setField', {'key': 'name', 'value': name})).did,
+          isTrue,
+        );
+        expect(
+          (await call('setField', {
+            'key': 'caption',
+            'value': captions[i],
+          })).did,
           isTrue,
         );
 
         stepNames.add(name);
         expect(
-          (await call('select', {'kind': 'entity', 'index': sequenceIndex})).did,
+          (await call('select', {
+            'kind': 'entity',
+            'index': sequenceIndex,
+          })).did,
           isTrue,
         );
         expect(
-          (await call('setField', {'key': 'steps', 'value': List<String>.of(stepNames)})).did,
+          (await call('setField', {
+            'key': 'steps',
+            'value': List<String>.of(stepNames),
+          })).did,
           isTrue,
         );
       }
@@ -145,11 +172,11 @@ void main() {
       );
       expect(
         (await call('setField', {
-              'key': 'offsets',
-              'value': <String, Object?>{
-                'engine-body#valve_cover': <double>[0.0, 0.25, 0.0],
-              },
-            })).did,
+          'key': 'offsets',
+          'value': <String, Object?>{
+            'engine-body#valve_cover': <double>[0.0, 0.25, 0.0],
+          },
+        })).did,
         isTrue,
       );
 
@@ -160,16 +187,22 @@ void main() {
         'at': <double>[1.0, 1.5, -0.5],
       });
       expect(annotationPlaced.did, isTrue, reason: annotationPlaced.says);
-      expect((await call('setField', {'key': 'name', 'value': 'note-1'})).did, isTrue);
       expect(
-        (await call('setField', {'key': 'widget', 'value': 'torque-spec-card'})).did,
+        (await call('setField', {'key': 'name', 'value': 'note-1'})).did,
         isTrue,
       );
       expect(
         (await call('setField', {
-              'key': 'attachTo',
-              'value': 'engine-body#valve_cover',
-            })).did,
+          'key': 'widget',
+          'value': 'torque-spec-card',
+        })).did,
+        isTrue,
+      );
+      expect(
+        (await call('setField', {
+          'key': 'attachTo',
+          'value': 'engine-body#valve_cover',
+        })).did,
         isTrue,
       );
       expect(
@@ -177,7 +210,10 @@ void main() {
         isTrue,
       );
       expect(
-        (await call('setField', {'key': 'annotations', 'value': <String>['note-1']})).did,
+        (await call('setField', {
+          'key': 'annotations',
+          'value': <String>['note-1'],
+        })).did,
         isTrue,
       );
 
@@ -190,7 +226,10 @@ void main() {
         'at': <double>[0.0, 1.0, 0.0],
       });
       expect(clipPlaced.did, isTrue, reason: clipPlaced.says);
-      expect((await call('setField', {'key': 'name', 'value': 'cutaway-1'})).did, isTrue);
+      expect(
+        (await call('setField', {'key': 'name', 'value': 'cutaway-1'})).did,
+        isTrue,
+      );
       final turned = await call('turn', {'by': 1.5707963267948966});
       expect(turned.did, isTrue, reason: turned.says);
 
@@ -211,16 +250,11 @@ void main() {
       // on — not through the MCP session, which never had to learn what an
       // `edu_step` is to get this far.
       final finished = Level.fromJson(
-        jsonDecode(
-              File('${workspace.path}/finished.json').readAsStringSync(),
-            )
+        jsonDecode(File('${workspace.path}/finished.json').readAsStringSync())
             as Map<String, Object?>,
       );
       final sequence = finished.named('engine-teardown')!;
-      expect(
-        (sequence.properties['steps']! as List).cast<String>(),
-        stepNames,
-      );
+      expect((sequence.properties['steps']! as List).cast<String>(), stepNames);
 
       final registry = vocabularyOf(finished);
       for (final type in <String>[
@@ -233,12 +267,9 @@ void main() {
       }
 
       final stepTwo = finished.named('step-2')!;
-      expect(
-        stepTwo.properties['offsets'],
-        <String, Object?>{
-          'engine-body#valve_cover': <double>[0.0, 0.25, 0.0],
-        },
-      );
+      expect(stepTwo.properties['offsets'], <String, Object?>{
+        'engine-body#valve_cover': <double>[0.0, 0.25, 0.0],
+      });
       expect(
         (stepTwo.properties['annotations']! as List).cast<String>(),
         <String>['note-1'],

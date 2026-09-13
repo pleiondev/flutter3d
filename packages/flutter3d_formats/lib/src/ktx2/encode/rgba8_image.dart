@@ -10,8 +10,11 @@ import 'dart:typed_data';
 /// `ktx2_loader.dart` — bytes in, bytes in a GPU format out — and neither
 /// half needs the Flutter SDK to do it.
 final class Rgba8Image {
-  Rgba8Image({required this.width, required this.height, required Uint8List pixels})
-    : pixels = pixels {
+  Rgba8Image({
+    required this.width,
+    required this.height,
+    required Uint8List pixels,
+  }) : pixels = pixels {
     if (pixels.length != width * height * 4) {
       throw ArgumentError(
         'Rgba8Image is ${width}x$height, which is ${width * height * 4} '
@@ -51,7 +54,12 @@ List<(int, int, int, int)> readBlock(Rgba8Image image, int blockX, int blockY) {
     for (var dx = 0; dx < 4; dx++) {
       final x = x0 + dx;
       final y = y0 + dy;
-      block.add((image.red(x, y), image.green(x, y), image.blue(x, y), image.alpha(x, y)));
+      block.add((
+        image.red(x, y),
+        image.green(x, y),
+        image.blue(x, y),
+        image.alpha(x, y),
+      ));
     }
   }
   return block;

@@ -280,14 +280,10 @@ void main() {
     final p2 = Vector3(1, 1, 0);
     final p3 = Vector3(0, 1, 0);
     MeshData quadWithTargets(List<MorphTarget> targets) {
-      final soup = triangleSoup(<Vector3>[p0, p1, p2, p0, p2, p3], <int>[
-        0,
-        1,
-        2,
-        3,
-        4,
-        5,
-      ]);
+      final soup = triangleSoup(
+        <Vector3>[p0, p1, p2, p0, p2, p3],
+        <int>[0, 1, 2, 3, 4, 5],
+      );
       return MeshData(
         layout: soup.layout,
         vertices: soup.vertices,
@@ -297,117 +293,112 @@ void main() {
     }
 
     test('no morph targets means no shape keys', () {
-      final (_, _, shapeKeys) = importMeshData(quadWithTargets(const <MorphTarget>[]));
+      final (_, _, shapeKeys) = importMeshData(
+        quadWithTargets(const <MorphTarget>[]),
+      );
       expect(shapeKeys, isEmpty);
     });
 
-    test(
-      'one shape key a target, sized and positioned to the welded mesh, '
-      'named from the target when it has one',
-      () {
-        final lift = Float32List.fromList(<double>[
-          for (var i = 0; i < 6; i++) ...<double>[0, 0, 1],
-        ]);
-        final (mesh, _, shapeKeys) = importMeshData(
-          quadWithTargets(<MorphTarget>[
-            MorphTarget(vertexCount: 6, positions: lift, name: 'lift'),
-          ]),
-        );
+    test('one shape key a target, sized and positioned to the welded mesh, '
+        'named from the target when it has one', () {
+      final lift = Float32List.fromList(<double>[
+        for (var i = 0; i < 6; i++) ...<double>[0, 0, 1],
+      ]);
+      final (mesh, _, shapeKeys) = importMeshData(
+        quadWithTargets(<MorphTarget>[
+          MorphTarget(vertexCount: 6, positions: lift, name: 'lift'),
+        ]),
+      );
 
-        expect(mesh.vertexCount, 4);
-        expect(shapeKeys, hasLength(1));
-        expect(shapeKeys.single.vertexCount, mesh.vertexSlotCount);
-        expect(shapeKeys.single.name, 'lift');
+      expect(mesh.vertexCount, 4);
+      expect(shapeKeys, hasLength(1));
+      expect(shapeKeys.single.vertexCount, mesh.vertexSlotCount);
+      expect(shapeKeys.single.name, 'lift');
 
-        // Every welded corner reads as its own base position plus the
-        // uniform lift — checked against the mesh's own positions rather
-        // than against p0..p3 directly, so a welded vertex's own final id
-        // (not necessarily in p0..p3's own order) is not assumed.
+      // Every welded corner reads as its own base position plus the
+      // uniform lift — checked against the mesh's own positions rather
+      // than against p0..p3 directly, so a welded vertex's own final id
+      // (not necessarily in p0..p3's own order) is not assumed.
+      for (var v = 0; v < mesh.vertexCount; v++) {
+        final base = mesh.positionOf(v);
+        final shaped = shapeKeys.single.positionOf(v);
+        expect(shaped.x, closeTo(base.x, 1e-6));
+        expect(shaped.y, closeTo(base.y, 1e-6));
+        expect(shaped.z, closeTo(base.z + 1, 1e-6));
+      }
+    });
+
+    test("a delta that differs corner to corner lands on its own welded "
+        'vertex, not a neighbour\'s — source 0 and source 3 both name p0, '
+        'and must still agree', () {
+      // Every corner's own delta, distinguishable by which of p0..p3 it
+      // belongs to — a uniform delta (as the test above uses) cannot
+      // catch a source/destination index mix-up, since every vertex
+      // would read the same value regardless of which index actually
+      // drove it. p0 appears at source 0 and source 3, in different
+      // triangles, and must land on the identical delta both times: the
+      // same welded vertex, the same point.
+      final delta = Float32List.fromList(<double>[
+        1, 0, 0, // source 0: p0
+        0, 1, 0, // source 1: p1
+        0, 0, 2, // source 2: p2
+        1, 0, 0, // source 3: p0, again
+        0, 0, 2, // source 4: p2, again
+        3, 3, 3, // source 5: p3
+      ]);
+      final (mesh, _, shapeKeys) = importMeshData(
+        quadWithTargets(<MorphTarget>[
+          MorphTarget(vertexCount: 6, positions: delta),
+        ]),
+      );
+      final key = shapeKeys.single;
+
+      Vector3 deltaAt(Vector3 point) {
         for (var v = 0; v < mesh.vertexCount; v++) {
-          final base = mesh.positionOf(v);
-          final shaped = shapeKeys.single.positionOf(v);
-          expect(shaped.x, closeTo(base.x, 1e-6));
-          expect(shaped.y, closeTo(base.y, 1e-6));
-          expect(shaped.z, closeTo(base.z + 1, 1e-6));
-        }
-      },
-    );
-
-    test(
-      "a delta that differs corner to corner lands on its own welded "
-      'vertex, not a neighbour\'s — source 0 and source 3 both name p0, '
-      'and must still agree',
-      () {
-        // Every corner's own delta, distinguishable by which of p0..p3 it
-        // belongs to — a uniform delta (as the test above uses) cannot
-        // catch a source/destination index mix-up, since every vertex
-        // would read the same value regardless of which index actually
-        // drove it. p0 appears at source 0 and source 3, in different
-        // triangles, and must land on the identical delta both times: the
-        // same welded vertex, the same point.
-        final delta = Float32List.fromList(<double>[
-          1, 0, 0, // source 0: p0
-          0, 1, 0, // source 1: p1
-          0, 0, 2, // source 2: p2
-          1, 0, 0, // source 3: p0, again
-          0, 0, 2, // source 4: p2, again
-          3, 3, 3, // source 5: p3
-        ]);
-        final (mesh, _, shapeKeys) = importMeshData(
-          quadWithTargets(<MorphTarget>[MorphTarget(vertexCount: 6, positions: delta)]),
-        );
-        final key = shapeKeys.single;
-
-        Vector3 deltaAt(Vector3 point) {
-          for (var v = 0; v < mesh.vertexCount; v++) {
-            if ((mesh.positionOf(v) - point).length < 1e-6) {
-              return key.positionOf(v) - mesh.positionOf(v);
-            }
+          if ((mesh.positionOf(v) - point).length < 1e-6) {
+            return key.positionOf(v) - mesh.positionOf(v);
           }
-          fail('no welded vertex at $point');
         }
+        fail('no welded vertex at $point');
+      }
 
-        expect(deltaAt(p0).x, closeTo(1, 1e-6));
-        expect(deltaAt(p0).y, closeTo(0, 1e-6));
-        expect(deltaAt(p0).z, closeTo(0, 1e-6));
-        expect(deltaAt(p1).y, closeTo(1, 1e-6));
-        expect(deltaAt(p2).z, closeTo(2, 1e-6));
-        expect(deltaAt(p3).x, closeTo(3, 1e-6));
-        expect(deltaAt(p3).y, closeTo(3, 1e-6));
-        expect(deltaAt(p3).z, closeTo(3, 1e-6));
-      },
-    );
+      expect(deltaAt(p0).x, closeTo(1, 1e-6));
+      expect(deltaAt(p0).y, closeTo(0, 1e-6));
+      expect(deltaAt(p0).z, closeTo(0, 1e-6));
+      expect(deltaAt(p1).y, closeTo(1, 1e-6));
+      expect(deltaAt(p2).z, closeTo(2, 1e-6));
+      expect(deltaAt(p3).x, closeTo(3, 1e-6));
+      expect(deltaAt(p3).y, closeTo(3, 1e-6));
+      expect(deltaAt(p3).z, closeTo(3, 1e-6));
+    });
 
-    test(
-      'two targets stay independent — neither one\'s own delta leaks into '
-      'the other',
-      () {
-        final lift = Float32List.fromList(<double>[
-          for (var i = 0; i < 6; i++) ...<double>[0, 0, 1],
-        ]);
-        final push = Float32List.fromList(<double>[
-          for (var i = 0; i < 6; i++) ...<double>[2, 0, 0],
-        ]);
-        final (mesh, _, shapeKeys) = importMeshData(
-          quadWithTargets(<MorphTarget>[
-            MorphTarget(vertexCount: 6, positions: lift, name: 'lift'),
-            MorphTarget(vertexCount: 6, positions: push, name: 'push'),
-          ]),
-        );
+    test('two targets stay independent — neither one\'s own delta leaks into '
+        'the other', () {
+      final lift = Float32List.fromList(<double>[
+        for (var i = 0; i < 6; i++) ...<double>[0, 0, 1],
+      ]);
+      final push = Float32List.fromList(<double>[
+        for (var i = 0; i < 6; i++) ...<double>[2, 0, 0],
+      ]);
+      final (mesh, _, shapeKeys) = importMeshData(
+        quadWithTargets(<MorphTarget>[
+          MorphTarget(vertexCount: 6, positions: lift, name: 'lift'),
+          MorphTarget(vertexCount: 6, positions: push, name: 'push'),
+        ]),
+      );
 
-        expect(shapeKeys, hasLength(2));
-        expect(shapeKeys.map((k) => k.name), <String>['lift', 'push']);
-        for (var v = 0; v < mesh.vertexCount; v++) {
-          final base = mesh.positionOf(v);
-          final lifted = shapeKeys[0].positionOf(v);
-          final pushed = shapeKeys[1].positionOf(v);
-          expect(lifted.x, closeTo(base.x, 1e-6));
-          expect(lifted.z, closeTo(base.z + 1, 1e-6));
-          expect(pushed.x, closeTo(base.x + 2, 1e-6));
-          expect(pushed.z, closeTo(base.z, 1e-6));
-        }
-      },
-    );
+      expect(shapeKeys, hasLength(2));
+      expect(shapeKeys.map((k) => k.name), <String>['lift', 'push']);
+      for (var v = 0; v < mesh.vertexCount; v++) {
+        final base = mesh.positionOf(v);
+        final lifted = shapeKeys[0].positionOf(v);
+        final pushed = shapeKeys[1].positionOf(v);
+        expect(lifted.x, closeTo(base.x, 1e-6));
+        expect(lifted.z, closeTo(base.z + 1, 1e-6));
+        expect(pushed.x, closeTo(base.x + 2, 1e-6));
+        expect(pushed.z, closeTo(base.z, 1e-6));
+      }
+    });
 
     test('an unnamed target counts its own position rather than sharing '
         'one name', () {

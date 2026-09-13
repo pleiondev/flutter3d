@@ -33,11 +33,8 @@ import 'dart:isolate';
 import 'dart:typed_data';
 
 import 'package:flutter3d/flutter3d.dart';
-// `encodePng` is ambiguous between this package's own stored-block encoder
-// (goldens use that one) and `flutter3d_model_core`'s real, compressed one —
-// hidden here so the compressed encoder this job actually ships PNG bytes
-// with is the only one in scope.
-import 'package:flutter3d_cpu/flutter3d_cpu.dart' hide encodePng;
+import 'package:flutter3d_cpu/flutter3d_cpu.dart'
+    show CpuDevice, CpuShaderLibrary, builtinCpuShaders;
 import 'package:flutter3d_mesh/flutter3d_mesh.dart' show meshWorkStaysHere;
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 import 'package:vector_math/vector_math.dart';
@@ -45,12 +42,42 @@ import 'package:vector_math/vector_math.dart';
 import 'render_preset.dart';
 import 'scene_from_project.dart';
 
-/// A snapshot of [project] at [preset], rendered off its own [CpuDevice].
+/// Makes the device one tile of a snapshot is drawn on, [width] × [height].
+///
+/// **A function, and a top-level or static one**, because on native the whole
+/// grid renders inside `Isolate.run` and this travels there with the project:
+/// a tear-off of a top-level function crosses an isolate, a closure over a
+/// window's own device does not.
+typedef TileDevice = GraphicsDevice Function(int width, int height);
+
+/// A fresh [CpuDevice] per tile — the default, and the reason a snapshot
+/// never contends with the viewport for a GPU or needs a display at all.
+GraphicsDevice cpuTileDevice(int width, int height) => CpuDevice(
+  width: width,
+  height: height,
+  shaders: CpuShaderLibrary(builtinCpuShaders()),
+);
+
+/// A snapshot of [project] at [preset], each tile rendered on a device of its
+/// own from [tileDevice].
+///
+/// **The renderer is asked for a [GraphicsDevice], not a CPU one.** A tile is
+/// drawn, read back through [GraphicsDevice.readPixels] and stitched, and none
+/// of that names a backend; [cpuTileDevice] is the default because it needs no
+/// GPU, and a caller with a device it would rather render on — or a test with
+/// a counting fake — passes its own.
 final class RenderSnapshotJob {
-  RenderSnapshotJob(this.project, this.preset);
+  RenderSnapshotJob(
+    this.project,
+    this.preset, {
+    this.tileDevice = cpuTileDevice,
+  });
 
   final ModelProject project;
   final RenderPreset preset;
+
+  /// Where each tile is drawn. See [TileDevice] for why it is a function.
+  final TileDevice tileDevice;
 
   /// One chunk per tile of [RenderPreset.tilesX] × [RenderPreset.tilesY] —
   /// the grid a caller stepping through chunks on the web draws exactly one
@@ -65,12 +92,15 @@ final class RenderSnapshotJob {
   /// comment gives.
   Future<Uint8List> run({void Function(double progress)? onProgress}) async {
     if (!meshWorkStaysHere) {
-      final bytes = await Isolate.run(() => _renderAllTiles(project, preset));
+      final TileDevice device = tileDevice;
+      final bytes = await Isolate.run(
+        () => _renderAllTiles(project, preset, device),
+      );
       onProgress?.call(1.0);
       return bytes;
     }
 
-    final buffer = _buffer ??= _SnapshotBuffer(preset);
+    final buffer = _buffer ??= _SnapshotBuffer(preset, tileDevice);
     for (var index = 0; index < chunkCount; index++) {
       await buffer.renderTile(project, preset, index);
       onProgress?.call((index + 1) / chunkCount);
@@ -89,7 +119,7 @@ final class RenderSnapshotJob {
   /// `Job<T>`) rather than through [run] — see this library's own doc
   /// comment for the shape that mirrors.
   Future<void> renderTile(int index) async {
-    final buffer = _buffer ??= _SnapshotBuffer(preset);
+    final buffer = _buffer ??= _SnapshotBuffer(preset, tileDevice);
     await buffer.renderTile(project, preset, index);
   }
 
@@ -109,13 +139,14 @@ final class RenderSnapshotJob {
 
 /// The whole grid, off this isolate — [Isolate.run]'s own computation on
 /// native. Top-level so the closure [RenderSnapshotJob.run] builds carries
-/// only [project] and [preset], the same reason `editInIsolate`'s own
-/// `_apply` is top-level.
+/// only [project], [preset] and [tileDevice], the same reason
+/// `editInIsolate`'s own `_apply` is top-level.
 Future<Uint8List> _renderAllTiles(
   ModelProject project,
   RenderPreset preset,
+  TileDevice tileDevice,
 ) async {
-  final buffer = _SnapshotBuffer(preset);
+  final buffer = _SnapshotBuffer(preset, tileDevice);
   for (var index = 0; index < preset.tilesX * preset.tilesY; index++) {
     await buffer.renderTile(project, preset, index);
   }
@@ -125,7 +156,7 @@ Future<Uint8List> _renderAllTiles(
 /// The supersampled frame, filled in one tile at a time and resolved once
 /// every tile has landed.
 final class _SnapshotBuffer {
-  _SnapshotBuffer(this.preset)
+  _SnapshotBuffer(this.preset, this.tileDevice)
     : superWidth = preset.width * preset.ssaa,
       superHeight = preset.height * preset.ssaa,
       tileWidth = (preset.width * preset.ssaa) ~/ preset.tilesX,
@@ -135,13 +166,14 @@ final class _SnapshotBuffer {
       );
 
   final RenderPreset preset;
+  final TileDevice tileDevice;
   final int superWidth;
   final int superHeight;
   final int tileWidth;
   final int tileHeight;
   final Uint8List _pixels;
 
-  /// Renders tile [index] on its own fresh [CpuDevice] and blits it into the
+  /// Renders tile [index] on its own fresh device and blits it into the
   /// supersampled frame — the same eye and look-at as every other tile,
   /// [TiledProjection] cropping this one's own share of the frustum
   /// (`pro-eng-04`), the same shape
@@ -155,11 +187,7 @@ final class _SnapshotBuffer {
     final tileX = index % preset.tilesX;
     final tileY = index ~/ preset.tilesX;
 
-    final device = CpuDevice(
-      width: tileWidth,
-      height: tileHeight,
-      shaders: CpuShaderLibrary(builtinCpuShaders()),
-    );
+    final device = tileDevice(tileWidth, tileHeight);
     final albedo = _texel(device, const <int>[255, 255, 255, 255]);
     final normal = _texel(device, const <int>[128, 128, 255, 255]);
     final renderer = Renderer.create(
@@ -206,8 +234,8 @@ final class _SnapshotBuffer {
     final tile = await device.readPixels(result.frame);
     if (tile == null) {
       throw StateError(
-        'tile $tileX,$tileY could not be read back from its own CpuDevice, '
-        'which has nothing to be busy with and no driver to blame',
+        'tile $tileX,$tileY could not be read back from the device it was '
+        'drawn on',
       );
     }
     _blit(tile.buffer.asUint8List(), tileX: tileX, tileY: tileY);
@@ -223,17 +251,17 @@ final class _SnapshotBuffer {
   }
 
   /// The supersampled frame, downsampled (if [RenderPreset.ssaa] asks for
-  /// it) and encoded — `flutter3d_model_core`'s own `encodePng`, the real
+  /// it) and encoded — `flutter3d_formats`' `encodeCompressedPng`, the real
   /// compressor rather than the stored-block encoder golden tests use.
   Uint8List finish() {
     final resolved = preset.ssaa == 1
         ? _pixels
         : _downsample(_pixels, superWidth, superHeight, preset.ssaa);
-    return encodePng(preset.width, preset.height, resolved);
+    return encodeCompressedPng(preset.width, preset.height, resolved);
   }
 }
 
-TextureHandle _texel(CpuDevice device, List<int> rgba) =>
+TextureHandle _texel(GraphicsDevice device, List<int> rgba) =>
     device.createTextureFromPixels(
       width: 1,
       height: 1,

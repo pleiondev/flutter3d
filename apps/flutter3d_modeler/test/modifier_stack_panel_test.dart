@@ -113,11 +113,7 @@ void main() {
     tester,
   ) async {
     var added = 0;
-    await _pump(
-      tester,
-      slots: const <ModifierSlot>[],
-      onAdd: () => added++,
-    );
+    await _pump(tester, slots: const <ModifierSlot>[], onAdd: () => added++);
 
     // Mutation: only show "Add" when `slots` is non-empty. A phase-one stack
     // starts empty, so an "Add" link that only appears once something is

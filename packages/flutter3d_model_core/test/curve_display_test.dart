@@ -19,12 +19,13 @@ import 'package:vector_math/vector_math.dart';
 void main() {
   group('curveSamples', () {
     test('a step track is piecewise-constant between keys', () {
-      final table = KeyTable(
-        componentCount: 1,
-        interpolation: AnimationInterpolation.step,
-      )
-        ..setKey(0.0, <double>[1.0])
-        ..setKey(1.0, <double>[9.0]);
+      final table =
+          KeyTable(
+              componentCount: 1,
+              interpolation: AnimationInterpolation.step,
+            )
+            ..setKey(0.0, <double>[1.0])
+            ..setKey(1.0, <double>[9.0]);
 
       final samples = curveSamples(table, 0, sampleCount: 11);
       // Every sample strictly before the second key holds the first key's
@@ -41,12 +42,23 @@ void main() {
     });
 
     test('a cubic track matches AnimationTrack.sample exactly', () {
-      final table = KeyTable(
-        componentCount: 1,
-        interpolation: AnimationInterpolation.cubicSpline,
-      )
-        ..setKey(0.0, <double>[0.0], inTangent: <double>[0.0], outTangent: <double>[3.0])
-        ..setKey(1.0, <double>[1.0], inTangent: <double>[0.5], outTangent: <double>[0.0]);
+      final table =
+          KeyTable(
+              componentCount: 1,
+              interpolation: AnimationInterpolation.cubicSpline,
+            )
+            ..setKey(
+              0.0,
+              <double>[0.0],
+              inTangent: <double>[0.0],
+              outTangent: <double>[3.0],
+            )
+            ..setKey(
+              1.0,
+              <double>[1.0],
+              inTangent: <double>[0.5],
+              outTangent: <double>[0.0],
+            );
 
       final track = table.toAnimationTrack(
         nodeIndex: 0,
@@ -73,10 +85,16 @@ void main() {
 
   group('tangentHandles', () {
     test('a cubic key\'s handles sit along its own tangent slope', () {
-      final table = KeyTable(
-        componentCount: 1,
-        interpolation: AnimationInterpolation.cubicSpline,
-      )..setKey(2.0, <double>[5.0], inTangent: <double>[1.0], outTangent: <double>[-2.0]);
+      final table =
+          KeyTable(
+            componentCount: 1,
+            interpolation: AnimationInterpolation.cubicSpline,
+          )..setKey(
+            2.0,
+            <double>[5.0],
+            inTangent: <double>[1.0],
+            outTangent: <double>[-2.0],
+          );
 
       final handles = tangentHandles(table, 0, 0, handleLength: 0.5);
       // out: value + outSlope * dt = 5.0 + (-2.0 * 0.5) = 4.0, at t = 2.5.
@@ -91,7 +109,12 @@ void main() {
 
     test('a linear table\'s handles collapse onto the key itself', () {
       final table = KeyTable(componentCount: 1)
-        ..setKey(1.0, <double>[7.0], inTangent: <double>[99.0], outTangent: <double>[99.0]);
+        ..setKey(
+          1.0,
+          <double>[7.0],
+          inTangent: <double>[99.0],
+          outTangent: <double>[99.0],
+        );
       final handles = tangentHandles(table, 0, 0);
       // Mutation: read tangents through even when `interpolation` is not
       // cubic — this would put the handles far from the key instead of on
@@ -149,9 +172,21 @@ void main() {
 
         final a = original.rotated(probe.clone());
         final b = reconstructed.rotated(probe.clone());
-        expect(a.x, closeTo(b.x, 1e-4), reason: '(yaw:$yaw, pitch:$pitch, roll:$roll) x');
-        expect(a.y, closeTo(b.y, 1e-4), reason: '(yaw:$yaw, pitch:$pitch, roll:$roll) y');
-        expect(a.z, closeTo(b.z, 1e-4), reason: '(yaw:$yaw, pitch:$pitch, roll:$roll) z');
+        expect(
+          a.x,
+          closeTo(b.x, 1e-4),
+          reason: '(yaw:$yaw, pitch:$pitch, roll:$roll) x',
+        );
+        expect(
+          a.y,
+          closeTo(b.y, 1e-4),
+          reason: '(yaw:$yaw, pitch:$pitch, roll:$roll) y',
+        );
+        expect(
+          a.z,
+          closeTo(b.z, 1e-4),
+          reason: '(yaw:$yaw, pitch:$pitch, roll:$roll) z',
+        );
       }
     });
 

@@ -56,7 +56,13 @@ List<Rgba8Image> buildMipChain(
   while (current.width > 1 || current.height > 1) {
     final nextWidth = math.max(1, (current.width / 2).ceil());
     final nextHeight = math.max(1, (current.height / 2).ceil());
-    current = _downsample(current, nextWidth, nextHeight, srgb: srgb, isNormalMap: isNormalMap);
+    current = _downsample(
+      current,
+      nextWidth,
+      nextHeight,
+      srgb: srgb,
+      isNormalMap: isNormalMap,
+    );
     if (baseCoverage != null) {
       current = _preserveCoverage(current, alphaTestThreshold!, baseCoverage);
     }
@@ -68,8 +74,9 @@ List<Rgba8Image> buildMipChain(
 double _srgbToLinear(double c) =>
     c <= 0.04045 ? c / 12.92 : math.pow((c + 0.055) / 1.055, 2.4).toDouble();
 
-double _linearToSrgb(double c) =>
-    c <= 0.0031308 ? c * 12.92 : 1.055 * math.pow(c, 1 / 2.4).toDouble() - 0.055;
+double _linearToSrgb(double c) => c <= 0.0031308
+    ? c * 12.92
+    : 1.055 * math.pow(c, 1 / 2.4).toDouble() - 0.055;
 
 int _clampByte(double v) => v.round().clamp(0, 255);
 
@@ -99,7 +106,15 @@ Rgba8Image _downsample(
   });
 
   final resized = channels
-      .map((plane) => _resizeSeparable(plane, source.width, source.height, dstWidth, dstHeight))
+      .map(
+        (plane) => _resizeSeparable(
+          plane,
+          source.width,
+          source.height,
+          dstWidth,
+          dstHeight,
+        ),
+      )
       .toList();
 
   final out = Uint8List(dstWidth * dstHeight * 4);
@@ -127,8 +142,12 @@ Rgba8Image _downsample(
       out[i * 4 + 2] = _clampByte((nz + 1) / 2 * 255);
     } else if (srgb) {
       out[i * 4] = _clampByte(_linearToSrgb(resized[0][i].clamp(0, 1)) * 255);
-      out[i * 4 + 1] = _clampByte(_linearToSrgb(resized[1][i].clamp(0, 1)) * 255);
-      out[i * 4 + 2] = _clampByte(_linearToSrgb(resized[2][i].clamp(0, 1)) * 255);
+      out[i * 4 + 1] = _clampByte(
+        _linearToSrgb(resized[1][i].clamp(0, 1)) * 255,
+      );
+      out[i * 4 + 2] = _clampByte(
+        _linearToSrgb(resized[2][i].clamp(0, 1)) * 255,
+      );
     } else {
       out[i * 4] = _clampByte(resized[0][i] * 255);
       out[i * 4 + 1] = _clampByte(resized[1][i] * 255);
@@ -161,7 +180,10 @@ List<double> _resizeSeparable(
 
   final out = List<double>.filled(dstWidth * dstHeight, 0);
   for (var x = 0; x < dstWidth; x++) {
-    final column = List<double>.generate(srcHeight, (y) => rowsResized[y * dstWidth + x]);
+    final column = List<double>.generate(
+      srcHeight,
+      (y) => rowsResized[y * dstWidth + x],
+    );
     final resizedColumn = _kaiserResize1d(column, dstHeight);
     for (var y = 0; y < dstHeight; y++) {
       out[y * dstWidth + x] = resizedColumn[y];
@@ -209,7 +231,9 @@ List<double> _kaiserResize1d(List<double> src, int dstLen) {
       sum += sample * weight;
       weightSum += weight;
     }
-    out[i] = weightSum > 0 ? sum / weightSum : src[center.round().clamp(0, src.length - 1)];
+    out[i] = weightSum > 0
+        ? sum / weightSum
+        : src[center.round().clamp(0, src.length - 1)];
   }
   return out;
 }
@@ -276,7 +300,11 @@ double _coverage(Rgba8Image image, double threshold) {
 /// closely as a pivot-and-scale can, not exactly, and the levels small
 /// enough to hit the limit are the ones an alpha-tested feature is already a
 /// few pixels wide or fewer in.
-Rgba8Image _preserveCoverage(Rgba8Image level, double threshold, double targetCoverage) {
+Rgba8Image _preserveCoverage(
+  Rgba8Image level,
+  double threshold,
+  double targetCoverage,
+) {
   final cutoff = threshold * 255;
   double coverageAt(double scale) {
     var count = 0;

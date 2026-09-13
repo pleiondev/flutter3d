@@ -67,7 +67,10 @@ void main() {
           ModelNode(
             surfaces: <int>[0],
             lods: <ModelLod>[
-              const ModelLod(surfaceIndices: <int>[1, 2], maxScreenFraction: 0.3),
+              const ModelLod(
+                surfaceIndices: <int>[1, 2],
+                maxScreenFraction: 0.3,
+              ),
             ],
           ),
         ],
@@ -82,7 +85,9 @@ void main() {
     test('a node with no lods at all round-trips with lods empty', () async {
       final document = PlainModelDocument(
         surfaces: <ModelSurface>[_surface()],
-        nodes: <ModelNode>[ModelNode(surfaces: <int>[0])],
+        nodes: <ModelNode>[
+          ModelNode(surfaces: <int>[0]),
+        ],
       );
 
       final bytes = GltfWriter(document).writeGlb();

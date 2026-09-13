@@ -33,7 +33,12 @@ void main() {
       // watching `_maxSpeed` fall geometrically well past step 300, never
       // diverging. Smaller cloth swings through a smaller arc and settles
       // in less real time, which is the only variable this test changed.
-      final mesh = ClothMesh.grid(cols: 20, rows: 20, spacing: 0.03, mass: 0.01);
+      final mesh = ClothMesh.grid(
+        cols: 20,
+        rows: 20,
+        spacing: 0.03,
+        mass: 0.01,
+      );
       const settings = ClothSettings();
       const dt = 1 / 60;
 
@@ -78,7 +83,12 @@ void main() {
       ClothMesh run() {
         final mesh = ClothMesh.grid(cols: 8, rows: 8, spacing: 0.12);
         const settings = ClothSettings(
-          wind: WindSettings(velocityX: 2, velocityY: 0.3, velocityZ: -1, drag: 0.4),
+          wind: WindSettings(
+            velocityX: 2,
+            velocityY: 0.3,
+            velocityZ: -1,
+            drag: 0.4,
+          ),
         );
         const dt = 1 / 60;
         for (var step = 0; step < 120; step++) {
@@ -108,13 +118,25 @@ void main() {
       for (var col = 0; col < 5; col++) {
         final i = col; // row 0
         expect(mesh.positions[3 * i], closeTo(before.positions[3 * i], 1e-12));
-        expect(mesh.positions[3 * i + 1], closeTo(before.positions[3 * i + 1], 1e-12));
-        expect(mesh.positions[3 * i + 2], closeTo(before.positions[3 * i + 2], 1e-12));
+        expect(
+          mesh.positions[3 * i + 1],
+          closeTo(before.positions[3 * i + 1], 1e-12),
+        );
+        expect(
+          mesh.positions[3 * i + 2],
+          closeTo(before.positions[3 * i + 2], 1e-12),
+        );
       }
     });
 
     test('a cloth resting on a box does not fall through it', () {
-      final mesh = ClothMesh.grid(cols: 6, rows: 6, spacing: 0.1, height: 0.5, mass: 0.02);
+      final mesh = ClothMesh.grid(
+        cols: 6,
+        rows: 6,
+        spacing: 0.1,
+        height: 0.5,
+        mass: 0.02,
+      );
       // Unpin everything: this test is about the floor holding the cloth
       // up, not about a pinned edge.
       for (var i = 0; i < mesh.invMass.length; i++) {
@@ -142,6 +164,7 @@ void main() {
 /// A plain copy of a mesh's own arrays, for a before/after comparison a
 /// live reference into the same typed lists could not make.
 class Float64ListSnapshot {
-  Float64ListSnapshot(ClothMesh mesh) : positions = Float64List.fromList(mesh.positions);
+  Float64ListSnapshot(ClothMesh mesh)
+    : positions = Float64List.fromList(mesh.positions);
   final List<double> positions;
 }

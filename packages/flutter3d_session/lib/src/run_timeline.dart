@@ -93,7 +93,8 @@ final class RunTimeline {
   final List<TimelineCommand> _history = <TimelineCommand>[];
 
   /// Every command this timeline has carried out, oldest first.
-  List<TimelineCommand> get history => List<TimelineCommand>.unmodifiable(_history);
+  List<TimelineCommand> get history =>
+      List<TimelineCommand>.unmodifiable(_history);
 
   void pause() {
     if (_paused) return;

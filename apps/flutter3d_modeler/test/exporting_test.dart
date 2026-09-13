@@ -68,7 +68,7 @@ ModelProject texturedProject() {
   return ModelProject(
     images: <EncodedImage>[
       EncodedImage(
-        bytes: encodePng(8, 8, pixels),
+        bytes: encodeCompressedPng(8, 8, pixels),
         name: 'checker',
         mimeType: 'image/png',
       ),
@@ -393,66 +393,60 @@ void main() {
       );
     });
 
-    test(
-      "ui-17's own bake-transforms flag: a GLB node carries the identity "
-      'once its own transform is baked into the mesh instead',
-      () async {
-        final project = workshop();
-        final cube = project.objects.first;
+    test("ui-17's own bake-transforms flag: a GLB node carries the identity "
+        'once its own transform is baked into the mesh instead', () async {
+      final project = workshop();
+      final cube = project.objects.first;
+      expect(
+        cube.transform,
+        isNot(Matrix4.identity()),
+        reason: "workshop()'s own cube sits at x=2, not the origin",
+      );
+
+      final files = written(
+        planExport(project, format: ExportFormat.glb, bakeTransforms: true),
+      ).files;
+      final back = await GltfLoader().load(files.single.bytes);
+
+      // Every surviving node carries the identity — `bakeAllTransforms`
+      // moved what used to be the node's own placement into its mesh's
+      // own vertices instead. Mutation: skip the bake for objects past
+      // the first and the vase's own node keeps its placement.
+      for (final ModelSurface surface in back.surfaces) {
         expect(
-          cube.transform,
-          isNot(Matrix4.identity()),
-          reason: "workshop()'s own cube sits at x=2, not the origin",
+          surface.transform,
+          Matrix4.identity(),
+          reason: '${surface.name} should have been baked to the origin',
         );
+      }
 
-        final files = written(
-          planExport(project, format: ExportFormat.glb, bakeTransforms: true),
-        ).files;
-        final back = await GltfLoader().load(files.single.bytes);
+      // The shape itself is unmoved — baking a transform into geometry
+      // changes where the numbers live, not what they describe.
+      final unbaked = toModelDocument(project);
+      expect(
+        back.computeBounds().min.x,
+        closeTo(unbaked.computeBounds().min.x, 1e-4),
+      );
+    });
 
-        // Every surviving node carries the identity — `bakeAllTransforms`
-        // moved what used to be the node's own placement into its mesh's
-        // own vertices instead. Mutation: skip the bake for objects past
-        // the first and the vase's own node keeps its placement.
-        for (final ModelSurface surface in back.surfaces) {
-          expect(
-            surface.transform,
-            Matrix4.identity(),
-            reason: '${surface.name} should have been baked to the origin',
-          );
-        }
+    test('bakeAllTransforms leaves what it cannot bake exactly as it was', () {
+      // The vase is still parametric, which `ApplyTransform` itself
+      // refuses to touch (`_editableObject`'s own rule) — its transform
+      // rides through unbaked rather than the whole pass failing.
+      final project = workshop();
+      final vase = project.objects.last;
+      expect(vase.geometry, isA<ParametricGeometry>());
 
-        // The shape itself is unmoved — baking a transform into geometry
-        // changes where the numbers live, not what they describe.
-        final unbaked = toModelDocument(project);
-        expect(
-          back.computeBounds().min.x,
-          closeTo(unbaked.computeBounds().min.x, 1e-4),
-        );
-      },
-    );
+      final baked = bakeAllTransforms(project);
+      final bakedVase = baked[vase.id]!;
+      expect(bakedVase.transform, vase.transform);
 
-    test(
-      'bakeAllTransforms leaves what it cannot bake exactly as it was',
-      () {
-        // The vase is still parametric, which `ApplyTransform` itself
-        // refuses to touch (`_editableObject`'s own rule) — its transform
-        // rides through unbaked rather than the whole pass failing.
-        final project = workshop();
-        final vase = project.objects.last;
-        expect(vase.geometry, isA<ParametricGeometry>());
-
-        final baked = bakeAllTransforms(project);
-        final bakedVase = baked[vase.id]!;
-        expect(bakedVase.transform, vase.transform);
-
-        // The cube, an ordinary EditedGeometry object, is the one this
-        // reaches: identity transform, geometry moved to match.
-        final cube = project.objects.first;
-        final bakedCube = baked[cube.id]!;
-        expect(bakedCube.transform, Matrix4.identity());
-      },
-    );
+      // The cube, an ordinary EditedGeometry object, is the one this
+      // reaches: identity transform, geometry moved to match.
+      final cube = project.objects.first;
+      final bakedCube = baked[cube.id]!;
+      expect(bakedCube.transform, Matrix4.identity());
+    });
 
     test('a flattened hierarchy is said out loud for OBJ and not for f3d', () {
       final rigged = workshop();

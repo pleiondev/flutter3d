@@ -353,7 +353,11 @@ abstract interface class GraphicsDevice implements TextureAllocator {
   /// [target] must be a buffer this device itself returned from
   /// [uploadGeometry], not a slice of unrelated bytes — the same requirement
   /// [releaseGeometry] already carries.
-  void overwriteGeometry(GeometryBuffer target, int offsetInBytes, ByteData bytes);
+  void overwriteGeometry(
+    GeometryBuffer target,
+    int offsetInBytes,
+    ByteData bytes,
+  );
 
   /// Creates a texture already holding [pixels].
   ///

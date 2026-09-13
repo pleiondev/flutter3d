@@ -151,11 +151,7 @@ void main() {
     ) async {
       final heavy = PlainModelDocument(
         surfaces: <ModelSurface>[
-          for (
-            var i = 0;
-            i < ProjectProfile.mobile.maxTriangles ~/ 12 + 1;
-            i++
-          )
+          for (var i = 0; i < ProjectProfile.mobile.maxTriangles ~/ 12 + 1; i++)
             ModelSurface(mesh: CuboidShape(size: Vector3(1, 1, 1)).build()),
         ],
       );

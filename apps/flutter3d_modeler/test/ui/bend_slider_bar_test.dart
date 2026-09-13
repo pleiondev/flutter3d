@@ -78,58 +78,57 @@ void main() {
     expect(find.text('Elbow'), findsOneWidget);
   });
 
-  testWidgets(
-    'dragging the slider turns the joint and changes poseVersion, '
-    'without growing ModelHistory',
-    (WidgetTester tester) async {
-      final _Fixture fixture = _buildFixture();
-      final ModelHistory history = ModelHistory(const ModelProject());
-      final List<int> reported = <int>[];
+  testWidgets('dragging the slider turns the joint and changes poseVersion, '
+      'without growing ModelHistory', (WidgetTester tester) async {
+    final _Fixture fixture = _buildFixture();
+    final ModelHistory history = ModelHistory(const ModelProject());
+    final List<int> reported = <int>[];
 
-      final int versionBefore = fixture.skeleton.poseVersion;
-      final int stepsBefore = history.steps.length;
-      final bool canUndoBefore = history.canUndo;
-      final Quaternion rotationBefore = fixture.joint.readRotation();
+    final int versionBefore = fixture.skeleton.poseVersion;
+    final int stepsBefore = history.steps.length;
+    final bool canUndoBefore = history.canUndo;
+    final Quaternion rotationBefore = fixture.joint.readRotation();
 
-      await _show(tester, fixture, onPoseChanged: reported.add);
+    await _show(tester, fixture, onPoseChanged: reported.add);
 
-      final Slider slider = tester.widget<Slider>(find.byType(Slider));
-      slider.onChanged!(60.0);
-      await tester.pump();
+    final Slider slider = tester.widget<Slider>(find.byType(Slider));
+    slider.onChanged!(60.0);
+    await tester.pump();
 
-      final int versionAfter = fixture.skeleton.poseVersion;
-      final Quaternion rotationAfter = fixture.joint.readRotation();
+    final int versionAfter = fixture.skeleton.poseVersion;
+    final Quaternion rotationAfter = fixture.joint.readRotation();
 
-      expect(
-        versionAfter,
-        isNot(versionBefore),
-        reason: 'Skeleton.poseVersion sums SceneNode.worldVersion, which a '
-            'rotated joint must bump',
-      );
-      expect(
-        rotationAfter.w,
-        isNot(closeTo(rotationBefore.w, 1e-9)),
-        reason: 'the joint itself must actually have turned',
-      );
-      expect(
-        reported,
-        isNotEmpty,
-        reason: 'onPoseChanged is called after the live rotation lands',
-      );
-      expect(reported.last, versionAfter);
+    expect(
+      versionAfter,
+      isNot(versionBefore),
+      reason:
+          'Skeleton.poseVersion sums SceneNode.worldVersion, which a '
+          'rotated joint must bump',
+    );
+    expect(
+      rotationAfter.w,
+      isNot(closeTo(rotationBefore.w, 1e-9)),
+      reason: 'the joint itself must actually have turned',
+    );
+    expect(
+      reported,
+      isNotEmpty,
+      reason: 'onPoseChanged is called after the live rotation lands',
+    );
+    expect(reported.last, versionAfter);
 
-      // The acceptance line, checked directly: the undo stack this app's
-      // document edits go through must not have grown by even one step.
-      expect(
-        history.steps.length,
-        stepsBefore,
-        reason: 'a live joint drag is not a ModelCommand and must never '
-            'reach ModelHistory',
-      );
-      expect(history.canUndo, canUndoBefore);
-      expect(find.text('60°'), findsOneWidget);
-    },
-  );
+    // The acceptance line, checked directly: the undo stack this app's
+    // document edits go through must not have grown by even one step.
+    expect(
+      history.steps.length,
+      stepsBefore,
+      reason:
+          'a live joint drag is not a ModelCommand and must never '
+          'reach ModelHistory',
+    );
+    expect(history.canUndo, canUndoBefore);
+    expect(find.text('60°'), findsOneWidget);
+  });
 
   testWidgets('an actual pointer drag on the slider also turns the joint', (
     WidgetTester tester,
@@ -145,37 +144,34 @@ void main() {
     expect(rotationAfter.w, isNot(closeTo(rotationBefore.w, 1e-9)));
   });
 
-  testWidgets(
-    'Reset pose puts the joint back at Pose.restOf, and reports the '
-    'version again',
-    (WidgetTester tester) async {
-      final _Fixture fixture = _buildFixture();
-      final List<int> reported = <int>[];
-      await _show(tester, fixture, onPoseChanged: reported.add);
+  testWidgets('Reset pose puts the joint back at Pose.restOf, and reports the '
+      'version again', (WidgetTester tester) async {
+    final _Fixture fixture = _buildFixture();
+    final List<int> reported = <int>[];
+    await _show(tester, fixture, onPoseChanged: reported.add);
 
-      final Slider slider = tester.widget<Slider>(find.byType(Slider));
-      slider.onChanged!(-45.0);
-      await tester.pump();
-      expect(find.text('-45°'), findsOneWidget);
-      reported.clear();
+    final Slider slider = tester.widget<Slider>(find.byType(Slider));
+    slider.onChanged!(-45.0);
+    await tester.pump();
+    expect(find.text('-45°'), findsOneWidget);
+    reported.clear();
 
-      await tester.tap(find.text('Reset pose'));
-      await tester.pump();
+    await tester.tap(find.text('Reset pose'));
+    await tester.pump();
 
-      final Matrix4 rest = fixture.pose.restOf(0);
-      final Matrix4 actual = fixture.joint.localMatrix;
-      for (var i = 0; i < 16; i++) {
-        expect(
-          actual.storage[i],
-          closeTo(rest.storage[i], 1e-6),
-          reason: 'entry $i of the local matrix must match Pose.restOf(0)',
-        );
-      }
-      expect(find.text('0°'), findsOneWidget);
-      expect(reported, isNotEmpty);
-      expect(reported.last, fixture.skeleton.poseVersion);
-    },
-  );
+    final Matrix4 rest = fixture.pose.restOf(0);
+    final Matrix4 actual = fixture.joint.localMatrix;
+    for (var i = 0; i < 16; i++) {
+      expect(
+        actual.storage[i],
+        closeTo(rest.storage[i], 1e-6),
+        reason: 'entry $i of the local matrix must match Pose.restOf(0)',
+      );
+    }
+    expect(find.text('0°'), findsOneWidget);
+    expect(reported, isNotEmpty);
+    expect(reported.last, fixture.skeleton.poseVersion);
+  });
 
   testWidgets('resetting the pose does not touch ModelHistory either', (
     WidgetTester tester,

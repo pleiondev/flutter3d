@@ -53,7 +53,11 @@ enum SnapLevel { vertex, edge, face }
 /// without the other would be a caller free to hand over a picker for one
 /// object and the transform of another.
 final class SnapSource {
-  const SnapSource({required this.id, required this.picker, this.objectToWorld});
+  const SnapSource({
+    required this.id,
+    required this.picker,
+    this.objectToWorld,
+  });
 
   /// The object this geometry belongs to, so a caller can tell which one a
   /// [SnapTarget] landed on — for excluding it from a later search, or for
@@ -139,7 +143,11 @@ SnapTarget? findSnapTarget({
   final ray = view.rayThrough(screen);
   final depth = (near - ray.origin).dot(ray.direction);
   if (depth <= 0.0) return null;
-  final worldRadius = view.worldWidthAt(screen, pixels: radiusPixels, distance: depth);
+  final worldRadius = view.worldWidthAt(
+    screen,
+    pixels: radiusPixels,
+    distance: depth,
+  );
   if (worldRadius <= 0.0) return null;
 
   SnapTarget? bestVertex;
@@ -218,13 +226,18 @@ SnapTarget? findSnapTarget({
   // comment says why — broken only by whichever is unambiguously nearer than
   // every level ahead of it in that order.
   final candidates = <SnapTarget?>[bestVertex, bestEdge, bestFace];
-  final distances = <double>[bestVertexDistance, bestEdgeDistance, bestFaceDistance];
+  final distances = <double>[
+    bestVertexDistance,
+    bestEdgeDistance,
+    bestFaceDistance,
+  ];
   var nearest = double.infinity;
   for (final distance in distances) {
     if (distance < nearest) nearest = distance;
   }
   for (var i = 0; i < candidates.length; i++) {
-    if (candidates[i] != null && distances[i] <= nearest + _vertexPriorityEpsilon) {
+    if (candidates[i] != null &&
+        distances[i] <= nearest + _vertexPriorityEpsilon) {
       return candidates[i];
     }
   }

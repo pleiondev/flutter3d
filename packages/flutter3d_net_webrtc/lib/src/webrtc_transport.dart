@@ -35,17 +35,16 @@ final class WebRtcTransport implements NetTransport {
   /// writing to a socket before it connects would be.
   Future<void> get ready => _readyCompleter.future;
 
-  static Future<RTCPeerConnection> _openConnection() => createPeerConnection(
-    <String, Object?>{
-      'iceServers': <Map<String, Object?>>[
-        // A public STUN server is enough to discover this side's own
-        // reflexive address; a NAT neither side's candidates get through
-        // needs a TURN relay instead — net-02's own doc names that as the
-        // relay's other job, not this class's.
-        <String, Object?>{'urls': 'stun:stun.l.google.com:19302'},
-      ],
-    },
-  );
+  static Future<RTCPeerConnection> _openConnection() =>
+      createPeerConnection(<String, Object?>{
+        'iceServers': <Map<String, Object?>>[
+          // A public STUN server is enough to discover this side's own
+          // reflexive address; a NAT neither side's candidates get through
+          // needs a TURN relay instead — net-02's own doc names that as the
+          // relay's other job, not this class's.
+          <String, Object?>{'urls': 'stun:stun.l.google.com:19302'},
+        ],
+      });
 
   static void _wireSignalling(
     RTCPeerConnection connection,

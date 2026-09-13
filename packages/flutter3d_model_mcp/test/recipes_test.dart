@@ -84,16 +84,16 @@ void main() {
   group('cleanup', () {
     test('welds a flat-shaded cube without changing the face count', () {
       final session = _sessionWith(<EditMesh>[_flatShadedCube()]);
-      final mesh = (session.project.objects.single.geometry as EditedGeometry)
-          .mesh;
+      final mesh =
+          (session.project.objects.single.geometry as EditedGeometry).mesh;
       expect(mesh.vertexCount, 24);
       expect(mesh.faceCount, 6);
 
       final answer = session.cleanup();
       expect(answer.did, isTrue, reason: answer.says);
 
-      final after = (session.project.objects.single.geometry as EditedGeometry)
-          .mesh;
+      final after =
+          (session.project.objects.single.geometry as EditedGeometry).mesh;
       // Mutation: skip the weld step. Vertex count stays 24 and this fails.
       expect(after.vertexCount, 8);
       expect(after.faceCount, 6);
@@ -103,8 +103,8 @@ void main() {
       final session = _sessionWith(<EditMesh>[_oneDegenerateTriangle()]);
       final answer = session.cleanup();
       expect(answer.did, isTrue, reason: answer.says);
-      final after = (session.project.objects.single.geometry as EditedGeometry)
-          .mesh;
+      final after =
+          (session.project.objects.single.geometry as EditedGeometry).mesh;
       expect(after.faceCount, 0);
     });
 
@@ -151,21 +151,21 @@ void main() {
       for (var i = 3; i < rgba.length; i += 4) {
         rgba[i] = 255;
       }
-      return encodePng(width, height, rgba);
+      return encodeCompressedPng(width, height, rgba);
     }
 
     test('triangulates and recalculates normals, one undo step', () {
       final session = _sessionWith(<EditMesh>[EditMesh.cuboid()]);
-      final before = (session.project.objects.single.geometry as EditedGeometry)
-          .mesh;
+      final before =
+          (session.project.objects.single.geometry as EditedGeometry).mesh;
       expect(before.faceCount, 6); // six quads
 
       final answer = session.makeGameReady('desktop');
       expect(answer.did, isTrue, reason: answer.says);
       expect(session.history.steps, hasLength(1));
 
-      final after = (session.project.objects.single.geometry as EditedGeometry)
-          .mesh;
+      final after =
+          (session.project.objects.single.geometry as EditedGeometry).mesh;
       // Mutation: skip the Triangulate call. Face count stays 6, all quads.
       expect(after.faceCount, 12);
     });
@@ -193,7 +193,10 @@ void main() {
       // this image untouched.
       expect(
         dims,
-        ImageDimensions(TextureBudget.mobile.maxSide, TextureBudget.mobile.maxSide),
+        ImageDimensions(
+          TextureBudget.mobile.maxSide,
+          TextureBudget.mobile.maxSide,
+        ),
       );
       expect(session.project.profile.textures, TextureBudget.desktop);
     });

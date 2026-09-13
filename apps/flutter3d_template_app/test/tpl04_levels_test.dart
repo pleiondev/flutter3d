@@ -15,20 +15,25 @@ import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:flutter3d_template_app/main.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-GraphicsDevice _device() =>
-    CpuDevice(width: 16, height: 9, shaders: CpuShaderLibrary(builtinCpuShaders()));
-
-Level _readLevel(String path) =>
-    Level.fromJson(jsonDecode(File(path).readAsStringSync()) as Map<String, Object?>);
-
-Future<LoadedLevel> _build(Level level, GraphicsDevice device) => LevelLoader().build(
-  level,
-  device: device,
-  registry: EntityRegistry(<EntityKind>[
-    for (final type in level.entities.map((EntityDef e) => e.type).toSet())
-      OpenKind(type),
-  ]),
+GraphicsDevice _device() => CpuDevice(
+  width: 16,
+  height: 9,
+  shaders: CpuShaderLibrary(builtinCpuShaders()),
 );
+
+Level _readLevel(String path) => Level.fromJson(
+  jsonDecode(File(path).readAsStringSync()) as Map<String, Object?>,
+);
+
+Future<LoadedLevel> _build(Level level, GraphicsDevice device) =>
+    LevelLoader().build(
+      level,
+      device: device,
+      registry: EntityRegistry(<EntityKind>[
+        for (final type in level.entities.map((EntityDef e) => e.type).toSet())
+          OpenKind(type),
+      ]),
+    );
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -42,10 +47,11 @@ void main() {
     });
 
     test('names a three-step tour, in order', () {
-      expect(
-        stepCaptions(level),
-        <String>['Вид спереди', 'Вид сбоку', 'Вид сверху'],
-      );
+      expect(stepCaptions(level), <String>[
+        'Вид спереди',
+        'Вид сбоку',
+        'Вид сверху',
+      ]);
     });
 
     test('carries one widget_surface, naming a widget an empty registry '
@@ -88,10 +94,13 @@ void main() {
       expect(surfaces.first.string('widget'), 'configurator-panel');
     });
 
-    test('has no steps and no bound step: it is neither a viewer nor a twin', () {
-      expect(stepCaptions(level), isEmpty);
-      expect(stepWithBindings(level), isNull);
-    });
+    test(
+      'has no steps and no bound step: it is neither a viewer nor a twin',
+      () {
+        expect(stepCaptions(level), isEmpty);
+        expect(stepWithBindings(level), isNull);
+      },
+    );
   });
 
   group('twin.json', () {

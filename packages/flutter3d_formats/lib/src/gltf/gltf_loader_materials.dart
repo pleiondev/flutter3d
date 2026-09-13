@@ -66,8 +66,9 @@ extension _GltfMaterials on GltfLoader {
       // `extensionsUsed` only — so without this it drew untransformed and
       // said nothing.
       final infoExtensions = value['extensions'];
-      final transformExt =
-          infoExtensions is Map ? infoExtensions['KHR_texture_transform'] : null;
+      final transformExt = infoExtensions is Map
+          ? infoExtensions['KHR_texture_transform']
+          : null;
       TextureTransform? transform;
       if (transformExt != null) {
         warnings.add(

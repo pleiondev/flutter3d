@@ -327,7 +327,7 @@ final class BakeTextureGraph extends ModelCommand {
       if (rgba == null) {
         return Outcome.refused('output ${output.id} did not bake');
       }
-      final Uint8List png = encodePng(size, size, rgba);
+      final Uint8List png = encodeCompressedPng(size, size, rgba);
       var at = -1;
       for (var i = 0; i < nextImages.length; i++) {
         if (_bytesEqual(nextImages[i].bytes, png)) {
