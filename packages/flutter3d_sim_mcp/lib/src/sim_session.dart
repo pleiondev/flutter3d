@@ -2,12 +2,13 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
-import 'package:flutter3d_game_shooter/flutter3d_game_shooter.dart';
+import 'package:flutter3d_bridge/flutter3d_bridge.dart' show WidgetSurfaceKind;
+import 'package:flutter3d_game_shooter/flutter3d_game_shooter.dart' show ShooterActions;
+import 'package:flutter3d_game_shooter/sample.dart' show Staged, sampleRegistry, stage;
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:vector_math/vector_math.dart';
 
 import 'sim_renderer.dart';
-import 'staging.dart';
 
 /// What a tool call actually did, the sentence to say about it, and — for
 /// `frame` alone — the PNG that goes with it.
@@ -172,7 +173,15 @@ final class SimSession {
     final path = _levelPath;
     if (staged == null || path == null) return _refuse('no level open');
     try {
-      final renderer = _renderer ??= await SimRenderer.open(path);
+      // `wg-02`'s own kind, added here rather than to `stage`'s own registry
+      // (`flutter3d_game_shooter`'s `sample.dart`): a genre package must not
+      // gain a dependency on the bridge layer just so its sample registry
+      // can speak a word the bridge, not the genre, defines — the same
+      // reason `sampleRegistry`'s own `extra` parameter exists.
+      final renderer = _renderer ??= await SimRenderer.open(
+        path,
+        registry: sampleRegistry(extra: const <EntityKind>[WidgetSurfaceKind()]),
+      );
       final eye = Vector3.zero();
       final aim = Vector3.zero();
       staged.player

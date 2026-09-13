@@ -1,6 +1,6 @@
 name: flutter3d_sim_mcp
 description: "A shooter level an agent can play blind: open it, step it with input, read back positions and health in words, and hand over the run it made — ai-00."
-version: 0.6.0
+version: 0.7.0
 repository: https://github.com/pleiondev/flutter3d
 homepage: https://flutter3d.pleion.dev
 issue_tracker: https://github.com/pleiondev/flutter3d/issues
@@ -22,7 +22,7 @@ dependencies:
   # The genre this server actually plays — see the package doc for why that
   # means this server needs Flutter at all, unlike `flutter3d_editor_mcp` and
   # `flutter3d_model_mcp`, which do not.
-  flutter3d_game_shooter: ^0.6.0
+  flutter3d_game_shooter: ^0.7.0
   flutter3d_sim: ^0.6.0
 
   # The picture half of `frame` — a level's own scene, a device with no GPU

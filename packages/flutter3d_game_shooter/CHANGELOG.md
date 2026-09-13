@@ -1,3 +1,15 @@
+## 0.7.0
+
+**`sample.dart` gains `Staged`, `stage()` and `agentStartingInventory()`.**
+Promoted from `flutter3d_sim_mcp`'s own `staging.dart` — a fourth copy of
+`apps/flutter3d_demo_dungeon`'s composition, kept there only because
+`tool/structure.dart`'s "no package depends on an application" rule meant
+that package could not reach the original. It already depended on this one
+for the genre itself, so the composition moves to where it can be named
+once instead of copied. Deliberately smaller than the app's own `stage()` —
+no mechanisms, no breaches, no automap — for the reason that copy's own doc
+comment already gave.
+
 ## 0.6.0
 
 * **Floors, and no code.** The monsters, the weapons, the inventory and the step

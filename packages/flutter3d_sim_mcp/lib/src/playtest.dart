@@ -2,10 +2,9 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:isolate';
 
-import 'package:flutter3d_game_shooter/flutter3d_game_shooter.dart';
+import 'package:flutter3d_game_shooter/flutter3d_game_shooter.dart' show GameState, ShooterActions;
+import 'package:flutter3d_game_shooter/sample.dart' show stage;
 import 'package:flutter3d_sim/flutter3d_sim.dart';
-
-import 'staging.dart';
 
 const double _dt = 1.0 / 60.0;
 

@@ -5,7 +5,8 @@ import 'package:flutter3d/flutter3d.dart' hide Material;
 import 'package:flutter3d_bridge/flutter3d_bridge.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter3d_cpu/testing.dart';
-import 'package:flutter3d_game_shooter/sample.dart';
+import 'package:flutter3d_game_shooter/sample.dart' show sampleRegistry;
+import 'package:flutter3d_sim/flutter3d_sim.dart' show EntityRegistry;
 import 'package:vector_math/vector_math.dart';
 
 /// A picture of the room, drawn with no GPU — [SimSession.frame]'s other
@@ -29,7 +30,16 @@ final class SimRenderer {
   static const int width = 320;
   static const int height = 200;
 
-  static Future<SimRenderer> open(String levelPath) async {
+  /// [registry] is what turns a level's own entity kinds into the things a
+  /// scene actually draws — [sampleRegistry] by default, the same roster
+  /// [SimSession] steps through, so a monster [snapshot] can name is a
+  /// monster [frame] can show. Overridable the same way
+  /// `flutter3d_render_mcp`'s own `open` takes one, for a caller with a
+  /// different roster, or none.
+  static Future<SimRenderer> open(
+    String levelPath, {
+    EntityRegistry? registry,
+  }) async {
     final it = cpuTestDevice(width: width, height: height);
     // A material names its textures relative to the application's own asset
     // root (`assets/textures/wall_albedo.jpg`), not to wherever the level
@@ -44,7 +54,7 @@ final class SimRenderer {
     final loaded = await LevelLoader().load(
       levelPath,
       device: it.device,
-      registry: sampleRegistry(),
+      registry: registry ?? sampleRegistry(),
       sidecars: false,
       readDocument: (request) => File(request.uri).readAsString(),
       readAsset: (request) async {
