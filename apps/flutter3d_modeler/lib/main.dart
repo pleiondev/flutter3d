@@ -1058,6 +1058,7 @@ class _ModelerScreenState extends State<ModelerScreen>
   Future<void> _exportFile(
     ExportFormat format, {
     bool bakeTransforms = false,
+    TextureEncoding textureEncoding = TextureEncoding.png,
     // The export screen's own "Export anyway" label already showed every
     // issue this would otherwise ask about a second time — `ui-17`'s own
     // row, and the review's own finding that the two dialogs partly
@@ -1072,6 +1073,7 @@ class _ModelerScreenState extends State<ModelerScreen>
       _history.project,
       format: format,
       bakeTransforms: bakeTransforms,
+      textureEncoding: textureEncoding,
       force: skipConfirm,
     );
 
@@ -1086,6 +1088,7 @@ class _ModelerScreenState extends State<ModelerScreen>
         format: format,
         force: true,
         bakeTransforms: bakeTransforms,
+        textureEncoding: textureEncoding,
       );
     }
 
@@ -1148,6 +1151,7 @@ class _ModelerScreenState extends State<ModelerScreen>
         _exportFile(
           choice.format,
           bakeTransforms: choice.bakeTransforms,
+          textureEncoding: choice.textureEncoding,
           skipConfirm: choice.acknowledgedWarnings,
         ),
       );

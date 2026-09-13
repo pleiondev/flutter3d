@@ -29,6 +29,7 @@ final class ExportChoice {
   const ExportChoice({
     required this.format,
     required this.bakeTransforms,
+    this.textureEncoding = TextureEncoding.png,
     this.acknowledgedWarnings = false,
   });
 
@@ -37,6 +38,12 @@ final class ExportChoice {
   /// `ui-17`'s own "запечь трансформации узлов": [bakeAllTransforms] runs
   /// before the write when true.
   final bool bakeTransforms;
+
+  /// `mat-30`'s own "an option de export": [TextureEncoding.ktx2] asks
+  /// [planExport] to recompress every texture through `fmt-22`'s own
+  /// encoders. Only [ExportFormat.f3d] reads it — see [TextureEncoding]'s own
+  /// doc comment for why glTF and OBJ always stay PNG.
+  final TextureEncoding textureEncoding;
 
   /// True when this screen's own Export button already read as "Export
   /// anyway" — the person has already seen every issue in the list above
@@ -74,6 +81,7 @@ class _ExportScreen extends StatefulWidget {
 class _ExportScreenState extends State<_ExportScreen> {
   ExportFormat _format = ExportFormat.glb;
   bool _bakeTransforms = false;
+  TextureEncoding _textureEncoding = TextureEncoding.png;
 
   @override
   Widget build(BuildContext context) {
@@ -110,8 +118,15 @@ class _ExportScreenState extends State<_ExportScreen> {
                   ),
               ],
               selected: <ExportFormat>{_format},
-              onSelectionChanged: (Set<ExportFormat> picked) =>
-                  setState(() => _format = picked.first),
+              onSelectionChanged: (Set<ExportFormat> picked) => setState(() {
+                _format = picked.first;
+                // A toggle nobody can see any more should not still be "on"
+                // in the answer, even though `planExport` itself ignores it
+                // for every format but `.f3d`.
+                if (_format != ExportFormat.f3d) {
+                  _textureEncoding = TextureEncoding.png;
+                }
+              }),
             ),
             const SizedBox(height: 12),
             Text('Triangles', style: theme.textTheme.labelMedium),
@@ -134,6 +149,21 @@ class _ExportScreenState extends State<_ExportScreen> {
               onChanged: (bool? to) =>
                   setState(() => _bakeTransforms = to ?? false),
             ),
+            // Only `.f3d` ever reads `textureEncoding` — see `TextureEncoding`'s
+            // own doc comment — so the toggle disappears rather than sitting
+            // there disabled for a format it can never change.
+            if (_format == ExportFormat.f3d)
+              CheckboxListTile(
+                contentPadding: EdgeInsets.zero,
+                controlAffinity: ListTileControlAffinity.leading,
+                title: const Text('Compress textures (KTX2)'),
+                value: _textureEncoding == TextureEncoding.ktx2,
+                onChanged: (bool? to) => setState(
+                  () => _textureEncoding = (to ?? false)
+                      ? TextureEncoding.ktx2
+                      : TextureEncoding.png,
+                ),
+              ),
             const SizedBox(height: 8),
             if (readiness.issues.isEmpty)
               Text('ready to export', style: theme.textTheme.bodySmall)
@@ -162,6 +192,7 @@ class _ExportScreenState extends State<_ExportScreen> {
                   ExportChoice(
                     format: _format,
                     bakeTransforms: _bakeTransforms,
+                    textureEncoding: _textureEncoding,
                     acknowledgedWarnings: blocked,
                   ),
                 ),

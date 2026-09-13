@@ -128,6 +128,92 @@ void main() {
       },
     );
 
+    testWidgets(
+      "mat-30's own row: the KTX2 toggle only shows for .f3d, and reaches "
+      'the answer when ticked',
+      (WidgetTester tester) async {
+        ExportChoice? result;
+        await tester.pumpWidget(
+          MaterialApp(
+            theme: modelerTheme(),
+            home: Scaffold(
+              body: Builder(
+                builder: (BuildContext context) => ElevatedButton(
+                  onPressed: () async {
+                    result = await showExportScreen(
+                      context,
+                      project: withQuads(),
+                      onShow: (int id) {},
+                    );
+                  },
+                  child: const Text('open'),
+                ),
+              ),
+            ),
+          ),
+        );
+        await tester.tap(find.text('open'));
+        await tester.pumpAndSettle();
+
+        // Default format is glb — no reader of a compressed .f3d image to
+        // switch to, so the toggle stays off the screen entirely.
+        expect(find.text('Compress textures (KTX2)'), findsNothing);
+
+        await tester.tap(find.text('.f3d'));
+        await tester.pump();
+        expect(find.text('Compress textures (KTX2)'), findsOneWidget);
+
+        await tester.tap(find.text('Compress textures (KTX2)'));
+        await tester.pump();
+        await tester.tap(find.widgetWithText(FilledButton, 'Export'));
+        await tester.pumpAndSettle();
+
+        expect(result!.format, ExportFormat.f3d);
+        expect(result!.textureEncoding, TextureEncoding.ktx2);
+      },
+    );
+
+    testWidgets(
+      "switching away from .f3d after ticking KTX2 answers plain png — the "
+      'toggle a person can no longer see cannot still be on',
+      (WidgetTester tester) async {
+        ExportChoice? result;
+        await tester.pumpWidget(
+          MaterialApp(
+            theme: modelerTheme(),
+            home: Scaffold(
+              body: Builder(
+                builder: (BuildContext context) => ElevatedButton(
+                  onPressed: () async {
+                    result = await showExportScreen(
+                      context,
+                      project: withQuads(),
+                      onShow: (int id) {},
+                    );
+                  },
+                  child: const Text('open'),
+                ),
+              ),
+            ),
+          ),
+        );
+        await tester.tap(find.text('open'));
+        await tester.pumpAndSettle();
+
+        await tester.tap(find.text('.f3d'));
+        await tester.pump();
+        await tester.tap(find.text('Compress textures (KTX2)'));
+        await tester.pump();
+        await tester.tap(find.text('.glb'));
+        await tester.pump();
+        await tester.tap(find.widgetWithText(FilledButton, 'Export'));
+        await tester.pumpAndSettle();
+
+        expect(result!.format, ExportFormat.glb);
+        expect(result!.textureEncoding, TextureEncoding.png);
+      },
+    );
+
     testWidgets("Show applies the selection and closes the dialog, "
         'answering null the same as Cancel', (WidgetTester tester) async {
       final project = withQuads();
