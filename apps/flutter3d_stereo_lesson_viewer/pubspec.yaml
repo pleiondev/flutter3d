@@ -1,0 +1,63 @@
+name: flutter3d_stereo_lesson_viewer
+description: "ls-x-00: the same edu-00 lesson document flutter3d_lesson_viewer plays flat, drawn as a stereo pair and stepped through by one button — a Cardboard viewer, not a keyboard."
+publish_to: 'none'
+version: 0.1.0
+resolution: workspace
+
+environment:
+  sdk: ^3.12.2
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # The backend chooser with its software fallback — see `lib/src/backend.dart`.
+  flutter3d_app:
+    path: ../../packages/flutter3d_app
+
+  flutter3d:
+    path: ../../packages/flutter3d
+
+  # The document and the level format.
+  flutter3d_game:
+    path: ../../packages/flutter3d_game
+
+  # A level document to mesh nodes and lights.
+  flutter3d_bridge:
+    path: ../../packages/flutter3d_bridge
+
+  # `orderedSteps` — resolving an `edu_sequence.steps` name list to the
+  # `edu_step` entities themselves. Headless, plain Dart.
+  flutter3d_editor_core:
+    path: ../../packages/flutter3d_editor_core
+
+  # The surface a frame reaches Flutter through.
+  flutter3d_session:
+    path: ../../packages/flutter3d_session
+
+  # `edu-06`'s own screen: `StereoRig`, `StereoSurface`, `LessonPlayer`,
+  # `LessonStereoView` — the whole of this app's difference from
+  # `flutter3d_lesson_viewer`.
+  flutter3d_stereo:
+    path: ../../packages/flutter3d_stereo
+
+  vector_math: ^2.2.0
+
+  flutter_bloc: ^9.1.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+  # A renderer with no GPU under it, so a test can load a level without a
+  # window.
+  flutter3d_cpu:
+    path: ../../packages/flutter3d_cpu
+
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - assets/levels/

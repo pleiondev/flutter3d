@@ -40,6 +40,7 @@ const List<String> applications = <String>[
   'flutter3d_modeler',
   'flutter3d_template_app',
   'flutter3d_lesson_viewer',
+  'flutter3d_stereo_lesson_viewer',
 ];
 
 /// Packages that must run with no Flutter SDK anywhere near them, and what
