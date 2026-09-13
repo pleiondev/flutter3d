@@ -1,1877 +1,2056 @@
-# Редактор 3D-моделей на flutter3d — план разработки
+# 3D model editor on flutter3d — the development plan
 
-Свод от 2026-09-09. Собран из одиннадцати планов по аспектам (ядро меша,
-документ и MCP, форматы, рендер и вьюпорт, оболочка, материалы, анимация,
-профессиональные режимы, качество, фаза 0, публикация), написанных поверх
-проработки [doc/model-editor.md](model-editor.md) и README дизайн-передачи.
-Имена пакетов, экранов и решений — оттуда. Всё, что сказано о движке,
-аспекты проверили по коду на `239ccf8e`.
+Compiled 2026-09-09. Assembled from eleven aspect plans (mesh core, document
+and MCP, formats, rendering and viewport, shell, materials, animation,
+professional modes, quality, phase 0, publishing), written on top of the
+[doc/model-editor.md](model-editor.md) working-through and the design-handoff
+README. Package, screen, and decision names come from there. Everything said
+about the engine was checked by the aspects against the code at `239ccf8e`.
 
-Обозначения в таблицах: **р.** — размер (S до недели, M две–три, L месяц и
-больше, для одного человека, как в проработке §6); **ф.** — фаза; **⚙** —
-правка движка (`engineChange`); **⚠** — пункт конфликтует с ROADMAP или
-ARCHITECTURE, разбор в §8; **⇢ X** — пункт слит с X при синтезе, id
-сохранён для ссылок. Пакеты: `mesh` = flutter3d_mesh, `core` =
-flutter3d_model_core, `mcp` = flutter3d_model_mcp, `app` =
-apps/flutter3d_modeler, `engine` = flutter3d, `hw` = flutter3d_hardware и
-четыре бэкенда, `geometry` = flutter3d_geometry и `formats` =
-flutter3d_formats — два чистых пакета словаря (§3, решение 2026-09-09; до него
-в плане стояло одно рабочее имя на оба), `rig` = flutter3d_rig, `cloth` =
-flutter3d_cloth, `fbx` = flutter3d_fbx.
+Notation in tables: **size** (S up to a week, M two to three, L a month or
+more, for one person, as in the working-through §6); **phase**; **⚙** — an
+engine change (`engineChange`); **⚠** — the item conflicts with the ROADMAP
+or ARCHITECTURE, discussed in §8; **⇢ X** — the item merges into X during
+synthesis, its id kept for references. Packages: `mesh` = flutter3d_mesh,
+`core` = flutter3d_model_core, `mcp` = flutter3d_model_mcp, `app` =
+apps/flutter3d_modeler, `engine` = flutter3d, `hw` = flutter3d_hardware and
+the four backends, `geometry` = flutter3d_geometry and `formats` =
+flutter3d_formats — two pure vocabulary packages (§3, 2026-09-09 decision;
+before it, the plan held one working name for both), `rig` = flutter3d_rig,
+`cloth` = flutter3d_cloth, `fbx` = flutter3d_fbx.
 
-Всего 317 пунктов из аспектов плюс 3 добавленных при синтезе (§3), 9
-добавленных по критике 2026-09-09 (суффикс `-n`) и 5 добавленных по решениям
-владельца 2026-09-09 (суффикс `-d`; история — в конце файла).
-
----
-
-## 1. Коротко
-
-1. **Один блокер до первой строки: словарь движка живёт в пакете с Flutter
-   SDK.** `packages/flutter3d/pubspec.yaml` объявляет `flutter: sdk`, поэтому
-   `flutter3d_model_core → flutter3d` из проработки §5.1 проходит сканер и не
-   резолвится под `dart pub get`. Пять аспектов пришли к одному выводу
-   независимо (mesh-03, doc-00/01, qa-03, p0-09, rel-03): вынести
-   `MeshData`/`VertexLayout`/`Shape`/`Ray`/`ModelDocument`/декодеры/писатели в
-   чистые пакеты, которые `flutter3d` реэкспортирует. Решение владельца
-   2026-09-09 (В1 закрыт): **два пакета**, не один. `flutter3d_geometry` —
-   `MeshData`, `VertexLayout`, `Shape`/`LatheShape` и производные, тангенсы,
-   `morph_target`, `CpuMesh`, `math/intersections`, `Ray`, `TriangleBvh`;
-   `flutter3d_formats` — `ModelDocument`, `SurfaceMaterial`,
-   `MaterialDocument`/`MaterialHint`, `lighting_model`, синхронная половина
-   `model_loader` (`ModelFormat`, `ModelDecoder`, `sniffModelFormat`,
-   `decodeModel`), декодеры gltf/obj/f3d/ktx2/stl, писатели `F3dWriter`,
-   `GltfWriter`, `ObjWriter`. `formats` зависит от `geometry`, `mesh` — от
-   `geometry`, `model_core` — от обоих, `flutter3d` реэкспортирует оба; в
-   engine из форматов остаются только обёртка изолята и `convert_asset`.
-   Срок 2026-09-25.
-2. **Критический путь — ядро геометрии, а календарь — сумма.** `mesh-11`
-   (half-edge на персистентных массивах, L) и цепочка из восьми M вокруг
-   него: ≈29 недель от зелёного `main` до туториала, пройденного когортой,
-   если бы всё остальное шло параллельно. Пересчитан 2026-09-09 строго по
-   столбцу «зависит»: путь идёт через `mesh-13 → mesh-25` (не `mesh-14 → 19 →
-   23`) и после `doc-07` — через `doc-20 → rel-09 → rel-16`. Решение
-   владельца 2026-09-09: исполнитель **один, с агентами**, поэтому критический
-   путь задаёт порядок, а срок фазы 1 — сумма размеров всех её пунктов: 73 S,
-   44 M, 3 L ≈ 198 недель одного человека; с агентами на дорожках форматов,
-   оверлеев, платформ и локализации — ориентировочно 172 (предположение, §4.3).
-2б. **Четыре платформы и равноправный веб с первой версии.** Решение
-   2026-09-09: фаза 1 выходит на macOS, в браузере, на Android
-   (планшет и телефон) и iOS (iPad и iPhone); раскладки 03/04, перо, тач и
-   платформенные конфигурации — пункты фазы 1 (ui-05, ui-19, ui-21), iPad и
-   аккаунт Apple Developer покупаются до середины фазы (rel-19d). Веб — не
-   «по замеру»: p0-02/p0-08 стали воротами качества, и непройденный порог
-   превращается в пункт фазы 1 (JS-сборка как записанное исключение, порции
-   вместо изолята, web worker ui-34d при заморозке дольше 1 с). FBX читается
-   своим читателем на Dart в `flutter3d_fbx` — отдельная дорожка фазы 2 после
-   того, как фаза 1 в руках у пользователей; серверной конвертации нет.
-2а. **Фаза 1 получает шаг «материал».** План дизайна относит базовые
-   материалы к фазе 1, а сценарий ядра — «чистит меш, правит материал,
-   экспортирует в GLB»; до критики единственный путь к материалу в фазе 1 был
-   MCP-командой без интерфейса и без текстур. Добавлены mat-04a-n (панель:
-   цвет, металличность, шероховатость, назначение, одна текстура) и
-   `SetTexture`/`AddImage` в mat-01; приёмка фазы 1 требует цвет и текстуру
-   в GLB.
-3. **Фаза 0 — числа, а не мнения.** Двенадцать замеров с записанными
-   порогами (p0-*): что нужно вебу, чтобы пройти ворота (не «равный или
-   просмотр» — веб равноправен по решению 2026-09-09), чанки или журнал для
-   снимка истории, `DeviceMesh.overwrite` в фазе 1 или 4, изолят или порции
-   на вебе. Срок ответов — 2026-10-05.
-4. **Правок движка — 46, и все нужны играм.** Писатели glTF/OBJ/STL,
-   `TriangleBvh`, оверлей `MeshOverlay`, `overwriteGeometry`/`overwriteTexture`,
-   `Pose` и IK, счётчик треугольников, LOD в `ModelDocument`, энкодер текстур
-   (уже в ROADMAP). Каждая — через конформанс или эталонный кадр (§6).
-   Читатель FBX правкой движка не является: это отдельный пакет над `formats`.
-5. **Тридцать семь расхождений с ROADMAP, ARCHITECTURE, проработкой и
-   дизайном**, каждое с решением (§7); пять главных: «zero engine changes for
-   the editor», `apply`/`revert`, «no node-graph materials», «eight lights is
-   a ceiling», soft bodies «committed» без строки в Committed. Два добавлены
-   по критике: композиция ассетов в сцене (№ 36, закрыт 2026-09-09 —
-   расстановка ассетов входит в фазу 2) и градиент вьюпорта (№ 37).
-6. **Три дублирующих реализации сведены к одной**: BVH по треугольникам
-   (mesh-20 / view-09 / p0-10), формат проекта (doc-09/10 / fmt-17),
-   модификаторы (mesh-40 / mat-18 / doc-23), GltfWriter скинов (fmt-07 /
-   anim-26), упрощение и развёртка (mesh-70/71 / pro-lod / pro-uv),
-   веса (mesh-60 / anim-09). Где кто живёт — §3.
-7. **Фазы 2–4 оценены с оговоркой.** Пункты фаз 2–4 (модификаторы, булевы,
-   риг, скульптинг, симуляции) написаны до того, как фаза 0 дала числа;
-   размеры L там — порядок величины, зависимости — по лучшему знанию кода.
-8. **Открытых вопросов — 63 в десяти группах после слияния дубликатов**
-   (§8; из 87 строк В1, Ж2 и Г4 закрыты по критике 2026-09-09, ещё 21 — А2,
-   Б1, Б3, Б8, Б9, В3, В5, В8, Г2, Г9, Д7, Е1, Е2, Е5, Е8, Е11, Е12n, Ж1, Ж4,
-   И1, К2 — решениями владельца 2026-09-09, В1 переписан); шесть из
-   оставшихся нужны до старта фазы 1 (перечислены в §5.2), остальные — до
-   своей фазы.
+317 items total from the aspects, plus 3 added during synthesis (§3), 9 added
+following the 2026-09-09 critique (`-n` suffix), and 5 added following owner
+decisions on 2026-09-09 (`-d` suffix; history at the end of the file).
 
 ---
 
-## 2. Аспекты
+## 1. In short
 
-### 2.1 Ядро меша (`mesh-`)
-
-Половинно-рёберный `EditMesh` на `Int32List`/`Float32List` с персистентными
-чанками, конвертация в/из `MeshData`, выделение, операции фаз 1–2,
-модификаторы, проверки, параметрические объекты с квадовой топологией, BSP-булевы,
-BVH для CPU-пикинга. В движке уже есть словарь треугольников, генераторы `Shape`,
-тангенсы по Ленгьелу, `rayTriangle`, `SceneBvh` по сферам — редактируемой
-топологии нет вовсе. Две находки по коду: `flutter3d` тянет Flutter SDK
-(mesh-03), а `Shape.build()` отдаёт триангулированный суп с дублями швов,
-непригодный для loop cut и Catmull-Clark (mesh-28).
-
-| id | что | пакет | р. | ф. | зависит | приёмка |
-|---|---|---|---|---|---|---|
-| mesh-00 | Скелет пакета: pubspec `resolution: workspace`, баррел, тест; регистрация в workspace, `flatDartPackages`, `notARepeatableStep` (иначе `math.sin` запрещён), порядок публикации §16, таблица §3.2. ⇢ qa-02, rel-02/03 | mesh | S | 0 | — | `tool/structure.dart` и `tool/ci.sh` зелёные с пакетом |
-| mesh-01 | Спайк 0.2: `EditMesh` на Int32List, куб, экструзия грани, веер, вывод в массивы, кадр через `flutter3d_testing.renderFrame`. ⇢ p0-04 (пороги оттуда) | mesh | M | 0 | mesh-00 | V−E+F=2, объём вырос на площадь×h, кадр `mesh-spike-extrude.png`, замер `toMeshData` 50/200k в doc |
-| mesh-02 | Замер 0.3: чанкованный CoW-вектор (256/1024/4096) на 200k вершин, 1 % подряд и 1 % случайно; альтернатива — разреженный патч. ⇢ p0-05 | mesh | S | 0 | mesh-01 | таблица чанк × выборка → байт/мкс; решение о чанке и патче |
-| mesh-03 ⚙⚠ | Вынести `geometry/*` (mesh_data, vertex_layout, shape, lathe, tangents, morph, CpuMesh) и `math/intersections.dart` в чистый пакет `flutter3d_geometry`, `flutter3d` реэкспортирует. Решение 2026-09-09: это первый из двух пакетов словаря, второй (`formats`) — doc-01 (§3) | engine + geometry | M | 0 | mesh-00 | сканер зелёный, 4322 теста без правки импортов, `bench_geometry.dart` собирается AOT отдельным `main` без `MeshGeometry` (агрегатный `bench.dart` тянет `GraphicsDevice → Widget` и AOT не собирается — ARCHITECTURE §14) |
-| mesh-04 | AOT-бенч пакета по образцу `packages/flutter3d/tool/bench`: `toMeshData`, снимок, `importMeshData`, BVH, экструзия ×1000 | mesh | S | 0 | mesh-01 | бинарник печатает нс/элемент, числа в doc, разброс <5 % |
-| mesh-10 | По итогу p0-05 — не чанки с CoW, а журнал прежних значений: `JournalledFloats`/`JournalledInts` поверх плоского массива, шаг истории — `JournalStep` с индексами и тем, что там было (`journal.dart`). Персистентные векторы отвергнуты замером: на разбросанном выделении шаг стоит 92–100 % полной копии, потому что тысяча вершин задевает почти каждый чанк | mesh | M | 1 | mesh-02, p0-05 | шаг ≤2 % полной копии в обоих распределениях; undo возвращает массив ровно в прежнее состояние |
-| mesh-11 | `EditMesh`: origin/next/twin/face, outgoing, halfEdge грани, грани любой валентности, надгробия + `compact()`→`IdRemap`; `EditMeshBuilder` с Эйлеровыми примитивами; итераторы без аллокаций; `validate()` | mesh | L | 1 | mesh-10, mesh-01 | куб/тор/плоскость: χ, границы, `validate()` после каждой операции; мутация «не обновлять outgoing» ловится |
-| mesh-12 | Слои атрибутов: positions, joints/weights по вершине; uv0, color по углу; sharp/seam/crease по ребру; materialSlot/smooth по грани; правила наследования при split в builder. Правило заполнения `uv0` при операциях (добавлено по критике): split — интерполяция по углу, extrude — копия угла исходной грани на боковые квады, новые грани без источника — нулевой UV с пометкой в `OpResult`. Флаг `seam` закрывает pro-uv-01 | mesh | M | 1 | mesh-11 | split посередине: UV среднее, веса нормированы; отсутствующий слой — нейтральное значение |
-| mesh-13 | `EditMesh.fromMeshData`: сваривание по позиции (eps от bounds), twins, ремонт ориентации BFS, расщепление неманифолда, `ImportReport` | mesh | M | 1 | mesh-11, 12, 03 | `CuboidShape` → 8/12/6 (треугольники); сфера: шов сварен; три грани на ребре → `splitNonManifold=1` |
-| mesh-14 | `MeshLayoutPlan.build` (триангуляция, нормали по углам, ключ GPU-вершины → индексы, `triangleToFace`, `gpuVertexToVertex`) + `fillVertices` без хеша; `toMeshData` по `materialSlot` | mesh | M | 1 | mesh-15, 16, 12, 03 | куб sharp → 24 вершины/36 индексов, нормали = `CuboidShape`; `fillVertices` меняет ровно указанные строки |
-| mesh-15 | Триангуляция n-гонов: квад по короткой диагонали с планарностью, ear clipping по Ньюэллу, веер при провале + пометка; без аллокаций | mesh | S | 1 | mesh-11 | L-образный 6-гон → 4 треугольника; квад-«бабочка» выбирает диагональ по планарности |
-| mesh-16 | `faceNormals`, `cornerNormals` с разрывом по sharp/углу/smooth, `flipNormals`, `makeConsistent` | mesh | S | 1 | mesh-12 | куб sharp → нормали граней; сфера в 6° от радиальных; flip меняет знак объёма |
-| mesh-17 | Тангенсы через `withGeneratedTangents`; тест знака `w` против `CuboidShape`/`PlaneShape` и зеркального острова | mesh | S | 1 | mesh-14 | тест знаков; кадр `mesh-normal-map` в app совпадает с кубом движка |
-| mesh-18 | `toBytes`/`fromBytes`: секции с выравниванием 4, неизвестная пропускается, детерминизм | mesh | S | 1 | mesh-12 | round-trip побайтно; лишняя секция читается; мутация «не выравнивать» → RangeError |
-| mesh-19 ⚠ | `Selection` (`ElementLevel`, сортированный Int32List, активный элемент), конверсии уровней, `edgeLoop`, `edgeRing`, grow/shrink, linked, boundary, `Selection.byMaterialSlot` | mesh | M | 1 | mesh-11 | тор 8×8: loop=ring=8; куб: loop стоит на валентности 3; мутация «ring без проверки квада» ловится |
-| mesh-20 | `MeshBvh` по треугольникам плана поверх `TriangleBvh` из view-09: `refit(positions)`, `rebuild(plan)`, `queryRay/Aabb/Frustum`. Одна реализация `TriangleBvh` на mesh-20/view-09/p0-10 (§3); владелец класса — view-09 | mesh | M | 1 | mesh-14, 03, view-09 | 10 000 лучей = перебор; refit = rebuild; бенч 200k в doc |
-| mesh-21 | `MeshPicker`: `faceAt`, `vertexNear`/`edgeNear` в радиусе с visibleOnly, `inFrustum` для рамки | mesh | S | 1 | mesh-20, 19 | клик в центр грани куба — грань; рамка вокруг половины куба — 4 или 8 вершин |
-| mesh-22 | `translate/rotate/scaleSelection` с pivot; единая сигнатура `op(EditMesh, Selection, Params) → OpResult` | mesh | S | 1 | mesh-19, 10 | туда-обратно побайтно; масштаб 2 → объём ×8; топология разделена 100 % |
-| mesh-23 | `extrudeFaces` (регион/individual, боковые квады с UV), `extrudeEdges` (только граничные) | mesh | M | 1 | mesh-19, 11, 12 | грань куба: V=12, E=20, F=10, χ=2; две смежные грани → 6 боковых квадов; UV боковых квадов подтверждены тестом (углы 0..1 по высоте выдавливания) |
-| mesh-24 | `loopCut(edge, cuts, factor)` по `edgeRing`, `splitEdge`+`splitFace`, интерполяция атрибутов | mesh | M | 1 | mesh-19, 12 | цилиндр 16: +16 V, +32 E, +16 F, все квады; тор — замкнутая петля |
-| mesh-25 | `mergeByDistance`, `dissolveEdge`, `dissolveVertex`, `mergeAt` | mesh | M | 1 | mesh-11, 19, 13 | dissolve диагоналей `fromMeshData(Cuboid)` → 6 квадов; два куба со смежной гранью сливаются |
-| mesh-26 | `delete` по уровням, `separate` по компонентам, `duplicate`, `split`; `IdRemap` | mesh | S | 1 | mesh-19, 11 | удаление грани куба → 6 граничных рёбер; separate двух кубов → 2 меша |
-| mesh-27 | `MeshChecks`: ngons, nonManifoldEdges, boundaryEdges, isolatedVertices, degenerate, inverted, duplicateVertices, χ по компонентам; `MeshIssue(kind, ids)` | mesh | S | 1 | mesh-11, 15, 13 | по тесту на функцию с мутацией; `signedVolume` подтверждает inverted |
-| mesh-28 ⚠ | Sealed `ParametricShape` (Cuboid/Plane/Cylinder/Sphere/Torus/Lathe со спеками движка) → `toEditMesh()` с квадами, sharp вместо дублей, n-гон-крышки; UV по углам как у `Shape.build()` (`VertexLayout.standard` несёт `texcoord`) — иначе куб фазы 1 в GLB не принимает текстуру | mesh | M | 1 | mesh-11, 12, 16 | цилиндр 16: `validate()`, `edgeRing` замкнут, объём >0; мутация «без sharp на повторённой точке» ловится нормалями; слой `uv0` заполнен у всех шести фигур |
-| mesh-29 | Parity-тест `ParametricShape.toEditMesh().toMeshData()` против `Shape.build()` (объём, bounds, множество треугольников, 24 GPU-вершины куба, `texcoord` с допуском 1e-6) | mesh | S | 1 | mesh-28, 14, 13 | шесть пар, стандартные и нестандартные параметры; texcoord совпадает по углам |
-| mesh-30 | `EditMesh`/`Selection`/`OpResult` пригодны для `Isolate.run` (без замыканий), `TransferableTypedData` через mesh-18; документировано «на вебе — основной поток порциями или worker (ui-34d)» | mesh | S | 1 | mesh-11, 18 | экструзия в изоляте = на месте; время передачи 200k в doc |
-| mesh-31 | Замеры фазы 1: fromMeshData, план/заполнение, BVH build/refit, экструзия ×1000, loop cut ×256, снимок 1 %; AOT-сборка в `tool/ci.sh` | mesh | S | 1 | mesh-04, 14, 20, 23, 24 | ≥8 строк в doc, разброс <5 % |
-| mesh-32 | Фаззинг: `Random(1234)`, 500 операций × 3 сида, `validate()` + `MeshChecks.all()` пуст + round-trip после каждой; минимизация печатает Dart-код. ⇢ qa-07 | mesh | S | 1 | mesh-22..27 | <10 с; мутация в `dissolveEdge` ловится за 50 шагов |
-| mesh-33 | `lib/testing.dart` с фикстурами; кадры `mesh-extrude`, `mesh-loop-cut`, `mesh-lathe`, `mesh-sharp-vs-smooth` в тестах app, не в 43 сценах | mesh + app | S | 1 | mesh-14, 23, 24, 28 | 4 PNG, нулевой допуск; мутация «без sharp» меняет кадр |
-| mesh-40 | `sealed class Modifier { apply(base, ctx); toJson }`, `ModifierContext`, `ModifierStack.evaluate` = fold с мемоизацией по identity базы. Единственное место типа `Modifier` (§3) | mesh | M | 2 | mesh-11 | стек считается один раз при двух evaluate; round-trip JSON |
-| mesh-41 | `mirror(plane, mergeDistance, bisect, flipUv)` + `MirrorModifier` | mesh | S | 2 | mesh-40, 25, 16 | половина куба → замкнутый куб 8/12/6; мутация «не переворачивать копию» ловится объёмом |
-| mesh-42 | `ArrayModifier(count, offset, mergeDistance)` с детерминированными id | mesh | S | 2 | mesh-40, 25 | 4 копии куба → 32 вершины, объём ×4 |
-| mesh-43 | `insetFaces(thickness, depth, individual)` с поправкой на угол | mesh | S | 2 | mesh-23 | грань куба: +4 V, +4 квада, площадь (1−0.2)²; мутация без поправки ловится на 30° |
-| mesh-44 | `bevelEdges/Vertices(width, segments, profile, clampOverlap)`, угловые n-гоны | mesh | L | 2 | mesh-11, 19, 12, 15 | 12 рёбер куба, segments=1 → 24 V, 26 F, χ=2; `boundaryEdges`=0 |
-| mesh-45 | Catmull-Clark с crease (Pixar), UV по углам, `SubdivisionModifier(levels, viewLevels)`, `subdivideSimple` | mesh | M | 2 | mesh-11, 12, 40 | куб уровня 1 → 26 V, 24 квада; crease=1 сохраняет объём |
-| mesh-46 | `smoothVertices` (Лаплас + HC при preserveVolume), `SmoothModifier` | mesh | S | 2 | mesh-19, 40 | сфера 10 итераций: усадка <5 % с HC; топология разделена 100 % |
-| mesh-47 | BSP-булевы (csg.js): `CsgPolygon`, `CsgNode` на явном стеке, eps по bounds, бюджет полигонов, детектор копланарности; вход через план, выход через `fromPolygons` | mesh | L | 2 | mesh-13, 15, 30, 27 | cube ∪ cube объём аналитически; cube − sphere в 1 %; копланарный случай предупреждает, не падает |
-| mesh-48 | `BooleanModifier(operation, operandId, transforms)` через `ModifierContext`, циклы отклоняются | mesh | S | 2 | mesh-47, 40 | стек = операция по объёму; смена трансформа операнда инвалидирует кэш |
-| mesh-49 | Кадры фазы 2: bevel, Catmull-Clark 2, cube − sphere, зеркальная ваза | app + mesh | S | 2 | mesh-44, 45, 47, 41, 33 | 4 PNG, нулевой допуск |
-| mesh-60 | Веса через операции: накопление до 8 пар, усечение до `maxInfluences`, перенормировка; `normalizeWeights`, `limitInfluences`, `weightsOf`. Хранилище для anim-09 (§3) | mesh | M | 3 | mesh-12, 24, 44, 45 | loop cut (1,0)/(0,1) → (0.5,0.5); 5 костей → 4, сумма 1±1e-6 |
-| mesh-61 | `ShapeKey(name, positions)` полными слоями, split применяется ко всем ключам, `blend(weights)` | mesh | M | 3 | mesh-12, 13 | импорт 2 targets → 2 ключа; loop cut сохраняет ключи |
-| mesh-62 | `toMeshData` с `morphTargets` через `gpuVertexToVertex` | mesh | S | 3 | mesh-61, 14 | round-trip дельт; мутация «по вершинам EditMesh» → `ArgumentError` MeshData |
-| mesh-70 | QEM-упрощение с UV/швами/весами. ⇢ pro-lod-01/02 (одна реализация, §4) | mesh | L | 4 | mesh-14, 60, 27 | см. pro-lod-01/02 |
-| mesh-71 | UV: острова, LSCM, упаковка, растяжение. ⇢ pro-uv-02..05 | mesh | L | 4 | mesh-12, 19 | см. pro-uv-* |
-| mesh-72 ⚠ | `SculptSession` над `EditMesh` с патч-слоем, кисти, refit. ⇢ pro-sc-02..07 (структура решена 2026-09-09: `SculptMesh` с мультиразрешением, Б8/Б9; id остаётся для ссылок) | mesh | L | 4 | mesh-10, 20, 16, 31 | см. pro-sc-* |
-| mesh-73 | Спайк изотропного remesh. ⇢ pro-rt-01 | mesh | M | 4 | mesh-20, 25, 46 | см. pro-rt-01 |
-| mesh-80n *(добавлено 2026-09-10 по гэп-анализу)* | **Формы столкновения из меша**: выпуклая декомпозиция (V-HACD или родственный алгоритм на Dart), подгонка коробки, сферы и капсулы по инерции, «сам меш» для статики. Гэп-анализ: каждому игровому ассету нужна форма столкновения, и её никто не лепит руками; в плане не было ни строки, а единственное упоминание столкновений (pro-sim-01) — про ткань, которая сталкивается с уже готовым `CollisionShape`. Движок формы умеет, породить их из модели нечем | mesh | L | 2 | mesh-11, mesh-27 | стул из 900 треугольников даёт ≤12 выпуклых кусков, объём в пределах 15 % от исходного; капсула по инерции совпадает с ручной в пределах 5 %; детерминизм при одном seed |
-| mesh-81n *(добавлено 2026-09-10 по гэп-анализу)* | **Ремонт, а не только диагноз**: `fillHoles` (веером и по границе), `splitNonManifoldEdges`, `flipShells` в дополнение к `MeshChecks`, который сегодня всё это находит и не чинит ничего. `ExportReadiness` говорит «не поедет» и оставляет художника наедине с этим — отчёт без кнопки половина инструмента | mesh | M | 1 | mesh-25, mesh-27 | куб с вырезанной гранью после `fillHoles` замкнут, χ = 2; неманифолдное ребро расщепляется на два, число граней не меняется; каждый ремонт — шаг истории |
-
-### 2.2 Документ, команды, MCP (`doc-`)
-
-Повторить форму редактора уровней (sealed-команда с `name/says/arguments/apply/
-fromJson`, история с транзакциями, сессия и таблица инструментов из списка
-имён команд, сценарий через `StreamChannelController`), но поверх неизменяемого
-`ModelProject` со структурным разделением вместо снимков `level.toJson()`.
-Найдено по коду: сканер ищет только текст `package:flutter/`, транзитивную
-зависимость через `flutter3d` не видит (doc-00); ROADMAP пишет `apply`/`revert`,
-код хранит снимки, для мешей план — прежнее значение (doc-29).
-
-| id | что | пакет | р. | ф. | зависит | приёмка |
-|---|---|---|---|---|---|---|
-| doc-00 ⚠ | Спайк: пустой пакет с зависимостью на `flutter3d`, `dart pub get`/`dart test` из каталога; результат в doc §6 п. 0.4. ⇢ p0-09, rel-04 | core | S | 0 | — | вывод зафиксирован; при отказе — doc-01; иначе правило на транзитивную SDK-зависимость (qa-03) |
-| doc-01 ⚙⚠ | Вынести файлы без Flutter-импортов в чистый пакет: geometry/*, assets/{model_document, model_node, surface_material, material_document, material_hint}, `render/lighting_model.dart` (его импортируют material_document и material_hint; сам без импортов — переносится как есть), f3d/*, gltf/* (кроме resolvers), obj/*, fmat/*, animation/{clip, track}; `model_loader.dart` делится: синхронная половина (`ModelFormat`, `ModelDecoder`, `sniffModelFormat`, `decodeModel`) — в `formats`, `kIsWeb` → `const bool.fromEnvironment('dart.library.js_interop')`, изолятная половина (`ModelLoadRequest` — в `formats`, потому что она описывает запрос, а не запускает его; `decodeModelInIsolate`) остаётся в engine; путь экземпции `ModelFormat` в `repository.dart` обновляется. `flutter3d` реэкспортирует; в `flatDartPackages`, workspace, §16, §3.2, `ci.sh`. Решение 2026-09-09: пакетов два — `flutter3d_geometry` (mesh-03) и `flutter3d_formats` (этот пункт: всё перечисленное здесь, кроме geometry/*), `formats` зависит от `geometry`; порядок публикации geometry → formats → flutter3d | engine + geometry + formats | M | 0 | doc-00, mesh-03 | `dart test` в обоих пакетах зелёный; 43 сцены и golden без изменений; `publish_check.sh` принимает порядок; `decodeModel` вызывается из `dart test` пакета `formats` без Flutter; число пакетов в README/§3.2/§16 сдвинуто в том же коммите (28 → 30) |
-| doc-02 | Каркас `flutter3d_model_core`: pubspec, баррел, LICENSE/CHANGELOG/README; регистрация в списках. ⇢ qa-02, rel-02/03 | core | S | 1 | doc-00 | сканер и `ci.sh` зелёные с пустым тестом |
-| doc-03 ⚠ | `ModelProject {profile, objects, materials, images, skeletons, clips, nextId}`; `ModelObject` со стабильными id и `version`; sealed `Geometry`: Parametric / Edited(EditMesh) / Imported(MeshData); `withObject`/`copyWith` со структурным разделением | core | M | 1 | doc-02, mesh-11 | `withObject` разделяет нетронутое (`identical`); id уникален после delete+add |
-| doc-04 ⚠ | `Selection {mode, submode, objects, level, elements}` с JSON и `says`; `ModelHistory` — сессия над документом, все изменения через историю | core | S | 1 | doc-03 | selection переживает undo, если id есть; JSON round-trip |
-| doc-05 ⚠ | Sealed `ModelCommand` (`name`, `says`, `arguments`, `toJson`, `fromJson` → null, `apply(project, selection) → Outcome?`), `modelCommandNames`; тест-таблица по каждому имени | core | S | 1 | doc-04 | 100 % имён покрыты образцами; неполный JSON → null, не исключение |
-| doc-06 | Объектные команды: `AddPrimitive`, `AddLathe`, `SetParametric`, `BakeToMesh`, `MoveBy/RotateBy/ScaleBy`, `SetTransform`, `Rename`, `SetParent`, `Delete`, `Duplicate`, `SetField`, `AssignMaterial`, `SetOrigin` (пивот объекта: центр bounds / низ / курсор) и `ApplyTransform` (запечь трансформацию узла в геометрию — добавлено по критике, частый шаг перед экспортом в движок); id в аргументах, не из selection | core | M | 1 | doc-05 | тест на каждую с мутацией; `Duplicate` даёт новые id; `SetField` отказывает на невалидном; `ApplyTransform` даёт единичную матрицу узла и те же мировые позиции |
-| doc-07 | Мешевые команды с `Selection` в аргументах: `TransformElements` (одна команда на сдвиг, поворот и масштаб — они отличаются только матрицей), `Extrude`, `LoopCut`, `MergeByDistance`, `DissolveEdges`, `DeleteElements`, `Separate`, `Triangulate`, `RecalculateNormals`; отказ на Parametric | core | M | 1 | doc-05, mesh-22..26 | счётчики на кубе после каждой; JSON round-trip; 100 `TransformElements` на 200k в бюджете mesh |
-| doc-08 ⚠ | `ModelHistory`: `run`, `transaction`, undo/redo, `undoSays`, `isDirty`, `amend(replacement)` для карточки операции; глубина 64 + лимит по байтам чанков | core | M | 1 | doc-05 | drag из 100 команд — один шаг; `amend` не растит стек; шаг после сдвига 1 % из 200k <10 % полной копии |
-| doc-09 | `project_format.dart`: магия, версия, заголовок 16, директория секций, выравнивание 4; секции manifest/materials/editMeshes/importedMeshes/images/skins/animations/journal/history (последняя — doc-31d, решение 2026-09-09); неизвестная пропускается, будущая версия — отказ. Расширение `.f3dproj` (решение 2026-09-09, Г2); магия и место автосохранения — Г1 | core | S | 1 | doc-03 | тест на константы (кратность 4, не индекс enum) |
-| doc-10 ⚠ | `ProjectWriter`/`ProjectReader`: интернирование строк, канонический JSON (сортированные ключи, одно округление), `warnings`, внешние `.fmat` относительным путём. ⇢ fmt-17 (§3) | core | L | 1 | doc-09, doc-03 | write→read→write побайтно на проекте с тремя геометриями; версия+1 — отказ; 200k вершин <100 мс |
-| doc-11 ⚠ | `ModelProject.fromModelDocument(document, ImportOptions {scale, upAxis})` + `ImportReport {issues, counts}`: nodes→объекты, surfaces→Imported, skins→skeletons, animations→clips, morphWeights; `ImportOptions` (добавлено по критике): множитель единиц (STL обычно в мм, OBJ без единиц) и ось вверх (Z-up → Y-up поворотом корня), по умолчанию 1.0 / Y | core | M | 1 | doc-03, doc-13 | BoxAnimated/simple_skin: объекты = узлы, треугольники = `triangleCount`; warnings декодера дословно; `scale: 0.001` даёт bounds в 1000 раз меньше, `upAxis: z` — тот же куб, повёрнутый на −90° по X |
-| doc-11a-n ⁶ *(добавлено по критике)* | Безусловно (решение 2026-09-09, §7 № 36 и Ж4 закрыты): `ImportInto(project, document, options)` — слияние импортированного документа в существующий проект (новые объекты, дедуп материалов и изображений по хэшу, скелеты как новые), в отличие от doc-11, который создаёт проект заново. На нём стоит расстановка нескольких ассетов в режиме «Сцена» (mat-24) | core | M | 2 | doc-11, doc-06, mat-01 | два импорта подряд → объекты обоих, один `SurfaceMaterial` на одинаковый материал; отмена второго импорта возвращает первый проект по `identical` |
-| doc-12 ⚠ | `ProjectModelDocument extends ModelDocument` с кэшем `MeshData` по `(ObjectId, version)`; экспорт — session-verb; `.f3d` сегодня, GLB/OBJ через fmt | core | M | 1 | doc-03, doc-06 | проект→документ→`F3dWriter`→parse: равны; повторный экспорт отдаёт `identical` MeshData |
-| doc-13 | `ProjectProfile {name, target, maxTriangles, maxJoints ≤ 64, maxInfluences, maxTextureSize, maxTextureBytes, requireTriangles, requireManifold}` с пресетами и `profileHints` из `MaterialHint` | core | S | 1 | doc-02 | JSON round-trip; тест-зеркало на `Skeleton.maxJoints` в app |
-| doc-14 ⚠ | `ExportReadiness.check(project) → List<Issue>` с кэшем по версии объекта; правила бюджета, n-гонов, манифолдности, костей, текстур, слотов, имён; правило «вершин с морф-целями > `maxTextureSize` профиля» (`MorphTexture` кладёт колонку на вершину — добавлено по критике, риск 28); `headline` для статуса | core | M | 1 | doc-13, 03, 15 | по тесту на правило с мутацией; после правки одного объекта проверяется только он; объект с 5000 морфируемых вершин при `maxTextureSize: 4096` даёт Issue |
-| doc-15 | `imageDimensions(bytes)` для PNG/JPEG/KTX2 без декодера | core | S | 1 | doc-02 | три фикстуры; обрезанный файл → null |
-| doc-16 | `CommandJournal`: JSON Lines с метками транзакций, `replay`; отказ с номером строки | core | S | 1 | doc-08, doc-10 | 30 команд → журнал → replay → те же байты `ProjectWriter` |
-| doc-17 ⚠ | `AutosavePolicy` и чистые функции `shouldSave`, `recoveryPathFor`, `RecoveryDecision`; таймер, атомарная запись и диалог — в app (ui-18). ⇢ fmt-18 | core | S | 1 | doc-10, 08, 16 | границы интервала; чистый документ не сохраняется; выбор свежего восстановления |
-| doc-18 | `contentsOf(project) → List<Listed>` в порядке objects; `materialsOf`, `skeletonsOf`, `clipsOf` | core | S | 1 | doc-03 | стабилен между вызовами; каждый объект ровно раз |
-| doc-19 ⚠ | Каркас `flutter3d_model_mcp`: `ModelSession` (listing, select, run, undo, redo, check, save, export, import, journal), `ModelMcpServer`, `bin/model_mcp.dart` (заглушка `--help` заводится в rel-02, здесь — настоящий сервер) создаёт проект по несуществующему пути | mcp | S | 1 | doc-08, 10, 18, 14 | `dart run flutter3d_model_mcp:model_mcp new.proj` отвечает на `tools/list`; та же проверка в контейнере без Flutter SDK (скрипт rel-04) |
-| doc-20 | `ModelTool` из `modelCommandNames`, схемы `_vector/_ids/_selection`, сессионные verbs; `tools_test`: каждое имя предложено, всё сверх — именованное множество, описания >40 символов | mcp | M | 1 | doc-19, 05, 06, 07 | добавление команды без инструмента — красный тест |
-| doc-21 ⚠ | Сценарий «агент строит стол» через реальный протокол: примитивы, трансформации, материал, check, save, export GLB и `.f3d`; дифф с `fixtures/table.proj`, `table.glb`, `table.jsonl`; отказы как `isError`. ⇢ qa-12 | mcp | M | 1 | doc-20, 12, 16 | зелёный на ubuntu и macOS с одними байтами |
-| doc-22 | Skills `project-document`, `editing-order`, `what-it-refuses`; README с таблицей инструментов; CHANGELOG. ⇢ rel-14 (тест на skills в архиве) | mcp | S | 1 | doc-20 | каждая строка отказов имеет тест с той же фразой |
-| doc-23 ⚠ | Команды стека: `AddModifier`, `SetModifierField`, `ToggleModifier`, `ReorderModifier`, `RemoveModifier`, `ApplyModifier`; тип `Modifier` — из mesh-40, тяжёлое — через doc-24. ⇢ mat-19 | core | M | 2 | doc-06, doc-12 | `ApplyModifier` = экспорт с включённым модификатором; round-trip через doc-10 |
-| doc-24 ⚠ | `JobRequest` — чистая функция над значениями; приложение исполняет через `Isolate.run` или на основном потоке порциями; `ApplyJobResult` одним шагом истории, отказ по устаревшей `version`. ⇢ pro-job-01, anim-25 (один раннер, §4) | core | M | 2 | doc-23, doc-08 | результат по устаревшей версии отвергнут; JobRequest сериализуем |
-| doc-25 ⚙⚠ | Команды материалов: `AddMaterial`, `SetMaterialField` через JSON-кодек `SurfaceMaterial`, `SetTexture`, `AddImage`, `LinkFmat`, `RemoveMaterial`. ⇢ mat-01 (фаза 1, включая `SetTexture`/`AddImage` — перенесены в фазу 1 по критике) и mat-08 (`LinkFmat`, фаза 2); правка движка (публичный кодек `SurfaceMaterial ↔ Map` в fmat.dart, S) остаётся | core + engine | M | 2 | doc-06, doc-15 | см. mat-01/08 |
-| doc-26 ⚠ | Команды скелетов и клипов: `AddSkeleton`, `AddJoint`, `SetJointRest`, `BindSkin`, `AddClip`, `SetKey`, `SetInterpolation`… ⇢ anim-03, anim-04, anim-29 | core | L | 3 | doc-11, 12, 10 | см. anim-* |
-| doc-27 | Команды морф-целей и веса морфов. ⇢ anim-19 | core | M | 3 | doc-26 | см. anim-19 |
-| doc-28 | Миграции формата: фикстуры `test/fixtures/v1/*.proj` навсегда; версия растёт только при смене смысла; CHANGELOG при каждой раскладке | core | S | 2 | doc-10 | каждая фикстура читается; бамп без фикстуры — красный тест |
-| doc-29 ⚠ | ARCHITECTURE §8.7 о формате проекта и трёх моделях отмены (§8.6 занимает fmt-16 Writers; сегодня в ARCHITECTURE §8.1–8.5); §3.2, §16; ROADMAP без «apply and revert»; doc §5.1 про сканер | docs | S | 1 | doc-08, doc-10 | сканер зелёный; ROADMAP не содержит `revert` в абзаце про редактор |
-| doc-30 | `tool/ci.sh` читает список `dart test` из `flatDartPackages`. ⇢ qa-04 | tool | S | 0 | — | см. qa-04 |
-| doc-31d *(добавлено по решениям 2026-09-09)* | История в файле проекта (Г2 закрыт: история пишется в файл): секция `history` в контейнере doc-09 — список шагов, каждый шаг = `says` + команда в JSON (та же форма, что в журнале doc-16) + ссылки на прежние значения через чанки, которые уже лежат в секциях `editMeshes`/`materials` как блобы: неизменённый чанк записывается один раз и адресуется по индексу, так структурное разделение из памяти переносится в файл; лимит глубины и байтов из Г5 (doc-08) применяется и к файлу; `ProjectWriter(includeHistory:)`; «сохранить без истории» — опция экспорта проекта (ui-33d); журнал doc-16 остаётся | core | M | 1 | doc-08, doc-10, doc-16 | round-trip: три команды → сохранить → открыть → отменить три шага → проект равен исходному, нетронутые чанки `identical`; файл с историей ≤ файл без неё + Σ изменённых чанков + JSON шагов; файл без секции `history` открывается с пустой историей; лимит Г5 срезает хвост при записи |
-
-| doc-32n *(добавлено 2026-09-10 по ходу работы)* | Команды выделения: `SelectAll`, `SelectNone`, `InvertSelection`, `GrowSelection`, `ShrinkSelection`, `SelectLinked`, `SelectEdgeLoop`, `SelectEdgeRing`, `SelectByMaterial`. `Selection` в `flutter3d_mesh` умеет всё это (mesh-16), но выше не поднято: выделение меняется мимо истории, поэтому не отменяется, не пишется в журнал и агенту недоступно. Уточняет Г-решение «все правки через команды» — выделение тоже правка | core | S | 1 | doc-05, mesh-16 | `GrowSelection` на грани куба даёт пять; отмена возвращает одну; каждое имя есть в `modelCommandNames` и в round-trip |
-| doc-33n *(добавлено 2026-09-10 по ходу работы)* | Точка опоры и пространство трансформации: `TransformPivot {median, individual, cursor}` и `TransformSpace {global, local}` в аргументах `RotateBy`/`ScaleBy`/`TransformElements`; `SetCursor(position)` и 3D-курсор в `ModelProject`. Сейчас поворот и масштаб всегда о медиане и всегда в глобальных осях — что верно по умолчанию и не даёт сделать «повернуть каждый вокруг себя», без чего расстановка ассетов (mat-24) делается руками | core | S | 1 | doc-06, doc-07 | два объекта, `individual` → каждый повернулся, центры на месте; `local` на повёрнутом объекте двигает вдоль его собственной оси; round-trip JSON с обоими полями |
-| doc-34n *(добавлено 2026-09-10 по гэп-анализу)* | **Сокеты и точки крепления**: `ModelObject` без геометрии получает признак `socket` и показ во вьюпорте; экспорт кладёт их как именованные узлы без поверхностей — то, что glTF уже умеет, а `toModelDocument` уже пишет для групп. Гэп-анализ: именованная точка, за которую цепляется оружие, эффект или колесо, есть у всех (`Marker3D` в Godot, empties в Blender), и без неё на игровой стороне не собрать ничего составного | core | S | 1 | doc-06 | сокет экспортируется узлом без поверхности и читается обратно сокетом; переименование — шаг истории; сокет не попадает в `triangleCount` и не даёт ошибку «нет граней» в readiness |
-| doc-35n *(добавлено 2026-09-10 по гэп-анализу)* | **Плотность текселей как поле профиля**: `ProjectProfile.texelsPerMeter` и правило `ExportReadiness`, считающее плотность по площади UV-островов и размеру текстуры. Гэп-анализ: единая величина «пикселей на метр» по всем ассетам — то, от чего сильнее всего зависит, выглядит ли сцена цельной, и ящик, развёрнутый вчетверо мельче соседнего, виден сразу. Ложится на профиль рядом с `maxTextureSize`: мерка, а не памятка художника | core | S | 2 | doc-13, doc-14 | объект вдвое плотнее профиля даёт предупреждение с обоими числами; объект без UV молчит |
-
-### 2.3 Форматы (`fmt-`)
-
-Писатель glTF/GLB как зеркало `F3dWriter` поверх того же `ModelDocument` —
-единственный выход редактора в движок и единственный пункт, полезный движку без
-редактора; рядом `ObjWriter` с `.mtl`, `StlDecoder`, энкодер текстур из ROADMAP.
-В репозитории три декодера, `F3dWriter`, KTX2-читатель, `convert_asset.dart` только
-в `.f3d`; ни одного писателя glTF/OBJ/STL на Dart. Словарь `ModelDocument` не
-хранит имена glTF-мешей, extras, `asset.generator`, URI картинок, признак авторских
-атрибутов, четыре mip-варианта сэмплера, `KHR_texture_transform` — без части
-этого round-trip не сойдётся.
-
-| id | что | пакет | р. | ф. | зависит | приёмка |
-|---|---|---|---|---|---|---|
-| fmt-01 ⚙ | `compareModelDocuments(a, b)` из `_compare` конвертера в lib с категориями (структура, байты, материалы, узлы, скины, клипы, морфы) | formats | S | 1 | — | тест на каждую категорию через поломку; конвертер даёт тот же результат |
-| fmt-02 ⚙ | `PlainModelDocument` вместо `_FakeDocument` в тестах; `sniffImageMimeType` (PNG/JPEG/KTX2/WebP) | formats | S | 1 | — | тесты переведены; sniff на четыре магии и пустой буфер |
-| fmt-03 ⚙ | `ModelSurface.authoredAttributes` из декодеров; `.f3d` секция `surfaceAttributes` (kind 17); писатели пропускают сгенерированное | formats | S | 1 | — | Box.glb → {position, normal}; старый `.f3d` читается как «все» |
-| fmt-04 ⚙ | `ModelSurface.meshName`, `ModelDocument.asset`, `EncodedImage.sourceUri`; секции `meshNames` (18), `asset` (19), `imageUris` (20) | formats | S | 1 | — | BoxTextured → `meshName == 'Mesh'`; старые `.f3d` с null |
-| fmt-05 ⚙ | `TextureSampling.mipLinear`, разбор 9984–9987, бит 7 в `F3dSamplingFlags`, `toGltfFilters()` | formats | S | 1 | — | 9985 → mipLinear=false; обратно 9985; golden не меняется |
-| fmt-06 ⚙ | `GltfWriter` + part-файлы: де-интерливинг по `floatOffsetOf`, u16 индексы при `fitsIn16BitIndices`, дедуп мешей/сэмплеров/текстур, узлы из `nodes`, материалы с расширениями, картинки в GLB/файлы; `GlbContainer.encode` из `buildGlb`. Живёт в чистом пакете `formats`, как и `F3dWriter` после переезда — иначе `flutter3d_model_mcp` не экспортирует GLB (В1 закрыт 2026-09-09) | formats | M | 1 | fmt-01..05, doc-01 | 8 моделей: decode→writeGlb→decode, `compareModelDocuments` пуст; мутации выравнивания/min-max/кватерниона ловятся; `dart test` пакета `formats` пишет GLB без Flutter SDK |
-| fmt-07 ⚙⚠ | `gltf_writer_animation.dart`: skins, animations (`AnimationInterpolation.toGltf`, CUBICSPLINE тройки, weights), morph targets с `targetNames`. Один писатель на fmt-07/anim-26 (§3) | formats | M | 1 | fmt-06 | 7 риггированных моделей round-trip; поза t=0.5 через `AnimationPlayer` совпадает |
-| fmt-08 ⚙ | `ObjWriter` + `.mtl`: дедуп v/vt/vn, V-флип, `MeshData.transformed`, обратная аппроксимация Kd/Ns/Ks, `map_Kd`, warnings о потерянном | formats | M | 1 | fmt-01, 02, 04, doc-01 | teapot round-trip по множеству треугольников; Box.glb → 12 треугольников с Kd |
-| fmt-09 ⚙⚠ | `StlLoader implements ModelDecoder`: бинарный (`84 + 50·count` как детектор), ASCII, `StlNormals`, warnings; `ModelFormat.stl`, снифф до OBJ; `convert_asset`. `ModelDecoder`/`ModelFormat`/`sniffModelFormat` живут в синхронной половине `model_loader.dart`, которую doc-01 переносит в `formats` | formats | M | 1 | fmt-03, doc-01 | пять фикстур через `build_stl.dart`; `sniffModelFormat` на бинарном STL → stl; sendable; декодируется из `dart test` пакета без Flutter |
-| fmt-10 | Дифференциальные кадры: оригинал против перечитанного экспорта через `renderFrame`, нулевой допуск; не в `kGoldenScenes` | cpu | M | 1 | fmt-06, 07, 08 | зелёный на всех моделях; мутация сдвига offset нормалей даёт разницу |
-| fmt-11 ⚙ | Валидация экспорта пакетом `gltf` (Khronos, Dart) или `npx gltf-validator` в `ci.sh`, или минимальный чекер. ⇢ qa-09 | engine + tool | S | 1 | fmt-06 | ноль ошибок; сломанный min/max даёт ошибку |
-| fmt-12 ⚙ | `warnings` у всех писателей (и `F3dWriter`), `ExportReport {files, writerWarnings, differences}` = записать → перечитать → сравнить | formats | S | 1 | fmt-01, 06, 08 | RiggedFigure в OBJ → предупреждение о скине; Box.glb → пустые differences |
-| fmt-13 ⚙⚠ | `ModelWriteRequest`, `encodeModelInIsolate` с `kIsWeb`-фолбэком, Timeline-спан — обёртка над писателями из `formats`; единственный кусок форматов, которому нужен Flutter | engine | S | 1 | fmt-06, fmt-08 | байты через изолят = синхронные; замер 200k в doc |
-| fmt-14 ⚙ | `convert_asset -f glb|gltf|obj|stl|f3d`, `--textures keep|external`, печать `ExportReport` | engine | S | 1 | fmt-12, fmt-13 | `teapot.f3d -f glb` открывает лоадер и валидатор |
-| fmt-15 ⚙⚠ | Draco/meshopt-примитив без bufferView пропускается с предупреждением, а не читается нулями; `hasBufferView` | formats | S | 1 | — | рукописный glTF → 0 surfaces и предупреждение |
-| fmt-16 ⚙ | Документы и сканер: §8.1 четыре декодера, §8.6 Writers (формат проекта — §8.7, doc-29), README, `assets.md`, `boundaryEnumExempt` для `ModelFormat` по новому пути в `formats`, CHANGELOG | engine + docs | S | 1 | fmt-06, 08, 09 | сканер зелёный после каждого писателя |
-| fmt-17 ⚠ | Секционный формат проекта с миграциями. ⇢ doc-09, doc-10, doc-28 (одна реализация; идея «неизвестный ключ manifest переписывается как есть» через `json_write_through` — в doc-10) | core | M | 1 | — | см. doc-10, doc-28 |
-| fmt-18 ⚠ | Политика ассетов (копия внутри контейнера, `.fmat` путём + fallback, опциональный `sources`) и `ProjectStorage.writeAtomic`. ⇢ doc-17 (политика) и ui-18 (диск) | core | S | 1 | fmt-17 | см. doc-17, ui-18 |
-| fmt-19 ⚙⚠ | `extras` на узле/материале/скине/клипе/документе, `TextureBinding.transform` из `KHR_texture_transform` сквозным проходом; секция `extras` (21) | engine | S | 2 | fmt-06 | побайтное равенство JSON-фрагментов; предупреждение о неприменённом transform остаётся |
-| fmt-20 ⚙⚠ | `StlWriter` (бинарный и ASCII) | engine | S | 2 | fmt-09 | Box.glb → stl → 12 треугольников; размер `84 + 50·count` |
-| fmt-21 ⚙ | KTX2 сквозь `GltfWriter` (`KHR_texture_basisu` только для Basis), `.f3d` как есть, OBJ — предупреждение | engine | S | 2 | fmt-06, fmt-12 | etc1s-фикстура → GLB → лоадер читает; BC-файл → предупреждение |
-| fmt-22 ⚙⚠ | `Ktx2Writer` + BC1/BC3/ETC2-энкодеры на Dart, `--textures bc1|bc3|etc2` в конвертере (пункт ROADMAP). ⇢ mat-30 (один энкодер, §4). Решение 2026-09-11: делается как ap-07 в треке конвейера ассетов ([asset-pipeline-plan.md](asset-pipeline-plan.md)), контейнер KTX2 переезжает в `formats` (ap-01) | engine | M | 2 | fmt-14 | PSNR ≥30 dB через тестовый распаковщик; конформанс на файле из энкодера |
-| fmt-23 ⚙⚠ | Basis Universal ETC1S для glTF: решение (порт / FFI офлайн / сервер) + спайк | engine | L | 3 | fmt-22 | `doc/texture-encoding.md` с замером; транскод существующим `etc1s_transcoder` |
-| fmt-24 | Свой читатель FBX на Dart (Д7 закрыт 2026-09-09): бинарный 7.x с inflate на Dart, ASCII, `FbxDecoder`, геометрия/материалы/иерархия с пивотами, UnitScaleFactor/UpAxis; фикстуры из Blender против glTF той же сцены. Отдельная дорожка фазы 2, стартует после rel-16 (фаза 1 в руках); кандидат для агента под готовые фикстуры | fbx | L | 2 | fmt-29d, fmt-01, fmt-03 | куб бинарный и ASCII = glTF до float; иерархия с pre-rotation даёт те же мировые матрицы |
-| fmt-25 ⁵ | FBX: скины и анимация (Deformer/Cluster, AnimationStack → linear-ключи, euler → кватернионы) | fbx | L | 2 | fmt-24 | поза t=0.5 = glTF-экспорт с допуском 1e-4 |
-| fmt-26 ⁷ | Снят 2026-09-09: серверной конвертации FBX (`ConversionService`, HTTP-реализация, сервер вне репозитория) не делаем — читатель свой (fmt-24/25). id остаётся, чтобы ссылки не повисли | — | — | — | — | — |
-| fmt-29d *(добавлено по решениям 2026-09-09)* | Скелет пакета `flutter3d_fbx`: плоский (`flatDartPackages`), `resolution: workspace`, зависимость только на `flutter3d_formats` (`geometry` транзитивно), баррел, `FbxDecoder implements ModelDecoder` заглушкой с отказом-значением; регистрация в workspace, `notARepeatableStep`, §16 (после `formats`, независимо от `flutter3d`), §3.2, `ci.sh`; число пакетов 33 → 34 в README/§3.2/§16 в том же коммите | fbx | S | 2 | doc-01, rel-16 | сканер зелёный; `dart pub get` в пакете без Flutter SDK (qa-03); `publish_check.sh` принимает порядок |
-| fmt-27 ⚙⚠ | USDZ по спросу: спайк (Quick Look принимает usda?), `UsdzWriter` + zip без сжатия | engine | M | 4 | fmt-06 | скриншот Quick Look в doc; выравнивание 64 побайтно. Спайк Д8 частично отвечен: `UsdzWriter(GltfLoader().load(Box.glb))` дал реальный `.usdz`, отданный симулятору iOS 26 (iPhone 17 Pro) через локальный HTTP-сервер с `Content-Type: model/vnd.usdz+zip` — Safari/Quick Look узнал файл и показал системный диалог «Показать объект в 3D» (значит plain-text `.usda` внутри непожатого zip — да, Quick Look принимает). Дальше диалога не прошёл: у этой машины нет `Simulator.app` (GUI-приложения нет в комплекте Xcode-beta, только headless `simctl`) и нет `idb`/иного способа послать тап — так что настоящий рендер куба в Quick Look не сфотографирован, только сам диалог принятия. Выравнивание 64 байта уже проверено побайтно в `usdz_writer_test.dart` независимо от этого спайка |
-| fmt-28 ⚙⚠ | `ModelLight`/`ModelCamera` в словаре, `KHR_lights_punctual` и `cameras` в лоадере/писателе, секции 22–23 | engine | S | 4 | fmt-06, fmt-19 | round-trip рукописного glTF с двумя источниками и камерой |
-| fmt-30n ⚠ *(добавлено 2026-09-10 по гэп-анализу)* | **Сжатие геометрии на выходе в glTF**: порядок вершин под кэш, квантование атрибутов, `EXT_meshopt_compression`. Гэп-анализ: втрое меньший файл и быстрее загрузка; план держит сжатые секции собственного контейнера, но не сжатие на выходе в формат, которым питается весь остальной мир. `fmt-15` сегодня — «громкий пропуск» на чтении, это его половина на записи. Порядок вершин под кэш (`flutter3d_geometry`'s `optimizeVertexCache`) и квантование атрибутов (`KHR_mesh_quantization` на NORMAL/TANGENT/TEXCOORD_0/COLOR_0) уже существовали, найдены при возврате к строке — сам `EXT_meshopt_compression` был единственным реальным пробелом. Закрыт 2026-09-13/14: `meshopt_vertex_codec.dart` (версия 0 формата) и `meshopt_index_codec.dart` — декодер каждого прямой построчный порт `meshopt_decoder_reference.js` (единственная читаемая часть npm-пакета `meshoptimizer` — настоящий энкодер существует только собранным в WebAssembly, порта не с чего делать), энкодер — собственная конструкция, проверенная не только через свою же инверсию, а через настоящий референсный декодер под Node (`meshopt_reference_check.mjs`/`meshopt_index_reference_check.mjs`, оба зелёные). Вплетено в `GltfWriter`/`GltfAccessorReader`: POSITION и уже квантованные атрибуты сжаты через векторный кодек, индексы — через индексный; `GltfLoader`'s собственный `extensionsRequired`-фильтр знает имя расширения. Полный круг через `compareModelDocuments` зелёный. Осталось честно не сделанным: индексный кодек не использует переиспользование по FIFO (только всегда-верный запасной путь — LEB128 на каждую вершину), версия 1 векторного формата (более широкие «каналы») не реализована — из-за этого «втрое меньше» не достигнуто буквально (2,70× на замере, было 1,90× без EXT_meshopt_compression); официальный валидатор Khronos (`gltf-validator@2.0.0-dev.3.10`, свежее на npm нет) не знает этого расширения вообще и оттого ошибается на сжатых bufferView, так что «валидатор зелёный» в приёмке для сжатого файла не проверяемо этим инструментом — проверено вместо этого независимым референсным декодером и собственным читателем | formats | M | 2 | fmt-06 | GLB втрое меньше; перечитанный документ совпадает через `compareModelDocuments` с допуском квантования; валидатор Khronos зелёный |
-
-### 2.4 Рендер и вьюпорт (`view-`)
-
-Почти всё уже в движке и его надо дотянуть, а не писать: `DebugDraw` и
-`DebugLineVertex`/`DebugLine`, `PassContributor`, `Renderer.pickPixel`,
-`Raycaster`, `OrbitController`, `RenderView.viewportFraction`/`layerMask`,
-`EnvironmentMap.fromSky`, вершинный цвет в `surface.glsl`. Нет: частичной
-перезаписи буфера, точек как примитива (CPU-растеризатор бросает на point,
-WebGPU — 1 px), толстых линий, смещения глубины, счётчика треугольников, BVH по
-треугольникам, каркаса вне Impeller. Новый шейдер стоит одинаково дорого на
-четырёх бэкендах, поэтому план заводит максимум два вершинных стейджа и ни одного
-фрагментного.
-
-| id | что | пакет | р. | ф. | зависит | приёмка |
-|---|---|---|---|---|---|---|
-| view-01-bench | Микрозамеры оверлея на стенде p0-01: (б) `bindVertexData` 200k квадов в кадр, (в) CPU-смещение 200k вершин к камере. (а) `DeviceMesh.upload` в кадр ⇢ p0-06; сцена на 1 млн ⇢ p0-01/02/03 | engine example + `packages/flutter3d/tool/bench` | S | 0 | — | пороги: (в) >2 мс → view-06 обязателен; (а) >8 мс → view-14 в фазу 1 |
-| view-02-viewport-skeleton ⚠ | `modeler_viewport.dart`: `Renderer` через `flutter3d_backend`, `Ticker`, поверхность с `List<RenderView>`, камера в `State`; фон — плоский `#0E1112` или небо `SkySettings` (решение); `frame_test` | app | M | 0 | view-01 | два `RenderView` половинами экрана; GLB виден на macOS |
-| view-03-orbit-gestures ⚙ | `OrbitGestures` (чистый Dart): мышь/палец/трекпад/перо → `rotate/pan/zoom`; стилус не двигает камеру; движок: орто-зум меняет `height`, `frameBounds` для орто, `animateTo(yaw, pitch)`. ⇢ ui-06 (жесты), ui-19 (политика ввода) | app + engine | M | 1 | view-02 | два пальца → `distance`/`target`; стилус не меняет `yaw`; тест орто-зума в движке |
-| view-04-display-modes | Перспектива/орто с сохранением кадрирования, стандартные виды, чипы «Материал/Нормали/Каркас» (каркас до view-07 — оверлеем) | app | S | 1 | view-03 | пиксель грани +Y в «Нормали» = (128,255,128)±2; орто не зависит от `distance` |
-| view-05-mesh-overlay ⚙⚠ | `MeshOverlay extends PassContributor` с `OverlayBatch` в раскладке `positionColor`: тонкие линии, точки-квады к камере, ленты и заливка 55 %; пайплайн `DebugLineVertex`+`DebugLine`, `lessEqual` + CPU-смещение; сцена `mesh-overlay` в `kGoldenScenes`, 43 → 44. ⇢ qa-10 | engine | M | 1 | — | батч из N рёбер — 3 draw; квад не зависит от `distance`; 4 набора, 0 пикселей; заливка `#004F58` 55 % ±3 |
-| view-06-overlay-shader ⚙ | Условно (view-01(в) >2 мс): `overlay.vert` с `depth_bias`, фрагмент `DebugLine`; бандл, `kRequiredShaders`, CPU-стадия, две таблицы, сайт | shaders + 4 бэкенда | S (усл.; по цене риска 9 — GLSL, `impellerc`, `naga`, CPU-транскрипция, четыре таблицы — считать M, если пункт срабатывает) | 1 | view-05, view-01 | `mesh-overlay` в допуске 8; `manifest_test`; `structure --only 'shader bundle'` |
-| view-07-wire-edges ⚙⚠ | `MeshData.edgeIndices()`, `DeviceMesh.upload(withEdges)`, стейдж `MeshWireVertex`, рендерер рисует рёбра линиями там, где `supportsWireframe == false`; сцена `wireframe-edges` | engine + shaders + бэкенды | M | 2 | view-06 | куб → 18 рёбер; `wireframeDeclined` не бывает true |
-| view-08-pick-objects ⚠ | `object_picking.dart`: `pickPixel` → `MeshNode` → `ModelObject`; Shift добавляет; служебные узлы исключены; `RenderSettings.highlighted` до view-10 | app | S | 1 | view-02 | клик в куб — объект; по стрелке гизмо — не объект под ней |
-| view-09-triangle-bvh ⚙⚠ | Владелец `TriangleBvh` (уточнено по критике): реализация над `Float32List`/`Uint32List` с `refit` в пакете `geometry` (решение 2026-09-09); `Raycaster.intersectTriangles` по дереву, если `MeshData.bvh` зарегистрирован. Одна реализация с mesh-20/p0-10 (§3): p0-10 меряет прототип этого класса, mesh-20 строит `MeshBvh` поверх | engine (geometry) | M | 1 | doc-01, p0-10 | 10k лучей по тору = перебор; луч <0,2 мс, refit <5 мс, build <150 мс на 200k |
-| view-10-pick-elements ⚠ | `element_picking.dart`: грань по лучу, вершина/ребро по экранному расстоянию (8 lp мышь, 24 lp палец) с окклюзией, рамка по проекции; результат — `Selection` | app | M | 1 | view-09, view-08 | центр грани → грань, ±3 lp от ребра → ребро, 12 lp от вершины → ничего; задняя вершина без флага не выбирается |
-| view-11-grid-orientation | Сетка пола батчем `MeshOverlay` с затуханием и `lessEqual`; гизмо ориентации ⌀60 — `CustomPainter`, клик → `animateTo` | app | S | 1 | view-05, view-04 | пиксели сетки ≈ `#2A3234`; `−X` → yaw π/2 |
-| view-12-transform-gizmo ⚠ | `transform_gizmo.dart`: рукоятки из `Shape`, `unlit`, `always`, поздний bucket, экранный размер; `GizmoHit`/`GizmoDrag` по образцу `AxisDrag`; привязка Ctrl; одна транзакция. ⇢ ui-06 (манипулятор) | app | L | 1 | view-08, view-03 | лучи вдоль X → сдвиг по X, один шаг; `steady_gizmo_test` два кадра побайтно; стрелка X `#FF6B8A`±2 |
-| view-13-mesh-mode-app ⚠ | `mesh_overlay_builder.dart`: `EditMesh` + `Selection` → три батча, пересборка по версии, квады — по камере, прореживание >100k | app | M | 1 | view-05, view-10 | куб с гранью: 12 линий, 4 ленты, 2 треугольника; 200k рёбер <20 мс при смене выделения, 0 мс при повороте |
-| view-14-overwrite-geometry ⚙⚠ | `GraphicsDevice.overwriteGeometry(target, offset, bytes)` с семантикой «видно со следующего прохода», четыре реализации + fake; `DeviceMesh.overwrite` с bounds/version; конформанс «partial overwrite draws what a fresh upload draws», 33 → 34. ⇢ pro-eng-01, qa-11; фаза 1, если p0-06 не проходит | hw + 4 бэкенда + engine + conformance | M | 2 | view-01 | конформанс на четырёх; overwrite 1 % из 200k <1 мс |
-| view-15-multi-view ⚙ | `ViewportPane {view, orbit, layerMask}`, маршрутизация указателя по `viewportFraction`; `SceneSurface.views:` в session | app + session | S | 3 | view-02, view-08 | клик в правую половину даёт сферу на слое 2 |
-| view-16-material-preview ⚠ | Отдельные `Renderer` и `Scene`, фигуры, `EnvironmentMap.fromSky`, синхронизация `SurfaceMaterial → Material`. ⇢ mat-15 | app | M | 2 | view-02 | см. mat-15 |
-| view-17-game-preview ⚙⚠ | `FrameResult.triangles`/`instances` в `renderer_mesh_encode.dart`; вьюпорт с профилем «игра», оверлей метрик, полосы бюджетов, `AnimationPlayer`. ⇢ anim-24 (бюджеты), ui-28 (оболочка) | engine + app | M | 3 | view-02 | куб + сфера ×3 → `triangles == 12 + 3·N`; превышение красит `#FFB86B` |
-| view-18-weight-gradient ⚠ | Вес кости → атрибут `color` по пяти стопам, `unlit`, `tonemap: false`; обновление через overwrite; легенда — Flutter. ⇢ anim-11 | app | M | 3 | view-14 | вес 1 → `#FF3B5C`±3; мазок меняет только 1 % `source` |
-| view-19-uv-view ⚠ | Швы лентами, растяжение цветом по углам, 2D-панель на `CustomPaint`. ⇢ pro-uv-07 | app | M | 4 | view-13, view-18 | см. pro-uv-07 |
-| view-20-lod-views | Три `ViewportPane`, подписи с `triangleCount`, ползунок расстояния → выбор уровня `LodGroup` по покрытию. ⇢ pro-lod-04 | app | S | 4 | view-15 | см. pro-lod-04 |
-| view-21-brush-cursor-pressure ⚠ | Курсор ⌀140 Flutter-оверлеем или лентой на поверхности через `HitResult.normal`; `pressure` только для stylus; мазки батчами раз в кадр. ⇢ pro-sc-08, ui-29 | app | S | 4 | view-03, 09, 14 | pressure 0,5 → сила 0,5; палец не создаёт мазка |
-| view-22-tests-numbers-ci | `test/viewport/*` в `ci.sh`; тест-стражник draw call `1 + 3 + 1 + N`, `pipelines` не растёт; приложение в `repository.dart`; числа. ⇢ qa-14 | app + tool | S | 1 | view-13, 12, 11 | `ci.sh` зелёный; лишний draw в `MeshOverlay` — красный |
-
-| view-23n *(добавлено 2026-09-10 по ходу работы)* | **Модальная трансформация** — то, чем базовые операции пользуются чаще гизмо: после `G`/`R`/`S` перетаскивание идёт до `Enter`/клика (принять) или `Esc`/правой кнопки (отменить, транзакция откатывается целиком); `X`/`Y`/`Z` ограничивают осью, повторное нажатие — плоскостью, `Shift+X` — «всё кроме X»; ввод числа с клавиатуры заменяет перетаскивание (`G X 5 Enter`); `Ctrl` — привязка (сетка 0,1 / угол 15° / масштаб 0,1), `Shift` — точная подстройка. Строка статуса показывает текущее значение и ограничение. Чистый Dart в `transform_modal.dart`, поверх него виджет | app | M | 1 | view-03, doc-07 | `G X 5 Enter` двигает ровно на 5 по X; `Esc` возвращает исходные позиции по `identical`; сто кадров + `Enter` — один шаг истории; `Ctrl` даёт кратные 0,1 |
-| view-24n *(добавлено 2026-09-10 по ходу работы)* | Рамка выделения: перетаскивание левой без инструмента рисует рамку оверлеем, отпускание — `pickElementsIn`/`objectsIn`; `Shift` добавляет, `Ctrl` вычитает; `A` — выделить всё, `Alt+A` — снять, `Ctrl+I` — инвертировать. `pickElementsIn` написан и протестирован (view-10), но вызывающего не имеет | app | S | 1 | view-10, doc-32n | рамка по двум вершинам куба даёт две; `Shift`-рамка добавляет; `A` в режиме граней выделяет шесть |
-| view-25n *(добавлено 2026-09-10 по ходу работы)* | Гизмо на экране: рукоятки `Shape` (стрелки/дуги/кубики) в позднем бакете `always`, экранный размер, подсветка под курсором; перетаскивание идёт через тот же `transform_modal.dart`, что и клавиатура, — один путь, а не два. Арифметика `GizmoHit`/`GizmoDrag` уже написана (view-12) | app | M | 1 | view-12, view-23n | луч вдоль X → сдвиг по X одним шагом; кадр `gizmo-handles`; арифметика перетаскивания та же, что у `G X` |
-| view-26n *(добавлено 2026-09-10 по гэп-анализу)* | **Привязка к вершине, ребру и грани** при трансформации: `Ctrl` сегодня даёт сетку 0,1, угол 15° и масштаб 0,1 — и всё. Гэп-анализ поставил это вторым по цене из десяти: без привязки к геометрии нельзя соединить два куска, поставить ножку в угол столешницы или собрать модульный набор так, чтобы стыки сошлись. Цель ищется `MeshPicker` в радиусе, подсвечивается во вьюпорте; режимы переключаются, пока трансформация идёт | app | M | 1 | view-23n, mesh-20, view-10 | вершина, притянутая к чужой вершине, совпадает с ней побайтно; подсветка показывает цель до отпускания; `Esc` откатывает целиком, как и без привязки |
-
-### 2.5 Оболочка и платформы (`ui-`)
-
-Повторить разрез редактора уровней: Cubit держит документ, режим, фразу статуса,
-параметры последней операции, готовность к экспорту; камера, сцена и гизмо — в
-`State` виджета; каждая правка — команда; тесты через `flutter3d_cpu`. В
-репозитории нет ни строки локализации, ни чтения `PointerDeviceKind.stylus` или
-`pressure`; `documents.dart` тянет `dart:io`; на вебе бэкенд рисует в
-фиксированный размер (`kFixedResolution`).
-
-| id | что | пакет | р. | ф. | зависит | приёмка |
-|---|---|---|---|---|---|---|
-| ui-00 ⚠ | Спайк оболочки: `openDevice` из `flutter3d_app`, GLB из `--dart-define`, `SceneSurface` + `OrbitController`, `FrameTimingLog`; раннеры macOS и web. Замер 0.1 ⇢ p0-01/02/03; файлы становятся `staging.dart`/`viewport.dart` | app | S | 0 | — | `flutter build web --wasm` собирается; модель крутится на macOS |
-| ui-01 | Регистрация: workspace, `applications`, README/LICENSE/analysis_options, `Info.plist` с `FLTEnableFlutterGPU`/`FLTEnableImpeller`, `staging.dart` как единственная сборка мира. ⇢ qa-02 | app | S | 0 | ui-00 | сканер 30/30; `ci.sh` зелёный |
-| ui-02 ⚠ | Тема M3 из таблицы токенов явной `ColorScheme.dark` (не `fromSeed`), `ModelerColors` extension, TextTheme 400/500, `VisualDensity.compact`, темы компонентов; набор иконок — `Icons` из SDK с таблицей соответствия глифам Material Symbols из README передачи (Е12n закрыт 2026-09-09; внешний пакет `material_symbols_icons` не берём) | app | S | 1 | ui-01 | каждая роль = hex из таблицы; строка 32, кнопка рельсы 36; иконки без внешней зависимости или зависимость записана в pubspec с лицензией |
-| ui-03 ⚠ | `ModelerState` = Opening / Choosing / Ready(project, mode, submode, said, activeOperation, viewport, readiness, jobs) / Failed; `ModelerCubit` из предложений; камера и сцена не в Cubit | app | M | 1 | ui-01 | смена режима не сбрасывает выделение; `ran()` обновляет readiness; undo после транзакции — один шаг |
-| ui-04 | Каркас: TopBar 52 с двумя `SegmentedButton`, Rail 52, Properties 250–330, StatusBar 30; содержимое из таблицы режима (ui-07) заменяется целиком | app | M | 1 | ui-02, ui-03 | при 1440×900 высоты/ширины по `RenderBox`; режимы фаз 2–4 присутствуют выключенными |
-| ui-05 ⚠ | `LayoutClass.of(width)`; планшет — палитра 48, лист ~200 с ручкой; телефон — `NavigationBar` 80, FAB 56, лист 130 | app | M | 1 | ui-04, ui-07 | границы 599/600/1199/1200; одинаковые ключи инструментов в трёх оболочках |
-| ui-06 ⚠ | Вьюпорт приложения: `Listener` только на картинке, `SceneSurface`, `scene_sync.dart` (ModelObject ↔ MeshNode), coalesce GPU-обновлений раз в кадр. Жесты ⇢ view-03, пикинг ⇢ view-08/10, манипулятор ⇢ view-12, гизмо ориентации ⇢ view-11 | app | M | 1 | ui-03, ui-00 | `pick_test` на CpuDevice 128×96; `manipulator_drag_test` — один шаг |
-| ui-07 | `ModelerTool` (id, icon, label-ключ, shortcut, режим, группа, команда) и `toolsFor(Mode)` — один источник для рельсы, палитры, листа, клавиш | app | S | 1 | ui-03 | уникальные id и shortcut; три оболочки — одно множество id |
-| ui-08 ⚠ | Экран 01: список объектов, `NumberField` 3×3, стек модификаторов с переключателем и перетаскиванием; `section_label.dart` | app | M | 1 | ui-04, ui-03 | «1,5» и «1.5» приняты; ввод в X эмитит `SetTransform` |
-| ui-09 ⚠ | Экран 02: `operation_card.dart` из параметров команды на вершине истории (`ParamHint` из syn-01), `history.amend` без подтверждения; сводка выделения | app | S | 1 | ui-08, ui-06, doc-07, syn-01 | ползунок вызывает amend без нового шага; крестик не трогает историю |
-| ui-10 ⚠ | Строка статуса: метрики режима, первый `Issue` из `ExportReadiness` (зелёный/оранжевый), клик → диалог экспорта; `NumberFormat` локали | app | S | 1 | ui-04, ui-03 | n-гон → оранжевый текст; 1240000 → «1 240 000» |
-| ui-11 ⚠ | Undo/redo в трёх раскладках, tooltip с `undoSays`, ⌘Z/⇧⌘Z, все перетаскивания — в транзакции | app | S | 1 | ui-03, ui-06 | 40 событий → один шаг; undo восстанавливает меш по `identical` |
-| ui-12 ⚠ | `Shortcuts`/`Actions` из `ModelerTool.shortcut` + общие; набор Blender-подобный — G/R/S/E/I, 1/2/3, Tab — там, где не конфликтует с платформой (Е5 закрыт 2026-09-09); meta/control по платформе; фокус в `NumberField` перехватывает | app | S | 1 | ui-07, ui-11 | «E» с гранью запускает экструзию; в поле — вводит символ |
-| ui-13 ⚠ | Экран 09: `profile_editing.dart` (чистый Dart: точки, сегменты-кривые — квадратичная/кубическая Безье с допуском уплощения в полилинию для `LatheShape`, который принимает только полилинию; ось, hit ⌀12, привязка 40), `profile_editor.dart` (`CustomPainter`), `lathe_dialog.dart` 720 со вторым `RenderView`; чипы «Точка / Кривая / Ось» по README передачи; `AddLathe` хранит кривую, а не полилинию (уточнено по критике) | app | M | 1 | ui-06, ui-08 | hit внутри ⌀12; сегменты 24→12 меняет сводку; кадр предпросмотра = golden; кривая из 3 точек даёт N сегментов, сумма длин хорд ≈ длине кривой в допуске уплощения |
-| ui-14 ⚠ | `ProjectFiles` с conditional export: native (`file_selector` + запись по итогу p0-13n — `getSaveLocation` и прямая запись без rename под сандбоксом, либо security-scoped доступ к каталогу; `writeFileAtomically` только там, где каталог доступен), web (Blob → `<a download>`); `documents.dart` без `dart:io`. Спайк 0.5 ⇢ p0-08, спайк сандбокса ⇢ p0-13n | app | M | 0 | ui-00, p0-13n | на `--wasm` открывается GLB и скачивается `.f3d`; обе половины анализируются; на macOS с включённым сандбоксом «Сохранить как» записывает файл |
-| ui-15 | Стартовый экран: «Открыть файл», недавние через `defaultStorage('flutter3d_modeler')` (`Storage` — абстрактный интерфейс с текстовым `write(name, contents) → bool`; конструируется через `defaultStorage`, как `SaveFile`/`SettingsFile`), «Новый проект» с профилем | app | S | 1 | ui-14, ui-03 | 8 записей, без дублей, битый JSON — пустой список |
-| ui-16 ⚠ | Экран импорта: `warnings` списком, метрики против профиля, флажки (сварить, нормали, триангулировать), единицы (мм/см/м → множитель `ImportOptions.scale`) и ось вверх (Y/Z) с предпросмотром bounds; лимиты входа (размер файла на вебе, вершин с морфами против `maxTextureSize`, треугольников против мобильного пресета) показываются до кнопки; прогресс на месте кнопки; на вебе декод на основном потоке. Единицы и лимиты добавлены по критике | app | M | 1 | ui-14, ui-03, doc-11 | `import_plan_test` без Flutter; на файле из samples диалог показывает число предупреждений; STL в мм с выбором «мм» даёт bounds в метрах; файл сверх лимита на вебе — отказ до декодирования |
-| ui-17 ⚠ | Экран экспорта: формат, список `Issue` с «показать», полосы бюджетов, флажки (в том числе «запечь трансформации узлов» через `ApplyTransform` из doc-06 — добавлено по критике); `toModelDocument()` → писатель → `saveAs`; ⌘E. При `Issue` уровня error — предупреждение и экспорт после явного подтверждения, отказ только при пустой геометрии (Г9 закрыт 2026-09-09) | app | M | 1 | ui-10, ui-14 | round-trip куб + ваза → GLB → decode: мешей и треугольников столько же, кадр = golden; с флажком узлы GLB несут единичные матрицы; объект с n-гоном экспортируется после подтверждения, пустой проект — отказ |
-| ui-18 ⚙⚠ | Автосохранение: debounce 2 с / ≤1 раз в 15 с, сериализация в фоне, `Storage.write('autosave/<id>')`, предложение восстановить; `BinaryStorage`/IndexedDB в flutter3d_screens (правка пакета репозитория). ⇢ fmt-18 (атомарная запись) | app + screens | M | 1 | ui-03, ui-14 | три команды → одна запись (FakeAsync); `write() == false` сообщается один раз |
-| ui-19 | `InputPolicy` (чистый Dart): mouse — всё; stylus — рисует, `pressure` нормирован; touch — камера/долгое нажатие; inverted — ластик; tap target 48 на тач | app | S | 1 | ui-06 | touch в sculpt → camera; мышь → сила 1.0 |
-| ui-20 ⚙⚠ | macOS: `CFBundleDocumentTypes`, сандбокс включён с `user-selected.read-write` (совместимость с записью — по p0-13n; редактор уровней выключил сандбокс именно из-за `PathAccessException` при записи), своя иконка; web: index.html без soloud, manifest, `--base-href=/modeler/`; `kFixedResolution` — пересоздание устройства при смене класса или resize `WebGlDevice` | app + webgl | S | 1 | ui-01, ui-14, p0-13n | правило GPU зелёное; `flutter build macos` и `web --wasm` в CI; сохранение под сандбоксом проходит в `flutter test` на macOS-раннере |
-| ui-21 ⁴ | Android (`EnableFlutterGPU`, без блокировки ориентации, intent-filter), iOS (document types, `UISupportsDocumentBrowser`, `file_selector_ios`, `FLTEnableFlutterGPU`); debug-сборки в CI (qa-17); проверка на физических iPad и Galaxy A55. Фаза 1 по решению 2026-09-09: четыре платформы с первой версии | app | S | 1 | ui-20, ui-05, ui-19, rel-19d | сканер по обоим каталогам; на iPad с Pencil pressure 0..1; приложение открывает GLB на iPad и Galaxy A55 |
-| ui-22 ⚠ | `flutter_localizations` + `intl`, `app_ru.arb` шаблон, `app_en.arb`, все строки через l10n; русский и английский с первой версии (Е2), язык `says` — английский (Г4); оба закрыты 2026-09-09 | app | S | 1 | ui-04 | множества ключей ru/en равны; под `Locale('en')` нет кириллицы |
-| ui-23 ⚠ | Semantics/tooltip, порядок фокуса, контраст (outline 11 px на грани), textScaler 1.3, tap 48 на тач | app | S | 1 | ui-05, ui-02 | `textContrastGuideline`, `androidTapTargetGuideline`; без overflow при 1.3 |
-| ui-24 | `PopScope` с диалогом несохранённого, маркер в заголовке, `beforeunload` на вебе | app | S | 1 | ui-14, ui-03 | при isDirty — диалог; неудачная запись не закрывает |
-| ui-25 | `Job` в `ModelerReady.jobs`, `Isolate.run` на native, чанки с уступкой на вебе, `JobButton` с индикатором. Раннер для doc-24 (§3) | app | S | 1 | ui-03 | 10 чанков → прогресс 0.1…1.0; cancel на 3-м без результата |
-| ui-26 ⚠ | `frame_test` (картинка следует документу), `mesh_overlay_frame_test`, все через `staging.dart`; числа в README/ARCHITECTURE/сайте. ⇢ qa-15 | app | M | 1 | ui-06, 09, 13, 17, doc-07 | `flutter test` без GPU; мутация «сцена не пересобирается» роняет |
-| ui-27 ⚙⚠ | `flutter3d_editor_widgets` (новый): `FieldRow`, hint-контролы, `NumberField`; оба редактора зависят; панель материала экрана 05 из подсказок. Ворота записи `.fmat` ⇢ mat-03 | editor_widgets (новый) | M | 2 | ui-08 | тесты редактора уровней зелёные после переноса; §16 и число пакетов в README/§3.2/§16 сдвинуты в том же коммите |
-| ui-28 ⚠ | Оболочка фазы 3: таймлайн 270 (транспорт 44, кости 180, дорожки, playhead), `playback` в состоянии, тик через `AnimationPlayer` в `State`; экран 19 оверлей и панель бюджетов; экран 15 строки форм. ⇢ anim-07 (таймлайн), view-17/anim-24 (превью) | app | L | 3 | ui-04, ui-06 | клик по дорожке ставит ключ; 28/64 — зелёная полоса 44 % |
-| ui-29 ⚙⚠ | Раскладка скульптинга без панелей, палитра кистей, карточка 250, курсор ⌀140, сила из `InputPolicy`; мазок — транзакция. ⇢ pro-sc-08, view-21 | app | M | 4 | ui-19, ui-05 | нет Rail/Properties; touch не создаёт мазка |
-| ui-30n *(добавлено по критике)* | Необработанные исключения: `FlutterError.onError` и `runZonedGuarded` в `main`, аварийная запись автосохранения (ui-18) до показа ошибки, окно «что случилось» с кнопкой «Report a problem» (rel-15) и локальным логом последних N команд из журнала doc-16; без телеметрии | app | S | 1 | ui-18, rel-15, doc-16 | брошенное в `apply` исключение → автосейв записан, окно показано, URL формы содержит имя команды; тест через `FlutterError.onError` в widget-тесте |
-| ui-31n *(добавлено по критике)* | Drag-and-drop файла в окно (macOS через `desktop_drop` или свой канал, веб — `dragover`/`drop` через `package:web`) → тот же путь, что «Открыть файл» (ui-14/16); Е7 покрывает только Finder/intent в фазе 2 | app | S | 1 | ui-14, ui-16 | drop GLB открывает экран импорта; drop неизвестного расширения — сообщение в статусе; на вебе тест через синтетическое событие |
-| ui-32n *(добавлено по критике)* | Справка в приложении: пункт меню/`?` с таблицей горячих клавиш из `ModelerTool.shortcut` (ui-07, набор Е5) и ссылкой на туториал rel-09; без второго источника правды для клавиш | app | S | 1 | ui-07, ui-12 | таблица содержит каждый `shortcut` из `toolsFor(Mode)` ровно раз; ссылка ведёт на страницу сайта |
-| ui-33d *(добавлено по решениям 2026-09-09)* | Флажок «Сохранить без истории» в «Сохранить как» и в экспорте проекта (ui-17) → `ProjectWriter(includeHistory: false)` из doc-31d; автосохранение (ui-18) пишет с историей всегда | app | S | 1 | doc-31d, ui-17, ui-14 | с флажком секции `history` в файле нет; без флажка после повторного открытия undo доступен на три шага |
-| ui-34d ⁸ *(добавлено по решениям 2026-09-09)* | Web worker для неделимых операций на вебе (Е11 закрыт: заморозка с прогрессом на месте кнопки допустима, worker — пункт фазы 1, а не 2, по условию): изолят компилируется в worker под wasm/JS, передача через `TransferableTypedData`/`postMessage`, в фазе 1 — импорт (decodeModel + fromMeshData) и экспорт (`toMeshData` + писатель), тем же `Job` из ui-25. Условие включения: p0-07/p0-08 показывают заморозку дольше 1 с на эталонной операции (импорт 30 МБ или экспорт 200k). Половина условия проверена в настоящем headless Chrome: `bench_isolate.dart`'s собственная 316×316 решётка (199 712 треугольников — p0-07's own эталон) без `dart:isolate`, скомпилированная и `dart compile js` и `dart compile wasm`, дала `toMeshData` за 353,5 мс (JS) и 427,4 мс (wasm) на однопоточном пути — заметно ниже порога в 1 с. Экспорт-200k половина условия закрыта: не сработала. Импорт-30МБ половина тоже измерена: настоящий `.glb` ровно 30,0 МБ (625 681 вершина, 1 248 200 треугольников, `flutter3d_formats`'s `GltfWriter` — построен и проверен собственным round-trip, а не поверхностно), отданный тому же headless Chrome через `fetch` и разобранный `GltfLoader().load()`, скомпилированный `dart compile js` — разбор укладывается в ~10 мс, две порядка ниже порога в 1 с. Обе половины условия p0-07/p0-08 закрыты и не сработали: `ui-34d` по своей же формулировке не строится — веб-воркер для этих двух операций не нужен | app | M | 1 (усл.) | ui-25, p0-07, p0-08, mesh-30 | импорт 30 МБ в Chrome не держит кадр дольше 100 мс; результат через worker = на основном потоке побайтно; если условие не сработало, пункт не делается и это записано в doc §6 |
-
-| ui-35n *(добавлено 2026-09-10 по ходу работы)* | Панель трансформации целиком: позиция, поворот (углы Эйлера XYZ, градусы) и масштаб — три раза по три `NumberField`, плюс чипы точки опоры (медиана / собственные центры / курсор) и пространства (глобальное / локальное). Сейчас в панели только позиция, а поворот и масштаб набрать негде | app | S | 1 | ui-08, doc-33n | «45» в поворот Y даёт кватернион ±0,3827; смена точки опоры меняет результат поворота двух объектов; «1,5» и «1.5» приняты |
-| ui-36n *(добавлено 2026-09-11 по ходу сверки)* | Открытие модели из нескольких файлов: `.gltf` вместе с соседним `.bin` и картинками. Сегодня `openModel` берёт ровно один файл, и на вебе, где соседнего каталога нет, `.gltf` открыть нечем — дыра, найденная сверкой p0-08 | app | S | 1 | ui-14, fmt-19 | `.gltf` с внешним `.bin` открывается на вебе и на macOS и даёт тот же документ, что `.glb` того же меша |
-
-### 2.6 Материалы и модификаторы (`mat-`)
-
-Ядро в движке есть и покрыто тестами: `SurfaceMaterial`/`TextureBinding`,
-`.fmat` с `MaterialHint`, `bindMaterial`, `uploadEncodedImage`, `EnvironmentMap`,
-восемь источников с отбором по объекту, тени, `ProceduralTexture`. Панель из
-подсказок и ворота записи `.fmat` уже в `apps/flutter3d_editor/material_panel.dart`.
-Нет: материала в документе редактора, метаданных слотов, графа-компоновщика и
-вычислителя, PNG с deflate на чистом Dart, `.hdr`, модификаторов, освещения как
-части проекта, бюджета текстур. Граф держится в рамках ROADMAP: ноды считаются
-на CPU и запекаются в пять слотов PBR, шейдер не меняется.
-
-| id | что | пакет | р. | ф. | зависит | приёмка |
-|---|---|---|---|---|---|---|
-| mat-01 | `ProjectMaterial {surface, images, fmatPath, version}`, `ModelObject.materialSlots`; команды `AddMaterial`, `RemoveMaterial`, `SetMaterialField` (ключи `writeFmat`), `AssignMaterial`, `DuplicateMaterial`, `SetTexture(materialId, slot, imageId, sampling)`, `AddImage(bytes, name)` (обе перенесены из doc-25 в фазу 1 по критике — без них импортированная текстура не назначается); `toModelDocument()` с дедупом изображений. Поглощает doc-25 | core | M | 1 | doc-03, doc-05 | round-trip команд; два объекта с одним материалом → один `SurfaceMaterial`; `AddImage` + `SetTexture` → `TextureBinding` в экспортированном документе |
-| mat-02 | `TextureInfo(width, height, format, bytesOnDevice, hasOwnMips)` из заголовков PNG/JPEG (doc-15) и `Ktx2Texture.parse`; вес с мипами и `blockLayout` | core | S | 2 | mat-01 | размеры = `TextureHandle` после загрузки; мутация порядка байтов IHDR |
-| mat-03 ⚠ | Перенести `materialWith`, `materialDocumentFields`, `materialDocumentHint`, `_fits`, `_sameJson` в `flutter3d_editor_core/lib/src/material_edit.dart`; оба редактора импортируют. `editor_core` — плоский пакет (`flatDartPackages`) с зависимостью только на `flutter3d_sim`, а библиотека принимает `MaterialDocument`/`MaterialHint` из `flutter3d` — поэтому переезд возможен только после doc-01, и `editor_core` получает зависимость на `flutter3d_formats` (ярус в §16 сдвигается — rel-03). Уточнено по критике | editor_core | S | 1 | doc-01 | тесты переезжают зелёными; `flutter analyze` чист; `dart pub get` в `editor_core` без Flutter SDK проходит (правило qa-03) |
-| mat-04 ⚙ | Панель «Материал» полная: список материалов объекта, свойства из `builtInMaterialHints` через `HintRow` в токенах M3, «Дополнительно», неактивные ползунки по `LightingModel`; drag — транзакция. Фаза 1 получила урезанную версию mat-04a-n. Сделано: alpha (mode + cutoff), emissive (цвет + strength), все пять слотов текстур, «Дополнительно» (emissive strength, normal scale и occlusion strength — только когда своя карта уже привязана — и double-sided), и сам пикер шейдера. `SurfaceMaterial` получила поле `lightingModel` (шестой битом сверху `unlit`, а не заменяя его); `_fieldSet`/`SetMaterialField` понимают `'lightingModel'` по имени шейдера из `LightingModel.builtIn`; `.fmat` пишет и читает его отдельным ключом `lightingModel` (не путать с `MaterialDocument.lighting` — тем же именем шейдера, тем же `_readLighting`/`_writeLighting`, но полем всего файла, а не одного материала); `.f3dproj` несёт его как необязательный ключ, отсутствующий — не отказ, а «не выбран» (`_lightingModelNamed`, тот же приём, что `fmat`/`graph`); `bindMaterial`/`bindSurfaceMaterial` в `material_loader.dart` берут его раньше запасного `unlit`; `lightingModelOf`/`material_panel.dart`'s дропдаун — тот же путь. Осталось не сделанным двумя отдельными пунктами, а не побочным эффектом этой панели: у glTF и OBJ нет самого понятия «один из шести встроенных шейдеров» (только присутствие `KHR_materials_unlit`), так что оно и не должно там появляться — decode/encode обеих форматов трогать не пришлось; а бинарный `.f3d` (не `.f3dproj`) — фиксированные по байтам записи материала без места под новое поле, это отдельная правка формата с бампом версии, не пятиминутная | app + formats + core + engine | M | 2 | mat-01, mat-03, mat-04a-n | у lambert металличность неактивна; hex `#5FD4E4` → (0.373, 0.831, 0.894); три события — один шаг |
-| mat-04a-n *(добавлено по критике)* | Панель «Материал» фазы 1 — план дизайна относит «Базовые материалы» к фазе 1, а сценарий ядра «чистит меш, правит материал, экспортирует в GLB» без неё не проходит: список материалов проекта, назначение объекту (`AssignMaterial`), цвет / металличность / шероховатость из `builtInMaterialHints` по образцу `apps/flutter3d_editor/lib/src/material_panel.dart`, слот `baseColorTexture` через `file_selector` (`AddImage` + `SetTexture`) без параметров сэмплера; drag — транзакция | app | S | 1 | mat-01, mat-03, ui-08 | смена цвета → `SetMaterialField`, один шаг на drag; выбранный PNG появляется в GLB как `baseColorTexture`; кадр `mesh-material-colour` в тестах app |
-| mat-05 | Слоты текстур: превью 26×26 из миниатюры, имя, `w×h`, вес; `file_selector` с `TextureHint.extensions`; параметры `TextureSampling`; `texCoordSet` только 0 | app | M | 2 | mat-02, mat-04 | PNG 256×128 → «256×128», «170 КБ»; KTX2 BC7 → плашка формата |
-| mat-06 | `ColorField`: образец, hex, HSV, альфа при `channels == 4`, флаг `linear` для эмиссии | app | S | 2 | mat-04 | linear (0.214…) → `#808080`; 3-канальный hint без альфы |
-| mat-07 | `MaterialBinder`: кэш `Material` по версии, текстуры по хэшу байтов через `ResourceCache`, обновление полей без замены объекта; warnings в статус | app | S | 2 | mat-01 | 100 правок roughness — `createTextureFromPixels` = число уникальных изображений |
-| mat-08 | `.fmat` внешний: `LinkMaterialFile`, `EmbedMaterial`, `MaterialFileWriter.write` через ворота mat-03; диск в app; экспорт разворачивает пути | core + app | M | 2 | mat-01, mat-03 | link → правка → write → `readFmat` без warnings; шейдер не найден — предупреждение |
-| mat-09n *(добавлено по критике)* | Декодер изображений на чистом Dart для ноды Image: PNG (inflate, фильтры, 8/16 бит, палитра) и baseline JPEG; свой или `package:image` в core — решение вместе с Г6. В репозитории ни одного чистого декодера: golden-тесты читают PNG через `dart:ui`, `cpu_png.dart` — только писатель со stored-deflate. Альтернатива, если декодер не берётся: запекать в app через `dart:ui`, а core держит граф без пикселей — тогда `bakeTextureGraph` из mat-32 в MCP невозможен, и это записывается | core | M | 2 | mat-01 | фикстуры PNG (RGB/RGBA/палитра/16 бит) и JPEG декодируются побайтно как `dart:ui` в тесте app; обрезанный файл → отказ значением |
-| mat-10 ⚠ | `TextureGraph` (неизменяемое): фиксированные ноды Image/Color/Blend/Channels/Levels/Invert/UvTransform/Checker/Noise/NormalFromHeight/Output с `hints`; проверки цикла и типов. Это «компоновщик текстур» с фиксированным набором нод, не шейдерный граф (Ж1 закрыт 2026-09-09; ROADMAP переформулируется на ревизии 28 сентября) | core | M | 2 | mat-01 | round-trip JSON; цикл отвергнут с нодой; тип входа проверен |
-| mat-11 | `bakeTextureGraph` на CPU в линейном пространстве, кэш по структурному хэшу поддерева, предпросмотр 256² чанками, полное — `Isolate.run`/чанки; без `Random` | core | M | 2 | mat-10, mat-09n | два прогона побайтно; правка `factor` не декодирует Image повторно; замер 6 нод 2048² в doc |
-| mat-12 ⚠ | `BakeTextureGraph(materialId)` → изображения в слоты, метка «запечён в версии N»; PNG с deflate (свой LZ77+Хаффман или `package:archive` — вопрос); в проекте сырые RGBA | core | M | 2 | mat-11, mat-01 | PNG декодируется `flutter3d_cpu`; градиент 1024² <25 % stored |
-| mat-13 | `TextureGraphPanel` 250 (свёрнута), `InteractiveViewer`, ноды 170–210, Безье `primary` 2, `HintRow` по `node.hints`, миниатюры 64², команды `AddNode`/`Link`/`Unlink`/`SetNodeField`/`MoveNode`, «Запечь 2048²» с прогрессом | app | L | 2 | mat-10, 11, 04 | связь Цвет→маска отвергнута без команды; удаление ноды — один шаг |
-| mat-15 | `MaterialStudio`: своя `Scene`, тела (сфера/куб/чайник/этот объект), два `LightNode`, пол, три пресета `SkySettings` → `EnvironmentMap.fromSky(size: 32)`, `OrbitController`. Поглощает view-16 | app | M | 2 | mat-07 | кадр `material-studio` на CPU; смена пресета отдаёт старый handle на dispose |
-| mat-16 ⚠ | `equirectToCubeFaces` (LDR-панорама, порядок граней как `_directionFor`) → `prefilter(size: 128)`; пресет «Своя панорама» | core | S | 2 | mat-15 | верх белый/низ чёрный → +Y/−Y; замер 128² levels 4 |
-| mat-17 ⚙⚠ | Декодер Radiance `.hdr` (RGBE RLE), `prefilterFloat`, куб в `r16g16b16a16Float`, конформанс float-куба, кадр `ibl-hdr` | engine + conformance | M | 4 | mat-16 | фикстуры Khronos с провенансом; конформанс на четырёх |
-| mat-18 ⚠ | `ModelObject.modifiers`, `evaluatedMesh` с кэшем по `(geometryVersion, modifiersHash, targetVersion)`; значения `Mirror/Array/Smooth/Boolean` — из mesh-40..48, здесь только `hints` и обёртки (§3) | core | M | 2 | — | зеркало со сшивкой; отключённый не меняет хэш; смена материала не инвалидирует |
-| mat-19 | Команды стека и MCP-инструменты. ⇢ doc-23 (команды), mat-32 (инструменты) | core | S | 2 | mat-18 | см. doc-23 |
-| mat-20 ⚠ | Стек в панели «Объект»: строка 32, перетаскивание, меню из четырёх, карточка параметров на `surfaceContainerHigh` с `HintRow`, «Применить»/«Удалить», предупреждения; тяжёлое через `jobs` | app | M | 2 | mat-19, mat-18 | `count` массива — одна `SetModifierField`; кадр `modifier-mirror-array` |
-| mat-22 ⚠ | Правила `ExportReadiness`: n-гоны после булева, неманифолд после зеркала, blend с непрозрачной альфой, `texCoordSet != 0`, `extraTextures`/`parameters` при glTF, текстура вне бюджета, `.fmat` без копии | core | S | 2 | mat-18, 01, 28 | по правилу тест с мутацией; кэш по версии объекта |
-| mat-23 ⚠ | `SceneLighting {lights, environment, ambientIntensity, shadows, exposure, пост}`; команды света/окружения/теней; `LightingSync` → `LightNode`/`RenderSettings`; пресеты как значения | core + app | M | 2 | mat-16 | `SetLightField('intensity', 'много')` отвергнут; `RemoveLight` отсоединяет узел |
-| mat-24 ⚠ | Режим «Сцена» v1: источники как пикаемые маркеры с гизмо, панели источника/окружения/теней/пост, статус `Источников N · теневых M из 6`, предупреждение по `lightsDropped`/`shadowsDenied`. Расширен решением 2026-09-09 (Ж4, §7 № 36): расстановка нескольких ассетов в одном проекте — «Импортировать в сцену» через `ImportInto` (doc-11a-n), перемещение объектов гизмо view-12, экспорт сцены одним GLB через `toModelDocument()` (все объекты как узлы) | app | L | 2 | mat-23, 25, 06, doc-11a-n, view-12 | кадр `scene-lit`; девятый источник → оранжевый статус; два импорта + сдвиг второго → GLB с двумя узлами и разными матрицами, один `SurfaceMaterial` на общий материал |
-| mat-25 ⚠ | `LightGizmos` поверх `DebugDraw`: стрелка, сферы дальности, конус; маркер-билборд в id-проходе | app | S | 2 | mat-23 | пиксели конуса на месте; поворот узла переносит стрелку |
-| mat-28 ⚠ | `ProjectProfile.textures: TextureBudget(maxSide, maxBytesOnDevice, targetFormat, requirePowerOfTwo)` с пресетами; `measure(project) → TextureUsage` с пересчётом под формат | core | S | 2 | mat-02 | одна картинка у двух материалов — один раз; bc7 = 1/4 RGBA8; 3000² в `overs` |
-| mat-29 | `resizeRgba` (box/билинейный), `toPowerOfTwo`, `FitTexturesToProfile` с сохранением источника; опция «ужать при экспорте» | core | S | 2 | mat-28, mat-12 | 4×4 шахматка → 2×2 серые; 1000×600 → 512×512 |
-| mat-30 ⚙ | Энкодер BC1/BC3/ETC2/ASTC 4×4 → KTX2, опция экспорта; в glTF PNG. ⇢ fmt-22 (одна реализация в движке). Все четыре энкодера и `planExport`'s `textureEncoding` уже существовали (`fmt-22`, `exporting.dart`); недостающим был сам переключатель в `export_screen.dart` — теперь чекбокс «Compress textures (KTX2)» появляется только для `.f3d` (`TextureEncoding` больше нигде не читается) и сбрасывается в PNG, если формат меняют обратно | engine + core | L | 2 | mat-28 | см. fmt-22; экспорт `.f3d` с `.ktx2` грузится без предупреждений |
-| mat-31 | Кадры `material-studio`, `modifier-mirror-array`, `scene-lit` 320×200 в `test/goldens` app; числа | app | S | 2 | mat-15, 20, 24 | три PNG зелёные на ubuntu |
-| mat-32 ⚠ | MCP: `listMaterials`, `setMaterialField` (схема из `MaterialHint`), `assignMaterial`, `linkMaterialFile`, `bakeTextureGraph`, `addLight`/`setLightField`, `setEnvironment`, `setShadowField`; сценарий «агент красит стол и ставит свет» | mcp | S | 2 | mat-01, 19, 23, 12 | каждая команда аспекта имеет инструмент; сценарий воспроизводится |
-
-### 2.7 Анимационный конвейер (`anim-`)
-
-Рантайм-половина в движке: `Skeleton` (64 кости), `AnimationTrack` с тремя
-интерполяциями, `AnimationPlayer` со слоями, `MorphTarget`/`MorphBlend`,
-`BakedPoses`, декодер glTF и полный писатель `.f3d`; программный растеризатор
-транскрибирует skinned-стадию, golden-сцены `skinned-figure`/`morph-*` есть.
-Нет ничего, что редактирует. Главное дополнение — «поза без сцены» (`Pose` + FK
-на типизированных массивах), на ней стоят IK, ретаргет, драйверы, запекание и
-тесты паритета. Алгоритмы рига предлагаются в четвёртый чистый пакет
-`flutter3d_rig` — вопрос владельцу.
-
-| id | что | пакет | р. | ф. | зависит | приёмка |
-|---|---|---|---|---|---|---|
-| anim-01 ⚙ | `Pose`: локальные TRS в `Float32List` по индексам `nodes`, `parents`, `restOf`, `sampleClip`, `worldMatrices`, `jointMatrices` по формуле `Skeleton.update` | engine | M | 3 | — | RiggedSimple/BoxAnimated: матрицы = `Skeleton.matrices` после `seek` (1e-5) |
-| anim-02 ⚙ | `SkinBlend(MeshData)`: скиннинг на CPU по `joints/weights` с нормализацией как в `mesh_skinned.vert`, пропуск при неизменных матрицах | engine | S | 3 | anim-01 | позиции = `MeshSkinnedVertexShader` из cpu (1e-4) |
-| anim-03 ⚠ | `ProjectSkeleton`, `ProjectClip` в core; `fromModelDocument` читает skins/animations/targets; `toModelDocument` собирает `ModelSkin`/`AnimationClip`; секции проекта. Поглощает doc-26 (типы) | core | M | 3 | — | RiggedFigure/BoxAnimated/AnimatedMorphCube round-trip: joints, inverseBind 1e-6, треки побайтно |
-| anim-04 | `KeyTable`: `setKey`, `moveKeys`, `deleteKeys`, `setInterpolation` (linear↔cubic), `setTangent`; `to/fromAnimationTrack`; команды `SetKey`, `MoveKeys`, `DeleteKeys`, `SetInterpolation`, `SetTangent`. Поглощает doc-26 (клипы) | core | M | 3 | anim-03 | `sample(t)` после правок; round-trip на InterpolationTest побайтно |
-| anim-05 ⚠ | `PoseJoint(joint, path, frame)` — автоключ из позы, ключ на отпускание, транзакция | core | S | 3 | anim-04 | три `PoseJoint` в транзакции — один шаг, один ключ |
-| anim-06 | `curveSamples`, `tangentHandles`, `valueRange`; Эйлер только для показа | core | S | 3 | anim-04 | step кусочно-постоянен; cubic = `AnimationTrack.sample` (1e-6) |
-| anim-07 | Экран 07 собран: `AnimationPanel` (`apps/flutter3d_modeler/lib/src/ui/animation_panel.dart`) компонует `ActionsList`, `TimelinePanel`, `SkeletonTree` и `ConstraintsList` в один `ModelerMode.animation`; выбор клипа/дорожки/ключа/сустава и позиция плейхеда — локальное состояние панели, а не `ModelHistory`; наружу идут только `MoveKeys` и `AddClip`. Поглощает таймлайн из ui-28. Живой предпросмотр позы построен поверх уже готовых `AnimationPlayer` (движок) и `TimelinePlayback` (`timeline_playback.dart`) — не хватало только провода между ними и сценой: `buildPreviewPlayer` строит один `AnimationPlayer` по всем `project.clips`, переадресуя `ProjectTrack.objectId` в индекс через `SceneSync.nodeOf` (тот же приём, что `ProjectModelDocument.toModelDocument` уже делает для экспорта, только против живой сцены, а не свежего списка узлов); `AnimationPanel` получила `onSelectClip`/`onTimeChanged` — репортит тот же выбор клипа и позицию скраббера, что и раньше держала только сама, наружу; `main.dart` держит один `TimelinePlayback` в `_ModelerScreenState` (не в `ModelerCubit` — как `_lens`/`_shading`/`_orbit`, это состояние кадра, а не документа), пересобирает его только когда `project.clips` или `SceneSync` меняют identity, и тикает его из уже существующего `_onTick`. Выбор клипа ставит первую позу на паузу — скраббер, а не плеер, двигает её; кнопки воспроизведения нет, `TimelinePlayback.play`/`pause` уже готовы её принять днём, когда она появится | app | L | 3 | anim-04, 06, 08 | перетаскивание ромба — `MoveKeys`; кадр `modeler-timeline`; выбор клипа + `seek` двигает настоящий `SceneNode`, не копию |
-| anim-08 | Оверлей скелета через `DebugDraw.addLine` (октаэдры, крестики, `#FF458E` проблемные); пикинг сустава по проекции в экран, радиус 8 lp | app | S | 3 | anim-01 | кадр `skeleton-overlay`; клик по суставу 7 выбирает 7 |
-| anim-09 ⚠ | `VertexWeights` персистентно; `paint`, `normalize`, `pruneTo`, `mirror`, `smooth`, `gradient`, `assignSelection`. Хранилище — слои mesh-60, операции — в `flutter3d_mesh/skin/` (§3) | mesh (rig?) | M | 3 | — | сумма 1±1e-6, ≤n влияний; зеркало на кубе; мазок 1 % ≤10 % копии |
-| anim-10 ⚠ | `PaintWeights(joint, samples, strength, mode, mirror, normalize)` со списком вершин; попадание по `SkinBlend`-позициям через BVH; давление → strength | core | M | 3 | anim-09, anim-02 | мазок в согнутой позе попадает в локоть; один drag — один шаг |
-| anim-11 | Веса градиентом через вершинный цвет. ⇢ view-18 | app | S | 3 | anim-09 | см. view-18 |
-| anim-12 | Полоса 74: ползунок сгиба крутит `SceneNode` без истории, «Сбросить позу» через `Pose.restOf` | app | S | 3 | anim-01, anim-03 | ползунок меняет `poseVersion`, стек не растёт |
-| anim-13 ⚠ | `rigIssues(project, profile)`: суставов > profile / > 64, влияний, нулевые суммы, ненормированные, неиспользуемые, неравномерный scale, треки на несуществующий узел, незапечённые IK/драйверы; кэш | core | S | 3 | anim-03, anim-09 | по проверке с мутацией |
-| anim-14 ⚙ | `TwoBoneIk.solve` (закон косинусов, pole), `FabrikIk.solve` над `Pose`; `Pose.writeTo(targets)` | engine | M | 3 | anim-01 | достижимая цель 1e-4; pole задаёт сторону сгиба; FABRIK ≤10 итераций |
-| anim-15 | `IkConstraint` в `ProjectSkeleton.constraints`, применение после FK; `BakeIk(clip, fps)`; экспорт всегда запекает | core | M | 3 | anim-14, anim-04 | после `BakeIk` эффектор в 1e-3 от цели |
-| anim-16 ⚙⚠ | `ExtractRootMotion`, `BakeRootMotionIntoClip`; экспорт «в анимации»/«кодом» (extras `flutter3dRootMotion`); движок: `AnimationPlayer.rootMotionDelta` | core + engine | M | 3 | anim-04, anim-26 | корень стоит, сумма delta за цикл = 2 м; round-trip побайтно |
-| anim-17 | `BoneMap` с `autoMap` по словарю гуманоида и L/R; `retargetClip` в rest-относительной форме, масштаб таза по росту, прижим стоп через `TwoBoneIk`; первый пункт пакета `flutter3d_rig` | rig | L | 3 | anim-01, anim-14 | тот же скелет — тождество; рост ×2 — стопа ≤1 см от пола; число пакетов в README/§3.2/§16 сдвинуто в том же коммите |
-| anim-18 | Экран 14: библиотека клипов, два `RenderView`, дорожки смешивания через `crossFadeTo`/`layers`, таблица сопоставления, `RetargetClip` | app | M | 3 | anim-17, 03, 16 | импорт без скина — предупреждение; кадр `modeler-retarget` |
-| anim-19 ⚠ | `SetShapeWeight`, `KeyShape` (weights-трек), `AddShapeFromMesh`, `RenameShape`, `DeleteShape` со сдвигом индексов, `ShapeSet`; строки экрана 15. Поглощает doc-27 | core + app | M | 3 | anim-04, anim-03 | `KeyShape` кадр 10 → sample; `DeleteShape` не ломает `AnimationTrack`; кадр `modeler-morphs` |
-| anim-20 ⚠ | `ShapeDriver(shape, joint, axis, from, to, curve)`, оценка из `Pose`, аддитивно через `MorphSink`; `BakeDrivers(clip)` | core | M | 3 | anim-01, anim-19 | локоть 90° → 1.0, 45° → 0.5; запечённое = живое (1e-5) |
-| anim-21 | `RigTemplate.humanoid/quadruped`, `buildSkeleton(template, markers, bounds, options)` → `ProjectSkeleton` с симметрией, ≤64 деформирующих | rig | M | 3 | anim-03 | число костей по таблице; L/R зеркальны 1e-6; `inverseBind·worldRest = I` |
-| anim-22 ⚠ | `bindWeights`: оболочки по расстоянию до сегментов, видимость по BVH, smooth/mirror/prune/normalize; heat diffusion — после | rig | L | 3 | anim-09, anim-21 | цилиндр с двумя костями: стык 0.5/0.5; две «ноги» не тянут друг друга |
-| anim-23 | Экран 16: силуэт в `RenderView`, 8 маркеров, шаблон/состав/привязка, `SetSkeleton` + `SetWeights` транзакцией | app | M | 3 | anim-21, 22, 25 | RobotExpressive → скелет ≤64, шаг истории; кадр `modeler-autorig` |
-| anim-24 ⚙⚠ | Экран 19: бюджеты профиля (треугольники, кости, текстуры, влияния), `wireframeDeclined` честно. `FrameResult.triangles` ⇢ view-17 | app | M | 3 | anim-13, anim-03 | `skinnedDraws` = 1; maxJoints=16 на 19 суставах — оранжевая полоса |
-| anim-25 ⚠ | `RigJob` (bindWeights, retargetClip, bakeIk, bakeDrivers, bakeRootMotion) через раннер doc-24/ui-25 с `TransferableTypedData` | core | M | 3 | anim-09 | через job = напрямую побайтно; отмена не меняет документ |
-| anim-26 ⚙⚠ | GltfWriter: skins/animations/targets. ⇢ fmt-07 (фаза 1)² | engine | M | 3 | — | см. fmt-07 |
-| anim-27 ⚙ | `.f3d` round-trip правленого рига; имя формы в `F3dRecord.morphTarget` (новая ревизия секции 15, если нет) | engine | S | 3 | anim-03, anim-19 | документы равны; обнулённое имя — красный |
-| anim-28 | Паритет: `Pose.sampleClip` = `AnimationPlayer.seek` = `BakedPoses.of`; кадр `modeler-edited-clip` | core | S | 3 | anim-01, anim-04 | три пути 1e-5; мутация тангенсов ловится всеми |
-| anim-29 | `AddJoint`, `RemoveJoint` (веса родителю + normalize), `ReparentJoint`, `RenameJoint`, `SetRestPose` с пересчётом inverseBind, `MirrorJoints`; перенумерация треков. Поглощает doc-26 (скелет) | core | M | 3 | anim-03, 09, 04 | после `RemoveJoint` сумма 1 и `Skeleton` строится; треки перенумерованы |
-| anim-30 ⚠ | MCP: `setKey`, `paintWeights`, `autoRig`, `retargetClip`, `bakeIk`, `bakeDrivers`, `extractRootMotion`, `addShape`, `validateRig`; сценарий «RobotExpressive без скина → авториг → веса → ключи → GLB» | mcp | M | 3 | anim-13, 21, 26 | сценарий проходит; GLB с клипом и скелетом |
-| anim-31 | Замер фазы 0 — только то, для чего код уже есть: FK `Skeleton.update` 64 × 1000 (`scene/skeleton.dart`); остальное — anim-31a-n (сужено по критике: мазок, `SkinBlend` и `bindWeights` меряют код фазы 3) | rig | S | 0 | — | число в doc с датой и машиной |
-| anim-31a-n *(добавлено по критике)* | Замеры старта фазы 3: мазок 1 % на 200k (по слоям mesh-60/anim-09), `SkinBlend` 200k, `bindWeights` 100k; порог 8 мс для изолята | rig | S | 3 | anim-02, anim-09, anim-22 | числа в doc; (a) >10 % копии — пересмотр чанка до anim-10 |
-| anim-32 ⚠ | `maxInfluences ∈ {1..4}`, `maxJoints ≤ 64` с текстом отказа; кисть и авториг читают лимит | core | S | 3 | anim-09, anim-13 | профиль с 8 влияниями отвергнут; кисть при 2 оставляет ≤2 |
-| anim-31n *(добавлено 2026-09-10 по гэп-анализу)* | **Обратная кинематика для позирования**, двухкостная аналитическая плюс look-at с ограничениями по углам. Решение 2026-09-10: ИК живёт в моделере, а не в движке — она нужна, чтобы поставить стопу на ступеньку и повернуть голову при авториге и правке позы, а в игре поза приходит из клипа. Гэп-анализ назвал её среди четырёх вещей, которых не хватает герою крупным планом | core | M | 3 | anim-21, anim-22 | стопа достаёт цель, колено смотрит в сторону подсказки; цель дальше суммы длин — цепь вытянута и не дёргается; ноль итераций на кадр |
-
-### 2.8 Профессиональные режимы (`pro-`)
-
-Из семи экранов фазы 4 движок закрывает только сырьё: UV в вершинном формате,
-`LodGroup` по доле экрана, frame graph с внешним ресурсом версии 0, узлы
-bloom/SSAO/composite, `readback`, программный растеризатор, `RigidBody` без
-вращения. Ничего, что пишет геометрию или текстуру, нет. Почти всё считается на
-CPU в чистом Dart и тестируется `dart test`; движок получает три правки контракта
-(буфер, область текстуры, внешний HDR-вход) плюс LOD в документе. Честная
-граница: LSCM + проекция, мультиразрешение, ретопология «упрощение → квады →
-проекция», CPU-запекание, XPBD-ткань, снимок растеризатором, QEM с UV и весами,
-покраска со слоями — в фазе 4; ABF++, dyntopo, quadriflow, GPU-запекание,
-самопересечение ткани, вращение тел, трассировщик — после.
-
-| id | что | пакет | р. | ф. | зависит | приёмка |
-|---|---|---|---|---|---|---|
-| pro-job-01 ⚠ | `Job<T>` с `progress`/`cancel`, изолят на нативе, `step()` порциями на вебе. ⇢ doc-24 + ui-25 (один раннер)¹ | core | S | 2¹ | — | 100 шагов монотонно; отмена на середине; чужой microtask между шагами |
-| pro-eng-01 ⚙⚠ | `overwriteGeometry` + `DeviceMesh.overwriteVertices(firstVertex, count)`. ⇢ view-14 | hw + бэкенды | M | 2 | — | см. view-14 |
-| pro-eng-02 ⚙⚠ | `overwriteTexture(texture, region, rgba)` только RGBA8 базовый уровень; Impeller — весь уровень из CPU-копии; конформанс «область читается обратно» | hw + бэкенды | M | 3 | — | readback региона теми же байтами; отказ на сжатом/mip>0 |
-| pro-eng-03 ⚙ | `Renderer.renderPost(hdr, settings)` с внешним ресурсом версии 0, `keepHdr: true`; сцена `post-only`. Построено: `FrameGraph.addExternal(FrameResourceIds.hdrColour)` регистрирует переданный HDR-буфер как внешний ресурс версии 0, `bloom` — единственный читатель (`hdr_colour@0` → `bloom@1`), композит вызван напрямую поверх собственного `_ldrColor`-таргета, а не как узел графа. `keepHdr: true` отдаёт добloomленный, но ещё не тонмапленный буфер обратно, для второго вызова тем же буфером без пересчёта сцены. Приёмка обеих половин зелёная: `renderer_post_standalone_test.dart` (13 тестов) — версия 0 читается, версия 1 отбраковывается на `compile`, а не в рантайме, `post-only`-сцена (bloom выкл/вкл, композит без AO/reflections) даёт тот же кадр, что и полный `render` с этими же двумя эффектами выключенными; `frame_graph_test.dart` (44 теста) держит саму версионность узлов | engine | M | 4 | — | полный кадр = сцена без post + `renderPost`; версия 1 отбраковывается графом |
-| pro-eng-04 ⚙ | Смещённая перспектива `TiledProjection(base, tileX, tileY, tilesX, tilesY)` для тайлового снимка | engine | S | 4 | — | 2×2 тайла 240×180 сшиты = кадр 480×360 побайтно |
-| pro-eng-05 ⚙ | `FrameResult.passes: (name, active, micros)` по `CompiledFrameGraph.order` | engine | S | 4 | — | без bloom `bloom` отсутствует в `passes` |
-| pro-eng-06 ⚙⚠ | `ModelNode.lods: ModelLod(surfaceIndices, maxScreenFraction)`, секция `LODS` (kind 24 — сегодня максимум 16, fmt-03/04/19/28 занимают 17–23) в `.f3d`, `LodGroup` в `ModelAsset`, `MSFT_lod` в glTF; сцена `lod-asset` | engine | M | 4 | — | round-trip `.f3d` и GLB; старый `.f3d` грузится |
-| pro-eng-07 ⚙⚠ | Ленты заданной толщины в оверлее (экранное расширение отрезка) для швов 3,5 lp, сетки ретопологии 1,6, обводки 2. Расширяет view-05 (там ленты собираются на CPU) | engine | S | 4 | — | сцена `overlay-ribbon`; ширина не зависит от глубины |
-| pro-uv-01 ⚠ | Флаг `seam` в `EditMesh` ⇢ mesh-12 (фаза 1); `MarkSeamCommand(selection)` и оверлей — здесь | mesh + core | S | 4 | — | швы переживают экструзию; снимок пометки копирует один чанк |
-| pro-uv-02 | `splitIslands(mesh, seams)`, `lscm(island)` — разреженная система на CSR, сопряжённые градиенты, две закреплённые вершины; UV по углам; `Job` по островам. Поглощает mesh-71 | mesh | L | 4 | pro-uv-01, pro-job-01 | плоская сетка 10×10 в себя (1e-4); цилиндр в прямоугольник; 50k граней <2 с AOT |
-| pro-uv-03 | `projectUv(island, planar|box)` — второй чип вместо ABF++ | mesh | S | 4 | pro-uv-01 | куб → 6 островов без растяжения |
-| pro-uv-04 | `stretchOf(island)` по Sander (L2 через сингулярные числа якобиана) | mesh | S | 4 | pro-uv-02 | изометрия 1,0±1e-6; сжатие вдвое — известное число |
-| pro-uv-05 | `packIslands(islands, margin, allowRotate90)` — полки/skyline, бинарный поиск масштаба, `fillRatio` | mesh | M | 4 | pro-uv-02 | AABB не пересекаются с отступом; 100 прямоугольников ≥60 % |
-| pro-uv-06 ⚠ | `UnwrapCommand(selection, method, margin, autoPack)` с переприменением; UV в `texcoord` через расщепление швов; MCP `unwrap` | core + mcp | S | 4 | pro-uv-02, pro-uv-05 | `toMeshData().layout.has(texcoord)`, вершины выросли на швовые углы; MCP-сценарий куб → GLB с UV |
-| pro-uv-07 | Экран 06: `RenderView` со швами слева, `CustomPainter` 400×400 справа (шахматка 32, острова, цвет по растяжению, клик), панель метода/отступа/списка. Поглощает view-19 | app | M | 4 | pro-uv-06, pro-eng-07 | три острова, растянутый `#FF458E`; швы видны в 3D |
-| pro-sc-01 | Замер 1,2 млн под мазок на macOS/Chrome/A55: upload 38 МБ, кадр, правка 20k вершин + нормали + overwrite, BVH build/raycast, мусор на событие; пороги 8/16 мс, 3 с. Две платформы из трёх сняты: macOS (открытие+BVH 3,3–5,7 с, мазок 294–1005 мс) и Chrome (открытие+BVH 24,2–24,4 с, мазок 7,58–7,71 с) — оба порога не пройдены на обеих, узкое место одно и то же (`MeshNormals.build` пересчитывает весь меш). `sculpt_budget_benchmark_test.dart`'s собственный вывод про Chrome оказался неверным: браузеру не нужна вкладка на переднем плане и `profile_web.py`, раз тест не просит кадра — `flutter test --platform chrome` проходит headless, как и любую другую платформу. A55 по-прежнему не снят — нужен телефон в руках | core + tool/bench | S | 4 | pro-eng-01 | числа в doc §6; решение по pro-sc-09 |
-| pro-sc-02 ⚠ | `SculptMesh`: чанки по 1024 вершины CoW, `triangles`, CSR-смежность, сетка по вершинам, конверсия `EditMesh ↔ SculptMesh` на входе/выходе режима. Один чанковый тип с mesh-10; структура выбрана 2026-09-09 (Б8 закрыт): `SculptMesh`, не патч-слой mesh-72; pro-sc-01 меряет её, а не выбирает | mesh | L | 4 | pro-sc-01 | мазок 1 % копирует ≤2 % чанков; радиус = перебор; конверсия сохраняет позиции и UV |
-| pro-sc-03 | Кисти draw/clay/smooth/flatten/inflate/grab/pinch/crease, `Brush(kind, radius, strength, falloff)`, симметрия по X, локальные нормали | mesh | M | 4 | pro-sc-02 | по кисти тест с мутацией; симметрия зеркальна 1e-6 |
-| pro-sc-04 ⚠ | BVH по треугольникам `SculptMesh` с `refit(dirtyTriangles)`. Тот же `TriangleBvh` (§3) | mesh | M | 4 | pro-sc-02 | рейкаст = перебор; refit = перестроение |
-| pro-sc-05 | Грязные чанки → `DeviceMesh.overwriteVertices`, не чаще кадра; фолбэк — новый `DeviceMesh` в кадр | app | S | 4 | pro-eng-01, pro-sc-03 | кадр отличается только в области кисти; замер (в) в пороге |
-| pro-sc-06 ⚠ | `SculptStrokeCommand(brush, points, pressures)` — один шаг, `historyBudgetBytes` 512 МБ; MCP `sculpt_stroke` | core | S | 4 | pro-sc-03 | 100 мазков по 1 % на 200k <10 % от 100 копий; undo побайтно |
-| pro-sc-07 ⚠ | `Multires(base, levels)`: подразбиение фазы 2, дельты в локальном базисе, спуск для экспорта с картой смещений; dyntopo — после (Б9 закрыт 2026-09-09: мультиразрешение) | mesh | L | 4 | pro-sc-02, pro-sc-03 | куб 5 уровней; спуск/подъём сохраняют смещения 1e-4; до 1,2 млн <5 с |
-| pro-sc-08 | Экран 08: раскладка без панелей, палитра 48, карточка 250, курсор ⌀140, `pressure`, touch — орбита; кнопка «Подразбить» (уровень `Multires`) вместо «плотности кисти» в макете — следствие Б9 (решение 2026-09-09), дизайн экрана 08 правится. ⇢ ui-29 (оболочка), view-21 (курсор) | app | M | 4 | pro-sc-05, pro-sc-06 | см. ui-29, view-21 |
-| pro-sc-09 | Веб: `ProjectProfile.sculptTriangleLimitWeb` по замеру, BVH с уступкой кадру | app + core | S | 4 | pro-sc-01, pro-sc-08 | число в профиле; мазок на 300k <16 мс на wasm |
-| pro-lod-01 | QEM Garland–Heckbert над `MeshData`: квадрики, куча на `Float64List`/`Int32List`, проверка переворота, `Job` по 1000 коллапсов. Поглощает mesh-70 | mesh | L | 4 | pro-job-01 | сфера 20k → 2k, Хаусдорф <1 % радиуса; 200k → 20k <3 с AOT |
-| pro-lod-02 | Квадрики с атрибутами (Hoppe): штраф швов/границ, перенос `joints/weights` с перенормировкой и лимитом профиля | mesh | M | 4 | pro-lod-01 | швы ⊂ исходных; сумма весов 1; кадр `lod-uv` |
-| pro-lod-03 | `ModelObject.lods: List<LodSpec(ratio, maxScreenFraction)>` с кэшем по версии; `AddLod`, `SetLodRatio`, `RegenerateLods`; метры ↔ доля экрана в редакторе | core | S | 4 | pro-lod-02, pro-eng-06 | правка базы инвалидирует кэш; round-trip |
-| pro-lod-04 | Экран 17: три `RenderView` по третям с `layerMask`, подписи, полоса 96 с зонами. Поглощает view-20 | app | M | 4 | pro-lod-03 | три трети различаются; widget-тест ползунка |
-| pro-rt-01 | `retopologize(source, targetQuads)`: упрощение → жадная квадрификация → shrink-wrap по BVH; quadriflow — после. Поглощает mesh-73 | mesh | L | 4 | pro-lod-01, pro-sc-04 | квадов ≥70 % на сфере и торе; расстояние <0,5 % диагонали |
-| pro-rt-02 ⚠ | `DrawQuadCommand(4 × world)` с рейкастом и прилипанием; активный квад — переприменение; вершины с проекцией | core | M | 4 | pro-rt-01 | четыре точки на сфере → квад на поверхности |
-| pro-rt-03 | Оверлей ретопологии: исходник с `alpha`, сетка лентами 1,6, активный квад `#FF458E` 22 % | app | S | 4 | pro-eng-07, pro-rt-02 | кадр `retopo-overlay` при двух прозрачностях |
-| pro-rt-04 | `bake/`: UV-растеризатор low-меша, лучи ±оболочка в BVH high-меша → карта нормалей в тангенс-пространстве, дилатация; GPU-путь — после | mesh | L | 4 | pro-sc-04, pro-job-01 | сфера→куб: центр грани = аналитика (<2/255); 1024² на 100k <10 с |
-| pro-rt-05 | AO (Хальтон, косинус), кривизна, толщина на той же растеризации | mesh | M | 4 | pro-rt-04 | плоскость AO=1; угол 90° ≈0,5 |
-| pro-rt-06 ⚠ | `BakeCommand(source, target, maps, resolution, shell)` → `EncodedImage` и `TextureBinding`; MCP `bake_maps` | core + mcp | M | 4 | pro-rt-05, pro-rt-01 | сценарий сфера → скульпт → ретопо → bake → GLB; кадр `bake-relief` |
-| pro-rt-07 | Экран 10: панель 290 в два блока, прогресс на месте кнопки | app | S | 4 | pro-rt-06, pro-rt-03 | Job меняет кнопку на индикатор; отмена |
-| pro-sim-01 ⚠ | Плоский солвер ткани, фаза 4 (В3/И1 закрыты 2026-09-09): XPBD (расстояние, изгиб cross-edge, закреплённые, гравитация, ветер, демпфирование, подшаги), столкновения с `CollisionShape` из physics; детерминизм как в sim. Жил отдельным пакетом flutter3d_cloth; слит в `flutter3d_physics` (`doc/package-merge-plan.md` §3.1) — солвер этой строки код не менял, изменился только пакет | physics | L | 4 | — | ткань 20×20 в покое за 300 шагов; ошибка длины <1 %; побайтно при одном seed; число пакетов в README/§3.2/§16 сдвинуто в том же коммите |
-| pro-sim-02 ⚠ | Твёрдое тело через `Dynamics`/`RigidBody` (без вращения, с подписью), частицы через `ParticleSystem` в кэш | core | S | 4 | pro-sim-03 | куб падает и останавливается; частицы детерминированы |
-| pro-sim-03 | `SimulationCache(frames, vertexCount)`, `BakeSimulationCommand` как Job, секция проекта, полоса кэша | core | M | 4 | pro-sim-01, pro-job-01 | 120×400 — ожидаемый размер; отмена на 50-м оставляет 50 |
-| pro-sim-04 | Проигрывание кэша через `overwriteVertices` целиком, столкновения `DebugDraw` | app | S | 4 | pro-sim-03, pro-eng-01 | кадры 0 и 60 различаются; 4k вершин <2 мс |
-| pro-sim-05 ⚠ | Экспорт симуляции: (а) ≤8 морф-целей, (б) секция вершинной анимации `.f3d` + узел, (в) только предпросмотр; рекомендация (а) | core | M | 4 | pro-sim-03 | ткань → 8 целей → GLB → кадр = кэш (`cloth-morph`) |
-| pro-sim-06 | Экран 11: чипы типа, параметры, взаимодействия, полоса 150 с транспортом и кэшем | app | M | 4 | pro-sim-04, pro-sim-02 | widget-тесты; закрепление через выделение фазы 1 |
-| pro-rn-01 | Замер `flutter3d_cpu` на 1080p и 4К с тенями/SSAO/bloom, AOT и wasm; порог 4К SSAA×2 <3 мин на M3 | cpu | S | 4 | — | числа в doc §4.2 |
-| pro-rn-02 ⚠ | `RenderSnapshotJob(project, RenderPreset)`: снимок тем же рендерером — своё `CpuDevice`, тайлы, SSAA ×1/×2, проходы frame graph (pro-eng-05), PNG; изолят на нативе, тайл за кадр на вебе; трассировщик вне плана, слово «сэмплы» из макета экрана 12 уходит (решение 2026-09-09) | core | M | 4 | pro-rn-01, pro-eng-04, pro-job-01 | 480×360 = golden побайтно (×1); ×2 <1 % пикселей |
-| pro-rn-03 ⚠ | `CompositeGraph` — фиксированный DAG Scene → SSAO → Reflections → Bloom → Tonemap → Look → Output ↔ `RenderSettings`; post-правка через `renderPost` | core | M | 4 | pro-eng-03, 05, pro-rn-02 | round-trip; правка bloom помечает только post-ветку |
-| pro-rn-04 ⚠ | Экран 12: панель проходов из `passes`, результат 760×428 с прогрессом тайлов, граф 260 (виджет из mat-13); MCP `render_snapshot` | app + mcp | M | 4 | pro-rn-03 | снимок 96×64 = `renderFrame` |
-| pro-pt-01 | `PaintLayer` + `PaintStack.flatten`, режимы normal/multiply/add/overlay/screen, тайлы 64×64 CoW | core | S | 4 | — | по режиму известные числа; порядок слоёв |
-| pro-pt-02 | `projectBrush(mesh, bvh, hit, radius) → List<UvSpan>` через растеризатор pro-rt-04, falloff в 3D | mesh | M | 4 | pro-rt-04, pro-sc-04 | мазок через шов красит оба острова; тексели вне 3D-радиуса не тронуты |
-| pro-pt-03 | `PaintStrokeCommand`, `overwriteTexture` грязным прямоугольником раз в кадр, мипы по завершении, маски AO/кривизны; MCP `paint_stroke` | core + mcp | M | 4 | pro-pt-01, 02, pro-eng-02 | кадр отличается только в области; маска AO=0 гасит; undo побайтно |
-| pro-pt-04 ⚠ | Сведение слоёв в `baseColorTexture` при экспорте, слои в секцию проекта, импортированная текстура — фоновый слой | core | S | 4 | pro-pt-03 | кадр `paint-export` |
-| pro-pt-05 | Экран 18: курсор ⌀96, панель развёртки 300 с `ui.Image` из flatten, слои/палитра/маски | app | M | 4 | pro-pt-03, pro-uv-07, pro-sc-08 | холст обновляется после мазка |
-| pro-doc-01 ⚠ | Секции `SEAM`, `UVIS`, `MRES`, `BAKE`, `SIMC`, `PNTL`, `LODS`, `RNDR` с версиями; проект фазы 1 читается | core | M | 4 | pro-uv-01, sc-07, rt-06, sim-03, pt-01, lod-03, rn-03 | round-trip каждой; файл фазы 1 открывается |
-| pro-test-01 | Восемь кадров фазы 4, MCP-сценарий «куб → … → GLB», числа | app + mcp | M | 4 | pro-uv-07, sc-08, rt-07, sim-06, rn-04, lod-04, pt-05 | `ci.sh` зелёный; сценарий воспроизводится |
-| pro-after-01 | Раздел «после фазы 4» в doc с причинами по каждому отложенному; отдельной строкой — «совместная работа» из фазы 4 плана дизайна и README передачи («основание для будущей совместной работы»): в план не входит, задел — журнал команд doc-16 и команды как значения (добавлено по критике) | doc | S | 4 | pro-sc-01, pro-rn-01 | согласован владельцем; строка о совместной работе ссылается на doc-16 |
-| pro-pt-06n *(добавлено 2026-09-10 по гэп-анализу)* | **Покраска вершинных цветов**: слой уже есть (`mesh-12` держит `color` по углу), нет кисти и показа. Кисть — та же `projectBrush`, что для текстур, только пишет в слой вершин. Гэп-анализ: маски для ветра, грязи, износа и смешивания текстур в играх живут в вершинном цвете, потому что он бесплатен и едет с мешем | mesh + app | M | 4 | mesh-12, pro-pt-02 | мазок красит вершины в 3D-радиусе и не трогает соседние; цвет переживает экспорт в glTF и чтение обратно; отмена одним шагом |
-| pro-uv-08n *(добавлено 2026-09-10 по гэп-анализу)* | **Атлас через объекты**: упаковка островов нескольких объектов в одну текстуру и переклейка их материалов на общий. Гэп-анализ: девять пропсов с одной текстурой — один вызов отрисовки вместо девяти. Половина работы уже есть — `pro-uv-04` пакует острова внутри объекта; не хватает упаковки через границу объекта | mesh + core | M | 4 | pro-uv-04, mat-01 | девять объектов → один материал и один атлас; заполнение атласа ≥60 %; число вызовов отрисовки в кадре падает с девяти до одного |
-| pro-rt-08n *(добавлено 2026-09-10 по гэп-анализу)* | **Ручная ретопология по поверхности**: новые вершины липнут к поверхности другого объекта. Авторетопология (`mesh-73`) даёт равномерную сетку и никогда — правильное течение рёбер вокруг глаза или сустава; для персонажа это делают руками. Та же привязка, что `view-26n`, только к чужому мешу — поэтому и после неё | app | L | 4 | view-26n, mesh-20 | вершина, поставленная над высокополигональной моделью, ложится на неё в пределах 1e-4; отход от поверхности при повороте камеры не накапливается |
-| pro-lod-05n *(добавлено 2026-09-10 по гэп-анализу)* | **Импостеры и билборды**: запекание нескольких ракурсов в атлас и карточка вместо меша на дальнем LOD. Гэп-анализ: дерево на трёхстах метрах — два треугольника с запечённой картинкой, а не пять тысяч. Последним и осознанно: без сцены, где это заметно, оптимизировать нечего | app + core | L | 4 | pro-rt-06, pro-rn-02 | восемь ракурсов в атлас 1024²; силуэт на 300 м отличается от меша меньше чем на 3 % пикселей |
-
-### 2.9 Тесты, CI, структура (`qa-`)
-
-Инфраструктура жёсткая и уже есть: 30 правил сканера, `tool/ci.sh`,
-`flutter3d_testing`, 33 конформанс-проверки, образец агентского сценария в CI.
-Проверено: `main` красный по трём причинам из HANDOFF — блокер фазы 0. Пробой
-детектора: `brush`, `bone`, `face`, `bevel`, `loop`, `manifold` проходят;
-`dashed`, `reload`, `spike`, `oneWay`, `lap`, `boss`, `magazine` — нет.
-Списки числительных сканера кончаются на twenty-eight (пакеты) и forty-five (сцены).
-
-| id | что | пакет | р. | ф. | зависит | приёмка |
-|---|---|---|---|---|---|---|
-| qa-01 | Зелёный `main`: `dart format` четырёх файлов, 4322 → 4327 в четырёх документах, guard WebGPU через `requestAdapter()` | repo | S | 0 | — | 30 of 30; format молчит; три зелёных прогона подряд; дата в HANDOFF |
-| qa-02 | Три пакета, `geometry`, `formats` и приложение под сканером: workspace, `flatDartPackages` с причинами, `applications`, `notARepeatableStep`, числительные до forty (28 сегодня + geometry/formats/mesh/core/mcp = 33 к концу фазы 0, до 37 с editor_widgets/rig/cloth/fbx; список в `rules.dart` расширяется до появления каталога, как требует его же комментарий), §16, README, `packages.md`, `testing.md`, Info.plist, CHANGELOG/LICENSE/README. Общий с mesh-00, doc-02, ui-01, rel-02/03 | tool/structure + docs | S | 0 | qa-01 | сканер зелёный с шестью каталогами; `publish_check.sh` доволен |
-| qa-03 ⚠ | Правило «a flat Dart package resolves without the Flutter SDK»: обход `dependencies` до `flutter: sdk`; доказательство детектора; счёт правил 30 → 31 в шести местах | tool/structure + docs | S | 0 | qa-02 | зелёное на трёх плоских; красное на мутации и на model_core → flutter3d |
-| qa-04 | `ci.sh` читает список `dart test` из `flatDartPackages` (`--flat-dart`); `-p chrome` для mesh; процессный тест `dart run bin/model_mcp.dart`. Поглощает doc-30 | tool | S | 0 | qa-02 | удаление имени из списка меняет команду без правки скрипта |
-| qa-05 | Словарь запрещённых слов в doc и CONTRIBUTING (`dashed` → `dotted`, `reload` → `reopen`, `spike` → `peak`); примеры в `proveDetectorsWork` | tool/structure + docs | S | 0 | — | `dashedAxis` зажигает, `bevelWidth` молчит |
-| qa-06 | Политика enum и публичных членов: `ElementLevel`, `IssueSeverity` — enum с экземпцией; содержимое — sealed; тест как вызывающий | tool/structure + docs | S | 1 | qa-02 | скелет с enum и sealed проходит; таблица в doc |
-| qa-07 ⚠ | Аудит инвариантов half-edge, χ по операциям, манифолдность, round-trip, фазз с сидом, персистентность ≥90 % чанков. ⇢ mesh-11 (`validate`), mesh-32 (фазз), mesh-10 | mesh | M | 1 | qa-02, qa-04 | см. mesh-11/32; зелёный на VM и `-p chrome` |
-| qa-08 ⚙⚠ | Round-trip писателей и STL-фикстуры с провенансом в `assets/ATTRIBUTION.md` пакета `flutter3d_samples` (там провенанс записан сегодня, по файлу с автором и источником; `LICENSES.md` лежат только в `apps/*/assets/`), bump samples 0.4.2 → 0.4.3. ⇢ fmt-06/07/08/09/10 (тесты там) | engine + samples | M | 1 | qa-01 | см. fmt-*; допуск 1e-6, не побайтно |
-| qa-09 | glTF-Validator в `ci.sh`. ⇢ fmt-11 | tool | S | 1 | qa-08 | см. fmt-11 |
-| qa-19n *(добавлено по критике)* | Проверка экспорта во внешнем движке автоматически, как требует план дизайна («экспортированный файл открывается в Godot и Unity» автотестом): headless Godot (`godot --headless --import` + скрипт, печатающий число мешей/треугольников/материалов) на фикстурах doc-21 и rel-09 в отдельном job CI; Unity и Blender — ручной чек-лист перед релизом (К2 закрыт 2026-09-09; headless-лицензии Unity в CI нет) | tool + ci | S | 1 | fmt-11, doc-21 | job зелёный на `table.glb` и GLB туториала; число мешей и треугольников совпадает с `compareModelDocuments`; время шага в `ci.yml` |
-| qa-10 ⚙⚠ | Сцены `mesh-overlay` (⇢ view-05) и `material-preview` (⇢ mat-15 в app, не в 43 сценах); бюджеты, `_provisional`, forty-three → forty-four | engine example + бэкенды | M | 1 | qa-01 | см. view-05; `_provisional` пуст к мержу |
-| qa-11 ⚙⚠ | Конформанс-проверка перезаписи буфера, 33 → 34. ⇢ view-14³ | conformance + hw | M | 2³ | qa-01 | см. view-14; Impeller-прогон с датой в HANDOFF |
-| qa-12 ⚠ | Сценарий «агент строит стол» и `tools_test` round-trip. ⇢ doc-20, doc-21 | mcp | M | 1 | qa-02, qa-04 | см. doc-21 |
-| qa-13 ⚠ | Бенч-артефакт CI `bench-mesh` (⇢ mesh-04/31), стресс-сцена и `FrameTimingLog` (⇢ p0-01/02/03), таблица в HANDOFF и doc | mesh + engine + ci | M | 0 | qa-02 | артефакт в каждом `check`; таблица с машиной |
-| qa-14 | `draw_count_baseline_test` на CPU с точными числами. ⇢ view-22 | cpu | S | 1 | qa-01 | см. view-22 |
-| qa-15 ⚠ | Тесты приложения через растеризатор. ⇢ ui-26 (+ `scaffold_test`, `theme_test` из ui-05/ui-02) | app | M | 1 | qa-02, qa-14 | см. ui-26 |
-| qa-16 | Документы догоняют дерево: README, `packages.md`, `testing.md`, §3.2/§13/§16, skills, рецепт «новый тест → `structure.dart` → четыре документа». Общий с rel-07, fmt-16 | docs + site | S | 1 | qa-02 | сканер зелёный после каждого мержа; 33 пакета и 7 приложений |
-| qa-17 ⚠ | Веб-сборка редактора (wasm), `flutter build macos`, iOS `--no-codesign`, Android-матрица в CI; время шагов записано | tool + ci | S | 1 | qa-02, qa-13 | сборки зелёные; время до/после в `ci.yml` |
-| qa-18 ⚠ | Тесты формата проекта, команд, истории, `ExportReadiness`. ⇢ doc-05/08/10/14 (тесты там) | core | M | 1 | qa-02, qa-07 | см. doc-*; фикстура одинакова на ubuntu и macOS |
-
-### 2.10 Фаза 0: замеры (`p0-`)
-
-Инструменты замера уже есть, но разрознены: `Timeline` вокруг проходов,
-`FrameResult.cpuMicros/submitMicros/drawCalls`, `FrameTimingLog`, HUD примера,
-`bench_util.dart`; форма записи задана ARCHITECTURE §14 и `tool/webgpu_spike/README.md`
-(«The answer»). Пять пунктов проработки разложены на двенадцать единиц; половина
-решений §7 принимается порогом на числе, и для каждого записан порог и действие
-при каждом исходе.
-
-| id | что | пакет | р. | ф. | зависит | приёмка |
-|---|---|---|---|---|---|---|
-| p0-01 ⚠ | Стенд: нагрузка строится в `staging.dart` (`kStress`, `kStressObjects`, `kOrbit` из `--dart-define`), орбита на 600 кадров, HUD с `FrameTimingLog` и временем загрузки, генератор `.f3d`/GLB на 1 млн, Android-раннер примера с `EnableFlutterGPU`. Стенд живёт в модельере, а не в примере движка: мерить надо тот путь, которым открывается документ. Общий стенд для view-01, qa-13, ui-00 | modeler + tool/model_spike | S | 0 | — | profile-запуск на macOS печатает тайминги; wasm собирается; тест 10k треугольников через golden |
-| p0-02 | Замер 0.1: macOS Metal, Chrome WebGL2/WebGPU, JS и wasm; один меш на 1 млн и 1000×1000; build/raster mean/worst, `cpuMicros`, загрузка, память; три прогона | doc | S | 0 | p0-01 | ворота качества (решение 2026-09-09: веб равноправен, замер не выбирает «просмотр»): ≤16,6 мс → бюджет веб-профиля 1 млн; 16,6–33 → бюджет профиля ≤300k; >33 или загрузка >10 с → в фазу 1 входит то, что нужно для прохождения — JS-сборка как записанное исключение ARCHITECTURE §1, порции вместо изолята (p0-07), ui-34d; до 2026-10-05 |
-| p0-03 | Замер 0.1 на Galaxy A55 (200k/500k/1M, загрузка через изолят, память) и на iPad после rel-19d | doc | S | 0 | p0-01 | значение при ≤16,6 мс → «мобильный» пресет профиля; 200k >33 мс → мобильный пресет ужимается до прошедшего бюджета, телефон остаётся платформой фазы 1 (решение 2026-09-09) |
-| p0-04 ⚠ | Спайк `EditMesh` (куб → экструзия → toMeshData → кадр) с бенчем 50/200k. ⇢ mesh-01 (в пакете, не в `tool/`); пороги: ≤8 мс → перестройка целиком в кадр; 8–33 → `writePositions(into:)` в 1.2 и p0-06 обязателен; >33 → пересмотр структуры | mesh | M | 0 | p0-09 | см. mesh-01; ответ до 2026-09-25 |
-| p0-05 ⚠ | Персистентность: `ChunkedFloat32` (128/256/1024) против `PatchedFloat32` (журнал прежних значений), кластер и случайное распределение, RSS за 64 шага. ⇢ mesh-02 | mesh | S | 0 | p0-04 | ≤10 % копии и ≤2 мс в обоих → чанк фиксируется; только кластер → плоский массив + журнал; ни одно → снимок на транзакцию |
-| p0-06 ⚙⚠ | `DeviceMesh.upload` в кадр против прототипа `overwriteGeometry` (Impeller `DeviceBuffer.overwrite`, WebGL `bufferSubData`, WebGPU `writeBuffer`) на 200k при 1 % правок; прототип в ветке | engine example + hw (ветка) | M | 0 | p0-01 | (а) ≤16,6 мс → overwrite в фазу 4; (б) проходит → view-14 в фазу 1; ни одно → предпросмотр оверлеем |
-| p0-07 ⚠ | `Isolate.run` (с/без `TransferableTypedData`) против порций с уступкой на wasm для fromMeshData+toMeshData на 200k | mesh + engine example | S | 0 | p0-04 | накладные ≤20 % / ≤50 мс; порции: worst ≤50 мс и +≤25 % → операции пошаговые с первого дня; иначе заморозка с прогрессом на месте кнопки (Е11), а при заморозке >1 с на эталонной операции — ui-34d в фазе 1 |
-| p0-08 ⚠ | Веб-спайк файлов под `tool/`: `openModel` → `readAsBytes` → `decodeModel` → кадр; скачивание через `package:web`; `--wasm`; Chrome/Safari/Firefox; 30 МБ. Код перешёл в ui-14 (`project_files_web.dart`) — отдельного спайка не осталось. Открытие `.gltf` вместе с соседним `.bin` не сделано: `openModel` берёт один файл, и это записанная дыра ⇢ ui-36n | modeler | S | 0 | — | ворота качества: (1)–(3) проходят → 1.15 берёт код; не собирается под wasm → JS-сборка как записанное исключение; Safari/Firefox нет → своя обёртка через `package:web` в ui-14 (веб равноправен, решение 2026-09-09); заморозка >1 с на 30 МБ → ui-34d |
-| p0-09 ⚙⚠ | Три скелета под сканером + проверка в контейнере `dart:stable` без Flutter + правило на транзитивную SDK-зависимость. ⇢ doc-00 (спайк), qa-02 (регистрация), qa-03 (правило), rel-04 (контейнер) | packages + tool/structure | S | 0 | — | см. doc-00/qa-03; ответ до 2026-09-25 |
-| p0-10 ⚠ | Прототип `TriangleBvh` (становится реализацией view-09) + проекция вершин/рамка на 50k/200k/1M против `Raycaster` перебором. ⇢ mesh-20 / view-09 (одна реализация, §4); здесь — замер | mesh | S | 0 | p0-04 | луч ≤1 мс/200k, ≤3 мс/1M, build ≤100 мс, проекция ≤4 мс → пикинг на CPU; иначе окрестность по half-edge / id-проход граней в фазе 2 |
-| p0-11 ⚠ | Сквозной конвейер перетаскивания на 600 кадров: правка → снимок → toMeshData → буфер → кадр; GC-паузы, аллокации, доля медленных кадров | mesh + engine example | S | 0 | p0-01, 04, 05, 06 | нет пауз >8 мс и ≤5 % медленных → API на значениях; 8–16 → `toMeshData(into:)`, снимок на транзакцию; >16 → изменяемый рабочий режим внутри транзакции |
-| p0-12 | README спайков «The answer», таблица §6 с измеренными значениями (дата, машина, Dart), §7 со столбцом «решено», дубли в ARCHITECTURE §14 | doc | S | 0 | p0-02..11, p0-13n | ни одной строки фазы 0 без числа; §7 без «решает замер»; срок 2026-10-05 |
-| p0-13n ⚠ *(добавлено по критике)* | Спайк «сохранение под сандбоксом macOS»: `file_selector.saveFile` + прямая запись без rename, против `writeFileAtomically` (временный файл + rename — под `user-selected.read-write` rename в каталог выбранного файла не разрешён; редактор уровней выключил сандбокс именно с этой формулировкой в `Release.entitlements`), против security-scoped доступа к каталогу. Ответ закрывает Е4 и native-ветку ui-14 | app (спайк под `tool/`) | S | 0 | ui-00 | таблица «способ × сандбокс → записалось / `PathAccessException`»; выбранный способ записан в ui-14 и Е4 |
-
-### 2.11 Публикация и продукт (`rel-`)
-
-Инфраструктура выхода почти вся автоматическая: `publish_check.sh`, сборка
-API-справочника по каталогам, `llms.txt` из NAV, `demos.sh`, CI строит iOS без
-подписи и Android с ключом. Набор на 0.6.0, 27 из 28 на pub.dev; имена
-`flutter3d_mesh`, `flutter3d_model_core`, `flutter3d_model_mcp`, `flutter3d_modeler`
-свободны (проверено 2026-09-09), как и `flutter3d_geometry`, `flutter3d_formats`,
-`flutter3d_fbx`, `flutter3d_cloth`. Точки трения — ручные списки; сайт не показывает четвёртую
-игру, так что «рядом с четырьмя играми» опирается на незакрытый пункт ROADMAP.
-
-| id | что | пакет | р. | ф. | зависит | приёмка |
-|---|---|---|---|---|---|---|
-| rel-01 | Зафиксировать имена (решение 2026-09-09, В5: mesh / model_core / model_mcp, geometry / formats, app `flutter3d_modeler`, bundle `dev.flutter3d.modeler`; код в этом монорепозитории) в doc §7 с датой проверки | doc + ARCHITECTURE | S | 0 | — | строка «Название» с датой; те же имена в §16 |
-| rel-02 | Каркас трёх пакетов, зелёный в `publish_check` (version = набор, `resolution: workspace`, `^0.6.0` на соседей, LICENSE/CHANGELOG); в mcp — заглушка `bin/model_mcp.dart`, отвечающая на `--help` (нужна rel-04 в фазе 0; настоящий сервер — doc-19). Общий с qa-02 | mesh, core, mcp | S | 0 | rel-01, mesh-00 | `publish_check.sh` печатает `ready` для трёх; `dart run flutter3d_model_mcp:model_mcp --help` печатает usage |
-| rel-03 ⚠ | Сканер, §16 (`geometry` раньше `formats`, `formats` раньше `flutter3d`; mesh после `geometry`, core после `formats`, `flutter3d_editor_core` после `formats` — новая зависимость mat-03, mcp ярусом ниже; порядок по решению 2026-09-09), `ci.sh`, числительные. ⇢ qa-02/qa-04 | tool + ARCHITECTURE | S | 0 | rel-02 | см. qa-02 |
-| rel-04 | Job на `setup-dart` без Flutter: временный pubspec с `dependency_overrides`, `dart pub get`, `dart run …:model_mcp --help` (заглушка из rel-02; `tools/list` в контейнере — приёмка doc-19); тот же скрипт для `editor_mcp`. ⇢ doc-00/qa-03 (контейнерная половина). Зависимость от doc-19 снята по критике: пункт фазы 0 ждал пункт фазы 1 | mcp + ci | S | 0 | rel-02, rel-03 | зелёный на чистом SDK; красный при `flutter: sdk` |
-| rel-05 | Место в поезде: §16 «carries X and does not go out» для пяти новых пакетов до набора, в котором выходит rel-06 (после rel-16; В8 — 27 декабря целью не является); CHANGELOG под номером следующего набора по ходу; один тег на набор | ARCHITECTURE + CHANGELOG | S | 1 | rel-02, rel-03 | §16 называет, кто выходит; правило версий зелёное |
-| rel-06 | Первая публикация в порядке §16 (geometry → formats → flutter3d → mesh → core → mcp), сверка архива с деревом (skills/ в архиве), README/`index.md`/`packages.md`, `deploy-docs.sh`. Решение 2026-09-09 (В8): только когда фаза 1 в руках у первых пользователей — после rel-16; 27 декабря целью не является | mesh, core, mcp, geometry, formats + site | S | 1 | rel-05, rel-14, rel-16, doc-10, doc-14 | pub.dev отвечает 200; pub points ≥150; /docs/ с 33 пакетами |
-| rel-07 | README «What is here», §3.2, `packages.md`, `testing.md`, `quickstart.md`, счётчики. Общий с qa-16 | docs + site | S | 0 | rel-02, rel-03 | сканер зелёный; `rg 'twenty-eight'` только в §16 |
-| rel-08 | Секция сайта `Modeler` (badge `tool`): `index.md`, `tutorial.md`, `demo.md`; карточка на главной; картинки из тестов app в `site/assets/modeler/` или расширение `goldenSets` | site | M | 1 | rel-07, ui-04 | три страницы в сайдбаре и `llms.txt`; картинки существуют |
-| rel-09 | Туториал «ассет из импорта в движок за 15 минут» шагами; тот же сценарий как `tutorial.jsonl` через MCP в CI с диффом GLB и кадром; измеренное время с датой; `first-project.md` — четыре шаблона | site + app + mcp | M | 1 | rel-08, ui-16/17, doc-20, fmt-06 | сценарий в CI; `GltfLoader` без warnings; время с машиной на странице |
-| rel-10 ⚠ | `"modeler:apps/flutter3d_modeler"` в `demos.sh`, `demo.md` с iframe и full screen; тем же компилятором, что шипит сайт (dart2js без wasm); COOP/COEP проверить в Safari; веб-демо редактирует, не только показывает — при непройденных воротах p0-02 сначала делается то, что их закрывает (решение 2026-09-09) | site + app | M | 1 | rel-08, ui-14, p0-02 | /demo/modeler/ открывает GLB и скачивает в Chrome и Safari |
-| rel-11 | `flutter build macos --release` в job `macos`, `upload-artifact`, GitHub Release на тег; подпись и нотаризация не в фазе 1, релиз открывается «правый клик → Open» (Е8, решение 2026-09-09) | ci + app | S | 1 | rel-03, ui-20 | артефакт открывается на чистом Mac через «правый клик → Open»; Release несёт zip |
-| rel-12 ⚠ | Запись в ROADMAP на ревизии 28 сентября: трек «A modeller, and the same agent driving it» с Acceptance; правка «After this quarter» об экспортёре, «Not doing» о графе, `apply and revert` (⇢ doc-29) | ROADMAP | S | 0 | rel-01, rel-17 | ROADMAP с датой ревизии содержит трек; согласован с doc §4 |
-| rel-13 ⚙⚠ | Модели шаблонов редактора уровней из документов редактора моделей: исходники в `tool/models/`, `dart run flutter3d_model_core:export`, `git diff --exit-code`; требует детерминированного `GltfWriter`; опция — пятый шаблон `showcase` | tool + шаблоны редактора уровней + core | M | 2 | rel-09, fmt-06, doc-10 | `make_templates.py && git diff --exit-code` зелёный на macOS и ubuntu |
-| rel-14 | Skills `editing-order`, `model-document`, `what-it-refuses` + `skills_test` (и для `editor_mcp`). ⇢ doc-22 | mcp | S | 1 | rel-02, doc-20 | см. doc-22; `--dry-run` показывает skills/ в архиве |
-| rel-15 | `modeler_report.yml` (label `modeler`), кнопка «Report a problem» с предзаполненным URL без телеметрии, `bug_report.yml` с четырьмя бэкендами | .github + app + site | S | 1 | rel-08, doc-14 | форма в chooser; widget-тест URL |
-| rel-16 | Когорта 5–10 человек, задание — туториал с засечкой, абзац в «Where it stands» с числами; фаза 2 не начинается без него | ROADMAP + doc | S | 1 | rel-09, 10, 11, 15 | ≥5 прохождений с временем; фраза о 15 минутах подтверждена или переписана |
-| rel-17 | Ответ о платформах (решение 2026-09-09): фаза 1 — macOS, браузер, Android (планшет и телефон), iOS (iPad и iPhone), все четыре равноправно; Windows/Linux — после трека ROADMAP; сайт не обещает платформу без сборки в CI; замеры p0-02/03/08 — ворота, не выбор | doc §7 + ROADMAP + ci | S | 0 | p0-02/03, p0-08 | таблица в §7 и на странице; для каждой из четырёх платформ есть шаг CI (qa-17) |
-| rel-19d *(добавлено по решениям 2026-09-09)* | Закупка: физический iPad с Pencil и аккаунт Apple Developer до середины фазы 1 (А2, Е8); владелец — Дмитрий; после покупки p0-03 дозамеряется на iPad, ui-21 и qa-17 получают устройство для ручной проверки; подпись и нотаризация macOS в фазе 1 остаются «правый клик → Open» | владелец | S | 1 | — | строка iPad в таблице p0-03 заполнена числом с датой; сборка ui-21 стоит на iPad и Galaxy A55; аккаунт записан в HANDOFF без секретов |
-| rel-18 | SECURITY.md: STL, формат проекта, писатели в scope; `config.yml` → форма | SECURITY + .github | S | 1 | rel-15, fmt-06/08/09 | перечислены; согласовано с ARCHITECTURE §8 |
-
-### 2.12 Сноски к изменённым фазам
-
-Размеры не менялись. Фаза изменена у трёх пунктов при синтезе (¹–³) и ещё у
-пяти по решениям владельца 2026-09-09 (⁴–⁸), причина у каждого:
-
-¹ pro-job-01 — с фазы 4 на 2: слит с doc-24 (фаза 2), потому что раннер задач
-нужен уже булевым модификаторам и запеканию графа фазы 2 (mat-11, mat-20), а
-не только фазе 4.
-
-² anim-26 — с фазы 3 на 1: слит с fmt-07, потому что писатель glTF без скинов
-молча теряет риг импортированной модели, и fmt сам ставит скины в фазу 1 (⚠ с
-ROADMAP, §7 п. 7).
-
-³ qa-11 — с фазы 1 на 2: слит с view-14, у которого фаза 2 по умолчанию и
-фаза 1 по исходу p0-06; конформанс-проверка идёт вместе с правкой контракта,
-а не раньше неё.
-
-⁴ ui-21 — с фазы 2 на 1: решение 3 (фаза 1 выходит на macOS, вебе, Android и
-iOS), платформенные конфигурации нужны к первой версии; §7 № 34 поправлен.
-
-⁵ fmt-25 — с фазы 3 на 2: решение 18 (свой читатель FBX), скины и анимация
-идут той же дорожкой сразу за fmt-24, а не ждут конвейера персонажа.
-
-⁶ doc-11a-n — фаза та же (2), снято условие «по §7 № 36»: решение 10,
-расстановка ассетов входит в режим «Сцена» безусловно.
-
-⁷ fmt-26 — снят: решение 18, серверной конвертации нет.
-
-⁸ ui-34d — новый пункт фазы 1 по условию, тогда как Е11 отводил web worker
-в фазу 2: решение 2, если p0-07/p0-08 покажут заморозку дольше 1 с.
-
-### 2.13 Агент, который видит модель (`mcp-`)
-
-Аспект добавлен 2026-09-10. `doc-19`…`doc-22` заводят сервер, сессию из десяти
-глаголов и таблицу инструментов из `modelCommandNames` — и ни один из десяти
-глаголов не визуальный. Агент правит модель вслепую: он знает числа
-`ExportReadiness` и не видит силуэта. Единственная картинка в плане —
-`render_snapshot` из `pro-rn-04`, фаза 4, позади оффлайн-рендерера.
-
-**Почему картинку нельзя отдать сегодня.** `flutter3d_model_mcp` — плоский
-Dart-пакет: правило, которое держат `tool/structure.dart` и
-`tool/flat_dart_check.sh`, а причина записана в его pubspec — «`dart run` не
-разрешит пакет, зависящий от Flutter SDK, поэтому один Flutter-импорт в этом
-графе не более тяжёлый процесс, а сервер, который не запустится». Редактор
-уровней уже упёрся: его инструмент `screenshot` существует и **отказывает**
-(`editor_tools.dart:389`), потому что `GraphicsDevice.present` возвращает
-Flutter-виджет.
-
-**Развязка дешевле, чем звучит, и это факт разведки, а не надежда.** В
-`packages/flutter3d/lib/` Flutter называют **четыре файла**, и все про загрузку
-ассетов: `asset_source.dart` и `gltf_resolvers.dart` (`rootBundle`),
-`model_loader.dart` (`kIsWeb`), `texture_upload.dart` (`dart:ui` для
-декодирования). `Renderer`, `Scene`, `CameraNode`, `DeviceMesh`, `RenderView` и
-весь граф проходов Flutter не называют. В `flutter3d_cpu` то же: рисование
-чистое, Flutter нужен только `present()` и декодирование картинок; `encodePng`
-**уже** чистый Dart. Препятствие — три точки, а не пронизанность.
-
-**Путь от проекта до картинки уже существует.** `ModelerStage.fromProject` →
-`renderFrame` → `encodePng` — ровно это делает `frame_test.dart`, рисуя кадры
-160×100 без GPU. Не хватает того, чтобы он был доступен процессу без Flutter.
-
-Решения этого захода: потребитель — агент-помощник рядом с человеком; сервер
-живёт в обоих домах (headless по умолчанию, GUI по флагу); транспорт — stdio
-для headless и локальный HTTP для GUI; агент получает все команды плюс
-составные рецепты; адресация — числовые id, как внутри; история общая, но
-агент отменяет только своё; журнал в основе.
-
-| id | что | пакет | р. | ф. | зависит | приёмка |
-|---|---|---|---|---|---|---|
-| mcp-01n ⚙⚠ | **контракт**: `GraphicsDevice.present() → Widget` уезжает из `flutter3d_hardware` в отдельный `DevicePresenter`, который реализует Flutter-обёртка рядом с каждым бэкендом. Слой железа перестаёт называть Flutter — так же, как он уже не называет графический API | hw + 4 бэкенда + conformance | L | 1 | — | `flutter3d_hardware` и `flutter3d_conformance` в `flatDartPackages`; 33 проверки конформанса зелёные на четырёх бэкендах; новое правило сканера «слой железа не называет Flutter» |
-| mcp-02n | `flutter3d_cpu` становится плоским пакетом: `cpu_device.dart` теряет `package:flutter/widgets.dart`, `cpu_frame_widget.dart` уезжает в обёртку. `encodePng` уже чистый и едет бесплатно | cpu | M | 1 | mcp-01n | `dart test` (не `flutter test`) прогоняет набор `flutter3d_cpu`; пакет в `flatDartPackages`; `tool/dump_fixture.dart` становится скриптом — его собственный комментарий сегодня объясняет, почему он тест |
-| mcp-03n ⚙ | Flutter-free ядро рисования: `rootBundle` уходит за инжектируемый ридер (расширить `AssetSource`/`AssetUriResolver`, не изобретать), `kIsWeb` — за константу окружения, декодирование картинок — за интерфейс `ImageDecoder` с Flutter-реализацией по умолчанию. Движок рисования — плоский пакет, `flutter3d` реэкспортирует и оставляет себе виджеты. Та же операция, что `doc-01`, слоем выше: тот вынес словарь, этот выносит рендерер | engine → новый плоский пакет | L | 1 | mcp-01n | `dart run` в пакете без Flutter SDK строит `Renderer` и рисует кадр; 4322 теста без правки импортов |
-| mcp-04n | Чистый на Dart декодер PNG как реализация `ImageDecoder` для headless-пути. Только PNG; JPEG — отдельный пункт, если понадобится. ⇢ mat-09n (одна реализация: там сказано, что без него `bakeTextureGraph` из mat-32 в MCP невозможен) | core | M | 1 | mcp-03n | каждый PNG из `test/goldens` декодируется пиксель в пиксель так же, как `dart:ui` |
-| mcp-05n | `renderProject(RenderRequest {project, view, width, height, shading, selection}) → PNG` в `model_core`: сцена из проекта, `renderFrame`, `encodePng`. В ядре, а не в mcp: им же пользуются CLI и позже `pro-rn-02` | core | M | 1 | mcp-02n, mcp-03n, doc-12 | картинка совпадает с кадром `frame_test` для той же сцены; размер ограничен 1024×1024, отказ называет предел |
-| mcp-06n | Инструмент `render`: виды `front/back/left/right/top/bottom/iso`. PNG отдаётся как MCP image content, а не base64 в тексте | mcp | S | 1 | mcp-05n, doc-19 | `render` на проекте doc-21 даёт непустое изображение; на пустом проекте отказ называет причину |
-| mcp-07n | Контактный лист `renderSheet`: четыре вида одной картинкой с подписями. Агенту чаще нужен силуэт целиком, чем один вид | mcp | S | 1 | mcp-06n | лист 2×2; каждая четверть — тот же кадр, что даёт `render` для своего вида |
-| mcp-08n | Режимы для агента: `material / wireframe / normals / selection`. Агент видит вывернутые нормали и n-угольники глазами, а не только числом в отчёте | mcp | S | 1 | mcp-06n, view-13 | `normals` на вывернутой оболочке отличается от `material` больше чем на 20 % пикселей |
-| mcp-09n | Составные рецепты глаголами сессии: `cleanup()` (сварить, убрать вырожденные, вывернуть должной стороной), `makeGameReady(profile)` (триангуляция, нормали, бюджет), `buildFrom(spec)` (пачка примитивов с иерархией одним вызовом), `inspect()` (метрики, проблемы и картинка в одном ответе). Агент собирает такое из двадцати восьми команд плохо и дорого, а рецепт — одна транзакция, которую человек отменяет одним ⌘Z | mcp | M | 1 | doc-20, doc-14, doc-07 | каждый рецепт — один шаг истории; `cleanup` на GLB с дублями вершин уменьшает их число и не меняет число треугольников |
-| mcp-10n | Авторство на шагах истории: `HistoryStep.author {person, agent}`; `undo` агента отказывает, если на вершине чужой шаг, и говорит чей | core | S | 1 | doc-08, doc-19 | агент делает шаг, человек делает шаг, `undo` агента отказывает внятной фразой; ⌘Z человека отменяет оба по порядку |
-| mcp-11n | Вызов агента — одна транзакция: пачка команд отменяется одним ⌘Z, а не девятью. Самое полезное, когда агент сделал не то | mcp | S | 1 | doc-08 | рецепт mcp-09n из девяти правок отменяется одним шагом |
-| mcp-12n | Журнал пишется и воспроизводится: всё, что делает агент, ложится в `CommandJournal` с метками транзакций и автора; `replay` даёт побайтно тот же `.f3dproj` | mcp | M | 1 | doc-16, mcp-11n | сессия → журнал → `replay` в чистом процессе → `writeProject` совпадает байт в байт |
-| mcp-13n | GUI отдаёт ту же сессию по локальному HTTP: `--mcp-port`, только 127.0.0.1, токен в файле сессии. Headless остаётся на stdio; `ModelSession` про транспорт не знает | app + mcp | M | 1 | doc-19, ui-03 | сценарий doc-21 проходит через оба транспорта и даёт одинаковый файл |
-| mcp-14n | Один документ, два писателя: GUI перерисовывается, когда агент зафиксировал шаг; команда не приземляется посреди перетаскивания — модальная трансформация держит замок до `endTransaction` | app | M | 1 | mcp-13n, ui-03 | команда агента во время тяги ставится в очередь и применяется после; документ не расходится с картинкой |
-| mcp-15n | Импорт и экспорт глаголами сессии: `import(path, options)`, `export(path, format)` с воротами `ExportReadiness` — ошибка требует `force: true` и называет, что потеряется | mcp | S | 1 | doc-19, ui-17, fmt-06 | экспорт с n-угольником отказывает без `force` и называет объект; с `force` пишет и сообщает, что срезал |
-
-### 2.14 Игровая графика (`gfx-`)
-
-Аспект добавлен 2026-09-10. Это **правки движка**, а не редактора: каждая идёт в
-§6 и проверяется конформансом, эталонным кадром или round-trip, как любая
-правка движка. Здесь они потому, что редактор — то, чем эти пробелы делаются
-видимыми: он собирает ассет, а игра его показывает.
-
-**Трек идёт параллельно двадцати задачам моделера** и нумеруется своими фазами
-Г1—Г3, чтобы не притворяться частью вех §5.
-
-**Приоритет задан наблюдением, а не вкусом.** Целевой бюджет — 60 кадров на
-MacBook в 1440p; типичная сцена — один герой крупно, один-два персонажа на
-экране; движок должен тянуть и стилизованную картинку, и физичную. Четыре вещи
-названы как виденные своими глазами: свет перескакивает, края рваные, дальние
-объекты без теней, алиасинг на полу и текстурах вдали. Список начинается с них.
-
-**Порядок внутри Г2 задан одной находкой.** Заполнение surface buffer выключает
-MSAA на всю сцену, поэтому SSAO и отражения сегодня стоят игре сглаживания —
-это не отсутствующая возможность, а взаимоисключение двух имеющихся. FXAA
-снимает его и разблокирует сразу и «рваные края», и «контактные тени», поэтому
-идёт первым исправлением.
-
-**Чего в этом треке нет и почему.** Ключ сортировки, отсечение по перекрытию,
-потоковая загрузка и сжатие геометрии — про масштаб сцены, а «один герой крупно»
-на десктопе в него не упирается; веб важен для моделера, не для игр. Скиннинг в
-вершинном шейдере — при одном-двух персонажах CPU тянет. Декали, вода, террейн
-и атмосферное рассеяние — жанровое, без игры, которой они нужны, оптимизировать
-нечего. Обратная кинематика уехала в аспект `anim-`: она нужна для позирования
-при авториге, а в игре поза приходит из клипа. Всё из «Not doing» ROADMAP — TAA,
-motion blur, ECS-рендерер, террейн-клипмапы, узловые материалы, OIT сверх alpha
-hashing, пресеты качества — не предлагается снова.
-
-| id | что | пакет | р. | ф. | зависит | приёмка |
-|---|---|---|---|---|---|---|
-| gfx-01n | **Профайлер кадра**: счётчики по проходам (время, вызовы отрисовки, треугольники, переключения конвейера) в `FrameResult`, панель поверх вьюпорта, базовая линия числа вызовов в CI. Первым пунктом по решению владельца: без чисел любой следующий пункт — впечатление, а не результат | engine + qa | M | Г1 | — | регресс в +10 вызовов ломает сборку; панель показывает четыре прохода порознь |
-| gfx-02n | **Замер анизотропии.** `RenderSettings.anisotropy` по умолчанию 1, и ни одна демка её не поднимает; мост уровней даёт кирпичам `min(8, maxAnisotropy)`, а импортированной модели — единицу. Снять один кадр при 1 и при 8 на сцене с уходящим вдаль полом и решить, менять ли умолчание | engine | S | Г1 | gfx-01n | два кадра и число различающихся пикселей; решение записано в план |
-| gfx-03n | **Замер дальних теней.** Три варианта — поднять `viewDistance` с пересчётом разбиения, четвёртый каскад, отдельная редко обновляемая дальняя карта — на одной сцене, с ценой кадра из gfx-01n | engine | S | Г1 | gfx-01n | три кадра и три цены; выбранный вариант назван в gfx-06n |
-| gfx-04n | **FXAA в графе проходов.** Снимает взаимоисключение: сегодня игра выбирает между тенями в углах и ровными краями, потому что surface buffer выключает MSAA на всю сцену | engine + shaders | M | Г2 | gfx-01n | SSAO включён и края ровные; кадр `ao-with-aa` в трёх наборах; цена прохода из профайлера |
-| gfx-05n ⚙⚠ | **Свет по важности, а не по числу.** Сегодня восемь источников на всю сцену в `vec4[8]`: девятый фонарь гасит первый, и это видно как перескок при движении камеры. Отбор на CPU по вкладу в объект, с мягким угасанием на границе списка, чтобы перескока не было вовсе; шейдер не меняется — меняется, кто попадает в те же восемь слотов | engine | L | Г2 | gfx-01n | сцена из 40 источников рисуется правильно; движение камеры не даёт скачка яркости — два соседних кадра различаются меньше чем на 2 %; кадр `many-lights` |
-| gfx-06n | **Тени дальше 60 метров** — вариантом, выбранным в gfx-03n | engine | M | Г2 | gfx-03n | объект на 200 м отбрасывает тень; цена кадра в пределах, названных замером |
-| gfx-07n | **Анизотропия по умолчанию** — если gfx-02n показал, что дело в ней | engine | S | Г2 | gfx-02n | муар на уходящем поле пропал; эталонные кадры пересняты одним коммитом |
-| gfx-08n | **SSAO доведён до включённого по умолчанию**: сегодня он есть и выключен, и включить его мешал ровно gfx-04n | engine | S | Г3 | gfx-04n | кадр `ambient-occlusion-corner` при включённом сглаживании; цена прохода названа |
-| gfx-09n | **Контактные тени по глубине**: короткий луч в экранном пространстве там, где карта теней слишком груба — под стопой, в складках, под подбородком. Другая техника, чем SSAO, и нужна там, где герой крупно | engine + shaders | M | Г3 | gfx-08n | кадр `contact-shadow`; стопа стоит на земле, а не парит |
-| gfx-10n | **Аддитивный слой поз.** Обещан в ROADMAP; нужен опорной позе, которой в glTF негде лежать — значит, своё поле в `AnimationClip` | engine | M | Г3 | — | дыхание поверх ходьбы; ноль изменений в существующих клипах; `animation_mask_test` зелёный |
-| gfx-11n | **Луч попадает в позу, а не в базовую форму.** Сегодня raycast бьёт по неанимированному мешу: выстрел в бегущего проходит мимо, а `skinReach` только расширяет границы | engine | M | Г3 | mesh-20 | попадание в поднятую руку засчитывается; промах мимо неё — нет; цена запроса измерена |
-| gfx-12n | **Каналы света**: маска на источнике и на объекте — фонарь героя не светит на небо, лампа интерьера не течёт наружу | engine | S | Г3 | gfx-05n | объект вне канала не получает вклада; ноль изменений в кадрах без каналов |
-| gfx-13n | **Физические единицы света**: люмены и канделы с пересчётом в нынешнюю безразмерную интенсивность | engine | M | Г3 | gfx-05n | лампа 800 лм даёт ту же освещённость, что подобранное сегодня число |
-| gfx-14n | **`KHR_lights_punctual`** в лоадере и писателе: свет из glTF сегодня теряется целиком | formats | S | Г3 | fmt-06 | круг: свет из Blender открывается и экспортируется обратно |
-| gfx-15n | **Мягкие тени диском в пять отсчётов**: обещано в ROADMAP, сегодня PCF 3×3 и край всегда одинаково жёсткий | shaders + engine | S | Г3 | — | кадр `soft-shadow`; полутень шире у дальнего occluder |
-| gfx-16n | **Alpha hashing**: листва и сетка сегодня либо режутся по порогу, либо требуют сортировки | shaders + engine | S | Г3 | — | кадр `foliage`; ноль изменений в непрозрачных сценах |
-| gfx-17n | **LUT-грейдинг и филмик-кривая**: `LookSettings` есть, таблицы нет | engine | S | Г3 | — | нейтральный LUT не меняет кадр ни на пиксель |
+1. **One blocker before the first line: the engine's vocabulary lives in a
+   package with the Flutter SDK.** `packages/flutter3d/pubspec.yaml` declares
+   `flutter: sdk`, so `flutter3d_model_core → flutter3d` from the
+   working-through §5.1 passes the scanner but doesn't resolve under
+   `dart pub get`. Five aspects reached the same conclusion independently
+   (mesh-03, doc-00/01, qa-03, p0-09, rel-03): move `MeshData`/`VertexLayout`/
+   `Shape`/`Ray`/`ModelDocument`/decoders/writers into pure packages that
+   `flutter3d` re-exports. Owner decision 2026-09-09 (B1 closed): **two
+   packages**, not one. `flutter3d_geometry` — `MeshData`, `VertexLayout`,
+   `Shape`/`LatheShape` and derivatives, tangents, `morph_target`, `CpuMesh`,
+   `math/intersections`, `Ray`, `TriangleBvh`; `flutter3d_formats` —
+   `ModelDocument`, `SurfaceMaterial`, `MaterialDocument`/`MaterialHint`,
+   `lighting_model`, the synchronous half of `model_loader`
+   (`ModelFormat`, `ModelDecoder`, `sniffModelFormat`, `decodeModel`), gltf/
+   obj/f3d/ktx2/stl decoders, writers `F3dWriter`, `GltfWriter`, `ObjWriter`.
+   `formats` depends on `geometry`, `mesh` on `geometry`, `model_core` on
+   both, `flutter3d` re-exports both; only the isolate wrapper and
+   `convert_asset` stay in the engine from formats. Deadline 2026-09-25.
+2. **The critical path is the geometry core, and the calendar is the sum.**
+   `mesh-11` (a half-edge structure over persistent arrays, L) and a chain of
+   eight Ms around it: ≈29 weeks from a green `main` to a tutorial passed by
+   a cohort, if everything else ran in parallel. Recomputed 2026-09-09
+   strictly against the "depends" column: the path runs through
+   `mesh-13 → mesh-25` (not `mesh-14 → 19 → 23`) and, after `doc-07`, through
+   `doc-20 → rel-09 → rel-16`. Owner decision 2026-09-09: **one** person, with
+   agents, so the critical path sets the order and phase 1's timeline is the
+   sum of the sizes of all its items: 73 S, 44 M, 3 L ≈ 198 weeks for one
+   person; with agents on the format, overlay, platform, and localization
+   tracks, roughly 172 (an estimate, §4.3).
+2b. **Four platforms, and an equal-footing web from the first version.**
+   Decision 2026-09-09: phase 1 ships on macOS, in-browser, on Android
+   (tablet and phone), and iOS (iPad and iPhone); layouts 03/04, pen, touch,
+   and platform configuration are phase-1 items (ui-05, ui-19, ui-21); an
+   iPad and an Apple Developer account are bought by mid-phase (rel-19d). The
+   web isn't "by measurement" — p0-02/p0-08 became quality gates, and an
+   unmet threshold turns into a phase-1 item (a JS build as a recorded
+   exception, chunks instead of an isolate, a web worker ui-34d for a freeze
+   longer than 1 s). FBX is read by its own reader in Dart in
+   `flutter3d_fbx` — a separate phase-2 track after phase 1 is in users'
+   hands; no server-side conversion.
+2a. **Phase 1 gets a "material" step.** The design plan puts basic materials
+   in phase 1, and the core scenario is "clean the mesh, edit the material,
+   export to GLB"; before the critique, the only path to a material in phase
+   1 was an MCP command with no UI and no textures. Added: mat-04a-n (a
+   panel: color, metallic, roughness, assignment, one texture) and
+   `SetTexture`/`AddImage` into mat-01; phase-1 acceptance requires color and
+   texture in the GLB.
+3. **Phase 0 is numbers, not opinions.** Twelve measurements with recorded
+   thresholds (p0-*): what the web needs to pass the gate (not "equal or
+   view-only" — the web is equal footing per the 2026-09-09 decision),
+   chunks or a log for the history snapshot, `DeviceMesh.overwrite` in phase
+   1 or 4, an isolate or chunks on the web. Answer deadline: 2026-10-05.
+4. **46 engine changes, and games need every one.** glTF/OBJ/STL writers,
+   `TriangleBvh`, the `MeshOverlay` overlay, `overwriteGeometry`/
+   `overwriteTexture`, `Pose` and IK, a triangle counter, LOD in
+   `ModelDocument`, a texture encoder (already on the ROADMAP). Each verified
+   through conformance or a golden frame (§6). The FBX reader is not an
+   engine change: it's a separate package over `formats`.
+5. **Thirty-seven divergences from the ROADMAP, ARCHITECTURE, the
+   working-through, and the design**, each with a decision (§7); five main
+   ones: "zero engine changes for the editor," `apply`/`revert`, "no
+   node-graph materials," "eight lights is a ceiling," soft bodies
+   "committed" with no line in Committed. Two added by critique: asset
+   composition in a scene (#36, closed 2026-09-09 — placing assets is part
+   of phase 2) and the viewport gradient (#37).
+6. **Three duplicate implementations reduced to one**: a triangle BVH
+   (mesh-20 / view-09 / p0-10), the project format (doc-09/10 / fmt-17),
+   modifiers (mesh-40 / mat-18 / doc-23), the GltfWriter's skins
+   (fmt-07 / anim-26), simplification and unwrapping (mesh-70/71 / pro-lod /
+   pro-uv), weights (mesh-60 / anim-09). Where each one lives — §3.
+7. **Phases 2–4 are estimated with a caveat.** Phase 2–4 items (modifiers,
+   booleans, rigging, sculpting, simulations) were written before phase 0
+   gave numbers; the L sizes there are an order of magnitude, dependencies
+   are the best knowledge of the code available.
+8. **63 open questions in ten groups after merging duplicates** (§8; of 87
+   rows, B1, F2 [Ж2], and D4 [Г4] closed by the 2026-09-09 critique, 21 more
+   — A2, B1 [Б1], B3, B8, B9, C3 [В3], C5, C8, D2 [Г2], D9, E7 [Д7], F1 [Е1],
+   F2 [Е2], F5 [Е5], F8 [Е8], F11 [Е11], F12n [Е12n], G1 [Ж1], G4 [Ж4], H1
+   [И1], K2 — closed by owner decisions on 2026-09-09, B1 rewritten); six of
+   the remaining ones are needed before phase 1 starts (listed in §5.2), the
+   rest before their own phase.
 
 ---
 
-## 3. Зависимости между аспектами
+## 2. Aspects
 
-Текстовые ссылки из планов («mesh: EditMesh.toMeshData») разрешены в id. Где
-несколько аспектов написали одну и ту же вещь, ниже сказано, чья реализация
-остаётся, а чей id помечен «⇢» в таблицах.
+### 2.1 Mesh core (`mesh-`)
 
-### 3.1 Одна реализация вместо нескольких
+A half-edge `EditMesh` over `Int32List`/`Float32List` with persistent
+chunks, conversion to/from `MeshData`, selection, phase 1–2 operations,
+modifiers, checks, parametric objects with quad topology, BSP booleans, a
+BVH for CPU picking. The engine already has a triangle vocabulary, `Shape`
+generators, Lengyel tangents, `rayTriangle`, a sphere-based `SceneBvh` —
+there is no editable topology at all. Two code findings: `flutter3d` pulls
+in the Flutter SDK (mesh-03), and `Shape.build()` returns a triangulated
+soup with seam duplicates, unusable for loop cut and Catmull-Clark
+(mesh-28).
 
-| Вещь | Кто написал | Где живёт | Кто становится потребителем |
+| id | what | package | size | phase | depends | acceptance |
+|---|---|---|---|---|---|---|
+| mesh-00 | Package skeleton: pubspec `resolution: workspace`, a barrel, a test; registered in the workspace, `flatDartPackages`, `notARepeatableStep` (otherwise `math.sin` is forbidden), the §16 publishing order, the §3.2 table. ⇢ qa-02, rel-02/03 | mesh | S | 0 | — | `tool/structure.dart` and `tool/ci.sh` are green with the package |
+| mesh-01 | Spike 0.2: `EditMesh` over Int32List, a cube, a face extrusion, a fan, output into arrays, a frame via `flutter3d_testing.renderFrame`. ⇢ p0-04 (thresholds from there) | mesh | M | 0 | mesh-00 | V−E+F=2, volume grew by area×h, frame `mesh-spike-extrude.png`, a `toMeshData` measurement at 50/200k in the doc |
+| mesh-02 | Measurement 0.3: a chunked CoW vector (256/1024/4096) at 200k vertices, 1% in a row and 1% scattered; alternative — a sparse patch. ⇢ p0-05 | mesh | S | 0 | mesh-01 | a chunk × sample table → bytes/μs; a decision on chunk vs. patch |
+| mesh-03 ⚙⚠ | Move `geometry/*` (mesh_data, vertex_layout, shape, lathe, tangents, morph, CpuMesh) and `math/intersections.dart` into a pure `flutter3d_geometry` package, `flutter3d` re-exports. 2026-09-09 decision: this is the first of two vocabulary packages, the second (`formats`) is doc-01 (§3) | engine + geometry | M | 0 | mesh-00 | scanner green, 4322 tests with no import edits, `bench_geometry.dart` builds AOT as a separate `main` with no `MeshGeometry` (the aggregate `bench.dart` pulls in `GraphicsDevice → Widget` and doesn't build AOT — ARCHITECTURE §14) |
+| mesh-04 | An AOT package bench following `packages/flutter3d/tool/bench`'s pattern: `toMeshData`, a snapshot, `importMeshData`, BVH, extrusion ×1000 | mesh | S | 0 | mesh-01 | the binary prints ns/element, numbers in the doc, spread <5% |
+| mesh-10 | Per p0-05's result — not CoW chunks, but a log of prior values: `JournalledFloats`/`JournalledInts` over a flat array, a history step is a `JournalStep` with indices and what was there (`journal.dart`). Persistent vectors were rejected by measurement: on a scattered selection, a step costs 92–100% of a full copy, because a thousand vertices touch nearly every chunk | mesh | M | 1 | mesh-02, p0-05 | a step ≤2% of a full copy under both distributions; undo returns the array to exactly its prior state |
+| mesh-11 | `EditMesh`: origin/next/twin/face, outgoing, a face's halfEdge, faces of any valence, tombstones + `compact()`→`IdRemap`; `EditMeshBuilder` with Euler primitives; allocation-free iterators; `validate()` | mesh | L | 1 | mesh-10, mesh-01 | cube/torus/plane: χ, boundaries, `validate()` after every operation; a "don't update outgoing" mutation is caught |
+| mesh-12 | Attribute layers: positions, joints/weights per vertex; uv0, color per corner; sharp/seam/crease per edge; materialSlot/smooth per face; inheritance rules on split in the builder. The `uv0`-fill rule for operations (added by critique): split — corner interpolation, extrude — copy the source face's corner onto the side quads, new faces with no source — zero UV flagged in `OpResult`. The `seam` flag closes pro-uv-01 | mesh | M | 1 | mesh-11 | split in the middle: UV averaged, weights normalized; a missing layer — a neutral value |
+| mesh-13 | `EditMesh.fromMeshData`: welding by position (eps from bounds), twins, BFS orientation repair, non-manifold splitting, `ImportReport` | mesh | M | 1 | mesh-11, 12, 03 | `CuboidShape` → 8/12/6 (triangles); a sphere: the seam is welded; three faces on one edge → `splitNonManifold=1` |
+| mesh-14 | `MeshLayoutPlan.build` (triangulation, per-corner normals, a GPU-vertex key → indices, `triangleToFace`, `gpuVertexToVertex`) + hash-free `fillVertices`; `toMeshData` by `materialSlot` | mesh | M | 1 | mesh-15, 16, 12, 03 | a sharp cube → 24 vertices/36 indices, normals = `CuboidShape`; `fillVertices` changes exactly the given rows |
+| mesh-15 | N-gon triangulation: a quad along the shorter diagonal by planarity, Newell ear clipping, a fan on failure + a flag; no allocations | mesh | S | 1 | mesh-11 | an L-shaped hexagon → 4 triangles; a "bowtie" quad picks its diagonal by planarity |
+| mesh-16 | `faceNormals`, `cornerNormals` split by sharp/angle/smooth, `flipNormals`, `makeConsistent` | mesh | S | 1 | mesh-12 | a sharp cube → face normals; a sphere within 6° of radial; flip changes the sign of the volume |
+| mesh-17 | Tangents via `withGeneratedTangents`; a sign-of-`w` test against `CuboidShape`/`PlaneShape` and a mirrored island | mesh | S | 1 | mesh-14 | a sign test; frame `mesh-normal-map` in the app matches the engine's cube |
+| mesh-18 | `toBytes`/`fromBytes`: sections aligned to 4, an unknown one skipped, determinism | mesh | S | 1 | mesh-12 | byte-exact round trip; an extra section is read; an "unaligned" mutation → RangeError |
+| mesh-19 ⚠ | `Selection` (`ElementLevel`, a sorted Int32List, an active element), level conversions, `edgeLoop`, `edgeRing`, grow/shrink, linked, boundary, `Selection.byMaterialSlot` | mesh | M | 1 | mesh-11 | a torus 8×8: loop=ring=8; a cube: a loop stops at valence 3; a "ring with no quad check" mutation is caught |
+| mesh-20 | `MeshBvh` over the plan's triangles, on top of `TriangleBvh` from view-09: `refit(positions)`, `rebuild(plan)`, `queryRay/Aabb/Frustum`. One `TriangleBvh` implementation shared by mesh-20/view-09/p0-10 (§3); the class's owner is view-09 | mesh | M | 1 | mesh-14, 03, view-09 | 10,000 rays = brute force; refit = rebuild; a 200k bench in the doc |
+| mesh-21 | `MeshPicker`: `faceAt`, `vertexNear`/`edgeNear` within a radius with visibleOnly, `inFrustum` for a box | mesh | S | 1 | mesh-20, 19 | a click at a cube face's center — the face; a box around half the cube — 4 or 8 vertices |
+| mesh-22 | `translate/rotate/scaleSelection` with a pivot; one signature, `op(EditMesh, Selection, Params) → OpResult` | mesh | S | 1 | mesh-19, 10 | round-trip byte-exact; scale 2 → volume ×8; topology 100% shared |
+| mesh-23 | `extrudeFaces` (region/individual, side quads with UV), `extrudeEdges` (boundary only) | mesh | M | 1 | mesh-19, 11, 12 | a cube face: V=12, E=20, F=10, χ=2; two adjacent faces → 6 side quads; side-quad UVs confirmed by a test (corners 0..1 along extrusion height) |
+| mesh-24 | `loopCut(edge, cuts, factor)` over `edgeRing`, `splitEdge`+`splitFace`, attribute interpolation | mesh | M | 1 | mesh-19, 12 | a 16-segment cylinder: +16 V, +32 E, +16 F, all quads; a torus — a closed loop |
+| mesh-25 | `mergeByDistance`, `dissolveEdge`, `dissolveVertex`, `mergeAt` | mesh | M | 1 | mesh-11, 19, 13 | dissolving the diagonals of `fromMeshData(Cuboid)` → 6 quads; two cubes sharing a face merge |
+| mesh-26 | `delete` by level, `separate` by component, `duplicate`, `split`; `IdRemap` | mesh | S | 1 | mesh-19, 11 | deleting a cube face → 6 boundary edges; separating two cubes → 2 meshes |
+| mesh-27 | `MeshChecks`: ngons, nonManifoldEdges, boundaryEdges, isolatedVertices, degenerate, inverted, duplicateVertices, χ per component; `MeshIssue(kind, ids)` | mesh | S | 1 | mesh-11, 15, 13 | per-function test with a mutation; `signedVolume` confirms inverted |
+| mesh-28 ⚠ | A sealed `ParametricShape` (Cuboid/Plane/Cylinder/Sphere/Torus/Lathe with engine specs) → `toEditMesh()` with quads, sharp instead of duplicates, n-gon caps; UV per corner matching `Shape.build()` (`VertexLayout.standard` carries `texcoord`) — otherwise a phase-1 cube can't take a texture in a GLB | mesh | M | 1 | mesh-11, 12, 16 | a 16-segment cylinder: `validate()`, `edgeRing` closed, volume >0; a "no sharp on a repeated point" mutation is caught by the normals; the `uv0` layer is filled for all six shapes |
+| mesh-29 | A parity test, `ParametricShape.toEditMesh().toMeshData()` against `Shape.build()` (volume, bounds, triangle set, the cube's 24 GPU vertices, `texcoord` within 1e-6) | mesh | S | 1 | mesh-28, 14, 13 | six pairs, default and non-default parameters; texcoord matches per corner |
+| mesh-30 | `EditMesh`/`Selection`/`OpResult` fit for `Isolate.run` (no closures), `TransferableTypedData` via mesh-18; documented "on the web — the main thread, chunked or a worker (ui-34d)" | mesh | S | 1 | mesh-11, 18 | extrusion in an isolate = in place; 200k transfer time in the doc |
+| mesh-31 | Phase-1 measurements: fromMeshData, plan/fill, BVH build/refit, extrusion ×1000, loop cut ×256, a 1% snapshot; an AOT build in `tool/ci.sh` | mesh | S | 1 | mesh-04, 14, 20, 23, 24 | ≥8 rows in the doc, spread <5% |
+| mesh-32 | Fuzzing: `Random(1234)`, 500 operations × 3 seeds, `validate()` + `MeshChecks.all()` empty + a round trip after each; minimization prints Dart code. ⇢ qa-07 | mesh | S | 1 | mesh-22..27 | <10 s; a mutation in `dissolveEdge` is caught within 50 steps |
+| mesh-33 | `lib/testing.dart` with fixtures; frames `mesh-extrude`, `mesh-loop-cut`, `mesh-lathe`, `mesh-sharp-vs-smooth` in the app's tests, not among the 43 scenes | mesh + app | S | 1 | mesh-14, 23, 24, 28 | 4 PNGs, zero tolerance; a "no sharp" mutation changes the frame |
+| mesh-40 | `sealed class Modifier { apply(base, ctx); toJson }`, `ModifierContext`, `ModifierStack.evaluate` = a fold memoized by the base's identity. The single place the `Modifier` type lives (§3) | mesh | M | 2 | mesh-11 | the stack is computed once across two evaluates; a JSON round trip |
+| mesh-41 | `mirror(plane, mergeDistance, bisect, flipUv)` + `MirrorModifier` | mesh | S | 2 | mesh-40, 25, 16 | half a cube → a closed 8/12/6 cube; a "don't flip the copy" mutation is caught by the volume |
+| mesh-42 | `ArrayModifier(count, offset, mergeDistance)` with deterministic ids | mesh | S | 2 | mesh-40, 25 | 4 cube copies → 32 vertices, volume ×4 |
+| mesh-43 | `insetFaces(thickness, depth, individual)` with an angle correction | mesh | S | 2 | mesh-23 | a cube face: +4 V, +4 quads, area (1−0.2)²; a mutation with no correction is caught at 30° |
+| mesh-44 | `bevelEdges/Vertices(width, segments, profile, clampOverlap)`, corner n-gons | mesh | L | 2 | mesh-11, 19, 12, 15 | 12 cube edges, segments=1 → 24 V, 26 F, χ=2; `boundaryEdges`=0 |
+| mesh-45 | Catmull-Clark with creases (Pixar), UV per corner, `SubdivisionModifier(levels, viewLevels)`, `subdivideSimple` | mesh | M | 2 | mesh-11, 12, 40 | a level-1 cube → 26 V, 24 quads; crease=1 preserves volume |
+| mesh-46 | `smoothVertices` (Laplacian + HC when preserveVolume), `SmoothModifier` | mesh | S | 2 | mesh-19, 40 | a sphere, 10 iterations: shrinkage <5% with HC; topology 100% shared |
+| mesh-47 | BSP booleans (csg.js): `CsgPolygon`, `CsgNode` on an explicit stack, eps from bounds, a polygon budget, a coplanarity detector; input through the plan, output through `fromPolygons` | mesh | L | 2 | mesh-13, 15, 30, 27 | cube ∪ cube volume matches analytically; cube − sphere within 1%; the coplanar case warns, doesn't crash |
+| mesh-48 | `BooleanModifier(operation, operandId, transforms)` via `ModifierContext`, cycles refused | mesh | S | 2 | mesh-47, 40 | the stack = the operation by volume; changing the operand's transform invalidates the cache |
+| mesh-49 | Phase-2 frames: bevel, Catmull-Clark 2, cube − sphere, a mirrored vase | app + mesh | S | 2 | mesh-44, 45, 47, 41, 33 | 4 PNGs, zero tolerance |
+| mesh-60 | Weights through operations: accumulate up to 8 pairs, prune to `maxInfluences`, renormalize; `normalizeWeights`, `limitInfluences`, `weightsOf`. Storage for anim-09 (§3) | mesh | M | 3 | mesh-12, 24, 44, 45 | a loop cut (1,0)/(0,1) → (0.5,0.5); 5 bones → 4, sum 1±1e-6 |
+| mesh-61 | `ShapeKey(name, positions)` as full layers, split applies to every key, `blend(weights)` | mesh | M | 3 | mesh-12, 13 | importing 2 targets → 2 keys; loop cut preserves keys |
+| mesh-62 | `toMeshData` with `morphTargets` via `gpuVertexToVertex` | mesh | S | 3 | mesh-61, 14 | delta round trip; a "by EditMesh vertex" mutation → an `ArgumentError` from MeshData |
+| mesh-70 | QEM simplification with UV/seams/weights. ⇢ pro-lod-01/02 (one implementation, §4) | mesh | L | 4 | mesh-14, 60, 27 | see pro-lod-01/02 |
+| mesh-71 | UV: islands, LSCM, packing, stretch. ⇢ pro-uv-02..05 | mesh | L | 4 | mesh-12, 19 | see pro-uv-* |
+| mesh-72 ⚠ | `SculptSession` over `EditMesh` with a patch layer, brushes, refit. ⇢ pro-sc-02..07 (structure resolved 2026-09-09: `SculptMesh` with multiresolution, B8/B9; the id stays for references) | mesh | L | 4 | mesh-10, 20, 16, 31 | see pro-sc-* |
+| mesh-73 | An isotropic remesh spike. ⇢ pro-rt-01 | mesh | M | 4 | mesh-20, 25, 46 | see pro-rt-01 |
+| mesh-80n *(added 2026-09-10 by gap analysis)* | **Collision shapes from a mesh**: convex decomposition (V-HACD or a related Dart algorithm), fitting a box, sphere, and capsule by inertia, "the mesh itself" for statics. Gap analysis: every game asset needs a collision shape, and nobody sculpts it by hand; the plan had not one line on this, and the sole mention of collisions (pro-sim-01) is about cloth colliding with an already-finished `CollisionShape`. The engine handles shapes; nothing generates them from a model | mesh | L | 2 | mesh-11, mesh-27 | a 900-triangle chair gives ≤12 convex pieces, volume within 15% of the source; a capsule by inertia matches a hand-built one within 5%; deterministic for one seed |
+| mesh-81n *(added 2026-09-10 by gap analysis)* | **Repair, not just diagnosis**: `fillHoles` (fan and boundary-based), `splitNonManifoldEdges`, `flipShells` alongside `MeshChecks`, which today finds all of this and fixes none of it. `ExportReadiness` says "won't fly" and leaves the artist alone with it — a report with no button is half a tool | mesh | M | 1 | mesh-25, mesh-27 | a cube with a face cut out is closed after `fillHoles`, χ = 2; a non-manifold edge splits into two, the face count doesn't change; each repair is a history step |
+
+### 2.2 Document, commands, MCP (`doc-`)
+
+Repeat the level editor's shape (a sealed command with
+`name/says/arguments/apply/fromJson`, history with transactions, a session
+and a tool table from the list of command names, a scenario through
+`StreamChannelController`), but over an immutable `ModelProject` with
+structural sharing instead of `level.toJson()` snapshots. Found in the code:
+the scanner only looks for the text `package:flutter/`, it doesn't see a
+transitive dependency through `flutter3d` (doc-00); the ROADMAP still writes
+`apply`/`revert`, the code stores snapshots, and for meshes the plan is a
+prior value (doc-29).
+
+| id | what | package | size | phase | depends | acceptance |
+|---|---|---|---|---|---|---|
+| doc-00 ⚠ | A spike: an empty package depending on `flutter3d`, `dart pub get`/`dart test` from the directory; the result goes in doc §6 item 0.4. ⇢ p0-09, rel-04 | core | S | 0 | — | the outcome is recorded; on failure — doc-01; otherwise a rule on transitive SDK dependency (qa-03) |
+| doc-01 ⚙⚠ | Move Flutter-import-free files into a pure package: geometry/*, assets/{model_document, model_node, surface_material, material_document, material_hint}, `render/lighting_model.dart` (imported by material_document and material_hint; itself has no imports — moved as-is), f3d/*, gltf/* (except resolvers), obj/*, fmat/*, animation/{clip, track}; `model_loader.dart` splits: the synchronous half (`ModelFormat`, `ModelDecoder`, `sniffModelFormat`, `decodeModel`) — into `formats`, `kIsWeb` → `const bool.fromEnvironment('dart.library.js_interop')`, the isolate half (`ModelLoadRequest` — into `formats`, since it describes a request rather than running one; `decodeModelInIsolate`) stays in the engine; the `ModelFormat` exemption path in `repository.dart` is updated. `flutter3d` re-exports; into `flatDartPackages`, the workspace, §16, §3.2, `ci.sh`. 2026-09-09 decision: two packages — `flutter3d_geometry` (mesh-03) and `flutter3d_formats` (this item: everything listed here except geometry/*), `formats` depends on `geometry`; publishing order geometry → formats → flutter3d | engine + geometry + formats | M | 0 | doc-00, mesh-03 | `dart test` in both packages is green; the 43 scenes and goldens unchanged; `publish_check.sh` accepts the order; `decodeModel` is callable from `formats`'s own `dart test` with no Flutter; the package count in README/§3.2/§16 shifts in the same commit (28 → 30) |
+| doc-02 | The `flutter3d_model_core` skeleton: pubspec, barrel, LICENSE/CHANGELOG/README; registered in the lists. ⇢ qa-02, rel-02/03 | core | S | 1 | doc-00 | scanner and `ci.sh` green with an empty test |
+| doc-03 ⚠ | `ModelProject {profile, objects, materials, images, skeletons, clips, nextId}`; `ModelObject` with stable ids and `version`; a sealed `Geometry`: Parametric / Edited(EditMesh) / Imported(MeshData); `withObject`/`copyWith` with structural sharing | core | M | 1 | doc-02, mesh-11 | `withObject` shares whatever it didn't touch (`identical`); an id is unique after delete+add |
+| doc-04 ⚠ | `Selection {mode, submode, objects, level, elements}` with JSON and `says`; `ModelHistory` — a session over the document, every change through history | core | S | 1 | doc-03 | selection survives undo if the id still exists; JSON round trip |
+| doc-05 ⚠ | A sealed `ModelCommand` (`name`, `says`, `arguments`, `toJson`, `fromJson` → null, `apply(project, selection) → Outcome?`), `modelCommandNames`; a test table per name | core | S | 1 | doc-04 | 100% of names covered by samples; incomplete JSON → null, not an exception |
+| doc-06 | Object commands: `AddPrimitive`, `AddLathe`, `SetParametric`, `BakeToMesh`, `MoveBy/RotateBy/ScaleBy`, `SetTransform`, `Rename`, `SetParent`, `Delete`, `Duplicate`, `SetField`, `AssignMaterial`, `SetOrigin` (an object's pivot: bounds center / bottom / cursor) and `ApplyTransform` (bake a node's transform into geometry — added by critique, a frequent pre-export step); ids in the arguments, not from selection | core | M | 1 | doc-05 | a test per command with a mutation; `Duplicate` gives new ids; `SetField` refuses an invalid value; `ApplyTransform` gives the node an identity matrix and the same world positions |
+| doc-07 | Mesh commands with `Selection` in the arguments: `TransformElements` (one command for move, rotate, and scale — they only differ by matrix), `Extrude`, `LoopCut`, `MergeByDistance`, `DissolveEdges`, `DeleteElements`, `Separate`, `Triangulate`, `RecalculateNormals`; refuses on Parametric | core | M | 1 | doc-05, mesh-22..26 | counters on a cube after each; JSON round trip; 100 `TransformElements` on 200k within the mesh budget |
+| doc-08 ⚠ | `ModelHistory`: `run`, `transaction`, undo/redo, `undoSays`, `isDirty`, `amend(replacement)` for the operation card; depth 64 + a byte-based chunk limit | core | M | 1 | doc-05 | a 100-command drag — one step; `amend` doesn't grow the stack; a step after moving 1% of 200k <10% of a full copy |
+| doc-09 | `project_format.dart`: magic, version, a 16-byte header, a section directory, 4-byte alignment; sections manifest/materials/editMeshes/importedMeshes/images/skins/animations/journal/history (the last — doc-31d, 2026-09-09 decision); an unknown one is skipped, a future version is refused. The `.f3dproj` extension (2026-09-09 decision, D2 [Г2]); the magic and the autosave location — D1 [Г1] | core | S | 1 | doc-03 | a test on the constants (a multiple of 4, not an enum index) |
+| doc-10 ⚠ | `ProjectWriter`/`ProjectReader`: string interning, canonical JSON (sorted keys, one rounding), `warnings`, external `.fmat` by relative path. ⇢ fmt-17 (§3) | core | L | 1 | doc-09, doc-03 | write→read→write byte-exact on a project with three geometries; version+1 — refused; 200k vertices <100 ms |
+| doc-11 ⚠ | `ModelProject.fromModelDocument(document, ImportOptions {scale, upAxis})` + `ImportReport {issues, counts}`: nodes→objects, surfaces→Imported, skins→skeletons, animations→clips, morphWeights; `ImportOptions` (added by critique): a unit multiplier (STL is usually in mm, OBJ has no units) and an up axis (Z-up → Y-up via a root rotation), default 1.0 / Y | core | M | 1 | doc-03, doc-13 | BoxAnimated/simple_skin: objects = nodes, triangles = `triangleCount`; decoder warnings verbatim; `scale: 0.001` gives bounds 1000× smaller, `upAxis: z` — the same cube rotated −90° around X |
+| doc-11a-n ⁶ *(added by critique)* | Unconditionally (2026-09-09 decision, §7 #36 and F4 [Ж4] closed): `ImportInto(project, document, options)` — merging an imported document into an existing project (new objects, deduping materials and images by hash, skeletons as new), unlike doc-11, which builds a project from scratch. Placing several assets in "Scene" mode (mat-24) is built on this | core | M | 2 | doc-11, doc-06, mat-01 | two imports in a row → objects from both, one `SurfaceMaterial` for a matching material; undoing the second import returns the first project by `identical` |
+| doc-12 ⚠ | `ProjectModelDocument extends ModelDocument` with a `MeshData` cache keyed by `(ObjectId, version)`; export — a session verb; `.f3d` today, GLB/OBJ through fmt | core | M | 1 | doc-03, doc-06 | project→document→`F3dWriter`→parse: equal; re-exporting returns `identical` MeshData |
+| doc-13 | `ProjectProfile {name, target, maxTriangles, maxJoints ≤ 64, maxInfluences, maxTextureSize, maxTextureBytes, requireTriangles, requireManifold}` with presets and `profileHints` from `MaterialHint` | core | S | 1 | doc-02 | JSON round trip; a mirror test against `Skeleton.maxJoints` in the app |
+| doc-14 ⚠ | `ExportReadiness.check(project) → List<Issue>` with a cache keyed by object version; budget, n-gon, manifoldness, bone, texture, slot, and name rules; a rule for "vertices with morph targets > the profile's `maxTextureSize`" (`MorphTexture` packs a column per vertex — added by critique, risk 28); a `headline` for the status | core | M | 1 | doc-13, 03, 15 | per-rule test with a mutation; after editing one object, only it is re-checked; an object with 5000 morphable vertices at `maxTextureSize: 4096` gives an Issue |
+| doc-15 | `imageDimensions(bytes)` for PNG/JPEG/KTX2 with no decoder | core | S | 1 | doc-02 | three fixtures; a truncated file → null |
+| doc-16 | `CommandJournal`: JSON Lines with transaction markers, `replay`; refuses with a line number | core | S | 1 | doc-08, doc-10 | 30 commands → journal → replay → the same `ProjectWriter` bytes |
+| doc-17 ⚠ | `AutosavePolicy` and pure functions `shouldSave`, `recoveryPathFor`, `RecoveryDecision`; the timer, atomic write, and dialog — in the app (ui-18). ⇢ fmt-18 | core | S | 1 | doc-10, 08, 16 | interval boundaries; a clean document isn't saved; the freshest recovery is chosen |
+| doc-18 | `contentsOf(project) → List<Listed>` in object order; `materialsOf`, `skeletonsOf`, `clipsOf` | core | S | 1 | doc-03 | stable across calls; each object exactly once |
+| doc-19 ⚠ | The `flutter3d_model_mcp` skeleton: `ModelSession` (listing, select, run, undo, redo, check, save, export, import, journal), `ModelMcpServer`, `bin/model_mcp.dart` (a `--help` stub is set up in rel-02; here it's a real server) creates a project at a non-existent path | mcp | S | 1 | doc-08, 10, 18, 14 | `dart run flutter3d_model_mcp:model_mcp new.proj` answers `tools/list`; the same check in a container with no Flutter SDK (rel-04's script) |
+| doc-20 | `ModelTool` from `modelCommandNames`, schemas `_vector/_ids/_selection`, session verbs; `tools_test`: every name is offered, anything extra is a named set, descriptions >40 characters | mcp | M | 1 | doc-19, 05, 06, 07 | adding a command with no tool — a red test |
+| doc-21 ⚠ | An "agent builds a table" scenario over the real protocol: primitives, transforms, a material, check, save, export GLB and `.f3d`; a diff against `fixtures/table.proj`, `table.glb`, `table.jsonl`; refusals as `isError`. ⇢ qa-12 | mcp | M | 1 | doc-20, 12, 16 | green on ubuntu and macOS with the same bytes |
+| doc-22 | Skills `project-document`, `editing-order`, `what-it-refuses`; a README with a tool table; CHANGELOG. ⇢ rel-14 (a test on skills in the archive) | mcp | S | 1 | doc-20 | every refusal line has a test with the same phrase |
+| doc-23 ⚠ | Stack commands: `AddModifier`, `SetModifierField`, `ToggleModifier`, `ReorderModifier`, `RemoveModifier`, `ApplyModifier`; the `Modifier` type — from mesh-40, heavy work — through doc-24. ⇢ mat-19 | core | M | 2 | doc-06, doc-12 | `ApplyModifier` = export with the modifier enabled; a round trip through doc-10 |
+| doc-24 ⚠ | `JobRequest` — a pure function over values; the app runs it through `Isolate.run` or chunked on the main thread; `ApplyJobResult` in one history step, refuses on a stale `version`. ⇢ pro-job-01, anim-25 (one runner, §4) | core | M | 2 | doc-23, doc-08 | a result against a stale version is refused; JobRequest is serializable |
+| doc-25 ⚙⚠ | Material commands: `AddMaterial`, `SetMaterialField` via a JSON codec for `SurfaceMaterial`, `SetTexture`, `AddImage`, `LinkFmat`, `RemoveMaterial`. ⇢ mat-01 (phase 1, including `SetTexture`/`AddImage` — moved to phase 1 by critique) and mat-08 (`LinkFmat`, phase 2); the engine change (a public `SurfaceMaterial ↔ Map` codec in fmat.dart, S) stays | core + engine | M | 2 | doc-06, doc-15 | see mat-01/08 |
+| doc-26 ⚠ | Skeleton and clip commands: `AddSkeleton`, `AddJoint`, `SetJointRest`, `BindSkin`, `AddClip`, `SetKey`, `SetInterpolation`… ⇢ anim-03, anim-04, anim-29 | core | L | 3 | doc-11, 12, 10 | see anim-* |
+| doc-27 | Morph target and morph weight commands. ⇢ anim-19 | core | M | 3 | doc-26 | see anim-19 |
+| doc-28 | Format migrations: `test/fixtures/v1/*.proj` fixtures kept forever; the version only rises on a meaning change; a CHANGELOG entry with every layout | core | S | 2 | doc-10 | every fixture reads; a bump with no fixture — a red test |
+| doc-29 ⚠ | ARCHITECTURE §8.7 on the project format and the three undo models (§8.6 is taken by fmt-16, Writers; today ARCHITECTURE §8.1–8.5); §3.2, §16; the ROADMAP with no "apply and revert"; doc §5.1 on the scanner | docs | S | 1 | doc-08, doc-10 | scanner green; the ROADMAP has no `revert` in the editor paragraph |
+| doc-30 | `tool/ci.sh` reads the `dart test` list from `flatDartPackages`. ⇢ qa-04 | tool | S | 0 | — | see qa-04 |
+| doc-31d *(added following 2026-09-09 decisions)* | History in the project file (D2 [Г2] closed: history is written into the file): a `history` section in doc-09's container — a step list, each step = `says` + the command in JSON (the same shape the doc-16 journal uses) + references to prior values through chunks already sitting in the `editMeshes`/`materials` sections as blobs: an unchanged chunk is written once and addressed by index, so structural sharing moves from memory into the file; the depth/byte limit from D5 [Г5] (doc-08) also applies to the file; `ProjectWriter(includeHistory:)`; "save without history" — a project export option (ui-33d); the doc-16 journal stays | core | M | 1 | doc-08, doc-10, doc-16 | round trip: three commands → save → open → undo three steps → the project equals the original, untouched chunks `identical`; a file with history ≤ a file without it + Σ of changed chunks + the steps' JSON; a file with no `history` section opens with empty history; the D5 limit trims the tail on write |
+| doc-32n *(added 2026-09-10 along the way)* | Selection commands: `SelectAll`, `SelectNone`, `InvertSelection`, `GrowSelection`, `ShrinkSelection`, `SelectLinked`, `SelectEdgeLoop`, `SelectEdgeRing`, `SelectByMaterial`. `flutter3d_mesh`'s `Selection` already does all of this (mesh-16), but it was never surfaced: selection changes bypass history, so it doesn't undo, doesn't get journaled, and an agent can't reach it. Refines the D-decision "every edit goes through a command" — selection is an edit too | core | S | 1 | doc-05, mesh-16 | `GrowSelection` on a cube face gives five; undo returns to one; every name is in `modelCommandNames` and round-trips |
+| doc-33n *(added 2026-09-10 along the way)* | A pivot point and transform space: `TransformPivot {median, individual, cursor}` and `TransformSpace {global, local}` in the arguments of `RotateBy`/`ScaleBy`/`TransformElements`; `SetCursor(position)` and a 3D cursor in `ModelProject`. Today rotation and scale are always about the median and always in global axes — the right default, but it makes "rotate each one around itself" impossible, without which placing assets (mat-24) has to be done by hand | core | S | 1 | doc-06, doc-07 | two objects, `individual` → each rotates in place, centers unchanged; `local` on a rotated object moves along its own axis; a JSON round trip with both fields |
+| doc-34n *(added 2026-09-10 by gap analysis)* | **Sockets and attachment points**: a `ModelObject` with no geometry gets a `socket` flag and shows in the viewport; export writes them as named nodes with no surfaces — something glTF already supports and `toModelDocument` already writes for groups. Gap analysis: a named point to hang a weapon, an effect, or a wheel off of exists everywhere (`Marker3D` in Godot, empties in Blender), and without it nothing composite can be assembled on the game side | core | S | 1 | doc-06 | a socket exports as a surface-free node and reads back as a socket; renaming — a history step; a socket doesn't count toward `triangleCount` and doesn't trigger a "no faces" readiness error |
+| doc-35n *(added 2026-09-10 by gap analysis)* | **Texel density as a profile field**: `ProjectProfile.texelsPerMeter` and an `ExportReadiness` rule computing density from UV-island area and texture size. Gap analysis: one "pixels per meter" number across all assets is what most affects whether a scene reads as one piece, and a crate unwrapped four times coarser than its neighbor shows immediately. Sits on the profile next to `maxTextureSize`: a measurement, not an artist's memo | core | S | 2 | doc-13, doc-14 | an object twice as dense as the profile gives a warning with both numbers; an object with no UV stays silent |
+
+### 2.3 Formats (`fmt-`)
+
+A glTF/GLB writer mirroring `F3dWriter` over the same `ModelDocument` — the
+editor's only path out into the engine, and the only item useful to the
+engine with no editor at all; next to it, an `ObjWriter` with `.mtl`, an
+`StlDecoder`, a texture encoder from the ROADMAP. The repository has three
+decoders, `F3dWriter`, a KTX2 reader, `convert_asset.dart` for `.f3d` only;
+not one glTF/OBJ/STL writer in Dart. The `ModelDocument` vocabulary doesn't
+store glTF mesh names, extras, `asset.generator`, image URIs, an
+authored-attribute flag, the sampler's four mip variants,
+`KHR_texture_transform` — without part of this, the round trip won't match.
+
+| id | what | package | size | phase | depends | acceptance |
+|---|---|---|---|---|---|---|
+| fmt-01 ⚙ | `compareModelDocuments(a, b)` moved from the converter's own `_compare` into lib, with categories (structure, bytes, materials, nodes, skins, clips, morphs) | formats | S | 1 | — | a test per category via breakage; the converter gives the same result |
+| fmt-02 ⚙ | `PlainModelDocument` instead of `_FakeDocument` in tests; `sniffImageMimeType` (PNG/JPEG/KTX2/WebP) | formats | S | 1 | — | tests ported; sniff on four magic numbers and an empty buffer |
+| fmt-03 ⚙ | `ModelSurface.authoredAttributes` from the decoders; `.f3d` section `surfaceAttributes` (kind 17); writers skip what's generated | formats | S | 1 | — | Box.glb → {position, normal}; an old `.f3d` reads as "all" |
+| fmt-04 ⚙ | `ModelSurface.meshName`, `ModelDocument.asset`, `EncodedImage.sourceUri`; sections `meshNames` (18), `asset` (19), `imageUris` (20) | formats | S | 1 | — | BoxTextured → `meshName == 'Mesh'`; old `.f3d` files with null |
+| fmt-05 ⚙ | `TextureSampling.mipLinear`, parsing 9984–9987, bit 7 in `F3dSamplingFlags`, `toGltfFilters()` | formats | S | 1 | — | 9985 → mipLinear=false; round trips to 9985; golden unchanged |
+| fmt-06 ⚙ | `GltfWriter` + part files: de-interleaving via `floatOffsetOf`, u16 indices when `fitsIn16BitIndices`, deduping meshes/samplers/textures, nodes from `nodes`, materials with extensions, images in the GLB/files; `GlbContainer.encode` from `buildGlb`. Lives in the pure `formats` package, like `F3dWriter` after the move — otherwise `flutter3d_model_mcp` can't export a GLB (B1 closed 2026-09-09) | formats | M | 1 | fmt-01..05, doc-01 | 8 models: decode→writeGlb→decode, `compareModelDocuments` empty; alignment/min-max/quaternion mutations are caught; `formats`'s own `dart test` writes a GLB with no Flutter SDK |
+| fmt-07 ⚙⚠ | `gltf_writer_animation.dart`: skins, animations (`AnimationInterpolation.toGltf`, CUBICSPLINE triples, weights), morph targets with `targetNames`. One writer shared by fmt-07/anim-26 (§3) | formats | M | 1 | fmt-06 | 7 rigged models round trip; a pose at t=0.5 through `AnimationPlayer` matches |
+| fmt-08 ⚙ | `ObjWriter` + `.mtl`: v/vt/vn deduping, a V-flip, `MeshData.transformed`, a reverse Kd/Ns/Ks approximation, `map_Kd`, warnings about what's lost | formats | M | 1 | fmt-01, 02, 04, doc-01 | a teapot round trip by triangle set; Box.glb → 12 triangles with Kd |
+| fmt-09 ⚙⚠ | `StlLoader implements ModelDecoder`: binary (`84 + 50·count` as the detector), ASCII, `StlNormals`, warnings; `ModelFormat.stl`, sniffed before OBJ; `convert_asset`. `ModelDecoder`/`ModelFormat`/`sniffModelFormat` live in `model_loader.dart`'s synchronous half, which doc-01 moves into `formats` | formats | M | 1 | fmt-03, doc-01 | five fixtures via `build_stl.dart`; `sniffModelFormat` on a binary STL → stl; sendable; decodes from `formats`'s own `dart test` with no Flutter |
+| fmt-10 | Differential frames: the original against the re-read export via `renderFrame`, zero tolerance; not in `kGoldenScenes` | cpu | M | 1 | fmt-06, 07, 08 | green on every model; an offset-shift mutation on normals gives a difference |
+| fmt-11 ⚙ | Export validation via the `gltf` package (Khronos, Dart) or `npx gltf-validator` in `ci.sh`, or a minimal checker. ⇢ qa-09 | engine + tool | S | 1 | fmt-06 | zero errors; a broken min/max gives an error |
+| fmt-12 ⚙ | `warnings` on every writer (and `F3dWriter`), `ExportReport {files, writerWarnings, differences}` = write → re-read → compare | formats | S | 1 | fmt-01, 06, 08 | RiggedFigure to OBJ → a warning about the skin; Box.glb → empty differences |
+| fmt-13 ⚙⚠ | `ModelWriteRequest`, `encodeModelInIsolate` with a `kIsWeb` fallback, a Timeline span — a wrapper over the writers in `formats`; the only piece of formats that needs Flutter | engine | S | 1 | fmt-06, fmt-08 | isolate bytes = synchronous ones; a 200k measurement in the doc |
+| fmt-14 ⚙ | `convert_asset -f glb|gltf|obj|stl|f3d`, `--textures keep|external`, printing an `ExportReport` | engine | S | 1 | fmt-12, fmt-13 | `teapot.f3d -f glb` opens in the loader and the validator |
+| fmt-15 ⚙⚠ | A Draco/meshopt primitive with no bufferView is skipped with a warning, rather than read as zeros; `hasBufferView` | formats | S | 1 | — | a hand-written glTF → 0 surfaces and a warning |
+| fmt-16 ⚙ | Documents and the scanner: §8.1 the four decoders, §8.6 Writers (the project format — §8.7, doc-29), the README, `assets.md`, `boundaryEnumExempt` for `ModelFormat` on the new `formats` path, CHANGELOG | engine + docs | S | 1 | fmt-06, 08, 09 | scanner green after each writer |
+| fmt-17 ⚠ | A sectioned project format with migrations. ⇢ doc-09, doc-10, doc-28 (one implementation; the idea of "an unknown manifest key is written through unchanged" via `json_write_through` — in doc-10) | core | M | 1 | — | see doc-10, doc-28 |
+| fmt-18 ⚠ | An asset policy (a copy inside the container, an `.fmat` path + fallback, an optional `sources`) and `ProjectStorage.writeAtomic`. ⇢ doc-17 (the policy) and ui-18 (disk) | core | S | 1 | fmt-17 | see doc-17, ui-18 |
+| fmt-19 ⚙⚠ | `extras` on a node/material/skin/clip/document, `TextureBinding.transform` from `KHR_texture_transform` passed through end to end; section `extras` (21) | engine | S | 2 | fmt-06 | byte-exact JSON fragments; a warning about an unapplied transform stays |
+| fmt-20 ⚙⚠ | `StlWriter` (binary and ASCII) | engine | S | 2 | fmt-09 | Box.glb → stl → 12 triangles; size `84 + 50·count` |
+| fmt-21 ⚙ | KTX2 through `GltfWriter` (`KHR_texture_basisu` for Basis only), `.f3d` as-is, OBJ — a warning | engine | S | 2 | fmt-06, fmt-12 | an etc1s fixture → GLB → the loader reads it; a BC file → a warning |
+| fmt-22 ⚙⚠ | `Ktx2Writer` + BC1/BC3/ETC2 encoders in Dart, `--textures bc1|bc3|etc2` in the converter (a ROADMAP item). ⇢ mat-30 (one encoder, §4). 2026-09-11 decision: done as ap-07 in the asset-pipeline track ([asset-pipeline-plan.md](asset-pipeline-plan.md)), the KTX2 container moves into `formats` (ap-01) | engine | M | 2 | fmt-14 | PSNR ≥30 dB via a test unpacker; conformance on the encoder's own output |
+| fmt-23 ⚙⚠ | Basis Universal ETC1S for glTF: a decision (a port / offline FFI / a server) + a spike | engine | L | 3 | fmt-22 | `doc/texture-encoding.md` with a measurement; transcode via the existing `etc1s_transcoder` |
+| fmt-24 | A dedicated FBX reader in Dart (D7 [Д7] closed 2026-09-09): binary 7.x with a Dart inflate, ASCII, `FbxDecoder`, geometry/materials/hierarchy with pivots, UnitScaleFactor/UpAxis; fixtures from Blender against a glTF of the same scene. A separate phase-2 track, starting after rel-16 (phase 1 in hand); a candidate for an agent under ready-made fixtures | fbx | L | 2 | fmt-29d, fmt-01, fmt-03 | a binary and an ASCII cube = a glTF, down to floats; a hierarchy with pre-rotation gives the same world matrices |
+| fmt-25 ⁵ | FBX: skins and animation (Deformer/Cluster, AnimationStack → linear keys, euler → quaternions) | fbx | L | 2 | fmt-24 | a pose at t=0.5 = a glTF export within 1e-4 |
+| fmt-26 ⁷ | Dropped 2026-09-09: no server-side FBX conversion (`ConversionService`, an HTTP implementation, a server outside the repository) — its own reader instead (fmt-24/25). The id stays so references don't dangle | — | — | — | — | — |
+| fmt-29d *(added following 2026-09-09 decisions)* | The `flutter3d_fbx` package skeleton: flat (`flatDartPackages`), `resolution: workspace`, depending only on `flutter3d_formats` (`geometry` transitively), a barrel, `FbxDecoder implements ModelDecoder` as a stub that refuses with a value; registered in the workspace, `notARepeatableStep`, §16 (after `formats`, independent of `flutter3d`), §3.2, `ci.sh`; the package count 33 → 34 in README/§3.2/§16 in the same commit | fbx | S | 2 | doc-01, rel-16 | scanner green; `dart pub get` in the package with no Flutter SDK (qa-03); `publish_check.sh` accepts the order |
+| fmt-27 ⚙⚠ | USDZ, on demand: a spike (does Quick Look accept usda?), a `UsdzWriter` + an uncompressed zip | engine | M | 4 | fmt-06 | a Quick Look screenshot in the doc; byte-exact 64-byte alignment. Spike D8 [Д8] partially answered: `UsdzWriter(GltfLoader().load(Box.glb))` produced a real `.usdz`, served to the iOS 26 simulator (iPhone 17 Pro) over a local HTTP server with `Content-Type: model/vnd.usdz+zip` — Safari/Quick Look recognized the file and showed the system's "View in 3D" dialog (meaning: yes, Quick Look accepts a plain-text `.usda` inside an uncompressed zip). It didn't get past the dialog: this machine has no `Simulator.app` (no GUI app ships with the Xcode beta, only headless `simctl`) and no `idb` or other way to send a tap — so a real render of the cube in Quick Look was never photographed, only the acceptance dialog itself. The 64-byte alignment was already checked byte-exact in `usdz_writer_test.dart`, independently of this spike |
+| fmt-28 ⚙⚠ | `ModelLight`/`ModelCamera` in the vocabulary, `KHR_lights_punctual` and `cameras` in the loader/writer, sections 22–23 | engine | S | 4 | fmt-06, fmt-19 | a round trip of a hand-written glTF with two light sources and a camera |
+| fmt-30n ⚠ *(added 2026-09-10 by gap analysis)* | **Output geometry compression for glTF**: cache-friendly vertex order, attribute quantization, `EXT_meshopt_compression`. Gap analysis: a file a third the size and faster loading; the plan keeps compressed sections in its own container but not compression on the output side, into the format that feeds the rest of the world. `fmt-15` today is a "loud skip" on read; this is its write-side half. Cache-friendly vertex order (`flutter3d_geometry`'s `optimizeVertexCache`) and attribute quantization (`KHR_mesh_quantization` on NORMAL/TANGENT/TEXCOORD_0/COLOR_0) already existed, found on returning to this row — `EXT_meshopt_compression` itself was the only real gap. Closed 2026-09-13/14: `meshopt_vertex_codec.dart` (format version 0) and `meshopt_index_codec.dart` — each decoder is a direct line-by-line port of `meshopt_decoder_reference.js` (the only readable part of the `meshoptimizer` npm package — the real encoder only exists compiled to WebAssembly, nothing to port from), the encoder is a from-scratch design, verified not only against its own inverse but against a real reference decoder under Node (`meshopt_reference_check.mjs`/`meshopt_index_reference_check.mjs`, both green). Woven into `GltfWriter`/`GltfAccessorReader`: POSITION and already-quantized attributes compressed via the vertex codec, indices via the index codec; `GltfLoader`'s own `extensionsRequired` filter knows the extension's name. A full round trip through `compareModelDocuments` is green. Honestly left undone: the index codec doesn't reuse FIFO connectivity (only the always-correct fallback — LEB128 per vertex), version 1 of the vertex format (wider "channels") isn't implemented — so "a third smaller" isn't literally reached (2.70× measured, was 1.90× without EXT_meshopt_compression); the official Khronos validator (`gltf-validator@2.0.0-dev.3.10`, nothing newer on npm) doesn't know this extension at all and so misreads compressed bufferViews — "the validator is green" in the acceptance for a compressed file isn't something this tool can check; checked instead by an independent reference decoder and this repo's own reader | formats | M | 2 | fmt-06 | a GLB a third the size; the re-read document matches `compareModelDocuments` within quantization tolerance; the Khronos validator is green |
+
+### 2.4 Rendering and viewport (`view-`)
+
+Almost everything is already in the engine and needs stretching, not
+writing: `DebugDraw` and `DebugLineVertex`/`DebugLine`, `PassContributor`,
+`Renderer.pickPixel`, `Raycaster`, `OrbitController`,
+`RenderView.viewportFraction`/`layerMask`, `EnvironmentMap.fromSky`, vertex
+color in `surface.glsl`. Missing: partial buffer rewrites, points as a
+primitive (the CPU rasterizer throws on point, WebGPU gives 1 px), thick
+lines, depth offset, a triangle counter, a triangle BVH, wireframe outside
+Impeller. A new shader costs the same across all four backends, so the plan
+allows at most two vertex stages and no fragment ones.
+
+| id | what | package | size | phase | depends | acceptance |
+|---|---|---|---|---|---|---|
+| view-01-bench | Micro-measurements for the overlay on rig p0-01: (b) `bindVertexData` on 200k quads per frame, (c) a CPU offset of 200k vertices toward the camera. (a) `DeviceMesh.upload` per frame ⇢ p0-06; a 1M-triangle scene ⇢ p0-01/02/03 | engine example + `packages/flutter3d/tool/bench` | S | 0 | — | thresholds: (c) >2 ms → view-06 is required; (a) >8 ms → view-14 into phase 1 |
+| view-02-viewport-skeleton ⚠ | `modeler_viewport.dart`: a `Renderer` through `flutter3d_backend`, a `Ticker`, a surface with `List<RenderView>`, the camera in `State`; background — flat `#0E1112` or a `SkySettings` sky (a decision); `frame_test` | app | M | 0 | view-01 | two `RenderView`s each half the screen; a GLB visible on macOS |
+| view-03-orbit-gestures ⚙ | `OrbitGestures` (pure Dart): mouse/finger/trackpad/pen → `rotate/pan/zoom`; a stylus doesn't move the camera; the engine: orthographic zoom changes `height`, `frameBounds` for ortho, `animateTo(yaw, pitch)`. ⇢ ui-06 (gestures), ui-19 (input policy) | app + engine | M | 1 | view-02 | two fingers → `distance`/`target`; a stylus doesn't change `yaw`; an ortho-zoom test in the engine |
+| view-04-display-modes | Perspective/ortho preserving framing, standard views, "Material/Normals/Wireframe" chips (wireframe as an overlay until view-07) | app | S | 1 | view-03 | a +Y face pixel in "Normals" = (128,255,128)±2; ortho doesn't depend on `distance` |
+| view-05-mesh-overlay ⚙⚠ | `MeshOverlay extends PassContributor` with an `OverlayBatch` in a `positionColor` layout: thin lines, camera-facing point quads, ribbons and a 55% fill; a pipeline of `DebugLineVertex`+`DebugLine`, `lessEqual` + a CPU offset; a `mesh-overlay` scene in `kGoldenScenes`, 43 → 44. ⇢ qa-10 | engine | M | 1 | — | a batch of N edges — 3 draws; a quad doesn't depend on `distance`; 4 sets, 0 pixels; `#004F58` fill at 55% ±3 |
+| view-06-overlay-shader ⚙ | Conditional (view-01(c) >2 ms): `overlay.vert` with `depth_bias`, a `DebugLine` fragment; the bundle, `kRequiredShaders`, the CPU stage, two tables, the site | shaders + 4 backends | S (conditional; by risk-9 cost — GLSL, `impellerc`, `naga`, CPU transcription, four tables — treat as M if the item fires) | 1 | view-05, view-01 | `mesh-overlay` within tolerance 8; `manifest_test`; `structure --only 'shader bundle'` |
+| view-07-wire-edges ⚙⚠ | `MeshData.edgeIndices()`, `DeviceMesh.upload(withEdges)`, a `MeshWireVertex` stage, the renderer draws edges as lines wherever `supportsWireframe == false`; a `wireframe-edges` scene | engine + shaders + backends | M | 2 | view-06 | a cube → 18 edges; `wireframeDeclined` is never true |
+| view-08-pick-objects ⚠ | `object_picking.dart`: `pickPixel` → `MeshNode` → `ModelObject`; Shift adds; service nodes are excluded; `RenderSettings.highlighted` until view-10 | app | S | 1 | view-02 | a click on a cube — the object; a click on a gizmo arrow — not the object beneath it |
+| view-09-triangle-bvh ⚙⚠ | The `TriangleBvh` owner (clarified by critique): an implementation over `Float32List`/`Uint32List` with `refit`, in the `geometry` package (2026-09-09 decision); `Raycaster.intersectTriangles` over the tree when `MeshData.bvh` is registered. One implementation shared with mesh-20/p0-10 (§3): p0-10 measures a prototype of this class, mesh-20 builds `MeshBvh` on top | engine (geometry) | M | 1 | doc-01, p0-10 | 10k rays over a torus = brute force; a ray <0.2 ms, refit <5 ms, build <150 ms at 200k |
+| view-10-pick-elements ⚠ | `element_picking.dart`: a face by ray, a vertex/edge by screen distance (8 lp mouse, 24 lp finger) with occlusion, a box by projection; the result — a `Selection` | app | M | 1 | view-09, view-08 | a face's center → the face, ±3 lp from an edge → the edge, 12 lp from a vertex → nothing; a back-facing vertex with no flag isn't picked |
+| view-11-grid-orientation | A floor grid as a `MeshOverlay` batch with fade-out and `lessEqual`; a ⌀60 orientation gizmo — a `CustomPainter`, a click → `animateTo` | app | S | 1 | view-05, view-04 | grid pixels ≈ `#2A3234`; `−X` → yaw π/2 |
+| view-12-transform-gizmo ⚠ | `transform_gizmo.dart`: `Shape`-built handles, `unlit`, `always`, a late bucket, a screen-space size; `GizmoHit`/`GizmoDrag` following `AxisDrag`'s pattern; Ctrl snapping; one transaction. ⇢ ui-06 (the manipulator) | app | L | 1 | view-08, view-03 | rays along X → a shift along X, one step; `steady_gizmo_test` two frames byte-exact; the X arrow `#FF6B8A`±2 |
+| view-13-mesh-mode-app ⚠ | `mesh_overlay_builder.dart`: `EditMesh` + `Selection` → three batches, rebuilt by version, quads billboarded to the camera, thinning >100k | app | M | 1 | view-05, view-10 | a cube with one face: 12 lines, 4 ribbons, 2 triangles; 200k edges <20 ms on a selection change, 0 ms while rotating |
+| view-14-overwrite-geometry ⚙⚠ | `GraphicsDevice.overwriteGeometry(target, offset, bytes)` with "visible from the next pass" semantics, four implementations + a fake; `DeviceMesh.overwrite` with bounds/version; a conformance check "a partial overwrite draws what a fresh upload draws," 33 → 34. ⇢ pro-eng-01, qa-11; phase 1 if p0-06 doesn't pass | hw + 4 backends + engine + conformance | M | 2 | view-01 | conformance across four; overwriting 1% of 200k <1 ms |
+| view-15-multi-view ⚙ | `ViewportPane {view, orbit, layerMask}`, pointer routing by `viewportFraction`; `SceneSurface.views:` in the session | app + session | S | 3 | view-02, view-08 | a click in the right half gives a sphere on layer 2 |
+| view-16-material-preview ⚠ | A separate `Renderer` and `Scene`, shapes, `EnvironmentMap.fromSky`, syncing `SurfaceMaterial → Material`. ⇢ mat-15 | app | M | 2 | view-02 | see mat-15 |
+| view-17-game-preview ⚙⚠ | `FrameResult.triangles`/`instances` in `renderer_mesh_encode.dart`; a viewport with a "game" profile, a metrics overlay, budget bars, `AnimationPlayer`. ⇢ anim-24 (budgets), ui-28 (the shell) | engine + app | M | 3 | view-02 | a cube + 3 spheres → `triangles == 12 + 3·N`; exceeding paints `#FFB86B` |
+| view-18-weight-gradient ⚠ | A bone weight → a `color` attribute across five stops, `unlit`, `tonemap: false`; updated via overwrite; a legend — Flutter. ⇢ anim-11 | app | M | 3 | view-14 | a weight of 1 → `#FF3B5C`±3; a stroke only changes 1% of `source` |
+| view-19-uv-view ⚠ | Seams as ribbons, per-corner stretch as color, a 2D panel on `CustomPaint`. ⇢ pro-uv-07 | app | M | 4 | view-13, view-18 | see pro-uv-07 |
+| view-20-lod-views | Three `ViewportPane`s, labels with `triangleCount`, a distance slider → picking a `LodGroup` level by coverage. ⇢ pro-lod-04 | app | S | 4 | view-15 | see pro-lod-04 |
+| view-21-brush-cursor-pressure ⚠ | A ⌀140 cursor as a Flutter overlay or a surface-hugging ribbon via `HitResult.normal`; `pressure` for a stylus only; strokes batched once per frame. ⇢ pro-sc-08, ui-29 | app | S | 4 | view-03, 09, 14 | pressure 0.5 → strength 0.5; a finger doesn't create a stroke |
+| view-22-tests-numbers-ci | `test/viewport/*` in `ci.sh`; a draw-call guard test `1 + 3 + 1 + N`, `pipelines` doesn't grow; the app in `repository.dart`; numbers. ⇢ qa-14 | app + tool | S | 1 | view-13, 12, 11 | `ci.sh` green; an extra draw in `MeshOverlay` — red |
+| view-23n *(added 2026-09-10 along the way)* | **A modal transform** — what basic operations rely on more than the gizmo: after `G`/`R`/`S`, dragging continues until `Enter`/a click (accept) or `Esc`/right-click (cancel, the transaction rolls back entirely); `X`/`Y`/`Z` constrain to an axis, pressing again — a plane, `Shift+X` — "everything but X"; numeric keyboard input replaces dragging (`G X 5 Enter`); `Ctrl` — snapping (a 0.1 grid / a 15° angle / a 0.1 scale step), `Shift` — fine adjustment. The status line shows the current value and constraint. Pure Dart in `transform_modal.dart`, a widget on top of it | app | M | 1 | view-03, doc-07 | `G X 5 Enter` moves exactly 5 along X; `Esc` restores the original positions by `identical`; a hundred frames + `Enter` is one history step; `Ctrl` snaps to multiples of 0.1 |
+| view-24n *(added 2026-09-10 along the way)* | A selection box: dragging with the left button and no tool active draws a box overlay, releasing calls `pickElementsIn`/`objectsIn`; `Shift` adds, `Ctrl` subtracts; `A` selects all, `Alt+A` deselects, `Ctrl+I` inverts. `pickElementsIn` is written and tested (view-10), but has no caller | app | S | 1 | view-10, doc-32n | a box over two cube vertices gives two; a `Shift`-box adds; `A` in face mode selects six |
+| view-25n *(added 2026-09-10 along the way)* | On-screen gizmos: `Shape`-built handles (arrows/arcs/cubes) in a late `always` bucket, a screen-space size, hover highlighting; dragging runs through the same `transform_modal.dart` as the keyboard — one path, not two. The `GizmoHit`/`GizmoDrag` arithmetic is already written (view-12) | app | M | 1 | view-12, view-23n | a ray along X → a shift along X in one step; frame `gizmo-handles`; the drag arithmetic matches `G X`'s |
+| view-26n *(added 2026-09-10 by gap analysis)* | **Snapping to a vertex, edge, and face** during a transform: `Ctrl` today only gives a 0.1 grid, a 15° angle, and a 0.1 scale step — that's all. Gap analysis ranked this second by cost out of ten: with no snapping to geometry, two pieces can't be joined, a leg can't land in a tabletop's corner, and a modular kit can't be assembled so its seams line up. The target is found via `MeshPicker` within a radius, highlighted in the viewport; modes switch mid-transform | app | M | 1 | view-23n, mesh-20, view-10 | a vertex snapped to another vertex matches it byte-exact; the highlight shows the target before release; `Esc` rolls back entirely, same as without snapping |
+
+### 2.5 Shell and platforms (`ui-`)
+
+Repeat the level editor's split: a Cubit holds the document, mode, status
+phrase, last-operation parameters, export readiness; the camera, scene, and
+gizmo live in the widget's `State`; every edit is a command; tests run
+through `flutter3d_cpu`. The repository has not one line of localization, no
+reading of `PointerDeviceKind.stylus` or `pressure`; `documents.dart` pulls
+in `dart:io`; on the web the backend draws at a fixed size
+(`kFixedResolution`).
+
+| id | what | package | size | phase | depends | acceptance |
+|---|---|---|---|---|---|---|
+| ui-00 ⚠ | A shell spike: `openDevice` from `flutter3d_app`, a GLB from `--dart-define`, `SceneSurface` + `OrbitController`, `FrameTimingLog`; macOS and web runners. Measurement 0.1 ⇢ p0-01/02/03; the files become `staging.dart`/`viewport.dart` | app | S | 0 | — | `flutter build web --wasm` builds; the model rotates on macOS |
+| ui-01 | Registration: the workspace, `applications`, README/LICENSE/analysis_options, an `Info.plist` with `FLTEnableFlutterGPU`/`FLTEnableImpeller`, `staging.dart` as the world's only build. ⇢ qa-02 | app | S | 0 | ui-00 | scanner 30/30; `ci.sh` green |
+| ui-02 ⚠ | An M3 theme from a token table with an explicit `ColorScheme.dark` (not `fromSeed`), a `ModelerColors` extension, TextTheme 400/500, `VisualDensity.compact`, component themes; an icon set — the SDK's `Icons` with a mapping table against the handoff README's Material Symbols glyphs (F12n [Е12n] closed 2026-09-09; not taking the external `material_symbols_icons` package) | app | S | 1 | ui-01 | every role = the table's hex; a 32-tall status bar, a 36 rail button; icons with no external dependency, or the dependency recorded in the pubspec with a license |
+| ui-03 ⚠ | `ModelerState` = Opening / Choosing / Ready(project, mode, submode, said, activeOperation, viewport, readiness, jobs) / Failed; `ModelerCubit` built from proposals; the camera and scene aren't in the Cubit | app | M | 1 | ui-01 | a mode switch doesn't clear the selection; `ran()` refreshes readiness; undo after a transaction — one step |
+| ui-04 | The shell: a 52-tall TopBar with two `SegmentedButton`s, a 52-wide Rail, a 250–330 Properties panel, a 30-tall StatusBar; the mode-table content (ui-07) swaps wholesale | app | M | 1 | ui-02, ui-03 | at 1440×900, heights/widths via `RenderBox`; phase 2–4 modes are present, disabled |
+| ui-05 ⚠ | `LayoutClass.of(width)`; tablet — a 48-wide palette, a sheet ~200 tall with a handle; phone — an 80-tall `NavigationBar`, a 56 FAB, a 130-tall sheet | app | M | 1 | ui-04, ui-07 | boundaries 599/600/1199/1200; identical tool keys across the three shells |
+| ui-06 ⚠ | The app viewport: a `Listener` only on the image, `SceneSurface`, `scene_sync.dart` (ModelObject ↔ MeshNode), coalescing GPU updates once per frame. Gestures ⇢ view-03, picking ⇢ view-08/10, the manipulator ⇢ view-12, orientation gizmo ⇢ view-11 | app | M | 1 | ui-03, ui-00 | `pick_test` on a CpuDevice 128×96; `manipulator_drag_test` — one step |
+| ui-07 | `ModelerTool` (id, icon, a label key, a shortcut, mode, group, command) and `toolsFor(Mode)` — one source feeding the rail, palette, sheet, and hotkeys | app | S | 1 | ui-03 | unique ids and shortcuts; the three shells share one id set |
+| ui-08 ⚠ | Screen 01: an object list, a 3×3 `NumberField` grid, a modifier stack with a toggle and drag-and-drop; `section_label.dart` | app | M | 1 | ui-04, ui-03 | "1,5" and "1.5" both accepted; entering a value in X emits `SetTransform` |
+| ui-09 ⚠ | Screen 02: `operation_card.dart` built from the top history entry's command parameters (`ParamHint` from syn-01), `history.amend` with no confirmation; a selection summary | app | S | 1 | ui-08, ui-06, doc-07, syn-01 | a slider calls amend with no new step; the close button doesn't touch history |
+| ui-10 ⚠ | The status line: mode metrics, the first `Issue` from `ExportReadiness` (green/orange), a click → the export dialog; locale-aware `NumberFormat` | app | S | 1 | ui-04, ui-03 | an n-gon → orange text; 1240000 → "1,240,000" |
+| ui-11 ⚠ | Undo/redo across three layouts, a tooltip with `undoSays`, ⌘Z/⇧⌘Z, every drag inside a transaction | app | S | 1 | ui-03, ui-06 | 40 events → one step; undo restores the mesh via `identical` |
+| ui-12 ⚠ | `Shortcuts`/`Actions` from `ModelerTool.shortcut` plus shared ones; a Blender-like set — G/R/S/E/I, 1/2/3, Tab — wherever it doesn't conflict with the platform (F5 [Е5] closed 2026-09-09); meta/control by platform; focus inside `NumberField` intercepts | app | S | 1 | ui-07, ui-11 | "E" on a face starts an extrusion; inside a field it types the character |
+| ui-13 ⚠ | Screen 09: `profile_editing.dart` (pure Dart: points, curve segments — quadratic/cubic Bézier with a flattening tolerance into a polyline for `LatheShape`, which only accepts a polyline; an axis, a ⌀12 hit target, a snap of 40), `profile_editor.dart` (`CustomPainter`), `lathe_dialog.dart` at 720 with a second `RenderView`; "Point / Curve / Axis" chips per the handoff README; `AddLathe` stores the curve, not the polyline (clarified by critique) | app | M | 1 | ui-06, ui-08 | a hit inside ⌀12; changing segments from 24→12 updates the summary; the preview frame = a golden; a curve of 3 points gives N segments, the sum of chord lengths ≈ the curve's own length within the flattening tolerance |
+| ui-14 ⚠ | `ProjectFiles` with a conditional export: native (`file_selector` + writing per p0-13n's result — `getSaveLocation` and a direct write with no rename under the sandbox, or security-scoped directory access; `writeFileAtomically` only where the directory is reachable), web (Blob → `<a download>`); `documents.dart` with no `dart:io`. Spike 0.5 ⇢ p0-08, the sandbox spike ⇢ p0-13n | app | M | 0 | ui-00, p0-13n | under `--wasm` a GLB opens and a `.f3d` downloads; both halves pass analysis; on macOS with the sandbox on, "Save As" writes the file |
+| ui-15 | A start screen: "Open File," recent files via `defaultStorage('flutter3d_modeler')` (`Storage` — an abstract interface with a text `write(name, contents) → bool`; built through `defaultStorage`, like `SaveFile`/`SettingsFile`), "New Project" with a profile | app | S | 1 | ui-14, ui-03 | 8 entries, no duplicates, broken JSON — an empty list |
+| ui-16 ⚠ | The import screen: `warnings` as a list, metrics against the profile, checkboxes (weld, normals, triangulate), units (mm/cm/m → an `ImportOptions.scale` multiplier) and an up axis (Y/Z) with a bounds preview; input limits (file size on the web, morph-target vertices against `maxTextureSize`, triangles against the mobile preset) shown before the button; progress replaces the button; on the web, decoding on the main thread. Units and limits added by critique | app | M | 1 | ui-14, ui-03, doc-11 | `import_plan_test` with no Flutter; on a samples file the dialog shows the warning count; STL in mm with "mm" chosen gives bounds in meters; a file over the web limit is refused before decoding |
+| ui-17 ⚠ | The export screen: format, an `Issue` list with "show," budget bars, checkboxes (including "bake node transforms" via `ApplyTransform` from doc-06 — added by critique); `toModelDocument()` → a writer → `saveAs`; ⌘E. On an error-level `Issue`: a warning and export after explicit confirmation, refusal only on empty geometry (D9 [Г9] closed 2026-09-09) | app | M | 1 | ui-10, ui-14 | round trip cube + vase → GLB → decode: the same mesh and triangle counts, frame = golden; with the checkbox, GLB nodes carry identity matrices; an object with an n-gon exports after confirmation, an empty project — refused |
+| ui-18 ⚙⚠ | Autosave: 2 s debounce / ≤1× per 15 s, background serialization, `Storage.write('autosave/<id>')`, a recovery prompt; `BinaryStorage`/IndexedDB in flutter3d_screens (a repository-package change). ⇢ fmt-18 (atomic write) | app + screens | M | 1 | ui-03, ui-14 | three commands → one write (FakeAsync); a `write() == false` is reported once |
+| ui-19 | `InputPolicy` (pure Dart): mouse — everything; stylus — draws, `pressure` normalized; touch — camera/long-press; inverted — an eraser; a 48-tall tap target on touch | app | S | 1 | ui-06 | touch in sculpt mode → camera; mouse → strength 1.0 |
+| ui-20 ⚙⚠ | macOS: `CFBundleDocumentTypes`, the sandbox on with `user-selected.read-write` (compatible with writing per p0-13n; the level editor turned the sandbox off precisely because of a `PathAccessException` on write), its own icon; web: index.html with no soloud, a manifest, `--base-href=/modeler/`; `kFixedResolution` — recreate the device on a class change or resize `WebGlDevice` | app + webgl | S | 1 | ui-01, ui-14, p0-13n | the GPU rule is green; `flutter build macos` and `web --wasm` in CI; saving under the sandbox passes in `flutter test` on the macOS runner |
+| ui-21 ⁴ | Android (`EnableFlutterGPU`, no orientation lock, an intent filter), iOS (document types, `UISupportsDocumentBrowser`, `file_selector_ios`, `FLTEnableFlutterGPU`); debug builds in CI (qa-17); a physical-iPad and Galaxy A55 check. Phase 1 per the 2026-09-09 decision: four platforms from the first version | app | S | 1 | ui-20, ui-05, ui-19, rel-19d | scanner over both directories; pressure 0..1 with a Pencil on an iPad; the app opens a GLB on an iPad and a Galaxy A55 |
+| ui-22 ⚠ | `flutter_localizations` + `intl`, an `app_ru.arb` template, `app_en.arb`, every string through l10n; Russian and English from the first version (F2 [Е2]), the language of `says` — English (D4 [Г4]); both closed 2026-09-09 | app | S | 1 | ui-04 | the ru/en key sets are equal; under `Locale('en')` there's no Cyrillic |
+| ui-23 ⚠ | Semantics/tooltips, focus order, contrast (an 11 px outline on a face), a 1.3 textScaler, a 48-tall tap target on touch | app | S | 1 | ui-05, ui-02 | `textContrastGuideline`, `androidTapTargetGuideline`; no overflow at 1.3 |
+| ui-24 | `PopScope` with an unsaved-changes dialog, a marker in the title, `beforeunload` on the web | app | S | 1 | ui-14, ui-03 | a dialog appears when isDirty; a failed write doesn't close |
+| ui-25 | A `Job` in `ModelerReady.jobs`, `Isolate.run` on native, chunked with yielding on the web, a `JobButton` with an indicator. The runner for doc-24 (§3) | app | S | 1 | ui-03 | 10 chunks → progress 0.1…1.0; canceling at chunk 3 gives no result |
+| ui-26 ⚠ | `frame_test` (the picture follows the document), `mesh_overlay_frame_test`, all through `staging.dart`; numbers in README/ARCHITECTURE/the site. ⇢ qa-15 | app | M | 1 | ui-06, 09, 13, 17, doc-07 | `flutter test` with no GPU; a "scene isn't rebuilt" mutation fails |
+| ui-27 ⚙⚠ | `flutter3d_editor_widgets` (new): `FieldRow`, hint controls, `NumberField`; both editors depend on it; screen 05's material panel built from hints. The `.fmat`-write gate ⇢ mat-03 | editor_widgets (new) | M | 2 | ui-08 | the level editor's tests are green after the move; §16 and the package count in README/§3.2/§16 shift in the same commit |
+| ui-28 ⚠ | The phase-3 shell: a 270-tall timeline (a 44-tall transport bar, 180-tall bones, tracks, a playhead), `playback` in the state, ticked via an `AnimationPlayer` in `State`; screen 19's overlay and budget panel; screen 15's form rows. ⇢ anim-07 (the timeline), view-17/anim-24 (the preview) | app | L | 3 | ui-04, ui-06 | clicking a track sets a key; 28/64 — a 44%-green bar |
+| ui-29 ⚙⚠ | A panel-free sculpting layout, a brush palette, a 250-wide card, a ⌀140 cursor, strength from `InputPolicy`; a stroke — a transaction. ⇢ pro-sc-08, view-21 | app | M | 4 | ui-19, ui-05 | no Rail/Properties; touch doesn't create a stroke |
+| ui-30n *(added by critique)* | Uncaught exceptions: `FlutterError.onError` and `runZonedGuarded` in `main`, an emergency autosave write (ui-18) before showing the error, a "what happened" window with a "Report a problem" button (rel-15) and a local log of the last N commands from the doc-16 journal; no telemetry | app | S | 1 | ui-18, rel-15, doc-16 | an exception thrown inside `apply` → the autosave is written, the window shows, the form URL carries the command name; tested through `FlutterError.onError` in a widget test |
+| ui-31n *(added by critique)* | Drag-and-drop a file onto the window (macOS via `desktop_drop` or a custom channel, web — `dragover`/`drop` via `package:web`) → the same path as "Open File" (ui-14/16); F7 [Е7] only covers Finder/intent in phase 2 | app | S | 1 | ui-14, ui-16 | dropping a GLB opens the import screen; an unknown extension gives a status message; on the web, tested via a synthetic event |
+| ui-32n *(added by critique)* | In-app help: a menu item/`?` with a hotkey table from `ModelerTool.shortcut` (ui-07, the F5 [Е5] set) and a link to the rel-09 tutorial; no second source of truth for keys | app | S | 1 | ui-07, ui-12 | the table contains every `shortcut` from `toolsFor(Mode)` exactly once; the link leads to the site page |
+| ui-33d *(added following 2026-09-09 decisions)* | A "Save without history" checkbox in "Save As" and in project export (ui-17) → `ProjectWriter(includeHistory: false)` from doc-31d; autosave (ui-18) always writes with history | app | S | 1 | doc-31d, ui-17, ui-14 | with the checkbox, no `history` section in the file; without it, undo is available three steps after reopening |
+| ui-34d ⁸ *(added following 2026-09-09 decisions)* | A web worker for indivisible operations on the web (F11 [Е11] closed: a freeze with progress in the button's place is acceptable, the worker is a phase-1 item, conditional, not phase 2): the isolate compiles into a worker under wasm/JS, transferred via `TransferableTypedData`/`postMessage`, in phase 1 — import (decodeModel + fromMeshData) and export (`toMeshData` + a writer), through the same `Job` from ui-25. Trigger condition: p0-07/p0-08 show a freeze longer than 1 s on a reference operation (a 30 MB import or a 200k export). Half the condition checked in real headless Chrome: `bench_isolate.dart`'s own 316×316 grid (199,712 triangles — p0-07's own reference) with no `dart:isolate`, compiled both `dart compile js` and `dart compile wasm`, gave `toMeshData` in 353.5 ms (JS) and 427.4 ms (wasm) on the single-threaded path — well under the 1 s threshold. The export-200k half of the condition is closed: it didn't fire. The import-30MB half was also measured: a real `.glb`, exactly 30.0 MB (625,681 vertices, 1,248,200 triangles, built by `flutter3d_formats`'s `GltfWriter` and checked by its own round trip, not superficially), served to that same headless Chrome via `fetch` and parsed by `GltfLoader().load()`, compiled with `dart compile js` — parsing takes ~10 ms, two orders of magnitude under the 1 s threshold. Both halves of the p0-07/p0-08 condition are closed and neither fired: by its own wording, `ui-34d` doesn't get built — a web worker isn't needed for these two operations | app | M | 1 (conditional) | ui-25, p0-07, p0-08, mesh-30 | a 30 MB import in Chrome doesn't hold a frame longer than 100 ms; the result through a worker = on the main thread, byte-exact; if the condition never fires, the item isn't built, and that's recorded in doc §6 |
+| ui-35n *(added 2026-09-10 along the way)* | The full transform panel: position, rotation (Euler angles XYZ, degrees), and scale — three sets of three `NumberField`s each, plus chips for the pivot point (median / individual centers / cursor) and space (global / local). Today only position is in the panel, and there's nowhere to enter rotation or scale | app | S | 1 | ui-08, doc-33n | "45" in the Y rotation gives a quaternion ±0.3827; changing the pivot point changes the rotation result for two objects; "1,5" and "1.5" both accepted |
+| ui-36n *(added 2026-09-11 during review)* | Opening a model from several files: `.gltf` together with a neighboring `.bin` and images. Today `openModel` takes exactly one file, and on the web, where there's no neighboring directory, a `.gltf` has nothing to open with — a gap found during p0-08's review | app | S | 1 | ui-14, fmt-19 | a `.gltf` with an external `.bin` opens on the web and on macOS and gives the same document as a `.glb` of the same mesh |
+
+### 2.6 Materials and modifiers (`mat-`)
+
+The core exists in the engine and is test-covered: `SurfaceMaterial`/
+`TextureBinding`, `.fmat` with `MaterialHint`, `bindMaterial`,
+`uploadEncodedImage`, `EnvironmentMap`, eight sources with per-object
+selection, shadows, `ProceduralTexture`. A panel built from hints and the
+`.fmat`-write gate are already in
+`apps/flutter3d_editor/material_panel.dart`. Missing: a material in the
+editor's document, slot metadata, a compositor graph and evaluator, a
+pure-Dart PNG deflate encoder, `.hdr`, modifiers, light as part of the
+project, a texture budget. The graph stays inside the ROADMAP's rules: nodes
+are computed on the CPU and baked into five PBR slots, the shader doesn't
+change.
+
+| id | what | package | size | phase | depends | acceptance |
+|---|---|---|---|---|---|---|
+| mat-01 | `ProjectMaterial {surface, images, fmatPath, version}`, `ModelObject.materialSlots`; commands `AddMaterial`, `RemoveMaterial`, `SetMaterialField` (`writeFmat` keys), `AssignMaterial`, `DuplicateMaterial`, `SetTexture(materialId, slot, imageId, sampling)`, `AddImage(bytes, name)` (both moved from doc-25 into phase 1 by critique — without them an imported texture can't be assigned); `toModelDocument()` with image deduping. Absorbs doc-25 | core | M | 1 | doc-03, doc-05 | a command round trip; two objects with one material → one `SurfaceMaterial`; `AddImage` + `SetTexture` → a `TextureBinding` in the exported document |
+| mat-02 | `TextureInfo(width, height, format, bytesOnDevice, hasOwnMips)` from PNG/JPEG headers (doc-15) and `Ktx2Texture.parse`; weight including mips and `blockLayout` | core | S | 2 | mat-01 | dimensions = `TextureHandle` after loading; an IHDR byte-order mutation |
+| mat-03 ⚠ | Move `materialWith`, `materialDocumentFields`, `materialDocumentHint`, `_fits`, `_sameJson` into `flutter3d_editor_core/lib/src/material_edit.dart`; both editors import it. `editor_core` is a flat package (`flatDartPackages`) depending only on `flutter3d_sim`, and the library takes a `MaterialDocument`/`MaterialHint` from `flutter3d` — so the move is only possible after doc-01, and `editor_core` picks up a dependency on `flutter3d_formats` (the §16 tier shifts — rel-03). Clarified by critique | editor_core | S | 1 | doc-01 | tests move over green; `flutter analyze` clean; `dart pub get` in `editor_core` with no Flutter SDK passes (qa-03) |
+| mat-04 ⚙ | The full "Material" panel: an object's material list, properties from `builtInMaterialHints` via `HintRow` in M3 tokens, "Advanced," inactive sliders per `LightingModel`; a drag is a transaction. Phase 1 got a trimmed mat-04a-n version. Done: alpha (mode + cutoff), emissive (color + strength), all five texture slots, "Advanced" (emissive strength, normal scale, and occlusion strength — only once its own map is already bound — and double-sided), and the shader picker itself. `SurfaceMaterial` got a `lightingModel` field (a sixth bit on top of `unlit`, not replacing it); `_fieldSet`/`SetMaterialField` understand `'lightingModel'` by the shader name from `LightingModel.builtIn`; `.fmat` writes and reads it as a separate `lightingModel` key (not to be confused with `MaterialDocument.lighting` — the same shader name, the same `_readLighting`/`_writeLighting`, but a whole-file field rather than a single material's); `.f3dproj` carries it as an optional key, absent meaning "not chosen" rather than a refusal (`_lightingModelNamed`, the same trick `fmat`/`graph` already use); `bindMaterial`/`bindSurfaceMaterial` in `material_loader.dart` read it before the `unlit` fallback; `lightingModelOf`/`material_panel.dart`'s dropdown follow the same path. What's left undone are two separate items, not a side effect of this panel: glTF and OBJ have no concept of "one of six built-in shaders" at all (only `KHR_materials_unlit`'s presence), so it shouldn't appear there either — neither format's decode/encode needed touching; and the binary `.f3d` (not `.f3dproj`) has byte-fixed material records with no room for a new field — a separate format change with a version bump, not a five-minute one | app + formats + core + engine | M | 2 | mat-01, mat-03, mat-04a-n | metallic is inactive under lambert; hex `#5FD4E4` → (0.373, 0.831, 0.894); three events — one step |
+| mat-04a-n *(added by critique)* | The phase-1 "Material" panel — the design plan puts "Basic materials" in phase 1, and the core scenario "clean the mesh, edit the material, export to GLB" doesn't work without it: the project's material list, assigning to an object (`AssignMaterial`), color / metallic / roughness from `builtInMaterialHints` following `apps/flutter3d_editor/lib/src/material_panel.dart`'s pattern, a `baseColorTexture` slot via `file_selector` (`AddImage` + `SetTexture`) with no sampler parameters; a drag — a transaction | app | S | 1 | mat-01, mat-03, ui-08 | changing the color → `SetMaterialField`, one step per drag; the chosen PNG appears in the GLB as `baseColorTexture`; a `mesh-material-colour` frame in the app's tests |
+| mat-05 | Texture slots: a 26×26 preview from a thumbnail, a name, `w×h`, weight; `file_selector` with `TextureHint.extensions`; `TextureSampling` parameters; `texCoordSet` fixed to 0 | app | M | 2 | mat-02, mat-04 | a 256×128 PNG → "256×128", "170 KB"; a BC7 KTX2 → a format badge |
+| mat-06 | `ColorField`: a swatch, hex, HSV, alpha when `channels == 4`, a `linear` flag for emission | app | S | 2 | mat-04 | linear (0.214…) → `#808080`; a 3-channel hint with no alpha |
+| mat-07 | `MaterialBinder`: a `Material` cache keyed by version, textures keyed by byte hash via `ResourceCache`, field updates with no object replacement; warnings into the status | app | S | 2 | mat-01 | 100 roughness edits — `createTextureFromPixels` = the number of distinct images |
+| mat-08 | An external `.fmat`: `LinkMaterialFile`, `EmbedMaterial`, `MaterialFileWriter.write` through the mat-03 gate; disk in the app; export unfolds paths | core + app | M | 2 | mat-01, mat-03 | link → edit → write → `readFmat` with no warnings; an unfound shader — a warning |
+| mat-09n *(added by critique)* | A pure-Dart image decoder for the Image node: PNG (inflate, filters, 8/16-bit, palette) and baseline JPEG; a from-scratch one or `package:image` in core — a decision alongside D6 [Г6]. The repository has not one pure decoder: golden tests read PNG via `dart:ui`, `cpu_png.dart` is a stored-deflate-only writer. Fallback if a decoder isn't taken: bake in the app via `dart:ui`, while core holds a pixel-free graph — then `bakeTextureGraph` from mat-32 becomes impossible in MCP, and that's recorded | core | M | 2 | mat-01 | PNG fixtures (RGB/RGBA/palette/16-bit) and JPEG decode byte-exact against `dart:ui` in the app's test; a truncated file → a refusal value |
+| mat-10 ⚠ | `TextureGraph` (immutable): fixed nodes Image/Color/Blend/Channels/Levels/Invert/UvTransform/Checker/Noise/NormalFromHeight/Output with `hints`; cycle and type checks. This is "a texture compositor" with a fixed node set, not a shader graph (G1 [Ж1] closed 2026-09-09; the ROADMAP gets reworded at the September 28 review) | core | M | 2 | mat-01 | a JSON round trip; a cycle is refused, naming the node; an input's type is checked |
+| mat-11 | `bakeTextureGraph` on the CPU in linear space, a cache keyed by a structural subtree hash, a chunked 256² preview, full resolution via `Isolate.run`/chunks; no `Random` | core | M | 2 | mat-10, mat-09n | two runs byte-exact; editing `factor` doesn't re-decode Image; a 6-node 2048² measurement in the doc |
+| mat-12 ⚠ | `BakeTextureGraph(materialId)` → images into slots, a "baked at version N" tag; PNG with deflate (a homemade LZ77+Huffman or `package:archive` — a question); raw RGBA in the project | core | M | 2 | mat-11, mat-01 | the PNG decodes via `flutter3d_cpu`; a 1024² gradient <25% of stored |
+| mat-13 | `TextureGraphPanel` at 250 (collapsed), an `InteractiveViewer`, nodes 170–210, `primary` Bézier of degree 2, `HintRow` from `node.hints`, 64² thumbnails, commands `AddNode`/`Link`/`Unlink`/`SetNodeField`/`MoveNode`, "Bake 2048²" with progress | app | L | 2 | mat-10, 11, 04 | a Color→mask link is refused with no command; deleting a node — one step |
+| mat-15 | `MaterialStudio`: its own `Scene`, bodies (sphere/cube/teapot/this object), two `LightNode`s, a floor, three `SkySettings` presets → `EnvironmentMap.fromSky(size: 32)`, `OrbitController`. Absorbs view-16 | app | M | 2 | mat-07 | a `material-studio` frame on the CPU; switching presets disposes the old handle |
+| mat-16 ⚠ | `equirectToCubeFaces` (an LDR panorama, face order per `_directionFor`) → `prefilter(size: 128)`; a "Custom panorama" preset | core | S | 2 | mat-15 | white top/black bottom → +Y/−Y; a 128² measurement, levels 4 |
+| mat-17 ⚙⚠ | A Radiance `.hdr` decoder (RGBE RLE), `prefilterFloat`, a cube in `r16g16b16a16Float`, float-cube conformance, a `ibl-hdr` frame | engine + conformance | M | 4 | mat-16 | Khronos fixtures with provenance; conformance across four backends |
+| mat-18 ⚠ | `ModelObject.modifiers`, `evaluatedMesh` cached by `(geometryVersion, modifiersHash, targetVersion)`; the `Mirror/Array/Smooth/Boolean` values come from mesh-40..48, only `hints` and wrappers live here (§3) | core | M | 2 | — | a seam-stitched mirror; a disabled one doesn't change the hash; a material change doesn't invalidate it |
+| mat-19 | Stack commands and MCP tools. ⇢ doc-23 (commands), mat-32 (tools) | core | S | 2 | mat-18 | see doc-23 |
+| mat-20 ⚠ | The stack in the "Object" panel: a 32-tall row, drag-and-drop, a four-item menu, a parameter card on `surfaceContainerHigh` with `HintRow`, "Apply"/"Delete," warnings; heavy work through `jobs` | app | M | 2 | mat-19, mat-18 | the array's `count` — one `SetModifierField`; frame `modifier-mirror-array` |
+| mat-22 ⚠ | `ExportReadiness` rules: n-gons after a boolean, non-manifold after a mirror, blend mode with opaque alpha, `texCoordSet != 0`, `extraTextures`/`parameters` under glTF, a texture over budget, an `.fmat` with no copy | core | S | 2 | mat-18, 01, 28 | per-rule test with a mutation; cached by object version |
+| mat-23 ⚠ | `SceneLighting {lights, environment, ambientIntensity, shadows, exposure, post}`; light/environment/shadow commands; `LightingSync` → `LightNode`/`RenderSettings`; presets as values | core + app | M | 2 | mat-16 | `SetLightField('intensity', 'a lot')` refused; `RemoveLight` detaches the node |
+| mat-24 ⚠ | "Scene" mode v1: light sources as pickable markers with gizmos, light/environment/shadow/post panels, a status "N sources · M of 6 shadowed," a warning by `lightsDropped`/`shadowsDenied`. Extended by the 2026-09-09 decision (G4 [Ж4], §7 #36): placing several assets in one project — "Import into scene" via `ImportInto` (doc-11a-n), moving objects with the view-12 gizmo, exporting the scene as one GLB via `toModelDocument()` (every object as a node) | app | L | 2 | mat-23, 25, 06, doc-11a-n, view-12 | frame `scene-lit`; a ninth source → an orange status; two imports + moving the second → a GLB with two nodes and different matrices, one `SurfaceMaterial` for a shared material |
+| mat-25 ⚠ | `LightGizmos` over `DebugDraw`: an arrow, range spheres, a cone; a marker billboard in the id pass | app | S | 2 | mat-23 | cone pixels in place; rotating the node moves the arrow |
+| mat-28 ⚠ | `ProjectProfile.textures: TextureBudget(maxSide, maxBytesOnDevice, targetFormat, requirePowerOfTwo)` with presets; `measure(project) → TextureUsage` recomputed for the format | core | S | 2 | mat-02 | one image on two materials counted once; bc7 = 1/4 of RGBA8; 3000² in `overs` |
+| mat-29 | `resizeRgba` (box/bilinear), `toPowerOfTwo`, `FitTexturesToProfile` preserving the source; a "shrink on export" option | core | S | 2 | mat-28, mat-12 | a 4×4 checkerboard → 2×2 gray; 1000×600 → 512×512 |
+| mat-30 ⚙ | A BC1/BC3/ETC2/ASTC 4×4 encoder → KTX2, an export option; PNG in glTF. ⇢ fmt-22 (one implementation in the engine). All four encoders and `planExport`'s `textureEncoding` already existed (`fmt-22`, `exporting.dart`); the missing piece was the toggle itself in `export_screen.dart` — now a "Compress textures (KTX2)" checkbox appears only for `.f3d` (`TextureEncoding` is read nowhere else) and resets to PNG when the format is switched back | engine + core | L | 2 | mat-28 | see fmt-22; an `.f3d` export with `.ktx2` loads with no warnings |
+| mat-31 | Frames `material-studio`, `modifier-mirror-array`, `scene-lit` at 320×200 in the app's `test/goldens`; numbers | app | S | 2 | mat-15, 20, 24 | three PNGs green on ubuntu |
+| mat-32 ⚠ | MCP: `listMaterials`, `setMaterialField` (a schema from `MaterialHint`), `assignMaterial`, `linkMaterialFile`, `bakeTextureGraph`, `addLight`/`setLightField`, `setEnvironment`, `setShadowField`; a "the agent paints the table and sets up light" scenario | mcp | S | 2 | mat-01, 19, 23, 12 | every aspect command has a tool; the scenario reproduces |
+### 2.7 The animation pipeline (`anim-`)
+
+The runtime half is in the engine: `Skeleton` (64 bones), an
+`AnimationTrack` with three interpolations, `AnimationPlayer` with layers,
+`MorphTarget`/`MorphBlend`, `BakedPoses`, a glTF decoder, and a full `.f3d`
+writer; the software rasterizer transcribes the skinned stage,
+`skinned-figure`/`morph-*` golden scenes exist. There is nothing that edits.
+The main addition is "a pose with no scene" (`Pose` + FK over typed arrays),
+which IK, retargeting, drivers, baking, and parity tests all stand on. Rig
+algorithms are proposed for a fourth pure package, `flutter3d_rig` — a
+question for the owner.
+
+| id | what | package | size | phase | depends | acceptance |
+|---|---|---|---|---|---|---|
+| anim-01 ⚙ | `Pose`: local TRS in a `Float32List` indexed by `nodes`, `parents`, `restOf`, `sampleClip`, `worldMatrices`, `jointMatrices` by `Skeleton.update`'s own formula | engine | M | 3 | — | RiggedSimple/BoxAnimated: matrices = `Skeleton.matrices` after `seek` (1e-5) |
+| anim-02 ⚙ | `SkinBlend(MeshData)`: CPU skinning by `joints/weights` with the same normalization as `mesh_skinned.vert`, skipped when the matrices are unchanged | engine | S | 3 | anim-01 | positions = `MeshSkinnedVertexShader` from cpu (1e-4) |
+| anim-03 ⚠ | `ProjectSkeleton`, `ProjectClip` in core; `fromModelDocument` reads skins/animations/targets; `toModelDocument` assembles `ModelSkin`/`AnimationClip`; project sections. Absorbs doc-26 (types) | core | M | 3 | — | RiggedFigure/BoxAnimated/AnimatedMorphCube round trip: joints, inverseBind within 1e-6, tracks byte-exact |
+| anim-04 | `KeyTable`: `setKey`, `moveKeys`, `deleteKeys`, `setInterpolation` (linear↔cubic), `setTangent`; `to/fromAnimationTrack`; commands `SetKey`, `MoveKeys`, `DeleteKeys`, `SetInterpolation`, `SetTangent`. Absorbs doc-26 (clips) | core | M | 3 | anim-03 | `sample(t)` after edits; a round trip on InterpolationTest byte-exact |
+| anim-05 ⚠ | `PoseJoint(joint, path, frame)` — an auto-key from the pose, a key on release, a transaction | core | S | 3 | anim-04 | three `PoseJoint`s in a transaction — one step, one key |
+| anim-06 | `curveSamples`, `tangentHandles`, `valueRange`; Euler for display only | core | S | 3 | anim-04 | step is piecewise-constant; cubic = `AnimationTrack.sample` (1e-6) |
+| anim-07 | Screen 07 assembled: `AnimationPanel` (`apps/flutter3d_modeler/lib/src/ui/animation_panel.dart`) composes `ActionsList`, `TimelinePanel`, `SkeletonTree`, and `ConstraintsList` into one `ModelerMode.animation`; the selected clip/track/key/joint and playhead position are the panel's own local state, not `ModelHistory`; only `MoveKeys` and `AddClip` go outward. Absorbs the timeline from ui-28. The live pose preview is built on the already-finished `AnimationPlayer` (the engine) and `TimelinePlayback` (`timeline_playback.dart`) — only a wire between them and the scene was missing: `buildPreviewPlayer` builds one `AnimationPlayer` over every `project.clips`, redirecting `ProjectTrack.objectId` into an index via `SceneSync.nodeOf` (the same technique `ProjectModelDocument.toModelDocument` already uses for export, only against a live scene instead of a fresh node list); `AnimationPanel` got `onSelectClip`/`onTimeChanged` — reporting the same clip selection and scrubber position it used to keep only to itself, out to the caller; `main.dart` holds one `TimelinePlayback` in `_ModelerScreenState` (not in `ModelerCubit` — like `_lens`/`_shading`/`_orbit`, this is frame state, not document state), rebuilding it only when `project.clips` or `SceneSync` change identity, and ticking it from the already-existing `_onTick`. Selecting a clip pauses on its first pose — the scrubber, not a player, moves it; there is no play button yet, `TimelinePlayback.play`/`pause` are already ready to receive one the day it appears | app | L | 3 | anim-04, 06, 08 | dragging a diamond — `MoveKeys`; frame `modeler-timeline`; selecting a clip + `seek` moves the real `SceneNode`, not a copy |
+| anim-08 | A skeleton overlay via `DebugDraw.addLine` (octahedra, crosses, `#FF458E` for problems); joint picking by screen projection, an 8 lp radius | app | S | 3 | anim-01 | frame `skeleton-overlay`; clicking joint 7 selects 7 |
+| anim-09 ⚠ | `VertexWeights`, persistent; `paint`, `normalize`, `pruneTo`, `mirror`, `smooth`, `gradient`, `assignSelection`. Storage — mesh-60's layers, operations — in `flutter3d_mesh/skin/` (§3) | mesh (rig?) | M | 3 | — | sum 1±1e-6, ≤n influences; a mirrored cube; a 1% stroke ≤10% of a copy |
+| anim-10 ⚠ | `PaintWeights(joint, samples, strength, mode, mirror, normalize)` with a vertex list; hit-testing against `SkinBlend` positions via BVH; pressure → strength | core | M | 3 | anim-09, anim-02 | a stroke on a bent pose hits the elbow; one drag — one step |
+| anim-11 | Weights shown as a vertex-color gradient. ⇢ view-18 | app | S | 3 | anim-09 | see view-18 |
+| anim-12 | A 74-tall bar: a bend slider turns the `SceneNode` with no history, "Reset pose" via `Pose.restOf` | app | S | 3 | anim-01, anim-03 | the slider changes `poseVersion`, the stack doesn't grow |
+| anim-13 ⚠ | `rigIssues(project, profile)`: joints > the profile / > 64, influences, zero sums, unnormalized, unused, uneven scale, tracks pointing at a missing node, unbaked IK/drivers; cached | core | S | 3 | anim-03, anim-09 | per-rule test with a mutation |
+| anim-14 ⚙ | `TwoBoneIk.solve` (law of cosines, a pole), `FabrikIk.solve` over `Pose`; `Pose.writeTo(targets)` | engine | M | 3 | anim-01 | a reachable target within 1e-4; the pole sets the bend side; FABRIK ≤10 iterations |
+| anim-15 | `IkConstraint` in `ProjectSkeleton.constraints`, applied after FK; `BakeIk(clip, fps)`; export always bakes | core | M | 3 | anim-14, anim-04 | after `BakeIk` the effector is within 1e-3 of the target |
+| anim-16 ⚙⚠ | `ExtractRootMotion`, `BakeRootMotionIntoClip`; export "in the animation"/"in code" (extras `flutter3dRootMotion`); the engine: `AnimationPlayer.rootMotionDelta` | core + engine | M | 3 | anim-04, anim-26 | the root stays put, the sum of deltas per cycle = 2 m; byte-exact round trip |
+| anim-17 | `BoneMap` with `autoMap` by a humanoid dictionary and L/R; `retargetClip` in a rest-relative form, hip scaling by height, foot planting via `TwoBoneIk`; the first item of the `flutter3d_rig` package | rig | L | 3 | anim-01, anim-14 | the same skeleton — identity; height ×2 — the foot ≤1 cm off the floor; the package count in README/§3.2/§16 shifts in the same commit |
+| anim-18 | Screen 14: a clip library, two `RenderView`s, blend tracks via `crossFadeTo`/`layers`, a mapping table, `RetargetClip` | app | M | 3 | anim-17, 03, 16 | importing with no skin — a warning; frame `modeler-retarget` |
+| anim-19 ⚠ | `SetShapeWeight`, `KeyShape` (a weights track), `AddShapeFromMesh`, `RenameShape`, `DeleteShape` with index shifting, `ShapeSet`; screen 15's rows. Absorbs doc-27 | core + app | M | 3 | anim-04, anim-03 | `KeyShape` frame 10 → sample; `DeleteShape` doesn't break `AnimationTrack`; frame `modeler-morphs` |
+| anim-20 ⚠ | `ShapeDriver(shape, joint, axis, from, to, curve)`, evaluated from `Pose`, additive through `MorphSink`; `BakeDrivers(clip)` | core | M | 3 | anim-01, anim-19 | an elbow at 90° → 1.0, 45° → 0.5; baked = live (1e-5) |
+| anim-21 | `RigTemplate.humanoid/quadruped`, `buildSkeleton(template, markers, bounds, options)` → a `ProjectSkeleton` with symmetry, ≤64 deforming bones | rig | M | 3 | anim-03 | bone count per the table; L/R mirrored within 1e-6; `inverseBind·worldRest = I` |
+| anim-22 ⚠ | `bindWeights`: envelopes by distance to segments, visibility via BVH, smooth/mirror/prune/normalize; heat diffusion — later | rig | L | 3 | anim-09, anim-21 | a cylinder with two bones: a 0.5/0.5 seam; two "legs" don't pull on each other |
+| anim-23 | Screen 16: a silhouette in `RenderView`, 8 markers, a template/composition/binding step, `SetSkeleton` + `SetWeights` as a transaction | app | M | 3 | anim-21, 22, 25 | RobotExpressive → a skeleton ≤64 bones, one history step; frame `modeler-autorig` |
+| anim-24 ⚙⚠ | Screen 19: profile budgets (triangles, bones, textures, influences), `wireframeDeclined` reported honestly. `FrameResult.triangles` ⇢ view-17 | app | M | 3 | anim-13, anim-03 | `skinnedDraws` = 1; maxJoints=16 on 19 joints — an orange bar |
+| anim-25 ⚠ | `RigJob` (bindWeights, retargetClip, bakeIk, bakeDrivers, bakeRootMotion) through the doc-24/ui-25 runner with `TransferableTypedData` | core | M | 3 | anim-09 | through a job = directly, byte-exact; canceling doesn't change the document |
+| anim-26 ⚙⚠ | GltfWriter: skins/animations/targets. ⇢ fmt-07 (phase 1)² | engine | M | 3 | — | see fmt-07 |
+| anim-27 ⚙ | `.f3d` round trip of an edited rig; a shape name in `F3dRecord.morphTarget` (a new revision of section 15, if there isn't one) | engine | S | 3 | anim-03, anim-19 | documents equal; a zeroed name — red |
+| anim-28 | Parity: `Pose.sampleClip` = `AnimationPlayer.seek` = `BakedPoses.of`; frame `modeler-edited-clip` | core | S | 3 | anim-01, anim-04 | all three paths within 1e-5; a tangent mutation is caught by all three |
+| anim-29 | `AddJoint`, `RemoveJoint` (weights go to the parent + normalize), `ReparentJoint`, `RenameJoint`, `SetRestPose` recomputing inverseBind, `MirrorJoints`; track renumbering. Absorbs doc-26 (the skeleton) | core | M | 3 | anim-03, 09, 04 | after `RemoveJoint` the sum is 1 and `Skeleton` builds; tracks renumbered |
+| anim-30 ⚠ | MCP: `setKey`, `paintWeights`, `autoRig`, `retargetClip`, `bakeIk`, `bakeDrivers`, `extractRootMotion`, `addShape`, `validateRig`; a "RobotExpressive with no skin → auto-rig → weights → keys → GLB" scenario | mcp | M | 3 | anim-13, 21, 26 | the scenario passes; a GLB with a clip and a skeleton |
+| anim-31 | A phase-0 measurement — only what already has code: FK `Skeleton.update` 64 × 1000 (`scene/skeleton.dart`); the rest — anim-31a-n (narrowed by critique: a stroke, `SkinBlend`, and `bindWeights` measure phase-3 code) | rig | S | 0 | — | a number in the doc, with a date and a machine |
+| anim-31a-n *(added by critique)* | Phase-3 startup measurements: a 1% stroke on 200k (over the mesh-60/anim-09 layers), `SkinBlend` at 200k, `bindWeights` at 100k; an 8 ms threshold for an isolate | rig | S | 3 | anim-02, anim-09, anim-22 | numbers in the doc; (a) >10% of a copy — reconsider the chunk before anim-10 |
+| anim-32 ⚠ | `maxInfluences ∈ {1..4}`, `maxJoints ≤ 64` with a refusal message; the brush and auto-rig read the limit | core | S | 3 | anim-09, anim-13 | a profile with 8 influences is refused; a brush at 2 leaves ≤2 |
+| anim-31n *(added 2026-09-10 by gap analysis)* | **Inverse kinematics for posing**, an analytic two-bone plus a look-at with angle constraints. 2026-09-10 decision: IK lives in the modeler, not the engine — needed to plant a foot on a step and turn a head during auto-rigging and pose editing, while in a game the pose comes from a clip. Gap analysis named it among four things a close-up hero is missing | core | M | 3 | anim-21, anim-22 | the foot reaches the target, the knee faces the pole hint's direction; a target farther than the chain's total length — the chain extends and doesn't jitter; zero iterations per frame |
+
+### 2.8 Professional modes (`pro-`)
+
+Of the seven phase-4 screens, the engine only closes the raw material: UV in
+the vertex format, `LodGroup` by screen fraction, a frame graph with a
+version-0 external resource, bloom/SSAO/composite nodes, `readback`, the
+software rasterizer, a non-rotating `RigidBody`. Nothing that writes
+geometry or a texture exists. Almost everything runs on the CPU in pure Dart
+and is tested with `dart test`; the engine gets three contract changes (a
+buffer, a texture region, an external HDR input) plus LOD in the document.
+An honest boundary: LSCM + projection, multiresolution, retopology
+"simplify → quadrify → project," CPU baking, XPBD cloth, a rasterizer
+snapshot, QEM with UV and weights, layered painting — in phase 4; ABF++,
+dyntopo, quadriflow, GPU baking, cloth self-intersection, body rotation, a
+path tracer — after.
+
+| id | what | package | size | phase | depends | acceptance |
+|---|---|---|---|---|---|---|
+| pro-job-01 ⚠ | `Job<T>` with `progress`/`cancel`, an isolate on native, `step()` chunked on the web. ⇢ doc-24 + ui-25 (one runner)¹ | core | S | 2¹ | — | 100 steps monotonic; a cancel mid-way; another microtask between steps |
+| pro-eng-01 ⚙⚠ | `overwriteGeometry` + `DeviceMesh.overwriteVertices(firstVertex, count)`. ⇢ view-14 | hw + backends | M | 2 | — | see view-14 |
+| pro-eng-02 ⚙⚠ | `overwriteTexture(texture, region, rgba)`, RGBA8 base level only; Impeller — the whole level from a CPU copy; conformance "the region reads back correctly" | hw + backends | M | 3 | — | readback of a region gives the same bytes; refuses on compressed/mip>0 |
+| pro-eng-03 ⚙ | `Renderer.renderPost(hdr, settings)` with a version-0 external resource, `keepHdr: true`; a `post-only` scene. Built: `FrameGraph.addExternal(FrameResourceIds.hdrColour)` registers the passed HDR buffer as a version-0 external resource, `bloom` is its only reader (`hdr_colour@0` → `bloom@1`), the composite is called directly over its own `_ldrColor` target rather than as a graph node. `keepHdr: true` returns the bloomed but not-yet-tonemapped buffer for a second call with the same buffer, with no scene recompute. Both halves of the acceptance are green: `renderer_post_standalone_test.dart` (13 tests) — version 0 reads, version 1 is rejected at `compile`, not at runtime; a `post-only` scene (bloom off/on, composite with no AO/reflections) gives the same frame as a full `render` with those same two effects disabled; `frame_graph_test.dart` (44 tests) holds the node versioning itself | engine | M | 4 | — | a full frame = a scene with no post + `renderPost`; version 1 is rejected by the graph |
+| pro-eng-04 ⚙ | A shifted-perspective `TiledProjection(base, tileX, tileY, tilesX, tilesY)` for a tiled snapshot | engine | S | 4 | — | 2×2 tiles of 240×180 stitched = a 480×360 frame, byte-exact |
+| pro-eng-05 ⚙ | `FrameResult.passes: (name, active, micros)` from `CompiledFrameGraph.order` | engine | S | 4 | — | with bloom off, `bloom` is absent from `passes` |
+| pro-eng-06 ⚙⚠ | `ModelNode.lods: ModelLod(surfaceIndices, maxScreenFraction)`, section `LODS` (kind 24 — today's max is 16, fmt-03/04/19/28 take 17–23) in `.f3d`, `LodGroup` in `ModelAsset`, `MSFT_lod` in glTF; a `lod-asset` scene | engine | M | 4 | — | a round trip through `.f3d` and GLB; the old `.f3d` loads |
+| pro-eng-07 ⚙⚠ | Fixed-width ribbons in the overlay (screen-space extension of a segment) for 3.5 lp seams, a 1.6 retopology grid, a 2 outline. Extends view-05 (where ribbons are already assembled on the CPU) | engine | S | 4 | — | scene `overlay-ribbon`; the width doesn't depend on depth |
+| pro-uv-01 ⚠ | A `seam` flag in `EditMesh` ⇢ mesh-12 (phase 1); `MarkSeamCommand(selection)` and the overlay — here | mesh + core | S | 4 | — | seams survive extrusion; a flag snapshot copies one chunk |
+| pro-uv-02 | `splitIslands(mesh, seams)`, `lscm(island)` — a sparse system over CSR, conjugate gradients, two pinned vertices; UV per corner; a `Job` per island. Absorbs mesh-71 | mesh | L | 4 | pro-uv-01, pro-job-01 | a flat 10×10 grid maps to itself (1e-4); a cylinder into a rectangle; 50k faces <2 s AOT |
+| pro-uv-03 | `projectUv(island, planar|box)` — a second chip instead of ABF++ | mesh | S | 4 | pro-uv-01 | a cube → 6 islands with no stretch |
+| pro-uv-04 | `stretchOf(island)` by Sander (L2 through the Jacobian's singular values) | mesh | S | 4 | pro-uv-02 | isometry 1.0±1e-6; halving compression — a known number |
+| pro-uv-05 | `packIslands(islands, margin, allowRotate90)` — shelves/skyline, a binary search on scale, `fillRatio` | mesh | M | 4 | pro-uv-02 | AABBs don't overlap given the margin; 100 rectangles ≥60% |
+| pro-uv-06 ⚠ | `UnwrapCommand(selection, method, margin, autoPack)` with reapplication; UV into `texcoord` through seam splitting; MCP `unwrap` | core + mcp | S | 4 | pro-uv-02, pro-uv-05 | `toMeshData().layout.has(texcoord)`, vertices grew by seam corners; an MCP scenario cube → GLB with UV |
+| pro-uv-07 | Screen 06: `RenderView` with seams on the left, a 400×400 `CustomPainter` on the right (a 32-cell checkerboard, islands, color by stretch, a click), a method/margin/list panel. Absorbs view-19 | app | M | 4 | pro-uv-06, pro-eng-07 | three islands, a `#FF458E` stretched one; seams visible in 3D |
+| pro-sc-01 | A 1.2M-triangle stroke measurement on macOS/Chrome/A55: a 38 MB upload, a frame, editing 20k vertices + normals + overwrite, a BVH build/raycast, per-event garbage; thresholds 8/16 ms, 3 s. Two of three platforms measured: macOS (opening+BVH 3.3–5.7 s, a stroke 294–1005 ms) and Chrome (opening+BVH 24.2–24.4 s, a stroke 7.58–7.71 s) — both thresholds missed on both, the same bottleneck (`MeshNormals.build` recomputes the whole mesh). `sculpt_budget_benchmark_test.dart`'s own conclusion about Chrome turned out to be wrong: the browser doesn't need a foregrounded tab or `profile_web.py` since the test never asks for a frame — `flutter test --platform chrome` runs headless, like any other platform. The A55 still hasn't been measured — needs a phone in hand | core + tool/bench | S | 4 | pro-eng-01 | numbers in doc §6; a decision for pro-sc-09 |
+| pro-sc-02 ⚠ | `SculptMesh`: 1024-vertex CoW chunks, `triangles`, CSR adjacency, a per-vertex grid, `EditMesh ↔ SculptMesh` conversion at mode entry/exit. One chunk type shared with mesh-10; the structure was chosen 2026-09-09 (B8 [Б8] closed): `SculptMesh`, not mesh-72's patch layer; pro-sc-01 measures it, doesn't choose it | mesh | L | 4 | pro-sc-01 | a 1% stroke copies ≤2% of the chunks; a radius search = brute force; the conversion preserves positions and UV |
+| pro-sc-03 | Brushes draw/clay/smooth/flatten/inflate/grab/pinch/crease, `Brush(kind, radius, strength, falloff)`, X symmetry, local normals | mesh | M | 4 | pro-sc-02 | per-brush test with a mutation; symmetry mirrored within 1e-6 |
+| pro-sc-04 ⚠ | A `SculptMesh` triangle BVH with `refit(dirtyTriangles)`. The same `TriangleBvh` (§3) | mesh | M | 4 | pro-sc-02 | a raycast = brute force; refit = a rebuild |
+| pro-sc-05 | Dirty chunks → `DeviceMesh.overwriteVertices`, no more than once per frame; falling back to a fresh `DeviceMesh` per frame | app | S | 4 | pro-eng-01, pro-sc-03 | the frame only differs inside the brush area; measurement (c) within threshold |
+| pro-sc-06 ⚠ | `SculptStrokeCommand(brush, points, pressures)` — one step, `historyBudgetBytes` 512 MB; MCP `sculpt_stroke` | core | S | 4 | pro-sc-03 | 100 strokes at 1% on 200k <10% of 100 copies; undo byte-exact |
+| pro-sc-07 ⚠ | `Multires(base, levels)`: phase-2 subdivision, deltas in a local basis, descent for export with a displacement map; dyntopo — later (B9 [Б9] closed 2026-09-09: multiresolution) | mesh | L | 4 | pro-sc-02, pro-sc-03 | a 5-level cube; descend/ascend preserve displacement within 1e-4; up to 1.2M <5 s |
+| pro-sc-08 | Screen 08: a panel-free layout, a 48-wide palette, a 250-wide card, a ⌀140 cursor, `pressure`, touch — orbit; a "Subdivide" button (a `Multires` level) instead of "brush density" in the mockup — a consequence of B9 [Б9] (2026-09-09 decision), screen 08's design is amended. ⇢ ui-29 (the shell), view-21 (the cursor) | app | M | 4 | pro-sc-05, pro-sc-06 | see ui-29, view-21 |
+| pro-sc-09 | Web: `ProjectProfile.sculptTriangleLimitWeb` by measurement, a BVH that yields to the frame | app + core | S | 4 | pro-sc-01, pro-sc-08 | a number in the profile; a 300k stroke <16 ms on wasm |
+| pro-lod-01 | Garland–Heckbert QEM over `MeshData`: quadrics, a heap on `Float64List`/`Int32List`, a flip check, a `Job` per 1000 collapses. Absorbs mesh-70 | mesh | L | 4 | pro-job-01 | a sphere 20k → 2k, Hausdorff <1% of radius; 200k → 20k <3 s AOT |
+| pro-lod-02 | Attribute quadrics (Hoppe): a seam/boundary penalty, carrying `joints/weights` over with renormalization and a profile limit | mesh | M | 4 | pro-lod-01 | seams ⊂ the source; weight sum 1; frame `lod-uv` |
+| pro-lod-03 | `ModelObject.lods: List<LodSpec(ratio, maxScreenFraction)>` cached by version; `AddLod`, `SetLodRatio`, `RegenerateLods`; meters ↔ screen fraction in the editor | core | S | 4 | pro-lod-02, pro-eng-06 | editing the base invalidates the cache; a round trip |
+| pro-lod-04 | Screen 17: three `RenderView`s by thirds with `layerMask`, labels, a 96-wide bar with zones. Absorbs view-20 | app | M | 4 | pro-lod-03 | the three thirds differ; a widget test of the slider |
+| pro-rt-01 | `retopologize(source, targetQuads)`: simplify → greedy quadrification → BVH-based shrink-wrap; quadriflow — later. Absorbs mesh-73 | mesh | L | 4 | pro-lod-01, pro-sc-04 | ≥70% quads on a sphere and torus; distance <0.5% of the diagonal |
+| pro-rt-02 ⚠ | `DrawQuadCommand(4 × world)` with raycasting and snapping; the active quad — reapplication; vertices with a projection | core | M | 4 | pro-rt-01 | four points on a sphere → a quad on the surface |
+| pro-rt-03 | A retopology overlay: the source with `alpha`, a 1.6 grid as ribbons, an active quad `#FF458E` at 22% | app | S | 4 | pro-eng-07, pro-rt-02 | frame `retopo-overlay` at two transparencies |
+| pro-rt-04 | `bake/`: a low-mesh UV rasterizer, rays ±a shell against the high-mesh BVH → a tangent-space normal map, dilation; the GPU path — later | mesh | L | 4 | pro-sc-04, pro-job-01 | sphere→cube: the face center matches analytically (<2/255); 1024² over 100k <10 s |
+| pro-rt-05 | AO (Halton, cosine-weighted), curvature, thickness on the same rasterization | mesh | M | 4 | pro-rt-04 | a plane gives AO=1; a 90° angle ≈0.5 |
+| pro-rt-06 ⚠ | `BakeCommand(source, target, maps, resolution, shell)` → an `EncodedImage` and `TextureBinding`; MCP `bake_maps` | core + mcp | M | 4 | pro-rt-05, pro-rt-01 | scenario: sphere → sculpt → retopo → bake → GLB; frame `bake-relief` |
+| pro-rt-07 | Screen 10: a 290-wide two-block panel, progress in the button's place | app | S | 4 | pro-rt-06, pro-rt-03 | a Job swaps the button for an indicator; a cancel |
+| pro-sim-01 ⚠ | A flat cloth solver, phase 4 (C3 [В3]/H1 [И1] closed 2026-09-09): XPBD (distance, cross-edge bending, pinned points, gravity, wind, damping, substeps), collisions against physics' own `CollisionShape`; determinism as in sim. Used to be its own `flutter3d_cloth` package; merged into `flutter3d_physics` (`doc/package-merge-plan.md` §3.1) — this row's solver code didn't change, only the package | physics | L | 4 | — | a 20×20 cloth settles within 300 steps; length error <1%; byte-exact for one seed; the package count in README/§3.2/§16 shifts in the same commit |
+| pro-sim-02 ⚠ | A rigid body via `Dynamics`/`RigidBody` (no rotation, with a label), particles via a `ParticleSystem` into the cache | core | S | 4 | pro-sim-03 | a cube falls and stops; particles are deterministic |
+| pro-sim-03 | `SimulationCache(frames, vertexCount)`, `BakeSimulationCommand` as a Job, a project section, a cache progress bar | core | M | 4 | pro-sim-01, pro-job-01 | 120×400 — the expected size; canceling at frame 50 leaves 50 |
+| pro-sim-04 | Playing back the cache through a full `overwriteVertices`, collisions via `DebugDraw` | app | S | 4 | pro-sim-03, pro-eng-01 | frames 0 and 60 differ; 4k vertices <2 ms |
+| pro-sim-05 ⚠ | Simulation export: (a) ≤8 morph targets, (b) a `.f3d` vertex-animation section + node, (c) preview only; recommendation (a) | core | M | 4 | pro-sim-03 | cloth → 8 targets → GLB → frame = the cache (`cloth-morph`) |
+| pro-sim-06 | Screen 11: type chips, parameters, interactions, a 150-wide bar with a transport and the cache | app | M | 4 | pro-sim-04, pro-sim-02 | widget tests; pinning through phase-1 selection |
+| pro-rn-01 | A `flutter3d_cpu` measurement at 1080p and 4K with shadows/SSAO/bloom, AOT and wasm; a threshold: 4K SSAA×2 <3 min on an M3 | cpu | S | 4 | — | numbers in doc §4.2 |
+| pro-rn-02 ⚠ | `RenderSnapshotJob(project, RenderPreset)`: a snapshot from the same renderer — its own `CpuDevice`, tiles, SSAA ×1/×2, frame-graph passes (pro-eng-05), PNG; an isolate on native, a tile per frame on the web; a path tracer is out of scope, the "samples" wording from screen 12's mockup goes away (2026-09-09 decision) | core | M | 4 | pro-rn-01, pro-eng-04, pro-job-01 | 480×360 = a golden byte-exact (×1); ×2 <1% of pixels |
+| pro-rn-03 ⚠ | `CompositeGraph` — a fixed DAG Scene → SSAO → Reflections → Bloom → Tonemap → Look → Output ↔ `RenderSettings`; post edits through `renderPost` | core | M | 4 | pro-eng-03, 05, pro-rn-02 | a round trip; editing bloom marks only the post branch |
+| pro-rn-04 ⚠ | Screen 12: a pass panel from `passes`, a 760×428 result with tile progress, a 260-wide graph (a widget from mat-13); MCP `render_snapshot` | app + mcp | M | 4 | pro-rn-03 | a 96×64 snapshot = `renderFrame` |
+| pro-pt-01 | `PaintLayer` + `PaintStack.flatten`, normal/multiply/add/overlay/screen modes, 64×64 CoW tiles | core | S | 4 | — | known numbers per mode; layer order |
+| pro-pt-02 | `projectBrush(mesh, bvh, hit, radius) → List<UvSpan>` via the pro-rt-04 rasterizer, a 3D falloff | mesh | M | 4 | pro-rt-04, pro-sc-04 | a stroke across a seam paints both islands; texels outside the 3D radius are untouched |
+| pro-pt-03 | `PaintStrokeCommand`, `overwriteTexture` over a dirty rectangle once per frame, mips on completion, AO/curvature masks; MCP `paint_stroke` | core + mcp | M | 4 | pro-pt-01, 02, pro-eng-02 | the frame only differs inside the area; an AO=0 mask suppresses it; undo byte-exact |
+| pro-pt-04 ⚠ | Flattening layers into `baseColorTexture` on export, layers into a project section, an imported texture as the background layer | core | S | 4 | pro-pt-03 | frame `paint-export` |
+| pro-pt-05 | Screen 18: a ⌀96 cursor, a 300-wide unwrap panel with a `ui.Image` from flatten, layers/palette/masks | app | M | 4 | pro-pt-03, pro-uv-07, pro-sc-08 | the canvas updates after a stroke |
+| pro-doc-01 ⚠ | Sections `SEAM`, `UVIS`, `MRES`, `BAKE`, `SIMC`, `PNTL`, `LODS`, `RNDR` with versions; a phase-1 project reads | core | M | 4 | pro-uv-01, sc-07, rt-06, sim-03, pt-01, lod-03, rn-03 | a round trip for each; a phase-1 file opens |
+| pro-test-01 | Eight phase-4 frames, an MCP scenario "cube → … → GLB," numbers | app + mcp | M | 4 | pro-uv-07, sc-08, rt-07, sim-06, rn-04, lod-04, pt-05 | `ci.sh` green; the scenario reproduces |
+| pro-after-01 | An "after phase 4" section in the doc with a reason for each deferred item; a separate line — "collaborative work" from phase 4 of the design plan and the handoff README ("groundwork for future collaboration"): not part of the plan, groundwork — the `doc-16` command journal and commands as values (added by critique) | doc | S | 4 | pro-sc-01, pro-rn-01 | agreed with the owner; the collaborative-work line references doc-16 |
+| pro-pt-06n *(added 2026-09-10 by gap analysis)* | **Vertex-color painting**: the layer already exists (`mesh-12` holds `color` per corner), there's no brush or display. The brush is the same `projectBrush` used for textures, only writing into the vertex layer. Gap analysis: masks for wind, grime, wear, and texture blending in games live in vertex color, because it's free and travels with the mesh | mesh + app | M | 4 | mesh-12, pro-pt-02 | a stroke paints vertices within the 3D radius and leaves neighbors untouched; the color survives a glTF export and reads back; undo in one step |
+| pro-uv-08n *(added 2026-09-10 by gap analysis)* | **An atlas across objects**: packing several objects' islands into one texture and re-pointing their materials at a shared one. Gap analysis: nine props with one texture is one draw call instead of nine. Half the work already exists — `pro-uv-04` packs islands within an object; packing across object boundaries is missing | mesh + core | M | 4 | pro-uv-04, mat-01 | nine objects → one material and one atlas; atlas fill ≥60%; per-frame draw calls drop from nine to one |
+| pro-rt-08n *(added 2026-09-10 by gap analysis)* | **Manual surface-hugging retopology**: new vertices stick to another object's surface. Auto-retopology (`mesh-73`) gives an even grid and never the right edge flow around an eye or a joint; for a character this is done by hand. The same snapping as `view-26n`, only against a different mesh — hence coming after it | app | L | 4 | view-26n, mesh-20 | a vertex placed over a high-poly model lands on it within 1e-4; drift from the surface as the camera turns doesn't accumulate |
+| pro-lod-05n *(added 2026-09-10 by gap analysis)* | **Impostors and billboards**: baking several angles into an atlas and a card instead of a mesh at the far LOD. Gap analysis: a tree at three hundred meters is two triangles with a baked picture, not five thousand. Deliberately last: with no scene where it's noticeable, there's nothing to optimize | app + core | L | 4 | pro-rt-06, pro-rn-02 | eight angles into a 1024² atlas; the silhouette at 300 m differs from the mesh by less than 3% of pixels |
+
+### 2.9 Tests, CI, structure (`qa-`)
+
+The infrastructure is strict and already exists: 30 scanner rules,
+`tool/ci.sh`, `flutter3d_testing`, 33 conformance checks, a sample agent
+scenario in CI. Checked: `main` is red for three reasons from the HANDOFF —
+a phase-0 blocker. A detector probe: `brush`, `bone`, `face`, `bevel`,
+`loop`, `manifold` pass; `dashed`, `reload`, `spike`, `oneWay`, `lap`,
+`boss`, `magazine` don't. The scanner's numeral lists stop at twenty-eight
+(packages) and forty-five (scenes).
+
+| id | what | package | size | phase | depends | acceptance |
+|---|---|---|---|---|---|---|
+| qa-01 | A green `main`: `dart format` on four files, 4322 → 4327 across four documents, a WebGPU guard via `requestAdapter()` | repo | S | 0 | — | 30 of 30; format is silent; three green runs in a row; a date in the HANDOFF |
+| qa-02 | Three packages, `geometry`, `formats`, and the app under the scanner: the workspace, `flatDartPackages` with reasons, `applications`, `notARepeatableStep`, numerals up to forty (28 today + geometry/formats/mesh/core/mcp = 33 by end of phase 0, up to 37 with editor_widgets/rig/cloth/fbx; the `rules.dart` list is extended ahead of the directory existing, as its own comment requires), §16, README, `packages.md`, `testing.md`, Info.plist, CHANGELOG/LICENSE/README. Shared with mesh-00, doc-02, ui-01, rel-02/03 | tool/structure + docs | S | 0 | qa-01 | scanner green with six directories; `publish_check.sh` is satisfied |
+| qa-03 ⚠ | The rule "a flat Dart package resolves without the Flutter SDK": walking `dependencies` down to `flutter: sdk`; a detector proof; the rule count 30 → 31 in six places | tool/structure + docs | S | 0 | qa-02 | green on three flat packages; red on a mutation and on model_core → flutter3d |
+| qa-04 | `ci.sh` reads the `dart test` list from `flatDartPackages` (`--flat-dart`); `-p chrome` for mesh; a process test `dart run bin/model_mcp.dart`. Absorbs doc-30 | tool | S | 0 | qa-02 | removing a name from the list changes the command with no script edit |
+| qa-05 | A forbidden-word dictionary in the doc and CONTRIBUTING (`dashed` → `dotted`, `reload` → `reopen`, `spike` → `peak`); examples in `proveDetectorsWork` | tool/structure + docs | S | 0 | — | `dashedAxis` fires, `bevelWidth` stays silent |
+| qa-06 | An enum and public-member policy: `ElementLevel`, `IssueSeverity` — enums with an exemption; content — sealed; a test as a caller | tool/structure + docs | S | 1 | qa-02 | a skeleton with an enum and a sealed class passes; a table in the doc |
+| qa-07 ⚠ | A half-edge invariant audit, χ across operations, manifoldness, a round trip, seeded fuzzing, persistence ≥90% of chunks. ⇢ mesh-11 (`validate`), mesh-32 (fuzzing), mesh-10 | mesh | M | 1 | qa-02, qa-04 | see mesh-11/32; green on the VM and under `-p chrome` |
+| qa-08 ⚙⚠ | Writer round trips and STL fixtures with provenance in `flutter3d_samples`'s own `assets/ATTRIBUTION.md` (where provenance is already recorded today, per file, with author and source; `LICENSES.md` only lives under `apps/*/assets/`), bump samples 0.4.2 → 0.4.3. ⇢ fmt-06/07/08/09/10 (the tests live there) | engine + samples | M | 1 | qa-01 | see fmt-*; a 1e-6 tolerance, not byte-exact |
+| qa-09 | The glTF Validator in `ci.sh`. ⇢ fmt-11 | tool | S | 1 | qa-08 | see fmt-11 |
+| qa-19n *(added by critique)* | Checking export against an external engine automatically, as the design plan requires ("the exported file opens in Godot and Unity" via an autotest): headless Godot (`godot --headless --import` + a script printing mesh/triangle/material counts) on the doc-21 and rel-09 fixtures, in its own CI job; Unity and Blender — a manual checklist before release (K2 closed 2026-09-09; there's no headless Unity license in CI) | tool + ci | S | 1 | fmt-11, doc-21 | the job is green on `table.glb` and the tutorial's GLB; mesh and triangle counts match `compareModelDocuments`; the step's time is in `ci.yml` |
+| qa-10 ⚙⚠ | Scenes `mesh-overlay` (⇢ view-05) and `material-preview` (⇢ mat-15 in the app, not among the 43 scenes); budgets, `_provisional`, forty-three → forty-four | engine example + backends | M | 1 | qa-01 | see view-05; `_provisional` is empty by merge time |
+| qa-11 ⚙⚠ | A buffer-overwrite conformance check, 33 → 34. ⇢ view-14³ | conformance + hw | M | 2³ | qa-01 | see view-14; an Impeller run with a date in the HANDOFF |
+| qa-12 ⚠ | The "agent builds a table" scenario and a `tools_test` round trip. ⇢ doc-20, doc-21 | mcp | M | 1 | qa-02, qa-04 | see doc-21 |
+| qa-13 ⚠ | A CI bench artifact `bench-mesh` (⇢ mesh-04/31), a stress scene and `FrameTimingLog` (⇢ p0-01/02/03), a table in the HANDOFF and the doc | mesh + engine + ci | M | 0 | qa-02 | the artifact is on every `check`; a table with the machine |
+| qa-14 | `draw_count_baseline_test` on the CPU with exact numbers. ⇢ view-22 | cpu | S | 1 | qa-01 | see view-22 |
+| qa-15 ⚠ | App tests through the rasterizer. ⇢ ui-26 (+ `scaffold_test`, `theme_test` from ui-05/ui-02) | app | M | 1 | qa-02, qa-14 | see ui-26 |
+| qa-16 | Documents catch up with the tree: README, `packages.md`, `testing.md`, §3.2/§13/§16, skills, the "a new test → `structure.dart` → four documents" recipe. Shared with rel-07, fmt-16 | docs + site | S | 1 | qa-02 | scanner green after every merge; 33 packages and 7 applications |
+| qa-17 ⚠ | The editor's web build (wasm), `flutter build macos`, iOS `--no-codesign`, an Android CI matrix; step times recorded | tool + ci | S | 1 | qa-02, qa-13 | builds green; before/after times in `ci.yml` |
+| qa-18 ⚠ | Tests for the project format, commands, history, `ExportReadiness`. ⇢ doc-05/08/10/14 (the tests live there) | core | M | 1 | qa-02, qa-07 | see doc-*; the same fixture on ubuntu and macOS |
+
+### 2.10 Phase 0: measurements (`p0-`)
+
+Measurement tools already exist, but scattered: a `Timeline` around passes,
+`FrameResult.cpuMicros/submitMicros/drawCalls`, `FrameTimingLog`, the
+example's HUD, `bench_util.dart`; the record format is set by ARCHITECTURE
+§14 and `tool/webgpu_spike/README.md` ("The answer"). Five working-through
+items are laid out across twelve units; half of §7's decisions are made by a
+numeric threshold, and each records the threshold and the action for every
+outcome.
+
+| id | what | package | size | phase | depends | acceptance |
+|---|---|---|---|---|---|---|
+| p0-01 ⚠ | The rig: the load is built into `staging.dart` (`kStress`, `kStressObjects`, `kOrbit` from `--dart-define`), an orbit over 600 frames, a HUD with `FrameTimingLog` and load time, a 1M-triangle `.f3d`/GLB generator, an Android example runner with `EnableFlutterGPU`. The rig lives in the modeler, not the engine example: the right thing to measure is the path a document actually opens through. Shared rig for view-01, qa-13, ui-00 | modeler + tool/model_spike | S | 0 | — | a profile run on macOS prints timings; wasm builds; a 10k-triangle test via a golden |
+| p0-02 | Measurement 0.1: macOS Metal, Chrome WebGL2/WebGPU, JS and wasm; one 1M-triangle mesh and 1000×1000 draws; build/raster mean/worst, `cpuMicros`, load time, memory; three runs | doc | S | 0 | p0-01 | a quality gate (2026-09-09 decision: the web is equal footing, the measurement doesn't choose "view-only"): ≤16.6 ms → a 1M web-profile budget; 16.6–33 → a ≤300k profile budget; >33 or a >10 s load → phase 1 gets whatever is needed to pass — a JS build as ARCHITECTURE §1's recorded exception, chunks instead of an isolate (p0-07), ui-34d; by 2026-10-05 |
+| p0-03 | Measurement 0.1 on a Galaxy A55 (200k/500k/1M, an isolate load, memory) and an iPad after rel-19d | doc | S | 0 | p0-01 | a value ≤16.6 ms → the "mobile" profile preset; 200k >33 ms → the mobile preset shrinks to a passing budget, the phone stays a phase-1 platform (2026-09-09 decision) |
+| p0-04 ⚠ | An `EditMesh` spike (cube → extrusion → toMeshData → a frame) with a 50/200k bench. ⇢ mesh-01 (in the package, not `tool/`); thresholds: ≤8 ms → a full in-frame rebuild; 8–33 → `writePositions(into:)` in 1.2, and p0-06 is required; >33 → reconsider the structure | mesh | M | 0 | p0-09 | see mesh-01; an answer by 2026-09-25 |
+| p0-05 ⚠ | Persistence: `ChunkedFloat32` (128/256/1024) versus `PatchedFloat32` (a log of prior values), clustered and scattered distributions, RSS over 64 steps. ⇢ mesh-02 | mesh | S | 0 | p0-04 | ≤10% of a copy and ≤2 ms in both → a chunk is chosen; clustered-only → a flat array + a log; neither → a snapshot per transaction |
+| p0-06 ⚙⚠ | `DeviceMesh.upload` per frame against an `overwriteGeometry` prototype (Impeller `DeviceBuffer.overwrite`, WebGL `bufferSubData`, WebGPU `writeBuffer`) at 200k with a 1% edit; the prototype in a branch | engine example + hw (branch) | M | 0 | p0-01 | (a) ≤16.6 ms → overwrite moves to phase 4; (b) passes → view-14 into phase 1; neither → an overlay preview |
+| p0-07 ⚠ | `Isolate.run` (with/without `TransferableTypedData`) versus chunks yielding on wasm for fromMeshData+toMeshData at 200k | mesh + engine example | S | 0 | p0-04 | overhead ≤20% / ≤50 ms; chunks: a worst case ≤50 ms and +≤25% → operations are step-based from day one; otherwise a freeze with progress in the button's place (F11 [Е11]), and a freeze >1 s on a reference operation → ui-34d in phase 1 |
+| p0-08 ⚠ | A web file spike under `tool/`: `openModel` → `readAsBytes` → `decodeModel` → a frame; downloading via `package:web`; `--wasm`; Chrome/Safari/Firefox; 30 MB. The code moved into ui-14 (`project_files_web.dart`) — no separate spike remains. Opening a `.gltf` with a neighboring `.bin` isn't done: `openModel` takes one file, and that's a recorded gap ⇢ ui-36n | modeler | S | 0 | — | a quality gate: (1)–(3) pass → 1.15 takes the code; doesn't build under wasm → a JS build as a recorded exception; no Safari/Firefox → a custom wrapper over `package:web` in ui-14 (the web is equal footing, 2026-09-09 decision); a freeze >1 s on 30 MB → ui-34d |
+| p0-09 ⚙⚠ | Three package skeletons under the scanner + a check in a Flutter-free `dart:stable` container + a rule on transitive SDK dependency. ⇢ doc-00 (the spike), qa-02 (registration), qa-03 (the rule), rel-04 (the container) | packages + tool/structure | S | 0 | — | see doc-00/qa-03; an answer by 2026-09-25 |
+| p0-10 ⚠ | A `TriangleBvh` prototype (becomes view-09's implementation) + vertex projection/box picking at 50k/200k/1M against `Raycaster` by brute force. ⇢ mesh-20 / view-09 (one implementation, §4); here — the measurement | mesh | S | 0 | p0-04 | a ray ≤1 ms/200k, ≤3 ms/1M, build ≤100 ms, projection ≤4 ms → picking stays on the CPU; otherwise a half-edge neighborhood search / a face id pass in phase 2 |
+| p0-11 ⚠ | An end-to-end drag pipeline over 600 frames: edit → snapshot → toMeshData → buffer → frame; GC pauses, allocations, the slow-frame fraction | mesh + engine example | S | 0 | p0-01, 04, 05, 06 | no pauses >8 ms and ≤5% slow → an API on values; 8–16 → `toMeshData(into:)`, a per-transaction snapshot; >16 → a mutable working mode inside the transaction |
+| p0-12 | A README for the spikes, "The answer"; a §6 table with measured values (date, machine, Dart), a §7 "resolved" column, duplicates in ARCHITECTURE §14 | doc | S | 0 | p0-02..11, p0-13n | not one phase-0 row without a number; §7 has no "the measurement decides"; deadline 2026-10-05 |
+| p0-13n ⚠ *(added by critique)* | A "saving under the macOS sandbox" spike: `file_selector.saveFile` + a direct write with no rename, against `writeFileAtomically` (a temp file + rename — under `user-selected.read-write` a rename into the chosen file's directory isn't permitted; the level editor turned off the sandbox with exactly this wording in `Release.entitlements`), against security-scoped directory access. The answer closes F4 [Е4] and ui-14's native branch | app (a spike under `tool/`) | S | 0 | ui-00 | a "method × sandbox → wrote / `PathAccessException`" table; the chosen method is recorded in ui-14 and F4 [Е4] |
+
+### 2.11 Publishing and product (`rel-`)
+
+The release infrastructure is almost entirely automatic: `publish_check.sh`,
+building the API reference by directory, `llms.txt` from NAV, `demos.sh`, CI
+builds an unsigned iOS binary and a signed Android one. The 0.6.0 set, 27 of
+28 on pub.dev; the names `flutter3d_mesh`, `flutter3d_model_core`,
+`flutter3d_model_mcp`, `flutter3d_modeler` are free (checked 2026-09-09), as
+are `flutter3d_geometry`, `flutter3d_formats`, `flutter3d_fbx`,
+`flutter3d_cloth`. Friction points — manual lists; the site doesn't show a
+fourth game, so "next to four games" rests on an unclosed ROADMAP item.
+
+| id | what | package | size | phase | depends | acceptance |
+|---|---|---|---|---|---|---|
+| rel-01 | Lock in the names (2026-09-09 decision, C5 [В5]: mesh / model_core / model_mcp, geometry / formats, app `flutter3d_modeler`, bundle `dev.flutter3d.modeler`; code in this monorepo) in doc §7 with the check's date | doc + ARCHITECTURE | S | 0 | — | a "Name" line with a date; the same names in §16 |
+| rel-02 | The skeleton for three packages, green in `publish_check` (version = the set, `resolution: workspace`, `^0.6.0` on siblings, LICENSE/CHANGELOG); in mcp — a `bin/model_mcp.dart` stub answering `--help` (needed by rel-04 in phase 0; the real server is doc-19). Shared with qa-02 | mesh, core, mcp | S | 0 | rel-01, mesh-00 | `publish_check.sh` prints `ready` for all three; `dart run flutter3d_model_mcp:model_mcp --help` prints usage |
+| rel-03 ⚠ | The scanner, §16 (`geometry` before `formats`, `formats` before `flutter3d`; mesh after `geometry`, core after `formats`, `flutter3d_editor_core` after `formats` — a new mat-03 dependency, mcp a tier lower; the order per the 2026-09-09 decision), `ci.sh`, numerals. ⇢ qa-02/qa-04 | tool + ARCHITECTURE | S | 0 | rel-02 | see qa-02 |
+| rel-04 | A `setup-dart` job with no Flutter: a temporary pubspec with `dependency_overrides`, `dart pub get`, `dart run …:model_mcp --help` (the stub from rel-02; `tools/list` in the container — doc-19's acceptance); the same script for `editor_mcp`. ⇢ doc-00/qa-03 (the container half). The doc-19 dependency was dropped by critique: a phase-0 item waited on a phase-1 item | mcp + ci | S | 0 | rel-02, rel-03 | green on a clean SDK; red with `flutter: sdk` |
+| rel-05 | A slot in the train: §16 "carries X and does not go out" for five new packages until the set rel-06 ships in (after rel-16; C8 [В8] — December 27 is not the target); a CHANGELOG under the next set's number along the way; one tag per set | ARCHITECTURE + CHANGELOG | S | 1 | rel-02, rel-03 | §16 names who's shipping; the version rule is green |
+| rel-06 | The first publish, in §16 order (geometry → formats → flutter3d → mesh → core → mcp), checking the archive against the tree (skills/ in the archive), README/`index.md`/`packages.md`, `deploy-docs.sh`. 2026-09-09 decision (C8 [В8]): only once phase 1 is in the hands of its first users — after rel-16; December 27 is not the target | mesh, core, mcp, geometry, formats + site | S | 1 | rel-05, rel-14, rel-16, doc-10, doc-14 | pub.dev answers 200; pub points ≥150; /docs/ shows 33 packages |
+| rel-07 | README "What is here," §3.2, `packages.md`, `testing.md`, `quickstart.md`, counters. Shared with qa-16 | docs + site | S | 0 | rel-02, rel-03 | scanner green; `rg 'twenty-eight'` only in §16 |
+| rel-08 | The `Modeler` site section (badge `tool`): `index.md`, `tutorial.md`, `demo.md`; a homepage card; pictures from the app's own tests in `site/assets/modeler/` or a `goldenSets` extension | site | M | 1 | rel-07, ui-04 | three pages in the sidebar and `llms.txt`; the pictures exist |
+| rel-09 | A "an asset from import to engine in 15 minutes" tutorial, step by step; the same scenario as a `tutorial.jsonl` through MCP in CI with a GLB diff and a frame; the measured time with a date; `first-project.md` — four templates | site + app + mcp | M | 1 | rel-08, ui-16/17, doc-20, fmt-06 | the scenario runs in CI; `GltfLoader` with no warnings; the time and machine on the page |
+| rel-10 ⚠ | `"modeler:apps/flutter3d_modeler"` in `demos.sh`, `demo.md` with an iframe and full screen; built with the same compiler the site itself ships (dart2js, no wasm); check COOP/COEP in Safari; the web demo edits, not only shows — if the p0-02 gate isn't met, whatever closes it is built first (2026-09-09 decision) | site + app | M | 1 | rel-08, ui-14, p0-02 | /demo/modeler/ opens a GLB and downloads one in Chrome and Safari |
+| rel-11 | `flutter build macos --release` in the `macos` job, `upload-artifact`, a GitHub Release on tag; signing and notarization aren't in phase 1, the release opens via "right-click → Open" (F8 [Е8], 2026-09-09 decision) | ci + app | S | 1 | rel-03, ui-20 | the artifact opens on a clean Mac via "right-click → Open"; the Release carries a zip |
+| rel-12 ⚠ | A ROADMAP entry at the September 28 review: an "A modeller, and the same agent driving it" track with an Acceptance line; an edit to "After this quarter" about the exporter, to "Not doing" about the graph, and `apply and revert` (⇢ doc-29) | ROADMAP | S | 0 | rel-01, rel-17 | the ROADMAP, dated to the review, contains the track; agreed with doc §4 |
+| rel-13 ⚙⚠ | Level-editor template models from model-editor documents: sources under `tool/models/`, `dart run flutter3d_model_core:export`, `git diff --exit-code`; requires a deterministic `GltfWriter`; an option — a fifth `showcase` template | tool + level-editor templates + core | M | 2 | rel-09, fmt-06, doc-10 | `make_templates.py && git diff --exit-code` green on macOS and ubuntu |
+| rel-14 | Skills `editing-order`, `model-document`, `what-it-refuses` + `skills_test` (and for `editor_mcp`). ⇢ doc-22 | mcp | S | 1 | rel-02, doc-20 | see doc-22; `--dry-run` shows skills/ in the archive |
+| rel-15 | `modeler_report.yml` (label `modeler`), a "Report a problem" button with a pre-filled URL and no telemetry, `bug_report.yml` with four backends | .github + app + site | S | 1 | rel-08, doc-14 | in the issue chooser; a widget test of the URL |
+| rel-16 | A 5–10 person cohort, the task — a timed tutorial run, a paragraph in "Where it stands" with numbers; phase 2 doesn't start without it | ROADMAP + doc | S | 1 | rel-09, 10, 11, 15 | ≥5 timed runs; the "15 minutes" line confirmed or rewritten |
+| rel-17 | The platform answer (2026-09-09 decision): phase 1 — macOS, browser, Android (tablet and phone), iOS (iPad and iPhone), all four on equal footing; Windows/Linux — after a ROADMAP track; the site doesn't promise a platform with no CI build; measurements p0-02/03/08 are gates, not a choice | doc §7 + ROADMAP + ci | S | 0 | p0-02/03, p0-08 | a table in §7 and on the page; each of the four platforms has a CI step (qa-17) |
+| rel-19d *(added following 2026-09-09 decisions)* | Purchase: a physical iPad with a Pencil and an Apple Developer account by mid-phase-1 (A2, F8 [Е8]); owner — Dmitrii; after purchase, p0-03 is re-measured on the iPad, ui-21 and qa-17 get a device for manual checking; macOS signing and notarization stay "right-click → Open" through phase 1 | owner | S | 1 | — | the iPad row in the p0-03 table is filled with a number and a date; ui-21's build stands on an iPad and a Galaxy A55; the account is recorded in the HANDOFF with no secrets |
+| rel-18 | SECURITY.md: STL, the project format, writers in scope; `config.yml` → the form | SECURITY + .github | S | 1 | rel-15, fmt-06/08/09 | listed; agreed with ARCHITECTURE §8 |
+
+### 2.12 Footnotes for changed phases
+
+Sizes didn't change. The phase changed for three items during synthesis
+(¹–³) and five more by 2026-09-09 owner decisions (⁴–⁸), each with its own
+reason:
+
+¹ pro-job-01 — from phase 4 to 2: merged with doc-24 (phase 2), because a
+task runner is already needed by phase 2's boolean modifiers and graph
+baking (mat-11, mat-20), not only by phase 4.
+
+² anim-26 — from phase 3 to 1: merged with fmt-07, because a glTF writer
+with no skins silently drops an imported model's rig, and fmt itself puts
+skins in phase 1 (⚠ against the ROADMAP, §7 item 7).
+
+³ qa-11 — from phase 1 to 2: merged with view-14, whose default phase is 2
+and phase 1 only by p0-06's outcome; the conformance check travels with the
+contract change, not ahead of it.
+
+⁴ ui-21 — from phase 2 to 1: decision 3 (phase 1 ships on macOS, web,
+Android, and iOS), platform configuration is needed for the first version;
+§7 #34 amended.
+
+⁵ fmt-25 — from phase 3 to 2: decision 18 (a dedicated FBX reader), skins
+and animation follow fmt-24 down the same track rather than waiting for the
+character pipeline.
+
+⁶ doc-11a-n — same phase (2), the "per §7 #36" condition dropped: decision
+10, placing assets is unconditionally part of "Scene" mode.
+
+⁷ fmt-26 — dropped: decision 18, no server-side conversion.
+
+⁸ ui-34d — a new phase-1 item, conditional, whereas F11 [Е11] had put the
+web worker in phase 2: decision 2, if p0-07/p0-08 show a freeze longer than
+1 s.
+### 2.13 An agent that can see the model (`mcp-`)
+
+Aspect added 2026-09-10. `doc-19`…`doc-22` set up a server, a session of ten
+verbs, and a tool table from `modelCommandNames` — and not one of the ten
+verbs is visual. The agent edits the model blind: it knows
+`ExportReadiness`'s numbers and never sees the silhouette. The only picture
+in the plan is `render_snapshot` from `pro-rn-04`, phase 4, behind the
+offline renderer.
+
+**Why the picture can't be handed over today.** `flutter3d_model_mcp` is a
+flat Dart package: a rule `tool/structure.dart` and `tool/flat_dart_check.sh`
+both hold, with the reason recorded in its own pubspec — "`dart run` won't
+resolve a package depending on the Flutter SDK, so one Flutter import in
+this graph isn't a heavier process, it's a server that won't start." The
+level editor already hit this wall: its own `screenshot` tool exists and
+**refuses** (`editor_tools.dart:389`), because `GraphicsDevice.present`
+returns a Flutter widget.
+
+**The untangling is cheaper than it sounds, and this is a finding from
+investigation, not a hope.** In `packages/flutter3d/lib/`, Flutter is named
+in **four files**, and all four are about loading assets: `asset_source.dart`
+and `gltf_resolvers.dart` (`rootBundle`), `model_loader.dart` (`kIsWeb`),
+`texture_upload.dart` (`dart:ui` for decoding). `Renderer`, `Scene`,
+`CameraNode`, `DeviceMesh`, `RenderView`, and the whole pass graph don't name
+Flutter. Same story in `flutter3d_cpu`: drawing is pure, Flutter is only
+needed by `present()` and image decoding; `encodePng` is **already** pure
+Dart. The obstacle is three points, not something woven throughout.
+
+**The path from a project to a picture already exists.**
+`ModelerStage.fromProject` → `renderFrame` → `encodePng` is exactly what
+`frame_test.dart` already does, drawing 160×100 frames with no GPU. What's
+missing is making it reachable from a process with no Flutter.
+
+This round's decisions: the consumer is an agent working alongside a human;
+the server lives in both homes (headless by default, GUI behind a flag);
+transport — stdio for headless, local HTTP for GUI; the agent gets every
+command plus composite recipes; addressing — numeric ids, as internally;
+history is shared, but the agent only undoes its own; a journal underneath
+it all.
+
+| id | what | package | size | phase | depends | acceptance |
+|---|---|---|---|---|---|---|
+| mcp-01n ⚙⚠ | **the contract**: `GraphicsDevice.present() → Widget` leaves `flutter3d_hardware` for a separate `DevicePresenter`, implemented by a Flutter wrapper sitting next to each backend. The hardware layer stops naming Flutter — the same way it already doesn't name a graphics API | hw + 4 backends + conformance | L | 1 | — | `flutter3d_hardware` and `flutter3d_conformance` are in `flatDartPackages`; 33 conformance checks are green on all four backends; a new scanner rule "the hardware layer names no Flutter" |
+| mcp-02n | `flutter3d_cpu` becomes a flat package: `cpu_device.dart` drops `package:flutter/widgets.dart`, `cpu_frame_widget.dart` moves into a wrapper. `encodePng` is already pure and travels for free | cpu | M | 1 | mcp-01n | `dart test` (not `flutter test`) runs `flutter3d_cpu`'s suite; the package is in `flatDartPackages`; `tool/dump_fixture.dart` becomes a script — its own comment today explains why it's a test |
+| mcp-03n ⚙ | A Flutter-free rendering core: `rootBundle` moves behind an injectable reader (extend `AssetSource`/`AssetUriResolver`, don't invent one), `kIsWeb` behind an environment constant, image decoding behind an `ImageDecoder` interface with a Flutter implementation as the default. The rendering engine becomes a flat package, `flutter3d` re-exports it and keeps the widgets for itself. The same operation as `doc-01`, one layer up: that one moved out the vocabulary, this one moves out the renderer | engine → a new flat package | L | 1 | mcp-01n | `dart run` in the package with no Flutter SDK builds a `Renderer` and draws a frame; 4322 tests with no import edits |
+| mcp-04n | A pure-Dart PNG decoder as an `ImageDecoder` implementation for the headless path. PNG only; JPEG is a separate item, if needed. ⇢ mat-09n (one implementation: that item says `bakeTextureGraph` from mat-32 is impossible in MCP without it) | core | M | 1 | mcp-03n | every PNG from `test/goldens` decodes pixel-for-pixel the same as `dart:ui` |
+| mcp-05n | `renderProject(RenderRequest {project, view, width, height, shading, selection}) → PNG` in `model_core`: a scene from the project, `renderFrame`, `encodePng`. In the core, not mcp: the CLI and later `pro-rn-02` use it too | core | M | 1 | mcp-02n, mcp-03n, doc-12 | the picture matches `frame_test`'s own frame for the same scene; size capped at 1024×1024, a refusal names the limit |
+| mcp-06n | A `render` tool: views `front/back/left/right/top/bottom/iso`. The PNG is returned as MCP image content, not base64 in text | mcp | S | 1 | mcp-05n, doc-19 | `render` on the doc-21 project gives a non-empty image; on an empty project a refusal names the reason |
+| mcp-07n | A `renderSheet` contact sheet: four views in one picture with labels. An agent more often needs the whole silhouette than one view | mcp | S | 1 | mcp-06n | a 2×2 sheet; each quarter is the same frame `render` gives for its own view |
+| mcp-08n | Modes for the agent: `material / wireframe / normals / selection`. The agent sees flipped normals and n-gons with its own eyes, not only as a number in a report | mcp | S | 1 | mcp-06n, view-13 | `normals` on an inverted shell differs from `material` by more than 20% of pixels |
+| mcp-09n | Composite recipes as session verbs: `cleanup()` (weld, drop degenerate faces, flip the right way out), `makeGameReady(profile)` (triangulation, normals, budget), `buildFrom(spec)` (a batch of primitives with a hierarchy in one call), `inspect()` (metrics, issues, and a picture in one answer). An agent assembles this badly and expensively from twenty-eight commands; a recipe is one history step, undone by a human with one ⌘Z | mcp | M | 1 | doc-20, doc-14, doc-07 | each recipe is one history step; `cleanup` on a GLB with duplicate vertices reduces their count and doesn't change the triangle count |
+| mcp-10n | Authorship on history steps: `HistoryStep.author {person, agent}`; an agent's `undo` refuses if someone else's step is on top, and says whose | core | S | 1 | doc-08, doc-19 | the agent takes a step, the human takes a step, the agent's `undo` refuses with a clear message; a human's ⌘Z undoes both in order |
+| mcp-11n | An agent call is one transaction: a batch of commands is undone with one ⌘Z, not nine. Most useful when the agent got it wrong | mcp | S | 1 | doc-08 | mcp-09n's nine-edit recipe undoes in one step |
+| mcp-12n | The journal is written and replayable: everything the agent does lands in the `CommandJournal` with transaction markers and an author; `replay` gives a byte-exact `.f3dproj` | mcp | M | 1 | doc-16, mcp-11n | session → journal → `replay` in a clean process → `writeProject` matches byte for byte |
+| mcp-13n | The GUI serves the same session over local HTTP: `--mcp-port`, 127.0.0.1 only, a token in the session file. Headless stays on stdio; `ModelSession` doesn't know about the transport | app + mcp | M | 1 | doc-19, ui-03 | the doc-21 scenario passes over both transports and gives the same file |
+| mcp-14n | One document, two writers: the GUI redraws once the agent commits a step; a command doesn't land mid-drag — a modal transform holds a lock until `endTransaction` | app | M | 1 | mcp-13n, ui-03 | an agent command during a drag is queued and applied afterward; the document never diverges from the picture |
+| mcp-15n | Import and export as session verbs: `import(path, options)`, `export(path, format)` gated by `ExportReadiness` — an error requires `force: true` and names what will be lost | mcp | S | 1 | doc-19, ui-17, fmt-06 | an export with an n-gon refuses with no `force`, naming the object; with `force` it writes and reports what was trimmed |
+
+### 2.14 Game graphics (`gfx-`)
+
+Aspect added 2026-09-10. These are **engine changes**, not editor ones: each
+goes into §6 and is checked by conformance, a golden frame, or a round trip,
+like any engine change. They're here because the editor is what made these
+gaps visible: it assembles an asset, and the game shows it.
+
+**This track runs alongside the modeler's twenty tasks** and is numbered
+with its own phases G1–G3, so as not to pretend to be part of the §5
+milestones.
+
+**Priority is set by observation, not taste.** The target budget is 60
+frames on a MacBook at 1440p; a typical scene is one close-up hero, one or
+two characters on screen; the engine needs to carry both a stylized look and
+a physical one. Four things are named as seen with one's own eyes: light
+popping, jagged edges, distant objects with no shadows, aliasing on the
+floor and on far textures. The list starts with them.
+
+**Order inside G2 is set by one finding.** Filling the surface buffer turns
+off MSAA for the whole scene, so SSAO and reflections today cost the game
+its anti-aliasing — not a missing feature, a mutual exclusion between two
+existing ones. FXAA removes it and unlocks both "jagged edges" and "contact
+shadows" at once, so it comes first.
+
+**What isn't in this track, and why.** A sort key, occlusion culling,
+streaming, and geometry compression are about scene scale, and "one close-up
+hero" on desktop doesn't hit that wall; the web matters to the modeler, not
+to games. Vertex-shader skinning — with one or two characters, the CPU keeps
+up. Decals, water, terrain, and atmospheric scattering are genre-specific,
+and with no game that needs them there's nothing to optimize. Inverse
+kinematics moved into the `anim-` aspect: it's needed for posing during
+auto-rigging, and in a game the pose comes from a clip. Everything under the
+ROADMAP's "Not doing" — TAA, motion blur, an ECS renderer, terrain clipmaps,
+node-graph materials, OIT beyond alpha hashing, quality presets — isn't
+proposed again.
+
+| id | what | package | size | phase | depends | acceptance |
+|---|---|---|---|---|---|---|
+| gfx-01n | **A frame profiler**: per-pass counters (time, draw calls, triangles, pipeline switches) in `FrameResult`, a panel over the viewport, a draw-call baseline in CI. First item by owner decision: with no numbers, any next item is an impression, not a result | engine + qa | M | G1 | — | a regression of +10 draw calls breaks the build; the panel shows four passes separately |
+| gfx-02n | **An anisotropy measurement.** `RenderSettings.anisotropy` defaults to 1, and no demo raises it; the level-editor bridge gives bricks `min(8, maxAnisotropy)`, an imported model gets 1. Capture one frame at 1 and at 8 on a scene with a floor receding into the distance, and decide whether to change the default | engine | S | G1 | gfx-01n | two frames and the number of differing pixels; the decision is recorded in the plan |
+| gfx-03n | **A distant-shadow measurement.** Three options — raise `viewDistance` with a recomputed split, a fourth cascade, a separate, rarely-updated far map — on one scene, with a frame cost from gfx-01n | engine | S | G1 | gfx-01n | three frames and three costs; the chosen option is named in gfx-06n |
+| gfx-04n | **FXAA in the pass graph.** Removes the mutual exclusion: today a game chooses between shadows in the corners and smooth edges, because the surface buffer turns off MSAA for the whole scene | engine + shaders | M | G2 | gfx-01n | SSAO is on and edges are smooth; frame `ao-with-aa` across three sets; a pass cost from the profiler |
+| gfx-05n ⚙⚠ | **Light by importance, not by count.** Today eight sources for the whole scene in a `vec4[8]`: a ninth lamp displaces the first, visible as a pop when the camera moves. CPU-side selection by contribution to the object, with a soft fade at the list's edge so there's no pop at all; the shader doesn't change — who lands in those same eight slots does | engine | L | G2 | gfx-01n | a 40-source scene draws correctly; camera movement gives no jump — two neighboring frames differ by less than 2%; frame `many-lights` |
+| gfx-06n | **Shadows past 60 meters** — with the option chosen in gfx-03n | engine | M | G2 | gfx-03n | an object at 200 m casts a shadow; the frame cost stays within what the measurement named |
+| gfx-07n | **Anisotropy on by default** — if gfx-02n showed that's the cause | engine | S | G2 | gfx-02n | moiré on the receding floor is gone; golden frames are recaptured in one commit |
+| gfx-08n | **SSAO brought to on-by-default**: it exists today, off, and it was exactly gfx-04n that blocked turning it on | engine | S | G3 | gfx-04n | frame `ambient-occlusion-corner` with anti-aliasing on; the pass cost is named |
+| gfx-09n | **Depth-based contact shadows**: a short screen-space ray where the shadow map is too coarse — under a foot, in folds, under a chin. A different technique from SSAO, needed where the hero is close up | engine + shaders | M | G3 | gfx-08n | frame `contact-shadow`; the foot stands on the ground, not floating |
+| gfx-10n | **An additive pose layer.** Promised in the ROADMAP; needs a reference pose with nowhere to live in glTF — so its own field on `AnimationClip` | engine | M | G3 | — | breathing over walking; zero changes to existing clips; `animation_mask_test` green |
+| gfx-11n | **A ray hits the pose, not the base shape.** Today a raycast hits the unanimated mesh: a shot at a running character misses, and `skinReach` only widens the bounds | engine | M | G3 | mesh-20 | a hit on a raised arm registers; a miss past it doesn't; the query cost is measured |
+| gfx-12n | **Light channels**: a mask on the source and on the object — a hero's flashlight doesn't light the sky, an interior lamp doesn't leak outside | engine | S | G3 | gfx-05n | an object outside the channel gets no contribution; zero changes to frames with no channels |
+| gfx-13n | **Physical light units**: lumens and candela, converted into today's dimensionless intensity | engine | M | G3 | gfx-05n | an 800-lumen lamp gives the same illuminance as today's tuned number |
+| gfx-14n | **`KHR_lights_punctual`** in the loader and writer: light from glTF is entirely lost today | formats | S | G3 | fmt-06 | round trip: light from Blender opens and exports back |
+| gfx-15n | **Soft disc shadows with five taps**: promised in the ROADMAP, today it's a 3×3 PCF with an edge that's always equally hard | shaders + engine | S | G3 | — | frame `soft-shadow`; the penumbra is wider for a farther occluder |
+| gfx-16n | **Alpha hashing**: foliage and nets today are either hard-cut by a threshold or need sorting | shaders + engine | S | G3 | — | frame `foliage`; zero changes in opaque scenes |
+| gfx-17n | **LUT grading and a filmic curve**: `LookSettings` exists, no table does | engine | S | G3 | — | a neutral LUT doesn't change the frame by even a pixel |
+
+---
+
+## 3. Dependencies between aspects
+
+Text references from the plans ("mesh: EditMesh.toMeshData") are resolved
+into ids. Where several aspects wrote the same thing, the table below says
+whose implementation stays and whose id is marked "⇢" in the tables.
+
+### 3.1 One implementation instead of several
+
+| Thing | Who wrote it | Where it lives | Who becomes a consumer |
 |---|---|---|---|
-| Чистые пакеты словаря движка | mesh-03 (`flutter3d_geometry`), doc-01 (прежнее рабочее имя одного общего пакета), p0-09 (`flutter3d_model`), qa-03, rel-03 | **два пакета** (В1 закрыт решением владельца 2026-09-09): `flutter3d_geometry` — mesh-03 (`MeshData`, `VertexLayout`, `Shape`/`LatheShape`, тангенсы, `morph_target`, `CpuMesh`, `math/intersections`, `Ray`, `TriangleBvh`); `flutter3d_formats` — doc-01 (`ModelDocument`, `SurfaceMaterial`, `MaterialDocument`/`MaterialHint`, `lighting_model`, синхронная половина `model_loader`, декодеры gltf/obj/f3d/ktx2/stl, писатели `F3dWriter`/`GltfWriter`/`ObjWriter`); `formats → geometry`, `mesh → geometry`, `model_core → оба`, `flutter3d` реэкспортирует оба | mesh-13/14/17/20 (geometry), doc-11/12/19 (formats), fmt-01..09/12/15 (писатели в `formats`; в engine остаются только fmt-13 и fmt-14), mat-03 (formats), fmt-29d (`fbx → formats`) |
-| Регистрация пакетов в сканере/CI/документах | mesh-00, doc-02, ui-01, qa-02, qa-04, doc-30, rel-02, rel-03, rel-07, qa-16 | qa-02 (списки), qa-04 (`ci.sh`), rel-02 (pubspec), rel-07 (документы); mesh-00/doc-02/ui-01 — по одному пакету | всё |
-| Спайк `EditMesh` и персистентности | mesh-01/02, p0-04/05 | mesh-01/02 в `packages/flutter3d_mesh` (не `tool/model_spike`), пороги из p0-04/05 | mesh-10/11 |
-| `TriangleBvh` по треугольникам | mesh-20, view-09, p0-10, pro-sc-04 | класс в пакете `geometry` (после mesh-03), чтобы и `Raycaster`, и `flutter3d_mesh` его видели; **владелец — view-09** (реализация + интеграция в `Raycaster`, зависит от doc-01 и p0-10); mesh-20 = `MeshBvh` над ним с refit (зависит от view-09); p0-10 — замер прототипа | view-10, mesh-21, anim-10, pro-rt-04, pro-pt-02 |
-| Частичная перезапись буфера | view-14, pro-eng-01, qa-11, p0-06, mesh-72, ui-29 | view-14 (контракт + конформанс из qa-11); p0-06 решает фазу | pro-sc-05, pro-sim-04, view-18 |
-| Формат проекта | doc-09/10/28, fmt-17/18 | doc-09/10/28; из fmt-17 берётся write-through неизвестных ключей manifest, из fmt-18 — политика ассетов (в doc-17) и `ProjectStorage` (в ui-18) | pro-doc-01, anim-03 |
-| `Modifier` | mesh-40..48, mat-18, doc-23, mat-19 | тип и функции — mesh-40..48; `ModelObject.modifiers` и кэш — mat-18; команды — doc-23 | mat-20, mat-32 |
-| Материал в документе | mat-01, doc-25 | mat-01 (фаза 1, включая `SetTexture`/`AddImage`); кодек `SurfaceMaterial ↔ Map` в fmat.dart (правка движка S из doc-25) — в doc-10 | mat-04a-n (фаза 1), mat-04..08, doc-12 |
-| GltfWriter скинов/анимаций/морфов | fmt-07, anim-26 | fmt-07 (фаза 1) | anim-16, anim-30 |
-| Фоновые задачи | doc-24, ui-25, pro-job-01, anim-25 | doc-24 (`JobRequest` в core), ui-25 (раннер в app); pro-job-01 → фаза 2¹; anim-25 — `RigJob` поверх | mat-11/13, pro-* |
-| Веса скиннинга | mesh-60, anim-09 | слои — mesh-12/60; операции кисти — anim-09 в `flutter3d_mesh/skin/` (пакет `rig` только для ретаргета и авторига) | anim-10, anim-22, pro-lod-02 |
-| Морф-цели | mesh-61/62, doc-27, anim-19 | хранилище — mesh-61/62; команды и UI — anim-19 | anim-20, anim-27 |
-| Скелет и клипы в документе | doc-26, anim-03/04/29 | anim-03 (типы), anim-04 (ключи), anim-29 (скелет) | anim-07, anim-18 |
-| Упрощение (QEM) | mesh-70, pro-lod-01/02 | pro-lod-01/02 над `MeshData` | pro-lod-03, pro-rt-01 |
-| Развёртка UV | mesh-71, pro-uv-02..05, view-19, pro-uv-07 | pro-uv-02..05 (ядро), pro-uv-07 (экран) | pro-pt-05 |
-| Швы | mesh-12, pro-uv-01 | флаг `seam` в mesh-12 (фаза 1); команда и оверлей — pro-uv-01 | pro-uv-02 |
-| Скульптинг | mesh-72, pro-sc-02..07 | pro-sc-* (`SculptMesh` с мультиразрешением — Б8/Б9 закрыты 2026-09-09; pro-sc-01 меряет, не выбирает) | pro-sc-08, view-21, ui-29 |
-| Remesh | mesh-73, pro-rt-01 | pro-rt-01 | pro-rt-02 |
-| Веса градиентом | view-18, anim-11 | view-18 | anim-10 |
-| Превью «как в игре» | view-17, anim-24, ui-28 | `FrameResult.triangles` и вьюпорт — view-17; бюджеты — anim-24; оболочка — ui-28 | rel-09 |
-| Предпросмотр материала | view-16, mat-15 | mat-15 | mat-31 |
-| Курсор кисти и перо | view-21, ui-19, ui-29, pro-sc-08 | `InputPolicy` — ui-19; курсор — view-21; раскладка — ui-29 | pro-pt-05 |
-| Вьюпорт: жесты, пикинг, гизмо | ui-06, view-03/08/10/12 | view-*; ui-06 — интеграция и `scene_sync.dart` | ui-09, ui-13 |
-| Golden-сцены и draw-count | qa-10, qa-14, view-05, view-22 | view-05 (сцена `mesh-overlay`), view-22 (baseline) | — |
-| Тесты app и core | qa-15, qa-18, ui-26, doc-* | ui-26 и тесты пунктов core | — |
-| Сценарий MCP и skills | qa-12, doc-21, doc-22, rel-14 | doc-21, doc-22 (+ `skills_test` из rel-14) | rel-09 |
-| Стенд замеров | p0-01, view-01, ui-00, qa-13 | p0-01 (пример движка); ui-00 — скелет приложения; view-01 — только (б)(в); qa-13 — артефакт CI | p0-02/03/06/11 |
-| Веб-файлы | p0-08, ui-14 | p0-08 (спайк под `tool/`), ui-14 (полная версия) | rel-10, ui-15 |
-| Энкодер текстур | fmt-22, mat-30 | fmt-22 в движке; mat-30 — редакторный экспорт поверх | mat-28 |
+| Pure engine vocabulary packages | mesh-03 (`flutter3d_geometry`), doc-01 (the earlier working name for one shared package), p0-09 (`flutter3d_model`), qa-03, rel-03 | **two packages** (B1 [В1] closed by the 2026-09-09 owner decision): `flutter3d_geometry` — mesh-03 (`MeshData`, `VertexLayout`, `Shape`/`LatheShape`, tangents, `morph_target`, `CpuMesh`, `math/intersections`, `Ray`, `TriangleBvh`); `flutter3d_formats` — doc-01 (`ModelDocument`, `SurfaceMaterial`, `MaterialDocument`/`MaterialHint`, `lighting_model`, `model_loader`'s synchronous half, gltf/obj/f3d/ktx2/stl decoders, writers `F3dWriter`/`GltfWriter`/`ObjWriter`); `formats → geometry`, `mesh → geometry`, `model_core → both`, `flutter3d` re-exports both | mesh-13/14/17/20 (geometry), doc-11/12/19 (formats), fmt-01..09/12/15 (writers in `formats`; only fmt-13 and fmt-14 stay in the engine), mat-03 (formats), fmt-29d (`fbx → formats`) |
+| Registering packages in the scanner/CI/documents | mesh-00, doc-02, ui-01, qa-02, qa-04, doc-30, rel-02, rel-03, rel-07, qa-16 | qa-02 (the lists), qa-04 (`ci.sh`), rel-02 (pubspec), rel-07 (documents); mesh-00/doc-02/ui-01 — one package each | everything |
+| The `EditMesh` and persistence spike | mesh-01/02, p0-04/05 | mesh-01/02 in `packages/flutter3d_mesh` (not `tool/model_spike`), thresholds from p0-04/05 | mesh-10/11 |
+| The triangle `TriangleBvh` | mesh-20, view-09, p0-10, pro-sc-04 | the class lives in the `geometry` package (after mesh-03), so both `Raycaster` and `flutter3d_mesh` can see it; **owner — view-09** (implementation + `Raycaster` integration, depends on doc-01 and p0-10); mesh-20 = `MeshBvh` over it with refit (depends on view-09); p0-10 — the prototype's measurement | view-10, mesh-21, anim-10, pro-rt-04, pro-pt-02 |
+| Partial buffer overwrites | view-14, pro-eng-01, qa-11, p0-06, mesh-72, ui-29 | view-14 (the contract + qa-11's conformance); p0-06 decides the phase | pro-sc-05, pro-sim-04, view-18 |
+| The project format | doc-09/10/28, fmt-17/18 | doc-09/10/28; fmt-17 contributes write-through for unknown manifest keys, fmt-18 contributes the asset policy (into doc-17) and `ProjectStorage` (into ui-18) | pro-doc-01, anim-03 |
+| `Modifier` | mesh-40..48, mat-18, doc-23, mat-19 | the type and functions — mesh-40..48; `ModelObject.modifiers` and the cache — mat-18; commands — doc-23 | mat-20, mat-32 |
+| The material in the document | mat-01, doc-25 | mat-01 (phase 1, including `SetTexture`/`AddImage`); the `SurfaceMaterial ↔ Map` codec in fmat.dart (an S engine change from doc-25) — into doc-10 | mat-04a-n (phase 1), mat-04..08, doc-12 |
+| GltfWriter skins/animations/morphs | fmt-07, anim-26 | fmt-07 (phase 1) | anim-16, anim-30 |
+| Background tasks | doc-24, ui-25, pro-job-01, anim-25 | doc-24 (`JobRequest` in core), ui-25 (the runner in the app); pro-job-01 → phase 2¹; anim-25 — `RigJob` on top | mat-11/13, pro-* |
+| Skinning weights | mesh-60, anim-09 | layers — mesh-12/60; brush operations — anim-09 in `flutter3d_mesh/skin/` (the `rig` package is only for retargeting and auto-rigging) | anim-10, anim-22, pro-lod-02 |
+| Morph targets | mesh-61/62, doc-27, anim-19 | storage — mesh-61/62; commands and UI — anim-19 | anim-20, anim-27 |
+| Skeleton and clips in the document | doc-26, anim-03/04/29 | anim-03 (types), anim-04 (keys), anim-29 (the skeleton) | anim-07, anim-18 |
+| Simplification (QEM) | mesh-70, pro-lod-01/02 | pro-lod-01/02 over `MeshData` | pro-lod-03, pro-rt-01 |
+| UV unwrapping | mesh-71, pro-uv-02..05, view-19, pro-uv-07 | pro-uv-02..05 (the core), pro-uv-07 (the screen) | pro-pt-05 |
+| Seams | mesh-12, pro-uv-01 | the `seam` flag in mesh-12 (phase 1); the command and overlay — pro-uv-01 | pro-uv-02 |
+| Sculpting | mesh-72, pro-sc-02..07 | pro-sc-* (`SculptMesh` with multiresolution — B8/B9 [Б8/Б9] closed 2026-09-09; pro-sc-01 measures, doesn't choose) | pro-sc-08, view-21, ui-29 |
+| Remeshing | mesh-73, pro-rt-01 | pro-rt-01 | pro-rt-02 |
+| Weights as a gradient | view-18, anim-11 | view-18 | anim-10 |
+| An "in-game" preview | view-17, anim-24, ui-28 | `FrameResult.triangles` and the viewport — view-17; budgets — anim-24; the shell — ui-28 | rel-09 |
+| Material preview | view-16, mat-15 | mat-15 | mat-31 |
+| Brush cursor and pen | view-21, ui-19, ui-29, pro-sc-08 | `InputPolicy` — ui-19; the cursor — view-21; the layout — ui-29 | pro-pt-05 |
+| The viewport: gestures, picking, gizmo | ui-06, view-03/08/10/12 | view-*; ui-06 — integration and `scene_sync.dart` | ui-09, ui-13 |
+| Golden scenes and draw-count | qa-10, qa-14, view-05, view-22 | view-05 (scene `mesh-overlay`), view-22 (the baseline) | — |
+| App and core tests | qa-15, qa-18, ui-26, doc-* | ui-26 and the tests of core's own items | — |
+| The MCP scenario and skills | qa-12, doc-21, doc-22, rel-14 | doc-21, doc-22 (+ `skills_test` from rel-14) | rel-09 |
+| The measurement rig | p0-01, view-01, ui-00, qa-13 | p0-01 (the engine example); ui-00 — the app skeleton; view-01 — only (b)(c); qa-13 — the CI artifact | p0-02/03/06/11 |
+| Web files | p0-08, ui-14 | p0-08 (a spike under `tool/`), ui-14 (the full version) | rel-10, ui-15 |
+| The texture encoder | fmt-22, mat-30 | fmt-22 in the engine; mat-30 — the editor's own export on top | mat-28 |
 
-### 3.2 Разрешённые межаспектные ссылки
+### 3.2 Allowed cross-aspect references
 
-| Откуда | Ссылка в плане | Разрешено в |
+| From | Reference in the plan | Allowed in |
 |---|---|---|
-| doc-03 | «mesh: EditMesh как неизменяемое значение с identity-равенством и структурным разделением» | mesh-10, mesh-11 |
-| doc-06 | «mesh: построители примитивов и Lathe, `EditMesh.transformed`» | mesh-28, mesh-22 |
-| doc-07 | «mesh: чистые функции операций; стабильность id элементов» | mesh-22..26; надгробия + `IdRemap` в mesh-11 |
-| doc-10 | «mesh: `EditMesh.encode/decode` с чанками» | mesh-18 |
-| doc-11 | «дизайн: STL-импорт» | fmt-09 |
-| doc-12 | «mesh: `toMeshData(VertexLayout)`; стек модификаторов как функция; движок: GltfWriter/ObjWriter детерминированные» | mesh-14, mesh-40; fmt-06, fmt-08 |
-| doc-14 | «mesh: проверки n-гонов/манифолдности/нормалей по id» | mesh-27 |
-| doc-17 | «app: таймер, атомарная запись, диалог, recent» | ui-18, ui-15 |
-| doc-19 | «import/export под `dart run` только после doc-01» | doc-01 |
-| doc-21 | «движок: GltfWriter детерминирован на двух ОС» | fmt-06 (квантование — см. риск libm) |
-| doc-23 | «mesh: mirror/array/smooth/boolean» | mesh-41, 42, 46, 47 |
-| doc-26 | «mesh: joints/weights с перенормировкой» | mesh-60 |
-| fmt-06/07/08 | «база для anim-26, экспорт для doc-12» | — |
-| fmt-17 | «model_core: схема ModelProject; mesh: сериализация EditMesh» | doc-03, mesh-18 |
-| view-02 | «app: каркас, Cubit, ModelObject → MeshNode» | ui-03, ui-06 |
-| view-08 | «app: карта ModelObject ↔ MeshNode» | ui-06 (`scene_sync.dart`) |
-| view-10 | «mesh: позиции Float32List, рёбра парами, карта треугольник → грань» | mesh-11, mesh-14 (`triangleToFace`) |
-| view-12 | «model_core: команда трансформации и `history.transaction`; mesh: перемещение выделения» | doc-06, doc-08, mesh-22 |
-| view-13 | «mesh: Selection и версии EditMesh» | mesh-19, mesh-11 (identity = версия) |
-| view-16/17 | «app/model_core: SurfaceMaterial, команда материала; ProjectProfile» | mat-01, doc-13 |
-| view-18 | «mesh/model_core: веса и кисть с перенормировкой» | mesh-60, anim-09/10 |
-| view-19 | «mesh: развёртка, острова, растяжение, раздельные углы в toMeshData» | pro-uv-02/04, mesh-14 |
-| view-20 | «mesh: упрощение» | pro-lod-01 |
-| view-21 | «mesh: операции кисти» | pro-sc-03, pro-pt-03 |
-| ui-03 | «model_core: ModelProject, команды с says, история с amend, ExportReadiness» | doc-03, 05, 08, 14 |
-| ui-06 | «mesh: Selection и BVH; flutter3d: оверлеи (1.10)» | mesh-19/20/21, view-05 |
-| ui-08 | «model_core: SetTransform, Rename, AddModifier…; модификаторы фазы 1 (зеркало)» | doc-06, doc-23; зеркало фазы 2 — mesh-41 (в фазе 1 стек пуст) |
-| ui-09 | «model_core: ParamHint и `history.reapplyTop`; mesh: операции фазы 1» | `amend` в doc-08; ParamHint — **добавлено при синтезе: syn-01**; mesh-22..26 через doc-07 |
-| ui-10 | «model_core: ExportReadiness, ProjectProfile; mesh: проверки» | doc-14, doc-13, mesh-27 |
-| ui-13 | «mesh: Lathe параметрический; model_core: AddLathe/SetLatheParams» | mesh-28, doc-06 (`AddLathe`, `SetParametric`) |
-| ui-16 | «дизайн: макет экрана импорта; model_core: fromModelDocument; flutter3d: StlLoader» | **добавлено при синтезе: syn-02**; doc-11; fmt-09 |
-| ui-17 | «дизайн: макет экспорта; flutter3d: GltfWriter/ObjWriter; model_core: toModelDocument, ExportReadiness» | syn-02; fmt-06/08; doc-12/14 |
-| ui-26 | «flutter3d: оверлей рёбер (1.10)» | view-05 |
-| ui-28 | «model_core: клипы, ключи, ProjectProfile» | anim-03/04, doc-13 |
-| ui-29 | «flutter3d_hardware: DeviceMesh.overwrite; mesh: кисти» | view-14, pro-sc-03 |
-| mat-03 | «редактор моделей зависит от editor_core ради одной библиотеки» | В4; переезд только после doc-01 (editor_core плоский, а библиотека принимает типы из `flutter3d`) |
-| mat-18 | «mesh: mirror/array/smooth/subdivide/booleanBsp, toMeshData» | mesh-41/42/46/45/47, mesh-14 |
-| mat-19 | «model_core: общая иерархия команд; mcp: генерация таблицы» | doc-05, doc-20 |
-| mat-20/24 | «оболочка: правая панель, jobs, карточка; вьюпорт: манипулятор, пикинг маркеров» | ui-08, ui-25, ui-09; view-12, view-08 |
-| mat-22/28 | «model_core: ExportReadiness, ProjectProfile; mesh: проверки» | doc-14, doc-13, mesh-27 |
-| mat-25 | «вьюпорт: id-проход маркеров, общий DebugDraw» | view-08, view-05 |
-| mat-32 | «mcp: сервер, сессия, схемы» | doc-19, doc-20 |
-| anim-03 | «core: ModelProject персистентный, from/toModelDocument» | doc-03, doc-11, doc-12 |
-| anim-05 | «app: гизмо поворота сустава» | view-12 |
-| anim-07 | «app: каркас, тема, раскладки, режимы» | ui-04, ui-02, ui-05 |
-| anim-09 | «mesh: joints/weights как атрибуты, adjacency, BVH» | mesh-12/60, mesh-11 (`vertexRing`), mesh-20 |
-| anim-10 | «mesh: BVH с обновлением по массиву позиций» | mesh-20 (`refit`) |
-| anim-11 | «mesh/hardware: DeviceMesh.overwrite» | view-14 |
-| anim-13 | «core: ExportReadiness принимает поставщиков; ProjectProfile с fps» | doc-14; fps в профиле — **добавлено при синтезе: syn-03** |
-| anim-19 | «mesh: правка копии вершин без смены топологии» | mesh-61 (`ShapeKey` как слой позиций) |
-| anim-22 | «mesh: BVH и adjacency для MeshData» | mesh-13 + mesh-20 (через `fromMeshData`) |
-| anim-24 | «core: ProjectProfile с байтами текстур и целевым движком» | doc-13, mat-28 |
-| anim-25 | «core: состояние jobs, результат как команда» | doc-24, ui-25 |
-| anim-26 | «fmt: ядро GltfWriter с part-структурой» | fmt-06 |
-| anim-30 | «mcp: сервер и таблица из команд» | doc-19, doc-20 |
-| pro-eng-07 | «вьюпорт: контрибьютор фазы 1» | view-05 |
-| pro-uv-01 | «mesh: атрибуты рёбер и переотображение индексов» | mesh-12, mesh-11 (`IdRemap`) |
-| pro-uv-06 | «mesh: toMeshData с атрибутами углов» | mesh-14 |
-| pro-sc-02 | «mesh: общий чанковый тип» | mesh-10 |
-| pro-sc-04 | «mesh: BVH пикинга фазы 1» | mesh-20 |
-| pro-sc-06 | «model_core: история с персистентными значениями» | doc-08 |
-| pro-sc-07 | «mesh: Catmull-Clark фазы 2» | mesh-45 |
-| pro-rt-02 | «mesh: добавление грани, слияние по расстоянию» | mesh-11 (`addFace`), mesh-25 |
-| pro-rt-06, pro-pt-04, pro-eng-06 | «экспорт: GltfWriter с изображениями / фазы 1» | fmt-06 |
-| pro-rn-04 | «материалы: виджет графа экрана 05» | mat-13 |
-| pro-doc-01 | «model_core: секционный формат» | doc-09/10 |
-| qa-07 | «mesh: validate/audit, to/fromMeshData, чанки» | mesh-11, 13/14, 10 |
-| qa-08 | «formats: GltfWriter, ObjWriter, StlLoader» | fmt-06/08/09 |
-| qa-10 | «render: PassContributor оверлея» | view-05 |
-| qa-11 | «hardware: `writeGeometry`/`DeviceMesh.overwrite`» | view-14 |
-| qa-12 | «model_core: команды с arguments/fromJson, квантование в формате» | doc-05, doc-10 |
-| qa-13 | «mesh: спайк 0.2, чанки 0.3» | mesh-01, mesh-02 |
-| qa-15 | «app: EditorState/Cubit, манипулятор, раскладки; mesh: BVH» | ui-03, view-12, ui-05, mesh-20 |
-| rel-02 | «mesh: пустая библиотека с одним экспортом» | mesh-00 |
-| rel-04 | «model_mcp: bin с ответом на tools/list» | rel-02 (заглушка `--help` в фазе 0); `tools/list` в контейнере — приёмка doc-19 |
-| rel-06 | «model_core: фаза 1 закрыта (1.7, 1.8); mesh: API стабилен» | doc-10, doc-14; mesh-31/33 |
-| rel-08 | «app: режимы Объект и Меш (1.11)» | ui-04, ui-08, ui-09 |
-| rel-09 | «app: импорт/экспорт (1.15); model_mcp: таблица (1.17); engine: GltfWriter (1.9)» | ui-16/17, doc-20, fmt-06 |
-| rel-10 | «app: диск на вебе (1.15, спайк 0.5); perf: замер 0.1 в Chrome» | ui-14, p0-08, p0-02 |
-| rel-11 | «app: собирается на macOS (1.11)» | ui-20 |
-| rel-13 | «engine: GltfWriter детерминированный; model_core: формат и bin/export» | fmt-06, doc-10 (+ `bin/` — вопрос §8) |
-| rel-17 | «perf: замер 0.1; app: спайк 0.5» | p0-02/03, p0-08 |
+| doc-03 | "mesh: EditMesh as an immutable value with identity equality and structural sharing" | mesh-10, mesh-11 |
+| doc-06 | "mesh: primitive and Lathe builders, `EditMesh.transformed`" | mesh-28, mesh-22 |
+| doc-07 | "mesh: pure operation functions; stable element ids" | mesh-22..26; tombstones + `IdRemap` in mesh-11 |
+| doc-10 | "mesh: `EditMesh.encode/decode` with chunks" | mesh-18 |
+| doc-11 | "design: STL import" | fmt-09 |
+| doc-12 | "mesh: `toMeshData(VertexLayout)`; the modifier stack as a function; engine: deterministic GltfWriter/ObjWriter" | mesh-14, mesh-40; fmt-06, fmt-08 |
+| doc-14 | "mesh: n-gon/manifoldness/normal checks by id" | mesh-27 |
+| doc-17 | "app: a timer, atomic write, dialog, recent" | ui-18, ui-15 |
+| doc-19 | "import/export under `dart run` only after doc-01" | doc-01 |
+| doc-21 | "engine: a GltfWriter deterministic on two OSes" | fmt-06 (quantization — see the libm risk) |
+| doc-23 | "mesh: mirror/array/smooth/boolean" | mesh-41, 42, 46, 47 |
+| doc-26 | "mesh: joints/weights with renormalization" | mesh-60 |
+| fmt-06/07/08 | "the base for anim-26, export for doc-12" | — |
+| fmt-17 | "model_core: the ModelProject schema; mesh: EditMesh serialization" | doc-03, mesh-18 |
+| view-02 | "app: the shell, Cubit, ModelObject → MeshNode" | ui-03, ui-06 |
+| view-08 | "app: a ModelObject ↔ MeshNode map" | ui-06 (`scene_sync.dart`) |
+| view-10 | "mesh: Float32List positions, edges as pairs, a triangle → face map" | mesh-11, mesh-14 (`triangleToFace`) |
+| view-12 | "model_core: a transform command and `history.transaction`; mesh: moving a selection" | doc-06, doc-08, mesh-22 |
+| view-13 | "mesh: Selection and EditMesh versions" | mesh-19, mesh-11 (identity = version) |
+| view-16/17 | "app/model_core: SurfaceMaterial, a material command; ProjectProfile" | mat-01, doc-13 |
+| view-18 | "mesh/model_core: weights and a brush with renormalization" | mesh-60, anim-09/10 |
+| view-19 | "mesh: unwrapping, islands, stretch, separate corners in toMeshData" | pro-uv-02/04, mesh-14 |
+| view-20 | "mesh: simplification" | pro-lod-01 |
+| view-21 | "mesh: brush operations" | pro-sc-03, pro-pt-03 |
+| ui-03 | "model_core: ModelProject, commands with says, history with amend, ExportReadiness" | doc-03, 05, 08, 14 |
+| ui-06 | "mesh: Selection and BVH; flutter3d: overlays (1.10)" | mesh-19/20/21, view-05 |
+| ui-08 | "model_core: SetTransform, Rename, AddModifier…; phase-1 modifiers (mirror)" | doc-06, doc-23; the phase-2 mirror is mesh-41 (the phase-1 stack is empty) |
+| ui-09 | "model_core: ParamHint and `history.reapplyTop`; mesh: phase-1 operations" | `amend` in doc-08; ParamHint — **added during synthesis: syn-01**; mesh-22..26 through doc-07 |
+| ui-10 | "model_core: ExportReadiness, ProjectProfile; mesh: checks" | doc-14, doc-13, mesh-27 |
+| ui-13 | "mesh: a parametric Lathe; model_core: AddLathe/SetLatheParams" | mesh-28, doc-06 (`AddLathe`, `SetParametric`) |
+| ui-16 | "design: the import screen's mockup; model_core: fromModelDocument; flutter3d: StlLoader" | **added during synthesis: syn-02**; doc-11; fmt-09 |
+| ui-17 | "design: the export mockup; flutter3d: GltfWriter/ObjWriter; model_core: toModelDocument, ExportReadiness" | syn-02; fmt-06/08; doc-12/14 |
+| ui-26 | "flutter3d: the edge overlay (1.10)" | view-05 |
+| ui-28 | "model_core: clips, keys, ProjectProfile" | anim-03/04, doc-13 |
+| ui-29 | "flutter3d_hardware: DeviceMesh.overwrite; mesh: brushes" | view-14, pro-sc-03 |
+| mat-03 | "the model editor depends on editor_core for one library" | В4; the move only happens after doc-01 (editor_core is flat, and the library takes types from `flutter3d`) |
+| mat-18 | "mesh: mirror/array/smooth/subdivide/booleanBsp, toMeshData" | mesh-41/42/46/45/47, mesh-14 |
+| mat-19 | "model_core: the shared command hierarchy; mcp: table generation" | doc-05, doc-20 |
+| mat-20/24 | "shell: the right-hand panel, jobs, the card; viewport: the manipulator, marker picking" | ui-08, ui-25, ui-09; view-12, view-08 |
+| mat-22/28 | "model_core: ExportReadiness, ProjectProfile; mesh: checks" | doc-14, doc-13, mesh-27 |
+| mat-25 | "viewport: a marker id pass, a shared DebugDraw" | view-08, view-05 |
+| mat-32 | "mcp: the server, session, schemas" | doc-19, doc-20 |
+| anim-03 | "core: a persistent ModelProject, from/toModelDocument" | doc-03, doc-11, doc-12 |
+| anim-05 | "app: a joint-rotation gizmo" | view-12 |
+| anim-07 | "app: the shell, theme, layouts, modes" | ui-04, ui-02, ui-05 |
+| anim-09 | "mesh: joints/weights as attributes, adjacency, BVH" | mesh-12/60, mesh-11 (`vertexRing`), mesh-20 |
+| anim-10 | "mesh: a BVH updated from a position array" | mesh-20 (`refit`) |
+| anim-11 | "mesh/hardware: DeviceMesh.overwrite" | view-14 |
+| anim-13 | "core: ExportReadiness accepts providers; ProjectProfile with fps" | doc-14; fps in the profile — **added during synthesis: syn-03** |
+| anim-19 | "mesh: editing a vertex-position copy with no topology change" | mesh-61 (`ShapeKey` as a position layer) |
+| anim-22 | "mesh: BVH and adjacency for MeshData" | mesh-13 + mesh-20 (via `fromMeshData`) |
+| anim-24 | "core: ProjectProfile with texture bytes and a target engine" | doc-13, mat-28 |
+| anim-25 | "core: job state, a result as a command" | doc-24, ui-25 |
+| anim-26 | "fmt: the GltfWriter core with a part structure" | fmt-06 |
+| anim-30 | "mcp: the server and a table from commands" | doc-19, doc-20 |
+| pro-eng-07 | "viewport: a phase-1 contributor" | view-05 |
+| pro-uv-01 | "mesh: edge attributes and index remapping" | mesh-12, mesh-11 (`IdRemap`) |
+| pro-uv-06 | "mesh: toMeshData with corner attributes" | mesh-14 |
+| pro-sc-02 | "mesh: a shared chunk type" | mesh-10 |
+| pro-sc-04 | "mesh: the phase-1 picking BVH" | mesh-20 |
+| pro-sc-06 | "model_core: history with persistent values" | doc-08 |
+| pro-sc-07 | "mesh: phase-2 Catmull-Clark" | mesh-45 |
+| pro-rt-02 | "mesh: adding a face, merging by distance" | mesh-11 (`addFace`), mesh-25 |
+| pro-rt-06, pro-pt-04, pro-eng-06 | "export: a GltfWriter with images / phase 1" | fmt-06 |
+| pro-rn-04 | "materials: screen 05's graph widget" | mat-13 |
+| pro-doc-01 | "model_core: the sectioned format" | doc-09/10 |
+| qa-07 | "mesh: validate/audit, to/fromMeshData, chunks" | mesh-11, 13/14, 10 |
+| qa-08 | "formats: GltfWriter, ObjWriter, StlLoader" | fmt-06/08/09 |
+| qa-10 | "render: the overlay's PassContributor" | view-05 |
+| qa-11 | "hardware: `writeGeometry`/`DeviceMesh.overwrite`" | view-14 |
+| qa-12 | "model_core: commands with arguments/fromJson, quantization in the format" | doc-05, doc-10 |
+| qa-13 | "mesh: spike 0.2, chunks 0.3" | mesh-01, mesh-02 |
+| qa-15 | "app: EditorState/Cubit, the manipulator, layouts; mesh: BVH" | ui-03, view-12, ui-05, mesh-20 |
+| rel-02 | "mesh: an empty library with one export" | mesh-00 |
+| rel-04 | "model_mcp: a bin answering tools/list" | rel-02 (a `--help` stub in phase 0); `tools/list` in the container — doc-19's acceptance |
+| rel-06 | "model_core: phase 1 closed (1.7, 1.8); mesh: a stable API" | doc-10, doc-14; mesh-31/33 |
+| rel-08 | "app: Object and Mesh modes (1.11)" | ui-04, ui-08, ui-09 |
+| rel-09 | "app: import/export (1.15); model_mcp: the table (1.17); engine: GltfWriter (1.9)" | ui-16/17, doc-20, fmt-06 |
+| rel-10 | "app: disk on the web (1.15, spike 0.5); perf: measurement 0.1 in Chrome" | ui-14, p0-08, p0-02 |
+| rel-11 | "app: builds on macOS (1.11)" | ui-20 |
+| rel-13 | "engine: a deterministic GltfWriter; model_core: a format and bin/export" | fmt-06, doc-10 (+ `bin/` — a §8 question) |
+| rel-17 | "perf: measurement 0.1; app: spike 0.5" | p0-02/03, p0-08 |
 
-### 3.3 Добавлено при синтезе
+### 3.3 Added during synthesis
 
-Три ссылки не разрешались ни в один пункт; для них заведены пункты. Девять
-пунктов с суффиксом `-n` (mat-04a-n, mat-09n, doc-11a-n, anim-31a-n, p0-13n,
-ui-30n, ui-31n, ui-32n, qa-19n) добавлены по критике 2026-09-09, пять с
-суффиксом `-d` (doc-31d, ui-33d, ui-34d, rel-19d, fmt-29d) — по решениям
-владельца 2026-09-09; все стоят в таблицах своих аспектов.
+Three references didn't resolve into any item; items were created for them.
+Nine items with an `-n` suffix (mat-04a-n, mat-09n, doc-11a-n, anim-31a-n,
+p0-13n, ui-30n, ui-31n, ui-32n, qa-19n) were added by the 2026-09-09
+critique, five with a `-d` suffix (doc-31d, ui-33d, ui-34d, rel-19d,
+fmt-29d) — by 2026-09-09 owner decisions; all sit in their own aspect's
+tables.
 
-| id | что | пакет | р. | ф. | зависит | приёмка |
+| id | what | package | size | phase | depends | acceptance |
 |---|---|---|---|---|---|---|
-| syn-01 *(добавлено при синтезе)* | `ParamHint` — свой sealed-тип в core (Int / Double / Bool / Enum / Vector3 с `step`, `unit`, диапазоном) для карточки операции; `ModelCommand.hints` у команд с параметрами (Extrude, LoopCut, MergeByDistance, MoveElements, AddPrimitive, AddLathe). Без него ui-09 не может строить контролы, а doc-05 говорит только об `arguments`. Тип решён по критике 2026-09-09 (Г4/Ж2): `MaterialHint` не подходит — у него только `RangeHint(double, step)`/`ColorHint`/`TextureHint`/`EnumHint`, ни целых (`LoopCut.cuts`), ни флагов (`Extrude.individual`), ни единиц, и файл тянет `LightingModel` | core | S | 1 | doc-05 | у каждой команды с числовым аргументом есть hint; тест: ключи `hints` ⊂ ключей `arguments`; `LoopCut.cuts` — `IntHint`, `Extrude.individual` — `BoolHint` |
-| syn-02 *(добавлено при синтезе)* | Макеты двух экранов фазы 1, которых нет в передаче: импорт с проверкой и экспорт с проверками (README передачи сам требует их до начала фазы; ui-16/17 и fmt-12 описывают данные, но не вид). Тот же стиль `.dc.html`, таблица токенов та же | дизайн | S | 0 | — | два экрана в архиве передачи; ui-16/17 ссылаются на них |
-| syn-03 *(добавлено при синтезе)* | `ProjectProfile.fps` и `frameSnap` — временная база анимации в профиле (anim-04 округляет кадр как `round(time·fps)`, anim-13 читает fps); doc-13 не содержит поля | core | S | 3 | doc-13 | JSON round-trip; `KeyTable` читает fps из профиля |
-
+| syn-01 *(added during synthesis)* | `ParamHint` — its own sealed type in core (Int / Double / Bool / Enum / Vector3, with `step`, `unit`, a range) for the operation card; `ModelCommand.hints` on commands with parameters (Extrude, LoopCut, MergeByDistance, MoveElements, AddPrimitive, AddLathe). Without it ui-09 can't build controls, and doc-05 only talks about `arguments`. The type was decided by the 2026-09-09 critique (D4/F2 [Г4/Ж2]): `MaterialHint` doesn't fit — it only has `RangeHint(double, step)`/`ColorHint`/`TextureHint`/`EnumHint`, no integers (`LoopCut.cuts`), no flags (`Extrude.individual`), no units, and the file pulls in `LightingModel` | core | S | 1 | doc-05 | every command with a numeric argument has a hint; test: `hints`' keys ⊂ `arguments`' keys; `LoopCut.cuts` is an `IntHint`, `Extrude.individual` a `BoolHint` |
+| syn-02 *(added during synthesis)* | Mockups for the two phase-1 screens missing from the handoff: import with checks and export with checks (the handoff README itself requires them before the phase starts; ui-16/17 and fmt-12 describe the data, not the look). The same `.dc.html` style, the same token table | design | S | 0 | — | two screens in the handoff archive; ui-16/17 reference them |
+| syn-03 *(added during synthesis)* | `ProjectProfile.fps` and `frameSnap` — a time base for animation in the profile (anim-04 rounds a frame as `round(time·fps)`, anim-13 reads fps); doc-13 doesn't have the field | core | S | 3 | doc-13 | a JSON round trip; `KeyTable` reads fps from the profile |
 ---
 
-## 4. Критический путь и дорожки для агентов
+## 4. The critical path and tracks for agents
 
-Считается по `dependsOn` после слияния дубликатов. Веса: S = 1 неделя, M = 2,5,
-L = 5 — середины интервалов проработки §6, для одного человека. После решения
-владельца 2026-09-09 (исполнитель один, с агентами) критический путь задаёт
-порядок работ, а календарь фазы 1 считается в §4.3 как сумма размеров.
+Computed from `dependsOn` after merging duplicates. Weights: S = 1 week, M =
+2.5, L = 5 — midpoints of the §6 working-through intervals, for one person.
+After the 2026-09-09 owner decision (one executor, with agents), the
+critical path sets the order of work, and phase 1's calendar is computed in
+§4.3 as a sum of sizes.
 
-### 4.1 Критический путь
+### 4.1 The critical path
 
-Пересчитан 2026-09-09 по критике: в столбец «зависит» дописаны рёбра, которые
-§4 подразумевал, а таблицы не несли (doc-03 ← mesh-11; doc-07 ← mesh-22..26;
-ui-09 ← doc-07, syn-01; ui-26 ← doc-07; mat-01 ← doc-03, doc-05), и путь
-выведен строго по ним. Прежняя цепочка шла через mesh-14 → mesh-19 → mesh-23,
-но mesh-19 зависит только от mesh-11, а самый длинный предшественник doc-07 —
-mesh-25 (dissolve ждёт `fromMeshData` из mesh-13, тот — слои mesh-12). Хвост
-прежней цепочки ui-09 → ui-26 (3,5 недели после doc-07) короче, чем
-doc-20 → rel-09 → rel-16 (6 недель), которые тоже стоят в приёмке фазы 1 и
-тоже ждут doc-07.
+Recomputed 2026-09-09 by critique: edges §4 implied but the tables didn't
+carry were added to the "depends" column (doc-03 ← mesh-11; doc-07 ←
+mesh-22..26; ui-09 ← doc-07, syn-01; ui-26 ← doc-07; mat-01 ← doc-03, doc-05),
+and the path was derived strictly from them. The earlier chain ran through
+mesh-14 → mesh-19 → mesh-23, but mesh-19 only depends on mesh-11, and doc-07's
+longest predecessor is mesh-25 (dissolve waits on `fromMeshData` from mesh-13,
+which waits on mesh-12's layers). The earlier chain's tail, ui-09 → ui-26
+(3.5 weeks after doc-07), is shorter than doc-20 → rel-09 → rel-16 (6 weeks),
+which also sit in phase-1 acceptance and also wait on doc-07.
 
 ```
 qa-01 → qa-02 → mesh-01 → mesh-02 → mesh-10 → mesh-11 → mesh-12 → mesh-13
       → mesh-25 → doc-07 → doc-20 → rel-09 → rel-16
 ```
 
-| звено | р. | недель | что открывает |
+| link | size | weeks | what it unlocks |
 |---|---|---|---|
-| qa-01 зелёный main | S | 1 | любой merge |
-| qa-02 регистрация пакетов | S | 1 | первый коммит кода |
-| mesh-01 спайк EditMesh | M | 2,5 | форму API и цену `toMeshData` |
-| mesh-02 замер персистентности | S | 1 | чанк или патч |
-| mesh-10 персистентные векторы | M | 2,5 | — |
-| mesh-11 half-edge | L | 5 | doc-03 (документ), mesh-15/16/18/19 параллельно |
-| mesh-12 слои атрибутов | M | 2,5 | mesh-13, 14, 16, 18, 23, 24 |
-| mesh-13 fromMeshData | M | 2,5 | mesh-25, 27, 29, doc-11 |
-| mesh-25 merge/dissolve | M | 2,5 | doc-07 (последний из mesh-22..26) |
-| doc-07 мешевые команды | M | 2,5 | ui-09 → ui-26 (3,5 нед., параллельно), doc-20 |
-| doc-20 таблица инструментов MCP | M | 2,5 | doc-21 (2,5 нед., параллельно), rel-09 |
-| rel-09 туториал как тест | M | 2,5 | rel-16 |
-| rel-16 когорта | S | 1 | приёмка фазы 1 (календарное время когорты сверх недели) |
-| **итого** | 4 S, 8 M, 1 L | **≈ 29** | |
+| qa-01 green main | S | 1 | any merge |
+| qa-02 package registration | S | 1 | the first code commit |
+| mesh-01 the EditMesh spike | M | 2.5 | the API's shape and `toMeshData`'s cost |
+| mesh-02 the persistence measurement | S | 1 | chunk or patch |
+| mesh-10 persistent vectors | M | 2.5 | — |
+| mesh-11 half-edge | L | 5 | doc-03 (the document), mesh-15/16/18/19 in parallel |
+| mesh-12 attribute layers | M | 2.5 | mesh-13, 14, 16, 18, 23, 24 |
+| mesh-13 fromMeshData | M | 2.5 | mesh-25, 27, 29, doc-11 |
+| mesh-25 merge/dissolve | M | 2.5 | doc-07 (the last of mesh-22..26) |
+| doc-07 mesh commands | M | 2.5 | ui-09 → ui-26 (3.5 wks, in parallel), doc-20 |
+| doc-20 the MCP tool table | M | 2.5 | doc-21 (2.5 wks, in parallel), rel-09 |
+| rel-09 the tutorial as a test | M | 2.5 | rel-16 |
+| rel-16 the cohort | S | 1 | phase-1 acceptance (the cohort's calendar time exceeds one week) |
+| **total** | 4 S, 8 M, 1 L | **≈ 29** | |
 
-Три замечания. Цепочка целиком лежит в ядре геометрии до doc-07; всё, что до
-mesh-11, — фаза 0 и первые недели фазы 1, и ускорить её нельзя, только не
-задерживать решениями (§5.2). После mesh-11 пункты mesh-14/15/16/18 и
-mesh-22..24/26 параллельны mesh-12 → 13 → 25 по зависимостям, но при одном
-исполнителе стоят в той же очереди — это и есть разница между ≈29 неделями
-пути и календарём §4.3. Число ≈29 не изменилось случайно: две M (mesh-14,
-mesh-19) ушли с пути, две M (doc-20, rel-09) на него встали. Решения
-2026-09-09 путь не изменили: doc-31d (история в файле) висит на doc-08/10 в
-стороне от цепочки, ui-21 и rel-19d — S без последователей на пути, а
-приёмка «открывается на iPad и Galaxy A55» стоит на ui-21, который готов
-задолго до rel-16.
+Three notes. The whole chain sits in the geometry core, up through doc-07;
+everything before mesh-11 is phase 0 and the first weeks of phase 1, and
+can't be sped up, only kept from stalling on decisions (§5.2). After mesh-11,
+mesh-14/15/16/18 and mesh-22..24/26 run in parallel with mesh-12 → 13 → 25 by
+dependency, but with one executor they sit in the same queue — that's exactly
+the difference between the ≈29-week path and the §4.3 calendar. The ≈29
+figure didn't change by accident: two Ms (mesh-14, mesh-19) left the path,
+two Ms (doc-20, rel-09) joined it. The 2026-09-09 decisions didn't change the
+path: doc-31d (history in the file) hangs off doc-08/10, away from the
+chain; ui-21 and rel-19d are S with no followers on the path; and the
+acceptance "opens on an iPad and a Galaxy A55" rests on ui-21, ready well
+before rel-16.
 
-### 4.2 Дорожки для агентов: что не зависит от `EditMesh`
+### 4.2 Tracks for agents: what doesn't depend on `EditMesh`
 
-Пункты ниже не зависят от `EditMesh` и могут стартовать в день зелёного
-`main`. При одном исполнителе (§4.3) они не идут «параллельно» сами по
-себе — это те дорожки, которые отдаются агентам под готовые тесты;
-кандидаты помечены **(агент)**, критерий — есть механическая проверка
-(round-trip, эталонный кадр, сканер, множество ключей), которую человек
-пишет раньше кода.
+The items below don't depend on `EditMesh` and can start the day `main`
+turns green. With one executor (§4.3) they don't run "in parallel" on their
+own — these are the tracks handed to agents under pre-written tests;
+candidates are marked **(agent)**, the criterion being a mechanical check
+(a round trip, a golden frame, the scanner, a key set) written before the
+code.
 
-- **Форматы (агент):** fmt-01 → fmt-02/03/04/05 → fmt-06 (после doc-01, срок
-  25.09) → fmt-07 → fmt-10/11/12/13/14, fmt-08, fmt-09, fmt-15, fmt-16.
-  Проработка §8 называет `GltfWriter` единственным пунктом, который можно
-  начать «сегодня, ничего не согласовывая»; после В1 «сегодня» означает «в
-  engine, с переездом в `formats` вместе с doc-01». Тесты — round-trip на
-  моделях Khronos и `compareModelDocuments`, готовы до писателя.
-- **Рендер (агент — оверлеи с эталонным кадром: view-05/06/11/13):** p0-01 →
-  view-01 → view-05 → view-06, p0-10 → view-09 (после mesh-03) → mesh-20,
-  view-14 (по p0-06), p0-06.
-- **Платформы (агент):** ui-20, ui-21, qa-17, rel-11 — конфигурации
-  Android/iOS/macOS/web и их сборки в CI; проверка — сканер и зелёный job.
-- **Локализация (агент):** ui-22 — проверка «множества ключей ru/en равны,
-  под `Locale('en')` нет кириллицы».
-- **Словарь:** doc-00 → doc-01 (с mesh-03) — на нём стоят mesh-13/14, doc-11/12,
-  doc-19; срок 2026-09-25.
-- **Оболочка:** ui-00 → ui-01 → ui-02 → ui-03 → ui-04 → ui-05/07/12/22/23, ui-14
-  (со спайком p0-08), ui-15, ui-25; view-02 → view-03 → view-04/08/12 → view-11.
-  Всё это работает на `Imported(MeshData)` и параметрических объектах, пока
-  `EditMesh` нет.
-- **Документ:** doc-02 → doc-13/15/18 → doc-09 → doc-10 (на `Imported`, секция
-  `editMeshes` пустая до mesh-18) → doc-16/17; doc-05/06 — как только есть
-  `ModelProject` (doc-03 ждёт только identity-семантику mesh-11, теперь это
-  записано в его `зависит`); mat-01 → mat-04a-n за doc-03/05.
-- **Замеры:** p0-02/03/07/08/10/11/13n, anim-31 (только FK), qa-13.
-- **Анимация без приложения:** anim-01, anim-02, anim-14, anim-17, anim-21 — чистый
-  Dart и движок, могут идти параллельно фазе 1 (аспект anim это прямо предлагает).
+- **Formats (agent):** fmt-01 → fmt-02/03/04/05 → fmt-06 (after doc-01,
+  deadline 09.25) → fmt-07 → fmt-10/11/12/13/14, fmt-08, fmt-09, fmt-15,
+  fmt-16. The working-through §8 names `GltfWriter` as the one item that can
+  start "today, with nothing to agree on first"; after B1 [В1], "today"
+  means "in the engine, moving into `formats` alongside doc-01." Tests —
+  round trips on Khronos models and `compareModelDocuments`, ready before
+  the writer.
+- **Rendering (agent — overlays with a golden frame: view-05/06/11/13):**
+  p0-01 → view-01 → view-05 → view-06, p0-10 → view-09 (after mesh-03) →
+  mesh-20, view-14 (per p0-06), p0-06.
+- **Platforms (agent):** ui-20, ui-21, qa-17, rel-11 — Android/iOS/macOS/web
+  configuration and their CI builds; checked by the scanner and a green job.
+- **Localization (agent):** ui-22 — checked by "the ru/en key sets are
+  equal, no Cyrillic under `Locale('en')`."
+- **Vocabulary:** doc-00 → doc-01 (with mesh-03) — mesh-13/14, doc-11/12,
+  doc-19 sit on it; deadline 2026-09-25.
+- **The shell:** ui-00 → ui-01 → ui-02 → ui-03 → ui-04 → ui-05/07/12/22/23,
+  ui-14 (with the p0-08 spike), ui-15, ui-25; view-02 → view-03 →
+  view-04/08/12 → view-11. All of this works on `Imported(MeshData)` and
+  parametric objects while `EditMesh` doesn't exist yet.
+- **The document:** doc-02 → doc-13/15/18 → doc-09 → doc-10 (over
+  `Imported`, the `editMeshes` section empty until mesh-18) → doc-16/17;
+  doc-05/06 — as soon as `ModelProject` exists (doc-03 now only waits on
+  mesh-11's identity semantics, recorded in its `depends`); mat-01 →
+  mat-04a-n after doc-03/05.
+- **Measurements:** p0-02/03/07/08/10/11/13n, anim-31 (FK only), qa-13.
+- **Animation with no app:** anim-01, anim-02, anim-14, anim-17, anim-21 —
+  pure Dart and engine code, can run alongside phase 1 (the anim aspect
+  proposes this directly).
 
-### 4.3 Состав
+### 4.3 Team
 
-Решение владельца 2026-09-09: исполнитель **один, с агентами**. План дизайна
-называл минимальный состав из трёх (ядро геометрии, рендер, интерфейс), и
-прежняя таблица «1 / 2 / 3 человека» снята: дорожек по-прежнему несколько,
-но идёт по ним один человек, поэтому календарь фазы 1 — сумма размеров всех
-её пунктов, а не длина критического пути.
+2026-09-09 owner decision: **one** executor, with agents. The design plan
+called for a minimum team of three (geometry core, rendering, UI), and the
+earlier "1 / 2 / 3 people" table is dropped: there are still several tracks,
+but one person walks them, so phase 1's calendar is the sum of the sizes of
+all its items, not the critical path's length.
 
-**Счёт по таблицам §2.** Пункты с фазой 1, у которых есть собственная работа
-(без одиннадцати, чьё содержимое целиком слито в другой пункт и в приёмке
-стоит «см.»: fmt-17/18, qa-07/08/09/10/12/14/15/18, rel-14), с пунктами
-решений 2026-09-09 (ui-21 перенесён, doc-31d, ui-33d, rel-19d добавлены) и
-без условных (ui-34d, view-14 в фазе 1 только по p0-06, view-06 считается
-как S):
+**Counted from the §2 tables.** Phase-1 items with their own work (excluding
+eleven whose content is entirely folded into another item, with "see" as
+their acceptance: fmt-17/18, qa-07/08/09/10/12/14/15/18, rel-14), with the
+2026-09-09 decision items (ui-21 moved, doc-31d, ui-33d, rel-19d added), and
+excluding conditional ones (ui-34d, view-14 in phase 1 only per p0-06,
+view-06 counted as S):
 
-| размер | пунктов | недель за пункт | недель |
+| size | items | weeks each | weeks |
 |---|---|---|---|
 | S | 80 | 1 | 80 |
-| M | 53 | 2,5 | 132,5 |
+| M | 53 | 2.5 | 132.5 |
 | L | 5 (mesh-11, doc-10, view-12, mcp-01n, mcp-03n) | 5 | 25 |
-| **итого** | **138** | | **≈ 237** |
+| **total** | **138** | | **≈ 237** |
 
-**Пересчёт 2026-09-10.** Было 120 пунктов и ≈198 недель. Добавлены пятнадцать
-пунктов аспекта `mcp-` (все фаза 1) и три пункта фазы 1 из гэп-анализа
-(mesh-81n, doc-34n, view-26n): 7 S, 9 M, 2 L — ещё ≈39,5 недели. Остальные
-пункты гэп-анализа лежат в фазах 2—4 и в этот счёт не входят.
+**Recomputed 2026-09-10.** It was 120 items and ≈198 weeks. Fifteen `mcp-`
+aspect items (all phase 1) and three gap-analysis phase-1 items (mesh-81n,
+doc-34n, view-26n) were added: 7 S, 9 M, 2 L — another ≈39.5 weeks. The rest
+of the gap-analysis items sit in phases 2–4 and aren't in this count.
 
-**Трек `gfx-` считается отдельно и не входит в сумму выше**, потому что идёт
-параллельно и нумеруется своими фазами: Г1 ≈4,5 недели (профайлер и два
-замера), Г2 ≈11 (четыре боли, виденные глазами), Г3 ≈16 (герой крупно и то, что
-ROADMAP уже обещал) — **≈31,5 недели**. Он не удлиняет фазу 1 моделера: это
-правки движка, у которых свои эталонные кадры и свой конформанс.
+**The `gfx-` track is counted separately and isn't in the sum above**,
+because it runs in parallel and is numbered with its own phases: G1 ≈4.5
+weeks (a profiler and two measurements), G2 ≈11 (four pains seen with one's
+own eyes), G3 ≈16 (a close-up hero and what the ROADMAP already promised) —
+**≈31.5 weeks**. It doesn't lengthen the modeler's phase 1: these are
+engine changes with their own golden frames and their own conformance.
 
-Перевод в недели — S = 1, M = 2,5, L = 5, середины интервалов проработки §6.
-Если срабатывают условные пункты (ui-34d M, view-06 как M вместо S), к сумме
-добавляется 4 недели: ≈ 202.
+Converting to weeks — S = 1, M = 2.5, L = 5, midpoints of the §6
+working-through intervals. If the conditional items fire (ui-34d as M,
+view-06 as M instead of S), add 4 weeks to the sum: ≈202.
 
-**Оценка 1 — один человек без агентов:** ≈ 237 недель чистой работы, около
-4,6 года; критический путь ≈ 29 недель внутри этой суммы — порядок, в
-котором её проходить. Трек `gfx-` добавляет к календарю ещё ≈31,5 недели, если
-идти по нему тем же человеком, и нисколько, если он идёт агентами под готовые
-эталонные кадры — дорожка §4.2 «оверлеи с эталонным кадром» ровно этой формы.
+**Estimate 1 — one person with no agents:** ≈237 weeks of pure work, about
+4.6 years; the critical path ≈29 weeks inside that sum — the order to walk
+it in. The `gfx-` track adds another ≈31.5 weeks to the calendar if the same
+person walks it, and none at all if agents walk it under ready-made golden
+frames — exactly the shape of §4.2's "overlays with a golden frame" track.
 
-**Оценка 2 — один человек с агентами на дорожках §4.2.** Агентам под
-готовые тесты отдаются:
+**Estimate 2 — one person with agents on the §4.2 tracks.** Handed to
+agents under ready-made tests:
 
-| дорожка | пункты фазы 1 | размер | недель |
+| track | phase-1 items | size | weeks |
 |---|---|---|---|
-| писатели форматов с round-trip тестами | fmt-01..05, 11, 12, 13, 15, 16 (S), fmt-06, 07, 08, 09, 10 (M) | 10 S + 5 M | 22,5 |
-| оверлеи с эталонным кадром | view-05, view-13 (M), view-06, view-11 (S) | 2 S + 2 M | 7 |
-| платформенные конфигурации | ui-20, ui-21, qa-17, rel-11 | 4 S | 4 |
-| локализация | ui-22 | 1 S | 1 |
-| **итого агентам** | | | **34,5** |
+| format writers with round-trip tests | fmt-01..05, 11, 12, 13, 15, 16 (S), fmt-06, 07, 08, 09, 10 (M) | 10 S + 5 M | 22.5 |
+| overlays with a golden frame | view-05, view-13 (M), view-06, view-11 (S) | 2 S + 2 M | 7 |
+| platform configuration | ui-20, ui-21, qa-17, rel-11 | 4 S | 4 |
+| localization | ui-22 | 1 S | 1 |
+| **handed to agents, total** | | | **34.5** |
 
-Агент не снимает пункт с календаря целиком: тесты ему пишет человек,
-результат читает человек. Если положить это в четверть размера пункта —
-это предположение, а не замер, — человеку остаётся 237 − 34,5 + 8,6 ≈ **211
-недель**, около 4,1 года. Второе число проверяется первой же дорожкой:
-fmt-01..05 (5 S) отдаются агенту под тесты fmt-01; если на приёмку уходит
-больше недели с четвертью, доля пересматривается и оценка вместе с ней.
+An agent doesn't remove an item from the calendar entirely: a human writes
+its tests, a human reads the result. Putting this at a quarter of the
+item's size — an estimate, not a measurement — leaves the human 237 − 34.5 +
+8.6 ≈ **211 weeks**, about 4.1 years. This second number is checked by the
+very first track: fmt-01..05 (5 S) go to an agent under fmt-01's tests; if
+acceptance takes more than a week and a quarter, the fraction is revised and
+the estimate with it.
 
-Следствие для сроков: 27 декабря целью не является (В8); первая публикация
-и релиз — когда фаза 1 в руках у первых пользователей (rel-16 → rel-06).
+Consequence for timing: December 27 is not the target (C8 [В8]); the first
+publish and release come once phase 1 is in the hands of its first users
+(rel-16 → rel-06).
 
 ---
 
-## 5. Вехи по фазам
+## 5. Milestones by phase
 
-### 5.1 Фаза 0 — замеры и спайки (до 2026-10-05)
+### 5.1 Phase 0 — measurements and spikes (by 2026-10-05)
 
-**Входит:** qa-01, qa-02 (с mesh-00, ui-01, rel-02, rel-03, rel-07), qa-03,
-qa-04, qa-05, qa-13, doc-00, doc-01 (с mesh-03), mesh-01, mesh-02, mesh-04,
-p0-01..p0-12, p0-13n, view-01, view-02, ui-00, ui-14 (спайк p0-08 и спайк
-сандбокса p0-13n), anim-31 (только FK), rel-01, rel-04, rel-12, rel-17, syn-02.
+**Includes:** qa-01, qa-02 (with mesh-00, ui-01, rel-02, rel-03, rel-07),
+qa-03, qa-04, qa-05, qa-13, doc-00, doc-01 (with mesh-03), mesh-01, mesh-02,
+mesh-04, p0-01..p0-12, p0-13n, view-01, view-02, ui-00, ui-14 (the p0-08
+spike and the p0-13n sandbox spike), anim-31 (FK only), rel-01, rel-04,
+rel-12, rel-17, syn-02.
 
-**Выполнено, когда:**
-*`main` зелёный три прогона подряд, и `dart run tool/structure.dart` держит 31
-правило при шести новых каталогах в дереве (33 пакета: 28 сегодняшних,
-`geometry`, `formats`, mesh, core, mcp). Словарь разложен в два пакета —
-`flutter3d_geometry` с геометрией и `TriangleBvh`, `flutter3d_formats` с
-документом, декодерами и писателями поверх него, — `flutter3d` реэкспортирует
-оба, порядок публикации geometry → formats → flutter3d принят
-`publish_check.sh`, и в контейнере без Flutter SDK `dart pub get` и
-`dart run flutter3d_model_mcp:model_mcp --help` (заглушка rel-02; `tools/list`
-— приёмка doc-19 в фазе 1) проходят. Известно, каким вызовом модельер пишет
-файл под сандбоксом macOS (p0-13n). Половинно-рёберный куб
-с выдавленной гранью нарисован программным растеризатором и совпадает с
-эталоном; `toMeshData` на 200 тыс. треугольников, снимок при сдвиге 1 %
-вершин в двух распределениях, `DeviceMesh.upload` против перезаписи,
-изолят против порций, миллион треугольников на macOS, в Chrome и на Galaxy A55
-— всё это числа с датой и машиной в doc/model-editor.md §6, и ни одна строка
-§7 не говорит «решает замер». Веб открыл GLB через панель браузера и скачал
-`.f3d` в трёх браузерах; там, где порог p0-02/p0-08 не пройден, в §5.2
-записан пункт, который его закрывает (JS-сборка, порции, ui-34d) — замеры
-веба стали воротами качества, а не выбором между «равный» и «просмотр»
-(решение 2026-09-09). ROADMAP на ревизии 28 сентября содержит трек редактора
-моделей со строкой Acceptance и переформулированный пункт о графе нод (Ж1).*
+**Done when:**
+*`main` is green three runs in a row, and `dart run tool/structure.dart`
+holds 31 rules with six new directories in the tree (33 packages: 28 today,
+`geometry`, `formats`, mesh, core, mcp). The vocabulary is split into two
+packages — `flutter3d_geometry` with the geometry and `TriangleBvh`,
+`flutter3d_formats` with the document, decoders, and writers built on it —
+`flutter3d` re-exports both, the publishing order geometry → formats →
+flutter3d is accepted by `publish_check.sh`, and in a container with no
+Flutter SDK, both `dart pub get` and
+`dart run flutter3d_model_mcp:model_mcp --help` (rel-02's stub; `tools/list`
+is doc-19's acceptance, in phase 1) pass. It's known which call the modeler
+uses to write a file under the macOS sandbox (p0-13n). A half-edge cube with
+an extruded face is drawn by the software rasterizer and matches the
+reference; `toMeshData` at 200,000 triangles, a snapshot when moving 1% of
+vertices under two distributions, `DeviceMesh.upload` versus overwrite, an
+isolate versus chunks, a million triangles on macOS, in Chrome, and on a
+Galaxy A55 — all of it is numbers with a date and a machine in
+doc/model-editor.md §6, and not one line in §7 says "the measurement
+decides." The web opened a GLB through the browser's own panel and
+downloaded a `.f3d` in three browsers; wherever a p0-02/p0-08 threshold
+wasn't met, §5.2 records the item that closes it (a JS build, chunks,
+ui-34d) — the web's measurements became quality gates, not a choice between
+"equal" and "view-only" (2026-09-09 decision). The ROADMAP at the September
+28 review contains a model-editor track with an Acceptance line and a
+reworded node-graph item (F1 [Ж1]).*
 
-**Решения до старта:** нет. Имена пакетов и место кода закрыты 2026-09-09
-(В5: этот монорепозиторий, mesh / model_core / model_mcp / geometry / formats
-/ modeler), rel-01 записывает их с датой проверки. В1 закрыт двумя пакетами
-и стоит в фазе 0 как решение со сроком 25.09, а не как вопрос; всё остальное
-фаза 0 производит.
+**Decisions before starting:** none. Package names and where the code lives
+were settled 2026-09-09 (C5 [В5]: this monorepo, mesh / model_core /
+model_mcp / geometry / formats / modeler), rel-01 records them with the
+check's date. B1 [В1] is closed with two packages and sits in phase 0 as a
+decision with a 09.25 deadline, not a question; phase 0 produces everything
+else.
 
-### 5.2 Фаза 1 — первая версия
+### 5.2 Phase 1 — the first version
 
-**Входит:**
-- mesh: 10–33 (с anim-09 не входит);
-- core: doc-02..22, doc-29, doc-31d (история в файле проекта), mat-01 (с
-  `SetTexture`/`AddImage`), mat-03, syn-01;
-- форматы: fmt-01..16 (fmt-17/18 слиты; fmt-01..09/12/15 — в `formats`);
-- движок/рендер: view-03..06, view-08..13, view-22, view-09; view-14 — только
-  если p0-06 не проходит;
-- оболочка: ui-02..13, ui-15..26 (ui-21 — Android и iOS, перенесён из
-  фазы 2), ui-30n..33d, ui-34d по условию p0-07/p0-08, mat-04a-n (панель
-  материала фазы 1);
-- MCP: doc-19..22 (с rel-14);
-- качество: qa-06..10, qa-12, qa-14..18, qa-19n;
-- публикация и закупка: rel-05, rel-06 (только после rel-16 — В8), rel-08..11,
-  rel-15, rel-16, rel-18, rel-19d (iPad и аккаунт Apple Developer до
-  середины фазы).
+**Includes:**
+- mesh: 10–33 (with anim-09 excluded);
+- core: doc-02..22, doc-29, doc-31d (history in the project file), mat-01
+  (with `SetTexture`/`AddImage`), mat-03, syn-01;
+- formats: fmt-01..16 (fmt-17/18 merged; fmt-01..09/12/15 — in `formats`);
+- engine/rendering: view-03..06, view-08..13, view-22, view-09; view-14 —
+  only if p0-06 doesn't pass;
+- shell: ui-02..13, ui-15..26 (ui-21 — Android and iOS, moved from phase
+  2), ui-30n..33d, ui-34d conditional on p0-07/p0-08, mat-04a-n (the
+  phase-1 material panel);
+- MCP: doc-19..22 (with rel-14);
+- quality: qa-06..10, qa-12, qa-14..18, qa-19n;
+- publishing and purchases: rel-05, rel-06 (only after rel-16 — C8 [В8]),
+  rel-08..11, rel-15, rel-16, rel-18, rel-19d (an iPad and an Apple
+  Developer account by mid-phase).
 
-**Выполнено, когда:**
-*Модель Khronos импортирована с экраном предупреждений (единицы и ось вверх
-выбраны там же), одна грань выдавлена мышью, значение смещения поправлено
-числом в карточке без нового шага истории; у выдавленного куба изменён базовый
-цвет и назначена текстура в панели «Материал», и оба видны в GLB; результат
-ушёл в GLB, который читает загрузчик шутера без предупреждений, который
-glTF-Validator принимает без ошибок и который headless Godot открывает в CI с
-тем же числом мешей; кадр оригинала и кадр перечитанного экспорта равны на
-программном растеризаторе. Тот же сценарий
-проигран агентом через `flutter3d_model_mcp` по stdio и сравнён в CI с
-эталонным файлом проекта и журналом команд. `EditMesh` держит `validate()` на
-500 случайных операциях по трём сидам, снимок истории после сдвига 1 % вершин
-из 200 тыс. стоит меньше 10 % полной копии, и это число печатает бенч.
-Проект сохранён с историей, открыт заново, и три последних шага отменены —
-нетронутые чанки `identical` исходным. Приложение собрано для macOS,
-браузера, Android и iOS: открывается на iPad и Galaxy A55, в Chrome — с
-редактированием, а не просмотром; три раскладки показывают одно множество
-инструментов, интерфейс переключается между русским и английским без
-кириллицы под `Locale('en')`, горячие клавиши Blender-подобные и перечислены
-в справке, экспорт с красным `Issue` предупреждает и после подтверждения
-пишет файл, строка статуса зелёная или оранжевая по `ExportReadiness`,
-тесты приложения идут через `flutter3d_cpu` с эталонными кадрами. Сцена
-`mesh-overlay` записана в четыре набора. Пять человек прошли туториал, и
-время на его странице измерено, а не обещано.*
+**Done when:**
+*A Khronos model is imported with a warnings screen (units and up axis
+chosen right there), one face is extruded with the mouse, the offset value
+is corrected as a number in the card with no new history step; the
+extruded cube's base color is changed and a texture assigned in the
+"Material" panel, and both show up in the GLB; the result goes into a GLB
+the shooter's own loader reads with no warnings, that the glTF Validator
+accepts with no errors, and that headless Godot opens in CI with the same
+mesh count. The original's frame and the re-read export's frame match on
+the software rasterizer. The same scenario
+is replayed by an agent through `flutter3d_model_mcp` over stdio and
+compared in CI against a reference project file and command journal.
+`EditMesh` holds `validate()` across 500 random operations over three
+seeds, a history snapshot after moving 1% of the vertices of 200,000 costs
+less than 10% of a full copy, and the bench prints that number. A project
+is saved with history, reopened, and its last three steps undone —
+untouched chunks are `identical` to the original. The app builds for
+macOS, the browser, Android, and iOS: it opens on an iPad and a Galaxy
+A55, in Chrome — editing, not just viewing; the three layouts show one
+tool set, the interface switches between Russian and English with no
+Cyrillic under `Locale('en')`, the hotkeys are Blender-like and listed in
+help, export with a red `Issue` warns and, after confirmation, writes the
+file, the status line is green or orange per `ExportReadiness`, the app's
+tests run through `flutter3d_cpu` with golden frames. The `mesh-overlay`
+scene is recorded across all four sets. Five people went through the
+tutorial, and the time on its page is measured, not promised.*
 
-**Решения до старта (оставшиеся из вопросов §8):** стабильные id с
-надгробиями (Б2); enum против sealed (Б7); `materialSlot` в фазе 1 (Б6);
-магия файла проекта и место автосохранения (Г1); экспорт скинов в
-фазе 1 (Д4); `overwrite` в фазе 1 или 2 (по p0-06). Закрыты 2026-09-09
-решениями владельца: чанк или патч — персистентные значения, разбивку меряет
-p0-05 (Б3); неманифолд расщепляется при импорте (Б1); иконки — `Icons` из
-SDK (Е12n); веб равноправен, замеры — ворота (Е1); В1 — два пакета. Г4
-(язык `says` — английский, подсказки — `ParamHint`) закрыт по критике и
-подтверждён владельцем.
+**Decisions before starting (remaining from §8's questions):** stable ids
+with tombstones (B2 [Б2]); enum versus sealed (B7 [Б7]); `materialSlot` in
+phase 1 (B6 [Б6]); the project file's magic number and autosave location
+(D1 [Г1]); exporting skins in phase 1 (E4 [Д4]); `overwrite` in phase 1 or 2
+(per p0-06). Closed 2026-09-09 by owner decision: chunk or patch — persistent
+values, the split measured by p0-05 (B3 [Б3]); non-manifold splits on
+import (B1 [Б1]); icons — the SDK's `Icons` (F12n [Е12n]); the web is equal
+footing, measurements are gates (F1 [Е1]); B1 [В1] — two packages. D4 [Г4]
+(the language of `says` — English, hints — `ParamHint`) closed by critique
+and confirmed by the owner.
 
-### 5.3 Фаза 2 — материалы, модификаторы, сцена, форматы
+### 5.3 Phase 2 — materials, modifiers, the scene, formats
 
-Оговорка: пункты фазы 2 написаны до чисел фазы 0 и до того, как форма
-`EditMesh` устоялась; размеры — порядок величины, зависимости внутри mesh-4x
-надёжны, между mat-/doc-/mesh — по лучшему знанию.
+Caveat: phase-2 items were written before phase 0's numbers and before
+`EditMesh`'s shape settled; sizes are an order of magnitude, dependencies
+within mesh-4x are solid, between mat-/doc-/mesh — the best knowledge
+available.
 
-**Входит:** mesh-40..49; doc-23, doc-24 (с pro-job-01), doc-28, doc-11a-n
-(безусловно — расстановка ассетов, решение 2026-09-09); mat-02, mat-04..16,
-mat-09n, mat-18..20, mat-22..25 (mat-24 с расстановкой и экспортом сцены),
-mat-28..32; fmt-19..22; FBX отдельной дорожкой после rel-16 — fmt-29d,
-fmt-24, fmt-25 (fmt-26 снят); view-07, view-14 (если не в фазе 1), view-16
-(⇢ mat-15); ui-27; rel-13. ui-21 ушёл в фазу 1.
+**Includes:** mesh-40..49; doc-23, doc-24 (with pro-job-01), doc-28,
+doc-11a-n (unconditional — placing assets, 2026-09-09 decision); mat-02,
+mat-04..16, mat-09n, mat-18..20, mat-22..25 (mat-24 with placement and scene
+export), mat-28..32; fmt-19..22; FBX as a separate track after rel-16 —
+fmt-29d, fmt-24, fmt-25 (fmt-26 dropped); view-07, view-14 (if not in phase
+1), view-16 (⇢ mat-15); ui-27; rel-13. ui-21 moved into phase 1.
 
-**Выполнено, когда:** *стек «зеркало → массив → сглаживание → булево» на объекте
-считается по кэшу версий, «Применить» оставляет один шаг истории, булево на
-копланарных гранях предупреждает и не падает; материал правится ползунками из
-подсказок и компоновщиком текстур с фиксированным набором нод, который
-запекает в пять слотов и не меняет ни одного шейдера — эталонные кадры
-движка не сдвинулись; режим «Сцена» держит свет, окружение и тени, девятый
-источник виден в статусе как отброшенный, два ассета импортированы в один
-проект через `ImportInto`, расставлены гизмо и ушли одним GLB с двумя узлами;
-кадры `bevel`, `subdivision`, `boolean`, `material-studio`, `scene-lit`
-зелёные на ubuntu; FBX из Blender — бинарный и ASCII — читается своим
-читателем `flutter3d_fbx` до float против glTF той же сцены, скины и клипы с
-допуском 1e-4, и пакет резолвится без Flutter SDK; текстуры под профиль
-ужимаются, а `.ktx2` из энкодера движка загружается конформансом на четырёх
-бэкендах.*
+**Done when:** *the "mirror → array → smooth → boolean" stack on an object
+is computed from a version cache, "Apply" leaves one history step, a
+boolean on coplanar faces warns and doesn't crash; a material is edited
+with sliders built from hints and a texture compositor with a fixed node
+set that bakes into five slots with no shader change — the engine's golden
+frames haven't shifted; "Scene" mode holds light, environment, and shadows,
+a ninth source shows in the status as dropped, two assets are imported into
+one project via `ImportInto`, placed with a gizmo, and exported as one GLB
+with two nodes; frames `bevel`, `subdivision`, `boolean`, `material-studio`,
+`scene-lit` are green on ubuntu; FBX from Blender — binary and ASCII — is
+read by its own `flutter3d_fbx` reader down to floats against a glTF of the
+same scene, skins and clips within 1e-4, and the package resolves with no
+Flutter SDK; textures shrink to fit the profile, and `.ktx2` from the
+engine's own encoder loads under conformance across four backends.*
 
-**Решения до старта:** PNG-deflate и декодер PNG/JPEG — свои или
-`package:archive`/`package:image` (Г6, mat-09n); один флаг модификатора или
-два (Ж3); цифры бюджета текстур (Ж5). Закрыты 2026-09-09: «граф нод» →
-«компоновщик текстур» с записью в ROADMAP на ревизии 28 сентября (Ж1);
-режим «Сцена» = свет/окружение/тени/пост плюс расстановка ассетов (Ж4,
-§7 № 36); FBX — свой читатель на Dart (Д7).
+**Decisions before starting:** PNG deflate and a PNG/JPEG decoder — from
+scratch or `package:archive`/`package:image` (D6 [Г6], mat-09n); one
+modifier flag or two (G3 [Ж3]); texture-budget numbers (G5 [Ж5]). Closed
+2026-09-09: "node graph" → "texture compositor," recorded in the ROADMAP at
+the September 28 review (G1 [Ж1]); "Scene" mode = light/environment/
+shadows/post plus placing assets (G4 [Ж4], §7 #36); FBX — its own reader in
+Dart (E7 [Д7]).
 
-### 5.4 Фаза 3 — конвейер персонажа
+### 5.4 Phase 3 — the character pipeline
 
-Оговорка та же, плюс: `Pose`, IK и ретаргет не проверялись ни на одном
-реальном mocap-клипе — только на образцах Khronos.
+Same caveat, plus: `Pose`, IK, and retargeting weren't checked against a
+single real mocap clip — only Khronos samples.
 
-**Входит:** anim-01..08, anim-10, anim-12..18, anim-19..23, anim-25, anim-27..30,
-anim-31a-n, anim-32 (anim-09 — в mesh, anim-11/24/26 слиты); mesh-60..62; view-15,
-view-17, view-18; ui-28; fmt-23 (fmt-25 ушёл в фазу 2 вместе с читателем
-FBX); pro-eng-02; syn-03.
+**Includes:** anim-01..08, anim-10, anim-12..18, anim-19..23, anim-25,
+anim-27..30, anim-31a-n, anim-32 (anim-09 — in mesh, anim-11/24/26 merged);
+mesh-60..62; view-15, view-17, view-18; ui-28; fmt-23 (fmt-25 moved into
+phase 2 with the FBX reader); pro-eng-02; syn-03.
 
-**Выполнено, когда:** *клип, правленный в таймлайне, играет одинаково тремя
-путями — `Pose.sampleClip`, `AnimationPlayer.seek`, `BakedPoses` — и после
-round-trip через GLB треки равны побайтно; кисть весов красит в согнутой позе и
-оставляет ≤ n влияний из профиля с суммой 1; ретаргет клипа на скелет вдвое
-выше держит стопу в сантиметре от пола; авториг RobotExpressive по восьми
-маркерам даёт скелет ≤ 64 костей с первичными весами за секунды в изоляте;
-экран 19 показывает треугольники, кости и текстуры против профиля тем же
-рендерером, что игра; агент проходит «авториг → веса → ключи → GLB» в CI.*
+**Done when:** *a clip edited in the timeline plays identically through
+three paths — `Pose.sampleClip`, `AnimationPlayer.seek`, `BakedPoses` — and
+after a GLB round trip the tracks match byte-exact; a weight brush paints
+on a bent pose and leaves ≤ n influences from the profile, summing to 1;
+retargeting a clip onto a skeleton twice as tall keeps the foot within a
+centimeter of the floor; auto-rigging RobotExpressive from eight markers
+gives a skeleton ≤ 64 bones with primary weights in seconds inside an
+isolate; screen 19 shows triangles, bones, and textures against the
+profile with the same renderer the game uses; an agent runs "auto-rig →
+weights → keys → GLB" in CI.*
 
-**Решения до старта:** пакет `flutter3d_rig` (В2); четыре влияния как
-жёсткий предел (З1); IK всегда запекается молча (З3); секунды как временная
-база (З5); объём ретаргета v1 (З6).
+**Decisions before starting:** the `flutter3d_rig` package (C2 [В2]); four
+influences as a hard limit (H1 [З1]); IK always bakes silently (H3 [З3]);
+seconds as the time base (H5 [З5]); the v1 scope for retargeting (H6 [З6]).
 
-### 5.5 Фаза 4 — профессиональные режимы
+### 5.5 Phase 4 — professional modes
 
-Оговорка: самая неточная фаза. Скульптинг на 1,2 млн, XPBD-ткань, LSCM и
-запекание лучами — численные алгоритмы, чьи размеры L могут удвоиться; порядок
-внутри фазы задаёт pro-sc-01 и pro-rn-01, а не этот список.
+Caveat: the least precise phase. Sculpting at 1.2M, XPBD cloth, LSCM, and
+ray-based baking are numeric algorithms whose L sizes could double; the
+order inside the phase is set by pro-sc-01 and pro-rn-01, not by this list.
 
-**Входит:** pro-eng-03..07, pro-uv-01..07, pro-sc-01..09, pro-lod-01..04,
+**Includes:** pro-eng-03..07, pro-uv-01..07, pro-sc-01..09, pro-lod-01..04,
 pro-rt-01..07, pro-sim-01..06, pro-rn-01..04, pro-pt-01..05, pro-doc-01,
-pro-test-01, pro-after-01; view-19..21 (⇢ pro), ui-29; mat-17; fmt-27, fmt-28;
-mesh-70..73 (⇢ pro).
+pro-test-01, pro-after-01; view-19..21 (⇢ pro), ui-29; mat-17; fmt-27,
+fmt-28; mesh-70..73 (⇢ pro).
 
-**Выполнено, когда:** *куб подразбит до 1,2 млн треугольников и мазок пера
-меняет только затронутые чанки за бюджет кадра на десктопе (на вебе — в
-пределах лимита профиля); ретопология даёт ≥ 70 % квадов на поверхности
-исходника, а запечённая карта нормалей показывает мазок как рельеф на
-low-меше в GLB; куб развёрнут LSCM в острова без наложений с растяжением в
-списке; ткань 20×20 висит на двух углах и экспортируется восемью морф-целями;
-снимок 4К собран тайлами с прогрессом, а правка bloom пересчитывает только
-post; покраска через шов ложится на оба острова и сводится в
-`baseColorTexture`; проект фазы 1 открывается после восьми новых секций;
-восемь кадров и сквозной MCP-сценарий зелёные в CI.*
+**Done when:** *a cube is subdivided to 1.2M triangles and a pen stroke
+only touches its own chunks within the frame budget on desktop (on the web
+— within the profile's limit); retopology gives ≥70% quads on the source
+surface, and a baked normal map shows the stroke as relief on the low-mesh
+in a GLB; a cube is LSCM-unwrapped into non-overlapping islands with
+stretch in the list; a 20×20 cloth hangs from two corners and exports as
+eight morph targets; a 4K snapshot is assembled in tiles with progress,
+and editing bloom only recomputes post; painting across a seam lands on
+both islands and flattens into `baseColorTexture`; a phase-1 project opens
+after eight new sections; eight frames and an end-to-end MCP scenario are
+green in CI.*
 
-**Решения до старта:** экспорт симуляции (И2); второй UV-набор (Д10);
-тайминг правок контракта `renderPost`/`overwriteTexture` (И3). Закрыты
-2026-09-09: ткань — отдельный солвер `flutter3d_cloth` в фазе 4 (В3/И1);
-скульптинг — `SculptMesh` с мультиразрешением, экран 08 получает кнопку
-«Подразбить» вместо «плотности» (Б8/Б9); «Рендер» экрана 12 — снимок тем же
-рендерером с суперсэмплингом и проходами frame graph, трассировщик вне плана,
-«сэмплы» из макета уходят (pro-rn-02).
-
----
-
-### 5.6 После фазы 4
-
-Закрывает `pro-after-01`. Раздел ничего не решает заново — он собирает в одном
-месте то, что план уже назвал отложенным дальше фазы 4, и причину каждого
-пункта по месту, где она была принята. **Согласовано владельцем 2026-09-13**
-как закрывающий текст `pro-after-01` без правок.
-
-**Из «честной границы» фазы 4** (§5.5: «ABF++, dyntopo, quadriflow,
-GPU-запекание, самопересечение ткани, вращение тел, трассировщик — после»):
-
-- **Трассировщик** для «Рендера» экрана 12. Решение владельца 2026-09-09:
-  экран 12 остаётся снимком тем же растровым рендерером, с суперсэмплингом и
-  проходами frame graph (`pro-rn-02`); путь трассировки лучей не строится, а
-  «сэмплы» из исходного макета экрана уходят из текста (§5.5 «Решения до
-  старта»; §7 № 32).
-- **ABF++.** `pro-uv-03` разворачивает остров плоской или боксовой проекцией
-  «вместо ABF++» — более точный метод параметризации по углам не реализуется.
-- **Dyntopo.** Б9 закрыт решением владельца 2026-09-09 в пользу `Multires` —
-  мультиразрешения с фиксированными уровнями подразбиения (`pro-sc-07`);
-  динамическая перестройка топологии во время лепки — после.
-- **Quadriflow.** `pro-rt-01` строит ретопологию своей цепочкой (упрощение →
-  жадная квадрификация → shrink-wrap по BVH); quadriflow как отдельный
-  алгоритм — после.
-- **GPU-запекание карт.** `pro-rt-04` растеризует и трассирует лучи для
-  запекания на CPU; GPU-путь для тех же карт — после.
-- **Самопересечение ткани.** `flutter3d_cloth` (`pro-sim-01`) считает
-  столкновения только с внешним `CollisionShape` из physics — ткань саму
-  с собой не проверяет.
-- **Вращение твёрдых тел.** `pro-sim-02` даёт «Твёрдое тело» без вращения, с
-  подписью в панели (И4); полное вращение с суставами — «порт солвера после
-  фазы 4» (§7 № 6, решение владельца по ROADMAP «Not doing: rigid bodies with
-  rotation and joints»).
-
-**Скульптинг за пределами измеренного бюджета.** `pro-sc-01` — это замер, а не
-реализация, и с тех пор как писалась эта строка, замер лёг в §6: на macOS
-(M3 Pro) открытие 1,2-миллионного мазка-куба вместе с построением BVH стоит
-3,3–5,7 с (порог 3 с — не пройден), а сам мазок (отбор + правка + нормали +
-overwrite + raycast) — 294–1005 мс (пороги 8/16 мс — не пройдены в 20–60 раз,
-узкое место — полный пересчёт нормалей на весь меш). *Уточнено 2026-09-13,
-после согласования этого раздела: Chrome тоже снят тем же днём* (открытие+BVH
-24,2–24,4 с, мазок 7,58–7,71 с, оба порога так же не пройдены) *— в тексте
-ниже это не меняет ни одного вывода, только число измеренных платформ.*
-Galaxy A55 остаётся неизмеренным — `pro-sc-01` помечен в
-`doc/plan-status.json` как `"partial"` именно по этой причине, не как
-законченный. Решение по `pro-sc-09` (лимит треугольников на веб-профиль) по
-прежнему не принято — то, что уже измерено, говорит, что чанкование
-(`pro-sc-02`) нужно раньше, чем мазок станет интерактивным на 1,2 млн, но само
-решение о числе для веба ждёт замера на оставшейся платформе. Это тот же
-механизм, что и остальные пункты этого списка: `pro-sc-02..09` уже входят в
-фазу 4 по объёму, который назвал план, а любое расширение скульптинга сверх
-того, что подтвердит полный (все три платформы) замер `pro-sc-01`, — не входит
-в фазу 4 и не входит в этот план вообще, пока владелец не откроет для него
-отдельную строку по факту цифр.
-
-**Совместная работа.** В план flutter3d не входит вовсе — ни в фазу 4, ни
-после неё. Она числится «недостающим аспектом», найденным при критике
-2026-09-09 сверкой с архивом передачи дизайна (§10, «правки по критике»:
-двенадцать недостающих аспектов, один из них — «совместная работа
-(`pro-after-01`)»); в исходном архиве она относится к фазе 4 плана разработки
-и к README передачи (`doc/model-editor.md`) как то, для чего эта фаза кладёт
-основание. Эта самая строка (`pro-after-01`) и закрывает аспект — не
-реализацией, а тем, что явно называет её вне плана и указывает на единственный
-задел, который для неё уже существует независимо от какого-либо решения о
-совместном редактировании:
-
-- журнал команд `doc-16` — класс `CommandJournal`
-  (`packages/flutter3d_model_core/lib/src/command_journal.dart`): построчный
-  JSON Lines журнал успешно выполненных команд с автором и метками транзакций,
-  восстанавливающий проект через `replay` побайтно; `mcp-12n` уже пишет в него
-  каждую команду агентской сессии;
-- команды как значения — `sealed class ModelCommand`
-  (`packages/flutter3d_model_core/lib/src/command.dart`, doc-comment «One
-  change, as a value.»): каждая правка документа — сериализуемое значение со
-  своими `arguments`, а не императивный вызов, поэтому журнал вообще способен
-  что-то воспроизвести.
-
-Ни то, ни другое не решает совместное редактирование — нет ни сети, ни
-разрешения конфликтов между авторами, ни OT/CRDT над `ModelDocument`. Это
-только то, на чём такая работа могла бы быть построена, если владелец решит
-её начинать отдельным треком после фазы 4.
+**Decisions before starting:** simulation export (H2 [И2]); a second UV set
+(E10 [Д10]); the timing of the `renderPost`/`overwriteTexture` contract
+changes (H3 [И3]). Closed 2026-09-09: cloth — a separate `flutter3d_cloth`
+solver in phase 4 (C3/H1 [В3/И1]); sculpting — `SculptMesh` with
+multiresolution, screen 08 gets a "Subdivide" button instead of "density"
+(B8/B9 [Б8/Б9]); screen 12's "Render" — a snapshot from the same renderer
+with supersampling and frame-graph passes, a path tracer is out of scope,
+"samples" leaves the mockup (pro-rn-02).
 
 ---
 
-## 6. Правки движка
+### 5.6 After phase 4
 
-Все пункты с `engineChange = true` после слияния дубликатов — 46. Каждая нужна
-и играм; каждая проходит конформанс, эталонный кадр или round-trip, как любая
-правка движка. Пометка «контракт» — правка `GraphicsDevice`, то есть все четыре
-бэкенда, `testing_fake_backend.dart` и минорный bump полки (§7, п. 13).
+Closes `pro-after-01`. This section decides nothing new — it collects, in
+one place, what the plan already called deferred past phase 4, and the
+reason for each item where it was decided. **Agreed by the owner
+2026-09-13** as `pro-after-01`'s closing text, unedited.
 
-| # | id | что | пакет | ф. | проверка |
+**From phase 4's "honest boundary"** (§5.5: "ABF++, dyntopo, quadriflow,
+GPU baking, cloth self-intersection, body rotation, a path tracer — after"):
+
+- **A path tracer** for screen 12's "Render." 2026-09-09 owner decision:
+  screen 12 stays a snapshot from the same rasterizing renderer, with
+  supersampling and frame-graph passes (`pro-rn-02`); a ray-tracing path
+  isn't built, and "samples" leaves the original screen mockup's text
+  (§5.5 "Decisions before starting"; §7 #32).
+- **ABF++.** `pro-uv-03` unwraps an island with a planar or box projection
+  "instead of ABF++" — the more accurate angle-based parameterization
+  method isn't implemented.
+- **Dyntopo.** B9 [Б9] closed by owner decision 2026-09-09 in favor of
+  `Multires` — multiresolution with fixed subdivision levels (`pro-sc-07`);
+  dynamic topology rebuilding during sculpting — later.
+- **Quadriflow.** `pro-rt-01` builds retopology through its own chain
+  (simplify → greedy quadrification → BVH-based shrink-wrap); quadriflow
+  as a separate algorithm — later.
+- **GPU map baking.** `pro-rt-04` rasterizes and ray-traces for baking on
+  the CPU; a GPU path for the same maps — later.
+- **Cloth self-intersection.** `flutter3d_cloth` (`pro-sim-01`) only checks
+  collisions against an external `CollisionShape` from physics — cloth
+  never checks against itself.
+- **Rigid-body rotation.** `pro-sim-02` gives a "Rigid body" with no
+  rotation, labeled as such in the panel (H4 [И4]); full rotation with
+  joints is "a solver port after phase 4" (§7 #6, an owner decision on the
+  ROADMAP's "Not doing: rigid bodies with rotation and joints").
+
+**Sculpting beyond the measured budget.** `pro-sc-01` is a measurement, not
+an implementation, and since this line was written the measurement has
+landed in §6: on macOS (an M3 Pro), opening a 1.2-million-triangle sculpt
+cube along with building its BVH costs 3.3–5.7 s (the 3 s threshold — not
+met), and the stroke itself (selection + edit + normals + overwrite +
+raycast) costs 294–1005 ms (the 8/16 ms thresholds — missed by 20–60×, the
+bottleneck being a full mesh-wide normal recompute). *Amended 2026-09-13,
+after this section was agreed: Chrome was also measured the same day*
+(opening+BVH 24.2–24.4 s, a stroke 7.58–7.71 s, both thresholds equally
+unmet) *— nothing below changes because of this, only the count of measured
+platforms.* The Galaxy A55 remains unmeasured — `pro-sc-01` is flagged in
+`doc/plan-status.json` as `"partial"` for exactly this reason, not as
+finished. The `pro-sc-09` decision (the web-profile triangle limit) is
+still open — what's already measured says chunking (`pro-sc-02`) is needed
+before a stroke becomes interactive at 1.2M, but the actual number for the
+web waits on the remaining platform's measurement. This is the same
+mechanism as the rest of this list: `pro-sc-02..09` are already part of
+phase 4 at the scope the plan named, and any expansion of sculpting beyond
+what a full (all three platforms) `pro-sc-01` measurement confirms is not
+part of phase 4 and not part of this plan at all, until the owner opens a
+dedicated line for it based on the actual numbers.
+
+**Collaborative editing.** Not part of the flutter3d plan at all — not in
+phase 4, not after it. It's listed as a "missing aspect" found by the
+2026-09-09 critique while checking against the design handoff archive (§10,
+"critique edits": twelve missing aspects, one of them "collaborative work
+(`pro-after-01`)"); in the original archive it belongs to phase 4 of the
+development plan and to the handoff README (`doc/model-editor.md`) as
+something this phase lays groundwork for. This very line (`pro-after-01`)
+closes the aspect — not by implementing it, but by explicitly naming it out
+of scope and pointing at the one piece of groundwork that already exists
+for it, independent of any decision about collaborative editing:
+
+- the `doc-16` command journal — the `CommandJournal` class
+  (`packages/flutter3d_model_core/lib/src/command_journal.dart`): a
+  line-by-line JSON Lines journal of successfully run commands with an
+  author and transaction markers, restoring a project through `replay`
+  byte-exact; `mcp-12n` already writes every command of an agent session
+  into it;
+- commands as values — the `sealed class ModelCommand`
+  (`packages/flutter3d_model_core/lib/src/command.dart`, doc comment "One
+  change, as a value."): every document edit is a serializable value with
+  its own `arguments`, not an imperative call, which is the only reason the
+  journal can replay anything at all.
+
+Neither one solves collaborative editing — there's no network, no
+conflict resolution between authors, no OT/CRDT over `ModelDocument`. This
+is only what such work could be built on, if the owner decides to start it
+as a separate track after phase 4.
+
+---
+
+## 6. Engine changes
+
+Every item with `engineChange = true` after merging duplicates — 46. Each
+one is also needed by games; each passes conformance, a golden frame, or a
+round trip, like any engine change. The "contract" mark means a
+`GraphicsDevice` change — all four backends, `testing_fake_backend.dart`,
+and a minor shelf bump (§7, item 13).
+| # | id | what | package | phase | check |
 |---|---|---|---|---|---|
-| 1 | doc-01 (+ mesh-03) | два чистых пакета словаря (решение 2026-09-09): `geometry` — geometry/*, `Ray`, `TriangleBvh`; `formats` — документ, `lighting_model`, синхронная половина `model_loader`, f3d/gltf/obj/fmat, animation; `flutter3d` реэкспортирует оба | engine → geometry + formats | 0 | 4322 теста без правки импортов; сканер; `bench_geometry.dart` AOT отдельным main |
-| 2 | fmt-01 | `compareModelDocuments` в lib | formats | 1 | тест на категорию через поломку |
-| 3 | fmt-02 | `PlainModelDocument`, `sniffImageMimeType` | formats | 1 | тесты переведены |
-| 4 | fmt-03 | `authoredAttributes` + секция 17 | formats | 1 | старые `.f3d` читаются как «все» |
-| 5 | fmt-04 | `meshName`, `asset`, `sourceUri` + секции 18–20 | formats | 1 | round-trip; старые с null |
-| 6 | fmt-05 | `TextureSampling.mipLinear` | formats | 1 | golden не меняется |
-| 7 | fmt-06 | `GltfWriter` (GLB, `.gltf`+`.bin`) — в `formats`, чтобы MCP экспортировал без Flutter | formats | 1 | round-trip 8 моделей; fmt-10/11; `dart test` без SDK |
-| 8 | fmt-07 (+ anim-26) | скины, анимации, морфы в `GltfWriter` | formats | 1 | 7 риггированных round-trip; поза t=0.5 |
-| 9 | fmt-08 | `ObjWriter` + `.mtl` | formats | 1 | round-trip по множеству треугольников |
-| 10 | fmt-09 | `StlLoader`, `ModelFormat.stl` | formats | 1 | пять фикстур; снифф; sendable |
-| 11 | fmt-11 (+ qa-09) | glTF-Validator в тестах/CI | engine + tool | 1 | сломанный min/max → ошибка |
-| 12 | fmt-12 | `warnings` писателей, `ExportReport` | formats | 1 | OBJ теряет скин → предупреждение |
-| 13 | fmt-13 | `encodeModelInIsolate` (обёртка с `kIsWeb`) | engine | 1 | байты = синхронные |
-| 14 | fmt-14 | `convert_asset -f` | engine | 1 | GLB из `.f3d` проходит валидатор |
-| 15 | fmt-15 | Draco/meshopt — громкий пропуск | formats | 1 | 0 surfaces + предупреждение |
-| 16 | fmt-16 | документы и `boundaryEnumExempt` | engine + docs | 1 | сканер |
-| 17 | view-03 | орто-зум, `frameBounds` для орто, `animateTo` в `OrbitController` | engine | 1 | тест орто-зума |
-| 18 | view-05 (+ qa-10) | `MeshOverlay`, сцена `mesh-overlay` 43 → 44 | engine | 1 | четыре набора, 0 пикселей |
-| 19 | view-06 | стейдж `OverlayVertex` (условно по view-01) | shaders + 4 бэкенда | 1 | `mesh-overlay` в допуске; `manifest_test` |
-| 20 | view-09 (+ mesh-20, p0-10) | `TriangleBvh` в `geometry`; `Raycaster` по дереву | geometry + engine | 1 | 10k лучей = перебор |
-| 21 | view-14 (+ pro-eng-01, qa-11, p0-06) | **контракт** `overwriteGeometry`; `DeviceMesh.overwrite`; конформанс 33 → 34 | hw + 4 бэкенда + engine + conformance | 2 (1 по p0-06) | конформанс на четырёх; Impeller вручную с датой |
-| 22 | ui-18 | `BinaryStorage`/IndexedDB в `flutter3d_screens` | screens | 1 | тест на Storage в памяти |
-| 23 | ui-20 | resize `WebGlDevice` или пересоздание устройства | webgl / backend | 1 | конформанс-проверка resize, если правка |
-| 24 | ui-27 | новый пакет `flutter3d_editor_widgets` | новый пакет | 2 | тесты редактора уровней после переноса |
-| 25 | view-07 | `MeshData.edgeIndices`, стейдж `MeshWireVertex`, каркас на всех бэкендах | engine + shaders + бэкенды | 2 | сцена `wireframe-edges`; `wireframeDeclined` не бывает |
-| 26 | view-15 | `SceneSurface.views:` | session | 3 | CPU-тест двух видов |
-| 27 | view-17 (+ anim-24) | `FrameResult.triangles`/`instances` | engine | 3 | куб + инстансы = формула |
-| 28 | fmt-19 | `extras`, `KHR_texture_transform` сквозным проходом, секция 21 | engine | 2 | побайтные JSON-фрагменты |
+| 1 | doc-01 (+ mesh-03) | two pure vocabulary packages (2026-09-09 decision): `geometry` — geometry/*, `Ray`, `TriangleBvh`; `formats` — the document, `lighting_model`, `model_loader`'s synchronous half, f3d/gltf/obj/fmat, animation; `flutter3d` re-exports both | engine → geometry + formats | 0 | 4322 tests with no import edits; scanner; `bench_geometry.dart` builds AOT as a separate main |
+| 2 | fmt-01 | `compareModelDocuments` in lib | formats | 1 | a per-category test via breakage |
+| 3 | fmt-02 | `PlainModelDocument`, `sniffImageMimeType` | formats | 1 | tests ported |
+| 4 | fmt-03 | `authoredAttributes` + section 17 | formats | 1 | old `.f3d` files read as "all" |
+| 5 | fmt-04 | `meshName`, `asset`, `sourceUri` + sections 18–20 | formats | 1 | round trip; old files with null |
+| 6 | fmt-05 | `TextureSampling.mipLinear` | formats | 1 | golden unchanged |
+| 7 | fmt-06 | `GltfWriter` (GLB, `.gltf`+`.bin`) — in `formats`, so MCP can export with no Flutter | formats | 1 | round trip on 8 models; fmt-10/11; `dart test` with no SDK |
+| 8 | fmt-07 (+ anim-26) | skins, animations, morphs in `GltfWriter` | formats | 1 | 7 rigged round trips; a pose at t=0.5 |
+| 9 | fmt-08 | `ObjWriter` + `.mtl` | formats | 1 | a round trip by triangle set |
+| 10 | fmt-09 | `StlLoader`, `ModelFormat.stl` | formats | 1 | five fixtures; sniff; sendable |
+| 11 | fmt-11 (+ qa-09) | the glTF Validator in tests/CI | engine + tool | 1 | a broken min/max → an error |
+| 12 | fmt-12 | writer `warnings`, `ExportReport` | formats | 1 | OBJ loses a skin → a warning |
+| 13 | fmt-13 | `encodeModelInIsolate` (a `kIsWeb` wrapper) | engine | 1 | isolate bytes = synchronous |
+| 14 | fmt-14 | `convert_asset -f` | engine | 1 | a GLB from `.f3d` passes the validator |
+| 15 | fmt-15 | Draco/meshopt — a loud skip | formats | 1 | 0 surfaces + a warning |
+| 16 | fmt-16 | documents and `boundaryEnumExempt` | engine + docs | 1 | scanner |
+| 17 | view-03 | ortho zoom, `frameBounds` for ortho, `animateTo` in `OrbitController` | engine | 1 | an ortho-zoom test |
+| 18 | view-05 (+ qa-10) | `MeshOverlay`, the `mesh-overlay` scene, 43 → 44 | engine | 1 | four sets, 0 pixels |
+| 19 | view-06 | an `OverlayVertex` stage (conditional per view-01) | shaders + 4 backends | 1 | `mesh-overlay` within tolerance; `manifest_test` |
+| 20 | view-09 (+ mesh-20, p0-10) | `TriangleBvh` in `geometry`; `Raycaster` over the tree | geometry + engine | 1 | 10k rays = brute force |
+| 21 | view-14 (+ pro-eng-01, qa-11, p0-06) | **contract** `overwriteGeometry`; `DeviceMesh.overwrite`; conformance 33 → 34 | hw + 4 backends + engine + conformance | 2 (1 per p0-06) | conformance across four; a manual Impeller run with a date |
+| 22 | ui-18 | `BinaryStorage`/IndexedDB in `flutter3d_screens` | screens | 1 | an in-memory Storage test |
+| 23 | ui-20 | `WebGlDevice` resize or device recreation | webgl / backend | 1 | a resize conformance check, if changed |
+| 24 | ui-27 | a new `flutter3d_editor_widgets` package | new package | 2 | the level editor's tests after the move |
+| 25 | view-07 | `MeshData.edgeIndices`, a `MeshWireVertex` stage, wireframe on every backend | engine + shaders + backends | 2 | scene `wireframe-edges`; `wireframeDeclined` is never true |
+| 26 | view-15 | `SceneSurface.views:` | session | 3 | a CPU test with two views |
+| 27 | view-17 (+ anim-24) | `FrameResult.triangles`/`instances` | engine | 3 | a cube + instances = the formula |
+| 28 | fmt-19 | `extras`, `KHR_texture_transform` passed through end to end, section 21 | engine | 2 | byte-exact JSON fragments |
 | 29 | fmt-20 | `StlWriter` | engine | 2 | `84 + 50·count` |
-| 30 | fmt-21 | KTX2 сквозь `GltfWriter` (`KHR_texture_basisu`) | engine | 2 | лоадер читает |
-| 31 | fmt-22 (+ mat-30) | `Ktx2Writer` + BC1/BC3/ETC2 (пункт ROADMAP) | engine | 2 | PSNR ≥ 30 dB; конформанс |
-| 32 | fmt-23 | Basis ETC1S: решение и спайк | engine | 3 | транскод существующим читателем |
-| 33 | anim-01 | `Pose` и FK без сцены | engine | 3 | = `Skeleton.matrices` (1e-5) |
+| 30 | fmt-21 | KTX2 through `GltfWriter` (`KHR_texture_basisu`) | engine | 2 | the loader reads it |
+| 31 | fmt-22 (+ mat-30) | `Ktx2Writer` + BC1/BC3/ETC2 (a ROADMAP item) | engine | 2 | PSNR ≥ 30 dB; conformance |
+| 32 | fmt-23 | Basis ETC1S: a decision and a spike | engine | 3 | transcode via the existing reader |
+| 33 | anim-01 | `Pose` and FK with no scene | engine | 3 | = `Skeleton.matrices` (1e-5) |
 | 34 | anim-02 | `SkinBlend` | engine | 3 | = `MeshSkinnedVertexShader` (1e-4) |
-| 35 | anim-14 | `TwoBoneIk`, `FabrikIk` | engine | 3 | цель 1e-4; pole |
-| 36 | anim-16 | `AnimationPlayer.rootMotionDelta` | engine | 3 | сумма за цикл |
-| 37 | anim-27 | имя формы в `F3dRecord.morphTarget` | engine | 3 | round-trip имён |
-| 38 | pro-eng-02 | **контракт** `overwriteTexture` | hw + 4 бэкенда | 3 | readback региона |
-| 39 | pro-eng-03 | `Renderer.renderPost` с внешним HDR | engine | 4 | сцена `post-only` |
-| 40 | pro-eng-04 | `TiledProjection` | engine | 4 | 2×2 тайла = кадр |
-| 41 | pro-eng-05 | `FrameResult.passes` | engine | 4 | bloom отсутствует при выключенном |
-| 42 | pro-eng-06 | LOD в `ModelDocument`, `.f3d`, `ModelAsset`, `MSFT_lod` | engine | 4 | сцена `lod-asset` |
-| 43 | pro-eng-07 | ленты заданной толщины в оверлее | engine | 4 | сцена `overlay-ribbon` |
-| 44 | mat-17 | `.hdr` и float-окружение | engine + conformance | 4 | конформанс float-куба; `ibl-hdr` |
-| 45 | fmt-27 | `UsdzWriter` (по спросу) | engine | 4 | Quick Look на устройстве |
-| 46 | fmt-28 | свет и камеры в словаре, `KHR_lights_punctual` | engine | 4 | round-trip |
+| 35 | anim-14 | `TwoBoneIk`, `FabrikIk` | engine | 3 | a target within 1e-4; the pole |
+| 36 | anim-16 | `AnimationPlayer.rootMotionDelta` | engine | 3 | a per-cycle sum |
+| 37 | anim-27 | a shape name in `F3dRecord.morphTarget` | engine | 3 | a name round trip |
+| 38 | pro-eng-02 | **contract** `overwriteTexture` | hw + 4 backends | 3 | a region readback |
+| 39 | pro-eng-03 | `Renderer.renderPost` with an external HDR | engine | 4 | a `post-only` scene |
+| 40 | pro-eng-04 | `TiledProjection` | engine | 4 | 2×2 tiles = the frame |
+| 41 | pro-eng-05 | `FrameResult.passes` | engine | 4 | bloom absent when disabled |
+| 42 | pro-eng-06 | LOD in `ModelDocument`, `.f3d`, `ModelAsset`, `MSFT_lod` | engine | 4 | scene `lod-asset` |
+| 43 | pro-eng-07 | fixed-width ribbons in the overlay | engine | 4 | scene `overlay-ribbon` |
+| 44 | mat-17 | `.hdr` and a float environment | engine + conformance | 4 | float-cube conformance; `ibl-hdr` |
+| 45 | fmt-27 | `UsdzWriter` (on demand) | engine | 4 | Quick Look on a device |
+| 46 | fmt-28 | light and cameras in the vocabulary, `KHR_lights_punctual` | engine | 4 | a round trip |
 
-Столбец «пакет» после решения 2026-09-09 читается так: `geometry` и
-`formats` — два чистых пакета словаря, `engine` — то, что остаётся в
-`flutter3d` (изолятная обёртка, `convert_asset`, рендер, оверлеи, `Pose`),
-`hw` — контракт `GraphicsDevice` и четыре бэкенда. Писатели форматов
-(fmt-01..09/12/15) все живут в `formats`; в engine из форматов остаются только
-fmt-13 и fmt-14.
+After the 2026-09-09 decision the "package" column reads as: `geometry` and
+`formats` — two pure vocabulary packages, `engine` — what stays in
+`flutter3d` (the isolate wrapper, `convert_asset`, rendering, overlays,
+`Pose`), `hw` — the `GraphicsDevice` contract and the four backends. Format
+writers (fmt-01..09/12/15) all live in `formats`; only fmt-13 and fmt-14
+stay in the engine from formats.
 
-Кроме них: doc-25 (публичный кодек `SurfaceMaterial ↔ Map` в fmat.dart, S) —
-входит в doc-10; rel-13 (`make_templates.py` через `dart run
-flutter3d_model_core:export`) — правка инструментов, не движка; ui-29 — потребитель
-№ 21. Читатель FBX (fmt-24/25, пакет `flutter3d_fbx` над `formats`, fmt-29d)
-правкой движка не является и в таблицу не входит: `flutter3d` его не
-реэкспортирует, декодер регистрируется редактором.
+Beyond these: doc-25 (a public `SurfaceMaterial ↔ Map` codec in fmat.dart,
+S) folds into doc-10; rel-13 (`make_templates.py` via `dart run
+flutter3d_model_core:export`) is a tooling change, not an engine one; ui-29
+is consumer #21. The FBX reader (fmt-24/25, the `flutter3d_fbx` package
+over `formats`, fmt-29d) is not an engine change and isn't in the table:
+`flutter3d` doesn't re-export it, the decoder is registered by the editor.
 
 ---
 
-## 7. Конфликты с ROADMAP и ARCHITECTURE
+## 7. Conflicts with the ROADMAP and ARCHITECTURE
 
-Один список, каждый с предложенным решением. Правки текста ROADMAP делаются на
-дате ревизии (28 сентября), как он сам требует; решения владельца 2026-09-09
-закрыли № 34 и № 36 и сдвинули формулировки № 3, 5, 11, 12, 24, 28, 31, 37.
+One list, each with a proposed resolution. ROADMAP text edits happen at the
+revision date (September 28), as it itself requires; 2026-09-09 owner
+decisions closed #34 and #36 and shifted the wording of #3, 5, 11, 12, 24,
+28, 31, 37.
 
-| # | С чем | Кто задел | Решение |
+| # | Against | Who touches it | Resolution |
 |---|---|---|---|
-| 1 | ROADMAP, приёмка редактора уровней: «zero changes inside the engine's own sources made for the editor's sake» | mesh-03, doc-01, view-05/07/09/14/17, mat-03/17, ui-18/20, pro-eng-*, qa, rel-12 | rel-12 заводит отдельный трек редактора моделей со своей Acceptance; формулировка трека уровней не распространяется на него; каждая из 46 правок §6 названа возможностью движка с вызывающим вне редактора (игры: коллизии по треугольникам, деформируемые меши, HDR-небо, экспорт ассетов) |
-| 2 | ROADMAP: «every edit is a command object with apply and revert» | doc-05, doc-08, ui-11, qa-18 | doc-29: ROADMAP переписывается на то, что делает код (снимки у уровня, прежнее значение у модели, обратных команд нет нигде); ARCHITECTURE §8.7 объясняет три модели отмены |
-| 3 | ROADMAP «Not doing: Node-graph materials» | mat-10..13, pro-rn-03, ui-27, pro-eng-03 | дописать в «Not doing»: «a fixed set of nodes that bakes into texture slots is not that»; в дизайне «граф нод» → «компоновщик текстур», «граф композитинга» → «граф из фиксированных проходов»; доказательство — эталонные кадры движка не меняются, `LightingModel.builtIn` не растёт. Решение владельца 2026-09-09 (Ж1 закрыт): компоновщик текстур с фиксированным набором нод; формулировка ROADMAP о графе нод меняется на ревизии 28 сентября |
-| 4 | ROADMAP §Rendering: «eight lights is a ceiling on the scene today» | mat-23 | `LightBuffer.gatherNear` / `gatherNearFrom` уже отбирает восемь на объект (light_lists_test) — текст отстал от кода; поправить на ревизии, план считает «8 на объект» |
-| 5 | ROADMAP: soft bodies «the solver and its collisions are the committed part», но в Committed их нет | pro-sim-01 | владелец решает, идёт ли `flutter3d_cloth` в ROADMAP как тот самый солвер (тогда позже переезжает в `flutter3d_physics`) или остаётся редакторским; решение 2026-09-09 (В3/И1): ткань — отдельный плоский солвер `flutter3d_cloth` в фазе 4 с API только на `CollisionShape`; в ROADMAP он не претендует на строку Committed о soft bodies, переезд в `flutter3d_physics` — отдельное решение после фазы 4 |
-| 6 | ROADMAP «Not doing: rigid bodies with rotation and joints» | pro-sim-02 | чип «Твёрдое тело» без вращения с подписью в панели; вращение — только как порт солвера после фазы 4 |
-| 7 | ROADMAP относит экспорт анимации к фазе 3 | fmt-07 | делать в фазе 1: писатель без скинов теряет данные импорта молча; anim-26 слит |
-| 8 | ROADMAP: читатели Draco/meshopt в конце квартала | fmt-15 | не конфликт: честный отказ до них, потом читатели заменяют пропуск |
-| 9 | ROADMAP: `KHR_lights_punctual` в рендер-треке | fmt-28, mat-23 | словарь (`ModelLight`/`ModelCamera`) добавляет fmt-28, рендер-трек его использует; согласовать, чтобы не сделать дважды |
-| 10 | ROADMAP «Two tiers, and only two», восемь committed-треков (green main, editor, strategy, rendering, terrain, backends, measurement, games) | rel-12 | девятый трек входит с переносом чего-то вниз на ту же дату ревизии; кандидаты — хвост рендер-трека (декали) или измерение; решает владелец |
-| 11 | ROADMAP «A level editor in the browser — after this quarter» против веб-редактора моделей в фазе 1 | rel-10, ui-14 | записать в ROADMAP: веб-редактор моделей появляется раньше, потому что задача записи файлов решается там впервые; решение 2026-09-09 (Е1): веб — равноправная платформа фазы 1, p0-02/p0-08 — ворота качества, а не выбор |
-| 12 | ROADMAP «exporter from a modelling tool» после квартала; FBX не значится | fmt-24/25, fmt-29d | писатель glTF появляется здесь, экспортёр из Blender остаётся отдельным; FBX — свой читатель на Dart в `flutter3d_fbx` над `formats` (Д7 закрыт 2026-09-09), fmt-26 снят; в ROADMAP FBX по-прежнему не значится — это пакет редактора, не движка |
-| 13 | ARCHITECTURE §7.1: «changing any of these breaks a backend, and that is the bar»; §16: `^0.6.0` не покрывает 0.7 | view-14, pro-eng-02, qa-11 | одна правка контракта на фазу; PR на четыре бэкенда + fake + конформанс; семантика «видно со следующего прохода» записана в контракте; версии полки поднимаются одним коммитом «полка 0.7.0»; Impeller-прогон `conformance.sh` с датой в HANDOFF |
-| 14 | ARCHITECTURE §3.2/§13/§16 и README: число пакетов, тестов, порядок публикации, сцен, проверок | mesh-00, doc-02, qa-02/10/11/16, rel-03/07, view-05/22, fmt-16 | в том же коммите, что и каталог/тест/сцена; списки числительных в rules.dart расширяются заранее |
-| 15 | ARCHITECTURE §4 и `render_settings.dart`: семантика `RenderSettings.wireframe` / `wireframeDeclined` | view-07 | документ правится в том же PR; конформанс-проверка «wireframe drawn as edges or refused» не трогается |
-| 16 | ARCHITECTURE §6.3, environment_map.dart: окружение 8 бит по решению | mat-16, mat-17 | mat-16 остаётся внутри решения (LDR-панорама с подписью); mat-17 оформляется как возможность движка для игр (HDR-небо), фаза 4 |
-| 17 | ARCHITECTURE §14: отказ от FFI в рантайме | fmt-23 | для офлайн-конвертера не сказано; явное решение владельца при fmt-23; на вебе и в редакторе FFI нет в любом случае |
-| 18 | ARCHITECTURE §1: «desktop only, не упущение»; веб на `--wasm`; пример движка без Android | ui-00, p0-08, p0-01 | модельер выбирает бэкенд через `flutter3d_backend`; если `file_selector_web` не собирается под wasm — JS-сборка как записанное исключение §1; Android-раннер примера — строка в таблице платформ §1 |
-| 19 | ARCHITECTURE §8.1 обещает `ModelDocument` без Flutter, но пакет объявляет Flutter SDK | doc-00/01, qa-03 | обещание становится проверяемым пакетом (doc-01) и правилом сканера на транзитивную SDK-зависимость (qa-03) |
-| 20 | ARCHITECTURE §15: нет аддитивной позы | anim-20 | не конфликт: аддитивны веса морфов, что §15 допускает |
-| 21 | CONTRIBUTING «Generated files are generated» + история libm | rel-13, doc-21, qa (риск) | писатели квантуют координаты, канонический JSON, сравнение геометрии с допуском вместо байтов; фикстуры записываются на двух ОС |
-| 22 | Правило сканера «an enum in a published package is machinery or is not an enum» | mesh-19, fmt-09, qa-06 | `ElementLevel`/`IssueSeverity` — enum с экземпцией и причиной; `ModelFormat.stl` меняет текст экземпции и «Three decoders» в прозе; содержимое — sealed |
-| 23 | Правило «a step reaches for no clock», «asks no machine» | mesh-00, qa-02 | три пакета в `notARepeatableStep` с причиной «редактор, а не шаг симуляции» |
-| 24 | doc/model-editor.md §5.1: `flutter3d_model_core → flutter3d` | все | заменяется на `→ flutter3d_formats → flutter3d_geometry` (В1 закрыт 2026-09-09: два пакета); §5.1 проработки переписан 2026-09-09, ARCHITECTURE — вместе с doc-29 |
-| 25 | doc §5.2: параметрические объекты «через существующие Shape»; «чанками по 1024» | mesh-28, p0-05 | квадовую топологию строит `ParametricShape`, `Shape` — эталон parity; чанк — гипотеза до p0-05 |
-| 26 | doc §5.5: «Renderer в Texture.asImage()» | ui-06 | как в редакторе уровней — `SceneSurface → device.present` |
-| 27 | doc §4.3: неизменяемые значения | p0-11 | при GC-паузах >16 мс допускается изменяемый рабочий режим внутри транзакции — уточнение, не отмена |
-| 28 | doc §5.1: три пакета | anim-09/17/21, pro-sim-01, ui-27, doc-01, fmt-29d | до девяти: `geometry`, `formats`, `rig`, `cloth`, `fbx`, `editor_widgets`; `geometry`/`formats` (В1), `cloth` (В3) и `fbx` (Д7) решены 2026-09-09, `rig` и `editor_widgets` — по вопросам §8 |
-| 29 | README передачи: `ColorScheme.fromSeed` и точные hex одновременно | ui-02 | явная схема, seed только для неназванных ролей |
-| 30 | README передачи: `selection`/`history` внутри `document` | doc-04 | в сессии `Modeling`, чтобы значение проекта было тем, что сериализуется |
-| 31 | README передачи: «тяжёлые операции в изоляте» на всех платформах | doc-24, p0-07, pro-job-01 | на вебе — порции с уступкой кадру; формулировку README уточнить по исходу p0-07; решение 2026-09-09 (Е11): заморозка с прогрессом на неделимой операции допустима, web worker (ui-34d) — условный пункт фазы 1 при заморозке дольше 1 с |
-| 32 | Дизайн экрана 12: «256 / 256 сэмплов» | pro-rn-02 | «тайлы N / M» и «суперсэмплинг»; трассировщик вне плана |
-| 33 | Дизайн: лимит влияний из профиля произвольный | anim-32 | ≤ 4 (формат вершины) и ≤ 64 (бандл); больше — новая раскладка вне фазы 3 |
-| 34 | План дизайна §7: планшет второй волной, но экраны 03/04 в фазе 1 | ui-05, ui-21 | **Закрыт 2026-09-09 (решение владельца):** раскладки и раннеры Android/iOS — фаза 1 (ui-21 перенесён, §2.12 ⁴); фаза 1 выходит на четырёх платформах, iPad и аккаунт — rel-19d; план дизайна §7 правится под это |
-| 35 | Сандбокс macOS выключен у редактора уровней («Under the sandbox that is `PathAccessException`» — из-за записи через rename) | ui-14, ui-20, p0-13n | у модельера включён, но способ записи выбирает спайк p0-13n в фазе 0 (`saveFile` + прямая запись, или security-scoped каталог); два entitlement-файла (Debug без, Release с) — вопрос Е4 |
-| 36 | План дизайна §1: третье отличие продукта — «Сцена и композиция без переключения инструмента. Ассеты собираются в сцену прямо здесь, а не только в движке»; план сводит режим «Сцена» к свету/окружению/теням/пост (Ж4), doc-11 создаёт проект из документа заново, слияния и расстановки ассетов нет | Ж4, mat-24, doc-11 | **Закрыт 2026-09-09 (решение владельца):** композиция остаётся — doc-11a-n (`ImportInto`) безусловно в фазе 2, mat-24 расширен расстановкой ассетов с гизмо и экспортом сцены одним GLB; третье отличие продукта из плана дизайна §1 сохраняется |
-| 37 | README передачи (точность hi-fi): вьюпорт — `radial-gradient(120% 100% at 50% 0%, #1A1E1F 0%, #0E1112 70%)`; Ж7 выбирает плоский `#0E1112` | view-02, Ж7 | градиент реализуем — `SkySettings` (view-02) или полноэкранный unlit-квад под сценой на всех бэкендах; решение владельца: плоский в v1 с записью расхождения или градиент через `SkySettings` с эталонным кадром. Остаётся открытым (Ж7); из расхождений с README передачи по визуалу 2026-09-09 закрыт соседний вопрос об иконках (Е12n: `Icons` из SDK с таблицей соответствия в ui-02), градиента решение не касается |
+| 1 | ROADMAP, the level editor's acceptance: "zero changes inside the engine's own sources made for the editor's sake" | mesh-03, doc-01, view-05/07/09/14/17, mat-03/17, ui-18/20, pro-eng-*, qa, rel-12 | rel-12 opens a separate model-editor track with its own Acceptance; the level-editor wording doesn't extend to it; each of §6's 46 changes is named as an engine capability with a caller outside the editor (games: per-triangle collisions, deformable meshes, an HDR sky, asset export) |
+| 2 | ROADMAP: "every edit is a command object with apply and revert" | doc-05, doc-08, ui-11, qa-18 | doc-29: the ROADMAP is rewritten to what the code does (a level's own snapshots, a model's own prior value, no inverse commands anywhere); ARCHITECTURE §8.7 explains the three undo models |
+| 3 | ROADMAP "Not doing: Node-graph materials" | mat-10..13, pro-rn-03, ui-27, pro-eng-03 | add to "Not doing": "a fixed set of nodes that bakes into texture slots is not that"; in the design, "node graph" → "texture compositor," "compositing graph" → "a graph over fixed passes"; proof — the engine's golden frames don't change, `LightingModel.builtIn` doesn't grow. 2026-09-09 owner decision (G1 [Ж1] closed): a texture compositor with a fixed node set; the ROADMAP's node-graph wording changes at the September 28 review |
+| 4 | ROADMAP §Rendering: "eight lights is a ceiling on the scene today" | mat-23 | `LightBuffer.gatherNear` / `gatherNearFrom` already selects eight per object (light_lists_test) — the text fell behind the code; fix at the revision, the plan counts "8 per object" |
+| 5 | ROADMAP: soft bodies, "the solver and its collisions are the committed part," but nothing's in Committed | pro-sim-01 | the owner decides whether `flutter3d_cloth` goes into the ROADMAP as that same solver (then moves into `flutter3d_physics` later) or stays editor-only; 2026-09-09 decision (C3/H1 [В3/И1]): cloth is a separate flat `flutter3d_cloth` solver in phase 4 with an API only against `CollisionShape`; it doesn't claim the ROADMAP's Committed line about soft bodies, moving into `flutter3d_physics` is a separate decision after phase 4 |
+| 6 | ROADMAP "Not doing: rigid bodies with rotation and joints" | pro-sim-02 | a "Rigid body" chip with no rotation, labeled in the panel; rotation only as a solver port after phase 4 |
+| 7 | ROADMAP puts animation export in phase 3 | fmt-07 | do it in phase 1: a writer with no skins silently loses imported data; anim-26 merges in |
+| 8 | ROADMAP: Draco/meshopt readers at the end of the quarter | fmt-15 | not a conflict: an honest refusal comes first, readers replace the skip later |
+| 9 | ROADMAP: `KHR_lights_punctual` on the rendering track | fmt-28, mat-23 | the vocabulary (`ModelLight`/`ModelCamera`) is added by fmt-28, the rendering track consumes it; coordinate so it isn't built twice |
+| 10 | ROADMAP "Two tiers, and only two," eight committed tracks (green main, editor, strategy, rendering, terrain, backends, measurement, games) | rel-12 | a ninth track joins, moving something down at the same revision date; candidates — the rendering track's tail (decals) or measurement; the owner decides |
+| 11 | ROADMAP "A level editor in the browser — after this quarter" versus a phase-1 web model editor | rel-10, ui-14 | record in the ROADMAP: the web model editor arrives earlier because it's where file writing gets solved for the first time; 2026-09-09 decision (F1 [Е1]): the web is a phase-1 equal-footing platform, p0-02/p0-08 are quality gates, not a choice |
+| 12 | ROADMAP "exporter from a modelling tool" after the quarter; FBX not listed | fmt-24/25, fmt-29d | the glTF writer appears here, a Blender exporter stays separate; FBX — its own reader in Dart in `flutter3d_fbx` over `formats` (E7 [Д7] closed 2026-09-09), fmt-26 dropped; the ROADMAP still doesn't list FBX — it's an editor package, not an engine one |
+| 13 | ARCHITECTURE §7.1: "changing any of these breaks a backend, and that is the bar"; §16: `^0.6.0` doesn't cover 0.7 | view-14, pro-eng-02, qa-11 | one contract change per phase; a PR touching all four backends + the fake + conformance; "visible from the next pass" semantics recorded in the contract; shelf versions bump in one commit, "shelf 0.7.0"; an Impeller `conformance.sh` run with a date in the HANDOFF |
+| 14 | ARCHITECTURE §3.2/§13/§16 and README: package, test, publishing-order, scene, and check counts | mesh-00, doc-02, qa-02/10/11/16, rel-03/07, view-05/22, fmt-16 | in the same commit as the directory/test/scene; the numeral lists in rules.dart are extended ahead of time |
+| 15 | ARCHITECTURE §4 and `render_settings.dart`: `RenderSettings.wireframe` / `wireframeDeclined` semantics | view-07 | the document is amended in the same PR; the "wireframe drawn as edges or refused" conformance check is untouched |
+| 16 | ARCHITECTURE §6.3, environment_map.dart: an 8-bit environment by decision | mat-16, mat-17 | mat-16 stays within that decision (an LDR panorama, labeled); mat-17 is framed as an engine capability for games (an HDR sky), phase 4 |
+| 17 | ARCHITECTURE §14: no FFI at runtime | fmt-23 | not decided for the offline converter; an explicit owner decision at fmt-23; on the web and in the editor there's no FFI regardless |
+| 18 | ARCHITECTURE §1: "desktop only, not an oversight"; the web on `--wasm`; the engine example has no Android | ui-00, p0-08, p0-01 | the modeler picks a backend through `flutter3d_backend`; if `file_selector_web` doesn't build under wasm — a JS build as §1's recorded exception; the example's Android runner — a row in §1's platform table |
+| 19 | ARCHITECTURE §8.1 promises a Flutter-free `ModelDocument`, but the package declares the Flutter SDK | doc-00/01, qa-03 | the promise becomes a checkable package (doc-01) and a scanner rule on transitive SDK dependency (qa-03) |
+| 20 | ARCHITECTURE §15: no additive pose | anim-20 | not a conflict: additive morph weights are what §15 already allows |
+| 21 | CONTRIBUTING "Generated files are generated" + libm's history | rel-13, doc-21, qa (risk) | writers quantize coordinates, canonical JSON, comparing geometry with a tolerance rather than by bytes; fixtures are recorded on two OSes |
+| 22 | The scanner rule "an enum in a published package is machinery or is not an enum" | mesh-19, fmt-09, qa-06 | `ElementLevel`/`IssueSeverity` — enums with an exemption and a reason; `ModelFormat.stl` changes the exemption text and the "Three decoders" prose; content — sealed |
+| 23 | The rule "a step reaches for no clock," "asks no machine" | mesh-00, qa-02 | three packages in `notARepeatableStep` with the reason "an editor, not a simulation step" |
+| 24 | doc/model-editor.md §5.1: `flutter3d_model_core → flutter3d` | everything | replaced with `→ flutter3d_formats → flutter3d_geometry` (B1 [В1] closed 2026-09-09: two packages); the working-through §5.1 was rewritten 2026-09-09, ARCHITECTURE — alongside doc-29 |
+| 25 | doc §5.2: parametric objects "through the existing Shape"; "1024-element chunks" | mesh-28, p0-05 | `ParametricShape` builds the quad topology, `Shape` is the parity reference; the chunk was a hypothesis before p0-05 |
+| 26 | doc §5.5: "a Renderer inside Texture.asImage()" | ui-06 | as in the level editor — `SceneSurface → device.present` |
+| 27 | doc §4.3: immutable values | p0-11 | under GC pauses >16 ms, a mutable working mode inside the transaction is allowed — a refinement, not a reversal |
+| 28 | doc §5.1: three packages | anim-09/17/21, pro-sim-01, ui-27, doc-01, fmt-29d | up to nine: `geometry`, `formats`, `rig`, `cloth`, `fbx`, `editor_widgets`; `geometry`/`formats` (B1 [В1]), `cloth` (C3 [В3]), and `fbx` (E7 [Д7]) resolved 2026-09-09, `rig` and `editor_widgets` — §8 questions |
+| 29 | The handoff README: `ColorScheme.fromSeed` and exact hex values at once | ui-02 | an explicit scheme, seed only for unnamed roles |
+| 30 | The handoff README: `selection`/`history` inside `document` | doc-04 | in the `Modeling` session, so the project value is exactly what gets serialized |
+| 31 | The handoff README: "heavy operations in an isolate" on every platform | doc-24, p0-07, pro-job-01 | on the web — chunked, yielding to the frame; the README's wording gets clarified per p0-07's outcome; 2026-09-09 decision (F11 [Е11]): a freeze with progress on an indivisible operation is acceptable, a web worker (ui-34d) is a conditional phase-1 item for a freeze longer than 1 s |
+| 32 | Screen 12's design: "256 / 256 samples" | pro-rn-02 | "N / M tiles" and "supersampling"; a path tracer is out of scope |
+| 33 | Design: an arbitrary influence limit from the profile | anim-32 | ≤4 (the vertex format) and ≤64 (the bundle); more is a new layout outside phase 3 |
+| 34 | The design plan §7: the tablet as a second wave, but screens 03/04 in phase 1 | ui-05, ui-21 | **Closed 2026-09-09 (owner decision):** Android/iOS layouts and runners — phase 1 (ui-21 moved, §2.12 footnote ⁴); phase 1 ships on four platforms, the iPad and account — rel-19d; the design plan §7 is amended accordingly |
+| 35 | The macOS sandbox is off in the level editor ("Under the sandbox that is `PathAccessException`" — from writing via rename) | ui-14, ui-20, p0-13n | the modeler has it on, but the p0-13n phase-0 spike chooses the write method (`saveFile` + a direct write, or a security-scoped directory); two entitlement files (Debug without, Release with) — question F4 [Е4] |
+| 36 | The design plan §1: the product's third differentiator — "Scene and composition with no tool switch. Assets are assembled into the scene right here, not only in the engine"; the plan reduces "Scene" mode to light/environment/shadows/post (G4 [Ж4]), doc-11 rebuilds a project from a document each time, no merging or placing assets | G4 [Ж4], mat-24, doc-11 | **Closed 2026-09-09 (owner decision):** composition stays — doc-11a-n (`ImportInto`) is unconditional in phase 2, mat-24 is extended with placing assets via a gizmo and exporting the scene as one GLB; the design plan §1's third differentiator is preserved |
+| 37 | The handoff README (hi-fi accuracy): the viewport — `radial-gradient(120% 100% at 50% 0%, #1A1E1F 0%, #0E1112 70%)`; G7 [Ж7] chooses a flat `#0E1112` | view-02, G7 [Ж7] | the gradient is buildable — `SkySettings` (view-02) or a full-screen unlit quad behind the scene on every backend; owner decision: flat in v1 with the divergence recorded, or the gradient via `SkySettings` with a golden frame. Still open (G7 [Ж7]); of the visual divergences from the handoff README, the neighboring icon question was closed 2026-09-09 (F12n [Е12n]: the SDK's `Icons` with a mapping table in ui-02); the gradient decision is unrelated |
 
 ---
 
-## 8. Открытые вопросы
+## 8. Open questions
 
-Дубликаты из одиннадцати аспектов слиты, вопросы сгруппированы; на каждый
-дана рекомендация там, где она следует из проработки или из кода. Буква и
-номер — те, на которые ссылаются вехи §5. Из 87 строк 24 закрыты: В1, Ж2 и
-Г4 — по критике 2026-09-09, ещё 21 (А2, Б1, Б3, Б8, Б9, В3, В5, В8, Г2, Г9,
-Д7, Е1, Е2, Е5, Е8, Е11, Е12n, Ж1, Ж4, И1, К2) — решениями владельца
-2026-09-09, В1 при этом переписан на два пакета; строка закрытого вопроса
-начинается с «Закрыт …» в столбце ответа. Открытых — 63.
+Duplicates from eleven aspects are merged, questions grouped; each carries a
+recommendation where one follows from the working-through or the code. The
+letter and number are what the §5 milestones reference. Of 87 rows, 24 are
+closed: B1 [В1], F2 [Ж2], and D4 [Г4] — by the 2026-09-09 critique, 21 more
+(A2, B1 [Б1], B3, B8, B9, C3 [В3], C5 [В5], C8 [В8], D2 [Г2], D9 [Г9], E7
+[Д7], F1 [Е1], F2 [Е2], F5 [Е5], F8 [Е8], F11 [Е11], F12n [Е12n], G1 [Ж1],
+G4 [Ж4], H1 [И1], K2) — by 2026-09-09 owner decisions, with B1 [В1]
+rewritten along the way; a closed question's row starts with "Closed …" in
+the answer column. 63 remain open.
+### А. Timing and the rig
 
-### А. Сроки и стенд
-
-| # | Вопрос | Рекомендация |
+| # | Question | Recommendation |
 |---|---|---|
-| А1 | Дата начала фазы 1: ответы критического пути (p0-04/05/09) к 2026-09-25, остальные к 2026-10-05 — подтвердить или сдвинуть; фаза 0 конкурирует со сроками ROADMAP (28 сентября, 26 октября) | принять 2026-10-05 как старт фазы 1, если В1 решён к 25 сентября |
-| А2 | Устройство «планшет с пером» для p0-03: iPad (физического нет) или Android-планшет | **Закрыт 2026-09-09 (решение владельца):** физический iPad с Pencil и аккаунт Apple Developer покупаются до середины фазы 1 (rel-19d, S, владелец); до покупки строка iPad в p0-03 (и в таблице фазы 0 doc §6) остаётся незамеренной и записывается так, p0-03 дозамеряется после rel-19d |
-| А3 | Стресс-сцена p0-01 — та же «stress scene on the software backend» из ROADMAP «Measurement»? | да, одна сцена и одна базовая линия draw call (view-22) |
-| А4 | Порог бюджета веб-профиля: 16,6 мс на 1 млн или 33 мс, раз вьюпорт не единственное, что рисует Flutter | выбрать до замера; ≤16,6 → бюджет 1 млн, 16,6–33 → ≤300k (p0-02); равноправие веба от порога не зависит (Е1) |
+| А1 | Phase-1 start date: critical-path answers (p0-04/05/09) by 2026-09-25, the rest by 2026-10-05 — confirm or shift; phase 0 competes with ROADMAP dates (September 28, October 26) | accept 2026-10-05 as the phase-1 start, if В1 is resolved by September 25 |
+| А2 | The "tablet with a pen" device for p0-03: an iPad (none physically available) or an Android tablet | **Closed 2026-09-09 (owner decision):** a physical iPad with a Pencil and an Apple Developer account are purchased by mid-phase-1 (rel-19d, S, owner); before purchase, the iPad row in p0-03 (and the phase-0 table in doc §6) stays unmeasured and is recorded as such, p0-03 is re-measured after rel-19d |
+| А3 | Is the p0-01 stress scene the same "stress scene on the software backend" from the ROADMAP's "Measurement"? | yes, one scene and one draw-call baseline (view-22) |
+| А4 | The web-profile budget threshold: 16.6 ms at 1M, or 33 ms, since the viewport isn't the only thing Flutter draws | choose before measuring; ≤16.6 → a 1M budget, 16.6–33 → ≤300k (p0-02); the web's equal footing doesn't depend on the threshold (Е1) |
 
-### Б. Структура данных ядра
+### Б. Core data structures
 
-| # | Вопрос | Рекомендация |
+| # | Question | Recommendation |
 |---|---|---|
-| Б1 | Неманифолдный вход: расщеплять рёбра с ≥3 гранями при импорте и показывать как проблему, или радиальная структура по образцу BMesh | **Закрыт 2026-09-09 (решение владельца):** расщеплять при импорте и помечать как проблему (mesh-13, mesh-27); радиальной структуры нет |
-| Б2 | Стабильность id элементов: надгробия + `compact()` с `IdRemap` или плотные id с перенумерацией | надгробия — нужны карточке переприменения, журналу и `Selection` в MCP (doc-07) |
-| Б3 | Критерий 0.3 «≤10 % полной копии»: на смежном 1 % или на случайном; чанки или журнал прежних значений | **Закрыт 2026-09-09 (решение владельца):** отмена для мешей — персистентные значения со структурным разделением (mesh-10/11, doc-08); разбивку на чанки и патчи, а с ней и то, на каком распределении держится ≤10 %, меряет p0-05/mesh-02 — это уже замер, не вопрос |
-| Б4 | Параметрические объекты строят квады сами, `Shape` — эталон parity (расходится с §5.2) | подтвердить (mesh-28/29) |
-| Б5 | Какие атрибуты по углу, какие по вершине | UV и цвет по углу, позиция/joints/weights/shape keys по вершине (mesh-12) |
-| Б6 | `materialSlot` по грани в фазе 1 | да: GLB с несколькими материалами требует `MeshData` на слот (mesh-14, doc-12) |
-| Б7 | Enum против sealed для уровня выделения, severity, режима | `ElementLevel`/`IssueSeverity` — enum с экземпцией; содержимое (геометрия, модификаторы, команды) — sealed (qa-06, mesh-19) |
-| Б8 | Скульптинг: `SculptMesh` отдельной плоской структурой (pro-sc-02) или патч-слой над `EditMesh` (mesh-72) | **Закрыт 2026-09-09 (решение владельца):** `SculptMesh` с мультиразрешением (pro-sc-02/07); грязный чанк = непрерывный диапазон буфера; pro-sc-01 меряет, не выбирает |
-| Б9 | Мультиразрешение или динамическая топология | **Закрыт 2026-09-09 (решение владельца):** мультиразрешение (pro-sc-07); экран 08 получает кнопку «Подразбить» вместо «плотности кисти» (ui-29) |
+| Б1 | Non-manifold input: split edges with ≥3 faces on import and show it as a problem, or a radial structure following BMesh | **Closed 2026-09-09 (owner decision):** split on import and flag as a problem (mesh-13, mesh-27); no radial structure |
+| Б2 | Element id stability: tombstones + `compact()` with `IdRemap`, or dense ids with renumbering | tombstones — needed by the operation card, the journal, and `Selection` in MCP (doc-07) |
+| Б3 | The 0.3 criterion "≤10% of a full copy": on an adjacent 1% or a random one; chunks or a log of prior values | **Closed 2026-09-09 (owner decision):** undo for meshes — persistent values with structural sharing (mesh-10/11, doc-08); chunking versus patches, and with it which distribution the ≤10% bar applies to, is measured by p0-05/mesh-02 — already a measurement, not a question |
+| Б4 | Do parametric objects build their own quads, with `Shape` as the parity reference (diverges from §5.2)? | confirm (mesh-28/29) |
+| Б5 | Which attributes go per corner, which per vertex | UV and color per corner, position/joints/weights/shape keys per vertex (mesh-12) |
+| Б6 | `materialSlot` per face in phase 1? | yes: a GLB with several materials needs `MeshData` per slot (mesh-14, doc-12) |
+| Б7 | Enum versus sealed for the selection level, severity, mode | `ElementLevel`/`IssueSeverity` — enums with an exemption; content (geometry, modifiers, commands) — sealed (qa-06, mesh-19) |
+| Б8 | Sculpting: `SculptMesh` as a separate flat structure (pro-sc-02), or a patch layer over `EditMesh` (mesh-72) | **Closed 2026-09-09 (owner decision):** `SculptMesh` with multiresolution (pro-sc-02/07); a dirty chunk = a contiguous buffer range; pro-sc-01 measures, doesn't choose |
+| Б9 | Multiresolution or dynamic topology | **Closed 2026-09-09 (owner decision):** multiresolution (pro-sc-07); screen 08 gets a "Subdivide" button instead of "brush density" (ui-29) |
 
-### В. Пакеты и публикация
+### В. Packages and publishing
 
-| # | Вопрос | Рекомендация |
+| # | Question | Recommendation |
 |---|---|---|
-| В1 | **Закрыт 2026-09-09 (по критике, переписан решением владельца).** Пакет словаря: имя и состав | **Закрыт 2026-09-09 (решение владельца):** два пакета вместо одного, срок фазы 0 — 2026-09-25. `flutter3d_geometry` — `MeshData`, `VertexLayout`, `Shape`/`LatheShape` и производные, тангенсы, `morph_target`, `CpuMesh`, `math/intersections`, `Ray`, `TriangleBvh`; `flutter3d_formats` — `ModelDocument`, `SurfaceMaterial`, `MaterialDocument`/`MaterialHint`, `lighting_model`, синхронная половина `model_loader`, декодеры gltf/obj/f3d/ktx2/stl, писатели `F3dWriter`/`GltfWriter`/`ObjWriter` (fmt-01..09/12/15; в engine остаются только fmt-13/14 — иначе `flutter3d_model_mcp` не экспортирует GLB (doc-21) и не стартует без Flutter (rel-04)). `formats → geometry`, `mesh → geometry`, `model_core → оба`, `flutter3d` реэкспортирует оба; порядок публикации §16: geometry → formats → flutter3d; 33 пакета к концу фазы 0 |
-| В2 | Четвёртый пакет `flutter3d_rig` (ретаргет, авториг) или всё в core, или в движок | `rig` — алгоритмы над `Pose`/`ModelDocument`, играм не нужны; веса — в `flutter3d_mesh/skin/`; `Pose` и IK — в движок |
-| В3 | `flutter3d_cloth` отдельно или подпапка `flutter3d_physics` | **Закрыт 2026-09-09 (решение владельца):** отдельный солвер `flutter3d_cloth` в фазе 4 — плоский пакет с зависимостью только на `CollisionShape` (pro-sim-01); И1 закрыт тем же ответом |
-| В4 | Ворота `.fmat` (mat-03): в `flutter3d_editor_core` с зависимостью модельера на него ради одной библиотеки, или дублировать | в `editor_core` (одни ворота на два редактора), но только после doc-01: библиотека принимает `MaterialDocument`/`MaterialHint`, а `editor_core` — плоский пакет, которому нельзя тянуть Flutter SDK; `editor_core` получает зависимость на `flutter3d_formats`, ярус в §16 сдвигается (rel-03); альтернатива — библиотека в model_core, редактор уровней импортирует оттуда. В фазе 2 — вместе с `FieldRow` в `flutter3d_editor_widgets` (ui-27) |
-| В5 | Имена: mesh / model_core / model_mcp / modeler или единый корень; резервировать ли на pub.dev; где живёт код | **Закрыт 2026-09-09 (решение владельца):** код живёт в этом монорепозитории — пакеты входят в workspace, сканер структуры, CI и порядок публикации §16 (qa-02/03/04, rel-02/03); имена — mesh / model_core / model_mcp / geometry / formats и `flutter3d_modeler`; не резервировать заглушкой, перепроверять перед rel-06 (rel-01) |
-| В6 | `bin/` утилиты: `flutter3d_mesh:check`, `flutter3d_model_core:export` | `core:export` — да (нужен rel-13); `mesh:check` — нет, лишняя публичная поверхность |
-| В7 | Версии новых пакетов: 0.1.0 или номер полки (0.7.0 после правки HAL) | номер полки (§16: одна цифра — одно дерево) |
-| В8 | Первая публикация: набор 27 декабря или первый набор 2027 | **Закрыт 2026-09-09 (решение владельца):** первая публикация и релиз — только когда фаза 1 в руках у первых пользователей (rel-16 → rel-06); 27 декабря целью не является, до того — «в порядке, но не наружу», как strategy |
+| В1 | **Closed 2026-09-09 (by critique, rewritten by owner decision).** The vocabulary package: name and contents | **Closed 2026-09-09 (owner decision):** two packages instead of one, phase-0 deadline 2026-09-25. `flutter3d_geometry` — `MeshData`, `VertexLayout`, `Shape`/`LatheShape` and derivatives, tangents, `morph_target`, `CpuMesh`, `math/intersections`, `Ray`, `TriangleBvh`; `flutter3d_formats` — `ModelDocument`, `SurfaceMaterial`, `MaterialDocument`/`MaterialHint`, `lighting_model`, `model_loader`'s synchronous half, gltf/obj/f3d/ktx2/stl decoders, writers `F3dWriter`/`GltfWriter`/`ObjWriter` (fmt-01..09/12/15; only fmt-13/14 stay in the engine — otherwise `flutter3d_model_mcp` can't export a GLB (doc-21) and can't start with no Flutter (rel-04)). `formats → geometry`, `mesh → geometry`, `model_core → both`, `flutter3d` re-exports both; §16 publishing order: geometry → formats → flutter3d; 33 packages by the end of phase 0 |
+| В2 | A fourth package `flutter3d_rig` (retargeting, auto-rig), or all of it in core, or in the engine | `rig` — algorithms over `Pose`/`ModelDocument`, not needed by games; weights — in `flutter3d_mesh/skin/`; `Pose` and IK — in the engine |
+| В3 | `flutter3d_cloth` separate, or a `flutter3d_physics` subfolder | **Closed 2026-09-09 (owner decision):** a separate `flutter3d_cloth` solver in phase 4 — a flat package depending only on `CollisionShape` (pro-sim-01); И1 closed by the same answer |
+| В4 | The `.fmat`-write gate (mat-03): in `flutter3d_editor_core`, with the modeler depending on it for one library, or duplicate it | in `editor_core` (one gate for two editors), but only after doc-01: the library takes a `MaterialDocument`/`MaterialHint`, and `editor_core` is a flat package that can't pull in the Flutter SDK; `editor_core` picks up a dependency on `flutter3d_formats`, the §16 tier shifts (rel-03); an alternative — the library in model_core, the level editor imports from there. In phase 2 — alongside `FieldRow` in `flutter3d_editor_widgets` (ui-27) |
+| В5 | Names: mesh / model_core / model_mcp / modeler, or one shared root; reserve on pub.dev?; where does the code live | **Closed 2026-09-09 (owner decision):** the code lives in this monorepo — the packages join the workspace, the structure scanner, CI, and the §16 publishing order (qa-02/03/04, rel-02/03); names — mesh / model_core / model_mcp / geometry / formats and `flutter3d_modeler`; don't reserve with a placeholder, recheck before rel-06 (rel-01) |
+| В6 | `bin/` utilities: `flutter3d_mesh:check`, `flutter3d_model_core:export` | `core:export` — yes (needed by rel-13); `mesh:check` — no, unnecessary public surface |
+| В7 | New-package versions: 0.1.0 or the shelf number (0.7.0 after the HAL change) | the shelf number (§16: one number, one tree) |
+| В8 | First publish: the December 27 set, or the first 2027 set | **Closed 2026-09-09 (owner decision):** the first publish and release come only once phase 1 is in the hands of its first users (rel-16 → rel-06); December 27 is not the target, before that it's "in order, not out," like strategy |
 
-### Г. Документ, история, формат, MCP
+### Г. The document, history, the format, MCP
 
-| # | Вопрос | Рекомендация |
+| # | Question | Recommendation |
 |---|---|---|
-| Г1 | Магия файла проекта и место автосохранения (рядом с файлом или в каталоге приложения); расширение `.f3dproj` закрыто решением 2026-09-09 (Г2) | магия `F3DP`; автосохранение в каталоге приложения через `Storage` (ui-18) |
-| Г2 | Хранить ли историю в файле проекта (README передачи) | **Закрыт 2026-09-09 (решение владельца):** да — свой `.f3dproj` с историей: секция `history` в контейнере (doc-09, doc-31d), шаг = `says` + команда + ссылка на прежнее значение через чанки, уже лежащие в файле как блобы; лимит Г5 применяется к файлу; «сохранить без истории» — опция (ui-33d); журнал doc-16 остаётся. Приёмка round-trip: сохранить → открыть → отменить три шага |
-| Г3 | `Selection` в аргументах мешевых команд и `select` как verb — не два ли пути для UI | оба, как предложено (doc-04/07): объектные команды несут id, мешевые — `Selection` |
-| Г4 | Язык `says` и описаний инструментов; тип подсказок параметров — **закрыт 2026-09-09**: свой sealed `ParamHint` в core | **Закрыт 2026-09-09 (по критике, язык подтверждён решением владельца):** английский в ядре, MCP и `says`, локализация в app (ui-22, русский и английский с первой версии — Е2); подсказки — свой `ParamHint` (Int / Double / Bool / Enum / Vector3, `step`, `unit`, диапазон), потому что у `MaterialHint` есть только `RangeHint(double, step)`, `ColorHint`, `TextureHint`, `EnumHint` — ни целых, ни флагов, ни единиц — и `material_hint.dart` тянет `LightingModel`; `MaterialHint` остаётся панели материала (syn-01) |
-| Г5 | Глубина истории: 64 шага или лимит по байтам | оба (doc-08); число байт — из p0-05 |
-| Г6 | PNG с deflate: свой кодировщик, `package:archive` в core, или сырые RGBA в проекте и PNG только в app; и декодирование (нода Image графа, mat-09n) — в репозитории нет ни одного чистого декодера PNG/JPEG (golden читает через `dart:ui`, `cpu_png.dart` только пишет) | сырые RGBA в проекте всегда; для экспорта из MCP без Flutter — `package:archive` в core (mat-12); декодер — `package:image` в core или свой inflate + baseline JPEG (mat-09n); если ни то ни другое — граф без пикселей в core и запекание через `dart:ui` в app, тогда `bakeTextureGraph` из mat-32 невозможен и это записывается |
-| Г7 | `json_write_through.dart` из `flutter3d_sim`: копия в core или общий пакет | копия (~100 строк), обратная зависимость на sim недопустима |
-| Г8 | MCP создаёт новый проект по несуществующему пути; профиль по умолчанию | да (doc-19); профиль `desktop` |
-| Г9 | Экспорт при `Issue` уровня error: отказывать или предупреждать | **Закрыт 2026-09-09 (решение владельца):** предупредить и экспортировать с явным подтверждением; отказ только при пустой геометрии (doc-14, ui-17; приёмка §5.2) |
-| Г10 | Хранить ли исходный импортированный файл вербатим в проекте | нет в v1 (удваивает размер); опция позже (fmt-18) |
+| Г1 | The project file's magic number and autosave location (next to the file, or in the app directory); the `.f3dproj` extension is closed by the 2026-09-09 decision (Г2) | magic `F3DP`; autosave in the app directory via `Storage` (ui-18) |
+| Г2 | Should history live in the project file (the handoff README)? | **Closed 2026-09-09 (owner decision):** yes — its own `.f3dproj` with history: a `history` section in the container (doc-09, doc-31d), a step = `says` + the command + a reference to the prior value through chunks already sitting in the file as blobs; the Г5 limit applies to the file; "save without history" — an option (ui-33d); the doc-16 journal stays. Acceptance round trip: save → open → undo three steps |
+| Г3 | `Selection` in mesh command arguments and `select` as a verb — isn't that two paths for the UI? | both, as proposed (doc-04/07): object commands carry ids, mesh commands carry a `Selection` |
+| Г4 | The language of `says` and tool descriptions; the parameter-hint type — **closed 2026-09-09**: a dedicated sealed `ParamHint` in core | **Closed 2026-09-09 (by critique, the language confirmed by owner decision):** English in the core, MCP, and `says`, localization in the app (ui-22, Russian and English from the first version — Е2); hints — a dedicated `ParamHint` (Int / Double / Bool / Enum / Vector3, `step`, `unit`, a range), because `MaterialHint` only has `RangeHint(double, step)`, `ColorHint`, `TextureHint`, `EnumHint` — no integers, no flags, no units — and `material_hint.dart` pulls in `LightingModel`; `MaterialHint` stays the material panel's (syn-01) |
+| Г5 | History depth: 64 steps or a byte limit | both (doc-08); the byte number comes from p0-05 |
+| Г6 | PNG with deflate: a from-scratch encoder, `package:archive` in core, or raw RGBA in the project with PNG only in the app; and decoding (the graph's Image node, mat-09n) — the repository has not one pure PNG/JPEG decoder (golden reads via `dart:ui`, `cpu_png.dart` only writes) | raw RGBA in the project always; for MCP export with no Flutter — `package:archive` in core (mat-12); the decoder — `package:image` in core or a from-scratch inflate + baseline JPEG (mat-09n); if neither — a pixel-free graph in core and baking via `dart:ui` in the app, in which case `bakeTextureGraph` from mat-32 becomes impossible and that's recorded |
+| Г7 | `json_write_through.dart` from `flutter3d_sim`: a copy in core, or a shared package | a copy (~100 lines), a reverse dependency on sim is unacceptable |
+| Г8 | MCP creates a new project at a non-existent path; the default profile | yes (doc-19); the `desktop` profile |
+| Г9 | Export with an error-level `Issue`: refuse or warn | **Closed 2026-09-09 (owner decision):** warn and export after explicit confirmation; refuse only on empty geometry (doc-14, ui-17; §5.2 acceptance) |
+| Г10 | Should the original imported file be stored verbatim in the project? | no in v1 (doubles the size); an option later (fmt-18) |
 
-### Д. Форматы
+### Д. Formats
 
-| # | Вопрос | Рекомендация |
+| # | Question | Recommendation |
 |---|---|---|
-| Д1 | STL как встроенный `ModelFormat.stl` (правка экземпции) или внешний декодер | встроенный (fmt-09) |
-| Д2 | `authoredAttributes` на `ModelSurface` или на `MeshData` | `ModelSurface` (fmt-03) |
-| Д3 | `extras` и `asset` в словаре и в `.f3d` или только у glTF-писателя | в словаре («open, and without a registry»), по секции `.f3d` на поле (fmt-04/19) |
-| Д4 | Скины/анимации/морфы в `GltfWriter` в фазе 1 или 3 | фаза 1 (fmt-07) |
-| Д5 | Пакет `gltf` (Khronos-валидатор) резолвится под SDK ^3.12? | спайк полдня; иначе `npx` в CI или свой чекер (fmt-11) |
-| Д6 | Семейства сжатия по профилям (ETC2/ASTC/BC/ETC1S) и допустим ли FFI к libbasisu в офлайн-конвертере | fmt-22 на Dart для `.f3d`; Basis — решение fmt-23 до фазы 3; на вебе и в редакторе FFI нет |
-| Д7 | FBX: свой читатель (fmt-24/25, два L) или только сервер (fmt-26); где хостится | **Закрыт 2026-09-09 (решение владельца):** свой читатель на Dart — fmt-24/25 (два L) в фазе 2 отдельной дорожкой после того, как фаза 1 в руках (rel-16); пакет `flutter3d_fbx`, плоский, зависит от `formats` (fmt-29d); серверная конвертация fmt-26 снята — не делаем |
-| Д8 | USDZ: есть ли спрос; принимает ли Quick Look usda | спайк на устройстве до любой оценки (fmt-27) |
-| Д9 | Свет и камеры в `ModelDocument`: кто добавляет — рендер-трек или fmt-28 | fmt-28, рендер-трек потребляет |
-| Д10 | Второй UV-набор (`texcoord1`) для AO/лайтмапов | нет в фазе 4; AO на основной UV |
-| Д11 | `tool/make_models.py` заменить Dart-`GltfWriter` | да, после rel-13, одной перегенерацией |
+| Д1 | STL as a built-in `ModelFormat.stl` (an exemption edit), or an external decoder | built-in (fmt-09) |
+| Д2 | `authoredAttributes` on `ModelSurface` or on `MeshData` | `ModelSurface` (fmt-03) |
+| Д3 | `extras` and `asset` in the vocabulary and in `.f3d`, or only on the glTF writer | in the vocabulary ("open, and without a registry"), by `.f3d` section per field (fmt-04/19) |
+| Д4 | Skins/animations/morphs in `GltfWriter` in phase 1 or 3 | phase 1 (fmt-07) |
+| Д5 | Does the `gltf` package (the Khronos validator) resolve under SDK ^3.12? | a half-day spike; otherwise `npx` in CI or a homemade checker (fmt-11) |
+| Д6 | Compression families by profile (ETC2/ASTC/BC/ETC1S), and is FFI to libbasisu acceptable in the offline converter | fmt-22 in Dart for `.f3d`; Basis — fmt-23's decision before phase 3; no FFI on the web or in the editor |
+| Д7 | FBX: a dedicated reader (fmt-24/25, two Ls) or a server only (fmt-26); where is it hosted | **Closed 2026-09-09 (owner decision):** a dedicated reader in Dart — fmt-24/25 (two Ls) in phase 2, a separate track, after phase 1 is in hand (rel-16); the `flutter3d_fbx` package, flat, depends on `formats` (fmt-29d); server-side conversion, fmt-26, is dropped — not doing it |
+| Д8 | USDZ: is there demand; does Quick Look accept usda | a device spike before any estimate (fmt-27) |
+| Д9 | Light and cameras in `ModelDocument`: who adds them — the rendering track or fmt-28 | fmt-28, the rendering track consumes it |
+| Д10 | A second UV set (`texcoord1`) for AO/lightmaps | not in phase 4; AO on the main UV |
+| Д11 | Replace `tool/make_models.py` with the Dart `GltfWriter`? | yes, after rel-13, one regeneration |
 
-### Е. Оболочка, платформы, веб
+### Е. Shell, platforms, the web
 
-| # | Вопрос | Рекомендация |
+| # | Question | Recommendation |
 |---|---|---|
-| Е1 | Веб на старте — равный или просмотр; JS-сборка допустима, если `file_selector_web` не собирается под wasm | **Закрыт 2026-09-09 (решение владельца):** веб — равноправная платформа с первой версии, не «решают замеры»; p0-02/p0-08 остаются воротами качества: непройденный порог становится пунктом фазы 1 (JS-сборка как записанное исключение ARCHITECTURE §1, порции вместо изолята, worker ui-34d при необходимости) |
-| Е2 | Английский с первой версии | **Закрыт 2026-09-09 (решение владельца):** русский и английский с первой версии — ru шаблон + en (ui-22); ядро, MCP и `says` — английский (Г4) |
-| Е3 | Режимы фаз 2–4 в переключателе: выключенные или скрытые | выключенные — README требует пять сегментов постоянно |
-| Е4 | Сандбокс macOS: два entitlement-файла (Debug без, Release с) или один; и как писать файл под `user-selected.read-write`, если `writeFileAtomically` делает rename в каталог, куда доступа нет (причина, по которой редактор уровней сандбокс выключил) | два; относительные пути `--dart-define` живут только в Debug; способ записи — по p0-13n в фазе 0 (`saveFile` + прямая запись или security-scoped каталог), после него ui-14 переписывает native-ветку |
-| Е5 | Набор горячих клавиш | **Закрыт 2026-09-09 (решение владельца):** Blender-подобные (G/R/S/E/I, 1/2/3, Tab) там, где не конфликтуют с платформой; перечислены в справке (ui-32n) |
-| Е6 | Автосохранение на вебе: localStorage через `Storage` или IndexedDB-расширение | `BinaryStorage` в `flutter3d_screens` (ui-18), правка пакета репозитория — нужно согласие |
-| Е7 | Открытие файлов из системы (Finder, intent, DocumentBrowser) | фаза 2 |
-| Е8 | Подпись и нотаризация macOS на фазу 1 | **Закрыт 2026-09-09 (решение владельца):** «правый клик → Open» в фазе 1; аккаунт Apple Developer и iPad нужны до середины фазы 1 (rel-19d), потому что iOS — платформа фазы 1 |
-| Е9 | Канал обратной связи: только Issues с меткой или ещё Discussions | Issues + кнопка в приложении (rel-15); Discussions — по спросу |
-| Е10 | Ассет туториала: модель Khronos или «купленный ассет» | Khronos из `flutter3d_samples` (лицензия уже есть) |
-| Е11 | Допустима ли заморозка интерфейса на вебе при неделимой операции до фазы 2 | **Закрыт 2026-09-09 (решение владельца):** да, с прогрессом на месте кнопки; web worker — условный пункт фазы 1 (ui-34d), если p0-07/p0-08 покажут заморозку дольше 1 с |
-| Е12n *(добавлено по критике)* | Набор иконок: README передачи требует Material Symbols Outlined (вес 400), во Flutter это внешний пакет `material_symbols_icons` (Apache 2.0, несколько МБ шрифта в бандле); `Icons` из SDK — без зависимости, но часть глифов другая | **Закрыт 2026-09-09 (решение владельца):** `Icons` из SDK с таблицей соответствия в ui-02; `material_symbols_icons` не берём |
+| Е1 | The web at launch — equal footing or view-only; is a JS build acceptable if `file_selector_web` doesn't build under wasm | **Closed 2026-09-09 (owner decision):** the web is an equal-footing platform from the first version, not "measurements decide"; p0-02/p0-08 stay quality gates: an unmet threshold becomes a phase-1 item (a JS build as ARCHITECTURE §1's recorded exception, chunks instead of an isolate, a worker ui-34d if needed) |
+| Е2 | English from the first version | **Closed 2026-09-09 (owner decision):** Russian and English from the first version — a ru template + en (ui-22); the core, MCP, and `says` — English (Г4) |
+| Е3 | Phase 2–4 modes in the switcher: disabled or hidden | disabled — the README requires five segments to always be present |
+| Е4 | macOS sandbox: two entitlement files (Debug without, Release with) or one; and how to write a file under `user-selected.read-write` if `writeFileAtomically` renames into a directory with no access (the reason the level editor turned the sandbox off) | two; relative `--dart-define` paths only live in Debug; the write method — from p0-13n in phase 0 (`saveFile` + a direct write, or a security-scoped directory), after which ui-14 rewrites the native branch |
+| Е5 | The hotkey set | **Closed 2026-09-09 (owner decision):** Blender-like (G/R/S/E/I, 1/2/3, Tab) wherever it doesn't conflict with the platform; listed in help (ui-32n) |
+| Е6 | Autosave on the web: localStorage via `Storage`, or an IndexedDB extension | `BinaryStorage` in `flutter3d_screens` (ui-18), a repository-package change — needs agreement |
+| Е7 | Opening files from the system (Finder, an intent, DocumentBrowser) | phase 2 |
+| Е8 | macOS signing and notarization for phase 1 | **Closed 2026-09-09 (owner decision):** "right-click → Open" in phase 1; an Apple Developer account and an iPad are needed by mid-phase-1 (rel-19d), because iOS is a phase-1 platform |
+| Е9 | The feedback channel: Issues with a label only, or also Discussions | Issues + an in-app button (rel-15); Discussions on demand |
+| Е10 | The tutorial asset: a Khronos model or a "purchased asset" | Khronos from `flutter3d_samples` (the license already exists) |
+| Е11 | Is a UI freeze on the web during an indivisible operation acceptable before phase 2 | **Closed 2026-09-09 (owner decision):** yes, with progress in the button's place; a web worker is a conditional phase-1 item (ui-34d) if p0-07/p0-08 show a freeze longer than 1 s |
+| Е12n *(added by critique)* | The icon set: the handoff README requires Material Symbols Outlined (weight 400), which in Flutter means the external `material_symbols_icons` package (Apache 2.0, several MB of font in the bundle); the SDK's `Icons` — no dependency, but some glyphs differ | **Closed 2026-09-09 (owner decision):** the SDK's `Icons` with a mapping table in ui-02; not taking `material_symbols_icons` |
 
-### Ж. Рендер, материалы, модификаторы
+### Ж. Rendering, materials, modifiers
 
-| # | Вопрос | Рекомендация |
+| # | Question | Recommendation |
 |---|---|---|
-| Ж1 | «Граф нод» → «компоновщик текстур», состав нод mat-10; запись в ROADMAP | **Закрыт 2026-09-09 (решение владельца):** компоновщик текстур с фиксированным набором нод (mat-10); формулировка ROADMAP о графе нод меняется на ревизии 28 сентября (§7 № 3) |
-| Ж2 | Подсказки параметров нод и модификаторов: `MaterialHint` как есть или общий `ControlHint` в движке — **закрыт 2026-09-09** | `ParamHint` из core (Г4) для нод, модификаторов и команд; `MaterialHint` — только панель материала; движок не правится |
-| Ж3 | Модификатор: один флаг `enabled` или `enabled` + `showInViewport` | один в v1 |
-| Ж4 | Режим «Сцена» v1: только свет/окружение/тени/пост или расстановка ассетов и пробы отражений; план дизайна §1 называет композицию ассетов третьим отличием продукта (§7 № 36) | **Закрыт 2026-09-09 (решение владельца):** свет/окружение/тени/пост плюс расстановка нескольких ассетов — doc-11a-n (`ImportInto`) безусловно в фазе 2, mat-24 расширен расстановкой и экспортом сцены одним GLB; §7 № 36 закрыт; пробы отражений не входят |
-| Ж5 | Цифры бюджета текстур по пресетам и разрешение запекания по умолчанию | десктоп 2048/256 МБ, мобильный 1024/64 МБ, веб 2048/128 МБ; запекание 1024 по умолчанию — согласовать |
-| Ж6 | HDRI: LDR-панорама в фазе 2 или `.hdr` с float-окружением | LDR (mat-16) в фазе 2 с подписью; mat-17 в фазе 4 |
-| Ж7 | Фон вьюпорта: плоский `#0E1112`, небо `SkySettings` или радиальный градиент из README передачи (hi-fi) | плоский в v1; градиент реализуем на всех бэкендах — `SkySettings` (как и предлагает view-02) или полноэкранный unlit-квад, а не «невозможен»; расхождение с README — §7 № 37 |
-| Ж8 | Точки-вершины: квады везде или `PrimitiveType.point` где есть | квады везде — одна картинка, один golden-путь |
-| Ж9 | Смещение глубины оверлеев: CPU или стейдж `OverlayVertex` | по view-01(в), порог 2 мс |
-| Ж10 | `overwriteGeometry` и кадры в полёте на Impeller: двойной буфер в `DeviceMesh` или обязанность бэкенда | бэкенд буферизует; контракт — «видно со следующего прохода» (view-14) |
-| Ж11 | Каркас скиннированных мешей в позе: второй стейдж или только бинд-поза | бинд-поза в фазе 2 |
-| Ж12 | Hover по граням на каждое движение мыши на телефоне | hover подэлементов только на десктопе; на тач — по клику |
-| Ж13 | Меш предпросмотра материала по умолчанию; пол с тенью | сфера; пол — да |
-| Ж14 | Ждать энкодер из ROADMAP или показывать расчёт | расчёт (mat-28) сразу; mat-30 после fmt-22 |
+| Ж1 | "Node graph" → "texture compositor," mat-10's node set; the ROADMAP entry | **Closed 2026-09-09 (owner decision):** a texture compositor with a fixed node set (mat-10); the ROADMAP's node-graph wording changes at the September 28 review (§7 #3) |
+| Ж2 | Parameter hints for nodes and modifiers: `MaterialHint` as-is, or a shared `ControlHint` in the engine — **closed 2026-09-09** | `ParamHint` from core (Г4) for nodes, modifiers, and commands; `MaterialHint` stays the material panel's only; the engine isn't touched |
+| Ж3 | A modifier: one `enabled` flag, or `enabled` + `showInViewport` | one, in v1 |
+| Ж4 | "Scene" mode v1: light/environment/shadows/post only, or also placing assets and reflection probes; the design plan §1 names asset composition the product's third differentiator (§7 #36) | **Closed 2026-09-09 (owner decision):** light/environment/shadows/post plus placing several assets — doc-11a-n (`ImportInto`) unconditionally in phase 2, mat-24 extended with placement and exporting the scene as one GLB; §7 #36 closed; reflection probes are out |
+| Ж5 | Texture-budget numbers per preset, and the default bake resolution | desktop 2048/256 MB, mobile 1024/64 MB, web 2048/128 MB; a 1024 default bake resolution — to be agreed |
+| Ж6 | HDRI: an LDR panorama in phase 2, or `.hdr` with a float environment | LDR (mat-16) in phase 2, labeled; mat-17 in phase 4 |
+| Ж7 | The viewport background: flat `#0E1112`, a `SkySettings` sky, or the radial gradient from the handoff README (hi-fi) | flat in v1; the gradient is buildable on every backend — `SkySettings` (as view-02 already proposes) or a full-screen unlit quad, not "impossible"; the divergence from the README — §7 #37 |
+| Ж8 | Point vertices: quads everywhere, or `PrimitiveType.point` where available | quads everywhere — one picture, one golden path |
+| Ж9 | Overlay depth offset: CPU or an `OverlayVertex` stage | per view-01(c), a 2 ms threshold |
+| Ж10 | `overwriteGeometry` and frames in flight on Impeller: double-buffer `DeviceMesh`, or a backend obligation | the backend buffers; the contract — "visible from the next pass" (view-14) |
+| Ж11 | Wireframe on skinned meshes in a pose: a second stage, or the bind pose only | the bind pose, in phase 2 |
+| Ж12 | Hover over faces on every mouse move, on a phone | sub-element hover on desktop only; on touch — by tap |
+| Ж13 | The default material-preview mesh; a floor with a shadow | a sphere; a floor — yes |
+| Ж14 | Wait for the ROADMAP's encoder, or show a computed estimate | a computed estimate (mat-28) right away; mat-30 after fmt-22 |
 
-### З. Анимация
+### З. Animation
 
-| # | Вопрос | Рекомендация |
+| # | Question | Recommendation |
 |---|---|---|
-| З1 | Четыре влияния как жёсткий предел или раскладка на 8 в фазе 4 | жёсткие 4 (anim-32); убрать из дизайна намёк на произвольное число |
-| З2 | 64 кости: «разделить меш по скелетам» как операция или только ошибка | только ошибка в v1 |
-| З3 | IK при экспорте: запекать молча или спрашивать; нужен ли runtime-IK в плеере | запекать молча с записью в `ExportReport`; runtime-IK — вне этой итерации |
-| З4 | Ключ корневого движения в extras и `rootMotionDelta` — согласовать с треком «animation that adds» | согласовать на ревизии ROADMAP, один API |
-| З5 | Временная база: секунды (glTF, `AnimationTrack`) или кадры | секунды; fps профиля только для показа и привязки (syn-03) |
-| З6 | Ретаргет v1: только гуманоид или четвероногое тоже | гуманоид |
-| З7 | Источник mocap для экрана 14: только glTF/GLB | да (BVH и FBX вне плана до fmt-25) |
-| З8 | Лицевые наборы: стандартная номенклатура (52 ARKit) как шаблон или только пользовательские группы | пользовательские в v1 |
-| З9 | Драйверы форм: только в проекте с запеканием или секция `.f3d` для рантайма | запекание в v1 (anim-20) |
-| З10 | Аддитивный слой из ROADMAP до фазы 3 или после | после; reference-поза — кадр 0 клипа |
+| З1 | Four influences as a hard limit, or an 8-influence layout in phase 4 | a hard 4 (anim-32); remove the design's hint at an arbitrary number |
+| З2 | 64 bones: "split the mesh by skeleton" as an operation, or just an error | just an error in v1 |
+| З3 | IK on export: bake silently or ask; is runtime IK needed in the player | bake silently, recorded in the `ExportReport`; runtime IK — outside this iteration |
+| З4 | The root-motion key in extras and `rootMotionDelta` — align with the "animation that adds" track | align at the ROADMAP revision, one API |
+| З5 | The time base: seconds (glTF, `AnimationTrack`) or frames | seconds; profile fps only for display and binding (syn-03) |
+| З6 | Retargeting v1: humanoid only, or quadruped too | humanoid |
+| З7 | The mocap source for screen 14: glTF/GLB only | yes (BVH and FBX are outside the plan until fmt-25) |
+| З8 | Facial sets: a standard nomenclature (ARKit's 52) as a template, or custom groups only | custom in v1 |
+| З9 | Shape drivers: baked in the project only, or an `.f3d` section for runtime | baking in v1 (anim-20) |
+| З10 | The additive pose layer from the ROADMAP: before phase 3 or after | after; the reference pose is the clip's frame 0 |
 
-### И. Фаза 4
+### И. Phase 4
 
-| # | Вопрос | Рекомендация |
+| # | Question | Recommendation |
 |---|---|---|
-| И1 | Чей солвер ткани: тот самый из ROADMAP (потом в physics) или редакторский навсегда | **Закрыт 2026-09-09 (решение владельца):** отдельный солвер `flutter3d_cloth` в фазе 4 (В3); на строку Committed о soft bodies не претендует, переезд в `flutter3d_physics` — отдельное решение после фазы 4 (§7 № 5) |
-| И2 | Экспорт симуляции: ≤8 морф-целей, секция вершинной анимации `.f3d` + узел, или только предпросмотр | морф-цели в фазе 4, секция — по спросу |
-| И3 | Три правки контракта (`overwriteGeometry`, `overwriteTexture`, `renderPost`): в фазах 2–3 или к старту фазы 4 | по одной на фазу: 2 / 3 / 4 |
-| И4 | «Твёрдое тело» без вращения приемлемо для фазы 4 | да, с подписью (pro-sim-02) |
+| И1 | Whose cloth solver: the ROADMAP's own (later into physics) or the editor's forever | **Closed 2026-09-09 (owner decision):** a separate `flutter3d_cloth` solver in phase 4 (В3); it doesn't claim the ROADMAP's Committed line about soft bodies, moving into `flutter3d_physics` is a separate decision after phase 4 (§7 #5) |
+| И2 | Simulation export: ≤8 morph targets, a `.f3d` vertex-animation section + a node, or preview only | morph targets in phase 4, the section on demand |
+| И3 | Three contract changes (`overwriteGeometry`, `overwriteTexture`, `renderPost`): in phases 2–3, or all at phase-4 start | one per phase: 2 / 3 / 4 |
+| И4 | Is a "Rigid body" with no rotation acceptable for phase 4 | yes, labeled (pro-sim-02) |
 
-### К. Качество и публикация
+### К. Quality and publishing
 
-| # | Вопрос | Рекомендация |
+| # | Question | Recommendation |
 |---|---|---|
-| К1 | Кто записывает Impeller/WebGL/WebGPU-наборы новых сцен и гоняет Impeller-конформанс | нужна ночная macOS-машина из ROADMAP; до неё сцены живут в `_provisional`, что acceptance view-05 запрещает к мержу |
-| К2 | Внешняя проверка экспорта сверх валидатора: headless Godot в CI или ручной чек-лист | **Закрыт 2026-09-09 (решение владельца):** headless Godot в CI — qa-19n (S), как требует план дизайна («открывается в Godot и Unity» автотестом); Unity и Blender — ручной чек-лист в HANDOFF перед релизом фазы 1 |
-| К3 | `tool/structure.dart --recount`, переписывающий числа в документах | нет: сканер печатает число, человек правит |
-| К4 | Где живут GPU-числа фазы 0: HANDOFF (вне git) или doc §6 | doc §6 (единственная копия в git), HANDOFF дублирует |
-| К5 | Что в ROADMAP двигается вниз ради девятого трека | владелец; кандидаты — декали, измерение |
+| К1 | Who records the Impeller/WebGL/WebGPU sets for new scenes and runs Impeller conformance | needs the ROADMAP's own nightly macOS machine; until then scenes live in `_provisional`, which view-05's acceptance forbids merging |
+| К2 | External export checking beyond the validator: headless Godot in CI, or a manual checklist | **Closed 2026-09-09 (owner decision):** headless Godot in CI — qa-19n (S), as the design plan requires ("opens in Godot and Unity" via an autotest); Unity and Blender — a manual HANDOFF checklist before the phase-1 release |
+| К3 | A `tool/structure.dart --recount` that rewrites the numbers in documents | no: the scanner prints the number, a human edits |
+| К4 | Where do phase-0 GPU numbers live: the HANDOFF (outside git) or doc §6 | doc §6 (the one copy in git), the HANDOFF duplicates it |
+| К5 | What moves down in the ROADMAP to make room for the ninth track | the owner; candidates — decals, measurement |
+---
+
+## 9. Risks
+
+Merged from eleven lists; the mitigating action is kept with its id.
+
+| # | Risk | Mitigation |
+|---|---|---|
+| 1 | A red `main` and three packages under thirty rules: test and package counts, the publishing order, enums, "a public member with no caller," `dashed`/`reload`/`spike` in lib, `DateTime.now()` and `math.sin` under the step rules | qa-01 first; qa-02/03/04/05/06 before the first line of code; `dart run tool/structure.dart` before every commit; numbers land in the same commit as the test (qa-16) |
+| 2 | A pure core doesn't resolve with no Flutter SDK (the scanner can't see a transitive dependency) — surfaces at the first MCP host | doc-00 → doc-01 in phase 0; rule qa-03; the rel-04 container check |
+| 3 | A persistent mesh's snapshot under scattered edits touches nearly every chunk — §4.3 fails; GC pauses from fresh values every frame | p0-05 (chunks versus a log, two distributions) and p0-11 (the end-to-end pipeline) before mesh-10; `toMeshData(into:)`, a per-transaction snapshot, and on failure a working mode inside the transaction |
+| 4 | Half-edge breaks silently: the picture looks right, the next operation crashes ten steps later; loop cut/ring/Catmull-Clark go quiet on a triangulated import | `validate()` after every operation in tests (mesh-11), seeded fuzzing (mesh-32), traversals stop on non-quads with a `report`, `dissolveEdge` restores quads (mesh-25), quads on parametric shapes (mesh-28), a parity test (mesh-29) |
+| 5 | Export matches its own loader but not Godot/Unity/Blender; generated attributes make a round trip unreachable | fmt-03 before the writer; fmt-10 (frame against frame), fmt-11 (the validator), headless Godot in CI (qa-19n), a manual Unity/Blender checklist before release (К2 closed 2026-09-09); `compareModelDocuments` with categories and mutations |
+| 6 | Byte-level non-determinism (libm, key order, double formatting) breaks fixture diffs across two OSes | coordinate quantization, canonical JSON, Float32 in blobs, comparing geometry with a tolerance; fixtures recorded on two OSes (doc-21, rel-13) |
+| 7 | A `GraphicsDevice` contract change breaks all four backends and the fake; an async submit on Impeller reads an already-overwritten buffer | one contract change per phase; a PR covering every backend with a conformance check; "visible from the next pass" semantics and backend-side buffering (Ж10); an Impeller run via `conformance.sh` with a date (view-14) |
+| 8 | Recreating `DeviceMesh` on every edit, and an overlay over 200,000 edges every frame, don't fit a frame on a phone or in WebGL | p0-06 and view-01(b,c) before implementation; `MeshLayoutPlan`/`fillVertices` (mesh-14); lines in a version-based persistent buffer, ribbons for the selection only; point thinning (view-13) |
+| 9 | A new shader needs `glslangValidator`, `naga`, `impellerc`, and a Dart stage; a forgotten stage fails on one backend | no more than two vertex stages, no fragment ones; `ci.sh` regenerates the tables; `manifest_test` pins `kRequiredShaders` (view-06/07) |
+| 10 | Golden scenes are only recorded on macOS with a GPU and in Chrome; between recording sessions a scene in `_provisional` doesn't catch a regression | the CPU set as the first, agreed-upon reference; one scene per PR; `_provisional` empty by merge time (view-05); the К1 machine |
+| 11 | BSP booleans blow up in polygon count and time on coplanar meshes, overflow the stack, or hang the UI | an explicit stack, eps from bounds, a polygon budget with a refusal, a coplanarity detector, `Isolate.run` (mesh-47, mesh-30); version-based caching and a live-recompute threshold in the stack (mat-18/20) |
+| 12 | There are no isolates on the web: a 100 MB import, booleans, baking, auto-rigging freeze the tab; "in an isolate" from the README is literally unreachable | one runner (doc-24/ui-25) with chunks yielding to the frame; p0-07 decides the shape of operations; the web is equal footing (Е1, 2026-09-09 decision): a freeze longer than 1 s on a reference operation → ui-34d in phase 1; an import limit in the web dialog |
+| 13 | The web file stack (`file_selector_web`, `package:web`, wasm, COOP/COEP) works in Chrome and not in Safari/Firefox; a fixed viewport size (`kFixedResolution`) is soap on a 5K display | p0-08 with a browser × action table; rel-10 is checked with the same compiler the site itself ships; ui-20 — device recreation or a `WebGlDevice` resize |
+| 14 | Weights and morphs get corrupted by the first topological operation; CPU skinning diverges from the shader; the editor paints "in the wrong place" | layers with inheritance rules in one place (mesh-12/60), full position layers instead of deltas (mesh-61), a `SkinBlend`/`Pose` parity check against the shader's own transcription and `Skeleton.update` (anim-01/02/28) |
+| 15 | The 4-influence / 64-bone limits look like a profile setting in the design and like bundle constants in the engine | anim-32: the profile can't accept more, the refusal text names the reason; `RigReadiness` shows the excess before export |
+| 16 | Auto-rig's primary weights (envelopes) and retargeting (foot sliding) disappoint | a visibility test and smoothing (anim-22), an honest "primary weights" label, foot planting via IK with a "≤1 cm at 2× height" test (anim-17); heat diffusion — a phase-4 candidate |
+| 17 | The compositor graph reads as "node-graph materials" from "Not doing," and mat-10..13 get rejected outright; baking 2048² on the CPU takes seconds to tens of seconds | rename it and record it in the ROADMAP before starting (Ж1); proof — the engine's goldens don't change; a 256² branch-cached preview, full resolution behind a button in an isolate (mat-11) |
+| 18 | The project format changes alongside `EditMesh` at every phase-1 step and breaks early users' autosaves; uncompressed PNG makes an 80 MB project | migrations from day one, fixtures for every version kept forever, unknown sections and keys survive a round trip (doc-28, pro-doc-01); raw RGBA with separated blobs, PNG on export (mat-12) |
+| 19 | The three layouts drift apart in tool composition; `documents.dart` pulls `dart:io` into the web build; compact density fails contrast and textScaler | a tool table tested against an id set (ui-07); a conditional export from the first commit and a CI web build from phase 0 (ui-14); guideline tests (ui-23) |
+| 20 | Localization arrives late: a Russian interface and English core `says` on the same status line | ui-22 before the first panels; the language of `says` decided before model_core (Г4) |
+| 21 | Eight sources per object and six shadowed — "Scene" mode will allow more, and light will silently get dropped | the status reads `lightsDropped`/`shadowsDenied` every frame (mat-24); `ExportReadiness` duplicates it as an Issue |
+| 22 | Sculpting at 1.2M doesn't fit a frame in Dart; the software rasterizer takes minutes at 4K | pro-sc-01 and pro-rn-01 before the structure and UI; fixed topology + chunks + local normals + overwrite; a web density limit (pro-sc-09); tiles with progress (pro-eng-04), SSAA ×1 by default |
+| 23 | Cloth depends on `flutter3d_physics` for collision shapes, while the engine's soft bodies will arrive with a different API | a dependency only on `CollisionShape`; determinism and a fixed step following sim's own rules, so the move is a copy (pro-sim-01, И1) |
+| 24 | The `check` CI job's time grows with three `dart test` runs, a browser run, a bench, a wasm build, and app tests, against a 60-minute timeout | every step's time is recorded in `ci.yml` (qa-17); the browser run is mesh-only; the bench is an artifact, not an assertion; over 30 minutes — a separate `modeler` job |
+| 25 | Spikes under `tool/` grow into a third geometry engine nobody moves into a package | mesh-01/02 go straight into `packages/flutter3d_mesh`; the p0-08 web spike is a one-time question, README "The answer," "superseded by" after the move (p0-12) |
+| 26 | Engine changes for the editor get stuck in review (vocabulary split, HAL) and block the critical path | mesh-01/02 don't depend on the decision; a `TriangleBuffers` fallback is described in mesh-03 (~50 lines of adapter); the В1 deadline — 2026-09-25; the ROADMAP track (rel-12) |
+| 27 | There are no first users, or feedback doesn't arrive; "fifteen minutes on any device" stays a promise | rel-09 makes the tutorial a CI test with a measured time; rel-15 an in-app button; rel-16 a personally recruited cohort, the outcome in ROADMAP numbers |
+| 28 | `MorphTexture` packs one column per vertex — the texture width caps the vertex count of a morphing mesh (checked: `geometry/morph_texture.dart` — "width the mesh's vertex count, height three rows per target") | the `ExportReadiness` rule is already in phase 1 (doc-14: "vertices with morphs > the profile's `maxTextureSize`"), because morph-target import arrives in phase 1; `rigIssues` (anim-13) and simulation export (pro-sim-05) read the same limit |
+
 
 ---
 
-## 9. Риски
+## 10. Revision history
 
-Слиты из одиннадцати списков; оставлено снимающее действие с id.
+### 2026-09-13 — after phase 4
 
-| # | Риск | Снимающее действие |
-|---|---|---|
-| 1 | Красный `main` и три пакета под тридцатью правилами: числа тестов и пакетов, порядок публикации, enum, «публичный член без вызова», `dashed`/`reload`/`spike` в lib, `DateTime.now()` и `math.sin` под правилами шага | qa-01 первым; qa-02/03/04/05/06 до первой строки кода; `dart run tool/structure.dart` перед каждым коммитом; числа — в том же коммите, что тест (qa-16) |
-| 2 | Чистое ядро не резолвится без Flutter SDK (сканер не видит транзитивную зависимость) — обнаружится у первого хоста MCP | doc-00 → doc-01 в фазе 0; правило qa-03; контейнерная проверка rel-04 |
-| 3 | Снимок персистентного меша при разбросанных правках трогает почти все чанки — §4.3 не выполняется; GC-паузы от новых значений на каждый кадр | p0-05 (чанки против журнала, два распределения) и p0-11 (сквозной конвейер) до mesh-10; `toMeshData(into:)`, снимок на транзакцию, при провале — рабочий режим внутри транзакции |
-| 4 | Half-edge ломается тихо: картинка верна, следующая операция падает через десять шагов; loop cut/ring/Catmull-Clark молчат на триангулированном импорте | `validate()` после каждой операции в тестах (mesh-11), фазз с сидом (mesh-32), обходы останавливаются на не-квадах с `report`, `dissolveEdge` восстанавливает квады (mesh-25), квады у параметрических (mesh-28), parity-тест (mesh-29) |
-| 5 | Экспорт сходится с собственным лоадером, но не с Godot/Unity/Blender; сгенерированные атрибуты делают round-trip недостижимым | fmt-03 до писателя; fmt-10 (кадр против кадра), fmt-11 (валидатор), headless Godot в CI (qa-19n), ручной чек-лист Unity/Blender перед релизом (К2 закрыт 2026-09-09); `compareModelDocuments` с категориями и мутациями |
-| 6 | Байтовая недетерминированность (libm, порядок ключей, форматирование double) ломает дифф фикстур на двух ОС | квантование координат, канонический JSON, Float32 в блобах, сравнение геометрии с допуском; фикстуры записаны на двух ОС (doc-21, rel-13) |
-| 7 | Правка контракта `GraphicsDevice` ломает четыре бэкенда и fake; асинхронный submit на Impeller читает уже перезаписанный буфер | одна правка контракта на фазу; PR на все бэкенды с конформанс-проверкой; семантика «видно со следующего прохода» и буферизация на стороне бэкенда (Ж10); Impeller через `conformance.sh` с датой (view-14) |
-| 8 | Пересоздание `DeviceMesh` на каждую правку и оверлей на 200 тыс. рёбер каждый кадр не укладываются в кадр на телефоне и в WebGL | p0-06 и view-01(б,в) до реализации; `MeshLayoutPlan`/`fillVertices` (mesh-14); линии в постоянном буфере по версии, ленты только для выделенного; прореживание точек (view-13) |
-| 9 | Новый шейдер требует `glslangValidator`, `naga`, `impellerc` и Dart-стадию; забытая стадия падает на одном бэкенде | не более двух вершинных стейджей и ни одного фрагментного; `ci.sh` регенерирует таблицы; `manifest_test` пиннит `kRequiredShaders` (view-06/07) |
-| 10 | Голден-сцены пишутся только на macOS с GPU и в Chrome; между записью наборов сцена в `_provisional` не ловит регрессию | CPU-набор первым как эталон согласия; по одной сцене на PR; `_provisional` пуст к мержу (view-05); машина К1 |
-| 11 | BSP-булевы взрываются по полигонам и времени на копланарных мешах, переполняют стек или вешают интерфейс | явный стек, eps по bounds, бюджет полигонов с отказом, детектор копланарности, `Isolate.run` (mesh-47, mesh-30); кэш по версиям и порог живого пересчёта в стеке (mat-18/20) |
-| 12 | На вебе нет изолятов: импорт 100 МБ, булевы, запекание, авториг замораживают вкладку; «в изоляте» из README невыполнимо буквально | один раннер (doc-24/ui-25) с порциями и уступкой кадру; p0-07 решает форму операций; веб равноправен (Е1, решение 2026-09-09): при заморозке дольше 1 с на эталонной операции — ui-34d в фазе 1; лимит импорта на вебе в диалоге |
-| 13 | Веб-стек файлов (`file_selector_web`, `package:web`, wasm, COOP/COEP) работает в Chrome и не работает в Safari/Firefox; фиксированный размер вьюпорта (`kFixedResolution`) — мыло на 5K | p0-08 с таблицей браузер × действие; rel-10 проверяет тем же компилятором, что шипит сайт; ui-20 — пересоздание устройства или resize `WebGlDevice` |
-| 14 | Веса и морфы портятся первой топологической операцией; CPU-скиннинг расходится с шейдером; редактор красит «не там» | слои с правилами наследования в одном месте (mesh-12/60), полные слои позиций вместо дельт (mesh-61), паритет `SkinBlend`/`Pose` против транскрипции шейдера и `Skeleton.update` (anim-01/02/28) |
-| 15 | Лимиты 4 влияния / 64 кости выглядят в дизайне настройкой профиля, а в движке — константы бандла | anim-32: профиль не принимает больше, текст отказа называет причину; `RigReadiness` показывает превышение до экспорта |
-| 16 | Первичные веса авторига (оболочки) и ретаргет (скольжение стоп) разочаровывают | тест видимости и сглаживание (anim-22), честная подпись «первичные веса», прижим стоп через IK с тестом «≤1 см при росте ×2» (anim-17); heat diffusion — кандидат фазы 4 |
-| 17 | Граф-компоновщик прочитается как «node-graph materials» из «Not doing», и mat-10..13 отвергнут целиком; запекание 2048² на CPU занимает секунды/десятки секунд | переименование и запись в ROADMAP до старта (Ж1); доказательство — эталоны движка не меняются; предпросмотр 256² с кэшем по ветке, полное разрешение по кнопке в изоляте (mat-11) |
-| 18 | Формат проекта меняется вместе с `EditMesh` на каждом шаге фазы 1 и ломает автосохранения первых пользователей; PNG без сжатия делает проект в 80 МБ | миграции с первого дня, фикстуры каждой версии навсегда, неизвестные секции и ключи переживают round-trip (doc-28, pro-doc-01); сырые RGBA с разделением блобов, PNG на экспорт (mat-12) |
-| 19 | Три раскладки расходятся по составу инструментов; `documents.dart` тянет `dart:io` в веб-сборку; compact-плотность не проходит контраст и textScaler | таблица инструментов с тестом множества id (ui-07); conditional export с первого коммита и веб-сборка в CI с фазы 0 (ui-14); guideline-тесты (ui-23) |
-| 20 | Локализация введена поздно: русский интерфейс и английские `says` ядра в одной строке статуса | ui-22 до первых панелей; язык `says` решён до model_core (Г4) |
-| 21 | Восемь источников на объект и шесть теневых — режим «Сцена» позволит больше, и свет молча отбросится | статус читает `lightsDropped`/`shadowsDenied` каждый кадр (mat-24); `ExportReadiness` дублирует как Issue |
-| 22 | Скульптинг на 1,2 млн не укладывается в кадр на Dart; программный растеризатор на 4К считает минуты | pro-sc-01 и pro-rn-01 до структуры и UI; фиксированная топология + чанки + локальные нормали + overwrite; лимит плотности на вебе (pro-sc-09); тайлы с прогрессом (pro-eng-04), SSAA ×1 по умолчанию |
-| 23 | Ткань зависит от `flutter3d_physics` ради форм столкновений, а мягкие тела движка придут с другим API | зависимость только на `CollisionShape`; детерминизм и фиксированный шаг по правилам sim, чтобы перенос был копированием (pro-sim-01, И1) |
-| 24 | Время job `check` растёт на три `dart test`, браузерный прогон, бенч, wasm-сборку и тесты приложения при 60-минутном timeout | время каждого шага записано в `ci.yml` (qa-17); браузерный прогон только для mesh; бенч — артефакт, не assert; выше 30 минут — отдельный job `modeler` |
-| 25 | Спайки под `tool/` разрастаются в третий движок геометрии, который никто не переносит в пакет | mesh-01/02 сразу в `packages/flutter3d_mesh`; веб-спайк p0-08 — один вопрос, README «The answer», после переноса «superseded by» (p0-12) |
-| 26 | Правки engine ради редактора застревают в согласовании (выделение словаря, HAL) и блокируют критический путь | mesh-01/02 не зависят от решения; фолбэк `TriangleBuffers` описан в mesh-03 (~50 строк адаптера); срок В1 — 2026-09-25; трек в ROADMAP (rel-12) |
-| 27 | Первых пользователей нет или отзывы не доходят; «пятнадцать минут на любом устройстве» остаётся обещанием | rel-09 делает туториал тестом в CI с измеренным временем; rel-15 кнопка в приложении; rel-16 когорта набирается лично, итог в ROADMAP числами |
-| 28 | `MorphTexture` пакует одну колонку на вершину — ширина текстуры ограничивает число вершин морфящегося меша (проверено: `geometry/morph_texture.dart` — «width the mesh's vertex count, height three rows per target») | правило в `ExportReadiness` уже в фазе 1 (doc-14: «вершин с морфами > `maxTextureSize` профиля»), потому что импорт с морф-целями приходит в фазе 1; `rigIssues` (anim-13) и экспорт симуляции (pro-sim-05) читают тот же лимит |
+`pro-after-01`: §5.6 "After phase 4" was added — a list of what the plan
+already called deferred past phase 4 (the path tracer, ABF++, dyntopo,
+quadriflow, GPU baking, cloth self-intersection, body rotation; each with
+its own reason where it was decided, in §5.5/§7/§8, nothing new decided),
+plus a separate item on sculpting beyond the budget that the still-unfinished
+`pro-sc-01` measures, and a separate line on collaborative work: not part of
+the plan, groundwork — the `CommandJournal` (doc-16) and `ModelCommand` as a
+value. Needs separate owner sign-off (`pro-after-01`'s acceptance) — this
+edit doesn't provide that.
 
+### 2026-09-11 — checking readiness against the tree
 
----
+An item's status is a claim, and until now nothing checked it. Now
+`tool/verify_plan.dart` does: it reads `doc/plan-status.json`, takes
+everything named in backticks from every finished row, and requires it to
+be in the tree. The invariant is narrow, and honest for it: it doesn't read
+the Russian-language acceptance text, but it does read names, and names are
+exactly what rots.
 
-## 10. История правок
+The first run found seventeen rows. Not one was a nitpick:
 
-### 2026-09-13 — после фазы 4
+- **mesh-10 described a structure the measurement rejected.** p0-05 measured
+  copy-on-write chunks against a log of prior values: under a scattered
+  selection, chunks cost 92–100% of a full copy. The code holds a log
+  (`JournalledFloats`, `JournalStep`), while the row had promised
+  `PersistentInt32Vector` for a month and a half. The row was rewritten to
+  match reality.
+- **Eight names had drifted from the code:** `fromMeshData` →
+  `importMeshData`, `SelectionLevel` → `ElementLevel`,
+  `selectByMaterialSlot` → `Selection.byMaterialSlot`, `nonManifoldEdges` →
+  `MeshChecks.all()`, `loadModelInIsolate` → `decodeModelInIsolate`,
+  `Modeling` → `ModelHistory`, `MoveElements` → `TransformElements` (one
+  command, not three), `saveFile` → `getSaveLocation`, `editor_core` →
+  `flutter3d_editor_core`.
+- **p0-01 named a rig that doesn't exist:** a `StressSource` in the engine
+  example with environment variables. The rig is built in the modeler
+  (`staging.dart`, `--dart-define`), and measuring that path — the one a
+  document actually opens through — is the right thing to measure.
+- **Three statuses were false.** doc-06 and doc-07 are marked "done," yet
+  the object commands are missing `AddLathe`, `SetParametric`,
+  `AssignMaterial`, `SetOrigin`, `ApplyTransform`, and the mesh commands are
+  missing `Separate`. Both became "partial."
+- **p0-08 found a gap.** The web spike promised opening a `.gltf` together
+  with a neighboring `.bin` via `openFiles`; in the code, `openModel` takes
+  one file. On the web, where there's no neighboring directory, a `.gltf`
+  has nothing to open with. `ui-36n` was opened.
 
-`pro-after-01`: добавлен §5.6 «После фазы 4» — список того, что план уже
-называл отложенным дальше фазы 4 (трассировщик, ABF++, dyntopo, quadriflow,
-GPU-запекание, самопересечение ткани, вращение тел; каждое со своей причиной
-по месту в §5.5/§7/§8, ничего нового не решено), плюс отдельный пункт про
-скульптинг сверх бюджета, который измеряет ещё не законченный `pro-sc-01`, и
-отдельная строка про совместную работу: не входит в план, задел —
-`CommandJournal` (doc-16) и `ModelCommand` как значение. Требует согласования
-владельцем отдельно (приёмка `pro-after-01`) — эта правка его не даёт.
+Three names are absent on purpose, and this is recorded with a reason in
+`doc/plan-status.json`: `dashedAxis` exists so the scanner rejects it;
+`overwriteGeometry` and `bufferSubData` are a prototype in a separate
+branch, as p0-06's own row says; `SkinBlend` and `bindWeights` are what
+anim-31's own row assigns to phase 3. The check also flags a stale
+exemption: once a name appears, the reason is no longer a reason.
 
-### 2026-09-11 — сверка готовности с деревом
+§2's count: 377 → 378 (`ui-36n`).
 
-Статус пункта — это утверждение, и до сих пор его ничто не проверяло. Теперь
-проверяет `tool/verify_plan.dart`: он читает `doc/plan-status.json`, берёт из
-каждой законченной строки всё, что названо в обратных кавычках, и требует,
-чтобы оно было в дереве. Инвариант узкий и оттого честный — приёмку по-русски
-машина не читает, а имена читает, и рвутся именно имена.
+### 2026-09-10 — an agent that can see; graphics; gap analysis
 
-Первый прогон дал семнадцать строк. Ни одна не оказалась придиркой:
+Three passes in one day, all three additions, none a reversal.
 
-- **mesh-10 описывал структуру, которую замер отверг.** p0-05 померил чанки с
-  копированием при записи против журнала прежних значений: на разбросанном
-  выделении чанки стоят 92–100 % полной копии. В коде живёт журнал
-  (`JournalledFloats`, `JournalStep`), а строка полтора месяца обещала
-  `PersistentInt32Vector`. Строка переписана по факту.
-- **Восемь имён разошлись с кодом:** `fromMeshData` → `importMeshData`,
-  `SelectionLevel` → `ElementLevel`, `selectByMaterialSlot` →
-  `Selection.byMaterialSlot`, `nonManifoldEdges` → `MeshChecks.all()`,
-  `loadModelInIsolate` → `decodeModelInIsolate`, `Modeling` → `ModelHistory`,
-  `MoveElements` → `TransformElements` (одна команда, а не три),
-  `saveFile` → `getSaveLocation`, `editor_core` → `flutter3d_editor_core`.
-- **p0-01 называл стенд, которого нет:** `StressSource` в примере движка с
-  переменными окружения. Стенд построен в модельере (`staging.dart`,
-  `--dart-define`), и мерить правильно именно его — это тот путь, которым
-  открывается документ.
-- **Три статуса были неправдой.** doc-06 и doc-07 стоят «сделано», а из
-  объектных команд нет `AddLathe`, `SetParametric`, `AssignMaterial`,
-  `SetOrigin`, `ApplyTransform`, из мешевых — `Separate`. Оба стали
-  «частично».
-- **p0-08 нашёл дыру.** Веб-спайк обещал открывать `.gltf` вместе с соседним
-  `.bin` через `openFiles`; в коде `openModel` берёт один файл. На вебе, где
-  соседнего каталога нет, `.gltf` открыть нечем. Заведён `ui-36n`.
+**The `mcp-` aspect (15 items).** `doc-19`…`doc-22` set up a server, a
+session of ten verbs, and a tool table — and not one verb is visual: the
+agent edits the model blind, knowing numbers and never seeing the
+silhouette. Investigation found why the picture can't be handed over today
+and why it's cheaper than it looks. The `flutter3d_model_mcp` package is
+required to be Flutter-free (a `tool/structure.dart` and
+`flat_dart_check.sh` rule), and `GraphicsDevice.present` returns a Flutter
+widget — which is why the level editor's own `screenshot` exists and
+refuses. But in `packages/flutter3d/lib/`, Flutter is named in **four
+files**, all about loading assets: `rootBundle` twice, `kIsWeb` twice,
+`dart:ui` for decoding. `Renderer`, `Scene`, `DeviceMesh`, and the pass
+graph aren't named. So the obstacle is three points, not something woven
+throughout, and `mcp-01n`…`mcp-05n` close them.
 
-Три имени отсутствуют намеренно, и это записано с причиной в
-`doc/plan-status.json`: `dashedAxis` существует, чтобы сканер его отверг;
-`overwriteGeometry` и `bufferSubData` — прототип в отдельной ветке, так сказано
-в самой строке p0-06; `SkinBlend` и `bindWeights` строка anim-31 сама относит к
-фазе 3. Проверка ругается и на устаревшее исключение: если имя появилось,
-причина больше не причина.
+This round's decisions: the consumer is an agent alongside a human; the
+server in both homes (headless by default, GUI behind a flag); stdio and
+local HTTP; every command plus composite recipes; numeric-id addressing;
+shared history, the agent only undoes its own; a journal underneath.
 
-Счёт §2: 377 → 378 (`ui-36n`).
+**The `gfx-` aspect (17 items, its own phases G1—G3).** Engine changes,
+tracked here because the editor is what makes these gaps visible. Priority
+is set by observation: a 60-frame budget on a 1440p MacBook, a typical scene
+one close-up hero, one or two characters. Four things are named as seen
+with one's own eyes: light popping, jagged edges, no distant shadows,
+aliasing on the floor.
 
-### 2026-09-10 — агент, который видит; графика; гэп-анализ
+The order inside G2 is set by two findings. First: filling the surface
+buffer turns off MSAA for the whole scene, so SSAO costs the game its
+anti-aliasing — a mutual exclusion between two existing capabilities, and
+FXAA removes both complaints at once. Second, found by checking rather than
+guessing: anisotropic filtering **already exists** in the engine
+(`maxAnisotropy` in the HAL, scene `anisotropic-floor`), but
+`RenderSettings.anisotropy` defaults to 1 and no demo raises it — the level
+editor's bridge gives bricks `min(8, maxAnisotropy)`, an imported model gets
+1. Hence G1 is a profiler and two measurements, not immediate fixes: with no
+numbers, any order would be an impression.
 
-Три захода за один день, все три — расширение, ни одной отмены.
+Ruled out of the track: what "one close-up hero on desktop" doesn't hit —
+a sort key, occlusion culling, streaming, geometry compression (the web
+matters to the modeler, not games), vertex-shader skinning (the CPU keeps
+up with one or two characters), decals, water, terrain, scattering.
+Everything under the ROADMAP's "Not doing" isn't proposed again.
 
-**Аспект `mcp-` (15 пунктов).** `doc-19`…`doc-22` заводят сервер, сессию из
-десяти глаголов и таблицу инструментов — и ни один глагол не визуальный: агент
-правит модель вслепую, зная числа и не видя силуэта. Разведка нашла, почему
-картинку нельзя отдать сегодня и почему это дешевле, чем кажется. Пакет
-`flutter3d_model_mcp` обязан быть без Flutter (правило `tool/structure.dart` и
-`flat_dart_check.sh`), а `GraphicsDevice.present` возвращает Flutter-виджет —
-поэтому `screenshot` редактора уровней существует и отказывает. Но в
-`packages/flutter3d/lib/` Flutter называют **четыре файла**, и все про загрузку
-ассетов: `rootBundle` дважды, `kIsWeb` дважды, `dart:ui` для декодирования.
-`Renderer`, `Scene`, `DeviceMesh` и граф проходов — не называют. Значит
-препятствие это три точки, а не пронизанность, и `mcp-01n`…`mcp-05n` их
-закрывают.
+**Gap analysis against open-source editors (11 items).** A comparison
+against Blender, Godot, Blockbench, Wings3D, Dust3D, ArmorPaint, Material
+Maker, meshoptimizer, and xatlas, stage by stage of the game-asset pipeline.
+Every "no" was checked by searching this file, not by memory. Four gaps
+break the "the asset makes it into the game" promise: collision shapes
+(mesh-80n) — not one line existed; snapping to geometry (view-26n) — today
+only a grid and an angle; sockets (doc-34n) and repair instead of diagnosis
+(mesh-81n) — `MeshChecks` finds everything and fixes nothing. The rest:
+texel density as a profile field (doc-35n), vertex-color painting
+(pro-pt-06n), an atlas across objects (pro-uv-08n), output-side glTF
+compression (fmt-30n), manual retopology (pro-rt-08n), impostors
+(pro-lod-05n).
 
-Решения захода: потребитель — агент рядом с человеком; сервер в обоих домах
-(headless по умолчанию, GUI по флагу); stdio и локальный HTTP; все команды плюс
-составные рецепты; адресация числовыми id; история общая, отменяет агент только
-своё; журнал в основе.
+Inverse kinematics went, by owner decision, into the modeler rather than
+the engine (`anim-31n`): needed for posing during auto-rigging, while in a
+game the pose comes from a clip.
 
-**Аспект `gfx-` (17 пунктов, свои фазы Г1—Г3).** Правки движка, ведомые здесь
-потому, что редактор — то, чем эти пробелы делаются видимыми. Приоритет задан
-наблюдением: целевой бюджет 60 кадров на MacBook 1440p, типичная сцена — один
-герой крупно, один-два персонажа. Четыре вещи названы виденными глазами: свет
-перескакивает, края рваные, дальних теней нет, алиасинг на полу.
-
-Порядок задан двумя находками. Первая: заполнение surface buffer выключает MSAA
-на всю сцену, поэтому SSAO стоит игре сглаживания — это взаимоисключение двух
-имеющихся возможностей, и FXAA снимает сразу обе жалобы. Вторая, найденная
-проверкой, а не догадкой: анизотропная фильтрация в движке **есть**
-(`maxAnisotropy` в HAL, сцена `anisotropic-floor`), но `RenderSettings.anisotropy`
-по умолчанию 1 и ни одна демка её не поднимает — кирпичам уровня мост даёт
-`min(8, maxAnisotropy)`, импортированной модели единицу. Поэтому Г1 — профайлер
-и два замера, а не сразу правки: без чисел любой порядок был бы впечатлением.
-
-Из трека выведено то, во что «один герой крупно на десктопе» не упирается:
-ключ сортировки, отсечение по перекрытию, потоковая загрузка, сжатие геометрии
-(веб важен для моделера, не для игр), скиннинг в вершинном шейдере (при
-одном-двух персонажах CPU тянет), декали, вода, террейн, рассеяние. Всё из
-«Not doing» ROADMAP не предлагается снова.
-
-**Гэп-анализ против открытых редакторов (11 пунктов).** Сравнение с Blender,
-Godot, Blockbench, Wings3D, Dust3D, ArmorPaint, Material Maker, meshoptimizer и
-xatlas по стадиям конвейера игрового ассета. Каждое «нет» проверено поиском по
-этому файлу, а не памятью. Четыре пробела ломают обещание «ассет уходит в
-игру»: формы столкновения (mesh-80n) — их не было ни строкой, привязка к
-геометрии (view-26n) — сегодня только сетка и угол, сокеты (doc-34n) и ремонт
-вместо диагноза (mesh-81n) — `MeshChecks` находит всё и не чинит ничего.
-Остальные: плотность текселей полем профиля (doc-35n), покраска вершинных
-цветов (pro-pt-06n), атлас через объекты (pro-uv-08n), сжатие на выходе в glTF
-(fmt-30n), ручная ретопология (pro-rt-08n), импостеры (pro-lod-05n).
-
-Обратная кинематика по решению владельца ушла не в движок, а в моделер
-(`anim-31n`): она нужна для позирования при авториге, а в игре поза приходит из
-клипа.
-
-**Счёт, и попутная поправка.** В §2 было 334 пункта, стало 377. Артефакт с
-графом зависимостей показывал 287 — это была ошибка извлечения, а не плана: его
-разбор не подхватывал идентификаторы с двойным дефисом, и все 52 пункта
+**The count, and an incidental fix.** §2 had 334 items, now 377. A
+dependency-graph artifact showed 287 — a extraction bug, not a planning one:
+its parser didn't pick up double-hyphenated identifiers, and all 52
 `pro-uv-*`, `pro-sc-*`, `pro-rt-*`, `pro-sim-*`, `pro-rn-*`, `pro-lod-*`,
-`pro-pt-*`, `pro-eng-*` выпадали из графа целиком. Фаза 1 моделера: 120 пунктов
-и ≈198 недель → 138 и ≈237. Трек `gfx-` ведётся отдельно: ≈31,5 недели, в сумму
-фазы 1 не входит.
+`pro-pt-*`, `pro-eng-*` items dropped out of the graph entirely. The
+modeler's phase 1: 120 items and ≈198 weeks → 138 and ≈237. The `gfx-` track
+is tracked separately: ≈31.5 weeks, not part of phase 1's sum.
 
-### 2026-09-09 — правки по критике
+### 2026-09-09 — critique edits
 
-Двадцать пять находок и двенадцать «недостающих аспектов»; каждая проверена по
-дереву на `239ccf8e` и по архиву передачи дизайна до внесения. Одна строка на
-находку.
+Twenty-five findings and twelve "missing aspects"; each checked against the
+tree at `239ccf8e` and against the design handoff archive before being
+entered. One line per finding.
 
-- В1 закрыт: писатели fmt-01..09/12/15 переведены в чистый пакет словаря (тогда один, под рабочим именем; с решением владельца ниже — `formats`), в engine остались fmt-13/14; fmt-06/08/09 зависят от doc-01; §3.1, §4.2, §5.1, §5.2, §6 и «Коротко» согласованы (pubspec `flutter: sdk`, `flatDartPackages`).
-- Фаза 1 получила панель материала mat-04a-n; `SetTexture`/`AddImage` перенесены из doc-25 в mat-01; приёмка §5.2 требует цвет и текстуру в GLB (план дизайна: «Базовые материалы» в фазе 1).
-- rel-04 больше не зависит от doc-19: заглушка `bin/model_mcp.dart --help` заводится в rel-02, `tools/list` в контейнере — приёмка doc-19.
-- anim-31 сужен до FK `Skeleton.update` (код есть); мазок/`SkinBlend`/`bindWeights` — anim-31a-n на старте фазы 3.
-- Дописаны зависимости doc-03 ← mesh-11, doc-07 ← mesh-22..26, ui-09 ← doc-07/syn-01, ui-26 ← doc-07, mat-01 ← doc-03/05; §4.1 пересчитан строго по ним (см. ниже).
-- `TriangleBvh` получил владельца: view-09 (в пакете словаря — после решения владельца `geometry`, зависит от doc-01 и p0-10), mesh-20 — `MeshBvh` поверх, зависит от view-09.
-- Г4/Ж2 закрыты в пользу своего `ParamHint` в core; `MaterialHint` — только панель материала (у `RangeHint` шаг есть, но нет целых, флагов, единиц; файл тянет `LightingModel`).
-- Счёт пакетов: qa-02 расширяет числительные до forty; §5.1, qa-16, rel-06 — 32 пакета; doc-01, ui-27, anim-17, pro-sim-01, fmt-24 несут сдвиг числа в приёмке.
-- doc-01 переносит `render/lighting_model.dart` и синхронную половину `model_loader.dart` (`ModelFormat`, `ModelDecoder`, `sniffModelFormat`, `decodeModel`), `kIsWeb` → `bool.fromEnvironment`; путь экземпции `ModelFormat` обновляется.
-- mat-03 зависит от doc-01; `editor_core` получает зависимость на пакет словаря (теперь `formats`), ярус в §16 — rel-03; В4 переписан.
-- Спайк сандбокса p0-13n в фазе 0; ui-14 native-ветка и ui-20 зависят от него; Е4 и §7 № 35 дополнены (`Release.entitlements`, `atomic_write.dart`).
-- §7 № 36: композиция ассетов из плана дизайна §1 против Ж4; условный doc-11a-n `ImportInto` в фазе 2; Ж4 помечен как расхождение.
-- mat-09n: чистый декодер PNG/JPEG для ноды Image (в дереве только `dart:ui` и писатель `cpu_png.dart`); mat-11 зависит от него; Г6 дополнен.
-- mesh-28 строит UV по углам как `Shape.build()`, mesh-29 сравнивает texcoord (1e-6), mesh-23 проверяет UV боковых квадов тестом; mesh-12 получил правило заполнения `uv0`.
-- §7 № 4: `LightBuffer.packFor` → `gatherNear`/`gatherNearFrom`.
-- §7 № 10 и К5: восемь committed-треков, девятый входит.
-- doc-29 → ARCHITECTURE §8.7, fmt-16 — §8.6 Writers; §7 № 2 согласован.
-- ui-15: `defaultStorage('flutter3d_modeler')` вместо `Storage(appName:)`.
-- Путь бенча — `packages/flutter3d/tool/bench`; приёмка mesh-03 и §6 № 1 — `bench_geometry.dart` AOT отдельным main.
-- ui-13: сегменты-кривые Безье с уплощением в полилинию для `LatheShape`, `AddLathe` хранит кривую, чипы «Точка / Кривая / Ось».
-- Ж7 без «невозможен»: градиент — `SkySettings` или unlit-квад; расхождение с README — §7 № 37.
-- Риск 28: пометка «не проверено» снята (`morph_texture.dart`), правило переехало в doc-14 (фаза 1).
-- qa-08: провенанс — `assets/ATTRIBUTION.md` пакета samples (критик назвал README; README на него ссылается, `LICENSES.md` только в apps).
-- view-06: размер S помечен условным с оценкой M по риску 9, если пункт срабатывает.
-- pro-eng-06: секция `LODS` = kind 24.
-- Недостающие аспекты: единицы и ось вверх при импорте (doc-11 `ImportOptions`, ui-16); иконки (ui-02, Е12n); необработанные исключения (ui-30n); пивот и `ApplyTransform` (doc-06, ui-17); drag-and-drop (ui-31n); лимиты входа (ui-16); совместная работа (pro-after-01); справка и клавиши (ui-32n); headless Godot в CI (qa-19n, К2).
+- В1 closed: writers fmt-01..09/12/15 moved into a pure vocabulary package
+  (then one, under a working name; with the owner decision below —
+  `formats`), fmt-13/14 stayed in the engine; fmt-06/08/09 depend on
+  doc-01; §3.1, §4.2, §5.1, §5.2, §6, and "In short" reconciled (the
+  pubspec's `flutter: sdk`, `flatDartPackages`).
+- Phase 1 got the mat-04a-n material panel; `SetTexture`/`AddImage` moved
+  from doc-25 into mat-01; §5.2's acceptance requires color and texture in
+  the GLB (the design plan: "Basic materials" in phase 1).
+- rel-04 no longer depends on doc-19: the `bin/model_mcp.dart --help` stub
+  is set up in rel-02, `tools/list` in the container is doc-19's
+  acceptance.
+- anim-31 narrowed to FK `Skeleton.update` (the code exists); the stroke/
+  `SkinBlend`/`bindWeights` measurement — anim-31a-n at phase-3 start.
+- Dependencies added: doc-03 ← mesh-11, doc-07 ← mesh-22..26, ui-09 ←
+  doc-07/syn-01, ui-26 ← doc-07, mat-01 ← doc-03/05; §4.1 recomputed
+  strictly against them (see below).
+- `TriangleBvh` got an owner: view-09 (in the vocabulary package — after
+  the owner's `geometry` decision, depends on doc-01 and p0-10), mesh-20 —
+  `MeshBvh` on top, depends on view-09.
+- Г4/Ж2 closed in favor of a dedicated `ParamHint` in core; `MaterialHint`
+  stays the material panel's only (`RangeHint` has a step but no integers,
+  flags, or units; the file pulls in `LightingModel`).
+- Package count: qa-02 extends the numerals to forty; §5.1, qa-16, rel-06 —
+  32 packages; doc-01, ui-27, anim-17, pro-sim-01, fmt-24 each carry an
+  acceptance-count shift.
+- doc-01 moves `render/lighting_model.dart` and `model_loader.dart`'s
+  synchronous half (`ModelFormat`, `ModelDecoder`, `sniffModelFormat`,
+  `decodeModel`), `kIsWeb` → `bool.fromEnvironment`; the `ModelFormat`
+  exemption path is updated.
+- mat-03 depends on doc-01; `editor_core` picks up a dependency on the
+  vocabulary package (now `formats`), the §16 tier — rel-03; В4 rewritten.
+- The p0-13n sandbox spike moved into phase 0; ui-14's native branch and
+  ui-20 depend on it; Е4 and §7 #35 expanded (`Release.entitlements`,
+  `atomic_write.dart`).
+- §7 #36: the design plan §1's asset composition against Ж4; a conditional
+  doc-11a-n `ImportInto` in phase 2; Ж4 flagged as a divergence.
+- mat-09n: a pure PNG/JPEG decoder for the Image node (the tree only has
+  `dart:ui` and the `cpu_png.dart` writer); mat-11 depends on it; Г6
+  expanded.
+- mesh-28 builds UV per corner like `Shape.build()`, mesh-29 compares
+  texcoord (1e-6), mesh-23 tests side-quad UV; mesh-12 got a `uv0`-fill
+  rule.
+- §7 #4: `LightBuffer.packFor` → `gatherNear`/`gatherNearFrom`.
+- §7 #10 and К5: eight committed tracks, a ninth joins.
+- doc-29 → ARCHITECTURE §8.7, fmt-16 — §8.6 Writers; §7 #2 agreed.
+- ui-15: `defaultStorage('flutter3d_modeler')` instead of
+  `Storage(appName:)`.
+- The bench path — `packages/flutter3d/tool/bench`; mesh-03's acceptance
+  and §6 #1 — `bench_geometry.dart` builds AOT as a separate main.
+- ui-13: Bézier curve segments flattened into a polyline for `LatheShape`,
+  `AddLathe` stores the curve, "Point / Curve / Axis" chips.
+- Ж7 with no "impossible": the gradient — `SkySettings` or an unlit quad;
+  the divergence from the README — §7 #37.
+- Risk 28: the "unchecked" flag removed (`morph_texture.dart`), the rule
+  moved into doc-14 (phase 1).
+- qa-08: provenance — the samples package's own `assets/ATTRIBUTION.md`
+  (the critique named the README; the README references it,
+  `LICENSES.md` only lives under apps).
+- view-06: size S flagged conditional, estimated M under risk 9 if the item
+  fires.
+- pro-eng-06: section `LODS` = kind 24.
+- Missing aspects: units and up axis on import (doc-11's `ImportOptions`,
+  ui-16); icons (ui-02, Е12n); uncaught exceptions (ui-30n); a pivot and
+  `ApplyTransform` (doc-06, ui-17); drag-and-drop (ui-31n); input limits
+  (ui-16); collaborative work (pro-after-01); help and hotkeys (ui-32n);
+  headless Godot in CI (qa-19n, К2).
 
-Критический путь после пересчёта: `qa-01 → qa-02 → mesh-01 → mesh-02 →
+The critical path after recomputation: `qa-01 → qa-02 → mesh-01 → mesh-02 →
 mesh-10 → mesh-11 → mesh-12 → mesh-13 → mesh-25 → doc-07 → doc-20 → rel-09 →
-rel-16`, 4 S + 8 M + 1 L ≈ 29 недель — число прежнее, состав другой (см. §4.1).
-Счётчики: 317 + 3 + 9 пунктов, 37 расхождений, 84 открытых вопроса, 32 пакета
-к концу фазы 0 (числа на момент этой ревизии; после решений владельца ниже —
-другие).
+rel-16`, 4 S + 8 M + 1 L ≈ 29 weeks — the same number, different content
+(see §4.1). Counters: 317 + 3 + 9 items, 37 divergences, 84 open questions,
+32 packages by the end of phase 0 (numbers as of this revision; different
+after the owner decisions below).
 
-### 2026-09-09 — решения владельца
+### 2026-09-09 — owner decisions
 
-Двадцать ответов Дмитрия на вопросы §8; каждое внесено как факт с пометкой
-«решение 2026-09-09». Одна строка на решение и что оно изменило в плане.
+Twenty answers from Dmitrii to §8's questions; each entered as fact, marked
+"2026-09-09 decision." One line per decision and what it changed in the
+plan.
 
-- Код живёт в этом монорепозитории (В5 закрыт): пакеты входят в workspace, сканер, CI и порядок публикации §16; §5.1 «Решения до старта: нет».
-- Веб — равноправная платформа с первой версии (Е1 закрыт): p0-02/p0-08 переписаны как ворота качества, непройденный порог становится пунктом фазы 1; §1 п. 3, §5.1, §7 № 11 согласованы. Заморозка с прогрессом допустима (Е11 закрыт), web worker — условный пункт фазы 1 ui-34d (сноска ⁸), §7 № 31 дополнен.
-- Фаза 1 выходит на macOS, вебе, Android и iOS: ui-21 перенесён из фазы 2 в 1 (сноска ⁴), §7 № 34 закрыт; iPad и аккаунт Apple Developer — rel-19d до середины фазы 1 (А2, Е8 закрыты); подпись macOS — «правый клик → Open».
-- Русский и английский с первой версии (Е2 закрыт), ядро/MCP/`says` — английский (Г4 подтверждён); ui-22 и приёмка §5.2 дополнены.
-- Отмена для мешей — персистентные значения со структурным разделением (Б3 закрыт); разбивку меряет p0-05.
-- Неманифолдный вход расщепляется при импорте и помечается как проблема (Б1 закрыт; mesh-13/27).
-- Скульптинг — `SculptMesh` с мультиразрешением (Б8/Б9 закрыты); экран 08 получает «Подразбить» вместо «плотности» (§3.1, §5.5).
-- Формат проекта — `.f3dproj` с историей (Г2 изменён): doc-31d (секция `history`, шаг = `says` + команда + ссылка на чанки-блобы, лимит Г5 на файл), ui-33d («сохранить без истории»); журнал doc-16 остаётся; приёмка §5.2 — сохранить → открыть → отменить три шага.
-- Граф нод — компоновщик текстур с фиксированным набором нод (Ж1 закрыт); ROADMAP переформулируется на ревизии 28 сентября (§7 № 3, §5.1).
-- Режим «Сцена» фазы 2 = свет/окружение/тени/пост плюс расстановка ассетов (Ж4 и §7 № 36 закрыты): doc-11a-n безусловно (сноска ⁶), mat-24 расширен расстановкой и экспортом сцены одним GLB; приёмка §5.3 дополнена.
-- «Рендер» экрана 12 — снимок тем же рендерером с суперсэмплингом и проходами frame graph (pro-rn-02); трассировщик вне плана; §5.5.
-- Иконки — `Icons` из SDK с таблицей соответствия (Е12n закрыт); §7 № 37 помечен, градиент Ж7 открыт.
-- Словарь — два пакета вместо одного: `flutter3d_geometry` и `flutter3d_formats` (В1 переписан): §1 п. 1, обозначения, §3.1, §5.1, §6 № 1/2–10/12/15/20 и столбцы «пакет», §7 № 24/28, В4; 33 пакета к концу фазы 0, порядок публикации geometry → formats → flutter3d; прежнего рабочего имени в файле не осталось.
-- Первая публикация — когда фаза 1 в руках у первых пользователей (В8 закрыт); 27 декабря целью не является; rel-06 после rel-16, §4.3.
-- Состав — один человек с агентами (§4.3 переписан): календарь фазы 1 = сумма размеров (S = 1, M = 2,5, L = 5 недель) — 73 S + 44 M + 3 L ≈ 198 недель; с агентами на дорожках форматов, оверлеев, платформ и локализации ≈ 172 (предположение, проверяется первой дорожкой); таблица «1 / 2 / 3 человека» снята; §1 п. 2.
-- Экспорт при ошибке проверки — предупредить и экспортировать с подтверждением, отказ только при пустой геометрии (Г9 закрыт); приёмка §5.2.
-- Горячие клавиши — Blender-подобные (Е5 закрыт); приёмка §5.2, ui-32n.
-- FBX — свой читатель на Dart (Д7 изменён): fmt-24/25 в фазе 2 отдельной дорожкой после rel-16 (fmt-25 из фазы 3 — сноска ⁵), fmt-26 снят (сноска ⁷), пакет `flutter3d_fbx` — fmt-29d; §6 говорит, что это не правка движка; §7 № 12/28.
-- Ткань — отдельный солвер `flutter3d_cloth` в фазе 4 (В3/И1 закрыты); §7 № 5.
-- Проверка экспорта во внешнем движке — headless Godot в CI (qa-19n) плюс ручной чек-лист Unity/Blender перед релизом (К2 закрыт).
+- The code lives in this monorepo (В5 closed): the packages join the
+  workspace, the scanner, CI, and the §16 publishing order; §5.1 "Decisions
+  before starting: none."
+- The web is an equal-footing platform from the first version (Е1 closed):
+  p0-02/p0-08 rewritten as quality gates, an unmet threshold becomes a
+  phase-1 item; §1 item 3, §5.1, §7 #11 aligned. A freeze with progress is
+  acceptable (Е11 closed), a web worker is a conditional phase-1 item
+  ui-34d (footnote ⁸), §7 #31 expanded.
+- Phase 1 ships on macOS, the web, Android, and iOS: ui-21 moved from
+  phase 2 into 1 (footnote ⁴), §7 #34 closed; an iPad and an Apple
+  Developer account — rel-19d by mid-phase-1 (А2, Е8 closed); macOS
+  signing — "right-click → Open."
+- Russian and English from the first version (Е2 closed), the core/MCP/
+  `says` — English (Г4 confirmed); ui-22 and §5.2's acceptance expanded.
+- Undo for meshes — persistent values with structural sharing (Б3 closed);
+  the split is measured by p0-05.
+- Non-manifold input splits on import and is flagged as a problem (Б1
+  closed; mesh-13/27).
+- Sculpting — `SculptMesh` with multiresolution (Б8/Б9 closed); screen 08
+  gets "Subdivide" instead of "density" (§3.1, §5.5).
+- The project format — `.f3dproj` with history (Г2 amended): doc-31d (a
+  `history` section, a step = `says` + the command + a reference to blob
+  chunks, the Г5 limit applied to the file), ui-33d ("save without
+  history"); the doc-16 journal stays; §5.2's acceptance — save → open →
+  undo three steps.
+- The node graph — a texture compositor with a fixed node set (Ж1 closed);
+  the ROADMAP is reworded at the September 28 review (§7 #3, §5.1).
+- Phase-2 "Scene" mode = light/environment/shadows/post plus placing
+  assets (Ж4 and §7 #36 closed): doc-11a-n unconditional (footnote ⁶),
+  mat-24 extended with placement and exporting the scene as one GLB;
+  §5.3's acceptance expanded.
+- Screen 12's "Render" — a snapshot from the same renderer with
+  supersampling and frame-graph passes (pro-rn-02); a path tracer is out
+  of scope; §5.5.
+- Icons — the SDK's `Icons` with a mapping table (Е12n closed); §7 #37
+  flagged, the Ж7 gradient stays open.
+- The vocabulary — two packages instead of one: `flutter3d_geometry` and
+  `flutter3d_formats` (В1 rewritten): §1 item 1, notation, §3.1, §5.1, §6
+  #1/2–10/12/15/20 and the "package" columns, §7 #24/28, В4; 33 packages by
+  the end of phase 0, publishing order geometry → formats → flutter3d; no
+  trace of the earlier working name is left in the file.
+- The first publish — once phase 1 is in the hands of its first users (В8
+  closed); December 27 is not the target; rel-06 after rel-16, §4.3.
+- Team — one person with agents (§4.3 rewritten): phase 1's calendar =
+  the sum of sizes (S = 1, M = 2.5, L = 5 weeks) — 73 S + 44 M + 3 L ≈ 198
+  weeks; with agents on the format, overlay, platform, and localization
+  tracks ≈172 (an estimate, checked by the first track); the "1 / 2 / 3
+  people" table is dropped; §1 item 2.
+- Export on a check failure — warn and export with confirmation, refuse
+  only on empty geometry (Г9 closed); §5.2's acceptance.
+- Hotkeys — Blender-like (Е5 closed); §5.2's acceptance, ui-32n.
+- FBX — its own reader in Dart (Д7 amended): fmt-24/25 in phase 2, a
+  separate track after rel-16 (fmt-25 moved from phase 3 — footnote ⁵),
+  fmt-26 dropped (footnote ⁷), the package `flutter3d_fbx` — fmt-29d; §6
+  says this isn't an engine change; §7 #12/28.
+- Cloth — a separate `flutter3d_cloth` solver in phase 4 (В3/И1 closed);
+  §7 #5.
+- Checking export in an external engine — headless Godot in CI (qa-19n)
+  plus a manual Unity/Blender checklist before release (К2 closed).
 
-Первый прогон внесения этих решений упал на лимите после 57 правок (§1–§5
-и таблицы §2 были готовы); §6, §7, §8, §10, хвосты прежнего имени пакета и
-проработка doc/model-editor.md доделаны вторым прогоном в тот же день.
+The first pass at entering these decisions hit a limit after 57 edits
+(§1–§5 and the §2 tables were done); §6, §7, §8, §10, the remaining traces
+of the earlier package name, and the doc/model-editor.md working-through
+were finished in a second pass the same day.
 
-Счётчики после решений: 317 + 3 + 9 + 5 пунктов (`-d`: doc-31d, ui-33d,
-ui-34d, rel-19d, fmt-29d), 37 расхождений (№ 34 и № 36 закрыты), 63 открытых
-вопроса из 87, 33 пакета к концу фазы 0, фаза 1 — ≈ 198 недель одного
-человека или ≈ 172 с агентами.
+Counters after the decisions: 317 + 3 + 9 + 5 items (`-d`: doc-31d,
+ui-33d, ui-34d, rel-19d, fmt-29d), 37 divergences (#34 and #36 closed), 63
+open questions out of 87, 33 packages by the end of phase 0, phase 1 —
+≈198 weeks for one person, or ≈172 with agents.
 
-Сверка после второго прогона (тот же день): пятнадцать хвостов, где текст
-ещё держал прежние развилки; каждый проверен по файлу до правки. Одна строка
-на находку.
+A check after the second pass (same day): fifteen loose ends where the
+text still held earlier forks; each checked against the file before the
+edit. One line per finding.
 
-- Счёт фазы 1 пересчитан по таблицам §2 теми же правилами §4.3: 73 S, а не 72 — итого 120 пунктов, ≈ 198 недель (≈ 202 с условными), с агентами ≈ 172; §1 п. 2, §4.3 и счётчики здесь поправлены.
-- Кто закрыл Г4: §1 п. 8 приведён к §8 (В1, Ж2 и Г4 — по критике, ещё 21 — решениями владельца); в §5.2 Г4 вынесен из «решениями владельца» в «по критике, подтверждён владельцем»; счётчик ревизии по критике — 84 открытых, не 85.
-- Риск 12 больше не говорит «веб как просмотр допустим планом дизайна»: веб равноправен (Е1), при заморозке дольше 1 с — ui-34d в фазе 1.
-- Риск 5: headless Godot в CI (qa-19n) отделён от ручного чек-листа Unity/Blender, как записано в К2.
-- rel-05: место в поезде считается до набора, в котором выходит rel-06 (после rel-16), а не до 27 декабря (В8); пакетов пять, с geometry/formats.
-- Г1 больше не держит расширение файла проекта открытым: `.f3dproj` закрыт Г2, в Г1 остались магия и место автосохранения; doc-09 и §5.2 «Решения до старта» согласованы.
-- А4 переформулирован: порог выбирает бюджет веб-профиля (1 млн или ≤300k, p0-02), а не статус платформы — равноправие веба от порога не зависит (Е1).
-- §2.11: в списке свободных имён на pub.dev вместо снятых `flutter3d_model`/`flutter3d_asset_core` — принятые `flutter3d_formats`, `flutter3d_fbx`, `flutter3d_cloth` (все пять отвечают 404 на `pub.dev/api/packages`, проверено 2026-09-09).
-- А2 ссылался на «строку §7 проработки для iPad», которой нет: замер iPad живёт в p0-03 и в таблице фазы 0 doc §6.
-- rel-11: подпись и нотаризация не в фазе 1, релиз открывается «правый клик → Open» (Е8); приёмка говорит то же.
-- Проработка doc §6, фаза 0: строка 0.5 и абзац после таблицы не оставляют вебу выход в «просмотр» — непройденный порог становится пунктом фазы 1 (§7).
-- Проработка doc §6, конец фазы 1: «работа для второго человека» заменена на дорожки для агентов при одном исполнителе (решение 15, план §4.2–4.3).
-- Проработка doc §6: 1.9 (писатели и `StlLoader`) стоит в `formats` и зависит от doc-01, 0.4 называет пять новых пакетов, заголовок §5.4 — «Что добавить в движок и словарь».
-- Проработка doc §2, экран 08: «динамическая плотность» заменена мультиразрешением с кнопкой «Подразбить» (Б9).
-- Проработка doc §1 и §4: у §4.1 и §4.2 появились абзацы «Решение принято 2026-09-09» по образцу §4.3, §1 говорит «все три решены», а не «с рекомендацией».
+- Phase 1's count recomputed from the §2 tables under the same §4.3 rules:
+  73 S, not 72 — 120 items total, ≈198 weeks (≈202 with conditionals),
+  ≈172 with agents; §1 item 2, §4.3, and the counters here corrected.
+- Who closed Г4: §1 item 8 brought in line with §8 (В1, Ж2, and Г4 — by
+  critique, 21 more — by owner decisions); in §5.2, Г4 moved from "by owner
+  decision" to "by critique, confirmed by the owner"; the critique
+  revision's counter — 84 open, not 85.
+- Risk 12 no longer says "the design plan allows the web as view-only":
+  the web is equal footing (Е1), a freeze longer than 1 s → ui-34d in
+  phase 1.
+- Risk 5: headless Godot in CI (qa-19n) separated from the manual
+  Unity/Blender checklist, as recorded in К2.
+- rel-05: a train slot is counted up to the set rel-06 ships in (after
+  rel-16), not up to December 27 (В8); five packages, including
+  geometry/formats.
+- Г1 no longer keeps the project-file extension open: `.f3dproj` is
+  closed by Г2, Г1 keeps only the magic number and the autosave location;
+  doc-09 and §5.2's "Decisions before starting" reconciled.
+- А4 reworded: the threshold picks the web-profile budget (1M or ≤300k,
+  p0-02), not the platform's status — the web's equal footing doesn't
+  depend on the threshold (Е1).
+- §2.11: the pub.dev free-name list swaps the dropped
+  `flutter3d_model`/`flutter3d_asset_core` for the accepted
+  `flutter3d_formats`, `flutter3d_fbx`, `flutter3d_cloth` (all five answer
+  404 at `pub.dev/api/packages`, checked 2026-09-09).
+- А2 referenced "a working-through §7 line for the iPad" that doesn't
+  exist: the iPad measurement lives in p0-03 and the phase-0 table in doc
+  §6.
+- rel-11: signing and notarization aren't in phase 1, the release opens
+  via "right-click → Open" (Е8); the acceptance says the same.
+- The doc §6 working-through, phase 0: row 0.5 and the paragraph after the
+  table give the web no "view-only" exit — an unmet threshold becomes a
+  phase-1 item (§7).
+- The doc §6 working-through, end of phase 1: "work for a second person"
+  replaced by agent tracks under one executor (decision 15, plan
+  §4.2–4.3).
+- The doc §6 working-through: 1.9 (writers and `StlLoader`) sits in
+  `formats` and depends on doc-01, 0.4 names the five new packages, §5.4's
+  heading — "What to add to the engine and vocabulary."
+- The doc §2 working-through, screen 08: "dynamic density" replaced by
+  multiresolution with a "Subdivide" button (Б9).
+- The doc §1 and §4 working-through: §4.1 and §4.2 gained "Decision made
+  2026-09-09" paragraphs following §4.3's pattern, §1 says "all three
+  resolved," not "with a recommendation."
 
-### 2026-09-09 — что решила фаза 0
+### 2026-09-09 — what phase 0 decided
 
-Замеры сняты, числа и способ их получения — в проработке `doc/model-editor.md`
-§6. Ниже только то, что они изменили в этом плане; строки таблиц §2 при
-следующей ревизии приводятся к этому.
+The measurements are taken; the numbers and how they were obtained are in
+the `doc/model-editor.md` working-through §6. Below is only what they
+changed in this plan; the §2 table rows are brought in line with this at
+the next revision.
 
-- **p0-05 отменяет чанки.** Copy-on-write по чанкам проходит только кластерную
-  правку (1–2 % копии) и проваливает рассеянную (92–100 %); журнал прежних
-  значений стоит 2 % в обоих. `mesh-10` — плоские `Float32List` плюс журнал
-  `(индексы, прежние значения)`, а не `PersistentFloat32Vector`; `mesh-02`
-  закрыт этим замером. Приёмка `doc-31d` про «`identical` нетронутых чанков»
-  переписывается на журнал: у него нет версий-значений, старое состояние
-  существует через откат.
-- **p0-06 выносит `view-14` из фазы 1 в фазу 4.** `DeviceMesh.upload` целого
-  меша в кадр стоит 1,24 мс на 200 тыс. треугольников и 5,39 мс на миллионе —
-  порог был 16,6. Частичная перезапись буфера (`overwriteGeometry`, четыре
-  бэкенда, конформанс-проверка `qa-11`) не нужна для интерактивности фазы 1.
-- **p0-10 оставляет пикинг на CPU.** Луч через `TriangleBvh` — 2,2–3,8 мкс
-  против 1,2–23 мс перебором; build 200 тыс. — 61 мс. Ни id-прохода граней, ни
-  поиска по окрестности half-edge в фазе 2 не потребуется. Реализация уже
-  лежит в `flutter3d_geometry` (`view-09` получил её из p0-10, как и
-  планировалось), с тестом против перебора.
-- **p0-11 подтверждает API на значениях до 200 тыс. треугольников** (весь путь
-  правка → пересборка → загрузка — 1,8 мс, ноль медленных кадров) и включает
-  `toMeshData(into:)` из `mesh-14` для миллиона (12 % кадров опаздывают).
-- **p0-07 разрешает обе стратегии**: изолят на native не стоит ничего
-  измеримого, нарезка на 32 порции даёт худший кусок 2,1 мс. Операции пишутся
-  пошаговыми с первого дня; `ui-34d` остаётся условным.
-- **p0-02 переводит веб фазы 1 на dart2js.** Под `--wasm` приложение не
-  стартует, тот же код в JS работает — это записанное исключение
-  ARCHITECTURE §1, предусмотренное порогом. Причина отказа wasm заводится
-  отдельным пунктом фазы 1; кадровые числа в браузере снимаются
-  `profile_web.py` и в этом плане пока отсутствуют.
-- **p0-13n: контейнер macOS годится полностью** — и прямая запись, и
-  «временный файл + rename». Автосохранение (`ui-18`) пишет туда. Запись в
-  файл, выбранный в панели, остаётся ручной проверкой в одну минуту.
-- **anim-31: FK — 17,5 мкс на позу из 64 костей**, снято тестом, а не
-  AOT-бенчем: `Skeleton` тянет `Scene` → `flutter3d_hardware` → Flutter SDK.
-  Сравнимым с §14 `ARCHITECTURE.md` это станет только после `anim-02`.
-- **Не снято и остаётся за фазой 0**: p0-03 (Galaxy A55 и iPad — нужны
-  устройства), кадровые числа в браузере, ручная запись через панель macOS и
-  `syn-02` (два макета экранов — работа дизайна).
-
+- **p0-05 cancels chunks.** Copy-on-write chunking only handles a clustered
+  edit (1–2% of a copy) and fails a scattered one (92–100%); a log of prior
+  values costs 2% in both. `mesh-10` is flat `Float32List`s plus a
+  `(indices, prior values)` log, not `PersistentFloat32Vector`; `mesh-02`
+  is closed by this measurement. `doc-31d`'s acceptance about "`identical`
+  untouched chunks" is rewritten for the log: it has no versioned values,
+  the old state exists through rollback.
+- **p0-06 moves `view-14` from phase 1 to phase 4.** `DeviceMesh.upload` of
+  a whole mesh per frame costs 1.24 ms at 200,000 triangles and 5.39 ms at
+  a million — the threshold was 16.6. A partial buffer overwrite
+  (`overwriteGeometry`, four backends, the `qa-11` conformance check)
+  isn't needed for phase-1 interactivity.
+- **p0-10 keeps picking on the CPU.** A ray through `TriangleBvh` is
+  2.2–3.8 μs against 1.2–23 ms by brute force; a 200,000-triangle build is
+  61 ms. Neither a face id pass nor a half-edge neighborhood search will
+  be needed in phase 2. The implementation already sits in
+  `flutter3d_geometry` (`view-09` got it from p0-10, as planned), with a
+  test against brute force.
+- **p0-11 confirms an API over values up to 200,000 triangles** (the whole
+  edit → rebuild → upload path is 1.8 ms, zero slow frames) and brings in
+  `toMeshData(into:)` from `mesh-14` for a million (12% of frames run
+  late).
+- **p0-07 allows both strategies**: an isolate on native costs nothing
+  measurable, slicing into 32 chunks gives a worst chunk of 2.1 ms.
+  Operations are written step-based from day one; `ui-34d` stays
+  conditional.
+- **p0-02 puts phase-1 web on dart2js.** The app doesn't start under
+  `--wasm`, the same code works in JS — ARCHITECTURE §1's own recorded
+  exception, anticipated by the threshold. The wasm failure's cause becomes
+  its own phase-1 item; browser frame numbers are taken by `profile_web.py`
+  and are still absent from this plan.
+- **p0-13n: the macOS container works fully** — both a direct write and
+  "temp file + rename." Autosave (`ui-18`) writes there. Writing to a file
+  chosen in the panel stays a one-minute manual check.
+- **anim-31: FK is 17.5 μs per pose across 64 bones**, taken by a test, not
+  an AOT bench: `Skeleton` pulls in `Scene` → `flutter3d_hardware` → the
+  Flutter SDK. This becomes comparable to `ARCHITECTURE.md` §14's own table
+  only after `anim-02`.
+- **Not measured, and staying outside phase 0**: p0-03 (a Galaxy A55 and an
+  iPad are needed), browser frame numbers, a manual write through the
+  macOS panel, and `syn-02` (two screen mockups — design work).
