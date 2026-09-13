@@ -1,2747 +1,2811 @@
-# Время как объект — план трека прорыва в тулинге
+# Time as an object — the tooling breakthrough track's plan
 
-Свод от 2026-09-11. Основание — решения владельца 2026-09-11 после трёх серий
-вопросов (44 вопроса: о монетизации, о тулинге относительно fscene.dev, о
-прорывной фиче и неигровых применениях; ответы — в §3). Всё, что сказано о
-коде, проверено по дереву на ветке `modeler` в тот же день.
+Compiled 2026-09-11. Grounded in the owner's own 2026-09-11 decisions after
+three rounds of questions (44 questions: on monetization, on tooling relative
+to fscene.dev, on the breakthrough feature and non-game uses; answers in
+§3). Everything said about the code was checked against the tree on the
+`modeler` branch the same day.
 
-Обозначения — как в [model-editor-plan.md](model-editor-plan.md) и
-[asset-pipeline-plan.md](asset-pipeline-plan.md): **р.** — размер для одного
-человека (S — до недели, M — две–три, L — месяц и больше); **⚙** — правка
-движка; **⇢ X** — пункт поглощает пункт X другого плана или раздел ROADMAP.
-Пакеты: `sim` = `flutter3d_sim`, `session` = `flutter3d_session`, `testing` =
-`flutter3d_testing`, `cpu` = `flutter3d_cpu`, `net` = новый `flutter3d_net`,
-`editor` = `apps/flutter3d_editor`, `modeler` = `apps/flutter3d_modeler`,
-`editor_mcp` = `flutter3d_editor_mcp`, `cloud` = `cloud/server`, `site` =
-`site/content`, `build` = `flutter3d_build` из плана ассетов.
-
----
-
-## 1. Коротко
-
-1. **Ставка.** Одна большая на шесть месяцев: запись, воспроизведение,
-   перемотка, ветвление и обмен прогонами, встроенные в рантайм, редакторы,
-   облако и MCP. Из неё вырастают rollback-неткод, баг-репорт как файл,
-   перемотка с правкой уровня, агент-плейтестер, виртуальные лабораторные и
-   сценарии «что если» для двойников. Ни у fscene, ни у Unity, ни у Godot этого
-   нет, потому что их симуляции недетерминированы; у нас детерминизм доказан и
-   записан (`StateDigest`, `Demo`, `RewindBuffer` в `sim`).
-2. **Вторая ставка, параллельно.** Flutter-виджеты на 3D-поверхностях с
-   вводом. Единственная фича, которую движок не на Flutter повторить не может;
-   нужна одновременно просмотрщику товара, панели оператора в двойнике и
-   учебному стенду. `WidgetTexture` в `session` уже рисует виджет в текстуру,
-   но один раз и без ввода.
-3. **Паритет с fscene режем до трёх пунктов**, без которых ставку не показать:
-   hot reload моделей и текстур, диагностический MCP со снимком кадра, agent
-   skills для пользователей. Скачиваемые сборки редакторов, плагин IDE и
-   конвейер выкладки в сторы — отложены (§7).
-4. **Один документ для трёх сегментов.** «Интерактив» для преподавателя,
-   просмотрщик товара и панель двойника — один формат: модель, разборка по
-   слоям, аннотации, шаги, привязка свойств к данным. Аннотации и шаги —
-   обычные виджеты, поэтому это второй аргумент за вторую ставку.
-5. **Продающее демо** (§6): две машины играют в гонки по сети, игрок присылает
-   ссылку на прогон, разработчик отматывает к кадру в редакторе, правит трассу,
-   пересимулирует, агент за ночь прогоняет двести заездов без GPU и отдаёт
-   отчёт. Это видео ни один другой движок снять не может.
-6. **Сроки.** Две дорожки для двух человек плюс агенты. Критический путь
-   каждой дорожки ≈ 16 недель (§5), в полгода укладываются обе. Сумма всех
-   пунктов кода — 14 S, 15 M, 3 L ≈ 66 недель одного человека без параллели.
+Notation — as in [model-editor-plan.md](model-editor-plan.md) and
+[asset-pipeline-plan.md](asset-pipeline-plan.md): **size** — how big for one
+person (S up to a week, M two to three, L a month or more); **⚙** — an
+engine change; **⇢ X** — an item absorbs item X from another plan or a
+ROADMAP section. Packages: `sim` = `flutter3d_sim`, `session` =
+`flutter3d_session`, `testing` = `flutter3d_testing`, `cpu` = `flutter3d_cpu`,
+`net` = the new `flutter3d_net`, `editor` = `apps/flutter3d_editor`,
+`modeler` = `apps/flutter3d_modeler`, `editor_mcp` = `flutter3d_editor_mcp`,
+`cloud` = `cloud/server`, `site` = `site/content`, `build` =
+`flutter3d_build` from the asset plan.
 
 ---
 
-## 2. Что есть сейчас
+## 1. In short
 
-| Что | Где | Состояние |
+1. **The bet.** One big bet, six months: recording, playback, scrubbing,
+   branching and sharing runs, built into the runtime, the editors, the
+   cloud and MCP. Rollback netcode, a bug report as a file, scrubbing with a
+   level edit, an agent playtester, virtual labs and "what if" scenarios for
+   twins all grow out of it. Neither fscene, nor Unity, nor Godot has this,
+   because their simulations are non-deterministic; ours has proven,
+   recorded determinism (`StateDigest`, `Demo`, `RewindBuffer` in `sim`).
+2. **A second bet, in parallel.** Flutter widgets on 3D surfaces with input.
+   The one feature an engine not built on Flutter cannot match; needed at
+   once by a product viewer, an operator panel on a twin, and a teaching
+   stand. `WidgetTexture` in `session` already draws a widget into a
+   texture, but once, with no input.
+3. **Parity with fscene is trimmed to three items**, without which the bet
+   cannot be shown at all: hot reload for models and textures, a
+   diagnostic MCP with a frame snapshot, agent skills for users.
+   Downloadable editor builds, an IDE plugin and a store-publishing
+   pipeline are deferred (§7).
+4. **One document for three segments.** An "interactive" for an instructor,
+   a product viewer and a twin's panel are one format: a model,
+   layer-by-layer disassembly, annotations, steps, property-to-data
+   bindings. Annotations and steps are ordinary widgets, which is the
+   second argument for the second bet.
+5. **The selling demo** (§6): two machines race over the network, a player
+   sends a link to their run, the developer scrubs to the frame in the
+   editor, edits the track, re-simulates, an agent runs two hundred races
+   overnight with no GPU and hands back a report. No other engine can shoot
+   this video.
+6. **Timing.** Two tracks for two people plus agents. Each track's critical
+   path is ≈ 16 weeks (§5); both fit inside half a year. The sum of every
+   code item is 14 S, 15 M, 3 L ≈ 66 weeks for one person with no
+   parallelism.
+
+---
+
+## 2. What exists now
+
+| What | Where | State |
 |---|---|---|
-| Фиксированный шаг и цикл | `FixedStep`, `GameLoop` в `sim/loop/` | есть, без Flutter |
-| Снимок состояния | `Snapshot` в `sim/save/snapshot.dart` | есть; восстанавливает в уже существующие объекты, в свежезагруженный уровень — забота вызывающего |
-| Лента ввода | `InputTape`, `InputTapeRecorder`, `InputTapePlayback` в `sim/input/input_tape.dart` | есть; переходы, а не удержания, оси каждый шаг |
-| Прогон как файл | `Demo` в `sim/save/demo.dart`, `DemoFile` в `flutter3d_screens` | есть: снимок + лента; хранится на платформе рядом с сейвом |
-| Перемотка | `RewindBuffer`, `RewindPoint` в `sim/save/rewind.dart` | есть: кадр раз в секунду, шаги между ними, `cut()` для ветки; используется для kill-камеры |
-| Дайджест и трасса | `StateDigest`, `DigestTrace` в `sim/save/state_digest.dart` | есть; хеш битов IEEE-754, стабилен между VM и web по замыслу |
-| Призрак | `Tape`, `Recorder`, `Playback` в `sim/save/` | есть; позиции, не симуляция — переживает тюнинг |
-| Кадр без GPU | `renderFrame` в `testing`, `CpuDevice` в `cpu` | есть; pixel-тесты игры на машине без видеокарты |
-| Виджет в текстуру | `WidgetTexture` в `session/widget_texture.dart` | есть; свой `BuildOwner` и `PipelineOwner`, рисует один раз, ввода нет |
-| Запущенная игра | `RunSession`, `RunPlaying` в `session` | есть; редактор держит живой уровень тем же способом |
-| MCP-серверы | `editor_mcp`, `flutter3d_model_mcp` | есть; stdio, один документ на процесс, без окна и GPU; подключение к открытому редактору — в ROADMAP |
-| Стерео | `StereoRig`, `StereoSurface`, `StereoViewer` в `flutter3d_stereo` | есть; `flutter3d_xr` — пустой каталог с мусором сборки |
-| Твёрдые тела | `RigidBody`, `dynamics.dart` в `flutter3d_physics` | без вращения и суставов, намеренно; вторая фаза — «после квартала» |
-| Облако | `cloud/server` | аккаунт, модели, страница модели, blob по SHA-256; прогонов и команд нет |
-| Веб-сборки редакторов | `apps/flutter3d_editor/web`, `apps/flutter3d_modeler/web` | есть |
-| Сайт | `site/content/{core,platformer,racing,shooter,strategy,reference}` | гайды и туториалы по жанрам; живых демо в гайдах нет |
-| Сеть | — | ничего; лочстеп — второй уровень ROADMAP, пункт 2 |
-| Проверка планов | `tool/verify_plan.dart` | читает только `model-editor-plan.md`; этот план, как и план ассетов, ей не виден |
+| A fixed step and loop | `FixedStep`, `GameLoop` in `sim/loop/` | exists, no Flutter |
+| A state snapshot | `Snapshot` in `sim/save/snapshot.dart` | exists; restores into already-existing objects — restoring into a freshly loaded level is the caller's own job |
+| An input tape | `InputTape`, `InputTapeRecorder`, `InputTapePlayback` in `sim/input/input_tape.dart` | exists; transitions, not holds, an axis every step |
+| A run as a file | `Demo` in `sim/save/demo.dart`, `DemoFile` in `flutter3d_screens` | exists: a snapshot + a tape; stored on the platform next to a save |
+| Scrubbing | `RewindBuffer`, `RewindPoint` in `sim/save/rewind.dart` | exists: a keyframe once a second, steps between them, `cut()` for a branch; used for the kill-cam |
+| A digest and a trace | `StateDigest`, `DigestTrace` in `sim/save/state_digest.dart` | exists; an IEEE-754-bit hash, stable between the VM and the web by design |
+| A ghost | `Tape`, `Recorder`, `Playback` in `sim/save/` | exists; positions, not the simulation — survives tuning |
+| A frame with no GPU | `renderFrame` in `testing`, `CpuDevice` in `cpu` | exists; pixel tests for a game on a machine with no graphics card |
+| A widget into a texture | `WidgetTexture` in `session/widget_texture.dart` | exists; its own `BuildOwner` and `PipelineOwner`, draws once, no input |
+| A running game | `RunSession`, `RunPlaying` in `session` | exists; the editor holds a live level the same way |
+| MCP servers | `editor_mcp`, `flutter3d_model_mcp` | exist; stdio, one document per process, no window and no GPU; connecting to an open editor is on the ROADMAP |
+| Stereo | `StereoRig`, `StereoSurface`, `StereoViewer` in `flutter3d_stereo` | exists; `flutter3d_xr` is an empty directory holding build junk |
+| Rigid bodies | `RigidBody`, `dynamics.dart` in `flutter3d_physics` | no rotation and no joints, deliberately; the second phase is "after the quarter" |
+| The cloud | `cloud/server` | an account, models, a model page, a blob by SHA-256; no runs and no commands |
+| Editor web builds | `apps/flutter3d_editor/web`, `apps/flutter3d_modeler/web` | exist |
+| The site | `site/content/{core,platformer,racing,shooter,strategy,reference}` | genre guides and tutorials; no live demos inside the guides |
+| Networking | — | nothing; lockstep is the ROADMAP's second-tier item 2 |
+| Checking the plans | `tool/verify_plan.dart` | reads only `model-editor-plan.md`; this plan, like the asset plan, is invisible to it |
 
 ---
 
-## 3. Решения, на которых стоит план
+## 3. The decisions this plan is built on
 
-Приняты владельцем 2026-09-11. Три серии вопросов; здесь только то, что
-меняет тулинг. Решения о монетизации входят как ограничения.
+Made by the owner on 2026-09-11. Three rounds of questions; only what
+changes tooling is here. Monetization decisions enter as constraints.
 
-| Вопрос | Решение |
+| Question | Decision |
 |---|---|
-| Прорывная фича | **Одна большая ставка на 6 месяцев**, паритет режем; целевая аудитория — гейм-разработчики, в том числе не из Flutter |
-| Кандидаты на базе детерминизма | **Все четыре**: rollback-неткод, перемотка с баг-репортом как реплеем, агент-плейтестер, golden-тесты и серверный рендер |
-| Кандидаты в авторинге | **Все четыре**: совместное редактирование, виджеты в 3D, живые данные в сцене, уроки в редакторе — но в этом плане только виджеты и живые данные; совместное редактирование и уроки — §7 |
-| Паритет с fscene за 3 месяца | Выбраны все четыре; **план оставляет три** (hot reload, диагностика, skills) и откладывает скачиваемые сборки |
-| Шаблоны | `init --template=<жанр>`, мастер в редакторе, неигровые, из облака — **в этом порядке**, неигровые после виджетов |
-| Примеры | **Галерея живых демо в браузере с кнопкой «открыть в веб-редакторе»** |
-| Витрина | Четыре демо **на веб сразу**, сторы следом |
-| Образование | Интерактив из модельера без кода, LMS, виртуальные лабораторные, стерео — **все**; первичны вузы, школы, корпоративное обучение, онлайн-платформы |
-| Двойники | Устройство, здание, территория, «что если» — **все**; план начинает с устройства и «что если», здание и территория — §7 |
-| Другие применения | Роботика, медицина, архитектура, научная графика — держать в поле зрения, отдельных пунктов нет |
-| Лицензия и агенты | MIT навсегда; MCP бесплатно, LLM пользователя; игровой бэкенд — **самохостинг в опенсорсе** |
-| Контент | Сериал, короткие ролики, shorts, стримы; **два канала одновременно**; все площадки; гейм-джем, bounties, витрина, ежемесячный отчёт |
+| The breakthrough feature | **One big six-month bet**, parity gets trimmed; the target audience is game developers, including ones not from Flutter |
+| Determinism-based candidates | **All four**: rollback netcode, scrubbing with a bug report as a replay, an agent playtester, golden tests and server-side rendering |
+| Authoring candidates | **All four**: collaborative editing, widgets in 3D, live data in a scene, lessons inside the editor — but this plan covers only widgets and live data; collaborative editing and lessons are §7 |
+| Parity with fscene in 3 months | All four chosen; **the plan keeps three** (hot reload, diagnostics, skills) and defers downloadable builds |
+| Templates | `init --template=<genre>`, a wizard in the editor, non-game ones, from the cloud — **in this order**, non-game ones after widgets |
+| Examples | **A gallery of live browser demos with an "open in the web editor" button** |
+| The showcase | Four demos **on the web right away**, stores follow |
+| Education | An interactive from the modeler with no code, an LMS, virtual labs, stereo — **all of them**; universities, schools, corporate training, online platforms come first |
+| Twins | A device, a building, a territory, "what if" — **all of them**; the plan starts with a device and "what if," a building and a territory are §7 |
+| Other uses | Robotics, medicine, architecture, scientific graphics — keep in view, no dedicated items |
+| License and agents | MIT forever; MCP is free, the user's own LLM; the game backend is **self-hosted, open source** |
+| Content | A series, short clips, shorts, streams; **two channels at once**; every platform; a game jam, bounties, a showcase, a monthly report |
 
 ---
 
-## 4. Пункты
+## 4. Items
 
-### 4.1 Прогон как объект (`rp-`)
+### 4.1 A run as an object (`rp-`)
 
-| id | Что | пакет | р. | зависит | приёмка |
+| id | What | package | size | depends | acceptance |
 |---|---|---|---|---|---|
-| rp-00 | **Спайк: детерминизм между платформами.** `DigestTrace` четырёх демо записывается на macOS VM, в браузере (dart2js и wasm), на Android и iOS с одной ленты; расхождения называются по шагу. Libm-расхождение из ROADMAP входит сюда как первый известный случай | sim, apps | S | — | таблица «демо × платформа → совпало / первый шаг расхождения» в §8; если расходится — причина названа и пункт исправления заведён до старта net-01 |
-| rp-01 | **Файл прогона.** `Demo` получает версию формата, ссылку на уровень с его хешем, штамп сборки, контрольные дайджесты через каждые N шагов и необязательные метаданные (платформа, кто записал). Расширение `.f3drun`. Писатель и читатель в `sim`, без Flutter; `DemoFile` в `screens` пишет этот формат | sim, screens | S | rp-00 | файл из одной игры читается `dart run` без Flutter; файл от новой версии формата отвергается предложением; тест «запись → чтение → воспроизведение → те же дайджесты» на каждом демо |
-| rp-02 ⚙ | **Шкала времени в редакторе.** Панель над `RunPlaying`: пауза, шаг, перемотка по `RewindBuffer`, скраббер по всему прогону из `.f3drun`, метки контрольных дайджестов; ветка через `cut()` — новая лента от точки. Команды те же, что получит MCP | editor, session | M | rp-01 | человек отматывает демо к 3 секундам до смерти, отпускает — игра идёт дальше с того же состояния; ветка записывается отдельным файлом; команды видны в истории |
-| rp-03 ⚙ | **Пересимуляция после правки уровня.** Снимок восстанавливается в перезагруженный уровень: сущности сопоставляются по имени и порядку, то, чего в новом уровне нет, отбрасывается с сообщением, новое стартует из документа. Отвечает на «replay has to survive the swap» из ROADMAP; **⇢ hot reload уровней** оттуда | sim, editor | M | rp-02 | человек переставляет стену в редакторе на паузе, прогон продолжается с текущей точки по новой геометрии; уровень, где удалили монстра, не падает и называет, что отброшено |
-| rp-04 | **Баг-репорт как прогон.** В игре: «отправить прогон» пишет `.f3drun` с последними N секундами из `RewindBuffer`, дайджестами и штампом сборки; открывается двойным щелчком в редакторе (ассоциация файла, drag-and-drop в веб-версии); в облаке — загрузка под аккаунт, ссылка, скачивание. Облако **не** воспроизводит: у него нет кода игры | screens, editor, cloud | M | rp-01, rp-02 | прогон с телефона по ссылке открывается в редакторе на ноутбуке на том же шаге, что и на телефоне (дайджест совпал); страница прогона показывает уровень, длину, платформу, штамп |
-| rp-05 | **Прогон в видео и в тест.** `dart run flutter3d:replay file.f3drun --video out.mp4` рендерит каждый кадр `renderFrame` через `cpu` и сшивает ffmpeg; `--check` сравнивает дайджесты и называет первый расхождённый шаг; `replayGolden()` в `testing` — golden-тест кадра N прогона. **⇢ «server that verifies a run by replaying it»** из ROADMAP, как самохостинг в CI проекта. Механизм под всеми тремя пунктами построен и проходит: `apps/flutter3d_demo_dungeon/test/replay_video_test.dart` — настоящий прогон крипты, `--check` совпадает на честной записи и называет шаг на испорченной, `--video` реально зовёт `ffmpeg` и получает непустой файл; `test/replay_golden_test.dart` (этой правкой) — записанный, закоммиченный `test/goldens/replay-frame.png`, второй прогон сравнивается с ним, а не переписывает его, и тот же тэйп, проигранный дважды с нуля, рисует одни и те же байты. Не через `replayGolden()` буквально — тот просит собрать сцену под СВЕЖЕЕ устройство внутри `frame:`, а тут сцена уже есть и уже пошагала; `expectMatchesGolden` вызван напрямую на кадре, который тот же `_drawOne`, что уже рисует `--video`, и так честнее — свежая загрузка с нуля знала бы про документ уровня, а не про то, куда лента увела игрока и монстров. `dart run flutter3d:replay` в буквальном виде недостижим без правки `flutter3d_game`'s pubspec: жанровый пакет реального прогона тянет `flutter3d_game`, а тот называет `flutter: sdk: flutter` не ради одного типа, а по-настоящему — `desktop_input.dart`, каждый `touch_*.dart`, `playing.dart`, `accommodations.dart` реально импортируют `package:flutter/...`, так что plain `dart run` падает на компиляции самого фреймворка раньше пользовательского кода (та же стена, что `flutter3d_sim_mcp`'s pubspec уже фиксирует своей строкой «checked empirically, the same way `rp-05` found it out for genre packages generally»). CLI-обёртка вокруг уже готового механизма — дело `ap-10`'s `flutter3d_build`, когда тот появится | build, testing | S | rp-01 | видео заезда 30 с из CI без GPU; тест «кадр 600 прогона такой же, как эталон» в одном из демо; `--check` на подменённой ленте называет шаг |
-| rp-06 | **Профилировщик по шагу прогона.** ⇢ раздел ROADMAP «Measurement»: трасса счётчиков за проход, ключ — шаг прогона; в шкале rp-02 — полоска времени кадра над скраббером | sim, editor | S | rp-02 | трасса на шаг; скачок времени кадра виден на шкале и кликом переводит к шагу |
+| rp-00 | **Spike: determinism across platforms.** `DigestTrace` from four demos is recorded on a macOS VM, in the browser (dart2js and wasm), on Android and iOS from one tape; a divergence is named by step. The libm divergence from the ROADMAP enters here as the first known case | sim, apps | S | — | a "demo × platform → matched / first diverging step" table in §8; if it diverges, the cause is named and a fix item is opened before net-01 starts |
+| rp-01 | **The run file.** `Demo` gets a format version, a reference to the level with its own hash, a build stamp, checkpoint digests every N steps and optional metadata (platform, who recorded it). Extension `.f3drun`. The writer and reader live in `sim`, with no Flutter; `DemoFile` in `screens` writes this format | sim, screens | S | rp-00 | a file from one game reads with `dart run`, no Flutter; a file from a newer format version is refused with a suggestion; a "write → read → replay → same digests" test on each demo |
+| rp-02 ⚙ | **A timeline in the editor.** A panel over `RunPlaying`: pause, step, scrub through `RewindBuffer`, a scrubber across the whole run from `.f3drun`, checkpoint-digest markers; a branch through `cut()` — a new tape from the point. The same commands MCP will get | editor, session | M | rp-01 | a person scrubs a demo back to 3 seconds before death, releases — the game continues from that same state; the branch is written as a separate file; commands are visible in history |
+| rp-03 ⚙ | **Re-simulating after a level edit.** A snapshot restores into a reloaded level: entities are matched by name and order, whatever the new level lacks is dropped with a message, whatever is new starts from the document. Answers the ROADMAP's own "replay has to survive the swap"; **⇢ level hot reload** from there | sim, editor | M | rp-02 | a person moves a wall in the editor while paused, the run continues from the current point against the new geometry; a level with a monster removed doesn't crash and names what was dropped |
+| rp-04 | **A bug report as a run.** In-game: "send run" writes a `.f3drun` with the last N seconds from `RewindBuffer`, digests and a build stamp; opened by double-clicking in the editor (a file association, drag-and-drop on the web build); in the cloud — an upload under an account, a link, a download. The cloud does **not** replay: it has no game code | screens, editor, cloud | M | rp-01, rp-02 | a run from a phone opens by link in the editor on a laptop at the same step it was on the phone (digest matches); the run's page shows the level, its length, the platform, the stamp |
+| rp-05 | **A run into video and into a test.** `dart run flutter3d:replay file.f3drun --video out.mp4` renders every frame through `renderFrame` via `cpu` and stitches them with ffmpeg; `--check` compares digests and names the first diverging step; `replayGolden()` in `testing` is a golden test of run frame N. **⇢ "server that verifies a run by replaying it"** from the ROADMAP, as self-hosted CI for the project. The mechanism under all three items is built and passes: `apps/flutter3d_demo_dungeon/test/replay_video_test.dart` — a real playthrough of the crypt, `--check` matches on an honest recording and names the step on a corrupted one, `--video` actually calls `ffmpeg` and gets a non-empty file back; `test/replay_golden_test.dart` (this edit) — a recorded, committed `test/goldens/replay-frame.png`, a second run is compared against it rather than overwriting it, and the same tape, played twice from scratch, draws the same bytes both times. Not through `replayGolden()` literally — that one asks to assemble a scene for a FRESH device inside `frame:`, while here the scene already exists and has already stepped; `expectMatchesGolden` is called directly on the frame from the very same `_drawOne` that `--video` already draws with, which is the more honest choice — a fresh load from scratch would know about the level document, not about wherever the tape has driven the player and the monsters. `dart run flutter3d:replay` in the literal form is unreachable without editing `flutter3d_game`'s own pubspec: a real run's genre package pulls in `flutter3d_game`, and that one names `flutter: sdk: flutter` for real, not for one type alone — `desktop_input.dart`, every `touch_*.dart`, `playing.dart`, `accommodations.dart` really import `package:flutter/...`, so a plain `dart run` fails compiling the framework itself before a line of user code — the same wall `flutter3d_sim_mcp`'s own pubspec already pins down in its own line, "checked empirically, the same way `rp-05` found it out for genre packages generally." A CLI wrapper around the already-finished mechanism is `ap-10`'s `flutter3d_build`'s job, once it exists | build, testing | S | rp-01 | a 30 s race video from CI with no GPU; a test that "run frame 600 matches the reference" in one of the demos; `--check` on a tampered tape names the step |
+| rp-06 | **A per-run-step profiler.** ⇢ the ROADMAP's "Measurement" section: a counter trace per pass, keyed by run step; a frame-time strip above the scrubber in rp-02's timeline | sim, editor | S | rp-02 | a trace per step; a frame-time spike is visible on the strip, and a click on it jumps to the step |
 
-### 4.2 Сеть на детерминизме (`net-`)
+### 4.2 Networking on determinism (`net-`)
 
-| id | Что | пакет | р. | зависит | приёмка |
+| id | What | package | size | depends | acceptance |
 |---|---|---|---|---|---|
-| net-00 | **Спайк: цена отката.** Восстановить `Snapshot` и пересчитать k шагов для четырёх демо на телефоне среднего класса, k = 1…10; бюджет — 8 шагов за 4 мс. Если не укладывается — что дорого (снимок, шаг, аллокации) и пункт на исправление | sim, apps | S | rp-00 | таблица «демо × k → мс» в §8; бюджет выполнен или заведён пункт |
-| net-01 | **`flutter3d_net`.** Плоский Dart поверх `sim`: кадры ввода по шагам, задержка ввода, предсказание последним кадром, откат по подтверждённому вводу, дайджест на контрольном шаге, рассинхрон называется шагом. Транспорт — интерфейс; в тестах — петля с задержкой и потерями | net | L | net-00, rp-01 | два экземпляра симуляции в одном тесте через петлю с задержкой 120 мс и потерей 5 % сходятся по дайджестам; подмена ввода на одной стороне даёт рассинхрон с номером шага |
-| net-02 | **Релей и транспорт.** `flutter_webrtc` (или аналог) как основной транспорт — данные идут P2P между игроками, а не через сервер; релей — `dart run flutter3d_net:relay`, один процесс, комнаты по коду, без аккаунтов, роль сужена до сигналинга (обмен SDP/ICE) и TURN-фолбэка для NAT, которые не договорятся напрямую. WebSocket остаётся запасным транспортом за тем же интерфейсом net-01, на случай платформы или сети, где WebRTC не собирается или не проходит. systemd-юнит и Dockerfile рядом. **⇢ пункт 2 второго уровня ROADMAP**; самохостинг по решению §3 | net | M | net-01 | два браузера на разных машинах через релей на VPS договариваются и дальше обмениваются кадрами ввода напрямую (P2P), без прохождения игрового трафика через релей; задержка и потери в консоли; релей падает — сигналинг недоступен, а не игра виснет; за NAT, требующим TURN, соединение всё равно устанавливается |
-| net-03 | **Гонки вдвоём.** Демо гонок с экраном «создать / войти по коду», ввод второго игрока по net-01, призрак (`Playback`) для соперника до подключения; прогон матча пишется `.f3drun` с обеих сторон | apps | M | net-02 | два телефона играют заезд по Wi-Fi через релей; оба файла прогона дают одинаковые дайджесты; видео заезда — первая сцена §6 |
-| net-04 | **Разбор рассинхрона.** `dart run flutter3d_net:diff a.f3drun b.f3drun`: первый шаг расхождения и diff снимков по сущностям на нём | net | S | net-01 | на двух прогонах с подменённым вводом называет шаг и сущность |
+| net-00 | **Spike: the cost of a rollback.** Restore `Snapshot` and re-run k steps for all four demos on a mid-range phone, k = 1…10; the budget is 8 steps in 4 ms. If it doesn't fit — what's expensive (the snapshot, the step, allocations) and an item to fix it | sim, apps | S | rp-00 | a "demo × k → ms" table in §8; either the budget is met, or an item is opened |
+| net-01 | **`flutter3d_net`.** Flat Dart over `sim`: input frames per step, input delay, prediction from the last frame, rollback on confirmed input, a digest at a checkpoint step, a desync named by step. The transport is an interface; tests use a loop with delay and loss | net | L | net-00, rp-01 | two simulation instances in one test, through a loop with 120 ms delay and 5% loss, converge by digest; swapping input on one side gives a desync with a step number |
+| net-02 | **Relay and transport.** `flutter_webrtc` (or an equivalent) as the primary transport — data travels P2P between players rather than through a server; the relay is `dart run flutter3d_net:relay`, one process, code-based rooms, no accounts, its role narrowed to signaling (SDP/ICE exchange) and a TURN fallback for NAT pairs that can't negotiate directly. WebSocket stays a fallback transport behind the same net-01 interface, for a platform or network where WebRTC won't build or won't get through. A `systemd` unit and a Dockerfile sit alongside it. **⇢ the ROADMAP's second-tier item 2**; self-hosted, per §3's decision | net | M | net-01 | two browsers on different machines negotiate through a relay on a VPS and then exchange input frames directly (P2P), with no game traffic passing through the relay; delay and loss show in the console; the relay goes down — signaling is unavailable, the game doesn't hang; behind a NAT requiring TURN, the connection still establishes |
+| net-03 | **Racing for two.** The racing demo gets a "create / join by code" screen, the second player's input comes over net-01, a ghost (`Playback`) stands in for the opponent before they connect; the match's run is written as `.f3drun` from both sides | apps | M | net-02 | two phones play a race over Wi-Fi through a relay; both run files give matching digests; the race video is §6's first scene |
+| net-04 | **Diagnosing a desync.** `dart run flutter3d_net:diff a.f3drun b.f3drun`: the first diverging step and a per-entity snapshot diff at it | net | S | net-01 | on two runs with swapped input, names the step and the entity |
 
-### 4.3 Агент играет (`ai-`)
+### 4.3 An agent plays (`ai-`)
 
-| id | Что | пакет | р. | зависит | приёмка |
+| id | What | package | size | depends | acceptance |
 |---|---|---|---|---|---|
-| ai-00 | **`flutter3d_sim_mcp`.** Третий сервер, stdio: открыть уровень, шагнуть N шагов с вводом, снимок в словах (позиции, здоровье, события), дайджест, кадр PNG через `cpu` с камерой по выбору, записать `.f3drun`. Тот же код, что у rp-05 | новый пакет | M | rp-01, cpu | агент из Claude Code проходит первую комнату крипты по кадрам и словам и отдаёт прогон, который открывается в редакторе |
-| ai-01 | **Плейтест партиями.** `dart run flutter3d:playtest level.json --runs 200 --policy random\|agent`: прогоны в изолятах без GPU, отчёт: где застряли, где умерли, куда не дошли, тепловая карта в JSON | build | S | ai-00 | 200 прогонов крипты за ночь на ноутбуке; отчёт открывается в редакторе слоем поверх уровня |
-| ai-02 | **Слой отчёта в редакторе.** Тепловая карта и точки смерти из ai-01 поверх уровня; щелчок по точке открывает прогон на шаге | editor | S | ai-01, rp-02 | точка смерти → шкала времени на этом шаге |
+| ai-00 | **`flutter3d_sim_mcp`.** A third server, stdio: open a level, step N steps with input, a snapshot in words (positions, health, events), a digest, a PNG frame via `cpu` with a chosen camera, write a `.f3drun`. The same code rp-05 uses | a new package | M | rp-01, cpu | an agent from Claude Code clears the crypt's first room by frames and words and hands back a run that opens in the editor |
+| ai-01 | **Playtesting in batches.** `dart run flutter3d:playtest level.json --runs 200 --policy random\|agent`: runs in isolates with no GPU, a report: where they got stuck, where they died, where they never reached, a heatmap in JSON | build | S | ai-00 | 200 crypt runs overnight on a laptop; the report opens in the editor as a layer over the level |
+| ai-02 | **A report layer in the editor.** ai-01's heatmap and death points over the level; clicking a point opens the run at that step | editor | S | ai-01, rp-02 | a death point → the timeline at that step |
 
-### 4.4 Виджеты на поверхностях (`wg-`)
+### 4.4 Widgets on surfaces (`wg-`)
 
-| id | Что | пакет | р. | зависит | приёмка |
+| id | What | package | size | depends | acceptance |
 |---|---|---|---|---|---|
-| wg-00 | **Спайк: ввод и перерисовка.** Луч из указателя → попадание → UV → координата в `RenderView` `WidgetTexture`; `PointerEvent` в собственный `BuildOwner`; перерисовка только когда виджет пометил себя грязным; замер цены кадра при перерисовке 512² на телефоне и в браузере (canvaskit и skwasm) | session | S | — | кнопка на стене нажимается пальцем на телефоне; таблица «платформа → мс на перерисовку» в §8 |
-| wg-01 ⚙ | **`WidgetSurface`.** Узел сцены: живой виджет, перерисовка по грязности, маршрутизация указателя и фокуса, клавиатура при фокусе, семантика — в §7. В документе уровня — ссылка на виджет по имени из реестра приложения | session, sim, editor | L | wg-00 | текстовое поле на экране в игре принимает ввод с клавиатуры; список прокручивается пальцем; кадр без изменений виджета не перерисовывает его (счётчик в диагностике) |
-| wg-02 | **Демо.** Терминал в крипте с журналом событий прогона; панель оператора у станка в шаблоне двойника (edu-05). Обе сцены построены: `RunTerminal` подключён в `flutter3d_demo_dungeon`'s собственный реестр виджетов (`'run-terminal'`), `OperatorPanel` теперь живёт в `flutter3d_template_app` и рисует `tpl-04`'s `twin.json`'s `'twin-dashboard'` — реальную живую температуру от `edu-05`'s `SamplerDataSource`, не заглушку. Буквальная приёмка честно не закрыта целиком: `site/content/gallery.md`'s собственная галерея встраивает только четыре игры, а не `tpl-04`'s шаблоны, так что панель оператора сегодня видна только внутри самого приложения-шаблона, а не на странице `tpl-02` | apps | S | wg-01 | обе сцены в галерее tpl-02 |
+| wg-00 | **Spike: input and redraw.** A ray from the pointer → a hit → a UV → a coordinate on the `RenderView` `WidgetTexture`; a `PointerEvent` into its own `BuildOwner`; a redraw only when the widget has marked itself dirty; measuring the frame cost of redrawing 512² on a phone and in the browser (canvaskit and skwasm) | session | S | — | a button on a wall taps under a finger on a phone; a "platform → ms per redraw" table in §8 |
+| wg-01 ⚙ | **`WidgetSurface`.** A scene node: a live widget, redraw by dirtiness, pointer and focus routing, a keyboard while focused, semantics in §7. In the level document — a reference to a widget by name from the application's own registry | session, sim, editor | L | wg-00 | a text field on an in-game screen accepts keyboard input; a list scrolls under a finger; a frame with no widget change doesn't redraw it (a counter in the diagnostics) |
+| wg-02 | **A demo.** A terminal in the crypt with a run's own event log; an operator's panel by a machine in the twin template (edu-05). Both scenes are built: `RunTerminal` is wired into `flutter3d_demo_dungeon`'s own widget registry (`'run-terminal'`), `OperatorPanel` now lives in `flutter3d_template_app` and draws `tpl-04`'s `twin.json`'s `'twin-dashboard'` — a real, live temperature from `edu-05`'s `SamplerDataSource`, not a stand-in. The literal acceptance is honestly not fully closed: `site/content/gallery.md`'s own gallery embeds only the four games, not `tpl-04`'s templates, so the operator panel is only visible inside the template application itself today, not on the `tpl-02` page | apps | S | wg-01 | both scenes are in the tpl-02 gallery |
 
-### 4.5 Паритет, который остаётся (`par-`)
+### 4.5 The parity that remains (`par-`)
 
-| id | Что | пакет | р. | зависит | приёмка |
+| id | What | package | size | depends | acceptance |
 |---|---|---|---|---|---|
-| par-01 ⚙ | **Hot reload моделей и текстур.** ⇢ ROADMAP «The editors reach the running game»; строится на ap-05 и ap-11 плана ассетов: сохранённый файл пересобирается кодом hook и подменяется через VM service | build, engine, editor | M | ap-11 | модель, сохранённая в модельере, появляется в демо на телефоне без перезапуска |
-| par-02 | **Диагностический MCP.** ⇢ ROADMAP там же: снимок вьюпорта и окна, debug views, выход любого прохода, HDR-значение пикселя, скан первого прохода с NaN. Кадр без GPU — через ai-00 | editor_mcp, новый пакет | M | ai-00 | агент называет проход, который делает намеренно сломанную карту нормалей чёрной |
-| par-03 | **`dart run flutter3d:skills`.** Пишет skills для пользователей движка в проект: идиомы, тихие ловушки, свет и пост-обработка, производительность, прогоны и сеть. ⇢ пункт 8 второго уровня ROADMAP | build | S | — | повторный запуск — пустой diff; агент с skills проходит quickstart без ошибок, которые skills описывают |
+| par-01 ⚙ | **Hot reload for models and textures.** ⇢ the ROADMAP's "The editors reach the running game"; builds on ap-05 and ap-11 from the asset plan: a saved file is rebuilt by the hook's own code and swapped in through the VM service | build, engine, editor | M | ap-11 | a model saved in the modeler shows up in the demo on a phone with no restart |
+| par-02 | **A diagnostic MCP.** ⇢ the same ROADMAP entry: a viewport/window snapshot, debug views, any pass's own output, an HDR pixel value, a scan for the first NaN in a pass. A frame with no GPU — via ai-00 | editor_mcp, a new package | M | ai-00 | an agent names the pass that turns a deliberately broken normal map black |
+| par-03 | **`dart run flutter3d:skills`.** Writes skills for the engine's own users into a project: idioms, quiet traps, light and post-processing, performance, runs and networking. ⇢ the ROADMAP's second-tier item 8 | build | S | — | running it again is an empty diff; an agent with the skills gets through the quickstart with none of the mistakes the skills describe |
 
-### 4.6 Шаблоны и галерея (`tpl-`)
+### 4.6 Templates and the gallery (`tpl-`)
 
-| id | Что | пакет | р. | зависит | приёмка |
+| id | What | package | size | depends | acceptance |
 |---|---|---|---|---|---|
-| tpl-01 | **`init --template=<жанр>`.** Четыре демо становятся шаблонами: `dart run flutter3d:init --template=platformer\|racing\|shooter\|strategy` пишет проект с уровнем, ассетами в `assets_src/` и hook из ap-10; `--list` называет шаблоны | build, apps | M | ap-10 | чистый `flutter create` + `init --template=racing` + `flutter run` — играбельный заезд на macOS и в браузере; шаблоны собираются в CI |
-| tpl-02 ⚠ | **Галерея живых демо.** Страница сайта с веб-сборками четырёх игр и сцен из гайдов; у каждой — «открыть в веб-редакторе» с уровнем по URL и «скачать прогон». Сборки — из CI, не руками. Записи для платформера и гонок сделаны: у каждого уже был `test/demo_test.dart`, доказывающий байт-в-байт повтор шипящегося уровня — `tool/record_sample.dart` в каждом приложении зовёт тот же маршрут и пишет `site/assets/samples/{platformer,racing}.f3drun` вместо того чтобы только сверяться с ним. Стратегия честно не получает записи: `.f3drun`'s лента — это `GameAction`'s непрерывное состояние (нажато/аналог), а матч играется дискретными приказами через `CommandPost` (`TrainOrder`, `restock`), которые `main.dart` вообще не превращает в `InputState` — нужен второй вид кадра в формате ленты, а не третий `record_sample.dart` | site, editor | M | net-03 | галерея открывается на телефоне; кнопка открывает уровень в веб-редакторе; гайд по свету встраивает живую сцену |
-| tpl-03 | **Мастер «новый проект» в редакторе.** Шаблон, имя, платформы → `init` под капотом → открытый уровень | editor | S | tpl-01 | проект создаётся без терминала на macOS; в браузере мастер честно говорит, что сборку не запускает |
-| tpl-04 | **Неигровые шаблоны.** Просмотрщик, конфигуратор, двойник устройства — на документе edu-00 и `WidgetSurface` | build, apps | M | wg-01, edu-01 | три шаблона в `--list` и в галерее |
+| tpl-01 | **`init --template=<genre>`.** The four demos become templates: `dart run flutter3d:init --template=platformer\|racing\|shooter\|strategy` writes a project with a level, assets under `assets_src/` and a hook from ap-10; `--list` names the templates | build, apps | M | ap-10 | a clean `flutter create` + `init --template=racing` + `flutter run` gives a playable race on macOS and in the browser; templates build in CI |
+| tpl-02 ⚠ | **A gallery of live demos.** A site page with web builds of the four games and scenes from the guides; each carries "open in the web editor" with the level by URL and "download the run." Builds come from CI, not by hand. The platformer and racing entries are done: each already had a `test/demo_test.dart` proving a byte-for-byte replay of its own shipped level — `tool/record_sample.dart` in each app calls the same route and writes `site/assets/samples/{platformer,racing}.f3drun` instead of only checking against it. Strategy honestly gets no recording: `.f3drun`'s own tape is `GameAction`'s continuous state (pressed/analog), while a match is played through discrete orders via `CommandPost` (`TrainOrder`, `restock`), which `main.dart` never turns into an `InputState` at all — a second kind of tape frame is needed, not a third `record_sample.dart` | site, editor | M | net-03 | the gallery opens on a phone; a button opens the level in the web editor; a lighting guide embeds a live scene |
+| tpl-03 | **A "new project" wizard in the editor.** A template, a name, platforms → `init` under the hood → the opened level | editor | S | tpl-01 | a project is created with no terminal on macOS; in the browser the wizard honestly says it does not run a build |
+| tpl-04 | **Non-game templates.** A viewer, a configurator, a device twin — over the edu-00 document and `WidgetSurface` | build, apps | M | wg-01, edu-01 | three templates in `--list` and in the gallery |
 
-### 4.7 Один документ для образования, товара и двойника (`edu-`)
+### 4.7 One document for education, product, and a twin (`edu-`)
 
-| id | Что | пакет | р. | зависит | приёмка |
+| id | What | package | size | depends | acceptance |
 |---|---|---|---|---|---|
-| edu-00 | **Спецификация интерактива.** Поверх документа уровня, без второго формата сцены: шаги (камера, видимость, подсветка), разборка по слоям (смещение узла в шаге), аннотации (виджет по имени), срезы (плоскость отсечения), привязки свойств узла к именованным источникам данных, вопрос с проверкой. Записывается в `doc/` как формат, до кода | doc, sim | S | — | документ прочитан двумя людьми, у которых разные сегменты (преподаватель, инженер), замечания внесены |
-| edu-01 ⚙ | **Авторинг в веб-модельере и редакторе.** Панель шагов, разборка перетаскиванием на шаге, аннотация как виджет, плоскость среза гизмо; всё через команды, значит и через MCP. Панель шагов уже построена и покрыта тестами: `apps/flutter3d_editor/lib/src/step_panel.dart`'s `StepPanel`, подключена в `main.dart`, девять сценариев в `step_panel_test.dart` (добавить/переставить/удалить шаг, прикрепить аннотацию, положить плоскость среза) — всё через `Place`/`SetField`/`Delete`, значит и через MCP (`lesson_authoring_mcp_test.dart`). `edu_annotation`/`edu_clip_plane` в редакторе — обычные сущности без собственного визуала (виджет и срез реально рисует `flutter3d_lesson_viewer`, не редактор — авторинг вслепую, предпросмотр отдельным приложением). «Разборка перетаскиванием» закрыта другим путём, чем эта строка сама предполагала: `ls-e-00`, первый настоящий контент на этом формате, разбирает двигатель четырьмя отдельными сущностями (`engine-block`/`valve-cover`/`air-filter`/`spark-plug`), а не одной моделью с именованными узлами внутри — и отдельную сущность уже сегодня двигает обычный `AxisDrag`/`MoveBy`, без единой новой строчки. `mergedOffsets(step, nodePath, delta)` в `lesson_authoring.dart` — арифметика под ДРУГОЙ, гипотетический случай (один glTF с `valve_cover` как внутренним узлом), которым ни один настоящий урок пока не пользуется; сам узел `engine-body#valve_cover` — пример из докстринга и теста, не из содержимого. Пикинг именно такого внутреннего узла при этом технически возможен уже сегодня — `scene_dressing.dart`'s `dressGizmos` вызывает `asset.instantiate()` и кладёт настоящий корень модели в `owners` для пикинга, — но строить интерфейс под форму данных, которую ничто не использует, было бы работой без сценария (решение владельца после проверки). `editor_inspector.dart`'s собственный `_byType()` по-прежнему рисует Map как `_ReadOnly` — вписать `offsets` вручную негде, кроме MCP `setField` или теста, но это больше не тот пробел, который эта строка должна закрывать | modeler, editor | L | edu-00, wg-01 | преподаватель собирает разборку двигателя на пять шагов в браузере без кода и получает ссылку |
-| edu-02 | **Публичная страница и embed.** Страница интерактива на models.pleion.dev, iframe с параметрами, просмотрщик — веб-сборка на движке | cloud | M | edu-01 | интерактив встроен в страницу Stepik-курса и в README на GitHub через iframe |
-| edu-03 | **LTI 1.3 и xAPI.** Облако как LTI-инструмент: запуск из Moodle и Canvas с личностью студента, ответы на вопросы шага — xAPI-утверждения в журнал курса. SCORM — по запросу вуза, не здесь | cloud | M | edu-02 | интерактив запускается из тестового Moodle; оценка за вопрос видна в журнале |
-| edu-04 | **Виртуальная лабораторная.** Уровень с панелью параметров (`WidgetSurface`), прогон пишется `.f3drun`, проверка — по дайджестам на контрольных шагах против эталонной ленты; преподаватель открывает прогон студента в шкале rp-02 | sim, apps | M | rp-02, wg-01 | маятник: студент меняет длину, результат воспроизводим на школьном ноутбуке без GPU, преподаватель видит, где студент ошибся |
-| edu-05 | **Живые данные в сцене.** Источники MQTT и WebSocket как именованные потоки; привязка свойства узла к пути в JSON в инспекторе; история значений пишется в ленту как ввод, значит двойник перематывается и ветвится как игра | sim, editor | M | edu-00, rp-02 | станок из шаблона tpl-04 показывает температуру с брокера; «что если» — ветка от текущего шага с подменённым значением |
-| edu-06 | **Стерео для класса.** `StereoViewer` открывает интерактив edu-00: Cardboard на телефоне студента, тот же документ | flutter3d_stereo | S | edu-01 | разборка двигателя в Cardboard с переключением шагов кнопкой |
+| edu-00 | **The interactive's specification.** On top of the level document, no second scene format: steps (camera, visibility, highlight), layer-by-layer disassembly (a node offset at a step), annotations (a widget by name), cross-sections (a clipping plane), bindings of a node's properties to named data sources, a checked question. Written into `doc/` as a format, ahead of the code | doc, sim | S | — | the document has been read by two people with different backgrounds (an instructor, an engineer), their notes folded in |
+| edu-01 ⚙ | **Authoring in the web modeler and the editor.** A step panel, drag-to-disassemble at a step, an annotation as a widget, a clipping-plane gizmo; all through commands, meaning through MCP too. The step panel is already built and covered by tests: `apps/flutter3d_editor/lib/src/step_panel.dart`'s `StepPanel`, wired into `main.dart`, nine scenarios in `step_panel_test.dart` (add/reorder/delete a step, attach an annotation, drop a clipping plane) — all through `Place`/`SetField`/`Delete`, meaning through MCP too (`lesson_authoring_mcp_test.dart`). `edu_annotation`/`edu_clip_plane` in the editor are ordinary entities with no visual of their own (the widget and the cross-section are actually drawn by `flutter3d_lesson_viewer`, not the editor — authoring is blind, the preview is a separate application). "Drag-to-disassemble" closed a different way than this row itself assumed: `ls-e-00`, the first real content on this format, disassembles an engine as four separate entities (`engine-block`/`valve-cover`/`air-filter`/`spark-plug`), not one model with named nodes inside it — and a separate entity is already moved today by an ordinary `AxisDrag`/`MoveBy`, with not one new line of code. `mergedOffsets(step, nodePath, delta)` in `lesson_authoring.dart` is arithmetic for a DIFFERENT, hypothetical case (one glTF with `valve_cover` as an internal node) that not one real lesson uses yet; the node `engine-body#valve_cover` itself is an example from a doc comment and a test, not from actual content. Picking exactly that kind of internal node is technically possible already today — `scene_dressing.dart`'s `dressGizmos` calls `asset.instantiate()` and puts the model's real root into `owners` for picking — but building an interface for a data shape nothing uses would be work with no scenario behind it (an owner decision, made after checking, not before). `editor_inspector.dart`'s own `_byType()` still draws a Map as `_ReadOnly` — there's nowhere to type `offsets` in by hand except MCP's `setField` or a test, but that is no longer the gap this row is meant to close | modeler, editor | L | edu-00, wg-01 | an instructor assembles a five-step engine teardown in the browser with no code and gets a link |
+| edu-02 | **A public page and an embed.** An interactive's own page on models.pleion.dev, an iframe with parameters, a viewer as a web build on the engine | cloud | M | edu-01 | the interactive is embedded in a Stepik course page and in a GitHub README through an iframe |
+| edu-03 | **LTI 1.3 and xAPI.** The cloud as an LTI tool: launched from Moodle and Canvas with a student's identity, answers to a step's question become xAPI statements in the course log. SCORM — on a university's own request, not here | cloud | M | edu-02 | the interactive launches from a test Moodle; the grade for a question is visible in the log |
+| edu-04 | **A virtual lab.** A level with a parameter panel (`WidgetSurface`), the run is written as `.f3drun`, checked by digests at checkpoint steps against a reference tape; an instructor opens a student's run in rp-02's timeline | sim, apps | M | rp-02, wg-01 | a pendulum: a student changes the length, the result reproduces on a school laptop with no GPU, the instructor sees exactly where the student went wrong |
+| edu-05 | **Live data in a scene.** MQTT and WebSocket sources as named streams; binding a node's property to a JSON path in the inspector; a history of values is written into the tape as input, meaning the twin scrubs and branches like a game does | sim, editor | M | edu-00, rp-02 | a machine from the tpl-04 template shows temperature from a broker; "what if" is a branch from the current step with a substituted value |
+| edu-06 | **Stereo for a classroom.** `StereoViewer` opens an edu-00 interactive: Cardboard on a student's phone, the same document | flutter3d_stereo | S | edu-01 | an engine teardown in Cardboard, switching steps with a button |
 
-### 4.8 Контент и сообщество (`out-`)
+### 4.8 Content and community (`out-`)
 
-Не код; размеры — в неделях присутствия, не разработки. Каждый ролик, пост и
-доклад заканчивается ссылкой на прогон или на веб-редактор, не на репозиторий.
+Not code; sizes are weeks of presence, not development. Every video, post
+and talk ends with a link to a run or the web editor, not the repository.
 
-| id | Что | когда | приёмка |
+| id | What | when | acceptance |
 |---|---|---|---|
-| out-01 | **Два канала.** Русский и английский; сериал «гонки с нуля до сети» 8–12 серий по 20–40 минут, короткие ролики по фичам 3–8 минут, shorts из кадров галереи, стримы разработки net-01 | с месяца 1 | по серии в две недели на каждом канале; каждая серия — ссылка на прогон |
-| out-02 | **Ежемесячный отчёт.** Что сделано, что не вышло, цифры; пост и ролик | с месяца 1 | шесть отчётов |
-| out-03 | **Площадки.** Англоязычные Flutter-подкасты и каналы, русскоязычные подкасты и конференции, доклад на FlutterCon, r/gameenginedevs с прогоном как доказательством | подача с месяца 2 | четыре появления за полгода, одно с докладом |
-| out-04 | **Гейм-джем.** Объявляется, когда net-03 работает: «сетевая игра за 48 часов», шаблоны tpl-01, релей поднят организатором, итоги — прогоны участников в галерее | месяц 5 | не меньше десяти сданных игр; их прогоны открываются в редакторе |
-| out-05 | **Bounties и good-first-issues.** Экспортёр Blender, примеры для галереи, skills | с месяца 2 | пять закрытых bounty |
-| out-06 | **Витрина «сделано на flutter3d».** Страница сайта; заявка — ссылка на прогон или веб-сборку | месяц 3 | игры джема — первые записи |
+| out-01 | **Two channels.** Russian and English; a "racing from scratch to networked" series, 8–12 episodes of 20–40 minutes, short feature clips of 3–8 minutes, shorts cut from gallery footage, net-01 development streams | from month 1 | an episode every two weeks on each channel; every episode links to a run |
+| out-02 | **A monthly report.** What got done, what didn't land, the numbers; a post and a video | from month 1 | six reports |
+| out-03 | **Venues.** English-language Flutter podcasts and channels, Russian-language podcasts and conferences, a FlutterCon talk, r/gameenginedevs with a run as proof | submissions from month 2 | four appearances over half a year, one with a talk |
+| out-04 | **A game jam.** Announced once net-03 works: "a networked game in 48 hours," tpl-01 templates, a relay set up by the organizer, results — participants' runs in the gallery | month 5 | at least ten submitted games; their runs open in the editor |
+| out-05 | **Bounties and good-first-issues.** A Blender exporter, gallery examples, skills | from month 2 | five closed bounties |
+| out-06 | **A "built with flutter3d" showcase.** A site page; a submission is a link to a run or a web build | month 3 | the jam's games are the first entries |
 
 ---
 
-## 5. Порядок и критический путь
+## 5. Order and the critical path
 
-Две дорожки для двух человек; агенты берут то, что отмечено ниже.
+Two tracks for two people; agents take what's marked below.
 
-- **Дорожка A — время и сеть.** rp-00 → rp-01 → rp-02 → rp-03 → rp-04, и от
-  rp-00 параллельно net-00 → net-01 → net-02 → net-03 → net-04. Критический
-  путь — **rp-00, net-00, net-01, net-02, net-03, tpl-02**: 2 S + L + 3 M
-  ≈ 16 недель по верхней границе (L здесь — шесть недель). rp-02 и rp-03
-  идут между ними, потому что net-01 — самый длинный пункт и не занимает
-  редактор.
-- **Дорожка B — виджеты и документ.** wg-00 → wg-01 → wg-02, потом edu-00
-  (пишется во время wg-01) → edu-01 → edu-02 → edu-03; edu-04 и edu-05 после
-  rp-02 из дорожки A. Критический путь — **wg-00, wg-01, edu-01, edu-02**:
-  S + 2 L + M ≈ 16 недель.
-- **Агентам хорошо отдаются:** rp-01 (формат с тестом «туда-обратно»),
-  rp-05 и net-04 (чистые вычисления с численной приёмкой), par-03, tpl-01,
-  tpl-03, edu-06, документация. **Плохо:** rp-00, net-00, wg-00 — ответ
-  зависит от поведения устройств; net-01 — архитектурное ядро.
-- **По месяцам.** 1: rp-00, net-00, wg-00, rp-01, par-03, out-01–02.
-  2: net-01 начат, rp-02, edu-00, tpl-01. 3: net-01, rp-03, wg-01, ai-00.
+- **Track A — time and networking.** rp-00 → rp-01 → rp-02 → rp-03 → rp-04,
+  and from rp-00 in parallel net-00 → net-01 → net-02 → net-03 → net-04. The
+  critical path is **rp-00, net-00, net-01, net-02, net-03, tpl-02**: 2 S +
+  L + 3 M ≈ 16 weeks at the upper bound (L here is six weeks). rp-02 and
+  rp-03 run between them, because net-01 is the longest item and doesn't
+  occupy the editor.
+- **Track B — widgets and the document.** wg-00 → wg-01 → wg-02, then
+  edu-00 (written during wg-01) → edu-01 → edu-02 → edu-03; edu-04 and
+  edu-05 come after rp-02 from track A. The critical path is **wg-00,
+  wg-01, edu-01, edu-02**: S + 2 L + M ≈ 16 weeks.
+- **Items that hand off well to agents:** rp-01 (a format with a "round
+  trip" test), rp-05 and net-04 (pure computation with a numeric
+  acceptance), par-03, tpl-01, tpl-03, edu-06, documentation. **Poorly:**
+  rp-00, net-00, wg-00 — the answer depends on device behavior; net-01 is
+  the architectural core.
+- **By month.** 1: rp-00, net-00, wg-00, rp-01, par-03, out-01–02.
+  2: net-01 begun, rp-02, edu-00, tpl-01. 3: net-01, rp-03, wg-01, ai-00.
   4: net-02, rp-04, wg-01, par-02, ai-01. 5: net-03, edu-01, rp-05, out-04.
-  6: tpl-02, net-04, edu-02, wg-02, ai-02, par-01, edu-04, видео §6.
-- **Ревизия ROADMAP 28 сентября** принимает этот план целиком или режет по
-  §7; «Committed» получает §4.1–4.5, второй уровень — §4.6–4.7.
+  6: tpl-02, net-04, edu-02, wg-02, ai-02, par-01, edu-04, the §6 video.
+- **The September 28 ROADMAP review** accepts this plan whole or trims it
+  per §7; "Committed" gets §4.1–4.5, the second tier gets §4.6–4.7.
 
 ---
 
-## 6. Демо, которое продаёт
+## 6. The demo that sells
 
-Одно видео на шесть минут, каждая сцена — пункт плана с приёмкой:
+One six-minute video, each scene a plan item with its own acceptance:
 
-1. Два телефона играют заезд через релей на VPS (net-03).
-2. На одном заезд обрывается о стену, которой быть не должно; игрок нажимает
-   «отправить прогон» (rp-04).
-3. На ноутбуке ссылка открывает прогон в редакторе на том же шаге; скраббер
-   назад на три секунды (rp-02, rp-04).
-4. Стена сдвигается на паузе, прогон продолжается по новой трассе (rp-03).
-5. `flutter3d:playtest --runs 200` за ночь; утром тепловая карта в редакторе
-   показывает, что застревать больше негде (ai-01, ai-02).
-6. `flutter3d:replay --video` рендерит заезд без GPU в CI, и это видео —
-   последний кадр ролика (rp-05).
+1. Two phones race through a relay on a VPS (net-03).
+2. On one, the race breaks off against a wall that shouldn't be there; the
+   player taps "send run" (rp-04).
+3. On the laptop, the link opens the run in the editor at the same step;
+   the scrubber goes back three seconds (rp-02, rp-04).
+4. The wall is moved while paused, the run continues on the new track
+   (rp-03).
+5. `flutter3d:playtest --runs 200` runs overnight; in the morning the
+   heatmap in the editor shows there's nowhere left to get stuck (ai-01,
+   ai-02).
+6. `flutter3d:replay --video` renders the race with no GPU in CI, and that
+   video is the clip's own last frame (rp-05).
 
-Ни одна сцена не требует того, чего нет в §4; если сцену нельзя снять — пункт
-не принят.
-
----
-
-## 7. Что режем и почему
-
-- **Скачиваемые сборки редакторов с тулчейном.** Веб-редакторы уже отвечают на
-  «ничего не ставить» лучше; сборка с автообновлением на три ОС — M на каждую
-  и поддержка навсегда. Вернуть, когда tpl-03 покажет спрос на десктоп.
-- **Плагин IDE и конвейер выкладки в сторы.** Удобство, а не причина выбрать
-  движок. После полугода.
-- **Совместное редактирование в реальном времени.** Выбрано владельцем, но
-  требует CRDT над документом и аккаунты с командами из облачного трека; L и
-  зависит от того, чего ещё нет. Следующий план, когда командные проекты есть.
-- **Уроки внутри редактора.** Та же причина: строятся на edu-00 и wg-01,
-  которых ещё нет; в следующий план.
-- **Здание (BIM) и территория (гео) как двойники.** Нужен стриминг больших
-  сцен и LOD, которых в дереве нет; начинаем с устройства (edu-05).
-- **Семантика для `WidgetSurface`.** Дерево доступности для виджета в 3D —
-  отдельный вопрос; wg-01 сдаётся без неё, с записью в CHANGELOG.
-- **Твёрдые тела с вращением и суставами.** Остаются «после квартала»: ни одна
-  сцена §6 их не требует; гонки уже ездят без них.
-- **Гауссовы сплаты** (есть у fscene). Не влияют ни на одну сцену §6.
-- **Таблицы сравнения с другими движками.** Остаются в «Not doing» ROADMAP;
-  сравнение здесь — только §2 этого файла и видео §6.
+Not one scene needs anything outside §4; if a scene can't be shot, the item
+isn't accepted.
 
 ---
 
-## 8. Итоги спайков
+## 7. What gets trimmed, and why
 
-Заполняется по результату: rp-00 — таблица «демо × платформа → совпало /
-первый шаг расхождения»; net-00 — «демо × k → мс»; wg-00 — «платформа → мс
-на перерисовку 512²». Пока таблицы rp-00 и wg-00 не закрыты нулём в столбце
-расхождений, net-01 и wg-01 не начинаются.
+- **Downloadable editor builds with a toolchain.** The web editors already
+  answer "install nothing" better; a self-updating build for three OSes is
+  M apiece and support forever. Revisit once tpl-03 shows demand for
+  desktop.
+- **An IDE plugin and a store-publishing pipeline.** A convenience, not a
+  reason to choose the engine. After half a year.
+- **Real-time collaborative editing.** Chosen by the owner, but needs a
+  CRDT over the document and team accounts from the cloud track; L, and
+  depends on things that don't exist yet. A future plan, once team
+  projects exist.
+- **Lessons inside the editor.** The same reason: they build on edu-00 and
+  wg-01, which don't exist yet; a future plan.
+- **A building (BIM) and a territory (geo) as twins.** Needs large-scene
+  streaming and LOD, neither in the tree; starting with a device (edu-05).
+- **Semantics for `WidgetSurface`.** An accessibility tree for a widget in
+  3D is a separate question; wg-01 ships without it, recorded in the
+  CHANGELOG.
+- **Rigid bodies with rotation and joints.** Stay "after the quarter": not
+  one §6 scene needs them; racing already drives without them.
+- **Gaussian splats** (fscene has them). Don't affect a single §6 scene.
+- **Comparison tables against other engines.** Stay in the ROADMAP's own
+  "Not doing"; the comparison here is only this file's §2 and the §6
+  video.
 
-### rp-00: детерминизм между платформами
+---
 
-Закрыт 2026-09-12. Тысяча шагов на демо, дайджест каждые 25–30 шагов
-(`DigestTrace`), одна и та же процедурная лента ввода (`GameRandom`-сид) на
-каждой платформе — код в `packages/flutter3d_game_*/test/parity_test.dart` и
-зеркально в `apps/flutter3d_demo_*/integration_test/parity_test.dart` для
-Android и iOS, где `flutter test` не выполняется (только VM-хост и браузер —
-для реального устройства нужен `integration_test`). Сценарий platformer и
-shooter — новый, специально для этого спайка; racing и strategy унаследовали
-уже существовавшие `parity_test.dart`, дополненные здесь только сверкой на
-wasm и на мобильных платформах.
+## 8. Spike results
 
-| Демо (жанр) | macOS VM | Chrome dart2js | Chrome wasm | Android (emulator, arm64) | iOS (simulator) |
+Filled in as results come in: rp-00 — a "demo × platform → matched / first
+diverging step" table; net-00 — "demo × k → ms"; wg-00 — "platform → ms per
+512² redraw." Until the rp-00 and wg-00 tables close with a zero in the
+divergence column, net-01 and wg-01 do not start.
+
+### rp-00: determinism across platforms
+
+Closed 2026-09-12. A thousand steps per demo, a digest every 25–30 steps
+(`DigestTrace`), the same procedural input tape (a `GameRandom` seed) on
+every platform — code in
+`packages/flutter3d_game_*/test/parity_test.dart` and mirrored in
+`apps/flutter3d_demo_*/integration_test/parity_test.dart` for Android and
+iOS, where `flutter test` doesn't run (only the VM host and the browser do
+— a real device needs `integration_test`). The platformer and shooter
+scenario is new, written specifically for this spike; racing and strategy
+inherited an already-existing `parity_test.dart`, extended here only with
+checks on wasm and on mobile platforms.
+
+| Demo (genre) | macOS VM | Chrome dart2js | Chrome wasm | Android (emulator, arm64) | iOS (simulator) |
 |---|---|---|---|---|---|
-| platformer | совпало | совпало | совпало | совпало | совпало |
-| racing | совпало | совпало | совпало | совпало | совпало |
-| shooter (dungeon) | совпало | совпало | совпало | совпало | совпало |
-| strategy | совпало | совпало | совпало | совпало | совпало |
+| platformer | matched | matched | matched | matched | matched |
+| racing | matched | matched | matched | matched | matched |
+| shooter (dungeon) | matched | matched | matched | matched | matched |
+| strategy | matched | matched | matched | matched | matched |
 
-**Расхождений нет.** Пятнадцать прогонов (плюс базовая запись — двадцать),
-все дайджесты совпали с первого раза, ни один пункт исправления не заведён.
-`net-01` может начинаться.
+**No divergence at all.** Fifteen runs (plus the baseline recording —
+twenty), every digest matched on the first try, not one fix item opened.
+`net-01` can start.
 
-Что осталось за скобками этого спайка и не измерено: устройство ниже
-среднего класса (замер стоимости отката — это отдельный вопрос net-00, а не
-rp-00), настоящее содержимое шипящихся уровней (сценарии играются в
-синтетической комнате `flutter3d_sim/test/parity_test.dart`, а не через
-`Level.fromJson` — репрезентативно для арифметики шага, не для загрузчика
-уровня), и постоянная приколка в CI (`tool/ci.sh` сегодня не гоняет эти файлы
-ни в браузере, ни на wasm, ни на мобильных — только на VM через общий цикл
-`flutter test`; вопрос, стоит ли добавлять туда браузер/wasm/mobile-шаги
-навсегда или достаточно, что они существуют и гоняются вручную перед
-ревизиями, — не решён этим спайком).
+What's outside this spike's own scope and unmeasured: a below-mid-range
+device (measuring the cost of a rollback is net-00's own separate
+question, not rp-00's), the real content of the shipped levels (the
+scenarios are played in a synthetic room,
+`flutter3d_sim/test/parity_test.dart`, not through `Level.fromJson` —
+representative of step arithmetic, not of the level loader), and a
+standing place in CI (`tool/ci.sh` today doesn't run these files in the
+browser, on wasm, or on mobile at all — only on the VM through the shared
+`flutter test` cycle; whether to add a browser/wasm/mobile step there
+permanently, or whether it's enough that they exist and run by hand before
+a review, is a question this spike doesn't settle).
 
-### net-00: цена отката
+### net-00: the cost of a rollback
 
-Закрыт 2026-09-12, с честной оговоркой о том, на чём измерено. `restore()` +
-k шагов, k = 1…10, на настоящем шипящемся уровне/трассе/матче всех четырёх
-демо (не на синтетической комнате `parity_test.dart` — снимок и шаг у
-реальной игры несут инвентарь, automap, экономику, крауд, а не только
-контроллер): `apps/flutter3d_demo_{dungeon,platformer,racing,strategy}/test/rollback_cost_test.dart`.
-Снимок берётся на 300-м шаге (игра в разгаре, не пустой старт), время — только
-`k` шагов после `restore()`, двадцать проб на каждое k, само измерение печатает
-числа, а не проверяет их порогом — тем же приёмом, что и у бенчмарка `wg-00`:
-число зависит от машины, а бюджет net-00 сформулирован для «телефона среднего
-класса», которого у этой сессии нет — только macOS VM (Apple Silicon).
+Closed 2026-09-12, with an honest caveat about what it was measured on.
+`restore()` + k steps, k = 1…10, on a real shipped level/track/match of all
+four demos (not the synthetic room of `parity_test.dart` — a real game's
+own snapshot and step carry an inventory, an automap, an economy, a crowd,
+not just a controller):
+`apps/flutter3d_demo_{dungeon,platformer,racing,strategy}/test/rollback_cost_test.dart`.
+The snapshot is taken at step 300 (the game mid-swing, not an empty start),
+the timer covers only the `k` steps after `restore()`, twenty samples per
+k, the measurement itself prints numbers rather than checking them against
+a threshold — the same trick `wg-00`'s own benchmark already uses: the
+number depends on the machine, and net-00's budget is worded for "a
+mid-range phone," which this session doesn't have — only a macOS VM (Apple
+Silicon).
 
-| Демо (жанр) | k=1 | k=8 (бюджет: 4 мс) | k=10 |
+| Demo (genre) | k=1 | k=8 (budget: 4 ms) | k=10 |
 |---|---|---|---|
-| platformer | 0.28 мс | 1.92 мс | 2.29 мс |
-| racing | 0.03 мс | 0.14 мс | 0.15 мс |
-| shooter (dungeon) | 0.27 мс | 4.74 мс | 4.82 мс |
-| strategy | 1.65 мс | 13.50 мс | 16.22 мс |
+| platformer | 0.28 ms | 1.92 ms | 2.29 ms |
+| racing | 0.03 ms | 0.14 ms | 0.15 ms |
+| shooter (dungeon) | 0.27 ms | 4.74 ms | 4.82 ms |
+| strategy | 1.65 ms | 13.50 ms | 16.22 ms |
 
-**Бюджет держат racing и platformer с большим запасом; dungeon — на грани, а
-strategy — не укладывается почти в четыре раза, и оба по-разному, что и
-просил формат приёмки («что дорого»).**
+**Racing and platformer hold the budget with a large margin; dungeon is on
+the edge, and strategy misses it by almost four times — and the two miss it
+in different ways, exactly what the acceptance format asked for ("what's
+expensive").**
 
-- **strategy** — не разовый скачок, а честная линейная цена: каждый
-  дополнительный шаг стоит ~1.6–1.8 мс независимо от k, то есть дорог не
-  `restore()` (он вне таймера) и не какой-то один шаг, а сам шаг матча —
-  крауд, экономика и `Bot` каждого юнита пересчитываются каждый тик, и это
-  единственное из четырёх демо, где симулируется не один актёр, а полторы
-  сотни (см. `playthrough_test.dart`: карта стартует минимум с 120 юнитов).
-  На телефоне среднего класса это будет хуже, а не только пропорционально —
-  пункт на исправление: инкрементный шаг матча (пересчитывать только то, что
-  действительно изменилось за кадр отката) либо снижение частоты пересчёта
-  экономики относительно шага сети.
-- **dungeon** — другая форма: k=1 стоит 0.27 мс, k=2 — уже 4.5–4.8 мс, а
-  дальше плоско вплоть до k=10 (~4.6–4.8 мс за ЛЮБОЕ k от 2 до 10). Значит
-  дорога не постепенно нарастающая работа шага, а что-то, что происходит
-  ровно один раз, ровно на втором шаге после `restore()`, и не является
-  самим `restore()` (он не входит в измеряемое окно). Пойман честно, но не до
-  конца: перебраны и отвергнуты как причина отсутствие `input.endStep()`
-  между измеряемыми шагами (гигиена цикла — исправлена в тесте, число не
-  изменилось) и порядок `GameLoop.advance`. Правдоподобные, но не
-  подтверждённые профилировщиком кандидаты — `Automap.reveal`, диффующий
-  «увиденное» после `restore()`, или пересборка широкой фазы
-  `CollisionWorld` после того, как позиции тел телепортировались назад, а не
-  сдвинулись на шаг. Пункт на исправление: профилировать `GameSimulation.step`
-  сразу после `restore()` (`dart:developer` timeline или `Observatory`), а не
-  гадать по `Stopwatch` дальше — эта сессия не пошла глубже, потому что
-  дальнейшая локализация без профилировщика стала бы гаданием, а не спайком.
+- **strategy** — not a one-off spike, but an honest linear cost: every
+  extra step costs ~1.6–1.8 ms regardless of k, meaning what's expensive
+  isn't `restore()` (it sits outside the timer) or any one particular
+  step, but the match step itself — the crowd, the economy and every
+  unit's own `Bot` are recomputed every tick, and this is the only one of
+  the four demos simulating not a single actor but a hundred and fifty
+  (see `playthrough_test.dart`: a map starts with at least 120 units). On
+  a mid-range phone this will be worse, not merely proportionally worse —
+  a fix item: an incremental match step (recompute only what actually
+  changed during the rollback frame) or lowering the economy's own
+  recompute rate relative to the network step.
+- **dungeon** — a different shape: k=1 costs 0.27 ms, k=2 already costs
+  4.5–4.8 ms, and it's flat all the way to k=10 (~4.6–4.8 ms for ANY k from
+  2 to 10). So what's expensive isn't gradually accumulating step work, but
+  something that happens exactly once, exactly on the second step after
+  `restore()`, and is not `restore()` itself (it sits outside the measured
+  window). Caught honestly, but not all the way: the absence of
+  `input.endStep()` between measured steps (loop hygiene — fixed in the
+  test, the number didn't change) and `GameLoop.advance`'s own ordering
+  were both considered and ruled out as the cause. Plausible, but not
+  profiler-confirmed, candidates — `Automap.reveal` diffing "what's been
+  seen" after `restore()`, or the broadphase of `CollisionWorld` rebuilding
+  after body positions teleported back rather than moving by a step. A fix
+  item: profile `GameSimulation.step` right after `restore()`
+  (`dart:developer`'s timeline or `Observatory`), rather than guessing
+  further from `Stopwatch` — this session didn't go deeper, because further
+  localization with no profiler would have become guessing, not a spike.
 
-Не измерено, тем же ограничением, что и у rp-00: настоящий телефон среднего
-класса. Числа выше — нижняя граница того, что бюджет потребует; на устройстве
-медленнее они будут только хуже.
+Not measured, under the same limitation as rp-00: a real mid-range phone.
+The numbers above are a lower bound on what the budget will demand; on a
+device, they'll only be worse.
 
 ### net-01: `flutter3d_net`
 
-Закрыт 2026-09-12. Новый пакет, плоский Dart поверх `flutter3d_sim`
-(зависимость одна: `flutter3d_sim`, никакого Flutter — тот же приём, что у
-`flutter3d_physics`), в порядке публикации ARCHITECTURE.md встал шестым
-уровнем рядом с `flutter3d_game`.
-
-**Транспорт — интерфейс, как и просил план.** `NetTransport` — два метода,
-`send`/`listen`, JSON-совместимая карта туда и обратно; ничего в нём не
-знает про WebRTC, WebSocket или релей — те приходят в net-02.
-`LoopbackTransport.pair(...)` — «петля с задержкой и потерями» из
-формулировки net-01 буквально: пара транспортов с фиксированной задержкой
-(округляется до целых шагов) и потерей по вероятности от одного
-`GameRandom` на двоих, так что какие сообщения потеряны — воспроизводимо по
-сиду. Не мок: сообщение по-настоящему приходит позже, чем было отправлено, и
-часть по-настоящему не приходит вовсе.
-
-**`NetSession` — кадры по шагам, задержка ввода, предсказание, откат.**
-Не знает жанра: `captureLocalFrame`/`applyAndStep` читают и пишут во что
-угодно, чем вызывающий код представляет свой ввод (общий `InputState`,
-`VehicleInput` на игрока — не важно), тем же приёмом, что `RunTimeline`
-принимает `stepSim`/`restore` не спрашивая, что внутри. Задержка — своё
-собственное решение применяется не сразу, а через `inputDelay` шагов, тем же
-временем, что и у собеседника на приём. Пока настоящий кадр другой стороны
-не пришёл — шаг идёт на предсказании (повтор последнего подтверждённого).
-Когда пришёл — если совпало, ничего не происходит; если нет,
-`restore(снимок до этого шага)` и `applyAndStep` заново для каждого шага от
-него до настоящего момента, каждый раз беря уже известный локальный кадр и
-либо только что подтверждённый, либо всё ещё лучший из известных удалённый.
-
-**Была найдена и закрыта настоящая дыра: одна лишь передача кадра один раз
-не переживает потерю.** Первая версия отправляла кадр только тем сообщением,
-в которое он родился, и тест с 5% потерь расходился на первом же чекпойнте —
-шаг, чьё единственное сообщение потерялось, никогда не подтверждается и
-навсегда остаётся на предсказании. Исправлено избыточностью:
-каждое сообщение везёт не один кадр, а последние `redundancy` (по умолчанию
-восемь), так что кадр долетает, если хотя бы одно из девяти сообщений,
-которые его когда-либо несли, не потеряно — при 5% независимой потери шанс
-потерять все девять исчезающе мал.
-
-**Вторая находка была в самом тесте, не в `NetSession`.** Дайджест,
-снятый с живого «сейчас» сразу после шага, ловит две стороны в момент, когда
-обе ещё только гадают про восстановление другой — это не рассинхрон, а два
-человека, ещё не сверившихся. `onSettled` — колбэк, зовущийся ровно тогда,
-когда шаг покидает окно отката и `NetSession` больше никогда не сможет его
-исправить; чекпойнт дайджеста берётся из него, а не из текущего состояния.
-
-Три теста в `flutter3d_net/test/net_session_test.dart`, все по приёмке
-net-01 из §4.2 буквально: 120 мс задержки и 5% потерь — оба клиента сходятся
-по `DigestTrace.divergenceFromHex`, и оба `droppedCorrections == 0` (окно
-отката подобрано верно для этой задержки, а не просто «тест прошёл»);
-отдельно — соединение с задержкой заведомо больше `inputDelay`, чтобы почти
-каждый шаг реально прошёл через откат, а не через везение с таймингом (тот
-же `droppedCorrections == 0` подтверждает, что откат действительно
-отработал, а не был обойдён); и главное — `_LyingTransport` подменяет
-значение одного кадра во всех его повторах разом (иначе избыточность сама
-залечила бы одну ложь) — оба клиента расходятся, и `divergenceFromHex`
-называет шаг не раньше того, на котором ложь вообще могла подействовать.
-
-Не сделано, осознанно, вне рамок приёмки net-01 (это net-02/net-03): ни
-одного настоящего транспорта (WebRTC/WebSocket), ни одной живой игры,
-подключённой через `NetSession` — только жанр-агностичный игрушечный шаг,
-тем же приёмом, что `RunTimeline` в rp-02 сначала доказывался на игрушке.
-Больше двух игроков `NetSession` сегодня не считает — формулировка net-01 и
-её приёмка тоже говорят только про двух.
-
-### net-02: релей и транспорт
-
-Закрыт 2026-09-12 на том уровне, что доказуем без настоящего VPS и без двух
-настоящих устройств — та же граница, что называла rp-02 для «активной игры
-в открытом окне»: собран и проверен реальным вторым процессом весь код;
-не проверено — второй настоящий компьютер, NAT, реальный TURN.
-
-**Запасной транспорт — настоящий, и проверен через настоящий релей, не
-через мок.** `bin/relay.dart` в `flutter3d_net` — один процесс, комнаты по
-коду в пути URL (`/room/<code>`), без аккаунтов: первые два сокета на код
-соединяются и получают всё, что шлёт другой, буквально и без разбора;
-третий — отклоняется. `WebSocketTransport` (`lib/src/websocket_transport.dart`)
-— `NetTransport` поверх `web_socket_channel` (а не `dart:io`'s `WebSocket`
-впрямую, чтобы тот же класс собирался и для веба). Тест
-`flutter3d_net/test/relay_test.dart` (`@TestOn('vm')`) поднимает
-`bin/relay.dart` настоящим сабпроцессом (тем же приёмом, что
-`run_timeline_extensions_test.dart` в rp-02), читает порт из его stdout,
-соединяет два `WebSocketTransport` через настоящий сокет на
-`ws://127.0.0.1` и гоняет через них ту же самую конвергенцию `NetSession`,
-что уже доказана на `LoopbackTransport` в net-01 — на этот раз через
-настоящий релей и настоящую сеть (пусть и локальную), а не через
-управляемую тестом петлю. Второй тест — третий сокет на уже занятую
-комнату получает закрытие от релея, а не тишину.
-
-**WebRTC — тоже настоящий код, а не заглушка, но с честно названной
-границей.** `flutter_webrtc` тянет Flutter и нативные биндинги на каждой
-платформе, поэтому не может жить в `flutter3d_net` (плоский Dart — сама
-причина, по которой пакет вообще существует раздельно) — новый пакет
-`flutter3d_net_webrtc` зависит от обоих, `flutter3d_net` (за интерфейсом
-`NetTransport`) и `flutter_webrtc`. `WebRtcTransport.createOffer`/`.awaitOffer`
-— настоящий обмен SDP/ICE через любой `NetTransport`-сигналинг (в проде —
-тот же `WebSocketTransport` на релей, только с ролью, суженной до
-рукопожатия: `bin/relay.dart` не знает и не должен знать, чьи это байты —
-кадры игры или SDP), `RTCDataChannel` — сама передача кадров после
-рукопожатия. Собрано и реально проверено `flutter analyze` против настоящих
-сигнатур `flutter_webrtc` 1.6.2 (не угадано по памяти — до полутора
-исправлений после первой попытки не понадобилось, все совпало с первого
-раза). Два теста в `flutter3d_net_webrtc/test/webrtc_transport_test.dart`
-проверяют честно то, что можно проверить без второго участника: обе
-стороны (`createOffer`/`awaitOffer`) реально доходят до вызова
-`createPeerConnection` и там разбиваются об одну и ту же стену —
-`flutter test` не регистрирует нативный WebRTC-плагин, значит
-`MissingPluginException` вместо реального соединения, тот же класс разрыва,
-что назвал rp-02 для «настоящего устройства».
-
-**`systemd`-юнит и `Dockerfile` рядом, как просил план**, в
-`flutter3d_net/deploy/`: юнит — та же конфинация (`DynamicUser`,
-`ProtectSystem=strict` и далее), что `cloud/deploy/flutter3d-models.service`
-уже использует, урезанная до того, что релею нужно — ни секретов, ни
-состояния на диске, поэтому и `StateDirectory`, и `EnvironmentFile` не
-нужны. Docker-образ **не собран** — демон Docker недоступен в этой сессии
-(`docker info` отвечает, что не запущен); файл написан, но не проверен, тем
-же честным способом, что rp-05 называет для ffmpeg на CI-машине.
-
-Не сделано, честно: ни одного реального P2P-соединения между двумя
-устройствами, ни одного настоящего VPS, ни NAT, ни TURN — приёмка net-02
-буквально просит «два браузера на разных машинах через релей на VPS», а
-средств поднять второй настоящий компьютер или браузер у этой сессии нет.
-
-### net-03: гонки вдвоём — механизм сделан, экран тоже, кроме реального второго телефона
-
-Закрыт 2026-09-12, кроме честной границы, которую net-02 уже назвала: сама
-сетевая гонка — реальный код, реально проверенный на настоящем
-`RacingSimulation`, и по пути нашла архитектурную ошибку, которую нашла бы
-только двухигровая проверка, а не одиночная. Экран «создать / войти по
-коду», индикатор-призрак и запись `.f3drun` с обеих сторон — построены в
-той же сессии, вторым проходом.
-
-**Экран.** `NetRaceSession` (`apps/flutter3d_demo_racing/lib/src/net_race_session.dart`)
-— тонкий слой между `NetRace` и UI: `create`/`join` подключаются к релею по
-`ws://.../room/<code>`, решая `localCarIndex` ровно так, как уже
-формулировал первый проход net-03 — создатель комнаты всегда машина 0,
-присоединившийся — машина 1; `randomRoomCode()` — пять символов без `0`/`O`
-и `1`/`I`, потому что код читают вслух и печатают на телефонной клавиатуре.
-`NetRaceScreen` — сам экран: «Create room» / поле кода + «Join», после
-подключения — код комнаты, индикатор `connected` (`race.connected`,
-уже был у `NetRace`) и кнопка «End race», отдающая собранную сессию
-вызывающему коду через `onEnded` — какая уж там панель сохранения решает
-не этот виджет, тем же принципом, что и `PlaytestReportScreen` из ai-02.
-Кнопка «Race with a friend» — в `main.dart`, видна только до старта сезона,
-рядом с `TitleCard`, ведёт `Navigator.push` в новый экран, не трогая ничего
-в живом рендер-цикле одиночной игры (что и было решено намеренно —
-подключать `NetRaceSession` к самому 3D-виду одиночной гонки эта задача
-не берёт, честно, а не тихо).
-
-**`.f3drun` с каждой стороны — свой, не общий, и это осознанное решение,
-а не недоделка.** `Demo` — лента ввода ОДНОЙ стороны против состояния,
-которое эта лента одна воспроизводит; в сетевой гонке машину соперника
-ведёт не скрипт, а сеть, и ни один файл в одиночку не переиграет обе
-машины. Приёмка задачи — «оба файла прогона дают одинаковые дайджесты» —
-и есть в точности то, что может доказать пара независимо написанных
-`checkpoints` (`DigestTrace`), без общего файла ни одной из сторон.
-`NetRaceSession.saveRunTo` пишет `File.writeAsStringSync`, не
-`writeAsString` — та же находка, что уже честно записана у rp-04: асинхронная
-запись внутри `flutter test` в этой песочнице виснет насмерть, без
-исключения и без таймаута, а синхронная в том же тесте отрабатывает
-мгновенно.
-
-**Настоящая находка при тестировании самого экрана, а не только
-механизма.** Первая попытка — доказать полное схождение (создание +
-присоединение + флип индикатора-призрака) прямо внутри `testWidgets`,
-приманив второго пира настоящим сокетом изнутри обработчика нажатия.
-Голый `Future.delayed`, запущенный тем же путём, действительно повисает без
-`tester.pump(duration)` — ожидаемо, `flutter_test`'s фальшивые часы этого и
-ждут. Но и настоящее сокетное подключение изнутри `testWidgets`, доведённое
-до конца циклом `pump(duration)`, и попытка `tester.runAsync` вокруг него —
-обе виснут насмерть; отдельный опыт с REPL-подобным пробным тестом убил
-процесс через 45 реальных секунд, а не дал ответ логикой. Вывод — не
-предположение, а измеренная граница инструмента: реальный сокет, открытый
-изнутри обработчика виджета, не доигрывается до конца циклом `pump` в этой
-песочнице, что бы ни оборачивало код снаружи. Экран поэтому тестируется на
-том, что безопасно доказуемо (мгновенные переходы состояния — исходный
-экран, состояние «подключаемся»), а полное схождение двух сторон и запись
-дайджестов доказаны на уровне `NetRaceSession` напрямую, обычным `test()`
-(тем же приёмом, что уже надёжно работает в `net_race_test.dart`), а не
-через `testWidgets`.
-
-Три теста в `apps/flutter3d_demo_racing/test/net_race_session_test.dart`:
-`randomRoomCode` никогда не даёт спутываемый символ; создание и
-присоединение по-настоящему через релей сходятся по `localCarIndex`,
-проходят 460 шагов, оба пишут читаемый `.f3drun`, и `divergenceFromHex`
-между их `checkpoints` — `null`. Два теста в `test/net_race_screen_test.dart`
-на безопасной части экрана.
-
-**`NetRace`** (`apps/flutter3d_demo_racing/lib/src/net_race.dart`) — не
-новый механизм, а `net-01`'s `NetSession`, нацеленный на настоящий жанр:
-`captureDriverFrame`/`applyDriverFrame` — те же четыре строки, что
-`main.dart`'s собственный `_readDriver` превращает в `VehicleInput`, только
-в JSON и обратно; `localCarIndex` — какую машину поля из двух ведёт это
-устройство.
-
-**Настоящая находка, а не выдуманная для отчёта: обе стороны называли себя
-машиной 0, и это не сравнение сломалось — сломалась сама гонка.** Первая
-версия жёстко писала локальный ввод в `inputs[0]`, а входящий сетевой — в
-`inputs[1]`, на КАЖДОЙ из сторон. Значит слот 0 на стартовой решётке — это
-я — с обеих точек зрения одновременно, а значит два устройства физически
-не играли одну и ту же гонку: каждое видело себя на месте, которое другое
-видело как своё же. Отсюда `localCarIndex`, обязательный параметр
-конструктора — какая физическая машина моя, решается один раз при
-подключении (кто создал комнату, тот и машина 0) и остаётся неизменной.
-
-**Вторая находка — тоньше и осталась бы незамеченной без честной
-двухпроцессной проверки: первые `inputDelay` шагов асимметричны, если
-«признак ещё не подключились» решается по-разному для локальной и чужой
-машины.** `NetSession`'s собственная задержка ввода означает, что
-ЛОКАЛЬНЫЙ кадр тоже пуст первые `inputDelay` шагов — ему просто ещё не
-время применяться. Первая версия `NetRace` подставляла машине-призраку
-фиксированный «едет прямо» кадр, только когда пуст УДАЛЁННЫЙ кадр, — так
-сторона A первые три шага верила «моя машина стоит, чужая едет призраком»,
-а сторона B — ровно наоборот про те же самые три шага. И ни одна сетевая
-подтверждающая рамка НИКОГДА не адресуется этим трём шагам: самое первое
-сообщение, которое вообще может прийти, помечено шагом `inputDelay`, а не
-0 — значит откат `NetSession`'а тоже никогда их не тронет. Асимметрия
-навсегда впечатана в физику. Исправлено: призрак решается по тому,
-пуст ли КОНКРЕТНЫЙ кадр (свой или чужой), а не по тому, какой это слот —
-теперь обе стороны согласны, что первые `inputDelay` шагов ОБЕ машины едут
-призраком, а не одна из них стоит. Пойман через диф двух полных JSON-снимков
-(не только хешей) при разборе — увидел разницу в пятом знаке после запятой
-в позиции машины, а не хаос, что и указало на крошечное, системное
-рассогласование, а не на случайную порчу данных.
-
-Два теста в `apps/flutter3d_demo_racing/test/net_race_test.dart`: настоящий
-релей, настоящие сокеты, 460 шагов гонки двух по-настоящему
-самостоятельно собранных `RacingSimulation` (`ring.json`, обе машины) —
-сходятся по чекпойнтам `DigestTrace`, `droppedCorrections == 0` с обеих
-сторон; и отдельный быстрый регрессионный тест на `LoopbackTransport` (без
-подпроцесса, миллисекунды, не 2 секунды) с `every: 1`, проверяющий именно
-симметрию первых `inputDelay` шагов — тот тест, что поймал бы именно эту
-находку немедленно, если она вернётся.
-
-Не сделано, тем же ограничением, что и у net-02: ни одного настоящего
-второго телефона по Wi-Fi, ни настоящего VPS. Видео заезда (§6) — вне
-охвата инженерных задач, отдельный пункт.
-
-### tpl-02: галерея живых демо — построена, редактора в браузере нет и не будет
-
-Закрыт 2026-09-12, с одной непреодолимой честной границей, названной сразу,
-до кода, а не найденной по пути: «открыть уровень в веб-редакторе по URL»
-недостижимо буквально, потому что `apps/flutter3d_editor` не имеет веб-сборки
-вообще — desktop-only архитектурное решение, а не пробел (докстринг самого
-приложения: «Desktop only, and that is not an omission... unlike the three
-games there is no web build and no backend to choose between», причина —
-редактор пишет файл обратно на диск, чего браузер не делает). Веб-порт
-редактора — отдельная, гораздо большая задача, не эта.
-
-**Настоящая находка до единой строчки нового кода: почти весь механизм галереи
-уже существовал, только без страницы, которая его собирает.** `site/tool/demos.sh`
-уже собирает все четыре демо под web (`flutter build web --release
---base-href="/demo/<name>/"`) прямо в `site/dist/demo/<name>/`; у каждой из
-четырёх игр уже есть собственная страница с живым `<iframe class="demo-frame">`
-(`site/content/{shooter,platformer,racing,strategy}/demo.md`). Не хватало
-одной страницы, которая показывает все четыре сразу — `site/content/gallery.md`,
-зарегистрированной в `NAV` (`site/tool/build.mjs`) как `/gallery/`, тем же
-`<div class="demo">`-паттерном, что уже используют четыре демо-страницы.
-
-**«Скачать прогон» — настоящий файл, а не заглушка.** Один реальный `.f3drun`
-(`site/assets/samples/shooter.f3drun`, 6.6 КБ) записан через настоящий
-headless-путь ai-00 (`SimSession.open`/`.step`/`.writeRun`, прогнанный через
-`flutter test` — тот же трюк с сокетом вместо буквального stdio, потому что
-`dart:ui` недоступен голому `dart run`), не написан руками. Честно не
-сделано: у платформера, гонок и стратегии сегодня нет готового
-headless-рекордера вне их собственных тестовых наборов (`SimSession`
-жанро-специфична для шутера намеренно, см. `### ai-00`) — их строки в
-галерее так и говорят: «Sample run: not recorded yet», а не ссылаются на
-файл, который тихо устареет.
-
-**«Гайд по свету встраивает живую сцену» — сделано на `core/rendering.md`'s
-разделе «The look».** Тот же `<div class="demo">`-iframe на живую сборку
-шутера (шесть факелов, тот самый «намеренный» свет, о котором пишет ROADMAP)
-вставлен прямо под текстом о тонмаппинге и посте — не выдуманный отдельный
-гайд «про свет», а самый близкий существующий кандидат.
-
-Проверено настоящей сборкой сайта, не только чтением кода: `node
-site/tool/build.mjs` собирает 31 страницу без ошибок, `dist/gallery/index.html`
-несёт все четыре `<div class="demo">`-блока и рабочую ссылку на
-`dist/assets/samples/shooter.f3drun` (файл реально скопирован туда сборкой),
-`dist/core/rendering/index.html` несёт пятый `<div class="demo">`. Полную
-пересборку `site/tool/demos.sh` (четыре `flutter build web`, минуты времени)
-эта сессия не гоняла — сама механика уже доказана тем, что на ней стоят
-четыре существующие демо-страницы; страница галереи просто читает тот же
-вывод.
-
-`dart run tool/structure.dart` из корня — 32/32 после синхронизации счётчиков
-тестов (дрейф от параллельной сессии на `flutter3d_modeler`, применена только
-реальная дельта). Не сделано: полноценный веб-редактор (архитектурная
-граница выше), рекордер прогонов для трёх жанров кроме шутера, «Strategy» как
-полноценный раздел `NAV` (у стратегии сегодня есть `demo.md` и веб-сборка, но
-нет `index.md`/`tutorial.md`/секции в навигации — предсуществующий пробел,
-не создан и не закрыт этой задачей, только использован её собранный
-`/demo/strategy/`).
-
-### net-04: разбор рассинхрона
-
-Закрыт 2026-09-12, с той же поправкой, что и у rp-05: буквальная терминальная
-команда `dart run flutter3d_net:diff a.f3drun b.f3drun` не в этом спайке —
-проверено эмпирически, а не предположено, тем же способом, что и там: диф
-двух реальных `.f3drun` жанра требует переиграть каждый через настоящую
-симуляцию этого жанра, а `flutter3d_net` не знает ни одного жанра (та же
-причина, по которой `flutter3d_testing`'s `replayGolden` не рендерит сама —
-только жанр умеет шагать свою же симуляцию). Терминальная команда — тот же
-`flutter3d_build`/`ap-10`, которого рп-05 уже ждёт.
-
-**Что сделано — механизм, отдельно от команды.** `diffRuns` в
-`flutter3d_net` (`lib/src/snapshot_divergence.dart`) — именно то, что
-просит формулировка: сперва дешёвое `DigestTrace.divergenceFromHex`
-называет первый разошедшийся чекпойнт (то же, чем уже отвечает net-01), а
-уже на этом одном шаге — и только на нём — структурный обход двух полных
-снимков JSON находит первый лист, в котором они разошлись, и называет путь
-до него (`entities.health.7`, `player.body.position` — что угодно, чем
-жанр решил вложить своё состояние; сам `diffRuns` не знает, что такое
-сущность, только рекурсирует по `Map`/`List`). Девять тестов в
-`flutter3d_net/test/snapshot_divergence_test.dart` на голом JSON — путь
-внутрь вложенных карт, по спискам, до листа; расхождение длины списка
-называет саму длину; повторный вызов после совпадения дайджестов — `null`;
-а если дайджесты разошлись, а полные снимки, которые вызывающий код отдал
-для сверки, — нет, `diffRuns` бросает исключение, а не молча врёт «нет
-расхождения».
-
-**Доказано на настоящей игре, не только на голом JSON.**
-`apps/flutter3d_demo_dungeon/test/desync_diff_test.dart` — два прогона
-одного и того же крипта: честный и такой, где ввод стика развернулся в
-другую сторону с шага 150 (тот же класс подмены, что уже проверялся в
-net-01, только на реальном жанре, а не на игрушке). Два теста: два честных
-прогона никогда не расходятся; развёрнутый ввод даёт расхождение не раньше
-150-го шага, и путь реально ведёт вглубь сохранённого JSON, а не
-останавливается на первом ключе. Честная находка по пути: первым
-расходится не позиция игрока, а `actors.lastFocus[0]` — то, на кого
-смотрит ближайший монстр — потому что разворот меняет, кто оказался ближе,
-раньше, чем меняется сама пройденная дистанция; тест это называет прямо,
-а не подгоняет ожидание под то, что казалось интуитивным заранее.
-
-### ai-00: `flutter3d_sim_mcp` — закрыт
-
-Закрыт 2026-09-12, полным сценарием — с владельцем это было явно уточнено
-до старта, потому что формулировка ai-00 столкнула два уже известных этой
-сессии ограничения сразу: и жанр (`flutter3d_game_shooter`), и кадр PNG
-(`flutter3d_cpu`) тянут Flutter SDK, а stdio MCP-сервер по образцу
-`flutter3d_editor_mcp`/`flutter3d_model_mcp` — это `dart run`, где Flutter
-недоступен в принципе. Владелец выбрал полный сценарий через `flutter test`
-вместо урезанного (без монстров и без кадра).
-
-**Настоящая находка до единой строчки кода: `flutter test` ломает stdio
-буквально.** Проверено двухстрочным пробным файлом раньше, чем что-либо
-писалось: `stdout.writeln('READY')` внутри теста доходит до терминала не
-как `READY`, а как `Shell: READY` — движок заворачивает всё, что тест
-пишет, через собственный лог с префиксом. Протокол, завязанный на точный
-формат строки, такого не переживает. `stdin.readLineSync()` оказался ещё
-хуже — реальный ввод до него не доходит вообще, вызов просто вис. И то, и
-другое проверено `Bash`, до того как был начат сам пакет — экономия часа
-разработки в обмен на пять минут эксперимента.
-
-**Решение — тот же канал, другой транспорт.** `dart_mcp`'s `stdioChannel`
-принимает любой `Stream<List<int>>`/`StreamSink<List<int>>`, а не
-буквально настоящий stdio — значит `Socket` подходит без единой правки в
-самом протоколе. `test/fixtures/sim_mcp_server.dart` (не `_test.dart`,
-тем же приёмом, что `timeline_target.dart` в rp-02) поднимает
-`ServerSocket.bind(loopback, 0)`, печатает порт (через тот же `Shell: `
-префикс — для диагностики это ничему не мешает) и оборачивает каждое
-соединение в `SimMcpServer`. Работает под `flutter test --reporter=silent`
-— обычный репортёр тоже писал бы в тот же stdout, откуда клиент читает
-порт.
-
-**Шесть инструментов, всё — настоящий код, ничего не выдумано под отчёт.**
-`open`/`step`/`snapshot`/`digest`/`writeRun`/`frame`. `snapshot` — позиции,
-здоровье, жив ли — игрока и каждого актора, по имени или по индексу.
-`digest` читает `DigestTrace` (чекпойнт каждые 25 шагов) — то же самое,
-что теперь сравнивает `net-04`. `writeRun` пишет настоящий `.f3drun`
-(`Demo` с `checkpoints`), открываемый в редакторе, как и любой другой
-прогон. `frame` — картинка комнаты глазами игрока, без GPU, через
-`flutter3d_cpu`/`flutter3d_bridge`'s `LevelLoader` (тот же `readAsset`/
-`readDocument` шов, что уже даёт редактору читать уровень с диска, а не
-из бандла).
-
-**Стейджинг — четвёртая копия одной и той же функции, и честно названная,
-а не спрятанная.** `apps/flutter3d_demo_dungeon/lib/src/staging.dart`'s
-`stage()` не может быть импортирован пакетом («no package depends on an
-application»), поэтому в `flutter3d_sim_mcp/lib/src/staging.dart` —
-урезанная копия (без automap/breaches/хуков, которых инструменты ai-00 не
-читают). Всё, что она трогает, уже сегодня — только `flutter3d_game_shooter`
-и `flutter3d_sim`, ничего из приложения — так что перенос `stage()` в сам
-пакет `flutter3d_game_shooter` избавил бы разом и приложение, и этот
-сервер, и несколько тестовых файлов дальше в дереве от четырёх копий одной
-функции; не сделано здесь намеренно — это отдельная задача с собственным
-кругом затронутого кода, а не побочный эффект ai-00.
-
-**Экземпляр играет вслепую, а не подглядывает.** Три теста в
-`test/sim_mcp_test.dart` (`@TestOn('vm')`), настоящий второй процесс,
-настоящий сокет, настоящий `MCPClient` из `dart_mcp` — не мок протокола:
-шесть инструментов совпадают с тем, что предлагает `tools/list`; шаг до
-`open` — отказ, а не падение; и главный — агент открывает настоящую
-`crypt.json`, шагает 60 раз вперёд, `snapshot` называет позицию и здоровье
-словами, `digest` называет чекпойнт, `frame` реально возвращает PNG (сверен
-по сигнатуре байт, не только по длине), `writeRun` пишет `.f3drun`,
-который `Demo.fromJson` читает обратно и в котором 60 шагов записанной
-ленты и хотя бы один чекпойнт — ровно приёмка ai-00: «агент... проходит
-первую комнату крипты по кадрам и словам и отдаёт прогон, который
-открывается в редакторе» (само открытие в `apps/flutter3d_editor` не
-нажималось — тот же класс границы, что и у rp-02/net-02/net-03).
-
-Добавлена новая запись-исключение в `tool/structure/repository.dart`'s
-`genreRuleExempt`: `flutter3d_sim_mcp` намеренно, а не по ошибке, знает
-жанр (монстр, оружие, патроны) — единственный пакет-инструмент в этой
-сессии, для которого это правда, в отличие от `editor_mcp`/`model_mcp`.
-
-### ai-01: плейтест партиями — закрыт
-
-Закрыт 2026-09-12, с той же поправкой, что у ai-00/rp-05/net-04:
-буквальный `dart run flutter3d:playtest` — снова `flutter3d_build`/`ap-10`,
-которого нет; сам механизм — в `flutter3d_sim_mcp/lib/src/playtest.dart`,
-рядом со стейджингом, который уже есть у ai-00.
-
-`Playtest.run(levelPath, N)` — по одному `Isolate.run` на прогон, ничем не
-делятся, никакой очереди: N независимых миров одного уровня, честно
-параллельно, а не имитация параллельности через `async`/`await` в одном
-изоляте. Случайная политика (`_RandomDriver`) держит направление и взгляд
-десятки шагов подряд, а не перебрасывает их каждый кадр — тот же приём,
-что у каждого синтетического водителя в этой сессии, потому что шум в
-среднем стоит на месте, а карта уровня достойна того, чтобы в неё реально
-врезались. Три исхода прогона узнаются по тому, что уже есть в
-`GameSimulation.state` (`died`/`exited`), и четвёртый — `stuck`, если
-позиция не сдвинулась на `stuckStride` метров за `stuckAfter` шагов,
-своя, отдельная эвристика, потому что степ ничего подобного сам не знает.
-`Playtest.heatmap()` — карта плотности по клеткам плюс список точек смерти
-и сводка исходов, ровно та JSON-форма, которую попросит `ai-02`.
-
-Три теста в `flutter3d_sim_mcp/test/playtest_test.dart` на настоящей
-крипте: восемь прогонов, каждый доходит до исхода, тепловая карта
-учитывает ровно восемь; один и тот же сид даёт один и тот же прогон дважды
-(включая полный список позиций, не только длину); и — честная, а не
-подогнанная проверка — что `stuck` вообще срабатывает хоть раз из
-нескольких попыток, а не только теоретически существует в перечислении.
-
-Добавлена ещё одна запись-исключение — на этот раз в `boundaryEnumExempt`,
-не в `genreRuleExempt`: `PlaytestOutcome` — тот же класс перечисления, что
-уже освобождён для `GameState`/`RunOutcome` — закрытый набор, которым
-управляет сам цикл `Playtest`, а не контент, которому есть куда расти.
-
-Не сделано: терминальная команда (`ap-10`), и запись тепловой карты в файл
-на диске отдельным вызовом — `jsonEncode(Playtest.heatmap(...))` уже даёт
-готовую структуру, `File(...).writeAsString` со стороны вызывающего кода
-— одна строка, которую `ai-02` допишет вместе с самим слоем отчёта.
-
-### ai-02: тепловая карта в редакторе — закрыт
-
-Закрыт 2026-09-12. `flutter3d_editor` остаётся жанро-агностичным по
-конструкции — редактор не знает, что такое монстр или оружие, — поэтому
-слой отчёта в `apps/flutter3d_editor/lib/src/playtest_report.dart`
-(`HeatmapCell`, `DeathPoint`, `PlaytestReport.fromJson`) читает голый JSON
-`Playtest.heatmap()` из ai-01, не завися от `flutter3d_sim_mcp`: тепловая
-карта — это клетки, точки смерти и счётчик исходов, ни в одном из которых
-не названо ни одного жанра.
-
-Отрисовка — `playtest_heatmap_view.dart`. `HeatmapLayout` — чистая
-арифметика перевода мировых координат в экранные (вписывает footprint
-уровня в размер, отданный `LayoutBuilder`, с полями), нарочно отдельным
-классом от виджета: арифметику дешевле проверить напрямую, чем через
-хит-тестинг `WidgetTester`, который лишь подтверждает, что рисование и
-попадание согласны друг с другом, а не что хоть одно из них верно.
-`PlaytestHeatmapView` — `CustomPaint` поверх неё: плотность клетки как
-цвет от прозрачного к оранжевому, точки смерти — красные кружки с белой
-обводкой, тап засчитывается через `HeatmapLayout.hitTest`.
-`PlaytestReportScreen` открывает JSON через `file_selector` (тот же пакет,
-что уже используют `editor_chooser.dart` и весь остальной редактор), и по
-тапу на точку смерти показывает диалог с сидом, шагом и координатами.
-
-Честная граница: буквальное «открывает таймлайн на этом шаге» из
-формулировки задачи здесь не сделано и сделано быть не может в нынешнем
-виде — во-первых, редактор не умеет шагать симуляцией никакого жанра
-(genre-agnostic по тому же решению, что у `rp-02`), во-вторых, сам
-`Playtest` пока не пишет `.f3drun`/`InputTape` на прогон, только
-разреженные точки `(x, z)` — прокручивать нечего, даже если бы жанровый
-хост существовал. Диалог называет это прямо, а не притворяется, что
-скраббинг случился.
-
-Пять тестов в `playtest_heatmap_view_test.dart` на `HeatmapLayout` и
-`PlaytestHeatmapView` (точка смерти находится ровно там, где её положили;
-тап мимо всех точек ничего не находит; пустой отчёт всё равно даёт
-пригодный layout; тап по маркеру вызывает колбэк; тап по пустой земле —
-нет) и три в `playtest_report_screen_test.dart` (без отчёта — текст «No
-report open.», а не пустой холст; переданный отчёт показывает свой счёт
-прогонов и исходы; тап по смерти открывает диалог с нужными сидом и
-шагом). Кнопка входа — `Icons.grain` рядом с уже существующей
-`Icons.podcasts` в `main.dart`, тем же паттерном `IconButton` →
-`Navigator.push`.
-
-Не сделано: запись `.f3drun` на прогон внутри `Playtest` (нужна для
-настоящего скраббинга), и сама литеральная терминальная команда — та же
-причина, что у ai-00/ai-01 (`ap-10`).
-
-### par-02: диагностический MCP — закрыт, объём сужен по факту находок
-
-Закрыт 2026-09-12. Новый пакет `flutter3d_render_mcp`, рядом с
-`flutter3d_editor_mcp`/`flutter3d_model_mcp`, а не рядом с
-`flutter3d_sim_mcp`: диагностика кадра не знает, что такое жанр, и `open`
-принимает `EntityRegistry` параметром вместо того, чтобы (как ai-00) импортировать
-словарь одного жанра — единственное, что об этом надо знать: уровень, чьи
-сущности пустой реестр не опознаёт, не провалидируется, и это та же честная
-граница, что и везде в этой сессии, а не недосмотр. Кадр без GPU — тот же
-приём, что у ai-00 (`flutter3d_cpu`, сокет вместо stdio, потому что
-`flutter test` заворачивает `stdout` в `Shell: `).
-
-**Настоящая находка до кода: `readPixels` уже прячет ровно то, что нужно
-диагностике.** `CpuTexture.pixels` — это `Float32List` без всякого клампа;
-`CpuDevice.readPixels` конвертирует его в 8-бит через
-`pixels[i].clamp(0.0, 1.0) * 255`, и `double.nan.clamp(0.0, 1.0)` на этом
-SDK отвечает `1.0` — проверено `dart run` двухстрочным пробником, не
-предположено. NaN, который сломанный шейдер записал, доходит до обычной
-картинки как обычный белый пиксель, и это ровно то, что NaN-скан не может
-поймать через существующий публичный API. Добавлен `CpuDevice.readHdrPixels`
-— тот же `Float32List`, без клампа и без конверсии — с отдельным тестом
-(`flutter3d/test/hdr_readback_test.dart`), который пином держит оба
-факта разом: глубина в десять метров переживает `readHdrPixels` и тонет в
-`readPixels` (`255`, то есть `1.0`).
-
-**Debug views — уже есть в `RenderSettings`, а не изобретены здесь.**
-`showSurfaceBuffer` (плюс `surfaceBuffer`, который включает саму запись)
-композитит буфер нормалей/глубины прямо в кадр — R/G октаэдральная
-нормаль, B — roughness, A — глубина по оси взгляда в метрах
-(`packages/flutter3d_shaders/shaders/lib/color.glsl`'s `WriteSurfaceGeometry`).
-`showShadowMap`/`showStaticShadowMap` — то же для двух кубических атласов
-точечных теней. `DiagnosticView` (enum, `lit`/`normals`/`shadowMap`/
-`staticShadowMap`) — просто имена этих четырёх переключателей; добавлена
-`boundaryEnumExempt`-запись, той же формы, что у `PlaytestOutcome`: пятое
-значение потребовало бы пятой настройки на `RenderSettings`, которой
-сегодня нет.
-
-**Критерий приёмки проверен эмпирически, и ответ оказался не тем, что
-подсказывала формулировка.** «Сломанная карта нормалей» ROADMAP не
-уточняет, что именно ломает её — интуитивная догадка (сплошной
-средне-серый normal map, `(128,128,128)`, декодируется в вырожденный
-касательный вектор и `normalize()` даёт NaN) не подтвердилась: 8-битное
-квантование не попадает точно в `0.5`, декодированный вектор выходит
-маленьким, но не нулевым, и рендерится просто чуть тусклее — проверено
-прямым тестовым рендером до того, как был написан хоть один инструмент
-диагностики. Сплошной **чёрный** normal map (`(0,0,0)`, которым реально
-оборачивается уровень, если текстура не загрузилась и placeholder — чёрный,
-а не нейтральный синий `(128,128,255)`) декодируется в `(-1,-1,-1)` —
-нормаль, развёрнутая внутрь поверхности, из-за чего `n_dot_l` уходит в
-минус почти для каждого света и прямое освещение пропадает. Тот же материал
-с нейтральной картой даёт `235` на 8-битном канале, со сломанной — `40`:
-разница видна и без интерпретации. Это настоящий, guarded-PBR-совместимый
-баг (`D_GGX`/`V_SmithGGXCorrelated` в `pbr.frag` защищены `max(x, 1e-6)` от
-любого честного деления на ноль, которое дало бы NaN) — не выдуманный ради
-отчёта.
-
-**Инструменты**: `open`, `frame` (вид `lit`/`normals`/`shadowMap`/
-`staticShadowMap`, из заданной точки и направления взгляда), `pixel`
-(сырое RGBA без клампа плюс декодированные нормаль/roughness/глубина для
-вида `normals`; для любого вида называет проход-источник по
-`describePass`), `passes` (то, что реально отработало в этом кадре — имя,
-активность, время, из `FrameResult.passes`, без пересчёта), `scanNaN`
-(первый нефинитный пиксель в последнем кадре, если он есть). `pixel` для
-вида `lit` всегда называет `"scene"` как единственный проход, считающий
-освещение материала — то самое «имя прохода», которого просит критерий
-приёмки, отданное как факт, а не как угаданный текст.
-
-Тест в `test/render_mcp_test.dart` — настоящий второй процесс, настоящий
-сокет, настоящий `MCPClient`: уровень с двумя стенами под одним светом,
-отличающимися только normal-картой; `frame` рисует обе; сканирование сетки
-пикселей через `pixel` находит самую яркую точку в каждой половине кадра
-(а не предполагает координаты проекции заранее); сломанная стена читается
-заметно темнее исправной; `passes` подтверждает, что `"scene"` реально
-был активен в этом кадре; и ответ `pixel` на тёмном пикселе называет тот же
-`"scene"`, что и `passes` — это и есть «агент называет проход» из критерия
-приёмки, проверенное как данные, а не как текст на веру.
-
-Не сделано, честно и по названным причинам: буквальная терминальная
-команда (`ap-10`, тот же класс ограничения); вывод произвольного узла
-frame graph как текстуры (только имя/активность/время — `FrameResult`
-не хранит текстуру каждого узла отдельно); overdraw (программный
-растеризатор не считает фрагментные вызовы отдельно от финального
-цвета); каскады теней по отдельности (есть только два атласа целиком,
-не разбивка по каскаду); снимок вьюпорта/окна уже открытого редактора и
-подключение к нему по loopback (тот же класс границы, что у rp-02/net-02/
-net-03/ai-00: живой десктопный редактор в этом окружении не поднять). Вид
-`normals` также не может увидеть именно этот баг — `WriteSurfaceGeometry`
-кодирует геометрическую нормаль варьинга (`v_normal`), а не `s.n` после
-применения normal-карты, так что дебаг-вид нормалей остаётся «чистым»
-ровно тогда, когда сама карта и сломана; это не недоделка инструмента, а
-честный факт об архитектуре буфера поверхности, отдельно записанный в
-доке `DiagnosticView.normals`.
-
-### par-03: skills для пользователей движка — закрыт
-
-Закрыт 2026-09-12, с той же поправкой, что у ai-00/ai-01/ai-02/rp-05/net-04:
-буквальная `dart run flutter3d:skills` — снова `flutter3d_build`/`ap-10`,
-которого нет (проверено — в дереве нет ни одного пакета с этим именем).
-Механизм и сам контент — в новом `tool/skills` (плоский Dart-пакет под
-`tool/`, не под `packages/`, тем же приёмом и по той же причине, что уже
-даёт `tool/convert_asset`'s собственный pubspec: пакет под `packages/`
-сверяется с порядком публикации в ARCHITECTURE.md, а этот наружу не идёт).
-
-Важное уточнение формулировки: это не те skills, что уже лежат в
-`packages/*/skills/*/SKILL.md` — те написаны для тех, кто разрабатывает
-сам движок. par-03 пишет skills для тех, кто **строит игру на движке** —
-в проект пользователя, а не в этот репозиторий. `writeEngineUserSkills`
-(`tool/skills/lib/src/skills_writer.dart`) кладёт их в
-`<проект>/.claude/skills/<slug>/SKILL.md`, тем же путём и тем же
-фронтматтером (`name`/`description`), что уже принят во всём дереве.
-
-Четыре SKILL.md, каждый — реальные факты из кода, а не общие слова:
-идиомы и тихие ловушки (`LodGroup.select()` не вызывается сама — до
-первого вызова и при каждом пропуске рисуется самый детальный уровень
-без единой ошибки; автосборка LOD из `ModelLod` тихо отключается для
-узла с несколькими материалами; `RenderSettings.copyWith` уже один раз
-теряло семь полей разом, ровно то, что теперь ловит
-`render_settings_test.dart`; wireframe тихо отклоняется на двух бэкендах
-из трёх — смотреть `FrameResult.wireframeDeclined`, а не картинку;
-anisotropy не действует на билинейный семплер); свет и пост-обработка
-(`tonemap`/`bloom` включены по умолчанию, `sky`/`reflections`/
-`ambientOcclusion`/`xray` — выключены; цвет неба линейный и проходит через
-экспозицию и tone-curve, в отличие от `clearColor`, который декодируется
-из sRGB; включение ambient occlusion тихо выключает MSAA для всего кадра;
-`thickness` в `ReflectionSettings` — метры, не глубина окна;
-`RenderSettings.forStereo()` — единственно верный способ выключить три
-эффекта, которые на стерео-паре считаются неверно); производительность
-(экранная доля, а не дистанция, у `LodGroup.select`; anisotropy зажат
-`maxAnisotropy` устройства; `BloomSettings.levels` — и радиус, и цена, а
-не `intensity`); прогоны и сеть (`Demo`/`.f3drun` требует `levelHash`,
-`buildStamp` и `checkpoints` не опционально; `GameRandom.state` — то
-единственное, что нужно сохранять для тех же будущих бросков после
-загрузки; три параметра `NetSession` — `inputDelay`/`maxRollbackFrames`/
-`redundancy` — торгуются друг с другом, а не независимы, и
-`droppedCorrections` — сигнал, что окно мало для соединения;
-`onSettled` — единственный правильный момент снять чекпойнт дайджеста,
-потому что дайджест шага, снятый раньше, — это дайджест ещё не
-подтверждённой догадки).
-
-Идемпотентность — сама приёмка задачи («повторный запуск — пустой
-diff») — обеспечена по конструкции: контент — константа времени
-компиляции, запись безусловна, значит побайтово одинаковый результат
-при каждом вызове; проверено и тестом (сравнение байтов до/после
-повторного вызова на временной директории), и вручную настоящим CLI
-(`dart run tool/skills/bin/skills.dart`, `md5sum` до и после совпадают).
-Отдельный тест — что запись не трогает чужой, уже существующий
-`.claude/skills/my-own-thing/SKILL.md` в том же проекте.
-
-Тринадцать тестов в `tool/skills/test/skills_writer_test.dart`: сама
-запись (все четыре файла на месте, с ожидаемым фронтматтером);
-идемпотентность; чужие skills не тронуты; и — важнее прочих —
-по группе тестов на каждый SKILL.md, которые грепают **настоящие
-исходники** движка (`lod_group.dart`, `render_settings.dart`,
-`demo.dart`, `net_session.dart`) на предмет тех самых полей и методов,
-которые контент называет по имени — то, что ловит будущий дрейф API, а
-не только сегодняшний снимок, тем же приёмом, каким net-04 нашёл
-`actors.lastFocus[0]`, а не просто поверил заранее написанному тексту.
-
-Не сделано: сама литеральная `dart run flutter3d:skills` (`ap-10`), и
-«агент проходит quickstart без ошибок, которые skills описывают» — вторая
-половина приёмки — не прогонялась отдельным сценарием со свежим агентом:
-каждая ловушка вместо этого сверена с реальным поведением кода, который
-её описывает, что дешевле и не менее честно, но не то же самое, что
-живой прогон.
-
-### edu-00: спецификация интерактива — документ готов, ревью не проведено
-
-Написан 2026-09-12, отдельным файлом
-[doc/edu-00-interactive-format.md](edu-00-interactive-format.md) — S-задача
-и есть по сути один документ, но не в `tooling-plan.md`, чтобы формат жил
-там же, где `doc/lesson-scenarios-plan.md` уже на него ссылается.
-
-Решение — второго формата сцены нет: интерактив — это ещё пять типов
-сущностей (`edu_sequence`, `edu_step`, `edu_annotation`, `edu_clip_plane`,
-`edu_data_source`) в том же `Level`-документе, который уже читают игра,
-редактор и MCP-серверы. Найдено и проверено, не предположено:
-`flutter3d_editor_core`'s `vocabularyOf` держит открытый список типов
-сущностей (`OpenKind`) — значит документ с новыми `edu_*`-типами
-открывается, сохраняется и проходит валидацию редактора уже сегодня, без
-единой строчки правки в самом редакторе.
-
-**Настоящая находка по пути, а не только у net-04.** Первая версия примера
-из документа вкладывала поля шага под ключ `"properties": {...}}`, как
-подписи в самом плане тулинга могли бы навести на мысль. Прогон через
-настоящий `Level.fromJson` + `vocabularyOf` (временный тест в
-`flutter3d_editor_core`, не поверх мока) показал: `EntityDef` не знает
-ключа `properties` — всё, что не входит в `type`/`at`/`yaw`/`name`, само
-становится мешком свойств, так что вложенный `"properties"` уходит одним
-свойством с этим именем целиком, а не полями внутри. Формат в документе
-переписан плоским, тем же видом, что несёт любая существующая сущность
-уровня (`door` с `size`/`travel`/`speed` прямо рядом с `type`/`at`), и
-пример в §11 документа перепроверен тем же прогоном ещё раз — шесть
-сущностей, пять новых типов, все проходят `vocabularyOf(...).knows(...)`,
-и `toJson()` → `fromJson()` сохраняет `offsets`/`steps`/`widget`/
-`check.attempts` без потерь.
-
-Не сделано, и не может быть сделано этим сеансом честно: приёмка edu-00 —
-«документ прочитан двумя людьми, у которых разные сегменты (преподаватель,
-инженер), замечания внесены» — живое ревью, а не то, что агент проверяет
-сам за себя. Документ готов к такому чтению; подтверждения, что оно
-состоялось, здесь нет. `edu-00` поэтому не отмечен «закрыт» в заголовке —
-он отмечен тем, что есть на самом деле.
-
-### edu-01: авторинг в редакторе — закрыт, разборка отдельными сущностями, а не узлом внутри одной
-
-Панель написана 2026-09-12; строка таблицы поймана и сужена 2026-09-13, а
-затем закрыта в тот же день, после проверки, каким путём разборка на самом
-деле нужна настоящему контенту. Настоящая находка, определившая весь объём
-задачи панели:
-**ни один новый `EditorCommand` не понадобился.** Каждый `edu_*`-тип из
-`edu-00` — обычный `EntityDef` с плоским мешком свойств, а
-`flutter3d_editor_core`'s `Place`/`SetField`/`Delete`/`Turn` уже умеют
-класть любую сущность, писать в любой её ключ, удалять и поворачивать её —
-`edu_step`, `edu_annotation`, `edu_clip_plane` не более особенные для этих
-команд, чем `door` или `monster`. Формулировка задачи («всё через команды,
-значит и через MCP») оказалась уже выполненной десятью командами,
-существовавшими до старта этой задачи — не потому что задачу срезали, а
-потому что открытый словарь типов (`edu-00` §1) снял необходимость во
-второй.
-
-**Панель шагов выбирает; `EditorInspector` редактирует.** Второй вывод,
-из докстринга самого `editor_inspector.dart`: он уже рисует одну строку на
-ключ для любой сущности, «включая поле, которого эта сборка никогда не
-видела» — то есть `caption`/`offsets`/`widget`/`attachTo` уже получают
-редактируемую строку бесплатно, как только шаг выбран. Второй, отдельный
-инспектор специально под `edu_*`-ключи повторил бы ровно то, от чего этот
-докстринг уже отказался: «спрятанное поле, которого этот билд никогда не
-видел». `StepPanel` (`apps/flutter3d_editor/lib/src/step_panel.dart`)
-поэтому не редактирует поля — она добавляет шаг, переставляет его в
-списке `edu_sequence.steps`, удаляет, роняет аннотацию или срез, и в конце
-каждого действия выбирает получившуюся сущность (`editing.select`), чтобы
-инспектор тут же показал её поля.
-
-**«Гизмо среза» — тот же гизмо, что у любой сущности.** `edu_clip_plane`
-несёт `yaw`, как и всё остальное в этом формате (`edu-00` §5 уже решило
-это для камеры шага) — поворачивать его можно теми же стрелками/`,`/`.`,
-которыми уже поворачивается любая выбранная сущность в `main.dart`, без
-единой строчки нового кода для интерактивного ввода. Плоскость создаётся
-и потом поворачивается — не перетаскивается за нормаль отдельным 3D-
-хэндлом, которого в этом сеансе строить не пришлось.
-
-**Разборка перетаскиванием закрыта отдельными сущностями, не узлом внутри
-одной модели** — найдено 2026-09-13, вместе с почему это правильный выбор,
-а не обход недоделанного. `ls-e-00`, первый настоящий контент на этом
-формате, разбирает двигатель четырьмя отдельными `'part'`-сущностями
-(`engine-block`/`valve-cover`/`air-filter`/`spark-plug`), каждая со своим
-`EntityDef.position` — а отдельную сущность уже сегодня двигает обычный
-`AxisDrag`/`MoveBy`, тот же гизмо, что двигает дверь или монстра, без
-единой новой строчки. `mergedOffsets(step, nodePath, delta)`
-(`packages/flutter3d_editor_core/lib/src/lesson_authoring.dart`) — тот же
-приём, что `HeatmapLayout` (ai-02) и `bindingsInLevel` (edu-05) уже выбрали
-для арифметики, отдельной от виджета — но она посчитана под ДРУГОЙ случай:
-один узел с именем (`valve_cover`) внутри ОДНОЙ модели с несколькими
-именованными частями, а не несколько сущностей рядом. Ни `engine-body`, ни
-`valve_cover` не существуют в дереве — это пример из докстринга и теста,
-не из содержимого; функцию сегодня не вызывает никто, потому что сценарий,
-для которого она посчитана, ни один настоящий урок ещё не выбрал.
-
-Пикинг именно такого внутреннего узла при этом технически возможен уже
-сегодня, проверено, а не предположено: `renderer.pickPixel` уже
-возвращает настоящий именованный `MeshNode` — `scene_dressing.dart`'s
-`dressGizmos` вызывает `asset.instantiate()` для любой сущности с моделью
-и кладёт `instance.root` в `SceneDressing.owners`, так что клик по узлу
-вроде `valve_cover` внутри модели со многими именованными частями
-физически различим `main.dart`'s `_handleUnder` (который сегодня отдаёт
-владельца целиком, а не сам узел, но узел у него в руках был). Строить
-пикинг, гизмо и второй путь записи (`SetField('offsets', ...)` вместо
-`MoveBy`) под форму данных, которую ни один урок не выбрал, значило бы
-писать интерфейс без сценария — решение владельца, после того как
-проверка это подтвердила, а не предположение, что так будет быстрее.
-`movedStep` —
-переупорядочение списка имён для реордера шага, `freshName` — почему
-`Place`'s копирование последней сущности того же типа не оставляет двум
-шагам одно имя (`Editing.place` копирует свойства последней сущности типа,
-включая `name` — находка, не предположение; без `freshName` второй `place`
-`edu_step` дал бы шагу имя первого, пока `SetField('name', ...)` его не
-перезапишет).
-
-**Доказано дважды — как объект `Editing` и как настоящий MCP-сеанс.**
+Closed 2026-09-12. A new package, flat Dart over `flutter3d_sim` (one
+dependency: `flutter3d_sim`, no Flutter at all — the same trick
+`flutter3d_physics` uses), landing sixth in ARCHITECTURE.md's own
+publishing order, next to `flutter3d_game`.
+
+**The transport is an interface, exactly as the plan asked.** `NetTransport`
+— two methods, `send`/`listen`, a JSON-compatible map both ways; nothing in
+it knows about WebRTC, WebSocket or a relay — those arrive in net-02.
+`LoopbackTransport.pair(...)` is net-01's own "a loop with delay and loss,"
+literally: a pair of transports with a fixed delay (rounded to whole steps)
+and a loss determined by probability from one `GameRandom` shared by both,
+so which messages are lost is reproducible by seed. Not a mock: a message
+genuinely arrives later than it was sent, and part of it genuinely never
+arrives at all.
+
+**`NetSession` — per-step frames, input delay, prediction, rollback.**
+Knows nothing of the genre: `captureLocalFrame`/`applyAndStep` read and
+write whatever the calling code uses to represent its own input (a shared
+`InputState`, a `VehicleInput` per player — it doesn't matter), the same
+trick `RunTimeline` uses in accepting `stepSim`/`restore` with no questions
+about what's inside. Delay is its own decision, applied not immediately but
+after `inputDelay` steps — the same time the counterpart takes to receive
+it. Until the other side's real frame has arrived, the step runs on
+prediction (repeating the last confirmed one). Once it arrives — if it
+matched, nothing happens; if not, `restore(the snapshot before this step)`
+and `applyAndStep` again for every step from there to the present moment,
+each time taking the already-known local frame and either the just-confirmed
+or still-best-known remote one.
+
+**A real hole was found and closed: sending a frame just once doesn't
+survive a loss.** The first version sent a frame only in the one message it
+was born in, and a test with 5% loss diverged at the very first checkpoint
+— a step whose one message was lost is never confirmed and stays on
+prediction forever. Fixed with redundancy: every message carries not one
+frame but the last `redundancy` (eight by default), so a frame gets
+through as long as at least one of the nine messages that ever carried it
+isn't lost — under 5% independent loss, the chance of losing all nine is
+vanishingly small.
+
+**The second finding was in the test itself, not in `NetSession`.** A
+digest taken from the live "now" right after a step catches both sides at
+the exact moment each is still only guessing at the other's own recovery —
+that isn't a desync, it's two people who haven't compared notes yet.
+`onSettled` is a callback fired exactly when a step leaves the rollback
+window and `NetSession` can never correct it again; the digest checkpoint
+is taken from there, not from the current state.
+
+Three tests in `flutter3d_net/test/net_session_test.dart`, all against
+net-01's own §4.2 acceptance, literally: 120 ms of delay and 5% loss — both
+clients converge by `DigestTrace.divergenceFromHex`, and both
+`droppedCorrections == 0` (the rollback window is correctly sized for this
+delay, not just "the test passed"); separately — a connection with delay
+deliberately greater than `inputDelay`, so nearly every step really goes
+through a rollback rather than through luck with timing (the same
+`droppedCorrections == 0` confirms the rollback actually did its job,
+rather than being sidestepped); and, most importantly — `_LyingTransport`
+swaps one frame's value across all of its repeats at once (otherwise
+redundancy alone would heal a single lie) — both clients diverge, and
+`divergenceFromHex` names a step no earlier than the one where the lie
+could possibly have taken effect.
+
+Not done, deliberately, outside net-01's own acceptance (that's
+net-02/net-03): not one real transport (WebRTC/WebSocket), not one live
+game wired through `NetSession` — only a genre-agnostic toy step, the same
+trick `RunTimeline` in rp-02 was first proven on a toy with. `NetSession`
+today doesn't count more than two players — net-01's own wording and
+acceptance also speak only of two.
+
+### net-02: the relay and the transport
+
+Closed 2026-09-12, at the level provable without a real VPS and without
+two real devices — the same boundary rp-02 named for "an actively played
+game in an open window": all the code was assembled and checked with a
+real second process; not checked — a second real computer, a NAT, a real
+TURN server.
+
+**The fallback transport is real, and checked through a real relay, not a
+mock.** `bin/relay.dart` in `flutter3d_net` — one process, code-based rooms
+in the URL path (`/room/<code>`), no accounts: the first two sockets for a
+code connect and get everything the other sends, verbatim and unparsed; a
+third is rejected. `WebSocketTransport`
+(`lib/src/websocket_transport.dart`) is a `NetTransport` over
+`web_socket_channel` (not `dart:io`'s `WebSocket` directly, so the same
+class builds for the web too). The test
+`flutter3d_net/test/relay_test.dart` (`@TestOn('vm')`) brings up
+`bin/relay.dart` as a real subprocess (the same trick
+`run_timeline_extensions_test.dart` uses in rp-02), reads the port from its
+stdout, connects two `WebSocketTransport`s through a real socket at
+`ws://127.0.0.1`, and runs the same `NetSession` convergence already proven
+on `LoopbackTransport` in net-01 through it — this time over a real relay
+and a real network (local, but real), not a test-managed loop. The second
+test — a third socket for an already-occupied room gets a close from the
+relay, not silence.
+
+**WebRTC is real code too, not a stub, but with an honestly named
+boundary.** `flutter_webrtc` pulls in Flutter and native bindings on every
+platform, so it can't live in `flutter3d_net` (flat Dart is the very reason
+the package exists separately) — a new package, `flutter3d_net_webrtc`,
+depends on both `flutter3d_net` (behind the `NetTransport` interface) and
+`flutter_webrtc`. `WebRtcTransport.createOffer`/`.awaitOffer` is a real
+SDP/ICE exchange over any `NetTransport` signaling channel (in production,
+the same `WebSocketTransport` to the relay, only with its role narrowed to
+the handshake — `bin/relay.dart` doesn't know and shouldn't know whose
+bytes these are, game frames or SDP), `RTCDataChannel` carries the frames
+themselves after the handshake. Built and actually checked with `flutter
+analyze` against `flutter_webrtc` 1.6.2's real signatures (not guessed
+from memory — not even one and a half fixes were needed after the first
+attempt, everything matched on the first try). Two tests in
+`flutter3d_net_webrtc/test/webrtc_transport_test.dart` honestly check what
+can be checked with no second participant: both sides
+(`createOffer`/`awaitOffer`) really reach the call to
+`createPeerConnection` and break there against the same wall — `flutter
+test` doesn't register the native WebRTC plugin, so a `MissingPluginException`
+comes back instead of a real connection, the same class of break rp-02
+named for "a real device."
+
+**A `systemd` unit and a `Dockerfile` sit alongside it, as the plan
+asked**, in `flutter3d_net/deploy/`: the unit uses the same confinement
+(`DynamicUser`, `ProtectSystem=strict` and the rest) that
+`cloud/deploy/flutter3d-models.service` already uses, trimmed to what the
+relay needs — no secrets, no state on disk, so neither `StateDirectory`
+nor `EnvironmentFile` is needed. The Docker image was **not built** — the
+Docker daemon is unavailable in this session (`docker info` answers that
+it isn't running); the file is written but unchecked, the same honest gap
+rp-05 names for ffmpeg on a CI machine.
+
+Not done, honestly: not one real P2P connection between two devices, not
+one real VPS, no NAT, no TURN — net-02's own acceptance literally asks for
+"two browsers on different machines through a relay on a VPS," and this
+session has no means to bring up a second real computer or browser.
+
+### net-03: racing for two — the mechanism is done, so is the screen, except a real second phone
+
+Closed 2026-09-12, except for the honest boundary net-02 already named: the
+networked race itself is real code, really checked on a real
+`RacingSimulation`, and along the way found an architectural bug that only
+a two-game check could have found, not a solo one. The "create / join by
+code" screen, a ghost indicator, and writing `.f3drun` from both sides were
+built in the same session, as a second pass.
+
+**The screen.** `NetRaceSession`
+(`apps/flutter3d_demo_racing/lib/src/net_race_session.dart`) — a thin layer
+between `NetRace` and the UI: `create`/`join` connect to the relay at
+`ws://.../room/<code>`, deciding `localCarIndex` exactly as net-03's first
+pass already worded it — the room's creator is always car 0, whoever joins
+is car 1; `randomRoomCode()` is five characters with no `0`/`O` or `1`/`I`,
+because the code gets read aloud and typed on a phone keyboard.
+`NetRaceScreen` is the screen itself: "Create room" / a code field + "Join,"
+after connecting — the room code, a `connected` indicator (`race.connected`,
+already existed on `NetRace`) and an "End race" button that hands the
+assembled session back to the calling code through `onEnded` — whatever
+save panel decides to do with it is not this widget's own business, the
+same principle `PlaytestReportScreen` uses from ai-02. The "Race with a
+friend" button is in `main.dart`, visible only before the season starts,
+next to `TitleCard`, and does a `Navigator.push` into the new screen,
+touching nothing in the single-player game's own live render loop (a
+deliberate decision — wiring `NetRaceSession` into the single-player race's
+own 3D view is not something this task takes on, honestly, not quietly).
+
+**A separate `.f3drun` per side, not a shared one — and this is a
+deliberate decision, not a shortcut.** `Demo` is one side's own input tape
+against the state that tape alone replays; in a networked race, the
+opponent's car is driven by the network, not a script, and no single file
+can replay both cars alone. The task's own acceptance — "both run files
+give matching digests" — is exactly what a pair of independently written
+`checkpoints` (`DigestTrace`) can prove, with no shared file from either
+side. `NetRaceSession.saveRunTo` writes with `File.writeAsStringSync`, not
+`writeAsString` — the same finding already honestly recorded at rp-04:
+an asynchronous write inside `flutter test` in this session's sandbox
+hangs dead, with no exception and no timeout, while a synchronous one in
+the same test returns instantly.
+
+**A real finding while testing the screen itself, not only the mechanism.**
+The first attempt tried to prove full convergence (creation + joining +
+the ghost indicator flipping) directly inside `testWidgets`, luring the
+second peer with a real socket from inside a tap handler. A bare
+`Future.delayed`, run the same way, really hangs with no `tester.pump(duration)`
+— expected, `flutter_test`'s own fake clock wants exactly that. But a real
+socket connection from inside `testWidgets`, driven to completion by a
+`pump(duration)` loop, and a `tester.runAsync` wrapped around it, both hang
+dead; a separate REPL-like probe test killed the process after 45 real
+seconds rather than giving an answer through logic. The conclusion isn't a
+guess but a measured tool boundary: a real socket opened from inside a
+widget's own event handler doesn't play to completion under `pump` in this
+sandbox, whatever wraps the code from outside. The screen is therefore
+tested on what's safely provable (instant state transitions — the starting
+screen, the "connecting" state), and full two-side convergence and digest
+recording are proven at the `NetRaceSession` level directly, through a
+plain `test()` (the same trick already working reliably in
+`net_race_test.dart`), not through `testWidgets`.
+
+Three tests in `apps/flutter3d_demo_racing/test/net_race_session_test.dart`:
+`randomRoomCode` never gives a character that's easy to confuse; creating
+and joining through a real relay really converge on `localCarIndex`, run
+460 steps, both write a readable `.f3drun`, and `divergenceFromHex` between
+their `checkpoints` is `null`. Two tests in `test/net_race_screen_test.dart`
+on the screen's safe half.
+
+**`NetRace`** (`apps/flutter3d_demo_racing/lib/src/net_race.dart`) — not a
+new mechanism, but `net-01`'s own `NetSession`, aimed at a real genre:
+`captureDriverFrame`/`applyDriverFrame` are the same four lines that
+`main.dart`'s own `_readDriver` turns into a `VehicleInput`, only into JSON
+and back; `localCarIndex` says which of the two cars on the field this
+device drives.
+
+**A real finding, not made up for the report: both sides called themselves
+car 0, and it wasn't the comparison that was broken — the race itself
+was.** The first version hard-wrote local input into `inputs[0]` and
+incoming network input into `inputs[1]`, on BOTH sides. So slot 0 on the
+starting grid is "me" from both points of view at once, meaning two
+devices weren't physically playing the same race at all: each saw itself
+in the spot the other saw as its own. Hence `localCarIndex`, a required
+constructor parameter — which physical car is mine is decided once at
+connection time (whoever created the room is car 0) and never changes.
+
+**A second finding — subtler, and one that would have gone unnoticed
+without an honest two-process check: the first `inputDelay` steps are
+asymmetric if "not connected yet" is decided differently for the local car
+than for the remote one.** `NetSession`'s own input delay means the LOCAL
+frame is also empty for the first `inputDelay` steps — it simply isn't
+its turn to apply yet. The first version of `NetRace` substituted a fixed
+"drive straight" frame for the ghost car only when the REMOTE frame was
+empty, so side A believed for the first three steps "my car is stopped,
+the other one is a ghost driving," and side B believed exactly the
+opposite about those same three steps. And no network confirmation frame
+ever addresses those three steps — the very first message that can arrive
+at all is stamped step `inputDelay`, not 0, meaning `NetSession`'s own
+rollback never touches them either. The asymmetry is permanently baked
+into the physics. Fixed: the ghost is decided by whether the SPECIFIC
+frame is empty (one's own or the other's), not by which slot it is — now
+both sides agree that the first `inputDelay` steps have BOTH cars driving
+as ghosts, rather than one of them standing still. Caught by diffing two
+full JSON snapshots (not only hashes) during debugging — seeing a
+difference in the fifth decimal place of a car's own position, not chaos,
+which is what pointed to a tiny, systematic misalignment rather than
+random data corruption.
+
+Two tests in `apps/flutter3d_demo_racing/test/net_race_test.dart`: a real
+relay, real sockets, 460 steps of a race between two genuinely
+independently assembled `RacingSimulation`s (`ring.json`, both cars) —
+converging by `DigestTrace` checkpoints, `droppedCorrections == 0` on both
+sides; and a separate, fast regression test on `LoopbackTransport` (no
+subprocess, milliseconds rather than 2 seconds) with `every: 1`, checking
+exactly the symmetry of the first `inputDelay` steps — the test that would
+catch exactly this finding immediately, if it ever came back.
+
+Not done, under the same limitation as net-02: not one real second phone
+over Wi-Fi, no real VPS. The race video (§6) is outside engineering scope,
+a separate item.
+
+### tpl-02: a gallery of live demos — built, no web editor and none is coming
+
+Closed 2026-09-12, with one insurmountable, honest boundary named up front,
+before any code, not found along the way: "open the level in the web
+editor by URL" is literally unreachable, because `apps/flutter3d_editor`
+has no web build at all — a deliberate desktop-only architectural
+decision, not a gap (the app's own doc comment: "Desktop only, and that is
+not an omission... unlike the three games there is no web build and no
+backend to choose between," the reason being that the editor writes a file
+back over itself, which a browser won't do). A web port of the editor is a
+separate, much larger task, not this one.
+
+**A real finding before a single new line of code: almost the whole
+gallery mechanism already existed, only without the page that assembles
+it.** `site/tool/demos.sh` already builds all four demos for the web
+(`flutter build web --release --base-href="/demo/<name>/"`) directly into
+`site/dist/demo/<name>/`; each of the four games already has its own page
+with a live `<iframe class="demo-frame">`
+(`site/content/{shooter,platformer,racing,strategy}/demo.md`). What was
+missing was one page showing all four at once — `site/content/gallery.md`,
+registered in `NAV` (`site/tool/build.mjs`) as `/gallery/`, using the same
+`<div class="demo">` pattern the four demo pages already use.
+
+**"Download the run" is a real file, not a stub.** One real `.f3drun`
+(`site/assets/samples/shooter.f3drun`, 6.6 KB) was recorded through ai-00's
+own real headless path (`SimSession.open`/`.step`/`.writeRun`, run through
+`flutter test` — the same socket-instead-of-literal-stdio trick, since
+`dart:ui` isn't available to a bare `dart run`), not written by hand.
+Honestly not done: the platformer, racing and strategy each lack a
+ready-made headless recorder outside their own test suites today
+(`SimSession` is deliberately shooter-specific, see `### ai-00`) — their
+own rows in the gallery say exactly that: "Sample run: not recorded yet,"
+rather than linking to a file that would quietly go stale.
+
+**"A lighting guide embeds a live scene" is done on
+`core/rendering.md`'s own "The look" section.** The same
+`<div class="demo">` iframe onto a live shooter build (six torches, the
+very "deliberate" lighting the ROADMAP writes about) is dropped right
+under the text on tonemapping and post — not a made-up separate "about
+lighting" guide, but the closest existing candidate.
+
+Checked with a real site build, not only by reading code: `node
+site/tool/build.mjs` builds 31 pages with no errors,
+`dist/gallery/index.html` carries all four `<div class="demo">` blocks and
+a working link to `dist/assets/samples/shooter.f3drun` (the file is really
+copied there by the build), `dist/core/rendering/index.html` carries a
+fifth `<div class="demo">`. This session did not run a full rebuild of
+`site/tool/demos.sh` (four `flutter build web` runs, minutes of time) — the
+mechanism itself is already proven by the fact that the four existing demo
+pages stand on it; the gallery page simply reads the same output.
+
+`dart run tool/structure.dart` from the root — 32/32 after syncing test
+counts (drift from a concurrent session on `flutter3d_modeler`, only the
+real delta applied). Not done: a full-fledged web editor (an architectural
+boundary above this task's scope), a run recorder for the three genres
+other than the shooter, "Strategy" as a full `NAV` section (strategy today
+has a `demo.md` and a web build, but no `index.md`/`tutorial.md`/nav
+section — a pre-existing gap, not created and not closed by this task,
+only its already-built `/demo/strategy/` is used).
+
+### net-04: diagnosing a desync
+
+Closed 2026-09-12, with the same caveat as rp-05: the literal terminal
+command `dart run flutter3d_net:diff a.f3drun b.f3drun` is not part of this
+spike — checked empirically, not assumed, the same way: diffing two real
+`.f3drun` files of a genre requires replaying each through that genre's own
+real simulation, and `flutter3d_net` doesn't know a single genre (the same
+reason `flutter3d_testing`'s `replayGolden` doesn't render on its own —
+only the genre knows how to step its own simulation). A terminal command is
+the same `flutter3d_build`/`ap-10` rp-05 is already waiting on.
+
+**What's done — the mechanism, separate from the command.** `diffRuns` in
+`flutter3d_net` (`lib/src/snapshot_divergence.dart`) is exactly what the
+wording asks for: first a cheap `DigestTrace.divergenceFromHex` names the
+first diverging checkpoint (the same answer net-01 already gives), and
+only at that one step — and only there — a structural walk of the two full
+JSON snapshots finds the first leaf where they diverge and names the path
+to it (`entities.health.7`, `player.body.position` — whatever a genre
+chose to nest its own state under; `diffRuns` itself doesn't know what an
+entity is, it only recurses through `Map`/`List`). Nine tests in
+`flutter3d_net/test/snapshot_divergence_test.dart` on bare JSON — a path
+into nested maps, through lists, to a leaf; a length mismatch in a list
+names the length itself; a repeated call after digests match is `null`;
+and if the digests diverged but the full snapshots the calling code handed
+over for comparison did not, `diffRuns` throws rather than silently lying
+"no divergence."
+
+**Proven on a real game, not only on bare JSON.**
+`apps/flutter3d_demo_dungeon/test/desync_diff_test.dart` — two runs of the
+same crypt: an honest one and one where the stick's own input flipped
+direction from step 150 on (the same class of swap already checked in
+net-01, only on a real genre rather than a toy). Two tests: two honest runs
+never diverge; the flipped input gives a divergence no earlier than step
+150, and the path really leads deep into the saved JSON rather than
+stopping at the first key. A real finding along the way: the first thing
+to diverge isn't the player's own position, but `actors.lastFocus[0]` —
+who the nearest monster is looking at — because the flip changes who ended
+up closer before the actual distance traveled changes; the test says this
+plainly, rather than fitting the expectation to what seemed intuitive
+beforehand.
+
+### ai-00: `flutter3d_sim_mcp` — closed
+
+Closed 2026-09-12, with a full scenario — clarified explicitly with the
+owner before starting, because ai-00's own wording ran two of this
+session's already-known limitations into each other at once: both the
+genre (`flutter3d_game_shooter`) and the PNG frame (`flutter3d_cpu`) pull
+in the Flutter SDK, while an stdio MCP server following
+`flutter3d_editor_mcp`/`flutter3d_model_mcp`'s own pattern is `dart run`,
+where Flutter is unavailable in principle. The owner chose the full
+scenario through `flutter test` over a trimmed one (no monsters, no
+frame).
+
+**A real finding before a single line of code: `flutter test` breaks
+stdio literally.** Checked with a two-line probe file before anything was
+written: `stdout.writeln('READY')` inside a test doesn't reach the
+terminal as `READY`, but as `Shell: READY` — the engine wraps everything a
+test writes through its own log with that prefix. A protocol pinned to an
+exact line format doesn't survive that. `stdin.readLineSync()` turned out
+even worse — real input never reaches it at all, the call simply hangs.
+Both checked with `Bash`, before the package itself was started — an
+hour of development saved for five minutes of experiment.
+
+**The fix: the same channel, a different transport.** `dart_mcp`'s
+`stdioChannel` accepts any `Stream<List<int>>`/`StreamSink<List<int>>`
+pair, not literally real stdio — meaning a `Socket` fits with not one
+change to the protocol itself. `test/fixtures/sim_mcp_server.dart` (not
+`_test.dart`, the same trick `timeline_target.dart` uses in rp-02) brings
+up `ServerSocket.bind(loopback, 0)`, prints the port (through the same
+`Shell: ` prefix — harmless for diagnostics) and wraps each connection in
+a `SimMcpServer`. Works under `flutter test --reporter=silent` — the
+ordinary reporter would also write into the same stdout the client reads
+the port from.
+
+**Six tools, all real code, nothing invented for the report.**
+`open`/`step`/`snapshot`/`digest`/`writeRun`/`frame`. `snapshot` gives
+positions, health, and alive-or-not for the player and every actor, by
+name or by index. `digest` reads `DigestTrace` (a checkpoint every 25
+steps) — the same thing net-04 now compares. `writeRun` writes a real
+`.f3drun` (a `Demo` with `checkpoints`), openable in the editor like any
+other run. `frame` is a picture of the room through the player's own eyes,
+with no GPU, through `flutter3d_cpu`/`flutter3d_bridge`'s own
+`LevelLoader` (the same `readAsset`/`readDocument` seam already letting
+the editor read a level from disk rather than from a bundle).
+
+**Staging — a fourth copy of the same function, honestly named, not
+hidden.** `apps/flutter3d_demo_dungeon/lib/src/staging.dart`'s `stage()`
+can't be imported by a package ("no package depends on an application"),
+so `flutter3d_sim_mcp/lib/src/staging.dart` carries a trimmed copy (no
+automap/breaches/hooks, none of which ai-00's tools read). Everything it
+touches today is only `flutter3d_game_shooter` and `flutter3d_sim`,
+nothing from the application — so moving `stage()` into
+`flutter3d_game_shooter` itself would at once free the application, this
+server, and a few more test files further into the tree from four copies
+of one function; not done here deliberately — a separate task with its
+own circle of touched code, not a side effect of ai-00.
+
+**The instance plays blind, rather than peeking.** Three tests in
+`test/sim_mcp_test.dart` (`@TestOn('vm')`), a real second process, a real
+socket, a real `MCPClient` from `dart_mcp` — not a protocol mock: the six
+tools match what `tools/list` offers; a step before `open` is a refusal,
+not a crash; and the main one — an agent opens a real `crypt.json`, steps
+forward 60 times, `snapshot` names the position and health in words,
+`digest` names a checkpoint, `frame` really returns a PNG (checked by byte
+signature, not only length), `writeRun` writes a `.f3drun` that
+`Demo.fromJson` reads back, holding 60 steps of recorded tape and at
+least one checkpoint — exactly ai-00's own acceptance: "an agent... clears
+the crypt's first room by frames and words and hands back a run that
+opens in the editor" (the actual opening in `apps/flutter3d_editor` wasn't
+clicked — the same class of boundary as rp-02/net-02/net-03).
+
+A new exemption entry was added to `tool/structure/repository.dart`'s
+`genreRuleExempt`: `flutter3d_sim_mcp` deliberately, not by mistake, knows
+the genre (a monster, a weapon, ammo) — the only tool package in this
+session for which that's true, unlike `editor_mcp`/`model_mcp`.
+
+### ai-01: playtesting in batches — closed
+
+Closed 2026-09-12, with the same caveat as ai-00/rp-05/net-04: a literal
+`dart run flutter3d:playtest` is again `flutter3d_build`/`ap-10`, which
+doesn't exist; the mechanism itself lives in
+`flutter3d_sim_mcp/lib/src/playtest.dart`, next to the staging code ai-00
+already has.
+
+`Playtest.run(levelPath, N)` — one `Isolate.run` per run, sharing nothing,
+no queue: N independent worlds of one level, honestly in parallel, not an
+imitation of parallelism through `async`/`await` in one isolate. The
+random policy (`_RandomDriver`) holds a direction and a look for dozens of
+steps in a row, rather than flipping them every frame — the same trick
+every synthetic driver in this session uses, because noise averages to
+standing still, and a level deserves to actually be walked into. Three run
+outcomes are read from what `GameSimulation.state` already gives
+(`died`/`exited`), and a fourth — `stuck` — fires if the position hasn't
+moved `stuckStride` meters in `stuckAfter` steps, its own separate
+heuristic, because the step itself knows nothing like it.
+`Playtest.heatmap()` — a density map by cell plus a list of death points
+and an outcome summary, exactly the JSON shape `ai-02` will ask for.
+
+Three tests in `flutter3d_sim_mcp/test/playtest_test.dart` on a real
+crypt: eight runs, each reaching an outcome, the heatmap accounting for
+exactly eight; the same seed gives the same run twice (including the full
+position list, not only its length); and — an honest, not fitted, check —
+that `stuck` actually fires at least once across several attempts, rather
+than merely existing in theory as an enum value.
+
+Another exemption entry was added — this time to `boundaryEnumExempt`, not
+`genreRuleExempt`: `PlaytestOutcome` is the same class of enum already
+exempted for `GameState`/`RunOutcome` — a closed set the `Playtest` loop
+itself controls, not content that has anywhere to grow.
+
+Not done: the terminal command (`ap-10`), and writing the heatmap to a
+file on disk as a separate call — `jsonEncode(Playtest.heatmap(...))`
+already gives a ready structure, `File(...).writeAsString` on the calling
+side is one line, which `ai-02` writes alongside the report layer itself.
+
+### ai-02: a heatmap in the editor — closed
+
+Closed 2026-09-12. `flutter3d_editor` stays genre-agnostic by design — the
+editor doesn't know what a monster or a weapon is — so the report layer
+in `apps/flutter3d_editor/lib/src/playtest_report.dart` (`HeatmapCell`,
+`DeathPoint`, `PlaytestReport.fromJson`) reads the bare JSON of ai-01's own
+`Playtest.heatmap()` with no dependency on `flutter3d_sim_mcp`: a heatmap
+is cells, death points and an outcome counter, none of which names a
+single genre.
+
+The drawing is `playtest_heatmap_view.dart`. `HeatmapLayout` is pure
+arithmetic translating world coordinates to screen ones (fitting the
+level's own footprint into whatever size `LayoutBuilder` hands it, with
+margins), deliberately its own class separate from the widget: arithmetic
+is cheaper to check directly than through `WidgetTester`'s own hit
+testing, which only confirms drawing and hit testing agree with each
+other, not that either is actually correct. `PlaytestHeatmapView` is a
+`CustomPaint` over it: a cell's density as a color from transparent to
+orange, death points as red circles with a white outline, a tap counted
+through `HeatmapLayout.hitTest`. `PlaytestReportScreen` opens the JSON
+through `file_selector` (the same package `editor_chooser.dart` and the
+rest of the editor already use), and tapping a death point shows a dialog
+with its seed, step and coordinates.
+
+An honest boundary: the task's own literal "opens the timeline at this
+step" isn't done here and can't be, in its current shape — first, the
+editor can't step any genre's own simulation (genre-agnostic, the same
+decision `rp-02` made), and second, `Playtest` doesn't yet write a
+`.f3drun`/`InputTape` for a run, only sparse `(x, z)` points — there's
+nothing to scrub even if a genre host existed. The dialog says this
+plainly, rather than pretending scrubbing happened.
+
+Five tests in `playtest_heatmap_view_test.dart` on `HeatmapLayout` and
+`PlaytestHeatmapView` (a death point is found exactly where it was placed;
+a tap missing every point finds nothing; an empty report still gives a
+usable layout; a tap on a marker fires the callback; a tap on empty ground
+doesn't) and three in `playtest_report_screen_test.dart` (with no report,
+the text reads "No report open," not an empty canvas; a handed-in report
+shows its own run count and outcomes; a tap on a death point opens a
+dialog with the right seed and step). The entry button is `Icons.grain`
+next to the already-existing `Icons.podcasts` in `main.dart`, the same
+`IconButton` → `Navigator.push` pattern.
+
+Not done: writing a `.f3drun` per run inside `Playtest` (needed for real
+scrubbing), and the literal terminal command itself — the same reason as
+ai-00/ai-01 (`ap-10`).
+
+### par-02: the diagnostic MCP — closed, scope narrowed by the actual findings
+
+Closed 2026-09-12. A new package, `flutter3d_render_mcp`, alongside
+`flutter3d_editor_mcp`/`flutter3d_model_mcp`, not alongside
+`flutter3d_sim_mcp`: frame diagnostics know nothing about a genre, and
+`open` takes an `EntityRegistry` as a parameter rather than importing (as
+ai-00 does) one genre's own vocabulary — the one thing worth knowing about
+that is: a level whose entities an empty registry doesn't recognize
+doesn't validate, and that's the same honest boundary as everywhere else
+in this session, not an oversight. A frame with no GPU — the same trick as
+ai-00 (`flutter3d_cpu`, a socket instead of stdio, because `flutter test`
+wraps `stdout` in `Shell: `).
+
+**A real finding before the code: `readPixels` already hides exactly what
+diagnostics needs.** `CpuTexture.pixels` is a `Float32List` with no clamp
+at all; `CpuDevice.readPixels` converts it to 8-bit through
+`pixels[i].clamp(0.0, 1.0) * 255`, and `double.nan.clamp(0.0, 1.0)` on this
+SDK answers `1.0` — checked with a two-line `dart run` probe, not assumed.
+A NaN a broken shader wrote reaches an ordinary picture as an ordinary
+white pixel, exactly what a NaN scan can't catch through the existing
+public API. `CpuDevice.readHdrPixels` was added — the same `Float32List`,
+with no clamp and no conversion — with its own test
+(`flutter3d/test/hdr_readback_test.dart`) pinning down both facts at once:
+a depth of ten meters survives `readHdrPixels` and drowns in `readPixels`
+(`255`, meaning `1.0`).
+
+**Debug views already exist in `RenderSettings`, not invented here.**
+`showSurfaceBuffer` (plus `surfaceBuffer`, which turns the recording on)
+composites the normal/depth buffer directly into the frame — R/G an
+octahedral normal, B roughness, A view-space depth in meters
+(`packages/flutter3d_shaders/shaders/lib/color.glsl`'s
+`WriteSurfaceGeometry`). `showShadowMap`/`showStaticShadowMap` do the same
+for the two cubic point-shadow atlases. `DiagnosticView` (an enum,
+`lit`/`normals`/`shadowMap`/`staticShadowMap`) simply names these four
+switches; a `boundaryEnumExempt` entry was added, the same shape as
+`PlaytestOutcome`'s: a fifth value would need a fifth setting on
+`RenderSettings`, which doesn't exist today.
+
+**The acceptance criterion was checked empirically, and the answer wasn't
+what the wording suggested.** The ROADMAP's own "a broken normal map"
+doesn't say exactly what breaks it — the intuitive guess (a solid,
+medium-gray normal map, `(128,128,128)`, decoding into a degenerate
+tangent vector, with `normalize()` giving a NaN) didn't hold up: 8-bit
+quantization doesn't land exactly on `0.5`, the decoded vector comes out
+small but not zero, and it renders merely a bit dimmer — checked with a
+direct test render before a single diagnostic tool was written. A solid
+**black** normal map (`(0,0,0)`, what a level is really wrapped in if its
+texture failed to load and the placeholder is black, not a neutral blue
+`(128,128,255)`) decodes into `(-1,-1,-1)` — a normal pointing into the
+surface, which drives `n_dot_l` negative for almost every light and makes
+direct lighting vanish. The same material with a neutral map gives `235`
+on the 8-bit channel, with the broken one — `40`: the difference is
+visible with no interpretation needed. This is a real,
+guarded-PBR-compatible bug (`D_GGX`/`V_SmithGGXCorrelated` in `pbr.frag`
+are guarded by `max(x, 1e-6)` against any honest division by zero that
+would give a NaN) — not invented for the report.
+
+**Tools**: `open`, `frame` (view `lit`/`normals`/`shadowMap`/
+`staticShadowMap`, from a given eye point and look direction), `pixel`
+(raw, unclamped RGBA plus decoded normal/roughness/depth for the `normals`
+view; for any view, names the source pass through `describePass`),
+`passes` (what actually ran in this frame — name, activity, time, from
+`FrameResult.passes`, with no recomputation), `scanNaN` (the first
+non-finite pixel in the last frame, if any). `pixel` for the `lit` view
+always names `"scene"` as the sole pass computing material lighting —
+exactly the "pass name" the acceptance criterion asks for, handed back as
+a fact, not a guessed string.
+
+A test in `test/render_mcp_test.dart` — a real second process, a real
+socket, a real `MCPClient`: a level with two walls under one light,
+differing only in their normal maps; `frame` draws both; a pixel-grid scan
+through `pixel` finds the brightest point in each half of the frame
+(rather than assuming projected coordinates in advance); the broken wall
+reads noticeably darker than the intact one; `passes` confirms `"scene"`
+was really active in this frame; and `pixel`'s answer at a dark pixel names
+that same `"scene"` that `passes` does — this is "an agent names the pass"
+from the acceptance criterion, checked as data, not taken on faith as
+text.
+
+Not done, honestly and for named reasons: the literal terminal command
+(`ap-10`, the same class of limitation); an arbitrary frame-graph node's
+own output as a texture (only name/activity/time — `FrameResult` doesn't
+store every node's own texture separately); overdraw (the software
+rasterizer doesn't count fragment invocations separately from the final
+color); shadow cascades individually (there are only two whole atlases,
+no per-cascade breakdown); a snapshot of an already-open editor's own
+viewport/window and connecting to it over loopback (the same class of
+boundary as rp-02/net-02/net-03/ai-00: a live desktop editor can't be
+brought up in this environment). The `normals` view also can't see this
+exact bug — `WriteSurfaceGeometry` encodes the geometric varying normal
+(`v_normal`), not `s.n` after the normal map is applied, so the normals
+debug view stays "clean" exactly when the map itself is broken; this isn't
+a tool shortcoming, but an honest fact about the surface-buffer's own
+architecture, separately recorded in `DiagnosticView.normals`'s own doc.
+
+### par-03: skills for the engine's own users — closed
+
+Closed 2026-09-12, with the same caveat as ai-00/ai-01/ai-02/rp-05/net-04:
+a literal `dart run flutter3d:skills` is again `flutter3d_build`/`ap-10`,
+which doesn't exist (checked — there's no package with that name anywhere
+in the tree). The mechanism and the content itself live in the new
+`tool/skills` (a flat Dart package under `tool/`, not under `packages/`,
+the same trick and for the same reason `tool/convert_asset`'s own pubspec
+already gives: a package under `packages/` is checked against
+ARCHITECTURE.md's publishing order, and this one doesn't go out at all).
+
+An important wording clarification: these are not the skills already
+sitting in `packages/*/skills/*/SKILL.md` — those are written for people
+developing the engine itself. par-03 writes skills for people **building a
+game on the engine** — into the user's own project, not into this
+repository. `writeEngineUserSkills`
+(`tool/skills/lib/src/skills_writer.dart`) puts them into
+`<project>/.claude/skills/<slug>/SKILL.md`, the same path and the same
+frontmatter (`name`/`description`) already adopted across the whole tree.
+
+Four SKILL.md files, each carrying real facts drawn from the code, not
+generalities: idioms and quiet traps (`LodGroup.select()` doesn't call
+itself — before the first call, and on every skip, the most detailed level
+draws with no error at all; LOD auto-assembly from `ModelLod` silently
+disables itself for a node with several materials;
+`RenderSettings.copyWith` once lost seven fields at once, exactly what
+`render_settings_test.dart` now catches; wireframe is silently declined on
+two of three backends — check `FrameResult.wireframeDeclined`, not the
+picture; anisotropy has no effect on a bilinear sampler); light and
+post-processing (`tonemap`/`bloom` are on by default, `sky`/`reflections`/
+`ambientOcclusion`/`xray` are off; the sky's own color is linear and goes
+through exposure and the tone curve, unlike `clearColor`, which is decoded
+from sRGB; turning ambient occlusion on silently turns MSAA off for the
+whole frame; `thickness` in `ReflectionSettings` is meters, not window
+depth; `RenderSettings.forStereo()` is the one correct way to turn off
+three effects that compute wrong on a stereo pair); performance (a screen
+fraction, not distance, drives `LodGroup.select`; anisotropy is clamped by
+the device's own `maxAnisotropy`; `BloomSettings.levels` is both radius
+and cost, not `intensity`); runs and networking (`Demo`/`.f3drun` requires
+`levelHash`, `buildStamp` and `checkpoints`, not optionally;
+`GameRandom.state` is the one thing that needs saving for the same future
+rolls after loading; `NetSession`'s three parameters —
+`inputDelay`/`maxRollbackFrames`/`redundancy` — trade off against each
+other rather than standing independent, and `droppedCorrections` is the
+signal that the window is too small for the connection; `onSettled` is the
+one correct moment to take a digest checkpoint, because a digest taken
+earlier is a digest of a guess not yet confirmed).
+
+Idempotency — the task's own acceptance ("running it again is an empty
+diff") — is guaranteed by construction: the content is a compile-time
+constant, the write is unconditional, meaning the result is byte-identical
+on every call; checked both by a test (comparing bytes before/after a
+second call on a temp directory) and by hand with the real CLI (`dart run
+tool/skills/bin/skills.dart`, `md5sum` before and after match). A separate
+test confirms the write doesn't touch someone else's already-existing
+`.claude/skills/my-own-thing/SKILL.md` in the same project.
+
+Thirteen tests in `tool/skills/test/skills_writer_test.dart`: the write
+itself (all four files present, with the expected frontmatter);
+idempotency; other skills left untouched; and — more important than the
+rest — a group of tests per SKILL.md that grep the engine's own **real
+sources** (`lod_group.dart`, `render_settings.dart`, `demo.dart`,
+`net_session.dart`) for exactly the fields and methods the content names
+by name — catching future API drift, not just today's snapshot, the same
+trick net-04 used to find `actors.lastFocus[0]`, rather than simply
+trusting text written in advance.
+
+Not done: the literal `dart run flutter3d:skills` itself (`ap-10`), and
+"an agent gets through the quickstart with none of the mistakes the
+skills describe" — the acceptance's second half — wasn't run as a
+separate scenario with a fresh agent: each trap was instead checked
+against the real behavior of the code it describes, which is cheaper and
+no less honest, but not the same thing as a live run.
+
+### edu-00: the interactive's specification — the document is ready, no review has happened
+
+Written 2026-09-12, as a separate file
+[doc/edu-00-interactive-format.md](edu-00-interactive-format.md) — an S
+task that really is, at heart, one document, but not inside
+`tooling-plan.md`, so the format lives where
+`doc/lesson-scenarios-plan.md` already references it.
+
+The decision: there is no second scene format — an interactive is just
+five more entity types (`edu_sequence`, `edu_step`, `edu_annotation`,
+`edu_clip_plane`, `edu_data_source`) in the same `Level` document already
+read by the game, the editor and the MCP servers. Found and checked, not
+assumed: `flutter3d_editor_core`'s `vocabularyOf` keeps an open list of
+entity types (`OpenKind`) — meaning a document with new `edu_*` types
+opens, saves and passes editor validation already today, with not one line
+of edit to the editor itself.
+
+**A real finding along the way, not only at net-04.** The document's first
+draft example nested a step's fields under a `"properties": {...}}` key,
+the way the tooling plan's own captions might have suggested. A run
+through a real `Level.fromJson` + `vocabularyOf` (a temporary test in
+`flutter3d_editor_core`, not over a mock) showed: `EntityDef` doesn't know
+a `properties` key at all — everything outside `type`/`at`/`yaw`/`name`
+itself becomes the property bag, so a nested `"properties"` lands as one
+property carrying that whole name, not as fields inside it. The format in
+the document was rewritten flat, the same shape any existing level entity
+carries (`door` with `size`/`travel`/`speed` directly alongside
+`type`/`at`), and the example in the document's own §11 was re-checked with
+the same run again — six entities, five new types, all pass
+`vocabularyOf(...).knows(...)`, and `toJson()` → `fromJson()` preserves
+`offsets`/`steps`/`widget`/`check.attempts` with no loss.
+
+Not done, and this session honestly cannot do it: edu-00's own acceptance
+— "the document has been read by two people with different backgrounds
+(an instructor, an engineer), their notes folded in" — is a live-review
+step, not something an agent checks against itself. The document is ready
+for that reading; there is no confirmation here that it happened. `edu-00`
+therefore isn't marked "closed" in its own heading — it's marked with what
+is actually true.
+
+### edu-01: authoring in the editor — closed, disassembly as separate entities, not a node inside one
+
+The panel was written on 2026-09-12; the table row was caught and narrowed
+on 2026-09-13, then closed the same day, after checking which path
+disassembly actually needs for real content. The real finding that shaped
+the whole task's scope:
+**not one new `EditorCommand` was needed.** Every `edu_*` type from
+`edu-00` is an ordinary `EntityDef` with a flat property bag, and
+`flutter3d_editor_core`'s `Place`/`SetField`/`Delete`/`Turn` already know
+how to place any entity, write into any of its keys, delete it and rotate
+it — `edu_step`, `edu_annotation`, `edu_clip_plane` are no more special to
+these commands than `door` or `monster` are. The task's own wording ("all
+through commands, meaning through MCP too") turned out to already be
+satisfied by ten commands that existed before this task started — not
+because the task got trimmed, but because the open type vocabulary
+(`edu-00` §1) removed the need for a second set.
+
+**The step panel selects; `EditorInspector` edits.** A second finding, from
+`editor_inspector.dart`'s own doc comment: it already draws one row per key
+for any entity, "including a field this build has never seen" — meaning
+`caption`/`offsets`/`widget`/`attachTo` already get an editable row for
+free the moment a step is selected. A second, dedicated inspector for
+`edu_*` keys would repeat exactly what that doc comment already refused: "a
+hidden field this build has never seen." `StepPanel`
+(`apps/flutter3d_editor/lib/src/step_panel.dart`) therefore doesn't edit
+fields at all — it adds a step, reorders it within the `edu_sequence.steps`
+list, deletes it, drops an annotation or a clipping plane, and at the end
+of each action selects the resulting entity (`editing.select`) so the
+inspector immediately shows its fields.
+
+**"The cross-section's gizmo" is the same gizmo any entity has.**
+`edu_clip_plane` carries `yaw`, like everything else in this format
+(`edu-00` §5 already decided this for a step's own camera) — it can be
+rotated with the same arrows/`,`/`.` that already rotate any selected
+entity in `main.dart`, with not one line of new code for interactive
+input. A plane is created and then rotated — not dragged by its normal
+through a dedicated 3D handle, which this session didn't need to build.
+
+**Drag-to-disassemble closed via separate entities, not a node inside one
+model** — found on 2026-09-13, along with why that's the right choice, not
+a workaround for something unfinished. `ls-e-00`, the first real content
+on this format, disassembles an engine as four separate `'part'` entities
+(`engine-block`/`valve-cover`/`air-filter`/`spark-plug`), each with its own
+`EntityDef.position` — and a separate entity is already moved today by an
+ordinary `AxisDrag`/`MoveBy`, the same gizmo that moves a door or a
+monster, with not one new line. `mergedOffsets(step, nodePath, delta)`
+(`packages/flutter3d_editor_core/lib/src/lesson_authoring.dart`) is the
+same trick `HeatmapLayout` (ai-02) and `bindingsInLevel` (edu-05) already
+chose for arithmetic kept separate from the widget — but it's computed for
+a DIFFERENT case: one named node (`valve_cover`) inside ONE model with
+several named parts, rather than several entities side by side. Neither
+`engine-body` nor `valve_cover` exists in the tree — it's an example from
+a doc comment and a test, not from actual content; nobody calls the
+function today, because no real lesson has chosen the scenario it was
+computed for.
+
+Picking exactly that kind of internal node is technically possible
+already, checked rather than assumed: `renderer.pickPixel` already returns
+a real named `MeshNode` — `scene_dressing.dart`'s `dressGizmos` calls
+`asset.instantiate()` for any entity with a model and puts `instance.root`
+into `SceneDressing.owners`, so a click on a node like `valve_cover` inside
+a model with many named parts is physically distinguishable by
+`main.dart`'s `_handleUnder` (which today hands back the owner as a whole,
+not the node itself, but the node was in its hand). Building picking, a
+gizmo, and a second write path (`SetField('offsets', ...)` instead of
+`MoveBy`) for a data shape no lesson has chosen would mean writing an
+interface with no scenario — an owner decision, made after checking
+confirmed this, not a guess that it would be faster. `movedStep` reorders
+the name list for reordering a step, `freshName` explains why `Place`'s own
+copying of the last entity of the same type doesn't leave two steps with
+one name (`Editing.place` copies the last entity of a type's own
+properties, including `name` — a finding, not a guess; without
+`freshName`, a second `place` of an `edu_step` would give the step the
+first one's name, until `SetField('name', ...)` overwrote it).
+
+**Proven twice — as an `Editing` object and as a real MCP session.**
 `packages/flutter3d_editor_core/test/lesson_authoring_test.dart` (14
-тестов: чистая арифметика `mergedOffsets`/`movedStep`/`freshName`/
-`indexOfNamed`/`orderedSteps`, и один интеграционный — пятишаговая
-разборка двигателя, собранная исключительно вызовами `Place`/`SetField`/
-`Turn().apply(editing)`, без единого написанного вручную JSON-объекта,
-прочитанная обратно `Level.fromJson`). То же самое ещё раз,
-слоем дальше — `packages/flutter3d_editor_mcp/test/lesson_authoring_mcp_test.dart`:
-настоящий `MCPClient`, настоящий сокет, тот же пятишаговый сценарий через
-`place`/`setField`/`select`/`turn` — существующие инструменты, ни одного
-нового, зарегистрированного под `edu_step`. Плюс 9 виджет-тестов
-`apps/flutter3d_editor/test/step_panel_test.dart` на саму панель (пустой
-урок говорит об этом; добавление, выбор, реордер, границы реордера
-(первый не двигается вверх, последний — вниз), удаление синхронно из
-списка и из сущностей, аннотация привязывается по имени, срез создаётся и
-выбирается) — итого 24 новых теста, все зелёные вместе с полным набором
-всех трёх затронутых пакетов.
+tests: pure arithmetic for `mergedOffsets`/`movedStep`/`freshName`/
+`indexOfNamed`/`orderedSteps`, and one integration test — a five-step
+engine teardown assembled entirely through calls to
+`Place`/`SetField`/`Turn().apply(editing)`, with not one hand-written JSON
+object, read back through `Level.fromJson`). The same thing again, one
+layer further out —
+`packages/flutter3d_editor_mcp/test/lesson_authoring_mcp_test.dart`: a
+real `MCPClient`, a real socket, the same five-step scenario through
+`place`/`setField`/`select`/`turn` — existing tools, not one new one
+registered for `edu_step`. Plus 9 widget tests in
+`apps/flutter3d_editor/test/step_panel_test.dart` on the panel itself (an
+empty lesson says so; adding, selecting, reordering, reorder boundaries
+(the first doesn't move up, the last doesn't move down), deleting stays in
+sync between the list and the entities, an annotation binds by name, a
+cross-section is created and selected) — 24 new tests in total, all green
+together with the full suite of all three touched packages.
 
-Не сделано, и осознанно: узловой драг под `mergedOffsets` — `_handleUnder`
-не передаёт имя узла наружу, у `offsets` нет собственного гизмо/жеста, и
-`editor_inspector.dart`'s дженерик-инспектор всё ещё рисует Map как
-`_ReadOnly` по собственному принципу «без падежа на поле» — но это больше
-не пробел этой строки, раз ни один урок не выбрал форму данных, которую
-это должно было бы редактировать. Дальше — как и раньше: «получает
-ссылку» — механизма публикации урока (URL, хостинг) в
-дереве нет, та же незанятая инфраструктура, что и у `tpl-02`; полноценный
-3D-хэндл для среза (заменён поворотом уже существующей сущности); сборка
-редактора под web не прогонялась live в браузере — только `flutter test`
-на VM, чего для логики панели и команд достаточно, но не то же самое, что
-запуск в Chrome.
+Not done, and deliberately: node-level drag under `mergedOffsets` —
+`_handleUnder` doesn't pass the node's name out, `offsets` has no gizmo or
+gesture of its own, and `editor_inspector.dart`'s own generic inspector
+still draws a Map as `_ReadOnly` by its own "no special case per field"
+principle — but that's no longer this row's own gap, since no lesson has
+chosen the data shape it would edit. Beyond that, as before: "gets a link"
+— publishing a lesson (a URL, hosting) has no mechanism in the tree, the
+same unbuilt infrastructure as `tpl-02`'s; a full 3D handle for the
+cross-section (replaced by rotating an already-existing entity); the
+editor's own web build wasn't run live in a browser — only `flutter test`
+on the VM, enough for the panel's own logic and commands, but not the same
+thing as running in Chrome.
 
-### edu-05: живые данные в сцене — закрыт
+### edu-05: live data in a scene — closed
 
-Закрыт 2026-09-12, с той же поправкой, что у ai-00/ai-01/par-02: буквальная
-приёмка («станок из шаблона `tpl-04`») недостижима — `tpl-04` не
-существует (ждёт `wg-01`+`edu-01`; `edu-01` ещё не начат). Построен и
-доказан механизм на реальной, честно синтетической сцене, а не имитация
-экрана шаблона.
+Closed 2026-09-12, with the same caveat as ai-00/ai-01/par-02: the literal
+acceptance ("a machine from the `tpl-04` template") is unreachable —
+`tpl-04` doesn't exist (waits on `wg-01`+`edu-01`; `edu-01` hadn't started
+yet). Built and proven is the mechanism, on a real, honestly synthetic
+scene, not an imitation of the template's own screen.
 
-**Источник — `sampler`, а не притворство MQTT.** `EduDataSource`
-(`flutter3d_sim/lib/src/level/data_source.dart`) — интерфейс с одним
-методом, `sample(step)`; `SamplerDataSource` — детерминированная функция
-шага, единственная реализация, которую этот сеанс может честно проверить
-без брокера в CI. `mqtt`/`websocket` — адаптеры к тому же интерфейсу,
-которые код `edu-05` не пишет: не потому что лень, а потому что настоящий
-MQTT-брокер в тесте CI — отдельная инфраструктурная задача, а не строчка
-этого спайка. `DataSourceRegistry` держит источники по имени и умеет
-`replace()` — подменить источник под тем же именем, без истории до этого
-момента, потому что до этого момента в реестре ничего не хранится, только
-читается.
+**The source is `sampler`, not a pretend MQTT.** `EduDataSource`
+(`flutter3d_sim/lib/src/level/data_source.dart`) is an interface with one
+method, `sample(step)`; `SamplerDataSource` is a deterministic function of
+the step, the one implementation this session can honestly check with no
+broker in CI. `mqtt`/`websocket` are adapters to the same interface that
+edu-05's own code doesn't write — not out of laziness, but because a real
+MQTT broker in a CI test is a separate infrastructure task, not a line of
+this spike. `DataSourceRegistry` holds sources by name and can `replace()`
+— swap a source under the same name, with no history before that moment,
+because nothing in the registry is stored before that moment, only read.
 
-**Привязка — плоский формат edu-00 §9, проверенный на реальном
-`Level.fromJson`.** `resolveBindings(step, atStep, registry)` читает
-`edu_step.bindings` (`source`/`path`/`target`), находит источник по имени,
-достаёт значение по точечному пути на один уровень глубже, чем
-`EntityDef.number`/`.vector` уже читают свои свойства
-(`sensors.spindle.rpm`). На стороне редактора — `bindingsInLevel(level)` в
-`flutter3d_editor_core` (`lib/src/binding_lookup.dart`): какая сущность.
-свойство сейчас привязана, к какому источнику и какому шагу — то, что
-инспектору нужно знать, прежде чем решить рисовать поле как `_ReadOnly`
-вместо редактируемого. Само решение — не подключено: `editor_inspector.dart`'s
-диспетчер полей не тронут, это честно названный остаток, не спрятанный.
+**The binding — edu-00 §9's flat format, checked on a real
+`Level.fromJson`.** `resolveBindings(step, atStep, registry)` reads
+`edu_step.bindings` (`source`/`path`/`target`), finds the source by name,
+pulls a value by a dotted path one level deeper than
+`EntityDef.number`/`.vector` already read their own properties
+(`sensors.spindle.rpm`). On the editor side —
+`bindingsInLevel(level)` in `flutter3d_editor_core`
+(`lib/src/binding_lookup.dart`): which entity property is currently bound,
+to which source and which step — what the inspector needs to know before
+deciding to draw a field as `_ReadOnly` rather than editable. The decision
+itself isn't wired in: `editor_inspector.dart`'s own field dispatcher is
+untouched, an honestly named remainder, not a hidden one.
 
-**История как ввод — новый, аддитивный канал рядом с `InputTape`, не
-второй, несовместимый способ записи ленты.** `DataSourceTrace`
-(`flutter3d_sim/lib/src/save/data_source_trace.dart`) — тот же стиль, что
-`DigestTrace`: плотная запись «шаг → значения», `toJson`/`fromJson`,
-`branchAt(step, throughStep, continuation)` — новый объект с тем же
-префиксом и другим продолжением, не трогающий исходный. `Demo` получил
-необязательное поле `dataSources` (пятое необязательное после
-`platform`/`recordedBy` из rp-01, тем же способом — старый `.f3drun` без
-этого ключа читается как раньше).
+**History as input — a new, additive channel next to `InputTape`, not a
+second, incompatible way of recording a tape.** `DataSourceTrace`
+(`flutter3d_sim/lib/src/save/data_source_trace.dart`) — the same style as
+`DigestTrace`: a dense "step → values" recording, `toJson`/`fromJson`,
+`branchAt(step, throughStep, continuation)` — a new object with the same
+prefix and a different continuation, leaving the source untouched. `Demo`
+got an optional `dataSources` field (a fifth optional field after
+`platform`/`recordedBy` from rp-01, the same way — an old `.f3drun` with
+no such key still reads as before).
 
-**Ветвление доказано поверх уже проверенного механизма rp-02, не рядом с
-ним.** `run_timeline_data_source_test.dart` в `flutter3d_session`:
-триста шагов настоящей записи (`RewindBuffer`/`RunTimeline`, тот же
-`_Toy`-класс, что и `run_timeline_test.dart`, с добавленным полем
-`temperature`, читаемым из `DataSourceRegistry` каждый шаг и пишущимся в
-`DataSourceTrace`) → `timeline.preview(3.0)` и `timeline.releaseAt(point)`
-— буквально тот же вызов, уже доказанный в rp-02 приземляться туда, куда
-приземлился бы независимый повторный прогон, — переносит живое состояние
-твина на найденный шаг → источник подменяется ПОСЛЕ этого, не до → тридцать
-шагов настоящей доигровки с подменённым источником пишут отдельный
-`DataSourceTrace`. Проверено: живое `toy.temperature` после релиза — из
-подмены, не из исходной формулы; ветка совпадает с оригиналом до точки
-разрыва и расходится после; **сам оригинальный `trace`, сериализованный в
-JSON до и после всей процедуры, — байт в байт один и тот же** — «без
-переписывания истории» в буквальном виде, а не как заявление.
+**Branching is proven on top of rp-02's own already-checked mechanism, not
+alongside it.** `run_timeline_data_source_test.dart` in
+`flutter3d_session`: three hundred steps of a real recording
+(`RewindBuffer`/`RunTimeline`, the same `_Toy` class as
+`run_timeline_test.dart`, with a `temperature` field added, read from
+`DataSourceRegistry` every step and written into `DataSourceTrace`) →
+`timeline.preview(3.0)` and `timeline.releaseAt(point)` — literally the
+same call already proven in rp-02 to land wherever an independent replay
+would land — carries the twin's own live state to the found step →
+the source is swapped AFTER this, not before → thirty steps of real
+continued play with the swapped source write a separate `DataSourceTrace`.
+Checked: the live `toy.temperature` after release comes from the swap, not
+from the original formula; the branch matches the original up to the break
+point and diverges after it; **the original `trace` itself, serialized to
+JSON before and after the whole procedure, is byte for byte the same** —
+"no rewriting history," literally, not merely as a claim.
 
-Одиннадцать тестов в `flutter3d_sim/test/data_source_test.dart`
-(`resolveBindings` на реальном, плоском — без обёртки `properties`,
-находка edu-00 §2 — уровне; `DataSourceTrace` вперёд-только-запись,
-раунд-трип, `branchAt`; `Demo.dataSources` необязательное поле в обе
-стороны), четыре в `flutter3d_editor_core/test/binding_lookup_test.dart`,
-один интеграционный в `flutter3d_session` — итого 16 новых тестов, все
-проходят вместе с полным набором всех трёх затронутых пакетов.
+Eleven tests in `flutter3d_sim/test/data_source_test.dart`
+(`resolveBindings` on a real, flat level — no `properties` wrapper,
+edu-00 §2's own finding; `DataSourceTrace` as a forward-only recording,
+round-tripped, `branchAt`; `Demo.dataSources` optional both ways), four in
+`flutter3d_editor_core/test/binding_lookup_test.dart`, one integration
+test in `flutter3d_session` — sixteen new tests in total, all passing
+together with the full suite of all three touched packages.
 
-Не сделано: буквальная `tpl-04` (`станок`); реальные MQTT/WebSocket-адаптеры
-поверх `EduDataSource` (интерфейс есть, реализации — только `sampler`);
-подключение `bindingsInLevel` к `editor_inspector.dart`'s фактическому
-выбору виджета поля — сегодня это отдельная, готовая к использованию
-функция, а не то, что инспектор реально зовёт.
+Not done: the literal `tpl-04` (the "machine"); real MQTT/WebSocket
+adapters over `EduDataSource` (the interface exists, only `sampler` is
+implemented); wiring `bindingsInLevel` into `editor_inspector.dart`'s
+actual field-widget choice — today it's a separate, ready-to-use function,
+not something the inspector actually calls.
 
-### edu-06: стерео для класса — закрыт
+### edu-06: stereo for a classroom — closed
 
-Закрыт 2026-09-12. Тот же документ, который `edu-01`'s панель шагов
-собирает (`edu_sequence`/`edu_step`), проигранный через `StereoRig` вместо
-отредактированный через него — не второй способ читать шаг:
-`orderedSteps` (`edu-01`, `lesson_authoring.dart`) уже резолвит
-`edu_sequence.steps` в сами сущности, этот пункт только говорит, что шаг
-значит для рига.
+Closed 2026-09-12. The same document `edu-01`'s own step panel assembles
+(`edu_sequence`/`edu_step`), played back through `StereoRig` instead of
+edited through it — not a second way to read a step: `orderedSteps`
+(`edu-01`, `lesson_authoring.dart`) already resolves `edu_sequence.steps`
+into the entities themselves; this item only says what a step means for
+the rig.
 
 `packages/flutter3d_stereo/lib/src/lesson_player.dart` — `applyLessonStep`
-переносит `stage` рига на `at`/`yaw` шага и показывает/прячет именованные
-узлы сцены по спискам `visible`/`hidden` шага, ничего не трогая из того,
-что шаг не назвал (та же конвенция «каждый шаг несёт полное состояние
-того, что трогает», что уже приняла `edu-00` §5). `LessonPlayer` —
-`next`/`previous`, оба **зажаты, а не зациклены**: студент, нажавший
-дальше последнего шага, должен видеть последний шаг удержанным, а не
-внезапно первый. `lesson_stereo_view.dart` — `LessonStereoView`,
-`StereoSurface` с двумя кнопками поверх; кнопка, не клавиатура и не
-скролл — честная находка `wg-01`, что оба не достигают виджета внутри
-`WidgetSurface`, здесь неактуальна напрямую (кнопки — обычные `IconButton`
-поверх стерео-поверхности, не внутри неё), но выбор в пользу кнопки, а не
-жеста, тот же самый: у телефона в картонных очках нет клавиатуры в
-принципе.
+moves the rig's own `stage` to a step's `at`/`yaw` and shows/hides named
+scene nodes by a step's own `visible`/`hidden` lists, touching nothing a
+step doesn't name (the same "every step carries the full state of what it
+touches" convention `edu-00` §5 already adopted). `LessonPlayer` —
+`next`/`previous`, both **clamped, not wrapped**: a student pressing next
+past the last step should see the last step held, not suddenly the first.
+`lesson_stereo_view.dart` — `LessonStereoView`, a `StereoSurface` with two
+buttons over it; a button, not a keyboard and not scrolling — `wg-01`'s own
+honest finding that neither reaches a widget inside `WidgetSurface`
+doesn't directly apply here (the buttons are ordinary `IconButton`s over
+the stereo surface, not inside it), but the choice of a button over a
+gesture is the same one: a phone in a cardboard headset has no keyboard at
+all.
 
-Новая зависимость: `flutter3d_stereo` теперь тянет `flutter3d_sim`
-напрямую, тем же путём, что `flutter3d_editor_core` уже выбрал — плоский
-Dart, ни жанра, ни Flutter, тянуть его через `flutter3d_game` было бы
-лишним слоем ради одного класса (`EntityDef`).
+A new dependency: `flutter3d_stereo` now pulls in `flutter3d_sim`
+directly, the same path `flutter3d_editor_core` already chose — flat Dart,
+no genre, no Flutter; pulling it in through `flutter3d_game` would have
+been an extra layer for one class (`EntityDef`).
 
-Восемь тестов в `lesson_player_test.dart` — чистая арифметика и рига без
-рендера, тем же приёмом, что `stereo_rig_test.dart` уже выбрал (мировые
-позиции глаз, не картинка): перенос стенда на позицию и угол шага;
-показ/скрытие по именам без затрагивания непомянутых; зажатые границы
-плеера; пустой урок — не бросает; кнопка сдвигает оба глаза вместе со
-стендом на ровно ту дистанцию, что сдвинулся стенд — и рядом настоящая
-находка, а не подгонка: тот же сдвиг с одновременной сменой `yaw`
-сдвигает глаза НЕ на ту же дистанцию, потому что поворот головы
-разворачивает и офсет между глазами — тест называет это прямо, вместо
-того чтобы округлить допуск, пока не совпадёт. Два теста в
-`lesson_stereo_view_test.dart` — настоящий `CpuDevice` (без GPU, тем же
-приёмом, что `wg-01`'s собственные тесты), тап по «Next» реально прячет
-узел и двигает `stage`; кнопка «Previous» реально отключена на первом
-шаге (`onPressed == null`), а не просто должна была бы быть.
+Eight tests in `lesson_player_test.dart` — pure arithmetic with no
+rendering, the same trick `stereo_rig_test.dart` already chose (world eye
+positions, not a picture): moving the stand to a step's position and
+angle; showing/hiding by name with no effect on what wasn't mentioned;
+clamped player boundaries; an empty lesson doesn't throw; a button moves
+both eyes together with the stand by exactly the distance the stand
+moved — and alongside it, a real finding, not a fitted one: the same move
+with a simultaneous `yaw` change does NOT move the eyes by the same
+distance, because turning the head also rotates the offset between the
+eyes — the test says this plainly, instead of widening the tolerance until
+it matched. Two tests in `lesson_stereo_view_test.dart` — a real
+`CpuDevice` (no GPU, the same trick `wg-01`'s own tests use), tapping
+"Next" really hides a node and moves the `stage`; the "Previous" button is
+really disabled on the first step (`onPressed == null`), not merely
+supposed to be.
 
-Честная граница: реального телефона с Cardboard-очками в этой среде нет
-— доказан риг, документ и кнопка, а не лапы клея и стекло линз. Лесенка
-пять шагов из формулировки задачи — сама разборка двигателя — не
-построена как отдельный ассет с реальной 3D-моделью двигателя: тесты
-используют синтетические трёх-шаговые сцены с именованными пустыми
-узлами (`SceneNode`), потому что задача — доказать механизм проигрывания
-урока, а не создать конкретный контент разборки (то же разделение, что
-`doc/lesson-scenarios-plan.md` уже проводит между `tooling-plan.md`
-(формат и код) и собственным планом контента (`ls-x-00`, который именно
-эту сцену и должен наполнить настоящей моделью, когда до него дойдёт
-очередь).
+An honest boundary: there's no real phone with Cardboard goggles in this
+environment — the rig, the document and the button are proven, not the
+glue and the lens glass. The five-step ladder from the task's own
+wording — the engine teardown itself — isn't built as a separate asset
+with a real 3D engine model: the tests use synthetic three-step scenes
+with named empty nodes (`SceneNode`), because the task is to prove the
+lesson-playback mechanism, not to create the specific teardown content
+(the same split `doc/lesson-scenarios-plan.md` already draws between
+`tooling-plan.md` (the format and the code) and its own content plan
+(`ls-x-00`, which is exactly the one meant to fill this scene with a real
+model, when its turn comes).
 
-### edu-02: публичная страница и embed — плоский проигрыватель написан, сервис задеплоен на lessons.pleion.dev
+### edu-02: a public page and an embed — a flat player is written, the service is deployed on lessons.pleion.dev
 
-Написан 2026-09-12, после `edu-06` и на отдельном поддомене
-`lessons.pleion.dev`, а не на `models.pleion.dev`, как называла исходная
-формулировка задачи — по решению Дмитрия: свой сервис, свой nginx, свой
-cloudflared-туннель, изолированно от каталога моделей.
+Written 2026-09-12, after `edu-06` and on its own subdomain,
+`lessons.pleion.dev`, rather than `models.pleion.dev`, as the task's
+original wording named — by Dmitrii's own decision: its own service, its
+own nginx, its own cloudflared tunnel, isolated from the model catalog.
 
-**Настоящая находка, определившая объём задачи.** Формулировка называет
-только облачную обвязку, но исследование перед стартом нашло: проигрывателя
-шагов для плоского (не-VR) экрана не существовало вовсе — только
-`flutter3d_stereo`'s `applyLessonStep`/`LessonPlayer`, написанный под
-`StereoRig`/Cardboard, и `tpl-04`'s `ViewerTourController`, который крутит
-только текст подписи, не трогая камеру и видимость. `edu-02` поэтому не
-сводится к деплою — сначала написан настоящий плоский проигрыватель.
+**A real finding that set the task's scope.** The wording names only the
+cloud wrapper, but research before starting found: a step player for a
+flat (non-VR) screen didn't exist at all — only `flutter3d_stereo`'s
+`applyLessonStep`/`LessonPlayer`, written for `StereoRig`/Cardboard, and
+`tpl-04`'s `ViewerTourController`, which only cycles a caption's text,
+touching neither the camera nor visibility. `edu-02` therefore isn't just
+a deploy — a real flat player was written first.
 
 **`packages/flutter3d_bridge/lib/src/lesson_player.dart`** —
-`applyLessonStepToCamera(SceneNode camera, EntityDef step, {nodes})` и
-`LessonPlayer` (`steps`/`index`/`next`/`previous`, зажаты, не зациклены),
-той же формы, что стерео-версия, но без понятия «риг»: в плоском случае
-камера сама себе стенд, `SceneNode`, которым управляет вызывающий код
-напрямую. Место выбрано не произвольно — докстринг стерео-версии сам
-называет `flutter3d_bridge` местом, «где `EntityDef` уже встречает
-`SceneNode`». Пять новых тестов, 74/74 всего пакета зелёных.
+`applyLessonStepToCamera(SceneNode camera, EntityDef step, {nodes})` and
+`LessonPlayer` (`steps`/`index`/`next`/`previous`, clamped, not wrapped),
+the same shape as the stereo version, minus the notion of a "rig": in the
+flat case the camera is its own stand, a `SceneNode` the calling code
+drives directly. The location wasn't arbitrary — the stereo version's own
+doc comment already names `flutter3d_bridge` as the place "where
+`EntityDef` already meets `SceneNode`." Five new tests, 74/74 of the whole
+package green.
 
-**`apps/flutter3d_lesson_viewer`** — новое приложение, read-only витрина: не
-расширение `flutter3d_template_app` (то — зерно проекта с ходящим телом) и
-не `flutter3d_editor` (авторинг, без `web`-таргета вообще). Камера сцены —
-`CameraNode`, который сам оказался `SceneNode`, так что `LessonPlayer` из
-`flutter3d_bridge` подошёл без переделки сигнатуры; `LevelLoader().build()`
-не просит `CollisionWorld`, когда ходящего тела нет, поэтому приложение
-проще `template_app`. Уровень выбирается `?level=` в рантайме (без
-same-origin проверки, которую делает `flutter3d_modeler`'s `?model=` —
-здесь `rootBundle.loadString` читает только то, что уже вбандлено в саму
-сборку, а не чужой URL) или `--dart-define=level=` для локальной разработки.
-Контент по умолчанию — `assets/levels/tour.json`, тот же тур на три вида
-камеры, что уже доказал `tpl-04`'s `viewer.json`. Документ несёт и четвёртую
-сущность, `quiz-steps` с `check`, добавленную после первого деплоя — но не
-в шипуемой последовательности `edu_sequence.steps` (откачено, см. ниже).
+**`apps/flutter3d_lesson_viewer`** — a new application, a read-only
+showcase: not an extension of `flutter3d_template_app` (that one is a
+project's own seed with a walking body) and not `flutter3d_editor`
+(authoring, with no `web` target at all). The scene's camera is a
+`CameraNode`, which itself turned out to be a `SceneNode`, so
+`flutter3d_bridge`'s `LessonPlayer` fit with no signature change;
+`LevelLoader().build()` doesn't ask for a `CollisionWorld` when there's no
+walking body, so the application is simpler than `template_app`. The level
+is chosen with `?level=` at runtime (with no same-origin check, unlike
+`flutter3d_modeler`'s own `?model=` — here `rootBundle.loadString` only
+reads what's already bundled into the build itself, not a foreign URL) or
+`--dart-define=level=` for local development. The default content is
+`assets/levels/tour.json`, the same three-camera-view tour `tpl-04`'s own
+`viewer.json` already proved. The document also carries a fourth entity,
+`quiz-steps` with a `check`, added after the first deploy — but not in the
+shipped `edu_sequence.steps` sequence (rolled back, see below).
 
-Честно неподключённое: `widget_surface "view-caption"` в контенте не
-резолвится реестром виджетов (`WidgetSurfaceVisuals.add()` на неизвестное
-имя пишет `Issue` и не рисует, вместо того чтобы упасть) — подпись шага
-показывается 2D-текстом поверх сцены, а не через саму `WidgetSurface`;
-рабочий, протестированный путь, но не тот, что описывает `edu-00` §7.
+Honestly not wired in: a `widget_surface "view-caption"` in the content
+isn't resolved by the widget registry (`WidgetSurfaceVisuals.add()` on an
+unknown name writes an `Issue` and doesn't draw, rather than throwing) — a
+step's own caption shows as 2D text over the scene rather than through
+`WidgetSurface` itself; a working, tested path, but not the one `edu-00`
+§7 describes.
 
-**Добавлено после первого деплоя, по прямой просьбе Дмитрия: камера между
-шагами — карусель, а не статуя.** `edu-00` не даёт шагу цели орбиты, только
-`at`/`yaw`, но витрина, которая просто держит канонический вид шага
-неподвижным, — слайд-шоу, а не то, что можно покрутить. Решение —
+**Added after the first deploy, by Dmitrii's own direct request: the
+camera between steps is a carousel, not a statue.** `edu-00` gives a step
+no orbit target, only `at`/`yaw`, but a showcase that simply holds a
+step's own canonical view motionless is a slideshow, not something you can
+turn. The fix —
 `packages/flutter3d/lib/src/engine/scene/orbit_controller.dart`'s
-`OrbitController` (тот же, что уже даёт `flutter3d_modeler` мышью/тачем
-крутить модель), с целью орбиты в мировом начале координат — той же
-условности, на которой уже стоит постамент готового тура (`[0, 0.5, 0]`).
-Шаг по-прежнему кладёт камеру ровно туда, куда говорит `edu-00`
-(`applyLessonStepToCamera` не тронут); после этого числа орбиты
-(`distance`/`yaw`/`pitch`) пересчитываются из получившейся позиции, так что
-жест продолжает именно оттуда, а не от старых чисел. `lib/src/orbit_cubit.dart`
-— `OrbitCubit`, чтобы камера была частью того же Cubit-стиля, что уже
-`LessonCubit` в `main.dart`, а не единственным полем `setState` в дереве
-виджетов; `Cubit.emit` не замечает мутацию одного и того же объекта, поэтому
-каждый вызов эмитит свежий `OrbitPose`-снимок чисел контроллера, а не сам
-контроллер второй раз.
+`OrbitController` (the same one already letting `flutter3d_modeler` be
+turned by mouse/touch), with its orbit target at the world origin — the
+same convention the finished tour's own pedestal already stands on
+(`[0, 0.5, 0]`). A step still places the camera exactly where `edu-00`
+says (`applyLessonStepToCamera` is untouched); after that, the orbit's own
+numbers (`distance`/`yaw`/`pitch`) are recomputed from the resulting
+position, so the gesture continues from exactly there, not from stale
+numbers. `lib/src/orbit_cubit.dart` — `OrbitCubit`, so the camera is part
+of the same Cubit style `LessonCubit` already uses in `main.dart`, rather
+than the widget tree's only `setState` field; `Cubit.emit` doesn't notice
+a mutation of the same object, so every call emits a fresh `OrbitPose`
+snapshot of the controller's own numbers, rather than the controller
+itself a second time.
 
-**Три настоящих бага, найденных только живым прогоном в браузере, не
-тестами.** Ни один не поймал `flutter test` — все три видны только на
-поднятом `flutter run -d chrome`, и каждый нашёлся по прямому наблюдению
-Дмитрия, а не по логам:
-1. У шага `view-front` в `tour.json` был `yaw: 3.1416` — камера в `z=+3`
-   смотрела в `+Z`, то есть от постамента, а не на него. Формула
-   `forward = (-sin(yaw), 0, -cos(yaw))` (подтверждена в
-   `flutter3d_audio/lib/src/listener.dart` и `actor_visuals.dart`) — камера
-   первого шага смотрела в пустую стену. Три позиции камеры в `tour.json`
-   пересчитаны заново по этой формуле.
-2. Жест реально двигал `OrbitController` (подтверждено виджет-тестом,
-   проверяющим сам объект камеры), но картинка на экране не менялась:
-   `SceneSurface` зовёт `renderer.render` только изнутри собственного
-   `build()` (`packages/flutter3d_session/lib/src/scene_surface.dart`), а
-   мутация узла сцены сама по себе виджет не помечает грязным. Без
-   `setState`/`Cubit.emit` после жеста камера двигалась, а перерисовки не
-   было — тест это не ловил, потому что читал `camera.readWorldPosition()`
-   напрямую, а не то, перерисовался ли кадр.
-3. Пинч на трекпаде macOS в браузере приходит не через
-   `PointerPanZoomUpdateEvent` (которым `flutter3d_modeler`'s `_panZoom`
-   пользуется для того же трекпада) и не через `PointerScrollEvent`, а
-   отдельным `PointerScaleEvent` — веб-специфичным сигналом, который нашёлся
-   только логированием реального жеста (сто с лишним событий за один пинч).
-   `PointerScaleEvent.scale` — шаг с прошлого события, а не бегущая сумма,
-   в отличие от `ScaleUpdateDetails.scale`/`PointerPanZoomUpdateEvent.scale`.
+**Three real bugs, found only by a live run in the browser, not by
+tests.** Not one was caught by `flutter test` — all three are visible only
+on a running `flutter run -d chrome`, and each was found by Dmitrii's own
+direct observation, not by logs:
+1. Step `view-front` in `tour.json` had `yaw: 3.1416` — a camera at
+   `z=+3` looked toward `+Z`, meaning away from the pedestal, not at it.
+   The formula `forward = (-sin(yaw), 0, -cos(yaw))` (confirmed in
+   `flutter3d_audio/lib/src/listener.dart` and `actor_visuals.dart`) —
+   the first step's camera looked at an empty wall. All three camera
+   positions in `tour.json` were recomputed from this formula.
+2. A gesture really moved the `OrbitController` (confirmed by a widget
+   test checking the camera object itself), but the picture on screen
+   didn't change: `SceneSurface` only calls `renderer.render` from inside
+   its own `build()`
+   (`packages/flutter3d_session/lib/src/scene_surface.dart`), and mutating
+   a scene node on its own doesn't mark the widget dirty. With no
+   `setState`/`Cubit.emit` after the gesture, the camera moved but no
+   redraw followed — a test didn't catch this, because it read
+   `camera.readWorldPosition()` directly, not whether the frame redrew.
+3. A trackpad pinch on macOS in the browser arrives not through a
+   `PointerPanZoomUpdateEvent` (which `flutter3d_modeler`'s own
+   `_panZoom` uses for the same trackpad) and not through a
+   `PointerScrollEvent`, but as a separate `PointerScaleEvent` — a
+   web-specific signal found only by logging a real gesture (over a
+   hundred events from one pinch). `PointerScaleEvent.scale` is a step
+   since the last event, not a running sum, unlike
+   `ScaleUpdateDetails.scale`/`PointerPanZoomUpdateEvent.scale`.
 
-**Не проверено на Windows/Linux.** Вращение мышью (`ScaleUpdateDetails`,
-`pointerCount=1`) и зум колесом (`PointerScrollEvent`) — обычные события
-Flutter, одинаковые везде. Но `PointerScaleEvent` (пинч на трекпаде)
-эмпирически найден только на macOS+Chrome — по документации это перевод
-Chromium'ом жеста трекпада в `wheel`+`ctrlKey`, что не должно быть
-macOS-специфичным, но не проверялось на Windows/Linux вживую. Хуже: за все
-прогоны на этой машине `PointerPanZoomUpdateEvent` не произошёл ни разу —
-возможно мёртвый код, оставленный по аналогии с `flutter3d_modeler`, без
-подтверждения, что он вообще где-то стреляет. Урок этой сессии — не
-доверять уверенности в поведении чужого (пусть и протестированного) кода
-без собственной проверки; та же осторожность применяется здесь к
-Windows/Linux до реальной проверки на них.
+**Not checked on Windows/Linux.** Rotating with the mouse
+(`ScaleUpdateDetails`, `pointerCount=1`) and zooming with the wheel
+(`PointerScrollEvent`) are ordinary Flutter events, identical everywhere.
+But `PointerScaleEvent` (a trackpad pinch) was found empirically only on
+macOS+Chrome — per the documentation this is Chromium's own translation
+of a trackpad gesture into `wheel`+`ctrlKey`, which shouldn't be
+macOS-specific, but wasn't checked live on Windows/Linux. Worse: across
+every run on this machine, `PointerPanZoomUpdateEvent` never fired even
+once — possibly dead code, left in by analogy with `flutter3d_modeler`,
+with no confirmation it fires anywhere at all. This session's own lesson
+is: don't trust confidence in someone else's (even tested) code behavior
+without checking it yourself; the same caution applies here to
+Windows/Linux until they're actually checked.
 
-8/8 тестов приложения (включая один на `PointerScaleEvent`, симулированный
-через `GestureBinding.instance.handlePointerEvent` — тест, который сначала
-поймал бы точно этот баг, если бы был написан раньше находки), `flutter
-analyze` чист.
+8/8 application tests (including one on `PointerScaleEvent`, simulated
+through `GestureBinding.instance.handlePointerEvent` — a test that would
+have caught exactly this bug immediately, had it been written before the
+finding), `flutter analyze` clean.
 
-**`cloud/lessons/server`** — сильно урезанная версия `cloud/server`'а: без
-аккаунтов, без Postgres, без загрузок, без jaspr (страницы — обычные
-Dart-функции, возвращающие HTML-строки; ни формы, ни сессии, ни
-реактивности, которые оправдывали бы компонентную библиотеку). Список
-уроков — `lessons_registry.dart`, данные в коде, не файл и не БД: заводить
-хранилище раньше, чем появился хоть один настоящий загруженный урок, —
-решать вопрос, которого никто не задал. Маршруты: `/health`, `.mount('/app/',
-...)` под веб-сборку `flutter3d_lesson_viewer`, `GET /l/<slug>` (публичная
-страница с iframe и сниппетом для встраивания), `GET /e/<slug>` (голая
-embed-страница — то, что реально указывается в чужом `<iframe src=...>`).
+**`cloud/lessons/server`** — a heavily trimmed version of `cloud/server`:
+no accounts, no Postgres, no uploads, no jaspr (pages are plain Dart
+functions returning HTML strings; no forms, no sessions, no reactivity
+that would justify a component library). The lesson list is
+`lessons_registry.dart`, data in code, not a file or a database: setting
+up storage before a single real lesson has been uploaded is answering a
+question nobody asked. Routes: `/health`, `.mount('/app/', ...)` under the
+`flutter3d_lesson_viewer` web build, `GET /l/<slug>` (a public page with an
+iframe and an embed snippet), `GET /e/<slug>` (a bare embed page — what's
+actually placed in someone else's `<iframe src=...>`).
 
-**Ключевое расхождение с `cloud/server`, ради которого весь сервис
-отдельный, а не роут в существующем.** `cloud/server`'s
-`_securityHeaders()` ставит `frame-ancestors 'none'`/`X-Frame-Options: DENY`
-на каждую HTML-страницу — специально, чтобы каталог моделей нельзя было
-встроить в чужую страницу. `/e/<slug>` здесь должен разрешать
-межсайтовое встраивание — сама приёмка `edu-02` («встроен в страницу
-Stepik и в README на GitHub») требует этого. Решение — не «разрешающее
-значение» заголовка, а **отсутствие** заголовка: `X-Frame-Options` и
-`content-security-policy` вообще не отправляются на `/e/`, потому что
-отсутствие само по себе означает «встраивать можно», а разрешающее
-значение — это одна будущая правка от того, чтобы стать запрещающим
-молча. Тест называет это прямо: `/e/<slug>` проверяется на **отсутствие**
-обоих заголовков, а не на конкретное значение. `/l/<slug>` держит
-защитный `X-Frame-Options: SAMEORIGIN` — его никто не просил встраивать.
-9/9 тестов сервиса, `dart analyze` чист.
+**The key divergence from `cloud/server`, the reason the whole service is
+separate rather than a route in the existing one.** `cloud/server`'s
+`_securityHeaders()` sets `frame-ancestors 'none'`/`X-Frame-Options: DENY`
+on every HTML page — deliberately, so the model catalog can't be embedded
+in someone else's page. `/e/<slug>` here must allow cross-site embedding —
+edu-02's own acceptance ("embedded in a Stepik page and in a GitHub
+README") requires exactly this. The fix is not "a permissive header
+value" but its **absence**: `X-Frame-Options` and `content-security-policy`
+aren't sent at all on `/e/`, because absence itself means "embedding is
+allowed," while a permissive value is one future edit away from silently
+becoming a forbidding one. The test says this plainly: `/e/<slug>` is
+checked for the **absence** of both headers, not for a specific value.
+`/l/<slug>` keeps a protective `X-Frame-Options: SAMEORIGIN` — nobody
+asked to embed it. 9/9 service tests, `dart analyze` clean.
 
-**Баг, найденный после первого деплоя, не до него.** Голый `https://lessons.pleion.dev/` падал в `notFoundHandler` и показывал «Урок не найден» — то есть сообщение про отсутствующий урок тому, кто не называл вообще никакого урока. Причина в две части: во-первых, у сервиса не было роута `GET /`; во-вторых, юнит-тест на заголовки `/e/<slug>` (вызывающий `buildHandler` напрямую) не мог поймать это, потому что настоящий `shelf_io.serve`/`dart:io`'s `HttpServer` добавляет `X-Frame-Options: SAMEORIGIN` к каждому ответу сам, в обход кода `_securityHeaders()` — разница, видная только через реальный HTTP-запрос к поднятому процессу, не через прямой вызов `Handler` в тесте. Второе уже было закрыто до первого деплоя (`location /e/` в nginx несёт `proxy_hide_header X-Frame-Options`, подтверждено `curl`'ом и напрямую к `dart run`, и через nginx). Первое — новый `GET /` со списком уроков из `lessons_registry.dart` (`homePage()`), плюс `lessonNotFoundPage()` отделена от общего `notFoundPage()` («Страница не найдена»), чтобы два разных «не найдено» не путались местами снова. Пересобрано и передеплоено на `lessons.pleion.dev` в тот же день.
+**A bug found after the first deploy, not before it.** A bare
+`https://lessons.pleion.dev/` fell into `notFoundHandler` and showed
+"Lesson not found" — a message about a missing lesson to someone who
+hadn't named any lesson at all. The cause had two parts: first, the
+service had no `GET /` route; second, a unit test on `/e/<slug>`'s headers
+(calling `buildHandler` directly) couldn't have caught this, because a
+real `shelf_io.serve`/`dart:io`'s `HttpServer` adds `X-Frame-Options:
+SAMEORIGIN` to every response itself, bypassing `_securityHeaders()`'s own
+code — a difference visible only through a real HTTP request to a running
+process, not through a direct `Handler` call in a test. The second part
+was already closed before the first deploy (`location /e/` in nginx
+carries `proxy_hide_header X-Frame-Options`, confirmed with `curl`, both
+directly against `dart run` and through nginx). The first part is a new
+`GET /` listing lessons from `lessons_registry.dart` (`homePage()`), plus
+`lessonNotFoundPage()` split out from the general `notFoundPage()`
+("Page not found"), so the two different "not found"s don't get mixed up
+again. Rebuilt and redeployed to `lessons.pleion.dev` the same day.
 
-**Настоящий баг, найденный curl'ом по живому адресу, не тестом.** Первая
-проверка `/e/engine-tour` на настоящем `lessons.pleion.dev` показала
-`x-frame-options: SAMEORIGIN` — ровно то, чего там не должно быть. Причина
-не в этом коде: `dart:io`'s `HttpServer` сам ставит `x-frame-options` (и
-`x-xss-protection`, `x-content-type-options`) на каждый ответ по умолчанию,
-на уровне транспорта, до того как `shelf` строит объект `Response` —
-воспроизведено на голом `HttpServer` без единого пакета сверху, на двух
-независимых машинах (эта и `bob`). `shelf` не даёт способа дотянуться до
-`dart:io`'s `HttpHeaders` и удалить предустановленный ключ: опустить
-`x-frame-options` из карты заголовков `shelf`'s `Response` (что
-`_securityHeaders` в `app.dart` делает верно) — не то же самое, что
-заголовка нет на проводе. `dart test` этого не ловит, потому что дёргает
-`Handler` напрямую, минуя `shelf_io`/`dart:io` целиком — тест остаётся
-проверкой намерения кода, не доказательством того, что уходит по сети (см.
-`app_test.dart`'s собственный комментарий над этим тестом). Настоящий фикс
-— слоем ниже: `cloud/lessons/deploy/nginx-lessons.pleion.dev.conf`'s
-отдельный `location /e/` с `proxy_hide_header X-Frame-Options` — только
-nginx видит готовый ответ от `dart:io` и может вырезать заголовок из него.
+**A real bug, found by curl against the live address, not by a test.** The
+first check of `/e/engine-tour` on the real `lessons.pleion.dev` showed
+`x-frame-options: SAMEORIGIN` — exactly what shouldn't be there. The cause
+wasn't in this code: `dart:io`'s `HttpServer` sets `x-frame-options` (and
+`x-xss-protection`, `x-content-type-options`) on every response itself, by
+default, at the transport level, before `shelf` even builds a `Response`
+object — reproduced on a bare `HttpServer` with not one package on top,
+on two independent machines (this one and `bob`). `shelf` gives no way to
+reach `dart:io`'s own `HttpHeaders` and delete a preset key: leaving
+`x-frame-options` out of `shelf`'s own `Response` header map (which
+`_securityHeaders` in `app.dart` correctly does) isn't the same as the
+header being absent on the wire. `dart test` doesn't catch this, because
+it calls `Handler` directly, bypassing `shelf_io`/`dart:io` entirely — a
+test remains proof of the code's own intent, not proof of what goes out
+over the network (see `app_test.dart`'s own comment above this test). The
+real fix sits a layer lower:
+`cloud/lessons/deploy/nginx-lessons.pleion.dev.conf`'s own separate
+`location /e/` with `proxy_hide_header X-Frame-Options` — only nginx sees
+`dart:io`'s finished response and can strip the header from it.
 
-**Деплой выполнен 2026-09-12.** `lessons.pleion.dev` живой:
-`flutter3d-lessons.service` (Dart, `127.0.0.1:8796`), nginx на `8795`,
-собственный cloudflared-туннель `flutter3d-lessons`
-(`213747ad-6172-4e98-97dd-4b72d406f355`) и своя DNS-запись — отдельно от
-`models.pleion.dev`'s туннеля и nginx, как и просил Дмитрий. Порты
-`8795`/`8796` подтверждены свободными на `bob` перед установкой (`ss -tlnp`),
-а не просто взяты из плана. Бинарник сервиса собран не через
-`cloud/lessons/tool/build_server.sh`'s Docker-путь (Docker не был доступен
-локально), а компиляцией прямо на `bob` — `cloud/lessons/server` не тянет
-ни одного пакета движка по path (в отличие от `cloud/server`), так что
-собственный Dart 3.11 на `bob` (выше пола `^3.10.0` этого пакета) собрал
-его без кросс-компиляции; `build_server.sh` в репозитории остаётся описанным
-для воспроизводимости, но фактический первый деплой прошёл иначе — честно
-названное расхождение, а не молчаливое. Проверено вживую снаружи:
-`https://lessons.pleion.dev/health`, `/l/engine-tour` (страница с рабочим
-`<iframe>` на `/app/`), `/e/engine-tour` (заголовки `x-frame-options`/
-`content-security-policy` подтверждённо отсутствуют в реальном ответе, не
-только в тесте), `/l/does-not-exist` → 404.
+**Deployed on 2026-09-12.** `lessons.pleion.dev` is live:
+`flutter3d-lessons.service` (Dart, `127.0.0.1:8796`), nginx on `8795`, its
+own cloudflared tunnel, `flutter3d-lessons`
+(`213747ad-6172-4e98-97dd-4b72d406f355`), and its own DNS record —
+separate from `models.pleion.dev`'s own tunnel and nginx, as Dmitrii
+asked. Ports `8795`/`8796` were confirmed free on `bob` before setup
+(`ss -tlnp`), not simply taken from the plan. The service binary wasn't
+built through `cloud/lessons/tool/build_server.sh`'s own Docker path
+(Docker wasn't available locally), but compiled directly on `bob` —
+`cloud/lessons/server` pulls in not one engine package by path (unlike
+`cloud/server`), so `bob`'s own Dart 3.11 (above this package's own floor
+of `^3.10.0`) built it with no cross-compilation; `build_server.sh` stays
+in the repository for reproducibility, but the actual first deploy went a
+different way — an honestly named divergence, not a silent one. Checked
+live from outside: `https://lessons.pleion.dev/health`, `/l/engine-tour`
+(a page with a working `<iframe>` onto `/app/`), `/e/engine-tour`
+(`x-frame-options`/`content-security-policy` headers confirmed absent in
+the real response, not only in a test), `/l/does-not-exist` → 404.
 
-**`check` добавлен отдельно, готовя почву для `edu-03`.** `edu-01`'s
-собственная запись уже называла это дырой: панель может положить `check`
-как данные, рендера и оценки ответа не было нигде. `apps/flutter3d_lesson_viewer/lib/src/check_prompt.dart`
-— `CheckSpec.fromStep` (честно читает `question`/`answers`/`attempts`,
-отвечает `null` на неполный/отсутствующий `check`, а не бросает),
-`CheckSpec.accepts` (сравнение без регистра и лишних пробелов — то
-снижение проблемы на уровне контента, которое `edu-00` §10 сам предлагает,
-не требует), `CheckPrompt` — виджет с полем ответа, счётчиком попыток и
-раскрытием ответа при их исчерпании. Результат виден только локально (сам
-`edu-00` §10 не решает, куда он уходит) — это ровно тот первый из двух
-случаев, который должен существовать до того, как `edu-03` даст второй.
-`tour.json` получило четвёртый шаг, `quiz-steps`, с настоящим вопросом
-(«Сколько видов показывает этот тур?»), в `edu_sequence.steps`.
-`CheckPrompt` намеренно не помнит, какой это шаг: сброс счётчика попыток
-между шагами — обычный Flutter `ValueKey` по имени шага, а не второе поле,
-которое пришлось бы держать в синхроне с индексом плеера. 10 новых тестов
-в `check_prompt_test.dart`, `flutter analyze` чист — но, как показал
-следующий абзац, «зелёные тесты» здесь означало «не покрывают настоящий
-путь».
+**`check` was added separately, laying groundwork for `edu-03`.** `edu-01`'s
+own record already named this a gap: a panel could place a `check` as
+data, but nothing rendered it or graded an answer anywhere.
+`apps/flutter3d_lesson_viewer/lib/src/check_prompt.dart` —
+`CheckSpec.fromStep` (honestly reads `question`/`answers`/`attempts`,
+answers `null` for an incomplete or missing `check`, rather than
+throwing), `CheckSpec.accepts` (a case- and whitespace-insensitive
+comparison — the content-level mitigation `edu-00` §10 itself suggests,
+not requires), `CheckPrompt` — a widget with an answer field, an attempt
+counter, and revealing the answer once attempts run out. The result is
+visible only locally (`edu-00` §10 itself doesn't decide where it goes) —
+exactly the first of the two cases that should exist before `edu-03` gives
+a second. `tour.json` got a fourth step, `quiz-steps`, with a real
+question ("How many views does this tour show?"), in
+`edu_sequence.steps`. `CheckPrompt` deliberately doesn't remember which
+step it is: resetting the attempt count between steps is an ordinary
+Flutter `ValueKey` by the step's own name, rather than a second field that
+would have to stay in sync with the player's own index. 10 new tests in
+`check_prompt_test.dart`, `flutter analyze` clean — but, as the next
+paragraph shows, "green tests" here meant "not covering the real path."
 
-**Четвёртый баг живого прогона: красный экран, откат, и почему откат
-оказался временным.** `flutter run -d chrome` на настоящем `quiz-steps`
-показал дефолтный Flutter `ErrorWidget` — ни один из этих 10 тестов не
-поймал это, потому что все они дёргают `CheckPrompt`/`CheckSpec` в изоляции
-или
-оборачивают его в `Scaffold` (который сам даёт `Material`-предка), а не в
-голое дерево `MaterialApp(home: LessonView(...))`, которое реально строит
-`main.dart`. Сессию, которая это нашла, прервали посреди чтения лога — она
-успела откатить `quiz-steps` из `edu_sequence.steps` (не удаляя ни сущность,
-ни `check_prompt.dart`) и написать здесь честную запись «причина не
-найдена, не возвращать без нового воспроизведения». Следующая сессия
-воспроизвела креш заново и нашла точную причину: `TextField` внутри
-`CheckPrompt` требует предка `Material` (`debugCheckHasMaterial`), а
-`main.dart`'s `LessonReady`-ветка отдаёт `LessonView` без `Scaffold` —
-`_loading()`/`_didNotStart()` его несут, готовый экран урока — нет.
-Исправление — `LessonView.build()` сам оборачивает себя в
-`Material(type: MaterialType.transparency)` (ничего не красит, только даёт
-предка), не полагаясь на то, что вызывающий код его обеспечит. Новый тест
-в `lesson_view_test.dart` воспроизводит именно то дерево, которое строит
-`main.dart` (`MaterialApp(home: LessonView(...))`, без `Scaffold`) с шагом,
-несущим `check`, и проверяет `tester.takeException()` — тест, который
-поймал бы это с самого начала, если бы существовал раньше находки.
-`quiz-steps` возвращён в `edu_sequence.steps`, описание урока — обратно
-с упоминанием вопроса, `lesson_cubit_test.dart` — на четыре шага.
-Пересобрано и передеплоено. Урок для следующей сессии тот же, что уже был
-записан трижды в этом файле: тест, обёрнутый в `Scaffold` для удобства,
-не тест того дерева, которое строит настоящее приложение.
+**A fourth live-run bug: a red screen, a rollback, and why the rollback
+turned out to be temporary.** `flutter run -d chrome` on the real
+`quiz-steps` showed Flutter's own default `ErrorWidget` — not one of these
+10 tests caught it, because all of them exercise
+`CheckPrompt`/`CheckSpec` in isolation or wrap it in a `Scaffold` (which
+itself gives a `Material` ancestor), rather than in the bare tree
+`MaterialApp(home: LessonView(...))` that `main.dart` actually builds. The
+session that found this was interrupted mid-log-reading — it managed to
+roll `quiz-steps` back out of `edu_sequence.steps` (deleting neither the
+entity nor `check_prompt.dart`) and to write an honest note here: "cause
+not found, do not restore without a fresh reproduction." The next session
+reproduced the crash and found the exact cause: a `TextField` inside
+`CheckPrompt` requires a `Material` ancestor (`debugCheckHasMaterial`), and
+`main.dart`'s own `LessonReady` branch hands out a `LessonView` with no
+`Scaffold` — `_loading()`/`_didNotStart()` carry one, the finished lesson
+screen doesn't. The fix — `LessonView.build()` wraps itself in a
+`Material(type: MaterialType.transparency)` (paints nothing, only gives an
+ancestor), rather than relying on calling code to provide one. A new test
+in `lesson_view_test.dart` reproduces exactly the tree `main.dart` builds
+(`MaterialApp(home: LessonView(...))`, no `Scaffold`) with a step carrying
+a `check`, and checks `tester.takeException()` — a test that would have
+caught this from the start, had it existed before the finding.
+`quiz-steps` is back in `edu_sequence.steps`, the lesson's own description
+mentions the question again, `lesson_cubit_test.dart` covers four steps.
+Rebuilt and redeployed. The lesson for the next session is the same one
+already written three times in this file: a test wrapped in a `Scaffold`
+for convenience is not a test of the tree the real application builds.
 
-**Не сделано, названо прямо:**
-- `offsets`, `edu_clip_plane`, `bindings`/`edu_data_source` — каждое честно
-  не входит, по докстрингу самого `lesson_player.dart`.
-- `edu-03` (LTI/xAPI) не начат.
-- Загрузка своего урока — реестр в коде, не форма и не БД; та же
-  незанятая инфраструктура, что `cloud/server`'s README уже называет для
-  своего «публичного каталога».
-- Живой прогон в браузере до конца (без краша, включая встраивание в
-  сторонний `.html`) не завершён — то, что было пройдено, нашло баг
-  выше, а не подтвердило готовность.
+**Not done, named plainly:**
+- `offsets`, `edu_clip_plane`, `bindings`/`edu_data_source` — each honestly
+  not included, per `lesson_player.dart`'s own doc comment.
+- `edu-03` (LTI/xAPI) hasn't started.
+- Uploading one's own lesson — a registry in code, not a form or a
+  database; the same unbuilt infrastructure `cloud/server`'s own README
+  already names for its own "public catalog."
+- A full live browser run (with no crash, including embedding in a
+  third-party `.html`) wasn't finished end to end — what was covered found
+  the bug above, rather than confirming readiness.
 
-### tpl-01: `init --template=<жанр>` — механизм переиспользован, не написан заново
+### tpl-01: `init --template=<genre>` — the mechanism was reused, not written from scratch
 
-Закрыт 2026-09-12, с той же поправкой, что у ai-00/ai-01/par-03: буквальная
-`dart run flutter3d:init` — снова `flutter3d_build`/`ap-10`, которого нет
-и который сам зависит от всей цепочки `ap-00→ap-02→ap-03→ap-04→ap-05`
-(`doc/asset-pipeline-plan.md`) — отдельного многонедельного плана, не
-части этой волны.
+Closed 2026-09-12, with the same caveat as ai-00/ai-01/par-03: a literal
+`dart run flutter3d:init` is again `flutter3d_build`/`ap-10`, which doesn't
+exist and itself depends on the whole
+`ap-00→ap-02→ap-03→ap-04→ap-05` chain
+(`doc/asset-pipeline-plan.md`) — a separate, multi-week plan, not part of
+this wave.
 
-**Настоящая находка до единой новой строчки кода: почти весь механизм уже
-существовал.** `packages/flutter3d_editor_core/lib/src/scaffold.dart` и
+**A real finding before a single new line of code: almost the whole
+mechanism already existed.**
+`packages/flutter3d_editor_core/lib/src/scaffold.dart` and
 `scaffold_templates.dart` — `Template`, `scaffold`, `projectAt`,
-`packageName`, `pubspecFor`, `readmeFor` — уже написаны, уже
-протестированы (`apps/flutter3d_editor/test/templates_test.dart`, длинный
-файл на все четыре жанра) и уже используются мастером «новый проект»
-внутри самого редактора (`apps/flutter3d_editor/lib/main.dart`, вызовы
-`Template.parse`/`scaffold`/`projectAt`). Четыре шаблона (`platformer`,
-`racing`, `shooter`, `strategy`) уже лежат в
-`apps/flutter3d_editor/assets/templates/` — манифест, стартовый уровень
-без `generatedBy`, палитра слов жанра, модели, и что важнее всего для
-этой задачи — уже готовые `app.main.dart.txt`/`app.backend.dart.txt`
-seed-файлы, а не тысячестрочные `main.dart` настоящих демо. `pubspecFor`
-уже пишет опубликованные версии (`flutter3d: ^0.6.0` и т.д.), не
-`path:`-зависимости — то есть готовый проект уже переносим за пределы
-этого чекаута, что и требует условие задачи «путешествует».
+`packageName`, `pubspecFor`, `readmeFor` — are already written, already
+tested (`apps/flutter3d_editor/test/templates_test.dart`, a long file
+covering all four genres) and already used by the "new project" wizard
+inside the editor itself (`apps/flutter3d_editor/lib/main.dart`, calls to
+`Template.parse`/`scaffold`/`projectAt`). Four templates (`platformer`,
+`racing`, `shooter`, `strategy`) already sit in
+`apps/flutter3d_editor/assets/templates/` — a manifest, a starting level
+with no `generatedBy`, the genre's own word palette, models, and — most
+important for this task — already-ready
+`app.main.dart.txt`/`app.backend.dart.txt` seed files, rather than the
+thousand-line `main.dart` of a real demo. `pubspecFor` already writes
+published versions (`flutter3d: ^0.6.0` and so on), not `path:`
+dependencies — meaning a finished project is already portable outside
+this checkout, exactly the task's own "travels" condition.
 
-Значит tpl-01's настоящая, ещё не сделанная часть — только один шов: тот
-же механизм, вызванный из голого `dart run`, а не изнутри запущенного
-Flutter-приложения (которое читает байты шаблона через `rootBundle`).
-`tool/init` (плоский Dart-пакет под `tool/`, не под `packages/`, тем же
-приёмом, что и `tool/skills`/`tool/convert_asset`) — `writeProject()`
-читает те же файлы `dart:io`-`File.readAsBytesSync()` напрямую с диска
-редактора и отдаёт их в тот же `scaffold()`, что уже вызывает мастер;
-`availableTemplates()` читает `templates/index.json` для `--list`.
-`bin/init.dart` — `dart run tool/init/bin/init.dart --template=racing
---target=<dir>` и `--list`, честно названные не `flutter3d:init`.
+So tpl-01's own, not-yet-done part is only one seam: the same mechanism,
+called from a bare `dart run` rather than from inside a running Flutter
+application (which reads a template's bytes through `rootBundle`).
+`tool/init` (a flat Dart package under `tool/`, not under `packages/`, the
+same trick `tool/skills`/`tool/convert_asset` already use) —
+`writeProject()` reads the same files directly off the editor's own disk
+with `dart:io`'s `File.readAsBytesSync()` and hands them to the same
+`scaffold()` the wizard already calls; `availableTemplates()` reads
+`templates/index.json` for `--list`. `bin/init.dart` — `dart run
+tool/init/bin/init.dart --template=racing --target=<dir>` and `--list`,
+honestly named, not `flutter3d:init`.
 
-Идемпотентность (сама формулировка приёмки: «второй `init` — пустой
-diff») — по конструкции: копирование безусловно, источники не меняются
-между вызовами, значит побайтово одинаковый результат — проверено и
-тестом, и вручную настоящим CLI (`shasum` до и после повторного вызова
-на реальной временной директории совпадают).
+Idempotency (the acceptance's own wording: "a second `init` is an empty
+diff") is by construction: copying is unconditional, sources don't change
+between calls, meaning byte-identical output — checked both by a test and
+by hand with the real CLI (`shasum` before and after a second call on a
+real temp directory match).
 
-Восемнадцать тестов в `tool/init/test/init_writer_test.dart`: `--list`
-называет ровно четыре жанра в заданном порядке; неизвестный жанр
-называет, какие жанры реально есть, вместо непонятного краша; и на
-каждом из четырёх жанров — пишется правильный `pubspec.yaml` (имя
-проекта, никаких `path:`, версия движка на месте), стартовый уровень
-без `generatedBy` реально читается, каждый файл из манифеста реально
-долетает на диск, повторный запуск даёт побайтово идентичное дерево.
+Eighteen tests in `tool/init/test/init_writer_test.dart`: `--list` names
+exactly four genres in the given order; an unknown genre names the genres
+that actually exist, rather than an opaque crash; and for each of the four
+genres — the right `pubspec.yaml` is written (the project's name, no
+`path:` at all, the engine version in place), a starting level with no
+`generatedBy` really reads, every file from the manifest really lands on
+disk, running it again gives a byte-identical tree.
 
-Не сделано: буквальная `dart run flutter3d:init` (`ap-10`); реальная
-конвертация ассетов через `ap-05` (`assets_src/`, которого сам путь
-`ap-11` ещё не умеет читать, поэтому шаблон продолжает нести уже готовые
-`.glb`, как и сегодняшний мастер редактора); сборка шаблонов в CI —
-отдельная инфраструктурная задача, не код самого `init`.
+Not done: the literal `dart run flutter3d:init` (`ap-10`); real asset
+conversion through `ap-05` (`assets_src/`, which `ap-11`'s own path
+doesn't yet know how to read, so the template keeps carrying ready-made
+`.glb` files, the same as today's editor wizard); building templates in
+CI — a separate infrastructure task, not part of `init`'s own code.
 
-### tpl-03: мастер «новый проект» в редакторе — уже существовал, дописано «имя»
+### tpl-03: the "new project" wizard in the editor — already existed, "name" was added
 
-Закрыт 2026-09-12. **Настоящая находка до единой строчки кода: почти вся
-задача уже была сделана раньше, в этом же дереве, без записи в этом
-плане.** `EditorChooser` (`apps/flutter3d_editor/lib/src/editor_chooser.dart`)
-уже показывал четыре шаблона как список, тап по которому пишет проект
-через `scaffold()`/`projectAt()` и сразу открывает получившийся уровень —
-ровно приёмка tpl-03: «проект создаётся без терминала на macOS». У этого
-не было ни своего раздела в `doc/tooling-plan.md`, ни отдельного теста
-(`grep` по `apps/flutter3d_editor/test/` на `EditorChooser` не находил
-ничего) — работающий код без записи о том, что задача закрыта, и без
-регрессионной защиты.
+Closed 2026-09-12. **A real finding before a single new line of code:
+almost the whole task was already done earlier, in this same tree, with
+no record of it in this plan.** `EditorChooser`
+(`apps/flutter3d_editor/lib/src/editor_chooser.dart`) already showed the
+four templates as a list, tapping one wrote a project through
+`scaffold()`/`projectAt()` and immediately opened the resulting level —
+exactly tpl-03's own acceptance: "a project is created with no terminal on
+macOS." It had neither its own section in `doc/tooling-plan.md` nor its
+own test (a `grep` over `apps/flutter3d_editor/test/` for `EditorChooser`
+found nothing) — working code with no record that the task was closed, and
+no regression protection.
 
-**Чего не хватало по буквальной формулировке — «шаблон, имя, платформы»:**
-имя проекта раньше не спрашивалось — оно молча бралось из каталога
-`kLevelPath` (переменной окружения для запуска, а не того, что человек
-печатает). При этом `packageName(String typed)` в
-`flutter3d_editor_core/lib/src/scaffold.dart` уже существовал именно для
-этого — берёт произвольный текст и делает из него имя пакета/каталога —
-и не был ничем вызван из UI. Добавлен диалог `_NameDialog` (свой
-`StatefulWidget`, а не голый `TextEditingController` вокруг `showDialog` —
-`Navigator.pop` запускает анимацию закрытия, а future, который отдаёт
-`showDialog`, разрешается раньше её последнего кадра: контроллер,
-освобождённый сразу после этого future, освобождается, пока `TextField`
-ещё на экране — настоящая ошибка, пойманная тестом, а не предугаданная).
-`_create` в `main.dart` теперь кладёт проект рядом с текущим (`kLevelPath`'s
-родительский каталог), а не поверх него, именем из диалога.
+**What was missing per the literal wording — "a template, a name,
+platforms":** the project's name was never asked before — it was silently
+taken from the `kLevelPath` directory (an environment variable for
+launching, not something a person types). Meanwhile `packageName(String
+typed)` in `flutter3d_editor_core/lib/src/scaffold.dart` already existed
+exactly for this — it takes arbitrary text and turns it into a
+package/directory name — and nothing in the UI called it. A `_NameDialog`
+dialog was added (its own `StatefulWidget`, not a bare
+`TextEditingController` wrapped around `showDialog` — `Navigator.pop`
+starts the closing animation, and the future `showDialog` returns resolves
+before its last frame: a controller disposed right after that future
+would be disposed while the `TextField` is still on screen — a real bug,
+caught by a test, not guessed in advance). `_create` in `main.dart` now
+places the project next to the current one (`kLevelPath`'s own parent
+directory), rather than over it, under the name from the dialog.
 
-«Платформы» из формулировки не добавлены — не упущение, а несовпадение
-самой формулировки с архитектурным решением, принятым для этого редактора
-раньше: `apps/flutter3d_editor`'s собственный докстринг говорит «Desktop
-only, and that is not an omission» — у редактора нет веб-сборки, которую
-можно было бы выбирать наравне с десктопом, значит и приёмка «в браузере
-мастер честно говорит, что сборку не запускает» неприменима буквально —
-браузерной версии самого мастера не существует, а не существует молча.
+"Platforms" from the wording weren't added — not an oversight, but a
+mismatch between the wording itself and an architectural decision already
+made for this editor: `apps/flutter3d_editor`'s own doc comment says
+"Desktop only, and that is not an omission" — the editor has no web build
+to choose alongside desktop, so the acceptance "in the browser the wizard
+honestly says it doesn't run a build" doesn't apply literally either —
+there is no browser version of the wizard itself, not a silent absence.
 
-**Побочная находка при проверке — настоящий сквозной баг между tpl-01 и
-tpl-04, не выдуманный для отчёта.** `apps/flutter3d_editor/test/scaffold_test.dart`
-держит все четыре seed-шаблона (`assets/templates/*/app.main.dart.txt`)
-побайтово идентичными `apps/flutter3d_template_app/lib/main.dart` — тот
-самый принцип, которым tpl-01's находка уже пользовалась («шаблон — копия
-реального, компилируемого приложения»). `tpl-04`, работая параллельно,
-добавил в `flutter3d_template_app/lib/main.dart` 193 строки (поддержку
-`WidgetSurface`, чтение `edu_step`/`edu_data_source`) и новый файл
-`lib/src/template_widgets.dart`, не зная об этом контракте — `flutter
-test` в `flutter3d_editor` покраснел. Исправлено пересинхронизацией: все
-четыре `app.main.dart.txt` переписаны на новый `main.dart`, новый файл
-добавлен как `app.template_widgets.dart.txt` в каждый шаблон и вписан в
-каждый `index.json`. Все 61 тест `scaffold_test.dart`+`templates_test.dart`
-и все 299 тестов пакета — зелёные после этого; `dart run tool/structure.dart`
-из корня — 32/32.
+**A side finding while checking — a real cross-cutting bug between tpl-01
+and tpl-04, not made up for the report.**
+`apps/flutter3d_editor/test/scaffold_test.dart` holds all four seed
+templates (`assets/templates/*/app.main.dart.txt`) byte-identical to
+`apps/flutter3d_template_app/lib/main.dart` — the very principle tpl-01's
+own finding already relied on ("a template is a copy of a real, compiling
+application"). `tpl-04`, working in parallel, added 193 lines to
+`flutter3d_template_app/lib/main.dart` (`WidgetSurface` support, reading
+`edu_step`/`edu_data_source`) and a new file,
+`lib/src/template_widgets.dart`, with no knowledge of this contract —
+`flutter test` in `flutter3d_editor` went red. Fixed by resyncing: all
+four `app.main.dart.txt` files were rewritten against the new
+`main.dart`, the new file was added as
+`app.template_widgets.dart.txt` in each template and listed in each
+`index.json`. All 61 tests of `scaffold_test.dart`+`templates_test.dart`
+and all 299 of the package's own tests are green after this; `dart run
+tool/structure.dart` from the root — 32/32.
 
-Три новых теста в `apps/flutter3d_editor/test/editor_chooser_test.dart`:
-тап по шаблону открывает диалог с именем-по-умолчанию и передаёт то, что
-там напечатано, в `onCreate`; отмена ничего не создаёт; пустое имя после
-`trim()` тоже ничего не создаёт.
+Three new tests in `apps/flutter3d_editor/test/editor_chooser_test.dart`:
+tapping a template opens the dialog with a default name and passes
+whatever's typed there into `onCreate`; canceling creates nothing; an
+empty name after `trim()` also creates nothing.
 
-### rp-01: файл прогона
+### rp-01: the run file
 
-Закрыт 2026-09-12. `Demo` (`flutter3d_sim/lib/src/save/demo.dart`) получил
-пять новых полей — `levelHash`, `buildStamp` и `checkpoints` обязательные (та
-же строгость, что уже была у `tape`: нет поля — файл «не дописан»),
-`platform`/`recordedBy` необязательные. `.f3drun` — константа
-`Demo.fileExtension`, и `DemoFile` в `screens` теперь пишет `demo.f3drun`
-вместо `demo.json`. `DigestTrace` (уже существовавший инструмент rp-00)
-получил `toJson()`/`fromJson()` — контрольные дайджесты сериализуются той же
-структурой, что и остальной документ. Хеш уровня — новая свободная функция
-`contentDigestHex(Map<String, Object?> json)` в `state_digest.dart`, а не
-метод на `Level`: `flutter3d_game_racing`'s `TrackDocument` не пишет JSON
-обратно и не может дать `Level`, так что хеш берётся с сырого документа с
-диска, а не с разобранного объекта — обе формы дают один и тот же дайджест по
-построению (`StateDigest`), так что это не два разных хеша, а один и тот же
-инструмент на двух источниках.
+Closed 2026-09-12. `Demo` (`flutter3d_sim/lib/src/save/demo.dart`) got
+five new fields — `levelHash`, `buildStamp` and `checkpoints` required (the
+same strictness `tape` already had: a missing field is an "unfinished"
+file), `platform`/`recordedBy` optional. `.f3drun` is the constant
+`Demo.fileExtension`, and `DemoFile` in `screens` now writes `demo.f3drun`
+instead of `demo.json`. `DigestTrace` (an existing tool, from rp-00) got
+`toJson()`/`fromJson()` — checkpoint digests serialize with the same
+structure as the rest of the document. The level hash is a new free
+function, `contentDigestHex(Map<String, Object?> json)`, in
+`state_digest.dart`, rather than a method on `Level`:
+`flutter3d_game_racing`'s `TrackDocument` doesn't write JSON back and can't
+give a `Level`, so the hash is taken from the raw document on disk rather
+than a parsed object — both forms give the same digest by construction
+(`StateDigest`), so this is not two different hashes, but one tool over
+two sources.
 
-**То же самое написано второй раз для стратегии, по её собственной причине.**
-`flutter3d_game_strategy`'s `MatchDemo` — параллельный формат
-(`OrderTape`, а не `InputTape`), уже объяснявший в своём заголовке, почему он
-не переиспользует `Demo` дословно; те же пять полей и та же валидация
-добавлены и туда, тем же способом.
+**The same thing was written a second time for strategy, for its own
+reason.** `flutter3d_game_strategy`'s `MatchDemo` is a parallel format
+(`OrderTape`, not `InputTape`), whose own header already explains why it
+doesn't reuse `Demo` verbatim; the same five fields and the same
+validation were added there too, the same way.
 
-Приёмка:
+Acceptance:
 
-- **«файл читается `dart run` без Flutter»** — не аргумент, а прогон:
-  `packages/flutter3d_sim/bin/f3drun_info.dart`, CLI-скрипт без единого
-  импорта Flutter, и `test/f3drun_info_test.dart` (`@TestOn('vm')`) реально
-  запускает `dart run bin/f3drun_info.dart <файл>` как отдельный процесс и
-  проверяет вывод. Тот же тест проверяет вторую половину приёмки — файл от
-  будущей версии формата отклоняется с полным предложением («update
-  flutter3d to open it»), а не крашем.
-- **«тест «запись → чтение → воспроизведение → те же дайджесты» на каждом
-  демо»** — пять раз, а не четыре: `apps/flutter3d_demo_{dungeon,platformer,
-  racing}/test/demo_test.dart` (жанры на `Demo`/`InputTape`, играются на
-  настоящем шипящемся уровне/треке) и
+- **"the file reads with `dart run`, no Flutter"** — not an argument, but
+  a run: `packages/flutter3d_sim/bin/f3drun_info.dart`, a CLI script with
+  not one Flutter import, and `test/f3drun_info_test.dart` (`@TestOn('vm')`)
+  really runs `dart run bin/f3drun_info.dart <file>` as a separate process
+  and checks the output. The same test checks the acceptance's second
+  half — a file from a future format version is refused with a full
+  sentence ("update flutter3d to open it"), not a crash.
+- **"a write → read → replay → same digests test on each demo"** — five
+  times, not four:
+  `apps/flutter3d_demo_{dungeon,platformer,racing}/test/demo_test.dart`
+  (genres on `Demo`/`InputTape`, played on a real shipped level/track) and
   `packages/flutter3d_game_strategy/test/match_test.dart` (`MatchDemo`,
-  `mirror()` вместо настоящей карты — у стратегии её нет). Каждый: живая
-  запись с чекпоинтом каждые 25–30 шагов → `Demo.toJson`/`jsonEncode` →
-  `jsonDecode`/`Demo.fromJson` → воспроизведение с нуля → сравнение и
-  побайтового снимка, и `divergenceFromHex` реплеевской трассы против
-  записанной. Все пять зелёные с первого раза, кроме racing (см. ниже).
+  `mirror()` instead of a real map — strategy has none). Each: a live
+  recording with a checkpoint every 25–30 steps → `Demo.toJson`/`jsonEncode`
+  → `jsonDecode`/`Demo.fromJson` → a fresh replay → a byte-for-byte
+  comparison of the snapshot, and `divergenceFromHex` for the replay's own
+  trace against the recorded one. All five green on the first try, except
+  racing (see below).
 
-**Одна настоящая находка по пути, не про формат, а про сам движок ввода.**
-Синтетический водитель для racing-теста сперва отпускал газ/руль через
-`clearActionValue`, и реплей разошёлся с живой записью на первом же шаге, где
-это случилось. Причина — `InputTapePlayback._apply` только *устанавливает*
-значения, которые называет кадр; у него нет способа сказать «а это отпущено»,
-так же как опрашиваемое аналоговое устройство (педаль геймпада, для которой и
-писался `_readDriver`) никогда не перестаёт отчитываться, если оно живо.
-`clearActionValue` — это про отключение устройства, а не про отпущенную
-педаль; отпущенная педаль репортит `setActionValue(action, 0.0)`. Это не
-баг движка (документация `clearActionValue` говорит именно это), а неверное
-использование в тесте — но асимметрия достаточно тонкая, что стоит записать:
-любой будущий записывающий код, использующий аналоговые действия, обязан
-всегда `setActionValue`, никогда `clearActionValue`, для значения, которое
-меняется по ходу прогона.
+**One real finding along the way, not about the format but about the
+engine's own input handling.** The racing test's synthetic driver first
+released the throttle/steering through `clearActionValue`, and the replay
+diverged from the live recording at the very first step where that
+happened. The cause — `InputTapePlayback._apply` only *sets* the values a
+frame names; it has no way to say "this is released," the same way a
+polled analog device (a gamepad pedal, which `_readDriver` was written
+for) never stops reporting as long as it's alive. `clearActionValue` is
+about a device disconnecting, not a pedal being released; a released pedal
+reports `setActionValue(action, 0.0)`. This isn't an engine bug
+(`clearActionValue`'s own documentation says exactly this), but a wrong
+use in the test — but the asymmetry is subtle enough to be worth
+recording: any future recording code using analog actions must always
+`setActionValue`, never `clearActionValue`, for a value that changes over
+the course of a run.
 
-Не сделано в рамках rp-01, осознанно: постоянное подключение записи демо
-(`_beginDemo`/`_endDemo`) в platformer/racing/strategy — сегодня оно есть
-только в dungeon. Формат и раунд-трип проверены на каждом жанре; провод «игрок
-жмёт кнопку — файл падает на диск» для остальных трёх — не часть формата, и
-явно назван частью rp-04 в самом плане («В игре: «отправить прогон» пишет
-`.f3drun»).
+Not done as part of rp-01, deliberately: permanently wiring demo recording
+(`_beginDemo`/`_endDemo`) into platformer/racing/strategy — today it only
+exists in dungeon. The format and its round trip are checked on every
+genre; the wire "the player presses a button — a file lands on disk" for
+the other three is not part of the format, and is explicitly named as
+part of rp-04 in the plan itself ("In-game: 'send run' writes a
+`.f3drun`").
 
-### rp-05: прогон в видео и в тест
+### rp-05: a run into video and into a test
 
-Закрыт 2026-09-12, с одной поправкой к собственной формулировке плана.
-`replayGolden()` написан в `flutter3d_testing`
-(`lib/src/replay_golden.dart`) ровно как заказано: принимает `Demo`, номер
-шага, `InputState` и колбэк шага (жанр решает, как дёргать свою симуляцию),
-проигрывает `InputTapePlayback` до шага, рендерит через уже существующий
-`renderFrame` и сверяет с golden через `expectMatchesGolden`. Три теста в
-`flutter3d_testing/test/replay_golden_test.dart` на пустой сцене (сколько раз
-дёрнулся `onStep`, что при слишком короткой ленте бросается `StateError`, а
-не рендерится мусор, что повторный прогон совпадает с уже записанным golden).
+Closed 2026-09-12, with one correction to the plan's own wording.
+`replayGolden()` is written in `flutter3d_testing`
+(`lib/src/replay_golden.dart`) exactly as ordered: takes a `Demo`, a step
+number, an `InputState` and a step callback (the genre decides how to
+drive its own simulation), plays `InputTapePlayback` up to the step,
+renders through the already-existing `renderFrame` and compares against a
+golden through `expectMatchesGolden`. Three tests in
+`flutter3d_testing/test/replay_golden_test.dart` on an empty scene (how
+many times `onStep` fired, that a too-short tape throws a `StateError`
+rather than rendering garbage, that a repeated run matches an already
+recorded golden).
 
-**Поправка: `dart run flutter3d:replay` в буквальном виде — не в этом
-спайке.** Проверено эмпирически (`dart run` пробным файлом в
-`flutter3d_game_platformer`), а не предположено: каждый жанровый пакет тянет
-Flutter SDK транзитивно через `pointer_lock` (тому нужен `dart:ui`'s
-`Offset`), поэтому голый `dart run` не компилирует ни один жанр — только
-`flutter3d_sim` (без Flutter) может быть таким CLI, а «переиграть демо» для
-конкретной игры требует именно жанровый пакет. `flutter3d:replay` как
-терминальная команда — это `flutter3d_build`/`ap-10` из плана ассетов
-(пакета ещё нет). Сам механизм — есть, и он в
+**Correction: `dart run flutter3d:replay` literally is not part of this
+spike.** Checked empirically (`dart run` with a probe file in
+`flutter3d_game_platformer`), not assumed: every genre package pulls in
+the Flutter SDK transitively through `pointer_lock` (it needs `dart:ui`'s
+`Offset`), so a bare `dart run` doesn't compile a single genre — only
+`flutter3d_sim` (no Flutter) can be that kind of CLI, and "replay a demo"
+for a specific game needs the genre package itself. `flutter3d:replay` as
+a terminal command is the asset plan's own `flutter3d_build`/`ap-10`
+(the package doesn't exist yet). The mechanism itself exists, and it's in
 `apps/flutter3d_demo_dungeon/test/replay_video_test.dart`:
 
-- **`--check`.** `checkReplay(Demo)` восстанавливает `demo.start` в свежую
-  сборку крипта, проигрывает `demo.tape` с тем же `_dt`, набирает свой
-  `DigestTrace` и сравнивает с `demo.checkpoints.hexDigests` через
-  `divergenceFromHex`. Тест: настоящий прогон сходится (`null`); подменённый
-  дайджест называется по шагу.
-- **`--video`.** `renderReplayVideo(Demo, outputPath)` проигрывает ту же
-  ленту, рисует каждый шаг через `flutter3d_cpu` (без GPU — тот же
-  `cpuTestDevice`, что и `frame_test.dart`), пишет PNG в
-  `Directory.systemTemp`, потом реально запускает `ffmpeg` (`Process.runSync`)
-  и склеивает файл. Тест проверяет не факт «код не упал», а то, что
-  `ffmpeg` реально создал файл ненулевого размера — то есть видео правда
-  существует, а не только «функция вернулась».
+- **`--check`.** `checkReplay(Demo)` restores `demo.start` into a fresh
+  build of the crypt, plays `demo.tape` at the same `_dt`, gathers its own
+  `DigestTrace` and compares against `demo.checkpoints.hexDigests` through
+  `divergenceFromHex`. A test: a real run converges (`null`); a tampered
+  digest is named by step.
+- **`--video`.** `renderReplayVideo(Demo, outputPath)` plays the same
+  tape, draws every step through `flutter3d_cpu` (no GPU — the same
+  `cpuTestDevice` as `frame_test.dart`), writes PNGs into
+  `Directory.systemTemp`, then really runs `ffmpeg` (`Process.runSync`)
+  and stitches them into a file. The test checks not that the code didn't
+  crash, but that `ffmpeg` really created a non-empty file — meaning the
+  video genuinely exists, not merely "the function returned."
 
-Не сделано: `dart run flutter3d:replay file.f3drun --video out.mp4` как
-реальная строка в терминале (ждёт `ap-10`); ffmpeg предполагается на `PATH` —
-проверено, что он есть в этой среде (`ffmpeg 8.1.1`), но CI-машина может
-отличаться, и это не проверено здесь.
+Not done: `dart run flutter3d:replay file.f3drun --video out.mp4` as a
+real terminal line (waiting on `ap-10`); ffmpeg is assumed to be on
+`PATH` — checked to be present in this environment (`ffmpeg 8.1.1`), but
+the CI machine may differ, and this wasn't checked here.
 
-### edu-04: виртуальная лабораторная (маятник) — закрыт
+### edu-04: a virtual lab (a pendulum) — closed
 
-Закрыт 2026-09-12. Приёмка называет школьный ноутбук без GPU и живого
-преподавателя, отматывающего шкалу студента, — то же самое честное
-сужение, что уже применялось у ai-00/rp-05/net-04: «без GPU» и
-детерминизм доказаны через `dart test` без Flutter GPU (маятник вынесен в
-свой пакет, `flutter3d_lab` — см. ниже, — который, как и `flutter3d_sim`,
-вообще не тянет Flutter SDK), а
-«преподаватель отматывает прогон студента в шкале rp-02» — это открытие
-в UI, которого здесь нет; то, что есть, — реальный поток данных и
-дайджестов, который такая шкала читала бы, доказанный тестами, а не
-экраном.
+Closed 2026-09-12. The acceptance names a school laptop with no GPU and a
+live instructor scrubbing a student's own timeline — the same honest
+narrowing already applied at ai-00/rp-05/net-04: "no GPU" and determinism
+are proven through `dart test` with no Flutter GPU (the pendulum is moved
+into its own package, `flutter3d_lab` — see below — which, like
+`flutter3d_sim`, pulls in no Flutter SDK at all), and "an instructor
+scrubs a student's own run in rp-02's timeline" is a UI opening this
+session doesn't have; what exists is the real data and digest stream such
+a timeline would read, proven by tests, not by a screen.
 
-**Маятник — не заглушка, реальная физика.** `PendulumSimulation`
-(`flutter3d_lab/lib/src/pendulum.dart`) — не примитив
-`flutter3d_physics` (там нет шарнирных тел, а маятник настолько прост,
-что обобщённая машина твёрдых тел ничего не даёт взамен своей сложности):
-явное дифференциальное уравнение `θ'' = -(g/L)·sin(θ) - b·θ'`,
-интегрируемое semi-implicit Euler'ом — тем же порядком точности, каким
-`GameSimulation` шагает всё остальное. Тест «более длинный маятник качается
-медленнее короткого» сверяет не то, что код скомпилировался, а то, что
-после одинакового числа шагов из состояния покоя короткий маятник ушёл от
-старта заметно дальше длинного — реальная физика, не число, подогнанное
-под ожидание.
+**The pendulum isn't a stub, it's real physics.** `PendulumSimulation`
+(`flutter3d_lab/lib/src/pendulum.dart`) — not a `flutter3d_physics`
+primitive (there are no hinge bodies there, and a pendulum is simple
+enough that a general rigid-body machine buys nothing for its own extra
+complexity): an explicit differential equation, `θ'' = -(g/L)·sin(θ) -
+b·θ'`, integrated with semi-implicit Euler — the same order of accuracy
+`GameSimulation` steps everything else with. The test "a longer pendulum
+swings slower than a shorter one" checks not that the code compiled, but
+that, after the same number of steps from rest, the short pendulum has
+moved noticeably farther from its start than the long one — real physics,
+not a number fitted to an expectation.
 
-**Настоящая находка `tool/structure.dart`, а не только у прежних задач
-этой сессии.** Первая версия использовала `dart:math`'s `sin` напрямую —
-правило «a step asks no machine for an answer» поймало это немедленно:
-триг-функции стандартной библиотеки идут через платформенный `libm`, а не
-гарантированно одинаковый путь на VM/вебе/разных ОС — то самое
-расхождение, которого весь трек rp-00/net-00 боится. Исправлено на
-`Portable.sin` (`flutter3d_sim/lib/src/math/portable_math.dart`), уже
-существующий в пакете инструмент именно для этого случая — маятник не
-первый, кто в нём нуждается, просто первый в этой сессии, кто про него
-забыл.
+**A real `tool/structure.dart` finding, not only in this session's earlier
+tasks.** The first version used `dart:math`'s `sin` directly — the "a step
+asks no machine for an answer" rule caught this immediately: the standard
+library's own trig functions go through the platform's `libm`, not
+guaranteed to be the same path on the VM/web/different OSes — exactly the
+divergence the whole rp-00/net-00 track guards against. Fixed with
+`Portable.sin` (`flutter3d_sim/lib/src/math/portable_math.dart`), already
+existing in the package for exactly this case — the pendulum isn't the
+first thing that needs it, only the first in this session to have
+forgotten it.
 
-**`PendulumLabRun`** (`flutter3d_lab/lib/src/pendulum_lab_run.dart`) — ведёт
-одновременно `DigestTrace` (rp-01's механизм верификации: контрольная
-точка каждые `checkpointEvery` шагов) и `DataSourceTrace` (`edu-05`'s
-механизм, переиспользованный, а не изобретённый заново: длина нити —
-это ровно «значение без контроллера за спиной», тот же класс, что и
-показание датчика). Каждый шаг также хранится целиком (`_states`), не
-только на контрольных точках — без этого «что если» не может продолжить
-маятник ровно с того состояния, где он стоял, а был бы вынужден
-подглядывать в ближайшую контрольную точку раньше него.
+**`PendulumLabRun`** (`flutter3d_lab/lib/src/pendulum_lab_run.dart`) keeps
+both a `DigestTrace` (rp-01's own verification mechanism: a checkpoint
+every `checkpointEvery` steps) and a `DataSourceTrace` (edu-05's own
+mechanism, reused rather than reinvented: the string length is exactly "a
+value with no controller behind it," the same class as a sensor reading).
+Every step is also stored whole (`_states`), not only at checkpoints —
+without this, "what if" couldn't continue the pendulum from exactly the
+state it was in, and would have to peek at the nearest checkpoint before
+it instead.
 
-**`branchAt` — настоящее ответвление, не текстовое описание одного.**
-Берёт точное состояние на шаге N, строит НОВЫЙ `PendulumSimulation` с ним
-и продолжает с другой длиной; оригинальный прогон (его `pendulum`,
-`checkpoints`, `lengths`) не трогается — тест сравнивает объекты до и
-после создания ветки побайтово (`toJson()`), не полагаясь на то, что
-мутации просто не было. Честная находка при написании теста: два
-маятника с разными длинами расходятся уже на самой первой контрольной
-точке, а не «через некоторое время», как интуитивно ожидалось изначально
-— дайджест побитовый, без допуска, и `theta` после одного шага у двух
-разных длин уже не совпадает ни одним битом. Тест переписан на то, что
-проверка реально показывает (даёт ненулевую, названную точку
-расхождения), а не на предположение, каким должно быть расхождение.
+**`branchAt` — a real branch, not a text description of one.** Takes the
+exact state at step N, builds a NEW `PendulumSimulation` with it and
+continues with a different length; the original run (its `pendulum`,
+`checkpoints`, `lengths`) is untouched — the test compares the objects
+before and after the branch is created byte for byte (`toJson()`), not
+relying on the mutation simply not having happened. An honest finding
+while writing the test: two pendulums of different lengths already
+diverge at the very first checkpoint, not "after a while," as intuitively
+expected at first — the digest is bit-exact, with no tolerance, and
+`theta` after one step for two different lengths already doesn't match in
+a single bit. The test was rewritten to what the check actually shows
+(gives a nonzero, named divergence point), rather than a guess at what the
+divergence should be.
 
-**`toDemo` — настоящий `.f3drun`, не имитация формата.** У маятника нет
-геометрии и нет ни одного `GameAction` — панель студента не контроллер.
-Не значит «формат не подходит»: `Level(name: 'pendulum-lab')` без кистей
-— валидный, пустой уровень; `InputTape` из шагов без единого нажатия —
-именно то, чем правдиво выглядит прогон без контроллера, и `DataSourceTrace`'s
-собственный докстринг уже называет ровно этот случай. Тест гоняет
-`toJson()` → `Demo.fromJson()` и сверяет дайджесты и `dataSources`
-побайтово.
+**`toDemo` — a real `.f3drun`, not an imitation of the format.** The
+pendulum has no geometry and not one `GameAction` — a student's panel
+isn't a controller. That doesn't mean "the format doesn't fit":
+`Level(name: 'pendulum-lab')` with no brushes is a valid, empty level;
+`InputTape` made of steps with no button presses at all is exactly how a
+run with no controller truthfully looks, and `DataSourceTrace`'s own doc
+comment already names exactly this case. The test runs `toJson()` →
+`Demo.fromJson()` and checks digests and `dataSources` byte for byte.
 
-**Панель параметров через `WidgetSurface`, кнопками, не текстом.**
-`PendulumLabPanel` (`apps/flutter3d_lab_pendulum/lib/src/pendulum_lab_panel.dart`
-— своё приложение, не `flutter3d_demo_dungeon`, где панель жила изначально;
-перенесено по прямой просьбе Дмитрия: демонстрация лаборатории — не режим
-игры про подземелье) — кнопки «+»/«−», не слайдер и не текстовое поле,
-честная граница `wg-01`: только тап доказанно доходит до виджета на
-поверхности.
+**A parameter panel through `WidgetSurface`, with buttons, not text.**
+`PendulumLabPanel`
+(`apps/flutter3d_lab_pendulum/lib/src/pendulum_lab_panel.dart` — its own
+application, not `flutter3d_demo_dungeon`, where the panel originally
+lived; moved by Dmitrii's own direct request: demonstrating the lab isn't
+a dungeon-game mode) — "+"/"−" buttons, not a slider and not a text field,
+`wg-01`'s own honest boundary: only a tap is proven to reach a widget on a
+surface.
 
-**Ещё одна настоящая находка по пути, отдельная от физики.** Первая
-версия интеграционного теста пыталась найти координаты кнопки «+» внутри
-пайплайна через `GlobalKey.currentContext` — не сработало, и не из-за
-опечатки: в этой версии Flutter `GlobalKey.currentContext` читает
-`WidgetsBinding.instance.buildOwner!._globalKeyRegistry`, а не реестр
-того `BuildOwner`, который реально построил элемент — `WidgetSurfacePipeline`
-держит свой собственный, отдельный `BuildOwner` (`wg-00`'s же решение),
-поэтому ключ, зарегистрированный там, глобальному биндингу не виден в
-принципе, а не только в этом тесте. Решение — не хак, а уже готовая,
-доказанная в `widget_surface_test.dart` техника: заранее известная
-геометрия (`Align`+`SizedBox`), тот же приём, каким `wg-01` уже проверял
-реальный луч, доходящий до реального виджета. Полный интеграционный тест
-(`pendulum_lab_panel_test.dart`) проходит по цепочке целиком: тап на
-поверхности → реальный `PendulumSimulation.lengthMeters` меняется →
-`DataSourceTrace` записывает новое значение ровно на том шаге, на котором
-оно изменилось, а не задним числом на нулевом.
+**One more real finding along the way, separate from the physics.** The
+first version of the integration test tried to find the "+" button's own
+coordinates through `GlobalKey.currentContext` — this didn't work, and not
+from a typo: in this Flutter version, `GlobalKey.currentContext` reads
+`WidgetsBinding.instance.buildOwner!._globalKeyRegistry`, not the registry
+of the `BuildOwner` that actually built the element —
+`WidgetSurfacePipeline` holds its own, separate `BuildOwner` (wg-00's own
+decision), so a key registered there is invisible to the global binding in
+principle, not only in this test. The fix isn't a hack, but an already
+proven technique from `widget_surface_test.dart`: known geometry ahead of
+time (`Align`+`SizedBox`), the same trick `wg-01` already used to check a
+real ray reaching a real widget. The full integration test
+(`pendulum_lab_panel_test.dart`) runs the whole chain: a tap on the surface
+→ a real `PendulumSimulation.lengthMeters` changes →
+`DataSourceTrace` records the new value at exactly the step it changed on,
+not retroactively at step zero.
 
-Двенадцать тестов: восемь в `flutter3d_lab/test/pendulum_lab_run_test.dart`
-(физика, детерминизм, расхождение, ветвление, `.f3drun`, панель меняющая
-длину по ходу прогона) и четыре в
-`apps/flutter3d_lab_pendulum/test/pendulum_lab_panel_test.dart` (сам
-виджет плюс сквозная цепочка через настоящий `WidgetSurface`). Все
-пакеты — чистый `flutter analyze`, `dart run tool/structure.dart` —
-32 из 32.
+Twelve tests: eight in
+`flutter3d_lab/test/pendulum_lab_run_test.dart` (physics, determinism,
+divergence, branching, `.f3drun`, a panel changing the length mid-run) and
+four in
+`apps/flutter3d_lab_pendulum/test/pendulum_lab_panel_test.dart` (the
+widget itself plus the full chain through a real `WidgetSurface`). Every
+package — a clean `flutter analyze`, `dart run tool/structure.dart` —
+32 of 32.
 
-**Живая демонстрация (`apps/flutter3d_lab_pendulum/lib/main.dart`) — своё
-приложение, не режим `flutter3d_demo_dungeon`, по прямой просьбе
-Дмитрия.** Настоящий качающийся маятник (сфера-груз на невидимой оси,
-позиция считается из `PendulumSimulation.theta` каждый кадр), настоящий
-`WidgetSurface` с `PendulumLabPanel`, настоящий тап через `Raycaster` —
-тот же путь, что `flutter3d_template_app`'s `_tapWidgetSurface` уже
-доказал для `tpl-04`. Собиралось и проверялось живым `flutter run -d
-chrome`, не только тестами — и именно так нашлись два новых факта, ни
-один из которых не поймал ни один существующий тест:
+**A live demonstration (`apps/flutter3d_lab_pendulum/lib/main.dart`) — its
+own application, not a mode of `flutter3d_demo_dungeon`, by Dmitrii's own
+direct request.** A real swinging pendulum (a sphere bob on an invisible
+axis, its position computed from `PendulumSimulation.theta` every frame), a
+real `WidgetSurface` with `PendulumLabPanel`, a real tap through
+`Raycaster` — the same path `flutter3d_template_app`'s own
+`_tapWidgetSurface` already proved for `tpl-04`. Built and checked with a
+live `flutter run -d chrome`, not only tests — and that's exactly how two
+new facts turned up, neither caught by any existing test:
 
-1. **`WidgetSurface.yaw` переворачивает по вертикали, если панель
-   повёрнута до того, как её наклоняют в вертикаль.** `SceneNode.setRotationYawPitchRoll`
-   применяет yaw раньше pitch; `WidgetSurface`'s собственный сеттер `yaw`
-   всегда передаёт фиксированный `pitch = -π/2` вместе с ним — значит
-   `yaw: 3.1416` (тот же самый, что уже несёт `edu-00`'s `view-caption` в
-   `tour.json`!) переворачивает панель ещё до того, как она встаёт
-   вертикально. Проверено `widget_surface_test.dart`'s собственной
-   подтверждённой конвенцией (`yaw = 0` смотрит в `-Z`), не пересчитано
-   руками второй раз — первый пересчёт руками в этой же сессии уже был
-   неверным. Практическое следствие: панель оставлена на `yaw = 0.0`,
-   камера сцены переставлена на сторону, куда панель уже смотрит по
-   умолчанию, а не наоборот.
-2. **Второй, отдельный и до конца не объяснённый факт: содержимое
-   `WidgetSurface` рисуется повёрнутым на пол-оборота независимо от `yaw`
-   узла — не просто перевёрнутым по одной оси.** Найдено тем же живым
-   прогоном, в два захода: `Transform.flip(flipY: true)` (зеркало по
-   вертикали) поставило текст на ноги, но оставило его зеркальным
-   по горизонтали (буквы задом наперёд, «+»/«−» поменялись местами) —
-   то, что объясняет только поворот на 180°, а не зеркало по одной оси.
-   Проверено эмпирически, не только замечено: тестовый пробник с полем
-   «красный сверху / синий снизу» на реальном `WidgetSurface`,
-   отрисованный через `flutter3d_cpu` и прочитанный `device.readPixels`,
-   должен был показать, какая половина оказывается где. Сам пробник
-   наткнулся на собственную преграду — `tester.pumpAndSettle()` зависает
-   на пайплайне виджет-поверхности (обойдено `tester.runAsync()`), а после
-   этого прочитанный кадр оказался целиком чёрным (0,0,0) на обеих
-   половинах — вторая, отдельная и тоже не объяснённая находка, которая
-   означает, что сам пробник не годится как доказательство, а не что
-   переворота нет. Дальнейшее расследование (порядок строк/столбцов при
-   загрузке текстуры в `WidgetSurface.tick()`, конвенция UV в `PlaneShape`,
-   шейдер CPU/WebGL-бэкендов) не уместилось в бюджет этой сессии.
-   **Временно обойдено в `apps/flutter3d_lab_pendulum/lib/main.dart` через
-   `Transform.flip(flipX: true, flipY: true)`** (полный разворот) вокруг
-   `PendulumLabPanel` — рабочий для этого приложения, но не чинит
-   `flutter3d_session` для всех остальных.
+1. **`WidgetSurface.yaw` flips vertically if the panel is rotated before
+   being tilted into vertical.** `SceneNode.setRotationYawPitchRoll`
+   applies yaw before pitch; `WidgetSurface`'s own `yaw` setter always
+   passes a fixed `pitch = -π/2` alongside it — meaning `yaw: 3.1416`
+   (the very same value `edu-00`'s own `view-caption` already carries in
+   `tour.json`!) flips the panel before it even stands vertical. Checked
+   against `widget_surface_test.dart`'s own confirmed convention (`yaw = 0`
+   looks toward `-Z`), not recomputed by hand a second time — the first
+   hand recomputation in this same session had already been wrong.
+   Practical consequence: the panel is left at `yaw = 0.0`, the scene's
+   camera is moved to the side the panel already faces by default, rather
+   than the other way around.
+2. **A second, separate and not fully explained fact: `WidgetSurface`'s
+   own content draws rotated a half-turn regardless of the node's `yaw` —
+   not simply flipped along one axis.** Found by the same live run, in two
+   passes: `Transform.flip(flipY: true)` (a vertical mirror) put the text
+   right side up, but left it mirrored horizontally (letters backwards,
+   "+"/"−" swapped) — something only a 180° rotation explains, not a
+   mirror along one axis. Checked empirically, not merely observed: a test
+   probe with a "red on top / blue on bottom" field on a real
+   `WidgetSurface`, drawn through `flutter3d_cpu` and read back with
+   `device.readPixels`, was meant to show which half ends up where. The
+   probe itself ran into its own obstacle — `tester.pumpAndSettle()` hangs
+   on the widget-surface pipeline (worked around with `tester.runAsync()`),
+   and after that the read-back frame came out entirely black (0,0,0) on
+   both halves — a second, separate, also unexplained finding, meaning the
+   probe itself isn't proof there's no flip, not proof there is one.
+   Further investigation (row/column order when loading the texture in
+   `WidgetSurface.tick()`, `PlaneShape`'s own UV convention, the CPU/WebGL
+   backend shaders) didn't fit this session's budget. **Temporarily worked
+   around in `apps/flutter3d_lab_pendulum/lib/main.dart` through
+   `Transform.flip(flipX: true, flipY: true)`** (a full flip) around
+   `PendulumLabPanel` — working for this application, but not a fix for
+   `flutter3d_session` for everyone else.
 
-   **Третий заход того же живого прогона: тап после этого обхода либо не
-   попадал никуда, либо попадал не в ту кнопку.** Экран показывает верный
-   разворот (пункт выше это чинит), но `_tapPanel`'s `uvAt(hit.point)`
-   отвечает в системе координат сетки — той же, что и до `Transform.flip` —
-   а `dispatchAtUv` целится в систему координат пайплайна, которая теперь
-   повёрнута тем же `Transform.flip`. Первая правка руками (симметрично
-   пункту выше: `Offset(1 - u, 1 - v)`) оказалась неверной — тап реально
-   попадал в кнопку, но не в ту («+» действовала как «−»); верной оказалась
-   только `Offset(u, 1 - v)` — `uvAt`'s собственная `u` уже бежит в обратную
-   сторону относительно пайплайна независимо от самого бага с разворотом,
-   и вторая инверсия по `u` эту независимость перекрывала неверно. Найдено
-   вживую нажатием кнопок, не пересчитано — второй пересчёт руками в этой
-   сессии подряд снова дал неверный ответ.
+   **A third pass of the same live run: a tap after this workaround either
+   hit nothing or hit the wrong button.** The screen shows the correct
+   orientation (the point above fixes that), but `_tapPanel`'s own
+   `uvAt(hit.point)` answers in the mesh's own coordinate system — the same
+   one as before `Transform.flip` — while `dispatchAtUv` aims at the
+   pipeline's own coordinate system, now rotated by that same
+   `Transform.flip`. The first hand fix (symmetric to the point above:
+   `Offset(1 - u, 1 - v)`) turned out wrong — a tap really landed on a
+   button, but the wrong one ("+" acted as "−"); the correct one turned out
+   to be only `Offset(u, 1 - v)` — `uvAt`'s own `u` already runs backwards
+   relative to the pipeline, independent of the flip bug itself, and the
+   second inversion on `u` was wrongly canceling that independent fact.
+   Found live by pressing buttons, not recomputed — a second hand
+   recomputation in a row in this same session, again giving the wrong
+   answer.
 
-   Открытый вопрос для следующей сессии: то же самое почти наверняка ждёт
-   `edu-00` §7's `view-caption`-аннотацию в `flutter3d_lesson_viewer`, если
-   её когда-нибудь подключат к реестру виджетов — сейчас она не рендерится
-   вовсе (`Issue`, не рисунок), поэтому баг там ещё никто не видел, ни в
-   показе, ни в тапе.
+   An open question for the next session: almost certainly the same thing
+   awaits `edu-00` §7's own `view-caption` annotation in
+   `flutter3d_lesson_viewer`, if it's ever wired into the widget registry —
+   right now it doesn't render at all (an `Issue`, not a picture), so
+   nobody has seen the bug there yet, either in display or in tap.
 
-**Маятник выделен в свой пакет, `flutter3d_lab`, отдельно от
-`flutter3d_sim`.** Не в рамках самой задачи `edu-04` — по прямому
-замечанию Дмитрия уже после закрытия: `flutter3d_sim`'s контракт — «fixed
-step, ECS, levels, navigation, saves, replays для игр», и физика
-конкретного лабораторного эксперимента в него не входит, тем же образом,
-каким игровой жанр не живёт внутри `flutter3d_sim`, а тянет его как
-зависимость (`flutter3d_game_shooter` и соседи). `flutter3d_lab` —
-plain-Dart пакет, зависящий только от `flutter3d_sim` (`Portable`,
-`DigestTrace`, `DataSourceTrace`, `Demo`/`Snapshot`/`InputTape`) — та же
-причина отсутствия Flutter, что и у `flutter3d_sim` самого. Восемь тестов
-физики переехали вместе с кодом. 32 из 32 правил `tool/structure.dart`
-по-прежнему держат (пакет добавлен в список «плоских», в порядок публикации
-рядом с `flutter3d_sim`, и в счётчики пакетов/тестов). Прямая зависимость
-на него сначала легла на `apps/flutter3d_demo_dungeon` (где панель и жила
-изначально), затем целиком переехала в `apps/flutter3d_lab_pendulum` вместе
-с самой панелью — см. ниже.
+**The pendulum was split into its own package, `flutter3d_lab`, separate
+from `flutter3d_sim`.** Not as part of `edu-04` itself — by Dmitrii's own
+direct remark after it closed: `flutter3d_sim`'s own contract is "fixed
+step, ECS, levels, navigation, saves, replays for games," and a specific
+lab experiment's own physics doesn't belong in it, the same way a game
+genre doesn't live inside `flutter3d_sim` but pulls it in as a dependency
+(`flutter3d_game_shooter` and its neighbors). `flutter3d_lab` is a
+plain-Dart package depending only on `flutter3d_sim` (`Portable`,
+`DigestTrace`, `DataSourceTrace`, `Demo`/`Snapshot`/`InputTape`) — the same
+reason for no Flutter as `flutter3d_sim` itself. Eight physics tests moved
+with the code. 32 of 32 `tool/structure.dart` rules still hold (the
+package was added to the "flat" list, to the publishing order next to
+`flutter3d_sim`, and to the package/test counters). A direct dependency on
+it first landed on `apps/flutter3d_demo_dungeon` (where the panel
+originally lived), then moved wholesale to
+`apps/flutter3d_lab_pendulum` along with the panel itself — see above.
 
-Не сделано: экран, в котором преподаватель реально открывает
-студенческий `.f3drun` в шкале `rp-02` и видит первое расхождение —
-`DigestTrace.divergenceFrom` уже называет этот шаг числом, панели над ним
-для этого конкретного сценария нет (та же честная граница, что и у
-самого `rp-02`, `rp-04`, `net-03` — механизм есть, экран для этого
-конкретного случая не подключён); реальный школьный ноутбук — не
-проверялся, только детерминизм и отсутствие GPU в пути; уровень с
-маятником не встроен ни в один шаблон (`tpl-04` не существует).
+Not done: a screen where an instructor really opens a student's own
+`.f3drun` in `rp-02`'s timeline and sees the first divergence —
+`DigestTrace.divergenceFrom` already names this step by number, there's no
+panel over it for this specific scenario (the same honest boundary as
+`rp-02`, `rp-04`, `net-03` themselves — the mechanism exists, the screen
+for this specific case isn't wired in); a real school laptop wasn't
+checked, only determinism and the absence of a GPU on the path; a level
+with the pendulum isn't embedded in any template (`tpl-04` doesn't exist).
 
-### rp-02: шкала времени — закрыт
+### rp-02: the timeline — closed
 
-Закрыт 2026-09-12, после уточнения у владельца — заметно дальше, чем
-«механизм есть, панели нет».
+Closed 2026-09-12, after checking with the owner — noticeably further than
+"the mechanism exists, there's no panel."
 
-**Проверено, а не предположено: у редактора уровней сегодня нет живого
-проигрывания.** `apps/flutter3d_editor/lib/` — это `editor_cubit.dart`,
-`editor_palette.dart`, `editor_inspector.dart` и соседи: кисти, сущности,
-материалы, инспектор. `RunPlaying` там упоминается один раз, в
-doc-комментарии `editor_state.dart`, и нигде не строится и не используется.
-Панель «пауза/шаг/скраббер над `RunPlaying`» из формулировки rp-02
-предполагает режим «играть уровень живьём внутри редактора», которого нет —
-это отдельная, более крупная работа, а не часть самого rp-02.
+**Checked, not assumed: the level editor has no live playback today.**
+`apps/flutter3d_editor/lib/` is `editor_cubit.dart`, `editor_palette.dart`,
+`editor_inspector.dart` and their neighbors: brushes, entities, materials,
+the inspector. `RunPlaying` is mentioned there exactly once, in a doc
+comment in `editor_state.dart`, and is never built or used anywhere.
+rp-02's own wording of "a pause/step/scrubber panel over `RunPlaying`"
+assumes a "play the level live inside the editor" mode that doesn't exist
+— a separate, larger piece of work, not part of rp-02 itself.
 
-**Что сделано — механизм под будущей панелью, отдельно от неё**, той же
-логикой, что и `wg-00`: сначала доказать, что работает, потом рисовать
-виджет. `RunTimeline` в `flutter3d_session`
-(`lib/src/run_timeline.dart`) — обобщение существующего килл-камеры из
-`apps/flutter3d_demo_dungeon/lib/main.dart` (`_startKillcam`/`_endKillcam`):
-`pause()`/`resume()`/`stepOnce()` — транспорт; `preview(secondsAgo)` —
-что вернул бы `RewindBuffer.rewindBy` без побочных эффектов, то, что
-скраббер показывает при перетаскивании; `releaseAt(RewindPoint)` —
-восстанавливает кадр, проигрывает `tapeToPoint` с заглушёнными
-устройствами (как килл-камера), затем `RewindBuffer.cut()` — игра
-продолжается с этой точки, а не отскакивает назад. Каждый вызов пишется в
-`history` (`TimelineCommand`) — «команды видны в истории» в буквальном
-виде: список, который панель сможет отрисовать, а MCP — воспроизвести.
+**What's done — the mechanism under the future panel, kept separate from
+it**, the same logic as `wg-00`: prove it works first, draw the widget
+after. `RunTimeline` in `flutter3d_session`
+(`lib/src/run_timeline.dart`) is a generalization of the existing kill-cam
+in `apps/flutter3d_demo_dungeon/lib/main.dart`
+(`_startKillcam`/`_endKillcam`): `pause()`/`resume()`/`stepOnce()` are the
+transport; `preview(secondsAgo)` is what `RewindBuffer.rewindBy` would
+return with no side effects — what the scrubber shows while dragging;
+`releaseAt(RewindPoint)` restores a frame, plays `tapeToPoint` with input
+muted (like the kill-cam), then `RewindBuffer.cut()` — the game continues
+from this point, rather than snapping back. Every call is written into
+`history` (`TimelineCommand`) — "commands are visible in history,"
+literally: a list the panel will be able to draw, and MCP will be able to
+replay.
 
-Шесть тестов в `flutter3d_session/test/run_timeline_test.dart`, на том же
-игрушечном классе, что и `flutter3d_sim/test/rewind_test.dart` (умышленно —
-чужой игрушке доверять нельзя, тому же самому классу — можно, раз он уже
-доказан). Главный: после `releaseAt(preview(3.0))` живое состояние сверено
-с НЕЗАВИСИМЫМ повторным прогоном тех же трёхсот шагов с нуля — не «функция
-не упала», а «оказались в одной и той же точке» через отдельный расчёт.
-По пути нашлась и исправлена ошибка в первой версии самого́ теста (не
-`RunTimeline`): порядок «применить ввод → записать → `beginStep` →
-проверить `keyframeDue`/снять кадр → шаг → `endStep»» — не тот, что
-интуитивно напрашивается, и `GameLoop.advance` — единственный источник
-истины на этот счёт.
+Six tests in `flutter3d_session/test/run_timeline_test.dart`, on the same
+toy class as `flutter3d_sim/test/rewind_test.dart` (deliberately — a
+stranger's toy can't be trusted, the same, already-proven class can be).
+The main one: after `releaseAt(preview(3.0))`, the live state is checked
+against an INDEPENDENT replay of the same three hundred steps from scratch
+— not "the function didn't crash," but "landed at the exact same point,"
+through a separate calculation. A bug was found and fixed along the way,
+in the test itself, not in `RunTimeline`: the order "apply input → record
+→ `beginStep` → check `keyframeDue`/take a keyframe → step → `endStep`" is
+not the one that feels intuitive, and `GameLoop.advance` is the one source
+of truth on this.
 
-**Уточнение владельца изменило дальнейший план.** Первая мысль была
-«панель редактора нужна поверх этого механизма» — но `apps/flutter3d_editor`
-жанр-агностичен: он редактирует `Level`, не знает ни одного `EntityKind` и
-не может построить симуляцию, чтобы её проиграть. `ROADMAP.md`'s
-собственный план для «редактор запускает проект» — не встраивать
-симуляцию в редактор, а подключаться к уже запущенному приложению через
-VM service, тем же каналом, что DevTools и `flutter attach`. Решение
-владельца 2026-09-12: строить именно так.
+**The owner's own clarification changed the rest of the plan.** The first
+thought was "an editor panel is needed on top of this mechanism" — but
+`apps/flutter3d_editor` is genre-agnostic: it edits a `Level`, knows not
+one `EntityKind` and can't build a simulation to play it. `ROADMAP.md`'s
+own plan for "the editor launches a project" is not to embed a simulation
+into the editor, but to connect to an already-running application through
+the VM service, the same channel DevTools and `flutter attach` use. The
+owner's decision on 2026-09-12: build it exactly that way.
 
-**И этот канал теперь настоящий, а не спроектированный на бумаге.**
-`registerTimelineExtensions(RunTimeline)` в `flutter3d_session`
-(`lib/src/run_timeline_extensions.dart`) вешает `RunTimeline` на
-`dart:developer`'s service extensions — `ext.flutter3d.timeline.pause`,
-`.resume`, `.stepOnce`, `.preview`, `.releaseAtStep`, `.history` — тем же
-`registerExtension`, которым `flutter_driver` и DevTools дотягиваются до
-живого приложения. Доказано не мокапом, а вторым процессом:
-`test/run_timeline_extensions_test.dart` (`@TestOn('vm')`) запускает
-`test/fixtures/timeline_target.dart` (игрушечная симуляция, тикающая на
-своём таймере, с зарегистрированными расширениями) как `flutter test
---enable-vmservice -v` в отдельном процессе, парсит из его stdout
-настоящий URI VM service (тот же, что видит DevTools), подключается
-`package:vm_service` — библиотекой, на которой сама DevTools построена —
-и гоняет `pause`/`stepOnce`/`preview`/`releaseAtStep`/`history` по
-проводу. Тест сверяет не только ответы, но и то, что история команд,
-прочитанная удалённо, — это ровно то, что было отправлено, по порядку;
-по пути нашлось (и не потребовало исправления, потому что оказалось
-правильным поведением) — `releaseAt` уже снимает паузу сама, так что
-`resume` после неё — законный no-op, а не баг.
+**And that channel is now real, not designed on paper.**
+`registerTimelineExtensions(RunTimeline)` in `flutter3d_session`
+(`lib/src/run_timeline_extensions.dart`) hangs `RunTimeline` off
+`dart:developer`'s service extensions —
+`ext.flutter3d.timeline.pause`, `.resume`, `.stepOnce`, `.preview`,
+`.releaseAtStep`, `.history` — through the same `registerExtension`
+`flutter_driver` and DevTools reach a live application with. Proven not
+with a mock, but with a real second process:
+`test/run_timeline_extensions_test.dart` (`@TestOn('vm')`) launches
+`test/fixtures/timeline_target.dart` (a toy simulation ticking on its own
+timer, with the extensions registered) as `flutter test
+--enable-vmservice -v` in a separate process, parses a real VM service URI
+from its stdout (the same one DevTools sees), connects with
+`package:vm_service` — the same library DevTools itself is built on — and
+drives `pause`/`stepOnce`/`preview`/`releaseAtStep`/`history` over the
+wire. The test checks not only the answers, but also that the command
+history, read remotely, is exactly what was sent, in order; along the way
+it turned up (and needed no fix, because it turned out to be correct
+behavior) that `releaseAt` already lifts the pause itself, so a `resume`
+after it is a legitimate no-op, not a bug.
 
-**Панель теперь тоже есть, в самом редакторе.** Седьмое расширение,
-`ext.flutter3d.timeline.status` (`{"paused": bool}`) — то, чем панель
-узнаёт состояние сразу после подключения, а не гадает. `TimelineClient` в
-`apps/flutter3d_editor/lib/src/timeline_client.dart` — интерфейс плюс
-`VmServiceTimelineClient`, оборачивающий `package:vm_service` (то же самое
-`http://` → `ws://` преобразование URI, что и в тесте). `TimelineAttachScreen`
-(`lib/src/timeline_attach_screen.dart`) — пауза/резюме, шаг, поле
-«сколько секунд назад» с кнопкой preview, кнопка «Release here», список
-истории; опрашивает `status()`/`history()` заново после каждого действия,
-а не держит собственное состояние сервера. Семь виджет-тестов
-(`test/timeline_attach_screen_test.dart`) на фейковом `TimelineClient` —
-не втором реальном процессе, как у самого протокола, а обычном моке: кнопки
-дизейблены/энейблены правильно, preview показывает найденный шаг,
-`Release` вызывает `releaseAtStep` с этим шагом, ошибка клиента показывается
-на экране, а не проглатывается. Кнопка входа — иконка в углу основного
-экрана редактора (`Icons.podcasts`), диалог просит URI VM service, при
-успехе открывает панель, при неудаче пишет ошибку в строку статуса
-редактора, ничего не роняя. `flutter build macos --debug` для всего
-приложения — зелёный.
+**A panel now exists too, inside the editor itself.** A seventh extension,
+`ext.flutter3d.timeline.status` (`{"paused": bool}`), is how the panel
+learns the state right after connecting, rather than guessing.
+`TimelineClient` in
+`apps/flutter3d_editor/lib/src/timeline_client.dart` — an interface plus
+`VmServiceTimelineClient`, wrapping `package:vm_service` (the same
+`http://` → `ws://` conversion as in the test). `TimelineAttachScreen`
+(`lib/src/timeline_attach_screen.dart`) — pause/resume, step, a "how many
+seconds ago" field with a preview button, a "Release here" button, a
+history list; it polls `status()`/`history()` again after every action,
+rather than holding its own copy of the server's state. Seven widget
+tests (`test/timeline_attach_screen_test.dart`) on a fake `TimelineClient`
+— not a second real process, like the protocol itself, but an ordinary
+mock: buttons are disabled/enabled correctly, a preview shows the found
+step, `Release` calls `releaseAtStep` with that step, a client error
+shows on screen rather than being swallowed. The entry button — an icon in
+the corner of the editor's main screen (`Icons.podcasts`), a dialog asking
+for the VM service URI, opening the panel on success, writing an error to
+the editor's own status line on failure, breaking nothing. `flutter build
+macos --debug` for the whole application is green.
 
-**И теперь проверено на настоящей игре, а не только на игрушке.**
-`apps/flutter3d_demo_dungeon/lib/main.dart` завёл `_timeline` (тот же
-`RunTimeline`, читающий `_sim`/`_input`/`_rewind` заново на каждый вызов,
-потому что `_sim` — геттер, а не поле, и меняется при смене уровня) и
-зовёт `registerTimelineExtensions(_timeline)` в `initState`. Собранный
-`dungeon.app` реально запущен (`flutter run -d macos`), и отдельный
-Dart-скрипт вне репозитория — тем же `package:vm_service`, что и
-`VmServiceTimelineClient` — подключился к его настоящему VM service и
-получил настоящие ответы: `status` → `{"paused":false}`, `pause` →
-`{}`, `status` снова → `{"paused":true}`, `stepOnce`, `history` →
-`{"commands":["paused","stepped"]}`, `resume`. Не постановка, а живой
-процесс приложения, собранного этой же сессией.
+**And now checked on a real game, not only a toy.**
+`apps/flutter3d_demo_dungeon/lib/main.dart` set up `_timeline` (the same
+`RunTimeline`, re-reading `_sim`/`_input`/`_rewind` on every call, because
+`_sim` is a getter, not a field, and changes when the level changes) and
+calls `registerTimelineExtensions(_timeline)` in `initState`. The built
+`dungeon.app` was actually launched (`flutter run -d macos`), and a
+separate Dart script outside the repository — using the same
+`package:vm_service` as `VmServiceTimelineClient` — connected to its real
+VM service and got real answers back: `status` → `{"paused":false}`,
+`pause` → `{}`, `status` again → `{"paused":true}`, `stepOnce`, `history`
+→ `{"commands":["paused","stepped"]}`, `resume`. Not staged — a live
+process of an application built in this same session.
 
-**Граница того, что проверено, названа честно.** Игра была на экране
-меню — `_step` в `main.dart` возвращается сразу, если `_sim`/`_player`
-ещё `null`, а значит `_rewind` не набирает кадры, пока нет активно
-играемого уровня; `preview` на реальной игре поэтому отвечал
-`{"found":false}` — правильно, не баг, а честный ответ «пока нечего
-показать». Довести уровень до состояния «поиграли, есть что отматывать»
-и повторить проверку оттуда нужен клик по меню, которого у этой сессии
-нет средств сделать (нет визуального доступа к нативному окну macOS) —
-сама логика rewind/release уже отдельно доказана и на игрушке
-(`run_timeline_extensions_test.dart`), и юнит-тестами `RunTimeline`, так
-что разрыв — только в том, что «настоящая игра плюс активная игровая
-сессия одновременно» не собраны в одной проверке. Кнопка в самом
-редакторе (`Icons.podcasts`) тоже не нажималась в открытом окне — только
-семь виджет-тестов на фейке и успешная сборка `flutter build macos`.
-Скраббер по всей длине `.f3drun` (восстановление с ближайшего чекпоинта,
-не через `RewindBuffer`) — отдельная, не построенная логика.
+**The boundary of what's checked is named honestly.** The game was at the
+menu screen — `_step` in `main.dart` returns immediately if
+`_sim`/`_player` are still `null`, meaning `_rewind` doesn't gather frames
+while no level is actively being played; `preview` on the real game
+therefore answered `{"found":false}` — correct, not a bug, an honest
+"there's nothing to show yet" answer. Getting a level to "played a bit,
+there's something to scrub" and repeating the check from there needs a
+click through the menu, which this session has no means to do (no visual
+access to the native macOS window) — the rewind/release logic itself is
+already separately proven both on the toy
+(`run_timeline_extensions_test.dart`) and by `RunTimeline`'s own unit
+tests, so the gap is only that "a real game plus an active play session
+at once" weren't proven together in a single check. The button in the
+editor itself (`Icons.podcasts`) also wasn't clicked in an open window —
+only seven widget tests on a fake and a successful `flutter build macos`
+build. Scrubbing across the whole length of a `.f3drun` (restoring from
+the nearest checkpoint, not through `RewindBuffer`) is separate,
+unbuilt logic.
 
-**Обновление того же дня: два расширения протокола и два элемента панели
-добавлены сверху — то, что закрывает rp-04 и rp-06 в панели, а не только
-в механизме.** `registerTimelineExtensions` получил ещё два необязательных
-параметра — `frameTimes` (`StepTimeTrace`) и `bugReport`
-(`Map<String, Object?> Function()`) — регистрирующих `.frameTimes` и
-`.bugReport` тем же способом, что и первые семь; необязательных, потому
-что не у каждого вызывающего они есть. `run_timeline_extensions_test.dart`
-проверяет и то, и другое тем же вторым процессом, что и всё остальное —
-`timeline_target.dart` теперь копит `StepTimeTrace` и отдаёт игрушечный
-баг-репорт `{x, step}`, оба читаются обратно по проводу. `TimelineClient`
-и `VmServiceTimelineClient` (`timeline_client.dart`) получили
-`frameTimes()`/`bugReport()` тем же `_call()`, что и остальные пять команд.
-См. подробности closed-статуса ниже, в самих rp-04 и rp-06.
+**An update the same day: two protocol extensions and two panel elements
+were added on top — what closes rp-04 and rp-06 in the panel, not only in
+the mechanism.** `registerTimelineExtensions` got two more optional
+parameters — `frameTimes` (`StepTimeTrace`) and `bugReport`
+(`Map<String, Object?> Function()`) — registering `.frameTimes` and
+`.bugReport` the same way as the first seven; optional, because not every
+caller has them. `run_timeline_extensions_test.dart` checks both through
+the same second process as everything else — `timeline_target.dart` now
+gathers a `StepTimeTrace` and hands back a toy bug report (`{x, step}`),
+both read back over the wire. `TimelineClient` and
+`VmServiceTimelineClient` (`timeline_client.dart`) got
+`frameTimes()`/`bugReport()` through the same `_call()` as the other five
+commands. See the details of the closed status below, in rp-04 and rp-06
+themselves.
 
-**И последнее из названных пробелов — скраббер по всей длине `.f3drun`, а не
-только по живому окну `RewindBuffer` — тоже закрыт, тем же приёмом, что и
-выше: механизм отдельно, панель его не знает, что под ней.**
-`rewindBufferFromDemo` в `flutter3d_session`
-(`lib/src/demo_timeline.dart`) — не вторая реализация скраббера, а способ
-получить то, что уже умеет `RunTimeline`, для целого файла, а не только для
-последних N секунд живой игры: восстанавливает `Demo.start`, проигрывает всю
-его `InputTape` через `stepSim` в том самом порядке, что и `GameLoop.advance`
-(применить кадр записи → `record` → `beginStep` → снять кадр, если время
-пришло → шаг → `endStep`), в свежий `RewindBuffer` с `history`, заведомо
-превышающим длину всего прогона — так `_forget()` никогда не заводится, и
-каждый шаг остаётся достижим. Результат — обычный `RewindBuffer`, и
-`RunTimeline`, построенный на нём, отвечает на `preview`/`releaseAtStep` для
-любого шага всего файла тем же кодом панели, что уже проверен для живого
-окна: ни `TimelineAttachScreen`, ни протокол `ext.flutter3d.timeline.*` не
-знают, что скармливаемый им `RewindBuffer` восстановлен из файла, а не
-записан только что. Это же попутно закрывает и «ветка записывается отдельным
-файлом» из исходной формулировки: раз `RunTimeline` не отличает восстановленный
-из `Demo` прогон от живого, кнопка «Save bug report» (rp-04) на нём работает
-без изменений — снятый в любой точке прогона баг-репорт уже является тем
-самым отдельным файлом.
+**And the last of the named gaps — a scrubber across the whole length of
+a `.f3drun`, not only the live `RewindBuffer` window — is closed too, the
+same trick as above: the mechanism stands separately, the panel doesn't
+know what's underneath.** `rewindBufferFromDemo` in `flutter3d_session`
+(`lib/src/demo_timeline.dart`) is not a second scrubber implementation,
+but a way to get what `RunTimeline` already does for the whole file,
+rather than only the last N seconds of a live game: it restores
+`Demo.start`, plays its whole `InputTape` through `stepSim` in the exact
+order `GameLoop.advance` uses (apply the recorded frame → `record` →
+`beginStep` → take a keyframe if it's due → step → `endStep`), into a
+fresh `RewindBuffer` with `history` deliberately larger than the whole
+run's own length — so `_forget()` never kicks in, and every step stays
+reachable. The result is an ordinary `RewindBuffer`, and the `RunTimeline`
+built on it answers `preview`/`releaseAtStep` for any step of the whole
+file with the same panel code already proven for a live window: neither
+`TimelineAttachScreen` nor the `ext.flutter3d.timeline.*` protocol knows
+whether the `RewindBuffer` it's fed was restored from a file or just
+recorded. This also happens to close "the branch is written as a separate
+file" from the original wording: since `RunTimeline` doesn't distinguish
+a run restored from `Demo` from a live one, the "Save bug report" button
+(rp-04) works on it unchanged — a bug report taken at any point of the
+run already is exactly that separate file.
 
-Три теста в `flutter3d_session/test/demo_timeline_test.dart`: `RunTimeline`
-на восстановленном буфере дотягивается до 9,5 секунды назад в прогоне,
-который целиком длится десять секунд, — ровно то, до чего живой буфер с
-дефолтным `history: 10.0` дотянуться не мог бы (первый кейфрейм живого буфера
-не может быть раньше момента начала записи в него, а восстановленный
-держит весь прогон с шага 0); попадание сверено независимым повторным
-прогоном той же ленты от `Demo.start`, а не тем, что функция не упала.
-Отдельно — `preview` за пределами конца ленты не находит ничего, и что флаг
-`InputState.muted` не утекает наружу после реконструкции, тем же приёмом,
-что и у `releaseAt` самого `RunTimeline`.
+Three tests in `flutter3d_session/test/demo_timeline_test.dart`:
+`RunTimeline` on a restored buffer reaches 9.5 seconds back in a run that
+lasts ten seconds total — exactly what a live buffer with the default
+`history: 10.0` couldn't reach (a live buffer's first keyframe can't
+predate when recording into it began, while a restored one holds the
+whole run from step 0); the landing point is checked against an
+independent replay of the same tape from `Demo.start`, not merely that
+the function didn't crash. Separately — `preview` past the tape's own end
+finds nothing, and the `InputState.muted` flag doesn't leak out after
+reconstruction, the same trick `RunTimeline`'s own `releaseAt` uses.
 
-Честно названная граница здесь другая, чем у остального rp-02: это функция
-`flutter3d_session`, доказанная тремя юнит-тестами на игрушке, а не
-подключённая ни к одному настоящему приложению — ни `dungeon`, ни редактор
-не умеют сегодня «открыть `.f3drun`» через эту функцию, и вторым процессом
-через VM service (как первая половина rp-02) она поэтому не проверена. Само
-подключение — «открыть файл → построить `RunTimeline` на восстановленном
-буфере → зарегистрировать те же расширения» — не новая работа: та же
-последовательность, что уже есть в `dungeon` для живой игры, поверх готовой
-функции вместо `RewindBuffer()`. Тот же класс ограничения, что и у
-rp-04/rp-06: клик по кнопке в открытом окне редактора и «реальная игра в
-процессе активной игры, а не в меню» — у этой сессии по-прежнему нет средств
-для автоматизации нативного окна macOS.
+The honestly named boundary here differs from the rest of rp-02: this is
+a `flutter3d_session` function, proven by three unit tests on a toy, not
+wired into any real application — neither `dungeon` nor the editor knows
+today how to "open a `.f3drun`" through this function, so it isn't checked
+by a second process over the VM service (as the first half of rp-02 was).
+The wiring itself — "open a file → build a `RunTimeline` on the restored
+buffer → register the same extensions" — isn't new work: the same
+sequence already exists in `dungeon` for a live game, over the finished
+function instead of `RewindBuffer()`. The same class of limitation as
+rp-04/rp-06: clicking a button in an open editor window, and "a real game
+in the middle of an active play session, not the menu" — this session
+still has no means to automate a native macOS window.
 
-### rp-03: пересимуляция после правки уровня
+### rp-03: re-simulating after a level edit
 
-Закрыт 2026-09-12. rp-03 — две разные претензии под одним пунктом, и они
-были не одного размера, но обе закрыты.
+Closed 2026-09-12. rp-03 is two different claims under one item, and they
+weren't the same size, but both are closed.
 
-**«Стена переставлена, прогон идёт по новой геометрии» — уже верно by
-construction, и это стоило проверить, а не считать очевидным.**
-`Snapshot` никогда не именует брус: `Level.addTo` пересобирает каждый
-коллайдер заново из того документа, что загружен, а состояние
-`CharacterController` — позиция и скорость, ни то ни другое не «про»
-конкретную стену. `packages/flutter3d_sim/test/resim_after_level_edit_test.dart`
-— два теста: (1) уровень сыгран со стеной на пути, снимок сделан в момент
-упора в неё, стена в новой версии убрана — прогон продолжается и обгоняет
-точку, где раньше упирался, без единого исключения; (2) обратный случай —
-стена появилась там, где раньше было пусто, и восстановленный прогон об неё
-останавливается на следующем же шаге, хотя снимок про эту стену ничего не
-знал. Оба зелёные с первого прогона.
+**"A wall is moved, the run continues on the new geometry" was already true
+by construction, and that was worth checking, not assuming.** `Snapshot`
+never names a brush: `Level.addTo` rebuilds every collider fresh from
+whatever document is loaded, and `CharacterController`'s own state —
+position and velocity — is about neither one in particular.
+`packages/flutter3d_sim/test/resim_after_level_edit_test.dart` — two
+tests: (1) a level is played with a wall in the way, a snapshot is taken
+right as it's blocked, the wall is removed in the new version — the run
+continues and moves past the point it used to stop at, with not one
+exception; (2) the reverse case — a wall appears where there used to be
+empty space, and the restored run stops against it on the very next step,
+even though the snapshot knew nothing about this wall. Both green on the
+first run.
 
-**«Уровень, где удалили монстра, не падает и называет, что отброшено» —
-механизм найден, построен и проведён в двух жанрах.** Первая попытка
-разобраться закончилась выводом «нужна правка ядра ECS» — неверным: у
-`EcsWorld.restore` действительно нет ничего, кроме сырого целочисленного
-индекса (`_generations`/`_free`, строки компонентов ключом `value.key` =
-индекс), но сам класс не обязан знать об этом различии, потому что ничего в
-`restore` не проверяет, что документ пришёл из *этого же* `save()`, а не
-собран заново снаружи. `remapEntitySave` в `flutter3d_sim`
-(`lib/src/ecs/entity_remap.dart`) — ровно такая внешняя пересборка: берёт
-JSON от `EcsWorld.save()`, два списка «индекс → имя» (для старого и нового
-мира) и переписывает ключи компонентов со старого индекса на новый по
-совпадению имени, а то, чему имени не нашлось — и то, что не было
-именовано вовсе — возвращает отдельным списком вместо того, чтобы молча
-исчезнуть. Четыре теста в `flutter3d_sim/test/entity_remap_test.dart`,
-на настоящем `EcsWorld` (не на подставном словаре): из трёх названных
-монстров убирается средний (лучник), и огр, заспавненный в новом мире после
-стражника, попадает ровно на старый индекс лучника — тест проверяет, что
-после ремапа огр получает своё собственное здоровье (90), а не лучниково
-(18), что и есть та самая ошибка, ради обнаружения которой весь механизм
-существует. Плюс перестановка без потерь и два случая отказа (сущность без
-имени; имя, которого в новом уровне вообще нет).
+**"A level with a monster removed doesn't crash and names what was
+dropped" — the mechanism was found, built and carried through in two
+genres.** The first attempt at a solution concluded "the ECS core needs a
+patch" — wrong: `EcsWorld.restore` really has nothing but a raw integer
+index (`_generations`/`_free`, component rows keyed by `value.key` = index),
+but the class itself isn't required to know about this difference, because
+nothing in `restore` checks that the document came from *this same*
+`save()`, rather than being assembled fresh from outside.
+`remapEntitySave` in `flutter3d_sim`
+(`lib/src/ecs/entity_remap.dart`) is exactly that outside reassembly:
+takes JSON from `EcsWorld.save()`, two "index → name" lists (for the old
+and the new world) and rewrites component keys from the old index to the
+new one by matching name, returning whatever found no name — and whatever
+was never named at all — as a separate list, instead of letting it
+silently vanish. Four tests in
+`flutter3d_sim/test/entity_remap_test.dart`, on a real `EcsWorld` (not a
+stand-in dictionary): of three named monsters, the middle one (an archer)
+is removed, and an ogre spawned in the new world after a guard lands on
+exactly the archer's old index — the test checks that after the remap the
+ogre gets its own health (90), not the archer's (18), which is exactly the
+mistake the whole mechanism exists to catch. Plus a lossless reorder and
+two refusal cases (an unnamed entity; a name that doesn't exist in the new
+level at all).
 
-**Доведено до реального жанра**, после уточнения у владельца: `Actor` получил
-необязательное поле `name` (`packages/flutter3d_sim/lib/src/actors/actor.dart`),
-`ActorSystem.spawn({..., String? name})` его принимает и хранит, `byName()`
-ищет по нему (то же самое, что `MechanismWorld` уже умел), `nameList()`
-строит список «индекс → имя» именно в форме, которую просит
-`remapEntitySave` — так что вызывающему коду не нужно самостоятельно
-собирать список, только передать его с обеих сторон правки. Имя проведено
-от документа до актёра в двух жанрах: `EnemyKind.spawn` в platformer
-(`entity.name` → `actors.spawn(..., name: entity.name)`) и
-`MonsterKind`/`Bestiary.spawn` в shooter (та же нить через два слоя, а не
-один, — `Bestiary.spawn` получил тот же необязательный параметр). Оба
-жанра — `flutter analyze` чисто, старые сьюты не тронуты
-(platformer 221/221, shooter 347/347). Отдельный тест
-`flutter3d_game_platformer/test/entity_remap_test.dart` строит трёх
-названных врагов через настоящий `EnemyKind`, убирает среднего и проверяет
-через `ActorSystem.nameList()`/`byName()` — уже не подставными именами, а
-тем, что реально прошло через игровой код, — ту же самую находку: огр
-получает свои девяносто, а не восемнадцать лучника.
+**Carried through to a real genre**, after checking with the owner: `Actor`
+got an optional `name` field
+(`packages/flutter3d_sim/lib/src/actors/actor.dart`),
+`ActorSystem.spawn({..., String? name})` accepts and stores it, `byName()`
+looks it up (the same thing `MechanismWorld` already knew how to do),
+`nameList()` builds an "index → name" list in exactly the shape
+`remapEntitySave` asks for — so the calling code doesn't need to assemble
+its own list, only pass it on both sides of the edit. The name was carried
+from the document to the actor in two genres:
+`EnemyKind.spawn` in the platformer
+(`entity.name` → `actors.spawn(..., name: entity.name)`) and
+`MonsterKind`/`Bestiary.spawn` in the shooter (the same thread through two
+layers rather than one — `Bestiary.spawn` got the same optional
+parameter). Both genres — `flutter analyze` clean, old suites untouched
+(platformer 221/221, shooter 347/347). A dedicated test,
+`flutter3d_game_platformer/test/entity_remap_test.dart`, builds three
+named enemies through a real `EnemyKind`, removes the middle one and
+checks through `ActorSystem.nameList()`/`byName()` — no longer stand-in
+names, but what actually went through the game's own code — the same
+finding: the ogre gets its own ninety, not the archer's eighteen.
 
-Не сделано: racing и strategy не тронуты (в racing нет актёров-монстров
-вообще — только машины; strategy устроена иначе, юниты уже свои собственные
-сущности с ID через `OrderTape`, а не через `EntityDef.name`) — заводить им
-имена ради единообразия, которого не требует ни один реальный сценарий,
-было бы работой без сценария. Полный провод «человек редактирует уровень
-на паузе, видит отброшенное в интерфейсе» по-прежнему ждёт живого режима
-игры в редакторе — то же самое ограничение, что у rp-02/rp-04.
+Not done: racing and strategy are untouched (racing has no actor-monsters
+at all — only cars; strategy is built differently, its units are already
+their own entities with an ID through `OrderTape`, not through
+`EntityDef.name`) — giving them names for the sake of uniformity no real
+scenario asks for would be work with no scenario. The full wire "a person
+edits a level while paused, sees what got dropped in the UI" still waits
+on a live play mode in the editor — the same limitation as rp-02/rp-04.
 
-### rp-04: баг-репорт как прогон — файл теперь открывается двойным кликом
+### rp-04: a bug report as a run — the file now opens with a double click
 
-Частично закрыт 2026-09-12. `bugReportTape(RewindBuffer)` в
-`flutter3d_session` (`lib/src/bug_report.dart`) — «последние N секунд из
-`RewindBuffer»`» буквально: берёт `rewind.rewindBy(rewind.available)` (все
-кадры, что буфер ещё держит) и возвращает снимок самого старого сохранённого
-кадра плюс всю удержанную ленту — ровно то, из чего вызывающий код собирает
-`Demo` (хеш уровня, штамп сборки и чекпоинты — не эта функция, у неё нет
-симуляции, чтобы их посчитать, а вызывающий уже её крутит). Три теста в
-`flutter3d_session/test/bug_report_test.dart`: `null`, пока не было ни
-одного кадра; окно за пятнадцать секунд игры реально не длиннее
-«history + один интервал кадра» — как и обещает собственная документация
-`RewindBuffer`; а сама лента реплеится независимым прогоном на ту же
-самую позицию, что была у живой игры, и через `Demo`/JSON туда-обратно.
+Partially closed 2026-09-12. `bugReportTape(RewindBuffer)` in
+`flutter3d_session` (`lib/src/bug_report.dart`) — "the last N seconds from
+`RewindBuffer`," literally: takes `rewind.rewindBy(rewind.available)` (all
+the frames the buffer still holds) and returns a snapshot of the oldest
+held frame plus the whole retained tape — exactly what the calling code
+assembles a `Demo` from (a level hash, a build stamp and checkpoints
+aren't this function's own job, it has no simulation to compute them with
+— the calling code already runs one). Three tests in
+`flutter3d_session/test/bug_report_test.dart`: `null` before a single
+frame has been recorded; a fifteen-second-old window is really no longer
+than "history + one frame interval" — exactly what `RewindBuffer`'s own
+documentation promises; and the tape itself replays, through an
+independent run, to the exact same position the live game was at, and
+through `Demo`/JSON and back.
 
-**Добавлено тем же днём: «отправить прогон» теперь можно нажать по-настоящему
-— из редактора, а не только вызвать функцию из теста.**
-`registerTimelineExtensions` получил необязательный `bugReport:
-Map<String, Object?> Function()`, регистрирующий восьмое расширение,
-`ext.flutter3d.timeline.bugReport` — тем же `dart:developer`, что и первые
-семь; необязательное, потому что не у каждого вызывающего оно есть, и
-ошибка колбэка превращается в `ServiceExtensionResponse.error`, а не роняет
-изолят. `apps/flutter3d_demo_dungeon/lib/main.dart` даёт колбэк
-`_remoteBugReport()`, который зовёт `bugReportTape(_rewind)` и собирает
-ровно то же, что легло бы в `Demo`: уровень, его хеш, снимок, ленту, штамп
-сборки, платформу — сериализуемым JSON, а не самим классом `Demo` (форму
-выбирает вызывающий; здесь она выбрана такой же намеренно, для симметрии).
-В `TimelineAttachScreen` — кнопка «Save bug report»: зовёт
-`client.bugReport()`, открывает системную панель сохранения (`file_selector`,
-уже была зависимостью редактора) и пишет ответ на диск. Проверено не
-фейком в памяти, а настоящим `FileSelectorPlatform.instance`, подменённым
-на реализацию, отвечающую путём во временном каталоге —
-`timeline_attach_screen_test.dart` после нажатия кнопки читает записанный
-файл с диска и сверяет с тем, что вернул фейковый `TimelineClient`. Запись
-— `writeAsStringSync`, не async: несколько килобайт JSON — не тот объём,
-ради которого держат запись асинхронной, и (что не было очевидно заранее)
-асинхронный `File.writeAsString` внутри `flutter test` в песочнице этой
-сессии зависал насмерть — не бросал исключение, не заканчивался таймаутом,
-а буквально не завершался никогда; синхронный вариант в том же тесте
-отработал мгновенно. `run_timeline_extensions_test.dart` проверяет то же
-самое расширение вторым процессом, как и остальные семь.
+**Added the same day: "send run" can now really be pressed — from the
+editor, not only called as a function from a test.**
+`registerTimelineExtensions` got an optional `bugReport:
+Map<String, Object?> Function()`, registering an eighth extension,
+`ext.flutter3d.timeline.bugReport` — through the same `dart:developer` as
+the first seven; optional, because not every caller has one, and a
+callback error turns into a `ServiceExtensionResponse.error` rather than
+crashing the isolate. `apps/flutter3d_demo_dungeon/lib/main.dart` gives a
+`_remoteBugReport()` callback that calls `bugReportTape(_rewind)` and
+assembles exactly what would go into a `Demo`: the level, its hash, a
+snapshot, the tape, the build stamp, the platform — as serializable JSON,
+rather than the `Demo` class itself (the shape is the caller's own choice;
+here it's chosen the same way deliberately, for symmetry). In
+`TimelineAttachScreen` — a "Save bug report" button: calls
+`client.bugReport()`, opens the system save panel (`file_selector`,
+already a dependency of the editor) and writes the answer to disk.
+Checked not with an in-memory fake, but a real `FileSelectorPlatform.instance`,
+swapped for an implementation answering with a path in a temp
+directory — `timeline_attach_screen_test.dart`, after pressing the
+button, reads the file written to disk and compares it against what the
+fake `TimelineClient` returned. The write is `writeAsStringSync`, not
+async: a few kilobytes of JSON isn't the volume that justifies keeping a
+write asynchronous, and (not obvious in advance) an async
+`File.writeAsString` inside `flutter test` in this session's sandbox
+hung dead — no exception, no timeout, literally never finishing; the
+synchronous version in the same test finished instantly.
+`run_timeline_extensions_test.dart` checks the same extension through a
+second process, like the other seven.
 
-**Добавлено во вторую волну задач того же дня: двойной клик по `.f3drun` в
-Finder действительно открывает редактор — проверено настоящим `open -a`,
-не предположено.** `Info.plist`'s `CFBundleDocumentTypes`/
-`UTExportedTypeDeclarations` объявляют `.f3drun` (`dev.pleion.flutter3d.run`)
-как тип, которым владеет `apps/flutter3d_editor`; `AppDelegate.swift`
-переопределяет `application(_:open:)` — современную замену устаревшему
-`application(_:openFile:)`, одну на оба случая («открыт двойным кликом при
-холодном старте» и «перетащен на иконку в доке, пока приложение уже
-работает») — и прокидывает путь в Dart через `FlutterMethodChannel`, буферизуя
-его, если канал ещё не существует (запуск двойным кликом вызывает этот метод
-до того, как `FlutterViewController` вообще поднят).
+**Added in a second wave of tasks the same day: a double click on
+`.f3drun` in Finder really opens the editor — checked with a real `open
+-a`, not assumed.** `Info.plist`'s `CFBundleDocumentTypes`/
+`UTExportedTypeDeclarations` declare `.f3drun`
+(`dev.pleion.flutter3d.run`) as a type owned by `apps/flutter3d_editor`;
+`AppDelegate.swift` overrides `application(_:open:)` — the modern
+replacement for the deprecated `application(_:openFile:)`, one for both
+cases ("opened by a double click at a cold start" and "dragged onto the
+dock icon while the application is already running") — and forwards the
+path into Dart through a `FlutterMethodChannel`, buffering it if the
+channel doesn't exist yet (launching by double click calls this method
+before `FlutterViewController` is even up).
 
-Проверено не с виду, а вживую: `flutter build macos --debug` собрал настоящее
-приложение, `lsregister` зарегистрировал его в Launch Services, и `open -a
-editor.app test.f3drun` — тот же самый путь, которым Finder открывает файл по
-двойному клику, а не имитация его — реально долетел до `application(_:open:)`
-(подтверждено временной записью пути в файл на диске во время проверки, потом
-убранной — сам факт вызова с правильным путём, а не код, который «должен
-сработать»). `OpenRunChannel` на стороне Dart — тонкая обёртка над
-`MethodChannel`, два теста на настоящую симуляцию платформенного вызова
-(`TestDefaultBinaryMessengerBinding.handlePlatformMessage`, не мок логики
-поверх колбэка) в `open_run_channel_test.dart`.
+Checked live, not by inspection: `flutter build macos --debug` built a
+real application, `lsregister` registered it with Launch Services, and
+`open -a editor.app test.f3drun` — the exact same path Finder uses to open
+a file by double click, not an imitation of it — really reached
+`application(_:open:)` (confirmed by a temporary write of the path to a
+file on disk during the check, later removed — the fact of the call with
+the right path, not code that "should work"). `OpenRunChannel` on the
+Dart side is a thin wrapper over `MethodChannel`, with two tests on a real
+simulation of the platform call
+(`TestDefaultBinaryMessengerBinding.handlePlatformMessage`, not a mock of
+the logic over the callback) in `open_run_channel_test.dart`.
 
-**Экрана, на который бы открылся файл, раньше не было вообще — построен
-сейчас.** `Demo.fromJson` никто в редакторе не читал: `.f3drun` умели только
-писать (`ai-00`, кнопка «Save bug report»). `run_info.dart`'s `parseRunFile`
-— чистая функция, разбирающая текст в `Demo` с теми же тремя исходами, что и
-у остальных версионированных форматов (не JSON вовсе, не объект, не `Demo`,
-устаревшая версия) — пять тестов на настоящем `Demo.toJson()`/`fromJson()`
-туда-обратно, не на выдуманной схеме. `RunInfoScreen` — не скраббер: показывает
-то, что файл заявляет (уровень, хеш, штамп сборки, платформу, число шагов и
-чекпоинтов), а не проигрывает его — та же честная граница, что уже назвали
-`net-04`'s `diff` и `rp-05`'s `replayGolden`: шагать чужой симуляцией умеет
-только сам жанр, а редактор ни одного не знает. Открывается тремя путями
-одинаково: файловой ассоциацией, кнопкой в панели (`file_selector`, тот же
-паттерн, что у `ai-02`/`edu-01`) и — на будущее — чем угодно ещё, что вызовет
-`_openRunAt`. Два виджет-теста в `run_info_screen_test.dart`.
+**A screen for the file to open into didn't exist at all before — it's
+built now.** Nobody in the editor read `Demo.fromJson`: `.f3drun` could
+only be written (by ai-00, the "Save bug report" button). `run_info.dart`'s
+`parseRunFile` is a pure function parsing text into a `Demo` with the same
+three outcomes as every other versioned format (not JSON at all, not an
+object, not a `Demo`, an outdated version) — five tests on a real
+`Demo.toJson()`/`fromJson()` round trip, not a made-up schema.
+`RunInfoScreen` isn't a scrubber: it shows what the file claims (the
+level, its hash, the build stamp, the platform, the step and checkpoint
+count), rather than playing it — the same honest boundary already named
+by net-04's own `diff` and rp-05's own `replayGolden`: only the genre
+itself knows how to step its own simulation, and the editor knows none.
+It opens the same way through three paths: a file association, a button
+in the panel (`file_selector`, the same pattern as ai-02/edu-01), and —
+for the future — anything else that calls `_openRunAt`. Two widget tests
+in `run_info_screen_test.dart`.
 
-**Закрыто 2026-09-13 для platformer и racing.** `_rewind`/`_timeline`/
-`_remoteBugReport()` из dungeon's `main.dart` — не новый механизм, тот же
-самый: `RewindBuffer(stepsPerSecond: 60, history: 10.0)` в обоих
-приложениях, `_loop.recorders.add(_rewind.recorder)`,
-`registerTimelineExtensions(_timeline, bugReport: _remoteBugReport)`, и
-`if (_rewind.keyframeDue) _rewind.keyframe(sim.save())` перед самим шагом
-— `PlatformerSimulation`/`RacingSimulation` уже несли `Snapshot save()`/
-`restore(Snapshot)`, которые для этого и нужны (тот же контракт, что
-`rp-00`/`rp-01` уже проверили). У racing `levelHash` честно пуст: у
-`TrackDocument` нет `Level` для хеша (та же находка `rp-01`), а читать
-файл заново ради одного диагностического поля значило бы делать колбэк
-асинхронным без надобности — тот же тэйп и снапшот уже воспроизводят
-прогон и без него. `flutter analyze`/`flutter test` чисты на обоих
-приложениях (236 и 184 теста).
+**Closed on 2026-09-13 for platformer and racing.** `_rewind`/`_timeline`/
+`_remoteBugReport()` from dungeon's own `main.dart` aren't a new
+mechanism, but the same one: `RewindBuffer(stepsPerSecond: 60, history:
+10.0)` in both applications, `_loop.recorders.add(_rewind.recorder)`,
+`registerTimelineExtensions(_timeline, bugReport: _remoteBugReport)`, and
+`if (_rewind.keyframeDue) _rewind.keyframe(sim.save())` right before the
+step itself — `PlatformerSimulation`/`RacingSimulation` already carried
+`Snapshot save()`/`restore(Snapshot)`, which exist exactly for this (the
+same contract rp-00/rp-01 already checked). For racing, `levelHash` is
+honestly empty: `TrackDocument` has no `Level` to hash from (the same
+finding as rp-01), and re-reading the file just for one diagnostic field
+would mean making the callback async with no real need — the same tape
+and snapshot already replay the run without it. `flutter analyze`/`flutter
+test` are clean on both applications (236 and 184 tests).
 
-**strategy — не тот же провод, а другая причина, не размытая под одну с
-предыдущими двумя.** `RewindBuffer.recorder` — это `InputTapeRecorder`,
-он пишет `GameAction`'s непрерывное состояние каждый шаг; у strategy
-этого состояния просто нет — `grep` по `apps/flutter3d_demo_strategy/lib/main.dart`
-не находит ни `InputState`, ни `GameAction` вовсе, тем же способом, что
-`tpl-02` уже нашёл для своей собственной ленты. Матч играется дискретными
-приказами через `CommandPost` (`OrderTape`, не `InputTape`), и заводить
-`RewindBuffer` поверх несуществующего непрерывного ввода — не провод,
-которого не хватает, а сам механизм, которого этот жанр не может нести
-без изобретения второго вида буфера под дискретные приказы. Это тот же
-корень, что уже честно назвал `tpl-02`, а не отдельный, новый пробел
-rp-04. **Drag-and-drop в
-веб-версии — не
-построен по причине большей, чем «платформенный UI»: у `apps/flutter3d_editor`
-вообще нет веб-сборки.** Собственный докстринг `main.dart` называет это прямо:
-«Desktop only, and that is not an omission — this application exists to write
-a file back over itself, which a browser will not do» — задача, поставленная
-для несуществующей цели, а не недоделанная часть существующей; строить веб-бэкенд
-редактору ради одной этой возможности значило бы отменить архитектурное решение,
-которое этот же план не пересматривал. Облако (загрузка, ссылка, страница
-прогона) — `cloud/server`, над которым в этой сессии уже идёт параллельная
-работа другой сессии, трогать не стал, чтобы не столкнуться.
+**strategy — not the same wire, but a different reason, not blurred
+together with the previous two.** `RewindBuffer.recorder` is an
+`InputTapeRecorder`, it writes `GameAction`'s own continuous state every
+step; strategy simply has none of this state — a `grep` over
+`apps/flutter3d_demo_strategy/lib/main.dart` finds neither `InputState`
+nor `GameAction` at all, the same way `tpl-02` already found for its own
+tape. A match is played through discrete orders via `CommandPost`
+(`OrderTape`, not `InputTape`), and setting up a `RewindBuffer` over
+continuous input that doesn't exist isn't a missing wire, but the
+mechanism itself, which this genre cannot carry with no second kind of
+buffer invented for discrete orders. This is the same root tpl-02 already
+honestly named, not a separate, new rp-04 gap. **Drag-and-drop on the web
+build isn't built, for a reason bigger than "platform UI": `apps/flutter3d_editor`
+has no web build at all.** The application's own doc comment names this
+plainly: "Desktop only, and that is not an omission — this application
+exists to write a file back over itself, which a browser will not do" —
+a task set for a target that doesn't exist, not an unfinished part of one
+that does; building the editor a web backend just for this one capability
+would mean reversing an architectural decision this same plan doesn't
+revisit. The cloud (an upload, a link, a run page) is `cloud/server`,
+where another session in this session is already doing parallel work —
+left untouched, to avoid a collision.
 
-### rp-06: профилировщик по шагу прогона — закрыт
+### rp-06: a per-run-step profiler — closed
 
-Закрыт 2026-09-12. `StepTimeTrace` в `flutter3d_sim`
-(`lib/src/save/step_time_trace.dart`) — «трасса счётчиков за проход, ключ —
-шаг прогона» буквально, тот же контракт сериализации, что `DigestTrace`
-(`toJson`/`fromJson`, отдельное исключение), только вместо хеша — миллисекунды.
-`record(step, body)` — обёртка на `Stopwatch` для типового случая; `observe`
-— для вызывающего, у которого время уже измерено чем-то другим.
-`worstStep`/`worstMillis`/`meanMillis` — то, что клик по спайку на полоске
-должен показать: не только «где было плохо», а куда шкала прыгнет.
-Десять тестов в `flutter3d_sim/test/step_time_trace_test.dart` — тот же
-набор, что у `DigestTrace`: через каждые N шагов, JSON туда-обратно, отказ
-на рассинхроне длин, плюс то, что специфично для времени — `record` не
-меняет результат обёрнутого вызова, а разбор ничьей между двумя худшими
-шагами называет первый. Отдельно проверен на `dart test -p chrome`.
+Closed 2026-09-12. `StepTimeTrace` in `flutter3d_sim`
+(`lib/src/save/step_time_trace.dart`) — "a counter trace per pass, keyed
+by run step," literally, the same serialization contract as `DigestTrace`
+(`toJson`/`fromJson`, its own dedicated exception), only milliseconds
+instead of a hash. `record(step, body)` is a `Stopwatch` wrapper for the
+typical case; `observe` is for a caller whose time is already measured by
+something else. `worstStep`/`worstMillis`/`meanMillis` are what a click on
+a spike in the strip should show: not only "where it was bad," but where
+the timeline should jump. Ten tests in
+`flutter3d_sim/test/step_time_trace_test.dart` — the same set as
+`DigestTrace`: every N steps, a JSON round trip, refusing on a length
+mismatch, plus what's specific to time — `record` doesn't change the
+wrapped call's own result, and a tie between two worst steps names the
+first. Separately checked on `dart test -p chrome`.
 
-**Полоска над скраббером теперь есть.** `registerTimelineExtensions`
-получил необязательный `frameTimes: StepTimeTrace`, регистрирующий
-`ext.flutter3d.timeline.frameTimes` (`StepTimeTrace.toJson` как есть) тем же
-способом, что и `bugReport` в rp-04 выше; `apps/flutter3d_demo_dungeon`
-заводит `StepTimeTrace` и оборачивает `sim.step(dt)` в `_frameTimes.record`.
-`_FrameTimeStrip` в `timeline_attach_screen.dart` — одна полоска на шаг из
-`client.frameTimes()`, высотой пропорциональной его стоимости относительно
-худшего шага трассы; тап по полоске зовёт тот же `releaseAtStep`, что и
-кнопка «Release here» — «скачок времени кадра виден на шкале и кликом
-переводит к шагу», ровно критерий приёмки из §4.1. Панель молча показывает
-«no frame times yet», если вызывающий не регистрировал `StepTimeTrace` —
-«трассы просто нет» и «клиент ответил ошибкой» — разные вещи, и пугать
-должна только вторая. Три новых виджет-теста в
-`timeline_attach_screen_test.dart`: пустая трасса рисует подпись, а не
-полосы; N шагов — N кликабельных полосок, адресуемых `ValueKey<int>` по
-номеру шага, а не по индексу (`find.byType(GestureDetector)` находит и
-внутренние жесты `Tooltip`/`ListView`, не только полоски — обойдено
-ключом); тап по полоске добавляет `branched:<step>` в историю ровно как
-явный `releaseAtStep`. `run_timeline_extensions_test.dart` проверяет то же
-расширение протокола вторым процессом.
+**The strip over the scrubber now exists.** `registerTimelineExtensions`
+got an optional `frameTimes: StepTimeTrace`, registering
+`ext.flutter3d.timeline.frameTimes` (`StepTimeTrace.toJson` as is) the
+same way `bugReport` does above at rp-04;
+`apps/flutter3d_demo_dungeon` sets up a `StepTimeTrace` and wraps
+`sim.step(dt)` in `_frameTimes.record`. `_FrameTimeStrip` in
+`timeline_attach_screen.dart` — one strip per step from
+`client.frameTimes()`, its height proportional to its own cost relative
+to the trace's worst step; tapping a strip calls the same `releaseAtStep`
+as the "Release here" button — "a frame-time spike is visible on the
+timeline and a click on it jumps to the step," exactly §4.1's own
+acceptance. The panel quietly shows "no frame times yet" if the caller
+never registered a `StepTimeTrace` — "there's simply no trace" and "the
+client answered with an error" are different things, and only the second
+should alarm. Three new widget tests in
+`timeline_attach_screen_test.dart`: an empty trace draws a caption, not
+bars; N steps give N clickable bars, addressed by a `ValueKey<int>` on
+the step number, not by index (`find.byType(GestureDetector)` also finds
+`Tooltip`/`ListView`'s own internal gestures, not only the bars — worked
+around with the key); tapping a bar adds `branched:<step>` to the history,
+exactly like an explicit `releaseAtStep`.
+`run_timeline_extensions_test.dart` checks the same protocol extension
+through a second process.
 
-Скраббер, над которым рисуется полоска, — это живой `RewindBuffer` панели
-`TimelineAttachScreen` (preview/release за последние N секунд), а не
-отдельный слайдер по всей длине записанного `.f3drun`; тот остаётся будущей
-работой самого rp-02, если он вообще понадобится — критерий приёмки
-rp-06 говорит о шкале rp-02, а не о нём.
+The scrubber the strip is drawn over is `TimelineAttachScreen`'s own live
+`RewindBuffer` (preview/release for the last N seconds), not a separate
+slider across the whole length of a recorded `.f3drun`; that stays future
+work for rp-02 itself, if it's ever needed — rp-06's own acceptance speaks
+of rp-02's own timeline, not of that one.
 
-### wg-00: ввод и перерисовка
+### wg-00: input and redraw
 
-Закрыт 2026-09-12. Механизм — `WidgetSurfacePipeline` в `flutter3d_session`
-(`lib/src/widget_surface_pipeline.dart`): держит `BuildOwner` и
-`PipelineOwner` живыми между кадрами (в отличие от `WidgetTexture`, которая
-строит и рвёт свой пайплайн на каждый вызов), помечает себя грязным через
-`onBuildScheduled`/`onNeedVisualUpdate` и перерисовывает только по этому
-флагу; указатель входит через `dispatchAtUv` — UV на поверхности превращается
-в локальную координату, `RenderView.hitTest` находит цель, а сам
-`GestureBinding` добавляется в путь hit-теста вручную (`HitTestEntry`), потому
-что именно в его `handleEvent` живут `pointerRouter.route` и закрытие/подметание
-арены жестов — без этого шага одиночный `TapGestureRecognizer` никогда не
-выигрывает арену. Оба факта — не с первой попытки: см. комментарии в коде и
-историю коммита теста.
+Closed 2026-09-12. The mechanism is `WidgetSurfacePipeline` in
+`flutter3d_session` (`lib/src/widget_surface_pipeline.dart`): keeps a
+`BuildOwner` and a `PipelineOwner` alive between frames (unlike
+`WidgetTexture`, which builds and tears down its own pipeline on every
+call), marks itself dirty through
+`onBuildScheduled`/`onNeedVisualUpdate` and redraws only on that flag; a
+pointer enters through `dispatchAtUv` — a UV on the surface turns into a
+local coordinate, `RenderView.hitTest` finds the target, and
+`GestureBinding` itself is added to the hit-test path by hand
+(`HitTestEntry`), because `pointerRouter.route` and closing/sweeping the
+gesture arena live exactly in its own `handleEvent` — without this step a
+lone `TapGestureRecognizer` never wins the arena. Neither fact came on the
+first try — see the code's own comments and the test's own commit
+history.
 
-Корректность — три теста в
-`packages/flutter3d_session/test/widget_surface_pipeline_test.dart`: (1)
-перерисовка не происходит, пока ничего не запросило её явно; (2) тап по UV
-попадает в кнопку под ним, а не рядом; (3) полная цепочка «луч
-(`CollisionWorld.raycast`) → точка и нормаль → UV на грани бокса → тап» —
-зелены на VM, Chrome dart2js и Chrome wasm.
+Correctness — three tests in
+`packages/flutter3d_session/test/widget_surface_pipeline_test.dart`: (1) a
+redraw doesn't happen unless something explicitly asked for one; (2) a tap
+on a UV lands on the button under it, not next to it; (3) the full chain —
+"a ray (`CollisionWorld.raycast`) → a point and a normal → a UV on the
+box's face → a tap" — is green on the VM, Chrome dart2js and Chrome wasm.
 
-Замер — `widget_surface_pipeline_benchmark_test.dart` (и то же самое зеркалом
-в `apps/flutter3d_demo_racing/integration_test/widget_surface_benchmark_test.dart`
-для Android/iOS, по той же причине, что и в rp-00): шестьдесят кадров
-поверхности 512×512 с текстовой панелью, каждый кадр меняет значение и
-перерисовывает; отдельно — шестьдесят вызовов `redrawIfDirty()` без изменений
-(«скип»).
+The measurement — `widget_surface_pipeline_benchmark_test.dart` (and the
+same thing mirrored in
+`apps/flutter3d_demo_racing/integration_test/widget_surface_benchmark_test.dart`
+for Android/iOS, for the same reason as in rp-00): sixty frames of a
+512×512 surface with a text panel, every frame changing a value and
+redrawing; separately — sixty calls to `redrawIfDirty()` with no changes
+("the skip").
 
-| Платформа | Грязная перерисовка, мс/кадр | Скип (не грязно), мс/кадр |
+| Platform | A dirty redraw, ms/frame | A skip (not dirty), ms/frame |
 |---|---|---|
-| macOS (VM, хост, не телефон) | 0.699 | 0.0001 |
+| macOS (VM, a host, not a phone) | 0.699 | 0.0001 |
 | Chrome dart2js (canvaskit) | 7.107 | 0.0017 |
 | Chrome wasm (skwasm) | 6.810 | 0.0003 |
-| Android (эмулятор, arm64) | 7.964 | 0.0002 |
-| iOS (симулятор) | 2.698 | 0.0001 |
+| Android (emulator, arm64) | 7.964 | 0.0002 |
+| iOS (simulator) | 2.698 | 0.0001 |
 
-**Скип на три-четыре порядка дешевле перерисовки везде** — весь довод в
-пользу `redrawIfDirty()` подтверждён числом, а не только логикой. Браузер
-(что dart2js, что wasm) и Android-эмулятор одного порядка (7–8 мс), macOS и
-iOS-симулятор заметно дешевле (0.7 и 2.7 мс) — вероятно, эмуляторы платят
-дороже за софтверный слой композиции, а не за саму перерисовку 512²; это
-предположение, не измерено отдельно.
+**A skip is three to four orders of magnitude cheaper than a redraw
+everywhere** — the whole case for `redrawIfDirty()` is confirmed by a
+number, not only by logic. The browser (dart2js and wasm alike) and the
+Android emulator sit in the same order of magnitude (7–8 ms), macOS and
+the iOS simulator are noticeably cheaper (0.7 and 2.7 ms) — likely the
+emulators pay more for the software compositing layer than for the 512²
+redraw itself; a guess, not separately measured.
 
-Что осталось за скобками: **эмулятор и симулятор — не телефон.** Ни один
-физический Android- или iOS-телефон к этой сессии не подключён, а
-производительность эмулятора систематически отличается от реального
-железа (обычно в лучшую сторону на десктопе, на котором он крутится, — то
-есть 7.964 мс на «Android» здесь, скорее всего, оптимистичнее настоящего
-бюджетного телефона, а не пессимистичнее). Таблица закрывает вопрос
-«механизм работает и не бесконечно дорог», а не «сколько будет стоить на
-целевом устройстве» — второе нужно будет замерить `wg-01` на реальном
-телефоне перед тем, как объявлять бюджет перерисовки. `wg-01` может
-начинаться на этом основании.
+What's outside this scope: **an emulator or a simulator is not a phone.**
+No physical Android or iOS phone is connected to this session, and an
+emulator's own performance systematically differs from real hardware
+(usually favorably, on the desktop it runs on — meaning the 7.964 ms for
+"Android" here is likely more optimistic than a real budget phone, not
+more pessimistic). The table settles "the mechanism works and isn't
+infinitely expensive," not "what it will cost on a target device" — the
+second needs `wg-01` measured on a real phone before a redraw budget is
+announced. `wg-01` can start on this basis.
 
-### wg-01: `WidgetSurface` — узел построен, клавиатура упёрлась в настоящую границу Flutter SDK
+### wg-01: `WidgetSurface` — the node is built, the keyboard ran into a real Flutter SDK boundary
 
-Закрыт 2026-09-12, честно неполным по одному конкретному пункту приёмки —
-не потому что до него не дошли руки, а потому что он проверен и не работает
-по причине, которая не в этом коде.
+Closed 2026-09-12, honestly incomplete on one specific acceptance point —
+not because it never got attention, but because it was checked and
+doesn't work, for a reason outside this code.
 
-**Узел сцены.** `WidgetSurface` в `flutter3d_session`
-(`lib/src/widget_surface.dart`) — `MeshNode` на `PlaneShape`, поставленный
-вертикально (`pitch = -π/2`, стандартный `setRotationYawPitchRoll`) так,
-чтобы при `yaw = 0` его нормаль смотрела вдоль `-Z` — та же конвенция,
-которую `flutter3d_bridge`'s `ActorVisuals.yawFor` уже документирует для
-направления сущности. Материал — `LightingModel.unlit` с текстурой из
-`WidgetSurfacePipeline.currentImage()`, залитой через
-`GraphicsDevice.createTextureFromPixels` — тот же путь, что уже использует
-`WidgetTexture.draw()`, просто повторяемый по требованию, а не один раз.
-`tick()` вызывает `pipeline.redrawIfDirty()` каждый кадр и заливает текстуру
-заново, только если вернулось `true` — и форсирует ОДНУ заливку на первом
-вызове независимо от этого флага, потому что первый кадр пайплайна уже
-нарисован его же конструктором (см. докстринг `WidgetSurfacePipeline`) и
-поэтому не «грязный» на первой проверке: без этой поправки статичный виджет
-не показывался бы никогда — находка настоящего теста, а не предположение
-заранее.
+**The scene node.** `WidgetSurface` in `flutter3d_session`
+(`lib/src/widget_surface.dart`) — a `MeshNode` on a `PlaneShape`, stood
+vertically (`pitch = -π/2`, the standard
+`setRotationYawPitchRoll`) so that at `yaw = 0` its normal looks along
+`-Z` — the same convention `flutter3d_bridge`'s own `ActorVisuals.yawFor`
+already documents for an entity's direction. The material is
+`LightingModel.unlit` with a texture from
+`WidgetSurfacePipeline.currentImage()`, uploaded through
+`GraphicsDevice.createTextureFromPixels` — the same path
+`WidgetTexture.draw()` already uses, just repeated on demand rather than
+once. `tick()` calls `pipeline.redrawIfDirty()` every frame and re-uploads
+the texture only if it returned `true` — and forces ONE upload on the
+first call regardless of that flag, because the pipeline's own first
+frame is already drawn by its own constructor (see
+`WidgetSurfacePipeline`'s own doc comment) and therefore isn't "dirty" on
+the first check: without this fix, a static widget would never show at
+all — a real test's own finding, not a guess made in advance.
 
-**`uvAt` — точная инверсия того, как `PlaneShape` расставляет вершины**, а
-не вторая, отдельно выведенная матрица поворота: мировая точка проходит
-через `node.worldMatrix`⁻¹, и `local.x`/`local.z` напрямую дают `u`/`v` по
-той же формуле, что использует сама генерация меша — поэтому корректность
-не зависит от того, под каким `yaw` стоит поверхность. `v` намеренно
-развёрнут относительно `PlaneShape`'s собственного (которое растёт вместе с
-мировым Y): пайплайн's `v` — экранный, сверху вниз, и разворот — это
-единственное чтение «верх виджета — это верх на стене», которое имеет
-смысл.
+**`uvAt` is the exact inverse of how `PlaneShape` places its vertices**,
+rather than a second, separately derived rotation matrix: a world point
+passes through `node.worldMatrix`⁻¹, and `local.x`/`local.z` directly give
+`u`/`v` by the same formula the mesh's own generation uses — so
+correctness doesn't depend on which `yaw` the surface stands at. `v` is
+deliberately flipped relative to `PlaneShape`'s own (which grows along
+with world Y): the pipeline's own `v` is screen-space, top to bottom, and
+the flip is the only reading of "the top of the widget is the top on the
+wall" that makes sense.
 
-**Диагностика.** `WidgetSurface.redrawCount` пробрасывает
-`pipeline.redrawCount` наружу — третий пункт приёмки («кадр без изменений
-виджета не перерисовывает его») читается напрямую.
+**Diagnostics.** `WidgetSurface.redrawCount` forwards
+`pipeline.redrawCount` outward — the third acceptance point ("a frame with
+no widget change doesn't redraw it") reads directly from it.
 
-**Документ уровня → реестр приложения.** Новый тип сущности
-`widget_surface` (поля `widget`, `width`, `height`, унаследованные `at`/
-`yaw`) — плоско, без обёртки `"properties"`, та же находка и то же решение,
-что уже задокументировано в `doc/edu-00-interactive-format.md`, §2.
-`flutter3d_bridge/lib/src/widget_surface_visuals.dart` (новая зависимость
-`flutter3d_bridge → flutter3d_session`, проверена на отсутствие цикла)
-резолвит `entity.string('widget')` через `Map<String, WidgetBuilder>`,
-который передаёт приложение — та же схема, что `edu_annotation.widget` уже
-выбрала для аннотаций в edu-00, не совпадение, а один принцип, применённый
-дважды. Сущность с именем, которого нет в реестре, не роняет уровень — она
-идёт в `IssueSink`, тем же способом, каким `FixtureVisuals` уже отвечает на
-модель, которая не загрузилась.
+**The level document → the application's own registry.** A new entity
+type, `widget_surface` (fields `widget`, `width`, `height`, inherited
+`at`/`yaw`) — flat, with no `"properties"` wrapper, the same finding and
+the same decision already documented in
+`doc/edu-00-interactive-format.md`, §2.
+`flutter3d_bridge/lib/src/widget_surface_visuals.dart` (a new dependency,
+`flutter3d_bridge → flutter3d_session`, checked for the absence of a
+cycle) resolves `entity.string('widget')` through a `Map<String,
+WidgetBuilder>` the application hands it — the same scheme
+`edu_annotation.widget` already chose for annotations in edu-00, not a
+coincidence, but one principle applied twice. An entity named for
+something not in the registry doesn't crash the level — it goes into
+`IssueSink`, the same way `FixtureVisuals` already answers a model that
+failed to load.
 
-**Что уже работает и доказано настоящими тестами:**
-- `packages/flutter3d_session/test/widget_surface_test.dart` (7 тестов):
-  ориентация (нормаль на `yaw=0` — честно измеренная, не предположенная,
-  `(0,0,-1)`; поворот на `yaw` — вокруг мирового Y, как у `ActorVisuals`),
-  `uvAt` (точка в центре, точка у края, точка вне плоскости/за краем),
-  `tick`/`redrawCount` (не растёт без изменений, растёт на одно при
-  изменении, не растёт снова после), и полная цепочка «луч
-  (`CollisionWorld.raycast`) → `uvAt` → `dispatchAtUv` → тап» — тот же
-  стандарт, что и у `wg-00`.
+**What already works and is proven by real tests:**
+- `packages/flutter3d_session/test/widget_surface_test.dart` (7 tests):
+  orientation (the normal at `yaw=0` — honestly measured, not assumed,
+  `(0,0,-1)`; rotation by `yaw` — around world Y, like `ActorVisuals`),
+  `uvAt` (a point at the center, a point at the edge, a point off the
+  plane/past the edge), `tick`/`redrawCount` (doesn't grow with no
+  changes, grows by one on a change, doesn't grow again after), and the
+  full chain — "a ray (`CollisionWorld.raycast`) → `uvAt` →
+  `dispatchAtUv` → a tap" — the same standard as `wg-00`.
 - `packages/flutter3d_bridge/test/widget_surface_visuals_test.dart` (4
-  теста): неизвестное имя виджета не роняет уровень; сущность резолвится,
-  сцена реально держит узел (`scene.meshes`), и луч по узлу, построенному
-  бриджем (а не тестом вручную), реально меняет виджет; `tickAll` красит
-  сразу несколько поверхностей; `dispose` убирает узлы из сцены.
+  tests): an unknown widget name doesn't crash the level; an entity
+  resolves, the scene really holds the node (`scene.meshes`), and a ray on
+  a node the bridge itself built (not the test by hand) really changes
+  the widget; `tickAll` paints several surfaces at once; `dispose` removes
+  the nodes from the scene.
 - `packages/flutter3d_session/test/widget_surface_keyboard_test.dart` (2
-  теста, честные, не про `TextField` — см. ниже): тап запрашивает фокус
-  внутри поверхности на ЕЁ СОБСТВЕННОМ изолированном `FocusManager`, а не
-  на глобальном приложения — прочитано из исходников Flutter, не
-  предположено: `FocusNode`'s менеджер резолвится через
-  `context.owner.focusManager` (`focus_manager.dart`), где `owner` — это
-  `BuildOwner` элемента, а не синглтон; и две поверхности держат фокус
-  независимо, потому что у каждой свой менеджер.
+  tests, honest, not about `TextField` — see below): a tap requests focus
+  inside the surface on ITS OWN isolated `FocusManager`, not on the
+  application's global one — read from Flutter's own sources, not
+  assumed: a `FocusNode`'s own manager resolves through
+  `context.owner.focusManager` (`focus_manager.dart`), where `owner` is
+  the element's own `BuildOwner`, not a singleton; and two surfaces hold
+  focus independently, because each has its own manager.
 
-**Настоящая находка по пути, не в этом коде: `TextField` в изолированном
-`WidgetSurfacePipeline` не может открыть настоящее соединение ввода.** Две
-независимые стены Flutter SDK, обе — воспроизведены, а не прочитаны в
-issue-трекере:
+**A real finding along the way, not in this code: `TextField` inside an
+isolated `WidgetSurfacePipeline` can't open a real text-input
+connection.** Two independent Flutter SDK walls, both reproduced, not read
+from an issue tracker:
 
-1. `TextField` находит свой `EditableTextState` через `GlobalKey`, а
-   `GlobalKey.currentState` — это `WidgetsBinding.instance.buildOwner!
-   ._globalKeyRegistry[this]` (`framework.dart`) — реестр ЕДИНСТВЕННОГО
-   `BuildOwner` приложения, а не `context.owner`'а конкретного элемента.
-   Элемент, построенный любым другим `BuildOwner`, регистрируется там, где
-   этот поиск никогда не смотрит. Воспроизведено: тап по `TextField` здесь
-   бросает `Null check operator used on a null value` внутри
-   `TextSelectionGestureDetectorBuilder.editableText` — каждый раз, без
-   участия остального пайплайна.
-2. Даже голый `EditableText` (без `TextField`, без `GlobalKey`) всё равно
-   вызывает `View.of(context)` безусловно внутри
-   `EditableTextState.textInputConfiguration` (`editable_text.dart`), чтобы
-   пометить соединение `viewId`. У `WidgetSurfacePipeline` нет предка
-   `View` намеренно — он строит свой `RenderView` напрямую, потому что
-   поверхность не второе окно. Воспроизведено дважды: без `View` `View.of`
-   бросает исключение сразу; `View`, добавленный внутрь дерева пайплайна,
-   бросает своё собственное исключение при монтировании — «cannot maintain
-   an independent render tree at its current location» — потому что `View`
-   отказывается присоединяться внутри уже присоединённого
+1. `TextField` finds its own `EditableTextState` through a `GlobalKey`, and
+   `GlobalKey.currentState` is
+   `WidgetsBinding.instance.buildOwner!._globalKeyRegistry[this]`
+   (`framework.dart`) — the registry of the application's ONE `BuildOwner`,
+   not of a specific element's own `context.owner`. An element built by
+   any other `BuildOwner` registers somewhere this lookup never looks.
+   Reproduced: a tap on `TextField` here throws "Null check operator used
+   on a null value" inside
+   `TextSelectionGestureDetectorBuilder.editableText` — every time, with no
+   involvement from the rest of the pipeline.
+2. Even a bare `EditableText` (no `TextField`, no `GlobalKey`) still calls
+   `View.of(context)` unconditionally inside
+   `EditableTextState.textInputConfiguration` (`editable_text.dart`), to
+   stamp a `viewId` on the connection. `WidgetSurfacePipeline` deliberately
+   has no `View` ancestor — it builds its own `RenderView` directly,
+   because the surface isn't a second window. Reproduced twice: with no
+   `View`, `View.of` throws immediately; a `View` added inside the
+   pipeline's own tree throws its own exception on mounting — "cannot
+   maintain an independent render tree at its current location" — because
+   `View` refuses to attach inside an already-attached
    `RenderObjectToWidgetAdapter`.
 
-Ни одна из стен не в этом пакете и не чинится изнутри него — обе решение
-Flutter SDK о том, что приложение одно, выше уровня, на котором пайплайн
-может что-то обойти. Приёмка wg-01 — «текстовое поле на экране в игре
-принимает ввод с клавиатуры» — поэтому не выполнена буквально, и это
-названо прямо, а не спрятано за похожим на рабочий `TextField`, который
-молча проглатывал бы каждый символ.
+Neither wall is in this package, and neither is fixable from inside it —
+both are Flutter SDK decisions that an application is singular, above the
+level at which the pipeline can work around anything. wg-01's own
+acceptance — "a text field on an in-game screen accepts keyboard input" —
+is therefore not literally met, and this is named plainly, rather than
+hidden behind a `TextField` that looks like it works while silently
+swallowing every character.
 
-**По пути найдена и исправлена настоящая ошибка в `wg-00`'s собственном
-коде**, не только у wg-01: `WidgetSurfacePipeline.dispatchAtLocal`
-пересчитывал хит-тест на каждое событие, а не переиспользовал тот, что был
-найден на `down`, — расхождение с тем, что делает настоящий
-`GestureBinding._handlePointerEventImmediately` (его же комментарий
-называет причину: «events that occur with the pointer down... should be
-dispatched to the same place their initial PointerDownEvent was»). Для тапа
-это не видно (down и up — в одной точке), но для скролла было немой
-разницей: обычный `GestureDetector.onVerticalDragUpdate` через
-`dispatchAtLocal` реагировал на синтетическую последовательность
-down/move/up, а `Scrollable` (и `ListView`, и `SingleChildScrollView`) —
-нет, при абсолютно той же последовательности событий и на той же
-проверенной среде (обычный `tester.pumpWidget` + `tester.drag` на такой же
-`ListView` скроллит нормально). Исправлено — `dispatchAtLocal` теперь
-хранит `HitTestResult` по указателю между `down` и `up`, тем же способом,
-что и настоящий бинд. Это не починило `Scrollable` — офсет остаётся 0.0 и
-после исправления — но убрало ложный след: причина не в устаревшем
-хит-тесте, она глубже и не найдена в рамках этой сессии.
+**A real bug was found and fixed along the way in `wg-00`'s own code**,
+not only in wg-01: `WidgetSurfacePipeline.dispatchAtLocal` recomputed the
+hit test on every event, rather than reusing the one found on `down` — a
+divergence from what the real `GestureBinding._handlePointerEventImmediately`
+does (its own comment names the reason: "events that occur with the
+pointer down... should be dispatched to the same place their initial
+PointerDownEvent was"). For a tap, this isn't visible (down and up are at
+the same point), but for a scroll it was a silent difference: an ordinary
+`GestureDetector.onVerticalDragUpdate` through `dispatchAtLocal` reacted to
+a synthetic down/move/up sequence, but `Scrollable` (both `ListView` and
+`SingleChildScrollView`) did not, given the exact same event sequence on
+the exact same proven setup (an ordinary `tester.pumpWidget` +
+`tester.drag` on the same kind of `ListView` scrolls fine). Fixed —
+`dispatchAtLocal` now holds a `HitTestResult` per pointer between `down`
+and `up`, the same way the real binding does. This didn't fix
+`Scrollable` — the offset stays 0.0 even after the fix — but it removed a
+false lead: the cause isn't a stale hit test, it's deeper and wasn't found
+within this session.
 
-**Не сделано, честно:**
-- «список прокручивается пальцем» — третий пункт приёмки. Механизм
-  указателя доказанно доставляет полную последовательность down/move/up с
-  корректной `delta` до простого распознавателя жеста
-  (`onVerticalDragUpdate` реагирует, смещение совпадает с посчитанным);
-  `Scrollable`-виджеты (`ListView`, `SingleChildScrollView`) на ту же
-  последовательность не реагируют вообще — ни одного `ScrollNotification`,
-  без единого исключения. Причина не найдена: не `GlobalKey` (у `Scrollable`
-  его нет в этом пути), не `View.of` (никакого похожего исключения), не
-  устаревший хит-тест (проверено и исправлено отдельно, не помогло). Это
-  открытый вопрос, а не отвергнутая гипотеза — оставлен таким прямо, вместо
-  того чтобы выдать за готовое то, что не проверено.
-- Семантика — по решению `§7`, `wg-01` сдаётся без неё. Запись:
-  **`flutter3d_session`'s `CHANGELOG.md`** дальше в этом же коммите называет
-  пропуск явно.
-- Замер стоимости на реальном телефоне (см. `wg-00`'s собственную оговорку
-  выше) — эмулятор/симулятор всё ещё не телефон, `WidgetSurface` не меняет
-  это ограничение.
-- Гизмо/подсветка `widget_surface`-сущности в самом редакторе — новый тип
-  сущности проходит валидацию `flutter3d_editor_core` бесплатно (открытый
-  словарь типов, см. `edu-00`), но визуального плейсхолдера для него в
-  вьюпорте редактора не добавлено — отдельная, более широкая задача по UI
-  редактора, не часть wg-01.
+**Not done, honestly:**
+- "the list scrolls under a finger" — the third acceptance point. The
+  pointer mechanism is proven to deliver a full down/move/up sequence
+  with a correct `delta` to a plain gesture recognizer
+  (`onVerticalDragUpdate` reacts, the offset matches the computed one);
+  `Scrollable` widgets (`ListView`, `SingleChildScrollView`) don't react
+  at all to the same sequence — not one `ScrollNotification`, with no
+  exception either. The cause wasn't found: not `GlobalKey` (`Scrollable`
+  has none on this path), not `View.of` (no similar exception), not a
+  stale hit test (checked and fixed separately, didn't help). This is an
+  open question, not a rejected hypothesis — left named that way plainly,
+  rather than presenting as finished something unproven.
+- Semantics — per §7's own decision, wg-01 ships without it. Recorded:
+  `flutter3d_session`'s own `CHANGELOG.md`, further in this same commit,
+  names the gap explicitly.
+- A cost measurement on a real phone (see `wg-00`'s own caveat above) — an
+  emulator/simulator is still not a phone, `WidgetSurface` doesn't change
+  that limit.
+- A gizmo/highlight for a `widget_surface` entity in the editor itself — the
+  new entity type passes `flutter3d_editor_core`'s own validation for
+  free (an open type vocabulary, see `edu-00`), but no visual placeholder
+  was added for it in the editor's own viewport — a separate, broader
+  editor-UI task, not part of wg-01.
 
-### wg-02: терминал в крипте и панель оператора — закрыт
+### wg-02: a terminal in the crypt and an operator panel — closed
 
-Закрыт 2026-09-12. Обе сцены — на настоящем `WidgetSurface` из wg-01, не
-интерактивные в смысле текста/скролла (то и другое честно не работает —
-см. `wg-01`), только тап и перерисовка по грязности, ровно то, что там
-доказано.
+Closed 2026-09-12. Both scenes are on a real `WidgetSurface` from wg-01,
+not interactive in the sense of text or scrolling (both honestly don't
+work — see `wg-01`), only tap and redraw-by-dirtiness, exactly what's
+proven there.
 
-**Терминал — переиспользование существующего потока событий, не новый
-хук.** `apps/flutter3d_demo_dungeon`'s `FrameEffects.say` уже выводит
-каждое сообщение уровня (двери, ключи, `MechanismEvents.messages`) на HUD
-на три секунды и забывает его; `FrameEffects.log` — тот же вызов, тот же
-источник, только `ValueNotifier<List<String>>`, обрезанный по
-`logCapacity` (8 строк), а не одна забываемая строка.
-`RunTerminal` — `StatelessWidget` без `Scrollable`: он рисует все строки
-лога сразу (снизу вверх), потому что `wg-01` уже нашёл, что
-`Scrollable`-виджеты внутри `WidgetSurfacePipeline` не реагируют на
-синтетический указатель ни на одно событие — честная граница оттуда, не
-заново открытая здесь, только уважаемая.
+**The terminal reuses an existing event stream, not a new hook.**
+`apps/flutter3d_demo_dungeon`'s own `FrameEffects.say` already prints every
+level message (doors, keys, `MechanismEvents.messages`) onto the HUD for
+three seconds and forgets it; `FrameEffects.log` is the same call, the
+same source, only a `ValueNotifier<List<String>>`, trimmed by
+`logCapacity` (8 lines), rather than one forgotten line. `RunTerminal` is a
+`StatelessWidget` with no `Scrollable`: it draws every log line at once
+(bottom up), because `wg-01` already found that `Scrollable` widgets inside
+a `WidgetSurfacePipeline` don't react to a synthetic pointer on a single
+event — an honest boundary from there, not reopened here, only respected.
 
-**Настоящая находка, не предположенная заранее: игровой уровень и
-редактор проверяют документ РАЗНЫМИ словарями.** `flutter3d_editor_core`'s
-`vocabularyOf` принимает любой `type` (открытый словарь — см. `edu-00`
-§1), но `LevelValidator`, через которую грузится реальная игра
-(`LevelLoader.build`), — нет: неизвестный тип это ERROR, и
-`LevelLoader.load` бросает исключение, отказываясь открыть уровень
-целиком. Добавление `widget_surface`-сущности в `crypt.json` без
-регистрации нового `EntityKind` в игровом реестре молча ломало ЗАГРУЗКУ
-крипты — не только у нового кода, у всех тринадцати мест в дереве
-`apps/flutter3d_demo_dungeon`, которые строят `sampleRegistry()` для того
-же файла (одиннадцать тестов и `main.dart`), пойманное прогоном полного
-набора тестов, а не одного файла. Решение — `WidgetSurfaceKind` в
-`flutter3d_bridge` (тот же `entityType`, что уже держит
-`WidgetSurfaceVisuals`, спавнит ничего, ровно как `PlayerSpawnKind`
-читается как координата, а не спавнится), и новый параметр `extra` у
-`flutter3d_game_shooter`'s `sampleRegistry()` — не прямая зависимость
-жанра от `flutter3d_bridge`: пубспек `flutter3d_game_shooter` уже
-объясняет, почему жанровый пакет не должен знать про мост
-(«Only `bridge.dart` imports [flutter3d]... not a bridge's»), так что
-кто добавляет слово, которое знает только мост, — приложение, через
-`extra`, а не пакет жанра через новую зависимость.
+**A real finding, not anticipated in advance: the game level and the
+editor check the document against DIFFERENT vocabularies.**
+`flutter3d_editor_core`'s `vocabularyOf` accepts any `type` (an open
+vocabulary — see `edu-00` §1), but `LevelValidator`, which the real game
+loads through (`LevelLoader.build`), does not: an unknown type is an
+ERROR, and `LevelLoader.load` throws, refusing to open the level at all.
+Adding a `widget_surface` entity to `crypt.json` with no new `EntityKind`
+registered in the game's own registry silently broke LOADING itself — not
+only for the new code, but for all thirteen places in the
+`apps/flutter3d_demo_dungeon` tree that build a `sampleRegistry()` for the
+same file (eleven tests plus `main.dart`), caught by running the full test
+suite, not one file. The fix — `WidgetSurfaceKind` in `flutter3d_bridge`
+(the same `entityType` `WidgetSurfaceVisuals` already holds, spawning
+nothing, exactly like `PlayerSpawnKind` is read as a coordinate rather
+than spawning), and a new `extra` parameter on
+`flutter3d_game_shooter`'s own `sampleRegistry()` — not a direct
+dependency of the genre on `flutter3d_bridge`: the `flutter3d_game_shooter`
+pubspec already explains why a genre package shouldn't know about the
+bridge ("Only `bridge.dart` imports [flutter3d]... not a bridge's"), so
+whoever adds a word only the bridge knows about is the application,
+through `extra`, not the genre package through a new dependency.
 
-**Панель оператора — без шаблона, который её приютит, честно отдельным
-тестом.** `tpl-04` не существует, поэтому `OperatorPanel`
-(`apps/flutter3d_demo_dungeon/lib/src/operator_panel.dart`) не встроена
-ни в один играбельный уровень — она проверена напрямую поверх `edu-05`'s
-`SamplerDataSource`: синус от шага, читаемый в `ValueNotifier<double>`,
-подаваемый в настоящий `WidgetSurface.tick()` (через `tester.runAsync` —
-`wg-01`'s собственная находка про `currentImage()` и реальный растровый
-проход, не фальшивую асинхронность `flutter_test`'s зоны). Двадцать
-настоящих сэмплов реально двигают панель — доказано ростом
-`redrawCount`, а не предположено.
+**The operator panel — with no template to house it, honestly with a
+dedicated test.** `tpl-04` doesn't exist, so `OperatorPanel`
+(`apps/flutter3d_demo_dungeon/lib/src/operator_panel.dart`) isn't embedded
+in any playable level at all — it's checked directly over edu-05's own
+`SamplerDataSource`: a sine of the step, read into a `ValueNotifier<double>`,
+fed into a real `WidgetSurface.tick()` (through `tester.runAsync` —
+`wg-01`'s own finding about `currentImage()` and a real rasterization
+pass, not `flutter_test`'s fake zone asynchrony). Twenty real samples
+really move the panel — proven by `redrawCount` growing, not assumed.
 
-Десять новых тестов: шесть в `run_terminal_test.dart` (`FrameEffects.log`
-собирает, отбрасывает `null`, обрезает по капасити с начала списка;
-`RunTerminal` — плейсхолдер на пустом логе, показывает все строки,
-перерисовывается по смене `ValueNotifier`) и четыре в
-`operator_panel_test.dart` (сам виджет показывает и обновляет значение;
-полная цепочка `SamplerDataSource` → `WidgetSurface.tick()` →
-`redrawCount`). Плюс два интеграционных в `run_cubit_test.dart`: реальный
-`crypt.json` с `widget_surface`-сущностью резолвится в настоящий узел
-сцены через переданный `widgetRegistry` (мост, а не тест, строит
-`WidgetSurface`), и незарегистрированное имя виджета сообщает о проблеме,
-но не роняет уровень — тот же выбор, что `FixtureVisuals` уже сделала для
-модели, которая не загрузилась.
+Ten new tests: six in `run_terminal_test.dart`
+(`FrameEffects.log` collects, drops `null`, trims from the start of the
+list by capacity; `RunTerminal` — a placeholder on an empty log, shows
+every line, redraws on a `ValueNotifier` change) and four in
+`operator_panel_test.dart` (the widget itself shows and updates the value;
+the full chain `SamplerDataSource` → `WidgetSurface.tick()` →
+`redrawCount`). Plus two integration tests in `run_cubit_test.dart`: a
+real `crypt.json` with a `widget_surface` entity resolves into a real
+scene node through a passed-in `widgetRegistry` (the bridge, not the test,
+builds the `WidgetSurface`), and an unregistered widget name reports a
+problem, but doesn't crash the level — the same choice `FixtureVisuals`
+already made for a model that failed to load.
 
-Не сделано: галерея `tpl-02` (обе сцены показаны не там — она сама не
-начата и ждёт `net-03`'s экрана); панель оператора не встроена ни в один
-шаблон двойника (`tpl-04` не существует); настоящий телефон для замера
-стоимости (та же оговорка, что у `wg-00`/`wg-01`).
+Not done: the `tpl-02` gallery (neither scene is shown there — it hasn't
+started itself and waits on net-03's own screen); the operator panel
+isn't embedded in any twin template (`tpl-04` doesn't exist); a real
+phone for a cost measurement (the same caveat as `wg-00`/`wg-01`).
 
-### tpl-04: неигровые шаблоны — три уровня, а не три отдельных приложения
+### tpl-04: non-game templates — three levels, not three separate applications
 
-Закрыт 2026-09-12, тем же ограничением, что уже назвали `ai-01`/`par-03`/
-`edu-05`: буквальный `--list`/`init` (`ap-10`) не существует, и «в галерее»
-ждёт `tpl-02`, которой тоже нет. Построены и доказаны настоящими тестами
-три шаблона как есть — уровни, а не заглушки.
+Closed 2026-09-12, under the same limitation already named by
+`ai-01`/`par-03`/`edu-05`: the literal `--list`/`init` (`ap-10`) doesn't
+exist, and "in the gallery" waits on `tpl-02`, which doesn't exist either.
+Three templates are built and proven with real tests, as levels, not
+stubs.
 
-**Три отдельных `.json`, не три Flutter-приложения.** `ap-10`, который бы
-разложил их по отдельным проектам с собственным `pubspec.yaml`, не
-существует, и городить руками три копии `apps/flutter3d_template_app` ради
-разницы в одном уровне — плодить именно то дублирование, от которого
-`flutter3d_template_app`'s собственный докстринг уже предостерегает.
-Вместо этого: `apps/flutter3d_template_app/assets/levels/viewer.json`,
-`configurator.json`, `twin.json` — три документа поверх одного и того же
-открытого `LevelCubit`, который уже принимает любой уровень по
+**Three separate `.json` files, not three Flutter applications.** `ap-10`,
+which would lay them out as separate projects with their own
+`pubspec.yaml`, doesn't exist, and hand-building three copies of
+`apps/flutter3d_template_app` for the sake of a difference of one level
+would breed exactly the duplication
+`flutter3d_template_app`'s own doc comment already warns against.
+Instead: `apps/flutter3d_template_app/assets/levels/viewer.json`,
+`configurator.json`, `twin.json` — three documents over the same open
+`LevelCubit`, which already accepts any level via
 `--dart-define=level=`.
 
-**Все три — только `widget_surface`, ничего сверх уже проверенного `wg-01`/
-`edu-05`.** `edu_annotation`'s `attachTo`/`offset` — относительное
-позиционирование виджета — в этой сессии нигде не получило моста
-(ни у `edu-01`, ни здесь): `Editing`/MCP умеют положить и отредактировать
-такую сущность как данные, но ни один рендер-путь не читает `attachTo` и
-не превращает его в позицию `WidgetSurface`. Три шаблона поэтому
-позиционируют панель напрямую через `at`/`yaw`, которые `widget_surface`
-уже несёт как обычная сущность — честная граница, а не срезанный угол:
-формулировка `tpl-04` просит три шаблона, не второй мост.
+**All three use only `widget_surface`, nothing beyond what `wg-01`/`edu-05`
+already proved.** `edu_annotation`'s own `attachTo`/`offset` — relative
+widget positioning — got no bridge anywhere in this session (neither at
+`edu-01`, nor here): `Editing`/MCP can place and edit such an entity as
+data, but no render path reads `attachTo` and turns it into a
+`WidgetSurface` position. The three templates therefore position a panel
+directly through `at`/`yaw`, which `widget_surface` already carries as an
+ordinary entity — an honest boundary, not a corner cut: tpl-04's own
+wording asks for three templates, not a second bridge.
 
-- **Просмотрщик** (`viewer.json`) — `edu_sequence`/`edu_step` с тремя
-  подписанными видами и `widget_surface` "view-caption" на стене.
-- **Конфигуратор** (`configurator.json`) — один `widget_surface`
-  "configurator-panel"; тап переключает три варианта товара (имя и цену) —
-  **на собственном состоянии панели, не на меше товара**: `Brush` не несёт
-  `name` (`packages/flutter3d_sim/lib/src/level/brush.dart`), так что нет
-  способа адресовать «вот этот бокс» в `scene.meshes`, как уже можно для
-  узла `widget_surface`. Ретинт настоящей геометрии — честно не сделан.
-- **Двойник** (`twin.json`) — `edu_data_source` (`kind: sampler`) и
-  `edu_step` с `bindings`, читаемые `edu-05`'s `resolveBindings` каждый
-  кадр в `widget_surface` "twin-dashboard".
+- **The viewer** (`viewer.json`) — `edu_sequence`/`edu_step` with three
+  captioned views and a `widget_surface` "view-caption" on the wall.
+- **The configurator** (`configurator.json`) — one `widget_surface`
+  "configurator-panel"; a tap switches between three product variants
+  (name and price) — **on the panel's own state, not on the product's
+  mesh**: `Brush` carries no `name`
+  (`packages/flutter3d_sim/lib/src/level/brush.dart`), so there's no way
+  to address "this specific box" in `scene.meshes`, the way a
+  `widget_surface` node already can. Retinting the real geometry is
+  honestly not done.
+- **The twin** (`twin.json`) — an `edu_data_source` (`kind: sampler`) and
+  an `edu_step` with `bindings`, read by edu-05's own `resolveBindings`
+  every frame into a `widget_surface` "twin-dashboard."
 
-**Настоящая находка по пути, не в этом коде: ни одно приложение в этой
-сессии до сих пор не наводило указатель на `WidgetSurface` через реальный
-тап, только через собранный вручную луч в тесте.** `LevelScreen._tapWidgetSurface`
-— первый живой путь: `Raycaster.setFromScreen` (сцена, а не
-`CollisionWorld` — виджет-поверхность узел меша, а не физический коллайдер)
-находит меш под пальцем, `WidgetSurface.uvAt` переводит хит в UV,
-`dispatchAtUv` доставляет синтетический тап — та же цепочка, что
-`widget_surface_visuals_test.dart` уже доказала вручную построенным лучом,
-здесь собранная из настоящего `PointerDownEvent` впервые. Обрабатывается
-только тап целиком (down+up сразу): `wg-01`'s находка про нерабочий
-`Scrollable` через этот же путь уже сказала, что драг сюда доставлять не
-стоит.
+**A real finding along the way, not in this code: not one application in
+this session had, until now, aimed a pointer at a `WidgetSurface` through
+a real tap, only a manually assembled ray in a test.**
+`LevelScreen._tapWidgetSurface` is the first live path:
+`Raycaster.setFromScreen` (the scene, not `CollisionWorld` — a widget
+surface is a mesh node, not a physical collider) finds the mesh under the
+finger, `WidgetSurface.uvAt` converts the hit into a UV, `dispatchAtUv`
+delivers a synthetic tap — the same chain
+`widget_surface_visuals_test.dart` already proved by hand with a
+manually-built ray, here assembled from a real `PointerDownEvent` for the
+first time. Only a whole tap is handled (down+up together): `wg-01`'s own
+finding about a broken `Scrollable` through this same path already said a
+drag isn't worth delivering here.
 
-Семнадцать новых тестов: десять в `test/tpl04_levels_test.dart` (все три
-уровня открываются через собственный открытый реестр приложения без
-исключений; `stepCaptions`/`stepWithBindings` — новые публичные функции
-`main.dart` — читают `edu_sequence`/`edu_step` с настоящего, плоского,
-без обёртки `properties` документа; пустой реестр виджетов честно
-называет отсутствующее имя, а не молча теряет сущность; `resolveBindings`
-на реальном шаге двойника даёт разные числа на разных шагах) и семь в
-`test/template_widgets_test.dart` (переключение шагов просмотрщика вперёд
-и с оборотом назад; тап по конфигуратору меняет и виджет, и контроллер;
-панель двойника показывает placeholder до первого значения и настоящее
-число после). Все двадцать тестов пакета — вместе с уже существовавшими —
-зелёные.
+Seventeen new tests: ten in `test/tpl04_levels_test.dart` (all three
+levels open through the application's own open registry with no
+exceptions; `stepCaptions`/`stepWithBindings` — new public functions in
+`main.dart` — read `edu_sequence`/`edu_step` from a real, flat, no-wrapper
+document; an empty widget registry honestly names a missing name, rather
+than silently losing the entity; `resolveBindings` on a real twin step
+gives different numbers at different steps) and seven in
+`test/template_widgets_test.dart` (the viewer's own step switching
+forward and wrapping backward; a tap on the configurator changes both the
+widget and the controller; the twin panel shows a placeholder before the
+first value and a real number after). All twenty of the package's tests —
+together with the ones that already existed — are green.
 
-Не сделано: буквальный `--list`/`init` (`ap-10`); появление шаблонов в
-галерее (`tpl-02` не начата); мост `edu_annotation.attachTo`/`offset` в
-рендер (см. выше); ретинт геометрии продукта на конфигураторе; замер на
-реальном телефоне.
-
----
-
-## 9. Конфликты с ROADMAP
-
-- **Лочстеп** стоит вторым уровнем, пункт 2, как «input frames exchanged per
-  tick»; этот план поднимает его в Committed и меняет на rollback (net-01),
-  потому что лочстеп без отката на мобильной сети виден как задержка ввода.
-- **Сервер верификации** стоит «после квартала»; rp-05 делает его командой в
-  CI проекта, потому что по решению §3 бэкенд — самохостинг, а у облака нет
-  кода игры.
-- **Виджеты на 3D-поверхностях** сняты с «Not doing» 11 сентября и ждут «после
-  квартала»; wg-01 переносит их в Committed как вторую ставку.
-- **Hot reload уровней** назван невозможным до того, как «replay has a way to
-  survive one»; rp-03 — это и есть способ.
-- **Пункты 8 и 9 второго уровня** (skills, гайды с живыми демо) поглощаются
-  par-03 и tpl-02.
-- **«Measurement»** поглощается rp-06: ключ трассы — шаг прогона, как там и
-  сказано.
-- **Квартал переполнен**, и этот план добавляет к нему. Ревизия 28 сентября
-  должна убрать из Committed столько же, сколько добавляет §4.1–4.5; кандидаты
-  на понижение — WebGPU как полный бэкенд и мягкие тела за первыми фазами.
+Not done: the literal `--list`/`init` (`ap-10`); the templates appearing
+in the gallery (`tpl-02` hasn't started); the bridge for
+`edu_annotation.attachTo`/`offset` into rendering (see above); retinting
+the product's own geometry on the configurator; a measurement on a real
+phone.
 
 ---
 
-## 10. Открытые вопросы — до старта net-01 и wg-01
 
-1. **Один пакет `flutter3d_net` или транспорт отдельно.** План исходит из
-   одного: релей — `bin/` того же пакета, транспорт — интерфейс в нём же.
-   **Решено владельцем 2026-09-12: основной транспорт — `flutter_webrtc` (или
-   аналог), P2P между игроками; релей из net-02 остаётся, но его роль сужена
-   до сигналинга и TURN-фолбэка, WebSocket остаётся запасной реализацией того
-   же интерфейса.** См. net-02 в §4.2 — решение принято до старта net-00/net-01,
-   транспорт остаётся интерфейсом, так что откладывать его выбор дальше было
-   бы работой без причины.
-2. **Где живёт `.f3drun` в облаке.** Под аккаунтом, как модель, или публично по
-   ссылке без аккаунта, как pastebin. План исходит из аккаунта с публичной
-   ссылкой по желанию; приватность прогона — приватность уровня.
-3. **Виджет в документе уровня.** По имени из реестра приложения (план) или
-   как сериализованное описание. Реестр проще и не тащит Flutter в `sim`.
-4. **LTI требует организации** в облаке — это командные проекты из облачного
-   трека. edu-03 либо ждёт их, либо делает организацию минимальной: одна
-   запись «курс» под аккаунтом преподавателя.
-5. **`WidgetSurface` на skwasm.** `toImage` там идёт другим путём; wg-00 должен
-   замерить оба рендерера, а не один.
-6. **Проверка планов.** `tool/verify_plan.dart` читает один файл; либо учится
-   читать все `doc/*-plan.md`, либо этот план живёт без проверки, как план
-   ассетов. План исходит из первого, пункт — S, без id.
 
----
 
-## 11. Риски
-
-- **Детерминизм между VM и web.** `StateDigest` хеширует биты и обещает
-  равенство, но транцендентные функции и порядок операций dart2js могут его
-  нарушить. Поэтому rp-00 — первым, и net-01 не начинается, пока таблица §8
-  не зелёная или расхождение не исправлено.
-- **Откат не укладывается в кадр на телефоне.** net-00 замеряет до того, как
-  net-01 написан; если снимок дорог — инкрементный снимок становится пунктом,
-  а не сюрпризом.
-- **Перерисовка виджета каждый кадр.** wg-00 замеряет; если дорого —
-  перерисовка только по грязности и ограничение размера, и это часть wg-01, а
-  не улучшение.
-- **Две ставки на небольшую команду.** Дорожки независимы до edu-04 и edu-05;
-  если человек один — дорожка B сдвигается на три месяца, а не режется, потому
-  что документ edu-00 нужен всем трём неигровым сегментам.
-- **Видео §6 нельзя снять к концу месяца 6.** Тогда снимается с тем, что есть,
-  и отчёт out-02 говорит, какой сцены нет и почему; план прямо запрещает
-  снимать сцену, которую пункт не принял.
-- **Квартал переполнен** (ROADMAP это признаёт). Этот план не добавляется
-  молча: §9 называет, что должно уйти вниз.
