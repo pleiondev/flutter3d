@@ -53,14 +53,28 @@
 /// `doc/model-editor.md` §6 is, and that is where this run's numbers were
 /// copied after being read off a real execution rather than guessed.
 ///
-/// **What this does *not* cover, and why.**
+/// **Chrome is measured here too, the same `flutter test`.** The borrowed
+/// reasoning this comment used to give — that Chrome "needs a foregrounded
+/// tab and a browser driver" the way `profile_web.py` does — held for
+/// `p0-02`/`p0-03`'s own `requestAnimationFrame`-timed spike and does not
+/// hold here: nothing in this test asks for a frame, so `flutter test
+/// --platform chrome` runs the whole thing headless, the same as any other
+/// platform. Three runs on this same machine's Chrome, 2026-09-13:
 ///
-/// - **Chrome and a Galaxy A55 are not measured here.** This sandbox has
-///   macOS only; the plan row asks for all three. `p0-02`/`p0-03` already
-///   drew this same line for the viewport spike, for the same reason —
-///   Chrome needs a foregrounded tab and a browser driver
-///   (`packages/flutter3d_webgl/tool/profile_web.py`), A55 needs the device
-///   in hand — and neither exists in this run.
+/// | | Setup (3 s budget) | Stroke (8/16 ms budget) |
+/// |---|---|---|
+/// | Run 1 | 24 396.20 ms | 7 581.03 ms |
+/// | Run 2 | 24 249.50 ms | 7 705.40 ms |
+/// | Run 3 | 24 206.50 ms | 7 578.07 ms |
+///
+/// Both miss their budget by roughly the same margin macOS does — Chrome is
+/// about four to five times slower than the native run above on the same
+/// hardware, which is the usual JS/wasm cost of the same Dart arithmetic
+/// with no SIMD path, not a surprise specific to sculpting.
+///
+/// **A Galaxy A55 is still not measured here**, and cannot be from this
+/// sandbox: it needs the device in hand, which `p0-03` already drew the
+/// same line for.
 /// - **"Frame" is not re-rendered here.** `p0-02` already measured a real
 ///   Metal/Impeller frame with a one-million-triangle mesh in one draw call
 ///   on this same machine (8.33 ms mean, 0 frames over 16.6 ms out of 587) —
