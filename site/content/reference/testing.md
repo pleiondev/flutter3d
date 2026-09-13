@@ -1,10 +1,10 @@
 ---
-description: Four independent golden sets, mutation-checking every new test, determinism and snapshots, and why only about thirty of 7338 tests need a GPU.
+description: Four independent golden sets, mutation-checking every new test, determinism and snapshots, and why only about thirty of 7339 tests need a GPU.
 ---
 
 # Testing
 
-7338 tests across 43 packages and eight applications, counted the same way the `the document says how many tests there are` rule does: a scan of every `test(`/`testWidgets(` call. The rule holds `ARCHITECTURE.md` §13, the README and this page to the answer — the README went on saying 1242 across thirteen packages for as long as nothing compared it with anything. About thirty need a GPU; the [architecture](/core/architecture/) is what keeps the number that low.
+7339 tests across 43 packages and eight applications, counted the same way the `the document says how many tests there are` rule does: a scan of every `test(`/`testWidgets(` call. The rule holds `ARCHITECTURE.md` §13, the README and this page to the answer — the README went on saying 1242 across thirteen packages for as long as nothing compared it with anything. About thirty need a GPU; the [architecture](/core/architecture/) is what keeps the number that low.
 
 | Package | Tests | | Package | Tests |
 |---|---|---|---|---|
@@ -12,7 +12,7 @@ description: Four independent golden sets, mutation-checking every new test, det
 | | | | `flutter3d_bridge` | 74 |
 | | | | `flutter3d_formats` | 214 |
 | | | | `flutter3d_mesh` | 515 |
-| | | | `apps/flutter3d_modeler` | 816 |
+| | | | `apps/flutter3d_modeler` | 817 |
 | `flutter3d_sim` | 522 | | `pad_input` | 59 |
 | `flutter3d_lab` | 8 | | `flutter3d_core` | 1 |
 | `flutter3d_game_shooter` | 340 | | `flutter3d_audio` | 55 |
@@ -38,7 +38,7 @@ description: Four independent golden sets, mutation-checking every new test, det
 | | | | `apps/flutter3d_lesson_viewer` | 19 |
 | `flutter3d_fbx` | 6 | | `flutter3d_particles_core` | 63 |
 
-The rows sum to 7319 rather than 7338: the remaining live in `packages/*/example/test`, which the count includes and this table does not — the usual 19 plus whatever a concurrent session's own in-flight work has added there since this snapshot was taken.
+The rows sum to 7320 rather than 7339: the remaining live in `packages/*/example/test`, which the count includes and this table does not — the usual 19 plus whatever a concurrent session's own in-flight work has added there since this snapshot was taken.
 
 `flutter3d_samples` is not in the table and has no `test/` at all — it is test data with two path constants over it, and other packages' decoder tests are what exercise it. `flutter3d_conformance` is missing for a different reason: it is invoked as a script harness rather than through `flutter test`, so it does not surface in a grep of `test(` calls either. See below for what that cost once.
 

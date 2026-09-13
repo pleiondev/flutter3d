@@ -44,6 +44,15 @@ void main() {
       expect(sections, isNot(contains(PropertiesSection.materials)));
     });
 
+    test('anim-07\'s own row: animation mode owns the animation section alone', () {
+      final sections = sectionsFor(ModelerMode.animation);
+
+      expect(sections, contains(PropertiesSection.animation));
+      expect(sections, isNot(contains(PropertiesSection.objects)));
+      expect(sections, isNot(contains(PropertiesSection.mesh)));
+      expect(sections, isNot(contains(PropertiesSection.materials)));
+    });
+
     test('display, view and budget show in every mode', () {
       for (final ModelerMode mode in ModelerMode.values) {
         final sections = sectionsFor(mode);

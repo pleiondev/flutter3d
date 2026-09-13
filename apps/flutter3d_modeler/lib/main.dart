@@ -67,6 +67,7 @@ import 'src/transform_dispatch.dart';
 import 'src/transform_fields.dart';
 import 'src/transform_gizmo.dart';
 import 'src/transform_modal.dart';
+import 'src/ui/animation_panel.dart';
 import 'src/ui/export_screen.dart';
 import 'src/ui/import_screen.dart';
 import 'src/ui/lathe_dialog.dart';
@@ -2043,6 +2044,12 @@ class _ModelerScreenState extends State<ModelerScreen>
 
   void _addMaterial() => _cubit.ran(const AddMaterial());
 
+  /// `anim-07`'s own two commands: a diamond finished a drag in
+  /// `TimelinePanel`, or "Add" was pressed under `ActionsList`.
+  void _moveKeys(MoveKeys command) => _cubit.ran(command);
+
+  void _addClip() => _cubit.ran(const AddClip());
+
   void _setMaterialField(int index, String field, Object? value) =>
       _cubit.ran(SetMaterialField(index: index, field: field, value: value));
 
@@ -2428,6 +2435,8 @@ class _ModelerScreenState extends State<ModelerScreen>
                 onSetMaterialField: _setMaterialField,
                 onChooseTexture: _chooseTexture,
                 onClearTexture: _clearTexture,
+                onMoveKeys: _moveKeys,
+                onAddClip: _addClip,
                 lastCommand: state.history.journal.isEmpty
                     ? null
                     : state.history.journal.last,
@@ -2635,6 +2644,8 @@ class _Properties extends StatelessWidget {
     required this.onSetMaterialField,
     required this.onChooseTexture,
     required this.onClearTexture,
+    required this.onMoveKeys,
+    required this.onAddClip,
     required this.lastCommand,
     required this.onAmend,
     required this.shading,
@@ -2707,6 +2718,11 @@ class _Properties extends StatelessWidget {
 
   /// "Clear" was pressed for one of a material's texture slots.
   final void Function(int materialIndex, String slot) onClearTexture;
+
+  /// `anim-07`'s own two commands: a diamond finished a drag, or "Add" was
+  /// pressed under the action list.
+  final ValueChanged<MoveKeys> onMoveKeys;
+  final VoidCallback onAddClip;
 
   /// What the operation card is showing, and where an adjustment goes.
   final ModelCommand? lastCommand;
@@ -2880,6 +2896,18 @@ class _Properties extends StatelessWidget {
                   },
           ),
         ],
+        if (sections.contains(PropertiesSection.animation))
+          AnimationPanel(
+            clips: project.clips,
+            objects: project.objects,
+            skeleton:
+                held?.skeletonIndex != null &&
+                    held!.skeletonIndex! < project.skeletons.length
+                ? project.skeletons[held.skeletonIndex!]
+                : null,
+            onMoveKeys: onMoveKeys,
+            onAddClip: onAddClip,
+          ),
         if (sections.contains(PropertiesSection.lastOperation)) ...<Widget>[
           SectionLabel('Last operation'),
           OperationCard(command: lastCommand, onAmend: onAmend),

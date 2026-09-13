@@ -22,6 +22,7 @@ enum PropertiesSection {
   selection,
   mesh,
   budget,
+  animation,
 }
 
 /// Every section [mode] shows.
@@ -35,9 +36,10 @@ enum PropertiesSection {
 /// phase-2 row, but phase 1's own scenario ("clean a mesh, fix its
 /// material, export to GLB") needs a way to paint an object today, and
 /// object mode is where that object already is. Mesh mode owns the
-/// last-operation card, the selection summary and the mesh row counts. A
-/// mode with no sections of its own yet (animation, scene — not built this
-/// phase) gets only the cross-mode ones.
+/// last-operation card, the selection summary and the mesh row counts.
+/// `anim-07`'s own screen is animation mode's one section. A mode with no
+/// sections of its own yet (scene — not built this phase) gets only the
+/// cross-mode ones.
 Set<PropertiesSection> sectionsFor(ModelerMode mode) => <PropertiesSection>{
   PropertiesSection.display,
   PropertiesSection.view,
@@ -53,6 +55,9 @@ Set<PropertiesSection> sectionsFor(ModelerMode mode) => <PropertiesSection>{
       PropertiesSection.lastOperation,
       PropertiesSection.selection,
       PropertiesSection.mesh,
+    },
+    ModelerMode.animation => const <PropertiesSection>{
+      PropertiesSection.animation,
     },
     _ => const <PropertiesSection>{},
   },
