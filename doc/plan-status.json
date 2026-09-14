@@ -318,6 +318,9 @@
     "fmt-29d": "done"
   },
   "absent": {
+    "ui-34d": {
+      "postMessage": "имя браузерного API, а не символа в дереве: строка называет `TransferableTypedData`/`postMessage` как механизм воркера, который по её же собственному тексту не строился — оба измерения p0-07/p0-08 не сработали. В дереве это слово встречалось только в копиях flutter_soloud's own worker.dart.js под build/unit_test_assets, которые verify_plan пропускает; в свежем checkout (2026-09-14, ветка modeler-ui) его нет нигде, и это правильно"
+    },
     "pro-sim-01": {
       "flutter3d_cloth": "the row's own history: the package existed under this name until doc/package-merge-plan.md §3.1 folded it into flutter3d_physics, and the row says so in the same sentence — the name is cited as what it used to be called, not as a claim that it still exists"
     },

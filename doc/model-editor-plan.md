@@ -4,7 +4,10 @@ Compiled 2026-09-09. Assembled from eleven aspect plans (mesh core, document
 and MCP, formats, rendering and viewport, shell, materials, animation,
 professional modes, quality, phase 0, publishing), written on top of the
 [doc/model-editor.md](model-editor.md) working-through and the design-handoff
-README. Package, screen, and decision names come from there. Everything said
+README (since 2026-09-14 kept in the tree at
+[doc/design/modeler-handoff/](design/modeler-handoff/README.md), with its
+2026-09-11 supplement and the 27 screens). Package, screen, and decision
+names come from there. Everything said
 about the engine was checked by the aspects against the code at `239ccf8e`.
 
 Notation in tables: **size** (S up to a week, M two to three, L a month or
@@ -227,6 +230,7 @@ prior value (doc-29).
 | doc-33n *(added 2026-09-10 along the way)* | A pivot point and transform space: `TransformPivot {median, individual, cursor}` and `TransformSpace {global, local}` in the arguments of `RotateBy`/`ScaleBy`/`TransformElements`; `SetCursor(position)` and a 3D cursor in `ModelProject`. Today rotation and scale are always about the median and always in global axes — the right default, but it makes "rotate each one around itself" impossible, without which placing assets (mat-24) has to be done by hand | core | S | 1 | doc-06, doc-07 | two objects, `individual` → each rotates in place, centers unchanged; `local` on a rotated object moves along its own axis; a JSON round trip with both fields |
 | doc-34n *(added 2026-09-10 by gap analysis)* | **Sockets and attachment points**: a `ModelObject` with no geometry gets a `socket` flag and shows in the viewport; export writes them as named nodes with no surfaces — something glTF already supports and `toModelDocument` already writes for groups. Gap analysis: a named point to hang a weapon, an effect, or a wheel off of exists everywhere (`Marker3D` in Godot, empties in Blender), and without it nothing composite can be assembled on the game side | core | S | 1 | doc-06 | a socket exports as a surface-free node and reads back as a socket; renaming — a history step; a socket doesn't count toward `triangleCount` and doesn't trigger a "no faces" readiness error |
 | doc-35n *(added 2026-09-10 by gap analysis)* | **Texel density as a profile field**: `ProjectProfile.texelsPerMeter` and an `ExportReadiness` rule computing density from UV-island area and texture size. Gap analysis: one "pixels per meter" number across all assets is what most affects whether a scene reads as one piece, and a crate unwrapped four times coarser than its neighbor shows immediately. Sits on the profile next to `maxTextureSize`: a measurement, not an artist's memo | core | S | 2 | doc-13, doc-14 | an object twice as dense as the profile gives a warning with both numbers; an object with no UV stays silent |
+| doc-36d *(added 2026-09-14 following owner decisions)* | **`SetRig`** — one journaled history step for an auto-rig: `SetRig(jointObjects, skeleton, skinObjectId, weights)` adds the joint objects (ids preassigned from `ModelProject.nextId`), appends the `ProjectSkeleton`, sets `skeletonIndex` and writes the skin layers through `EditMesh.setSkin` inside one `beginStep`/`endStep`; refuses a taken id, an object with no `EditedGeometry`, or a stale `baseVersion` (the `ApplyJobResult` rule). The MCP `autoRig` recipe builds a `SetRig` instead of the `ReplaceDocument` it commits today (`command.dart` keeps that one out of `modelCommandNames` on purpose, so today's auto-rig never reaches the journal); a `setRig` tool | core + mcp | M | 3 | anim-21, anim-22 | one `run(SetRig)` → `canUndo`; undo removes every joint and the skeleton and restores the skin bytes byte-exact; a stale version is refused; `tools_test` stays symmetric; `autoRig` through the session appears in the journal |
 
 ### 2.3 Formats (`fmt-`)
 
@@ -313,6 +317,7 @@ allows at most two vertex stages and no fragment ones.
 | view-24n *(added 2026-09-10 along the way)* | A selection box: dragging with the left button and no tool active draws a box overlay, releasing calls `pickElementsIn`/`objectsIn`; `Shift` adds, `Ctrl` subtracts; `A` selects all, `Alt+A` deselects, `Ctrl+I` inverts. `pickElementsIn` is written and tested (view-10), but has no caller | app | S | 1 | view-10, doc-32n | a box over two cube vertices gives two; a `Shift`-box adds; `A` in face mode selects six |
 | view-25n *(added 2026-09-10 along the way)* | On-screen gizmos: `Shape`-built handles (arrows/arcs/cubes) in a late `always` bucket, a screen-space size, hover highlighting; dragging runs through the same `transform_modal.dart` as the keyboard — one path, not two. The `GizmoHit`/`GizmoDrag` arithmetic is already written (view-12) | app | M | 1 | view-12, view-23n | a ray along X → a shift along X in one step; frame `gizmo-handles`; the drag arithmetic matches `G X`'s |
 | view-26n *(added 2026-09-10 by gap analysis)* | **Snapping to a vertex, edge, and face** during a transform: `Ctrl` today only gives a 0.1 grid, a 15° angle, and a 0.1 scale step — that's all. Gap analysis ranked this second by cost out of ten: with no snapping to geometry, two pieces can't be joined, a leg can't land in a tabletop's corner, and a modular kit can't be assembled so its seams line up. The target is found via `MeshPicker` within a radius, highlighted in the viewport; modes switch mid-transform | app | M | 1 | view-23n, mesh-20, view-10 | a vertex snapped to another vertex matches it byte-exact; the highlight shows the target before release; `Esc` rolls back entirely, same as without snapping |
+| view-27d *(added 2026-09-14 following owner decisions)* | **`SkinSync`: the modeler's viewport actually skins.** Today `SceneSync.apply` uploads every object with `VertexLayout.standard` and never sets `MeshNode.skeleton`, so joints animate as sockets while the mesh stands still — which blocks the weight brush, the bend bar, retargeting and auto-rig alike. An object with a `skeletonIndex` uploads `VertexLayout.skinned`; after `_reparent` the sync builds an engine `Skeleton` over its own joint nodes (`nodeOf(id)` per joint, the project's `inverseBindMatrices`) and sets `node.skeleton`/`skinReach`, re-syncing when the joint list or `skeletonIndex` changes; more than 64 joints is `say`, not `throw`. `poseOf(project, skeleton)` gives a `Pose` from the joints' rest TRS. `DebugDrawOptions(skeletons: true)` while in animation mode | app | M | 3 | anim-03, anim-08 | `ModelerStage.fromProject` of a two-joint cube matches `skeleton-overlay.png` (today that golden builds the `Skeleton` by hand in the test); moving a joint node deforms the mesh; `buildPreviewPlayer` playing a clip moves vertices, not only sockets |
 
 ### 2.5 Shell and platforms (`ui-`)
 
@@ -363,6 +368,11 @@ in `dart:io`; on the web the backend draws at a fixed size
 | ui-34d ⁸ *(added following 2026-09-09 decisions)* | A web worker for indivisible operations on the web (F11 [Е11] closed: a freeze with progress in the button's place is acceptable, the worker is a phase-1 item, conditional, not phase 2): the isolate compiles into a worker under wasm/JS, transferred via `TransferableTypedData`/`postMessage`, in phase 1 — import (decodeModel + fromMeshData) and export (`toMeshData` + a writer), through the same `Job` from ui-25. Trigger condition: p0-07/p0-08 show a freeze longer than 1 s on a reference operation (a 30 MB import or a 200k export). Half the condition checked in real headless Chrome: `bench_isolate.dart`'s own 316×316 grid (199,712 triangles — p0-07's own reference) with no `dart:isolate`, compiled both `dart compile js` and `dart compile wasm`, gave `toMeshData` in 353.5 ms (JS) and 427.4 ms (wasm) on the single-threaded path — well under the 1 s threshold. The export-200k half of the condition is closed: it didn't fire. The import-30MB half was also measured: a real `.glb`, exactly 30.0 MB (625,681 vertices, 1,248,200 triangles, built by `flutter3d_formats`'s `GltfWriter` and checked by its own round trip, not superficially), served to that same headless Chrome via `fetch` and parsed by `GltfLoader().load()`, compiled with `dart compile js` — parsing takes ~10 ms, two orders of magnitude under the 1 s threshold. Both halves of the p0-07/p0-08 condition are closed and neither fired: by its own wording, `ui-34d` doesn't get built — a web worker isn't needed for these two operations | app | M | 1 (conditional) | ui-25, p0-07, p0-08, mesh-30 | a 30 MB import in Chrome doesn't hold a frame longer than 100 ms; the result through a worker = on the main thread, byte-exact; if the condition never fires, the item isn't built, and that's recorded in doc §6 |
 | ui-35n *(added 2026-09-10 along the way)* | The full transform panel: position, rotation (Euler angles XYZ, degrees), and scale — three sets of three `NumberField`s each, plus chips for the pivot point (median / individual centers / cursor) and space (global / local). Today only position is in the panel, and there's nowhere to enter rotation or scale | app | S | 1 | ui-08, doc-33n | "45" in the Y rotation gives a quaternion ±0.3827; changing the pivot point changes the rotation result for two objects; "1,5" and "1.5" both accepted |
 | ui-36n *(added 2026-09-11 during review)* | Opening a model from several files: `.gltf` together with a neighboring `.bin` and images. Today `openModel` takes exactly one file, and on the web, where there's no neighboring directory, a `.gltf` has nothing to open with — a gap found during p0-08's review | app | S | 1 | ui-14, fmt-19 | a `.gltf` with an external `.bin` opens on the web and on macOS and gives the same document as a `.glb` of the same mesh |
+| ui-37d *(added 2026-09-14 following owner decisions)* | **Split `main.dart` with zero behaviour change.** 3514 lines, one `State` holding file I/O, autosave, the transform modal, picking, tool dispatch, the animation preview and the whole screen assembly, and not one test pumps `ModelerScreen`. Pure logic → `tool_commands.dart` (`commandFor(id, selection:, mesh:)`), `selection_rules.dart`, `open_report.dart`; cohesive units → `TransformSession` (the nine modal/gizmo/snap fields, no `setState` among them), `ElementPickerCache` (one `forget()` for today's five `_picker = null` sites), `MeasurementRuns`, `TimelinePreviewWiring`; widgets with no `State` access → `ui/properties/*`, `ModelerKeys`, `TopBarActions`, `MeasurementReportOverlay`; what reads `context`/`mounted`/`setState`/`_device` → `screen/{device,files,close_and_recovery,ready_parts}.dart` as `part of 'main.dart'` with `extension … on _ModelerScreenState` (the `renderer.dart` precedent; there is no `mixin on State` anywhere in the tree). "Built once, handed to three shells" becomes a type: `ScreenParts{actions, status, properties, viewport}` + `ShellForWidth`. `_onTick` keeps its unconditional `setState` — it is what repaints the panel after a drag. The one behaviour-adjacent change, last and in its own commit: the unsaved-changes and restore-autosave dialogs become widgets reading the ARB keys that already exist for them (`recovery_dialog.dart` answers a different question and stays). Two latent quirks move verbatim and get their own rows: `_handleDroppedFile` discards the import result; `_otherPickers` is never cleared on open | app | L | 3 | ui-04 | `main.dart` ≤ 400 lines; the 828 tests and 18 goldens pass untouched; `git diff -M --color-moved` shows moves, not rewrites; ≈57 new tests on the extracted parts; under `Locale('ru')` the two dialogs are Russian |
+| ui-38d *(added 2026-09-14 following owner decisions)* | **Theme tokens to the handoff table**: `onSurface #E1E3E3`; `secondary #FF458E` (today no token — `uv_unwrap_layout.dart` and `profile_editor.dart` hard-code it); `tertiaryContainer #3A2118` / `onTertiaryContainer #FFD9B0`; a `ModelerColors.success #7EE081` (absent today); a global `sliderTheme` (track 4, thumb ⌀16 — today 3/⌀12 per widget); section labels 11/400, `letter-spacing 0.08em`, colour `outline` (today 12/500); a 14/500 panel title style; rail button 40×36 r10 (today 36×36); gizmo Y `#7EE081`, Z `#6AA8FF`; `scene_shadows_panel.dart`'s raw `Colors.orange` → `colorScheme.tertiary` | app | S | 2 | ui-02 | `theme_test` holds every role's hex; no `#FF458E`/`#7EE081` literal outside `theme.dart`; `modeler-timeline.png` rechecked |
+| ui-39d *(added 2026-09-14 following owner decisions)* | **`ModelerMode.ready`** admits material, animation and scene — today `isReady => phase <= 1` keeps six of eight modes disabled while their panels are built and tested; `uv`/`sculpt`/`render` stay refused (pro). The phone `NavigationBar` follows the handoff: Object / Mesh / Material / Scene | app | S | 2 | ui-04 | the switcher enables three more modes; `sculpt` is still refused (`shell_test`); the phone bar lists four |
+| ui-40d *(added 2026-09-14 following owner decisions)* | **`AnimationSubmode {pose, weights, retarget, morphs}`** (digits 1–4, the `MeshSubmode` shape); `toolsFor(mode, {animation})` and `sectionsFor(mode, {animation})` with `PropertiesSection.{weightPaint, retarget, morphs}`; `ModelerReady.animationSubmode`; the second `SegmentedButton` is always the current mode's submode (mesh → element level, animation → these four, otherwise none — handoff frame rule 2). Tools only where a command stands behind them: pose `select/key (PoseJoint on three paths)/deleteKey`, weights `paint/assign/mirror/normalize`, retarget `import/autoMap/apply`, morphs `add/key/delete`; `kStrokeTools` beside `kDragTools` | app | M | 3 | ui-04, ui-39d | digits 1–4 switch the submode in animation mode; object mode shows no second switcher; every tool id unique and every `kStrokeTools` id exists |
+| ui-41d *(added 2026-09-14 following owner decisions)* | **A bottom slot in the desktop shell**: `ModelerShell.bottom`/`bottomHeight` under the viewport, between the rail and the properties panel (the handoff's "viewport + the mode's lower area"); `ModelerMetrics.timeline 270 / transport 44 / timelineRows 180 / bendBar 74`. Tablet and phone keep the sheet | app | S | 3 | ui-04 | at 1440×900 with a 270 slot the viewport is 545 tall; with none, `shell_test`'s existing numbers hold |
 
 ### 2.6 Materials and modifiers (`mat-`)
 
@@ -409,6 +419,8 @@ change.
 | mat-30 ⚙ | A BC1/BC3/ETC2/ASTC 4×4 encoder → KTX2, an export option; PNG in glTF. ⇢ fmt-22 (one implementation in the engine). All four encoders and `planExport`'s `textureEncoding` already existed (`fmt-22`, `exporting.dart`); the missing piece was the toggle itself in `export_screen.dart` — now a "Compress textures (KTX2)" checkbox appears only for `.f3d` (`TextureEncoding` is read nowhere else) and resets to PNG when the format is switched back | engine + core | L | 2 | mat-28 | see fmt-22; an `.f3d` export with `.ktx2` loads with no warnings |
 | mat-31 | Frames `material-studio`, `modifier-mirror-array`, `scene-lit` at 320×200 in the app's `test/goldens`; numbers | app | S | 2 | mat-15, 20, 24 | three PNGs green on ubuntu |
 | mat-32 ⚠ | MCP: `listMaterials`, `setMaterialField` (a schema from `MaterialHint`), `assignMaterial`, `linkMaterialFile`, `bakeTextureGraph`, `addLight`/`setLightField`, `setEnvironment`, `setShadowField`; a "the agent paints the table and sets up light" scenario | mcp | S | 2 | mat-01, 19, 23, 12 | every aspect command has a tool; the scenario reproduces |
+| mat-33d *(added 2026-09-14 following owner decisions)* | **Screen 05 and its 2026-09-11 supplement, closed against the shipped panel**: a colour dot in the material list (today a checkbox); texture slots through the shared `TextureSlotRow` with a thumbnail, `w×h · weight` and a format badge (built as `ui/texture_slot_row.dart`, wired nowhere — production draws the text-only private row); the texture-graph strip at 44 (today 32) and `TextureGraphPanel` actually mounted under the material panel, collapsed by default; the status line gains texel density in `tex/cm` (the number `readiness.dart`'s `_texelDensityIssue` computes and throws away — exposed as `texelDensityOf(project, object)`; the profile unit stays `texels/m`, shown ÷100) and texture weight against `profile.textures` from `texture_budget.dart`'s `measure`; vertex and material counts; status text 11/400. What the app has and the handoff doesn't — "Advanced", the shader picker, `Cutoff`, the material studio — stays | app + core | M | 2 | mat-04, mat-13, mat-28, ui-27 | a 256×128 PNG row reads "256×128 · 170 KB"; the status shows `tex/cm` from `texelDensityOf` and "N MB of M"; the graph strip measures 44 collapsed |
+| mat-34d *(added 2026-09-14 following owner decisions)* | **Scene mode wired.** `mat-24` closed with four tested panels (`SceneSourcePanel`, `SceneShadowsPanel`, `SceneEnvironmentPanel`, `ScenePostPanel`) that `_Properties` never routes to and a mode the switcher refuses: `sectionsFor(scene)` → the four; the status reads `computeSceneStatus` ("N sources · M of 6 shadowed", orange on `lightsDropped`); light markers already pick (`scene_light_picking.dart`) | app | S | 2 | mat-24, ui-39d | switching to Scene shows the four panels; a ninth light turns the status orange; frame `scene-lit` unchanged |
 ### 2.7 The animation pipeline (`anim-`)
 
 The runtime half is in the engine: `Skeleton` (64 bones), an
@@ -457,6 +469,8 @@ question for the owner.
 | anim-31a-n *(added by critique)* | Phase-3 startup measurements: a 1% stroke on 200k (over the mesh-60/anim-09 layers), `SkinBlend` at 200k, `bindWeights` at 100k; an 8 ms threshold for an isolate | rig | S | 3 | anim-02, anim-09, anim-22 | numbers in the doc; (a) >10% of a copy — reconsider the chunk before anim-10 |
 | anim-32 ⚠ | `maxInfluences ∈ {1..4}`, `maxJoints ≤ 64` with a refusal message; the brush and auto-rig read the limit | core | S | 3 | anim-09, anim-13 | a profile with 8 influences is refused; a brush at 2 leaves ≤2 |
 | anim-31n ⚠ *(added 2026-09-10 by gap analysis)* | **Inverse kinematics for posing**, an analytic two-bone plus a look-at with angle constraints. 2026-09-10 decision: IK lives in the modeler, not the engine — needed to plant a foot on a step and turn a head during auto-rigging and pose editing, while in a game the pose comes from a clip. Gap analysis named it among four things a close-up hero is missing. This row's own literal acceptance closes 2026-09-14 against work `anim-15` already did: `resolveIkConstraint` (`flutter3d_model_core/lib/src/ik_constraint.dart`) is analytic — no loop, no iteration count, `zero iterations per frame` by construction — reaches a target within reach to 1e-3, the `pole` decides which side the knee bends to, and a target past full extension gives a finite, fully-extended answer rather than `NaN`. Added this session: a sweep of the target across the reach boundary (1.0 to 3.0 on a unit-length chain, 0.05 steps) showing the elbow moves continuously rather than jumping, `ik_constraint_test.dart`'s own literal check for "doesn't jitter." The look-at half of this row's own description is not built — no member of `ik_constraint.dart` or `inverse_kinematics.dart` (`flutter3d_core`) names a look-at or an angle constraint — and the acceptance text itself never tests for one either | core | M | 3 | anim-21, anim-22 | the foot reaches the target, the knee faces the pole hint's direction; a target farther than the chain's total length — the chain extends and doesn't jitter; zero iterations per frame |
+| anim-33d *(added 2026-09-14 following owner decisions)* | **`RigBuildOptions` beyond the mirror axis** — screen 16's composition switches get a backend: `spineCount 1..3`, `fingers` (three phalanges × five per hand), `toes`, `faceBones` (jaw, eyes), `ikChains`, `controllers`. `_BoneSpec` gains `deforming` and a `derive(markers)` for bones placed from other *left/centre* markers (phalanges along wrist→(wrist−elbow), spine segments by lerp hips→chest, jaw/eyes off head/neck) — the right side is still only ever a mirror, so symmetry stays by construction; `_humanoidBones(options)` becomes a generator; `previewRig(template, options) → {jointCount, deformingCount, controllerCount, ikChainCount}` for the result card; `buildSkeleton` refuses `deformingCount > 64`; `BuiltRig.constraints` carries arm/leg `IkConstraint`s when asked, controllers are socket parents of `hips` and not in `joints`. `requiredMarkers` stays the eleven left/centre keys. `boneSegmentsOf(project, skeleton)` for `bindWeightsJobRequestFor`; the MCP `autoRig` schema gains the flags | core | M | 3 | anim-21, anim-15 | counts per the option table (humanoid 17; +fingers 47; +spine 3 → 49; +toes 51; +face 54; quadruped 15); every left joint has its mirror within 1e-6 for every option combination; `inverseBind·worldRest = I`; `previewRig` equals `buildSkeleton(…).skeleton.jointCount` |
+| anim-34d *(added 2026-09-14 following owner decisions)* | **`ShapeDriver` persisted on the object**: `ModelObject.shapeDrivers` beside `shapeSet` (a driver's `shapeIndex` indexes that object's own keys); `AddShapeDriver`, `RemoveShapeDriver`, `SetShapeDriverField` (`from`/`to` in radians, hinted in degrees); `DeleteShape` shifts drivers in the same command; an optional `shapeDrivers` key in the per-object `.f3dproj` JSON, no format version bump; `BakeDriversJobRequest` reads the object, the `bakeDrivers` tool's `drivers` argument becomes optional; three MCP tools. Shape *sets* (the handoff's "Face · 12 / Body · 3" chips) are not built — there is no such thing in the model | core + mcp | M | 3 | anim-19, anim-20 | a file round-trips its drivers; an old file reads `[]`; `DeleteShape(2)` drops drivers on 2 and shifts 3 → 2; baking from the persisted list equals baking from an explicit one within 1e-5 |
 
 ### 2.8 Professional modes (`pro-`)
 
@@ -715,6 +729,7 @@ it all.
 | mcp-13n | The GUI serves the same session over local HTTP: `--mcp-port`, 127.0.0.1 only, a token in the session file. Headless stays on stdio; `ModelSession` doesn't know about the transport | app + mcp | M | 1 | doc-19, ui-03 | the doc-21 scenario passes over both transports and gives the same file |
 | mcp-14n | One document, two writers: the GUI redraws once the agent commits a step; a command doesn't land mid-drag — a modal transform holds a lock until `endTransaction` | app | M | 1 | mcp-13n, ui-03 | an agent command during a drag is queued and applied afterward; the document never diverges from the picture |
 | mcp-15n | Import and export as session verbs: `import(path, options)`, `export(path, format)` gated by `ExportReadiness` — an error requires `force: true` and names what will be lost | mcp | S | 1 | doc-19, ui-17, fmt-06 | an export with an n-gon refuses with no `force`, naming the object; with `force` it writes and reports what was trimmed |
+| mcp-16d *(added 2026-09-14 following owner decisions)* | **UI tools beside `--mcp-port`, GUI build only**: `ModelHttpServer.start(…, extraTools:)` (the server is already built from an explicit tool list), and the modeler registers `ui.setMode`, `ui.setSubmode`, `ui.setTool`, `ui.standardView`, `ui.frameSubject`, `ui.openDialog(export|lathe|autorig|preview)`, `ui.say`. Same localhost socket, same session token. What they are for: the tutorial's screenshots (`tut-00`) are driven, not clicked | app + mcp | S | 3 | mcp-13n | the tools answer in the GUI build; a headless `flutter3d_model_mcp` server does not list them; `ui.setMode('animation')` changes `ModelerReady.mode` |
 
 ### 2.14 Game graphics (`gfx-`)
 
@@ -771,6 +786,60 @@ proposed again.
 | gfx-15n | **Soft disc shadows with five taps**: promised in the ROADMAP, today it's a 3×3 PCF with an edge that's always equally hard | shaders + engine | S | G3 | — | frame `soft-shadow`; the penumbra is wider for a farther occluder |
 | gfx-16n | **Alpha hashing**: foliage and nets today are either hard-cut by a threshold or need sorting | shaders + engine | S | G3 | — | frame `foliage`; zero changes in opaque scenes |
 | gfx-17n | **LUT grading and a filmic curve**: `LookSettings` exists, no table does | engine | S | G3 | — | a neutral LUT doesn't change the frame by even a pixel |
+
+### 2.15 The tutorial (`tut-`)
+
+Aspect added 2026-09-14 by owner decision. `rel-09` promised one tutorial —
+"an asset from import to engine in 15 minutes" — on the documentation site.
+This is the bigger thing it grows into, and it moves house: the modeler's
+tutorial is published on **models.pleion.dev** (`cloud/server`), where the
+reader has an account, a cabinet to put the result into, and the modeler's
+own web build at `/app/` to open it in. The documentation site keeps a card
+pointing there (`rel-08` retargeted, not duplicated).
+
+**Six cases, each a real job, not a feature tour.** A prop from a scan
+(`teapot.stl` in millimetres → clean → material → GLB → cabinet); a vase from
+a profile (lathe, mesh edits, the modal transform and snapping, modifiers, a
+texture); a lit corner (two assets in one scene, lights, shadows, environment,
+post, one GLB with two nodes); a character from a bare mesh
+(`RobotExpressive.glb` without its skin → auto-rig → weights → pose and keys →
+morphs → the game preview → GLB → a game template); borrowing a walk
+(retargeting a clip); an agent beside you (`--mcp-port`, the first case done
+by an agent, the journal, undoing only the agent's steps). Cases 1–3 are
+possible after `ui-37d`/`mat-33d`/`mat-34d`; 4–6 need the animation screens.
+The first draft of 1–3 is written **as soon as those land**, not at the end —
+writing a case is how the gaps show up.
+
+**Screenshots are driven, not clicked.** The app runs with `--mcp-port` and
+the `mcp-16d` UI tools; `tool/tutorial/shoot.dart` reads the session file,
+replays a case step by step, and captures the window with `screencapture -l`
+(the window id from a ten-line `window_id.swift` over
+`CGWindowListCopyWindowInfo` — no third-party tool). `MainFlutterWindow.swift`
+learns a `--window=1440x900` argument so every picture is the same size.
+Pictures of the result alone (no chrome) come from the headless `render`/
+`renderSheet` tools and are reproducible in CI. Regenerating every picture is
+one command.
+
+**The tutorial is a test** (the `rel-09` shape): each case is a
+`test/fixtures/tutorial/<case>.jsonl` journal in `flutter3d_model_mcp`, replayed
+in CI against a reference `.f3dproj`, a GLB (`compareModelDocuments`) and a
+frame. A step that cannot be written as document commands is a gap by
+definition.
+
+**The gap journal.** `doc/modeler-tutorial-gaps.md`: case · step · what was
+expected · what is there · kind (feature / consistency / UX) · the plan row it
+became. Known candidates before a single case is written: a dropped file is
+decoded and then thrown away (`main.dart`'s `_handleDroppedFile`); `.gltf`
+beside its `.bin` (`ui-36n`); the cabinet has no preview picture; a model
+opened from the cabinet cannot be saved back; the status line has no vertex
+or material count.
+
+Language: English, per the 2026-09-02 decision on the community; a Russian
+version is its own later row.
+
+| id | what | package | size | phase | depends | acceptance |
+|---|---|---|---|---|---|---|
+| tut-00 | The modeler tutorial on models.pleion.dev: `/learn/modeler/` and `/learn/modeler/<slug>` (Markdown under `cloud/server/content/learn/modeler/`, rendered through `package:markdown` into a `LearnPage` in the site's own `Page` layout, a "Learn" link in the nav); pictures under `web/assets/learn/modeler/<case>/`; the six cases above; times measured with a date and the machine on the page; the driven screenshot pipeline; the `.jsonl` scenarios in CI; the gap journal | cloud + app + mcp + doc | L | 3 | ui-37d, mat-33d, mat-34d, mcp-16d, rel-09 | six pages live with their pictures and working `/app/` links; six scenarios green in CI; every case timed; `doc/modeler-tutorial-gaps.md` is empty or every line names a `tut-NN` row with a decision |
 
 ---
 
@@ -1670,6 +1739,44 @@ Merged from eleven lists; the mitigating action is kept with its id.
 ---
 
 ## 10. Revision history
+
+### 2026-09-14 — the UI pass, the animation screens, the tutorial
+
+Owner decisions after a read of the tree against the handoff, recorded here
+because none of them follows from the code alone. The plan that carries them
+is `~/.claude/plans/buzzing-herding-starlight.md`; the branch is `modeler-ui`.
+
+**What the read found.** The status file says the `ui-`/`mat-`/`anim-`
+aspects are nearly closed, and the tree disagrees in three ways that no row
+named. `main.dart` is 3514 lines and nothing pumps it. The mode switcher
+enables two modes of eight (`isReady => phase <= 1`) while the material
+panel, the animation panel and all four Scene panels exist, are tested, and
+are wired to nothing — `mat-24` closed on its tests. And the viewport never
+skins: `SceneSync` uploads `VertexLayout.standard` and never sets
+`MeshNode.skeleton`, so `skeleton-overlay` is a golden of a `Skeleton` the
+test built by hand. Theme tokens drift from the handoff's table in nine
+places, and the two editors hold three to four copies of every field control.
+
+**Decisions.** The pass covers both halves — splitting and finishing what
+exists, and closing the open rows — on macOS and the web only (`ui-21` stays
+deferred). Pro rows stay untouched. Four choices went the more expensive way
+on purpose: `RigTemplate` grows the composition options screen 16 draws
+(`anim-33d`) rather than the screen losing them; the weight brush becomes a
+real `PaintWeights` command so a stroke is one ⌘Z (`anim-10`'s own wording,
+which the recipe in `beyondTheCommands` had quietly walked away from);
+`ShapeDriver` is persisted (`anim-34d`); Scene mode is wired (`mat-34d`).
+The order is the split first, then the shared widget package (`ui-27`), then
+the screens; the core rows run alongside.
+
+**The tutorial** becomes its own aspect (§2.15, `tut-`) and moves to
+models.pleion.dev; `rel-08`/`rel-09` point there rather than repeating it.
+Its screenshots are driven through `mcp-16d`'s UI tools, and each case is a
+journal replayed in CI. The design handoff itself now lives in the tree at
+`doc/design/modeler-handoff/` — this document has cited it since day one and
+the file was never here.
+
+§2's count: 378 → 391 (`doc-36d`, `view-27d`, `ui-37d`…`ui-41d`, `mat-33d`,
+`mat-34d`, `anim-33d`, `anim-34d`, `mcp-16d`, `tut-00`).
 
 ### 2026-09-13 — after phase 4
 
