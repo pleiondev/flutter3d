@@ -41,21 +41,21 @@ const Set<String> kDragTools = <String>{
 
 /// What the modeller is being used for.
 ///
-/// **All eight are here and two of them work**, which is deliberate: a person
+/// **All eight are here and five of them work**, which is deliberate: a person
 /// opening this should be able to see what the thing is going to be, and a mode
 /// that is missing entirely reads as a mode that was never planned. The rest
 /// are shown disabled, with the phase they arrive in — see [ModelerMode.phase].
 enum ModelerMode {
-  object('Object', Icons.category_outlined, 1),
-  mesh('Mesh', Icons.hexagon_outlined, 1),
-  material('Material', Icons.palette_outlined, 2),
-  uv('UV', Icons.grid_on_outlined, 4),
-  sculpt('Sculpt', Icons.brush_outlined, 4),
-  animation('Animation', Icons.animation_outlined, 3),
-  render('Render', Icons.camera_outlined, 4),
-  scene('Scene', Icons.light_mode_outlined, 2);
+  object('Object', Icons.category_outlined, 1, ready: true),
+  mesh('Mesh', Icons.hexagon_outlined, 1, ready: true),
+  material('Material', Icons.palette_outlined, 2, ready: true),
+  uv('UV', Icons.grid_on_outlined, 4, ready: false),
+  sculpt('Sculpt', Icons.brush_outlined, 4, ready: false),
+  animation('Animation', Icons.animation_outlined, 3, ready: true),
+  render('Render', Icons.camera_outlined, 4, ready: false),
+  scene('Scene', Icons.light_mode_outlined, 2, ready: true);
 
-  const ModelerMode(this.label, this.icon, this.phase);
+  const ModelerMode(this.label, this.icon, this.phase, {required this.ready});
 
   /// English, and not through `l10n` yet: the strings move to `app_en.arb` and
   /// `app_ru.arb` in `ui-22`, and moving them one at a time as each screen
@@ -64,13 +64,32 @@ enum ModelerMode {
 
   final IconData icon;
 
-  /// Which phase of the plan brings this mode to life. Anything past one is
-  /// drawn and refused.
+  /// Which phase of the plan brings this mode to life — shown in the tooltip
+  /// of a mode that is not [ready] yet. No longer what gates the switcher: a
+  /// phase-2 mode (material, scene) and a phase-3 one (animation) are ready
+  /// today while another phase-2 mode (uv) and a phase-4 one (sculpt, render)
+  /// are not, so the number alone cannot answer it any more.
   final int phase;
 
-  /// Whether this mode does anything yet.
-  bool get isReady => phase <= 1;
+  /// Whether this mode's panel is built and wired up, so the switcher should
+  /// actually let a person choose it. `ui-39d`: object, mesh, material,
+  /// animation and scene are; uv, sculpt and render — the pro-mode rows — are
+  /// deliberately not, regardless of their [phase].
+  final bool ready;
 }
+
+/// The modes the phone `NavigationBar` offers, in the handoff's own order —
+/// `README.md:137`: "Object, Mesh, Material, Scene". Not
+/// `ModelerMode.values.where((m) => m.ready)`: animation is [ModelerMode.ready]
+/// too as of `ui-39d`, but the phone bar has no room for a fifth destination
+/// and the handoff's phone screens simply do not offer animation mode as one
+/// — a person on a phone reaches everything else the same way a desktop does.
+const List<ModelerMode> kPhoneModes = <ModelerMode>[
+  ModelerMode.object,
+  ModelerMode.mesh,
+  ModelerMode.material,
+  ModelerMode.scene,
+];
 
 /// What a sub-mode is: the element level a mesh is edited at.
 ///

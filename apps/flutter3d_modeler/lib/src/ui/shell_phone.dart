@@ -58,7 +58,6 @@ class ModelerPhoneShell extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colours = theme.extension<ModelerColors>() ?? ModelerColors.dark;
-    final modeReady = ModelerMode.values.where((m) => m.isReady).toList();
     return Scaffold(
       backgroundColor: theme.colorScheme.surface,
       appBar: actions.isEmpty
@@ -162,10 +161,12 @@ class ModelerPhoneShell extends StatelessWidget {
       bottomNavigationBar: SizedBox(
         height: ModelerMetrics.phoneNavBar,
         child: NavigationBar(
-          selectedIndex: modeReady.indexOf(mode).clamp(0, modeReady.length - 1),
-          onDestinationSelected: (int index) => onMode(modeReady[index]),
+          selectedIndex: kPhoneModes
+              .indexOf(mode)
+              .clamp(0, kPhoneModes.length - 1),
+          onDestinationSelected: (int index) => onMode(kPhoneModes[index]),
           destinations: <NavigationDestination>[
-            for (final ModelerMode each in modeReady)
+            for (final ModelerMode each in kPhoneModes)
               NavigationDestination(icon: Icon(each.icon), label: each.label),
           ],
         ),

@@ -245,8 +245,8 @@ class ModelerModeSwitcher extends StatelessWidget {
               // surprise — and so a person who presses one is told it
               // is coming rather than left wondering whether they
               // missed a setting.
-              enabled: each.isReady,
-              tooltip: each.isReady
+              enabled: each.ready,
+              tooltip: each.ready
                   ? each.label
                   : '${each.label} — phase ${each.phase}',
             ),

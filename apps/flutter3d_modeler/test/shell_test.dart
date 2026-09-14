@@ -116,6 +116,53 @@ void main() {
       expect(asked, <ModelerMode>[ModelerMode.mesh]);
     });
 
+    testWidgets('material, animation and scene are enabled (ui-39d)', (
+      WidgetTester tester,
+    ) async {
+      // One assertion per mode, not one shared tap: a switcher that enables
+      // material but not the other two would still pass a single combined
+      // check if it only ever pressed the first icon it found.
+      for (final ModelerMode target in <ModelerMode>[
+        ModelerMode.material,
+        ModelerMode.animation,
+        ModelerMode.scene,
+      ]) {
+        final asked = <ModelerMode>[];
+        await pumpShell(tester, onMode: asked.add);
+
+        await tester.tap(find.byIcon(target.icon));
+        await tester.pump();
+
+        expect(asked, <ModelerMode>[
+          target,
+        ], reason: '${target.label} did not switch');
+      }
+    });
+
+    testWidgets('uv, sculpt and render stay refused (ui-39d)', (
+      WidgetTester tester,
+    ) async {
+      // `sculpt` alone was pinned above already; `uv` and `render` are the
+      // other two pro-mode rows this pass deliberately leaves out.
+      for (final ModelerMode target in <ModelerMode>[
+        ModelerMode.uv,
+        ModelerMode.sculpt,
+        ModelerMode.render,
+      ]) {
+        final asked = <ModelerMode>[];
+        await pumpShell(tester, onMode: asked.add);
+
+        await tester.tap(find.byIcon(target.icon), warnIfMissed: false);
+        await tester.pump();
+
+        expect(
+          asked,
+          isEmpty,
+          reason: '${target.label} should still be refused',
+        );
+      }
+    });
+
     testWidgets(
       'the element level is shown in the mesh mode and nowhere else',
       (WidgetTester tester) async {
@@ -214,12 +261,17 @@ void main() {
       }
     });
 
-    test('every phase-one mode has tools and no other does', () {
+    test('object and mesh have tools on the rail, nothing else does yet', () {
+      // Material, animation and scene are `ready` (`ui-39d`) but work through
+      // their own properties-panel sections rather than the tool rail, so
+      // `toolsFor` still answers empty for them — same as the modes that
+      // are not `ready` at all. Only object and mesh have a rail today.
+      const withTools = <ModelerMode>{ModelerMode.object, ModelerMode.mesh};
       for (final ModelerMode mode in ModelerMode.values) {
         expect(
           toolsFor(mode).isNotEmpty,
-          mode.isReady,
-          reason: '${mode.label} disagrees with its own phase',
+          withTools.contains(mode),
+          reason: '${mode.label} disagrees with its own tool table',
         );
       }
     });

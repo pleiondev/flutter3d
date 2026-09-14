@@ -263,6 +263,24 @@ void main() {
       expect(fabBox.height, 56);
     });
 
+    testWidgets(
+      'the nav bar lists Object, Mesh, Material, Scene — no Animation',
+      (WidgetTester tester) async {
+        // `README.md:137`'s own row for width <600. Animation is `ready`
+        // (`ui-39d`) but the handoff's phone bar simply has no destination
+        // for it — reached the same way a desktop or tablet reaches it.
+        await _pump(tester, LayoutClass.phone, size: const Size(360, 800));
+
+        final destinations = tester
+            .widgetList<NavigationDestination>(
+              find.byType(NavigationDestination),
+            )
+            .map((d) => d.label)
+            .toList();
+        expect(destinations, <String>['Object', 'Mesh', 'Material', 'Scene']);
+      },
+    );
+
     testWidgets('an action in the "More" sheet is actually tappable', (
       WidgetTester tester,
     ) async {
