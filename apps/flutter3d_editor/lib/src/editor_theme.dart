@@ -32,6 +32,15 @@
 ///
 /// Every other role is `ColorScheme.dark`'s own default — this file states
 /// only the roles this application has an opinion on.
+///
+/// **`sliderTheme` states the same 3/⌀12 `RangeSliderField` itself used to
+/// hard-code.** `ui-38d` moved that literal out of the shared package and
+/// onto each application's own `ThemeData.sliderTheme` — the modeller's own
+/// is now 4/⌀16 (`apps/flutter3d_modeler/lib/src/ui/theme.dart`), a token
+/// this application has no stake in. Stating the old numbers here rather
+/// than leaving `sliderTheme` unset is what keeps every slider this editor
+/// draws — the material panel's own fields among them — the same size they
+/// were before that move; `editor_theme_test.dart` pins it.
 library;
 
 import 'package:flutter/material.dart';
@@ -66,5 +75,12 @@ ThemeData editorTheme() {
   return base.copyWith(
     scaffoldBackgroundColor: kEditorScheme.surface,
     extensions: const <ThemeExtension<dynamic>>[kEditorWidgetsTheme],
+    // See the library doc comment: this is `RangeSliderField`'s own former
+    // hard-coded size, stated here now that the widget reads it from the
+    // ambient theme instead.
+    sliderTheme: const SliderThemeData(
+      trackHeight: 3,
+      thumbShape: RoundSliderThumbShape(enabledThumbRadius: 6),
+    ),
   );
 }

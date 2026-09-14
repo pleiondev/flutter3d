@@ -94,7 +94,9 @@ void main() {
     // status line that never changed weight or colour would tell nobody
     // the frame dropped anything.
     expect(warnedText.style?.fontWeight, FontWeight.bold);
-    expect(warnedText.style?.color, Colors.orange);
-    expect(text.style?.color, isNot(Colors.orange));
+    // The design hand-over's own warning colour — `colorScheme.tertiary`,
+    // not a hard-coded Material `Colors.orange`.
+    expect(warnedText.style?.color, kModelerScheme.tertiary);
+    expect(text.style?.color, isNot(kModelerScheme.tertiary));
   });
 }

@@ -44,6 +44,21 @@ void main() {
     expect(theme.scaffoldBackgroundColor, kEditorScheme.surface);
   });
 
+  test('editorTheme states RangeSliderField\'s own former hard-coded size', () {
+    // `ui-38d` moved the modeller's own slider track/thumb onto its own
+    // `ThemeData.sliderTheme` (4/⌀16) and made the shared
+    // `RangeSliderField`/`ColorField` read the ambient theme instead of a
+    // literal — this is the guard that the editor's own sliders did not
+    // move with it.
+    final theme = editorTheme();
+    expect(theme.sliderTheme.trackHeight, 3);
+    expect(
+      (theme.sliderTheme.thumbShape! as RoundSliderThumbShape)
+          .enabledThumbRadius,
+      6,
+    );
+  });
+
   test('editorTheme registers the editor\'s own denser row height', () {
     final theme = editorTheme();
     final sizes = theme.extension<EditorWidgetsTheme>();

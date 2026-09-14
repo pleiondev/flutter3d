@@ -33,20 +33,26 @@ enum GizmoAxis {
 
 /// The colour of the arrow that moves a thing along X, as `0xRRGGBB`.
 ///
-/// **The three tints are one triple of channel values, rotated.** X is
-/// `#FF6B8A`, Y is `#8AFF6B` and Z is `#6B8AFF`: the same numbers in a
-/// different order, so the three arrows have the same weight against the dark
-/// viewport and no one of them reads as the important one. Picked by hand for
-/// each axis instead, the greens and blues that look right beside a red are
-/// darker than it, and the axis a person uses most is then the axis they can
-/// see least well.
+/// **Three axis colours from the design hand-over, not a rotated triple.**
+/// An earlier version of this file picked all three by rotating one channel
+/// triple through the axes, so the three arrows carried the same weight
+/// against the dark viewport and no one of them read as the important one.
+/// The hand-over's own screen 01 gives three named hexes instead —
+/// `#FF6B8A`/`#7EE081`/`#6AA8FF` — chosen to agree with the rest of the
+/// palette rather than with each other: Y is `ModelerColors.success`'s own
+/// green (`theme.dart`), the same colour a filled budget bar reads success
+/// from, and Z is the cool blue the hand-over already uses for a Z axis
+/// everywhere else it draws one. X keeps the warm red the rotation would
+/// have given it anyway.
 const int kGizmoTintX = 0xFF6B8A;
 
-/// The colour of the arrow that moves a thing along Y. See [kGizmoTintX].
-const int kGizmoTintY = 0x8AFF6B;
+/// The colour of the arrow that moves a thing along Y — `ModelerColors.success`'s
+/// own hex. See [kGizmoTintX].
+const int kGizmoTintY = 0x7EE081;
 
-/// The colour of the arrow that moves a thing along Z. See [kGizmoTintX].
-const int kGizmoTintZ = 0x6B8AFF;
+/// The colour of the arrow that moves a thing along Z — the hand-over's own
+/// cool blue. See [kGizmoTintX].
+const int kGizmoTintZ = 0x6AA8FF;
 
 /// How long an arrow is on screen, in logical pixels.
 ///
@@ -191,7 +197,8 @@ final class GizmoHandle {
   /// The far corner of that box.
   final Vector3 max;
 
-  /// The arrow's colour as `0xRRGGBB` — one of [kGizmoTintX] and its rotations.
+  /// The arrow's colour as `0xRRGGBB` — one of [kGizmoTintX], [kGizmoTintY]
+  /// and [kGizmoTintZ].
   final int tint;
 
   /// The same colour as the linear-ish triple a `Material` wants.

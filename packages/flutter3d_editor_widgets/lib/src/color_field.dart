@@ -406,16 +406,15 @@ class _ChannelSlider extends StatelessWidget {
           ),
         ),
         Expanded(
-          child: SliderTheme(
-            data: SliderTheme.of(context).copyWith(
-              trackHeight: 3,
-              thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6),
-            ),
-            child: Slider(
-              value: value.clamp(0.0, 1.0),
-              label: semanticLabel,
-              onChanged: enabled ? onChanged : null,
-            ),
+          // Track thickness and thumb size come from the ambient
+          // `Theme.of(context).sliderTheme` rather than a literal here — the
+          // application sets that once (`modelerTheme`'s own "Ползунок" row)
+          // and every slider this package draws follows it, `RangeSliderField`
+          // included.
+          child: Slider(
+            value: value.clamp(0.0, 1.0),
+            label: semanticLabel,
+            onChanged: enabled ? onChanged : null,
           ),
         ),
       ],

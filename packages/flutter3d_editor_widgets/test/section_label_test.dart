@@ -31,7 +31,7 @@ void main() {
     WidgetTester tester,
   ) async {
     final ThemeData theme = ThemeData(
-      colorScheme: const ColorScheme.dark(onSurfaceVariant: Color(0xFFBFC8CA)),
+      colorScheme: const ColorScheme.dark(outline: Color(0xFF899295)),
     );
     await tester.pumpWidget(
       MaterialApp(
@@ -41,8 +41,13 @@ void main() {
     );
 
     final Text text = textOf(tester);
-    expect(text.style?.color, theme.colorScheme.onSurfaceVariant);
-    expect(text.style?.letterSpacing, 0.6);
+    // The design hand-over's own row for "Подписи разделов": 11/400,
+    // `letter-spacing: 0.08em` (0.88 logical pixels at this size), coloured
+    // `outline` rather than `onSurfaceVariant`.
+    expect(text.style?.color, theme.colorScheme.outline);
+    expect(text.style?.fontSize, 11);
+    expect(text.style?.fontWeight, FontWeight.w400);
+    expect(text.style?.letterSpacing, 0.88);
     expect(
       paddingOf(tester).padding,
       const EdgeInsets.only(top: 14, bottom: 6),

@@ -14,6 +14,8 @@ import 'dart:ui';
 
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 
+import 'ui/theme.dart';
+
 /// One triangle in UV space, corners in the mesh's own winding order.
 final class UvTriangle {
   const UvTriangle(this.a, this.b, this.c);
@@ -93,8 +95,15 @@ List<UvIslandData> buildUvIslandData(EditMesh mesh, List<List<int>> islands) {
   return result;
 }
 
-/// The acceptance's own colour: what a maximally-stretched island paints.
-const Color kUvMaxStretchColor = Color(0xFFFF458E);
+/// The acceptance's own colour: what a maximally-stretched island paints —
+/// `kModelerScheme.secondary`, the design hand-over's own "second spot",
+/// rather than a hex this file used to carry on its own.
+///
+/// **`final`, not `const`.** `ColorScheme`'s own fields are not
+/// const-accessible from outside the class, so `kModelerScheme.secondary`
+/// cannot sit in a const initialiser — nothing downstream needs one, since
+/// nothing constructs a `const UvIslandData`/`UvTriangle` with this baked in.
+final Color kUvMaxStretchColor = kModelerScheme.secondary;
 
 /// A neutral tone for a perfectly isometric island — [ModelerColors.wire]'s
 /// own hex, so an unstretched island reads the same grey as an ordinary

@@ -7,7 +7,7 @@
 /// is what renders with no [style]/[padding] given, and the two overrides
 /// let a caller reproduce the level editor's own denser heading (its
 /// inspector panel's title, and its material panel's own row heading, ten
-/// and eleven points against the modeller's twelve) without keeping a
+/// and eleven points against the modeller's own eleven) without keeping a
 /// second copy of this widget around to get there.
 library;
 
@@ -22,9 +22,10 @@ final class SectionLabel extends StatelessWidget {
   /// case it arrives in, so a caller never has to remember to shout.
   final String said;
 
-  /// Overrides the modeller's own default text style. Null draws
-  /// `Theme.of(context).textTheme.labelMedium` in `onSurfaceVariant` with a
-  /// touch of letter-spacing — the modeller's own look.
+  /// Overrides the modeller's own default text style. Null draws 11/400,
+  /// upper case, in `colorScheme.outline` with `0.08em` of letter-spacing —
+  /// the modeller's own look, and the design hand-over's own row for
+  /// "Подписи разделов".
   final TextStyle? style;
 
   /// Overrides the modeller's own default padding of 14 above, 6 below.
@@ -44,9 +45,15 @@ final class SectionLabel extends StatelessWidget {
         overflow: TextOverflow.ellipsis,
         style:
             style ??
-            theme.textTheme.labelMedium?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
-              letterSpacing: 0.6,
+            TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w400,
+              // The design hand-over states this as `letter-spacing: 0.08em`
+              // — CSS's own relative unit, a fraction of the font size —
+              // where Flutter's `letterSpacing` wants logical pixels; 0.08 of
+              // this style's own 11 is 0.88.
+              letterSpacing: 0.88,
+              color: theme.colorScheme.outline,
             ),
       ),
     );

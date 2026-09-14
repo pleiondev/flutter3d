@@ -327,7 +327,21 @@ class _Rail extends StatelessWidget {
                       child: IconButton(
                         onPressed: () => onTool(tool.id),
                         icon: Icon(tool.icon, size: 18),
+                        // The design's own "кнопка 40 × 36, радиус 10" — the
+                        // one button this app widens past the ambient
+                        // `iconButtonTheme`'s square 36 (`theme.dart`'s own
+                        // doc note on `ModelerMetrics.railButtonWidth` says
+                        // why that stays app-wide rather than moving here).
                         style: IconButton.styleFrom(
+                          minimumSize: const Size(
+                            ModelerMetrics.railButtonWidth,
+                            ModelerMetrics.railButtonHeight,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(
+                              ModelerMetrics.railButtonRadius,
+                            ),
+                          ),
                           backgroundColor: armed
                               ? theme.colorScheme.primaryContainer
                               : null,

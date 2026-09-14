@@ -238,7 +238,7 @@ void main() {
       // with `ColorScheme.fromSeed` and every one of these moves — which is
       // the whole reason the scheme is written out rather than generated.
       expect(scheme.surface, const Color(0xFF14181A));
-      expect(scheme.onSurface, const Color(0xFFE6E9EA));
+      expect(scheme.onSurface, const Color(0xFFE1E3E3));
       expect(scheme.primaryContainer, const Color(0xFF004F58));
       expect(scheme.outline, const Color(0xFF899295));
       expect(scheme.brightness, Brightness.dark);

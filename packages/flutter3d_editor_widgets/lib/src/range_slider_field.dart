@@ -128,31 +128,27 @@ class _RangeSliderFieldState extends State<RangeSliderField> {
                 ),
               ),
             Expanded(
-              child: SliderTheme(
-                data: SliderTheme.of(context).copyWith(
-                  trackHeight: 3,
-                  thumbShape: const RoundSliderThumbShape(
-                    enabledThumbRadius: 6,
-                  ),
-                ),
-                child: Slider(
-                  // Keyed by label so a test can tell one field's slider from
-                  // another's sitting in the same panel.
-                  key: ValueKey<String>('slider-${widget.label}'),
-                  value: shown,
-                  min: widget.min,
-                  max: widget.max,
-                  divisions: divisions,
-                  onChanged: widget.enabled
-                      ? (double v) => setState(() => _dragging = v)
-                      : null,
-                  onChangeEnd: widget.enabled
-                      ? (double v) {
-                          setState(() => _dragging = null);
-                          _commit(v);
-                        }
-                      : null,
-                ),
+              // Track thickness and thumb size come from the ambient
+              // `Theme.of(context).sliderTheme`, not a literal — see
+              // `ColorField`'s own `_ChannelSlider` for the same choice and
+              // why.
+              child: Slider(
+                // Keyed by label so a test can tell one field's slider from
+                // another's sitting in the same panel.
+                key: ValueKey<String>('slider-${widget.label}'),
+                value: shown,
+                min: widget.min,
+                max: widget.max,
+                divisions: divisions,
+                onChanged: widget.enabled
+                    ? (double v) => setState(() => _dragging = v)
+                    : null,
+                onChangeEnd: widget.enabled
+                    ? (double v) {
+                        setState(() => _dragging = null);
+                        _commit(v);
+                      }
+                    : null,
               ),
             ),
             const SizedBox(width: 6),

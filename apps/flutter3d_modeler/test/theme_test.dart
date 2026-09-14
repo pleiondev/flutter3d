@@ -7,6 +7,7 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter3d_editor_widgets/flutter3d_editor_widgets.dart';
 import 'package:flutter3d_modeler/src/ui/theme.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -62,6 +63,67 @@ void main() {
       // already have.
       expect(kModelerScheme.tertiary, const Color(0xFFFFB86B));
     });
+  });
+
+  group('ui-38d — the token pass to the design hand-over\'s own table', () {
+    test('onSurface', () {
+      expect(kModelerScheme.onSurface, const Color(0xFFE1E3E3));
+    });
+
+    test('secondary — the design hand-over\'s own "second spot"', () {
+      expect(kModelerScheme.secondary, const Color(0xFFFF458E));
+    });
+
+    test('tertiaryContainer — the budget-warning card\'s own background', () {
+      expect(kModelerScheme.tertiaryContainer, const Color(0xFF3A2118));
+    });
+
+    test('onTertiaryContainer — the budget-warning card\'s own text', () {
+      expect(kModelerScheme.onTertiaryContainer, const Color(0xFFFFD9B0));
+    });
+
+    test('ModelerColors.success', () {
+      expect(ModelerColors.dark.success, const Color(0xFF7EE081));
+    });
+
+    test('the panel-title style is 14/500', () {
+      final TextTheme text = modelerTheme().textTheme;
+      expect(text.titleMedium?.fontSize, 14);
+      expect(text.titleMedium?.fontWeight, FontWeight.w500);
+    });
+
+    test('the global slider theme is a 4-thick track and a ⌀16 thumb', () {
+      final SliderThemeData slider = modelerTheme().sliderTheme;
+      expect(slider.trackHeight, 4);
+      expect(
+        (slider.thumbShape! as RoundSliderThumbShape).enabledThumbRadius,
+        8,
+      );
+    });
+
+    test('the rail button is 40×36, radius 10', () {
+      expect(ModelerMetrics.railButtonWidth, 40);
+      expect(ModelerMetrics.railButtonHeight, 36);
+      expect(ModelerMetrics.railButtonRadius, 10);
+    });
+
+    testWidgets(
+      'a SectionLabel under modelerTheme draws 11/400, 0.08em, outline',
+      (WidgetTester tester) async {
+        await tester.pumpWidget(
+          MaterialApp(
+            theme: modelerTheme(),
+            home: const Scaffold(body: SectionLabel('Shadows')),
+          ),
+        );
+
+        final Text text = tester.widget(find.byType(Text));
+        expect(text.style?.fontSize, 11);
+        expect(text.style?.fontWeight, FontWeight.w400);
+        expect(text.style?.letterSpacing, 0.88);
+        expect(text.style?.color, kModelerScheme.outline);
+      },
+    );
   });
 
   test(

@@ -57,6 +57,20 @@ abstract final class ModelerMetrics {
   /// `ui-05`'s own phone shell: the properties sheet, shorter than the
   /// tablet's own since a phone's own screen has less height to spend on it.
   static const double phonePropertiesSheet = 130;
+
+  /// A rail button's own width — 40, wider than [railButton] itself. Kept
+  /// apart from [railButton] rather than replacing it: `railButton` still
+  /// sizes every other `IconButton` in the app through the ambient
+  /// `iconButtonTheme` below, and widening all of those to match the rail
+  /// was never asked for — only `_Rail`'s own button, in `shell.dart`, reads
+  /// this pair plus [railButtonRadius].
+  static const double railButtonWidth = 40;
+
+  /// A rail button's own height — 36, the same as [railButton].
+  static const double railButtonHeight = 36;
+
+  /// A rail button's own corner radius.
+  static const double railButtonRadius = 10;
 }
 
 /// The colours that are the modeller's own rather than Material's.
@@ -76,6 +90,7 @@ final class ModelerColors extends ThemeExtension<ModelerColors> {
     required this.wire,
     required this.selected,
     required this.panelEdge,
+    required this.success,
   });
 
   /// What the modeller ships with. Every one of these is a colour something in
@@ -89,6 +104,7 @@ final class ModelerColors extends ThemeExtension<ModelerColors> {
     wire: Color(0xFF8C9399),
     selected: Color(0xFFFF9926),
     panelEdge: Color(0xFF232A2C),
+    success: Color(0xFF7EE081),
   );
 
   /// Behind the model. Flat, and darker than any panel: every judgement a
@@ -109,6 +125,11 @@ final class ModelerColors extends ThemeExtension<ModelerColors> {
   /// The hairline between a panel and the picture.
   final Color panelEdge;
 
+  /// "Ready to export", a filled budget — the design hand-over's own
+  /// success green, apart from [kModelerScheme] because nothing there names
+  /// a role for it (the scheme's own roles are all Material's).
+  final Color success;
+
   @override
   ModelerColors copyWith({
     Color? viewport,
@@ -119,6 +140,7 @@ final class ModelerColors extends ThemeExtension<ModelerColors> {
     Color? wire,
     Color? selected,
     Color? panelEdge,
+    Color? success,
   }) => ModelerColors(
     viewport: viewport ?? this.viewport,
     gridMinor: gridMinor ?? this.gridMinor,
@@ -128,6 +150,7 @@ final class ModelerColors extends ThemeExtension<ModelerColors> {
     wire: wire ?? this.wire,
     selected: selected ?? this.selected,
     panelEdge: panelEdge ?? this.panelEdge,
+    success: success ?? this.success,
   );
 
   @override
@@ -142,6 +165,7 @@ final class ModelerColors extends ThemeExtension<ModelerColors> {
       wire: Color.lerp(wire, other.wire, t)!,
       selected: Color.lerp(selected, other.selected, t)!,
       panelEdge: Color.lerp(panelEdge, other.panelEdge, t)!,
+      success: Color.lerp(success, other.success, t)!,
     );
   }
 }
@@ -159,20 +183,27 @@ const ColorScheme kModelerScheme = ColorScheme(
   onPrimary: Color(0xFF00363D),
   primaryContainer: Color(0xFF004F58),
   onPrimaryContainer: Color(0xFFA2EEFF),
-  secondary: Color(0xFFB1CBD0),
+  // The design hand-over's own "second spot": UV seams, the playhead, the
+  // weight-paint brush cursor, a joint with a problem. Nothing else in the
+  // scheme used `secondary` before this, so the change reaches exactly the
+  // handful of call sites that read it by name — see `theme_test.dart`.
+  secondary: Color(0xFFFF458E),
   onSecondary: Color(0xFF1C3438),
   secondaryContainer: Color(0xFF334B4F),
   onSecondaryContainer: Color(0xFFCDE7EC),
   tertiary: Color(0xFFFFB86B),
   onTertiary: Color(0xFF4A2800),
-  tertiaryContainer: Color(0xFF693C00),
-  onTertiaryContainer: Color(0xFFFFDCC0),
+  // The budget-warning card's own background and text — the hand-over's
+  // `#3A2118`/`#FFD9B0`, not the teal-adjacent pair this scheme shipped with
+  // before either role had a reader.
+  tertiaryContainer: Color(0xFF3A2118),
+  onTertiaryContainer: Color(0xFFFFD9B0),
   error: Color(0xFFFF5449),
   onError: Color(0xFF690005),
   errorContainer: Color(0xFF93000A),
   onErrorContainer: Color(0xFFFFDAD6),
   surface: Color(0xFF14181A),
-  onSurface: Color(0xFFE6E9EA),
+  onSurface: Color(0xFFE1E3E3),
   surfaceContainerLowest: Color(0xFF0B0E0F),
   surfaceContainerLow: Color(0xFF131617),
   surfaceContainer: Color(0xFF171A1B),
@@ -238,6 +269,14 @@ ThemeData modelerTheme() {
             fontSize: 13,
             fontWeight: FontWeight.w500,
           ),
+          // "Заголовок панели" — a file name, an operation card's own
+          // heading. Distinct from `titleSmall` above (13/500, today's
+          // panel-title stand-in at the three call sites that already use
+          // it): a caller that wants this exact role reads `titleMedium`.
+          titleMedium: const TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w500,
+          ),
         ),
     segmentedButtonTheme: SegmentedButtonThemeData(
       style: ButtonStyle(
@@ -256,6 +295,19 @@ ThemeData modelerTheme() {
         padding: EdgeInsets.zero,
         foregroundColor: scheme.onSurfaceVariant,
       ),
+    ),
+    // The design's own "Ползунок" row: a 4-thick track and a ⌀16 thumb,
+    // for every `Slider` this app draws — `lathe_dialog.dart`,
+    // `operation_card.dart` and `bend_slider_bar.dart` already read the
+    // ambient theme with no override of their own, and the shared
+    // `RangeSliderField`/`ColorField` (`flutter3d_editor_widgets`) dropped
+    // their own hard-coded 3/⌀12 in favour of this once it existed. Every
+    // other `SliderThemeData` field is left null, which is what "no
+    // override" already meant here — `Slider` falls back to a value derived
+    // from `colorScheme` for those, exactly as it did before this existed.
+    sliderTheme: const SliderThemeData(
+      trackHeight: 4,
+      thumbShape: RoundSliderThumbShape(enabledThumbRadius: 8),
     ),
     tooltipTheme: const TooltipThemeData(waitDuration: Duration(seconds: 1)),
   );
