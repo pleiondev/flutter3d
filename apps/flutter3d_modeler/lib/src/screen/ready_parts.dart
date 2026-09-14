@@ -59,8 +59,10 @@ extension _ReadyParts on _ModelerScreenState {
           onSelectNone: () => _runSelection(const SelectNone()),
           onInvertSelection: () => _runSelection(const InvertSelection()),
           onShortcutHelp: _showShortcutHelp,
+          mode: state.mode,
           onLevel: _cubit.submode,
-          tools: toolsFor(state.mode),
+          onAnimationLevel: _cubit.animationSubmode,
+          tools: toolsFor(state.mode, animation: state.animationSubmode),
           // **`ui-05`'s own three shells, built once and handed to
           // [ScreenParts].** The actions/status/properties/viewport widgets
           // below are the same objects whichever shell draws them —
@@ -284,14 +286,16 @@ extension _ReadyParts on _ModelerScreenState {
               );
 
               void onMode(ModelerMode mode) {
+                // `ui-40d`'s own row: the animation mode's own tools depend
+                // on the remembered sub-mode, the same as the rail already
+                // reads `state.animationSubmode` for it.
+                final tools = toolsFor(mode, animation: state.animationSubmode);
                 _cubit
                   ..mode(mode)
                   // The armed tool belongs to the mode it came from, so a mode change
                   // arms that mode's pointer rather than leaving a tool id from the
                   // old one that nothing here would recognise.
-                  ..tool(
-                    toolsFor(mode).isEmpty ? null : toolsFor(mode).first.id,
-                  );
+                  ..tool(tools.isEmpty ? null : tools.first.id);
               }
 
               return ShellForWidth(
@@ -305,6 +309,8 @@ extension _ReadyParts on _ModelerScreenState {
                 onMode: onMode,
                 submode: state.submode,
                 onSubmode: _cubit.submode,
+                animationSubmode: state.animationSubmode,
+                onAnimationSubmode: _cubit.animationSubmode,
                 activeTool: state.tool,
                 onTool: _ranTool,
                 documentName: state.documentName,

@@ -98,6 +98,16 @@ void main() {
       expect(answer.did, isFalse);
       expect(_ready(cubit).submode, MeshSubmode.vertex);
     });
+
+    // `ui-40d`'s own widening: a name from either submode enum reaches the
+    // matching one, `MeshSubmode` tried first.
+    test('an animation submode name changes the animation submode', () {
+      final cubit = _opened();
+      final answer = _actions(cubit, _Counters()).setSubmode('weights');
+
+      expect(answer.did, isTrue);
+      expect(_ready(cubit).animationSubmode, AnimationSubmode.weights);
+    });
   });
 
   group('setTool', () {

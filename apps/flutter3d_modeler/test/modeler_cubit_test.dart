@@ -343,6 +343,37 @@ void main() {
       expect(ready(cubit).submode, MeshSubmode.face);
     });
 
+    // `ui-40d`'s own row: `animationSubmode`'s own shape, mirroring the two
+    // tests above.
+    test('animationSubmode changes ModelerReady.animationSubmode', () {
+      final cubit = opened().cubit;
+
+      cubit.animationSubmode(AnimationSubmode.weights);
+
+      expect(ready(cubit).animationSubmode, AnimationSubmode.weights);
+    });
+
+    test('the animation sub-mode survives a trip through the object mode', () {
+      final cubit = opened().cubit
+        ..mode(ModelerMode.animation)
+        ..animationSubmode(AnimationSubmode.retarget);
+
+      cubit
+        ..mode(ModelerMode.object)
+        ..mode(ModelerMode.animation);
+
+      expect(ready(cubit).animationSubmode, AnimationSubmode.retarget);
+    });
+
+    test('setting the animation sub-mode it is already in emits nothing', () {
+      final cubit = opened().cubit;
+      final before = cubit.state;
+
+      cubit.animationSubmode(AnimationSubmode.pose);
+
+      expect(identical(cubit.state, before), isTrue);
+    });
+
     test('setting the mode it is already in emits nothing', () {
       final cubit = opened().cubit;
       final before = cubit.state;

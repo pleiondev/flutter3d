@@ -32,6 +32,9 @@ Future<void> show(
   required VoidCallback onUndo,
   required VoidCallback onExport,
   bool Function(LogicalKeyboardKey, String?)? onKey,
+  ModelerMode mode = ModelerMode.object,
+  ValueChanged<MeshSubmode>? onLevel,
+  ValueChanged<AnimationSubmode>? onAnimationLevel,
 }) => tester.pumpWidget(
   MaterialApp(
     // Forced rather than left to the host: `apple` inside `ModelerKeys`
@@ -45,12 +48,14 @@ Future<void> show(
       onRedo: () {},
       onExport: onExport,
       onTool: (_) {},
-      onLevel: (_) {},
+      mode: mode,
+      onLevel: onLevel ?? (_) {},
+      onAnimationLevel: onAnimationLevel ?? (_) {},
       onSelectAll: () {},
       onSelectNone: () {},
       onInvertSelection: () {},
       onShortcutHelp: () {},
-      tools: toolsFor(ModelerMode.object),
+      tools: toolsFor(mode),
       child: Scaffold(
         body: Focus(focusNode: contentFocus, child: const SizedBox.shrink()),
       ),
@@ -110,5 +115,84 @@ void main() {
     // Mutation: build the outer `Focus` without `autofocus: true`, which
     // would leave nothing focused at all and `onKey` never called.
     expect(seen, LogicalKeyboardKey.keyX);
+  });
+
+  group('the digit keys — ui-40d', () {
+    testWidgets('1 through 4 switch AnimationSubmode in the animation mode', (
+      WidgetTester tester,
+    ) async {
+      final seen = <AnimationSubmode>[];
+      final contentFocus = FocusNode();
+      addTearDown(contentFocus.dispose);
+      await show(
+        tester,
+        contentFocus: contentFocus,
+        onUndo: () {},
+        onExport: () {},
+        mode: ModelerMode.animation,
+        onAnimationLevel: seen.add,
+      );
+      contentFocus.requestFocus();
+      await tester.pump();
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.digit2);
+      await tester.sendKeyEvent(LogicalKeyboardKey.digit4);
+      await tester.pump();
+
+      expect(seen, <AnimationSubmode>[
+        AnimationSubmode.weights,
+        AnimationSubmode.morphs,
+      ]);
+    });
+
+    testWidgets('in the mesh mode the same keys still switch MeshSubmode, not '
+        'AnimationSubmode', (WidgetTester tester) async {
+      final levels = <MeshSubmode>[];
+      final animationLevels = <AnimationSubmode>[];
+      final contentFocus = FocusNode();
+      addTearDown(contentFocus.dispose);
+      await show(
+        tester,
+        contentFocus: contentFocus,
+        onUndo: () {},
+        onExport: () {},
+        mode: ModelerMode.mesh,
+        onLevel: levels.add,
+        onAnimationLevel: animationLevels.add,
+      );
+      contentFocus.requestFocus();
+      await tester.pump();
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.digit2);
+      await tester.pump();
+
+      expect(levels, <MeshSubmode>[MeshSubmode.edge]);
+      expect(animationLevels, isEmpty);
+    });
+
+    testWidgets('in a mode with neither sub-mode the digit keys do nothing', (
+      WidgetTester tester,
+    ) async {
+      final levels = <MeshSubmode>[];
+      final animationLevels = <AnimationSubmode>[];
+      final contentFocus = FocusNode();
+      addTearDown(contentFocus.dispose);
+      await show(
+        tester,
+        contentFocus: contentFocus,
+        onUndo: () {},
+        onExport: () {},
+        onLevel: levels.add,
+        onAnimationLevel: animationLevels.add,
+      );
+      contentFocus.requestFocus();
+      await tester.pump();
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.digit1);
+      await tester.pump();
+
+      expect(levels, isEmpty);
+      expect(animationLevels, isEmpty);
+    });
   });
 }

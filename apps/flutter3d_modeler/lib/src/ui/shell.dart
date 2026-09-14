@@ -28,6 +28,8 @@ class ModelerShell extends StatelessWidget {
     required this.onMode,
     required this.submode,
     required this.onSubmode,
+    required this.animationSubmode,
+    required this.onAnimationSubmode,
     required this.activeTool,
     required this.onTool,
     required this.viewport,
@@ -43,6 +45,12 @@ class ModelerShell extends StatelessWidget {
 
   final MeshSubmode submode;
   final ValueChanged<MeshSubmode> onSubmode;
+
+  /// `ui-40d`'s own row: [submode]'s counterpart for [ModelerMode.animation],
+  /// read by both the top bar's second switcher and the rail — the two
+  /// places [submode] already reaches.
+  final AnimationSubmode animationSubmode;
+  final ValueChanged<AnimationSubmode> onAnimationSubmode;
 
   /// The id of the armed tool, from [ModelerTool.id]. Null is the pointer.
   final String? activeTool;
@@ -78,6 +86,8 @@ class ModelerShell extends StatelessWidget {
             onMode: onMode,
             submode: submode,
             onSubmode: onSubmode,
+            animationSubmode: animationSubmode,
+            onAnimationSubmode: onAnimationSubmode,
             actions: actions,
             documentName: documentName,
             isDirty: isDirty,
@@ -87,7 +97,12 @@ class ModelerShell extends StatelessWidget {
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: <Widget>[
-                _Rail(mode: mode, active: activeTool, onTool: onTool),
+                _Rail(
+                  mode: mode,
+                  animationSubmode: animationSubmode,
+                  active: activeTool,
+                  onTool: onTool,
+                ),
                 const VerticalDivider(width: 1, thickness: 1),
                 // The picture takes whatever is left, and takes it last: the
                 // panels are the fixed things and the viewport is what a wider
@@ -135,6 +150,8 @@ class _TopBar extends StatelessWidget {
     required this.onMode,
     required this.submode,
     required this.onSubmode,
+    required this.animationSubmode,
+    required this.onAnimationSubmode,
     required this.actions,
     required this.documentName,
     required this.isDirty,
@@ -144,6 +161,8 @@ class _TopBar extends StatelessWidget {
   final ValueChanged<ModelerMode> onMode;
   final MeshSubmode submode;
   final ValueChanged<MeshSubmode> onSubmode;
+  final AnimationSubmode animationSubmode;
+  final ValueChanged<AnimationSubmode> onAnimationSubmode;
   final List<Widget> actions;
   final String documentName;
   final bool isDirty;
@@ -188,6 +207,8 @@ class _TopBar extends StatelessWidget {
                     onMode: onMode,
                     submode: submode,
                     onSubmode: onSubmode,
+                    animationSubmode: animationSubmode,
+                    onAnimationSubmode: onAnimationSubmode,
                   ),
                 ),
               ),
@@ -214,12 +235,24 @@ class ModelerModeSwitcher extends StatelessWidget {
     required this.onMode,
     required this.submode,
     required this.onSubmode,
+    this.animationSubmode,
+    this.onAnimationSubmode,
   });
 
   final ModelerMode mode;
   final ValueChanged<ModelerMode> onMode;
   final MeshSubmode submode;
   final ValueChanged<MeshSubmode> onSubmode;
+
+  /// `ui-40d`'s own second pair, [submode]'s counterpart for
+  /// [ModelerMode.animation] — nullable rather than required so the tablet
+  /// and phone shells, which do not yet reach the animation mode's own
+  /// switcher, keep calling this constructor exactly as they did before this
+  /// row. Left null (or [onAnimationSubmode] left null), the second segmented
+  /// button simply does not show for [ModelerMode.animation] either, the same
+  /// "nothing" every mode but mesh already answers with.
+  final AnimationSubmode? animationSubmode;
+  final ValueChanged<AnimationSubmode>? onAnimationSubmode;
 
   @override
   Widget build(BuildContext context) => Row(
@@ -274,21 +307,54 @@ class ModelerModeSwitcher extends StatelessWidget {
           onSelectionChanged: (Set<MeshSubmode> picked) =>
               onSubmode(picked.first),
         ),
+      // `ui-40d`'s own row: the handoff's own frame rule 2 gives the
+      // current mode's sub-mode this same slot — mesh's is above, and
+      // animation's four (pose/weights/retarget/morphs) are the only other
+      // one built so far. [animationSubmode]/[onAnimationSubmode] are left
+      // null by the shells that do not wire this mode's switcher yet
+      // (`ModelerTabletShell`, `ModelerPhoneShell`), which is why both are
+      // checked rather than just [mode].
+      if (mode == ModelerMode.animation &&
+          animationSubmode != null &&
+          onAnimationSubmode != null)
+        SegmentedButton<AnimationSubmode>(
+          showSelectedIcon: false,
+          segments: <ButtonSegment<AnimationSubmode>>[
+            for (final AnimationSubmode each in AnimationSubmode.values)
+              ButtonSegment<AnimationSubmode>(
+                value: each,
+                icon: Icon(each.icon, size: 15),
+                label: Text(each.label),
+              ),
+          ],
+          selected: <AnimationSubmode>{animationSubmode!},
+          onSelectionChanged: (Set<AnimationSubmode> picked) =>
+              onAnimationSubmode!(picked.first),
+        ),
     ],
   );
 }
 
 class _Rail extends StatelessWidget {
-  const _Rail({required this.mode, required this.active, required this.onTool});
+  const _Rail({
+    required this.mode,
+    required this.animationSubmode,
+    required this.active,
+    required this.onTool,
+  });
 
   final ModelerMode mode;
+
+  /// `ui-40d`'s own row: which of the four animation tool lists `toolsFor`
+  /// answers with, when [mode] is [ModelerMode.animation].
+  final AnimationSubmode animationSubmode;
   final String? active;
   final ValueChanged<String> onTool;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final tools = toolsFor(mode);
+    final tools = toolsFor(mode, animation: animationSubmode);
     return SizedBox(
       width: ModelerMetrics.rail,
       child: ColoredBox(

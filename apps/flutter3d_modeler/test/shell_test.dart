@@ -23,6 +23,7 @@ Future<void> pumpShell(
   ModelerMode mode = ModelerMode.object,
   ValueChanged<ModelerMode>? onMode,
   MeshSubmode submode = MeshSubmode.vertex,
+  AnimationSubmode animationSubmode = AnimationSubmode.pose,
   String? activeTool,
   ValueChanged<String>? onTool,
   Size size = const Size(1440, 900),
@@ -41,6 +42,8 @@ Future<void> pumpShell(
         onMode: onMode ?? (_) {},
         submode: submode,
         onSubmode: (_) {},
+        animationSubmode: animationSubmode,
+        onAnimationSubmode: (_) {},
         activeTool: activeTool,
         onTool: onTool ?? (_) {},
         viewport: const ColoredBox(
@@ -172,6 +175,30 @@ void main() {
         await pumpShell(tester, mode: ModelerMode.mesh);
         expect(find.text('Vertex'), findsOneWidget);
         expect(find.text('Face'), findsOneWidget);
+      },
+    );
+
+    // `ui-40d`'s own row: the second switcher's other tenant. Object mode
+    // shows neither the mesh element levels nor the animation sub-mode —
+    // "every other mode shows nothing" is the handoff's own frame rule 2.
+    testWidgets(
+      'the animation sub-mode is shown in the animation mode and nowhere '
+      'else',
+      (WidgetTester tester) async {
+        await pumpShell(tester, mode: ModelerMode.object);
+        expect(find.text('Pose'), findsNothing);
+        expect(find.text('Weights'), findsNothing);
+        expect(find.text('Retarget'), findsNothing);
+        expect(find.text('Morphs'), findsNothing);
+
+        await pumpShell(tester, mode: ModelerMode.mesh);
+        expect(find.text('Pose'), findsNothing);
+
+        await pumpShell(tester, mode: ModelerMode.animation);
+        expect(find.text('Pose'), findsOneWidget);
+        expect(find.text('Weights'), findsOneWidget);
+        expect(find.text('Retarget'), findsOneWidget);
+        expect(find.text('Morphs'), findsOneWidget);
       },
     );
   });

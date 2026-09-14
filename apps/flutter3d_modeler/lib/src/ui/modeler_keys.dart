@@ -22,7 +22,9 @@ class ModelerKeys extends StatelessWidget {
     required this.onRedo,
     required this.onExport,
     required this.onTool,
+    required this.mode,
     required this.onLevel,
+    required this.onAnimationLevel,
     required this.onSelectAll,
     required this.onSelectNone,
     required this.onInvertSelection,
@@ -42,7 +44,17 @@ class ModelerKeys extends StatelessWidget {
   /// export a person repeats: the one that goes back into the game.
   final VoidCallback onExport;
   final ValueChanged<String> onTool;
+
+  /// Which sub-mode's own digit keys are live — `ui-40d`'s own row.
+  /// [MeshSubmode]'s three and [AnimationSubmode]'s four both start at
+  /// `digit1`, so binding both at once regardless of [mode] would leave one
+  /// of [onLevel]/[onAnimationLevel] shadowed in the `Shortcuts` map built
+  /// below; gating each set on the mode it belongs to is what keeps a
+  /// digit key meaning one thing at a time, the same "a shortcut means one
+  /// thing within a mode" rule the tool table itself already keeps.
+  final ModelerMode mode;
   final ValueChanged<MeshSubmode> onLevel;
+  final ValueChanged<AnimationSubmode> onAnimationLevel;
   final VoidCallback onSelectAll;
   final VoidCallback onSelectNone;
   final VoidCallback onInvertSelection;
@@ -96,8 +108,16 @@ class ModelerKeys extends StatelessWidget {
           undo: onUndo,
           redo: onRedo,
           export: onExport,
-          for (final MeshSubmode level in MeshSubmode.values)
-            SingleActivator(level.shortcut): _typingSafe(() => onLevel(level)),
+          if (mode == ModelerMode.mesh)
+            for (final MeshSubmode level in MeshSubmode.values)
+              SingleActivator(level.shortcut): _typingSafe(
+                () => onLevel(level),
+              ),
+          if (mode == ModelerMode.animation)
+            for (final AnimationSubmode level in AnimationSubmode.values)
+              SingleActivator(level.shortcut): _typingSafe(
+                () => onAnimationLevel(level),
+              ),
           for (final ModelerTool tool in tools)
             SingleActivator(tool.shortcut): _typingSafe(() => onTool(tool.id)),
           for (final MapEntry<ShortcutActivator, VoidCallback> entry

@@ -28,6 +28,8 @@ class ShellForWidth extends StatelessWidget {
     required this.onMode,
     required this.submode,
     required this.onSubmode,
+    required this.animationSubmode,
+    required this.onAnimationSubmode,
     required this.activeTool,
     required this.onTool,
     required this.documentName,
@@ -41,6 +43,12 @@ class ShellForWidth extends StatelessWidget {
 
   final MeshSubmode submode;
   final ValueChanged<MeshSubmode> onSubmode;
+
+  /// `ui-40d`'s own row, handed to the desktop shell alone: the tablet and
+  /// phone branches below do not yet wire the animation mode's own
+  /// switcher, the same as `ModelerModeSwitcher`'s own two nullable fields.
+  final AnimationSubmode animationSubmode;
+  final ValueChanged<AnimationSubmode> onAnimationSubmode;
 
   /// The id of the armed tool, from `ModelerTool.id`. Null is the pointer.
   final String? activeTool;
@@ -62,6 +70,8 @@ class ShellForWidth extends StatelessWidget {
             onMode: onMode,
             submode: submode,
             onSubmode: onSubmode,
+            animationSubmode: animationSubmode,
+            onAnimationSubmode: onAnimationSubmode,
             activeTool: activeTool,
             onTool: onTool,
             actions: parts.actions,

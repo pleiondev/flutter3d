@@ -51,16 +51,24 @@ final class ModelerUiActions implements UiActions {
   @override
   UiAnswer setSubmode(String submode) {
     if (_ready == null) return (did: false, says: 'no document open');
-    // `MeshSubmode` is the one submode enum this branch has — `ui-40d`'s own
-    // `AnimationSubmode` lands later, and this method is the one place that
-    // widens when it does; `UiActions.setSubmode`'s own shape does not
-    // change either day.
-    final MeshSubmode? target = _enumByName(MeshSubmode.values, submode);
-    if (target == null) {
-      return (did: false, says: 'no such submode: $submode');
+    // `ui-40d`'s own widening: two submode enums now share this one string
+    // argument, `MeshSubmode` tried first since it was here first.
+    // `UiActions.setSubmode`'s own shape does not change either day — a
+    // third submode enum would widen this the same way.
+    final MeshSubmode? mesh = _enumByName(MeshSubmode.values, submode);
+    if (mesh != null) {
+      cubit.submode(mesh);
+      return (did: true, says: 'submode set to $submode');
     }
-    cubit.submode(target);
-    return (did: true, says: 'submode set to $submode');
+    final AnimationSubmode? animation = _enumByName(
+      AnimationSubmode.values,
+      submode,
+    );
+    if (animation != null) {
+      cubit.animationSubmode(animation);
+      return (did: true, says: 'submode set to $submode');
+    }
+    return (did: false, says: 'no such submode: $submode');
   }
 
   @override

@@ -39,6 +39,19 @@ const Set<String> kDragTools = <String>{
   'mesh.scale',
 };
 
+/// The tools that draw a continuous stroke — a drag sampled many times
+/// rather than one gesture resolved on release, the same distinction
+/// `InputPolicy.classify` (`input_policy.dart`) reads off `ToolCategory` to
+/// decide who gets a touch pointer, the camera or the tool.
+///
+/// **Only the weight brush is in it, and only its two paint modes.** `ui-40d`
+/// gives the weights sub-mode four tools — `weights.paint`/`weights.assign`
+/// both ride `PaintWeights` over however many `BrushSample`s one drag
+/// collects, which is what a stroke is; `weights.mirror`/`weights.normalize`
+/// run once, over whatever a stroke already touched, and belong beside
+/// [kDragTools]'s own single-gesture tools instead.
+const Set<String> kStrokeTools = <String>{'weights.paint', 'weights.assign'};
+
 /// What the modeller is being used for.
 ///
 /// **All eight are here and five of them work**, which is deliberate: a person
@@ -110,6 +123,33 @@ enum MeshSubmode {
   final LogicalKeyboardKey shortcut;
 }
 
+/// What a sub-mode is for the animation mode: which of the four workflows
+/// screens 07/13/14/15 of the hand-off draw is on screen — `ui-40d`'s own
+/// row, the same shape [MeshSubmode] already is and, like it, a state of the
+/// interface rather than a fact `flutter3d_model_core` itself knows about.
+///
+/// **Four, not three, and the tool rail changes with it.** A mesh's three
+/// levels all reach for the same twelve tools — `toolsFor(ModelerMode.mesh)`
+/// does not even take a [MeshSubmode] — because vertex, edge and face are one
+/// workflow looked at three grains. Pose, weight-paint, retarget and morphs
+/// are four different workflows that happen to share a mode button; posing a
+/// joint and mapping a bone name are not the same operation at a different
+/// grain, so [toolsFor] and `sectionsFor` (`properties_sections.dart`) both
+/// take this as an argument and switch their whole answer on it, the same
+/// "replaced wholesale" rule the mode switch itself already follows.
+enum AnimationSubmode {
+  pose('Pose', Icons.accessibility_new_outlined, LogicalKeyboardKey.digit1),
+  weights('Weights', Icons.gradient_outlined, LogicalKeyboardKey.digit2),
+  retarget('Retarget', Icons.sync_alt_outlined, LogicalKeyboardKey.digit3),
+  morphs('Morphs', Icons.face_outlined, LogicalKeyboardKey.digit4);
+
+  const AnimationSubmode(this.label, this.icon, this.shortcut);
+
+  final String label;
+  final IconData icon;
+  final LogicalKeyboardKey shortcut;
+}
+
 /// One button, wherever it is shown.
 @immutable
 final class ModelerTool {
@@ -137,12 +177,26 @@ final class ModelerTool {
   final String group;
 }
 
-/// The tools of [mode], in the order they are shown.
+/// The tools of [mode], in the order they are shown — [animation] picks
+/// which of the four the animation mode shows, and is ignored by every
+/// other mode.
 ///
 /// A list rather than a map, because the order *is* part of the design: the
 /// thing a person reaches for most is at the top of the rail, and a map would
 /// leave that to whatever the iteration order happens to be.
-List<ModelerTool> toolsFor(ModelerMode mode) => switch (mode) {
+///
+/// **[animation] left null answers empty, not [AnimationSubmode.pose]'s own
+/// tools.** Unlike `sectionsFor`, which falls back to the sub-mode the
+/// animation section already showed before `ui-40d` so every caller of the
+/// bare, one-argument form keeps reading exactly what it always has, nothing
+/// here called the rail with one argument before this row — there is no old
+/// behaviour a default could stand in for, and answering empty is the same
+/// refusal every other not-yet-adopted mode already gets from the `_ =>`
+/// case below.
+List<ModelerTool> toolsFor(
+  ModelerMode mode, {
+  AnimationSubmode? animation,
+}) => switch (mode) {
   ModelerMode.object => const <ModelerTool>[
     ModelerTool(
       id: 'object.select',
@@ -315,6 +369,131 @@ List<ModelerTool> toolsFor(ModelerMode mode) => switch (mode) {
       group: 'cleanup',
     ),
   ],
+  // `ui-40d`'s own row: which four tools depends on which of the four
+  // workflows [animation] names — null (nobody has told the rail which one
+  // yet) answers empty rather than guessing [AnimationSubmode.pose], see
+  // this function's own doc comment for why that differs from
+  // `sectionsFor`'s default.
+  ModelerMode.animation => switch (animation) {
+    null => const <ModelerTool>[],
+    AnimationSubmode.pose => const <ModelerTool>[
+      // `keyframe_commands.dart`'s own `PoseJoint`, run once per
+      // `AnimationPath` (translation/rotation/scale — its own "three
+      // paths") inside one transaction, is what `key` keys; `select` arms
+      // nothing of its own, the same as `object.select`/`mesh.select`.
+      ModelerTool(
+        id: 'pose.select',
+        label: 'Select',
+        icon: Icons.near_me_outlined,
+        shortcut: LogicalKeyboardKey.keyQ,
+        group: 'select',
+      ),
+      ModelerTool(
+        id: 'pose.key',
+        label: 'Key the pose',
+        icon: Icons.vpn_key_outlined,
+        shortcut: LogicalKeyboardKey.keyI,
+        group: 'keys',
+      ),
+      ModelerTool(
+        id: 'pose.deleteKey',
+        label: 'Delete the key',
+        icon: Icons.backspace_outlined,
+        shortcut: LogicalKeyboardKey.keyX,
+        group: 'keys',
+      ),
+    ],
+    AnimationSubmode.weights => const <ModelerTool>[
+      // All four ride `paint_weights.dart`'s own `PaintWeights` — `paint`
+      // and `assign` are its two `PaintWeightsMode`s, sampled over a
+      // stroke (`kStrokeTools`); `mirror` and `normalize` are its own
+      // `mirror`/`normalize` arguments, run once over what a stroke
+      // already touched rather than sampled themselves.
+      ModelerTool(
+        id: 'weights.paint',
+        label: 'Paint weights',
+        icon: Icons.brush_outlined,
+        shortcut: LogicalKeyboardKey.keyB,
+        group: 'brush',
+      ),
+      ModelerTool(
+        id: 'weights.assign',
+        label: 'Assign to the joint',
+        icon: Icons.push_pin_outlined,
+        shortcut: LogicalKeyboardKey.keyA,
+        group: 'brush',
+      ),
+      ModelerTool(
+        id: 'weights.mirror',
+        label: 'Mirror',
+        icon: Icons.flip_outlined,
+        shortcut: LogicalKeyboardKey.keyM,
+        group: 'symmetry',
+      ),
+      ModelerTool(
+        id: 'weights.normalize',
+        label: 'Normalize',
+        icon: Icons.balance_outlined,
+        shortcut: LogicalKeyboardKey.keyN,
+        group: 'symmetry',
+      ),
+    ],
+    AnimationSubmode.retarget => const <ModelerTool>[
+      // `import` opens a second document the same way `screen/files.dart`
+      // already reads one for File/Open — `anim-18`'s own
+      // `RetargetSource.fromDocument` is the retarget-shaped wrapper
+      // around that read, not a second way of reading a file. `autoMap`
+      // is `flutter3d_rig`'s own `autoMap`; `apply` is
+      // `RetargetClipJobRequest` → `ApplyClipResult`, `retargetInBackground`'s
+      // own job.
+      ModelerTool(
+        id: 'retarget.import',
+        label: 'Import a source clip',
+        icon: Icons.file_open_outlined,
+        shortcut: LogicalKeyboardKey.keyI,
+        group: 'source',
+      ),
+      ModelerTool(
+        id: 'retarget.autoMap',
+        label: 'Map bones automatically',
+        icon: Icons.auto_fix_high_outlined,
+        shortcut: LogicalKeyboardKey.keyM,
+        group: 'mapping',
+      ),
+      ModelerTool(
+        id: 'retarget.apply',
+        label: 'Apply the retarget',
+        icon: Icons.check_circle_outlined,
+        shortcut: LogicalKeyboardKey.enter,
+        group: 'mapping',
+      ),
+    ],
+    AnimationSubmode.morphs => const <ModelerTool>[
+      // `shape_commands.dart`'s own `AddShapeFromMesh`, `KeyShape` and
+      // `DeleteShape`.
+      ModelerTool(
+        id: 'morphs.add',
+        label: 'Add a shape',
+        icon: Icons.add_circle_outlined,
+        shortcut: LogicalKeyboardKey.keyA,
+        group: 'shapes',
+      ),
+      ModelerTool(
+        id: 'morphs.key',
+        label: 'Key the shape',
+        icon: Icons.vpn_key_outlined,
+        shortcut: LogicalKeyboardKey.keyK,
+        group: 'shapes',
+      ),
+      ModelerTool(
+        id: 'morphs.delete',
+        label: 'Delete the shape',
+        icon: Icons.backspace_outlined,
+        shortcut: LogicalKeyboardKey.keyX,
+        group: 'shapes',
+      ),
+    ],
+  },
   // Every mode past phase one is drawn on the bar and refused, so there is
   // nothing to offer. Returning an empty list rather than throwing, because a
   // rail asking a disabled mode what it holds is not a bug.

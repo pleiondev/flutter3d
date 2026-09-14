@@ -369,6 +369,21 @@ final class ModelerCubit extends Cubit<ModelerState> {
     emit(now.copyWith(submode: submode, clearSaid: true));
   }
 
+  /// Changes which of the four animation workflows is on screen —
+  /// `ui-40d`'s own row, [submode]'s counterpart for the animation mode.
+  ///
+  /// **No selection to carry across.** [submode] converts the held
+  /// selection to the new element level because vertex, edge and face are
+  /// one selection looked at three grains; pose, weight-paint, retarget and
+  /// morphs are four different workflows with nothing in common to convert
+  /// — an object held while posing is still the object held while painting
+  /// its weights, unchanged.
+  void animationSubmode(AnimationSubmode animationSubmode) {
+    final ModelerReady? now = _ready;
+    if (now == null || now.animationSubmode == animationSubmode) return;
+    emit(now.copyWith(animationSubmode: animationSubmode, clearSaid: true));
+  }
+
   void tool(String? id) {
     final ModelerReady? now = _ready;
     if (now == null) return;

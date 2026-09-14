@@ -36,6 +36,8 @@ Widget _shellFor(
       onMode: (_) {},
       submode: MeshSubmode.vertex,
       onSubmode: (_) {},
+      animationSubmode: AnimationSubmode.pose,
+      onAnimationSubmode: (_) {},
       activeTool: activeTool,
       onTool: onTool,
       viewport: viewport,

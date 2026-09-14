@@ -63,6 +63,7 @@ final class ModelerReady extends ModelerState {
     this.documentName = 'untitled',
     this.mode = ModelerMode.object,
     this.submode = MeshSubmode.vertex,
+    this.animationSubmode = AnimationSubmode.pose,
     this.tool = 'object.select',
     this.said,
     this.saidIsImportant = false,
@@ -96,6 +97,12 @@ final class ModelerReady extends ModelerState {
   /// judged by.
   final MeshSubmode submode;
 
+  /// Which of the four animation workflows the animation mode is showing —
+  /// `ui-40d`'s own field, [submode]'s counterpart for [ModelerMode.animation].
+  /// Kept the same way across a trip through another mode, for the same
+  /// reason [submode] is.
+  final AnimationSubmode animationSubmode;
+
   /// The tool the rail has lit, by id.
   final String? tool;
 
@@ -127,6 +134,7 @@ final class ModelerReady extends ModelerState {
     ExportReadiness? readiness,
     ModelerMode? mode,
     MeshSubmode? submode,
+    AnimationSubmode? animationSubmode,
     String? tool,
     bool clearTool = false,
     String? said,
@@ -141,6 +149,7 @@ final class ModelerReady extends ModelerState {
     documentName: documentName,
     mode: mode ?? this.mode,
     submode: submode ?? this.submode,
+    animationSubmode: animationSubmode ?? this.animationSubmode,
     tool: clearTool ? null : (tool ?? this.tool),
     said: clearSaid ? null : (said ?? this.said),
     saidIsImportant: clearSaid
