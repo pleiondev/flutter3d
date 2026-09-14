@@ -69,3 +69,4 @@ workspace:
   - tool/convert_asset
   - tool/skills
   - tool/init
+  - tool/tutorial

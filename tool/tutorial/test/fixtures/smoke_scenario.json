@@ -1,0 +1,11 @@
+{
+  "_comment": "PLACEHOLDER — proves shoot.dart's scenario format parses and sequences correctly. Not a tutorial case: cases 1-6 need T3's material/scene panels and T5's animation screens, neither of which exist on this branch yet. See tut-00 in doc/model-editor-plan.md.",
+  "name": "placeholder-smoke-test",
+  "steps": [
+    { "tool": "ui.say", "args": { "text": "placeholder scenario — smoke test only" } },
+    { "tool": "ui.setMode", "args": { "mode": "object" } },
+    { "tool": "ui.standardView", "args": { "view": "front" }, "screenshot": "01-front.png" },
+    { "tool": "ui.frameSubject", "args": {} },
+    { "tool": "ui.standardView", "args": { "view": "iso" }, "screenshot": "02-iso.png" }
+  ]
+}
