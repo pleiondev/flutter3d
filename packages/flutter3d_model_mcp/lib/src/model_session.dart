@@ -636,16 +636,22 @@ final class ModelSession {
 
   // --------------------------------------------------------------- anim-30
   //
-  // MCP tools over `anim-21`'s `buildSkeleton`, `anim-10`'s `paintWeights`,
-  // `anim-15`'s `bakeIk`, `anim-20`'s `bakeShapeDrivers`, `anim-13`'s
-  // `rigIssues` and `anim-17`'s `retargetClip` — none of them a
-  // `ModelCommand` (`command.dart`'s own sealed hierarchy cannot be
-  // extended from outside `flutter3d_model_core`), so each is a session
-  // recipe the same shape `cleanup`/`makeGameReady`/`buildFrom` above
-  // already are: read the project, call the real function, and hand the
-  // result to `ReplaceDocument` for one undo step through `run` —
-  // `paintSkinWeights` alone does not, for the reason its own doc comment
-  // gives.
+  // MCP tools over `anim-21`'s `buildSkeleton`, `anim-15`'s `bakeIk`,
+  // `anim-20`'s `bakeShapeDrivers`, `anim-13`'s `rigIssues` and `anim-17`'s
+  // `retargetClip` — none of them a `ModelCommand` (`command.dart`'s own
+  // sealed hierarchy cannot be extended from outside `flutter3d_model_core`),
+  // so each is a session recipe the same shape
+  // `cleanup`/`makeGameReady`/`buildFrom` above already are: read the
+  // project, call the real function, and hand the result to
+  // `ReplaceDocument` for one undo step through `run`.
+  //
+  // **`anim-10`'s own `paintWeights` used to live here too, as
+  // `paintSkinWeights`, and does not any more.** It closes as a real
+  // `ModelCommand` now (`flutter3d_model_core`'s own `PaintWeights`,
+  // `paint_weights.dart`) — the sealed hierarchy it once could not join —
+  // so the `paintWeights` MCP tool runs it through the ordinary
+  // `_command('paintWeights')` path (`model_tools.dart`) like every other
+  // command tool, and there is nothing left for a session recipe to do.
 
   /// Builds a [template]-shaped skeleton from [markers] (a world-space
   /// position per name `requiredMarkers(template)` asks for) and adds it —
@@ -653,7 +659,8 @@ final class ModelSession {
   /// one undo step. [skinObjectId], when given, is bound to the new
   /// skeleton in that same step: the "`SetSkeleton` + `SetWeights`
   /// transaction" `anim-23`'s own row describes, minus the weights half,
-  /// which is [paintSkinWeights]'s own job.
+  /// which is the `paintWeights` tool's own job — `PaintWeights`,
+  /// `flutter3d_model_core`'s own `paint_weights.dart`.
   ///
   /// [bounds] is 6 numbers, `[minX, minY, minZ, maxX, maxY, maxZ]`; left
   /// out, this computes a box around every marker [template] actually
@@ -782,118 +789,6 @@ final class ModelSession {
         next,
         'auto-rig ${chosen.name} (${built.skeleton.jointCount} joints)',
       ),
-    );
-  }
-
-  /// Paints `anim-10`'s own brush (`paintWeights`, `paint_weights.dart`)
-  /// over one or more samples on [objectId]'s own mesh, at [joint] — a
-  /// joint of skeleton [skeletonIndex].
-  ///
-  /// **Not an undo step.** `paint_weights.dart`'s own doc comment calls
-  /// itself "not a `ModelCommand`" on purpose — `command.dart`'s own sealed
-  /// hierarchy cannot be extended from `flutter3d_model_mcp` — so this
-  /// mutates the live `EditMesh` already inside this session's own project
-  /// directly, the same limit `select`'s own doc comment already accepts
-  /// for the same reason. The paint itself is real, and is what an export
-  /// afterward reads; only the ability to undo it specifically is missing.
-  Answer paintSkinWeights({
-    required int objectId,
-    required int skeletonIndex,
-    required int joint,
-    required List<Map<String, Object?>> samples,
-    required double strength,
-    String mode = 'paint',
-    Map<String, Object?>? mirror,
-    bool normalize = false,
-  }) {
-    final object = project[objectId];
-    if (object == null) {
-      return (did: false, says: 'there is no object $objectId');
-    }
-    if (object.geometry is! EditedGeometry) {
-      return (
-        did: false,
-        says:
-            'object $objectId has no mesh to paint weights on — bakeToMesh '
-            'it first',
-      );
-    }
-    if (skeletonIndex < 0 || skeletonIndex >= project.skeletons.length) {
-      return (did: false, says: 'there is no skeleton $skeletonIndex');
-    }
-    final skeleton = project.skeletons[skeletonIndex];
-    if (!skeleton.joints.contains(joint)) {
-      return (
-        did: false,
-        says: 'object $joint is not a joint of skeleton $skeletonIndex',
-      );
-    }
-    if (samples.isEmpty) {
-      return (did: false, says: 'paintWeights needs at least one sample');
-    }
-
-    final brushSamples = <BrushSample>[];
-    for (final sample in samples) {
-      final center = sample['center'];
-      final radius = sample['radius'];
-      if (center is! List || center.length != 3 || radius is! num) {
-        return (
-          did: false,
-          says: 'each sample needs a 3-number "center" and a "radius"',
-        );
-      }
-      brushSamples.add(
-        BrushSample(
-          center: Vector3(
-            (center[0] as num).toDouble(),
-            (center[1] as num).toDouble(),
-            (center[2] as num).toDouble(),
-          ),
-          radius: radius.toDouble(),
-        ),
-      );
-    }
-
-    PaintMirror? paintMirror;
-    if (mirror != null) {
-      final axis = mirror['axis'];
-      final jointMirrorJson = mirror['jointMirror'];
-      if (axis is! int || jointMirrorJson is! Map) {
-        return (
-          did: false,
-          says: 'mirror needs an integer "axis" and a "jointMirror" map',
-        );
-      }
-      paintMirror = PaintMirror(
-        axis: axis,
-        jointMirror: <int, int>{
-          for (final entry in jointMirrorJson.entries)
-            int.parse(entry.key as String): entry.value as int,
-        },
-        plane: (mirror['plane'] as num?)?.toDouble() ?? 0.0,
-        tolerance: (mirror['tolerance'] as num?)?.toDouble() ?? 1e-4,
-      );
-    }
-
-    final mesh = (object.geometry as EditedGeometry).mesh;
-    paintWeights(
-      project: project,
-      mesh: mesh,
-      skeleton: skeleton,
-      joint: joint,
-      samples: brushSamples,
-      strength: strength,
-      mode: mode == 'assign' ? PaintWeightsMode.assign : PaintWeightsMode.paint,
-      mirror: paintMirror,
-      normalize: normalize,
-    );
-    return (
-      did: true,
-      says:
-          'painted weights for joint $joint on object $objectId over '
-          '${brushSamples.length} '
-          'sample${brushSamples.length == 1 ? '' : 's'} — not recorded as '
-          'an undo step',
     );
   }
 

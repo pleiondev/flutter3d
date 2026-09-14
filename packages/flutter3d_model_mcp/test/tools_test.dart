@@ -54,8 +54,12 @@ void main() {
       // for that same command, not a session recipe, and belongs here for
       // the same reason: this set is "what a tool is besides its own
       // command name," and `addShape`'s own command name is not "addShape".
+      // `paintWeights` used to be here too, as a session recipe over a
+      // function that could not be a command — it now has a real one
+      // (`PaintWeights`) behind it, runs through `_command('paintWeights')`
+      // like every other command tool, and its tool name equals its own
+      // command name, so it is not one of these exceptions any more.
       'autoRig',
-      'paintWeights',
       'retargetClip',
       'bakeIk',
       'bakeDrivers',

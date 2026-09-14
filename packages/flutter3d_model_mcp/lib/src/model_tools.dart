@@ -2311,15 +2311,24 @@ List<ModelTool> get modelTools => <ModelTool>[
 
 // ------------------------------------------------------------- anim-30
 //
-// MCP tools over `anim-21`'s `buildSkeleton`, `anim-10`'s `paintWeights`,
-// `anim-15`'s `bakeIk`, `anim-20`'s `bakeShapeDrivers`, `anim-13`'s
-// `rigIssues` and `anim-17`'s `retargetClip`, plus `addShape` — a
-// second, plan-facing name for the already-offered `addShapeFromMesh` tool.
+// MCP tools over `anim-21`'s `buildSkeleton`, `anim-15`'s `bakeIk`,
+// `anim-20`'s `bakeShapeDrivers`, `anim-13`'s `rigIssues` and `anim-17`'s
+// `retargetClip`, plus `addShape` — a second, plan-facing name for the
+// already-offered `addShapeFromMesh` tool.
 // Kept as one block, appended after every other tool, rather than woven in
 // beside the rig/keyframe tools above: `setKey`, `extractRootMotion` and
 // `addShapeFromMesh` already existed on this branch before this row and
 // are untouched; everything here is new, and a merge that finds this file
 // changed elsewhere too only has to reconcile one seam, not several.
+//
+// **`paintWeights` itself sits here too, but runs through `_command`, not
+// a session recipe.** `anim-10`'s own `PaintWeights` is a real
+// `ModelCommand` (`flutter3d_model_core`'s own `paint_weights.dart`) —
+// unlike every other tool in this block, which wraps a real function that
+// cannot be one. It stays in this block anyway rather than moving up
+// beside the other command tools: it is still part of the same rig
+// pipeline scenario `rig_pipeline_mcp_test.dart` drives end to end, and
+// splitting it out would cost that continuity for no reader's benefit.
 List<ModelTool> get _rigPipelineTools => <ModelTool>[
   ModelTool(
     Tool(
@@ -2403,11 +2412,13 @@ List<ModelTool> get _rigPipelineTools => <ModelTool>[
       description:
           'Paint one joint\'s skin weight influence over one or more brush '
           'samples on an object\'s own mesh, hit-tested against the '
-          'mesh\'s current posed shape. mode "paint" blends onto whatever a '
-          'vertex already has; "assign" replaces its whole influence list '
-          'with this one joint. Not recorded as an undo step — the mesh is '
-          'changed for real (an export afterward sees it), but undo cannot '
-          'take just this back yet.',
+          'mesh\'s current posed shape, as one undo step. mode "paint" '
+          'blends onto whatever a vertex already has; "assign" replaces '
+          'its whole influence list with this one joint. normalize '
+          '(default true) prunes every touched vertex to maxInfluences — '
+          'the project\'s own profile limit by default — and renormalizes '
+          'it, once the stroke (and the mirror, when one is given) is '
+          'done.',
       inputSchema: ObjectSchema(
         properties: <String, Schema>{
           'objectId': IntegerSchema(description: 'the object, with a mesh'),
@@ -2447,7 +2458,13 @@ List<ModelTool> get _rigPipelineTools => <ModelTool>[
           ),
           'normalize': BooleanSchema(
             description:
-                'renormalize every touched vertex after, default false',
+                'prune every touched vertex to maxInfluences and '
+                'renormalize it after the stroke; default true',
+          ),
+          'maxInfluences': IntegerSchema(
+            description:
+                'what normalize prunes to; default the project\'s own '
+                'profile limit',
           ),
         },
         required: <String>[
@@ -2459,39 +2476,7 @@ List<ModelTool> get _rigPipelineTools => <ModelTool>[
         ],
       ),
     ),
-    (ModelSession session, Map<String, Object?> arguments) async {
-      final objectId = arguments['objectId'];
-      final skeletonIndex = arguments['skeletonIndex'];
-      final joint = arguments['joint'];
-      final samplesJson = arguments['samples'];
-      final strength = arguments['strength'];
-      if (objectId is! int ||
-          skeletonIndex is! int ||
-          joint is! int ||
-          samplesJson is! List ||
-          strength is! num) {
-        return (
-          did: false,
-          says:
-              'paintWeights needs "objectId", "skeletonIndex", "joint", '
-              '"samples" and "strength"',
-        );
-      }
-      return session.paintSkinWeights(
-        objectId: objectId,
-        skeletonIndex: skeletonIndex,
-        joint: joint,
-        samples: <Map<String, Object?>>[
-          for (final s in samplesJson) Map<String, Object?>.from(s! as Map),
-        ],
-        strength: strength.toDouble(),
-        mode: arguments['mode'] as String? ?? 'paint',
-        mirror: arguments['mirror'] == null
-            ? null
-            : Map<String, Object?>.from(arguments['mirror']! as Map),
-        normalize: arguments['normalize'] == true,
-      );
-    },
+    _command('paintWeights'),
   ),
   ModelTool(
     Tool(

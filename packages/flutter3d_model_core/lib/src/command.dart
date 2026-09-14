@@ -59,6 +59,7 @@ part 'material_commands.dart';
 part 'mesh_commands.dart';
 part 'modifier_commands.dart';
 part 'object_commands.dart';
+part 'paint_weights.dart';
 part 'profile_commands.dart';
 part 'rig_job_commands.dart';
 part 'root_motion_commands.dart';
@@ -1056,6 +1057,43 @@ _modelCommandReaders =
               ),
             _ => null,
           },
+      'paintWeights': (json) => switch ((
+        json['objectId'],
+        json['skeletonIndex'],
+        json['joint'],
+        json['samples'],
+        json['strength'],
+      )) {
+        (
+          final int objectId,
+          final int skeletonIndex,
+          final int joint,
+          final List<Object?> samplesJson,
+          final num strength,
+        ) =>
+          switch (_brushSamplesFrom(samplesJson)) {
+            final List<BrushSample> samples => switch (_paintMirrorFrom(
+              json['mirror'],
+            )) {
+              (final PaintMirror? mirror, true) => PaintWeights(
+                objectId: objectId,
+                skeletonIndex: skeletonIndex,
+                joint: joint,
+                samples: samples,
+                strength: strength.toDouble(),
+                mode: json['mode'] == 'assign'
+                    ? PaintWeightsMode.assign
+                    : PaintWeightsMode.paint,
+                mirror: mirror,
+                normalize: json['normalize'] as bool? ?? true,
+                maxInfluences: json['maxInfluences'] as int?,
+              ),
+              (_, false) => null,
+            },
+            null => null,
+          },
+        _ => null,
+      },
       'setKey': (json) => switch ((
         json['clipIndex'],
         json['trackIndex'],

@@ -2552,6 +2552,19 @@ void main() {
           axis: 0,
           jointMirror: <int, int>{1: 2, 2: 1},
         ),
+        PaintWeights(
+          objectId: 10,
+          skeletonIndex: 0,
+          joint: 3,
+          samples: <BrushSample>[
+            BrushSample(center: Vector3(1, 1, 0), radius: 0.3),
+          ],
+          strength: 0.6,
+          mode: PaintWeightsMode.assign,
+          mirror: const PaintMirror(axis: 0, jointMirror: <int, int>{1: 2}),
+          normalize: false,
+          maxInfluences: 3,
+        ),
         const SetKey(
           clipIndex: 0,
           trackIndex: 0,
