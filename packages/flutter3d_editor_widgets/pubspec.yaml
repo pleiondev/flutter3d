@@ -1,6 +1,6 @@
 name: flutter3d_editor_widgets
-description: "Shared editor controls — a number field, a colour field, a section label so far — over EditorWidgetsTheme, so the modeller and the level editor stop keeping their own copies."
-version: 0.1.0
+description: "Shared editor controls — a number field, a colour field, a section label, a range slider, an enum dropdown and a texture slot row so far — over EditorWidgetsTheme, so the modeller and the level editor stop keeping their own copies."
+version: 0.2.0
 repository: https://github.com/pleiondev/flutter3d
 homepage: https://flutter3d.pleion.dev
 issue_tracker: https://github.com/pleiondev/flutter3d/issues
@@ -17,19 +17,20 @@ dependencies:
   flutter:
     sdk: flutter
 
-  # Nothing else yet. `ui-27`'s later steps add `RangeSliderField`,
-  # `EnumField`, `TextureSlotRow` and `FieldRow`, some of which read a
-  # `MaterialHint`/`ColorHint`/`TextureHint`/`EnumHint` — that is when
-  # `flutter3d_formats: ^0.6.0` joins this list, and not before: a dependency
-  # nothing here imports is a promise this package is not keeping yet.
+  # `RangeHint`, `EnumHint` and `EnumHintValue` — `RangeSliderField` and
+  # `EnumField` read them, `ui-27`'s own P1. `TexturePathField`, `FieldRow`
+  # and the rest of `ui-27`'s later steps read `ColorHint`/`TextureHint`/
+  # `MaterialHint` off the same package, so no second dependency joins later.
+  flutter3d_formats: ^0.6.0
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0
 
-# **Only `flutter`, on purpose.** Not `flutter3d_editor_core` — the `.fmat`
-# gate stays there — and not `flutter3d_model_core`, whose own `ParamHint`/
-# `EnumHint` are a different type from anything a widget here reads. A widget
-# that seems to need one of those two is a widget that needs a parameter or a
-# callback added to it instead, not an import.
+# **`flutter` and `flutter3d_formats`, and nothing past them, on purpose.**
+# Not `flutter3d_editor_core` — the `.fmat` gate stays there — and not
+# `flutter3d_model_core`, whose own `ParamHint`/`EnumHint` are a different
+# type from anything a widget here reads. A widget that seems to need one of
+# those two is a widget that needs a parameter or a callback added to it
+# instead, not an import.

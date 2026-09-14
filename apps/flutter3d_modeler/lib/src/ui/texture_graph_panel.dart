@@ -32,6 +32,7 @@ import 'dart:ui' show lerpDouble;
 
 import 'package:flutter/material.dart';
 import 'package:flutter3d_core/formats.dart';
+import 'package:flutter3d_editor_widgets/flutter3d_editor_widgets.dart';
 // `EnumHint` hidden: this file switches on `MaterialHint.kind`, which is
 // `flutter3d_formats`' own `EnumHint` — `flutter3d_model_core`'s is
 // `ModelCommand.hints`' own, for a command argument, and the two are kept
@@ -154,30 +155,20 @@ final class HintRow extends StatelessWidget {
     final String label = hint.label ?? field;
     final Widget control = switch (hint.kind) {
       RangeHint(:final double min, :final double max, :final double? step) =>
-        Slider(
-          value: _asDouble(value).clamp(min, max),
+        RangeSliderField(
+          value: _asDouble(value),
           min: min,
           max: max,
-          divisions: step == null || step <= 0
-              ? null
-              : ((max - min) / step).round().clamp(1, 1000000),
+          step: step,
           onChanged: (double v) => onChanged(v),
         ),
-      EnumHint(:final values) => DropdownButton<String>(
-        isDense: true,
-        isExpanded: true,
+      EnumHint(:final values) => EnumField(
         value: switch (value) {
-          final String s when values.any((EnumHintValue v) => v.value == s) =>
-            s,
-          _ => values.first.value,
+          final String s => s,
+          _ => null,
         },
-        items: <DropdownMenuItem<String>>[
-          for (final EnumHintValue v in values)
-            DropdownMenuItem<String>(value: v.value, child: Text(v.label)),
-        ],
-        onChanged: (String? v) {
-          if (v != null) onChanged(v);
-        },
+        options: values,
+        onChanged: onChanged,
       ),
       ColorHint(:final channels) => GestureDetector(
         onTap: () {

@@ -176,8 +176,14 @@ void main() {
           activeIndex: 0,
         );
 
+        // `EnumField` wraps the actual `DropdownButton` now, so its own key
+        // finds the wrapper — the dropdown itself is the sole descendant of
+        // that type underneath it.
         final DropdownButton<String> dropdown = tester.widget(
-          find.byKey(const ValueKey<String>('lightingModelDropdown')),
+          find.descendant(
+            of: find.byKey(const ValueKey<String>('lightingModelDropdown')),
+            matching: find.byType(DropdownButton<String>),
+          ),
         );
         expect(dropdown.value, 'Pbr');
       },

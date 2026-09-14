@@ -1,0 +1,269 @@
+/// A number chosen by dragging between two ends — a slider, paired with
+/// either a live read-out beside it or a box that also accepts one typed in.
+///
+/// **Two shapes, one widget.** The level editor's own version always paired
+/// the slider with a text box: a value a hint describes is not a value the
+/// box stops printing exactly, and a number past the hint's own ends had to
+/// stay typeable rather than being silently dragged back inside them. The
+/// modeller's own version never had a box at all — a material's own field
+/// always sits inside its range, and a two-decimal number beside the thumb
+/// was enough. [RangeSliderField.editable] is which of the two a caller
+/// gets, rather than forcing every caller through the heavier one.
+///
+/// **[RangeSliderField.step] chooses whether the value is quantised.** A step
+/// snaps the value a drag ends on to the nearest increment and rounds it to
+/// four decimal places, so a material file never carries
+/// `0.30000000000000004`. A null step is the promise the other way: what
+/// [RangeSliderField.onChanged] receives is exactly what the drag produced,
+/// bit for bit — the shape a caller with no step of its own has to ask for,
+/// rather than inheriting a rounding nobody asked for.
+library;
+
+import 'package:flutter/material.dart';
+
+import 'editor_widgets_theme.dart';
+
+/// A slider between [min] and [max].
+final class RangeSliderField extends StatefulWidget {
+  const RangeSliderField({
+    super.key,
+    this.label,
+    required this.value,
+    required this.min,
+    required this.max,
+    this.step,
+    required this.onChanged,
+    this.enabled = true,
+    this.editable = false,
+  });
+
+  /// Drawn in a column [EditorWidgetsTheme.labelWidth] wide before the
+  /// slider — or, when null, not drawn at all. A caller that already lays
+  /// out its own label column (`FieldRow`'s own row, once it arrives) passes
+  /// null and keeps doing that itself.
+  final String? label;
+
+  /// The value right now. Shown wherever the slider itself cannot reach it
+  /// — outside `[min, max]`, or between two steps — rather than clamped or
+  /// rounded on the way in: the engine's own note on `RangeHint` is that a
+  /// hint describes a control and never constrains what a document may say.
+  final double value;
+
+  final double min;
+  final double max;
+
+  /// The increment a drag lands on, or null for a value that stays exactly
+  /// what the drag produced — see the library comment.
+  final double? step;
+
+  /// Called once, when a drag ends or a typed value is submitted — never
+  /// while a finger is still on the thumb, the same bargain every history
+  /// this engine keeps strikes for a drag.
+  final ValueChanged<double> onChanged;
+
+  final bool enabled;
+
+  /// Whether the slider is paired with a text box that shows the exact
+  /// value and accepts one typed in, with a line under the row when [value]
+  /// sits outside `[min, max]`. False draws the modeller's own lighter row:
+  /// a two-decimal number that only ever shows what the slider itself can
+  /// reach.
+  final bool editable;
+
+  @override
+  State<RangeSliderField> createState() => _RangeSliderFieldState();
+}
+
+class _RangeSliderFieldState extends State<RangeSliderField> {
+  /// Where the thumb is while a finger is on it — null once the drag ends,
+  /// so the slider then shows [RangeSliderField.value] itself, the same
+  /// number every other reader of the document sees.
+  double? _dragging;
+
+  @override
+  void didUpdateWidget(RangeSliderField old) {
+    super.didUpdateWidget(old);
+    // The document is the source of truth: an undo, or an edit from
+    // somewhere else entirely, has to show here rather than under a stale
+    // drag position.
+    if (widget.value != old.value) _dragging = null;
+  }
+
+  void _commit(double raw) {
+    final double? step = widget.step;
+    if (step == null || step <= 0.0) {
+      widget.onChanged(raw);
+      return;
+    }
+    final double stepped = (raw / step).roundToDouble() * step;
+    widget.onChanged(double.parse(stepped.toStringAsFixed(4)));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final ThemeData theme = Theme.of(context);
+    final EditorWidgetsTheme editorTheme = EditorWidgetsTheme.of(context);
+    final double value = widget.value;
+    final double shown = (_dragging ?? value).clamp(widget.min, widget.max);
+    final double? step = widget.step;
+    final int? divisions = step == null || step <= 0.0
+        ? null
+        : ((widget.max - widget.min) / step).round().clamp(1, 1000000);
+    final bool outside = value < widget.min || value > widget.max;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
+      children: <Widget>[
+        Row(
+          children: <Widget>[
+            if (widget.label case final String label)
+              SizedBox(
+                width: editorTheme.labelWidth,
+                child: Text(
+                  label,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: widget.enabled ? null : theme.disabledColor,
+                  ),
+                ),
+              ),
+            Expanded(
+              child: SliderTheme(
+                data: SliderTheme.of(context).copyWith(
+                  trackHeight: 3,
+                  thumbShape: const RoundSliderThumbShape(
+                    enabledThumbRadius: 6,
+                  ),
+                ),
+                child: Slider(
+                  // Keyed by label so a test can tell one field's slider from
+                  // another's sitting in the same panel.
+                  key: ValueKey<String>('slider-${widget.label}'),
+                  value: shown,
+                  min: widget.min,
+                  max: widget.max,
+                  divisions: divisions,
+                  onChanged: widget.enabled
+                      ? (double v) => setState(() => _dragging = v)
+                      : null,
+                  onChangeEnd: widget.enabled
+                      ? (double v) {
+                          setState(() => _dragging = null);
+                          _commit(v);
+                        }
+                      : null,
+                ),
+              ),
+            ),
+            const SizedBox(width: 6),
+            if (widget.editable)
+              SizedBox(
+                width: 54,
+                child: _ValueBox(
+                  text: _numberText(value),
+                  enabled: widget.enabled,
+                  onSubmitted: widget.onChanged,
+                ),
+              )
+            else
+              SizedBox(
+                width: 34,
+                child: Text(
+                  shown.toStringAsFixed(2),
+                  textAlign: TextAlign.right,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: widget.enabled ? null : theme.disabledColor,
+                    fontFeatures: const <FontFeature>[
+                      FontFeature.tabularFigures(),
+                    ],
+                  ),
+                ),
+              ),
+          ],
+        ),
+        if (widget.editable && outside)
+          Padding(
+            padding: EdgeInsets.only(
+              left: widget.label == null ? 0 : editorTheme.labelWidth,
+            ),
+            child: Text(
+              '${_numberText(value)} is outside '
+              '${_numberText(widget.min)}–${_numberText(widget.max)}',
+              style: TextStyle(color: theme.colorScheme.error, fontSize: 10),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+/// [value] with no trailing `.0` — a plain `0` or `0.75` rather than `0.000`
+/// or `0.750`, the same rule the row's own outside-range line and text box
+/// both read numbers by.
+String _numberText(double value) =>
+    value == value.roundToDouble() ? '${value.toInt()}' : '$value';
+
+/// A box that reports a number when the person has finished, and only then
+/// — [RangeSliderField.editable]'s own fallback for a value that may sit
+/// outside the slider's own ends.
+final class _ValueBox extends StatefulWidget {
+  const _ValueBox({
+    required this.text,
+    required this.enabled,
+    required this.onSubmitted,
+  });
+
+  final String text;
+  final bool enabled;
+  final ValueChanged<double> onSubmitted;
+
+  @override
+  State<_ValueBox> createState() => _ValueBoxState();
+}
+
+class _ValueBoxState extends State<_ValueBox> {
+  late final TextEditingController _controller = TextEditingController(
+    text: widget.text,
+  );
+
+  @override
+  void didUpdateWidget(_ValueBox old) {
+    super.didUpdateWidget(old);
+    if (widget.text != _controller.text) _controller.text = widget.text;
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _submit(String text) {
+    final double? parsed = double.tryParse(text.trim().replaceAll(',', '.'));
+    if (parsed != null) widget.onSubmitted(parsed);
+  }
+
+  @override
+  Widget build(BuildContext context) => Focus(
+    // Keystrokes belong to the box while it has the focus — an ancestor's
+    // own `Focus` reading bare letters as camera or tool shortcuts must not
+    // see them while a number is being typed.
+    onKeyEvent: (FocusNode node, KeyEvent event) =>
+        KeyEventResult.skipRemainingHandlers,
+    child: TextField(
+      controller: _controller,
+      enabled: widget.enabled,
+      onSubmitted: _submit,
+      onTapOutside: (_) {
+        FocusManager.instance.primaryFocus?.unfocus();
+        _submit(_controller.text);
+      },
+      textAlign: TextAlign.right,
+      style: Theme.of(context).textTheme.bodySmall,
+      decoration: const InputDecoration(
+        isDense: true,
+        contentPadding: EdgeInsets.symmetric(horizontal: 6, vertical: 6),
+      ),
+    ),
+  );
+}

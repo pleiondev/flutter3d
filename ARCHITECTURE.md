@@ -217,7 +217,7 @@ point of §3.3.
 | `flutter3d_audio` | Loading, streaming, 3D positioning, voice limits, mix buses |
 | `flutter3d_app` | What any application on the engine is assembled from: which backend a build draws through, the surface a frame reaches Flutter through, widgets in the scene, a level loaded into a scene, and storage. The modeller, the editor and the lessons use it and nothing above it |
 | `flutter3d_editor_core` | The headless half of a level editor: the document being changed and undone, the handles a pointer hits, the palette a level builds out of itself, the project a template becomes. Plain Dart |
-| `flutter3d_editor_widgets` | Editor controls the modeller and the level editor share instead of each keeping its own copy — `ui-27`'s own package: `SectionLabel`, `NumberField`, `ColorField` and `EditorWidgetsTheme` so far |
+| `flutter3d_editor_widgets` | Editor controls the modeller and the level editor share instead of each keeping its own copy — `ui-27`'s own package: `SectionLabel`, `NumberField`, `ColorField`, `RangeSliderField`, `EnumField`, `TextureSlotRow` and `EditorWidgetsTheme` so far |
 | `flutter3d_editor_mcp` | The same editor offered to an agent: `EditorCommand` as a table of MCP tools over stdio, one document per process, plus the two verbs a caller with no screen needs — a flat listing, and the validator. Plain Dart |
 | `flutter3d_mcp_kit` | What every MCP server here shares: a tool paired with its handler, a server that is a list of them over one session, the two shapes of answer, and a loopback HTTP transport an open application offers its session over. Plain Dart |
 | `flutter3d_sim_mcp` | A level an agent plays blind, of whatever `HeadlessGame` a host hands it — step, read back, digest, hand over the run — and many seeded playtests in isolates; and a rendered frame of a level offered to an agent: drawn with no GPU in one of the renderer's debug views, one pixel read back unclamped, the passes the frame graph ran. Names no genre |
@@ -2830,11 +2830,10 @@ in is still well ahead of the sixth; and `flutter3d_editor_mcp` sits one tier
 behind that core and nowhere near the applications, because it is a published
 package that happens to have a `bin/` rather than a program that happens to
 be in this repository; and `flutter3d_editor_widgets` sits in the third tier
-although its own dependency graph — `flutter` alone, for now — would let it
-go out in the first, because it is `ui-27`'s own shared-control layer for the
-two editors and later steps of that same row give it `flutter3d_formats`,
-which is a second tier's worth of floor to promise ahead of time rather than
-move it once that dependency actually lands.
+— one past `flutter3d_formats` — because `ui-27`'s own `RangeSliderField` and
+`EnumField` read `RangeHint`/`EnumHint` off it, a second tier's worth of
+floor `ui-27`'s first step had already promised ahead of time, precisely so
+this dependency would land without moving the package once it did.
 
 **The applications are not packages.** `apps/` keeps its path dependencies: four
 demo games, an editor and a template are things to clone, not things to depend

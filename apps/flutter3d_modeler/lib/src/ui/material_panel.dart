@@ -32,91 +32,6 @@ String? _builtInShaderName(LightingModel lighting) {
   return null;
 }
 
-/// A number bound to one material field, committing once per drag the same
-/// way [ColorField] does — [Slider.onChanged] only ever updates what is
-/// drawn, and [Slider.onChangeEnd] is the one call that reaches
-/// [MaterialPanel.onSetField].
-class _SliderRow extends StatefulWidget {
-  const _SliderRow({
-    required this.label,
-    required this.value,
-    required this.min,
-    required this.max,
-    required this.onChanged,
-    this.enabled = true,
-  });
-
-  final String label;
-  final double value;
-  final double min;
-  final double max;
-  final ValueChanged<double> onChanged;
-  final bool enabled;
-
-  @override
-  State<_SliderRow> createState() => _SliderRowState();
-}
-
-class _SliderRowState extends State<_SliderRow> {
-  double? _dragging;
-
-  @override
-  void didUpdateWidget(_SliderRow old) {
-    super.didUpdateWidget(old);
-    if (widget.value != old.value) _dragging = null;
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final double shown = _dragging ?? widget.value;
-    return Row(
-      children: <Widget>[
-        SizedBox(
-          width: 96,
-          child: Text(
-            widget.label,
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: widget.enabled ? null : theme.disabledColor,
-            ),
-          ),
-        ),
-        Expanded(
-          child: Slider(
-            // Keyed by label so a test can tell the metallic slider from the
-            // roughness one — and from `ColorField`'s own three sliders,
-            // which sit right above these in the same panel.
-            key: ValueKey<String>('slider-${widget.label}'),
-            value: shown.clamp(widget.min, widget.max),
-            min: widget.min,
-            max: widget.max,
-            onChanged: widget.enabled
-                ? (double v) => setState(() => _dragging = v)
-                : null,
-            onChangeEnd: widget.enabled
-                ? (double v) {
-                    setState(() => _dragging = null);
-                    widget.onChanged(v);
-                  }
-                : null,
-          ),
-        ),
-        SizedBox(
-          width: 34,
-          child: Text(
-            shown.toStringAsFixed(2),
-            textAlign: TextAlign.right,
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: widget.enabled ? null : theme.disabledColor,
-              fontFeatures: const <FontFeature>[FontFeature.tabularFigures()],
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
 /// What one texture slot needs: what it is called today, and how to change
 /// or clear it — the same trio `mat-04a-n` gave the base colour slot alone,
 /// generalised over [MaterialPanel.textureSlots]' five keys instead of one
@@ -126,53 +41,6 @@ typedef TextureSlotController = ({
   VoidCallback onChoose,
   VoidCallback? onClear,
 });
-
-/// One texture slot's own row: a label, the image it holds (or none), and
-/// the choose/clear pair [MaterialPanel.textureSlots] hands it.
-class _TextureSlotRow extends StatelessWidget {
-  const _TextureSlotRow({required this.label, required this.controller});
-
-  final String label;
-  final TextureSlotController controller;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Padding(
-      padding: const EdgeInsets.only(top: 4),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          Text(label, style: theme.textTheme.bodySmall),
-          Row(
-            children: <Widget>[
-              Expanded(
-                child: Text(
-                  controller.name ?? 'None',
-                  overflow: TextOverflow.ellipsis,
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    fontStyle: controller.name == null
-                        ? FontStyle.italic
-                        : FontStyle.normal,
-                  ),
-                ),
-              ),
-              TextButton(
-                onPressed: controller.onChoose,
-                child: const Text('Choose…'),
-              ),
-              if (controller.onClear != null)
-                TextButton(
-                  onPressed: controller.onClear,
-                  child: const Text('Clear'),
-                ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
 
 /// The selected object's materials, and the fields of whichever it is
 /// painted with.
@@ -308,39 +176,36 @@ class MaterialPanel extends StatelessWidget {
                 ),
               ),
               Expanded(
-                child: DropdownButton<String>(
+                child: EnumField(
                   key: const ValueKey<String>('lightingModelDropdown'),
-                  isDense: true,
-                  isExpanded: true,
                   value: _builtInShaderName(lightingModelOf(surface)),
-                  items: <DropdownMenuItem<String>>[
-                    for (final value in lightingModelHint.values)
-                      DropdownMenuItem<String>(
-                        value: value.value,
-                        child: Text(value.label),
-                      ),
-                  ],
-                  onChanged: (String? shader) {
-                    if (shader != null) onSetField('lightingModel', shader);
-                  },
+                  options: lightingModelHint.values,
+                  onChanged: (String shader) =>
+                      onSetField('lightingModel', shader),
                 ),
               ),
             ],
           ),
           const SizedBox(height: 4),
-          _SliderRow(
+          RangeSliderField(
             label: builtInMaterialHints['metallic']!.label ?? 'Metallic',
             value: surface.metallic,
             min: metallicHint.min,
             max: metallicHint.max,
+            // Written bit for bit: a step here would round a drag's own
+            // double before it ever reached `onSetField`, and a `.fmat`
+            // this panel writes is meant to carry exactly what the slider
+            // produced.
+            step: null,
             enabled: metallicEnabled,
             onChanged: (double v) => onSetField('metallic', v),
           ),
-          _SliderRow(
+          RangeSliderField(
             label: builtInMaterialHints['roughness']!.label ?? 'Roughness',
             value: surface.roughness,
             min: roughnessHint.min,
             max: roughnessHint.max,
+            step: null,
             onChanged: (double v) => onSetField('roughness', v),
           ),
           const SizedBox(height: 6),
@@ -372,35 +237,26 @@ class MaterialPanel extends StatelessWidget {
                 ),
               ),
               Expanded(
-                child: DropdownButton<String>(
+                child: EnumField(
                   key: const ValueKey<String>('alphaModeDropdown'),
-                  isDense: true,
-                  isExpanded: true,
                   value: surface.alphaMode.name,
-                  items: <DropdownMenuItem<String>>[
-                    for (final value in alphaModeHint.values)
-                      DropdownMenuItem<String>(
-                        value: value.value,
-                        child: Text(value.label),
-                      ),
-                  ],
-                  onChanged: (String? mode) {
-                    if (mode != null) onSetField('alphaMode', mode);
-                  },
+                  options: alphaModeHint.values,
+                  onChanged: (String mode) => onSetField('alphaMode', mode),
                 ),
               ),
             ],
           ),
           if (surface.alphaMode == SurfaceAlphaMode.mask)
-            _SliderRow(
+            RangeSliderField(
               label: 'Cutoff',
               value: surface.alphaCutoff,
               min: 0.0,
               max: 1.0,
+              step: null,
               onChanged: (double v) => onSetField('alphaCutoff', v),
             ),
           for (final entry in textureSlots.entries)
-            _TextureSlotRow(
+            TextureSlotRow(
               label: switch (entry.key) {
                 'albedo' => 'Base colour texture',
                 'normal' => 'Normal map',
@@ -409,7 +265,9 @@ class MaterialPanel extends StatelessWidget {
                 'emissive' => 'Emissive map',
                 _ => entry.key,
               },
-              controller: entry.value,
+              name: entry.value.name,
+              onChoose: entry.value.onChoose,
+              onClear: entry.value.onClear,
             ),
           const SizedBox(height: 4),
           _MaterialAdvancedSection(
@@ -489,27 +347,30 @@ class _MaterialAdvancedSection extends StatelessWidget {
         title: Text('Advanced', style: theme.textTheme.bodySmall),
         childrenPadding: EdgeInsets.zero,
         children: <Widget>[
-          _SliderRow(
+          RangeSliderField(
             label: 'Emissive strength',
             value: emissiveStrength.value,
             min: emissiveStrength.min,
             max: emissiveStrength.max,
+            step: null,
             onChanged: emissiveStrength.onChanged,
           ),
           if (normalScale != null)
-            _SliderRow(
+            RangeSliderField(
               label: 'Normal scale',
               value: normalScale!.value,
               min: normalScale!.min,
               max: normalScale!.max,
+              step: null,
               onChanged: normalScale!.onChanged,
             ),
           if (occlusionStrength != null)
-            _SliderRow(
+            RangeSliderField(
               label: 'Occlusion strength',
               value: occlusionStrength!.value,
               min: occlusionStrength!.min,
               max: occlusionStrength!.max,
+              step: null,
               onChanged: occlusionStrength!.onChanged,
             ),
           CheckboxListTile(
