@@ -25,6 +25,7 @@ import '../pages/settings_page.dart';
 import '../services.dart';
 import '../storage/inspect.dart';
 import 'cookies.dart';
+import 'learn_routes.dart';
 import 'render.dart';
 import 'request.dart';
 import 'static_files.dart';
@@ -62,7 +63,8 @@ Handler buildHandler(Services services) {
       '/privacy',
       (Request request) async =>
           htmlPage(PrivacyPage(signedIn: await userOf(request))),
-    );
+    )
+    ..mount('/learn/modeler/', learnRoutes());
 
   // --- registration ------------------------------------------------------------
 

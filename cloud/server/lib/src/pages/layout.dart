@@ -96,6 +96,7 @@ class _TopBar extends StatelessComponent {
         classes: 'brand',
       ),
       nav([
+        a([Component.text('Learn')], href: '/learn/modeler/'),
         if (signedIn case final user?) ...[
           a([Component.text('My models')], href: '/me'),
           a(

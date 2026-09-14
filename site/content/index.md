@@ -50,6 +50,11 @@ flutter3d is a renderer, a game layer, and three finished games of different gen
     <h3>Core</h3>
     <p>The renderer, the scene graph, geometry, assets, the fixed step and collision.</p>
   </a></li>
+  <li><a href="https://models.pleion.dev/learn/modeler/">
+    <span class="card-kind">Tool · in progress</span>
+    <h3>Modeler</h3>
+    <p>Import, clean up, rig and light a model, case by case, on models.pleion.dev — with an account and a cabinet to keep the result in.</p>
+  </a></li>
   <li><a href="/shooter/demo/">
     <span class="card-kind">Genre · playable</span>
     <h3>Shooter</h3>
