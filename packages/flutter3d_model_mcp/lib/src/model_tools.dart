@@ -1507,6 +1507,101 @@ List<ModelTool> get _commandTools => <ModelTool>[
   ),
   ModelTool(
     Tool(
+      name: 'setRig',
+      description:
+          'One undo step for a whole auto-rig result: appends jointObjects '
+          '(each one\'s own id already chosen, e.g. from buildSkeleton\'s '
+          'own preview) to the project, appends skeleton as a new skeleton, '
+          'and — when skinObjectId is given — binds it to that new '
+          'skeleton, writing weights onto its mesh too when weights is '
+          'also given. Refused: an id in jointObjects already taken, '
+          'skinObjectId with no mesh to skin, or weights.baseVersion '
+          'behind skinObjectId\'s own current version.',
+      inputSchema: ObjectSchema(
+        properties: <String, Schema>{
+          'jointObjects': ListSchema(
+            description:
+                'the new joint (and, for a rig controller, socket) '
+                'objects, in order — each one\'s own parent may name an '
+                'earlier entry in this same list',
+            items: ObjectSchema(
+              properties: <String, Schema>{
+                'id': IntegerSchema(description: 'not already in the project'),
+                'name': StringSchema(),
+                'transform': _matrix16('this joint\'s own local transform'),
+                'parent': IntegerSchema(
+                  description:
+                      'an earlier id in jointObjects, or omit for the root',
+                ),
+              },
+              required: <String>['id', 'name', 'transform'],
+            ),
+          ),
+          'skeleton': ObjectSchema(
+            description: 'the new skeleton, addressing jointObjects by id',
+            properties: <String, Schema>{
+              'name': StringSchema(description: 'optional'),
+              'joints': _ints('jointObjects ids, in vertex-attribute order'),
+              'inverseBindMatrices': ListSchema(
+                description: 'one per joint, same order',
+                items: _matrix16('an inverse bind matrix'),
+              ),
+              'skeletonRoot': IntegerSchema(description: 'optional'),
+              'constraints': ListSchema(
+                description: 'optional two-bone IK chains',
+                items: ObjectSchema(
+                  properties: <String, Schema>{
+                    'rootJointId': IntegerSchema(),
+                    'midJointId': IntegerSchema(),
+                    'effectorJointId': IntegerSchema(),
+                    'target': _vector('the effector\'s own target position'),
+                    'pole': _vector('where the mid joint bends toward'),
+                  },
+                  required: <String>[
+                    'rootJointId',
+                    'midJointId',
+                    'effectorJointId',
+                    'target',
+                    'pole',
+                  ],
+                ),
+              ),
+            },
+            required: <String>['joints', 'inverseBindMatrices'],
+          ),
+          'skinObjectId': IntegerSchema(
+            description: 'optional; bind this object to the new skeleton',
+          ),
+          'weights': ObjectSchema(
+            description:
+                'optional; a bind-weights job\'s own result for '
+                'skinObjectId\'s mesh — refused unless baseVersion still '
+                'matches skinObjectId\'s own current version',
+            properties: <String, Schema>{
+              'baseVersion': IntegerSchema(
+                description: 'skinObjectId\'s own version when this was read',
+              ),
+              'data': StringSchema(
+                description:
+                    'base64 Float32, 8 numbers per vertex slot (4 joint '
+                    'indices into skeleton.joints, then 4 weights)',
+              ),
+            },
+            required: <String>['baseVersion', 'data'],
+          ),
+          'label': StringSchema(
+            description:
+                'what the history offers to undo, e.g. "auto-rig '
+                'humanoid (17 joints)"',
+          ),
+        },
+        required: <String>['jointObjects', 'skeleton', 'label'],
+      ),
+    ),
+    _command('setRig'),
+  ),
+  ModelTool(
+    Tool(
       name: 'setKey',
       description:
           'Write (or replace) a keyframe at a given time, on a named '

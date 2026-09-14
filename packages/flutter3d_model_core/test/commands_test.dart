@@ -2565,6 +2565,36 @@ void main() {
           normalize: false,
           maxInfluences: 3,
         ),
+        SetRig(
+          jointObjects: <ModelObject>[
+            ModelObject(
+              id: 20,
+              name: 'hips',
+              geometry: const SocketGeometry(),
+              transform: Matrix4.identity(),
+            ),
+          ],
+          skeleton: ProjectSkeleton(
+            joints: <int>[20],
+            inverseBindMatrices: <Matrix4>[Matrix4.identity()],
+            name: 'rig',
+            constraints: <IkConstraint>[
+              IkConstraint(
+                rootJointId: 20,
+                midJointId: 20,
+                effectorJointId: 20,
+                target: Vector3(0, 0, 0),
+                pole: Vector3(0, 1, 0),
+              ),
+            ],
+          ),
+          skinObjectId: 10,
+          weights: SkinWeightsBlob(
+            baseVersion: 1,
+            data: Float32List.fromList(<double>[0, 0, 0, 0, 1, 0, 0, 0]),
+          ),
+          label: 'auto-rig humanoid (1 joint)',
+        ),
         const SetKey(
           clipIndex: 0,
           trackIndex: 0,

@@ -224,6 +224,51 @@ void main() {
       expect(mirror.says, contains('there is no skeleton 0'));
     });
 
+    test('autoRig through the session appears in the journal as setRig, '
+        'and undo takes back the whole rig — doc-36d', () async {
+      final session = ModelSession(ModelHistory(const ModelProject()));
+      await toolNamed(
+        'addPrimitive',
+      ).run(session, <String, Object?>{'kind': 'box'});
+      await toolNamed('bakeToMesh').run(session, <String, Object?>{'id': 1});
+
+      const markers = <String, List<double>>{
+        'hips': <double>[0, 1.0, 0],
+        'spine': <double>[0, 1.2, 0],
+        'chest': <double>[0, 1.4, 0],
+        'neck': <double>[0, 1.6, 0],
+        'head': <double>[0, 1.75, 0],
+        'leftShoulder': <double>[0.2, 1.4, 0],
+        'leftElbow': <double>[0.5, 1.4, 0],
+        'leftWrist': <double>[0.8, 1.4, 0],
+        'leftHip': <double>[0.1, 1.0, 0],
+        'leftKnee': <double>[0.1, 0.5, 0],
+        'leftAnkle': <double>[0.1, 0.05, 0],
+      };
+
+      final rigged = await toolNamed('autoRig').run(session, <String, Object?>{
+        'template': 'humanoid',
+        'markers': markers,
+        'skinObjectId': 1,
+      });
+      expect(rigged.did, isTrue, reason: rigged.says);
+      expect(session.history.project.skeletons, hasLength(1));
+      expect(session.history.project[1]!.skeletonIndex, 0);
+
+      // The whole point of `doc-36d`: today's auto-rig used to commit a
+      // `ReplaceDocument`, which `command.dart` deliberately keeps out of
+      // `modelCommandNames` — so it never reached the journal at all. It is
+      // `setRig` now.
+      expect(session.history.journal.last.name, 'setRig');
+      expect(session.history.journal.last, isA<SetRig>());
+
+      expect(session.history.canUndo, isTrue);
+      expect(session.history.undo(), isTrue);
+      expect(session.history.project.skeletons, isEmpty);
+      expect(session.history.project[1]!.skeletonIndex, isNull);
+      expect(session.history.project.objects, hasLength(1));
+    });
+
     test('addShapeFromMesh, setShapeWeight, renameShape and deleteShape all '
         'reach the real shape set', () async {
       final session = ModelSession(ModelHistory(const ModelProject()));

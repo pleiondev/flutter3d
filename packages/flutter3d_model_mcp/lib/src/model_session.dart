@@ -638,7 +638,7 @@ final class ModelSession {
   //
   // MCP tools over `anim-21`'s `buildSkeleton`, `anim-15`'s `bakeIk`,
   // `anim-20`'s `bakeShapeDrivers`, `anim-13`'s `rigIssues` and `anim-17`'s
-  // `retargetClip` — none of them a `ModelCommand` (`command.dart`'s own
+  // `retargetClip` — most of them not a `ModelCommand` (`command.dart`'s own
   // sealed hierarchy cannot be extended from outside `flutter3d_model_core`),
   // so each is a session recipe the same shape
   // `cleanup`/`makeGameReady`/`buildFrom` above already are: read the
@@ -652,15 +652,22 @@ final class ModelSession {
   // so the `paintWeights` MCP tool runs it through the ordinary
   // `_command('paintWeights')` path (`model_tools.dart`) like every other
   // command tool, and there is nothing left for a session recipe to do.
+  // `autoRig` is `doc-36d`'s own second such row: its own result is
+  // `SetRig` now, not `ReplaceDocument`, though `autoRig` itself stays a
+  // session recipe — `buildSkeleton` still is not a `ModelCommand`, only
+  // the document edit its own result produces is one.
 
   /// Builds a [template]-shaped skeleton from [markers] (a world-space
   /// position per name `requiredMarkers(template)` asks for) and adds it —
   /// every new joint object, then the skeleton itself — to this project as
-  /// one undo step. [skinObjectId], when given, is bound to the new
-  /// skeleton in that same step: the "`SetSkeleton` + `SetWeights`
-  /// transaction" `anim-23`'s own row describes, minus the weights half,
-  /// which is the `paintWeights` tool's own job — `PaintWeights`,
-  /// `flutter3d_model_core`'s own `paint_weights.dart`.
+  /// one undo step, through `SetRig` (`flutter3d_model_core`'s own
+  /// `set_rig.dart`, `doc-36d`) rather than `ReplaceDocument`, so an
+  /// auto-rig now actually reaches the undo journal as itself. [skinObjectId],
+  /// when given, is bound to the new skeleton in that same step: the
+  /// "`SetSkeleton` + `SetWeights` transaction" `anim-23`'s own row
+  /// describes, minus the weights half, which is the `paintWeights` tool's
+  /// own job — `PaintWeights`, `flutter3d_model_core`'s own
+  /// `paint_weights.dart`.
   ///
   /// [bounds] is 6 numbers, `[minX, minY, minZ, maxX, maxY, maxZ]`; left
   /// out, this computes a box around every marker [template] actually
@@ -782,32 +789,12 @@ final class ModelSession {
       return (did: false, says: 'autoRig refused: ${error.message}');
     }
 
-    var next = project;
-    for (final object in built.objects) {
-      next = next.added(
-        (int id) => ModelObject(
-          id: id,
-          name: object.name,
-          geometry: object.geometry,
-          transform: object.transform,
-          parent: object.parent,
-        ),
-      );
-    }
-    final skeletonIndex = next.skeletons.length;
-    next = next.copyWith(
-      skeletons: <ProjectSkeleton>[...next.skeletons, built.skeleton],
-    );
-    if (skinObjectId != null) {
-      next = next.withObject(
-        next[skinObjectId]!.copyWith(skeletonIndex: skeletonIndex),
-      );
-    }
-
     return run(
-      ReplaceDocument(
-        next,
-        'auto-rig ${chosen.name} (${built.skeleton.jointCount} joints)',
+      SetRig(
+        jointObjects: built.objects,
+        skeleton: built.skeleton,
+        skinObjectId: skinObjectId,
+        label: 'auto-rig ${chosen.name} (${built.skeleton.jointCount} joints)',
       ),
     );
   }

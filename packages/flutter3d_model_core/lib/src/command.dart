@@ -64,6 +64,7 @@ part 'profile_commands.dart';
 part 'rig_job_commands.dart';
 part 'root_motion_commands.dart';
 part 'selection_commands.dart';
+part 'set_rig.dart';
 part 'shape_commands.dart';
 part 'simulation_commands.dart';
 part 'texture_graph_commands.dart';
@@ -1057,6 +1058,38 @@ _modelCommandReaders =
               ),
             _ => null,
           },
+      'setRig': (json) => switch ((
+        _jointObjectsFrom(json['jointObjects']),
+        _rigSkeletonFromJson(json['skeleton']),
+        json['label'],
+      )) {
+        (
+          final List<ModelObject> jointObjects,
+          final ProjectSkeleton skeleton,
+          final String label,
+        ) =>
+          switch (json['weights']) {
+            null => SetRig(
+              jointObjects: jointObjects,
+              skeleton: skeleton,
+              skinObjectId: json['skinObjectId'] as int?,
+              label: label,
+            ),
+            final Object? weightsJson => switch (SkinWeightsBlob.fromJson(
+              weightsJson,
+            )) {
+              final SkinWeightsBlob weights => SetRig(
+                jointObjects: jointObjects,
+                skeleton: skeleton,
+                skinObjectId: json['skinObjectId'] as int?,
+                weights: weights,
+                label: label,
+              ),
+              null => null,
+            },
+          },
+        _ => null,
+      },
       'paintWeights': (json) => switch ((
         json['objectId'],
         json['skeletonIndex'],
