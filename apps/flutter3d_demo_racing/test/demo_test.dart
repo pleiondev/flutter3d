@@ -22,7 +22,6 @@ library;
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:flutter3d_demo_racing/src/circuits.dart';
 import 'package:flutter3d_demo_racing/src/staging.dart';
 import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:flutter3d_game_racing/flutter3d_game_racing.dart';

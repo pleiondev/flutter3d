@@ -17,7 +17,6 @@ library;
 import 'package:flutter3d_core/flutter3d_core.dart';
 import 'package:flutter3d_hardware/testing.dart';
 import 'package:test/test.dart';
-import 'package:vector_math/vector_math.dart';
 
 void main() {
   test('a Renderer draws a frame with no Flutter SDK behind it', () {

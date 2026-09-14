@@ -72,6 +72,11 @@ dev_dependencies:
   lints: ^6.0.0
   test: ^1.25.0
 
+  # `tool/embed_migrations.dart` formats its own output before writing it, so
+  # `--check`'s byte comparison and the repository's own `dart format` step
+  # never disagree about the same file.
+  dart_style: ^3.1.0
+
 # **Seven packages by path** — six not on pub.dev yet, one (`flutter3d_physics`)
 # published but not at the version `flutter3d_model_core` now asks for. The
 # geometry and format packages were split out after the 0.6.0 set went out and
