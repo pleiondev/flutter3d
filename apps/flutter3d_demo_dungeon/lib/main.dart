@@ -23,6 +23,7 @@ import 'package:vector_math/vector_math.dart' hide Colors;
 import 'src/backend.dart';
 import 'src/credits.dart';
 import 'src/ending.dart';
+import 'src/first_shot_hint.dart';
 import 'src/frame_effects.dart';
 import 'src/hud.dart';
 import 'src/layers.dart';
@@ -234,6 +235,10 @@ class _GameScreenState extends State<GameScreen>
   /// the message the HUD reads. See `FrameEffects` for why this is not part
   /// of `_step`.
   final FrameEffects _effects = FrameEffects();
+
+  /// Whether this run's own first-shot hint (`ls-g-01`) has already gone to
+  /// [_effects] — reset in `_beginDemo`, so a restart teaches it again.
+  bool _taughtFirstShot = false;
 
   final CameraNode _camera = CameraNode(name: 'player');
   late final RenderView _view;
@@ -604,6 +609,7 @@ class _GameScreenState extends State<GameScreen>
   /// the demo has to begin where the player did. The tape's seed is the dice
   /// the snapshot carries, which is the one number a replay cannot do without.
   void _beginDemo(String asset, LevelReady level) {
+    _taughtFirstShot = false;
     final start = level.staged.sim.save();
     _demoStart = start;
     _demoLevel = asset;
@@ -1110,6 +1116,15 @@ class _GameScreenState extends State<GameScreen>
     // is right for as long as nobody restarts and wrong from the first R. The
     // run owns it now, along with the clock, and `startFresh` empties both.
     if (events.any((GameEvent e) => e is ShotFired)) _weaponView.recoil();
+    // `ls-g-01`: gated on the run, not on the application's own lifetime —
+    // `_beginDemo` clears `_taughtFirstShot`, so a player restarting after
+    // death is taught again, the same reason the kill count resets there
+    // rather than at launch.
+    final hint = firstShotHintFor(events, alreadyTaught: _taughtFirstShot);
+    if (hint != null) {
+      _taughtFirstShot = true;
+      _effects.say(hint);
+    }
     _run.run.crawl.step(dt, killed: events.whereType<ActorDied>().length);
 
     final body = player.body;
