@@ -1,3 +1,39 @@
+## 0.3.0
+
+- **`TexturePathField`, `ColorSwatchField`, `HintTextBox`/`NumbersRow` and
+  `FieldRow` — `ui-27`'s own P2, moved verbatim from
+  `apps/flutter3d_editor`'s own `editor_inspector.dart`.** `TexturePathField`
+  (with `FilePickerDialog` and the `PathOffers` typedef it takes a listing
+  through) is the level editor's own "path on disk" model for a
+  `TextureHint`, from before an editor could list a project's own assets for
+  a caller to hand in. `ColorSwatchField` (with `ColorPaletteDialog`) is a
+  swatch and a twelve-hue grid over a `ColorHint`'s own value — not
+  `ColorField`, which is a full HSV picker with a hex box built for a
+  different caller; the level format's colour hint never asked for hue and
+  saturation sliders. `HintTextBox` and `NumbersRow` are `FieldRow`'s own
+  fallback for a value nothing has hinted: one text box, and a row of them
+  for a vector, with the same `Focus(onKeyEvent: skipRemainingHandlers)` that
+  keeps a name being typed into one of them from being read as a tool
+  shortcut by an ancestor.
+- `FieldRow` itself is the point of the four: one row, typed by a
+  `MaterialHint` when there is one — a slider for a `RangeHint`, a picker for
+  a `ColorHint`, a path field for a `TextureHint`, a dropdown for an
+  `EnumHint` — and by the value's own type when there is not, assembled from
+  `RangeSliderField`/`EnumField` (this package's own P1) and the four widgets
+  above. `apps/flutter3d_editor`'s own `EditorInspector` and `MaterialPanel`
+  now import it from here rather than keeping their own copy;
+  `editor_inspector.dart` re-exports `FieldRow`/`PathOffers`/`nothingToOffer`
+  so nothing that already imported them from that file has to change its own
+  import. Its own controls draw with `Theme.of(context)`'s defaults rather
+  than the level editor's hard-coded dark palette until `ui-27`'s own E1
+  gives that application an explicit `ColorScheme` — an accepted, temporary
+  mismatch, not a regression: no test here or in `apps/flutter3d_editor`
+  checks colour.
+- 23 new tests in `field_row_test.dart`, including one pinning the exact
+  `Focus`-swallows-the-keystroke behaviour and one pinning `apps/
+  flutter3d_editor`'s own colour-hint test's count of exactly four
+  `TextField`s per row.
+
 ## 0.2.0
 
 - **`RangeSliderField`, `EnumField` and `TextureSlotRow` — `ui-27`'s own P1,

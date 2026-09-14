@@ -1,6 +1,6 @@
 name: flutter3d_editor_widgets
-description: "Shared editor controls — a number field, a colour field, a section label, a range slider, an enum dropdown and a texture slot row so far — over EditorWidgetsTheme, so the modeller and the level editor stop keeping their own copies."
-version: 0.2.0
+description: "Shared editor controls — a number field, a colour field, a section label, a range slider, an enum dropdown, a texture slot row, a texture path field, a colour swatch field and the FieldRow they assemble into, so far — over EditorWidgetsTheme, so the modeller and the level editor stop keeping their own copies."
+version: 0.3.0
 repository: https://github.com/pleiondev/flutter3d
 homepage: https://flutter3d.pleion.dev
 issue_tracker: https://github.com/pleiondev/flutter3d/issues
@@ -18,9 +18,10 @@ dependencies:
     sdk: flutter
 
   # `RangeHint`, `EnumHint` and `EnumHintValue` — `RangeSliderField` and
-  # `EnumField` read them, `ui-27`'s own P1. `TexturePathField`, `FieldRow`
-  # and the rest of `ui-27`'s later steps read `ColorHint`/`TextureHint`/
-  # `MaterialHint` off the same package, so no second dependency joins later.
+  # `EnumField` read them, `ui-27`'s own P1. `TexturePathField`,
+  # `ColorSwatchField` and `FieldRow` read `TextureHint`/`ColorHint`/
+  # `MaterialHint` off the same package, `ui-27`'s own P2 — no second
+  # dependency joined to get there.
   flutter3d_formats: ^0.6.0
 
 dev_dependencies:
