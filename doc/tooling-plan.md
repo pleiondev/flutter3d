@@ -2813,9 +2813,22 @@ together with the ones that already existed — are green.
 
 Not done: the literal `--list`/`init` (`ap-10`); the templates appearing
 in the gallery (`tpl-02` hasn't started); the bridge for
-`edu_annotation.attachTo`/`offset` into rendering (see above); retinting
-the product's own geometry on the configurator; a measurement on a real
-phone.
+`edu_annotation.attachTo`/`offset` into rendering (see above); a
+measurement on a real phone.
+
+**Addendum, 2026-09-14 (the configurator's own geometry).** The product
+now does retint, closing the one item this section used to list as not
+done — just not by live-addressing a brush, which still carries no name
+(`packages/flutter3d_sim/lib/src/level/brush.dart`) and still bakes its
+material in at load. `configurator.json` instead places three pre-built
+`part` entities, one per `ConfiguratorController` option, named
+`product-<option, lowercase>`; `main.dart`'s `_applyProductVariant` shows
+exactly the one the controller currently names and hides the other two,
+the same `SceneNode.visible` mechanism `flutter3d_lesson_viewer`'s own
+teardown already proves. The boundary this leaves: a variant is authored
+geometry, chosen from a fixed set the level ships with, not a live retint
+of an arbitrary brush — right for a product line's fixed finishes, not
+for an open-ended sculpt.
 
 ---
 
