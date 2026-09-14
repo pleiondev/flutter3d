@@ -42,6 +42,12 @@ dependencies:
   flutter3d_bridge: ^0.6.0
   flutter3d_session: ^0.6.0
 
+  # The digital-twin sensor reading the seed's own dashboard shows —
+  # `flutter3d_twin` moved this out of the seed itself so a scaffolded
+  # project depends on the same small package the seed does, rather than a
+  # copy of its math.
+  flutter3d_twin: ^0.1.0
+
   # The assembly layer, which this seed used to leave out — and with it the
   # settings screen, the key rebinding, the pointer capture and the gamepad.
   # A scaffolded project got a window and a level and no way to turn the

@@ -28,6 +28,7 @@ import 'package:flutter3d/flutter3d.dart' hide Material;
 import 'package:flutter3d_bridge/flutter3d_bridge.dart';
 import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:flutter3d_session/flutter3d_session.dart';
+import 'package:flutter3d_twin/flutter3d_twin.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:vector_math/vector_math.dart' hide Colors;
 
@@ -287,15 +288,7 @@ class _LevelScreenState extends State<LevelScreen>
   final ViewerTourController _tour = ViewerTourController();
   final ConfiguratorController _configurator = ConfiguratorController();
   final ValueNotifier<double> _twinReading = ValueNotifier<double>(0.0);
-  final DataSourceRegistry _dataSources = DataSourceRegistry(
-    <String, EduDataSource>{
-      'spindle-temp': SamplerDataSource(
-        (step) => <String, Object?>{
-          'value': 60.0 + 15.0 * math.sin(step * 0.05),
-        },
-      ),
-    },
-  );
+  final DataSourceRegistry _dataSources = twinDataSources();
   int _twinStep = 0;
 
   /// The `edu_step` naming this level's `bindings`, if any — resolved once at
