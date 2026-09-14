@@ -438,6 +438,70 @@ void main() {
       expect(plain.lods, isEmpty);
     });
 
+    test("an object's own shape drivers survive the round trip — "
+        "anim-34d's own gap", () {
+      final baseProject = sample();
+      final before = baseProject.withObject(
+        baseProject.objects.first.copyWith(
+          shapeDrivers: const <ShapeDriver>[
+            ShapeDriver(
+              shapeIndex: 2,
+              jointId: 3,
+              axis: DriverAxis.y,
+              from: 0.1,
+              to: 1.2,
+            ),
+            ShapeDriver(
+              shapeIndex: 0,
+              jointId: 1,
+              axis: DriverAxis.z,
+              from: -0.3,
+              to: 0.4,
+            ),
+          ],
+        ),
+      );
+
+      final after = opened(writeProject(before));
+      final bodyBefore = before.objects.first;
+      final bodyAfter = after.objects.first;
+
+      // Mutation: drop `shapeDrivers` from `objectsJsonFor`'s own map and
+      // this reads back empty, since an absent key and a genuinely empty
+      // list are indistinguishable once dropped.
+      expect(bodyAfter.shapeDrivers, hasLength(2));
+      for (var i = 0; i < 2; i++) {
+        expect(
+          bodyAfter.shapeDrivers[i].shapeIndex,
+          bodyBefore.shapeDrivers[i].shapeIndex,
+        );
+        expect(
+          bodyAfter.shapeDrivers[i].jointId,
+          bodyBefore.shapeDrivers[i].jointId,
+        );
+        expect(
+          bodyAfter.shapeDrivers[i].axis.name,
+          bodyBefore.shapeDrivers[i].axis.name,
+        );
+        expect(bodyAfter.shapeDrivers[i].from, bodyBefore.shapeDrivers[i].from);
+        expect(bodyAfter.shapeDrivers[i].to, bodyBefore.shapeDrivers[i].to);
+      }
+
+      // The other objects in `sample()` never had a driver added — the
+      // absent case is an empty list, not some other default a dropped
+      // field could be mistaken for.
+      final plain = opened(writeProject(sample())).objects.first;
+      expect(plain.shapeDrivers, isEmpty);
+    });
+
+    test('an object written before anim-34d — no shapeDrivers key at all — '
+        'reads back with an empty list rather than throwing', () {
+      final after = opened(
+        forge(manifestOf(<Map<String, Object?>>[objectJson()])),
+      );
+      expect(after.objects.single.shapeDrivers, isEmpty);
+    });
+
     test('a socket writes and reads back with no mesh behind it', () {
       final before = ModelProject().added(
         (int id) => ModelObject(
@@ -651,12 +715,14 @@ void main() {
 
       // The numbers this project's file actually lands on: a 16-byte header and
       // six 16-byte directory entries put the manifest at 112, and the manifest
-      // is 1303 bytes (`pro-lod-03`'s own `lods`, written even at its default
-      // — absent, the same way every other optional field grown since v1 is —
-      // which still costs the twelve bytes of `,"lods":null` per object;
-      // widened it from the 1267 an earlier version of this fixture measured),
-      // which ends at 1415 and is not a multiple of four. So the mesh table
-      // starts at 1416, one byte of padding later. That one byte is the whole
+      // is 1363 bytes (`anim-34d`'s own `shapeDrivers`, written even at its
+      // default — absent, the same way every other optional field grown
+      // since v1 is — which still costs the twenty bytes of
+      // `,"shapeDrivers":null` per object; widened it from the 1303 an
+      // earlier version of this fixture measured, itself `pro-lod-03`'s own
+      // widening from 1267 for the same reason, one field earlier), which
+      // ends at 1475 and is not a multiple of four. So the mesh table starts
+      // at 1476, one byte of padding later. That one byte is the whole
       // test — a reader building an `Int32List.view` over the blob throws on
       // an offset that is not a multiple of four, and it throws on the machine
       // of whoever opens the file rather than here.
@@ -669,11 +735,11 @@ void main() {
         ProjectSection.checksums,
       ]);
       expect(directory[0].offset, 112);
-      expect(directory[0].length, 1303);
-      expect(directory[1].offset, 1416);
+      expect(directory[0].length, 1363);
+      expect(directory[1].offset, 1476);
       expect(directory[1].length, 16);
       expect(directory[1].count, 2);
-      expect(directory[2].offset, 1432);
+      expect(directory[2].offset, 1492);
       // This project has nothing imported and nothing textured, and both tables
       // are written all the same: every file this build produces has the same
       // five-section directory, so a reader is never deciding between "none of
@@ -683,7 +749,7 @@ void main() {
       // One row per other section, so the table grows with the directory.
       expect(directory[5].count, 5);
       expect(directory[5].length, 5 * kProjectChecksumEntryBytes);
-      expect(bytes.length, 4048);
+      expect(bytes.length, 4108);
 
       for (final entry in directory) {
         expect(entry.offset % 4, 0, reason: 'section ${entry.kind}');
@@ -886,7 +952,7 @@ void main() {
       expect(
         refusal(bytes),
         'The header claims 500 sections, whose directory ends at byte 8016, '
-        'past the end of a 4048-byte file.',
+        'past the end of a 4108-byte file.',
       );
     });
 
@@ -903,8 +969,8 @@ void main() {
       final cut = Uint8List.sublistView(whole, 0, whole.length - 8);
       expect(
         refusal(cut),
-        'Section 6 runs from byte 4008 for 40 bytes, past the end of a '
-        '4040-byte file.',
+        'Section 6 runs from byte 4068 for 40 bytes, past the end of a '
+        '4100-byte file.',
       );
     });
 
@@ -1072,6 +1138,18 @@ void main() {
         refusal(forge(manifestOf(<Map<String, Object?>>[object]))),
         'Object 0 ("thing")\'s shape key 0 ("a") has 5 position numbers, '
         'and a vertex is three.',
+      );
+    });
+
+    test('a shape driver missing a field', () {
+      final object = objectJson()
+        ..['shapeDrivers'] = <Object?>[
+          <String, Object?>{'shapeIndex': 0, 'jointId': 1, 'from': 0.0},
+        ];
+      expect(
+        refusal(forge(manifestOf(<Map<String, Object?>>[object]))),
+        'Object 0 ("thing")\'s shape driver 0 is missing a field or has one '
+        'of the wrong type.',
       );
     });
 

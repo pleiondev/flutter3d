@@ -31,6 +31,7 @@ import 'project_animation.dart';
 import 'project_morphs.dart';
 import 'scene_lighting.dart';
 import 'selection.dart';
+import 'shape_driver.dart';
 import 'simulation_cache.dart';
 import 'texture_budget.dart';
 
@@ -371,6 +372,7 @@ final class ModelObject {
     this.modifiers = const <ModifierSlot>[],
     this.skeletonIndex,
     this.shapeSet = const ShapeSet(),
+    this.shapeDrivers = const <ShapeDriver>[],
     this.lods = const <LodSpec>[],
     this.simulationCache,
   });
@@ -411,6 +413,14 @@ final class ModelObject {
   /// of a mesh with no sculpted alternate shapes.
   final ShapeSet shapeSet;
 
+  /// Shape keys of this object's own [shapeSet] driven by how far some
+  /// joint has turned, rather than by a person's own slider — `anim-34d`'s
+  /// own row, [ShapeDriver.shapeIndex] indexing this same [shapeSet]'s own
+  /// [ShapeSet.keys]. Empty for almost every object, the ordinary case of a
+  /// shape key nobody has wired to a bone yet; [bakeShapeDrivers] is what
+  /// freezes these into an ordinary weights track.
+  final List<ShapeDriver> shapeDrivers;
+
   /// This object's own levels of detail, finest declared first —
   /// `pro-lod-03`'s own row. Empty for almost every object, the ordinary
   /// case of a mesh nobody has asked to simplify; `LodMeshCache` is what
@@ -443,6 +453,7 @@ final class ModelObject {
     int? skeletonIndex,
     bool clearSkeletonIndex = false,
     ShapeSet? shapeSet,
+    List<ShapeDriver>? shapeDrivers,
     List<LodSpec>? lods,
     SimulationCache? simulationCache,
     bool clearSimulationCache = false,
@@ -459,6 +470,7 @@ final class ModelObject {
         ? null
         : (skeletonIndex ?? this.skeletonIndex),
     shapeSet: shapeSet ?? this.shapeSet,
+    shapeDrivers: shapeDrivers ?? this.shapeDrivers,
     lods: lods ?? this.lods,
     simulationCache: clearSimulationCache
         ? null

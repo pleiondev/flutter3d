@@ -79,6 +79,7 @@ import 'project.dart';
 import 'project_animation.dart';
 import 'project_morphs.dart';
 import 'selection.dart';
+import 'shape_driver.dart';
 import 'texture_budget.dart';
 import 'texture_graph.dart';
 import 'texture_info.dart';
@@ -420,6 +421,10 @@ Uint8List writeProject(
         // most objects most files ever hold.
         'skeletonIndex': object.skeletonIndex,
         'shapeSet': _shapeSetJson(object.shapeSet),
+        // `anim-34d`, younger still — absent reads back as
+        // `<ShapeDriver>[]`, the ordinary case of a shape key nobody has
+        // wired to a bone yet.
+        'shapeDrivers': _shapeDriversJson(object.shapeDrivers),
         // `pro-lod-03`, younger still — absent reads back as `<LodSpec>[]`,
         // the ordinary case of an object nobody has asked to simplify.
         'lods': _lodsJson(object.lods),
@@ -1300,6 +1305,15 @@ Map<String, Object?> _shapeKeyJson(ShapeKey key) => <String, Object?>{
   'name': key.name,
   'positions': <double>[...key.positions],
 };
+
+/// [drivers] as JSON — `null` for the ordinary object with no shape
+/// drivers, the same absent-means-empty shape [_shapeSetJson]/[_lodsJson]
+/// keep for the same reason: a project that never touched `anim-34d`
+/// writes exactly the file it would have written before this row existed.
+List<Object?>? _shapeDriversJson(List<ShapeDriver> drivers) {
+  if (drivers.isEmpty) return null;
+  return <Object?>[for (final ShapeDriver driver in drivers) driver.toJson()];
+}
 
 /// [lods] as JSON — `null` for the ordinary object with no levels of detail,
 /// the same absent-means-empty shape [_shapeSetJson] keeps for the same
@@ -2284,6 +2298,38 @@ VertexLayout? _layoutFrom(Object? json, Map<String, String> pool) {
   return (lods, null);
 }
 
+/// [json] as a list of [ShapeDriver], or the sentence that stops the file —
+/// `(null, null)` for the ordinary absent case, an object no driver has
+/// ever been added to (every project saved before `anim-34d`, among
+/// others). Mirrors [_readLods]'s own shape.
+(List<ShapeDriver>?, String?) _readShapeDrivers(
+  Object? json,
+  int index,
+  String name,
+) {
+  if (json == null) return (null, null);
+  if (json is! List<Object?>) {
+    return (
+      null,
+      'Object $index ("$name") has a shapeDrivers entry that is not a '
+          'list.',
+    );
+  }
+  final drivers = <ShapeDriver>[];
+  for (var i = 0; i < json.length; i++) {
+    final driver = ShapeDriver.fromJson(json[i]);
+    if (driver == null) {
+      return (
+        null,
+        'Object $index ("$name")\'s shape driver $i is missing a field or '
+            'has one of the wrong type.',
+      );
+    }
+    drivers.add(driver);
+  }
+  return (drivers, null);
+}
+
 /// The skeletons [json] describes, or the sentence that stops the file.
 ///
 /// Absent (a file saved before `anim-03` existed) reads as no skeletons at
@@ -2554,6 +2600,10 @@ VertexLayout? _layoutFrom(Object? json, Map<String, String> pool) {
     );
     if (shapeRefusal != null) return (null, shapeRefusal);
 
+    final (List<ShapeDriver>? shapeDrivers, String? driversRefusal) =
+        _readShapeDrivers(entry['shapeDrivers'], index, name);
+    if (driversRefusal != null) return (null, driversRefusal);
+
     final (List<LodSpec>? lods, String? lodsRefusal) = _readLods(
       entry['lods'],
       index,
@@ -2578,6 +2628,7 @@ VertexLayout? _layoutFrom(Object? json, Map<String, String> pool) {
         // already are.
         skeletonIndex: entry['skeletonIndex'] as int?,
         shapeSet: shapeSet ?? const ShapeSet(),
+        shapeDrivers: shapeDrivers ?? const <ShapeDriver>[],
         lods: lods ?? const <LodSpec>[],
       ),
       null,

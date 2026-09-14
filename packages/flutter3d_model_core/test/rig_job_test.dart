@@ -237,6 +237,102 @@ void main() {
         isNull,
       );
     });
+
+    test(
+      'falls back to the shape-owning object\'s own persisted drivers when '
+      'none are given, matching an explicit list byte for byte — anim-34d',
+      () async {
+        final identity = Quaternion.identity();
+        final bent = Quaternion.axisAngle(Vector3(1, 0, 0), _piOverTwo);
+        final clip = ProjectClip(
+          tracks: <ProjectTrack>[
+            ProjectTrack(
+              objectId: 2,
+              track: AnimationTrack(
+                nodeIndex: 0,
+                path: AnimationPath.rotation,
+                interpolation: AnimationInterpolation.linear,
+                times: Float32List.fromList(<double>[0, 1]),
+                values: Float32List.fromList(<double>[
+                  identity.x,
+                  identity.y,
+                  identity.z,
+                  identity.w,
+                  bent.x,
+                  bent.y,
+                  bent.z,
+                  bent.w,
+                ]),
+                componentCount: 4,
+              ),
+            ),
+          ],
+        );
+        const drivers = <ShapeDriver>[
+          ShapeDriver(
+            shapeIndex: 0,
+            jointId: 2,
+            axis: DriverAxis.x,
+            from: 0,
+            to: _piOverTwo,
+          ),
+        ];
+
+        // Built by hand rather than through `.added`: `_straightChain()`
+        // constructs its objects directly, so its own `nextId` is still the
+        // default 1 — `.added` would hand back an object numbered 1 too,
+        // doubling up on the first joint's own id rather than naming a
+        // fourth object.
+        const faceId = 9;
+        final project = ModelProject(
+          objects: <ModelObject>[
+            ..._straightChain().objects,
+            ModelObject(
+              id: faceId,
+              name: 'face',
+              geometry: const SocketGeometry(),
+              transform: Matrix4.identity(),
+              shapeDrivers: drivers,
+            ),
+          ],
+          clips: <ProjectClip>[clip],
+        );
+
+        final fromPersisted = bakeDriversJobRequestFor(
+          project,
+          0,
+          null,
+          faceId,
+          1,
+        )!;
+        final fromExplicit = bakeDriversJobRequestFor(
+          project,
+          0,
+          drivers,
+          faceId,
+          1,
+        )!;
+
+        final persistedResult = await fromPersisted.run();
+        final explicitResult = await fromExplicit.run();
+
+        expect(persistedResult.tracks, hasLength(2));
+        expect(explicitResult.tracks, hasLength(2));
+        final persistedTrack = persistedResult.tracks.last.track;
+        final explicitTrack = explicitResult.tracks.last.track;
+        final persistedOut = Float32List(1);
+        final explicitOut = Float32List(1);
+        for (final t in <double>[0.0, 0.25, 0.5, 0.75, 1.0]) {
+          persistedTrack.sample(t, persistedOut);
+          explicitTrack.sample(t, explicitOut);
+          expect(
+            persistedOut[0],
+            closeTo(explicitOut[0], 1e-5),
+            reason: 't=$t',
+          );
+        }
+      },
+    );
   });
 
   group('BakeRootMotionJobRequest.run', () {

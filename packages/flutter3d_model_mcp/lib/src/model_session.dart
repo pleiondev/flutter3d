@@ -929,10 +929,16 @@ final class ModelSession {
   /// one joint has turned — into one more weights track on [clipIndex],
   /// naming [shapeTargetObjectId]'s own shape keys, and replaces that clip
   /// with the baked result as one undo step.
+  ///
+  /// [drivers] is optional: when it is not given, this bakes
+  /// [shapeTargetObjectId]'s own persisted `ModelObject.shapeDrivers` —
+  /// `anim-34d`'s own row, whatever `addShapeDriver` has built up on that
+  /// object — rather than asking a caller to look them up and pass them
+  /// back in.
   Answer bakeDrivers({
     required int clipIndex,
     required int shapeTargetObjectId,
-    required List<Map<String, Object?>> drivers,
+    List<Map<String, Object?>>? drivers,
   }) {
     if (clipIndex < 0 || clipIndex >= project.clips.length) {
       return (did: false, says: 'there is no clip $clipIndex');
@@ -948,37 +954,55 @@ final class ModelSession {
         says: 'object $shapeTargetObjectId has no shape keys to drive',
       );
     }
-    if (drivers.isEmpty) {
-      return (did: false, says: 'bakeDrivers needs at least one driver');
-    }
-    final parsed = <ShapeDriver>[];
-    for (final driver in drivers) {
-      final shapeIndex = driver['shapeIndex'];
-      final jointId = driver['jointId'];
-      final from = driver['from'];
-      final to = driver['to'];
-      if (shapeIndex is! int || jointId is! int || from is! num || to is! num) {
+
+    final List<ShapeDriver> parsed;
+    if (drivers == null) {
+      parsed = target.shapeDrivers;
+      if (parsed.isEmpty) {
         return (
           did: false,
           says:
-              'each driver needs a "shapeIndex", a "jointId", a "from" and '
-              'a "to"',
+              'bakeDrivers needs at least one driver, and object '
+              '$shapeTargetObjectId has none of its own to fall back on',
         );
       }
-      final axis = switch (driver['axis']) {
-        'y' => DriverAxis.y,
-        'z' => DriverAxis.z,
-        _ => DriverAxis.x,
-      };
-      parsed.add(
-        ShapeDriver(
-          shapeIndex: shapeIndex,
-          jointId: jointId,
-          axis: axis,
-          from: from.toDouble(),
-          to: to.toDouble(),
-        ),
-      );
+    } else {
+      if (drivers.isEmpty) {
+        return (did: false, says: 'bakeDrivers needs at least one driver');
+      }
+      final out = <ShapeDriver>[];
+      for (final driver in drivers) {
+        final shapeIndex = driver['shapeIndex'];
+        final jointId = driver['jointId'];
+        final from = driver['from'];
+        final to = driver['to'];
+        if (shapeIndex is! int ||
+            jointId is! int ||
+            from is! num ||
+            to is! num) {
+          return (
+            did: false,
+            says:
+                'each driver needs a "shapeIndex", a "jointId", a "from" '
+                'and a "to"',
+          );
+        }
+        final axis = switch (driver['axis']) {
+          'y' => DriverAxis.y,
+          'z' => DriverAxis.z,
+          _ => DriverAxis.x,
+        };
+        out.add(
+          ShapeDriver(
+            shapeIndex: shapeIndex,
+            jointId: jointId,
+            axis: axis,
+            from: from.toDouble(),
+            to: to.toDouble(),
+          ),
+        );
+      }
+      parsed = out;
     }
     final baked = bakeShapeDrivers(
       clip: project.clips[clipIndex],

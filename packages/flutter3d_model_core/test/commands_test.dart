@@ -2534,6 +2534,18 @@ void main() {
         const RenameShape(id: 1, shapeIndex: 0, to: 'grin'),
         const DeleteShape(id: 1, shapeIndex: 0),
         const KeyShape(id: 1, clipIndex: 0, time: 0.5),
+        const AddShapeDriver(
+          id: 1,
+          driver: ShapeDriver(
+            shapeIndex: 0,
+            jointId: 3,
+            axis: DriverAxis.y,
+            from: 0.1,
+            to: 1.2,
+          ),
+        ),
+        const RemoveShapeDriver(id: 1, index: 0),
+        const SetShapeDriverField(id: 1, index: 0, field: 'to', value: 2.0),
         AddJoint(
           skeletonIndex: 0,
           objectId: 2,
@@ -3400,6 +3412,221 @@ void main() {
       // shifted down one slot rather than reading each other's.
       expect(out[0], closeTo(0.1, 1e-6));
       expect(out[1], closeTo(0.3, 1e-6));
+    });
+  });
+
+  group('shape drivers', () {
+    test('AddShapeDriver appends to the object\'s own list, refusing an '
+        'unknown shape index or joint, and undoes byte-exact', () {
+      final history = edited();
+      history.run(const AddShapeFromMesh(id: 1, shapeName: 'a'));
+      history.run(const AddShapeFromMesh(id: 1, shapeName: 'b'));
+
+      expect(
+        history.run(
+          const AddShapeDriver(
+            id: 1,
+            driver: ShapeDriver(
+              shapeIndex: 1,
+              jointId: 1,
+              axis: DriverAxis.y,
+              from: 0.1,
+              to: 1.2,
+            ),
+          ),
+        ),
+        isNull,
+      );
+      final drivers = history.project[1]!.shapeDrivers;
+      expect(drivers, hasLength(1));
+      expect(drivers.single.shapeIndex, 1);
+      expect(drivers.single.jointId, 1);
+      expect(drivers.single.axis, DriverAxis.y);
+      expect(drivers.single.from, 0.1);
+      expect(drivers.single.to, 1.2);
+
+      expect(
+        history.run(
+          const AddShapeDriver(
+            id: 1,
+            driver: ShapeDriver(
+              shapeIndex: 5,
+              jointId: 1,
+              axis: DriverAxis.x,
+              from: 0,
+              to: 1,
+            ),
+          ),
+        ),
+        isNotNull,
+      );
+      expect(
+        history.run(
+          const AddShapeDriver(
+            id: 1,
+            driver: ShapeDriver(
+              shapeIndex: 0,
+              jointId: 99,
+              axis: DriverAxis.x,
+              from: 0,
+              to: 1,
+            ),
+          ),
+        ),
+        isNotNull,
+      );
+      // Neither refusal added a second driver.
+      expect(history.project[1]!.shapeDrivers, hasLength(1));
+
+      history.undo();
+      expect(history.project[1]!.shapeDrivers, isEmpty);
+    });
+
+    test('RemoveShapeDriver drops one driver, refusing an unknown index, and '
+        'undoes byte-exact', () {
+      final history = edited();
+      history.run(const AddShapeFromMesh(id: 1, shapeName: 'a'));
+      history.run(
+        const AddShapeDriver(
+          id: 1,
+          driver: ShapeDriver(
+            shapeIndex: 0,
+            jointId: 1,
+            axis: DriverAxis.x,
+            from: 0,
+            to: 1,
+          ),
+        ),
+      );
+
+      expect(history.run(const RemoveShapeDriver(id: 1, index: 5)), isNotNull);
+      expect(history.project[1]!.shapeDrivers, hasLength(1));
+
+      expect(history.run(const RemoveShapeDriver(id: 1, index: 0)), isNull);
+      expect(history.project[1]!.shapeDrivers, isEmpty);
+
+      history.undo();
+      expect(history.project[1]!.shapeDrivers, hasLength(1));
+      expect(history.project[1]!.shapeDrivers.single.jointId, 1);
+    });
+
+    test('SetShapeDriverField changes one field, refusing an unknown field or '
+        'the wrong value shape, and undoes byte-exact', () {
+      final history = edited();
+      history.run(const AddShapeFromMesh(id: 1, shapeName: 'a'));
+      history.run(
+        const AddShapeDriver(
+          id: 1,
+          driver: ShapeDriver(
+            shapeIndex: 0,
+            jointId: 1,
+            axis: DriverAxis.x,
+            from: 0,
+            to: 1,
+          ),
+        ),
+      );
+
+      expect(
+        history.run(
+          const SetShapeDriverField(id: 1, index: 0, field: 'to', value: 2.5),
+        ),
+        isNull,
+      );
+      expect(history.project[1]!.shapeDrivers.single.to, 2.5);
+
+      expect(
+        history.run(
+          const SetShapeDriverField(id: 1, index: 0, field: 'axis', value: 'z'),
+        ),
+        isNull,
+      );
+      expect(history.project[1]!.shapeDrivers.single.axis, DriverAxis.z);
+
+      expect(
+        history.run(
+          const SetShapeDriverField(
+            id: 1,
+            index: 0,
+            field: 'from',
+            value: 'nope',
+          ),
+        ),
+        isNotNull,
+      );
+      expect(
+        history.run(
+          const SetShapeDriverField(
+            id: 1,
+            index: 0,
+            field: 'nonsense',
+            value: 1,
+          ),
+        ),
+        isNotNull,
+      );
+      // Neither refusal moved the driver off what it already had.
+      expect(history.project[1]!.shapeDrivers.single.to, 2.5);
+      expect(history.project[1]!.shapeDrivers.single.axis, DriverAxis.z);
+
+      history.undo();
+      expect(history.project[1]!.shapeDrivers.single.axis, DriverAxis.x);
+      history.undo();
+      expect(history.project[1]!.shapeDrivers.single.to, 1.0);
+    });
+
+    test('DeleteShape(2) drops the driver on 2 and shifts the one on 3 down '
+        'to 2, leaving 1 alone — anim-34d', () {
+      final history = edited();
+      history.run(const AddShapeFromMesh(id: 1, shapeName: 'a'));
+      history.run(const AddShapeFromMesh(id: 1, shapeName: 'b'));
+      history.run(const AddShapeFromMesh(id: 1, shapeName: 'c'));
+      history.run(const AddShapeFromMesh(id: 1, shapeName: 'd'));
+      history.run(
+        const AddShapeDriver(
+          id: 1,
+          driver: ShapeDriver(
+            shapeIndex: 1,
+            jointId: 1,
+            axis: DriverAxis.x,
+            from: 0,
+            to: 1,
+          ),
+        ),
+      );
+      history.run(
+        const AddShapeDriver(
+          id: 1,
+          driver: ShapeDriver(
+            shapeIndex: 2,
+            jointId: 1,
+            axis: DriverAxis.y,
+            from: 0,
+            to: 1,
+          ),
+        ),
+      );
+      history.run(
+        const AddShapeDriver(
+          id: 1,
+          driver: ShapeDriver(
+            shapeIndex: 3,
+            jointId: 1,
+            axis: DriverAxis.z,
+            from: 0,
+            to: 1,
+          ),
+        ),
+      );
+
+      expect(history.run(const DeleteShape(id: 1, shapeIndex: 2)), isNull);
+
+      final drivers = history.project[1]!.shapeDrivers;
+      expect(drivers, hasLength(2));
+      expect(drivers[0].shapeIndex, 1);
+      expect(drivers[0].axis, DriverAxis.x);
+      expect(drivers[1].shapeIndex, 2);
+      expect(drivers[1].axis, DriverAxis.z);
     });
   });
 

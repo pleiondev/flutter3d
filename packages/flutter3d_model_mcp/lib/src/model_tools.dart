@@ -1345,6 +1345,83 @@ List<ModelTool> get _commandTools => <ModelTool>[
   ),
   ModelTool(
     Tool(
+      name: 'addShapeDriver',
+      description:
+          'Add a shape driver to an object: one of its own shape keys, '
+          'wired to track how far a joint has turned about one axis '
+          'between two angles, rather than a person\'s own slider. '
+          'bakeDrivers freezes these into an animation track.',
+      inputSchema: ObjectSchema(
+        properties: <String, Schema>{
+          'id': IntegerSchema(description: 'the object; needs shape keys'),
+          'driver': ObjectSchema(
+            properties: <String, Schema>{
+              'shapeIndex': IntegerSchema(
+                description: 'the shape key, from list',
+              ),
+              'jointId': IntegerSchema(description: 'the joint to read'),
+              'axis': UntitledSingleSelectEnumSchema(
+                description: 'x (default), y or z',
+                values: <String>['x', 'y', 'z'],
+              ),
+              'from': NumberSchema(
+                description: 'the angle, in radians, that reads as 0',
+              ),
+              'to': NumberSchema(
+                description: 'the angle, in radians, that reads as 1',
+              ),
+            },
+            required: <String>['shapeIndex', 'jointId', 'from', 'to'],
+          ),
+        },
+        required: <String>['id', 'driver'],
+      ),
+    ),
+    _command('addShapeDriver'),
+  ),
+  ModelTool(
+    Tool(
+      name: 'removeShapeDriver',
+      description: 'Remove one of an object\'s own shape drivers.',
+      inputSchema: ObjectSchema(
+        properties: <String, Schema>{
+          'id': IntegerSchema(description: 'the object'),
+          'index': IntegerSchema(description: 'the shape driver, from list'),
+        },
+        required: <String>['id', 'index'],
+      ),
+    ),
+    _command('removeShapeDriver'),
+  ),
+  ModelTool(
+    Tool(
+      name: 'setShapeDriverField',
+      description:
+          'Change one field of one of an object\'s own shape drivers, by '
+          'the same field names addShapeDriver\'s own "driver" object '
+          'takes.',
+      inputSchema: ObjectSchema(
+        properties: <String, Schema>{
+          'id': IntegerSchema(description: 'the object'),
+          'index': IntegerSchema(description: 'the shape driver, from list'),
+          'field': UntitledSingleSelectEnumSchema(
+            description: 'shapeIndex, jointId, axis, from or to',
+            values: <String>['shapeIndex', 'jointId', 'axis', 'from', 'to'],
+          ),
+          'value': Schema.combined(
+            description:
+                'a number for shapeIndex/jointId/from/to (from and to in '
+                'radians), or "x"/"y"/"z" for axis',
+            anyOf: <Schema>[NumberSchema(), StringSchema()],
+          ),
+        },
+        required: <String>['id', 'index', 'field', 'value'],
+      ),
+    ),
+    _command('setShapeDriverField'),
+  ),
+  ModelTool(
+    Tool(
       name: 'addSkeleton',
       description:
           'Add a new, empty skeleton — no joints yet — appended at the '
@@ -2749,7 +2826,9 @@ List<ModelTool> get _rigPipelineTools => <ModelTool>[
           'joint has turned about one axis) into one more weights track on '
           'a clip, naming the shape-owning object — additive, so drivers '
           'naming the same shape add rather than the second overwriting '
-          'the first.',
+          'the first. "drivers" is optional: when it is left out, this '
+          'bakes the shape-owning object\'s own drivers, whatever '
+          'addShapeDriver has built up on it.',
       inputSchema: ObjectSchema(
         properties: <String, Schema>{
           'clipIndex': IntegerSchema(description: 'which clip, from list'),
@@ -2757,7 +2836,9 @@ List<ModelTool> get _rigPipelineTools => <ModelTool>[
             description: 'the object whose shape keys are driven',
           ),
           'drivers': ListSchema(
-            description: 'one or more drivers, combined additively',
+            description:
+                'one or more drivers, combined additively; omit to bake '
+                'the object\'s own persisted shape drivers instead',
             items: ObjectSchema(
               properties: <String, Schema>{
                 'shapeIndex': IntegerSchema(
@@ -2779,29 +2860,35 @@ List<ModelTool> get _rigPipelineTools => <ModelTool>[
             ),
           ),
         },
-        required: <String>['clipIndex', 'shapeTargetObjectId', 'drivers'],
+        required: <String>['clipIndex', 'shapeTargetObjectId'],
       ),
     ),
     _sync((ModelSession session, Map<String, Object?> arguments) {
       final clipIndex = arguments['clipIndex'];
       final shapeTargetObjectId = arguments['shapeTargetObjectId'];
-      final driversJson = arguments['drivers'];
-      if (clipIndex is! int ||
-          shapeTargetObjectId is! int ||
-          driversJson is! List) {
+      if (clipIndex is! int || shapeTargetObjectId is! int) {
         return (
           did: false,
-          says:
-              'bakeDrivers needs "clipIndex", "shapeTargetObjectId" and '
-              '"drivers"',
+          says: 'bakeDrivers needs "clipIndex" and "shapeTargetObjectId"',
         );
+      }
+      final driversJson = arguments['drivers'];
+      List<Map<String, Object?>>? drivers;
+      if (driversJson != null) {
+        if (driversJson is! List) {
+          return (
+            did: false,
+            says: '"drivers", when given, needs to be a list',
+          );
+        }
+        drivers = <Map<String, Object?>>[
+          for (final d in driversJson) Map<String, Object?>.from(d! as Map),
+        ];
       }
       return session.bakeDrivers(
         clipIndex: clipIndex,
         shapeTargetObjectId: shapeTargetObjectId,
-        drivers: <Map<String, Object?>>[
-          for (final d in driversJson) Map<String, Object?>.from(d! as Map),
-        ],
+        drivers: drivers,
       );
     }),
   ),

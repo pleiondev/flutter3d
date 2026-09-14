@@ -44,6 +44,7 @@ import 'project_animation.dart';
 import 'project_morphs.dart';
 import 'scene_lighting.dart';
 import 'selection.dart';
+import 'shape_driver.dart';
 import 'simulation_bake.dart';
 import 'simulation_cache.dart';
 import 'texture_bake.dart';
@@ -976,6 +977,32 @@ _modelCommandReaders =
               clipIndex: clipIndex,
               time: time.toDouble(),
             ),
+            _ => null,
+          },
+      'addShapeDriver': (json) => switch ((json['id'], json['driver'])) {
+        (final int id, final Object? driverJson) =>
+          switch (ShapeDriver.fromJson(driverJson)) {
+            final ShapeDriver driver => AddShapeDriver(id: id, driver: driver),
+            null => null,
+          },
+        _ => null,
+      },
+      'removeShapeDriver': (json) => switch ((json['id'], json['index'])) {
+        (final int id, final int index) => RemoveShapeDriver(
+          id: id,
+          index: index,
+        ),
+        _ => null,
+      },
+      'setShapeDriverField': (json) =>
+          switch ((json['id'], json['index'], json['field'])) {
+            (final int id, final int index, final String field) =>
+              SetShapeDriverField(
+                id: id,
+                index: index,
+                field: field,
+                value: json['value'],
+              ),
             _ => null,
           },
       'addSkeleton': (json) =>
