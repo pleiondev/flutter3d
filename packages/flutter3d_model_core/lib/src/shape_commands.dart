@@ -247,8 +247,9 @@ final class DeleteShape extends ModelCommand {
 /// leftover.
 List<ProjectTrack>? _withComponentDropped(ProjectTrack track, int dropped) {
   final table = KeyTable.fromAnimationTrack(track.track);
-  if (dropped < 0 || dropped >= table.componentCount)
+  if (dropped < 0 || dropped >= table.componentCount) {
     return <ProjectTrack>[track];
+  }
   if (table.componentCount <= 1) return null;
 
   List<double>? without(List<double>? values) {

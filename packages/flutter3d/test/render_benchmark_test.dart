@@ -128,6 +128,7 @@ void main() {
       print('1920x1080: ${(fullHd / 1000).toStringAsFixed(2)} s');
 
       final uhd = _renderMs(3840, 2160, settings);
+      // ignore: avoid_print — the numbers are the point of this file.
       print('3840x2160: ${(uhd / 1000).toStringAsFixed(2)} s');
 
       // "SSAA x2" as an internal buffer at twice 4K's own linear resolution —
@@ -136,6 +137,7 @@ void main() {
       // least as much per pixel as a real SSAA pass followed by a downsample
       // would, so it cannot understate the row's own threshold.
       final ssaa2 = _renderMs(7680, 4320, settings);
+      // ignore: avoid_print — the numbers are the point of this file.
       print('7680x4320 (4K SSAA x2): ${(ssaa2 / 1000).toStringAsFixed(2)} s');
 
       expect(

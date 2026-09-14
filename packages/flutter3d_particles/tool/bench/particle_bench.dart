@@ -103,15 +103,9 @@ ParticleSystem warmed({required int capacity, required int torches}) {
   // asks for, stepped so the live set reaches its natural size.
   for (var i = 0; i < 30; i++) {
     for (var t = 0; t < torches; t++) {
-      system.emitFor(
-        t,
-        effect,
-        Vector3(t * 2.0, 1.0, 0.0),
-        1 / 60,
-        perSecond: 150.0,
-      );
+      system.emit(t, effect, Vector3(t * 2.0, 1.0, 0.0), perSecond: 150.0);
     }
-    system.step(1 / 60);
+    system.advance(1 / 60);
   }
   return system;
 }
@@ -134,17 +128,11 @@ void main() {
     );
 
     // The whole frame's particle work, in the order the game does it.
-    bench('emit + step + writeQuads', 2000, () {
+    bench('emit + advance + writeQuads', 2000, () {
       for (var t = 0; t < 5; t++) {
-        system.emitFor(
-          t,
-          effect,
-          Vector3(t * 2.0, 1.0, 0.0),
-          dt,
-          perSecond: 150.0,
-        );
+        system.emit(t, effect, Vector3(t * 2.0, 1.0, 0.0), perSecond: 150.0);
       }
-      system.step(dt);
+      system.advance(dt);
       system.writeQuads(right, up, vertices, indices);
     }, items: alive);
 

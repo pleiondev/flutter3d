@@ -368,10 +368,12 @@ class _Simplifier {
     final costA = costAt(ax, ay, az);
     final costB = costAt(bx, by, bz);
     final costM = costAt(mx, my, mz);
-    if (costA <= costB && costA <= costM)
+    if (costA <= costB && costA <= costM) {
       return (x: ax, y: ay, z: az, cost: costA);
-    if (costB <= costA && costB <= costM)
+    }
+    if (costB <= costA && costB <= costM) {
       return (x: bx, y: by, z: bz, cost: costB);
+    }
     return (x: mx, y: my, z: mz, cost: costM);
   }
 
@@ -442,8 +444,9 @@ class _Simplifier {
       final beforeLength = before.length;
       final afterLength = after.length;
       if (afterLength < 1e-20) return true; // Degenerates to a line or point.
-      if (beforeLength < 1e-20)
+      if (beforeLength < 1e-20) {
         continue; // Was already degenerate; nothing to compare to.
+      }
       final cos = before.dot(after) / (beforeLength * afterLength);
       if (cos < flipThreshold) return true;
     }
@@ -1068,10 +1071,12 @@ class _AttributedSimplifier {
     final costA = costAt(ax, ay, az);
     final costB = costAt(bx, by, bz);
     final costM = costAt(mx, my, mz);
-    if (costA <= costB && costA <= costM)
+    if (costA <= costB && costA <= costM) {
       return (x: ax, y: ay, z: az, cost: costA);
-    if (costB <= costA && costB <= costM)
+    }
+    if (costB <= costA && costB <= costM) {
       return (x: bx, y: by, z: bz, cost: costB);
+    }
     return (x: mx, y: my, z: mz, cost: costM);
   }
 

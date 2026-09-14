@@ -38,8 +38,9 @@ Future<Map<String, Uint8List>> _pickFiles(web.HTMLInputElement input) {
   input.onchange = (web.Event _) {
     final files = input.files;
     if (files == null || files.length == 0) {
-      if (!completer.isCompleted)
+      if (!completer.isCompleted) {
         completer.complete(const <String, Uint8List>{});
+      }
       return;
     }
     final reads = <Future<void>>[];

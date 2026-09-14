@@ -35,7 +35,7 @@ Future<void> _pump(
       body: ModifierStackPanel(
         slots: slots,
         onToggle: onToggle ?? (_) {},
-        onReorder: onReorder ?? (_, __) {},
+        onReorder: onReorder ?? (_, _) {},
         onAdd: onAdd ?? () {},
         onSetField: onSetField,
       ),
@@ -103,6 +103,7 @@ void main() {
     // Mutation: wire the deprecated `onReorder` instead. That callback's own
     // index is NOT pre-adjusted, and `ReorderModifier.apply` — which removes
     // at `from` before inserting at `to` — would insert one short.
+    // ignore: deprecated_member_use
     expect(list.onReorder, isNull);
     list.onReorderItem!(0, 1);
 

@@ -34,7 +34,7 @@ void main() {
       8,
       reason: 'every run should be counted under exactly one outcome',
     );
-    expect((heatmap['cells']! as List<Object?>), isNotEmpty);
+    expect(heatmap['cells']! as List<Object?>, isNotEmpty);
   }, timeout: const Timeout(Duration(seconds: 60)));
 
   test('the same seed plays the same run twice', () async {

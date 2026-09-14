@@ -60,8 +60,9 @@ List<List<int>> splitIslands(EditMesh mesh, {Set<int>? restrictToFaces}) {
       restrictToFaces == null || restrictToFaces.contains(face);
 
   for (var start = 0; start < mesh.faceSlotCount; start++) {
-    if (!mesh.isFaceAlive(start) || visited[start] != 0 || !included(start))
+    if (!mesh.isFaceAlive(start) || visited[start] != 0 || !included(start)) {
       continue;
+    }
 
     final island = <int>[];
     final stack = <int>[start];
