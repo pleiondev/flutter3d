@@ -1,0 +1,167 @@
+/// The top bar's own right-hand side: adding a primitive, opening, saving,
+/// exporting, and the small utility icons beside them.
+///
+/// **A menu rather than five buttons on the rail.** The rail is for the tools
+/// a hand rests on; adding a shape is something done once and then not again
+/// for an hour, and five of anything on a rail of fifty-two pixels is a rail
+/// nobody can read. `A` still adds a box, which is the one people reach for
+/// without looking.
+library;
+
+import 'package:flutter/material.dart' hide Material;
+import 'package:flutter3d_model_core/flutter3d_model_core.dart' hide Outcome;
+
+import '../exporting.dart';
+import 'theme.dart';
+import 'undo_redo_buttons.dart';
+
+/// What sits at the right of the top bar: adding a shape, opening, saving,
+/// exporting, and the small utility icons beside them.
+class TopBarActions extends StatelessWidget {
+  const TopBarActions({
+    super.key,
+    required this.canUndo,
+    required this.canRedo,
+    required this.undoSays,
+    required this.redoSays,
+    required this.onUndo,
+    required this.onRedo,
+    required this.onAddPrimitive,
+    required this.onOpen,
+    required this.onSave,
+    required this.onExport,
+    required this.onMaterialStudio,
+    required this.onShortcutHelp,
+    required this.onStartScreen,
+    required this.onReportProblem,
+  });
+
+  final bool canUndo;
+  final bool canRedo;
+
+  /// What ⌘Z would take back, or null when there is nothing to.
+  final String? undoSays;
+
+  /// What ⇧⌘Z would put back, or null when there is nothing to.
+  final String? redoSays;
+
+  final VoidCallback onUndo;
+  final VoidCallback onRedo;
+
+  /// One of [AddPrimitive.primitiveKinds] was picked from the "Add" menu.
+  final ValueChanged<String> onAddPrimitive;
+
+  final VoidCallback onOpen;
+  final VoidCallback onSave;
+  final ValueChanged<ExportFormat> onExport;
+  final VoidCallback onMaterialStudio;
+  final VoidCallback onShortcutHelp;
+  final VoidCallback onStartScreen;
+  final VoidCallback onReportProblem;
+
+  @override
+  Widget build(BuildContext context) => Row(
+    mainAxisSize: MainAxisSize.min,
+    children: <Widget>[
+      UndoRedoButtons(
+        canUndo: canUndo,
+        canRedo: canRedo,
+        undoSays: undoSays,
+        redoSays: redoSays,
+        onUndo: onUndo,
+        onRedo: onRedo,
+      ),
+      const SizedBox(width: 4),
+      PopupMenuButton<String>(
+        tooltip: 'Add a primitive',
+        onSelected: onAddPrimitive,
+        itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
+          for (final String kind in AddPrimitive.primitiveKinds)
+            PopupMenuItem<String>(
+              value: kind,
+              height: ModelerMetrics.row,
+              child: Text(kind, style: const TextStyle(fontSize: 13)),
+            ),
+        ],
+        child: const Padding(
+          padding: EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          child: Text('Add', style: TextStyle(fontSize: 13)),
+        ),
+      ),
+      TextButton(onPressed: onOpen, child: const Text('Open')),
+      const SizedBox(width: 4),
+      FilledButton.tonal(onPressed: onSave, child: const Text('Save')),
+      const SizedBox(width: 4),
+      PopupMenuButton<ExportFormat>(
+        tooltip: 'Export a copy',
+        onSelected: onExport,
+        itemBuilder: (BuildContext context) => <PopupMenuEntry<ExportFormat>>[
+          for (final ExportFormat format in ExportFormat.values)
+            PopupMenuItem<ExportFormat>(
+              value: format,
+              height: ModelerMetrics.row,
+              child: Text(
+                '${format.suffix}  ${format.says}',
+                style: const TextStyle(fontSize: 13),
+              ),
+            ),
+        ],
+        child: const Padding(
+          padding: EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          child: Text('Export', style: TextStyle(fontSize: 13)),
+        ),
+      ),
+      // `mat-15`'s own entry: a preview tool rather than a command, so it
+      // sits beside Export rather than on the object tool rail — nothing it
+      // opens is a shape to add to the document.
+      MergeSemantics(
+        child: Semantics(
+          label: 'Material Studio',
+          button: true,
+          child: IconButton(
+            tooltip: 'Material Studio — preview a material',
+            onPressed: onMaterialStudio,
+            icon: const Icon(Icons.tonality_outlined, size: 20),
+          ),
+        ),
+      ),
+      // `ui-23`'s own pass: `IconButton.tooltip` sets
+      // `SemanticsNode.tooltip`, not `.label`. `MergeSemantics` folds the
+      // label below down onto the button's own inner, actually-tappable
+      // node.
+      MergeSemantics(
+        child: Semantics(
+          label: 'Keyboard shortcuts',
+          button: true,
+          child: IconButton(
+            tooltip: 'Keyboard shortcuts (?)',
+            onPressed: onShortcutHelp,
+            icon: const Icon(Icons.help_outline, size: 20),
+          ),
+        ),
+      ),
+      MergeSemantics(
+        child: Semantics(
+          label: 'Start screen',
+          button: true,
+          child: IconButton(
+            tooltip: 'Start screen — open a file or start a new project',
+            onPressed: onStartScreen,
+            icon: const Icon(Icons.home_outlined, size: 20),
+          ),
+        ),
+      ),
+      MergeSemantics(
+        child: Semantics(
+          label: 'Report a problem',
+          button: true,
+          child: IconButton(
+            tooltip: 'Report a problem',
+            onPressed: onReportProblem,
+            icon: const Icon(Icons.bug_report_outlined, size: 20),
+          ),
+        ),
+      ),
+    ],
+  );
+}

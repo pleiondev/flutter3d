@@ -1,13 +1,13 @@
 /// `ui-12`'s own row: `E` with a mesh tool armed starts extrude; the same
 /// key typed into a focused `NumberField` enters the character instead.
 ///
-/// **Why this does not pump `_ModelerScreenState`.** `_Keys` (`main.dart`) is
-/// library-private and nothing in this app's own test suite pumps the whole
-/// screen — every other test here exercises one `src/` piece at a time. This
-/// test reconstructs `_Keys`'s own one-line binding rule —
-/// `for (tool in tools) SingleActivator(tool.shortcut): () => onTool(tool.id)`
-/// — over `toolsFor(ModelerMode.mesh)`, the real production tool table, so it
-/// proves the actual mechanism `_Keys` relies on rather than a stand-in.
+/// **Why this reconstructs the binding rather than pumping `ModelerKeys`
+/// itself.** This test predates `ModelerKeys` (`ui/modeler_keys.dart`)
+/// becoming public — see `modeler_keys_test.dart` for that one directly —
+/// and stays as its own file because it proves the mechanism against
+/// `toolsFor(ModelerMode.mesh)`, the real production tool table, one tool
+/// shortcut and the typing-safety guard at a time:
+/// `for (tool in tools) SingleActivator(tool.shortcut): () => onTool(tool.id)`.
 library;
 
 import 'package:flutter/material.dart';

@@ -2,10 +2,10 @@
 /// `ui-04`'s own "content is replaced wholesale," pulled out where it can be
 /// tested directly.
 ///
-/// `_Properties` (`main.dart`) is private to that library and nothing in
-/// this app's own test suite pumps the whole screen, so the mapping this
-/// file owns is what stands in for a widget test of `_Properties` itself —
-/// a pure function, checkable without a `WidgetTester` at all.
+/// `PropertiesPanel` (`ui/properties/properties_panel.dart`) is a wide
+/// widget to pump for one mapping, so the table this file owns is what
+/// stands in for testing that mapping through it directly — a pure
+/// function, checkable without a `WidgetTester` at all.
 library;
 
 import 'tools.dart';

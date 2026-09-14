@@ -58,9 +58,10 @@ enum StandardView { front, back, left, right, top, bottom }
 /// pivot, a 3D cursor, and a `SetCursor` command to place it, and stopped
 /// short of building either — there is no position anywhere in the document
 /// this could hand to a `RotateBy`. It stays in this enum, and the chip that
-/// draws it stays disabled (see `_PivotAndSpaceChips` in `main.dart`), so the
-/// panel shows the three-way choice `ui-35n`'s own row asks for rather than
-/// quietly shrinking it to the two that work.
+/// draws it stays disabled (see `PivotAndSpaceChips` in
+/// `ui/properties/pivot_space_chips.dart`), so the panel shows the
+/// three-way choice `ui-35n`'s own row asks for rather than quietly
+/// shrinking it to the two that work.
 enum PivotChip { median, individual, cursor }
 
 /// What [chip] means to a command that only knows [TransformPivot].
