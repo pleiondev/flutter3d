@@ -1,11 +1,12 @@
-/// `ColorField`: `mat-06`'s own row — swatch, hex, HSV, alpha only at four
-/// channels, `linear` moving all of them together.
+/// `ColorField`: a swatch, a hex box, HSV, `Alpha` only at four channels,
+/// `linear` moving all of them together — moved here verbatim from
+/// `apps/flutter3d_modeler`, `ui-27`'s own P0.
 ///
-///     flutter test test/ui/color_field_test.dart
+///     flutter test test/color_field_test.dart
 library;
 
 import 'package:flutter/material.dart';
-import 'package:flutter3d_modeler/src/ui/color_field.dart';
+import 'package:flutter3d_editor_widgets/flutter3d_editor_widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 Future<void> show(
@@ -198,8 +199,7 @@ void main() {
       WidgetTester tester,
     ) async {
       // The same triple, read as already-encoded sRGB instead: hex is a
-      // plain 0..1-to-byte mapping with no transfer function in between,
-      // matching `mat-04`'s own acceptance for `baseColor`.
+      // plain 0..1-to-byte mapping with no transfer function in between.
       const double value = 0.21404114048223255;
       await show(tester, value: <double>[value, value, value], channels: 3);
 

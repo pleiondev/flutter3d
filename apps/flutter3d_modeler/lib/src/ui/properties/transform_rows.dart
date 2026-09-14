@@ -13,10 +13,10 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter3d_editor_widgets/flutter3d_editor_widgets.dart';
 import 'package:vector_math/vector_math.dart' as vm;
 
 import '../../transform_fields.dart';
-import '../number_field.dart';
 
 /// The 3x3 transform grid: `Position`/`Rotation`/`Scale` down the rows,
 /// `X`/`Y`/`Z` across the columns.

@@ -12,10 +12,10 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter3d_editor_widgets/flutter3d_editor_widgets.dart';
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 
-import 'number_field.dart';
 import 'theme.dart';
 
 /// The active object's own stack, empty or not.

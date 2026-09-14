@@ -12,10 +12,10 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter3d_editor_widgets/flutter3d_editor_widgets.dart';
 
 import '../../l10n/app_localizations.dart';
 import '../scene_mode.dart';
-import 'section_label.dart';
 
 /// The shadow toggle, and the status it drives.
 final class SceneShadowsPanel extends StatelessWidget {

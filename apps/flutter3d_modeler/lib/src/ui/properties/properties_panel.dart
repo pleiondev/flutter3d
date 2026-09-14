@@ -11,6 +11,7 @@ library;
 
 import 'package:flutter/material.dart' hide Material;
 import 'package:flutter3d/flutter3d.dart' hide Material;
+import 'package:flutter3d_editor_widgets/flutter3d_editor_widgets.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart' hide Outcome;
 
 import '../../display_modes.dart';
@@ -22,7 +23,6 @@ import '../material_panel.dart';
 import '../modifier_stack_panel.dart';
 import '../operation_card.dart';
 import '../properties_sections.dart';
-import '../section_label.dart';
 import '../theme.dart';
 import '../tools.dart';
 import 'label_value_row.dart';

@@ -291,6 +291,12 @@ const Map<String, String> notARepeatableStep = <String, String>{
       'watching it run, the same way `step_time_trace.dart` does for a '
       'step from outside it — there is no simulation here to replay, only '
       'a CLI printing what it just measured',
+  'flutter3d_editor_widgets':
+      'a colour swatch, not a step: `ColorField.encodeSrgb`/`decodeSrgb` '
+      'convert whatever colour a person is looking at right now, on this '
+      'one machine, the same formula and the same exemption '
+      '`flutter3d_cpu`\'s own `cpu_shaders_color.dart` already has — never '
+      'a run a server replays',
 };
 
 /// Files inside a scanned package that are allowed to be unrepeatable, and why.

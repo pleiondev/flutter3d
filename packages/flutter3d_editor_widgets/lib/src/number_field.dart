@@ -11,16 +11,11 @@
 /// then a move to `1.5`, which is two steps of history and one visible jump.
 /// Enter and leaving the field are both "finished"; Escape puts back what was
 /// there.
-///
-/// **It is not `flutter3d_editor_widgets` yet.** `ui-27` moves this and its
-/// siblings into a package both editors share, and doing that before the level
-/// editor's own fields are ready would be publishing an interface for one
-/// caller.
 library;
 
 import 'package:flutter/material.dart';
 
-import 'theme.dart';
+import 'editor_widgets_theme.dart';
 
 /// One labelled number.
 class NumberField extends StatefulWidget {
@@ -160,7 +155,8 @@ class _NumberFieldState extends State<NumberField> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+    final ThemeData theme = Theme.of(context);
+    final EditorWidgetsTheme editorTheme = EditorWidgetsTheme.of(context);
     final field = Semantics(
       // The visible label is one `Text` widget among several in a row or a
       // grid cell; nothing ties it to this specific `TextField` in the
@@ -183,13 +179,18 @@ class _NumberFieldState extends State<NumberField> {
           signed: true,
           decimal: true,
         ),
-        decoration: const InputDecoration(
+        decoration: InputDecoration(
           isDense: true,
           // The hand-over's own metric: padding 6×8-10, radius 6 — this file
           // had the two axes swapped and the corner square until now.
-          contentPadding: EdgeInsets.symmetric(horizontal: 9, vertical: 6),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 9,
+            vertical: 6,
+          ),
           border: OutlineInputBorder(
-            borderRadius: BorderRadius.all(Radius.circular(6)),
+            borderRadius: BorderRadius.all(
+              Radius.circular(editorTheme.fieldRadius),
+            ),
           ),
         ),
         onSubmitted: (_) => _commit(),
@@ -197,7 +198,7 @@ class _NumberFieldState extends State<NumberField> {
       ),
     );
     return SizedBox(
-      height: ModelerMetrics.row,
+      height: editorTheme.rowHeight,
       child: widget.showLabel
           ? Row(
               children: <Widget>[

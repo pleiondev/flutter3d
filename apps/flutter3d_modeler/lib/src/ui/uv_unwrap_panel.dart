@@ -8,11 +8,10 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter3d_editor_widgets/flutter3d_editor_widgets.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 
 import '../uv_unwrap_layout.dart';
-import 'number_field.dart';
-import 'section_label.dart';
 
 /// The unwrap's own method, margin and island list, in one panel.
 final class UvUnwrapPanel extends StatelessWidget {

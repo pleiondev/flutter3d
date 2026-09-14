@@ -34,6 +34,12 @@ dependencies:
   flutter3d_core:
     path: ../../packages/flutter3d_core
 
+  # `SectionLabel`, `NumberField`, `ColorField` — `ui-27`'s own package,
+  # shared with `apps/flutter3d_editor` rather than each keeping its own
+  # copy.
+  flutter3d_editor_widgets:
+    path: ../../packages/flutter3d_editor_widgets
+
   # The mesh being edited, with the topology still in it.
   # The document: a project of objects, the commands that change one, and the
   # history that takes them back.

@@ -10,11 +10,10 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter3d_editor_widgets/flutter3d_editor_widgets.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 
 import '../../l10n/app_localizations.dart';
-import 'number_field.dart';
-import 'section_label.dart';
 import 'theme.dart';
 
 /// The lights, and the selected one's own fields.

@@ -21,11 +21,11 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter3d_editor_widgets/flutter3d_editor_widgets.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart' hide Key;
 
 import 'actions_list.dart';
 import 'constraints_list.dart';
-import 'section_label.dart';
 import 'skeleton_tree.dart';
 import 'timeline_panel.dart';
 

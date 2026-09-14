@@ -16,10 +16,10 @@
 /// it is a coverage fraction, not a light quantity, in every convention this
 /// engine's own materials already use.
 ///
-/// **A standalone widget, not a properties-panel row.** `mat-04`, the panel
-/// this is meant to sit in, does not exist yet — this file takes a value, a
-/// channel count and a callback, and knows nothing about `MaterialHint` or a
-/// document beyond the shape `ColorHint` already commits to.
+/// **A standalone widget, not a properties-panel row.** This file takes a
+/// value, a channel count and a callback, and knows nothing about
+/// `MaterialHint` or a document beyond the shape `ColorHint` already commits
+/// to — a caller who has one reads `channels`/`linear` out of it itself.
 library;
 
 import 'dart:math' as math;
@@ -27,7 +27,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import 'theme.dart';
+import 'editor_widgets_theme.dart';
 
 /// One colour, [ColorField.channels] components long, each in `0..1`.
 class ColorField extends StatefulWidget {
@@ -272,6 +272,7 @@ class _ColorFieldState extends State<ColorField> {
   @override
   Widget build(BuildContext context) {
     final ThemeData theme = Theme.of(context);
+    final EditorWidgetsTheme editorTheme = EditorWidgetsTheme.of(context);
     final List<double> display = _lastReportedRgb;
     final int r = (display[0].clamp(0.0, 1.0) * 255).round();
     final int g = (display[1].clamp(0.0, 1.0) * 255).round();
@@ -289,8 +290,8 @@ class _ColorFieldState extends State<ColorField> {
             Semantics(
               label: 'Colour swatch',
               child: Container(
-                width: ModelerMetrics.row,
-                height: ModelerMetrics.row,
+                width: editorTheme.rowHeight,
+                height: editorTheme.rowHeight,
                 decoration: BoxDecoration(
                   color: Color.fromRGBO(r, g, b, swatchOpacity),
                   border: Border.all(color: theme.colorScheme.outlineVariant),
@@ -317,14 +318,16 @@ class _ColorFieldState extends State<ColorField> {
                     FilteringTextInputFormatter.allow(RegExp('[0-9a-fA-F#]')),
                     LengthLimitingTextInputFormatter(7),
                   ],
-                  decoration: const InputDecoration(
+                  decoration: InputDecoration(
                     isDense: true,
-                    contentPadding: EdgeInsets.symmetric(
+                    contentPadding: const EdgeInsets.symmetric(
                       horizontal: 9,
                       vertical: 6,
                     ),
                     border: OutlineInputBorder(
-                      borderRadius: BorderRadius.all(Radius.circular(6)),
+                      borderRadius: BorderRadius.all(
+                        Radius.circular(editorTheme.fieldRadius),
+                      ),
                     ),
                   ),
                   onSubmitted: (_) => _commitHex(),

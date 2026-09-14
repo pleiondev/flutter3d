@@ -16,10 +16,10 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter3d_core/formats.dart';
+import 'package:flutter3d_editor_widgets/flutter3d_editor_widgets.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart' hide EnumHint;
 
 import '../material_editing.dart';
-import 'color_field.dart';
 import 'theme.dart';
 
 /// [lighting]'s own name among [LightingModel.builtIn], or null when it is a
