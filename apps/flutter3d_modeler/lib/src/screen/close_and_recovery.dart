@@ -35,27 +35,8 @@ extension _CloseAndRecovery on _ModelerScreenState {
   /// in front of a person once — every caller that finds the document
   /// dirty on the way out asks through this one dialog rather than each
   /// growing a slightly different one.
-  Future<UnsavedChoice?> _askUnsavedChoice() => showDialog<UnsavedChoice>(
-    context: context,
-    builder: (BuildContext context) => AlertDialog(
-      title: const Text('Unsaved changes'),
-      content: const Text('This model has changes that have not been saved.'),
-      actions: <Widget>[
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(UnsavedChoice.keepEditing),
-          child: const Text('Keep editing'),
-        ),
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(UnsavedChoice.discard),
-          child: const Text('Discard'),
-        ),
-        FilledButton(
-          onPressed: () => Navigator.of(context).pop(UnsavedChoice.save),
-          child: const Text('Save and close'),
-        ),
-      ],
-    ),
-  );
+  Future<UnsavedChoice?> _askUnsavedChoice() =>
+      UnsavedChangesDialog.show(context);
 
   /// `ui-18`'s own "предложение восстановить": an autosave from a session
   /// that never closed cleanly, offered once, right after the ordinary open
@@ -69,25 +50,9 @@ extension _CloseAndRecovery on _ModelerScreenState {
     final read = await findRecovery(storage, _kAutosaveSessionId);
     if (read == null || !mounted) return;
 
-    final restore = await showDialog<bool>(
-      context: context,
-      builder: (BuildContext context) => AlertDialog(
-        title: const Text('Restore unsaved changes?'),
-        content: Text(
-          'An autosave from a session that did not close cleanly was found '
-          '(${countLabel(read.project.objects.length, 'object')}).',
-        ),
-        actions: <Widget>[
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Discard'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Restore'),
-          ),
-        ],
-      ),
+    final restore = await RestoreAutosaveDialog.show(
+      context,
+      objectCount: read.project.objects.length,
     );
     if (!mounted) return;
 

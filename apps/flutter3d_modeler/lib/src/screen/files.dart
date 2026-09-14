@@ -745,49 +745,8 @@ extension _FileHandling on _ModelerScreenState {
   /// A dialog rather than a refusal, because the alternative is this
   /// application deciding what somebody's model is for. It names what will be
   /// wrong rather than counting it: "3 problems" is a number nobody can act on.
-  Future<bool> _askAnyway(
-    ExportBlocked blocked,
-    List<ExportIssue> issues,
-  ) async {
-    final answer = await showDialog<bool>(
-      context: context,
-      builder: (BuildContext context) => AlertDialog(
-        title: const Text('Export anyway?'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
-            Text(blocked.says),
-            const SizedBox(height: 12),
-            for (final ExportIssue issue in issues.take(5))
-              Padding(
-                padding: const EdgeInsets.only(bottom: 6),
-                child: Text(
-                  issue.message,
-                  style: const TextStyle(fontSize: 12.5),
-                ),
-              ),
-            if (issues.length > 5)
-              Text(
-                'and ${issues.length - 5} more',
-                style: const TextStyle(fontSize: 12.5),
-              ),
-          ],
-        ),
-        actions: <Widget>[
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Export anyway'),
-          ),
-        ],
-      ),
-    );
-    return answer ?? false;
-  }
+  Future<bool> _askAnyway(ExportBlocked blocked, List<ExportIssue> issues) =>
+      ExportAnywayDialog.show(context, blocked: blocked, issues: issues);
 
   /// A file dragged onto the window — `ui-31n`'s own door onto the same path
   /// `_openFile` already opens by hand.
