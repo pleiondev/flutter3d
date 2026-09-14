@@ -63,12 +63,25 @@ String grouped(int count) {
   return out.toString();
 }
 
+/// The project's texture weight against its own export budget — `mat-33d`'s
+/// own "N MB of M": [usedBytes] is `measure(project, profile.textures)`'s own
+/// `TextureUsage.totalBytes`, [budgetBytes] is that same call's
+/// `TextureBudget.maxBytesOnDevice`. A record rather than the two types
+/// themselves, so [StatusLine] reads two integers and formats them rather
+/// than importing `texture_budget.dart`'s own shapes for a bar that has no
+/// use for anything else on them.
+typedef TextureBudgetStatus = ({int usedBytes, int budgetBytes});
+
 class StatusLine extends StatelessWidget {
   const StatusLine({
     super.key,
     required this.said,
     required this.readiness,
     required this.triangles,
+    required this.vertices,
+    required this.materialCount,
+    this.texelDensity,
+    this.textureBudget,
     this.micros,
     this.onExport,
   });
@@ -84,6 +97,22 @@ class StatusLine extends StatelessWidget {
   /// What the model draws as, which is the number a budget is spent in.
   final int triangles;
 
+  /// Every object's own vertex count, summed — `ModelProject.vertexCount`.
+  final int vertices;
+
+  /// How many rows the material panel offers — `project.materials.length`.
+  final int materialCount;
+
+  /// The held object's own texel density, in texels/m — `texelDensityOf`'s
+  /// own unit. Shown divided by 100, for "tex/cm". Null hides this segment:
+  /// nothing selected, or nothing on the selection for that function to
+  /// measure — see its own doc comment for the exact silent cases.
+  final double? texelDensity;
+
+  /// The project's texture weight against its own budget. Null hides this
+  /// segment.
+  final TextureBudgetStatus? textureBudget;
+
   /// What the last frame cost. Null before one has been drawn.
   final int? micros;
 
@@ -95,13 +124,21 @@ class StatusLine extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final small = theme.textTheme.bodySmall;
+    // 11/400 — `ui-38d`'s own section-label size and weight, for the status
+    // bar's own text to match rather than sit a point larger beside it.
+    final small = theme.textTheme.bodySmall?.copyWith(fontSize: 11);
     final tone = StatusTone.of(readiness);
     final Color toneColour = switch (tone) {
       StatusTone.quiet => theme.colorScheme.onSurfaceVariant,
       StatusTone.warn => theme.colorScheme.tertiary,
       StatusTone.refuse => theme.colorScheme.error,
     };
+    final TextStyle? figureStyle = small?.copyWith(
+      color: theme.colorScheme.onSurfaceVariant,
+      // Tabular figures, so a count does not shove its neighbour sideways
+      // while somebody drags a vertex.
+      fontFeatures: const <FontFeature>[FontFeature.tabularFigures()],
+    );
 
     return Row(
       children: <Widget>[
@@ -145,25 +182,44 @@ class StatusLine extends StatelessWidget {
         ),
         Padding(
           padding: const EdgeInsets.only(right: 12),
+          child: Text('${grouped(triangles)} △', style: figureStyle),
+        ),
+        Padding(
+          padding: const EdgeInsets.only(right: 12),
           child: Text(
-            '${grouped(triangles)} △',
-            style: small?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
-              // Tabular figures, so the count does not shove the frame time
-              // sideways while somebody drags a vertex.
-              fontFeatures: const <FontFeature>[FontFeature.tabularFigures()],
-            ),
+            '${grouped(vertices)} vertices · ${grouped(materialCount)} '
+            'materials',
+            style: small?.copyWith(color: theme.colorScheme.onSurfaceVariant),
           ),
         ),
-        if (micros case final int spent)
-          Text(
-            '${(spent / 1000).toStringAsFixed(1)} ms',
-            style: small?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
-              fontFeatures: const <FontFeature>[FontFeature.tabularFigures()],
+        if (texelDensity case final double density)
+          Padding(
+            padding: const EdgeInsets.only(right: 12),
+            // Stored in texels/m; a metre of texture is a hundred centimetres
+            // of it, so this is the same number a hundredth as large.
+            child: Text(
+              '${(density / 100).toStringAsFixed(1)} tex/cm',
+              style: figureStyle,
             ),
           ),
+        if (textureBudget case final TextureBudgetStatus budget)
+          Padding(
+            padding: const EdgeInsets.only(right: 12),
+            child: Text(
+              '${_mebibytes(budget.usedBytes)} MB of '
+              '${_mebibytes(budget.budgetBytes)}',
+              style: figureStyle,
+            ),
+          ),
+        if (micros case final int spent)
+          Text('${(spent / 1000).toStringAsFixed(1)} ms', style: figureStyle),
       ],
     );
   }
 }
+
+/// [bytes] rounded to the nearest whole mebibyte — the unit `mat-33d`'s own
+/// "N MB of M" reads in, the same binary megabyte `TextureBudget`'s own
+/// desktop/mobile/web presets are already stated in (`256 * 1024 * 1024`
+/// among them).
+int _mebibytes(int bytes) => (bytes / (1024 * 1024)).round();

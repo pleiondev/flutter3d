@@ -796,6 +796,60 @@ void main() {
       expect(cached.issues, hasLength(1));
       expect(cached.issues.single.message, contains('1024'));
     });
+
+    group('texelDensityOf, mat-33d', () {
+      // `mat-33d`'s own line: the number used to live only inside the
+      // warning above — this is the same computation, public now for a
+      // status line to read with no profile target of its own to compare
+      // it against.
+      test('reads the same number the warning above quotes', () {
+        final project = withTexturedQuad(
+          withUv: true,
+          side: 1024,
+          texelsPerMeter: 512,
+        );
+        expect(
+          texelDensityOf(project, project.objects.single),
+          closeTo(1024, 1e-6),
+        );
+      });
+
+      test(
+        'null for an object with no UV, the same silence the warning keeps',
+        () {
+          final project = withTexturedQuad(
+            withUv: false,
+            side: 1024,
+            texelsPerMeter: 512,
+          );
+          expect(texelDensityOf(project, project.objects.single), isNull);
+        },
+      );
+
+      test('null for a target with no texture of its own', () {
+        final project = ModelProject().added(
+          (int id) => ModelObject(
+            id: id,
+            name: 'ghost',
+            geometry: EditedGeometry(unitQuad()),
+            transform: Matrix4.identity(),
+          ),
+        );
+        expect(texelDensityOf(project, project.objects.single), isNull);
+      });
+
+      test('null for geometry with no topology to walk faces over', () {
+        final project = ModelProject().added(
+          (int id) => ModelObject(
+            id: id,
+            name: 'socket',
+            geometry: const SocketGeometry(),
+            transform: Matrix4.identity(),
+          ),
+        );
+        expect(texelDensityOf(project, project.objects.single), isNull);
+      });
+    });
   });
 
   group('topology, which is MeshChecks and not this', () {

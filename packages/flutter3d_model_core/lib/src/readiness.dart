@@ -104,13 +104,12 @@ final class ExportReadiness {
       ...textureBudgetIssues(project),
       for (final ModelObject object in project.objects)
         ..._issuesWith(
+          project,
           object,
           trianglesOnly: trianglesOnly ?? project.profile.requireTriangles,
           requireManifold: requireManifold ?? project.profile.requireManifold,
           maxTextureSize: project.profile.maxTextureSize,
           texelsPerMeter: project.profile.texelsPerMeter,
-          materials: project.materials,
-          images: project.images,
         ),
     ];
     return ExportReadiness._(_worstFirst(found));
@@ -182,13 +181,12 @@ ExportIssue? _budget(ModelProject project) {
 }
 
 List<ExportIssue> _issuesWith(
+  ModelProject project,
   ModelObject object, {
   required bool trianglesOnly,
   required bool requireManifold,
   required int maxTextureSize,
   required double? texelsPerMeter,
-  required List<ProjectMaterial> materials,
-  required List<EncodedImage> images,
 }) => <ExportIssue>[
   // An error, and the loader is the reason rather than taste: a primitive with
   // no indices is a mesh some glTF readers reject outright and the rest draw as
@@ -229,13 +227,7 @@ List<ExportIssue> _issuesWith(
         trianglesOnly: trianglesOnly,
         requireManifold: requireManifold,
       ),
-      ?_texelDensityIssue(
-        object,
-        mesh,
-        texelsPerMeter: texelsPerMeter,
-        materials: materials,
-        images: images,
-      ),
+      ?_texelDensityIssue(project, object, texelsPerMeter: texelsPerMeter),
     ],
     // Deliberately nothing, and for the same reason the check above exempts
     // it: a socket has no faces on purpose.
@@ -243,18 +235,23 @@ List<ExportIssue> _issuesWith(
   },
 ];
 
-/// How densely [object]'s texture covers its own surface, against the
-/// profile's [texelsPerMeter] target — `doc-35n`'s own rule.
+/// How densely [object] measures within [project] — texels/m, the number
+/// the status line divides by 100 for "tex/cm" and [_texelDensityIssue]
+/// below compares against a profile's own target. Public — `mat-33d`'s own
+/// line — for the status line to read directly, rather than the answer
+/// staying trapped inside the warning that used to be the only thing that
+/// read it.
 ///
-/// **Silent whenever there is nothing to measure, on purpose**: no target set
-/// ([texelsPerMeter] null), no material on the object's first slot, no base
-/// colour texture on that material, an image whose header will not read, or
-/// a mesh with no UV island of its own — every corner an [EditMesh] has not
-/// been given a UV sits at `Vector2.zero()`, which folds the whole face flat
-/// and gives it zero UV area, so "no UV" and "degenerate UV" both read as the
-/// same silence rather than as a division by zero. Any one of those is "there
-/// is no picture stretched over this object to measure", a different fact
-/// from "the picture is the wrong size for it".
+/// **Silent whenever there is nothing to measure, on purpose**: [object]'s
+/// geometry is not an [EditedGeometry] (there is no topology to walk faces
+/// over), no material on the object's first slot, no base colour texture on
+/// that material, an image whose header will not read, or a mesh with no UV
+/// island of its own — every corner an [EditMesh] has not been given a UV
+/// sits at `Vector2.zero()`, which folds the whole face flat and gives it
+/// zero UV area, so "no UV" and "degenerate UV" both read as the same
+/// silence rather than as a division by zero. Any one of those is "there is
+/// no picture stretched over this object to measure", a different fact from
+/// "the picture is the wrong size for it".
 ///
 /// **One material only, the object's own first slot** — the same
 /// simplification `project_document.dart`'s own `_slotOf` already makes and
@@ -269,28 +266,20 @@ List<ExportIssue> _issuesWith(
 /// Both areas come from the same fan-triangulation `EditMesh.areaOf` already
 /// walks for world space, done again here over `uvOf` for UV space, since
 /// `areaOf` itself has no UV-space twin to call instead.
-///
-/// A factor of two off target either way is the threshold, not a return to
-/// exactly [texelsPerMeter]: `mat-28`'s own texture presets already differ by
-/// that much between targets, so a check that fired on any deviation at all
-/// would be a check nobody could satisfy on every profile at once.
-ExportIssue? _texelDensityIssue(
-  ModelObject object,
-  EditMesh mesh, {
-  required double? texelsPerMeter,
-  required List<ProjectMaterial> materials,
-  required List<EncodedImage> images,
-}) {
-  if (texelsPerMeter == null || object.materialSlots.isEmpty) return null;
+double? texelDensityOf(ModelProject project, ModelObject object) {
+  final Geometry geometry = object.geometry;
+  if (geometry is! EditedGeometry) return null;
+  final EditMesh mesh = geometry.mesh;
+  if (object.materialSlots.isEmpty) return null;
   final slot = object.materialSlots.first;
-  if (slot < 0 || slot >= materials.length) return null;
-  final texture = materials[slot].surface.baseColorTexture;
+  if (slot < 0 || slot >= project.materials.length) return null;
+  final texture = project.materials[slot].surface.baseColorTexture;
   if (texture == null ||
       texture.imageIndex < 0 ||
-      texture.imageIndex >= images.length) {
+      texture.imageIndex >= project.images.length) {
     return null;
   }
-  final dimensions = imageDimensions(images[texture.imageIndex].bytes);
+  final dimensions = imageDimensions(project.images[texture.imageIndex].bytes);
   if (dimensions == null) return null;
 
   var worldArea = 0.0;
@@ -305,7 +294,24 @@ ExportIssue? _texelDensityIssue(
   final resolution = sqrt(
     dimensions.width.toDouble() * dimensions.height.toDouble(),
   );
-  final actual = resolution * sqrt(uvArea) / sqrt(worldArea);
+  return resolution * sqrt(uvArea) / sqrt(worldArea);
+}
+
+/// [texelDensityOf] against the profile's [texelsPerMeter] target —
+/// `doc-35n`'s own rule.
+///
+/// A factor of two off target either way is the threshold, not a return to
+/// exactly [texelsPerMeter]: `mat-28`'s own texture presets already differ by
+/// that much between targets, so a check that fired on any deviation at all
+/// would be a check nobody could satisfy on every profile at once.
+ExportIssue? _texelDensityIssue(
+  ModelProject project,
+  ModelObject object, {
+  required double? texelsPerMeter,
+}) {
+  if (texelsPerMeter == null) return null;
+  final double? actual = texelDensityOf(project, object);
+  if (actual == null) return null;
   final ratio = actual / texelsPerMeter;
   if (ratio < 2.0 && ratio > 0.5) return null;
 

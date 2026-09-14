@@ -71,6 +71,11 @@ abstract final class ModelerMetrics {
 
   /// A rail button's own corner radius.
   static const double railButtonRadius = 10;
+
+  /// `TextureGraphPanel`'s own collapsed strip, per `mat-33d`'s 2026-09-11
+  /// supplement: 44, up from [row]'s 32 — the material preview above it is
+  /// what the freed height goes to, not this panel.
+  static const double textureGraphStripCollapsed = 44;
 }
 
 /// The colours that are the modeller's own rather than Material's.

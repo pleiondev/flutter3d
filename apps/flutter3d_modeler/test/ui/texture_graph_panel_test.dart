@@ -103,7 +103,10 @@ void main() {
       final size = tester.getSize(
         find.byKey(const ValueKey<String>('textureGraphPanel')),
       );
-      expect(size.height, ModelerMetrics.row);
+      // `mat-33d`'s 2026-09-11 supplement: the collapsed strip grows from 32
+      // to 44, freeing the material preview above it.
+      expect(size.height, ModelerMetrics.textureGraphStripCollapsed);
+      expect(size.height, 44);
     });
 
     testWidgets('tapping the header expands it', (tester) async {

@@ -90,6 +90,8 @@ extension _ReadyParts on _ModelerScreenState {
                   onReportProblem: _reportProblem,
                 ),
               ];
+              final ModelObject? forStatus =
+                  state.project[state.selection.activeObject ?? -1];
               final status = StatusLine(
                 // One sentence, carried by the state. There used to be two — one for
                 // files and one for operations — with the operation's winning by
@@ -101,6 +103,20 @@ extension _ReadyParts on _ModelerScreenState {
                 // that never runs, which is what a getter here could do.
                 readiness: state.readiness,
                 triangles: state.project.triangleCount,
+                vertices: state.project.vertexCount,
+                materialCount: state.project.materials.length,
+                // The held object's own texel density — null with nothing selected,
+                // or nothing on it for `texelDensityOf` to measure.
+                texelDensity: forStatus == null
+                    ? null
+                    : texelDensityOf(state.project, forStatus),
+                textureBudget: (
+                  usedBytes: measure(
+                    state.project,
+                    state.project.profile.textures,
+                  ).totalBytes,
+                  budgetBytes: state.project.profile.textures.maxBytesOnDevice,
+                ),
                 micros: _lastRenderMicros,
                 onExport: _showExportDialog,
               );
@@ -147,6 +163,13 @@ extension _ReadyParts on _ModelerScreenState {
                 onSetMaterialField: _setMaterialField,
                 onChooseTexture: _chooseTexture,
                 onClearTexture: _clearTexture,
+                onAddTextureNode: _addTextureNode,
+                onLinkTextureNode: _linkTextureNode,
+                onUnlinkTextureNode: _unlinkTextureNode,
+                onSetTextureNodeField: _setTextureNodeField,
+                onMoveTextureNode: _moveTextureNode,
+                onRemoveTextureNode: _removeTextureNode,
+                onBakeTextureGraph: _bakeTextureGraph,
                 onMoveKeys: _moveKeys,
                 onAddClip: _addClip,
                 onSelectAnimationClip: _selectAnimationClip,

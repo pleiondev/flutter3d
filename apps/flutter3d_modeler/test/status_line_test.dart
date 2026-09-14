@@ -42,6 +42,10 @@ Future<void> show(
   WidgetTester tester,
   ExportReadiness readiness, {
   int triangles = 12,
+  int vertices = 0,
+  int materialCount = 0,
+  double? texelDensity,
+  TextureBudgetStatus? textureBudget,
   String said = 'ready',
   VoidCallback? onExport,
 }) => tester.pumpWidget(
@@ -52,6 +56,10 @@ Future<void> show(
         said: said,
         readiness: readiness,
         triangles: triangles,
+        vertices: vertices,
+        materialCount: materialCount,
+        texelDensity: texelDensity,
+        textureBudget: textureBudget,
         onExport: onExport,
       ),
     ),
@@ -156,6 +164,71 @@ void main() {
         find.textContaining('1${thinSpace}240${thinSpace}000'),
         findsOneWidget,
       );
+    });
+  });
+
+  group('vertex and material counts', () {
+    testWidgets('both are on the bar, grouped', (WidgetTester tester) async {
+      await show(
+        tester,
+        ExportReadiness.check(const ModelProject()),
+        vertices: 1240000,
+        materialCount: 3,
+      );
+
+      expect(
+        find.textContaining(
+          "1${thinSpace}240${thinSpace}000 vertices · 3 materials",
+        ),
+        findsOneWidget,
+      );
+    });
+  });
+
+  group('texel density', () {
+    testWidgets('shown in tex/cm, a hundredth of the stored texels/m', (
+      WidgetTester tester,
+    ) async {
+      await show(
+        tester,
+        ExportReadiness.check(const ModelProject()),
+        texelDensity: 842,
+      );
+
+      expect(find.text('8.4 tex/cm'), findsOneWidget);
+    });
+
+    testWidgets('null leaves no tex/cm segment on the bar', (
+      WidgetTester tester,
+    ) async {
+      await show(tester, ExportReadiness.check(const ModelProject()));
+
+      expect(find.textContaining('tex/cm'), findsNothing);
+    });
+  });
+
+  group('the texture budget', () {
+    testWidgets('reads "N MB of M" from the budget measure', (
+      WidgetTester tester,
+    ) async {
+      await show(
+        tester,
+        ExportReadiness.check(const ModelProject()),
+        textureBudget: (
+          usedBytes: 12 * 1024 * 1024,
+          budgetBytes: 256 * 1024 * 1024,
+        ),
+      );
+
+      expect(find.text('12 MB of 256'), findsOneWidget);
+    });
+
+    testWidgets('null leaves no budget segment on the bar', (
+      WidgetTester tester,
+    ) async {
+      await show(tester, ExportReadiness.check(const ModelProject()));
+
+      expect(find.textContaining(' MB of '), findsNothing);
     });
   });
 

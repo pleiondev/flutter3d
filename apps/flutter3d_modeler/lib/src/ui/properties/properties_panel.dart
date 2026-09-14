@@ -17,12 +17,14 @@ import 'package:flutter3d_model_core/flutter3d_model_core.dart' hide Outcome;
 import '../../display_modes.dart';
 import '../../material_editing.dart';
 import '../../staging.dart';
+import '../../texture_slot.dart';
 import '../../transform_fields.dart';
 import '../animation_panel.dart';
 import '../material_panel.dart';
 import '../modifier_stack_panel.dart';
 import '../operation_card.dart';
 import '../properties_sections.dart';
+import '../texture_graph_panel.dart';
 import '../theme.dart';
 import '../tools.dart';
 import 'label_value_row.dart';
@@ -56,6 +58,13 @@ class PropertiesPanel extends StatelessWidget {
     required this.onSetMaterialField,
     required this.onChooseTexture,
     required this.onClearTexture,
+    required this.onAddTextureNode,
+    required this.onLinkTextureNode,
+    required this.onUnlinkTextureNode,
+    required this.onSetTextureNodeField,
+    required this.onMoveTextureNode,
+    required this.onRemoveTextureNode,
+    required this.onBakeTextureGraph,
     required this.onMoveKeys,
     required this.onAddClip,
     required this.onSelectAnimationClip,
@@ -133,6 +142,49 @@ class PropertiesPanel extends StatelessWidget {
   /// "Clear" was pressed for one of a material's texture slots.
   final void Function(int materialIndex, String slot) onClearTexture;
 
+  /// `TextureGraphPanel`'s own "Add" menu picked a node kind, for the active
+  /// material's own graph — [AddNode]'s arguments beyond the material.
+  final void Function(
+    int materialIndex,
+    String kind,
+    Map<String, Object?> fields,
+    (double x, double y) position,
+  )
+  onAddTextureNode;
+
+  /// A pending link was completed onto a node's input socket — [Link]'s own
+  /// arguments beyond the material.
+  final void Function(int materialIndex, int nodeId, String input, int from)
+  onLinkTextureNode;
+
+  /// An input socket's own link was removed — [Unlink]'s own arguments
+  /// beyond the material.
+  final void Function(int materialIndex, int nodeId, String input)
+  onUnlinkTextureNode;
+
+  /// A node's own field was committed — [SetNodeField]'s own arguments
+  /// beyond the material.
+  final void Function(
+    int materialIndex,
+    int nodeId,
+    String field,
+    Object? value,
+  )
+  onSetTextureNodeField;
+
+  /// A node was dragged to a new spot — [MoveNode]'s own arguments beyond
+  /// the material.
+  final void Function(int materialIndex, int nodeId, double x, double y)
+  onMoveTextureNode;
+
+  /// A node's own delete icon was tapped — [RemoveNode]'s own arguments
+  /// beyond the material.
+  final void Function(int materialIndex, int nodeId) onRemoveTextureNode;
+
+  /// The texture graph's own bake button was pressed — [BakeTextureGraph]'s
+  /// own argument beyond the size the panel always asks for.
+  final ValueChanged<int> onBakeTextureGraph;
+
   /// `anim-07`'s own two commands: a diamond finished a drag, or "Add" was
   /// pressed under the action list.
   final ValueChanged<MoveKeys> onMoveKeys;
@@ -166,12 +218,18 @@ class PropertiesPanel extends StatelessWidget {
         activeMaterial != null && activeMaterial < project.materials.length
         ? project.materials[activeMaterial]
         : null;
-    String? imageNameOf(TextureBinding? binding) {
-      if (binding == null) return null;
-      return binding.imageIndex < project.images.length
-          ? (project.images[binding.imageIndex].name ??
-                'image ${binding.imageIndex}')
-          : 'image ${binding.imageIndex}';
+    // `texture_slot.dart`'s own mapping from an image's bytes to what
+    // `TextureSlotRow` draws — a name, a `w×h · weight` subtitle, a format
+    // badge and a thumbnail — read once here rather than reaching for the
+    // image's bytes three more times below.
+    TextureSlotDisplay? displayOf(TextureBinding? binding) {
+      if (binding == null || binding.imageIndex >= project.images.length) {
+        return null;
+      }
+      return textureSlotDisplay(
+        project.images[binding.imageIndex],
+        fallbackName: 'image ${binding.imageIndex}',
+      );
     }
 
     final Map<String, TextureBinding?> textureBySlot =
@@ -307,8 +365,9 @@ class PropertiesPanel extends StatelessWidget {
                 ? const <String, TextureSlotController>{}
                 : <String, TextureSlotController>{
                     for (final entry in textureBySlot.entries)
-                      entry.key: (
-                        name: imageNameOf(entry.value),
+                      entry.key: _slotController(
+                        binding: entry.value,
+                        display: displayOf(entry.value),
                         onChoose: () =>
                             onChooseTexture(activeMaterial, entry.key),
                         onClear: entry.value == null
@@ -317,6 +376,33 @@ class PropertiesPanel extends StatelessWidget {
                       ),
                   },
           ),
+          if (activeMaterial != null) ...<Widget>[
+            const SizedBox(height: 6),
+            TextureGraphPanel(
+              graph: activeMaterialRow?.graph ?? const TextureGraph(),
+              onAddNode:
+                  (
+                    String kind,
+                    Map<String, Object?> fields,
+                    (double, double) position,
+                  ) => onAddTextureNode(activeMaterial, kind, fields, position),
+              onLink: (int nodeId, String input, int from) =>
+                  onLinkTextureNode(activeMaterial, nodeId, input, from),
+              onUnlink: (int nodeId, String input) =>
+                  onUnlinkTextureNode(activeMaterial, nodeId, input),
+              onSetNodeField: (int nodeId, String field, Object? value) =>
+                  onSetTextureNodeField(activeMaterial, nodeId, field, value),
+              onMoveNode: (int nodeId, double x, double y) =>
+                  onMoveTextureNode(activeMaterial, nodeId, x, y),
+              onRemoveNode: (int nodeId) =>
+                  onRemoveTextureNode(activeMaterial, nodeId),
+              // `BakeTextureGraph.apply` runs to completion inline — see its
+              // own doc comment — so there is no in-flight progress for this
+              // panel to show and nothing a cancel button would interrupt.
+              onBake: () => onBakeTextureGraph(activeMaterial),
+              onCancelBake: () {},
+            ),
+          ],
         ],
         if (sections.contains(PropertiesSection.animation))
           AnimationPanel(
@@ -361,4 +447,35 @@ class PropertiesPanel extends StatelessWidget {
     StandardView.top: 'Top',
     StandardView.bottom: 'Bottom',
   };
+}
+
+/// One [MaterialPanel] texture slot, from [binding] (what the material
+/// names) and [display] (`texture_slot.dart`'s own read of the bound
+/// image's bytes, or null when [binding] is null or points past
+/// `project.images`).
+///
+/// **A name survives even a [display] miss.** A stale [TextureBinding] —
+/// one naming a row `project.images` no longer has — still gets
+/// `"image N"` for its own name, the same fallback the panel showed before
+/// this slot carried a subtitle or a badge at all; only the extra detail a
+/// real [display] would have added goes missing with it.
+TextureSlotController _slotController({
+  required TextureBinding? binding,
+  required TextureSlotDisplay? display,
+  required VoidCallback onChoose,
+  required VoidCallback? onClear,
+}) {
+  final String? dimensions = display?.dimensionsText;
+  return (
+    name: binding == null
+        ? null
+        : (display?.name ?? 'image ${binding.imageIndex}'),
+    subtitle: dimensions == null
+        ? null
+        : '$dimensions · ${display!.weightText}',
+    badge: display?.formatBadge,
+    thumbnail: display?.thumbnail,
+    onChoose: onChoose,
+    onClear: onClear,
+  );
 }

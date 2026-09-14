@@ -4,9 +4,12 @@
 ///     flutter test test/material_panel_test.dart
 library;
 
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:flutter3d_core/formats.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
+import 'package:flutter3d_modeler/src/texture_slot.dart';
 import 'package:flutter3d_modeler/src/ui/material_panel.dart';
 import 'package:flutter3d_modeler/src/ui/theme.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -17,17 +20,55 @@ ProjectMaterial _material({String? name, double metallic = 0.0}) =>
       surface: SurfaceMaterial(name: name, metallic: metallic),
     );
 
+/// A slot with no file bound at all — [TextureSlotController]'s own five
+/// fields beyond the name, every one of them null or a no-op.
+const TextureSlotController _emptySlot = (
+  name: null,
+  subtitle: null,
+  badge: null,
+  thumbnail: null,
+  onChoose: _noop,
+  onClear: null,
+);
+
+void _noop() {}
+
 /// A slot map with every one of [SetTexture]'s five names, each empty and
 /// each callback a no-op unless a caller overrides one.
 Map<String, TextureSlotController> _emptySlots({
   VoidCallback? onChooseAlbedo,
 }) => <String, TextureSlotController>{
-  'albedo': (name: null, onChoose: onChooseAlbedo ?? () {}, onClear: null),
-  'normal': (name: null, onChoose: () {}, onClear: null),
-  'metallicRoughness': (name: null, onChoose: () {}, onClear: null),
-  'occlusion': (name: null, onChoose: () {}, onClear: null),
-  'emissive': (name: null, onChoose: () {}, onClear: null),
+  'albedo': onChooseAlbedo == null
+      ? _emptySlot
+      : (
+          name: null,
+          subtitle: null,
+          badge: null,
+          thumbnail: null,
+          onChoose: onChooseAlbedo,
+          onClear: null,
+        ),
+  'normal': _emptySlot,
+  'metallicRoughness': _emptySlot,
+  'occlusion': _emptySlot,
+  'emissive': _emptySlot,
 };
+
+/// A PNG whose `IHDR` names [width]/[height], padded out to [totalBytes] so a
+/// weight can be asserted on it too — the same minimal header
+/// `texture_slot_test.dart` builds, copied here rather than shared across a
+/// test-only import neither file otherwise needs.
+Uint8List _pngBytes(int width, int height, {required int totalBytes}) {
+  final bytes = Uint8List(totalBytes);
+  final view = ByteData.sublistView(bytes);
+  bytes.setAll(0, <int>[0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]);
+  view.setUint32(8, 13, Endian.big);
+  bytes.setAll(12, <int>[0x49, 0x48, 0x44, 0x52]);
+  view.setUint32(16, width, Endian.big);
+  view.setUint32(20, height, Endian.big);
+  bytes.setAll(24, <int>[8, 6, 0, 0, 0]);
+  return bytes;
+}
 
 /// The panel's own full length, with every texture slot and the advanced
 /// section open, does not fit the default 800×600 test surface — widened
@@ -352,11 +393,18 @@ void main() {
         materials: <ProjectMaterial>[_material(name: 'Steel')],
         activeIndex: 0,
         textureSlots: <String, TextureSlotController>{
-          'albedo': (name: 'rust_albedo.png', onChoose: () {}, onClear: () {}),
-          'normal': (name: null, onChoose: () {}, onClear: null),
-          'metallicRoughness': (name: null, onChoose: () {}, onClear: null),
-          'occlusion': (name: null, onChoose: () {}, onClear: null),
-          'emissive': (name: null, onChoose: () {}, onClear: null),
+          'albedo': (
+            name: 'rust_albedo.png',
+            subtitle: null,
+            badge: null,
+            thumbnail: null,
+            onChoose: () {},
+            onClear: () {},
+          ),
+          'normal': _emptySlot,
+          'metallicRoughness': _emptySlot,
+          'occlusion': _emptySlot,
+          'emissive': _emptySlot,
         },
       );
 
@@ -370,6 +418,77 @@ void main() {
       expect(find.text('None'), findsNWidgets(4));
       // Only the bound slot offers "Clear".
       expect(find.text('Clear'), findsOneWidget);
+    });
+
+    testWidgets(
+      'a texture row reads dimensions and weight from textureSlotDisplay',
+      (WidgetTester tester) async {
+        final TextureSlotDisplay display = textureSlotDisplay(
+          EncodedImage(
+            bytes: _pngBytes(256, 128, totalBytes: 170 * 1024),
+            name: 'albedo.png',
+          ),
+        );
+
+        await _pump(
+          tester,
+          materials: <ProjectMaterial>[_material(name: 'Steel')],
+          activeIndex: 0,
+          textureSlots: <String, TextureSlotController>{
+            'albedo': (
+              name: display.name,
+              subtitle: display.dimensionsText == null
+                  ? null
+                  : '${display.dimensionsText} · ${display.weightText}',
+              badge: display.formatBadge,
+              thumbnail: display.thumbnail,
+              onChoose: () {},
+              onClear: () {},
+            ),
+            'normal': _emptySlot,
+            'metallicRoughness': _emptySlot,
+            'occlusion': _emptySlot,
+            'emissive': _emptySlot,
+          },
+        );
+
+        expect(find.text('albedo.png'), findsOneWidget);
+        expect(find.text('256×128 · 170 KB'), findsOneWidget);
+      },
+    );
+
+    testWidgets("the dot reflects the material's own base colour", (
+      WidgetTester tester,
+    ) async {
+      await _pump(
+        tester,
+        materials: <ProjectMaterial>[
+          ProjectMaterial(
+            surface: SurfaceMaterial(
+              name: 'Rust',
+              baseColor: Vector4(0.33, 0.66, 0.11, 1),
+            ),
+          ),
+        ],
+      );
+
+      final Finder row = find.byWidgetPredicate(
+        (Widget w) => w is Semantics && w.properties.label == 'Rust',
+      );
+      final Container dot = tester.widget(
+        find.descendant(of: row, matching: find.byType(Container)).first,
+      );
+      final BoxDecoration decoration = dot.decoration! as BoxDecoration;
+      expect(decoration.shape, BoxShape.circle);
+      expect(
+        decoration.color,
+        Color.fromRGBO(
+          (0.33 * 255).round(),
+          (0.66 * 255).round(),
+          (0.11 * 255).round(),
+          1.0,
+        ),
+      );
     });
 
     testWidgets('"Choose…" reaches the caller for the slot it was pressed on', (

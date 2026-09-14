@@ -211,6 +211,68 @@ extension _Interactions on _ModelerScreenState {
   void _clearTexture(int index, String slot) =>
       _cubit.ran(SetTexture(materialIndex: index, slot: slot));
 
+  /// `TextureGraphPanel`'s own "Add" menu, for the material at
+  /// [materialIndex].
+  void _addTextureNode(
+    int materialIndex,
+    String kind,
+    Map<String, Object?> fields,
+    (double x, double y) position,
+  ) => _cubit.ran(
+    AddNode(
+      materialIndex: materialIndex,
+      kind: kind,
+      fields: fields,
+      position: position,
+    ),
+  );
+
+  void _linkTextureNode(
+    int materialIndex,
+    int nodeId,
+    String input,
+    int from,
+  ) => _cubit.ran(
+    Link(
+      materialIndex: materialIndex,
+      nodeId: nodeId,
+      input: input,
+      from: from,
+    ),
+  );
+
+  void _unlinkTextureNode(int materialIndex, int nodeId, String input) => _cubit
+      .ran(Unlink(materialIndex: materialIndex, nodeId: nodeId, input: input));
+
+  void _setTextureNodeField(
+    int materialIndex,
+    int nodeId,
+    String field,
+    Object? value,
+  ) => _cubit.ran(
+    SetNodeField(
+      materialIndex: materialIndex,
+      nodeId: nodeId,
+      field: field,
+      value: value,
+    ),
+  );
+
+  void _moveTextureNode(int materialIndex, int nodeId, double x, double y) =>
+      _cubit.ran(
+        MoveNode(materialIndex: materialIndex, nodeId: nodeId, x: x, y: y),
+      );
+
+  void _removeTextureNode(int materialIndex, int nodeId) =>
+      _cubit.ran(RemoveNode(materialIndex: materialIndex, nodeId: nodeId));
+
+  /// The texture graph's own bake button — 2048², `TextureGraphPanel`'s own
+  /// button label. [BakeTextureGraph.apply] runs to completion inline (see
+  /// its own doc comment), so this is a plain command like any other rather
+  /// than a background job.
+  void _bakeTextureGraph(int materialIndex) =>
+      _cubit.ran(BakeTextureGraph(materialIndex: materialIndex, size: 2048));
+
   /// Opens a picker for an image and points one of a material's five texture
   /// slots at it — `mat-04`'s own row generalises `mat-04a-n`'s base colour
   /// slot alone over every name [SetTexture.slot] takes.

@@ -780,7 +780,9 @@ class _TextureGraphPanelState extends State<TextureGraphPanel> {
     final ThemeData theme = Theme.of(context);
     return Container(
       key: const ValueKey<String>('textureGraphPanel'),
-      height: _expanded ? ModelerMetrics.propertiesMin : ModelerMetrics.row,
+      height: _expanded
+          ? ModelerMetrics.propertiesMin
+          : ModelerMetrics.textureGraphStripCollapsed,
       // `foregroundDecoration`, not `decoration`: `BoxDecoration.padding`
       // reserves space for a border it holds, which would shrink this
       // `Column` one pixel short of the exact row/propertiesMin height this
@@ -798,7 +800,13 @@ class _TextureGraphPanelState extends State<TextureGraphPanel> {
             key: const ValueKey<String>('textureGraphPanelHeader'),
             onTap: () => setState(() => _expanded = !_expanded),
             child: SizedBox(
-              height: ModelerMetrics.row,
+              // 44 collapsed, per `mat-33d`'s 2026-09-11 supplement; expanded,
+              // the header stays [ModelerMetrics.row] so the extra 12 goes to
+              // the canvas below it rather than to a header nobody asked to
+              // grow.
+              height: _expanded
+                  ? ModelerMetrics.row
+                  : ModelerMetrics.textureGraphStripCollapsed,
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 8),
                 child: Row(

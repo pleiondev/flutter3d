@@ -291,6 +291,11 @@ sealed class Geometry {
   /// a lathe of two hundred segments is not something to rebuild for a number
   /// in the corner.
   int get triangleCount;
+
+  /// How many vertices this draws as, for the status line's own "N vertices" —
+  /// [triangleCount]'s own twin, cached and computed the same way case by
+  /// case.
+  int get vertexCount;
 }
 
 /// A shape that still knows its own parameters.
@@ -300,9 +305,13 @@ final class ParametricGeometry extends Geometry {
   final ParametricShape shape;
 
   int? _triangles;
+  int? _vertices;
 
   @override
   int get triangleCount => _triangles ??= shape.drawn.build().triangleCount;
+
+  @override
+  int get vertexCount => _vertices ??= shape.drawn.build().vertexCount;
 }
 
 /// A mesh with its topology, being edited.
@@ -325,6 +334,9 @@ final class EditedGeometry extends Geometry {
     }
     return triangles;
   }
+
+  @override
+  int get vertexCount => mesh.vertexCount;
 }
 
 /// Buffers as they arrived, with no topology behind them.
@@ -335,6 +347,9 @@ final class ImportedGeometry extends Geometry {
 
   @override
   int get triangleCount => data.triangleCount;
+
+  @override
+  int get vertexCount => data.vertexCount;
 }
 
 /// No geometry at all — a named point for something else to hang off of, the
@@ -351,6 +366,9 @@ final class SocketGeometry extends Geometry {
 
   @override
   int get triangleCount => 0;
+
+  @override
+  int get vertexCount => 0;
 }
 
 /// One thing in the project.
@@ -544,6 +562,10 @@ final class ModelProject implements ModelProjectView {
     0,
     (int sum, ModelObject o) => sum + o.geometry.triangleCount,
   );
+
+  /// The status line's own "N vertices" — [triangleCount]'s own twin.
+  int get vertexCount =>
+      objects.fold(0, (int sum, ModelObject o) => sum + o.geometry.vertexCount);
 
   /// This project with [object] in place of the one with its id.
   ///

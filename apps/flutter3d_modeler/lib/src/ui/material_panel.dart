@@ -14,6 +14,8 @@
 /// pick it from, since a picker can only offer what it can name.
 library;
 
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:flutter3d_core/formats.dart';
 import 'package:flutter3d_editor_widgets/flutter3d_editor_widgets.dart';
@@ -32,12 +34,26 @@ String? _builtInShaderName(LightingModel lighting) {
   return null;
 }
 
-/// What one texture slot needs: what it is called today, and how to change
-/// or clear it — the same trio `mat-04a-n` gave the base colour slot alone,
-/// generalised over [MaterialPanel.textureSlots]' five keys instead of one
-/// hand-written parameter each.
+/// What one texture slot needs: what it is called today, how to draw it, and
+/// how to change or clear it — the trio `mat-04a-n` gave the base colour
+/// slot alone, plus `texture_slot.dart`'s own [TextureSlotDisplay] fields
+/// (`subtitle`/`badge`/`thumbnail`), generalised over
+/// [MaterialPanel.textureSlots]' five keys instead of one hand-written
+/// parameter each.
 typedef TextureSlotController = ({
   String? name,
+
+  /// `"256×128 · 170 KB"`, or null — straight through to
+  /// [TextureSlotRow.subtitle].
+  String? subtitle,
+
+  /// A format badge — `"BC7"` — or null for a plain PNG/JPEG. Straight
+  /// through to [TextureSlotRow.badge].
+  String? badge,
+
+  /// The bound file's own encoded bytes, for [TextureSlotRow]'s own
+  /// thumbnail well. Null draws no thumbnail, same as an empty slot.
+  Uint8List? thumbnail,
   VoidCallback onChoose,
   VoidCallback? onClear,
 });
@@ -132,6 +148,7 @@ class MaterialPanel extends StatelessWidget {
             _MaterialRow(
               key: ValueKey<int>(i),
               name: materials[i].surface.name ?? 'Material ${i + 1}',
+              color: _dotColorOf(materials[i].surface),
               selected: i == activeIndex,
               onTap: () => onAssign(i == activeIndex ? null : i),
             ),
@@ -266,6 +283,9 @@ class MaterialPanel extends StatelessWidget {
                 _ => entry.key,
               },
               name: entry.value.name,
+              subtitle: entry.value.subtitle,
+              badge: entry.value.badge,
+              thumbnail: entry.value.thumbnail,
               onChoose: entry.value.onChoose,
               onClear: entry.value.onClear,
             ),
@@ -388,16 +408,34 @@ class _MaterialAdvancedSection extends StatelessWidget {
   }
 }
 
+/// [surface]'s own colour, for the material list's dot — its
+/// [SurfaceMaterial.baseColor], sRGB as authored (that field's own doc
+/// comment), always drawn fully opaque: the dot names which paint a row is,
+/// it does not preview how see-through it renders.
+Color _dotColorOf(SurfaceMaterial surface) => Color.fromRGBO(
+  (surface.baseColor.x.clamp(0.0, 1.0) * 255).round(),
+  (surface.baseColor.y.clamp(0.0, 1.0) * 255).round(),
+  (surface.baseColor.z.clamp(0.0, 1.0) * 255).round(),
+  1.0,
+);
+
 /// One line of the material list.
 class _MaterialRow extends StatelessWidget {
   const _MaterialRow({
     super.key,
     required this.name,
+    required this.color,
     required this.selected,
     required this.onTap,
   });
 
   final String name;
+
+  /// [SurfaceMaterial.baseColor], from [_dotColorOf] — the design
+  /// hand-over's own "цветной кружок" in place of the checkbox this row used
+  /// to lead with.
+  final Color color;
+
   final bool selected;
   final VoidCallback onTap;
 
@@ -415,10 +453,23 @@ class _MaterialRow extends StatelessWidget {
             height: ModelerMetrics.row,
             child: Row(
               children: <Widget>[
-                Icon(
-                  selected ? Icons.check_box : Icons.check_box_outline_blank,
-                  size: 16,
-                  color: theme.colorScheme.onSurfaceVariant,
+                Container(
+                  width: 16,
+                  height: 16,
+                  decoration: BoxDecoration(
+                    color: color,
+                    shape: BoxShape.circle,
+                    // A wider, `primary` ring marks the active row — the dot
+                    // is what colour the material paints with either way, so
+                    // selection has to be a second visual fact rather than a
+                    // second meaning of the same one.
+                    border: Border.all(
+                      color: selected
+                          ? theme.colorScheme.primary
+                          : theme.colorScheme.outlineVariant,
+                      width: selected ? 2 : 1,
+                    ),
+                  ),
                 ),
                 const SizedBox(width: 6),
                 Expanded(
