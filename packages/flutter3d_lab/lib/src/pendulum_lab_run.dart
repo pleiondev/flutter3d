@@ -158,4 +158,49 @@ final class PendulumLabRun {
     checkpoints: checkpoints,
     dataSources: lengths,
   );
+
+  /// Where this run and [assignment] first disagree, plus the one input
+  /// that could have caused it — `ls-e-01`'s own acceptance: "an instructor
+  /// sees... which step the student set a length different from the
+  /// assignment."
+  ///
+  /// Null when the two runs agree the whole way through — [assignment]'s
+  /// own checkpoints, not this run's own [checkpoints], say how far the
+  /// comparison reaches, the same asymmetry [DigestTrace.divergenceFrom]
+  /// already has for a run that stopped early. [PendulumDivergence.step] is
+  /// a checkpoint step, not the exact step the two lengths first differed
+  /// on: [DigestTrace.every] is the dial for that, the same as everywhere
+  /// else this trace is read.
+  PendulumDivergence? divergenceFrom(PendulumLabRun assignment) {
+    final at = checkpoints.divergenceFrom(assignment.checkpoints.digests);
+    if (at == null) return null;
+    double? lengthOf(DataSourceTrace lengths, int step) =>
+        lengths.valueAt(step)?['length'] as double?;
+    return PendulumDivergence(
+      checkpoint: at,
+      assignmentLength: lengthOf(assignment.lengths, at.step),
+      studentLength: lengthOf(lengths, at.step),
+    );
+  }
+}
+
+/// [PendulumLabRun.divergenceFrom]'s own answer: where two runs parted, and
+/// what each one's own length knob read there.
+final class PendulumDivergence {
+  const PendulumDivergence({
+    required this.checkpoint,
+    required this.assignmentLength,
+    required this.studentLength,
+  });
+
+  /// The state digest divergence itself — see [Divergence.step].
+  final Divergence checkpoint;
+
+  /// The assignment's own length at [checkpoint]'s own step, or null when
+  /// the assignment's own trace does not reach that step.
+  final double? assignmentLength;
+
+  /// The student's own length at [checkpoint]'s own step, or null when this
+  /// run's own trace does not reach that step.
+  final double? studentLength;
 }

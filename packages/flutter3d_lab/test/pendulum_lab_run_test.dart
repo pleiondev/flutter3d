@@ -58,6 +58,32 @@ void main() {
       expect(divergence.expected, isNot(equals(divergence.found)));
     });
 
+    test("ls-e-01's own acceptance: divergenceFrom names the step and the two "
+        'lengths that disagreed', () {
+      final assignment = PendulumLabRun(
+        startLength: 1.0,
+        steps: 300,
+        checkpointEvery: 10,
+      );
+      final student = PendulumLabRun(
+        startLength: 1.4,
+        steps: 300,
+        checkpointEvery: 10,
+      );
+
+      final found = student.divergenceFrom(assignment);
+      expect(found, isNotNull);
+      expect(found!.checkpoint.step, student.checkpoints.steps.first);
+      expect(found.assignmentLength, 1.0);
+      expect(found.studentLength, 1.4);
+    });
+
+    test('two runs of the same length report no divergence at all', () {
+      final assignment = PendulumLabRun(startLength: 1.0, steps: 200);
+      final student = PendulumLabRun(startLength: 1.0, steps: 200);
+      expect(student.divergenceFrom(assignment), isNull);
+    });
+
     test('a "what if" branch leaves the original run untouched', () {
       final original = PendulumLabRun(
         startLength: 1.0,
