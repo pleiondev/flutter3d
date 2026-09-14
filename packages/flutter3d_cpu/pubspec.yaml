@@ -31,5 +31,15 @@ dev_dependencies:
   # chain, sampled at a distant footprint. Not a real dependency — nothing in
   # `lib/` reaches it.
   flutter3d_formats: ^0.6.0
+  # For `render_project_test.dart` alone: `renderProject` itself
+  # (`flutter3d_model_core`) and `ParametricCuboid` to build a project to hand
+  # it (`flutter3d_mesh`). Not a real dependency — nothing in `lib/` reaches
+  # either; the direction is the opposite one `render_project.dart`'s own doc
+  # comment explains, and deliberately: `flutter3d_model_core` may not depend
+  # on this package (it would carry the Flutter SDK straight into a package
+  # that must resolve without it), but nothing stops this package depending
+  # on it to prove the two actually work together.
+  flutter3d_model_core: ^0.6.0
+  flutter3d_mesh: ^0.6.0
 
 resolution: workspace

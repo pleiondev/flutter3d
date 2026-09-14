@@ -25,6 +25,17 @@ dependencies:
   # `MeshData` and `VertexLayout`, which an imported object holds as it arrived.
   flutter3d_geometry: ^0.6.0
 
+  # `Scene`, `MeshNode`, `LightNode`, `CameraNode`, `Renderer`, `RenderView`,
+  # `RenderSettings`, `GraphicsDevice` — `renderProject`'s own scene and the
+  # renderer it draws with (`render_project.dart`, `mcp-05n`). The
+  # Flutter-free half of the engine, not `flutter3d` itself: a package under
+  # this one starts with `dart run`, which cannot resolve a graph with the
+  # Flutter SDK in it. Not `flutter3d_cpu` as well, even though that is what
+  # actually draws a frame at the far end of `renderProject`'s own device
+  # parameter — see that function's own doc comment for why the concrete
+  # device is the caller's dependency, not this package's.
+  flutter3d_core: ^0.1.0
+
   # `ClothMesh`/`stepCloth` — `pro-sim-03`'s own row, what `BakeClothJobRequest`
   # runs one frame at a time into a `SimulationCache` — and `Dynamics`/`RigidBody`/
   # `CollisionWorld`, what `BakeRigidBodyJobRequest` runs one frame at a time into
