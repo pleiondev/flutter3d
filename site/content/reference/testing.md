@@ -10,7 +10,7 @@ description: Four independent golden sets, mutation-checking every new test, det
 |---|---|---|---|---|
 | `flutter3d` | 1114 | | | |
 | | | | `flutter3d_mesh` | 516 |
-| | | | `apps/flutter3d_modeler` | 870 |
+| | | | `apps/flutter3d_modeler` | 880 |
 | `flutter3d_sim` | 526 | | `pad_input` | 59 |
 | `flutter3d_lab` | 10 | | `flutter3d_core` | 398 |
 | | | | `apps/flutter3d_lab_pendulum` | 4 |

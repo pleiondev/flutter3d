@@ -150,34 +150,125 @@ final class ModelerReady extends ModelerState {
   );
 }
 
-/// One background bake in progress, as far as a screen needs to know —
-/// `ui-25`'s own row.
+/// One background job in progress, as far as a screen needs to know —
+/// `ui-25`'s own row, [key] telling apart the three families `anim-25`
+/// widens it to: `ModelerCubit.bakeInBackground`, `retargetInBackground` and
+/// `bindWeightsInBackground`.
 ///
-/// **Progress only, not the [Job] itself.** The running `Job<JobResult?>`
-/// stays inside `ModelerCubit`'s own bookkeeping, since a `Job` carries a
-/// callback closure and a mutable cancel flag, neither of which belongs in a
-/// value a screen compares with `==` to decide whether to rebuild.
+/// **Progress only, not the [Job] itself.** The running `Job` stays inside
+/// `ModelerCubit`'s own bookkeeping, since a `Job` carries a callback
+/// closure and a mutable cancel flag, neither of which belongs in a value a
+/// screen compares with `==` to decide whether to rebuild.
 final class ActiveJob {
-  const ActiveJob({required this.objectId, required this.progress});
+  const ActiveJob({required this.key, required this.progress});
 
-  /// Which object this bake answers for — the same id
-  /// `ModelerCubit.cancelBake` takes to stop it.
-  final int objectId;
+  /// Which job this answers for — the same value `ModelerCubit.cancelJob`
+  /// takes to stop it.
+  final JobKey key;
 
   /// 0 to 1, [Job.progress]'s own number at the moment this was built.
   final double progress;
 
+  /// [key]'s own [JobKey.objectId] — the object a `JobButton` drawn for one
+  /// particular object compares itself against, without switching on [key]'s
+  /// variant to ask.
+  int? get objectId => key.objectId;
+
   @override
   bool operator ==(Object other) =>
-      other is ActiveJob &&
-      other.objectId == objectId &&
-      other.progress == progress;
+      other is ActiveJob && other.key == key && other.progress == progress;
 
   @override
-  int get hashCode => Object.hash(objectId, progress);
+  int get hashCode => Object.hash(key, progress);
 
   @override
-  String toString() => 'ActiveJob(objectId: $objectId, progress: $progress)';
+  String toString() => 'ActiveJob(key: $key, progress: $progress)';
+}
+
+/// Which background job an [ActiveJob] reports on, and what
+/// `ModelerCubit.runJob` keys its bookkeeping by so a bake and a rig job on
+/// the same object never share a slot.
+///
+/// **Three variants because three jobs answer for different things.**
+/// [JobKey.object] names the object a `bakeInBackground` folds a modifier
+/// stack for; [JobKey.rig] names the object a `bindWeightsInBackground`
+/// binds a skin for — kept apart from [JobKey.object] even when both name
+/// the same id, since baking and binding are two different jobs that can run
+/// on one object at once; [JobKey.clip] names the clip index a
+/// `retargetInBackground` answers for, [ApplyClipResult.clipIndex]'s own
+/// convention of null-appends/given-replaces carried straight through — a
+/// caller retargeting onto a fresh clip and a caller re-baking clip 2 are
+/// two different jobs even though neither names an object at all.
+sealed class JobKey {
+  const JobKey();
+
+  /// `bakeInBackground`, for object [id]'s own modifier stack.
+  const factory JobKey.object(int id) = JobKeyObject;
+
+  /// `retargetInBackground`, for the clip [index] names — the clip index a
+  /// caller passed as `clipIndex` when it replaces one, or the index the
+  /// retargeted clip will land at when it appends (`clipIndex: null`, so
+  /// there is nothing to key by yet except where the append will land).
+  const factory JobKey.clip(int index) = JobKeyClip;
+
+  /// `bindWeightsInBackground`, for object [objectId]'s own mesh.
+  const factory JobKey.rig(int objectId) = JobKeyRig;
+
+  /// The object this job answers for — null for [JobKeyClip], which answers
+  /// for a clip rather than one object.
+  int? get objectId;
+}
+
+final class JobKeyObject extends JobKey {
+  const JobKeyObject(this.objectId);
+
+  @override
+  final int objectId;
+
+  @override
+  bool operator ==(Object other) =>
+      other is JobKeyObject && other.objectId == objectId;
+
+  @override
+  int get hashCode => Object.hash(JobKeyObject, objectId);
+
+  @override
+  String toString() => 'JobKey.object($objectId)';
+}
+
+final class JobKeyClip extends JobKey {
+  const JobKeyClip(this.index);
+
+  final int index;
+
+  @override
+  int? get objectId => null;
+
+  @override
+  bool operator ==(Object other) => other is JobKeyClip && other.index == index;
+
+  @override
+  int get hashCode => Object.hash(JobKeyClip, index);
+
+  @override
+  String toString() => 'JobKey.clip($index)';
+}
+
+final class JobKeyRig extends JobKey {
+  const JobKeyRig(this.objectId);
+
+  @override
+  final int objectId;
+
+  @override
+  bool operator ==(Object other) =>
+      other is JobKeyRig && other.objectId == objectId;
+
+  @override
+  int get hashCode => Object.hash(JobKeyRig, objectId);
+
+  @override
+  String toString() => 'JobKey.rig($objectId)';
 }
 
 /// Nothing to draw with, or nothing that would open, and the sentence saying

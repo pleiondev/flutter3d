@@ -9,6 +9,8 @@
 /// a transition, and none of them needs a frame.
 library;
 
+import 'dart:typed_data';
+
 import 'package:flutter3d/flutter3d.dart' hide Material;
 import 'package:flutter3d_cpu/testing.dart';
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
@@ -16,6 +18,7 @@ import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 import 'package:flutter3d_modeler/src/modeler_cubit.dart';
 import 'package:flutter3d_modeler/src/staging.dart';
 import 'package:flutter3d_modeler/src/ui/tools.dart';
+import 'package:flutter3d_rig/flutter3d_rig.dart' show BoneMap, BoneSegment;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart';
 
@@ -47,6 +50,89 @@ ModelProject withOneModifier() => const ModelProject().added(
       ModifierSlot(modifier: MirrorModifier(normal: Vector3(1, 0, 0))),
     ],
   ),
+);
+
+/// A two-joint rig — root and child, the child a metre up — the same
+/// fixture `flutter3d_model_core`'s own
+/// `rig_job_retarget_and_bind_test.dart` builds for `RetargetClipJobRequest`.
+({ModelProject project, ProjectSkeleton skeleton}) twoJointRig() {
+  final objects = <ModelObject>[
+    ModelObject(
+      id: 1,
+      name: 'root',
+      geometry: const SocketGeometry(),
+      transform: Matrix4.identity(),
+    ),
+    ModelObject(
+      id: 2,
+      name: 'child',
+      geometry: const SocketGeometry(),
+      transform: Matrix4.translation(Vector3(0, 1, 0)),
+      parent: 1,
+    ),
+  ];
+  final skeleton = ProjectSkeleton(
+    joints: <int>[1, 2],
+    inverseBindMatrices: <Matrix4>[Matrix4.identity(), Matrix4.identity()],
+  );
+  return (
+    project: ModelProject(
+      objects: objects,
+      skeletons: <ProjectSkeleton>[skeleton],
+    ),
+    skeleton: skeleton,
+  );
+}
+
+/// One key rotating [childId] a fifth of the way round its own X axis —
+/// enough for a retarget to actually carry something across.
+ProjectClip poseClip(int childId) => ProjectClip(
+  name: 'pose',
+  tracks: <ProjectTrack>[
+    ProjectTrack(
+      objectId: childId,
+      track: AnimationTrack(
+        nodeIndex: 0,
+        path: AnimationPath.rotation,
+        interpolation: AnimationInterpolation.linear,
+        times: Float32List.fromList(<double>[0, 1]),
+        values: Float32List.fromList(<double>[
+          0,
+          0,
+          0,
+          1,
+          ...(() {
+            final q = Quaternion.axisAngle(Vector3(1, 0, 0), 0.4)..normalize();
+            return <double>[q.x, q.y, q.z, q.w];
+          })(),
+        ]),
+        componentCount: 4,
+      ),
+    ),
+  ],
+);
+
+/// A single cube with two bones straddling its top and bottom halves — the
+/// same fixture `flutter3d_model_core`'s own
+/// `rig_job_retarget_and_bind_test.dart` builds for `BindWeightsJobRequest`
+/// — and one enabled `MirrorModifier`, `withOneModifier`'s own, so
+/// `bakeInBackground` has something to fold on the same object at once.
+({ModelProject project, List<BoneSegment> bones}) cubeWithTwoBones() => (
+  project: const ModelProject().added(
+    (int id) => ModelObject(
+      id: id,
+      name: 'cube',
+      geometry: EditedGeometry(EditMesh.cuboid()),
+      transform: Matrix4.identity(),
+      modifiers: <ModifierSlot>[
+        ModifierSlot(modifier: MirrorModifier(normal: Vector3(1, 0, 0))),
+      ],
+    ),
+  ),
+  bones: <BoneSegment>[
+    BoneSegment(Vector3(0, -1, 0), Vector3(0, -0.5, 0), name: 'lower'),
+    BoneSegment(Vector3(0, 0.5, 0), Vector3(0, 1, 0), name: 'upper'),
+  ],
 );
 
 /// A cubit with a document open and a real scene behind it, drawn by the
@@ -375,7 +461,7 @@ void main() {
       // necessarily finished — this is the same instant `job_runner_test.dart`
       // itself reads betweeen `run()` starting and its first `await` landing.
       expect(ready(cubit).jobs, <ActiveJob>[
-        ActiveJob(objectId: objectId, progress: 0.0),
+        ActiveJob(key: JobKey.object(objectId), progress: 0.0),
       ]);
 
       await future;
@@ -423,6 +509,233 @@ void main() {
 
       final landed = await cubit.bakeInBackground(objectId, 0);
       expect(landed, isFalse);
+    });
+  });
+
+  group('retargeting a clip in the background', () {
+    RetargetClipJobRequest requestFor(ModelProject project) =>
+        retargetClipJobRequestFor(
+          sourceProject: project,
+          sourceSkeletonIndex: 0,
+          sourceClipIndex: 0,
+          targetProject: project,
+          targetSkeletonIndex: 0,
+          boneMap: BoneMap(<String, String>{'root': 'root', 'child': 'child'}),
+          lockFeet: false,
+        )!;
+
+    test(
+      'lands: the clip is appended, and jobs empties out afterwards',
+      () async {
+        final rig = twoJointRig();
+        final project = rig.project.copyWith(clips: <ProjectClip>[poseClip(2)]);
+        final cubit = openedWith(project).cubit;
+
+        final applied = await cubit.retargetInBackground(requestFor(project));
+
+        expect(applied, isNotNull);
+        // An append: `ApplyClipResult.clipIndex` names the clip it replaces,
+        // and this replaced none.
+        expect(applied!.clipIndex, isNull);
+        expect(ready(cubit).project.clips, hasLength(2));
+        expect(ready(cubit).jobs, isEmpty);
+      },
+    );
+
+    test('jobs carries the clip key while a retarget is in flight', () async {
+      final rig = twoJointRig();
+      final project = rig.project.copyWith(clips: <ProjectClip>[poseClip(2)]);
+      final cubit = openedWith(project).cubit;
+
+      final future = cubit.retargetInBackground(requestFor(project));
+      // The same instant `bakeInBackground`'s own analogous test reads,
+      // between `run()` starting and its first `await` landing — the one
+      // clip already on the project keys the append that will land after it.
+      expect(ready(cubit).jobs, <ActiveJob>[
+        ActiveJob(key: JobKey.clip(1), progress: 0.0),
+      ]);
+
+      await future;
+      expect(ready(cubit).jobs, isEmpty);
+    });
+
+    test('cancelling before it starts leaves the document untouched', () async {
+      final rig = twoJointRig();
+      final project = rig.project.copyWith(clips: <ProjectClip>[poseClip(2)]);
+      final cubit = openedWith(project).cubit;
+
+      // See `bakeInBackground`'s own analogous test for why cancelling has
+      // to happen in the same synchronous stretch that starts the future.
+      final future = cubit.retargetInBackground(requestFor(project));
+      cubit.cancelJob(JobKey.clip(1));
+      final applied = await future;
+
+      expect(applied, isNull);
+      expect(ready(cubit).project.clips, hasLength(1));
+      expect(ready(cubit).jobs, isEmpty);
+    });
+
+    test('a second retarget onto the same append slot while one runs is '
+        'refused', () async {
+      final rig = twoJointRig();
+      final project = rig.project.copyWith(clips: <ProjectClip>[poseClip(2)]);
+      final cubit = openedWith(project).cubit;
+
+      final first = cubit.retargetInBackground(requestFor(project));
+      final second = await cubit.retargetInBackground(requestFor(project));
+      expect(second, isNull);
+
+      await first;
+    });
+
+    test('matches RetargetClipJobRequest.run applied through ApplyClipResult '
+        'directly, byte for byte', () async {
+      final rig = twoJointRig();
+      final project = rig.project.copyWith(clips: <ProjectClip>[poseClip(2)]);
+      final request = requestFor(project);
+
+      final direct = await request.run();
+
+      final cubit = openedWith(project).cubit;
+      final applied = await cubit.retargetInBackground(request);
+
+      expect(applied, isNotNull);
+      final throughCubit = ready(cubit).project.clips.last;
+      expect(throughCubit.tracks, hasLength(direct.tracks.length));
+      for (var i = 0; i < direct.tracks.length; i++) {
+        expect(throughCubit.tracks[i].objectId, direct.tracks[i].objectId);
+        expect(
+          throughCubit.tracks[i].track.times,
+          direct.tracks[i].track.times,
+        );
+        expect(
+          throughCubit.tracks[i].track.values,
+          direct.tracks[i].track.values,
+        );
+      }
+    });
+  });
+
+  group('binding weights in the background', () {
+    test(
+      'lands: the object is bound, and jobs empties out afterwards',
+      () async {
+        final rig = cubeWithTwoBones();
+        final cubit = openedWith(rig.project).cubit;
+        final objectId = ready(cubit).project.objects.first.id;
+        final versionBefore = ready(cubit).project.objects.first.version;
+        final request = bindWeightsJobRequestFor(
+          project: rig.project,
+          objectId: objectId,
+          bones: rig.bones,
+        )!;
+
+        final landed = await cubit.bindWeightsInBackground(request);
+
+        expect(landed, isTrue);
+        expect(
+          ready(cubit).project[objectId]!.version,
+          greaterThan(versionBefore),
+        );
+        expect(ready(cubit).jobs, isEmpty);
+      },
+    );
+
+    test('jobs carries the object while a bind-weights is in flight', () async {
+      final rig = cubeWithTwoBones();
+      final cubit = openedWith(rig.project).cubit;
+      final objectId = ready(cubit).project.objects.first.id;
+      final request = bindWeightsJobRequestFor(
+        project: rig.project,
+        objectId: objectId,
+        bones: rig.bones,
+      )!;
+
+      final future = cubit.bindWeightsInBackground(request);
+      expect(ready(cubit).jobs, <ActiveJob>[
+        ActiveJob(key: JobKey.rig(objectId), progress: 0.0),
+      ]);
+
+      await future;
+      expect(ready(cubit).jobs, isEmpty);
+    });
+
+    test('cancelling before it starts leaves the object untouched', () async {
+      final rig = cubeWithTwoBones();
+      final cubit = openedWith(rig.project).cubit;
+      final objectId = ready(cubit).project.objects.first.id;
+      final versionBefore = ready(cubit).project.objects.first.version;
+      final request = bindWeightsJobRequestFor(
+        project: rig.project,
+        objectId: objectId,
+        bones: rig.bones,
+      )!;
+
+      final future = cubit.bindWeightsInBackground(request);
+      cubit.cancelJob(JobKey.rig(objectId));
+      final landed = await future;
+
+      expect(landed, isFalse);
+      expect(ready(cubit).project[objectId]!.version, versionBefore);
+      expect(ready(cubit).jobs, isEmpty);
+    });
+
+    test('a bake and a bind-weights on the same object are tracked as two '
+        'separate jobs, not refused as one colliding with the other', () async {
+      final rig = cubeWithTwoBones();
+      final cubit = openedWith(rig.project).cubit;
+      final objectId = ready(cubit).project.objects.first.id;
+      final request = bindWeightsJobRequestFor(
+        project: rig.project,
+        objectId: objectId,
+        bones: rig.bones,
+      )!;
+
+      // Fired without awaiting either, the same synchronous stretch
+      // `bakeInBackground`'s own "second bake refused" test relies on —
+      // the old `Map<int, Job<...>>` this replaced would have keyed both
+      // under the same object id and refused the second outright.
+      final bake = cubit.bakeInBackground(objectId, 0);
+      final bind = cubit.bindWeightsInBackground(request);
+      expect(
+        ready(cubit).jobs,
+        unorderedEquals(<ActiveJob>[
+          ActiveJob(key: JobKey.object(objectId), progress: 0.0),
+          ActiveJob(key: JobKey.rig(objectId), progress: 0.0),
+        ]),
+      );
+
+      await bake;
+      await bind;
+      expect(ready(cubit).jobs, isEmpty);
+    });
+
+    test('matches BindWeightsJobRequest.run applied through ApplyJobResult '
+        'directly, byte for byte', () async {
+      final rig = cubeWithTwoBones();
+      final objectId = rig.project.objects.first.id;
+      final request = bindWeightsJobRequestFor(
+        project: rig.project,
+        objectId: objectId,
+        bones: rig.bones,
+      )!;
+
+      final direct = await request.run();
+      final directHistory = ModelHistory(rig.project);
+      expect(directHistory.run(ApplyJobResult.of(direct)), isNull);
+
+      final cubit = openedWith(rig.project).cubit;
+      final landed = await cubit.bindWeightsInBackground(request);
+
+      expect(landed, isTrue);
+      expect(
+        (ready(cubit).project[objectId]!.geometry as EditedGeometry).mesh
+            .toBytes(),
+        equals(
+          (directHistory.project[objectId]!.geometry as EditedGeometry).mesh
+              .toBytes(),
+        ),
+      );
     });
   });
 

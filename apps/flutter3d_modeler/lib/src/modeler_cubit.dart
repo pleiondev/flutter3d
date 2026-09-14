@@ -54,11 +54,18 @@ final class ModelerCubit extends Cubit<ModelerState> {
   /// [undo], [redo] or [opened].
   final ReadinessCache _readiness = ReadinessCache();
 
-  /// Every background bake actually running, by the object it answers for —
-  /// `ui-25`'s own row. [ModelerReady.jobs] is this map's own progress,
-  /// copied out for a screen to read; the running [Job] itself stays here,
-  /// since [cancelBake] needs to reach it and a screen never does.
-  final Map<int, Job<JobResult?>> _activeJobs = <int, Job<JobResult?>>{};
+  /// Every background job actually running, by the [JobKey] it answers for —
+  /// `ui-25`'s own row, widened by `anim-25` to cover more than a bake.
+  /// [ModelerReady.jobs] is this map's own progress, copied out for a screen
+  /// to read; the running [Job] itself stays here, since [cancelJob] needs to
+  /// reach it and a screen never does.
+  ///
+  /// **`Job<Object?>`, not one type parameter per job kind.** A bake answers
+  /// with a [JobResult], a retarget with a [ProjectClip], a bind-weights
+  /// with a [JobResult] again — three different `T`s sharing one map, which
+  /// only [runJob]'s own `T` ever needs to be the real one, since nothing
+  /// here calls a stored [Job]'s own `run` a second time.
+  final Map<JobKey, Job<Object?>> _activeJobs = <JobKey, Job<Object?>>{};
 
   /// A document opened, with the world that draws it.
   void opened(
@@ -170,68 +177,148 @@ final class ModelerCubit extends Cubit<ModelerState> {
     _synced(now, said: said);
   }
 
+  /// Runs [work] as one background [Job], tracked under [key] in
+  /// [ModelerReady.jobs] for a `JobButton` to show and [cancelJob] to stop —
+  /// the runner [bakeInBackground], [retargetInBackground] and
+  /// [bindWeightsInBackground] all build on rather than each rolling its own.
+  ///
+  /// Answers [JobCancelled] instead of starting a second job when [key]
+  /// already names one in flight — `modeler_cubit_test.dart`'s own "a second
+  /// bake for the same object while one runs is refused", generalised to
+  /// every job kind through [JobKey].
+  ///
+  /// **One chunk, because every job this wraps is already one opaque call.**
+  /// [JobRequest.run] and its siblings in `flutter3d_model_core` each cross
+  /// an isolate or stay small enough not to need one on their own account
+  /// (`rig_job.dart`'s own class comment says which); splitting further here
+  /// would mean this cubit reaching into work it does not own the shape of.
+  /// The trade this makes: [cancelJob] stops a job that has not started
+  /// running its one chunk yet, the same as the last of
+  /// `job_runner_test.dart`'s own cases (`cancel` before `run` prevents every
+  /// chunk); once [work] is under way there is no checkpoint inside it to
+  /// stop at, so it runs to its own finish either way — an honest limit of
+  /// wrapping one atomic call in a job, not a broken promise about what
+  /// [cancelJob] does.
+  ///
+  /// **One microtask yield before [work] starts**, so a caller who calls
+  /// [cancelJob] in the same synchronous stretch that started this (the
+  /// ordinary shape: fire the job, then wire a cancel button to stop it)
+  /// still lands before [Job.run] takes its own first look at whether it was
+  /// asked to stop — without the yield, this function would already have run
+  /// straight past that check by the time control ever returned to whoever
+  /// called it.
+  Future<JobOutcome<T>> runJob<T>(JobKey key, Future<T> Function() work) async {
+    if (_activeJobs.containsKey(key)) return const JobCancelled();
+
+    late T result;
+    final job = Job<T>(
+      chunkCount: 1,
+      runChunk: (int _) async => result = await work(),
+      onProgress: (double _) => _syncJobs(),
+    );
+    _activeJobs[key] = job;
+    _syncJobs();
+    await Future<void>.value();
+
+    final JobOutcome<T> outcome = await job.run(() => result);
+    _activeJobs.remove(key);
+    _syncJobs();
+    return outcome;
+  }
+
   /// Bakes [objectId]'s own modifier stack up to and including [uptoIndex] in
   /// the background — `ui-25`'s own row, `doc-24`'s `JobRequest` the value it
-  /// runs.
+  /// runs, [runJob] the runner.
   ///
   /// Answers whether the bake actually landed. False for every way it can
   /// come back empty-handed: there is nothing to bake, one is already running
   /// for this object, it was cancelled, or [ApplyJobResult] itself refused a
   /// [JobRequest.baseVersion] the object has since moved past.
   ///
-  /// **One chunk, because [JobRequest.run] is one opaque call.** It already
-  /// crosses to another isolate on its own (`editInIsolate`), which is the
-  /// row's own "`Isolate.run` на native" — chunking further would mean
-  /// splitting one modifier stack's bake into per-modifier isolate hops,
-  /// several times the cost for a stack that is rarely more than a handful of
-  /// steps. The trade this makes: [cancelBake] stops a bake that has not
-  /// started running its one chunk yet, the same as the last of
-  /// `job_runner_test.dart`'s own cases (`cancel` before `run` prevents every
-  /// chunk); once the isolate call is under way there is no checkpoint inside
-  /// it to stop at, so it runs to its own finish either way — an honest limit
-  /// of wrapping one atomic call in a job, not a broken promise about what
-  /// [cancelBake] does.
-  ///
-  /// **One microtask yield before the chunk starts**, so a caller who calls
-  /// [cancelBake] in the same synchronous stretch that started this (the
-  /// ordinary shape: fire the bake, then wire the cancel button to stop it)
-  /// still lands before [Job.run] takes its own first look at whether it was
-  /// asked to stop — without the yield, this function would already have run
-  /// straight past that check by the time control ever returned to whoever
-  /// called it.
+  /// See [runJob] for what cancelling this can and cannot still catch.
   Future<bool> bakeInBackground(int objectId, int uptoIndex) async {
     final ModelerReady? now = _ready;
     if (now == null) return false;
-    if (_activeJobs.containsKey(objectId)) return false;
     final JobRequest? request = jobRequestFor(now.project, objectId, uptoIndex);
     if (request == null) return false;
 
-    JobResult? result;
-    final job = Job<JobResult?>(
-      chunkCount: 1,
-      runChunk: (int _) async => result = await request.run(),
-      onProgress: (double _) => _syncJobs(),
+    final outcome = await runJob<JobResult>(
+      JobKey.object(objectId),
+      request.run,
     );
-    _activeJobs[objectId] = job;
-    _syncJobs();
-    await Future<void>.value();
-
-    final JobOutcome<JobResult?> outcome = await job.run(() => result);
-    _activeJobs.remove(objectId);
-    _syncJobs();
-
-    if (outcome is! JobFinished<JobResult?> || outcome.value == null) {
-      return false;
-    }
+    if (outcome is! JobFinished<JobResult>) return false;
     return ran(
-      ApplyJobResult.of(outcome.value!),
+      ApplyJobResult.of(outcome.value),
       said: 'baked in the background',
     );
   }
 
+  /// Retargets [request]'s own source clip onto its own target skeleton in
+  /// the background, landing the answer through [ApplyClipResult] —
+  /// `anim-25`'s own second [runJob] wrapper, `anim-17`'s
+  /// `RetargetClipJobRequest` the value it runs.
+  ///
+  /// [clipIndex] is [ApplyClipResult.clipIndex]'s own convention carried
+  /// straight through: null appends the retargeted clip as a new one, given
+  /// replaces the clip already at that index (a re-run against a tightened
+  /// bone map, say). It also keys the job in [ModelerReady.jobs] — an append
+  /// under the index the new clip will land at if nothing else changes
+  /// [ModelProject.clips]'s own length first, so two appends started in the
+  /// same synchronous stretch collide the same way two bakes of the same
+  /// object do, rather than both running unannounced.
+  ///
+  /// Answers the applied [ApplyClipResult] when it landed, so a caller can
+  /// read [ApplyClipResult.clipIndex] back off it to know where the clip
+  /// landed even when it appended — null for every way it can come back
+  /// empty-handed, the same set [bakeInBackground] answers false for.
+  Future<ApplyClipResult?> retargetInBackground(
+    RetargetClipJobRequest request, {
+    int? clipIndex,
+  }) async {
+    final ModelerReady? now = _ready;
+    if (now == null) return null;
+
+    final key = JobKey.clip(clipIndex ?? now.project.clips.length);
+    final outcome = await runJob<ProjectClip>(key, request.run);
+    if (outcome is! JobFinished<ProjectClip>) return null;
+
+    final command = ApplyClipResult(clip: outcome.value, clipIndex: clipIndex);
+    return ran(command, said: 'retargeted in the background') ? command : null;
+  }
+
+  /// Binds [request]'s own bones to its own mesh in the background, landing
+  /// the answer through [ApplyJobResult] the same way [bakeInBackground]
+  /// does — `anim-25`'s own third [runJob] wrapper, `anim-22`'s
+  /// `BindWeightsJobRequest` the value it runs: the one rig job that crosses
+  /// an isolate the way a mesh bake does, since it is `O(vertex count × bone
+  /// count)` rather than the `O(keyframe count)` the clip bakes are
+  /// (`rig_job.dart`'s own class comment).
+  ///
+  /// [JobKey.rig], not [JobKey.object]: a bake and a bind-weights can run on
+  /// the same object at once, and sharing a slot would refuse the second as
+  /// though it collided with the first when the two answer for different
+  /// things entirely.
+  Future<bool> bindWeightsInBackground(BindWeightsJobRequest request) async {
+    if (_ready == null) return false;
+
+    final outcome = await runJob<JobResult>(
+      JobKey.rig(request.objectId),
+      request.run,
+    );
+    if (outcome is! JobFinished<JobResult>) return false;
+    return ran(
+      ApplyJobResult.of(outcome.value),
+      said: 'bound weights in the background',
+    );
+  }
+
   /// Asks [objectId]'s own background bake to stop, if one is running — see
-  /// [bakeInBackground] for what that can and cannot still catch.
-  void cancelBake(int objectId) => _activeJobs[objectId]?.cancel();
+  /// [runJob] for what that can and cannot still catch.
+  void cancelBake(int objectId) => cancelJob(JobKey.object(objectId));
+
+  /// Asks whatever background job [key] names to stop, if one is running —
+  /// see [runJob] for what that can and cannot still catch.
+  void cancelJob(JobKey key) => _activeJobs[key]?.cancel();
 
   void _syncJobs() {
     final ModelerReady? now = _ready;
@@ -239,9 +326,9 @@ final class ModelerCubit extends Cubit<ModelerState> {
     emit(
       now.copyWith(
         jobs: <ActiveJob>[
-          for (final MapEntry<int, Job<JobResult?>> entry
+          for (final MapEntry<JobKey, Job<Object?>> entry
               in _activeJobs.entries)
-            ActiveJob(objectId: entry.key, progress: entry.value.progress),
+            ActiveJob(key: entry.key, progress: entry.value.progress),
         ],
       ),
     );
