@@ -2341,7 +2341,11 @@ List<ModelTool> get _rigPipelineTools => <ModelTool>[
           'joint is the mirror of its left-side marker; only the left half '
           'and the centerline need naming. skinObjectId, when given, binds '
           'that object\'s own mesh to the new skeleton in the same step — '
-          'paintWeights is what then puts real weights on its vertices.',
+          'paintWeights is what then puts real weights on its vertices. '
+          'spineCount, fingers, toes, faceBones, ikChains and controllers '
+          'compose extra joints (humanoid only, past the base template) — '
+          'see the refusal this gives if a combination would deform more '
+          'than the skinning shader\'s own 64 joints.',
       inputSchema: ObjectSchema(
         properties: <String, Schema>{
           'template': UntitledSingleSelectEnumSchema(
@@ -2369,6 +2373,36 @@ List<ModelTool> get _rigPipelineTools => <ModelTool>[
             items: NumberSchema(),
             minItems: 6,
             maxItems: 6,
+          ),
+          'spineCount': IntegerSchema(
+            description:
+                '1 (default) through 3 spine segments between hips and '
+                'chest; humanoid only',
+          ),
+          'fingers': BooleanSchema(
+            description:
+                'five three-phalanx fingers per hand, off the wrists; '
+                'humanoid only, default false',
+          ),
+          'toes': BooleanSchema(
+            description:
+                'one toes joint per foot, off the ankles; humanoid only, '
+                'default false',
+          ),
+          'faceBones': BooleanSchema(
+            description:
+                'a jaw and two eyes, derived from head/neck; humanoid '
+                'only, default false',
+          ),
+          'ikChains': BooleanSchema(
+            description:
+                'two-bone IK on both arms and both legs; humanoid only, '
+                'default false',
+          ),
+          'controllers': BooleanSchema(
+            description:
+                'a socket-parent controller above the root joint, not '
+                'itself a deforming joint; default false',
           ),
         },
         required: <String>['template', 'markers'],
@@ -2403,6 +2437,12 @@ List<ModelTool> get _rigPipelineTools => <ModelTool>[
         bounds: bounds is List
             ? <double>[for (final n in bounds) (n as num).toDouble()]
             : null,
+        spineCount: (arguments['spineCount'] as num?)?.toInt() ?? 1,
+        fingers: arguments['fingers'] as bool? ?? false,
+        toes: arguments['toes'] as bool? ?? false,
+        faceBones: arguments['faceBones'] as bool? ?? false,
+        ikChains: arguments['ikChains'] as bool? ?? false,
+        controllers: arguments['controllers'] as bool? ?? false,
       );
     },
   ),

@@ -666,6 +666,12 @@ final class ModelSession {
   /// out, this computes a box around every marker [template] actually
   /// reads, padded by one unit each way — [buildSkeleton]'s own `bounds` is
   /// a sanity check, not a shape a caller normally has reason to hand-pick.
+  ///
+  /// [spineCount], [fingers], [toes], [faceBones], [ikChains] and
+  /// [controllers] pass straight through to [RigBuildOptions] — screen 16's
+  /// own rig-composition switches (`anim-33d`), given a backend here rather
+  /// than in a new tool of their own, since composing a rig is still just
+  /// [buildSkeleton] with different options.
   Answer autoRig({
     required String template,
     required Map<String, List<double>> markers,
@@ -673,6 +679,12 @@ final class ModelSession {
     String? skeletonName,
     String mirrorAxis = 'x',
     List<double>? bounds,
+    int spineCount = 1,
+    bool fingers = false,
+    bool toes = false,
+    bool faceBones = false,
+    bool ikChains = false,
+    bool controllers = false,
   }) {
     final RigTemplate? chosen = switch (template) {
       'humanoid' => RigTemplate.humanoid,
@@ -754,7 +766,15 @@ final class ModelSession {
         chosen,
         markerVectors,
         bounds: box,
-        options: RigBuildOptions(mirrorAxis: axis),
+        options: RigBuildOptions(
+          mirrorAxis: axis,
+          spineCount: spineCount,
+          fingers: fingers,
+          toes: toes,
+          faceBones: faceBones,
+          ikChains: ikChains,
+          controllers: controllers,
+        ),
         firstObjectId: project.nextId,
         skeletonName: skeletonName,
       );
