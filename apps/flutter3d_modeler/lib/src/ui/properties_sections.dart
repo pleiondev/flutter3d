@@ -23,6 +23,10 @@ enum PropertiesSection {
   mesh,
   budget,
   animation,
+  sceneSources,
+  sceneShadows,
+  sceneEnvironment,
+  scenePost,
 }
 
 /// Every section [mode] shows.
@@ -37,9 +41,10 @@ enum PropertiesSection {
 /// material, export to GLB") needs a way to paint an object today, and
 /// object mode is where that object already is. Mesh mode owns the
 /// last-operation card, the selection summary and the mesh row counts.
-/// `anim-07`'s own screen is animation mode's one section. A mode with no
-/// sections of its own yet (scene — not built this phase) gets only the
-/// cross-mode ones.
+/// `anim-07`'s own screen is animation mode's one section. `mat-34d`'s own
+/// row gives scene mode `mat-24`'s own four panels — sources, shadows,
+/// environment, post — all four together, the same "wholesale, not
+/// piecemeal" rule every other mode already follows here.
 Set<PropertiesSection> sectionsFor(ModelerMode mode) => <PropertiesSection>{
   PropertiesSection.display,
   PropertiesSection.view,
@@ -58,6 +63,12 @@ Set<PropertiesSection> sectionsFor(ModelerMode mode) => <PropertiesSection>{
     },
     ModelerMode.animation => const <PropertiesSection>{
       PropertiesSection.animation,
+    },
+    ModelerMode.scene => const <PropertiesSection>{
+      PropertiesSection.sceneSources,
+      PropertiesSection.sceneShadows,
+      PropertiesSection.sceneEnvironment,
+      PropertiesSection.scenePost,
     },
     _ => const <PropertiesSection>{},
   },

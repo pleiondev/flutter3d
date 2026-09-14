@@ -59,6 +59,25 @@ void main() {
       },
     );
 
+    test(
+      "mat-34d's own row: scene mode owns all four scene panels together",
+      () {
+        final sections = sectionsFor(ModelerMode.scene);
+
+        expect(sections, contains(PropertiesSection.sceneSources));
+        expect(sections, contains(PropertiesSection.sceneShadows));
+        expect(sections, contains(PropertiesSection.sceneEnvironment));
+        expect(sections, contains(PropertiesSection.scenePost));
+        // Mutation: leave object/mesh/animation sections showing in scene
+        // mode too — `ui-04`'s own "wholesale, not piecemeal" applies here
+        // exactly as it does to every other mode.
+        expect(sections, isNot(contains(PropertiesSection.objects)));
+        expect(sections, isNot(contains(PropertiesSection.transform)));
+        expect(sections, isNot(contains(PropertiesSection.materials)));
+        expect(sections, isNot(contains(PropertiesSection.animation)));
+      },
+    );
+
     test('display, view and budget show in every mode', () {
       for (final ModelerMode mode in ModelerMode.values) {
         final sections = sectionsFor(mode);

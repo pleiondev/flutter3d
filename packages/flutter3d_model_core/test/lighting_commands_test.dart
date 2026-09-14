@@ -194,6 +194,21 @@ void main() {
       },
     );
 
+    test(
+      "SetSceneLightingField also accepts bloomEnabled, on ScenePostSettings",
+      () {
+        final history = ModelHistory(const ModelProject());
+
+        expect(
+          history.run(
+            const SetSceneLightingField(field: 'bloomEnabled', value: false),
+          ),
+          isNull,
+        );
+        expect(history.project.lighting.post.bloomEnabled, isFalse);
+      },
+    );
+
     test('a bad value for a scene-wide field is refused', () {
       final history = ModelHistory(const ModelProject());
 

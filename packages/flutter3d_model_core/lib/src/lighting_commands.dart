@@ -207,7 +207,11 @@ final class SetEnvironment extends ModelCommand {
 
 /// Sets one scene-wide lighting field by name — everything on
 /// [SceneLighting] that is not a light or the environment: `ambientIntensity`,
-/// `shadows`, `exposure`.
+/// `shadows`, `exposure`, and [ScenePostSettings.bloomEnabled] under its own
+/// name, `bloomEnabled` — the post panel draws it beside `exposure` (see that
+/// panel's own doc comment for why), so it is set the same way, through the
+/// one command every other scene-wide field already goes through, rather
+/// than a `SetPostField` this row would be the only command left needing.
 final class SetSceneLightingField extends ModelCommand {
   const SetSceneLightingField({required this.field, required this.value});
 
@@ -285,6 +289,10 @@ SceneLighting? _sceneLightingFieldSet(
       return value is bool ? s.copyWith(shadows: value) : null;
     case 'exposure':
       return value is num ? s.copyWith(exposure: value.toDouble()) : null;
+    case 'bloomEnabled':
+      return value is bool
+          ? s.copyWith(post: s.post.copyWith(bloomEnabled: value))
+          : null;
     default:
       return null;
   }

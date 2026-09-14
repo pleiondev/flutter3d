@@ -194,6 +194,49 @@ extension _Interactions on _ModelerScreenState {
 
   void _addMaterial() => _cubit.ran(const AddMaterial());
 
+  /// `mat-34d`'s own scene-mode wiring, over `mat-23`'s own commands.
+  void _selectLight(int index) => setState(() => _selectedLight = index);
+
+  void _addLight() => _cubit.ran(const AddLight());
+
+  void _removeLight(int index) {
+    _cubit.ran(RemoveLight(index));
+    if (_selectedLight == index) setState(() => _selectedLight = null);
+  }
+
+  void _setLightType(int index, ProjectLightType type) =>
+      _cubit.ran(SetLightField(index: index, field: 'type', value: type.name));
+
+  void _setLightIntensity(int index, double value) =>
+      _cubit.ran(SetLightField(index: index, field: 'intensity', value: value));
+
+  void _setLightRange(int index, double value) =>
+      _cubit.ran(SetLightField(index: index, field: 'range', value: value));
+
+  void _setLightShadow(int index, bool value) => _cubit.ran(
+    SetLightField(index: index, field: 'castsShadow', value: value),
+  );
+
+  void _setLightCone(int index, double value) => _cubit.ran(
+    SetLightField(index: index, field: 'outerConeAngle', value: value),
+  );
+
+  void _setSceneShadows(bool value) =>
+      _cubit.ran(SetSceneLightingField(field: 'shadows', value: value));
+
+  void _setEnvironment(SceneEnvironmentPreset preset) =>
+      _cubit.ran(SetEnvironment(preset));
+
+  void _setAmbient(double value) => _cubit.ran(
+    SetSceneLightingField(field: 'ambientIntensity', value: value),
+  );
+
+  void _setBloom(bool value) =>
+      _cubit.ran(SetSceneLightingField(field: 'bloomEnabled', value: value));
+
+  void _setExposure(double value) =>
+      _cubit.ran(SetSceneLightingField(field: 'exposure', value: value));
+
   /// `anim-07`'s own two commands: a diamond finished a drag in
   /// `TimelinePanel`, or "Add" was pressed under `ActionsList`.
   void _moveKeys(MoveKeys command) => _cubit.ran(command);

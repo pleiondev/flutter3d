@@ -180,6 +180,12 @@ class _ModelerScreenState extends State<ModelerScreen>
   PivotChip _pivot = PivotChip.median;
   TransformSpace _space = TransformSpace.global;
 
+  /// Which of the project's own lights `SceneSourcePanel` shows the fields
+  /// of — `mat-34d`'s own scene-mode wiring. A plain field for the same
+  /// reason [_pivot] is one: nothing on the document remembers which light a
+  /// person was looking at, so undo has nothing to put this back to either.
+  int? _selectedLight;
+
   /// Remembers what the materials were, so the normals view can be left.
   final SurfaceShading _surfaces = SurfaceShading();
 

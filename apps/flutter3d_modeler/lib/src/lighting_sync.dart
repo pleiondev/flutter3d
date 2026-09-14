@@ -76,3 +76,24 @@ final class LightingSync {
         debug: settings.debug.copyWith(lightGizmos: lighting.lights.isNotEmpty),
       );
 }
+
+/// How many of [lighting]'s own lights `LightBuffer` would not fit into one
+/// frame — the same arithmetic `Renderer.render` reports on
+/// `FrameResult.lightsDropped` (`renderer.dart`'s own `lights.gather(scene
+/// .lights)` followed by `lights.overflow`), run here against a throwaway
+/// [Scene] instead of a real one.
+///
+/// **No device, no draw.** [LightBuffer.gather] only ever needs the scene's
+/// own [LightNode]s, and [LightingSync] already knows how to build those
+/// from [lighting] alone — so a status line can ask this on every rebuild
+/// without waiting for an actual frame to answer, the same way it already
+/// reads `project.triangleCount` or `texelDensityOf` fresh each time rather
+/// than caching either. `mat-24`'s own acceptance ("девятый источник →
+/// оранжевый статус") is this number crossing zero, not a `lights.length >
+/// 8` guess — see `computeSceneStatus`'s own doc comment (`scene_mode.dart`)
+/// for why that distinction matters.
+int lightOverflowOf(SceneLighting lighting) {
+  final scene = Scene();
+  LightingSync().sync(scene, lighting);
+  return (LightBuffer()..gather(scene.lights)).overflow;
+}

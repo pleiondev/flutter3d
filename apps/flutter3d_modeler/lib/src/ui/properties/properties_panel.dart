@@ -15,7 +15,9 @@ import 'package:flutter3d_editor_widgets/flutter3d_editor_widgets.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart' hide Outcome;
 
 import '../../display_modes.dart';
+import '../../lighting_sync.dart';
 import '../../material_editing.dart';
+import '../../scene_mode.dart';
 import '../../staging.dart';
 import '../../texture_slot.dart';
 import '../../transform_fields.dart';
@@ -24,6 +26,10 @@ import '../material_panel.dart';
 import '../modifier_stack_panel.dart';
 import '../operation_card.dart';
 import '../properties_sections.dart';
+import '../scene_environment_panel.dart';
+import '../scene_post_panel.dart';
+import '../scene_shadows_panel.dart';
+import '../scene_source_panel.dart';
 import '../texture_graph_panel.dart';
 import '../theme.dart';
 import '../tools.dart';
@@ -69,6 +75,20 @@ class PropertiesPanel extends StatelessWidget {
     required this.onAddClip,
     required this.onSelectAnimationClip,
     required this.onScrubAnimation,
+    this.selectedLight,
+    required this.onSelectLight,
+    required this.onAddLight,
+    required this.onRemoveLight,
+    required this.onLightTypeChanged,
+    required this.onLightIntensityChanged,
+    required this.onLightRangeChanged,
+    required this.onLightShadowChanged,
+    required this.onLightConeChanged,
+    required this.onSceneShadowsChanged,
+    required this.onEnvironmentChanged,
+    required this.onAmbientChanged,
+    required this.onBloomChanged,
+    required this.onExposureChanged,
     required this.lastCommand,
     required this.onAmend,
     required this.shading,
@@ -194,6 +214,29 @@ class PropertiesPanel extends StatelessWidget {
   /// for none, and where the panel's own scrubber sits inside it.
   final ValueChanged<int?> onSelectAnimationClip;
   final ValueChanged<double> onScrubAnimation;
+
+  /// `mat-34d`'s own scene-mode wiring: which of `project.lighting.lights`
+  /// [SceneSourcePanel] shows the fields of, or null for none — a plain
+  /// field on the screen's own state, the same way [pivot]/[space] are
+  /// rather than document state, because undoing to before a light was
+  /// selected does not put the selection back either.
+  final int? selectedLight;
+  final ValueChanged<int> onSelectLight;
+  final VoidCallback onAddLight;
+  final ValueChanged<int> onRemoveLight;
+  final void Function(int index, ProjectLightType type) onLightTypeChanged;
+  final void Function(int index, double value) onLightIntensityChanged;
+  final void Function(int index, double value) onLightRangeChanged;
+  final void Function(int index, bool value) onLightShadowChanged;
+  final void Function(int index, double outerConeAngle) onLightConeChanged;
+
+  /// The scene-wide shadow request — [SceneLighting.shadows] — as opposed to
+  /// [onLightShadowChanged], which is one light's own `castsShadow`.
+  final ValueChanged<bool> onSceneShadowsChanged;
+  final ValueChanged<SceneEnvironmentPreset> onEnvironmentChanged;
+  final ValueChanged<double> onAmbientChanged;
+  final ValueChanged<bool> onBloomChanged;
+  final ValueChanged<double> onExposureChanged;
 
   /// What the operation card is showing, and where an adjustment goes.
   final ModelCommand? lastCommand;
@@ -404,6 +447,42 @@ class PropertiesPanel extends StatelessWidget {
             ),
           ],
         ],
+        if (sections.contains(PropertiesSection.sceneSources))
+          SceneSourcePanel(
+            lights: project.lighting.lights,
+            selected: selectedLight,
+            onSelect: onSelectLight,
+            onAdd: onAddLight,
+            onRemove: onRemoveLight,
+            onTypeChanged: onLightTypeChanged,
+            onIntensityChanged: onLightIntensityChanged,
+            onRangeChanged: onLightRangeChanged,
+            onShadowChanged: onLightShadowChanged,
+            onConeChanged: onLightConeChanged,
+          ),
+        if (sections.contains(PropertiesSection.sceneShadows))
+          SceneShadowsPanel(
+            shadows: project.lighting.shadows,
+            status: computeSceneStatus(
+              lights: project.lighting.lights,
+              lightsDropped: lightOverflowOf(project.lighting),
+            ),
+            onShadowsChanged: onSceneShadowsChanged,
+          ),
+        if (sections.contains(PropertiesSection.sceneEnvironment))
+          SceneEnvironmentPanel(
+            environment: project.lighting.environment,
+            ambientIntensity: project.lighting.ambientIntensity,
+            onEnvironmentChanged: onEnvironmentChanged,
+            onAmbientChanged: onAmbientChanged,
+          ),
+        if (sections.contains(PropertiesSection.scenePost))
+          ScenePostPanel(
+            post: project.lighting.post,
+            exposure: project.lighting.exposure,
+            onBloomChanged: onBloomChanged,
+            onExposureChanged: onExposureChanged,
+          ),
         if (sections.contains(PropertiesSection.animation))
           AnimationPanel(
             clips: project.clips,

@@ -10,6 +10,10 @@ import 'package:flutter3d_modeler/src/lighting_sync.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart';
 
+SceneLighting _lighting(int count) => SceneLighting(
+  lights: List<ProjectLight>.generate(count, (int i) => ProjectLight()),
+);
+
 void main() {
   test('a light in the project becomes a LightNode in the scene', () {
     final scene = Scene();
@@ -101,6 +105,20 @@ void main() {
 
       expect(applied.exposure, 3.0);
       expect(applied.shadows.enabled, isTrue);
+    });
+  });
+
+  group('lightOverflowOf', () {
+    test('eight lights all fit, nothing dropped', () {
+      expect(lightOverflowOf(_lighting(8)), 0);
+    });
+
+    test("mat-24's own acceptance: a ninth light is one dropped", () {
+      expect(lightOverflowOf(_lighting(9)), 1);
+    });
+
+    test('a project with no lights drops nothing', () {
+      expect(lightOverflowOf(const SceneLighting()), 0);
     });
   });
 }
