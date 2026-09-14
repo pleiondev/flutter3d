@@ -1,0 +1,100 @@
+/// Picks which of `ui-05`'s three shells a width draws as, and builds it.
+///
+/// **Replaces a `LayoutBuilder` that used to sit inline in `main.dart`.**
+/// [ScreenParts] (`screen_parts.dart`) is the four widgets built once; this
+/// reads `LayoutClass.of` off the incoming width and hands them to
+/// `ModelerShell`, `ModelerTabletShell` or `ModelerPhoneShell` — the same
+/// three constructors the old inline `switch` already called, now behind
+/// one name a screen can hand its parts to without knowing the three shells
+/// exist.
+library;
+
+import 'package:flutter/material.dart';
+
+import 'layout_class.dart';
+import 'screen_parts.dart';
+import 'shell.dart';
+import 'shell_phone.dart';
+import 'shell_tablet.dart';
+import 'tools.dart';
+
+/// [parts], drawn through whichever of the three shells fits
+/// `constraints.maxWidth`.
+class ShellForWidth extends StatelessWidget {
+  const ShellForWidth({
+    super.key,
+    required this.parts,
+    required this.mode,
+    required this.onMode,
+    required this.submode,
+    required this.onSubmode,
+    required this.activeTool,
+    required this.onTool,
+    required this.documentName,
+    required this.isDirty,
+  });
+
+  final ScreenParts parts;
+
+  final ModelerMode mode;
+  final ValueChanged<ModelerMode> onMode;
+
+  final MeshSubmode submode;
+  final ValueChanged<MeshSubmode> onSubmode;
+
+  /// The id of the armed tool, from `ModelerTool.id`. Null is the pointer.
+  final String? activeTool;
+  final ValueChanged<String> onTool;
+
+  /// `ModelerShell`'s own leading label — the desktop shell is the only one
+  /// of the three that shows it.
+  final String documentName;
+
+  /// Whether [documentName] carries unsaved changes, for the same label.
+  final bool isDirty;
+
+  @override
+  Widget build(BuildContext context) => LayoutBuilder(
+    builder: (BuildContext context, BoxConstraints constraints) =>
+        switch (LayoutClass.of(constraints.maxWidth)) {
+          LayoutClass.desktop => ModelerShell(
+            mode: mode,
+            onMode: onMode,
+            submode: submode,
+            onSubmode: onSubmode,
+            activeTool: activeTool,
+            onTool: onTool,
+            actions: parts.actions,
+            status: parts.status,
+            properties: parts.properties,
+            viewport: parts.viewport,
+            documentName: documentName,
+            isDirty: isDirty,
+          ),
+          LayoutClass.tablet => ModelerTabletShell(
+            mode: mode,
+            onMode: onMode,
+            submode: submode,
+            onSubmode: onSubmode,
+            activeTool: activeTool,
+            onTool: onTool,
+            actions: parts.actions,
+            status: parts.status,
+            properties: parts.properties,
+            viewport: parts.viewport,
+          ),
+          LayoutClass.phone => ModelerPhoneShell(
+            mode: mode,
+            onMode: onMode,
+            submode: submode,
+            onSubmode: onSubmode,
+            activeTool: activeTool,
+            onTool: onTool,
+            actions: parts.actions,
+            status: parts.status,
+            properties: parts.properties,
+            viewport: parts.viewport,
+          ),
+        },
+  );
+}
