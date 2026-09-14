@@ -2863,6 +2863,8 @@ final class Renderer implements RenderServices {
       cpuMicros: frameClock.elapsedMicroseconds,
       submitMicros: scenePass.submitMicros,
       drawCalls: passState.drawCalls,
+      triangles: passState.triangles,
+      instances: passState.instances,
       culled: scenePass.culled,
       pipelineSwitches: passState.pipelineSwitches,
       debugLines: debugLines,

@@ -20,6 +20,8 @@ final class FrameResult {
     required this.cpuMicros,
     required this.submitMicros,
     required this.drawCalls,
+    required this.triangles,
+    required this.instances,
     required this.culled,
     required this.pipelineSwitches,
     required this.debugLines,
@@ -66,6 +68,21 @@ final class FrameResult {
   final int submitMicros;
 
   final int drawCalls;
+
+  /// Triangles actually drawn this frame — `view-17`'s own row. A batch's
+  /// mesh counts once per instance; a plain [MeshNode] once. Not derived
+  /// from [drawCalls]: a single instanced draw call can carry any number of
+  /// these, which is the whole reason instancing is cheaper than [drawCalls]
+  /// alone would suggest.
+  final int triangles;
+
+  /// Instances drawn through an [InstancedMeshNode], summed across every
+  /// batch in the frame — `view-17`'s own row, alongside [triangles]. Zero
+  /// when nothing in the frame batches. An ordinary [MeshNode] is one draw,
+  /// not one instance of itself, so it does not add to this count — the same
+  /// reason [pipelineSwitches] counts a pipeline change and not every draw
+  /// that kept the same one.
+  final int instances;
 
   /// Meshes rejected by frustum culling, so the win is visible.
   final int culled;

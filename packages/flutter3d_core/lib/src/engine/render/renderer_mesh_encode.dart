@@ -578,5 +578,7 @@ extension _MeshEncode on Renderer {
 
     encoder.draw(instanceCount: instanced?.count ?? 1);
     state.drawCalls++;
+    state.triangles += (mesh.indexCount ~/ 3) * (instanced?.count ?? 1);
+    if (instanced != null) state.instances += instanced.count;
   }
 }

@@ -46,6 +46,17 @@ final class FramePassState {
   int pipelineSwitches = 0;
   int skinnedDraws = 0;
 
+  /// Triangles actually drawn this frame — `view-17`'s own row: a batch's
+  /// mesh counts once per instance, an ordinary node once. Not a proxy for
+  /// [drawCalls]: one instanced draw call can carry any number of these.
+  int triangles = 0;
+
+  /// Instances drawn through `InstancedMeshNode` this frame, summed across
+  /// every batch — `view-17`'s own row, alongside [triangles]. Zero when
+  /// nothing in the frame batches; an ordinary [MeshNode] draw is one node,
+  /// not one instance of itself, so it does not add to this count.
+  int instances = 0;
+
   /// Call after encoding anything that binds its own pipeline.
   ///
   /// The tracker describes the mesh pipelines only, so a pass that replaced
