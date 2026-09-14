@@ -95,4 +95,45 @@ void main() {
       );
     },
   );
+
+  test(
+    'mode: normals draws a visibly different picture than the default',
+    () async {
+      await call('addPrimitive', <String, Object?>{'kind': 'box'});
+      final material = await call('render');
+      final normals = await call('render', <String, Object?>{
+        'mode': 'normals',
+      });
+      final materialPng = base64Decode(
+        (material.content.last as ImageContent).data,
+      );
+      final normalsPng = base64Decode(
+        (normals.content.last as ImageContent).data,
+      );
+      expect(materialPng, isNot(equals(normalsPng)));
+    },
+  );
+
+  test(
+    'mode: selection reads what select last picked, not an argument',
+    () async {
+      final added = await call('addPrimitive', <String, Object?>{
+        'kind': 'box',
+      });
+      expect(added.isError, isNot(true));
+      await call('select', <String, Object?>{
+        'objects': <int>[1],
+      });
+
+      final plain = await call('render');
+      final highlighted = await call('render', <String, Object?>{
+        'mode': 'selection',
+      });
+      final plainPng = base64Decode((plain.content.last as ImageContent).data);
+      final highlightedPng = base64Decode(
+        (highlighted.content.last as ImageContent).data,
+      );
+      expect(plainPng, isNot(equals(highlightedPng)));
+    },
+  );
 }

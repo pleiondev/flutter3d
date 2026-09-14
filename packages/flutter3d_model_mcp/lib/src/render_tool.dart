@@ -41,6 +41,36 @@ RenderProjectView _viewNamed(Object? value) {
   return RenderProjectView.iso;
 }
 
+/// `mcp-08n`'s own three reachable modes. Three, not the four the row names:
+/// `wireframe` waits on `view-07`'s own edge-drawing landing in the engine,
+/// the same honest gap `RenderShading` itself already names.
+///
+/// Plain strings rather than a type of their own — this never leaves the
+/// tool boundary as a value another package's code holds onto, only ever a
+/// JSON argument in and a `RenderRequest` out, so there is no `switch`
+/// anywhere for a fourth member to break.
+const List<String> renderModes = <String>['material', 'normals', 'selection'];
+
+/// [value] turned into what `RenderRequest` actually wants: a [RenderShading]
+/// and a highlight set. `'selection'` reads [ModelSession.history]'s own
+/// current selection rather than asking a caller to repeat object ids it
+/// already gave `select` — the same reason `render`'s own `mode` argument
+/// needs no `selection` argument beside it.
+({RenderShading shading, Set<int> selection}) _modeOf(
+  Object? value,
+  ModelSession session,
+) => switch (value) {
+  'normals' => (shading: RenderShading.normals, selection: const <int>{}),
+  'selection' => (
+    shading: RenderShading.material,
+    selection: session.history.selection.objects.toSet(),
+  ),
+  _ => (shading: RenderShading.material, selection: const <int>{}),
+};
+
+Schema _modeSchema(String about) =>
+    UntitledSingleSelectEnumSchema(description: about, values: renderModes);
+
 /// A picture of the project as it stands.
 final ModelPictureTool renderTool = ModelPictureTool(
   Tool(
@@ -56,6 +86,13 @@ final ModelPictureTool renderTool = ModelPictureTool(
           description: 'Which way to look at the project. Defaults to iso.',
           values: <String>[for (final v in RenderProjectView.values) v.name],
         ),
+        'mode': _modeSchema(
+          'How the surface is shaded. material (default): the project\'s own '
+          'materials. normals: each face coloured by its own direction — an '
+          'inside-out shell or an unwelded seam reads as a colour seam. '
+          'selection: material, with whatever `select` last picked tinted '
+          'towards orange.',
+        ),
       },
     ),
   ),
@@ -69,8 +106,14 @@ final ModelPictureTool renderTool = ModelPictureTool(
       );
     }
     final view = _viewNamed(arguments['view']);
+    final mode = _modeOf(arguments['mode'], session);
     final png = await renderProject(
-      RenderRequest(project: project, view: view),
+      RenderRequest(
+        project: project,
+        view: view,
+        shading: mode.shading,
+        selection: mode.selection,
+      ),
       deviceFactory: _cpuDevice,
     );
     return (did: true, says: 'Rendered from the ${view.name} view.', png: png);
@@ -88,7 +131,14 @@ final ModelPictureTool renderSheetTool = ModelPictureTool(
         'A 2×2 contact sheet: front, right, top and iso, one picture — the '
         'whole silhouette an agent more often needs than any single view. '
         'An empty project refuses rather than handing back a blank sheet.',
-    inputSchema: ObjectSchema(),
+    inputSchema: ObjectSchema(
+      properties: <String, Schema>{
+        'mode': _modeSchema(
+          'How the surface is shaded on every quadrant — see `render`\'s '
+          'own `mode` argument for what each one means.',
+        ),
+      },
+    ),
   ),
   (ModelSession session, Map<String, Object?> arguments) async {
     final project = session.history.project;
@@ -99,7 +149,13 @@ final ModelPictureTool renderSheetTool = ModelPictureTool(
         png: null,
       );
     }
-    final png = await renderSheet(project: project, deviceFactory: _cpuDevice);
+    final mode = _modeOf(arguments['mode'], session);
+    final png = await renderSheet(
+      project: project,
+      shading: mode.shading,
+      selection: mode.selection,
+      deviceFactory: _cpuDevice,
+    );
     return (
       did: true,
       says: 'Rendered a 2×2 sheet: front, right, top, iso.',
