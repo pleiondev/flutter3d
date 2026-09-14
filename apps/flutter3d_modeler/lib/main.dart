@@ -39,6 +39,7 @@ import 'src/close_beforeunload.dart';
 import 'src/close_guard.dart';
 import 'src/crash_handling.dart';
 import 'src/display_modes.dart';
+import 'src/element_picker_cache.dart';
 import 'src/element_picking.dart';
 import 'src/environment_summary.dart';
 import 'src/exporting.dart';
@@ -46,12 +47,12 @@ import 'src/files/fetch_model.dart';
 import 'src/files/file_drop.dart';
 import 'src/files/project_files.dart';
 import 'src/files/sandbox_probe.dart';
-import 'src/geometry_snap.dart';
 import 'src/ground_grid.dart';
 import 'src/import_plan.dart';
 import 'src/material_editing.dart';
 import 'src/material_pool.dart' show clay;
 import 'src/mcp_bootstrap.dart';
+import 'src/measurement_runs.dart';
 import 'src/modeler_cubit.dart';
 import 'src/modeler_viewport.dart';
 import 'src/object_picking.dart';
@@ -61,16 +62,14 @@ import 'src/orbit_run.dart';
 import 'src/orientation_dial.dart';
 import 'src/recent_projects.dart';
 import 'src/report_problem.dart';
-import 'src/scene_sync.dart';
 import 'src/selection_box.dart';
 import 'src/selection_rules.dart';
 import 'src/staging.dart';
-import 'src/timeline_playback.dart';
+import 'src/timeline_preview_wiring.dart';
 import 'src/tool_commands.dart';
 import 'src/transform_dispatch.dart';
 import 'src/transform_fields.dart';
-import 'src/transform_gizmo.dart';
-import 'src/transform_modal.dart';
+import 'src/transform_session.dart';
 import 'src/ui/export_screen.dart';
 import 'src/ui/import_screen.dart';
 import 'src/ui/lathe_dialog.dart';
@@ -276,18 +275,17 @@ class _ModelerScreenState extends State<ModelerScreen>
 
   Ticker? _ticker;
 
-  /// The measured camera move, when the build asked for one.
-  OrbitRun? _orbit;
+  /// The measured camera orbit and the edit-convert-upload churn loop, when
+  /// the build asked for either.
+  final MeasurementRuns _measurementRuns = MeasurementRuns(
+    what: kStress > 0
+        ? '$kStress triangles in $kStressObjects draws'
+        : (kModel.isEmpty ? 'the cube' : kModel),
+  );
 
   /// What the last frame's `render` cost, which the run records against the
   /// wall clock the ticker reports.
   int? _lastRenderMicros;
-
-  /// Milliseconds from opening the device to the first frame being ready.
-  int _openedInMs = 0;
-
-  /// The edit-convert-upload loop, when the build asked for one.
-  ChurnRun? _churn;
 
   /// The device, kept so a model opened later can be uploaded through it.
   GraphicsDevice? _device;
@@ -356,43 +354,22 @@ class _ModelerScreenState extends State<ModelerScreen>
   EditMesh? get _editMesh => editMeshOf(_history.project, _history.selection);
 
   /// The picker over that mesh, rebuilt when its version moves.
-  MeshPicker? _picker;
-  int _pickerVersion = -1;
+  final ElementPickerCache _elementPickerCache = ElementPickerCache();
 
   MeshPicker? get _elementPicker {
     final EditMesh? mesh = _editMesh;
     final int? id = _history.selection.activeObject;
     if (mesh == null || id == null) return null;
-    final int version = _history.project[id]!.version;
-    if (_picker == null || _pickerVersion != version) {
-      final plan = MeshLayoutPlan()..build(mesh);
-      _picker = MeshPicker(mesh, MeshBvh(mesh, plan));
-      _pickerVersion = version;
-    }
-    return _picker;
+    return _elementPickerCache.pickerFor(mesh, _history.project[id]!.version);
   }
 
-  /// Pickers over every other mesh object's geometry — `view-26n`'s own
-  /// candidates for a geometry snap — rebuilt only when that object's own
-  /// version moves, the same cache [_elementPicker] keeps for the one being
-  /// edited.
-  final Map<int, ({int version, MeshPicker picker})> _otherPickers =
-      <int, ({int version, MeshPicker picker})>{};
-
-  /// Where the selection's own median stood when the current move began, so
-  /// `view-26n`'s geometry snap has something to measure a delta from. Null
-  /// outside a mesh-mode move.
-  vm.Vector3? _snapAnchorStart;
-
-  /// What the drag is about to snap onto, or null. Read by the viewport to
-  /// draw the ring and by nothing else — the delta it implies already lives
-  /// on the modal itself.
-  SnapTarget? _snapTarget;
-
-  /// The camera and viewport the last drag report was measured against, so a
-  /// keyboard-driven change mid-drag (`X`, a typed digit) can re-run the same
-  /// geometry search the pointer itself last ran.
-  PickingView? _lastPickingView;
+  /// The modal transform, the gizmo it shares a path with, and `view-26n`'s
+  /// geometry snap — see `transform_session.dart`.
+  late final TransformSession _transformSession = TransformSession(
+    cubit: _cubit,
+    history: () => _history,
+    editMesh: () => _editMesh,
+  );
 
   /// What the last operation said when it refused, shown in the status line
   /// until something else happens.
@@ -402,54 +379,20 @@ class _ModelerScreenState extends State<ModelerScreen>
   /// nobody can aim.
   Duration _lastTick = Duration.zero;
 
-  /// `anim-07`'s own live pose: whichever clip [AnimationPanel] has open,
-  /// sampled onto the scene nodes [ModelerStage.sync] tracks — see
-  /// `timeline_playback.dart`.
-  ///
-  /// Rebuilt only when [ModelProject.clips] or the [SceneSync] it targets
-  /// change identity, not every frame: an [AnimationPlayer] is a small object,
-  /// but a fresh one forgets which clip was open and where the playhead was,
-  /// and a frame is drawn far more often than either of those actually moves.
-  TimelinePlayback? _preview;
-  List<ProjectClip>? _previewClips;
-  SceneSync? _previewSync;
+  /// `anim-07`'s own live pose binding: whichever clip [AnimationPanel] has
+  /// open, sampled onto the scene nodes [ModelerStage.sync] tracks — see
+  /// `timeline_preview_wiring.dart`.
+  final TimelinePreviewWiring _timelinePreview = TimelinePreviewWiring();
 
-  /// [_preview], built against [project] and [sync] if it is not already —
-  /// null when there is nothing to preview yet (no clips) or nowhere to draw
-  /// one onto (the stage has not synced a scene).
-  TimelinePlayback? _previewFor(ModelProject project, SceneSync? sync) {
-    if (sync == null || project.clips.isEmpty) return null;
-    if (!identical(project.clips, _previewClips) ||
-        !identical(sync, _previewSync)) {
-      _previewClips = project.clips;
-      _previewSync = sync;
-      _preview = TimelinePlayback(player: buildPreviewPlayer(project, sync));
-    }
-    return _preview;
-  }
-
-  /// [AnimationPanel.onSelectClip]: shows [index]'s first pose, paused —
-  /// scrubbing is what plays it, not a transport this panel does not have —
-  /// or the rest pose again once nothing is selected.
+  /// [AnimationPanel.onSelectClip].
   void _selectAnimationClip(int? index) {
     if (_state case ModelerReady(:final project, :final stage)) {
-      final TimelinePlayback? preview = _previewFor(project, stage.sync);
-      if (preview == null) return;
-      if (index == null) {
-        preview.stop();
-      } else {
-        preview.play(index);
-        preview.pause();
-      }
+      _timelinePreview.selectClip(project, stage.sync, index);
     }
   }
 
-  /// [AnimationPanel.onTimeChanged]: the scrubber moved, so the pose it names
-  /// is applied straight onto the live scene — nothing here calls `setState`,
-  /// because [SceneNode.setPosition] and its neighbours are mutations the
-  /// next tick's own repaint already picks up, the same way dragging the
-  /// orbit camera does.
-  void _scrubAnimation(double time) => _preview?.seek(time);
+  /// [AnimationPanel.onTimeChanged].
+  void _scrubAnimation(double time) => _timelinePreview.scrub(time);
 
   /// What the finished run measured, shown over the viewport.
   ///
@@ -564,32 +507,13 @@ class _ModelerScreenState extends State<ModelerScreen>
       // has to inherit, and a state that is reasserted cannot be got out of
       // step with the interface by anything.
       useLens(stage.camera, _lens, stage.orbit);
-      _preview?.tick(seconds);
+      _timelinePreview.tick(seconds);
     }
-    _churn?.step();
-    final run = _orbit;
-    if (run != null) {
-      run.step(elapsed.inMicroseconds, _lastRenderMicros);
-      if (run.done) {
-        // To stderr through `debugPrint`, which is what reaches a browser's
-        // console as well as a terminal — the same line on every platform this
-        // is measured on.
-        final said = OrbitRun.describe(
-          run.report(),
-          what: kStress > 0
-              ? '$kStress triangles in $kStressObjects draws'
-              : (kModel.isEmpty ? 'the cube' : kModel),
-        );
-        final churn = _churn;
-        final whole = churn == null
-            ? '$said\n  opened in    $_openedInMs ms'
-            : '$said\n  opened in    $_openedInMs ms\n${churn.describe()}';
-        debugPrint(whole);
-        _report = whole;
-        _churn = null;
-        _orbit = null;
-      }
-    }
+    final said = _measurementRuns.step(
+      elapsed.inMicroseconds,
+      _lastRenderMicros,
+    );
+    if (said != null) _report = said;
     setState(() {});
   }
 
@@ -713,12 +637,18 @@ class _ModelerScreenState extends State<ModelerScreen>
             : subject.children.whereType<MeshNode>().firstOrNull;
         final source = node?.mesh.source;
         if (node != null && source != null) {
-          _churn = ChurnRun(device: device, node: node, from: source);
+          _measurementRuns.churn = ChurnRun(
+            device: device,
+            node: node,
+            from: source,
+          );
         }
       }
       opening.stop();
-      _openedInMs = opening.elapsedMilliseconds;
-      if (kOrbit > 0) _orbit = OrbitRun(frames: kOrbit, stage: stage);
+      _measurementRuns.openedInMs = opening.elapsedMilliseconds;
+      if (kOrbit > 0) {
+        _measurementRuns.orbit = OrbitRun(frames: kOrbit, stage: stage);
+      }
       if (kSandboxProbe) {
         final said = describeProbe(await probeSandbox());
         debugPrint(said);
@@ -740,7 +670,9 @@ class _ModelerScreenState extends State<ModelerScreen>
       }
       setState(() {
         // With no run to wait for, the opening cost is the whole report.
-        if (kOrbit <= 0) _report = 'opened in $_openedInMs ms';
+        if (kOrbit <= 0) {
+          _report = 'opened in ${_measurementRuns.openedInMs} ms';
+        }
       });
       // Opened from a link: the models service loads this build in a frame
       // with the file's address in the query, so the document becomes that
@@ -820,8 +752,7 @@ class _ModelerScreenState extends State<ModelerScreen>
       said: 'restored an autosave from a session that did not close cleanly',
     );
     setState(() {
-      _picker = null;
-      _pickerVersion = -1;
+      _elementPickerCache.forget();
     });
   }
 
@@ -1012,8 +943,7 @@ class _ModelerScreenState extends State<ModelerScreen>
             // Ids start again in the new project, so a picker held against the
             // old one could match a version and answer about a mesh that is
             // gone.
-            _picker = null;
-            _pickerVersion = -1;
+            _elementPickerCache.forget();
           });
       }
     } catch (error) {
@@ -1342,8 +1272,7 @@ class _ModelerScreenState extends State<ModelerScreen>
             said: <String>[said, ...opened.warnings].join('\n'),
           );
           setState(() {
-            _picker = null;
-            _pickerVersion = -1;
+            _elementPickerCache.forget();
           });
       }
       // A browser's own PickedFile has no path — nothing to remember there,
@@ -1393,8 +1322,7 @@ class _ModelerScreenState extends State<ModelerScreen>
           said: <String>[said, ...opened.warnings].join('\n'),
         );
         setState(() {
-          _picker = null;
-          _pickerVersion = -1;
+          _elementPickerCache.forget();
         });
     }
     RecentModels().remember(path, exists: pathExists);
@@ -1415,8 +1343,7 @@ class _ModelerScreenState extends State<ModelerScreen>
       documentName: 'untitled (${profile.name})',
     );
     setState(() {
-      _picker = null;
-      _pickerVersion = -1;
+      _elementPickerCache.forget();
     });
   }
 
@@ -1500,394 +1427,6 @@ class _ModelerScreenState extends State<ModelerScreen>
       );
       _cubit.say(null);
     });
-  }
-
-  /// A drag with a transform tool armed.
-  ///
-  /// **The drag is in pixels and the model is in metres**, so the conversion
-  /// goes through the same pixel size the overlay uses — which is what makes a
-  /// vertex follow the pointer rather than lag behind it or run ahead. Rotation
-  /// and scale take the drag as an amount rather than as a direction, because
-  /// without an axis to constrain them there is nothing else it could mean;
-  /// the axis arrives with the gizmo.
-  ///
-  /// **`Ctrl` is read here and nowhere earlier.** It is what already asks
-  /// [TransformModal] for a fixed grid, and it is what `view-26n`'s geometry
-  /// search below asks to run at all — one modifier, so a hand that has
-  /// learned "hold this to snap" gets the sharper answer whenever there is one
-  /// in reach and the plain grid otherwise, rather than a second key to learn.
-  void _dragged(Offset delta, double viewportHeight, PickingView view) {
-    final state = _state;
-    final String? tool = _tool;
-    if (state is! ModelerReady || tool == null) return;
-    if (!kDragTools.contains(tool)) return;
-    if (_history.selection.isEmpty) return;
-
-    _lastViewportHeight = viewportHeight;
-    _lastPickingView = view;
-    final look = state.stage.overlayView(viewportHeight);
-    final TransformModal modal = _modalFor(tool);
-    modal.snapping = HardwareKeyboard.instance.isControlPressed;
-
-    // Pixels into whatever the transform is measured in. A move is metres at
-    // the depth the selection is at — a pixel is a different number of metres a
-    // metre further away — and a turn and a scale are a hundredth per pixel,
-    // which is the sensitivity every modeller settles on.
-    if (modal.kind == TransformKind.move) {
-      final vm.Vector3 middle = _middleOfSelection();
-      final double metres =
-          look.pixel * (look.perspective ? (middle - look.eye).length : 1.0);
-      modal.dragged +=
-          look.right * (delta.dx * metres) + look.up * (-delta.dy * metres);
-    } else {
-      // One number, carried on whichever component the constraint lets
-      // through, so `amount` can zero the rest the same way it does for a move.
-      final double by = delta.dx * 0.01;
-      modal.dragged += switch (modal.axis) {
-        TransformAxis.y => vm.Vector3(0, by, 0),
-        TransformAxis.z => vm.Vector3(0, 0, by),
-        _ => vm.Vector3(by, 0, 0),
-      };
-    }
-    _updateGeometrySnap(modal, view);
-    _applyModal(modal, look);
-  }
-
-  /// What `view-26n`'s drag would snap onto right now, or nothing.
-  ///
-  /// **Searched from where the pointer alone wants the median to go**, via
-  /// [TransformModal.pointerAmount] rather than [TransformModal.amount]: the
-  /// latter already carries whatever a previous frame's grid- or geometry-snap
-  /// left it at, and searching around that answer is a search that cannot
-  /// escape a target once found even when the hand keeps moving away from it.
-  ///
-  /// Scoped to a mesh-mode move — the only shape a byte-for-byte position
-  /// match means anything for. An object-mode move (snapping one whole object
-  /// onto another) and a target that is a *face* of somebody else's mesh are
-  /// both left for later: the first is a different question (which point of
-  /// the moving object's own geometry counts), and the second needs a
-  /// point-on-a-plane projection this file does not do — `geometry_snap.dart`
-  /// says so as well.
-  void _updateGeometrySnap(TransformModal modal, PickingView view) {
-    modal.geometrySnapDelta = null;
-    _snapTarget = null;
-    if (modal.kind != TransformKind.move || !modal.snapping) return;
-    final selection = _history.selection;
-    if (selection.mode != SelectionMode.mesh) return;
-    final vm.Vector3? start = _snapAnchorStart;
-    final int? objectId = selection.activeObject;
-    if (start == null || objectId == null) return;
-
-    final sources = _otherSnapSources(excluding: objectId);
-    if (sources.isEmpty) return;
-
-    final target = findSnapTarget(
-      view: view,
-      near: start + modal.pointerAmount,
-      sources: sources,
-      radiusPixels: cursorPickSlack,
-    );
-    if (target == null) return;
-    _snapTarget = target;
-    modal.geometrySnapDelta = target.position - start;
-  }
-
-  /// Every other mesh object's geometry, ready to be searched — the
-  /// [SnapSource] list `findSnapTarget` scans, built fresh from a per-object
-  /// picker cache rather than kept as one list across drags, since which
-  /// objects even exist can change between one drag and the next.
-  List<SnapSource> _otherSnapSources({required int excluding}) {
-    final project = _history.project;
-    final sources = <SnapSource>[];
-    for (final ModelObject object in project.objects) {
-      if (object.id == excluding) continue;
-      final geometry = object.geometry;
-      if (geometry is! EditedGeometry) continue;
-      final cached = _otherPickers[object.id];
-      final MeshPicker picker;
-      if (cached != null && cached.version == object.version) {
-        picker = cached.picker;
-      } else {
-        final plan = MeshLayoutPlan()..build(geometry.mesh);
-        picker = MeshPicker(geometry.mesh, MeshBvh(geometry.mesh, plan));
-        _otherPickers[object.id] = (version: object.version, picker: picker);
-      }
-      sources.add(
-        SnapSource(
-          id: object.id,
-          picker: picker,
-          objectToWorld: worldTransformOf(project, object.id),
-        ),
-      );
-    }
-    return sources;
-  }
-
-  /// What the viewport reports when the pointer goes up: the transform is
-  /// accepted, which is what letting go of a drag means.
-  void _endDrag() => _commitModal();
-
-  /// A key arrived while a transform is going on.
-  ///
-  /// Returns whether it was taken. The keys are the ones every modeller has:
-  /// `X`/`Y`/`Z` constrain, digits and a point and a minus type a number,
-  /// backspace takes one off, Enter accepts and Escape throws it away.
-  bool _modalKey(LogicalKeyboardKey key, String? character) {
-    final TransformModal? modal = _modal;
-    if (modal == null) return false;
-    if (key == LogicalKeyboardKey.escape) {
-      _cancelModal();
-      return true;
-    }
-    if (key == LogicalKeyboardKey.enter ||
-        key == LogicalKeyboardKey.numpadEnter) {
-      _commitModal();
-      return true;
-    }
-    if (key == LogicalKeyboardKey.backspace) {
-      if (!modal.type('backspace')) return false;
-      _reapply(modal);
-      return true;
-    }
-    final TransformAxis? pressed = switch (key) {
-      LogicalKeyboardKey.keyX => TransformAxis.x,
-      LogicalKeyboardKey.keyY => TransformAxis.y,
-      LogicalKeyboardKey.keyZ => TransformAxis.z,
-      _ => null,
-    };
-    if (pressed != null) {
-      modal.axis = modal.axis.pressed(pressed);
-      _reapply(modal);
-      return true;
-    }
-    if (character != null && modal.type(character)) {
-      _reapply(modal);
-      return true;
-    }
-    return false;
-  }
-
-  /// Re-runs the transform at whatever it is now, after a key changed it.
-  void _reapply(TransformModal modal) {
-    final state = _state;
-    if (state is! ModelerReady) return;
-    final PickingView? view = _lastPickingView;
-    if (view != null) _updateGeometrySnap(modal, view);
-    _applyModal(modal, state.stage.overlayView(_lastViewportHeight));
-  }
-
-  /// The height the picture was laid out at, kept so a key press can measure a
-  /// pixel the same way a pointer move does.
-  double _lastViewportHeight = 600;
-
-  /// The transform in progress, or null.
-  ///
-  /// **One object for the pointer and the keyboard both**, because they are the
-  /// same transform: a person presses `G`, moves the mouse, presses `X`, types
-  /// `5` and presses Enter, and every one of those changes the same thing.
-  /// Two paths would answer differently on the frame the constraint arrives.
-  TransformModal? _modal;
-
-  /// Starts one if there is not one already, opening the transaction it will
-  /// be committed or thrown away as.
-  TransformModal _modalFor(String tool) {
-    final TransformModal? going = _modal;
-    if (going != null) return going;
-    _history.beginTransaction();
-    final TransformKind kind = switch (tool) {
-      'mesh.rotate' || 'object.rotate' => TransformKind.rotate,
-      'mesh.scale' || 'object.scale' => TransformKind.scale,
-      _ => TransformKind.move,
-    };
-    // The one snapshot `view-26n`'s geometry snap measures its delta from —
-    // taken here, once, rather than read fresh off the mesh on every report:
-    // by the second report the mesh already carries part of the drag, and a
-    // delta measured against a moving start would not be the delta a byte-
-    // for-byte match needs.
-    _snapAnchorStart =
-        kind == TransformKind.move &&
-            _history.selection.mode == SelectionMode.mesh
-        ? _middleOfSelection()
-        : null;
-    return _modal = TransformModal(kind);
-  }
-
-  /// A gizmo arm was grabbed: the same transform `G` starts, with the axis it
-  /// was grabbed by already set.
-  ///
-  /// **One path, not two.** The alternative — a gizmo that computes its own
-  /// delta and runs its own command — would be a second answer to what a move
-  /// is, and the two would part company at the first snap, the first pivot
-  /// setting and the first refusal. Here the arm only says which axis; the drag
-  /// after it is the drag `G X` already had, and it ends in the same one step
-  /// of history.
-  void _grabbedGizmo(GizmoAxis axis) {
-    if (_state is! ModelerReady) return;
-    final String tool = switch (_gizmoKind) {
-      TransformKind.rotate => 'object.rotate',
-      TransformKind.scale => 'object.scale',
-      TransformKind.move => 'object.move',
-    };
-    final modal = _modalFor(tool);
-    modal.axis = switch (axis) {
-      GizmoAxis.x => TransformAxis.x,
-      GizmoAxis.y => TransformAxis.y,
-      GizmoAxis.z => TransformAxis.z,
-    };
-    _cubit.say(modal.says);
-  }
-
-  /// Which gizmo the armed tool asks for.
-  TransformKind get _gizmoKind => switch (_tool) {
-    'mesh.rotate' || 'object.rotate' => TransformKind.rotate,
-    'mesh.scale' || 'object.scale' => TransformKind.scale,
-    _ => TransformKind.move,
-  };
-
-  /// Where the gizmo stands, or null when nothing is selected.
-  ///
-  /// Null rather than the origin: a gizmo at the world centre with nothing
-  /// selected is a control that does nothing, drawn where a person will aim at
-  /// it.
-  vm.Vector3? get _gizmoPivot =>
-      _history.selection.isEmpty ? null : _middleOfSelection();
-
-  /// Accepts the transform. The transaction closes and its one step stays.
-  void _commitModal() {
-    if (_modal == null) return;
-    _modal = null;
-    _snapAnchorStart = null;
-    _snapTarget = null;
-    _lastPickingView = null;
-    _history.endTransaction();
-    _cubit.say(null);
-  }
-
-  /// Throws it away.
-  ///
-  /// **Undone rather than reversed.** The opposite of a scale by 0.3 is a scale
-  /// by ten thirds, and the two do not compose back to the identity in floating
-  /// point — so Escape closes the transaction, takes its one step back and
-  /// drops it, which puts the document back by pointer.
-  ///
-  /// That is exactly as true with `view-26n`'s geometry snap engaged as
-  /// without it: the snap only ever changed what [TransformModal.amount]
-  /// answered, never how the answer got applied, so the transaction it
-  /// leaves behind is one step regardless and undoing it puts every snapped
-  /// vertex back precisely where it started.
-  void _cancelModal() {
-    if (_modal == null) return;
-    _modal = null;
-    _snapAnchorStart = null;
-    _snapTarget = null;
-    _lastPickingView = null;
-    _history.endTransaction();
-    if (_history.undo()) {
-      _history.dropRedo();
-      _sync();
-    }
-    _cubit.say('cancelled');
-  }
-
-  /// Applies whatever the transform is at now, replacing what it applied last.
-  ///
-  /// Inside the open transaction, so a hundred of these are one step. Each one
-  /// runs the *difference* from the last, because a command moves by an amount
-  /// rather than to a place.
-  void _applyModal(
-    TransformModal modal,
-    ({
-      vm.Vector3 eye,
-      vm.Vector3 right,
-      vm.Vector3 up,
-      double pixel,
-      bool perspective,
-    })
-    look,
-  ) {
-    final vm.Vector3 want = modal.amount;
-    final vm.Vector3 step = want - _appliedSoFar;
-    _appliedSoFar = vm.Vector3.copy(want);
-    if (step.length2 == 0) {
-      _cubit.say(modal.says);
-      return;
-    }
-
-    final bool mesh = _history.selection.mode == SelectionMode.mesh;
-    final double scalar = step.x + step.y + step.z;
-    // **The pivot is the command's, not this file's.** `TransformElements`
-    // takes the median of the selected vertices itself and sandwiches the
-    // matrix in it, so wrapping the matrix here as well turned and scaled about
-    // twice the median — a mesh-mode turn swung the geometry off into space,
-    // and nothing on either side of the seam caught it because the command's
-    // own pivot had no test. What is handed over is the bare rotation or the
-    // bare scale.
-    final ModelCommand command = switch (modal.kind) {
-      TransformKind.move =>
-        mesh ? TransformElements(vm.Matrix4.translation(step)) : MoveBy(step),
-      TransformKind.rotate =>
-        mesh
-            ? TransformElements(
-                vm.Matrix4.compose(
-                  vm.Vector3.zero(),
-                  vm.Quaternion.axisAngle(_axisOf(modal, look), scalar),
-                  vm.Vector3.all(1),
-                ),
-                what: 'turn',
-              )
-            : RotateBy(axis: _axisOf(modal, look), radians: scalar),
-      TransformKind.scale =>
-        mesh
-            ? TransformElements(
-                vm.Matrix4.diagonal3(vm.Vector3.all(1 + scalar)),
-                what: 'scale',
-              )
-            : ScaleBy(1 + scalar),
-    };
-    _cubit.ran(command, said: modal.says);
-  }
-
-  /// How much of the transform has been applied to the document already.
-  vm.Vector3 _appliedSoFar = vm.Vector3.zero();
-
-  /// The axis a turn goes about: the constrained one, or the view direction.
-  vm.Vector3 _axisOf(
-    TransformModal modal,
-    ({
-      vm.Vector3 eye,
-      vm.Vector3 right,
-      vm.Vector3 up,
-      double pixel,
-      bool perspective,
-    })
-    look,
-  ) => switch (modal.axis) {
-    TransformAxis.x => vm.Vector3(1, 0, 0),
-    TransformAxis.y => vm.Vector3(0, 1, 0),
-    TransformAxis.z => vm.Vector3(0, 0, 1),
-    // Unconstrained, a turn goes about the axis the camera is looking down, so
-    // a horizontal drag turns the model the way the hand went whatever angle it
-    // is being seen from.
-    _ => (look.eye - _middleOfSelection()).normalized(),
-  };
-
-  /// The middle of what is selected, in world units.
-  vm.Vector3 _middleOfSelection() {
-    final selection = _history.selection;
-    if (selection.mode == SelectionMode.mesh) {
-      final EditMesh? mesh = _editMesh;
-      if (mesh == null) return vm.Vector3.zero();
-      return medianOf(mesh, selection.asMeshSelection);
-    }
-    final middle = vm.Vector3.zero();
-    var counted = 0;
-    for (final int id in selection.objects) {
-      final object = _history.project[id];
-      if (object == null) continue;
-      middle.add(object.transform.getTranslation());
-      counted++;
-    }
-    return counted == 0 ? middle : (middle..scale(1 / counted));
   }
 
   /// Presses a rail button.
@@ -1997,13 +1536,6 @@ class _ModelerScreenState extends State<ModelerScreen>
   /// journal records what was selected when a command ran, and an agent
   /// driving the modeller can ask for it by name.
   void _runSelection(ModelCommand command) => _cubit.ran(command);
-
-  /// Brings the scene to the project.
-  ///
-  /// The one place left that changes the document without a command going
-  /// through the cubit: a drag that closed its own transaction, and an `amend`.
-  /// Both tell the cubit afterwards, and it does the rest.
-  void _sync() => _cubit.documentMoved();
 
   /// Nine numbers typed into the panel.
   ///
@@ -2222,7 +1754,7 @@ class _ModelerScreenState extends State<ModelerScreen>
         canPop: !state.history.isDirty,
         onPopInvokedWithResult: _onPopInvoked,
         child: ModelerKeys(
-          onKey: _modalKey,
+          onKey: _transformSession.modalKey,
           onUndo: _undo,
           onRedo: _redo,
           onExport: _showExportDialog,
@@ -2356,18 +1888,20 @@ class _ModelerScreenState extends State<ModelerScreen>
                       // the transform, and with none it is a rectangle. A viewport
                       // that offered both would have to guess, and the guess would be
                       // wrong on the frame a person changed their mind.
-                      onDragTool: kDragTools.contains(_tool) ? _dragged : null,
-                      onDragDone: _endDrag,
+                      onDragTool: kDragTools.contains(_tool)
+                          ? _transformSession.dragged
+                          : null,
+                      onDragDone: _transformSession.endDrag,
                       onBox: _boxed,
                       // The gizmo stands on the selection and offers the transform
                       // the armed tool asks for. On a tablet it is the only way in:
                       // there is no `G` key on an iPad, so this is not a second path
                       // to the same place — on three of the five platforms phase 1
                       // ships to it is the path.
-                      gizmoPivot: _gizmoPivot,
-                      gizmoKind: _gizmoKind,
-                      onGizmoDrag: _grabbedGizmo,
-                      snapHighlight: _snapTarget?.position,
+                      gizmoPivot: _transformSession.gizmoPivot,
+                      gizmoKind: _transformSession.gizmoKind,
+                      onGizmoDrag: _transformSession.grabbedGizmo,
+                      snapHighlight: _transformSession.snapTarget?.position,
                       editMesh: _mode == ModelerMode.mesh ? _editMesh : null,
                       elements: _history.selection.asMeshSelection,
                       meshVersion:
