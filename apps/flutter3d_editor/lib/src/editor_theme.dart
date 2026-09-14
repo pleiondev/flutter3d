@@ -8,7 +8,8 @@
 /// and the rest, each with its own `Color(0xFF...)` literals). A `Dropdown`
 /// or a `TextField` filled light against a dark panel is the tell; this file
 /// is what removes it, ahead of `E2` wiring the panels themselves onto the
-/// package's `FieldRow`/`SectionLabel`.
+/// package's `FieldRow`/`SectionLabel` (`editor_inspector.dart`,
+/// `material_panel.dart`).
 ///
 /// **Where the five roles below come from.** Each hex is one this
 /// application (or, since `P0`–`P2`, the shared package the application's own

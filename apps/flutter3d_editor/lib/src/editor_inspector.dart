@@ -32,7 +32,10 @@
 /// `flutter3d_editor_widgets` (`ui-27`) — shared with `apps/flutter3d_modeler`
 /// so the two editors stop keeping their own copies. Re-exported here so
 /// nothing that already imports this file for [FieldRow] or [PathOffers] has
-/// to change its own import.
+/// to change its own import. The panel's own title and its "not set" heading
+/// are `SectionLabel` too (`ui-27`'s `E2`), each with the `style`/`padding`
+/// override that reproduces this panel's own look — the reason those two
+/// parameters exist on `SectionLabel` at all.
 library;
 
 import 'package:flutter/material.dart' hide Material;
@@ -86,19 +89,15 @@ final class EditorInspector extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         mainAxisSize: MainAxisSize.min,
         children: <Widget>[
-          Padding(
-            padding: const EdgeInsets.fromLTRB(12, 0, 12, 6),
-            child: Text(
-              editing.says.toUpperCase(),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                color: Color(0xFF6F7885),
-                fontSize: 11,
-                letterSpacing: 1.6,
-                fontWeight: FontWeight.w700,
-              ),
+          SectionLabel(
+            editing.says,
+            style: const TextStyle(
+              color: Color(0xFF6F7885),
+              fontSize: 11,
+              letterSpacing: 1.6,
+              fontWeight: FontWeight.w700,
             ),
+            padding: const EdgeInsets.fromLTRB(12, 0, 12, 6),
           ),
           // Scrolls for the reason the palette does: how many rows there are is
           // the document's decision, and a column that overflows in Flutter
@@ -125,17 +124,15 @@ final class EditorInspector extends StatelessWidget {
                       },
                     ),
                   if (more.isNotEmpty) ...<Widget>[
-                    const Padding(
-                      padding: EdgeInsets.fromLTRB(12, 10, 12, 2),
-                      child: Text(
-                        'NOT SET',
-                        style: TextStyle(
-                          color: Color(0xFF525A66),
-                          fontSize: 10,
-                          letterSpacing: 1.4,
-                          fontWeight: FontWeight.w700,
-                        ),
+                    const SectionLabel(
+                      'not set',
+                      style: TextStyle(
+                        color: Color(0xFF525A66),
+                        fontSize: 10,
+                        letterSpacing: 1.4,
+                        fontWeight: FontWeight.w700,
                       ),
+                      padding: EdgeInsets.fromLTRB(12, 10, 12, 2),
                     ),
                     for (final key in more)
                       FieldRow(
