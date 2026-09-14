@@ -71,6 +71,39 @@ final class OpenKind extends EntityKind {
   const OpenKind(super.type);
 }
 
+/// `tour.json`'s own `view-caption` `widget_surface` — authored alongside the
+/// level's steps, never resolved by any registry until now: `_open` (below)
+/// called `LessonCubit.open` with no `widgetRegistry` at all, so the panel
+/// only ever reported "this application's widget registry does not have"
+/// `viewer-caption` and drew nothing. A static caption rather than one that
+/// tracks the current step live: the panel sits behind the pedestal, in view
+/// through most of the tour, and `ls-e-04`'s own "danger" panel — a step-local
+/// warning, not a running caption — is the row a *reactive* widget_surface
+/// belongs to, once one is written.
+Widget _viewerCaption(BuildContext context) => const ColoredBox(
+  color: Color(0xCC0E1013),
+  child: Center(
+    child: Padding(
+      padding: EdgeInsets.all(16.0),
+      child: Text(
+        'Обойти изделие',
+        textAlign: TextAlign.center,
+        style: TextStyle(
+          color: Colors.white,
+          fontSize: 20.0,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+    ),
+  ),
+);
+
+/// Every widget a `widget_surface` entity in this application's own levels
+/// may name.
+Map<String, WidgetBuilder> widgetRegistry() => <String, WidgetBuilder>{
+  'viewer-caption': _viewerCaption,
+};
+
 /// [level]'s own `part` entities — `ls-e-00`'s removable pieces — as plain
 /// boxed [MeshNode]s, named after their own entity so an `edu_step`'s
 /// `visible`/`hidden` list has something to reach.
@@ -165,15 +198,6 @@ class LessonCubit extends Cubit<LessonState> {
       );
       _addParts(level, loaded, device);
 
-      // `ls-e-00`'s own nodes map: every fixture the level placed, by the
-      // name its own entity carries — `applyLessonStepToCamera`'s own doc
-      // comment names this split (the engine says what a step means, an
-      // application says which node that name resolves to), and nothing in
-      // this repository had actually built the map yet before this row.
-      final nodes = <String, SceneNode>{
-        for (final mesh in loaded.scene.meshes) ?mesh.name: mesh,
-      };
-
       String? sequenceName;
       for (final entity in level.entities) {
         if (entity.type == 'edu_sequence') {
@@ -193,6 +217,21 @@ class LessonCubit extends Cubit<LessonState> {
       for (final entity in level.entities) {
         widgetSurfaces.add(entity);
       }
+
+      // `ls-e-00`'s own nodes map: every fixture the level placed, by the
+      // name its own entity carries — `applyLessonStepToCamera`'s own doc
+      // comment names this split (the engine says what a step means, an
+      // application says which node that name resolves to). Built *after*
+      // `widgetSurfaces` rather than before: a `widget_surface`'s own
+      // `MeshNode` (`ls-e-04`'s own "danger" panel, or any annotation a step
+      // wants to show only while it is current) is added to the scene by
+      // that loop, and a snapshot taken before it ran would leave a step's
+      // `visible`/`hidden` list naming that panel a silent no-op — `nodes[
+      // name]?.visible = visible` finding no entry rather than the surface
+      // it meant.
+      final nodes = <String, SceneNode>{
+        for (final mesh in loaded.scene.meshes) ?mesh.name: mesh,
+      };
 
       emit(
         LessonReady(
@@ -249,7 +288,11 @@ class _LessonScreenState extends State<LessonScreen>
       if (mounted) setState(() => _initError = error);
       return;
     }
-    await _lesson.open(device, camera: _camera);
+    await _lesson.open(
+      device,
+      camera: _camera,
+      widgetRegistry: widgetRegistry(),
+    );
     // `widgetSurfaces.tickAll()` redraws whichever `widget_surface` this
     // lesson named, only on the frames its own pipeline marks dirty
     // (`wg-00`'s own rule) — driven by a ticker rather than only by the step

@@ -8,6 +8,7 @@
 library;
 
 import 'package:flutter3d/flutter3d.dart';
+import 'package:flutter3d_bridge/flutter3d_bridge.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:flutter3d_lesson_viewer/main.dart';
@@ -54,4 +55,45 @@ void main() {
       expect(cubit.state, isA<LessonFailed>());
     },
   );
+
+  test("a widget_surface's own node reaches the step's visible/hidden list, "
+      "not just a brush's — ls-e-04's own 'danger' panel needs exactly this "
+      'to appear for one step and disappear for the rest', () async {
+    final cubit = LessonCubit();
+    await cubit.open(
+      _device(),
+      camera: CameraNode(),
+      widgetRegistry: widgetRegistry(),
+    );
+
+    final state = cubit.state as LessonReady;
+    final panel = state.nodes['view-caption'];
+    expect(
+      panel,
+      isNotNull,
+      reason:
+          "tour.json's own widget_surface named view-caption should be "
+          'in the same nodes map a part\'s MeshNode is, once the map is '
+          'built after widgetSurfaces rather than before it',
+    );
+
+    final camera = CameraNode();
+    final hideStep = EntityDef(
+      type: 'edu_step',
+      properties: <String, Object?>{
+        'hidden': <String>['view-caption'],
+      },
+    );
+    applyLessonStepToCamera(camera, hideStep, nodes: state.nodes);
+    expect(panel!.visible, isFalse);
+
+    final showStep = EntityDef(
+      type: 'edu_step',
+      properties: <String, Object?>{
+        'visible': <String>['view-caption'],
+      },
+    );
+    applyLessonStepToCamera(camera, showStep, nodes: state.nodes);
+    expect(panel.visible, isTrue);
+  });
 }
