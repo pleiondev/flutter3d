@@ -82,9 +82,7 @@ extension _FileHandling on _ModelerScreenState {
       _deviceDevicePixelRatio = devicePixelRatio;
       final renderer = Renderer.create(device: device);
 
-      final asset = kModel.isEmpty
-          ? null
-          : await _ModelerScreenState._load(kModel, device);
+      final asset = kModel.isEmpty ? null : await _load(kModel, device);
       if (!mounted) return;
 
       // The measurement stands keep the old door: `p0-01` is about triangles on
