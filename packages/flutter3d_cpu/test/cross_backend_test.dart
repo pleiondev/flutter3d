@@ -1,6 +1,6 @@
 /// How far the software backend lands from the hardware one, per scene.
 ///
-///     flutter test test/cross_backend_test.dart
+///     dart test test/cross_backend_test.dart
 ///
 /// A comparison of two committed reference sets — this package's, in
 /// `test/goldens`, against Impeller's, in `flutter3d/test/goldens` — so it
@@ -24,10 +24,10 @@ library;
 
 import 'dart:io';
 import 'dart:typed_data';
-import 'dart:ui' as ui;
 
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
-import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter3d_formats/flutter3d_formats.dart';
+import 'package:test/test.dart';
 
 /// Per-scene ceiling on the share of pixels differing by more than [_channel].
 ///
@@ -244,15 +244,14 @@ const Map<String, double> _budgets = <String, double>{
 const int _channel = 8;
 
 Future<Uint8List> _rgba(File file) async {
-  final codec = await ui.instantiateImageCodec(await file.readAsBytes());
-  final frame = await codec.getNextFrame();
-  final data = await frame.image.toByteData(format: ui.ImageByteFormat.rawRgba);
-  return data!.buffer.asUint8List();
+  final decoded = await decodeImagePure(await file.readAsBytes());
+  if (decoded == null) {
+    throw StateError('${file.path} did not decode as a PNG.');
+  }
+  return decoded.pixels;
 }
 
 void main() {
-  TestWidgetsFlutterBinding.ensureInitialized();
-
   final mine = Directory('test/goldens');
   final theirs = Directory('../flutter3d/test/goldens');
 

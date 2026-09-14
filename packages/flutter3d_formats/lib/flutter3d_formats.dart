@@ -46,6 +46,7 @@ export 'src/image/inflate.dart';
 export 'src/image/jpeg_decoder.dart';
 export 'src/image/png_decoder.dart';
 export 'src/image/png_encoder.dart';
+export 'src/image/pure_dart_image_decoder.dart';
 export 'src/image_sniff.dart';
 export 'src/ktx2/encode/astc4x4_encoder.dart'
     show encodeAstc4x4, encodeAstc4x4Block;

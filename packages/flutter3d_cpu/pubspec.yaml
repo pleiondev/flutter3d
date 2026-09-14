@@ -14,7 +14,6 @@ topics:
 
 environment:
   sdk: ^3.12.2
-  flutter: '>=3.47.0'
 
 dependencies:
   flutter3d_hardware: ^0.7.0
@@ -22,13 +21,6 @@ dependencies:
 
 dev_dependencies:
   test: ^1.25.0
-  # For `cross_backend_test.dart` alone: it decodes the committed golden PNGs
-  # through `dart:ui` and runs under `testWidgets`, which mcp-04n's pure-Dart
-  # PNG decoder (not built yet) will let it drop. Until then this is the one
-  # file — and the one reason — this package cannot join `flatDartPackages`
-  # despite `lib/` and every other test naming no Flutter at all (mcp-02n).
-  flutter_test:
-    sdk: flutter
   flutter_lints: ^6.0.0
   flutter3d_conformance: ^0.7.0
   # For `shader_names_test.dart` alone: the entry-point names it checks
