@@ -153,6 +153,46 @@ void main() {
       },
     );
 
+    test("anim-31n's own acceptance: sweeping the target past full extension "
+        'gives no jitter — the elbow moves continuously, not in a jump', () {
+      final project = _straightChain();
+      Vector3? previousMid;
+      // From well within reach (1.0) to well past it (3.0), through the
+      // exact length (2.0) where a solver that special-cased "beyond reach"
+      // could visibly snap.
+      for (var x = 1.0; x <= 3.0; x += 0.05) {
+        final constraint = IkConstraint(
+          rootJointId: 1,
+          midJointId: 2,
+          effectorJointId: 3,
+          target: Vector3(x, 0.3, 0),
+          pole: Vector3(0, 1, 0),
+        );
+        final solved = resolveIkConstraint(
+          project: project,
+          constraint: constraint,
+        );
+        final mid = worldTransformOf(
+          project,
+          constraint.midJointId,
+          rotationOverrides: <int, Quaternion>{
+            constraint.rootJointId: solved.root,
+          },
+        ).getTranslation();
+        if (previousMid != null) {
+          expect(
+            (mid - previousMid).length,
+            lessThan(0.2),
+            reason:
+                'the elbow jumped between target x=${x - 0.05} and x=$x, '
+                'which is what a solver switching formulas at the reach '
+                'limit looks like',
+          );
+        }
+        previousMid = mid;
+      }
+    });
+
     test('a chain resting bent (not straight) still reaches a nearby target, '
         'exercising the real current-bend axis rather than the straight-chain '
         'fallback', () {
