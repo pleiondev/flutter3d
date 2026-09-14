@@ -138,6 +138,20 @@ const Map<String, String> flatDartPackages = <String, String>{
       'the servers built on it — the level editor\'s and the modeller\'s — are '
       'started with `dart run`, so a Flutter import here is every one of them '
       'failing to start at once',
+  'flutter3d_shaders':
+      '`lib/`\'s own `kRequiredShaders` is a plain `const` list; its `flutter: '
+      'sdk` dependency was never real, only ever inherited from the split out '
+      'of `flutter3d_impeller`, and every backend\'s own `conformance_test.dart` '
+      'resolved the Flutter SDK through it for no reason at all',
+  'flutter3d_conformance':
+      'the behaviour a backend has to have is not itself GPU-shaped; it names '
+      'no Flutter import of its own, and `flutter3d_shaders` — the one '
+      'dependency that used to carry the SDK in — no longer does either',
+  'flutter3d_cpu':
+      'no GPU, no shading language, and now nothing in its own dependency '
+      'graph names Flutter either: `flutter3d_conformance` and '
+      '`flutter3d_shaders`, dev dependencies for `conformance_test.dart` and '
+      '`shader_names_test.dart` alone, are both flat themselves',
 };
 
 /// Packages the genre rule does not apply to, and why.

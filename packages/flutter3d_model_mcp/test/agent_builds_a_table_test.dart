@@ -76,11 +76,10 @@ void main() {
 
   test('the tools an agent is offered are the ones it can call', () async {
     final offered = await connection.listTools(ListToolsRequest());
-    expect(
-      offered.tools.map((Tool it) => it.name),
-      modelTools.map((ModelTool it) => it.name),
-      reason: 'tools/list and the table this server was built from disagree',
-    );
+    expect(offered.tools.map((Tool it) => it.name), <String>[
+      ...modelTools.map((ModelTool it) => it.name),
+      renderTool.name,
+    ], reason: 'tools/list and the table this server was built from disagree');
     for (final tool in offered.tools) {
       expect(tool.description, isNotEmpty, reason: '${tool.name} says nothing');
     }

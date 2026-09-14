@@ -62,6 +62,17 @@ dependencies:
   # is, so all three transports hand `ModelMcpServer` the identical type.
   stream_channel: ^2.1.4
 
+  # `CpuDevice` — `render`'s own device (`render_tool.dart`, `mcp-06n`), no
+  # GPU and no display needed to exist. Flat itself now (see
+  # `tool/structure/repository.dart`'s own `flatDartPackages` entry for it),
+  # so this does not cost this package its own place in that same map.
+  flutter3d_cpu: ^0.7.0
+
+  # `GraphicsDevice` — the type `render_tool.dart`'s own device factory
+  # returns, spelled directly rather than left to resolve only transitively
+  # through `flutter3d_cpu`.
+  flutter3d_hardware: ^0.7.0
+
 dev_dependencies:
   test: ^1.25.0
   flutter_lints: ^6.0.0

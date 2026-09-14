@@ -25,11 +25,14 @@
 /// be tested without a device: deterministic text out, and a suite that
 /// drives the real protocol over a pair of streams in memory.
 ///
-/// **It cannot draw.** There is no `screenshot` tool and no picture in any
-/// answer here, for the same reason `flutter3d_editor_mcp` gives its own:
-/// every backend in this repository reaches a `GraphicsDevice` whose finished
-/// frame is a Flutter widget, and `dart run` cannot resolve a package that
-/// depends on the Flutter SDK.
+/// **It does draw, though nothing else here answers with a picture.**
+/// `render` (`mcp-06n`) is the one tool built on `flutter3d_cpu`'s own
+/// `CpuDevice` — no GPU, no display, and, since `flutter3d_conformance` and
+/// `flutter3d_shaders` stopped carrying the Flutter SDK in behind it, no cost
+/// to `dart run`'s own ability to start this server with no Flutter tool on
+/// the machine at all. See `render_tool.dart`'s own doc comment for why
+/// every other tool still answers with no `png` rather than every tool body
+/// here having grown one.
 ///
 /// ```sh
 /// dart run flutter3d_model_mcp:model_mcp my-model.f3dproj
@@ -40,3 +43,4 @@ export 'src/model_http_server.dart';
 export 'src/model_server.dart';
 export 'src/model_session.dart';
 export 'src/model_tools.dart';
+export 'src/render_tool.dart';
