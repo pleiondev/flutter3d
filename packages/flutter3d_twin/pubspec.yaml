@@ -1,0 +1,31 @@
+name: flutter3d_twin
+description: "Digital-twin data sources — tpl-04's own spindle reading is the first. Plain Dart, so a server can replay or check a twin's own signal with no Flutter SDK in it."
+version: 0.1.0
+repository: https://github.com/pleiondev/flutter3d
+homepage: https://flutter3d.pleion.dev
+issue_tracker: https://github.com/pleiondev/flutter3d/issues
+topics:
+  - game-development
+  - simulation
+  - iot
+resolution: workspace
+
+environment:
+  sdk: ^3.12.2
+
+dependencies:
+  # `EduDataSource`/`SamplerDataSource`/`DataSourceRegistry` — the reading
+  # primitive a twin's own signal is built on (`edu-05`'s own mechanism), and
+  # `resolveBindings`, which turns a step's own `bindings` into a value a
+  # dashboard reads. A twin's own signal is domain content on top of these,
+  # the same relation `flutter3d_lab`'s own pendulum already has with
+  # `flutter3d_sim` underneath it.
+  flutter3d_sim: ^0.6.0
+
+dev_dependencies:
+  test: ^1.25.0
+  flutter_lints: ^6.0.0
+
+# Plain Dart, same reason `flutter3d_lab` is one: a twin's own signal is
+# content a server can check or replay with no Flutter SDK in it. Held by
+# `tool/structure.dart`, not by this comment.

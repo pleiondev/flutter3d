@@ -212,6 +212,7 @@ point of §3.3.
 | `flutter3d_fbx` | A `ModelDecoder` for Autodesk's FBX — the skeleton for now, recognising a file and refusing to read it with a clear reason. Plain Dart |
 | `flutter3d_sim` | The simulation: fixed step, ECS, level format, actors, navigation, saves, replays, camera rig. Plain Dart |
 | `flutter3d_lab` | Virtual laboratory simulations built on `flutter3d_sim`'s stepping and recording primitives — `edu-04`'s pendulum is the first. Plain Dart |
+| `flutter3d_twin` | Digital-twin data sources built on `flutter3d_sim`'s reading and binding primitives — `tpl-04`'s own spindle reading is the first, `ls-i-00`. Plain Dart |
 | `flutter3d_render_job` | `RenderSnapshotJob`: a project rendered offscreen through its own `CpuDevice`, tiled, at SSAA ×1/×2, to a PNG — `pro-rn-02` |
 | `flutter3d_game` | The Flutter half of the game layer: touch and keyboard input, accessibility settings, diagnostics. Re-exports `flutter3d_sim` |
 | `flutter3d_game_shooter` | Shooter rules: weapons, hitscan, projectiles, inventory, monsters |
@@ -1910,7 +1911,7 @@ entities a game defines.
 |---|---|
 | Style | `dart format` |
 | Analysis | `flutter analyze` clean across the workspace, no warnings |
-| Unit tests | **7449 tests** across 44 packages and 9 applications |
+| Unit tests | **7453 tests** across 45 packages and 9 applications |
 | Structure rules | 32, `dart run tool/structure.dart`, the first CI step |
 | CI | GitHub Actions over `tool/ci.sh`, on `ubuntu-latest`, with no graphics card |
 
@@ -2802,7 +2803,7 @@ what went out at 0.4.2.
 5. `flutter3d_impeller`, `flutter3d_webgl`, `flutter3d_webgpu`, `flutter3d_cpu`,
    `flutter3d_particles`, `flutter3d_sim`
 6. `flutter3d_game`, `flutter3d_editor_core`, `flutter3d_net`, `flutter3d_render_job`,
-   `flutter3d_lab`, `flutter3d_stereo`
+   `flutter3d_lab`, `flutter3d_twin`, `flutter3d_stereo`
 7. `flutter3d_session`, `flutter3d_testing`, `flutter3d_editor_mcp`,
    `flutter3d_model_mcp`, `flutter3d_net_webrtc`
 8. `flutter3d_bridge`, `flutter3d_app`

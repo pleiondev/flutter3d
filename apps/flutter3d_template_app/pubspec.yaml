@@ -38,6 +38,13 @@ dependencies:
   flutter3d_session:
     path: ../../packages/flutter3d_session
 
+  # `twinDataSources`/`spindleTempAt` — `ls-i-00`'s own twin signal, moved
+  # out of this app and into its own package so a server can check or
+  # replay it with no Flutter SDK in it, the same relation `flutter3d_lab`'s
+  # own pendulum already has with the app that used to hold it.
+  flutter3d_twin:
+    path: ../../packages/flutter3d_twin
+
   vector_math: ^2.2.0
 
   # Screen state — loading, the error panel — kept in a Cubit rather than

@@ -39,6 +39,7 @@ workspace:
   - packages/flutter3d_game
   - packages/flutter3d_sim
   - packages/flutter3d_lab
+  - packages/flutter3d_twin
   - packages/flutter3d_net
   - packages/flutter3d_net_webrtc
   - packages/flutter3d_sim_mcp
