@@ -46,7 +46,11 @@ base class ModelMcpServer extends ToolTableServer<ModelSession, PictureAnswer> {
         name: 'flutter3d_model_mcp',
         version: modelMcpVersion,
         instructions: _instructions,
-        tools: <ModelPictureTool>[...modelTools.map(_picture), renderTool],
+        tools: <ModelPictureTool>[
+          ...modelTools.map(_picture),
+          renderTool,
+          renderSheetTool,
+        ],
         toResult: pictureResultOf,
       );
 }

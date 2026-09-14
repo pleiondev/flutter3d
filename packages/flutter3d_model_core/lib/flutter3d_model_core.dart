@@ -58,6 +58,7 @@ export 'src/project_morphs.dart';
 export 'src/readiness.dart';
 export 'src/readiness_cache.dart';
 export 'src/render_project.dart';
+export 'src/render_sheet.dart';
 export 'src/retarget_clip.dart';
 export 'src/rig_issues.dart';
 export 'src/rig_job.dart';

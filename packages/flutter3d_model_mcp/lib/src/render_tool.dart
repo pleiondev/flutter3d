@@ -76,3 +76,34 @@ final ModelPictureTool renderTool = ModelPictureTool(
     return (did: true, says: 'Rendered from the ${view.name} view.', png: png);
   },
 );
+
+/// A contact sheet of `renderSheetViews` — `mcp-07n`'s own tool. See
+/// `render_sheet.dart`'s own doc comment for the real, named gap: no labels
+/// yet, since nothing in this workspace draws text into a raster with no
+/// `dart:ui` behind it.
+final ModelPictureTool renderSheetTool = ModelPictureTool(
+  Tool(
+    name: 'renderSheet',
+    description:
+        'A 2×2 contact sheet: front, right, top and iso, one picture — the '
+        'whole silhouette an agent more often needs than any single view. '
+        'An empty project refuses rather than handing back a blank sheet.',
+    inputSchema: ObjectSchema(),
+  ),
+  (ModelSession session, Map<String, Object?> arguments) async {
+    final project = session.history.project;
+    if (project.objects.isEmpty) {
+      return (
+        did: false,
+        says: 'Nothing to render: the project has no objects yet.',
+        png: null,
+      );
+    }
+    final png = await renderSheet(project: project, deviceFactory: _cpuDevice);
+    return (
+      did: true,
+      says: 'Rendered a 2×2 sheet: front, right, top, iso.',
+      png: png,
+    );
+  },
+);

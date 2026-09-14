@@ -26,8 +26,9 @@
 /// drives the real protocol over a pair of streams in memory.
 ///
 /// **It does draw, though nothing else here answers with a picture.**
-/// `render` (`mcp-06n`) is the one tool built on `flutter3d_cpu`'s own
-/// `CpuDevice` — no GPU, no display, and, since `flutter3d_conformance` and
+/// `render` (`mcp-06n`) and `renderSheet` (`mcp-07n`, a 2×2 contact sheet of
+/// four views) are the two tools built on `flutter3d_cpu`'s own `CpuDevice`
+/// — no GPU, no display, and, since `flutter3d_conformance` and
 /// `flutter3d_shaders` stopped carrying the Flutter SDK in behind it, no cost
 /// to `dart run`'s own ability to start this server with no Flutter tool on
 /// the machine at all. See `render_tool.dart`'s own doc comment for why

@@ -79,6 +79,7 @@ void main() {
     expect(offered.tools.map((Tool it) => it.name), <String>[
       ...modelTools.map((ModelTool it) => it.name),
       renderTool.name,
+      renderSheetTool.name,
     ], reason: 'tools/list and the table this server was built from disagree');
     for (final tool in offered.tools) {
       expect(tool.description, isNotEmpty, reason: '${tool.name} says nothing');
