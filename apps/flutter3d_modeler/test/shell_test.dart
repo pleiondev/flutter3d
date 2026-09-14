@@ -94,6 +94,48 @@ void main() {
       expect(viewport.height, 900 - 52 - 30 - 2);
     });
 
+    testWidgets(
+      'ui-41d: a 270 bottom slot leaves the viewport 545 tall at 1440×900',
+      (WidgetTester tester) async {
+        tester.view
+          ..physicalSize = const Size(1440, 900)
+          ..devicePixelRatio = 1.0;
+        addTearDown(tester.view.reset);
+        await tester.pumpWidget(
+          MaterialApp(
+            theme: modelerTheme(),
+            home: ModelerShell(
+              mode: ModelerMode.animation,
+              onMode: (_) {},
+              submode: MeshSubmode.vertex,
+              onSubmode: (_) {},
+              animationSubmode: AnimationSubmode.pose,
+              onAnimationSubmode: (_) {},
+              activeTool: null,
+              onTool: (_) {},
+              viewport: const ColoredBox(
+                color: Color(0xFF000000),
+                child: SizedBox.expand(child: Text('viewport')),
+              ),
+              properties: const Text('properties'),
+              status: const Text('status'),
+              bottom: const ColoredBox(
+                color: Color(0xFF000000),
+                child: Center(child: Text('bottom')),
+              ),
+              bottomHeight: 270,
+            ),
+          ),
+        );
+
+        // 816 (today's own full-height viewport, see the test above) less
+        // the 270 slot and the one hairline between them.
+        final Size viewport = tester.getSize(find.text('viewport'));
+        expect(viewport.height, 545);
+        expect(regionOf(tester, 'bottom', SizedBox).height, 270);
+      },
+    );
+
     testWidgets('a mode past phase one is shown and refused', (
       WidgetTester tester,
     ) async {

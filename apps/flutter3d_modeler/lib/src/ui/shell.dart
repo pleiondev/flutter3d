@@ -38,7 +38,12 @@ class ModelerShell extends StatelessWidget {
     this.actions = const <Widget>[],
     this.documentName = 'untitled',
     this.isDirty = false,
-  });
+    this.bottom,
+    this.bottomHeight,
+  }) : assert(
+         (bottom == null) == (bottomHeight == null),
+         'bottom and bottomHeight are given together or not at all',
+       );
 
   final ModelerMode mode;
   final ValueChanged<ModelerMode> onMode;
@@ -73,6 +78,19 @@ class ModelerShell extends StatelessWidget {
   /// read here off the same source rather than a second one.
   final bool isDirty;
 
+  /// `ui-41d`'s own slot: the mode's own lower area, under the viewport and
+  /// between the rail and the properties panel — the animation mode's
+  /// timeline (`S2`), the weights sub-mode's bend bar (`S5`), and nothing at
+  /// all for every mode that has no lower area of its own. Desktop only:
+  /// `ModelerTabletShell` and `ModelerPhoneShell` keep today's sheet-based
+  /// layout, which has no equivalent slot.
+  final Widget? bottom;
+
+  /// [bottom]'s own height. Given together with [bottom] or not at all —
+  /// see the constructor's assert — so a caller that fills the slot cannot
+  /// forget to size it and leave it to whatever [bottom] happens to want.
+  final double? bottomHeight;
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -106,9 +124,26 @@ class ModelerShell extends StatelessWidget {
                 const VerticalDivider(width: 1, thickness: 1),
                 // The picture takes whatever is left, and takes it last: the
                 // panels are the fixed things and the viewport is what a wider
-                // window gives more of.
+                // window gives more of. `bottom`, when given, comes out of
+                // this same column rather than the row: the rail and the
+                // properties panel keep running the full height regardless,
+                // per the handoff's own frame — only the viewport's own
+                // column splits.
                 Expanded(
-                  child: ColoredBox(color: colours.viewport, child: viewport),
+                  child: bottom == null
+                      ? ColoredBox(color: colours.viewport, child: viewport)
+                      : Column(
+                          children: <Widget>[
+                            Expanded(
+                              child: ColoredBox(
+                                color: colours.viewport,
+                                child: viewport,
+                              ),
+                            ),
+                            const Divider(),
+                            SizedBox(height: bottomHeight, child: bottom),
+                          ],
+                        ),
                 ),
                 const VerticalDivider(width: 1, thickness: 1),
                 ConstrainedBox(

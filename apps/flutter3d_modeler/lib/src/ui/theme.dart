@@ -76,6 +76,27 @@ abstract final class ModelerMetrics {
   /// supplement: 44, up from [row]'s 32 — the material preview above it is
   /// what the freed height goes to, not this panel.
   static const double textureGraphStripCollapsed = 44;
+
+  /// `ui-41d`'s own row: the height of `ModelerShell.bottom` in the animation
+  /// mode — screen 07's timeline, transport bar included. Desktop only; the
+  /// tablet and phone shells keep today's sheet-based layout.
+  static const double timeline = 270;
+
+  /// The transport bar's own height, inside [timeline] — the play button,
+  /// frame number and `Keys / Curves` switch, per screen 07.
+  static const double transport = 44;
+
+  /// The scrollable bone-track area inside [timeline], under [transport] —
+  /// `S2`'s own constant, not derived from [timeline] and [transport]: the
+  /// handoff leaves room between them for the curve editor's own controls,
+  /// so the three numbers are each stated rather than one computed from the
+  /// other two.
+  static const double timelineRows = 180;
+
+  /// `ui-41d`'s own row: `S5`'s own bottom slot in the weights sub-mode —
+  /// `BendSliderBar` plus "Reset pose", per the handoff's screen for weight
+  /// painting.
+  static const double bendBar = 74;
 }
 
 /// The colours that are the modeller's own rather than Material's.
