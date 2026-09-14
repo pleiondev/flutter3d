@@ -53,6 +53,12 @@ dependencies:
   flutter3d_model_mcp:
     path: ../../packages/flutter3d_model_mcp
 
+  # `Tool`/`ObjectSchema` — `mcp-16d`'s own `ui.*` tools (`src/mcp_ui_tools.
+  # dart`) describe their own schema directly, the same protocol
+  # `flutter3d_model_mcp`'s own tools already build on rather than a copy of
+  # it. Pinned to the same range `flutter3d_mcp_kit` gives it.
+  dart_mcp: ">=0.5.2 <0.6.0"
+
   # `CollisionShape`, for drawing what a played-back simulation collides
   # against — `pro-sim-04` — and `ClothObstacle`, the position+shape pair
   # `pro-sim-01`'s solver collides a cloth against, reused for the same

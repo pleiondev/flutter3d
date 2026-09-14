@@ -137,7 +137,17 @@ extension _FileHandling on _ModelerScreenState {
         documentName: kModel.isEmpty ? 'cube' : kModel,
       );
       if (kMcpPort >= 0) {
-        unawaited(startMcpServer(history: opening3, port: kMcpPort));
+        unawaited(
+          startMcpServer(
+            history: opening3,
+            port: kMcpPort,
+            uiActions: ModelerUiActions(
+              cubit: _cubit,
+              openExportDialog: _showExportDialog,
+              openLatheDialog: _openLatheDialog,
+            ),
+          ),
+        );
       }
       setState(() {
         // With no run to wait for, the opening cost is the whole report.

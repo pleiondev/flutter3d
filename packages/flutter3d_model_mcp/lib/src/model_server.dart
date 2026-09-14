@@ -41,18 +41,28 @@ ModelPictureTool _picture(ModelTool tool) => ModelPictureTool(tool.tool, (
 /// Everything a server is beyond its tools — registering them, turning an
 /// answer into a result — is `flutter3d_mcp_kit`'s [ToolTableServer].
 base class ModelMcpServer extends ToolTableServer<ModelSession, PictureAnswer> {
-  ModelMcpServer(super.channel, {required super.session})
-    : super(
-        name: 'flutter3d_model_mcp',
-        version: modelMcpVersion,
-        instructions: _instructions,
-        tools: <ModelPictureTool>[
-          ...modelTools.map(_picture),
-          renderTool,
-          renderSheetTool,
-        ],
-        toResult: pictureResultOf,
-      );
+  /// [extraTools] is `mcp-16d`'s own door: a caller that already has a live
+  /// GUI to drive (`ModelHttpServer.start`, never `bin/model_mcp.dart`'s
+  /// stdio path) can offer more tools beside the ones every build gets,
+  /// without this class knowing what they are. Empty for every server this
+  /// package starts on its own — which is what keeps a headless
+  /// `flutter3d_model_mcp` server from ever listing one.
+  ModelMcpServer(
+    super.channel, {
+    required super.session,
+    List<ModelPictureTool> extraTools = const <ModelPictureTool>[],
+  }) : super(
+         name: 'flutter3d_model_mcp',
+         version: modelMcpVersion,
+         instructions: _instructions,
+         tools: <ModelPictureTool>[
+           ...modelTools.map(_picture),
+           renderTool,
+           renderSheetTool,
+           ...extraTools,
+         ],
+         toResult: pictureResultOf,
+       );
 }
 
 /// What the host puts in front of the model before it calls anything.

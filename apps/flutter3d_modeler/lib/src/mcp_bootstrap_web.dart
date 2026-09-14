@@ -6,9 +6,12 @@ library;
 
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 
+import 'mcp_ui_actions.dart';
+
 Future<void> startMcpServer({
   required ModelHistory history,
   required int port,
+  UiActions? uiActions,
 }) async {}
 
 Future<void> stopMcpServer() async {}

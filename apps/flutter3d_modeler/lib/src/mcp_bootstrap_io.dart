@@ -9,6 +9,9 @@ import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 import 'package:flutter3d_model_mcp/flutter3d_model_mcp.dart';
 import 'package:path_provider/path_provider.dart';
 
+import 'mcp_ui_actions.dart';
+import 'mcp_ui_tools.dart';
+
 /// The one server this process ever runs — `ModelSession`'s own "one per
 /// process, because the project is the state" applies here too: there is
 /// nothing for a second [startMcpServer] call to bind to that the first one
@@ -32,14 +35,26 @@ File? _sessionFile;
 /// though this file is its own, independent of that one's format. A test
 /// gives a temp directory instead, since `path_provider`'s platform channel
 /// has nothing to answer it in a plain `flutter test` run.
+///
+/// [uiActions] is `mcp-16d`'s own door: null starts the plain document
+/// server every headless caller already gets, and a live [UiActions] adds
+/// the seven `ui.*` tools beside it — [uiToolsFor] is what turns one into
+/// the other.
 Future<void> startMcpServer({
   required ModelHistory history,
   required int port,
+  UiActions? uiActions,
   Directory? sessionDirectory,
 }) async {
   if (_server != null) return;
   final session = ModelSession(history);
-  final server = await ModelHttpServer.start(session: session, port: port);
+  final server = await ModelHttpServer.start(
+    session: session,
+    port: port,
+    extraTools: uiActions == null
+        ? const <ModelPictureTool>[]
+        : uiToolsFor(uiActions),
+  );
   _server = server;
   final dir = sessionDirectory ?? await getApplicationSupportDirectory();
   final file = File('${dir.path}/mcp-session.json');

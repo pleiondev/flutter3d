@@ -55,6 +55,7 @@ import 'src/material_pool.dart' show clay;
 import 'src/mcp_bootstrap.dart';
 import 'src/measurement_runs.dart';
 import 'src/modeler_cubit.dart';
+import 'src/modeler_ui_actions.dart';
 import 'src/modeler_viewport.dart';
 import 'src/object_picking.dart';
 import 'src/open_report.dart';

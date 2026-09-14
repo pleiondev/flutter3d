@@ -13,6 +13,7 @@ import 'package:flutter3d_mcp_kit/flutter3d_mcp_kit.dart';
 
 import 'model_server.dart';
 import 'model_session.dart';
+import 'render_tool.dart' show ModelPictureTool;
 
 export 'package:flutter3d_mcp_kit/flutter3d_mcp_kit.dart'
     show deleteMcpSessionFile, writeMcpSessionFile;
@@ -37,13 +38,22 @@ final class ModelHttpServer {
 
   /// Binds `127.0.0.1:$port` and serves [session] there. See
   /// [LoopbackMcpServer.start] for [port] and [token].
+  ///
+  /// [extraTools] is [ModelMcpServer]'s own door, reachable only from here:
+  /// the GUI application this socket is for is the one caller that has UI
+  /// tools (`ui.setMode` and the rest, `mcp-16d`) to offer beside the
+  /// ordinary document ones — `bin/model_mcp.dart`'s headless server never
+  /// passes any, which is what keeps them out of that server's own
+  /// `tools/list`.
   static Future<ModelHttpServer> start({
     required ModelSession session,
     int port = 0,
     String? token,
+    List<ModelPictureTool> extraTools = const <ModelPictureTool>[],
   }) async => ModelHttpServer._(
     await LoopbackMcpServer.start(
-      serve: (channel) => ModelMcpServer(channel, session: session),
+      serve: (channel) =>
+          ModelMcpServer(channel, session: session, extraTools: extraTools),
       port: port,
       token: token,
     ),
