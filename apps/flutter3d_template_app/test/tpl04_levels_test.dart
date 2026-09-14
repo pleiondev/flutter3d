@@ -13,6 +13,7 @@ import 'package:flutter3d_bridge/flutter3d_bridge.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:flutter3d_template_app/main.dart';
+import 'package:flutter3d_template_app/src/template_widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 GraphicsDevice _device() => CpuDevice(
@@ -99,6 +100,72 @@ void main() {
       () {
         expect(stepCaptions(level), isEmpty);
         expect(stepWithBindings(level), isNull);
+      },
+    );
+
+    test("ls-i-01's own geometry half: one part per ConfiguratorController "
+        'option, not one unnamed brush', () {
+      final parts = level.entities
+          .where((e) => e.type == 'part')
+          .map((e) => e.name)
+          .toSet();
+      for (final (name, _) in ConfiguratorController.options) {
+        expect(
+          parts,
+          contains('product-${name.toLowerCase()}'),
+          reason:
+              '$name is a ConfiguratorController option with no matching '
+              'part in the level, so the panel would cycle to it and show '
+              'nothing',
+        );
+      }
+      expect(
+        parts.length,
+        ConfiguratorController.options.length,
+        reason:
+            'a part with no matching option would just sit there, '
+            'always hidden',
+      );
+    });
+
+    test(
+      'the three product parts load as real, distinctly coloured nodes',
+      () async {
+        // Through `LevelCubit.open`, not `_build`: `_addParts` — the code
+        // that actually turns a `part` entity into a named `MeshNode` — runs
+        // there, not inside `LevelLoader.build` itself.
+        final cubit = LevelCubit();
+        await cubit.open(
+          _device(),
+          world: CollisionWorld(),
+          camera: CameraNode(),
+          asset: 'assets/levels/configurator.json',
+        );
+        final ready = cubit.state as LevelReady;
+        final byName = <String, MeshNode>{
+          for (final mesh in ready.scene.meshes)
+            if (mesh.name != null) mesh.name!: mesh,
+        };
+
+        expect(
+          byName.keys,
+          containsAll(<String>['product-red', 'product-blue', 'product-green']),
+        );
+
+        final colors = byName.entries
+            .where((e) => e.key.startsWith('product-'))
+            .map((e) {
+              final c = e.value.material.baseColor;
+              return (c.x, c.y, c.z);
+            })
+            .toSet();
+        expect(
+          colors,
+          hasLength(3),
+          reason:
+              'three variants that all resolved to the same colour would '
+              'be indistinguishable once shown',
+        );
       },
     );
   });

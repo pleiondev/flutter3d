@@ -68,11 +68,17 @@ Widget _viewerCaptionWidget(ViewerTourController tour) =>
 
 /// The configurator's own state: which of a fixed set of options is picked.
 ///
-/// **Retints the panel's own display, not the product's mesh.** A brush
-/// carries no `name` (`packages/flutter3d_sim/lib/src/level/brush.dart`), so
-/// there is no way to address "this one box" in `scene.meshes` the way a
-/// `widget_surface`'s own node already can be — see `doc/tooling-plan.md`'s
-/// `### tpl-04` for the honest boundary this leaves.
+/// **Retints the product too, as of `ls-i-01`'s own geometry half** — not by
+/// addressing a brush live (a brush still carries no `name`,
+/// `packages/flutter3d_sim/lib/src/level/brush.dart`), but by swapping
+/// between three pre-built `part` entities the level itself places, one per
+/// option, named `product-<option, lowercase>` (`main.dart`'s own
+/// `_applyProductVariant`). `options` and a variant's own part name are
+/// coupled through that naming convention rather than through a shared
+/// table — a fourth option added here with no matching `part` in the level
+/// document shows nothing at all, which is `doc/tooling-plan.md`'s
+/// `### tpl-04` boundary now: geometry variants are the level author's own
+/// job, not this controller's.
 final class ConfiguratorController {
   static const List<(String, double)> options = <(String, double)>[
     ('Red', 199.0),

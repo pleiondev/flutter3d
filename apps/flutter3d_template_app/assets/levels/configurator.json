@@ -6,7 +6,9 @@
   "materials": {
     "floor": { "baseColor": [0.42, 0.4, 0.38, 1.0], "roughness": 0.9 },
     "wall": { "baseColor": [0.5, 0.47, 0.44, 1.0], "roughness": 0.85 },
-    "product": { "baseColor": [0.75, 0.2, 0.2, 1.0], "roughness": 0.4 }
+    "product-red": { "baseColor": [0.75, 0.2, 0.2, 1.0], "roughness": 0.4 },
+    "product-blue": { "baseColor": [0.2, 0.32, 0.75, 1.0], "roughness": 0.4 },
+    "product-green": { "baseColor": [0.22, 0.6, 0.28, 1.0], "roughness": 0.4 }
   },
   "brushes": [
     { "at": [0.0, -0.5, 0.0], "size": [12.0, 1.0, 12.0], "material": "floor" },
@@ -14,8 +16,7 @@
     { "at": [0.0, 2.0, -6.5], "size": [12.0, 4.0, 1.0], "material": "wall" },
     { "at": [0.0, 2.0, 6.5], "size": [12.0, 4.0, 1.0], "material": "wall" },
     { "at": [-6.5, 2.0, 0.0], "size": [1.0, 4.0, 14.0], "material": "wall" },
-    { "at": [6.5, 2.0, 0.0], "size": [1.0, 4.0, 14.0], "material": "wall" },
-    { "at": [0.0, 0.75, 0.0], "size": [1.2, 1.5, 1.2], "material": "product" }
+    { "at": [6.5, 2.0, 0.0], "size": [1.0, 4.0, 14.0], "material": "wall" }
   ],
   "lights": [
     { "type": "point", "at": [0.0, 3.2, 0.0], "color": [1.0, 0.95, 0.85], "intensity": 9.0, "range": 14.0 }
@@ -30,6 +31,27 @@
       "widget": "configurator-panel",
       "width": 1.6,
       "height": 1.4
+    },
+    {
+      "type": "part",
+      "name": "product-red",
+      "at": [0.0, 0.75, 0.0],
+      "size": [1.2, 1.5, 1.2],
+      "material": "product-red"
+    },
+    {
+      "type": "part",
+      "name": "product-blue",
+      "at": [0.0, 0.75, 0.0],
+      "size": [1.2, 1.5, 1.2],
+      "material": "product-blue"
+    },
+    {
+      "type": "part",
+      "name": "product-green",
+      "at": [0.0, 0.75, 0.0],
+      "size": [1.2, 1.5, 1.2],
+      "material": "product-green"
     }
   ]
 }
