@@ -82,6 +82,7 @@ class StatusLine extends StatelessWidget {
     required this.materialCount,
     this.texelDensity,
     this.textureBudget,
+    this.modeSummary,
     this.micros,
     this.onExport,
   });
@@ -112,6 +113,13 @@ class StatusLine extends StatelessWidget {
   /// The project's texture weight against its own budget. Null hides this
   /// segment.
   final TextureBudgetStatus? textureBudget;
+
+  /// `S2`'s own row: the animation mode's "Bones N · actions N · influences
+  /// M per vertex" — screen 07's own status line — in place of the ordinary
+  /// vertex/material segment [vertices]/[materialCount] would otherwise draw.
+  /// Null keeps the ordinary segment, which is every mode but the animation
+  /// mode's own pose sub-mode.
+  final String? modeSummary;
 
   /// What the last frame cost. Null before one has been drawn.
   final int? micros;
@@ -187,8 +195,9 @@ class StatusLine extends StatelessWidget {
         Padding(
           padding: const EdgeInsets.only(right: 12),
           child: Text(
-            '${grouped(vertices)} vertices · ${grouped(materialCount)} '
-            'materials',
+            modeSummary ??
+                '${grouped(vertices)} vertices · ${grouped(materialCount)} '
+                    'materials',
             style: small?.copyWith(color: theme.colorScheme.onSurfaceVariant),
           ),
         ),

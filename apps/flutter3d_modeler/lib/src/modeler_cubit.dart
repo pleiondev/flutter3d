@@ -29,6 +29,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'job_runner.dart';
 import 'modeler_state.dart';
 import 'staging.dart';
+import 'timeline_playback.dart';
 import 'ui/tools.dart';
 
 export 'modeler_state.dart';
@@ -111,6 +112,7 @@ final class ModelerCubit extends Cubit<ModelerState> {
         said: now.said,
         saidIsImportant: now.saidIsImportant,
         jobs: now.jobs,
+        playback: now.playback,
       ),
     );
   }
@@ -382,6 +384,23 @@ final class ModelerCubit extends Cubit<ModelerState> {
     final ModelerReady? now = _ready;
     if (now == null || now.animationSubmode == animationSubmode) return;
     emit(now.copyWith(animationSubmode: animationSubmode, clearSaid: true));
+  }
+
+  /// `S2`'s own row: [Playback]'s coarse half, folded into the state exactly
+  /// as `TimelinePlayback.onPlaybackChanged` reports it — one emit per play/
+  /// pause/clip/speed/loop change, never per frame. The frame itself never
+  /// reaches this class; see [ModelerReady.playback]'s own doc comment for
+  /// where it lives instead.
+  ///
+  /// **Does not clear `said`, unlike [mode]/[submode]/[animationSubmode].**
+  /// Those three answer a person switching what they are looking at, which
+  /// is exactly when a stale sentence about the old view stops making sense.
+  /// Pressing play is not that — a refusal or a save sitting in the status
+  /// line is still true a moment later whether or not a clip started moving.
+  void playback(Playback next) {
+    final ModelerReady? now = _ready;
+    if (now == null || now.playback == next) return;
+    emit(now.copyWith(playback: next));
   }
 
   void tool(String? id) {

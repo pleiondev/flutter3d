@@ -32,6 +32,32 @@ AnimationClip _walk() => AnimationClip(
   ],
 );
 
+/// A second clip beside [_walk] — 'run', translating the same node the other
+/// way — for `S2`'s own "switching clips preserves the wrap mode" row: one
+/// clip is not enough to tell a real clip switch apart from a no-op.
+AnimationClip _run() => AnimationClip(
+  name: 'run',
+  tracks: <AnimationTrack>[
+    AnimationTrack(
+      nodeIndex: 0,
+      path: AnimationPath.translation,
+      interpolation: AnimationInterpolation.linear,
+      times: Float32List.fromList(<double>[0.0, 1.0]),
+      values: Float32List.fromList(<double>[0, 0, 0, -1, 0, 0]),
+      componentCount: 3,
+    ),
+  ],
+);
+
+({AnimationPlayer player, SceneNode target}) _twoClipRig() {
+  final target = SceneNode(name: 'root');
+  final player = AnimationPlayer(
+    clips: <AnimationClip>[_walk(), _run()],
+    targets: <SceneNode?>[target],
+  );
+  return (player: player, target: target);
+}
+
 ({AnimationPlayer player, SceneNode target}) _rig() {
   final target = SceneNode(name: 'root');
   final player = AnimationPlayer(
@@ -149,6 +175,56 @@ void main() {
 
     expect(rig.player.speed, 2.0);
     expect(changes.single.speed, 2.0);
+  });
+
+  test('setWrap changes the player\'s own wrap and reports it', () {
+    final rig = _rig();
+    final changes = <Playback>[];
+    final playback = TimelinePlayback(
+      player: rig.player,
+      onPlaybackChanged: changes.add,
+    );
+
+    playback.setWrap(AnimationWrap.once);
+
+    expect(rig.player.wrap, AnimationWrap.once);
+    expect(changes.single.wrap, AnimationWrap.once);
+  });
+
+  test('crossFadeTo starts the target clip and reports a coarse change', () {
+    final rig = _twoClipRig();
+    final changes = <Playback>[];
+    final frames = <int>[];
+    final playback = TimelinePlayback(
+      player: rig.player,
+      onPlaybackChanged: changes.add,
+      onFrameChanged: frames.add,
+    )..play(0);
+    changes.clear();
+    frames.clear();
+
+    playback.crossFadeTo(1);
+
+    expect(rig.player.clipIndex, 1);
+    expect(playback.playback.clipIndex, 1);
+    expect(playback.playback.isPlaying, isTrue);
+    expect(changes.single.clipIndex, 1);
+    // A crossfade moves the playhead back to the new clip's own start —
+    // `AnimationPlayer.crossFadeTo`'s own contract — so the frame hook fires
+    // too, the same as `play` itself already does.
+    expect(frames, <int>[0]);
+  });
+
+  test('switching clips preserves the wrap mode already set', () {
+    final rig = _twoClipRig();
+    final playback = TimelinePlayback(player: rig.player, fps: 30.0)
+      ..play(0)
+      ..setWrap(AnimationWrap.once);
+
+    playback.play(1);
+
+    expect(rig.player.wrap, AnimationWrap.once);
+    expect(playback.playback.wrap, AnimationWrap.once);
   });
 
   test('a clip that finishes once-wrapped reports itself stopped', () {

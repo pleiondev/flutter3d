@@ -34,6 +34,8 @@ class ShellForWidth extends StatelessWidget {
     required this.onTool,
     required this.documentName,
     required this.isDirty,
+    this.bottom,
+    this.bottomHeight,
   });
 
   final ScreenParts parts;
@@ -61,6 +63,12 @@ class ShellForWidth extends StatelessWidget {
   /// Whether [documentName] carries unsaved changes, for the same label.
   final bool isDirty;
 
+  /// `ui-41d`'s own slot, handed to the desktop shell alone — see
+  /// [ModelerShell.bottom]'s own doc comment for why the tablet and phone
+  /// branches below have no equivalent to hand it to.
+  final Widget? bottom;
+  final double? bottomHeight;
+
   @override
   Widget build(BuildContext context) => LayoutBuilder(
     builder: (BuildContext context, BoxConstraints constraints) =>
@@ -80,6 +88,8 @@ class ShellForWidth extends StatelessWidget {
             viewport: parts.viewport,
             documentName: documentName,
             isDirty: isDirty,
+            bottom: bottom,
+            bottomHeight: bottomHeight,
           ),
           LayoutClass.tablet => ModelerTabletShell(
             mode: mode,

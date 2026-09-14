@@ -185,6 +185,43 @@ void main() {
     });
   });
 
+  group('S2\'s own animation-mode summary', () {
+    testWidgets(
+      'modeSummary replaces the vertices/materials segment when given',
+      (WidgetTester tester) async {
+        await tester.pumpWidget(
+          MaterialApp(
+            theme: modelerTheme(),
+            home: Scaffold(
+              body: StatusLine(
+                said: 'ready',
+                readiness: ExportReadiness.check(const ModelProject()),
+                triangles: 12,
+                vertices: 8,
+                materialCount: 1,
+                modeSummary: 'Bones 24 · actions 3 · influences 4 per vertex',
+              ),
+            ),
+          ),
+        );
+
+        expect(
+          find.text('Bones 24 · actions 3 · influences 4 per vertex'),
+          findsOneWidget,
+        );
+        expect(find.textContaining('vertices'), findsNothing);
+      },
+    );
+
+    testWidgets('null keeps the ordinary vertex/material segment', (
+      WidgetTester tester,
+    ) async {
+      await show(tester, ExportReadiness.check(const ModelProject()));
+
+      expect(find.textContaining('vertices'), findsOneWidget);
+    });
+  });
+
   group('texel density', () {
     testWidgets('shown in tex/cm, a hundredth of the stored texels/m', (
       WidgetTester tester,

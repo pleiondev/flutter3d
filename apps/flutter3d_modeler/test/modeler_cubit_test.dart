@@ -17,6 +17,7 @@ import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 import 'package:flutter3d_modeler/src/modeler_cubit.dart';
 import 'package:flutter3d_modeler/src/staging.dart';
+import 'package:flutter3d_modeler/src/timeline_playback.dart';
 import 'package:flutter3d_modeler/src/ui/tools.dart';
 import 'package:flutter3d_rig/flutter3d_rig.dart' show BoneMap, BoneSegment;
 import 'package:flutter_test/flutter_test.dart';
@@ -383,6 +384,43 @@ void main() {
       // Mutation: emit regardless. Every press of a mode chip rebuilds the
       // whole shell for a change that did not happen.
       expect(identical(cubit.state, before), isTrue);
+    });
+  });
+
+  group('playback', () {
+    // `S2`'s own row: one emit per play/pause/clip/speed/loop change,
+    // exactly `TimelinePlayback.onPlaybackChanged`'s own coarse half —
+    // never the per-frame `ValueNotifier` `_ModelerScreenState` keeps
+    // instead.
+    test('playback changes ModelerReady.playback', () {
+      final cubit = opened().cubit;
+
+      cubit.playback(
+        const Playback(status: PlaybackStatus.playing, clipIndex: 0),
+      );
+
+      expect(ready(cubit).playback.isPlaying, isTrue);
+      expect(ready(cubit).playback.clipIndex, 0);
+    });
+
+    test('setting the same playback again emits nothing', () {
+      final cubit = opened().cubit
+        ..playback(const Playback(status: PlaybackStatus.paused));
+      final before = cubit.state;
+
+      cubit.playback(const Playback(status: PlaybackStatus.paused));
+
+      // Mutation: emit regardless — a `Cubit` that emits an identical value
+      // still rebuilds every `BlocBuilder` listening to it.
+      expect(identical(cubit.state, before), isTrue);
+    });
+
+    test('does not clear `said`, unlike mode/submode/animationSubmode', () {
+      final cubit = opened().cubit..say('something worth reading');
+
+      cubit.playback(const Playback(status: PlaybackStatus.playing));
+
+      expect(ready(cubit).said, 'something worth reading');
     });
   });
 

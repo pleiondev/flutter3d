@@ -71,10 +71,14 @@ class PropertiesPanel extends StatelessWidget {
     required this.onMoveTextureNode,
     required this.onRemoveTextureNode,
     required this.onBakeTextureGraph,
-    required this.onMoveKeys,
     required this.onAddClip,
+    this.selectedAnimationClip,
     required this.onSelectAnimationClip,
-    required this.onScrubAnimation,
+    this.selectedJoint,
+    required this.onSelectJoint,
+    this.selectedConstraint,
+    required this.onSelectConstraint,
+    this.onRemoveConstraint,
     this.selectedLight,
     required this.onSelectLight,
     required this.onAddLight,
@@ -205,15 +209,23 @@ class PropertiesPanel extends StatelessWidget {
   /// own argument beyond the size the panel always asks for.
   final ValueChanged<int> onBakeTextureGraph;
 
-  /// `anim-07`'s own two commands: a diamond finished a drag, or "Add" was
-  /// pressed under the action list.
-  final ValueChanged<MoveKeys> onMoveKeys;
+  /// "Add" was pressed under the action list — `anim-04`'s own row.
   final VoidCallback onAddClip;
 
-  /// `anim-07`'s own live pose: which clip the action list has open, or null
-  /// for none, and where the panel's own scrubber sits inside it.
-  final ValueChanged<int?> onSelectAnimationClip;
-  final ValueChanged<double> onScrubAnimation;
+  /// `S2`'s own row: which clip [AnimationPanel]'s own action list has open —
+  /// lifted out of that panel's own local state so the timeline in
+  /// `ModelerShell.bottom` reads and drives the same selection.
+  final int? selectedAnimationClip;
+  final ValueChanged<int> onSelectAnimationClip;
+
+  /// `S2`'s own row: which joint [SkeletonTree] highlights, and which
+  /// [IkConstraint] row [ConstraintsList] highlights — both lifted the same
+  /// way [selectedAnimationClip] was.
+  final int? selectedJoint;
+  final ValueChanged<int> onSelectJoint;
+  final int? selectedConstraint;
+  final ValueChanged<int> onSelectConstraint;
+  final ValueChanged<int>? onRemoveConstraint;
 
   /// `mat-34d`'s own scene-mode wiring: which of `project.lighting.lights`
   /// [SceneSourcePanel] shows the fields of, or null for none — a plain
@@ -492,10 +504,14 @@ class PropertiesPanel extends StatelessWidget {
                     held!.skeletonIndex! < project.skeletons.length
                 ? project.skeletons[held.skeletonIndex!]
                 : null,
-            onMoveKeys: onMoveKeys,
             onAddClip: onAddClip,
+            selectedClip: selectedAnimationClip,
             onSelectClip: onSelectAnimationClip,
-            onTimeChanged: onScrubAnimation,
+            selectedJoint: selectedJoint,
+            onSelectJoint: onSelectJoint,
+            selectedConstraint: selectedConstraint,
+            onSelectConstraint: onSelectConstraint,
+            onRemoveConstraint: onRemoveConstraint,
           ),
         if (sections.contains(PropertiesSection.lastOperation)) ...<Widget>[
           SectionLabel('Last operation'),

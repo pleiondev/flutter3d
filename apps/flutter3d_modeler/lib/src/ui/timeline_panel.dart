@@ -2,6 +2,8 @@
 /// diamonds, and a playhead — dragging a diamond reports through
 /// [TimelinePanel.onMoveKeys] with the real [MoveKeys] command's own shape,
 /// exactly the acceptance's own "перетаскивание ромба — `MoveKeys`".
+/// `S2` adds the other half of a row's own gesture: a plain tap on empty
+/// track space, reported through [TimelinePanel.onSetKey].
 ///
 /// **A dumb widget over [ProjectClip], the way [ModifierStackPanel] is one
 /// over a modifier stack.** Rows are derived from `clip.tracks` at build
@@ -98,6 +100,7 @@ class TimelinePanel extends StatefulWidget {
     this.onMoveKeys,
     this.onSeek,
     this.onSelectKey,
+    this.onSetKey,
   });
 
   /// Which of [ProjectClip]'s own siblings this is — carried straight into
@@ -135,6 +138,14 @@ class TimelinePanel extends StatefulWidget {
   /// A diamond was picked (drag start, or a plain tap that moved nothing).
   final void Function(int trackIndex, int keyIndex)? onSelectKey;
 
+  /// `S2`'s own row: empty space inside track [trackIndex]'s own row was
+  /// tapped — not dragged, and not near a diamond — at [time] seconds. A
+  /// caller turns this into `PoseJoint` for that track's own object and
+  /// path, the way `animation_wiring.dart`'s own `poseJointForSetKey` does;
+  /// this panel reports the fact and nothing more, the same as [onSeek]
+  /// reports a time rather than building `SetKey`/`MoveKeys` itself.
+  final void Function(int trackIndex, double time)? onSetKey;
+
   @override
   State<TimelinePanel> createState() => _TimelinePanelState();
 }
@@ -142,7 +153,28 @@ class TimelinePanel extends StatefulWidget {
 class _TimelinePanelState extends State<TimelinePanel> {
   _KeyDrag? _drag;
 
+  /// Where a pointer went down when it hit no diamond — the candidate start
+  /// of a tap on empty track space, kept only long enough for [_onPanEnd] to
+  /// tell a stationary tap from a drag that simply started somewhere empty.
+  Offset? _emptyTapStart;
+
+  /// Whether the pointer travelled far enough past [_emptyTapStart] to stop
+  /// counting as a tap — [kKeyHitRadius] again, the same "how close is close
+  /// enough" radius a diamond hit test already uses, so a hand that has
+  /// learned one has learned both.
+  bool _emptyTapMoved = false;
+
   double get _rowHeight => ModelerMetrics.row;
+
+  /// The track row [local] falls in, or null past the last one — used only
+  /// by [onSetKey]'s own tap: [_hitTest] already answers "which row, which
+  /// diamond" for a hit, but empty space inside a real row is still a row a
+  /// caller can key, and [_hitTest] alone has no way to say so.
+  int? _rowIndexAt(Offset local) {
+    final rowIndex = (local.dy / _rowHeight).floor();
+    if (rowIndex < 0 || rowIndex >= widget.clip.tracks.length) return null;
+    return rowIndex;
+  }
 
   void _seekAt(double localX) {
     final time = xToTime(localX, widget.pixelsPerSecond);
@@ -170,7 +202,14 @@ class _TimelinePanelState extends State<TimelinePanel> {
 
   void _onPanStart(Offset local) {
     final hit = _hitTest(local);
-    if (hit == null) return;
+    if (hit == null) {
+      // Nothing to grab — the candidate start of a tap on empty track
+      // space, not yet reported: [_onPanEnd] decides whether the pointer
+      // ever moved far enough to stop counting as one.
+      _emptyTapStart = local;
+      _emptyTapMoved = false;
+      return;
+    }
     setState(
       () => _drag = _KeyDrag(
         trackIndex: hit.trackIndex,
@@ -183,14 +222,32 @@ class _TimelinePanelState extends State<TimelinePanel> {
 
   void _onPanUpdate(Offset local) {
     final drag = _drag;
-    if (drag == null) return;
+    if (drag == null) {
+      final start = _emptyTapStart;
+      if (start != null && (local - start).distance > kKeyHitRadius) {
+        _emptyTapMoved = true;
+      }
+      return;
+    }
     final deltaTime = xToTime(local.dx - drag.startX, widget.pixelsPerSecond);
     setState(() => _drag = drag.withDeltaTime(deltaTime));
   }
 
   void _onPanEnd() {
     final drag = _drag;
-    if (drag == null) return;
+    if (drag == null) {
+      final start = _emptyTapStart;
+      if (start != null && !_emptyTapMoved) {
+        final rowIndex = _rowIndexAt(start);
+        if (rowIndex != null) {
+          final time = xToTime(start.dx, widget.pixelsPerSecond);
+          widget.onSetKey?.call(rowIndex, time < 0.0 ? 0.0 : time);
+        }
+      }
+      _emptyTapStart = null;
+      _emptyTapMoved = false;
+      return;
+    }
     setState(() => _drag = null);
     if (drag.deltaTime == 0.0) return;
     widget.onMoveKeys?.call(

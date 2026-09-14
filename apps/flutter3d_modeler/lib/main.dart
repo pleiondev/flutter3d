@@ -33,6 +33,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:vector_math/vector_math.dart' as vm;
 
 import 'l10n/app_localizations.dart';
+import 'src/animation_wiring.dart';
 import 'src/app_config.dart';
 import 'src/autosaving.dart';
 import 'src/churn_run.dart';
@@ -72,6 +73,7 @@ import 'src/tool_commands.dart';
 import 'src/transform_dispatch.dart';
 import 'src/transform_fields.dart';
 import 'src/transform_session.dart';
+import 'src/ui/animation_bottom.dart';
 import 'src/ui/export_anyway_dialog.dart';
 import 'src/ui/export_screen.dart';
 import 'src/ui/import_screen.dart';
@@ -90,9 +92,11 @@ import 'src/ui/status_line.dart';
 import 'src/ui/theme.dart';
 import 'src/ui/tools.dart';
 import 'src/ui/top_bar_actions.dart';
+import 'src/ui/transport_bar.dart';
 import 'src/ui/unsaved_changes_dialog.dart';
 import 'src/viewport_metrics.dart';
 
+part 'src/screen/animation.dart';
 part 'src/screen/app_wiring.dart';
 part 'src/screen/close_and_recovery.dart';
 part 'src/screen/device.dart';
@@ -186,6 +190,34 @@ class _ModelerScreenState extends State<ModelerScreen>
   /// person was looking at, so undo has nothing to put this back to either.
   int? _selectedLight;
 
+  /// `S2`'s own row: which clip, track, key, joint and constraint the
+  /// animation mode's own panels highlight — see `screen/animation.dart`'s
+  /// own `_AnimationWiring` for the setters. Plain fields for the same
+  /// reason [_selectedLight] is one: none of them are on [ModelHistory], so
+  /// undo has nowhere to put any of them back to.
+  int? _selectedAnimationClip;
+  int? _selectedAnimationTrack;
+  int? _selectedAnimationKey;
+  int? _selectedJoint;
+  int? _selectedConstraint;
+
+  /// The transport's own `Keys`/`Curves` switch — screen 07's own row, not
+  /// on [ModelerReady] for the identical reason [_selectedAnimationClip]
+  /// above is not.
+  TimelineEditMode _timelineEditMode = TimelineEditMode.keys;
+
+  /// The playhead, in whole frames — `S2`'s own `ValueNotifier<int>`.
+  ///
+  /// **Not a field on [ModelerState], and not moved by `setState` either.**
+  /// [TimelinePlayback.onFrameChanged] fires up to sixty times a second
+  /// while a clip plays; a `Cubit`'s `emit` at that rate would rebuild the
+  /// whole shell for a number only the transport bar and the timeline's own
+  /// playhead read, and `setState` on this screen would do the same for
+  /// every other widget the `build` method below returns. The transport bar
+  /// and `TimelinePanel`/`CurveEditor` read this through a
+  /// `ValueListenableBuilder` instead — see `ui/animation_bottom.dart`.
+  final ValueNotifier<int> _frame = ValueNotifier<int>(0);
+
   /// Remembers what the materials were, so the normals view can be left.
   final SurfaceShading _surfaces = SurfaceShading();
 
@@ -251,18 +283,21 @@ class _ModelerScreenState extends State<ModelerScreen>
 
   /// `anim-07`'s own live pose binding: whichever clip [AnimationPanel] has
   /// open, sampled onto the scene nodes [ModelerStage.sync] tracks — see
-  /// `timeline_preview_wiring.dart`.
-  final TimelinePreviewWiring _timelinePreview = TimelinePreviewWiring();
-
-  /// [AnimationPanel.onSelectClip].
-  void _selectAnimationClip(int? index) {
-    if (_state case ModelerReady(:final project, :final stage)) {
-      _timelinePreview.selectClip(project, stage.sync, index);
-    }
-  }
+  /// `timeline_preview_wiring.dart`. `S2` wires its two hooks straight to
+  /// [ModelerCubit.playback] (the coarse half) and [_frame] (the per-frame
+  /// half) — see `screen/animation.dart`'s own class comment for why they
+  /// are two different mechanisms rather than one.
+  late final TimelinePreviewWiring _timelinePreview = TimelinePreviewWiring(
+    onPlaybackChanged: _cubit.playback,
+    onFrameChanged: (int frame) => _frame.value = frame,
+  );
 
   /// [AnimationPanel.onTimeChanged].
-  void _scrubAnimation(double time) => _timelinePreview.scrub(time);
+  void _scrubAnimation(double time) {
+    if (_state case ModelerReady(:final project, :final stage)) {
+      _timelinePreview.scrub(project, stage.sync, time);
+    }
+  }
 
   /// What the finished run measured, shown over the viewport.
   ///
@@ -327,7 +362,7 @@ class _ModelerScreenState extends State<ModelerScreen>
       // has to inherit, and a state that is reasserted cannot be got out of
       // step with the interface by anything.
       useLens(stage.camera, _lens, stage.orbit);
-      _timelinePreview.tick(seconds);
+      _timelinePreview.tick(_history.project, stage.sync, seconds);
     }
     final said = _measurementRuns.step(
       elapsed.inMicroseconds,
@@ -344,6 +379,7 @@ class _ModelerScreenState extends State<ModelerScreen>
     _timings.stop();
     _autosave?.dispose();
     _lifecycle.dispose();
+    _frame.dispose();
     if (kMcpPort >= 0) unawaited(stopMcpServer());
     _cubit.close();
     super.dispose();

@@ -60,8 +60,8 @@ void main() {
     // Neither a null sync nor an empty-clip project has anything to build a
     // player against — both must fall through without throwing.
     wiring.selectClip(empty, null, 0);
-    wiring.scrub(0.5);
-    wiring.tick(0.1);
+    wiring.scrub(empty, null, 0.5);
+    wiring.tick(empty, null, 0.1);
   });
 
   test('selecting a clip plays it to its first pose, paused', () {
@@ -83,7 +83,7 @@ void main() {
     final node = rig.stage.sync!.nodeOf(rig.objectId)!;
 
     wiring.selectClip(rig.project, rig.stage.sync, 0);
-    wiring.scrub(1.0);
+    wiring.scrub(rig.project, rig.stage.sync, 1.0);
 
     expect(node.localMatrix.getTranslation().x, closeTo(1.0, 1e-6));
   });
@@ -94,9 +94,76 @@ void main() {
     final node = rig.stage.sync!.nodeOf(rig.objectId)!;
 
     wiring.selectClip(rig.project, rig.stage.sync, 0);
-    wiring.scrub(1.0);
+    wiring.scrub(rig.project, rig.stage.sync, 1.0);
     wiring.selectClip(rig.project, rig.stage.sync, null);
 
     expect(node.localMatrix.getTranslation(), Vector3.zero());
+  });
+
+  test('a scrub after an edit changed project.clips keeps the playhead — '
+      'the rebuild trap', () {
+    final rig = rigged();
+    final wiring = TimelinePreviewWiring();
+    final node = rig.stage.sync!.nodeOf(rig.objectId)!;
+
+    wiring.selectClip(rig.project, rig.stage.sync, 0);
+    wiring.scrub(rig.project, rig.stage.sync, 0.5);
+
+    // A `copyWith` with the identical clip list content — the shape a
+    // command like `Rename` or an edit to an *unrelated* track leaves
+    // behind, `List.of` under the hood giving `clips` a new identity
+    // without changing what is in it.
+    final edited = rig.project.copyWith(
+      clips: List<ProjectClip>.of(rig.project.clips),
+    );
+
+    // Mutation: rebuild the player from scratch here and forget the old
+    // one's own time — the playhead would silently jump back to frame 0,
+    // which a person mid-scrub would read as a bug, not a rebuild.
+    wiring.tick(edited, rig.stage.sync, 0.0);
+
+    expect(node.localMatrix.getTranslation().x, closeTo(0.5, 1e-6));
+  });
+
+  test('the coarse playback getter answers "nothing yet" before a clip is '
+      'ever selected', () {
+    final wiring = TimelinePreviewWiring();
+
+    expect(wiring.playback.isPlaying, isFalse);
+    expect(wiring.playback.clipIndex, -1);
+  });
+
+  test('togglePlay starts a paused preview and pauses a playing one', () {
+    final rig = rigged();
+    final wiring = TimelinePreviewWiring();
+    wiring.selectClip(rig.project, rig.stage.sync, 0);
+
+    wiring.togglePlay();
+    expect(wiring.playback.isPlaying, isTrue);
+
+    wiring.togglePlay();
+    expect(wiring.playback.isPlaying, isFalse);
+  });
+
+  test('setLooping toggles between loop and once', () {
+    final rig = rigged();
+    final wiring = TimelinePreviewWiring();
+    wiring.selectClip(rig.project, rig.stage.sync, 0);
+
+    wiring.setLooping(false);
+    expect(wiring.playback.wrap, AnimationWrap.once);
+
+    wiring.setLooping(true);
+    expect(wiring.playback.wrap, AnimationWrap.loop);
+  });
+
+  test('setSpeed changes the coarse playback\'s own speed', () {
+    final rig = rigged();
+    final wiring = TimelinePreviewWiring();
+    wiring.selectClip(rig.project, rig.stage.sync, 0);
+
+    wiring.setSpeed(2.0);
+
+    expect(wiring.playback.speed, 2.0);
   });
 }

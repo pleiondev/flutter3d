@@ -28,6 +28,7 @@ import 'package:flutter3d/flutter3d.dart' hide Material;
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 
 import 'staging.dart';
+import 'timeline_playback.dart';
 import 'ui/tools.dart';
 
 sealed class ModelerState {
@@ -68,6 +69,7 @@ final class ModelerReady extends ModelerState {
     this.said,
     this.saidIsImportant = false,
     this.jobs = const <ActiveJob>[],
+    this.playback = const Playback(),
   });
 
   /// Live, and mutated by the frame loop.
@@ -124,6 +126,13 @@ final class ModelerReady extends ModelerState {
   /// row. Empty whenever nothing is baking, which is almost always.
   final List<ActiveJob> jobs;
 
+  /// `S2`'s own coarse transport state — play/pause, which clip, the speed,
+  /// the loop mode — one emit per change of any of those, never per frame.
+  /// The playhead itself is not here: `_ModelerScreenState`'s own
+  /// `ValueNotifier<int>` carries that at the sixty-times-a-second grain a
+  /// value on this class would repaint the whole shell for.
+  final Playback playback;
+
   /// The project, which is what nearly every reader actually wants.
   ModelProject get project => history.project;
 
@@ -141,6 +150,7 @@ final class ModelerReady extends ModelerState {
     bool clearSaid = false,
     bool saidIsImportant = false,
     List<ActiveJob>? jobs,
+    Playback? playback,
   }) => ModelerReady(
     renderer: renderer,
     stage: stage ?? this.stage,
@@ -156,6 +166,7 @@ final class ModelerReady extends ModelerState {
         ? false
         : (said != null ? saidIsImportant : this.saidIsImportant),
     jobs: jobs ?? this.jobs,
+    playback: playback ?? this.playback,
   );
 }
 

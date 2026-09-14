@@ -39,6 +39,7 @@ final class Playback {
     this.status = PlaybackStatus.stopped,
     this.clipIndex = -1,
     this.speed = 1.0,
+    this.wrap = AnimationWrap.loop,
   });
 
   final PlaybackStatus status;
@@ -50,27 +51,40 @@ final class Playback {
 
   final double speed;
 
+  /// [AnimationPlayer.wrap] as of the last change this class made — `S2`'s
+  /// own row, [TimelinePlayback.setWrap]'s coarse half. Defaults to
+  /// [AnimationWrap.loop], the same default [AnimationPlayer.wrap] itself
+  /// starts at, so a `Playback` built before anyone has touched the loop
+  /// toggle already agrees with the player it describes.
+  final AnimationWrap wrap;
+
   bool get isPlaying => status.isPlaying;
 
-  Playback copyWith({PlaybackStatus? status, int? clipIndex, double? speed}) =>
-      Playback(
-        status: status ?? this.status,
-        clipIndex: clipIndex ?? this.clipIndex,
-        speed: speed ?? this.speed,
-      );
+  Playback copyWith({
+    PlaybackStatus? status,
+    int? clipIndex,
+    double? speed,
+    AnimationWrap? wrap,
+  }) => Playback(
+    status: status ?? this.status,
+    clipIndex: clipIndex ?? this.clipIndex,
+    speed: speed ?? this.speed,
+    wrap: wrap ?? this.wrap,
+  );
 
   @override
   bool operator ==(Object other) =>
       other is Playback &&
       other.status == status &&
       other.clipIndex == clipIndex &&
-      other.speed == speed;
+      other.speed == speed &&
+      other.wrap == wrap;
 
   @override
-  int get hashCode => Object.hash(status, clipIndex, speed);
+  int get hashCode => Object.hash(status, clipIndex, speed, wrap);
 
   @override
-  String toString() => 'Playback($status, clip $clipIndex, ${speed}x)';
+  String toString() => 'Playback($status, clip $clipIndex, ${speed}x, $wrap)';
 }
 
 /// An [AnimationPlayer] over [project]'s own clips, targeting the live scene
@@ -186,6 +200,29 @@ final class TimelinePlayback {
   void setSpeed(double speed) {
     player.speed = speed;
     _setPlayback(_playback.copyWith(speed: speed));
+  }
+
+  /// Sets [AnimationPlayer.wrap] — the loop toggle's own transport control —
+  /// and folds it into the coarse [playback] the same way [setSpeed] does
+  /// for the speed control beside it.
+  void setWrap(AnimationWrap wrap) {
+    player.wrap = wrap;
+    _setPlayback(_playback.copyWith(wrap: wrap));
+  }
+
+  /// [AnimationPlayer.crossFadeTo], reported through the same coarse/frame
+  /// split every other transition on this class uses — a transport's own
+  /// "switch action" is a play, not a seek, so both hooks fire the way
+  /// [play] itself makes them.
+  void crossFadeTo(int index, {double duration = 0.15}) {
+    player.crossFadeTo(index, duration: duration);
+    _setPlayback(
+      _playback.copyWith(
+        status: PlaybackStatus.playing,
+        clipIndex: player.clipIndex,
+      ),
+    );
+    _notifyFrame();
   }
 
   /// Advances by [deltaSeconds] while playing; a no-op otherwise, so a

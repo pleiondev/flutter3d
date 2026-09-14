@@ -119,6 +119,23 @@ extension _ReadyParts on _ModelerScreenState {
                   ).totalBytes,
                   budgetBytes: state.project.profile.textures.maxBytesOnDevice,
                 ),
+                // Screen 07's own row: "Bones N · actions N · influences M
+                // per vertex", in the animation mode's pose sub-mode only —
+                // every other mode keeps the ordinary vertex/material count.
+                modeSummary:
+                    state.mode == ModelerMode.animation &&
+                        state.animationSubmode == AnimationSubmode.pose
+                    ? animationModeSummary(
+                        bones:
+                            heldSkeletonOf(
+                              state.project,
+                              forStatus,
+                            )?.joints.length ??
+                            0,
+                        actions: state.project.clips.length,
+                        maxInfluences: state.project.profile.maxInfluences,
+                      )
+                    : null,
                 micros: _lastRenderMicros,
                 onExport: _showExportDialog,
               );
@@ -172,10 +189,13 @@ extension _ReadyParts on _ModelerScreenState {
                 onMoveTextureNode: _moveTextureNode,
                 onRemoveTextureNode: _removeTextureNode,
                 onBakeTextureGraph: _bakeTextureGraph,
-                onMoveKeys: _moveKeys,
                 onAddClip: _addClip,
+                selectedAnimationClip: _animationClip,
                 onSelectAnimationClip: _selectAnimationClip,
-                onScrubAnimation: _scrubAnimation,
+                selectedJoint: _selectedJoint,
+                onSelectJoint: _selectAnimationJoint,
+                selectedConstraint: _selectedConstraint,
+                onSelectConstraint: _selectAnimationConstraint,
                 selectedLight: _selectedLight,
                 onSelectLight: _selectLight,
                 onAddLight: _addLight,
@@ -298,6 +318,21 @@ extension _ReadyParts on _ModelerScreenState {
                   ..tool(tools.isEmpty ? null : tools.first.id);
               }
 
+              // `S2`'s own row: the pose sub-mode's own bottom slot —
+              // `ui-41d`'s 270-tall region under the viewport — is the
+              // transport bar plus the `Keys`/`Curves` toggle's own choice
+              // of `TimelinePanel`/`CurveEditor`. Every other mode, and the
+              // animation mode's other three sub-modes, leave `bottom` null,
+              // the same "nothing at all" `ModelerShell.bottom`'s own doc
+              // comment already promises them.
+              final bool showsTimeline =
+                  state.mode == ModelerMode.animation &&
+                  state.animationSubmode == AnimationSubmode.pose;
+              final int? openClipIndex = _animationClip;
+              final ProjectClip? openClip = openClipIndex == null
+                  ? null
+                  : state.project.clips[openClipIndex];
+
               return ShellForWidth(
                 parts: ScreenParts(
                   actions: actions,
@@ -315,6 +350,29 @@ extension _ReadyParts on _ModelerScreenState {
                 onTool: _ranTool,
                 documentName: state.documentName,
                 isDirty: state.history.isDirty,
+                bottom: !showsTimeline
+                    ? null
+                    : AnimationBottom(
+                        clipIndex: openClipIndex,
+                        clip: openClip,
+                        frame: _frame,
+                        fps: state.project.profile.fps,
+                        playback: state.playback,
+                        editMode: _timelineEditMode,
+                        onEditMode: _setTimelineEditMode,
+                        onPlayPause: _toggleAnimationPlayback,
+                        onLoopChanged: _setAnimationLoop,
+                        onSpeedChanged: _setAnimationSpeed,
+                        selectedTrack: _selectedAnimationTrack,
+                        selectedKey: _selectedAnimationKey,
+                        onMoveKeys: _moveKeys,
+                        onSeek: _scrubAnimation,
+                        onSelectKey: _selectAnimationTrackKey,
+                        onSetKey: _setAnimationKey,
+                        onSetKeyValue: _setAnimationKeyValue,
+                        onSetTangent: _setAnimationTangent,
+                      ),
+                bottomHeight: showsTimeline ? ModelerMetrics.timeline : null,
               );
             },
           ),

@@ -65,6 +65,7 @@ Future<void> _pump(
   ValueChanged<MoveKeys>? onMoveKeys,
   ValueChanged<double>? onSeek,
   void Function(int, int)? onSelectKey,
+  void Function(int, double)? onSetKey,
 }) => tester.pumpWidget(
   MaterialApp(
     theme: modelerTheme(),
@@ -83,6 +84,7 @@ Future<void> _pump(
           onMoveKeys: onMoveKeys,
           onSeek: onSeek,
           onSelectKey: onSelectKey,
+          onSetKey: onSetKey,
         ),
       ),
     ),
@@ -171,16 +173,65 @@ void main() {
   testWidgets('a drag that starts on empty timeline space reports nothing', (
     tester,
   ) async {
+    var moveKeysCalled = false;
+    var setKeyCalled = false;
+    await _pump(
+      tester,
+      clip: _twoRowClip(),
+      onMoveKeys: (MoveKeys c) => moveKeysCalled = true,
+      onSetKey: (int track, double time) => setKeyCalled = true,
+    );
+
+    // Far from any diamond: track 0 has keys at t=0 and t=1 (x=0, x=100),
+    // this drag starts at x=250 local (within the 280-wide canvas) ->
+    // global 370.
+    await tester.dragFrom(const Offset(120 + 250, 40), const Offset(20, 0));
+    await tester.pump();
+
+    expect(moveKeysCalled, isFalse);
+    // `S2`'s own row: a real drag, even one that started on empty space,
+    // is not a tap — `onSetKey` is for `Keys` (not `Pan`), the plan's own
+    // acceptance line.
+    expect(setKeyCalled, isFalse);
+  });
+
+  testWidgets(
+    'a tap on empty space inside a track\'s row reports that row and time',
+    (tester) async {
+      int? tappedTrack;
+      double? tappedTime;
+      await _pump(
+        tester,
+        clip: _twoRowClip(),
+        clipIndex: 2,
+        onSetKey: (int track, double time) {
+          tappedTrack = track;
+          tappedTime = time;
+        },
+      );
+
+      // Track 0's own row, far from either of its keys at t=0/t=1 (x=0,
+      // x=100 local): x=250 local -> global 370, time 2.5 at 100px/s.
+      await tester.tapAt(const Offset(120 + 250, 40));
+      await tester.pump();
+
+      expect(tappedTrack, 0);
+      expect(tappedTime, closeTo(2.5, 1e-9));
+    },
+  );
+
+  testWidgets('a tap below the last row reports nothing', (tester) async {
     var called = false;
     await _pump(
       tester,
       clip: _twoRowClip(),
-      onMoveKeys: (MoveKeys c) => called = true,
+      onSetKey: (int track, double time) => called = true,
     );
 
-    // Far from any diamond: track 0 has keys at t=0 and t=1 (x=0, x=100),
-    // this drag starts at x=400 local -> global 520.
-    await tester.dragFrom(const Offset(120 + 400, 40), const Offset(20, 0));
+    // Two rows of 32 each end at local y=64 below the 24-tall ruler —
+    // global 24+64=88; this tap lands well past that, on the panel's own
+    // unused remainder.
+    await tester.tapAt(const Offset(120 + 40, 150));
     await tester.pump();
 
     expect(called, isFalse);
