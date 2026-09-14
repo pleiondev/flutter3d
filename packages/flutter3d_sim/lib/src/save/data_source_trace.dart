@@ -60,6 +60,19 @@ final class DataSourceTrace {
     return _values[index];
   }
 
+  /// The first recorded step whose own [path]'s value satisfies [test], or
+  /// null if none ever did — `ls-i-02`'s own "an engineer... scrubs the
+  /// timeline to the moment the lesson named," the same shape
+  /// [DigestTrace.divergenceFrom] already answers for a checkpoint
+  /// mismatch, here for a reading crossing a threshold rather than two
+  /// runs disagreeing.
+  int? firstStepWhere(String path, bool Function(Object? value) test) {
+    for (var i = 0; i < _steps.length; i++) {
+      if (test(_values[i][path])) return _steps[i];
+    }
+    return null;
+  }
+
   /// A new trace: this one's own history up to and including [step], then
   /// whatever [continuation] resolves for every step after it and up to
   /// [throughStep] — a "what if", branched at [step] without touching this
