@@ -437,11 +437,19 @@ final class ModelerCubit extends Cubit<ModelerState> {
   /// somebody is dragging — it is dropped here and read by the frame test.
   void _synced(ModelerReady now, {String? said}) {
     now.stage.sync?.apply(now.project);
+    // `view-27d`'s own "more than 64 joints is a status line, never a
+    // throw": `SceneSync.apply` refuses to build an over-large skeleton
+    // rather than let its constructor throw, and reports it here the same
+    // way a refused command already does — a message worth reading, not an
+    // exception nothing catches.
+    final String? overflow = now.stage.sync?.skeletonOverflow;
+    final String? message = overflow ?? said;
     emit(
       now.copyWith(
         readiness: _readiness.of(now.project),
-        said: said,
-        clearSaid: said == null,
+        said: message,
+        clearSaid: message == null,
+        saidIsImportant: overflow != null,
       ),
     );
   }

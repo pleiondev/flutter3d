@@ -174,4 +174,162 @@ void main() {
     expect(sync.nodeOf(1), isNotNull);
     expect(sync.nodeOf(1)!.mesh.source?.vertexCount, 0);
   });
+
+  group('view-27d — skinning', () {
+    test('binding an object to a skeleton uploads it skinned and hangs an '
+        'engine skeleton off it', () {
+      final project = ModelProject(
+        objects: <ModelObject>[
+          ModelObject(
+            id: 1,
+            name: 'root',
+            geometry: const SocketGeometry(),
+            transform: Matrix4.identity(),
+          ),
+          ModelObject(
+            id: 2,
+            name: 'cube',
+            geometry: EditedGeometry(EditMesh.cuboid()),
+            transform: Matrix4.identity(),
+          ),
+        ],
+        nextId: 3,
+      );
+      final sync = staged(project).stage.sync!;
+
+      // Unskinned so far: the ordinary layout, no engine skeleton.
+      expect(sync.nodeOf(2)!.mesh.source!.layout, VertexLayout.standard);
+      expect(sync.nodeOf(2)!.skeleton, isNull);
+
+      final withSkeleton = project.copyWith(
+        skeletons: <ProjectSkeleton>[
+          ProjectSkeleton(
+            joints: <int>[1],
+            inverseBindMatrices: <Matrix4>[Matrix4.identity()],
+          ),
+        ],
+      );
+      // `BindSkin`'s own shape: only `skeletonIndex` moves, the same
+      // `EditedGeometry` instance as before.
+      final uploaded = sync.apply(
+        withSkeleton.withObject(withSkeleton[2]!.copyWith(skeletonIndex: 0)),
+      );
+
+      // Mutation: gate the reupload on `identical(had.geometry,
+      // object.geometry)` alone, the way "a changed mesh uploads once"
+      // above already checks for a mesh command — a bind changes nothing
+      // about the `Geometry` instance, so that check alone would leave
+      // the mesh drawing as `VertexLayout.standard` forever.
+      expect(uploaded, 1);
+      expect(sync.nodeOf(2)!.mesh.source!.layout, VertexLayout.skinned);
+      final skeleton = sync.nodeOf(2)!.skeleton;
+      expect(skeleton, isNotNull);
+      expect(skeleton!.joints, <SceneNode>[sync.nodeOf(1)!]);
+    });
+
+    test('adding a joint to a skeleton re-syncs it even though the skinned '
+        'object itself never changes version', () {
+      var project = ModelProject(
+        objects: <ModelObject>[
+          ModelObject(
+            id: 1,
+            name: 'root',
+            geometry: const SocketGeometry(),
+            transform: Matrix4.identity(),
+          ),
+          ModelObject(
+            id: 2,
+            name: 'cube',
+            geometry: EditedGeometry(EditMesh.cuboid()),
+            transform: Matrix4.identity(),
+            skeletonIndex: 0,
+          ),
+        ],
+        skeletons: <ProjectSkeleton>[
+          ProjectSkeleton(
+            joints: <int>[1],
+            inverseBindMatrices: <Matrix4>[Matrix4.identity()],
+          ),
+        ],
+        nextId: 3,
+      );
+      final sync = staged(project).stage.sync!;
+      expect(sync.nodeOf(2)!.skeleton!.jointCount, 1);
+      final versionBefore = project[2]!.version;
+
+      // `AddJoint`'s own shape: a new object, and `project.skeletons[0]`
+      // rewritten to name it — the skinned object itself is untouched.
+      project = project.added(
+        (int id) => ModelObject(
+          id: id,
+          name: 'tip',
+          geometry: const SocketGeometry(),
+          transform: Matrix4.translation(Vector3(0, 0.5, 0)),
+          parent: 1,
+        ),
+      );
+      project = project.copyWith(
+        skeletons: <ProjectSkeleton>[
+          project.skeletons.single.copyWith(
+            joints: <int>[1, project.nextId - 1],
+            inverseBindMatrices: <Matrix4>[
+              Matrix4.identity(),
+              Matrix4.identity(),
+            ],
+          ),
+        ],
+      );
+
+      sync.apply(project);
+
+      // Mutation: key the skeleton refresh off `ModelObject.version` the
+      // way a geometry reupload already is — `AddJoint` never bumps the
+      // skinned object's own version, so a check gated on that would
+      // leave the engine `Skeleton` at one joint forever.
+      expect(project[2]!.version, versionBefore);
+      expect(sync.nodeOf(2)!.skeleton!.jointCount, 2);
+    });
+
+    test('a skeleton with more joints than the engine can skin is reported, '
+        'never thrown', () {
+      final jointIds = List<int>.generate(65, (int i) => i + 1);
+      final project = ModelProject(
+        objects: <ModelObject>[
+          for (final int id in jointIds)
+            ModelObject(
+              id: id,
+              name: 'joint$id',
+              geometry: const SocketGeometry(),
+              transform: Matrix4.identity(),
+            ),
+          ModelObject(
+            id: 66,
+            name: 'cube',
+            geometry: EditedGeometry(EditMesh.cuboid()),
+            transform: Matrix4.identity(),
+            skeletonIndex: 0,
+          ),
+        ],
+        skeletons: <ProjectSkeleton>[
+          ProjectSkeleton(
+            joints: jointIds,
+            inverseBindMatrices: <Matrix4>[
+              for (final _ in jointIds) Matrix4.identity(),
+            ],
+          ),
+        ],
+        nextId: 67,
+      );
+
+      // Mutation: build the engine `Skeleton` regardless of joint count —
+      // its own constructor throws past `Skeleton.maxJoints`, which would
+      // bring down every `apply` call on a project this large rather than
+      // leaving the mesh unskinned and a message on the status line.
+      final sync = staged(project).stage.sync!;
+
+      expect(sync.nodeOf(66)!.skeleton, isNull);
+      expect(sync.skeletonOverflow, isNotNull);
+      expect(sync.skeletonOverflow, contains('65'));
+    });
+  });
 }

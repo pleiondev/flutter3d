@@ -49,6 +49,7 @@ export 'src/modifier_slot.dart';
 export 'src/paint_layer.dart';
 export 'src/param_hint.dart';
 export 'src/parametric_json.dart';
+export 'src/pose_of_skeleton.dart';
 export 'src/profile_budget_report.dart';
 export 'src/project.dart';
 export 'src/project_animation.dart';

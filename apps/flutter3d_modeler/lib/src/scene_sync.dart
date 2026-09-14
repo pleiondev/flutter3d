@@ -30,11 +30,26 @@ import 'material_pool.dart';
 
 /// One object's node, and what it was built from.
 final class _Tracked {
-  _Tracked(this.node, this.version, this.geometry);
+  _Tracked(this.node, this.version, this.geometry, {this.skeletonIndex});
 
   final MeshNode node;
   int version;
   Geometry geometry;
+
+  /// [ModelObject.skeletonIndex] as of the last time [node]'s mesh was
+  /// uploaded. Compared against the project's current value on every
+  /// [SceneSync.apply] — separately from [geometry], since a bind (or an
+  /// unbind) changes which [VertexLayout] the very same [Geometry] instance
+  /// has to be read as, without the instance itself ever being replaced.
+  int? skeletonIndex;
+
+  /// The [ProjectSkeleton] [node.skeleton] was last built from, by identity.
+  /// `AddJoint`/`RemoveJoint`/`ReparentJoint` and the rest all rewrite
+  /// `ModelProject.skeletons[index]` in place rather than touching this
+  /// object, so a bumped [ModelObject.version] is not something
+  /// [SceneSync._syncSkeletons] can wait for — this is what it compares
+  /// instead.
+  ProjectSkeleton? skeletonSource;
 }
 
 /// The scene, following a project.
@@ -64,6 +79,15 @@ final class SceneSync {
 
   final Map<int, _Tracked> _tracked = <int, _Tracked>{};
 
+  /// Set by [apply] when some object's own skeleton has more joints than the
+  /// engine can skin — [Skeleton.maxJoints], the shader's own uniform-array
+  /// limit — so a status line can say so instead of [Skeleton]'s constructor
+  /// throwing past it, the same refusal `ModelInstance._buildSkeleton`
+  /// already gives a glTF skin that arrives too large. Cleared at the top of
+  /// every [apply] call, so this always answers the project's current shape
+  /// rather than the first time it was ever true.
+  String? skeletonOverflow;
+
   /// The node drawn for [id], or null.
   MeshNode? nodeOf(int id) => _tracked[id]?.node;
 
@@ -90,6 +114,7 @@ final class SceneSync {
   int apply(ModelProject project) {
     var uploaded = 0;
     final seen = <int>{};
+    skeletonOverflow = null;
 
     for (final ModelObject object in project.objects) {
       seen.add(object.id);
@@ -97,23 +122,39 @@ final class SceneSync {
 
       if (had == null) {
         final MeshNode node = MeshNode(
-          DeviceMesh.upload(device, _dataOf(object.geometry)),
+          DeviceMesh.upload(
+            device,
+            _dataOf(object.geometry, _layoutFor(object)),
+          ),
           _paintFor(object),
           name: object.name,
         );
         node.setLocalMatrix(object.transform);
         root.add(node);
-        _tracked[object.id] = _Tracked(node, object.version, object.geometry);
+        _tracked[object.id] = _Tracked(
+          node,
+          object.version,
+          object.geometry,
+          skeletonIndex: object.skeletonIndex,
+        );
         uploaded++;
         continue;
       }
       if (had.version == object.version) continue;
 
       // The version moved, so something changed. Which something decides
-      // whether a buffer is rebuilt: a matrix is free and a mesh is not.
-      if (!identical(had.geometry, object.geometry)) {
-        had.node.mesh = DeviceMesh.upload(device, _dataOf(object.geometry));
+      // whether a buffer is rebuilt: a matrix is free and a mesh is not — and
+      // a skeleton newly bound or unbound is a third case, `view-27d`'s own
+      // row, since it changes which `VertexLayout` this same `Geometry`
+      // instance has to be read as without the instance itself changing.
+      final bool reskinned = had.skeletonIndex != object.skeletonIndex;
+      if (!identical(had.geometry, object.geometry) || reskinned) {
+        had.node.mesh = DeviceMesh.upload(
+          device,
+          _dataOf(object.geometry, _layoutFor(object)),
+        );
         had.geometry = object.geometry;
+        had.skeletonIndex = object.skeletonIndex;
         uploaded++;
       }
       had.node
@@ -133,7 +174,83 @@ final class SceneSync {
     }
 
     _reparent(project);
+    _syncSkeletons(project);
     return uploaded;
+  }
+
+  /// [VertexLayout.skinned] for an object bound to a skeleton,
+  /// [VertexLayout.standard] otherwise — `view-27d`'s own switch, read off
+  /// the document itself rather than off whatever layout the geometry
+  /// already happens to hold, so a mesh gains the skinning attributes the
+  /// moment `BindSkin`/`SetRig` gives it a [ModelObject.skeletonIndex], with
+  /// no separate command ever telling the viewport to look again.
+  static VertexLayout _layoutFor(ModelObject object) =>
+      object.skeletonIndex == null
+      ? VertexLayout.standard
+      : VertexLayout.skinned;
+
+  /// Attaches (or refreshes) the engine [Skeleton] behind every skinned
+  /// object, once every node [project] names has one in [_tracked] — which
+  /// is why this runs after [_reparent] rather than inside the loop above: a
+  /// mesh listing joint 7 among its own [ProjectSkeleton.joints] before
+  /// object 7 has itself been walked would otherwise find nothing yet to
+  /// hang the skeleton on.
+  void _syncSkeletons(ModelProject project) {
+    for (final ModelObject object in project.objects) {
+      final _Tracked? tracked = _tracked[object.id];
+      if (tracked == null) continue;
+
+      final int? index = object.skeletonIndex;
+      if (index == null || index < 0 || index >= project.skeletons.length) {
+        if (tracked.skeletonSource != null) {
+          tracked.node.skeleton = null;
+          tracked.skeletonSource = null;
+        }
+        continue;
+      }
+
+      final ProjectSkeleton skeleton = project.skeletons[index];
+      // Compared by identity, not by content or by `ModelObject.version` —
+      // see [_Tracked.skeletonSource]'s own doc comment for why a joint
+      // command can move this without moving that.
+      if (identical(tracked.skeletonSource, skeleton)) continue;
+
+      // `Skeleton`'s own constructor throws past this many joints — the
+      // shader's uniform array is a hard limit, not a preference — so this is
+      // refused the same way `ModelInstance._buildSkeleton` already refuses
+      // an over-long glTF skin: reported, never thrown.
+      if (skeleton.joints.length > Skeleton.maxJoints) {
+        skeletonOverflow =
+            '"${object.name}" has ${skeleton.joints.length} joints; the '
+            'viewport can only skin ${Skeleton.maxJoints}';
+        continue;
+      }
+
+      final joints = <SceneNode>[];
+      for (final int jointId in skeleton.joints) {
+        final MeshNode? node = nodeOf(jointId);
+        if (node == null) break;
+        joints.add(node);
+      }
+      // A joint this pass has not reached yet — a document mid-edit inside
+      // one `ModelHistory` transaction, say — or one the project has lost
+      // entirely; either way left for the next `apply` rather than hung on a
+      // skeleton with a hole in it.
+      if (joints.length != skeleton.joints.length) continue;
+
+      tracked.node
+        ..skeleton = Skeleton(
+          name: skeleton.name,
+          joints: joints,
+          inverseBindMatrices: skeleton.inverseBindMatrices,
+        )
+        // Measured from this upload's own bind pose, the same call
+        // `ModelInstance` makes for a glTF skin — see [MeshNode.skinReach]'s
+        // own doc comment for why the mesh's *local* radius is what belongs
+        // here rather than anything measured in world space.
+        ..skinReach = tracked.node.mesh.boundingRadius;
+      tracked.skeletonSource = skeleton;
+    }
   }
 
   /// Hangs each node under the node of its object's parent.
@@ -180,14 +297,19 @@ final class SceneSync {
   engine.Material _paintFor(ModelObject object) =>
       materials?.forObject(object) ?? clay();
 
-  /// The buffers a geometry draws as.
-  static MeshData _dataOf(Geometry geometry) => switch (geometry) {
-    ParametricGeometry(:final shape) => shape.drawn.build(),
-    EditedGeometry(:final mesh) => mesh.toMeshData(),
-    ImportedGeometry(:final data) => data,
-    // A socket draws nothing — see `SocketGeometry`'s own doc comment.
-    SocketGeometry() => _empty,
-  };
+  /// The buffers a geometry draws as, in [layout] — [_layoutFor]'s own
+  /// answer for the object this geometry belongs to. Ignored for
+  /// [ImportedGeometry], which arrives with a layout already baked in by
+  /// whatever imported it, and for [SocketGeometry], which never has
+  /// vertices to lay out at all.
+  static MeshData _dataOf(Geometry geometry, VertexLayout layout) =>
+      switch (geometry) {
+        ParametricGeometry(:final shape) => shape.drawn.build(layout: layout),
+        EditedGeometry(:final mesh) => mesh.toMeshData(layout: layout),
+        ImportedGeometry(:final data) => data,
+        // A socket draws nothing — see `SocketGeometry`'s own doc comment.
+        SocketGeometry() => _empty,
+      };
 
   /// What a socket uploads as: no vertices, no indices. One instance for all
   /// of them, the same reason `project_document.dart`'s own `_nothing` is.

@@ -278,6 +278,15 @@ extension _ReadyParts on _ModelerScreenState {
                               if (stage.sync?.nodeOf(id) case final SceneNode n)
                                 n,
                           ],
+                          // `view-27d`'s own row: the octahedra-and-crosses
+                          // overlay `DebugDrawGizmos.addSkeletonOverlay`
+                          // draws is what shows a rig is actually driving
+                          // the mesh underneath it, so it is worth the extra
+                          // lines exactly while animation mode is open and
+                          // not otherwise.
+                          debug: DebugDrawOptions(
+                            skeletons: _mode == ModelerMode.animation,
+                          ),
                         ),
                       ),
                     ),
