@@ -55,6 +55,7 @@ import 'src/mcp_bootstrap.dart';
 import 'src/modeler_cubit.dart';
 import 'src/modeler_viewport.dart';
 import 'src/object_picking.dart';
+import 'src/open_report.dart';
 import 'src/opening.dart';
 import 'src/orbit_run.dart';
 import 'src/orientation_dial.dart';
@@ -62,8 +63,10 @@ import 'src/recent_projects.dart';
 import 'src/report_problem.dart';
 import 'src/scene_sync.dart';
 import 'src/selection_box.dart';
+import 'src/selection_rules.dart';
 import 'src/staging.dart';
 import 'src/timeline_playback.dart';
+import 'src/tool_commands.dart';
 import 'src/transform_dispatch.dart';
 import 'src/transform_fields.dart';
 import 'src/transform_gizmo.dart';
@@ -787,7 +790,7 @@ class _ModelerScreenState extends State<ModelerScreen>
         title: const Text('Restore unsaved changes?'),
         content: Text(
           'An autosave from a session that did not close cleanly was found '
-          '(${_count(read.project.objects.length, 'object')}).',
+          '(${countLabel(read.project.objects.length, 'object')}).',
         ),
         actions: <Widget>[
           TextButton(
@@ -996,12 +999,13 @@ class _ModelerScreenState extends State<ModelerScreen>
           // The scene the old materials belonged to is going, and the
           // selection points at nodes that are no longer drawn.
           _surfaces.forget();
-          final said =
-              '$name: '
-              '${_count(project.objects.length, 'object')}, '
-              '${_count(project.triangleCount, 'triangle')}, '
-              '${_count(project.materials.length, 'material')}, '
-              'opened in ${opening.elapsedMilliseconds} ms';
+          final said = describeOpened(
+            name: name,
+            objectCount: project.objects.length,
+            triangleCount: project.triangleCount,
+            materialCount: project.materials.length,
+            openedInMs: opening.elapsedMilliseconds,
+          );
           _cubit.opened(
             ModelHistory(project),
             renderer: (_state as ModelerReady).renderer,
@@ -1021,10 +1025,6 @@ class _ModelerScreenState extends State<ModelerScreen>
       if (mounted) _cubit.say('could not open it: $error');
     }
   }
-
-  /// "1 object" and "2 objects", because a status line that says "1 objects"
-  /// reads as something a program wrote rather than as a sentence.
-  static String _count(int n, String one) => '$n $one${n == 1 ? '' : 's'}';
 
   /// Writes the document as the modeller's own file.
   ///
@@ -1332,12 +1332,13 @@ class _ModelerScreenState extends State<ModelerScreen>
         ):
           stage.frameSubject();
           _surfaces.forget();
-          final said =
-              '${picked.name}: '
-              '${_count(project.objects.length, 'object')}, '
-              '${_count(project.triangleCount, 'triangle')}, '
-              '${_count(project.materials.length, 'material')}, '
-              'opened in ${opening.elapsedMilliseconds} ms';
+          final said = describeOpened(
+            name: picked.name,
+            objectCount: project.objects.length,
+            triangleCount: project.triangleCount,
+            materialCount: project.materials.length,
+            openedInMs: opening.elapsedMilliseconds,
+          );
           _cubit.opened(
             ModelHistory(project),
             renderer: (_state as ModelerReady).renderer,
@@ -1382,12 +1383,13 @@ class _ModelerScreenState extends State<ModelerScreen>
       case OpenedModel(:final ModelProject project, :final ModelerStage stage):
         stage.frameSubject();
         _surfaces.forget();
-        final said =
-            '$name: '
-            '${_count(project.objects.length, 'object')}, '
-            '${_count(project.triangleCount, 'triangle')}, '
-            '${_count(project.materials.length, 'material')}, '
-            'opened in ${opening.elapsedMilliseconds} ms';
+        final said = describeOpened(
+          name: name,
+          objectCount: project.objects.length,
+          triangleCount: project.triangleCount,
+          materialCount: project.materials.length,
+          openedInMs: opening.elapsedMilliseconds,
+        );
         _cubit.opened(
           ModelHistory(project),
           renderer: (_state as ModelerReady).renderer,
@@ -1903,13 +1905,17 @@ class _ModelerScreenState extends State<ModelerScreen>
     if (id == 'object.lathe') {
       // A dialog, not a command run straight from the rail: `AddLathe`
       // needs a profile nobody has drawn yet, so this arms the button and
-      // opens `lathe_dialog.dart` rather than going through `_commandFor`,
+      // opens `lathe_dialog.dart` rather than going through `commandFor`,
       // which only ever answers with a command ready to run immediately.
       _cubit.tool(id);
       unawaited(_openLatheDialog());
       return;
     }
-    final ModelCommand? command = _commandFor(id);
+    final ModelCommand? command = commandFor(
+      id,
+      activeObject: _history.selection.activeObject,
+      editMesh: _editMesh,
+    );
     if (command == null) {
       _cubit.tool(id);
       return;
@@ -1917,67 +1923,6 @@ class _ModelerScreenState extends State<ModelerScreen>
     _cubit
       ..tool(id)
       ..ran(command);
-  }
-
-  /// The command a rail button stands for, or null when it only arms.
-  ///
-  /// **One switch in one place, which is what the tool table was built to
-  /// allow.** A callback on each row of that table would put this decision in
-  /// as many places as there are tools, and a tool added without one would be a
-  /// button that silently did nothing.
-  ModelCommand? _commandFor(String id) => switch (id) {
-    'object.add' => const AddPrimitive(kind: 'box'),
-    'object.duplicate' => const DuplicateObjects(),
-    'object.delete' => const DeleteObjects(),
-    'object.bake' => switch (_history.selection.activeObject) {
-      final int selected => BakeToMesh(selected),
-      _ => null,
-    },
-    'object.origin' => switch (_history.selection.activeObject) {
-      final int selected => SetOrigin(
-        id: selected,
-        to: OriginPlacement.boundsBottom,
-      ),
-      _ => null,
-    },
-    'object.apply' => switch (_history.selection.activeObject) {
-      final int selected => ApplyTransform(selected),
-      _ => null,
-    },
-    'mesh.extrude' => Extrude(_stepOf()),
-    'mesh.loopCut' => const LoopCut(),
-    'mesh.triangulate' => const Triangulate(),
-    'mesh.separate' => const Separate(),
-    'mesh.dissolve' => const DissolveEdges(),
-    'mesh.merge' => const MergeByDistance(),
-    'mesh.normals' => const RecalculateNormals(),
-    'mesh.flip' => const RecalculateNormals(flip: true),
-    'mesh.delete' => const DeleteElements(),
-    _ => null,
-  };
-
-  /// How far an extrusion goes when nobody has said.
-  ///
-  /// A tenth of the model rather than a fixed number of metres: the same button
-  /// is pressed on a cube of one metre and on a scanned head of two hundred,
-  /// and a fixed distance is invisible on one and catastrophic on the other.
-  double _stepOf() {
-    final EditMesh? mesh = _editMesh;
-    if (mesh == null) return 0.1;
-    final low = vm.Vector3.all(double.infinity);
-    final high = vm.Vector3.all(double.negativeInfinity);
-    final at = vm.Vector3.zero();
-    var found = false;
-    for (var vertex = 0; vertex < mesh.vertexSlotCount; vertex++) {
-      if (!mesh.isVertexAlive(vertex)) continue;
-      found = true;
-      mesh.positionOf(vertex, at);
-      vm.Vector3.min(low, at, low);
-      vm.Vector3.max(high, at, high);
-    }
-    if (!found) return 0.1;
-    final span = (high - low).length;
-    return span == 0.0 ? 0.1 : span * 0.1;
   }
 
   /// A rectangle was dragged and let go.
@@ -2179,27 +2124,13 @@ class _ModelerScreenState extends State<ModelerScreen>
       PickedNothing() => null,
     };
     final was = _history.selection;
-    final List<int> next;
-    if (id == null) {
-      if (pick is PickedService) return;
-      next = extend ? was.objects : const <int>[];
-    } else if (!extend) {
-      next = <int>[id];
-    } else if (was.objects.contains(id)) {
-      next = <int>[
-        for (final int each in was.objects)
-          if (each != id) each,
-      ];
-    } else {
-      next = <int>[...was.objects, id];
-    }
-
-    // Compared before setting, because a click on the background with nothing
-    // selected is the commonest click there is and it changes nothing: a frame
-    // rebuilt for it is a frame spent on an answer of "still nothing".
-    if (next.length == was.objects.length && next.every(was.objects.contains)) {
-      return;
-    }
+    final List<int>? next = nextSelection(
+      id: id,
+      isService: pick is PickedService,
+      current: was.objects,
+      extend: extend,
+    );
+    if (next == null) return;
     setState(() {
       _history.selection = was.copyWith(
         mode: SelectionMode.object,
