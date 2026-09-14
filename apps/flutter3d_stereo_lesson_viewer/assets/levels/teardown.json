@@ -97,6 +97,15 @@
       "yaw": 2.5,
       "caption": "Остался только блок цилиндров",
       "visible": ["engine-block"]
+    },
+    {
+      "type": "widget_surface",
+      "name": "title-card",
+      "at": [0.0, 2.4, 6.0],
+      "yaw": 0.0,
+      "widget": "title-card",
+      "width": 2.0,
+      "height": 0.8
     }
   ]
 }

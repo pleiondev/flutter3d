@@ -85,4 +85,15 @@ void main() {
     expect(ready.nodes['air-filter']!.visible, isTrue);
     expect(ready.nodes['spark-plug']!.visible, isTrue);
   });
+
+  test("ls-x-01's own prerequisite: the level's widget_surface resolves onto "
+      'the stereo scene', () async {
+    final cubit = LessonCubit();
+    await cubit.open(_device());
+    final ready = cubit.state as LessonReady;
+
+    expect(ready.widgetSurfaces.surfaces, hasLength(1));
+    final surface = ready.widgetSurfaces.surfaces.single;
+    expect(ready.scene.meshes, contains(surface.node));
+  });
 }

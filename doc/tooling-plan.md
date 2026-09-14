@@ -2660,6 +2660,19 @@ within this session.
   was added for it in the editor's own viewport — a separate, broader
   editor-UI task, not part of wg-01.
 
+**Addendum, 2026-09-14 (`ls-x-01`'s own real prerequisite): `WidgetSurface`
+draws correctly in a stereo view too, with no change to this package.**
+`LessonStereoView`/`StereoSurface` (`flutter3d_stereo`) already draw
+whatever `Scene` they are handed with no node-type special-casing, so a
+`WidgetSurface` needed nothing new in the rendering path — only an
+application that resolves `widget_surface` entities into one and calls
+`tick()` once a frame, which `apps/flutter3d_stereo_lesson_viewer` now
+does (a real one ships in that app's own `teardown.json`). Tap input on a
+`WidgetSurface` through a stereo camera pair remains unproven — the
+"list scrolls under a finger" gap above is a Flutter SDK wall on a flat
+screen already; a ray cast from a stereo rig is a different, separate
+question this addendum does not touch.
+
 ### wg-02: a terminal in the crypt and an operator panel — closed
 
 Closed 2026-09-12. Both scenes are on a real `WidgetSurface` from wg-01,

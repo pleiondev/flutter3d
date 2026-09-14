@@ -14,6 +14,21 @@
 /// this plays a step's `at`/`yaw` and its `visible`/`hidden` lists. It does
 /// not apply `offsets`, does not draw an `edu_clip_plane`, does not read
 /// `bindings`/`edu_data_source`, and does not ask a `check` question.
+///
+/// **`ls-x-01`'s own real prerequisite, proven here first: `WidgetSurface`
+/// (`wg-01`) draws correctly in a stereo view.** `LessonStereoView` and
+/// `StereoSurface` draw whatever `Scene` they are handed with no node-type
+/// special-casing, so a `WidgetSurface` — a `MeshNode` with a texture a
+/// Flutter widget paints — needed nothing new in the rendering path; the gap
+/// was that nothing in this application ever resolved a `widget_surface`
+/// entity into one, or called `WidgetSurface.tick()` so its texture ever
+/// updated. Both are wired now, proven with a real one in `teardown.json`
+/// (`title-card`, a static caption). **Left honestly undone**: `ls-x-01`'s
+/// own configurator needs a tap on a `WidgetSurface` to actually change
+/// anything, and no ray from a stereo view has ever been cast at one here —
+/// `wg-00`'s own "ray → uvAt → dispatchAtUv → a tap" chain is proven flat,
+/// not through a stereo camera pair, and that is separate work this file
+/// does not attempt.
 library;
 
 import 'dart:async';
@@ -59,6 +74,30 @@ final class OpenKind extends EntityKind {
   const OpenKind(super.type);
 }
 
+/// `title-card`: a static caption, the one widget this application's own
+/// registry offers — `WidgetSurfaceVisuals` reports an issue rather than
+/// crashing for any `widget_surface` naming anything else, the same way an
+/// unrecognised `part` material would.
+Widget _titleCard(BuildContext context) => const ColoredBox(
+  color: Color(0xFF0B0F0C),
+  child: Center(
+    child: Padding(
+      padding: EdgeInsets.all(16.0),
+      child: Text(
+        'Разборка двигателя',
+        textAlign: TextAlign.center,
+        style: TextStyle(color: Color(0xFFE8E6E1), fontSize: 22),
+      ),
+    ),
+  ),
+);
+
+/// The one widget `widget_surface` entities in this application's own
+/// levels may name.
+Map<String, WidgetBuilder> widgetRegistry() => <String, WidgetBuilder>{
+  'title-card': _titleCard,
+};
+
 /// [level]'s own `part` entities — `ls-e-00`'s removable pieces, the same
 /// concept `flutter3d_lesson_viewer`'s own `_addParts` already proved — as
 /// plain boxed [MeshNode]s, named after their own entity.
@@ -96,6 +135,7 @@ final class LessonReady extends LessonState {
     this.rig,
     this.player, {
     this.nodes = const <String, SceneNode>{},
+    required this.widgetSurfaces,
   });
 
   final Scene scene;
@@ -106,6 +146,12 @@ final class LessonReady extends LessonState {
   /// what a step's `visible`/`hidden` list reaches through
   /// `applyLessonStep`.
   final Map<String, SceneNode> nodes;
+
+  /// Every `widget_surface` this level's own entities resolved —
+  /// `LessonStereoView.onTick` calls `tickAll()` on it once a frame, the
+  /// same way `flutter3d_demo_dungeon`'s own `run_cubit.dart` does for a
+  /// flat screen.
+  final WidgetSurfaceVisuals widgetSurfaces;
 }
 
 final class LessonFailed extends LessonState {
@@ -139,6 +185,18 @@ class LessonCubit extends Cubit<LessonState> {
         for (final mesh in loaded.scene.meshes) ?mesh.name: mesh,
       };
 
+      // `wg-02`: every `widget_surface` entity, resolved against
+      // `widgetRegistry` — see this library's own doc comment for what
+      // proving this here closes towards `ls-x-01`.
+      final widgets = WidgetSurfaceVisuals(
+        loaded.scene,
+        device: device,
+        registry: widgetRegistry(),
+      );
+      for (final entity in level.entities) {
+        widgets.add(entity);
+      }
+
       String? sequenceName;
       for (final entity in level.entities) {
         if (entity.type == 'edu_sequence') {
@@ -153,7 +211,15 @@ class LessonCubit extends Cubit<LessonState> {
       final rig = StereoRig();
       loaded.scene.add(rig.stage);
 
-      emit(LessonReady(loaded.scene, rig, LessonPlayer(steps), nodes: nodes));
+      emit(
+        LessonReady(
+          loaded.scene,
+          rig,
+          LessonPlayer(steps),
+          nodes: nodes,
+          widgetSurfaces: widgets,
+        ),
+      );
     } catch (error) {
       emit(LessonFailed(error));
     }
@@ -211,13 +277,20 @@ class _LessonScreenState extends State<LessonScreen> {
       builder: (BuildContext context, LessonState state) => switch (state) {
         LessonFailed(:final error) => _didNotStart(error),
         LessonLoading() => _loading(),
-        LessonReady(:final scene, :final rig, :final player, :final nodes) =>
+        LessonReady(
+          :final scene,
+          :final rig,
+          :final player,
+          :final nodes,
+          :final widgetSurfaces,
+        ) =>
           LessonStereoView(
             renderer: renderer,
             scene: scene,
             rig: rig,
             player: player,
             nodes: nodes,
+            onTick: widgetSurfaces.tickAll,
           ),
       },
     );
