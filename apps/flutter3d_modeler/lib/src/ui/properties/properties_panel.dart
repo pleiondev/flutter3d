@@ -13,7 +13,6 @@ import 'package:flutter/material.dart' hide Material;
 import 'package:flutter3d/flutter3d.dart' hide Material;
 import 'package:flutter3d_editor_widgets/flutter3d_editor_widgets.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart' hide Outcome;
-import 'package:flutter3d_rig/flutter3d_rig.dart' show BoneMap;
 
 import '../../display_modes.dart';
 import '../../material_editing.dart';

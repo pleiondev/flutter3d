@@ -16,7 +16,7 @@
 library;
 
 import 'package:flutter/material.dart';
-import 'package:flutter3d_formats/flutter3d_formats.dart' show ColorHint;
+import 'package:flutter3d_core/formats.dart' show ColorHint;
 
 import 'hint_text_box.dart';
 

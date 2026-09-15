@@ -3,20 +3,14 @@
 /// wiring `bindWeightsJobRequestFor` to whatever composition
 /// `RigBuildOptions` just built.
 ///
-/// **Named `rig_job.dart` on purpose, same as the file in
-/// `flutter3d_model_core` this one is not.** That package's own
-/// `rig_job.dart` builds `BindWeightsJobRequest` — the actual job, holding
-/// a `ModelProject`'s own mesh bytes — and this one builds the one plain
-/// piece that job needs and this package can still build without knowing
-/// what a project is: bone segments, out of a rig this package already
-/// reads everywhere else in its own vocabulary, [RetargetRig]. The two
-/// files sit in two different packages for the reason `retarget.dart`'s own
-/// class comment already gives: "the document depends on the algorithm,
-/// the algorithm depends on the vocabulary of animation" — a function here
-/// that took a `ModelProject`/`ProjectSkeleton` directly would need this
-/// package to import that one back, exactly the cycle that pubspec already
-/// refuses (`flutter3d_model_core` depends on `flutter3d_rig`, never the
-/// reverse).
+/// `rig_job.dart` one directory up builds `BindWeightsJobRequest` — the
+/// actual job, holding a `ModelProject`'s own mesh bytes — and this file
+/// builds the one plain piece that job needs without knowing what a project
+/// is: bone segments, out of a rig the algorithms under `src/rig/` already
+/// read in their own vocabulary, [RetargetRig]. It stays on this side of
+/// that line for the reason `retarget.dart`'s own class comment gives: "the
+/// document depends on the algorithm, the algorithm depends on the
+/// vocabulary of animation".
 library;
 
 import 'package:vector_math/vector_math.dart';

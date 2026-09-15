@@ -68,13 +68,11 @@ library;
 import 'dart:io';
 import 'dart:typed_data';
 
-import 'package:flutter3d_formats/flutter3d_formats.dart';
+import 'package:flutter3d_core/formats.dart';
 import 'package:flutter3d_mesh/flutter3d_mesh.dart'
     show EditMesh, WeightPair, importMeshData, toVertexAttributes, weightsOf;
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 import 'package:flutter3d_model_mcp/flutter3d_model_mcp.dart';
-import 'package:flutter3d_rig/flutter3d_rig.dart'
-    show BoneSegment, mirrorSkinWeights;
 import 'package:vector_math/vector_math.dart';
 
 /// `RobotExpressive.glb`, merged into an empty project through the free

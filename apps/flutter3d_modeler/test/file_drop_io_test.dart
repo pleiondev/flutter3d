@@ -22,11 +22,11 @@ import 'dart:io';
 
 import 'package:flutter/material.dart' hide Matrix4;
 import 'package:flutter/services.dart' hide Matrix4;
+import 'package:flutter3d_app/flutter3d_app.dart';
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 import 'package:flutter3d_modeler/main.dart' hide main;
 import 'package:flutter3d_modeler/src/files/file_drop_io.dart';
-import 'package:flutter3d_session/flutter3d_session.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart';
 

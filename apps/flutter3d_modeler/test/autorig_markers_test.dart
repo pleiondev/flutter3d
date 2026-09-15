@@ -14,9 +14,10 @@ import 'dart:ui' show Offset, Size;
 
 import 'package:flutter3d/flutter3d.dart'
     show CameraNode, OrthographicProjection;
-import 'package:flutter3d_formats/flutter3d_formats.dart';
+import 'package:flutter3d_core/formats.dart';
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
-import 'package:flutter3d_model_core/flutter3d_model_core.dart';
+import 'package:flutter3d_model_core/flutter3d_model_core.dart'
+    hide boneSegmentsOf;
 import 'package:flutter3d_modeler/src/autorig_markers.dart';
 import 'package:flutter3d_modeler/src/element_picking.dart';
 import 'package:flutter_test/flutter_test.dart';

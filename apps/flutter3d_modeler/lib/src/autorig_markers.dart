@@ -31,11 +31,9 @@ import 'dart:math' as math;
 import 'dart:typed_data';
 import 'dart:ui' show Offset;
 
-import 'package:flutter3d_geometry/flutter3d_geometry.dart' show Ray;
+import 'package:flutter3d_core/geometry.dart' show Ray;
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
-import 'package:flutter3d_rig/flutter3d_rig.dart'
-    show BoneSegment, mirrorSkinWeights;
 import 'package:vector_math/vector_math.dart' hide Ray;
 
 import 'element_picking.dart';

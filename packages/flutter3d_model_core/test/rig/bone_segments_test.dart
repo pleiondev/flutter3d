@@ -1,13 +1,13 @@
 /// `anim-33d`'s own `boneSegmentsOf`: a [RetargetRig] read as
 /// [BoneSegment]s, addressed the same local way [WeightPair.joint] already
 /// is everywhere else — including the "more nodes than joints" case
-/// `RigBuildOptions.controllers` adds (`flutter3d_model_core`'s own
-/// `rig_template.dart`), read here without that package at all.
+/// `RigBuildOptions.controllers` adds (`rig_template.dart`), read here
+/// without a project at all.
 ///
-///     dart test test/rig_job_test.dart
+///     dart test test/rig/bone_segments_test.dart
 library;
 
-import 'package:flutter3d_rig/flutter3d_rig.dart';
+import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 import 'package:test/test.dart';
 import 'package:vector_math/vector_math.dart' hide Ray;
 

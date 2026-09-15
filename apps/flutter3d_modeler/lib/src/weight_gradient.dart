@@ -13,8 +13,8 @@
 ///
 /// **The colour goes into an already-uploaded [DeviceMesh], not into the
 /// [EditMesh] it came from.** `VertexLayout.standard`/`skinned` already carry
-/// a `color` attribute — `packages/flutter3d_geometry/lib/src/vertex_layout.
-/// dart` — and `surface.glsl`'s own `ReadSurface` already multiplies it into
+/// a `color` attribute — `packages/flutter3d_core/lib/src/geometry/
+/// vertex_layout.dart` — and `surface.glsl`'s own `ReadSurface` already multiplies it into
 /// the albedo, so no shader or layout work is needed here; what is needed is
 /// getting a weight into that channel. [EditMesh] has its own per-corner
 /// `colourOf`, and a document command that painted through it would cost a

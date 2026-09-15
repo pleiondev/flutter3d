@@ -124,14 +124,6 @@ dependencies:
   # this SDK, so `flutter pub get` never has two answers for one package.
   intl: ^0.20.3
 
-  # `BoneMap`/`looseAutoMap`, for screen 14's own retarget bone map —
-  # `S7`'s row. `modeler_cubit_test.dart`'s own `retargetInBackground`/
-  # `bindWeightsInBackground` fixtures already needed `BoneMap`/
-  # `BoneSegment` from here too, which is why this used to sit under
-  # `dev_dependencies` instead.
-  flutter3d_rig:
-    path: ../../packages/flutter3d_rig
-
 dev_dependencies:
   flutter_test:
     sdk: flutter

@@ -16,7 +16,6 @@ import 'package:flutter3d_model_core/flutter3d_model_core.dart' hide Outcome;
 import 'package:flutter3d_modeler/src/ui/clip_library.dart';
 import 'package:flutter3d_modeler/src/ui/retarget_panel.dart';
 import 'package:flutter3d_modeler/src/ui/theme.dart';
-import 'package:flutter3d_rig/flutter3d_rig.dart' show BoneMap;
 import 'package:flutter_test/flutter_test.dart';
 
 RetargetSource _source() => RetargetSource(

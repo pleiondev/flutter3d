@@ -58,10 +58,9 @@ library;
 
 import 'dart:io';
 
-import 'package:flutter3d_formats/flutter3d_formats.dart';
+import 'package:flutter3d_core/formats.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 import 'package:flutter3d_model_mcp/flutter3d_model_mcp.dart';
-import 'package:flutter3d_rig/flutter3d_rig.dart' show BoneMap, looseAutoMap;
 
 /// Case 4's own finished character — the exact project
 /// `test/fixtures/tutorial/case4.f3dproj` holds, read back the way opening

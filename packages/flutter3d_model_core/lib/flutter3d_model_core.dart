@@ -70,6 +70,7 @@ export 'src/retarget_source.dart';
 // until the only callers turned out to be this one and the server above it.
 export 'src/rig/bind_weights.dart';
 export 'src/rig/bone_map.dart';
+export 'src/rig/bone_segments.dart';
 export 'src/rig/retarget.dart';
 export 'src/rig/two_bone_ik.dart';
 export 'src/rig_issues.dart';
