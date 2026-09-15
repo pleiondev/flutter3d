@@ -302,6 +302,13 @@ Future<void> runCase4Scenario(ModelSession session) async {
     bounds: rigBounds,
     firstObjectId: session.project.nextId,
     skeletonName: 'auto',
+    // `tut-21`: `RobotExpressive.glb`'s own "Torso" carries a real,
+    // non-identity world transform (a ~100x scale and an axis swap, both
+    // from the file's own node hierarchy) — markers were picked in world
+    // space, so that transform has to fold back into the inverse bind
+    // matrices the same way `autorig_markers.dart`'s own `createRig` folds
+    // it in for the app's real auto-rig dialog.
+    meshWorld: worldTransformOf(session.project, case4BodyId),
   );
 
   final segments = _boneSegmentsOf(built);

@@ -317,6 +317,12 @@ Future<String?> createRig({
       options: options,
       firstObjectId: project.nextId,
       skeletonName: skeletonName,
+      // `tut-21`: markers are world-space picks, so the object actually
+      // being skinned has to fold its own world transform back into the
+      // inverse bind matrices — see `buildSkeleton`'s own `meshWorld` doc.
+      meshWorld: skinObjectId == null
+          ? null
+          : worldTransformOf(project, skinObjectId),
     );
   } on ArgumentError catch (error) {
     return 'auto-rig refused: ${error.message}';

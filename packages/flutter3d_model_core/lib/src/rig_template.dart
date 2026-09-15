@@ -25,16 +25,24 @@
 /// row's own "с симметрией" is an invariant of the algorithm, not a
 /// property that happens to hold when the input already was symmetric.
 ///
-/// **Every bone is a translation, so `inverseBind·worldRest = I` holds by
-/// construction too.** A joint's own rest transform is nothing but "where
-/// its marker sits, relative to its parent" — no rotation — so its world
-/// rest transform is `Matrix4.translation(worldPosition)` and its inverse
-/// bind matrix is that same matrix's own [Matrix4.inverted]. Composing the
-/// two is `T⁻¹·T`, the identity, for every joint, for the same reason two
-/// numbers multiplied by each other's reciprocal are always one — the test
-/// suite checks this against the actual returned objects rather than
-/// trusting the algebra on paper, the same discipline `MirrorJoints`' own
-/// test suite already holds itself to.
+/// **Every bone is a translation, so `inverseBind = worldRest⁻¹·meshWorld`
+/// holds by construction too.** A joint's own rest transform is nothing
+/// but "where its marker sits, relative to its parent" — no rotation — so
+/// its world rest transform is `Matrix4.translation(worldPosition)`, and
+/// its inverse bind matrix is that same matrix's own [Matrix4.inverted]
+/// with [buildSkeleton]'s own `meshWorld` parameter composed onto it —
+/// that parameter's own doc comment explains why the second factor has to
+/// be there (`tut-21`'s own fix: every rig this function built before it
+/// carried a `meshWorld` of exactly the identity no matter what the mesh
+/// object being skinned actually carried, which is silently correct for
+/// an identity mesh transform and silently wrong for anything else).
+/// `meshWorld` left at its own default (the identity) is the case every
+/// caller before `tut-21` was in, and reduces the claim above to
+/// `inverseBind·worldRest = I`, `T⁻¹·T`, for the same reason two numbers
+/// multiplied by each other's reciprocal are always one — the test suite
+/// checks this against the actual returned objects rather than trusting
+/// the algebra on paper, the same discipline `MirrorJoints`' own test
+/// suite already holds itself to.
 library;
 
 import 'dart:math' as math;
@@ -579,6 +587,32 @@ RigPreview previewRig(
 /// .added]'s own doc comment gives: the caller is the one that knows which
 /// id is actually free.
 ///
+/// [meshWorld] is the world transform, at bind time, of the object
+/// [markers] were placed against — the object a caller means to skin with
+/// the returned [BuiltRig.skeleton], left out (or null) when nothing is
+/// being skinned yet, in which case this defaults to the identity.
+/// **Every [markers] position is a world-space pick** (`autorig_markers
+/// .dart`'s own screen-to-world raycast, or the identical world-space
+/// scaling `case4_scenario.dart`/`rig_pipeline_mcp_test.dart` both use for
+/// a headless rig), but [inverseBindMatrices] has to undo a vertex's
+/// bind-time position in the *mesh's own local space* — the glTF
+/// convention `Skeleton.update`'s own doc comment states outright
+/// (`jointMatrix = inverse(meshWorld) * jointWorld * inverseBind`) and the
+/// one every consumer of a [ProjectSkeleton] already assumes: the live
+/// viewport's GPU pipeline (`SceneSync`), the shadow and object-pick
+/// passes, and `render_project.dart`'s own headless picture alike. A
+/// world-space marker folded straight into `worldRest⁻¹` with no
+/// [meshWorld] term is only correct for a mesh object whose own world
+/// transform happens to be the identity — every other mesh, any import
+/// that carries a scale or an axis swap among them (`RobotExpressive.glb`
+/// is a real one: a ~100× scale and an axis swap, both from the file's own
+/// node hierarchy, confirmed directly), gets a skeleton that skins
+/// correctly nowhere at all. This was `tut-10`'s own finding, worked
+/// around there by composing the missing term back in at render time
+/// instead of fixing it here (`render_project.dart`'s `_withSkin`, before
+/// `tut-21`); it never touched the live viewport, which had no such
+/// workaround and simply skinned wrong.
+///
 /// Throws [ArgumentError] if [options] would build more than 64 deforming
 /// joints (the skinning shader's own per-draw joint budget — see
 /// `ProjectProfile.hardMaxJoints`, `rig_issues.dart`'s own `> 64` check),
@@ -590,6 +624,7 @@ BuiltRig buildSkeleton(
   RigBuildOptions options = const RigBuildOptions(),
   required int firstObjectId,
   String? skeletonName,
+  Matrix4? meshWorld,
 }) {
   final table = _tableFor(template, options);
 
@@ -682,9 +717,14 @@ BuiltRig buildSkeleton(
   }
 
   final joints = <int>[for (final bone in table) idOf[bone.name]!];
+  // `worldRest⁻¹ · meshWorld` — see this function's own `meshWorld`
+  // parameter doc for why the second factor has to be composed in here
+  // rather than left for a caller to work around later (`tut-21`).
+  final Matrix4 mesh = meshWorld ?? Matrix4.identity();
   final inverseBindMatrices = <Matrix4>[
     for (final bone in table)
-      Matrix4.inverted(Matrix4.translation(worldPositions[bone.name]!)),
+      Matrix4.inverted(Matrix4.translation(worldPositions[bone.name]!))
+        ..multiply(mesh),
   ];
 
   final constraints = options.ikChains && template == RigTemplate.humanoid

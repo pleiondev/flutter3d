@@ -344,21 +344,23 @@ final MeshData _emptyMesh = MeshData(
 /// the project.
 ///
 /// **Baked on the CPU, in [object]'s own local space, rather than handed to
-/// the engine's own [Skeleton]/`MeshNode.skeleton` GPU pipeline.** That
-/// pipeline's own `jointMatrix = inverse(meshWorld) * jointWorld *
-/// inverseBind` formula (`Skeleton.update`'s own doc comment) assumes
-/// [ProjectSkeleton.inverseBindMatrices] map a *local*, un-transformed vertex
-/// into a joint's own space at bind time — the glTF convention.
-/// `buildSkeleton`'s own auto-rig instead measures both a joint's placement
-/// and a mesh's own vertices in *world* space, so its own inverse-bind
-/// matrices undo a *world*-space bind — confirmed against
-/// `RobotExpressive.glb`'s own auto-rigged torso, whose object transform
-/// carries a real 100× scale and axis swap from its import: fed through the
-/// GPU pipeline's local-space formula, every vertex collapsed to a hundredth
-/// of its right position, and the torso vanished. Composing an extra
-/// `* meshWorld` onto each joint's own matrix before it ever touches a local
-/// vertex — undone again by the leading `inverse(meshWorld)` — is what makes
-/// the two conventions agree.
+/// the engine's own [Skeleton]/`MeshNode.skeleton` GPU pipeline.** Not
+/// because the two conventions disagree — `tut-21` fixed that at the source,
+/// `buildSkeleton` itself, so [ProjectSkeleton.inverseBindMatrices] are
+/// correct in the engine's own convention whichever pipeline reads them — but
+/// because nothing else about a picture built here wants a live skinning setup
+/// stood up just to pose one mesh. The formula is deliberately the plain glTF
+/// one, `jointMatrix = inverse(meshWorld) * jointWorld * inverseBind`
+/// (`Skeleton.update`'s own doc comment, read that first), with no extra
+/// correction folded in: an earlier version composed one (an extra
+/// `* meshWorld` on each joint's matrix) to compensate for `buildSkeleton`
+/// binding in world space rather than the mesh's own local space — real, but
+/// the wrong place to fix it, since every other reader of the same skeleton
+/// (the live viewport's GPU pipeline, the shadow and object-pick passes) had
+/// no such workaround and skinned every non-identity mesh transform wrong.
+/// `buildSkeleton` now bakes the correction into the inverse-bind matrices
+/// itself; the two are the same composition, reassociated, so a picture's
+/// numbers do not change.
 ///
 /// **The mesh's own world transform is read once and treated as bind pose.**
 /// Nothing in this build animates an object's own transform independently of
@@ -387,8 +389,7 @@ MeshData _withSkin(
     for (var i = 0; i < skeleton.joints.length; i++)
       Matrix4.copy(invMeshWorld)
         ..multiply(worldTransformOf(project, skeleton.joints[i]))
-        ..multiply(skeleton.inverseBindMatrices[i])
-        ..multiply(meshWorld),
+        ..multiply(skeleton.inverseBindMatrices[i]),
   ];
 
   final stride = layout.floatsPerVertex;
