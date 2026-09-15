@@ -36,15 +36,21 @@ unmapped — checked directly while writing this case: `looseAutoMap` reads
 `torso_joint_1`, `arm_joint_L_2`, `leg_joint_R_3` and the rest against
 `RigTemplate.humanoid`'s own seventeen names and matches nothing at all.
 
-> **A real limit in `looseAutoMap`, not a mistake in this file.**
-> `looseAutoMap` reads two rig-family conventions — Mixamo's
-> `mixamorig:LeftUpLeg` and 3ds Max Biped's `Bip01_L_Thigh` — and both put
-> the side marker (`Left`/`L`) at the very *start* of the bone's own name,
-> once its own prefix is stripped. `RiggedFigure.glb`'s own names put the
-> side in the *middle* (`leg_joint_R_1`), a shape `looseAutoMap`'s own
-> `_looseSide` does not read at all, so every row comes back unmatched
-> rather than guessed at. This is `tut-13`, found writing this case; see the
-> note at the end of this page.
+> **A real limit in `looseAutoMap`, not a mistake in this file — narrower
+> than it first looked.** `looseAutoMap` used to read a side marker
+> (`Left`/`L`) only at the very *start* of a bone's own name, once its own
+> prefix was stripped, so `RiggedFigure.glb`'s own mid-name markers
+> (`leg_joint_R_1`) went entirely unread. `_looseSide` now also reads a
+> side marker as a delimited token anywhere in the name — a rig spelling
+> its side the way Blender's own exporter does (`UpperArm_L`, `Thigh_R`)
+> auto-maps correctly today. `RiggedFigure.glb` itself still comes back
+> empty, for a different reason: its own joint words (`torso`/`arm`/
+> `leg`/`neck`) are generic placeholders `looseAutoMap`'s own synonym
+> tables have never carried a word for, and `arm_joint_L_1`/`_2`/`_3`
+> differ from each other only by a trailing chain index (shoulder/elbow/
+> wrist) that no word-lookup can read regardless of where the side marker
+> sits. This is `tut-13`, found writing this case; see the note at the end
+> of this page.
 
 ## 3. Corrections — the bone-map table, by hand
 

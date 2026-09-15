@@ -173,9 +173,13 @@ String _lettersOnly(String name) =>
 /// prefix and the side marker are gone. Mixamo spells a side as a full
 /// `Left`/`Right` word at the very start (`LeftUpLeg`); 3ds Max Biped spells
 /// it as a lone `L`/`R` token set off by an underscore or a space right
-/// after its own prefix (`Bip01_L_UpperArm`, `Bip01 L UpperArm`). Null when
-/// [afterPrefix] carries neither — a centreline bone, or a name this loose
-/// reading does not recognise the shape of.
+/// after its own prefix (`Bip01_L_UpperArm`, `Bip01 L UpperArm`). Neither of
+/// those is anchored to the front of the *whole* name once a caller's own
+/// naming puts the side marker mid-word instead (`leg_joint_R_1`,
+/// `Bone_Hand.L`) — [_looseSideAnywhere] is the fallback for that shape.
+/// Null when [afterPrefix] carries no recognisable side marker at all — a
+/// centreline bone, or a name this loose reading does not recognise the
+/// shape of.
 ({bool left, String core})? _looseSide(String afterPrefix) {
   final String lower = afterPrefix.toLowerCase();
   if (lower.startsWith('left')) {
@@ -185,8 +189,63 @@ String _lettersOnly(String name) =>
     return (left: false, core: afterPrefix.substring(5));
   }
   final Match? token = RegExp(r'^[lr][_ ]').matchAsPrefix(lower);
-  if (token == null) return null;
-  return (left: lower[0] == 'l', core: afterPrefix.substring(token.end));
+  if (token != null) {
+    return (left: lower[0] == 'l', core: afterPrefix.substring(token.end));
+  }
+  return _looseSideAnywhere(afterPrefix);
+}
+
+/// Every delimiter [_looseSideAnywhere] splits a name on before looking for
+/// a side token — underscore, dot, space and hyphen, the separators every
+/// naming convention this file already knows (`mixamorig:`'s own colon is
+/// handled by [_stripLoosePrefix] before this ever runs) uses somewhere.
+final RegExp _looseTokenBoundary = RegExp(r'[_.\- ]');
+
+/// [name] split into words on [_looseTokenBoundary] and on each lower-to-
+/// upper camelCase boundary, empty pieces dropped — `leg_joint_R_1` reads as
+/// `leg`, `joint`, `R`, `1`; `BoneHandL` reads as `Bone`, `Hand`, `L`.
+List<String> _looseTokens(String name) {
+  final StringBuffer marked = StringBuffer();
+  for (int i = 0; i < name.length; i++) {
+    if (i > 0 && _isLowerLetter(name[i - 1]) && _isUpperLetter(name[i])) {
+      marked.write('_');
+    }
+    marked.write(name[i]);
+  }
+  return marked
+      .toString()
+      .split(_looseTokenBoundary)
+      .where((String token) => token.isNotEmpty)
+      .toList();
+}
+
+bool _isLowerLetter(String char) => RegExp('[a-z]').hasMatch(char);
+
+bool _isUpperLetter(String char) => RegExp('[A-Z]').hasMatch(char);
+
+/// [_looseSide]'s own fallback once neither Mixamo's nor Biped's start-
+/// anchored shape matches at position zero: [afterPrefix] split into
+/// [_looseTokens], the first token read as `l`/`r`/`left`/`right`
+/// (case-insensitively — the same vocabulary the start-anchored shapes
+/// above already match) taken as the side marker wherever in the name it
+/// falls, and every *other* token, still in order, rejoined into the core
+/// the caller looks up the ordinary way. Null when no token reads as a
+/// side at all.
+({bool left, String core})? _looseSideAnywhere(String afterPrefix) {
+  final List<String> tokens = _looseTokens(afterPrefix);
+  for (int i = 0; i < tokens.length; i++) {
+    final bool? left = switch (tokens[i].toLowerCase()) {
+      'left' => true,
+      'right' => false,
+      'l' => true,
+      'r' => false,
+      _ => null,
+    };
+    if (left == null) continue;
+    final List<String> rest = List<String>.of(tokens)..removeAt(i);
+    return (left: left, core: rest.join('_'));
+  }
+  return null;
 }
 
 /// [rawName] read against [humanoidBoneNames] the loose way: a rig-family

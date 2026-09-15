@@ -119,5 +119,66 @@ void main() {
       );
       expect(boneMap.isEmpty, isTrue);
     });
+
+    // `tut-13`: `_looseSide` used to require the side marker at the very
+    // start of the (prefix-stripped) name, so a name that puts it mid-word
+    // — Blender's own `.L`/`.R` export suffix, or a rig that spells the
+    // side between two other words — read as no side at all and fell
+    // through to the centreline table, which does not know the word either.
+    test('a side marker in the middle of a name still maps, once the rest '
+        'of the word is one the dictionary already knows', () {
+      final boneMap = looseAutoMap(<String>[
+        'UpperArm_L',
+        'Hand.R',
+        'Thigh_R',
+        'Foot_L',
+      ], humanoidBoneNames);
+      expect(boneMap.targetOf('UpperArm_L'), 'leftShoulder');
+      expect(boneMap.targetOf('Hand.R'), 'rightWrist');
+      expect(boneMap.targetOf('Thigh_R'), 'rightHip');
+      expect(boneMap.targetOf('Foot_L'), 'leftAnkle');
+    });
+
+    test('the start-anchored Mixamo/Biped shapes still win over the '
+        'mid-name fallback — widening does not change an already-'
+        'recognised name', () {
+      final boneMap = looseAutoMap(<String>[
+        'mixamorig:LeftUpLeg',
+        'Bip01_L_Thigh',
+      ], humanoidBoneNames);
+      expect(boneMap.targetOf('mixamorig:LeftUpLeg'), 'leftHip');
+      expect(boneMap.targetOf('Bip01_L_Thigh'), 'leftHip');
+    });
+
+    test("RiggedFigure.glb's own joint names still map nothing at all — "
+        'the mid-name side is now recognised, but its body words '
+        '(`torso`/`arm`/`leg`/`neck`) are generic placeholders '
+        'disambiguated only by a trailing index (`arm_joint_L_1` = '
+        'shoulder, `arm_joint_L_2` = elbow, ...), a shape no dictionary '
+        'word lookup can read; a canary against silently believing this '
+        'closes `tut-13` for this file', () {
+      final boneMap = looseAutoMap(<String>[
+        'torso_joint_1',
+        'torso_joint_2',
+        'torso_joint_3',
+        'neck_joint_1',
+        'neck_joint_2',
+        'arm_joint_L_1',
+        'arm_joint_L_2',
+        'arm_joint_L_3',
+        'arm_joint_R_1',
+        'arm_joint_R_2',
+        'arm_joint_R_3',
+        'leg_joint_L_1',
+        'leg_joint_L_2',
+        'leg_joint_L_3',
+        'leg_joint_L_5',
+        'leg_joint_R_1',
+        'leg_joint_R_2',
+        'leg_joint_R_3',
+        'leg_joint_R_5',
+      ], humanoidBoneNames);
+      expect(boneMap.isEmpty, isTrue);
+    });
   });
 }
