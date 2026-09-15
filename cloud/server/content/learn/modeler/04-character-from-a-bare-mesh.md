@@ -71,18 +71,14 @@ While painting, the mesh shows the weight gradient — five colour stops from
 cold blue (unweighted) through green, amber and hot red (fully weighted to
 the selected joint), the legend in the corner naming which is which.
 
-> **The gradient itself has no headless equivalent.** Checked directly
-> while writing this case: `RenderShading` (`render_project.dart`) has
-> exactly two members, `material` and `normals` — no vertex-colour or
-> weight mode at all, so neither the `render` nor the `renderSheet` MCP tool
-> can be asked for this picture at any depth. The gradient shading itself
-> lives one layer up, in the windowed engine's own `SurfaceShading`
-> (`display_modes.dart`), which `flutter3d_model_core` — a plain Dart
-> package with no engine dependency — cannot reach. This is `tut-11`, found
-> writing this case; see the note at the end of this page.
+> **The gradient itself has a headless equivalent now.** `RenderShading`
+> (`render_project.dart`) gained a third member, `weights`, alongside
+> `material` and `normals`: `render`/`renderSheet` take a `joint` argument
+> and bake the identical five-stop gradient into the object bound to that
+> joint's own skeleton — the picture below is a real one, not a
+> placeholder (`tut-11`, fixed alongside `tut-07`/`tut-10`).
 
-*(screenshot: the weights panel, brush mid-stroke over the shoulder, the
-gradient and its legend visible — placeholder)*
+![The weight-paint gradient over the left elbow, real: cold blue where the joint has no pull, warming toward red where it does (tut-11).](/assets/learn/modeler/character-from-a-bare-mesh/02-weight-paint-gradient.png)
 
 ## 4. A short clip: bend, pose, keys
 
@@ -170,7 +166,7 @@ function) — the real imported mesh, the real 17-joint rig, the real bound
 weights, the real "chestPuff" shape key and its driver, the real "wave"
 clip, all as they stand once every step above has run:
 
-![The robot after auto-rig, weight paint, the chest-puff morph and the "wave" clip — real geometry, real materials, but neither the bent-elbow pose nor the puffed chest actually show, since renderProject applies no skin deformation or shape blending at all (tut-10).](/assets/learn/modeler/character-from-a-bare-mesh/07-character-real-geometry.png)
+![The robot after auto-rig, weight paint, the chest-puff morph and the "wave" clip — the bent elbow and the puffed chest both show, posed and blended through the document's own current skeleton and shape weights (tut-10).](/assets/learn/modeler/character-from-a-bare-mesh/07-character-real-geometry.png)
 
 ---
 
@@ -181,23 +177,23 @@ case by hand on a real machine and fill in a line here — "*n* minutes,
 *date*, *machine*" — the way `rel-09`'s own cohort rows do. Nothing in this
 session could actually run the desktop app, so no time is claimed.
 
-**Screenshots.** Six pictures on this page are placeholders — a plain
-colour with "screenshot pending" on it, at
+**Screenshots.** Five pictures on this page are still placeholders — a
+plain colour with "screenshot pending" on it, at
 `cloud/server/web/assets/learn/modeler/character-from-a-bare-mesh/
-{01-autorig-dialog,02-weight-paint-gradient,03-bend-slider,04-pose-and-keys,
+{01-autorig-dialog,03-bend-slider,04-pose-and-keys,
 05-morphs-panel,06-game-preview}.png` — standing in for the running app's
-own chrome (the auto-rig dialog and its markers, the weight-paint panel and
-its gradient legend, the bend slider, the transport bar and its keys, the
-morphs panel, the game-preview screen with its overlays). This session
-cannot open a macOS window (`flutter run -d macos` fails to foreground here,
-the same limit cases 1–3's own pages already document), so none of the six
-could be shot for real. To replace them on a real Mac:
+own chrome (the auto-rig dialog and its markers, the bend slider, the
+transport bar and its keys, the morphs panel, the game-preview screen with
+its overlays). `02-weight-paint-gradient.png` is no longer one of them — see
+`tut-11` below. This session cannot open a macOS window (`flutter run -d
+macos` fails to foreground here, the same limit cases 1–3's own pages
+already document), so none of the remaining five could be shot for real. To
+replace them on a real Mac:
 
 1. `cd apps/flutter3d_modeler && flutter run -d macos --dart-define=mcpPort=0 -a --window=1440x900`
 2. `dart run tool/tutorial/bin/shoot.dart` against a scenario that: imports
    `RobotExpressive.glb` and opens the auto-rig dialog with markers placed
-   (`01-autorig-dialog`); switches to the Weights sub-mode mid-stroke, the
-   gradient and legend visible (`02-weight-paint-gradient`); drags the bend
+   (`01-autorig-dialog`); drags the bend
    slider (`03-bend-slider`); switches to Pose, shows the "wave" clip's two
    keys on the transport bar (`04-pose-and-keys`); switches to Morphs with
    "chestPuff" and its driver set (`05-morphs-panel`); opens the game-preview
@@ -205,20 +201,23 @@ could be shot for real. To replace them on a real Mac:
 3. Copy the PNGs over the placeholders at the paths above and remove this
    note once they are real.
 
-**The one real render, and what it cannot show.** The picture above is a
+**The one real render, now showing the rig too.** The picture above is a
 genuine CPU render of this case's own final project — the real imported
 mesh, the real 17-joint rig, the real bound weights, the real "chestPuff"
 shape key and its driver, the real "wave" clip — through the same
-`renderProject` the `render`/`renderSheet` MCP tools use. It shows
-none of the actual rigging: `render_project.dart` never mentions "skin" or
-"skeleton" at all, so the picture is the base mesh at its bind pose, not the
-bent-elbow pose this case's own clip keys, and it never mentions `shapeSet`
-either, so the chest never puffs. This is `tut-10`, found writing this
-case — a headless-render gap, not a defect in the rig, weights, pose or
-morph themselves, every one of which this case's own test file checks
-directly against the document data rather than against a picture. See
-`doc/modeler-tutorial-gaps.md` for the full entry, alongside `tut-11` (the
-weight-gradient shading mode has no headless render path at all) and
+`renderProject` the `render`/`renderSheet` MCP tools use, and now posed
+through that rig and blended toward that shape key too: the bent elbow and
+the puffed chest both show, read straight off the document's own current
+joint transforms and shape weights rather than off any animation curve
+(`tut-10`, fixed alongside `tut-07`/`tut-11`). What it does not show is a
+narrower, separate, pre-existing bug this fix's own first real render
+turned up: `RobotExpressive.glb`'s own auto-rigged torso carries a real
+scale-and-axis-swap transform from its own import, and `buildSkeleton`'s
+own bind-matrix convention disagrees with the live engine's GPU skinning
+pipeline about which space that transform belongs to — worth its own row,
+not folded into this one, and not visible here since this page's own render
+uses the corrected, CPU-side math rather than the live pipeline. See
+`doc/modeler-tutorial-gaps.md` for the full entry, alongside
 `tut-09` (bending a joint for an agent or a headless case is `select` +
 `RotateBy` on the joint's own object, not the live-only bend slider).
 

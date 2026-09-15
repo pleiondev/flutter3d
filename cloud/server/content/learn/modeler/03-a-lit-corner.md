@@ -102,27 +102,22 @@ Switch to Scene mode. Its four panels each set one part of the project's own
 *(screenshot: Scene mode's four panels — sources, shadows, environment,
 post — with the values above set — placeholder)*
 
-> **What you will not see in a headless render: the lighting itself.**
+> **What a headless render shows now, and what it still does not.**
 > `renderProject`/`renderSheet` — the same functions this page's own
-> "expected result" picture below comes from — draw every project under two
-> fixed key/fill lights of their own and never read `ModelProject.lighting`
-> at all: not the point light, not its colour or shadow, not the studio
-> environment, not the post settings. This is `tut-07`, found writing this
-> case, and it echoes a gap already named at the live-viewport layer:
-> `flutter3d_render_job`'s own `scene_from_project.dart` says outright that
-> nothing in the application calls `LightingSync` from the main viewport
-> either (`mat-23`'s still-unfinished wiring) — checked directly rather than
-> assumed, `LightingSync` is instantiated in exactly one place in this whole
-> application, inside `lightOverflowOf`'s own throwaway `Scene`, built only
-> to count lights and never drawn. So a person driving the real GUI sees
-> this step's own light as a marker in the viewport (`LightGizmos`,
-> `mat-25`), but nothing in this build — not the main viewport, not the
-> game-preview route, not either headless render tool — currently draws
-> what that light, its shadow, the environment or the post settings
-> actually do to the picture. The render below is real geometry, real
-> placement, real materials — it is not a lit picture of this step.
+> "expected result" picture below comes from — draw every project under a
+> fixed key/fill pair, and now also this step's own point light, its colour
+> and its shadow request, additively over that fixed pair: a project that
+> never touches lighting still renders exactly as it always did, and one
+> that does now shows it, in the live viewport and in a headless render
+> alike (`tut-07`, fixed alongside `mat-23`'s own `LightingSync` wiring).
+> **Ambient** and **Environment** are the two fields that still do not
+> reach a picture: the engine's own ambient term has a different default
+> than the document's own field, so wiring it in would have rebrightened
+> every picture in this build for a field nothing yet asks to see, and
+> "Studio" has no baked environment map behind it at all yet — both stay a
+> real, separate, narrower gap than the one this step used to name.
 
-![The vase and the imported, moved and turned box, exactly as `renderProject` draws them today — under its own fixed lighting, not the point light, shadows, studio environment or post settings this step just set on the project (tut-07).](/assets/learn/modeler/a-lit-corner/03-lit-corner.png)
+![The vase and the imported, moved and turned box, lit by the point light this step just set on the project — its own colour, its own shadow request, additive over the viewport's fixed key/fill pair (tut-07). The environment preset and the ambient level do not reach this picture yet.](/assets/learn/modeler/a-lit-corner/03-lit-corner.png)
 
 ## 4. Export, with both nodes
 
@@ -192,12 +187,12 @@ real. To replace them on a real Mac:
 **The one real render.** `03-lit-corner.png` is a genuine CPU render of this
 case's own project data — the vase and the box at their real, moved and
 turned positions, through the same `renderProject` the `render`/
-`renderSheet` MCP tools use — but it cannot show the lighting this case's
-own step 3 sets up, because nothing in the render path reads
-`ModelProject.lighting` yet. See the callout in step 3 and `tut-07` in
-`doc/modeler-tutorial-gaps.md` for the full story; this is a headless-render
-(and, per `mat-23`, live-viewport-snapshot) gap, not something this case
-invented a workaround for.
+`renderSheet` MCP tools use, now lit by the point light this case's own
+step 3 sets up: its colour, intensity and shadow request, additive over the
+viewport's own fixed key/fill pair (`tut-07`, fixed alongside `mat-23`'s own
+`LightingSync` wiring). The environment preset and the ambient level are the
+two fields that still do not reach this picture — see the callout in step 3
+and `tut-07` in `doc/modeler-tutorial-gaps.md` for why.
 
 **Proving it.** `packages/flutter3d_model_mcp/test/fixtures/tutorial/
 case3_scenario.dart` builds exactly the project this page describes, against

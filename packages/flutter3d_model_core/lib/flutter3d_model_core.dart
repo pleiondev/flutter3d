@@ -40,6 +40,7 @@ export 'src/image_dimensions.dart';
 export 'src/import_into.dart';
 export 'src/job.dart';
 export 'src/key_table.dart';
+export 'src/lighting_sync.dart';
 export 'src/listing.dart';
 export 'src/lod_cache.dart';
 export 'src/lod_spec.dart';

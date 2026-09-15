@@ -9,6 +9,9 @@
 ///     dart test test/render_project_test.dart
 library;
 
+import 'dart:math' as math;
+import 'dart:typed_data';
+
 import 'package:flutter3d_core/formats.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
@@ -397,5 +400,407 @@ void main() {
         expect(_differingPixels(before, after), 0);
       },
     );
+  });
+
+  group("tut-07 — a project's own lighting reaches the picture", () {
+    Future<Rgba8Image> render(ModelProject project) async =>
+        (await decodeImagePure(
+          await renderProject(
+            RenderRequest(project: project, width: 64, height: 64),
+            deviceFactory: _cpuDevice,
+          ),
+        ))!;
+
+    int brightnessSum(Rgba8Image image) {
+      var sum = 0;
+      for (var i = 0; i < image.pixels.length; i += 4) {
+        sum += image.pixels[i] + image.pixels[i + 1] + image.pixels[i + 2];
+      }
+      return sum;
+    }
+
+    ModelProject relit(ModelProject base, SceneLighting lighting) =>
+        ModelProject(
+          profile: base.profile,
+          objects: base.objects,
+          materials: base.materials,
+          images: base.images,
+          nextId: base.nextId,
+          skeletons: base.skeletons,
+          clips: base.clips,
+          lighting: lighting,
+        );
+
+    test("a project's own point light brightens the picture, on top of the "
+        'fixed key/fill pair', () async {
+      final base = _cubeProject();
+      final unlit = await render(base);
+      final lit = await render(
+        relit(
+          base,
+          SceneLighting(
+            lights: <ProjectLight>[
+              ProjectLight(
+                type: ProjectLightType.point,
+                intensity: 80.0,
+                transform: Matrix4.translation(Vector3(1.5, 1.5, 1.5)),
+              ),
+            ],
+          ),
+        ),
+      );
+
+      // Mutation: build `renderProject`'s own scene from the two fixed
+      // lights alone, the way it did before `tut-07` — the two pictures
+      // would then be identical, since nothing reads `project.lighting`
+      // at all.
+      expect(
+        _differingPixels(unlit, lit),
+        greaterThan(0),
+        reason:
+            "a project's own AddLight should reach a headless render, "
+            'not only the live viewport',
+      );
+      expect(
+        brightnessSum(lit),
+        greaterThan(brightnessSum(unlit)),
+        reason: 'an added point light should brighten the picture',
+      );
+    });
+
+    test("the scene's own exposure reaches the picture too", () async {
+      final base = _cubeProject();
+      final normal = await render(base);
+      final dim = await render(relit(base, const SceneLighting(exposure: 0.3)));
+
+      expect(
+        brightnessSum(dim),
+        lessThan(brightnessSum(normal)),
+        reason:
+            "SetSceneLightingField('exposure', ...) should darken a "
+            'headless render, the same way it darkens the live viewport',
+      );
+    });
+  });
+
+  group('tut-10 — a posed, skinned, morphed character', () {
+    Future<Rgba8Image> render(ModelProject project) async =>
+        (await decodeImagePure(
+          await renderProject(
+            RenderRequest(
+              project: project,
+              view: RenderProjectView.front,
+              width: 64,
+              height: 64,
+            ),
+            deviceFactory: _cpuDevice,
+          ),
+        ))!;
+
+    /// A flat quad, small enough that a modest joint move carries it well
+    /// clear of where it started.
+    EditMesh buildQuad() => EditMesh.fromFaces(
+      <Vector3>[
+        Vector3(-0.5, -0.5, 0),
+        Vector3(0.5, -0.5, 0),
+        Vector3(0.5, 0.5, 0),
+        Vector3(-0.5, 0.5, 0),
+      ],
+      <List<int>>[
+        <int>[0, 1, 2, 3],
+      ],
+    );
+
+    /// A project with one quad, wholly weighted to one joint sitting at
+    /// [jointTransform] — bind pose is always the joint at the identity, so
+    /// [jointTransform] alone is what a `PoseJoint`/`RotateBy` pair would
+    /// have moved it to.
+    ModelProject skinnedQuadProject(Matrix4 jointTransform) {
+      var project = const ModelProject().added(
+        (int id) => ModelObject(
+          id: id,
+          name: 'joint',
+          geometry: const SocketGeometry(),
+          transform: jointTransform,
+        ),
+      );
+      final int jointId = project.objects.single.id;
+
+      final mesh = buildQuad();
+      mesh.beginStep();
+      assignSelection(
+        mesh,
+        <int>[for (var v = 0; v < mesh.vertexSlotCount; v++) v],
+        0,
+        1.0,
+      );
+      mesh.endStep();
+      project = project.added(
+        (int id) => ModelObject(
+          id: id,
+          name: 'mesh',
+          geometry: EditedGeometry(mesh),
+          transform: Matrix4.identity(),
+          materialSlots: const <int>[0],
+          skeletonIndex: 0,
+        ),
+      );
+
+      return ModelProject(
+        profile: project.profile,
+        objects: project.objects,
+        materials: <ProjectMaterial>[
+          ProjectMaterial(
+            surface: SurfaceMaterial(
+              baseColor: Vector4(0.9, 0.1, 0.1, 1.0),
+              roughness: 0.8,
+            ),
+          ),
+        ],
+        images: project.images,
+        nextId: project.nextId,
+        skeletons: <ProjectSkeleton>[
+          ProjectSkeleton(
+            joints: <int>[jointId],
+            inverseBindMatrices: <Matrix4>[Matrix4.identity()],
+          ),
+        ],
+        clips: project.clips,
+        lighting: project.lighting,
+      );
+    }
+
+    test("a posed joint moves the mesh it skins — renderProject draws the "
+        'pose, not the bind pose', () async {
+      // A rotation, not a translation: `_frame`'s own camera re-fits to
+      // wherever a lone skinned object ends up, so a pure translation
+      // reads as the identical picture either way — moved, then framed
+      // right back to the middle. Turning the flat quad edge-on to the
+      // camera instead changes its own *silhouette*, which framing cannot
+      // hide.
+      final rest = await render(skinnedQuadProject(Matrix4.identity()));
+      final posed = await render(
+        skinnedQuadProject(Matrix4.rotationY(math.pi / 2)),
+      );
+
+      // Mutation: read `object.geometry` at raw bind pose regardless of
+      // `skeletonIndex`, the way `renderProject` did before `tut-10` —
+      // `restLit` and `posedLit` would then be equal, since nothing about
+      // the mesh object's own transform ever changed.
+      final int restLit = _litPixels(rest, threshold: 30);
+      final int posedLit = _litPixels(posed, threshold: 30);
+      expect(
+        posedLit,
+        lessThan(restLit ~/ 3),
+        reason:
+            'a quad turned edge-on by its own joint should cover far '
+            'fewer pixels face-on than one left at bind pose — '
+            'rest=$restLit posed=$posedLit',
+      );
+    });
+
+    test("a shape key's own weight blends into the render", () async {
+      final quad = buildQuad();
+      final puffed = Float32List(quad.vertexSlotCount * 3);
+      for (var v = 0; v < quad.vertexSlotCount; v++) {
+        final p = quad.positionOf(v);
+        puffed[v * 3] = p.x * 2.4;
+        puffed[v * 3 + 1] = p.y * 2.4;
+        puffed[v * 3 + 2] = p.z * 2.4;
+      }
+      final key = ShapeKey('puff', puffed);
+
+      ModelProject projectAt(double weight) {
+        final base = const ModelProject().added(
+          (int id) => ModelObject(
+            id: id,
+            name: 'mesh',
+            geometry: EditedGeometry(quad),
+            transform: Matrix4.identity(),
+            materialSlots: const <int>[0],
+            shapeSet: ShapeSet(
+              keys: <ShapeKey>[key],
+              weights: <double>[weight],
+            ),
+          ),
+        );
+        return ModelProject(
+          profile: base.profile,
+          objects: base.objects,
+          materials: <ProjectMaterial>[
+            ProjectMaterial(
+              surface: SurfaceMaterial(
+                baseColor: Vector4(0.9, 0.1, 0.1, 1.0),
+                roughness: 0.8,
+              ),
+            ),
+          ],
+          images: base.images,
+          nextId: base.nextId,
+          skeletons: base.skeletons,
+          clips: base.clips,
+          lighting: base.lighting,
+        );
+      }
+
+      final flat = await render(projectAt(0.0));
+      final blended = await render(projectAt(1.0));
+
+      // Mutation: never read `object.shapeSet` at all, the way
+      // `renderProject` did before `tut-10` — the two pictures would
+      // then be identical regardless of the weight.
+      expect(
+        _differingPixels(flat, blended),
+        greaterThan(0),
+        reason:
+            "a shape key's own weight should blend into a headless "
+            'render — case 4\'s own chest-puff morph',
+      );
+    });
+  });
+
+  group('tut-11 — the weight-paint gradient render mode', () {
+    /// A ten-vertex strip along X, half of it weighted 1.0 to the one
+    /// joint and half left at 0.0 — two known, well-separated regions to
+    /// sample the gradient at.
+    ModelProject weightStripProject() {
+      const int columns = 10;
+      final points = <Vector3>[];
+      for (var x = 0; x <= columns; x++) {
+        final u = x / columns - 0.5;
+        points
+          ..add(Vector3(u, -0.5, 0))
+          ..add(Vector3(u, 0.5, 0));
+      }
+      final faces = <List<int>>[
+        for (var x = 0; x < columns; x++)
+          <int>[x * 2, x * 2 + 2, x * 2 + 3, x * 2 + 1],
+      ];
+      final mesh = EditMesh.fromFaces(points, faces);
+      mesh.beginStep();
+      for (var v = 0; v < mesh.vertexSlotCount; v++) {
+        final onJoint = mesh.positionOf(v).x >= 0;
+        if (onJoint) assignSelection(mesh, <int>[v], 0, 1.0);
+      }
+      mesh.endStep();
+
+      final joint = const ModelProject().added(
+        (int id) => ModelObject(
+          id: id,
+          name: 'joint',
+          geometry: const SocketGeometry(),
+          transform: Matrix4.identity(),
+        ),
+      );
+      final int jointId = joint.objects.single.id;
+      final withMesh = joint.added(
+        (int id) => ModelObject(
+          id: id,
+          name: 'mesh',
+          geometry: EditedGeometry(mesh),
+          transform: Matrix4.identity(),
+          materialSlots: const <int>[0],
+          skeletonIndex: 0,
+        ),
+      );
+      return ModelProject(
+        profile: withMesh.profile,
+        objects: withMesh.objects,
+        materials: <ProjectMaterial>[
+          ProjectMaterial(surface: SurfaceMaterial()),
+        ],
+        images: withMesh.images,
+        nextId: withMesh.nextId,
+        skeletons: <ProjectSkeleton>[
+          ProjectSkeleton(
+            joints: <int>[jointId],
+            inverseBindMatrices: <Matrix4>[Matrix4.identity()],
+          ),
+        ],
+        clips: withMesh.clips,
+        lighting: withMesh.lighting,
+      );
+    }
+
+    test('the half painted onto the joint reads warmer than the half left at '
+        'zero', () async {
+      final project = weightStripProject();
+      final jointId = project.objects
+          .firstWhere((ModelObject o) => o.name == 'joint')
+          .id;
+      final decoded = (await decodeImagePure(
+        await renderProject(
+          RenderRequest(
+            project: project,
+            view: RenderProjectView.front,
+            width: 64,
+            height: 64,
+            shading: RenderShading.weights,
+            weightsJoint: jointId,
+          ),
+          deviceFactory: _cpuDevice,
+        ),
+      ))!;
+
+      // Searched over the whole picture rather than sampled at a fixed
+      // coordinate: `_frame`'s own fit (margin, aspect, the socket
+      // joint's own degenerate bounds folded into the box) is real
+      // arithmetic this test has no business duplicating just to guess
+      // a pixel address — what it can assert directly is that both of
+      // `weight_gradient_colors.dart`'s own extreme stops actually
+      // appear somewhere in the picture.
+      bool hasPixelNear(int r, int g, int b, {int tolerance = 40}) {
+        for (var i = 0; i < decoded.pixels.length; i += 4) {
+          final dr = (decoded.pixels[i] - r).abs();
+          final dg = (decoded.pixels[i + 1] - g).abs();
+          final db = (decoded.pixels[i + 2] - b).abs();
+          if (dr <= tolerance && dg <= tolerance && db <= tolerance) {
+            return true;
+          }
+        }
+        return false;
+      }
+
+      // Mutation: paint every vertex the same colour (or draw `material`
+      // regardless of `shading`) and neither of these is found.
+      expect(
+        hasPixelNear(0x2A, 0x3A, 0x7A),
+        isTrue,
+        reason:
+            'the untouched half should read as the gradient\'s own '
+            'no-influence stop, #2A3A7A',
+      );
+      expect(
+        hasPixelNear(0xFF, 0x3B, 0x5C),
+        isTrue,
+        reason:
+            'the joint half should read as the gradient\'s own '
+            'full-influence stop, #FF3B5C',
+      );
+    });
+
+    test('an object not bound to the requested joint falls back to material, '
+        'not a blank mesh', () async {
+      final unbound = _cubeProject();
+      final decoded = (await decodeImagePure(
+        await renderProject(
+          RenderRequest(
+            project: unbound,
+            width: 48,
+            height: 48,
+            shading: RenderShading.weights,
+            weightsJoint: 999,
+          ),
+          deviceFactory: _cpuDevice,
+        ),
+      ))!;
+      expect(
+        _litPixels(decoded),
+        greaterThan(0),
+        reason:
+            'an unskinned object under `weights` mode should still draw '
+            'its own material rather than nothing at all',
+      );
+    });
   });
 }

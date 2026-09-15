@@ -16,7 +16,6 @@ import 'package:flutter3d_model_core/flutter3d_model_core.dart' hide Outcome;
 import 'package:flutter3d_rig/flutter3d_rig.dart' show BoneMap;
 
 import '../../display_modes.dart';
-import '../../lighting_sync.dart';
 import '../../material_editing.dart';
 import '../../scene_mode.dart';
 import '../../staging.dart';

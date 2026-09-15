@@ -46,7 +46,6 @@ import 'package:flutter3d_model_core/flutter3d_model_core.dart'
     hide Key, Outcome;
 
 import '../game_preview_settings.dart';
-import '../lighting_sync.dart' show lightOverflowOf;
 import '../modeler_viewport.dart';
 import '../scene_mode.dart';
 import '../staging.dart';
@@ -59,11 +58,10 @@ import 'transport_bar.dart';
 /// Opens screen 19 as a full-screen route over [context]'s own `Navigator`.
 ///
 /// [baseSettings] is whatever `RenderSettings` the caller's own viewport
-/// draws with — a bare `RenderSettings()` today, since nothing in this
-/// application yet threads `LightingSync.apply`'s own output through the
-/// main viewport either — so this preview's tonemap/shadows/sky sit on top
-/// of whatever that caller already has rather than a second default this
-/// screen invents.
+/// draws with — `LightingSync.apply`'s own output, the same way the main
+/// viewport folds it in (`tut-07`'s own fix), so this preview's own
+/// tonemap/shadows/sky sit on top of the document's real lighting rather
+/// than a second default this screen invents.
 Future<void> showGamePreviewScreen(
   BuildContext context, {
   required Renderer renderer,

@@ -7,10 +7,10 @@
 /// same split [ProjectMaterial] keeps from `Material`, and the same reason:
 /// this file has to serialize, journal and undo without a `GraphicsDevice`
 /// anywhere nearby. Pushing a value here onto the actual `LightNode`s and
-/// `RenderSettings` a viewport draws is `LightingSync`'s job, in
-/// `apps/flutter3d_modeler` — this package depends on neither the engine nor
-/// Flutter, and a sync that touches both belongs on the side of the split
-/// that already does.
+/// `RenderSettings` a viewport draws is `LightingSync`'s job
+/// (`lighting_sync.dart`, this same package) — no `GraphicsDevice` needed
+/// for that either, only `flutter3d_core`'s scene graph, which
+/// `render_project.dart` already depends on for the identical reason.
 library;
 
 import 'dart:math' as math;

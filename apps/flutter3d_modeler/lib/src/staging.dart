@@ -33,6 +33,7 @@ final class ModelerStage {
     this.editMesh,
     this.sync,
     this.materials,
+    this.lighting,
   );
 
   /// What is in front of the camera: a model that was opened, or the cube a
@@ -74,6 +75,12 @@ final class ModelerStage {
   /// in clay.
   final MaterialPool? materials;
 
+  /// Keeps [scene]'s own lights in step with [ModelProject.lighting] —
+  /// `tut-07`'s own fix. Null for the measurement stands, the same reason
+  /// [sync] is: they have no document, only the fixed key/fill pair [_light]
+  /// always builds, and nothing on a lattice to light differently.
+  final LightingSync? lighting;
+
   /// The colour behind everything, and a decision rather than a default.
   ///
   /// Flat, not a sky. A modeller is looked at for hours and every judgement
@@ -107,6 +114,11 @@ final class ModelerStage {
     final scene = Scene();
     final root = SceneNode(name: 'objects');
     scene.add(root);
+    // The fixed key/fill pair every stage starts from — see [_light]'s own
+    // doc comment. [lighting] then adds whatever the project's own
+    // `SceneLighting` carries on top, never replacing this baseline: a
+    // project that has never added a light of its own looks exactly as it
+    // always did.
     _light(scene);
 
     final camera = CameraNode(name: 'viewport');
@@ -120,7 +132,17 @@ final class ModelerStage {
       root: root,
       materials: materials,
     )..apply(project);
-    return ModelerStage._(scene, camera, orbit, root, null, sync, materials);
+    final lighting = LightingSync()..sync(scene, project.lighting);
+    return ModelerStage._(
+      scene,
+      camera,
+      orbit,
+      root,
+      null,
+      sync,
+      materials,
+      lighting,
+    );
   }
 
   factory ModelerStage.build({
@@ -165,7 +187,16 @@ final class ModelerStage {
     scene.add(camera);
     final orbit = OrbitController(camera, distance: 3.2, yaw: 0.6, pitch: 0.45);
 
-    return ModelerStage._(scene, camera, orbit, subject, edit, null, null);
+    return ModelerStage._(
+      scene,
+      camera,
+      orbit,
+      subject,
+      edit,
+      null,
+      null,
+      null,
+    );
   }
 
   /// **Two lights and no shadow.** A single light leaves half of every object

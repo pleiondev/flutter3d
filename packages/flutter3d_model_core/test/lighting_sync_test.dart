@@ -1,13 +1,19 @@
 /// `mat-23`'s own row: `LightingSync` pushes a project's [SceneLighting]
 /// onto the runtime `Scene`.
 ///
-///     flutter test test/lighting_sync_test.dart
+///     dart test test/lighting_sync_test.dart
+///
+/// **Moved here from `apps/flutter3d_modeler` by `tut-07`'s own fix**, along
+/// with the class itself — see `lighting_sync.dart`'s own doc comment for
+/// why. Nothing about this file changed beyond its imports: `Scene`/
+/// `LightNode`/`LightType`/`RenderSettings` from `flutter3d_core` are the
+/// identical types the app used to reach through `flutter3d`'s own
+/// re-export.
 library;
 
-import 'package:flutter3d/flutter3d.dart';
+import 'package:flutter3d_core/flutter3d_core.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
-import 'package:flutter3d_modeler/src/lighting_sync.dart';
-import 'package:flutter_test/flutter_test.dart';
+import 'package:test/test.dart';
 import 'package:vector_math/vector_math.dart';
 
 SceneLighting _lighting(int count) => SceneLighting(
@@ -95,6 +101,20 @@ void main() {
     expect(node.readPosition(), Vector3(2, 3, 4));
   });
 
+  test("tut-07's own acceptance: sync is additive, over whatever the scene "
+      'already carries', () {
+    final scene = Scene()
+      ..add(LightNode(type: LightType.directional, name: 'key'));
+    final sync = LightingSync();
+
+    sync.sync(scene, _lighting(2));
+
+    expect(scene.lights, hasLength(3));
+    sync.sync(scene, _lighting(1));
+    // Only the two this sync itself added are ever removed again.
+    expect(scene.lights, hasLength(2));
+  });
+
   group('apply', () {
     test('exposure and shadows come from the lighting', () {
       final sync = LightingSync();
@@ -105,6 +125,16 @@ void main() {
 
       expect(applied.exposure, 3.0);
       expect(applied.shadows.enabled, isTrue);
+    });
+
+    test('bloom follows the lighting\'s own post settings', () {
+      final sync = LightingSync();
+      const settings = RenderSettings();
+      const lighting = SceneLighting(
+        post: ScenePostSettings(bloomEnabled: false),
+      );
+
+      expect(sync.apply(settings, lighting).bloom.enabled, isFalse);
     });
   });
 

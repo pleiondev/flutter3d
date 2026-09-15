@@ -225,26 +225,39 @@ Future<void> main() async {
     '../../cloud/server/web/assets/learn/modeler/character-from-a-bare-mesh',
   )..createSync(recursive: true);
 
-  // The one real render: the auto-rigged, weight-painted, morphed and posed
-  // character exactly as `renderProject` draws it today — which is to say,
-  // without applying the skin at all (`render_project.dart` never mentions
-  // "skin" or "skeleton", confirmed by grep while writing this file), and
-  // without blending the chest-puff shape key either (no `shapeSet` mention
-  // there either). So this picture is real geometry, real materials, the
-  // file's own import — but it shows neither the bend this case's own
-  // `PoseJoint` keyed, nor the puffed chest its own `ShapeDriver` and
-  // `KeyShape` calls describe, nor the weight-paint gradient S4 built
-  // (`RenderShading` only has `material`/`normals` — no vertex-colour/weight
-  // mode at all, confirmed the same way). See the case's own page and
-  // `tut-10`/`tut-11` in `doc/modeler-tutorial-gaps.md`.
+  // The real render: the auto-rigged, weight-painted, morphed and posed
+  // character exactly as `renderProject` draws it now — `tut-10`'s own fix
+  // poses it through its own skeleton (the bend `PoseJoint` keyed, still the
+  // project's own current joint transform) and blends the chest-puff shape
+  // key at its own current weight, both read straight off `session.project`
+  // rather than off any animation curve. See `doc/modeler-tutorial-gaps.md`.
   await _renderTo(
     session.project,
     '${assetDir.path}/07-character-real-geometry.png',
   );
 
+  // The weight-paint gradient, real — `tut-11`'s own fix, over the same
+  // left-elbow joint case 4's own second `PaintWeights` stroke touches.
+  final skeleton = session.project.skeletons.single;
+  final leftElbowId = skeleton.joints.firstWhere(
+    (id) => session.project[id]!.name == 'leftElbow',
+  );
+  final gradientPng = await renderProject(
+    RenderRequest(
+      project: session.project,
+      view: RenderProjectView.iso,
+      shading: RenderShading.weights,
+      weightsJoint: leftElbowId,
+    ),
+    deviceFactory: _cpuDevice,
+  );
+  File(
+    '${assetDir.path}/02-weight-paint-gradient.png',
+  ).writeAsBytesSync(gradientPng);
+  stderr.writeln('wrote ${assetDir.path}/02-weight-paint-gradient.png');
+
   const placeholders = <String, String>{
     '01-autorig-dialog.png': 'Auto-rig',
-    '02-weight-paint-gradient.png': 'Weight paint',
     '03-bend-slider.png': 'Bend slider',
     '04-pose-and-keys.png': 'Pose and keys',
     '05-morphs-panel.png': 'Morphs panel',

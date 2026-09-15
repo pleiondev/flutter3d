@@ -13,7 +13,6 @@ import 'package:flutter3d_model_core/flutter3d_model_core.dart' hide Outcome;
 import 'package:flutter3d_modeler/l10n/app_localizations.dart';
 import 'package:flutter3d_modeler/l10n/app_localizations_en.dart';
 import 'package:flutter3d_modeler/src/display_modes.dart';
-import 'package:flutter3d_modeler/src/lighting_sync.dart';
 import 'package:flutter3d_modeler/src/scene_mode.dart';
 import 'package:flutter3d_modeler/src/staging.dart';
 import 'package:flutter3d_modeler/src/ui/properties/properties_panel.dart';

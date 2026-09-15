@@ -26,10 +26,15 @@ extension _GamePreviewWiring on _ModelerScreenState {
       stage: state.stage,
       project: state.project,
       readiness: state.readiness,
-      // A bare default — see `game_preview_settings.dart`'s own doc comment
-      // on `GamePreviewSettings.applyTo` for why nothing richer is threaded
-      // through here yet.
-      baseSettings: const RenderSettings(),
+      // `tut-07`'s own fix: the same `LightingSync.apply` fold the main
+      // viewport's own `RenderSettings` already gets, so this screen's
+      // "the same `Renderer`/`ModelerStage` as the editor" promise (this
+      // file's own class comment) holds for the document's real lighting
+      // too, not only for its geometry.
+      baseSettings: (state.stage.lighting ?? LightingSync()).apply(
+        const RenderSettings(),
+        state.project.lighting,
+      ),
       playback: state.playback,
       frame: _frame,
       onPlayPause: _toggleAnimationPlayback,

@@ -49,6 +49,7 @@ Future<Uint8List> renderSheet({
   int height = 512,
   RenderShading shading = RenderShading.material,
   Set<int> selection = const <int>{},
+  int? weightsJoint,
   required GraphicsDevice Function(int width, int height) deviceFactory,
 }) async {
   final tileWidth = width ~/ 2;
@@ -64,6 +65,7 @@ Future<Uint8List> renderSheet({
         height: tileHeight,
         shading: shading,
         selection: selection,
+        weightsJoint: weightsJoint,
       ),
       deviceFactory: deviceFactory,
     );

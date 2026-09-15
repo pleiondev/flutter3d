@@ -325,20 +325,30 @@ extension _ReadyParts on _ModelerScreenState {
               // selection itself and can say which *part* of an object is
               // selected. Until then this is what tells a person their click
               // landed.
-              final RenderSettings viewportRenderSettings = RenderSettings(
-                highlighted: <SceneNode>[
-                  for (final int id in _history.selection.objects)
-                    if (stage.sync?.nodeOf(id) case final SceneNode n) n,
-                ],
-                // `view-27d`'s own row: the octahedra-and-crosses overlay
-                // `DebugDrawGizmos.addSkeletonOverlay` draws is what shows a
-                // rig is actually driving the mesh underneath it, so it is
-                // worth the extra lines exactly while animation mode is open
-                // and not otherwise.
-                debug: DebugDrawOptions(
-                  skeletons: _mode == ModelerMode.animation,
-                ),
-              );
+              // `tut-07`'s own fix: exposure, the shadow request and the
+              // bloom toggle now come from `project.lighting` the same way
+              // `stage.lighting.sync` already folded the lights themselves
+              // into the scene — see `LightingSync.apply`'s own doc comment
+              // for what is (and, on purpose, is not yet) carried across.
+              final RenderSettings viewportRenderSettings =
+                  (stage.lighting ?? LightingSync()).apply(
+                    RenderSettings(
+                      highlighted: <SceneNode>[
+                        for (final int id in _history.selection.objects)
+                          if (stage.sync?.nodeOf(id) case final SceneNode n) n,
+                      ],
+                      // `view-27d`'s own row: the octahedra-and-crosses
+                      // overlay `DebugDrawGizmos.addSkeletonOverlay` draws is
+                      // what shows a rig is actually driving the mesh
+                      // underneath it, so it is worth the extra lines
+                      // exactly while animation mode is open and not
+                      // otherwise.
+                      debug: DebugDrawOptions(
+                        skeletons: _mode == ModelerMode.animation,
+                      ),
+                    ),
+                    state.project.lighting,
+                  );
               final viewport = retargetView
                   ? _retargetViewport(state)
                   : Stack(

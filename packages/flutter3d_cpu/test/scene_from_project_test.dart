@@ -51,6 +51,28 @@ void main() {
     expect(at.y, closeTo(1, 1e-6));
   });
 
+  test("tut-07's own fix: a project's own light joins the fixed key/fill pair, "
+      'not replaces it', () {
+    final project = ModelProject(
+      lighting: SceneLighting(
+        lights: <ProjectLight>[
+          ProjectLight(type: ProjectLightType.point, intensity: 5.0),
+        ],
+      ),
+    );
+
+    final scene = sceneFromProject(project, cpuTileDevice(4, 4));
+
+    // Mutation: the two fixed lights alone, the way `sceneFromProject`
+    // built its scene before this fix — `scene.lights` would then read
+    // 2, never 3.
+    expect(scene.lights, hasLength(3));
+    expect(
+      scene.lights.where((LightNode l) => l.type == LightType.point),
+      hasLength(1),
+    );
+  });
+
   test('a snapshot renders on the device a caller hands it', () async {
     final sizes = <(int, int)>[];
     GraphicsDevice counting(int width, int height) {

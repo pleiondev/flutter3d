@@ -437,6 +437,9 @@ final class ModelerCubit extends Cubit<ModelerState> {
   /// somebody is dragging — it is dropped here and read by the frame test.
   void _synced(ModelerReady now, {String? said}) {
     now.stage.sync?.apply(now.project);
+    // `tut-07`'s own fix: the scene's own lights follow `project.lighting`
+    // the same way its objects already follow `project.objects` above.
+    now.stage.lighting?.sync(now.stage.scene, now.project.lighting);
     // `view-27d`'s own "more than 64 joints is a status line, never a
     // throw": `SceneSync.apply` refuses to build an over-large skeleton
     // rather than let its constructor throw, and reports it here the same

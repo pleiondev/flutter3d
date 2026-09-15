@@ -22,6 +22,7 @@ import 'dart:typed_data';
 import 'package:flutter3d_core/flutter3d_core.dart';
 import 'package:vector_math/vector_math.dart';
 
+import 'lighting_sync.dart';
 import 'project.dart';
 import 'scene_from_project.dart';
 
@@ -106,15 +107,16 @@ const double _maxPitch = math.pi / 2 - 0.01;
 /// What a surface is drawn as.
 ///
 /// A final class with const instances for the same reason
-/// [RenderProjectView] is one, not an enum. Two instances, not the four
-/// `mcp-08n`'s own row eventually names. [material] and [normals] are real,
-/// distinct shaders today (`LightingModel.pbr`/`LightingModel.unlit` and
+/// [RenderProjectView] is one, not an enum. Three instances now, not the
+/// four `mcp-08n`'s own row eventually names. [material] and [normals] are
+/// real, distinct shaders (`LightingModel.pbr`/`LightingModel.unlit` and
 /// `LightingModel.normals`, both already compiled into every backend's
-/// shader bundle). `wireframe` waits on `view-07`'s own edge-drawing landing
-/// in the engine — there is no member for it here rather than one that draws
-/// the same picture [material] does under a name that promises otherwise.
-/// `selection` is not a shading mode; see [RenderRequest.selection] for how
-/// it is drawn instead.
+/// shader bundle). [weights] is not a shader at all — `tut-11`'s own fix —
+/// see its own doc comment. `wireframe` waits on `view-07`'s own
+/// edge-drawing landing in the engine — there is no member for it here
+/// rather than one that draws the same picture [material] does under a name
+/// that promises otherwise. `selection` is not a shading mode; see
+/// [RenderRequest.selection] for how it is drawn instead.
 final class RenderShading {
   const RenderShading._(this.name);
 
@@ -123,7 +125,19 @@ final class RenderShading {
   static const RenderShading material = RenderShading._('material');
   static const RenderShading normals = RenderShading._('normals');
 
-  static const List<RenderShading> values = <RenderShading>[material, normals];
+  /// The weight-paint gradient — `tut-11`'s own row. Every object with an
+  /// [EditedGeometry] mesh bound to [RenderRequest.weightsJoint]'s own
+  /// skeleton is coloured by [weightGradientColor] of its own weight on
+  /// that joint, unlit; everything else (unskinned, or bound to a different
+  /// skeleton) draws as [material] rather than going blank, so a picture of
+  /// a scene with more than one object still shows all of it.
+  static const RenderShading weights = RenderShading._('weights');
+
+  static const List<RenderShading> values = <RenderShading>[
+    material,
+    normals,
+    weights,
+  ];
 
   @override
   String toString() => 'RenderShading.$name';
@@ -138,6 +152,7 @@ final class RenderRequest {
     this.height = 512,
     this.shading = RenderShading.material,
     this.selection = const <int>{},
+    this.weightsJoint,
   });
 
   final ModelProject project;
@@ -151,6 +166,13 @@ final class RenderRequest {
   /// tool argument already names objects with. See [_restyle] for why the
   /// tint lives in `baseColor` rather than `emissive`.
   final Set<int> selection;
+
+  /// Which joint [RenderShading.weights] paints the gradient for, by its own
+  /// [ModelObject.id] — the same id a `PaintWeights`/`SetRig` call already
+  /// names a joint with. Meaningless with any other [shading]; with
+  /// [RenderShading.weights] and this left null, nothing has a joint to
+  /// measure a weight against and every mesh falls back to [material].
+  final int? weightsJoint;
 }
 
 /// Why [renderProject] declined to draw.
@@ -174,6 +196,17 @@ const int _maxRenderDimension = 1024;
 /// [request.project] drawn from [request.view], as PNG bytes, on a device
 /// [deviceFactory] builds for the occasion — see this library's own doc
 /// comment for why that is a parameter rather than a [CpuDevice] built here.
+///
+/// **The project's own lights, its skinned pose and its shape-key blend reach
+/// the picture — `tut-07` and `tut-10`'s own fix.** Before them, neither a
+/// project's own `AddLight`/`SetEnvironment`/`SetSceneLightingField` settings
+/// nor a posed skeleton ever reached a headless picture at all; the scene
+/// comes from [sceneFromProject], which adds the project's lights through the
+/// same `LightingSync` the live viewport uses, and this function reads that
+/// sync's render settings too. See `LightingSync`'s own doc comment for why
+/// the two fixed lights stay rather than being replaced, and for what
+/// [ModelProject.lighting] still does not reach a picture through
+/// (`ambientIntensity`, `environment`).
 ///
 /// Throws [RenderRefusal] for a size outside 1×1..1024×1024, before
 /// [deviceFactory] is ever called.
@@ -210,17 +243,38 @@ Future<Uint8List> renderProject(
     device,
     restyle: (ModelObject object, Material material) =>
         _restyle(request, object, material),
+    weightsJoint: request.shading == RenderShading.weights
+        ? request.weightsJoint
+        : null,
   );
   final camera = CameraNode(name: 'renderProject');
   scene.add(camera);
   _frame(camera, scene.meshes, request.view);
+
+  // `mat-25`'s own light gizmos stay off here even though [LightingSync
+  // .apply] would otherwise turn them on the moment [request.project] has a
+  // light: those are an editing overlay for the live viewport, and a
+  // headless picture — a tutorial page's own "what you get," an agent's own
+  // "show me the model" — wants the scene, not the markers pointing at its
+  // lights.
+  final RenderSettings lit = LightingSync()
+      .apply(const RenderSettings(), request.project.lighting)
+      .copyWith(debug: const DebugDrawOptions());
+  // `tut-11`'s own fix: a vertex colour named by hex is not scene-referred
+  // light, and only reads back as that hex with tonemapping and exposure
+  // out of the way — the identical pair `weight_gradient.dart`'s own
+  // `weightGradientSettings` gives the live viewport's weights view, for
+  // the same reason `ShadingMode.normals` gets it there too.
+  final RenderSettings settings = request.shading == RenderShading.weights
+      ? lit.copyWith(tonemap: false, exposure: 1.0)
+      : lit;
 
   final frame = renderer.render(
     width: width,
     height: height,
     scene: scene,
     views: <RenderView>[RenderView(camera: camera)],
-    settings: const RenderSettings(bloom: BloomSettings(enabled: false)),
+    settings: settings,
   );
   final pixels = (await device.readPixels(frame.frame))!.buffer.asUint8List();
   return encodeCompressedPng(width, height, pixels);
