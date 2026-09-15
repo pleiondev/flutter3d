@@ -8,13 +8,53 @@
 /// frames a second and a drag that stutters on a model of any size.
 library;
 
+import 'dart:typed_data';
+
 import 'package:flutter3d/flutter3d.dart';
+import 'package:flutter3d_cpu/flutter3d_cpu.dart' show CpuDevice;
 import 'package:flutter3d_cpu/testing.dart';
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
+import 'package:flutter3d_modeler/src/scene_sync.dart';
 import 'package:flutter3d_modeler/src/staging.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart';
+
+/// A device that refuses the first [refuseFirst] geometry uploads and then
+/// behaves — `ux-02`'s own case, where a real backend answered
+/// `DeviceBuffer creation failed` for one imported object.
+///
+/// **Counted rather than keyed on the object**, because a device is never
+/// told which object it is uploading for: [SceneSync.apply] walks
+/// `project.objects` in order, and a refusal comes out of the *first* of an
+/// object's two uploads — its vertices, before its indices are ever asked
+/// for — so refusing one call refuses exactly one object. Everything a device
+/// does that is not an upload is left to `noSuchMethod`: `apply` touches no
+/// other member, and a fake that pretends to is a fake that hides what it is
+/// standing in for.
+final class RefusingDevice implements GraphicsDevice {
+  RefusingDevice(this.inner, {this.refuseFirst = 1});
+
+  final CpuDevice inner;
+  final int refuseFirst;
+  int uploads = 0;
+
+  /// Refuses everything from now on, whatever [refuseFirst] said — for a
+  /// caller that needs a stage built before anything starts failing.
+  bool refuseEverything = false;
+
+  @override
+  GeometryBuffer uploadGeometry(ByteData bytes, GeometryUsage usage) {
+    uploads++;
+    if (refuseEverything || uploads <= refuseFirst) {
+      throw Exception('DeviceBuffer creation failed');
+    }
+    return inner.uploadGeometry(bytes, usage);
+  }
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
 
 /// A project of [count] cubes at the origin.
 ModelProject cubes(int count) {
@@ -460,6 +500,58 @@ void main() {
       expect(sync.nodeOf(66)!.skeleton, isNull);
       expect(sync.skeletonOverflow, isNotNull);
       expect(sync.skeletonOverflow, contains('65'));
+    });
+  });
+
+  group('ux-02: one object the device refuses', () {
+    SceneSync syncOver(GraphicsDevice device) {
+      final scene = Scene();
+      final root = SceneNode(name: 'objects');
+      scene.add(root);
+      return SceneSync(device: device, scene: scene, root: root);
+    }
+
+    test('the rest of the project still draws, and the refusal is named', () {
+      final project = cubes(3);
+      final device = RefusingDevice(cpuTestDevice(width: 8, height: 8).device);
+      final sync = syncOver(device);
+
+      // Mutation: upload without catching. This call throws, and with it
+      // goes every caller — the cubit's own re-sync, the MCP feed hook, and
+      // the frame after them.
+      sync.apply(project);
+
+      expect(sync.nodeOf(1), isNull);
+      expect(sync.nodeOf(2), isNotNull);
+      expect(sync.nodeOf(3), isNotNull);
+      expect(sync.unshowable.keys, <int>[1]);
+      expect(sync.unshowable[1], contains('cube 1'));
+      expect(sync.unshowable[1], contains('could not be shown'));
+    });
+
+    test('and a later pass that works clears the mark', () {
+      final project = cubes(2);
+      final device = RefusingDevice(cpuTestDevice(width: 8, height: 8).device);
+      final sync = syncOver(device);
+      sync.apply(project);
+      expect(sync.unshowable, isNotEmpty);
+
+      // Nothing refuses any more: the object that was skipped has no node
+      // yet, so this pass is its first upload rather than a no-op.
+      sync.apply(project);
+
+      // Mutation: accumulate rather than rebuild. An object that uploaded
+      // fine on the second try stays marked "could not be shown" for the
+      // rest of the session, in the outliner and on the status line.
+      expect(sync.unshowable, isEmpty);
+      expect(sync.nodeOf(1), isNotNull);
+    });
+
+    test('a sentence names the first and counts the rest', () {
+      expect(unshowableSaid(null), isNull);
+      expect(unshowableSaid(<int, String>{}), isNull);
+      expect(unshowableSaid(<int, String>{1: 'a'}), 'a');
+      expect(unshowableSaid(<int, String>{1: 'a', 2: 'b'}), 'a (and 1 more)');
     });
   });
 }

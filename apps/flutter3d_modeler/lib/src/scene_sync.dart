@@ -110,6 +110,26 @@ final class SceneSync {
   /// rather than the first time it was ever true.
   String? skeletonOverflow;
 
+  /// Objects this pass could not put on the GPU, by id, each with the reason
+  /// — `ux-02`'s own row, and empty on every ordinary pass.
+  ///
+  /// **A failed upload used to take the whole session down.** The live run
+  /// imported a real `.glb` over `--mcp-port` and got `DeviceBuffer creation
+  /// failed` back with a stack; every call after it answered with the same
+  /// stack, because the feed hook re-syncs the scene and the same object
+  /// threw again, and a person watching the window saw nothing at all — the
+  /// object was in the document, the status line counted its triangles, and
+  /// the viewport was empty. One object the device will not take is a fact
+  /// about that object: the rest of the project still draws, the document is
+  /// untouched, and this is where the name goes so a status line and the
+  /// outliner can say which one.
+  ///
+  /// Rebuilt on every [apply], like [skeletonOverflow], so an object that
+  /// uploads on a later pass — a device that was out of memory for a moment,
+  /// a geometry since repaired — stops being named without anything having
+  /// to remember to clear it.
+  final Map<int, String> unshowable = <int, String>{};
+
   /// The node drawn for [id], or null.
   MeshNode? nodeOf(int id) => _tracked[id]?.node;
 
@@ -137,17 +157,17 @@ final class SceneSync {
     var uploaded = 0;
     final seen = <int>{};
     skeletonOverflow = null;
+    unshowable.clear();
 
     for (final ModelObject object in project.objects) {
       seen.add(object.id);
       final _Tracked? had = _tracked[object.id];
 
       if (had == null) {
+        final DeviceMesh? mesh = _upload(project, object);
+        if (mesh == null) continue;
         final MeshNode node = MeshNode(
-          DeviceMesh.upload(
-            device,
-            _meshFor(project, object, _layoutFor(object)),
-          ),
+          mesh,
           _paintFor(object),
           name: object.name,
         );
@@ -180,10 +200,13 @@ final class SceneSync {
       if (!identical(had.geometry, object.geometry) ||
           reskinned ||
           modifiersChanged) {
-        had.node.mesh = DeviceMesh.upload(
-          device,
-          _meshFor(project, object, _layoutFor(object)),
-        );
+        final DeviceMesh? mesh = _upload(project, object);
+        // The node keeps whatever it was drawing last: a mesh the device
+        // refused is not a reason to blank an object that was on screen a
+        // frame ago, and `had` is left at its old version so the next pass
+        // tries again rather than treating the refusal as done.
+        if (mesh == null) continue;
+        had.node.mesh = mesh;
         had.geometry = object.geometry;
         had.skeletonIndex = object.skeletonIndex;
         had.modifiers = object.modifiers;
@@ -326,6 +349,27 @@ final class SceneSync {
     }
   }
 
+  /// [object]'s buffers on the device, or null with [unshowable] told why.
+  ///
+  /// **The catch is deliberately wide.** Everything from building the mesh
+  /// data to allocating a buffer is on this path, and what a backend throws
+  /// when it will not take a geometry is its own business — `flutter_gpu`
+  /// raises a plain `Exception('DeviceBuffer creation failed')`, the software
+  /// rasteriser something else entirely. Narrowing it by type would mean
+  /// guessing the set, and a guess that is wrong here is the whole finding:
+  /// one throw nobody caught, and the editor was unusable until it restarted.
+  DeviceMesh? _upload(ModelProject project, ModelObject object) {
+    try {
+      return DeviceMesh.upload(
+        device,
+        _meshFor(project, object, _layoutFor(object)),
+      );
+    } catch (error) {
+      unshowable[object.id] = '"${object.name}" could not be shown ($error)';
+      return null;
+    }
+  }
+
   /// What [object] is painted with: its slot's material, or clay.
   engine.Material _paintFor(ModelObject object) =>
       materials?.forObject(object) ?? clay();
@@ -376,4 +420,18 @@ final class SceneSync {
     vertices: Float32List(0),
     indices: Uint32List(0),
   );
+}
+
+/// [SceneSync.unshowable] as one sentence, or null when there is nothing to
+/// say — `ux-02`'s own status line.
+///
+/// Names the first object and counts the rest, the shape
+/// `ExportReadiness.says` already uses for the same problem: a status line
+/// that lists every name is a status line nobody finishes reading, and the
+/// first name is the one somebody can go and look at.
+String? unshowableSaid(Map<int, String>? unshowable) {
+  if (unshowable == null || unshowable.isEmpty) return null;
+  final String first = unshowable.values.first;
+  final int rest = unshowable.length - 1;
+  return rest == 0 ? first : '$first (and $rest more)';
 }
