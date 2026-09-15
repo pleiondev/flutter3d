@@ -147,22 +147,30 @@ void main() {
       workspace.deleteSync(recursive: true);
     });
 
-    test("the case's own journal, replayed from an empty project, gets stuck "
-        'exactly where mesh-element selection is missing — the real gap this '
-        "case found (tut-05, doc/modeler-tutorial-gaps.md): `session.select`'s "
-        'own doc comment already says object-level picking is not something '
-        '`CommandJournal` can replay, and this is the first case whose edits '
-        'actually depend on that at *mesh*-element level', () {
+    test("the case's own journal, replayed from an empty project, now "
+        'rebuilds the exact document a live session reaches — `tut-05`, '
+        'closed (doc/modeler-tutorial-gaps.md): `session.select` runs a '
+        'real, if non-mutating, `SelectElements` command now, so the two '
+        "rim/belly picks this case's own mesh edits depend on are on the "
+        "journal too, and a cold replay no longer gets stuck at the first "
+        'extrude for want of a selection nothing was recorded', () {
       final journalBytes = File(
         'test/fixtures/tutorial/case2.jsonl',
       ).readAsBytesSync();
       final replay = CommandJournal.replay(journalBytes, const ModelProject());
-      // Mutation: assert `replay.ok` instead. A journal that replayed
-      // clean from a cold project would mean mesh-element selection had
-      // quietly become recoverable — worth celebrating, not a check this
-      // test should pass by accident on a change nobody meant.
-      expect(replay.ok, isFalse);
-      expect(replay.refused, contains('no faces are selected to extrude'));
+      // Mutation: assert `replay.ok` were false instead. A build that
+      // stopped recording `select` as a real command would mean `tut-05`
+      // had reopened — worth catching, not a check this test should pass
+      // by accident on a change nobody meant.
+      expect(replay.ok, isTrue, reason: replay.refused);
+      expect(
+        writeProject(replay.history!.project),
+        File('test/fixtures/tutorial/case2.f3dproj').readAsBytesSync(),
+        reason:
+            'replaying case2.jsonl cold from an empty project should reach '
+            'the identical document a live session reaches running the '
+            'same steps through ModelSession.run/select',
+      );
     });
 
     test('building the scenario fresh against ModelSession — selecting '
@@ -255,14 +263,14 @@ void main() {
       );
 
       // `tut-03`, closed: the journal this session writes now names the
-      // *adjusted* distance, because `ModelSession.amend` records to
-      // `_journal` the same moment it calls through to
-      // `ModelHistory.amend`, rather than leaving the journal to a caller
-      // that reached `ModelHistory` directly. (A cold replay of *this*
-      // journal still cannot get past its own earlier `select` calls —
-      // that is `tut-05`, a separate, still-open gap this fix does not
-      // touch; the next test below isolates `amend`'s own journal fix from
-      // it with a command that needs no selection at all.)
+      // *adjusted* distance, because `ModelHistory.amend` records to
+      // whichever journal is attached the same moment it re-runs the
+      // replacement, rather than leaving the journal to a caller that
+      // reached `ModelHistory` directly. (A cold replay of *this* journal
+      // now also gets past its own earlier `select` calls too — `tut-05`,
+      // closed alongside `tut-15` — though the next test below still
+      // isolates `amend`'s own journal fix with a command that needs no
+      // selection at all, on its own merits.)
       final journalPath = '${workspace.path}/case2_amend.jsonl';
       session.journal(journalPath);
       final lines = File(journalPath).readAsLinesSync();
@@ -274,10 +282,12 @@ void main() {
 
     test('`tut-03`, closed: a session\'s own journal, after an amend, '
         'replays cold to the adjusted state rather than the original one '
-        '— isolated from `tut-05`\'s own separate selection gap with '
-        '`addPrimitive`, a command that takes its own arguments rather '
-        "than reading `session.select`, so this journal's own single line "
-        'replays from nothing but itself', () {
+        '— with `addPrimitive`, a command that takes its own arguments '
+        "rather than reading `session.select`, so this journal's own "
+        'single line replays from nothing but itself, isolating `amend`\'s '
+        "own fix from `tut-05`'s (both closed now, but this case's own "
+        'rim/belly picks are not the only thing this test needs to prove '
+        'not-broken)', () {
       final session = ModelSession(ModelHistory(const ModelProject()));
       final added = session.run(const AddPrimitive(kind: 'box', size: 1.0));
       expect(added.did, isTrue, reason: added.says);
@@ -320,23 +330,31 @@ void main() {
       workspace.deleteSync(recursive: true);
     });
 
-    test("the case's own journal, replayed from right after the import "
-        "gets stuck at the first `moveBy` for want of a selection — the "
-        'same shape as case 2 (`tut-05`), now at the plain object level '
+    test("the case's own journal, replayed from right after the import, now "
+        'rebuilds the exact document a live session reaches — the same '
+        'fix as case 2 (`tut-05`, closed), now at the plain object level '
         "`MoveBy`/`RotateBy` need rather than at mesh-element level: "
-        "`ModelSession.select`'s own doc comment already says object-level "
-        'picking is not something `CommandJournal` can replay', () async {
+        "`ModelSession.select`'s own object-level pick runs a real "
+        '`SelectElements` command now too, so the box pick this case '
+        'depends on is on the journal', () async {
       final starting = await case3StartingProject();
       final journalBytes = File(
         'test/fixtures/tutorial/case3.jsonl',
       ).readAsBytesSync();
       final replay = CommandJournal.replay(journalBytes, starting);
-      // Mutation: assert `replay.ok` instead. A journal that replayed clean
-      // from the post-import project would mean object-level selection had
-      // quietly become recoverable — worth celebrating, not a check this
-      // test should pass by accident on a change nobody meant.
-      expect(replay.ok, isFalse);
-      expect(replay.refused, contains('nothing is selected to move'));
+      // Mutation: assert `replay.ok` were false instead. A build that
+      // stopped recording `select` as a real command would mean `tut-05`
+      // had reopened — worth catching, not a check this test should pass
+      // by accident on a change nobody meant.
+      expect(replay.ok, isTrue, reason: replay.refused);
+      expect(
+        writeProject(replay.history!.project),
+        File('test/fixtures/tutorial/case3.f3dproj').readAsBytesSync(),
+        reason:
+            'replaying case3.jsonl cold from right after the import should '
+            'reach the identical document a live session reaches running '
+            'the same steps through ModelSession.run/select',
+      );
     });
 
     test('building the scenario fresh against ModelSession — selecting the '
@@ -446,25 +464,33 @@ void main() {
       workspace.deleteSync(recursive: true);
     });
 
-    test("the case's own journal, replayed from right after the import, "
-        'gets stuck at the first vertex-selection-dependent step (the '
-        "chest-puff sculpt) — the same shape cases 2 and 3's own `tut-05` "
-        "already names, now over a mesh-vertex selection this case's own "
-        'shape key depends on: `PaintWeights` and `SetRig` both replay '
-        'clean cold (neither one reads `session.select`), but the '
-        '`TransformElements` that scales the chest out has nothing selected '
-        'to act on', () async {
+    test("the case's own journal, replayed from right after the import, now "
+        'rebuilds the exact document a live session reaches — the same '
+        "fix as cases 2 and 3's own `tut-05` (closed), now over the "
+        "mesh-vertex selection this case's own shape key depends on: "
+        '`PaintWeights` and `SetRig` both replayed clean cold already '
+        "(neither one reads `session.select`), and the `TransformElements` "
+        'that scales the chest out now has a real `SelectElements` line '
+        'to read before it, the same as the `rotateBy` on the elbow after '
+        'it', () async {
       final starting = await case4StartingProject();
       final journalBytes = File(
         'test/fixtures/tutorial/case4.jsonl',
       ).readAsBytesSync();
       final replay = CommandJournal.replay(journalBytes, starting);
-      // Mutation: assert `replay.ok` instead. A journal that replayed clean
-      // from the post-import project would mean mesh-element selection had
-      // quietly become recoverable — worth celebrating, not a check this
-      // test should pass by accident on a change nobody meant.
-      expect(replay.ok, isFalse);
-      expect(replay.refused, contains('no object is selected'));
+      // Mutation: assert `replay.ok` were false instead. A build that
+      // stopped recording `select` as a real command would mean `tut-05`
+      // had reopened — worth catching, not a check this test should pass
+      // by accident on a change nobody meant.
+      expect(replay.ok, isTrue, reason: replay.refused);
+      expect(
+        writeProject(replay.history!.project),
+        File('test/fixtures/tutorial/case4.f3dproj').readAsBytesSync(),
+        reason:
+            'replaying case4.jsonl cold from right after the import should '
+            'reach the identical document a live session reaches running '
+            'the same steps through ModelSession.run/select',
+      );
     });
 
     test('building the scenario fresh against ModelSession — running the '
@@ -843,15 +869,16 @@ void main() {
     });
 
     test("the case's own journal, replayed cold from the same post-import "
-        "project case 1 starts from, replays clean but silently reaches a "
-        "project missing the person's own roughness edit — that edit never "
-        "reached this session's own recovery journal at all, because it "
-        'ran directly against `ModelHistory` rather than through '
-        "`ModelSession.run`/the tool surface (`tut-15`, "
-        'doc/modeler-tutorial-gaps.md). A different shape than every '
-        "earlier case's own `tut-05`/`tut-14`: nothing here refuses — the "
-        'replay looks entirely successful, and only reading the result back '
-        "reveals it is not the same project", () async {
+        "project case 1 starts from, now reproduces the person's own "
+        'roughness edit too — that edit used to never reach this '
+        "session's own recovery journal at all, because it ran directly "
+        'against `ModelHistory` rather than through `ModelSession.run`/the '
+        'tool surface. `tut-15`, closed (doc/modeler-tutorial-gaps.md): '
+        '`ModelHistory.run` now records to whichever journal is attached '
+        'regardless of which door a caller comes in through, so a person\'s '
+        "own edit on the same shared history an agent's `--mcp-port` "
+        'session is bound over lands on the recovery file exactly where it '
+        'happened, under `StepAuthor.person`', () async {
       final imported = await case1ImportedProject();
       final journalBytes = File(
         'test/fixtures/tutorial/case6.jsonl',
@@ -867,13 +894,23 @@ void main() {
         expect(material.baseColor.storage[i], closeTo(expected, 1e-6));
       }
       expect(material.metallic, 0.0);
-      // Mutation: assert `closeTo(0.35, 1e-9)` instead — the real project's
-      // own roughness, which is what a replay that actually recovered the
-      // person's own edit would reach. `SetMaterialField`'s own default
-      // roughness (0.5, `flutter3d_formats`' `SurfaceMaterial`) is what a
-      // cold replay of this journal actually lands on, silently, since the
-      // person's edit is not on it at all.
-      expect(material.roughness, closeTo(0.5, 1e-9));
+      // Mutation: assert `closeTo(0.5, 1e-9)` instead — `SetMaterialField`'s
+      // own default roughness (`flutter3d_formats`' `SurfaceMaterial`),
+      // which is what a cold replay reached silently before `tut-15` was
+      // fixed, since the person's own edit was not on the journal at all.
+      expect(material.roughness, closeTo(0.35, 1e-9));
+      // The step's own author survives the round trip too — recorded as
+      // `StepAuthor.person` (`ModelHistory.run`'s own default when nobody
+      // names one, the same as `ModelerCubit.run`), which is what a cold
+      // replay needs to get right for an agent's own later `undo` to
+      // refuse reaching past this step the way the live session does (see
+      // the "undo restricted to only the agent's own steps" test below).
+      final HistoryStep roughnessStep = replay.history!.steps.firstWhere(
+        (HistoryStep step) =>
+            step.command is SetMaterialField &&
+            (step.command as SetMaterialField).field == 'roughness',
+      );
+      expect(roughnessStep.author, StepAuthor.person);
     });
 
     test('building the scenario fresh against ModelSession — calling the '

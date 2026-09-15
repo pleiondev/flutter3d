@@ -218,14 +218,19 @@ would make. `tutorial_scenarios_test.dart`'s own case-2 group checks four
 things: the scenario reaches the exact project committed as
 `case2.f3dproj`, byte for byte; the modifier stack holds a mirror and an
 array as described; the operation card's `amend` really does adjust one
-step rather than leaving two; and — the case's own biggest finding —
+step rather than leaving two; and — the case's own biggest finding, once —
 `case2.jsonl`, replayed through `CommandJournal.replay` from a cold empty
-project with no live session behind it, gets stuck at the very first
-`extrude` for want of a selection nothing in this journal format can
-record. That is `tut-05`: unlike case 1, this case's own recovery journal
-cannot rebuild it alone. Driving it live always can, which is what six of
-this case's own commands actually do when you run
-`dart test test/tutorial_scenarios_test.dart`.
+project with no live session behind it, used to get stuck at the very
+first `extrude` for want of a selection nothing in this journal format
+recorded. That was `tut-05`: `session.select` now runs a real, if
+non-mutating, `SelectElements` command through `ModelHistory.run` rather
+than assigning the selection directly, so the two picks this page's own
+rim extrude and belly loop cut depend on are on the journal too — a cold
+replay of `case2.jsonl` now rebuilds this case's own fixture with no live
+session behind it at all, the same promise case 1's own journal keeps.
+Driving it live is still what
+`dart test test/tutorial_scenarios_test.dart` actually does; the cold
+replay is now one more thing it checks, not a documented gap.
 
 **No GLB export.** Unlike case 1, this case ends at the `.f3dproj` — there
 is no external file to compare an export against, and the plan does not

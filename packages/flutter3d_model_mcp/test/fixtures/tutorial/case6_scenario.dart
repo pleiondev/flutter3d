@@ -59,10 +59,12 @@ Future<void> _agentCalls(
 /// always names [StepAuthor.agent]. This is case 6's whole point: an
 /// `--mcp-port` session is bound over the very `ModelHistory` a person
 /// already has open, so both kinds of step really do land on one shared
-/// undo stack. Also — unlike every step [_agentCalls] runs — never reaches
-/// `ModelSession`'s own `_journal.record`, so it never appears in this
-/// session's own recovery `.jsonl` at all (`tut-15`,
-/// `doc/modeler-tutorial-gaps.md`).
+/// undo stack. **`tut-15`, closed** (`doc/modeler-tutorial-gaps.md`):
+/// `ModelHistory.run` itself now records to whichever recovery journal is
+/// attached, so this step reaches this session's own `.jsonl` too, under
+/// [StepAuthor.person], exactly like every step [_agentCalls] runs reaches
+/// it under [StepAuthor.agent] — the two doors write to the one journal
+/// now, not only the tool surface's own.
 void _personEdits(ModelSession session, ModelCommand command) {
   final String? refused = session.history.run(command);
   if (refused != null) {

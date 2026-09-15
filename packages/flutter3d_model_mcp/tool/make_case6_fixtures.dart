@@ -211,9 +211,11 @@ Future<void> main() async {
   if (!saved.did) throw StateError('save refused: ${saved.says}');
   final exported = session.export('${dir.path}/case6.glb');
   if (!exported.did) throw StateError('export refused: ${exported.says}');
-  // Only the agent's own five tool calls land here — the person's own
-  // roughness edit went straight through `session.history.run`, never
-  // through `ModelSession.run`/`_journal.record` (`tut-15`).
+  // Both the agent's own five tool calls and the person's own roughness
+  // edit (straight through `session.history.run`, never through
+  // `ModelSession.run`'s own tool surface) land here now — `ModelHistory
+  // .run` itself records to the attached journal regardless of the door
+  // a caller came in through (`tut-15`, closed).
   final journaled = session.journal('${dir.path}/case6.jsonl');
   if (!journaled.did) throw StateError('journal refused: ${journaled.says}');
 

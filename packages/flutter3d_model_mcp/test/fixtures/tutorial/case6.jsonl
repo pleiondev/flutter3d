@@ -2,4 +2,5 @@
 {"name":"addMaterial","materialName":"glazed ceramic","author":"agent"}
 {"name":"setMaterialField","index":0,"field":"baseColor","value":[0.92,0.89,0.82,1.0],"author":"agent"}
 {"name":"setMaterialField","index":0,"field":"metallic","value":0.0,"author":"agent"}
+{"name":"setMaterialField","index":0,"field":"roughness","value":0.35,"author":"person"}
 {"name":"assignMaterial","id":1,"to":0,"author":"agent"}

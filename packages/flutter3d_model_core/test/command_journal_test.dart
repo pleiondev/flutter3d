@@ -65,10 +65,9 @@ void main() {
     test('a transaction replays as one undo step', () {
       // `SetTransform` rather than `MoveBy`, and on purpose: it names its
       // object in its own arguments — `doc-06`'s rule — where `MoveBy` reads
-      // `selection`, and object-level selection is picked with a mouse click
-      // rather than through any `ModelCommand` in this build. A recorded
-      // journal cannot replay a command whose meaning depends on a selection
-      // nothing in the journal ever set; see the library comment.
+      // `selection` instead, so replaying it correctly needs a `select`
+      // (`SelectElements`, `tut-05`) recorded first, which this test's own
+      // three-line journal deliberately keeps out of its own way.
       final history = ModelHistory(const ModelProject());
       final journal = CommandJournal();
       history.run(const AddPrimitive(kind: 'box'));

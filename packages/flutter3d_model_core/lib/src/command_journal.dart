@@ -23,17 +23,23 @@
 /// different build, a corrupted line, or a command that reads something the
 /// journal does not carry.
 ///
-/// **A real limit: a command that reads `selection` rather than taking ids in
-/// its own arguments cannot replay correctly unless every change to that
-/// selection was itself recorded.** `doc-06`'s object commands take an id
-/// because of exactly this — `Rename`, `SetTransform`, `SetParent`,
-/// `AssignMaterial`, `SetParametric` and the rest all replay cleanly — but
-/// `MoveBy`, `RotateBy`, `ScaleBy`, `DeleteObjects`, `DuplicateObjects` and
-/// every mesh command act on "what is selected", and object-level picking is
-/// a mouse click that goes through `ModelHistory.selection =`, never through a
-/// `ModelCommand`. A caller building a recovery journal on this and using any
-/// of those has to also record its own selection changes, replayed before the
-/// command that needs them; nothing here does that for it.
+/// **A real limit, narrower than it used to be: a command that reads
+/// `selection` rather than taking ids in its own arguments cannot replay
+/// correctly unless every change to that selection was itself recorded.**
+/// `doc-06`'s object commands take an id because of exactly this — `Rename`,
+/// `SetTransform`, `SetParent`, `AssignMaterial`, `SetParametric` and the rest
+/// all replay cleanly — but `MoveBy`, `RotateBy`, `ScaleBy`, `DeleteObjects`,
+/// `DuplicateObjects` and every mesh command act on "what is selected".
+/// **`tut-05`, closed:** `ModelSession.select` — the door an agent over MCP
+/// picks through — now runs `SelectElements`, a thin, non-mutating
+/// `ModelCommand` (`command.dart`) that records and replays a pick the same
+/// as any other edit, at either object or mesh-element level. What remains
+/// outside this journal's reach is only a caller that assigns
+/// `ModelHistory.selection =` directly, bypassing both `select` and
+/// [ModelHistory.run] — the live application's own pointer and gizmo click
+/// path (`ModelerCubit`) still does, a UI-implementation choice rather than a
+/// limit of this format: nothing stops that click from running
+/// `SelectElements` through `run` too, it simply does not today.
 library;
 
 import 'dart:convert';

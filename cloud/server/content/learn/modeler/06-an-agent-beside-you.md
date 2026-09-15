@@ -158,22 +158,25 @@ than constructing a `ModelCommand` directly the way cases 1–5 do. Underneath,
 `ModelCommand` through `modelCommandFromJson` and calls the exact same
 `session.run`, so `case6.jsonl` is the same `CommandJournal` shape every
 other case's `.jsonl` is — there is no second journal format here, only a
-different door into writing the same one. What is different is what is
-*missing* from it: the person's own roughness edit ran directly against
-`session.history`, never through `ModelSession.run`/`_journal.record` at
-all, so it is not on `case6.jsonl` — not refused, not recorded, simply not
-there. A cold replay of that journal (`tutorial_scenarios_test.dart`'s own
-case-6 group, first test) succeeds completely and reaches a project whose
-roughness is `SetMaterialField`'s own default (`0.5`), not the real
-project's `0.35` — a quieter, more dangerous shape than case 2's own
-`tut-05` (which at least *refuses* rather than succeeding on the wrong
-answer; `tut-14`, the other case that used to refuse this way, is closed
-now — a cold replay past an `ApplyClipResult` step succeeds too, honestly,
-because the step really is on the journal). This is `tut-15`
-(`doc/modeler-tutorial-gaps.md`): a session's own recovery journal, read
-back after a crash, would silently omit every edit a person made on the same
-document while the agent was working, and say nothing at all about having
-done so.
+different door into writing the same one. The person's own roughness edit
+runs directly against `session.history` instead, `ModelerCubit.run`'s own
+door in the real app — and used to be *missing* from the journal for
+exactly that reason: `ModelHistory.run` recorded to nothing of its own,
+only `ModelSession.run`/`amend` ever touched a `CommandJournal`, so a step
+that came in through the other door was not refused and not recorded,
+simply not there. This was `tut-15` (`doc/modeler-tutorial-gaps.md`), a
+quieter, more dangerous shape than case 2's own `tut-05` (which at least
+*refused* rather than succeeding on the wrong answer) — a cold replay
+looked entirely successful and silently reached a project whose roughness
+read `SetMaterialField`'s own default (`0.5`), not the real `0.35`.
+**Closed 2026-09-15, together with `tut-05`:** `ModelHistory` itself now
+carries an optional recovery journal that `run`/`amend`/every transaction
+record to on every success, regardless of which door the caller came in
+through — the person's own edit records under `StepAuthor.person` the same
+way a step from `ModelerCubit` always has, an agent's own tool calls keep
+recording under `StepAuthor.agent` through `ModelSession.run` as before,
+and `case6.jsonl` now carries the roughness line in between them, in the
+order it actually happened.
 
 **Undo restricted to the agent's own steps: real, and confirmed directly.**
 This is the one part of this case that is not a gap. `ModelHistory.undo`
@@ -207,9 +210,10 @@ case6_scenario.dart` builds exactly the mixed-authorship project this page
 describes, calling the real tool table for every agent step and
 `session.history.run` directly for the one person step.
 `tutorial_scenarios_test.dart`'s own case-6 group checks three things: a
-cold replay of `case6.jsonl` succeeds but silently reaches a project missing
-the person's own edit (`tut-15`, confirmed by reading back a roughness of
-`0.5` rather than `0.35`); building the scenario fresh over the real MCP
+cold replay of `case6.jsonl` now reproduces the person's own edit too
+(`tut-15`, closed — confirmed by reading back the real roughness, `0.35`,
+under `StepAuthor.person`, rather than the silent `0.5` default a build
+before this fix landed on); building the scenario fresh over the real MCP
 tool handlers reaches the exact project committed as `case6.f3dproj` and
 exports the exact `case6.glb`, byte for byte; and the agent's own `undo`
 tool refuses to reach past the person's own step while a raw,

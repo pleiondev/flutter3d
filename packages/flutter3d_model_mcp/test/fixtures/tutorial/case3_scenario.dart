@@ -83,17 +83,16 @@ const int case3BoxId = 2;
 /// 03-a-lit-corner.md`) walks through, run against [session] once it holds
 /// [case3StartingProject]'s result.
 ///
-/// **The `select` call is the same non-journalable step `tut-05` already
-/// names, now at the object level.** `ModelSession.select`'s own doc
-/// comment says object-level picking is a click, "not a `ModelCommand`, and
-/// so not something `CommandJournal` can replay" — case 2 was the first
-/// case to depend on that at *mesh*-element level; this is the first to
-/// depend on it at the plain object level `MoveBy`/`RotateBy` need. A
-/// person dragging the gizmo, or an agent calling `select` then `run` over
-/// MCP, reaches this scenario's own fixture without trouble; only a cold
-/// `CommandJournal.replay` from [case3StartingProject] gets stuck at the
-/// first `moveBy`, the same shape `tutorial_scenarios_test.dart`'s own
-/// case-2 group already demonstrates.
+/// **The `select` call is the same step `tut-05` fixed, now checked at the
+/// object level.** `ModelSession.select` runs a real `SelectElements`
+/// command through `ModelHistory.run` now, at either object or
+/// mesh-element level — case 2 was the first case to depend on that at
+/// *mesh*-element level; this is the first to depend on it at the plain
+/// object level `MoveBy`/`RotateBy` need. A person dragging the gizmo, or
+/// an agent calling `select` then `run` over MCP, reaches this scenario's
+/// own fixture without trouble, and a cold `CommandJournal.replay` from
+/// [case3StartingProject] now reaches the identical place, the same fix
+/// `tutorial_scenarios_test.dart`'s own case-2 group already checks.
 void runCase3Scenario(ModelSession session) {
   void must(Answer answer, String step) {
     if (!answer.did) throw StateError('$step refused: ${answer.says}');

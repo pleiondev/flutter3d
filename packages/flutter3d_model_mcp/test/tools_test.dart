@@ -21,24 +21,44 @@ void main() {
       tools.map((ModelTool it) => it.name).toSet();
 
   test('every model command is offered as a tool', () {
+    // `selectElements` is the one command named differently from the tool
+    // that reaches it: `select` predates the command (`tut-05`) and keeps
+    // its own historic name and JSON shape (`objects`/`object`/`level`/
+    // `elements`) rather than being renamed to match — every existing MCP
+    // client already calls it `select`.
+    const differentTool = <String, String>{'selectElements': 'select'};
+    final uncovered = modelCommandNames
+        .toSet()
+        .difference(namesOf(modelTools))
+        .difference(differentTool.keys.toSet());
     expect(
-      modelCommandNames.toSet().difference(namesOf(modelTools)),
+      uncovered,
       isEmpty,
       reason:
           'a command exists that this server cannot call, and an agent '
           'reading tools/list has no way to find out that it is missing',
     );
+    for (final MapEntry<String, String> renamed in differentTool.entries) {
+      expect(
+        namesOf(modelTools),
+        contains(renamed.value),
+        reason: '${renamed.key} is meant to be reachable as "${renamed.value}"',
+      );
+    }
   });
 
   test('every tool is a command or one of the named session verbs', () {
     const beyondTheCommands = <String>{
       'list',
       'listMaterials',
+      // `tut-05`: runs a real command (`SelectElements`) underneath now, but
+      // under this tool's own historic name and JSON shape rather than the
+      // command's — see the "every model command is offered as a tool" test
+      // above for the other half of that exception.
       'select',
       // `tut-03`: adjusts whatever step is on top of the undo stack, of
       // whichever command that step happens to be — there is no one
-      // command name this tool could equal, the same reason `select` is
-      // here rather than under a command name of its own.
+      // command name this tool could equal.
       'amend',
       'undo',
       'redo',

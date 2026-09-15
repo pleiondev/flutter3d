@@ -487,3 +487,93 @@ final class SelectByMaterial extends ModelCommand {
               : OpResult.done(selection: found);
         });
 }
+
+/// Picks whole objects by id, or switches to mesh mode on one object and
+/// picks vertices, edges or faces of it by id — a click, named.
+///
+/// **`tut-05`, closed.** Every command above answers "everything"/"nothing"/
+/// "the neighbours of what is already selected" — a walk relative to
+/// whatever the selection already holds, needing no id of its own. Naming a
+/// *specific* object or a *specific* set of elements is a different kind of
+/// pick — the one a mouse click makes, and the one `ModelSession.select`
+/// offers a program with no mouse — and it went straight to
+/// `ModelHistory.selection =` rather than through any command here, which is
+/// exactly what made a case whose edits depend on it (case 2's rim faces,
+/// case 3's imported box) unrecoverable from a cold `CommandJournal.replay`:
+/// the pick itself was never on the journal to replay. This command is that
+/// pick, written down.
+///
+/// **[level] is a `String` rather than an `ElementLevel`, matching
+/// `ModelSession.select`'s own argument** — an agent's JSON names a level by
+/// word, and a name nothing recognises is a refusal with a sentence
+/// ([apply]'s own "is not a level"), not a decode failure a caller never
+/// sees.
+final class SelectElements extends ModelCommand {
+  const SelectElements({this.objects, this.object, this.level, this.elements});
+
+  /// Object ids to select, in object mode. Ignored when [object] is given.
+  final List<int>? objects;
+
+  /// The one object to select elements of, switching to mesh mode. Null picks
+  /// whole objects instead, from [objects].
+  final int? object;
+
+  /// `"vertex"`, `"edge"` or `"face"` — required together with [object].
+  final String? level;
+
+  /// Element ids at [level], within [object]. Meaningless without [object].
+  final List<int>? elements;
+
+  @override
+  String get name => 'selectElements';
+
+  @override
+  String get says => object != null
+      ? 'select ${elements?.length ?? 0} '
+            '${level ?? 'element'}${(elements?.length ?? 0) == 1 ? '' : 's'}'
+      : 'select ${objects?.length ?? 0} '
+            'object${(objects?.length ?? 0) == 1 ? '' : 's'}';
+
+  @override
+  Map<String, Object?> get arguments => <String, Object?>{
+    if (objects != null) 'objects': objects,
+    if (object != null) 'object': object,
+    if (level != null) 'level': level,
+    if (elements != null) 'elements': elements,
+  };
+
+  @override
+  Outcome apply(ModelProject project, ProjectSelection selection) {
+    if (object != null) {
+      final ElementLevel? at = _elementLevelNamed(level);
+      if (at == null) {
+        return Outcome.refused(
+          '"$level" is not a level; it is vertex, edge or face',
+        );
+      }
+      return Outcome.done(
+        project,
+        selection: ProjectSelection(
+          mode: SelectionMode.mesh,
+          objects: <int>[object!],
+          level: at,
+          elements: elements ?? const <int>[],
+        ),
+      );
+    }
+    return Outcome.done(
+      project,
+      selection: ProjectSelection(
+        mode: SelectionMode.object,
+        objects: objects ?? const <int>[],
+      ),
+    );
+  }
+}
+
+ElementLevel? _elementLevelNamed(String? word) {
+  for (final ElementLevel level in ElementLevel.values) {
+    if (level.name == word) return level;
+  }
+  return null;
+}

@@ -2560,6 +2560,7 @@ void main() {
         const SelectEdgeLoop(4),
         const SelectEdgeRing(4),
         const SelectByMaterial(2),
+        const SelectElements(object: 1, level: 'face', elements: <int>[0, 1]),
         const AddLight(type: ProjectLightType.point),
         const RemoveLight(0),
         const SetLightField(index: 0, field: 'intensity', value: 2.0),

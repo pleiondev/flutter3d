@@ -1,7 +1,9 @@
 {"name":"addLathe","profile":[[0.0,0.0],[0.3199999928474426,0.0],[0.3799999952316284,0.11999999731779099],[0.3400000035762787,0.3199999928474426],[0.2199999988079071,0.5],[0.30000001192092896,0.7200000286102295],[0.23999999463558197,0.9200000166893005],[0.25999999046325684,1.0]],"segments":12,"closedProfile":false,"label":"vase","author":"agent"}
 {"name":"bakeToMesh","id":1,"author":"agent"}
+{"name":"selectElements","object":1,"level":"face","elements":[61,62,63,64,65,66,67,68,69,70,71,72],"author":"agent"}
 {"name":"extrude","distance":0.04,"author":"agent"}
 {"name":"transformElements","by":[1.0,0.0,0.0,0.0,0.0,1.0,0.0,0.0,0.0,0.0,1.0,0.0,0.0,0.20000000298023224,0.0,1.0],"what":"move","pivot":"median","space":"global","author":"agent"}
+{"name":"selectElements","object":1,"level":"edge","elements":[108],"author":"agent"}
 {"name":"loopCut","cuts":1,"factor":0.5,"author":"agent"}
 {"name":"addModifier","id":1,"modifier":{"kind":"mirror","normal":[1.0,0.0,0.0],"mergeDistance":0.0005,"bisect":false,"flipUv":false},"author":"agent"}
 {"name":"addModifier","id":1,"modifier":{"kind":"array","count":3,"offset":[0.8999999761581421,0.0,0.0],"mergeDistance":null},"author":"agent"}

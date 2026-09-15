@@ -33,7 +33,17 @@ export 'package:flutter3d_mcp_kit/flutter3d_mcp_kit.dart' show Answer;
 /// `apply`.** That is where a step gets undone and where a slider's `amend`
 /// lives; going around it would give an agent an edit nothing can take back.
 final class ModelSession {
-  ModelSession(this.history, {this.path});
+  /// Attaches a fresh [CommandJournal] to [history] when it does not already
+  /// carry one (`??=`, not `=`) — `tut-15`'s own fix: `--mcp-port` binds a
+  /// session over a [ModelHistory] the app already built and may already be
+  /// editing, and this is what makes every command *this* session ever runs
+  /// — and, since [ModelHistory.run]/[ModelHistory.amend] now record to
+  /// whichever journal is attached regardless of caller, every command a
+  /// person runs directly against the same shared [history] too — land on
+  /// one recovery journal rather than each caller needing one of its own.
+  ModelSession(this.history, {this.path}) {
+    history.recoveryJournal ??= CommandJournal();
+  }
 
   /// Opens the project at [path], or a fresh one when there is nothing there
   /// yet — the shape `dart_mcp`'s own examples and `Г8` (the plan's decision
@@ -65,9 +75,6 @@ final class ModelSession {
   /// Where this was opened from, or last saved to. Null only for a session
   /// built directly in a test.
   String? path;
-
-  /// Every command this session has run, for [journal] to write out.
-  final CommandJournal _journal = CommandJournal();
 
   /// Kept across calls to [export] rather than built fresh each time, so an
   /// object nobody has touched since the last export keeps the same
@@ -157,50 +164,44 @@ final class ModelSession {
 
   /// Selects whole objects by id, or elements of one object at one level.
   ///
-  /// Object-level picking is a click, the way it is in the application — not
-  /// a [ModelCommand], and so not something [CommandJournal] can replay. See
-  /// that package's own doc comment for what that costs a recovery journal.
+  /// **`SelectElements`, run through [history] like any other command
+  /// (`tut-05`, closed).** This used to assign `history.selection =`
+  /// directly — a click, named, the way the application makes one, but not a
+  /// [ModelCommand] and so not something [CommandJournal] could replay. Now
+  /// it runs a real, if non-mutating, command through [ModelHistory.run],
+  /// which records it to whichever journal is attached the same as any other
+  /// edit — a cold [journal] replay can rebuild a pick again, not only the
+  /// edit that came after it.
   Answer select({
     List<int>? objects,
     int? object,
     String? level,
     List<int>? elements,
   }) {
-    if (object != null) {
-      final ElementLevel? at = _levelNamed(level);
-      if (at == null) {
-        return (
-          did: false,
-          says: '"$level" is not a level; it is vertex, edge or face',
-        );
-      }
-      history.selection = ProjectSelection(
-        mode: SelectionMode.mesh,
-        objects: <int>[object],
-        level: at,
-        elements: elements ?? const <int>[],
-      );
-      return (did: true, says: selection);
-    }
-    history.selection = ProjectSelection(
-      mode: SelectionMode.object,
-      objects: objects ?? const <int>[],
+    final String? refused = history.run(
+      SelectElements(
+        objects: objects,
+        object: object,
+        level: level,
+        elements: elements,
+      ),
+      author: StepAuthor.agent,
     );
+    if (refused != null) return (did: false, says: refused);
     return (did: true, says: selection);
   }
 
-  /// Runs [command] through the history, and records it if it succeeded —
-  /// always as `StepAuthor.agent`, both to [history] and to [_journal]: every
+  /// Runs [command] through the history, always as `StepAuthor.agent` — every
   /// command an MCP tool call reaches this method with is one by definition,
-  /// `mcp-10n`'s own row, and `mcp-12n`'s own recovered journal has to agree
-  /// with the live session about whose step each one was, not fall back to
-  /// `record`'s own `person` default because nobody here named one.
+  /// `mcp-10n`'s own row. [ModelHistory.run] itself records it, under that
+  /// same author, to whichever journal is attached (`tut-15`): the session's
+  /// own recovery file agrees with the live one about whose step each was
+  /// without this method having to record to a journal of its own.
   Answer run(ModelCommand command) {
     final String? refused = history.run(command, author: StepAuthor.agent);
     if (refused != null) {
       return (did: false, says: 'nothing did ${command.says}: $refused');
     }
-    _journal.record(command, author: StepAuthor.agent);
     return (did: true, says: '${command.says} — $selection');
   }
 
@@ -215,36 +216,29 @@ final class ModelSession {
   /// behaviour a person dragging the slider gets — not a second `run` that
   /// would leave two steps on the stack instead of one adjusted.
   ///
-  /// **Records [to] itself to the journal, not the step it replaces.** A
-  /// bare `history.amend` (what the app calls, and what case 2's own tests
-  /// exercise directly) never reaches `_journal` at all, so a session's own
-  /// recovery file used to still name the *original* argument after an
-  /// amend — this is what closes that: [CommandJournal.amend] forgets the
-  /// line(s) the step being adjusted wrote and records [to] in their place,
-  /// so a cold [journal] replay lands on the adjusted state rather than the
-  /// original one followed by an adjustment nothing on disk remembers.
+  /// **[ModelHistory.amend] itself records [to] to whichever journal is
+  /// attached, not the step it replaces** (`tut-03`, `tut-15`) — under the
+  /// step's own original author, the same one the adjusted [HistoryStep]
+  /// keeps, so a cold [journal] replay lands on the adjusted state rather
+  /// than the original one followed by an adjustment nothing on disk
+  /// remembers, whoever made the step being adjusted.
   Answer amend(ModelCommand to) {
     final String? refused = history.amend(to);
     if (refused != null) {
       return (did: false, says: 'nothing did ${to.says}: $refused');
     }
-    _journal.amend(to, author: StepAuthor.agent);
     return (did: true, says: '${to.says} — $selection');
   }
 
-  /// Runs [body] as one [history] step, its own journal lines bracketed the
-  /// same way — a recipe (`mcp-09n`) calling [run] several times inside
-  /// [body] is one undo step in the live session and, thanks to this, one
-  /// step again when `mcp-12n`'s own [CommandJournal.replay] rebuilds a
-  /// crashed session's journal from disk: [history]'s own transaction
-  /// grouping and [_journal]'s are two different objects that would
-  /// otherwise have to be kept in step by every caller separately, and a
-  /// caller that wrapped only [history] — every recipe here did, once —
-  /// left [_journal] recording the same body as several ungrouped lines,
-  /// correct for the live session and wrong for anything recovered from
-  /// disk.
-  T _recipe<T>(T Function() body) =>
-      history.transaction(() => _journal.transaction(body));
+  /// Runs [body] as one [history] step — a recipe (`mcp-09n`) calling [run]
+  /// several times inside [body] is one undo step in the live session and,
+  /// thanks to [ModelHistory.beginTransaction]/[ModelHistory.endTransaction]
+  /// bracketing whichever journal is attached the same way, one step again
+  /// when `mcp-12n`'s own [CommandJournal.replay] rebuilds a crashed
+  /// session's journal from disk (`tut-15`: [history]'s own transaction
+  /// bracketing and its attached journal's are kept in step by [history]
+  /// itself now, not by every caller separately).
+  T _recipe<T>(T Function() body) => history.transaction(body);
 
   /// Takes back the top step — refusing, by name, when it is not this
   /// session's own to take back. `mcp-10n`'s own acceptance: an agent's
@@ -463,10 +457,12 @@ final class ModelSession {
     // `ReplaceDocument` rather than a run of `AddPrimitive`-style commands,
     // because the import brought whole meshes across, not parameters a
     // command could describe from scratch. Run directly against `history`
-    // rather than through this session's own `run` — `ReplaceDocument` is
-    // deliberately not recorded to `_journal`, since it carries a whole
-    // `ModelProject` a JSON Lines file has no way to hold; an import does not
-    // appear in the recovery journal, only in the undo stack.
+    // rather than through this session's own `run` since there is no
+    // sentence to build from a command's own `says` here worth adding to —
+    // `ReplaceDocument.isJournaled` is false regardless of which door runs
+    // it, since it carries a whole `ModelProject` a JSON Lines file has no
+    // way to hold; an import does not appear in the recovery journal, only
+    // in the undo stack.
     //
     // `mcp-14n`'s own lock, the same reason `model_tools.dart`'s generic
     // command tool waits for it: an import landing mid-drag would replace
@@ -520,10 +516,14 @@ final class ModelSession {
   }
 
   /// Writes the commands run so far to [to], as `doc-16`'s `CommandJournal`
-  /// format — a recovery log, not the project itself.
+  /// format — a recovery log, not the project itself. Reads [history]'s own
+  /// attached journal — the constructor always gives it one — rather than
+  /// keeping a second copy here, so this names every step [history] recorded
+  /// regardless of which caller ran it (`tut-15`).
   Answer journal(String to) {
-    File(to).writeAsBytesSync(_journal.toBytes());
-    return (did: true, says: 'wrote ${_journal.length} journal lines to $to');
+    final CommandJournal j = history.recoveryJournal!;
+    File(to).writeAsBytesSync(j.toBytes());
+    return (did: true, says: 'wrote ${j.length} journal lines to $to');
   }
 
   // ------------------------------------------------------------- mcp-09n
@@ -1141,13 +1141,6 @@ final class ModelSession {
       for (final ExportIssue issue in issues) '  $issue',
     ].join('\n');
   }
-}
-
-ElementLevel? _levelNamed(String? word) {
-  for (final ElementLevel level in ElementLevel.values) {
-    if (level.name == word) return level;
-  }
-  return null;
 }
 
 String _formatFromSuffix(String path) {

@@ -21,6 +21,16 @@
 /// argument, against the document as it was before it — so dragging the slider
 /// does not grow the stack by one per frame and does not need a transaction
 /// wrapped round the widget.
+///
+/// **[recoveryJournal], once attached, hears every [run]/[amend]/transaction
+/// through this door, regardless of who is calling it.** `tut-15`'s own fix:
+/// an `--mcp-port` session binds a `ModelSession` over the very
+/// `ModelHistory` a person already has open (`mcp_bootstrap_io.dart`), so
+/// `ModelSession.run` and a person's own `ModelerCubit.run` (`now.history
+/// .run(command)`, no author named) both end up calling the [run] below —
+/// recording here rather than leaving each caller to record to a journal of
+/// its own is what makes a session's own recovery file agree with every step
+/// actually taken on the shared document, whoever took it.
 library;
 
 import 'dart:async';
@@ -28,6 +38,7 @@ import 'dart:async';
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 
 import 'command.dart';
+import 'command_journal.dart';
 import 'project.dart';
 import 'selection.dart';
 
@@ -77,9 +88,13 @@ final class HistoryStep {
 
 /// A project, the changes made to it, and the way back.
 final class ModelHistory {
-  ModelHistory(this._project, {this.depth = 64, ProjectSelection? selection})
-    : _selection = selection ?? ProjectSelection.none,
-      _saved = _project;
+  ModelHistory(
+    this._project, {
+    this.depth = 64,
+    ProjectSelection? selection,
+    this.recoveryJournal,
+  }) : _selection = selection ?? ProjectSelection.none,
+       _saved = _project;
 
   /// Rebuilds a history whose undo stack is already known — `doc-31d`'s own
   /// reader, once a file's own `history` section has read [steps] back.
@@ -99,6 +114,7 @@ final class ModelHistory {
     List<HistoryStep> steps, {
     this.depth = 64,
     ProjectSelection? selection,
+    this.recoveryJournal,
   }) : _selection = selection ?? ProjectSelection.none,
        _saved = _project {
     _done.addAll(steps);
@@ -112,6 +128,22 @@ final class ModelHistory {
   /// Sixty-four is far past what anybody undoes through and near enough to
   /// nothing in the ordinary case.
   final int depth;
+
+  /// A recovery journal every [run]/[amend]/[beginTransaction]/
+  /// [endTransaction] call writes to as well, when one is attached — see the
+  /// library comment. Not [journal] (that getter is [_done]'s own commands,
+  /// oldest first, for `doc-31d`'s own file writer) — a *recovery* journal,
+  /// `doc-16`'s `CommandJournal`, JSON Lines rather than a Dart list. Null by
+  /// default: a history built for a test, a `CommandJournal.replay` (which
+  /// never attaches one to the `ModelHistory` it builds), or a plain desktop
+  /// session with no `--mcp-port` bound over it records nothing anywhere
+  /// unless a caller asks for that in code.
+  ///
+  /// A plain mutable field rather than a constructor-only value: a caller
+  /// that already holds a live `ModelHistory` — `ModelSession`, given one
+  /// built elsewhere — has to be able to attach its own journal to it after
+  /// the fact, not only build a fresh history around one.
+  CommandJournal? recoveryJournal;
 
   ModelProject _project;
   ProjectSelection _selection;
@@ -162,6 +194,13 @@ final class ModelHistory {
   /// `ModelSession` (`flutter3d_model_mcp`) is the one caller that ever
   /// passes [StepAuthor.agent], since every command an MCP tool call runs is
   /// one by definition.
+  ///
+  /// **Records to [recoveryJournal], when one is attached, on every success
+  /// — regardless of which door the caller came in through.** `ModelSession
+  /// .run` and a plain `now.history.run(command)` from `ModelerCubit` both
+  /// call this same method, so attaching a journal here is what lets both a
+  /// person's live edit and an agent's own reach the identical recovery file
+  /// (`tut-15`), each under the [author] it was actually given.
   String? run(ModelCommand command, {StepAuthor author = StepAuthor.person}) {
     final Outcome outcome = command.apply(_project, selection);
     if (!outcome.ok) return outcome.refused;
@@ -189,6 +228,9 @@ final class ModelHistory {
       // through here would wipe the very stack it is walking.
       _undone.clear();
       if (_done.length > depth) _done.removeAt(0);
+    }
+    if (command.isJournaled) {
+      recoveryJournal?.record(command, author: author);
     }
     _project = outcome.project!;
     _selection = outcome.selection ?? _selection;
@@ -265,6 +307,7 @@ final class ModelHistory {
     _meshStepsOfTransaction.clear();
     _projectBeforeTransaction = _project;
     _selectionBeforeTransaction = _selection;
+    recoveryJournal?.beginTransaction();
   }
 
   /// Closes it, leaving one step for everything that succeeded inside.
@@ -293,6 +336,11 @@ final class ModelHistory {
     // command that has been waiting on it.
     _transactionClosed?.complete();
     _transactionClosed = null;
+    // Unconditional, matching `beginTransaction`'s own marker: a transaction
+    // that ran nothing still closes the bracket it opened on the journal,
+    // the same as it always has when a caller wrapped `CommandJournal
+    // .transaction` around this by hand.
+    recoveryJournal?.endTransaction();
     if (first == null || identical(_project, before)) return;
     _done.add(
       HistoryStep(
@@ -329,6 +377,14 @@ final class ModelHistory {
   /// document. A refusal rolls the journal forward again: refused commands
   /// abandon their open step rather than pushing one, so the redo is still
   /// there to take.
+  ///
+  /// **Records to [recoveryJournal], when one is attached, the same way [run]
+  /// does** — under the step's own original [HistoryStep.author], since an
+  /// amend adjusts a step already on the stack rather than naming a fresh
+  /// one; a person dragging the app's own operation-card slider and an agent
+  /// calling `ModelSession.amend` both reach this, and both now leave the
+  /// adjustment on a shared recovery journal the same way an ordinary edit
+  /// does.
   String? amend(ModelCommand replacement) {
     if (_done.isEmpty) return 'there is nothing to adjust';
     final HistoryStep step = _done.last;
@@ -356,6 +412,9 @@ final class ModelHistory {
     // longer follows from this one, and its mesh steps are gone from the
     // journal the moment the replacement wrote.
     _undone.clear();
+    if (replacement.isJournaled) {
+      recoveryJournal?.amend(replacement, author: step.author);
+    }
     _project = outcome.project!;
     _selection = outcome.selection ?? step.selectionBefore;
     return null;

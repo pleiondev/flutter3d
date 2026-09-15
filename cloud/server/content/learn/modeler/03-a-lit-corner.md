@@ -216,12 +216,13 @@ the exported GLB really does carry both assets as separate surface-bearing
 nodes at different, non-identical placements, keeping their own two
 materials rather than merging them; the project's own `SceneLighting` holds
 the light, the shadow request, the studio environment and bloom exactly as
-this page describes; and — the same shape case 2's own `tut-05` finding
-already predicted for a case like this one — `case3.jsonl`, replayed
+this page describes; and — the same fix case 2's own `tut-05` closed,
+now checked at this case's own plain object level — `case3.jsonl`, replayed
 through `CommandJournal.replay` from right after the import (a cold
-`CommandJournal` cannot see the import either, for the reason above), gets
-stuck at the very first `moveBy` for want of a selection nothing in this
-journal format can record. Selecting the box live, the way a person
-clicking the gizmo or an agent calling `select` then `run` over MCP always
-does, reaches the case's own fixture without trouble — driving it is what
-`dart test test/tutorial_scenarios_test.dart` actually does.
+`CommandJournal` still cannot see the import itself, for the reason
+above), now rebuilds the exact document this case's own fixture holds:
+`session.select` picking the box by id is a real, replayable
+`SelectElements` command, so the pick the `moveBy` right after it depends
+on is on the journal too. Driving it live is still what
+`dart test test/tutorial_scenarios_test.dart` actually does; the cold
+replay from right after the import is now one more thing it checks.

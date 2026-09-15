@@ -242,12 +242,13 @@ and weights that vary joint to joint, not a single-joint stand-in; the shape
 key, its driver and the clip's own two tracks are exactly what this page
 describes; the exported GLB carries a real skin and a real multi-key
 animation, the same acceptance `rig_pipeline_mcp_test.dart`'s own `anim-30`
-scenario already checks for this file; and — the same shape cases 2 and 3's
-own `tut-05` already predicted — `case4.jsonl`, replayed through
-`CommandJournal.replay` from right after the import, gets stuck at the
-first vertex-selection-dependent step (the chest sculpt), because
-`PaintWeights` and `SetRig` both replay clean cold but nothing records the
-mesh-vertex selection the sculpt needs. Selecting live, the way a person
-clicking through the app or an agent calling `select` then `run` over MCP
-always does, reaches the case's own fixture without trouble; driving it is
-what `dart test test/tutorial_scenarios_test.dart` actually does.
+scenario already checks for this file; and — the same fix cases 2 and 3's
+own `tut-05` closed — `case4.jsonl`, replayed through
+`CommandJournal.replay` from right after the import, now rebuilds the
+exact document this case's own fixture holds, past the
+vertex-selection-dependent step (the chest sculpt) that used to be where
+it got stuck: `PaintWeights` and `SetRig` both already replayed clean
+cold, and the mesh-vertex selection the sculpt needs is a real, replayable
+`SelectElements` line now too. Driving it live is still what
+`dart test test/tutorial_scenarios_test.dart` actually does; the cold
+replay from right after the import is now one more thing it checks.

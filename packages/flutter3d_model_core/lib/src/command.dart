@@ -212,6 +212,22 @@ sealed class ModelCommand {
   /// made.
   Outcome apply(ModelProject project, ProjectSelection selection);
 
+  /// Whether a successful run of this should be written to whichever
+  /// `CommandJournal` a [ModelHistory] has attached, when one is. True for
+  /// every command except [ReplaceDocument] — see that class's own doc
+  /// comment for why a line naming it could never be read back.
+  ///
+  /// **On the command rather than left to each call site to remember.**
+  /// [ModelHistory.run] used to journal nothing itself — a caller recorded
+  /// to its own `CommandJournal` by hand, and one that called [run] directly
+  /// rather than through that wrapper (`ModelSession.import`'s own
+  /// [ReplaceDocument] call, deliberately) simply never did. Once [run]
+  /// journals on behalf of every caller (`tut-15`), that same exemption has
+  /// to travel with the command itself, or every caller earns the exemption
+  /// back by remembering which door to call [run] through — exactly the kind
+  /// of thing this row exists to stop depending on.
+  bool get isJournaled => true;
+
   Map<String, Object?> toJson() => <String, Object?>{
     'name': name,
     ...arguments,
@@ -225,14 +241,17 @@ sealed class ModelCommand {
 /// Swaps the whole document for [next], as one undo step.
 ///
 /// **Deliberately not in [modelCommandNames], not in [modelCommandFromJson],
-/// and not `record`-able through `CommandJournal`.** Every other command
-/// describes an edit small enough to write down and replay — a number, an id,
-/// a list of points; this one carries a whole [ModelProject], which is what an
-/// importer builds from a decoded file and a journal has no honest way to
-/// store. It exists so that bringing in an external model — `flutter3d_model_mcp`'s
-/// `import`, and later `doc-11a-n`'s `ImportInto` — still goes through
-/// [ModelHistory] and can be undone as itself, rather than needing a second,
-/// private way to push a step that every other command already has for free.
+/// and [isJournaled] is false.** Every other command describes an edit small
+/// enough to write down and replay — a number, an id, a list of points; this
+/// one carries a whole [ModelProject], which is what an importer builds from
+/// a decoded file and a journal has no honest way to store — a line naming it
+/// would read back only `{"name": "replaceDocument"}`, nothing of [next], and
+/// [modelCommandFromJson] would refuse it anyway since it is not in that
+/// table. It exists so that bringing in an external model —
+/// `flutter3d_model_mcp`'s `import`, and later `doc-11a-n`'s `ImportInto` —
+/// still goes through [ModelHistory] and can be undone as itself, rather than
+/// needing a second, private way to push a step that every other command
+/// already has for free.
 final class ReplaceDocument extends ModelCommand {
   const ReplaceDocument(this.next, this.says);
 
@@ -246,6 +265,9 @@ final class ReplaceDocument extends ModelCommand {
 
   @override
   Map<String, Object?> get arguments => const <String, Object?>{};
+
+  @override
+  bool get isJournaled => false;
 
   @override
   Outcome apply(ModelProject project, ProjectSelection selection) =>
@@ -671,6 +693,23 @@ _modelCommandReaders =
         final int slot => SelectByMaterial(slot),
         _ => null,
       },
+      // `tut-05`: registered so a journal line — or an MCP `select` call,
+      // read back through `_command`-style reader — replays a specific pick
+      // rather than only the walks above. Every field is optional on
+      // `SelectElements` itself, so there is nothing here for this reader to
+      // refuse on.
+      'selectElements': (json) => SelectElements(
+        objects: _intListFrom(json['objects']),
+        object: switch (json['object']) {
+          final int object => object,
+          _ => null,
+        },
+        level: switch (json['level']) {
+          final String level => level,
+          _ => null,
+        },
+        elements: _intListFrom(json['elements']),
+      ),
       'addLight': (json) => AddLight(
         type: switch (json['type']) {
           final String type => ProjectLightType.values.firstWhere(

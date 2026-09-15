@@ -3,19 +3,20 @@
 /// `tutorial_scenarios_test.dart` (which drives it against a live
 /// [ModelSession]) need to agree on.
 ///
-/// **Unlike case 1, nothing here is journal-replayable from a cold project —
-/// and that is itself the case's own biggest finding.** [Extrude], [LoopCut]
-/// and [TransformElements] all act on "whatever is currently selected", and
-/// selecting mesh elements is [ModelSession.select], not a [ModelCommand] —
-/// its own doc comment already says object-level picking is "not something
-/// [CommandJournal] can replay"; this is the first case whose edits actually
-/// depend on that missing half, now at *mesh*-element level too (`tut-05`,
-/// see `doc/modeler-tutorial-gaps.md`). So this file has no analogue of
-/// case 1's `case1ImportedProject` — there is no project a plain
-/// `CommandJournal.replay` can rebuild this case from — only
-/// [runCase2Scenario], which drives a live [session] exactly the way a
-/// person clicking through the app, or an agent calling `select` then `run`
-/// over MCP, actually would.
+/// **Journal-replayable from a cold project now, closing `tut-05`.**
+/// [Extrude], [LoopCut] and [TransformElements] all act on "whatever is
+/// currently selected", and selecting mesh elements is [ModelSession.select]
+/// — which used to assign [ModelHistory.selection] directly, not something
+/// [CommandJournal] could replay, and this was the first case whose edits
+/// actually depended on that missing half at *mesh*-element level (`tut-05`,
+/// see `doc/modeler-tutorial-gaps.md`). `select` now runs a real,
+/// non-mutating `SelectElements` command through [ModelHistory.run], so a
+/// cold `CommandJournal.replay` of this case's own `.jsonl` rebuilds it the
+/// same way case 1's own journal rebuilds that case — [runCase2Scenario]
+/// still drives a live [session] exactly the way a person clicking through
+/// the app, or an agent calling `select` then `run` over MCP, actually
+/// would; a crash-recovery replay of the file it writes now reaches the same
+/// place.
 ///
 ///     dart test test/tutorial_scenarios_test.dart
 library;
@@ -70,12 +71,12 @@ Uint8List stubGlazeTexture() {
 /// Every step case 2's own page (`cloud/server/content/learn/modeler/
 /// 02-vase-from-a-profile.md`) walks through, run against [session].
 ///
-/// **The two `session.select` calls are the exact steps `tut-05` names as
-/// unrecoverable from a `.jsonl` alone** — kept in this function (not
-/// worked around) because a person or an agent driving the session live
-/// always makes them anyway; only a *crash recovery* replaying the journal
-/// from nothing would find itself stuck exactly where
-/// `tutorial_scenarios_test.dart`'s own first case-2 test shows.
+/// **The two `session.select` calls are the exact steps `tut-05` used to
+/// name as unrecoverable from a `.jsonl` alone** — a person or an agent
+/// driving the session live always makes them anyway, and now a cold
+/// `CommandJournal.replay` of this case's own journal reaches the same
+/// place too, the fix `tutorial_scenarios_test.dart`'s own first case-2
+/// test now checks for directly.
 ///
 /// **No `bevel` here, and that is `tut-04`.** The plan's own case list asks
 /// for "extrude/loop cut/bevel"; `flutter3d_mesh` has real `bevelEdges`/
