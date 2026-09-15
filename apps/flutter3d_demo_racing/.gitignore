@@ -46,3 +46,6 @@ app.*.map.json
 
 # Widget Preview related
 .widget_preview/
+
+# ap-12: the build hook's own output (ap-05) — converted on every build.
+/flutter3d_generated/

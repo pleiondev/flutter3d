@@ -92,3 +92,4 @@ flutter:
     - assets/sounds/
     - assets/textures/
     - flutter3d_generated/
+    - flutter3d_generated/models/

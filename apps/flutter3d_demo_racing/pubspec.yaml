@@ -41,6 +41,10 @@ dependencies:
   flutter3d_bridge:
     path: ../../packages/flutter3d_bridge
 
+  # `ls-x-02`: the same race, opened in `StereoViewer` behind `?stereo=1`.
+  flutter3d_stereo:
+    path: ../../packages/flutter3d_stereo
+
   # What a locked wheel and a car off the road throw into the air. This game
   # had no particles at all until it had smoke.
   flutter3d_particles:
@@ -88,16 +92,29 @@ dev_dependencies:
   flutter3d_screens:
     path: ../../packages/flutter3d_screens
 
-# Two traps this repository has paid for before, one of them already sprung
-# here: `FLTEnableFlutterGPU` and `FLTEnableImpeller` have to be in the macOS
-# `Info.plist` or the window comes up empty — they are; and when sound is added,
-# run `flutter clean` afterwards, or SoLoud reports "no available native assets"
-# once and then plays nothing for the rest of the session.
+  # `ap-12`: the build hook (`hook/build.dart`) that converts
+  # `assets_src/models/*.glb` into `flutter3d_generated/*.f3d` on every
+  # build — `path`, the same convention every other sibling package in
+  # this file uses, rather than the version constraint `flutter3d_build:init`
+  # writes for a project outside this repository.
+  flutter3d_build:
+    path: ../../packages/flutter3d_build
+
+# Three traps this repository has paid for before, two of them already
+# sprung here: `FLTEnableFlutterGPU` and `FLTEnableImpeller` have to be in
+# the macOS `Info.plist` or the window comes up empty — they are; when
+# sound is added, run `flutter clean` afterwards, or SoLoud reports "no
+# available native assets" once and then plays nothing for the rest of the
+# session — the same underlying cause `ap-12` in
+# `doc/asset-pipeline-plan.md` names for the build hook: a freshly added
+# hook- or native-asset-providing dependency does not make the build
+# system notice it until `flutter clean` clears the stale build cache.
 
 flutter:
   uses-material-design: true
 
   assets:
     - assets/tracks/
-    - assets/models/
     - assets/sounds/
+    - flutter3d_generated/
+    - flutter3d_generated/models/
