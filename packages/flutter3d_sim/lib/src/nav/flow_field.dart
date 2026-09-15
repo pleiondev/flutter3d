@@ -109,6 +109,23 @@ final class FlowField {
   int get goalCell => _goalCell;
   int _goalCell = -1;
 
+  /// Where the goal was the last time this field actually swept, or `null`
+  /// before the first sweep — what [update]'s hysteresis measures against.
+  Vector3? _lastSweepGoal;
+
+  /// How far the goal must actually have travelled since the last sweep
+  /// before a newly-crossed cell boundary is trusted — `net-00` in
+  /// `doc/tooling-plan.md`: a goal resting near a cell edge re-sweeps on
+  /// every single step at full cost, because ordinary physics settle jitters
+  /// it back and forth across the line. Measured on the shooter's own crypt
+  /// (`cellSize: 0.25`, `staging.dart`): the jitter there is about 2.7 cm,
+  /// which a tenth of that cell (2.5 cm) does not clear — a tenth is a
+  /// property of the grid, not of how far a resting body actually jitters,
+  /// and the two have no reason to track each other. A third of a cell
+  /// clears it with room, and is still short of missing a real step through
+  /// a doorway one cell wide.
+  double get _hysteresis => grid.cellSize / 3.0;
+
   final Vector3 _centre = Vector3.zero();
   final CellHeap _heap = CellHeap();
 
@@ -152,15 +169,28 @@ final class FlowField {
   }
 
   /// Re-sweeps towards [goal]. Cheap to call every step: it returns without
-  /// doing anything while the goal stays in the same cell.
+  /// doing anything while the goal stays in the same cell, and — since a goal
+  /// sitting almost exactly on a cell edge can cross it every step on jitter
+  /// alone, never travelling anywhere — a crossing that has not actually
+  /// covered [_hysteresis] since the last real sweep is held off rather than
+  /// trusted. A goal that keeps moving in one direction still re-sweeps as
+  /// soon as it has gone far enough to matter; one sitting still by a wall
+  /// does not pay a full grid sweep on every single step for it.
   void update(Vector3 goal) {
     final cell = _resolveGoal(goal);
     if (cell == _goalCell) return;
+    final last = _lastSweepGoal;
+    if (last != null) {
+      final dx = goal.x - last.x;
+      final dz = goal.z - last.z;
+      if (dx * dx + dz * dz < _hysteresis * _hysteresis) return;
+    }
     rebuild(goal);
   }
 
   /// Re-sweeps unconditionally. Call this when the level itself changed.
   void rebuild(Vector3 goal) {
+    _lastSweepGoal = Vector3.copy(goal);
     _cost.fillRange(0, _cost.length, unreachable);
     _dx.fillRange(0, _dx.length, 0);
     _dz.fillRange(0, _dz.length, 0);

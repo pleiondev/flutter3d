@@ -453,6 +453,59 @@ void main() {
       nav.update(Vector3(4.2, 0.7, -7.8));
       expect(field.goalCell, before);
     });
+
+    test(
+      'a goal jittering across a cell edge does not re-sweep every step',
+      () {
+        // `net-00` in doc/tooling-plan.md: a goal that rested a millimetre
+        // from a cell edge crossed it back and forth on ordinary physics
+        // settle, and every crossing paid a full grid sweep — the shooter's
+        // one restore-and-replay test that walked into this by accident.
+        // Found here by finding a real edge with `grid.cellAt` instead of
+        // hand-computing one from the grid's origin, so the test keeps
+        // meaning the same thing if the origin's own formula ever changes.
+        final grid = NavGrid.bake(<Brush>[_floor()]);
+        const z = -8.0;
+        // Well inside the floor rather than near its rim, where a cell can
+        // fail `fits()` for the field's own radius and the ring-search
+        // fallback would resolve a probe to some other cell entirely,
+        // silently making every "boundary" found there meaningless.
+        var edge = 0.0;
+        for (var x = -3.0; x < 3.0; x += 0.001) {
+          if (grid.cellAt(Vector3(x, 0.7, z)) !=
+              grid.cellAt(Vector3(x + 0.001, 0.7, z))) {
+            edge = x + 0.0005; // the boundary itself, between the two probes
+            break;
+          }
+        }
+        expect(edge, isNot(0.0), reason: 'no cell edge found to jitter across');
+
+        final nav = Navigation(grid);
+        // A millimetre on the near side — close enough to the edge that every
+        // jitter below stays within the hysteresis radius of *this* point,
+        // whichever side of the edge it lands on. The very first call always
+        // sweeps (nothing has swept yet), so this settles the starting cell.
+        nav.update(Vector3(edge - 0.001, 0.7, z));
+        final field = nav.fieldFor(radius: 0.35);
+        final settled = field.goalCell;
+
+        // A millimetre either side of the edge, the way a resting body's own
+        // depenetration jitters it — never far enough for `_hysteresis` to
+        // trust as a real step across.
+        for (var i = 0; i < 20; i++) {
+          nav.update(Vector3(edge + (i.isEven ? 0.001 : -0.001), 0.7, z));
+        }
+        expect(
+          field.goalCell,
+          settled,
+          reason: 'millimetre jitter across the edge re-swept anyway',
+        );
+
+        // A real crossing, well past the edge, still re-sweeps.
+        nav.update(Vector3(edge + 0.3, 0.7, z));
+        expect(field.goalCell, isNot(settled));
+      },
+    );
   });
 
   group('a monster in a U-shaped room', () {
