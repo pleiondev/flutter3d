@@ -40,6 +40,7 @@ class ModelerShell extends StatelessWidget {
     this.isDirty = false,
     this.bottom,
     this.bottomHeight,
+    this.agentPanel,
   }) : assert(
          (bottom == null) == (bottomHeight == null),
          'bottom and bottomHeight are given together or not at all',
@@ -90,6 +91,14 @@ class ModelerShell extends StatelessWidget {
   /// see the constructor's assert — so a caller that fills the slot cannot
   /// forget to size it and leave it to whatever [bottom] happens to want.
   final double? bottomHeight;
+
+  /// `tut-16`'s own slot: screen 26's own agent-session panel, appended
+  /// after [properties] rather than replacing it — a person keeps every
+  /// ordinary control while `--mcp-port` is open, and this is what shows
+  /// beside them what an agent connected to it is doing. Null draws
+  /// nothing extra, the same "nothing at all" [bottom]'s own doc comment
+  /// already promises every mode with no lower area of its own.
+  final Widget? agentPanel;
 
   @override
   Widget build(BuildContext context) {
@@ -159,6 +168,16 @@ class ModelerShell extends StatelessWidget {
                     ),
                   ),
                 ),
+                if (agentPanel != null) ...<Widget>[
+                  const VerticalDivider(width: 1, thickness: 1),
+                  SizedBox(
+                    width: ModelerMetrics.agentPanel,
+                    child: ColoredBox(
+                      color: theme.colorScheme.surfaceContainerLow,
+                      child: agentPanel,
+                    ),
+                  ),
+                ],
               ],
             ),
           ),

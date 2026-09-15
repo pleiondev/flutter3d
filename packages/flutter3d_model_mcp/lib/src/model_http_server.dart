@@ -45,15 +45,31 @@ final class ModelHttpServer {
   /// ordinary document ones — `bin/model_mcp.dart`'s headless server never
   /// passes any, which is what keeps them out of that server's own
   /// `tools/list`.
+  ///
+  /// [onToolCall] is `tut-16`'s own door: screen 26's own tool-call feed —
+  /// the GUI wants to know about every call an agent makes over this
+  /// socket, the instant it answers, so [ModelMcpServer.onCall] is threaded
+  /// straight through rather than this class watching calls a second way.
   static Future<ModelHttpServer> start({
     required ModelSession session,
     int port = 0,
     String? token,
     List<ModelPictureTool> extraTools = const <ModelPictureTool>[],
+    void Function(
+      String toolName,
+      Map<String, Object?> arguments,
+      PictureAnswer answer,
+      Duration elapsed,
+    )?
+    onToolCall,
   }) async => ModelHttpServer._(
     await LoopbackMcpServer.start(
-      serve: (channel) =>
-          ModelMcpServer(channel, session: session, extraTools: extraTools),
+      serve: (channel) => ModelMcpServer(
+        channel,
+        session: session,
+        extraTools: extraTools,
+        onCall: onToolCall,
+      ),
       port: port,
       token: token,
     ),

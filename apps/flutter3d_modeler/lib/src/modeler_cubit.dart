@@ -45,6 +45,12 @@ export 'modeler_state.dart';
 /// [ModelCommand.apply] leaves this holding exactly the command that threw.
 ModelCommand? lastAttemptedCommand;
 
+/// `tut-16`'s own bound on `ModelerReady.agentCalls` — a long-running
+/// `--mcp-port` session's own feed keeps growing otherwise; the history
+/// list underneath it is bounded on its own terms already (`ModelHistory
+/// .depth`), and this is the feed's equivalent.
+const int _agentCallFeedLimit = 50;
+
 final class ModelerCubit extends Cubit<ModelerState> {
   ModelerCubit() : super(const ModelerOpening());
 
@@ -165,6 +171,55 @@ final class ModelerCubit extends Cubit<ModelerState> {
       return;
     }
     _synced(now, said: 'redone');
+  }
+
+  /// `tut-16`'s own button beside the ordinary undo: pops the top step only
+  /// when `mcp-10n`'s own [StepAuthor.agent] made it, leaving a person's own
+  /// work alone — [ModelHistory.undo]'s own `onlyIfAuthoredBy` is the whole
+  /// of the restriction; this is that restriction, reported the way [undo]
+  /// already reports the plain one.
+  void undoAgentSteps() {
+    final ModelerReady? now = _ready;
+    if (now == null) return;
+    if (now.history.topStepAuthor == null) {
+      emit(now.copyWith(said: 'nothing to undo'));
+      return;
+    }
+    if (now.history.topStepAuthor != StepAuthor.agent) {
+      emit(now.copyWith(said: "the top step is yours, not the agent's"));
+      return;
+    }
+    final String? took = now.history.undoSays;
+    now.history.undo(onlyIfAuthoredBy: StepAuthor.agent);
+    _synced(now, said: took == null ? 'undone' : 'undone $took');
+  }
+
+  /// `tut-16`'s own hook: `mcp_bootstrap_io.dart`'s `onToolCall` calls this
+  /// after every MCP tool call answers, whether or not it touched the
+  /// document — the feed wants every call, not only the ones that left a
+  /// [HistoryStep] behind.
+  ///
+  /// **Resyncs the scene, the same half of [_synced] [documentMoved] runs.**
+  /// A document tool call lands straight on the shared [ModelHistory]
+  /// `ModelSession.run` holds, never through this cubit's own [ran] — so
+  /// this is the only place the screen ever learns an agent's own edit
+  /// landed and brings the viewport and the readiness to it. `said` is left
+  /// untouched on purpose: `ui.say` (`mcp-16d`) already writes an important
+  /// sentence to the status line through [say] itself, and clearing it here
+  /// right after — every tool call, including that one — would undo the
+  /// one thing [say]'s own `important` flag exists to protect.
+  void agentToolCalled(AgentToolCall call) {
+    final ModelerReady? now = _ready;
+    if (now == null) return;
+    final calls = List<AgentToolCall>.of(now.agentCalls)..add(call);
+    if (calls.length > _agentCallFeedLimit) {
+      calls.removeRange(0, calls.length - _agentCallFeedLimit);
+    }
+    now.stage.sync?.apply(now.project);
+    now.stage.lighting?.sync(now.stage.scene, now.project.lighting);
+    emit(
+      now.copyWith(agentCalls: calls, readiness: _readiness.of(now.project)),
+    );
   }
 
   /// Whatever changed the document outside a command — a transaction closed by

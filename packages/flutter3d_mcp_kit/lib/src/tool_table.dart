@@ -43,6 +43,7 @@ base class ToolTableServer<S, A> extends MCPServer with ToolsSupport {
     required String name,
     required String version,
     required String instructions,
+    this.onCall,
   }) : super.fromStreamChannel(
          implementation: Implementation(name: name, version: version),
          instructions: instructions,
@@ -57,18 +58,43 @@ base class ToolTableServer<S, A> extends MCPServer with ToolsSupport {
   /// How an answer travels back — see `resultOf` and `pictureResultOf`.
   final CallToolResult Function(A answer) toResult;
 
+  /// `tut-16`'s own hook, run after every call answers, whichever of [tools]
+  /// it was — a caller with a screen open beside this server (`mcp-13n`'s
+  /// `--mcp-port`) wants to show a live feed of what an agent is doing, and
+  /// this is the one seam every call already passes through regardless of
+  /// which tool it named. Null for every server that has nobody watching,
+  /// which is every server this repository starts headless.
+  final void Function(
+    String toolName,
+    Map<String, Object?> arguments,
+    A answer,
+    Duration elapsed,
+  )?
+  onCall;
+
   @override
   FutureOr<InitializeResult> initialize(InitializeRequest request) {
     for (final OfferedTool<S, A> offered in tools) {
-      registerTool(
-        offered.tool,
-        (CallToolRequest call) async => toResult(
-          await offered.run(
-            session,
-            call.arguments ?? const <String, Object?>{},
-          ),
-        ),
-      );
+      registerTool(offered.tool, (CallToolRequest call) async {
+        final Map<String, Object?> arguments =
+            call.arguments ?? const <String, Object?>{};
+        // Null exactly when [onCall] is: a headless server (nobody
+        // watching) never reads the clock at all, not even to throw the
+        // answer away — see `repeatableStepExempt`'s own entry for this
+        // file, `tool/structure/repository.dart`.
+        final Stopwatch? stopwatch = onCall == null
+            ? null
+            : (Stopwatch()..start());
+        final A answer = await offered.run(session, arguments);
+        stopwatch?.stop();
+        onCall?.call(
+          offered.name,
+          arguments,
+          answer,
+          stopwatch?.elapsed ?? Duration.zero,
+        );
+        return toResult(answer);
+      });
     }
     return super.initialize(request);
   }

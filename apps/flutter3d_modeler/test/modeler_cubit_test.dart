@@ -314,6 +314,116 @@ void main() {
     });
   });
 
+  group("tut-16's own agent session", () {
+    AgentToolCall call({bool did = true, String says = 'ok'}) => AgentToolCall(
+      tool: 'ui.say',
+      arguments: const <String, Object?>{'text': 'hi'},
+      did: did,
+      says: says,
+      elapsed: const Duration(milliseconds: 12),
+      at: DateTime(2026, 1, 1),
+    );
+
+    test('agentToolCalled appends to the feed', () {
+      final cubit = opened().cubit;
+      cubit.agentToolCalled(call());
+      cubit.agentToolCalled(call(says: 'again'));
+
+      expect(ready(cubit).agentCalls.map((AgentToolCall c) => c.says), <String>[
+        'ok',
+        'again',
+      ]);
+    });
+
+    test('the feed is bounded, oldest call dropped first', () {
+      final cubit = opened().cubit;
+      for (var i = 0; i < 60; i++) {
+        cubit.agentToolCalled(call(says: 'call $i'));
+      }
+      final calls = ready(cubit).agentCalls;
+      // Mutation: let the feed grow without end. A long session's own state
+      // would keep every call forever.
+      expect(calls, hasLength(50));
+      expect(calls.first.says, 'call 10');
+      expect(calls.last.says, 'call 59');
+    });
+
+    test(
+      'does not clobber an important sentence already on the status line',
+      () {
+        final cubit = opened().cubit;
+        cubit.say('exported to model.glb', important: true);
+
+        cubit.agentToolCalled(call());
+
+        // Mutation: route this through the same `_synced` path `documentMoved`
+        // uses with no `said` — that clears `said` unconditionally, which
+        // would erase `ui.say`'s own important sentence the instant any other
+        // tool call (this one) answers right after it.
+        expect(ready(cubit).said, 'exported to model.glb');
+      },
+    );
+
+    test('resyncs the scene, the same half of undo/redo that keeps the '
+        'viewport honest', () {
+      final cubit = opened().cubit;
+      final now = ready(cubit);
+      final id = now.project.objects.first.id;
+      // An edit run straight against the shared history, the way
+      // `ModelSession.run` (an agent's own document commands) does —
+      // never through `cubit.ran`, so nothing here has told the cubit
+      // to resync on its own account yet.
+      now.history.run(
+        Rename(id: id, to: 'agent-renamed'),
+        author: StepAuthor.agent,
+      );
+
+      cubit.agentToolCalled(call());
+
+      // Mutation: skip the resync and only append to the feed. The
+      // rename above is already on `now.history`, but nothing would have
+      // told the readiness (or the scene) to notice it landed.
+      expect(ready(cubit).project[id]!.name, 'agent-renamed');
+    });
+
+    test('undoAgentSteps takes back the top step only when it is the '
+        "agent's own", () {
+      final cubit = opened().cubit;
+      final id = ready(cubit).project.objects.first.id;
+      ready(cubit).history.run(
+        Rename(id: id, to: 'x'),
+        author: StepAuthor.agent,
+      );
+
+      cubit.undoAgentSteps();
+
+      expect(ready(cubit).project[id]!.name, 'a');
+      expect(ready(cubit).said, contains('undone'));
+    });
+
+    test(
+      "undoAgentSteps refuses a person's own top step, changing nothing",
+      () {
+        final cubit = opened().cubit;
+        final id = ready(cubit).project.objects.first.id;
+        cubit.ran(Rename(id: id, to: 'torso'));
+
+        cubit.undoAgentSteps();
+
+        expect(ready(cubit).project[id]!.name, 'torso');
+        expect(ready(cubit).said, contains("agent"));
+      },
+    );
+
+    test('undoAgentSteps with nothing to undo says so', () {
+      final cubit = opened().cubit;
+
+      cubit.undoAgentSteps();
+
+      expect(ready(cubit).said, 'nothing to undo');
+    });
+  });
+
   group('the mode', () {
     test('changing it keeps the selection', () {
       final cubit = opened().cubit;

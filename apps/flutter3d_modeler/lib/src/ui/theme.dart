@@ -106,6 +106,16 @@ abstract final class ModelerMetrics {
   /// bar.dart`'s blend slider, 22 tall per the hand-off's own "дорожки
   /// клипов высотой 22".
   static const double retargetTracksBar = 22;
+
+  /// `tut-16`'s own row: screen 26's own agent-session panel, appended
+  /// after the ordinary properties panel while `--mcp-port` is open — the
+  /// same 330 the properties panel itself tops out at
+  /// (`propertiesMax`), per the hand-off's own "width:330px".
+  static const double agentPanel = 330;
+
+  /// `tut-16`'s own row: screen 26's own contact sheet, under the
+  /// viewport — 214 tall per the hand-off's own "height:214px".
+  static const double agentContactSheet = 214;
 }
 
 /// The colours that are the modeller's own rather than Material's.

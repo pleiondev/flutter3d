@@ -4,6 +4,8 @@
 /// anyway is not a flag a web build has any use offering.
 library;
 
+import 'dart:typed_data';
+
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 
 import 'mcp_ui_actions.dart';
@@ -12,6 +14,13 @@ Future<void> startMcpServer({
   required ModelHistory history,
   required int port,
   UiActions? uiActions,
+  void Function(
+    String toolName,
+    Map<String, Object?> arguments,
+    ({bool did, String says, Uint8List? png}) answer,
+    Duration elapsed,
+  )?
+  onToolCall,
 }) async {}
 
 Future<void> stopMcpServer() async {}

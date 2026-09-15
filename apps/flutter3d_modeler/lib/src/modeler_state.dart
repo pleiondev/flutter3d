@@ -24,6 +24,8 @@
 /// which a getter can.
 library;
 
+import 'dart:typed_data';
+
 import 'package:flutter3d/flutter3d.dart' hide Material;
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 
@@ -70,6 +72,7 @@ final class ModelerReady extends ModelerState {
     this.saidIsImportant = false,
     this.jobs = const <ActiveJob>[],
     this.playback = const Playback(),
+    this.agentCalls = const <AgentToolCall>[],
   });
 
   /// Live, and mutated by the frame loop.
@@ -133,6 +136,14 @@ final class ModelerReady extends ModelerState {
   /// value on this class would repaint the whole shell for.
   final Playback playback;
 
+  /// `tut-16`'s own feed: every MCP tool call this session's own
+  /// `--mcp-port` server has answered, oldest first, bounded to
+  /// `ModelerCubit.agentToolCalled`'s own limit — `AgentSessionPanel`'s
+  /// "tool calls" list reads this directly. Empty whenever no
+  /// `--mcp-port` session is open, or one is open but nothing has called it
+  /// yet.
+  final List<AgentToolCall> agentCalls;
+
   /// The project, which is what nearly every reader actually wants.
   ModelProject get project => history.project;
 
@@ -151,6 +162,7 @@ final class ModelerReady extends ModelerState {
     bool saidIsImportant = false,
     List<ActiveJob>? jobs,
     Playback? playback,
+    List<AgentToolCall>? agentCalls,
   }) => ModelerReady(
     renderer: renderer,
     stage: stage ?? this.stage,
@@ -167,6 +179,7 @@ final class ModelerReady extends ModelerState {
         : (said != null ? saidIsImportant : this.saidIsImportant),
     jobs: jobs ?? this.jobs,
     playback: playback ?? this.playback,
+    agentCalls: agentCalls ?? this.agentCalls,
   );
 }
 
@@ -289,6 +302,55 @@ final class JobKeyRig extends JobKey {
 
   @override
   String toString() => 'JobKey.rig($objectId)';
+}
+
+/// One call an agent made over `--mcp-port` — `tut-16`'s own row: screen
+/// 26's "tool calls" feed reads a bounded list of these, appended as they
+/// happen by `mcp_bootstrap_io.dart`'s own `onToolCall` hook
+/// (`flutter3d_model_mcp`'s `ModelHttpServer.start`/`ModelMcpServer`,
+/// `flutter3d_mcp_kit`'s `ToolTableServer.onCall` underneath both).
+///
+/// **Not a `HistoryStep`.** A history step is only ever a document command
+/// that actually landed; a tool call is every MCP call at all — a `ui.*`
+/// tool that changes no document, a `list`/`check` that answers with no
+/// step of its own, and a `render`/`renderSheet` call that draws a picture
+/// rather than editing anything. The feed wants all of them; only
+/// `ModelHistory.steps` wants the narrower set.
+final class AgentToolCall {
+  const AgentToolCall({
+    required this.tool,
+    required this.arguments,
+    required this.did,
+    required this.says,
+    required this.elapsed,
+    required this.at,
+    this.png,
+  });
+
+  /// The tool's own name, e.g. `render` or `ui.setMode`.
+  final String tool;
+
+  /// What the agent called it with, straight off the request — read, never
+  /// mutated, by whatever formats a line out of it for the feed.
+  final Map<String, Object?> arguments;
+
+  /// Whether it did anything, the same `did` every `Answer`/`PictureAnswer`
+  /// in this repository already carries.
+  final bool did;
+
+  /// What it said — the sentence a person reads in the feed.
+  final String says;
+
+  /// How long the call took to answer.
+  final Duration elapsed;
+
+  /// When it was made, for the feed's own clock.
+  final DateTime at;
+
+  /// The picture a `render`/`renderSheet` call answered with, when it drew
+  /// one — the contact sheet's own source; every other tool leaves this
+  /// null.
+  final Uint8List? png;
 }
 
 /// Nothing to draw with, or nothing that would open, and the sentence saying

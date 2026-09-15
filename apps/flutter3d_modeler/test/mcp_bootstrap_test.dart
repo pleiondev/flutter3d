@@ -13,6 +13,7 @@ library;
 
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 import 'package:flutter3d_modeler/src/mcp_bootstrap_io.dart';
@@ -161,4 +162,85 @@ void main() {
   test('stopMcpServer with nothing running is a no-op, not a crash', () async {
     await stopMcpServer();
   });
+
+  test(
+    "tut-16's own onToolCall fires once a real call over the socket "
+    'answers, carrying the tool name, its arguments and how it answered',
+    () async {
+      final history = ModelHistory(const ModelProject());
+      final seen =
+          <({String tool, Map<String, Object?> arguments, bool did})>[];
+      await startMcpServer(
+        history: history,
+        port: 0,
+        sessionDirectory: workspace,
+        onToolCall:
+            (
+              String tool,
+              Map<String, Object?> arguments,
+              ({bool did, String says, Uint8List? png}) answer,
+              Duration elapsed,
+            ) => seen.add((tool: tool, arguments: arguments, did: answer.did)),
+      );
+
+      final written =
+          json.decode(
+                File('${workspace.path}/mcp-session.json').readAsStringSync(),
+              )
+              as Map<String, Object?>;
+      final port = written['port']! as int;
+      final token = written['token']! as String;
+
+      final httpClient = HttpClient();
+      addTearDown(() => httpClient.close(force: true));
+      Future<Map<String, Object?>> call(Object? body) async {
+        final request = await httpClient.postUrl(
+          Uri.parse('http://127.0.0.1:$port/mcp?token=$token'),
+        );
+        request.headers.contentType = ContentType.json;
+        request.write(json.encode(body));
+        final response = await request.close();
+        final text = await response.transform(utf8.decoder).join();
+        return text.isEmpty
+            ? const <String, Object?>{}
+            : json.decode(text) as Map<String, Object?>;
+      }
+
+      await call(<String, Object?>{
+        'jsonrpc': '2.0',
+        'id': 1,
+        'method': 'initialize',
+        'params': <String, Object?>{
+          'protocolVersion': '2024-11-05',
+          'capabilities': <String, Object?>{},
+          'clientInfo': <String, Object?>{
+            'name': 'mcp_bootstrap_test',
+            'version': '0.0.1',
+          },
+        },
+      });
+      await call(<String, Object?>{
+        'jsonrpc': '2.0',
+        'method': 'notifications/initialized',
+      });
+
+      // Mutation: never call `onToolCall`, or call it before the answer is
+      // known — `seen` would stay empty, or `did` would always read `true`
+      // regardless of what the tool actually answered.
+      expect(seen, isEmpty);
+      await call(<String, Object?>{
+        'jsonrpc': '2.0',
+        'id': 2,
+        'method': 'tools/call',
+        'params': <String, Object?>{
+          'name': 'list',
+          'arguments': <String, Object?>{},
+        },
+      });
+
+      expect(seen, hasLength(1));
+      expect(seen.single.tool, 'list');
+      expect(seen.single.did, isTrue);
+    },
+  );
 }

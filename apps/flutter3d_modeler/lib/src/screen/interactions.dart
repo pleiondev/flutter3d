@@ -381,6 +381,9 @@ extension _Interactions on _ModelerScreenState {
 
   void _redo() => _cubit.redo();
 
+  /// `tut-16`'s own "Undo agent steps" button, screen 26's own panel.
+  void _undoAgentSteps() => _cubit.undoAgentSteps();
+
   /// What a click in the viewport did to the selection.
   ///
   /// The rules are all in `applyPick`, which is where they can be read and

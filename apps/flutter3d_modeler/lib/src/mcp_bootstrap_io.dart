@@ -4,6 +4,7 @@
 library;
 
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 import 'package:flutter3d_model_mcp/flutter3d_model_mcp.dart';
@@ -40,11 +41,24 @@ File? _sessionFile;
 /// server every headless caller already gets, and a live [UiActions] adds
 /// the seven `ui.*` tools beside it — [uiToolsFor] is what turns one into
 /// the other.
+///
+/// [onToolCall] is `tut-16`'s own door: screen 26's own tool-call feed —
+/// null for every headless caller (nothing is watching), and a live screen
+/// hands in `ModelerCubit.agentToolCalled` wrapped to build an
+/// `AgentToolCall` from the arguments — see `screen/files.dart`'s own call
+/// site.
 Future<void> startMcpServer({
   required ModelHistory history,
   required int port,
   UiActions? uiActions,
   Directory? sessionDirectory,
+  void Function(
+    String toolName,
+    Map<String, Object?> arguments,
+    ({bool did, String says, Uint8List? png}) answer,
+    Duration elapsed,
+  )?
+  onToolCall,
 }) async {
   if (_server != null) return;
   final session = ModelSession(history);
@@ -54,6 +68,7 @@ Future<void> startMcpServer({
     extraTools: uiActions == null
         ? const <ModelPictureTool>[]
         : uiToolsFor(uiActions),
+    onToolCall: onToolCall,
   );
   _server = server;
   final dir = sessionDirectory ?? await getApplicationSupportDirectory();

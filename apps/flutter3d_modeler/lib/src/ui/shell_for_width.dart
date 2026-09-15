@@ -36,6 +36,7 @@ class ShellForWidth extends StatelessWidget {
     required this.isDirty,
     this.bottom,
     this.bottomHeight,
+    this.agentPanel,
   });
 
   final ScreenParts parts;
@@ -69,6 +70,11 @@ class ShellForWidth extends StatelessWidget {
   final Widget? bottom;
   final double? bottomHeight;
 
+  /// `tut-16`'s own slot, handed to the desktop shell alone — see
+  /// [ModelerShell.agentPanel]'s own doc comment for why the tablet and
+  /// phone branches below have no equivalent to hand it to.
+  final Widget? agentPanel;
+
   @override
   Widget build(BuildContext context) => LayoutBuilder(
     builder: (BuildContext context, BoxConstraints constraints) =>
@@ -90,6 +96,7 @@ class ShellForWidth extends StatelessWidget {
             isDirty: isDirty,
             bottom: bottom,
             bottomHeight: bottomHeight,
+            agentPanel: agentPanel,
           ),
           LayoutClass.tablet => ModelerTabletShell(
             mode: mode,

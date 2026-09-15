@@ -77,6 +77,7 @@ import 'src/tool_commands.dart';
 import 'src/transform_dispatch.dart';
 import 'src/transform_fields.dart';
 import 'src/transform_session.dart';
+import 'src/ui/agent_session_panel.dart';
 import 'src/ui/animation_bottom.dart';
 import 'src/ui/autorig_dialog.dart';
 import 'src/ui/bend_slider_bar.dart';

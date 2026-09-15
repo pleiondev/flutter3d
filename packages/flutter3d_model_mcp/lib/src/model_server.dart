@@ -51,6 +51,7 @@ base class ModelMcpServer extends ToolTableServer<ModelSession, PictureAnswer> {
     super.channel, {
     required super.session,
     List<ModelPictureTool> extraTools = const <ModelPictureTool>[],
+    super.onCall,
   }) : super(
          name: 'flutter3d_model_mcp',
          version: modelMcpVersion,

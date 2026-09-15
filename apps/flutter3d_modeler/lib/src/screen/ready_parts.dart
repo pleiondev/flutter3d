@@ -489,6 +489,16 @@ extension _ReadyParts on _ModelerScreenState {
                   ? null
                   : state.project.clips[openClipIndex];
 
+              // `tut-16`'s own row: screen 26's own panel and contact
+              // sheet, shown whenever this build was launched with
+              // `--mcp-port` — the same flag `screen/files.dart`'s own
+              // `startMcpServer` call already gates on, so the panel is on
+              // screen exactly while a real session is reachable through
+              // it. `bottom`'s own three other claimants below all win
+              // over it: a person mid-pose/weights/retarget still gets
+              // that mode's own lower area, agent session or not.
+              final bool agentSessionActive = kMcpPort >= 0;
+
               return ShellForWidth(
                 parts: ScreenParts(
                   actions: actions,
@@ -506,6 +516,13 @@ extension _ReadyParts on _ModelerScreenState {
                 onTool: _ranTool,
                 documentName: state.documentName,
                 isDirty: state.history.isDirty,
+                agentPanel: agentSessionActive
+                    ? AgentSessionPanel(
+                        calls: state.agentCalls,
+                        history: state.history,
+                        onUndoAgentSteps: _undoAgentSteps,
+                      )
+                    : null,
                 bottom: showsTimeline
                     ? AnimationBottom(
                         clipIndex: openClipIndex,
@@ -531,6 +548,8 @@ extension _ReadyParts on _ModelerScreenState {
                     ? _weightBottom(state)
                     : retargetView
                     ? _retargetBottom()
+                    : agentSessionActive
+                    ? AgentContactSheet(calls: state.agentCalls)
                     : null,
                 bottomHeight: showsTimeline
                     ? ModelerMetrics.timeline
@@ -538,6 +557,8 @@ extension _ReadyParts on _ModelerScreenState {
                     ? ModelerMetrics.bendBar
                     : retargetView
                     ? ModelerMetrics.retargetTracksBar
+                    : agentSessionActive
+                    ? ModelerMetrics.agentContactSheet
                     : null,
               );
             },

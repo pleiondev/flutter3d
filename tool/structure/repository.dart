@@ -311,6 +311,20 @@ const Map<String, Map<String, String>> repeatableStepExempt =
             'simulation reads back, the same one-way relationship '
             '`FrameTimingLog` already has with the render loop it watches',
       },
+      'flutter3d_mcp_kit': <String, String>{
+        'lib/src/tool_table.dart':
+            "`tut-16`'s own `onCall` hook: `ToolTableServer` reads a "
+            '`Stopwatch` around a tool\'s own `run`, purely to hand a '
+            'caller watching a screen (`ModelerCubit.agentToolCalled`, an '
+            'MCP session\'s own tool-call feed) how long that one call '
+            'took — nothing a tool\'s own answer reads back, the same '
+            'observing-from-outside relationship `step_time_trace.dart` '
+            'above already has. `onCall` is null on every server that has '
+            'no screen watching (`flutter3d_model_mcp`\'s own `bin/'
+            'model_mcp.dart`, `flutter3d_sim_mcp` included), so nothing '
+            'here reaches the clock on a run this table\'s own rule '
+            'actually cares about replaying bit-for-bit',
+      },
     };
 
 /// Files in `flutter3d_hardware` allowed to name Flutter, and why.

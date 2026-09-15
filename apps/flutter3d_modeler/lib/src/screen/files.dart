@@ -151,6 +151,27 @@ extension _FileHandling on _ModelerScreenState {
               openExportDialog: _showExportDialog,
               openLatheDialog: _openLatheDialog,
             ),
+            // `tut-16`'s own feed: screen 26's own tool-call panel reads
+            // `ModelerReady.agentCalls`, appended to here as each call
+            // answers — the one place a headless caller has nobody to
+            // hand this to, which is why `onToolCall` is optional.
+            onToolCall:
+                (
+                  String tool,
+                  Map<String, Object?> arguments,
+                  ({bool did, String says, Uint8List? png}) answer,
+                  Duration elapsed,
+                ) => _cubit.agentToolCalled(
+                  AgentToolCall(
+                    tool: tool,
+                    arguments: arguments,
+                    did: answer.did,
+                    says: answer.says,
+                    elapsed: elapsed,
+                    at: DateTime.now(),
+                    png: answer.png,
+                  ),
+                ),
           ),
         );
       }
