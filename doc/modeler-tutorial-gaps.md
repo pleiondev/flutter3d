@@ -29,14 +29,35 @@ with a decision — "делаем" or "откладываем" — recorded ther
 | 6 | agent session: recovery journal over a shared, mixed-authorship document | a session's own recovery `.jsonl`, replayed cold, rebuilds the document the way it was left — the same promise case 1's journal keeps, now with a person editing the same shared `ModelHistory` an agent's `--mcp-port` session is bound over (`mcp_bootstrap_io.dart`'s own doc comment: "the same document a person already has open") | a person's own edit — run directly against `ModelHistory`, the exact door `ModelerCubit.run` uses, never through `ModelSession.run` — never reaches `CommandJournal.record` at all, so it is not on the session's own `.jsonl`, not refused, simply absent. Confirmed directly: `tutorial_scenarios_test.dart`'s own case-6 group replays `case6.jsonl` cold and gets `replay.ok == true` — no refusal at all — but the replayed material's own roughness reads `SetMaterialField`'s default (`0.5`), not the real project's `0.35` a person actually set. A quieter shape than every earlier case's own `tut-05`/`tut-14` (both of which at least refuse): here a session's own crash-recovery file silently omits every edit made beside it and says nothing about having done so | integrity, agent-facing | tut-15 |
 | 6 | screen 26, "Agent session" (tool-call feed, "You"/"Agent" history badges, six-view contact sheet) | a live panel showing an agent's own tool calls and history alongside a person's, so both parties can see whose step is whose — the same distinction `mcp-10n`'s own undo restriction already enforces underneath | no such panel exists in the app: `apps/flutter3d_modeler/lib/src/mcp_ui_tools.dart` offers exactly the seven `ui.*` tools `mcp-16d` scoped (`setMode`, `setSubmode`, `setTool`, `standardView`, `frameSubject`, `openDialog`, `say`) — confirmed by reading the file directly — and nothing in the app renders a tool-call feed, a history list with author badges, or a contact sheet. `--mcp-port` itself and the undo restriction underneath it are both real and working (case 6 confirms this directly); only the screen the design handoff describes to show it is unbuilt | UX, app-facing | tut-16 |
 
+The rows below were not surfaced by any one case; they are the plan's own
+five candidates named before a case was written (`doc/model-editor-plan.md`
+§ tut-00, "Known candidates"), checked directly against this branch during
+T6's close-out pass, plus two more from re-reading all six pages together.
+Two of the five candidates are no longer true and get no row: a `.gltf`
+beside its `.bin` opens on the web and on macOS today (`ui-36n`, recorded
+`done`), and the status line already shows "vertices/materials" (`mat-33d`).
+The other three are below, alongside two fresh findings from re-reading
+`ui-37d`'s own text, which named both as latent quirks moved verbatim from
+`main.dart` and promised each "its own row" — a promise this pass keeps.
+
+| case | step | expected | actual | type | plan row |
+|---|---|---|---|---|---|
+| — | drag a file onto the window (`_handleDroppedFile`) | dropping a supported file installs it as the open document, the same as the toolbar's own **Open**, once the import screen's unit/axis questions are answered | it does not: `_handleDroppedFile` (`apps/flutter3d_modeler/lib/src/screen/files.dart`) awaits `_openBytesWithImportScreen` and discards the returned `FileOpened` outright — confirmed by reading the function directly, next to `_openFile`'s own call to the same method a few lines above, which switches on the result and calls `_installOpened`. A person drags a file, answers the import screen's questions, and nothing on screen changes. This is the plan's own known candidate ("a dropped file is decoded and then thrown away") and the first of the two latent quirks `ui-37d`'s own text named when the handler moved into `screen/files.dart` verbatim | function (bug) | tut-17 |
+| — | open a second document (`TransformSession`'s other-object picker cache) | opening a new document forgets every mesh-picking cache keyed by the previous document's object ids, the way `_installOpened` already forgets `_elementPickerCache` for exactly this reason ("ids start again in the new project ... could match a version and answer about a mesh that is gone") | `TransformSession._otherPickers` (`Map<int, ({int version, MeshPicker picker})>`) is never cleared by `_installOpened` or anywhere else — confirmed directly, no call site outside its own lazy-build path touches it. A new document whose object ids collide with a cached id and version could read a stale picker built against a mesh that is gone. The second of `ui-37d`'s own two named latent quirks, found fresh while reading `TransformSession` alongside the row above | integrity | tut-18 |
+| — | cabinet: a model's detail page | a model uploaded to the cabinet shows a preview picture | still true, and already tracked, not a fresh finding: `cloud/README.md`'s own "What is not here yet" says outright the schema and repository have a place for one but nothing makes one yet, pending a browser-side capture the viewer cannot read back. The plan's own "out of scope" list already names this "a separate `cloud` row" | UX | tut-19 |
+| — | cabinet: re-open a model | a model opened from the cabinet's own viewer can be edited and saved back to the same entry, as a revision | still true, and already tracked, not a fresh finding: the same "What is not here yet" section says editing from the cabinet is real but saving back is its own next stage, with revisions | UX | tut-20 |
+
 Case 1 ("A prop from a scan"), case 2 ("A vase from a profile"), case 3
 ("A lit corner"), case 4 ("A character from a bare mesh"), case 5
 ("Borrowing a walk: retarget a clip") and case 6 ("An agent beside you")
 are the six cases the plan names; all six are now written and pass as
 `.jsonl` scenarios (`tutorial_scenarios_test.dart`). None has actually been
 walked by hand on a real macOS machine yet — every page's own "Time to
-complete" line is still a `TODO`, and every screenshot marked "placeholder"
-is still pending that same real run; this is the acceptance rule's own
-second condition, not yet met. Every gap row above has become a `tut-NN`
-line in `doc/model-editor-plan.md` with a decision, per the rule's first
-condition.
+complete" line is still a `TODO`, and every screenshot of the running app's
+own chrome (panels, dialogs, buttons) is still an explicit "screenshot
+pending" placeholder; only the pure-3D "expected result" pictures (headless
+`render`/`renderSheet`, deterministic, checked in CI) are real on all six
+pages. This is the acceptance rule's own second condition, not yet met.
+Every gap row above — sixteen found writing the six cases, four more found
+closing the pass out — has become a `tut-NN` line in
+`doc/model-editor-plan.md` with a decision, per the rule's first condition.
