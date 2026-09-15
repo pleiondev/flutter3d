@@ -1,5 +1,5 @@
 name: flutter3d_sim_mcp
-description: "A level an agent can play blind, of whatever game a host hands it: open it, step it with input, read back positions and health in words, and hand over the run it made — ai-00."
+description: "A level an agent can play blind, of whatever game a host hands it: open it, step it with input, read back positions and health in words, and hand over the run it made — ai-00. A frame diagnosed independently of that, folded in from flutter3d_render_mcp — par-02."
 version: 0.6.0
 repository: https://github.com/pleiondev/flutter3d
 homepage: https://flutter3d.pleion.dev
@@ -23,10 +23,13 @@ dependencies:
   # — what this server asks of a game. No genre: a host hands one in.
   flutter3d_sim: ^0.6.0
 
-  # The picture half of `frame`: `flutter3d_render_mcp`'s `DiagnosticRenderer`
-  # in its ordinary view, rather than a second copy of how a level is loaded
-  # and drawn with no GPU.
-  flutter3d_render_mcp: ^0.6.0
+  # `DiagnosticRenderer`/`DiagnosticSession` — `par-02`'s own tools, folded
+  # into this package by the package-merge plan; the picture half of `frame`
+  # is this renderer's own `lit` view rather than a second copy of how a
+  # level is loaded and drawn with no GPU.
+  flutter3d: ^0.6.0
+  flutter3d_bridge: ^0.6.0
+  flutter3d_cpu: ^0.6.0
 
   # The tool table, the answers and the server underneath this one — what
   # every server here shares.
@@ -55,8 +58,8 @@ dev_dependencies:
 
 # **Why this package needs Flutter, unlike `flutter3d_editor_mcp` and
 # `flutter3d_model_mcp`.** `frame` draws the level, and the renderer it draws
-# with (`flutter3d_cpu`, under `flutter3d_render_mcp`) needs `dart:ui`, which
-# does not compile under plain `dart run` — checked empirically, the same way
+# with (`flutter3d_cpu`) needs `dart:ui`, which does not compile under plain
+# `dart run` — checked empirically, the same way
 # `rp-05` found it out for genre packages generally.
 #
 # **And why that rules out literal stdio.** A process with Flutter behind it

@@ -6,6 +6,7 @@ import 'package:flutter3d_mcp_kit/flutter3d_mcp_kit.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:vector_math/vector_math.dart';
 
+import 'diagnostic_session.dart';
 import 'sim_renderer.dart';
 
 PictureAnswer _ok(String says, [Uint8List? png]) =>
@@ -33,6 +34,15 @@ final class SimSession {
   /// What this session plays — `flutter3d_game_shooter`'s
   /// `ShooterHeadlessGame`, for the crypt.
   final HeadlessGame game;
+
+  /// `par-02`'s own session, open beside this one rather than instead of
+  /// it: playing a level blind and diagnosing a rendered frame are two
+  /// different questions, one genre-shaped and one not, and folding
+  /// `DiagnosticSession`'s state into this class would give this one's
+  /// `open` an opinion about the other's level. What they share now is a
+  /// process and a tool table — `flutter3d_render_mcp`'s own former one,
+  /// before it merged into this package.
+  final DiagnosticSession diagnostic = DiagnosticSession();
 
   HeadlessRun? _run;
   InputTapeRecorder? _recorder;

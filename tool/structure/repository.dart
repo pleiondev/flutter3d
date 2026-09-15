@@ -41,6 +41,8 @@ const List<String> applications = <String>[
   'flutter3d_template_app',
   'flutter3d_lesson_viewer',
   'flutter3d_lab_pendulum',
+  'flutter3d_lab_twin',
+  'flutter3d_lab_incident',
 ];
 
 /// Packages that must run with no Flutter SDK anywhere near them, and what
@@ -255,6 +257,11 @@ const Map<String, String> notARepeatableStep = <String, String>{
       'watching it run, the same way `step_time_trace.dart` does for a '
       'step from outside it — there is no simulation here to replay, only '
       'a CLI printing what it just measured',
+  'flutter3d_lti':
+      'a cloud tool, not a step: an LTI launch is checked against the '
+      'wall clock its own `exp`/`iat` claims are written in, and an xAPI '
+      'statement or an AGS score carries the moment it was sent — nothing '
+      'here is a run a client and a server must replay to the same frame',
 };
 
 /// Files inside a scanned package that are allowed to be unrepeatable, and why.
@@ -859,7 +866,7 @@ boundaryEnumExempt = <String, Map<String, String>>{
         'fifth way to end would be a fifth branch in that loop, not a '
         "monster or a weapon this package has never heard of",
   },
-  'flutter3d_render_mcp/lib/src/diagnostic_renderer.dart': <String, String>{
+  'flutter3d_sim_mcp/lib/src/diagnostic_renderer.dart': <String, String>{
     'DiagnosticView':
         'lit, normals, shadowMap, staticShadowMap — the four debug outputs '
         '`RenderSettings` itself already knows how to produce. A fifth view '
@@ -867,6 +874,21 @@ boundaryEnumExempt = <String, Map<String, String>>{
         'read it back at all; this enum only names what is already there, '
         'the same reason `RenderSettings.showShadowMap` and its siblings are '
         'booleans and not a growing list',
+  },
+  'flutter3d_lti/lib/src/lti_launch_claims.dart': <String, String>{
+    'LtiMessageType':
+        "the IMS LTI 1.3 core spec's own closed set of message types "
+        '(`LtiResourceLinkRequest`, `LtiDeepLinkingRequest`, ...). A launch '
+        "naming a sixth is not naming a message type this package's own "
+        'switch is missing — it is not a valid LTI 1.3 launch',
+  },
+  'flutter3d_lti/lib/src/ags_score.dart': <String, String>{
+    'AgsActivityProgress':
+        "the IMS Assignment and Grade Services spec's own five values for "
+        "how far a student got. A sixth is not this package's to invent",
+    'AgsGradingProgress':
+        "the same spec's own values for how far grading got, for the same "
+        'reason',
   },
 };
 

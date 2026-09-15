@@ -227,8 +227,7 @@ point of §3.3.
 | `flutter3d_editor_core` | The headless half of a level editor: the document being changed and undone, the handles a pointer hits, the palette a level builds out of itself, the project a template becomes. Plain Dart |
 | `flutter3d_editor_mcp` | The same editor offered to an agent: `EditorCommand` as a table of MCP tools over stdio, one document per process, plus the two verbs a caller with no screen needs — a flat listing, and the validator. Plain Dart |
 | `flutter3d_mcp_kit` | What every MCP server here shares: a tool paired with its handler, a server that is a list of them over one session, the two shapes of answer, and a loopback HTTP transport an open application offers its session over. Plain Dart |
-| `flutter3d_render_mcp` | A rendered frame offered to an agent: a level drawn with no GPU in one of the renderer's debug views, one pixel read back unclamped, the passes the frame graph ran |
-| `flutter3d_sim_mcp` | A level an agent plays blind, of whatever `HeadlessGame` a host hands it — step, read back, digest, hand over the run — and many seeded playtests in isolates. Names no genre |
+| `flutter3d_sim_mcp` | A level an agent plays blind, of whatever `HeadlessGame` a host hands it — step, read back, digest, hand over the run — and many seeded playtests in isolates. Names no genre. Also a rendered frame diagnosed independently of that: a level drawn with no GPU in one of the renderer's debug views, one pixel read back unclamped, the passes the frame graph ran — `flutter3d_render_mcp`, folded in by the package-merge plan |
 | `flutter3d_build` | The converter behind `dart run flutter3d_build:convert` and the build hook that runs it on every build. Not a dependency of the engine: no game that draws a frame runs it. Plain Dart |
 | `flutter3d_testing` | Rendering a scene with no GPU and comparing it against a reference image |
 | `flutter3d_geometry` | The mesh vocabulary every decoder and every editable mesh share: `MeshData`, `VertexLayout`, tangents, morph targets, `TriangleBvh` |
@@ -1906,7 +1905,7 @@ entities a game defines.
 |---|---|
 | Style | `dart format` |
 | Analysis | `flutter analyze` clean across the workspace, no warnings |
-| Unit tests | **7516 tests** across 47 packages and 10 applications |
+| Unit tests | **7514 tests** across 46 packages and 10 applications |
 | Structure rules | 32, `dart run tool/structure.dart`, the first CI step |
 | CI | GitHub Actions over `tool/ci.sh`, on `ubuntu-latest`, with no graphics card |
 
@@ -2805,7 +2804,7 @@ what went out at 0.4.2.
 8. `flutter3d_session`
 9. `flutter3d_bridge`, `flutter3d_app`
 10. `flutter3d_game_shooter`, `flutter3d_game_platformer`, `flutter3d_game_racing`,
-    `flutter3d_game_strategy`, `flutter3d_render_mcp`
+    `flutter3d_game_strategy`
 11. `flutter3d_sim_mcp`
 
 Six positions are not obvious and so are written down rather than re-derived:

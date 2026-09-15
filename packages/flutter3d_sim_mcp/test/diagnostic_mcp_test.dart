@@ -8,9 +8,16 @@ library;
 /// a real second process. See `pubspec.yaml` for why a socket and not
 /// literal stdio.
 ///
-///     flutter test test/render_mcp_test.dart
+///     flutter test test/diagnostic_mcp_test.dart
 ///
 /// `@TestOn('vm')`: spawns a real process and opens a real socket.
+///
+/// **Moved here from `flutter3d_render_mcp` by the package-merge plan.**
+/// The tools this drives are named `diag*` now rather than bare — `open`
+/// and `frame` were already `flutter3d_sim_mcp`'s own before the two
+/// packages merged, and an agent given one tool table cannot be offered two
+/// tools with the same name. See `sim_server.dart`'s own doc comment for the
+/// rest of what changed and what did not.
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
@@ -19,7 +26,7 @@ import 'dart:typed_data';
 import 'package:dart_mcp/client.dart';
 import 'package:dart_mcp/stdio.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart' show encodePng;
-import 'package:flutter3d_render_mcp/flutter3d_render_mcp.dart';
+import 'package:flutter3d_sim_mcp/flutter3d_sim_mcp.dart';
 import 'package:test/test.dart';
 
 Future<({Process process, int port})> _startServer() async {
@@ -28,7 +35,7 @@ Future<({Process process, int port})> _startServer() async {
     <String>[
       'test',
       '--reporter=silent',
-      'test/fixtures/render_mcp_server.dart',
+      'test/fixtures/sim_mcp_server.dart',
     ],
     workingDirectory: Directory.current.path,
   );
@@ -38,7 +45,7 @@ Future<({Process process, int port})> _startServer() async {
       .transform(const LineSplitter())
       .listen((line) {
         final match = RegExp(
-          r'flutter3d_render_mcp listening on (\d+)',
+          r'flutter3d_sim_mcp listening on (\d+)',
         ).firstMatch(line);
         if (match != null && !portFound.isCompleted) {
           portFound.complete(int.parse(match.group(1)!));
@@ -71,7 +78,7 @@ List<int> _texel(List<int> rgb) =>
 /// mistake (a placeholder texture where a tangent-space map belongs).
 Directory _writeWorkspace() {
   final workspace = Directory.systemTemp.createTempSync(
-    'flutter3d_render_mcp',
+    'flutter3d_sim_mcp_diagnostic',
   );
   final textures = Directory('${workspace.path}/assets/textures')
     ..createSync(recursive: true);
@@ -140,7 +147,7 @@ void main() {
     socket = await Socket.connect(InternetAddress.loopbackIPv4, server.port);
 
     client = MCPClient(
-      Implementation(name: 'the suite', version: renderMcpVersion),
+      Implementation(name: 'the suite', version: simMcpVersion),
     );
     connection = client.connectServer(
       stdioChannel(input: socket, output: socket),
@@ -181,16 +188,8 @@ void main() {
     return (did: result.isError != true, says: says ?? '', png: png);
   }
 
-  test('the five tools an agent is offered are the ones it can call', () async {
-    final offered = await connection.listTools(ListToolsRequest());
-    expect(
-      offered.tools.map((t) => t.name).toSet(),
-      <String>{'open', 'frame', 'pixel', 'passes', 'scanNaN'},
-    );
-  });
-
-  test('pixel before a frame is refused, not crashed', () async {
-    final result = await call('pixel', <String, Object?>{'x': 0, 'y': 0});
+  test('diagPixel before a frame is refused, not crashed', () async {
+    final result = await call('diagPixel', <String, Object?>{'x': 0, 'y': 0});
     expect(result.did, isFalse);
     expect(result.says, contains('no frame drawn'));
   });
@@ -199,12 +198,12 @@ void main() {
     'a broken normal map reads back darker than a correct one, and the '
     'answer names the pass responsible',
     () async {
-      final opened = await call('open', <String, Object?>{
+      final opened = await call('diagOpen', <String, Object?>{
         'path': '${workspace.path}/assets/levels/probe.json',
       });
       expect(opened.did, isTrue, reason: opened.says);
 
-      final drawn = await call('frame', <String, Object?>{
+      final drawn = await call('diagFrame', <String, Object?>{
         'atX': 0.0,
         'atY': 1.0,
         'atZ': 8.0,
@@ -230,15 +229,18 @@ void main() {
       // The brightest pixel in each half of the frame is that half's own
       // wall — found by scanning rather than assumed from hand projection,
       // since the exact pixel a world position lands on is the renderer's
-      // to decide, not this test's. Read through `pixel` itself, sampling a
-      // grid and keeping the brightest cell each side of the frame's own
-      // midline.
+      // to decide, not this test's. Read through `diagPixel` itself,
+      // sampling a grid and keeping the brightest cell each side of the
+      // frame's own midline.
       const width = 320, height = 200;
       double bestLeft = -1, bestRight = -1;
       var bestRightXY = (0, 0);
       for (var y = 20; y < height; y += 20) {
         for (var x = 10; x < width; x += 10) {
-          final read = await call('pixel', <String, Object?>{'x': x, 'y': y});
+          final read = await call('diagPixel', <String, Object?>{
+            'x': x,
+            'y': y,
+          });
           expect(read.did, isTrue, reason: read.says);
           final words = jsonDecode(read.says) as Map<String, Object?>;
           final rgba = (words['rgba']! as List<Object?>).cast<num>();
@@ -267,21 +269,22 @@ void main() {
             'the normal map',
       );
 
-      final passes = await call('passes');
+      final passes = await call('diagPasses');
       expect(passes.did, isTrue);
       final passList = (jsonDecode(passes.says) as List<Object?>)
           .cast<Map<String, Object?>>();
       expect(
         passList.any((p) => p['name'] == 'scene' && p['active'] == true),
         isTrue,
-        reason: 'the pass `pixel` already named should actually be in the '
-            'graph this frame ran',
+        reason: 'the pass `diagPixel` already named should actually be in '
+            'the graph this frame ran',
       );
 
-      // What an agent reasons from: `pixel` at the dark spot names the same
-      // pass `passes` says ran — that is the naming this acceptance asks
-      // for, stated as data rather than as a free-text guess.
-      final darkPixel = await call('pixel', <String, Object?>{
+      // What an agent reasons from: `diagPixel` at the dark spot names the
+      // same pass `diagPasses` says ran — that is the naming this
+      // acceptance asks for, stated as data rather than as a free-text
+      // guess.
+      final darkPixel = await call('diagPixel', <String, Object?>{
         'x': bestRightXY.$1,
         'y': bestRightXY.$2,
       });

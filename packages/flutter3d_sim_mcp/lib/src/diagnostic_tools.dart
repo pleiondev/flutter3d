@@ -2,11 +2,18 @@ import 'package:dart_mcp/server.dart';
 import 'package:flutter3d_mcp_kit/flutter3d_mcp_kit.dart';
 
 import 'diagnostic_renderer.dart';
-import 'diagnostic_session.dart';
+import 'sim_session.dart';
 
 /// One tool: what an agent is offered, and what calling it does — see
 /// `flutter3d_mcp_kit`'s [OfferedTool].
-typedef DiagnosticTool = OfferedTool<DiagnosticSession, PictureAnswer>;
+///
+/// Typed on [SimSession] rather than on a session of its own: this used to
+/// be `flutter3d_render_mcp`, a second stdio process for the same agent's
+/// same conversation — `par-02`'s own tools beside `ai-00`'s, playing a
+/// level and diagnosing a frame are still two different questions with two
+/// different pieces of state behind them, so [SimSession.diagnostic] holds
+/// the second rather than folding the two together.
+typedef DiagnosticTool = OfferedTool<SimSession, PictureAnswer>;
 
 double _number(
   Map<String, Object?> args,
@@ -28,15 +35,21 @@ const String _viewDescription =
     '(the point-shadow cube atlases). Default lit.';
 
 /// The five verbs `par-02` asks for.
+///
+/// **Named `diag*` rather than bare**, the one thing merging into one tool
+/// table could not leave alone: this package's own `open`/`frame` already
+/// named two of [simToolsFor]'s six, and an agent given one tool table with
+/// two tools called `open` is an agent nothing here can route a call to.
 List<DiagnosticTool> get diagnosticTools => <DiagnosticTool>[
   DiagnosticTool(
     Tool(
-      name: 'open',
+      name: 'diagOpen',
       description:
-          'Open a level document for diagnosis. No genre vocabulary is '
-          'known here, so a level whose entities need one will fail to '
-          'validate — this tool only ever looks at the picture, not at what '
-          'plays in it.',
+          'Open a level document for diagnosis — a second, independent '
+          'level from whatever `open` has playing, if anything. No genre '
+          'vocabulary is known here, so a level whose entities need one '
+          'will fail to validate — this tool only ever looks at the '
+          'picture, not at what plays in it.',
       inputSchema: ObjectSchema(
         properties: <String, Schema>{
           'path': StringSchema(description: 'a level document on disk'),
@@ -44,16 +57,17 @@ List<DiagnosticTool> get diagnosticTools => <DiagnosticTool>[
         required: <String>['path'],
       ),
     ),
-    (session, args) => session.open(args['path']! as String),
+    (session, args) => session.diagnostic.open(args['path']! as String),
   ),
   DiagnosticTool(
     Tool(
-      name: 'frame',
+      name: 'diagFrame',
       description:
           'Draw a frame with no GPU, from a given eye position looking in a '
           'given direction, in one of the renderer\'s own debug views. Every '
-          'later call (pixel, passes, scanNaN) reads back this same frame, '
-          'so draw it again after moving the eye or changing the view.',
+          'later call (diagPixel, diagPasses, diagScanNaN) reads back this '
+          'same frame, so draw it again after moving the eye or changing '
+          'the view.',
       inputSchema: ObjectSchema(
         properties: <String, Schema>{
           'atX': NumberSchema(description: 'eye position, default 0'),
@@ -68,7 +82,7 @@ List<DiagnosticTool> get diagnosticTools => <DiagnosticTool>[
         },
       ),
     ),
-    (session, args) => session.frame(
+    (session, args) => session.diagnostic.frame(
       atX: _number(args, 'atX'),
       atY: _number(args, 'atY'),
       atZ: _number(args, 'atZ'),
@@ -80,12 +94,13 @@ List<DiagnosticTool> get diagnosticTools => <DiagnosticTool>[
   ),
   DiagnosticTool(
     Tool(
-      name: 'pixel',
+      name: 'diagPixel',
       description:
-          'The raw, unclamped value of one pixel in the last frame drawn — '
-          'a depth past one metre and a NaN both survive here, where the '
-          'picture itself would have rounded either into an ordinary-looking '
-          'colour. Says which pass produced the value, too.',
+          'The raw, unclamped value of one pixel in the last diagnostic '
+          'frame drawn — a depth past one metre and a NaN both survive '
+          'here, where the picture itself would have rounded either into '
+          'an ordinary-looking colour. Says which pass produced the value, '
+          'too.',
       inputSchema: ObjectSchema(
         properties: <String, Schema>{
           'x': IntegerSchema(description: '0-based, from the left'),
@@ -94,30 +109,31 @@ List<DiagnosticTool> get diagnosticTools => <DiagnosticTool>[
         required: <String>['x', 'y'],
       ),
     ),
-    (session, args) => session.pixel(
+    (session, args) => session.diagnostic.pixel(
       (args['x']! as num).toInt(),
       (args['y']! as num).toInt(),
     ),
   ),
   DiagnosticTool(
     Tool(
-      name: 'passes',
+      name: 'diagPasses',
       description:
-          'Every pass the frame graph kept for the last frame drawn, in the '
-          'order it ran, with its own timing — what actually happened, '
-          'rather than what the settings asked for.',
+          'Every pass the frame graph kept for the last diagnostic frame '
+          'drawn, in the order it ran, with its own timing — what actually '
+          'happened, rather than what the settings asked for.',
       inputSchema: ObjectSchema(),
     ),
-    (session, args) => session.passes(),
+    (session, args) => session.diagnostic.passes(),
   ),
   DiagnosticTool(
     Tool(
-      name: 'scanNaN',
+      name: 'diagScanNaN',
       description:
-          'The first pixel in the last frame drawn where any channel is a '
-          'NaN or an infinity, and which pass is answerable for it.',
+          'The first pixel in the last diagnostic frame drawn where any '
+          'channel is a NaN or an infinity, and which pass is answerable '
+          'for it.',
       inputSchema: ObjectSchema(),
     ),
-    (session, args) => session.scanNaN(),
+    (session, args) => session.diagnostic.scanNaN(),
   ),
 ];

@@ -11,3 +11,13 @@
   the simulation's own state plus a stuck heuristic, and `Playtest.heatmap()`
   — cell density, death points, an outcome count, as the JSON `ai-02`'s
   editor layer reads back.
+* **`par-02` folded in from `flutter3d_render_mcp`**, per the package-merge
+  plan: the same agent's same conversation was two stdio servers for one
+  level played and one frame diagnosed, and is now one. Its five tools —
+  `diagOpen`/`diagFrame`/`diagPixel`/`diagPasses`/`diagScanNaN` — are
+  renamed from their own package's bare names, the two that collided with
+  this package's `open`/`frame` and the three renamed to match rather than
+  read as an afterthought. `SimSession.diagnostic` holds the merged-in
+  session's own state, kept apart from this session's rather than combined
+  with it. `flutter3d_render_mcp` is retired; its history is this package's
+  `git log` from here on.
