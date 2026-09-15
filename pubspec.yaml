@@ -44,7 +44,6 @@ workspace:
   - packages/flutter3d_net
   - packages/flutter3d_net_webrtc
   - packages/flutter3d_sim_mcp
-  - packages/flutter3d_render_mcp
   - packages/flutter3d_editor_core
   - packages/flutter3d_editor_mcp
   - packages/flutter3d_game_shooter

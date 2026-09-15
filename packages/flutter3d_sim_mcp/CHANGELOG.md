@@ -1,3 +1,14 @@
+## Unreleased
+
+**Accepted `flutter3d_render_mcp`: one package, two servers.** The diagnostic
+server — a headless frame in one of the renderer's debug views, one pixel read
+back unclamped, the passes the frame graph ran, a scan for the first NaN
+(`par-02`) — lives beside the playing one as `DiagnosticMcpServer`, with
+`DiagnosticRenderer` drawing both. The two packages already had the same
+dependency closure, and `SimRenderer.frame()` was already the diagnostic
+renderer's `lit` view. `flutter3d_render_mcp` was never published. Neither
+server's tools changed.
+
 ## 0.7.0
 
 **`staging.dart`'s composition moved to `flutter3d_game_shooter`'s own

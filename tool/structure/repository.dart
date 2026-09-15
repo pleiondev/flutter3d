@@ -886,7 +886,7 @@ boundaryEnumExempt = <String, Map<String, String>>{
         'fifth way to end would be a fifth branch in that loop, not a '
         "monster or a weapon this package has never heard of",
   },
-  'flutter3d_render_mcp/lib/src/diagnostic_renderer.dart': <String, String>{
+  'flutter3d_sim_mcp/lib/src/diagnostic_renderer.dart': <String, String>{
     'DiagnosticView':
         'lit, normals, shadowMap, staticShadowMap — the four debug outputs '
         '`RenderSettings` itself already knows how to produce. A fifth view '

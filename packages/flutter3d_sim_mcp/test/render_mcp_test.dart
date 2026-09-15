@@ -19,7 +19,7 @@ import 'dart:typed_data';
 import 'package:dart_mcp/client.dart';
 import 'package:dart_mcp/stdio.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart' show encodePng;
-import 'package:flutter3d_render_mcp/flutter3d_render_mcp.dart';
+import 'package:flutter3d_sim_mcp/flutter3d_sim_mcp.dart';
 import 'package:test/test.dart';
 
 Future<({Process process, int port})> _startServer() async {
@@ -34,7 +34,7 @@ Future<({Process process, int port})> _startServer() async {
       .transform(const LineSplitter())
       .listen((line) {
         final match = RegExp(
-          r'flutter3d_render_mcp listening on (\d+)',
+          r'diagnostic server listening on (\d+)',
         ).firstMatch(line);
         if (match != null && !portFound.isCompleted) {
           portFound.complete(int.parse(match.group(1)!));
@@ -66,7 +66,7 @@ List<int> _texel(List<int> rgb) =>
 /// engine's guarded PBR path actually produces from a plausible authoring
 /// mistake (a placeholder texture where a tangent-space map belongs).
 Directory _writeWorkspace() {
-  final workspace = Directory.systemTemp.createTempSync('flutter3d_render_mcp');
+  final workspace = Directory.systemTemp.createTempSync('flutter3d_diagnostic');
   final textures = Directory('${workspace.path}/assets/textures')
     ..createSync(recursive: true);
   final levels = Directory('${workspace.path}/assets/levels')

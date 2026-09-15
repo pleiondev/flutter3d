@@ -14,7 +14,7 @@ base class DiagnosticMcpServer
     extends ToolTableServer<DiagnosticSession, PictureAnswer> {
   DiagnosticMcpServer(super.channel, {required super.session})
     : super(
-        name: 'flutter3d_render_mcp',
+        name: 'flutter3d_sim_mcp diagnostics',
         version: renderMcpVersion,
         instructions: _instructions,
         tools: diagnosticTools,

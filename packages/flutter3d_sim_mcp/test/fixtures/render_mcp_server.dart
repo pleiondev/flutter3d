@@ -1,4 +1,4 @@
-/// A live `flutter3d_render_mcp` server, reachable over a socket rather than
+/// A live diagnostic server (`DiagnosticMcpServer`), reachable over a socket rather than
 /// over stdio — see `pubspec.yaml`'s own doc for why literal stdio does not
 /// survive being hosted inside `flutter test`.
 ///
@@ -11,15 +11,15 @@ library;
 import 'dart:io';
 
 import 'package:dart_mcp/stdio.dart';
-import 'package:flutter3d_render_mcp/src/diagnostic_server.dart';
-import 'package:flutter3d_render_mcp/src/diagnostic_session.dart';
+import 'package:flutter3d_sim_mcp/src/diagnostic_server.dart';
+import 'package:flutter3d_sim_mcp/src/diagnostic_session.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  test('a live flutter3d_render_mcp server, reachable over a socket', () async {
+  test('a live diagnostic server, reachable over a socket', () async {
     final server = await ServerSocket.bind(InternetAddress.loopbackIPv4, 0);
     // ignore: avoid_print
-    print('flutter3d_render_mcp listening on ${server.port}');
+    print('diagnostic server listening on ${server.port}');
 
     server.listen((socket) {
       DiagnosticMcpServer(
