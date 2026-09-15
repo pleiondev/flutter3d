@@ -80,6 +80,40 @@ void main() {
       expect(answer.did, isFalse);
       expect(_ready(cubit).mode, before);
     });
+
+    test('ux-07: a mode this build has not made yet refuses, and names it', () {
+      for (final ModelerMode target in ModelerMode.values) {
+        if (target.ready) continue;
+        final cubit = _opened();
+        final before = _ready(cubit).mode;
+
+        final answer = _actions(cubit, _Counters()).setMode(target.name);
+
+        // The live run asked for `uv` and was told "mode set to uv". The
+        // mode did change, the screen showed a mode nothing has built, and
+        // an agent driving a screenshot script had no way to know it was
+        // looking at nothing.
+        //
+        // Mutation: leave the gate out, which is what this was. Every one of
+        // these answers `did: true` and the mode really moves.
+        expect(answer.did, isFalse, reason: '${target.name} was accepted');
+        expect(answer.says, contains(target.name));
+        expect(_ready(cubit).mode, before);
+      }
+    });
+
+    test('and every ready mode is still reachable', () {
+      for (final ModelerMode target in ModelerMode.values) {
+        if (!target.ready) continue;
+        final cubit = _opened();
+
+        final answer = _actions(cubit, _Counters()).setMode(target.name);
+
+        // The other half, so the gate above cannot be "refuse everything".
+        expect(answer.did, isTrue, reason: '${target.name} was refused');
+        expect(_ready(cubit).mode, target);
+      }
+    });
   });
 
   group('setSubmode', () {

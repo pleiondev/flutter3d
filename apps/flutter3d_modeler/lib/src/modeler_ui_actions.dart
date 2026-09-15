@@ -44,6 +44,18 @@ final class ModelerUiActions implements UiActions {
     if (_ready == null) return (did: false, says: 'no document open');
     final ModelerMode? target = _enumByName(ModelerMode.values, mode);
     if (target == null) return (did: false, says: 'no such mode: $mode');
+    // `ux-07`: the same gate the switcher has. The live run asked for `uv`
+    // over MCP and was told "mode set to uv" — the mode did change, the
+    // screen showed a mode nothing has built, and an agent driving a
+    // screenshot script had no way to know it was looking at nothing. A
+    // refusal that names the mode and what it is waiting for is the answer a
+    // person pressing a hidden segment would get, if the segment were there.
+    if (!target.ready) {
+      return (
+        did: false,
+        says: '$mode is not built yet — it is phase ${target.phase} work',
+      );
+    }
     cubit.mode(target);
     return (did: true, says: 'mode set to $mode');
   }

@@ -115,6 +115,19 @@ Set<PropertiesSection> sectionsFor(
       PropertiesSection.sceneEnvironment,
       PropertiesSection.scenePost,
     },
+    // **`ux-07`: Material mode is no longer empty.** It was enabled, it
+    // switched, and it showed Display/View/Budget and nothing else — the
+    // materials were edited in Object mode, with no hint and no link. The
+    // live run's own finding, and the first minute of the application is
+    // where it lands. The material list and the object it belongs to are
+    // what a material workspace is built around, so both are here; the rest
+    // of the workspace — the graph, the preview, the slots as their own
+    // screen — is `ux-40`, and this is its first step rather than a
+    // placeholder for it.
+    ModelerMode.material => const <PropertiesSection>{
+      PropertiesSection.objects,
+      PropertiesSection.materials,
+    },
     _ => const <PropertiesSection>{},
   },
 };
