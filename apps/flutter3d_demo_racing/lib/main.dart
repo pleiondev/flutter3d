@@ -104,6 +104,13 @@ class _RaceScreenState extends State<RaceScreen>
   GraphicsDevice? _device;
   Ticker? _ticker;
 
+  /// The grid the next circuit starts on — null for the first one of a
+  /// season, and for one started over, both of which start level. Computed
+  /// in [_finishedHere] from the circuit that just ended, while its
+  /// [RaceState] is still the one this screen holds and before [_leaveCircuit]
+  /// lets it go.
+  List<int>? _nextGridOrder;
+
   /// The scene, empty until the circuit is read, and **drawn from the first
   /// frame either way**.
   ///
@@ -723,7 +730,11 @@ class _RaceScreenState extends State<RaceScreen>
 
       // The one assembly this game has. What is left here is what needs a
       // device: the road mesh, the cars and the scene they go in.
-      final staged = stage(document, loaded.collision);
+      final staged = stage(
+        document,
+        loaded.collision,
+        gridOrder: _nextGridOrder,
+      );
       final track = staged.track;
       final scene = loaded.scene;
       addTrackTo(scene, track, device: device);
@@ -911,6 +922,11 @@ class _RaceScreenState extends State<RaceScreen>
     // this circuit had. The race's own lap count rather than the player's
     // counter, which stops at the flag.
     final race = _race;
+    // Read before `_leaveCircuit` clears `_race`, from the standing this
+    // circuit actually ended on — the player has already crossed the line
+    // here, so every racer's `positionOf` is a finish rather than a place in
+    // a race still moving.
+    _nextGridOrder = race == null ? null : gridOrderFrom(race);
     final next = _raceCubit.finish(
       laps: race?.laps ?? 0,
       bestLap: race?.progress[0].bestLap,
@@ -953,6 +969,10 @@ class _RaceScreenState extends State<RaceScreen>
     final device = _device;
     if (device == null) return;
     _leaveCircuit();
+    // A season raced again starts level, the same as the first one did — see
+    // `RaceProgress.startOver`'s own reasoning for why the season itself
+    // resets rather than only the circuit.
+    _nextGridOrder = null;
     _raceCubit.startOver();
     await _loadCircuit(device);
   }
