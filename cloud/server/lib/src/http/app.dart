@@ -610,6 +610,85 @@ Handler buildHandler(Services services) {
         return seeOther('${updated!.path}?said=moved');
       });
     })
+    ..post('/m/<id|[0-9]+>/publish', (Request request, String id) async {
+      final form = await readForm(request);
+      return _editing(services, request, form, id, (model) async {
+        if (!await services.limiter.allow(
+          'publish:account:${model.ownerId}',
+          RateRule.publishPerAccount,
+        )) {
+          return htmlPage(
+            MessagePage(
+              title: 'Too many publish changes',
+              body:
+                  'This account has published or unpublished several models '
+                  'recently. Try again later.',
+              signedIn: await userOf(request),
+            ),
+            status: 429,
+          );
+        }
+        // Posted strings, never trusted as-is — `Licence.of`/`Category.of`
+        // return null for anything outside their own enum, and that is a
+        // clean 422 with the form re-shown, the same as `/register`'s own
+        // `RegisterInvalid` branch, rather than a value reaching the
+        // database for its `check` constraint to catch.
+        final licence = Licence.of(form['licence']);
+        final category = Category.of(form['category']);
+        if (licence == null || category == null) {
+          return htmlPage(
+            ModelPage(
+              model: model,
+              viewer: await userOf(request),
+              csrf: csrfOf(request),
+              viewerAvailable: true,
+              revisions: await services.models.revisionsOf(model.id),
+              ownerProjects: await services.projects.ofOwner(model.ownerId),
+              sourceSha:
+                  (await services.models.fileOf(
+                    model.id,
+                    FileKind.source,
+                  ))?.blobSha256 ??
+                  '',
+              publishProblems: {
+                if (licence == null) 'licence': 'Choose one of the licences.',
+                if (category == null)
+                  'category': 'Choose one of the categories.',
+              },
+              publishLicence: form['licence'],
+              publishCategory: form['category'],
+            ),
+            status: 422,
+          );
+        }
+        await services.models.publish(model.id, licence, category: category);
+        final updated = await services.models.byId(model.id);
+        return seeOther('${updated!.path}?said=published');
+      });
+    })
+    ..post('/m/<id|[0-9]+>/unpublish', (Request request, String id) async {
+      final form = await readForm(request);
+      return _editing(services, request, form, id, (model) async {
+        if (!await services.limiter.allow(
+          'publish:account:${model.ownerId}',
+          RateRule.publishPerAccount,
+        )) {
+          return htmlPage(
+            MessagePage(
+              title: 'Too many publish changes',
+              body:
+                  'This account has published or unpublished several models '
+                  'recently. Try again later.',
+              signedIn: await userOf(request),
+            ),
+            status: 429,
+          );
+        }
+        await services.models.unpublish(model.id);
+        final updated = await services.models.byId(model.id);
+        return seeOther('${updated!.path}?said=unpublished');
+      });
+    })
     ..get('/files/<id|[0-9]+>/source', (Request request, String id) async {
       final viewer = await userOf(request);
       final model = await services.models.byId(int.parse(id));

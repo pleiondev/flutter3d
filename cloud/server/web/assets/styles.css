@@ -236,6 +236,14 @@ details.danger { margin-top: 36px; border-top: 1px solid var(--border-soft); pad
 details.danger summary { cursor: pointer; color: var(--rose); font-weight: 600; }
 details.danger form { margin-top: 14px; }
 
+details.publish { margin-top: 28px; border-top: 1px solid var(--border-soft); padding-top: 16px; }
+details.publish summary { cursor: pointer; color: var(--amber); font-weight: 600; }
+details.publish form { margin-top: 14px; }
+fieldset { border: 1px solid var(--border); border-radius: var(--radius); padding: 12px 14px; margin: 0; }
+fieldset legend { font-weight: 600; font-size: 14px; padding: 0 4px; }
+.radio-option { display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 400; padding: 4px 0; }
+.radio-option input { width: auto; }
+
 section.revisions { margin-top: 36px; border-top: 1px solid var(--border-soft); padding-top: 20px; }
 .revisions-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
 .revisions-list a {

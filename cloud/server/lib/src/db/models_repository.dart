@@ -400,8 +400,11 @@ class ModelsRepository {
     );
   });
 
-  /// Makes a model private again. The licence stays recorded: whoever
-  /// downloaded it while it was public received it under those terms.
+  /// Makes a model private again. The licence and category stay recorded,
+  /// the same as `published_at` already does: whoever downloaded the model
+  /// while it was public received it under that licence, and putting it
+  /// back up later should not ask the owner to choose again or move it to
+  /// the top of the catalogue.
   Future<void> unpublish(int modelId) => _db.run((session) async {
     await session.execute(
       Sql.named('''

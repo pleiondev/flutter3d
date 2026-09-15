@@ -39,6 +39,13 @@ class RateRule {
   /// many distinct revisions one account can push in an hour, not to get in
   /// the way of normal editing.
   static const sourceSavePerAccount = RateRule(30, Duration(hours: 1));
+
+  /// Publishing or unpublishing a model, from one account. A legitimate
+  /// owner does this a handful of times a session at most; the ceiling is
+  /// generous because the point is only to stop something automated from
+  /// toggling a model's visibility over and over, not to get in the way of
+  /// normal use.
+  static const publishPerAccount = RateRule(20, Duration(hours: 1));
 }
 
 class RateLimiter {

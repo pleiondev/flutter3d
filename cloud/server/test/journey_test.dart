@@ -1331,4 +1331,151 @@ void main() {
       isNot(contains('Renamed Diorama Set')),
     );
   });
+
+  test('publishing and unpublishing a model through the HTTP handler: a bad '
+      'licence or category is refused and changes nothing, a good one shows '
+      'up in the showcase, unpublishing takes it back out without deleting '
+      'it, and nobody but the owner may do either', () async {
+    // Signed in as an already-registered account, the same as the
+    // projects test above and for the same reason — this file has already
+    // spent every `registerPerIp` attempt it gets.
+    final owner = _Browser(handler);
+    await owner.get('/login');
+    expect(
+      (await owner.post('/login', {
+        'email': 'source-save-owner@example.com',
+        'password': 'a perfectly cromulent password',
+      })).statusCode,
+      303,
+    );
+
+    final uploaded = await owner.upload('publish_me.obj', _triangle);
+    final body =
+        jsonDecode(await uploaded.readAsString()) as Map<String, Object?>;
+    final modelId = body['id']! as int;
+    final modelPath = body['path']! as String;
+
+    // A form without the CSRF token is refused before ownership is even
+    // looked at, the same as every other POST on this service.
+    expect(
+      (await _Browser(handler).post('/m/$modelId/publish', {
+        'licence': 'CC0-1.0',
+        'category': 'props',
+      })).statusCode,
+      403,
+    );
+
+    // A licence outside the known list is refused, the form is re-shown,
+    // and nothing about the model changes.
+    final badLicence = await owner.post('/m/$modelId/publish', {
+      'licence': 'not-a-real-licence',
+      'category': 'props',
+    });
+    expect(badLicence.statusCode, 422);
+    expect(
+      await badLicence.readAsString(),
+      contains('Choose one of the licences.'),
+    );
+    expect(
+      (await services.models.byId(modelId))!.visibility,
+      Visibility.private,
+    );
+
+    // So is a category outside the known list.
+    final badCategory = await owner.post('/m/$modelId/publish', {
+      'licence': 'CC0-1.0',
+      'category': 'not-a-real-category',
+    });
+    expect(badCategory.statusCode, 422);
+    expect(
+      await badCategory.readAsString(),
+      contains('Choose one of the categories.'),
+    );
+    expect(
+      (await services.models.byId(modelId))!.visibility,
+      Visibility.private,
+    );
+
+    // A good pair publishes it: visible to nobody yet, since a stranger
+    // still gets a 404 until this request actually lands.
+    final published = await owner.post('/m/$modelId/publish', {
+      'licence': 'CC0-1.0',
+      'category': 'props',
+    });
+    expect(published.statusCode, 303);
+    expect(published.headers['location'], '$modelPath?said=published');
+
+    final afterPublish = (await services.models.byId(modelId))!;
+    expect(afterPublish.visibility, Visibility.public);
+    expect(afterPublish.licence, Licence.cc0);
+    expect(afterPublish.category, Category.props);
+    expect(afterPublish.publishedAt, isNotNull);
+    expect(
+      (await services.models.published()).map((m) => m.id),
+      contains(modelId),
+    );
+
+    // Now visible to a signed-out visitor, its licence and category shown.
+    final publicView = await _Browser(handler).get(modelPath);
+    expect(publicView.statusCode, 200);
+    final publicHtml = await publicView.readAsString();
+    expect(publicHtml, contains('CC0-1.0'));
+    expect(publicHtml, contains('Props'));
+
+    // Another account may not publish or unpublish it — 404, never 403,
+    // the same as every other ownership refusal on this service — and
+    // nothing about the model changes underneath them.
+    final stranger = _Browser(handler);
+    await stranger.get('/login');
+    expect(
+      (await stranger.post('/login', {
+        'email': 'preview-stranger@example.com',
+        'password': 'a different cromulent password',
+      })).statusCode,
+      303,
+    );
+    expect(
+      (await stranger.post('/m/$modelId/publish', {
+        'licence': 'CC-BY-4.0',
+        'category': 'vehicles',
+      })).statusCode,
+      404,
+    );
+    expect((await stranger.post('/m/$modelId/unpublish', {})).statusCode, 404);
+    final untouched = (await services.models.byId(modelId))!;
+    expect(untouched.visibility, Visibility.public);
+    expect(untouched.licence, Licence.cc0);
+    expect(untouched.category, Category.props);
+
+    // The owner takes it back down. The model itself is untouched — still
+    // there, still reachable at its own address for the owner — only its
+    // visibility moves, and it drops out of the showcase.
+    final unpublished = await owner.post('/m/$modelId/unpublish', {});
+    expect(unpublished.statusCode, 303);
+    expect(unpublished.headers['location'], '$modelPath?said=unpublished');
+
+    final afterUnpublish = (await services.models.byId(modelId))!;
+    expect(afterUnpublish.visibility, Visibility.private);
+    expect(afterUnpublish.licence, Licence.cc0);
+    expect(afterUnpublish.category, Category.props);
+    expect(afterUnpublish.publishedAt, afterPublish.publishedAt);
+    expect(
+      (await services.models.published()).map((m) => m.id),
+      isNot(contains(modelId)),
+    );
+    expect((await owner.get(modelPath)).statusCode, 200);
+    expect((await _Browser(handler).get(modelPath)).statusCode, 404);
+
+    // Enough publish/unpublish attempts from one account trip the rate
+    // limit — every attempt counts against it, whether or not that
+    // particular attempt is one this test also expects to fail.
+    final codes = <int>[
+      for (var i = 0; i < 21; i++)
+        (await owner.post('/m/$modelId/publish', {
+          'licence': 'CC0-1.0',
+          'category': 'props',
+        })).statusCode,
+    ];
+    expect(codes, contains(429));
+  });
 }

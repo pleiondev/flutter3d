@@ -31,6 +31,8 @@ const _sentences = <String, (String, String)>{
   'described': ('ok', 'Saved.'),
   'deleted': ('ok', 'Model deleted.'),
   'moved': ('ok', 'Model moved.'),
+  'published': ('ok', 'Model published. Anybody can find it in the showcase.'),
+  'unpublished': ('ok', 'Model made private again.'),
   'project-created': ('ok', 'Project created.'),
   'project-deleted': ('ok', 'Project deleted.'),
   'name-saved': ('ok', 'Name saved.'),
