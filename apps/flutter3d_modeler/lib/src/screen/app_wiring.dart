@@ -61,6 +61,7 @@ class ModelerScreen extends StatefulWidget {
   const ModelerScreen({
     super.key,
     this.autosaveStorage,
+    this.settingsStorage,
     this.cabinetLink,
     this.cabinetSourceSender,
     this.previewCapturer,
@@ -70,6 +71,11 @@ class ModelerScreen extends StatefulWidget {
   /// falls back to the platform's own `defaultBinaryStorage`. A test hands
   /// in a fake here instead of standing up a real filesystem or IndexedDB.
   final BinaryStorage? autosaveStorage;
+
+  /// Where `ux-09`'s own settings document lives — null in every real build,
+  /// which falls back to the platform's own `defaultStorage`. A test hands in
+  /// a map in memory, the same shape [autosaveStorage] already is.
+  final Storage? settingsStorage;
 
   /// `tut-19`/`tut-20`'s own cabinet id/mode — null in every real build,
   /// which falls back to `CabinetLink.fromQuery(Uri.base.queryParameters)`

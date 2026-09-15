@@ -72,6 +72,7 @@ import 'src/recent_projects.dart';
 import 'src/report_problem.dart';
 import 'src/selection_box.dart';
 import 'src/selection_rules.dart';
+import 'src/settings.dart';
 import 'src/shape_key_state.dart';
 import 'src/shape_points_overlay.dart';
 import 'src/staging.dart';
@@ -100,6 +101,7 @@ import 'src/ui/retarget_panel.dart';
 import 'src/ui/retarget_viewports.dart';
 import 'src/ui/save_as_dialog.dart';
 import 'src/ui/screen_parts.dart';
+import 'src/ui/settings_screen.dart';
 import 'src/ui/shell_for_width.dart';
 import 'src/ui/shortcut_help_screen.dart';
 import 'src/ui/start_screen.dart';
@@ -428,6 +430,18 @@ class _ModelerScreenState extends State<ModelerScreen>
   /// one controller for the state's whole lifetime is what its own stream
   /// subscription already expects.
   AutosaveController? _autosave;
+
+  /// `ux-09`'s own document, read once at startup and written whenever the
+  /// settings screen is saved.
+  ///
+  /// **Held here rather than looked up where it is read.** Every row that
+  /// says "a setting" reads this one value — the navigation scheme on every
+  /// pointer event, the keymap on every key — and a store that re-read the
+  /// file each time would be a disk touch inside a drag.
+  late final SettingsStore _settingsStore = SettingsStore(
+    storage: widget.settingsStorage,
+  );
+  late ModelerSettings _settings = _settingsStore.read();
 
   /// Where the autosave's own storage says what it could not do — `ux-01`.
   ///

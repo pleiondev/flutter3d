@@ -834,6 +834,24 @@ extension _FileHandling on _ModelerScreenState {
     unawaited(showShortcutHelp(context));
   }
 
+  /// `ux-09`'s own settings screen.
+  ///
+  /// The dialog answers with the settings to keep, or null when the person
+  /// backed out; a write that fails says so on the status line rather than
+  /// being swallowed — see [SettingsStore.write] for why this one is worth
+  /// reporting where the recent list's own is not.
+  Future<void> _showSettings() async {
+    final ModelerSettings? chosen = await showSettingsScreen(
+      context,
+      _settings,
+    );
+    if (chosen == null || !mounted) return;
+    setState(() => _settings = chosen);
+    if (!_settingsStore.write(chosen)) {
+      _cubit.say('Settings could not be saved', important: true);
+    }
+  }
+
   /// `rel-15`'s own "Report a problem" button: opens a GitHub issue draft
   /// against `modeler_report.yml`, prefilled and sent nowhere on its own —
   /// [reportProblemUrl]'s own doc comment is the whole design here.

@@ -35,6 +35,7 @@ class TopBarActions extends StatelessWidget {
     required this.onMaterialStudio,
     required this.onPreview,
     required this.onShortcutHelp,
+    this.onSettings,
     required this.onStartScreen,
     required this.onReportProblem,
   });
@@ -80,6 +81,11 @@ class TopBarActions extends StatelessWidget {
   final VoidCallback onShortcutHelp;
   final VoidCallback onStartScreen;
   final VoidCallback onReportProblem;
+
+  /// Opens `ux-09`'s own settings screen. Null in a test that has no
+  /// settings store behind it, which is what keeps the button out of every
+  /// shell test that never asked about it.
+  final VoidCallback? onSettings;
 
   @override
   Widget build(BuildContext context) => Row(
@@ -207,6 +213,18 @@ class TopBarActions extends StatelessWidget {
           ),
         ),
       ),
+      if (onSettings case final VoidCallback open)
+        MergeSemantics(
+          child: Semantics(
+            label: 'Settings',
+            button: true,
+            child: IconButton(
+              tooltip: 'Settings — navigation, keys, workspace, language',
+              onPressed: open,
+              icon: const Icon(Icons.settings_outlined, size: 20),
+            ),
+          ),
+        ),
     ],
   );
 }
