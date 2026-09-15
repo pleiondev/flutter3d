@@ -20,7 +20,7 @@ void main() {
   });
 
   group('toolsFor(ModelerMode.animation, animation: …)', () {
-    test('pose gets select, key and deleteKey', () {
+    test('pose gets select, key, deleteKey and autoRig', () {
       final ids = <String>[
         for (final ModelerTool t in toolsFor(
           ModelerMode.animation,
@@ -28,7 +28,12 @@ void main() {
         ))
           t.id,
       ];
-      expect(ids, <String>['pose.select', 'pose.key', 'pose.deleteKey']);
+      expect(ids, <String>[
+        'pose.select',
+        'pose.key',
+        'pose.deleteKey',
+        'pose.autoRig',
+      ]);
     });
 
     test('weights gets paint, assign, mirror and normalize', () {

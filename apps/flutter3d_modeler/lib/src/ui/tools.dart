@@ -402,6 +402,16 @@ List<ModelerTool> toolsFor(
         shortcut: LogicalKeyboardKey.keyX,
         group: 'keys',
       ),
+      // `S8`'s own row: opens `autorig_dialog.dart` rather than acting
+      // immediately, the same "arms the button, opens a dialog" shape
+      // `object.lathe` already uses in `_ranTool`.
+      ModelerTool(
+        id: 'pose.autoRig',
+        label: 'Auto-rig…',
+        icon: Icons.accessibility_new_outlined,
+        shortcut: LogicalKeyboardKey.keyU,
+        group: 'rig',
+      ),
     ],
     AnimationSubmode.weights => const <ModelerTool>[
       // All four ride `paint_weights.dart`'s own `PaintWeights` — `paint`

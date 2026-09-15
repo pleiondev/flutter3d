@@ -85,6 +85,14 @@ extension _Interactions on _ModelerScreenState {
       unawaited(_applyRetarget());
       return;
     }
+    if (id == 'pose.autoRig') {
+      // `S8`'s own row: a dialog, not a command run straight from the rail —
+      // the same reason `object.lathe` above arms the button and opens its
+      // own dialog rather than going through `commandFor`.
+      _cubit.tool(id);
+      unawaited(_openAutorigDialog());
+      return;
+    }
     final ModelCommand? command = commandFor(
       id,
       activeObject: _history.selection.activeObject,

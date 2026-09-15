@@ -78,6 +78,7 @@ import 'src/transform_dispatch.dart';
 import 'src/transform_fields.dart';
 import 'src/transform_session.dart';
 import 'src/ui/animation_bottom.dart';
+import 'src/ui/autorig_dialog.dart';
 import 'src/ui/bend_slider_bar.dart';
 import 'src/ui/clip_library.dart';
 import 'src/ui/clip_tracks_bar.dart';
@@ -110,6 +111,7 @@ import 'src/weight_paint_session.dart';
 
 part 'src/screen/animation.dart';
 part 'src/screen/app_wiring.dart';
+part 'src/screen/autorig_wiring.dart';
 part 'src/screen/close_and_recovery.dart';
 part 'src/screen/device.dart';
 part 'src/screen/files.dart';
