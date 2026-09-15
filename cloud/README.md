@@ -20,6 +20,7 @@ and `tool/structure.dart` keep are counts of packages.
 | `tool/` | Building the executable, building the viewer, deploying both |
 | `deploy/` | The systemd units, the nginx vhost, the tunnel config and an example environment |
 | `docker-compose.yml` | Postgres for development and the integration test |
+| `monitoring/` | Prometheus and Grafana for the service's own numbers — accounts, models, disk. [README](monitoring/README.md) |
 
 ## Running it
 

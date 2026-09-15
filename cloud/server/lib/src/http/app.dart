@@ -25,6 +25,7 @@ import '../pages/settings_page.dart';
 import '../services.dart';
 import '../storage/inspect.dart';
 import 'cookies.dart';
+import 'metrics.dart';
 import 'render.dart';
 import 'request.dart';
 import 'static_files.dart';
@@ -35,6 +36,19 @@ Handler buildHandler(Services services) {
 
   final router = Router(notFoundHandler: _notFound)
     ..get('/health', (Request request) => Response.ok('ok'))
+    // Nothing here checks who is asking. The endpoint is not linked from any
+    // page and nginx keeps it off the public vhost (see
+    // `cloud/monitoring/deploy/nginx-grafana.pleion.dev.conf` and
+    // `cloud/deploy/nginx-models.pleion.dev.conf`) — a scraper on the same
+    // loopback the service already listens on needs no separate credential to
+    // leak, the way a bearer token baked into a Prometheus config file would.
+    ..get('/metrics', (Request request) async {
+      final snapshot = await services.metrics.snapshot();
+      return Response.ok(
+        renderPrometheusMetrics(snapshot),
+        headers: {'content-type': 'text/plain; version=0.0.4; charset=utf-8'},
+      );
+    })
     ..mount(
       '/assets/',
       staticDirectory(services.config.assetsDirectory, cacheControl: 'public, max-age=300'),

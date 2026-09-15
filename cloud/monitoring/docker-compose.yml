@@ -1,0 +1,59 @@
+# Prometheus and Grafana for models.pleion.dev — nothing else. Every host on
+# this box already speaks loopback ports and lets nginx do the naming, so both
+# containers run in the host's own network namespace rather than a bridge:
+# the models service is bound to `InternetAddress.loopbackIPv4` only (see
+# `cloud/server/lib/main.server.dart`), and a bridge network's gateway address
+# is not the loopback that bind answers to. Host networking is what lets
+# Prometheus reach 127.0.0.1:8794 at all, and it is why both containers bind
+# their own ports explicitly instead of publishing one — in host mode there is
+# no publishing, only what the process itself listens on.
+services:
+  prometheus:
+    image: prom/prometheus:v3.0.1
+    container_name: flutter3d-prometheus
+    network_mode: host
+    user: root
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=90d
+      # Loopback only: nothing outside this machine has a route to it anyway
+      # (ufw admits only SSH, the VPN ports and 80/443/8443), but a process
+      # that only listens where it means to is one fewer thing to check when
+      # something else on the box is audited.
+      - --web.listen-address=127.0.0.1:9091
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana-oss:11.4.0
+    container_name: flutter3d-grafana
+    network_mode: host
+    depends_on:
+      - prometheus
+    environment:
+      GF_SERVER_HTTP_ADDR: 127.0.0.1
+      GF_SERVER_HTTP_PORT: '3001'
+      GF_SERVER_ROOT_URL: https://grafana.pleion.dev
+      GF_USERS_ALLOW_SIGN_UP: 'false'
+      GF_AUTH_ANONYMOUS_ENABLED: 'false'
+      # nginx already asks for a name and a password before a request reaches
+      # this container (see deploy/nginx-grafana.pleion.dev.conf) — this is
+      # the second, independent one Grafana itself keeps.
+      GF_SECURITY_ADMIN_USER: admin
+    env_file:
+      # Not in this repository. Holds exactly one line,
+      # GF_SECURITY_ADMIN_PASSWORD=…, generated once at first deploy — see
+      # README.md.
+      - /etc/flutter3d-monitoring.env
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/etc/grafana/dashboards:ro
+      - grafana-data:/var/lib/grafana
+    restart: unless-stopped
+
+volumes:
+  prometheus-data:
+  grafana-data:
