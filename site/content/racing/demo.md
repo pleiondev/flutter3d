@@ -73,7 +73,7 @@ const int kShadowCascades = 3;  const int kShadowCascades = 2;
 const int kShadowResolution = 2048;  const int kShadowResolution = 1024;
 ```
 
-`SceneSurface` reads those instead of naming numbers. It used to be the third copy of that widget in this repository, and the argument for leaving it copied was that the three differed in exactly one place. That argument did not survive: the widget is `flutter3d_session`'s now — `packages/flutter3d_session/lib/src/scene_surface.dart`, re-exported through `flutter3d_app` — and the place the three differ is a constant each application passes in. See [assembling an application](/core/session/).
+`SceneSurface` reads those instead of naming numbers. It used to be the third copy of that widget in this repository, and the argument for leaving it copied was that the three differed in exactly one place. That argument did not survive: the widget is `flutter3d_app`'s now — `packages/flutter3d_app/lib/src/surface/scene_surface.dart` — and the place the three differ is a constant each application passes in. See [assembling an application](/core/session/).
 
 ## Building it yourself
 

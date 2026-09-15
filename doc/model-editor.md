@@ -70,7 +70,7 @@ the repository and covered by tests," not "planned."
 | 16 Auto-rig | 3 | nothing | everything |
 | 17 LOD | 4 | `LodGroup` with distances, three side-by-side `RenderView`s | mesh simplification preserving UV and weights |
 | 18 3D painting | 4 | render-to-texture | everything |
-| 19 "In-game" preview | 3 | **this is literally the engine**: the same shaders, the same bone limit, frame counters; `flutter3d_session` already supports a widget texture | a project profile with budgets |
+| 19 "In-game" preview | 3 | **this is literally the engine**: the same shaders, the same bone limit, frame counters; `flutter3d_app` already supports a widget texture | a project profile with budgets |
 | Import with checks | 1 | `ModelDocument.warnings` on every decoder, a background isolate (the main thread on the web) | the screen isn't drawn |
 | Export with checks | 1 | `F3dWriter` as a writer template | **no glTF/GLB, OBJ, or STL writers**; the screen isn't drawn |
 

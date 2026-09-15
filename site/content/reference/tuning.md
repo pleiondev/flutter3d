@@ -24,7 +24,7 @@ How a game feels is a few dozen numbers, and this page says where each of them i
 | Shadows, bloom, fog, exposure, colour | `ShadowSettings` and the rest of `RenderSettings` | `flutter3d` |
 | How far back a kill camera or a rewind reaches | `RewindBuffer.history` | `flutter3d_sim` |
 | How big a hole a rocket leaves | `Breaches.blast(width:, height:, depth:)` | `flutter3d_sim` |
-| How much a wall muffles a sound | `SoundOcclusion(perObstacle:, floor:)` | `flutter3d_bridge` |
+| How much a wall muffles a sound | `SoundOcclusion(perObstacle:, floor:)` | `flutter3d_game` |
 | How far the automap reveals around the player | `Automap(revealRadius:)` | `flutter3d_sim` |
 | How coarse the visibility table is | `bake_visibility --cell` | `flutter3d_sim` |
 | How fine, how many bounces and how many rays a lightmap gets | `bake_lightmap --density --bounces --samples` | `flutter3d_sim` |

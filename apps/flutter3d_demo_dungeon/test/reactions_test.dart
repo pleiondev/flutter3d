@@ -16,7 +16,7 @@ library;
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:flutter3d_bridge/flutter3d_bridge.dart';
+import 'package:flutter3d_app/flutter3d_app.dart';
 import 'package:flutter3d_demo_dungeon/src/effects.dart';
 import 'package:flutter3d_demo_dungeon/src/reactions.dart';
 import 'package:flutter3d_demo_dungeon/src/staging.dart';

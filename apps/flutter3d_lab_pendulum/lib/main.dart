@@ -168,7 +168,7 @@ class _PendulumLabScreenState extends State<PendulumLabScreen>
     // `runAsync`, read back an unrelated all-black frame — a second,
     // unexplained finding, not a confirmation of the first. Turning the
     // child here a half turn fixes what this app shows without touching
-    // `flutter3d_session` blind; `doc/tooling-plan.md`'s own edu-04 entry
+    // `flutter3d_app` blind; `doc/tooling-plan.md`'s own edu-04 entry
     // names the open question for whoever next hosts a `WidgetSurface`
     // with legible content — `edu-00` §7's own annotation widget among
     // them.

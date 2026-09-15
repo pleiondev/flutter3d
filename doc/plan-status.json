@@ -321,6 +321,9 @@
     "pro-sim-01": {
       "flutter3d_cloth": "the row's own history: the package existed under this name until doc/package-merge-plan.md §3.1 folded it into flutter3d_physics, and the row says so in the same sentence — the name is cited as what it used to be called, not as a claim that it still exists"
     },
+    "view-02": {
+      "flutter3d_backend": "the row's own history: the backend choice was a package under this name until doc/package-merge-plan.md §3.6 folded it into flutter3d_app, and the comments that still said so went when flutter3d_app took the universal half of flutter3d_session and flutter3d_bridge on 2026-09-15; openDevice/presentFrame live in flutter3d_app's own backend_native.dart/backend_web.dart, so the old name is cited as what it used to be called, not as a claim that it still exists"
+    },
     "mcp-06n": {
       "flutter3d_render_mcp": "the row's own history: the package existed under this name until docs/package-architecture-review.md §8 folded it into flutter3d_sim_mcp on 2026-09-15; DiagnosticRenderer and the diagnostic server live there now, and the row names both packages side by side, so the old name is cited as what it used to be called, not as a claim that it still exists"
     },

@@ -7,7 +7,7 @@ import 'stereo_viewer.dart';
 
 /// The widget that draws a stereo pair and hands it to Flutter.
 ///
-/// `SceneSurface` in `flutter3d_session` with two differences, and both of them
+/// `SceneSurface` in `flutter3d_app` with two differences, and both of them
 /// are the reason this is not a parameter on that one:
 ///
 /// * it renders a **pair** — two views into one target, left half and right —

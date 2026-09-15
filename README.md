@@ -34,11 +34,10 @@ genres, and the generated API reference.
 | Package | What it is |
 |---|---|
 | [`packages/flutter3d`](packages/flutter3d) | The renderer: scene graph, glTF/OBJ/`.f3d` loading, six lighting models, shadows, bloom, skinning, BVH culling, picking. [README](packages/flutter3d/README.md) |
-| [`packages/flutter3d_game`](packages/flutter3d_game) | The game layer: a fixed timestep, interpolation, input that has forgotten which device it came from, levels and mechanisms. [README](packages/flutter3d_game/README.md) |
+| [`packages/flutter3d_game`](packages/flutter3d_game) | What a game adds to an application: input that has forgotten which device it came from, the run being played, the settings and save screens, and actors and fixtures drawn. [README](packages/flutter3d_game/README.md) |
 | [`packages/flutter3d_physics`](packages/flutter3d_physics) | Collision shapes, a broadphase, queries, a character controller and an XPBD cloth solver. Plain Dart — no Flutter, no renderer |
 | [`packages/flutter3d_game_shooter`](packages/flutter3d_game_shooter) | One genre: monsters, weapons, an inventory, the step order that ties them together, and the weapon held in the hands |
 | [`packages/flutter3d_game_platformer`](packages/flutter3d_game_platformer) | A second genre, and the instrument that tests the first: a runner who jumps twice, coins, hazards and checkpoints |
-| [`packages/flutter3d_bridge`](packages/flutter3d_bridge) | Where the two meet: level geometry to mesh nodes, an actor to its visual, a fixture to the light it drives |
 | [`packages/flutter3d_audio`](packages/flutter3d_audio) | Positional audio: attenuation, panning and voice limiting, with a pluggable backend |
 | [`packages/pad_input`](packages/pad_input) | A gamepad, read as a snapshot once per frame. Button names are physical positions, because they end up in a player's config file; the web backend is pure Dart. [README](packages/pad_input/README.md) |
 | [`packages/pointer_lock`](packages/pointer_lock) | Relative mouse deltas: a method channel on macOS, the browser's own Pointer Lock API on the web. Flutter surfaces neither |
@@ -53,9 +52,8 @@ genres, and the generated API reference.
 | [`packages/flutter3d_conformance`](packages/flutter3d_conformance) | The contract every backend must pass, as runnable checks rather than a document |
 | [`packages/flutter3d_shaders`](packages/flutter3d_shaders) | The GLSL, and the headers an extension package includes |
 | [`packages/flutter3d_particles`](packages/flutter3d_particles) | One pool, one draw call, whatever is in it. Plain Dart, so a model can bake a particle system with no window |
-| [`packages/flutter3d_session`](packages/flutter3d_session) | A run that can be started, saved, resumed and ended, with no widget in it, and the screens that are not the game: settings, volumes, rebinding, credits |
 | [`packages/flutter3d_stereo`](packages/flutter3d_stereo) | Two eyes and a head: the rig, the widget that draws a pair into one frame, and the settings a pair can have. A phone in a holder today, a headset when there is one |
-| [`packages/flutter3d_app`](packages/flutter3d_app) | What every application repeats: storage, settings, the frame clock, the screens, and which of the four backends `openDevice()` opens |
+| [`packages/flutter3d_app`](packages/flutter3d_app) | What every application repeats: which of the four backends `openDevice()` opens, the frame surface and clock, widgets in the scene, a level loaded into a scene, and storage |
 | [`packages/flutter3d_game_racing`](packages/flutter3d_game_racing) | A third genre: a car simulated as a sphere, a circuit read from a spline, lap timing and a ghost |
 | [`packages/flutter3d_game_strategy`](packages/flutter3d_game_strategy) | A fourth genre, and the first without a protagonist: ground made of samples, a crowd that takes orders and shoves itself apart, flow fields shared by destination, an economy, a fight, fog a side has to walk into, and a policy that plays a side without a mouse |
 | [`packages/flutter3d_editor_core`](packages/flutter3d_editor_core) | The level editor with the editor taken out: the document being selected in, nudged, undone and written back, the handles a pointer hits, the palette a level builds out of itself, and the project a template becomes. Plain Dart, so a linter or a service can depend on it |
@@ -74,18 +72,19 @@ genres, and the generated API reference.
 | [`packages/flutter3d_game/example`](packages/flutter3d_game/example) | A level you can walk around, with no genre in it: what a new game starts as, and the source the editor's templates are generated from |
 | [`packages/flutter3d/example`](packages/flutter3d/example) | The engine's own demo: a model browser with every feature switchable |
 
-The split is not filing. `flutter3d_game` does not depend on `flutter3d`, and
-most of it does not depend on Flutter at all — simulation, input and collision
-have nothing to say about how a frame is drawn. The same cut runs the other
+The split is not filing. `flutter3d_sim` depends on neither `flutter3d` nor
+Flutter — simulation, input and collision have nothing to say about how a frame
+is drawn. The same cut runs the other
 way: **a genre is a package too.** `flutter3d_game_shooter` holds what only a shooter
 wants, so a platformer or a racing game inherits none of this one's vocabulary
 — and three of the scans in `tool/structure.dart` keep that a fact rather than
 a habit. That is what lets the parts
 which fail quietly (a collision that passes through a wall once in a thousand
 steps, a jump that is a different height on a faster monitor, a press swallowed
-at a low frame rate) be reached from a plain unit test. `flutter3d_bridge` is
-the one package allowed to depend on both, and it is where the renderer and the
-simulation meet; an application supplies only what its own game looks like.
+at a low frame rate) be reached from a plain unit test. `flutter3d_app` is where
+a level meets the renderer for any application, and `flutter3d_game` is where a
+game's simulation does; an application supplies only what its own game looks
+like.
 
 ## Running
 
@@ -155,7 +154,7 @@ Or one package at a time:
 (cd packages/flutter3d_physics && dart test)   # plain Dart, no Flutter needed
 ```
 
-7443 tests across thirty-seven packages and eight applications, and the only
+7443 tests across thirty-five packages and eight applications, and the only
 ones that need a GPU are the
 Impeller half of the golden set. The other half is rendered by the software
 backend, which is what makes 43 scenes checkable in a headless run.

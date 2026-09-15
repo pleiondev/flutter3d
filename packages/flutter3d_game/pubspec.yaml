@@ -1,5 +1,5 @@
 name: flutter3d_game
-description: "The game layer on top of flutter3d: the touch, keyboard, mouse and gamepad devices a flutter3d_sim game is played with."
+description: "What a game on flutter3d adds to an application: touch, keyboard, mouse and gamepad input, the run being played, the screens that are not the game, and the actors and fixtures a simulation moves, drawn."
 version: 0.6.0
 repository: https://github.com/pleiondev/flutter3d
 homepage: https://flutter3d.pleion.dev
@@ -18,6 +18,14 @@ dependencies:
   flutter:
     sdk: flutter
 
+  # The application layer a game stands on: the surface, storage and what a
+  # document says when it cannot be read, and the level loader a fixture's
+  # visual reads its materials through.
+  flutter3d_app: ^0.7.0
+
+  # The renderer, for the actors and fixtures drawn.
+  flutter3d: ^0.6.0
+
   # Relative mouse deltas, which Flutter offers on no desktop platform.
   pointer_lock: ^0.4.0
 
@@ -33,6 +41,23 @@ dependencies:
   # itself.
   flutter3d_sim: ^0.6.0
 
+  # Volumes are a mixer's, and the settings panel is where they are turned.
+  flutter3d_audio: ^0.6.0
+
+  # A torch's flame, which is the particles its light is measured from.
+  flutter3d_particles: ^0.6.0
+
+  # State management. The screens here are state machines — a panel that is
+  # open, a rebinding that is waiting for a key, a settings document that has
+  # been written — and they lived in `setState` inside two applications, which
+  # is where a state machine goes to stop being testable. A cubit is reachable
+  # from a plain `test()`.
+  #
+  # The exception to `ARCHITECTURE.md` §11.3, and a narrow one: pure Dart, no FFI,
+  # so it does not break the web build — which is what that section's argument
+  # is actually about.
+  flutter_bloc: ^9.1.1
+
   vector_math: ^2.2.0
 
 dev_dependencies:
@@ -40,8 +65,28 @@ dev_dependencies:
     sdk: flutter
   flutter_lints: ^6.0.0
 
-# Deliberately no dependency on flutter3d. Simulation, input and collision have
-# nothing to say about how a frame is drawn, and keeping the two apart is what
-# lets all of this be tested without a GPU — the same rule that already holds
-# for the engine's own geometry and scene layers. `flutter3d_bridge` is where
-# the two meet, and it depends on this package rather than the other way round.
+  # A renderer with no GPU under it, so a visual can be built and a screen
+  # pumped.
+  flutter3d_cpu: ^0.7.0
+
+  # For `FakeBackend`, which is what lets the teardown tests assert that
+  # uploaded meshes are actually handed back rather than merely forgotten.
+  flutter3d_hardware: ^0.7.0
+
+  # An external client for `run_timeline_extensions_test.dart` — the same
+  # package DevTools and `flutter attach` use to reach a running app's VM
+  # service, standing in for the editor this proves the door is open for.
+  vm_service: ^15.0.0
+
+  # `@TestOn('vm')` and plain `test()`/`expect()` in
+  # `run_timeline_extensions_test.dart` — `flutter_test` re-exports these,
+  # but only `package:test` itself resolves `@TestOn`.
+  test: ^1.25.0
+
+flutter:
+  uses-material-design: true
+
+# **The simulation stays plain Dart; this is where a game meets Flutter and
+# the renderer.** A genre's simulation library depends on `flutter3d_sim`
+# alone, and its `bridge.dart` — the half that draws — depends on this
+# package.

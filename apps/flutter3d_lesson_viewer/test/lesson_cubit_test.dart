@@ -8,9 +8,9 @@
 library;
 
 import 'package:flutter3d/flutter3d.dart';
-import 'package:flutter3d_bridge/flutter3d_bridge.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter3d_lesson_viewer/main.dart';
+import 'package:flutter3d_lesson_viewer/src/lesson_player.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_test/flutter_test.dart';
 

@@ -17,25 +17,13 @@ dependencies:
 
   flutter3d:
     path: ../../packages/flutter3d
-
-  # The document and the level format.
-  flutter3d_game:
-    path: ../../packages/flutter3d_game
   flutter3d_sim:
     path: ../../packages/flutter3d_sim
-
-  # A level document to mesh nodes and lights.
-  flutter3d_bridge:
-    path: ../../packages/flutter3d_bridge
 
   # `orderedSteps` — resolving an `edu_sequence.steps` name list to the
   # `edu_step` entities themselves. Headless, plain Dart.
   flutter3d_editor_core:
     path: ../../packages/flutter3d_editor_core
-
-  # The surface a frame reaches Flutter through.
-  flutter3d_session:
-    path: ../../packages/flutter3d_session
 
   # `edu-06`'s own screen: `StereoRig`, `StereoSurface`, `LessonPlayer`,
   # `LessonStereoView` — the whole of this app's difference from

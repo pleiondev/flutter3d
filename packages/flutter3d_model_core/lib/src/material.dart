@@ -51,7 +51,7 @@ final class ProjectMaterial {
   /// `flutter3d_sim`'s `LevelMaterial.fmat` already carries for a level. This
   /// class does not read the file: doing so needs a base path to resolve it
   /// against and a decision about what a read failure means to a project, and
-  /// both belong to whatever opens the project — `flutter3d_bridge`'s loader
+  /// both belong to whatever opens the project — `flutter3d_app`'s level loader
   /// is the level format's equivalent fork, and a modeller-side one is
   /// `fmt-17`'s. Null is the ordinary case: a material authored entirely in
   /// this project, keeping its own numbers.

@@ -4,12 +4,11 @@ description: Four independent golden sets, mutation-checking every new test, det
 
 # Testing
 
-7443 tests across 37 packages and eight applications, counted the same way the `the document says how many tests there are` rule does: a scan of every `test(`/`testWidgets(` call. The rule holds `ARCHITECTURE.md` §13, the README and this page to the answer — the README went on saying 1242 across thirteen packages for as long as nothing compared it with anything. About thirty need a GPU; the [architecture](/core/architecture/) is what keeps the number that low.
+7443 tests across 35 packages and eight applications, counted the same way the `the document says how many tests there are` rule does: a scan of every `test(`/`testWidgets(` call. The rule holds `ARCHITECTURE.md` §13, the README and this page to the answer — the README went on saying 1242 across thirteen packages for as long as nothing compared it with anything. About thirty need a GPU; the [architecture](/core/architecture/) is what keeps the number that low.
 
 | Package | Tests | | Package | Tests |
 |---|---|---|---|---|
 | `flutter3d` | 1114 | | | |
-| | | | `flutter3d_bridge` | 74 |
 | | | | `flutter3d_mesh` | 516 |
 | | | | `apps/flutter3d_modeler` | 828 |
 | `flutter3d_sim` | 526 | | `pad_input` | 59 |
@@ -20,21 +19,21 @@ description: Four independent golden sets, mutation-checking every new test, det
 | `flutter3d_game_platformer` | 221 | | `flutter3d_hardware` | 54 |
 | `apps/flutter3d_demo_platformer` | 198 | | `flutter3d_impeller` | 54 |
 | `flutter3d_cpu` | 80 | | `apps/flutter3d_demo_strategy` | 43 |
-| `apps/flutter3d_editor` | 204 | | `flutter3d_session` | 192 |
+| `apps/flutter3d_editor` | 204 | | | |
 | `apps/flutter3d_demo_racing` | 153 | | `pointer_lock` | 28 |
 | `flutter3d_physics` | 173 | | `flutter3d_webgpu` | 175 |
 | `flutter3d_game_strategy` | 131 | | `flutter3d_editor_mcp` | 20 |
 | | | | `flutter3d_testing` | 13 |
 | `flutter3d_editor_core` | 128 | | | |
-| `apps/flutter3d_demo_dungeon` | 110 | | `flutter3d_app` | 4 |
-| `flutter3d_game` | 79 | | `flutter3d_shaders` | 1 |
+| `apps/flutter3d_demo_dungeon` | 110 | | `flutter3d_app` | 96 |
+| `flutter3d_game` | 248 | | `flutter3d_shaders` | 1 |
 | `flutter3d_particles` | 73 | | `flutter3d_stereo` | 48 |
 | `flutter3d_model_core` | 817 | | `flutter3d_model_mcp` | 93 |
 | | | | `flutter3d_net` | 14 |
 | | | | `flutter3d_net_webrtc` | 2 |
 | | | | `flutter3d_sim_mcp` | 11 |
 | `flutter3d_mcp_kit` | 1 | | `flutter3d_build` | 54 |
-| | | | `apps/flutter3d_lesson_viewer` | 34 |
+| | | | `apps/flutter3d_lesson_viewer` | 39 |
 | | | | `apps/flutter3d_stereo_lesson_viewer` | 6 |
 
 The rows sum to 7419 rather than 7443: the remaining 24 live in `packages/*/example/test`, which the count includes and this table does not — among them the two seeds a new project starts from, `packages/flutter3d_app/example` and `packages/flutter3d_game/example`.
@@ -161,7 +160,7 @@ Four packages carry a `lib/testing.dart`. It is a separate library, so nothing a
 import 'package:flutter3d_hardware/testing.dart';  // FakeBackend
 import 'package:flutter3d_cpu/testing.dart';       // cpuTestDevice
 import 'package:flutter3d_audio/testing.dart';     // soundTableIn
-import 'package:flutter3d_session/testing.dart';   // creditGaps
+import 'package:flutter3d_game/testing.dart';      // creditGaps
 ```
 
 `FakeBackend` is a `GraphicsDevice` that draws nothing and records everything: which passes were opened, what they were attached to, what was bound, how many times it drew. `cpuTestDevice` is a `CpuDevice` with the builtin shaders and the two fallback textures a `Renderer` asks for.

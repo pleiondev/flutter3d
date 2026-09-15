@@ -19,8 +19,8 @@ import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:clock/clock.dart' show clock;
+import 'package:flutter3d_app/flutter3d_app.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
-import 'package:flutter3d_session/flutter3d_session.dart';
 
 import 'modeler_cubit.dart';
 

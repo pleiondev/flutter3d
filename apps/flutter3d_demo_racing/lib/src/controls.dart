@@ -8,9 +8,9 @@
 library;
 
 import 'package:flutter/services.dart' show LogicalKeyboardKey;
-import 'package:flutter3d_app/flutter3d_app.dart'; // PadButton, from pad_input
 import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
+import 'package:pad_input/pad_input.dart'; // PadButton, from pad_input
 
 /// What this game lets a driver ask for.
 ///

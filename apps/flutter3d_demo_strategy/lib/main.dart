@@ -50,6 +50,7 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart' hide Material;
 import 'package:flutter/scheduler.dart';
 import 'package:flutter3d/flutter3d.dart';
+import 'package:flutter3d_game/flutter3d_game.dart' show SaveFile;
 import 'package:flutter3d_game_strategy/flutter3d_game_strategy.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart' show FixedStep;
 import 'package:vector_math/vector_math.dart' as vm;

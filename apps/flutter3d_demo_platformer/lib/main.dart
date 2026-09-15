@@ -16,12 +16,12 @@ import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart' show KeyDownEvent, LogicalKeyboardKey;
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_audio/flutter3d_audio.dart';
-import 'package:flutter3d_bridge/flutter3d_bridge.dart';
 import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:flutter3d_game_platformer/flutter3d_game_platformer.dart';
 import 'package:flutter3d_particles/flutter3d_particles.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:pad_input/pad_input.dart';
 import 'package:vector_math/vector_math.dart' hide Colors;
 
 import 'src/audio_cubit.dart';
@@ -993,7 +993,7 @@ class _GameScreenState extends State<GameScreen>
   Widget build(BuildContext context) {
     final error = _screen.state.error;
     if (error != null) {
-      // The sentence is this game's; the screen is `flutter3d_session`'s,
+      // The sentence is this game's; the screen is `flutter3d_app`'s,
       // and it was the same four widgets in five applications.
       return DidNotStart(
         'The renderer did not start.\n\n$error',

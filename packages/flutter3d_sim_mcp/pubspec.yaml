@@ -29,7 +29,7 @@ dependencies:
   # diagnostic server's views. They were two packages, and a picture from the
   # sim server was already the diagnostic server's `lit` frame.
   flutter3d: ^0.6.0
-  flutter3d_bridge: ^0.6.0
+  flutter3d_app: ^0.7.0
   flutter3d_cpu: ^0.7.0
 
   # The tool table, the answers and the server underneath this one — what

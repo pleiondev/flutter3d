@@ -1,3 +1,19 @@
+## Unreleased
+
+**Breaking.** What any application needs from `flutter3d_session` and
+`flutter3d_bridge` is here now, and nothing is re-exported.
+
+* From `flutter3d_session`: `SceneSurface`, `FrameClock`, `FrameTimingLog`,
+  `DidNotStart`, the status screens, `WidgetSurface` and its pipeline, and
+  `Storage`/`BinaryStorage`, with the atomic write in `native.dart`.
+* From `flutter3d_bridge`: `LevelLoader`, `LoadedLevel`, `SharedMeshes`,
+  `SurfaceMesh`, `VisibilityCuller` and `WidgetSurfaceVisuals`.
+* From `flutter3d_game`: `Issue`, `IssueSink` and `IssueLog`, which a storage
+  reports through.
+* No longer re-exported: `flutter3d_session`, `pad_input` and `pointer_lock`.
+  What a game took from the first is `flutter3d_game` now, and a game names the
+  two device packages itself.
+
 ## 0.7.0
 
 **Breaking.** Accepted `flutter3d_backend`, because most of its consumers

@@ -1,48 +1,59 @@
-/// The layer an application is assembled from, in one import.
+/// What any Flutter application on flutter3d is assembled from, in one import.
 ///
 ///     import 'package:flutter3d_app/flutter3d_app.dart';
 ///
 ///     final device = await openDevice(width: 1280, height: 720);
 ///     final renderer = Renderer.create(device: device);
-///     // ... presentFrame, SceneSurface, RunSession, SettingsOverlay, Gamepad,
-///     // PointerLock — all reachable from here.
+///     // ... SceneSurface, presentFrame, LevelLoader, WidgetSurface, Storage
 ///
-/// Three packages, plus the backend choice this one now makes directly, exist
-/// because the wiring they hold was written out, close to identically, in
-/// three `main.dart` files before any of them existed:
+/// **Universal, and that is the test for a place here.** The modeller, the
+/// level editor, the lessons and every game use what is below, and nothing
+/// here knows what a run, a binding or a monster is. What a game adds on top —
+/// the devices it is played with, the run, its settings screens, the actors
+/// and fixtures its simulation moves — is `flutter3d_game`, which stands on
+/// this package.
 ///
-/// * **The backend choice** — which backend a build draws through, and the
-///   runtime fallback to software if Impeller will not start — used to be its
-///   own package, `flutter3d_backend`. It moved here because most of its
-///   consumers already reached it through this barrel rather than by naming
-///   it, and the handful that still named it directly cost nothing to
-///   repoint, which left nothing for a separate package to be the boundary of.
-///   `openDevice` and `presentFrame` are themselves a lookup into
-///   `flutter3d_hardware`'s own device registry now, not a fixed list of
-///   backends this package happens to know about — each backend registers
-///   itself, so a new one costs this file nothing to add.
-/// * `flutter3d_session` — `SceneSurface`, the widget that hands a frame to
-///   Flutter, `RunSession`, a level's load/restart/save/advance sequence, and
-///   the settings, rebinding and save screens no game owns (once
-///   `flutter3d_screens`, absorbed for the same reason as the backend choice).
-/// * `pad_input` — a gamepad, read once per frame.
-/// * `pointer_lock` — desktop mouse capture, for an FPS-style camera.
+/// * **The backend choice.** `openDevice` and `presentFrame` look a backend up
+///   in `flutter3d_hardware`'s own device registry, with the runtime fallback
+///   to software when Impeller will not start. Each backend registers itself,
+///   so a new one costs this file nothing.
+/// * **The surface.** [SceneSurface] hands a rendered frame to Flutter; its
+///   settings are a function called per frame, so anything derived from where
+///   the camera ended up is derived after it got there. [FrameClock],
+///   [FrameTimingLog], [DidNotStart] and the status screens are pacing, the
+///   numbers a frame panel shows, and what an application says when it cannot
+///   draw or cannot read its level.
+/// * **Widgets in the scene.** [WidgetSurface] draws a Flutter widget onto a
+///   quad the scene holds, and [WidgetSurfaceVisuals] builds one for each
+///   `widget_surface` a level names.
+/// * **A level loaded into a scene.** [LevelLoader] turns a level document into
+///   mesh nodes, lights, probes and a collision world, with [SharedMeshes] and
+///   [VisibilityCuller] beside it. An editor draws the level it is editing with
+///   the same code a game plays it with.
+/// * **Storage, and what a document says when it cannot be read.** [Storage]
+///   and [BinaryStorage] keep a document where each platform keeps such
+///   things, and an [Issue] is handed back rather than thrown.
 ///
-/// None of the three sibling packages know about each other, and this package
-/// does not change that — it re-exports them, and holds only the backend
-/// choice as code of its own. What it buys is that an application says "the
-/// assembly layer" once, the same way importing `flutter3d` says "the
-/// renderer" once instead of naming `flutter3d_hardware`.
-///
-/// **Not behind this barrel:** `flutter3d`, `flutter3d_bridge`,
-/// `flutter3d_game`, and a genre package. Those are content — what a scene
-/// looks like and what kind of game this is — and a facade cannot choose a
-/// genre on an application's behalf.
+/// `package:flutter3d_app/native.dart` holds the one piece that needs a
+/// filesystem, off this barrel so a `dart:io` import never stops a web build
+/// compiling.
 library;
 
-export 'package:flutter3d_session/flutter3d_session.dart';
-export 'package:pad_input/pad_input.dart';
-export 'package:pointer_lock/pointer_lock.dart';
 export 'src/backend_native.dart'
     if (dart.library.js_interop) 'src/backend_web.dart'
     show kFixedResolution, openDevice, presentFrame;
+export 'src/diagnostics/issues.dart';
+export 'src/level/level_loader.dart';
+export 'src/level/shared_meshes.dart';
+export 'src/level/surface_mesh.dart';
+export 'src/level/visibility_culler.dart';
+export 'src/storage/storage.dart';
+export 'src/surface/did_not_start.dart';
+export 'src/surface/frame_clock.dart';
+export 'src/surface/frame_timing_log.dart';
+export 'src/surface/scene_surface.dart';
+export 'src/surface/status_screens.dart';
+export 'src/widget_surface/widget_surface.dart';
+export 'src/widget_surface/widget_surface_pipeline.dart';
+export 'src/widget_surface/widget_surface_visuals.dart';
+export 'src/widget_surface/widget_texture.dart';

@@ -54,12 +54,6 @@ dependencies:
   flutter3d_physics:
     path: ../../packages/flutter3d_physics
 
-  # The surface a frame reaches Flutter through, the frame clock with it, and
-  # `BinaryStorage`/`defaultBinaryStorage`, autosave's own read/write: a
-  # model project is binary and can be megabytes, past what `Storage`'s
-  # `localStorage` backing allows on the web.
-  flutter3d_session:
-    path: ../../packages/flutter3d_session
 
   # The Khronos models, so `--dart-define=model=` names a file that is in the
   # bundle on every platform this is measured on. **For phase 0 and not

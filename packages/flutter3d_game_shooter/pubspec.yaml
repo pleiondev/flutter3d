@@ -18,10 +18,6 @@ dependencies:
   flutter:
     sdk: flutter
 
-  # The engine half: the fixed step, input, levels, actors, mechanisms, the ECS.
-  # Everything here is content those take as arguments.
-  flutter3d_game: ^0.6.0
-
   # This package builds colliders and worlds itself, and a dependency you use is
   # a dependency you declare. The simulation is where the fixed step, the
   # levels, the actors and the saves live since they stopped needing Flutter.

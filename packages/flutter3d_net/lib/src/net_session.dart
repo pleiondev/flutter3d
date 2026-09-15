@@ -50,7 +50,7 @@ final class _HistoryEntry {
 /// [applyAndStep] writes them back into it before calling that genre's own
 /// `sim.step`. This is `net-01`'s entire claim: a game hands over four
 /// functions and gets rollback, rather than teaching this package a second
-/// genre's vocabulary the way `flutter3d_bridge` was built not to.
+/// genre's vocabulary the way `flutter3d_app`'s level loader was built not to.
 ///
 /// ## Fixed input delay, and why it is not the whole answer
 ///

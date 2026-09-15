@@ -14,9 +14,9 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:flutter3d_impeller/flutter3d_impeller.dart';
-import 'package:flutter3d_session/flutter3d_session.dart' show FramePresenter;
 
 import 'cpu_frame_presenter.dart';
+import 'surface/scene_surface.dart';
 
 /// Whether this build renders at a fixed internal resolution.
 ///

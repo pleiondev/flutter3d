@@ -25,14 +25,11 @@ import 'package:flutter/material.dart' hide Material;
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter3d/flutter3d.dart' hide Material;
-import 'package:flutter3d_bridge/flutter3d_bridge.dart';
+import 'package:flutter3d_app/flutter3d_app.dart';
 import 'package:flutter3d_game/flutter3d_game.dart';
-import 'package:flutter3d_session/flutter3d_session.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:vector_math/vector_math.dart' hide Colors;
-
-import 'src/backend.dart';
 
 /// The level this project opens with.
 const String kLevel = String.fromEnvironment(
@@ -68,7 +65,7 @@ final class OpenKind extends EntityKind {
 ///
 /// Screen state, and only that — this seed has no restart, no next level and
 /// no save to model, so a plain `Cubit` over three states is enough on its own.
-/// `RunSession`, in `flutter3d_session`, is for once one of those shows up; see
+/// `RunSession`, in `flutter3d_game`, is for once one of those shows up; see
 /// its doc comment for why [LevelReady] below is still safe to hold the scene
 /// and the body in even then — they do not change sixty times a second, only
 /// what is inside them does, and that is read by the render loop directly

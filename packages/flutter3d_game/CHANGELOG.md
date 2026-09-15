@@ -1,3 +1,20 @@
+## Unreleased
+
+**Breaking.** Everything a game adds to an application is here, and
+`flutter3d_sim` is no longer re-exported.
+
+* From `flutter3d_session`: `RunSession`, `RunTimeline` and its service
+  extensions, the demo timeline and the bug-report tape, the settings overlay
+  and panel, rebinding, `SaveFile`/`SettingsFile`/`DemoFile`, volumes, credits,
+  `AutomapView`, `DragLook`, `TapToRestart`, `clockText` and
+  `configureForTouch`. `package:flutter3d_game/testing.dart` holds
+  `creditGaps`.
+* From `flutter3d_bridge`: `ActorVisuals`, `FixtureVisuals` and
+  `SoundOcclusion`.
+* To `flutter3d_app`: `Issue`, `IssueSink` and `IssueLog`, which storage
+  reports through.
+* A file that steps a simulation imports `flutter3d_sim` by name.
+
 ## 0.6.0
 
 * **A floor, and no code — the same shape as 0.5.1 and for the same reason.**

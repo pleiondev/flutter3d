@@ -32,8 +32,8 @@ there to advance a headless step is a blocker rather than an inconvenience.
 It came out of `flutter3d_game`, which reached Flutter in eight files out of
 eighty-nine: five touch and keyboard widgets, one `MediaQuery` read and one
 `debugPrint`. Those stayed behind with the devices they belong to.
-`flutter3d_game` re-exports this package, so a program that imported it keeps
-working unchanged.
+`flutter3d_game` does not re-export this package: a program that steps a
+simulation imports it by name.
 
 The boundary is checked rather than described: `the simulation names no
 Flutter` in `tool/structure.dart` reads this package's `lib/`, `test/` and

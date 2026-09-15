@@ -30,7 +30,6 @@ dependencies:
   # `replayGolden`. A real dependency and not a dev one: replaying a demo
   # to a frame is this package's own job, the same as rendering a
   # hand-built scene already is.
-  flutter3d_game: ^0.6.0
   flutter3d_sim: ^0.6.0
   # `expect` and the test binding, which is what makes this a testing package
   # rather than a rendering one.

@@ -1,10 +1,10 @@
 ---
-description: The device, the frame surface and the level lifecycle every shipped game assembles the same way, through flutter3d_app and flutter3d_session.
+description: The device, the frame surface and the level lifecycle every shipped game assembles the same way, through flutter3d_app and flutter3d_game.
 ---
 
 # Assembling an application
 
-[The tutorial](/core/tutorial/) opens a device and drives a `Ticker` by hand, because that is what is actually happening underneath. By the second game, the same conditional import, the same forty-line frame widget and the same load-restart-save sequence had been written out three times, close enough to identical that a bug fixed in one copy stayed broken in the other two. Two packages exist because of that: `flutter3d_app` (which also makes the backend choice directly) and `flutter3d_session` (which also carries the settings, rebinding and save screens no game owns). This page is what they do, and how `apps/flutter3d_demo_dungeon` puts them to use. It is the most complete worked example of both together.
+[The tutorial](/core/tutorial/) opens a device and drives a `Ticker` by hand, because that is what is actually happening underneath. By the second game, the same conditional import, the same forty-line frame widget and the same load-restart-save sequence had been written out three times, close enough to identical that a bug fixed in one copy stayed broken in the other two. Two packages exist because of that: `flutter3d_app` (the backend choice, the frame surface and level loading, which any application needs) and `flutter3d_game` (the input, the run, and the settings, rebinding and save screens no game owns). This page is what they do, and how `apps/flutter3d_demo_dungeon` puts them to use. It is the most complete worked example of both together.
 
 <div class="goal">
 <ul>
@@ -32,7 +32,7 @@ final device = await openDevice(width: 1280, height: 720);
 What it does not decide is `kFixedResolution` — whether the backend renders to a fixed internal target that Flutter then stretches. It's `false` on native (Impeller allocates its frame targets at whatever size the widget was laid out at) and `true` on the web (a WebGL canvas resets its drawing buffer on resize, so `WebGlDevice` owns a canvas at one size and `presentFrame` takes a `BoxFit` to stretch it). *What* size is left to the application: the crypt and the platformer draw at 720p, the racing game at 960×540, and each says why where the number is.
 
 <div class="note">
-<p>The backend choice was deliberately not folded into <code>flutter3d_session</code>. Session would then depend on both backends, and <code>apps/flutter3d_editor</code>, which is desktop only and has no browser build to choose for, would pull WebGL through it for nothing. It moved into <code>flutter3d_app</code> instead of staying its own package, once most of its consumers turned out to already reach it through that same barrel and the few that didn't cost nothing to repoint.</p>
+<p>The backend choice lives in <code>flutter3d_app</code>, which every application stands on — <code>apps/flutter3d_editor</code> included, which is desktop only and resolves the WebGL backend anyway; the conditional import is what keeps a native build from compiling it. It was its own package once, until most of its consumers turned out to already reach it through that same barrel and the few that didn't cost nothing to repoint.</p>
 </div>
 
 ## The frame surface
@@ -154,11 +154,11 @@ import 'package:flutter3d_app/flutter3d_app.dart';
 
 Thirty-five lines of `export`, plus the backend choice itself, which lives in this package directly rather than behind one more `export` line. It changes nothing about how the four sibling packages relate: none of them knows about the others, and the barrel does not make them. What it saves is import lines being copied into every new project, which is how this page's subject started.
 
-What is deliberately not behind it: `flutter3d`, `flutter3d_bridge`, `flutter3d_game` and a genre package. Those say what a scene looks like and what kind of game this is, and a facade cannot choose a genre for an application.
+What is deliberately not behind it: `flutter3d`, `flutter3d_sim`, `flutter3d_game` and a genre package. Those say what a scene looks like and what kind of game this is, and a facade cannot choose a genre for an application.
 
 ## Where one application has not caught up
 
-The four demo games import `flutter3d_app`, and so does `packages/flutter3d_game/example`, the game a new project starts as: the scaffold names `flutter3d_app` in its pubspec and opens its device through `openDevice`, which picks Impeller or WebGL for the build and falls back to the software rasteriser at run time when flutter_gpu will not start — the pattern this page teaches, including the fallback. It also names `flutter3d_session` directly, which the barrel re-exports; a second dependency on a package you are already getting is a line to delete, not a different arrangement.
+The four demo games import `flutter3d_app`, and so does `packages/flutter3d_game/example`, the game a new project starts as: the scaffold names `flutter3d_app` in its pubspec and opens its device through `openDevice`, which picks Impeller or WebGL for the build and falls back to the software rasteriser at run time when flutter_gpu will not start — the pattern this page teaches, including the fallback. It also names `flutter3d_game`, for the input and the run.
 
 `apps/flutter3d_editor` is the one that does not: it names `flutter3d_impeller` and opens its device with `GpuRenderBackend.create()`, the way [the tutorial](/core/tutorial/) does. That is defensible where it is, since the editor is desktop-only and there is no backend to choose between — but it is the reason the editor cannot be the thing you copy. Copy the scaffold, which is what it is for.
 

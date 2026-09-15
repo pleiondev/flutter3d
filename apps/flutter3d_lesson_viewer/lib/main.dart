@@ -10,13 +10,12 @@
 /// anything, so building one would be state nothing reads.
 ///
 /// `edu-02`'s own honest-scope line: this plays a step's `at`/`yaw` and its
-/// `visible`/`hidden` lists (through `flutter3d_bridge`'s
-/// `applyLessonStepToCamera`) and renders `widget_surface` annotations
-/// through the same pipeline the dungeon's terminal (`wg-02`) already proved. It
-/// does not apply `offsets`, does not draw an `edu_clip_plane`, does not read
-/// `bindings`/`edu_data_source`, and does not ask a `check` question — see
-/// `packages/flutter3d_bridge/lib/src/lesson_player.dart`'s own doc comment
-/// for why each is a separate, later step.
+/// `visible`/`hidden` lists (through `applyLessonStepToCamera`) and renders
+/// `widget_surface` annotations through the same pipeline the dungeon's
+/// terminal (`wg-02`) already proved. It does not apply `offsets`, does not
+/// draw an `edu_clip_plane`, does not read `bindings`/`edu_data_source`, and
+/// does not ask a `check` question — see `src/lesson_player.dart`'s own doc
+/// comment for why each is a separate, later step.
 library;
 
 import 'dart:async';
@@ -26,14 +25,13 @@ import 'package:flutter/material.dart' hide Material;
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter3d/flutter3d.dart' hide Material;
-import 'package:flutter3d_bridge/flutter3d_bridge.dart';
+import 'package:flutter3d_app/flutter3d_app.dart';
 import 'package:flutter3d_editor_core/flutter3d_editor_core.dart';
-import 'package:flutter3d_session/flutter3d_session.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:vector_math/vector_math.dart' show Vector3;
 
-import 'src/backend.dart';
+import 'src/lesson_player.dart';
 import 'src/lesson_view.dart';
 
 /// The lesson this build opens, as a bundled asset path.

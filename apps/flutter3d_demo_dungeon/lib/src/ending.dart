@@ -19,7 +19,7 @@
 library;
 
 import 'package:flutter/material.dart';
-import 'package:flutter3d_app/flutter3d_app.dart'; // clockText, CreditsSection
+import 'package:flutter3d_game/flutter3d_game.dart'; // clockText, CreditsSection
 
 import 'credits.dart';
 

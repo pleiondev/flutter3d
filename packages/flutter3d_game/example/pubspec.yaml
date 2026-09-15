@@ -32,19 +32,11 @@ dependencies:
   flutter3d_sim:
     path: ../../flutter3d_sim
 
-  # A level document to mesh nodes and lights.
-  flutter3d_bridge:
-    path: ../../flutter3d_bridge
-
-  # The surface a frame reaches Flutter through.
-  flutter3d_session:
-    path: ../../flutter3d_session
-
   vector_math: ^2.2.0
 
   # Screen state — loading, the error panel — kept in a Cubit rather than
   # spread across `setState` calls. See `RunSession`'s doc comment in
-  # `flutter3d_session` for where the line between this and the render loop
+  # `flutter3d_game` for where the line between this and the render loop
   # is drawn.
   flutter_bloc: ^9.1.1
 

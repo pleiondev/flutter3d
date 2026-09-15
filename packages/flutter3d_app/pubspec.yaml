@@ -1,40 +1,31 @@
 name: flutter3d_app
-description: "The layer an application is assembled from, as one import: which backend to open and the runtime fallback, the frame surface and run lifecycle, the screens that are not the game, and the input devices Flutter itself does not cover."
+description: "What any Flutter application on flutter3d is assembled from: which backend to open and the runtime fallback, the surface a frame reaches Flutter through, widgets drawn in the scene, a level loaded into a scene, and storage."
 version: 0.7.0
 resolution: workspace
 repository: https://github.com/pleiondev/flutter3d
 homepage: https://flutter3d.pleion.dev
 issue_tracker: https://github.com/pleiondev/flutter3d/issues
 topics:
-  - game-development
   - game-engine
+  - rendering
   - application
 
-# A barrel over three sibling packages, plus the backend choice this package
-# now makes directly — flutter3d_session, pad_input, pointer_lock were the
-# three games' own imports; the backend choice was `flutter3d_backend` until
-# most of its consumers turned out to already be reaching it through this
-# barrel rather than by name, and the handful that still named it directly
-# cost nothing to repoint — which left the separate package with no boundary
-# of its own (package-merge-plan.md §3.6). `flutter3d_screens` was folded into
-# `flutter3d_session` the same way (§3.7); this barrel still re-exports it
-# transitively, so nothing here changed on that account.
-# None of the three sibling packages know about each other and none of them
-# should start to. This package adds only the backend choice as code of its
-# own; it exists so an application's own pubspec and main.dart say "the
-# assembly layer" once instead of five names, the way `flutter3d` already says
-# "the renderer" once instead of naming `flutter3d_hardware` itself.
-#
-# What is deliberately not behind it: `flutter3d`, `flutter3d_bridge`,
-# `flutter3d_game` and a genre package. Those are content, not assembly, and a
-# shooter and a platformer need different ones — a single facade cannot pick a
-# genre on an application's behalf.
+# **The universal layer.** The modeller, the level editor, the lessons and
+# every game stand on it, and nothing here knows what a run, a binding or a
+# monster is — that is `flutter3d_game`, which depends on this package. It
+# holds what `flutter3d_session` and `flutter3d_bridge` had that any
+# application needs: the surface, storage, widgets in the scene and level
+# loading. What they had that only a game needs went to `flutter3d_game`.
 environment:
   sdk: ^3.12.2
 
 dependencies:
   flutter:
     sdk: flutter
+
+  # The renderer: the `Scene` and `RenderSettings` a surface hands over, and
+  # the mesh nodes, lights and probes a level becomes.
+  flutter3d: ^0.6.0
 
   # The vocabulary the backend choice is made in. Neither backend appears in
   # any signature here — `openDevice` returns a `GraphicsDevice`.
@@ -53,11 +44,27 @@ dependencies:
   flutter3d_cpu: ^0.7.0
   flutter3d_webgpu: ^0.7.0
 
-  flutter3d_session: ^0.7.0
-  pad_input: ^0.4.0
-  pointer_lock: ^0.4.0
+  # The level document `LevelLoader` reads, and the collision world it builds.
+  # Plain Dart, so an application that loads no level pays a resolve for it
+  # and nothing else.
+  flutter3d_sim: ^0.6.0
+
+  # The wall clock `FrameClock.tick` reads. Not a `Stopwatch`: this one is
+  # what `flutter_test` fakes, so a widget test's `pump` advances the frame
+  # clock the way a real frame does.
+  clock: ^1.1.1
+
+  # `Vector3`/`Vector2`/`Matrix4` for `WidgetSurface`'s own placement and UV
+  # math and for the level loader's geometry.
+  vector_math: ^2.2.0
+
+  # `localStorage`, which is where a browser build keeps what a user changed.
+  web: ^1.1.0
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0
+
+  # Fake time for `FrameClock.tick`, which reads `package:clock`.
+  fake_async: ^1.3.0

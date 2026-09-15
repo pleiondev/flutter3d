@@ -19,7 +19,6 @@ dependencies:
     sdk: flutter
 
   # The engine half. Everything here is content it takes as an argument.
-  flutter3d_game: ^0.6.0
   flutter3d_sim: ^0.6.0
 
   flutter3d_physics: ^0.7.0

@@ -16,9 +16,10 @@ library;
 import 'dart:math' as math;
 
 import 'package:flutter3d/flutter3d.dart' hide Material;
-import 'package:flutter3d_bridge/flutter3d_bridge.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart' show EntityDef;
 import 'package:flutter_bloc/flutter_bloc.dart';
+
+import 'lesson_player.dart';
 
 /// A snapshot of [OrbitController]'s own numbers.
 final class OrbitPose {

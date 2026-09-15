@@ -18,9 +18,9 @@ library;
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter3d_app/flutter3d_app.dart';
 import 'package:flutter3d_audio/flutter3d_audio.dart';
 import 'package:flutter3d_audio/testing.dart';
-import 'package:flutter3d_bridge/flutter3d_bridge.dart';
 import 'package:flutter3d_demo_dungeon/src/sounds.dart';
 import 'package:flutter3d_demo_dungeon/src/soundtrack.dart';
 import 'package:flutter3d_demo_dungeon/src/staging.dart';

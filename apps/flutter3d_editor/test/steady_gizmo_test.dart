@@ -17,7 +17,7 @@ import 'dart:typed_data';
 
 import 'package:flutter3d/flutter3d.dart' as engine show Material;
 import 'package:flutter3d/flutter3d.dart' hide Material;
-import 'package:flutter3d_bridge/flutter3d_bridge.dart';
+import 'package:flutter3d_app/flutter3d_app.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter3d_editor/src/scene_dressing.dart';
 import 'package:flutter3d_editor_core/flutter3d_editor_core.dart';

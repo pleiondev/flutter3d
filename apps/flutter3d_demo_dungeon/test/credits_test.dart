@@ -15,9 +15,10 @@ library;
 
 import 'dart:io';
 
-import 'package:flutter3d_app/flutter3d_app.dart'; // Credit, from flutter3d_session
 import 'package:flutter3d_demo_dungeon/src/credits.dart';
-import 'package:flutter3d_session/testing.dart'; // creditGaps — test-only, not in the barrel
+import 'package:flutter3d_game/flutter3d_game.dart';
+import 'package:flutter3d_game/testing.dart'; // creditGaps
+// creditGaps — test-only, not in the barrel
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -26,7 +27,7 @@ void main() {
     // The failure this catches is an asset added to the game and to nothing
     // else, which is exactly how an untraced key once arrived in two games.
     //
-    // The comparison is `flutter3d_session`'s: it was these twelve lines in three
+    // The comparison is `flutter3d_game`'s: it was these twelve lines in three
     // applications, down to the wording of the failures.
     final gaps = creditGaps(Credits.models, shippedFrom: 'assets/models');
 

@@ -18,11 +18,9 @@ dependencies:
   flutter:
     sdk: flutter
 
-  # The engine half. Everything here is content it takes as an argument.
-  flutter3d_game: ^0.6.0
-
-  # The runner switches on `CollisionHeightfield`, and only a floor can say
-  # that the version underneath has it.
+  # The engine half. Everything here is content it takes as an argument. The
+  # runner switches on `CollisionHeightfield`, and only a floor can say that
+  # the version underneath has it.
   flutter3d_sim: ^0.6.0
 
   vector_math: ^2.2.0

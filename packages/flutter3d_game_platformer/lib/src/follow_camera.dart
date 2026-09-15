@@ -84,8 +84,9 @@ final class FollowTuning extends RigTuning {
 /// around the runner. Everything a chasing camera has in common with any other
 /// — easing without overshoot, knocks and shakes that fade, staying out of the
 /// walls, and the order those have to happen in — moved to [CameraRig] in the
-/// engine when a second game wanted it. That is the same rule that produced
-/// `flutter3d_bridge`, applied a second time.
+/// engine when a second game wanted it. That is the same rule that once gave
+/// the renderer and the simulation a package of their own to meet in, applied
+/// a second time.
 ///
 /// Nothing here knows what a renderer is: it answers with two points and a
 /// number, and the application copies them into whatever it is drawing with.

@@ -1,4 +1,4 @@
-import 'package:flutter3d_app/flutter3d_app.dart'; // RunStatus
+import 'package:flutter3d_game/flutter3d_game.dart'; // RunStatus
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'run.dart';

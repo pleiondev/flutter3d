@@ -240,9 +240,9 @@ List<EntityKind> sampleLightKinds() => <EntityKind>[
 ///
 /// [extra] is where an application adds a kind this package cannot know
 /// about without depending on it — `wg-02`'s `WidgetSurfaceKind`
-/// (`flutter3d_bridge`) is the reason this exists: a genre package must not
-/// gain a dependency on the bridge layer just so its sample registry can
-/// speak a word the bridge, not the genre, defines.
+/// (`flutter3d_app`) is the reason this exists: a genre package must not
+/// gain a dependency on the application layer just so its sample registry
+/// can speak a word that layer, not the genre, defines.
 EntityRegistry sampleRegistry({
   bool monsters = true,
   Iterable<EntityKind> extra = const <EntityKind>[],

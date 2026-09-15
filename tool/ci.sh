@@ -281,7 +281,12 @@ step "test pointer_lock (browser)" in_dir packages/pointer_lock flutter test --p
 # WebGPU probe: which backend an ordinary web build opens is a decision now,
 # and a decision nothing runs is a default that moves the first time somebody
 # edits four lines.
-step "test flutter3d_app (browser)" in_dir packages/flutter3d_app flutter test --platform chrome
+#
+# The files are named because the package holds storage and level loading as
+# well now, and `storage_places_test.dart` reaches `dart:io`: `@TestOn('vm')`
+# filters what runs, not what is compiled, so one such file fails the whole
+# browser run before anything is filtered.
+step "test flutter3d_app (browser)" in_dir packages/flutter3d_app flutter test --platform chrome test/backend_choice_test.dart test/backend_choice_web_test.dart
 
 # **The WebGPU spike, which the loops above cannot reach.** It is a workspace
 # member under `tool/` rather than a package or an application — see its own
@@ -310,7 +315,10 @@ step "test webgpu_spike (browser)" in_dir tool/webgpu_spike flutter test --platf
 # the slower place to do that.
 step "test flutter3d_physics (browser)" in_dir packages/flutter3d_physics dart test -p chrome
 step "test flutter3d_sim (browser)" in_dir packages/flutter3d_sim dart test -p chrome
-step "test flutter3d_game (browser)" in_dir packages/flutter3d_game flutter test --platform chrome
+# The game layer's input files, named for the reason the application layer's
+# are above: the saves, the settings document and the timeline's service
+# extensions beside them reach `dart:io`.
+step "test flutter3d_game (browser)" in_dir packages/flutter3d_game flutter test --platform chrome test/accommodations_test.dart test/bindings_test.dart test/desktop_input_test.dart test/game_config_test.dart test/pad_actions_test.dart test/playing_test.dart test/touch_controls_test.dart test/touch_verbs_test.dart
 
 # An example with tests, which until `packages/pad_input/example` there was none of.
 # Its tests are the only ones that mount the tool the gamepad's manual acceptance

@@ -1,7 +1,6 @@
 import 'dart:convert';
 
-import 'package:flutter3d_session/flutter3d_session.dart'
-    show Storage, defaultStorage;
+import 'package:flutter3d_app/flutter3d_app.dart' show Storage, defaultStorage;
 
 /// The model files this application has had open, most recent first —
 /// `ui-15`'s own "недавние" half of the start screen.

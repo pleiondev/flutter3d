@@ -32,7 +32,6 @@ workspace:
   - packages/flutter3d_webgpu
   - packages/flutter3d/example
   - packages/flutter3d_audio
-  - packages/flutter3d_bridge
   - packages/flutter3d_game
   - packages/flutter3d_game/example
   - packages/flutter3d_sim
@@ -47,7 +46,6 @@ workspace:
   - packages/flutter3d_game_platformer
   - packages/flutter3d_game_racing
   - packages/flutter3d_physics
-  - packages/flutter3d_session
   - packages/flutter3d_stereo
   - packages/flutter3d_stereo/example
   - packages/pad_input

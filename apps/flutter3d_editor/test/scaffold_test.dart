@@ -262,7 +262,7 @@ void main() {
       final pubspec = _text(_project(), 'pubspec.yaml');
 
       expect(pubspec, contains('flutter3d: ^0.6.0'));
-      expect(pubspec, contains('flutter3d_session: ^0.6.0'));
+      expect(pubspec, contains('flutter3d_game: ^0.6.0'));
       expect(pubspec, isNot(contains('path:')));
     });
 

@@ -94,7 +94,7 @@ the default renderer on macOS, and a default is a thing that can change.
 **Dependencies are close to none.** The render core, the physics, the game layer,
 the software rasteriser and the particle system are written here. External:
 `vector_math`, an audio backend, the Flutter SDK, and `flutter_bloc` in
-`flutter3d_session` and two applications. That is not an end in itself: there is no
+`flutter3d_game` and two applications. That is not an end in itself: there is no
 Dart equivalent of Jolt, assimp or miniaudio, and an FFI wrapper breaks the web.
 The price is that all of this code is tested here
 ([§13](#13-how-correctness-is-held)). Licences are MIT/BSD/Apache/zlib; no GPL.
@@ -169,24 +169,24 @@ copy, and is the bridge into the widget tree.
 
 ## 3. The package map
 
-Thirty-seven packages and eight applications in one pub workspace — one
+Thirty-five packages and eight applications in one pub workspace — one
 `flutter pub get` for the repository.
 
 ### 3.1 The layering rule
 
-> **`flutter3d_game` does not depend on `flutter3d`.** The simulation, the input
-> and the collisions know nothing about how a frame is drawn.
->
-> **And `flutter3d_sim` does not depend on Flutter.** The simulation does not
-> know that a screen exists either, which is a stronger claim and a checked
-> one — see §3.3.
+> **`flutter3d_sim` depends on neither `flutter3d` nor Flutter.** The
+> simulation, the level format and the collisions know nothing about how a
+> frame is drawn, nor that a screen exists — a checked claim, see §3.3.
 
 Everything else follows from it. The things that break quietly — a collision
 passing through a wall once in a thousand steps, a jump of different heights on
 different monitors, a keypress eaten at a low frame rate — are reachable from an
 ordinary unit test, and none of the three is visible in a screenshot.
 
-`flutter3d_bridge` is the only package allowed to depend on both sides.
+`flutter3d_app` and `flutter3d_game` are where the two sides meet: the first
+loads a level into a scene for any application, the second draws what a game's
+simulation moves. A genre keeps the same split inside one package — its
+simulation library names no renderer, and its `bridge.dart` does.
 `flutter3d_physics` and `flutter3d_sim` are pure Dart with no Flutter, so their
 tests run under `dart test` — and so does a whole simulated run, which is the
 point of §3.3.
@@ -209,15 +209,13 @@ point of §3.3.
 | `flutter3d_physics` | Collision world, character controller, rigid bodies, spatial grid, an XPBD cloth solver |
 | `flutter3d_sim` | The simulation: fixed step, ECS, level format, actors, navigation, saves, replays, camera rig. Plain Dart |
 | `flutter3d_lab` | Virtual laboratory simulations built on `flutter3d_sim`'s stepping and recording primitives — `edu-04`'s pendulum is the first. Plain Dart |
-| `flutter3d_game` | The Flutter half of the game layer: touch and keyboard input, accessibility settings, diagnostics. Stands on `flutter3d_sim` and does not re-export it |
+| `flutter3d_game` | What a game adds to an application: touch, keyboard and gamepad input, accessibility settings, the run and its timeline, the settings, rebinding and save screens, and actor and fixture visuals. Stands on `flutter3d_app` and `flutter3d_sim` and re-exports neither |
 | `flutter3d_game_shooter` | Shooter rules: weapons, hitscan, projectiles, inventory, monsters |
 | `flutter3d_game_platformer` | Platformer rules: runner, coins, hazards, checkpoints |
 | `flutter3d_game_racing` | Racing rules: cars, circuits, laps, ghosts |
 | `flutter3d_game_strategy` | Strategy rules: ground made of samples, a crowd that takes orders, flow fields shared by destination, an economy, a policy that plays a side, fog each side has to walk into |
-| `flutter3d_bridge` | Simulation state to scene: actor visuals, fixture visuals, particle effects |
 | `flutter3d_audio` | Loading, streaming, 3D positioning, voice limits, mix buses |
-| `flutter3d_session` | The run lifecycle that ties a game, a device and a screen together, and the screens that are not the game: menus, settings, rebinding, storage |
-| `flutter3d_app` | The assembly layer, as one import — including which backend a build draws through, conditional import plus `openDevice` |
+| `flutter3d_app` | What any application on the engine is assembled from: which backend a build draws through, the surface a frame reaches Flutter through, widgets in the scene, a level loaded into a scene, and storage. The modeller, the editor and the lessons use it and nothing above it |
 | `flutter3d_editor_core` | The headless half of a level editor: the document being changed and undone, the handles a pointer hits, the palette a level builds out of itself, the project a template becomes. Plain Dart |
 | `flutter3d_editor_mcp` | The same editor offered to an agent: `EditorCommand` as a table of MCP tools over stdio, one document per process, plus the two verbs a caller with no screen needs — a flat listing, and the validator. Plain Dart |
 | `flutter3d_mcp_kit` | What every MCP server here shares: a tool paired with its handler, a server that is a list of them over one session, the two shapes of answer, and a loopback HTTP transport an open application offers its session over. Plain Dart |
@@ -276,9 +274,11 @@ The old invariant this replaces was a sentence in a pubspec — "depends only on
 flutter, mouse_capture and vector_math" — which was unchecked, and wrong about
 the package it described.
 
-Nothing moved that a caller can see: `flutter3d_game` re-exports the whole of
-`flutter3d_sim`, so an existing import keeps handing over the loop, the level,
-the saves and the collision world.
+A caller that wants the loop, the level, the saves or the collision world
+imports `flutter3d_sim` for them. `flutter3d_game` re-exported the whole of it
+for a while, so the split cost no existing program a line; the re-export went
+when the game layer took over the run and the screens, and a file that only
+steps a simulation stopped having a reason to name a Flutter package.
 
 **And why the editor's core is its own package, which is the same argument
 pointing the other way.** `apps/flutter3d_editor` is an application, and nine
@@ -883,10 +883,9 @@ Agreement between two independent implementations is evidence; agreement of one
 with itself is a tautology.
 
 `flutter3d_app` chooses one for a build through a conditional import on
-`dart.library.js_interop`. The choice lives in the application's own assembly
-layer rather than in `flutter3d_session`, because a session would then depend
-on every backend, and the editor — which has no web build — would pull WebGL
-in transitively.
+`dart.library.js_interop`. Every application stands on that package, the editor
+included, so a tool with no web build resolves the WebGL backend too; the
+conditional import is what keeps a native build from compiling it.
 
 ### 7.1 What is promised
 
@@ -1847,7 +1846,7 @@ every wall of every room with a ceiling. A map pickup floods without a radius
 from where the player stands, which is also what keeps the roof and the
 sealed rooms off the map. What was seen is in the snapshot as runs of bits —
 the crypt's bitset would be four kilobytes however little was seen — and
-`AutomapView` in `flutter3d_session` paints it, centred on the player and
+`AutomapView` in `flutter3d_game` paints it, centred on the player and
 turned to face the way they do. The dungeon shows it on M and keeps the fight
 running underneath.
 
@@ -1908,7 +1907,7 @@ entities a game defines.
 |---|---|
 | Style | `dart format` |
 | Analysis | `flutter analyze` clean across the workspace, no warnings |
-| Unit tests | **7443 tests** across 37 packages and 8 applications |
+| Unit tests | **7443 tests** across 35 packages and 8 applications |
 | Structure rules | 32, `dart run tool/structure.dart`, the first CI step |
 | CI | GitHub Actions over `tool/ci.sh`, on `ubuntu-latest`, with no graphics card |
 
@@ -2799,14 +2798,12 @@ what went out at 0.4.2.
 4. `flutter3d`, `flutter3d_model_core`
 5. `flutter3d_impeller`, `flutter3d_webgl`, `flutter3d_webgpu`, `flutter3d_cpu`,
    `flutter3d_sim`
-6. `flutter3d_game`, `flutter3d_editor_core`, `flutter3d_net`,
-   `flutter3d_lab`, `flutter3d_stereo`
-7. `flutter3d_session`, `flutter3d_testing`, `flutter3d_editor_mcp`,
-   `flutter3d_model_mcp`, `flutter3d_net_webrtc`
-8. `flutter3d_bridge`, `flutter3d_app`
-9. `flutter3d_game_shooter`, `flutter3d_game_platformer`, `flutter3d_game_racing`,
+6. `flutter3d_app`, `flutter3d_editor_core`, `flutter3d_net`, `flutter3d_lab`
+7. `flutter3d_game`, `flutter3d_stereo`, `flutter3d_testing`,
+   `flutter3d_editor_mcp`, `flutter3d_model_mcp`, `flutter3d_net_webrtc`
+8. `flutter3d_game_shooter`, `flutter3d_game_platformer`, `flutter3d_game_racing`,
    `flutter3d_game_strategy`
-10. `flutter3d_sim_mcp`
+9. `flutter3d_sim_mcp`
 
 Several positions are not obvious and so are written down rather than
 re-derived: `flutter3d_core` is in the second tier and ahead of `flutter3d`,
@@ -2820,9 +2817,10 @@ below both, and
 published package that happens to have a `bin/` rather than a program that
 happens to be in this repository; `flutter3d_samples` is in the first tier
 although nothing depends on it at run time, because `flutter3d`'s tests do and a
-dev dependency has to resolve for the archive to be accepted; `flutter3d_app` sits just ahead of the genre packages because it is the
-assembly layer; `flutter3d_editor_core` is beside `flutter3d_game` rather
-than behind it, because the editor's document layer never wanted the Flutter
+dev dependency has to resolve for the archive to be accepted; `flutter3d_app` is in the sixth tier because the backends and the simulation
+it loads levels for are in the fifth, and `flutter3d_game` stands one tier
+behind it; `flutter3d_editor_core` is beside `flutter3d_app` rather than
+behind `flutter3d_game`, because the editor's document layer never wanted the Flutter
 half, which is why it could leave an application at all — it needed only
 `flutter3d_sim` until `mat-03` gave it `flutter3d_formats` too, for the
 `.fmat` gate a second editor wanted, and the second tier that dependency sits
