@@ -51,6 +51,7 @@ import 'src/exporting.dart';
 import 'src/files/cabinet_save.dart';
 import 'src/files/fetch_model.dart';
 import 'src/files/file_drop.dart';
+import 'src/files/preview_capture.dart';
 import 'src/files/project_files.dart';
 import 'src/files/sandbox_probe.dart';
 import 'src/ground_grid.dart';
@@ -202,6 +203,22 @@ class _ModelerScreenState extends State<ModelerScreen>
   /// when a test supplied one, otherwise the platform's own real send.
   CabinetSourceSender get _sendCabinetSource =>
       widget.cabinetSourceSender ?? postSourceToCabinet;
+
+  /// Where `tut-19`'s own preview capture sends its POST —
+  /// `widget.previewCapturer` when a test supplied one, otherwise the
+  /// platform's own real capture-and-send.
+  PreviewCapturer get _sendPreviewCapture =>
+      widget.previewCapturer ?? capturePreview;
+
+  /// Whether `tut-19`'s own preview capture has already fired once this
+  /// session — set the first time [_installOpened] sees a
+  /// [CabinetLink.shouldCapturePreview] worth acting on, so a document
+  /// opened locally afterward (a drag-drop, a recovered autosave) over a
+  /// cabinet-viewed model never captures a picture of something that is not
+  /// what the cabinet entry's id names. [_cabinetLink] itself never changes
+  /// after `_open()` sets it, so this is the one latch a second
+  /// [_installOpened] needs.
+  bool _cabinetPreviewCaptured = false;
 
   /// What the last file operation said, shown beside the buttons.
 

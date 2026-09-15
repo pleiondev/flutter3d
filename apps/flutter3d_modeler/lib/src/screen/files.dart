@@ -49,6 +49,42 @@ extension _FileHandling on _ModelerScreenState {
       _elementPickerCache.forget();
       _transformSession.forget();
     });
+    _capturePreviewIfDue();
+  }
+
+  /// `tut-19`'s own trigger for the preview capture: the same "subject
+  /// framed" moment every [_installOpened] call already reaches for the
+  /// ordinary camera-fit behaviour, reused rather than a second signal
+  /// invented for this.
+  ///
+  /// **Scheduled for the frame after this one, not run here.** The camera
+  /// [_installOpened] just framed only reaches the viewport's own canvas
+  /// once `SceneSurface` has actually rendered and presented it, and that
+  /// happens during the paint the `setState` above causes — after this
+  /// method returns, not before. `WidgetsBinding.instance.
+  /// addPostFrameCallback` is what runs after that paint, the ordinary
+  /// Flutter answer to "once this frame is actually on screen".
+  ///
+  /// **At most once per [ModelerScreen].** [_cabinetPreviewCaptured] latches
+  /// the moment a [CabinetLink.shouldCapturePreview] worth acting on is
+  /// seen, so a document opened locally afterward — a drag-drop, a recovered
+  /// autosave — over a build that was opened from a cabinet entry never
+  /// captures a picture of something that is not what that entry's id
+  /// names. [_cabinetLink] itself never changes after `_open()` sets it, so
+  /// nothing here re-reads it expecting a different answer later.
+  void _capturePreviewIfDue() {
+    if (_cabinetPreviewCaptured) return;
+    final CabinetLink link = _cabinetLink;
+    if (!link.shouldCapturePreview) return;
+    _cabinetPreviewCaptured = true;
+    final int modelId = link.id!;
+    final String sourceSha = link.sourceSha!;
+    final String csrf = link.csrf;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      unawaited(
+        _sendPreviewCapture(modelId: modelId, sourceSha: sourceSha, csrf: csrf),
+      );
+    });
   }
 
   Future<void> _open() async {

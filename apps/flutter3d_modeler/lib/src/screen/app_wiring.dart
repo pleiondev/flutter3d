@@ -63,6 +63,7 @@ class ModelerScreen extends StatefulWidget {
     this.autosaveStorage,
     this.cabinetLink,
     this.cabinetSourceSender,
+    this.previewCapturer,
   });
 
   /// Where `ui-18`'s own autosave writes — null in every real build, which
@@ -83,6 +84,12 @@ class ModelerScreen extends StatefulWidget {
   /// real network call, the same "fake stands in for the real platform call"
   /// shape [autosaveStorage] already is for `defaultBinaryStorage`.
   final CabinetSourceSender? cabinetSourceSender;
+
+  /// Where `tut-19`'s own preview capture POSTs a picture — null in every
+  /// real build, which falls back to `capturePreview`, the platform's own
+  /// real canvas-and-`fetch` send. A test hands in a fake here instead, the
+  /// same door [cabinetSourceSender] already is for `postSourceToCabinet`.
+  final PreviewCapturer? previewCapturer;
 
   @override
   State<ModelerScreen> createState() => _ModelerScreenState();

@@ -22,6 +22,7 @@ class ModelPage extends StatelessComponent {
     required this.csrf,
     required this.viewerAvailable,
     this.revisions = const [],
+    this.sourceSha = '',
     this.said,
     super.key,
   });
@@ -38,6 +39,12 @@ class ModelPage extends StatelessComponent {
   /// the caller already checked `canEdit`, since nobody else's page fetches
   /// them.
   final List<RevisionRecord> revisions;
+
+  /// The current source file's own `blobSha256` — `tut-19`'s own
+  /// `data-source-sha`. Empty when the model somehow has no source file,
+  /// which `viewer.js` never reaches: it only opens the viewer when a person
+  /// presses "Open in 3D", and that button only draws once a source exists.
+  final String sourceSha;
 
   final String? said;
 
@@ -103,6 +110,28 @@ class ModelPage extends StatelessComponent {
             // which cabinet entry, if any, a later "Save to cabinet" would
             // write back to.
             'data-id': '${model.id}',
+            // `tut-19`'s own preview capture: whether *this viewer* may edit
+            // the model, so the build inside only ever attempts a capture
+            // upload where the server's own `canEdit` could possibly accept
+            // it — never from a public visitor's browser, who could only
+            // ever get a 404 back. UX-only, the same as `CabinetLink`'s own
+            // doc comment already says about `id`/`mode`: the server checks
+            // `canEdit` again itself, independently, on the actual POST.
+            'data-editable': '$editable',
+            // The source file's own hash, so a captured picture can be
+            // tagged with the exact file it was rendered from — the preview
+            // endpoint's own staleness check compares this against what the
+            // model's current source is by the time the picture arrives.
+            'data-source-sha': sourceSha,
+            // The CSRF token this same request already carries for every
+            // other form on this page — nothing new is minted, and nothing
+            // more sensitive is exposed than what `_DescribeForm`'s own
+            // hidden field already would be for the owner. `viewer.js`
+            // passes it on the same way as `id`/`editable`, since the
+            // upload the capture makes is itself a same-origin POST that
+            // needs it, exactly as `scriptIsOurs` already asks of
+            // `/api/v1/models/<id>/source`.
+            'data-csrf': csrf,
           },
         ),
         div([

@@ -530,6 +530,12 @@ Handler buildHandler(Services services) {
       final revisions = canEdit(model, viewer)
           ? await services.models.revisionsOf(model.id)
           : const <RevisionRecord>[];
+      // `tut-19`'s own preview capture needs the source's current hash to
+      // send as `x-source-sha256` — the same staleness guard
+      // `/api/v1/models/<id>/preview` already checks it against. Fetched for
+      // every viewer, not just the owner, because [ModelPage] threads it into
+      // `viewer.js`'s data attributes unconditionally, the same as `data-id`.
+      final source = await services.models.fileOf(model.id, FileKind.source);
       return htmlPage(
         ModelPage(
           model: model,
@@ -537,6 +543,7 @@ Handler buildHandler(Services services) {
           csrf: csrfOf(request),
           viewerAvailable: true,
           revisions: revisions,
+          sourceSha: source?.blobSha256 ?? '',
           said: request.url.queryParameters['said'],
         ),
       );

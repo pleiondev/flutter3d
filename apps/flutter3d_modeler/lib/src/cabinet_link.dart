@@ -20,7 +20,13 @@ library;
 /// in the first place, so it does not dangle an action in front of somebody
 /// that cannot possibly succeed.
 final class CabinetLink {
-  const CabinetLink({required this.id, required this.mode, required this.csrf});
+  const CabinetLink({
+    required this.id,
+    required this.mode,
+    required this.csrf,
+    this.isOwner = false,
+    this.sourceSha,
+  });
 
   /// No `id` at all — every launch that is not the cabinet's own iframe: a
   /// bare `flutter run`, a `--dart-define=model=` measurement run, a desktop
@@ -48,6 +54,31 @@ final class CabinetLink {
   /// matter yet.
   final String csrf;
 
+  /// Whether *this viewer* — the account signed in in the tab that opened
+  /// this build — could edit the cabinet entry [id] names: `model_page.dart`'s
+  /// own `canEdit(model, viewer)`, carried through `viewer.js`'s own
+  /// `data-editable` the same way `id` already is.
+  ///
+  /// **UX-only, the same as every other field here.** `tut-19`'s own preview
+  /// capture reads this to decide whether trying is worth it at all — a
+  /// stray or hand-edited query string that claims `true` for a model this
+  /// account cannot edit costs nothing beyond the one POST
+  /// `/api/v1/models/<id>/preview`'s own `canEdit` check answers 404 to; see
+  /// this file's own top-of-class doc comment.
+  final bool isOwner;
+
+  /// The cabinet entry's source file hash at the moment the page was
+  /// rendered — `model_page.dart`'s own `data-source-sha`, threaded through
+  /// `viewer.js` the same way. Null when the page sent nothing, which is
+  /// every non-cabinet launch and any cabinet launch old enough to predate
+  /// `tut-19`.
+  ///
+  /// This is what `/api/v1/models/<id>/preview`'s own `x-source-sha256`
+  /// staleness check is answered with: a picture captured against a source
+  /// this build opened is only accepted while the model's current source is
+  /// still that exact file.
+  final String? sourceSha;
+
   /// Whether this build was opened from a cabinet entry at all.
   bool get isFromCabinet => id != null;
 
@@ -59,9 +90,22 @@ final class CabinetLink {
   /// back to, and nothing saying this build is here only to be looked at.
   bool get canSaveBack => isFromCabinet && !isViewOnly;
 
-  /// Reads `id`, `mode` and `csrf` out of a query string's own parameters —
-  /// [Uri.queryParameters] shape, the same map `screen/files.dart`'s own
-  /// `_open` already reads `model`/`name` out of.
+  /// Whether `tut-19`'s own preview capture is worth attempting once the
+  /// viewport has framed the subject: a cabinet entry, opened to be looked
+  /// at rather than edited, by an account that could edit it, with a source
+  /// hash to tag the picture with. Every one of the four is UX-only — the
+  /// server's own `canEdit` and staleness checks are what actually decide,
+  /// independently, the moment the POST arrives.
+  bool get shouldCapturePreview =>
+      isFromCabinet &&
+      isViewOnly &&
+      isOwner &&
+      sourceSha != null &&
+      sourceSha!.isNotEmpty;
+
+  /// Reads `id`, `mode`, `csrf`, `editable` and `sourceSha` out of a query
+  /// string's own parameters — [Uri.queryParameters] shape, the same map
+  /// `screen/files.dart`'s own `_open` already reads `model`/`name` out of.
   ///
   /// An `id` that is present but does not parse as an integer is treated the
   /// same as no `id` at all — [CabinetLink.none] in every field but `mode`
@@ -74,5 +118,7 @@ final class CabinetLink {
     },
     mode: query['mode'],
     csrf: query['csrf'] ?? '',
+    isOwner: query['editable'] == 'true',
+    sourceSha: query['sourceSha'],
   );
 }

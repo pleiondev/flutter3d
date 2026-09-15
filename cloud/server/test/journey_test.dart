@@ -299,6 +299,12 @@ void main() {
     expect(html, contains('tiny triangle'));
     expect(await (await ann.get('/me')).readAsString(), contains('1 triangle'));
 
+    // `tut-19`'s own preview-capture threading: the owner's own page names
+    // itself editable and carries the source's real hash, both of which
+    // `viewer.js` passes on to the build inside unchanged.
+    expect(html, contains('data-editable="true"'));
+    expect(html, contains('data-source-sha="${sha256.convert(_triangle)}"'));
+
     // A wrong slug redirects to the right one rather than failing.
     expect((await ann.get('/m/$id-old-name')).statusCode, 301);
 
