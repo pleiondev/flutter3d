@@ -36,6 +36,7 @@ import 'mesh_overlay_builder.dart';
 import 'object_picking.dart';
 import 'orbit_gestures.dart';
 import 'selection_box.dart';
+import 'settings.dart' show NavigationScheme;
 import 'shape_points_overlay.dart';
 import 'staging.dart';
 import 'transform_gizmo.dart';
@@ -108,6 +109,7 @@ class ModelerViewport extends StatefulWidget {
     this.meshVersion = 0,
     this.elementsVersion = 0,
     this.gizmoPivot,
+    this.navigation = NavigationScheme.middleMouseOrbit,
     this.gizmoKind = TransformKind.move,
     this.onGizmoDrag,
     this.snapHighlight,
@@ -164,6 +166,13 @@ class ModelerViewport extends StatefulWidget {
   /// Which gizmo: arrows, rings or boxes. The same three `TransformModal` has,
   /// because dragging an arm is one way into the same transform `G` starts.
   final TransformKind gizmoKind;
+
+  /// Which navigation scheme the camera answers to — `ux-04`'s own setting.
+  ///
+  /// Defaults to the one this viewport has always had, so a caller that has
+  /// no settings store behind it (a preview viewport, a test) keeps the old
+  /// behaviour rather than getting a scheme nobody chose.
+  final NavigationScheme navigation;
 
   /// A drag began on an arm. The axis is the one the ray hit; the caller opens
   /// the transform with it already constrained.
@@ -319,6 +328,20 @@ class _ModelerViewportState extends State<ModelerViewport> {
   /// on screen shared one map of pointer positions, so a drag in the second one
   /// continued the first one's delta and the model jumped.
   final OrbitGestures _gestures = OrbitGestures();
+
+  /// Brings the classifier to what the widget was last built with — `ux-04`.
+  ///
+  /// Two mutable fields rather than a rebuilt `OrbitGestures`, because it
+  /// holds the live pointers: replacing it mid-drag would drop the pair a
+  /// two-finger gesture is measured against and fling the model.
+  void _syncGestureRules() {
+    _gestures
+      ..scheme = widget.navigation
+      // A tool has the primary drag whenever one is wired: `onDragTool` is
+      // non-null exactly while a transform is armed or a box can be dragged,
+      // which is the same question `_move` already asks it.
+      ..toolArmed = widget.onDragTool != null || widget.strokeTool != null;
+  }
 
   /// The size of the picture as of the last frame, so a pan moves the model by
   /// as much as the hand moved and a pick knows what fraction of the frame the
@@ -627,6 +650,10 @@ class _ModelerViewportState extends State<ModelerViewport> {
       child: LayoutBuilder(
         builder: (BuildContext context, BoxConstraints constraints) {
           _viewport = constraints.biggest;
+          // `ux-04`: before anything else this frame, so a scheme changed in
+          // Settings and a tool armed a moment ago are both true of the very
+          // next press rather than of the one after it.
+          _syncGestureRules();
           widget.onFrame();
           // Near and far from where the camera ended up, every frame: a fixed
           // range spends its precision on empty space when the model is small
