@@ -17,6 +17,7 @@
 library;
 
 import 'dart:async';
+import 'dart:math' as math;
 import 'dart:ui' as ui show AppExitResponse, PlatformDispatcher;
 
 import 'package:flutter/foundation.dart' show kIsWeb;
@@ -68,6 +69,8 @@ import 'src/recent_projects.dart';
 import 'src/report_problem.dart';
 import 'src/selection_box.dart';
 import 'src/selection_rules.dart';
+import 'src/shape_key_state.dart';
+import 'src/shape_points_overlay.dart';
 import 'src/staging.dart';
 import 'src/timeline_preview_wiring.dart';
 import 'src/tool_commands.dart';
@@ -107,6 +110,7 @@ part 'src/screen/close_and_recovery.dart';
 part 'src/screen/device.dart';
 part 'src/screen/files.dart';
 part 'src/screen/interactions.dart';
+part 'src/screen/morphs_wiring.dart';
 part 'src/screen/ready_parts.dart';
 part 'src/screen/weight_paint_wiring.dart';
 
@@ -206,6 +210,11 @@ class _ModelerScreenState extends State<ModelerScreen>
   int? _selectedAnimationKey;
   int? _selectedJoint;
   int? _selectedConstraint;
+
+  /// `S6`'s own row: which shape key `MorphsPanel` highlights, and the
+  /// marker the viewport's own shape-points overlay draws `secondary` for —
+  /// a plain field for the same reason [_selectedLight] is one.
+  int? _selectedShape;
 
   /// The transport's own `Keys`/`Curves` switch — screen 07's own row, not
   /// on [ModelerReady] for the identical reason [_selectedAnimationClip]

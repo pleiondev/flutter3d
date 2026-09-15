@@ -94,6 +94,21 @@ extension _ReadyParts on _ModelerScreenState {
               ];
               final ModelObject? forStatus =
                   state.project[state.selection.activeObject ?? -1];
+              // `S6`'s own row: whether the held object's own `weights`
+              // track carries a key on the timeline's current frame — one
+              // boolean `MorphsPanel` reads for every shape row alike, see
+              // `shape_key_state.dart`'s own class comment for why one is
+              // all there is to compute.
+              final bool hasShapeKeyAtCurrentFrame = forStatus == null
+                  ? false
+                  : hasShapeKeyAtFrame(
+                      clip: _animationClip == null
+                          ? null
+                          : state.project.clips[_animationClip!],
+                      objectId: forStatus.id,
+                      frame: _frame.value,
+                      fps: state.project.profile.fps,
+                    );
               final status = StatusLine(
                 // One sentence, carried by the state. There used to be two — one for
                 // files and one for operations — with the operation's winning by
@@ -208,6 +223,14 @@ extension _ReadyParts on _ModelerScreenState {
                 weightNormalize: _weightNormalize,
                 onWeightNormalizeChanged: _setWeightNormalize,
                 selectedWeightVertex: _selectedWeightVertex,
+                hasShapeKeyAtCurrentFrame: hasShapeKeyAtCurrentFrame,
+                onSetShapeWeight: _setShapeWeight,
+                onKeyShape: _keyShape,
+                selectedShape: _selectedShape,
+                onSelectShape: _selectShape,
+                onAddShapeDriver: _addShapeDriver,
+                onRemoveShapeDriver: _removeShapeDriver,
+                onSetShapeDriverField: _setShapeDriverField,
                 selectedLight: _selectedLight,
                 onSelectLight: _selectLight,
                 onAddLight: _addLight,
@@ -249,6 +272,30 @@ extension _ReadyParts on _ModelerScreenState {
               // with no stroke tool of its own.
               final bool weightsBrushArmed =
                   weightsView && kStrokeTools.contains(state.tool);
+              // `S6`'s own row: the morphs sub-mode's own shape markers —
+              // one per shape key, in world space, `secondary` for whichever
+              // one `MorphsPanel` has selected. No live deformation: only
+              // these markers move, never the mesh underneath them — see
+              // `shape_points_overlay.dart`'s own class comment for why.
+              final bool morphsView =
+                  state.mode == ModelerMode.animation &&
+                  state.animationSubmode == AnimationSubmode.morphs;
+              final List<ShapeMarker> shapeMarkers =
+                  !morphsView || forStatus == null
+                  ? const <ShapeMarker>[]
+                  : <ShapeMarker>[
+                      for (var i = 0; i < forStatus.shapeSet.keys.length; i++)
+                        (
+                          position:
+                              worldTransformOf(
+                                state.project,
+                                forStatus.id,
+                              ).transformed3(
+                                shapePointOf(forStatus.shapeSet.keys[i]),
+                              ),
+                          active: i == _selectedShape,
+                        ),
+                    ];
               // The outline is the renderer's until the overlay draws the
               // selection itself and can say which *part* of an object is
               // selected. Until then this is what tells a person their click
@@ -322,6 +369,13 @@ extension _ReadyParts on _ModelerScreenState {
                               ?.version ??
                           0,
                       elementsVersion: _history.selection.elements.length,
+                      shapeMarkers: shapeMarkers,
+                      shapeMarkerColour: shapeMarkers.isEmpty
+                          ? null
+                          : colourAsVector4(kModelerScheme.primary),
+                      shapeMarkerActiveColour: shapeMarkers.isEmpty
+                          ? null
+                          : colourAsVector4(kModelerScheme.secondary),
                       settings: weightsView
                           ? weightGradientSettings(
                               settingsFor(_shading, viewportRenderSettings),

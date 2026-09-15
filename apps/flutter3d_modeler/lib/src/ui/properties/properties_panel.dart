@@ -24,6 +24,7 @@ import '../../transform_fields.dart';
 import '../animation_panel.dart';
 import '../material_panel.dart';
 import '../modifier_stack_panel.dart';
+import '../morphs_panel.dart';
 import '../operation_card.dart';
 import '../properties_sections.dart';
 import '../scene_environment_panel.dart';
@@ -92,6 +93,14 @@ class PropertiesPanel extends StatelessWidget {
     this.weightNormalize = true,
     required this.onWeightNormalizeChanged,
     this.selectedWeightVertex,
+    this.hasShapeKeyAtCurrentFrame = false,
+    required this.onSetShapeWeight,
+    required this.onKeyShape,
+    this.selectedShape,
+    required this.onSelectShape,
+    required this.onAddShapeDriver,
+    required this.onRemoveShapeDriver,
+    required this.onSetShapeDriverField,
     this.selectedLight,
     required this.onSelectLight,
     required this.onAddLight,
@@ -268,6 +277,35 @@ class PropertiesPanel extends StatelessWidget {
   /// The vertex nearest the weight brush's last hit — [WeightPaintPanel]'s
   /// own influences card.
   final int? selectedWeightVertex;
+
+  /// `S6`'s own [MorphsPanel]: whether the held object's own `weights` track
+  /// carries a key on the timeline's current frame — one boolean for every
+  /// shape row, see `shape_key_state.dart`'s own `hasShapeKeyAtFrame`.
+  final bool hasShapeKeyAtCurrentFrame;
+
+  /// A shape's own slider was dragged to a new weight.
+  final void Function(int id, int shapeIndex, double weight) onSetShapeWeight;
+
+  /// Any shape row's own key dot was tapped.
+  final ValueChanged<int> onKeyShape;
+
+  /// Which shape [MorphsPanel] highlights, and the marker the viewport's own
+  /// overlay draws `secondary` for — lifted the same way [selectedJoint] is.
+  final int? selectedShape;
+  final ValueChanged<int> onSelectShape;
+
+  /// "Add driver" was pressed under a shape's own row — [id], then the
+  /// shape index that new [ShapeDriver] drives.
+  final void Function(int id, int shapeIndex) onAddShapeDriver;
+
+  /// A driver's own remove icon was pressed — [id], then the index into
+  /// [ModelObject.shapeDrivers].
+  final void Function(int id, int index) onRemoveShapeDriver;
+
+  /// A driver's own field was committed — [SetShapeDriverField]'s own
+  /// vocabulary, beyond [id] and the driver's index.
+  final void Function(int id, int index, String field, Object? value)
+  onSetShapeDriverField;
 
   /// `mat-34d`'s own scene-mode wiring: which of `project.lighting.lights`
   /// [SceneSourcePanel] shows the fields of, or null for none — a plain
@@ -577,6 +615,23 @@ class PropertiesPanel extends StatelessWidget {
             selectedVertex: selectedWeightVertex,
             selectedJoint: selectedJoint,
             onSelectJoint: onSelectJoint,
+          ),
+        if (held != null && sections.contains(PropertiesSection.morphs))
+          MorphsPanel(
+            object: held,
+            objects: project.objects,
+            skeleton: heldSkeleton,
+            hasKeyAtCurrentFrame: hasShapeKeyAtCurrentFrame,
+            selectedShape: selectedShape,
+            onSelectShape: onSelectShape,
+            onSetWeight: (int shapeIndex, double weight) =>
+                onSetShapeWeight(held.id, shapeIndex, weight),
+            onKeyShape: () => onKeyShape(held.id),
+            onAddDriver: (int shapeIndex) =>
+                onAddShapeDriver(held.id, shapeIndex),
+            onRemoveDriver: (int index) => onRemoveShapeDriver(held.id, index),
+            onSetDriverField: (int index, String field, Object? value) =>
+                onSetShapeDriverField(held.id, index, field, value),
           ),
         if (sections.contains(PropertiesSection.lastOperation)) ...<Widget>[
           SectionLabel('Last operation'),

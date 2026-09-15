@@ -26,7 +26,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter3d/flutter3d.dart' hide Material;
 import 'package:flutter3d_app/flutter3d_app.dart' show presentFrame;
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
-import 'package:vector_math/vector_math.dart' show Vector3;
+import 'package:vector_math/vector_math.dart' show Vector3, Vector4;
 
 import 'element_picking.dart';
 import 'gizmo_handles.dart';
@@ -36,6 +36,7 @@ import 'mesh_overlay_builder.dart';
 import 'object_picking.dart';
 import 'orbit_gestures.dart';
 import 'selection_box.dart';
+import 'shape_points_overlay.dart';
 import 'staging.dart';
 import 'transform_gizmo.dart';
 import 'transform_modal.dart';
@@ -110,6 +111,9 @@ class ModelerViewport extends StatefulWidget {
     this.gizmoKind = TransformKind.move,
     this.onGizmoDrag,
     this.snapHighlight,
+    this.shapeMarkers = const <ShapeMarker>[],
+    this.shapeMarkerColour,
+    this.shapeMarkerActiveColour,
   });
 
   final Renderer renderer;
@@ -267,6 +271,23 @@ class ModelerViewport extends StatefulWidget {
   /// out on every frame to draw a shape that was never anywhere but the glass.
   final Vector3? snapHighlight;
 
+  /// `S6`'s own row: the morphs sub-mode's own shape markers — one per shape
+  /// key, in world space, with whichever one `MorphsPanel` is showing
+  /// flagged [ShapeMarker.active]. Empty for every mode but the morphs
+  /// sub-mode, which draws nothing here at all — the honest "no live
+  /// deformation" this pass leaves for `SceneSync`'s own morph pipeline to
+  /// build later.
+  final List<ShapeMarker> shapeMarkers;
+
+  /// The colours [shapeMarkers] draw in — an ordinary shape and the active
+  /// one. Null falls back to [MeshOverlayColours]'s own ordinary/selected
+  /// vertex tones, which is the only case a caller with nothing more
+  /// specific to say (a test, chiefly) ever reaches; `ready_parts.dart`
+  /// always hands over the real ones, converted from `ui/theme.dart`'s own
+  /// `kModelerScheme`.
+  final Vector4? shapeMarkerColour;
+  final Vector4? shapeMarkerActiveColour;
+
   @override
   State<ModelerViewport> createState() => _ModelerViewportState();
 }
@@ -348,6 +369,11 @@ class _ModelerViewportState extends State<ModelerViewport> {
   /// is the only model they ever use it on.
   MeshOverlay? _gizmo;
 
+  /// Registered fourth and therefore drawn fourth: `S6`'s own shape markers
+  /// sit on top of the gizmo rather than under it, the same "last drawn wins"
+  /// order the gizmo itself already gets over the wireframe.
+  MeshOverlay? _shapePoints;
+
   /// The arm the pointer is on, from the last move. Null when it is on none.
   ///
   /// Kept rather than recomputed in `build`, because the answer comes from a
@@ -381,7 +407,12 @@ class _ModelerViewportState extends State<ModelerViewport> {
 
   @override
   void dispose() {
-    for (final MeshOverlay? overlay in <MeshOverlay?>[_ground, _mesh, _gizmo]) {
+    for (final MeshOverlay? overlay in <MeshOverlay?>[
+      _ground,
+      _mesh,
+      _gizmo,
+      _shapePoints,
+    ]) {
       if (overlay != null) widget.renderer.removeContributor(overlay);
     }
     super.dispose();
@@ -433,6 +464,7 @@ class _ModelerViewportState extends State<ModelerViewport> {
     }
 
     _buildGizmo(renderer, look);
+    _buildShapePoints(renderer, look);
   }
 
   /// The gizmo, when there is a selection to put one on.
@@ -474,6 +506,40 @@ class _ModelerViewportState extends State<ModelerViewport> {
       handles: _handles,
       kind: widget.gizmoKind,
       hot: _hotAxis,
+    );
+  }
+
+  /// [MeshOverlayColours]'s own ordinary/selected vertex tones — what
+  /// [_buildShapePoints] draws with whenever [ModelerViewport.shapeMarkerColour]/
+  /// [ModelerViewport.shapeMarkerActiveColour] are left null.
+  static final MeshOverlayColours _fallbackShapeColours = MeshOverlayColours();
+
+  /// `S6`'s own row: one point per [ModelerViewport.shapeMarkers], or
+  /// nothing at all outside the morphs sub-mode — `widget.shapeMarkers` is
+  /// empty in every other mode, so this clears whatever the overlay drew
+  /// last rather than leaving a marker from a sub-mode the panel has since
+  /// left.
+  void _buildShapePoints(Renderer renderer, MeshOverlayView look) {
+    final List<ShapeMarker> markers = widget.shapeMarkers;
+    if (markers.isEmpty) {
+      _shapePoints?.clear();
+      return;
+    }
+    final MeshOverlay shapePoints = _shapePoints ??= _newOverlay(renderer);
+    shapePoints
+      ..clear()
+      ..lookFrom(
+        eye: look.eye,
+        right: look.right,
+        up: look.up,
+        pixel: look.pixel,
+        perspective: look.perspective,
+      );
+    emitShapePointsOverlay(
+      shapePoints,
+      markers,
+      primary: widget.shapeMarkerColour ?? _fallbackShapeColours.vertex,
+      active: widget.shapeMarkerActiveColour ?? _fallbackShapeColours.selected,
     );
   }
 
