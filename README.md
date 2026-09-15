@@ -36,7 +36,6 @@ genres, and the generated API reference.
 | [`packages/flutter3d`](packages/flutter3d) | The renderer: scene graph, glTF/OBJ/`.f3d` loading, six lighting models, shadows, bloom, skinning, BVH culling, picking. [README](packages/flutter3d/README.md) |
 | [`packages/flutter3d_game`](packages/flutter3d_game) | The game layer: a fixed timestep, interpolation, input that has forgotten which device it came from, levels and mechanisms. [README](packages/flutter3d_game/README.md) |
 | [`packages/flutter3d_physics`](packages/flutter3d_physics) | Collision shapes, a broadphase, queries, a character controller and an XPBD cloth solver. Plain Dart — no Flutter, no renderer |
-| [`packages/flutter3d_rig`](packages/flutter3d_rig) | Bone-name mapping and rest-relative clip retargeting between two skeletons, with a two-bone-IK foot lock, over a rig read as nodes and tracks rather than a project. Plain Dart |
 | [`packages/flutter3d_fbx`](packages/flutter3d_fbx) | A `ModelDecoder` for Autodesk's FBX — the skeleton for now, recognising a file and refusing to read it with a clear reason. Plain Dart |
 | [`packages/flutter3d_game_shooter`](packages/flutter3d_game_shooter) | One genre: monsters, weapons, an inventory, the step order that ties them together, and the weapon held in the hands |
 | [`packages/flutter3d_game_platformer`](packages/flutter3d_game_platformer) | A second genre, and the instrument that tests the first: a runner who jumps twice, coins, hazards and checkpoints |
@@ -66,7 +65,7 @@ genres, and the generated API reference.
 | [`packages/flutter3d_editor_mcp`](packages/flutter3d_editor_mcp) | The same editor offered to an agent: an MCP server over stdio whose tools are the editor's own commands, one document per process |
 | [`packages/flutter3d_mcp_kit`](packages/flutter3d_mcp_kit) | What every MCP server here shares: a tool paired with its handler, a server that is a list of them over one session, answers that refuse without failing, and a loopback HTTP transport. Plain Dart |
 | [`packages/flutter3d_mesh`](packages/flutter3d_mesh) | The mesh a modeller edits, with the topology still in it: faces of any valency, half-edges that know their twin, and the operations that change them. Plain Dart. [README](packages/flutter3d_mesh/README.md) |
-| [`packages/flutter3d_model_core`](packages/flutter3d_model_core) | The headless half of the model editor: the project of objects, the sealed command every edit is one of, the history that takes them back, and what it refuses to export |
+| [`packages/flutter3d_model_core`](packages/flutter3d_model_core) | The headless half of the model editor: the project of objects, the sealed command every edit is one of, the history that takes them back, what it refuses to export, and the rig algorithms it runs — bone-name mapping, retargeting with a foot lock, automatic skin weights |
 | [`packages/flutter3d_model_mcp`](packages/flutter3d_model_mcp) | The same modeller offered to an agent, over MCP on stdio. An entry point today; the tools follow the document layer |
 | [`apps/flutter3d_demo_dungeon`](apps/flutter3d_demo_dungeon) | The shooter, and a headless test that plays it to the exit. Desktop, web, Android and iOS |
 | [`apps/flutter3d_demo_platformer`](apps/flutter3d_demo_platformer) | The second game: third person, two jumps and a dash, and no line of the engine changed to allow it. Desktop, web, Android and iOS |
@@ -159,7 +158,7 @@ Or one package at a time:
 (cd packages/flutter3d_physics && dart test)   # plain Dart, no Flutter needed
 ```
 
-7443 tests across forty-four packages and eight applications, and the only
+7443 tests across forty-three packages and eight applications, and the only
 ones that need a GPU are the
 Impeller half of the golden set. The other half is rendered by the software
 backend, which is what makes 43 scenes checkable in a headless run.

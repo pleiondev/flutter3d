@@ -12,11 +12,11 @@ import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart'
     as core
     show retargetClip;
-// Prefixed rather than shown/hidden alongside the unprefixed imports above:
-// `rig.autoMap` reads at every call site as what it is — the `flutter3d_rig`
-// package's own row — without an unprefixed import fighting over which
-// `BoneMap` a bare name means.
-import 'package:flutter3d_rig/flutter3d_rig.dart' as rig;
+// The rig algorithms again, prefixed: `rig.autoMap` reads at every call site
+// as what it is — a guess from bone names, not one of this session's verbs.
+import 'package:flutter3d_model_core/flutter3d_model_core.dart'
+    as rig
+    show BoneMap, autoMap;
 import 'package:vector_math/vector_math.dart';
 
 // What a tool call did, and the sentence to say about it — the one `Answer`
@@ -639,7 +639,7 @@ final class ModelSession {
   //
   // MCP tools over `anim-21`'s `buildSkeleton`, `anim-10`'s `paintWeights`,
   // `anim-15`'s `bakeIk`, `anim-20`'s `bakeShapeDrivers`, `anim-13`'s
-  // `rigIssues` and `flutter3d_rig`'s own `retargetClip` — none of them a
+  // `rigIssues` and `anim-17`'s `retargetClip` — none of them a
   // `ModelCommand` (`command.dart`'s own sealed hierarchy cannot be
   // extended from outside `flutter3d_model_core`), so each is a session
   // recipe the same shape `cleanup`/`makeGameReady`/`buildFrom` above
@@ -901,7 +901,7 @@ final class ModelSession {
   /// Retargets [sourceClipIndex] — a clip whose tracks address
   /// [sourceSkeletonIndex]'s own joints — onto [targetSkeletonIndex]'s
   /// joints, both in this same project, through [boneMap] (source name to
-  /// target name) or, left out, `flutter3d_rig`'s own `autoMap` guess from
+  /// target name) or, left out, the rig algorithms' own `autoMap` guess from
   /// the two skeletons' own joint names. Appends the retargeted clip to
   /// this project's own clip list as one undo step.
   Answer retargetClip({

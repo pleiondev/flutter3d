@@ -61,6 +61,14 @@ export 'src/readiness_cache.dart';
 export 'src/render_project.dart';
 export 'src/render_sheet.dart';
 export 'src/retarget_clip.dart';
+// The rig algorithms — bone-name mapping, rest-relative retargeting with a
+// two-bone-IK foot lock, automatic skin weights. They read a rig as nodes and
+// tracks and know nothing of a project; they were a package of their own
+// until the only callers turned out to be this one and the server above it.
+export 'src/rig/bind_weights.dart';
+export 'src/rig/bone_map.dart';
+export 'src/rig/retarget.dart';
+export 'src/rig/two_bone_ik.dart';
 export 'src/rig_issues.dart';
 export 'src/rig_job.dart';
 export 'src/rig_template.dart';

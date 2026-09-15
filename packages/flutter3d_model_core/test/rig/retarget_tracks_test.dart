@@ -1,13 +1,13 @@
 /// `retargetTracks` over rigs built by hand, with no project anywhere — the
 /// point of the rig being read as nodes and tracks.
 ///
-///     dart test test/retarget_tracks_test.dart
+///     dart test test/rig/retarget_tracks_test.dart
 library;
 
 import 'dart:typed_data';
 
 import 'package:flutter3d_formats/flutter3d_formats.dart';
-import 'package:flutter3d_rig/flutter3d_rig.dart';
+import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 import 'package:test/test.dart';
 import 'package:vector_math/vector_math.dart';
 

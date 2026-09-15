@@ -4,7 +4,7 @@ description: Four independent golden sets, mutation-checking every new test, det
 
 # Testing
 
-7443 tests across 44 packages and eight applications, counted the same way the `the document says how many tests there are` rule does: a scan of every `test(`/`testWidgets(` call. The rule holds `ARCHITECTURE.md` §13, the README and this page to the answer — the README went on saying 1242 across thirteen packages for as long as nothing compared it with anything. About thirty need a GPU; the [architecture](/core/architecture/) is what keeps the number that low.
+7443 tests across 43 packages and eight applications, counted the same way the `the document says how many tests there are` rule does: a scan of every `test(`/`testWidgets(` call. The rule holds `ARCHITECTURE.md` §13, the README and this page to the answer — the README went on saying 1242 across thirteen packages for as long as nothing compared it with anything. About thirty need a GPU; the [architecture](/core/architecture/) is what keeps the number that low.
 
 | Package | Tests | | Package | Tests |
 |---|---|---|---|---|
@@ -30,9 +30,9 @@ description: Four independent golden sets, mutation-checking every new test, det
 | `apps/flutter3d_demo_dungeon` | 110 | | `flutter3d_app` | 4 |
 | `flutter3d_game` | 79 | | `flutter3d_shaders` | 1 |
 | `flutter3d_particles` | 10 | | `flutter3d_stereo` | 48 |
-| `flutter3d_model_core` | 805 | | `flutter3d_model_mcp` | 93 |
+| `flutter3d_model_core` | 817 | | `flutter3d_model_mcp` | 93 |
 | | | | `flutter3d_net` | 14 |
-| `flutter3d_rig` | 12 | | `flutter3d_net_webrtc` | 2 |
+| | | | `flutter3d_net_webrtc` | 2 |
 | `flutter3d_render_job` | 8 | | `flutter3d_sim_mcp` | 7 |
 | | | | `flutter3d_render_mcp` | 4 |
 | `flutter3d_mcp_kit` | 1 | | `flutter3d_build` | 54 |

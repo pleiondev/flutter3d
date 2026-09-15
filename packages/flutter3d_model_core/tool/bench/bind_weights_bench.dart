@@ -21,7 +21,7 @@
 /// actually has.
 library;
 
-import 'package:flutter3d_rig/flutter3d_rig.dart';
+import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 import 'package:vector_math/vector_math.dart';
 
 /// A grid of `(side + 1)²` vertices, flat on Y, the cheapest shape to a

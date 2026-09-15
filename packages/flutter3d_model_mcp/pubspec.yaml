@@ -34,12 +34,6 @@ dependencies:
   # `ElementLevel`, for the `select` verb's mesh-mode argument.
   flutter3d_mesh: ^0.6.0
 
-  # `BoneMap`/`autoMap` — `anim-30`'s `retargetClip` tool builds the bone map
-  # with this package's own row rather than re-deriving name matching here;
-  # the retarget itself is `flutter3d_model_core`'s `retargetClip`, which runs
-  # this package's `retargetTracks` over the project's own skeletons.
-  flutter3d_rig: ^0.6.0
-
   # `Vector3`/`Matrix4` — `anim-30`'s rig-pipeline tools (`autoRig`,
   # `paintWeights`, `bakeIk`) build these directly from a tool call's own
   # JSON, rather than only using them in a test the way this package once

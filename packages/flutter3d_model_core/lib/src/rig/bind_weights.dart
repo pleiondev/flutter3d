@@ -48,13 +48,13 @@ const int kMaxSkinInfluences = 4;
 /// One bone, as the line segment [bindWeights] measures distance and
 /// visibility against — [head] to [tail], both bind-pose world positions.
 ///
-/// `flutter3d_rig` has no `Skeleton`/`Joint` type of its own: `anim-21`'s own
-/// `ProjectSkeleton` (`flutter3d_model_core`'s `rig_template.dart`) addresses
+/// The rig algorithms have no `Skeleton`/`Joint` type of their own: `anim-21`'s
+/// own `ProjectSkeleton` (this package's `rig_template.dart`) addresses
 /// a joint only by a single rest *position*, one level up, alongside a
 /// `ModelProject` that knows each joint's parent. A [BoneSegment] is what
 /// turns that into the shape this row needs — ordinarily a parent joint's own
 /// world position as [head] and its child's as [tail], one per non-root
-/// joint — without this package reaching for `ModelProject` itself.
+/// joint — without the algorithm reaching for `ModelProject` itself.
 final class BoneSegment {
   const BoneSegment(this.head, this.tail, {this.name});
 

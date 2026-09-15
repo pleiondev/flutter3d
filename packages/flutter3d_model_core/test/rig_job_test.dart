@@ -1,10 +1,9 @@
 /// `anim-25`'s own row: the three `RigJob` kinds whose underlying functions
 /// live in this package — `bakeIk`, `bakeDrivers`, `bakeRootMotion` — run
 /// through `rig_job.dart`'s request/run shape and applied through
-/// `ApplyClipResult`. `bindWeights` and `retargetClip` are
-/// `flutter3d_rig`'s own job kinds (see that package's own
-/// `test/rig_job_test.dart`) — `rig_job.dart`'s own doc comment explains
-/// why they cannot live, or be tested, here.
+/// `ApplyClipResult`. `bindWeights` and `retargetClip`, the two kinds that run
+/// the rig algorithms in `lib/src/rig/`, are tested in
+/// `test/rig_job_retarget_and_bind_test.dart`.
 ///
 ///     dart test test/rig_job_test.dart
 library;

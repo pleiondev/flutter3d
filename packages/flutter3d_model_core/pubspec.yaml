@@ -49,12 +49,6 @@ dependencies:
   # SDK for the contributor that draws a system rather than the system.
   flutter3d_particles_core: ^0.6.0
 
-  # `retargetTracks`, `bindWeights` and the rig vocabulary they read — what a
-  # project's own `retargetClip` and rig jobs run. The document depends on the
-  # algorithms and not the other way round: `flutter3d_rig` reads a rig as
-  # nodes and tracks and has no idea what a project is.
-  flutter3d_rig: ^0.6.0
-
   vector_math: ^2.2.0
 
 dev_dependencies:

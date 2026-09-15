@@ -1,12 +1,12 @@
 /// `anim-22`'s own acceptance: a cylinder with two bones binds its seam
 /// 0.5/0.5, and two legs standing close together do not pull on each other.
 ///
-///     dart test test/bind_weights_test.dart
+///     dart test test/rig/bind_weights_test.dart
 library;
 
 import 'dart:math' as math;
 
-import 'package:flutter3d_rig/flutter3d_rig.dart';
+import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 import 'package:test/test.dart';
 import 'package:vector_math/vector_math.dart' hide Ray;
 

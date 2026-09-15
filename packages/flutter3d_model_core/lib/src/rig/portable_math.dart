@@ -12,14 +12,14 @@
 /// `flutter3d_sim/lib/src/math/portable_math.dart` already solved this for
 /// the simulation package, with a `Portable` class covering ten functions
 /// built out of `+`, `-`, `*`, `/`, `sqrt` and reading a double's bits — every
-/// one of which IEEE 754 pins, unlike the transcendentals themselves. This
-/// package does not depend on `flutter3d_sim` (a much heavier, higher-level
-/// game-simulation package sitting in a later publishing tier than
-/// `flutter3d_rig`, per `ARCHITECTURE.md`), and gaining that dependency for
-/// one function would point the wrong way through the graph. `two_bone_ik.dart`
-/// is the only file in this package that needs a portable transcendental, so
-/// rather than inventing a shared package for one function, or reaching past
-/// `flutter3d_rig`'s own tier for it, this file carries a standalone copy of
+/// one of which IEEE 754 pins, unlike the transcendentals themselves. The
+/// modeller's document layer does not depend on `flutter3d_sim` (a much
+/// heavier, higher-level game-simulation package sitting in a later publishing
+/// tier, per `ARCHITECTURE.md`), and gaining that dependency for one function
+/// would point the wrong way through the graph. `two_bone_ik.dart` is the only
+/// rig file that needs a portable transcendental, so rather than inventing a
+/// shared package for one function, or reaching past this package's own tier
+/// for it, this file carries a standalone copy of
 /// exactly the slice `acos` needs — `atan`, `atan2` and `acos` themselves,
 /// unchanged from `flutter3d_sim`'s implementation so the two packages cannot
 /// disagree with each other, either.

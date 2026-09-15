@@ -1,3 +1,13 @@
+## Unreleased
+
+**Accepted `flutter3d_rig`, because this package and the server above it were
+its only callers.** Bone-name mapping, rest-relative retargeting with a
+two-bone-IK foot lock and automatic skin weights now live under `lib/src/rig/`
+and are exported from this package's own library, unchanged. They still read a
+rig as nodes and tracks and know nothing of a project; what went is a package
+boundary nothing outside the modeller ever crossed. `flutter3d_rig` was never
+published, so no pubspec outside this repository names it.
+
 ## 0.6.0
 
 **A registered skeleton, and it is honest about that.** The package exists so

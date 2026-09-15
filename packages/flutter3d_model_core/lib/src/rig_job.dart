@@ -4,14 +4,13 @@
 /// command" (`doc/model-editor-plan.md`, the `anim-25` line under
 /// "перекрёстные ссылки").
 ///
-/// **All five in one place.** `bindWeights` and `retargetTracks` are
-/// `flutter3d_rig`'s algorithms and this package depends on that one, so their
-/// job kinds sit here beside `bakeIk`, `bakeShapeDrivers` and `bakeRootMotion`,
-/// applied through the very same [ApplyClipResult]/[ApplyJobResult] commands.
-/// They used to live in `flutter3d_rig`, because that package imported this
-/// one for `ModelProject` and a job kind here could not import the algorithm
-/// back without a cycle; `flutter3d_rig` reads a rig as nodes and tracks now,
-/// and the split had nothing left to protect.
+/// **All five in one place.** `bindWeights` and `retargetTracks` are the rig
+/// algorithms in `rig/`, so their job kinds sit here beside `bakeIk`,
+/// `bakeShapeDrivers` and `bakeRootMotion`, applied through the very same
+/// [ApplyClipResult]/[ApplyJobResult] commands. They used to live in a package
+/// of their own, which imported this one for `ModelProject`, so a job kind
+/// here could not import the algorithm back without a cycle; the algorithms
+/// read a rig as nodes and tracks now, and live in this package.
 ///
 /// **No isolate crossing for the clip bakes, unlike [JobRequest]'s own
 /// `editInIsolate`.** [JobRequest] crosses because a mesh bake is a per-vertex
@@ -31,14 +30,6 @@ import 'dart:typed_data';
 
 import 'package:flutter3d_mesh/flutter3d_mesh.dart'
     show EditMesh, editInIsolate, toVertexAttributes;
-import 'package:flutter3d_rig/flutter3d_rig.dart'
-    show
-        BoneMap,
-        BoneSegment,
-        bindWeights,
-        kMaxSkinInfluences,
-        normalizeSkinWeights,
-        pruneSkinWeights;
 import 'package:vector_math/vector_math.dart' show Vector3;
 
 import 'command.dart';
@@ -47,6 +38,14 @@ import 'job.dart';
 import 'project.dart';
 import 'project_animation.dart';
 import 'retarget_clip.dart';
+import 'rig/bind_weights.dart'
+    show
+        BoneSegment,
+        bindWeights,
+        kMaxSkinInfluences,
+        normalizeSkinWeights,
+        pruneSkinWeights;
+import 'rig/bone_map.dart' show BoneMap;
 import 'shape_driver.dart';
 
 /// `bakeIk` (`anim-15`'s own row) through the job/runner shape `anim-25`

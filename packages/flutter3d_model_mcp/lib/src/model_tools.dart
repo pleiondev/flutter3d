@@ -2313,7 +2313,7 @@ List<ModelTool> get modelTools => <ModelTool>[
 //
 // MCP tools over `anim-21`'s `buildSkeleton`, `anim-10`'s `paintWeights`,
 // `anim-15`'s `bakeIk`, `anim-20`'s `bakeShapeDrivers`, `anim-13`'s
-// `rigIssues` and `flutter3d_rig`'s own `retargetClip`, plus `addShape` — a
+// `rigIssues` and `anim-17`'s `retargetClip`, plus `addShape` — a
 // second, plan-facing name for the already-offered `addShapeFromMesh` tool.
 // Kept as one block, appended after every other tool, rather than woven in
 // beside the rig/keyframe tools above: `setKey`, `extractRootMotion` and
