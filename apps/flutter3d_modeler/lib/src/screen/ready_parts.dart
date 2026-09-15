@@ -93,6 +93,7 @@ extension _ReadyParts on _ModelerScreenState {
                   onMaterialStudio: () => unawaited(_openMaterialStudio()),
                   onPreview: () => unawaited(_openGamePreview()),
                   onShortcutHelp: _showShortcutHelp,
+                  onSettings: () => unawaited(_showSettings()),
                   onStartScreen: () => unawaited(_showStartScreen()),
                   onReportProblem: _reportProblem,
                 ),

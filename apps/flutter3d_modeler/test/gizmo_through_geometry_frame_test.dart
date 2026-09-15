@@ -113,11 +113,7 @@ void _writeGizmo(MeshOverlay overlay, ModelerStage stage, {bool ghost = true}) {
     );
   final handles = gizmoHandles(
     Vector3.zero(),
-    GizmoView(
-      eye: look.eye,
-      pixel: look.pixel,
-      perspective: look.perspective,
-    ),
+    GizmoView(eye: look.eye, pixel: look.pixel, perspective: look.perspective),
   );
   const drawing = GizmoDrawing();
   void write() => drawing.writeInto(
