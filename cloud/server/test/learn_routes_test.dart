@@ -138,5 +138,28 @@ void main() {
         ),
       );
     });
+
+    test('reads case 3 off disk and renders its Markdown', () {
+      final cases = loadLearnCases();
+      final case3 = cases.firstWhere((c) => c.slug == '03-a-lit-corner');
+      expect(case3.title, contains('A lit corner'));
+      expect(case3.bodyHtml, contains('<h1 '));
+      expect(
+        case3.bodyHtml,
+        contains('/assets/learn/modeler/a-lit-corner/03-lit-corner.png'),
+      );
+    });
+
+    test('case 3 serves end to end through learnRoutes', () async {
+      final handler = _mounted(learnRoutes());
+      final response = await _get(handler, '/learn/modeler/03-a-lit-corner');
+      expect(response.statusCode, 200);
+      final body = await response.readAsString();
+      expect(body, contains('A lit corner'));
+      expect(
+        body,
+        contains('/assets/learn/modeler/a-lit-corner/03-lit-corner.png'),
+      );
+    });
   });
 }

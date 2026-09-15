@@ -20,6 +20,7 @@ import 'package:vector_math/vector_math.dart';
 
 import 'fixtures/tutorial/case1_scenario.dart';
 import 'fixtures/tutorial/case2_scenario.dart';
+import 'fixtures/tutorial/case3_scenario.dart';
 
 void main() {
   group('case 1 — a prop from a scan', () {
@@ -261,6 +262,132 @@ void main() {
         lines.firstWhere((l) => l.contains('"extrude"')),
         contains('"distance":0.04'),
       );
+    });
+  });
+
+  group('case 3 — a lit corner', () {
+    late Directory workspace;
+
+    setUp(() {
+      workspace = Directory.systemTemp.createTempSync('tutorial_case3');
+    });
+
+    tearDown(() {
+      workspace.deleteSync(recursive: true);
+    });
+
+    test("the case's own journal, replayed from right after the import "
+        "gets stuck at the first `moveBy` for want of a selection — the "
+        'same shape as case 2 (`tut-05`), now at the plain object level '
+        "`MoveBy`/`RotateBy` need rather than at mesh-element level: "
+        "`ModelSession.select`'s own doc comment already says object-level "
+        'picking is not something `CommandJournal` can replay', () async {
+      final starting = await case3StartingProject();
+      final journalBytes = File(
+        'test/fixtures/tutorial/case3.jsonl',
+      ).readAsBytesSync();
+      final replay = CommandJournal.replay(journalBytes, starting);
+      // Mutation: assert `replay.ok` instead. A journal that replayed clean
+      // from the post-import project would mean object-level selection had
+      // quietly become recoverable — worth celebrating, not a check this
+      // test should pass by accident on a change nobody meant.
+      expect(replay.ok, isFalse);
+      expect(replay.refused, contains('nothing is selected to move'));
+    });
+
+    test('building the scenario fresh against ModelSession — selecting the '
+        'imported box the way a live session or a person actually would — '
+        'reaches the exact project committed as case3.f3dproj, and exports '
+        'the exact case3.glb', () async {
+      final path = '${workspace.path}/case3.f3dproj';
+      final starting = await case3StartingProject();
+      final session = ModelSession(ModelHistory(starting), path: path);
+      runCase3Scenario(session);
+
+      final saved = session.save(path);
+      expect(saved.did, isTrue, reason: saved.says);
+      final writtenBytes = File(path).readAsBytesSync();
+      final fixtureBytes = File(
+        'test/fixtures/tutorial/case3.f3dproj',
+      ).readAsBytesSync();
+      expect(
+        writtenBytes,
+        fixtureBytes,
+        reason:
+            'the project this scenario reaches is not the one in '
+            'test/fixtures/tutorial/case3.f3dproj. If the change was '
+            'meant, rerun tool/make_case3_fixtures.dart and read the diff '
+            'before committing the new fixtures',
+      );
+
+      final journaled = session.journal('${workspace.path}/case3.jsonl');
+      expect(journaled.did, isTrue, reason: journaled.says);
+      expect(
+        File('${workspace.path}/case3.jsonl').readAsStringSync(),
+        File('test/fixtures/tutorial/case3.jsonl').readAsStringSync(),
+      );
+
+      final exported = session.export('${workspace.path}/case3.glb');
+      expect(exported.did, isTrue, reason: exported.says);
+      final writtenGlb = File('${workspace.path}/case3.glb').readAsBytesSync();
+      final fixtureGlb = File(
+        'test/fixtures/tutorial/case3.glb',
+      ).readAsBytesSync();
+      expect(writtenGlb, fixtureGlb);
+
+      final writtenDocument = await GltfLoader().load(writtenGlb);
+      final fixtureDocument = await GltfLoader().load(fixtureGlb);
+      expect(compareModelDocuments(fixtureDocument, writtenDocument), isEmpty);
+    });
+
+    test('the exported GLB carries both assets as their own surface-bearing '
+        'nodes, at different placements, each keeping its own material — '
+        "mat-24's own acceptance for `ImportInto` plus a gizmo move, now "
+        'through a real case rather than `scene_multi_asset_export_test.dart'
+        "'s in-memory `_Doc` fixtures", () async {
+      final bytes = File('test/fixtures/tutorial/case3.glb').readAsBytesSync();
+      final document = await GltfLoader().load(bytes);
+
+      // Mutation: import the box but never run the `moveBy`/`rotateBy` — the
+      // vase surface and the box surface would then carry equal or
+      // near-identical transforms instead of two genuinely different
+      // placements.
+      expect(document.surfaces, hasLength(2));
+      expect(
+        document.surfaces[0].transform,
+        isNot(equals(document.surfaces[1].transform)),
+      );
+      // The vase (surface 0) sat at the world origin in case 2 and case 3
+      // never moves it — only the imported box (surface 1) is selected and
+      // transformed.
+      expect(document.surfaces[0].transform, Matrix4.identity());
+
+      // Two genuinely different materials — the vase's own "glazed clay"
+      // and the box's own textured material from `BoxTextured.glb` — so
+      // both stay in the export rather than being deduped into one: doing
+      // that here would misrepresent what a "shared material" check is
+      // supposed to catch, which `import_into_test.dart`'s own dedup tests
+      // already cover with two materials that really do match.
+      expect(document.materials, hasLength(2));
+      expect(document.surfaces[0].materialIndex, 0);
+      expect(document.surfaces[1].materialIndex, 1);
+    });
+
+    test('the scene carries one point light, shadows on, a studio '
+        "environment and bloom — T3.4's own four scene panels "
+        '(sources/shadows/environment/post), each set through the real '
+        "command its panel already runs", () async {
+      final starting = await case3StartingProject();
+      final session = ModelSession(ModelHistory(starting));
+      runCase3Scenario(session);
+
+      final lighting = session.project.lighting;
+      expect(lighting.lights, hasLength(1));
+      expect(lighting.lights.single.type, ProjectLightType.point);
+      expect(lighting.lights.single.castsShadow, isTrue);
+      expect(lighting.environment, SceneEnvironmentPreset.studio);
+      expect(lighting.shadows, isTrue);
+      expect(lighting.post.bloomEnabled, isTrue);
     });
   });
 }

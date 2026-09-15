@@ -1,0 +1,226 @@
+---
+title: A lit corner
+summary: A second asset imported into an existing project, placed with the gizmo and its pivot, and staged in Scene mode — a light, shadows, an environment and post — then exported as one GLB with both objects as nodes.
+---
+
+# A lit corner: two assets in one scene
+
+**What you have:** case 2's own saved vase project, and a second file,
+`BoxTextured.glb`. **What you want:** both in one scene, the box moved into
+a corner beside the vase, a light staged over them with shadows on, and one
+GLB out that carries both as nodes.
+
+Where case 2 built a single object from nothing, this case is about a
+*second* object joining a project that already has one — the gizmo and its
+pivot, and the four panels T3.4 gives Scene mode: sources, shadows,
+environment, post.
+
+## 1. Import into the existing project
+
+Open case 2's own `.f3dproj` — the vase is already there, object 1. What
+this step needs next is a second file merged *alongside* it rather than
+replacing it — `ImportInto` (`doc-11a-n`) exists exactly for this: it merges
+a document's own objects, materials and images into a project's existing
+tables, deduplicating anything that matches by content rather than doubling
+it, and an agent over MCP can already reach it through
+`ModelSession.import`.
+
+> **This step has no button yet.** Checked directly while writing this
+> case: nothing in `apps/flutter3d_modeler` calls `ModelSession.import` or
+> the free `importInto` function at all — the toolbar's only file action is
+> **Open**, which always replaces the whole document (`_openBytesWithImportScreen`'s
+> own `openDocument` call). Merging a second asset into a project already
+> open is real at the command layer (`import_into_test.dart`,
+> `scene_multi_asset_export_test.dart`) and reachable by an agent, but not
+> yet by a person clicking through the real GUI — the "Import into scene"
+> action `mat-24`'s own extended scope named is recorded closed, but only
+> its four Scene-mode panels actually got wired (`mat-34d`); the import
+> action itself was not. This is `tut-08`, found writing this case. So this
+> walkthrough continues the way this case's own test actually builds the
+> project: driven directly against the session/command layer, the same
+> route an agent over MCP already has.
+
+`BoxTextured.glb` itself turns out to hold two nodes, not one — its single
+textured cube sits on a child node under an empty root, the file's own way
+of carrying a name and a transform separately from the mesh. Importing it
+gives the project two new objects: object 2, the empty root, and object 3,
+the box mesh, parented under it. Clicking the imported asset once in the
+outliner selects object 2 — the root — the way any parent/child pair in
+this project already behaves: move or turn the root, and the mesh riding
+under it goes along, the same "an object's transform is local to its
+parent" rule the renderer itself already follows.
+
+*(screenshot: the viewport with the vase and the freshly imported, still
+axis-aligned box, the outliner showing the new object under the vase's own
+— placeholder, see the note at the end of this page)*
+
+## 2. The gizmo and its pivot
+
+Grab the move gizmo and drag the box into a corner beside the vase:
+`MoveBy((1.3, 0.5, -0.4))` answers **"move — object 2"**. Then the rotate
+gizmo, turning it to face into that corner: `RotateBy(axis: (0, 1, 0),
+radians: 0.6, pivot: individual)`.
+
+**Pivot** is the point a turn happens about, chosen from the same panel the
+gizmo itself sits in — `median` (everything selected turns together, as if
+gripped as one) or `individual` (each object turns about its own origin).
+With one object selected the two give the same answer here, but naming
+`individual` is still the honest choice: it is the pivot a corner placement
+actually wants once a second object joins the selection, and the command
+takes the argument regardless of how many objects are picked.
+
+*(screenshot: the viewport mid-drag, the gizmo and the pivot indicator over
+the box, the status line reading the move — placeholder)*
+
+## 3. Scene mode: a source, its shadow, an environment, post
+
+Switch to Scene mode. Its four panels each set one part of the project's own
+`SceneLighting`:
+
+- **Sources** — the panel's own **Add** button, with **Point** picked from
+  its light-type dropdown, calls `AddLight(type: point)`. The gizmo then
+  places it (`SetLightTransform`) up and to the side of the corner, the
+  panel's own colour and intensity fields warm it slightly and raise it
+  (`SetLightField('color', (1.0, 0.92, 0.78))`,
+  `SetLightField('intensity', 4.5)`), and this same panel's own **Casts
+  shadow** checkbox turns it on for this light
+  (`SetLightField('castsShadow', true)`).
+- **Shadows** — the scene-wide toggle
+  (`SetSceneLightingField('shadows', true)`) — a request the light's own
+  `castsShadow` and this scene-wide switch both have to grant, per
+  `ProjectLight.castsShadow`'s own doc comment.
+- **Environment** — the built-in sky presets, **Studio**
+  (`SetEnvironment(studio)`) rather than the default `none`, and this
+  panel's own **Ambient** slider, lowered for contrast against the one lit
+  source (`SetSceneLightingField('ambientIntensity', 0.12)`).
+- **Post** — **Exposure**, raised slightly
+  (`SetSceneLightingField('exposure', 1.25)`), and **Bloom**
+  (`SetSceneLightingField('bloomEnabled', true)`).
+
+*(screenshot: Scene mode's four panels — sources, shadows, environment,
+post — with the values above set — placeholder)*
+
+> **What you will not see in a headless render: the lighting itself.**
+> `renderProject`/`renderSheet` — the same functions this page's own
+> "expected result" picture below comes from — draw every project under two
+> fixed key/fill lights of their own and never read `ModelProject.lighting`
+> at all: not the point light, not its colour or shadow, not the studio
+> environment, not the post settings. This is `tut-07`, found writing this
+> case, and it echoes a gap already named at the live-viewport layer:
+> `flutter3d_render_job`'s own `scene_from_project.dart` says outright that
+> nothing in the application calls `LightingSync` from the main viewport
+> either (`mat-23`'s still-unfinished wiring) — checked directly rather than
+> assumed, `LightingSync` is instantiated in exactly one place in this whole
+> application, inside `lightOverflowOf`'s own throwaway `Scene`, built only
+> to count lights and never drawn. So a person driving the real GUI sees
+> this step's own light as a marker in the viewport (`LightGizmos`,
+> `mat-25`), but nothing in this build — not the main viewport, not the
+> game-preview route, not either headless render tool — currently draws
+> what that light, its shadow, the environment or the post settings
+> actually do to the picture. The render below is real geometry, real
+> placement, real materials — it is not a lit picture of this step.
+
+![The vase and the imported, moved and turned box, exactly as `renderProject` draws them today — under its own fixed lighting, not the point light, shadows, studio environment or post settings this step just set on the project (tut-07).](/assets/learn/modeler/a-lit-corner/03-lit-corner.png)
+
+## 4. Export, with both nodes
+
+**Export → GLB.** The readiness check finds one warning, the same shape
+case 1's own diagnosis step showed:
+
+```
+exports with a warning: "vase" has 109 faces with more than three sides and
+the target format holds only triangles; the export will cut them, and it may
+not cut them the way you would
+```
+
+A body of revolution's own quads and the loop cut's own n-gons, expected on
+a mesh nobody has triangulated by hand — a warning, not an error, and the
+export proceeds. Decoding the written GLB back:
+
+- **3 nodes** — the vase, the box's own empty root at its moved-and-turned
+  transform, and the box's mesh as that root's child.
+- **2 surfaces** — the vase and the box mesh, each a node with real
+  geometry; the empty root carries none of its own.
+- **2 materials** — the vase's own "glazed clay" and the box's own
+  textured material from `BoxTextured.glb`. They do not match, so both
+  stay in the export table rather than being folded into one — `ImportInto`
+  only dedupes materials that would write the identical manifest entry, and
+  these two genuinely do not.
+
+*(screenshot: the export dialog, the readiness warning, the file about to
+write — placeholder)*
+
+## 5. Into the cabinet
+
+Upload the GLB the same way case 1 did — sign in at models.pleion.dev, use
+the site's own uploader, and **Open in viewer** loads it at `/app/`.
+
+---
+
+## Notes on this page
+
+**Time to complete:** not recorded yet. `TODO`: a person should walk this
+case by hand on a real machine and fill in a line here — "*n* minutes,
+*date*, *machine*" — the way `rel-09`'s own cohort rows do. Nothing in this
+session could actually run the desktop app, so no time is claimed.
+
+**Screenshots.** Three pictures on this page are placeholders — a plain
+colour with "screenshot pending" on it, at
+`cloud/server/web/assets/learn/modeler/a-lit-corner/{01-scene-viewport-gizmo,
+02-scene-mode-panel,04-export-two-nodes}.png` — standing in for the running
+app's own chrome (the viewport with the outliner and gizmo, Scene mode's
+four panels, the export dialog). This session cannot open a macOS window
+(`flutter run -d macos` fails to foreground here, the same limit case 1 and
+case 2's own pages already document), so none of the three could be shot for
+real. To replace them on a real Mac:
+
+1. `cd apps/flutter3d_modeler && flutter run -d macos --dart-define=mcpPort=0 -a --window=1440x900`
+2. `dart run tool/tutorial/bin/shoot.dart` against a scenario that: opens
+   case 2's own saved project, imports `BoxTextured.glb`, and shows the
+   viewport with both objects and the outliner (`01-scene-viewport-gizmo`);
+   drags the box into the corner and turns it, with the gizmo and pivot
+   indicator visible (also `01-scene-viewport-gizmo`, or a second frame if
+   the drag and the result want separate shots); switches to Scene mode and
+   sets the light, shadow, environment and post values this page names,
+   showing all four panels (`02-scene-mode-panel`); opens the export dialog
+   on the GLB with the n-gon warning showing (`04-export-two-nodes`).
+3. Copy the PNGs over the placeholders at the paths above and remove this
+   note once they are real.
+
+**The one real render.** `03-lit-corner.png` is a genuine CPU render of this
+case's own project data — the vase and the box at their real, moved and
+turned positions, through the same `renderProject` the `render`/
+`renderSheet` MCP tools use — but it cannot show the lighting this case's
+own step 3 sets up, because nothing in the render path reads
+`ModelProject.lighting` yet. See the callout in step 3 and `tut-07` in
+`doc/modeler-tutorial-gaps.md` for the full story; this is a headless-render
+(and, per `mat-23`, live-viewport-snapshot) gap, not something this case
+invented a workaround for.
+
+**Proving it.** `packages/flutter3d_model_mcp/test/fixtures/tutorial/
+case3_scenario.dart` builds exactly the project this page describes, against
+a live `ModelSession` seeded with case 2's own saved project
+(`case3StartingProject`, which reads the committed `case2.f3dproj` through
+`readProject` and merges `BoxTextured.glb` into it through the free
+`importInto` function — the same one `ModelSession.import` itself calls,
+used directly here rather than through the session for the same reason
+case 1's own STL import bypasses it: `ReplaceDocument`, what an import
+actually runs, is deliberately not journalable; see the callout in step 1
+for the separate reason a person cannot yet drive this particular step
+through the app's own UI at all, `tut-08`). `tutorial_scenarios_test.dart`'s
+own case-3 group checks four things: the scenario reaches the exact project
+committed as `case3.f3dproj` and exports the exact `case3.glb`, byte for
+byte, with `compareModelDocuments` confirming the decoded GLB matches too;
+the exported GLB really does carry both assets as separate surface-bearing
+nodes at different, non-identical placements, keeping their own two
+materials rather than merging them; the project's own `SceneLighting` holds
+the light, the shadow request, the studio environment and bloom exactly as
+this page describes; and — the same shape case 2's own `tut-05` finding
+already predicted for a case like this one — `case3.jsonl`, replayed
+through `CommandJournal.replay` from right after the import (a cold
+`CommandJournal` cannot see the import either, for the reason above), gets
+stuck at the very first `moveBy` for want of a selection nothing in this
+journal format can record. Selecting the box live, the way a person
+clicking the gizmo or an agent calling `select` then `run` over MCP always
+does, reaches the case's own fixture without trouble — driving it is what
+`dart test test/tutorial_scenarios_test.dart` actually does.
