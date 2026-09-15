@@ -3,7 +3,7 @@ name: flutter3d-app-assembly-layer
 description: Use when starting or wiring a flutter3d application — this one import is the assembly layer, and a game still names the engine and its genre for itself.
 ---
 
-# One import for the wiring, and no code of its own
+# One import for the wiring, plus the backend choice
 
 ```dart
 import 'package:flutter3d_app/flutter3d_app.dart';
@@ -11,18 +11,20 @@ import 'package:flutter3d_app/flutter3d_app.dart';
 final device = await openDevice(width: 1280, height: 720);
 ```
 
-Five `export` lines over the packages an application needs beyond the renderer
-and the simulation:
+`export` lines over four packages an application needs beyond the renderer
+and the simulation, plus one own file for the backend choice —
+`flutter3d_backend`'s own code, folded in by the package-merge plan:
 
 | Behind the facade | What it gives |
 |---|---|
-| `flutter3d_backend` | `openDevice`, `kFixedResolution` |
+| this package's own `backend_native.dart`/`backend_web.dart` | `openDevice`, `kFixedResolution` |
 | `flutter3d_session` | `SceneSurface`, `RunSession`, the frame clock |
 | `flutter3d_screens` | settings, volumes, rebinding, credits, saves |
 | `pad_input` | a gamepad, as a snapshot the caller asks for |
 | `pointer_lock` | desktop mouse capture, which Flutter offers nowhere |
 
-None of the five know about each other, and this does not change that.
+None of the four re-exported packages know about each other, and this does
+not change that.
 
 ## What is deliberately not behind it
 

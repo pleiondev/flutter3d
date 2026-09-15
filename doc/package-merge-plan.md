@@ -144,17 +144,44 @@ crypt...», `LevelFormatException` на `widget_surface` в `ShooterHeadlessGame
 (7516→7514, −2 сеть эффект: +2 у sim_mcp, −4 у ушедшего render_mcp) и числа
 пакетов (47→46) в четырёх документах и построчной таблице `testing.md`.
 
-### 3.6 `flutter3d_backend` → `flutter3d_app` — р. S, pub (оба)
+### 3.6 `flutter3d_backend` → `flutter3d_app` — код сделан 2026-09-15, публикация — нет
 
 `app` — barrel из пяти `export`, `backend` — 188 строк условного импорта
 «какой бэкенд открыть» и `openDevice`. Вместе это один пакет «сборка
-приложения». `app` уже re-экспортирует `backend`, поэтому семь приложений,
-которые импортируют `flutter3d_app`, не заметят ничего. Прямой импорт
-`flutter3d_backend` остался только в `apps/flutter3d_demo_strategy/pubspec.yaml`
-— убрать строку.
+приложения». `app` уже re-экспортировал `backend`, поэтому семь приложений,
+которые импортируют `flutter3d_app`, не заметили ничего.
+
+**Прямых потребителей оказалось четыре, не один, как называла первая
+формулировка этого пункта.** `apps/flutter3d_demo_strategy/pubspec.yaml` —
+да, но `flutter3d/example/lib/minimal_main.dart`,
+`flutter3d/example/lib/instancing_scale_probe.dart` и
+`flutter3d_stereo/example/lib/main.dart` тоже импортировали
+`package:flutter3d_backend/flutter3d_backend.dart` напрямую, ради ровно
+одной вещи — `openDevice()`. Найдено чтением `rg -l`, а не предположено:
+формулировка плана проверяла только `pubspec.yaml`-строки, не сами импорты.
+Все четыре теперь берут `openDevice` из `flutter3d_app`; три примера
+сменили прямую зависимость на `flutter3d_app`, у strategy строка
+`flutter3d_backend` в `pubspec.yaml` была просто не нужна (ни один файл
+приложения не импортировал пакет напрямую) и убрана без замены.
 
 Правило `the engine names no backend` читает только `packages/flutter3d`, так
 что `app`, назвавший четыре бэкенда, его не нарушает.
+
+**Код слит, версии — нет.** Пункт 9 списка §6 требует `0.7.0` у
+принимающего пакета и последний `flutter pub publish` плюс `discontinued`/
+`replaced_by` через pub.dev admin у уходящего — оба обязательно ручные,
+последнее в принципе не автоматизируется отсюда: ни явного `dart pub
+publish`, ни доступа к pub.dev admin у этой сессии нет и не может быть.
+Версия `flutter3d_app` в `pubspec.yaml` намеренно оставлена `0.6.0` —
+поднимать её сейчас значило бы утверждать в README то, что pub.dev ещё не
+показывает, до настоящей публикации. `packages/flutter3d_backend` удалён из
+дерева; последняя опубликованная версия `0.6.0` остаётся на pub.dev как
+есть, пока владелец не решит её судьбу. `flutter analyze` чисто везде;
+`flutter test` — `flutter3d_app` (2 файла, оба перенесённых теста, VM и
+`--platform chrome`), три примера-потребителя проанализированы. `dart run
+tool/structure.dart` — 32/32 после правки числа тестов (7514, без
+изменений — 4 теста ушли с `backend`, 4 пришли на `app`) и числа пакетов
+(46→45) в тех же местах, что и у 3.5.
 
 ### 3.7 `flutter3d_session` → `flutter3d_screens` — р. M, pub (оба)
 
@@ -165,10 +192,11 @@ crypt...», `LevelFormatException` на `widget_surface` в `ShooterHeadlessGame
 Предлагаемое имя — **`flutter3d_session`** (оно шире), `screens` уходит в
 `lib/src/screens/`.
 
-Доклад в `flutter3d_app/lib/flutter3d_app.dart` «пять пакетов, никто из
-которых не знает о другом» и так неверен: `session` знает о `screens`.
-После 3.6 и 3.7 barrel будет re-экспортировать три пакета: `session`,
-`pad_input`, `pointer_lock`, плюс собственный код выбора бэкенда.
+Доклад в `flutter3d_app/lib/flutter3d_app.dart` уже поправлен под 3.6
+(«пять пакетов» → «четыре плюс код бэкенда»), но и в новом виде неверен по
+той же причине: `session` знает о `screens`. После 3.7 barrel будет
+re-экспортировать два пакета — `session`, вобравший `screens`, `pad_input`,
+`pointer_lock` — плюс собственный код выбора бэкенда, уже слитый в 3.6.
 
 ## 4. Спорное: `flutter3d_particles` → `flutter3d`
 
@@ -252,8 +280,7 @@ discontinued. Переименовать `particles_core` в `particles` нел�
 | `flutter3d_webgl` | 15 131 | да | §1.3 `web`, условный импорт | остаётся |
 | `flutter3d_webgpu` | 20 293 | да | бэкенд, WGSL | остаётся |
 | `flutter3d_cpu` | 6 443 | да | софтверный бэкенд, 19 зависимых | остаётся |
-| `flutter3d_backend` | 188 | да | история | → `app` (3.6) |
-| `flutter3d_app` | 35 | да | barrel | принимает `backend` |
+| `flutter3d_app` | ~220 | да | barrel + backend | приняла `backend` (3.6, код сделан 2026-09-15, публикация — нет) |
 | `flutter3d_session` | 1 737 | да | история | принимает `screens` (3.7) |
 | `flutter3d_screens` | 2 664 | да | §1.3 `flutter_bloc`, но `session` уже зависит | → `session` (3.7) |
 | `flutter3d_conformance` | 4 598 | да | §1.3 `flutter_test` | остаётся |

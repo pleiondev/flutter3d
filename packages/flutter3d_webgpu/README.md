@@ -15,7 +15,7 @@ float target reads back as a picture.
     final device = await openWebGpu(width: 960, height: 540);
 
 **A browser build does not open this backend unless it asks.**
-`flutter3d_backend` opens WebGL2 in a browser and tries WebGPU first only behind
+`flutter3d_app` opens WebGL2 in a browser and tries WebGPU first only behind
 `--dart-define=FLUTTER3D_WEBGPU=true`; the engine's own example takes
 `?backend=webgpu` in the URL instead, because a golden stand that serves
 forty-three scenes from one build should not spend that saving on a define. The

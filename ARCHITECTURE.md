@@ -200,7 +200,6 @@ point of §3.3.
 | `flutter3d_webgl` | The WebGL2 backend, and GLSL translated from `flutter3d_shaders` |
 | `flutter3d_webgpu` | The WebGPU backend, and WGSL with its reflection, translated from `flutter3d_shaders`. The only backend whose shaders are not the same text the others read |
 | `flutter3d_cpu` | A software rasteriser: a second reference, and rendering with no GPU |
-| `flutter3d_backend` | Picks a backend for a build — conditional import plus `openDevice` |
 | `flutter3d_conformance` | The contract suite every backend passes |
 | `flutter3d_shaders` | The GLSL both hardware backends compile, and the list of required entry points |
 | `flutter3d` | The engine: scene graph, render list, passes, materials, assets, animation |
@@ -223,7 +222,7 @@ point of §3.3.
 | `flutter3d_audio` | Loading, streaming, 3D positioning, voice limits, mix buses |
 | `flutter3d_screens` | Screens that are not the game: menus, settings, rebinding, storage |
 | `flutter3d_session` | The run lifecycle that ties a game, a device and a screen together |
-| `flutter3d_app` | The assembly layer, as one import |
+| `flutter3d_app` | The assembly layer, as one import — including which backend a build draws through, folded in from `flutter3d_backend` by the package-merge plan |
 | `flutter3d_editor_core` | The headless half of a level editor: the document being changed and undone, the handles a pointer hits, the palette a level builds out of itself, the project a template becomes. Plain Dart |
 | `flutter3d_editor_mcp` | The same editor offered to an agent: `EditorCommand` as a table of MCP tools over stdio, one document per process, plus the two verbs a caller with no screen needs — a flat listing, and the validator. Plain Dart |
 | `flutter3d_mcp_kit` | What every MCP server here shares: a tool paired with its handler, a server that is a list of them over one session, the two shapes of answer, and a loopback HTTP transport an open application offers its session over. Plain Dart |
@@ -885,10 +884,13 @@ golden images, and it is what lets rendering run in CI with no graphics card.
 Agreement between two independent implementations is evidence; agreement of one
 with itself is a tautology.
 
-`flutter3d_backend` chooses one for a build through a conditional import on
-`dart.library.js_interop`. It is a separate package rather than part of the
-session layer, because sessions would then depend on every backend, and the editor
-— which has no web build — would pull WebGL in transitively.
+`flutter3d_app` chooses one for a build through a conditional import on
+`dart.library.js_interop` — `flutter3d_backend`'s own code, folded in by the
+package-merge plan. It stays out of the session layer itself rather than
+moving there too, because sessions would then depend on every backend, and
+the editor — which has no web build and depends on `flutter3d_session`
+directly, never through the `flutter3d_app` barrel — would pull WebGL in
+transitively.
 
 ### 7.1 What is promised
 
@@ -1905,7 +1907,7 @@ entities a game defines.
 |---|---|
 | Style | `dart format` |
 | Analysis | `flutter analyze` clean across the workspace, no warnings |
-| Unit tests | **7514 tests** across 46 packages and 10 applications |
+| Unit tests | **7514 tests** across 45 packages and 10 applications |
 | Structure rules | 32, `dart run tool/structure.dart`, the first CI step |
 | CI | GitHub Actions over `tool/ci.sh`, on `ubuntu-latest`, with no graphics card |
 
@@ -2799,7 +2801,7 @@ what went out at 0.4.2.
    `flutter3d_particles`, `flutter3d_sim`
 6. `flutter3d_game`, `flutter3d_editor_core`, `flutter3d_net`, `flutter3d_render_job`,
    `flutter3d_lab`, `flutter3d_stereo`
-7. `flutter3d_screens`, `flutter3d_backend`, `flutter3d_testing`,
+7. `flutter3d_screens`, `flutter3d_testing`,
    `flutter3d_editor_mcp`, `flutter3d_model_mcp`, `flutter3d_net_webrtc`
 8. `flutter3d_session`
 9. `flutter3d_bridge`, `flutter3d_app`

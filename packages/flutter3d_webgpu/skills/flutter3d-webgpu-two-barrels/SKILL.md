@@ -18,7 +18,7 @@ compiled for a browser.
 final device = await openWebGpu(width: 960, height: 540);
 ```
 
-Most applications call `openDevice` from `flutter3d_backend` instead.
+Most applications call `openDevice` from `flutter3d_app` instead.
 WebGPU is opened only behind `--dart-define=FLUTTER3D_WEBGPU=true` (the engine's
 example takes `?backend=webgpu`), because a probe able to call either opener
 keeps both backends reachable and dart2js ships what it can reach — 376,649

@@ -82,7 +82,7 @@ Future<GraphicsDevice> openDevice({
       return await openWebGpu(width: width, height: height);
     } catch (error) {
       debugPrint(
-        'flutter3d_backend: WebGPU would not start ($error), '
+        'flutter3d_app: WebGPU would not start ($error), '
         'falling back to WebGL2',
       );
     }

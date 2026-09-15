@@ -39,7 +39,7 @@ The line in the top corner is the score — what each side has delivered — and
 
 ## What changed in the application
 
-Nothing in the engine and nothing in the simulation. The conditional import that picks a backend is not in this application at all any more — it lives in `flutter3d_backend`, reached through the `flutter3d_app` barrel — so what an application keeps is only what no two of them share:
+Nothing in the engine and nothing in the simulation. The conditional import that picks a backend is not in this application at all any more — it lives in `flutter3d_app` (`flutter3d_backend`'s own code, folded in by the package-merge plan) — so what an application keeps is only what no two of them share:
 
 ```dart
 // apps/flutter3d_demo_strategy/lib/src/backend.dart

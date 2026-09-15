@@ -10,13 +10,14 @@ topics:
   - game-engine
   - application
 
-# A barrel over five packages the three games already imported individually —
-# flutter3d_backend, flutter3d_session, flutter3d_screens, pad_input, pointer_lock —
-# none of which know about each other and none of which should start to. This
-# package adds no code of its own; it exists so an application's own pubspec
-# and main.dart say "the assembly layer" once instead of five names, the way
-# `flutter3d` already says "the renderer" once instead of naming
-# `flutter3d_hardware` itself.
+# A barrel over four packages the three games already imported individually —
+# flutter3d_session, flutter3d_screens, pad_input, pointer_lock — none of
+# which know about each other and none of which should start to, plus the
+# backend choice itself (which graphics API a build draws through), merged
+# in from flutter3d_backend by the package-merge plan rather than re-exported.
+# An application's own pubspec and main.dart say "the assembly layer" once
+# instead of five names, the way `flutter3d` already says "the renderer" once
+# instead of naming `flutter3d_hardware` itself.
 #
 # What is deliberately not behind it: `flutter3d`, `flutter3d_bridge`,
 # `flutter3d_game` and a genre package. Those are content, not assembly, and a
@@ -29,11 +30,19 @@ dependencies:
   flutter:
     sdk: flutter
 
-  flutter3d_backend: ^0.6.0
   flutter3d_session: ^0.6.0
   flutter3d_screens: ^0.6.0
   pad_input: ^0.4.0
   pointer_lock: ^0.4.0
+
+  # The backend choice, folded in from `flutter3d_backend` — see
+  # `backend_native.dart`/`backend_web.dart`'s own comments for why each
+  # dependency below is there.
+  flutter3d_hardware: ^0.6.0
+  flutter3d_impeller: ^0.6.0
+  flutter3d_webgl: ^0.6.0
+  flutter3d_cpu: ^0.6.0
+  flutter3d_webgpu: ^0.6.0
 
 dev_dependencies:
   flutter_test:

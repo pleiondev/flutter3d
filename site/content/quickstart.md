@@ -91,7 +91,7 @@ tool/ci.sh                                  # shaders, analyze, every test
 (cd packages/flutter3d_physics && dart test) # plain Dart, no Flutter needed
 ```
 
-7514 tests across 46 packages and ten applications, and only about thirty need a GPU: the Impeller half of the golden set. The other half renders through the software backend, so forty-four scenes stay checkable in a headless run.
+7514 tests across 45 packages and ten applications, and only about thirty need a GPU: the Impeller half of the golden set. The other half renders through the software backend, so forty-four scenes stay checkable in a headless run.
 
 ## Your own application
 
@@ -163,7 +163,7 @@ Scene buildScene(GraphicsDevice device) {
 ```
 
 <div class="note">
-<p>None of the three shipped games open a device this way. Hand-rolling <code>GpuRenderBackend.create()</code> and a bare <code>Ticker</code> is what this page teaches because it is what is actually happening underneath, but by the second game the same conditional import, frame surface and level lifecycle had been copy-pasted three times. <a href="/core/session/">Assembling an application</a> is the guide for the pattern the games use instead: <code>flutter3d_backend</code>, <code>flutter3d_session</code> and <code>flutter3d_screens</code>.</p>
+<p>None of the three shipped games open a device this way. Hand-rolling <code>GpuRenderBackend.create()</code> and a bare <code>Ticker</code> is what this page teaches because it is what is actually happening underneath, but by the second game the same conditional import, frame surface and level lifecycle had been copy-pasted three times. <a href="/core/session/">Assembling an application</a> is the guide for the pattern the games use instead: <code>flutter3d_app</code>, <code>flutter3d_session</code> and <code>flutter3d_screens</code>.</p>
 </div>
 
 ## Where to go next

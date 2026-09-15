@@ -190,7 +190,7 @@ void main() {
 
   test('and its README says how to make Impeller actually start', () {
     // **The failure this stops is a silent one.** Without the two Info.plist
-    // keys `flutter_gpu` refuses, `flutter3d_backend.openDevice` catches that
+    // keys `flutter_gpu` refuses, `flutter3d_app.openDevice` catches that
     // and opens the software rasteriser instead, and the project runs and
     // draws — so a new author's first impression of the engine's speed is the
     // fallback's, with nothing on screen to say so. There is no `macos/` until

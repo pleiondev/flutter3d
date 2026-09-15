@@ -8,7 +8,7 @@ Two ways in, smallest first.
 flutter run -t lib/minimal_main.dart
 ```
 
-It opens its device through `flutter3d_backend`, so the same file runs on
+It opens its device through `flutter3d_app`, so the same file runs on
 Impeller (desktop, mobile), WebGL2 (web) and the software rasteriser (anywhere
 neither will start — including `flutter test`, which is how
 `test/minimal_smoke_test.dart` runs it headless). A web build of it will try

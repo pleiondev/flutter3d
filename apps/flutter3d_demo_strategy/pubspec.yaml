@@ -13,7 +13,6 @@ dependencies:
 
   flutter3d: ^0.6.0
   flutter3d_app: ^0.6.0
-  flutter3d_backend: ^0.6.0
   flutter3d_game: ^0.6.0
   flutter3d_game_strategy: ^0.6.0
 

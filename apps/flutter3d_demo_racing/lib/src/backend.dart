@@ -2,12 +2,11 @@
 ///
 /// **The choosing is not here any more.** The conditional import and
 /// `openDevice` were three files here and the same three in the other two
-/// games; they live in `flutter3d_backend` now, reached through the
-/// `flutter3d_app` barrel this file re-exports rather than naming
-/// `flutter3d_backend` directly, since the app's own pubspec no longer lists
-/// it by name either. What stays is what was never shared, and this game has
-/// more of it than the other two: a smaller frame and a smaller shadow atlas
-/// in a browser.
+/// games; they live in `flutter3d_app` now — `flutter3d_backend`'s own code,
+/// folded in by the package-merge plan — reached through the barrel this
+/// file re-exports rather than naming a backend package directly. What stays
+/// is what was never shared, and this game has more of it than the other
+/// two: a smaller frame and a smaller shadow atlas in a browser.
 library;
 
 import 'package:flutter3d_app/flutter3d_app.dart';

@@ -2,11 +2,12 @@
 ///
 ///     flutter test test/backend_choice_test.dart
 ///
-/// **This package had no tests at all**, and `tool/ci.sh` skips a package with
-/// none — so the file that decides which graphics API a build draws through was
-/// touched by `flutter analyze` and by nothing else. Its failure mode is the
-/// expensive kind: the wrong backend, on the wrong platform, at run time, on a
-/// machine nobody has.
+/// **Moved here from `flutter3d_backend` by the package-merge plan.** Neither
+/// package had a test at all before this one existed, and `tool/ci.sh` skips a
+/// package with none — so the file that decides which graphics API a build
+/// draws through was touched by `flutter analyze` and by nothing else. Its
+/// failure mode is the expensive kind: the wrong backend, on the wrong
+/// platform, at run time, on a machine nobody has.
 ///
 /// What can honestly be asserted here is the *shape* rather than the picture. A
 /// VM test is the native half by construction, so the web half cannot be
@@ -21,7 +22,7 @@
 @TestOn('vm')
 library;
 
-import 'package:flutter3d_backend/flutter3d_backend.dart';
+import 'package:flutter3d_app/flutter3d_app.dart';
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:flutter_test/flutter_test.dart';
 

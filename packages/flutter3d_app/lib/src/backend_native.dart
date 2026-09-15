@@ -43,7 +43,7 @@ Future<GraphicsDevice> openDevice({
     return await GpuRenderBackend.create();
   } catch (error) {
     debugPrint(
-      'flutter3d_backend: Impeller would not start ($error), '
+      'flutter3d_app: Impeller would not start ($error), '
       'falling back to the software rasteriser',
     );
     return CpuDevice(

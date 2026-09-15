@@ -47,7 +47,7 @@ dependencies:
   # A scaffolded project got a window and a level and no way to turn the
   # volume down, which is not a starting point anybody would choose.
   #
-  # It brings `flutter3d_backend` too, so the game picks its backend the way
+  # It brings the backend choice too, so the game picks its backend the way
   # the three demos do rather than naming Impeller here: a project that names
   # one backend has no web build and no software fallback.
   flutter3d_app: ^0.6.0
@@ -131,9 +131,9 @@ Flutter GPU is enabled per application rather than per channel, and Impeller is
 not yet the default renderer on macOS. Nothing can write these for you: there
 is no `macos/` directory until `flutter create` makes one. **Skipping them does
 not fail** — the game opens and draws, through the Dart software rasteriser,
-because that is what `flutter3d_backend` falls back to when Impeller will not
+because that is what `flutter3d_app` falls back to when Impeller will not
 start. The only sign is a line in the console beginning
-`flutter3d_backend: Impeller would not start`, and a frame rate that is the
+`flutter3d_app: Impeller would not start`, and a frame rate that is the
 fallback's rather than the engine's. If you see that line, these keys are why.
 
 ```sh
