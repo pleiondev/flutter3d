@@ -25,7 +25,6 @@ library;
 import 'dart:typed_data';
 
 import 'package:flutter3d/flutter3d.dart';
-import 'package:flutter3d_fbx/flutter3d_fbx.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 
 import 'staging.dart';

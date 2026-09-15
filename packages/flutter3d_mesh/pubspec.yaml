@@ -18,8 +18,9 @@ dependencies:
   # What an edited mesh turns into and comes from: `MeshData`, `VertexLayout`,
   # the shape generators an object starts as, and `Ray` for picking. The
   # direction is one-way — geometry describes a finished mesh, this package is
-  # what a person is halfway through editing.
-  flutter3d_geometry: ^0.6.0
+  # what a person is halfway through editing. `flutter3d_core`'s geometry
+  # library; the package is plain Dart, so this one stays that way.
+  flutter3d_core: ^0.1.0
 
   vector_math: ^2.2.0
 

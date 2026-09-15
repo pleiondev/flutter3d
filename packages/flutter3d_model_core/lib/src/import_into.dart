@@ -43,7 +43,7 @@ library;
 
 import 'dart:convert';
 
-import 'package:flutter3d_formats/flutter3d_formats.dart';
+import 'package:flutter3d_core/formats.dart';
 
 import 'material.dart';
 import 'project.dart';

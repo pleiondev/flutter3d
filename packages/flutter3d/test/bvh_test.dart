@@ -1,11 +1,11 @@
 import 'dart:math' as math;
 import 'dart:typed_data';
 
+import 'package:flutter3d_core/geometry.dart';
 import 'package:flutter3d_core/src/engine/render/material.dart';
 import 'package:flutter3d_core/src/engine/render/render_list.dart';
 import 'package:flutter3d_core/src/engine/render/render_view.dart';
 import 'package:flutter3d_core/src/engine/scene/scene_graph.dart';
-import 'package:flutter3d_geometry/flutter3d_geometry.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart' hide Ray;
 

@@ -15,7 +15,7 @@
 /// so importing and exporting move indices about rather than rebuilding them.
 library;
 
-import 'package:flutter3d_formats/flutter3d_formats.dart';
+import 'package:flutter3d_core/formats.dart';
 
 import 'texture_graph.dart';
 

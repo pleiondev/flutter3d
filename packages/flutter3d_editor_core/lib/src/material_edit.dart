@@ -25,7 +25,7 @@ library;
 import 'dart:convert';
 import 'dart:typed_data';
 
-import 'package:flutter3d_formats/flutter3d_formats.dart';
+import 'package:flutter3d_core/formats.dart';
 
 /// [document] with one field changed, or null when the change would produce a
 /// `.fmat` this engine's own reader does not take as written.

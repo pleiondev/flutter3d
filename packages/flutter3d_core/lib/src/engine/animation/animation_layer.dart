@@ -1,4 +1,4 @@
-import 'package:flutter3d_formats/flutter3d_formats.dart';
+import 'package:flutter3d_core/formats.dart';
 import 'animation_target.dart';
 
 /// Where a track sits in a pose: one number for a node and a path together.

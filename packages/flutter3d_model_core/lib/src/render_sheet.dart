@@ -18,7 +18,7 @@ library;
 import 'dart:typed_data';
 
 import 'package:flutter3d_core/flutter3d_core.dart' show GraphicsDevice;
-import 'package:flutter3d_formats/flutter3d_formats.dart'
+import 'package:flutter3d_core/formats.dart'
     show Rgba8Image, decodeImagePure, encodeCompressedPng;
 
 import 'project.dart';

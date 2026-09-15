@@ -44,7 +44,7 @@ dev_dependencies:
   # for the one test that checks a *rendered* round trip rather than a byte
   # one. Neither is a real dependency: nothing this package ships builds a
   # `ModelDocument`.
-  flutter3d_formats: ^0.6.0
+  flutter3d_core: ^0.1.0
   flutter3d_samples: ^0.4.2
 
 resolution: workspace

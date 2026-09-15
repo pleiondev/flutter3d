@@ -11,7 +11,7 @@ import 'dart:io';
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
-import 'package:flutter3d_formats/flutter3d_formats.dart';
+import 'package:flutter3d_core/formats.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 /// [path] decoded through `dart:ui`, straight (non-premultiplied) RGBA —

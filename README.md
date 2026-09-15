@@ -36,7 +36,6 @@ genres, and the generated API reference.
 | [`packages/flutter3d`](packages/flutter3d) | The renderer: scene graph, glTF/OBJ/`.f3d` loading, six lighting models, shadows, bloom, skinning, BVH culling, picking. [README](packages/flutter3d/README.md) |
 | [`packages/flutter3d_game`](packages/flutter3d_game) | The game layer: a fixed timestep, interpolation, input that has forgotten which device it came from, levels and mechanisms. [README](packages/flutter3d_game/README.md) |
 | [`packages/flutter3d_physics`](packages/flutter3d_physics) | Collision shapes, a broadphase, queries, a character controller and an XPBD cloth solver. Plain Dart — no Flutter, no renderer |
-| [`packages/flutter3d_fbx`](packages/flutter3d_fbx) | A `ModelDecoder` for Autodesk's FBX — the skeleton for now, recognising a file and refusing to read it with a clear reason. Plain Dart |
 | [`packages/flutter3d_game_shooter`](packages/flutter3d_game_shooter) | One genre: monsters, weapons, an inventory, the step order that ties them together, and the weapon held in the hands |
 | [`packages/flutter3d_game_platformer`](packages/flutter3d_game_platformer) | A second genre, and the instrument that tests the first: a runner who jumps twice, coins, hazards and checkpoints |
 | [`packages/flutter3d_bridge`](packages/flutter3d_bridge) | Where the two meet: level geometry to mesh nodes, an actor to its visual, a fixture to the light it drives |
@@ -44,8 +43,7 @@ genres, and the generated API reference.
 | [`packages/pad_input`](packages/pad_input) | A gamepad, read as a snapshot once per frame. Button names are physical positions, because they end up in a player's config file; the web backend is pure Dart. [README](packages/pad_input/README.md) |
 | [`packages/pointer_lock`](packages/pointer_lock) | Relative mouse deltas: a method channel on macOS, the browser's own Pointer Lock API on the web. Flutter surfaces neither |
 | [`packages/flutter3d_samples`](packages/flutter3d_samples) | The Khronos test models, as fixtures rather than as the engine's own assets — so a game built on it carries the decoders and not the 4.1 MB they were checked against |
-| [`packages/flutter3d_geometry`](packages/flutter3d_geometry) | The geometry the engine is written in, with no Flutter SDK behind it: vertex layouts, mesh data, shape generators, tangents, morph targets and ray intersections. Plain Dart, so a modeller's document layer or a tool an agent starts can name a mesh without a window. [README](packages/flutter3d_geometry/README.md) |
-| [`packages/flutter3d_formats`](packages/flutter3d_formats) | The formats it reads and writes, with no Flutter SDK behind them: `ModelDocument` and its materials, glTF/GLB, OBJ, the engine's own `.f3d` and `.fmat`. What fetches the bytes — the isolate, the asset bundle, `dart:io` — stayed in the engine. [README](packages/flutter3d_formats/README.md) |
+| [`packages/flutter3d_core`](packages/flutter3d_core) | The renderer with no Flutter SDK behind it, and two libraries it draws from that import on their own: `geometry.dart` (vertex layouts, mesh data, shape generators, tangents, morph targets, ray intersections) and `formats.dart` (`ModelDocument` and its materials, glTF/GLB, OBJ, STL, USDZ, `.f3d`, `.fmat`, and an FBX decoder that refuses with a reason). Plain Dart, so a modeller's document layer or a tool an agent starts can read a mesh or a `.glb` without a window |
 | [`packages/flutter3d_hardware`](packages/flutter3d_hardware) | The abstraction over graphics APIs: a device, an encoder, a pass. Its vocabulary is its own — it names no API, so a fourth backend changes no user code. Plain Dart |
 | [`packages/flutter3d_impeller`](packages/flutter3d_impeller) | The desktop backend, over `flutter_gpu`. Also where the shader build lives |
 | [`packages/flutter3d_webgl`](packages/flutter3d_webgl) | The web backend, over WebGL2. What an ordinary browser build draws through |
@@ -158,7 +156,7 @@ Or one package at a time:
 (cd packages/flutter3d_physics && dart test)   # plain Dart, no Flutter needed
 ```
 
-7443 tests across forty-one packages and eight applications, and the only
+7443 tests across thirty-eight packages and eight applications, and the only
 ones that need a GPU are the
 Impeller half of the golden set. The other half is rendered by the software
 backend, which is what makes 43 scenes checkable in a headless run.

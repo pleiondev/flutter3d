@@ -625,7 +625,7 @@ Iterable<String> _importedUris(String source) => RegExp(
 ///
 /// **Normalized, not just made absolute.** A relative import climbing out of
 /// its own directory (`../asset_source.dart`, common wherever
-/// `flutter3d_formats/lib/src/{f3d,gltf,obj,stl,usdz}/` reaches a sibling)
+/// `flutter3d_core/lib/src/formats/{f3d,gltf,obj,stl,usdz}/` reaches a sibling)
 /// used to come back as a literal `.../f3d/../asset_source.dart` — a
 /// different string for the same file depending on which directory imported
 /// it from. `_pathToFlutter`'s `seen` set dedupes by string, so five

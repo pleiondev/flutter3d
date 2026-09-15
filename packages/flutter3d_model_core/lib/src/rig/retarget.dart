@@ -13,7 +13,7 @@ library;
 
 import 'dart:typed_data';
 
-import 'package:flutter3d_formats/flutter3d_formats.dart';
+import 'package:flutter3d_core/formats.dart';
 import 'package:vector_math/vector_math.dart';
 
 import 'bone_map.dart';

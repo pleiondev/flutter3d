@@ -22,10 +22,10 @@ library;
 
 import 'dart:typed_data';
 
-import 'package:flutter3d_formats/flutter3d_formats.dart' as formats;
+import 'package:flutter3d_core/formats.dart' as formats;
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 
-export 'package:flutter3d_formats/flutter3d_formats.dart'
+export 'package:flutter3d_core/formats.dart'
     show
         Ktx2FormatException,
         Ktx2HeaderField,

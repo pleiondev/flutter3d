@@ -161,7 +161,7 @@ step "webgpu shaders" bash -c 'cd packages/flutter3d_webgpu && dart run tool/gen
 
 # **`qa-09`: the real Khronos validator, against a fresh `GltfWriter` export.**
 # `fmt-11`'s own checker
-# (`packages/flutter3d_formats/lib/src/gltf/gltf_validate.dart`) only ever
+# (`packages/flutter3d_core/lib/src/formats/gltf/gltf_validate.dart`) only ever
 # checks that a declared `min`/`max` is the data's own, by design — see its
 # doc comment for why the package that writes glTF has no business reaching
 # for Node. This step is the other half: the actual validator, which knows
@@ -365,7 +365,7 @@ step "benchmarks compile" bash -c '
   (cd packages/flutter3d_mesh && dart compile exe tool/bench.dart -o "$out/mesh" >/dev/null)
   (cd packages/flutter3d_mesh && dart compile exe tool/bench_persistence.dart -o "$out/persistence" >/dev/null)
   (cd packages/flutter3d_mesh && dart compile exe tool/bench_isolate.dart -o "$out/isolate" >/dev/null)
-  (cd packages/flutter3d_geometry && dart compile exe tool/bench_bvh.dart -o "$out/bvh" >/dev/null)
+  (cd packages/flutter3d_core && dart compile exe tool/bench_bvh.dart -o "$out/bvh" >/dev/null)
   (cd packages/flutter3d && dart compile exe tool/bench/bench.dart -o "$out/engine" >/dev/null)
 '
 

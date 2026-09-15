@@ -10,7 +10,7 @@
 /// list was deleted.
 library;
 
-import 'package:flutter3d_formats/flutter3d_formats.dart';
+import 'package:flutter3d_core/formats.dart';
 import 'package:vector_math/vector_math.dart';
 
 /// A skinned skeleton: which objects are joints, and how each undoes the

@@ -1,6 +1,6 @@
+import 'package:flutter3d_core/formats.dart';
 import 'package:flutter3d_core/src/engine/assets/model_loader.dart';
 import 'package:flutter3d_core/src/engine/assets/model_writer.dart';
-import 'package:flutter3d_formats/flutter3d_formats.dart';
 import 'package:flutter3d_samples/flutter3d_samples.dart';
 import 'package:flutter_test/flutter_test.dart';
 

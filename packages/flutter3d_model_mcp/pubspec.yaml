@@ -23,13 +23,11 @@ dependencies:
 
   # `ModelDocument`, `F3dWriter`/`ObjWriter`, `decodeModel` — the export and
   # import verbs go through the same document abstraction the rest of the
-  # engine does, rather than knowing about glTF or OBJ themselves.
-  flutter3d_formats: ^0.6.0
-
+  # engine does, rather than knowing about glTF or OBJ themselves — and
   # `FbxDecoder`, handed to `import`'s decode, so an agent asking for an FBX
   # is told what the file is and why it will not read rather than handed an
-  # empty OBJ.
-  flutter3d_fbx: ^0.6.0
+  # empty OBJ. All of it `flutter3d_core`'s formats library.
+  flutter3d_core: ^0.1.0
 
   # `ElementLevel`, for the `select` verb's mesh-mode argument.
   flutter3d_mesh: ^0.6.0
@@ -70,7 +68,6 @@ dependencies:
 dev_dependencies:
   test: ^1.25.0
   flutter_lints: ^6.0.0
-  flutter3d_geometry: ^0.6.0
 
 # **A host starts this with `dart run`, and that is the whole of why every
 # package under it is plain Dart.** `dart run` cannot resolve a package that

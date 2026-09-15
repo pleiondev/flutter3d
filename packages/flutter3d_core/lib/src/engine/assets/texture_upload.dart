@@ -4,7 +4,7 @@ import 'dart:typed_data';
 // `Ktx2Texture` hidden: this package's own thin wrapper of the same name,
 // imported below from `ktx2/ktx2.dart`, is the one that maps to a
 // `TextureFormat` — see that file's doc comment for why the two exist.
-import 'package:flutter3d_formats/flutter3d_formats.dart' hide Ktx2Texture;
+import 'package:flutter3d_core/formats.dart' hide Ktx2Texture;
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 
 import 'image_decoder.dart';

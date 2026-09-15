@@ -28,7 +28,7 @@ import 'dart:typed_data';
 // argument's the same word for the same reason — nothing here reads a
 // material's, and the collision is the one the plan's own critique (Г4/Ж2)
 // gives for keeping the two hierarchies apart in the first place.
-import 'package:flutter3d_formats/flutter3d_formats.dart' hide EnumHint;
+import 'package:flutter3d_core/formats.dart' hide EnumHint;
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 import 'package:vector_math/vector_math.dart';
 

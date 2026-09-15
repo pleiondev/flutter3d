@@ -26,19 +26,13 @@ dependencies:
   flutter3d:
     path: ../../packages/flutter3d
 
-  # `MeshData` and the shape generators a new object starts as.
-  flutter3d_geometry:
-    path: ../../packages/flutter3d_geometry
-
-  # Reading a model: `decodeModel`, `ModelDocument`, and the glTF/OBJ/`.f3d`
-  # decoders behind it.
-  flutter3d_formats:
-    path: ../../packages/flutter3d_formats
-
-  # `FbxDecoder`, handed to every decode this application makes, so an FBX file
-  # names its own format and why it will not open instead of reading as OBJ.
-  flutter3d_fbx:
-    path: ../../packages/flutter3d_fbx
+  # `MeshData` and the shape generators a new object starts as, and reading a
+  # model: `decodeModel`, `ModelDocument`, the glTF/OBJ/`.f3d` decoders behind
+  # it, and `FbxDecoder`, handed to every decode this application makes so an
+  # FBX file names its own format and why it will not open instead of reading
+  # as OBJ.
+  flutter3d_core:
+    path: ../../packages/flutter3d_core
 
   # The mesh being edited, with the topology still in it.
   # The document: a project of objects, the commands that change one, and the

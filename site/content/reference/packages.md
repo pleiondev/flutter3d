@@ -15,19 +15,12 @@ Depends on `flutter3d_hardware` and nothing below it. **Does not** re-export a b
 
 → [The frame](/core/rendering/) · [Scene graph](/core/scene/) · [Geometry](/core/geometry/) · [Assets](/core/assets/)
 
-### `flutter3d_geometry` — the mesh, with no Flutter behind it
-`VertexLayout`, `MeshData`, `MeshBuilder`, the shape generators a scene is sketched from, `MeshGeometry` and `CpuMesh`, tangents by Lengyel, morph targets and `MorphTexture`, and `Ray` with the intersection arithmetic that reads a triangle. Import `package:flutter3d_geometry/flutter3d_geometry.dart`, or take it through `flutter3d`, which exports it whole.
+### `flutter3d_core` — the renderer with no Flutter behind it, and what it draws from
+The scene graph, the render graph, materials and animation, and two libraries under them that import on their own. `package:flutter3d_core/geometry.dart` is `VertexLayout`, `MeshData`, `MeshBuilder`, the shape generators a scene is sketched from, `MeshGeometry`, tangents by Lengyel, morph targets and `MorphTexture`, and `Ray` with the intersection arithmetic that reads a triangle. `package:flutter3d_core/formats.dart` is `ModelDocument` and everything a decoder fills in, `SurfaceMaterial`, `MaterialDocument`, `LightingModel`, `AnimationClip` and `AnimationTrack`, the readers and writers for glTF/GLB, OBJ, STL, USDZ, the engine's own `.f3d` and `.fmat`, and the FBX decoder that refuses with a reason. `flutter3d` exports all of it.
 
-It left the engine because `flutter3d` declares `flutter: sdk`: every file here named Flutter nowhere, and it bought nobody anything, since a package that depended on the engine to say `MeshData` resolved a Flutter SDK it had no use for and `dart pub get` in a container without one failed. `DeviceMesh` stayed behind with the types that have met a `GraphicsDevice` — that is the line the split was made along, and the only one.
+Plain Dart, because a modeller's document layer, a tool an agent starts with `dart run` and a service checking an upload all read a mesh or a `.glb` with no window. Geometry and formats were packages of their own until it turned out a library gives such a caller the same thing. What needs Flutter — the asset bundle, `dart:ui` image decoding and the defaults that reach for it — is the `flutter3d` shell.
 
-→ [Geometry](/core/geometry/)
-
-### `flutter3d_formats` — what a model arrives in
-`ModelDocument` and everything a decoder fills in, `SurfaceMaterial`, `MaterialDocument`, `LightingModel`, `AnimationClip` and `AnimationTrack`, and the readers for glTF/GLB, OBJ, the engine's own `.f3d` container and its `.fmat`. Import `package:flutter3d_formats/flutter3d_formats.dart`, or take it through `flutter3d`.
-
-The split with the engine is at the bytes: this package turns bytes into a document, and `flutter3d` is what fetches them and uploads the result. So `decodeModelInIsolate` with its `kIsWeb`, `BundleAssetSource` and `FileAssetSource`, the bundle resolvers, and everything naming a `GraphicsDevice` — `ModelAsset`, `ModelPart`, texture upload, the KTX2 reader — all stayed behind. `AssetSource` itself is here, as the abstraction both sources extend.
-
-→ [Assets](/core/assets/)
+→ [Geometry](/core/geometry/) · [Assets](/core/assets/)
 
 ### `flutter3d_hardware` — the HAL
 The hardware abstraction layer, and the vocabulary a backend implements: `GraphicsDevice`, `CommandEncoder`, `PassState`, `TextureHandle`, `GeometryBuffer`, samplers, formats, vertex layout specs, a render target pool. **No implementation at all.** Two rules, both checked: no `flutter_gpu` import ever, and no `dart:ui` apart from one member on `GraphicsDevice` that has to name it.

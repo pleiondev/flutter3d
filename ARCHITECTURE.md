@@ -169,7 +169,7 @@ copy, and is the bridge into the widget tree.
 
 ## 3. The package map
 
-Forty-one packages and eight applications in one pub workspace — one
+Thirty-eight packages and eight applications in one pub workspace — one
 `flutter pub get` for the repository.
 
 ### 3.1 The layering rule
@@ -203,12 +203,11 @@ point of §3.3.
 | `flutter3d_conformance` | The contract suite every backend passes |
 | `flutter3d_shaders` | The GLSL both hardware backends compile, and the list of required entry points |
 | `flutter3d` | The engine's thin Flutter shell over `flutter3d_core`: `BundleAssetSource`, `defaultImageDecoder`, `ModelAsset`, `bindMaterial` |
-| `flutter3d_core` | The engine's rendering core with no Flutter SDK behind it (mcp-03n): scene graph, render list, passes, materials, animation, and asset loading down to an injected reader or decoder |
+| `flutter3d_core` | The engine's rendering core with no Flutter SDK behind it (mcp-03n): scene graph, render list, passes, materials, animation, and asset loading down to an injected reader or decoder — and two libraries under it that import on their own: `geometry.dart`, the mesh vocabulary every decoder and every editable mesh share (`MeshData`, `VertexLayout`, tangents, morph targets, `TriangleBvh`), and `formats.dart`, model documents, their decoders (glTF, OBJ, STL, `.f3d`, and FBX refused with a reason) and writers (the same four and `.usdz`) as `ModelDecoder`/`ModelWriter` values, material files, and the PNG, JPEG and zlib codecs a texture needs ([§8.1](#81-model-decoding), [§8.6](#86-writers)). Plain Dart |
 | `flutter3d_samples` | The Khronos test models the decoders are checked against and the demo browses. Fixtures, so that a game depending on the engine does not carry them |
 | `flutter3d_particles` | CPU emitters and the particle pass contributor |
 | `flutter3d_particles_core` | The particle simulation `flutter3d_particles` draws: `ParticleSystem`, emission, affectors, curves. No Flutter, so `flutter3d_model_core`'s `BakeParticleSystemJobRequest` depends on it directly. Plain Dart |
 | `flutter3d_physics` | Collision world, character controller, rigid bodies, spatial grid, an XPBD cloth solver |
-| `flutter3d_fbx` | A `ModelDecoder` for Autodesk's FBX — the skeleton for now, recognising a file and refusing to read it with a clear reason. Plain Dart |
 | `flutter3d_sim` | The simulation: fixed step, ECS, level format, actors, navigation, saves, replays, camera rig. Plain Dart |
 | `flutter3d_lab` | Virtual laboratory simulations built on `flutter3d_sim`'s stepping and recording primitives — `edu-04`'s pendulum is the first. Plain Dart |
 | `flutter3d_game` | The Flutter half of the game layer: touch and keyboard input, accessibility settings, diagnostics. Re-exports `flutter3d_sim` |
@@ -226,10 +225,8 @@ point of §3.3.
 | `flutter3d_sim_mcp` | A level an agent plays blind, of whatever `HeadlessGame` a host hands it — step, read back, digest, hand over the run — and many seeded playtests in isolates; and a rendered frame of a level offered to an agent: drawn with no GPU in one of the renderer's debug views, one pixel read back unclamped, the passes the frame graph ran. Names no genre |
 | `flutter3d_build` | The converter behind `dart run flutter3d_build:convert` and the build hook that runs it on every build. Not a dependency of the engine: no game that draws a frame runs it. Plain Dart |
 | `flutter3d_testing` | Rendering a scene with no GPU and comparing it against a reference image |
-| `flutter3d_geometry` | The mesh vocabulary every decoder and every editable mesh share: `MeshData`, `VertexLayout`, tangents, morph targets, `TriangleBvh` |
-| `flutter3d_formats` | Model documents, their decoders (glTF, OBJ, STL, `.f3d`) and writers (the same four and `.usdz`) as `ModelDecoder`/`ModelWriter` values, material files, and the PNG, JPEG and zlib codecs a texture needs. No Flutter, so an MCP server exports without one ([§8.1](#81-model-decoding), [§8.6](#86-writers)) |
 | `flutter3d_mesh` | The editable half-edge mesh — `EditMesh`, its journal, its operations — that a model decodes into once somebody starts editing it |
-| `flutter3d_model_core` | The modeller's own document: `ModelProject`, commands, undo, `ExportReadiness`, its own project file ([§8.7](#87-the-project-file-and-three-undo-models)), and the rig algorithms it runs — bone-name mapping, rest-relative retargeting with a two-bone-IK foot lock, automatic skin weights — which read a rig as nodes and tracks and know nothing of a project — and the pictures of a project: `sceneFromProject`, `renderProject` for an agent's still, `RenderSnapshotJob` for a tiled, supersampled snapshot, each on a device the caller supplies. Plain Dart, for the identical Flutter-SDK-boundary reason `flutter3d_formats` is |
+| `flutter3d_model_core` | The modeller's own document: `ModelProject`, commands, undo, `ExportReadiness`, its own project file ([§8.7](#87-the-project-file-and-three-undo-models)), and the rig algorithms it runs — bone-name mapping, rest-relative retargeting with a two-bone-IK foot lock, automatic skin weights — which read a rig as nodes and tracks and know nothing of a project — and the pictures of a project: `sceneFromProject`, `renderProject` for an agent's still, `RenderSnapshotJob` for a tiled, supersampled snapshot, each on a device the caller supplies. Plain Dart, for the identical Flutter-SDK-boundary reason `flutter3d_core` is |
 | `flutter3d_model_mcp` | The modeller's own commands offered to an agent over MCP, the same shape `flutter3d_editor_mcp` already gives the level editor |
 | `pad_input` | Gamepad devices on web, Android, macOS and iOS |
 | `pointer_lock` | Relative mouse movement: a method channel on macOS, the Pointer Lock API in a browser, which Flutter surfaces on neither |
@@ -1299,7 +1296,7 @@ reads no texture; and a breach drops the map with the visibility table.
 Every writer takes the same `ModelDocument` every decoder in [§8.1](#81-model-decoding)
 produces, the symmetry that makes exporting a model no different in kind from
 loading one: `GltfWriter`, `ObjWriter`, `StlWriter`, `F3dWriter` and `UsdzWriter`
-all live in `flutter3d_formats`, next to the decoders rather than in the engine,
+all live in `flutter3d_core`'s formats library, next to the decoders rather than behind the Flutter shell,
 so an MCP server can export a GLB with no Flutter SDK in the process.
 
 **A writer is a `ModelWriter` value, and the list is `builtInModelWriters`.**
@@ -1912,7 +1909,7 @@ entities a game defines.
 |---|---|
 | Style | `dart format` |
 | Analysis | `flutter analyze` clean across the workspace, no warnings |
-| Unit tests | **7443 tests** across 41 packages and 8 applications |
+| Unit tests | **7443 tests** across 38 packages and 8 applications |
 | Structure rules | 32, `dart run tool/structure.dart`, the first CI step |
 | CI | GitHub Actions over `tool/ci.sh`, on `ubuntu-latest`, with no graphics card |
 
@@ -2796,10 +2793,10 @@ what went out at 0.4.2.
 **The order, used on the day**, is set by the dependency graph:
 
 1. `flutter3d_hardware`, `flutter3d_shaders`, `flutter3d_samples`,
-   `flutter3d_audio`, `flutter3d_geometry`, `flutter3d_particles_core`,
-   `flutter3d_physics`, `flutter3d_mcp_kit`, `pad_input`, `pointer_lock`
-2. `flutter3d_formats`, `flutter3d_mesh`, `flutter3d_fbx`
-3. `flutter3d_conformance`, `flutter3d_core`, `flutter3d_build`
+   `flutter3d_audio`, `flutter3d_particles_core`, `flutter3d_physics`,
+   `flutter3d_mcp_kit`, `pad_input`, `pointer_lock`
+2. `flutter3d_conformance`, `flutter3d_core`
+3. `flutter3d_mesh`, `flutter3d_build`
 4. `flutter3d`, `flutter3d_model_core`
 5. `flutter3d_impeller`, `flutter3d_webgl`, `flutter3d_webgpu`, `flutter3d_cpu`,
    `flutter3d_particles`, `flutter3d_sim`
@@ -2812,14 +2809,14 @@ what went out at 0.4.2.
    `flutter3d_game_strategy`
 10. `flutter3d_sim_mcp`
 
-Six positions are not obvious and so are written down rather than re-derived:
-`flutter3d_geometry` is in the first tier and ahead of `flutter3d`, which is the
-whole point of it existing — it names `vector_math` and nothing else, and the
-engine depends on it for `MeshData`; `flutter3d_formats` is a tier of its own
-between them, because it needs the geometry a decoder fills in and the engine
-needs the documents it produces; the modeller's three sit where their
-dependencies put them and nowhere near the engine — `flutter3d_mesh` beside
-`flutter3d_formats` on geometry alone, `flutter3d_model_core` below both, and
+Several positions are not obvious and so are written down rather than
+re-derived: `flutter3d_core` is in the second tier and ahead of `flutter3d`,
+which is the whole point of it existing — it names the hardware vocabulary and
+`vector_math` and nothing else, and the engine, the mesh and the build hook all
+depend on it for `MeshData` and the documents a decoder produces; the
+modeller's three sit where their dependencies put them and nowhere near the
+Flutter shell — `flutter3d_mesh` on the core alone, `flutter3d_model_core`
+below both, and
 `flutter3d_model_mcp` beside `flutter3d_editor_mcp`, because it is a
 published package that happens to have a `bin/` rather than a program that
 happens to be in this repository; `flutter3d_samples` is in the first tier

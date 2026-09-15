@@ -31,7 +31,7 @@ import 'dart:typed_data';
 import 'dart:ui' show lerpDouble;
 
 import 'package:flutter/material.dart';
-import 'package:flutter3d_formats/flutter3d_formats.dart';
+import 'package:flutter3d_core/formats.dart';
 // `EnumHint` hidden: this file switches on `MaterialHint.kind`, which is
 // `flutter3d_formats`' own `EnumHint` — `flutter3d_model_core`'s is
 // `ModelCommand.hints`' own, for a command argument, and the two are kept

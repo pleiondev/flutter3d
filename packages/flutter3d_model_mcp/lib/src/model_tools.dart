@@ -1,5 +1,5 @@
 import 'package:dart_mcp/server.dart';
-import 'package:flutter3d_formats/flutter3d_formats.dart';
+import 'package:flutter3d_core/formats.dart';
 import 'package:flutter3d_mcp_kit/flutter3d_mcp_kit.dart';
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 // `EnumHint` is hidden here because `flutter3d_formats`'s own — used below to

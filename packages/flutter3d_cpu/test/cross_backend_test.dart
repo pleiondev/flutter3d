@@ -25,8 +25,8 @@ library;
 import 'dart:io';
 import 'dart:typed_data';
 
+import 'package:flutter3d_core/formats.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
-import 'package:flutter3d_formats/flutter3d_formats.dart';
 import 'package:test/test.dart';
 
 /// Per-scene ceiling on the share of pixels differing by more than [_channel].

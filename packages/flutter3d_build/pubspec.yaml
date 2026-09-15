@@ -18,8 +18,7 @@ dependencies:
   # (`ap-03`) — and neither needs the Flutter SDK to read a source file, which
   # is the whole reason this package can be a hook in the first place: `dart
   # pub get` inside a `hook/build.dart` process has no window to ask for.
-  flutter3d_formats: ^0.6.0
-  flutter3d_geometry: ^0.6.0
+  flutter3d_core: ^0.1.0
 
   # `hook/build.dart`'s own contract — `ap-00`'s spike proved this is the half
   # of the build-hook feature that is stable on Flutter 3.47/Dart 3.13; the

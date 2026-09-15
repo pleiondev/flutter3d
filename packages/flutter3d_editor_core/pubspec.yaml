@@ -23,9 +23,9 @@ dependencies:
 
   # `MaterialDocument`/`MaterialHint`, `readFmat`/`writeFmat` and
   # `builtInMaterialHints` — what `material_edit.dart`'s own gate is written
-  # against. Itself a plain Dart package, so this one stays off the Flutter
-  # SDK adding it.
-  flutter3d_formats: ^0.6.0
+  # against — `flutter3d_core`'s formats library. Itself a plain Dart package,
+  # so this one stays off the Flutter SDK adding it.
+  flutter3d_core: ^0.1.0
 
   vector_math: ^2.2.0
 

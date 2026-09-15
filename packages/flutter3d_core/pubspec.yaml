@@ -14,14 +14,15 @@ environment:
   sdk: ^3.12.2
 
 dependencies:
-  flutter3d_formats: ^0.6.0
-  flutter3d_geometry: ^0.6.0
   flutter3d_hardware: ^0.7.0
   vector_math: ^2.2.0
 
 dev_dependencies:
   test: ^1.25.0
   flutter_lints: ^6.0.0
+  # A second PNG reader the formats library's own codecs are checked against
+  # (`test/formats/helpers/load_png.dart`).
+  image: ^4.9.2
 
 # **The Flutter-free half of `flutter3d`, mcp-03n's own split.** `flutter3d`
 # named Flutter in five files out of eighty-nine, all of them in
