@@ -48,6 +48,7 @@ Future<void> show(
   TextureBudgetStatus? textureBudget,
   String said = 'ready',
   VoidCallback? onExport,
+  VoidCallback? onShowFolder,
 }) => tester.pumpWidget(
   MaterialApp(
     theme: modelerTheme(),
@@ -61,6 +62,7 @@ Future<void> show(
         texelDensity: texelDensity,
         textureBudget: textureBudget,
         onExport: onExport,
+        onShowFolder: onShowFolder,
       ),
     ),
   ),
@@ -320,6 +322,37 @@ void main() {
       // pushes the triangle count and the frame time off the screen.
       expect(tester.takeException(), isNull);
       expect(find.textContaining('ready to export'), findsOneWidget);
+      expect(find.textContaining('△'), findsOneWidget);
+    });
+  });
+
+  group('ux-01: the offer beside an autosave that is not working', () {
+    testWidgets('no offer while nothing is wrong', (WidgetTester tester) async {
+      await show(tester, ExportReadiness.check(const ModelProject()));
+
+      // Mutation: show the button always. A permanent "Show folder" beside
+      // every ordinary sentence is exactly the developer chrome `ux-30` is
+      // about to take out of the viewport corner.
+      expect(find.text('Show folder'), findsNothing);
+    });
+
+    testWidgets('and one that opens the folder when there is', (
+      WidgetTester tester,
+    ) async {
+      var shown = 0;
+      await show(
+        tester,
+        ExportReadiness.check(const ModelProject()),
+        said:
+            'Autosave is not working: could not write autosave/1f2e '
+            '(No such file or directory)',
+        onShowFolder: () => shown++,
+      );
+
+      expect(find.textContaining('Autosave is not working'), findsOneWidget);
+      await tester.tap(find.text('Show folder'));
+
+      expect(shown, 1);
       expect(find.textContaining('△'), findsOneWidget);
     });
   });

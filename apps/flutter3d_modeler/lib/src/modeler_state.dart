@@ -73,6 +73,7 @@ final class ModelerReady extends ModelerState {
     this.jobs = const <ActiveJob>[],
     this.playback = const Playback(),
     this.agentCalls = const <AgentToolCall>[],
+    this.autosaveTrouble,
   });
 
   /// Live, and mutated by the frame loop.
@@ -144,6 +145,16 @@ final class ModelerReady extends ModelerState {
   /// yet.
   final List<AgentToolCall> agentCalls;
 
+  /// Why autosave is not writing, and where it was trying to write — null
+  /// whenever it is working, which is the ordinary case.
+  ///
+  /// `ux-01`'s own row: the live run found this failing silently for a whole
+  /// session behind one unexplained "could not write" in the status line.
+  /// A reason a person can act on, and a folder they can be shown, are the
+  /// two things that sentence was missing; [folder] is null on the web, where
+  /// there is nothing to show.
+  final ({String reason, String? folder})? autosaveTrouble;
+
   /// The project, which is what nearly every reader actually wants.
   ModelProject get project => history.project;
 
@@ -163,6 +174,8 @@ final class ModelerReady extends ModelerState {
     List<ActiveJob>? jobs,
     Playback? playback,
     List<AgentToolCall>? agentCalls,
+    ({String reason, String? folder})? autosaveTrouble,
+    bool clearAutosaveTrouble = false,
   }) => ModelerReady(
     renderer: renderer,
     stage: stage ?? this.stage,
@@ -180,6 +193,9 @@ final class ModelerReady extends ModelerState {
     jobs: jobs ?? this.jobs,
     playback: playback ?? this.playback,
     agentCalls: agentCalls ?? this.agentCalls,
+    autosaveTrouble: clearAutosaveTrouble
+        ? null
+        : (autosaveTrouble ?? this.autosaveTrouble),
   );
 }
 

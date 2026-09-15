@@ -158,6 +158,13 @@ extension _ReadyParts on _ModelerScreenState {
                     : null,
                 micros: _lastRenderMicros,
                 onExport: _showExportDialog,
+                // `ux-01`: offered only while autosave is actually failing,
+                // and only where the platform has a folder to open at all —
+                // the web build's own `applicationFolder` answers null.
+                onShowFolder: switch (state.autosaveTrouble?.folder) {
+                  final String folder => () => _showAutosaveFolder(folder),
+                  null => null,
+                },
               );
               final properties = PropertiesPanel(
                 mode: state.mode,
@@ -570,4 +577,13 @@ extension _ReadyParts on _ModelerScreenState {
       ),
     ),
   };
+
+  /// Opens [folder] in whatever this desktop shows folders with — `ux-01`'s
+  /// own "Show folder" beside the autosave warning.
+  ///
+  /// A `file:` URI through `url_launcher`, the same door the crash dialog's
+  /// own "Report a problem" already uses, rather than a `Process.run('open')`
+  /// that would be macOS's alone and would be refused by the sandbox besides.
+  void _showAutosaveFolder(String folder) =>
+      unawaited(launchUrl(Uri.directory(folder)));
 }

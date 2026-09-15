@@ -107,12 +107,17 @@ Future<void> handleCrash({
   required BuildContext? Function() dialogContext,
 }) async {
   final CrashReport report = buildCrashReport(error, stackTrace, cubit: cubit);
-  if (cubit != null && storage != null) {
-    await emergencyAutosave(cubit, storage, sessionId);
-  }
+  final bool autosaved = cubit != null && storage != null
+      ? await emergencyAutosave(cubit, storage, sessionId)
+      : false;
   final BuildContext? context = dialogContext();
   if (context == null || !context.mounted) return;
-  await CrashDialog.show(context, report: report, environment: environment);
+  await CrashDialog.show(
+    context,
+    report: report,
+    environment: environment,
+    autosaved: autosaved,
+  );
 }
 
 /// "Something went wrong" — shown once the emergency autosave has already
@@ -125,20 +130,35 @@ class CrashDialog extends StatelessWidget {
     super.key,
     required this.report,
     required this.environment,
+    this.autosaved = true,
   });
 
   final CrashReport report;
   final String environment;
 
+  /// Whether the emergency write actually landed — [handleCrash] passes what
+  /// [emergencyAutosave] answered.
+  ///
+  /// **The sentence changes, not a detail in it.** `ux-01`'s own live run
+  /// found this dialog telling a person their last edits were safe at the end
+  /// of a session in which not one autosave had been written; a promise made
+  /// on a day it is false costs more than no promise at all, so a failed write
+  /// says so and names what to do instead.
+  final bool autosaved;
+
   static Future<void> show(
     BuildContext context, {
     required CrashReport report,
     required String environment,
+    bool autosaved = true,
   }) => showDialog<void>(
     context: context,
     barrierDismissible: false,
-    builder: (BuildContext context) =>
-        CrashDialog(report: report, environment: environment),
+    builder: (BuildContext context) => CrashDialog(
+      report: report,
+      environment: environment,
+      autosaved: autosaved,
+    ),
   );
 
   @override
@@ -149,10 +169,14 @@ class CrashDialog extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          const Text(
-            'The modeller ran into a problem it did not expect. An '
-            'emergency autosave was written, so the last edits should not '
-            'be lost.',
+          Text(
+            autosaved
+                ? 'The modeller ran into a problem it did not expect. An '
+                      'emergency autosave was written, so the last edits '
+                      'should not be lost.'
+                : 'The modeller ran into a problem it did not expect, and the '
+                      'emergency autosave could not be written — save your '
+                      'work now, before dismissing this.',
           ),
           const SizedBox(height: 12),
           Text('${report.error}'),
