@@ -58,12 +58,31 @@ class ModelerApp extends StatelessWidget {
 /// What the screen is doing. Three states, and no more until there is a
 /// document to have states about.
 class ModelerScreen extends StatefulWidget {
-  const ModelerScreen({super.key, this.autosaveStorage});
+  const ModelerScreen({
+    super.key,
+    this.autosaveStorage,
+    this.cabinetLink,
+    this.cabinetSourceSender,
+  });
 
   /// Where `ui-18`'s own autosave writes — null in every real build, which
   /// falls back to the platform's own `defaultBinaryStorage`. A test hands
   /// in a fake here instead of standing up a real filesystem or IndexedDB.
   final BinaryStorage? autosaveStorage;
+
+  /// `tut-19`/`tut-20`'s own cabinet id/mode — null in every real build,
+  /// which falls back to `CabinetLink.fromQuery(Uri.base.queryParameters)`
+  /// the moment `_open()` runs, the same place `model`/`name` already come
+  /// from. A test hands in one directly instead of needing a query string on
+  /// `Uri.base`, which nothing in a `flutter test` process can set.
+  final CabinetLink? cabinetLink;
+
+  /// Where `_saveToCabinet` POSTs — null in every real build, which falls
+  /// back to `postSourceToCabinet`, the platform's own real `HttpClient`/
+  /// `fetch` send. A test hands in a fake here instead of reaching for a
+  /// real network call, the same "fake stands in for the real platform call"
+  /// shape [autosaveStorage] already is for `defaultBinaryStorage`.
+  final CabinetSourceSender? cabinetSourceSender;
 
   @override
   State<ModelerScreen> createState() => _ModelerScreenState();

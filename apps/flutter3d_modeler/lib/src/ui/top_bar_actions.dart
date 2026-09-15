@@ -30,6 +30,7 @@ class TopBarActions extends StatelessWidget {
     required this.onOpen,
     required this.onImport,
     required this.onSave,
+    this.onSaveToCabinet,
     required this.onExport,
     required this.onMaterialStudio,
     required this.onPreview,
@@ -61,6 +62,14 @@ class TopBarActions extends StatelessWidget {
   final VoidCallback onImport;
 
   final VoidCallback onSave;
+
+  /// `tut-20`'s own write-back — null hides the button rather than showing
+  /// it disabled, since a cabinet id and a mode that is not `view` are what
+  /// decide whether this could ever succeed at all, not something a person
+  /// picks in the interface. See `CabinetLink.canSaveBack`'s own doc
+  /// comment for why that gate is UX only, never the real one.
+  final VoidCallback? onSaveToCabinet;
+
   final ValueChanged<ExportFormat> onExport;
   final VoidCallback onMaterialStudio;
 
@@ -107,6 +116,13 @@ class TopBarActions extends StatelessWidget {
       const SizedBox(width: 4),
       FilledButton.tonal(onPressed: onSave, child: const Text('Save')),
       const SizedBox(width: 4),
+      if (onSaveToCabinet case final VoidCallback onSaveToCabinet) ...[
+        FilledButton.tonal(
+          onPressed: onSaveToCabinet,
+          child: const Text('Save to cabinet'),
+        ),
+        const SizedBox(width: 4),
+      ],
       PopupMenuButton<ExportFormat>(
         tooltip: 'Export a copy',
         onSelected: onExport,

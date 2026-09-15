@@ -181,15 +181,23 @@ extension _FileHandling on _ModelerScreenState {
           _report = 'opened in ${_measurementRuns.openedInMs} ms';
         }
       });
+      final query = Uri.base.queryParameters;
+      // `tut-19`/`tut-20`'s own `id`/`mode`/`csrf` — read from the same
+      // query string `model`/`name` come from below, since a real launch
+      // only ever sends any of them together (`cloud/server`'s own
+      // `viewer.js` names all four at once). `widget.cabinetLink` lets a
+      // test hand one in directly instead, since nothing in a `flutter
+      // test` process can put a query string on `Uri.base`.
+      _cabinetLink = widget.cabinetLink ?? CabinetLink.fromQuery(query);
       // Opened from a link: the models service loads this build in a frame
       // with the file's address in the query, so the document becomes that
       // model rather than staying a cube.
-      final linked = Uri.base.queryParameters['model'];
+      final linked = query['model'];
       if (linked != null && linked.isNotEmpty) {
         unawaited(
           _openLinked(
             Uri.base.resolve(linked),
-            Uri.base.queryParameters['name'] ?? 'model',
+            query['name'] ?? 'model',
             device,
           ),
         );
@@ -567,6 +575,65 @@ extension _FileHandling on _ModelerScreenState {
     // it should erase before they get the chance.
     if (mounted) _cubit.say(said, important: true);
     return written;
+  }
+
+  /// `tut-20`'s own write-back: exports the open document as `.f3dproj`
+  /// bytes — `writeProject`, the same lossless writer [_saveFile] already
+  /// calls, never a second exporter — and POSTs them to the cabinet entry
+  /// this build was opened from.
+  ///
+  /// **Always `.f3dproj`, whatever format the cabinet entry originally
+  /// held.** A model opened from a `.glb` upload becomes a `.f3dproj`
+  /// cabinet entry the moment it is saved back here, since that is the one
+  /// format nothing this application can hold — materials, modifiers,
+  /// animation, everything `mat-*`/`S2`/`S5`/`S6` built — is lost into. The
+  /// status line says so explicitly, so nobody who opened a `.glb` is
+  /// surprised their cabinet entry is now something else.
+  ///
+  /// **UX-only gating, not the security boundary.** [_cabinetLink]'s own
+  /// `canSaveBack` is what decides whether the button that calls this even
+  /// exists — see `ready_parts.dart`'s own `TopBarActions.onSaveToCabinet`.
+  /// The server's own `canEdit` check on `/api/v1/models/<id>/source` is
+  /// what actually decides whether the save is allowed, the same as every
+  /// other mutating endpoint in `cloud/server`; this method still checks
+  /// [CabinetLink.canSaveBack] itself rather than trusting the caller,
+  /// because a stray call site should refuse the same way a hidden button
+  /// would have.
+  Future<void> _saveToCabinet() async {
+    if (_state is! ModelerReady) return;
+    final int? id = _cabinetLink.id;
+    if (id == null || !_cabinetLink.canSaveBack) return;
+
+    _cubit.say('saving to the cabinet…');
+    final Uint8List bytes;
+    try {
+      // No history section: a cabinet entry is a document other people may
+      // open too, and `_saveFile`'s own "Save without history" choice is
+      // exactly the default worth making here without asking, rather than a
+      // dialog in front of a one-click action.
+      bytes = writeProject(_history.project);
+    } on ArgumentError catch (error) {
+      if (mounted) _cubit.say('not saved: ${error.message}', important: true);
+      return;
+    }
+
+    final outcome = await _sendCabinetSource(
+      modelId: id,
+      csrf: _cabinetLink.csrf,
+      bytes: bytes,
+    );
+    if (!mounted) return;
+    switch (outcome) {
+      case CabinetSaveWritten():
+        _history.markSaved();
+        _cubit.say(
+          'saved ${bytes.length} bytes to the cabinet as .f3dproj — always '
+          'this format, regardless of what the cabinet entry held before',
+          important: true,
+        );
+      case CabinetSaveFailed(:final String said):
+        _cubit.say('not saved to the cabinet: $said', important: true);
+    }
   }
 
   /// Takes the document out to a format somebody else reads.

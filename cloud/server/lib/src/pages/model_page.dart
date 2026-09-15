@@ -97,6 +97,12 @@ class ModelPage extends StatelessComponent {
             'data-viewer': '',
             'data-src': '/files/${model.id}/source?inline',
             'data-name': '${model.slug}$suffix',
+            // `tut-19`/`tut-20`'s own cabinet id: `viewer.js` reads this the
+            // same way it already reads `data-src`/`data-name`, and passes
+            // it on as the iframe's own `id=` so the build inside knows
+            // which cabinet entry, if any, a later "Save to cabinet" would
+            // write back to.
+            'data-id': '${model.id}',
           },
         ),
         div([

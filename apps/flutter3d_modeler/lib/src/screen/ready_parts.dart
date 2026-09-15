@@ -86,6 +86,9 @@ extension _ReadyParts on _ModelerScreenState {
                   onOpen: _openFile,
                   onImport: () => unawaited(_importFile()),
                   onSave: _saveFile,
+                  onSaveToCabinet: _cabinetLink.canSaveBack
+                      ? () => unawaited(_saveToCabinet())
+                      : null,
                   onExport: _exportFile,
                   onMaterialStudio: () => unawaited(_openMaterialStudio()),
                   onPreview: () => unawaited(_openGamePreview()),

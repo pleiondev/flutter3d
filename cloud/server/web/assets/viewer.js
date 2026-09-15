@@ -12,8 +12,9 @@
     button.addEventListener('click', () => {
       const source = frame.dataset.src;
       const name = frame.dataset.name;
+      const id = frame.dataset.id;
       const iframe = document.createElement('iframe');
-      iframe.src = `/app/?model=${encodeURIComponent(source)}&name=${encodeURIComponent(name)}&mode=view`;
+      iframe.src = `/app/?model=${encodeURIComponent(source)}&name=${encodeURIComponent(name)}&id=${encodeURIComponent(id)}&mode=view`;
       iframe.title = `${name}, in 3D`;
       iframe.allow = 'fullscreen';
       iframe.loading = 'eager';

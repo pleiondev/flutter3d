@@ -37,6 +37,8 @@ import 'l10n/app_localizations.dart';
 import 'src/animation_wiring.dart';
 import 'src/app_config.dart';
 import 'src/autosaving.dart';
+import 'src/backend.dart';
+import 'src/cabinet_link.dart';
 import 'src/churn_run.dart';
 import 'src/close_beforeunload.dart';
 import 'src/close_guard.dart';
@@ -46,6 +48,7 @@ import 'src/element_picker_cache.dart';
 import 'src/element_picking.dart';
 import 'src/environment_summary.dart';
 import 'src/exporting.dart';
+import 'src/files/cabinet_save.dart';
 import 'src/files/fetch_model.dart';
 import 'src/files/file_drop.dart';
 import 'src/files/project_files.dart';
@@ -187,6 +190,18 @@ class _ModelerScreenState extends State<ModelerScreen>
   /// Set while a stale device is being swapped for a freshly sized one, so a
   /// second resize during the swap does not start a redundant reopen.
   bool _reopeningDevice = false;
+
+  /// `tut-19`/`tut-20`'s own cabinet id/mode — [CabinetLink.none] until
+  /// `_open()` reads `widget.cabinetLink` or, failing that, `Uri.base`'s own
+  /// `id`/`mode`/`csrf`, the same place `model`/`name` already come from.
+  /// Fixed for the life of one document: nothing later in a session changes
+  /// which cabinet entry, if any, this build was opened from.
+  CabinetLink _cabinetLink = CabinetLink.none;
+
+  /// Where `_saveToCabinet` sends its POST — `widget.cabinetSourceSender`
+  /// when a test supplied one, otherwise the platform's own real send.
+  CabinetSourceSender get _sendCabinetSource =>
+      widget.cabinetSourceSender ?? postSourceToCabinet;
 
   /// What the last file operation said, shown beside the buttons.
 
