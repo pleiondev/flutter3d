@@ -158,7 +158,7 @@ What is deliberately not behind it: `flutter3d`, `flutter3d_bridge`, `flutter3d_
 
 ## Where one application has not caught up
 
-The four demo games import `flutter3d_app`, and so does `apps/flutter3d_template_app`: the scaffold names `flutter3d_app` in its pubspec and opens its device through `openDevice`, which picks Impeller or WebGL for the build and falls back to the software rasteriser at run time when flutter_gpu will not start — the pattern this page teaches, including the fallback. It also names `flutter3d_session` directly, which the barrel re-exports; a second dependency on a package you are already getting is a line to delete, not a different arrangement.
+The four demo games import `flutter3d_app`, and so does `packages/flutter3d_game/example`, the game a new project starts as: the scaffold names `flutter3d_app` in its pubspec and opens its device through `openDevice`, which picks Impeller or WebGL for the build and falls back to the software rasteriser at run time when flutter_gpu will not start — the pattern this page teaches, including the fallback. It also names `flutter3d_session` directly, which the barrel re-exports; a second dependency on a package you are already getting is a line to delete, not a different arrangement.
 
 `apps/flutter3d_editor` is the one that does not: it names `flutter3d_impeller` and opens its device with `GpuRenderBackend.create()`, the way [the tutorial](/core/tutorial/) does. That is defensible where it is, since the editor is desktop-only and there is no backend to choose between — but it is the reason the editor cannot be the thing you copy. Copy the scaffold, which is what it is for.
 

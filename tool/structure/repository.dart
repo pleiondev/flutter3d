@@ -27,10 +27,11 @@ const List<String> genrePackages = <String>[
 
 /// Every application in this repository, which is also its directory name.
 ///
-/// `_demo_` marks the three that exist to show the engine works. The others are
-/// tools — a level editor, a modeller, and the seed a new project starts from —
-/// and rules about *games* filter on the infix rather than carrying a fourth
-/// list.
+/// `_demo_` marks the ones that exist to show the engine works. The others are
+/// tools — a level editor and a modeller — and the lessons, and rules about
+/// *games* filter on the infix rather than carrying a fourth list. The seed a
+/// new project starts from is not here: it is two package examples,
+/// `flutter3d_app`'s for an application and `flutter3d_game`'s for a game.
 const List<String> applications = <String>[
   'flutter3d_demo_dungeon',
   'flutter3d_demo_platformer',
@@ -38,7 +39,6 @@ const List<String> applications = <String>[
   'flutter3d_demo_strategy',
   'flutter3d_editor',
   'flutter3d_modeler',
-  'flutter3d_template_app',
   'flutter3d_lesson_viewer',
   'flutter3d_stereo_lesson_viewer',
   'flutter3d_lab_pendulum',

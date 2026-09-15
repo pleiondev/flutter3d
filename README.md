@@ -74,7 +74,8 @@ genres, and the generated API reference.
 | [`apps/flutter3d_demo_strategy`](apps/flutter3d_demo_strategy) | A map, two sides and a match played to a finish, with a headless test that plays the recording back. Desktop, web, Android and iOS |
 | [`apps/flutter3d_editor`](apps/flutter3d_editor) | A level editor that reads the same documents the games do, and writes projects from templates |
 | [`apps/flutter3d_modeler`](apps/flutter3d_modeler) | A modeller for the meshes the games draw: a document of objects, a rail of tools that edit one, undo across both, and the beginnings of a file. What is still ahead of it is planned on the [`modeler`](https://github.com/pleiondev/flutter3d/tree/modeler) branch |
-| [`apps/flutter3d_template_app`](apps/flutter3d_template_app) | The application a new project starts as, and the source the editor's templates are generated from |
+| [`packages/flutter3d_app/example`](packages/flutter3d_app/example) | The smallest application on the engine: a lit cube you can turn. What a project that is not a game starts from |
+| [`packages/flutter3d_game/example`](packages/flutter3d_game/example) | A level you can walk around, with no genre in it: what a new game starts as, and the source the editor's templates are generated from |
 | [`packages/flutter3d/example`](packages/flutter3d/example) | The engine's own demo: a model browser with every feature switchable |
 
 The split is not filing. `flutter3d_game` does not depend on `flutter3d`, and
@@ -158,7 +159,7 @@ Or one package at a time:
 (cd packages/flutter3d_physics && dart test)   # plain Dart, no Flutter needed
 ```
 
-7469 tests across forty-five packages and nine applications, and the only
+7443 tests across forty-four packages and eight applications, and the only
 ones that need a GPU are the
 Impeller half of the golden set. The other half is rendered by the software
 backend, which is what makes 43 scenes checkable in a headless run.

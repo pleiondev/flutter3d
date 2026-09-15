@@ -1,5 +1,5 @@
-name: flutter3d_template_app
-description: "The application a new project starts as: a level you can walk around."
+name: flutter3d_game_example
+description: "The application a new game starts as: a level you can walk around. Copied into the editor's templates."
 publish_to: 'none'
 version: 0.4.0+1
 resolution: workspace
@@ -17,33 +17,26 @@ dependencies:
   # no web build, no fallback, and none of the screens a game needs before it
   # is a game. See `lib/src/backend.dart`.
   flutter3d_app:
-    path: ../../packages/flutter3d_app
+    path: ../../flutter3d_app
 
   # Sound, which the seed had none of.
   flutter3d_audio:
-    path: ../../packages/flutter3d_audio
+    path: ../../flutter3d_audio
 
   flutter3d:
-    path: ../../packages/flutter3d
+    path: ../../flutter3d
 
   # The document, the input and the level format.
   flutter3d_game:
-    path: ../../packages/flutter3d_game
+    path: ../
 
   # A level document to mesh nodes and lights.
   flutter3d_bridge:
-    path: ../../packages/flutter3d_bridge
+    path: ../../flutter3d_bridge
 
   # The surface a frame reaches Flutter through.
   flutter3d_session:
-    path: ../../packages/flutter3d_session
-
-  # `twinDataSources`/`spindleTempAt` — `ls-i-00`'s own twin signal, moved
-  # out of this app and into its own package so a server can check or
-  # replay it with no Flutter SDK in it, the same relation `flutter3d_lab`'s
-  # own pendulum already has with the app that used to hold it.
-  flutter3d_twin:
-    path: ../../packages/flutter3d_twin
+    path: ../../flutter3d_session
 
   vector_math: ^2.2.0
 
@@ -60,7 +53,7 @@ dev_dependencies:
   # A renderer with no GPU under it, so a test can load a level the way the
   # game does. `LevelLoader` needs a device and does not need a window.
   flutter3d_cpu:
-    path: ../../packages/flutter3d_cpu
+    path: ../../flutter3d_cpu
 
   flutter_lints: ^6.0.0
 

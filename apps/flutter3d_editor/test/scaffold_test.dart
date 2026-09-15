@@ -134,13 +134,43 @@ void main() {
       // **The failure this shape prevents.** A `main.dart` that exists only as
       // a string in a scaffolder stops compiling the first time a package it
       // uses is renamed, and nobody finds out until somebody creates a project
-      // — by which time it is a stranger's problem. `apps/flutter3d_template_app` is a
-      // real application, analysed by CI like every other, and the template is
-      // a copy of it.
+      // — by which time it is a stranger's problem.
+      // `packages/flutter3d_game/example` is a real application, analysed by
+      // CI like every other, and the template is a copy of it.
       expect(
         _text(_project(), 'lib/main.dart'),
-        File('../flutter3d_template_app/lib/main.dart').readAsStringSync(),
+        File(
+          '../../packages/flutter3d_game/example/lib/main.dart',
+        ).readAsStringSync(),
       );
+    });
+
+    test('and every file it imports by path is one the project was given', () {
+      // **The check whose absence let a created project stop compiling.** The
+      // seed imported `src/template_widgets.dart`, the templates never wrote
+      // it, and the pubspec test below only reads `package:` imports — a
+      // relative one it could not see. The seed itself compiled in CI the
+      // whole time, which is exactly why nothing else noticed.
+      final project = _project();
+      final relative = RegExp(
+        r"^(?:import|export|part) '([^:']+\.dart)'",
+        multiLine: true,
+      );
+
+      for (final MapEntry(key: path, value: bytes) in project.entries) {
+        if (!path.startsWith('lib/') || !path.endsWith('.dart')) continue;
+        final folder = Uri.parse(path).resolve('.');
+        for (final match in relative.allMatches(utf8.decode(bytes))) {
+          final target = folder.resolve(match.group(1)!).path;
+          expect(
+            project.keys,
+            contains(target),
+            reason:
+                '$path imports ${match.group(1)}, which a created project '
+                'does not have',
+          );
+        }
+      }
     });
 
     test('and the pubspec names every package that file imports', () {
@@ -180,7 +210,7 @@ void main() {
     // **And it is a file, not a string.** It used to be written out inside
     // `scaffold.dart`, which is the one place in this repository where nothing
     // compiles what it holds — the same argument `main.dart` next door already
-    // makes about itself. It is `apps/flutter3d_template_app/test/widget_test.dart` now,
+    // makes about itself. It is `packages/flutter3d_game/example/test/widget_test.dart` now,
     // run by CI like any other test, and copied here by `make_templates.py`.
     expect(
       _text(project, 'test/widget_test.dart'),

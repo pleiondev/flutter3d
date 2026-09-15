@@ -1,11 +1,11 @@
 {
-    "name": "flutter3d_template_app",
+    "name": "flutter3d_game_example",
     "short_name": "flutter3d",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",
     "theme_color": "#0175C2",
-    "description": "The application a new project starts as: a level you can walk around.",
+    "description": "The application a new game starts as: a level you can walk around.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

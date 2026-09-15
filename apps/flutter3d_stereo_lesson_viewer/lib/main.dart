@@ -68,7 +68,7 @@ class StereoLessonApp extends StatelessWidget {
 }
 
 /// A kind for a type this application has not been taught — see
-/// `flutter3d_template_app`'s own `OpenKind` for why every type in the
+/// `packages/flutter3d_game/example`'s own `OpenKind` for why every type in the
 /// document is accepted and none of them given a meaning here.
 final class OpenKind extends EntityKind {
   const OpenKind(super.type);

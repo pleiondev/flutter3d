@@ -3,7 +3,7 @@
 ///     flutter test test/lesson_cubit_test.dart
 ///
 /// Driven with `CpuDevice` rather than a window, the same door
-/// `flutter3d_template_app/test/level_cubit_test.dart` uses — `LevelLoader`
+/// `packages/flutter3d_game/example/test/level_cubit_test.dart` uses — `LevelLoader`
 /// needs a device and does not need one.
 library;
 

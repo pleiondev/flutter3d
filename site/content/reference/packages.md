@@ -170,7 +170,7 @@ The backend choice is kept out of `flutter3d_session`, which would otherwise hav
 
 Deliberately **not** behind this barrel: `flutter3d`, `flutter3d_bridge`, `flutter3d_game` and a genre package. Those are content, meaning what a scene looks like and what kind of game this is, and a facade cannot choose a genre on an application's behalf.
 
-Six of the seven applications import it — the four games, the template and the modeller, which reaches `openDevice` through it in one exported line. `flutter3d_editor` is the one that does not, and that is a gap rather than a second pattern: see [Assembling an application](/core/session/).
+The four games and the modeller import it — the modeller reaches `openDevice` through it in one exported line — and so do both seeds a new project starts from. `flutter3d_editor` is the one that does not, and that is a gap rather than a second pattern: see [Assembling an application](/core/session/).
 
 ### `flutter3d_session`
 The seam a rendered frame reaches Flutter through, the run being played, and the screens a game has that are not the game — neither the simulation nor the renderer, so it belongs to neither `flutter3d_bridge` nor either of them alone. `SceneSurface` is the widget that hands a frame to Flutter, with its `RenderSettings` read from a function called once per frame rather than stored, so anything derived from the camera is derived after it moved. `RunSession<L>` is loading a level, restarting it, moving to the next, saving, resuming, and reporting how a run ended — an ordinary class that two of the three games wrap in a cubit, which the package neither knows nor requires. `FrameClock` is how long since the last frame, measured on the wall clock rather than read off the ticker: five applications had written that out, three said a sixtieth of a second on the first frame and one said nought, and a ticker's timestamp is the vsync a frame was aimed at, which steps in pairs when the GPU falls behind.
@@ -277,8 +277,11 @@ A map, two sides and a match played to a finish: a camera over the ground, a box
 ### `apps/flutter3d_editor`
 The first application here that is not a game: opens a level document with the same `LevelLoader` the games use, and lets somebody fly around it, drag what's in it, and write it back. What it keeps is the half that reaches a device — the window, the disk, the camera, the frame; everything else is `flutter3d_editor_core`. → [The level editor](/core/editor/)
 
-### `apps/flutter3d_template_app`
-The application a new project starts as: a level you can walk around, with no genre package. It opens its device through `flutter3d_app`'s `openDevice` in one exported line, which is what gives a scaffolded project the web build and the software fallback without its author deciding anything — see [Assembling an application](/core/session/).
+### `packages/flutter3d_app/example`
+The smallest application on the engine: a device, a renderer, a lit cube and a camera that orbits it. No level, no body and no genre — what a project that is not a game starts from.
+
+### `packages/flutter3d_game/example`
+The application a new game starts as: a level you can walk around, with no genre package. It opens its device through `flutter3d_app`'s `openDevice` in one exported line, which is what gives a scaffolded project the web build and the software fallback without its author deciding anything — see [Assembling an application](/core/session/). The editor's four game templates are copies of it, and `apps/flutter3d_editor/test/scaffold_test.dart` holds them to that.
 
 ### `packages/flutter3d/example`
 The engine's own demo: a model browser with every feature switchable, and the frame-capture hook.

@@ -169,7 +169,7 @@ copy, and is the bridge into the widget tree.
 
 ## 3. The package map
 
-Forty-six packages and seven applications in one pub workspace — one
+Forty-four packages and eight applications in one pub workspace — one
 `flutter pub get` for the repository.
 
 ### 3.1 The layering rule
@@ -212,7 +212,6 @@ point of §3.3.
 | `flutter3d_fbx` | A `ModelDecoder` for Autodesk's FBX — the skeleton for now, recognising a file and refusing to read it with a clear reason. Plain Dart |
 | `flutter3d_sim` | The simulation: fixed step, ECS, level format, actors, navigation, saves, replays, camera rig. Plain Dart |
 | `flutter3d_lab` | Virtual laboratory simulations built on `flutter3d_sim`'s stepping and recording primitives — `edu-04`'s pendulum is the first. Plain Dart |
-| `flutter3d_twin` | Digital-twin data sources built on `flutter3d_sim`'s reading and binding primitives — `tpl-04`'s own spindle reading is the first, `ls-i-00`. Plain Dart |
 | `flutter3d_render_job` | `RenderSnapshotJob`: a project rendered offscreen through its own `CpuDevice`, tiled, at SSAA ×1/×2, to a PNG — `pro-rn-02` |
 | `flutter3d_game` | The Flutter half of the game layer: touch and keyboard input, accessibility settings, diagnostics. Re-exports `flutter3d_sim` |
 | `flutter3d_game_shooter` | Shooter rules: weapons, hitscan, projectiles, inventory, monsters |
@@ -241,9 +240,14 @@ point of §3.3.
 Applications: `apps/flutter3d_demo_dungeon` (shooter),
 `apps/flutter3d_demo_platformer`, `apps/flutter3d_demo_racing`,
 `apps/flutter3d_demo_strategy`, `apps/flutter3d_editor` (level editor),
-`apps/flutter3d_modeler` (the modeller) and `apps/flutter3d_template_app` (the
-seed a new project starts from), plus the engine's own example — seven
-applications, which is the count the workspace list is held to.
+`apps/flutter3d_modeler` (the modeller), and `apps/flutter3d_lesson_viewer`,
+`apps/flutter3d_stereo_lesson_viewer` and `apps/flutter3d_lab_pendulum` (the
+lessons) — eight applications, which is the count the workspace list is held
+to. A new project starts from a package's example rather than an application of
+its own: `packages/flutter3d_app/example` is an application on the engine and
+nothing else, `packages/flutter3d_game/example` is a level to walk around and is
+what the editor's game templates copy, and `packages/flutter3d/example` is the
+engine's own demo.
 
 
 ### 3.3 Why the simulation is its own package
@@ -1911,7 +1915,7 @@ entities a game defines.
 |---|---|
 | Style | `dart format` |
 | Analysis | `flutter analyze` clean across the workspace, no warnings |
-| Unit tests | **7469 tests** across 45 packages and 9 applications |
+| Unit tests | **7443 tests** across 44 packages and 8 applications |
 | Structure rules | 32, `dart run tool/structure.dart`, the first CI step |
 | CI | GitHub Actions over `tool/ci.sh`, on `ubuntu-latest`, with no graphics card |
 
@@ -2803,7 +2807,7 @@ what went out at 0.4.2.
 5. `flutter3d_impeller`, `flutter3d_webgl`, `flutter3d_webgpu`, `flutter3d_cpu`,
    `flutter3d_particles`, `flutter3d_sim`
 6. `flutter3d_game`, `flutter3d_editor_core`, `flutter3d_net`, `flutter3d_render_job`,
-   `flutter3d_lab`, `flutter3d_twin`, `flutter3d_stereo`
+   `flutter3d_lab`, `flutter3d_stereo`
 7. `flutter3d_session`, `flutter3d_testing`, `flutter3d_editor_mcp`,
    `flutter3d_model_mcp`, `flutter3d_net_webrtc`
 8. `flutter3d_bridge`, `flutter3d_app`

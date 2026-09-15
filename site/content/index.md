@@ -80,7 +80,7 @@ flowchart TB
     platformer["apps/flutter3d_demo_platformer<br>the platformer"]
     racing["apps/flutter3d_demo_racing<br>the racing game"]
     editor["apps/flutter3d_editor<br>the level editor"]
-    templateApp["apps/flutter3d_template_app<br>the project scaffold"]
+    gameSeed["flutter3d_game/example<br>the game scaffold"]
   end
 
   subgraph genre["genres — vocabulary"]
@@ -109,7 +109,7 @@ flowchart TB
   platformer --> plat & bridge
   racing --> race & bridge
   editor --> bridge
-  templateApp --> bridge
+  gameSeed --> bridge
   shooter --> game
   plat --> game
   race --> game

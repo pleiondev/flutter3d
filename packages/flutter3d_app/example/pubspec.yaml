@@ -1,0 +1,42 @@
+name: flutter3d_app_example
+description: "The smallest application on the engine: a device, a renderer, a lit cube and a camera that orbits it. What a project that is not a game starts from."
+publish_to: 'none'
+version: 0.1.0+1
+resolution: workspace
+
+environment:
+  sdk: ^3.12.2
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # Which backend a build draws through, with the software fallback, and the
+  # surface a frame reaches Flutter through. Nothing a game needs and nothing
+  # a genre decides: those are `flutter3d_game`'s own example.
+  flutter3d_app:
+    path: ../
+
+  # The renderer and the scene graph.
+  flutter3d:
+    path: ../../flutter3d
+
+  vector_math: ^2.2.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+  # A renderer with no GPU under it, so a test can build the scene the way the
+  # application does.
+  flutter3d_cpu:
+    path: ../../flutter3d_cpu
+
+  flutter_lints: ^6.0.0
+
+# **No platform folders here on purpose**, for the same reason
+# `packages/flutter3d_game/example` has none: this exists to be analysed and to
+# be copied, and `flutter create --platforms=macos .` in the project it is
+# copied into is what gives it a window.
+flutter:
+  uses-material-design: true

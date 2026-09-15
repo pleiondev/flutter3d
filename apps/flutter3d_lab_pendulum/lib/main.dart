@@ -1,8 +1,8 @@
 /// A live look at `edu-04`'s own pieces, all of which existed only behind
 /// tests until now: a real swinging [PendulumSimulation], a real
 /// `WidgetSurface` carrying [PendulumLabPanel], a real tap routed through
-/// [Raycaster] the same way `flutter3d_template_app`'s own
-/// `_tapWidgetSurface` already proved for `tpl-04`.
+/// [Raycaster] along `wg-01`'s own chain (raycast → `uvAt` → `dispatchAtUv`),
+/// built from an actual pointer rather than a ray made by hand in a test.
 ///
 /// Its own application, not a mode of the crypt's `main.dart`: nothing here
 /// is a level, a genre or a save — it is a demonstration, run with
@@ -248,8 +248,7 @@ class _PendulumLabScreenState extends State<PendulumLabScreen>
     if (mounted) setState(() {});
   }
 
-  /// The same raycast `flutter3d_template_app`'s own `_tapWidgetSurface`
-  /// proved for `tpl-04` — a real tap, through [Raycaster], landing on the
+  /// `wg-01`'s own raycast — a real tap, through [Raycaster], landing on the
   /// panel exactly the way a player's would in a shipped level.
   bool _tapPanel(Offset local) {
     final size = context.size;

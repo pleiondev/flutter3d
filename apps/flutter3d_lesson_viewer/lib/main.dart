@@ -3,7 +3,7 @@
 ///     flutter run -d macos
 ///     flutter run -d chrome --dart-define=level=assets/levels/tour.json
 ///
-/// **Not a copy of `flutter3d_template_app`.** That seed puts a walking body
+/// **Not a copy of `flutter3d_game`'s example.** That seed puts a walking body
 /// in a level; this puts a camera that only ever stands where an `edu_step`
 /// says to, moved by two buttons rather than by WASD. There is no
 /// `CollisionWorld` here at all — nothing in this screen ever collides with
@@ -12,7 +12,7 @@
 /// `edu-02`'s own honest-scope line: this plays a step's `at`/`yaw` and its
 /// `visible`/`hidden` lists (through `flutter3d_bridge`'s
 /// `applyLessonStepToCamera`) and renders `widget_surface` annotations
-/// through the same pipeline `flutter3d_template_app` already proved. It
+/// through the same pipeline the dungeon's terminal (`wg-02`) already proved. It
 /// does not apply `offsets`, does not draw an `edu_clip_plane`, does not read
 /// `bindings`/`edu_data_source`, and does not ask a `check` question — see
 /// `packages/flutter3d_bridge/lib/src/lesson_player.dart`'s own doc comment
@@ -65,7 +65,7 @@ class LessonViewerApp extends StatelessWidget {
 }
 
 /// A kind for a type this application has not been taught — see
-/// `flutter3d_template_app`'s own `OpenKind` for why every type in the
+/// `packages/flutter3d_game/example`'s own `OpenKind` for why every type in the
 /// document is accepted and none of them given a meaning here.
 final class OpenKind extends EntityKind {
   const OpenKind(super.type);
@@ -297,7 +297,7 @@ class _LessonScreenState extends State<LessonScreen>
     // lesson named, only on the frames its own pipeline marks dirty
     // (`wg-00`'s own rule) — driven by a ticker rather than only by the step
     // buttons, the same "reasserted every frame" choice
-    // `flutter3d_template_app`'s own tick loop already makes.
+    // `packages/flutter3d_game/example`'s own tick loop already makes.
     _ticker = createTicker((_) {
       final state = _lesson.state;
       if (state is LessonReady) unawaited(state.widgetSurfaces?.tickAll());
