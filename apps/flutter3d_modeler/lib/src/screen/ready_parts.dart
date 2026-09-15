@@ -84,6 +84,7 @@ extension _ReadyParts on _ModelerScreenState {
                   onAddPrimitive: (String kind) =>
                       _cubit.ran(AddPrimitive(kind: kind)),
                   onOpen: _openFile,
+                  onImport: () => unawaited(_importFile()),
                   onSave: _saveFile,
                   onExport: _exportFile,
                   onMaterialStudio: () => unawaited(_openMaterialStudio()),

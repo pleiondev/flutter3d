@@ -303,12 +303,22 @@ extension _FileHandling on _ModelerScreenState {
   /// weld/normals/triangulate — `BakeToMesh`'s own doc comment names this as
   /// where that conversion belongs. An object left untouched stays
   /// `ImportedGeometry`, byte for byte, which is this project's own default.
-  ModelProject _applyImportCleanup(ModelProject project, ImportChoice choice) {
+  ///
+  /// [only], when given, restricts the sweep to those object ids —
+  /// `tut-08`'s own "Import" action passes the ids `importInto` just added,
+  /// so a cleanup choice made for a second file does not reach back and
+  /// rebuild an object that was already open and left untouched on purpose.
+  ModelProject _applyImportCleanup(
+    ModelProject project,
+    ImportChoice choice, {
+    Set<int>? only,
+  }) {
     if (!choice.weld && !choice.fixNormals && !choice.triangulate) {
       return project;
     }
     var result = project;
     for (final object in project.objects) {
+      if (only != null && !only.contains(object.id)) continue;
       if (object.geometry case ImportedGeometry(:final data)) {
         final (mesh, _, _) = importMeshData(
           data,
@@ -324,6 +334,99 @@ extension _FileHandling on _ModelerScreenState {
       }
     }
     return result;
+  }
+
+  /// `tut-08`'s own "Import" action: a second file's own objects merged into
+  /// the document already open, rather than replacing it.
+  ///
+  /// **The same tested seam `flutter3d_model_mcp`'s own `ModelSession.
+  /// import` already runs, reachable by a person now instead of only by an
+  /// agent over MCP.** `import_into_test.dart` is what proves `importInto`
+  /// itself; this is the picker, the import screen and the undo step around
+  /// it, the same three `_openBytesWithImportScreen` already has — reused
+  /// rather than duplicated, since the only real difference is what happens
+  /// to the result: [ReplaceDocument] over the *merged* project here,
+  /// [_installOpened]'s wholesale replacement there.
+  ///
+  /// **A project file is refused rather than guessed at.** `ModelSession.
+  /// import` never special-cases one either — `importInto` takes a
+  /// [ModelDocument], and a `.f3dproj` is a [ModelProject] already, nothing
+  /// this call knows how to fold two of into one.
+  Future<void> _importFile() async {
+    if (_state is! ModelerReady) return;
+    _cubit.say('choosing…');
+    try {
+      final picked = await openModel();
+      if (picked == null) {
+        if (mounted) _cubit.say('nothing chosen');
+        return;
+      }
+      if (isProjectFile(picked.bytes)) {
+        _cubit.say('${picked.name} is a project file; use Open instead');
+        return;
+      }
+      final limitRefusal = refuseBeforeDecoding(
+        fileSizeBytes: picked.bytes.length,
+        onWeb: kIsWeb,
+      );
+      if (limitRefusal != null) {
+        _cubit.say(limitRefusal);
+        return;
+      }
+      final ModelDocument document;
+      try {
+        document = await decodeBytes(picked.bytes, picked.name);
+      } catch (error) {
+        _cubit.say('${picked.name} could not be read: $error');
+        return;
+      }
+      final empty = emptyDecodeRefusal(document, picked.name);
+      if (empty != null) {
+        _cubit.say(empty);
+        return;
+      }
+      if (!mounted) return;
+      final choice = await showImportScreen(
+        context,
+        document: document,
+        profile: _history.project.profile,
+      );
+      if (choice == null) {
+        _cubit.say('import cancelled');
+        return;
+      }
+      final ModelProject before = _history.project;
+      final report = importInto(
+        before,
+        document,
+        options: ImportOptions(scale: choice.unit.scale, upAxis: choice.upAxis),
+      );
+      if (report.counts.objects == 0) {
+        _cubit.say('${picked.name} has nothing this reader could place');
+        return;
+      }
+      // `importInto` always appends the incoming objects after whatever was
+      // already in the project (`ModelProject.added`'s own doc comment), so
+      // everything past `before`'s own length is exactly what this import
+      // brought in — `_applyImportCleanup`'s own `only` restricts the
+      // cleanup choice to that set.
+      final newIds = <int>{
+        for (final ModelObject object in report.project.objects.skip(
+          before.objects.length,
+        ))
+          object.id,
+      };
+      final merged = _applyImportCleanup(report.project, choice, only: newIds);
+      _cubit.ran(
+        ReplaceDocument(merged, 'import ${picked.name}'),
+        said:
+            'imported ${report.counts.objects} '
+            '${report.counts.objects == 1 ? 'object' : 'objects'} from '
+            '${picked.name}',
+      );
+    } catch (error) {
+      if (mounted) _cubit.say('could not import it: $error');
+    }
   }
 
   /// Puts the model in [bytes] in the document, whether it came from a picker

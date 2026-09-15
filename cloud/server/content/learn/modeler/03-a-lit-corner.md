@@ -25,20 +25,22 @@ tables, deduplicating anything that matches by content rather than doubling
 it, and an agent over MCP can already reach it through
 `ModelSession.import`.
 
-> **This step has no button yet.** Checked directly while writing this
-> case: nothing in `apps/flutter3d_modeler` calls `ModelSession.import` or
-> the free `importInto` function at all — the toolbar's only file action is
-> **Open**, which always replaces the whole document (`_openBytesWithImportScreen`'s
-> own `openDocument` call). Merging a second asset into a project already
-> open is real at the command layer (`import_into_test.dart`,
-> `scene_multi_asset_export_test.dart`) and reachable by an agent, but not
-> yet by a person clicking through the real GUI — the "Import into scene"
-> action `mat-24`'s own extended scope named is recorded closed, but only
-> its four Scene-mode panels actually got wired (`mat-34d`); the import
-> action itself was not. This is `tut-08`, found writing this case. So this
-> walkthrough continues the way this case's own test actually builds the
-> project: driven directly against the session/command layer, the same
-> route an agent over MCP already has.
+> **This step now has a real button.** `tut-08`, found writing this case, is
+> closed: the toolbar's own **Open** now sits beside **Import**
+> (`TopBarActions`) — the same file picker and the same unit/axis/cleanup
+> screen Open already shows, ending in `ImportInto`'s own merge into the
+> project already open rather than `_installOpened`'s wholesale replacement.
+> A person can pick `BoxTextured.glb` there directly and reach exactly the
+> two new objects this step describes. This walkthrough still narrates the
+> result the way this case's own fixture script builds it — driven directly
+> against the session/command layer, the same route an agent over MCP
+> already has — for a reason that has nothing to do with the button:
+> `ReplaceDocument`, what an import actually runs, is deliberately not
+> journalable (see "Proving it" below), so a `.jsonl` replay was never going
+> to see this step regardless of how it was driven. The app's own UI path is
+> covered separately, by a widget test that drives the real **Import**
+> button end to end
+> (`apps/flutter3d_modeler/test/file_import_test.dart`).
 
 `BoxTextured.glb` itself turns out to hold two nodes, not one — its single
 textured cube sits on a child node under an empty root, the file's own way
@@ -205,9 +207,13 @@ a live `ModelSession` seeded with case 2's own saved project
 `importInto` function — the same one `ModelSession.import` itself calls,
 used directly here rather than through the session for the same reason
 case 1's own STL import bypasses it: `ReplaceDocument`, what an import
-actually runs, is deliberately not journalable; see the callout in step 1
-for the separate reason a person cannot yet drive this particular step
-through the app's own UI at all, `tut-08`). `tutorial_scenarios_test.dart`'s
+actually runs, is deliberately not journalable — see the callout in step 1;
+`tut-08`, the separate reason a person once could not drive this particular
+step through the app's own UI at all, is closed, and
+`file_import_test.dart` is what now proves the button rather than this
+fixture script, which stays command-layer-driven so `case3.f3dproj`/
+`case3.glb` stay byte-for-byte reproducible without a live renderer).
+`tutorial_scenarios_test.dart`'s
 own case-3 group checks four things: the scenario reaches the exact project
 committed as `case3.f3dproj` and exports the exact `case3.glb`, byte for
 byte, with `compareModelDocuments` confirming the decoded GLB matches too;

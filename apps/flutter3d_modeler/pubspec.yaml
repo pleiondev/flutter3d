@@ -169,6 +169,13 @@ dev_dependencies:
   # this file's own doc comment argues against.
   test: ^1.25.0
 
+  # `tut-08`'s own `file_import_test.dart`: a fake `FileSelectorPlatform`
+  # standing in for the native picker `openModel` calls, the same pattern
+  # `apps/flutter3d_editor/test/timeline_attach_screen_test.dart` already
+  # uses for its own save panel.
+  file_selector_platform_interface: ^2.6.0
+  plugin_platform_interface: ^2.1.7
+
   flutter_lints: ^6.0.0
 
 flutter:

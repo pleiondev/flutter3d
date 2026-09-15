@@ -12,30 +12,41 @@ Future<void> show(
   WidgetTester tester, {
   VoidCallback? onSave,
   VoidCallback? onPreview,
+  VoidCallback? onImport,
   ValueChanged<String>? onAddPrimitive,
-}) => tester.pumpWidget(
-  MaterialApp(
-    home: Scaffold(
-      body: TopBarActions(
-        canUndo: false,
-        canRedo: false,
-        undoSays: null,
-        redoSays: null,
-        onUndo: () {},
-        onRedo: () {},
-        onAddPrimitive: onAddPrimitive ?? (_) {},
-        onOpen: () {},
-        onSave: onSave ?? () {},
-        onExport: (_) {},
-        onMaterialStudio: () {},
-        onPreview: onPreview ?? () {},
-        onShortcutHelp: () {},
-        onStartScreen: () {},
-        onReportProblem: () {},
+}) {
+  // Wide enough to lay out every button this row now holds — `tut-08`'s own
+  // "Import" tipped the default 800-pixel test window into an overflow that
+  // had nothing to do with what any test here actually checks.
+  tester.view.physicalSize = const Size(1000, 600);
+  tester.view.devicePixelRatio = 1.0;
+  addTearDown(tester.view.resetPhysicalSize);
+  addTearDown(tester.view.resetDevicePixelRatio);
+  return tester.pumpWidget(
+    MaterialApp(
+      home: Scaffold(
+        body: TopBarActions(
+          canUndo: false,
+          canRedo: false,
+          undoSays: null,
+          redoSays: null,
+          onUndo: () {},
+          onRedo: () {},
+          onAddPrimitive: onAddPrimitive ?? (_) {},
+          onOpen: () {},
+          onImport: onImport ?? () {},
+          onSave: onSave ?? () {},
+          onExport: (_) {},
+          onMaterialStudio: () {},
+          onPreview: onPreview ?? () {},
+          onShortcutHelp: () {},
+          onStartScreen: () {},
+          onReportProblem: () {},
+        ),
       ),
     ),
-  ),
-);
+  );
+}
 
 void main() {
   testWidgets('tapping Save calls onSave', (WidgetTester tester) async {
@@ -74,5 +85,15 @@ void main() {
     await tester.pump();
 
     expect(previews, 1);
+  });
+
+  testWidgets('tapping Import calls onImport', (WidgetTester tester) async {
+    var imports = 0;
+    await show(tester, onImport: () => imports++);
+
+    await tester.tap(find.widgetWithText(TextButton, 'Import'));
+    await tester.pump();
+
+    expect(imports, 1);
   });
 }

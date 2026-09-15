@@ -28,6 +28,7 @@ class TopBarActions extends StatelessWidget {
     required this.onRedo,
     required this.onAddPrimitive,
     required this.onOpen,
+    required this.onImport,
     required this.onSave,
     required this.onExport,
     required this.onMaterialStudio,
@@ -53,6 +54,12 @@ class TopBarActions extends StatelessWidget {
   final ValueChanged<String> onAddPrimitive;
 
   final VoidCallback onOpen;
+
+  /// `tut-08`'s own entry: brings a second file in beside what is already
+  /// open, through `ImportInto`, rather than [onOpen]'s own wholesale
+  /// replacement.
+  final VoidCallback onImport;
+
   final VoidCallback onSave;
   final ValueChanged<ExportFormat> onExport;
   final VoidCallback onMaterialStudio;
@@ -95,6 +102,8 @@ class TopBarActions extends StatelessWidget {
         ),
       ),
       TextButton(onPressed: onOpen, child: const Text('Open')),
+      const SizedBox(width: 4),
+      TextButton(onPressed: onImport, child: const Text('Import')),
       const SizedBox(width: 4),
       FilledButton.tonal(onPressed: onSave, child: const Text('Save')),
       const SizedBox(width: 4),
