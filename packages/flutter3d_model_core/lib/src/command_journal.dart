@@ -71,6 +71,47 @@ final class CommandJournal {
         }),
       );
 
+  /// Forgets the last recorded step and writes [replacement] in its place —
+  /// the journal-side half of `ModelHistory.amend`'s own "the stack does
+  /// not grow" rule.
+  ///
+  /// **Overwrites rather than appending, so a cold [replay] lands on the
+  /// adjusted state.** A caller pairs this with `ModelHistory.amend`, at the
+  /// same moment: that method re-runs [replacement] against the document
+  /// the top step's own command ran against, in place of it, and this
+  /// forgets the original line(s) the same way — replay meets a `command`
+  /// line carrying [replacement]'s own arguments where the original's used
+  /// to be, and reaches the adjusted document directly rather than the
+  /// original followed by a second, unrecorded edit on top of it.
+  ///
+  /// **A step [transaction] wrote as a `beginTransaction`/several lines/
+  /// `endTransaction` bracket loses the whole bracket, not only its own
+  /// last line.** `ModelHistory.amend` replaces everything back to
+  /// `HistoryStep.before` — the document as it stood before the *whole*
+  /// step, transaction or not — with [replacement] alone, so a journal that
+  /// kept the bracket's inner lines would replay a step nothing in the live
+  /// session still remembers taking.
+  void amend(
+    ModelCommand replacement, {
+    StepAuthor author = StepAuthor.person,
+  }) {
+    if (_lines.isNotEmpty && _lines.last == _endMarker) {
+      _lines.removeLast();
+      var depth = 1;
+      while (depth > 0 && _lines.isNotEmpty) {
+        final String removed = _lines.removeLast();
+        if (removed == _endMarker) {
+          depth++;
+        } else if (removed == _beginMarker) {
+          depth--;
+        }
+      }
+    } else if (_lines.isNotEmpty) {
+      _lines.removeLast();
+    }
+    record(replacement, author: author);
+  }
+
   /// Brackets the commands recorded between this and the matching
   /// [endTransaction] as one undo step on [replay], mirroring
   /// `ModelHistory.beginTransaction`. Call it at the same moment a caller
@@ -91,7 +132,14 @@ final class CommandJournal {
   }
 
   void _marker(String which) =>
-      _lines.add(jsonEncode(<String, Object?>{'transaction': which}));
+      _lines.add(which == 'begin' ? _beginMarker : _endMarker);
+
+  static final String _beginMarker = jsonEncode(<String, Object?>{
+    'transaction': 'begin',
+  });
+  static final String _endMarker = jsonEncode(<String, Object?>{
+    'transaction': 'end',
+  });
 
   /// The journal so far, one JSON object per line, UTF-8, each line ended.
   Uint8List toBytes() => utf8.encode(_lines.map((String l) => '$l\n').join());

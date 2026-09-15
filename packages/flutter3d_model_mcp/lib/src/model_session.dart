@@ -204,6 +204,34 @@ final class ModelSession {
     return (did: true, says: '${command.says} — $selection');
   }
 
+  /// Adjusts the top of the undo stack to [to] instead of pushing a second
+  /// step — the operation card's own slider, reachable from outside the
+  /// application for the first time (`tut-03`).
+  ///
+  /// **Calls through to the same [ModelHistory.amend] the app's own card
+  /// calls directly** (`apps/flutter3d_modeler/lib/src/screen/
+  /// interactions.dart`'s own `_amend`), so an agent adjusting the last
+  /// operation reaches the identical re-run-against-the-document-before-it
+  /// behaviour a person dragging the slider gets — not a second `run` that
+  /// would leave two steps on the stack instead of one adjusted.
+  ///
+  /// **Records [to] itself to the journal, not the step it replaces.** A
+  /// bare `history.amend` (what the app calls, and what case 2's own tests
+  /// exercise directly) never reaches `_journal` at all, so a session's own
+  /// recovery file used to still name the *original* argument after an
+  /// amend — this is what closes that: [CommandJournal.amend] forgets the
+  /// line(s) the step being adjusted wrote and records [to] in their place,
+  /// so a cold [journal] replay lands on the adjusted state rather than the
+  /// original one followed by an adjustment nothing on disk remembers.
+  Answer amend(ModelCommand to) {
+    final String? refused = history.amend(to);
+    if (refused != null) {
+      return (did: false, says: 'nothing did ${to.says}: $refused');
+    }
+    _journal.amend(to, author: StepAuthor.agent);
+    return (did: true, says: '${to.says} — $selection');
+  }
+
   /// Runs [body] as one [history] step, its own journal lines bracketed the
   /// same way — a recipe (`mcp-09n`) calling [run] several times inside
   /// [body] is one undo step in the live session and, thanks to this, one

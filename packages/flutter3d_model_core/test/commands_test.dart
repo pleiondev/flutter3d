@@ -2626,6 +2626,34 @@ void main() {
           baseVersion: 1,
           meshBytes: Uint8List.fromList(<int>[1, 2, 3]),
         ),
+        ApplyClipResult(
+          clipIndex: 0,
+          clip: ProjectClip(
+            name: 'baked',
+            tracks: <ProjectTrack>[
+              ProjectTrack(
+                objectId: 1,
+                track: AnimationTrack(
+                  nodeIndex: 0,
+                  path: AnimationPath.rotation,
+                  interpolation: AnimationInterpolation.linear,
+                  times: Float32List.fromList(<double>[0, 1]),
+                  values: Float32List.fromList(<double>[
+                    0,
+                    0,
+                    0,
+                    1,
+                    0,
+                    0,
+                    0,
+                    1,
+                  ]),
+                  componentCount: 4,
+                ),
+              ),
+            ],
+          ),
+        ),
         ApplySimulationCache(
           objectId: 1,
           baseVersion: 1,

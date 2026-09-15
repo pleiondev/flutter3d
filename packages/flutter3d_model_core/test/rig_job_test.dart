@@ -444,10 +444,43 @@ void main() {
       expect(history.project.clips, isEmpty);
     });
 
-    test('is not in modelCommandNames — an agent tool for it is later, '
-        'app-integration work, the same scope line this row leaves '
-        'undrawn for a reason its own doc comment gives', () {
-      expect(modelCommandNames.contains('applyClipResult'), isFalse);
+    test('`tut-14`, resolved: is in modelCommandNames now, and round-trips '
+        'through modelCommandFromJson — a cold journal replay can name '
+        'this command again', () {
+      expect(modelCommandNames.contains('applyClipResult'), isTrue);
+
+      final clip = ProjectClip(
+        name: 'baked',
+        tracks: <ProjectTrack>[_identityRotationTrack(1)],
+      );
+      final command = ApplyClipResult(clip: clip, clipIndex: 2);
+      final read = modelCommandFromJson(command.toJson());
+
+      expect(read, isA<ApplyClipResult>());
+      expect((read! as ApplyClipResult).clipIndex, 2);
+      _expectClipsEqual((read as ApplyClipResult).clip, clip);
+    });
+
+    test('a null clipIndex round-trips as null, not a missing key '
+        'modelCommandFromJson could confuse for one', () {
+      final clip = ProjectClip(
+        tracks: <ProjectTrack>[_identityRotationTrack(1)],
+      );
+      final command = ApplyClipResult(clip: clip);
+      final read = modelCommandFromJson(command.toJson());
+
+      expect(read, isA<ApplyClipResult>());
+      expect((read! as ApplyClipResult).clipIndex, isNull);
+    });
+
+    test('modelCommandFromJson refuses a clip with no readable tracks '
+        'rather than building a half-read command', () {
+      final read = modelCommandFromJson(<String, Object?>{
+        'name': 'applyClipResult',
+        'clipIndex': null,
+        'clip': <String, Object?>{'name': 'x', 'tracks': 'not a list'},
+      });
+      expect(read, isNull);
     });
   });
 

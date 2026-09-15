@@ -6,6 +6,8 @@ library;
 
 import 'dart:typed_data';
 
+import 'package:flutter3d_mesh/flutter3d_mesh.dart'
+    show ParametricCuboid, ParametricShape;
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 import 'package:test/test.dart';
 import 'package:vector_math/vector_math.dart';
@@ -130,6 +132,85 @@ void main() {
 
       expect(replay.ok, isTrue);
       expect(replay.history!.project.objects, hasLength(1));
+    });
+  });
+
+  group('tut-03: amend overwrites rather than appending', () {
+    test('a plain step: one line replaced by one line, not two', () {
+      final journal = CommandJournal()
+        ..record(const AddPrimitive(kind: 'box', size: 1.0));
+
+      journal.amend(const AddPrimitive(kind: 'box', size: 2.0));
+
+      expect(journal.length, 1);
+      final replay = CommandJournal.replay(
+        journal.toBytes(),
+        const ModelProject(),
+      );
+      expect(replay.ok, isTrue, reason: replay.refused);
+      // Mutation: append instead of overwriting, and this project would
+      // hold two boxes — a 1.0 m one nothing amended away, and a second,
+      // 2.0 m one beside it — rather than one box at the adjusted size,
+      // the same document `ModelHistory.amend` itself reaches live.
+      expect(replay.history!.project.objects, hasLength(1));
+      final ParametricShape shape =
+          (replay.history!.project.objects.single.geometry
+                  as ParametricGeometry)
+              .shape;
+      expect((shape as ParametricCuboid).size, Vector3.all(2.0));
+    });
+
+    test('a step recorded as a whole transaction loses the whole bracket, '
+        'not only its own last line', () {
+      final journal = CommandJournal()..record(const AddPrimitive(kind: 'box'));
+      journal.transaction(() {
+        journal.record(Rename(id: 1, to: 'one'));
+        journal.record(Rename(id: 1, to: 'two'));
+        journal.record(Rename(id: 1, to: 'three'));
+      });
+      expect(journal.length, 6); // add, begin, 3 renames, end
+
+      journal.amend(Rename(id: 1, to: 'amended'));
+
+      // The add survives (it came before the bracket); the whole bracket
+      // is gone, replaced by one plain line — not a `begin`/`end` pair
+      // around it, since `ModelHistory.amend` replaced the transaction
+      // with a single command, not a transaction of one.
+      expect(journal.length, 2);
+      final replay = CommandJournal.replay(
+        journal.toBytes(),
+        const ModelProject(),
+      );
+      expect(replay.ok, isTrue, reason: replay.refused);
+      expect(replay.history!.project.objects.single.name, 'amended');
+      // One undo step for the add, one for the amended rename — not the
+      // three the original transaction would have collapsed to on its
+      // own, and not a fourth, stray step for a leftover empty bracket.
+      expect(replay.history!.steps, hasLength(2));
+    });
+
+    test('an empty journal amends into a single fresh line', () {
+      final journal = CommandJournal();
+      journal.amend(const AddPrimitive(kind: 'box'));
+      expect(journal.length, 1);
+    });
+
+    test('the recorded author is the one amend is given, not the original '
+        "line's own", () {
+      // Recorded with no author at all — the plain `StepAuthor.person`
+      // default — so the agent author below can only have come from
+      // `amend`'s own argument, not from a line this overwrote.
+      final journal = CommandJournal()..record(const AddPrimitive(kind: 'box'));
+      journal.amend(
+        const AddPrimitive(kind: 'box', size: 2.0),
+        author: StepAuthor.agent,
+      );
+      final replay = CommandJournal.replay(
+        journal.toBytes(),
+        const ModelProject(),
+      );
+      expect(replay.ok, isTrue, reason: replay.refused);
+      expect(replay.history!.topStepAuthor, StepAuthor.agent);
     });
   });
 

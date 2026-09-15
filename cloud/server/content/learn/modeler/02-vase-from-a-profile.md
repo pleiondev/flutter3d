@@ -106,14 +106,14 @@ further out, which is what a second `run` would give.
 
 `tutorial_scenarios_test.dart`'s own case-2 group checks exactly this: an
 amended extrude reaches the same vertex positions as a session built fresh
-with the amended distance, and the mesh gains no extra faces. It also
-checks the card's real cost, `tut-03`: **`amend` is not something an agent
-over MCP can reach at all** — there is no `ModelSession.amend`, only the
-app's own direct call to `_history.amend(to)` — and even at the app layer,
-the session's own recovery journal never learns the drag happened. A
-`.jsonl` written after dragging this exact card would still say
-`"distance":0.04`, the original value, not the 0.09 m the document actually
-holds.
+with the amended distance, and the mesh gains no extra faces. It also checks
+`tut-03`, closed: `ModelSession.amend` calls through to the same
+`ModelHistory.amend` the app's own card calls directly, so an agent over MCP
+can drag this same slider, and it records the *adjusted* command to the
+session's own recovery journal — a `.jsonl` written after this drag says
+`"distance":0.09`, the value the document actually holds, and a cold replay
+of a journal ending on an amend like this one lands on that same adjusted
+state.
 
 *(screenshot: the last-operation card under the viewport, showing the
 extrude's own distance field — placeholder)*

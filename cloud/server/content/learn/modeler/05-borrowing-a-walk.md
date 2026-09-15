@@ -191,14 +191,13 @@ default (`true`, now that `tut-12` is fixed); lands the result through
 retargeting the same pair with `lockFeet: true` no longer throws, and every
 mapped joint keeps all three of its own retargeted tracks — direct evidence
 `tut-12`'s fix keeps rather than collapses them; the case's own journal,
-replayed cold from case 4's own saved project, gets stuck at its very first
-line for a *different* reason than every earlier case's `tut-05` —
-`tut-14`: `ApplyClipResult` is a real,
-undoable `ModelCommand`, but deliberately outside
-`modelCommandNames`/`modelCommandFromJson`, so a cold replay cannot
-reconstruct it at all, never mind what it needed selected; the scenario
-reaches the exact project committed as `case5.f3dproj` and exports the
-exact `case5.glb`, byte for byte; the retargeted clip carries exactly the
-seventeen mapped joints' worth of tracks, leaves the "wave" clip untouched,
-and carries its own extracted root motion; and the exported GLB carries two
-real animations, the second with genuine multi-key tracks.
+replayed cold from case 4's own saved project, now rebuilds the exact
+document a live session reaches — `tut-14`, closed: `ApplyClipResult` is
+registered in `modelCommandNames`/`modelCommandFromJson` now, so a cold
+replay no longer refuses at its own first line for want of a name this
+build did not know; the scenario reaches the exact project committed as
+`case5.f3dproj` and exports the exact `case5.glb`, byte for byte; the
+retargeted clip carries exactly the seventeen mapped joints' worth of
+tracks, leaves the "wave" clip untouched, and carries its own extracted root
+motion; and the exported GLB carries two real animations, the second with
+genuine multi-key tracks.

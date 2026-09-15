@@ -165,9 +165,11 @@ all, so it is not on `case6.jsonl` — not refused, not recorded, simply not
 there. A cold replay of that journal (`tutorial_scenarios_test.dart`'s own
 case-6 group, first test) succeeds completely and reaches a project whose
 roughness is `SetMaterialField`'s own default (`0.5`), not the real
-project's `0.35` — a quieter, more dangerous shape than every earlier
-case's own `tut-05`/`tut-14` (which at least *refuse* rather than
-succeeding on the wrong answer). This is `tut-15`
+project's `0.35` — a quieter, more dangerous shape than case 2's own
+`tut-05` (which at least *refuses* rather than succeeding on the wrong
+answer; `tut-14`, the other case that used to refuse this way, is closed
+now — a cold replay past an `ApplyClipResult` step succeeds too, honestly,
+because the step really is on the journal). This is `tut-15`
 (`doc/modeler-tutorial-gaps.md`): a session's own recovery journal, read
 back after a crash, would silently omit every edit a person made on the same
 document while the agent was working, and say nothing at all about having

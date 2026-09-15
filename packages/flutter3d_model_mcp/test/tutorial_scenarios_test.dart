@@ -12,7 +12,7 @@ import 'dart:io';
 
 import 'package:flutter3d_formats/flutter3d_formats.dart';
 import 'package:flutter3d_mesh/flutter3d_mesh.dart'
-    show ArrayModifier, EditMesh, MirrorModifier, weightsOf;
+    show ArrayModifier, EditMesh, MirrorModifier, ParametricCuboid, weightsOf;
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 import 'package:flutter3d_model_mcp/flutter3d_model_mcp.dart';
 import 'package:flutter3d_rig/flutter3d_rig.dart' show BoneMap, looseAutoMap;
@@ -212,12 +212,11 @@ void main() {
       expect(array.count, 3);
     });
 
-    test('the last-operation card (ModelHistory.amend) re-runs the rim '
-        'extrude against the mesh as it was before it, adjusting one step '
-        'rather than leaving two — a real, working path, though `tut-03` '
-        "is that nothing above `ModelHistory` itself can reach it: there is "
-        'no `ModelSession.amend`, and `CommandJournal` never hears about the '
-        'adjustment at all', () {
+    test('the last-operation card (ModelSession.amend, `tut-03` fixed) '
+        're-runs the rim extrude against the mesh as it was before it, '
+        'adjusting one step rather than leaving two, and this time the '
+        'journal hears about it too: a cold replay lands on the adjusted '
+        'distance, not the original one', () {
       ModelSession fresh(double distance) {
         final session = ModelSession(ModelHistory(const ModelProject()));
         session.run(
@@ -240,8 +239,8 @@ void main() {
       // A second `run` would push a *second* step — two extrudes deep —
       // rather than adjusting the one already there, which is exactly
       // the distinction the operation card exists to make.
-      final said = session.history.amend(const Extrude(0.09));
-      expect(said, isNull);
+      final amended = session.amend(const Extrude(0.09));
+      expect(amended.did, isTrue, reason: amended.says);
 
       final directly = fresh(0.09);
       final directMesh = (directly.project[1]!.geometry as EditedGeometry).mesh;
@@ -255,17 +254,58 @@ void main() {
             'extrude would, not on top of the original 0.04 m one',
       );
 
-      // The gap itself, made concrete: the journal this session would
-      // write still names the *original* distance, because `amend` runs
-      // through `ModelHistory` directly and never reaches
-      // `ModelSession`'s own `_journal.record`.
+      // `tut-03`, closed: the journal this session writes now names the
+      // *adjusted* distance, because `ModelSession.amend` records to
+      // `_journal` the same moment it calls through to
+      // `ModelHistory.amend`, rather than leaving the journal to a caller
+      // that reached `ModelHistory` directly. (A cold replay of *this*
+      // journal still cannot get past its own earlier `select` calls —
+      // that is `tut-05`, a separate, still-open gap this fix does not
+      // touch; the next test below isolates `amend`'s own journal fix from
+      // it with a command that needs no selection at all.)
       final journalPath = '${workspace.path}/case2_amend.jsonl';
       session.journal(journalPath);
       final lines = File(journalPath).readAsLinesSync();
       expect(
         lines.firstWhere((l) => l.contains('"extrude"')),
-        contains('"distance":0.04'),
+        contains('"distance":0.09'),
       );
+    });
+
+    test('`tut-03`, closed: a session\'s own journal, after an amend, '
+        'replays cold to the adjusted state rather than the original one '
+        '— isolated from `tut-05`\'s own separate selection gap with '
+        '`addPrimitive`, a command that takes its own arguments rather '
+        "than reading `session.select`, so this journal's own single line "
+        'replays from nothing but itself', () {
+      final session = ModelSession(ModelHistory(const ModelProject()));
+      final added = session.run(const AddPrimitive(kind: 'box', size: 1.0));
+      expect(added.did, isTrue, reason: added.says);
+
+      final amended = session.amend(const AddPrimitive(kind: 'box', size: 2.0));
+      expect(amended.did, isTrue, reason: amended.says);
+      expect(session.project.objects, hasLength(1));
+      final geometry = session.project.objects.single.geometry;
+      final shape = (geometry as ParametricGeometry).shape as ParametricCuboid;
+      expect(shape.size, Vector3.all(2.0));
+
+      final journalPath = '${workspace.path}/case2_amend_primitive.jsonl';
+      session.journal(journalPath);
+      final lines = File(journalPath).readAsLinesSync();
+      // One line, not two: `amend` overwrote the original rather than
+      // appending an adjustment beside it.
+      expect(lines, hasLength(1));
+      expect(lines.single, contains('"size":2.0'));
+
+      final replay = CommandJournal.replay(
+        File(journalPath).readAsBytesSync(),
+        const ModelProject(),
+      );
+      expect(replay.ok, isTrue, reason: replay.refused);
+      final replayedGeometry = replay.history!.project.objects.single.geometry;
+      final replayedShape =
+          (replayedGeometry as ParametricGeometry).shape as ParametricCuboid;
+      expect(replayedShape.size, Vector3.all(2.0));
     });
   });
 
@@ -664,26 +704,36 @@ void main() {
     });
 
     test("the case's own journal, replayed from right after case 4's own "
-        'saved project, gets stuck at its very first line — `tut-14`: '
-        '`ApplyClipResult` is a real `ModelCommand` (it records to the '
-        "journal, undoes and redoes through `ModelHistory` like any other) "
-        'but deliberately outside `modelCommandNames`/'
-        '`modelCommandFromJson`, so a cold replay cannot reconstruct it at '
-        'all — a different shape than cases 2–4\'s own `tut-05` (a command '
-        'this build does know, refused for want of a selection)', () async {
+        "saved project, now rebuilds the exact document a live session's "
+        'own `applyClipResult`/`extractRootMotion` calls reach — `tut-14`, '
+        'fixed: `ApplyClipResult` is registered in `modelCommandNames`/'
+        '`modelCommandFromJson` now, so a cold replay no longer refuses at '
+        'its own first line for want of a name this build did not know — a '
+        "different shape than cases 2–4's own `tut-05` (a command this "
+        'build does know, refused for want of a selection), and one this '
+        'fix actually closes', () async {
       final starting = await case5StartingProject();
       final journalBytes = File(
         'test/fixtures/tutorial/case5.jsonl',
       ).readAsBytesSync();
       final replay = CommandJournal.replay(journalBytes, starting);
-      // Mutation: assert `replay.ok` instead. Registering `applyClipResult`
-      // in `modelCommandFromJson` would mean tut-14 had closed — worth
-      // celebrating, not a check this test should pass by accident on a
-      // change nobody meant.
-      expect(replay.ok, isFalse);
+      // Mutation: assert `replay.ok` were false instead. A build that
+      // stopped knowing `applyClipResult` would mean `tut-14` had
+      // reopened — worth catching, not a check this test should pass by
+      // accident on a change nobody meant.
+      expect(replay.ok, isTrue, reason: replay.refused);
+
+      final path = '${workspace.path}/case5_replay.f3dproj';
+      final replayed = ModelSession(replay.history!, path: path);
+      final saved = replayed.save(path);
+      expect(saved.did, isTrue, reason: saved.says);
       expect(
-        replay.refused,
-        contains('names a command this build does not know'),
+        File(path).readAsBytesSync(),
+        File('test/fixtures/tutorial/case5.f3dproj').readAsBytesSync(),
+        reason:
+            'replaying case5.jsonl cold from right after case 4 should '
+            'reach the identical document a live session reaches running '
+            'the same two steps through ModelSession.run',
       );
     });
 

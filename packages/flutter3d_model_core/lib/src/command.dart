@@ -940,6 +940,16 @@ _modelCommandReaders =
               },
             _ => null,
           },
+      // `tut-14`: registered so a journal line — or an MCP `applyClipResult`
+      // call — can name this command at all; `rig_job_commands.dart`'s own
+      // doc comment on [ApplyClipResult] used to say this stayed out on
+      // purpose, pending exactly this row.
+      'applyClipResult': (json) => switch (_clipFromJson(json['clip'])) {
+        final ProjectClip clip
+            when json['clipIndex'] == null || json['clipIndex'] is int =>
+          ApplyClipResult(clip: clip, clipIndex: json['clipIndex'] as int?),
+        _ => null,
+      },
       'bakeSimulationToShapes': (json) => switch (json['id']) {
         final int id => BakeSimulationToShapes(
           id: id,

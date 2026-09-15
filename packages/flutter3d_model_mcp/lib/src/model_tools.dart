@@ -1227,6 +1227,86 @@ List<ModelTool> get _commandTools => <ModelTool>[
   ),
   ModelTool(
     Tool(
+      name: 'applyClipResult',
+      description:
+          'Write a baked clip — retargetClip/bakeIk/bakeDrivers\'s own '
+          'result, or one computed some other way — into the project. '
+          'clipIndex null (or left out) appends it as a new clip; given, '
+          'replaces the clip already at that index. Nothing here computes '
+          'anything: retargetClip/bakeIk/bakeDrivers already compute and '
+          'land their own result in one call, so this tool exists for '
+          'a clip an agent is landing separately from computing it — the '
+          'same reason applyJobResult exists beside applyModifier.',
+      inputSchema: ObjectSchema(
+        properties: <String, Schema>{
+          'clipIndex': IntegerSchema(
+            description: 'the clip to replace; omit to append instead',
+          ),
+          'clip': ObjectSchema(
+            description: 'the clip, ApplyClipResult\'s own toJson shape',
+            properties: <String, Schema>{
+              'name': StringSchema(description: 'optional'),
+              'tracks': ListSchema(
+                description: 'one entry per animated object/property',
+                items: ObjectSchema(
+                  properties: <String, Schema>{
+                    'objectId': IntegerSchema(
+                      description: 'the object this track drives',
+                    ),
+                    'track': ObjectSchema(
+                      properties: <String, Schema>{
+                        'nodeIndex': IntegerSchema(
+                          description:
+                              'unused on read; carried through for '
+                              'round-trip with a source document only',
+                        ),
+                        'path': UntitledSingleSelectEnumSchema(
+                          description: 'what this track animates',
+                          values: <String>[
+                            for (final p in AnimationPath.values) p.name,
+                          ],
+                        ),
+                        'interpolation': _interpolation(
+                          'how keys blend between times',
+                        ),
+                        'times': _numbers(
+                          'keyframe times in seconds, ascending',
+                        ),
+                        'values': _numbers(
+                          'keyframe values, componentCount per key '
+                          '(times valuesPerKey for cubicSpline)',
+                        ),
+                        'componentCount': IntegerSchema(
+                          description: 'values per keyframe',
+                        ),
+                      },
+                      required: <String>[
+                        'nodeIndex',
+                        'path',
+                        'interpolation',
+                        'times',
+                        'values',
+                        'componentCount',
+                      ],
+                    ),
+                  },
+                  required: <String>['objectId', 'track'],
+                ),
+              ),
+              'extras': ObjectSchema(
+                description: 'optional, carried through opaquely',
+              ),
+            },
+            required: <String>['tracks'],
+          ),
+        },
+        required: <String>['clip'],
+      ),
+    ),
+    _command('applyClipResult'),
+  ),
+  ModelTool(
+    Tool(
       name: 'applySimulationCache',
       description:
           'Write a baked simulation cache into the object it answers '
@@ -2282,6 +2362,45 @@ List<ModelTool> get modelTools => <ModelTool>[
     }),
   ),
   ..._commandTools,
+  ModelTool(
+    Tool(
+      name: 'amend',
+      description:
+          'Adjust the last operation instead of pushing a second one '
+          'on top of it — the operation card\'s own slider. Takes a whole '
+          'command object, the same shape run/the journal use ("name" '
+          'plus that command\'s own arguments, e.g. {"name": "extrude", '
+          '"distance": 0.09}) and re-runs it against the document as it '
+          'was before the step being adjusted, replacing that step rather '
+          'than adding a new one. Refused when there is nothing to adjust, '
+          'or when the new arguments themselves are refused — the old step '
+          'is left in place either way.',
+      inputSchema: ObjectSchema(
+        properties: <String, Schema>{
+          'name': StringSchema(
+            description: 'the command to re-run, e.g. "extrude"',
+          ),
+        },
+        required: <String>['name'],
+      ),
+    ),
+    (ModelSession session, Map<String, Object?> arguments) async {
+      final ModelCommand? command = modelCommandFromJson(arguments);
+      if (command == null) {
+        final Object? name = arguments['name'];
+        return (
+          did: false,
+          says:
+              '${name ?? 'that'} cannot be read from those arguments — '
+              'check the schema tools/list gave for the command amend is '
+              'adjusting to',
+        );
+      }
+      // `mcp-14n`'s own lock — see `_command`'s own copy of this line.
+      await session.history.whenNotInTransaction;
+      return session.amend(command);
+    },
+  ),
   ModelTool(
     Tool(
       name: 'undo',
