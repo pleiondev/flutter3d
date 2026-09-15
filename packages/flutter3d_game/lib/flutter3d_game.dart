@@ -25,6 +25,10 @@
 ///   [FixtureVisuals], with the look decided by the game through
 ///   [ActorAppearance] and [FixtureAppearance], and [SoundOcclusion] for a wall
 ///   between a listener and a source.
+/// * **The walk a level starts with**: [LevelWalk], a body that collides,
+///   jumps and runs, turns where it is dragged and carries a camera at eye
+///   height, and [openRegistryFor], which accepts every type a level names
+///   before a game has taught it any.
 ///
 /// **What is deliberately not here**: the title card and the loss screen,
 /// which are the face of a particular game, and a state-management choice for
@@ -63,3 +67,4 @@ export 'src/screens/volumes.dart';
 export 'src/visuals/actor_visuals.dart';
 export 'src/visuals/fixture_visuals.dart';
 export 'src/visuals/sound_occlusion.dart';
+export 'src/walk/level_walk.dart';

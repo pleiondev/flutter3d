@@ -17,6 +17,7 @@ and re-exports neither. The simulation is plain Dart and lives there.
 | `RunSession` | Loading a level, restarting it, moving to the next, saving and resuming, and reporting how the run ended. |
 | `SettingsOverlay` | Volumes, gamepad and accessibility sliders, a rebinding list that takes a key or a pad button, and where a licence's attribution goes. |
 | `SaveFile` / `SettingsFile` / `DemoFile` | The three documents a game keeps, through `flutter3d_app`'s `Storage`. |
+| `LevelWalk` | The walk a level starts with, before it is any genre: a body that collides, jumps and runs, turns where it is dragged, and carries a camera at eye height. |
 | `ActorVisuals` / `FixtureVisuals` | An actor bound to the node that represents it, and a fixture to the light it drives. What a torch looks like is decided by the game and handed in. |
 
 ## What is deliberately not in it

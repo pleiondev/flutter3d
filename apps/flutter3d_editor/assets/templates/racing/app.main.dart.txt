@@ -19,7 +19,6 @@ library;
 
 import 'dart:async';
 import 'dart:convert';
-import 'dart:math' as math;
 
 import 'package:flutter/material.dart' hide Material;
 import 'package:flutter/scheduler.dart';
@@ -50,17 +49,6 @@ class TemplateApp extends StatelessWidget {
   );
 }
 
-/// A kind for a type this application has not been taught.
-///
-/// **The level names things the game does not spawn yet** — a monster, a
-/// pickup, a lift — and a registry that has never heard of them refuses to load
-/// the document at all. So every type in the document is accepted and none of
-/// them is given a meaning: they are coordinates with words attached until
-/// there is something to spawn them into.
-final class OpenKind extends EntityKind {
-  const OpenKind(super.type);
-}
-
 /// What the level is doing, as far as the screen is concerned.
 ///
 /// Screen state, and only that — this seed has no restart, no next level and
@@ -79,15 +67,12 @@ final class LevelLoading extends LevelState {
   const LevelLoading();
 }
 
-/// The level is built: a scene to draw, a body to walk it with.
+/// The level is built: a scene to draw, and a walk to go round it with.
 final class LevelReady extends LevelState {
-  const LevelReady(this.scene, this.body, {required this.yaw});
+  const LevelReady(this.scene, this.walk);
 
   final Scene scene;
-  final CharacterController body;
-
-  /// Which way the spawn faces, in radians.
-  final double yaw;
+  final LevelWalk walk;
 }
 
 /// The level would not load, and why.
@@ -129,26 +114,17 @@ class LevelCubit extends Cubit<LevelState> {
       final loaded = await LevelLoader().build(
         level,
         device: device,
-        registry: EntityRegistry(<EntityKind>[
-          for (final type
-              in level.entities.map((EntityDef e) => e.type).toSet())
-            OpenKind(type),
-        ]),
+        // Every type the document names is accepted and none is given a
+        // meaning, until there is something to spawn them into.
+        registry: openRegistryFor(level),
       );
       loaded.level.addTo(world);
 
-      // Where the author said somebody stands, lifted by half a body: a spawn
-      // is authored at the feet, which is the only place an author can see.
-      final spawn = level.entities
-          .where((EntityDef it) => it.type.contains('spawn'))
-          .firstOrNull;
-      final at = (spawn?.position ?? Vector3.zero()) + Vector3(0.0, 0.9, 0.0);
-
+      final spawn = LevelWalk.spawnIn(level);
       emit(
         LevelReady(
           loaded.scene..add(camera),
-          CharacterController(world: world, position: at),
-          yaw: spawn?.yaw ?? 0.0,
+          LevelWalk(world: world, at: spawn.at, yaw: spawn.yaw),
         ),
       );
     } catch (error) {
@@ -186,8 +162,6 @@ class _LevelScreenState extends State<LevelScreen>
   late final DesktopInput _keys = DesktopInput(state: _input);
   final FocusNode _keyboard = FocusNode();
 
-  double _yaw = 0.0;
-  double _pitch = 0.0;
   Offset? _dragged;
 
   Ticker? _ticker;
@@ -237,23 +211,9 @@ class _LevelScreenState extends State<LevelScreen>
 
     final state = _level.state;
     if (state is! LevelReady) return;
-    final body = state.body;
-
-    if (_input.pressed(GameAction.jump)) body.requestJump();
-
-    // Where the keys are asking to go, turned by where the head is pointing.
-    final wish = _input.moveAxis;
-    final forward = Vector3(math.sin(_yaw), 0.0, -math.cos(_yaw));
-    final right = Vector3(-forward.z, 0.0, forward.x);
-    body.step(
-      dt.clamp(0.0, 0.1),
-      wishDirection: Vector3(
-        forward.x * wish.y + right.x * wish.x,
-        0.0,
-        forward.z * wish.y + right.z * wish.x,
-      ),
-      sprint: _input.held(GameAction.sprint),
-    );
+    // A jump if one was pressed, a walk where the keys point turned by where
+    // the head is, a run while sprint is held.
+    state.walk.step(dt, _input);
 
     if (mounted) setState(() {});
   }
@@ -261,20 +221,7 @@ class _LevelScreenState extends State<LevelScreen>
   /// Puts the camera at eye height, looking where the mouse has been dragged.
   void _place() {
     final state = _level.state;
-    if (state is! LevelReady) return;
-    final eye = state.body.position + Vector3(0.0, 0.7, 0.0);
-    final cosPitch = math.cos(_pitch);
-    _camera
-      ..setPosition(eye.x, eye.y, eye.z)
-      ..lookAt(
-        eye +
-            Vector3(
-              math.sin(_yaw) * cosPitch,
-              math.sin(_pitch),
-              -math.cos(_yaw) * cosPitch,
-            ),
-        up: Vector3(0.0, 1.0, 0.0),
-      );
+    if (state is LevelReady) state.walk.placeCamera(_camera);
   }
 
   @override
@@ -296,13 +243,9 @@ class _LevelScreenState extends State<LevelScreen>
 
     return BlocProvider.value(
       value: _level,
-      // The listener is the one-time effect a fresh level brings — reading
-      // which way the spawn faces — and the builder is everything that is
-      // drawn from the state, including the one that is not playing yet.
-      child: BlocConsumer<LevelCubit, LevelState>(
-        listener: (BuildContext context, LevelState state) {
-          if (state is LevelReady) _yaw = state.yaw;
-        },
+      // Everything drawn from the state, including the one that is not playing
+      // yet. Which way the spawn faces is the walk's own business now.
+      child: BlocBuilder<LevelCubit, LevelState>(
         builder: (BuildContext context, LevelState state) => switch (state) {
           LevelFailed(:final error) => _didNotStart(error),
           LevelLoading() => _loading(),
@@ -340,8 +283,8 @@ class _LevelScreenState extends State<LevelScreen>
           if (from == null) return;
           final by = event.localPosition - from;
           _dragged = event.localPosition;
-          _yaw -= by.dx * 0.0032;
-          _pitch = (_pitch - by.dy * 0.0032).clamp(-1.5, 1.5);
+          final state = _level.state;
+          if (state is LevelReady) state.walk.look(by.dx, by.dy);
         },
         onPointerUp: (_) => _dragged = null,
         child: Stack(

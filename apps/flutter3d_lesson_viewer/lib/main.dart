@@ -63,8 +63,10 @@ class LessonViewerApp extends StatelessWidget {
 }
 
 /// A kind for a type this application has not been taught — see
-/// `packages/flutter3d_game/example`'s own `OpenKind` for why every type in the
-/// document is accepted and none of them given a meaning here.
+/// `flutter3d_game`'s own `OpenKind` for why every type in the document is
+/// accepted and none of them given a meaning here. A copy rather than an
+/// import, because this viewer stands on `flutter3d_app` and not on the game
+/// layer.
 final class OpenKind extends EntityKind {
   const OpenKind(super.type);
 }

@@ -33,7 +33,7 @@ void main() {
     final state = cubit.state;
     expect(state, isA<LevelReady>());
     expect(
-      (state as LevelReady).body.position.y,
+      (state as LevelReady).walk.body.position.y,
       greaterThan(0.0),
       reason: 'lifted off the spawn point, not left standing in the floor',
     );

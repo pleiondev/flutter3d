@@ -14,6 +14,10 @@
 * To `flutter3d_app`: `Issue`, `IssueSink` and `IssueLog`, which storage
   reports through.
 * A file that steps a simulation imports `flutter3d_sim` by name.
+* **`LevelWalk`, `OpenKind` and `openRegistryFor`**, out of the game example's
+  `main.dart`: a body that walks a level, turns where it is dragged and carries
+  a camera at eye height, and a registry that accepts every type a level names
+  before a game has taught it any.
 
 ## 0.6.0
 
