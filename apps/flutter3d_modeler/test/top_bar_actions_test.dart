@@ -11,6 +11,7 @@ import 'package:flutter_test/flutter_test.dart';
 Future<void> show(
   WidgetTester tester, {
   VoidCallback? onSave,
+  VoidCallback? onPreview,
   ValueChanged<String>? onAddPrimitive,
 }) => tester.pumpWidget(
   MaterialApp(
@@ -27,6 +28,7 @@ Future<void> show(
         onSave: onSave ?? () {},
         onExport: (_) {},
         onMaterialStudio: () {},
+        onPreview: onPreview ?? () {},
         onShortcutHelp: () {},
         onStartScreen: () {},
         onReportProblem: () {},
@@ -60,5 +62,17 @@ void main() {
     // fed its `kind`, which would make this widget reach into the document
     // instead of only ever rendering.
     expect(added, 'box');
+  });
+
+  testWidgets('tapping Preview calls onPreview', (WidgetTester tester) async {
+    var previews = 0;
+    await show(tester, onPreview: () => previews++);
+
+    await tester.tap(
+      find.byTooltip('Preview — see it the way the game would draw it'),
+    );
+    await tester.pump();
+
+    expect(previews, 1);
   });
 }

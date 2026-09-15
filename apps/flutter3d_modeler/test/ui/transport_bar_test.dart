@@ -120,4 +120,48 @@ void main() {
 
     expect(picked, 2.0);
   });
+
+  group('TransportBar.compact', () {
+    Future<void> pumpCompact(
+      WidgetTester tester, {
+      Playback playback = const Playback(),
+      int frame = 0,
+      VoidCallback? onPlayPause,
+    }) => tester.pumpWidget(
+      MaterialApp(
+        theme: modelerTheme(),
+        home: Scaffold(
+          body: SizedBox(
+            height: ModelerMetrics.transport,
+            child: TransportBar.compact(
+              playback: playback,
+              frame: frame,
+              onPlayPause: onPlayPause ?? () {},
+            ),
+          ),
+        ),
+      ),
+    );
+
+    testWidgets('draws the frame number and nothing else this bar draws', (
+      tester,
+    ) async {
+      await pumpCompact(tester, frame: 7);
+
+      expect(find.text('7'), findsOneWidget);
+      expect(find.text('Keys'), findsNothing);
+      expect(find.text('Curves'), findsNothing);
+      expect(find.byTooltip('Loop'), findsNothing);
+    });
+
+    testWidgets('tapping the play button calls onPlayPause', (tester) async {
+      var pressed = 0;
+      await pumpCompact(tester, onPlayPause: () => pressed++);
+
+      await tester.tap(find.byKey(kTransportBarCompactCanvasKey));
+      await tester.pump();
+
+      expect(pressed, 1);
+    });
+  });
 }

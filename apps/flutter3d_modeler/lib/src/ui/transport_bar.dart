@@ -24,8 +24,20 @@ enum TimelineEditMode { keys, curves }
 /// button alone, drawn in vectors.
 const Key kTransportBarCanvasKey = ValueKey<String>('transport-bar-canvas');
 
+/// [TransportBar.compact]'s own play/pause button — a separate key from
+/// [kTransportBarCanvasKey] since the two constructors draw the button at a
+/// different size and are never the same golden.
+const Key kTransportBarCompactCanvasKey = ValueKey<String>(
+  'transport-bar-compact-canvas',
+);
+
 /// The diameter design gives the play button — `⌀36 on primaryContainer`.
 const double kTransportPlayButtonSize = 36.0;
+
+/// `S9`'s own smaller button, for [TransportBar.compact] over screen 19's
+/// preview — big enough to hit, small enough that the transport does not
+/// compete with the metrics card and the budget bars for room.
+const double kTransportCompactPlayButtonSize = 28.0;
 
 class TransportBar extends StatelessWidget {
   const TransportBar({
@@ -38,7 +50,32 @@ class TransportBar extends StatelessWidget {
     this.onLoopChanged,
     this.onSpeedChanged,
     this.speeds = const <double>[0.25, 0.5, 1.0, 1.5, 2.0],
-  });
+  }) : _compact = false;
+
+  /// `S9`'s own row: play/pause and the frame number alone, with none of the
+  /// authoring controls — no `Keys`/`Curves` toggle, no loop, no speed —
+  /// screen 19's preview has no timeline under it for any of those to mean
+  /// anything about.
+  const TransportBar.compact({
+    super.key,
+    required this.playback,
+    required this.frame,
+    required this.onPlayPause,
+  }) : editMode = TimelineEditMode.keys,
+       onEditMode = _noEditModeChange,
+       onLoopChanged = null,
+       onSpeedChanged = null,
+       speeds = const <double>[],
+       _compact = true;
+
+  /// Never called: [TransportBar.compact] draws no `Keys`/`Curves` toggle for
+  /// [onEditMode] to ever fire from, so this exists only to give the field a
+  /// non-null value that constructor can share with the full one.
+  static void _noEditModeChange(TimelineEditMode _) {}
+
+  /// Whether this is [TransportBar.compact] — decides which of the two
+  /// bodies [build] draws.
+  final bool _compact;
 
   /// The cubit's own coarse state — [Playback.isPlaying], [Playback.wrap]
   /// and [Playback.speed] all read from here, never recomputed.
@@ -70,6 +107,32 @@ class TransportBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    if (_compact) {
+      return Row(
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          _PlayPauseButton(
+            playing: playback.isPlaying,
+            onPressed: onPlayPause,
+            background: theme.colorScheme.primaryContainer,
+            foreground: theme.colorScheme.onPrimaryContainer,
+            size: kTransportCompactPlayButtonSize,
+            canvasKey: kTransportBarCompactCanvasKey,
+          ),
+          const SizedBox(width: 8),
+          SizedBox(
+            width: 30,
+            child: Text(
+              '$frame',
+              textAlign: TextAlign.center,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                fontFeatures: const <FontFeature>[FontFeature.tabularFigures()],
+              ),
+            ),
+          ),
+        ],
+      );
+    }
     return Row(
       children: <Widget>[
         _PlayPauseButton(
@@ -142,12 +205,22 @@ class _PlayPauseButton extends StatelessWidget {
     required this.onPressed,
     required this.background,
     required this.foreground,
+    this.size = kTransportPlayButtonSize,
+    this.canvasKey = kTransportBarCanvasKey,
   });
 
   final bool playing;
   final VoidCallback onPressed;
   final Color background;
   final Color foreground;
+
+  /// The button's own diameter — [kTransportPlayButtonSize] for the full
+  /// bar, [kTransportCompactPlayButtonSize] for [TransportBar.compact].
+  final double size;
+
+  /// [RepaintBoundary]'s own key, captured for a golden — a different key
+  /// per size, since the two are never the same reference picture.
+  final Key canvasKey;
 
   @override
   Widget build(BuildContext context) => Semantics(
@@ -160,9 +233,9 @@ class _PlayPauseButton extends StatelessWidget {
           customBorder: const CircleBorder(),
           onTap: onPressed,
           child: RepaintBoundary(
-            key: kTransportBarCanvasKey,
+            key: canvasKey,
             child: CustomPaint(
-              size: const Size.square(kTransportPlayButtonSize),
+              size: Size.square(size),
               painter: _PlayPauseButtonPainter(
                 playing: playing,
                 background: background,

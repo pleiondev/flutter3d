@@ -31,6 +31,7 @@ class TopBarActions extends StatelessWidget {
     required this.onSave,
     required this.onExport,
     required this.onMaterialStudio,
+    required this.onPreview,
     required this.onShortcutHelp,
     required this.onStartScreen,
     required this.onReportProblem,
@@ -55,6 +56,11 @@ class TopBarActions extends StatelessWidget {
   final VoidCallback onSave;
   final ValueChanged<ExportFormat> onExport;
   final VoidCallback onMaterialStudio;
+
+  /// `S9`'s own entry: opens screen 19's full-screen "preview like in the
+  /// game" route — a route, not a mode, which is why it sits beside Export
+  /// rather than on the mode switcher.
+  final VoidCallback onPreview;
   final VoidCallback onShortcutHelp;
   final VoidCallback onStartScreen;
   final VoidCallback onReportProblem;
@@ -122,6 +128,20 @@ class TopBarActions extends StatelessWidget {
             tooltip: 'Material Studio — preview a material',
             onPressed: onMaterialStudio,
             icon: const Icon(Icons.tonality_outlined, size: 20),
+          ),
+        ),
+      ),
+      // `S9`'s own entry: screen 19's full-screen preview, beside Export for
+      // the same reason Material Studio already sits here — a route, not a
+      // shape to add and not a mode the switcher would otherwise offer.
+      MergeSemantics(
+        child: Semantics(
+          label: 'Preview',
+          button: true,
+          child: IconButton(
+            tooltip: 'Preview — see it the way the game would draw it',
+            onPressed: onPreview,
+            icon: const Icon(Icons.play_circle_outline, size: 20),
           ),
         ),
       ),

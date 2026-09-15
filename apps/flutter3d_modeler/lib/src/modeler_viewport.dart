@@ -180,12 +180,15 @@ class ModelerViewport extends StatefulWidget {
   /// where a caller advances anything drawn but not simulated.
   final VoidCallback onFrame;
 
-  /// What the frame just drawn cost inside `Renderer.render`, in microseconds.
-  ///
-  /// Reported rather than measured by the caller, because the number worth
-  /// having is the renderer's own: a caller timing `build` measures Flutter's
-  /// layout as well and cannot tell the two apart.
-  final void Function(int micros)? onRendered;
+  /// The frame just drawn — `S9`'s own row, widened from the `cpuMicros`
+  /// alone this used to report: screen 19's metrics card wants
+  /// `FrameResult.drawCalls`/`.triangles` beside the timing, and a second
+  /// callback carrying those would be a second frame nobody asked the
+  /// renderer to draw twice for. `.cpuMicros` is still every other caller's
+  /// whole reason for reading this — reported rather than measured by the
+  /// caller, because the number worth having is the renderer's own: timing
+  /// `build` measures Flutter's layout as well and cannot tell the two apart.
+  final void Function(FrameResult frame)? onRendered;
 
   /// The render target size this frame asked for, in device pixels, and the
   /// pixel ratio it came from.
@@ -621,7 +624,7 @@ class _ModelerViewportState extends State<ModelerViewport> {
             views: widget.stage.views(),
             settings: widget.settings,
           );
-          widget.onRendered?.call(frame.cpuMicros);
+          widget.onRendered?.call(frame);
           // From the device rather than painted from an image, for the
           // reason `SceneSurface` gives: a backend whose frame is composited
           // elsewhere has no image to paint, and presentFrame is the one

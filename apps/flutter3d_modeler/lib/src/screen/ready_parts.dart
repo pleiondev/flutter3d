@@ -87,6 +87,7 @@ extension _ReadyParts on _ModelerScreenState {
                   onSave: _saveFile,
                   onExport: _exportFile,
                   onMaterialStudio: () => unawaited(_openMaterialStudio()),
+                  onPreview: () => unawaited(_openGamePreview()),
                   onShortcutHelp: _showShortcutHelp,
                   onStartScreen: () => unawaited(_showStartScreen()),
                   onReportProblem: _reportProblem,
@@ -346,8 +347,8 @@ extension _ReadyParts on _ModelerScreenState {
                             renderer: renderer,
                             stage: stage,
                             onFrame: () {},
-                            onRendered: (int micros) =>
-                                _lastRenderMicros = micros,
+                            onRendered: (FrameResult result) =>
+                                _lastRenderMicros = result.cpuMicros,
                             onViewportMetrics:
                                 (int width, int height, double dpr) =>
                                     unawaited(
