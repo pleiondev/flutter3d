@@ -208,6 +208,9 @@ extension _FileHandling on _ModelerScreenState {
                     png: answer.png,
                   ),
                 ),
+            // `ux-05`: an open port is not an agent. Nothing agent-shaped is
+            // on screen until this fires.
+            onInitialize: _cubit.agentConnected,
           ),
         );
       }

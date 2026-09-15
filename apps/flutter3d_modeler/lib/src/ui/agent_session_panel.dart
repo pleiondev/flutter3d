@@ -39,13 +39,23 @@ import 'theme.dart';
 
 /// The tool-call feed and the author-badged history, screen 26's own right
 /// column.
-class AgentSessionPanel extends StatelessWidget {
+class AgentSessionPanel extends StatefulWidget {
   const AgentSessionPanel({
     super.key,
     required this.calls,
     required this.history,
     required this.onUndoAgentSteps,
+    this.clientName,
+    this.onClose,
   });
+
+  /// What the connected agent called itself — `ux-05`'s own `initialize`.
+  /// Null in a test that has no client to name.
+  final String? clientName;
+
+  /// Closes the panel. Null leaves it with no close button, which is what a
+  /// test pumping the panel on its own wants.
+  final VoidCallback? onClose;
 
   /// `ModelerCubit.agentToolCalled`'s own bounded feed, oldest call first.
   final List<AgentToolCall> calls;
@@ -59,8 +69,21 @@ class AgentSessionPanel extends StatelessWidget {
   final VoidCallback onUndoAgentSteps;
 
   @override
+  State<AgentSessionPanel> createState() => _AgentSessionPanelState();
+}
+
+class _AgentSessionPanelState extends State<AgentSessionPanel> {
+  /// Which tab is showing. `ux-05` moved the contact sheet in here from the
+  /// shell's own bottom slot: it is a thing about the agent session, and it
+  /// was taking a third of the viewport's height whether or not there was an
+  /// agent or a render to show.
+  bool _renders = false;
+
+  @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final List<AgentToolCall> calls = widget.calls;
+    final ModelHistory history = widget.history;
     final steps = history.steps;
     final int agentSteps = steps
         .where((HistoryStep step) => step.author == StepAuthor.agent)
@@ -70,35 +93,67 @@ class AgentSessionPanel extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
         Padding(
-          padding: const EdgeInsets.fromLTRB(16, 14, 16, 8),
+          padding: const EdgeInsets.fromLTRB(16, 14, 8, 8),
           child: Row(
             children: <Widget>[
               Icon(Icons.smart_toy, size: 18, color: kModelerScheme.primary),
               const SizedBox(width: 8),
-              Text('Agent session', style: theme.textTheme.titleSmall),
+              Expanded(
+                child: Text(
+                  widget.clientName == null
+                      ? 'Agent session'
+                      : 'Agent · ${widget.clientName}',
+                  style: theme.textTheme.titleSmall,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              if (widget.onClose case final VoidCallback close)
+                IconButton(
+                  tooltip: 'Hide the agent panel',
+                  onPressed: close,
+                  iconSize: 18,
+                  icon: const Icon(Icons.close),
+                ),
             ],
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          child: SegmentedButton<bool>(
+            segments: const <ButtonSegment<bool>>[
+              ButtonSegment<bool>(value: false, label: Text('Session')),
+              ButtonSegment<bool>(value: true, label: Text('Renders')),
+            ],
+            selected: <bool>{_renders},
+            showSelectedIcon: false,
+            onSelectionChanged: (Set<bool> it) =>
+                setState(() => _renders = it.first),
           ),
         ),
         const Divider(height: 1),
         Expanded(
-          child: ListView(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-            children: <Widget>[
-              const _SectionLabel('Tool calls'),
-              if (calls.isEmpty)
-                const _EmptyHint('No tool calls yet this session')
-              else
-                for (final AgentToolCall call in calls) _ToolCallRow(call),
-              const SizedBox(height: 18),
-              const _SectionLabel('History · author'),
-              if (steps.isEmpty)
-                const _EmptyHint('Nothing done yet')
-              else
-                for (final HistoryStep step in steps.reversed)
-                  _HistoryRow(step),
-              const SizedBox(height: 12),
-            ],
-          ),
+          child: _renders
+              ? AgentContactSheet(calls: calls)
+              : ListView(
+                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                  children: <Widget>[
+                    const _SectionLabel('Tool calls'),
+                    if (calls.isEmpty)
+                      const _EmptyHint('No tool calls yet this session')
+                    else
+                      for (final AgentToolCall call in calls)
+                        _ToolCallRow(call),
+                    const SizedBox(height: 18),
+                    const _SectionLabel('History · author'),
+                    if (steps.isEmpty)
+                      const _EmptyHint('Nothing done yet')
+                    else
+                      for (final HistoryStep step in steps.reversed)
+                        _HistoryRow(step),
+                    const SizedBox(height: 12),
+                  ],
+                ),
         ),
         const Divider(height: 1),
         Padding(
@@ -115,7 +170,7 @@ class AgentSessionPanel extends StatelessWidget {
               ),
               TextButton(
                 onPressed: history.topStepAuthor == StepAuthor.agent
-                    ? onUndoAgentSteps
+                    ? widget.onUndoAgentSteps
                     : null,
                 child: const Text('Undo agent steps'),
               ),
@@ -318,11 +373,20 @@ class AgentContactSheet extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: 8),
-                Text(
-                  'what the agent gets instead of numbers',
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
-                    fontStyle: FontStyle.italic,
+                // Flexible since `ux-05` moved this out of the shell's own
+                // full-width bottom slot and into a column about three
+                // hundred pixels across: the subtitle is a gloss on the
+                // label above it, and a gloss that overflows its panel is
+                // worse than one that ellipsises.
+                Flexible(
+                  child: Text(
+                    'what the agent gets instead of numbers',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                      fontStyle: FontStyle.italic,
+                    ),
                   ),
                 ),
               ],

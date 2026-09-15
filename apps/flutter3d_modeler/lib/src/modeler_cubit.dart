@@ -209,6 +209,24 @@ final class ModelerCubit extends Cubit<ModelerState> {
   /// sentence to the status line through [say] itself, and clearing it here
   /// right after — every tool call, including that one — would undo the
   /// one thing [say]'s own `important` flag exists to protect.
+  /// An agent has connected, calling itself [clientName] — `ux-05`.
+  ///
+  /// Said out loud on the status line, because an agent arriving on a shared
+  /// document is news: it can edit the same history the person is editing,
+  /// and the one thing worse than not seeing what it does is not knowing it
+  /// is there.
+  void agentConnected(String clientName) {
+    final ModelerReady? now = _ready;
+    if (now == null) return;
+    emit(
+      now.copyWith(
+        agentClient: clientName,
+        said: 'An agent connected: $clientName',
+        saidIsImportant: true,
+      ),
+    );
+  }
+
   void agentToolCalled(AgentToolCall call) {
     final ModelerReady? now = _ready;
     if (now == null) return;

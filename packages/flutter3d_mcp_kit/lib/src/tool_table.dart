@@ -44,6 +44,7 @@ base class ToolTableServer<S, A> extends MCPServer with ToolsSupport {
     required String version,
     required String instructions,
     this.onCall,
+    this.onInitialize,
   }) : super.fromStreamChannel(
          implementation: Implementation(name: name, version: version),
          instructions: instructions,
@@ -72,8 +73,29 @@ base class ToolTableServer<S, A> extends MCPServer with ToolsSupport {
   )?
   onCall;
 
+  /// `ux-05`'s own hook: a client has said hello, with the name it gave.
+  ///
+  /// A name rather than the whole `Implementation`, so an application
+  /// watching this needs no `dart_mcp` import of its own — the name is all a
+  /// badge has room for anyway.
+  ///
+  /// **Distinct from [onCall], and a screen needs both.** An open port is not
+  /// an agent: the live run found the modeller giving a third of its window
+  /// to an agent panel and a contact sheet from the first frame, with nobody
+  /// connected and nothing to show in either. `initialize` is the first
+  /// moment there is somebody there, and it arrives whether or not that
+  /// somebody ever calls a tool.
+  ///
+  /// Run before the answer goes back, and — like [onCall] — never allowed to
+  /// fail it: whatever a watching screen does with the news is its own
+  /// business and none of the client's.
+  final void Function(String clientName)? onInitialize;
+
   @override
   FutureOr<InitializeResult> initialize(InitializeRequest request) {
+    try {
+      onInitialize?.call(request.clientInfo.name);
+    } catch (_) {}
     for (final OfferedTool<S, A> offered in tools) {
       registerTool(offered.tool, (CallToolRequest call) async {
         final Map<String, Object?> arguments =
