@@ -24,6 +24,8 @@ library;
 
 import 'dart:math' as math;
 
+import 'settings.dart' show NavigationScheme;
+
 /// The kind of thing that produced an event.
 ///
 /// This is the whole reason the file exists: the same two-hundred-pixel drag
@@ -89,8 +91,13 @@ final class GestureModifiers {
   /// preference, it is what a browser delivers a trackpad pinch as.
   final bool control;
 
-  /// Alt. Read by nothing here yet; carried so the widget layer has one type
-  /// to fill in rather than two.
+  /// Alt: with the left button, stands in for a middle button.
+  ///
+  /// **The one modifier a laptop actually needs.** A MacBook has no middle
+  /// button at all, so a scheme built on one is a scheme that cannot orbit on
+  /// the machine most of this is written on — which is exactly what the live
+  /// run found. This was declared and read by nothing for a year; `ux-04` is
+  /// where it starts meaning something.
   final bool alt;
 
   @override
@@ -218,7 +225,30 @@ final class CameraIntent {
 /// trackpad's scale gesture. It keeps only what it needs to compute a delta,
 /// so dropping it on the floor mid-drag costs nothing.
 final class OrbitGestures {
-  OrbitGestures({this.zoomPerScrollPixel = 0.0015});
+  OrbitGestures({
+    this.zoomPerScrollPixel = 0.0015,
+    this.scheme = NavigationScheme.middleMouseOrbit,
+    this.toolArmed = false,
+  });
+
+  /// Which set of rules this is classifying by — `ux-04`'s own pair, chosen
+  /// in Settings.
+  ///
+  /// **A field rather than a subclass or a strategy object.** Both schemes
+  /// answer the same four questions about the same four devices, and the
+  /// difference between them is six lines of [_roleFor]; two classes would
+  /// mean two places for the touch and pen rules, which are identical under
+  /// both and are the rules most easily got wrong.
+  NavigationScheme scheme;
+
+  /// Whether a tool has claimed the primary drag — a transform armed, a brush
+  /// held, a box being dragged from the Select tool.
+  ///
+  /// Read only under [NavigationScheme.leftDragOrbit], where the left button
+  /// is the camera's *unless* something else has asked for it. Under
+  /// [NavigationScheme.middleMouseOrbit] the left button is never the
+  /// camera's and this changes nothing.
+  bool toolArmed;
 
   /// How much of a zoom a pixel of scroll is worth, before exponentiation.
   ///
@@ -335,7 +365,19 @@ final class OrbitGestures {
         // downward, so the model on it rises. Matching a drag instead would
         // make the trackpad disagree with every scrollable thing on the
         // machine, which is the complaint this whole arm exists to avoid.
-        return CameraIntent(panRight: -dx, panUp: dy);
+        if (modifiers.shift) return CameraIntent(panRight: -dx, panUp: dy);
+        // **Two fingers orbit, and used to pan.** `ux-04`'s own finding, and
+        // the worst of the review's: on a laptop with no middle button and no
+        // touch screen there was no way to orbit at all, under any modifier.
+        // A trackpad's two-finger scroll is the only continuous two-axis
+        // gesture it has, so it is the one that has to carry the camera's
+        // main move; panning keeps Shift, the modifier it already means with
+        // the middle button.
+        //
+        // The signs match a drag rather than a scroll here, because an orbit
+        // is a hand on the model rather than a view over a page: fingers
+        // moving right turn the model right.
+        return CameraIntent(deltaYaw: -dx, deltaPitch: dy);
       case PointerKind.touch:
       case PointerKind.stylus:
         // Neither device produces a scroll of its own; anything arriving here
@@ -372,11 +414,38 @@ final class OrbitGestures {
     required GestureButton button,
     required GestureModifiers modifiers,
   }) {
+    // The pen never moves the camera, under either scheme. A person drawing
+    // weights with a stylus who orbited every time the nib touched the glass
+    // would be unable to paint at all, and no setting should be able to ask
+    // for that.
     if (kind == PointerKind.stylus) return _Role.idle;
-    if (kind == PointerKind.touch) return _Role.orbit;
+    // One finger orbits under both schemes — unless a tool has the drag, in
+    // which case the finger is the tool's the same way the left button is.
+    // There is no second button to fall back to on a touch screen, so this is
+    // the only way a camera is reachable there at all.
+    if (kind == PointerKind.touch) {
+      return toolArmed ? _Role.idle : _Role.orbit;
+    }
     if (kind != PointerKind.mouse) return _Role.idle;
-    if (button != GestureButton.middle) return _Role.idle;
-    return modifiers.shift ? _Role.pan : _Role.orbit;
+
+    if (button == GestureButton.middle) {
+      return modifiers.shift ? _Role.pan : _Role.orbit;
+    }
+    if (button != GestureButton.primary) return _Role.idle;
+
+    return switch (scheme) {
+      // Alt with the left button stands in for a middle button a laptop has
+      // not got; Shift with it pans, the same way Shift does on the middle
+      // button, so one rule is learnt rather than two.
+      NavigationScheme.middleMouseOrbit =>
+        modifiers.alt
+            ? (modifiers.shift ? _Role.pan : _Role.orbit)
+            : _Role.idle,
+      // The left button is the camera's here unless something else has asked
+      // for it: a transform armed, a brush held, a box being dragged.
+      NavigationScheme.leftDragOrbit =>
+        toolArmed ? _Role.idle : (modifiers.shift ? _Role.pan : _Role.orbit),
+    };
   }
 
   /// What a move means when more than one finger is down.

@@ -413,6 +413,8 @@ extension _ReadyParts on _ModelerScreenState {
                             // ships to it is the path.
                             gizmoPivot: _transformSession.gizmoPivot,
                             gizmoKind: _transformSession.gizmoKind,
+                            // `ux-04`: whichever scheme Settings holds.
+                            navigation: _settings.navigation,
                             onGizmoDrag: _transformSession.grabbedGizmo,
                             snapHighlight:
                                 _transformSession.snapTarget?.position,
