@@ -5,7 +5,7 @@
 /// Two games had written this out, identically.
 library;
 
-import 'package:flutter3d_screens/flutter3d_screens.dart';
+import 'package:flutter3d_session/flutter3d_session.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart';
 

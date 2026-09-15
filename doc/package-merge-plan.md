@@ -183,20 +183,65 @@ tool/structure.dart` — 32/32 после правки числа тестов (
 изменений — 4 теста ушли с `backend`, 4 пришли на `app`) и числа пакетов
 (46→45) в тех же местах, что и у 3.5.
 
-### 3.7 `flutter3d_session` → `flutter3d_screens` — р. M, pub (оба)
+### 3.7 `flutter3d_session` → `flutter3d_screens` — код сделан 2026-09-15 как компат-шим, публикация — нет
 
 `session` зависит от `screens` (берёт `RenderSettings`), значит закрытие
 зависимостей любого потребителя от слияния не меняется — включая
-`flutter3d_bridge`, которому нужен `RunSession`. Имя оставить `flutter3d_screens`?
-Нет: слитый пакет — это «приложение вокруг игры»: surface, прогон и экраны.
-Предлагаемое имя — **`flutter3d_session`** (оно шире), `screens` уходит в
-`lib/src/screens/`.
+`flutter3d_bridge`, которому нужен `RunSession`. Имя — **`flutter3d_session`**
+(оно шире), `screens` уходит в `lib/src/screens/` — сделано ровно так, как
+формулировка и предлагала.
 
-Доклад в `flutter3d_app/lib/flutter3d_app.dart` уже поправлен под 3.6
-(«пять пакетов» → «четыре плюс код бэкенда»), но и в новом виде неверен по
-той же причине: `session` знает о `screens`. После 3.7 barrel будет
-re-экспортировать два пакета — `session`, вобравший `screens`, `pad_input`,
-`pointer_lock` — плюс собственный код выбора бэкенда, уже слитый в 3.6.
+**Найдено при переносе, не предположено заранее: `apps/flutter3d_modeler`
+импортирует `flutter3d_screens` напрямую** (`main.dart`,
+`src/recent_projects.dart`, `src/crash_handling.dart`, `src/autosaving.dart`,
+плюс четыре тестовых файла) — единственный потребитель во всём репозитории,
+у которого модельерский трек этой волны прямо запрещает трогать файлы.
+Буквальное «удалить `flutter3d_screens`» этого пункта потребовало бы правки
+восьми файлов модельера ради одной замены импорта — ровно то немодельерское
+слияние с модельерским потребителем внутри, которого раньше не находилось.
+
+**Решение — компат-шим, а не отказ от пункта.** `flutter3d_screens` остаётся
+пакетом (не убран из `workspace:` корневого `pubspec.yaml`), но
+`lib/flutter3d_screens.dart` теперь — один `export
+'package:flutter3d_session/flutter3d_session.dart';`, и весь его pubspec —
+одна зависимость на `flutter3d_session`. Каждый существующий импорт
+`package:flutter3d_screens/flutter3d_screens.dart` — включая все восемь
+файлов модельера — резолвится в те же самые объявления, без единой правки
+там. `native.dart`/`testing.dart` в шим не вошли (у модельера их не было;
+три немодельерских потребителя `testing.dart` и один `native.dart`
+переведены на `flutter3d_session` напрямую).
+
+Доклад в `flutter3d_app/lib/flutter3d_app.dart`, уже поправленный под 3.6
+(«пять пакетов» → «четыре плюс код бэкенда»), поправлен ещё раз: barrel
+теперь re-экспортирует два пакета — `session`, вобравший `screens`,
+`pad_input`, `pointer_lock` — плюс собственный код выбора бэкенда, слитый в
+3.6. `flutter3d_app`'s собственная зависимость на `flutter3d_screens`
+убрана как избыточная (уже приходит транзитивно через `flutter3d_session`).
+
+Публикация — тот же пункт 9 списка §6, что и у 3.6, и по той же причине не
+сделана: `0.7.0` у `flutter3d_session` (сейчас `0.6.0`, не тронут) и
+`discontinued`/`replaced_by` у `flutter3d_screens` через pub.dev admin —
+оба ручные действия, которых у этой сессии нет возможности выполнить.
+
+Перенесено: 18 файлов `lib/src/` плюс `storage/` (4 файла) в
+`lib/src/screens/`, 19 тестовых файлов, один skill
+(`flutter3d-screens-settings-and-saves` → `flutter3d-session-settings-and-saves`).
+`flutter3d_session`'s pubspec принял `flutter3d_audio`, `pad_input`, `web`,
+`flutter_bloc` — зависимости, которые были только у `screens`. Проверено:
+`flutter analyze` чисто на `flutter3d_session`, `flutter3d_screens`,
+`flutter3d_app`, `flutter3d_modeler`, всех четырёх демо и редактора;
+`flutter3d_session`'s полный набор — 192 теста (было 67 у session + 125 у
+screens), все прошли; полные наборы четырёх демо и редактора —
+без единой новой регрессии (два предсуществующих провала опознаны отдельно
+и не относятся к этому слиянию: `widget_surface`-registry-пробел у dungeon,
+отсутствующий файл ассета `monster_runner.glb` у editor). Модельерские
+тесты, зависящие от `flutter3d_screens` (`autosaving_test.dart`,
+`recent_projects_test.dart`, `crash_handling_test.dart`,
+`main_recovery_test.dart`) — все 22 прошли без единой правки модельерского
+кода. `dart run tool/structure.dart` — 32/32 после правки построчной
+таблицы тестов (`flutter3d_session` 67→192, `flutter3d_screens` 125→0) и
+порядка публикации в ARCHITECTURE.md (`flutter3d_screens` — из яруса 7, до
+`flutter3d_session`, в ярус 9, после него, раз зависимость развернулась).
 
 ## 4. Спорное: `flutter3d_particles` → `flutter3d`
 
@@ -281,8 +326,8 @@ discontinued. Переименовать `particles_core` в `particles` нел�
 | `flutter3d_webgpu` | 20 293 | да | бэкенд, WGSL | остаётся |
 | `flutter3d_cpu` | 6 443 | да | софтверный бэкенд, 19 зависимых | остаётся |
 | `flutter3d_app` | ~220 | да | barrel + backend | приняла `backend` (3.6, код сделан 2026-09-15, публикация — нет) |
-| `flutter3d_session` | 1 737 | да | история | принимает `screens` (3.7) |
-| `flutter3d_screens` | 2 664 | да | §1.3 `flutter_bloc`, но `session` уже зависит | → `session` (3.7) |
+| `flutter3d_session` | ~4 400 | да | история | приняла `screens` (3.7, код сделан 2026-09-15, публикация — нет) |
+| `flutter3d_screens` | 6 | да | компат-шим над `session` | шим, workspace-член остаётся (3.7) |
 | `flutter3d_conformance` | 4 598 | да | §1.3 `flutter_test` | остаётся |
 | `flutter3d_testing` | 328 | да | §1.3 `flutter_test` | остаётся |
 | `flutter3d_shaders` | 66 + GLSL | да | §1.4, три потребителя | остаётся |

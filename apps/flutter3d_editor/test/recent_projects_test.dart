@@ -13,7 +13,7 @@ library;
 import 'dart:convert';
 
 import 'package:flutter3d_editor/src/recent_projects.dart';
-import 'package:flutter3d_screens/flutter3d_screens.dart' show Storage;
+import 'package:flutter3d_session/flutter3d_session.dart' show Storage;
 import 'package:flutter_test/flutter_test.dart';
 
 /// A disk with exactly these files on it — the same shape `documents_test.dart`

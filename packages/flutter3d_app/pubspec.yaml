@@ -1,5 +1,5 @@
 name: flutter3d_app
-description: "The layer an application is assembled from, as one import: which device to open, the frame surface and run lifecycle, the screens that are not the game, and the input devices Flutter itself does not cover."
+description: "The layer an application is assembled from, as one import: which device to open, the frame surface and run lifecycle (which now includes the screens that are not the game), and the input devices Flutter itself does not cover."
 version: 0.6.0
 resolution: workspace
 repository: https://github.com/pleiondev/flutter3d
@@ -10,14 +10,15 @@ topics:
   - game-engine
   - application
 
-# A barrel over four packages the three games already imported individually —
-# flutter3d_session, flutter3d_screens, pad_input, pointer_lock — none of
-# which know about each other and none of which should start to, plus the
-# backend choice itself (which graphics API a build draws through), merged
-# in from flutter3d_backend by the package-merge plan rather than re-exported.
-# An application's own pubspec and main.dart say "the assembly layer" once
-# instead of five names, the way `flutter3d` already says "the renderer" once
-# instead of naming `flutter3d_hardware` itself.
+# A barrel over three packages the three games already imported individually —
+# flutter3d_session (which flutter3d_screens folded into), pad_input,
+# pointer_lock — none of which know about each other and none of which
+# should start to, plus the backend choice itself (which graphics API a
+# build draws through), merged in from flutter3d_backend by the same plan
+# rather than re-exported. An application's own pubspec and main.dart say
+# "the assembly layer" once instead of five names, the way `flutter3d`
+# already says "the renderer" once instead of naming `flutter3d_hardware`
+# itself.
 #
 # What is deliberately not behind it: `flutter3d`, `flutter3d_bridge`,
 # `flutter3d_game` and a genre package. Those are content, not assembly, and a
@@ -31,7 +32,6 @@ dependencies:
     sdk: flutter
 
   flutter3d_session: ^0.6.0
-  flutter3d_screens: ^0.6.0
   pad_input: ^0.4.0
   pointer_lock: ^0.4.0
 

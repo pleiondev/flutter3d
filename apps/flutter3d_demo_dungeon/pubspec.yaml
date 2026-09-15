@@ -43,7 +43,7 @@ dependencies:
     path: ../../packages/flutter3d_bridge
 
   vector_math: ^2.2.0
-  # State management — see the note in `packages/flutter3d_screens/pubspec.yaml`.
+  # State management — see the note in `packages/flutter3d_session/pubspec.yaml`.
   # What goes through it is the screen: loading, pause, settings, the run's
   # state and what the HUD shows. What does **not** is the sixty-hertz step,
   # the camera, the particles and the scene; a state object per simulation step
@@ -66,11 +66,6 @@ dev_dependencies:
   flutter3d_cpu:
     path: ../../packages/flutter3d_cpu
 
-  # `testing.dart`'s `creditGaps` — comparing shipped assets against the
-  # credits list. Test-only, so it is not behind the flutter3d_app barrel.
-  flutter3d_screens:
-    path: ../../packages/flutter3d_screens
-
   # `net-04`'s `diffRuns` — see `test/desync_diff_test.dart` for why the
   # genre-aware half of it lives here rather than in `flutter3d_net` itself.
   flutter3d_net:
@@ -80,6 +75,9 @@ dev_dependencies:
   # already for `WidgetSurfaceVisuals`, but a test that builds one by hand
   # (`operator_panel_test.dart`, proving `edu-05`'s data source against a
   # live surface with no `tpl-04` to host it in yet) needs the class itself.
+  # Also `testing.dart`'s `creditGaps` — comparing shipped assets against the
+  # credits list, test-only so it is not behind the flutter3d_app barrel —
+  # `flutter3d_screens` folded into this package by the package-merge plan.
   flutter3d_session:
     path: ../../packages/flutter3d_session
 

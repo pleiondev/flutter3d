@@ -48,16 +48,14 @@ dependencies:
 
   # What a brush is, for picking one by pointing at it.
 
-  # The surface a frame reaches Flutter through.
-  flutter3d_session:
-    path: ../../packages/flutter3d_session
-
-  # For `writeFileAtomically`, through `flutter3d_screens/native.dart`. This
+  # The surface a frame reaches Flutter through, and — since
+  # `flutter3d_screens` folded into it by the package-merge plan —
+  # `writeFileAtomically`, through `flutter3d_session/native.dart`. This
   # application writes the one document in the repository that cannot be
   # regenerated — somebody's hand-built level — and was writing it with the
   # least crash-safe call of anything here.
-  flutter3d_screens:
-    path: ../../packages/flutter3d_screens
+  flutter3d_session:
+    path: ../../packages/flutter3d_session
 
   # `rp-04`: `Demo.fromJson` — reading a `.f3drun` a player sent back, not
   # just writing one from a live game (`flutter3d_editor_mcp`/`ai-00` write
@@ -89,7 +87,7 @@ dependencies:
   # through `dart:io` on every platform it ships to.
   vm_service: ^15.0.0
 
-  # State management — see the note in `packages/flutter3d_screens/pubspec.yaml`.
+  # State management — see the note in `packages/flutter3d_session/pubspec.yaml`.
   # What goes through it is the screen: which document is open, why one is
   # not, and what the strip along the bottom says. What does **not** is the
   # camera, the scene and the gizmos the render loop reads every frame; a

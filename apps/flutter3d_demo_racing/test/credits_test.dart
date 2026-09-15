@@ -16,9 +16,9 @@ library;
 
 import 'dart:io';
 
-import 'package:flutter3d_app/flutter3d_app.dart'; // Credit, from flutter3d_screens
+import 'package:flutter3d_app/flutter3d_app.dart'; // Credit, from flutter3d_session (flutter3d_screens folded in)
 import 'package:flutter3d_demo_racing/src/credits.dart';
-import 'package:flutter3d_screens/testing.dart'; // creditGaps — test-only, not in the barrel
+import 'package:flutter3d_session/testing.dart'; // creditGaps — test-only, not in the barrel
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -26,8 +26,9 @@ void main() {
     // From the directory, not from a list written beside the other list. The
     // failure this catches is an asset added to the game and to nothing else.
     //
-    // The comparison is `flutter3d_screens`'s: it was these twelve lines in three
-    // applications, down to the wording of the failures.
+    // The comparison is `flutter3d_session`'s (`flutter3d_screens` folded
+    // in): it was these twelve lines in three applications, down to the
+    // wording of the failures.
     final gaps = creditGaps(Credits.models, shippedFrom: 'assets_src/models');
 
     expect(gaps.shipped, isNotEmpty, reason: 'no models found to check');

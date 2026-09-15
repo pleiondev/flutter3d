@@ -1,6 +1,6 @@
 import 'dart:convert';
 
-import 'package:flutter3d_screens/flutter3d_screens.dart'
+import 'package:flutter3d_session/flutter3d_session.dart'
     show Storage, defaultStorage;
 
 /// The documents this editor has had open, most recent first.

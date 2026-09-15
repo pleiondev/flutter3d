@@ -162,7 +162,7 @@ import 'package:flutter3d_app/flutter3d_app.dart';
 final device = await openDevice(width: 1280, height: 720);
 ```
 
-A barrel of `export` lines, plus the backend choice as its own code now — `flutter3d_backend` folded in by the package-merge plan, once it turned out `openDevice` had no reason to stay a separate package. It re-exports `flutter3d_session`, `flutter3d_screens`, `pad_input` and `pointer_lock`; none of those know about each other, and this does not change that.
+A barrel of `export` lines, plus the backend choice as its own code now — `flutter3d_backend` folded in by the package-merge plan, once it turned out `openDevice` had no reason to stay a separate package. It re-exports `flutter3d_session`, `pad_input` and `pointer_lock`; none of those know about each other, and this does not change that.
 
 **Which graphics backend a build draws through:** `openDevice({required width, required height})` returns a `GraphicsDevice`. **Three decisions, made three different ways.** Web or native is a conditional export, picked at compile time, because `flutter_gpu` does not compile for the web and `dart:js_interop` does not compile for macOS. On the native half, Impeller or software is a runtime `try`/`catch` instead: `GpuRenderBackend.create()` is tried first, and a throw — Flutter GPU refusing to start on Skia, or a platform where Impeller was never enabled — falls back to `flutter3d_cpu`'s `CpuDevice`, since `flutter_gpu` ships with the SDK and no compile-time check can see whether it will actually start. On the browser half, WebGPU or WebGL2 is the same shape of `try`/`catch` — `navigator.gpu` may be absent, or present and hand out no adapter on a blocklisted driver, and no `dart.library.*` check sees either — but it is reached only behind `--dart-define=FLUTTER3D_WEBGPU=true`, because a probe that can call both openers keeps both backends reachable and dart2js ships what it can reach: 376,649 bytes of `main.dart.js` on the strategy demo, 14.9%, measured on two builds of the same checkout. Deliberately does not decide resolution or shadow budget — `kFixedResolution` reports whether the *primary* backend renders to a fixed internal target, and the size stays the application's own choice.
 
@@ -175,16 +175,16 @@ Deliberately **not** behind it: `flutter3d`, `flutter3d_bridge`, `flutter3d_game
 Six of the seven applications import it — the four games, the template and the modeller, which reaches `openDevice` through it in one exported line. `flutter3d_editor` is the one that does not, and that is a gap rather than a second pattern: see [Assembling an application](/core/session/).
 
 ### `flutter3d_session`
-The seam a rendered frame reaches Flutter through, and the run being played — neither the simulation nor the screens, so it belongs to neither `flutter3d_bridge` nor `flutter3d_screens`. `SceneSurface` is the widget that hands a frame to Flutter, with its `RenderSettings` read from a function called once per frame rather than stored, so anything derived from the camera is derived after it moved. `RunSession<L>` is loading a level, restarting it, moving to the next, saving, resuming, and reporting how a run ended — an ordinary class that two of the three games wrap in a cubit, which the package neither knows nor requires. `FrameClock` is how long since the last frame, measured on the wall clock rather than read off the ticker: five applications had written that out, three said a sixtieth of a second on the first frame and one said nought, and a ticker's timestamp is the vsync a frame was aimed at, which steps in pairs when the GPU falls behind.
+The seam a rendered frame reaches Flutter through, and the run being played — neither the simulation nor the screens, so it used to belong to neither `flutter3d_bridge` nor `flutter3d_screens`; the latter folded into this package by the package-merge plan, once it turned out nothing depended on it without also depending on this one. `SceneSurface` is the widget that hands a frame to Flutter, with its `RenderSettings` read from a function called once per frame rather than stored, so anything derived from the camera is derived after it moved. `RunSession<L>` is loading a level, restarting it, moving to the next, saving, resuming, and reporting how a run ended — an ordinary class that two of the three games wrap in a cubit, which the package neither knows nor requires. `FrameClock` is how long since the last frame, measured on the wall clock rather than read off the ticker: five applications had written that out, three said a sixtieth of a second on the first frame and one said nought, and a ticker's timestamp is the vsync a frame was aimed at, which steps in pairs when the GPU falls behind.
 
 `test/one_assembly_test.dart` checks the rule this package exists to keep: exactly one function per game turns a level document into a run. The platformer had six copies of that assembly before extraction, and they had drifted.
+
+**The screens a game has that are not the game**, folded in from `flutter3d_screens`: a settings panel with volumes, gamepad and accessibility sliders, a rebinding list that takes a key or a pad button, `AutomapView` for what an `Automap` has seen, and where a licence's attribution goes. Extracted into its own package when the second game wanted it, which is this repository's habit rather than a new rule — `CameraRig` says the same about itself; what triggered it was accessibility, rebinding a control being the accommodation that matters most, and the alternative was four hundred lines of panel copied into the second game. A second entry point, `package:flutter3d_session/native.dart`, holds the one piece that needs a filesystem (an atomic document write), kept off the main barrel so a `dart:io` import never stops a web build compiling.
 
 → [Assembling an application](/core/session/)
 
 ### `flutter3d_screens`
-The screens a game has that are not the game: a settings panel with volumes, gamepad and accessibility sliders, a rebinding list that takes a key or a pad button, `AutomapView` for what an `Automap` has seen, and where a licence's attribution goes. Nothing here draws a frame or steps a simulation.
-
-Extracted when the second game wanted it, which is this repository's habit rather than a new rule — `CameraRig` says the same about itself. What triggered it was accessibility: rebinding a control is the accommodation that matters most, and the alternative was four hundred lines of panel copied into the second game. A second entry point, `package:flutter3d_screens/native.dart`, holds the one piece that needs a filesystem (an atomic document write), kept off the main barrel so a `dart:io` import never stops a web build compiling.
+**Compatibility shim.** One `export` of `flutter3d_session`, which its own code moved to. Existing imports of `package:flutter3d_screens/flutter3d_screens.dart` keep resolving; new code should import `flutter3d_session` directly.
 
 ## Extensions
 
@@ -299,7 +299,7 @@ The engine's own demo: a model browser with every feature switchable, and the fr
 flowchart TB
   apps["apps/*"] --> genres["flutter3d_game_shooter<br>flutter3d_game_platformer<br>flutter3d_game_racing<br>flutter3d_game_strategy"]
   apps --> bridge["flutter3d_bridge"]
-  apps --> session["flutter3d_session<br>flutter3d_screens"]
+  apps --> session["flutter3d_session"]
   apps --> picker["flutter3d_app<br><i>backend choice</i>"]
   picker --> gfx["flutter3d_hardware<br><b>the HAL</b>"]
   picker -.-> onebackend["one backend<br><i>impeller · webgl · webgpu · cpu</i>"]

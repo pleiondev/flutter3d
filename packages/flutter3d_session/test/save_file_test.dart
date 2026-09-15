@@ -6,7 +6,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter3d_game/flutter3d_game.dart' show Issue, Snapshot;
-import 'package:flutter3d_screens/flutter3d_screens.dart';
+import 'package:flutter3d_session/flutter3d_session.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {

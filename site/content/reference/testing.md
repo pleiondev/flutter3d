@@ -20,11 +20,11 @@ description: Four independent golden sets, mutation-checking every new test, det
 | `flutter3d_game_platformer` | 221 | | `flutter3d_hardware` | 54 |
 | `apps/flutter3d_demo_platformer` | 199 | | `flutter3d_impeller` | 54 |
 | `flutter3d_cpu` | 214 | | `apps/flutter3d_demo_strategy` | 44 |
-| `apps/flutter3d_editor` | 207 | | `flutter3d_session` | 67 |
+| `apps/flutter3d_editor` | 207 | | `flutter3d_session` | 192 |
 | `apps/flutter3d_demo_racing` | 162 | | `pointer_lock` | 28 |
 | `flutter3d_physics` | 168 | | `flutter3d_webgpu` | 175 |
 | `flutter3d_game_strategy` | 131 | | `flutter3d_editor_mcp` | 20 |
-| `flutter3d_screens` | 125 | | `flutter3d_testing` | 13 |
+| `flutter3d_screens` | 0 | | `flutter3d_testing` | 13 |
 | `flutter3d_editor_core` | 130 | | `apps/flutter3d_template_app` | 22 |
 | `apps/flutter3d_demo_dungeon` | 108 | | `flutter3d_app` | 4 |
 | `flutter3d_game` | 79 | | `flutter3d_shaders` | 1 |
@@ -163,7 +163,7 @@ Four packages carry a `lib/testing.dart`. It is a separate library, so nothing a
 import 'package:flutter3d_hardware/testing.dart';  // FakeBackend
 import 'package:flutter3d_cpu/testing.dart';       // cpuTestDevice
 import 'package:flutter3d_audio/testing.dart';     // soundTableIn
-import 'package:flutter3d_screens/testing.dart';        // creditGaps
+import 'package:flutter3d_session/testing.dart';   // creditGaps
 ```
 
 `FakeBackend` is a `GraphicsDevice` that draws nothing and records everything: which passes were opened, what they were attached to, what was bound, how many times it drew. `cpuTestDevice` is a `CpuDevice` with the builtin shaders and the two fallback textures a `Renderer` asks for.

@@ -241,10 +241,10 @@ const Map<String, String> notARepeatableStep = <String, String>{
       'is, so the platform\'s libm disagreeing with itself across machines has '
       'nothing to fail',
   'flutter3d_testing': 'a test helper',
-  'flutter3d_screens': 'screens, which run on the frame clock and say so',
   'flutter3d_session':
-      'a run\'s lifecycle: it loads and saves, and steps '
-      'nothing itself',
+      'a run\'s lifecycle: it loads and saves, and steps nothing itself; '
+      'and, since `flutter3d_screens` folded in, screens that run on the '
+      'frame clock and say so',
   'flutter3d_app': 'a barrel, plus the backend choice: it chooses a device '
       'and steps nothing',
   'flutter3d_bridge': 'display: it reads a simulation and moves nodes',

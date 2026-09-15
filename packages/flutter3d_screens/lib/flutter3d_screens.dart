@@ -1,37 +1,18 @@
 /// The screens a game has that are not the game.
 ///
-/// Settings, volumes, rebinding, and where a licence's attribution goes: the
-/// parts a player uses before playing, after playing, and when something has to
-/// change. None of it draws a frame or steps a simulation.
+/// **This package is a compatibility shim.** Its own code — settings,
+/// volumes, rebinding, credits, saves, the storage underneath them — moved
+/// into `flutter3d_session` by the package-merge plan, once it turned out
+/// nothing anywhere depended on this package without also depending on that
+/// one. What is here now is one `export`, kept so an existing import of
+/// `package:flutter3d_screens/flutter3d_screens.dart` keeps resolving to the
+/// exact same declarations, unchanged, rather than asking every caller to
+/// move on the same day the code did.
 ///
-/// **Extracted when the second game wanted it**, which is this repository's
-/// habit rather than a new rule — `CameraRig` says the same thing about itself,
-/// and `flutter3d_bridge` exists for the same reason. What triggered it was
-/// accessibility: rebinding a control is the accommodation that matters most,
-/// the platformer had grown one, and the alternative was four hundred lines of
-/// panel copied into the crypt to give it the same.
-///
-/// What is deliberately **not** here is anything a particular game says. The
-/// credits are a widget the caller hands in, the list of rebindable actions is
-/// the caller's, and the panel has never known what a coin or a monster is.
+/// New code should import `package:flutter3d_session/flutter3d_session.dart`
+/// directly. `native.dart` and `testing.dart` moved the same way, to the same
+/// package, and are not re-exported here — see `flutter3d_session`'s own
+/// copies of both.
 library;
 
-export 'src/automap_view.dart';
-export 'src/clock_text.dart';
-export 'src/credits.dart';
-export 'src/demo_file.dart';
-export 'src/drag_look.dart';
-export 'src/owned_bindings.dart';
-export 'src/pad_presses.dart';
-export 'src/rebinding.dart';
-export 'src/save_file.dart';
-export 'src/settings_cubit.dart';
-export 'src/settings_file.dart';
-export 'src/settings_keys.dart';
-export 'src/settings_overlay.dart';
-export 'src/settings_panel.dart';
-export 'src/status_screens.dart';
-export 'src/storage/storage.dart';
-export 'src/tap_to_restart.dart';
-export 'src/touch_platform.dart';
-export 'src/volumes.dart';
+export 'package:flutter3d_session/flutter3d_session.dart';

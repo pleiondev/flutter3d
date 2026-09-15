@@ -1,6 +1,6 @@
 /// What this game ships that somebody else made.
 ///
-/// The class and the screen are `flutter3d_screens`'s — see `Credit` there. What is
+/// The class and the screen are `flutter3d_session`'s (`flutter3d_screens` folded in) — see `Credit` there. What is
 /// here is the list, which is this game's alone.
 ///
 /// **This game was in breach and nobody had noticed.** `assets_src/models/LICENSES.md`
@@ -12,7 +12,7 @@
 /// because there was nothing to test.
 library;
 
-import 'package:flutter3d_app/flutter3d_app.dart'; // Credit, from flutter3d_screens
+import 'package:flutter3d_app/flutter3d_app.dart'; // Credit, from flutter3d_session (flutter3d_screens folded in)
 
 /// Everything the game ships that somebody else made.
 ///

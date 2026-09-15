@@ -24,7 +24,7 @@
 library;
 
 import 'package:flutter3d_game/flutter3d_game.dart';
-import 'package:flutter3d_screens/flutter3d_screens.dart';
+import 'package:flutter3d_session/flutter3d_session.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 /// A storage that keeps everything in a map, for the callers above it.

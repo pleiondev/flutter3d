@@ -1,17 +1,17 @@
 ---
-description: The device, the frame surface and the level lifecycle every shipped game assembles the same way, through flutter3d_app, flutter3d_session and flutter3d_screens.
+description: The device, the frame surface and the level lifecycle every shipped game assembles the same way, through flutter3d_app and flutter3d_session.
 ---
 
 # Assembling an application
 
-[The tutorial](/core/tutorial/) opens a device and drives a `Ticker` by hand, because that is what is actually happening underneath. By the second game, the same conditional import, the same forty-line frame widget and the same load-restart-save sequence had been written out three times, close enough to identical that a bug fixed in one copy stayed broken in the other two. Packages exist because of that: the backend choice (`flutter3d_backend`, folded into `flutter3d_app` by the package-merge plan), `flutter3d_session` and `flutter3d_screens`. This page is what they do, and how `apps/flutter3d_demo_dungeon` puts them to use. It is the most complete worked example of all three together.
+[The tutorial](/core/tutorial/) opens a device and drives a `Ticker` by hand, because that is what is actually happening underneath. By the second game, the same conditional import, the same forty-line frame widget and the same load-restart-save sequence had been written out three times, close enough to identical that a bug fixed in one copy stayed broken in the other two. Packages exist because of that: the backend choice (`flutter3d_backend`, folded into `flutter3d_app` by the package-merge plan) and `flutter3d_session` (which `flutter3d_screens` folded into by the same plan). This page is what they do, and how `apps/flutter3d_demo_dungeon` puts them to use. It is the most complete worked example of both together.
 
 <div class="goal">
 <ul>
 <li><code>openDevice()</code>: one line that opens Impeller on desktop and WebGL2 on the web, without either name appearing at the call site</li>
 <li><code>SceneSurface</code>: the widget that hands a frame to Flutter, and why its settings are a function rather than a value</li>
 <li><code>RunSession&lt;L&gt;</code>: the five questions a game answers to get loading, restarting, saving and moving on for free</li>
-<li>Where <code>flutter3d_screens</code> and the input packages fit in, how <code>flutter3d_app</code> puts all of this behind one import, and where one of the six applications has not caught up to any of this yet</li>
+<li>Where the screens (folded into <code>flutter3d_session</code> from <code>flutter3d_screens</code>) and the input packages fit in, how <code>flutter3d_app</code> puts all of this behind one import, and where one of the six applications has not caught up to any of this yet</li>
 </ul>
 </div>
 
@@ -104,7 +104,7 @@ Not every game fits the shape. The racing game moves from one circuit to the nex
 
 ## Settings and saves
 
-`flutter3d_screens` is the screens a game has that are not the game: `SettingsOverlay` (volumes, a gamepad and accessibility sliders, a rebinding list that takes a key or a pad button, and where a licence's attribution goes) and `SaveFile` (where `RunSession.saves` reads and writes, per platform, through `Storage`). Wiring the overlay into a HUD is one widget per game:
+The screens a game has that are not the game — `flutter3d_screens`, folded into `flutter3d_session` by the package-merge plan — are `SettingsOverlay` (volumes, a gamepad and accessibility sliders, a rebinding list that takes a key or a pad button, and where a licence's attribution goes) and `SaveFile` (where `RunSession.saves` reads and writes, per platform, through `Storage`). Wiring the overlay into a HUD is one widget per game:
 
 ```dart
 SettingsOverlay(
@@ -152,7 +152,7 @@ The packages this page walks are behind `flutter3d_app`, so an application names
 import 'package:flutter3d_app/flutter3d_app.dart';
 ```
 
-Four re-exports — `flutter3d_session`, `flutter3d_screens`, `pad_input`, `pointer_lock` — plus the backend choice as this package's own code now, since `flutter3d_backend` merged in. It changes nothing about how the re-exported four relate: none of them knows about the others, and the barrel does not make them. What it saves is several import lines being copied into every new project, which is how this page's subject started.
+Three re-exports — `flutter3d_session` (which `flutter3d_screens` folded into), `pad_input`, `pointer_lock` — plus the backend choice as this package's own code now, since `flutter3d_backend` merged in. It changes nothing about how the re-exported three relate: none of them knows about the others, and the barrel does not make them. What it saves is several import lines being copied into every new project, which is how this page's subject started.
 
 What is deliberately not behind it: `flutter3d`, `flutter3d_bridge`, `flutter3d_game` and a genre package. Those say what a scene looks like and what kind of game this is, and a facade cannot choose a genre for an application.
 

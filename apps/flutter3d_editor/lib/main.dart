@@ -32,8 +32,8 @@ import 'package:flutter3d/flutter3d.dart' hide Material;
 import 'package:flutter3d_bridge/flutter3d_bridge.dart';
 import 'package:flutter3d_editor_core/flutter3d_editor_core.dart';
 import 'package:flutter3d_game/flutter3d_game.dart';
-import 'package:flutter3d_screens/native.dart';
 import 'package:flutter3d_session/flutter3d_session.dart';
+import 'package:flutter3d_session/native.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:vector_math/vector_math.dart' hide Colors;
 
@@ -933,15 +933,30 @@ class _EditorScreenState extends State<EditorScreen>
     }
 
     final step = editing.grid;
+    // `edu-01`'s "разборка перетаскиванием": the same nudge keys, redirected
+    // into the active step's own `offsets` for whatever is selected, while a
+    // step is open for it — [NudgeOffset] answers false (nothing active,
+    // nothing selected, or the selection *is* the step) exactly when the
+    // ordinary [MoveBy] is what this keystroke should mean instead, so the
+    // fallback below is not a second guess at the same drag, it is the other
+    // half of one decision [Editing.nudgeOffset] already made.
+    void nudge(Vector3 by) {
+      if (editing.activeStepForOffsets != null &&
+          history.run(NudgeOffset(by))) {
+        return;
+      }
+      history.run(MoveBy(by));
+    }
+
     switch (key) {
       case LogicalKeyboardKey.arrowLeft:
-        history.run(MoveBy(Vector3(-step, 0.0, 0.0)));
+        nudge(Vector3(-step, 0.0, 0.0));
       case LogicalKeyboardKey.arrowRight:
-        history.run(MoveBy(Vector3(step, 0.0, 0.0)));
+        nudge(Vector3(step, 0.0, 0.0));
       case LogicalKeyboardKey.arrowUp:
-        history.run(MoveBy(Vector3(0.0, 0.0, -step)));
+        nudge(Vector3(0.0, 0.0, -step));
       case LogicalKeyboardKey.arrowDown:
-        history.run(MoveBy(Vector3(0.0, 0.0, step)));
+        nudge(Vector3(0.0, 0.0, step));
       // **R and F as well as the page keys**, because on the keyboard this is
       // being used on, Page Up is Fn and an arrow — a two-handed way to say
       // "up" while the other hand is on the mouse. The page keys stay: a
@@ -949,10 +964,10 @@ class _EditorScreenState extends State<EditorScreen>
       // has learnt it is worse than having two.
       case LogicalKeyboardKey.pageUp:
       case LogicalKeyboardKey.keyR:
-        history.run(MoveBy(Vector3(0.0, step, 0.0)));
+        nudge(Vector3(0.0, step, 0.0));
       case LogicalKeyboardKey.pageDown:
       case LogicalKeyboardKey.keyF:
-        history.run(MoveBy(Vector3(0.0, -step, 0.0)));
+        nudge(Vector3(0.0, -step, 0.0));
       // **The same two keys, and what they mean depends on what is selected.**
       // A brush has a size; a light has a strength and no size at all. Giving
       // each its own pair would be two more keys to learn for one idea, which
@@ -1383,10 +1398,7 @@ class _EditorScreenState extends State<EditorScreen>
                   top: 4,
                   right: 52,
                   child: IconButton(
-                    icon: const Icon(
-                      Icons.grain,
-                      color: Color(0xFFE6EAF0),
-                    ),
+                    icon: const Icon(Icons.grain, color: Color(0xFFE6EAF0)),
                     tooltip: 'Open a playtest report',
                     onPressed: _openPlaytestReport,
                   ),
@@ -1468,7 +1480,9 @@ class _EditorScreenState extends State<EditorScreen>
       label: 'flutter3d runs',
       extensions: <String>['f3drun'],
     );
-    final file = await openFile(acceptedTypeGroups: const <XTypeGroup>[runFiles]);
+    final file = await openFile(
+      acceptedTypeGroups: const <XTypeGroup>[runFiles],
+    );
     if (file == null || !mounted) return;
     await _openRunAt(file.path);
   }
@@ -1476,9 +1490,7 @@ class _EditorScreenState extends State<EditorScreen>
   /// Asks for a running game's VM service address, connects, and opens the
   /// timeline panel on it — `rp-02`'s door, from the editor's side.
   Future<void> _attachToRunningGame() async {
-    final controller = TextEditingController(
-      text: 'http://127.0.0.1:8181/',
-    );
+    final controller = TextEditingController(text: 'http://127.0.0.1:8181/');
     final uri = await showDialog<String>(
       context: context,
       builder: (BuildContext context) => AlertDialog(

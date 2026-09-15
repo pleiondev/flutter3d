@@ -17,12 +17,11 @@ dependencies:
   flutter:
     sdk: flutter
 
-  # Where a run in progress is kept: `SaveFile` and the storage under it. This is
-  # the half a session needs that persists. **Neither package knows about the
-  # other**, which is the whole reason this one exists rather than one of them
-  # growing to hold both.
-  flutter3d_screens: ^0.6.0
-
+  # Where a run in progress is kept: `SaveFile` and the storage under it.
+  # `flutter3d_screens` folded into this package by the package-merge plan —
+  # see `lib/src/screens/` — so this is this package's own code now, not a
+  # second package's.
+  #
   # The simulation's vocabulary: `Snapshot`, `RunOutcome`, `GameLoop`.
   flutter3d_game: ^0.6.0
 
@@ -40,6 +39,32 @@ dependencies:
   # package's code now names a vector directly rather than only its tests.
   vector_math: ^2.2.0
 
+  # The vocabulary the screens (folded in from `flutter3d_screens`) edit:
+  # bindings, actions, the settings map — already a dependency of this
+  # package via `flutter3d_game` above, named here too since the screens'
+  # own code imports it directly.
+  #
+  # Volumes are a mixer's, and a settings panel is where they are turned.
+  flutter3d_audio: ^0.6.0
+
+  # For the dead zone's own default, so the panel and the pad cannot disagree
+  # about what "unset" means.
+  pad_input: ^0.4.0
+
+  # `localStorage`, which is where a browser build keeps what a player changed.
+  # Already used by flutter3d_webgl and by the gamepad's web backend.
+  web: ^1.1.0
+
+  # State management. The screens are state machines — a panel that is open,
+  # a rebinding that is waiting for a key, a settings document that has been
+  # written — and they lived in `setState` inside two applications, which is
+  # where a state machine goes to stop being testable. A cubit is reachable
+  # from a plain `test()`.
+  #
+  # The exception to `ARCHITECTURE.md` §11.3, and a narrow one: pure Dart, no
+  # FFI, so it does not break the web build — which is what that section's
+  # argument is actually about.
+  flutter_bloc: ^9.1.1
 
 dev_dependencies:
 

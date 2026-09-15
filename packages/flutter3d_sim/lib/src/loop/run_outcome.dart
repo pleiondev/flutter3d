@@ -20,8 +20,9 @@
 /// A save file, a title card, a HUD and the code that decides whether to load
 /// the next level all ask the same question, and all of them live above the
 /// genre packages. But the answer has to be given *by* a genre package — and a
-/// genre package depends on neither the renderer nor `flutter3d_screens`, so
-/// anything it must implement has to be down here with it.
+/// genre package depends on neither the renderer nor `flutter3d_session`
+/// (`flutter3d_screens` folded in), so anything it must implement has to be
+/// down here with it.
 ///
 /// Deliberately three values and not four. "Ended, and I am not saying how" is
 /// a state a screen cannot draw and a save cannot decide about, and every
