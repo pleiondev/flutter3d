@@ -23,7 +23,7 @@ void main() {
       scenario.steps
           .where((s) => s.screenshot != null)
           .map((s) => s.screenshot),
-      <String>['01-front.png', '02-iso.png'],
+      <String>['01-front.png', '02-left.png'],
     );
   });
 

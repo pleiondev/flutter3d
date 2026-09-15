@@ -10,15 +10,14 @@
 ///         --scenario tool/tutorial/test/fixtures/smoke_scenario.json \
 ///         --out cloud/server/web/assets/learn/modeler
 ///
-/// Needs a real GUI build of the modeler running with `--mcp-port` — there
-/// is no such window in the environment this was written in, so only the
-/// pure-logic pieces (scenario parsing, step sequencing, the
-/// expected-filename convention, in `package:tutorial`) were exercised
-/// while writing it. An actual `--session`/`--process` pair against a live
-/// window, and the `screencapture` permission prompt it needs the first
-/// time, are unverified here and need a real macOS run to confirm — see
-/// this repository's `tut-00` gaps journal if that run turns up a
-/// surprise.
+/// Needs a real GUI build of the modeler running with `--mcp-port`.
+/// Confirmed end to end against a real running window on 2026-09-15: the
+/// MCP connection, `ui.standardView`/`ui.frameSubject`/`ui.say`, and
+/// `screencapture -l <id>` all work without a permission prompt blocking
+/// the run. One correction from that run: `--session`'s own default below
+/// was a guess one directory too shallow — `getApplicationSupportDirectory()`
+/// nests a further `<bundle-id>/` under `Application Support/` on macOS,
+/// which this default now accounts for.
 library;
 
 import 'dart:io';
@@ -37,9 +36,9 @@ Future<void> main(List<String> arguments) async {
       'session',
       help:
           'path to mcp-session.json; defaults to the sandboxed app-support '
-          'path the modeler writes it under — an unverified guess (see this '
-          'file\'s own doc comment), so pass this explicitly on a real run '
-          'until that is confirmed',
+          'path the modeler writes it under, confirmed against a real run '
+          '(see this file\'s own doc comment) — pass this explicitly only if '
+          'the bundle id ever changes from dev.flutter3d.modeler',
       defaultsTo: _defaultSessionPath(),
     )
     ..addOption(
@@ -149,15 +148,17 @@ Future<void> main(List<String> arguments) async {
   }
 }
 
-/// A best-effort default for where the modeler's sandboxed app-support
-/// directory holds `mcp-session.json` — `dev.flutter3d.modeler`
+/// Where the modeler's sandboxed app-support directory holds
+/// `mcp-session.json` — `dev.flutter3d.modeler`
 /// (`Configs/AppInfo.xcconfig`'s own `PRODUCT_BUNDLE_IDENTIFIER`) under
-/// `com.apple.security.app-sandbox`'s container. **Unconfirmed**: nothing
-/// in this environment could run the actual app to see where
-/// `getApplicationSupportDirectory()` really lands inside the sandbox —
-/// pass `--session` explicitly until a real run confirms this.
+/// `com.apple.security.app-sandbox`'s container. **Confirmed** against a
+/// real `flutter run -d macos --dart-define=mcpPort=0` on 2026-09-15:
+/// `getApplicationSupportDirectory()` nests a further `dev.flutter3d.modeler/`
+/// folder under `Application Support/` (the bundle id names both the
+/// container and, again, the directory path_provider hands back inside it) —
+/// this was missing from an earlier, unverified guess.
 String _defaultSessionPath() {
   final home = Platform.environment['HOME'] ?? '';
   return '$home/Library/Containers/dev.flutter3d.modeler/Data/Library/'
-      'Application Support/mcp-session.json';
+      'Application Support/dev.flutter3d.modeler/mcp-session.json';
 }
