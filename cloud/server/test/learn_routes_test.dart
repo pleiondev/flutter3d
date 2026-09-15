@@ -78,15 +78,17 @@ void main() {
   });
 
   group('loadLearnCases against the real content directory', () {
-    test('reads the placeholder case off disk and renders its Markdown', () {
+    test('reads case 1 off disk and renders its Markdown', () {
       final cases = loadLearnCases();
       expect(cases, isNotEmpty);
-      final placeholder = cases.firstWhere((c) => c.slug == '00-placeholder');
-      expect(placeholder.title, contains('Placeholder'));
-      expect(placeholder.bodyHtml, contains('<h1 '));
+      final case1 = cases.firstWhere((c) => c.slug == '01-prop-from-a-scan');
+      expect(case1.title, contains('A prop from a scan'));
+      expect(case1.bodyHtml, contains('<h1 '));
       expect(
-        placeholder.bodyHtml,
-        contains('/assets/learn/modeler/placeholder/01-hello.png'),
+        case1.bodyHtml,
+        contains(
+          '/assets/learn/modeler/prop-from-a-scan/06-final-material.png',
+        ),
       );
     });
 
@@ -94,19 +96,19 @@ void main() {
       expect(loadLearnCases(directory: 'content/nothing-here'), isEmpty);
     });
 
-    test(
-      'the placeholder case serves end to end through learnRoutes',
-      () async {
-        final handler = _mounted(learnRoutes());
-        final response = await _get(handler, '/learn/modeler/00-placeholder');
-        expect(response.statusCode, 200);
-        final body = await response.readAsString();
-        expect(body, contains('Placeholder'));
-        expect(
-          body,
-          contains('/assets/learn/modeler/placeholder/01-hello.png'),
-        );
-      },
-    );
+    test('case 1 serves end to end through learnRoutes', () async {
+      final handler = _mounted(learnRoutes());
+      final response = await _get(
+        handler,
+        '/learn/modeler/01-prop-from-a-scan',
+      );
+      expect(response.statusCode, 200);
+      final body = await response.readAsString();
+      expect(body, contains('A prop from a scan'));
+      expect(
+        body,
+        contains('/assets/learn/modeler/prop-from-a-scan/05-imported-raw.png'),
+      );
+    });
   });
 }
