@@ -1478,4 +1478,92 @@ void main() {
     ];
     expect(codes, contains(429));
   });
+
+  test('the public showcase at /explore renders published models, and a '
+      'visitor can narrow them by category and by search', () async {
+    // Direct repository writes, the same as the "filtered by category and
+    // searched by title" test above and for the same reason — this file
+    // has already spent every `registerPerIp` attempt it gets, and this
+    // test is about what the page does with `published()`'s results, not
+    // about registration.
+    final owner = await services.users.create(
+      email: 'explore-owner@example.com',
+      handle: 'explore-owner',
+      displayName: 'Explore Owner',
+      passwordHash: 'x',
+    );
+
+    final glider = await services.models.create(
+      ownerId: owner!.id,
+      title: 'Aurora Glider',
+      sourceFormat: 'obj',
+      triangleCount: 1,
+      source: StoredFile(
+        blobSha256: await blobs.put(
+          Uint8List.fromList(utf8.encode('aurora glider')),
+        ),
+        bytes: 10,
+        contentType: 'model/obj',
+        filename: 'aurora.obj',
+      ),
+    );
+    await services.models.publish(
+      glider.id,
+      Licence.cc0,
+      category: Category.vehicles,
+    );
+
+    final statue = await services.models.create(
+      ownerId: owner.id,
+      title: 'Bronze Sentinel',
+      sourceFormat: 'obj',
+      triangleCount: 1,
+      source: StoredFile(
+        blobSha256: await blobs.put(
+          Uint8List.fromList(utf8.encode('bronze sentinel')),
+        ),
+        bytes: 10,
+        contentType: 'model/obj',
+        filename: 'bronze.obj',
+      ),
+    );
+    await services.models.publish(
+      statue.id,
+      Licence.ccBy,
+      category: Category.characters,
+    );
+
+    final visitor = _Browser(handler);
+
+    // Unfiltered: both published models show up, no sign-in needed.
+    final all = await visitor.get('/explore');
+    expect(all.statusCode, 200);
+    final allHtml = await all.readAsString();
+    expect(allHtml, contains('Aurora Glider'));
+    expect(allHtml, contains('Bronze Sentinel'));
+
+    // Narrowed to a category: only the model filed under it shows up —
+    // the filtering reaches the page, not only `published()` itself.
+    final vehiclesHtml = await (await visitor.get(
+      '/explore?category=vehicles',
+    )).readAsString();
+    expect(vehiclesHtml, contains('Aurora Glider'));
+    expect(vehiclesHtml, isNot(contains('Bronze Sentinel')));
+
+    // Searched by a word distinctive to one title.
+    final searchedHtml = await (await visitor.get(
+      '/explore?q=aurora',
+    )).readAsString();
+    expect(searchedHtml, contains('Aurora Glider'));
+    expect(searchedHtml, isNot(contains('Bronze Sentinel')));
+
+    // A search and a category that together match nothing shows the empty
+    // state plainly, rather than a blank grid.
+    final emptyHtml = await (await visitor.get(
+      '/explore?q=aurora&category=characters',
+    )).readAsString();
+    expect(emptyHtml, isNot(contains('Aurora Glider')));
+    expect(emptyHtml, isNot(contains('Bronze Sentinel')));
+    expect(emptyHtml, contains('No published models'));
+  });
 }

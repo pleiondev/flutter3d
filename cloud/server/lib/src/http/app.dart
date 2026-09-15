@@ -19,6 +19,7 @@ import '../domain/model.dart';
 import '../domain/project.dart';
 import '../domain/user.dart';
 import '../pages/account_pages.dart';
+import '../pages/explore_page.dart';
 import '../pages/home.dart';
 import '../pages/model_page.dart';
 import '../pages/my_models.dart';
@@ -42,6 +43,10 @@ import 'static_files.dart';
 /// below `services.config.uploadLimitBytes`, which exists for whole model
 /// files.
 const _previewLimitBytes = 4 * 1024 * 1024;
+
+/// How many published models the showcase shows at once, and how many more
+/// `/explore`'s own "More" link asks for on each page after the first.
+const _exploreLimit = 24;
 
 Handler buildHandler(Services services) {
   final policy = services.cookies;
@@ -77,6 +82,30 @@ Handler buildHandler(Services services) {
       (Request request) async =>
           htmlPage(PrivacyPage(signedIn: await userOf(request))),
     )
+    ..get('/explore', (Request request) async {
+      final params = request.url.queryParameters;
+      final rawQuery = params['q'];
+      final query = (rawQuery == null || rawQuery.trim().isEmpty)
+          ? null
+          : rawQuery.trim();
+      final category = Category.of(params['category']);
+      final before = DateTime.tryParse(params['before'] ?? '');
+      final models = await services.models.published(
+        limit: _exploreLimit,
+        before: before,
+        category: category,
+        search: query,
+      );
+      return htmlPage(
+        ExplorePage(
+          models: models,
+          signedIn: await userOf(request),
+          query: query,
+          category: category,
+          hasMore: models.length == _exploreLimit,
+        ),
+      );
+    })
     ..mount('/learn/modeler/', learnRoutes());
 
   // --- registration ------------------------------------------------------------
