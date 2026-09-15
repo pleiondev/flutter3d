@@ -22,7 +22,7 @@
     "anim-20": "done",
     "anim-21": "done",
     "anim-22": "done",
-    "anim-24": "partial",
+    "anim-24": "done",
     "anim-25": "done",
     "anim-26": "done",
     "anim-27": "done",
@@ -299,7 +299,7 @@
     "view-13": "done",
     "view-14": "done",
     "view-16": "done",
-    "view-17": "partial",
+    "view-17": "done",
     "view-19": "done",
     "view-20": "done",
     "view-23n": "done",
@@ -315,9 +315,23 @@
     "qa-18": "done",
     "pro-rt-01": "done",
     "ui-34d": "done",
-    "fmt-29d": "done"
+    "fmt-29d": "done",
+    "ui-40d": "done",
+    "ui-41d": "done",
+    "ui-28": "done",
+    "view-27d": "done",
+    "anim-11": "done",
+    "view-18": "done",
+    "anim-18": "done",
+    "anim-23": "done"
   },
   "absent": {
+    "view-27d": {
+      "SkinSync": "рабочее кодовое имя из заголовка самой строки плана («`SkinSync`: the modeler's viewport actually skins»), а не имя символа: работа легла в уже существующий класс SceneSync (apps/flutter3d_modeler/lib/src/scene_sync.dart) — тот же класс, против которого закрывающий строку коммит («SceneSync skins a mesh over its own joints…») и называет closing view-27d. Тот же выбор, что и у mat-07's MaterialPool/MaterialBinder — заводить второй класс под именем из плана рядом с уже работающим было бы дублированием ради названия"
+    },
+    "anim-18": {
+      "RetargetClip": "регистр из текста строки, а не имя символа: функция называется retargetClip (строчная r) в packages/flutter3d_model_core/lib/src/retarget_clip.dart, уже существовала до S7 и используется без изменений экраном 14 (RetargetClipJobRequest в modeler_cubit.dart/retarget_wiring.dart строит задание поверх неё же). Формулировка плана устарела в регистре первой буквы, а не в существовании функции"
+    },
     "ui-34d": {
       "postMessage": "имя браузерного API, а не символа в дереве: строка называет `TransferableTypedData`/`postMessage` как механизм воркера, который по её же собственному тексту не строился — оба измерения p0-07/p0-08 не сработали. В дереве это слово встречалось только в копиях flutter_soloud's own worker.dart.js под build/unit_test_assets, которые verify_plan пропускает; в свежем checkout (2026-09-14, ветка modeler-ui) его нет нигде, и это правильно"
     },
