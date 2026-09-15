@@ -74,7 +74,8 @@ class MyModelsPage extends StatelessComponent {
             Component.text(plural(models.length, 'model')),
           ], classes: 'count'),
         ], classes: 'page-head'),
-        if (uploads) _UploadZone(csrf: csrf, limit: uploadLimitBytes),
+        if (uploads)
+          _UploadZone(csrf: csrf, limit: uploadLimitBytes, projects: projects),
         if (models.isEmpty && projects.isEmpty)
           p([
             Component.text(
@@ -140,10 +141,20 @@ class _OwnerSection extends StatelessComponent {
 }
 
 class _UploadZone extends StatelessComponent {
-  const _UploadZone({required this.csrf, required this.limit});
+  const _UploadZone({
+    required this.csrf,
+    required this.limit,
+    required this.projects,
+  });
 
   final String csrf;
   final int limit;
+
+  /// The signed-in owner's own projects, offered alongside "Personal" — the
+  /// same list [MyModelsPage] already fetched for its own grouping, not a
+  /// second query. Picking one here sets where the upload lands from the
+  /// start, rather than only letting it move afterward.
+  final List<ProjectRecord> projects;
 
   @override
   Component build(BuildContext context) => div(
@@ -159,6 +170,18 @@ class _UploadZone extends StatelessComponent {
         id: 'upload-file',
         attributes: const {'accept': '.glb,.gltf,.obj,.f3d,.f3dproj'},
       ),
+      div([
+        label([Component.text('Project')], htmlFor: 'upload-project'),
+        select(
+          [
+            option([Component.text('Personal — no project')], value: ''),
+            for (final project in projects)
+              option([Component.text(project.title)], value: '${project.id}'),
+          ],
+          id: 'upload-project',
+          attributes: const {'data-project-select': ''},
+        ),
+      ], classes: 'field'),
       p([
         Component.text(
           'glTF — a .glb, or a .gltf with its buffers embedded — OBJ, '

@@ -343,6 +343,23 @@ Handler buildHandler(Services services) {
         return json(403, {'error': 'Confirm your address before uploading.'});
       }
 
+      // A project chosen at upload time, checked before anything is read
+      // off the wire — a project that does not belong to this account
+      // refuses the whole upload rather than quietly falling back to
+      // personal, so nobody ends up with a file dropped somewhere they did
+      // not ask for.
+      int? projectId;
+      if (request.headers['x-project-id'] case final raw? when raw.isNotEmpty) {
+        final parsed = int.tryParse(raw);
+        final project = parsed == null
+            ? null
+            : await services.projects.byId(parsed);
+        if (project == null || !canEditProject(project, user)) {
+          return json(422, {'error': 'That project does not exist.'});
+        }
+        projectId = parsed;
+      }
+
       final fileName = Uri.decodeComponent(
         request.headers['x-filename'] ?? 'model',
       );
@@ -364,6 +381,7 @@ Handler buildHandler(Services services) {
             title: titleFromFileName(fileName),
             sourceFormat: format.column,
             triangleCount: triangleCount,
+            projectId: projectId,
             source: StoredFile(
               blobSha256: hash,
               bytes: bytes.length,

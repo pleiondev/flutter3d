@@ -92,19 +92,21 @@ class _Browser {
     ),
   );
 
-  Future<Response> upload(String name, Uint8List bytes) => _send(
-    Request(
-      'POST',
-      Uri.parse('$_base/api/v1/models'),
-      body: bytes,
-      headers: {
-        'content-type': 'application/octet-stream',
-        'x-csrf': csrf,
-        'x-filename': Uri.encodeComponent(name),
-        'origin': _base,
-      },
-    ),
-  );
+  Future<Response> upload(String name, Uint8List bytes, {String? projectId}) =>
+      _send(
+        Request(
+          'POST',
+          Uri.parse('$_base/api/v1/models'),
+          body: bytes,
+          headers: {
+            'content-type': 'application/octet-stream',
+            'x-csrf': csrf,
+            'x-filename': Uri.encodeComponent(name),
+            'origin': _base,
+            if (projectId != null) 'x-project-id': projectId,
+          },
+        ),
+      );
 
   Future<Response> uploadPreview(
     int modelId,
@@ -1565,5 +1567,87 @@ void main() {
     expect(emptyHtml, isNot(contains('Aurora Glider')));
     expect(emptyHtml, isNot(contains('Bronze Sentinel')));
     expect(emptyHtml, contains('No published models'));
+  });
+
+  test('uploading with an x-project-id header: a project the account owns '
+      'receives the model straight from creation, and a project owned by '
+      'somebody else refuses the whole upload — no model created, nothing '
+      'stored', () async {
+    // Reuses an already-registered, already-verified account — this file
+    // has already spent every `registerPerIp` attempt it gets.
+    final owner = _Browser(handler);
+    await owner.get('/login');
+    expect(
+      (await owner.post('/login', {
+        'email': 'source-save-owner@example.com',
+        'password': 'a perfectly cromulent password',
+      })).statusCode,
+      303,
+    );
+    final ownerId = (await services.users.byEmail(
+      'source-save-owner@example.com',
+    ))!.id;
+
+    final createdProject = await owner.post('/projects', {
+      'title': 'Header Upload Project',
+    });
+    final projectPath = createdProject.headers['location']!.split('?').first;
+    final projectId = int.parse(
+      RegExp(r'^/p/(\d+)-').firstMatch(projectPath)!.group(1)!,
+    );
+
+    // A project the account owns: the model lands inside it from the very
+    // first save, not only after a separate move.
+    final ownUpload = await owner.upload(
+      'header_upload_own.obj',
+      Uint8List.fromList(utf8.encode('v 0 0 0\nv 3 0 0\nv 0 3 0\nf 1 2 3\n')),
+      projectId: '$projectId',
+    );
+    expect(ownUpload.statusCode, 201);
+    final ownModelId =
+        (jsonDecode(await ownUpload.readAsString())
+                as Map<String, Object?>)['id']!
+            as int;
+    expect((await services.models.byId(ownModelId))!.projectId, projectId);
+
+    // Somebody else's project — created straight through the repository,
+    // since it only needs to exist and belong to somebody else.
+    final stranger = await services.users.create(
+      email: 'header-upload-stranger@example.com',
+      handle: 'header-upload-stranger',
+      displayName: 'Header Upload Stranger',
+      passwordHash: 'x',
+    );
+    final strangersProject = await services.projects.create(
+      ownerId: stranger!.id,
+      title: "Stranger's Project",
+    );
+
+    final modelCountBefore = (await services.models.ofOwner(ownerId)).length;
+    final blobCountBefore = blobs.length;
+
+    final refused = await owner.upload(
+      'header_upload_refused.obj',
+      Uint8List.fromList(utf8.encode('v 0 0 0\nv 4 0 0\nv 0 4 0\nf 1 2 3\n')),
+      projectId: '${strangersProject.id}',
+    );
+    expect(refused.statusCode, 422);
+
+    // The refusal happens before the body is ever read, so nothing about
+    // this account changed — no model created and no blob stored, orphaned
+    // or otherwise.
+    expect((await services.models.ofOwner(ownerId)).length, modelCountBefore);
+    expect(blobs.length, blobCountBefore);
+
+    // A header that is not a number at all is refused the same way, never
+    // parsed into somebody's real project id by accident.
+    final garbage = await owner.upload(
+      'header_upload_garbage.obj',
+      Uint8List.fromList(utf8.encode('v 0 0 0\nv 5 0 0\nv 0 5 0\nf 1 2 3\n')),
+      projectId: 'not-a-number',
+    );
+    expect(garbage.statusCode, 422);
+    expect((await services.models.ofOwner(ownerId)).length, modelCountBefore);
+    expect(blobs.length, blobCountBefore);
   });
 }
