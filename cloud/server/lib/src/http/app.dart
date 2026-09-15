@@ -12,6 +12,7 @@ import 'package:shelf_router/shelf_router.dart';
 
 import '../auth/accounts.dart';
 import '../db/models_repository.dart';
+import '../db/rate_limit.dart';
 import '../db/sessions_repository.dart';
 import '../domain/access.dart';
 import '../domain/model.dart';
@@ -24,11 +25,20 @@ import '../pages/plain_pages.dart';
 import '../pages/settings_page.dart';
 import '../services.dart';
 import '../storage/inspect.dart';
+import '../storage/png.dart';
 import 'cookies.dart';
 import 'learn_routes.dart';
 import 'render.dart';
 import 'request.dart';
 import 'static_files.dart';
+
+/// The largest preview picture accepted, in bytes.
+///
+/// A preview is a viewport screenshot the browser captures and re-encodes,
+/// not a photograph — a few megabytes is already generous for one, and far
+/// below `services.config.uploadLimitBytes`, which exists for whole model
+/// files.
+const _previewLimitBytes = 4 * 1024 * 1024;
 
 Handler buildHandler(Services services) {
   final policy = services.cookies;
@@ -330,6 +340,81 @@ Handler buildHandler(Services services) {
           );
           return json(201, {'id': record.id, 'path': record.path});
       }
+    })
+    ..post('/api/v1/models/<id|[0-9]+>/preview', (
+      Request request,
+      String id,
+    ) async {
+      if (!scriptIsOurs(request)) {
+        return json(403, {'error': 'This page is out of date. Reload it.'});
+      }
+      final user = await userOf(request);
+      final model = await services.models.byId(int.parse(id));
+      // A preview is edited on a model that already exists, so this checks
+      // `canEdit`, the same as `/m/<id>/describe` and `/m/<id>/delete` — never
+      // `canUpload`, which only says whether the account may create new
+      // models. Missing or somebody else's: 404 either way, never 403, so a
+      // private model's id is not confirmed to somebody who cannot edit it.
+      if (model == null || !canEdit(model, user)) {
+        return _notFound(request, viewer: user);
+      }
+
+      if (!await services.limiter.allow(
+        'preview:account:${user!.id}',
+        RateRule.previewPerAccount,
+      )) {
+        return json(429, {
+          'error': 'Too many preview pictures saved recently. Try again later.',
+        });
+      }
+
+      // The picture must have been captured against the source file the model
+      // currently has — not one an earlier save already replaced — so a stale
+      // capture cannot silently attach itself to whatever the model is now.
+      final source = await services.models.fileOf(model.id, FileKind.source);
+      final sourceSha = request.headers['x-source-sha256'];
+      if (source == null ||
+          sourceSha == null ||
+          sourceSha != source.blobSha256) {
+        return json(409, {
+          'error':
+              'The model has changed since this picture was captured. Reload '
+              'it and capture the preview again.',
+        });
+      }
+
+      final bytes = await readBody(request, limit: _previewLimitBytes);
+      if (bytes == null) {
+        return json(413, {
+          'error':
+              'A preview picture must be smaller than '
+              '${formatBytes(_previewLimitBytes)}.',
+        });
+      }
+
+      switch (inspectPreviewPng(bytes)) {
+        case PngRejected(:final because):
+          return json(422, {'error': because});
+        case PngAccepted():
+          final hash = await services.blobs.put(bytes);
+          final replaced = await services.models.setPreview(
+            model.id,
+            StoredFile(
+              blobSha256: hash,
+              bytes: bytes.length,
+              contentType: 'image/png',
+              filename: 'preview.png',
+            ),
+          );
+          // The picture this one replaced, freed the same way `/m/<id>/delete`
+          // frees its own files — only once nothing else still points at it.
+          if (replaced != null &&
+              replaced != hash &&
+              !await services.models.isReferenced(replaced)) {
+            await services.blobs.delete(replaced);
+          }
+          return json(200, {'hasPreview': true});
+      }
     });
 
   // --- one model --------------------------------------------------------------------
@@ -390,6 +475,19 @@ Handler buildHandler(Services services) {
         return _notFound(request, viewer: viewer);
       }
       final file = await services.models.fileOf(model.id, FileKind.source);
+      if (file == null) return _notFound(request, viewer: viewer);
+      return _serveBlob(services, request, file, public: model.isPublic);
+    })
+    ..get('/files/<id|[0-9]+>/preview', (Request request, String id) async {
+      final viewer = await userOf(request);
+      final model = await services.models.byId(int.parse(id));
+      if (model == null || !canView(model, viewer)) {
+        return _notFound(request, viewer: viewer);
+      }
+      final file = await services.models.fileOf(model.id, FileKind.preview);
+      // No picture yet is a 404, the same as a model with no page to redirect
+      // to — never an empty 200, which would be indistinguishable from a
+      // picture that really is zero bytes.
       if (file == null) return _notFound(request, viewer: viewer);
       return _serveBlob(services, request, file, public: model.isPublic);
     });

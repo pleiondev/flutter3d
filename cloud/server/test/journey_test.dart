@@ -13,6 +13,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
+import 'package:crypto/crypto.dart';
 import 'package:flutter3d_models/main.server.options.dart';
 import 'package:flutter3d_models/src/config.dart';
 import 'package:flutter3d_models/src/db/database.dart';
@@ -28,6 +29,27 @@ const _base = 'http://localhost:8793';
 final _triangle = Uint8List.fromList(
   utf8.encode('v 0 0 0\nv 1 0 0\nv 0 1 0\nf 1 2 3\n'),
 );
+
+/// A minimal but well-formed PNG: the signature, then an `IHDR` chunk naming
+/// [width] and [height]. No `IDAT` and no CRC — `inspectPreviewPng` never
+/// reads past `IHDR`'s own 13 data bytes, so none of that is needed to be
+/// accepted as a preview picture.
+Uint8List _png(int width, int height) {
+  final bytes = BytesBuilder();
+  bytes.add(const [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]);
+  bytes.add((ByteData(4)..setUint32(0, 13, Endian.big)).buffer.asUint8List());
+  bytes.add('IHDR'.codeUnits);
+  final data = ByteData(13)
+    ..setUint32(0, width, Endian.big)
+    ..setUint32(4, height, Endian.big)
+    ..setUint8(8, 8) // bit depth
+    ..setUint8(9, 6) // color type: RGBA
+    ..setUint8(10, 0) // compression
+    ..setUint8(11, 0) // filter
+    ..setUint8(12, 0); // interlace
+  bytes.add(data.buffer.asUint8List());
+  return bytes.toBytes();
+}
 
 /// A browser's cookie jar, reduced to what this service sets.
 class _Browser {
@@ -62,6 +84,24 @@ class _Browser {
         'content-type': 'application/octet-stream',
         'x-csrf': csrf,
         'x-filename': Uri.encodeComponent(name),
+        'origin': _base,
+      },
+    ),
+  );
+
+  Future<Response> uploadPreview(
+    int modelId,
+    Uint8List bytes, {
+    required String sourceSha256,
+  }) => _send(
+    Request(
+      'POST',
+      Uri.parse('$_base/api/v1/models/$modelId/preview'),
+      body: bytes,
+      headers: {
+        'content-type': 'image/png',
+        'x-csrf': csrf,
+        'x-source-sha256': sourceSha256,
         'origin': _base,
       },
     ),
@@ -493,4 +533,137 @@ void main() {
       expect(await services.models.revisionFile(modelA.id, 999999999), isNull);
     },
   );
+
+  test('preview pictures: save, fetch, ownership, staleness, validation and '
+      'the rate limit', () async {
+    final owner = _Browser(handler);
+    await owner.get('/register');
+    await owner.post('/register', {
+      'email': 'preview-owner@example.com',
+      'displayName': 'Preview Owner',
+      'password': 'a perfectly cromulent password',
+      'passwordConfirm': 'a perfectly cromulent password',
+    });
+    final ownerVerify = _tokenIn(
+      mailer.sent.lastWhere(
+        (l) =>
+            l.to == 'preview-owner@example.com' &&
+            l.subject.contains('Confirm'),
+      ),
+    );
+    await owner.get('/verify?token=$ownerVerify');
+
+    final uploaded = await owner.upload('preview_subject.obj', _triangle);
+    expect(uploaded.statusCode, 201);
+    final uploadedBody =
+        jsonDecode(await uploaded.readAsString()) as Map<String, Object?>;
+    final modelId = uploadedBody['id']! as int;
+    final sourceSha = sha256.convert(_triangle).toString();
+
+    // No picture yet: a 404, not an empty 200 — the two are not the same
+    // thing to a client deciding whether to draw a placeholder.
+    expect((await owner.get('/files/$modelId/preview')).statusCode, 404);
+
+    // Captured against a source the model no longer has: refused, not
+    // silently attached to whatever the model is now.
+    final stale = await owner.uploadPreview(
+      modelId,
+      _png(64, 64),
+      sourceSha256: 'f' * 64,
+    );
+    expect(stale.statusCode, 409);
+
+    // Not a PNG at all: refused, and nothing is stored.
+    final notPng = await owner.uploadPreview(
+      modelId,
+      _triangle,
+      sourceSha256: sourceSha,
+    );
+    expect(notPng.statusCode, 422);
+
+    // A PNG whose IHDR claims a picture far past any preview's reason to be
+    // that size: refused too, without ever inflating any pixel data.
+    final tooBig = await owner.uploadPreview(
+      modelId,
+      _png(64, 4096),
+      sourceSha256: sourceSha,
+    );
+    expect(tooBig.statusCode, 422);
+
+    // None of the rejected attempts left a preview behind.
+    expect((await owner.get('/files/$modelId/preview')).statusCode, 404);
+
+    // A real, correctly-sized PNG against the current source succeeds.
+    final saved = await owner.uploadPreview(
+      modelId,
+      _png(320, 200),
+      sourceSha256: sourceSha,
+    );
+    expect(saved.statusCode, 200);
+
+    final fetched = await owner.get('/files/$modelId/preview');
+    expect(fetched.statusCode, 200);
+    expect(fetched.headers['content-type'], 'image/png');
+    expect(
+      await fetched.read().expand((chunk) => chunk).toList(),
+      _png(320, 200),
+    );
+    expect((await services.models.byId(modelId))!.hasPreview, isTrue);
+
+    // Somebody else gets 404 setting a preview on this model — never 403,
+    // which would confirm the model exists to someone who cannot edit it.
+    final stranger = _Browser(handler);
+    await stranger.get('/register');
+    await stranger.post('/register', {
+      'email': 'preview-stranger@example.com',
+      'displayName': 'Stranger',
+      'password': 'a different cromulent password',
+      'passwordConfirm': 'a different cromulent password',
+    });
+    final strangersAttempt = await stranger.uploadPreview(
+      modelId,
+      _png(64, 64),
+      sourceSha256: sourceSha,
+    );
+    expect(strangersAttempt.statusCode, 404);
+    // And it changed nothing about the picture the owner already saved.
+    expect(
+      await (await owner.get(
+        '/files/$modelId/preview',
+      )).read().expand((chunk) => chunk).toList(),
+      _png(320, 200),
+    );
+
+    // Saving again replaces the picture, and the one it replaced is freed —
+    // the same garbage collection `/m/<id>/delete` already does for its own
+    // files, now aware that a revision can also be the last thing holding a
+    // blob alive.
+    final firstPreviewHash = sha256.convert(_png(320, 200)).toString();
+    final replaced = await owner.uploadPreview(
+      modelId,
+      _png(128, 128),
+      sourceSha256: sourceSha,
+    );
+    expect(replaced.statusCode, 200);
+    expect(await blobs.open(firstPreviewHash), isNull);
+    expect(
+      await (await owner.get(
+        '/files/$modelId/preview',
+      )).read().expand((chunk) => chunk).toList(),
+      _png(128, 128),
+    );
+
+    // Enough preview saves from one account trip the rate limit — every
+    // attempt counts against it, the same as a sign-in guess, whether or
+    // not that particular attempt is one this test also expects to fail.
+    final codes = <int>[
+      for (var i = 0; i < 32; i++)
+        (await owner.uploadPreview(
+          modelId,
+          _png(128, 128),
+          sourceSha256: sourceSha,
+        )).statusCode,
+    ];
+    expect(codes, contains(429));
+  });
 }

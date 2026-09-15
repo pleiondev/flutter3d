@@ -27,6 +27,12 @@ class RateRule {
   static const lettersPerAddress = RateRule(3, Duration(hours: 1));
 
   static const lettersPerIp = RateRule(10, Duration(hours: 1));
+
+  /// Preview pictures saved to one account. A save-and-preview cycle spends
+  /// one or two of these, even with a retry; the limit exists to bound how
+  /// much disk one account can fill by repeatedly posting distinct pictures,
+  /// not to get in the way of normal use.
+  static const previewPerAccount = RateRule(30, Duration(hours: 1));
 }
 
 class RateLimiter {
