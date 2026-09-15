@@ -18,11 +18,13 @@ import 'package:flutter3d_models/main.server.options.dart';
 import 'package:flutter3d_models/src/config.dart';
 import 'package:flutter3d_models/src/db/database.dart';
 import 'package:flutter3d_models/src/db/models_repository.dart';
+import 'package:flutter3d_models/src/domain/model.dart';
 import 'package:flutter3d_models/src/http/app.dart';
 import 'package:flutter3d_models/src/mail/mailer.dart';
 import 'package:flutter3d_models/src/services.dart';
 import 'package:flutter3d_models/src/storage/blob_store.dart';
 import 'package:jaspr/server.dart';
+import 'package:postgres/postgres.dart' show Sql;
 import 'package:test/test.dart';
 
 const _base = 'http://localhost:8793';
@@ -935,4 +937,236 @@ void main() {
       404,
     );
   });
+
+  test('a model moves into a project, out again, and between two projects the '
+      'same account owns — never into one somebody else owns', () async {
+    final owner = await services.users.create(
+      email: 'project-owner@example.com',
+      handle: 'project-owner',
+      displayName: 'Project Owner',
+      passwordHash: 'x',
+    );
+    final stranger = await services.users.create(
+      email: 'project-stranger@example.com',
+      handle: 'project-stranger',
+      displayName: 'Project Stranger',
+      passwordHash: 'x',
+    );
+
+    final workshop = await services.projects.create(
+      ownerId: owner!.id,
+      title: 'Workshop',
+    );
+    final gallery = await services.projects.create(
+      ownerId: owner.id,
+      title: 'Gallery',
+    );
+    final strangersProject = await services.projects.create(
+      ownerId: stranger!.id,
+      title: "Stranger's Project",
+    );
+
+    // `create` accepts a project up front — a model does not have to be
+    // moved into one after the fact just to start out in one.
+    final model = await services.models.create(
+      ownerId: owner.id,
+      title: 'Project Chair',
+      sourceFormat: 'obj',
+      triangleCount: 1,
+      source: StoredFile(
+        blobSha256: await blobs.put(
+          Uint8List.fromList(utf8.encode('project chair')),
+        ),
+        bytes: 10,
+        contentType: 'model/obj',
+        filename: 'chair.obj',
+      ),
+      projectId: workshop.id,
+    );
+    expect((await services.models.byId(model.id))!.projectId, workshop.id);
+
+    // Moving out to no project at all always succeeds — there is no
+    // target owner to check.
+    expect(await services.models.moveToProject(model.id, null), isTrue);
+    expect((await services.models.byId(model.id))!.projectId, isNull);
+
+    // Moving between two projects the same account owns succeeds.
+    expect(await services.models.moveToProject(model.id, gallery.id), isTrue);
+    expect((await services.models.byId(model.id))!.projectId, gallery.id);
+
+    // A project owned by somebody else refuses the move and changes
+    // nothing — the model stays exactly where it was.
+    expect(
+      await services.models.moveToProject(model.id, strangersProject.id),
+      isFalse,
+    );
+    expect((await services.models.byId(model.id))!.projectId, gallery.id);
+  });
+
+  test(
+    'deleting a project leaves its former models personal, not deleted',
+    () async {
+      final owner = await services.users.create(
+        email: 'delete-project-owner@example.com',
+        handle: 'delete-project-owner',
+        displayName: 'Delete Project Owner',
+        passwordHash: 'x',
+      );
+      final project = await services.projects.create(
+        ownerId: owner!.id,
+        title: 'Doomed Project',
+      );
+      final model = await services.models.create(
+        ownerId: owner.id,
+        title: 'Orphan Chair',
+        sourceFormat: 'obj',
+        triangleCount: 1,
+        source: StoredFile(
+          blobSha256: await blobs.put(
+            Uint8List.fromList(utf8.encode('orphan chair')),
+          ),
+          bytes: 10,
+          contentType: 'model/obj',
+          filename: 'orphan.obj',
+        ),
+        projectId: project.id,
+      );
+
+      await services.projects.delete(project.id);
+
+      // The FK's own `on delete set null` did this — no application code
+      // walked the project's models to detach them.
+      final afterDelete = await services.models.byId(model.id);
+      expect(afterDelete, isNotNull);
+      expect(afterDelete!.projectId, isNull);
+      expect(await services.projects.byId(project.id), isNull);
+    },
+  );
+
+  test('publishing records a category, and the database itself refuses one '
+      'outside the known list', () async {
+    final owner = await services.users.create(
+      email: 'publish-owner@example.com',
+      handle: 'publish-owner',
+      displayName: 'Publish Owner',
+      passwordHash: 'x',
+    );
+    final model = await services.models.create(
+      ownerId: owner!.id,
+      title: 'Publishable Chair',
+      sourceFormat: 'obj',
+      triangleCount: 1,
+      source: StoredFile(
+        blobSha256: await blobs.put(
+          Uint8List.fromList(utf8.encode('publishable chair')),
+        ),
+        bytes: 10,
+        contentType: 'model/obj',
+        filename: 'publishable.obj',
+      ),
+    );
+
+    await services.models.publish(
+      model.id,
+      Licence.cc0,
+      category: Category.props,
+    );
+    final published = (await services.models.byId(model.id))!;
+    expect(published.visibility, Visibility.public);
+    expect(published.licence, Licence.cc0);
+    expect(published.category, Category.props);
+
+    // The Dart type system already keeps `publish` from being called
+    // without a category, or with one that is not one of `Category`'s own
+    // — the check constraint below is a backstop behind that, in case
+    // anything other than `publish` ever writes this column directly. It
+    // is never what a normal call through `publish` should be able to
+    // trigger, which is why `publish` itself is never tested against it.
+    await expectLater(
+      db.run(
+        (s) => s.execute(
+          Sql.named("update models set category = 'bogus' where id = @id"),
+          parameters: {'id': model.id},
+        ),
+      ),
+      throwsA(anything),
+    );
+  });
+
+  test(
+    'published models can be filtered by category and searched by title',
+    () async {
+      final owner = await services.users.create(
+        email: 'showcase-owner@example.com',
+        handle: 'showcase-owner',
+        displayName: 'Showcase Owner',
+        passwordHash: 'x',
+      );
+
+      final glider = await services.models.create(
+        ownerId: owner!.id,
+        title: 'Zephyr Glider',
+        sourceFormat: 'obj',
+        triangleCount: 1,
+        source: StoredFile(
+          blobSha256: await blobs.put(
+            Uint8List.fromList(utf8.encode('zephyr glider')),
+          ),
+          bytes: 10,
+          contentType: 'model/obj',
+          filename: 'glider.obj',
+        ),
+      );
+      await services.models.publish(
+        glider.id,
+        Licence.cc0,
+        category: Category.vehicles,
+      );
+
+      final statue = await services.models.create(
+        ownerId: owner.id,
+        title: 'Marble Sentinel',
+        sourceFormat: 'obj',
+        triangleCount: 1,
+        source: StoredFile(
+          blobSha256: await blobs.put(
+            Uint8List.fromList(utf8.encode('marble sentinel')),
+          ),
+          bytes: 10,
+          contentType: 'model/obj',
+          filename: 'statue.obj',
+        ),
+      );
+      await services.models.publish(
+        statue.id,
+        Licence.ccBy,
+        category: Category.characters,
+      );
+
+      // Filtered by category: each shows up only under its own.
+      final vehicles = await services.models.published(
+        category: Category.vehicles,
+      );
+      expect(vehicles.map((m) => m.id), contains(glider.id));
+      expect(vehicles.map((m) => m.id), isNot(contains(statue.id)));
+
+      final characters = await services.models.published(
+        category: Category.characters,
+      );
+      expect(characters.map((m) => m.id), contains(statue.id));
+      expect(characters.map((m) => m.id), isNot(contains(glider.id)));
+
+      // Searched by a word distinctive to one title: it does not return the
+      // other, whichever way round the search is tried.
+      final searchedZephyr = await services.models.published(search: 'zephyr');
+      expect(searchedZephyr.map((m) => m.id), contains(glider.id));
+      expect(searchedZephyr.map((m) => m.id), isNot(contains(statue.id)));
+
+      final searchedSentinel = await services.models.published(
+        search: 'sentinel',
+      );
+      expect(searchedSentinel.map((m) => m.id), contains(statue.id));
+      expect(searchedSentinel.map((m) => m.id), isNot(contains(glider.id)));
+    },
+  );
 }

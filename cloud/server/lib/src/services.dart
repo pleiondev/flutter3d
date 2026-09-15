@@ -6,6 +6,7 @@ import 'config.dart';
 import 'db/database.dart';
 import 'db/email_tokens_repository.dart';
 import 'db/models_repository.dart';
+import 'db/projects_repository.dart';
 import 'db/rate_limit.dart';
 import 'db/sessions_repository.dart';
 import 'db/users_repository.dart';
@@ -23,6 +24,7 @@ class Services {
        sessions = SessionsRepository(db),
        tokens = EmailTokensRepository(db),
        models = ModelsRepository(db),
+       projects = ProjectsRepository(db),
        limiter = RateLimiter(db),
        cookies = CookiePolicy.forBaseUrl(config.baseUrl) {
     accounts = Accounts(
@@ -53,6 +55,7 @@ class Services {
   final SessionsRepository sessions;
   final EmailTokensRepository tokens;
   final ModelsRepository models;
+  final ProjectsRepository projects;
   final RateLimiter limiter;
   final CookiePolicy cookies;
   late final Accounts accounts;
