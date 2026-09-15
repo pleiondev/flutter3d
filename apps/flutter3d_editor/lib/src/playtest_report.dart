@@ -45,7 +45,8 @@ final class PlaytestReport {
 
   factory PlaytestReport.fromJson(Map<String, Object?> json) {
     final cells = <HeatmapCell>[
-      for (final row in (json['cells']! as List<Object?>).cast<Map<Object?, Object?>>())
+      for (final row
+          in (json['cells']! as List<Object?>).cast<Map<Object?, Object?>>())
         HeatmapCell(
           x: (row['x']! as num).toInt(),
           z: (row['z']! as num).toInt(),
@@ -54,7 +55,8 @@ final class PlaytestReport {
         ),
     ];
     final deaths = <DeathPoint>[
-      for (final row in (json['deaths']! as List<Object?>).cast<Map<Object?, Object?>>())
+      for (final row
+          in (json['deaths']! as List<Object?>).cast<Map<Object?, Object?>>())
         DeathPoint(
           seed: (row['seed']! as num).toInt(),
           step: (row['step']! as num).toInt(),
@@ -81,6 +83,7 @@ final class PlaytestReport {
 
   int get totalRuns => outcomes.values.fold(0, (a, b) => a + b);
 
-  int get maxSamples =>
-      cells.isEmpty ? 0 : cells.map((c) => c.samples).reduce((a, b) => a > b ? a : b);
+  int get maxSamples => cells.isEmpty
+      ? 0
+      : cells.map((c) => c.samples).reduce((a, b) => a > b ? a : b);
 }

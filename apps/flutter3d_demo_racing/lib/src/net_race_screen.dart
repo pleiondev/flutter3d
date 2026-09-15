@@ -72,7 +72,8 @@ final class _NetRaceScreenState extends State<NetRaceScreen> {
 
   Future<void> _createRoom() => _connect(join: false);
 
-  Future<void> _joinRoom() => _connect(join: true, code: _codeField.text.trim());
+  Future<void> _joinRoom() =>
+      _connect(join: true, code: _codeField.text.trim());
 
   Future<void> _connect({required bool join, String? code}) async {
     setState(() {

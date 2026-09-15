@@ -9,24 +9,25 @@ PlaytestReport _report() => const PlaytestReport(
     HeatmapCell(x: 0, z: 0, samples: 4, runs: 2),
     HeatmapCell(x: 3, z: 0, samples: 1, runs: 1),
   ],
-  deaths: <DeathPoint>[
-    DeathPoint(seed: 5, step: 120, x: 3.5, z: 0.5),
-  ],
+  deaths: <DeathPoint>[DeathPoint(seed: 5, step: 120, x: 3.5, z: 0.5)],
   outcomes: <String, int>{'died': 1, 'exited': 1},
 );
 
 void main() {
   group('HeatmapLayout', () {
-    test('a death point maps back to the same screen point it was placed at', () {
-      final layout = HeatmapLayout(
-        report: _report(),
-        size: const Size(400, 400),
-      );
-      final at = layout.toScreen(3.5, 0.5);
-      final hit = layout.hitTest(at);
-      expect(hit, isNotNull);
-      expect(hit!.seed, 5);
-    });
+    test(
+      'a death point maps back to the same screen point it was placed at',
+      () {
+        final layout = HeatmapLayout(
+          report: _report(),
+          size: const Size(400, 400),
+        );
+        final at = layout.toScreen(3.5, 0.5);
+        final hit = layout.hitTest(at);
+        expect(hit, isNotNull);
+        expect(hit!.seed, 5);
+      },
+    );
 
     test('a tap far from every death finds nothing', () {
       final layout = HeatmapLayout(

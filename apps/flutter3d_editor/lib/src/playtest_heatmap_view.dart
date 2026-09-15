@@ -13,7 +13,11 @@ import 'playtest_report.dart';
 /// to prove directly than through a `WidgetTester`'s hit-testing, which
 /// only tells you the two agree, not that either is right.
 final class HeatmapLayout {
-  HeatmapLayout({required this.report, required this.size, this.margin = 24.0}) {
+  HeatmapLayout({
+    required this.report,
+    required this.size,
+    this.margin = 24.0,
+  }) {
     var minX = 0.0, maxX = 0.0, minZ = 0.0, maxZ = 0.0;
     var first = true;
     void widen(double x, double z) {
@@ -71,7 +75,10 @@ final class HeatmapLayout {
       Offset(margin + (x - _minX) * _scale, margin + (z - _minZ) * _scale);
 
   Rect cellRect(HeatmapCell cell) {
-    final topLeft = toScreen(cell.x * report.cellSize, cell.z * report.cellSize);
+    final topLeft = toScreen(
+      cell.x * report.cellSize,
+      cell.z * report.cellSize,
+    );
     return Rect.fromLTWH(topLeft.dx, topLeft.dy, cellPixels, cellPixels);
   }
 
@@ -104,11 +111,7 @@ final class HeatmapLayout {
 /// `rp-02`'s own note on why "live play in the editor" was not the
 /// direction taken).
 final class PlaytestHeatmapView extends StatelessWidget {
-  const PlaytestHeatmapView({
-    super.key,
-    required this.report,
-    this.onDeathTap,
-  });
+  const PlaytestHeatmapView({super.key, required this.report, this.onDeathTap});
 
   final PlaytestReport report;
   final void Function(DeathPoint death)? onDeathTap;
@@ -124,10 +127,7 @@ final class PlaytestHeatmapView extends StatelessWidget {
             final death = layout.hitTest(details.localPosition);
             if (death != null) onDeathTap?.call(death);
           },
-          child: CustomPaint(
-            size: size,
-            painter: _HeatmapPainter(layout),
-          ),
+          child: CustomPaint(size: size, painter: _HeatmapPainter(layout)),
         );
       },
     );
@@ -151,11 +151,12 @@ final class _HeatmapPainter extends CustomPainter {
       final density = maxSamples == 0 ? 0.0 : cell.samples / maxSamples;
       canvas.drawRect(
         layout.cellRect(cell),
-        Paint()..color = Color.lerp(
-          const Color(0x00FFB74D),
-          const Color(0xFFFFB74D),
-          density.clamp(0.0, 1.0),
-        )!,
+        Paint()
+          ..color = Color.lerp(
+            const Color(0x00FFB74D),
+            const Color(0xFFFFB74D),
+            density.clamp(0.0, 1.0),
+          )!,
       );
     }
 
