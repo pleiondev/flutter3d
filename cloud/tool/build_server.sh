@@ -27,9 +27,11 @@ docker run --rm --platform linux/amd64 \
   "$image" bash -euo pipefail -c '
     mkdir -p /work/cloud /work/packages
     cp -r /src/cloud/server /work/cloud/
-    # The four engine packages the service depends on by path until they are
-    # published. Nothing else from the repository goes in.
-    for package in flutter3d_geometry flutter3d_formats flutter3d_mesh flutter3d_model_core; do
+    # The engine packages the service depends on by path until they are
+    # published — see the dependency_overrides in cloud/server/pubspec.yaml for
+    # why each one is here. Nothing else from the repository goes in.
+    for package in flutter3d_geometry flutter3d_formats flutter3d_mesh flutter3d_model_core \
+                    flutter3d_rig flutter3d_particles_core flutter3d_cloth; do
       cp -r "/src/packages/$package" /work/packages/
     done
     rm -rf /work/cloud/server/.dart_tool /work/cloud/server/build /work/packages/*/.dart_tool
