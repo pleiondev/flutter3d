@@ -6,6 +6,15 @@
 // Run once by hand after a deliberate change to the scenario or the writers
 // it exercises; read the diff before committing the new fixtures.
 //
+// `tut-22` (`doc/modeler-tutorial-gaps.md`): 02-final-material.png was
+// found to differ, deterministically, from a clean regenerate of the same
+// HEAD — not because renderProject is nondeterministic (it isn't; see
+// `render_project_test.dart`'s own `tut-22` group), but because `tut-07`'s
+// own commit moved bloom's and shadows' defaults onto `SceneLighting`'s own
+// (see `render_project.dart`'s doc comment) and this case never sets its
+// own lighting at all, so the PNG quietly went stale without anyone
+// regenerating it. Regenerated deliberately as part of `tut-22`'s own fix.
+//
 //     dart run tool/make_case6_fixtures.dart
 import 'dart:io';
 import 'dart:typed_data';

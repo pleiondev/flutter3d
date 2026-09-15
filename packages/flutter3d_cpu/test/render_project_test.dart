@@ -319,6 +319,86 @@ void main() {
     });
   });
 
+  group('tut-22 — renderProject is deterministic', () {
+    // `tut-22`'s own investigation (`doc/modeler-tutorial-gaps.md`): four
+    // committed tutorial reference PNGs were found to differ from a clean
+    // regenerate of the same, unmodified HEAD. That turned out to have
+    // nothing to do with `renderProject` itself — the real cause was
+    // `tut-07`'s own legitimate default change (`RenderSettings.bloom`/
+    // `.shadows` now follow `SceneLighting`'s own defaults, which do not
+    // match `RenderSettings`'s bare ones, for a project that never touches
+    // its own lighting) reaching two tutorial cases' own reference pictures
+    // that were never regenerated for it — not a source of nondeterminism
+    // anywhere in the render path. This group is what actually rules that
+    // out, rather than leaving it assumed: the same project, rendered twice,
+    // must come back byte-identical, in one process and across two.
+    test(
+      'the same project, rendered twice in one process, is byte-identical',
+      () async {
+        // A shape close to the two cases this row's own investigation named:
+        // an edited mesh under a modifier, no explicit `SceneLighting` at
+        // all — exactly the combination that made `tut-07`'s default change
+        // invisible to every test that only ever compared *within* one run.
+        final project = _editedCubeProject(
+          modifiers: <ModifierSlot>[
+            ModifierSlot(modifier: MirrorModifier(normal: Vector3(1, 0, 0))),
+          ],
+        );
+        final request = RenderRequest(
+          project: project,
+          view: RenderProjectView.front,
+          width: 64,
+          height: 64,
+        );
+        final first = await renderProject(request, deviceFactory: _cpuDevice);
+        final second = await renderProject(request, deviceFactory: _cpuDevice);
+        expect(
+          second,
+          orderedEquals(first),
+          reason:
+              'renderProject has no clock, no random seed and no unordered '
+              'Set/Map on its own render path — two calls with the same '
+              'RenderRequest must produce the same bytes',
+        );
+      },
+    );
+
+    test(
+      'the same project, rendered in two fresh CpuDevices, is byte-identical',
+      () async {
+        // `_cpuDevice` builds a brand-new `CpuDevice` per call, the same
+        // shape `tool/make_caseN_fixtures.dart` uses from a fresh `dart run`
+        // process each time it is invoked by hand — so this is the closer
+        // analogue of "two fresh processes" than the test above, without
+        // actually paying for a second process.
+        final project = _cubeProject();
+        final request = RenderRequest(
+          project: project,
+          view: RenderProjectView.iso,
+          width: 48,
+          height: 48,
+        );
+        final a = await renderProject(
+          request,
+          deviceFactory: (w, h) => CpuDevice(
+            width: w,
+            height: h,
+            shaders: CpuShaderLibrary(builtinCpuShaders()),
+          ),
+        );
+        final b = await renderProject(
+          request,
+          deviceFactory: (w, h) => CpuDevice(
+            width: w,
+            height: h,
+            shaders: CpuShaderLibrary(builtinCpuShaders()),
+          ),
+        );
+        expect(b, orderedEquals(a));
+      },
+    );
+  });
+
   group('tut-06 — modifiers read at render time', () {
     Future<Rgba8Image> render(ModelProject project) async =>
         (await decodeImagePure(

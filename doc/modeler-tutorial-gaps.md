@@ -48,6 +48,15 @@ The other three are below, alongside two fresh findings from re-reading
 | — | cabinet: a model's detail page | a model uploaded to the cabinet shows a preview picture | still true, and already tracked, not a fresh finding: `cloud/README.md`'s own "What is not here yet" says outright the schema and repository have a place for one but nothing makes one yet, pending a browser-side capture the viewer cannot read back. The plan's own "out of scope" list already names this "a separate `cloud` row" | UX | tut-19 |
 | — | cabinet: re-open a model | a model opened from the cabinet's own viewer can be edited and saved back to the same entry, as a revision | still true, and already tracked, not a fresh finding: the same "What is not here yet" section says editing from the cabinet is real but saving back is its own next stage, with revisions | UX | tut-20 |
 
+A later pass (T8) found, while closing out an earlier one's own
+"golden-drift" finding, that a case's own reference pictures can go stale
+without anyone noticing: nothing here says one case's `renderProject`
+defaults have to match another's forever.
+
+| case | step | expected | actual | type | plan row |
+|---|---|---|---|---|---|
+| — | any case's own headless "expected result" PNG, rendered by `tool/make_caseN_fixtures.dart` | a clean regenerate of the same, unmodified HEAD reproduces the committed picture byte-for-byte | **Resolved 2026-09-15 (tut-22).** Four committed PNGs — case 2's `05-vase-mesh.png`/`06-vase-modifiers-preview.png`, case 5's `04-character-after-retarget.png`, case 6's `02-final-material.png` — were found, and left alone, differing deterministically from a clean regenerate. Re-checked directly: case 5's no longer differs (last regenerated in `cf317f17`, after the real cause below had already landed) and is dropped from scope; case 2's two and case 6's one still did. Root cause: `tut-07`'s own commit swapped `render_project.dart`'s hardcoded `bloom: false`/implicit `shadows: true` for `LightingSync().apply(...)`, which for a case that never sets its own `SceneLighting` reads `SceneLighting`'s own defaults instead — bloom now defaults *on*, shadows now default *off*, the opposite of before. Confirmed, not assumed: forcing both settings back to their pre-`tut-07` values reproduces the committed bytes exactly; two fresh renders of the same request are always byte-identical to each other, in one process and across two separate `CpuDevice`s, so the render path itself was never the source. Fixed by regenerating the three stale PNGs deliberately, documenting the cause on `renderProject`'s own doc comment and at the top of both fixture tools, and adding `render_project_test.dart`'s own `tut-22` determinism group so a future report like this one can rule the render path in or out in one test run instead of a fresh investigation | function (stale documentation), resolved | tut-22 |
+
 Case 1 ("A prop from a scan"), case 2 ("A vase from a profile"), case 3
 ("A lit corner"), case 4 ("A character from a bare mesh"), case 5
 ("Borrowing a walk: retarget a clip") and case 6 ("An agent beside you")

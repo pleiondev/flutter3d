@@ -208,6 +208,27 @@ const int _maxRenderDimension = 1024;
 /// [ModelProject.lighting] still does not reach a picture through
 /// (`ambientIntensity`, `environment`).
 ///
+/// **`tut-07` also moved bloom and shadows onto [SceneLighting]'s own
+/// defaults, which do not match [RenderSettings]'s bare ones — `tut-22`'s
+/// own finding.** Before `tut-07`, this function always rendered with
+/// `bloom` forced off and `shadows` left at [ShadowSettings]'s own default
+/// (`enabled: true`), regardless of the project. Since, both come from
+/// [LightingSync.apply] instead: `bloom.enabled` follows
+/// `SceneLighting.post.bloomEnabled` (default `true`) and `shadows.enabled`
+/// follows `SceneLighting.shadows` (default `false`) — the opposite of each
+/// bare default, for *any* project that has never called
+/// `SetSceneLightingField` at all. A deliberate change (verified against
+/// case 3's and case 4's own reference pictures in the same commit, and by
+/// `tut-22`'s own determinism tests below — this function has no clock, no
+/// random seed and no unordered iteration on its own render path, so it is
+/// not the source of a byte difference), but four other tutorial cases'
+/// reference pictures were not regenerated when it landed and quietly went
+/// stale — `tut-22`'s own row is the account of finding and fixing that.
+/// **Any tutorial case whose fixture never sets `SceneLighting` explicitly
+/// is reading these two defaults**, so if either one moves again, every
+/// such case's reference pictures need regenerating, not only the ones a
+/// commit happens to check by eye.
+///
 /// Throws [RenderRefusal] for a size outside 1×1..1024×1024, before
 /// [deviceFactory] is ever called.
 Future<Uint8List> renderProject(
