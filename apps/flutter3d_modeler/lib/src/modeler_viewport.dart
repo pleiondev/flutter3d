@@ -519,8 +519,31 @@ class _ModelerViewportState extends State<ModelerViewport> {
         pixel: look.pixel,
         perspective: look.perspective,
       ),
+      // `ux-03`: the shapes follow the gizmo. Rings are grabbed as rings and a
+      // scale gets its middle box; before this every kind reused the move
+      // gizmo's three axis boxes, so a press on a ring hit nothing.
+      kind: switch (widget.gizmoKind) {
+        TransformKind.move => GizmoKindForHit.move,
+        TransformKind.rotate => GizmoKindForHit.rotate,
+        TransformKind.scale => GizmoKindForHit.scale,
+      },
     );
-    const GizmoDrawing().writeInto(
+    // `ux-03`: twice. A ghost through whatever is in front of it, then the
+    // handle itself where it is really visible — see
+    // `MeshOverlay.linesThrough`. Drawn inside an opaque body with only the
+    // depth-tested pass, the arrows were simply not there, which is what the
+    // live run found in the default display mode.
+    const GizmoDrawing drawing = GizmoDrawing();
+    gizmo.throughGeometry(
+      () => drawing.writeInto(
+        gizmo,
+        pivot: pivot,
+        handles: _handles,
+        kind: widget.gizmoKind,
+        hot: _hotAxis,
+      ),
+    );
+    drawing.writeInto(
       gizmo,
       pivot: pivot,
       handles: _handles,
@@ -581,6 +604,14 @@ class _ModelerViewportState extends State<ModelerViewport> {
       // On the picture and nothing else. A `Listener` up at the scaffold would
       // orbit the camera when somebody drags a value in the properties panel,
       // which is the first bug every viewport in every tool has had.
+      //
+      // **Opaque, rather than deferring to whatever the backend presented.**
+      // The child is `presentFrame`'s own widget, and a backend with no image
+      // to show yet — the first frame, a device composited elsewhere, a test
+      // — hands back something that hit-tests as nothing, so the viewport
+      // silently stopped answering the mouse at all. Its own area is its own
+      // to answer for; what is drawn in it does not decide that.
+      behavior: HitTestBehavior.opaque,
       onPointerDown: _down,
       onPointerMove: _move,
       onPointerUp: _up,
@@ -690,6 +721,17 @@ class _ModelerViewportState extends State<ModelerViewport> {
       final GizmoAxis? axis = _gizmoUnder(event.localPosition);
       if (axis != null) {
         onGizmoDrag(axis);
+        // `ux-03`: the press is registered before this returns, and used to
+        // not be. `_move` reads `_pressed` to decide whether a drag has
+        // started and `_up` reads it to fire `onDragDone`; without an entry
+        // here the arm a person grabbed armed a transform that then saw no
+        // movement at all — the live run got "You · move" on the history with
+        // a zero delta, and the selection dropped, because `_up` fell through
+        // to `_pick`. The camera still never sees this press:
+        // `_gestures.pointerDown` below is what would tell it, and this
+        // returns before reaching it.
+        _pressed[event.pointer] = (at: event.localPosition, button: button);
+        _travelled.remove(event.pointer);
         return;
       }
     }
