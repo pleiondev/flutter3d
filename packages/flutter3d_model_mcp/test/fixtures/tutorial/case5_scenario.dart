@@ -38,22 +38,20 @@
 /// facing the same empty auto-map result would type into the retarget
 /// screen's own bone-map table.
 ///
-/// **`lockFeet: false` — a real crash in `flutter3d_rig`'s own
-/// `_lockFeet`, not a stylistic choice.** Calling
-/// [RetargetClipJobRequest.run] with `lockFeet: true` (its own default)
-/// against this exact pair of rigs throws a `RangeError` inside
-/// `retarget.dart`'s own `_lockFeet` — confirmed by hand while writing this
-/// file. The cause: `_lockFeet`'s own `tracksByNodeId` is a `Map<int,
-/// RigTrack>`, one entry per target node id, but `RiggedFigure.glb`'s own
-/// clip animates *every* joint's translation, rotation **and** scale, not
-/// only the root's — so building that map for the hips joint (which
-/// carries all three after retargeting) overwrites the retargeted
-/// *rotation* track with the *scale* one, and `_lockFeet`'s own per-key
-/// indexing math then reads that three-floats-per-key buffer as if it held
-/// four-floats-per-key quaternions, running past its own end. This is
-/// `tut-12` — logged, not fixed here: `lockFeet: false` is a real,
-/// documented knob on [RetargetClipJobRequest] itself, the honest
-/// "correction" for this pair of rigs today, not test-only scaffolding.
+/// **`lockFeet: true` (the default) — fixed, `tut-12`.** Calling
+/// [RetargetClipJobRequest.run] with `lockFeet: true` against this exact
+/// pair of rigs used to throw a `RangeError` inside `retarget.dart`'s own
+/// `_lockFeet`. The cause: `_lockFeet`'s own `tracksByNodeId` was a
+/// `Map<int, RigTrack>`, one entry per target node id, but
+/// `RiggedFigure.glb`'s own clip animates *every* joint's translation,
+/// rotation **and** scale, not only the root's — so building that map for
+/// the hips joint (which carries all three after retargeting) overwrote the
+/// retargeted *rotation* track with the *scale* one, and `_lockFeet`'s own
+/// per-key indexing math then read that three-floats-per-key buffer as if
+/// it held four-floats-per-key quaternions, running past its own end.
+/// `_lockFeet` now keys its lookup by node **and** path, so a joint's three
+/// retargeted tracks all survive — this case takes screen 14's own "Lock
+/// feet" toggle at its documented default rather than working around it.
 library;
 
 import 'dart:io';
@@ -191,8 +189,8 @@ Future<void> runCase5Scenario(ModelSession session) async {
   final BoneMap boneMap = const BoneMap(case5BoneMapCorrections);
 
   // 3. The real retarget, run directly rather than through `ModelerCubit
-  // .retargetInBackground` (this file's own library comment) — `lockFeet:
-  // false` for the real reason that same comment gives (`tut-12`).
+  // .retargetInBackground` (this file's own library comment) — `lockFeet`
+  // left at its own default (`true`), now that `tut-12` is fixed.
   final RetargetClipJobRequest request = RetargetClipJobRequest(
     sourceProject: source.project,
     sourceSkeleton: source.skeleton,
@@ -200,7 +198,6 @@ Future<void> runCase5Scenario(ModelSession session) async {
     targetProject: session.project,
     targetSkeleton: targetSkeleton,
     boneMap: boneMap,
-    lockFeet: false,
   );
   final ProjectClip retargeted = await request.run();
 

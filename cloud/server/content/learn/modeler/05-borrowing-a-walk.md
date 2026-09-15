@@ -74,24 +74,24 @@ than guessing at one.
 now filled in by hand, the two toe rows still empty and shown in the
 table's own "unmapped" colour — placeholder)*
 
-## 4. A real crash, and the correction that avoids it
+## 4. Lock feet
 
-**Lock feet** is on by default. Turning it on for this exact pair of rigs
-throws — checked directly while writing this case, a `RangeError` inside
-`flutter3d_rig`'s own `_lockFeet`.
+**Lock feet** is on by default, and stays on. Turning it on for this exact
+pair of rigs used to throw a `RangeError` inside `flutter3d_rig`'s own
+`_lockFeet` — found writing this case, tracked as `tut-12`, and since fixed.
 
-> **A real bug, not a stylistic choice.** `RiggedFigure.glb`'s own clip
+> **What the crash was, and what fixed it.** `RiggedFigure.glb`'s own clip
 > animates every joint's translation, rotation *and* scale, not only the
-> root's — `_lockFeet`'s own `tracksByNodeId` keeps exactly one track per
-> target joint (a plain `Map<int, RigTrack>`), so building it for a joint
-> that now carries all three retargeted tracks silently keeps only the
-> last one built (the scale track) and drops the rotation one it actually
-> needs; its own per-key indexing math then reads that three-floats-per-key
-> buffer as if it always held four-floats-per-key quaternions and runs past
-> its own end. This is `tut-12`, found writing this case — logged, not
-> patched here: **lock feet off** is the real, honest correction for this
-> pair of rigs today, not a workaround bolted on around a missing feature.
-> See the note at the end of this page.
+> root's — `_lockFeet`'s own `tracksByNodeId` used to keep exactly one
+> track per target joint (a plain `Map<int, RigTrack>`), so building it for
+> a joint that carries all three retargeted tracks silently kept only the
+> last one built (the scale track) and dropped the rotation one it actually
+> needs; its own per-key indexing math then read that three-floats-per-key
+> buffer as if it always held four-floats-per-key quaternions and ran past
+> its own end. `_lockFeet` now keys that lookup by node *and* path, so a
+> joint's translation, rotation and scale tracks all survive, and the foot
+> lock runs its real correction on this pair of rigs the way screen 14's
+> own toggle has always promised.
 
 **Root motion: In code.** Leaving root motion in the clip's own hip
 translation would have the character sliding in place on every loop; **In
@@ -162,8 +162,8 @@ true here) already established that `render_project.dart` never mentions
 "skin" or "skeleton" at all, so every mesh draws at its raw bind-pose
 position regardless of which clip is on the project or what time within it
 a caller might have in mind. See `doc/modeler-tutorial-gaps.md` for that
-entry, alongside `tut-12` (the `lockFeet` crash) and `tut-13` (`looseAutoMap`
-finds nothing for this file's own joint names).
+entry, alongside `tut-13` (`looseAutoMap` finds nothing for this file's own
+joint names) and the now-closed `tut-12` (the `lockFeet` crash).
 
 **Proving it.** `packages/flutter3d_model_mcp/test/fixtures/tutorial/
 case5_scenario.dart` builds exactly the project this page describes, against
@@ -176,16 +176,18 @@ does find nothing for it (`tut-13`); builds the seventeen-row correction by
 hand as a plain `BoneMap`; calls `RetargetClipJobRequest.run()` directly
 (the "synchronous enough for a headless case" shape case 4's own
 `bindWeightsJobRequestFor` call already uses, rather than through
-`ModelerCubit.retargetInBackground`) with `lockFeet: false` for the real
-reason `tut-12` names; lands the result through `ApplyClipResult(clipIndex:
-null)`; and extracts root motion through `ExtractRootMotion` on the
-character's own hips joint. `tutorial_scenarios_test.dart`'s own case-5
-group checks six things: `looseAutoMap` really does return empty for this
-exact pair of rigs; retargeting the same pair with `lockFeet: true` really
-does throw a `RangeError`, confirming `tut-12` directly rather than only
-asserting it; the case's own journal, replayed cold from case 4's own saved
-project, gets stuck at its very first line for a *different* reason than
-every earlier case's `tut-05` — `tut-14`: `ApplyClipResult` is a real,
+`ModelerCubit.retargetInBackground`) with `lockFeet` left at its own
+default (`true`, now that `tut-12` is fixed); lands the result through
+`ApplyClipResult(clipIndex: null)`; and extracts root motion through
+`ExtractRootMotion` on the character's own hips joint.
+`tutorial_scenarios_test.dart`'s own case-5 group checks six things:
+`looseAutoMap` really does return empty for this exact pair of rigs;
+retargeting the same pair with `lockFeet: true` no longer throws, and every
+mapped joint keeps all three of its own retargeted tracks — direct evidence
+`tut-12`'s fix keeps rather than collapses them; the case's own journal,
+replayed cold from case 4's own saved project, gets stuck at its very first
+line for a *different* reason than every earlier case's `tut-05` —
+`tut-14`: `ApplyClipResult` is a real,
 undoable `ModelCommand`, but deliberately outside
 `modelCommandNames`/`modelCommandFromJson`, so a cold replay cannot
 reconstruct it at all, never mind what it needed selected; the scenario

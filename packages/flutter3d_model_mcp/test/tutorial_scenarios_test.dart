@@ -615,12 +615,14 @@ void main() {
     });
 
     test('retargeting this exact pair of rigs with `lockFeet: true` (the '
-        "default) throws — a real bug in flutter3d_rig's own `_lockFeet` "
-        '(tut-12), confirmed directly rather than only asserted: '
-        "RiggedFigure.glb's own clip animates every joint's translation, "
-        'rotation and scale, not only the root, so `_lockFeet`\'s own '
-        '`Map<int, RigTrack>` collapses a joint\'s three retargeted tracks '
-        'onto one and reads it back as if it always held a rotation', () async {
+        "default) no longer throws — tut-12, fixed: RiggedFigure.glb's own "
+        "clip animates every joint's translation, rotation and scale, not "
+        "only the root's, and used to make `_lockFeet`'s own "
+        '`Map<int, RigTrack>` collapse a joint\'s three retargeted tracks '
+        'onto one and read it back as if it always held a rotation; keying '
+        'that lookup by node and path instead means every one of a '
+        "joint's own three tracks — including the hip and knee rotation "
+        'the foot lock itself corrects — survives', () async {
       final starting = await case5StartingProject();
       final source = await case5RetargetSource();
       final targetSkeleton = starting.skeletons.single;
@@ -632,10 +634,33 @@ void main() {
         targetSkeleton: targetSkeleton,
         boneMap: const BoneMap(case5BoneMapCorrections),
       );
-      // Mutation: pass `lockFeet: false` here instead (matching the case's
-      // own scenario) — the call would then succeed, hiding the exact bug
-      // this test exists to pin down.
-      await expectLater(request.run(), throwsA(isA<RangeError>()));
+      // Mutation: pass `lockFeet: false` here instead — the call would
+      // still succeed either way, but the crash tut-12 named only ever
+      // happened with `lockFeet` at its own default.
+      final retargeted = await request.run();
+
+      final targetJointByName = <String, int>{
+        for (final id in targetSkeleton.joints) starting[id]!.name: id,
+      };
+      // Confirmed directly (see this file's own `tut-12` fixture probe):
+      // this real clip animates translation, rotation *and* scale for
+      // every one of the seventeen mapped joints, not only the root's —
+      // the exact shape that used to make `_lockFeet`'s own lookup
+      // collapse onto whichever of a joint's three tracks was built last.
+      // Every mapped joint keeping all three tracks after retargeting is
+      // the direct evidence none of them were dropped.
+      for (final name in targetJointByName.keys) {
+        final id = targetJointByName[name]!;
+        final paths = retargeted.tracks
+            .where((t) => t.objectId == id)
+            .map((t) => t.track.path)
+            .toSet();
+        expect(paths, {
+          AnimationPath.translation,
+          AnimationPath.rotation,
+          AnimationPath.scale,
+        }, reason: '$name should keep all three of its own retargeted tracks');
+      }
     });
 
     test("the case's own journal, replayed from right after case 4's own "
@@ -662,59 +687,52 @@ void main() {
       );
     });
 
-    test(
-      'building the scenario fresh against ModelSession — auto-mapping '
-      'first and finding nothing, entering the bone-map table\'s own '
-      'correction by hand, retargeting with `lockFeet: false`, and '
-      'extracting root motion "in code" — reaches the exact project '
-      'committed as case5.f3dproj, and exports the exact case5.glb',
-      () async {
-        final path = '${workspace.path}/case5.f3dproj';
-        final starting = await case5StartingProject();
-        final session = ModelSession(ModelHistory(starting), path: path);
-        await runCase5Scenario(session);
+    test('building the scenario fresh against ModelSession — auto-mapping '
+        'first and finding nothing, entering the bone-map table\'s own '
+        'correction by hand, retargeting with `lockFeet` at its own default '
+        '(`true`, now that tut-12 is fixed), and extracting root motion "in '
+        'code" — reaches the exact project committed as case5.f3dproj, and '
+        'exports the exact case5.glb', () async {
+      final path = '${workspace.path}/case5.f3dproj';
+      final starting = await case5StartingProject();
+      final session = ModelSession(ModelHistory(starting), path: path);
+      await runCase5Scenario(session);
 
-        final saved = session.save(path);
-        expect(saved.did, isTrue, reason: saved.says);
-        final writtenBytes = File(path).readAsBytesSync();
-        final fixtureBytes = File(
-          'test/fixtures/tutorial/case5.f3dproj',
-        ).readAsBytesSync();
-        expect(
-          writtenBytes,
-          fixtureBytes,
-          reason:
-              'the project this scenario reaches is not the one in '
-              'test/fixtures/tutorial/case5.f3dproj. If the change was '
-              'meant, rerun tool/make_case5_fixtures.dart and read the diff '
-              'before committing the new fixtures',
-        );
+      final saved = session.save(path);
+      expect(saved.did, isTrue, reason: saved.says);
+      final writtenBytes = File(path).readAsBytesSync();
+      final fixtureBytes = File(
+        'test/fixtures/tutorial/case5.f3dproj',
+      ).readAsBytesSync();
+      expect(
+        writtenBytes,
+        fixtureBytes,
+        reason:
+            'the project this scenario reaches is not the one in '
+            'test/fixtures/tutorial/case5.f3dproj. If the change was '
+            'meant, rerun tool/make_case5_fixtures.dart and read the diff '
+            'before committing the new fixtures',
+      );
 
-        final journaled = session.journal('${workspace.path}/case5.jsonl');
-        expect(journaled.did, isTrue, reason: journaled.says);
-        expect(
-          File('${workspace.path}/case5.jsonl').readAsStringSync(),
-          File('test/fixtures/tutorial/case5.jsonl').readAsStringSync(),
-        );
+      final journaled = session.journal('${workspace.path}/case5.jsonl');
+      expect(journaled.did, isTrue, reason: journaled.says);
+      expect(
+        File('${workspace.path}/case5.jsonl').readAsStringSync(),
+        File('test/fixtures/tutorial/case5.jsonl').readAsStringSync(),
+      );
 
-        final exported = session.export('${workspace.path}/case5.glb');
-        expect(exported.did, isTrue, reason: exported.says);
-        final writtenGlb = File(
-          '${workspace.path}/case5.glb',
-        ).readAsBytesSync();
-        final fixtureGlb = File(
-          'test/fixtures/tutorial/case5.glb',
-        ).readAsBytesSync();
-        expect(writtenGlb, fixtureGlb);
+      final exported = session.export('${workspace.path}/case5.glb');
+      expect(exported.did, isTrue, reason: exported.says);
+      final writtenGlb = File('${workspace.path}/case5.glb').readAsBytesSync();
+      final fixtureGlb = File(
+        'test/fixtures/tutorial/case5.glb',
+      ).readAsBytesSync();
+      expect(writtenGlb, fixtureGlb);
 
-        final writtenDocument = await GltfLoader().load(writtenGlb);
-        final fixtureDocument = await GltfLoader().load(fixtureGlb);
-        expect(
-          compareModelDocuments(fixtureDocument, writtenDocument),
-          isEmpty,
-        );
-      },
-    );
+      final writtenDocument = await GltfLoader().load(writtenGlb);
+      final fixtureDocument = await GltfLoader().load(fixtureGlb);
+      expect(compareModelDocuments(fixtureDocument, writtenDocument), isEmpty);
+    });
 
     test('the retargeted clip carries every mapped joint, keeps case 4\'s '
         "own \"wave\" clip untouched, and its root motion has been "
