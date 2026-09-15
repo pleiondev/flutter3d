@@ -195,5 +195,37 @@ void main() {
         ),
       );
     });
+
+    test('reads case 5 off disk and renders its Markdown', () {
+      final cases = loadLearnCases();
+      final case5 = cases.firstWhere((c) => c.slug == '05-borrowing-a-walk');
+      expect(case5.title, contains('Borrowing a walk'));
+      expect(case5.bodyHtml, contains('<h1 '));
+      expect(
+        case5.bodyHtml,
+        contains(
+          '/assets/learn/modeler/borrowing-a-walk/'
+          '04-character-after-retarget.png',
+        ),
+      );
+    });
+
+    test('case 5 serves end to end through learnRoutes', () async {
+      final handler = _mounted(learnRoutes());
+      final response = await _get(
+        handler,
+        '/learn/modeler/05-borrowing-a-walk',
+      );
+      expect(response.statusCode, 200);
+      final body = await response.readAsString();
+      expect(body, contains('Borrowing a walk'));
+      expect(
+        body,
+        contains(
+          '/assets/learn/modeler/borrowing-a-walk/'
+          '04-character-after-retarget.png',
+        ),
+      );
+    });
   });
 }

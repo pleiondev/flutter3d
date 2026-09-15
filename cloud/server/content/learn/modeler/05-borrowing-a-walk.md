@@ -1,0 +1,196 @@
+---
+title: Borrowing a walk: retarget a clip
+summary: A real Khronos sample rig's own walk cycle, bone-mapped by hand onto case 4's character and landed as a second clip, root motion extracted along the way.
+---
+
+# Borrowing a walk: retarget a clip
+
+**What you have:** case 4's own rigged, weight-painted character, one short
+"wave" clip on it already. **What you want:** a second clip, borrowed from a
+completely different rig, walking on this character's own bones.
+
+This is screen 14 — the clip library, bone mapping, corrections and
+blending T5's own `S7` built.
+
+## 1. Import a source clip
+
+Open the retarget screen and **Import** `RiggedFigure.glb` — a real Khronos
+sample: a nineteen-joint skin (`torso_joint_1..3`, `neck_joint_1..2`, an
+`arm_joint`/`leg_joint` pair per side) and one clip animating every one of
+them, a walk-in-place cycle. The clip library now shows one card, "animation
+0" (the file itself names its own clip nothing else), two keyframes.
+
+Two side-by-side viewports appear — the source rig on the left, this
+character on the right, both on the same `ModelerStage`, picking off in the
+source the way the material studio's own two-viewport dialog already keeps
+it off in its second one.
+
+*(screenshot: the retarget screen, source viewport on the left with
+`RiggedFigure.glb` loaded, this character on the right — placeholder, see
+the note at the end of this page)*
+
+## 2. Auto-map — and a real, empty result
+
+Press **Auto-map**. The bone-map table comes back with every row
+unmapped — checked directly while writing this case: `looseAutoMap` reads
+`torso_joint_1`, `arm_joint_L_2`, `leg_joint_R_3` and the rest against
+`RigTemplate.humanoid`'s own seventeen names and matches nothing at all.
+
+> **A real limit in `looseAutoMap`, not a mistake in this file.**
+> `looseAutoMap` reads two rig-family conventions — Mixamo's
+> `mixamorig:LeftUpLeg` and 3ds Max Biped's `Bip01_L_Thigh` — and both put
+> the side marker (`Left`/`L`) at the very *start* of the bone's own name,
+> once its own prefix is stripped. `RiggedFigure.glb`'s own names put the
+> side in the *middle* (`leg_joint_R_1`), a shape `looseAutoMap`'s own
+> `_looseSide` does not read at all, so every row comes back unmatched
+> rather than guessed at. This is `tut-13`, found writing this case; see the
+> note at the end of this page.
+
+## 3. Corrections — the bone-map table, by hand
+
+With auto-map empty, the correction is typing the seventeen rows in by
+hand — the exact table below, one line per row of the bone-map table:
+
+| Source | Target |
+|---|---|
+| `torso_joint_1` | `hips` |
+| `torso_joint_2` | `spine` |
+| `torso_joint_3` | `chest` |
+| `neck_joint_1` | `neck` |
+| `neck_joint_2` | `head` |
+| `arm_joint_L_1` / `arm_joint_R_1` | `leftShoulder` / `rightShoulder` |
+| `arm_joint_L_2` / `arm_joint_R_2` | `leftElbow` / `rightElbow` |
+| `arm_joint_L_3` / `arm_joint_R_3` | `leftWrist` / `rightWrist` |
+| `leg_joint_L_1` / `leg_joint_R_1` | `leftHip` / `rightHip` |
+| `leg_joint_L_2` / `leg_joint_R_2` | `leftKnee` / `rightKnee` |
+| `leg_joint_L_3` / `leg_joint_R_3` | `leftAnkle` / `rightAnkle` |
+
+The source file's own two toe-tip bones (`leg_joint_L_5`/`leg_joint_R_5`)
+are left unmapped — `RigTemplate.humanoid` has no toe joint for either to
+land on, and `retargetClip` drops an unmapped source bone's track rather
+than guessing at one.
+
+*(screenshot: the retarget screen, bone-map table with all seventeen rows
+now filled in by hand, the two toe rows still empty and shown in the
+table's own "unmapped" colour — placeholder)*
+
+## 4. A real crash, and the correction that avoids it
+
+**Lock feet** is on by default. Turning it on for this exact pair of rigs
+throws — checked directly while writing this case, a `RangeError` inside
+`flutter3d_rig`'s own `_lockFeet`.
+
+> **A real bug, not a stylistic choice.** `RiggedFigure.glb`'s own clip
+> animates every joint's translation, rotation *and* scale, not only the
+> root's — `_lockFeet`'s own `tracksByNodeId` keeps exactly one track per
+> target joint (a plain `Map<int, RigTrack>`), so building it for a joint
+> that now carries all three retargeted tracks silently keeps only the
+> last one built (the scale track) and drops the rotation one it actually
+> needs; its own per-key indexing math then reads that three-floats-per-key
+> buffer as if it always held four-floats-per-key quaternions and runs past
+> its own end. This is `tut-12`, found writing this case — logged, not
+> patched here: **lock feet off** is the real, honest correction for this
+> pair of rigs today, not a workaround bolted on around a missing feature.
+> See the note at the end of this page.
+
+**Root motion: In code.** Leaving root motion in the clip's own hip
+translation would have the character sliding in place on every loop; **In
+code** runs `ExtractRootMotion` on the clip's own hips track right after it
+lands, moving the translation into the clip's `flutter3dRootMotion` extra
+for the game code to read separately.
+
+## 5. Apply, and blend
+
+**Apply** runs the retarget and lands the result as a **new** clip —
+`ApplyClipResult(clipIndex: null)` always appends, never replacing the
+"wave" clip already on this character. The clip tracks bar's own blend
+slider crossfades the live preview between the two clips over however many
+seconds it is set to; like the weights sub-mode's own bend slider, this
+crossfade is a live preview only — it never touches `ModelHistory`, so
+there is nothing here for an agent or a headless case to call, the same
+by-design shape `tut-09` already names for the bend slider.
+
+*(screenshot: the clip tracks bar, both clips visible, the blend slider set
+partway between them — placeholder)*
+
+---
+
+Below is this exact project, rendered headlessly through `renderProject`
+(`packages/flutter3d_model_mcp/lib/src/render_tool.dart`'s own underlying
+function) once the retarget has landed and root motion has been extracted:
+the real character, the real 17-joint rig, both clips now on the project.
+
+![Case 4's own character after the retarget has landed — real geometry, real materials, the real rig, both the "wave" clip and the retargeted "animation 0" clip now on the project. Not captioned as the walk cycle's own mid-clip pose: tut-10 already established that renderProject applies no skin deformation or joint pose at all, so this picture is the same bind-pose mesh regardless of which clip or which time within it is "current."](/assets/learn/modeler/borrowing-a-walk/04-character-after-retarget.png)
+
+---
+
+## Notes on this page
+
+**Time to complete:** not recorded yet. `TODO`: a person should walk this
+case by hand on a real machine and fill in a line here — "*n* minutes,
+*date*, *machine*" — the way `rel-09`'s own cohort rows do. Nothing in this
+session could actually run the desktop app, so no time is claimed.
+
+**Screenshots.** Three pictures on this page are placeholders — a plain
+colour with "screenshot pending" on it, at
+`cloud/server/web/assets/learn/modeler/borrowing-a-walk/
+{01-clip-library,02-bone-map-and-viewports,03-blend-slider}.png` — standing
+in for the running app's own chrome (the two side-by-side viewports and the
+clip library card list, the bone-map table with its corrections typed in,
+the clip tracks bar and its blend slider). This session cannot open a macOS
+window (`flutter run -d macos` fails to foreground here, the same limit
+cases 1–4's own pages already document), so none of the three could be shot
+for real. To replace them on a real Mac:
+
+1. `cd apps/flutter3d_modeler && flutter run -d macos --dart-define=mcpPort=0 -a --window=1440x900`
+2. `dart run tool/tutorial/bin/shoot.dart` against a scenario that: opens
+   the retarget screen and imports `RiggedFigure.glb`, both viewports
+   visible (`01-clip-library`); types the seventeen bone-map corrections in
+   by hand, two toe rows left unmapped (`02-bone-map-and-viewports`); after
+   Apply, shows the clip tracks bar with both clips and the blend slider
+   partway between them (`03-blend-slider`).
+3. Copy the PNGs over the placeholders at the paths above and remove this
+   note once they are real.
+
+**The one real render, and what it cannot show.** The picture above is a
+genuine CPU render of this case's own final project — case 4's own
+character, its real rig, both of its clips — through the same
+`renderProject` the `render`/`renderSheet` MCP tools use, taken after the
+retarget has landed. It is not, and cannot honestly be captioned as, the
+walk cycle's own mid-clip pose: `tut-10` (found writing case 4, and equally
+true here) already established that `render_project.dart` never mentions
+"skin" or "skeleton" at all, so every mesh draws at its raw bind-pose
+position regardless of which clip is on the project or what time within it
+a caller might have in mind. See `doc/modeler-tutorial-gaps.md` for that
+entry, alongside `tut-12` (the `lockFeet` crash) and `tut-13` (`looseAutoMap`
+finds nothing for this file's own joint names).
+
+**Proving it.** `packages/flutter3d_model_mcp/test/fixtures/tutorial/
+case5_scenario.dart` builds exactly the project this page describes, against
+a live `ModelSession` seeded with case 4's own saved project
+(`case4.f3dproj`, read back through `readProject` the way opening it in the
+app would — the same "starts from the previous case's own saved project"
+shape case 3 already uses for case 2). Its own `runCase5Scenario`: reads
+`RiggedFigure.glb` as a `RetargetSource`; confirms `looseAutoMap` really
+does find nothing for it (`tut-13`); builds the seventeen-row correction by
+hand as a plain `BoneMap`; calls `RetargetClipJobRequest.run()` directly
+(the "synchronous enough for a headless case" shape case 4's own
+`bindWeightsJobRequestFor` call already uses, rather than through
+`ModelerCubit.retargetInBackground`) with `lockFeet: false` for the real
+reason `tut-12` names; lands the result through `ApplyClipResult(clipIndex:
+null)`; and extracts root motion through `ExtractRootMotion` on the
+character's own hips joint. `tutorial_scenarios_test.dart`'s own case-5
+group checks six things: `looseAutoMap` really does return empty for this
+exact pair of rigs; retargeting the same pair with `lockFeet: true` really
+does throw a `RangeError`, confirming `tut-12` directly rather than only
+asserting it; the case's own journal, replayed cold from case 4's own saved
+project, gets stuck at its very first line for a *different* reason than
+every earlier case's `tut-05` — `tut-14`: `ApplyClipResult` is a real,
+undoable `ModelCommand`, but deliberately outside
+`modelCommandNames`/`modelCommandFromJson`, so a cold replay cannot
+reconstruct it at all, never mind what it needed selected; the scenario
+reaches the exact project committed as `case5.f3dproj` and exports the
+exact `case5.glb`, byte for byte; the retargeted clip carries exactly the
+seventeen mapped joints' worth of tracks, leaves the "wave" clip untouched,
+and carries its own extracted root motion; and the exported GLB carries two
+real animations, the second with genuine multi-key tracks.

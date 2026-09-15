@@ -15,6 +15,7 @@ import 'package:flutter3d_mesh/flutter3d_mesh.dart'
     show ArrayModifier, EditMesh, MirrorModifier, weightsOf;
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 import 'package:flutter3d_model_mcp/flutter3d_model_mcp.dart';
+import 'package:flutter3d_rig/flutter3d_rig.dart' show BoneMap, looseAutoMap;
 import 'package:test/test.dart';
 import 'package:vector_math/vector_math.dart';
 
@@ -22,6 +23,7 @@ import 'fixtures/tutorial/case1_scenario.dart';
 import 'fixtures/tutorial/case2_scenario.dart';
 import 'fixtures/tutorial/case3_scenario.dart';
 import 'fixtures/tutorial/case4_scenario.dart';
+import 'fixtures/tutorial/case5_scenario.dart';
 
 void main() {
   group('case 1 — a prop from a scan', () {
@@ -574,6 +576,189 @@ void main() {
             'no animation track in the exported GLB carries more than one '
             'key',
       );
+    });
+  });
+
+  group('case 5 — borrowing a walk', () {
+    late Directory workspace;
+
+    setUp(() {
+      workspace = Directory.systemTemp.createTempSync('tutorial_case5');
+    });
+
+    tearDown(() {
+      workspace.deleteSync(recursive: true);
+    });
+
+    test('looseAutoMap really does find nothing at all for this exact pair '
+        "of rigs (tut-13) — RiggedFigure.glb's own joint names follow "
+        "neither Mixamo's `mixamorig:` convention nor 3ds Max Biped's "
+        '`Bip01_` one, and their `_L_`/`_R_` side markers sit in the middle '
+        "of the name rather than at the very start looseAutoMap's own "
+        '`_looseSide` reads for either convention', () async {
+      final starting = await case5StartingProject();
+      final source = await case5RetargetSource();
+      final targetSkeleton = starting.skeletons.single;
+      final sourceNames = <String>[
+        for (final id in source.skeleton.joints) source.project[id]!.name,
+      ];
+      final targetNames = <String>[
+        for (final id in targetSkeleton.joints) starting[id]!.name,
+      ];
+      final mapped = looseAutoMap(sourceNames, targetNames);
+      // Mutation: assert `mapped.isEmpty` were false instead. A widened
+      // `looseAutoMap` that started matching this file's own joint names
+      // would mean tut-13 had closed — worth celebrating, not a check this
+      // test should pass by accident on a change nobody meant.
+      expect(mapped.isEmpty, isTrue);
+    });
+
+    test('retargeting this exact pair of rigs with `lockFeet: true` (the '
+        "default) throws — a real bug in flutter3d_rig's own `_lockFeet` "
+        '(tut-12), confirmed directly rather than only asserted: '
+        "RiggedFigure.glb's own clip animates every joint's translation, "
+        'rotation and scale, not only the root, so `_lockFeet`\'s own '
+        '`Map<int, RigTrack>` collapses a joint\'s three retargeted tracks '
+        'onto one and reads it back as if it always held a rotation', () async {
+      final starting = await case5StartingProject();
+      final source = await case5RetargetSource();
+      final targetSkeleton = starting.skeletons.single;
+      final request = RetargetClipJobRequest(
+        sourceProject: source.project,
+        sourceSkeleton: source.skeleton,
+        sourceClip: source.clips.single,
+        targetProject: starting,
+        targetSkeleton: targetSkeleton,
+        boneMap: const BoneMap(case5BoneMapCorrections),
+      );
+      // Mutation: pass `lockFeet: false` here instead (matching the case's
+      // own scenario) — the call would then succeed, hiding the exact bug
+      // this test exists to pin down.
+      await expectLater(request.run(), throwsA(isA<RangeError>()));
+    });
+
+    test("the case's own journal, replayed from right after case 4's own "
+        'saved project, gets stuck at its very first line — `tut-14`: '
+        '`ApplyClipResult` is a real `ModelCommand` (it records to the '
+        "journal, undoes and redoes through `ModelHistory` like any other) "
+        'but deliberately outside `modelCommandNames`/'
+        '`modelCommandFromJson`, so a cold replay cannot reconstruct it at '
+        'all — a different shape than cases 2–4\'s own `tut-05` (a command '
+        'this build does know, refused for want of a selection)', () async {
+      final starting = await case5StartingProject();
+      final journalBytes = File(
+        'test/fixtures/tutorial/case5.jsonl',
+      ).readAsBytesSync();
+      final replay = CommandJournal.replay(journalBytes, starting);
+      // Mutation: assert `replay.ok` instead. Registering `applyClipResult`
+      // in `modelCommandFromJson` would mean tut-14 had closed — worth
+      // celebrating, not a check this test should pass by accident on a
+      // change nobody meant.
+      expect(replay.ok, isFalse);
+      expect(
+        replay.refused,
+        contains('names a command this build does not know'),
+      );
+    });
+
+    test(
+      'building the scenario fresh against ModelSession — auto-mapping '
+      'first and finding nothing, entering the bone-map table\'s own '
+      'correction by hand, retargeting with `lockFeet: false`, and '
+      'extracting root motion "in code" — reaches the exact project '
+      'committed as case5.f3dproj, and exports the exact case5.glb',
+      () async {
+        final path = '${workspace.path}/case5.f3dproj';
+        final starting = await case5StartingProject();
+        final session = ModelSession(ModelHistory(starting), path: path);
+        await runCase5Scenario(session);
+
+        final saved = session.save(path);
+        expect(saved.did, isTrue, reason: saved.says);
+        final writtenBytes = File(path).readAsBytesSync();
+        final fixtureBytes = File(
+          'test/fixtures/tutorial/case5.f3dproj',
+        ).readAsBytesSync();
+        expect(
+          writtenBytes,
+          fixtureBytes,
+          reason:
+              'the project this scenario reaches is not the one in '
+              'test/fixtures/tutorial/case5.f3dproj. If the change was '
+              'meant, rerun tool/make_case5_fixtures.dart and read the diff '
+              'before committing the new fixtures',
+        );
+
+        final journaled = session.journal('${workspace.path}/case5.jsonl');
+        expect(journaled.did, isTrue, reason: journaled.says);
+        expect(
+          File('${workspace.path}/case5.jsonl').readAsStringSync(),
+          File('test/fixtures/tutorial/case5.jsonl').readAsStringSync(),
+        );
+
+        final exported = session.export('${workspace.path}/case5.glb');
+        expect(exported.did, isTrue, reason: exported.says);
+        final writtenGlb = File(
+          '${workspace.path}/case5.glb',
+        ).readAsBytesSync();
+        final fixtureGlb = File(
+          'test/fixtures/tutorial/case5.glb',
+        ).readAsBytesSync();
+        expect(writtenGlb, fixtureGlb);
+
+        final writtenDocument = await GltfLoader().load(writtenGlb);
+        final fixtureDocument = await GltfLoader().load(fixtureGlb);
+        expect(
+          compareModelDocuments(fixtureDocument, writtenDocument),
+          isEmpty,
+        );
+      },
+    );
+
+    test('the retargeted clip carries every mapped joint, keeps case 4\'s '
+        "own \"wave\" clip untouched, and its root motion has been "
+        'extracted into extras', () async {
+      final starting = await case5StartingProject();
+      final session = ModelSession(ModelHistory(starting));
+      await runCase5Scenario(session);
+
+      final project = session.project;
+      expect(project.clips, hasLength(2));
+      expect(project.clips[0].name, 'wave');
+
+      final retargeted = project.clips[1];
+      // Seventeen mapped joints × translation/rotation/scale; the file's
+      // own two toe joints (`leg_joint_L_5`/`leg_joint_R_5`) have no
+      // humanoid bone to land on and are dropped, per `retargetClip`'s own
+      // "a track whose source node the bone map does not answer for is
+      // dropped rather than guessed at."
+      expect(retargeted.tracks, hasLength(17 * 3));
+      final targetSkeleton = project.skeletons.single;
+      final mappedIds = targetSkeleton.joints.toSet();
+      for (final track in retargeted.tracks) {
+        expect(mappedIds, contains(track.objectId));
+      }
+      expect(retargeted.extras, contains('flutter3dRootMotion'));
+      final rootMotion = retargeted.extras!['flutter3dRootMotion']! as List;
+      expect(rootMotion, hasLength(2));
+    });
+
+    test('the exported GLB carries two animations — case 4\'s own short '
+        'clip and the retargeted walk — the second with real multi-key '
+        'tracks', () async {
+      final bytes = File('test/fixtures/tutorial/case5.glb').readAsBytesSync();
+      final document = await GltfLoader().load(bytes);
+
+      expect(document.skins, isNotEmpty);
+      expect(document.animations, hasLength(2));
+      final retargetedAnimation = document.animations.firstWhere(
+        (AnimationClip clip) => clip.tracks.length > 2,
+      );
+      expect(retargetedAnimation.tracks, hasLength(17 * 3));
+      final hasRealKeys = retargetedAnimation.tracks.any(
+        (AnimationTrack track) => track.times.length >= 2,
+      );
+      expect(hasRealKeys, isTrue);
     });
   });
 }
