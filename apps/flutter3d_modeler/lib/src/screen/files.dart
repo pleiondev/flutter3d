@@ -22,9 +22,10 @@ extension _FileHandling on _ModelerScreenState {
   /// old materials belonged to is going, so an ordinary open forgets them
   /// too; [forgetSurfaces] is what lets `_offerRecovery` opt out, since there
   /// is no old scene there to have painted anything. Every path ends the same
-  /// way regardless: `setState` forgetting the element-picker cache, because
-  /// ids start again in the new project and a picker held against the old
-  /// one could match a version and answer about a mesh that is gone.
+  /// way regardless: `setState` forgetting the element-picker cache and
+  /// `TransformSession`'s own other-object picker cache, because ids start
+  /// again in the new project and a picker held against the old one could
+  /// match a version and answer about a mesh that is gone (`tut-18`).
   void _installOpened(
     ModelHistory history,
     ModelerStage stage, {
@@ -46,6 +47,7 @@ extension _FileHandling on _ModelerScreenState {
     );
     setState(() {
       _elementPickerCache.forget();
+      _transformSession.forget();
     });
   }
 
@@ -776,6 +778,12 @@ extension _FileHandling on _ModelerScreenState {
   /// drag onto the window, including a file this build has no reader for at
   /// all, and the answer for that is a sentence rather than a guess at what
   /// the bytes might be.
+  ///
+  /// **The rest is `_openBytes`, the same shared helper `_openFile` already
+  /// calls a few lines above** — not a second copy of its switch on
+  /// `_openBytesWithImportScreen`'s result. A drop used to await that result
+  /// and throw it away, which decoded the file, ran the import screen, and
+  /// then put nothing on screen at all (`tut-17`).
   Future<void> _handleDroppedFile(String name, Uint8List bytes) async {
     final device = _device;
     if (device == null || _state is! ModelerReady) return;
@@ -783,6 +791,6 @@ extension _FileHandling on _ModelerScreenState {
       _cubit.say(because);
       return;
     }
-    await _openBytesWithImportScreen(name, bytes, device);
+    await _openBytes(name, bytes, device);
   }
 }

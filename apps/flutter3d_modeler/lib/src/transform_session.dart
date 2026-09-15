@@ -61,6 +61,16 @@ class TransformSession {
   final Map<int, ({int version, MeshPicker picker})> _otherPickers =
       <int, ({int version, MeshPicker picker})>{};
 
+  /// Drops every cached picker in [_otherPickers], so the next geometry
+  /// search rebuilds each one from scratch.
+  ///
+  /// **Called whenever a new document opens**, the same reason
+  /// `ElementPickerCache.forget` is — its own doc comment says why: ids
+  /// start again in the new project, and a picker keyed by an id and version
+  /// that happens to match again would answer about a mesh from the document
+  /// that is now gone.
+  void forget() => _otherPickers.clear();
+
   /// Where the selection's own median stood when the current move began, so
   /// `view-26n`'s geometry snap has something to measure a delta from. Null
   /// outside a mesh-mode move.

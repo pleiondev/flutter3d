@@ -20,10 +20,15 @@ library;
 
 import 'dart:io';
 
-import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
+import 'package:flutter/material.dart' hide Matrix4;
+import 'package:flutter/services.dart' hide Matrix4;
+import 'package:flutter3d_mesh/flutter3d_mesh.dart';
+import 'package:flutter3d_model_core/flutter3d_model_core.dart';
+import 'package:flutter3d_modeler/main.dart' hide main;
 import 'package:flutter3d_modeler/src/files/file_drop_io.dart';
+import 'package:flutter3d_session/flutter3d_session.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:vector_math/vector_math.dart';
 
 void main() {
   // Before anything below reaches for a binary messenger — the same order
@@ -116,4 +121,92 @@ void main() {
 
     expect(dropped, isEmpty);
   });
+
+  group('tut-17: a drop actually opens as the document', () {
+    /// [ModelerScreen]'s own autosave slot — never read from in this group,
+    /// since nothing here writes to it before a drop, but `initState` reads
+    /// it once on startup regardless (`_offerRecovery`), so a real
+    /// filesystem or IndexedDB is not something this test should need.
+    final storage = _NullBinaryStorage();
+
+    testWidgets(
+      'dropping a project file replaces the open document, the same as '
+      'choosing it through Open would',
+      (WidgetTester tester) async {
+        final project = const ModelProject().added(
+          (int id) => ModelObject(
+            id: id,
+            name: 'dropped-cube',
+            geometry: EditedGeometry(EditMesh.cuboid()),
+            transform: Matrix4.identity(),
+          ),
+        );
+        final file = File('${dir.path}/dropped.f3dproj')
+          ..writeAsBytesSync(writeProject(project));
+
+        // Wide enough for `LayoutClass.desktop` — `ui-05`'s own 1200-pixel
+        // boundary — since the document-name label this test reads is
+        // `ModelerShell`'s own, and the narrower tablet and phone shells
+        // do not draw it at all.
+        tester.view.physicalSize = const Size(1400, 900);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(tester.view.resetPhysicalSize);
+        addTearDown(tester.view.resetDevicePixelRatio);
+
+        await tester.pumpWidget(
+          MaterialApp(home: ModelerScreen(autosaveStorage: storage)),
+        );
+
+        // `_open()`'s own `openDevice()` is genuine async work — the same
+        // software-rasteriser fallback `flutter3d_app`'s own
+        // `backend_choice_test.dart` proves a headless `flutter test`
+        // takes — so this needs the real event loop `runAsync` opens
+        // rather than a synchronous `pump`.
+        await tester.runAsync(
+          () => Future<void>.delayed(const Duration(milliseconds: 200)),
+        );
+        await tester.pump();
+
+        // The startup document, before anything is dropped — the sanity
+        // check that makes the assertion below mean something: a drop that
+        // silently did nothing would leave this exact label on screen (the
+        // outliner's own single row for the startup cube is a second
+        // "cube" text, so this only checks presence, not count).
+        expect(find.text('cube'), findsWidgets);
+
+        await tester.runAsync(() async {
+          // A pointer has to enter the drop target before `desktop_drop`
+          // itself will report a drop inside it — the same order
+          // `file_drop_io_test.dart`'s own first test already needs.
+          await send('entered', <double>[10, 10]);
+          await send('performOperation', <String>[file.path]);
+          await Future<void>.delayed(const Duration(milliseconds: 50));
+        });
+        await tester.pump();
+
+        // The top bar's own document-name label — `ui/shell.dart`'s own
+        // `Text(isDirty ? '• $documentName' : documentName)` — is the one
+        // place on screen that names the open document. Before `tut-17`'s
+        // fix, `_handleDroppedFile` awaited the same decode-and-import-
+        // screen step `_openFile` runs and then discarded what came back:
+        // the file decoded, the document on screen never changed, and this
+        // would still read the startup document's own name instead.
+        expect(find.text('dropped.f3dproj'), findsOneWidget);
+      },
+    );
+  });
+}
+
+/// Answers every read with nothing and every write as if it landed —
+/// `ModelerScreen`'s own autosave writes through this during the test
+/// instead of reaching for a real file or IndexedDB.
+final class _NullBinaryStorage implements BinaryStorage {
+  @override
+  Future<Uint8List?> read(String name) async => null;
+
+  @override
+  Future<bool> write(String name, Uint8List contents) async => true;
+
+  @override
+  Future<void> remove(String name) async {}
 }
