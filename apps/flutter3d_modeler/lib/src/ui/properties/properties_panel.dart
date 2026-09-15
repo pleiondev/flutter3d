@@ -492,13 +492,13 @@ class PropertiesPanel extends StatelessWidget {
             sections.contains(PropertiesSection.transform)) ...<Widget>[
           SectionLabel('Transform'),
           NameField(
-            key: ValueKey<int>(held.id),
+            key: ValueKey<String>('name-${held.id}'),
             name: held.name,
             onRenamed: (String to) => onRename(held.id, to),
           ),
           const SizedBox(height: 4),
           TransformRows(
-            key: ValueKey<int>(held.id),
+            key: ValueKey<String>('transform-${held.id}'),
             fields: transformFieldsOf(held.transform),
             onChanged: (TransformFields to) => onTransform(held.id, to),
           ),
@@ -511,7 +511,7 @@ class PropertiesPanel extends StatelessWidget {
             sections.contains(PropertiesSection.modifiers)) ...<Widget>[
           SectionLabel('Modifiers'),
           ModifierStackPanel(
-            key: ValueKey<int>(held.id),
+            key: ValueKey<String>('modifiers-${held.id}'),
             slots: held.modifiers,
             onToggle: (int index) => onToggleModifier(held.id, index),
             onReorder: (int from, int to) =>
@@ -527,7 +527,7 @@ class PropertiesPanel extends StatelessWidget {
             sections.contains(PropertiesSection.materials)) ...<Widget>[
           SectionLabel('Material'),
           MaterialPanel(
-            key: ValueKey<int>(held.id),
+            key: ValueKey<String>('materials-${held.id}'),
             materials: project.materials,
             activeIndex: activeMaterial,
             onAssign: (int? to) => onAssignMaterial(held.id, to),
