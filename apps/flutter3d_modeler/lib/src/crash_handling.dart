@@ -112,12 +112,60 @@ Future<void> handleCrash({
       : false;
   final BuildContext? context = dialogContext();
   if (context == null || !context.mounted) return;
-  await CrashDialog.show(
-    context,
-    report: report,
-    environment: environment,
-    autosaved: autosaved,
-  );
+  // `ux-08`: one dialog at a time, and one per distinct error.
+  //
+  // **An assert thrown from a build throws again on the next build**, and
+  // the next, because nothing about the tree has changed — the live run got
+  // a `CrashDialog` per frame stacked over a black window, and "Dismiss"
+  // could not keep up with them. The emergency autosave above still runs for
+  // every one of them, which is the part that must not be folded: the
+  // hundredth copy of an error is as good a reason to write the document as
+  // the first.
+  if (_dialogIsUp || !_firstSightOf(report)) return;
+  _dialogIsUp = true;
+  try {
+    await CrashDialog.show(
+      context,
+      report: report,
+      environment: environment,
+      autosaved: autosaved,
+    );
+  } finally {
+    _dialogIsUp = false;
+  }
+}
+
+/// Whether a crash dialog is on screen right now.
+bool _dialogIsUp = false;
+
+/// Errors already shown, by the text they print.
+///
+/// A bounded set: an application throwing a thousand *different* errors is
+/// one nobody is going to read the list of anyway, and an unbounded one would
+/// be a leak in exactly the situation where memory is already the least of
+/// it.
+final Set<String> _shown = <String>{};
+const int _shownLimit = 32;
+
+/// Whether [report]'s own error has not been shown yet, remembering it.
+///
+/// Keyed on the error and the command it broke on rather than the stack: the
+/// same assert reached through two different builds has two stacks and is one
+/// problem as far as a person reading a dialog is concerned.
+bool _firstSightOf(CrashReport report) {
+  final String key = '${report.error}|${report.commandThatThrew}';
+  if (_shown.contains(key)) return false;
+  if (_shown.length >= _shownLimit) _shown.clear();
+  _shown.add(key);
+  return true;
+}
+
+/// Forgets which errors have been shown — for a test, which would otherwise
+/// have its second case swallowed by its first.
+@visibleForTesting
+void resetCrashDialogMemory() {
+  _shown.clear();
+  _dialogIsUp = false;
 }
 
 /// "Something went wrong" — shown once the emergency autosave has already

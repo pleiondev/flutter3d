@@ -89,9 +89,15 @@ void main() {
   // purpose, so it has to come back for whichever test runs next.
   final void Function(FlutterErrorDetails)? defaultOnError =
       FlutterError.onError;
+  // `ux-08` folds a repeated error into one dialog, and the memory that does
+  // it is a top-level one — which is right for an application and wrong for a
+  // file of tests that all crash on purpose. Cleared between them, so the
+  // second test's own crash is its first sight of it.
+  setUp(resetCrashDialogMemory);
   tearDown(() {
     FlutterError.onError = defaultOnError;
     lastAttemptedCommand = null;
+    resetCrashDialogMemory();
   });
 
   testWidgets(
@@ -281,6 +287,93 @@ void main() {
     // The document really is not in the storage, and the dialog says it is.
     expect(storage.documents, isEmpty);
     expect(find.textContaining('could not be written'), findsOneWidget);
+
+    await tester.tap(find.text('Dismiss'));
+    await tester.pumpAndSettle();
+  });
+
+  // `ux-08`: an assert thrown from a build throws again on the next build,
+  // and the next. The live run got a crash dialog per frame stacked over a
+  // black window, with Dismiss unable to keep up.
+  testWidgets('the same error twice shows one dialog', (
+    WidgetTester tester,
+  ) async {
+    resetCrashDialogMemory();
+    addTearDown(resetCrashDialogMemory);
+    final cubit = opened();
+    final storage = FakeBinaryStorage();
+    final navigatorKey = GlobalKey<NavigatorState>();
+
+    await tester.pumpWidget(
+      MaterialApp(navigatorKey: navigatorKey, home: const Scaffold()),
+    );
+
+    Future<void> crash(Object error) async {
+      unawaited(
+        handleCrash(
+          error: error,
+          stackTrace: StackTrace.empty,
+          cubit: cubit,
+          storage: storage,
+          sessionId: 'crash-test-session',
+          environment: 'Flutter, test',
+          dialogContext: () => navigatorKey.currentContext,
+        ),
+      );
+      await tester.pumpAndSettle();
+    }
+
+    await crash('the same assert');
+    await crash('the same assert');
+    await crash('the same assert');
+
+    // Mutation: show one per call, which is what this did. Three dialogs
+    // stack, and the count below reads three.
+    expect(find.text('Something went wrong'), findsOne);
+
+    await tester.tap(find.text('Dismiss'));
+    await tester.pumpAndSettle();
+    expect(find.text('Something went wrong'), findsNothing);
+  });
+
+  testWidgets('and a different error still gets its own', (
+    WidgetTester tester,
+  ) async {
+    resetCrashDialogMemory();
+    addTearDown(resetCrashDialogMemory);
+    final cubit = opened();
+    final storage = FakeBinaryStorage();
+    final navigatorKey = GlobalKey<NavigatorState>();
+
+    await tester.pumpWidget(
+      MaterialApp(navigatorKey: navigatorKey, home: const Scaffold()),
+    );
+
+    Future<void> crash(Object error) async {
+      unawaited(
+        handleCrash(
+          error: error,
+          stackTrace: StackTrace.empty,
+          cubit: cubit,
+          storage: storage,
+          sessionId: 'crash-test-session',
+          environment: 'Flutter, test',
+          dialogContext: () => navigatorKey.currentContext,
+        ),
+      );
+      await tester.pumpAndSettle();
+    }
+
+    await crash('the first problem');
+    await tester.tap(find.text('Dismiss'));
+    await tester.pumpAndSettle();
+
+    await crash('a different problem');
+
+    // Mutation: fold on any second crash rather than on the same one. The
+    // second, unrelated fault is then silent, which is worse than a stack of
+    // dialogs — a person is left with a window that quietly stopped working.
+    expect(find.textContaining('a different problem'), findsOne);
 
     await tester.tap(find.text('Dismiss'));
     await tester.pumpAndSettle();
