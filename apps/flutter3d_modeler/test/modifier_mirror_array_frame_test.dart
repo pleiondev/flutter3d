@@ -6,12 +6,13 @@
 ///
 ///     flutter test test/modifier_mirror_array_frame_test.dart
 ///
-/// **Applied, not previewed live.** `SceneSync`'s own `_dataOf` uploads
-/// whatever `EditedGeometry` currently holds — a document's base mesh, not
-/// a modifier stack folded over it on the fly — so a frame proving a
-/// modifier's own visible effect needs the bake `ApplyModifier` already
-/// does for the "Применить" button, not a second live-evaluation path this
-/// application does not have.
+/// **Applied, on purpose — this is the bake, not the live preview.** Since
+/// `tut-06`, `SceneSync` reads a modifier stack live (`scene_sync_test.
+/// dart`'s own `tut-06` group covers that without `ApplyModifier` ever
+/// running); this frame instead proves the other half still works — that
+/// baking through the "Применить" button folds the stack into the base
+/// mesh and empties it, exactly as before, rather than drawing something
+/// new.
 library;
 
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';

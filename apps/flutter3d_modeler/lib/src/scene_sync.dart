@@ -30,11 +30,26 @@ import 'material_pool.dart';
 
 /// One object's node, and what it was built from.
 final class _Tracked {
-  _Tracked(this.node, this.version, this.geometry, {this.skeletonIndex});
+  _Tracked(
+    this.node,
+    this.version,
+    this.geometry,
+    this.modifiers, {
+    this.skeletonIndex,
+  });
 
   final MeshNode node;
   int version;
   Geometry geometry;
+
+  /// [ModelObject.modifiers] as of the last time [node]'s mesh was
+  /// uploaded — compared by identity against the project's current value
+  /// on every [SceneSync.apply], the same way [geometry] already is.
+  /// `ModelObject.copyWith`'s own `modifiers ?? this.modifiers` hands back
+  /// a *new* list exactly when a modifier command actually touched the
+  /// stack, so `identical` here is the same free, exact signal `geometry`
+  /// gives for a mesh edit — see `tut-06`.
+  List<ModifierSlot> modifiers;
 
   /// [ModelObject.skeletonIndex] as of the last time [node]'s mesh was
   /// uploaded. Compared against the project's current value on every
@@ -78,6 +93,13 @@ final class SceneSync {
   final SceneNode root;
 
   final Map<int, _Tracked> _tracked = <int, _Tracked>{};
+
+  /// [ModelObject.modifiers], evaluated and cached per object — `tut-06`'s
+  /// own fix. Before this, [apply] uploaded [ModelObject.geometry]
+  /// straight through, so a mirror or an array modifier never reached the
+  /// viewport until "Apply" baked it into the base mesh and dropped the
+  /// stack; see [_meshFor].
+  final ModifierEvaluationCache _modifiers = ModifierEvaluationCache();
 
   /// Set by [apply] when some object's own skeleton has more joints than the
   /// engine can skin — [Skeleton.maxJoints], the shader's own uniform-array
@@ -124,7 +146,7 @@ final class SceneSync {
         final MeshNode node = MeshNode(
           DeviceMesh.upload(
             device,
-            _dataOf(object.geometry, _layoutFor(object)),
+            _meshFor(project, object, _layoutFor(object)),
           ),
           _paintFor(object),
           name: object.name,
@@ -135,6 +157,7 @@ final class SceneSync {
           node,
           object.version,
           object.geometry,
+          object.modifiers,
           skeletonIndex: object.skeletonIndex,
         );
         uploaded++;
@@ -143,18 +166,27 @@ final class SceneSync {
       if (had.version == object.version) continue;
 
       // The version moved, so something changed. Which something decides
-      // whether a buffer is rebuilt: a matrix is free and a mesh is not — and
-      // a skeleton newly bound or unbound is a third case, `view-27d`'s own
+      // whether a buffer is rebuilt: a matrix is free and a mesh is not — a
+      // skeleton newly bound or unbound is a second case, `view-27d`'s own
       // row, since it changes which `VertexLayout` this same `Geometry`
-      // instance has to be read as without the instance itself changing.
+      // instance has to be read as without the instance itself changing —
+      // and a modifier stack edited in place is a third, `tut-06`'s own
+      // row: `AddModifier`/`ToggleModifier`/`SetModifierField` and the rest
+      // all touch `ModelObject.modifiers`, never `.geometry`, so without
+      // this check a mirror switched on mid-session would bump the
+      // object's version and still upload nothing new.
       final bool reskinned = had.skeletonIndex != object.skeletonIndex;
-      if (!identical(had.geometry, object.geometry) || reskinned) {
+      final bool modifiersChanged = !identical(had.modifiers, object.modifiers);
+      if (!identical(had.geometry, object.geometry) ||
+          reskinned ||
+          modifiersChanged) {
         had.node.mesh = DeviceMesh.upload(
           device,
-          _dataOf(object.geometry, _layoutFor(object)),
+          _meshFor(project, object, _layoutFor(object)),
         );
         had.geometry = object.geometry;
         had.skeletonIndex = object.skeletonIndex;
+        had.modifiers = object.modifiers;
         uploaded++;
       }
       had.node
@@ -171,6 +203,7 @@ final class SceneSync {
       if (seen.contains(id)) continue;
       final _Tracked gone = _tracked.remove(id)!;
       gone.node.parent?.remove(gone.node);
+      _modifiers.forget(id);
     }
 
     _reparent(project);
@@ -296,6 +329,31 @@ final class SceneSync {
   /// What [object] is painted with: its slot's material, or clay.
   engine.Material _paintFor(ModelObject object) =>
       materials?.forObject(object) ?? clay();
+
+  /// The buffers [object] draws as, in [layout] — [object.geometry] run
+  /// through its own modifier stack first when it has one enabled,
+  /// [_dataOf] straight through otherwise.
+  ///
+  /// **Only an object with at least one enabled [ModifierSlot] pays for a
+  /// stack evaluation at all.** [ModifierEvaluationCache.evaluatedMesh]
+  /// would answer the same base mesh back for an empty or fully-disabled
+  /// stack too, but the ordinary object — almost every one, `modifiers`'
+  /// own doc comment says so — has none, and should cost exactly what it
+  /// cost before `tut-06`: one switch over [Geometry], no fold.
+  MeshData _meshFor(
+    ModelProject project,
+    ModelObject object,
+    VertexLayout layout,
+  ) {
+    final bool hasEnabledModifier = object.modifiers.any(
+      (ModifierSlot slot) => slot.enabled,
+    );
+    if (hasEnabledModifier) {
+      final evaluated = _modifiers.evaluatedMesh(project, object);
+      if (evaluated != null) return evaluated.toMeshData(layout: layout);
+    }
+    return _dataOf(object.geometry, layout);
+  }
 
   /// The buffers a geometry draws as, in [layout] — [_layoutFor]'s own
   /// answer for the object this geometry belongs to. Ignored for

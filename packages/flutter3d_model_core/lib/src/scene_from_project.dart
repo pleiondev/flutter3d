@@ -30,6 +30,8 @@ import 'dart:typed_data';
 import 'package:flutter3d_core/flutter3d_core.dart';
 import 'package:vector_math/vector_math.dart';
 
+import 'modifier_evaluation_cache.dart';
+import 'modifier_slot.dart';
 import 'project.dart';
 
 /// [project]'s objects as a [Scene] on [device] — a key and a fill light, the
@@ -55,13 +57,20 @@ Scene sceneFromProject(
         ..setLocalForward(Vector3(0.7, -0.3, 0.8)),
     );
 
+  // A fresh cache per call: a picture is built once from whatever [project]
+  // is right now, with nothing to keep an evaluated mesh alive for past it.
+  final modifierCache = ModifierEvaluationCache();
+
   // Two passes, because an object may be listed before its parent: every node
   // made first, then each hung under its parent's node — or under the scene,
   // for an object with no parent or one the project no longer holds.
   final nodes = <int, MeshNode>{
     for (final ModelObject object in project.objects)
       object.id: MeshNode(
-        DeviceMesh.upload(device, _meshDataOf(object.geometry)),
+        DeviceMesh.upload(
+          device,
+          _meshDataFor(modifierCache, project, object),
+        ),
         switch (restyle) {
           null => _materialOf(project, object),
           final restyle => restyle(object, _materialOf(project, object)),
@@ -79,6 +88,27 @@ Scene sceneFromProject(
     }
   }
   return scene;
+}
+
+/// The buffers [object] draws as — [ModelObject.geometry] run through its own
+/// modifier stack first, when it has at least one enabled slot, or straight
+/// through [_meshDataOf] otherwise. `tut-06`'s own fix: before it, every
+/// picture drawn here read the geometry directly, and a mirror or an array
+/// modifier never appeared in one until "Apply" baked it in and dropped the
+/// stack.
+MeshData _meshDataFor(
+  ModifierEvaluationCache cache,
+  ModelProject project,
+  ModelObject object,
+) {
+  final hasEnabledModifier = object.modifiers.any(
+    (ModifierSlot slot) => slot.enabled,
+  );
+  if (hasEnabledModifier) {
+    final evaluated = cache.evaluatedMesh(project, object);
+    if (evaluated != null) return evaluated.toMeshData();
+  }
+  return _meshDataOf(object.geometry);
 }
 
 /// The buffers a geometry draws as — the switch

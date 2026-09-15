@@ -14,7 +14,6 @@ import 'dart:typed_data';
 
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
-import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 import 'package:flutter3d_model_mcp/flutter3d_model_mcp.dart';
 
@@ -35,36 +34,29 @@ Future<void> _renderTo(ModelProject project, String path) async {
   stderr.writeln('wrote $path');
 }
 
-/// [project]'s object 1 with its modifier stack folded into the base mesh —
-/// the exact recipe [ApplyModifier] itself runs — for a render only. Never
-/// applied to the fixture that gets committed: [ApplyModifier] drops the
-/// stack once it bakes, and this case's whole point is that the stack
-/// stays live on the saved project.
+/// [project]'s object [id] with every one of its own modifier slots
+/// switched off — the same thing `ToggleModifier` does to one slot at a
+/// time, done to all of them at once, for a render only. Never applied to
+/// the fixture that gets committed: the saved project keeps both
+/// modifiers enabled, exactly as the scenario left them.
 ///
-/// **Exists at all because of `tut-06`.** Nothing between here and a
-/// drawn frame — not `SceneSync` in the live app, not `renderProject`,
-/// not an exporter — reads [ModelObject.modifiers] itself; only
-/// [ApplyModifier]'s own command bakes the stack, and only by removing it.
-/// So the picture the case's own page shows for "what the mirror and the
-/// array actually look like" cannot come from `renderProject` today —
-/// this function evaluates the stack by hand, the same three lines
-/// [ApplyModifier.apply] runs, purely so the page has an honest picture of
-/// the *feature*, separate from the *gap*.
-ModelProject _withModifiersBaked(ModelProject project, int id) {
+/// **Fixed by `tut-06`.** Before it, nothing between here and a drawn
+/// frame read [ModelObject.modifiers] at all — not `SceneSync` in the live
+/// app, not `renderProject` — so this file used to hand-evaluate the
+/// stack itself (the same three lines [ApplyModifier.apply] runs) just to
+/// give the case's own page one honest picture of the feature.
+/// `renderProject` reads the stack live now, which is what makes the
+/// *disabled* picture the one that needs a real recipe here: switching a
+/// slot off is a real, live toggle a person can make from the modifier
+/// panel, drawn through the exact same `renderProject` as the enabled
+/// picture below it.
+ModelProject _withModifiersDisabled(ModelProject project, int id) {
   final object = project[id]!;
-  final base = switch (object.geometry) {
-    final EditedGeometry g => g.mesh,
-    _ => throw StateError('object $id has no edited mesh to bake'),
-  };
-  final stack = ModifierStack(<Modifier>[
-    for (final slot in object.modifiers)
-      if (slot.enabled) slot.modifier,
-  ]);
-  final baked = stack.evaluate(base, const ModifierContext());
   return project.withObject(
     object.copyWith(
-      geometry: EditedGeometry(baked),
-      modifiers: const <ModifierSlot>[],
+      modifiers: <ModifierSlot>[
+        for (final slot in object.modifiers) slot.copyWith(enabled: false),
+      ],
     ),
   );
 }
@@ -253,16 +245,19 @@ Future<void> main() async {
     '../../cloud/server/web/assets/learn/modeler/vase-from-a-profile',
   )..createSync(recursive: true);
 
-  // The real render: the lathed, extruded, loop-cut, textured vase exactly
-  // as `renderProject` draws it today — which does not include the mirror
-  // or the array, `tut-06`'s own finding.
-  await _renderTo(session.project, '${assetDir.path}/05-vase-mesh.png');
-
-  // What the two modifiers actually produce, evaluated by hand since
-  // nothing in the render path does this today (see `_withModifiersBaked`'s
-  // own doc comment). Render-only: never written back to `session`.
+  // The vase mesh alone, mirror and array both switched off — a real,
+  // live toggle (`_withModifiersDisabled`), not the saved project: the
+  // committed fixture keeps both modifiers enabled.
   await _renderTo(
-    _withModifiersBaked(session.project, 1),
+    _withModifiersDisabled(session.project, 1),
+    '${assetDir.path}/05-vase-mesh.png',
+  );
+
+  // The saved project exactly as `renderProject` draws it today — mirror
+  // and array both live, `tut-06`'s own fix. No hand evaluation: this is
+  // the same render call as every other picture on this page.
+  await _renderTo(
+    session.project,
     '${assetDir.path}/06-vase-modifiers-preview.png',
   );
 

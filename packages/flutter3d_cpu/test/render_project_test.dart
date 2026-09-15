@@ -23,6 +23,83 @@ GraphicsDevice _cpuDevice(int width, int height) => CpuDevice(
   shaders: CpuShaderLibrary(builtinCpuShaders()),
 );
 
+/// A unit cube centred at [center] rather than at the origin — a modifier's
+/// own mirror or array runs in the mesh's *local* space, through the
+/// origin, so a cube already straddling it would not show a visible
+/// difference in the picture at all.
+EditMesh _offsetCuboid(Vector3 center) {
+  final half = Vector3(0.5, 0.5, 0.5);
+  Vector3 at(double sx, double sy, double sz) =>
+      center + Vector3(sx * half.x, sy * half.y, sz * half.z);
+  return EditMesh.fromFaces(
+    <Vector3>[
+      at(-1, -1, -1),
+      at(1, -1, -1),
+      at(1, 1, -1),
+      at(-1, 1, -1),
+      at(-1, -1, 1),
+      at(1, -1, 1),
+      at(1, 1, 1),
+      at(-1, 1, 1),
+    ],
+    <List<int>>[
+      <int>[4, 5, 6, 7],
+      <int>[1, 0, 3, 2],
+      <int>[5, 1, 2, 6],
+      <int>[0, 4, 7, 3],
+      <int>[3, 7, 6, 2],
+      <int>[0, 1, 5, 4],
+    ],
+  );
+}
+
+/// A project with one red, edited (not parametric — a modifier stack only
+/// runs over an [EditedGeometry]) cube offset from the origin, and
+/// [modifiers] on it.
+ModelProject _editedCubeProject({
+  List<ModifierSlot> modifiers = const <ModifierSlot>[],
+}) {
+  final project = const ModelProject().added(
+    (int id) => ModelObject(
+      id: id,
+      name: 'cube',
+      geometry: EditedGeometry(_offsetCuboid(Vector3(1.2, 0, 0))),
+      transform: Matrix4.identity(),
+      materialSlots: const <int>[0],
+      modifiers: modifiers,
+    ),
+  );
+  return ModelProject(
+    profile: project.profile,
+    objects: project.objects,
+    materials: <ProjectMaterial>[
+      ProjectMaterial(
+        surface: SurfaceMaterial(
+          name: 'red',
+          baseColor: Vector4(0.9, 0.1, 0.1, 1.0),
+          roughness: 0.8,
+        ),
+      ),
+    ],
+    images: project.images,
+    nextId: project.nextId,
+    skeletons: project.skeletons,
+    clips: project.clips,
+    lighting: project.lighting,
+  );
+}
+
+int _differingPixels(Rgba8Image a, Rgba8Image b) {
+  var differing = 0;
+  for (var i = 0; i < a.pixels.length; i += 4) {
+    final dr = (a.pixels[i] - b.pixels[i]).abs();
+    final dg = (a.pixels[i + 1] - b.pixels[i + 1]).abs();
+    final db = (a.pixels[i + 2] - b.pixels[i + 2]).abs();
+    if (dr + dg + db > 30) differing++;
+  }
+  return differing;
+}
+
 /// A project with one cuboid, red, centred at the origin.
 ModelProject _cubeProject() {
   final project = const ModelProject().added(
@@ -237,5 +314,88 @@ void main() {
       expect(decoded!.width, 16);
       expect(decoded.height, 16);
     });
+  });
+
+  group('tut-06 — modifiers read at render time', () {
+    Future<Rgba8Image> render(ModelProject project) async =>
+        (await decodeImagePure(
+          await renderProject(
+            RenderRequest(
+              project: project,
+              view: RenderProjectView.front,
+              width: 64,
+              height: 64,
+            ),
+            deviceFactory: _cpuDevice,
+          ),
+        ))!;
+
+    test('a mirror modifier changes the picture, with no Apply', () async {
+      final bare = await render(_editedCubeProject());
+      final mirrored = await render(
+        _editedCubeProject(
+          modifiers: <ModifierSlot>[
+            ModifierSlot(modifier: MirrorModifier(normal: Vector3(1, 0, 0))),
+          ],
+        ),
+      );
+
+      // Mutation: read `object.geometry` straight through regardless of
+      // `object.modifiers`, the way `renderProject` did before `tut-06` —
+      // the two pictures would then be pixel-for-pixel identical.
+      expect(
+        _differingPixels(bare, mirrored),
+        greaterThan(0),
+        reason:
+            'a mirror modifier should be visible in a headless render '
+            'without Apply ever being called',
+      );
+    });
+
+    test('an array modifier changes the picture, with no Apply', () async {
+      final bare = await render(_editedCubeProject());
+      final arrayed = await render(
+        _editedCubeProject(
+          modifiers: <ModifierSlot>[
+            ModifierSlot(
+              modifier: ArrayModifier(count: 3, offset: Vector3(0, 0, 2.4)),
+            ),
+          ],
+        ),
+      );
+
+      expect(
+        _differingPixels(bare, arrayed),
+        greaterThan(0),
+        reason:
+            'an array modifier should be visible in a headless render '
+            'without Apply ever being called',
+      );
+    });
+
+    test(
+      'Apply bakes exactly the picture the live stack already drew',
+      () async {
+        final project = _editedCubeProject(
+          modifiers: <ModifierSlot>[
+            ModifierSlot(modifier: MirrorModifier(normal: Vector3(1, 0, 0))),
+            ModifierSlot(
+              modifier: ArrayModifier(count: 2, offset: Vector3(0, 0, 2.4)),
+            ),
+          ],
+        );
+        final before = await render(project);
+
+        final history = ModelHistory(project);
+        expect(history.run(const ApplyModifier(id: 1, index: 1)), isNull);
+        expect(history.project[1]!.modifiers, isEmpty);
+
+        final after = await render(history.project);
+
+        // Apply bakes the stack into the base mesh and drops it — it must
+        // not change what was already visible, only how it is stored.
+        expect(_differingPixels(before, after), 0);
+      },
+    );
   });
 }

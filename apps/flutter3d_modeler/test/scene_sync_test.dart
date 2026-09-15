@@ -175,6 +175,136 @@ void main() {
     expect(sync.nodeOf(1)!.mesh.source?.vertexCount, 0);
   });
 
+  group('tut-06 — modifiers, live', () {
+    // Neither modifier's own `mergeDistance` is set below, so
+    // `MirrorModifier`/`ArrayModifier` weld nothing — every copy's vertices
+    // stay distinct, which is what makes a plain vertex-count multiple the
+    // right thing to assert rather than something the merge pass could
+    // shrink back down.
+    test('a mirror modifier is drawn without Apply', () {
+      final bare = const ModelProject().added(
+        (int id) => ModelObject(
+          id: id,
+          name: 'cube',
+          geometry: EditedGeometry(EditMesh.cuboid()),
+          transform: Matrix4.identity(),
+        ),
+      );
+      final baseCount = staged(
+        bare,
+      ).stage.sync!.nodeOf(1)!.mesh.source!.vertexCount;
+
+      final mirrored = bare.withObject(
+        bare.objects.single.copyWith(
+          modifiers: <ModifierSlot>[
+            ModifierSlot(modifier: MirrorModifier(normal: Vector3(1, 0, 0))),
+          ],
+        ),
+      );
+
+      // Mutation: read `object.geometry` straight through regardless of
+      // `object.modifiers`, the way this build did before `tut-06` — a
+      // mirror added to the stack would then draw exactly the base mesh,
+      // with no way to tell "not previewed" from "previewed and a no-op".
+      expect(
+        staged(mirrored).stage.sync!.nodeOf(1)!.mesh.source!.vertexCount,
+        baseCount * 2,
+      );
+    });
+
+    test('an array modifier is drawn without Apply', () {
+      final bare = const ModelProject().added(
+        (int id) => ModelObject(
+          id: id,
+          name: 'cube',
+          geometry: EditedGeometry(EditMesh.cuboid()),
+          transform: Matrix4.identity(),
+        ),
+      );
+      final baseCount = staged(
+        bare,
+      ).stage.sync!.nodeOf(1)!.mesh.source!.vertexCount;
+
+      final arrayed = bare.withObject(
+        bare.objects.single.copyWith(
+          modifiers: <ModifierSlot>[
+            ModifierSlot(
+              modifier: ArrayModifier(count: 3, offset: Vector3(2, 0, 0)),
+            ),
+          ],
+        ),
+      );
+
+      expect(
+        staged(arrayed).stage.sync!.nodeOf(1)!.mesh.source!.vertexCount,
+        baseCount * 3,
+      );
+    });
+
+    test('toggling a modifier reuploads even though the geometry never '
+        'changes', () {
+      var project = const ModelProject().added(
+        (int id) => ModelObject(
+          id: id,
+          name: 'cube',
+          geometry: EditedGeometry(EditMesh.cuboid()),
+          transform: Matrix4.identity(),
+          modifiers: <ModifierSlot>[
+            ModifierSlot(
+              modifier: MirrorModifier(normal: Vector3(1, 0, 0)),
+              enabled: false,
+            ),
+          ],
+        ),
+      );
+      final sync = staged(project).stage.sync!;
+      final baseCount = sync.nodeOf(1)!.mesh.source!.vertexCount;
+
+      // `ToggleModifier`'s own shape: a new `modifiers` list, the enabled
+      // flag flipped, the same `EditedGeometry` instance as before — so
+      // `identical(had.geometry, object.geometry)` alone would say nothing
+      // changed.
+      project = project.withObject(
+        project.objects.single.copyWith(
+          modifiers: <ModifierSlot>[
+            project.objects.single.modifiers.single.copyWith(enabled: true),
+          ],
+        ),
+      );
+      final uploaded = sync.apply(project);
+
+      expect(uploaded, 1);
+      expect(sync.nodeOf(1)!.mesh.source!.vertexCount, baseCount * 2);
+    });
+
+    test('ApplyModifier still bakes the stack into the base mesh and empties '
+        'it', () {
+      final project = const ModelProject().added(
+        (int id) => ModelObject(
+          id: id,
+          name: 'cube',
+          geometry: EditedGeometry(EditMesh.cuboid()),
+          transform: Matrix4.identity(),
+          modifiers: <ModifierSlot>[
+            ModifierSlot(modifier: MirrorModifier(normal: Vector3(1, 0, 0))),
+          ],
+        ),
+      );
+      final history = ModelHistory(project);
+      final live = staged(history.project).stage.sync!;
+      final liveCount = live.nodeOf(1)!.mesh.source!.vertexCount;
+
+      expect(history.run(const ApplyModifier(id: 1, index: 0)), isNull);
+      expect(history.project[1]!.modifiers, isEmpty);
+
+      // The baked project draws the same picture the live preview
+      // already did — Apply is a bake, not a second, different effect —
+      // and it does so with no modifier stack left to evaluate.
+      final applied = staged(history.project).stage.sync!;
+      expect(applied.nodeOf(1)!.mesh.source!.vertexCount, liveCount);
+    });
+  });
+
   group('view-27d — skinning', () {
     test('binding an object to a skeleton uploads it skinned and hangs an '
         'engine skeleton off it', () {

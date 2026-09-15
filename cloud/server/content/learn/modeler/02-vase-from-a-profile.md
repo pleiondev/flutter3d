@@ -139,29 +139,26 @@ Both answer **"add a modifier"**, and the panel lists two rows under
 *(screenshot: the modifier stack panel with both rows listed and enabled —
 placeholder)*
 
-> **What you will not see: the effect.** Add either modifier and look at
-> the viewport — nothing changes. `SceneSync`, the piece of the app that
-> uploads a mesh to the GPU, reads `ModelObject.geometry` directly and has
-> never heard of `ModelObject.modifiers`; the headless `render`/
-> `renderSheet` tools do not either. The only thing in this build that
-> reads a modifier stack at all is **Apply**, which bakes it into the base
-> mesh and then deletes the stack — the opposite of what a non-destructive
-> modifier is supposed to let you do. This is `tut-06`, the most
-> consequential finding writing this case turned up, logged in
-> `doc/modeler-tutorial-gaps.md` with a "делаем" recommendation rather than
-> "откладываем". The picture below exists only because this page's own
-> fixture tool evaluated the stack by hand, the same three lines
-> `ApplyModifier`'s own command runs internally — not because anything a
-> person clicking through the real app would see does.
+> **The effect is live.** Add either modifier and the viewport updates —
+> `SceneSync` reads `ModelObject.modifiers` now, evaluating the stack
+> through `ModifierEvaluationCache` and re-uploading whenever it changes,
+> the same as it already did for a mesh edit. The headless `render`/
+> `renderSheet` tools read it too, through the same `renderProject` this
+> page's own pictures come from. This used to be `tut-06`, logged in
+> `doc/modeler-tutorial-gaps.md` as the most consequential finding writing
+> this case turned up — a modifier stack nothing could show anywhere but
+> Apply's own one-way bake. It is closed: the two pictures below are both
+> ordinary `renderProject` calls against this case's own project data, no
+> hand-evaluation involved.
 
-![The vase, mesh-edited and textured, exactly as `renderProject` draws it today — no mirror, no array: nothing in the render pipeline reads a modifier stack yet (tut-06).](/assets/learn/modeler/vase-from-a-profile/05-vase-mesh.png)
+![The vase mesh alone, mirror and array both switched off from the modifier panel — the same base shape the lathe, the extrude and the loop cut left behind.](/assets/learn/modeler/vase-from-a-profile/05-vase-mesh.png)
 
-![What the mirror and the array modifiers actually produce, evaluated by hand since nothing in this build's render path does it today — a shelf of three mirrored vases.](/assets/learn/modeler/vase-from-a-profile/06-vase-modifiers-preview.png)
+![The saved project exactly as `renderProject` draws it — both modifiers live, a shelf of three mirrored vases.](/assets/learn/modeler/vase-from-a-profile/06-vase-modifiers-preview.png)
 
 Both are real renders of this case's own project data, through the same
-CPU renderer `render`/`renderSheet` use — the first is what the app shows
-you; the second is what the modifier stack you just built is actually
-worth, made visible the only way this build currently can.
+CPU renderer `render`/`renderSheet` use — the first is the modifier panel
+with both rows unchecked, the second is what you actually get with them
+on, which is also what "File → Save" below writes to disk.
 
 ## 7. Material and texture
 
