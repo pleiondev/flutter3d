@@ -24,6 +24,7 @@ import 'fixtures/tutorial/case2_scenario.dart';
 import 'fixtures/tutorial/case3_scenario.dart';
 import 'fixtures/tutorial/case4_scenario.dart';
 import 'fixtures/tutorial/case5_scenario.dart';
+import 'fixtures/tutorial/case6_scenario.dart';
 
 void main() {
   group('case 1 — a prop from a scan', () {
@@ -759,6 +760,143 @@ void main() {
         (AnimationTrack track) => track.times.length >= 2,
       );
       expect(hasRealKeys, isTrue);
+    });
+  });
+
+  group('case 6 — an agent beside you', () {
+    late Directory workspace;
+
+    setUp(() {
+      workspace = Directory.systemTemp.createTempSync('tutorial_case6');
+    });
+
+    tearDown(() {
+      workspace.deleteSync(recursive: true);
+    });
+
+    test("the case's own journal, replayed cold from the same post-import "
+        "project case 1 starts from, replays clean but silently reaches a "
+        "project missing the person's own roughness edit — that edit never "
+        "reached this session's own recovery journal at all, because it "
+        'ran directly against `ModelHistory` rather than through '
+        "`ModelSession.run`/the tool surface (`tut-15`, "
+        'doc/modeler-tutorial-gaps.md). A different shape than every '
+        "earlier case's own `tut-05`/`tut-14`: nothing here refuses — the "
+        'replay looks entirely successful, and only reading the result back '
+        "reveals it is not the same project", () async {
+      final imported = await case1ImportedProject();
+      final journalBytes = File(
+        'test/fixtures/tutorial/case6.jsonl',
+      ).readAsBytesSync();
+      final replay = CommandJournal.replay(journalBytes, imported);
+      expect(replay.ok, isTrue, reason: replay.refused);
+
+      final material = replay.history!.project.materials.single.surface;
+      // The agent's own tool calls (baseColor, metallic) are real
+      // `ModelCommand`s run through `ModelSession.run` and *do* survive a
+      // cold replay, same as every earlier case.
+      for (final (i, expected) in <double>[0.92, 0.89, 0.82, 1.0].indexed) {
+        expect(material.baseColor.storage[i], closeTo(expected, 1e-6));
+      }
+      expect(material.metallic, 0.0);
+      // Mutation: assert `closeTo(0.35, 1e-9)` instead — the real project's
+      // own roughness, which is what a replay that actually recovered the
+      // person's own edit would reach. `SetMaterialField`'s own default
+      // roughness (0.5, `flutter3d_formats`' `SurfaceMaterial`) is what a
+      // cold replay of this journal actually lands on, silently, since the
+      // person's edit is not on it at all.
+      expect(material.roughness, closeTo(0.5, 1e-9));
+    });
+
+    test('building the scenario fresh against ModelSession — calling the '
+        'real MCP tool handlers with JSON arguments, the way an MCP client '
+        "actually would (`tools_test.dart`'s own pattern), not the raw "
+        'ModelCommand constructors cases 1-5 called directly — reaches the '
+        'exact project committed as case6.f3dproj, and exports the exact '
+        'case6.glb', () async {
+      final path = '${workspace.path}/case6.f3dproj';
+      final imported = await case1ImportedProject();
+      final session = ModelSession(ModelHistory(imported), path: path);
+      await runCase6Scenario(session);
+
+      final saved = session.save(path);
+      expect(saved.did, isTrue, reason: saved.says);
+      final writtenBytes = File(path).readAsBytesSync();
+      final fixtureBytes = File(
+        'test/fixtures/tutorial/case6.f3dproj',
+      ).readAsBytesSync();
+      expect(
+        writtenBytes,
+        fixtureBytes,
+        reason:
+            'the project this scenario reaches is not the one in '
+            'test/fixtures/tutorial/case6.f3dproj. If the change was '
+            'meant, rerun tool/make_case6_fixtures.dart and read the diff '
+            'before committing the new fixtures',
+      );
+
+      final journaled = session.journal('${workspace.path}/case6.jsonl');
+      expect(journaled.did, isTrue, reason: journaled.says);
+      expect(
+        File('${workspace.path}/case6.jsonl').readAsStringSync(),
+        File('test/fixtures/tutorial/case6.jsonl').readAsStringSync(),
+      );
+
+      final exported = session.export('${workspace.path}/case6.glb');
+      expect(exported.did, isTrue, reason: exported.says);
+      final writtenGlb = File('${workspace.path}/case6.glb').readAsBytesSync();
+      final fixtureGlb = File(
+        'test/fixtures/tutorial/case6.glb',
+      ).readAsBytesSync();
+      expect(writtenGlb, fixtureGlb);
+
+      final writtenDocument = await GltfLoader().load(writtenGlb);
+      final fixtureDocument = await GltfLoader().load(fixtureGlb);
+      expect(compareModelDocuments(fixtureDocument, writtenDocument), isEmpty);
+    });
+
+    test('undo restricted to only the agent\'s own steps is a real, working '
+        'mechanism today (mcp-10n), not a gap: `session.undo()` — the exact '
+        'method the "undo" tool calls — refuses once the top step is a '
+        "person's own, by name, and leaves it and everything before it in "
+        "place; a person's own ⌘Z, unlike the agent's, is not gated the "
+        'same way, and reaches straight past it', () async {
+      final imported = await case1ImportedProject();
+      final session = ModelSession(ModelHistory(imported));
+      await runCase6Scenario(session);
+
+      // The scenario's last step was the agent's own `assignMaterial` tool
+      // call, run after the person's own roughness edit.
+      expect(session.history.topStepAuthor, StepAuthor.agent);
+
+      final undoTool = modelTools.firstWhere((ModelTool t) => t.name == 'undo');
+      final firstUndo = await undoTool.run(session, const <String, Object?>{});
+      expect(firstUndo.did, isTrue, reason: firstUndo.says);
+      expect(firstUndo.says, contains('undid assign a material'));
+
+      // Mutation: assert `StepAuthor.agent` here instead. The top step is
+      // now the person's own roughness edit — `ModelSession.undo`'s own
+      // check (`history.topStepAuthor != StepAuthor.agent`) is what the next
+      // call actually refuses on.
+      expect(session.history.topStepAuthor, StepAuthor.person);
+
+      final secondUndo = await undoTool.run(session, const <String, Object?>{});
+      expect(secondUndo.did, isFalse);
+      expect(secondUndo.says, contains("is a person's own"));
+      expect(secondUndo.says, contains('an agent does not undo'));
+
+      // The person's own edit is untouched — the refusal changed nothing.
+      final afterRefusal = session.project.materials.single.surface;
+      expect(afterRefusal.roughness, closeTo(0.35, 1e-9));
+      expect(afterRefusal.metallic, 0.0);
+
+      // A person's own ⌘Z in the real app calls `ModelHistory.undo()` with
+      // no restriction at all (`ModelerCubit` never passes
+      // `onlyIfAuthoredBy`) — reaching straight past their own step, which
+      // an agent's own undo just refused to do.
+      final personsOwnUndo = session.history.undo();
+      expect(personsOwnUndo, isTrue);
+      expect(session.history.topStepAuthor, StepAuthor.agent);
     });
   });
 }

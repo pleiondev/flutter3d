@@ -227,5 +227,35 @@ void main() {
         ),
       );
     });
+
+    test('reads case 6 off disk and renders its Markdown', () {
+      final cases = loadLearnCases();
+      final case6 = cases.firstWhere((c) => c.slug == '06-an-agent-beside-you');
+      expect(case6.title, contains('An agent beside you'));
+      expect(case6.bodyHtml, contains('<h1 '));
+      expect(
+        case6.bodyHtml,
+        contains(
+          '/assets/learn/modeler/an-agent-beside-you/02-final-material.png',
+        ),
+      );
+    });
+
+    test('case 6 serves end to end through learnRoutes', () async {
+      final handler = _mounted(learnRoutes());
+      final response = await _get(
+        handler,
+        '/learn/modeler/06-an-agent-beside-you',
+      );
+      expect(response.statusCode, 200);
+      final body = await response.readAsString();
+      expect(body, contains('An agent beside you'));
+      expect(
+        body,
+        contains(
+          '/assets/learn/modeler/an-agent-beside-you/02-final-material.png',
+        ),
+      );
+    });
   });
 }
