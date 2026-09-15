@@ -50,7 +50,7 @@ dependencies:
   # here, not just resolved through this workspace's shared
   # `package_config.json`, so an external consumer's own `dart pub get`
   # puts `flutter3d_shaders` where the hook can find it too.
-  hooks: ^2.0.0
+  hooks: ^2.2.0
   flutter3d_shaders: ^0.6.0
 
 dev_dependencies:
