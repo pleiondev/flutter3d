@@ -28,6 +28,7 @@ import 'package:flutter3d_app/flutter3d_app.dart';
 import 'package:flutter3d_core/formats.dart';
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
+import 'package:flutter3d_modeler/l10n/app_localizations.dart';
 import 'package:flutter3d_modeler/main.dart' hide main;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:plugin_platform_interface/plugin_platform_interface.dart';
@@ -108,7 +109,14 @@ void main() {
     addTearDown(tester.view.resetDevicePixelRatio);
 
     await tester.pumpWidget(
-      MaterialApp(home: ModelerScreen(autosaveStorage: storage)),
+      MaterialApp(
+        // The delegates `ModelerApp` gives the real application. The start
+        // screen reads `AppLocalizations.of(context)!`, so a bare
+        // `MaterialApp` is a harness the moment a test opens Home.
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: ModelerScreen(autosaveStorage: storage),
+      ),
     );
     await tester.runAsync(
       () => Future<void>.delayed(const Duration(milliseconds: 200)),
@@ -188,5 +196,50 @@ void main() {
     expect(find.text('cube'), findsNothing);
     expect(find.text('replacement-object'), findsOneWidget);
     expect(find.text('replacement.f3d'), findsOneWidget);
+  });
+
+  group('ux-06: every door goes through the import screen', () {
+    /// Opens the start screen and taps [label] on it.
+    Future<void> throughHome(WidgetTester tester, String label) async {
+      await tester.tap(
+        find.byTooltip('Start screen — open a file or start a new project'),
+      );
+      for (var i = 0; i < 5; i++) {
+        await tester.pump();
+      }
+      await tester.pump(const Duration(milliseconds: 300));
+      await tester.tap(find.text(label));
+      for (var i = 0; i < 5; i++) {
+        await tester.pump();
+      }
+      await tester.pump(const Duration(milliseconds: 300));
+    }
+
+    testWidgets('Home\'s own "Open file" reaches it, and used to skip it', (
+      WidgetTester tester,
+    ) async {
+      FileSelectorPlatform.instance = _FakeOpenFileSelector(
+        _f3dBytesNamed('from-home'),
+        'home.f3d',
+      );
+
+      await pumpReady(tester);
+      await throughHome(tester, 'Open file');
+
+      // **The shortest path to a file was the only one that skipped the
+      // questions.** It called `openBytes` directly — metres, no welding,
+      // nothing said — behind a comment about a concurrent refactor that is
+      // not in the tree. Mutation: put that call back, and the document is
+      // already replaced here with no dialog ever shown.
+      expect(find.text('Import'), findsWidgets);
+      expect(find.text('from-home'), findsNothing);
+
+      await tester.tap(find.widgetWithText(FilledButton, 'Import'));
+      for (var i = 0; i < 5; i++) {
+        await tester.pump();
+      }
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(find.text('from-home'), findsOneWidget);
+    });
   });
 }

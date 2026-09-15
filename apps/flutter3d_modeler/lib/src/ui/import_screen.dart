@@ -56,26 +56,90 @@ Future<ImportChoice?> showImportScreen(
   BuildContext context, {
   required ModelDocument document,
   required ProjectProfile profile,
+  String? fileName,
 }) => showDialog<ImportChoice>(
   context: context,
   builder: (BuildContext context) =>
-      _ImportScreen(document: document, profile: profile),
+      _ImportScreen(document: document, profile: profile, fileName: fileName),
 );
 
+/// What a file of this name most likely came out of — `ux-06`'s own
+/// defaults by format.
+///
+/// **A mesh-exchange format has no unit in it, and a scan is in
+/// millimetres.** STL carries no unit at all and is what a scanner and a
+/// slicer both write, so millimetres is the answer for nearly every one that
+/// reaches a modeller; glTF specifies metres and OBJ is unitless but is
+/// authored in a package that was set to something. Defaulting everything to
+/// metres was one guess applied to all of them, and it is the wrong guess
+/// exactly where a person is least able to spot it: an eight-millimetre
+/// teapot opened at metre scale is eight metres across, framed from far
+/// enough away that it looks ordinary.
+ImportUnit unitForFile(String? fileName) {
+  final String name = (fileName ?? '').toLowerCase();
+  if (name.endsWith('.stl')) return ImportUnit.millimetres;
+  return ImportUnit.metres;
+}
+
+/// Whether a file of this name is likely to need topology built for it.
+///
+/// A triangle soup — STL, and most scans however they arrive — has no shared
+/// vertices at all, so every mesh command refuses it until something welds
+/// it. `ImportPlan`'s own default already said `weld = true`; the screen
+/// that overrides it said false, which is the contradiction `ux-06` names.
+bool weldForFile(String? fileName) =>
+    (fileName ?? '').toLowerCase().endsWith('.stl');
+
+/// A sentence about a size that does not look like a thing, or null when it
+/// does — `ux-06`'s own plausibility hint under Bounds.
+///
+/// [diagonal] is the scaled bounding box's own diagonal, in metres, which is
+/// what the unit picked above turns the file's own numbers into.
+///
+/// **Two thresholds, three orders of magnitude apart, and nothing in
+/// between.** Almost everything a person models is between a centimetre and
+/// ten metres across, and the two ways to be wrong about a unit are both
+/// factors of a thousand: a millimetre file read as metres, and the reverse.
+/// So a hint fires only where the answer is off by about that much, which
+/// leaves every plausible model — a bolt, a chair, a building — silent. A
+/// hint that fired on anything unusual would be a hint people learn to
+/// dismiss, which is the same as no hint.
+String? plausibilityHintFor(double diagonal) {
+  if (diagonal <= 0) return null;
+  if (diagonal < 0.005) {
+    return 'That is under 5 mm across. If this was authored in millimetres, '
+        'the unit above is set too small.';
+  }
+  if (diagonal > 500) {
+    return 'That is over 500 m across. If this was authored in millimetres, '
+        'pick mm above.';
+  }
+  return null;
+}
+
 class _ImportScreen extends StatefulWidget {
-  const _ImportScreen({required this.document, required this.profile});
+  const _ImportScreen({
+    required this.document,
+    required this.profile,
+    this.fileName,
+  });
 
   final ModelDocument document;
   final ProjectProfile profile;
+
+  /// What the file was called, for the defaults to read a format off — null
+  /// where a caller has no name to give, which falls back to what this
+  /// screen always did.
+  final String? fileName;
 
   @override
   State<_ImportScreen> createState() => _ImportScreenState();
 }
 
 class _ImportScreenState extends State<_ImportScreen> {
-  ImportUnit _unit = ImportUnit.metres;
+  late ImportUnit _unit = unitForFile(widget.fileName);
   UpAxis _upAxis = UpAxis.y;
-  bool _weld = false;
+  late bool _weld = weldForFile(widget.fileName);
   bool _fixNormals = false;
   bool _triangulate = false;
 
@@ -110,6 +174,8 @@ class _ImportScreenState extends State<_ImportScreen> {
                     '${size.y.toStringAsFixed(2)} × '
                     '${size.z.toStringAsFixed(2)} m',
               ),
+              if (plausibilityHintFor(size.length) case final String hint)
+                _Warning(hint),
               if (plan.exceedsTriangleBudget)
                 _Warning(
                   'Over this project\'s own ${plan.profile.maxTriangles} '

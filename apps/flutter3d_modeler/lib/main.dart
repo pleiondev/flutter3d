@@ -345,14 +345,37 @@ class _ModelerScreenState extends State<ModelerScreen>
   /// with the same press, in the order they were made. Two stacks would have
   /// meant a person undoing a move and getting an extrusion back.
   /// A project with the cube a new one starts as.
-  static ModelProject _newProject() => const ModelProject().added(
-    (int id) => ModelObject(
-      id: id,
-      name: 'cube',
-      geometry: EditedGeometry(EditMesh.cuboid()),
-      transform: vm.Matrix4.identity(),
-    ),
-  );
+  ///
+  /// **Triangulated, since `ux-06`.** `EditMesh.cuboid()` is six quads, and
+  /// the profile's own `requireTriangles` is right about them: every writer
+  /// this application has cuts a quad on whichever diagonal it likes, and
+  /// that is worth saying about a model somebody built. It is not worth
+  /// saying about the cube the application hands them before they have done
+  /// anything at all — the live run's own first-hour finding was a fresh
+  /// launch greeting a beginner with "exports with a warning", truncated
+  /// with an ellipsis, over a document they had not touched.
+  ///
+  /// The other way to fix it was to stop warning about quads for a format
+  /// that triangulates, and that would be a worse trade: the warning is
+  /// honest for every model a person actually makes, and `export.dart`'s own
+  /// comment says why for both writers. So the cube changes, not the rule.
+  static ModelProject _newProject() {
+    final EditMesh cube = EditMesh.cuboid();
+    // A step, because every write to a mesh belongs to one — the journal
+    // refuses otherwise. It is never undone: this mesh has no history a
+    // person has seen, and the cube they start with is the triangulated one.
+    cube.beginStep();
+    triangulateFaces(cube, Selection.all(cube, ElementLevel.face));
+    cube.endStep();
+    return const ModelProject().added(
+      (int id) => ModelObject(
+        id: id,
+        name: 'cube',
+        geometry: EditedGeometry(cube),
+        transform: vm.Matrix4.identity(),
+      ),
+    );
+  }
 
   /// The mesh being edited, when what is selected has one.
   ///
