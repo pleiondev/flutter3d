@@ -33,7 +33,10 @@ extension _FileHandling on _ModelerScreenState {
     required bool forgetSurfaces,
   }) {
     stage.frameSubject();
-    if (forgetSurfaces) _surfaces.forget();
+    if (forgetSurfaces) {
+      _surfaces.forget();
+      _weightGradientShading.forget();
+    }
     _cubit.opened(
       history,
       renderer: (_state as ModelerReady).renderer,

@@ -141,6 +141,7 @@ extension _ReadyParts on _ModelerScreenState {
               );
               final properties = PropertiesPanel(
                 mode: state.mode,
+                animationSubmode: state.animationSubmode,
                 stage: stage,
                 project: state.project,
                 selection: state.selection,
@@ -196,6 +197,17 @@ extension _ReadyParts on _ModelerScreenState {
                 onSelectJoint: _selectAnimationJoint,
                 selectedConstraint: _selectedConstraint,
                 onSelectConstraint: _selectAnimationConstraint,
+                weightBrushMode: paintWeightsModeOf(state.tool),
+                onWeightBrushModeChanged: _setWeightBrushMode,
+                weightBrushRadius: _weightBrushRadius,
+                onWeightBrushRadiusChanged: _setWeightBrushRadius,
+                weightBrushStrength: _weightBrushStrength,
+                onWeightBrushStrengthChanged: _setWeightBrushStrength,
+                weightMirror: _weightMirror,
+                onWeightMirrorChanged: _setWeightMirror,
+                weightNormalize: _weightNormalize,
+                onWeightNormalizeChanged: _setWeightNormalize,
+                selectedWeightVertex: _selectedWeightVertex,
                 selectedLight: _selectedLight,
                 onSelectLight: _selectLight,
                 onAddLight: _addLight,
@@ -220,6 +232,40 @@ extension _ReadyParts on _ModelerScreenState {
                 lens: _lens,
                 onLens: (ViewLens lens) => setState(() => _lens = lens),
                 onView: (StandardView view) => lookFrom(stage.orbit, view),
+              );
+              // `S5`'s own row: the weights sub-mode's own view — the brush
+              // routes to `InputPolicy` rather than the drag/box branches,
+              // the picture draws unlit through the vertex-colour gradient
+              // `weight_gradient.dart` overwrites after every stroke, and the
+              // legend pins to the corner the same way `MeasurementReportOverlay`
+              // already does.
+              final bool weightsView =
+                  state.mode == ModelerMode.animation &&
+                  state.animationSubmode == AnimationSubmode.weights;
+              // Narrower than [weightsView]: `weights.mirror`/`weights.
+              // normalize` are one-shot actions, not a stroke tool
+              // (`kStrokeTools`'s own doc comment) — armed, a drag in the
+              // viewport is still the camera, the same as any other mode
+              // with no stroke tool of its own.
+              final bool weightsBrushArmed =
+                  weightsView && kStrokeTools.contains(state.tool);
+              // The outline is the renderer's until the overlay draws the
+              // selection itself and can say which *part* of an object is
+              // selected. Until then this is what tells a person their click
+              // landed.
+              final RenderSettings viewportRenderSettings = RenderSettings(
+                highlighted: <SceneNode>[
+                  for (final int id in _history.selection.objects)
+                    if (stage.sync?.nodeOf(id) case final SceneNode n) n,
+                ],
+                // `view-27d`'s own row: the octahedra-and-crosses overlay
+                // `DebugDrawGizmos.addSkeletonOverlay` draws is what shows a
+                // rig is actually driving the mesh underneath it, so it is
+                // worth the extra lines exactly while animation mode is open
+                // and not otherwise.
+                debug: DebugDrawOptions(
+                  skeletons: _mode == ModelerMode.animation,
+                ),
               );
               final viewport = Stack(
                 children: <Widget>[
@@ -249,6 +295,16 @@ extension _ReadyParts on _ModelerScreenState {
                           : null,
                       onDragDone: _transformSession.endDrag,
                       onBox: _boxed,
+                      // Earlier and more specific than the box/drag branch
+                      // above: only set while `weights.paint`/`weights.assign`
+                      // is actually armed, so `InputPolicy` never even asks
+                      // about a pointer anywhere else — including the
+                      // weights sub-mode's own one-shot mirror/normalize
+                      // tools, which take no drag at all.
+                      strokeTool: weightsBrushArmed
+                          ? ToolCategory.weightPainting
+                          : null,
+                      onStroke: weightsBrushArmed ? _onWeightStroke : null,
                       // The gizmo stands on the selection and offers the transform
                       // the armed tool asks for. On a tablet it is the only way in:
                       // there is no `G` key on an iPad, so this is not a second path
@@ -266,29 +322,11 @@ extension _ReadyParts on _ModelerScreenState {
                               ?.version ??
                           0,
                       elementsVersion: _history.selection.elements.length,
-                      settings: settingsFor(
-                        _shading,
-                        // The outline is the renderer's until the overlay draws the
-                        // selection itself and can say which *part* of an object is
-                        // selected. Until then this is what tells a person their click
-                        // landed.
-                        RenderSettings(
-                          highlighted: <SceneNode>[
-                            for (final int id in _history.selection.objects)
-                              if (stage.sync?.nodeOf(id) case final SceneNode n)
-                                n,
-                          ],
-                          // `view-27d`'s own row: the octahedra-and-crosses
-                          // overlay `DebugDrawGizmos.addSkeletonOverlay`
-                          // draws is what shows a rig is actually driving
-                          // the mesh underneath it, so it is worth the extra
-                          // lines exactly while animation mode is open and
-                          // not otherwise.
-                          debug: DebugDrawOptions(
-                            skeletons: _mode == ModelerMode.animation,
-                          ),
-                        ),
-                      ),
+                      settings: weightsView
+                          ? weightGradientSettings(
+                              settingsFor(_shading, viewportRenderSettings),
+                            )
+                          : settingsFor(_shading, viewportRenderSettings),
                     ),
                   ),
                   Positioned(
@@ -309,6 +347,7 @@ extension _ReadyParts on _ModelerScreenState {
                       },
                     ),
                   ),
+                  if (weightsView) const WeightLegend(),
                   if (_report case final String said)
                     MeasurementReportOverlay(said: said),
                 ],
@@ -330,10 +369,11 @@ extension _ReadyParts on _ModelerScreenState {
               // `S2`'s own row: the pose sub-mode's own bottom slot —
               // `ui-41d`'s 270-tall region under the viewport — is the
               // transport bar plus the `Keys`/`Curves` toggle's own choice
-              // of `TimelinePanel`/`CurveEditor`. Every other mode, and the
-              // animation mode's other three sub-modes, leave `bottom` null,
-              // the same "nothing at all" `ModelerShell.bottom`'s own doc
-              // comment already promises them.
+              // of `TimelinePanel`/`CurveEditor`. `S5`'s own row: the weights
+              // sub-mode's own bottom slot is `BendSliderBar`, 74 tall —
+              // `_weightBottom`'s own doc comment. Every other mode leaves
+              // `bottom` null, the same "nothing at all" `ModelerShell.bottom`'s
+              // own doc comment already promises them.
               final bool showsTimeline =
                   state.mode == ModelerMode.animation &&
                   state.animationSubmode == AnimationSubmode.pose;
@@ -354,14 +394,13 @@ extension _ReadyParts on _ModelerScreenState {
                 submode: state.submode,
                 onSubmode: _cubit.submode,
                 animationSubmode: state.animationSubmode,
-                onAnimationSubmode: _cubit.animationSubmode,
+                onAnimationSubmode: _setAnimationSubmode,
                 activeTool: state.tool,
                 onTool: _ranTool,
                 documentName: state.documentName,
                 isDirty: state.history.isDirty,
-                bottom: !showsTimeline
-                    ? null
-                    : AnimationBottom(
+                bottom: showsTimeline
+                    ? AnimationBottom(
                         clipIndex: openClipIndex,
                         clip: openClip,
                         frame: _frame,
@@ -380,8 +419,15 @@ extension _ReadyParts on _ModelerScreenState {
                         onSetKey: _setAnimationKey,
                         onSetKeyValue: _setAnimationKeyValue,
                         onSetTangent: _setAnimationTangent,
-                      ),
-                bottomHeight: showsTimeline ? ModelerMetrics.timeline : null,
+                      )
+                    : weightsView
+                    ? _weightBottom(state)
+                    : null,
+                bottomHeight: showsTimeline
+                    ? ModelerMetrics.timeline
+                    : weightsView
+                    ? ModelerMetrics.bendBar
+                    : null,
               );
             },
           ),

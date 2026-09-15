@@ -51,6 +51,7 @@ import 'src/files/project_files.dart';
 import 'src/files/sandbox_probe.dart';
 import 'src/ground_grid.dart';
 import 'src/import_plan.dart';
+import 'src/input_policy.dart';
 import 'src/material_editing.dart';
 import 'src/material_pool.dart' show clay;
 import 'src/mcp_bootstrap.dart';
@@ -74,6 +75,7 @@ import 'src/transform_dispatch.dart';
 import 'src/transform_fields.dart';
 import 'src/transform_session.dart';
 import 'src/ui/animation_bottom.dart';
+import 'src/ui/bend_slider_bar.dart';
 import 'src/ui/export_anyway_dialog.dart';
 import 'src/ui/export_screen.dart';
 import 'src/ui/import_screen.dart';
@@ -94,7 +96,10 @@ import 'src/ui/tools.dart';
 import 'src/ui/top_bar_actions.dart';
 import 'src/ui/transport_bar.dart';
 import 'src/ui/unsaved_changes_dialog.dart';
+import 'src/ui/weight_legend.dart';
 import 'src/viewport_metrics.dart';
+import 'src/weight_gradient.dart';
+import 'src/weight_paint_session.dart';
 
 part 'src/screen/animation.dart';
 part 'src/screen/app_wiring.dart';
@@ -103,6 +108,7 @@ part 'src/screen/device.dart';
 part 'src/screen/files.dart';
 part 'src/screen/interactions.dart';
 part 'src/screen/ready_parts.dart';
+part 'src/screen/weight_paint_wiring.dart';
 
 /// `ui-30n`: wires an exception nobody caught to the same response wherever
 /// it surfaces. `FlutterError.onError` catches one the framework itself
@@ -205,6 +211,33 @@ class _ModelerScreenState extends State<ModelerScreen>
   /// on [ModelerReady] for the identical reason [_selectedAnimationClip]
   /// above is not.
   TimelineEditMode _timelineEditMode = TimelineEditMode.keys;
+
+  /// `S5`'s own weight-paint brush: radius in logical pixels, strength 0 to
+  /// 1, and the mirror/normalize flags a stroke reads the moment it opens —
+  /// see `screen/weight_paint_wiring.dart`. Plain fields for the same reason
+  /// [_selectedLight] is one: none of them are on [ModelHistory], so undo has
+  /// nowhere to put any of them back to. `48`/`1.0` match the design
+  /// hand-over's own screen 13.
+  double _weightBrushRadius = 48.0;
+  double _weightBrushStrength = 1.0;
+  bool _weightMirror = false;
+  bool _weightNormalize = true;
+
+  /// The vertex nearest the weight brush's own last hit —
+  /// `ui/weight_paint_panel.dart`'s own influences card.
+  int? _selectedWeightVertex;
+
+  /// `S5`'s own brush stroke controller — see `weight_paint_session.dart`.
+  late final WeightPaintSession _weightPaintSession = WeightPaintSession(
+    cubit: _cubit,
+    history: () => _history,
+    stage: () => (_state as ModelerReady).stage,
+  );
+
+  /// `S5`'s own viewport-preview material swap for the weights view — see
+  /// `weight_gradient.dart`'s own class comment for why nothing calls it
+  /// before this row.
+  final WeightGradientShading _weightGradientShading = WeightGradientShading();
 
   /// The playhead, in whole frames — `S2`'s own `ValueNotifier<int>`.
   ///
@@ -354,7 +387,11 @@ class _ModelerScreenState extends State<ModelerScreen>
       0.1,
     );
     _lastTick = elapsed;
-    if (_state case ModelerReady(:final stage)) {
+    if (_state case ModelerReady(
+      :final stage,
+      :final mode,
+      :final animationSubmode,
+    )) {
       stage.orbit.advance(seconds);
       _surfaces.apply(stage.subject, _shading);
       // Reasserted every frame rather than only when a chip is pressed: the
@@ -362,6 +399,16 @@ class _ModelerScreenState extends State<ModelerScreen>
       // has to inherit, and a state that is reasserted cannot be got out of
       // step with the interface by anything.
       useLens(stage.camera, _lens, stage.orbit);
+      // `S5`'s own row: idempotent and walked every frame the weights
+      // sub-mode might be open, for `WeightGradientShading.apply`'s own
+      // reason — a model opened while it is on brings nodes this has never
+      // seen.
+      _weightGradientShading.apply(
+        stage.subject,
+        active:
+            mode == ModelerMode.animation &&
+            animationSubmode == AnimationSubmode.weights,
+      );
       _timelinePreview.tick(_history.project, stage.sync, seconds);
     }
     final said = _measurementRuns.step(

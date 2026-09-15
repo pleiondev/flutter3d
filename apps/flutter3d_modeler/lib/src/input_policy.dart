@@ -8,9 +8,10 @@
 /// — the right answer in every mode that has no continuous-stroke tool. Once one
 /// exists, that same finger would otherwise both orbit the view and paint the
 /// surface from one motion, and a person cannot aim a brush while the thing it is
-/// aimed at is sliding under it. So a tool that draws a stroke — so far only
-/// [ToolCategory.sculpting] — pulls touch back to the camera on purpose, and only
-/// a stylus or a mouse reaches the brush at all.
+/// aimed at is sliding under it. So a tool that draws a stroke —
+/// [ToolCategory.sculpting] and, since `S5`, [ToolCategory.weightPainting] —
+/// pulls touch back to the camera on purpose, and only a stylus or a mouse
+/// reaches the brush at all.
 ///
 /// **A mouse presses with a force it does not have.** The alternative — a brush
 /// that goes translucent under a mouse because there is no pressure channel to
@@ -28,14 +29,21 @@ import 'orbit_gestures.dart' show PointerKind;
 
 /// A category of tool this policy has an opinion about routing pointers to.
 ///
-/// One case today because sculpting is the only continuous-stroke tool this
-/// plan has reached; a future paint or weight tool joins here rather than
-/// forking a second policy, since the routing rule — touch stays with the
-/// camera, stylus and mouse reach the tool — does not change with what the
-/// stroke does once it lands.
+/// Two cases, and the routing rule does not change between them: touch stays
+/// with the camera, stylus and mouse reach the tool. A category exists at
+/// all so a call site can say which continuous-stroke tool it is asking
+/// about — `ModelerViewport`'s own `strokeTool` reads it to decide whether a
+/// given tool wants [classify] run over its pointers in the first place.
 enum ToolCategory {
   /// A brush dragged across the surface in a continuous stroke.
   sculpting,
+
+  /// `S5`'s own weight brush — `weights.paint`/`weights.assign`, sampled
+  /// over a stroke the same way sculpting is (`ui/tools.dart`'s own
+  /// `kStrokeTools`). A finger still orbits the camera; a stylus's pressure
+  /// still reaches [ToolStroke.force], which `weight_paint_session.dart`
+  /// reads to scale a sample's own strength.
+  weightPainting,
 }
 
 /// What a pointer's input means, once [InputPolicy] has decided.

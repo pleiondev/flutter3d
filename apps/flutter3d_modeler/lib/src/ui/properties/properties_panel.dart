@@ -33,6 +33,7 @@ import '../scene_source_panel.dart';
 import '../texture_graph_panel.dart';
 import '../theme.dart';
 import '../tools.dart';
+import '../weight_paint_panel.dart';
 import 'label_value_row.dart';
 import 'name_field.dart';
 import 'object_row.dart';
@@ -45,6 +46,7 @@ class PropertiesPanel extends StatelessWidget {
   const PropertiesPanel({
     super.key,
     required this.mode,
+    this.animationSubmode = AnimationSubmode.pose,
     required this.stage,
     required this.project,
     required this.selection,
@@ -79,6 +81,17 @@ class PropertiesPanel extends StatelessWidget {
     this.selectedConstraint,
     required this.onSelectConstraint,
     this.onRemoveConstraint,
+    this.weightBrushMode = PaintWeightsMode.paint,
+    required this.onWeightBrushModeChanged,
+    this.weightBrushRadius = 48.0,
+    required this.onWeightBrushRadiusChanged,
+    this.weightBrushStrength = 1.0,
+    required this.onWeightBrushStrengthChanged,
+    this.weightMirror = false,
+    required this.onWeightMirrorChanged,
+    this.weightNormalize = true,
+    required this.onWeightNormalizeChanged,
+    this.selectedWeightVertex,
     this.selectedLight,
     required this.onSelectLight,
     required this.onAddLight,
@@ -109,6 +122,15 @@ class PropertiesPanel extends StatelessWidget {
   /// thing regardless of what is being edited — so they stay in every mode
   /// rather than disappearing along with the mode-specific sections.
   final ModelerMode mode;
+
+  /// Which of the four animation workflows [mode] shows, when [mode] is
+  /// [ModelerMode.animation] — `sectionsFor`'s own second argument, read the
+  /// same way here as `toolsFor` already reads it for the rail. Ignored by
+  /// every other mode, and defaulted to [AnimationSubmode.pose] for the same
+  /// reason `sectionsFor`'s own bare, one-argument form already does: every
+  /// caller that predates this field keeps reading exactly what it always
+  /// has.
+  final AnimationSubmode animationSubmode;
 
   final ModelerStage stage;
   final ModelProject project;
@@ -220,12 +242,32 @@ class PropertiesPanel extends StatelessWidget {
 
   /// `S2`'s own row: which joint [SkeletonTree] highlights, and which
   /// [IkConstraint] row [ConstraintsList] highlights — both lifted the same
-  /// way [selectedAnimationClip] was.
+  /// way [selectedAnimationClip] was. `S5`'s own [WeightPaintPanel] reads and
+  /// sets the same [selectedJoint]/[onSelectJoint] for its own "Bones" list —
+  /// which joint a stroke paints onto is the same fact whichever animation
+  /// sub-mode is showing it.
   final int? selectedJoint;
   final ValueChanged<int> onSelectJoint;
   final int? selectedConstraint;
   final ValueChanged<int> onSelectConstraint;
   final ValueChanged<int>? onRemoveConstraint;
+
+  /// `S5`'s own [WeightPaintPanel]: the brush's own radius/strength/mirror/
+  /// normalize, and which of `weights.paint`/`weights.assign` is armed.
+  final PaintWeightsMode weightBrushMode;
+  final ValueChanged<PaintWeightsMode> onWeightBrushModeChanged;
+  final double weightBrushRadius;
+  final ValueChanged<double> onWeightBrushRadiusChanged;
+  final double weightBrushStrength;
+  final ValueChanged<double> onWeightBrushStrengthChanged;
+  final bool weightMirror;
+  final ValueChanged<bool> onWeightMirrorChanged;
+  final bool weightNormalize;
+  final ValueChanged<bool> onWeightNormalizeChanged;
+
+  /// The vertex nearest the weight brush's last hit — [WeightPaintPanel]'s
+  /// own influences card.
+  final int? selectedWeightVertex;
 
   /// `mat-34d`'s own scene-mode wiring: which of `project.lighting.lights`
   /// [SceneSourcePanel] shows the fields of, or null for none — a plain
@@ -267,7 +309,15 @@ class PropertiesPanel extends StatelessWidget {
       _ => null,
     };
     final held = project[selection.activeObject ?? -1];
-    final sections = sectionsFor(mode);
+    final sections = sectionsFor(mode, animation: animationSubmode);
+    // Read once and shared by [PropertiesSection.animation]'s `AnimationPanel`
+    // and `S5`'s own `WeightPaintPanel` below — the same skeleton, whichever
+    // of the two sub-modes is asking for it.
+    final ProjectSkeleton? heldSkeleton =
+        held?.skeletonIndex != null &&
+            held!.skeletonIndex! < project.skeletons.length
+        ? project.skeletons[held.skeletonIndex!]
+        : null;
     final int? activeMaterial = held == null ? null : activeMaterialSlot(held);
     final ProjectMaterial? activeMaterialRow =
         activeMaterial != null && activeMaterial < project.materials.length
@@ -499,11 +549,7 @@ class PropertiesPanel extends StatelessWidget {
           AnimationPanel(
             clips: project.clips,
             objects: project.objects,
-            skeleton:
-                held?.skeletonIndex != null &&
-                    held!.skeletonIndex! < project.skeletons.length
-                ? project.skeletons[held.skeletonIndex!]
-                : null,
+            skeleton: heldSkeleton,
             onAddClip: onAddClip,
             selectedClip: selectedAnimationClip,
             onSelectClip: onSelectAnimationClip,
@@ -512,6 +558,25 @@ class PropertiesPanel extends StatelessWidget {
             selectedConstraint: selectedConstraint,
             onSelectConstraint: onSelectConstraint,
             onRemoveConstraint: onRemoveConstraint,
+          ),
+        if (sections.contains(PropertiesSection.weightPaint))
+          WeightPaintPanel(
+            mode: weightBrushMode,
+            onModeChanged: onWeightBrushModeChanged,
+            radius: weightBrushRadius,
+            onRadiusChanged: onWeightBrushRadiusChanged,
+            strength: weightBrushStrength,
+            onStrengthChanged: onWeightBrushStrengthChanged,
+            mirror: weightMirror,
+            onMirrorChanged: onWeightMirrorChanged,
+            normalize: weightNormalize,
+            onNormalizeChanged: onWeightNormalizeChanged,
+            objects: project.objects,
+            skeleton: heldSkeleton,
+            mesh: mesh,
+            selectedVertex: selectedWeightVertex,
+            selectedJoint: selectedJoint,
+            onSelectJoint: onSelectJoint,
           ),
         if (sections.contains(PropertiesSection.lastOperation)) ...<Widget>[
           SectionLabel('Last operation'),

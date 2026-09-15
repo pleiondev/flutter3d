@@ -31,6 +31,7 @@ import 'package:vector_math/vector_math.dart' show Vector3;
 import 'element_picking.dart';
 import 'gizmo_handles.dart';
 import 'ground_grid.dart';
+import 'input_policy.dart';
 import 'mesh_overlay_builder.dart';
 import 'object_picking.dart';
 import 'orbit_gestures.dart';
@@ -38,6 +39,50 @@ import 'selection_box.dart';
 import 'staging.dart';
 import 'transform_gizmo.dart';
 import 'transform_modal.dart';
+
+/// Where a [StrokeEvent] sits in the pointer's own lifetime.
+enum StrokePhase {
+  /// The pointer went down — the first sample of a new drag.
+  start,
+
+  /// The pointer moved while still down — every sample after the first.
+  move,
+
+  /// The pointer came up (or was cancelled). The last event of the drag.
+  end,
+}
+
+/// One pointer event `InputPolicy` has routed to
+/// [ModelerViewport.onStroke] rather than to the camera — `S5`'s own
+/// `ModelerViewport.onStroke(StrokeEvent{phase, at, view, kind, force})`.
+final class StrokeEvent {
+  const StrokeEvent({
+    required this.phase,
+    required this.at,
+    required this.view,
+    required this.kind,
+    required this.force,
+  });
+
+  final StrokePhase phase;
+
+  /// Where the pointer is, in the same logical pixels every other viewport
+  /// callback reports it in.
+  final Offset at;
+
+  /// Built from the camera and the size this widget was laid out at, the
+  /// same as [ModelerViewport.onElementPick]'s own — a caller casts its own
+  /// ray through it rather than this widget knowing what a brush hits.
+  final PickingView view;
+
+  final PointerKind kind;
+
+  /// 0 at no pressure, 1 at the device's own maximum, already resolved by
+  /// `InputPolicy.classify` — a mouse always reports 1.0, and [phase]
+  /// [StrokePhase.end] always reports 0.0, there being no pressure left on a
+  /// pointer that has come up.
+  final double force;
+}
 
 /// Draws [stage] through [renderer], and orbits it under the pointer.
 class ModelerViewport extends StatefulWidget {
@@ -53,6 +98,8 @@ class ModelerViewport extends StatefulWidget {
     this.onDragTool,
     this.onDragDone,
     this.onBox,
+    this.strokeTool,
+    this.onStroke,
     this.editMesh,
     this.settings = const RenderSettings(),
     this.grid = const GroundGrid(),
@@ -178,6 +225,25 @@ class ModelerViewport extends StatefulWidget {
   /// a click follows.
   final void Function(SelectionBox box, PickingView view)? onBox;
 
+  /// Which continuous-stroke tool [onStroke] answers for, or null for none.
+  ///
+  /// Read by `InputPolicy.classify` on every primary-button press before the
+  /// gizmo, drag and box branches below even look at it — S5's own "earlier,
+  /// more specific branch": a stylus or a mouse pressed with this non-null
+  /// becomes a [StrokeEvent] instead of a tool drag or a selection box, and a
+  /// finger stays with the camera exactly as it already does everywhere else,
+  /// `input_policy.dart`'s own rule.
+  final ToolCategory? strokeTool;
+
+  /// A continuous-stroke tool's own pointer, once [strokeTool] is set and
+  /// `InputPolicy` has routed it here rather than to the camera.
+  ///
+  /// [StrokeEvent.view] and [StrokeEvent.at] are built the same way
+  /// [onElementPick]'s own are — from the camera and the size this widget
+  /// was laid out at — so a caller can cast its own ray without this widget
+  /// knowing what a brush hits.
+  final void Function(StrokeEvent event)? onStroke;
+
   /// The pointer that was dragging has gone up. What the caller does with it is
   /// close the transaction the first move opened, so the whole drag is one step
   /// of history rather than sixty.
@@ -233,6 +299,17 @@ class _ModelerViewportState extends State<ModelerViewport> {
   final Map<int, ({Offset at, GestureButton button})> _pressed =
       <int, ({Offset at, GestureButton button})>{};
   final Set<int> _travelled = <int>{};
+
+  /// Pointers `InputPolicy` has routed to [ModelerViewport.onStroke] rather
+  /// than to the camera — never in [_pressed], since a stroke pointer is
+  /// never a candidate for the box or the drag branches below.
+  final Set<int> _stroking = <int>{};
+
+  /// The [PickingView] the stroke in progress was last reported with, kept
+  /// so the pointer-up event can carry one too without laying a fresh ray
+  /// through whatever [_viewport] happens to be at that exact frame —
+  /// [StrokeEvent.view] is never null, and this is what keeps it that way.
+  PickingView? _strokeView;
 
   /// How far a pointer may move and still be a click, in logical pixels.
   ///
@@ -530,6 +607,42 @@ class _ModelerViewportState extends State<ModelerViewport> {
       }
     }
 
+    // A continuous-stroke tool's own press — earlier and more specific than
+    // the box/drag branch below, and the only branch that ever consults
+    // `InputPolicy`: touch and the trackpad fall straight through to the
+    // camera below unchanged, exactly as they already do for every tool that
+    // never sets `strokeTool` at all.
+    final ToolCategory? strokeTool = widget.strokeTool;
+    final onStroke = widget.onStroke;
+    if (strokeTool != null &&
+        onStroke != null &&
+        button == GestureButton.primary &&
+        !_viewport.isEmpty) {
+      final InputIntent intent = const InputPolicy().classify(
+        kind: _kindOf(event.kind),
+        tool: strokeTool,
+        pressure: event.pressure,
+        inverted: event.kind == PointerDeviceKind.invertedStylus,
+      );
+      if (intent is ToolStroke) {
+        _stroking.add(event.pointer);
+        final PickingView view = _strokeView = PickingView(
+          camera: widget.stage.camera,
+          size: _viewport,
+        );
+        onStroke(
+          StrokeEvent(
+            phase: StrokePhase.start,
+            at: event.localPosition,
+            view: view,
+            kind: _kindOf(event.kind),
+            force: intent.force,
+          ),
+        );
+        return;
+      }
+    }
+
     _pressed[event.pointer] = (at: event.localPosition, button: button);
     _travelled.remove(event.pointer);
     _gestures.pointerDown(
@@ -542,6 +655,26 @@ class _ModelerViewportState extends State<ModelerViewport> {
   }
 
   void _move(PointerMoveEvent event) {
+    if (_stroking.contains(event.pointer)) {
+      final onStroke = widget.onStroke;
+      if (onStroke != null && !_viewport.isEmpty) {
+        final PickingView view = _strokeView = PickingView(
+          camera: widget.stage.camera,
+          size: _viewport,
+        );
+        onStroke(
+          StrokeEvent(
+            phase: StrokePhase.move,
+            at: event.localPosition,
+            view: view,
+            kind: _kindOf(event.kind),
+            force: InputPolicy.normalizePressure(event.pressure),
+          ),
+        );
+      }
+      return;
+    }
+
     final start = _pressed[event.pointer];
     if (start != null && (event.localPosition - start.at).distance > _slop) {
       _travelled.add(event.pointer);
@@ -619,6 +752,24 @@ class _ModelerViewportState extends State<ModelerViewport> {
   }
 
   void _up(PointerEvent event) {
+    if (_stroking.remove(event.pointer)) {
+      // The view a stroke ends with is the one its own last sample was cast
+      // through, not a fresh one built from whatever `_viewport` happens to
+      // be this exact frame — `_strokeView`'s own doc comment says why, and
+      // it is never null here: [_stroking] only ever holds a pointer once
+      // `_down` has already set it.
+      widget.onStroke?.call(
+        StrokeEvent(
+          phase: StrokePhase.end,
+          at: event.localPosition,
+          view: _strokeView!,
+          kind: _kindOf(event.kind),
+          force: 0.0,
+        ),
+      );
+      _strokeView = null;
+      return;
+    }
     _gestures.pointerUp(event.pointer);
     final start = _pressed.remove(event.pointer);
     final bool travelled = _travelled.remove(event.pointer);

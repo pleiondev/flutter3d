@@ -55,8 +55,12 @@ extension _AnimationWiring on _ModelerScreenState {
     _selectedAnimationKey = keyIndex;
   });
 
-  /// `SkeletonTree.onSelectJoint`.
-  void _selectAnimationJoint(int id) => setState(() => _selectedJoint = id);
+  /// `SkeletonTree.onSelectJoint`, and `S5`'s own `WeightPaintPanel`'s
+  /// "Bones" list — the same joint either sub-mode is picking.
+  void _selectAnimationJoint(int id) {
+    setState(() => _selectedJoint = id);
+    _refreshWeightGradient();
+  }
 
   /// `ConstraintsList.onSelect`.
   void _selectAnimationConstraint(int index) =>
