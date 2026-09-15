@@ -56,7 +56,7 @@ final class _Storage implements Storage {
         saves: SaveFile(appName: 'platformer', storage: storage),
         input: InputState(),
         openDevice: () async => device,
-        onLevelBuilt: (LevelReady level, GraphicsDevice device) {},
+        onLevelBuilt: (String asset, LevelReady level, GraphicsDevice device) {},
         pauseBetweenLevels: Duration.zero,
       ),
     ),

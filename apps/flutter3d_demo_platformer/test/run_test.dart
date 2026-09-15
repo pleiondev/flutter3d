@@ -44,7 +44,9 @@ final class _Storage implements Storage {
 
 /// Sixteen by nine, because nothing here looks at the picture: the device
 /// exists so the loader has somewhere to upload the level's textures.
-({PlatformerRun run, _Storage storage}) _game() {
+({PlatformerRun run, _Storage storage}) _game({
+  void Function(String asset)? onLevelBuilt,
+}) {
   final device = CpuDevice(
     width: 16,
     height: 9,
@@ -59,8 +61,10 @@ final class _Storage implements Storage {
       input: InputState(),
       openDevice: () async => device,
       // The widget's half, which this test does not have: a camera, a box for
-      // the runner, the interpolators.
-      onLevelBuilt: (LevelReady level, GraphicsDevice device) {},
+      // the runner, the interpolators — `onLevelBuilt` itself, `rp-01`'s own
+      // reason it now names the asset too.
+      onLevelBuilt: (String asset, LevelReady level, GraphicsDevice device) =>
+          onLevelBuilt?.call(asset),
       // No beat between levels: that is a pause on a results screen nobody is
       // watching here, and 1.4 seconds per test adds up.
       pauseBetweenLevels: Duration.zero,
@@ -81,6 +85,27 @@ void main() {
     expect(playing.level.sim.lives, 3);
     expect(playing.level.sim.elapsed, 0.0);
   });
+
+  test(
+    "onLevelBuilt names the level it just built, not the one it's leaving",
+    () async {
+      // `rp-01`: `_beginDemo` needs the asset a demo names itself by, and it
+      // fires from here rather than from the status this level becomes —
+      // `_status` still names the load being replaced at this exact moment.
+      final seen = <String>[];
+      final it = _game(onLevelBuilt: seen.add);
+
+      await it.run.begin();
+      expect(seen, <String>[_first]);
+
+      final playing = it.run.status as RunPlaying<LevelReady>;
+      final next = playing.level.sim.nextLevel;
+      if (next != null) {
+        await it.run.load(next);
+        expect(seen, <String>[_first, next]);
+      }
+    },
+  );
 
   test(
     'and a level that is not there says so rather than going black',
