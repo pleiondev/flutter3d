@@ -5,6 +5,7 @@ library;
 import 'package:jaspr/dom.dart';
 import 'package:jaspr/jaspr.dart';
 
+import '../db/models_repository.dart';
 import '../domain/access.dart';
 import '../domain/model.dart';
 import '../domain/user.dart';
@@ -20,6 +21,7 @@ class ModelPage extends StatelessComponent {
     required this.viewer,
     required this.csrf,
     required this.viewerAvailable,
+    this.revisions = const [],
     this.said,
     super.key,
   });
@@ -31,6 +33,11 @@ class ModelPage extends StatelessComponent {
   /// Whether the web build of the renderer is deployed. Without it the button
   /// would open a frame with a 404 in it.
   final bool viewerAvailable;
+
+  /// Past saves of the source file, newest first — only ever non-empty when
+  /// the caller already checked `canEdit`, since nobody else's page fetches
+  /// them.
+  final List<RevisionRecord> revisions;
 
   final String? said;
 
@@ -64,6 +71,12 @@ class ModelPage extends StatelessComponent {
         ], classes: 'model-head'),
         div(
           [
+            if (model.hasPreview)
+              img(
+                src: '/files/${model.id}/preview',
+                alt: '',
+                classes: 'preview-image',
+              ),
             div([
               if (viewerAvailable)
                 button([Component.text('Open in 3D')], type: ButtonType.button)
@@ -77,7 +90,7 @@ class ModelPage extends StatelessComponent {
                   'has it, WebGL2 where it does not.',
                 ),
               ]),
-            ], classes: 'poster'),
+            ], classes: model.hasPreview ? 'poster has-preview' : 'poster'),
           ],
           classes: 'viewer',
           attributes: {
@@ -120,9 +133,61 @@ class ModelPage extends StatelessComponent {
             ),
           ]),
         ], classes: 'model-grid'),
+        if (editable) _RevisionsSection(model: model, revisions: revisions),
       ],
     );
   }
+}
+
+class _RevisionsSection extends StatelessComponent {
+  const _RevisionsSection({required this.model, required this.revisions});
+
+  final ModelRecord model;
+  final List<RevisionRecord> revisions;
+
+  @override
+  Component build(BuildContext context) => section([
+    h2([Component.text('Revisions')]),
+    if (revisions.isEmpty)
+      p([
+        Component.text(
+          'No past saves yet — saving an edit here keeps the file it '
+          'replaces as a revision.',
+        ),
+      ], classes: 'muted')
+    else
+      ul([
+        for (var i = 0; i < revisions.length; i++)
+          li([
+            _RevisionRow(
+              modelId: model.id,
+              revision: revisions[i],
+              current: i == 0,
+            ),
+          ]),
+      ], classes: 'revisions-list'),
+  ], classes: 'revisions');
+}
+
+class _RevisionRow extends StatelessComponent {
+  const _RevisionRow({
+    required this.modelId,
+    required this.revision,
+    required this.current,
+  });
+
+  final int modelId;
+  final RevisionRecord revision;
+  final bool current;
+
+  @override
+  Component build(BuildContext context) => a([
+    span([
+      Component.text(isoDate(revision.createdAt)),
+      if (current) span([Component.text('current')], classes: 'badge public'),
+    ], classes: 'when'),
+    span([Component.text(formatBytes(revision.bytes))], classes: 'bytes'),
+  ], href: '/files/$modelId/revisions/${revision.id}');
 }
 
 class _DescribeForm extends StatelessComponent {

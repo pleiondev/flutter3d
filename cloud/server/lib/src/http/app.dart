@@ -524,12 +524,19 @@ Handler buildHandler(Services services) {
       if (ref != '${model.id}-${model.slug}') {
         return Response.movedPermanently(model.path);
       }
+      // Revision history is owner-only on the page, the same as the download
+      // route at `/files/<id>/revisions/<revisionId>`, so nothing is fetched
+      // for a viewer who could not follow those links anyway.
+      final revisions = canEdit(model, viewer)
+          ? await services.models.revisionsOf(model.id)
+          : const <RevisionRecord>[];
       return htmlPage(
         ModelPage(
           model: model,
           viewer: viewer,
           csrf: csrfOf(request),
           viewerAvailable: true,
+          revisions: revisions,
           said: request.url.queryParameters['said'],
         ),
       );

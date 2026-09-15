@@ -638,7 +638,17 @@ void main() {
       await fetched.read().expand((chunk) => chunk).toList(),
       _png(320, 200),
     );
-    expect((await services.models.byId(modelId))!.hasPreview, isTrue);
+    final modelWithPreview = (await services.models.byId(modelId))!;
+    expect(modelWithPreview.hasPreview, isTrue);
+
+    // The model's own page shows the picture, for whoever has not clicked
+    // "Open in 3D" yet.
+    final pageWithPreview = await owner.get(modelWithPreview.path);
+    expect(pageWithPreview.statusCode, 200);
+    expect(
+      await pageWithPreview.readAsString(),
+      contains('/files/$modelId/preview'),
+    );
 
     // Somebody else gets 404 setting a preview on this model — never 403,
     // which would confirm the model exists to someone who cannot edit it.
@@ -834,6 +844,24 @@ void main() {
       reason: 'the first edit is now the oldest revision, no longer current',
     );
     expect(olderRevision['id'], firstRevisionId);
+
+    // The owner's own page lists both, newest marked current, each linking
+    // to its own download route — fetched straight from the repository when
+    // the page renders, not through this same JSON endpoint.
+    final modelForPage = (await services.models.byId(modelId))!;
+    final pageWithRevisions = await owner.get(modelForPage.path);
+    expect(pageWithRevisions.statusCode, 200);
+    final pageWithRevisionsBody = await pageWithRevisions.readAsString();
+    expect(pageWithRevisionsBody, contains('Revisions'));
+    expect(pageWithRevisionsBody, contains('current'));
+    expect(
+      pageWithRevisionsBody,
+      contains('/files/$modelId/revisions/${newestRevision['id']}'),
+    );
+    expect(
+      pageWithRevisionsBody,
+      contains('/files/$modelId/revisions/${olderRevision['id']}'),
+    );
 
     // The point of keeping it: that older, no-longer-current revision is
     // still downloadable byte-for-byte, even though the model has moved on.

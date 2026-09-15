@@ -119,7 +119,12 @@ class _Card extends StatelessComponent {
   @override
   Component build(BuildContext context) => a(
     [
-      div([Component.text(model.sourceFormat)], classes: 'thumb'),
+      div([
+        if (model.hasPreview)
+          img(src: '/files/${model.id}/preview', alt: '')
+        else
+          Component.text(model.sourceFormat),
+      ], classes: 'thumb'),
       div([
         h2([Component.text(model.title)]),
         p([
