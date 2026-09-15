@@ -162,7 +162,17 @@ class ModelerShell extends StatelessWidget {
                   ),
                   child: SizedBox(
                     width: ModelerMetrics.propertiesMin,
-                    child: ColoredBox(
+                    // **A `Material`, not a `ColoredBox`** — `ux-08`. A
+                    // `ListTile` asserts in a debug build when it cannot find
+                    // a `Material` ancestor to paint its background and its
+                    // ink splashes into, and the Scene panels are built out
+                    // of `ListTile`/`SwitchListTile`. A `ColoredBox` paints
+                    // the same colour and is not one, so entering Scene mode
+                    // threw "ListTile background color or ink splashes may be
+                    // invisible" on every frame — a crash dialog per frame
+                    // over a black window, which Dismiss could not keep up
+                    // with. A `Material` is the colour and the ancestor both.
+                    child: Material(
                       color: theme.colorScheme.surfaceContainerLow,
                       child: properties,
                     ),

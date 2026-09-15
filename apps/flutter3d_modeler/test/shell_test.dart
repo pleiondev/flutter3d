@@ -396,4 +396,83 @@ void main() {
       expect(find.text('• teapot.f3dproj'), findsOneWidget);
     });
   });
+
+  group('ux-08: the properties panel is somewhere a ListTile can live', () {
+    testWidgets('a ListTile in the panel does not bring the build down', (
+      WidgetTester tester,
+    ) async {
+      tester.view
+        ..physicalSize = const Size(1440, 900)
+        ..devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+
+      // **A `ListTile`, because that is what the Scene panels are made of.**
+      // `scene_source_panel.dart`, `scene_shadows_panel.dart` and
+      // `scene_post_panel.dart` are lists of `ListTile`/`SwitchListTile`, and
+      // a `ListTile` asserts in a debug build when it can find no `Material`
+      // ancestor to paint its background and ink into. The panel was a
+      // `ColoredBox` — the same colour, not a `Material` — so entering Scene
+      // mode threw on every frame and stacked a crash dialog per frame over
+      // a black window.
+      //
+      // Mutation: put the `ColoredBox` back. This throws "ListTile
+      // background color or ink splashes may be invisible".
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: modelerTheme(),
+          home: ModelerShell(
+            mode: ModelerMode.scene,
+            onMode: (_) {},
+            submode: MeshSubmode.vertex,
+            onSubmode: (_) {},
+            animationSubmode: AnimationSubmode.pose,
+            onAnimationSubmode: (_) {},
+            activeTool: null,
+            onTool: (_) {},
+            viewport: const ColoredBox(
+              color: Color(0xFF000000),
+              child: SizedBox.expand(),
+            ),
+            properties: Column(
+              children: <Widget>[
+                // **Tappable, and that is not incidental.** The check only
+                // runs for a tile with an `onTap`/`onLongPress` or an opaque
+                // tile colour — `ListTile.build`, Flutter 3.47 — because
+                // those are the tiles whose background and ink an opaque
+                // ancestor would swallow. Every tile in the Scene panels has
+                // one; a decorative tile would make this test vacuous.
+                ListTile(title: const Text('Sources'), onTap: () {}),
+                SwitchListTile(
+                  value: true,
+                  onChanged: (_) {},
+                  title: const Text('Shadows'),
+                ),
+              ],
+            ),
+            status: const Text('status'),
+            actions: const <Widget>[Text('actions')],
+            documentName: 'untitled',
+            isDirty: false,
+          ),
+        ),
+      );
+
+      expect(tester.takeException(), isNull);
+      expect(find.text('Sources'), findsOne);
+    });
+
+    testWidgets('and every ready mode can be entered with asserts on', (
+      WidgetTester tester,
+    ) async {
+      for (final ModelerMode mode in ModelerMode.values) {
+        if (!mode.ready) continue;
+        await pumpShell(tester, mode: mode);
+        expect(
+          tester.takeException(),
+          isNull,
+          reason: '${mode.label} threw on the way in',
+        );
+      }
+    });
+  });
 }
