@@ -28,6 +28,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'job_runner.dart';
 import 'modeler_state.dart';
+import 'scene_sync.dart' show unshowableSaid;
 import 'staging.dart';
 import 'timeline_playback.dart';
 import 'ui/tools.dart';
@@ -217,8 +218,17 @@ final class ModelerCubit extends Cubit<ModelerState> {
     }
     now.stage.sync?.apply(now.project);
     now.stage.lighting?.sync(now.stage.scene, now.project.lighting);
+    // `ux-02`: this is the re-sync that used to throw a second time for an
+    // object the device had already refused, turning one failed import into
+    // a session where every later call answered with the same stack.
+    final String? unshowable = unshowableSaid(now.stage.sync?.unshowable);
     emit(
-      now.copyWith(agentCalls: calls, readiness: _readiness.of(now.project)),
+      now.copyWith(
+        agentCalls: calls,
+        readiness: _readiness.of(now.project),
+        said: unshowable,
+        saidIsImportant: unshowable != null,
+      ),
     );
   }
 
@@ -533,13 +543,18 @@ final class ModelerCubit extends Cubit<ModelerState> {
     // way a refused command already does — a message worth reading, not an
     // exception nothing catches.
     final String? overflow = now.stage.sync?.skeletonOverflow;
-    final String? message = overflow ?? said;
+    // `ux-02`: an object the device would not take is the same kind of news
+    // — worth reading, never an exception — and it has to reach a person,
+    // because the document counts its triangles either way and the viewport
+    // simply does not have it.
+    final String? unshowable = unshowableSaid(now.stage.sync?.unshowable);
+    final String? message = unshowable ?? overflow ?? said;
     emit(
       now.copyWith(
         readiness: _readiness.of(now.project),
         said: message,
         clearSaid: message == null,
-        saidIsImportant: overflow != null,
+        saidIsImportant: overflow != null || unshowable != null,
       ),
     );
   }

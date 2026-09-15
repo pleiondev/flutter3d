@@ -87,12 +87,21 @@ base class ToolTableServer<S, A> extends MCPServer with ToolsSupport {
             : (Stopwatch()..start());
         final A answer = await offered.run(session, arguments);
         stopwatch?.stop();
-        onCall?.call(
-          offered.name,
-          arguments,
-          answer,
-          stopwatch?.elapsed ?? Duration.zero,
-        );
+        // **A watcher never fails a call.** [onCall] is somebody else's
+        // screen, redrawn beside this server; whatever it does with the news
+        // is its own business and none of the client's. `ux-02` found out
+        // what the alternative costs: a re-sync inside this hook threw for an
+        // object a device had refused, so the *answer* — already computed,
+        // already correct — came back to the agent as a stack trace instead,
+        // and did so again for every call after it.
+        try {
+          onCall?.call(
+            offered.name,
+            arguments,
+            answer,
+            stopwatch?.elapsed ?? Duration.zero,
+          );
+        } catch (_) {}
         return toResult(answer);
       });
     }

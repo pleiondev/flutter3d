@@ -22,6 +22,10 @@ import 'package:flutter3d_modeler/src/ui/tools.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart';
 
+// `ux-02`'s own refusing device, declared beside the sync tests it was
+// written for rather than copied.
+import 'scene_sync_test.dart' show RefusingDevice;
+
 /// A project of [count] cubes, named `a`, `b`, …
 ModelProject cubes(int count) {
   var project = const ModelProject();
@@ -932,6 +936,66 @@ void main() {
       // of these throws before the device is up, which is the window between
       // `runApp` and the first frame.
       expect(cubit.state, isA<ModelerOpening>());
+    });
+  });
+
+  group('ux-02: an object the device will not take', () {
+    ({ModelerCubit cubit, RefusingDevice device}) openedOnRefusingDevice() {
+      final it = cpuTestDevice(width: 8, height: 8);
+      final device = RefusingDevice(it.device, refuseFirst: 0);
+      final history = ModelHistory(cubes(1));
+      // The refusing device stands only where a geometry upload happens —
+      // the stage's own `SceneSync`. The renderer gets the real one: it
+      // wants a shader library and every other thing a device has, none of
+      // which this is standing in for, and nothing here draws a frame.
+      final stage = ModelerStage.fromProject(
+        device: device,
+        project: history.project,
+      );
+      final cubit = ModelerCubit()
+        ..opened(
+          history,
+          renderer: Renderer.create(device: it.device),
+          stage: stage,
+        );
+      return (cubit: cubit, device: device);
+    }
+
+    test('a command whose object will not upload says so, and lands', () {
+      final it = openedOnRefusingDevice();
+      it.device.refuseEverything = true;
+
+      // Mutation: let the upload throw out of `SceneSync.apply`. `ran` then
+      // throws from inside the cubit, the command is left half-applied as
+      // far as anything watching can tell, and the window is unusable.
+      it.cubit.ran(const AddPrimitive(kind: 'box'));
+
+      expect(ready(it.cubit).project.objects, hasLength(2));
+      expect(ready(it.cubit).said, contains('could not be shown'));
+      expect(ready(it.cubit).saidIsImportant, isTrue);
+    });
+
+    test('and the agent feed answers the next call rather than throwing', () {
+      final it = openedOnRefusingDevice();
+      it.device.refuseEverything = true;
+      it.cubit.ran(const AddPrimitive(kind: 'box'));
+
+      // The live run's own sequence: the import threw, and every call after
+      // it threw again from this same re-sync. Mutation: re-raise here and
+      // the second call below never returns.
+      it.cubit.agentToolCalled(
+        AgentToolCall(
+          tool: 'list',
+          arguments: const <String, Object?>{},
+          did: true,
+          says: 'two objects',
+          elapsed: Duration.zero,
+          at: DateTime(2026, 1, 1),
+        ),
+      );
+
+      expect(ready(it.cubit).agentCalls, hasLength(1));
+      expect(ready(it.cubit).said, contains('could not be shown'));
     });
   });
 }

@@ -20,11 +20,21 @@ class ObjectRow extends StatelessWidget {
     required this.object,
     required this.selected,
     required this.onTap,
+    this.unshowable,
   });
 
   final ModelObject object;
   final bool selected;
   final VoidCallback onTap;
+
+  /// Why this object is in the document but not in the viewport, when it is
+  /// — `SceneSync.unshowable`'s own sentence for this id, `ux-02`'s row.
+  ///
+  /// Null on every ordinary row. **The list is where this belongs as much as
+  /// the status line is.** A status line says it once; a person who has
+  /// scrolled past it is left with a project whose triangle count includes an
+  /// object nothing draws, and no way to tell which one.
+  final String? unshowable;
 
   @override
   Widget build(BuildContext context) {
@@ -38,7 +48,9 @@ class ObjectRow extends StatelessWidget {
       child: Semantics(
         button: true,
         selected: selected,
-        label: object.name,
+        label: unshowable == null
+            ? object.name
+            : '${object.name}, could not be shown',
         child: InkWell(
           onTap: onTap,
           child: SizedBox(
@@ -76,6 +88,15 @@ class ObjectRow extends StatelessWidget {
                     ),
                   ),
                 ),
+                if (unshowable case final String says)
+                  Tooltip(
+                    message: says,
+                    child: Icon(
+                      Icons.visibility_off_outlined,
+                      size: 14,
+                      color: theme.colorScheme.tertiary,
+                    ),
+                  ),
               ],
             ),
           ),

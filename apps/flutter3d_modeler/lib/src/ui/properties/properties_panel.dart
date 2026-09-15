@@ -485,6 +485,10 @@ class PropertiesPanel extends StatelessWidget {
               object: object,
               selected: selection.objects.contains(object.id),
               onTap: () => onSelect(object.id),
+              // `ux-02`: read off the live sync rather than carried through
+              // the state, because it is the sync that knows and it is
+              // rebuilt on the same pass the emit that rebuilds this follows.
+              unshowable: stage.sync?.unshowable[object.id],
             ),
         ],
         if (held != null &&
