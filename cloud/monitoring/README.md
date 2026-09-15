@@ -72,24 +72,19 @@ list, for the same reasons.
    awkward — the point is a 600-mode file with one line in it, never in this
    repository.)
 
-2. **nginx's basic auth** — a second, independent password on top of
-   Grafana's own:
-
-   ```bash
-   ssh bob "sudo htpasswd -c /etc/nginx/.htpasswd-grafana admin"
-   ```
-
-3. **nginx site** — `deploy/nginx-grafana.pleion.dev.conf` to
+2. **nginx site** — `deploy/nginx-grafana.pleion.dev.conf` to
    `/etc/nginx/sites-available/grafana.pleion.dev`, linked into
-   `sites-enabled`, `nginx -t && systemctl reload nginx`.
+   `sites-enabled`, `nginx -t && systemctl reload nginx`. No basic auth in
+   front of it — see the comment at the top of that file for why a first pass
+   had one and what it broke.
 
-4. **Tunnel** — `cloudflared tunnel create flutter3d-grafana`, the ID into
+3. **Tunnel** — `cloudflared tunnel create flutter3d-grafana`, the ID into
    `deploy/cloudflared-grafana.yml` copied to `/etc/cloudflared/grafana.yml`,
    then the DNS route **with the config and the UUID named explicitly** — see
    [cloud/README.md](../README.md)'s own tunnel step for what happens when
    `--config` is left off. Then enable `deploy/cloudflared-grafana.service`.
 
-5. **Deploy** — `cloud/monitoring/tool/deploy.sh`.
+4. **Deploy** — `cloud/monitoring/tool/deploy.sh`.
 
 ### Where it runs
 
@@ -99,8 +94,10 @@ list, for the same reasons.
 - **Prometheus** — `127.0.0.1:9091`, scraping `127.0.0.1:8794/metrics`
   directly; ufw admits nothing but SSH, the VPN ports and 80/443/8443, so
   9091 has no route in from outside the machine regardless
-- **Grafana** — `127.0.0.1:3001`
-- **nginx** — `127.0.0.1:8797`, basic auth, proxying to Grafana
+- **Grafana** — `127.0.0.1:3001`, sign-up and org-creation both off
+  (`GF_USERS_ALLOW_SIGN_UP`, `GF_USERS_ALLOW_ORG_CREATE`) — its own account
+  system is the only gate on this stack
+- **nginx** — `127.0.0.1:8797`, proxying straight through to Grafana
 - **Tunnel** — `cloudflared-grafana.service`
 
 ## What is not here

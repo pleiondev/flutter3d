@@ -37,11 +37,14 @@ services:
       GF_SERVER_HTTP_ADDR: 127.0.0.1
       GF_SERVER_HTTP_PORT: '3001'
       GF_SERVER_ROOT_URL: https://grafana.pleion.dev
+      # No self-service sign-up, no letting a signed-in viewer spin up a
+      # second org, no anonymous viewing. nginx proxies straight through with
+      # no auth of its own (see deploy/nginx-grafana.pleion.dev.conf and its
+      # comment on why a first pass that added one made logins here worse,
+      # not safer) — this account system is the only gate.
       GF_USERS_ALLOW_SIGN_UP: 'false'
+      GF_USERS_ALLOW_ORG_CREATE: 'false'
       GF_AUTH_ANONYMOUS_ENABLED: 'false'
-      # nginx already asks for a name and a password before a request reaches
-      # this container (see deploy/nginx-grafana.pleion.dev.conf) — this is
-      # the second, independent one Grafana itself keeps.
       GF_SECURITY_ADMIN_USER: admin
     env_file:
       # Not in this repository. Holds exactly one line,
