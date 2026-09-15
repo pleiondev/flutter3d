@@ -56,14 +56,19 @@ dev_dependencies:
   lints: ^6.0.0
   test: ^1.25.0
 
-# **Four packages by path, because none of them is on pub.dev yet.** The
+# **Seven packages by path, because none of them is on pub.dev yet.** The
 # geometry and format packages were split out after the 0.6.0 set went out and
-# go with the next one; the mesh and document layers are newer still. Until
-# they are published, a path is the only way to name them, and an override is
-# what makes the path win over the `^0.6.0` they ask of each other.
+# go with the next one; the mesh, rig, particle and cloth core layers are
+# newer still. Until they are published, a path is the only way to name them,
+# and an override is what makes the path win over the `^0.6.0` they ask of
+# each other. `flutter3d_rig`, `flutter3d_particles_core` and `flutter3d_cloth`
+# are here only because `flutter3d_model_core` now depends on them — nothing
+# in this service reads a rig, a particle system or a cloth solver directly.
+# `flutter3d_physics`, which `flutter3d_cloth` itself depends on, is already
+# published and needs no override.
 #
-# When the next set is published, these four lines go and the two dependencies
-# above become ordinary hosted ones.
+# When the next set is published, these seven lines go and the two
+# dependencies above become ordinary hosted ones.
 dependency_overrides:
   flutter3d_geometry:
     path: ../../packages/flutter3d_geometry
@@ -71,6 +76,12 @@ dependency_overrides:
     path: ../../packages/flutter3d_formats
   flutter3d_mesh:
     path: ../../packages/flutter3d_mesh
+  flutter3d_rig:
+    path: ../../packages/flutter3d_rig
+  flutter3d_particles_core:
+    path: ../../packages/flutter3d_particles_core
+  flutter3d_cloth:
+    path: ../../packages/flutter3d_cloth
   flutter3d_model_core:
     path: ../../packages/flutter3d_model_core
 

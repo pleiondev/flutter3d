@@ -217,6 +217,13 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.1.1"
+  flutter3d_cloth:
+    dependency: "direct overridden"
+    description:
+      path: "../../packages/flutter3d_cloth"
+      relative: true
+    source: path
+    version: "0.6.0"
   flutter3d_formats:
     dependency: "direct main"
     description:
@@ -242,6 +249,28 @@ packages:
     dependency: "direct main"
     description:
       path: "../../packages/flutter3d_model_core"
+      relative: true
+    source: path
+    version: "0.6.0"
+  flutter3d_particles_core:
+    dependency: "direct overridden"
+    description:
+      path: "../../packages/flutter3d_particles_core"
+      relative: true
+    source: path
+    version: "0.6.0"
+  flutter3d_physics:
+    dependency: transitive
+    description:
+      name: flutter3d_physics
+      sha256: "505644204f8144a69c33d2d538cb9510504aa77cd920f8d848d806f3ad5a0bdd"
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.6.0"
+  flutter3d_rig:
+    dependency: "direct overridden"
+    description:
+      path: "../../packages/flutter3d_rig"
       relative: true
     source: path
     version: "0.6.0"
