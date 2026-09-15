@@ -293,8 +293,10 @@ void main() {
     expect(GizmoDrag.start(handles, _oblique, Vector3(0.0, -1.0, 0.0)), isNull);
 
     // And the arrows themselves are all reachable from a camera like this one,
-    // or the miss above would be proving nothing.
-    for (final axis in GizmoAxis.values) {
+    // or the miss above would be proving nothing. The three that are axes:
+    // the fourth member is the middle box of a scale gizmo, which a move
+    // gizmo does not place and which runs along no direction at all.
+    for (final axis in GizmoAxis.three) {
       final target = axis.direction * 1.0;
       final hit = GizmoHit.nearest(handles, _oblique, _at(target, _oblique));
       expect(hit?.axis, axis, reason: 'the $axis arrow can be taken hold of');

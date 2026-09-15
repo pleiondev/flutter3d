@@ -326,6 +326,9 @@ class TransformSession {
       GizmoAxis.x => TransformAxis.x,
       GizmoAxis.y => TransformAxis.y,
       GizmoAxis.z => TransformAxis.z,
+      // The middle box says every axis at once, which is what `free` already
+      // means — the state a modal opens in before anybody presses X, Y or Z.
+      GizmoAxis.uniform => TransformAxis.free,
     };
     cubit.say(modal.says);
   }
