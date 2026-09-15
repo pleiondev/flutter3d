@@ -351,6 +351,8 @@ extension _FileHandling on _ModelerScreenState {
       context,
       document: document,
       profile: _history.project.profile,
+      // `ux-06`: the defaults read the format off the name.
+      fileName: name,
     );
     if (choice == null) return OpenRefused('import cancelled');
 
@@ -458,6 +460,7 @@ extension _FileHandling on _ModelerScreenState {
         context,
         document: document,
         profile: _history.project.profile,
+        fileName: picked.name,
       );
       if (choice == null) {
         _cubit.say('import cancelled');
@@ -887,18 +890,19 @@ extension _FileHandling on _ModelerScreenState {
     }
   }
 
-  /// "Open file" from the start screen — the same picker `_openFile` uses,
-  /// with the chosen path written into `RecentModels` on success.
+  /// "Open file" from the start screen — the same picker and the same import
+  /// screen the toolbar's own Open button uses, with the chosen path written
+  /// into `RecentModels` on success.
   ///
-  /// **A sibling of `_openFile` rather than a change to it.** `_openFile`'s
-  /// own body is mid-rewrite in a concurrent session's own uncommitted work
-  /// (extracting the shared `_openBytes` this file already calls) — adding a
-  /// line inside a function somebody else is simultaneously restructuring
-  /// is not a safe edit to make no matter how small, so this repeats the
-  /// picker call here instead of reaching into `_openFile`'s own body. The
-  /// toolbar's own "Open" button keeps calling plain `_openFile` and does
-  /// not record yet; folding the two into one recording path is a follow-up
-  /// once that rewrite lands.
+  /// **`ux-06`: through [_openBytes], like every other door.** This used to
+  /// call `openBytes` directly and skip the import screen entirely, behind a
+  /// comment about `_openFile` being mid-rewrite in a concurrent session —
+  /// work that is not in the tree and was not when the comment was written.
+  /// What it cost is the review's own worst first-hour finding: the start
+  /// screen is the shortest path to a file and the only one that silently
+  /// applied metres and no welding, so a scan opened there arrived a
+  /// thousand times too large and without topology, with nothing said about
+  /// either.
   Future<void> _openFileAndRemember(GraphicsDevice device) async {
     _cubit.say('choosing…');
     try {
@@ -907,36 +911,8 @@ extension _FileHandling on _ModelerScreenState {
         if (mounted) _cubit.say('nothing chosen');
         return;
       }
-      final opening = Stopwatch()..start();
-      final opened = await openBytes(
-        picked.bytes,
-        name: picked.name,
-        device: device,
-      );
-      opening.stop();
+      await _openBytes(picked.name, picked.bytes, device);
       if (!mounted) return;
-      switch (opened) {
-        case OpenRefused(:final String because):
-          _cubit.say(because);
-        case OpenedModel(
-          :final ModelProject project,
-          :final ModelerStage stage,
-        ):
-          final said = describeOpened(
-            name: picked.name,
-            objectCount: project.objects.length,
-            triangleCount: project.triangleCount,
-            materialCount: project.materials.length,
-            openedInMs: opening.elapsedMilliseconds,
-          );
-          _installOpened(
-            ModelHistory(project),
-            stage,
-            documentName: picked.name,
-            said: <String>[said, ...opened.warnings].join('\n'),
-            forgetSurfaces: true,
-          );
-      }
       // A browser's own PickedFile has no path — nothing to remember there,
       // and RecentModels reads that the same way a first launch does.
       if (picked.path case final String path) {
@@ -958,30 +934,12 @@ extension _FileHandling on _ModelerScreenState {
       _cubit.say('could not reopen $path; use Open file instead');
       return;
     }
-    final opening = Stopwatch()..start();
     final name = path.split(RegExp(r'[\\/]')).lastOrNull ?? path;
-    final opened = await openBytes(bytes, name: name, device: device);
-    opening.stop();
+    // Through [_openBytes] for `ux-06`'s own reason, the same as the door
+    // above: a file reopened from the recent list is a file being opened,
+    // and the unit and the cleanup are questions about it either way.
+    await _openBytes(name, bytes, device);
     if (!mounted) return;
-    switch (opened) {
-      case OpenRefused(:final String because):
-        _cubit.say(because);
-      case OpenedModel(:final ModelProject project, :final ModelerStage stage):
-        final said = describeOpened(
-          name: name,
-          objectCount: project.objects.length,
-          triangleCount: project.triangleCount,
-          materialCount: project.materials.length,
-          openedInMs: opening.elapsedMilliseconds,
-        );
-        _installOpened(
-          ModelHistory(project),
-          stage,
-          documentName: name,
-          said: <String>[said, ...opened.warnings].join('\n'),
-          forgetSurfaces: true,
-        );
-    }
     RecentModels().remember(path, exists: pathExists);
   }
 
