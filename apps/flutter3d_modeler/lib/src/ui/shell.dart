@@ -324,29 +324,30 @@ class ModelerModeSwitcher extends StatelessWidget {
       SegmentedButton<ModelerMode>(
         showSelectedIcon: false,
         segments: <ButtonSegment<ModelerMode>>[
+          // **`ux-07`: a mode that is not ready is not on the bar at all.**
+          // It used to be drawn and disabled, on the reasoning that what the
+          // modeller is going to be should be visible from the first build
+          // rather than arriving as a surprise. The live run cost that
+          // reasoning its case: the switcher reads as eight unlabelled
+          // icons, three of them look active, and pressing one of the three
+          // does nothing a person can tell from a press that missed. A
+          // roadmap belongs on the site, not in the one control a person
+          // uses every minute.
           for (final ModelerMode each in ModelerMode.values)
-            ButtonSegment<ModelerMode>(
-              value: each,
-              // `ui-23`'s own pass: `tooltip:` below sets
-              // `SemanticsNode.tooltip`, not `.label` — wrapping the icon is
-              // what actually names the segment for a screen reader, since
-              // `showSelectedIcon: false` above means there is no visible
-              // `Text` label for its semantics to merge from.
-              icon: Semantics(
-                label: each.label,
-                child: Icon(each.icon, size: 15),
+            if (each.ready)
+              ButtonSegment<ModelerMode>(
+                value: each,
+                // `ui-23`'s own pass: `tooltip:` below sets
+                // `SemanticsNode.tooltip`, not `.label` — wrapping the icon
+                // is what actually names the segment for a screen reader,
+                // since `showSelectedIcon: false` above means there is no
+                // visible `Text` label for its semantics to merge from.
+                icon: Semantics(
+                  label: each.label,
+                  child: Icon(each.icon, size: 15),
+                ),
+                tooltip: each.label,
               ),
-              // Only phase one answers. The rest are drawn and
-              // refused, so that what the modeller is going to be is
-              // visible from the first build rather than arriving as a
-              // surprise — and so a person who presses one is told it
-              // is coming rather than left wondering whether they
-              // missed a setting.
-              enabled: each.ready,
-              tooltip: each.ready
-                  ? each.label
-                  : '${each.label} — phase ${each.phase}',
-            ),
         ],
         selected: <ModelerMode>{mode},
         onSelectionChanged: (Set<ModelerMode> picked) => onMode(picked.first),

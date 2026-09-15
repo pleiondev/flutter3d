@@ -136,26 +136,27 @@ void main() {
       },
     );
 
-    testWidgets('a mode past phase one is shown and refused', (
+    testWidgets('a mode past phase one is not on the bar at all', (
       WidgetTester tester,
     ) async {
       final asked = <ModelerMode>[];
       await pumpShell(tester, onMode: asked.add);
 
-      // Sculpt is phase four. It is on the bar — a mode that was missing
-      // altogether would read as a mode nobody had planned — and pressing it
-      // does nothing.
-      await tester.tap(
-        find.byIcon(ModelerMode.sculpt.icon),
-        warnIfMissed: false,
-      );
-      await tester.pump();
-      expect(asked, isEmpty);
+      // **This used to be "shown and refused", and `ux-07` reversed it.** The
+      // old reasoning was that a mode missing altogether would read as a mode
+      // nobody had planned. The live run cost that its case: the switcher is
+      // eight unlabelled icons, three of them look active, and pressing one
+      // of those three is indistinguishable from a press that missed. A
+      // roadmap belongs on the site, not in the one control a person uses
+      // every minute.
+      //
+      // Mutation: put the disabled segments back. `sculpt` is on the bar
+      // again and this finds it.
+      expect(find.byIcon(ModelerMode.sculpt.icon), findsNothing);
+      expect(find.byIcon(ModelerMode.uv.icon), findsNothing);
+      expect(find.byIcon(ModelerMode.render.icon), findsNothing);
 
-      // And the mesh mode, which is phase one, does answer. Mutation: drop the
-      // `enabled:` on the segment and both of these arrive, so a person in a
-      // half-built sculpt mode is looking at an empty rail and wondering what
-      // they broke.
+      // And the mesh mode, which is ready, is there and answers.
       await tester.tap(find.byIcon(ModelerMode.mesh.icon));
       await tester.pump();
       expect(asked, <ModelerMode>[ModelerMode.mesh]);
@@ -184,11 +185,12 @@ void main() {
       }
     });
 
-    testWidgets('uv, sculpt and render stay refused (ui-39d)', (
+    testWidgets('uv, sculpt and render are unreachable (ui-39d, ux-07)', (
       WidgetTester tester,
     ) async {
-      // `sculpt` alone was pinned above already; `uv` and `render` are the
-      // other two pro-mode rows this pass deliberately leaves out.
+      // One assertion per mode rather than one shared sweep: a switcher that
+      // hid `sculpt` and left the other two would pass a check that only
+      // looked for the first.
       for (final ModelerMode target in <ModelerMode>[
         ModelerMode.uv,
         ModelerMode.sculpt,
@@ -197,14 +199,12 @@ void main() {
         final asked = <ModelerMode>[];
         await pumpShell(tester, onMode: asked.add);
 
-        await tester.tap(find.byIcon(target.icon), warnIfMissed: false);
-        await tester.pump();
-
         expect(
-          asked,
-          isEmpty,
-          reason: '${target.label} should still be refused',
+          find.byIcon(target.icon),
+          findsNothing,
+          reason: '${target.label} is not built and should not be offered',
         );
+        expect(asked, isEmpty);
       }
     });
 

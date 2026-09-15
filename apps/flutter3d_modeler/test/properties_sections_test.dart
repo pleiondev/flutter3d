@@ -92,5 +92,19 @@ void main() {
         );
       }
     });
+
+    test('ux-07: material mode is not an empty screen', () {
+      final sections = sectionsFor(ModelerMode.material);
+
+      // The live run's own finding: the button was enabled, it switched, and
+      // it showed Display/View/Budget and nothing else — materials were
+      // edited in Object mode, with no hint and no link.
+      //
+      // Mutation: fall through to the `_ => {}` default, which is what this
+      // did. Material mode shows the three cross-mode utility sections and
+      // nothing about materials at all.
+      expect(sections, contains(PropertiesSection.materials));
+      expect(sections, contains(PropertiesSection.objects));
+    });
   });
 }
