@@ -1,14 +1,21 @@
 /// `sceneFromProject` hangs a child under its parent, so a child under a
-/// moved parent is drawn where the viewport draws it.
+/// moved parent is drawn where the viewport draws it — and a snapshot draws on
+/// the device its caller hands it.
 ///
-///     flutter test test/scene_from_project_test.dart
+///     dart test test/scene_from_project_test.dart
 library;
 
-import 'package:flutter3d/flutter3d.dart';
+import 'package:flutter3d_core/flutter3d_core.dart';
+import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
-import 'package:flutter3d_render_job/flutter3d_render_job.dart';
-import 'package:flutter_test/flutter_test.dart';
+import 'package:test/test.dart';
 import 'package:vector_math/vector_math.dart';
+
+GraphicsDevice _cpuDevice(int width, int height) => CpuDevice(
+  width: width,
+  height: height,
+  shaders: CpuShaderLibrary(builtinCpuShaders()),
+);
 
 void main() {
   test('a child is placed through its parent, not from the world origin', () {
@@ -33,12 +40,11 @@ void main() {
       nextId: 3,
     );
 
-    final scene = sceneFromProject(project, cpuTileDevice(4, 4));
+    final scene = sceneFromProject(project, _cpuDevice(4, 4));
     final child = scene.meshes.firstWhere((MeshNode m) => m.name == 'child');
 
-    // Mutation: attach every object to the scene root, as the builder did.
-    // The child then stands at (0, 1, 0), three metres from where the
-    // viewport — which walks the hierarchy — draws it.
+    // Mutation: attach every object to the scene root. The child then stands
+    // at (0, 1, 0), three metres from where the viewport draws it.
     expect(child.parent?.name, 'parent');
     final at = child.worldMatrix.getTranslation();
     expect(at.x, closeTo(3, 1e-6));
@@ -49,7 +55,7 @@ void main() {
     final sizes = <(int, int)>[];
     GraphicsDevice counting(int width, int height) {
       sizes.add((width, height));
-      return cpuTileDevice(width, height);
+      return _cpuDevice(width, height);
     }
 
     final job = RenderSnapshotJob(
@@ -81,8 +87,8 @@ void main() {
     }
     job.finish();
 
-    // Mutation: build a `CpuDevice` inside the job again. The factory is
-    // never asked and a caller's device is silently ignored.
+    // Mutation: build a device inside the job. The factory is never asked
+    // and a caller's device is silently ignored.
     expect(sizes, hasLength(job.chunkCount));
   });
 }

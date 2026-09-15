@@ -8,6 +8,16 @@ rig as nodes and tracks and know nothing of a project; what went is a package
 boundary nothing outside the modeller ever crossed. `flutter3d_rig` was never
 published, so no pubspec outside this repository names it.
 
+**Accepted `flutter3d_render_job` too, and with it the second scene builder
+it carried.** `RenderSnapshotJob`, `RenderPreset` and `SnapshotCamera` — a
+tiled snapshot with a 2×2 supersample — live in `render_snapshot.dart`, and
+`sceneFromProject` is now the one walk over a project that both it and
+`renderProject` draw through; the two copies had already drifted on whether a
+material's own lighting model is read. The job now takes its `tileDevice`
+rather than defaulting to `CpuDevice`, because this package names no backend;
+the default was the only thing the old package needed Flutter for. Its tests
+live in `flutter3d_cpu`, beside `renderProject`'s, where a real device is.
+
 ## 0.6.0
 
 **A registered skeleton, and it is honest about that.** The package exists so

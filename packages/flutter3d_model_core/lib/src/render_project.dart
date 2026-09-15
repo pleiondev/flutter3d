@@ -2,38 +2,18 @@
 /// Flutter SDK behind it — `mcp-05n`'s own row, the render half of "an agent
 /// that can see the model" (`doc/model-editor-plan.md`).
 ///
-/// **A third copy of the same nine-line switch, and that is deliberate.**
-/// `apps/flutter3d_modeler/lib/src/scene_sync.dart`'s own `_dataOf` is the
-/// live viewport's — an application, and `flutter3d_model_core` may not
-/// depend on the application that owns it (`no package depends on an
-/// application`, `tool/structure/rules.dart`). `flutter3d_render_job/lib/src/
-/// scene_from_project.dart`'s own copy is a Flutter package's: it depends on
-/// `flutter: sdk` because `flutter3d`'s own re-export of the renderer still
-/// carries three Flutter-named symbols beside it — its own pubspec says so.
-/// This package starts under a bare `dart run`, which cannot resolve a graph
-/// with the Flutter SDK anywhere in it, so neither existing copy can be
-/// depended on here. Spelling the switch a third time costs nine lines; a
-/// fourth package built only to share them would cost more than that to
-/// read.
+/// **The scene comes from `sceneFromProject`, the one builder this package
+/// has.** A tiled snapshot (`RenderSnapshotJob`, beside this file) draws the
+/// same scene; what this adds is an agent's framing — seven named views fitted
+/// to the model — and two ways of shading it.
 ///
 /// **[renderProject] takes its device, rather than building a [CpuDevice] of
-/// its own — this file names no concrete backend at all.** `flutter3d_cpu`'s
-/// own `lib/` is Flutter-free, but its pubspec still dev-depends on
-/// `flutter3d_conformance` and `flutter3d_shaders` (real dependencies of
-/// theirs, for `conformance_test.dart` and `shader_names_test.dart`), and
-/// this workspace's shared lock resolves a dev dependency the same as a real
-/// one (`tool/structure/rules.dart`'s own `pubspecDependencies`, and the
-/// reason its doc comment gives: `dart test` resolves those too). A direct
-/// dependency on `flutter3d_cpu` would carry that chain straight into this
-/// package and `flutter3d_model_mcp` above it, both of which `dart run` has
-/// to resolve with no Flutter SDK on the machine at all. `TileDevice` in
-/// `flutter3d_render_job/lib/src/render_snapshot_job.dart` takes the same
-/// shape for the same underlying reason — a device is asked for, not built —
-/// though that package can still default it to [CpuDevice] because it is a
-/// Flutter package regardless. This one cannot default it to anything: the
-/// caller supplies a working [GraphicsDevice] factory, typically
-/// `flutter3d_cpu`'s own `cpuTileDevice`-shaped function, or a fake in a
-/// test that only wants to exercise the scene-building and framing logic.
+/// its own — this file names no concrete backend at all.** This package is
+/// the modeller's document layer: it starts under a bare `dart run` and says
+/// what a picture of a project is, not which backend draws it. The caller
+/// supplies a working [GraphicsDevice] factory — typically one over
+/// `flutter3d_cpu`'s `CpuDevice` — or a fake in a test that only wants the
+/// framing logic.
 library;
 
 import 'dart:math' as math;
@@ -43,6 +23,7 @@ import 'package:flutter3d_core/flutter3d_core.dart';
 import 'package:vector_math/vector_math.dart';
 
 import 'project.dart';
+import 'scene_from_project.dart';
 
 /// The six axis views plus a three-quarter angle.
 ///
@@ -167,8 +148,8 @@ final class RenderRequest {
 
   /// Object ids drawn tinted towards orange — an agent's own "this is the
   /// thing I mean" alongside a picture, in the same vocabulary `select`'s own
-  /// tool argument already names objects with. See [_materialFor] for why
-  /// the tint lives in `baseColor` rather than `emissive`.
+  /// tool argument already names objects with. See [_restyle] for why the
+  /// tint lives in `baseColor` rather than `emissive`.
   final Set<int> selection;
 }
 
@@ -186,23 +167,13 @@ final class RenderRefusal implements Exception {
   String toString() => 'RenderRefusal: $message';
 }
 
-/// Above this, a tile grid is the right answer — `pro-rn-02`'s own
-/// `RenderSnapshotJob` — and a single-shot agent tool is the wrong tool for
-/// the job it would be doing.
+/// Above this, a tile grid is the right answer — `RenderSnapshotJob` — and a
+/// single-shot agent tool is the wrong tool for the job it would be doing.
 const int _maxRenderDimension = 1024;
 
 /// [request.project] drawn from [request.view], as PNG bytes, on a device
 /// [deviceFactory] builds for the occasion — see this library's own doc
 /// comment for why that is a parameter rather than a [CpuDevice] built here.
-///
-/// **The two lights are the exact numbers three call sites now share.**
-/// `apps/flutter3d_modeler/lib/src/staging.dart`'s `ModelerStage.fromProject`
-/// (the live viewport), `flutter3d_render_job`'s `sceneFromProject` (the
-/// in-app snapshot job) and this function all point one directional light
-/// from `(-0.5, -1.0, -0.6)` at intensity 3.2 and a second from
-/// `(0.7, -0.3, 0.8)` at 1.1 — so a picture this function draws of a corner
-/// of a project reads the same brightness as the other two, without any of
-/// the three needing to import another to get it right.
 ///
 /// Throws [RenderRefusal] for a size outside 1×1..1024×1024, before
 /// [deviceFactory] is ever called.
@@ -234,42 +205,15 @@ Future<Uint8List> renderProject(
     fallbackNormal: fallbackNormal,
   );
 
-  final scene = Scene()
-    ..add(
-      LightNode(type: LightType.directional, name: 'key')
-        ..intensity = 3.2
-        ..setLocalForward(Vector3(-0.5, -1.0, -0.6)),
-    )
-    ..add(
-      LightNode(type: LightType.directional, name: 'fill')
-        ..intensity = 1.1
-        ..setLocalForward(Vector3(0.7, -0.3, 0.8)),
-    );
-
-  // Two passes, because an object may be listed before its parent: every
-  // node made first, then hung under its parent's node, or under the scene
-  // for an object with no parent or one the project no longer holds.
-  final nodes = <int, MeshNode>{
-    for (final ModelObject object in request.project.objects)
-      object.id: MeshNode(
-        DeviceMesh.upload(device, _meshDataOf(object.geometry)),
-        _materialFor(request, object),
-        name: object.name,
-      )..setLocalMatrix(object.transform),
-  };
-  for (final ModelObject object in request.project.objects) {
-    final node = nodes[object.id]!;
-    switch (nodes[object.parent]) {
-      case final MeshNode parent:
-        parent.add(node);
-      case null:
-        scene.add(node);
-    }
-  }
-
+  final scene = sceneFromProject(
+    request.project,
+    device,
+    restyle: (ModelObject object, Material material) =>
+        _restyle(request, object, material),
+  );
   final camera = CameraNode(name: 'renderProject');
   scene.add(camera);
-  _frame(camera, nodes.values, request.view);
+  _frame(camera, scene.meshes, request.view);
 
   final frame = renderer.render(
     width: width,
@@ -325,34 +269,21 @@ void _frame(
     ..lookAt(center);
 }
 
-/// The buffers a geometry draws as. See this library's own doc comment for
-/// why this switch has two other copies rather than one shared function.
-MeshData _meshDataOf(Geometry geometry) => switch (geometry) {
-  ParametricGeometry(:final shape) => shape.drawn.build(),
-  EditedGeometry(:final mesh) => mesh.toMeshData(),
-  ImportedGeometry(:final data) => data,
-  // A socket draws nothing — see `SocketGeometry`'s own doc comment.
-  SocketGeometry() => _emptyMesh,
-};
-
-final MeshData _emptyMesh = MeshData(
-  layout: VertexLayout.standard,
-  vertices: Float32List(0),
-  indices: Uint32List(0),
-);
-
-/// [object]'s material, from its project material and [request]'s own
-/// [RenderRequest.shading] and [RenderRequest.selection].
-Material _materialFor(RenderRequest request, ModelObject object) {
-  final base = _surfaceMaterialFor(request.project, object);
+/// [material], shaded the way [request] asks and tinted when [object] is in
+/// its selection.
+Material _restyle(
+  RenderRequest request,
+  ModelObject object,
+  Material material,
+) {
   final shaded = request.shading == RenderShading.normals
       ? Material(
-          name: base.name,
+          name: material.name,
           lighting: LightingModel.normals,
-          baseColor: base.baseColor,
-          doubleSided: base.doubleSided,
+          baseColor: material.baseColor,
+          doubleSided: material.doubleSided,
         )
-      : base;
+      : material;
   if (!request.selection.contains(object.id)) return shaded;
   // Blended into `baseColor` itself, not left to `emissive`: the CPU backend
   // only ever reads `Material.emissive` behind a bound `emissiveTexture`
@@ -373,31 +304,5 @@ Material _materialFor(RenderRequest request, ModelObject object) {
     metallic: shaded.metallic,
     roughness: shaded.roughness,
     doubleSided: shaded.doubleSided,
-  );
-}
-
-/// [object]'s first material slot, translated field for field into the
-/// engine's own [Material] — or a plain grey [Material] when it names none,
-/// the same fallback `MaterialPool.forObject` answers with as `clay()`.
-Material _surfaceMaterialFor(ModelProject project, ModelObject object) {
-  if (object.materialSlots.isEmpty) {
-    return Material(lighting: LightingModel.pbr);
-  }
-  final index = object.materialSlots.first;
-  if (index < 0 || index >= project.materials.length) {
-    return Material(lighting: LightingModel.pbr);
-  }
-  final surface = project.materials[index].surface;
-  return Material(
-    name: surface.name,
-    lighting:
-        surface.lightingModel ??
-        (surface.unlit ? LightingModel.unlit : LightingModel.pbr),
-    baseColor: surface.baseColor,
-    metallic: surface.metallic,
-    roughness: surface.roughness,
-    emissive: surface.emissive,
-    emissiveStrength: surface.emissiveStrength,
-    doubleSided: surface.doubleSided,
   );
 }

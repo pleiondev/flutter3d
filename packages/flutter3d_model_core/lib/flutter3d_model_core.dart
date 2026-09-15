@@ -60,6 +60,7 @@ export 'src/readiness.dart';
 export 'src/readiness_cache.dart';
 export 'src/render_project.dart';
 export 'src/render_sheet.dart';
+export 'src/render_snapshot.dart';
 export 'src/retarget_clip.dart';
 // The rig algorithms — bone-name mapping, rest-relative retargeting with a
 // two-bone-IK foot lock, automatic skin weights. They read a rig as nodes and
@@ -72,6 +73,7 @@ export 'src/rig/two_bone_ik.dart';
 export 'src/rig_issues.dart';
 export 'src/rig_job.dart';
 export 'src/rig_template.dart';
+export 'src/scene_from_project.dart';
 export 'src/scene_lighting.dart';
 export 'src/selection.dart';
 export 'src/shape_driver.dart';

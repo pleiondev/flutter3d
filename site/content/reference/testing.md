@@ -4,7 +4,7 @@ description: Four independent golden sets, mutation-checking every new test, det
 
 # Testing
 
-7443 tests across 43 packages and eight applications, counted the same way the `the document says how many tests there are` rule does: a scan of every `test(`/`testWidgets(` call. The rule holds `ARCHITECTURE.md` §13, the README and this page to the answer — the README went on saying 1242 across thirteen packages for as long as nothing compared it with anything. About thirty need a GPU; the [architecture](/core/architecture/) is what keeps the number that low.
+7443 tests across 42 packages and eight applications, counted the same way the `the document says how many tests there are` rule does: a scan of every `test(`/`testWidgets(` call. The rule holds `ARCHITECTURE.md` §13, the README and this page to the answer — the README went on saying 1242 across thirteen packages for as long as nothing compared it with anything. About thirty need a GPU; the [architecture](/core/architecture/) is what keeps the number that low.
 
 | Package | Tests | | Package | Tests |
 |---|---|---|---|---|
@@ -20,7 +20,7 @@ description: Four independent golden sets, mutation-checking every new test, det
 | `flutter3d_game_racing` | 223 | | `flutter3d_webgl` | 58 |
 | `flutter3d_game_platformer` | 221 | | `flutter3d_hardware` | 54 |
 | `apps/flutter3d_demo_platformer` | 198 | | `flutter3d_impeller` | 54 |
-| `flutter3d_cpu` | 72 | | `apps/flutter3d_demo_strategy` | 43 |
+| `flutter3d_cpu` | 80 | | `apps/flutter3d_demo_strategy` | 43 |
 | `apps/flutter3d_editor` | 204 | | `flutter3d_session` | 192 |
 | `apps/flutter3d_demo_racing` | 153 | | `pointer_lock` | 28 |
 | `flutter3d_physics` | 173 | | `flutter3d_webgpu` | 175 |
@@ -33,7 +33,7 @@ description: Four independent golden sets, mutation-checking every new test, det
 | `flutter3d_model_core` | 817 | | `flutter3d_model_mcp` | 93 |
 | | | | `flutter3d_net` | 14 |
 | | | | `flutter3d_net_webrtc` | 2 |
-| `flutter3d_render_job` | 8 | | `flutter3d_sim_mcp` | 7 |
+| | | | `flutter3d_sim_mcp` | 7 |
 | | | | `flutter3d_render_mcp` | 4 |
 | `flutter3d_mcp_kit` | 1 | | `flutter3d_build` | 54 |
 | | | | `apps/flutter3d_lesson_viewer` | 34 |

@@ -1,77 +1,149 @@
 /// `pro-rn-02`'s own row: a snapshot of a [ModelProject], drawn by the same
-/// renderer the live viewport uses, off the main viewport's own device so a
-/// snapshot never contends with it and never depends on one existing.
+/// renderer the live viewport uses, tile by tile, with a 2×2 supersample when
+/// asked for, on devices the caller supplies.
+///
+/// **The device is asked for, not built.** This package names no backend —
+/// the same rule `renderProject` beside it keeps — so a caller hands over a
+/// [TileDevice]: `flutter3d_cpu`'s `CpuDevice` for a snapshot that never
+/// contends with the viewport for a GPU, or whatever device a test wants to
+/// count. It used to be a package of its own that defaulted to `CpuDevice`,
+/// and that default was its only reason to exist.
 ///
 /// **The isolate question, decided the way `editInIsolate` already decided
 /// it.** `flutter3d_mesh`'s own `meshWorkStaysHere` answers "is this a build
 /// with no isolates in it" once, from `dart.library.js_interop`; reusing it
 /// here is what stops a second copy of the same environment check from
-/// drifting the day one of them is edited and the other is not. Native:
-/// the whole tile grid renders inside one `Isolate.run`, a value in and a
-/// value out, the same shape `editInIsolate` already uses for a mesh — which
-/// is also why [RenderSnapshotJob.run] does not report progress mid-flight
-/// on native, the same way `JobRequest.run` does not either. Web:
-/// `Isolate.run` is a stub, so [RenderSnapshotJob.run] instead steps the
-/// grid one tile at a time with a yield between them — "тайл за кадр на
-/// вебе" — and calls `onProgress` after each.
+/// drifting the day one of them is edited and the other is not. Native: the
+/// whole tile grid renders inside one `Isolate.run`, a value in and a value
+/// out — which is also why [RenderSnapshotJob.run] does not report progress
+/// mid-flight on native, the same way `JobRequest.run` does not either. Web:
+/// `Isolate.run` is a stub, so [RenderSnapshotJob.run] instead steps the grid
+/// one tile at a time with a yield between them and calls `onProgress` after
+/// each.
 ///
 /// **Chunked the same shape `apps/flutter3d_modeler/lib/src/job_runner.dart`'s
-/// own `Job<T>` already is, without importing it.** A package under
-/// `flutter3d_model_core` may not depend on the application that class lives
-/// in (`no package depends on an application`), so this cannot construct a
-/// `Job<T>` itself. What it can do, and does, is expose the same three
-/// pieces that class already asks any job for — [RenderSnapshotJob.chunkCount],
-/// a `Future<void> Function(int)` in [RenderSnapshotJob.renderTile], and a
-/// zero-argument `combine` in [RenderSnapshotJob.finish] — so a caller that
-/// already has `Job<T>` in scope (the application does) can build a
-/// `Job<Uint8List>` from `job.chunkCount` and `job.renderTile` and get that
-/// class's own progress and cancellation for free, rather than this one
-/// reimplementing either.
+/// own `Job<T>` already is, without importing it.** This package may not
+/// depend on the application that class lives in, so it exposes the three
+/// pieces that class asks any job for — [RenderSnapshotJob.chunkCount],
+/// [RenderSnapshotJob.renderTile] and [RenderSnapshotJob.finish] — and a caller
+/// with `Job<T>` in scope builds one from them and gets its progress and
+/// cancellation for free.
 library;
 
 import 'dart:isolate';
 import 'dart:typed_data';
 
-import 'package:flutter3d/flutter3d.dart';
-import 'package:flutter3d_cpu/flutter3d_cpu.dart'
-    show CpuDevice, CpuShaderLibrary, builtinCpuShaders;
+import 'package:flutter3d_core/flutter3d_core.dart';
 import 'package:flutter3d_mesh/flutter3d_mesh.dart' show meshWorkStaysHere;
-import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 import 'package:vector_math/vector_math.dart';
 
-import 'render_preset.dart';
+import 'project.dart';
 import 'scene_from_project.dart';
 
 /// Makes the device one tile of a snapshot is drawn on, [width] × [height].
 ///
-/// **A function, and a top-level or static one**, because on native the whole
-/// grid renders inside `Isolate.run` and this travels there with the project:
-/// a tear-off of a top-level function crosses an isolate, a closure over a
+/// **A top-level or static function**, because on native the whole grid
+/// renders inside `Isolate.run` and this travels there with the project: a
+/// tear-off of a top-level function crosses an isolate, a closure over a
 /// window's own device does not.
 typedef TileDevice = GraphicsDevice Function(int width, int height);
 
-/// A fresh [CpuDevice] per tile — the default, and the reason a snapshot
-/// never contends with the viewport for a GPU or needs a display at all.
-GraphicsDevice cpuTileDevice(int width, int height) => CpuDevice(
-  width: width,
-  height: height,
-  shaders: CpuShaderLibrary(builtinCpuShaders()),
-);
+/// Where a snapshot's camera stands and what it looks at.
+///
+/// `ModelProject` carries no camera of its own — a live viewport's
+/// `CameraNode` is the application's, not the document's — so a snapshot
+/// states one rather than inventing a default a caller would have to know to
+/// override. A value rather than a live [CameraNode], because each tile builds
+/// its own node on its own device, and a node built on one device cannot draw
+/// on another.
+final class SnapshotCamera {
+  const SnapshotCamera({
+    required this.position,
+    required this.target,
+    this.up,
+    this.projection = const PerspectiveProjection(),
+  });
+
+  /// Eye position, in world space.
+  final Vector3 position;
+
+  /// What the camera looks at — with [position], the look-at pair
+  /// `CameraNode.lookAt` takes.
+  final Vector3 target;
+
+  /// World up, or null for `CameraNode.lookAt`'s own default.
+  final Vector3? up;
+
+  /// Perspective by default; an orthographic turntable render asks for
+  /// [OrthographicProjection] just as validly.
+  final Projection projection;
+}
+
+/// What a [RenderSnapshotJob] is asked for.
+///
+/// **Not `RenderSettings` alone.** A live viewport already has a resolution —
+/// its window's — and never asks for more samples than one screen pixel. A
+/// snapshot has neither: its resolution is whatever the export dialog says,
+/// and supersampling is the one knob screen 12 used to call "samples" before
+/// the 2026-09-09 decision named it for what it is.
+final class RenderPreset {
+  const RenderPreset({
+    required this.width,
+    required this.height,
+    required this.camera,
+    this.ssaa = 1,
+    this.settings = const RenderSettings(),
+    this.tilesX = 1,
+    this.tilesY = 1,
+    this.clearColor,
+  }) : assert(width > 0 && height > 0, 'width and height must be positive'),
+       assert(
+         ssaa == 1 || ssaa == 2,
+         'ssaa must be 1 or 2 — this row asks for exactly those two, and a '
+         'tracer that would want more sits outside the plan (decision '
+         '2026-09-09)',
+       ),
+       assert(tilesX > 0 && tilesY > 0, 'a grid needs at least one tile'),
+       assert(
+         width % tilesX == 0,
+         'width must divide evenly by tilesX, or a tile would not be a '
+         'whole number of pixels wide',
+       ),
+       assert(
+         height % tilesY == 0,
+         'height must divide evenly by tilesY, or a tile would not be a '
+         'whole number of pixels tall',
+       );
+
+  /// The snapshot's own width, after any supersampling has been resolved back
+  /// down — the size the returned PNG is encoded at.
+  final int width;
+
+  final int height;
+
+  final SnapshotCamera camera;
+
+  /// 1 for no supersampling, 2 for a linear 2×2 supersample resolved back down
+  /// to [width] × [height].
+  final int ssaa;
+
+  /// Everything a frame already takes a setting for — bloom, shadows, ambient
+  /// occlusion, reflections. Reused as-is: a snapshot is still one frame.
+  final RenderSettings settings;
+
+  /// The grid a large snapshot renders as, one tile at a time — `pro-eng-04`'s
+  /// own [TiledProjection], stitched afterwards. `(1, 1)` is one tile the size
+  /// of the whole frame, the same code path with nothing to stitch.
+  final int tilesX;
+  final int tilesY;
+
+  final Vector4? clearColor;
+}
 
 /// A snapshot of [project] at [preset], each tile rendered on a device of its
 /// own from [tileDevice].
-///
-/// **The renderer is asked for a [GraphicsDevice], not a CPU one.** A tile is
-/// drawn, read back through [GraphicsDevice.readPixels] and stitched, and none
-/// of that names a backend; [cpuTileDevice] is the default because it needs no
-/// GPU, and a caller with a device it would rather render on — or a test with
-/// a counting fake — passes its own.
 final class RenderSnapshotJob {
-  RenderSnapshotJob(
-    this.project,
-    this.preset, {
-    this.tileDevice = cpuTileDevice,
-  });
+  RenderSnapshotJob(this.project, this.preset, {required this.tileDevice});
 
   final ModelProject project;
   final RenderPreset preset;
@@ -79,17 +151,16 @@ final class RenderSnapshotJob {
   /// Where each tile is drawn. See [TileDevice] for why it is a function.
   final TileDevice tileDevice;
 
-  /// One chunk per tile of [RenderPreset.tilesX] × [RenderPreset.tilesY] —
-  /// the grid a caller stepping through chunks on the web draws exactly one
-  /// tile per frame of.
+  /// One chunk per tile of [RenderPreset.tilesX] × [RenderPreset.tilesY] — the
+  /// grid a caller stepping through chunks on the web draws one tile per frame
+  /// of.
   int get chunkCount => preset.tilesX * preset.tilesY;
 
   /// Renders every tile and returns the encoded PNG.
   ///
-  /// [onProgress], when given, is told how far through [chunkCount] this is
-  /// — on the web, after every tile; on native, once, when the whole grid
-  /// finishes inside its own isolate, for the reason this library's own doc
-  /// comment gives.
+  /// [onProgress], when given, is told how far through [chunkCount] this is —
+  /// on the web after every tile, on native once, when the whole grid finishes
+  /// inside its own isolate.
   Future<Uint8List> run({void Function(double progress)? onProgress}) async {
     if (!meshWorkStaysHere) {
       final TileDevice device = tileDevice;
@@ -104,8 +175,7 @@ final class RenderSnapshotJob {
     for (var index = 0; index < chunkCount; index++) {
       await buffer.renderTile(project, preset, index);
       onProgress?.call((index + 1) / chunkCount);
-      // Yields the event loop between tiles rather than finishing the whole
-      // grid in one uninterrupted stretch — the whole reason a web build
+      // Yields the event loop between tiles — the whole reason a web build
       // chunks a job at all is so a frame can land between chunks.
       await Future<void>.delayed(Duration.zero);
     }
@@ -115,9 +185,7 @@ final class RenderSnapshotJob {
   _SnapshotBuffer? _buffer;
 
   /// Chunk [index]'s own share of the work, for a caller driving this job
-  /// through its own runner (`apps/flutter3d_modeler/lib/src/job_runner.dart`'s
-  /// `Job<T>`) rather than through [run] — see this library's own doc
-  /// comment for the shape that mirrors.
+  /// through its own runner rather than through [run].
   Future<void> renderTile(int index) async {
     final buffer = _buffer ??= _SnapshotBuffer(preset, tileDevice);
     await buffer.renderTile(project, preset, index);
@@ -139,8 +207,7 @@ final class RenderSnapshotJob {
 
 /// The whole grid, off this isolate — [Isolate.run]'s own computation on
 /// native. Top-level so the closure [RenderSnapshotJob.run] builds carries
-/// only [project], [preset] and [tileDevice], the same reason
-/// `editInIsolate`'s own `_apply` is top-level.
+/// only [project], [preset] and [tileDevice].
 Future<Uint8List> _renderAllTiles(
   ModelProject project,
   RenderPreset preset,
@@ -174,11 +241,10 @@ final class _SnapshotBuffer {
   final Uint8List _pixels;
 
   /// Renders tile [index] on its own fresh device and blits it into the
-  /// supersampled frame — the same eye and look-at as every other tile,
-  /// [TiledProjection] cropping this one's own share of the frustum
-  /// (`pro-eng-04`), the same shape
-  /// `packages/flutter3d/test/tiled_projection_stitch_test.dart` already
-  /// proves stitches back byte for byte.
+  /// supersampled frame — the same eye and look-at as every other tile, with
+  /// [TiledProjection] cropping this one's share of the frustum, the shape
+  /// `packages/flutter3d/test/tiled_projection_stitch_test.dart` proves
+  /// stitches back byte for byte.
   Future<void> renderTile(
     ModelProject project,
     RenderPreset preset,
@@ -188,12 +254,10 @@ final class _SnapshotBuffer {
     final tileY = index ~/ preset.tilesX;
 
     final device = tileDevice(tileWidth, tileHeight);
-    final albedo = _texel(device, const <int>[255, 255, 255, 255]);
-    final normal = _texel(device, const <int>[128, 128, 255, 255]);
     final renderer = Renderer.create(
       device: device,
-      fallbackAlbedo: albedo,
-      fallbackNormal: normal,
+      fallbackAlbedo: _texel(device, const <int>[255, 255, 255, 255]),
+      fallbackNormal: _texel(device, const <int>[128, 128, 255, 255]),
     );
 
     final scene = sceneFromProject(project, device);
@@ -250,9 +314,8 @@ final class _SnapshotBuffer {
     }
   }
 
-  /// The supersampled frame, downsampled (if [RenderPreset.ssaa] asks for
-  /// it) and encoded — `flutter3d_formats`' `encodeCompressedPng`, the real
-  /// compressor rather than the stored-block encoder golden tests use.
+  /// The supersampled frame, downsampled (if [RenderPreset.ssaa] asks for it)
+  /// and encoded with `flutter3d_formats`' `encodeCompressedPng`.
   Uint8List finish() {
     final resolved = preset.ssaa == 1
         ? _pixels
@@ -269,22 +332,15 @@ TextureHandle _texel(GraphicsDevice device, List<int> rgba) =>
       pixels: ByteData.sublistView(Uint8List.fromList(rgba)),
     )!;
 
-/// A plain box filter, [factor] × [factor] source pixels averaged per
-/// channel into one destination pixel — the downsampling half of "SSAA
-/// ×2" that `pro-rn-01`'s own benchmark named as missing: that row
-/// rendered straight into a target twice 4K's own linear size and called it
-/// an honest proxy for supersampling's *cost*, because this engine had
-/// "no dedicated supersampling flag" at the time it was measured. This is
-/// that flag's other half — the resolve a real supersample needs and a
-/// bigger render target alone does not give it.
+/// A plain box filter, [factor] × [factor] source pixels averaged per channel
+/// into one destination pixel — the resolve half of "SSAA ×2" that
+/// `pro-rn-01`'s benchmark named as missing when it rendered into a target
+/// twice 4K's linear size as a proxy for the cost.
 ///
-/// Averaged in the frame's own encoded space rather than in linear light.
-/// A gamma-correct resolve would look measurably better on a high-contrast
-/// edge; what this row asks for is "SSAA ×2 differs by under 1% of pixels"
-/// from the unsupersampled render, which a simple average already clears
-/// with room to spare (see the acceptance test's own measured percentage),
-/// and reaching for linear-light averaging before a golden asks for it
-/// would be solving a problem this row does not have yet.
+/// Averaged in the frame's own encoded space rather than in linear light: a
+/// gamma-correct resolve would look measurably better on a high-contrast edge,
+/// and the row asks only that ×2 differ from ×1 by under 1 % of pixels, which a
+/// plain average already clears.
 Uint8List _downsample(Uint8List src, int srcWidth, int srcHeight, int factor) {
   final dstWidth = srcWidth ~/ factor;
   final dstHeight = srcHeight ~/ factor;
@@ -296,8 +352,7 @@ Uint8List _downsample(Uint8List src, int srcWidth, int srcHeight, int factor) {
       for (var sy = 0; sy < factor; sy++) {
         final srcY = dy * factor + sy;
         for (var sx = 0; sx < factor; sx++) {
-          final srcX = dx * factor + sx;
-          final i = (srcY * srcWidth + srcX) * 4;
+          final i = (srcY * srcWidth + dx * factor + sx) * 4;
           r += src[i];
           g += src[i + 1];
           b += src[i + 2];
