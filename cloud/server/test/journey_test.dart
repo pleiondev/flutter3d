@@ -1169,4 +1169,166 @@ void main() {
       expect(searchedSentinel.map((m) => m.id), isNot(contains(glider.id)));
     },
   );
+
+  test('projects through the HTTP handler: create, list, rename, delete, '
+      'moving a model in, out and never into somebody else\'s', () async {
+    // Signed in as two already-registered, already-verified accounts from
+    // earlier tests in this file rather than registering fresh ones — every
+    // test here shares one IP's `registerPerIp` budget, and this file has
+    // already spent all five of them by this point.
+    final owner = _Browser(handler);
+    await owner.get('/login');
+    expect(
+      (await owner.post('/login', {
+        'email': 'source-save-owner@example.com',
+        'password': 'a perfectly cromulent password',
+      })).statusCode,
+      303,
+    );
+
+    // Signed out, the page redirects to sign in, the same as `/me` already
+    // does — and a signed-in visitor sees the nav link.
+    expect(
+      (await _Browser(handler).get('/projects')).headers['location'],
+      '/login?next=/projects',
+    );
+    expect(
+      await (await owner.get('/me')).readAsString(),
+      contains('My projects'),
+    );
+
+    await owner.get('/projects');
+    final created = await owner.post('/projects', {'title': 'Diorama Set'});
+    expect(created.statusCode, 303);
+    var projectPath = created.headers['location']!.split('?').first;
+    expect(projectPath, matches(RegExp(r'^/p/\d+-diorama-set$')));
+    final projectId = int.parse(
+      RegExp(r'^/p/(\d+)-').firstMatch(projectPath)!.group(1)!,
+    );
+
+    // It shows up in the owner's own list.
+    expect(
+      await (await owner.get('/projects')).readAsString(),
+      contains('Diorama Set'),
+    );
+
+    // A model, created standing alone, moves into the new project.
+    final uploaded = await owner.upload('diorama_piece.obj', _triangle);
+    final modelId =
+        (jsonDecode(await uploaded.readAsString())
+                as Map<String, Object?>)['id']!
+            as int;
+    final movedIn = await owner.post('/m/$modelId/move', {
+      'project': '$projectId',
+    });
+    expect(movedIn.statusCode, 303);
+
+    final withModel = await owner.get(projectPath);
+    expect(withModel.statusCode, 200);
+    expect(await withModel.readAsString(), contains('diorama piece'));
+
+    // Moving between two of the owner's own projects updates both pages'
+    // own listings — gone from the first, present in the second.
+    final secondCreated = await owner.post('/projects', {
+      'title': 'Second Shelf',
+    });
+    final secondPath = secondCreated.headers['location']!.split('?').first;
+    final secondId = int.parse(
+      RegExp(r'^/p/(\d+)-').firstMatch(secondPath)!.group(1)!,
+    );
+    final movedBetween = await owner.post('/m/$modelId/move', {
+      'project': '$secondId',
+    });
+    expect(movedBetween.statusCode, 303);
+    expect(
+      await (await owner.get(projectPath)).readAsString(),
+      isNot(contains('diorama piece')),
+    );
+    expect(
+      await (await owner.get(secondPath)).readAsString(),
+      contains('diorama piece'),
+    );
+
+    // Moved back to the first project for the rest of this test.
+    await owner.post('/m/$modelId/move', {'project': '$projectId'});
+
+    // Renaming changes the slug, and the old address still finds it.
+    final renamed = await owner.post('/p/$projectId/describe', {
+      'title': 'Renamed Diorama Set',
+      'description': 'A set of pieces.',
+    });
+    expect(renamed.statusCode, 303);
+    projectPath = renamed.headers['location']!.split('?').first;
+    expect(projectPath, '/p/$projectId-renamed-diorama-set');
+    final renamedPage = await owner.get(projectPath);
+    expect(renamedPage.statusCode, 200);
+    expect(await renamedPage.readAsString(), contains('Renamed Diorama Set'));
+
+    // Moving back out to personal empties the project's own list.
+    final movedOut = await owner.post('/m/$modelId/move', {'project': ''});
+    expect(movedOut.statusCode, 303);
+    final emptied = await owner.get(projectPath);
+    expect(await emptied.readAsString(), isNot(contains('diorama piece')));
+
+    // Another account gets 404 for every one of these — never 403, which
+    // would confirm the project exists to somebody who cannot see it. Signed
+    // in as yet another already-registered account, for the same reason the
+    // owner above is too.
+    final stranger = _Browser(handler);
+    await stranger.get('/login');
+    expect(
+      (await stranger.post('/login', {
+        'email': 'preview-owner@example.com',
+        'password': 'a perfectly cromulent password',
+      })).statusCode,
+      303,
+    );
+    expect((await stranger.get(projectPath)).statusCode, 404);
+    expect(
+      (await stranger.post('/p/$projectId/describe', {
+        'title': 'Stolen',
+      })).statusCode,
+      404,
+    );
+    expect((await stranger.post('/p/$projectId/delete', {})).statusCode, 404);
+    // Nor may the stranger move their own model into this project — the
+    // model is created straight through the repository, the same way the
+    // earlier repository-level test does, since it only needs to exist and
+    // belong to the stranger.
+    final strangerId = (await services.users.byEmail(
+      'preview-owner@example.com',
+    ))!.id;
+    final strangersModel = await services.models.create(
+      ownerId: strangerId,
+      title: "Stranger's Piece",
+      sourceFormat: 'obj',
+      triangleCount: 1,
+      source: StoredFile(
+        blobSha256: await blobs.put(
+          Uint8List.fromList(utf8.encode('strangers piece')),
+        ),
+        bytes: 10,
+        contentType: 'model/obj',
+        filename: 'strangers_piece.obj',
+      ),
+    );
+    final refused = await stranger.post('/m/${strangersModel.id}/move', {
+      'project': '$projectId',
+    });
+    expect(refused.statusCode, 404);
+    expect((await services.models.byId(strangersModel.id))!.projectId, isNull);
+    // And nothing about the owner's project changed underneath them.
+    expect((await owner.get(projectPath)).statusCode, 200);
+
+    // The owner deletes the project; its model, already moved out, is
+    // unaffected, and the project itself is gone.
+    final deleted = await owner.post('/p/$projectId/delete', {});
+    expect(deleted.statusCode, 303);
+    expect(deleted.headers['location'], '/projects?said=project-deleted');
+    expect((await owner.get(projectPath)).statusCode, 404);
+    expect(
+      await (await owner.get('/projects')).readAsString(),
+      isNot(contains('Renamed Diorama Set')),
+    );
+  });
 }

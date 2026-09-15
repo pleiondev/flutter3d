@@ -157,6 +157,23 @@ class ModelsRepository {
     return [for (final row in rows) _record(row)];
   });
 
+  /// Every model currently sitting in [projectId], most recently changed
+  /// first — a project's own page. **Who may ask is still not decided
+  /// here**, the same as [ofOwner]: the handler checks `canEditProject` on
+  /// the project before this is ever called.
+  Future<List<ModelRecord>> ofProject(int projectId) =>
+      _db.run((session) async {
+        final rows = await session.execute(
+          Sql.named('''
+        select $_columns from models m join users u on u.id = m.owner_id
+        where m.project_id = @project
+        order by m.updated_at desc
+      '''),
+          parameters: {'project': projectId},
+        );
+        return [for (final row in rows) _record(row)];
+      });
+
   /// Published models, newest first, [limit] at a time — the showcase's own
   /// list.
   ///

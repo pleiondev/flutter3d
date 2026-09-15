@@ -67,7 +67,7 @@ class MyModelsPage extends StatelessComponent {
           ], classes: 'empty')
         else
           ul([
-            for (final model in models) li([_Card(model: model)]),
+            for (final model in models) li([ModelCard(model: model)]),
           ], classes: 'cards'),
       ],
     );
@@ -111,8 +111,11 @@ class _UploadZone extends StatelessComponent {
   );
 }
 
-class _Card extends StatelessComponent {
-  const _Card({required this.model});
+/// A model as a card in a grid of them — what a cabinet's own list shows,
+/// and what a project's own page shows for the models inside it, so the two
+/// places a model turns up as a thumbnail never drift apart.
+class ModelCard extends StatelessComponent {
+  const ModelCard({required this.model, super.key});
 
   final ModelRecord model;
 

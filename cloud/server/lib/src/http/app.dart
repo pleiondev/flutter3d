@@ -16,12 +16,15 @@ import '../db/rate_limit.dart';
 import '../db/sessions_repository.dart';
 import '../domain/access.dart';
 import '../domain/model.dart';
+import '../domain/project.dart';
 import '../domain/user.dart';
 import '../pages/account_pages.dart';
 import '../pages/home.dart';
 import '../pages/model_page.dart';
 import '../pages/my_models.dart';
 import '../pages/plain_pages.dart';
+import '../pages/project_page.dart';
+import '../pages/projects_page.dart';
 import '../pages/settings_page.dart';
 import '../services.dart';
 import '../storage/inspect.dart';
@@ -530,6 +533,12 @@ Handler buildHandler(Services services) {
       final revisions = canEdit(model, viewer)
           ? await services.models.revisionsOf(model.id)
           : const <RevisionRecord>[];
+      // The owner's own projects, for the move form's select — the same
+      // owner-only fetch as `revisions` above, for the same reason: nobody
+      // else's page needs to know what projects the owner keeps.
+      final ownerProjects = canEdit(model, viewer)
+          ? await services.projects.ofOwner(model.ownerId)
+          : const <ProjectRecord>[];
       // `tut-19`'s own preview capture needs the source's current hash to
       // send as `x-source-sha256` — the same staleness guard
       // `/api/v1/models/<id>/preview` already checks it against. Fetched for
@@ -543,6 +552,7 @@ Handler buildHandler(Services services) {
           csrf: csrfOf(request),
           viewerAvailable: true,
           revisions: revisions,
+          ownerProjects: ownerProjects,
           sourceSha: source?.blobSha256 ?? '',
           said: request.url.queryParameters['said'],
         ),
@@ -573,6 +583,31 @@ Handler buildHandler(Services services) {
           }
         }
         return seeOther('/me?said=deleted');
+      });
+    })
+    ..post('/m/<id|[0-9]+>/move', (Request request, String id) async {
+      final form = await readForm(request);
+      return _editing(services, request, form, id, (model) async {
+        final raw = (form['project'] ?? '').trim();
+        int? targetId;
+        if (raw.isNotEmpty) {
+          targetId = int.tryParse(raw);
+          final target = targetId == null
+              ? null
+              : await services.projects.byId(targetId);
+          // Ownership of the target project is checked here, before
+          // `moveToProject` is ever called, so a foreign project reads as
+          // the same clean 404 every other ownership refusal on this page
+          // already gives — not a raw database error, and not a 403 that
+          // would confirm the project exists at all.
+          final viewer = await userOf(request);
+          if (target == null || !canEditProject(target, viewer)) {
+            return _notFound(request, viewer: viewer);
+          }
+        }
+        await services.models.moveToProject(model.id, targetId);
+        final updated = await services.models.byId(model.id);
+        return seeOther('${updated!.path}?said=moved');
       });
     })
     ..get('/files/<id|[0-9]+>/source', (Request request, String id) async {
@@ -621,6 +656,80 @@ Handler buildHandler(Services services) {
       // neither case can serve a file that is not this model's own.
       if (file == null) return _notFound(request, viewer: viewer);
       return _serveBlob(services, request, file, public: false);
+    });
+
+  // --- projects ---------------------------------------------------------------------
+
+  router
+    ..get('/projects', (Request request) async {
+      final user = await userOf(request);
+      if (user == null) return seeOther('/login?next=/projects');
+      return htmlPage(
+        ProjectsPage(
+          user: user,
+          csrf: csrfOf(request),
+          projects: await services.projects.ofOwner(user.id),
+          said: request.url.queryParameters['said'],
+        ),
+      );
+    })
+    ..post('/projects', (Request request) async {
+      final form = await readForm(request);
+      if (!formIsOurs(request, form, policy)) return _staleForm(request);
+      final user = await userOf(request);
+      if (user == null) return seeOther('/login?next=/projects');
+      final title = (form['title'] ?? '').trim();
+      final created = await services.projects.create(
+        ownerId: user.id,
+        title: title.isEmpty
+            ? 'Untitled project'
+            : (title.length > 80 ? title.substring(0, 80) : title),
+      );
+      return seeOther('${created.path}?said=project-created');
+    })
+    ..get('/p/<ref>', (Request request, String ref) async {
+      final viewer = await userOf(request);
+      final project = await _projectOf(services, ref);
+      // A project has no public side at all — `canEditProject` is also the
+      // whole of "may this viewer even see it", the same as
+      // `domain/access.dart` already says of it.
+      if (project == null || !canEditProject(project, viewer)) {
+        return _notFound(request, viewer: viewer);
+      }
+      if (ref != '${project.id}-${project.slug}') {
+        return Response.movedPermanently(project.path);
+      }
+      return htmlPage(
+        ProjectPage(
+          project: project,
+          viewer: viewer!,
+          csrf: csrfOf(request),
+          models: await services.models.ofProject(project.id),
+          said: request.url.queryParameters['said'],
+        ),
+      );
+    })
+    ..post('/p/<id|[0-9]+>/describe', (Request request, String id) async {
+      final form = await readForm(request);
+      return _editingProject(services, request, form, id, (project) async {
+        final title = (form['title'] ?? '').trim();
+        await services.projects.describe(
+          project.id,
+          title: title.isEmpty
+              ? project.title
+              : (title.length > 80 ? title.substring(0, 80) : title),
+          description: (form['description'] ?? '').trim(),
+        );
+        final updated = await services.projects.byId(project.id);
+        return seeOther('${updated!.path}?said=described');
+      });
+    })
+    ..post('/p/<id|[0-9]+>/delete', (Request request, String id) async {
+      final form = await readForm(request);
+      return _editingProject(services, request, form, id, (project) async {
+        await services.projects.delete(project.id);
+        return seeOther('/projects?said=project-deleted');
+      });
     });
 
   // --- settings ----------------------------------------------------------------------
@@ -735,6 +844,27 @@ Future<Response> _editing(
 Future<ModelRecord?> _modelOf(Services services, String ref) async {
   final id = int.tryParse(RegExp(r'^\d+').stringMatch(ref) ?? '');
   return id == null ? null : services.models.byId(id);
+}
+
+Future<Response> _editingProject(
+  Services services,
+  Request request,
+  Map<String, String> form,
+  String id,
+  Future<Response> Function(ProjectRecord project) change,
+) async {
+  if (!formIsOurs(request, form, services.cookies)) return _staleForm(request);
+  final user = await userOf(request);
+  final project = await services.projects.byId(int.parse(id));
+  if (project == null || !canEditProject(project, user)) {
+    return _notFound(request, viewer: user);
+  }
+  return change(project);
+}
+
+Future<ProjectRecord?> _projectOf(Services services, String ref) async {
+  final id = int.tryParse(RegExp(r'^\d+').stringMatch(ref) ?? '');
+  return id == null ? null : services.projects.byId(id);
 }
 
 Future<Response> _serveBlob(

@@ -30,6 +30,9 @@ const _sentences = <String, (String, String)>{
   ),
   'described': ('ok', 'Saved.'),
   'deleted': ('ok', 'Model deleted.'),
+  'moved': ('ok', 'Model moved.'),
+  'project-created': ('ok', 'Project created.'),
+  'project-deleted': ('ok', 'Project deleted.'),
   'name-saved': ('ok', 'Name saved.'),
 };
 

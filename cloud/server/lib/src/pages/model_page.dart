@@ -8,6 +8,7 @@ import 'package:jaspr/jaspr.dart';
 import '../db/models_repository.dart';
 import '../domain/access.dart';
 import '../domain/model.dart';
+import '../domain/project.dart';
 import '../domain/user.dart';
 import '../storage/inspect.dart';
 import 'format.dart';
@@ -22,6 +23,7 @@ class ModelPage extends StatelessComponent {
     required this.csrf,
     required this.viewerAvailable,
     this.revisions = const [],
+    this.ownerProjects = const [],
     this.sourceSha = '',
     this.said,
     super.key,
@@ -39,6 +41,12 @@ class ModelPage extends StatelessComponent {
   /// the caller already checked `canEdit`, since nobody else's page fetches
   /// them.
   final List<RevisionRecord> revisions;
+
+  /// The owner's own projects, for the move form's own select — only ever
+  /// non-empty when the caller already checked `canEdit`, the same as
+  /// [revisions]: nobody else's page needs to know what projects the owner
+  /// keeps.
+  final List<ProjectRecord> ownerProjects;
 
   /// The current source file's own `blobSha256` — `tut-19`'s own
   /// `data-source-sha`. Empty when the model somehow has no source file,
@@ -136,9 +144,10 @@ class ModelPage extends StatelessComponent {
         ),
         div([
           div([
-            if (editable)
-              _DescribeForm(model: model, csrf: csrf)
-            else if (model.description.isNotEmpty)
+            if (editable) ...[
+              _DescribeForm(model: model, csrf: csrf),
+              _MoveForm(model: model, csrf: csrf, projects: ownerProjects),
+            ] else if (model.description.isNotEmpty)
               p([Component.text(model.description)], classes: 'description')
             else
               p([Component.text('No description.')], classes: 'muted'),
@@ -253,6 +262,51 @@ class _DescribeForm extends StatelessComponent {
         ], classes: 'hint'),
       ], classes: 'field'),
       div([submit('Save')]),
+    ],
+  );
+}
+
+/// Where the model sits — one of the owner's own projects, or personal.
+/// Reads back as a plain 404 on the server side when the choice does not
+/// hold up, the same as every other ownership refusal on this page — this
+/// select only ever offers projects the owner actually has.
+class _MoveForm extends StatelessComponent {
+  const _MoveForm({
+    required this.model,
+    required this.csrf,
+    required this.projects,
+  });
+
+  final ModelRecord model;
+  final String csrf;
+  final List<ProjectRecord> projects;
+
+  @override
+  Component build(BuildContext context) => PostForm(
+    action: '/m/${model.id}/move',
+    csrf: csrf,
+    children: [
+      div([
+        label([Component.text('Project')], htmlFor: 'f-project'),
+        select(
+          [
+            option(
+              [Component.text('Personal — no project')],
+              value: '',
+              selected: model.projectId == null,
+            ),
+            for (final project in projects)
+              option(
+                [Component.text(project.title)],
+                value: '${project.id}',
+                selected: project.id == model.projectId,
+              ),
+          ],
+          name: 'project',
+          id: 'f-project',
+        ),
+      ], classes: 'field'),
+      div([submit('Move')]),
     ],
   );
 }
