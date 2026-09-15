@@ -657,12 +657,14 @@ void main() {
       workspace.deleteSync(recursive: true);
     });
 
-    test('looseAutoMap really does find nothing at all for this exact pair '
-        "of rigs (tut-13) — RiggedFigure.glb's own joint names follow "
-        "neither Mixamo's `mixamorig:` convention nor 3ds Max Biped's "
-        '`Bip01_` one, and their `_L_`/`_R_` side markers sit in the middle '
-        "of the name rather than at the very start looseAutoMap's own "
-        '`_looseSide` reads for either convention', () async {
+    test('looseAutoMap really does map this exact pair of rigs correctly — '
+        "tut-13, closed: RiggedFigure.glb's own joint names follow neither "
+        "Mixamo's `mixamorig:` convention nor 3ds Max Biped's `Bip01_` one, "
+        'and their generic body words (`torso`/`arm`/`leg`/`neck`) are in '
+        "neither of looseAutoMap's own synonym tables at all — its own "
+        'third matching path reads them by chain position instead, off '
+        "the trailing numeric index each of this file's own joint names "
+        'carries', () async {
       final starting = await case5StartingProject();
       final source = await case5RetargetSource();
       final targetSkeleton = starting.skeletons.single;
@@ -673,11 +675,19 @@ void main() {
         for (final id in targetSkeleton.joints) starting[id]!.name,
       ];
       final mapped = looseAutoMap(sourceNames, targetNames);
-      // Mutation: assert `mapped.isEmpty` were false instead. A widened
-      // `looseAutoMap` that started matching this file's own joint names
-      // would mean tut-13 had closed — worth celebrating, not a check this
+      // Mutation: assert `mapped.isEmpty` were true instead. A narrowed
+      // `looseAutoMap` that stopped matching this file's own joint names
+      // would mean tut-13 had reopened — worth catching, not a check this
       // test should pass by accident on a change nobody meant.
-      expect(mapped.isEmpty, isTrue);
+      expect(mapped.isEmpty, isFalse);
+      expect(mapped.length, case5ExpectedAutoMap.length);
+      for (final entry in case5ExpectedAutoMap.entries) {
+        expect(
+          mapped.targetOf(entry.key),
+          entry.value,
+          reason: '${entry.key} should auto-map onto ${entry.value}',
+        );
+      }
     });
 
     test('retargeting this exact pair of rigs with `lockFeet: true` (the '
@@ -698,7 +708,7 @@ void main() {
         sourceClip: source.clips.single,
         targetProject: starting,
         targetSkeleton: targetSkeleton,
-        boneMap: const BoneMap(case5BoneMapCorrections),
+        boneMap: const BoneMap(case5ExpectedAutoMap),
       );
       // Mutation: pass `lockFeet: false` here instead — the call would
       // still succeed either way, but the crash tut-12 named only ever
@@ -764,11 +774,10 @@ void main() {
     });
 
     test('building the scenario fresh against ModelSession — auto-mapping '
-        'first and finding nothing, entering the bone-map table\'s own '
-        'correction by hand, retargeting with `lockFeet` at its own default '
-        '(`true`, now that tut-12 is fixed), and extracting root motion "in '
-        'code" — reaches the exact project committed as case5.f3dproj, and '
-        'exports the exact case5.glb', () async {
+        'first and succeeding (tut-13), retargeting with `lockFeet` at its '
+        'own default (`true`, now that tut-12 is fixed), and extracting '
+        'root motion "in code" — reaches the exact project committed as '
+        'case5.f3dproj, and exports the exact case5.glb', () async {
       final path = '${workspace.path}/case5.f3dproj';
       final starting = await case5StartingProject();
       final session = ModelSession(ModelHistory(starting), path: path);

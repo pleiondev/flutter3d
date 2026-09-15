@@ -150,13 +150,17 @@ void main() {
       expect(boneMap.targetOf('Bip01_L_Thigh'), 'leftHip');
     });
 
-    test("RiggedFigure.glb's own joint names still map nothing at all — "
-        'the mid-name side is now recognised, but its body words '
-        '(`torso`/`arm`/`leg`/`neck`) are generic placeholders '
-        'disambiguated only by a trailing index (`arm_joint_L_1` = '
-        'shoulder, `arm_joint_L_2` = elbow, ...), a shape no dictionary '
-        'word lookup can read; a canary against silently believing this '
-        'closes `tut-13` for this file', () {
+    // `tut-13`, closed: `RiggedFigure.glb`'s own joint words
+    // (`torso`/`arm`/`leg`/`neck`) are generic placeholders in neither
+    // synonym table, disambiguated only by a trailing numeric chain index
+    // (`arm_joint_L_1` = shoulder, `arm_joint_L_2` = elbow, ...) — a third
+    // matching path, [_chainCanonicalOf] via `_looseCanonicalOf`, reads that
+    // shape by chain position now, so this file's own real nineteen joint
+    // names (decoded straight off `RiggedFigure.glb` while diagnosing this
+    // row, in this exact order) map onto all but the two toe-tip bones
+    // `RigTemplate.humanoid` has no joint for.
+    test("RiggedFigure.glb's own real joint names auto-map onto "
+        'RigTemplate.humanoid by chain position', () {
       final boneMap = looseAutoMap(<String>[
         'torso_joint_1',
         'torso_joint_2',
@@ -164,19 +168,66 @@ void main() {
         'neck_joint_1',
         'neck_joint_2',
         'arm_joint_L_1',
-        'arm_joint_L_2',
-        'arm_joint_L_3',
         'arm_joint_R_1',
+        'arm_joint_L_2',
         'arm_joint_R_2',
+        'arm_joint_L_3',
         'arm_joint_R_3',
         'leg_joint_L_1',
-        'leg_joint_L_2',
-        'leg_joint_L_3',
-        'leg_joint_L_5',
         'leg_joint_R_1',
+        'leg_joint_L_2',
         'leg_joint_R_2',
+        'leg_joint_L_3',
         'leg_joint_R_3',
+        'leg_joint_L_5',
         'leg_joint_R_5',
+      ], humanoidBoneNames);
+
+      expect(boneMap.length, 17);
+      expect(boneMap.targetOf('torso_joint_1'), 'hips');
+      expect(boneMap.targetOf('torso_joint_2'), 'spine');
+      expect(boneMap.targetOf('torso_joint_3'), 'chest');
+      expect(boneMap.targetOf('neck_joint_1'), 'neck');
+      expect(boneMap.targetOf('neck_joint_2'), 'head');
+      expect(boneMap.targetOf('arm_joint_L_1'), 'leftShoulder');
+      expect(boneMap.targetOf('arm_joint_L_2'), 'leftElbow');
+      expect(boneMap.targetOf('arm_joint_L_3'), 'leftWrist');
+      expect(boneMap.targetOf('arm_joint_R_1'), 'rightShoulder');
+      expect(boneMap.targetOf('arm_joint_R_2'), 'rightElbow');
+      expect(boneMap.targetOf('arm_joint_R_3'), 'rightWrist');
+      expect(boneMap.targetOf('leg_joint_L_1'), 'leftHip');
+      expect(boneMap.targetOf('leg_joint_L_2'), 'leftKnee');
+      expect(boneMap.targetOf('leg_joint_L_3'), 'leftAnkle');
+      expect(boneMap.targetOf('leg_joint_R_1'), 'rightHip');
+      expect(boneMap.targetOf('leg_joint_R_2'), 'rightKnee');
+      expect(boneMap.targetOf('leg_joint_R_3'), 'rightAnkle');
+      // The toe-tip bones: no joint on `RigTemplate.humanoid` for either to
+      // land on, dropped exactly the way a source bone the target lacks
+      // always is — not a chain-length mismatch this reading gets wrong.
+      expect(boneMap.targetOf('leg_joint_L_5'), isNull);
+      expect(boneMap.targetOf('leg_joint_R_5'), isNull);
+    });
+
+    // No false positives: `RobotExpressive.glb`'s own real joint names
+    // (decoded the same way) carry Blender-style numbered names of their
+    // own — `Middle1.L`, `Thumb2.R`, `Ring1.L` — where the number sits
+    // glued onto the word with no delimiter before the side suffix, the
+    // shape [_chainCanonicalOf] is built to never read (its own trailing
+    // index has to be a separate token). None of them should suddenly gain
+    // a chain-position mapping they have no business getting.
+    test("RobotExpressive.glb's own numbered finger joints are not "
+        'mistaken for a chain-index name', () {
+      final boneMap = looseAutoMap(<String>[
+        'Middle1.L',
+        'Middle2.L',
+        'Thumb.L',
+        'Thumb2.L',
+        'Palm1.L',
+        'Index.L',
+        'Index2.L',
+        'Palm3.L',
+        'Ring1.L',
+        'Ring2.L',
       ], humanoidBoneNames);
       expect(boneMap.isEmpty, isTrue);
     });

@@ -21,22 +21,24 @@
 /// rig, which is why [case5RetargetSource] reads it rather than the other
 /// file the plan names as a candidate.
 ///
-/// **`looseAutoMap` finds nothing at all for this file — a real limit, not
-/// a mistake in this case.** `RiggedFigure.glb`'s own joint names
-/// (`torso_joint_1`, `arm_joint_L_2`, `leg_joint_R_3`, and so on) follow
-/// neither Mixamo's `mixamorig:` convention nor 3ds Max Biped's `Bip01_`
-/// one, and its side markers (`_L_`/`_R_`) sit in the *middle* of a name
-/// rather than at the very start the way `looseAutoMap`'s own
-/// `_looseSide` reads for either convention — confirmed directly by running
-/// `looseAutoMap` on this file's own nineteen joint names against
-/// `RigTemplate.humanoid`'s seventeen and getting back an empty map, an
-/// assertion [runCase5Scenario] repeats every time this file runs so a
-/// future widening of `looseAutoMap`'s own synonym tables is caught rather
-/// than silently left stale. This is `tut-13`
-/// (`doc/modeler-tutorial-gaps.md`) — logged, not routed around: the case's
-/// own bone map below is entered by hand, the exact "correction" a person
-/// facing the same empty auto-map result would type into the retarget
-/// screen's own bone-map table.
+/// **`looseAutoMap` maps this file correctly — `tut-13`, closed.**
+/// `RiggedFigure.glb`'s own joint names (`torso_joint_1`, `arm_joint_L_2`,
+/// `leg_joint_R_3`, and so on) follow neither Mixamo's `mixamorig:`
+/// convention nor 3ds Max Biped's `Bip01_` one, and their generic body words
+/// (`torso`/`arm`/`leg`/`neck`) are in neither of `looseAutoMap`'s own
+/// synonym tables at all — disambiguated only by a trailing numeric chain
+/// index. `looseAutoMap` now reads that shape too, its own third matching
+/// path (`_chainCanonicalOf` in `bone_map.dart`, `packages/flutter3d_rig`):
+/// a body-part word plus a chain index, read by chain **position** —
+/// `arm_joint_L_1`/`_2`/`_3` land on `leftShoulder`/`leftElbow`/`leftWrist`
+/// in that order — rather than by any word lookup. [runCase5Scenario]
+/// repeats the check directly: auto-map this file's own nineteen joints
+/// against `RigTemplate.humanoid`'s seventeen and get back
+/// [case5ExpectedAutoMap] byte-for-byte, the seventeen pairs a person would
+/// once have typed in by hand plus the two toe-tip bones
+/// (`leg_joint_L_5`/`leg_joint_R_5`) correctly left unmapped — neither
+/// `RigTemplate.humanoid` nor this synonym table has anywhere for a toe to
+/// land. `doc/modeler-tutorial-gaps.md`'s own `tut-13` row is closed.
 ///
 /// **`lockFeet: true` (the default) — fixed, `tut-12`.** Calling
 /// [RetargetClipJobRequest.run] with `lockFeet: true` against this exact
@@ -118,14 +120,14 @@ Future<RetargetSource> case5RetargetSource({
 }
 
 /// `RiggedFigure.glb`'s own nineteen joint names, onto `RigTemplate
-/// .humanoid`'s seventeen — the bone-map table's own "correction" a person
-/// would type in by hand once `retarget.autoMap` comes back empty (`tut-13`,
-/// this file's own library comment). The two names with no entry here,
+/// .humanoid`'s seventeen — exactly what `looseAutoMap` itself now returns
+/// (`tut-13`, this file's own library comment), checked directly by
+/// [runCase5Scenario] rather than assumed. The two names with no entry here,
 /// `leg_joint_L_5`/`leg_joint_R_5`, are the file's own toe-tip bones —
 /// `RigTemplate.humanoid` has no toe joint for either to land on, so
 /// [retargetClip] simply drops their tracks, the documented behaviour for
 /// "a bone the source has and the target does not."
-const Map<String, String> case5BoneMapCorrections = <String, String>{
+const Map<String, String> case5ExpectedAutoMap = <String, String>{
   'torso_joint_1': 'hips',
   'torso_joint_2': 'spine',
   'torso_joint_3': 'chest',
@@ -171,22 +173,33 @@ Future<void> runCase5Scenario(ModelSession session) async {
 
   // 1. Auto-map first, the way screen 14's own "Auto-map" button runs
   // `looseAutoMap` over both skeletons' own joint names before anything
-  // else — this file's own library comment (`tut-13`) explains why the
-  // result is empty for this exact pair of rigs.
+  // else — this file's own library comment (`tut-13`, closed) explains why
+  // this exact pair of rigs now maps cleanly.
   final BoneMap autoMapped = looseAutoMap(sourceNames, targetNames);
-  if (!autoMapped.isEmpty) {
+  for (final MapEntry<String, String> expected
+      in case5ExpectedAutoMap.entries) {
+    if (autoMapped.targetOf(expected.key) != expected.value) {
+      throw StateError(
+        'expected looseAutoMap to map "${expected.key}" onto '
+        '"${expected.value}" (tut-13) — got '
+        '"${autoMapped.targetOf(expected.key)}" instead; if '
+        "looseAutoMap's own chain-index reading changed since this file "
+        'was written, update this case and its gap-journal row rather '
+        'than only this assertion',
+      );
+    }
+  }
+  if (autoMapped.length != case5ExpectedAutoMap.length) {
     throw StateError(
-      'expected looseAutoMap to map nothing at all for this pair of rigs '
-      '(tut-13) — got ${autoMapped.length} entries instead; if '
-      "looseAutoMap's own synonym tables grew wider coverage since this "
-      'file was written, update this case and its gap-journal row rather '
-      'than only this assertion',
+      'expected looseAutoMap to map exactly '
+      '${case5ExpectedAutoMap.length} joints for this pair of rigs '
+      '(tut-13) — got ${autoMapped.length} instead',
     );
   }
 
-  // 2. The bone-map table's own correction: entered by hand, the same way
-  // a person facing an empty auto-map result would type it in.
-  final BoneMap boneMap = const BoneMap(case5BoneMapCorrections);
+  // 2. The auto-mapped result, used directly — no hand correction needed
+  // any more, now that `tut-13` is closed.
+  final BoneMap boneMap = autoMapped;
 
   // 3. The real retarget, run directly rather than through `ModelerCubit
   // .retargetInBackground` (this file's own library comment) — `lockFeet`

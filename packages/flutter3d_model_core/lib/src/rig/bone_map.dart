@@ -248,19 +248,108 @@ bool _isUpperLetter(String char) => RegExp('[A-Z]').hasMatch(char);
   return null;
 }
 
+/// A centreline chain's own joints, in trailing-chain-index order (index 1
+/// first) — [_chainCanonicalOf]'s own table for a name shaped like
+/// `RiggedFigure.glb`'s own `torso_joint_1`/`torso_joint_2`/`torso_joint_3`
+/// or `neck_joint_1`/`neck_joint_2`: a generic body-part word too vague for
+/// [_looseCentrelineSynonyms] on its own (`torso` alone could be `hips`,
+/// `spine` or `chest`), disambiguated only by *where in the chain* the
+/// index places it, root first. A chain shorter than a caller's own highest
+/// index (there is no `torso_joint_4`) simply leaves that index unmapped —
+/// [_chainCanonicalOf] reads this by position, never guessing past the end.
+const Map<String, List<String>> _chainCentrelineWords = <String, List<String>>{
+  'torso': <String>['hips', 'spine', 'chest'],
+  'neck': <String>['neck', 'head'],
+};
+
+/// One limb's own chain, root-to-tip, the suffix each trailing index
+/// combines with the side into one of [humanoidBoneNames] — the same
+/// per-side reasoning [_chainCentrelineWords] gives for the centreline,
+/// applied to `arm_joint_L_1`/`_2`/`_3` (shoulder/elbow/wrist) and
+/// `leg_joint_L_1`/`_2`/`_3`/`_5` (hip/knee/ankle, `_5` past the end —
+/// `RiggedFigure.glb`'s own toe-tip bone, which has nowhere on
+/// [RigTemplate.humanoid] to land and is left unmapped exactly the way a
+/// source bone the target lacks always is).
+const Map<String, List<String>> _chainLimbWords = <String, List<String>>{
+  'arm': <String>['Shoulder', 'Elbow', 'Wrist'],
+  'leg': <String>['Hip', 'Knee', 'Ankle'],
+};
+
+/// [rawName] read as *this file's own* naming convention: a body-part word
+/// from [_chainCentrelineWords]/[_chainLimbWords] plus a numeric chain
+/// index as its own delimited token — `arm_joint_L_2`, not `UpperArm2` —
+/// disambiguated by chain **position** rather than by a synonym word, since
+/// `RiggedFigure.glb`'s own joint words (`torso`/`arm`/`leg`/`neck`) are
+/// generic placeholders that appear nowhere in either synonym table
+/// ([_looseCentrelineSynonyms]/[_looseLimbSynonyms]) and repeat once per
+/// chain segment with only the trailing index telling them apart — `tut-13`'s
+/// own second, narrower path, additional to (never replacing) the Mixamo/
+/// Biped/anywhere-in-name reading [_looseCanonicalOf] already tries first.
+///
+/// **The index must be its own token**, split off by [_looseTokens] the same
+/// delimiter-or-camelCase way every other loose reading in this file already
+/// splits — so a Blender-style number glued straight onto a word (`Spine1`,
+/// `Thumb2`, `Middle1`) never reaches this path at all: [_looseTokens] never
+/// separates a letter from a digit that already touch it with no delimiter
+/// between them, only [_chainCentrelineWords]/[_chainLimbWords] happen to
+/// answer for `spine`/`neck` too and only when a *separate* trailing token is
+/// a bare number, the shape those two-word names never take.
+///
+/// A limb chain also needs its own side marker as one of the tokens between
+/// the body word and the index (`arm_joint_L_1`'s own middle `L`) — found
+/// the same `l`/`r`/`left`/`right` way [_looseSideAnywhere] already reads
+/// one, but kept separate from it rather than reusing its return value,
+/// since [_looseSide] already tried and failed to resolve *this* name down
+/// to one of [_looseLimbSynonyms]' own bare words before this function is
+/// ever called, and re-deriving the side directly off [rawName] here is
+/// simpler than threading that earlier attempt's own leftover state through.
+String? _chainCanonicalOf(String rawName) {
+  final List<String> tokens = _looseTokens(_stripLoosePrefix(rawName));
+  if (tokens.length < 2) return null;
+  final String head = tokens.first.toLowerCase();
+  final String indexToken = tokens.last;
+  if (!RegExp(r'^[0-9]+$').hasMatch(indexToken)) return null;
+  final int index = int.parse(indexToken);
+  if (index < 1) return null;
+
+  final List<String>? centreline = _chainCentrelineWords[head];
+  if (centreline != null) {
+    return index <= centreline.length ? centreline[index - 1] : null;
+  }
+
+  final List<String>? limb = _chainLimbWords[head];
+  if (limb == null) return null;
+  bool? left;
+  for (final String token in tokens.sublist(1, tokens.length - 1)) {
+    left = switch (token.toLowerCase()) {
+      'left' => true,
+      'right' => false,
+      'l' => true,
+      'r' => false,
+      _ => null,
+    };
+    if (left != null) break;
+  }
+  if (left == null || index > limb.length) return null;
+  return (left ? 'left' : 'right') + limb[index - 1];
+}
+
 /// [rawName] read against [humanoidBoneNames] the loose way: a rig-family
 /// prefix stripped, a side detected by either convention above, and the
 /// remaining core word looked up in [_looseCentrelineSynonyms] (no side) or
 /// [_looseLimbSynonyms] (paired with the side into `left`/`right` plus a
-/// suffix) — or null when nothing in either table answers for it.
+/// suffix); when neither answers, [_chainCanonicalOf] gets a try at [rawName]
+/// directly — or null when nothing in any of the three answers for it.
 String? _looseCanonicalOf(String rawName) {
   final String afterPrefix = _stripLoosePrefix(rawName);
   final ({bool left, String core})? side = _looseSide(afterPrefix);
   if (side == null) {
-    return _looseCentrelineSynonyms[_lettersOnly(afterPrefix)];
+    return _looseCentrelineSynonyms[_lettersOnly(afterPrefix)] ??
+        _chainCanonicalOf(rawName);
   }
   final String? suffix = _looseLimbSynonyms[_lettersOnly(side.core)];
-  return suffix == null ? null : (side.left ? 'left' : 'right') + suffix;
+  if (suffix != null) return (side.left ? 'left' : 'right') + suffix;
+  return _chainCanonicalOf(rawName);
 }
 
 /// A synonym-and-prefix-tolerant [autoMap] — `anim-18`'s own row. Retargeting
@@ -278,6 +367,15 @@ String? _looseCanonicalOf(String rawName) {
 /// synonym tables carry every canonical name as an entry of its own — so a
 /// caller can reach for this in place of [autoMap] without losing anything
 /// the exact pass already caught.
+///
+/// **Three matching strategies, tried in order, per name** —
+/// [_looseCanonicalOf]'s own body: Mixamo/Biped's start-anchored side plus a
+/// dictionary word, a side found anywhere in the name plus the same
+/// dictionary, and, only once both of those answer nothing,
+/// [_chainCanonicalOf]'s own chain-position reading for a file like
+/// `RiggedFigure.glb` that names a joint by a generic body-part word and a
+/// numeric chain index rather than any word either synonym table knows —
+/// `tut-13`'s own closing piece.
 BoneMap looseAutoMap(List<String> sourceNames, List<String> targetNames) {
   final Map<String, String> targetByCanonical = <String, String>{
     for (final String target in targetNames)

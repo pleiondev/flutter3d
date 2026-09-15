@@ -1,6 +1,6 @@
 ---
 title: Borrowing a walk: retarget a clip
-summary: A real Khronos sample rig's own walk cycle, bone-mapped by hand onto case 4's character and landed as a second clip, root motion extracted along the way.
+summary: A real Khronos sample rig's own walk cycle, auto-mapped onto case 4's character and landed as a second clip, root motion extracted along the way.
 ---
 
 # Borrowing a walk: retarget a clip
@@ -9,8 +9,8 @@ summary: A real Khronos sample rig's own walk cycle, bone-mapped by hand onto ca
 "wave" clip on it already. **What you want:** a second clip, borrowed from a
 completely different rig, walking on this character's own bones.
 
-This is screen 14 — the clip library, bone mapping, corrections and
-blending T5's own `S7` built.
+This is screen 14 — the clip library, bone mapping and blending T5's own
+`S7` built.
 
 ## 1. Import a source clip
 
@@ -29,33 +29,10 @@ it off in its second one.
 `RiggedFigure.glb` loaded, this character on the right — placeholder, see
 the note at the end of this page)*
 
-## 2. Auto-map — and a real, empty result
+## 2. Auto-map — matched by chain position
 
-Press **Auto-map**. The bone-map table comes back with every row
-unmapped — checked directly while writing this case: `looseAutoMap` reads
-`torso_joint_1`, `arm_joint_L_2`, `leg_joint_R_3` and the rest against
-`RigTemplate.humanoid`'s own seventeen names and matches nothing at all.
-
-> **A real limit in `looseAutoMap`, not a mistake in this file — narrower
-> than it first looked.** `looseAutoMap` used to read a side marker
-> (`Left`/`L`) only at the very *start* of a bone's own name, once its own
-> prefix was stripped, so `RiggedFigure.glb`'s own mid-name markers
-> (`leg_joint_R_1`) went entirely unread. `_looseSide` now also reads a
-> side marker as a delimited token anywhere in the name — a rig spelling
-> its side the way Blender's own exporter does (`UpperArm_L`, `Thigh_R`)
-> auto-maps correctly today. `RiggedFigure.glb` itself still comes back
-> empty, for a different reason: its own joint words (`torso`/`arm`/
-> `leg`/`neck`) are generic placeholders `looseAutoMap`'s own synonym
-> tables have never carried a word for, and `arm_joint_L_1`/`_2`/`_3`
-> differ from each other only by a trailing chain index (shoulder/elbow/
-> wrist) that no word-lookup can read regardless of where the side marker
-> sits. This is `tut-13`, found writing this case; see the note at the end
-> of this page.
-
-## 3. Corrections — the bone-map table, by hand
-
-With auto-map empty, the correction is typing the seventeen rows in by
-hand — the exact table below, one line per row of the bone-map table:
+Press **Auto-map**. The bone-map table comes back with seventeen of its
+nineteen rows filled in already:
 
 | Source | Target |
 |---|---|
@@ -72,15 +49,26 @@ hand — the exact table below, one line per row of the bone-map table:
 | `leg_joint_L_3` / `leg_joint_R_3` | `leftAnkle` / `rightAnkle` |
 
 The source file's own two toe-tip bones (`leg_joint_L_5`/`leg_joint_R_5`)
-are left unmapped — `RigTemplate.humanoid` has no toe joint for either to
-land on, and `retargetClip` drops an unmapped source bone's track rather
-than guessing at one.
+stay unmapped — `RigTemplate.humanoid` has no toe joint for either to land
+on, and `retargetClip` drops an unmapped source bone's track rather than
+guessing at one. Nothing to type in by hand this time.
 
-*(screenshot: the retarget screen, bone-map table with all seventeen rows
-now filled in by hand, the two toe rows still empty and shown in the
-table's own "unmapped" colour — placeholder)*
+> **`tut-13`, closed: `looseAutoMap` now reads a chain by position, not
+> just a word.** `RiggedFigure.glb`'s own joint words (`torso`/`arm`/`leg`/
+> `neck`) are generic placeholders `looseAutoMap`'s own synonym tables
+> never carried, and `arm_joint_L_1`/`_2`/`_3` differ from each other only
+> by a trailing numeric chain index (shoulder/elbow/wrist) — a shape no
+> word lookup could read regardless of where the side marker sat, which is
+> as far as this case's own gap got before now. `looseAutoMap` reads a
+> third way today, alongside the Mixamo/Biped/anywhere-in-name synonym
+> lookups: a recognised body-part word (`torso`, `neck`, `arm`, `leg`) plus
+> its own trailing chain-index token, resolved by **position** in that
+> chain rather than by a synonym — root first, so `arm_joint_L_1` is always
+> the shoulder and `arm_joint_L_3` is always the wrist, on either side,
+> whichever limb. Confirmed directly against this file's own real
+> nineteen joint names, decoded straight off `RiggedFigure.glb`.
 
-## 4. Lock feet
+## 3. Lock feet
 
 **Lock feet** is on by default, and stays on. Turning it on for this exact
 pair of rigs used to throw a `RangeError` inside `flutter3d_rig`'s own
@@ -105,7 +93,7 @@ code** runs `ExtractRootMotion` on the clip's own hips track right after it
 lands, moving the translation into the clip's `flutter3dRootMotion` extra
 for the game code to read separately.
 
-## 5. Apply, and blend
+## 4. Apply, and blend
 
 **Apply** runs the retarget and lands the result as a **new** clip —
 `ApplyClipResult(clipIndex: null)` always appends, never replacing the
@@ -142,19 +130,19 @@ colour with "screenshot pending" on it, at
 `cloud/server/web/assets/learn/modeler/borrowing-a-walk/
 {01-clip-library,02-bone-map-and-viewports,03-blend-slider}.png` — standing
 in for the running app's own chrome (the two side-by-side viewports and the
-clip library card list, the bone-map table with its corrections typed in,
-the clip tracks bar and its blend slider). This session cannot open a macOS
-window (`flutter run -d macos` fails to foreground here, the same limit
-cases 1–4's own pages already document), so none of the three could be shot
-for real. To replace them on a real Mac:
+clip library card list, the bone-map table with its auto-mapped rows filled
+in, the clip tracks bar and its blend slider). This session cannot open a
+macOS window (`flutter run -d macos` fails to foreground here, the same
+limit cases 1–4's own pages already document), so none of the three could
+be shot for real. To replace them on a real Mac:
 
 1. `cd apps/flutter3d_modeler && flutter run -d macos --dart-define=mcpPort=0 -a --window=1440x900`
 2. `dart run tool/tutorial/bin/shoot.dart` against a scenario that: opens
    the retarget screen and imports `RiggedFigure.glb`, both viewports
-   visible (`01-clip-library`); types the seventeen bone-map corrections in
-   by hand, two toe rows left unmapped (`02-bone-map-and-viewports`); after
-   Apply, shows the clip tracks bar with both clips and the blend slider
-   partway between them (`03-blend-slider`).
+   visible (`01-clip-library`); presses Auto-map, seventeen rows filled in,
+   two toe rows left unmapped (`02-bone-map-and-viewports`); after Apply,
+   shows the clip tracks bar with both clips and the blend slider partway
+   between them (`03-blend-slider`).
 3. Copy the PNGs over the placeholders at the paths above and remove this
    note once they are real.
 
@@ -168,8 +156,8 @@ true here) already established that `render_project.dart` never mentions
 "skin" or "skeleton" at all, so every mesh draws at its raw bind-pose
 position regardless of which clip is on the project or what time within it
 a caller might have in mind. See `doc/modeler-tutorial-gaps.md` for that
-entry, alongside `tut-13` (`looseAutoMap` finds nothing for this file's own
-joint names) and the now-closed `tut-12` (the `lockFeet` crash).
+entry, alongside the now-closed `tut-13` (`looseAutoMap`'s chain-index
+reading) and `tut-12` (the `lockFeet` crash).
 
 **Proving it.** `packages/flutter3d_model_mcp/test/fixtures/tutorial/
 case5_scenario.dart` builds exactly the project this page describes, against
@@ -178,18 +166,19 @@ a live `ModelSession` seeded with case 4's own saved project
 app would — the same "starts from the previous case's own saved project"
 shape case 3 already uses for case 2). Its own `runCase5Scenario`: reads
 `RiggedFigure.glb` as a `RetargetSource`; confirms `looseAutoMap` really
-does find nothing for it (`tut-13`); builds the seventeen-row correction by
-hand as a plain `BoneMap`; calls `RetargetClipJobRequest.run()` directly
-(the "synchronous enough for a headless case" shape case 4's own
-`bindWeightsJobRequestFor` call already uses, rather than through
-`ModelerCubit.retargetInBackground`) with `lockFeet` left at its own
-default (`true`, now that `tut-12` is fixed); lands the result through
-`ApplyClipResult(clipIndex: null)`; and extracts root motion through
-`ExtractRootMotion` on the character's own hips joint.
+does map its seventeen mappable joints onto `RigTemplate.humanoid` correctly
+(`tut-13`, closed) and uses that result directly as the `BoneMap`; calls
+`RetargetClipJobRequest.run()` directly (the "synchronous enough for a
+headless case" shape case 4's own `bindWeightsJobRequestFor` call already
+uses, rather than through `ModelerCubit.retargetInBackground`) with
+`lockFeet` left at its own default (`true`, now that `tut-12` is fixed);
+lands the result through `ApplyClipResult(clipIndex: null)`; and extracts
+root motion through `ExtractRootMotion` on the character's own hips joint.
 `tutorial_scenarios_test.dart`'s own case-5 group checks six things:
-`looseAutoMap` really does return empty for this exact pair of rigs;
-retargeting the same pair with `lockFeet: true` no longer throws, and every
-mapped joint keeps all three of its own retargeted tracks — direct evidence
+`looseAutoMap` really does map this exact pair of rigs correctly, all
+seventeen pairs; retargeting the same pair with `lockFeet: true` no longer
+throws, and every mapped joint keeps all three of its own retargeted
+tracks — direct evidence
 `tut-12`'s fix keeps rather than collapses them; the case's own journal,
 replayed cold from case 4's own saved project, now rebuilds the exact
 document a live session reaches — `tut-14`, closed: `ApplyClipResult` is
