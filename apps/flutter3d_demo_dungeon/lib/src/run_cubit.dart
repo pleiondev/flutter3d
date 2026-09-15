@@ -78,16 +78,39 @@ final class Crawl {
   /// a newer one is never announced.
   int levels = 0;
 
+  /// Monsters killed since the player was last hurt. Whatever `kills` already
+  /// was for this crawl — see the note on this class for where that used to
+  /// be thrown away, and is not any more — this is the half it never had:
+  /// not how many, but how many *in a row*.
+  int streak = 0;
+
+  /// The longest [streak] this crawl has reached.
+  int bestStreak = 0;
+
   /// One step's worth.
-  void step(double dt, {required int killed}) {
+  ///
+  /// [hurt] overrides [killed] rather than combining with it: a step that
+  /// both lands a kill and takes a hit is a step the streak does not
+  /// survive, the same way a monster's last swing landing the step its own
+  /// death does still counts as having been hit. The kill is not lost from
+  /// [kills] — only from what would have carried the streak forward.
+  void step(double dt, {required int killed, required bool hurt}) {
     seconds += dt;
     kills += killed;
+    if (hurt) {
+      streak = 0;
+    } else {
+      streak += killed;
+    }
+    if (streak > bestStreak) bestStreak = streak;
   }
 
   void reset() {
     kills = 0;
     seconds = 0.0;
     levels = 0;
+    streak = 0;
+    bestStreak = 0;
   }
 }
 

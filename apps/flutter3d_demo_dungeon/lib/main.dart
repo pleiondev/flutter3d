@@ -1075,7 +1075,8 @@ class _GameScreenState extends State<GameScreen>
     // flash can be turned down without turning the camera down with it. A
     // full-screen flash on every hit is a photosensitivity question, which is
     // not the same harm as a camera that moves by itself.
-    if (events.any((GameEvent e) => e is PlayerHurt)) {
+    final hurt = events.any((GameEvent e) => e is PlayerHurt);
+    if (hurt) {
       _effects.hurt(_system.screenFlash);
     }
 
@@ -1110,7 +1111,11 @@ class _GameScreenState extends State<GameScreen>
     // is right for as long as nobody restarts and wrong from the first R. The
     // run owns it now, along with the clock, and `startFresh` empties both.
     if (events.any((GameEvent e) => e is ShotFired)) _weaponView.recoil();
-    _run.run.crawl.step(dt, killed: events.whereType<ActorDied>().length);
+    _run.run.crawl.step(
+      dt,
+      killed: events.whereType<ActorDied>().length,
+      hurt: hurt,
+    );
 
     final body = player.body;
     _weaponView.step(
@@ -1515,6 +1520,7 @@ class _GameScreenState extends State<GameScreen>
                     kills: _run.run.crawl.kills,
                     seconds: _run.run.crawl.seconds,
                     levels: _run.run.crawl.levels,
+                    bestStreak: _run.run.crawl.bestStreak,
                     touch: Playing.touch,
                   ),
                 ),
