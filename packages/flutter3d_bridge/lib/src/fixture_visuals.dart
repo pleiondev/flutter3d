@@ -248,11 +248,24 @@ final class FixtureVisuals {
     _pieces.add(_Piece(fixture, instance.root));
   }
 
+  /// `ap-12`'s own seam: a level document written before a game moved onto
+  /// the pipeline still names a plain bundle path (`assets/models/…`), and
+  /// that path is already exactly what it should be — loading it through
+  /// `loadModelAsset` would ask for a converted file nobody ever asked the
+  /// hook to write. Only a path a migrated game actually writes —
+  /// `assets_src/…`, [generatedAssetPathFor]'s own prefix — goes through
+  /// `ap-11`'s loader; every other caller keeps today's direct read, so
+  /// this one function serves both a migrated and an unmigrated game
+  /// without either knowing about the other's convention.
+  static const String _sourceDirPrefix = 'assets_src/';
+
   Future<ModelAsset?> _load(String path) async {
     try {
-      final document = await decodeModelInIsolate(
-        ModelLoadRequest(source: BundleAssetSource(path)),
-      );
+      final document = path.startsWith(_sourceDirPrefix)
+          ? await loadModelAsset(path)
+          : await decodeModelInIsolate(
+              ModelLoadRequest(source: BundleAssetSource(path)),
+            );
       // `await`, not a bare return: this returns a future, and a future
       // returned out of a `try` completes after the block has been left, so
       // the `catch` below never saw its failures. A model whose upload threw

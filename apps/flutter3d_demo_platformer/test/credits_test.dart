@@ -3,7 +3,7 @@
 ///     flutter test test/credits_test.dart
 ///
 /// **This is a licence condition, and it was being breached.** `penguin.glb`
-/// and `coin.glb` are CC BY 4.0; `assets/models/LICENSES.md` records that
+/// and `coin.glb` are CC BY 4.0; `assets_src/models/LICENSES.md` records that
 /// attribution "must appear wherever the game does"; and neither the
 /// application nor the web page contained the author's name, the licence or a
 /// link to it. It went unnoticed for the reason such things do — the file
@@ -51,7 +51,7 @@ void main() {
     //
     // The comparison is `flutter3d_screens`'s: it was these twelve lines in three
     // applications, down to the wording of the failures.
-    final gaps = creditGaps(Credits.models, shippedFrom: 'assets/models');
+    final gaps = creditGaps(Credits.models, shippedFrom: 'assets_src/models');
 
     expect(gaps.shipped, isNotEmpty, reason: 'no models found to check');
     expect(
@@ -73,8 +73,9 @@ void main() {
     // with no provenance. It was replaced by one this repository generates, so
     // the list is empty and the release blocker is gone.
     //
-    // The machinery stays: the next model dropped into `assets/models` is one
-    // somebody found somewhere, and the test above reads that directory.
+    // The machinery stays: the next model dropped into `assets_src/models`
+    // is one somebody found somewhere, and the test above reads that
+    // directory.
     expect(
       Credits.untraced,
       isEmpty,

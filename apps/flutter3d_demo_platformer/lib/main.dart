@@ -103,7 +103,7 @@ class _GameScreenState extends State<GameScreen>
   /// The clip machinery below stays wired: a model with clips still gets them,
   /// and this one has none, so the pose is `RunnerLooks` alone — which is what
   /// it was written for.
-  static const String _runnerModel = 'assets/models/penguin.glb';
+  static const String _runnerModel = 'assets_src/models/penguin.glb';
 
   /// Which way the model faces when nothing has turned it.
   ///
