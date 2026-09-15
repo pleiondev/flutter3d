@@ -1,3 +1,11 @@
+## Unreleased
+
+* **The readouts are in `bridge.dart`.** `LapReadout`, `PositionReadout` and
+  `ReadoutStyle` are widgets, and the simulation's barrel names no Flutter now;
+  import `package:flutter3d_game_racing/bridge.dart` for them.
+* The simulation imports `flutter3d_sim` by name rather than through
+  `flutter3d_game`, which this package no longer depends on.
+
 ## 0.6.0
 
 * **The determinism table was matched on a third and a fourth machine, and not

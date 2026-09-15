@@ -15,10 +15,10 @@
 /// mistakes were. Each takes a [ReadoutStyle], because where it sits and what
 /// colour it is are the game's business and not this package's.
 ///
-/// **This is the one file in this package that draws**, and the structure rule
-/// `a genre package draws only where it says` is about reaching the renderer
-/// rather than about Flutter: a widget is fine here, a `package:flutter3d/`
-/// import is not.
+/// **This is one of the two files under `src/` that belong to the visible
+/// half**, and `bridge.dart` exports it rather than the simulation's barrel: a
+/// genre's simulation library names neither Flutter nor the renderer, and a
+/// widget is Flutter.
 library;
 
 import 'package:flutter/widgets.dart';

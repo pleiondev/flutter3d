@@ -27,8 +27,9 @@ by `no_genre_test.dart` one layer down rather than left to everyone's memory.
 
 ## Nothing here draws
 
-No import reaches the renderer, and a test holds that line. `WeaponView` does
-draw, which is why it is in `bridge.dart` and not in the barrel — a package that
+No import in the simulation reaches the renderer or names Flutter, and
+`tool/structure.dart` holds that line. `WeaponView` draws and the readouts are
+widgets, which is why both are in `bridge.dart` and not in the barrel — a package that
 can be tested without a device is a package whose bugs are found in a second
 rather than in a screenshot.
 

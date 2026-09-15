@@ -1,3 +1,11 @@
+## Unreleased
+
+* **`bridge.dart`, and the readouts in it.** `PurseReadout`, `LivesStrip` and
+  `ReadoutStyle` are widgets, and the simulation's barrel names no Flutter now;
+  import `package:flutter3d_game_platformer/bridge.dart` for them.
+* The simulation imports `flutter3d_sim` by name rather than through
+  `flutter3d_game`, which this package no longer depends on.
+
 ## 0.6.0
 
 * **A floor, and no code.** The runner, the coins, the hazards and the

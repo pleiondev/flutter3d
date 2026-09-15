@@ -95,14 +95,14 @@ Collision shapes, a uniform-grid broadphase, sweeps and rays that do not tunnel,
 ### `flutter3d_game_shooter`
 Weapons, an arsenal, hitscan, projectiles and blasts, monsters with a six-state brain, an inventory, gifts and pickups, and `GameSimulation`, a shooter's step order.
 
-Three barrels: `flutter3d_game_shooter.dart` (nothing imports the renderer), `bridge.dart` (`WeaponView`, which does), and `sample.dart` (this repository's own roster, so the package itself ships no content).
+Three barrels: `flutter3d_game_shooter.dart` (nothing imports the renderer or names Flutter), `bridge.dart` (`WeaponView` and the readouts, which do), and `sample.dart` (this repository's own roster, so the package itself ships no content).
 
 → [What a shooter adds](/shooter/) · [Tutorial](/shooter/tutorial/)
 
 ### `flutter3d_game_platformer`
 `Runner` and `RunnerTuning`, `Surfaces`, `Purse`, collectibles, checkpoints, hazards, springs, one-way platforms, conveyors, crumbling and breakable blocks, climbables, crates, `Patrol`, `Leaper` and `Hunter` enemies, `FollowCamera`, and `PlatformerSimulation`.
 
-Nothing here imports the renderer, so all of it runs in a test with no device.
+The simulation's barrel imports neither the renderer nor Flutter, so all of it runs in a test with no device; the readouts are in `bridge.dart`.
 
 → [What a platformer adds](/platformer/) · [Tutorial](/platformer/tutorial/)
 

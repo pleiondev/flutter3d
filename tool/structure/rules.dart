@@ -151,17 +151,21 @@ List<Finding> _noSharedMutables() {
 bool _draws(String source) =>
     reaches(source, 'package:flutter3d/') || reaches(source, 'flutter_gpu');
 
+bool _namesFlutter(String source) =>
+    reaches(source, 'package:flutter/') || reaches(source, 'dart:ui');
+
 List<Finding> _genreIsolation() {
   final found = <Finding>[];
   for (final genre in genrePackages) {
     final dir = packages[genre];
     if (dir == null) continue;
     final mayDraw = genreMayDraw[genre] ?? const <String>{};
+    final visible = genreBridgeHalf[genre] ?? const <String>{};
 
     for (final file in dartFilesIn(Directory('${dir.path}/lib'))) {
       final path = relative(file, dir);
-      if (mayDraw.contains(path)) continue;
-      if (_draws(file.readAsStringSync())) {
+      final source = file.readAsStringSync();
+      if (!mayDraw.contains(path) && _draws(source)) {
         found.add(
           Finding(
             '$genre/$path',
@@ -169,6 +173,36 @@ List<Finding> _genreIsolation() {
                 'genreMayDraw and say why',
           ),
         );
+      }
+      if (!visible.contains(path) && _namesFlutter(source)) {
+        found.add(
+          Finding(
+            '$genre/$path',
+            'the simulation half names Flutter — a widget belongs to what '
+                'bridge.dart exports; move it there, or add it to '
+                'genreBridgeHalf and say why',
+          ),
+        );
+      }
+    }
+
+    // A file can keep to its half and still be handed over by the wrong door:
+    // the simulation's barrel exporting a widget puts Flutter in front of every
+    // caller that only wanted to step a run.
+    final barrel = File('${dir.path}/lib/$genre.dart');
+    if (barrel.existsSync()) {
+      final source = barrel.readAsStringSync();
+      for (final path in <String>{...mayDraw, ...visible}) {
+        final uri = path.replaceFirst('lib/', '');
+        if (reaches(source, "'$uri'")) {
+          found.add(
+            Finding(
+              '$genre/lib/$genre.dart',
+              'exports $uri, which belongs to the visible half — export it '
+                  'from bridge.dart',
+            ),
+          );
+        }
       }
     }
 
@@ -1175,6 +1209,11 @@ List<Finding> _exemptionsResolve() {
   for (final entry in genreMayDraw.entries) {
     for (final path in entry.value) {
       check('genreMayDraw', entry.key, path);
+    }
+  }
+  for (final entry in genreBridgeHalf.entries) {
+    for (final path in entry.value) {
+      check('genreBridgeHalf', entry.key, path);
     }
   }
   for (final entry in repeatableStepExempt.entries) {

@@ -164,6 +164,30 @@ const Map<String, Set<String>> genreMayDraw = <String, Set<String>>{
   'flutter3d_game_strategy': <String>{'lib/bridge.dart'},
 };
 
+/// Which files of a genre package belong to its visible half, and so may name
+/// Flutter.
+///
+/// **A genre's simulation is plain Dart in everything but its pubspec.** The
+/// package declares `flutter: sdk` because its readouts are widgets, and nothing
+/// stopped a widget, a `debugPrint` or a `MediaQuery` from arriving in the
+/// simulation beside them — the simulation a server replays and a test steps
+/// with no device. So the files that may name Flutter are listed here, the
+/// barrel the simulation is imported through may export none of them, and
+/// `bridge.dart` is where they are reached from.
+///
+/// Checked apart from [genreMayDraw], because a widget is Flutter without being
+/// a renderer.
+const Map<String, Set<String>> genreBridgeHalf = <String, Set<String>>{
+  'flutter3d_game_shooter': <String>{
+    'lib/bridge.dart',
+    'lib/src/hud.dart',
+    'lib/src/weapon_view.dart',
+  },
+  'flutter3d_game_racing': <String>{'lib/bridge.dart', 'lib/src/hud.dart'},
+  'flutter3d_game_platformer': <String>{'lib/bridge.dart', 'lib/src/hud.dart'},
+  'flutter3d_game_strategy': <String>{'lib/bridge.dart'},
+};
+
 /// Genre cameras that do not turn [CameraRig], and why.
 ///
 /// **The seam this protects was already built, which is exactly why it needs a
