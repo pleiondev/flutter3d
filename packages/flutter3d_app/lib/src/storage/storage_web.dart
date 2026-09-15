@@ -77,6 +77,11 @@ final class WebStorage implements Storage {
 Storage defaultStorage(String appName, {IssueSink? onIssue}) =>
     WebStorage(appName: appName, onIssue: onIssue);
 
+/// Always null in a browser: `localStorage` and IndexedDB are not a folder,
+/// and there is nothing for an application to offer to show. The native
+/// build's own copy answers with a real path — see `storage_native.dart`.
+String? applicationFolder(String appName) => null;
+
 extension on web.IDBRequest {
   /// This request as a future, completing on its first `success` or `error`
   /// event with [result] or [error] respectively.

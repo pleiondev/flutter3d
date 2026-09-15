@@ -485,6 +485,38 @@ final class ModelerCubit extends Cubit<ModelerState> {
     emit(now.copyWith(said: said, saidIsImportant: important));
   }
 
+  /// Autosave stopped working, for [reason], while writing into [folder].
+  ///
+  /// `ux-01`'s own row: says so in the status line, and keeps the reason on
+  /// the state so the line can go on offering the folder after the sentence
+  /// itself has been replaced by whatever happened next. An important `say`,
+  /// because a recovery copy that is not being written is precisely the news
+  /// a routine selection change must not bury.
+  void autosaveFailed(String reason, {String? folder}) {
+    final ModelerReady? now = _ready;
+    if (now == null) return;
+    emit(
+      now.copyWith(
+        said: 'Autosave is not working: $reason',
+        saidIsImportant: true,
+        autosaveTrouble: (reason: reason, folder: folder),
+      ),
+    );
+  }
+
+  /// Autosave is writing again — the mirror of [autosaveFailed], so the offer
+  /// to show the folder goes away with the trouble that raised it.
+  void autosaveRecovered() {
+    final ModelerReady? now = _ready;
+    if (now == null || now.autosaveTrouble == null) return;
+    emit(
+      now.copyWith(
+        said: 'Autosave is working again',
+        clearAutosaveTrouble: true,
+      ),
+    );
+  }
+
   /// Brings the scene to the project and the readiness with it.
   ///
   /// The three-in-one this class exists for. `SceneSync.apply` answers with how

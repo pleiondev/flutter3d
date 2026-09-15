@@ -85,6 +85,7 @@ class StatusLine extends StatelessWidget {
     this.modeSummary,
     this.micros,
     this.onExport,
+    this.onShowFolder,
   });
 
   /// What just happened, or what is selected when nothing has.
@@ -129,6 +130,17 @@ class StatusLine extends StatelessWidget {
   /// that has no export flow to hand it.
   final VoidCallback? onExport;
 
+  /// Opens the folder autosave is failing to write into — `ux-01`'s own
+  /// "Show folder", offered beside [said] only while
+  /// `ModelerReady.autosaveTrouble` holds a folder to show.
+  ///
+  /// **Beside the sentence rather than inside it.** "Autosave is not working:
+  /// no such file or directory" is already the longest thing this bar says,
+  /// and it is the one sentence a person is expected to act on rather than
+  /// read past; a button is the affordance, and it ellipsises away with the
+  /// text it belongs to rather than shoving the counts sideways.
+  final VoidCallback? onShowFolder;
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -152,11 +164,29 @@ class StatusLine extends StatelessWidget {
       children: <Widget>[
         Flexible(
           flex: 2,
-          child: Text(
-            said,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: small,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              Flexible(
+                child: Text(
+                  said,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: small,
+                ),
+              ),
+              if (onShowFolder case final VoidCallback show)
+                TextButton(
+                  onPressed: show,
+                  style: TextButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                    minimumSize: Size.zero,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    textStyle: small,
+                  ),
+                  child: const Text('Show folder'),
+                ),
+            ],
           ),
         ),
         // **Flexible, not fixed, and a test found out why.** A `Text` with

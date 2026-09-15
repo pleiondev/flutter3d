@@ -67,6 +67,34 @@ String _parent(String path) {
   return cut <= 0 ? trimmed : trimmed.substring(0, cut);
 }
 
+/// Makes sure the directory [file] is about to be written into exists.
+///
+/// **A name may hold a slash, and for a year nothing here noticed.** Both
+/// writes below created the application's own directory and then wrote into
+/// `$directory/$name` — right for `settings.json`, wrong for the modeller's
+/// own `autosave/<key>`, whose parent is a level deeper and which nothing
+/// ever created. The write then threw `No such file or directory` every time
+/// and reported it as a failure, which is exactly what a person saw: fifty-two
+/// "could not write autosave" lines in a few minutes, with the promise of a
+/// recovery copy still on the crash dialog. Creating the file's own parent
+/// rather than the root covers both shapes of name and costs one extra
+/// `createSync` on a directory that already exists.
+void _makeRoomFor(File file) =>
+    Directory(_parent(file.path)).createSync(recursive: true);
+
+/// Where [appName] keeps its documents on this platform, as a path — for an
+/// application offering to show somebody the folder a write failed in.
+///
+/// Null where the platform keeps nothing, the same answer
+/// [applicationDirectory] gives; the web build's own copy of this returns null
+/// always, since a browser has no folder to show.
+String? applicationFolder(String appName) => applicationDirectory(
+  appName: appName,
+  platform: defaultTargetPlatform,
+  environment: Platform.environment,
+  temporary: Directory.systemTemp.path,
+);
+
 /// Documents kept as files, one per name, in a directory this platform owns.
 final class FileStorage implements Storage {
   FileStorage({required this.appName, Directory? directory, IssueSink? onIssue})
@@ -117,7 +145,7 @@ final class FileStorage implements Storage {
       final where = directory;
       final file = _file(name);
       if (where == null || file == null) return false;
-      where.createSync(recursive: true);
+      _makeRoomFor(file);
       // Through a temporary file and a rename — see [writeFileAtomicallySync],
       // which is where this now lives because the level editor needed the same
       // thing and had written the unsafe version instead.
@@ -208,7 +236,7 @@ final class FileBinaryStorage implements BinaryStorage {
       final where = directory;
       final file = _file(name);
       if (where == null || file == null) return false;
-      where.createSync(recursive: true);
+      _makeRoomFor(file);
       writeBytesAtomicallySync(file.path, contents);
       return true;
     } catch (error) {

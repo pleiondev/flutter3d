@@ -33,11 +33,17 @@ import 'package:vector_math/vector_math.dart';
 final class FakeBinaryStorage implements BinaryStorage {
   final Map<String, Uint8List> documents = <String, Uint8List>{};
 
+  /// Refuses every write, the way a real storage with nowhere to write does —
+  /// `ux-01`'s own case, where the dialog used to promise a recovery copy
+  /// anyway.
+  bool refuse = false;
+
   @override
   Future<Uint8List?> read(String name) async => documents[name];
 
   @override
   Future<bool> write(String name, Uint8List contents) async {
+    if (refuse) return false;
     documents[name] = contents;
     return true;
   }
@@ -201,6 +207,83 @@ void main() {
     expect(storage.documents, isEmpty);
     expect(find.text('Something went wrong'), findsOneWidget);
     expect(find.textContaining('Command:'), findsNothing);
+  });
+
+  // `ux-01`: the live run ended a session in which not one autosave had been
+  // written, and this dialog still said "an emergency autosave was written".
+  testWidgets('a write that failed is said so, not promised', (
+    WidgetTester tester,
+  ) async {
+    const report = CrashReport(error: 'boom', stackTrace: StackTrace.empty);
+
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: CrashDialog(
+            report: report,
+            environment: 'Flutter, test',
+            autosaved: false,
+          ),
+        ),
+      ),
+    );
+
+    // Mutation: keep the one unconditional sentence. The dialog then makes
+    // the promise on the day it is false, which is the whole finding.
+    expect(find.textContaining('could not be written'), findsOneWidget);
+    expect(find.textContaining('save your work now'), findsOneWidget);
+    expect(find.textContaining('should not be lost'), findsNothing);
+  });
+
+  testWidgets('and a write that landed still says so', (
+    WidgetTester tester,
+  ) async {
+    const report = CrashReport(error: 'boom', stackTrace: StackTrace.empty);
+
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: CrashDialog(report: report, environment: 'Flutter, test'),
+        ),
+      ),
+    );
+
+    expect(find.textContaining('should not be lost'), findsOneWidget);
+  });
+
+  testWidgets('a storage that refuses reaches the dialog as the honest text', (
+    WidgetTester tester,
+  ) async {
+    final cubit = opened();
+    final storage = FakeBinaryStorage()..refuse = true;
+    final navigatorKey = GlobalKey<NavigatorState>();
+
+    await tester.pumpWidget(
+      MaterialApp(navigatorKey: navigatorKey, home: const Scaffold()),
+    );
+
+    // Not awaited: `handleCrash` only returns once the dialog it shows has
+    // been dismissed, and dismissing it is what this test does last.
+    unawaited(
+      handleCrash(
+        error: 'boom',
+        stackTrace: StackTrace.empty,
+        cubit: cubit,
+        storage: storage,
+        sessionId: 'crash-test-session',
+        environment: 'Flutter, test',
+        dialogContext: () => navigatorKey.currentContext,
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // Mutation: ignore what `emergencyAutosave` answered and pass `true`.
+    // The document really is not in the storage, and the dialog says it is.
+    expect(storage.documents, isEmpty);
+    expect(find.textContaining('could not be written'), findsOneWidget);
+
+    await tester.tap(find.text('Dismiss'));
+    await tester.pumpAndSettle();
   });
 
   test('describe() puts the command and the trail in one paragraph', () {

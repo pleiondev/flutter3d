@@ -429,6 +429,13 @@ class _ModelerScreenState extends State<ModelerScreen>
   /// subscription already expects.
   AutosaveController? _autosave;
 
+  /// Where the autosave's own storage says what it could not do — `ux-01`.
+  ///
+  /// Without a sink of its own a `FileBinaryStorage` prints and carries on,
+  /// which is how a whole session's worth of "no such file or directory" went
+  /// to the console while the status line said only "could not write".
+  final IssueLog _storageIssues = IssueLog();
+
   @override
   void initState() {
     super.initState();
@@ -439,9 +446,18 @@ class _ModelerScreenState extends State<ModelerScreen>
     _autosave = AutosaveController(
       cubit: _cubit,
       storage:
-          widget.autosaveStorage ?? defaultBinaryStorage('flutter3d_modeler'),
+          widget.autosaveStorage ??
+          defaultBinaryStorage(
+            'flutter3d_modeler',
+            onIssue: _storageIssues.add,
+          ),
       sessionId: _kAutosaveSessionId,
-      onIssue: (String said) => _cubit.say(said, important: true),
+      issues: _storageIssues,
+      onIssue: (String reason) => _cubit.autosaveFailed(
+        reason,
+        folder: applicationFolder('flutter3d_modeler'),
+      ),
+      onRecovered: _cubit.autosaveRecovered,
     );
     unawaited(_open());
     _lifecycle = AppLifecycleListener(onExitRequested: _onExitRequested);
