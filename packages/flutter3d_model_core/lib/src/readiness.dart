@@ -210,16 +210,16 @@ List<ExportIssue> _issuesWith(
     // issue telling somebody to throw away the parameters that let them change
     // the segment count. Do not add one.
     ParametricGeometry() => const <ExportIssue>[],
-    // Buffers with no topology behind them: there are no half-edges to walk,
-    // so the mesh checks below have nothing to ask — triangles are what
-    // arrived and triangles are what will be written. Morph targets are the
-    // one thing an imported mesh can carry that an edited or parametric one
-    // cannot yet, so they are the one thing checked here instead.
-    ImportedGeometry(:final data) => _morphTargetIssues(
-      object,
-      data,
-      maxTextureSize,
-    ),
+    // Buffers with no topology behind them: `MeshChecks` reads a half-edge
+    // mesh and a freshly imported buffer has none, so [_importedMeshIssues]
+    // builds one purely to ask the same three structural questions
+    // [_meshIssues] asks of an edited mesh, without turning this object into
+    // one. Morph targets are the one thing an imported mesh can carry that an
+    // edited or parametric one cannot yet, so they are checked here too.
+    ImportedGeometry(:final data) => <ExportIssue>[
+      ..._morphTargetIssues(object, data, maxTextureSize),
+      ..._importedMeshIssues(object, data, requireManifold: requireManifold),
+    ],
     EditedGeometry(:final EditMesh mesh) => <ExportIssue>[
       ..._meshIssues(
         object,
@@ -380,49 +380,107 @@ List<ExportIssue> _meshIssues(
   EditMesh mesh, {
   required bool trianglesOnly,
   required bool requireManifold,
+}) => <ExportIssue>[
+  ?(trianglesOnly ? _wideFaces(object, mesh) : null),
+  ..._structuralMeshIssues(
+    object,
+    MeshChecks(mesh),
+    requireManifold: requireManifold,
+  ),
+];
+
+/// Degenerate faces, pinched vertices and inside-out shells — the three
+/// `MeshChecks` questions both [_meshIssues] (an edited mesh) and
+/// [_importedMeshIssues] (a mesh built only to ask them) share. [_wideFaces]
+/// is not among them: it reads [EditMesh.valencyOf], which means a face
+/// somebody actually cut wide, not a triangle the target format can already
+/// hold — an imported mesh's own [MeshData] is triangles to begin with
+/// ([MeshData]'s constructor refuses anything else), so there is no wide
+/// face to ask about.
+List<ExportIssue> _structuralMeshIssues(
+  ModelObject object,
+  MeshChecks checks, {
+  required bool requireManifold,
+}) => <ExportIssue>[
+  // An error: a face standing on no area has no normal either, so a
+  // triangulated export writes a triangle whose normal is a division by zero.
+  // That is a NaN in a vertex buffer, and a NaN in a position or a normal is
+  // a model that disappears on some drivers and takes the draw call with it.
+  if (checks.degenerateFaces() case final MeshIssue issue)
+    ExportIssue(
+      ExportSeverity.error,
+      '"${object.name}" has ${_count(issue.ids.length, 'face', 'faces')} '
+      'with no area; they have no normal either, and what gets written for '
+      'them is arithmetic nothing downstream can use',
+      object: object,
+    ),
+  // A warning unless the profile requires a manifold: triangles are
+  // triangles, so a surface pinched at a point uploads and draws, and what
+  // it breaks — smoothing, thickening, printing, the vertex normal at the
+  // pinch — only matters to a profile that asked for a watertight mesh in
+  // the first place.
+  if (checks.nonManifoldVertices() case final MeshIssue issue)
+    ExportIssue(
+      requireManifold ? ExportSeverity.error : ExportSeverity.warning,
+      '"${object.name}" has '
+      '${_count(issue.ids.length, 'vertex', 'vertices')} where two pieces '
+      'of surface meet at a point and are joined nowhere else; the shading '
+      'there will be wrong and nothing downstream can thicken or subdivide '
+      'it',
+      object: object,
+    ),
+  // A warning for the same reason: it loads. With backface culling on, which
+  // is every engine's default, an inside-out shell is a model you can see
+  // straight through to the inside of, and it is the far side you see.
+  if (checks.invertedShells() case final MeshIssue issue)
+    ExportIssue(
+      ExportSeverity.warning,
+      '"${object.name}" has ${_count(issue.ids.length, 'face', 'faces')} in '
+      'a closed shell wound inside out; with backface culling on, which is '
+      'every engine default, you will see through it to the far side',
+      object: object,
+    ),
+];
+
+/// The same three structural questions [_meshIssues] asks of an edited mesh,
+/// asked of an imported one by building the half-edge mesh `MeshChecks`
+/// needs purely to ask them.
+///
+/// **Read-only, on purpose.** This does not touch [object]'s own stored
+/// geometry — it stays [ImportedGeometry], byte for byte, exactly as
+/// everything else that reads it already expects; only a throwaway
+/// [EditMesh] is built, asked, and dropped. Converting the object for real is
+/// still a choice a person or an agent makes (the weld checkbox, a mesh
+/// command), and this must not make it for them — a diagnosis that silently
+/// changed what "imported, unwelded" means for every other reader of the
+/// object would be a worse bug than the one it fixed.
+///
+/// **[importMeshData]'s own weld, at its strictest.** `weldEpsilon: 0.0`
+/// merges only vertices at the exact same position — the same choice
+/// `model_session.dart`'s own `_cleanedUpImport` makes when the weld
+/// checkbox is off — so this reports what the file's own coincident
+/// vertices already say and nothing a looser tolerance would have decided
+/// for it. It is also what a truly unwelded file already needs: a shared
+/// edge between two triangles in a `MeshData` with no index buffer of its
+/// own reuses the identical float bits for both copies of the vertex, so an
+/// exact-match weld reconstructs that sharing without guessing at anything a
+/// looser epsilon would have to.
+///
+/// **Silent on an empty mesh**, the same guard the pre-check above already
+/// gives its own error for — running [importMeshData] over nothing would
+/// only ask `MeshChecks` questions with no faces to answer them.
+List<ExportIssue> _importedMeshIssues(
+  ModelObject object,
+  MeshData data, {
+  required bool requireManifold,
 }) {
-  final checks = MeshChecks(mesh);
-  return <ExportIssue>[
-    ?(trianglesOnly ? _wideFaces(object, mesh) : null),
-    // An error: a face standing on no area has no normal either, so a
-    // triangulated export writes a triangle whose normal is a division by zero.
-    // That is a NaN in a vertex buffer, and a NaN in a position or a normal is
-    // a model that disappears on some drivers and takes the draw call with it.
-    if (checks.degenerateFaces() case final MeshIssue issue)
-      ExportIssue(
-        ExportSeverity.error,
-        '"${object.name}" has ${_count(issue.ids.length, 'face', 'faces')} '
-        'with no area; they have no normal either, and what gets written for '
-        'them is arithmetic nothing downstream can use',
-        object: object,
-      ),
-    // A warning unless the profile requires a manifold: triangles are
-    // triangles, so a surface pinched at a point uploads and draws, and what
-    // it breaks — smoothing, thickening, printing, the vertex normal at the
-    // pinch — only matters to a profile that asked for a watertight mesh in
-    // the first place.
-    if (checks.nonManifoldVertices() case final MeshIssue issue)
-      ExportIssue(
-        requireManifold ? ExportSeverity.error : ExportSeverity.warning,
-        '"${object.name}" has '
-        '${_count(issue.ids.length, 'vertex', 'vertices')} where two pieces '
-        'of surface meet at a point and are joined nowhere else; the shading '
-        'there will be wrong and nothing downstream can thicken or subdivide '
-        'it',
-        object: object,
-      ),
-    // A warning for the same reason: it loads. With backface culling on, which
-    // is every engine's default, an inside-out shell is a model you can see
-    // straight through to the inside of, and it is the far side you see.
-    if (checks.invertedShells() case final MeshIssue issue)
-      ExportIssue(
-        ExportSeverity.warning,
-        '"${object.name}" has ${_count(issue.ids.length, 'face', 'faces')} in '
-        'a closed shell wound inside out; with backface culling on, which is '
-        'every engine default, you will see through it to the far side',
-        object: object,
-      ),
-  ];
+  if (data.triangleCount == 0) return const <ExportIssue>[];
+  final (EditMesh mesh, _, _) = importMeshData(data, weldEpsilon: 0.0);
+  return _structuralMeshIssues(
+    object,
+    MeshChecks(mesh),
+    requireManifold: requireManifold,
+  );
 }
 
 /// "1 face" and "2 faces", because a panel that says "1 faces" reads as

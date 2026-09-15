@@ -112,6 +112,28 @@ void main() {
       expect(readiness.says, contains('two pieces of surface meet at a point'));
     });
 
+    test('the same defect reads before weld too, not only after — closing '
+        "tut-01's second half", () async {
+      // The exact fixture the gap named: `teapot.stl` imported with no
+      // weld/fixNormals/triangulate at all, so the object stays
+      // `ImportedGeometry` — the state the import dialog leaves it in
+      // before the weld checkbox runs, and the one `_issuesWith`'s own
+      // `ImportedGeometry` case used to answer with nothing but morph
+      // targets.
+      final session = ModelSession(ModelHistory(const ModelProject()));
+      final answer = await session.import(
+        '../flutter3d_samples/assets/teapot.stl',
+        options: const ImportOptions(scale: 0.001),
+      );
+      expect(answer.did, isTrue, reason: answer.says);
+      expect(session.project.objects.single.geometry, isA<ImportedGeometry>());
+
+      final readiness = ExportReadiness.check(session.project);
+      expect(readiness.canExport, isTrue);
+      expect(readiness.issues, hasLength(1));
+      expect(readiness.says, contains('two pieces of surface meet at a point'));
+    });
+
     test('cleanup finds nothing left to do once import has already welded', () {
       // Grounds the case page's own claim that `cleanup` is a real no-op
       // here, not a step the page merely asserts without checking: an

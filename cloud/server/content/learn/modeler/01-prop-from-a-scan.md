@@ -37,9 +37,11 @@ something by it, and the file does not say what. The import screen asks:
   tools). This file is already Y-up, so the default is correct.
 - Three checkboxes: **weld** coincident vertices, **fix normals**,
   **triangulate**. Leave weld on — an STL is a flat triangle soup with no
-  shared vertices at all until something welds them, and until that happens
-  the model is not a mesh the editor can diagnose or repair (see the note
-  below). Fix normals and triangulate are not needed here.
+  shared vertices at all until something welds them, and turning it into
+  real topology is what lets the editor's other mesh tools (**Clean up**, a
+  later edit) act on the object at all — not, any more, what lets it be
+  diagnosed; see the note below. Fix normals and triangulate are not needed
+  here.
 
 Choosing "mm" here is exactly `ImportUnit.millimetres` in
 `apps/flutter3d_modeler/lib/src/import_plan.dart`; the bounds preview the
@@ -49,22 +51,24 @@ real screen shows is `ImportPlan.scaledBounds` reading the file's own
 *(screenshot: the import dialog with "mm" chosen and the bounds preview —
 placeholder)*
 
-> **Why weld matters.** `ExportReadiness` only runs its mesh checks
-> (degenerate faces, pinched vertices, inside-out shells) against a mesh
-> that already has real topology — an `EditedGeometry` object. A file
-> straight off the STL loader is `ImportedGeometry`: a flat vertex buffer
-> with no shared edges, which the checks have nothing to walk. Leave "weld"
-> unchecked and the status line will read **"ready to export"** even though
-> the mesh underneath has real problems — this is a known gap in the
-> readiness system itself (`tut-01` in `doc/modeler-tutorial-gaps.md`), not
-> something this case invented. Welding on import is what makes diagnosis
-> mean anything.
+> **Diagnosis does not wait for weld.** `ExportReadiness` used to run its
+> mesh checks (degenerate faces, pinched vertices, inside-out shells) only
+> against a mesh that already had real topology — an `EditedGeometry`
+> object — so a file straight off the STL loader, still `ImportedGeometry`,
+> read "ready to export" no matter what was actually wrong with it. That was
+> a real gap (`tut-01` in `doc/modeler-tutorial-gaps.md`), closed since: the
+> same three checks now run against a throwaway mesh built from the
+> imported buffer purely to ask them, so the status line reports this
+> teapot's pinched vertex whether or not "weld" is ticked. Leave weld on
+> anyway — it is what turns the file into a mesh the editor's other tools
+> can act on, which diagnosis alone was never going to give you.
 
 ## 3. Diagnose
 
-Once welding has turned the file into a real mesh, the status line's
-readiness segment says what it finds. For this file, once it is welded and
-renamed "teapot":
+The status line's readiness segment says what it finds as soon as the file
+is imported — welded or not, now that `ExportReadiness` reads an imported
+mesh's own topology too. For this file, once it is welded and renamed
+"teapot":
 
 ```
 exports with a warning: "teapot" has 1 vertex where two pieces of surface

@@ -63,10 +63,10 @@ ModelProject projectOf(
   return project;
 }
 
-/// A closed, manifold, outward-wound solid of four triangles and nothing else:
-/// the one shape that passes every rule here, so a rule that fires on it is a
-/// rule firing on nothing.
-EditMesh tetrahedron() => EditMesh.fromFaces(
+/// [points]/[faces] for [tetrahedron], kept apart from the `EditMesh` so
+/// [flatTetrahedron] can build a raw, unwelded `MeshData` from the identical
+/// numbers.
+(List<Vector3>, List<List<int>>) _tetrahedronFaces() => (
   <Vector3>[
     Vector3(0, 0, 0),
     Vector3(1, 0, 0),
@@ -81,8 +81,18 @@ EditMesh tetrahedron() => EditMesh.fromFaces(
   ],
 );
 
-/// Two boxes sharing one corner and no edge: a surface pinched at a point.
-EditMesh boxesAtACorner() {
+/// A closed, manifold, outward-wound solid of four triangles and nothing else:
+/// the one shape that passes every rule here, so a rule that fires on it is a
+/// rule firing on nothing.
+EditMesh tetrahedron() {
+  final (points, faces) = _tetrahedronFaces();
+  return EditMesh.fromFaces(points, faces);
+}
+
+/// [points]/[faces] for [boxesAtACorner], kept apart from the `EditMesh` so
+/// [flatBoxesAtACorner] can build a raw, unwelded `MeshData` from the
+/// identical numbers.
+(List<Vector3>, List<List<int>>) _boxesAtACornerFaces() {
   const box = <List<int>>[
     <int>[4, 5, 6, 7],
     <int>[1, 0, 3, 2],
@@ -92,7 +102,7 @@ EditMesh boxesAtACorner() {
     <int>[0, 1, 5, 4],
   ];
   const second = <int>[6, 8, 9, 10, 11, 12, 13, 14];
-  return EditMesh.fromFaces(
+  return (
     <Vector3>[
       Vector3(0, 0, 0),
       Vector3(1, 0, 0),
@@ -116,6 +126,56 @@ EditMesh boxesAtACorner() {
         <int>[for (final int v in face) second[v]],
     ],
   );
+}
+
+/// Two boxes sharing one corner and no edge: a surface pinched at a point.
+EditMesh boxesAtACorner() {
+  final (points, faces) = _boxesAtACornerFaces();
+  return EditMesh.fromFaces(points, faces);
+}
+
+/// [points]/[faces] fan-triangulated with no vertex shared between corners —
+/// the shape a flat, unwelded buffer off a scanner arrives in: every corner
+/// of every triangle is its own vertex, even where two triangles touch, and
+/// the only thing that can tell two corners apart from one point is
+/// position. What makes this the same shape [points]/[faces] describe,
+/// rather than a coincidentally similar one, is that every corner reads its
+/// position from the identical `points` entry the non-flat mesh reads it
+/// from — the same literal number, not a value merely close to it — so an
+/// exact-match weld (`weldEpsilon: 0.0`, the one an unwelded import gets)
+/// reconstructs exactly the sharing the non-flat mesh was built with.
+MeshData _flattened(List<Vector3> points, List<List<int>> faces) {
+  final vertices = <double>[];
+  final indices = <int>[];
+  for (final List<int> face in faces) {
+    for (var i = 1; i + 1 < face.length; i++) {
+      for (final int corner in <int>[face[0], face[i], face[i + 1]]) {
+        final point = points[corner];
+        vertices.addAll(<double>[point.x, point.y, point.z]);
+        indices.add(indices.length);
+      }
+    }
+  }
+  return MeshData(
+    layout: VertexLayout.positionOnly,
+    vertices: Float32List.fromList(vertices),
+    indices: Uint32List.fromList(indices),
+  );
+}
+
+/// [tetrahedron], as a flat, unwelded [ImportedGeometry] — every corner its
+/// own vertex, nothing shared, the way an STL loader hands a clean solid
+/// back before anything welds it.
+ImportedGeometry flatTetrahedron() {
+  final (points, faces) = _tetrahedronFaces();
+  return ImportedGeometry(_flattened(points, faces));
+}
+
+/// [boxesAtACorner], as a flat, unwelded [ImportedGeometry] — the same
+/// pinched vertex, with none of the mesh's corners sharing a vertex slot yet.
+ImportedGeometry flatBoxesAtACorner() {
+  final (points, faces) = _boxesAtACornerFaces();
+  return ImportedGeometry(_flattened(points, faces));
 }
 
 /// Buffers as they arrived, with [triangles] of them.
@@ -953,6 +1013,74 @@ void main() {
       expect(ready.issues.first.message, contains('1 face with no area'));
       expect(ready.issues.first.object?.name, 'a');
       expect(ready.canExport, isFalse);
+    });
+  });
+
+  group('the same topology questions asked of an imported, unwelded mesh', () {
+    test('a real defect is caught before anything welds or edits the mesh', () {
+      // `flatBoxesAtACorner` has never been an `EditMesh` — every corner of
+      // every triangle is still its own vertex, the way a file straight off
+      // a loader arrives — so this is `tut-01`'s own case: an imported mesh
+      // reads its readiness before the weld checkbox, or any mesh command,
+      // has turned it into `EditedGeometry`.
+      final ready = ExportReadiness.check(
+        projectOf(<Geometry>[flatBoxesAtACorner()]),
+      );
+
+      // Mutation: revert `_issuesWith`'s `ImportedGeometry` case to only
+      // `_morphTargetIssues`, and this reads 0 issues — "ready to export"
+      // for a mesh that cannot be thickened, subdivided or printed, exactly
+      // the false "ready" `tut-01`'s own gap-journal row named.
+      expect(ready.issues, hasLength(1));
+      expect(ready.issues.single.severity, ExportSeverity.warning);
+      expect(ready.issues.single.message, contains('1 vertex where'));
+      expect(ready.issues.single.object?.name, 'a');
+      expect(ready.canExport, isTrue);
+    });
+
+    test('the same defect is an error once the profile requires a manifold, '
+        'unwelded or not', () {
+      final ready = ExportReadiness.check(
+        projectOf(<Geometry>[
+          flatBoxesAtACorner(),
+        ], profile: const ProjectProfile(requireManifold: true)),
+      );
+
+      expect(ready.issues, hasLength(1));
+      expect(ready.issues.single.severity, ExportSeverity.error);
+      expect(ready.canExport, isFalse);
+    });
+
+    test('a genuinely clean imported mesh still reads no issues', () {
+      // The false positive this fix must not introduce: a flat, unwelded
+      // buffer with nothing wrong with it once welded back together reads
+      // exactly as clean as the `EditedGeometry` case at the top of this
+      // file does.
+      final ready = ExportReadiness.check(
+        projectOf(<Geometry>[flatTetrahedron()]),
+      );
+
+      expect(ready.issues, isEmpty);
+      expect(ready.canExport, isTrue);
+      expect(ready.says, 'ready to export');
+    });
+
+    test('an EditedGeometry object built from the same shape reports the '
+        'identical issue', () {
+      // Not a new rule for imported meshes — the same `MeshChecks` question,
+      // asked of a mesh already welded into real topology, so the two forms
+      // of the same object cannot silently disagree about what is wrong
+      // with it.
+      final imported = ExportReadiness.check(
+        projectOf(<Geometry>[flatBoxesAtACorner()]),
+      );
+      final edited = ExportReadiness.check(
+        projectOf(<Geometry>[EditedGeometry(boxesAtACorner())]),
+        trianglesOnly: false,
+      );
+
+      expect(imported.issues.single.severity, edited.issues.single.severity);
+      expect(imported.issues.single.message, edited.issues.single.message);
     });
   });
 
