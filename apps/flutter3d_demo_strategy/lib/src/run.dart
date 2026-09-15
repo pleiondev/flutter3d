@@ -100,7 +100,13 @@ final class StrategyRun extends RunSession<Staged> {
   /// visuals in its scene, open a command post over the crowd. Handed in
   /// because it touches the widget's own fields, which a run has no business
   /// holding.
-  final void Function(Staged staged) onLevelBuilt;
+  ///
+  /// [asset] and [levelHash] are `rp-01`/`rp-04`'s own reason for being here
+  /// at all: `_beginDemo` needs the map's own name and digest to write a
+  /// demo down, and neither survives past [open] — [Staged] holds the match
+  /// this staged, not the [StrategyMap] it was staged from.
+  final void Function(String asset, String levelHash, Staged staged)
+  onLevelBuilt;
 
   /// Whose run this is. A number rather than a nought written out, for the
   /// reason the rest of this genre gives: how many sides a match has is read
@@ -118,7 +124,7 @@ final class StrategyRun extends RunSession<Staged> {
   Future<Staged> open(String asset) async {
     final StrategyMap map = await StrategyMap.load(asset: asset);
     final Staged staged = stage(device: await openDevice(), map: map);
-    onLevelBuilt(staged);
+    onLevelBuilt(asset, map.level.digestHex, staged);
     return staged;
   }
 
