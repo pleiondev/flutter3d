@@ -187,6 +187,42 @@ environment:
     expect(pubspec, contains('flutter3d_build:'));
   });
 
+  test(
+    'a source in a subdirectory gets its own assets: entry too — '
+    'Flutter does not bundle a declared directory recursively',
+    () async {
+      // `ap-12`'s own real-world find: `flutter_tools`' own asset bundler
+      // lists a declared directory with plain `listSync()` (no
+      // `recursive: true`), so `- flutter3d_generated/` alone bundles only
+      // what sits directly in it — never `flutter3d_generated/models/`,
+      // where a source under `assets_src/models/` actually converts to.
+      writePubspec(_freshPubspec);
+      File('${scratch.path}/assets_src/models/chair.glb')
+        ..parent.createSync(recursive: true)
+        ..writeAsStringSync('not a real glb, just a recognised extension');
+
+      final steps = planInit(scratch);
+      expect(
+        steps.any(
+          (s) => s.description.contains('flutter3d_generated/models/'),
+        ),
+        isTrue,
+        reason:
+            'a source under assets_src/models/ needs its own generated/ '
+            'subdirectory declared, not just the root',
+      );
+
+      await runInit(<String>[], out: _BufferSink(), projectRoot: scratch);
+      final pubspec = File('${scratch.path}/pubspec.yaml').readAsStringSync();
+      expect(pubspec, contains('- flutter3d_generated/'));
+      expect(pubspec, contains('- flutter3d_generated/models/'));
+
+      // Idempotent with both entries already there, exactly like the
+      // single-entry case.
+      expect(planInit(scratch), isEmpty);
+    },
+  );
+
   test('a pinned flutter3d_build constraint is left as the person set it', () {
     writePubspec('''
 name: my_app

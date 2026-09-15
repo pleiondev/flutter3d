@@ -116,13 +116,23 @@ List<InitStep> planInit(Directory projectRoot, {bool force = false}) {
     );
   }
 
-  final withAssets = _withGeneratedAsset(withDependency ?? pubspecLines, layout);
-  if (withAssets != null) {
+  final basePubspecLines = withDependency ?? pubspecLines;
+  final generatedEntries = _generatedAssetEntries(layout);
+  final missingEntries = generatedEntries
+      .where((entry) => !_hasTopLevelAssetEntry(basePubspecLines, entry))
+      .toList();
+  if (missingEntries.isNotEmpty) {
     steps.add(
       InitStep(
         description:
-            'add ${_assetEntry(layout)} to pubspec.yaml flutter: assets:',
-        apply: () => pubspecFile.writeAsStringSync(_join(withAssets)),
+            'add ${missingEntries.join(', ')} to pubspec.yaml flutter: assets:',
+        apply: () {
+          var lines = basePubspecLines;
+          for (final entry in missingEntries) {
+            lines = _withGeneratedAsset(lines, entry) ?? lines;
+          }
+          pubspecFile.writeAsStringSync(_join(lines));
+        },
       ),
     );
   }
@@ -150,8 +160,60 @@ List<InitStep> planInit(Directory projectRoot, {bool force = false}) {
   return steps;
 }
 
-String _assetEntry(AssetLayout layout) =>
-    '- ${layout.generatedDir.path.split('/').last}/';
+/// Every `flutter: assets:` entry [layout]'s generated output actually
+/// needs — the directory itself (for [buildAssets]'s own cache file) plus
+/// one entry per subdirectory that holds at least one converted file.
+///
+/// **Flutter's own directory-asset bundling does not recurse.**
+/// `flutter_tools`' `_parseAssetsFromFolder` lists a declared directory
+/// with plain `listSync()` — no `recursive: true` — so a single
+/// `flutter3d_generated/` line only ever bundles what sits directly in
+/// it, never a subdirectory. [AssetLayout.plan] preserves each source's
+/// own relative directory under `assets_src/` in its output path (a
+/// `assets_src/models/chair.glb` converts to
+/// `flutter3d_generated/models/chair.f3d`), so a project whose sources
+/// live in a subdirectory — every project this pipeline has actually
+/// shipped so far — needs that subdirectory named too, or a real build
+/// bundles the hook's own bookkeeping file and silently drops every model
+/// it converted. Found by shipping it, not by reading the framework's own
+/// contract for what `assets:` promises: `ap-12` in
+/// `doc/asset-pipeline-plan.md` names the failure directly.
+Set<String> _generatedAssetEntries(AssetLayout layout) {
+  final root = layout.generatedDir.path;
+  final relatives = <String>{''};
+  for (final plan in layout.plan()) {
+    var directory = File(plan.destination).parent.path;
+    while (directory.length > root.length) {
+      relatives.add(directory.substring(root.length + 1));
+      directory = File(directory).parent.path;
+    }
+  }
+  final name = root.split('/').last;
+  return <String>{
+    for (final relative in relatives)
+      relative.isEmpty ? '- $name/' : '- $name/$relative/',
+  };
+}
+
+/// Whether [entryText] already sits inside `pubspec.yaml`'s active
+/// `flutter: assets:` list — the same "commented `# assets:` does not
+/// count" rule [_withGeneratedAsset] applies when adding one.
+bool _hasTopLevelAssetEntry(List<String> lines, String entryText) {
+  final flutterStart = _topLevelKey(lines, 'flutter');
+  if (flutterStart == null) return false;
+  final flutterEnd = _blockEnd(lines, flutterStart, indent: 0);
+  for (var i = flutterStart + 1; i < flutterEnd; i++) {
+    if (lines[i].trim() != 'assets:' || lines[i].trimLeft().startsWith('#')) {
+      continue;
+    }
+    final assetsIndent = _indentOf(lines[i]);
+    final listEnd = _blockEnd(lines, i, indent: assetsIndent);
+    return lines
+        .sublist(i + 1, listEnd)
+        .any((line) => line.trim() == entryText);
+  }
+  return false;
+}
 
 /// `pubspec.yaml` with a `dev_dependencies: flutter3d_build: ...` line, or
 /// `null` if one — any version constraint, not just this one — is already
@@ -176,13 +238,12 @@ List<String>? _withDevDependency(List<String> lines) {
   return _insertAtEndOfBlock(lines, start, end, [entry]);
 }
 
-/// `pubspec.yaml` with [layout]'s generated directory named under an
-/// active `flutter: assets:` list, or `null` if it is already there. A
-/// commented-out `# assets:` — the ordinary shape `flutter create` itself
-/// writes — does not count as active: it is never read by the tool that
-/// reads this file, so `init` treats it exactly like an absent key.
-List<String>? _withGeneratedAsset(List<String> lines, AssetLayout layout) {
-  final entryText = _assetEntry(layout);
+/// `pubspec.yaml` with [entryText] named under an active `flutter: assets:`
+/// list, or `null` if it is already there. A commented-out `# assets:` —
+/// the ordinary shape `flutter create` itself writes — does not count as
+/// active: it is never read by the tool that reads this file, so `init`
+/// treats it exactly like an absent key.
+List<String>? _withGeneratedAsset(List<String> lines, String entryText) {
   final flutterStart = _topLevelKey(lines, 'flutter');
   if (flutterStart == null) {
     final result = List<String>.from(lines);
