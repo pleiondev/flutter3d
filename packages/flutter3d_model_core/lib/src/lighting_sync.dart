@@ -12,8 +12,8 @@
 /// 'package:flutter3d_core/flutter3d_core.dart';`, that package's own
 /// `flutter3d.dart`) — so a value built here is exactly the value the
 /// application already passed around under the other name. Moving the class
-/// here is what lets `render_project.dart` and
-/// `flutter3d_render_job/lib/src/scene_from_project.dart` call the *same*
+/// here is what lets `scene_from_project.dart`, which `render_project.dart`
+/// and every snapshot build through, call the *same*
 /// sync a live viewport does, instead of each holding a private copy of the
 /// same nine lines — the "third copy, deliberate" trade-off
 /// `render_project.dart`'s own doc comment accepts for a mesh's vertex data

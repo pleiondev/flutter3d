@@ -20,7 +20,6 @@ import 'package:flutter3d_modeler/src/staging.dart';
 import 'package:flutter3d_modeler/src/ui/properties/properties_panel.dart';
 import 'package:flutter3d_modeler/src/ui/theme.dart';
 import 'package:flutter3d_modeler/src/ui/tools.dart';
-import 'package:flutter3d_rig/flutter3d_rig.dart' show BoneMap;
 import 'package:flutter_test/flutter_test.dart';
 
 ModelTool _toolNamed(String name) =>
@@ -137,82 +136,76 @@ class _HarnessState extends State<_Harness> {
 }
 
 void main() {
-  testWidgets(
-    'addLathe, bakeToMesh, addMaterial, three setMaterialField, '
-    'assignMaterial, then select — the exact live sequence that crashed',
-    (WidgetTester tester) async {
-      tester.view
-        ..physicalSize = const Size(1440, 1600)
-        ..devicePixelRatio = 1.0;
-      addTearDown(tester.view.reset);
+  testWidgets('addLathe, bakeToMesh, addMaterial, three setMaterialField, '
+      'assignMaterial, then select — the exact live sequence that crashed', (
+    WidgetTester tester,
+  ) async {
+    tester.view
+      ..physicalSize = const Size(1440, 1600)
+      ..devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
 
-      final it = cpuTestDevice(width: 8, height: 8);
-      final history = ModelHistory(const ModelProject());
-      final stage = ModelerStage.fromProject(
-        device: it.device,
-        project: history.project,
-      );
-      final session = ModelSession(history);
+    final it = cpuTestDevice(width: 8, height: 8);
+    final history = ModelHistory(const ModelProject());
+    final stage = ModelerStage.fromProject(
+      device: it.device,
+      project: history.project,
+    );
+    final session = ModelSession(history);
 
-      final key = GlobalKey<_HarnessState>();
-      await tester.pumpWidget(_Harness(key: key, history: history, stage: stage));
-      await tester.pump();
+    final key = GlobalKey<_HarnessState>();
+    await tester.pumpWidget(_Harness(key: key, history: history, stage: stage));
+    await tester.pump();
 
-      Future<void> step(String name, Map<String, Object?> arguments) async {
-        await _call(session, name, arguments);
-        key.currentState!.refresh();
-        await tester.pump();
-      }
-
-      await step('addLathe', <String, Object?>{
-        'profile': <List<double>>[
-          [0.00, 0.00],
-          [0.32, 0.00],
-          [0.38, 0.12],
-          [0.34, 0.32],
-          [0.22, 0.50],
-          [0.30, 0.72],
-          [0.24, 0.92],
-          [0.26, 1.00],
-        ],
-        'segments': 12,
-        'label': 'vase',
-      });
-      final int objectId = history.project.objects.single.id;
-
-      await step('bakeToMesh', <String, Object?>{'id': objectId});
-      await step('addMaterial', <String, Object?>{
-        'materialName': 'glazed clay',
-      });
-      await step('setMaterialField', <String, Object?>{
-        'index': 0,
-        'field': 'baseColor',
-        'value': <double>[0.55, 0.35, 0.25, 1.0],
-      });
-      await step('setMaterialField', <String, Object?>{
-        'index': 0,
-        'field': 'metallic',
-        'value': 0.0,
-      });
-      await step('setMaterialField', <String, Object?>{
-        'index': 0,
-        'field': 'roughness',
-        'value': 0.55,
-      });
-      await step('assignMaterial', <String, Object?>{
-        'id': objectId,
-        'to': 0,
-      });
-
-      // The step that crashed live: selecting the object the material was
-      // just assigned to.
-      await _call(session, 'select', <String, Object?>{
-        'objects': <int>[objectId],
-      });
+    Future<void> step(String name, Map<String, Object?> arguments) async {
+      await _call(session, name, arguments);
       key.currentState!.refresh();
       await tester.pump();
+    }
 
-      expect(tester.takeException(), isNull);
-    },
-  );
+    await step('addLathe', <String, Object?>{
+      'profile': <List<double>>[
+        [0.00, 0.00],
+        [0.32, 0.00],
+        [0.38, 0.12],
+        [0.34, 0.32],
+        [0.22, 0.50],
+        [0.30, 0.72],
+        [0.24, 0.92],
+        [0.26, 1.00],
+      ],
+      'segments': 12,
+      'label': 'vase',
+    });
+    final int objectId = history.project.objects.single.id;
+
+    await step('bakeToMesh', <String, Object?>{'id': objectId});
+    await step('addMaterial', <String, Object?>{'materialName': 'glazed clay'});
+    await step('setMaterialField', <String, Object?>{
+      'index': 0,
+      'field': 'baseColor',
+      'value': <double>[0.55, 0.35, 0.25, 1.0],
+    });
+    await step('setMaterialField', <String, Object?>{
+      'index': 0,
+      'field': 'metallic',
+      'value': 0.0,
+    });
+    await step('setMaterialField', <String, Object?>{
+      'index': 0,
+      'field': 'roughness',
+      'value': 0.55,
+    });
+    await step('assignMaterial', <String, Object?>{'id': objectId, 'to': 0});
+
+    // The step that crashed live: selecting the object the material was
+    // just assigned to.
+    await _call(session, 'select', <String, Object?>{
+      'objects': <int>[objectId],
+    });
+    key.currentState!.refresh();
+    await tester.pump();
+
+    expect(tester.takeException(), isNull);
+  });
 }

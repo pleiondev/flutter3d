@@ -9,8 +9,8 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter3d_core/formats.dart';
 import 'package:flutter3d_editor_widgets/flutter3d_editor_widgets.dart';
-import 'package:flutter3d_formats/flutter3d_formats.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 Widget row({

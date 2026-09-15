@@ -4,7 +4,7 @@
 /// row is a plain function rather than a method on some screen state.
 library;
 
-import 'package:flutter3d_formats/flutter3d_formats.dart';
+import 'package:flutter3d_core/formats.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 
 /// Whether [objectId]'s own `weights` track in [clip] carries a keyframe at

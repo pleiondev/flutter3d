@@ -16,7 +16,7 @@
 library;
 
 import 'package:flutter/material.dart';
-import 'package:flutter3d_formats/flutter3d_formats.dart' show EnumHintValue;
+import 'package:flutter3d_core/formats.dart' show EnumHintValue;
 
 /// A dropdown offering [options], with [value] selected.
 final class EnumField extends StatelessWidget {

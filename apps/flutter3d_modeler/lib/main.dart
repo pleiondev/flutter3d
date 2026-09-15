@@ -37,7 +37,6 @@ import 'l10n/app_localizations.dart';
 import 'src/animation_wiring.dart';
 import 'src/app_config.dart';
 import 'src/autosaving.dart';
-import 'src/backend.dart';
 import 'src/cabinet_link.dart';
 import 'src/churn_run.dart';
 import 'src/close_beforeunload.dart';

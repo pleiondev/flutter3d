@@ -11,10 +11,10 @@ wrapper around another engine, and it is not affiliated with the Flutter team.
 On pub.dev: twenty-seven packages, published by
 [pleion.dev](https://pub.dev/publishers/pleion.dev/packages) — start with
 [`flutter3d`](https://pub.dev/packages/flutter3d) and a backend. The workspace
-holds thirty-five; `flutter3d_game_strategy` is the one that is not published,
+holds thirty-six; `flutter3d_game_strategy` is the one that is not published,
 because its types still encode how many sides a match may have, and
-`flutter3d_geometry` and `flutter3d_formats` were written after the set went out
-and go with the next one, so the counts differ. The set is **0.6.0**, twenty-five packages at one number,
+the packages written after the set went out — `flutter3d_core` and the
+modeller's among them — go with the next one, so the counts differ. The set is **0.6.0**, twenty-five packages at one number,
 so a pubspec that names them all names one tree —
 [`pad_input`](https://pub.dev/packages/pad_input) and
 [`pointer_lock`](https://pub.dev/packages/pointer_lock) keep a line of their own
@@ -58,6 +58,7 @@ genres, and the generated API reference.
 | [`packages/flutter3d_game_strategy`](packages/flutter3d_game_strategy) | A fourth genre, and the first without a protagonist: ground made of samples, a crowd that takes orders and shoves itself apart, flow fields shared by destination, an economy, a fight, fog a side has to walk into, and a policy that plays a side without a mouse |
 | [`packages/flutter3d_editor_core`](packages/flutter3d_editor_core) | The level editor with the editor taken out: the document being selected in, nudged, undone and written back, the handles a pointer hits, the palette a level builds out of itself, and the project a template becomes. Plain Dart, so a linter or a service can depend on it |
 | [`packages/flutter3d_editor_mcp`](packages/flutter3d_editor_mcp) | The same editor offered to an agent: an MCP server over stdio whose tools are the editor's own commands, one document per process |
+| [`packages/flutter3d_editor_widgets`](packages/flutter3d_editor_widgets) | The controls the modeller and the level editor share instead of each keeping a copy: number, colour, range, enum and texture fields and the row they assemble into, over one theme |
 | [`packages/flutter3d_mcp_kit`](packages/flutter3d_mcp_kit) | What every MCP server here shares: a tool paired with its handler, a server that is a list of them over one session, answers that refuse without failing, and a loopback HTTP transport. Plain Dart |
 | [`packages/flutter3d_mesh`](packages/flutter3d_mesh) | The mesh a modeller edits, with the topology still in it: faces of any valency, half-edges that know their twin, and the operations that change them. Plain Dart. [README](packages/flutter3d_mesh/README.md) |
 | [`packages/flutter3d_model_core`](packages/flutter3d_model_core) | The headless half of the model editor: the project of objects, the sealed command every edit is one of, the history that takes them back, what it refuses to export, and the rig algorithms it runs — bone-name mapping, retargeting with a foot lock, automatic skin weights |
@@ -154,7 +155,7 @@ Or one package at a time:
 (cd packages/flutter3d_physics && dart test)   # plain Dart, no Flutter needed
 ```
 
-7447 tests across thirty-five packages and eight applications, and the only
+8026 tests across thirty-six packages and eight applications, and the only
 ones that need a GPU are the
 Impeller half of the golden set. The other half is rendered by the software
 backend, which is what makes 43 scenes checkable in a headless run.

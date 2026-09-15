@@ -27,13 +27,13 @@ library;
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+import 'package:flutter3d_app/flutter3d_app.dart';
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 import 'package:flutter3d_modeler/l10n/app_localizations.dart';
 import 'package:flutter3d_modeler/main.dart' hide main;
 import 'package:flutter3d_modeler/src/cabinet_link.dart';
 import 'package:flutter3d_modeler/src/files/preview_capture.dart';
-import 'package:flutter3d_session/flutter3d_session.dart';
 import 'package:flutter_test/flutter_test.dart';
 // Prefixed the same way `main.dart`'s own import of this package already
 // is — `package:flutter/material.dart` and `vector_math` unprefixed

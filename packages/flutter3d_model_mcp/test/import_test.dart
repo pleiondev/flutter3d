@@ -7,7 +7,7 @@ library;
 
 import 'dart:io';
 
-import 'package:flutter3d_formats/flutter3d_formats.dart';
+import 'package:flutter3d_core/formats.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 import 'package:flutter3d_model_mcp/flutter3d_model_mcp.dart';
 import 'package:test/test.dart';
@@ -68,7 +68,7 @@ void main() {
     test('options: ImportOptions(scale: 0.001) scales an import exactly '
         'the way fromModelDocument does called directly with the same '
         'options', () async {
-      const stlPath = '../flutter3d_formats/test/fixtures/stl/cube.stl';
+      const stlPath = '../flutter3d_core/test/formats/fixtures/stl/cube.stl';
       final bytes = File(stlPath).readAsBytesSync();
       final document = await StlLoader().load(bytes);
       final direct = fromModelDocument(
@@ -92,7 +92,7 @@ void main() {
     // `ImportedGeometry`.
     test('called with no options at all still behaves exactly as it does '
         'today', () async {
-      const stlPath = '../flutter3d_formats/test/fixtures/stl/cube.stl';
+      const stlPath = '../flutter3d_core/test/formats/fixtures/stl/cube.stl';
       final bytes = File(stlPath).readAsBytesSync();
       final document = await StlLoader().load(bytes);
       final direct = fromModelDocument(document);

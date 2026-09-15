@@ -5,7 +5,7 @@ library;
 
 import 'dart:typed_data';
 
-import 'package:flutter3d_formats/flutter3d_formats.dart';
+import 'package:flutter3d_core/formats.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart' hide Key;
 import 'package:flutter3d_modeler/src/shape_key_state.dart';
 import 'package:flutter_test/flutter_test.dart';

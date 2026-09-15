@@ -22,7 +22,6 @@ import 'package:flutter3d_modeler/src/ui/scene_shadows_panel.dart';
 import 'package:flutter3d_modeler/src/ui/scene_source_panel.dart';
 import 'package:flutter3d_modeler/src/ui/theme.dart';
 import 'package:flutter3d_modeler/src/ui/tools.dart';
-import 'package:flutter3d_rig/flutter3d_rig.dart' show BoneMap;
 import 'package:flutter_test/flutter_test.dart';
 
 /// A project with [lightCount] identical directional lights and nothing

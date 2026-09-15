@@ -9,7 +9,7 @@ library;
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
-import 'package:flutter3d_formats/flutter3d_formats.dart';
+import 'package:flutter3d_core/formats.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart' hide Key;
 import 'package:flutter3d_modeler/src/timeline_playback.dart';
 import 'package:flutter3d_modeler/src/ui/animation_bottom.dart';

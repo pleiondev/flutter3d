@@ -61,7 +61,7 @@ void main() {
       ),
     );
 
-    final scene = sceneFromProject(project, cpuTileDevice(4, 4));
+    final scene = sceneFromProject(project, _cpuDevice(4, 4));
 
     // Mutation: the two fixed lights alone, the way `sceneFromProject`
     // built its scene before this fix — `scene.lights` would then read

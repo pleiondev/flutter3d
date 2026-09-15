@@ -4,7 +4,7 @@
 ///     dart test test/loose_auto_map_test.dart
 library;
 
-import 'package:flutter3d_rig/flutter3d_rig.dart';
+import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 import 'package:test/test.dart';
 
 void main() {

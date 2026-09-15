@@ -169,7 +169,7 @@ copy, and is the bridge into the widget tree.
 
 ## 3. The package map
 
-Thirty-five packages and eight applications in one pub workspace — one
+Thirty-six packages and eight applications in one pub workspace — one
 `flutter pub get` for the repository.
 
 ### 3.1 The layering rule
@@ -1908,7 +1908,7 @@ entities a game defines.
 |---|---|
 | Style | `dart format` |
 | Analysis | `flutter analyze` clean across the workspace, no warnings |
-| Unit tests | **7447 tests** across 35 packages and 8 applications |
+| Unit tests | **8026 tests** across 36 packages and 8 applications |
 | Structure rules | 32, `dart run tool/structure.dart`, the first CI step |
 | CI | GitHub Actions over `tool/ci.sh`, on `ubuntu-latest`, with no graphics card |
 
@@ -2824,13 +2824,13 @@ it loads levels for are in the fifth, and `flutter3d_game` stands one tier
 behind it; `flutter3d_editor_core` is beside `flutter3d_app` rather than
 behind `flutter3d_game`, because the editor's document layer never wanted the Flutter
 half, which is why it could leave an application at all — it needed only
-`flutter3d_sim` until `mat-03` gave it `flutter3d_formats` too, for the
+`flutter3d_sim` until `mat-03` gave it `flutter3d_core`'s formats too, for the
 `.fmat` gate a second editor wanted, and the second tier that dependency sits
 in is still well ahead of the sixth; and `flutter3d_editor_mcp` sits one tier
 behind that core and nowhere near the applications, because it is a published
 package that happens to have a `bin/` rather than a program that happens to
 be in this repository; and `flutter3d_editor_widgets` sits in the third tier
-— one past `flutter3d_formats` — because `ui-27`'s own `RangeSliderField` and
+— one past `flutter3d_core` — because `ui-27`'s own `RangeSliderField` and
 `EnumField` read `RangeHint`/`EnumHint` off it, a second tier's worth of
 floor `ui-27`'s first step had already promised ahead of time, precisely so
 this dependency would land without moving the package once it did.
