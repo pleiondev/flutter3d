@@ -1,10 +1,11 @@
 import 'dart:developer' as developer;
 import 'dart:typed_data';
 
-import 'package:flutter/foundation.dart' show debugPrint;
-import 'package:flutter3d/flutter3d.dart';
-import 'package:flutter3d_particles_core/flutter3d_particles_core.dart';
+import 'package:flutter3d_core/flutter3d_core.dart';
 import 'package:vector_math/vector_math.dart' as vm;
+
+import 'flipbook.dart';
+import 'particle_system.dart';
 
 /// Draws every live particle as one batch of camera-facing quads.
 ///
@@ -192,9 +193,10 @@ final class ParticleContributor extends PassContributor {
     final shader = frame.device.shaders[name];
     if (shader == null && _missing.add(name)) {
       assert(() {
-        debugPrint(
+        developer.log(
           'ParticleContributor: the shader bundle has no "$name"; '
           'no particles will be drawn.',
+          name: 'flutter3d_particles',
         );
         return true;
       }());

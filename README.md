@@ -52,8 +52,7 @@ genres, and the generated API reference.
 | [`packages/flutter3d_testing`](packages/flutter3d_testing) | Pixel regression tests for a game built on this engine, with no GPU: draw a frame through the software backend and hold it to a reference image. Nothing else on this platform can do it without a real device |
 | [`packages/flutter3d_conformance`](packages/flutter3d_conformance) | The contract every backend must pass, as runnable checks rather than a document |
 | [`packages/flutter3d_shaders`](packages/flutter3d_shaders) | The GLSL, and the headers an extension package includes |
-| [`packages/flutter3d_particles`](packages/flutter3d_particles) | One pool, one draw call, whatever is in it |
-| [`packages/flutter3d_particles_core`](packages/flutter3d_particles_core) | The simulation `flutter3d_particles` draws. No Flutter |
+| [`packages/flutter3d_particles`](packages/flutter3d_particles) | One pool, one draw call, whatever is in it. Plain Dart, so a model can bake a particle system with no window |
 | [`packages/flutter3d_session`](packages/flutter3d_session) | A run that can be started, saved, resumed and ended, with no widget in it, and the screens that are not the game: settings, volumes, rebinding, credits |
 | [`packages/flutter3d_stereo`](packages/flutter3d_stereo) | Two eyes and a head: the rig, the widget that draws a pair into one frame, and the settings a pair can have. A phone in a holder today, a headset when there is one |
 | [`packages/flutter3d_app`](packages/flutter3d_app) | What every application repeats: storage, settings, the frame clock, the screens, and which of the four backends `openDevice()` opens |
@@ -156,7 +155,7 @@ Or one package at a time:
 (cd packages/flutter3d_physics && dart test)   # plain Dart, no Flutter needed
 ```
 
-7443 tests across thirty-eight packages and eight applications, and the only
+7443 tests across thirty-seven packages and eight applications, and the only
 ones that need a GPU are the
 Impeller half of the golden set. The other half is rendered by the software
 backend, which is what makes 43 scenes checkable in a headless run.

@@ -1,3 +1,15 @@
+## Unreleased
+
+* **`flutter3d_particles_core` is back inside, and Flutter is out.** The
+  simulation had been split off so a headless caller could bake a
+  `ParticleSystem`; the two contributors stayed here because they imported
+  Flutter, for a `debugPrint` inside an `assert` and for `flutter3d`'s barrel.
+  They import `flutter3d_core` now and report a missing shader stage through
+  `dart:developer`'s `log`, so the whole package is plain Dart and
+  `flutter3d_model_core` depends on it directly. The public API is the same;
+  an importer of `package:flutter3d_particles_core` names
+  `package:flutter3d_particles/flutter3d_particles.dart` instead.
+
 ## 0.6.0
 
 * **Floors, and no code.** One pool, one draw call, whatever is in it — byte for

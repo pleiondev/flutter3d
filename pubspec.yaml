@@ -23,7 +23,6 @@ workspace:
   - packages/flutter3d_conformance
   - packages/flutter3d_cpu
   - packages/flutter3d_particles
-  - packages/flutter3d_particles_core
   - packages/flutter3d_hardware
   - packages/flutter3d_shaders
   - packages/flutter3d_testing

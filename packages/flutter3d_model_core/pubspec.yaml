@@ -40,10 +40,10 @@ dependencies:
   flutter3d_physics: ^0.7.0
 
   # `ParticleSystem`, what `BakeParticleSystemJobRequest` bakes into a
-  # `SimulationCache` the same way — `pro-sim-02`'s own other half. The core
-  # package, not `flutter3d_particles` itself, which depends on the Flutter
-  # SDK for the contributor that draws a system rather than the system.
-  flutter3d_particles_core: ^0.6.0
+  # `SimulationCache` the same way — `pro-sim-02`'s own other half. The
+  # contributors that draw a system come along and cost nothing: they draw
+  # through `flutter3d_core`, already a dependency here, and name no Flutter.
+  flutter3d_particles: ^0.6.0
 
   vector_math: ^2.2.0
 

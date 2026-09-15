@@ -15,23 +15,30 @@ topics:
 
 environment:
   sdk: ^3.12.2
-  flutter: '>=3.47.0'
 
 dependencies:
-  flutter:
-    sdk: flutter
   # For PassContributor and ContributorFrame — a contributor is defined by the
   # engine and implemented here, which is what makes this an extension rather
-  # than a fork.
-  flutter3d: ^0.6.0
+  # than a fork. The Flutter-free core, not `flutter3d`: a contributor is handed
+  # a pass encoder, never a widget.
+  flutter3d_core: ^0.1.0
   flutter3d_hardware: ^0.7.0
-  flutter3d_particles_core: ^0.6.0
   vector_math: ^2.2.0
 
 dev_dependencies:
 
-  flutter_test:
-    sdk: flutter
+  test: ^1.25.0
   flutter_lints: ^6.0.0
 
 resolution: workspace
+
+# **A plain Dart package, and one package rather than two.**
+#
+# The simulation was split into `flutter3d_particles_core` once, so that
+# `flutter3d_model_core`'s `BakeParticleSystemJobRequest` could bake a
+# `ParticleSystem` into a cache with no Flutter SDK to resolve. The two
+# contributors that draw a system stayed here because they imported Flutter —
+# for a `debugPrint` inside an `assert`, and for `flutter3d`'s barrel, which
+# re-exports `flutter3d_core` whole. With `dart:developer`'s `log` and the core
+# named directly, neither import was left, and the split had nothing to keep
+# apart.

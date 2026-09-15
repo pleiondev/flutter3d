@@ -169,7 +169,7 @@ copy, and is the bridge into the widget tree.
 
 ## 3. The package map
 
-Thirty-eight packages and eight applications in one pub workspace — one
+Thirty-seven packages and eight applications in one pub workspace — one
 `flutter pub get` for the repository.
 
 ### 3.1 The layering rule
@@ -205,8 +205,7 @@ point of §3.3.
 | `flutter3d` | The engine's thin Flutter shell over `flutter3d_core`: `BundleAssetSource`, `defaultImageDecoder`, `ModelAsset`, `bindMaterial` |
 | `flutter3d_core` | The engine's rendering core with no Flutter SDK behind it (mcp-03n): scene graph, render list, passes, materials, animation, and asset loading down to an injected reader or decoder — and two libraries under it that import on their own: `geometry.dart`, the mesh vocabulary every decoder and every editable mesh share (`MeshData`, `VertexLayout`, tangents, morph targets, `TriangleBvh`), and `formats.dart`, model documents, their decoders (glTF, OBJ, STL, `.f3d`, and FBX refused with a reason) and writers (the same four and `.usdz`) as `ModelDecoder`/`ModelWriter` values, material files, and the PNG, JPEG and zlib codecs a texture needs ([§8.1](#81-model-decoding), [§8.6](#86-writers)). Plain Dart |
 | `flutter3d_samples` | The Khronos test models the decoders are checked against and the demo browses. Fixtures, so that a game depending on the engine does not carry them |
-| `flutter3d_particles` | CPU emitters and the particle pass contributor |
-| `flutter3d_particles_core` | The particle simulation `flutter3d_particles` draws: `ParticleSystem`, emission, affectors, curves. No Flutter, so `flutter3d_model_core`'s `BakeParticleSystemJobRequest` depends on it directly. Plain Dart |
+| `flutter3d_particles` | The particle simulation and what draws it: `ParticleSystem`, emission, affectors, curves, and the billboard and mesh pass contributors. The contributors draw through `flutter3d_core`, so `flutter3d_model_core`'s `BakeParticleSystemJobRequest` depends on it directly. Plain Dart |
 | `flutter3d_physics` | Collision world, character controller, rigid bodies, spatial grid, an XPBD cloth solver |
 | `flutter3d_sim` | The simulation: fixed step, ECS, level format, actors, navigation, saves, replays, camera rig. Plain Dart |
 | `flutter3d_lab` | Virtual laboratory simulations built on `flutter3d_sim`'s stepping and recording primitives — `edu-04`'s pendulum is the first. Plain Dart |
@@ -1909,7 +1908,7 @@ entities a game defines.
 |---|---|
 | Style | `dart format` |
 | Analysis | `flutter analyze` clean across the workspace, no warnings |
-| Unit tests | **7443 tests** across 38 packages and 8 applications |
+| Unit tests | **7443 tests** across 37 packages and 8 applications |
 | Structure rules | 32, `dart run tool/structure.dart`, the first CI step |
 | CI | GitHub Actions over `tool/ci.sh`, on `ubuntu-latest`, with no graphics card |
 
@@ -2793,13 +2792,13 @@ what went out at 0.4.2.
 **The order, used on the day**, is set by the dependency graph:
 
 1. `flutter3d_hardware`, `flutter3d_shaders`, `flutter3d_samples`,
-   `flutter3d_audio`, `flutter3d_particles_core`, `flutter3d_physics`,
-   `flutter3d_mcp_kit`, `pad_input`, `pointer_lock`
+   `flutter3d_audio`, `flutter3d_physics`, `flutter3d_mcp_kit`, `pad_input`,
+   `pointer_lock`
 2. `flutter3d_conformance`, `flutter3d_core`
-3. `flutter3d_mesh`, `flutter3d_build`
+3. `flutter3d_mesh`, `flutter3d_build`, `flutter3d_particles`
 4. `flutter3d`, `flutter3d_model_core`
 5. `flutter3d_impeller`, `flutter3d_webgl`, `flutter3d_webgpu`, `flutter3d_cpu`,
-   `flutter3d_particles`, `flutter3d_sim`
+   `flutter3d_sim`
 6. `flutter3d_game`, `flutter3d_editor_core`, `flutter3d_net`,
    `flutter3d_lab`, `flutter3d_stereo`
 7. `flutter3d_session`, `flutter3d_testing`, `flutter3d_editor_mcp`,

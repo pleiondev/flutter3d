@@ -77,11 +77,13 @@ const Map<String, String> flatDartPackages = <String, String>{
       'the mesh a modeller edits is a document before it is a picture: a bench '
       'compiled by `dart compile exe`, the tool an agent starts with `dart '
       'run`, and a test of a loop cut all hold one and none of them draws',
-  'flutter3d_particles_core':
+  'flutter3d_particles':
       '`pro-sim-02`\'s own row: `flutter3d_model_core`\'s '
       '`BakeParticleSystemJobRequest` bakes a `ParticleSystem` into a cache from '
       'a command line or a service with no window in front of it, the same '
-      'way `BakeRigidBodyJobRequest` already does through `flutter3d_physics`',
+      'way `BakeRigidBodyJobRequest` already does through `flutter3d_physics`. '
+      'The two contributors that draw a system live beside it because they '
+      'draw through `flutter3d_core` and name no Flutter either',
   'flutter3d_model_core':
       'a model is a document, and the programs that check, convert or drive '
       'one — an exporter on a command line, a service validating an upload, '
@@ -240,9 +242,9 @@ const Map<String, String> notARepeatableStep = <String, String>{
   'flutter3d_conformance': 'a test suite for backends',
   'flutter3d_shaders': 'GLSL and a manifest',
   'flutter3d_samples': 'fixtures',
-  'flutter3d_particles_core':
-      'display and preview, not a verified replay: `flutter3d_particles` '
-      'draws with the frame\'s own delta, and `flutter3d_model_core`\'s '
+  'flutter3d_particles':
+      'display and preview, not a verified replay: its contributors draw '
+      'with the frame\'s own delta, and `flutter3d_model_core`\'s '
       '`BakeParticleSystemJobRequest` steps it at a fixed `dt` only to fill a '
       '`SimulationCache` a modeller scrubs locally — nothing here is a run a '
       'server replays against a client\'s own answer the way `flutter3d_sim`\'s '

@@ -19,6 +19,12 @@ the moment something exploded.
 `GameLoop.lastFrame` — or the smoke drifts away from the world it is attached
 to on any machine that drops a frame.
 
+**No Flutter in it.** The contributors draw through `flutter3d_core`'s
+`PassContributor`, so the package runs under `dart test`, and
+`flutter3d_model_core` bakes a system into a `SimulationCache` on the Dart VM.
+The same `seed` and the same sequence of `advance` calls give byte-identical
+particles, which is what that bake relies on rather than adds.
+
 ---
 
 Part of [flutter3d](https://github.com/pleiondev/flutter3d), an **independent

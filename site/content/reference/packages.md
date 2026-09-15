@@ -181,7 +181,7 @@ Extracted into `flutter3d_screens` once, when the second game wanted it, which i
 ### `flutter3d_particles`
 One pool for the whole application, one draw call, plugged in through `PassContributor`. Emitters, affectors, curves and gradients, flipbooks, mesh particles, and `ParticleGlow` — the light a fire casts, measured from the fire's own particles.
 
-The simulation itself — `ParticleSystem`, emission, affectors, curves — lives in `flutter3d_particles_core`, a plain Dart package this one depends on and re-exports unchanged. Only the two files that draw a system ever imported Flutter, so the split is what lets `flutter3d_model_core`'s `BakeParticleSystemJobRequest` bake a system into a cache with no window in front of it.
+The simulation and the two contributors that draw it are one plain Dart package. A contributor is handed a pass encoder by `flutter3d_core`, never a widget, so nothing here names Flutter — which is what lets `flutter3d_model_core`'s `BakeParticleSystemJobRequest` bake a system into a cache with no window in front of it.
 
 ### `flutter3d_audio`
 Positional audio: attenuation curves, panning, occlusion through a callback, voice limiting, buses. `SilentBackend` and `SoLoudBackend`, so a machine with no audio device still plays the game.
