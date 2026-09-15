@@ -36,6 +36,9 @@ class TopBarActions extends StatelessWidget {
     required this.onPreview,
     required this.onShortcutHelp,
     this.onSettings,
+    this.agentClient,
+    this.agentCallCount = 0,
+    this.onToggleAgentPanel,
     required this.onStartScreen,
     required this.onReportProblem,
   });
@@ -86,6 +89,17 @@ class TopBarActions extends StatelessWidget {
   /// settings store behind it, which is what keeps the button out of every
   /// shell test that never asked about it.
   final VoidCallback? onSettings;
+
+  /// What the connected agent called itself, or null while nobody has
+  /// connected — `ux-05`. Non-null puts a badge here and nothing else on
+  /// screen; the panel opens from it.
+  final String? agentClient;
+
+  /// How many tool calls that agent has made, for the badge to count.
+  final int agentCallCount;
+
+  /// Shows or hides the agent panel.
+  final VoidCallback? onToggleAgentPanel;
 
   @override
   Widget build(BuildContext context) => Row(
@@ -213,6 +227,25 @@ class TopBarActions extends StatelessWidget {
           ),
         ),
       ),
+      // `ux-05`: an agent is on the document. A badge rather than a column
+      // and a contact sheet taking a third of the window from the first
+      // frame, which is what the live run found with nobody connected.
+      if (agentClient case final String client)
+        MergeSemantics(
+          child: Semantics(
+            label: 'Agent session, $agentCallCount calls',
+            button: true,
+            child: IconButton(
+              tooltip: '$client · $agentCallCount calls',
+              onPressed: onToggleAgentPanel,
+              icon: Badge(
+                isLabelVisible: agentCallCount > 0,
+                label: Text('$agentCallCount'),
+                child: const Icon(Icons.smart_toy, size: 20),
+              ),
+            ),
+          ),
+        ),
       if (onSettings case final VoidCallback open)
         MergeSemantics(
           child: Semantics(

@@ -94,6 +94,10 @@ extension _ReadyParts on _ModelerScreenState {
                   onPreview: () => unawaited(_openGamePreview()),
                   onShortcutHelp: _showShortcutHelp,
                   onSettings: () => unawaited(_showSettings()),
+                  agentClient: state.agentClient,
+                  agentCallCount: state.agentCalls.length,
+                  onToggleAgentPanel: () =>
+                      setState(() => _agentPanelOpen = !_agentPanelOpen),
                   onStartScreen: () => unawaited(_showStartScreen()),
                   onReportProblem: _reportProblem,
                 ),
@@ -510,7 +514,13 @@ extension _ReadyParts on _ModelerScreenState {
               // it. `bottom`'s own three other claimants below all win
               // over it: a person mid-pose/weights/retarget still gets
               // that mode's own lower area, agent session or not.
-              final bool agentSessionActive = kMcpPort >= 0;
+              // `ux-05`: an open port is not an agent, and an agent is not
+              // a panel. Nothing agent-shaped is on screen until a client
+              // has said hello, and the panel itself waits for the badge to
+              // be tapped.
+              final String? agentClient = state.agentClient;
+              final bool agentPanelOpen =
+                  agentClient != null && _agentPanelOpen;
 
               return ShellForWidth(
                 parts: ScreenParts(
@@ -529,11 +539,13 @@ extension _ReadyParts on _ModelerScreenState {
                 onTool: _ranTool,
                 documentName: state.documentName,
                 isDirty: state.history.isDirty,
-                agentPanel: agentSessionActive
+                agentPanel: agentPanelOpen
                     ? AgentSessionPanel(
                         calls: state.agentCalls,
                         history: state.history,
                         onUndoAgentSteps: _undoAgentSteps,
+                        clientName: agentClient,
+                        onClose: () => setState(() => _agentPanelOpen = false),
                       )
                     : null,
                 bottom: showsTimeline
@@ -561,8 +573,6 @@ extension _ReadyParts on _ModelerScreenState {
                     ? _weightBottom(state)
                     : retargetView
                     ? _retargetBottom()
-                    : agentSessionActive
-                    ? AgentContactSheet(calls: state.agentCalls)
                     : null,
                 bottomHeight: showsTimeline
                     ? ModelerMetrics.timeline
@@ -570,8 +580,6 @@ extension _ReadyParts on _ModelerScreenState {
                     ? ModelerMetrics.bendBar
                     : retargetView
                     ? ModelerMetrics.retargetTracksBar
-                    : agentSessionActive
-                    ? ModelerMetrics.agentContactSheet
                     : null,
               );
             },

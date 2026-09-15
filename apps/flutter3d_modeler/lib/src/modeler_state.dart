@@ -74,6 +74,7 @@ final class ModelerReady extends ModelerState {
     this.playback = const Playback(),
     this.agentCalls = const <AgentToolCall>[],
     this.autosaveTrouble,
+    this.agentClient,
   });
 
   /// Live, and mutated by the frame loop.
@@ -155,6 +156,16 @@ final class ModelerReady extends ModelerState {
   /// there is nothing to show.
   final ({String reason, String? folder})? autosaveTrouble;
 
+  /// The name an agent gave when it connected, or null while nobody has —
+  /// `ux-05`'s own row.
+  ///
+  /// **An open port is not an agent.** The live run found the agent panel and
+  /// the contact sheet taking the right-hand column and a third of the
+  /// viewport's height from the first frame, with nothing connected and
+  /// nothing in either of them; `--mcp-port` says a socket is listening, and
+  /// this says somebody is on the other end of it.
+  final String? agentClient;
+
   /// The project, which is what nearly every reader actually wants.
   ModelProject get project => history.project;
 
@@ -176,6 +187,7 @@ final class ModelerReady extends ModelerState {
     List<AgentToolCall>? agentCalls,
     ({String reason, String? folder})? autosaveTrouble,
     bool clearAutosaveTrouble = false,
+    String? agentClient,
   }) => ModelerReady(
     renderer: renderer,
     stage: stage ?? this.stage,
@@ -196,6 +208,7 @@ final class ModelerReady extends ModelerState {
     autosaveTrouble: clearAutosaveTrouble
         ? null
         : (autosaveTrouble ?? this.autosaveTrouble),
+    agentClient: agentClient ?? this.agentClient,
   );
 }
 

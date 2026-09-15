@@ -21,6 +21,7 @@ Future<void> startMcpServer({
     Duration elapsed,
   )?
   onToolCall,
+  void Function(String clientName)? onInitialize,
 }) async {}
 
 Future<void> stopMcpServer() async {}

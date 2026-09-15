@@ -46,6 +46,10 @@ final class ModelHttpServer {
   /// passes any, which is what keeps them out of that server's own
   /// `tools/list`.
   ///
+  /// [onInitialize] is `ux-05`'s own door beside it: an open port is not an
+  /// agent, and a screen that shows agent chrome from the first frame is
+  /// showing it to nobody. This fires the moment a client says hello.
+  ///
   /// [onToolCall] is `tut-16`'s own door: screen 26's own tool-call feed —
   /// the GUI wants to know about every call an agent makes over this
   /// socket, the instant it answers, so [ModelMcpServer.onCall] is threaded
@@ -62,6 +66,7 @@ final class ModelHttpServer {
       Duration elapsed,
     )?
     onToolCall,
+    void Function(String clientName)? onInitialize,
   }) async => ModelHttpServer._(
     await LoopbackMcpServer.start(
       serve: (channel) => ModelMcpServer(
@@ -69,6 +74,7 @@ final class ModelHttpServer {
         session: session,
         extraTools: extraTools,
         onCall: onToolCall,
+        onInitialize: onInitialize,
       ),
       port: port,
       token: token,

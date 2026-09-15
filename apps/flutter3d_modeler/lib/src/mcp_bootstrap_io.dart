@@ -59,6 +59,7 @@ Future<void> startMcpServer({
     Duration elapsed,
   )?
   onToolCall,
+  void Function(String clientName)? onInitialize,
 }) async {
   if (_server != null) return;
   final session = ModelSession(history);
@@ -69,6 +70,7 @@ Future<void> startMcpServer({
         ? const <ModelPictureTool>[]
         : uiToolsFor(uiActions),
     onToolCall: onToolCall,
+    onInitialize: onInitialize,
   );
   _server = server;
   final dir = sessionDirectory ?? await getApplicationSupportDirectory();

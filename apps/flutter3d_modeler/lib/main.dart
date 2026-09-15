@@ -443,6 +443,15 @@ class _ModelerScreenState extends State<ModelerScreen>
   );
   late ModelerSettings _settings = _settingsStore.read();
 
+  /// Whether the agent panel is showing — `ux-05`.
+  ///
+  /// Starts closed and opens from the badge. **A person's own choice, not a
+  /// consequence of an agent doing something**: a panel that reopened itself
+  /// on every tool call would take the window back the moment it was useful
+  /// to have closed, which is the behaviour that made the old always-on panel
+  /// complained about in the first place.
+  bool _agentPanelOpen = false;
+
   /// Where the autosave's own storage says what it could not do — `ux-01`.
   ///
   /// Without a sink of its own a `FileBinaryStorage` prints and carries on,
