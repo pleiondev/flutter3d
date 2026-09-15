@@ -110,5 +110,33 @@ void main() {
         contains('/assets/learn/modeler/prop-from-a-scan/05-imported-raw.png'),
       );
     });
+
+    test('reads case 2 off disk and renders its Markdown', () {
+      final cases = loadLearnCases();
+      final case2 = cases.firstWhere((c) => c.slug == '02-vase-from-a-profile');
+      expect(case2.title, contains('A vase from a profile'));
+      expect(case2.bodyHtml, contains('<h1 '));
+      expect(
+        case2.bodyHtml,
+        contains('/assets/learn/modeler/vase-from-a-profile/05-vase-mesh.png'),
+      );
+    });
+
+    test('case 2 serves end to end through learnRoutes', () async {
+      final handler = _mounted(learnRoutes());
+      final response = await _get(
+        handler,
+        '/learn/modeler/02-vase-from-a-profile',
+      );
+      expect(response.statusCode, 200);
+      final body = await response.readAsString();
+      expect(body, contains('A vase from a profile'));
+      expect(
+        body,
+        contains(
+          '/assets/learn/modeler/vase-from-a-profile/06-vase-modifiers-preview.png',
+        ),
+      );
+    });
   });
 }
