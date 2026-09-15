@@ -135,12 +135,15 @@ Done once, by hand, because each step creates something outside this repository.
 
 ## What is not here yet
 
-- **Preview pictures.** The schema and the repository have a place for them;
-  nothing makes one yet. The server has no GPU to render a frame, so the plan is
-  for the viewer to capture one in the uploader's browser, and the viewer cannot
-  read a frame back yet.
-- **Editing from the cabinet.** The viewer opens a model; saving it back is the
-  next stage, along with revisions.
 - **The public catalogue.** Models can be private only. Publishing with a
   licence, author pages and attribution written into exported files are the stage
   after that; the licences and the `published()` query exist already.
+
+Preview pictures and editing from the cabinet, with revisions, are both real
+now: the server has no GPU to render a frame, so a preview is captured in the
+viewer's own browser (`canvas.toBlob`) and POSTed to
+`/api/v1/models/<id>/preview`; a save-back goes to
+`/api/v1/models/<id>/source`, which keeps the file it replaces as a revision
+in `model_revisions`, downloadable by the owner at
+`/files/<id>/revisions/<revisionId>`. Both endpoints check ownership and CSRF
+the same way every other mutating route here does.

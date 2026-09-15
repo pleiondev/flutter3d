@@ -46,12 +46,20 @@ final class CabinetLink {
   final String? mode;
 
   /// The token a same-origin POST back to the cabinet needs in its own
-  /// `X-CSRF` header — `cloud/server`'s own `scriptIsOurs`. Empty when the
-  /// page that opened this build did not send one, which is always true
-  /// today: `viewer.js` names `id`, but threading a real token through the
-  /// iframe URL is left for whichever stage builds the cabinet's own "Edit"
-  /// link, since nothing reachable today ever sends `mode=edit` for this to
-  /// matter yet.
+  /// `X-CSRF` header — `cloud/server`'s own `scriptIsOurs`. Threaded through
+  /// by `viewer.js`, the same way as `id`/`mode`/`editable`/`sourceSha` — see
+  /// `model_page.dart`'s own `data-csrf` for where it starts. Empty only when
+  /// the page that opened this build sent nothing at all, which is every
+  /// non-cabinet launch.
+  ///
+  /// **Not the secret half of the pair `scriptIsOurs` checks.** That is the
+  /// CSRF cookie itself, which is `HttpOnly` and never reaches this build —
+  /// or anywhere a cross-origin page could read it — by any route, this one
+  /// included; see `cabinet_save_web.dart`'s own doc comment for why the
+  /// query string is the only way this value gets here at all. This token is
+  /// no more sensitive sitting in that URL than it already is sitting in
+  /// `model_page.dart`'s own `data-csrf` attribute, or in the hidden `csrf`
+  /// field every ordinary form on that page already carries.
   final String csrf;
 
   /// Whether *this viewer* — the account signed in in the tab that opened
