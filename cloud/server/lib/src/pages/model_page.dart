@@ -96,6 +96,10 @@ class ModelPage extends StatelessComponent {
               span([Component.text('private')], classes: 'badge'),
               Component.text(' only you can see this model'),
             ],
+            if (model.category case final category?)
+              span([Component.text(category.label)], classes: 'badge'),
+            if (model.licence case final licence? when model.isPublic)
+              span([Component.text(licence.spdx)], classes: 'badge'),
           ], classes: 'by'),
         ], classes: 'model-head'),
         div(

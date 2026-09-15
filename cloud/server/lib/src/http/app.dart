@@ -327,6 +327,7 @@ Handler buildHandler(Services services) {
           user: user,
           csrf: csrfOf(request),
           models: await services.models.ofOwner(user.id),
+          projects: await services.projects.ofOwner(user.id),
           uploadLimitBytes: services.config.uploadLimitBytes,
           said: request.url.queryParameters['said'],
         ),
