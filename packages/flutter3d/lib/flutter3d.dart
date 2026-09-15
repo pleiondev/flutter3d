@@ -71,6 +71,7 @@ export 'src/engine/animation/skin_blend.dart';
 // its HAL formats, and everything from `ModelAsset` down that has met a device.
 export 'src/engine/assets/gltf_resolvers.dart';
 export 'src/engine/assets/ktx2/ktx2.dart';
+export 'src/engine/assets/load_model_asset.dart';
 export 'src/engine/assets/material_loader.dart';
 export 'src/engine/assets/model_asset.dart';
 export 'src/engine/assets/model_loader.dart';
