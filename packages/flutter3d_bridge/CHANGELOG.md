@@ -1,12 +1,19 @@
 ## 0.6.0
 
-* **Floors, and no code.** Level geometry to mesh nodes, an actor to its visual,
-  a fixture to the light it drives — byte for byte 0.5.1's. What moved are the
-  floors on the two halves this package exists to join, `flutter3d` and
-  `flutter3d_game`, plus `flutter3d_particles`, and the two dev floors on
-  `flutter3d_hardware` and `flutter3d_cpu`: all `^0.6.0`.
+* **Floors, mostly no code.** Level geometry to mesh nodes, an actor to its
+  visual, a fixture to the light it drives. What moved are the floors on the
+  two halves this package exists to join, `flutter3d` and `flutter3d_game`,
+  plus `flutter3d_particles`, and the two dev floors on `flutter3d_hardware`
+  and `flutter3d_cpu`: all `^0.6.0`.
 * It is still the one package allowed to depend on both halves, and the
   direction of that dependency did not change.
+* **`FixtureVisuals` and `ActorVisuals` now recognise a migrated game's own
+  model paths.** `ap-12`: a path under `assets_src/` loads through
+  `flutter3d`'s `loadModelAsset`; every other path — what every game not yet
+  moved onto the asset pipeline still writes — loads exactly as it always
+  did. One prefix check in each loader, so a game that has not migrated
+  keeps working unchanged while one that has stops needing its own copy of
+  the same branch.
 
 ## 0.5.1
 

@@ -1,12 +1,25 @@
 ## 0.6.0
 
-* **The engine's own code is unchanged, and the version moves anyway.** Every
-  file under `lib/` is byte for byte what 0.5.2 put on pub.dev; what moved is
-  the demo this package ships beside it, the script that records its reference
-  pictures, and two of the pictures. The number follows the whole set so that
-  one number names one tree rather than the list of packages that happened to
-  change — the publishing order in `ARCHITECTURE.md` §16 is what makes that
-  affordable.
+* **A model finally answers to the name a person actually gave it.**
+  `loadModelAsset('assets_src/models/chair.glb')` (`ap-11`) reads the build
+  hook's own converted `.f3d` instead of the source, because that is what
+  every build after the first `dart run flutter3d_build:init` (`ap-10`)
+  actually ships. Missing it means two different things on purpose: in
+  debug it decodes the source directly and warns once per path rather than
+  once per call; outside debug it is a `StateError` naming
+  `flutter3d_build:init`, since a release build shipped without its own
+  hook running is a real problem, not something to paper over silently.
+  Web has no fallback — no `dart:io` there — so a missing generated file
+  is the release error in every build mode on that platform. Picking a
+  texture family variant on the web is not part of this: the engine names
+  no backend, and the HAL has no abstract way yet to ask a device which
+  compressed formats it supports.
+* **Most of `lib/` otherwise moved with the set rather than for its own
+  reasons.** The demo this package ships beside it, the script that
+  records its reference pictures, and two of the pictures also moved. The
+  number follows the whole set so that one number names one tree rather
+  than the list of packages that happened to change — the publishing
+  order in `ARCHITECTURE.md` §16 is what makes that affordable.
 * **The demo does not draw a golden until the model has landed.** Everything the
   scene decides — where the point lights stand, where the camera sits, how wide
   the floor is — is decided when the load returns, and a frame drawn before that

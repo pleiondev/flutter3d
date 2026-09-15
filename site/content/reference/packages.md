@@ -262,6 +262,13 @@ An entry point and a usage line today; running it says the server is not built y
 ### `flutter3d_mcp_kit`
 What the four MCP servers share, written once: `OfferedTool`, a tool and the code that runs it as one value; `ToolTableServer`, a server that is a list of those over one session; `Answer` and `PictureAnswer`, with the functions that turn a refusal into an error result an agent reads rather than a server that failed; and `LoopbackMcpServer`, any of those servers over `127.0.0.1` HTTP with a token per server, for an application handing an agent the session a person already has open. Plain Dart.
 
+### `flutter3d_build`
+The build hook behind `dart run flutter3d_build:init`: converts model and texture sources into what the engine loads, on every build rather than as a step somebody remembers to run. `dart run flutter3d_build:convert` is the same code, for a project that wants the CLI directly.
+
+**Not a dependency of the engine — no game that draws a frame runs it.** A project's own `hook/build.dart` calls `buildAssets(input, output)`, which `package:hooks` runs during `flutter build`/`flutter run`; nothing about drawing a scene needs this package to exist once that has happened. Plain Dart, so the hook — a separate process the Flutter tool starts with no window — can resolve it.
+
+`AssetLayout` plans `assets_src/` against an optional `flutter3d_assets.yaml` manifest; `familiesForTarget` picks BC for desktop, ETC2 for mobile, both for the web, from `--target` rather than a guess at the machine running the build. See [The asset pipeline](/reference/asset-pipeline/) for the manifest, the CLI, and what a failed hook actually says.
+
 ## Applications
 
 ### `apps/flutter3d_demo_dungeon`

@@ -35,17 +35,20 @@ flutter pub get
 
 ## Build the shader bundles
 
-Required before the first run, and again after every Flutter SDK change. There
-are two: the engine's own, which every application links, and the engine demo's,
-which it loads at runtime and names as an asset.
+There are two: the engine's own canonical bundle, which every application
+links, and the engine demo's own separate one, which it loads at runtime and
+names as an asset.
+
+<div class="note">
+<p>The engine's own bundle no longer needs this step. `packages/flutter3d_impeller/hook/build.dart` (`ap-06` in `doc/asset-pipeline-plan.md`) runs it during <code>flutter build</code>/<code>flutter run</code> automatically — a fresh checkout, `flutter pub get`, and <code>flutter run -d macos</code> in any of the three games below draws a frame with no shader step in between. Left here only for the one thing the hook does not cover.</p>
+</div>
 
 ```bash
-(cd packages/flutter3d_impeller && ./tool/build_shaders.sh)
 (cd packages/flutter3d/example && ./tool/build_shaders.sh)
 ```
 
 <div class="warn">
-<p>The bundle is generated, gitignored, and its format is tied to the Flutter version. A fresh checkout has none, and the symptom is <code>Failed to initialize ShaderLibrary</code> at startup instead of a missing-file error. After <code>flutter upgrade</code>, run it again — shaders that used to load will stop.</p>
+<p>This one bundle is still generated, gitignored, and tied to the Flutter version — a fresh checkout has none, and the symptom is a missing-asset error at startup rather than a build failure. After <code>flutter upgrade</code>, run it again. It has not moved onto the hook because it is the demo's own separate bundle, outside `ap-06`'s own canonical one — see that entry's "Не сделано" for why.</p>
 </div>
 
 The script calls `impellerc` directly rather than going through Native Assets, and prints the compiled binding table on the way out. That table is worth reading once: the compiler drops a uniform block or a sampler whose result never reaches the output, so what a shader *declares* and what it actually *binds* are different lists.
@@ -53,7 +56,8 @@ The script calls `impellerc` directly rather than going through Native Assets, a
 ## Run something
 
 ```bash
-# The engine's demo: a model browser with every feature switchable
+# The engine's demo: a model browser with every feature switchable.
+# Needs the shader step above — it is the one bundle that still asks for it.
 (cd packages/flutter3d/example && flutter run -d macos)
 
 # The shooter
@@ -169,4 +173,5 @@ Scene buildScene(GraphicsDevice device) {
 - [The frame](/core/rendering/): what the renderer actually does with a scene
 - [Tutorial: first scene](/core/tutorial/): the whole application, step by step
 - [Assembling an application](/core/session/): the device, frame surface and level lifecycle the shipped games actually use
+- [The asset pipeline](/reference/asset-pipeline/): converting your own models and textures on every build, instead of committing what a script produced once
 - [Pitfalls](/reference/pitfalls/): the conditions without which Flutter GPU silently renders nothing
