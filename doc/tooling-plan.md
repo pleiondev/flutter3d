@@ -2664,20 +2664,62 @@ down/move/up, а `Scrollable` (и `ListView`, и `SingleChildScrollView`) —
 хранит `HitTestResult` по указателю между `down` и `up`, тем же способом,
 что и настоящий бинд. Это не починило `Scrollable` — офсет остаётся 0.0 и
 после исправления — но убрало ложный след: причина не в устаревшем
-хит-тесте, она глубже и не найдена в рамках этой сессии.
+хит-тесте, она глубже.
+
+**Причина найдена 2026-09-15 — и это не отдельная новая проблема, а тот же
+самый `GlobalKey`/`BuildOwner` барьер SDK, что уже сломал `TextField` выше,
+просто без исключения.** `Scrollable` строит свой `RawGestureDetector` через
+`GlobalKey<RawGestureDetectorState> _gestureDetectorKey`
+(`scrollable.dart`), и когда `ScrollPositionWithSingleContext.
+applyNewDimensions` — стандартный шаг layout'а, выполняющийся при первом же
+проходе, как только контент оказался длиннее вьюпорта — узнаёт, что тянуть
+можно, он не перестраивает виджет и не зовёт `setState`: он читает
+`_gestureDetectorKey.currentState` и, если не `null`, напрямую подменяет
+распознаватели через `replaceGestureRecognizers(...)`, в обход обычного
+build. А `GlobalKey.currentState` — как и у `TextField` — это
+`WidgetsBinding.instance.buildOwner!._globalKeyRegistry[this]`
+(`framework.dart`): реестр ЕДИНСТВЕННОГО `BuildOwner` приложения. Элемент
+`RawGestureDetector`, построенный этим пайплайном, регистрирует себя в
+`owner!._registerGlobalKey(key, this)` — но там `owner` это `Element.owner`,
+то есть пайплайна СОБСТВЕННЫЙ приватный `BuildOwner`, а не
+`WidgetsBinding.instance.buildOwner`. Два разных реестра: `currentState`
+внутри пайплайна всегда `null`, `replaceGestureRecognizers` никогда не
+вызывается, и `RawGestureDetector` на всю жизнь виджета остаётся с тем
+пустым `gestures: {}`, с которым был построен ДО первого layout'а (когда
+`_lastCanDrag` ещё `null`). Дальше нечему открывать арену — поэтому
+`debugPrintGestureArenaDiagnostics` не печатает вообще ничего для указателя
+на `Scrollable`, при том что `RenderPointerListener` внутри него честно
+присутствует в хит-тест пути (проверено печатью пути на `down`) и его
+`handleEvent` действительно вызывается.
+
+Проверено прямым измерением, а не только чтением исходников: у `Scrollable`
+внутри пайплайна `WidgetsBinding.instance.buildOwner!.globalKeyCount` не
+меняется до и после монтирования `ListView` — ни один элемент пайплайна, с
+`GlobalKey` или без, в реестре приложения не появляется, что и предсказывает
+код `Element.mount`. Значит `wg-01`'s "открытый вопрос" закрывается не как
+отвергнутая гипотеза, а как найденная причина — и она ровно там же, где уже
+названа стена для `TextField`: одно приложение — один `BuildOwner`, и любой
+виджет, который координирует своё состояние через `GlobalKey.currentState`
+вместо `context`, не может жить в изолированном дереве. Внутри
+`flutter3d_session` это не чинится; починка потребовала бы либо API Flutter для
+подмены `WidgetsBinding.instance.buildOwner` на время работы с пайплайном
+(нет такого), либо форк `Scrollable`, что не входит в объём пакета.
 
 **Не сделано, честно:**
-- «список прокручивается пальцем» — третий пункт приёмки. Механизм
-  указателя доказанно доставляет полную последовательность down/move/up с
-  корректной `delta` до простого распознавателя жеста
-  (`onVerticalDragUpdate` реагирует, смещение совпадает с посчитанным);
-  `Scrollable`-виджеты (`ListView`, `SingleChildScrollView`) на ту же
-  последовательность не реагируют вообще — ни одного `ScrollNotification`,
-  без единого исключения. Причина не найдена: не `GlobalKey` (у `Scrollable`
-  его нет в этом пути), не `View.of` (никакого похожего исключения), не
-  устаревший хит-тест (проверено и исправлено отдельно, не помогло). Это
-  открытый вопрос, а не отвергнутая гипотеза — оставлен таким прямо, вместо
-  того чтобы выдать за готовое то, что не проверено.
+- «список прокручивается пальцем» — третий пункт приёмки, и он не будет
+  сделан внутри этого пакета: причина найдена 2026-09-15 (см. выше) и это
+  стена SDK, не баг `flutter3d_session`. `Scrollable`'s `RawGestureDetector`
+  координирует себя через `GlobalKey.currentState`, а тот всегда читает
+  `WidgetsBinding.instance.buildOwner` — реестр приложения, не пайплайна,
+  который на самом деле построил элемент. Внутри изолированного
+  `WidgetSurfacePipeline` этот `currentState` всегда `null`,
+  `replaceGestureRecognizers` никогда не вызывается, и распознаватель
+  перетаскивания никогда не регистрируется — ни одной записи в арене жестов,
+  ни одного `ScrollNotification`, без единого исключения, что и наблюдалось.
+  Тот же класс стены, что у `TextField` выше, просто без падения: `Scrollable`
+  защищается `if (_gestureDetectorKey.currentState != null)` там, где
+  `TextField`'s код не проверяет и бросает `Null check operator used on a
+  null value`.
 - Семантика — по решению `§7`, `wg-01` сдаётся без неё. Запись:
   **`flutter3d_session`'s `CHANGELOG.md`** дальше в этом же коммите называет
   пропуск явно.
