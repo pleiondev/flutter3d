@@ -1650,4 +1650,33 @@ void main() {
     expect((await services.models.ofOwner(ownerId)).length, modelCountBefore);
     expect(blobs.length, blobCountBefore);
   });
+
+  test('creating a project is rate-limited per account', () async {
+    // A fresh account signed in by minting a session straight through the
+    // repository, the same shortcut the repository-level tests above take —
+    // this file has already spent its shared `registerPerIp` and
+    // `signInPerIp` budgets many times over by this point, and this test
+    // does not need either: only a real session cookie behind a real POST,
+    // to prove the handler itself enforces the new rule and not just
+    // `RateLimiter` in isolation.
+    final spammer = await services.users.create(
+      email: 'project-spammer@example.com',
+      handle: 'project-spammer',
+      displayName: 'Project Spammer',
+      passwordHash: 'x',
+    );
+    final browser = _Browser(handler);
+    // A GET first, the same as every other browser above, so the CSRF
+    // cookie middleware has something to set before the first POST.
+    await browser.get('/');
+    browser.cookies['session'] = await services.sessions.start(spammer!.id);
+
+    final codes = <int>[
+      for (var i = 0; i < 21; i++)
+        (await browser.post('/projects', {
+          'title': 'Spam Project $i',
+        })).statusCode,
+    ];
+    expect(codes, contains(429));
+  });
 }

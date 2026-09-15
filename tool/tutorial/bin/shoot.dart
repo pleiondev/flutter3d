@@ -4,8 +4,7 @@
 /// команда" (regenerating every picture is one command) — this is that
 /// command, for one case at a time.
 ///
-///     flutter run -d macos --dart-define=mcpPort=0 \
-///         -a --window=1440x900
+///     FLUTTER3D_WINDOW=1440x900 flutter run -d macos --dart-define=mcpPort=0
 ///     dart run tool/tutorial/bin/shoot.dart \
 ///         --scenario tool/tutorial/test/fixtures/smoke_scenario.json \
 ///         --out cloud/server/web/assets/learn/modeler
@@ -14,10 +13,14 @@
 /// Confirmed end to end against a real running window on 2026-09-15: the
 /// MCP connection, `ui.standardView`/`ui.frameSubject`/`ui.say`, and
 /// `screencapture -l <id>` all work without a permission prompt blocking
-/// the run. One correction from that run: `--session`'s own default below
+/// the run. Two corrections from that run: `--session`'s own default below
 /// was a guess one directory too shallow — `getApplicationSupportDirectory()`
 /// nests a further `<bundle-id>/` under `Application Support/` on macOS,
-/// which this default now accounts for.
+/// which this default now accounts for — and the window-size door is now
+/// `FLUTTER3D_WINDOW`, an environment variable, not a `-a --window=` launch
+/// argument: that argument reaches only Dart's own `main()`, never the
+/// native `MainFlutterWindow` that has to be sized before Dart even starts
+/// — see that file's own doc comment for how this was actually found.
 library;
 
 import 'dart:io';

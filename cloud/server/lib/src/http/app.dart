@@ -805,6 +805,21 @@ Handler buildHandler(Services services) {
       if (!formIsOurs(request, form, policy)) return _staleForm(request);
       final user = await userOf(request);
       if (user == null) return seeOther('/login?next=/projects');
+      if (!await services.limiter.allow(
+        'project-create:account:${user.id}',
+        RateRule.projectCreatePerAccount,
+      )) {
+        return htmlPage(
+          MessagePage(
+            title: 'Too many projects created',
+            body:
+                'This account has created several projects recently. Try '
+                'again later.',
+            signedIn: user,
+          ),
+          status: 429,
+        );
+      }
       final title = (form['title'] ?? '').trim();
       final created = await services.projects.create(
         ownerId: user.id,

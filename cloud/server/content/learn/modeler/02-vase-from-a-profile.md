@@ -199,7 +199,7 @@ macOS window (`flutter run -d macos` fails to foreground here — the same
 limit case 1's own page and `tool/tutorial/shoot.dart` already document),
 so none of the four could be shot for real. To replace them on a real Mac:
 
-1. `cd apps/flutter3d_modeler && flutter run -d macos --dart-define=mcpPort=0 -a --window=1440x900`
+1. `cd apps/flutter3d_modeler && FLUTTER3D_WINDOW=1440x900 flutter run -d macos --dart-define=mcpPort=0`
 2. `dart run tool/tutorial/bin/shoot.dart` against a scenario that: opens a
    new project and draws this page's own eight-point profile in the lathe
    dialog, twelve segments (`01-profile-editor`); selects the rim faces and

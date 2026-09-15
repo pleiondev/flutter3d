@@ -172,7 +172,7 @@ written in a sandbox that cannot open a macOS window
 
 To replace the four placeholders on a real Mac:
 
-1. `cd apps/flutter3d_modeler && flutter run -d macos --dart-define=mcpPort=0 -a --window=1440x900`
+1. `cd apps/flutter3d_modeler && FLUTTER3D_WINDOW=1440x900 flutter run -d macos --dart-define=mcpPort=0`
 2. `dart run tool/tutorial/bin/shoot.dart` against a scenario that: opens
    the start screen (`01-start-screen`); opens `teapot.stl` and shows the
    import dialog with "mm" chosen (`02-import-dialog`); adds and assigns

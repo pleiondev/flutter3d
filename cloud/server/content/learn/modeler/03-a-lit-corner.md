@@ -171,7 +171,7 @@ four panels, the export dialog). This session cannot open a macOS window
 case 2's own pages already document), so none of the three could be shot for
 real. To replace them on a real Mac:
 
-1. `cd apps/flutter3d_modeler && flutter run -d macos --dart-define=mcpPort=0 -a --window=1440x900`
+1. `cd apps/flutter3d_modeler && FLUTTER3D_WINDOW=1440x900 flutter run -d macos --dart-define=mcpPort=0`
 2. `dart run tool/tutorial/bin/shoot.dart` against a scenario that: opens
    case 2's own saved project, imports `BoxTextured.glb`, and shows the
    viewport with both objects and the outliner (`01-scene-viewport-gizmo`);

@@ -22,7 +22,7 @@ Launch the modeler with an MCP port open:
 
 ```
 cd apps/flutter3d_modeler
-flutter run -d macos --dart-define=mcpPort=0 -a --window=1440x900
+FLUTTER3D_WINDOW=1440x900 flutter run -d macos --dart-define=mcpPort=0
 ```
 
 `mcpPort=0` picks any free port rather than a fixed one. Once the document
@@ -152,7 +152,7 @@ a camera rig standing by for a call that may never come. What remains is
 only the picture: nothing in this sandbox can run the desktop build to take
 one. To replace the placeholder once a real machine can:
 
-1. `cd apps/flutter3d_modeler && flutter run -d macos --dart-define=mcpPort=0 -a --window=1440x900`
+1. `cd apps/flutter3d_modeler && FLUTTER3D_WINDOW=1440x900 flutter run -d macos --dart-define=mcpPort=0`
 2. `dart run tool/tutorial/bin/shoot.dart` against a scenario that drives
    this case's own steps over the real MCP port, with at least one agent
    step and one person step visible in the history list.

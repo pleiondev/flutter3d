@@ -135,9 +135,10 @@ Done once, by hand, because each step creates something outside this repository.
 
 ## What is not here yet
 
-- **The public catalogue.** Models can be private only. Publishing with a
-  licence, author pages and attribution written into exported files are the stage
-  after that; the licences and the `published()` query exist already.
+- **Author pages and attribution written into exported files.** A published
+  model's own page already names its owner, its licence and its category; a
+  page listing everything one account has published, and a downloaded file
+  carrying that licence in its own metadata, are both still ahead.
 
 Preview pictures and editing from the cabinet, with revisions, are both real
 now: the server has no GPU to render a frame, so a preview is captured in the
@@ -147,3 +148,21 @@ viewer's own browser (`canvas.toBlob`) and POSTed to
 in `model_revisions`, downloadable by the owner at
 `/files/<id>/revisions/<revisionId>`. Both endpoints check ownership and CSRF
 the same way every other mutating route here does.
+
+Projects, publishing and the public showcase are real now too. A model can
+live inside a project or stand alone — `models.project_id`, nullable, set to
+`null` by the database itself when its project is deleted rather than by any
+code walking the model to detach it. `POST /m/<id>/publish` records a licence
+and a category, each chosen from a fixed enum server-side so a client-supplied
+string never reaches the `check` constraint that backstops them; `/explore`
+lists every published model, searchable by title and description through
+`websearch_to_tsquery` (never raw `to_tsquery` on what somebody typed) and
+filterable by category. Every mutating route this added — project create,
+describe, delete, move, publish, unpublish — checks ownership and CSRF the
+same way every other one here does, and a cross-account project id is refused
+with the same clean 404 a cross-account model id already was, never a 403
+that would confirm the other account's project exists at all. An adversarial
+pass over all of it found one real gap and closed it: project creation had no
+rate limit at all, unlike every other row-creating action here, so it now
+carries `RateRule.projectCreatePerAccount` the same shape publishing already
+had.

@@ -136,7 +136,7 @@ macOS window (`flutter run -d macos` fails to foreground here, the same
 limit cases 1–4's own pages already document), so none of the three could
 be shot for real. To replace them on a real Mac:
 
-1. `cd apps/flutter3d_modeler && flutter run -d macos --dart-define=mcpPort=0 -a --window=1440x900`
+1. `cd apps/flutter3d_modeler && FLUTTER3D_WINDOW=1440x900 flutter run -d macos --dart-define=mcpPort=0`
 2. `dart run tool/tutorial/bin/shoot.dart` against a scenario that: opens
    the retarget screen and imports `RiggedFigure.glb`, both viewports
    visible (`01-clip-library`); presses Auto-map, seventeen rows filled in,

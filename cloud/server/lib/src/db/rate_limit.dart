@@ -46,6 +46,14 @@ class RateRule {
   /// toggling a model's visibility over and over, not to get in the way of
   /// normal use.
   static const publishPerAccount = RateRule(20, Duration(hours: 1));
+
+  /// Creating a project, from one account. A legitimate owner starts a
+  /// handful of projects a session at most; the ceiling exists to bound how
+  /// many rows a script looping on the form could create in an hour, not to
+  /// get in the way of normal use — every other row-creating action here
+  /// (an upload, a publish) already has a rule of its own, and a project was
+  /// the one left without one.
+  static const projectCreatePerAccount = RateRule(20, Duration(hours: 1));
 }
 
 class RateLimiter {
