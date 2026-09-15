@@ -32,7 +32,7 @@
 /// scheme, so an order and a save cannot disagree about which worker is which.
 library;
 
-import 'package:flutter3d_game/flutter3d_game.dart';
+import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:vector_math/vector_math.dart';
 
 import 'building.dart';

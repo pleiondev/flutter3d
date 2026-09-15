@@ -13,7 +13,7 @@
 library;
 
 import 'package:flutter/material.dart' hide Material;
-import 'package:flutter3d_game/flutter3d_game.dart' show EntityDef;
+import 'package:flutter3d_sim/flutter3d_sim.dart' show EntityDef;
 
 /// A `check` object, read once from a step's own properties.
 final class CheckSpec {

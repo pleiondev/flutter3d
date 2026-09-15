@@ -13,7 +13,7 @@ library;
 import 'dart:typed_data';
 
 import 'package:flutter3d/flutter3d.dart';
-import 'package:flutter3d_game/flutter3d_game.dart';
+import 'package:flutter3d_sim/flutter3d_sim.dart';
 
 /// Interleaves the level package's plain arrays into the engine's layout.
 ///

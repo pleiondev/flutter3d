@@ -23,7 +23,7 @@
 library;
 
 import 'package:flutter3d/flutter3d.dart' hide Material;
-import 'package:flutter3d_game/flutter3d_game.dart';
+import 'package:flutter3d_sim/flutter3d_sim.dart';
 
 /// Moves [camera] to [step]'s own position and yaw, and shows or hides
 /// whichever of [nodes] the step names in its `visible`/`hidden` lists.

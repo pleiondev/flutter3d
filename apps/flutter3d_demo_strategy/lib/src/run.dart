@@ -28,9 +28,9 @@
 library;
 
 import 'package:flutter3d/flutter3d.dart' show GraphicsDevice;
-import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:flutter3d_game_strategy/flutter3d_game_strategy.dart';
 import 'package:flutter3d_session/flutter3d_session.dart';
+import 'package:flutter3d_sim/flutter3d_sim.dart';
 
 import 'level_document.dart';
 import 'staging.dart';

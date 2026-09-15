@@ -14,6 +14,7 @@ dependencies:
   flutter3d: ^0.6.0
   flutter3d_app: ^0.7.0
   flutter3d_game: ^0.6.0
+  flutter3d_sim: ^0.6.0
   flutter3d_game_strategy: ^0.6.0
 
   # Where `RunSession` lives. Named here rather than reached through the

@@ -1,4 +1,4 @@
-import 'package:flutter3d_game/flutter3d_game.dart';
+import 'package:flutter3d_sim/flutter3d_sim.dart';
 
 /// Rebuilds a [RewindBuffer] that reaches every step of [demo], not only the
 /// last few seconds a live [RunTimeline] keeps — `rp-02`'s "скраббер по всему

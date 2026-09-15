@@ -30,6 +30,8 @@ dependencies:
   # Simulation and input.
   flutter3d_game:
     path: ../../packages/flutter3d_game
+  flutter3d_sim:
+    path: ../../packages/flutter3d_sim
 
   # The genre: monsters, weapons, the inventory, the step order and the weapon
   # view model. This app is one shooter; the engine packages above are not.

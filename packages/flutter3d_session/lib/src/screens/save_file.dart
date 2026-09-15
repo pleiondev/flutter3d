@@ -1,7 +1,9 @@
 import 'dart:convert';
 
 import 'package:flutter3d_game/flutter3d_game.dart'
-    show Issue, IssueSink, Snapshot, SnapshotFormatException, printIssue;
+    show Issue, IssueSink, printIssue;
+import 'package:flutter3d_sim/flutter3d_sim.dart'
+    show Snapshot, SnapshotFormatException;
 
 import 'settings_file.dart';
 import 'storage/storage.dart';

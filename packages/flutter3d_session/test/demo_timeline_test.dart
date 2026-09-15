@@ -6,8 +6,8 @@
 ///     flutter test test/demo_timeline_test.dart
 library;
 
-import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:flutter3d_session/flutter3d_session.dart';
+import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 const GameAction _fire = GameAction('fire');

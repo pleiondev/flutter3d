@@ -6,8 +6,9 @@
 /// accessibility settings that read a `MediaQuery`, and the diagnostics sink.
 /// Everything a step actually does moved to `flutter3d_sim`, which is plain
 /// Dart and can therefore run on a server — see that package for why that
-/// matters more than tidiness. It is re-exported below, so a game that imported
-/// this one keeps working unchanged.
+/// matters more than tidiness. It is not re-exported: a file that steps a
+/// simulation imports `flutter3d_sim` by name, so the one that needs a touch
+/// stick is the one that says so.
 ///
 /// Everything here is free of `flutter_gpu` and of `flutter3d`. That is the same rule the engine's geometry
 /// and scene layers already follow, applied to the part of a game that breaks
@@ -19,11 +20,6 @@
 /// `flutter3d_bridge` is where this meets the renderer.
 library;
 
-// The simulation, and through it `flutter3d_physics`. Re-exported rather than
-// left for the caller to add, so that the split costs no existing program a
-// line: `import 'package:flutter3d_game/flutter3d_game.dart'` still hands over
-// the loop, the level, the saves and the collision world.
-export 'package:flutter3d_sim/flutter3d_sim.dart';
 export 'src/config/accommodations.dart';
 export 'src/config/game_config.dart';
 export 'src/diagnostics/issues.dart';

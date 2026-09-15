@@ -2,7 +2,8 @@ import 'dart:async';
 
 import 'package:flutter3d_app/flutter3d_app.dart'; // applySavedVolumes
 import 'package:flutter3d_audio/flutter3d_audio.dart';
-import 'package:flutter3d_game/flutter3d_game.dart'; // GameConfig
+import 'package:flutter3d_game/flutter3d_game.dart';
+// GameConfig
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'sounds.dart';

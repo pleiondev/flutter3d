@@ -21,6 +21,8 @@ dependencies:
   # The document and the level format.
   flutter3d_game:
     path: ../../packages/flutter3d_game
+  flutter3d_sim:
+    path: ../../packages/flutter3d_sim
 
   # A level document to mesh nodes and lights.
   flutter3d_bridge:

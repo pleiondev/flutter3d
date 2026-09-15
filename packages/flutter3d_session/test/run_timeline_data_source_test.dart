@@ -12,8 +12,8 @@
 /// `edu-00` §9's own "input to the tape", recorded every step it is read.
 library;
 
-import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:flutter3d_session/flutter3d_session.dart';
+import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:test/test.dart';
 
 const GameAction _fire = GameAction('fire');

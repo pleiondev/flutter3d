@@ -1,7 +1,9 @@
 import 'dart:convert';
 
 import 'package:flutter3d_game/flutter3d_game.dart'
-    show Demo, DemoFormatException, Issue, IssueSink, printIssue;
+    show Issue, IssueSink, printIssue;
+import 'package:flutter3d_sim/flutter3d_sim.dart'
+    show Demo, DemoFormatException;
 
 import 'save_file.dart';
 import 'storage/storage.dart';

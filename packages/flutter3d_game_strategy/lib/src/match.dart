@@ -28,7 +28,7 @@
 /// lead is a draw wherever in the list it happens to fall.
 library;
 
-import 'package:flutter3d_game/flutter3d_game.dart';
+import 'package:flutter3d_sim/flutter3d_sim.dart';
 
 import 'bot.dart';
 import 'economy.dart';

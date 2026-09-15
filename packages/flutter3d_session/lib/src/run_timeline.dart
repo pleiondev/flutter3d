@@ -1,4 +1,4 @@
-import 'package:flutter3d_game/flutter3d_game.dart';
+import 'package:flutter3d_sim/flutter3d_sim.dart';
 
 /// One action taken on a [RunTimeline], kept so a caller can show a history —
 /// `rp-02`'s "команды видны в истории", the same log an MCP command stream

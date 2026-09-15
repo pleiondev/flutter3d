@@ -20,6 +20,7 @@ dependencies:
   # The simulation's vocabulary: `Snapshot`, `RunOutcome`, `GameLoop`. Also
   # what `lib/src/screens/` edits: bindings, actions, the settings map.
   flutter3d_game: ^0.6.0
+  flutter3d_sim: ^0.6.0
 
   # The renderer, for `RenderSettings` and `Scene` — which the surface hands over
   # and never interprets.

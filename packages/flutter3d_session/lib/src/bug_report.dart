@@ -1,4 +1,4 @@
-import 'package:flutter3d_game/flutter3d_game.dart';
+import 'package:flutter3d_sim/flutter3d_sim.dart';
 
 /// `rp-04`'s game-side half: the last few seconds [rewind] has kept, as the
 /// state and the tape a [Demo] needs — everything except the checkpoints and

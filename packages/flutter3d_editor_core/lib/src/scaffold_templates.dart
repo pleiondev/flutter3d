@@ -39,6 +39,7 @@ dependencies:
 
   flutter3d: ^0.6.0
   flutter3d_game: ^0.6.0
+  flutter3d_sim: ^0.6.0
   flutter3d_bridge: ^0.6.0
   flutter3d_session: ^0.6.0
 

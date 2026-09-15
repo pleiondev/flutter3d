@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter3d_audio/flutter3d_audio.dart';
 import 'package:flutter3d_game/flutter3d_game.dart';
+import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:pad_input/pad_input.dart' show Deadzone;
 import 'settings_panel_controls.dart';
 import 'volumes.dart';

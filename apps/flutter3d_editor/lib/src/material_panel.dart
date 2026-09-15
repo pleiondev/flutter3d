@@ -48,7 +48,7 @@ import 'package:flutter3d/flutter3d.dart'
 import 'package:flutter3d_editor_core/flutter3d_editor_core.dart';
 // For `Level`, which is what a material is written back through. The editor's
 // core keeps the document open and does not re-export the format it is in.
-import 'package:flutter3d_game/flutter3d_game.dart' show Level;
+import 'package:flutter3d_sim/flutter3d_sim.dart' show Level;
 
 import 'editor_inspector.dart';
 

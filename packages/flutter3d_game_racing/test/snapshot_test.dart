@@ -15,9 +15,9 @@ library;
 
 import 'dart:convert';
 
-import 'package:flutter3d_game/flutter3d_game.dart'
-    show Snapshot, SnapshotFormatException;
 import 'package:flutter3d_game_racing/flutter3d_game_racing.dart';
+import 'package:flutter3d_sim/flutter3d_sim.dart'
+    show Snapshot, SnapshotFormatException;
 import 'package:flutter_test/flutter_test.dart';
 
 import 'race_test.dart' show Race, driveRound;

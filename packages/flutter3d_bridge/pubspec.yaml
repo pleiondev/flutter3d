@@ -21,6 +21,7 @@ dependencies:
   flutter3d: ^0.6.0
   flutter3d_particles: ^0.6.0
   flutter3d_game: ^0.6.0
+  flutter3d_sim: ^0.6.0
 
   # `WidgetSurface` (`wg-01`) — a `widget_surface` entity resolves to one the
   # same way a fixture resolves to a mesh: this is where an `EntityDef`

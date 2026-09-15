@@ -88,7 +88,7 @@ That is not tidiness. A server that verifies a submitted run has to replay it th
 ### `flutter3d_game`
 What was left when the simulation moved out: the touch stick, the touch button and the controls that lay them out, keyboard and mouse, the accessibility settings that read a `MediaQuery`, and the diagnostics sink. Eight files that wanted Flutter, out of the eighty-nine this package used to hold.
 
-Re-exports the whole of `flutter3d_sim` and `flutter3d_physics` through it, so a game that imported this one keeps working unchanged.
+It does not re-export `flutter3d_sim`: a file that steps a simulation imports that package by name, and one that reads a touch stick imports this one.
 
 ### `flutter3d_physics`
 Collision shapes, a uniform-grid broadphase, sweeps and rays that do not tunnel, `CharacterController`, `Dynamics` and `RigidBody`. Plain Dart, no Flutter, no renderer, runs under `dart test`.
