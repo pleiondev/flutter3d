@@ -144,23 +144,23 @@ void main() {
     }
   });
 
-  test('--no-mips prints an honest note too', () async {
+  test('--no-mips accepted for a textureless model, and does nothing to it', () async {
     final out = _BufferSink();
-    await runConvert(<String>[
+    final code = await runConvert(<String>[
       _fixture,
       '-o',
       '${scratch.path}/box.f3d',
       '--no-mips',
     ], out: out);
 
-    expect(out.text, contains('--no-mips accepted, no mip generator yet'));
+    expect(code, 0);
   });
 
-  test(
-    '--textures bc really encodes a referenced image, end to end',
-    () async {
-      final objPath = '${scratch.path}/textured.obj';
-      File(objPath).writeAsStringSync('''
+  /// Writes an 8×8-textured triangle under [scratch] and returns its `.obj`
+  /// path — the fixture the `bc`/mip/target tests below all convert.
+  String writeTexturedObj(Directory scratch) {
+    final objPath = '${scratch.path}/textured.obj';
+    File(objPath).writeAsStringSync('''
 mtllib textured.mtl
 v 0.0 0.0 0.0
 v 1.0 0.0 0.0
@@ -171,20 +171,26 @@ vt 0.0 1.0
 usemtl Textured
 f 1/1 2/2 3/3
 ''');
-      File('${scratch.path}/textured.mtl').writeAsStringSync('''
+    File('${scratch.path}/textured.mtl').writeAsStringSync('''
 newmtl Textured
 map_Kd textured.png
 ''');
-      final pngImage = img.Image(width: 8, height: 8);
-      for (var y = 0; y < 8; y++) {
-        for (var x = 0; x < 8; x++) {
-          pngImage.setPixelRgb(x, y, (x * 30) & 0xFF, 60, (y * 30) & 0xFF);
-        }
+    final pngImage = img.Image(width: 8, height: 8);
+    for (var y = 0; y < 8; y++) {
+      for (var x = 0; x < 8; x++) {
+        pngImage.setPixelRgb(x, y, (x * 30) & 0xFF, 60, (y * 30) & 0xFF);
       }
-      File(
-        '${scratch.path}/textured.png',
-      ).writeAsBytesSync(img.encodePng(pngImage));
+    }
+    File(
+      '${scratch.path}/textured.png',
+    ).writeAsBytesSync(img.encodePng(pngImage));
+    return objPath;
+  }
 
+  test(
+    '--textures bc really encodes a referenced image, end to end',
+    () async {
+      final objPath = writeTexturedObj(scratch);
       final outPath = '${scratch.path}/textured.f3d';
       final code = await runConvert(<String>[
         objPath,
@@ -203,6 +209,108 @@ map_Kd textured.png
       expect(texture.vkFormat, VkFormat.bc1RgbaUNormBlock);
       expect(texture.pixelWidth, 8);
       expect(texture.pixelHeight, 8);
+    },
+  );
+
+  test(
+    'ap-08: the default builds a full mip chain, --no-mips keeps one level',
+    () async {
+      final objPath = writeTexturedObj(scratch);
+
+      final withMips = '${scratch.path}/with_mips.f3d';
+      var code = await runConvert(<String>[
+        objPath,
+        '-o',
+        withMips,
+        '--textures',
+        'bc',
+      ]);
+      expect(code, 0);
+      final chained = Ktx2Texture.parse(
+        F3dDocument.parse(File(withMips).readAsBytesSync()).images.single.bytes,
+      );
+      // 8x8 -> 4x4 -> 2x2 -> 1x1: base plus three levels below it. Each of
+      // the last two is smaller than one BC1 block (4x4) and only reaches
+      // the file at all because `_padToBlock` pads it up to one before
+      // `encodeBc1` — which throws on anything else, so a wrong byte count
+      // here is `_padToBlock` silently padding to the wrong size, not just
+      // "some bytes exist".
+      expect(
+        chained.levels.map((level) => level.lengthInBytes),
+        // 8x8 (2x2 blocks, no padding), 4x4 (1x1 block, no padding),
+        // 2x2 (padded to 4x4, 1x1 block), 1x1 (padded to 4x4, 1x1 block) —
+        // 8 bytes per BC1 block throughout.
+        [32, 8, 8, 8],
+      );
+
+      final noMips = '${scratch.path}/no_mips.f3d';
+      code = await runConvert(<String>[
+        objPath,
+        '-o',
+        noMips,
+        '--textures',
+        'bc',
+        '--no-mips',
+      ]);
+      expect(code, 0);
+      final single = Ktx2Texture.parse(
+        F3dDocument.parse(File(noMips).readAsBytesSync()).images.single.bytes,
+      );
+      expect(single.levels, hasLength(1));
+    },
+  );
+
+  test(
+    'ap-09: --target web writes one file per family, --target android writes one',
+    () async {
+      final objPath = writeTexturedObj(scratch);
+
+      final webOut = '${scratch.path}/web.f3d';
+      var code = await runConvert(<String>[
+        objPath,
+        '-o',
+        webOut,
+        '--target',
+        'web',
+      ]);
+      expect(code, 0);
+      final bcFile = File(webOut);
+      final etc2File = File('${scratch.path}/web.etc2.f3d');
+      expect(bcFile.existsSync(), isTrue);
+      expect(etc2File.existsSync(), isTrue);
+      expect(
+        Ktx2Texture.parse(
+          F3dDocument.parse(bcFile.readAsBytesSync()).images.single.bytes,
+        ).vkFormat,
+        VkFormat.bc1RgbaUNormBlock,
+      );
+      expect(
+        Ktx2Texture.parse(
+          F3dDocument.parse(etc2File.readAsBytesSync()).images.single.bytes,
+        ).vkFormat,
+        VkFormat.etc2R8g8b8UNormBlock,
+      );
+
+      final androidOut = '${scratch.path}/android.f3d';
+      code = await runConvert(<String>[
+        objPath,
+        '-o',
+        androidOut,
+        '--target',
+        'android',
+      ]);
+      expect(code, 0);
+      expect(File(androidOut).existsSync(), isTrue);
+      // Android is one family, so no `android.etc2.f3d` beside it.
+      expect(File('${scratch.path}/android.etc2.f3d').existsSync(), isFalse);
+      expect(
+        Ktx2Texture.parse(
+          F3dDocument.parse(
+            File(androidOut).readAsBytesSync(),
+          ).images.single.bytes,
+        ).vkFormat,
+        VkFormat.etc2R8g8b8UNormBlock,
+      );
     },
   );
 

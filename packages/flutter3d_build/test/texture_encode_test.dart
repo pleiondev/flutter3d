@@ -110,4 +110,90 @@ void main() {
     expect(result.warnings, document.warnings);
     expect(result.surfaces, document.surfaces);
   });
+
+  group('ap-09: rolesByImageIndex', () {
+    // Image 0 is base colour (sRGB), image 1 is a normal map (never sRGB,
+    // filtered as vectors), image 2 is metallic-roughness (plain linear
+    // data, neither treatment applies) — the three cases `SurfaceMaterial`
+    // actually distinguishes.
+    final material = SurfaceMaterial(
+      baseColorTexture: const TextureBinding(imageIndex: 0),
+      normalTexture: const TextureBinding(imageIndex: 1),
+      metallicRoughnessTexture: const TextureBinding(imageIndex: 2),
+    );
+
+    test('base colour is sRGB, not a normal map, no alpha test', () {
+      final roles = rolesByImageIndex(
+        PlainModelDocument(materials: [material]),
+      );
+      expect(roles[0]!.srgb, isTrue);
+      expect(roles[0]!.isNormalMap, isFalse);
+      expect(roles[0]!.alphaTestThreshold, isNull);
+    });
+
+    test('a normal map is never sRGB', () {
+      final roles = rolesByImageIndex(
+        PlainModelDocument(materials: [material]),
+      );
+      expect(roles[1]!.isNormalMap, isTrue);
+      expect(roles[1]!.srgb, isFalse);
+    });
+
+    test('metallic-roughness is plain linear data, neither treatment', () {
+      final roles = rolesByImageIndex(
+        PlainModelDocument(materials: [material]),
+      );
+      expect(roles[2]!.srgb, isFalse);
+      expect(roles[2]!.isNormalMap, isFalse);
+    });
+
+    test('an unreferenced image index gets no entry at all', () {
+      final roles = rolesByImageIndex(
+        PlainModelDocument(materials: [material]),
+      );
+      expect(roles.containsKey(3), isFalse);
+    });
+
+    test(
+      'a mask material\'s own cutoff becomes the base colour\'s alpha threshold',
+      () {
+        final masked = SurfaceMaterial(
+          baseColorTexture: const TextureBinding(imageIndex: 0),
+          alphaMode: SurfaceAlphaMode.mask,
+          alphaCutoff: 0.3,
+        );
+        final roles = rolesByImageIndex(
+          PlainModelDocument(materials: [masked]),
+        );
+        expect(roles[0]!.alphaTestThreshold, 0.3);
+      },
+    );
+
+    test('opaque and blend materials carry no alpha-test threshold', () {
+      for (final mode in [SurfaceAlphaMode.opaque, SurfaceAlphaMode.blend]) {
+        final material = SurfaceMaterial(
+          baseColorTexture: const TextureBinding(imageIndex: 0),
+          alphaMode: mode,
+        );
+        final roles = rolesByImageIndex(
+          PlainModelDocument(materials: [material]),
+        );
+        expect(roles[0]!.alphaTestThreshold, isNull, reason: '$mode');
+      }
+    });
+
+    test('the first material to claim an image wins over a later one', () {
+      final first = SurfaceMaterial(
+        baseColorTexture: const TextureBinding(imageIndex: 0),
+      );
+      final second = SurfaceMaterial(
+        normalTexture: const TextureBinding(imageIndex: 0),
+      );
+      final roles = rolesByImageIndex(
+        PlainModelDocument(materials: [first, second]),
+      );
+      expect(roles[0]!.srgb, isTrue);
+      expect(roles[0]!.isNormalMap, isFalse);
+    });
+  });
 }

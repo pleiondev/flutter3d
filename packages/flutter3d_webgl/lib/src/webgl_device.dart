@@ -345,6 +345,16 @@ final class WebGlDevice implements GraphicsDevice {
   /// filtering. False makes every shadow map read as zero.
   bool get supportsFloatLinearFiltering => _floatLinear;
 
+  /// Which compressed-texture extensions this context actually has, queried
+  /// once at [create] — `ap-09`'s own row: "choice at load time by the
+  /// context's extensions". [preferredTextureFamily] in `webgl_formats.dart`
+  /// is the decision this exists to feed; a caller loading a model reads
+  /// this before choosing which of a web build's per-family `.f3d` files to
+  /// fetch, the way [supportsMipmaps] is already read before choosing
+  /// whether to upload a chain.
+  CompressedTextureSupport get compressedTextureSupport =>
+      _compressedTextureSupport;
+
   /// What [_queryMaxAnisotropy] found at [create]. One without the extension.
   int _maxAnisotropy = 1;
 

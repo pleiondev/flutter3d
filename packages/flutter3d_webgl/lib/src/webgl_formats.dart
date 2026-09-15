@@ -284,6 +284,60 @@ final class CompressedTextureSupport {
       );
 }
 
+/// `ap-09` in `doc/asset-pipeline-plan.md`'s web half: "выбор при загрузке
+/// по расширениям контекста" (chosen at load time by the context's
+/// extensions) — which of a web build's per-family `.f3d` files this
+/// context should fetch, and why, for the console line the acceptance line
+/// asks for ("веб-демо ... грузит разные файлы, консоль говорит какие").
+///
+/// [familyName] is `'bc'`, `'etc2'` or `'none'` — `flutter3d_build`'s own
+/// `TextureFamily.name`, not that type itself: that class lives in a
+/// pure-Dart package with no Flutter SDK on its dependency graph, and this
+/// package needs the SDK for `package:web`'s own bindings, so importing it
+/// here would run that dependency the wrong way. A caller that has
+/// `flutter3d_build` on its own graph (a loader, an example app) matches the
+/// string back with `TextureFamily.parse`.
+///
+/// **BC before ETC2, not the other way round, and this is why the two
+/// devices in the acceptance line end up different.** [CompressedTextureSupport]'s
+/// own doc comment already states the fact this reads: `s3tc` is "near-
+/// universal on desktop and near-absent on mobile GPUs", while `etc2` is
+/// "mandated by the OpenGL ES 3.0 core WebGL2 is built on" and so true
+/// everywhere in practice. Preferring `s3tc` when it is there therefore
+/// already sorts almost every real device into the right file without this
+/// function ever asking whether it is a phone or a laptop: a laptop's
+/// browser answers `s3tc: true` and gets BC, a phone's answers `s3tc: false,
+/// etc2: true` and gets ETC2 — the two different files the acceptance line
+/// names, from one extension query neither device is told the meaning of.
+///
+/// `none` — an uncompressed fallback — is reachable only if a driver
+/// answers false for both, which [CompressedTextureSupport]'s own doc
+/// comment calls a case that "in practice" does not happen for `etc2` on a
+/// real WebGL2 implementation; named here anyway, honestly, rather than
+/// treated as unreachable and left for a caller to hit with no named
+/// family to fall back to.
+(String familyName, String reason) preferredTextureFamily(
+  CompressedTextureSupport support,
+) {
+  if (support.s3tc) {
+    return (
+      'bc',
+      'WEBGL_compressed_texture_s3tc is present (desktop-typical)',
+    );
+  }
+  if (support.etc2) {
+    return (
+      'etc2',
+      'WEBGL_compressed_texture_etc is present, no S3TC (mobile-typical)',
+    );
+  }
+  return (
+    'none',
+    'neither WEBGL_compressed_texture_s3tc nor _etc is present — falling '
+        'back to an uncompressed texture',
+  );
+}
+
 /// The WebGL2 internal format for a compressed [format], given what
 /// [support] actually has — or a thrown, named refusal for the one it
 /// needs.

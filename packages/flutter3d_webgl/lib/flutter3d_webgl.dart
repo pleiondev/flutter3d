@@ -31,4 +31,9 @@ export 'src/open.dart';
 /// device reads it. No browser in it, so a harness on the VM can write one.
 export 'src/webgl_bundle_section.dart';
 export 'src/webgl_device.dart';
+
+/// `CompressedTextureSupport` and `ap-09`'s [preferredTextureFamily] — what
+/// `WebGlDevice.compressedTextureSupport` returns, and the decision a
+/// loader makes from it.
+export 'src/webgl_formats.dart' show CompressedTextureSupport, preferredTextureFamily;
 export 'src/webgl_shaders.dart';

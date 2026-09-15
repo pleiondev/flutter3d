@@ -13,7 +13,10 @@ import 'dart:typed_data';
 import 'package:flutter3d_formats/flutter3d_formats.dart';
 import 'package:flutter3d_geometry/flutter3d_geometry.dart';
 
+import 'build_target.dart';
 import 'texture_encode.dart';
+
+export 'build_target.dart';
 
 /// The compression family a texture should target — `ap-09`'s own row.
 ///
@@ -51,6 +54,41 @@ final class TextureFamily {
   String toString() => name;
 }
 
+/// Which [TextureFamily] values a conversion for [target] should produce —
+/// `ap-09`'s own row, read literally: desktop gets one file (BC), a mobile
+/// target gets one file (ETC2), and the web gets both, because the plan's
+/// own §6 (open question 3) already chose "both families" over Basis
+/// ETC1S for the web — twice the files, works with the encoders this track
+/// already has, where Basis is a separate `fmt-23` of its own size.
+///
+/// Order matters where [convertOne] uses it: the first family a caller does
+/// not otherwise pick is the one an unsuffixed output file gets, so desktop
+/// and mobile — one family each — keep today's plain `chair.f3d` name, and
+/// only the web's second file carries a suffix. See [suffixFor].
+List<TextureFamily> familiesForTarget(BuildTarget target) => switch (target) {
+  BuildTarget.macos || BuildTarget.windows || BuildTarget.linux => const [
+    TextureFamily.bc,
+  ],
+  BuildTarget.android || BuildTarget.ios => const [TextureFamily.etc2],
+  BuildTarget.web => const [TextureFamily.bc, TextureFamily.etc2],
+  // `BuildTarget`, like `TextureFamily`, is a `final class` with const
+  // instances rather than an `enum` — see its own doc comment for why —
+  // so the analyzer cannot see this switch is already exhaustive over
+  // every value `BuildTarget.values` names. `TextureFamily`'s own switch
+  // in `_encodeOne` carries the identical default for the identical reason.
+  _ => throw ArgumentError('Unknown BuildTarget: $target'),
+};
+
+/// The filename segment a second (or later) family gets appended before the
+/// extension — `chair.f3d` stays `chair.f3d` for [TextureFamily.bc] as the
+/// first entry of [familiesForTarget]'s list, and `chair.etc2.f3d` is the
+/// same model's ETC2 file beside it, matching `ap-09`'s own acceptance: "a
+/// web demo on a phone and on a laptop loads different files".
+String? suffixFor(TextureFamily family, List<TextureFamily> families) {
+  if (families.length <= 1 || family == families.first) return null;
+  return family.name;
+}
+
 const String usage = '''
 Usage: dart run flutter3d_build:convert <model-or-directory> [options]
 
@@ -70,13 +108,20 @@ Options:
                              image and BC3 for one with alpha; `etc2` refuses
                              (and leaves the source image as it arrived)
                              an image with alpha, since the EAC alpha block
-                             is not encoded yet. `auto` is unresolved until
-                             ap-09 picks a family per target device rather
-                             than per conversion — it behaves like `none`.
-  --no-mips                 Skip generating a mip chain for textures.
-                             Accepted, but there is no mip generator wired
-                             in here yet (ap-08 exists in flutter3d_formats;
-                             this converter does not call it).
+                             is not encoded yet. `auto` with no `--target`
+                             behaves like `none`; with `--target`, `ap-09`'s
+                             own table resolves it (see below).
+  --target <target>         macos | windows | linux | android | ios | web.
+                             Resolves `--textures auto` into the family (or,
+                             for web, both families) `ap-09`'s own row names
+                             for that platform, writing one output file per
+                             family — `chair.f3d` for the first, `chair.
+                             <family>.f3d` for any after it. Ignored unless
+                             `--textures` is `auto` or absent.
+  --no-mips                 Skip generating a mip chain for textures. Every
+                             compressed image otherwise gets one from
+                             `ap-08`'s `buildMipChain`, chosen sRGB/normal-
+                             map/alpha-test per the material that names it.
   -h, --help                Show this text.
 ''';
 
@@ -85,12 +130,18 @@ final class ConvertOptions {
     required this.input,
     this.output,
     this.textures = TextureFamily.auto,
+    this.target,
     this.mips = true,
   });
 
   final String input;
   final String? output;
   final TextureFamily textures;
+
+  /// `ap-09`: resolves [textures] when it is [TextureFamily.auto], through
+  /// [familiesForTarget]. Null when `--target` was not given, the same as
+  /// today's behaviour for `auto`.
+  final BuildTarget? target;
   final bool mips;
 
   /// Parses [arguments], or returns null for anything [usage] should answer
@@ -99,6 +150,7 @@ final class ConvertOptions {
     String? input;
     String? output;
     var textures = TextureFamily.auto;
+    BuildTarget? target;
     var mips = true;
 
     for (var i = 0; i < arguments.length; i++) {
@@ -112,6 +164,11 @@ final class ConvertOptions {
           final family = TextureFamily.parse(arguments[++i]);
           if (family == null) return null;
           textures = family;
+        case '--target':
+          if (i + 1 >= arguments.length) return null;
+          final parsed = BuildTarget.parse(arguments[++i]);
+          if (parsed == null) return null;
+          target = parsed;
         case '--no-mips':
           mips = false;
         case '-h' || '--help':
@@ -130,6 +187,7 @@ final class ConvertOptions {
       input: input,
       output: output,
       textures: textures,
+      target: target,
       mips: mips,
     );
   }
@@ -169,18 +227,22 @@ Future<int> runConvert(
     return 2;
   }
 
-  if (options.textures == TextureFamily.auto) {
+  final List<TextureFamily> families;
+  if (options.textures == TextureFamily.auto && options.target != null) {
+    families = familiesForTarget(options.target!);
     stdoutSink.writeln(
-      'note: --textures auto accepted, but choosing a family per target '
-      'device is ap-09 — textures pass through unencoded until a run names '
-      'bc or etc2 explicitly',
+      'note: --target ${options.target} resolves --textures auto to '
+      '${families.join(', ')} (ap-09)',
     );
-  }
-  if (!options.mips) {
+  } else if (options.textures == TextureFamily.auto) {
     stdoutSink.writeln(
-      'note: --no-mips accepted, no mip generator yet (ap-08) — nothing '
-      'generates one regardless',
+      'note: --textures auto accepted with no --target — textures pass '
+      'through unencoded until a run names bc, etc2, or --target names a '
+      'platform (ap-09)',
     );
+    families = const [TextureFamily.none];
+  } else {
+    families = [options.textures];
   }
 
   final inputEntity = FileSystemEntity.typeSync(options.input);
@@ -197,17 +259,30 @@ Future<int> runConvert(
 
   var failures = 0;
   for (final (source, destination) in jobs) {
-    final ok = await convertOne(
-      source,
-      destination,
-      stdoutSink,
-      stderrSink,
-      textures: options.textures,
-      decoders: decoders,
-    );
-    if (!ok) failures++;
+    for (final family in families) {
+      final suffix = suffixFor(family, families);
+      final ok = await convertOne(
+        source,
+        suffix == null ? destination : _withSuffix(destination, suffix),
+        stdoutSink,
+        stderrSink,
+        textures: family,
+        mips: options.mips,
+        decoders: decoders,
+      );
+      if (!ok) failures++;
+    }
   }
   return failures == 0 ? 0 : 1;
+}
+
+/// Inserts [suffix] before the extension of [path] — `chair.f3d` with
+/// `suffix: 'etc2'` becomes `chair.etc2.f3d`.
+String _withSuffix(String path, String suffix) {
+  final dot = path.lastIndexOf('.');
+  final slash = path.lastIndexOf('/');
+  if (dot <= slash) return '$path.$suffix';
+  return '${path.substring(0, dot)}.$suffix${path.substring(dot)}';
 }
 
 /// Whether [path] is a model this converter reads: a built-in suffix other
@@ -270,6 +345,7 @@ Future<bool> convertOne(
   IOSink out,
   IOSink err, {
   TextureFamily textures = TextureFamily.auto,
+  bool mips = true,
   List<ModelDecoder> decoders = const <ModelDecoder>[],
 }) async {
   final input = File(inputPath);
@@ -293,6 +369,7 @@ Future<bool> convertOne(
   document = await encodeDocumentTextures(
     document,
     textures,
+    mips: mips,
     report: (message) => out.writeln('  texture: $message'),
   );
 

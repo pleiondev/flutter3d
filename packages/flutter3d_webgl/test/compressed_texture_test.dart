@@ -22,7 +22,6 @@ import 'dart:typed_data';
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:flutter3d_webgl/engine_shaders.dart';
 import 'package:flutter3d_webgl/flutter3d_webgl.dart';
-import 'package:flutter3d_webgl/src/webgl_formats.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:web/web.dart' as web;
 
@@ -184,4 +183,26 @@ void main() {
     final support = CompressedTextureSupport.query(gl);
     expect(support.etc2, isTrue, reason: 'ETC2 is mandated by WebGL2\'s core');
   });
+
+  test(
+    'ap-09: a real device names a real family, through its own public getter',
+    () {
+      // Not a mock: `WebGlDevice.compressedTextureSupport` is the same value
+      // `create` queried from this actual headless Chrome context, and
+      // `preferredTextureFamily` is a pure function over it — the two
+      // together are the whole decision `ap-09`'s web row asks for, run
+      // against a real browser rather than a hand-built
+      // `CompressedTextureSupport`.
+      final device = _makeDevice();
+      final (family, reason) = preferredTextureFamily(
+        device.compressedTextureSupport,
+      );
+      // ETC2 is mandated by WebGL2's own core (asserted above), so `none`
+      // is unreachable on any real context — 'bc' or 'etc2' is what every
+      // real browser this suite runs in actually answers.
+      expect(<String>['bc', 'etc2'], contains(family));
+      expect(reason, isNotEmpty);
+      device.dispose();
+    },
+  );
 }

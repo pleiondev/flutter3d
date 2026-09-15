@@ -185,4 +185,47 @@ void main() {
       expect(values.toSet(), hasLength(values.length));
     });
   });
+
+  group('ap-09: preferredTextureFamily', () {
+    test('s3tc present picks bc — the laptop case', () {
+      final (family, reason) = preferredTextureFamily(
+        const CompressedTextureSupport(
+          etc2: true,
+          s3tc: true,
+          s3tcSrgb: true,
+          rgtc: false,
+          bptc: false,
+          astc: false,
+        ),
+      );
+      expect(family, 'bc');
+      expect(reason, contains('s3tc'));
+    });
+
+    test('no s3tc but etc2 present picks etc2 — the phone case', () {
+      final (family, reason) = preferredTextureFamily(
+        const CompressedTextureSupport(
+          etc2: true,
+          s3tc: false,
+          s3tcSrgb: false,
+          rgtc: false,
+          bptc: false,
+          astc: false,
+        ),
+      );
+      expect(family, 'etc2');
+      expect(reason, contains('etc'));
+    });
+
+    test('neither extension present falls back to none, named honestly', () {
+      final (family, reason) = preferredTextureFamily(noSupport);
+      expect(family, 'none');
+      expect(reason, contains('uncompressed'));
+    });
+
+    test('s3tc wins over etc2 when both are present', () {
+      final (family, _) = preferredTextureFamily(fullSupport);
+      expect(family, 'bc');
+    });
+  });
 }
