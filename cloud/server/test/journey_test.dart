@@ -16,6 +16,7 @@ import 'dart:typed_data';
 import 'package:flutter3d_models/main.server.options.dart';
 import 'package:flutter3d_models/src/config.dart';
 import 'package:flutter3d_models/src/db/database.dart';
+import 'package:flutter3d_models/src/db/models_repository.dart';
 import 'package:flutter3d_models/src/http/app.dart';
 import 'package:flutter3d_models/src/mail/mailer.dart';
 import 'package:flutter3d_models/src/services.dart';
@@ -339,4 +340,157 @@ void main() {
     expect(codes.take(10), everyElement(401));
     expect(codes.last, 429);
   });
+
+  test('replaceSource three times in a row keeps all three blobs referenced '
+      'and lists three revisions, newest first', () async {
+    final owner = await services.users.create(
+      email: 'revisions-owner@example.com',
+      handle: 'revisions-owner',
+      displayName: 'Revisions Owner',
+      passwordHash: 'x',
+    );
+    final original = await blobs.put(
+      Uint8List.fromList(utf8.encode('original triangle')),
+    );
+    final model = await services.models.create(
+      ownerId: owner!.id,
+      title: 'Revision Chair',
+      sourceFormat: 'obj',
+      triangleCount: 1,
+      source: StoredFile(
+        blobSha256: original,
+        bytes: 20,
+        contentType: 'model/obj',
+        filename: 'chair.obj',
+      ),
+    );
+
+    final saved = <String>[];
+    for (var i = 1; i <= 3; i++) {
+      final hash = await blobs.put(
+        Uint8List.fromList(utf8.encode('revision $i content')),
+      );
+      saved.add(hash);
+      final updated = await services.models.replaceSource(
+        modelId: model.id,
+        newSource: StoredFile(
+          blobSha256: hash,
+          bytes: 30 + i,
+          contentType: 'model/obj',
+          filename: 'chair-v$i.obj',
+        ),
+        triangleCount: 10 * i,
+        sourceFormat: 'obj',
+        actorUserId: owner.id,
+      );
+      // Each save moves the model's own denormalized columns with it.
+      expect(updated.sizeBytes, 30 + i);
+      expect(updated.triangleCount, 10 * i);
+    }
+
+    final revisions = await services.models.revisionsOf(model.id);
+    expect(revisions.map((r) => r.blobSha256).toList(), [
+      saved[2],
+      saved[1],
+      saved[0],
+    ], reason: 'newest first');
+    for (final revision in revisions) {
+      expect(revision.modelId, model.id);
+      expect(revision.createdBy, owner.id);
+    }
+
+    // The integrity-critical part: two of these blobs are no longer
+    // `model_files`' current source — only the third save is — but each is
+    // still the only thing its own revision row points at, so none of them
+    // may look unreferenced while the model still exists.
+    for (final hash in saved) {
+      expect(await services.models.isReferenced(hash), isTrue);
+    }
+
+    final deletedHashes = await services.models.delete(model.id);
+    expect(deletedHashes.toSet(), saved.toSet());
+
+    // Once the model itself is gone, so is every revision that pointed at
+    // these blobs — nothing is left referencing them.
+    for (final hash in saved) {
+      expect(await services.models.isReferenced(hash), isFalse);
+      await blobs.delete(hash);
+    }
+    for (final hash in saved) {
+      expect(await blobs.open(hash), isNull);
+    }
+  });
+
+  test(
+    "a revision id from one model cannot fetch another model's file",
+    () async {
+      final ownerA = await services.users.create(
+        email: 'model-a-owner@example.com',
+        handle: 'model-a-owner',
+        displayName: 'Model A Owner',
+        passwordHash: 'x',
+      );
+      final ownerB = await services.users.create(
+        email: 'model-b-owner@example.com',
+        handle: 'model-b-owner',
+        displayName: 'Model B Owner',
+        passwordHash: 'x',
+      );
+
+      final modelA = await services.models.create(
+        ownerId: ownerA!.id,
+        title: 'Model A',
+        sourceFormat: 'obj',
+        triangleCount: 1,
+        source: StoredFile(
+          blobSha256: await blobs.put(
+            Uint8List.fromList(utf8.encode('model a original')),
+          ),
+          bytes: 10,
+          contentType: 'model/obj',
+          filename: 'a.obj',
+        ),
+      );
+      await services.models.replaceSource(
+        modelId: modelA.id,
+        newSource: StoredFile(
+          blobSha256: await blobs.put(
+            Uint8List.fromList(utf8.encode('model a revision')),
+          ),
+          bytes: 11,
+          contentType: 'model/obj',
+          filename: 'a-v2.obj',
+        ),
+        triangleCount: 2,
+        sourceFormat: 'obj',
+        actorUserId: ownerA.id,
+      );
+      final revisionA = (await services.models.revisionsOf(modelA.id)).single;
+
+      final modelB = await services.models.create(
+        ownerId: ownerB!.id,
+        title: 'Model B',
+        sourceFormat: 'obj',
+        triangleCount: 1,
+        source: StoredFile(
+          blobSha256: await blobs.put(
+            Uint8List.fromList(utf8.encode('model b original')),
+          ),
+          bytes: 10,
+          contentType: 'model/obj',
+          filename: 'b.obj',
+        ),
+      );
+
+      expect(
+        await services.models.revisionFile(modelA.id, revisionA.id),
+        isNotNull,
+      );
+      expect(
+        await services.models.revisionFile(modelB.id, revisionA.id),
+        isNull,
+      );
+      expect(await services.models.revisionFile(modelA.id, 999999999), isNull);
+    },
+  );
 }

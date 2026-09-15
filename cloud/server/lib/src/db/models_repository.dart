@@ -35,6 +35,32 @@ enum FileKind {
   final String column;
 }
 
+/// One past save of a model's source file, as `revisionsOf` lists it — the
+/// file's own metadata plus who saved it and when, not the bytes themselves.
+class RevisionRecord {
+  const RevisionRecord({
+    required this.id,
+    required this.modelId,
+    required this.blobSha256,
+    required this.bytes,
+    required this.contentType,
+    required this.filename,
+    required this.triangleCount,
+    required this.createdAt,
+    required this.createdBy,
+  });
+
+  final int id;
+  final int modelId;
+  final String blobSha256;
+  final int bytes;
+  final String contentType;
+  final String filename;
+  final int triangleCount;
+  final DateTime createdAt;
+  final int createdBy;
+}
+
 class ModelsRepository {
   const ModelsRepository(this._db);
 
@@ -150,6 +176,99 @@ class ModelsRepository {
         return previous.isEmpty ? null : previous.first[0]! as String;
       });
 
+  /// Saves a new source file over [modelId]'s current one, keeping the file
+  /// it replaces as a revision.
+  ///
+  /// One transaction: the new revision is recorded, `model_files` moves on to
+  /// [newSource] (the existing [_putFile] helper), and the model's own
+  /// denormalized columns move with it — [sizeBytes], [triangleCount] and
+  /// [sourceFormat] all describe the current source, the same as [create]
+  /// leaves them. The blob itself must already be on disk by the time this
+  /// runs, same as [create] — a row that points at a file is only ever
+  /// written after the file exists.
+  Future<ModelRecord> replaceSource({
+    required int modelId,
+    required StoredFile newSource,
+    required int triangleCount,
+    required String sourceFormat,
+    required int actorUserId,
+  }) => _db.transaction((session) async {
+    await session.execute(
+      Sql.named('''
+        insert into model_revisions
+          (model_id, blob_sha256, bytes, content_type, filename, triangle_count, created_by)
+        values (@id, @sha, @bytes, @type, @name, @triangles, @actor)
+      '''),
+      parameters: {
+        'id': modelId,
+        'sha': newSource.blobSha256,
+        'bytes': newSource.bytes,
+        'type': newSource.contentType,
+        'name': newSource.filename,
+        'triangles': triangleCount,
+        'actor': actorUserId,
+      },
+    );
+    await _putFile(session, modelId, FileKind.source, newSource);
+    await session.execute(
+      Sql.named('''
+        update models
+        set size_bytes = @bytes, triangle_count = @triangles,
+            source_format = @format, updated_at = now()
+        where id = @id
+      '''),
+      parameters: {
+        'id': modelId,
+        'bytes': newSource.bytes,
+        'triangles': triangleCount,
+        'format': sourceFormat,
+      },
+    );
+    return (await _byId(session, modelId))!;
+  });
+
+  /// Every revision [modelId] has ever had, newest first.
+  Future<List<RevisionRecord>> revisionsOf(int modelId) =>
+      _db.run((session) async {
+        final rows = await session.execute(
+          Sql.named('''
+            select id, model_id, blob_sha256, bytes, content_type, filename,
+                   triangle_count, created_at, created_by
+            from model_revisions
+            where model_id = @id
+            order by created_at desc
+          '''),
+          parameters: {'id': modelId},
+        );
+        return [for (final row in rows) _revision(row)];
+      });
+
+  /// One revision's file, for download — or null when [revisionId] is not a
+  /// revision of [modelId].
+  ///
+  /// Checked together rather than [revisionId] alone, so a revision id that
+  /// belongs to somebody else's model can never serve its file just because
+  /// the id happens to exist.
+  Future<StoredFile?> revisionFile(int modelId, int revisionId) =>
+      _db.run((session) async {
+        final rows = await session.execute(
+          Sql.named('''
+            select blob_sha256, bytes, content_type, filename
+            from model_revisions
+            where id = @revisionId and model_id = @modelId
+          '''),
+          parameters: {'revisionId': revisionId, 'modelId': modelId},
+        );
+        if (rows.isEmpty) return null;
+        final map = rows.first.toColumnMap();
+        return StoredFile(
+          blobSha256: map['blob_sha256'] as String,
+          bytes: map['bytes'] as int,
+          contentType: map['content_type'] as String,
+          filename: map['filename'] as String,
+        );
+      });
+
   Future<void> describe(
     int modelId, {
     required String title,
@@ -198,17 +317,26 @@ class ModelsRepository {
     );
   });
 
-  /// Deletes a model and returns the hashes of the files it pointed at.
+  /// Deletes a model and returns the hashes of every file it pointed at —
+  /// its current files and every past revision — so the caller can free
+  /// whichever of those blobs nothing else still references.
   Future<List<String>> delete(int modelId) => _db.transaction((session) async {
     final files = await session.execute(
       Sql.named('select blob_sha256 from model_files where model_id = @id'),
+      parameters: {'id': modelId},
+    );
+    final revisions = await session.execute(
+      Sql.named('select blob_sha256 from model_revisions where model_id = @id'),
       parameters: {'id': modelId},
     );
     await session.execute(
       Sql.named('delete from models where id = @id'),
       parameters: {'id': modelId},
     );
-    return [for (final row in files) row[0]! as String];
+    return [
+      for (final row in files) row[0]! as String,
+      for (final row in revisions) row[0]! as String,
+    ];
   });
 
   /// The hashes of every file [ownerId]'s models point at — collected before an
@@ -224,13 +352,23 @@ class ModelsRepository {
     return [for (final row in rows) row[0]! as String];
   });
 
-  /// Whether any model still points at [sha256].
+  /// Whether any model still points at [sha256] — as a current file or as a
+  /// past revision.
   ///
   /// Asked before a blob is deleted: two people who uploaded the same file
-  /// share one blob, and deleting one of their models must not take the other's.
+  /// share one blob, and deleting one of their models must not take the
+  /// other's. Checking `model_revisions` too is what keeps a revision's own
+  /// blob alive once a newer save has moved `model_files` on to a different
+  /// hash — without it, saving over a model would garbage-collect its own
+  /// history out from under it.
   Future<bool> isReferenced(String sha256) => _db.run((session) async {
     final rows = await session.execute(
-      Sql.named('select 1 from model_files where blob_sha256 = @sha limit 1'),
+      Sql.named('''
+        select 1 from model_files where blob_sha256 = @sha
+        union all
+        select 1 from model_revisions where blob_sha256 = @sha
+        limit 1
+      '''),
       parameters: {'sha': sha256},
     );
     return rows.isNotEmpty;
@@ -290,6 +428,21 @@ class ModelsRepository {
       hasPreview: map['has_preview'] as bool,
       ownerHandle: map['owner_handle'] as String?,
       ownerName: map['owner_name'] as String?,
+    );
+  }
+
+  static RevisionRecord _revision(ResultRow row) {
+    final map = row.toColumnMap();
+    return RevisionRecord(
+      id: map['id'] as int,
+      modelId: map['model_id'] as int,
+      blobSha256: map['blob_sha256'] as String,
+      bytes: map['bytes'] as int,
+      contentType: map['content_type'] as String,
+      filename: map['filename'] as String,
+      triangleCount: map['triangle_count'] as int,
+      createdAt: map['created_at'] as DateTime,
+      createdBy: map['created_by'] as int,
     );
   }
 }
