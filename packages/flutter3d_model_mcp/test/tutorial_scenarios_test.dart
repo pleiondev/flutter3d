@@ -12,7 +12,7 @@ import 'dart:io';
 
 import 'package:flutter3d_formats/flutter3d_formats.dart';
 import 'package:flutter3d_mesh/flutter3d_mesh.dart'
-    show ArrayModifier, EditMesh, MirrorModifier;
+    show ArrayModifier, EditMesh, MirrorModifier, weightsOf;
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 import 'package:flutter3d_model_mcp/flutter3d_model_mcp.dart';
 import 'package:test/test.dart';
@@ -21,6 +21,7 @@ import 'package:vector_math/vector_math.dart';
 import 'fixtures/tutorial/case1_scenario.dart';
 import 'fixtures/tutorial/case2_scenario.dart';
 import 'fixtures/tutorial/case3_scenario.dart';
+import 'fixtures/tutorial/case4_scenario.dart';
 
 void main() {
   group('case 1 — a prop from a scan', () {
@@ -388,6 +389,191 @@ void main() {
       expect(lighting.environment, SceneEnvironmentPreset.studio);
       expect(lighting.shadows, isTrue);
       expect(lighting.post.bloomEnabled, isTrue);
+    });
+  });
+
+  group('case 4 — a character from a bare mesh', () {
+    late Directory workspace;
+
+    setUp(() {
+      workspace = Directory.systemTemp.createTempSync('tutorial_case4');
+    });
+
+    tearDown(() {
+      workspace.deleteSync(recursive: true);
+    });
+
+    test("the case's own journal, replayed from right after the import, "
+        'gets stuck at the first vertex-selection-dependent step (the '
+        "chest-puff sculpt) — the same shape cases 2 and 3's own `tut-05` "
+        "already names, now over a mesh-vertex selection this case's own "
+        'shape key depends on: `PaintWeights` and `SetRig` both replay '
+        'clean cold (neither one reads `session.select`), but the '
+        '`TransformElements` that scales the chest out has nothing selected '
+        'to act on', () async {
+      final starting = await case4StartingProject();
+      final journalBytes = File(
+        'test/fixtures/tutorial/case4.jsonl',
+      ).readAsBytesSync();
+      final replay = CommandJournal.replay(journalBytes, starting);
+      // Mutation: assert `replay.ok` instead. A journal that replayed clean
+      // from the post-import project would mean mesh-element selection had
+      // quietly become recoverable — worth celebrating, not a check this
+      // test should pass by accident on a change nobody meant.
+      expect(replay.ok, isFalse);
+      expect(replay.refused, contains('no object is selected'));
+    });
+
+    test('building the scenario fresh against ModelSession — running the '
+        'real buildSkeleton -> bindWeightsJobRequestFor -> SetRig pipeline, '
+        'the way a live session or an agent over MCP actually would — '
+        'reaches the exact project committed as case4.f3dproj, and exports '
+        'the exact case4.glb', () async {
+      final path = '${workspace.path}/case4.f3dproj';
+      final starting = await case4StartingProject();
+      final session = ModelSession(ModelHistory(starting), path: path);
+      await runCase4Scenario(session);
+
+      final saved = session.save(path);
+      expect(saved.did, isTrue, reason: saved.says);
+      final writtenBytes = File(path).readAsBytesSync();
+      final fixtureBytes = File(
+        'test/fixtures/tutorial/case4.f3dproj',
+      ).readAsBytesSync();
+      expect(
+        writtenBytes,
+        fixtureBytes,
+        reason:
+            'the project this scenario reaches is not the one in '
+            'test/fixtures/tutorial/case4.f3dproj. If the change was '
+            'meant, rerun tool/make_case4_fixtures.dart and read the diff '
+            'before committing the new fixtures',
+      );
+
+      final journaled = session.journal('${workspace.path}/case4.jsonl');
+      expect(journaled.did, isTrue, reason: journaled.says);
+      expect(
+        File('${workspace.path}/case4.jsonl').readAsStringSync(),
+        File('test/fixtures/tutorial/case4.jsonl').readAsStringSync(),
+      );
+
+      final exported = session.export('${workspace.path}/case4.glb');
+      expect(exported.did, isTrue, reason: exported.says);
+      final writtenGlb = File('${workspace.path}/case4.glb').readAsBytesSync();
+      final fixtureGlb = File(
+        'test/fixtures/tutorial/case4.glb',
+      ).readAsBytesSync();
+      expect(writtenGlb, fixtureGlb);
+
+      final writtenDocument = await GltfLoader().load(writtenGlb);
+      final fixtureDocument = await GltfLoader().load(fixtureGlb);
+      expect(compareModelDocuments(fixtureDocument, writtenDocument), isEmpty);
+    });
+
+    test('the rig this case builds is the real T4/T5 pipeline: a 17-joint '
+        'humanoid skeleton, the body mesh actually bound to it, and weights '
+        "that vary joint to joint — not a simplified stand-in", () async {
+      final starting = await case4StartingProject();
+      final session = ModelSession(ModelHistory(starting));
+      await runCase4Scenario(session);
+
+      final project = session.project;
+      expect(project.skeletons, hasLength(1));
+      final skeleton = project.skeletons.single;
+      expect(skeleton.jointCount, 17);
+      expect(skeleton.joints, hasLength(17));
+
+      final body = project[case4BodyId]!;
+      expect(body.skeletonIndex, 0);
+      final mesh = (body.geometry as EditedGeometry).mesh;
+
+      // Every live vertex is bound, weights summing to 1 — the same
+      // acceptance `bindWeightsJobRequestFor`'s own test names — and more
+      // than one joint actually carries weight across the mesh as a whole,
+      // which a rig that only ever bound everything to a single joint could
+      // not say.
+      final jointsSeen = <int>{};
+      for (var v = 0; v < mesh.vertexSlotCount; v++) {
+        if (!mesh.isVertexAlive(v)) continue;
+        final pairs = weightsOf(mesh, v);
+        expect(pairs, isNotEmpty);
+        final total = pairs.fold<double>(0, (sum, p) => sum + p.weight);
+        expect(total, closeTo(1.0, 1e-4));
+        for (final pair in pairs) {
+          jointsSeen.add(pair.joint);
+        }
+      }
+      expect(
+        jointsSeen.length,
+        greaterThan(1),
+        reason:
+            'a real distance-and-visibility bind over a whole body should '
+            'reach more than one joint, not collapse to a single-joint '
+            'assign',
+      );
+    });
+
+    test('the case builds one real shape key with a real driver, and one '
+        "short clip carrying both the elbow's own bend and the shape's own "
+        'weight', () async {
+      final starting = await case4StartingProject();
+      final session = ModelSession(ModelHistory(starting));
+      await runCase4Scenario(session);
+
+      final body = session.project[case4BodyId]!;
+      expect(body.shapeSet.keys, hasLength(1));
+      expect(body.shapeSet.keys.single.name, 'chestPuff');
+      expect(body.shapeDrivers, hasLength(1));
+      final driver = body.shapeDrivers.single;
+      expect(driver.shapeIndex, 0);
+      expect(
+        session.project[driver.jointId]!.name,
+        'leftElbow',
+        reason: 'the driver should read the same joint this case bends',
+      );
+
+      expect(session.project.clips, hasLength(1));
+      final clip = session.project.clips.single;
+      expect(clip.name, 'wave');
+      expect(clip.tracks, hasLength(2));
+      final rotationTrack = clip.tracks.firstWhere(
+        (t) => t.track.path == AnimationPath.rotation,
+      );
+      expect(rotationTrack.track.keyCount, 2);
+      final weightsTrack = clip.tracks.firstWhere(
+        (t) => t.track.path == AnimationPath.weights,
+      );
+      expect(weightsTrack.track.keyCount, 2);
+    });
+
+    test('the exported GLB carries a real skin and a real animation clip — '
+        'the acceptance line `rig_pipeline_mcp_test.dart`\'s own `anim-30` '
+        'scenario already checks for this exact file, now through this '
+        "case's own committed fixture", () async {
+      final bytes = File('test/fixtures/tutorial/case4.glb').readAsBytesSync();
+      final document = await GltfLoader().load(bytes);
+
+      expect(
+        document.skins,
+        isNotEmpty,
+        reason: 'the exported GLB has no skin — no skeleton made it across',
+      );
+      expect(
+        document.animations,
+        isNotEmpty,
+        reason: 'the exported GLB has no animation — no clip made it across',
+      );
+      final hasRealKeys = document.animations.any(
+        (AnimationClip clip) =>
+            clip.tracks.any((AnimationTrack track) => track.times.length >= 2),
+      );
+      expect(
+        hasRealKeys,
+        isTrue,
+        reason:
+            'no animation track in the exported GLB carries more than one '
+            'key',
+      );
     });
   });
 }

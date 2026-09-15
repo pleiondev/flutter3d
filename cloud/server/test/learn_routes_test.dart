@@ -161,5 +161,39 @@ void main() {
         contains('/assets/learn/modeler/a-lit-corner/03-lit-corner.png'),
       );
     });
+
+    test('reads case 4 off disk and renders its Markdown', () {
+      final cases = loadLearnCases();
+      final case4 = cases.firstWhere(
+        (c) => c.slug == '04-character-from-a-bare-mesh',
+      );
+      expect(case4.title, contains('A character from a bare mesh'));
+      expect(case4.bodyHtml, contains('<h1 '));
+      expect(
+        case4.bodyHtml,
+        contains(
+          '/assets/learn/modeler/character-from-a-bare-mesh/'
+          '07-character-real-geometry.png',
+        ),
+      );
+    });
+
+    test('case 4 serves end to end through learnRoutes', () async {
+      final handler = _mounted(learnRoutes());
+      final response = await _get(
+        handler,
+        '/learn/modeler/04-character-from-a-bare-mesh',
+      );
+      expect(response.statusCode, 200);
+      final body = await response.readAsString();
+      expect(body, contains('A character from a bare mesh'));
+      expect(
+        body,
+        contains(
+          '/assets/learn/modeler/character-from-a-bare-mesh/'
+          '07-character-real-geometry.png',
+        ),
+      );
+    });
   });
 }
