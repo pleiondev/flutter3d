@@ -601,6 +601,17 @@ _modelCommandReaders =
           _ => 0.5,
         },
       ),
+      'bevelEdges': (json) => switch (json['width']) {
+        final num width => BevelEdges(
+          width.toDouble(),
+          segments: switch (json['segments']) {
+            final int segments => segments,
+            _ => 1,
+          },
+          clampOverlap: json['clampOverlap'] as bool? ?? true,
+        ),
+        _ => null,
+      },
       'deleteElements': (json) => const DeleteElements(),
       'mergeByDistance': (json) => MergeByDistance(
         distance: switch (json['distance']) {

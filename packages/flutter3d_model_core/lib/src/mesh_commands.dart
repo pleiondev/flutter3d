@@ -198,6 +198,73 @@ final class LoopCut extends ModelCommand {
       );
 }
 
+/// Cuts a corner off every selected edge or vertex, walling the gap with a
+/// new face per edge and a new n-gon per vertex — `flutter3d_mesh`'s own
+/// [bevelEdges]/[bevelVertices] (`bevel.dart`), wired into the undo stack for
+/// `tut-04`.
+///
+/// **Reads the selection's own level to choose between the two.** A vertex
+/// selection means "the vertex and everywhere it touches" —
+/// [bevelVertices]'s own walk of a vertex's edges, not the edges
+/// [Selection.convertedTo] would give (only an edge whose *both* ends are
+/// selected). Anything else goes through [bevelEdges], which converts the
+/// selection to edges the ordinary way on its own.
+final class BevelEdges extends ModelCommand {
+  const BevelEdges(this.width, {this.segments = 1, this.clampOverlap = true});
+
+  /// How far the new face wall sits from the original corner.
+  final double width;
+
+  /// Segments above `1` are not built yet — see [bevelEdges]'s own doc
+  /// comment — so a value other than the default is refused by the mesh
+  /// package itself, with a sentence, rather than silently flattened here.
+  final int segments;
+
+  /// Scales [width] down when the shortest beveled edge is not long enough
+  /// to hold it, rather than building bevels that overlap and cross.
+  final bool clampOverlap;
+
+  @override
+  String get name => 'bevelEdges';
+
+  @override
+  String get says => 'bevel';
+
+  @override
+  Map<String, Object?> get arguments => <String, Object?>{
+    'width': width,
+    'segments': segments,
+    'clampOverlap': clampOverlap,
+  };
+
+  @override
+  Map<String, ParamHint> get hints => const <String, ParamHint>{
+    'width': DoubleHint(min: 0.0, unit: 'm', step: 0.01),
+  };
+
+  @override
+  Outcome apply(ModelProject project, ProjectSelection selection) =>
+      _asMeshStep(project, selection, (_MeshTarget target) {
+        final OpResult Function(
+          EditMesh,
+          Selection, {
+          required double width,
+          int segments,
+          bool clampOverlap,
+        })
+        bevel = target.elements.level == ElementLevel.vertex
+            ? bevelVertices
+            : bevelEdges;
+        return bevel(
+          target.mesh,
+          target.elements,
+          width: width,
+          segments: segments,
+          clampOverlap: clampOverlap,
+        );
+      });
+}
+
 /// Takes the selected elements out of the mesh.
 final class DeleteElements extends ModelCommand {
   const DeleteElements();

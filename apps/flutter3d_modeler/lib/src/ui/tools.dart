@@ -14,11 +14,12 @@
 /// the table would spread that decision across every row and would have to be
 /// unpicked the day the document arrives.
 ///
-/// **Only tools that do something are in it.** Inset, bevel and merge are
-/// modelling operations this repository does not have yet — merge exists but
-/// hands back a new mesh, which would throw the undo history away — and a rail
+/// **Only tools that do something are in it.** Inset is a modelling
+/// operation this repository does not have yet — merge exists but hands
+/// back a new mesh, which would throw the undo history away — and a rail
 /// full of buttons that answer nothing is the fastest way to make a tool feel
-/// broken. They arrive here when the operation behind them does.
+/// broken. They arrive here when the operation behind them does. Bevel did,
+/// `tut-04`, and has a row below rather than being named here any more.
 library;
 
 import 'package:flutter/material.dart';
@@ -317,6 +318,13 @@ List<ModelerTool> toolsFor(
       label: 'Loop cut',
       icon: Icons.content_cut_outlined,
       shortcut: LogicalKeyboardKey.keyC,
+      group: 'topology',
+    ),
+    ModelerTool(
+      id: 'mesh.bevel',
+      label: 'Bevel',
+      icon: Icons.rounded_corner_outlined,
+      shortcut: LogicalKeyboardKey.keyB,
       group: 'topology',
     ),
     ModelerTool(

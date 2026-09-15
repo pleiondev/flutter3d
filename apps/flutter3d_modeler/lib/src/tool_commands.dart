@@ -20,8 +20,8 @@ import 'package:vector_math/vector_math.dart' as vm;
 ///
 /// [activeObject] is `_history.selection.activeObject`; [editMesh] is the
 /// mesh being edited, when what is selected has one — only read for
-/// `mesh.extrude`, and only evaluated then, since a `switch` expression
-/// never runs a branch it does not take.
+/// `mesh.extrude` and `mesh.bevel`, and only evaluated then, since a
+/// `switch` expression never runs a branch it does not take.
 ModelCommand? commandFor(
   String id, {
   required int? activeObject,
@@ -47,6 +47,7 @@ ModelCommand? commandFor(
   },
   'mesh.extrude' => Extrude(stepOf(editMesh)),
   'mesh.loopCut' => const LoopCut(),
+  'mesh.bevel' => BevelEdges(stepOf(editMesh) * 0.5),
   'mesh.triangulate' => const Triangulate(),
   'mesh.separate' => const Separate(),
   'mesh.dissolve' => const DissolveEdges(),

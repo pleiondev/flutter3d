@@ -90,9 +90,10 @@ halfway along the ring the edge ran through. (The panel really does say
 this page.)
 
 *(No bevel step here, on purpose. The plan for this case names extrude,
-loop cut and bevel; `flutter3d_mesh` has real bevel functions, but no
-`ModelCommand` wraps either one yet — the app's own tools panel has no
-button for it either. This is `tut-04`, logged rather than worked around.)*
+loop cut and bevel; a `BevelEdges` command now exists and the app's own
+tools panel has a real Bevel button (`tut-04`), but this case's own
+scenario and fixtures were not extended to exercise it — that is a
+separate, tutorial-content change for a later pass.)*
 
 ## 5. The last-operation card
 

@@ -693,6 +693,114 @@ void main() {
       expect(at.y, startY);
       expect(history.canUndo, isFalse);
     });
+
+    test('bevels edges the same way bevelEdges does directly, and undo '
+        'restores the mesh byte-exact', () {
+      final history = edited();
+      final mesh = meshOf(history);
+      final edgeIds = <int>[
+        for (var he = 0; he < mesh.halfEdgeSlotCount; he++)
+          if (mesh.edgeOf(he) == he && mesh.faceOf(he) != EditMesh.none) he,
+      ];
+      history.selection = history.selection.copyWith(
+        level: ElementLevel.edge,
+        elements: edgeIds,
+      );
+      final beforeBytes = mesh.toBytes();
+
+      // The same operation, run directly against an identical fresh cube
+      // with the identical selection — what this command's own thin
+      // wrapper is checked against, not a reimplementation of `bevelEdges`
+      // here.
+      final reference = EditMesh.cuboid();
+      reference.beginStep();
+      bevelEdges(
+        reference,
+        Selection.of(ElementLevel.edge, edgeIds),
+        width: 0.1,
+      );
+      reference.endStep();
+
+      expect(history.run(const BevelEdges(0.1)), isNull);
+      expect(mesh.vertexCount, 24);
+      expect(mesh.faceCount, 26);
+      expect(mesh.toBytes(), reference.toBytes());
+
+      history.undo();
+      // Mutation: the same trap `_asMeshStep`'s own doc comment names for
+      // every mesh command — leave `meshTouched` out and undo would put
+      // the document back a step while the mesh itself stayed beveled.
+      expect(mesh.toBytes(), beforeBytes);
+    });
+
+    test('a vertex selection bevels through bevelVertices instead, matching it '
+        'directly', () {
+      final history = edited();
+      final mesh = meshOf(history);
+      final vertexIds = <int>[
+        for (var v = 0; v < mesh.vertexSlotCount; v++)
+          if (mesh.isVertexAlive(v)) v,
+      ];
+      history.selection = history.selection.copyWith(
+        level: ElementLevel.vertex,
+        elements: vertexIds,
+      );
+
+      final reference = EditMesh.cuboid();
+      reference.beginStep();
+      bevelVertices(
+        reference,
+        Selection.of(ElementLevel.vertex, vertexIds),
+        width: 0.1,
+      );
+      reference.endStep();
+
+      // Every vertex of the cube is selected, so the edge set the two
+      // functions land on happens to agree either way — the byte
+      // comparison is what the acceptance line asks for, not proof of the
+      // dispatch on its own; the next test is that.
+      expect(history.run(const BevelEdges(0.1)), isNull);
+      expect(mesh.toBytes(), reference.toBytes());
+    });
+
+    test('one selected vertex bevels its own three edges, not the empty set '
+        'bevelEdges would convert a single vertex to', () {
+      // A cube corner is where the two functions actually disagree: a
+      // vertex-level selection converted the ordinary way (both endpoints
+      // selected) keeps no edge at all, so `bevelEdges` itself would
+      // refuse with "no edges are selected to bevel". `bevelVertices`
+      // instead walks the vertex's own three edges directly — still
+      // refused, since none of the three faces meeting at a corner has
+      // every one of its own edges selected, but refused for a different
+      // reason. Mutation: dispatch on `.level` backwards, or always call
+      // `bevelEdges` regardless of level, and this reads "no edges are
+      // selected to bevel" instead.
+      final history = edited();
+      history.selection = history.selection.copyWith(
+        level: ElementLevel.vertex,
+        elements: <int>[0],
+      );
+      expect(
+        history.run(const BevelEdges(0.1)),
+        contains('bevel needs every edge of a touched face selected'),
+      );
+    });
+
+    test('bevel refuses a partial selection, and says so', () {
+      // A single edge in the middle of the cube's grid: `mesh-44`'s own
+      // closed-region requirement, checked here only to see the wrapper
+      // passes the refusal through rather than swallowing it.
+      final history = edited();
+      history.selection = history.selection.copyWith(
+        level: ElementLevel.edge,
+        elements: <int>[0],
+      );
+      expect(
+        history.run(const BevelEdges(0.1)),
+        contains('bevel needs every edge'),
+      );
+      expect(history.canUndo, isFalse);
+    });
   });
 
   group(
@@ -2429,6 +2537,7 @@ void main() {
         const DuplicateObjects(),
         const Extrude(0.25),
         const LoopCut(cuts: 2),
+        const BevelEdges(0.05),
         const DeleteElements(),
         TransformElements(
           Matrix4.identity(),
@@ -2750,6 +2859,7 @@ void main() {
       ),
       const Extrude(0.25),
       const LoopCut(cuts: 3, factor: 0.25),
+      const BevelEdges(0.05),
       TransformElements(Matrix4.identity()),
       const MergeByDistance(distance: 0.001),
       const RecalculateNormals(flip: true),

@@ -485,6 +485,26 @@ List<ModelTool> get _commandTools => <ModelTool>[
   ),
   ModelTool(
     Tool(
+      name: 'bevelEdges',
+      description:
+          'Cut a corner off every selected edge or vertex, by width, '
+          'walling the gap with a new face. Mesh mode: select edges, or '
+          'vertices for every edge each one touches. The selection has to '
+          'be a closed region — every face touching a beveled edge needs '
+          'all of its own edges beveled too.',
+      inputSchema: ObjectSchema(
+        properties: <String, Schema>{
+          'width': NumberSchema(
+            description: 'how far the new wall sits from the original corner',
+          ),
+        },
+        required: <String>['width'],
+      ),
+    ),
+    _command('bevelEdges'),
+  ),
+  ModelTool(
+    Tool(
       name: 'deleteElements',
       description:
           'Delete the selected vertices, edges or faces, at '

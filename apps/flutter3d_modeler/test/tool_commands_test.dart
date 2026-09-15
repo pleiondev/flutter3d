@@ -93,6 +93,34 @@ void main() {
       );
     });
 
+    test('mesh.bevel with no mesh being edited widens by half a tenth of a '
+        'metre', () {
+      final command = commandFor(
+        'mesh.bevel',
+        activeObject: null,
+        editMesh: null,
+      );
+      expect(command, isA<BevelEdges>().having((c) => c.width, 'width', 0.05));
+    });
+
+    test('mesh.bevel with a mesh being edited widens by half a tenth of its '
+        'span', () {
+      final mesh = EditMesh.cuboid(size: Vector3(2, 2, 2));
+      final command = commandFor(
+        'mesh.bevel',
+        activeObject: null,
+        editMesh: mesh,
+      );
+      expect(
+        command,
+        isA<BevelEdges>().having(
+          (c) => c.width,
+          'width',
+          closeTo(2 * sqrt(3) * 0.1 * 0.5, 1e-9),
+        ),
+      );
+    });
+
     test('an unknown id only arms — no command', () {
       expect(
         commandFor('object.frobnicate', activeObject: null, editMesh: null),
