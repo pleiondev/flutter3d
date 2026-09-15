@@ -9,7 +9,7 @@ import 'way_out_glow.dart';
 ///
 /// Written by `tool/make_models.py` as `exit_arch`: an iron frame round a dark
 /// opening, 1.8 by 2.6 by 0.4.
-const String kExitModel = 'assets/models/exit.glb';
+const String kExitModel = 'assets_src/models/exit.glb';
 
 /// Draws the way out of [level], which nothing used to.
 ///
@@ -47,9 +47,10 @@ Future<ModelAsset?> addExitsTo(
   if (exits.isEmpty) return null;
 
   try {
-    final document = await decodeModelInIsolate(
-      ModelLoadRequest(source: const BundleAssetSource(kExitModel)),
-    );
+    // `ap-12`: `kExitModel` names its `assets_src/` source; `loadModelAsset`
+    // (`ap-11`) resolves the generated `.f3d`, falling back to the source
+    // directly in debug if the hook has not run yet.
+    final document = await loadModelAsset(kExitModel);
     // One asset for every way out, of which levels have one today and could
     // have several — a vault with two doors is a level document, not a change
     // here.

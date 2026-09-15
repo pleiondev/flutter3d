@@ -116,7 +116,7 @@ void main() {
       // The order is not decoration. A model with both `Run` and `Walk` should
       // run when it is chasing, and the list is how that is said — putting
       // `Walk` first would make every chase a stroll and nothing would fail.
-      final runner = _clipsIn('assets/models/monster_runner.glb');
+      final runner = _clipsIn('assets_src/models/monster_runner.glb');
 
       expect(
         runner.contains('Run'),

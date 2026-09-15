@@ -188,11 +188,19 @@ final class ActorVisuals {
     if (player != null) _players[actor] = player;
   }
 
+  /// `ap-12`'s own seam — see `FixtureVisuals`'s identical field for why: a
+  /// path a migrated game writes under `assets_src/` goes through `ap-11`'s
+  /// loader; every other caller's plain bundle path is read exactly as it
+  /// always was, so an unmigrated game's actors keep loading unchanged.
+  static const String _sourceDirPrefix = 'assets_src/';
+
   Future<ModelAsset?> _load(String path) async {
     try {
-      final document = await decodeModelInIsolate(
-        ModelLoadRequest(source: BundleAssetSource(path)),
-      );
+      final document = path.startsWith(_sourceDirPrefix)
+          ? await loadModelAsset(path)
+          : await decodeModelInIsolate(
+              ModelLoadRequest(source: BundleAssetSource(path)),
+            );
       return await ModelAsset.fromDocument(
         document,
         device: _device,

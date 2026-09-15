@@ -76,8 +76,8 @@ import 'package:vector_math/vector_math.dart';
 /// That costs the `const`, which is a fair price for a key that cannot drift
 /// from the thing it names.
 final Map<String, String> kWeaponModels = <String, String>{
-  Weapons.pistol.name: 'assets/models/weapon_pistol.glb',
-  Weapons.shotgun.name: 'assets/models/weapon_shotgun.glb',
+  Weapons.pistol.name: 'assets_src/models/weapon_pistol.glb',
+  Weapons.shotgun.name: 'assets_src/models/weapon_shotgun.glb',
 };
 
 /// One node per weapon, for [WeaponView].
@@ -127,9 +127,10 @@ Future<Map<String, SceneNode>> dungeonWeaponModels(
     // see is a weapon they cannot tell they are holding, and the block that was
     // good enough yesterday is a better answer than an empty hand.
     try {
-      final document = await decodeModelInIsolate(
-        ModelLoadRequest(source: BundleAssetSource(entry.value)),
-      );
+      // `ap-12`: `entry.value` names its `assets_src/` source; `loadModelAsset`
+      // (`ap-11`) resolves the generated `.f3d`, falling back to the source
+      // directly in debug if the hook has not run yet.
+      final document = await loadModelAsset(entry.value);
       final asset = await ModelAsset.fromDocument(
         document,
         device: device,

@@ -46,3 +46,6 @@ app.*.map.json
 
 # Fetched by tool/prepare_model.mjs, not part of the app.
 node_modules/
+
+# ap-12: the build hook's own output (ap-05) — converted on every build.
+/flutter3d_generated/
