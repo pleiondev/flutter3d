@@ -114,10 +114,27 @@ class ModelerViewport extends StatefulWidget {
     this.shapeMarkers = const <ShapeMarker>[],
     this.shapeMarkerColour,
     this.shapeMarkerActiveColour,
+    this.overlay = true,
   });
 
   final Renderer renderer;
   final ModelerStage stage;
+
+  /// Whether this viewport builds the mesh-overlay furniture at all — the
+  /// floor grid, the wireframe, the gizmo, the shape markers — every one of
+  /// which costs a `MeshOverlay` (a GPU-backed renderer contributor) even
+  /// while it draws nothing, because [_buildOverlay] allocates all four the
+  /// first frame regardless of whether [grid]/[editMesh]/[gizmoPivot]/
+  /// [shapeMarkers] ever give any of them something to draw.
+  ///
+  /// `S7`'s own row: a read-only preview viewport — screen 14's own source
+  /// rig, sitting beside the live target one — draws none of that
+  /// interactive chrome and has no [onPick]/[gizmoPivot]/[editMesh] of its
+  /// own to hand any of it, so paying for four idle overlays per extra
+  /// viewport on screen is a cost with nothing behind it. `false` skips
+  /// [_buildOverlay] entirely; every other caller leaves this at its
+  /// default and keeps exactly the behaviour it always had.
+  final bool overlay;
 
   /// What the renderer is asked for, which is where a display mode's wireframe
   /// arrives from.
@@ -585,8 +602,9 @@ class _ModelerViewportState extends State<ModelerViewport> {
           // After the projection and before the render: the overlay is sized
           // against the camera as it will be for this frame, not as it was for
           // the last one, and a grid a frame behind is a grid that swims under
-          // a model while somebody orbits.
-          _buildOverlay(widget.renderer);
+          // a model while somebody orbits. Skipped entirely for a viewport
+          // that asked for none of it — see [ModelerViewport.overlay].
+          if (widget.overlay) _buildOverlay(widget.renderer);
           // Clamped because a zero-sized viewport is a real state — a panel
           // animating open, a window dragged to nothing — and a render
           // target of no pixels is not.

@@ -62,6 +62,7 @@ export 'src/render_project.dart';
 export 'src/render_sheet.dart';
 export 'src/render_snapshot.dart';
 export 'src/retarget_clip.dart';
+export 'src/retarget_source.dart';
 // The rig algorithms — bone-name mapping, rest-relative retargeting with a
 // two-bone-IK foot lock, automatic skin weights. They read a rig as nodes and
 // tracks and know nothing of a project; they were a package of their own

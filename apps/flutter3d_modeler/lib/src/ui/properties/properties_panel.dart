@@ -13,6 +13,7 @@ import 'package:flutter/material.dart' hide Material;
 import 'package:flutter3d/flutter3d.dart' hide Material;
 import 'package:flutter3d_editor_widgets/flutter3d_editor_widgets.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart' hide Outcome;
+import 'package:flutter3d_rig/flutter3d_rig.dart' show BoneMap;
 
 import '../../display_modes.dart';
 import '../../lighting_sync.dart';
@@ -27,6 +28,7 @@ import '../modifier_stack_panel.dart';
 import '../morphs_panel.dart';
 import '../operation_card.dart';
 import '../properties_sections.dart';
+import '../retarget_panel.dart';
 import '../scene_environment_panel.dart';
 import '../scene_post_panel.dart';
 import '../scene_shadows_panel.dart';
@@ -77,6 +79,19 @@ class PropertiesPanel extends StatelessWidget {
     required this.onAddClip,
     this.selectedAnimationClip,
     required this.onSelectAnimationClip,
+    this.retargetSourceNames = const <String>[],
+    this.retargetBoneMap = const BoneMap(<String, String>{}),
+    required this.onRetargetAutoMap,
+    this.retargetRootMotion = RetargetRootMotion.inAnimation,
+    required this.onRetargetRootMotionChanged,
+    this.retargetLockFeet = true,
+    required this.onRetargetLockFeetChanged,
+    this.retargetGroundY = 0.0,
+    required this.onRetargetGroundYChanged,
+    this.retargetFootTolerance = 1e-3,
+    required this.onRetargetFootToleranceChanged,
+    this.canApplyRetarget = false,
+    this.onApplyRetarget,
     this.selectedJoint,
     required this.onSelectJoint,
     this.selectedConstraint,
@@ -248,6 +263,30 @@ class PropertiesPanel extends StatelessWidget {
   /// `ModelerShell.bottom` reads and drives the same selection.
   final int? selectedAnimationClip;
   final ValueChanged<int> onSelectAnimationClip;
+
+  /// `S7`'s own [RetargetPanel]: every joint name on the imported source's
+  /// own skeleton, resolved to text — empty before `retarget.import` has
+  /// run.
+  final List<String> retargetSourceNames;
+  final BoneMap retargetBoneMap;
+
+  /// `retarget.autoMap`'s own rail button, reachable a second way from
+  /// [RetargetPanel]'s own "Map automatically" link.
+  final VoidCallback onRetargetAutoMap;
+
+  final RetargetRootMotion retargetRootMotion;
+  final ValueChanged<RetargetRootMotion> onRetargetRootMotionChanged;
+  final bool retargetLockFeet;
+  final ValueChanged<bool> onRetargetLockFeetChanged;
+  final double retargetGroundY;
+  final ValueChanged<double> onRetargetGroundYChanged;
+  final double retargetFootTolerance;
+  final ValueChanged<double> onRetargetFootToleranceChanged;
+
+  /// Whether `retarget.apply`/[onApplyRetarget] has a source clip and a
+  /// rigged target to run against.
+  final bool canApplyRetarget;
+  final VoidCallback? onApplyRetarget;
 
   /// `S2`'s own row: which joint [SkeletonTree] highlights, and which
   /// [IkConstraint] row [ConstraintsList] highlights — both lifted the same
@@ -615,6 +654,22 @@ class PropertiesPanel extends StatelessWidget {
             selectedVertex: selectedWeightVertex,
             selectedJoint: selectedJoint,
             onSelectJoint: onSelectJoint,
+          ),
+        if (sections.contains(PropertiesSection.retarget))
+          RetargetPanel(
+            sourceNames: retargetSourceNames,
+            boneMap: retargetBoneMap,
+            onAutoMap: onRetargetAutoMap,
+            rootMotion: retargetRootMotion,
+            onRootMotionChanged: onRetargetRootMotionChanged,
+            lockFeet: retargetLockFeet,
+            onLockFeetChanged: onRetargetLockFeetChanged,
+            groundY: retargetGroundY,
+            onGroundYChanged: onRetargetGroundYChanged,
+            footTolerance: retargetFootTolerance,
+            onFootToleranceChanged: onRetargetFootToleranceChanged,
+            canApply: canApplyRetarget,
+            onApply: onApplyRetarget,
           ),
         if (held != null && sections.contains(PropertiesSection.morphs))
           MorphsPanel(

@@ -128,6 +128,18 @@ class TimelinePreviewWiring {
   /// The speed control.
   void setSpeed(double speed) => _preview?.setSpeed(speed);
 
+  /// `S7`'s own row: the retarget screen's blend slider — crossfades the
+  /// preview onto clip [index] over [duration] seconds, through
+  /// [TimelinePlayback.crossFadeTo]. A no-op when there is nothing to
+  /// preview yet, the same guard every other method here already gives its
+  /// own [_preview]/[_previewFor] call.
+  void crossFadeTo(
+    ModelProject project,
+    SceneSync? sync,
+    int index, {
+    double duration = 0.15,
+  }) => _previewFor(project, sync)?.crossFadeTo(index, duration: duration);
+
   /// One tick of whatever clip is currently playing — through [_previewFor]
   /// for the same reason [scrub] is: called every frame, so a rebuild the
   /// instant `project.clips` moves under a playing clip is what keeps a

@@ -97,6 +97,15 @@ abstract final class ModelerMetrics {
   /// `BendSliderBar` plus "Reset pose", per the handoff's screen for weight
   /// painting.
   static const double bendBar = 74;
+
+  /// `S7`'s own row: screen 14's left column — the clip library's search
+  /// box and card grid, `ui/clip_library.dart` — 230 wide per the hand-off.
+  static const double clipLibrary = 230;
+
+  /// `S7`'s own row: the retarget sub-mode's bottom slot — `ui/clip_tracks_
+  /// bar.dart`'s blend slider, 22 tall per the hand-off's own "дорожки
+  /// клипов высотой 22".
+  static const double retargetTracksBar = 22;
 }
 
 /// The colours that are the modeller's own rather than Material's.

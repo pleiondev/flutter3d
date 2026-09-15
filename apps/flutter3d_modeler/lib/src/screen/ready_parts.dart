@@ -231,6 +231,21 @@ extension _ReadyParts on _ModelerScreenState {
                 onAddShapeDriver: _addShapeDriver,
                 onRemoveShapeDriver: _removeShapeDriver,
                 onSetShapeDriverField: _setShapeDriverField,
+                retargetSourceNames: _retargetSourceNames,
+                retargetBoneMap: _retargetBoneMap,
+                onRetargetAutoMap: _autoMapRetarget,
+                retargetRootMotion: _retargetRootMotion,
+                onRetargetRootMotionChanged: _setRetargetRootMotion,
+                retargetLockFeet: _retargetLockFeet,
+                onRetargetLockFeetChanged: _setRetargetLockFeet,
+                retargetGroundY: _retargetGroundY,
+                onRetargetGroundYChanged: _setRetargetGroundY,
+                retargetFootTolerance: _retargetFootTolerance,
+                onRetargetFootToleranceChanged: _setRetargetFootTolerance,
+                canApplyRetarget: _retargetCanApply,
+                onApplyRetarget: _retargetCanApply
+                    ? () => unawaited(_applyRetarget())
+                    : null,
                 selectedLight: _selectedLight,
                 onSelectLight: _selectLight,
                 onAddLight: _addLight,
@@ -280,6 +295,14 @@ extension _ReadyParts on _ModelerScreenState {
               final bool morphsView =
                   state.mode == ModelerMode.animation &&
                   state.animationSubmode == AnimationSubmode.morphs;
+              // `S7`'s own row: screen 14 replaces the ordinary single
+              // viewport wholesale with the library and the source/target
+              // pair — `_retargetViewport`'s own doc comment says why a
+              // second `Stack` branch is the shape of that rather than one
+              // more overlay layered onto the viewport below.
+              final bool retargetView =
+                  state.mode == ModelerMode.animation &&
+                  state.animationSubmode == AnimationSubmode.retarget;
               final List<ShapeMarker> shapeMarkers =
                   !morphsView || forStatus == null
                   ? const <ShapeMarker>[]
@@ -314,98 +337,116 @@ extension _ReadyParts on _ModelerScreenState {
                   skeletons: _mode == ModelerMode.animation,
                 ),
               );
-              final viewport = Stack(
-                children: <Widget>[
-                  Positioned.fill(
-                    child: ModelerViewport(
-                      renderer: renderer,
-                      stage: stage,
-                      onFrame: () {},
-                      onRendered: (int micros) => _lastRenderMicros = micros,
-                      onViewportMetrics: (int width, int height, double dpr) =>
-                          unawaited(_reopenDeviceIfStale(width, height, dpr)),
-                      // One or the other, never both: a click in the mesh mode is a
-                      // question about this mesh's elements and is answered on the
-                      // CPU, and asking the renderer for a node as well would cost a
-                      // whole frame to answer a question nobody asked.
-                      onPick: _mode == ModelerMode.mesh ? null : _picked,
-                      onElementPick:
-                          _mode == ModelerMode.mesh && _editMesh != null
-                          ? _pickedElement
-                          : null,
-                      // One or the other: with a transform tool armed a left drag is
-                      // the transform, and with none it is a rectangle. A viewport
-                      // that offered both would have to guess, and the guess would be
-                      // wrong on the frame a person changed their mind.
-                      onDragTool: kDragTools.contains(_tool)
-                          ? _transformSession.dragged
-                          : null,
-                      onDragDone: _transformSession.endDrag,
-                      onBox: _boxed,
-                      // Earlier and more specific than the box/drag branch
-                      // above: only set while `weights.paint`/`weights.assign`
-                      // is actually armed, so `InputPolicy` never even asks
-                      // about a pointer anywhere else — including the
-                      // weights sub-mode's own one-shot mirror/normalize
-                      // tools, which take no drag at all.
-                      strokeTool: weightsBrushArmed
-                          ? ToolCategory.weightPainting
-                          : null,
-                      onStroke: weightsBrushArmed ? _onWeightStroke : null,
-                      // The gizmo stands on the selection and offers the transform
-                      // the armed tool asks for. On a tablet it is the only way in:
-                      // there is no `G` key on an iPad, so this is not a second path
-                      // to the same place — on three of the five platforms phase 1
-                      // ships to it is the path.
-                      gizmoPivot: _transformSession.gizmoPivot,
-                      gizmoKind: _transformSession.gizmoKind,
-                      onGizmoDrag: _transformSession.grabbedGizmo,
-                      snapHighlight: _transformSession.snapTarget?.position,
-                      editMesh: _mode == ModelerMode.mesh ? _editMesh : null,
-                      elements: _history.selection.asMeshSelection,
-                      meshVersion:
-                          _history
-                              .project[_history.selection.activeObject ?? -1]
-                              ?.version ??
-                          0,
-                      elementsVersion: _history.selection.elements.length,
-                      shapeMarkers: shapeMarkers,
-                      shapeMarkerColour: shapeMarkers.isEmpty
-                          ? null
-                          : colourAsVector4(kModelerScheme.primary),
-                      shapeMarkerActiveColour: shapeMarkers.isEmpty
-                          ? null
-                          : colourAsVector4(kModelerScheme.secondary),
-                      settings: weightsView
-                          ? weightGradientSettings(
-                              settingsFor(_shading, viewportRenderSettings),
-                            )
-                          : settingsFor(_shading, viewportRenderSettings),
-                    ),
-                  ),
-                  Positioned(
-                    right: 12,
-                    bottom: 12,
-                    child: OrientationDial(
-                      yaw: stage.orbit.yaw,
-                      pitch: stage.orbit.pitch,
-                      onPressed: (ViewAxis axis) {
-                        // The dial says where; the controller does the turning, and
-                        // takes the short way round because `viewAlong` already chose
-                        // the turn nearest the yaw the camera is at.
-                        final view = const OrientationGizmo().viewAlong(
-                          axis,
-                          fromYaw: stage.orbit.yaw,
-                        );
-                        stage.orbit.animateTo(yaw: view.yaw, pitch: view.pitch);
-                      },
-                    ),
-                  ),
-                  if (weightsView) const WeightLegend(),
-                  if (_report case final String said)
-                    MeasurementReportOverlay(said: said),
-                ],
-              );
+              final viewport = retargetView
+                  ? _retargetViewport(state)
+                  : Stack(
+                      children: <Widget>[
+                        Positioned.fill(
+                          child: ModelerViewport(
+                            renderer: renderer,
+                            stage: stage,
+                            onFrame: () {},
+                            onRendered: (int micros) =>
+                                _lastRenderMicros = micros,
+                            onViewportMetrics:
+                                (int width, int height, double dpr) =>
+                                    unawaited(
+                                      _reopenDeviceIfStale(width, height, dpr),
+                                    ),
+                            // One or the other, never both: a click in the mesh mode is a
+                            // question about this mesh's elements and is answered on the
+                            // CPU, and asking the renderer for a node as well would cost a
+                            // whole frame to answer a question nobody asked.
+                            onPick: _mode == ModelerMode.mesh ? null : _picked,
+                            onElementPick:
+                                _mode == ModelerMode.mesh && _editMesh != null
+                                ? _pickedElement
+                                : null,
+                            // One or the other: with a transform tool armed a left drag is
+                            // the transform, and with none it is a rectangle. A viewport
+                            // that offered both would have to guess, and the guess would be
+                            // wrong on the frame a person changed their mind.
+                            onDragTool: kDragTools.contains(_tool)
+                                ? _transformSession.dragged
+                                : null,
+                            onDragDone: _transformSession.endDrag,
+                            onBox: _boxed,
+                            // Earlier and more specific than the box/drag branch
+                            // above: only set while `weights.paint`/`weights.assign`
+                            // is actually armed, so `InputPolicy` never even asks
+                            // about a pointer anywhere else — including the
+                            // weights sub-mode's own one-shot mirror/normalize
+                            // tools, which take no drag at all.
+                            strokeTool: weightsBrushArmed
+                                ? ToolCategory.weightPainting
+                                : null,
+                            onStroke: weightsBrushArmed
+                                ? _onWeightStroke
+                                : null,
+                            // The gizmo stands on the selection and offers the transform
+                            // the armed tool asks for. On a tablet it is the only way in:
+                            // there is no `G` key on an iPad, so this is not a second path
+                            // to the same place — on three of the five platforms phase 1
+                            // ships to it is the path.
+                            gizmoPivot: _transformSession.gizmoPivot,
+                            gizmoKind: _transformSession.gizmoKind,
+                            onGizmoDrag: _transformSession.grabbedGizmo,
+                            snapHighlight:
+                                _transformSession.snapTarget?.position,
+                            editMesh: _mode == ModelerMode.mesh
+                                ? _editMesh
+                                : null,
+                            elements: _history.selection.asMeshSelection,
+                            meshVersion:
+                                _history
+                                    .project[_history.selection.activeObject ??
+                                        -1]
+                                    ?.version ??
+                                0,
+                            elementsVersion: _history.selection.elements.length,
+                            shapeMarkers: shapeMarkers,
+                            shapeMarkerColour: shapeMarkers.isEmpty
+                                ? null
+                                : colourAsVector4(kModelerScheme.primary),
+                            shapeMarkerActiveColour: shapeMarkers.isEmpty
+                                ? null
+                                : colourAsVector4(kModelerScheme.secondary),
+                            settings: weightsView
+                                ? weightGradientSettings(
+                                    settingsFor(
+                                      _shading,
+                                      viewportRenderSettings,
+                                    ),
+                                  )
+                                : settingsFor(_shading, viewportRenderSettings),
+                          ),
+                        ),
+                        Positioned(
+                          right: 12,
+                          bottom: 12,
+                          child: OrientationDial(
+                            yaw: stage.orbit.yaw,
+                            pitch: stage.orbit.pitch,
+                            onPressed: (ViewAxis axis) {
+                              // The dial says where; the controller does the turning, and
+                              // takes the short way round because `viewAlong` already chose
+                              // the turn nearest the yaw the camera is at.
+                              final view = const OrientationGizmo().viewAlong(
+                                axis,
+                                fromYaw: stage.orbit.yaw,
+                              );
+                              stage.orbit.animateTo(
+                                yaw: view.yaw,
+                                pitch: view.pitch,
+                              );
+                            },
+                          ),
+                        ),
+                        if (weightsView) const WeightLegend(),
+                        if (_report case final String said)
+                          MeasurementReportOverlay(said: said),
+                      ],
+                    );
 
               void onMode(ModelerMode mode) {
                 // `ui-40d`'s own row: the animation mode's own tools depend
@@ -476,11 +517,15 @@ extension _ReadyParts on _ModelerScreenState {
                       )
                     : weightsView
                     ? _weightBottom(state)
+                    : retargetView
+                    ? _retargetBottom()
                     : null,
                 bottomHeight: showsTimeline
                     ? ModelerMetrics.timeline
                     : weightsView
                     ? ModelerMetrics.bendBar
+                    : retargetView
+                    ? ModelerMetrics.retargetTracksBar
                     : null,
               );
             },

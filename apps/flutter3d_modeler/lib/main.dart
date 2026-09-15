@@ -79,6 +79,8 @@ import 'src/transform_fields.dart';
 import 'src/transform_session.dart';
 import 'src/ui/animation_bottom.dart';
 import 'src/ui/bend_slider_bar.dart';
+import 'src/ui/clip_library.dart';
+import 'src/ui/clip_tracks_bar.dart';
 import 'src/ui/export_anyway_dialog.dart';
 import 'src/ui/export_screen.dart';
 import 'src/ui/import_screen.dart';
@@ -88,6 +90,8 @@ import 'src/ui/measurement_report_overlay.dart';
 import 'src/ui/modeler_keys.dart';
 import 'src/ui/properties/properties_panel.dart';
 import 'src/ui/restore_autosave_dialog.dart';
+import 'src/ui/retarget_panel.dart';
+import 'src/ui/retarget_viewports.dart';
 import 'src/ui/save_as_dialog.dart';
 import 'src/ui/screen_parts.dart';
 import 'src/ui/shell_for_width.dart';
@@ -112,6 +116,7 @@ part 'src/screen/files.dart';
 part 'src/screen/interactions.dart';
 part 'src/screen/morphs_wiring.dart';
 part 'src/screen/ready_parts.dart';
+part 'src/screen/retarget_wiring.dart';
 part 'src/screen/weight_paint_wiring.dart';
 
 /// `ui-30n`: wires an exception nobody caught to the same response wherever
@@ -215,6 +220,27 @@ class _ModelerScreenState extends State<ModelerScreen>
   /// marker the viewport's own shape-points overlay draws `secondary` for —
   /// a plain field for the same reason [_selectedLight] is one.
   int? _selectedShape;
+
+  /// `S7`'s own row: screen 14's own retarget state — see `screen/
+  /// retarget_wiring.dart`. Plain fields for the same reason [_selectedLight]
+  /// is one: none of them are on [ModelHistory], so undo has nowhere to put
+  /// any of them back to. `RetargetSource` itself is a whole second
+  /// `ModelProject`, never folded into [_history]'s own.
+  RetargetSource? _retargetSource;
+  int? _retargetSourceClipIndex;
+  BoneMap _retargetBoneMap = const BoneMap(<String, String>{});
+  RetargetRootMotion _retargetRootMotion = RetargetRootMotion.inAnimation;
+  bool _retargetLockFeet = true;
+  double _retargetGroundY = 0.0;
+  double _retargetFootTolerance = 1e-3;
+  double _retargetBlendSeconds = 0.15;
+
+  /// Which of the target's own clips `retarget.apply` last appended, and
+  /// its name — null before anything has landed. `ClipTracksBar`'s own
+  /// "nothing to preview yet" and `RetargetPanel.onRootMotionChanged`'s own
+  /// "nothing landed yet to re-bake" both read this.
+  int? _retargetAppliedClipIndex;
+  String? _retargetAppliedClipName;
 
   /// The transport's own `Keys`/`Curves` switch — screen 07's own row, not
   /// on [ModelerReady] for the identical reason [_selectedAnimationClip]

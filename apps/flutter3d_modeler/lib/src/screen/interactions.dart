@@ -65,6 +65,26 @@ extension _Interactions on _ModelerScreenState {
       unawaited(_openLatheDialog());
       return;
     }
+    // `anim-18`'s own three: none of them is a plain `ModelCommand`
+    // `commandFor` could answer with immediately — `import` opens a file
+    // picker, `autoMap` only touches the local bone-map field, and `apply`
+    // runs a background job — so each arms the button itself, the same
+    // "not through `commandFor`" shape `object.lathe` above already uses.
+    if (id == 'retarget.import') {
+      _cubit.tool(id);
+      unawaited(_importRetargetSource());
+      return;
+    }
+    if (id == 'retarget.autoMap') {
+      _cubit.tool(id);
+      _autoMapRetarget();
+      return;
+    }
+    if (id == 'retarget.apply') {
+      _cubit.tool(id);
+      unawaited(_applyRetarget());
+      return;
+    }
     final ModelCommand? command = commandFor(
       id,
       activeObject: _history.selection.activeObject,

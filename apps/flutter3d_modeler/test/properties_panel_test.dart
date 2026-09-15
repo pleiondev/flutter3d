@@ -23,6 +23,7 @@ import 'package:flutter3d_modeler/src/ui/scene_shadows_panel.dart';
 import 'package:flutter3d_modeler/src/ui/scene_source_panel.dart';
 import 'package:flutter3d_modeler/src/ui/theme.dart';
 import 'package:flutter3d_modeler/src/ui/tools.dart';
+import 'package:flutter3d_rig/flutter3d_rig.dart' show BoneMap;
 import 'package:flutter_test/flutter_test.dart';
 
 /// A project with [lightCount] identical directional lights and nothing
@@ -37,7 +38,11 @@ ModelProject _sceneProject(int lightCount) => const ModelProject().copyWith(
 Future<void> _pump(
   WidgetTester tester, {
   required ModelerMode mode,
+  AnimationSubmode animationSubmode = AnimationSubmode.pose,
   ModelProject? project,
+  List<String> retargetSourceNames = const <String>[],
+  BoneMap retargetBoneMap = const BoneMap(<String, String>{}),
+  bool canApplyRetarget = false,
 }) async {
   // Tall enough that the panel's own `ListView` never has to scroll to
   // reach the scene panels — nine light rows push the shadows panel well
@@ -59,6 +64,7 @@ Future<void> _pump(
       home: Scaffold(
         body: PropertiesPanel(
           mode: mode,
+          animationSubmode: animationSubmode,
           stage: stage,
           project: held,
           selection: ProjectSelection.none,
@@ -94,6 +100,14 @@ Future<void> _pump(
           onAddShapeDriver: (_, _) {},
           onRemoveShapeDriver: (_, _) {},
           onSetShapeDriverField: (_, _, _, _) {},
+          retargetSourceNames: retargetSourceNames,
+          retargetBoneMap: retargetBoneMap,
+          onRetargetAutoMap: () {},
+          onRetargetRootMotionChanged: (_) {},
+          onRetargetLockFeetChanged: (_) {},
+          onRetargetGroundYChanged: (_) {},
+          onRetargetFootToleranceChanged: (_) {},
+          canApplyRetarget: canApplyRetarget,
           onWeightBrushModeChanged: (_) {},
           onWeightBrushRadiusChanged: (_) {},
           onWeightBrushStrengthChanged: (_) {},
@@ -192,5 +206,26 @@ void main() {
 
     final Text text = tester.widget(find.text(_statusText(status)));
     expect(text.style?.color, isNot(kModelerScheme.tertiary));
+  });
+
+  testWidgets("S7's own row: the animation mode's retarget sub-mode shows "
+      "RetargetPanel's own content and none of the other three sub-modes'", (
+    tester,
+  ) async {
+    await _pump(
+      tester,
+      mode: ModelerMode.animation,
+      animationSubmode: AnimationSubmode.retarget,
+      retargetSourceNames: const <String>['hips'],
+      retargetBoneMap: const BoneMap(<String, String>{}),
+    );
+
+    // `SectionLabel` always upper-cases what it is given.
+    expect(find.text('BONE MAP'), findsOneWidget);
+    expect(find.text('Apply the retarget'), findsOneWidget);
+    // The weight-paint sub-mode's own section label — proof this is
+    // `sectionsFor`'s "wholesale, not piecemeal" holding for the fourth
+    // sub-mode too, not only the three `S5`/`S6` already covered here.
+    expect(find.text('BRUSH'), findsNothing);
   });
 }
