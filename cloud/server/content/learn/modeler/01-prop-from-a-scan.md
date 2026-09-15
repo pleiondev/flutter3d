@@ -192,7 +192,10 @@ real app.
 
 **Proving it.** Every step above is a real, replayable command, not
 narration. `packages/flutter3d_model_mcp/test/fixtures/tutorial/
-case1_scenario.dart` builds exactly the project this page describes;
+case1_scenario.dart` builds exactly the project this page describes,
+through `ModelSession.import` itself — the same call an agent makes over
+MCP, given `ImportOptions(scale: 0.001)` and `weld: true` for the identical
+"mm" and "weld coincident vertices" choice made above;
 `packages/flutter3d_model_mcp/test/tutorial_scenarios_test.dart` replays
 its journal (`case1.jsonl`) through `CommandJournal.replay` against a
 freshly imported teapot and checks the result matches the committed
@@ -201,8 +204,4 @@ freshly imported teapot and checks the result matches the committed
 the journal does not carry is the import step itself: `ReplaceDocument` —
 what an import runs — is deliberately not journalable (`command.dart`'s own
 doc comment, `flutter3d_model_core`), so replay starts from the project
-right after import rather than from an empty one. That is also `tut-01`:
-nothing at the session or MCP layer accepts a unit or axis choice on
-import today, so this case's own fixture builds its starting project
-directly from `fromModelDocument`/`importMeshData` instead of through
-`ModelSession.import`.
+right after import rather than from an empty one.

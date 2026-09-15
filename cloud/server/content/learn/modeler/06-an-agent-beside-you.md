@@ -188,14 +188,17 @@ same step the agent's own call had just refused. `mcp-10n`'s own row is
 closed; case 6 exists to show it working on a real, mixed-authorship
 document rather than only asserting it in isolation.
 
-**Case 1's own import gap, re-checked, not re-found.** `tut-01`'s own text
+**Case 1's own import gap, re-checked and now closed.** `tut-01`'s own text
 already flagged that case 6 would need to re-check whether an agent-driven
-import needs `ImportOptions` sooner. It still does, unchanged: case 6 starts
-from `case1ImportedProject()` (the same helper case 1's own fixture uses)
-rather than through the `import` tool, because that tool still takes only a
-path — no unit, no axis — and calling it on `teapot.stl` today would land
-the teapot at 1× scale, in metres, not the millimetre scale this whole
-tutorial depends on. Nothing new here; `tut-01`'s own deferral stands.
+import needs `ImportOptions` sooner — it did, and the `import` tool now
+takes them: `unit`, `upAxis`, and `weld`/`fixNormals`/`triangulate`, the
+identical choice the app's own import screen offers a person. Case 6 still
+starts from `case1ImportedProject()` (the same helper case 1's own fixture
+uses, itself now built through `ModelSession.import` rather than around it)
+rather than calling the `import` tool a second time here — this case is
+about what an agent does to a document already open, not about repeating
+case 1's own import step — so nothing on `case6.jsonl` or its fixtures
+changes; only the tool's own reach did.
 
 **Proving it.** `packages/flutter3d_model_mcp/test/fixtures/tutorial/
 case6_scenario.dart` builds exactly the mixed-authorship project this page

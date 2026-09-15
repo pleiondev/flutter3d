@@ -371,7 +371,25 @@ final class ModelSession {
   /// in once rather than doubling the tables, and the file's own hierarchy —
   /// parent and child alike — is preserved rather than flattened to the top
   /// level.
-  Future<Answer> import(String from) async {
+  ///
+  /// **[options] and the three cleanup flags are the identical choice
+  /// `apps/flutter3d_modeler`'s own import screen offers a person**
+  /// (`import_plan.dart`'s `ImportUnit`/`ImportChoice`, `screen/files.dart`'s
+  /// `_applyImportCleanup`) — an agent gets a unit and up axis to read a file
+  /// with no convention of its own (an `.stl` in particular) correctly, and
+  /// [weld]/[fixNormals]/[triangulate] to turn the objects this import just
+  /// added into real `EditMesh` topology rather than leaving them raw
+  /// `ImportedGeometry`, the same "сварить"/"нормали"/"триангулировать"
+  /// checkboxes. All four default to today's own no-options behaviour: scale
+  /// `1.0`, up axis `y`, every object left byte-for-byte as the file read
+  /// (`tut-01`).
+  Future<Answer> import(
+    String from, {
+    ImportOptions options = const ImportOptions(),
+    bool weld = false,
+    bool fixNormals = false,
+    bool triangulate = false,
+  }) async {
     final file = File(from);
     if (!file.existsSync()) {
       return (did: false, says: 'there is no file at $from');
@@ -389,9 +407,30 @@ final class ModelSession {
     } catch (error) {
       return (did: false, says: 'could not read $from: $error');
     }
-    final report = importInto(project, document);
+    final beforeCount = project.objects.length;
+    final report = importInto(project, document, options: options);
     if (report.counts.objects == 0) {
       return (did: false, says: '$from has nothing this reader could place');
+    }
+    var merged = report.project;
+    if (weld || fixNormals || triangulate) {
+      // Only the objects this import just added — `importInto`'s own doc
+      // comment guarantees they land after everything already in the
+      // project, so a cleanup choice made here cannot reach back and rebuild
+      // an object that was already open and left untouched on purpose.
+      final newIds = <int>{
+        for (final ModelObject object in report.project.objects.skip(
+          beforeCount,
+        ))
+          object.id,
+      };
+      merged = _cleanedUpImport(
+        merged,
+        newIds,
+        weld: weld,
+        fixNormals: fixNormals,
+        triangulate: triangulate,
+      );
     }
     // `ReplaceDocument` rather than a run of `AddPrimitive`-style commands,
     // because the import brought whole meshes across, not parameters a
@@ -406,13 +445,50 @@ final class ModelSession {
     // the whole document out from under a transform the picture is still
     // mid-way through showing.
     await history.whenNotInTransaction;
-    history.run(ReplaceDocument(report.project, 'import $from'));
+    history.run(ReplaceDocument(merged, 'import $from'));
     return (
       did: true,
       says:
           'imported ${report.counts.objects} '
           '${report.counts.objects == 1 ? 'object' : 'objects'} from $from',
     );
+  }
+
+  /// [project], with every newly imported `ImportedGeometry` object among
+  /// [onlyIds] turned into real `EditMesh` topology via `importMeshData` —
+  /// the same conversion `apps/flutter3d_modeler`'s own
+  /// `_applyImportCleanup` runs when its weld/normals/triangulate checkboxes
+  /// are on. An object left out of [onlyIds], or that already holds
+  /// `EditedGeometry`, is untouched.
+  ModelProject _cleanedUpImport(
+    ModelProject project,
+    Set<int> onlyIds, {
+    required bool weld,
+    required bool fixNormals,
+    required bool triangulate,
+  }) {
+    var result = project;
+    for (final ModelObject object in project.objects) {
+      if (!onlyIds.contains(object.id)) continue;
+      if (object.geometry case ImportedGeometry(:final data)) {
+        // `weld`'s own epsilon: `importMeshData`'s own default (a millionth
+        // of the mesh's diagonal) when on, `0` (exact duplicates only) when
+        // off — `import_plan.dart`'s own `weldEpsilonFor`, restated here
+        // rather than reached for across the app/package boundary.
+        final (EditMesh mesh, _, _) = importMeshData(
+          data,
+          weldEpsilon: weld ? null : 0.0,
+        );
+        if (fixNormals) mesh.makeConsistent();
+        if (triangulate) {
+          triangulateFaces(mesh, Selection.all(mesh, ElementLevel.face));
+        }
+        result = result.withObject(
+          object.copyWith(geometry: EditedGeometry(mesh)),
+        );
+      }
+    }
+    return result;
   }
 
   /// Writes the commands run so far to [to], as `doc-16`'s `CommandJournal`

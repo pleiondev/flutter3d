@@ -58,6 +58,32 @@ UntitledSingleSelectEnumSchema _interpolation(String about) =>
       values: <String>[for (final i in AnimationInterpolation.values) i.name],
     );
 
+/// `import`'s own "unit" — `apps/flutter3d_modeler`'s `import_plan.dart`
+/// `ImportUnit` restated as a string enum, since the app that owns that
+/// type is not something this package depends on. Keys into
+/// [_importUnitScale] for the multiplier `ImportOptions.scale` actually
+/// takes.
+UntitledSingleSelectEnumSchema _importUnit(String about) =>
+    UntitledSingleSelectEnumSchema(
+      description: about,
+      values: const <String>['mm', 'cm', 'm'],
+    );
+
+/// [_importUnit]'s own values, mapped to [ImportOptions.scale] the way
+/// `import_plan.dart`'s `ImportUnit` already does — `mm` and `cm` read as
+/// this project's own metres, `m` (the default) leaves a file untouched.
+const Map<String, double> _importUnitScale = <String, double>{
+  'mm': 0.001,
+  'cm': 0.01,
+  'm': 1.0,
+};
+
+UntitledSingleSelectEnumSchema _upAxis(String about) =>
+    UntitledSingleSelectEnumSchema(
+      description: about,
+      values: <String>[for (final a in UpAxis.values) a.name],
+    );
+
 /// The three components [PoseJoint] can key — never `weights`, which the
 /// command itself refuses, so the schema does not offer a value guaranteed
 /// to fail.
@@ -2358,10 +2384,36 @@ List<ModelTool> get modelTools => <ModelTool>[
           'Bring a glTF, GLB, OBJ, `.f3d` or STL file in as new '
           'objects, added beside what is already here. Every object it '
           'brings arrives as one undo step. An FBX file is recognised and '
-          'refused with the reason.',
+          'refused with the reason. Defaults to no scaling, up axis "y" and '
+          'every object left exactly as the file read — pass unit/upAxis '
+          'for a file with a different convention of its own (an `.stl` in '
+          'particular carries no unit at all) and weld/fixNormals/'
+          'triangulate to build real mesh topology on the way in, the same '
+          'choices the app\'s own import screen offers a person.',
       inputSchema: ObjectSchema(
         properties: <String, Schema>{
           'from': StringSchema(description: 'the path to read'),
+          'unit': _importUnit(
+            'the file\'s own unit: "mm" (an `.stl`\'s usual '
+            'convention), "cm" or "m" (default, no scaling)',
+          ),
+          'upAxis': _upAxis('the file\'s own up axis, default "y"'),
+          'weld': BooleanSchema(
+            description:
+                'weld coincident vertices into real mesh '
+                'topology on the objects this import adds, default false '
+                '(left byte-for-byte as the file read)',
+          ),
+          'fixNormals': BooleanSchema(
+            description:
+                'recalculate normals on the objects this '
+                'import adds, default false',
+          ),
+          'triangulate': BooleanSchema(
+            description:
+                'triangulate every n-gon on the objects this '
+                'import adds, default false',
+          ),
         },
         required: <String>['from'],
       ),
@@ -2374,7 +2426,16 @@ List<ModelTool> get modelTools => <ModelTool>[
           says: 'import needs a "from" path',
         ));
       }
-      return session.import(from);
+      final unit = arguments['unit'];
+      final scale = unit is String ? (_importUnitScale[unit] ?? 1.0) : 1.0;
+      final upAxis = arguments['upAxis'] == 'z' ? UpAxis.z : UpAxis.y;
+      return session.import(
+        from,
+        options: ImportOptions(scale: scale, upAxis: upAxis),
+        weld: arguments['weld'] == true,
+        fixNormals: arguments['fixNormals'] == true,
+        triangulate: arguments['triangulate'] == true,
+      );
     },
   ),
   ModelTool(
