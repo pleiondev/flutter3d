@@ -30,6 +30,21 @@ final _triangle = Uint8List.fromList(
   utf8.encode('v 0 0 0\nv 1 0 0\nv 0 1 0\nf 1 2 3\n'),
 );
 
+/// A second, distinct, still-valid OBJ — a two-triangle quad — used to save
+/// over a model that already exists.
+final _quad = Uint8List.fromList(
+  utf8.encode('v 0 0 0\nv 1 0 0\nv 1 1 0\nv 0 1 0\nf 1 2 3\nf 1 3 4\n'),
+);
+
+/// A third, distinct, still-valid OBJ — a three-triangle fan — for a second
+/// save over the same model.
+final _fan = Uint8List.fromList(
+  utf8.encode(
+    'v 0 0 0\nv 1 0 0\nv 1 1 0\nv 0.5 1.5 0\nv 0 1 0\n'
+    'f 1 2 3\nf 1 3 4\nf 1 4 5\n',
+  ),
+);
+
 /// A minimal but well-formed PNG: the signature, then an `IHDR` chunk naming
 /// [width] and [height]. No `IDAT` and no CRC — `inspectPreviewPng` never
 /// reads past `IHDR`'s own 13 data bytes, so none of that is needed to be
@@ -106,6 +121,21 @@ class _Browser {
       },
     ),
   );
+
+  Future<Response> saveSource(int modelId, String name, Uint8List bytes) =>
+      _send(
+        Request(
+          'POST',
+          Uri.parse('$_base/api/v1/models/$modelId/source'),
+          body: bytes,
+          headers: {
+            'content-type': 'application/octet-stream',
+            'x-csrf': csrf,
+            'x-filename': Uri.encodeComponent(name),
+            'origin': _base,
+          },
+        ),
+      );
 
   Future<Response> _send(Request request) async {
     final withCookies = cookies.isEmpty
@@ -665,5 +695,210 @@ void main() {
         )).statusCode,
     ];
     expect(codes, contains(429));
+  });
+
+  test('saving a source over the HTTP handler: revisions, ownership, and '
+      'validation before storage', () async {
+    final owner = _Browser(handler);
+    await owner.get('/register');
+    await owner.post('/register', {
+      'email': 'source-save-owner@example.com',
+      'displayName': 'Source Save Owner',
+      'password': 'a perfectly cromulent password',
+      'passwordConfirm': 'a perfectly cromulent password',
+    });
+    final ownerVerify = _tokenIn(
+      mailer.sent.lastWhere(
+        (l) =>
+            l.to == 'source-save-owner@example.com' &&
+            l.subject.contains('Confirm'),
+      ),
+    );
+    await owner.get('/verify?token=$ownerVerify');
+
+    final uploaded = await owner.upload('editable.obj', _triangle);
+    expect(uploaded.statusCode, 201);
+    final modelId =
+        (jsonDecode(await uploaded.readAsString())
+                as Map<String, Object?>)['id']!
+            as int;
+
+    // Nothing to save yet: only the original upload exists, and that is not
+    // a revision until something replaces it.
+    final emptyRevisions = await owner.get('/api/v1/models/$modelId/revisions');
+    expect(emptyRevisions.statusCode, 200);
+    expect(jsonDecode(await emptyRevisions.readAsString()), isEmpty);
+
+    // Saving a well-formed edit replaces the current file and records the
+    // one it replaced as a revision.
+    final firstSave = await owner.saveSource(modelId, 'editable.obj', _quad);
+    expect(firstSave.statusCode, 200);
+    final firstSaveBody =
+        jsonDecode(await firstSave.readAsString()) as Map<String, Object?>;
+    expect(firstSaveBody['id'], modelId);
+    expect(firstSaveBody['triangleCount'], 2);
+    expect(firstSaveBody['sizeBytes'], _quad.length);
+
+    final afterFirstSave = await owner.get('/files/$modelId/source');
+    expect(
+      await afterFirstSave.read().expand((chunk) => chunk).toList(),
+      _quad,
+      reason: "the model's current file is the one just saved",
+    );
+
+    // `replaceSource` records the revision as what was just saved — the file
+    // that becomes current, not the one it displaced — so with only one save
+    // done, that lone revision and the current file are the same bytes; the
+    // original, pre-edit upload from `create()` was never itself recorded as
+    // a revision and has nothing pointing at it once this save moves
+    // `model_files` on.
+    final oneRevision = await owner.get('/api/v1/models/$modelId/revisions');
+    final oneRevisionList =
+        jsonDecode(await oneRevision.readAsString()) as List<Object?>;
+    expect(oneRevisionList, hasLength(1));
+    final firstRevision = oneRevisionList.single! as Map<String, Object?>;
+    expect(firstRevision['bytes'], _quad.length);
+    expect(
+      firstRevision.keys,
+      containsAll(['id', 'bytes', 'createdAt', 'createdBy']),
+    );
+
+    // The revision route serves that revision's own bytes, not whatever the
+    // model happens to be current as by the time somebody asks.
+    final firstRevisionId = firstRevision['id']! as int;
+    final firstDownload = await owner.get(
+      '/files/$modelId/revisions/$firstRevisionId',
+    );
+    expect(firstDownload.statusCode, 200);
+    expect(await firstDownload.read().expand((chunk) => chunk).toList(), _quad);
+
+    // Another account may not save to this model — 404, never 403, so a
+    // private model's id is not confirmed to somebody who cannot edit it.
+    // Signed in as an already-registered account from an earlier test rather
+    // than registering a new one: every test here shares one IP's
+    // `registerPerIp` budget, and this file already spends most of it.
+    final stranger = _Browser(handler);
+    await stranger.get('/login');
+    final strangerSignIn = await stranger.post('/login', {
+      'email': 'preview-owner@example.com',
+      'password': 'a perfectly cromulent password',
+    });
+    expect(strangerSignIn.statusCode, 303);
+
+    final strangersSave = await stranger.saveSource(
+      modelId,
+      'stolen.obj',
+      _fan,
+    );
+    expect(strangersSave.statusCode, 404);
+    // Reading the revision list, and the revision itself, are just as
+    // invisible to somebody who cannot see this private model at all.
+    expect(
+      (await stranger.get('/api/v1/models/$modelId/revisions')).statusCode,
+      404,
+    );
+    expect(
+      (await stranger.get(
+        '/files/$modelId/revisions/$firstRevisionId',
+      )).statusCode,
+      404,
+    );
+    // And none of it changed what the owner has.
+    expect(
+      await (await owner.get(
+        '/files/$modelId/source',
+      )).read().expand((chunk) => chunk).toList(),
+      _quad,
+    );
+
+    // A second well-formed save adds a second revision, newest first — and
+    // this is where the first one genuinely becomes "old": no longer what
+    // `model_files` points at, but still its own row in `model_revisions`.
+    final secondSave = await owner.saveSource(modelId, 'editable.obj', _fan);
+    expect(secondSave.statusCode, 200);
+    final secondSaveBody =
+        jsonDecode(await secondSave.readAsString()) as Map<String, Object?>;
+    expect(secondSaveBody['triangleCount'], 3);
+    expect(secondSaveBody['sizeBytes'], _fan.length);
+
+    final twoRevisions = await owner.get('/api/v1/models/$modelId/revisions');
+    final twoRevisionsList =
+        jsonDecode(await twoRevisions.readAsString()) as List<Object?>;
+    expect(twoRevisionsList, hasLength(2));
+    final newestRevision = twoRevisionsList.first! as Map<String, Object?>;
+    final olderRevision = twoRevisionsList.last! as Map<String, Object?>;
+    expect(newestRevision['bytes'], _fan.length, reason: 'newest first');
+    expect(
+      olderRevision['bytes'],
+      _quad.length,
+      reason: 'the first edit is now the oldest revision, no longer current',
+    );
+    expect(olderRevision['id'], firstRevisionId);
+
+    // The point of keeping it: that older, no-longer-current revision is
+    // still downloadable byte-for-byte, even though the model has moved on.
+    final oldDownload = await owner.get(
+      '/files/$modelId/revisions/$firstRevisionId',
+    );
+    expect(oldDownload.statusCode, 200);
+    expect(await oldDownload.read().expand((chunk) => chunk).toList(), _quad);
+
+    // A body that does not decode as a model is refused before anything is
+    // stored, exactly as a bad initial upload already is — not a weaker
+    // check because it is "just an update".
+    final malformed = await owner.saveSource(
+      modelId,
+      'garbage.obj',
+      Uint8List.fromList(utf8.encode('not a model at all')),
+    );
+    expect(malformed.statusCode, 422);
+
+    // Crucially: the rejected save created no revision row at all. The count
+    // is exactly what it was before the malformed attempt, proving the
+    // validate-before-store ordering — decode first, write only on success.
+    final revisionsAfterRejection = await owner.get(
+      '/api/v1/models/$modelId/revisions',
+    );
+    expect(
+      jsonDecode(await revisionsAfterRejection.readAsString()),
+      hasLength(2),
+    );
+    // And the current file is still what the last accepted save left it as.
+    expect(
+      await (await owner.get(
+        '/files/$modelId/source',
+      )).read().expand((chunk) => chunk).toList(),
+      _fan,
+    );
+
+    // A revision id that is real, but belongs to a different model, 404s
+    // against that other model's download route rather than serving it. The
+    // second model is created straight through the repository, the same way
+    // the revision tests above it do, rather than another HTTP upload — it
+    // only needs to exist and belong to somebody else.
+    final strangerId = (await services.users.byEmail(
+      'preview-owner@example.com',
+    ))!.id;
+    final strangersModel = await services.models.create(
+      ownerId: strangerId,
+      title: 'Strangers Own',
+      sourceFormat: 'obj',
+      triangleCount: 1,
+      source: StoredFile(
+        blobSha256: await blobs.put(
+          Uint8List.fromList(utf8.encode('strangers own model')),
+        ),
+        bytes: 20,
+        contentType: 'model/obj',
+        filename: 'strangers_own.obj',
+      ),
+    );
+    final strangersModelId = strangersModel.id;
+    expect(
+      (await stranger.get(
+        '/files/$strangersModelId/revisions/$firstRevisionId',
+      )).statusCode,
+      404,
+    );
   });
 }

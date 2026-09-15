@@ -33,6 +33,12 @@ class RateRule {
   /// much disk one account can fill by repeatedly posting distinct pictures,
   /// not to get in the way of normal use.
   static const previewPerAccount = RateRule(30, Duration(hours: 1));
+
+  /// Source files saved back to one account's models. A working session of
+  /// edit-and-save spends a handful of these; the limit exists to bound how
+  /// many distinct revisions one account can push in an hour, not to get in
+  /// the way of normal editing.
+  static const sourceSavePerAccount = RateRule(30, Duration(hours: 1));
 }
 
 class RateLimiter {

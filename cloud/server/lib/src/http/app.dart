@@ -415,6 +415,99 @@ Handler buildHandler(Services services) {
           }
           return json(200, {'hasPreview': true});
       }
+    })
+    ..post('/api/v1/models/<id|[0-9]+>/source', (
+      Request request,
+      String id,
+    ) async {
+      if (!scriptIsOurs(request)) {
+        return json(403, {'error': 'This page is out of date. Reload it.'});
+      }
+      final user = await userOf(request);
+      final model = await services.models.byId(int.parse(id));
+      // Saving edits a model that already exists, so this checks `canEdit`,
+      // the same as the preview endpoint above — never `canUpload`. Missing
+      // or somebody else's: 404 either way, never 403.
+      if (model == null || !canEdit(model, user)) {
+        return _notFound(request, viewer: user);
+      }
+
+      if (!await services.limiter.allow(
+        'source-save:account:${user!.id}',
+        RateRule.sourceSavePerAccount,
+      )) {
+        return json(429, {
+          'error': 'Too many saves recently. Try again later.',
+        });
+      }
+
+      final fileName = Uri.decodeComponent(
+        request.headers['x-filename'] ?? 'model',
+      );
+      final limit = services.config.uploadLimitBytes;
+      final bytes = await readBody(request, limit: limit);
+      if (bytes == null) {
+        return json(413, {
+          'error': '$fileName is larger than ${formatBytes(limit)}.',
+        });
+      }
+
+      // The identical decode-and-validate `inspectUpload` runs on a fresh
+      // upload — an edited document that fails to decode is refused the same
+      // way, not a weaker check because it is "just an update". Nothing is
+      // stored, and no revision is recorded, until this accepts the bytes.
+      switch (await inspectUpload(bytes, fileName: fileName)) {
+        case Rejected(:final because):
+          return json(422, {'error': because});
+        case Accepted(:final format, :final triangleCount):
+          final hash = await services.blobs.put(bytes);
+          // Keeps the new file as current and records a revision row in one
+          // transaction. The blob this replaces is deliberately not freed
+          // here — it now lives on as a revision, and `isReferenced` already
+          // knows to keep it alive.
+          final updated = await services.models.replaceSource(
+            modelId: model.id,
+            newSource: StoredFile(
+              blobSha256: hash,
+              bytes: bytes.length,
+              contentType: format.contentType,
+              filename: _fileNameFor(fileName, format),
+            ),
+            triangleCount: triangleCount,
+            sourceFormat: format.column,
+            actorUserId: user.id,
+          );
+          return json(200, {
+            'id': updated.id,
+            'path': updated.path,
+            'triangleCount': updated.triangleCount,
+            'sizeBytes': updated.sizeBytes,
+          });
+      }
+    })
+    ..get('/api/v1/models/<id|[0-9]+>/revisions', (
+      Request request,
+      String id,
+    ) async {
+      final viewer = await userOf(request);
+      final model = await services.models.byId(int.parse(id));
+      // Revision metadata — no bytes, just id/size/who/when — follows the
+      // model's own visibility, the same as its page or its current file:
+      // `canView`, not `canEdit`. The file each revision points at stays
+      // owner-only, at the download route below.
+      if (model == null || !canView(model, viewer)) {
+        return _notFound(request, viewer: viewer);
+      }
+      final revisions = await services.models.revisionsOf(model.id);
+      return json(200, [
+        for (final revision in revisions)
+          {
+            'id': revision.id,
+            'bytes': revision.bytes,
+            'createdAt': revision.createdAt.toIso8601String(),
+            'createdBy': revision.createdBy,
+          },
+      ]);
     });
 
   // --- one model --------------------------------------------------------------------
@@ -490,6 +583,30 @@ Handler buildHandler(Services services) {
       // picture that really is zero bytes.
       if (file == null) return _notFound(request, viewer: viewer);
       return _serveBlob(services, request, file, public: model.isPublic);
+    })
+    ..get('/files/<id|[0-9]+>/revisions/<revisionId|[0-9]+>', (
+      Request request,
+      String id,
+      String revisionId,
+    ) async {
+      final viewer = await userOf(request);
+      final model = await services.models.byId(int.parse(id));
+      // A past revision is an editing/audit artifact, not something a public
+      // viewer should be able to enumerate-and-download even if the current
+      // file is public — `canEdit`, owner-only, unlike the source and
+      // preview downloads above.
+      if (model == null || !canEdit(model, viewer)) {
+        return _notFound(request, viewer: viewer);
+      }
+      final file = await services.models.revisionFile(
+        model.id,
+        int.parse(revisionId),
+      );
+      // Null both when the id does not exist at all and when it belongs to
+      // a different model — `revisionFile` checks the two together, so
+      // neither case can serve a file that is not this model's own.
+      if (file == null) return _notFound(request, viewer: viewer);
+      return _serveBlob(services, request, file, public: false);
     });
 
   // --- settings ----------------------------------------------------------------------
