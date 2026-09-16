@@ -11,6 +11,7 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter3d_editor_widgets/flutter3d_editor_widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -154,5 +155,149 @@ void main() {
         expect(find.bySemanticsLabel('Position X'), findsOneWidget);
       },
     );
+  });
+
+  group('ux-15: arithmetic, units and precision', () {
+    test('four operators, brackets and pi', () {
+      // Mutation: go back to `double.tryParse`. A third of a metre is then
+      // something a person works out on a calculator and types back rounded,
+      // and `2*pi` is not a number at all.
+      expect(NumberField.parse('1/3'), closeTo(1 / 3, 1e-12));
+      expect(NumberField.parse('2*pi'), closeTo(6.2832, 1e-4));
+      expect(NumberField.parse('(1 + 2) * 3'), 9);
+      expect(NumberField.parse('10 - 2 - 3'), 5);
+      expect(NumberField.parse('-2 * -3'), 6);
+    });
+
+    test('a unit is converted into the field\'s own', () {
+      expect(
+        NumberField.parse('10cm', unit: NumberUnit.metres),
+        closeTo(0.1, 1e-12),
+      );
+      expect(
+        NumberField.parse('24 mm', unit: NumberUnit.metres),
+        closeTo(0.024, 1e-12),
+      );
+      expect(
+        NumberField.parse('1ft', unit: NumberUnit.metres),
+        closeTo(0.3048, 1e-12),
+      );
+      expect(
+        NumberField.parse('pi rad', unit: NumberUnit.degrees),
+        closeTo(180, 1e-9),
+      );
+      expect(
+        NumberField.parse('90deg', unit: NumberUnit.degrees),
+        closeTo(90, 1e-12),
+      );
+    });
+
+    test(
+      'a unit the field does not know is a refusal, not an ignored word',
+      () {
+        // Mutation: drop whatever follows the number. `10kg` in a length field
+        // then commits ten metres, which is worse than saying no.
+        expect(NumberField.parse('10kg', unit: NumberUnit.metres), isNull);
+        expect(NumberField.parse('10cm'), isNull, reason: 'a plain field');
+        expect(NumberField.parse('90deg', unit: NumberUnit.metres), isNull);
+      },
+    );
+
+    test('the places follow the magnitude', () {
+      // The live finding: an STL read in at a scale of 0.001 filled these
+      // fields with numbers that three places round to zero. Mutation: fix
+      // three places — the field says `0` for a value that is not zero, and
+      // typing back what it shows destroys the model.
+      expect(NumberField.show(0.001), '0.001');
+      expect(NumberField.show(0.0001), '0.0001');
+      expect(NumberField.show(0.000025), '0.000025');
+      // And the ordinary scale is unchanged, three places and no noise.
+      expect(NumberField.show(1), '1');
+      expect(NumberField.show(1 / 3), '0.333');
+    });
+  });
+
+  group('ux-15: the keys and the scrub', () {
+    testWidgets('an arrow key moves the value by a step', (
+      WidgetTester tester,
+    ) async {
+      final said = <double>[];
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: NumberField(
+              label: 'X',
+              value: 1,
+              step: 0.1,
+              onChanged: said.add,
+            ),
+          ),
+        ),
+      );
+      await tester.tap(find.byType(TextField));
+      await tester.pump();
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.arrowUp);
+      await tester.pump();
+
+      // Mutation: leave the arrows to the text box, where in a single-line
+      // field they do nothing at all. A number is then only ever set by
+      // typing it out in full.
+      expect(said, <double>[1.1]);
+    });
+
+    testWidgets('and Shift is ten of them', (WidgetTester tester) async {
+      final said = <double>[];
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: NumberField(
+              label: 'X',
+              value: 1,
+              step: 0.1,
+              onChanged: said.add,
+            ),
+          ),
+        ),
+      );
+      await tester.tap(find.byType(TextField));
+      await tester.pump();
+
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
+      await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
+      await tester.pump();
+
+      expect(said.single, closeTo(0, 1e-9));
+    });
+
+    testWidgets('dragging the label scrubs a step a pixel', (
+      WidgetTester tester,
+    ) async {
+      final said = <double>[];
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: SizedBox(
+              width: 200,
+              child: NumberField(
+                label: 'X',
+                value: 0,
+                step: 0.1,
+                onChanged: said.add,
+              ),
+            ),
+          ),
+        ),
+      );
+
+      // Ten pixels is ten steps — the acceptance this row states, and the
+      // thing that makes a value settable by eye against the picture.
+      await tester.drag(find.text('X'), const Offset(10, 0));
+      await tester.pump();
+
+      expect(said, isNotEmpty);
+      expect(said.last, closeTo(1.0, 1e-9));
+    });
   });
 }
