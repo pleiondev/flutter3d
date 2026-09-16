@@ -147,6 +147,7 @@ final class ModelerColors extends ThemeExtension<ModelerColors> {
     required this.selected,
     required this.panelEdge,
     required this.success,
+    required this.controlTrack,
   });
 
   /// What the modeller ships with. Every one of these is a colour something in
@@ -161,6 +162,7 @@ final class ModelerColors extends ThemeExtension<ModelerColors> {
     selected: Color(0xFFFF9926),
     panelEdge: Color(0xFF232A2C),
     success: Color(0xFF7EE081),
+    controlTrack: Color(0xFF5E6A6D),
   );
 
   /// Behind the model. Flat, and darker than any panel: every judgement a
@@ -186,6 +188,20 @@ final class ModelerColors extends ThemeExtension<ModelerColors> {
   /// a role for it (the scheme's own roles are all Material's).
   final Color success;
 
+  /// The unfilled half of a slider, and the sheet's own drag handle —
+  /// `ux-34`.
+  ///
+  /// **Its own token because the hand-off's answer fails a contrast check.**
+  /// That table puts slider tracks on `outlineVariant` (`#3F484A`), which is
+  /// 1.94:1 against `surfaceContainerLow` — a divider may be that quiet,
+  /// since nothing depends on seeing it, but the track is the part of a
+  /// slider that says how far it goes and the handle is the part of a sheet
+  /// that says it can be dragged. WCAG asks 3:1 of both. This is 3.1:1 on
+  /// `surfaceContainer` and 3.3:1 on `surfaceContainerLow`, in the same
+  /// grey-teal family, and `contrast_test.dart` computes both rather than
+  /// trusting this sentence.
+  final Color controlTrack;
+
   @override
   ModelerColors copyWith({
     Color? viewport,
@@ -197,6 +213,7 @@ final class ModelerColors extends ThemeExtension<ModelerColors> {
     Color? selected,
     Color? panelEdge,
     Color? success,
+    Color? controlTrack,
   }) => ModelerColors(
     viewport: viewport ?? this.viewport,
     gridMinor: gridMinor ?? this.gridMinor,
@@ -207,6 +224,7 @@ final class ModelerColors extends ThemeExtension<ModelerColors> {
     selected: selected ?? this.selected,
     panelEdge: panelEdge ?? this.panelEdge,
     success: success ?? this.success,
+    controlTrack: controlTrack ?? this.controlTrack,
   );
 
   @override
@@ -222,6 +240,7 @@ final class ModelerColors extends ThemeExtension<ModelerColors> {
       selected: Color.lerp(selected, other.selected, t)!,
       panelEdge: Color.lerp(panelEdge, other.panelEdge, t)!,
       success: Color.lerp(success, other.success, t)!,
+      controlTrack: Color.lerp(controlTrack, other.controlTrack, t)!,
     );
   }
 }
@@ -387,9 +406,13 @@ ThemeData modelerTheme() {
     // other `SliderThemeData` field is left null, which is what "no
     // override" already meant here — `Slider` falls back to a value derived
     // from `colorScheme` for those, exactly as it did before this existed.
-    sliderTheme: const SliderThemeData(
+    sliderTheme: SliderThemeData(
       trackHeight: 4,
-      thumbShape: RoundSliderThumbShape(enabledThumbRadius: 8),
+      thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 8),
+      // `ux-34`: the unfilled half of the track owes 3:1, and the
+      // hand-off's `outlineVariant` gives it 1.94:1 — see
+      // `ModelerColors.controlTrack`.
+      inactiveTrackColor: ModelerColors.dark.controlTrack,
     ),
     tooltipTheme: const TooltipThemeData(waitDuration: Duration(seconds: 1)),
   );
