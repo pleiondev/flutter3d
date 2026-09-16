@@ -435,6 +435,11 @@ Uint8List writeProject(
         // every file written before this existed says.
         if (!object.visible) 'hidden': true,
         if (object.locked) 'locked': true,
+        // `ux-48`, and written only for an object that has one: almost
+        // nothing in almost any file is linked, and an absent key reads back
+        // as the null every file written before this said.
+        if (object.source case final SourceLink link)
+          'source': <String, Object?>{'path': link.path, 'sha': link.sha},
       });
     }
     return out;
@@ -2642,6 +2647,16 @@ VertexLayout? _layoutFrom(Object? json, Map<String, String> pool) {
         // before this existed says.
         visible: entry['hidden'] != true,
         locked: entry['locked'] == true,
+        // `ux-48`. A half-written link — a path with no digest, or the other
+        // way round — reads as no link at all rather than as a link that
+        // cannot answer "has this changed"; there is nothing useful to do
+        // with half of one.
+        source: switch (entry['source']) {
+          {'path': final String path, 'sha': final String sha}
+              when path.isNotEmpty =>
+            (path: path, sha: sha),
+          _ => null,
+        },
       ),
       null,
     );

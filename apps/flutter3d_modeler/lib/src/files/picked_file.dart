@@ -9,6 +9,17 @@ library;
 
 import 'dart:typed_data';
 
+import 'package:crypto/crypto.dart' show sha256;
+
+/// The digest of [bytes], as the hex `ux-48` writes into a project file.
+///
+/// **SHA-256 rather than something cheaper.** What this answers is "are these
+/// the same bytes as last time", which a collision would answer wrongly and
+/// silently — a re-import that decided a changed file was unchanged is a
+/// person watching an edit not arrive. A few milliseconds on a file somebody
+/// just read off a disk is not a cost worth trading that for.
+String shaOfBytes(List<int> bytes) => sha256.convert(bytes).toString();
+
 final class PickedFile {
   const PickedFile({required this.name, required this.bytes, this.path});
 

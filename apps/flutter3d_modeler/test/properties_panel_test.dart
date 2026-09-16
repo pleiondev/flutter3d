@@ -53,6 +53,9 @@ Future<void> _pump(
 
   /// What the platform's own text-size setting is turned up to — `ux-33`.
   double textScale = 1.0,
+
+  /// `ux-48`: null is a platform with no filesystem, and the section goes.
+  void Function(int id)? onReimport,
 }) async {
   // Tall enough that the panel's own `ListView` never has to scroll to
   // reach the scene panels — nine light rows push the shadows panel well
@@ -101,6 +104,7 @@ Future<void> _pump(
               onAddModifier: (_, _) {},
               onAssignMaterial: (_, _) {},
               onAddMaterial: () {},
+              onReimport: onReimport,
               onSetMaterialField: (_, _, _) {},
               onChooseTexture: (_, _) {},
               onClearTexture: (_, _) {},
@@ -282,6 +286,77 @@ void main() {
         .getTopLeft(find.text('No shape keys on this object'))
         .dy;
     expect(heading, lessThan(said));
+  });
+
+  group('ux-48: an object that remembers where it came from', () {
+    ModelProject linked() => const ModelProject().added(
+      (int id) => ModelObject(
+        id: id,
+        name: 'crate',
+        geometry: EditedGeometry(EditMesh.cuboid()),
+        transform: vm.Matrix4.identity(),
+        source: (path: 'props/crate.obj', sha: 'abc'),
+      ),
+    );
+
+    testWidgets('says so, and offers to read the file again', (
+      WidgetTester tester,
+    ) async {
+      final ModelProject project = linked();
+      var asked = 0;
+      await _pump(
+        tester,
+        mode: ModelerMode.object,
+        project: project,
+        selection: ProjectSelection(objects: <int>[project.objects.single.id]),
+        onReimport: (_) => asked++,
+      );
+
+      expect(find.text('SOURCE'), findsOneWidget);
+      expect(find.text('props/crate.obj'), findsOneWidget);
+
+      await tester.tap(find.text('Re-import'));
+      await tester.pump();
+      expect(asked, 1);
+    });
+
+    testWidgets('and an object built here shows no such section', (
+      WidgetTester tester,
+    ) async {
+      final ModelProject project = const ModelProject().added(
+        (int id) => ModelObject(
+          id: id,
+          name: 'box',
+          geometry: EditedGeometry(EditMesh.cuboid()),
+          transform: vm.Matrix4.identity(),
+        ),
+      );
+      await _pump(
+        tester,
+        mode: ModelerMode.object,
+        project: project,
+        selection: ProjectSelection(objects: <int>[project.objects.single.id]),
+        onReimport: (_) {},
+      );
+
+      // Mutation: draw the section for every object. A "Re-import" on a box
+      // somebody built here is a button that can only refuse.
+      expect(find.text('SOURCE'), findsNothing);
+    });
+
+    testWidgets('and a platform that cannot read a path shows none either', (
+      WidgetTester tester,
+    ) async {
+      final ModelProject project = linked();
+      await _pump(
+        tester,
+        mode: ModelerMode.object,
+        project: project,
+        selection: ProjectSelection(objects: <int>[project.objects.single.id]),
+      );
+
+      expect(find.text('SOURCE'), findsNothing);
+    });
   });
 
   group('ux-33: the panel at twice the text size', () {

@@ -71,6 +71,7 @@ class PropertiesPanel extends StatelessWidget {
     required this.onAssignMaterial,
     required this.onAddMaterial,
     this.onOpenLinkedFile,
+    this.onReimport,
     required this.onSetMaterialField,
     required this.onChooseTexture,
     required this.onClearTexture,
@@ -216,6 +217,11 @@ class PropertiesPanel extends StatelessWidget {
 
   /// The material panel's own "Add material" link was pressed.
   final VoidCallback onAddMaterial;
+
+  /// `ux-48`: reads the held object's own source file again, keeping its
+  /// transform, materials and modifiers. Null where there is no filesystem
+  /// to read one from, and the row does not appear.
+  final void Function(int id)? onReimport;
 
   /// `ux-47`: hands the active material's linked `.fmat` to the system's
   /// own editor. Null where there is none — see `MaterialPanel`.
@@ -568,6 +574,31 @@ class PropertiesPanel extends StatelessWidget {
           PivotAndSpaceChips(pivot: pivot, onPivot: onPivot),
           const SizedBox(height: 4),
           SpaceChips(space: space, onSpace: onSpace),
+        ],
+        // `ux-48`: an object that remembers where it came from says so, and
+        // offers to read that file again. **Only when both exist** — a
+        // project with no linked objects, or a platform that cannot read a
+        // path, shows nothing rather than a button that always refuses.
+        if (held?.source case final SourceLink link
+            when onReimport != null) ...<Widget>[
+          SectionLabel('Source'),
+          Row(
+            children: <Widget>[
+              const Icon(Icons.link, size: 14),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  link.path,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+              ),
+              TextButton(
+                onPressed: () => onReimport!(held!.id),
+                child: const Text('Re-import'),
+              ),
+            ],
+          ),
         ],
         if (held != null &&
             sections.contains(PropertiesSection.modifiers)) ...<Widget>[

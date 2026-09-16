@@ -395,7 +395,25 @@ final class ModelObject {
     this.simulationCache,
     this.visible = true,
     this.locked = false,
+    this.source,
   });
+
+  /// The file this object's geometry was imported from, and what that file
+  /// looked like at the time — `ux-48`. Null for an object built here, and
+  /// for one imported as a copy rather than as a link.
+  ///
+  /// **A link, not an ownership claim.** Everything else about the object —
+  /// where it stands, what it is painted with, what modifiers are stacked on
+  /// it, which shape keys it carries — belongs to this project and survives a
+  /// re-import; only the geometry comes from the file. That is the whole
+  /// distinction between this and opening the file again, and it is why a
+  /// re-import is worth having at all: the work done *around* an imported
+  /// mesh is the work nobody wants to do twice.
+  ///
+  /// [SourceLink.sha] is what the file said when it was last read, so a
+  /// caller can tell "the file has changed" from "the file is as it was"
+  /// without diffing meshes.
+  final SourceLink? source;
 
   /// Whether this object is drawn — `ux-14`.
   ///
@@ -502,6 +520,8 @@ final class ModelObject {
     bool clearSimulationCache = false,
     bool? visible,
     bool? locked,
+    SourceLink? source,
+    bool clearSource = false,
   }) => ModelObject(
     id: id,
     name: name ?? this.name,
@@ -522,11 +542,23 @@ final class ModelObject {
         : (simulationCache ?? this.simulationCache),
     visible: visible ?? this.visible,
     locked: locked ?? this.locked,
+    source: clearSource ? null : (source ?? this.source),
   );
 
   @override
   String toString() => 'ModelObject($id, "$name", v$version)';
 }
+
+/// Where an object's geometry came from, and what that file looked like when
+/// it was last read — `ux-48`'s own "link to source".
+///
+/// **A hash rather than a timestamp.** A file copied out of a version-control
+/// checkout, or restored from a backup, has a modification time that says
+/// nothing about whether its contents moved; the digest of the bytes says
+/// exactly that and nothing else. Which digest it is belongs to whoever
+/// writes it — this record only promises that two equal strings mean two
+/// identical files.
+typedef SourceLink = ({String path, String sha});
 
 /// The document.
 final class ModelProject implements ModelProjectView {

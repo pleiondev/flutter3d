@@ -527,7 +527,22 @@ extension _FileHandling on _ModelerScreenState {
         ))
           object.id,
       };
-      final merged = _applyImportCleanup(report.project, choice, only: newIds);
+      var merged = _applyImportCleanup(report.project, choice, only: newIds);
+      // `ux-48`: everything this import brought in remembers the file it came
+      // from, and what that file said. One project rather than a command per
+      // object, since the import itself is already one step and a link is
+      // part of the same act.
+      if (choice.linkToSource && picked.path != null) {
+        final String path = picked.path!;
+        final String sha = shaOfBytes(picked.bytes);
+        for (final int id in newIds) {
+          final ModelObject? object = merged[id];
+          if (object == null) continue;
+          merged = merged.withObject(
+            object.copyWith(source: (path: path, sha: sha)),
+          );
+        }
+      }
       _cubit.ran(
         ReplaceDocument(merged, 'import ${picked.name}'),
         said:
@@ -538,6 +553,68 @@ extension _FileHandling on _ModelerScreenState {
     } catch (error) {
       if (mounted) _cubit.say('could not import it: $error');
     }
+  }
+
+  /// `ux-48`: reads [id]'s own source file again and replaces its geometry.
+  ///
+  /// **Everything else about the object stays**, which is the whole reason
+  /// this exists rather than "import it again": the transform, the materials,
+  /// the modifier stack and the shape keys are work done in this project
+  /// about a mesh, and a file moving is not a reason to do that twice.
+  ///
+  /// The read goes through `readRecentModel`, which swallows a refusal into
+  /// null for the reason its own doc comment gives — under the macOS sandbox
+  /// a path written down earlier is not a licence to read it later, and the
+  /// honest answer to that is a sentence rather than an exception.
+  Future<void> _reimport(int id) async {
+    final ModelObject? object = _history.project[id];
+    final SourceLink? link = object?.source;
+    if (link == null) return;
+    final Uint8List? bytes = await readRecentModel(link.path);
+    if (!mounted) return;
+    if (bytes == null) {
+      _cubit.say(
+        '${link.path} could not be read \u2014 open it once from the file '
+        'picker and link it again',
+        important: true,
+      );
+      return;
+    }
+    final String sha = shaOfBytes(bytes);
+    if (sha == link.sha) {
+      _cubit.say('${link.path} has not changed since it was last read');
+      return;
+    }
+    final ModelDocument document;
+    try {
+      document = await decodeBytes(bytes, link.path);
+    } on Object catch (error) {
+      if (!mounted) return;
+      _cubit.say('${link.path} did not read: $error', important: true);
+      return;
+    }
+    if (!mounted) return;
+    final MeshData? read = document.surfaces.firstOrNull?.mesh;
+    if (read == null) {
+      _cubit.say(
+        '${link.path} has no mesh this reader could place',
+        important: true,
+      );
+      return;
+    }
+    // Welded into real topology, for the same reason the import screen's own
+    // "weld" does: a re-imported mesh a person cannot then edit is a mesh
+    // that has to be re-imported again the moment they want to. The first
+    // surface, because a link is to one object and a file that grew a second
+    // mesh is a file to import rather than to re-read.
+    final (EditMesh mesh, _, _) = importMeshData(
+      read,
+      weldEpsilon: weldEpsilonFor(weld: true),
+    );
+    _cubit.ran(
+      Reimport(id: id, sha: sha, meshBytes: mesh.toBytes()),
+      said: 'read ${link.path} again',
+    );
   }
 
   /// Puts the model in [bytes] in the document, whether it came from a picker
