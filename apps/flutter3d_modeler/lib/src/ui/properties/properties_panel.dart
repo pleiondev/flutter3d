@@ -12,6 +12,7 @@ library;
 import 'package:flutter/material.dart' hide Material;
 import 'package:flutter3d/flutter3d.dart' hide Material;
 import 'package:flutter3d_editor_widgets/flutter3d_editor_widgets.dart';
+import 'package:flutter3d_mesh/flutter3d_mesh.dart' show EditMesh, Modifier;
 import 'package:flutter3d_model_core/flutter3d_model_core.dart' hide Outcome;
 
 import '../../display_modes.dart';
@@ -62,6 +63,8 @@ class PropertiesPanel extends StatelessWidget {
     required this.onToggleModifier,
     required this.onReorderModifier,
     required this.onAddModifier,
+    this.onToggleModifierExport,
+    this.onRemoveModifier,
     this.onSetModifierField,
     required this.onAssignMaterial,
     required this.onAddMaterial,
@@ -186,8 +189,14 @@ class PropertiesPanel extends StatelessWidget {
   /// A modifier was dragged to a new place in the stack.
   final void Function(int id, int from, int to) onReorderModifier;
 
-  /// The stack's own "Add" link was pressed, for the held object.
-  final ValueChanged<int> onAddModifier;
+  /// A kind was chosen from the stack's own "Add" menu, for the held object
+  /// — `ux-13`. What was a link that silently added a mirror on X.
+  final void Function(int id, Modifier modifier) onAddModifier;
+
+  /// `ux-13`'s own two: the export switch, and the cross that drops a slot.
+  /// Null in a caller with no commands behind it.
+  final void Function(int id, int index)? onToggleModifierExport;
+  final void Function(int id, int index)? onRemoveModifier;
 
   /// A modifier's own field was committed — `mat-20`'s own array `count`,
   /// today. Null draws the stack with no field control at all, the same as
@@ -552,11 +561,41 @@ class PropertiesPanel extends StatelessWidget {
             onToggle: (int index) => onToggleModifier(held.id, index),
             onReorder: (int from, int to) =>
                 onReorderModifier(held.id, from, to),
-            onAdd: () => onAddModifier(held.id),
+            onAdd: (Modifier modifier) => onAddModifier(held.id, modifier),
             onSetField: onSetModifierField == null
                 ? null
                 : (int index, String field, Object? value) =>
                       onSetModifierField!(held.id, index, field, value),
+            // `ux-13`'s own three.
+            onToggleExport: onToggleModifierExport == null
+                ? null
+                : (int index) => onToggleModifierExport!(held.id, index),
+            onRemove: onRemoveModifier == null
+                ? null
+                : (int index) => onRemoveModifier!(held.id, index),
+            // The other selected object, for a boolean to cut with — the
+            // "booleans reachable from the rail" half of the row, reached
+            // from the panel instead: a second selected object is what a
+            // boolean *is*, and the rail has no way to say which one.
+            operandId: switch (selection.objects
+                .where((int it) => it != held.id)) {
+              final Iterable<int> others when others.isNotEmpty =>
+                others.first,
+              _ => null,
+            },
+            trianglesIn: held.geometry.triangleCount,
+            // Counted off the folded mesh's own faces, the way
+            // `EditedGeometry.triangleCount` counts the base — an n-gon of
+            // five sides is three triangles, and a count of faces would say
+            // a subdivision made the model smaller.
+            trianglesOut: held.modifiers.isEmpty
+                ? null
+                : switch (stage.sync?.modifiers.evaluatedMesh(project, held)) {
+                    final EditMesh folded => EditedGeometry(
+                      folded,
+                    ).triangleCount,
+                    _ => null,
+                  },
           ),
         ],
         if (held != null &&

@@ -74,7 +74,7 @@ class _HarnessState extends State<_Harness> {
         onRename: (_, _) {},
         onToggleModifier: (_, _) {},
         onReorderModifier: (_, _, _) {},
-        onAddModifier: (_) {},
+        onAddModifier: (_, _) {},
         onAssignMaterial: (_, _) {},
         onAddMaterial: () {},
         onSetMaterialField: (_, _, _) {},

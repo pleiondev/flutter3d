@@ -23,6 +23,8 @@ import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 import 'package:vector_math/vector_math.dart';
 
 import 'material.dart';
+import 'modifier_evaluation_cache.dart';
+import 'modifier_slot.dart';
 import 'project.dart';
 import 'project_animation.dart';
 import 'project_morphs.dart';
@@ -129,11 +131,52 @@ final class ProjectModelDocument extends ModelDocument {
   @override
   List<AnimationClip> animations = const <AnimationClip>[];
 
+  /// The stack evaluator this document folds modifiers through — `ux-13`.
+  ///
+  /// Kept across calls for the reason the mesh cache is: exporting twice from
+  /// a project nothing has touched should fold nothing twice.
+  final ModifierEvaluationCache _modifiers = ModifierEvaluationCache();
+
   /// The mesh for [object], built once per `(id, version)` and reused after.
-  MeshData _meshFor(ModelObject object) => _meshCache.putIfAbsent((
-    object.id,
-    object.version,
-  ), () => _meshOf(object.geometry, object.shapeSet));
+  ///
+  /// **The modifier stack is folded in here — `ux-13`.** Before it, an export
+  /// wrote the raw geometry and a mirror or an array simply was not in the
+  /// file: the viewport showed one thing and the GLB held another, and the
+  /// only way to get the modified mesh out was "Apply", which drops the
+  /// stack and cannot be undone once saved.
+  ///
+  /// **What is folded is what [ModifierSlot.inExport] says, not what the
+  /// viewport shows.** That is the whole of the row's second toggle: a
+  /// subdivision a person keeps off while they work goes into the file, and
+  /// a cage a boolean cuts with is drawn and left out of it.
+  MeshData _meshFor(ModelProject project, ModelObject object) =>
+      _meshCache.putIfAbsent((object.id, object.version), () {
+        final EditMesh? folded = _foldedForExport(project, object);
+        if (folded != null) return folded.toMeshData();
+        return _meshOf(object.geometry, object.shapeSet);
+      });
+
+  /// [object]'s own mesh with the export-bound modifiers run over it, or null
+  /// where there are none to run — which is almost every object.
+  ///
+  /// **A second object with the export slots on it, handed to the ordinary
+  /// evaluator**, rather than a second evaluator that reads a different
+  /// flag: the folding, the operand resolution and the cycle guard are all
+  /// one piece of code, and duplicating them so that one copy reads
+  /// `enabled` and the other `inExport` is exactly how the two would come to
+  /// disagree about a boolean's operand.
+  EditMesh? _foldedForExport(ModelProject project, ModelObject object) {
+    if (object.geometry is! EditedGeometry) return null;
+    final List<ModifierSlot> forExport = <ModifierSlot>[
+      for (final ModifierSlot slot in object.modifiers)
+        if (slot.inExport) slot.copyWith(enabled: true),
+    ];
+    if (forExport.isEmpty) return null;
+    return _modifiers.evaluatedMesh(
+      project,
+      object.copyWith(modifiers: forExport),
+    );
+  }
 
   /// Rebuilds this document from [project] and returns it.
   ///
@@ -228,7 +271,7 @@ final class ProjectModelDocument extends ModelDocument {
     for (var i = 0; i < objects.length; i++) {
       final object = objects[i];
       final placement = world[i]!;
-      final mesh = _meshFor(object);
+      final mesh = _meshFor(project, object);
 
       final surfaceIndex = mesh.vertexCount == 0 ? null : surfaces.length;
       if (surfaceIndex != null) {
