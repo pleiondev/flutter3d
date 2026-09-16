@@ -64,14 +64,19 @@ final class PaletteEntry {
 /// person searching for "Paint weights" has not necessarily thought about
 /// which sub-mode it lives in.
 ///
+/// [extra] is for the things that are not rail tools and belong here anyway —
+/// `ux-27`'s own two folds. They come first, because they are about the
+/// window rather than the model and a search for "panel" should find them
+/// before it finds a material one.
 List<PaletteEntry> paletteEntries({
   required ModelerMode mode,
   required AnimationSubmode animation,
   required Keymap keymap,
   Set<String> unavailable = const <String>{},
+  List<PaletteEntry> extra = const <PaletteEntry>[],
 }) {
-  final entries = <PaletteEntry>[];
-  final seen = <String>{};
+  final entries = <PaletteEntry>[...extra];
+  final seen = <String>{for (final PaletteEntry it in extra) it.id};
   void add(ModelerTool tool, ModelerMode from, {String? because}) {
     if (!seen.add(tool.id)) return;
     final ShortcutActivator? key = from == mode
@@ -138,6 +143,36 @@ Set<String> unavailableTools({
 /// from, and the select tools themselves.
 bool _needsSelection(String id) =>
     !id.endsWith('.select') && !id.endsWith('.add') && !id.endsWith('.lathe');
+
+/// `ux-27`'s own two folds, as palette entries — the ids are this file's
+/// own rather than any rail's, since nothing on a rail folds a panel.
+const String kFoldPanelCommand = 'view.foldPanel';
+const String kFoldRailCommand = 'view.foldRail';
+
+/// Those two, with whatever keys [keymap] gives them.
+List<PaletteEntry> foldEntries(Keymap keymap, {required ModelerMode mode}) {
+  String? keysFor(ModelerAction action) {
+    final List<ShortcutActivator> keys = keymap.forAction(action);
+    return keys.isEmpty ? null : describeShortcut(keys.first);
+  }
+
+  return <PaletteEntry>[
+    PaletteEntry(
+      id: kFoldPanelCommand,
+      label: 'Fold the properties panel',
+      icon: Icons.view_sidebar_outlined,
+      mode: mode,
+      keys: keysFor(ModelerAction.foldPanel),
+    ),
+    PaletteEntry(
+      id: kFoldRailCommand,
+      label: 'Fold the tool rail',
+      icon: Icons.view_week_outlined,
+      mode: mode,
+      keys: keysFor(ModelerAction.foldRail),
+    ),
+  ];
+}
 
 /// [said] matched against an entry's own words — the label first, then the
 /// id, so "bev" finds Bevel and "mesh." finds everything in the mesh rail.

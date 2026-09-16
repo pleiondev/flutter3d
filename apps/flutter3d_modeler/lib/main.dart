@@ -485,6 +485,13 @@ class _ModelerScreenState extends State<ModelerScreen>
   );
   late ModelerSettings _settings = _settingsStore.read();
 
+  /// `ux-27`: whether the properties panel and the tool rail are folded
+  /// away, giving their width to the picture. This session's own, not
+  /// Settings': a window that opened with its panels hidden would be one
+  /// somebody has to know a key to get back.
+  bool _foldedPanel = false;
+  bool _foldedRail = false;
+
   /// Whether the agent panel is showing — `ux-05`.
   ///
   /// Starts closed and opens from the badge. **A person's own choice, not a

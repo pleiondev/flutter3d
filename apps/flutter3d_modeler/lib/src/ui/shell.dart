@@ -44,6 +44,10 @@ class ModelerShell extends StatelessWidget {
     this.bottomHeight,
     this.agentPanel,
     this.keymap,
+    this.propertiesWidth,
+    this.onPropertiesWidth,
+    this.foldedPanel = false,
+    this.foldedRail = false,
   }) : assert(
          (bottom == null) == (bottomHeight == null),
          'bottom and bottomHeight are given together or not at all',
@@ -103,6 +107,25 @@ class ModelerShell extends StatelessWidget {
   /// already promises every mode with no lower area of its own.
   final Widget? agentPanel;
 
+  /// How wide the properties panel is, in logical pixels — `ux-27`.
+  ///
+  /// Null keeps the fixed width the shell always had, which is what a caller
+  /// with no settings behind it wants. A width outside the panel's own range
+  /// is clamped rather than refused: the number arrives from a saved
+  /// document and from a drag, and neither is a place to argue with.
+  final double? propertiesWidth;
+
+  /// A drag on the splitter, in logical pixels of the new width. Null draws
+  /// no splitter at all.
+  final ValueChanged<double>? onPropertiesWidth;
+
+  /// Whether the properties panel is folded away, giving its width to the
+  /// picture — `ux-27`'s own `N`.
+  final bool foldedPanel;
+
+  /// The same for the tool rail — `T`.
+  final bool foldedRail;
+
   /// Which keys the rail's own tooltips should name — `ux-10`.
   ///
   /// Null falls back to `ModelerTool.shortcut`, which is what every caller
@@ -135,14 +158,16 @@ class ModelerShell extends StatelessWidget {
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: <Widget>[
-                _Rail(
-                  mode: mode,
-                  animationSubmode: animationSubmode,
-                  active: activeTool,
-                  onTool: onTool,
-                  keymap: keymap,
-                ),
-                const VerticalDivider(width: 1, thickness: 1),
+                if (!foldedRail) ...<Widget>[
+                  _Rail(
+                    mode: mode,
+                    animationSubmode: animationSubmode,
+                    active: activeTool,
+                    onTool: onTool,
+                    keymap: keymap,
+                  ),
+                  const VerticalDivider(width: 1, thickness: 1),
+                ],
                 // The picture takes whatever is left, and takes it last: the
                 // panels are the fixed things and the viewport is what a wider
                 // window gives more of. `bottom`, when given, comes out of
@@ -166,14 +191,14 @@ class ModelerShell extends StatelessWidget {
                           ],
                         ),
                 ),
-                const VerticalDivider(width: 1, thickness: 1),
-                ConstrainedBox(
-                  constraints: const BoxConstraints(
-                    minWidth: ModelerMetrics.propertiesMin,
-                    maxWidth: ModelerMetrics.propertiesMax,
-                  ),
-                  child: SizedBox(
-                    width: ModelerMetrics.propertiesMin,
+                if (!foldedPanel) ...<Widget>[
+                  const VerticalDivider(width: 1, thickness: 1),
+                  SizedBox(
+                    width: (propertiesWidth ?? ModelerMetrics.propertiesMin)
+                        .clamp(
+                          ModelerMetrics.propertiesMin,
+                          ModelerMetrics.propertiesWidest,
+                        ),
                     // **A `Material`, not a `ColoredBox`** — `ux-08`. A
                     // `ListTile` asserts in a debug build when it cannot find
                     // a `Material` ancestor to paint its background and its
@@ -186,10 +211,36 @@ class ModelerShell extends StatelessWidget {
                     // with. A `Material` is the colour and the ancestor both.
                     child: Material(
                       color: theme.colorScheme.surfaceContainerLow,
-                      child: properties,
+                      // **The splitter lies over the panel's own left edge
+                      // rather than between the two** — `ux-27`. A grab zone
+                      // wide enough to hit, put in the row, is a gutter: six
+                      // pixels the picture loses for good, and every
+                      // screenshot in the tutorial moved by six pixels to
+                      // pay for it. The panel's first few pixels are its
+                      // padding and nothing is drawn there, so the zone
+                      // costs nothing and the layout is the one it was.
+                      child: Stack(
+                        children: <Widget>[
+                          Positioned.fill(child: properties),
+                          if (onPropertiesWidth
+                              case final ValueChanged<double> resize)
+                            Positioned(
+                              left: 0,
+                              top: 0,
+                              bottom: 0,
+                              width: 6,
+                              child: _Splitter(
+                                width:
+                                    propertiesWidth ??
+                                    ModelerMetrics.propertiesMin,
+                                onWidth: resize,
+                              ),
+                            ),
+                        ],
+                      ),
                     ),
                   ),
-                ),
+                ],
                 if (agentPanel != null) ...<Widget>[
                   const VerticalDivider(width: 1, thickness: 1),
                   SizedBox(
@@ -409,6 +460,39 @@ class ModelerModeSwitcher extends StatelessWidget {
               onAnimationSubmode!(picked.first),
         ),
     ],
+  );
+}
+
+/// `ux-27`'s own splitter: the panel's left edge, draggable.
+///
+/// **A grab zone over the edge rather than a handle in the row.** The
+/// divider a hand already reaches for is one pixel wide, which is not
+/// something anybody can hit; widening it in the layout would move the
+/// picture and everything drawn in it. So the zone lies on top of the
+/// panel's own first six pixels, where its padding is and nothing is drawn,
+/// and the line stays where it was.
+///
+/// Nothing is painted here — the cursor over the edge is the whole of the
+/// affordance, which is what a splitter looks like everywhere it is not
+/// given a grip of its own.
+class _Splitter extends StatelessWidget {
+  const _Splitter({required this.width, required this.onWidth});
+
+  /// What the panel is now — a drag reports this plus however far it went.
+  final double width;
+
+  final ValueChanged<double> onWidth;
+
+  @override
+  Widget build(BuildContext context) => MouseRegion(
+    cursor: SystemMouseCursors.resizeLeftRight,
+    child: GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      // Leftward is wider: the panel is on the right, so the hand and the
+      // panel move the same way.
+      onHorizontalDragUpdate: (DragUpdateDetails it) =>
+          onWidth(width - it.delta.dx),
+    ),
   );
 }
 

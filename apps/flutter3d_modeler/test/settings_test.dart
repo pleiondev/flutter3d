@@ -141,6 +141,15 @@ void main() {
       expect(read.snapScale, fallback.snapScale);
     });
 
+    test('ux-27: the panel width survives a round trip', () {
+      const ModelerSettings settings = ModelerSettings(propertiesWidth: 400);
+
+      // Mutation: keep the width in the session alone. A person who drags the
+      // panel to the width they work at finds it back at 250 next launch,
+      // every launch, and stops dragging it.
+      expect(ModelerSettings.fromJson(settings.toJson()).propertiesWidth, 400);
+    });
+
     test('a language of null is left out rather than written as null', () {
       const settings = ModelerSettings();
 

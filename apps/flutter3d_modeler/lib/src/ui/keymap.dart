@@ -63,6 +63,10 @@ enum ModelerAction {
 
   /// `ux-25`'s own palette: everything the editor can do, by name.
   commandPalette,
+
+  /// `ux-27`: fold the properties panel away, and the tool rail.
+  foldPanel,
+  foldRail,
 }
 
 /// What a key means in one preset.
@@ -258,6 +262,17 @@ Map<ModelerAction, List<ShortcutActivator>> _actions(
     // `ux-25`: the command key where there is one, and `F3` everywhere —
     // the second is what a keyboard with no command key reaches for, and
     // neither collides with anything a rail binds.
+    // `ux-27` asked for the bare `N` and `T` — the two letters the field
+    // spends on exactly this — and `keymapCollisions` refused both: this
+    // application already spends `N` on recalculate-normals and `T` on
+    // triangulate, in the mesh rail and in the weights one. Those are
+    // mnemonic where a panel fold is not, so the fold takes the modifier.
+    ModelerAction.foldPanel: const <ShortcutActivator>[
+      SingleActivator(LogicalKeyboardKey.keyN, shift: true),
+    ],
+    ModelerAction.foldRail: const <ShortcutActivator>[
+      SingleActivator(LogicalKeyboardKey.keyT, shift: true),
+    ],
     ModelerAction.commandPalette: <ShortcutActivator>[
       SingleActivator(LogicalKeyboardKey.keyP, meta: apple, control: !apple),
       const SingleActivator(LogicalKeyboardKey.f3),

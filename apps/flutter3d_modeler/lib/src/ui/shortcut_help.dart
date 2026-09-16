@@ -107,6 +107,14 @@ const Map<ModelerAction, (String, ShortcutSection)> _actionLabels =
         'Command palette',
         ShortcutSection.application,
       ),
+      ModelerAction.foldPanel: (
+        'Fold the properties panel',
+        ShortcutSection.application,
+      ),
+      ModelerAction.foldRail: (
+        'Fold the tool rail',
+        ShortcutSection.application,
+      ),
       ModelerAction.frameSelection: (
         'Frame what is selected',
         ShortcutSection.application,
