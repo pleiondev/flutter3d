@@ -103,7 +103,7 @@ class _Browser {
             'x-csrf': csrf,
             'x-filename': Uri.encodeComponent(name),
             'origin': _base,
-            if (projectId != null) 'x-project-id': projectId,
+            'x-project-id': ?projectId,
           },
         ),
       );

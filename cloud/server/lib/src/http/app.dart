@@ -31,6 +31,7 @@ import '../services.dart';
 import '../storage/inspect.dart';
 import '../storage/png.dart';
 import 'cookies.dart';
+import 'gallery_routes.dart';
 import 'learn_routes.dart';
 import 'render.dart';
 import 'request.dart';
@@ -54,6 +55,9 @@ Handler buildHandler(Services services) {
 
   final router = Router(notFoundHandler: _notFound)
     ..get('/health', (Request request) => Response.ok('ok'))
+    // `gal-07`: the modeller's own gallery, behind one endpoint of ours,
+    // so the keys the outside catalogues want stay on a machine we own.
+    ..mount('/gallery/', galleryRoutes(services.gallery).call)
     ..mount(
       '/assets/',
       staticDirectory(
