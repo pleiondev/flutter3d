@@ -19,6 +19,8 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter3d_editor_widgets/flutter3d_editor_widgets.dart'
+    show EditorWidgetsTheme;
 
 /// The sizes the shell is built from, in logical pixels.
 ///
@@ -390,5 +392,95 @@ ThemeData modelerTheme() {
       thumbShape: RoundSliderThumbShape(enabledThumbRadius: 8),
     ),
     tooltipTheme: const TooltipThemeData(waitDuration: Duration(seconds: 1)),
+  );
+}
+
+/// The smallest thing a finger can reliably hit, in logical pixels —
+/// Material's own number and the one `androidTapTargetGuideline` checks.
+const double kTouchTarget = 48.0;
+
+/// How tall a row of the properties panel is — `ux-21`.
+///
+/// **`EditorWidgetsTheme.rowHeight`, not a second answer beside it.** That
+/// extension exists for exactly this axis — its own doc says "the modeller
+/// draws a 32-tall row, the level editor a denser 28" — and the fields in
+/// that package already size themselves off it. A row height of the
+/// modeller's own would be a second number to keep in step with the first,
+/// and a panel where the label column and the field it labels disagreed
+/// about how tall the row is.
+///
+/// [ModelerMetrics.row]'s 32 is right under a cursor: the hotspot is one
+/// pixel, the rows are dense on purpose, and a panel of 48-pixel rows shows
+/// two thirds as much of the document. Under a thumb 32 is not a target.
+double rowHeightOf(BuildContext context) =>
+    EditorWidgetsTheme.of(context).rowHeight;
+
+/// The smallest a small button inside a panel may be drawn — the "Add"
+/// beside a list, the "Apply" under a stack.
+///
+/// **Square under a thumb and free across under a cursor.** A three-letter
+/// button is thirty-nine pixels wide, which is a target a finger misses in
+/// the narrow direction however tall it is; a cursor hits it every time, and
+/// forcing 48 on a desktop panel would set the buttons apart from the rows
+/// they sit between. So the width is a minimum only where it is needed.
+Size panelButtonMinimum(BuildContext context) {
+  final double row = rowHeightOf(context);
+  return row >= kTouchTarget
+      ? const Size.square(kTouchTarget)
+      : Size(0, row - 4);
+}
+
+/// [child] with every control in it grown to a finger's own size — `ux-21`.
+///
+/// **A theme rather than a pass over the panels.** The panels are built out
+/// of `ListTile`, `IconButton`, `TextButton` and rows sized by
+/// [rowHeightOf], and every one of those takes its size from the ambient
+/// theme; re-sizing them one widget at a time would be the same decision
+/// written a hundred times and forgotten on the hundred and first.
+///
+/// `materialTapTargetSize` is the half that matters most and the half that
+/// is easiest to miss: `ThemeData` derives it from the platform, so the
+/// desktop and web builds this row is about are exactly the ones where it is
+/// `shrinkWrap` and every button is drawn at its own visual size with no
+/// padding round it at all.
+///
+/// Applied only below [LayoutClass.desktop], which is also what decides that
+/// the panel is a sheet rather than a column.
+Widget withTouchTargets(BuildContext context, Widget child) {
+  final ThemeData theme = Theme.of(context);
+  return Theme(
+    data: theme.copyWith(
+      materialTapTargetSize: MaterialTapTargetSize.padded,
+      visualDensity: VisualDensity.standard,
+      extensions: <ThemeExtension<Object?>>[
+        ...theme.extensions.values,
+        EditorWidgetsTheme.of(context).copyWith(rowHeight: kTouchTarget),
+      ],
+      iconButtonTheme: IconButtonThemeData(
+        style: IconButton.styleFrom(
+          minimumSize: const Size.square(kTouchTarget),
+          padding: EdgeInsets.zero,
+          foregroundColor: theme.colorScheme.onSurfaceVariant,
+        ),
+      ),
+      // The mode switcher and the display chips. Their height comes from
+      // `VisualDensity.compact`, which is two rows of density below
+      // standard — worth the four pixels a segment saves under a cursor and
+      // the reason every one of them fails the guideline under a thumb.
+      segmentedButtonTheme: SegmentedButtonThemeData(
+        style: theme.segmentedButtonTheme.style?.copyWith(
+          visualDensity: VisualDensity.standard,
+          minimumSize: const WidgetStatePropertyAll<Size>(
+            Size(kTouchTarget, kTouchTarget),
+          ),
+        ),
+      ),
+      listTileTheme: theme.listTileTheme.copyWith(
+        dense: false,
+        minVerticalPadding: 8,
+        minTileHeight: kTouchTarget,
+      ),
+    ),
+    child: child,
   );
 }

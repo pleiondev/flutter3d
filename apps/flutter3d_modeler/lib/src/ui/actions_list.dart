@@ -65,7 +65,7 @@ class ActionsList extends StatelessWidget {
         onPressed: onAddClip,
         style: TextButton.styleFrom(
           padding: EdgeInsets.zero,
-          minimumSize: const Size(0, ModelerMetrics.row - 4),
+          minimumSize: panelButtonMinimum(context),
           tapTargetSize: MaterialTapTargetSize.shrinkWrap,
         ),
         child: const Text('Add'),

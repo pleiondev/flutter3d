@@ -61,26 +61,37 @@ class _NameFieldState extends State<NameField> {
   }
 
   @override
-  Widget build(BuildContext context) => SizedBox(
-    height: ModelerMetrics.row,
-    child: Semantics(
-      // The row it sits in already reads "Objects" above the list, but a
-      // screen reader stepping field by field through the panel has no other
-      // way to tell this box apart from a `NumberField`'s own bare value.
-      label: 'Name',
-      textField: true,
-      child: TextField(
-        controller: _text,
-        focusNode: _focus,
-        style: Theme.of(context).textTheme.bodyMedium,
-        decoration: const InputDecoration(
-          isDense: true,
-          contentPadding: EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-          border: OutlineInputBorder(),
+  Widget build(BuildContext context) {
+    // `ux-21`: a dense field is 31 tall however tall the box round it is —
+    // `InputDecorator` sizes itself to its own padding, and a `SizedBox`
+    // taller than that just leaves a gap the tap does not reach. So the
+    // padding is what grows, and the field fills the finger-sized row.
+    final double row = rowHeightOf(context);
+    final bool dense = row < kTouchTarget;
+    return SizedBox(
+      height: row,
+      child: Semantics(
+        // The row it sits in already reads "Objects" above the list, but a
+        // screen reader stepping field by field through the panel has no other
+        // way to tell this box apart from a `NumberField`'s own bare value.
+        label: 'Name',
+        textField: true,
+        child: TextField(
+          controller: _text,
+          focusNode: _focus,
+          style: Theme.of(context).textTheme.bodyMedium,
+          decoration: InputDecoration(
+            isDense: dense,
+            contentPadding: EdgeInsets.symmetric(
+              horizontal: 6,
+              vertical: dense ? 4 : 12,
+            ),
+            border: const OutlineInputBorder(),
+          ),
+          onSubmitted: (_) => _commit(),
+          onTapOutside: (_) => _focus.unfocus(),
         ),
-        onSubmitted: (_) => _commit(),
-        onTapOutside: (_) => _focus.unfocus(),
       ),
-    ),
-  );
+    );
+  }
 }

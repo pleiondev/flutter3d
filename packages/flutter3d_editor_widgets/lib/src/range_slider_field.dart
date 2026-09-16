@@ -256,9 +256,11 @@ class _ValueBoxState extends State<_ValueBox> {
       },
       textAlign: TextAlign.right,
       style: Theme.of(context).textTheme.bodySmall,
-      decoration: const InputDecoration(
-        isDense: true,
-        contentPadding: EdgeInsets.symmetric(horizontal: 6, vertical: 6),
+      decoration: InputDecoration(
+        isDense: EditorWidgetsTheme.of(context).denseFields,
+        contentPadding: EditorWidgetsTheme.of(
+          context,
+        ).fieldPadding(horizontal: 6),
       ),
     ),
   );

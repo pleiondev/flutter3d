@@ -450,7 +450,7 @@ class _MaterialRow extends StatelessWidget {
         child: InkWell(
           onTap: onTap,
           child: SizedBox(
-            height: ModelerMetrics.row,
+            height: rowHeightOf(context),
             child: Row(
               children: <Widget>[
                 Container(

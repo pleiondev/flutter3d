@@ -129,7 +129,7 @@ class _SkeletonTreeState extends State<SkeletonTree> {
       child: InkWell(
         onTap: () => widget.onSelectJoint(id),
         child: SizedBox(
-          height: ModelerMetrics.row,
+          height: rowHeightOf(context),
           child: Row(
             children: <Widget>[
               SizedBox(width: depth * 16.0),

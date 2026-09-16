@@ -36,6 +36,7 @@ import '../modeler_cubit.dart';
 import '../modeler_viewport.dart';
 import '../staging.dart';
 import 'job_button.dart';
+import 'roomy_dialog.dart';
 
 /// Opens screen 16 for [skinObjectId] — the object every marker's own arm/
 /// leg is scaled off of, and the one bound to the finished skeleton.
@@ -225,18 +226,37 @@ class _AutorigDialogState extends State<_AutorigDialog> {
         final ModelerReady? ready = cubitState is ModelerReady
             ? cubitState
             : null;
-        return AlertDialog(
-          title: const Text('Auto-rig'),
-          content: SizedBox(
-            width: 980,
-            height: 720,
-            child: Row(
+        return RoomyDialog(
+          title: 'Auto-rig',
+          width: 980,
+          height: 720,
+          onClose: () => Navigator.of(context).pop(),
+          wide: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: <Widget>[
+              Expanded(child: _viewport(theme)),
+              const VerticalDivider(width: 24),
+              SizedBox(
+                width: 300,
+                child: SingleChildScrollView(
+                  child: _rightPanel(theme, preview),
+                ),
+              ),
+            ],
+          ),
+          // `ux-21`: the markers are dragged on the picture, so the picture
+          // keeps the larger half of a narrow window and the options scroll
+          // under it. The other way round would put the thing being dragged
+          // in the smaller box.
+          narrow: Padding(
+            padding: const EdgeInsets.all(12),
+            child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: <Widget>[
-                Expanded(child: _viewport(theme)),
-                const VerticalDivider(width: 24),
-                SizedBox(
-                  width: 300,
+                Expanded(flex: 3, child: _viewport(theme)),
+                const Divider(),
+                Expanded(
+                  flex: 2,
                   child: SingleChildScrollView(
                     child: _rightPanel(theme, preview),
                   ),

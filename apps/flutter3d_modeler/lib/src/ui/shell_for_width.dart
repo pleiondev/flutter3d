@@ -17,6 +17,7 @@ import 'screen_parts.dart';
 import 'shell.dart';
 import 'shell_phone.dart';
 import 'shell_tablet.dart';
+import 'theme.dart' show withTouchTargets;
 import 'tools.dart';
 
 /// [parts], drawn through whichever of the three shells fits
@@ -122,6 +123,10 @@ class ShellForWidth extends StatelessWidget {
             foldedPanel: foldedPanel,
             foldedRail: foldedRail,
           ),
+          // `ux-21`: on both touch shells the panel is a sheet under a thumb
+          // rather than a column under a cursor, so everything in it is
+          // grown to a finger's own size. The viewport and the status line
+          // are left alone — one is a picture and the other is a sentence.
           LayoutClass.tablet => ModelerTabletShell(
             mode: mode,
             onMode: onMode,
@@ -131,8 +136,10 @@ class ShellForWidth extends StatelessWidget {
             onTool: onTool,
             actions: parts.actions,
             status: parts.status,
-            properties: parts.properties,
+            properties: withTouchTargets(context, parts.properties),
             viewport: parts.viewport,
+            documentName: documentName,
+            isDirty: isDirty,
           ),
           LayoutClass.phone => ModelerPhoneShell(
             mode: mode,
@@ -143,8 +150,10 @@ class ShellForWidth extends StatelessWidget {
             onTool: onTool,
             actions: parts.actions,
             status: parts.status,
-            properties: parts.properties,
+            properties: withTouchTargets(context, parts.properties),
             viewport: parts.viewport,
+            documentName: documentName,
+            isDirty: isDirty,
           ),
         },
   );

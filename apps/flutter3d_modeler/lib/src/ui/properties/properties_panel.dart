@@ -470,7 +470,7 @@ class PropertiesPanel extends StatelessWidget {
               OutlinedButton(
                 onPressed: () => onView(view),
                 style: OutlinedButton.styleFrom(
-                  minimumSize: const Size(0, ModelerMetrics.row - 6),
+                  minimumSize: panelButtonMinimum(context),
                   padding: const EdgeInsets.symmetric(horizontal: 10),
                   // From the theme's own label role rather than a fresh `TextStyle`,
                   // which would carry no family — see `theme.dart`'s own

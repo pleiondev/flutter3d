@@ -32,7 +32,16 @@ class ModelerTabletShell extends StatelessWidget {
     required this.properties,
     required this.status,
     this.actions = const <Widget>[],
+    this.documentName = 'untitled',
+    this.isDirty = false,
   });
+
+  /// What the open document is called, and whether it has unsaved changes —
+  /// `ux-21`. Drawn here for the same reason the desktop bar draws it: a
+  /// person who cannot see which file is open, or that it is unsaved, has
+  /// only the window title to go on, and a web build has no window title.
+  final String documentName;
+  final bool isDirty;
 
   final ModelerMode mode;
   final ValueChanged<ModelerMode> onMode;
@@ -67,6 +76,19 @@ class ModelerTabletShell extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(horizontal: 10),
                 child: Row(
                   children: <Widget>[
+                    // `ux-21`, and the same fixed cap the desktop bar uses:
+                    // a `Flexible` name steals the width the mode switcher's
+                    // own horizontal scroll needs on exactly the widths this
+                    // shell is for.
+                    ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 140),
+                      child: Text(
+                        documentLabel(documentName, isDirty: isDirty),
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.titleSmall,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
                     Flexible(
                       child: SingleChildScrollView(
                         scrollDirection: Axis.horizontal,

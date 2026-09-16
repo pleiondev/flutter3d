@@ -23,6 +23,21 @@ import 'tools.dart';
 
 /// The desktop layout. The tablet and phone ones are `ui-05`; they show the
 /// same tools, from the same table, in a palette and a sheet.
+///
+/// What the open document is called, with its unsaved marker — one spelling
+/// for all three shells, `ux-21`.
+///
+/// **The marker leads, the same way `windowTitleFor` puts it in the window
+/// title.** A dot after the name reads as punctuation at the end of a word
+/// and is lost against a panel edge; in front of it, at the start of a line,
+/// it is the first thing in the bar. The row asked for "name •" and this is
+/// the deviation: what matters is that a person can see the document is
+/// unsaved without opening anything, and one spelling in three shells and a
+/// title bar is worth more than either order.
+String documentLabel(String name, {required bool isDirty}) =>
+    isDirty ? '• $name' : name;
+
+/// The desktop shell.
 class ModelerShell extends StatelessWidget {
   const ModelerShell({
     super.key,
@@ -312,7 +327,7 @@ class _TopBar extends StatelessWidget {
               ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 160),
                 child: Text(
-                  isDirty ? '• $documentName' : documentName,
+                  documentLabel(documentName, isDirty: isDirty),
                   overflow: TextOverflow.ellipsis,
                   style: theme.textTheme.titleSmall,
                 ),
