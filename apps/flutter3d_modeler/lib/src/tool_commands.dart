@@ -52,6 +52,8 @@ ModelCommand? commandFor(
   'mesh.separate' => const Separate(),
   'mesh.dissolve' => const DissolveEdges(),
   'mesh.merge' => const MergeByDistance(),
+  // `ux-16`.
+  'mesh.fillHoles' => const FillHoles(),
   'mesh.normals' => const RecalculateNormals(),
   'mesh.flip' => const RecalculateNormals(flip: true),
   'mesh.delete' => const DeleteElements(),
