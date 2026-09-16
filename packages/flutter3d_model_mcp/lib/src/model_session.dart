@@ -22,6 +22,16 @@ import 'package:vector_math/vector_math.dart';
 // every server here shares, so a host importing two of them has one name.
 export 'package:flutter3d_mcp_kit/flutter3d_mcp_kit.dart' show Answer;
 
+/// What a call says it acts on, instead of leaving it to the selection —
+/// `ux-20`. See [ModelSession.targetIn] for how it is read out of a call's
+/// own arguments, and [ModelSession.runOn] for what it does.
+typedef CommandTarget = ({
+  int? object,
+  String? level,
+  List<int>? elements,
+  List<int>? objects,
+});
+
 /// One model project, open, with the editor's own verbs on it.
 ///
 /// **One per process, because the project is the state.** There is no `open`
@@ -288,7 +298,10 @@ final class ModelSession {
     Answer answer, {
     List<int> made = const <int>[],
   }) {
-    final ProjectSelection sel = history.selection;
+    // `ux-20`: a call that named its own target put the document's selection
+    // back where it found it, and reporting *that* would tell an agent its
+    // extrude selected nothing. What it selected while it ran is the answer.
+    final ProjectSelection sel = reportedSelection ?? history.selection;
     return <String, Object?>{
       'did': answer.did,
       'says': answer.says,
@@ -418,6 +431,208 @@ final class ModelSession {
     return (did: true, says: '${command.says} — $selection');
   }
 
+  /// Runs [command] against something named rather than against whatever
+  /// happens to be selected — `ux-20`.
+  ///
+  /// **The selection is a mouse's memory, and an agent has no mouse.** Every
+  /// mesh command read `history.selection`, so driving the editor meant
+  /// `select` then the edit, twice per operation, with the selection as a
+  /// hidden argument between them — and the review found the failure that
+  /// shape produces: a recipe changed the selection halfway through, the next
+  /// call acted on what the recipe had left, and nothing in either answer said
+  /// so. Naming the target makes the call say what it acts on.
+  ///
+  /// **The selection is put back afterwards, exactly as it was.** A call that
+  /// names its own target is not asking to move the person's cursor, and
+  /// `ux-20`'s own acceptance says so: `extrude` with an explicit face leaves
+  /// an empty selection empty. What the command *did* select while it ran —
+  /// the new faces an extrude makes — is not lost with it: it is kept in
+  /// [reportedSelection], which is what the answer's own `structuredContent`
+  /// reports, so the ids are in the reply even though the document's selection
+  /// never moved.
+  ///
+  /// [object] with [level] and [elements] targets elements of one object;
+  /// [objects] targets whole objects. Neither given, this is exactly [run].
+  Answer runOn(
+    ModelCommand command, {
+    int? object,
+    String? level,
+    List<int>? elements,
+    List<int>? objects,
+  }) {
+    if (object == null && objects == null) return run(command);
+
+    final ProjectSelection was = history.selection;
+    if (object != null) {
+      final ElementLevel? at = _levelNamed(level) ?? _levelOf(was, object);
+      if (at == null) {
+        return (
+          did: false,
+          says:
+              'naming elements of object $object needs a "level" — vertex, '
+              'edge or face — unless something of that object is already '
+              'selected',
+        );
+      }
+      if (project[object] == null) {
+        return (did: false, says: 'there is no object $object');
+      }
+      history.selection = ProjectSelection(
+        mode: SelectionMode.mesh,
+        objects: <int>[object],
+        level: at,
+        elements: elements ?? const <int>[],
+      );
+    } else {
+      history.selection = ProjectSelection(
+        mode: SelectionMode.object,
+        objects: objects!,
+      );
+    }
+
+    final Answer answer = run(command);
+    reportedSelection = history.selection;
+    history.selection = was;
+    return answer;
+  }
+
+  /// Which level to read [object]'s own elements at when a call did not say:
+  /// the one that is already live on that same object, or none.
+  ElementLevel? _levelOf(ProjectSelection was, int object) =>
+      was.mode == SelectionMode.mesh && was.activeObject == object
+      ? was.level
+      : null;
+
+  /// What the last call left selected, when that is not what the document is
+  /// left holding — `ux-20`'s own targeted calls, which put the selection
+  /// back. Null the rest of the time, and cleared at the start of every call
+  /// by whoever brackets one (`model_server.dart`).
+  ProjectSelection? reportedSelection;
+
+  /// Several commands as one undo step, all or nothing — `ux-20`.
+  ///
+  /// **All or nothing is the point, not the transaction.** [_recipe] already
+  /// made a run of commands one step; what it did not do was put things back
+  /// when one of them refused, so a batch that failed on its fourth command
+  /// left three applied and an agent holding a sentence about the fourth. Here
+  /// a refusal takes the whole batch back — the project, the meshes and the
+  /// undo stack — and the answer names the entry that refused and why.
+  ///
+  /// Each entry is a command in the shape `modelCommandFromJson` reads, plus
+  /// the optional `object`/`level`/`elements`/`objects` [runOn] takes, so a
+  /// batch can name a different target per entry without a `select` between
+  /// them.
+  Answer batch(List<Map<String, Object?>> commands) {
+    if (commands.isEmpty) return (did: false, says: 'a batch of nothing');
+
+    // Read every entry before running any of them: an entry this build cannot
+    // even name is not a reason to open a transaction and then unwind it.
+    final read = <(ModelCommand, Map<String, Object?>)>[];
+    for (var i = 0; i < commands.length; i++) {
+      final ModelCommand? command = modelCommandFromJson(commands[i]);
+      if (command == null) {
+        return (
+          did: false,
+          says:
+              'entry $i (${commands[i]['name'] ?? 'unnamed'}) is not a '
+              'command this reads — check tools/list for its arguments',
+        );
+      }
+      read.add((command, commands[i]));
+    }
+
+    final ProjectSelection was = history.selection;
+    final int steps = history.steps.length;
+    String? refused;
+    var ran = 0;
+    history.beginTransaction();
+    try {
+      for (final (ModelCommand command, Map<String, Object?> entry) in read) {
+        final Answer answer = runTargeted(command, targetIn(entry));
+        if (!answer.did) {
+          refused = 'entry $ran (${command.name}) refused: ${answer.says}';
+          break;
+        }
+        ran++;
+      }
+    } finally {
+      history.endTransaction();
+    }
+
+    if (refused != null) {
+      // Closed, then taken straight back — see `CommandJournal
+      // .rollbackTransaction` for the same move on the journal, and for why
+      // the step has to be checked for rather than assumed: a batch whose
+      // very first command refused left no step, and an unguarded undo would
+      // reach past it into whatever came before the batch.
+      if (history.steps.length > steps) {
+        history
+          ..undo(onlyIfAuthoredBy: StepAuthor.agent)
+          ..dropRedo();
+      }
+      history.recoveryJournal?.rollbackTransaction();
+      history.selection = was;
+      reportedSelection = null;
+      return (did: false, says: 'nothing was changed — $refused');
+    }
+    return (
+      did: true,
+      says: 'ran ${read.length} ${read.length == 1 ? 'command' : 'commands'} '
+          'as one step — $selection',
+    );
+  }
+
+  static List<int>? _intsIn(Object? value) =>
+      value is List ? value.whereType<int>().toList() : null;
+
+  /// `ux-20`'s own target arguments, read out of a call's own map: `object`
+  /// with `faces`/`edges`/`vertices`, or `ids` for whole objects, or an
+  /// explicit `level` with `elements`.
+  ///
+  /// **Read here rather than in the tool table, because a batch entry is a
+  /// call too.** The shorthand lived beside the schema at first and
+  /// [batch]'s own entries went straight past it, so `{"name": "extrude",
+  /// "object": 1, "faces": [0]}` worked as a tool call and was refused as a
+  /// batch entry — the same JSON meaning two things depending on how it
+  /// arrived.
+  static CommandTarget targetIn(Map<String, Object?> arguments) {
+    for (final MapEntry<String, String> named in _targetLevels.entries) {
+      final List<int>? found = _intsIn(arguments[named.key]);
+      if (found != null) {
+        return (
+          object: arguments['object'] as int?,
+          level: named.value,
+          elements: found,
+          objects: _intsIn(arguments['ids']),
+        );
+      }
+    }
+    return (
+      object: arguments['object'] as int?,
+      level: arguments['level'] as String?,
+      elements: _intsIn(arguments['elements']),
+      objects: _intsIn(arguments['ids']),
+    );
+  }
+
+  /// The argument names that carry both the elements and what they are —
+  /// `faces: [4]` rather than `level: "face", elements: [4]`, which is how a
+  /// person says it and which cannot be said inconsistently.
+  static const Map<String, String> _targetLevels = <String, String>{
+    'vertices': 'vertex',
+    'edges': 'edge',
+    'faces': 'face',
+  };
+
+  /// [runOn]'s own arguments, gathered — see [targetIn].
+  Answer runTargeted(ModelCommand command, CommandTarget target) => runOn(
+    command,
+    object: target.object,
+    level: target.level,
+    elements: target.elements,
+    objects: target.objects,
+  );
+
   /// Adjusts the top of the undo stack to [to] instead of pushing a second
   /// step — the operation card's own slider, reachable from outside the
   /// application for the first time (`tut-03`).
@@ -451,7 +666,21 @@ final class ModelSession {
   /// session's journal from disk (`tut-15`: [history]'s own transaction
   /// bracketing and its attached journal's are kept in step by [history]
   /// itself now, not by every caller separately).
-  T _recipe<T>(T Function() body) => history.transaction(body);
+  /// **And puts the selection back** — `ux-20`. A recipe walks the project
+  /// object by object, assigning `history.selection` as it goes because the
+  /// commands it runs read it; what it left behind was the last object it
+  /// happened to touch. The review found the cost: an agent ran `cleanup` and
+  /// then `extrude`, and the extrude landed on whatever mesh the cleanup had
+  /// finished on. A recipe is one operation from outside, and one operation
+  /// that was not about the selection should not move it.
+  T _recipe<T>(T Function() body) {
+    final ProjectSelection was = history.selection;
+    try {
+      return history.transaction(body);
+    } finally {
+      history.selection = was;
+    }
+  }
 
   /// Takes back the top step — refusing, by name, when it is not this
   /// session's own to take back. `mcp-10n`'s own acceptance: an agent's
@@ -919,6 +1148,15 @@ final class ModelSession {
         }
       }
     });
+    // `ux-20` made `_recipe` put the selection back, which is right for
+    // `cleanup` and `makeGameReady` — they walk every mesh and should not
+    // leave the cursor on the last one they happened to reach. Building is
+    // the other kind of recipe: everything that adds something selects what
+    // it added, the instructions say so, and an agent that has just built a
+    // hierarchy means to carry on with it.
+    if (ids.isNotEmpty) {
+      history.selection = ProjectSelection(objects: <int>[ids.last]);
+    }
     return (
       did: true,
       says: 'built ${ids.length} ${ids.length == 1 ? 'object' : 'objects'}',

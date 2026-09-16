@@ -526,19 +526,35 @@ final class ModelerCubit extends Cubit<ModelerState> {
   /// and this is the second half of the same courtesy [mode] pays. It lives here
   /// rather than at the call site because there are two call sites, the chip and
   /// the number key, and they were the same eleven lines twice.
+  /// **And into mesh mode, not only to the level** — `ux-20`. Until this row
+  /// the only thing that ever set `SelectionMode.mesh` was a click in the
+  /// viewport, so a selection could sit at face level and still be an
+  /// object-mode selection. A person never noticed, because a person gets
+  /// here by clicking. An agent does not: the live run called
+  /// `ui.setSubmode face` and then `selectAll`, and selected the object.
+  ///
+  /// The whole body runs even when the submode has not changed, for the same
+  /// reason — asking for the level that is already live is exactly what an
+  /// agent does first, and returning early there was how it got an
+  /// object-mode selection at face level with nothing to say so.
   void submode(MeshSubmode submode) {
     final ModelerReady? now = _ready;
-    if (now == null || now.submode == submode) return;
+    if (now == null) return;
 
     final ElementLevel level = levelOf(submode);
     final EditMesh? mesh = editMeshOf(now.project, now.selection);
     final ProjectSelection was = now.selection;
     now.history.selection = mesh == null
+        // Nothing with topology to point at, so the level is all this can
+        // set: a selection claiming to be a mesh selection of an object that
+        // has no mesh would refuse every command with the wrong sentence.
         ? was.copyWith(level: level)
         : was.copyWith(
+            mode: SelectionMode.mesh,
             level: level,
             elements: was.asMeshSelection.convertedTo(mesh, level).ids.toList(),
           );
+    if (now.submode == submode && was.mode == SelectionMode.mesh) return;
     emit(now.copyWith(submode: submode, clearSaid: true));
   }
 

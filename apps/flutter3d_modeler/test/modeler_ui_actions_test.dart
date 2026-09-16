@@ -146,6 +146,52 @@ void main() {
       expect(answer.did, isTrue);
       expect(_ready(cubit).animationSubmode, AnimationSubmode.weights);
     });
+
+    // `ux-20`'s own acceptance. The live run asked for face level and then
+    // for everything, and got the object: the level was set and the
+    // selection's *mode* was not, because until this row the only thing that
+    // ever set it was a click in the viewport.
+    test('it puts the document into mesh mode, not only at the level', () {
+      final cubit = _opened();
+      // An object picked, the way a person picks one before dropping into
+      // its mesh — there has to be something with topology to point at.
+      _ready(cubit).history.selection = ProjectSelection(objects: <int>[1]);
+      final answer = _actions(cubit, _Counters()).setSubmode('face');
+
+      expect(answer.did, isTrue);
+      final ProjectSelection selection = _ready(cubit).selection;
+      expect(selection.mode, SelectionMode.mesh);
+      expect(selection.level, ElementLevel.face);
+
+      expect(_ready(cubit).history.run(const SelectAll()), isNull);
+      // Mutation: leave it an object-mode selection. `selectAll` then selects
+      // the object, which is what the live run watched happen.
+      expect(_ready(cubit).selection.mode, SelectionMode.mesh);
+      expect(_ready(cubit).selection.elements, hasLength(6));
+    });
+
+    test('with nothing selected it sets the level and says nothing else', () {
+      final cubit = _opened();
+      expect(_actions(cubit, _Counters()).setSubmode('face').did, isTrue);
+      // Mutation: claim mesh mode anyway. A mesh selection of no object
+      // refuses every command with a sentence about the wrong thing — "no
+      // mesh to edit" rather than "nothing is selected".
+      expect(_ready(cubit).selection.mode, SelectionMode.object);
+      expect(_ready(cubit).selection.level, ElementLevel.face);
+    });
+
+    test('and does so even for the level that was already live', () {
+      final cubit = _opened();
+      _ready(cubit).history.selection = ProjectSelection(objects: <int>[1]);
+      // `vertex` is where a document opens, so this is the call an agent
+      // makes first — and returning early on it was how a selection ended up
+      // at the right level in the wrong mode.
+      final answer = _actions(cubit, _Counters()).setSubmode('vertex');
+
+      expect(answer.did, isTrue);
+      expect(_ready(cubit).selection.mode, SelectionMode.mesh);
+      expect(_ready(cubit).selection.level, ElementLevel.vertex);
+    });
   });
 
   group('setTool', () {
