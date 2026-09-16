@@ -332,6 +332,14 @@ extension _ReadyParts on _ModelerScreenState {
                 onAmbientChanged: _setAmbient,
                 onBloomChanged: _setBloom,
                 onExposureChanged: _setExposure,
+                // `ux-14`'s own four.
+                onPickObject: _pickedInOutliner,
+                onObjectVisible: (int id, bool to) =>
+                    _cubit.ran(SetObjectVisible(id: id, to: to)),
+                onObjectLocked: (int id, bool to) =>
+                    _cubit.ran(SetObjectLocked(id: id, to: to)),
+                onReparent: (int id, int? to) =>
+                    _cubit.ran(SetParent(id: id, to: to)),
                 lastCommand: state.history.journal.isEmpty
                     ? null
                     : state.history.journal.last,

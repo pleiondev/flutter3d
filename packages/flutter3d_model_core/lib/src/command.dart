@@ -577,6 +577,15 @@ _modelCommandReaders =
         (final int id, final int? to) => SetParent(id: id, to: to),
         _ => null,
       },
+      // `ux-14`'s own two.
+      'setObjectVisible': (json) => switch ((json['id'], json['to'])) {
+        (final int id, final bool to) => SetObjectVisible(id: id, to: to),
+        _ => null,
+      },
+      'setObjectLocked': (json) => switch ((json['id'], json['to'])) {
+        (final int id, final bool to) => SetObjectLocked(id: id, to: to),
+        _ => null,
+      },
       'setOrigin': (json) => switch ((json['id'], _placement(json['to']))) {
         (final int id, final OriginPlacement to) => SetOrigin(id: id, to: to),
         _ => null,

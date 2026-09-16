@@ -798,6 +798,74 @@ ModelProject _compensateChildren(ModelProject project, int parent, Matrix4 by) {
   return next;
 }
 
+/// Shows or hides one object — `ux-14`.
+///
+/// **A command rather than a field the screen writes**, so it is on the undo
+/// stack, in the journal and reachable over MCP like everything else that
+/// changes the document. Hiding the walls to get at what is inside them is
+/// an edit somebody comes back to tomorrow; a session-local flag would lose
+/// it on the way.
+final class SetObjectVisible extends ModelCommand {
+  const SetObjectVisible({required this.id, required this.to});
+
+  final int id;
+  final bool to;
+
+  @override
+  String get name => 'setObjectVisible';
+
+  @override
+  String get says => to ? 'show' : 'hide';
+
+  @override
+  Map<String, Object?> get arguments => <String, Object?>{'id': id, 'to': to};
+
+  @override
+  Outcome apply(ModelProject project, ProjectSelection selection) {
+    final ModelObject? object = project[id];
+    if (object == null) return Outcome.refused('there is no object $id');
+    if (object.visible == to) {
+      return Outcome.refused(
+        '"${object.name}" is already ${to ? 'visible' : 'hidden'}',
+      );
+    }
+    return Outcome.done(project.withObject(object.copyWith(visible: to)));
+  }
+}
+
+/// Locks or unlocks one object — `ux-14`.
+///
+/// Locked is not hidden: the floor a person keeps catching with the pointer
+/// has to stay on screen and stop answering it. What honours the flag is the
+/// application's own picking, since the document has no pointer.
+final class SetObjectLocked extends ModelCommand {
+  const SetObjectLocked({required this.id, required this.to});
+
+  final int id;
+  final bool to;
+
+  @override
+  String get name => 'setObjectLocked';
+
+  @override
+  String get says => to ? 'lock' : 'unlock';
+
+  @override
+  Map<String, Object?> get arguments => <String, Object?>{'id': id, 'to': to};
+
+  @override
+  Outcome apply(ModelProject project, ProjectSelection selection) {
+    final ModelObject? object = project[id];
+    if (object == null) return Outcome.refused('there is no object $id');
+    if (object.locked == to) {
+      return Outcome.refused(
+        '"${object.name}" is already ${to ? 'locked' : 'unlocked'}',
+      );
+    }
+    return Outcome.done(project.withObject(object.copyWith(locked: to)));
+  }
+}
+
 /// Whether [matrix] is the identity, to within what single-precision positions
 /// can tell apart.
 bool _isIdentity(Matrix4 matrix) {

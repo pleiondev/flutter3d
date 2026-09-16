@@ -38,6 +38,7 @@ import '../weight_paint_panel.dart';
 import 'label_value_row.dart';
 import 'name_field.dart';
 import 'object_row.dart';
+import 'outliner.dart';
 import 'pivot_space_chips.dart';
 import 'transform_rows.dart';
 
@@ -128,6 +129,10 @@ class PropertiesPanel extends StatelessWidget {
     required this.onAmbientChanged,
     required this.onBloomChanged,
     required this.onExposureChanged,
+    this.onPickObject,
+    this.onObjectVisible,
+    this.onObjectLocked,
+    this.onReparent,
     required this.lastCommand,
     required this.onAmend,
     required this.shading,
@@ -368,6 +373,15 @@ class PropertiesPanel extends StatelessWidget {
   final ValueChanged<double> onExposureChanged;
 
   /// What the operation card is showing, and where an adjustment goes.
+  /// `ux-14`'s own four. Null falls back to what the flat list did — a
+  /// click selects one object and the toggles do nothing — which is what a
+  /// caller with no document behind it (a test, a preview) wants rather
+  /// than a required argument it has nothing to pass.
+  final void Function(int id, OutlinerPick how)? onPickObject;
+  final void Function(int id, bool to)? onObjectVisible;
+  final void Function(int id, bool to)? onObjectLocked;
+  final void Function(int id, int? to)? onReparent;
+
   final ModelCommand? lastCommand;
   final ValueChanged<ModelCommand> onAmend;
 
@@ -485,16 +499,30 @@ class PropertiesPanel extends StatelessWidget {
         ),
         if (sections.contains(PropertiesSection.objects)) ...<Widget>[
           SectionLabel('Objects'),
-          for (final ModelObject object in project.objects)
-            ObjectRow(
-              object: object,
-              selected: selection.objects.contains(object.id),
-              onTap: () => onSelect(object.id),
-              // `ux-02`: read off the live sync rather than carried through
-              // the state, because it is the sync that knows and it is
-              // rebuilt on the same pass the emit that rebuilds this follows.
-              unshowable: stage.sync?.unshowable[object.id],
-            ),
+          // `ux-14`: a tree, with the two toggles and the rename the row
+          // asks for. `onSelect` is still there for every caller that only
+          // wants "this one" — the palette, an agent, a test.
+          Outliner(
+            objects: project.objects,
+            selected: selection.objects,
+            onPick: onPickObject ?? (int id, OutlinerPick _) => onSelect(id),
+            onVisible: onObjectVisible ?? (int _, bool _) {},
+            onLocked: onObjectLocked ?? (int _, bool _) {},
+            onRename: onRename,
+            onReparent: onReparent ?? (int _, int? _) {},
+            // `ux-02`: read off the live sync rather than carried through
+            // the state, because it is the sync that knows and it is
+            // rebuilt on the same pass the emit that rebuilds this follows.
+            unshowable: <int, String>{
+              for (final ModelObject object in project.objects)
+                if (stage.sync?.unshowable[object.id] case final String why)
+                  object.id: why,
+            },
+            hiddenByParent: <int>{
+              for (final ModelObject object in project.objects)
+                if (object.visible && !project.isVisible(object.id)) object.id,
+            },
+          ),
         ],
         if (held != null &&
             sections.contains(PropertiesSection.transform)) ...<Widget>[

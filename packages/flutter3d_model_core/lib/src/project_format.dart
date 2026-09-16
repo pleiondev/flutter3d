@@ -428,6 +428,13 @@ Uint8List writeProject(
         // `pro-lod-03`, younger still — absent reads back as `<LodSpec>[]`,
         // the ordinary case of an object nobody has asked to simplify.
         'lods': _lodsJson(object.lods),
+        // `ux-14`, younger still, and written only when it is not the
+        // default: almost every object in almost every file is visible and
+        // unlocked, and two more keys per object is real bytes on a project
+        // of thousands. Absent reads back as the default, which is what
+        // every file written before this existed says.
+        if (!object.visible) 'hidden': true,
+        if (object.locked) 'locked': true,
       });
     }
     return out;
@@ -2630,6 +2637,11 @@ VertexLayout? _layoutFrom(Object? json, Map<String, String> pool) {
         shapeSet: shapeSet ?? const ShapeSet(),
         shapeDrivers: shapeDrivers ?? const <ShapeDriver>[],
         lods: lods ?? const <LodSpec>[],
+        // `ux-14`. Written as "hidden" rather than "visible" so that absent
+        // and false say the same thing, which is what every file written
+        // before this existed says.
+        visible: entry['hidden'] != true,
+        locked: entry['locked'] == true,
       ),
       null,
     );
