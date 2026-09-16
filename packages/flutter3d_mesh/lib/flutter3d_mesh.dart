@@ -44,6 +44,7 @@ export 'src/parametric.dart';
 export 'src/parts.dart';
 export 'src/picker.dart';
 export 'src/qem_simplify.dart';
+export 'src/recipes.dart';
 export 'src/retopologize.dart';
 export 'src/sculpt_brush.dart';
 export 'src/sculpt_mesh.dart';
