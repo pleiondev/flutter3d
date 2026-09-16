@@ -604,7 +604,14 @@ extension _ReadyParts on _ModelerScreenState {
                             onGizmoDrag: _transformSession.grabbedGizmo,
                             snapHighlight:
                                 _transformSession.snapTarget?.position,
-                            editMesh: _mode == ModelerMode.mesh
+                            // `ux-31`: and in Wire, whatever the mode. The
+                            // overlay draws each of the mesh's own edges
+                            // once; the renderer's own wireframe draws the
+                            // triangles it was handed, which is a different
+                            // shape and not the one being edited.
+                            editMesh:
+                                _mode == ModelerMode.mesh ||
+                                    _shading == ShadingMode.wireframe
                                 ? _editMesh
                                 : null,
                             elements: _history.selection.asMeshSelection,
@@ -622,14 +629,23 @@ extension _ReadyParts on _ModelerScreenState {
                             shapeMarkerActiveColour: shapeMarkers.isEmpty
                                 ? null
                                 : colourAsVector4(kModelerScheme.secondary),
+                            // `ux-31`: `edgesDrawn` where the overlay has an
+                            // `EditMesh` to walk, so the renderer's own
+                            // triangle wireframe is not drawn over the top
+                            // of the real edges.
                             settings: weightsView
                                 ? weightGradientSettings(
                                     settingsFor(
                                       _shading,
                                       viewportRenderSettings,
+                                      edgesDrawn: _editMesh != null,
                                     ),
                                   )
-                                : settingsFor(_shading, viewportRenderSettings),
+                                : settingsFor(
+                                    _shading,
+                                    viewportRenderSettings,
+                                    edgesDrawn: _editMesh != null,
+                                  ),
                           ),
                         ),
                         // `ux-16`: mesh mode on something that has no mesh.

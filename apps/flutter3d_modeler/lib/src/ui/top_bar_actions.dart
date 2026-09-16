@@ -15,6 +15,27 @@ import '../exporting.dart';
 import 'theme.dart';
 import 'undo_redo_buttons.dart';
 
+/// What the Add menu calls each of `AddPrimitive.primitiveKinds`, and the
+/// icon beside it — `ux-31`.
+///
+/// **`box` is an argument and "Box" is a word.** The menu printed the command
+/// argument verbatim, so a list of five lowercase keys was the first thing
+/// somebody new met — the same string an agent passes over MCP, shown to a
+/// person as though it were an interface. The ids are still what everything
+/// runs on; this is the layer between them and a menu.
+///
+/// `tools_test.dart`'s own sibling check holds every kind to having one,
+/// since a primitive added to the command without an entry here would be a
+/// menu row printing a key again.
+const Map<String, ({String label, IconData icon})> kPrimitiveLabels =
+    <String, ({String label, IconData icon})>{
+      'box': (label: 'Box', icon: Icons.check_box_outline_blank),
+      'plane': (label: 'Plane', icon: Icons.crop_square_outlined),
+      'sphere': (label: 'Sphere', icon: Icons.circle_outlined),
+      'cylinder': (label: 'Cylinder', icon: Icons.local_drink_outlined),
+      'torus': (label: 'Torus', icon: Icons.donut_large_outlined),
+    };
+
 /// What sits at the right of the top bar: adding a shape, opening, saving,
 /// exporting, and the small utility icons beside them.
 class TopBarActions extends StatelessWidget {
@@ -128,7 +149,23 @@ class TopBarActions extends StatelessWidget {
             PopupMenuItem<String>(
               value: kind,
               height: ModelerMetrics.row,
-              child: Text(kind, style: const TextStyle(fontSize: 13)),
+              // `ux-31`: the word and its picture, not the command's own
+              // argument. A kind with no entry falls back to the key, which
+              // is worse than a label and better than an empty row — and
+              // `top_bar_actions_test.dart` refuses one either way.
+              child: Row(
+                children: <Widget>[
+                  Icon(
+                    kPrimitiveLabels[kind]?.icon ?? Icons.category_outlined,
+                    size: 16,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    kPrimitiveLabels[kind]?.label ?? kind,
+                    style: const TextStyle(fontSize: 13),
+                  ),
+                ],
+              ),
             ),
         ],
         child: const Padding(

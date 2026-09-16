@@ -9,6 +9,7 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter3d_cpu/testing.dart';
+import 'package:flutter3d_mesh/flutter3d_mesh.dart' show EditMesh;
 import 'package:flutter3d_model_core/flutter3d_model_core.dart' hide Outcome;
 import 'package:flutter3d_modeler/l10n/app_localizations.dart';
 import 'package:flutter3d_modeler/l10n/app_localizations_en.dart';
@@ -24,6 +25,9 @@ import 'package:flutter3d_modeler/src/ui/scene_source_panel.dart';
 import 'package:flutter3d_modeler/src/ui/theme.dart';
 import 'package:flutter3d_modeler/src/ui/tools.dart';
 import 'package:flutter_test/flutter_test.dart';
+// Prefixed for the same reason `main.dart`'s own import is: `material.dart`
+// and `vector_math` disagree about which `Matrix4` a bare reference means.
+import 'package:vector_math/vector_math.dart' as vm show Matrix4;
 
 /// A project with [lightCount] identical directional lights and nothing
 /// else — enough for `sceneStatus`/the four panels, and light on everything
@@ -39,6 +43,9 @@ Future<void> _pump(
   required ModelerMode mode,
   AnimationSubmode animationSubmode = AnimationSubmode.pose,
   ModelProject? project,
+
+  /// What is held, for the sections that draw nothing without one.
+  ProjectSelection? selection,
   List<String> retargetSourceNames = const <String>[],
   BoneMap retargetBoneMap = const BoneMap(<String, String>{}),
   bool canApplyRetarget = false,
@@ -72,7 +79,7 @@ Future<void> _pump(
               animationSubmode: animationSubmode,
               stage: stage,
               project: held,
-              selection: ProjectSelection.none,
+              selection: selection ?? ProjectSelection.none,
               onSelect: (_) {},
               onTransform: (_, _) {},
               pivot: PivotChip.median,
@@ -235,6 +242,37 @@ void main() {
     // `sectionsFor`'s "wholesale, not piecemeal" holding for the fourth
     // sub-mode too, not only the three `S5`/`S6` already covered here.
     expect(find.text('BRUSH'), findsNothing);
+  });
+
+  testWidgets("ux-31: the morphs section has a heading of its own", (
+    tester,
+  ) async {
+    final ModelProject project = const ModelProject().added(
+      (int id) => ModelObject(
+        id: id,
+        name: 'head',
+        geometry: EditedGeometry(EditMesh.cuboid()),
+        transform: vm.Matrix4.identity(),
+      ),
+    );
+    await _pump(
+      tester,
+      mode: ModelerMode.animation,
+      animationSubmode: AnimationSubmode.morphs,
+      project: project,
+      selection: ProjectSelection(objects: <int>[project.objects.single.id]),
+    );
+
+    // **Without one, "No shape keys on this object" was the line directly
+    // under whatever section came before it** — usually Display — and read
+    // as something that section was saying about the view. `SectionLabel`
+    // upper-cases what it is given.
+    expect(find.text('MORPHS'), findsOneWidget);
+    final double heading = tester.getTopLeft(find.text('MORPHS')).dy;
+    final double said = tester
+        .getTopLeft(find.text('No shape keys on this object'))
+        .dy;
+    expect(heading, lessThan(said));
   });
 
   group('ux-21: a finger can hit the panel', () {

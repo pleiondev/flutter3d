@@ -123,6 +123,39 @@ EditMesh _dentedQuad() => EditMesh.fromFaces(
 );
 
 void main() {
+  group("ux-31: Wire draws the mesh's own edges", () {
+    test(
+      'a quad cube is twelve lines, and its triangles would be eighteen',
+      () {
+        final mesh = EditMesh.cuboid();
+        final overlay = _overlay();
+
+        MeshOverlayBuilder().build(
+          overlay,
+          mesh: mesh,
+          selection: Selection.empty(ElementLevel.vertex),
+          meshVersion: 1,
+          selectionVersion: 1,
+          view: _view(),
+        );
+
+        // **Twelve is the number a modeller counts.** The renderer's own
+        // wireframe draws the triangles it rasterises, so the same cube comes
+        // out as eighteen lines with a diagonal across every quad — a picture
+        // of how the GPU was fed. Six quads cut into twelve triangles have
+        // eighteen distinct edges: the twelve real ones plus one diagonal per
+        // face.
+        expect(overlay.lines.vertexCount, 12 * 2);
+
+        // And the number it is not: every quad is cut into two triangles, so
+        // the rasterised shape has one extra diagonal per face on top of the
+        // twelve real edges.
+        expect(mesh.faceCount, 6);
+        expect(12 + mesh.faceCount, 18);
+      },
+    );
+  });
+
   group('a cube with a face selected', () {
     test('is twelve lines, four ribbons and two triangles', () {
       final mesh = EditMesh.cuboid();
