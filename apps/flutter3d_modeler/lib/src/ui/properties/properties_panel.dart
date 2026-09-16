@@ -70,6 +70,7 @@ class PropertiesPanel extends StatelessWidget {
     this.onSetModifierField,
     required this.onAssignMaterial,
     required this.onAddMaterial,
+    this.onOpenLinkedFile,
     required this.onSetMaterialField,
     required this.onChooseTexture,
     required this.onClearTexture,
@@ -215,6 +216,10 @@ class PropertiesPanel extends StatelessWidget {
 
   /// The material panel's own "Add material" link was pressed.
   final VoidCallback onAddMaterial;
+
+  /// `ux-47`: hands the active material's linked `.fmat` to the system's
+  /// own editor. Null where there is none — see `MaterialPanel`.
+  final Future<bool> Function(String path)? onOpenLinkedFile;
 
   /// A field of the held object's own material committed —
   /// [SetMaterialField]'s own vocabulary.
@@ -589,10 +594,10 @@ class PropertiesPanel extends StatelessWidget {
             // "booleans reachable from the rail" half of the row, reached
             // from the panel instead: a second selected object is what a
             // boolean *is*, and the rail has no way to say which one.
-            operandId: switch (selection.objects
-                .where((int it) => it != held.id)) {
-              final Iterable<int> others when others.isNotEmpty =>
-                others.first,
+            operandId: switch (selection.objects.where(
+              (int it) => it != held.id,
+            )) {
+              final Iterable<int> others when others.isNotEmpty => others.first,
               _ => null,
             },
             trianglesIn: held.geometry.triangleCount,
@@ -619,6 +624,9 @@ class PropertiesPanel extends StatelessWidget {
             activeIndex: activeMaterial,
             onAssign: (int? to) => onAssignMaterial(held.id, to),
             onAddMaterial: onAddMaterial,
+            // `ux-47`: null on a platform with no system editor to hand a
+            // path to, and the row goes with it.
+            onOpenLinkedFile: onOpenLinkedFile,
             onSetField: (String field, Object? value) {
               if (activeMaterial != null) {
                 onSetMaterialField(activeMaterial, field, value);

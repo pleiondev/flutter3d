@@ -18,7 +18,8 @@ library;
 
 import 'dart:async';
 import 'dart:math' as math;
-import 'dart:ui' as ui
+import 'dart:ui'
+    as ui
     show AppExitResponse, Image, ImageByteFormat, PlatformDispatcher;
 
 import 'package:flutter/foundation.dart' show kIsWeb;
@@ -52,6 +53,7 @@ import 'src/exporting.dart';
 import 'src/files/cabinet_save.dart';
 import 'src/files/fetch_model.dart';
 import 'src/files/file_drop.dart';
+import 'src/files/linked_materials.dart';
 import 'src/files/preview_capture.dart';
 import 'src/files/project_files.dart';
 import 'src/files/sandbox_probe.dart';
@@ -341,6 +343,28 @@ class _ModelerScreenState extends State<ModelerScreen>
 
   /// Remembers what the materials were, so the normals view can be left.
   final SurfaceShading _surfaces = SurfaceShading();
+
+  /// `ux-47`: every `.fmat` this project links to, watched.
+  ///
+  /// **A file linked once is a snapshot, and that is what the row fixes.**
+  /// `linkMaterialFile` reads the bytes at the moment somebody presses the
+  /// button, so a material library edited in another tool afterwards left
+  /// the project holding a colour that file no longer has. The re-link runs
+  /// as an ordinary command, so it is one undo step and says what it was.
+  late final LinkedMaterials _linkedMaterials = LinkedMaterials(
+    host: linkedMaterialHost(),
+    onRelink: (LinkMaterialFile relink) {
+      if (_state is! ModelerReady) return;
+      _cubit.ran(relink);
+    },
+    onTrouble: (String path, String because) {
+      if (_state is! ModelerReady) return;
+      // The last good material stays: a `.fmat` spends part of every save
+      // half-written, and swapping a look for a default each time an editor
+      // flushes would be a viewport that flickers.
+      _cubit.say('$path: $because', important: true);
+    },
+  );
 
   /// Which mode the interface is in, which level a mesh is edited at, and
   /// which tool is armed.
@@ -663,6 +687,7 @@ class _ModelerScreenState extends State<ModelerScreen>
     _ticker?.dispose();
     _timings.stop();
     _reportFades?.cancel();
+    unawaited(_linkedMaterials.dispose());
     _autosave?.dispose();
     _lifecycle.dispose();
     _frame.dispose();
@@ -678,14 +703,30 @@ class _ModelerScreenState extends State<ModelerScreen>
     child: BlocConsumer<ModelerCubit, ModelerState>(
       bloc: _cubit,
       listenWhen: (ModelerState before, ModelerState after) =>
-          _saidIn(before) != _saidIn(after),
-      listener: _showLongMessage,
+          _saidIn(before) != _saidIn(after) ||
+          _linksIn(before) != _linksIn(after),
+      listener: (BuildContext context, ModelerState state) {
+        _showLongMessage(context, state);
+        // `ux-47`: a material linked after the project was opened — by an
+        // agent's own `linkMaterialFile`, say — starts being watched here.
+        // Gated on the set of paths rather than run per state, since this
+        // fires on every command otherwise.
+        if (state is ModelerReady) _linkedMaterials.follow(state.project);
+      },
       builder: (BuildContext context, ModelerState state) => _screen(state),
     ),
   );
 
   static String? _saidIn(ModelerState state) =>
       state is ModelerReady ? state.said : null;
+
+  /// Every `.fmat` path [state] links to, as one string — `ux-47`.
+  ///
+  /// Sorted and joined rather than a `Set`, because `listenWhen` compares
+  /// with `!=` and two sets holding the same paths are not equal.
+  static String _linksIn(ModelerState state) => state is ModelerReady
+      ? (LinkedMaterials.pathsOf(state.project).toList()..sort()).join('\u0000')
+      : '';
 
   /// `ux-17`: a message written as more than one line goes to a snackbar as
   /// well as to the strip.
