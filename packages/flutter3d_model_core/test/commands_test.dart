@@ -2869,6 +2869,81 @@ void main() {
       expect(back, isA<ScaleBy>());
       expect((back! as ScaleBy).pivot, TransformPivot.median);
     });
+
+    test('ux-12: a move carries its space, and an old one is global', () {
+      final moved =
+          modelCommandFromJson(
+                MoveBy(Vector3(1, 0, 0), space: TransformSpace.local).toJson(),
+              )!
+              as MoveBy;
+      expect(moved.space, TransformSpace.local);
+
+      // An entry written before a move had a space at all.
+      final old =
+          modelCommandFromJson(<String, Object?>{
+                'name': 'moveBy',
+                'by': <double>[1, 0, 0],
+              })!
+              as MoveBy;
+      expect(old.space, TransformSpace.global);
+    });
+  });
+
+  group('ux-12: a move along the object\'s own axes', () {
+    /// Two objects: one facing along the world's axes, one turned a quarter
+    /// turn about Y, both selected.
+    (ModelProject, ProjectSelection) twoFacingApart() {
+      final project = ModelProject(
+        objects: <ModelObject>[
+          ModelObject(
+            id: 1,
+            name: 'a',
+            geometry: const SocketGeometry(),
+            transform: Matrix4.identity(),
+          ),
+          ModelObject(
+            id: 2,
+            name: 'b',
+            geometry: const SocketGeometry(),
+            transform: Matrix4.compose(
+              Vector3.zero(),
+              Quaternion.axisAngle(Vector3(0, 1, 0), math.pi / 2),
+              Vector3.all(1),
+            ),
+          ),
+        ],
+        nextId: 3,
+      );
+      return (project, const ProjectSelection(objects: <int>[1, 2]));
+    }
+
+    test('global sends both the same way', () {
+      final (project, selection) = twoFacingApart();
+      final Outcome out = MoveBy(Vector3(1, 0, 0)).apply(project, selection);
+
+      final ModelProject after = out.project!;
+      expect(after[1]!.transform.getTranslation(), Vector3(1, 0, 0));
+      expect(after[2]!.transform.getTranslation(), Vector3(1, 0, 0));
+    });
+
+    test('local sends each along its own', () {
+      final (project, selection) = twoFacingApart();
+      final Outcome out = MoveBy(
+        Vector3(1, 0, 0),
+        space: TransformSpace.local,
+      ).apply(project, selection);
+
+      // Mutation: ignore the space. The turned object then goes along the
+      // world's X like the other one, and the "Local" chip means nothing for
+      // a move — which is what it did.
+      final ModelProject after = out.project!;
+      final Vector3 first = after[1]!.transform.getTranslation();
+      final Vector3 second = after[2]!.transform.getTranslation();
+      expect(first.x, closeTo(1, 1e-6));
+      expect(first.z, closeTo(0, 1e-6));
+      expect(second.x, closeTo(0, 1e-6));
+      expect(second.z.abs(), closeTo(1, 1e-6));
+    });
   });
 
   group('ParamHint', () {

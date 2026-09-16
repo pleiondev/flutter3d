@@ -340,9 +340,18 @@ final class SetTransform extends ModelCommand {
 /// what they mean. `ModelHistory.transaction` does the collapsing and this is
 /// the shape that lets it.
 final class MoveBy extends ModelCommand {
-  const MoveBy(this.by);
+  const MoveBy(this.by, {this.space = TransformSpace.global});
 
   final Vector3 by;
+
+  /// Whose axes [by] is measured along — `ux-12`.
+  ///
+  /// **A move has a space but no pivot.** Sliding something does not turn it,
+  /// so where the turn would be centred makes no difference to the answer;
+  /// which way "along X" points does, and under [TransformSpace.local] two
+  /// objects facing different ways go different ways under one command, which
+  /// is the whole reason the chip exists.
+  final TransformSpace space;
 
   @override
   String get name => 'moveBy';
@@ -353,6 +362,7 @@ final class MoveBy extends ModelCommand {
   @override
   Map<String, Object?> get arguments => <String, Object?>{
     'by': <double>[by.x, by.y, by.z],
+    if (space != TransformSpace.global) 'space': space.name,
   };
 
   @override
@@ -364,6 +374,20 @@ final class MoveBy extends ModelCommand {
   Outcome apply(ModelProject project, ProjectSelection selection) {
     if (selection.objects.isEmpty) {
       return Outcome.refused('nothing is selected to move');
+    }
+    if (space == TransformSpace.local) {
+      // Through the same applier the turn and the scale use: a translation
+      // sandwiched in each object's own basis is exactly "along its own
+      // axes", and the pivot cancels out of a translation, which is why it
+      // is not a parameter here.
+      return _aboutThePivot(
+        project,
+        selection,
+        'move',
+        pivot: TransformPivot.individual,
+        space: space,
+        build: () => Matrix4.translation(by),
+      );
     }
     var next = project;
     for (final int id in selection.objects) {
@@ -513,7 +537,13 @@ _modelCommandReaders =
             _ => null,
           },
       'moveBy': (json) => switch (_doubles(json['by'], 3)) {
-        final List<double> by => MoveBy(Vector3(by[0], by[1], by[2])),
+        final List<double> by => MoveBy(
+          Vector3(by[0], by[1], by[2]),
+          // `ux-12`: a move carries a space now. An entry written before it
+          // did says nothing, and `_space` answers that with the global one
+          // it always meant.
+          space: _space(json['space']) ?? TransformSpace.global,
+        ),
         _ => null,
       },
       'rotateBy': (json) => switch ((
