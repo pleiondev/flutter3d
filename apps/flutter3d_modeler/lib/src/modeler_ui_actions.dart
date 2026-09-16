@@ -17,6 +17,7 @@ import 'console_log.dart';
 import 'display_modes.dart';
 import 'mcp_ui_actions.dart';
 import 'modeler_cubit.dart';
+import 'play/play_template.dart';
 import 'ui/tools.dart';
 
 final class ModelerUiActions implements UiActions {
@@ -26,6 +27,7 @@ final class ModelerUiActions implements UiActions {
     required this.openLatheDialog,
     required this.openAutorigDialog,
     required this.openGamePreview,
+    required this.openPlay,
     required this.runTool,
     this.captureWindow,
   });
@@ -52,6 +54,11 @@ final class ModelerUiActions implements UiActions {
   /// reads it as a thing the application cannot do.
   final Future<void> Function() openAutorigDialog;
   final Future<void> Function() openGamePreview;
+
+  /// `ux-50`: `_ModelerScreenState._openPlay` — the document walked in
+  /// rather than looked at, which is what separates this from the preview
+  /// above.
+  final Future<void> Function(PlayTemplate template) openPlay;
 
   /// `ux-44`: the window as PNG bytes, or null when there is no laid-out
   /// window to capture. Handed in for the same reason the two dialogs above
@@ -221,6 +228,18 @@ final class ModelerUiActions implements UiActions {
       case 'preview':
         unawaited(openGamePreview());
         return (did: true, says: 'opened the game preview');
+      // `ux-50`: one name per template, because "play" with no template is
+      // a question rather than a command — the three answer different ones.
+      case 'play':
+      case 'play.character':
+        unawaited(openPlay(PlayTemplate.character));
+        return (did: true, says: 'started Play on the character template');
+      case 'play.prop':
+        unawaited(openPlay(PlayTemplate.prop));
+        return (did: true, says: 'started Play on the prop template');
+      case 'play.walkthrough':
+        unawaited(openPlay(PlayTemplate.walkthrough));
+        return (did: true, says: 'started Play on the walkthrough template');
       default:
         return (did: false, says: 'no such dialog: $dialog');
     }

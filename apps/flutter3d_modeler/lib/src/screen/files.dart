@@ -209,6 +209,8 @@ extension _FileHandling on _ModelerScreenState {
               // otherwise until somebody re-read the sentence.
               openAutorigDialog: _openAutorigDialog,
               openGamePreview: _openGamePreview,
+              // `ux-50`: the document walked in, on one of three templates.
+              openPlay: _openPlay,
               // `ux-25`: the same door the rail and the palette press.
               runTool: _ranTool,
               // `ux-44`: the window itself, for an agent that needs to see

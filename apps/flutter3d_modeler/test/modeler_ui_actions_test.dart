@@ -15,6 +15,7 @@ import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 import 'package:flutter3d_modeler/src/mcp_ui_actions.dart';
 import 'package:flutter3d_modeler/src/modeler_cubit.dart';
 import 'package:flutter3d_modeler/src/modeler_ui_actions.dart';
+import 'package:flutter3d_modeler/src/play/play_template.dart';
 import 'package:flutter3d_modeler/src/settings.dart' show Workspace;
 import 'package:flutter3d_modeler/src/staging.dart';
 import 'package:flutter3d_modeler/src/ui/tools.dart';
@@ -64,6 +65,9 @@ final class _Counters {
   int autorig = 0;
   int preview = 0;
 
+  /// `ux-50`: which template Play was started on, in order.
+  final List<PlayTemplate> played = <PlayTemplate>[];
+
   /// `ux-25`: every id `run_command` pressed, in order.
   final List<String> ran = <String>[];
 }
@@ -75,6 +79,7 @@ ModelerUiActions _actions(ModelerCubit cubit, _Counters counters) =>
       openLatheDialog: () async => counters.lathe++,
       openAutorigDialog: () async => counters.autorig++,
       openGamePreview: () async => counters.preview++,
+      openPlay: (PlayTemplate template) async => counters.played.add(template),
       runTool: counters.ran.add,
     );
 
@@ -233,6 +238,7 @@ void main() {
         openLatheDialog: () async {},
         openAutorigDialog: () async {},
         openGamePreview: () async {},
+        openPlay: (_) async {},
         runTool: (_) {},
         captureWindow: () async => null,
       );
@@ -248,6 +254,7 @@ void main() {
         openLatheDialog: () async {},
         openAutorigDialog: () async {},
         openGamePreview: () async {},
+        openPlay: (_) async {},
         runTool: (_) {},
         captureWindow: () async => <int>[1, 2, 3, 4],
       );
@@ -345,6 +352,25 @@ void main() {
       expect(counters.preview, 1);
       expect(counters.export, 0);
       expect(counters.lathe, 0);
+    });
+
+    test('ux-50: each Play template is its own name', () {
+      final cubit = _opened();
+      final counters = _Counters();
+      final ModelerUiActions actions = _actions(cubit, counters);
+
+      // **Mutation: one "play" that always runs the character template.**
+      // The three answer different questions — does it read in motion, does
+      // it read from across a room, can the room be walked — so an agent
+      // asked to check a prop would be shown a prop walking.
+      expect(actions.openDialog('play.prop').did, isTrue);
+      expect(actions.openDialog('play.walkthrough').did, isTrue);
+      expect(actions.openDialog('play').did, isTrue);
+      expect(counters.played, <PlayTemplate>[
+        PlayTemplate.prop,
+        PlayTemplate.walkthrough,
+        PlayTemplate.character,
+      ]);
     });
 
     test('an unknown name refuses cleanly', () {

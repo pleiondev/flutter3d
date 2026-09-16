@@ -48,4 +48,22 @@ extension _GamePreviewWiring on _ModelerScreenState {
       },
     );
   }
+
+  /// `ux-50`: the document walked in, on [template].
+  ///
+  /// **The live project, not a copy.** `PlaySession` builds its scene with
+  /// the same `SceneSync` the viewport uses, so an edit made behind this
+  /// route reaches it on the frame the document emits — which is the row's
+  /// own "a colour change shows in the running game without a restart", and
+  /// it is what choosing in-process bought.
+  Future<void> _openPlay(PlayTemplate template) async {
+    final ModelerState state = _state;
+    if (state is! ModelerReady) return;
+    await showPlay(
+      context,
+      renderer: state.renderer,
+      project: state.project,
+      template: template,
+    );
+  }
 }
