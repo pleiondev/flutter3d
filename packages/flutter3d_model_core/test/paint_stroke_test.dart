@@ -233,6 +233,47 @@ void main() {
     });
   });
 
+  group('a project file', () {
+    test('carries the layers, not just the flattening — pro-doc-01', () {
+      final ModelHistory history = opened();
+      expect(history.run(stroke()), isNull);
+
+      final ModelProject read = switch (readProject(
+        writeProject(history.project),
+      )) {
+        ProjectOpened(:final project) => project,
+        final ProjectRefused it => fail(it.because),
+      };
+
+      // **Mutation: write only the flattened image.** The file opens, the
+      // model looks right, and the layer somebody painted is gone — which
+      // they find out the first time they try to change its blend mode.
+      final PaintStack? stack = read.materials.single.paint;
+      expect(stack, isNotNull);
+      expect(stack!.layers, hasLength(1));
+      expect(
+        stack.layers.single.tiles.length,
+        history.project.materials.single.paint!.layers.single.tiles.length,
+      );
+      expect(stack.layers.single.blendMode.name, 'normal');
+      expect(
+        stack.pixelAt(32, 32),
+        history.project.materials.single.paint!.pixelAt(32, 32),
+      );
+    });
+
+    test('and a project with no paint reads back with none', () {
+      final ModelHistory history = opened();
+      final ModelProject read = switch (readProject(
+        writeProject(history.project),
+      )) {
+        ProjectOpened(:final project) => project,
+        final ProjectRefused it => fail(it.because),
+      };
+      expect(read.materials.single.paint, isNull);
+    });
+  });
+
   group('written down', () {
     test('reads back as itself', () {
       final ModelCommand? read = modelCommandFromJson(
