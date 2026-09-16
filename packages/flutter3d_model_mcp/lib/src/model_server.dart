@@ -35,20 +35,19 @@ ModelPictureTool _picture(ModelTool tool) => ModelPictureTool(tool.tool, (
 /// taken before the tool runs and diffed after, whichever tool it was — the
 /// render tools included, which answer with an empty list and are honest about
 /// it rather than repeating whatever the last edit made.
-ModelPictureTool _watched(ModelPictureTool tool) =>
-    ModelPictureTool(tool.tool, (
-      ModelSession session,
-      Map<String, Object?> arguments,
-    ) async {
-      final List<int> before = session.objectIds;
-      // `ux-20`: cleared here rather than by whoever sets it, so that a
-      // targeted call's own selection is reported by the call that made it
-      // and by no call after it.
-      session.reportedSelection = null;
-      final PictureAnswer answer = await tool.run(session, arguments);
-      _made = session.madeSince(before);
-      return answer;
-    });
+ModelPictureTool _watched(ModelPictureTool tool) => ModelPictureTool(
+  tool.tool,
+  (ModelSession session, Map<String, Object?> arguments) async {
+    final List<int> before = session.objectIds;
+    // `ux-20`: cleared here rather than by whoever sets it, so that a
+    // targeted call's own selection is reported by the call that made it
+    // and by no call after it.
+    session.reportedSelection = null;
+    final PictureAnswer answer = await tool.run(session, arguments);
+    _made = session.madeSince(before);
+    return answer;
+  },
+);
 
 /// What the call that is answering right now created.
 ///
@@ -67,10 +66,10 @@ CallToolResult _resultOf(PictureAnswer answer, ModelSession session) {
   return CallToolResult(
     content: base.content,
     isError: base.isError,
-    structuredContent: session.structured(
-      (did: answer.did, says: answer.says),
-      made: _made,
-    ),
+    structuredContent: session.structured((
+      did: answer.did,
+      says: answer.says,
+    ), made: _made),
   );
 }
 
@@ -130,6 +129,7 @@ base class ModelMcpServer extends ToolTableServer<ModelSession, PictureAnswer> {
              ...modelTools.map(_picture),
              renderTool,
              renderSheetTool,
+             renderSnapshotTool,
              ...extraTools,
            ])
              _watched(tool),

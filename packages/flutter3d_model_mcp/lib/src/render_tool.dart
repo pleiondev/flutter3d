@@ -12,11 +12,15 @@
 /// one tool that actually draws.
 library;
 
+import 'dart:math' as math;
+
 import 'package:dart_mcp/server.dart';
+import 'package:flutter3d_core/flutter3d_core.dart' show PerspectiveProjection;
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:flutter3d_mcp_kit/flutter3d_mcp_kit.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
+import 'package:vector_math/vector_math.dart';
 
 import 'model_session.dart';
 
@@ -219,3 +223,185 @@ final ModelPictureTool renderSheetTool = ModelPictureTool(
     );
   },
 );
+
+/// `pro-rn-04`: a snapshot at a size and a supersample a person chooses,
+/// through `pro-rn-02`'s own tiled job.
+///
+/// **Not `render` with more arguments.** `render` answers "what does this
+/// look like" and is framed for you, capped small and cheap enough to ask
+/// every few seconds; this answers "give me the picture", at the size and
+/// the quality somebody is going to keep, rendered tile by tile so a frame
+/// larger than one device can hold is still one image at the end. Folding
+/// the two would make the cheap one carry the expensive one's arguments and
+/// the expensive one inherit the cheap one's cap.
+final ModelPictureTool renderSnapshotTool = ModelPictureTool(
+  Tool(
+    name: 'renderSnapshot',
+    description:
+        'A full-quality picture of the project at a size you choose, '
+        'rendered one tile at a time and stitched — `pro-rn-04`. Framed on '
+        'the project the same way `render` frames it, with the camera taken '
+        'from one of the seven named views. ssaa 2 renders at twice the '
+        'side and resolves back down, which is four times the work and the '
+        'difference between a picture to look at and one to keep. An empty '
+        'project refuses rather than handing back a blank frame.',
+    inputSchema: ObjectSchema(
+      properties: <String, Schema>{
+        'view': UntitledSingleSelectEnumSchema(
+          description: 'Which way to look at the project. Defaults to iso.',
+          values: <String>[for (final v in RenderProjectView.values) v.name],
+        ),
+        'width': IntegerSchema(
+          description: 'The picture\'s width in pixels, 64 to 4096',
+        ),
+        'height': IntegerSchema(
+          description: 'The picture\'s height in pixels, 64 to 4096',
+        ),
+        'ssaa': IntegerSchema(
+          description:
+              'Supersampling: 1 for none (the default), 2 for a 2×2 '
+              'supersample resolved back down',
+        ),
+        'tiles': IntegerSchema(
+          description:
+              'How many tiles a side the frame is rendered in; default 1. '
+              'The width and the height must each divide by it.',
+        ),
+      },
+    ),
+  ),
+  (ModelSession session, Map<String, Object?> arguments) async {
+    final project = session.history.project;
+    if (project.objects.isEmpty) {
+      return (
+        did: false,
+        says: 'Nothing to render: the project has no objects yet.',
+        png: null,
+      );
+    }
+    final int width = switch (arguments['width']) {
+      final int asked => asked.clamp(64, 4096),
+      _ => 960,
+    };
+    final int height = switch (arguments['height']) {
+      final int asked => asked.clamp(64, 4096),
+      _ => 540,
+    };
+    final int ssaa = switch (arguments['ssaa']) {
+      final int asked => asked.clamp(1, 2),
+      _ => 1,
+    };
+    final int tiles = switch (arguments['tiles']) {
+      final int asked => asked.clamp(1, 8),
+      _ => 1,
+    };
+    if (width % tiles != 0 || height % tiles != 0) {
+      return (
+        did: false,
+        says:
+            'A frame of $width×$height does not divide into $tiles tiles a '
+            'side; pick a tile count both sides divide by.',
+        png: null,
+      );
+    }
+
+    final view = _viewNamed(arguments['view']);
+    final SnapshotCamera framed = _framedOn(project, view);
+    final png = await RenderSnapshotJob(
+      project,
+      RenderPreset(
+        width: width,
+        height: height,
+        camera: framed,
+        ssaa: ssaa,
+        tilesX: tiles,
+        tilesY: tiles,
+      ),
+      tileDevice: _cpuDevice,
+    ).run();
+    return (
+      did: true,
+      says:
+          'Rendered a snapshot from the ${view.name} view, $width×$height'
+          '${ssaa > 1 ? ', $ssaa× supersampled' : ''}'
+          '${tiles > 1 ? ', in ${tiles * tiles} tiles' : ''}.',
+      png: png,
+    );
+  },
+);
+
+/// Where a camera has to stand to see all of [project] from [view].
+///
+/// **The same arithmetic `renderProject` frames with, written out here**
+/// rather than exported from it: that one places a live `CameraNode` inside
+/// a scene it has already built on a device, and a snapshot has no scene yet
+/// — it builds one per tile. What is shared is the rule, not the code, and
+/// the rule is short enough to say twice: the world box of everything in the
+/// project, a distance that fits its radius inside the field of view with a
+/// margin, and the view's own yaw and pitch away from the middle of it.
+SnapshotCamera _framedOn(ModelProject project, RenderProjectView view) {
+  Aabb3? box;
+  for (final ModelObject object in project.objects) {
+    final Aabb3? local = _boundsOf(object.geometry);
+    if (local == null) continue;
+    final Aabb3 world = Aabb3.copy(local)
+      ..transform(worldTransformOf(project, object.id));
+    box = box == null ? world : (box..hull(world));
+  }
+  final Vector3 centre = box?.center ?? Vector3.zero();
+  final double radius = box == null
+      ? 1.0
+      : math.max(box.min.distanceTo(box.max) / 2, 1e-5);
+  const double fovY = math.pi / 4;
+  final double distance = radius / math.sin(fovY / 2) * 1.2;
+  final double cosPitch = math.cos(view.pitch);
+  final Vector3 offset = Vector3(
+    math.sin(view.yaw) * cosPitch,
+    math.sin(view.pitch),
+    math.cos(view.yaw) * cosPitch,
+  )..scale(distance);
+  return SnapshotCamera(
+    position: centre + offset,
+    target: centre,
+    projection: PerspectiveProjection(
+      fovYRadians: fovY,
+      near: math.max(distance * 0.01, 1e-6),
+      far: distance * 10.0 + 10.0,
+    ),
+  );
+}
+
+/// [geometry]'s own local bounding box, or null where it has none.
+Aabb3? _boundsOf(Geometry geometry) {
+  final Vector3 min = Vector3.all(double.infinity);
+  final Vector3 max = Vector3.all(double.negativeInfinity);
+  var any = false;
+  void grow(Vector3 at) {
+    any = true;
+    Vector3.min(min, at, min);
+    Vector3.max(max, at, max);
+  }
+
+  switch (geometry) {
+    case EditedGeometry(:final mesh):
+      final Vector3 at = Vector3.zero();
+      for (var v = 0; v < mesh.vertexSlotCount; v++) {
+        if (!mesh.isVertexAlive(v)) continue;
+        grow(mesh.positionOf(v, at));
+      }
+    case ParametricGeometry(:final shape):
+      final built = shape.drawn.build();
+      final Vector3 at = Vector3.zero();
+      for (var v = 0; v < built.vertexCount; v++) {
+        grow(built.positionAt(v, at));
+      }
+    case ImportedGeometry(:final data):
+      final Vector3 at = Vector3.zero();
+      for (var v = 0; v < data.vertexCount; v++) {
+        grow(data.positionAt(v, at));
+      }
+    case SocketGeometry():
+      break;
+  }
+  return any ? Aabb3.minMax(min, max) : null;
+}
