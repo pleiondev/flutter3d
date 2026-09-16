@@ -48,6 +48,11 @@ ModelCommand? commandFor(
   'mesh.extrude' => Extrude(stepOf(editMesh)),
   'mesh.loopCut' => const LoopCut(),
   'mesh.bevel' => BevelEdges(stepOf(editMesh) * 0.5),
+  // `ux-39`: the game-ready minimum this file's own header used to say
+  // was deliberately left out — panels, joining pieces, moving loops.
+  'mesh.inset' => InsetFaces(stepOf(editMesh) * 0.5),
+  'mesh.bridge' => const BridgeLoops(),
+  'mesh.slide' => const SlideEdges(0.25),
   'mesh.triangulate' => const Triangulate(),
   'mesh.separate' => const Separate(),
   'mesh.dissolve' => const DissolveEdges(),

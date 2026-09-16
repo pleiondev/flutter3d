@@ -41,6 +41,36 @@ void main() {
       expect(mesh.faceCount, beforeFaces + 4);
     });
 
+    test('ux-39: one quad on its own insets to five faces', () {
+      final mesh = EditMesh.fromFaces(
+        <Vector3>[
+          Vector3(0, 0, 0),
+          Vector3(1, 0, 0),
+          Vector3(1, 1, 0),
+          Vector3(0, 1, 0),
+        ],
+        <List<int>>[
+          <int>[0, 1, 2, 3],
+        ],
+      );
+
+      mesh.beginStep();
+      final OpResult result = insetFaces(
+        mesh,
+        Selection.of(ElementLevel.face, <int>[0]),
+        thickness: 0.2,
+      );
+      mesh.endStep();
+
+      // The row's own acceptance: the face itself, remapped onto the inner
+      // ring, and one wall per edge. Mutation: add the inner face as a new
+      // one instead of remapping — six faces, and the original's material
+      // and smoothing left on a face nobody can see.
+      expect(result.reason, isNull);
+      expect(mesh.faceCount, 5);
+      mesh.validate();
+    });
+
     test('the inset face keeps its own id, remapped onto the new ring', () {
       final mesh = EditMesh.cuboid();
       late OpResult result;

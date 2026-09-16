@@ -453,6 +453,36 @@ List<ModelerTool> toolsFor(
       group: 'topology',
     ),
     ModelerTool(
+      id: 'mesh.inset',
+      label: 'Inset',
+      about:
+          'Shrinks a face inward and walls the ring it leaves — how a '
+          'panel, a window or a recessed button is made.',
+      icon: Icons.filter_frames_outlined,
+      shortcut: LogicalKeyboardKey.keyI,
+      group: 'topology',
+    ),
+    ModelerTool(
+      id: 'mesh.bridge',
+      label: 'Bridge',
+      about:
+          'Joins two open borders with a ring of quads, so two halves of a '
+          'tube become one surface.',
+      icon: Icons.compare_arrows_outlined,
+      shortcut: LogicalKeyboardKey.keyJ,
+      group: 'topology',
+    ),
+    ModelerTool(
+      id: 'mesh.slide',
+      label: 'Edge slide',
+      about:
+          'Moves a loop along the edges that cross it, changing where a '
+          'seam sits without changing a single face.',
+      icon: Icons.swap_horiz_outlined,
+      shortcut: LogicalKeyboardKey.keyZ,
+      group: 'topology',
+    ),
+    ModelerTool(
       id: 'mesh.triangulate',
       label: 'Triangulate',
       about:
