@@ -5,6 +5,7 @@
 /// other's library and both read as what they are — a list of pictures.
 library;
 
+import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
@@ -13,6 +14,7 @@ import 'package:flutter/services.dart' show FontLoader;
 import 'package:flutter3d_app/flutter3d_app.dart';
 import 'package:flutter3d_modeler/l10n/app_localizations.dart';
 import 'package:flutter3d_modeler/main.dart' hide main;
+import 'package:flutter3d_modeler/src/settings.dart';
 import 'package:flutter3d_modeler/src/ui/theme.dart';
 import 'package:flutter3d_modeler/src/ui/tools.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -40,6 +42,25 @@ final class NullBinaryStorage implements BinaryStorage {
 /// A settings document in memory, so a screenshot run neither reads a
 /// person's own preferences nor writes over them.
 final class MemorySettings implements Storage {
+  /// **Seeded, not empty** — `ux-42`. An empty settings store is a first
+  /// launch, and a first launch now opens Quick Setup: every picture below
+  /// would otherwise be a picture of that dialog. Seeded with the Full
+  /// workspace for the same reason, since the tutorial's own cases walk
+  /// through Mesh and Animation mode and a switcher showing three segments
+  /// would contradict the sentence beside it.
+  MemorySettings() {
+    documents[SettingsStore.name] = jsonEncode(
+      const ModelerSettings(
+        quickSetupDone: true,
+        workspace: Workspace.full,
+        // And Home off: a picture of the editor should be of the editor, not
+        // of the screen a launch opens over it. The case that wants Home
+        // opens it by hand, which is also what a person does.
+        showHomeAtLaunch: false,
+      ).toJson(),
+    );
+  }
+
   final Map<String, String> documents = <String, String>{};
 
   @override

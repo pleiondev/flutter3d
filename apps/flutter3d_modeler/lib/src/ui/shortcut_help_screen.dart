@@ -22,9 +22,13 @@ import '../settings.dart' show NavigationScheme;
 import 'keymap.dart';
 import 'shortcut_help.dart';
 
-/// The site's own root — see this file's own doc comment for why not a
-/// deeper, not-yet-real path.
-final Uri tutorialUrl = Uri.parse('https://flutter3d.pleion.dev');
+/// The modeller's own tutorial — `ux-42`.
+///
+/// **The tutorial, not the front door.** This pointed at the site's root
+/// while there was no modeller section to point at; `rel-08` built one, and a
+/// person pressing "Tutorial" in a modeller and landing on a page about a
+/// rendering engine has been answered with a different question.
+final Uri tutorialUrl = Uri.parse('https://flutter3d.pleion.dev/learn/modeler/');
 
 /// Opens `ui-32n`'s own shortcut-help dialog, over the live preset.
 Future<void> showShortcutHelp(
@@ -103,6 +107,7 @@ class _ShortcutHelpScreen extends StatelessWidget {
           ShortcutSection.application => 'APPLICATION',
           ShortcutSection.selection => 'SELECTION',
           ShortcutSection.tools => 'TOOLS · ${keymap.preset.label}',
+          ShortcutSection.touch => 'TOUCH AND PEN',
         },
         style: theme.textTheme.labelSmall?.copyWith(
           letterSpacing: 1.0,

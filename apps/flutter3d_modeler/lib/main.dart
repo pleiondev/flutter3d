@@ -107,6 +107,7 @@ import 'src/ui/modeler_keys.dart';
 import 'src/ui/no_mesh_banner.dart';
 import 'src/ui/properties/outliner.dart';
 import 'src/ui/properties/properties_panel.dart';
+import 'src/ui/quick_setup_screen.dart';
 import 'src/ui/restore_autosave_dialog.dart';
 import 'src/ui/retarget_panel.dart';
 import 'src/ui/retarget_viewports.dart';
