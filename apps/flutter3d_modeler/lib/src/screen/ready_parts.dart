@@ -155,6 +155,9 @@ extension _ReadyParts on _ModelerScreenState {
                 // sitting first in a `??` chain, which meant a file that failed to
                 // open said nothing at all if an operation had run before it.
                 said: state.said ?? _selectionSaid,
+                // `ux-17`: only the state's own sentence can be a refusal —
+                // what is selected never is.
+                saidIsRefusal: state.said != null && state.saidIsRefusal,
                 // A value on the state, refreshed when a command lands rather than
                 // computed while a frame is drawn. It cannot go stale behind a check
                 // that never runs, which is what a getter here could do.

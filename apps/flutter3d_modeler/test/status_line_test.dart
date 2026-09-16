@@ -47,6 +47,7 @@ Future<void> show(
   double? texelDensity,
   TextureBudgetStatus? textureBudget,
   String said = 'ready',
+  bool saidIsRefusal = false,
   VoidCallback? onExport,
   VoidCallback? onShowFolder,
 }) => tester.pumpWidget(
@@ -55,6 +56,7 @@ Future<void> show(
     home: Scaffold(
       body: StatusLine(
         said: said,
+        saidIsRefusal: saidIsRefusal,
         readiness: readiness,
         triangles: triangles,
         vertices: vertices,
@@ -354,6 +356,53 @@ void main() {
 
       expect(shown, 1);
       expect(find.textContaining('△'), findsOneWidget);
+    });
+  });
+
+  group('ux-17: a refusal looks like one', () {
+    testWidgets('it is painted apart from an ordinary report', (
+      WidgetTester tester,
+    ) async {
+      await show(
+        tester,
+        ExportReadiness.check(const ModelProject()),
+        said: 'cannot delete: nothing is selected',
+        saidIsRefusal: true,
+      );
+      final Color refused = colourOf(tester, 'cannot delete');
+
+      await show(
+        tester,
+        ExportReadiness.check(const ModelProject()),
+        said: 'saved',
+      );
+      final Color plain = colourOf(tester, 'saved');
+
+      // Mutation: paint both the same, which is what this did — a refusal
+      // read exactly like "saved", in a line people stop reading after a
+      // week.
+      expect(refused, isNot(plain));
+    });
+
+    testWidgets('and the whole sentence is in a tooltip', (
+      WidgetTester tester,
+    ) async {
+      const String long =
+          'cannot export: "teapot" has 109 faces with more than three sides '
+          'and the target format holds only triangles';
+      await show(
+        tester,
+        ExportReadiness.check(const ModelProject()),
+        said: long,
+        saidIsRefusal: true,
+      );
+
+      // The strip is one line of a fraction of a window, so the part that
+      // says what to do about it is exactly the part the ellipsis eats.
+      final Tooltip tip = tester.widget<Tooltip>(
+        find.ancestor(of: find.text(long), matching: find.byType(Tooltip)),
+      );
+      expect(tip.message, long);
     });
   });
 }
