@@ -8,6 +8,7 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter3d_core/formats.dart' show SurfaceMaterial;
 import 'package:flutter3d_cpu/testing.dart';
 import 'package:flutter3d_mesh/flutter3d_mesh.dart' show EditMesh;
 import 'package:flutter3d_model_core/flutter3d_model_core.dart' hide Outcome;
@@ -439,6 +440,75 @@ void main() {
       // a cursor's hotspot is one pixel wide.
       expect(desk, ModelerMetrics.row);
       expect(thumb, kTouchTarget);
+    });
+  });
+
+  group('ux-40: the Material workspace', () {
+    ModelProject painted() {
+      final ModelProject project =
+          ModelProject(
+            materials: <ProjectMaterial>[
+              ProjectMaterial(surface: SurfaceMaterial(name: 'brass')),
+            ],
+          ).added(
+            (int id) => ModelObject(
+              id: id,
+              name: 'box',
+              geometry: EditedGeometry(EditMesh.cuboid()),
+              transform: vm.Matrix4.identity(),
+              materialSlots: const <int>[0],
+            ),
+          );
+      return project;
+    }
+
+    testWidgets('material mode draws the slots and the graph, open', (
+      WidgetTester tester,
+    ) async {
+      final ModelProject project = painted();
+      await _pump(
+        tester,
+        mode: ModelerMode.material,
+        project: project,
+        selection: ProjectSelection(objects: <int>[project.objects.single.id]),
+      );
+
+      expect(find.text('Base colour texture'), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey<String>('textureGraphPanel')),
+        findsOneWidget,
+      );
+      // Open, not a strip to be clicked: switching to this mode is the
+      // click. Mutation: leave `initiallyExpanded` false and the canvas
+      // costs a second press in the one mode built around it.
+      expect(
+        find.byKey(const ValueKey<String>('textureGraphViewer')),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('and object mode keeps the compact row instead', (
+      WidgetTester tester,
+    ) async {
+      final ModelProject project = painted();
+      await _pump(
+        tester,
+        mode: ModelerMode.object,
+        project: project,
+        selection: ProjectSelection(objects: <int>[project.objects.single.id]),
+      );
+
+      // The list, the colour dot and the fields are still here — "clean a
+      // mesh, fix its material, export to GLB" is one mode's work. What is
+      // not is the texture half. **Mutation: draw the workspace in both.**
+      // Five slot rows and a graph canvas then sit between the transform
+      // grid and the modifier stack of the mode somebody moves objects in.
+      expect(find.text('brass'), findsOneWidget);
+      expect(find.text('Base colour texture'), findsNothing);
+      expect(
+        find.byKey(const ValueKey<String>('textureGraphPanel')),
+        findsNothing,
+      );
     });
   });
 }

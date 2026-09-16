@@ -851,8 +851,10 @@ _modelCommandReaders =
         ),
         _ => null,
       },
-      'addMaterial': (json) =>
-          AddMaterial(materialName: json['materialName'] as String?),
+      'addMaterial': (json) => AddMaterial(
+        materialName: json['materialName'] as String?,
+        assignTo: json['assignTo'] as int?,
+      ),
       'removeMaterial': (json) => switch (json['index']) {
         final int index => RemoveMaterial(index),
         _ => null,

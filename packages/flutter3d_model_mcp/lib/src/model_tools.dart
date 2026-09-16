@@ -996,6 +996,11 @@ List<ModelTool> get _commandTools => <ModelTool>[
                 'what the table shows '
                 'for it; omit to leave it unnamed',
           ),
+          'assignTo': IntegerSchema(
+            description:
+                'an object id to paint with the new material in the '
+                'same step; omit to only add the row',
+          ),
         },
       ),
     ),

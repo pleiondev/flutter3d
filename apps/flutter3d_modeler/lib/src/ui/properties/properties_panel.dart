@@ -18,12 +18,14 @@ import 'package:flutter3d_model_core/flutter3d_model_core.dart' hide Outcome;
 
 import '../../display_modes.dart';
 import '../../material_editing.dart';
+import '../../material_pool.dart' show clay;
 import '../../scene_mode.dart';
 import '../../staging.dart';
 import '../../texture_slot.dart';
 import '../../transform_fields.dart';
 import '../animation_panel.dart';
 import '../material_panel.dart';
+import '../material_preview_panel.dart';
 import '../mesh_health_panel.dart';
 import '../modifier_stack_panel.dart';
 import '../morphs_panel.dart';
@@ -70,6 +72,7 @@ class PropertiesPanel extends StatelessWidget {
     this.onSetModifierField,
     required this.onAssignMaterial,
     required this.onAddMaterial,
+    this.materialPreviewRenderer,
     this.onOpenLinkedFile,
     this.onReimport,
     this.onChoosePanorama,
@@ -221,6 +224,12 @@ class PropertiesPanel extends StatelessWidget {
 
   /// The material panel's own "Add material" link was pressed.
   final VoidCallback onAddMaterial;
+
+  /// `ux-40`: what the workspace's own preview draws through — the
+  /// document's own renderer, the same one the viewport uses. Null leaves
+  /// the preview out, which is what a panel pumped without a device needs
+  /// and what every mode but Material gets regardless.
+  final Renderer? materialPreviewRenderer;
 
   /// `ux-49`: opens a picker for a Radiance `.hdr` to light the scene with,
   /// and takes one off again. Null where there is no filesystem to pick from,
@@ -665,6 +674,20 @@ class PropertiesPanel extends StatelessWidget {
         if (held != null &&
             sections.contains(PropertiesSection.materials)) ...<Widget>[
           SectionLabel('Material'),
+          // `ux-40`: the preview stands above the list it is a preview of,
+          // so a slider and the sphere it moves are on screen together.
+          // Only where there is a device to draw with — a panel pumped on
+          // its own in a test has none, and a workspace section that
+          // insisted would make every one of those tests need a GPU.
+          if (materialPreviewRenderer case final Renderer renderer
+              when sections.contains(PropertiesSection.materialWorkspace))
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: MaterialPreviewPanel(
+                renderer: renderer,
+                material: stage.materials?.forObject(held) ?? clay(),
+              ),
+            ),
           MaterialPanel(
             key: ValueKey<String>('materials-${held.id}'),
             materials: project.materials,
@@ -684,7 +707,14 @@ class PropertiesPanel extends StatelessWidget {
                 : metallicIsMeaningful(
                     lightingModelOf(activeMaterialRow.surface),
                   ),
-            textureSlots: activeMaterial == null
+            // `ux-40`: the slots belong to the workspace. Object mode keeps
+            // the list, the colour dot and the fields — enough to fix a
+            // material while cleaning a mesh, which is the phase-1 scenario
+            // that put this panel in object mode at all — and sends the
+            // texture work to the mode built for it.
+            textureSlots:
+                activeMaterial == null ||
+                    !sections.contains(PropertiesSection.materialWorkspace)
                 ? const <String, TextureSlotController>{}
                 : <String, TextureSlotController>{
                     for (final entry in textureBySlot.entries)
@@ -699,9 +729,17 @@ class PropertiesPanel extends StatelessWidget {
                       ),
                   },
           ),
-          if (activeMaterial != null) ...<Widget>[
+          if (activeMaterial != null &&
+              sections.contains(
+                PropertiesSection.materialWorkspace,
+              )) ...<Widget>[
             const SizedBox(height: 6),
             TextureGraphPanel(
+              // `ux-40`: open, because a workspace's own graph is the thing
+              // somebody switched modes to reach. Object mode does not draw
+              // it at all, so there is no mode left where it is a strip to
+              // be clicked before it says anything.
+              initiallyExpanded: true,
               graph: activeMaterialRow?.graph ?? const TextureGraph(),
               onAddNode:
                   (

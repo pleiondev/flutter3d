@@ -16,13 +16,27 @@ part of 'command.dart';
 /// its row, and a row that is always appended is a row a caller can predict
 /// without being handed one back.
 final class AddMaterial extends ModelCommand {
-  const AddMaterial({this.materialName});
+  const AddMaterial({this.materialName, this.assignTo});
 
   /// What the table shows for it.
   ///
   /// **Not `name` in [arguments], which `toJson` spreads over the command's
   /// own `name` key.** [AddLathe.shapeName] hit the same trap first.
   final String? materialName;
+
+  /// The object to paint with the new material, or null to only add the row
+  /// — `ux-40`.
+  ///
+  /// **One command rather than an add followed by an assign**, because a
+  /// person pressing "Add material" with an object selected means one thing
+  /// and should be able to undo it with one press: a table with a material
+  /// nothing is painted with, left behind by an undo that only took the
+  /// assignment back, is a row somebody has to notice and delete.
+  ///
+  /// An id that names no object refuses the whole command rather than adding
+  /// the material and skipping the paint — a half-done edit is the one
+  /// outcome an undo cannot describe.
+  final int? assignTo;
 
   @override
   String get name => 'addMaterial';
@@ -34,18 +48,26 @@ final class AddMaterial extends ModelCommand {
   @override
   Map<String, Object?> get arguments => <String, Object?>{
     'materialName': materialName,
+    if (assignTo != null) 'assignTo': assignTo,
   };
 
   @override
-  Outcome apply(ModelProject project, ProjectSelection selection) =>
-      Outcome.done(
-        project.copyWith(
-          materials: <ProjectMaterial>[
-            ...project.materials,
-            ProjectMaterial(surface: SurfaceMaterial(name: materialName)),
-          ],
-        ),
-      );
+  Outcome apply(ModelProject project, ProjectSelection selection) {
+    final int at = project.materials.length;
+    final ModelProject added = project.copyWith(
+      materials: <ProjectMaterial>[
+        ...project.materials,
+        ProjectMaterial(surface: SurfaceMaterial(name: materialName)),
+      ],
+    );
+    final int? paint = assignTo;
+    if (paint == null) return Outcome.done(added);
+    final ModelObject? object = added[paint];
+    if (object == null) return Outcome.refused('there is no object $paint');
+    return Outcome.done(
+      added.withObject(object.copyWith(materialSlots: <int>[at])),
+    );
+  }
 }
 
 /// Drops a material out of the project's table.

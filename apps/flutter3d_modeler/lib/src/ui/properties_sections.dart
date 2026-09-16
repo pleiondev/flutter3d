@@ -18,6 +18,13 @@ enum PropertiesSection {
   transform,
   modifiers,
   materials,
+
+  /// `ux-40`'s own row: the rest of the Material workspace — a live preview
+  /// of the material being edited, its texture slots and its texture graph.
+  /// Material mode's alone; object mode keeps [materials] on its own, which
+  /// is the compact row a person fixing a mesh needs and not a screen they
+  /// have to scroll past to reach the modifier stack.
+  materialWorkspace,
   lastOperation,
   selection,
   mesh,
@@ -124,9 +131,15 @@ Set<PropertiesSection> sectionsFor(
     // of the workspace — the graph, the preview, the slots as their own
     // screen — is `ux-40`, and this is its first step rather than a
     // placeholder for it.
+    // **`ux-40` finished it.** The list and the object it belongs to were
+    // `ux-07`'s own first step out of an empty mode; what makes it a
+    // workspace is the preview, the slots and the graph, which object mode
+    // does not get and this one shows expanded rather than behind a dialog
+    // and a disclosure triangle.
     ModelerMode.material => const <PropertiesSection>{
       PropertiesSection.objects,
       PropertiesSection.materials,
+      PropertiesSection.materialWorkspace,
     },
     _ => const <PropertiesSection>{},
   },
