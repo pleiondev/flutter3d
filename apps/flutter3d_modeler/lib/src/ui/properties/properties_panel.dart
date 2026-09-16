@@ -90,6 +90,8 @@ class PropertiesPanel extends StatelessWidget {
     this.retargetSourceNames = const <String>[],
     this.retargetBoneMap = const BoneMap(<String, String>{}),
     required this.onRetargetAutoMap,
+    this.retargetTargetNames = const <String>[],
+    this.onMapBone,
     this.retargetRootMotion = RetargetRootMotion.inAnimation,
     required this.onRetargetRootMotionChanged,
     this.retargetLockFeet = true,
@@ -309,6 +311,12 @@ class PropertiesPanel extends StatelessWidget {
   /// `retarget.autoMap`'s own rail button, reachable a second way from
   /// [RetargetPanel]'s own "Map automatically" link.
   final VoidCallback onRetargetAutoMap;
+
+  /// `ux-46`: every joint on the rig being retargeted onto, and what to run
+  /// when a bone-map row is pointed somewhere else. Empty/null leaves the
+  /// table read-only, which is what it was before this row.
+  final List<String> retargetTargetNames;
+  final void Function(String source, String? target)? onMapBone;
 
   final RetargetRootMotion retargetRootMotion;
   final ValueChanged<RetargetRootMotion> onRetargetRootMotionChanged;
@@ -802,6 +810,8 @@ class PropertiesPanel extends StatelessWidget {
           RetargetPanel(
             sourceNames: retargetSourceNames,
             boneMap: retargetBoneMap,
+            targetNames: retargetTargetNames,
+            onMapBone: onMapBone,
             onAutoMap: onRetargetAutoMap,
             rootMotion: retargetRootMotion,
             onRootMotionChanged: onRetargetRootMotionChanged,

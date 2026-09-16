@@ -54,6 +54,15 @@ class BoneMap {
   /// finger-less target), which [retargetClip] simply drops the track for.
   String? targetOf(String sourceName) => _map[sourceName];
 
+  /// Every pair in it — `ux-46`, so a person editing one row can build the
+  /// next map out of this one without the caller keeping a shadow copy of
+  /// what it handed in.
+  ///
+  /// Unmodifiable, because this class is a value and the map it was built
+  /// from belongs to whoever built it: handing the live map out would make
+  /// two `BoneMap`s share one, and a "change one row" that edited both.
+  Map<String, String> get pairs => Map<String, String>.unmodifiable(_map);
+
   int get length => _map.length;
 
   bool get isEmpty => _map.isEmpty;

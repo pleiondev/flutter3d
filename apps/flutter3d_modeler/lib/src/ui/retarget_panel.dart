@@ -34,6 +34,8 @@ class RetargetPanel extends StatelessWidget {
     required this.sourceNames,
     required this.boneMap,
     required this.onAutoMap,
+    this.targetNames = const <String>[],
+    this.onMapBone,
     required this.rootMotion,
     required this.onRootMotionChanged,
     required this.lockFeet,
@@ -69,6 +71,13 @@ class RetargetPanel extends StatelessWidget {
   final bool canApply;
   final VoidCallback? onApply;
 
+  /// Every joint on the rig being retargeted onto — `ux-46`. Empty leaves
+  /// the bone map read-only.
+  final List<String> targetNames;
+
+  /// A bone-map row was pointed somewhere else — `ux-46`.
+  final void Function(String source, String? target)? onMapBone;
+
   @override
   Widget build(BuildContext context) => Column(
     crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -77,6 +86,10 @@ class RetargetPanel extends StatelessWidget {
         sourceNames: sourceNames,
         boneMap: boneMap,
         onAutoMap: onAutoMap,
+        // `ux-46`: the rig being retargeted onto, so a row can only be
+        // pointed at a bone that is there.
+        targetNames: targetNames,
+        onMapBone: onMapBone,
       ),
       SectionLabel('Root motion'),
       SegmentedButton<RetargetRootMotion>(

@@ -268,6 +268,18 @@ class _ModelerScreenState extends State<ModelerScreen>
   int? _selectedAnimationClip;
   int? _selectedAnimationTrack;
   int? _selectedAnimationKey;
+
+  /// `ux-46`: every key picked, as `(track, key)` pairs. A drag moves all of
+  /// them; [_selectedAnimationKey] above is still the one touched last, which
+  /// is what the curve editor and the value boxes read.
+  final Set<(int, int)> _selectedAnimationKeys = <(int, int)>{};
+
+  /// `ux-46`: how wide a second is on the timeline, which a wheel over it
+  /// changes. Here rather than in the panel because a curve editor beside it
+  /// reads the same scale.
+  double _timelineZoom = 120.0;
+
+  void _setTimelineZoom(double to) => setState(() => _timelineZoom = to);
   int? _selectedJoint;
   int? _selectedConstraint;
 
