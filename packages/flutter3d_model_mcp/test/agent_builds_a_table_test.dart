@@ -150,8 +150,13 @@ void main() {
       }
 
       final listing = await call('list');
-      expect(listing.says, contains('1 top (parametric)'));
-      expect(listing.says, contains('5 leg 4 (parametric)'));
+      // `ux-19` widened the row: the kind is followed by the version, and the
+      // place the object actually landed comes after it, so that an agent
+      // that has just built five things does not have to guess where any of
+      // them went.
+      expect(listing.says, contains('1 top (parametric, v'));
+      expect(listing.says, contains('5 leg 4 (parametric, v'));
+      expect(listing.says, contains('at -0.500 0.500 -0.500'));
 
       // Paint every object with one wood material.
       final material = await call('addMaterial', <String, Object?>{

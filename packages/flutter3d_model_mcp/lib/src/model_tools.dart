@@ -766,6 +766,112 @@ List<ModelTool> get _commandTools => <ModelTool>[
   ),
   ModelTool(
     Tool(
+      name: 'selectFacing',
+      description:
+          'Select the faces pointing a given way — "the top", "the '
+          'front", said in a way a program can say it. Takes a direction in '
+          'the object\'s own space ([0,1,0] is up) and an angle to allow '
+          'either side of it. Answers with the faces, at face level, '
+          'whatever level was live. Mesh mode only. This is how you find the '
+          'face to extrude without rendering a picture and guessing.',
+      inputSchema: ObjectSchema(
+        properties: <String, Schema>{
+          'axis': _vector('the direction to face, e.g. [0,1,0] for up'),
+          'within': NumberSchema(
+            description:
+                'how far off that direction a face may point and still '
+                'count, in degrees; 45 by default, which is "the top" on a '
+                'box',
+          ),
+        },
+        required: <String>['axis'],
+      ),
+    ),
+    _command('selectFacing'),
+  ),
+  // `ux-14`, `ux-13` and `ux-16` added four commands and no tools for them,
+  // which `tools_test.dart`'s own "a command exists that this server cannot
+  // call" caught — closed here, since `ux-19` is the row about an agent being
+  // able to reach the state it edits.
+  ModelTool(
+    Tool(
+      name: 'setObjectVisible',
+      description:
+          'Show or hide an object. A hidden object is not drawn and is '
+          'not written to an export — it is a fact about the document, not '
+          'about this session — and hiding a parent hides its children.',
+      inputSchema: ObjectSchema(
+        properties: <String, Schema>{
+          'id': IntegerSchema(description: 'the object, from list'),
+          'to': BooleanSchema(description: 'true to show, false to hide'),
+        },
+        required: <String>['id', 'to'],
+      ),
+    ),
+    _command('setObjectVisible'),
+  ),
+  ModelTool(
+    Tool(
+      name: 'setObjectLocked',
+      description:
+          'Lock or unlock an object. A locked object stays on screen '
+          'and refuses to be picked or transformed — the floor somebody '
+          'keeps catching by accident.',
+      inputSchema: ObjectSchema(
+        properties: <String, Schema>{
+          'id': IntegerSchema(description: 'the object, from list'),
+          'to': BooleanSchema(description: 'true to lock, false to unlock'),
+        },
+        required: <String>['id', 'to'],
+      ),
+    ),
+    _command('setObjectLocked'),
+  ),
+  ModelTool(
+    Tool(
+      name: 'buildTopology',
+      description:
+          'Turn an object that came from a file into a real editable '
+          'mesh, welding vertices that sit on top of each other. This is '
+          'what gives an imported object elements with ids — an STL arrives '
+          'with every triangle carrying its own three corners, and nothing '
+          'can be extruded or bevelled until they are shared. Refused on '
+          'something that already has topology, since rebuilding it would '
+          'throw away every edit that made it what it is.',
+      inputSchema: ObjectSchema(
+        properties: <String, Schema>{
+          'id': IntegerSchema(description: 'the imported object, from list'),
+          'weld': NumberSchema(
+            description:
+                'how close two corners must be to become one; left out, '
+                'the import\'s own scale-aware default',
+          ),
+        },
+        required: <String>['id'],
+      ),
+    ),
+    _command('buildTopology'),
+  ),
+  ModelTool(
+    Tool(
+      name: 'selectNear',
+      description:
+          'Select everything at the live level within a distance of a '
+          'point — a box-select for something with no screen. Measured in '
+          'the object\'s own space, the same space describe answers in and '
+          'transformElements moves in. Mesh mode only.',
+      inputSchema: ObjectSchema(
+        properties: <String, Schema>{
+          'point': _vector('the centre, in the object\'s own space'),
+          'radius': NumberSchema(description: 'how far from it to reach'),
+        },
+        required: <String>['point', 'radius'],
+      ),
+    ),
+    _command('selectNear'),
+  ),
+  ModelTool(
+    Tool(
       name: 'setLightTransform',
       description:
           'Place one of the project\'s own lights: replace its whole '
@@ -1151,6 +1257,24 @@ List<ModelTool> get _commandTools => <ModelTool>[
       ),
     ),
     _command('toggleModifier'),
+  ),
+  ModelTool(
+    Tool(
+      name: 'toggleModifierExport',
+      description:
+          'Flip whether a modifier runs for the file as well as for '
+          'the picture. A modifier switched off here still shapes what you '
+          'see and is left out of an export — a mirror you are working '
+          'against but do not want baked into the GLB.',
+      inputSchema: ObjectSchema(
+        properties: <String, Schema>{
+          'id': IntegerSchema(description: 'the object'),
+          'index': IntegerSchema(description: 'the modifier, from list'),
+        },
+        required: <String>['id', 'index'],
+      ),
+    ),
+    _command('toggleModifierExport'),
   ),
   ModelTool(
     Tool(
@@ -2305,6 +2429,51 @@ List<ModelTool> get modelTools => <ModelTool>[
       (ModelSession session, Map<String, Object?> arguments) =>
           (did: true, says: session.listing()),
     ),
+  ),
+  ModelTool(
+    Tool(
+      name: 'describe',
+      description:
+          'One object in numbers: its box, and where each of its '
+          'elements is, which way it faces and how big it is. This is how '
+          'you find the element to edit — the face that points up, the '
+          'vertex at a corner, the longest edge — without rendering a '
+          'picture and guessing from it. Element ids from here go straight '
+          'into select. Describes the first 50 elements unless you name '
+          'some in "elements" or raise "limit".',
+      inputSchema: ObjectSchema(
+        properties: <String, Schema>{
+          'id': IntegerSchema(description: 'the object, from list'),
+          'level': UntitledSingleSelectEnumSchema(
+            description:
+                'vertex, edge or face; defaults to whatever the selection '
+                'is at, or faces',
+            values: <String>[for (final l in ElementLevel.values) l.name],
+          ),
+          'elements': _ints('specific element ids, instead of the first few'),
+          'limit': IntegerSchema(
+            description: 'how many to describe when "elements" is not given',
+          ),
+        },
+        required: <String>['id'],
+      ),
+    ),
+    _sync((ModelSession session, Map<String, Object?> arguments) {
+      final Object? id = arguments['id'];
+      if (id is! int) return (did: false, says: 'describe needs an "id"');
+      final Object? elements = arguments['elements'];
+      return (
+        did: true,
+        says: session.describe(
+          id,
+          level: arguments['level'] as String?,
+          limit: arguments['limit'] as int?,
+          elements: elements is List
+              ? elements.whereType<int>().toList()
+              : null,
+        ),
+      );
+    }),
   ),
   ModelTool(
     Tool(

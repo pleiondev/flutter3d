@@ -55,7 +55,7 @@ List<DescribedElement> describeElements(
   int limit = 50,
 }) {
   final List<int> wanted = ids == null
-      ? _live(mesh, level).take(limit).toList()
+      ? liveElements(mesh, level).take(limit).toList()
       : ids.toList();
   return <DescribedElement>[
     for (final int id in wanted)
@@ -64,7 +64,12 @@ List<DescribedElement> describeElements(
   ];
 }
 
-Iterable<int> _live(EditMesh mesh, ElementLevel level) sync* {
+/// Every live element of [level], each exactly once, in id order.
+///
+/// **Lazy, so a caller that wants the first ten pays for ten.** That is what
+/// [describeElements]'s own cap does with it; a selection command that wants
+/// all of them walks all of them and allocates nothing but the ids it keeps.
+Iterable<int> liveElements(EditMesh mesh, ElementLevel level) sync* {
   switch (level) {
     case ElementLevel.vertex:
       for (var vertex = 0; vertex < mesh.vertexSlotCount; vertex++) {
@@ -93,10 +98,48 @@ Iterable<int> _live(EditMesh mesh, ElementLevel level) sync* {
   }
 }
 
+/// Where [id] of [level] is, in the object's own space — a vertex's position,
+/// an edge's midpoint, a face's centroid — or null when nothing there is
+/// alive.
+///
+/// **Public because a selection command wants exactly this and nothing
+/// else.** `SelectNear` measures a distance per element and `SelectFacing`
+/// takes a dot product per face; building a whole [DescribedElement] for each
+/// one to read a single field out of it would allocate a record per element on
+/// a mesh with two hundred thousand of them. So the two facts a caller can
+/// want on their own have names of their own, and [describeElements] is what
+/// gathers all of them at once.
+Vector3? elementCentre(EditMesh mesh, ElementLevel level, int id) =>
+    switch (level) {
+      ElementLevel.vertex =>
+        _liveVertex(mesh, id) ? mesh.positionOf(id) : null,
+      ElementLevel.face =>
+        _liveFace(mesh, id) ? _centre(mesh, mesh.verticesOf(id)) : null,
+      ElementLevel.edge => _edgeMidpoint(mesh, id),
+    };
+
+/// Which way [id] of [level] faces, or null when nothing decides it: a vertex
+/// in no face, an edge whose two sides cancel out.
+Vector3? elementNormal(EditMesh mesh, ElementLevel level, int id) =>
+    switch (level) {
+      ElementLevel.vertex =>
+        _liveVertex(mesh, id) ? _vertexNormal(mesh, id) : null,
+      ElementLevel.face => _liveFace(mesh, id) ? mesh.normalOf(id) : null,
+      ElementLevel.edge => _describeEdge(mesh, id)?.normal,
+    };
+
+bool _liveVertex(EditMesh mesh, int id) =>
+    id >= 0 && id < mesh.vertexSlotCount && mesh.isVertexAlive(id);
+
+bool _liveFace(EditMesh mesh, int id) =>
+    id >= 0 && id < mesh.faceSlotCount && mesh.isFaceAlive(id);
+
+Vector3? _edgeMidpoint(EditMesh mesh, int id) => _describeEdge(mesh, id)?.at;
+
 DescribedElement? _describe(EditMesh mesh, ElementLevel level, int id) =>
     switch (level) {
       ElementLevel.vertex =>
-        id < 0 || id >= mesh.vertexSlotCount || !mesh.isVertexAlive(id)
+        !_liveVertex(mesh, id)
             ? null
             : (
                 id: id,
@@ -106,7 +149,7 @@ DescribedElement? _describe(EditMesh mesh, ElementLevel level, int id) =>
                 length: null,
               ),
       ElementLevel.face =>
-        id < 0 || id >= mesh.faceSlotCount || !mesh.isFaceAlive(id)
+        !_liveFace(mesh, id)
             ? null
             : (
                 id: id,

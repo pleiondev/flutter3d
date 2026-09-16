@@ -90,9 +90,19 @@ final class ModelSession {
   /// object or a material takes an id, and a program with no screen has no
   /// way to guess one — without this, driving the editor means moving the
   /// third object without ever finding out there is a third object.
+  /// **Every row carries what a command is going to ask for next** (`ux-19`).
+  /// It used to be `id name (kind)` and nothing else, and the review watched
+  /// an agent guess the rest: where an object it had just made had landed,
+  /// whether the mesh it read a minute ago had moved under it, which of the
+  /// two skeletons in the file `retargetClip` meant. All of it was in the
+  /// project already; none of it was in the one call that exists to say what
+  /// is there.
   String listing() {
     final objects = contentsOf(project);
     final materials = materialsOf(project);
+    final skeletons = skeletonsOf(project);
+    final clips = clipsOf(project);
+    final lights = lightsOf(project);
     return <String>[
       if (objects.isEmpty) 'the project is empty' else ...objects.map(_line),
       if (materials.isNotEmpty) ...<String>[
@@ -100,12 +110,215 @@ final class ModelSession {
         for (final Listed material in materials)
           '  ${material.id} ${material.name}',
       ],
+      if (skeletons.isNotEmpty) ...<String>[
+        'skeletons:',
+        for (final Listed row in skeletons)
+          '  ${row.id} ${row.name}, ${row.about['joints']} joints',
+      ],
+      if (clips.isNotEmpty) ...<String>[
+        'clips:',
+        for (final Listed row in clips)
+          '  ${row.id} ${row.name}, ${row.about['tracks']} tracks',
+      ],
+      if (lights.isNotEmpty) ...<String>[
+        'lights:',
+        for (final Listed row in lights)
+          '  ${row.id} ${row.kind}, intensity ${row.about['intensity']}',
+      ],
       '',
       'selection: $selection',
     ].join('\n');
   }
 
-  String _line(Listed row) => '${row.id} ${row.name} (${row.kind})';
+  String _line(Listed row) {
+    final Object? vertices = row.about['vertices'];
+    final shapes = shapesOf(project, row.id);
+    final modifiers = modifiersOf(project, row.id);
+    return <String>[
+      '${row.id} ${row.name} (${row.kind}, v${row.version})',
+      if (row.parent case final int parent) ' under $parent',
+      ' at ${_place(row.transform)}',
+      if (vertices != null)
+        ', ${vertices}v ${row.about['edges']}e ${row.about['faces']}f',
+      if (row.materials.isNotEmpty) ', materials ${row.materials.join('/')}',
+      if (row.about['skeleton'] case final int skeleton)
+        ', skeleton $skeleton',
+      if (row.about['hidden'] == true) ', hidden',
+      if (row.about['locked'] == true) ', locked',
+      // Indented under the object rather than in a section of their own: a
+      // shape key's index and a modifier's index are only meaningful beside
+      // the object that owns them, and `setShapeWeight` names both.
+      if (shapes.isNotEmpty)
+        '\n  shapes: ${shapes.map((Listed it) => '${it.id} ${it.name} '
+            '${it.about['weight']}').join(', ')}',
+      if (modifiers.isNotEmpty)
+        '\n  modifiers: ${modifiers.map((Listed it) => '${it.id} ${it.name}'
+            '${it.about['enabled'] == false ? ' (off)' : ''}'
+            '${it.about['inExport'] == false ? ' (not exported)' : ''}').join(', ')}',
+    ].join();
+  }
+
+  /// A transform's own translation, which is what a person or an agent means
+  /// by "where is it". The other twelve numbers are in `structuredContent`'s
+  /// own `transform` for a caller that needs the rotation too — printing
+  /// sixteen numbers a row would bury the listing.
+  String _place(List<double>? transform) {
+    if (transform == null || transform.length != 16) return '?';
+    return '${_short(transform[12])} ${_short(transform[13])} '
+        '${_short(transform[14])}';
+  }
+
+  static String _short(double value) => value.toStringAsFixed(3);
+
+  /// One object in numbers: its box, and where each of its elements is, which
+  /// way it faces and how big it is — `ux-19`.
+  ///
+  /// **The call that turns an agent's first edit from a guess into a pick.**
+  /// `list` names objects and `select` takes element ids, and between the two
+  /// there was nothing at all: an agent asked to extrude the top face of a
+  /// cube could select face 0 through 5 and had no way to find out which of
+  /// them pointed up. The review (§5.1) watched it choose one, render, look at
+  /// the picture and try again — three calls and a rasterised image to answer
+  /// a question the mesh knows the answer to.
+  ///
+  /// [level] is `vertex`, `edge` or `face`, defaulting to whichever the
+  /// selection is at, or faces in object mode. [elements] names specific ones;
+  /// without it this describes the first [limit] live ones, because a
+  /// 200 000-face import would otherwise cost more context than the rest of
+  /// the session put together.
+  String describe(
+    int id, {
+    String? level,
+    int? limit,
+    List<int>? elements,
+  }) {
+    final ModelObject? object = project[id];
+    if (object == null) return 'there is no object $id';
+    final Listed row = contentsOf(
+      project,
+    ).firstWhere((Listed it) => it.id == id);
+
+    final String flags = <String>[
+      if (object.parent case final int parent) ', under $parent',
+      if (!object.visible) ', hidden',
+      if (object.locked) ', locked',
+    ].join();
+    final head = <String>[
+      '$id "${object.name}" — ${row.kind}, v${object.version}$flags',
+      'at ${_place(row.transform)}',
+      if (object.materialSlots.isNotEmpty)
+        'materials ${object.materialSlots.join('/')}',
+      for (final Listed shape in shapesOf(project, id))
+        'shape ${shape.id} "${shape.name}" at ${shape.about['weight']}',
+      for (final Listed modifier in modifiersOf(project, id))
+        'modifier ${modifier.id} ${modifier.name} ${modifier.about['fields']}',
+    ];
+
+    if (object.geometry case EditedGeometry(:final mesh)) {
+      final ElementLevel at =
+          _levelNamed(level) ??
+          (history.selection.mode == SelectionMode.mesh
+              ? history.selection.level
+              : ElementLevel.face);
+      final Aabb3? box = boundsOfMesh(mesh);
+      final int total = liveElements(mesh, at).length;
+      final List<DescribedElement> described = describeElements(
+        mesh,
+        at,
+        ids: elements,
+        limit: limit ?? 50,
+      );
+      final String counts =
+          '${mesh.vertexCount} vertices, ${mesh.edgeCount} edges, '
+          '${mesh.faceCount} faces';
+      final String more =
+          '  … ${total - described.length} more; name them in "elements" or '
+          'raise "limit"';
+      return <String>[
+        ...head,
+        counts,
+        if (box != null) 'bounds ${_vector(box.min)} to ${_vector(box.max)}',
+        '${at.name}s (${described.length} of $total):',
+        for (final DescribedElement each in described) '  ${_element(each)}',
+        if (elements == null && described.length < total) more,
+      ].join('\n');
+    }
+    final String unbaked =
+        'no topology to describe — this is still a ${row.kind}. Run '
+        '"bakeToMesh" or "buildTopology" to get elements with ids';
+    return <String>[...head, unbaked].join('\n');
+  }
+
+  String _element(DescribedElement it) => <String>[
+    '${it.id} at ${_vector(it.at)}',
+    if (it.normal case final Vector3 normal) ' normal ${_vector(normal)}',
+    if (it.area case final double area) ' area ${_short(area)}',
+    if (it.length case final double length) ' length ${_short(length)}',
+  ].join();
+
+  String _vector(Vector3 it) =>
+      '${_short(it.x)} ${_short(it.y)} ${_short(it.z)}';
+
+  static ElementLevel? _levelNamed(String? word) {
+    if (word == null) return null;
+    for (final ElementLevel level in ElementLevel.values) {
+      if (level.name == word) return level;
+    }
+    return null;
+  }
+
+  /// What a tool call answers in `structuredContent` — `ux-19`.
+  ///
+  /// **The sentence is for the model to read; this is for it to act on.**
+  /// Every answer here has always carried what happened as prose, and an agent
+  /// that wanted the id of the object it had just duplicated had to find it by
+  /// calling `list` again and diffing against what it remembered. `ids` is
+  /// what the newest step actually made, worked out from the step's own
+  /// "before" rather than from a guess: `duplicate`, `import`, `separate`,
+  /// `buildFrom` and every `add*` all answer it without any of them being
+  /// special-cased.
+  ///
+  /// [made] is the object ids the call that is answering created, which the
+  /// caller works out by bracketing the call — see `model_server.dart`. Kept a
+  /// parameter rather than read from [history] here, because "the newest step"
+  /// and "the step this call made" are different things the moment a call
+  /// makes no step at all, and reporting the previous call's new objects again
+  /// is worse than reporting none.
+  Map<String, Object?> structured(
+    Answer answer, {
+    List<int> made = const <int>[],
+  }) {
+    final ProjectSelection sel = history.selection;
+    return <String, Object?>{
+      'did': answer.did,
+      'says': answer.says,
+      'ids': made,
+      'selection': <String, Object?>{
+        'mode': sel.mode.name,
+        'objects': sel.objects,
+        if (sel.mode == SelectionMode.mesh) ...<String, Object?>{
+          'level': sel.level.name,
+          'elements': sel.elements,
+          if (sel.activeObject case final int active) 'object': active,
+        },
+      },
+    };
+  }
+
+  /// The object ids in the project right now — what a caller takes before a
+  /// tool call and hands back afterwards to find out what the call made.
+  List<int> get objectIds => <int>[
+    for (final ModelObject object in project.objects) object.id,
+  ];
+
+  /// The ids in [objectIds] that were not in [before], in project order.
+  List<int> madeSince(List<int> before) {
+    final was = before.toSet();
+    return <int>[
+      for (final ModelObject object in project.objects)
+        if (!was.contains(object.id)) object.id,
+    ];
+  }
 
   /// The material table, one line a row — every field `setMaterialField`
   /// can set, which texture slots are painted and with which image, and
