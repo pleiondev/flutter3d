@@ -80,8 +80,8 @@ class MaterialPanel extends StatelessWidget {
   /// The row the held object is painted with, or null when it has none.
   final int? activeIndex;
 
-  /// A row was tapped: paint the held object with it, or — the row already
-  /// active — take the paint off.
+  /// A row was tapped: paint the held object with it. Null is "Unassign",
+  /// which is a button of its own — `ux-40`.
   final ValueChanged<int?> onAssign;
 
   final VoidCallback onAddMaterial;
@@ -156,16 +156,28 @@ class MaterialPanel extends StatelessWidget {
               name: materials[i].surface.name ?? 'Material ${i + 1}',
               color: _dotColorOf(materials[i].surface),
               selected: i == activeIndex,
-              onTap: () => onAssign(i == activeIndex ? null : i),
+              // **`ux-40`: a second tap on the row that is already assigned
+              // assigns it again, which is nothing.** It used to take the
+              // paint off, so the way to see a material's own fields was to
+              // click its row — and the way to look at them twice was to
+              // unpaint the object. Taking the paint off is a thing somebody
+              // means on purpose, so it is its own button below.
+              onTap: () => onAssign(i),
             ),
         Padding(
           padding: const EdgeInsets.only(top: 4),
-          child: Align(
-            alignment: Alignment.centerLeft,
-            child: TextButton(
-              onPressed: onAddMaterial,
-              child: const Text('Add material'),
-            ),
+          child: Row(
+            children: <Widget>[
+              TextButton(
+                onPressed: onAddMaterial,
+                child: const Text('Add material'),
+              ),
+              if (activeIndex != null)
+                TextButton(
+                  onPressed: () => onAssign(null),
+                  child: const Text('Unassign'),
+                ),
+            ],
           ),
         ),
         // `ux-47`: a material that defers to a file says which one, and

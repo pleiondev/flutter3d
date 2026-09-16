@@ -1218,6 +1218,54 @@ void main() {
       expect(history.undoSays, 'add a material');
     });
 
+    test('ux-40: a material added for an object arrives painted onto it', () {
+      final history = ModelHistory(
+        const ModelProject().added(
+          (int id) => ModelObject(
+            id: id,
+            name: 'bolt',
+            geometry: EditedGeometry(EditMesh.cuboid()),
+            transform: Matrix4.identity(),
+          ),
+        ),
+      );
+      final int id = history.project.objects.first.id;
+
+      expect(
+        history.run(AddMaterial(materialName: 'brass', assignTo: id)),
+        isNull,
+      );
+      expect(history.project.materials.single.surface.name, 'brass');
+      expect(history.project[id]!.materialSlots, <int>[0]);
+
+      // **One command, so one undo.** Mutation: run `AddMaterial` and
+      // `AssignMaterial` one after the other from the panel. Undoing once
+      // then leaves a material in the table that nothing is painted with,
+      // which is a row somebody has to notice and delete.
+      history.undo();
+      expect(history.project.materials, isEmpty);
+      expect(history.project[id]!.materialSlots, isEmpty);
+
+      // And an id that names no object refuses the whole command rather
+      // than adding the row and skipping the paint: a half-done edit is the
+      // one outcome an undo cannot describe.
+      expect(history.run(const AddMaterial(assignTo: 9999)), isNotNull);
+      expect(history.project.materials, isEmpty);
+    });
+
+    test('and it round-trips with the object it was painted onto', () {
+      final AddMaterial back =
+          modelCommandFromJson(
+                const AddMaterial(materialName: 'brass', assignTo: 7).toJson(),
+              )!
+              as AddMaterial;
+      expect(back.assignTo, 7);
+      // Absent rather than null when there is nobody to paint: the key is
+      // what tells an agent reading the journal that this add meant to
+      // paint something.
+      expect(const AddMaterial().arguments.containsKey('assignTo'), isFalse);
+    });
+
     test('a material name and an image name still round-trip as the '
         'command they belong to', () {
       // Both arguments are called `name` in the sentence that describes them

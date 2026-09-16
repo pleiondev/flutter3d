@@ -106,5 +106,27 @@ void main() {
       expect(sections, contains(PropertiesSection.materials));
       expect(sections, contains(PropertiesSection.objects));
     });
+
+    test('ux-40: and the workspace half is material mode\'s alone', () {
+      // **Mutation: give object mode the workspace too.** The preview, five
+      // texture slots and a graph canvas then sit between the transform
+      // grid and the modifier stack in the mode somebody is in to move an
+      // object — which is the panel the compact material row exists to keep
+      // short.
+      expect(
+        sectionsFor(ModelerMode.material),
+        contains(PropertiesSection.materialWorkspace),
+      );
+      expect(
+        sectionsFor(ModelerMode.object),
+        isNot(contains(PropertiesSection.materialWorkspace)),
+      );
+      // Still the list and the fields there, though: "clean a mesh, fix its
+      // material, export to GLB" is one mode's worth of work.
+      expect(
+        sectionsFor(ModelerMode.object),
+        contains(PropertiesSection.materials),
+      );
+    });
   });
 }

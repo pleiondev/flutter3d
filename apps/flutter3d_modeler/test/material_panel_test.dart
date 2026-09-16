@@ -150,7 +150,7 @@ void main() {
       expect(assigned, <int?>[1]);
     });
 
-    testWidgets('tapping the row already active clears the paint', (
+    testWidgets('ux-40: tapping the row already active leaves it painted', (
       WidgetTester tester,
     ) async {
       final assigned = <int?>[];
@@ -161,10 +161,43 @@ void main() {
         onAssign: assigned.add,
       );
 
+      // **Mutation: send null for the row that is already active**, which
+      // is what this did. Clicking a row is how a person looks at a
+      // material's own fields, so looking at the one already assigned took
+      // the paint off the object — and looking at it twice put it back.
       await tester.tap(find.text('Steel'));
       await tester.pump();
 
+      expect(assigned, <int?>[0]);
+    });
+
+    testWidgets('ux-40: and "Unassign" is what takes the paint off', (
+      WidgetTester tester,
+    ) async {
+      final assigned = <int?>[];
+      await _pump(
+        tester,
+        materials: <ProjectMaterial>[_material(name: 'Steel')],
+        activeIndex: 0,
+        onAssign: assigned.add,
+      );
+
+      await tester.tap(find.text('Unassign'));
+      await tester.pump();
       expect(assigned, <int?>[null]);
+    });
+
+    testWidgets('ux-40: with nothing painted there is nothing to unassign', (
+      WidgetTester tester,
+    ) async {
+      await _pump(
+        tester,
+        materials: <ProjectMaterial>[_material(name: 'Steel')],
+      );
+
+      // A button that can only refuse is worse than no button — the same
+      // rule `ux-47`'s own "Open in editor" row already follows here.
+      expect(find.text('Unassign'), findsNothing);
     });
 
     testWidgets('the "Add material" link is always there', (

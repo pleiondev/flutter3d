@@ -87,7 +87,11 @@ extension _Interactions on _ModelerScreenState {
   /// of travel and most of those pixels are over the face the one before
   /// was, so rebuilding for each of them is sixty frames a second spent
   /// redrawing the same highlight.
-  void _hoveredElement(PickingView view, Offset? at, PointerDeviceKind pointer) {
+  void _hoveredElement(
+    PickingView view,
+    Offset? at,
+    PointerDeviceKind pointer,
+  ) {
     final MeshPicker? picker = _elementPicker;
     final Selection? found = picker == null || at == null
         ? null
@@ -119,10 +123,7 @@ extension _Interactions on _ModelerScreenState {
     // pointer — `startValueDrag` refuses with nothing selected, and the
     // ordinary path then gives the same refusal it always did.
     if (DraggedValue.forTool(id) != null &&
-        _transformSession.startValueDrag(
-          id,
-          viewportHeight: _viewportHeight,
-        )) {
+        _transformSession.startValueDrag(id, viewportHeight: _viewportHeight)) {
       _cubit.tool(id);
       setState(() {});
       return;
@@ -337,12 +338,19 @@ extension _Interactions on _ModelerScreenState {
     }
   }
 
-  /// The material list's own tap: paint the held object with a different
-  /// row, or — the row already active — take its paint off.
+  /// The material list's own tap: paint the held object with that row.
+  /// Null is the "Unassign" button beside the list — `ux-40`.
   void _assignMaterial(int id, int? to) =>
       _cubit.ran(AssignMaterial(id: id, to: to));
 
-  void _addMaterial() => _cubit.ran(const AddMaterial());
+  /// `ux-40`: "Add material" paints the selection with what it made.
+  ///
+  /// **Nobody adds a material to leave it on nothing.** The row added and
+  /// then assigned by hand was two steps to undo and a table row left behind
+  /// if only one of them was; `AddMaterial.assignTo` makes it one command,
+  /// and with nothing selected it is the plain add it always was.
+  void _addMaterial() =>
+      _cubit.ran(AddMaterial(assignTo: _history.selection.activeObject));
 
   /// `mat-34d`'s own scene-mode wiring, over `mat-23`'s own commands.
   void _selectLight(int index) => setState(() => _selectedLight = index);

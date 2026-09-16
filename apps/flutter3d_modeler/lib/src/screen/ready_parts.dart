@@ -294,6 +294,10 @@ extension _ReadyParts on _ModelerScreenState {
                 onSetModifierField: _setModifierField,
                 onAssignMaterial: _assignMaterial,
                 onAddMaterial: _addMaterial,
+                // `ux-40`: the workspace's own preview draws through the
+                // document's renderer, so the sphere and the viewport are
+                // the same device and the same uploaded textures.
+                materialPreviewRenderer: renderer,
                 // `ux-47`: opens the linked `.fmat` in whatever the system
                 // uses for one. The row itself only appears when the active
                 // material has a file and the platform has an editor.
