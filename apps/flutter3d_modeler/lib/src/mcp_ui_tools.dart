@@ -150,4 +150,38 @@ List<ModelPictureTool> uiToolsFor(UiActions actions) => <ModelPictureTool>[
     (Map<String, Object?> arguments) =>
         actions.say(arguments['text']! as String),
   ),
+  // `ux-25`: the command palette's own list, and the same door it presses.
+  _ui(
+    Tool(
+      name: 'run_command',
+      description:
+          'Runs one of the editor\'s own commands by id — the same list the '
+          'command palette shows a person, pressed the same way. Some ids '
+          'arm a tool and wait for a pointer (move, rotate, scale); the '
+          'rest act at once. Call it with no id to get the list back '
+          'instead of running anything.',
+      inputSchema: ObjectSchema(
+        properties: <String, Schema>{
+          'id': StringSchema(
+            description: 'a command id, such as "mesh.triangulate"',
+          ),
+        },
+      ),
+    ),
+    (Map<String, Object?> arguments) => switch (arguments['id']) {
+      final String id => actions.runCommand(id),
+      // No id: the catalogue, which is what an agent that has never seen
+      // this editor needs before it can ask for anything by name.
+      _ => (
+        did: true,
+        says: actions
+            .commands()
+            .map(
+              (({String id, String label, String mode}) it) =>
+                  '${it.id} (${it.label}, ${it.mode})',
+            )
+            .join('\n'),
+      ),
+    },
+  ),
 ];

@@ -87,6 +87,7 @@ import 'src/ui/autorig_dialog.dart';
 import 'src/ui/bend_slider_bar.dart';
 import 'src/ui/clip_library.dart';
 import 'src/ui/clip_tracks_bar.dart';
+import 'src/ui/command_palette.dart';
 import 'src/ui/export_anyway_dialog.dart';
 import 'src/ui/export_screen.dart';
 import 'src/ui/game_preview_screen.dart';

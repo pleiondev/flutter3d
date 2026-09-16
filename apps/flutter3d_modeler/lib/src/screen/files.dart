@@ -188,6 +188,8 @@ extension _FileHandling on _ModelerScreenState {
               cubit: _cubit,
               openExportDialog: _showExportDialog,
               openLatheDialog: _openLatheDialog,
+              // `ux-25`: the same door the rail and the palette press.
+              runTool: _ranTool,
             ),
             // `tut-16`'s own feed: screen 26's own tool-call panel reads
             // `ModelerReady.agentCalls`, appended to here as each call
@@ -853,6 +855,95 @@ extension _FileHandling on _ModelerScreenState {
         navigation: _settings.navigation,
       ),
     );
+  }
+
+  /// `ux-25`'s own command palette: every tool in the application by name,
+  /// with the key the live preset gives it and a reason beside the ones
+  /// another mode owns.
+  ///
+  /// **It runs what the rail runs**, through `_ranTool`, so a tool reached
+  /// this way arms, opens a dialog or lands a command exactly as it would
+  /// from the button — one door, and the palette is a second way through it
+  /// rather than a second implementation of it.
+  Future<void> _showCommandPalette() async {
+    final ModelerState state = _state;
+    if (state is! ModelerReady) return;
+    final Keymap keymap = keymapFor(
+      _settings.keymap,
+      apple:
+          Theme.of(context).platform == TargetPlatform.macOS ||
+          Theme.of(context).platform == TargetPlatform.iOS,
+    );
+    final String? chosen = await showCommandPalette(
+      context,
+      entries: paletteEntries(
+        mode: state.mode,
+        animation: state.animationSubmode,
+        keymap: keymap,
+        unavailable: unavailableTools(
+          mode: state.mode,
+          selection: state.history.selection,
+        ),
+      ),
+    );
+    if (chosen == null || !mounted) return;
+    _ranTool(chosen);
+  }
+
+  /// `ux-25`'s own right-click menu: the tools of the mode somebody is in,
+  /// where the pointer already is.
+  ///
+  /// The palette's own list, shortened to what can be run from here — a menu
+  /// is read at a glance and a greyed row from another mode would be noise
+  /// at that size, where in the palette it is an answer to a search.
+  Future<void> _showViewportMenu(Offset at) async {
+    final ModelerState state = _state;
+    if (state is! ModelerReady) return;
+    final RenderBox? overlay =
+        Overlay.of(context).context.findRenderObject() as RenderBox?;
+    if (overlay == null) return;
+    final List<PaletteEntry> entries = <PaletteEntry>[
+      for (final PaletteEntry entry in paletteEntries(
+        mode: state.mode,
+        animation: state.animationSubmode,
+        keymap: keymapFor(
+          _settings.keymap,
+          apple:
+              Theme.of(context).platform == TargetPlatform.macOS ||
+              Theme.of(context).platform == TargetPlatform.iOS,
+        ),
+        unavailable: unavailableTools(
+          mode: state.mode,
+          selection: state.history.selection,
+        ),
+      ))
+        if (entry.mode == state.mode && entry.enabled) entry,
+    ];
+    if (entries.isEmpty) return;
+    final String? chosen = await showMenu<String>(
+      context: context,
+      position: RelativeRect.fromRect(
+        at & const Size(1, 1),
+        Offset.zero & overlay.size,
+      ),
+      items: <PopupMenuEntry<String>>[
+        for (final PaletteEntry entry in entries)
+          PopupMenuItem<String>(
+            value: entry.id,
+            child: Row(
+              children: <Widget>[
+                Icon(entry.icon, size: 18),
+                const SizedBox(width: 8),
+                Expanded(child: Text(entry.label)),
+                if (entry.keys case final String keys)
+                  Text(keys, style: Theme.of(context).textTheme.labelSmall),
+              ],
+            ),
+          ),
+      ],
+    );
+    if (chosen == null || !mounted) return;
+    _ranTool(chosen);
   }
 
   /// `ux-09`'s own settings screen.

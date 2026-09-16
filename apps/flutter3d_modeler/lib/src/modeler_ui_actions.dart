@@ -23,6 +23,7 @@ final class ModelerUiActions implements UiActions {
     required this.cubit,
     required this.openExportDialog,
     required this.openLatheDialog,
+    required this.runTool,
   });
 
   final ModelerCubit cubit;
@@ -35,6 +36,11 @@ final class ModelerUiActions implements UiActions {
 
   /// `_ModelerScreenState._openLatheDialog`, the same deal.
   final Future<void> Function() openLatheDialog;
+
+  /// `_ModelerScreenState._ranTool` — the one door a rail button, the
+  /// command palette and `ux-25`'s own `run_command` all go through, so a
+  /// tool reached any of those three ways arms, opens or lands identically.
+  final void Function(String id) runTool;
 
   ModelerReady? get _ready =>
       cubit.state is ModelerReady ? cubit.state as ModelerReady : null;
@@ -88,6 +94,41 @@ final class ModelerUiActions implements UiActions {
     if (_ready == null) return (did: false, says: 'no document open');
     cubit.tool(id);
     return (did: true, says: id == null ? 'tool cleared' : 'tool set to $id');
+  }
+
+  @override
+  UiAnswer runCommand(String id) {
+    if (_ready == null) return (did: false, says: 'no document open');
+    final bool known = ModelerMode.values.any(
+      (ModelerMode mode) =>
+          mode.ready &&
+          AnimationSubmode.values.any(
+            (AnimationSubmode submode) => toolsFor(
+              mode,
+              animation: submode,
+            ).any((ModelerTool tool) => tool.id == id),
+          ),
+    );
+    if (!known) return (did: false, says: 'no such command: $id');
+    runTool(id);
+    return (did: true, says: 'ran $id');
+  }
+
+  @override
+  List<({String id, String label, String mode})> commands() {
+    final seen = <String>{};
+    final out = <({String id, String label, String mode})>[];
+    for (final ModelerMode mode in ModelerMode.values) {
+      if (!mode.ready) continue;
+      for (final AnimationSubmode submode in AnimationSubmode.values) {
+        for (final ModelerTool tool in toolsFor(mode, animation: submode)) {
+          if (!seen.add(tool.id)) continue;
+          out.add((id: tool.id, label: tool.label, mode: mode.name));
+        }
+        if (mode != ModelerMode.animation) break;
+      }
+    }
+    return out;
   }
 
   @override

@@ -52,6 +52,9 @@ ModelerReady _ready(ModelerCubit cubit) => cubit.state as ModelerReady;
 final class _Counters {
   int export = 0;
   int lathe = 0;
+
+  /// `ux-25`: every id `run_command` pressed, in order.
+  final List<String> ran = <String>[];
 }
 
 ModelerUiActions _actions(ModelerCubit cubit, _Counters counters) =>
@@ -59,6 +62,7 @@ ModelerUiActions _actions(ModelerCubit cubit, _Counters counters) =>
       cubit: cubit,
       openExportDialog: () async => counters.export++,
       openLatheDialog: () async => counters.lathe++,
+      runTool: counters.ran.add,
     );
 
 void main() {
@@ -268,6 +272,58 @@ void main() {
     expect(actions.frameSubject().did, isFalse);
     expect(actions.openDialog('export').did, isFalse);
     expect(actions.say('hi').did, isFalse);
+    expect(actions.runCommand('object.duplicate').did, isFalse);
     expect(counters.export, 0);
+    expect(counters.ran, isEmpty);
+  });
+
+  group('ux-25: run_command', () {
+    test('presses the same button the rail and the palette do', () {
+      final cubit = _opened();
+      final counters = _Counters();
+
+      final answer = _actions(cubit, counters).runCommand('mesh.triangulate');
+
+      // Mutation: run the command here rather than through the screen's own
+      // `_ranTool`. The ones that arm a tool, open a dialog or need a mesh
+      // then behave differently for an agent than for a person, which is the
+      // one thing "one table for both" exists to prevent.
+      expect(answer.did, isTrue);
+      expect(counters.ran, <String>['mesh.triangulate']);
+    });
+
+    test('an id the editor does not have refuses and presses nothing', () {
+      final cubit = _opened();
+      final counters = _Counters();
+
+      final answer = _actions(cubit, counters).runCommand('mesh.explode');
+
+      expect(answer.did, isFalse);
+      expect(answer.says, contains('mesh.explode'));
+      expect(counters.ran, isEmpty);
+    });
+
+    test('the catalogue names every tool once, with its mode', () {
+      final List<({String id, String label, String mode})> all = _actions(
+        _opened(),
+        _Counters(),
+      ).commands();
+
+      final ids = all.map(
+        (({String id, String label, String mode}) it) => it.id,
+      );
+      expect(ids.toSet().length, ids.length, reason: 'no id twice');
+      expect(ids, contains('mesh.bevel'));
+      expect(ids, contains('object.duplicate'));
+      expect(
+        all
+            .firstWhere(
+              (({String id, String label, String mode}) it) =>
+                  it.id == 'mesh.bevel',
+            )
+            .mode,
+        'mesh',
+      );
+    });
   });
 }

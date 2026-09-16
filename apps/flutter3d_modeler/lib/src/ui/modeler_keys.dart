@@ -30,6 +30,7 @@ class ModelerKeys extends StatelessWidget {
     required this.onSelectNone,
     required this.onInvertSelection,
     required this.onShortcutHelp,
+    this.onCommandPalette,
     required this.tools,
     required this.child,
     required this.keymap,
@@ -89,6 +90,11 @@ class ModelerKeys extends StatelessWidget {
 
   /// `?`. `ui-32n`'s own way in, beside the Help button in the top bar.
   final VoidCallback onShortcutHelp;
+
+  /// `ux-25`'s own palette. Null in a caller that has no screen to open one
+  /// over — a preview, a test — and the keys then mean nothing rather than
+  /// throwing.
+  final VoidCallback? onCommandPalette;
   final List<ModelerTool> tools;
   final Widget child;
 
@@ -124,6 +130,7 @@ class ModelerKeys extends StatelessWidget {
                 ModelerAction.frameAll: onFrameAll,
                 ModelerAction.playPause: onPlayPause,
                 ModelerAction.shortcutHelp: onShortcutHelp,
+                ModelerAction.commandPalette: onCommandPalette,
               }.entries)
             if (each.value case final VoidCallback run)
               for (final ShortcutActivator key in keymap.forAction(each.key))

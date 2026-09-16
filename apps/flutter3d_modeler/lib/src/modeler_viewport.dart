@@ -121,6 +121,7 @@ class ModelerViewport extends StatefulWidget {
     this.transformReadout,
     this.transformHints,
     this.transformAxis,
+    this.onContextMenu,
     this.shapeMarkers = const <ShapeMarker>[],
     this.shapeMarkerColour,
     this.shapeMarkerActiveColour,
@@ -211,6 +212,15 @@ class ModelerViewport extends StatefulWidget {
   /// line through the pivot so the constraint is visible in the scene rather
   /// than only in the label.
   final TransformAxis? transformAxis;
+
+  /// A right-click on the picture that did not travel, in global coordinates
+  /// — `ux-25`'s own menu of the same tools the palette lists.
+  ///
+  /// **Not offered while the right button is the camera's.** Under the
+  /// left-drag scheme that button holds free-look open (`ux-04`), and a menu
+  /// that opened every time somebody finished looking around would be a menu
+  /// nobody asked for; the viewport simply does not report one there.
+  final void Function(Offset at)? onContextMenu;
 
   /// The floor, or null for none.
   ///
@@ -1141,6 +1151,16 @@ class _ModelerViewportState extends State<ModelerViewport> {
     }
     if (travelled && start?.button == GestureButton.primary) {
       widget.onDragDone?.call();
+    }
+    // `ux-25`: a right-click that did not travel is a menu, wherever the
+    // right button is not already the camera's.
+    if (event is PointerUpEvent &&
+        start != null &&
+        !travelled &&
+        start.button == GestureButton.secondary &&
+        !_gestures.isLooking) {
+      widget.onContextMenu?.call(event.position);
+      return;
     }
     if (event is! PointerUpEvent || start == null || travelled) return;
     // The left button only: a middle-drag that happens not to travel is a
