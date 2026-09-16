@@ -74,6 +74,7 @@ import 'command.dart';
 import 'history.dart';
 import 'lod_spec.dart';
 import 'material.dart';
+import 'paint_layer.dart';
 import 'parametric_json.dart';
 import 'project.dart';
 import 'project_animation.dart';
@@ -1490,6 +1491,10 @@ Map<String, Object?> _materialJson(ProjectMaterial material) {
     'fmat': material.fmat,
     'graph': material.graph?.toJson(),
     'bakedAtVersion': material.bakedAtVersion,
+    // `pro-doc-01`'s own `PNTL`: what a person painted, layer by layer,
+    // rather than only the flattening of it. Absent for a material nobody
+    // has painted on, which is nearly all of them.
+    if (material.paint case final PaintStack stack) 'paint': _paintJson(stack),
     'name': surface.name,
     'baseColor': <double>[
       surface.baseColor.x,
@@ -1609,6 +1614,9 @@ Map<String, Object?>? _bindingJson(TextureBinding? binding) => binding == null
             _ => null,
           },
           bakedAtVersion: entry['bakedAtVersion'] as int?,
+          // Younger than `graph` above, read the same optional way: absent
+          // means a material nobody painted on, not a refusal.
+          paint: _paintFrom(entry['paint']),
           surface: SurfaceMaterial(
             name: name == null ? null : _intern(name, pool),
             baseColor: Vector4(
@@ -2760,3 +2768,77 @@ const List<String> _shapeNames = <String>[
   'cylinder',
   'torus',
 ];
+
+/// `pro-doc-01`: a [PaintStack] as the manifest carries it.
+///
+/// **The tiles go through the PNG writer this file already has.** A 64×64
+/// RGBA tile is sixteen kilobytes raw and a few hundred bytes compressed for
+/// the mostly-flat thing a paint layer usually is; base64 over the raw bytes
+/// would put a third on top of the sixteen. The alternative — a blob-addressed
+/// section of its own — is where this belongs once a canvas is measured in
+/// thousands of tiles rather than tens, and the plan's own `PNTL` names that
+/// shape; what is here is the round trip, in the place this format puts
+/// everything that is not bulk.
+Map<String, Object?> _paintJson(PaintStack stack) => <String, Object?>{
+  'layers': <Object?>[
+    for (final PaintLayer layer in stack.layers)
+      <String, Object?>{
+        'tilesX': layer.tilesX,
+        'tilesY': layer.tilesY,
+        'blend': layer.blendMode.name,
+        'tiles': <String, Object?>{
+          for (final MapEntry<int, PaintTile> tile in layer.tiles.entries)
+            '${tile.key}': base64Encode(
+              encodeCompressedPng(
+                paintTileSize,
+                paintTileSize,
+                tile.value.pixels,
+              ),
+            ),
+        },
+      },
+  ],
+};
+
+/// [json] read back as a [PaintStack], or null when there is none — or when
+/// a row of it does not read back, which is the same "an unreadable record
+/// is no record" rule every optional reader here keeps.
+PaintStack? _paintFrom(Object? json) {
+  if (json is! Map<String, Object?>) return null;
+  final Object? rows = json['layers'];
+  if (rows is! List<Object?>) return null;
+  final layers = <PaintLayer>[];
+  for (final Object? row in rows) {
+    if (row is! Map<String, Object?>) return null;
+    final Object? tilesX = row['tilesX'];
+    final Object? tilesY = row['tilesY'];
+    if (tilesX is! int || tilesY is! int) return null;
+    final tiles = <int, PaintTile>{};
+    if (row['tiles'] case final Map<String, Object?> written) {
+      for (final MapEntry<String, Object?> each in written.entries) {
+        final int? key = int.tryParse(each.key);
+        final Object? encoded = each.value;
+        if (key == null || encoded is! String) return null;
+        final decoded = decodePng(base64Decode(encoded));
+        if (decoded == null ||
+            decoded.width != paintTileSize ||
+            decoded.height != paintTileSize) {
+          return null;
+        }
+        tiles[key] = PaintTile(decoded.rgba);
+      }
+    }
+    layers.add(
+      PaintLayer(
+        tilesX: tilesX,
+        tilesY: tilesY,
+        blendMode: BlendMode.values.firstWhere(
+          (BlendMode it) => it.name == row['blend'],
+          orElse: () => BlendMode.normal,
+        ),
+        tiles: tiles,
+      ),
+    );
+  }
+  return PaintStack(layers);
+}
