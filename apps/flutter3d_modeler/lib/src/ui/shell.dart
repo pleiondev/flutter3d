@@ -166,7 +166,11 @@ class ModelerShell extends StatelessWidget {
     final theme = Theme.of(context);
     final colours = theme.extension<ModelerColors>() ?? ModelerColors.dark;
     return Scaffold(
-      backgroundColor: theme.colorScheme.surface,
+      // `ux-32`: the hand-off's own "фон окна" is `surfaceContainerLowest`,
+      // not `surface`. The two differ by five points of lightness, which is
+      // exactly enough for the panels drawn on top of it to sit a shade
+      // *darker* than the window they are in rather than a shade lighter.
+      backgroundColor: theme.colorScheme.surfaceContainerLowest,
       body: Column(
         children: <Widget>[
           _TopBar(
@@ -239,7 +243,11 @@ class ModelerShell extends StatelessWidget {
                     // over a black window, which Dismiss could not keep up
                     // with. A `Material` is the colour and the ancestor both.
                     child: Material(
-                      color: theme.colorScheme.surfaceContainerLow,
+                      // `ux-32`: the hand-off's own "панель свойств" is
+                      // `surfaceContainer` — the lighter of the two panel
+                      // tones, the same one the top bar uses. The rail and
+                      // the status line keep `Low`.
+                      color: theme.colorScheme.surfaceContainer,
                       // **The splitter lies over the panel's own left edge
                       // rather than between the two** — `ux-27`. A grab zone
                       // wide enough to hit, put in the row, is a gutter: six
@@ -275,7 +283,10 @@ class ModelerShell extends StatelessWidget {
                   SizedBox(
                     width: ModelerMetrics.agentPanel,
                     child: ColoredBox(
-                      color: theme.colorScheme.surfaceContainerLow,
+                      // The agent panel is not in the hand-off's own table —
+                      // nothing there had one — so it takes the tone of the
+                      // panel it sits beside rather than a third answer.
+                      color: theme.colorScheme.surfaceContainer,
                       child: agentPanel,
                     ),
                   ),
@@ -287,7 +298,11 @@ class ModelerShell extends StatelessWidget {
           SizedBox(
             height: ModelerMetrics.statusBar,
             child: ColoredBox(
-              color: theme.colorScheme.surfaceContainer,
+              // `ux-32`: the hand-off puts the status line on
+              // `surfaceContainerLow`, the same tone as the tool rail — the
+              // two frame the picture, and the top bar above it is the lighter
+              // one.
+              color: theme.colorScheme.surfaceContainerLow,
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 10),
                 child: Align(alignment: Alignment.centerLeft, child: status),

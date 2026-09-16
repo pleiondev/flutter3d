@@ -74,7 +74,11 @@ class ModelerPhoneShell extends StatelessWidget {
     final theme = Theme.of(context);
     final colours = theme.extension<ModelerColors>() ?? ModelerColors.dark;
     return Scaffold(
-      backgroundColor: theme.colorScheme.surface,
+      // `ux-32`: the hand-off's own "фон окна" is `surfaceContainerLowest`,
+      // not `surface`. The two differ by five points of lightness, which is
+      // exactly enough for the panels drawn on top of it to sit a shade
+      // *darker* than the window they are in rather than a shade lighter.
+      backgroundColor: theme.colorScheme.surfaceContainerLowest,
       // `ux-21`: always there now, because the document's own name is in it
       // and that is true whether or not the caller handed over any actions.
       appBar: AppBar(
