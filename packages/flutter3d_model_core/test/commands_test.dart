@@ -2864,6 +2864,16 @@ void main() {
           normalize: false,
           maxInfluences: 3,
         ),
+        SculptStroke(
+          objectId: 10,
+          kind: BrushKind.clay,
+          radius: 0.2,
+          strength: 0.4,
+          points: <Vector3>[Vector3(0, 0, 0), Vector3(0.1, 0, 0)],
+          pressures: const <double>[1, 0.5],
+          falloff: BrushFalloff.sharp,
+          symmetryX: true,
+        ),
         SetRig(
           jointObjects: <ModelObject>[
             ModelObject(

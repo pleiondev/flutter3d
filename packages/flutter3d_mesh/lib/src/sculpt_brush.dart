@@ -40,9 +40,14 @@ import 'sculpt_mesh.dart';
 /// existing `switch` instead of forcing them to handle a case they cannot
 /// yet know about.
 final class BrushKind {
-  const BrushKind._(this._name);
+  const BrushKind._(this.name);
 
-  final String _name;
+  /// What this brush is called where a brush has to be written down — a
+  /// journal line, an agent's own `sculptStroke` call, a project file.
+  /// Public rather than private for `pro-sc-06`: a command carries its
+  /// arguments as JSON, and a brush that can only print itself as
+  /// `BrushKind.draw` is one nothing can read back.
+  final String name;
 
   static const BrushKind draw = BrushKind._('draw');
   static const BrushKind clay = BrushKind._('clay');
@@ -54,7 +59,7 @@ final class BrushKind {
   static const BrushKind crease = BrushKind._('crease');
 
   @override
-  String toString() => 'BrushKind.$_name';
+  String toString() => 'BrushKind.$name';
 }
 
 /// The falloff curve shaping a linear `0..1` radial falloff before a brush
@@ -63,16 +68,17 @@ final class BrushKind {
 /// A final class with named instances, for the same reason [BrushKind] is
 /// one rather than an enum.
 final class BrushFalloff {
-  const BrushFalloff._(this._name);
+  const BrushFalloff._(this.name);
 
-  final String _name;
+  /// See [BrushKind.name].
+  final String name;
 
   static const BrushFalloff linear = BrushFalloff._('linear');
   static const BrushFalloff smooth = BrushFalloff._('smooth');
   static const BrushFalloff sharp = BrushFalloff._('sharp');
 
   @override
-  String toString() => 'BrushFalloff.$_name';
+  String toString() => 'BrushFalloff.$name';
 }
 
 /// Reshapes [t] (already `0` at the brush's edge, `1` at its centre) by

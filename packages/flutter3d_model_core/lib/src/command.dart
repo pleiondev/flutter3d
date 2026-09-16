@@ -66,6 +66,7 @@ part 'paint_weights.dart';
 part 'profile_commands.dart';
 part 'rig_job_commands.dart';
 part 'root_motion_commands.dart';
+part 'sculpt_commands.dart';
 part 'selection_commands.dart';
 part 'set_rig.dart';
 part 'shape_commands.dart';
@@ -1359,6 +1360,38 @@ _modelCommandReaders =
               (_, false) => null,
             },
             null => null,
+          },
+        _ => null,
+      },
+      'sculptStroke': (json) => switch ((
+        json['objectId'],
+        json['kind'],
+        json['radius'],
+        json['strength'],
+        _strokePointsFrom(json['points']),
+      )) {
+        (
+          final int objectId,
+          final String kindName,
+          final num radius,
+          final num strength,
+          final List<Vector3> points,
+        ) =>
+          switch ((
+            _brushKindNamed(kindName),
+            _brushFalloffNamed(json['falloff'] as String? ?? 'smooth'),
+          )) {
+            (final BrushKind kind, final BrushFalloff falloff) => SculptStroke(
+              objectId: objectId,
+              kind: kind,
+              radius: radius.toDouble(),
+              strength: strength.toDouble(),
+              points: points,
+              pressures: _doubleListFrom(json['pressures']) ?? const <double>[],
+              falloff: falloff,
+              symmetryX: json['symmetryX'] as bool? ?? false,
+            ),
+            _ => null,
           },
         _ => null,
       },

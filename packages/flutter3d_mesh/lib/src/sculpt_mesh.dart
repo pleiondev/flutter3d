@@ -113,10 +113,29 @@ final class BrushResult {
 /// sculpt with [applyBrush], and convert back with [toEditMesh] when the
 /// document leaves sculpt mode.
 final class SculptMesh {
-  SculptMesh._(this._chunks, this._vertexCount, this.triangles) {
+  SculptMesh._(
+    this._chunks,
+    this._vertexCount,
+    this.triangles, {
+    Int32List? sourceVertices,
+  }) : sourceVertices = sourceVertices ?? Int32List(0) {
     _buildAdjacency();
     _buildGrid();
   }
+
+  /// Which `EditMesh` vertex slot each sculpt vertex came from, when this was
+  /// built by [SculptMesh.fromEditMesh] — empty otherwise.
+  ///
+  /// **The one thing [toEditMesh] cannot give back.** [fromEditMesh] sorts
+  /// vertices by a Morton code, so a sculpt vertex index says nothing about
+  /// which document vertex it is; converting the whole mesh back is how a
+  /// *mode exit* returns it, and that rebuilds the topology from scratch. A
+  /// brush stroke has no business rebuilding anything — it moved two thousand
+  /// vertices out of two hundred thousand — so `pro-sc-06` writes those two
+  /// thousand positions straight back into the document's own mesh through
+  /// this map, which is also what makes a stroke one journal step the size of
+  /// what it touched rather than the size of the model.
+  final Int32List sourceVertices;
 
   /// Vertices per chunk. Fixed by the plan (`pro-sc-02`), not configurable —
   /// a brush's chunk-touch fraction is only a meaningful, comparable number
@@ -537,7 +556,17 @@ final class SculptMesh {
         ),
     ];
 
-    return SculptMesh._(chunks, vertexCount, Uint32List.fromList(trianglesOut));
+    final sourceVertices = Int32List(vertexCount);
+    for (var v = 0; v < mesh.vertexSlotCount; v++) {
+      if (vertexMap[v] != EditMesh.none) sourceVertices[vertexMap[v]] = v;
+    }
+
+    return SculptMesh._(
+      chunks,
+      vertexCount,
+      Uint32List.fromList(trianglesOut),
+      sourceVertices: sourceVertices,
+    );
   }
 
   static int _end(
