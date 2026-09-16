@@ -24,6 +24,7 @@
 /// it.
 library;
 
+import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
@@ -34,6 +35,8 @@ import 'package:flutter3d_modeler/l10n/app_localizations.dart';
 import 'package:flutter3d_modeler/main.dart' hide main;
 import 'package:flutter3d_modeler/src/cabinet_link.dart';
 import 'package:flutter3d_modeler/src/files/preview_capture.dart';
+import 'package:flutter3d_modeler/src/settings.dart'
+    show ModelerSettings, SettingsStore;
 import 'package:flutter_test/flutter_test.dart';
 // Prefixed the same way `main.dart`'s own import of this package already
 // is — `package:flutter/material.dart` and `vector_math` unprefixed
@@ -81,6 +84,36 @@ _FakeBinaryStorage _storageWithRecovery() {
   return storage;
 }
 
+/// Settings that have already answered Quick Setup — `ux-42`.
+///
+/// **An empty settings store is a first launch**, and a first launch opens a
+/// screen of five questions over everything else: the "Restore unsaved
+/// changes?" dialog below is drawn underneath it, and the tap meant for
+/// "Restore" lands on the barrier instead. Nothing this file is about
+/// involves a first launch.
+final class _SettledSettings implements Storage {
+  final Map<String, String> documents = <String, String>{
+    SettingsStore.name: jsonEncode(
+      const ModelerSettings(
+        quickSetupDone: true,
+        showHomeAtLaunch: false,
+      ).toJson(),
+    ),
+  };
+
+  @override
+  String? read(String name) => documents[name];
+
+  @override
+  bool write(String name, String contents) {
+    documents[name] = contents;
+    return true;
+  }
+
+  @override
+  void remove(String name) => documents.remove(name);
+}
+
 /// One call the fake [PreviewCapturer] was asked to make.
 typedef _Sent = ({int modelId, String sourceSha, String csrf});
 
@@ -113,6 +146,7 @@ Future<void> _pumpPastRecovery(
       supportedLocales: AppLocalizations.supportedLocales,
       home: ModelerScreen(
         autosaveStorage: _storageWithRecovery(),
+        settingsStorage: _SettledSettings(),
         cabinetLink: cabinetLink,
         previewCapturer: previewCapturer,
       ),
