@@ -43,6 +43,7 @@ GalleryInsert insertIntoProject(
           name: item.name,
           geometry: EditedGeometry(mesh),
           transform: Matrix4.identity(),
+          credit: creditFor(item),
         ),
       );
       return (project: after, ids: <int>[after.objects.last.id]);
@@ -58,16 +59,48 @@ GalleryInsert insertIntoProject(
       // `importInto` appends, so everything past the old length is what
       // this insert brought in — the same reasoning the file import
       // already uses to find its own new ids.
-      return (
-        project: report.project,
-        ids: <int>[
-          for (final ModelObject object in report.project.objects.skip(
-            project.objects.length,
-          ))
-            object.id,
-        ],
-      );
+      final List<int> ids = <int>[
+        for (final ModelObject object in report.project.objects.skip(
+          project.objects.length,
+        ))
+          object.id,
+      ];
+      // `gal-05`: every object the item brought in carries the credit, not
+      // just the first — an export reads the objects that are in it, and a
+      // file whose only credited object was deleted would owe nothing when
+      // its siblings are still there.
+      final ModelCredit? credit = creditFor(item);
+      var after = report.project;
+      if (credit != null) {
+        for (final int id in ids) {
+          final ModelObject? object = after[id];
+          if (object == null) continue;
+          after = after.withObject(object.copyWith(credit: credit));
+        }
+      }
+      return (project: after, ids: ids);
   }
+}
+
+/// The credit [item] owes, or null where its licence asks for nothing.
+///
+/// **Recorded at the insert, not worked out at the export.** A catalogue
+/// can change under a document — a source goes away, an item is relicensed
+/// — and the obligation belongs to the moment somebody took the model, not
+/// to whatever the internet says the day they export.
+ModelCredit? creditFor(GalleryItem item) {
+  if (!item.licence.requiresAttribution) return null;
+  final String? author = item.author;
+  // `gal-01` refuses an item that asks for a credit and names nobody, so
+  // this cannot happen through the screen; it is here because a caller
+  // that builds an item by hand can.
+  if (author == null || author.trim().isEmpty) return null;
+  return (
+    title: item.name,
+    author: author,
+    licence: item.licence.name,
+    url: item.licence.url,
+  );
 }
 
 /// What the console says after an insert.
