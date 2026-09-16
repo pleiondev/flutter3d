@@ -40,6 +40,10 @@ ModelPictureTool _watched(ModelPictureTool tool) =>
       Map<String, Object?> arguments,
     ) async {
       final List<int> before = session.objectIds;
+      // `ux-20`: cleared here rather than by whoever sets it, so that a
+      // targeted call's own selection is reported by the call that made it
+      // and by no call after it.
+      session.reportedSelection = null;
       final PictureAnswer answer = await tool.run(session, arguments);
       _made = session.madeSince(before);
       return answer;

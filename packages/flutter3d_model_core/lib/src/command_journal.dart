@@ -127,6 +127,17 @@ final class CommandJournal {
   /// Closes the transaction [beginTransaction] opened.
   void endTransaction() => _marker('end');
 
+  /// Abandons the transaction [beginTransaction] opened: on [replay] it is
+  /// closed and then taken straight back, leaving the project exactly as it
+  /// was before the first command inside it — `ux-20`.
+  ///
+  /// **A marker rather than erasing the lines.** A journal is append-only,
+  /// because it is written to a file as it goes and a crash between two edits
+  /// is the case it exists for; rewinding a file that may already be on disk
+  /// is not something this can promise. Saying "and then that was undone" is
+  /// something it can.
+  void rollbackTransaction() => _lines.add(_rollbackMarker);
+
   /// Runs [body], recording everything it does as one transaction.
   T transaction<T>(T Function() body) {
     beginTransaction();
@@ -146,6 +157,9 @@ final class CommandJournal {
   static final String _endMarker = jsonEncode(<String, Object?>{
     'transaction': 'end',
   });
+  static final String _rollbackMarker = jsonEncode(<String, Object?>{
+    'transaction': 'rollback',
+  });
 
   /// The journal so far, one JSON object per line, UTF-8, each line ended.
   Uint8List toBytes() => utf8.encode(_lines.map((String l) => '$l\n').join());
@@ -162,6 +176,9 @@ final class CommandJournal {
   static JournalReplay replay(Uint8List bytes, ModelProject initial) {
     final history = ModelHistory(initial);
     final lines = utf8.decode(bytes).split('\n');
+    // How tall the undo stack was when the open transaction began — what a
+    // `rollback` marker measures against. See that case below.
+    var stepsBeforeTransaction = 0;
     for (var i = 0; i < lines.length; i++) {
       final String raw = lines[i];
       if (raw.trim().isEmpty) continue;
@@ -175,10 +192,28 @@ final class CommandJournal {
 
       switch (parsed) {
         case {'transaction': 'begin'}:
+          stepsBeforeTransaction = history.steps.length;
           history.beginTransaction();
           continue;
         case {'transaction': 'end'}:
           history.endTransaction();
+          continue;
+        // `ux-20`: a batch one of whose commands refused. The `end` marker
+        // came first and has already left whatever succeeded as one step;
+        // this takes that step back, so the replay lands where the live
+        // session landed — on the project as it was before the batch.
+        //
+        // **Guarded on a step having actually appeared.** A transaction in
+        // which nothing succeeded leaves none, and an unguarded undo here
+        // would reach past it and take back the edit *before* the batch —
+        // a rollback that deletes somebody's work.
+        case {'transaction': 'rollback'}:
+          history.endTransaction();
+          if (history.steps.length > stepsBeforeTransaction) {
+            history
+              ..undo()
+              ..dropRedo();
+          }
           continue;
       }
 

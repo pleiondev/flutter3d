@@ -182,7 +182,60 @@ Future<Answer> Function(ModelSession, Map<String, Object?>) _command(
   // step it had no part in, at whatever intermediate position the drag has
   // reached the instant this call arrived.
   await session.history.whenNotInTransaction;
-  return session.run(command);
+  return session.runTargeted(command, ModelSession.targetIn(arguments));
+};
+
+/// Every command tool, with the target arguments added to the ones that act
+/// on a selection — and that is exactly the ones whose schema does not
+/// already name what they act on.
+///
+/// **The rule is computed rather than written down as a list.** A list of
+/// "commands that read the selection" is a second place to remember something,
+/// and the first command added without an entry in it would advertise no way
+/// to be aimed. A tool that already takes an `id` or an `index` is aimed;
+/// every other one reads `history.selection`, which is what [_targetSchema]
+/// is for.
+List<ModelTool> get _aimableCommandTools => <ModelTool>[
+  for (final ModelTool tool in _commandTools) _aimable(tool),
+];
+
+ModelTool _aimable(ModelTool tool) {
+  final Map<String, Schema> properties =
+      tool.tool.inputSchema.properties ?? const <String, Schema>{};
+  if (properties.containsKey('id') || properties.containsKey('index')) {
+    return tool;
+  }
+  return ModelTool(
+    Tool(
+      name: tool.name,
+      description:
+          '${tool.tool.description} Acts on what is selected, or on the '
+          'object and elements you name — "object" with "faces", "edges" or '
+          '"vertices", or "ids" for whole objects. Naming a target leaves the '
+          'selection exactly as it was; what the command selected while it '
+          'ran is in the answer.',
+      inputSchema: ObjectSchema(
+        properties: <String, Schema>{...properties, ..._targetSchema},
+        required: tool.tool.inputSchema.required,
+      ),
+    ),
+    tool.run,
+  );
+}
+
+/// The target arguments, as schema, added to every command tool that acts on
+/// a selection. `ModelSession.targetIn` is what reads them back, and its own
+/// doc comment is why they live there rather than here.
+Map<String, Schema> get _targetSchema => <String, Schema>{
+  'object': IntegerSchema(
+    description:
+        'act on this object\'s mesh rather than on what is selected; the '
+        'selection is left exactly as it was',
+  ),
+  'vertices': _ints('vertex ids of "object" to act on'),
+  'edges': _ints('edge ids of "object" to act on'),
+  'faces': _ints('face ids of "object" to act on'),
+  'ids': _ints('object ids to act on, instead of what is selected'),
 };
 
 // ------------------------------------------------------------ command tools
@@ -2530,7 +2583,46 @@ List<ModelTool> get modelTools => <ModelTool>[
       );
     }),
   ),
-  ..._commandTools,
+  ..._aimableCommandTools,
+  ModelTool(
+    Tool(
+      name: 'batch',
+      description:
+          'Run several commands as one undo step, all or nothing. Each '
+          'entry is a command object — "name" plus that command\'s own '
+          'arguments, the same shape amend and the journal use — and may '
+          'carry its own "object"/"faces"/"edges"/"vertices"/"ids" target. '
+          'If any entry refuses, the whole batch is taken back and the '
+          'project is exactly as it was; the answer names the entry that '
+          'refused and why. Use it for a run of edits that only makes sense '
+          'together, so a person\'s undo takes back the change rather than '
+          'the last third of it.',
+      inputSchema: ObjectSchema(
+        properties: <String, Schema>{
+          'commands': ListSchema(
+            description: 'the commands to run, in order',
+            items: ObjectSchema(),
+            minItems: 1,
+          ),
+        },
+        required: <String>['commands'],
+      ),
+    ),
+    (ModelSession session, Map<String, Object?> arguments) async {
+      final Object? commands = arguments['commands'];
+      if (commands is! List) {
+        return (did: false, says: 'batch needs a list of "commands"');
+      }
+      // `mcp-14n`'s own lock — see `_command`'s own copy of this line. A
+      // batch opens a transaction of its own, and two open at once is a
+      // `StateError` rather than a refusal.
+      await session.history.whenNotInTransaction;
+      return session.batch(<Map<String, Object?>>[
+        for (final Object? entry in commands)
+          if (entry is Map<String, Object?>) entry,
+      ]);
+    },
+  ),
   ModelTool(
     Tool(
       name: 'amend',

@@ -59,6 +59,9 @@ void main() {
       // command's — see the "every model command is offered as a tool" test
       // above for the other half of that exception.
       'select',
+      // `ux-20`: runs any number of commands as one step, so its own name is
+      // not one of theirs.
+      'batch',
       // `tut-03`: adjusts whatever step is on top of the undo stack, of
       // whichever command that step happens to be — there is no one
       // command name this tool could equal.
