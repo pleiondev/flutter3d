@@ -60,6 +60,15 @@ abstract interface class UiActions {
   /// to look at.
   List<({String id, String label, String mode})> commands();
 
+  /// What has been said this session, since [since] — `ux-26`.
+  ///
+  /// **The same log the person's own console panel draws, not a second one
+  /// kept for agents.** A shared document has two parties working in it, and
+  /// the whole point of the row is that each can find out what the other has
+  /// been doing; two logs would be two accounts of one session that could
+  /// disagree.
+  UiAnswer console({DateTime? since});
+
   /// Points the camera at one of the app's own six standard views. Refuses
   /// cleanly for anything else.
   UiAnswer standardView(String view);

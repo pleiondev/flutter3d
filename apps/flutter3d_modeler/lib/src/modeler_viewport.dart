@@ -101,6 +101,7 @@ class ModelerViewport extends StatefulWidget {
     this.onPick,
     this.onElementPick,
     this.onElementHover,
+    this.onLookingChanged,
     this.hovered,
     this.onDragTool,
     this.onDragDone,
@@ -300,6 +301,10 @@ class ModelerViewport extends StatefulWidget {
   /// What to draw as under the pointer, in the same colours the selection is
   /// drawn in but dimmer — `ux-28`. Null, or empty, draws nothing.
   final Selection? hovered;
+
+  /// A free-look has started or ended — `ux-26`'s own mouse hints, which say
+  /// so while it is held. Called on the edge only, never per frame.
+  final ValueChanged<bool>? onLookingChanged;
 
   /// A left-button drag with a tool armed, in logical pixels, with the height
   /// the picture was laid out at so a caller can turn it into world units, and
@@ -935,6 +940,9 @@ class _ModelerViewportState extends State<ModelerViewport> {
   /// The rectangle being dragged, or null.
   SelectionBox? _box;
 
+  /// What [ModelerViewport.onLookingChanged] was last told — `ux-26`.
+  bool _toldLooking = false;
+
   /// Where the pointer was last seen, so `ux-11`'s own readout can be carried
   /// beside it. Null until something moves over the picture.
   Offset? _pointerAt;
@@ -1282,6 +1290,14 @@ class _ModelerViewportState extends State<ModelerViewport> {
   /// asked what they are doing on the frame that draws, and [_lookKey] is
   /// what keeps those same presses from reaching the tools they are bound to.
   void _walkWhileLooking() {
+    // `ux-26`: the strip has to say that the buttons mean something else
+    // right now, so the one place that already knows per frame reports it.
+    // Only on the edge — this runs every frame, and a callback per frame
+    // would be a `setState` per frame in whatever is listening.
+    if (_gestures.isLooking != _toldLooking) {
+      _toldLooking = _gestures.isLooking;
+      widget.onLookingChanged?.call(_toldLooking);
+    }
     if (!_gestures.isLooking) {
       _lookStarted = null;
       return;

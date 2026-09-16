@@ -15,6 +15,7 @@ import 'package:flutter3d/flutter3d.dart' hide Material;
 import 'package:flutter3d_cpu/testing.dart';
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
+import 'package:flutter3d_modeler/src/console_log.dart';
 import 'package:flutter3d_modeler/src/modeler_cubit.dart';
 import 'package:flutter3d_modeler/src/staging.dart';
 import 'package:flutter3d_modeler/src/timeline_playback.dart';
@@ -1112,6 +1113,103 @@ void main() {
       );
 
       expect(ready(cubit).saidIsRefusal, isFalse);
+    });
+  });
+
+  group('ux-26: the console keeps what the strip forgets', () {
+    /// A clock that ticks a second a call, so the order is an assertion
+    /// rather than a race.
+    DateTime Function() clock() {
+      var at = DateTime.utc(2026, 9, 16, 14);
+      return () => at = at.add(const Duration(seconds: 1));
+    }
+
+    test('ten commands leave ten entries, in the order they ran', () {
+      final cubit = opened().cubit..now = clock();
+
+      for (var each = 0; each < 10; each++) {
+        cubit.ran(const AddPrimitive(kind: 'box'));
+      }
+
+      // The acceptance this row states. Mutation: log only what the strip is
+      // showing when somebody looks — the strip shows one sentence, so nine
+      // of these are gone by the time anybody asks.
+      expect(cubit.console.length, 10);
+      expect(cubit.console.entries.first.author, ConsoleAuthor.person);
+      expect(
+        cubit.console.entries.map((ConsoleEntry it) => it.at).toList(),
+        orderedEquals(
+          cubit.console.entries.map((ConsoleEntry it) => it.at).toList()
+            ..sort(),
+        ),
+      );
+    });
+
+    test('and a refusal is marked as one', () {
+      final cubit = openedWith(const ModelProject()).cubit..now = clock();
+
+      // Nothing is selected, so this refuses.
+      expect(cubit.ran(const DeleteObjects()), isFalse);
+
+      expect(cubit.console.entries.last.kind, ConsoleKind.refusal);
+      expect(cubit.console.entries.last.author, ConsoleAuthor.person);
+    });
+
+    test('an agent\'s own calls land under its own name', () {
+      final cubit = opened().cubit..now = clock();
+
+      cubit.agentToolCalled(
+        AgentToolCall(
+          tool: 'addPrimitive',
+          arguments: const <String, Object?>{'kind': 'box'},
+          did: true,
+          says: 'added a box',
+          elapsed: Duration.zero,
+          at: DateTime(2026, 1, 1),
+        ),
+      );
+
+      // Mutation: log everything as the person. The filter is then a
+      // control that changes nothing, and "what has the other one been
+      // doing" — the whole reason a shared document needs a console —
+      // cannot be answered at all.
+      final ConsoleEntry last = cubit.console.entries.last;
+      expect(last.author, ConsoleAuthor.agent);
+      expect(last.tool, 'addPrimitive');
+      expect(last.text, 'added a box');
+    });
+
+    test('and an agent that was refused is marked, under its own name', () {
+      final cubit = opened().cubit..now = clock();
+
+      cubit.agentToolCalled(
+        AgentToolCall(
+          tool: 'extrude',
+          arguments: const <String, Object?>{},
+          did: false,
+          says: 'nothing is selected to extrude',
+          elapsed: Duration.zero,
+          at: DateTime(2026, 1, 1),
+        ),
+      );
+
+      final ConsoleEntry last = cubit.console.entries.last;
+      expect(last.kind, ConsoleKind.refusal);
+      expect(last.author, ConsoleAuthor.agent);
+      // What the agent said, not the wrapper the strip shows a person.
+      expect(last.text, 'nothing is selected to extrude');
+    });
+
+    test('a panel is told a line landed', () {
+      final cubit = opened().cubit..now = clock();
+      final int before = ready(cubit).consoleVersion;
+
+      cubit.say('saved');
+
+      // Mutation: put the log on the state and compare lists. A mutable
+      // list compares equal to itself after an append, so nothing rebuilds
+      // and the panel shows the session as it was when it opened.
+      expect(ready(cubit).consoleVersion, greaterThan(before));
     });
   });
 }
