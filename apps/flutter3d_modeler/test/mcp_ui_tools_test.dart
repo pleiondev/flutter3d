@@ -2,7 +2,7 @@
 /// `startMcpServer`/`mcp_bootstrap_io.dart` actually starts: a headless
 /// document server (no `uiActions`) lists no `ui.*` tool, and a GUI-mode one
 /// (a live [UiActions] handed in, the way `screen/files.dart` hands in a
-/// [ModelerUiActions]) lists all seven. `mcp_bootstrap_test.dart` already
+/// [ModelerUiActions]) lists every one of them. `mcp_bootstrap_test.dart` already
 /// covers the plain document server; this is the same shape, once for each
 /// side of that difference.
 ///
@@ -18,7 +18,7 @@ import 'package:flutter3d_modeler/src/mcp_ui_actions.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 /// Answers every call the same way, without touching anything — this test
-/// asks only whether the seven tools are offered and reachable, not what a
+/// asks only whether the tools are offered and reachable, not what a
 /// real screen does with one; `modeler_ui_actions_test.dart` covers that.
 final class _NoopUiActions implements UiActions {
   const _NoopUiActions();
@@ -43,6 +43,15 @@ final class _NoopUiActions implements UiActions {
 
   @override
   UiAnswer say(String text) => (did: true, says: 'ok');
+
+  @override
+  UiAnswer runCommand(String id) => (did: true, says: 'ran $id');
+
+  @override
+  List<({String id, String label, String mode})> commands() =>
+      const <({String id, String label, String mode})>[
+        (id: 'object.duplicate', label: 'Duplicate', mode: 'object'),
+      ];
 }
 
 const List<String> _uiToolNames = <String>[
@@ -53,6 +62,10 @@ const List<String> _uiToolNames = <String>[
   'ui.frameSubject',
   'ui.openDialog',
   'ui.say',
+  // `ux-25`: the palette's own list and door, offered to an agent under the
+  // name the row gives it rather than a `ui.` one — it runs a command rather
+  // than moving the interface.
+  'run_command',
 ];
 
 void main() {
@@ -81,7 +94,7 @@ void main() {
     },
   );
 
-  test('a live uiActions: all seven ui.* tools are listed', () async {
+  test('a live uiActions: every screen tool is listed', () async {
     await startMcpServer(
       history: ModelHistory(const ModelProject()),
       port: 0,
@@ -91,9 +104,42 @@ void main() {
 
     final names = await _listedToolNames(workspace);
     expect(
-      names.where((name) => name.startsWith('ui.')).toSet(),
+      names
+          .where(
+            (String name) => name.startsWith('ui.') || name == 'run_command',
+          )
+          .toSet(),
       _uiToolNames.toSet(),
     );
+  });
+
+  test('ux-25: run_command with no id answers with the catalogue', () async {
+    await startMcpServer(
+      history: ModelHistory(const ModelProject()),
+      port: 0,
+      uiActions: const _NoopUiActions(),
+      sessionDirectory: workspace,
+    );
+
+    final session = await _session(workspace);
+    await _initialize(session);
+    final called = await _call(session, <String, Object?>{
+      'jsonrpc': '2.0',
+      'id': 3,
+      'method': 'tools/call',
+      'params': <String, Object?>{
+        'name': 'run_command',
+        'arguments': <String, Object?>{},
+      },
+    });
+
+    // Mutation: refuse without an id. An agent that has never seen this
+    // editor then has no way to find out what it can ask for by name, which
+    // is the half of "one table for the person and the agent" that faces the
+    // agent.
+    final result = called['result']! as Map<String, Object?>;
+    expect(result['isError'], isNot(true));
+    expect(json.encode(result), contains('object.duplicate'));
   });
 
   test('ui.setMode is callable over the real socket', () async {

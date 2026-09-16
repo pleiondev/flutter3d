@@ -103,6 +103,10 @@ const Map<ModelerAction, (String, ShortcutSection)> _actionLabels =
       ModelerAction.undo: ('Undo', ShortcutSection.application),
       ModelerAction.redo: ('Redo', ShortcutSection.application),
       ModelerAction.shortcutHelp: ('This screen', ShortcutSection.application),
+      ModelerAction.commandPalette: (
+        'Command palette',
+        ShortcutSection.application,
+      ),
       ModelerAction.frameSelection: (
         'Frame what is selected',
         ShortcutSection.application,

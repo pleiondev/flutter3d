@@ -45,6 +45,21 @@ abstract interface class UiActions {
   /// null — exactly `ModelerCubit.tool`, offered a second way in.
   UiAnswer setTool(String? id);
 
+  /// Presses the rail button `id` stands for — `ux-25`.
+  ///
+  /// **The difference from [setTool] is the difference between arming and
+  /// doing.** `setTool` lights a button and waits for a pointer, which is
+  /// what a transform tool wants; this runs the thing, which is what
+  /// "Triangulate" or "Duplicate" means and what a person choosing it out of
+  /// the command palette gets. One door, so an agent asking for a command by
+  /// name lands exactly where a person clicking it does.
+  UiAnswer runCommand(String id);
+
+  /// Every id [runCommand] would take, with its label and the mode it
+  /// belongs to — the palette's own list, for an agent that has no palette
+  /// to look at.
+  List<({String id, String label, String mode})> commands();
+
   /// Points the camera at one of the app's own six standard views. Refuses
   /// cleanly for anything else.
   UiAnswer standardView(String view);

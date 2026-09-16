@@ -59,6 +59,8 @@ extension _ReadyParts on _ModelerScreenState {
           onSelectNone: () => _runSelection(const SelectNone()),
           onInvertSelection: () => _runSelection(const InvertSelection()),
           onShortcutHelp: _showShortcutHelp,
+          // `ux-25`: ⌘P, or F3 on a keyboard with no command key.
+          onCommandPalette: () => unawaited(_showCommandPalette()),
           // `ux-10`: whichever preset Settings holds, on this platform's own
           // command key.
           keymap: keymapFor(
@@ -443,6 +445,9 @@ extension _ReadyParts on _ModelerScreenState {
                             transformReadout: _transformSession.modal?.readout,
                             transformHints: _transformSession.modal?.hints,
                             transformAxis: _transformSession.modal?.axis,
+                            // `ux-25`: the same tools, where the pointer is.
+                            onContextMenu: (Offset at) =>
+                                unawaited(_showViewportMenu(at)),
                             onBox: _boxed,
                             // Earlier and more specific than the box/drag branch
                             // above: only set while `weights.paint`/`weights.assign`

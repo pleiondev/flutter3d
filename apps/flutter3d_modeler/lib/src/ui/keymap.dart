@@ -60,6 +60,9 @@ enum ModelerAction {
   viewTop,
 
   shortcutHelp,
+
+  /// `ux-25`'s own palette: everything the editor can do, by name.
+  commandPalette,
 }
 
 /// What a key means in one preset.
@@ -251,6 +254,13 @@ Map<ModelerAction, List<ShortcutActivator>> _actions(
     ],
     ModelerAction.shortcutHelp: const <ShortcutActivator>[
       SingleActivator(LogicalKeyboardKey.slash, shift: true),
+    ],
+    // `ux-25`: the command key where there is one, and `F3` everywhere —
+    // the second is what a keyboard with no command key reaches for, and
+    // neither collides with anything a rail binds.
+    ModelerAction.commandPalette: <ShortcutActivator>[
+      SingleActivator(LogicalKeyboardKey.keyP, meta: apple, control: !apple),
+      const SingleActivator(LogicalKeyboardKey.f3),
     ],
   };
 }
