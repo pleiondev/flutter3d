@@ -20,12 +20,23 @@ class ObjectRow extends StatelessWidget {
     required this.object,
     required this.selected,
     required this.onTap,
+    this.onDoubleTap,
     this.unshowable,
   });
 
   final ModelObject object;
   final bool selected;
   final VoidCallback onTap;
+
+  /// What a double-click does — the outliner's own rename in place
+  /// (`ux-14`).
+  ///
+  /// **On this `InkWell` rather than on a `GestureDetector` around it.** Two
+  /// recognisers in two widgets do not arbitrate: the inner tap wins on the
+  /// first pointer-up and the outer double-tap never fires, so double-clicking
+  /// a row did nothing at all and `outliner_test.dart` said so. One widget
+  /// holding both is what lets the framework wait to see which it was.
+  final VoidCallback? onDoubleTap;
 
   /// Why this object is in the document but not in the viewport, when it is
   /// — `SceneSync.unshowable`'s own sentence for this id, `ux-02`'s row.
@@ -53,6 +64,7 @@ class ObjectRow extends StatelessWidget {
             : '${object.name}, could not be shown',
         child: InkWell(
           onTap: onTap,
+          onDoubleTap: onDoubleTap,
           child: SizedBox(
             height: rowHeightOf(context),
             child: Row(

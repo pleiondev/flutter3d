@@ -243,6 +243,11 @@ void main() {
       // ever holds the one selected object. Renaming five objects is then
       // five selections and five trips to the other end of the panel.
       await tester.tap(find.text('o1'));
+      // A real double click, not two taps at the same instant: a
+      // `DoubleTapGestureRecognizer` refuses a second tap that arrives
+      // sooner than `kDoubleTapMinTime`, so two `tap`s with no time between
+      // them are two single clicks and the rename never starts.
+      await tester.pump(const Duration(milliseconds: 60));
       await tester.tap(find.text('o1'));
       await tester.pumpAndSettle();
       await tester.enterText(find.byType(TextField), 'torso');

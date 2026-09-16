@@ -14,6 +14,8 @@
 /// names. Children follow their parent, and that is the only rearranging.
 library;
 
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart' as m show Material;
 import 'package:flutter/material.dart' hide Material;
 import 'package:flutter/services.dart' show HardwareKeyboard;
@@ -21,6 +23,15 @@ import 'package:flutter3d_model_core/flutter3d_model_core.dart' hide Outcome;
 
 import '../theme.dart';
 import 'object_row.dart';
+
+/// How many levels of hierarchy the outliner steps right for before it stops
+/// — see the row's own `padding` for what happens without a cap.
+///
+/// **Six, because a rig is deeper than a scene and both have to fit.** A
+/// humanoid runs hips → spine → chest → shoulder → arm → hand → finger and
+/// past it; a panel two hundred and fifty pixels wide cannot spend twelve of
+/// them per level and still have room for a name.
+const int _deepestIndent = 6;
 
 /// One object and how deep it hangs.
 typedef OutlinerRow = ({ModelObject object, int depth});
@@ -309,25 +320,37 @@ class _RowState extends State<_Row> {
                       ? Colors.transparent
                       : theme.colorScheme.primaryContainer,
                   child: Padding(
-                    // The indent, which is the whole point of the tree.
-                    padding: EdgeInsets.only(left: widget.row.depth * 12.0),
+                    // **The indent, which is the whole point of the tree —
+                    // and capped, which is the point of this comment.**
+                    // Uncapped it is `depth × 12` taken off the front of the
+                    // row before anything is drawn, and the two buttons at
+                    // the end have fixed widths: a rig ten joints deep spent
+                    // the panel on whitespace and pushed the eye and the lock
+                    // off the edge. `tutorial_case_screenshots_test.dart`
+                    // caught it as a `RenderFlex` overflow on every
+                    // screenshot of a character.
+                    //
+                    // Past [_deepestIndent] the rows stop stepping right. A
+                    // tree that deep is already read by its order and its
+                    // disclosure, not by counting pixels from the left.
+                    padding: EdgeInsets.only(
+                      left: math.min(widget.row.depth, _deepestIndent) * 12.0,
+                    ),
                     child: Row(
                       children: <Widget>[
                         Expanded(
                           child: _editing == null
-                              ? GestureDetector(
-                                  onDoubleTap: _startRename,
-                                  child: Opacity(
-                                    opacity: dimmed ? 0.45 : 1.0,
-                                    child: ObjectRow(
-                                      object: object,
-                                      selected: widget.selected,
-                                      onTap: () => widget.onPick(
-                                        object.id,
-                                        pickFromKeyboard(),
-                                      ),
-                                      unshowable: widget.unshowable,
+                              ? Opacity(
+                                  opacity: dimmed ? 0.45 : 1.0,
+                                  child: ObjectRow(
+                                    object: object,
+                                    selected: widget.selected,
+                                    onTap: () => widget.onPick(
+                                      object.id,
+                                      pickFromKeyboard(),
                                     ),
+                                    onDoubleTap: _startRename,
+                                    unshowable: widget.unshowable,
                                   ),
                                 )
                               : SizedBox(

@@ -9,6 +9,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
+import 'package:flutter/gestures.dart' show kDoubleTapTimeout;
 import 'package:flutter/material.dart' hide Matrix4;
 import 'package:flutter/services.dart' show FontLoader;
 import 'package:flutter3d_app/flutter3d_app.dart';
@@ -181,6 +182,14 @@ Future<void> settleFrames(WidgetTester tester) async {
     () => Future<void>.delayed(const Duration(milliseconds: 200)),
   );
   await tester.pump();
+  // **Past `kDoubleTapTimeout`, because a row can be double-clicked.**
+  // `ux-14`'s own rename-in-place puts a double-tap recogniser on every
+  // outliner row, and a single click arms a timer that waits three hundred
+  // milliseconds to find out whether a second one is coming. A test that
+  // disposes the tree before that timer fires fails on "a Timer is still
+  // pending", which is what every screenshot taken after a click on the
+  // object list started doing.
+  await tester.pump(kDoubleTapTimeout + const Duration(milliseconds: 10));
 }
 
 /// Starts the application and waits until it has a document and a frame.
