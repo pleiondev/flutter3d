@@ -130,6 +130,33 @@ void main() {
       expect(settingsFor(ShadingMode.normals, base).wireframe, isFalse);
     });
 
+    test("ux-31: and it steps aside where the overlay has real edges to "
+        'draw', () {
+      const base = RenderSettings();
+
+      // **The renderer's wireframe is the triangles it rasterises.** A cube
+      // of six quads comes out as eighteen lines with a diagonal across
+      // every face — a picture of how the GPU was fed, not of the topology
+      // anybody is editing. Where there is an `EditMesh`, the overlay draws
+      // each edge once and this stands down; where there is not (an
+      // imported surface, a shape that still knows its parameters) it is
+      // still better than nothing.
+      expect(
+        settingsFor(ShadingMode.wireframe, base, edgesDrawn: true).wireframe,
+        isFalse,
+      );
+      expect(
+        settingsFor(ShadingMode.wireframe, base, edgesDrawn: false).wireframe,
+        isTrue,
+      );
+      // And it changes nothing about the other two, which never asked for a
+      // wireframe in the first place.
+      expect(
+        settingsFor(ShadingMode.material, base, edgesDrawn: true).wireframe,
+        isFalse,
+      );
+    });
+
     test('normals can be switched back', () {
       final it = cpuTestDevice(width: 8, height: 8);
       final stage = ModelerStage.build(device: it.device);

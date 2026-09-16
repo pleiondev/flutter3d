@@ -757,6 +757,12 @@ class PropertiesPanel extends StatelessWidget {
             canApply: canApplyRetarget,
             onApply: onApplyRetarget,
           ),
+        // `ux-31`: a heading of its own. Without one, "No shape keys on this
+        // object" was the line directly under whatever section happened to
+        // come before it — usually Display — and read as something that
+        // section was saying about the view.
+        if (held != null && sections.contains(PropertiesSection.morphs))
+          SectionLabel('Morphs'),
         if (held != null && sections.contains(PropertiesSection.morphs))
           MorphsPanel(
             object: held,

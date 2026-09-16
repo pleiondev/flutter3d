@@ -5,6 +5,8 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter3d_model_core/flutter3d_model_core.dart'
+    show AddPrimitive;
 import 'package:flutter3d_modeler/src/exporting.dart';
 import 'package:flutter3d_modeler/src/ui/top_bar_actions.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -70,7 +72,8 @@ void main() {
 
     await tester.tap(find.text('Add'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('box').last);
+    // "Box", since `ux-31`: the menu shows the word and answers with the key.
+    await tester.tap(find.text('Box').last);
     await tester.pumpAndSettle();
 
     // Mutation: hand the menu `AddPrimitive` itself rather than a callback
@@ -99,6 +102,60 @@ void main() {
     await tester.pump();
 
     expect(imports, 1);
+  });
+
+  group('ux-31: the Add menu shows words rather than command arguments', () {
+    test('every kind the command knows has a label and an icon', () {
+      // **`box` is an argument and "Box" is a word.** A primitive added to
+      // `AddPrimitive` without an entry here would put the argument back on
+      // the menu, which is the state this row found.
+      for (final String kind in AddPrimitive.primitiveKinds) {
+        expect(
+          kPrimitiveLabels[kind],
+          isNotNull,
+          reason: '$kind has no label for the Add menu',
+        );
+      }
+      expect(kPrimitiveLabels, hasLength(AddPrimitive.primitiveKinds.length));
+    });
+
+    test('and none of those labels is the key it stands for', () {
+      for (final MapEntry<String, ({IconData icon, String label})> each
+          in kPrimitiveLabels.entries) {
+        expect(each.value.label, isNot(each.key));
+        expect(each.value.label[0], each.value.label[0].toUpperCase());
+      }
+    });
+
+    testWidgets('the menu prints them, and no lowercase key', (
+      WidgetTester tester,
+    ) async {
+      await show(tester);
+      await tester.tap(find.text('Add'));
+      await tester.pumpAndSettle();
+
+      for (final String kind in AddPrimitive.primitiveKinds) {
+        expect(find.text(kPrimitiveLabels[kind]!.label), findsOneWidget);
+        // The row's own acceptance, and the mutation it guards: print the
+        // kind and this finds it.
+        expect(find.text(kind), findsNothing, reason: '$kind is on the menu');
+      }
+    });
+
+    testWidgets('and choosing one still answers with the kind, not the word', (
+      WidgetTester tester,
+    ) async {
+      String? added;
+      await show(tester, onAddPrimitive: (String kind) => added = kind);
+      await tester.tap(find.text('Add'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Sphere'));
+      await tester.pumpAndSettle();
+
+      // The label is for the person; the id is what the command runs on, and
+      // an agent passing `sphere` over MCP means the same thing.
+      expect(added, 'sphere');
+    });
   });
 
   group(

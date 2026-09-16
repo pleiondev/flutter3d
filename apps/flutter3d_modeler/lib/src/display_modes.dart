@@ -141,12 +141,28 @@ void useLens(CameraNode camera, ViewLens lens, OrbitController orbit) {
 ///
 /// The rest of a display mode is the materials' business, which is
 /// [SurfaceShading]'s.
-RenderSettings settingsFor(ShadingMode mode, RenderSettings over) =>
-    over.copyWith(
-      wireframe: mode == ShadingMode.wireframe,
-      tonemap: mode != ShadingMode.normals,
-      exposure: mode == ShadingMode.normals ? 1.0 : over.exposure,
-    );
+///
+/// [edgesDrawn] says the overlay is already drawing the mesh's own edges, in
+/// which case the renderer is asked for no wireframe of its own — `ux-31`.
+///
+/// **The two draw different shapes, and only one of them is the model.** The
+/// renderer's wireframe is the triangles it rasterises, so a cube of six
+/// quads comes out as eighteen lines with a diagonal across every face: a
+/// picture of how the GPU was fed rather than of the topology somebody is
+/// editing. `MeshOverlayBuilder` walks the `EditMesh` and draws each edge
+/// once — twelve for the same cube — which is the thing a modeller counts.
+/// Where there is no `EditMesh` to walk (an imported surface, a shape that
+/// still knows its own parameters) the renderer's own is still better than
+/// nothing, and that is what [edgesDrawn] false leaves in place.
+RenderSettings settingsFor(
+  ShadingMode mode,
+  RenderSettings over, {
+  bool edgesDrawn = false,
+}) => over.copyWith(
+  wireframe: mode == ShadingMode.wireframe && !edgesDrawn,
+  tonemap: mode != ShadingMode.normals,
+  exposure: mode == ShadingMode.normals ? 1.0 : over.exposure,
+);
 
 /// Swaps the subject's materials for a debug one and back.
 ///
