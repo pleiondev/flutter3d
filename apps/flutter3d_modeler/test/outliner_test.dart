@@ -214,6 +214,32 @@ void main() {
       expect(hand, greaterThan(limb));
     });
 
+    testWidgets('and forty objects do not make a forty-row panel', (
+      WidgetTester tester,
+    ) async {
+      await pump(
+        tester,
+        objects: <ModelObject>[for (var i = 1; i <= 40; i++) _object(i)],
+      );
+      final double row = rowHeightOf(tester.element(find.byType(Outliner)));
+
+      // Ten rows and no more, whatever the project holds. **Mutation: a
+      // `Column` of every object**, which is what this drew. Forty of them
+      // is thirteen hundred pixels of panel in front of Transform, Material
+      // and the modifier stack — and the thirty past the fold are laid out
+      // and clipped, which is the subtree `_RenderObjectSemantics` walked
+      // into with no geometry computed for it.
+      expect(tester.getSize(find.byType(Outliner)).height, 10 * row);
+
+      // A list that fits is still drawn whole: four objects, and the drop
+      // target for the top level under them.
+      await pump(
+        tester,
+        objects: <ModelObject>[for (var i = 1; i <= 4; i++) _object(i)],
+      );
+      expect(tester.getSize(find.byType(Outliner)).height, 5 * row);
+    });
+
     testWidgets('the eye asks to hide, and asks again to show', (
       WidgetTester tester,
     ) async {

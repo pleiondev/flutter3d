@@ -33,6 +33,26 @@ import 'object_row.dart';
 /// them per level and still have room for a name.
 const int _deepestIndent = 6;
 
+/// How many rows the outliner draws before it scrolls inside itself — and,
+/// with it, how many rows exist at all.
+///
+/// **Ten, because the panel is a stack of sections and the object list is
+/// only one of them.** An imported scene is thirty objects and a rig is
+/// forty; laid out in full they push Transform, Material and the modifier
+/// stack so far down the panel that reaching them is a scroll past a list
+/// nobody was reading. A region of its own is what an outliner is in every
+/// application that has one.
+///
+/// **And the rows below the tenth are not built.** That is not only the
+/// saving it sounds like: a `Column` taller than the panel hands the
+/// framework twenty-odd semantics nodes it has clipped away, and
+/// `_RenderObjectSemantics` walks into one of them with no geometry
+/// computed and dereferences it — `tutorial_case_screenshots_test.dart`'s
+/// own `08-imported-unskinned` crashed on exactly that, on the frame the
+/// import dialog closed over a robot of thirty parts. A lazy list builds
+/// the rows that are on screen, so there is no clipped subtree to walk.
+const int _rowsBeforeScrolling = 10;
+
 /// One object and how deep it hangs.
 typedef OutlinerRow = ({ModelObject object, int depth});
 
@@ -185,47 +205,66 @@ class Outliner extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final List<OutlinerRow> rows = outlinerRows(objects);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: <Widget>[
-        for (final OutlinerRow row in rows)
-          _Row(
-            key: ValueKey<int>(row.object.id),
-            row: row,
-            selected: selected.contains(row.object.id),
-            hiddenByParent: hiddenByParent.contains(row.object.id),
-            unshowable: unshowable[row.object.id],
-            onPick: onPick,
-            onVisible: onVisible,
-            onLocked: onLocked,
-            onRename: onRename,
-            onReparent: onReparent,
-          ),
-        // The top level, as somewhere to drop. **A target rather than a
-        // gesture**: without it the only way to take an object out of a
-        // group would be a menu, and the whole point of dragging one in is
-        // that dragging it out is the same movement backwards.
-        DragTarget<int>(
-          onAcceptWithDetails: (DragTargetDetails<int> it) =>
-              onReparent(it.data, null),
-          builder:
-              (BuildContext context, List<int?> over, List<dynamic> rejected) =>
-                  Container(
-                    height: rowHeightOf(context),
-                    alignment: Alignment.centerLeft,
-                    padding: const EdgeInsets.only(left: 8),
-                    color: over.isEmpty
-                        ? null
-                        : Theme.of(context).colorScheme.primaryContainer,
-                    child: over.isEmpty
-                        ? null
-                        : Text(
-                            'to the top level',
-                            style: Theme.of(context).textTheme.labelSmall,
-                          ),
-                  ),
+    final double rowHeight = rowHeightOf(context);
+    // The drop target for the top level counts as a row, so a short list is
+    // drawn whole and a long one stops at [_rowsBeforeScrolling].
+    final int items = rows.length + 1;
+    return SizedBox(
+      height: math.min(items, _rowsBeforeScrolling) * rowHeight,
+      child: Scrollbar(
+        child: ListView.builder(
+          // Its own controller rather than the panel's: the outliner scrolls
+          // inside a panel that scrolls, and both taking the primary one
+          // would make a drag on either move both.
+          primary: false,
+          itemCount: items,
+          itemExtent: rowHeight,
+          itemBuilder: (BuildContext context, int at) {
+            if (at == rows.length) {
+              // The top level, as somewhere to drop. **A target rather than
+              // a gesture**: without it the only way to take an object out
+              // of a group would be a menu, and the whole point of dragging
+              // one in is that dragging it out is the same movement
+              // backwards.
+              return DragTarget<int>(
+                onAcceptWithDetails: (DragTargetDetails<int> it) =>
+                    onReparent(it.data, null),
+                builder:
+                    (
+                      BuildContext context,
+                      List<int?> over,
+                      List<dynamic> rejected,
+                    ) => Container(
+                      alignment: Alignment.centerLeft,
+                      padding: const EdgeInsets.only(left: 8),
+                      color: over.isEmpty
+                          ? null
+                          : Theme.of(context).colorScheme.primaryContainer,
+                      child: over.isEmpty
+                          ? null
+                          : Text(
+                              'to the top level',
+                              style: Theme.of(context).textTheme.labelSmall,
+                            ),
+                    ),
+              );
+            }
+            final OutlinerRow row = rows[at];
+            return _Row(
+              key: ValueKey<int>(row.object.id),
+              row: row,
+              selected: selected.contains(row.object.id),
+              hiddenByParent: hiddenByParent.contains(row.object.id),
+              unshowable: unshowable[row.object.id],
+              onPick: onPick,
+              onVisible: onVisible,
+              onLocked: onLocked,
+              onRename: onRename,
+              onReparent: onReparent,
+            );
+          },
         ),
-      ],
+      ),
     );
   }
 }

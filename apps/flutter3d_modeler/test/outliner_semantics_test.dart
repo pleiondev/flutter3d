@@ -40,8 +40,9 @@ void main() {
         home: Scaffold(
           body: SizedBox(
             width: 250,
-            // Shorter than thirty rows: the rows past it are laid out and
-            // hidden, which is the case that broke.
+            // Shorter than the outliner's own region as well as than thirty
+            // rows, so the panel clips it too: both halves of the shape that
+            // broke are here.
             height: 220,
             child: SingleChildScrollView(
               child: Outliner(
@@ -65,14 +66,16 @@ void main() {
     // — a rig is forty bones — and a semantics tree that throws throws every
     // frame after it, which is a screen reader finding the editor unusable
     // rather than merely unlabelled.
-    //
-    // **This is not the whole of the fault `ux-14` left behind.**
-    // `tutorial_case_screenshots_test.dart`'s own imported robot still
-    // crashes in `_RenderObjectSemantics._buildSemanticsSubtree` on a null
-    // `geometry`, and thirty rows in a bare panel are not enough to
-    // reproduce it — something further out in the real screen is part of the
-    // shape. This holds the half that can be held here while that is found.
     expect(tester.takeException(), isNull);
+
+    // And the reason it holds: thirty objects are not thirty rows. A
+    // `Column` of all of them is twenty-odd render objects the panel has
+    // clipped away and twenty-odd semantics nodes with no geometry computed
+    // for them, which is what `_RenderObjectSemantics._buildSemanticsSubtree`
+    // walked into on `tutorial_case_screenshots_test.dart`'s imported robot
+    // — a crash this test could not reproduce until the outliner was the
+    // thing being counted rather than the thing being wrapped.
+    expect(find.byTooltip('Hide'), findsNWidgets(10));
     handle.dispose();
   });
 }
