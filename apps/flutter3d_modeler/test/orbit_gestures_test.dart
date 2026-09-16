@@ -594,6 +594,38 @@ void main() {
           isTrue,
         );
       });
+
+      test('the right button is free-look, and says so as its own pair', () {
+        final CameraIntent it = dragged(
+          scheme: scheme,
+          kind: PointerKind.mouse,
+          button: GestureButton.secondary,
+        );
+
+        // Mutation: answer a right drag with `deltaYaw`/`deltaPitch`. The
+        // camera swings round the target instead of turning where it stands,
+        // which is an orbit on a second button rather than a free-look at
+        // all.
+        expect(it.lookYaw, isNot(0.0));
+        expect(it.lookPitch, isNot(0.0));
+        expect(orbits(it), isFalse);
+        expect(pans(it), isFalse);
+        expect(it.movesCamera, isTrue);
+      });
+
+      test('and a tool holding the drag does not take the right button', () {
+        // A transform armed claims the *primary* drag. Free-look is the
+        // camera's own button and stays reachable — which is the point of
+        // putting it on one nothing else is using.
+        final CameraIntent it = dragged(
+          scheme: scheme,
+          kind: PointerKind.mouse,
+          button: GestureButton.secondary,
+          toolArmed: true,
+        );
+
+        expect(it.lookYaw, isNot(0.0));
+      });
     });
 
     group('every device, under both schemes', () {
@@ -612,6 +644,28 @@ void main() {
             ).movesCamera,
             isFalse,
           );
+        });
+
+        test('${scheme.id}: isLooking answers only while one is held', () {
+          final gestures = OrbitGestures(scheme: scheme);
+          expect(gestures.isLooking, isFalse);
+
+          gestures.pointerDown(
+            1,
+            kind: PointerKind.mouse,
+            at: const GesturePoint(10, 10),
+            button: GestureButton.secondary,
+          );
+          expect(
+            gestures.isLooking,
+            scheme == NavigationScheme.leftDragOrbit,
+            reason:
+                'the right button is the context menu under the other '
+                'scheme, and the keyboard must stay the tools\'',
+          );
+
+          gestures.pointerUp(1);
+          expect(gestures.isLooking, isFalse);
         });
 
         test('${scheme.id}: a pen never moves the camera, armed or not', () {

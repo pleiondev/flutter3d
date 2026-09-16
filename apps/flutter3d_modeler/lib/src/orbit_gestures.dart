@@ -145,6 +145,8 @@ final class CameraIntent {
   const CameraIntent({
     this.deltaYaw = 0.0,
     this.deltaPitch = 0.0,
+    this.lookYaw = 0.0,
+    this.lookPitch = 0.0,
     this.panRight = 0.0,
     this.panUp = 0.0,
     this.zoomBy = 1.0,
@@ -158,6 +160,19 @@ final class CameraIntent {
 
   /// Pixels of vertical travel to orbit by, positive upward.
   final double deltaPitch;
+
+  /// Pixels of horizontal travel to turn the *head* by — `ux-04`'s own
+  /// free-look, which turns about where the camera stands rather than about
+  /// the target.
+  ///
+  /// Its own pair rather than a flag beside [deltaYaw], because the two are
+  /// different motions and a caller that mistook one for the other would
+  /// swing the camera across the model instead of turning it in place. A
+  /// gesture produces one or the other, never both.
+  final double lookYaw;
+
+  /// Pixels of vertical travel to turn the head by, positive upward.
+  final double lookPitch;
 
   /// Pixels the grabbed content should slide right by.
   final double panRight;
@@ -180,6 +195,8 @@ final class CameraIntent {
   bool get movesCamera =>
       deltaYaw != 0.0 ||
       deltaPitch != 0.0 ||
+      lookYaw != 0.0 ||
+      lookPitch != 0.0 ||
       panRight != 0.0 ||
       panUp != 0.0 ||
       zoomBy != 1.0;
@@ -277,6 +294,14 @@ final class OrbitGestures {
   bool get isDragging =>
       _active.values.any((_Pointer p) => p.role != _Role.idle);
 
+  /// Whether a pointer is holding free-look open right now.
+  ///
+  /// A viewport reads this to know the keyboard is the camera's for as long
+  /// as it answers true: the walk keys are read per frame rather than per
+  /// key event, and while this is false nothing should be walking.
+  bool get isLooking =>
+      _active.values.any((_Pointer p) => p.role == _Role.look);
+
   /// How many fingers are on the glass. A stylus is not one of them.
   int get fingerCount => _fingers.length;
 
@@ -330,6 +355,7 @@ final class OrbitGestures {
 
     return switch (tracked.role) {
       _Role.orbit => CameraIntent(deltaYaw: dx, deltaPitch: -dy),
+      _Role.look => CameraIntent(lookYaw: dx, lookPitch: -dy),
       _Role.pan => CameraIntent(panRight: dx, panUp: -dy),
       _Role.idle => CameraIntent.none,
     };
@@ -431,6 +457,16 @@ final class OrbitGestures {
     if (button == GestureButton.middle) {
       return modifiers.shift ? _Role.pan : _Role.orbit;
     }
+    // The right button is free-look under the scheme whose left button is
+    // already the camera's — `ux-04`'s own "RMB held is free-look with WASD".
+    //
+    // Under the other scheme it stays the context menu's: there the left
+    // button belongs to the tools and the middle one to the camera, so the
+    // right one is the only button left for a menu, and taking it for a
+    // second camera would leave the application with nowhere to put one.
+    if (button == GestureButton.secondary) {
+      return scheme == NavigationScheme.leftDragOrbit ? _Role.look : _Role.idle;
+    }
     if (button != GestureButton.primary) return _Role.idle;
 
     return switch (scheme) {
@@ -500,7 +536,7 @@ final class OrbitGestures {
 }
 
 /// What a pointer was granted at the moment it went down.
-enum _Role { idle, orbit, pan }
+enum _Role { idle, orbit, look, pan }
 
 /// One live pointer: the only mutable state in the file, and it is a position.
 final class _Pointer {
