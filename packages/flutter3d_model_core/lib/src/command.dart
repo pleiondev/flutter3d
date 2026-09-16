@@ -40,6 +40,7 @@ import 'key_table.dart';
 import 'lod_spec.dart';
 import 'material.dart';
 import 'modifier_slot.dart';
+import 'paint_layer.dart';
 import 'param_hint.dart';
 import 'parametric_json.dart';
 import 'project.dart';
@@ -64,6 +65,7 @@ part 'material_commands.dart';
 part 'mesh_commands.dart';
 part 'modifier_commands.dart';
 part 'object_commands.dart';
+part 'paint_commands.dart';
 part 'paint_weights.dart';
 part 'profile_commands.dart';
 part 'rig_job_commands.dart';
@@ -1361,6 +1363,31 @@ _modelCommandReaders =
               ),
               (_, false) => null,
             },
+            null => null,
+          },
+        _ => null,
+      },
+      'paintStroke': (json) => switch ((
+        json['objectId'],
+        json['samples'],
+        _doubleListFrom(json['colour']),
+      )) {
+        (
+          final int objectId,
+          final List<Object?> samplesJson,
+          final List<double> colour,
+        ) =>
+          switch (_paintSamplesFrom(samplesJson)) {
+            final List<PaintSample> samples => PaintStroke(
+              objectId: objectId,
+              samples: samples,
+              colour: colour,
+              layer: (json['layer'] as num?)?.toInt() ?? 0,
+              strength: (json['strength'] as num?)?.toDouble() ?? 1.0,
+              size: (json['size'] as num?)?.toInt() ?? 1024,
+              maskImage: (json['maskImage'] as num?)?.toInt(),
+              maskInverted: json['maskInverted'] as bool? ?? false,
+            ),
             null => null,
           },
         _ => null,

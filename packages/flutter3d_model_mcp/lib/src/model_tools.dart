@@ -3587,6 +3587,63 @@ List<ModelTool> get _rigPipelineTools => <ModelTool>[
   ),
   ModelTool(
     Tool(
+      name: 'paintStroke',
+      description:
+          'Paint one stroke onto an object\'s own texture, as one undo step '
+          '— `pro-pt-03`. Each sample is a ball on the surface in the '
+          'object\'s own space, and the texels it reaches are found in three '
+          'dimensions rather than in the layout, so a stroke over a UV seam '
+          'paints both islands. maskImage names a baked map (ao, curvature) '
+          'whose red channel gates the stroke, which is how paint settles '
+          'into crevices. The object needs UVs and a material.',
+      inputSchema: ObjectSchema(
+        properties: <String, Schema>{
+          'objectId': IntegerSchema(description: 'the object being painted'),
+          'samples': ListSchema(
+            description: 'one or more brush hits making up this stroke',
+            items: ObjectSchema(
+              properties: <String, Schema>{
+                'centre': _vector(
+                  'where the brush touched, in the object\'s own space',
+                ),
+                'radius': NumberSchema(
+                  description: 'how far the hit reaches, in metres',
+                ),
+              },
+              required: <String>['centre', 'radius'],
+            ),
+          ),
+          'colour': ListSchema(
+            description: 'straight-alpha RGBA, four numbers 0..1',
+            items: NumberSchema(),
+          ),
+          'layer': IntegerSchema(
+            description:
+                'which layer of the stack, counted from the bottom; a layer '
+                'past the end is added. Default 0',
+          ),
+          'strength': NumberSchema(description: 'how hard, 0..1; default 1'),
+          'size': IntegerSchema(
+            description:
+                'the side of the square canvas in texels, 16 to 4096, read '
+                'only when the material has no layers yet; default 1024',
+          ),
+          'maskImage': IntegerSchema(
+            description:
+                'optional; an index into the project\'s images whose red '
+                'channel gates the stroke',
+          ),
+          'maskInverted': BooleanSchema(
+            description: 'read the mask the other way up',
+          ),
+        },
+        required: <String>['objectId', 'samples', 'colour'],
+      ),
+    ),
+    _command('paintStroke'),
+  ),
+  ModelTool(
+    Tool(
       name: 'retargetClip',
       description:
           'Retarget a clip authored for one skeleton onto another '

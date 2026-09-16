@@ -2864,6 +2864,18 @@ void main() {
           normalize: false,
           maxInfluences: 3,
         ),
+        PaintStroke(
+          objectId: 10,
+          samples: <PaintSample>[
+            PaintSample(centre: Vector3(0, 0, 0), radius: 0.2),
+          ],
+          colour: const <double>[1, 0.5, 0, 1],
+          layer: 1,
+          strength: 0.8,
+          size: 256,
+          maskImage: 0,
+          maskInverted: true,
+        ),
         const BakeMaps(
           sourceId: 10,
           targetId: 11,
