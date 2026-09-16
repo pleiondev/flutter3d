@@ -173,6 +173,15 @@ dev_dependencies:
 flutter:
   uses-material-design: true
 
+  # `rel-21d`: the licence agreement, the privacy policy and the four beside
+  # them, bundled so that Help → Legal answers on a plane. Copies of `legal/`
+  # at the root of the repository — `dart run tool/sync_legal.dart` writes
+  # them and `test/legal_documents_test.dart` fails when they have drifted,
+  # because a privacy policy that disagrees with the published one is worse
+  # than one that is missing.
+  assets:
+    - assets/legal/
+
   # `ui-22`: build `AppLocalizations` from `l10n.yaml` and `lib/l10n/*.arb`
   # on every `flutter pub get`, rather than a generated file committed and
   # left to drift from the templates the moment somebody edits an `.arb`

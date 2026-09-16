@@ -884,7 +884,10 @@ extension _FileHandling on _ModelerScreenState {
           mode: state.mode,
           selection: state.history.selection,
         ),
-        extra: foldEntries(keymap, mode: state.mode),
+        extra: <PaletteEntry>[
+          ...foldEntries(keymap, mode: state.mode),
+          ...helpEntries(mode: state.mode),
+        ],
       ),
     );
     if (chosen == null || !mounted) return;
@@ -895,6 +898,9 @@ extension _FileHandling on _ModelerScreenState {
         setState(() => _foldedPanel = !_foldedPanel);
       case kFoldRailCommand:
         setState(() => _foldedRail = !_foldedRail);
+      // `rel-21d`: the same screen Settings opens, reached by name.
+      case kLegalCommand:
+        unawaited(showLegalScreen(context));
       default:
         _ranTool(chosen);
     }
@@ -966,6 +972,12 @@ extension _FileHandling on _ModelerScreenState {
     final ModelerSettings? chosen = await showSettingsScreen(
       context,
       _settings,
+      // `rel-21d`: the documents, and the one button the privacy policy
+      // promises. Passed in rather than reached for inside the dialog, so
+      // the settings screen stays a dialog over a value and keeps its own
+      // tests free of a storage.
+      onShowLegal: () => unawaited(showLegalScreen(context)),
+      onClearLocalData: _clearLocalData,
     );
     if (chosen == null || !mounted) return;
     setState(() {
@@ -977,6 +989,35 @@ extension _FileHandling on _ModelerScreenState {
     if (!_settingsStore.write(chosen)) {
       _cubit.say('Settings could not be saved', important: true);
     }
+  }
+
+  /// `rel-21d`: removes what this application has written on this device —
+  /// the settings, the recent-files list and the one autosave slot — and
+  /// answers with the sentence to show.
+  ///
+  /// The settings this session is holding go back to their defaults in the
+  /// same breath, because leaving them in memory would write them straight
+  /// back out the next time anything changed one, and a person who has just
+  /// cleared their data would find it there again.
+  Future<String> _clearLocalData() async {
+    // `_autosave` is built in `initState` and is null only before it, which
+    // is before there is a settings dialog to press this from. Saying so
+    // here rather than asserting it, because a refusal is a better answer
+    // than a crash for a button about somebody's data.
+    final AutosaveController? autosave = _autosave;
+    if (autosave == null) return 'The editor is still starting up.';
+    final ClearedLocalData cleared = await clearLocalData(
+      storage: _settingsStore.storage,
+      documents: autosave.storage,
+      autosaveSessionId: _kAutosaveSessionId,
+    );
+    if (cleared.settings && mounted) {
+      setState(() {
+        _settings = const ModelerSettings();
+        _transformSession.snapSteps = _snapStepsOf(_settings);
+      });
+    }
+    return cleared.says;
   }
 
   /// `rel-15`'s own "Report a problem" button: opens a GitHub issue draft

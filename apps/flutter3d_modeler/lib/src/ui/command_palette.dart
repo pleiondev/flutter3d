@@ -153,6 +153,14 @@ bool _needsSelection(String id) =>
 const String kFoldPanelCommand = 'view.foldPanel';
 const String kFoldRailCommand = 'view.foldRail';
 
+/// `rel-21d`'s own: the licence, the privacy policy and the four beside them.
+///
+/// **In the palette because that is where a person who does not know where it
+/// lives will look.** It is also in Settings, which is where somebody who has
+/// thought about it will look; two doors onto one screen, and no third
+/// implementation of it.
+const String kLegalCommand = 'help.legal';
+
 /// Those two, with whatever keys [keymap] gives them.
 List<PaletteEntry> foldEntries(Keymap keymap, {required ModelerMode mode}) {
   String? keysFor(ModelerAction action) {
@@ -177,6 +185,22 @@ List<PaletteEntry> foldEntries(Keymap keymap, {required ModelerMode mode}) {
     ),
   ];
 }
+
+/// The entries that are about the application rather than about the model —
+/// `rel-21d`'s own one, for now.
+///
+/// Separate from [foldEntries] rather than appended to it because the folds
+/// are about the window and this is not, and a function called `foldEntries`
+/// that also returns a legal screen is the kind of small lie that makes a
+/// file hard to read a year later.
+List<PaletteEntry> helpEntries({required ModelerMode mode}) => <PaletteEntry>[
+  PaletteEntry(
+    id: kLegalCommand,
+    label: 'Legal: licence, privacy and third-party licences',
+    icon: Icons.gavel_outlined,
+    mode: mode,
+  ),
+];
 
 /// [said] matched against an entry's own words — the label first, then the
 /// id, so "bev" finds Bevel and "mesh." finds everything in the mesh rail.
