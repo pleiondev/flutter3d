@@ -39,7 +39,11 @@ ModelerCubit _opened() {
     project: history.project,
   );
   return ModelerCubit()
-    ..opened(history, renderer: Renderer.create(device: it.device), stage: stage)
+    ..opened(
+      history,
+      renderer: Renderer.create(device: it.device),
+      stage: stage,
+    )
     // `ux-37`: these tests are about modes, not about which workspace offers
     // them, and Essential — the default a first launch gets — offers three of
     // the five. `workspace_test.dart` is where the gate itself is checked.
@@ -56,6 +60,10 @@ final class _Counters {
   int export = 0;
   int lathe = 0;
 
+  /// `ux-36`: the two `ui.openDialog` used to refuse, both built since.
+  int autorig = 0;
+  int preview = 0;
+
   /// `ux-25`: every id `run_command` pressed, in order.
   final List<String> ran = <String>[];
 }
@@ -65,6 +73,8 @@ ModelerUiActions _actions(ModelerCubit cubit, _Counters counters) =>
       cubit: cubit,
       openExportDialog: () async => counters.export++,
       openLatheDialog: () async => counters.lathe++,
+      openAutorigDialog: () async => counters.autorig++,
+      openGamePreview: () async => counters.preview++,
       runTool: counters.ran.add,
     );
 
@@ -203,22 +213,26 @@ void main() {
     // ask about is the seam: a server with no window says so rather than
     // answering with an empty picture, and one with a window hands the bytes
     // through.
-    test('with no window it refuses rather than answering with nothing',
-        () async {
-      final UiPicture shot = await _actions(
-        _opened(),
-        _Counters(),
-      ).screenshot();
-      expect(shot.did, isFalse);
-      expect(shot.png, isNull);
-      expect(shot.says, contains('no window'));
-    });
+    test(
+      'with no window it refuses rather than answering with nothing',
+      () async {
+        final UiPicture shot = await _actions(
+          _opened(),
+          _Counters(),
+        ).screenshot();
+        expect(shot.did, isFalse);
+        expect(shot.png, isNull);
+        expect(shot.says, contains('no window'));
+      },
+    );
 
     test('a capture that finds nothing laid out says that instead', () async {
       final ModelerUiActions actions = ModelerUiActions(
         cubit: _opened(),
         openExportDialog: () async {},
         openLatheDialog: () async {},
+        openAutorigDialog: () async {},
+        openGamePreview: () async {},
         runTool: (_) {},
         captureWindow: () async => null,
       );
@@ -232,6 +246,8 @@ void main() {
         cubit: _opened(),
         openExportDialog: () async {},
         openLatheDialog: () async {},
+        openAutorigDialog: () async {},
+        openGamePreview: () async {},
         runTool: (_) {},
         captureWindow: () async => <int>[1, 2, 3, 4],
       );
@@ -313,12 +329,20 @@ void main() {
       expect(counters.export, 0);
     });
 
-    test('"autorig" and "preview" refuse cleanly — not built here yet', () {
+    test('ux-36: "autorig" and "preview" open, since both are built', () {
       final cubit = _opened();
       final counters = _Counters();
+      final ModelerUiActions actions = _actions(cubit, counters);
 
-      expect(_actions(cubit, counters).openDialog('autorig').did, isFalse);
-      expect(_actions(cubit, counters).openDialog('preview').did, isFalse);
+      // **This used to answer "not built in this app yet".** It was true
+      // when it was written, and stopped being true when `S8` built the
+      // auto-rig dialog and `S9` the game preview — a refusal nobody
+      // re-read, which a screenshot script reads as a thing this
+      // application cannot do.
+      expect(actions.openDialog('autorig').did, isTrue);
+      expect(actions.openDialog('preview').did, isTrue);
+      expect(counters.autorig, 1);
+      expect(counters.preview, 1);
       expect(counters.export, 0);
       expect(counters.lathe, 0);
     });
@@ -451,10 +475,7 @@ void main() {
       final DateTime seen = cubit.console.entries.last.at;
       cubit.say('saved');
 
-      final answer = _actions(
-        cubit,
-        _Counters(),
-      ).console(since: seen);
+      final answer = _actions(cubit, _Counters()).console(since: seen);
 
       expect(answer.says, isNot(contains('opened teapot.glb')));
       expect(answer.says, contains('saved'));
