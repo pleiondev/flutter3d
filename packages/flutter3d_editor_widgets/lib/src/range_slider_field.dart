@@ -113,9 +113,19 @@ class _RangeSliderFieldState extends State<RangeSliderField> {
         // Below this the slider is a stub nobody can aim at and the label is
         // the first thing the ellipsis eats — the review found "Ambient"
         // reading as "Am".
+        //
+        // **Everything else on the row counts, not the label alone.** The
+        // read-out and the gap before it are as fixed as the label column
+        // is, and leaving them out of the sum measured a slider forty pixels
+        // wider than the one that actually gets drawn: the review's own
+        // 250-wide panel, whose slider is 114 pixels, read as wide enough.
+        final double besideSlider =
+            editorTheme.labelWidth +
+            _gapBeforeValue +
+            _valueWidth(editable: widget.editable);
         final bool stacked =
             widget.label != null &&
-            constraints.maxWidth < editorTheme.labelWidth + kLabelBesideFrom;
+            constraints.maxWidth < besideSlider + kLabelBesideFrom;
         return _row(context, theme, editorTheme, stacked: stacked);
       },
     );
@@ -186,10 +196,10 @@ class _RangeSliderFieldState extends State<RangeSliderField> {
                     : null,
               ),
             ),
-            const SizedBox(width: 6),
+            const SizedBox(width: _gapBeforeValue),
             if (widget.editable)
               SizedBox(
-                width: 54,
+                width: _valueWidth(editable: true),
                 child: _ValueBox(
                   text: _numberText(value),
                   enabled: widget.enabled,
@@ -198,7 +208,7 @@ class _RangeSliderFieldState extends State<RangeSliderField> {
               )
             else
               SizedBox(
-                width: 34,
+                width: _valueWidth(editable: false),
                 child: Text(
                   shown.toStringAsFixed(2),
                   textAlign: TextAlign.right,
@@ -244,6 +254,18 @@ String _numberText(double value) =>
 /// Added to whatever the label column is, since that is the room the label
 /// itself wants.
 const double kLabelBesideFrom = 150;
+
+/// The gap between the slider and whatever reports its value.
+const double _gapBeforeValue = 6;
+
+/// How wide that report is: a box somebody can type into needs more room
+/// than a two-decimal number that only ever shows what the slider reached.
+///
+/// A function rather than two constants used in three places each, because
+/// the width the row draws and the width [RangeSliderField.build] measures
+/// against have to be the same number — they were not, and a row 250 wide
+/// with a 114-pixel slider in it counted as having room.
+double _valueWidth({required bool editable}) => editable ? 54 : 34;
 
 /// A box that reports a number when the person has finished, and only then
 /// — [RangeSliderField.editable]'s own fallback for a value that may sit

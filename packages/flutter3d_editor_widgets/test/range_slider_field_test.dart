@@ -179,4 +179,69 @@ void main() {
       expect(written, 0.37);
     });
   });
+
+  group("ux-23: where the label goes is measured, not guessed", () {
+    /// The row inside a panel [width] wide, the way a real panel holds it.
+    Future<void> inPanel(
+      WidgetTester tester,
+      double width, {
+      required bool editable,
+    }) => tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Align(
+            alignment: Alignment.topLeft,
+            child: SizedBox(
+              width: width,
+              child: RangeSliderField(
+                label: 'Ambient',
+                value: 0.5,
+                min: 0,
+                max: 1,
+                editable: editable,
+                onChanged: (_) {},
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    /// Whether the label is drawn above the slider rather than beside it —
+    /// which is exactly where its own top edge sits: level with the top of
+    /// the row when stacked, centred against a 48-tall slider when not.
+    bool stacked(WidgetTester tester) =>
+        tester.getTopLeft(find.text('Ambient')).dy <
+        tester.getTopLeft(find.byType(Slider)).dy;
+
+    testWidgets('a wide panel keeps the label beside the slider', (
+      WidgetTester tester,
+    ) async {
+      await inPanel(tester, 600, editable: false);
+      expect(stacked(tester), isFalse);
+    });
+
+    testWidgets("and the review's own 250-wide panel does not", (
+      WidgetTester tester,
+    ) async {
+      // 96 of label, 6 of gap and 34 of read-out leave the slider 114
+      // pixels: a stub, with "Ambient" the first thing the ellipsis eats.
+      await inPanel(tester, 250, editable: false);
+      expect(stacked(tester), isTrue);
+    });
+
+    testWidgets('a row with a typed box stacks sooner than one with a '
+        'read-out, because its box is twenty pixels wider', (
+      WidgetTester tester,
+    ) async {
+      // Mutation: measure the label column alone, as this did. Both answers
+      // are then the same at every width, and the twenty pixels the box
+      // actually takes come out of the slider nobody can aim at.
+      await inPanel(tester, 295, editable: false);
+      expect(stacked(tester), isFalse);
+
+      await inPanel(tester, 295, editable: true);
+      expect(stacked(tester), isTrue);
+    });
+  });
 }
