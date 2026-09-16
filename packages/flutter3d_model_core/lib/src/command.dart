@@ -30,6 +30,7 @@ import 'dart:typed_data';
 // material's, and the collision is the one the plan's own critique (Г4/Ж2)
 // gives for keeping the two hierarchies apart in the first place.
 import 'package:flutter3d_core/formats.dart' hide EnumHint;
+import 'package:flutter3d_core/geometry.dart' show TriangleBvh;
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 import 'package:vector_math/vector_math.dart';
 
@@ -53,6 +54,7 @@ import 'texture_bake.dart';
 import 'texture_graph.dart';
 import 'world_transform.dart';
 
+part 'bake_commands.dart';
 part 'job_commands.dart';
 part 'joint_commands.dart';
 part 'keyframe_commands.dart';
@@ -1363,6 +1365,31 @@ _modelCommandReaders =
           },
         _ => null,
       },
+      'bakeMaps': (json) => switch ((json['sourceId'], json['targetId'])) {
+        (final int sourceId, final int targetId) => BakeMaps(
+          sourceId: sourceId,
+          targetId: targetId,
+          maps: switch (json['maps']) {
+            final List<Object?> named => <String>[
+              for (final Object? it in named) it.toString(),
+            ],
+            _ => const <String>['normal'],
+          },
+          resolution: (json['resolution'] as num?)?.toInt() ?? 1024,
+          shell: (json['shell'] as num?)?.toDouble() ?? 0.1,
+        ),
+        _ => null,
+      },
+      'drawQuad': (json) =>
+          switch ((json['objectId'], _strokePointsFrom(json['points']))) {
+            (final int objectId, final List<Vector3> points) => DrawQuad(
+              objectId: objectId,
+              points: points,
+              sourceId: json['sourceId'] as int?,
+              snap: (json['snap'] as num?)?.toDouble() ?? 0.02,
+            ),
+            _ => null,
+          },
       'subdivideMesh': (json) => SubdivideMesh(
         levels: (json['levels'] as num?)?.toInt() ?? 1,
         smooth: json['smooth'] as bool? ?? true,

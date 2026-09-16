@@ -976,3 +976,154 @@ final class SubdivideMesh extends ModelCommand {
     );
   }
 }
+
+/// `pro-rt-02`: one quad of a retopology, drawn by naming its four corners.
+///
+/// **The four points are where somebody clicked, not where the vertices
+/// go.** A click has already been turned into a point near the high surface
+/// by a ray through the camera; what goes into the document is that point
+/// snapped — to a vertex the retopology mesh already has when one is within
+/// [snap], so the new quad welds to the strip beside it rather than sitting
+/// a hair away from it, and otherwise pulled onto [sourceId]'s own surface
+/// through [closestPointOn]. A second ray cannot do the pulling: there is no
+/// direction that is right for a corner, a crease and a flat face at once.
+///
+/// **Welding is the whole reason a retopology tool is a tool.** Four points
+/// added as four fresh vertices every time is a mesh of loose quads that
+/// looks right and exports as a shell full of holes; the snap is what makes
+/// the second quad share an edge with the first.
+///
+/// **Adjusting it is `ModelHistory.amend`, not a second command.** A person
+/// dragging a corner of the quad they have just drawn is adjusting one step,
+/// which is what `amend` is for — the stack does not grow and the document
+/// is re-derived from the state before the quad, so the snap runs again
+/// against the mesh as it was rather than against the quad's own new
+/// vertices.
+final class DrawQuad extends ModelCommand {
+  const DrawQuad({
+    required this.objectId,
+    required this.points,
+    this.sourceId,
+    this.snap = 0.02,
+  });
+
+  /// The object the quad is added to — the retopology in progress.
+  final int objectId;
+
+  /// Four corners, in order, in the target mesh's own space.
+  final List<Vector3> points;
+
+  /// The high mesh a new corner is pulled onto, when one is named. Null
+  /// leaves each point where the caller put it, which is what a test and a
+  /// caller that has already projected both want.
+  final int? sourceId;
+
+  /// How near an existing vertex has to be, in metres, to be reused instead
+  /// of added.
+  final double snap;
+
+  @override
+  String get name => 'drawQuad';
+
+  @override
+  String get says => 'draw a quad';
+
+  @override
+  Map<String, Object?> get arguments => <String, Object?>{
+    'objectId': objectId,
+    'points': <Object?>[
+      for (final Vector3 p in points) <double>[p.x, p.y, p.z],
+    ],
+    if (sourceId != null) 'sourceId': sourceId,
+    'snap': snap,
+  };
+
+  @override
+  Map<String, ParamHint> get hints => const <String, ParamHint>{
+    'snap': DoubleHint(min: 0, max: 1, step: 0.005),
+  };
+
+  @override
+  Outcome apply(ModelProject project, ProjectSelection selection) {
+    if (points.length != 4) {
+      return Outcome.refused('a quad takes four points, not ${points.length}');
+    }
+    final ModelObject? object = project[objectId];
+    if (object == null) return Outcome.refused('there is no object $objectId');
+    final EditedGeometry? edited = switch (object.geometry) {
+      final EditedGeometry it => it,
+      _ => null,
+    };
+    if (edited == null) {
+      return Outcome.refused(
+        '"${object.name}" has no mesh to draw onto — bake it to a mesh first',
+      );
+    }
+
+    final TriangleBvh? source = switch (sourceId) {
+      final int id => switch (project[id]?.geometry) {
+        EditedGeometry(:final mesh) => surfaceOf(mesh),
+        _ => null,
+      },
+      null => null,
+    };
+    if (sourceId != null && source == null) {
+      return Outcome.refused('object $sourceId has no mesh to project onto');
+    }
+
+    final EditMesh mesh = edited.mesh;
+    mesh.beginStep();
+    final corners = <int>[];
+    for (final Vector3 wanted in points) {
+      final int existing = _vertexNear(mesh, wanted, snap);
+      if (existing != EditMesh.none) {
+        corners.add(existing);
+        continue;
+      }
+      final Vector3 at = source == null
+          ? wanted
+          : (closestPointOn(source, wanted)?.point ?? wanted);
+      corners.add(mesh.addVertex(at));
+    }
+    if (corners.toSet().length != 4) {
+      mesh.abandonStep();
+      return Outcome.refused(
+        'two of the four points snapped to the same vertex, which is a '
+        'triangle rather than a quad',
+      );
+    }
+    final int face = mesh.addFace(corners);
+    mesh.endStep();
+
+    return Outcome.done(
+      project.withObject(
+        _resyncShapeSet(object, mesh).copyWith(geometry: EditedGeometry(mesh)),
+      ),
+      selection: selection.copyWith(
+        objects: <int>[objectId],
+        elements: <int>[face],
+        level: ElementLevel.face,
+      ),
+      meshTouched: mesh,
+    );
+  }
+}
+
+/// The live vertex of [mesh] within [snap] of [point] and nearest it, or
+/// [EditMesh.none].
+int _vertexNear(EditMesh mesh, Vector3 point, double snap) {
+  if (snap <= 0) return EditMesh.none;
+  var best = EditMesh.none;
+  var bestDistance = snap;
+  final at = Vector3.zero();
+  for (var v = 0; v < mesh.vertexSlotCount; v++) {
+    if (!mesh.isVertexAlive(v)) continue;
+    mesh.positionOf(v, at);
+    final double distance = at.distanceTo(point);
+    if (distance <= bestDistance) {
+      bestDistance = distance;
+      best = v;
+    }
+  }
+  return best;
+}

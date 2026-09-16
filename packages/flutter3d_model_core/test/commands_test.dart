@@ -2864,6 +2864,24 @@ void main() {
           normalize: false,
           maxInfluences: 3,
         ),
+        const BakeMaps(
+          sourceId: 10,
+          targetId: 11,
+          maps: <String>['normal', 'ao'],
+          resolution: 256,
+          shell: 0.05,
+        ),
+        DrawQuad(
+          objectId: 10,
+          points: <Vector3>[
+            Vector3(0, 0, 0),
+            Vector3(1, 0, 0),
+            Vector3(1, 1, 0),
+            Vector3(0, 1, 0),
+          ],
+          sourceId: 11,
+          snap: 0.05,
+        ),
         const SubdivideMesh(levels: 2, smooth: false),
         SculptStroke(
           objectId: 10,

@@ -17,6 +17,7 @@
 library;
 
 export 'src/attributes.dart';
+export 'src/bake.dart';
 export 'src/bevel.dart';
 export 'src/bridge.dart';
 export 'src/bsp.dart';
@@ -55,6 +56,7 @@ export 'src/shape_key.dart';
 export 'src/skin/vertex_weights.dart';
 export 'src/smooth.dart';
 export 'src/subdivide.dart';
+export 'src/surface_query.dart';
 export 'src/triangulate.dart';
 export 'src/uv_pack.dart';
 export 'src/uv_project.dart';
