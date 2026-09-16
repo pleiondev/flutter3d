@@ -246,7 +246,11 @@ class _IssueRow extends StatelessWidget {
               style: TextButton.styleFrom(
                 minimumSize: Size.zero,
                 padding: const EdgeInsets.symmetric(horizontal: 8),
-                textStyle: const TextStyle(fontSize: 12),
+                // From the theme's own label role: a fresh `TextStyle`
+                // carries no family — see `theme.dart`.
+                textStyle: Theme.of(
+                  context,
+                ).textTheme.labelMedium?.copyWith(fontSize: 12),
               ),
               // Closes the dialog after selecting, rather than changing the
               // selection behind it where nobody could see it happen — the

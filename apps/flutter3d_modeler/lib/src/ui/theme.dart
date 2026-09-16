@@ -277,6 +277,14 @@ ThemeData modelerTheme() {
     brightness: Brightness.dark,
     colorScheme: scheme,
     visualDensity: VisualDensity.compact,
+    // **Roboto, named rather than left to the platform** — the design
+    // hand-over's own face, and `ux-32`'s own item. Flutter ships it with
+    // the engine on every platform, so naming it costs no asset and no
+    // download; leaving it unnamed gave each platform its own system face,
+    // which is how the same panel came out at three different widths on
+    // three machines and why a screenshot taken on one of them could not be
+    // held to the layout numbers `shell_test` measures.
+    fontFamily: 'Roboto',
   );
   return base.copyWith(
     extensions: const <ThemeExtension<dynamic>>[ModelerColors.dark],
@@ -290,35 +298,46 @@ ThemeData modelerTheme() {
       thickness: 1,
       space: 1,
     ),
+    // **Every role is the themed style adjusted, never a bare `TextStyle`.**
+    // A fresh `TextStyle(fontSize: 13)` carries no family, so the six roles
+    // below quietly opted out of whatever the theme had named and fell back
+    // to the platform's own default face — which is how naming Roboto above
+    // could change nothing at all, and how the same panel came out at
+    // different widths on different machines. `copyWith` on the role keeps
+    // the family and changes the two things this design actually decides.
+    //
+    // 400 for anything a person reads and 500 for anything they act on,
+    // which is the whole of the weight scale this interface uses. A third
+    // weight is a decision to make per label, and per-label decisions are
+    // what makes a panel look assembled by different people.
     textTheme: base.textTheme
         .apply(fontSizeFactor: 1.0)
         .copyWith(
-          // 400 for anything a person reads and 500 for anything they act on,
-          // which is the whole of the weight scale this interface uses. A third
-          // weight is a decision to make per label, and per-label decisions are
-          // what makes a panel look assembled by different people.
-          bodyMedium: const TextStyle(
+          bodyMedium: base.textTheme.bodyMedium?.copyWith(
             fontSize: 13,
             fontWeight: FontWeight.w400,
           ),
-          bodySmall: const TextStyle(fontSize: 12, fontWeight: FontWeight.w400),
-          labelLarge: const TextStyle(
+          bodySmall: base.textTheme.bodySmall?.copyWith(
+            fontSize: 12,
+            fontWeight: FontWeight.w400,
+          ),
+          labelLarge: base.textTheme.labelLarge?.copyWith(
             fontSize: 13,
             fontWeight: FontWeight.w500,
           ),
-          labelMedium: const TextStyle(
+          labelMedium: base.textTheme.labelMedium?.copyWith(
             fontSize: 12,
             fontWeight: FontWeight.w500,
           ),
-          titleSmall: const TextStyle(
+          titleSmall: base.textTheme.titleSmall?.copyWith(
             fontSize: 13,
             fontWeight: FontWeight.w500,
           ),
-          // "Заголовок панели" — a file name, an operation card's own
-          // heading. Distinct from `titleSmall` above (13/500, today's
-          // panel-title stand-in at the three call sites that already use
-          // it): a caller that wants this exact role reads `titleMedium`.
-          titleMedium: const TextStyle(
+          // "Заголовок панели" — a file name, an operation card's own heading.
+          // Distinct from `titleSmall` above (13/500, today's panel-title
+          // stand-in at the three call sites that already use it): a caller that
+          // wants this exact role reads `titleMedium`.
+          titleMedium: base.textTheme.titleMedium?.copyWith(
             fontSize: 14,
             fontWeight: FontWeight.w500,
           ),
@@ -326,8 +345,15 @@ ThemeData modelerTheme() {
     segmentedButtonTheme: SegmentedButtonThemeData(
       style: ButtonStyle(
         visualDensity: VisualDensity.compact,
-        textStyle: const WidgetStatePropertyAll<TextStyle>(
-          TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
+        // Built from the theme's own label role rather than fresh, for the
+        // reason the text theme above gives: a bare `TextStyle` carries no
+        // family, and these segments are the mode switcher — the most-read
+        // control on screen.
+        textStyle: WidgetStatePropertyAll<TextStyle?>(
+          base.textTheme.labelMedium?.copyWith(
+            fontSize: 12,
+            fontWeight: FontWeight.w500,
+          ),
         ),
         side: WidgetStatePropertyAll<BorderSide>(
           BorderSide(color: scheme.outlineVariant),
