@@ -161,28 +161,19 @@ case by hand on a real machine and fill in a line here — "*n* minutes,
 *date*, *machine*" — the way `rel-09`'s own cohort rows do. Nothing in this
 session could actually run the desktop app, so no time is claimed.
 
-**Screenshots.** Three pictures on this page are placeholders — a plain
-colour with "screenshot pending" on it, at
-`cloud/server/web/assets/learn/modeler/a-lit-corner/{01-scene-viewport-gizmo,
-02-scene-mode-panel,04-export-two-nodes}.png` — standing in for the running
-app's own chrome (the viewport with the outliner and gizmo, Scene mode's
-four panels, the export dialog). This session cannot open a macOS window
-(`flutter run -d macos` fails to foreground here, the same limit case 1 and
-case 2's own pages already document), so none of the three could be shot for
-real. To replace them on a real Mac:
+**Screenshots.** All three pictures of the editor on this page are real,
+taken from the running application over case 3's own saved document: the
+viewport with the object selected, the Scene mode panel, and the export
+dialog. They are taken headlessly rather than by hand —
+`apps/flutter3d_modeler/test/tutorial_case_screenshots_test.dart` drives the
+real editor under the software rasteriser and photographs the window — so
+they are goldens: a run says whether a panel has moved since, and one
+command regenerates every page's pictures at once.
 
-1. `cd apps/flutter3d_modeler && FLUTTER3D_WINDOW=1440x900 flutter run -d macos --dart-define=mcpPort=0`
-2. `dart run tool/tutorial/bin/shoot.dart` against a scenario that: opens
-   case 2's own saved project, imports `BoxTextured.glb`, and shows the
-   viewport with both objects and the outliner (`01-scene-viewport-gizmo`);
-   drags the box into the corner and turns it, with the gizmo and pivot
-   indicator visible (also `01-scene-viewport-gizmo`, or a second frame if
-   the drag and the result want separate shots); switches to Scene mode and
-   sets the light, shadow, environment and post values this page names,
-   showing all four panels (`02-scene-mode-panel`); opens the export dialog
-   on the GLB with the n-gon warning showing (`04-export-two-nodes`).
-3. Copy the PNGs over the placeholders at the paths above and remove this
-   note once they are real.
+    (cd apps/flutter3d_modeler && flutter test \
+      test/tutorial_screenshots_test.dart \
+      test/tutorial_case_screenshots_test.dart --update-goldens)
+    dart run tool/publish_modeler_screenshots.dart
 
 **The one real render.** `03-lit-corner.png` is a genuine CPU render of this
 case's own project data — the vase and the box at their real, moved and

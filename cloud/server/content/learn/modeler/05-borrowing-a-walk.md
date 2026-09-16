@@ -125,26 +125,22 @@ case by hand on a real machine and fill in a line here — "*n* minutes,
 *date*, *machine*" — the way `rel-09`'s own cohort rows do. Nothing in this
 session could actually run the desktop app, so no time is claimed.
 
-**Screenshots.** Three pictures on this page are placeholders — a plain
-colour with "screenshot pending" on it, at
-`cloud/server/web/assets/learn/modeler/borrowing-a-walk/
-{01-clip-library,02-bone-map-and-viewports,03-blend-slider}.png` — standing
-in for the running app's own chrome (the two side-by-side viewports and the
-clip library card list, the bone-map table with its auto-mapped rows filled
-in, the clip tracks bar and its blend slider). This session cannot open a
-macOS window (`flutter run -d macos` fails to foreground here, the same
-limit cases 1–4's own pages already document), so none of the three could
-be shot for real. To replace them on a real Mac:
+**Screenshots.** The picture of the editor on this page is real, taken from
+the running application over case 5's own saved document: the retarget
+screen — the clip library, the two viewports and the bone map at once, which
+is what both of the old placeholders stood in for either half of. They are
+taken headlessly rather than by hand —
+`apps/flutter3d_modeler/test/tutorial_case_screenshots_test.dart` drives the
+real editor under the software rasteriser and photographs the window — so
+they are goldens: a run says whether a panel has moved since, and one
+command regenerates every page's pictures at once.
 
-1. `cd apps/flutter3d_modeler && FLUTTER3D_WINDOW=1440x900 flutter run -d macos --dart-define=mcpPort=0`
-2. `dart run tool/tutorial/bin/shoot.dart` against a scenario that: opens
-   the retarget screen and imports `RiggedFigure.glb`, both viewports
-   visible (`01-clip-library`); presses Auto-map, seventeen rows filled in,
-   two toe rows left unmapped (`02-bone-map-and-viewports`); after Apply,
-   shows the clip tracks bar with both clips and the blend slider partway
-   between them (`03-blend-slider`).
-3. Copy the PNGs over the placeholders at the paths above and remove this
-   note once they are real.
+    (cd apps/flutter3d_modeler && flutter test \
+      test/tutorial_screenshots_test.dart \
+      test/tutorial_case_screenshots_test.dart --update-goldens)
+    dart run tool/publish_modeler_screenshots.dart
+
+The blend slider is in the same picture, along the bottom.
 
 **The one real render, and what it cannot show.** The picture above is a
 genuine CPU render of this case's own final project — case 4's own

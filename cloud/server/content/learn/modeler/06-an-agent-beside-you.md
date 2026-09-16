@@ -125,38 +125,22 @@ case by hand on a real machine and fill in a line here — "*n* minutes,
 *date*, *machine*" — the way `rel-09`'s own cohort rows do. Nothing in this
 session could actually run the desktop app, so no time is claimed.
 
-**Screenshots.** One picture on this page is a placeholder — a plain colour
-with "screenshot pending" on it, at `cloud/server/web/assets/learn/modeler/
-an-agent-beside-you/01-agent-session-placeholder.png` — standing in for
-screen 26's own "Agent session" panel. Unlike the note this page carried
-while writing case 6, **the panel itself is real now.** `tut-16`
-(`doc/modeler-tutorial-gaps.md`), closed 2026-09-15:
-`apps/flutter3d_modeler/lib/src/ui/shell.dart`'s own `ModelerShell` grew an
-`agentPanel` slot, appended after the ordinary properties panel (never
-replacing it) while `--mcp-port` is open — `AgentSessionPanel`
-(`apps/flutter3d_modeler/lib/src/ui/agent_session_panel.dart`) holds the
-live tool-call feed and the author-badged history list this page's own
-step 5 already describes ("You"/"Agent", newest first, with the "Undo agent
-steps" button gated on `ModelHistory.topStepAuthor`). The feed is fed by
-`ToolTableServer.onCall` — `flutter3d_mcp_kit`'s own hook, run after every
-call answers, threaded through `ModelHttpServer.start`/`ModelMcpServer`
-down to `ModelerCubit.agentToolCalled`, which is also what keeps the
-viewport itself in step with an agent's own edits (they land straight on
-the shared `ModelHistory`, never through the cubit's ordinary `ran`). The
-contact sheet, under the viewport, reads the pictures a `render`/
-`renderSheet` call actually drew this session, most recent first — not a
-live six-camera render, which nothing in this app stands up outside those
-two tools; see `agent_session_panel.dart`'s own library comment for why
-that is the truer reading of "what the agent gets instead of numbers" than
-a camera rig standing by for a call that may never come. What remains is
-only the picture: nothing in this sandbox can run the desktop build to take
-one. To replace the placeholder once a real machine can:
+**Screenshots.** The agent session panel on this page is still a
+placeholder. They are taken headlessly rather than by hand —
+`apps/flutter3d_modeler/test/tutorial_case_screenshots_test.dart` drives the
+real editor under the software rasteriser and photographs the window — so
+they are goldens: a run says whether a panel has moved since, and one
+command regenerates every page's pictures at once.
 
-1. `cd apps/flutter3d_modeler && FLUTTER3D_WINDOW=1440x900 flutter run -d macos --dart-define=mcpPort=0`
-2. `dart run tool/tutorial/bin/shoot.dart` against a scenario that drives
-   this case's own steps over the real MCP port, with at least one agent
-   step and one person step visible in the history list.
-3. Copy the PNG over the placeholder at the path above and remove this note.
+    (cd apps/flutter3d_modeler && flutter test \
+      test/tutorial_screenshots_test.dart \
+      test/tutorial_case_screenshots_test.dart --update-goldens)
+    dart run tool/publish_modeler_screenshots.dart
+
+It needs a client on the other end of `--mcp-port` for the badge to
+appear at all — `ux-05` made the panel wait for a real `initialize`
+rather than for an open port — and no screenshot step stands one up
+yet.
 
 **The tool-call layer, and why the journal it writes looks the way it
 does.** Case 6's own fixtures (`packages/flutter3d_model_mcp/test/fixtures/
