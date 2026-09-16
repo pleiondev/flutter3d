@@ -37,6 +37,7 @@ export 'src/autosave.dart';
 export 'src/byte_size.dart';
 export 'src/command.dart';
 export 'src/command_journal.dart';
+export 'src/credits.dart';
 export 'src/curve_display.dart';
 export 'src/describe.dart';
 export 'src/history.dart';

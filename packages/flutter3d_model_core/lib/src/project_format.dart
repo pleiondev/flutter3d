@@ -440,6 +440,16 @@ Uint8List writeProject(
         // as the null every file written before this said.
         if (object.source case final SourceLink link)
           'source': <String, Object?>{'path': link.path, 'sha': link.sha},
+        if (object.credit case final ModelCredit credit)
+          // `gal-05`, written only where there is one: most objects owe
+          // nobody anything, and a null in every entry is a byte per object
+          // for a fact that is almost always absent.
+          'credit': <String, Object?>{
+            'title': credit.title,
+            'author': credit.author,
+            'licence': credit.licence,
+            'url': credit.url,
+          },
       });
     }
     return out;
@@ -2661,6 +2671,20 @@ VertexLayout? _layoutFrom(Object? json, Map<String, String> pool) {
           {'path': final String path, 'sha': final String sha}
               when path.isNotEmpty =>
             (path: path, sha: sha),
+          _ => null,
+        },
+        // `gal-05`. A credit missing its author is no credit: the export
+        // would write a line that claims to attribute and names nobody,
+        // which is worse than writing nothing.
+        credit: switch (entry['credit']) {
+          {
+            'title': final String title,
+            'author': final String author,
+            'licence': final String licence,
+            'url': final String url,
+          }
+              when author.isNotEmpty =>
+            (title: title, author: author, licence: licence, url: url),
           _ => null,
         },
       ),

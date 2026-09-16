@@ -424,6 +424,7 @@ final class ModelObject {
     this.visible = true,
     this.locked = false,
     this.source,
+    this.credit,
   });
 
   /// The file this object's geometry was imported from, and what that file
@@ -442,6 +443,19 @@ final class ModelObject {
   /// caller can tell "the file has changed" from "the file is as it was"
   /// without diffing meshes.
   final SourceLink? source;
+
+  /// Who this object is owed a credit to, when it came from somewhere
+  /// that asks for one — `gal-05`.
+  ///
+  /// **On the object rather than on the project.** A credit is owed for
+  /// what is in the file, and an object deleted before the export is not
+  /// in it: a project-level list would go on crediting somebody whose
+  /// chair nobody kept. Deleting the object takes the obligation with it,
+  /// which is the honest arithmetic.
+  ///
+  /// Null for everything built here and for anything under a licence that
+  /// asks for nothing — most of a document, most of the time.
+  final ModelCredit? credit;
 
   /// Whether this object is drawn — `ux-14`.
   ///
@@ -550,6 +564,8 @@ final class ModelObject {
     bool? locked,
     SourceLink? source,
     bool clearSource = false,
+    ModelCredit? credit,
+    bool clearCredit = false,
   }) => ModelObject(
     id: id,
     name: name ?? this.name,
@@ -571,6 +587,7 @@ final class ModelObject {
     visible: visible ?? this.visible,
     locked: locked ?? this.locked,
     source: clearSource ? null : (source ?? this.source),
+    credit: clearCredit ? null : (credit ?? this.credit),
   );
 
   @override
@@ -587,6 +604,27 @@ final class ModelObject {
 /// writes it — this record only promises that two equal strings mean two
 /// identical files.
 typedef SourceLink = ({String path, String sha});
+
+/// What an export owes somebody for one object — `gal-05`.
+///
+/// **Four fields, because a credit that cannot be checked is not a
+/// credit.** A name alone leaves whoever reads the exported file unable to
+/// find the original or the terms; the licence and its URL are what make
+/// the line answerable.
+typedef ModelCredit = ({
+  /// What the thing is called where it came from.
+  String title,
+
+  /// Who to credit. Never empty — `gal-01` refuses an item that asks for
+  /// a credit and names nobody.
+  String author,
+
+  /// The licence's own name, as the card showed it.
+  String licence,
+
+  /// Where the licence text is.
+  String url,
+});
 
 /// The document.
 final class ModelProject implements ModelProjectView {

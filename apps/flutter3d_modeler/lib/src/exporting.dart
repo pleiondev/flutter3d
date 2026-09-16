@@ -13,6 +13,7 @@
 /// clicks. The widget's half is one `saveAs` per file.
 library;
 
+import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:flutter3d_core/formats.dart';
@@ -297,10 +298,17 @@ ExportResult planExport(
   const flattened =
       'OBJ has no node tree, so the hierarchy is baked into the vertices: '
       'the model looks right and comes back as one level of objects.';
+  // `gal-05`: what the document owes, beside what it is. Only when it owes
+  // something — a project built from this application's own models and
+  // from CC0 owes nobody anything, and an empty credits file beside it
+  // would suggest otherwise.
+  final String? credits = creditsFile(project, documentName: name);
   return ExportWritten(
     <ExportFile>[
       for (final WrittenFile each in written.files)
         ExportFile(each.name, each.bytes),
+      if (credits != null)
+        ExportFile('CREDITS.txt', Uint8List.fromList(utf8.encode(credits))),
     ],
     <String>[
       ...warnings,
