@@ -70,7 +70,7 @@ void main() {
               gizmoPivot: Vector3.zero(),
               gizmoKind: TransformKind.move,
               onGizmoDrag: (GizmoAxis axis) => grabbed = axis,
-              onDragTool: (Offset delta, double _, PickingView _) =>
+              onDragTool: (Offset delta, double _, PickingView _, Offset _) =>
                   reported.drags.add(delta),
               onDragDone: () => reported.done++,
               onPick: (PickResult _, {required bool extend}) =>
@@ -133,7 +133,7 @@ void main() {
               onFrame: () {},
               gizmoPivot: Vector3.zero(),
               onGizmoDrag: (GizmoAxis axis) => grabbed = axis,
-              onDragTool: (Offset delta, double _, PickingView _) =>
+              onDragTool: (Offset delta, double _, PickingView _, Offset _) =>
                   reported.drags.add(delta),
               onDragDone: () => reported.done++,
             ),
