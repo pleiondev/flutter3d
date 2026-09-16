@@ -15,6 +15,7 @@ import 'package:flutter/services.dart' show FontLoader;
 import 'package:flutter3d_app/flutter3d_app.dart';
 import 'package:flutter3d_modeler/l10n/app_localizations.dart';
 import 'package:flutter3d_modeler/main.dart' hide main;
+import 'package:flutter3d_modeler/src/app_config.dart' show kOpeningReportFor;
 import 'package:flutter3d_modeler/src/settings.dart';
 import 'package:flutter3d_modeler/src/ui/theme.dart';
 import 'package:flutter3d_modeler/src/ui/tools.dart';
@@ -240,6 +241,12 @@ Future<void> launchModeller(
     () => Future<void>.delayed(const Duration(milliseconds: 300)),
   );
   await tester.pump();
+  // **Past the opening card, so no picture is of one** — `ux-30`. "opened in
+  // 340 ms" is drawn over the viewport's top-left corner for two seconds, and
+  // the fake clock only moves when a test moves it: without this, whether a
+  // given screenshot has a black measurement card in the corner of it comes
+  // down to how many times that case happened to call [settleFrames].
+  await tester.pump(kOpeningReportFor + const Duration(milliseconds: 10));
 }
 
 /// Switches to [mode] through the real mode switcher.

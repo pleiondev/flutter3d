@@ -16,6 +16,7 @@ Future<void> show(
   VoidCallback? onImport,
   ValueChanged<String>? onAddPrimitive,
   ValueChanged<ExportFormat>? onExport,
+  bool isDirty = false,
 }) {
   // Wide enough to lay out every button this row now holds — `tut-08`'s own
   // "Import" tipped the default 800-pixel test window into an overflow that
@@ -38,6 +39,7 @@ Future<void> show(
           onOpen: () {},
           onImport: onImport ?? () {},
           onSave: onSave ?? () {},
+          isDirty: isDirty,
           onExport: onExport ?? (_) {},
           onMaterialStudio: () {},
           onPreview: onPreview ?? () {},
@@ -98,6 +100,78 @@ void main() {
 
     expect(imports, 1);
   });
+
+  group(
+    'ux-30: the bar says what is true rather than the same thing always',
+    () {
+      /// What the Save button is actually painted — which is the whole of
+      /// the difference between filled and tonal, and the only part of it a
+      /// person sees. `FilledButton.tonal` builds a `FilledButton` too, so
+      /// the widget type cannot tell them apart.
+      Color saveColour(WidgetTester tester) => tester
+          .widget<Material>(
+            find
+                .descendant(
+                  of: find.widgetWithText(FilledButton, 'Save'),
+                  matching: find.byType(Material),
+                )
+                .first,
+          )
+          .color!;
+
+      testWidgets('Save is the loud button only while there is work to save', (
+        WidgetTester tester,
+      ) async {
+        await show(tester);
+        final Color clean = saveColour(tester);
+        final ColorScheme scheme = Theme.of(
+          tester.element(find.text('Save')),
+        ).colorScheme;
+
+        await show(tester, isDirty: true);
+        final Color dirty = saveColour(tester);
+
+        // **A button that is always the loudest thing on the bar says
+        // nothing by being loud.** Mutation: keep one style for both, as
+        // this did, and "have I saved this" stops being a question the bar
+        // can answer without being pressed.
+        expect(dirty, scheme.primary);
+        expect(clean, scheme.secondaryContainer);
+      });
+
+      testWidgets("and its tooltip says which of the two states it is in", (
+        WidgetTester tester,
+      ) async {
+        await show(tester);
+        expect(find.byTooltip('Save — everything is written'), findsOneWidget);
+
+        await show(tester, isDirty: true);
+        expect(
+          find.byTooltip('Save — there are unsaved changes'),
+          findsOneWidget,
+        );
+      });
+
+      testWidgets('Open and Import each say which of them loses the scene', (
+        WidgetTester tester,
+      ) async {
+        await show(tester);
+
+        // Two buttons a word apart doing opposite things: the review watched
+        // somebody press Open meaning Import and lose what they had built.
+        expect(
+          find.byTooltip('Open a file — replaces everything that is open now'),
+          findsOneWidget,
+        );
+        expect(
+          find.byTooltip(
+            'Import a file — brings it in beside what is already open',
+          ),
+          findsOneWidget,
+        );
+      });
+    },
+  );
 
   group(
     "ux-18: the Export menu offers every format, each under its own name",

@@ -48,9 +48,11 @@ extension _ReadyParts on _ModelerScreenState {
         ),
       ),
     ),
-    ModelerReady(:final renderer, :final stage) => Title(
-      title: windowTitleFor(isDirty: state.history.isDirty),
-      color: Colors.black,
+    // `ux-30`: the title says which document this is, and on macOS the
+    // window itself is told, since `Title` alone never reaches an `NSWindow`.
+    ModelerReady(:final renderer, :final stage) => DocumentWindowTitle(
+      name: state.documentName,
+      isDirty: state.history.isDirty,
       // `ui-24`'s own "при isDirty — диалог" on the platforms that route an
       // exit attempt through a `Navigator` pop — Android's back gesture,
       // chiefly, since this single-screen app has nothing else to pop to.
@@ -142,6 +144,7 @@ extension _ReadyParts on _ModelerScreenState {
                   onOpen: _openFile,
                   onImport: () => unawaited(_importFile()),
                   onSave: _saveFile,
+                  isDirty: state.history.isDirty,
                   onSaveToCabinet: _cabinetLink.canSaveBack
                       ? () => unawaited(_saveToCabinet())
                       : null,

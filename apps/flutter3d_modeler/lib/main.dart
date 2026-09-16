@@ -125,6 +125,7 @@ import 'src/ui/top_bar_actions.dart';
 import 'src/ui/transport_bar.dart';
 import 'src/ui/unsaved_changes_dialog.dart';
 import 'src/ui/weight_legend.dart';
+import 'src/ui/window_chrome.dart';
 import 'src/value_drag.dart';
 import 'src/viewport_metrics.dart';
 import 'src/weight_gradient.dart';
@@ -468,6 +469,31 @@ class _ModelerScreenState extends State<ModelerScreen>
   /// measurement recorded in a document needs to have come from.
   String? _report;
 
+  /// What takes [_report] away again, where it was shown for a while rather
+  /// than until the next one — `ux-30`.
+  Timer? _reportFades;
+
+  /// Puts [said] over the viewport, for [forAWhile] or until something else
+  /// replaces it.
+  ///
+  /// **"opened in 340 ms" is a greeting, and a greeting that stays is a
+  /// smudge.** The opening cost was written here on every launch and never
+  /// taken back, so a card nobody had asked for sat over the top-left corner
+  /// of the model for the whole session — including in every screenshot
+  /// somebody took of it. A measurement run's own report is the other case
+  /// and keeps the old behaviour: it is the answer somebody started the run
+  /// to read, and it waits until they have.
+  void _showReport(String said, {Duration? forAWhile}) {
+    _reportFades?.cancel();
+    _reportFades = null;
+    _report = said;
+    if (forAWhile == null) return;
+    _reportFades = Timer(forAWhile, () {
+      if (!mounted) return;
+      setState(() => _report = null);
+    });
+  }
+
   /// Build and raster times, printed when the build asked for them with
   /// `--dart-define=FLUTTER3D_TIMINGS=true`. Off otherwise, and off is not a
   /// half measure: the log costs a callback per frame and reports nothing.
@@ -627,7 +653,7 @@ class _ModelerScreenState extends State<ModelerScreen>
       elapsed.inMicroseconds,
       _lastRenderMicros,
     );
-    if (said != null) _report = said;
+    if (said != null) _showReport(said);
     setState(() {});
   }
 
@@ -636,6 +662,7 @@ class _ModelerScreenState extends State<ModelerScreen>
     if (identical(_liveCrashScreen, this)) _liveCrashScreen = null;
     _ticker?.dispose();
     _timings.stop();
+    _reportFades?.cancel();
     _autosave?.dispose();
     _lifecycle.dispose();
     _frame.dispose();

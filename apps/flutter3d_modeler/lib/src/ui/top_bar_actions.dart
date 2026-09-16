@@ -30,6 +30,7 @@ class TopBarActions extends StatelessWidget {
     required this.onOpen,
     required this.onImport,
     required this.onSave,
+    this.isDirty = false,
     this.onSaveToCabinet,
     required this.onExport,
     required this.onMaterialStudio,
@@ -66,6 +67,11 @@ class TopBarActions extends StatelessWidget {
   final VoidCallback onImport;
 
   final VoidCallback onSave;
+
+  /// Whether the open document has unsaved changes — `ux-30`, which is what
+  /// decides how loud the Save button is. False by default, so a caller that
+  /// has not been told about it shows the quieter of the two.
+  final bool isDirty;
 
   /// `tut-20`'s own write-back — null hides the button rather than showing
   /// it disabled, since a cabinet id and a mode that is not `view` are what
@@ -130,11 +136,32 @@ class TopBarActions extends StatelessWidget {
           child: Text('Add', style: TextStyle(fontSize: 13)),
         ),
       ),
-      TextButton(onPressed: onOpen, child: const Text('Open')),
+      // **Two buttons a word apart that do opposite things** — `ux-30`. The
+      // review watched somebody press Open meaning Import and lose the scene
+      // they had been building; the words themselves cannot be made to say
+      // which is which, so the tooltips do.
+      Tooltip(
+        message: 'Open a file — replaces everything that is open now',
+        child: TextButton(onPressed: onOpen, child: const Text('Open')),
+      ),
       const SizedBox(width: 4),
-      TextButton(onPressed: onImport, child: const Text('Import')),
+      Tooltip(
+        message: 'Import a file — brings it in beside what is already open',
+        child: TextButton(onPressed: onImport, child: const Text('Import')),
+      ),
       const SizedBox(width: 4),
-      FilledButton.tonal(onPressed: onSave, child: const Text('Save')),
+      // `ux-30`: filled only while there is something to save. A button that
+      // is always the loudest thing on the bar says nothing by being loud,
+      // and "have I saved this" is the one question the bar can answer
+      // without being asked.
+      Tooltip(
+        message: isDirty
+            ? 'Save — there are unsaved changes'
+            : 'Save — everything is written',
+        child: isDirty
+            ? FilledButton(onPressed: onSave, child: const Text('Save'))
+            : FilledButton.tonal(onPressed: onSave, child: const Text('Save')),
+      ),
       const SizedBox(width: 4),
       if (onSaveToCabinet case final VoidCallback onSaveToCabinet) ...[
         FilledButton.tonal(

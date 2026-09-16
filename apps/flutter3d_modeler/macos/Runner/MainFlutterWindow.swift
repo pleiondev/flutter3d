@@ -12,8 +12,39 @@ class MainFlutterWindow: NSWindow {
     self.setFrame(windowFrame, display: true)
 
     RegisterGeneratedPlugins(registry: flutterViewController)
+    registerWindowChannel(flutterViewController)
 
     super.awakeFromNib()
+  }
+
+  /// `ux-30`: the window takes its name from the open document, and the dot
+  /// in its close button from whether that document has unsaved work.
+  ///
+  /// **Flutter's own `Title` widget does not reach an `NSWindow`.** It sets
+  /// `SystemChrome.setApplicationSwitcherDescription`, which a browser turns
+  /// into a tab label and this platform ignores — so the window kept the name
+  /// the xib gave it for the whole session, and three of them looked alike.
+  /// `isDocumentEdited` has no cross-platform equivalent at all: it is what
+  /// macOS reads to draw the dot, to warn on a Quit, and to know a window has
+  /// work worth restoring.
+  private func registerWindowChannel(_ controller: FlutterViewController) {
+    let channel = FlutterMethodChannel(
+      name: "flutter3d/window",
+      binaryMessenger: controller.engine.binaryMessenger)
+    channel.setMethodCallHandler { [weak self] call, result in
+      guard call.method == "show" else {
+        result(FlutterMethodNotImplemented)
+        return
+      }
+      let arguments = call.arguments as? [String: Any] ?? [:]
+      if let title = arguments["title"] as? String {
+        self?.title = title
+      }
+      if let edited = arguments["edited"] as? Bool {
+        self?.isDocumentEdited = edited
+      }
+      result(nil)
+    }
   }
 
   /// `tool/tutorial/shoot.dart`'s own door: a `FLUTTER3D_WINDOW=WIDTHxHEIGHT`

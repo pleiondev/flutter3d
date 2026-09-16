@@ -242,9 +242,14 @@ extension _FileHandling on _ModelerScreenState {
         );
       }
       setState(() {
-        // With no run to wait for, the opening cost is the whole report.
+        // With no run to wait for, the opening cost is the whole report —
+        // and `ux-30`'s own two seconds, because this one is a greeting
+        // rather than something somebody asked to be told.
         if (kOrbit <= 0) {
-          _report = 'opened in ${_measurementRuns.openedInMs} ms';
+          _showReport(
+            'opened in ${_measurementRuns.openedInMs} ms',
+            forAWhile: kOpeningReportFor,
+          );
         }
       });
       final query = Uri.base.queryParameters;

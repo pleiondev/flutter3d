@@ -27,6 +27,14 @@ const int kStressObjects = int.fromEnvironment('objects', defaultValue: 1);
 /// frames cost, and stop. Zero leaves the camera to the pointer.
 const int kOrbit = int.fromEnvironment('orbit');
 
+/// How long the "opened in N ms" card stays over the viewport — `ux-30`.
+///
+/// Long enough to read a three-digit number, short enough that it is gone
+/// before anybody has decided what to do first. Here rather than in the call
+/// that shows it, so the test that waits it out and the code that sets it
+/// cannot disagree about how long "a moment" is.
+const Duration kOpeningReportFor = Duration(seconds: 2);
+
 /// Move one per cent of the subject's vertices every frame, rebuild the mesh
 /// and upload it — the whole path an edit takes, timed stage by stage.
 ///
