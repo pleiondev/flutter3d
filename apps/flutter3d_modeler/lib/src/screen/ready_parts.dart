@@ -254,16 +254,16 @@ extension _ReadyParts on _ModelerScreenState {
                     _cubit.ran(ToggleModifier(id: id, index: index)),
                 onReorderModifier: (int id, int from, int to) =>
                     _cubit.ran(ReorderModifier(id: id, from: from, to: to)),
-                // Phase one's own stack has exactly one buildable kind — the
-                // mirror `mesh-41` already gives it. `ui-08`'s own "Add" link
-                // reaches for it directly rather than opening a picker with one
-                // entry in it.
-                onAddModifier: (int id) => _cubit.ran(
-                  AddModifier(
-                    id: id,
-                    modifier: MirrorModifier(normal: vm.Vector3(1, 0, 0)),
-                  ),
-                ),
+                // `ux-13`: whichever kind the menu offered. What was here
+                // added a mirror on X without asking, which is one of five
+                // and was never the one anybody meant more than a fifth of
+                // the time.
+                onAddModifier: (int id, Modifier modifier) =>
+                    _cubit.ran(AddModifier(id: id, modifier: modifier)),
+                onToggleModifierExport: (int id, int index) =>
+                    _cubit.ran(ToggleModifierExport(id: id, index: index)),
+                onRemoveModifier: (int id, int index) =>
+                    _cubit.ran(RemoveModifier(id: id, index: index)),
                 onSetModifierField: _setModifierField,
                 onAssignMaterial: _assignMaterial,
                 onAddMaterial: _addMaterial,

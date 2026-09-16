@@ -984,6 +984,14 @@ _modelCommandReaders =
         (final int id, final int index) => ToggleModifier(id: id, index: index),
         _ => null,
       },
+      // `ux-13`'s own twin of it.
+      'toggleModifierExport': (json) => switch ((json['id'], json['index'])) {
+        (final int id, final int index) => ToggleModifierExport(
+          id: id,
+          index: index,
+        ),
+        _ => null,
+      },
       'reorderModifier': (json) =>
           switch ((json['id'], json['from'], json['to'])) {
             (final int id, final int from, final int to) => ReorderModifier(

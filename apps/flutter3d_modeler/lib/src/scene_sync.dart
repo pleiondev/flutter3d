@@ -101,6 +101,15 @@ final class SceneSync {
   /// stack; see [_meshFor].
   final ModifierEvaluationCache _modifiers = ModifierEvaluationCache();
 
+  /// The evaluator, for the panel that wants to say what the stack costs —
+  /// `ux-13`'s own "triangles in → out".
+  ///
+  /// **The same cache the viewport folds through, not a second one.** The
+  /// number the panel shows has to be the number the picture is drawn from,
+  /// and a second evaluator would fold the whole stack again to answer a
+  /// question the first one has already answered this frame.
+  ModifierEvaluationCache get modifiers => _modifiers;
+
   /// Set by [apply] when some object's own skeleton has more joints than the
   /// engine can skin — [Skeleton.maxJoints], the shader's own uniform-array
   /// limit — so a status line can say so instead of [Skeleton]'s constructor

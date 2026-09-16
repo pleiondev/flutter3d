@@ -138,6 +138,53 @@ final class ToggleModifier extends ModelCommand {
   }
 }
 
+/// Turns the modifier at [index] on or off for the *file* — `ux-13`.
+///
+/// **[ToggleModifier]'s own twin, not a flag on it.** The two answer
+/// different questions — whether the picture shows it, and whether the
+/// export runs it — and one command with a "which flag" argument would be a
+/// command whose `says` could not say what it did.
+final class ToggleModifierExport extends ModelCommand {
+  const ToggleModifierExport({required this.id, required this.index});
+
+  final int id;
+  final int index;
+
+  @override
+  String get name => 'toggleModifierExport';
+
+  @override
+  String get says => 'toggle the modifier for export';
+
+  @override
+  Map<String, Object?> get arguments => <String, Object?>{
+    'id': id,
+    'index': index,
+  };
+
+  @override
+  Outcome apply(ModelProject project, ProjectSelection selection) {
+    final object = project[id];
+    if (object == null) return Outcome.refused('there is no object $id');
+    if (index < 0 || index >= object.modifiers.length) {
+      return Outcome.refused('there is no modifier $index on object $id');
+    }
+    final ModifierSlot slot = object.modifiers[index];
+    return Outcome.done(
+      project.withObject(
+        object.copyWith(
+          modifiers: <ModifierSlot>[
+            for (var i = 0; i < object.modifiers.length; i++)
+              i == index
+                  ? slot.copyWith(inExport: !slot.inExport)
+                  : object.modifiers[i],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 /// Moves the modifier at [from] on [id]'s own stack to [to], the rest
 /// shifting to make room the way a list's own `insert` after a `removeAt`
 /// would.
