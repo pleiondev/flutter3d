@@ -156,31 +156,23 @@ case by hand on a real machine and fill in a line here — "*n* minutes,
 *date*, *machine*" — the way `rel-09`'s own cohort rows do. Nothing in this
 session could actually run the desktop app, so no time is claimed.
 
-**Screenshots.** Four pictures on this page are placeholders — a plain
-colour with "screenshot pending" on it, at
-`cloud/server/web/assets/learn/modeler/prop-from-a-scan/{01-start-screen,
-02-import-dialog,03-material-panel,04-export-dialog}.png` — standing in for
-the modeler's own running UI (start screen, import dialog, material panel,
-export dialog). The two teapot renders above are real: real STL decode,
-real import options, real material commands, run against a real
-`ModelSession`, rendered by the same CPU renderer `render`/`renderSheet`
-use. What is missing is the *chrome around* the 3D content — the panels,
-buttons and dialogs a person actually clicks — because this page was
-written in a sandbox that cannot open a macOS window
-(`flutter run -d macos` fails to foreground here, the same limit
-`tool/tutorial/shoot.dart`'s own screencapture path already documents).
+**Screenshots.** Three of the pictures of the editor on this page are real,
+taken from the running application: the start screen, the import dialog with
+the teapot's own STL in it, and the material panel over the opened document.
+They are taken headlessly rather than by hand — `apps/flutter3d_modeler/
+test/tutorial_case_screenshots_test.dart` drives the real editor, the real
+Open button and the real import screen under the software rasteriser, and
+photographs the window — so they are goldens: a run says whether a panel has
+moved since, and one command regenerates every page's pictures at once.
 
-To replace the four placeholders on a real Mac:
+    (cd apps/flutter3d_modeler && flutter test \
+      test/tutorial_screenshots_test.dart \
+      test/tutorial_case_screenshots_test.dart --update-goldens)
+    dart run tool/publish_modeler_screenshots.dart
 
-1. `cd apps/flutter3d_modeler && FLUTTER3D_WINDOW=1440x900 flutter run -d macos --dart-define=mcpPort=0`
-2. `dart run tool/tutorial/bin/shoot.dart` against a scenario that: opens
-   the start screen (`01-start-screen`); opens `teapot.stl` and shows the
-   import dialog with "mm" chosen (`02-import-dialog`); adds and assigns
-   "glazed ceramic" and shows the material panel (`03-material-panel`);
-   opens the export dialog on `teapot.glb` with the warning showing
-   (`04-export-dialog`).
-3. Copy the four PNGs over the placeholders at the paths above and remove
-   this note once they are real.
+The export dialog is the one still missing here; it is reached from the
+status line rather than from a button and has not been added to the
+screenshot list yet.
 
 **The render scale.** The two real renders are of the imported project
 scaled up 20× for the picture only (`tool/make_case1_fixtures.dart`'s own

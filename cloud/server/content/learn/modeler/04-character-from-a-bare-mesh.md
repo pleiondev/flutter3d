@@ -177,29 +177,23 @@ case by hand on a real machine and fill in a line here — "*n* minutes,
 *date*, *machine*" — the way `rel-09`'s own cohort rows do. Nothing in this
 session could actually run the desktop app, so no time is claimed.
 
-**Screenshots.** Five pictures on this page are still placeholders — a
-plain colour with "screenshot pending" on it, at
-`cloud/server/web/assets/learn/modeler/character-from-a-bare-mesh/
-{01-autorig-dialog,03-bend-slider,04-pose-and-keys,
-05-morphs-panel,06-game-preview}.png` — standing in for the running app's
-own chrome (the auto-rig dialog and its markers, the bend slider, the
-transport bar and its keys, the morphs panel, the game-preview screen with
-its overlays). `02-weight-paint-gradient.png` is no longer one of them — see
-`tut-11` below. This session cannot open a macOS window (`flutter run -d
-macos` fails to foreground here, the same limit cases 1–3's own pages
-already document), so none of the remaining five could be shot for real. To
-replace them on a real Mac:
+**Screenshots.** Three of the pictures of the editor on this page are real,
+taken from the running application over case 4's own saved document: the
+pose screen with its timeline, the weights sub-mode with the bend bar, and
+the morphs panel. They are taken headlessly rather than by hand —
+`apps/flutter3d_modeler/test/tutorial_case_screenshots_test.dart` drives the
+real editor under the software rasteriser and photographs the window — so
+they are goldens: a run says whether a panel has moved since, and one
+command regenerates every page's pictures at once.
 
-1. `cd apps/flutter3d_modeler && FLUTTER3D_WINDOW=1440x900 flutter run -d macos --dart-define=mcpPort=0`
-2. `dart run tool/tutorial/bin/shoot.dart` against a scenario that: imports
-   `RobotExpressive.glb` and opens the auto-rig dialog with markers placed
-   (`01-autorig-dialog`); drags the bend
-   slider (`03-bend-slider`); switches to Pose, shows the "wave" clip's two
-   keys on the transport bar (`04-pose-and-keys`); switches to Morphs with
-   "chestPuff" and its driver set (`05-morphs-panel`); opens the game-preview
-   route with the metrics overlay and budget bars showing (`06-game-preview`).
-3. Copy the PNGs over the placeholders at the paths above and remove this
-   note once they are real.
+    (cd apps/flutter3d_modeler && flutter test \
+      test/tutorial_screenshots_test.dart \
+      test/tutorial_case_screenshots_test.dart --update-goldens)
+    dart run tool/publish_modeler_screenshots.dart
+
+The auto-rig dialog and the game preview are the two still missing:
+both are modal screens reached through a marker-placing flow no
+screenshot step drives yet.
 
 **The one real render, now showing the rig too.** The picture above is a
 genuine CPU render of this case's own final project — the real imported

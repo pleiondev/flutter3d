@@ -62,12 +62,28 @@ Case 1 ("A prop from a scan"), case 2 ("A vase from a profile"), case 3
 ("Borrowing a walk: retarget a clip") and case 6 ("An agent beside you")
 are the six cases the plan names; all six are now written and pass as
 `.jsonl` scenarios (`tutorial_scenarios_test.dart`). None has actually been
-walked by hand on a real macOS machine yet — every page's own "Time to
-complete" line is still a `TODO`, and every screenshot of the running app's
-own chrome (panels, dialogs, buttons) is still an explicit "screenshot
-pending" placeholder; only the pure-3D "expected result" pictures (headless
-`render`/`renderSheet`, deterministic, checked in CI) are real on all six
-pages. This is the acceptance rule's own second condition, not yet met.
+walked by hand on a real macOS machine yet, so every page's own "Time to
+complete" line is still a `TODO`.
+
+**The screenshots are no longer placeholders, and did not need a window
+after all** (2026-09-16). Every page said the chrome around the 3D content —
+panels, dialogs, buttons — could only be photographed from a real macOS
+build, and gave a `flutter run -d macos` recipe for doing it by hand. The
+editor opens the software rasteriser in a headless `flutter test` and its
+frames reach the widget tree as an ordinary image, so the whole window can
+be photographed there: `apps/flutter3d_modeler/test/tutorial_screenshots_
+test.dart` takes a picture of every mode and sub-mode the editor offers, and
+`tutorial_case_screenshots_test.dart` takes the ones the six pages ask for
+by name, each over that case's own committed document, driven through the
+real buttons. They are goldens, so a panel that moves is a failing run
+rather than six pages quietly going stale — which is exactly what the row
+below records happening to the pictures that *were* checked. Three of the
+nineteen are still placeholders and each page says which and why: the Lathe
+dialog's profile editor, the auto-rig dialog and the game preview, and the
+agent session panel, all of which need a flow no screenshot step drives yet.
+
+This is the acceptance rule's own second condition, met for the pictures and
+not yet for the walk-through.
 Every gap row above — sixteen found writing the six cases, four more found
 closing the pass out — has become a `tut-NN` line in
 `doc/model-editor-plan.md` with a decision, per the rule's first condition.

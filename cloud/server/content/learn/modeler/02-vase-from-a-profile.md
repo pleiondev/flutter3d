@@ -189,26 +189,23 @@ case by hand on a real machine and fill in a line here — "*n* minutes,
 *date*, *machine*" — the way `rel-09`'s own cohort rows do. Nothing in this
 session could actually run the desktop app, so no time is claimed.
 
-**Screenshots.** Four pictures on this page are placeholders — a plain
-colour at `cloud/server/web/assets/learn/modeler/vase-from-a-profile/
-{01-profile-editor,02-mesh-edit-toolbar,03-modifier-stack,
-04-material-texture-panel}.png` — standing in for the running app's own
-chrome (the profile editor, the mesh-edit toolbar and viewport, the
-modifier stack panel, the material panel). This session cannot open a
-macOS window (`flutter run -d macos` fails to foreground here — the same
-limit case 1's own page and `tool/tutorial/shoot.dart` already document),
-so none of the four could be shot for real. To replace them on a real Mac:
+**Screenshots.** Three of the pictures of the editor on this page are real,
+taken from the running application over case 2's own saved document: the
+mesh-editing toolbar, the modifier stack and the material panel. They are
+taken headlessly rather than by hand —
+`apps/flutter3d_modeler/test/tutorial_case_screenshots_test.dart` drives the
+real editor under the software rasteriser and photographs the window — so
+they are goldens: a run says whether a panel has moved since, and one
+command regenerates every page's pictures at once.
 
-1. `cd apps/flutter3d_modeler && FLUTTER3D_WINDOW=1440x900 flutter run -d macos --dart-define=mcpPort=0`
-2. `dart run tool/tutorial/bin/shoot.dart` against a scenario that: opens a
-   new project and draws this page's own eight-point profile in the lathe
-   dialog, twelve segments (`01-profile-editor`); selects the rim faces and
-   shows the mesh-edit toolbar mid-extrude (`02-mesh-edit-toolbar`); adds
-   the mirror and the array modifiers and shows the stack panel
-   (`03-modifier-stack`); sets "glazed clay" with its albedo texture and
-   shows the material panel (`04-material-texture-panel`).
-3. Copy the four PNGs over the placeholders at the paths above and remove
-   this note once they are real.
+    (cd apps/flutter3d_modeler && flutter test \
+      test/tutorial_screenshots_test.dart \
+      test/tutorial_case_screenshots_test.dart --update-goldens)
+    dart run tool/publish_modeler_screenshots.dart
+
+The profile editor is the one still missing here: it lives inside the
+Lathe dialog, which shows nothing worth photographing until a profile
+has been drawn in it, and no screenshot step draws one yet.
 
 **Proving it.** `packages/flutter3d_model_mcp/test/fixtures/tutorial/
 case2_scenario.dart` builds exactly the project this page describes,
