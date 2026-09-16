@@ -49,6 +49,10 @@ extension _FileHandling on _ModelerScreenState {
       _elementPickerCache.forget();
       _transformSession.forget();
     });
+    // `ux-47`: watch whatever this project links to, and stop watching what
+    // the last one did. Here rather than in `build`, because a project only
+    // changes on an open and this is the one place every open goes through.
+    _linkedMaterials.follow(history.project);
     _capturePreviewIfDue();
   }
 

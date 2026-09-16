@@ -294,6 +294,10 @@ extension _ReadyParts on _ModelerScreenState {
                 onSetModifierField: _setModifierField,
                 onAssignMaterial: _assignMaterial,
                 onAddMaterial: _addMaterial,
+                // `ux-47`: opens the linked `.fmat` in whatever the system
+                // uses for one. The row itself only appears when the active
+                // material has a file and the platform has an editor.
+                onOpenLinkedFile: _linkedMaterials.openInEditor,
                 onSetMaterialField: _setMaterialField,
                 onChooseTexture: _chooseTexture,
                 onClearTexture: _clearTexture,

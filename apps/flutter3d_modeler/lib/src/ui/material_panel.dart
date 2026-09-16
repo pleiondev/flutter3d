@@ -68,6 +68,7 @@ class MaterialPanel extends StatelessWidget {
     required this.onAssign,
     required this.onAddMaterial,
     required this.onSetField,
+    this.onOpenLinkedFile,
     this.metallicEnabled = true,
     required this.textureSlots,
   });
@@ -90,6 +91,11 @@ class MaterialPanel extends StatelessWidget {
   /// `roughness`, `emissive`, `emissiveStrength`, `normalScale`,
   /// `occlusionStrength`, `alphaMode`, `alphaCutoff`, `lightingModel`).
   final void Function(String field, Object? value) onSetField;
+
+  /// Hands the active material's own `.fmat` to the system's editor —
+  /// `ux-47`. Null where there is nothing to hand it to (the web build), and
+  /// the row does not appear at all.
+  final Future<bool> Function(String path)? onOpenLinkedFile;
 
   /// Whether the metallic slider should respond — false for a shader with no
   /// metallic parameter (Lambert and friends), from
@@ -162,6 +168,34 @@ class MaterialPanel extends StatelessWidget {
             ),
           ),
         ),
+        // `ux-47`: a material that defers to a file says which one, and
+        // hands it to whatever the system opens `.fmat` with. **Only when
+        // there is a file and somebody to open it with** — a browser has
+        // neither, and a button that always refuses is worse than no button.
+        if (activeIndex case final int at
+            when at >= 0 &&
+                at < materials.length &&
+                materials[at].fmat != null &&
+                onOpenLinkedFile != null) ...<Widget>[
+          const SizedBox(height: 6),
+          Row(
+            children: <Widget>[
+              const Icon(Icons.link, size: 14),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  materials[at].fmat!,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.bodySmall,
+                ),
+              ),
+              TextButton(
+                onPressed: () => onOpenLinkedFile!(materials[at].fmat!),
+                child: const Text('Open in editor'),
+              ),
+            ],
+          ),
+        ],
         if (surface != null) ...<Widget>[
           const SizedBox(height: 6),
           Text(
