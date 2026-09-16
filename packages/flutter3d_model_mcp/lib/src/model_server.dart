@@ -1,3 +1,4 @@
+import 'package:dart_mcp/server.dart' show CallToolResult;
 import 'package:flutter3d_mcp_kit/flutter3d_mcp_kit.dart';
 
 import 'model_session.dart';
@@ -23,6 +24,51 @@ ModelPictureTool _picture(ModelTool tool) => ModelPictureTool(tool.tool, (
   return (did: answer.did, says: answer.says, png: null);
 });
 
+/// [tool], with the ids it made recorded around it — `ux-19`.
+///
+/// **The bracket is here because only here knows where a call begins.**
+/// `structuredContent` promises an agent the ids of what the call it just made
+/// created, and "what the newest history step made" is a different question:
+/// a call that makes no step at all would answer with the previous call's new
+/// objects, which is worse than answering with none. So the object ids are
+/// taken before the tool runs and diffed after, whichever tool it was — the
+/// render tools included, which answer with an empty list and are honest about
+/// it rather than repeating whatever the last edit made.
+ModelPictureTool _watched(ModelPictureTool tool) =>
+    ModelPictureTool(tool.tool, (
+      ModelSession session,
+      Map<String, Object?> arguments,
+    ) async {
+      final List<int> before = session.objectIds;
+      final PictureAnswer answer = await tool.run(session, arguments);
+      _made = session.madeSince(before);
+      return answer;
+    });
+
+/// What the call that is answering right now created.
+///
+/// **A variable between the two halves of one call, and that is safe here for
+/// the reason the whole server rests on: one session, one project, and — since
+/// `dart_mcp` awaits a tool body before it builds the result — no second call
+/// running between this being written and [_resultOf] reading it.** The
+/// alternative was widening `Answer` itself, which is a record two packages
+/// and a few hundred call sites use to mean "did it, and what to say".
+List<int> _made = const <int>[];
+
+/// [answer] as a result, with `ux-19`'s own machine-readable half beside the
+/// sentence: what the call did, what it made, and what is selected now.
+CallToolResult _resultOf(PictureAnswer answer, ModelSession session) {
+  final CallToolResult base = pictureResultOf(answer);
+  return CallToolResult(
+    content: base.content,
+    isError: base.isError,
+    structuredContent: session.structured(
+      (did: answer.did, says: answer.says),
+      made: _made,
+    ),
+  );
+}
+
 /// A model project, offered to an agent as a table of tools.
 ///
 /// **One project, one process, and no window** — the same shape
@@ -47,23 +93,36 @@ base class ModelMcpServer extends ToolTableServer<ModelSession, PictureAnswer> {
   /// without this class knowing what they are. Empty for every server this
   /// package starts on its own — which is what keeps a headless
   /// `flutter3d_model_mcp` server from ever listing one.
+  // `session` is a plain parameter rather than a `super.session`, and the
+  // lint that asks for one is off here: the initializer list below has to
+  // name it, because `toResult` closes over it — a super parameter cannot be
+  // referred to from the very initializer list that forwards it.
+  // ignore: use_super_parameters
   ModelMcpServer(
     super.channel, {
-    required super.session,
+    required ModelSession session,
     List<ModelPictureTool> extraTools = const <ModelPictureTool>[],
     super.onCall,
     super.onInitialize,
   }) : super(
+         session: session,
          name: 'flutter3d_model_mcp',
          version: modelMcpVersion,
          instructions: _instructions,
          tools: <ModelPictureTool>[
-           ...modelTools.map(_picture),
-           renderTool,
-           renderSheetTool,
-           ...extraTools,
+           for (final ModelPictureTool tool in <ModelPictureTool>[
+             ...modelTools.map(_picture),
+             renderTool,
+             renderSheetTool,
+             ...extraTools,
+           ])
+             _watched(tool),
          ],
-         toResult: pictureResultOf,
+         // `ux-19`: a closure over the session rather than the bare
+         // `pictureResultOf`, because the structured half of an answer is
+         // read off the session after the call — what is selected now, and
+         // what this call made.
+         toResult: (PictureAnswer answer) => _resultOf(answer, session),
        );
 }
 
@@ -78,6 +137,15 @@ has, `select` some of it, then the commands that change it. Commands that add
 something — `addPrimitive`, `addLathe` — select what they made; everything
 else that moves or deletes acts on the current selection. Mesh commands
 (`extrude`, `loopCut`, …) need `select` with an `object` and a `level` first.
+
+Do not guess an element id. `describe` says where every vertex, edge and face
+of an object is, which way it faces and how big it is, and `selectFacing`
+picks the faces pointing a given way — "the top" is `selectFacing` with an
+axis of [0,1,0], not a number you hoped was right. `selectNear` takes a region
+round a point. Every answer also carries `structuredContent`: what the call
+did, the ids of any objects it created, and what is selected now — so the id
+of something you just duplicated or imported is in the reply rather than
+something to go looking for.
 
 `check` says what is wrong with the project as an export would see it, and is
 worth calling before `export`. `save` writes the project's own format;

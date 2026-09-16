@@ -50,6 +50,9 @@ void main() {
   test('every tool is a command or one of the named session verbs', () {
     const beyondTheCommands = <String>{
       'list',
+      // `ux-19`: reads the mesh and says where every element is; changes
+      // nothing, so there is no command for it to be.
+      'describe',
       'listMaterials',
       // `tut-05`: runs a real command (`SelectElements`) underneath now, but
       // under this tool's own historic name and JSON shape rather than the

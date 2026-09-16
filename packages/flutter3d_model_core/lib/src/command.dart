@@ -21,6 +21,7 @@
 library;
 
 import 'dart:convert';
+import 'dart:math' as math;
 import 'dart:typed_data';
 
 // `EnumHint` hidden: `flutter3d_formats`' own is `MaterialHintKind`'s, for a
@@ -32,6 +33,7 @@ import 'package:flutter3d_core/formats.dart' hide EnumHint;
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 import 'package:vector_math/vector_math.dart';
 
+import 'describe.dart';
 import 'job.dart';
 import 'key_table.dart';
 import 'lod_spec.dart';
@@ -744,6 +746,32 @@ _modelCommandReaders =
         final int slot => SelectByMaterial(slot),
         _ => null,
       },
+      // `ux-19`. `within` and `radius` are read the same way every other
+      // number in this reader is — a `num` that may have arrived as an int
+      // from JSON — and `within` falls back to the command's own default
+      // rather than refusing, since a caller that did not name an angle is
+      // asking for "the faces that point this way" and not for a syntax
+      // error.
+      'selectFacing': (json) => switch (_doubleListFrom(json['axis'])) {
+        final List<double> axis when axis.length == 3 => SelectFacing(
+          axis: Vector3(axis[0], axis[1], axis[2]),
+          within: switch (json['within']) {
+            final num within => within.toDouble(),
+            _ => 45.0,
+          },
+        ),
+        _ => null,
+      },
+      'selectNear': (json) =>
+          switch ((_doubleListFrom(json['point']), json['radius'])) {
+            (final List<double> point, final num radius)
+                when point.length == 3 =>
+              SelectNear(
+                point: Vector3(point[0], point[1], point[2]),
+                radius: radius.toDouble(),
+              ),
+            _ => null,
+          },
       // `tut-05`: registered so a journal line — or an MCP `select` call,
       // read back through `_command`-style reader — replays a specific pick
       // rather than only the walks above. Every field is optional on
