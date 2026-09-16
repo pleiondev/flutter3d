@@ -63,6 +63,7 @@ class ModelerShell extends StatelessWidget {
     this.onPropertiesWidth,
     this.foldedPanel = false,
     this.foldedRail = false,
+    this.railExtras = const <RailEntry>[],
   }) : assert(
          (bottom == null) == (bottomHeight == null),
          'bottom and bottomHeight are given together or not at all',
@@ -141,6 +142,11 @@ class ModelerShell extends StatelessWidget {
   /// The same for the tool rail — `T`.
   final bool foldedRail;
 
+  /// What the rail lists under its tools — `ux-23`'s own lights. Empty in
+  /// every mode but Scene, which is the one mode whose whole subject is a
+  /// short list of things and the one whose rail was empty.
+  final List<RailEntry> railExtras;
+
   /// Which keys the rail's own tooltips should name — `ux-10`.
   ///
   /// Null falls back to `ModelerTool.shortcut`, which is what every caller
@@ -180,6 +186,7 @@ class ModelerShell extends StatelessWidget {
                     active: activeTool,
                     onTool: onTool,
                     keymap: keymap,
+                    extras: railExtras,
                   ),
                   const VerticalDivider(width: 1, thickness: 1),
                 ],
@@ -511,6 +518,19 @@ class _Splitter extends StatelessWidget {
   );
 }
 
+/// One thing a rail lists that is not a tool — `ux-23`'s own lights.
+///
+/// **A record rather than a widget, so the rail goes on drawing every entry
+/// the same way.** A slot the caller filled with a widget would be a second
+/// answer to what a rail button looks like, and the first thing to drift
+/// would be the armed colour.
+typedef RailEntry = ({
+  String label,
+  IconData icon,
+  bool armed,
+  VoidCallback onPressed,
+});
+
 class _Rail extends StatelessWidget {
   const _Rail({
     required this.mode,
@@ -518,7 +538,14 @@ class _Rail extends StatelessWidget {
     required this.active,
     required this.onTool,
     this.keymap,
+    this.extras = const <RailEntry>[],
   });
+
+  /// Listed under the tools, after a divider — `ux-23`. The scene mode's own
+  /// lights: every other mode's rail says what the mode has in it, and the
+  /// one mode whose whole subject is a short list of things had an empty
+  /// rail.
+  final List<RailEntry> extras;
 
   final Keymap? keymap;
 
@@ -546,18 +573,32 @@ class _Rail extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final tools = toolsFor(mode, animation: animationSubmode);
+    // `ux-23`: the tools first, then whatever else the mode lists. One
+    // builder over both, so an entry of either kind is the same button.
+    final List<RailEntry> rows = <RailEntry>[
+      for (final ModelerTool tool in tools)
+        (
+          label: tool.label,
+          icon: tool.icon,
+          armed: tool.id == active,
+          onPressed: () => onTool(tool.id),
+        ),
+      ...extras,
+    ];
     return SizedBox(
       width: ModelerMetrics.rail,
       child: ColoredBox(
         color: theme.colorScheme.surfaceContainerLow,
         child: ListView.builder(
           padding: const EdgeInsets.symmetric(vertical: 6),
-          itemCount: tools.length,
+          itemCount: rows.length,
           itemBuilder: (BuildContext context, int index) {
-            final tool = tools[index];
-            final startsGroup =
-                index > 0 && tools[index - 1].group != tool.group;
-            final armed = tool.id == active;
+            final RailEntry row = rows[index];
+            final bool isTool = index < tools.length;
+            final startsGroup = isTool
+                ? index > 0 && tools[index - 1].group != tools[index].group
+                : index == tools.length && tools.isNotEmpty;
+            final armed = row.armed;
             return Column(
               mainAxisSize: MainAxisSize.min,
               children: <Widget>[
@@ -575,13 +616,15 @@ class _Rail extends StatelessWidget {
                 // sit beside it as a second, still-unlabelled node.
                 MergeSemantics(
                   child: Semantics(
-                    label: tool.label,
+                    label: row.label,
                     button: true,
                     child: Tooltip(
-                      message: _tooltipFor(tool),
+                      message: isTool
+                          ? _tooltipFor(tools[index])
+                          : row.label,
                       child: IconButton(
-                        onPressed: () => onTool(tool.id),
-                        icon: Icon(tool.icon, size: 18),
+                        onPressed: row.onPressed,
+                        icon: Icon(row.icon, size: 18),
                         // The design's own "кнопка 40 × 36, радиус 10" — the
                         // one button this app widens past the ambient
                         // `iconButtonTheme`'s square 36 (`theme.dart`'s own

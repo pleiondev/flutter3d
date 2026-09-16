@@ -347,7 +347,35 @@ extension _Interactions on _ModelerScreenState {
   /// `mat-34d`'s own scene-mode wiring, over `mat-23`'s own commands.
   void _selectLight(int index) => setState(() => _selectedLight = index);
 
-  void _addLight() => _cubit.ran(const AddLight());
+  /// `ux-23`: above the model rather than inside it.
+  ///
+  /// **A light at the origin is a light inside the cube**, which is where
+  /// every new one landed: the viewport showed no change at all, and the
+  /// first thing anybody had to do after adding one was work out why. Above
+  /// the top of the bounds and back towards the camera is where a key light
+  /// goes, and it is where the handle a person drags is visible.
+  ///
+  /// Half the model's own height above it rather than a fixed distance: a
+  /// scanned head two hundred metres tall and a cube of one metre both get a
+  /// light that reads as being above the thing.
+  void _addLight() {
+    final ModelerState state = _state;
+    final vm.Aabb3? bounds = state is ModelerReady
+        ? state.stage.subjectBounds()
+        : null;
+    if (bounds == null) {
+      _cubit.ran(const AddLight());
+      return;
+    }
+    final vm.Vector3 middle = bounds.center;
+    final vm.Vector3 span = bounds.max - bounds.min;
+    final double reach = math.max(span.length * 0.5, 1.0);
+    _cubit.ran(
+      AddLight(
+        at: vm.Vector3(middle.x, bounds.max.y + reach, middle.z + reach),
+      ),
+    );
+  }
 
   void _removeLight(int index) {
     _cubit.ran(RemoveLight(index));

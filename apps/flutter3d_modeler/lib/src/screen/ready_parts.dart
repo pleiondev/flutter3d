@@ -480,8 +480,7 @@ extension _ReadyParts on _ModelerScreenState {
                                     PickingView _,
                                     Offset _,
                                   ) => setState(
-                                    () =>
-                                        _transformSession.valueDragged(delta),
+                                    () => _transformSession.valueDragged(delta),
                                   )
                                 : kDragTools.contains(_tool)
                                 ? _transformSession.dragged
@@ -684,6 +683,41 @@ extension _ReadyParts on _ModelerScreenState {
                 }),
                 foldedPanel: _foldedPanel,
                 foldedRail: _foldedRail,
+                // `ux-23`: the lights, in the mode that is about them. The
+                // panel lists them too — it has room for their settings —
+                // but a mode whose rail is empty reads as a mode with
+                // nothing in it.
+                railExtras: _mode == ModelerMode.scene
+                    ? <RailEntry>[
+                        for (
+                          var at = 0;
+                          at < state.project.lighting.lights.length;
+                          at++
+                        )
+                          (
+                            label:
+                                'Light ${at + 1} · '
+                                '${state.project.lighting.lights[at].type.name}',
+                            // `ProjectLightType` is a class with three const
+                            // members rather than an enum, so this reads the
+                            // name it carries — the same string the label
+                            // above already shows.
+                            icon: switch (state
+                                .project
+                                .lighting
+                                .lights[at]
+                                .type
+                                .name) {
+                              'point' => Icons.lightbulb_outline,
+                              'spot' => Icons.highlight_outlined,
+                              _ => Icons.wb_sunny_outlined,
+                            },
+                            armed: _selectedLight == at,
+                            onPressed: () =>
+                                setState(() => _selectedLight = at),
+                          ),
+                      ]
+                    : const <RailEntry>[],
                 agentPanel: agentPanelOpen
                     ? AgentSessionPanel(
                         calls: state.agentCalls,

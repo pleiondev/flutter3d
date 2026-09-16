@@ -44,7 +44,12 @@ class ShellForWidth extends StatelessWidget {
     this.onPropertiesWidth,
     this.foldedPanel = false,
     this.foldedRail = false,
+    this.railExtras = const <RailEntry>[],
   });
+
+  /// `ux-23`: what the desktop rail lists under its tools. The touch shells
+  /// draw a palette rather than a rail and have no place for it.
+  final List<RailEntry> railExtras;
 
   /// `ux-27`'s own three: how wide the properties panel is, what a drag on
   /// its splitter reports, and whether either it or the rail is folded away.
@@ -122,6 +127,7 @@ class ShellForWidth extends StatelessWidget {
             onPropertiesWidth: onPropertiesWidth,
             foldedPanel: foldedPanel,
             foldedRail: foldedRail,
+            railExtras: railExtras,
           ),
           // `ux-21`: on both touch shells the panel is a sheet under a thumb
           // rather than a column under a cursor, so everything in it is

@@ -103,6 +103,30 @@ class _RangeSliderFieldState extends State<RangeSliderField> {
   Widget build(BuildContext context) {
     final ThemeData theme = Theme.of(context);
     final EditorWidgetsTheme editorTheme = EditorWidgetsTheme.of(context);
+
+    return LayoutBuilder(
+      builder: (BuildContext context, BoxConstraints constraints) {
+        // `ux-23`: the label goes above the row where there is not room for
+        // it beside one. **Measured rather than assumed**: the same panel is
+        // 250 wide on a desktop and the whole window on a phone, and a row
+        // that always stacked would waste a line everywhere one fitted.
+        // Below this the slider is a stub nobody can aim at and the label is
+        // the first thing the ellipsis eats — the review found "Ambient"
+        // reading as "Am".
+        final bool stacked =
+            widget.label != null &&
+            constraints.maxWidth < editorTheme.labelWidth + kLabelBesideFrom;
+        return _row(context, theme, editorTheme, stacked: stacked);
+      },
+    );
+  }
+
+  Widget _row(
+    BuildContext context,
+    ThemeData theme,
+    EditorWidgetsTheme editorTheme, {
+    required bool stacked,
+  }) {
     final double value = widget.value;
     final double shown = (_dragging ?? value).clamp(widget.min, widget.max);
     final double? step = widget.step;
@@ -115,18 +139,29 @@ class _RangeSliderFieldState extends State<RangeSliderField> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       mainAxisSize: MainAxisSize.min,
       children: <Widget>[
+        if (stacked)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 2),
+            child: Text(
+              widget.label!,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: widget.enabled ? null : theme.disabledColor,
+              ),
+            ),
+          ),
         Row(
           children: <Widget>[
-            if (widget.label case final String label)
-              SizedBox(
-                width: editorTheme.labelWidth,
-                child: Text(
-                  label,
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: widget.enabled ? null : theme.disabledColor,
+            if (!stacked)
+              if (widget.label case final String label)
+                SizedBox(
+                  width: editorTheme.labelWidth,
+                  child: Text(
+                    label,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: widget.enabled ? null : theme.disabledColor,
+                    ),
                   ),
                 ),
-              ),
             Expanded(
               // Track thickness and thumb size come from the ambient
               // `Theme.of(context).sliderTheme`, not a literal — see
@@ -180,7 +215,9 @@ class _RangeSliderFieldState extends State<RangeSliderField> {
         if (widget.editable && outside)
           Padding(
             padding: EdgeInsets.only(
-              left: widget.label == null ? 0 : editorTheme.labelWidth,
+              left: widget.label == null || stacked
+                  ? 0
+                  : editorTheme.labelWidth,
             ),
             child: Text(
               '${_numberText(value)} is outside '
@@ -198,6 +235,15 @@ class _RangeSliderFieldState extends State<RangeSliderField> {
 /// both read numbers by.
 String _numberText(double value) =>
     value == value.roundToDouble() ? '${value.toInt()}' : '$value';
+
+/// The narrowest a row can be and still hold a label beside a slider a
+/// person can aim at — `ux-23`.
+///
+/// A slider under about a hundred and fifty pixels is a stub: the thumb is
+/// most of it, and the label beside it is the first thing the ellipsis eats.
+/// Added to whatever the label column is, since that is the room the label
+/// itself wants.
+const double kLabelBesideFrom = 150;
 
 /// A box that reports a number when the person has finished, and only then
 /// — [RangeSliderField.editable]'s own fallback for a value that may sit
