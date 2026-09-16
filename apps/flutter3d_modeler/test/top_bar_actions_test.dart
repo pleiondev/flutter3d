@@ -8,6 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart'
     show AddPrimitive;
 import 'package:flutter3d_modeler/src/exporting.dart';
+import 'package:flutter3d_modeler/src/play/play_template.dart';
 import 'package:flutter3d_modeler/src/ui/top_bar_actions.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -19,6 +20,8 @@ Future<void> show(
   ValueChanged<String>? onAddPrimitive,
   ValueChanged<ExportFormat>? onExport,
   bool isDirty = false,
+  ValueChanged<PlayTemplate>? onPlay,
+  String? playBlocked,
 }) {
   // Wide enough to lay out every button this row now holds — `tut-08`'s own
   // "Import" tipped the default 800-pixel test window into an overflow that
@@ -45,6 +48,8 @@ Future<void> show(
           onExport: onExport ?? (_) {},
           onMaterialStudio: () {},
           onPreview: onPreview ?? () {},
+          onPlay: onPlay ?? (_) {},
+          playBlocked: playBlocked,
           onShortcutHelp: () {},
           onStartScreen: () {},
           onReportProblem: () {},
@@ -55,6 +60,52 @@ Future<void> show(
 }
 
 void main() {
+  group('ux-51: the Play toolbar', () {
+    testWidgets('the menu offers every template, and reports the one picked', (
+      WidgetTester tester,
+    ) async {
+      final picked = <PlayTemplate>[];
+      await show(tester, onPlay: picked.add);
+
+      await tester.tap(find.text('Play'));
+      await tester.pumpAndSettle();
+      for (final PlayTemplate template in PlayTemplate.values) {
+        expect(find.textContaining(template.label), findsOneWidget);
+      }
+
+      await tester.tap(find.textContaining(PlayTemplate.prop.label));
+      await tester.pumpAndSettle();
+      expect(picked, <PlayTemplate>[PlayTemplate.prop]);
+    });
+
+    testWidgets('an export error holds it back, in Export\'s own words', (
+      WidgetTester tester,
+    ) async {
+      final picked = <PlayTemplate>[];
+      await show(
+        tester,
+        onPlay: picked.add,
+        playBlocked: 'will not export: 1 problem',
+      );
+
+      // **Mutation: let Play start regardless.** The document is handed
+      // over exactly as an export hands it over, so a project that cannot
+      // be exported cannot be played — and it would fail inside the
+      // template, where the reason is no longer on screen.
+      await tester.tap(find.text('Play'));
+      await tester.pumpAndSettle();
+      expect(find.textContaining(PlayTemplate.prop.label), findsNothing);
+      expect(picked, isEmpty);
+
+      // And it says why in the sentence Export already says, not a second
+      // one written for this button.
+      expect(
+        find.byTooltip('Play — will not export: 1 problem'),
+        findsOneWidget,
+      );
+    });
+  });
+
   testWidgets('tapping Save calls onSave', (WidgetTester tester) async {
     var saves = 0;
     await show(tester, onSave: () => saves++);

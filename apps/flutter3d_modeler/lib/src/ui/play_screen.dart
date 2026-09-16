@@ -16,6 +16,7 @@ import 'package:vector_math/vector_math.dart' show Vector2;
 import '../modeler_viewport.dart';
 import '../play/play_session.dart';
 import '../play/play_template.dart';
+import 'budget_bars.dart';
 
 /// Which key does what while Play is running.
 ///
@@ -38,16 +39,24 @@ final Map<LogicalKeyboardKey, ({double x, double y})> kPlayWalkKeys =
     };
 
 /// Opens Play over whatever is on screen, and comes back when it is stopped.
+///
+/// [projectNow] is read again on every Reload rather than captured once:
+/// the document behind this route keeps being edited while it is open, and
+/// reading a copy taken at Play time would make Reload redraw what was
+/// already on screen.
 Future<void> showPlay(
   BuildContext context, {
   required Renderer renderer,
-  required ModelProject project,
+  required ModelProject Function() projectNow,
   required PlayTemplate template,
 }) => Navigator.of(context).push(
   MaterialPageRoute<void>(
     fullscreenDialog: true,
-    builder: (BuildContext context) =>
-        PlayScreen(renderer: renderer, project: project, template: template),
+    builder: (BuildContext context) => PlayScreen(
+      renderer: renderer,
+      projectNow: projectNow,
+      template: template,
+    ),
   ),
 );
 
@@ -56,12 +65,15 @@ class PlayScreen extends StatefulWidget {
   const PlayScreen({
     super.key,
     required this.renderer,
-    required this.project,
+    required this.projectNow,
     required this.template,
   });
 
   final Renderer renderer;
-  final ModelProject project;
+
+  /// The live document, read fresh on every Reload.
+  final ModelProject Function() projectNow;
+
   final PlayTemplate template;
 
   @override
@@ -71,7 +83,7 @@ class PlayScreen extends StatefulWidget {
 class _PlayScreenState extends State<PlayScreen> {
   late final PlaySession _session = PlaySession.start(
     device: widget.renderer.device,
-    project: widget.project,
+    project: widget.projectNow(),
     template: widget.template,
   );
   final FocusNode _keys = FocusNode(debugLabel: 'play');
@@ -130,6 +142,19 @@ class _PlayScreenState extends State<PlayScreen> {
     );
   }
 
+  /// What the budget card is drawn from, recomputed only when the document
+  /// this screen has been handed changes — a report per frame would measure
+  /// every mesh in the project sixty times a second.
+  late ProfileBudgetReport _budget = ProfileBudgetReport.of(
+    widget.projectNow(),
+  );
+
+  void _reload() {
+    final ModelProject now = widget.projectNow();
+    _session.reload(now);
+    setState(() => _budget = ProfileBudgetReport.of(now));
+  }
+
   void _frame() {
     final Duration now = Duration(
       microseconds: DateTime.now().microsecondsSinceEpoch,
@@ -182,6 +207,17 @@ class _PlayScreenState extends State<PlayScreen> {
                     icon: const Icon(Icons.stop),
                     label: const Text('Stop'),
                   ),
+                  const SizedBox(width: 8),
+                  // `ux-51`: the document again, with the body left where it
+                  // is. **Keeping the state is the whole point of a Reload
+                  // button** — Play stopped and started again would do the
+                  // reload as well, and would put the player back at the
+                  // spawn, which is the walk they just made taken away.
+                  FilledButton.tonalIcon(
+                    onPressed: _reload,
+                    icon: const Icon(Icons.refresh),
+                    label: const Text('Reload'),
+                  ),
                   const SizedBox(width: 12),
                   Text(
                     '${widget.template.label}  ·  WASD to walk, drag to look, '
@@ -189,6 +225,21 @@ class _PlayScreenState extends State<PlayScreen> {
                     style: theme.textTheme.labelSmall,
                   ),
                 ],
+              ),
+            ),
+            // `ux-51`: the profile's budgets beside the running game, which
+            // is where they answer the question they are for — "will this
+            // run on the machine I am making it for" is asked while looking
+            // at it running, not while looking at a panel of numbers.
+            Positioned(
+              right: 12,
+              top: 12,
+              width: 240,
+              child: Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(10),
+                  child: BudgetBars(report: _budget),
+                ),
               ),
             ),
           ],

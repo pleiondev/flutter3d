@@ -59,10 +59,21 @@ extension _GamePreviewWiring on _ModelerScreenState {
   Future<void> _openPlay(PlayTemplate template) async {
     final ModelerState state = _state;
     if (state is! ModelerReady) return;
+    // `ux-51`: the same gate Export keeps. A document that will not export
+    // will not play either — Play hands it over exactly as an export does —
+    // and it refuses in Export's own sentence rather than a second one
+    // written for this button.
+    if (!state.readiness.canExport) {
+      _cubit.say('Play: ${state.readiness.says}', important: true);
+      return;
+    }
     await showPlay(
       context,
       renderer: state.renderer,
-      project: state.project,
+      // Read on every Reload rather than captured: the document keeps being
+      // edited — by a person behind the route, by an agent over MCP — while
+      // Play is open.
+      projectNow: () => _history.project,
       template: template,
     );
   }

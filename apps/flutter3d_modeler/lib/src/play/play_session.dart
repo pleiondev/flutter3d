@@ -137,6 +137,15 @@ final class PlaySession {
     _body.collider.position.setFrom(_body.position);
   }
 
+  /// Brings the running game to [project] — `ux-51`'s own Reload.
+  ///
+  /// **The body is not touched.** A reload that respawned would be Play
+  /// stopped and started again, which is the thing a Reload button exists
+  /// to be an alternative to: the walk a person made to get to the corner
+  /// they are looking at is state, and losing it to see a colour change is
+  /// why "just restart it" is not an answer.
+  void reload(ModelProject project) => stage.sync?.apply(project);
+
   /// Turns the view by a drag of [dx] and [dy] logical pixels.
   void look(double dx, double dy) {
     yaw -= dx * kPlayLookSpeed;

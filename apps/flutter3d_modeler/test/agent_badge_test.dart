@@ -83,6 +83,7 @@ Future<void> showBar(
           onSave: () {},
           onExport: (_) {},
           onMaterialStudio: () {},
+          onPlay: (_) {},
           onPreview: () {},
           onShortcutHelp: () {},
           onStartScreen: () {},
