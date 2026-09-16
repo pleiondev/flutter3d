@@ -33,6 +33,8 @@ class ModelerKeys extends StatelessWidget {
     this.onCommandPalette,
     this.onFoldPanel,
     this.onFoldRail,
+    this.onGrowSelection,
+    this.onShrinkSelection,
     required this.tools,
     required this.child,
     required this.keymap,
@@ -101,6 +103,10 @@ class ModelerKeys extends StatelessWidget {
   /// `ux-27`'s own two folds. Null where there is no shell to fold.
   final VoidCallback? onFoldPanel;
   final VoidCallback? onFoldRail;
+
+  /// `ux-28`'s own two: one ring of neighbours more, and one less.
+  final VoidCallback? onGrowSelection;
+  final VoidCallback? onShrinkSelection;
   final List<ModelerTool> tools;
   final Widget child;
 
@@ -139,6 +145,8 @@ class ModelerKeys extends StatelessWidget {
                 ModelerAction.commandPalette: onCommandPalette,
                 ModelerAction.foldPanel: onFoldPanel,
                 ModelerAction.foldRail: onFoldRail,
+                ModelerAction.growSelection: onGrowSelection,
+                ModelerAction.shrinkSelection: onShrinkSelection,
               }.entries)
             if (each.value case final VoidCallback run)
               for (final ShortcutActivator key in keymap.forAction(each.key))

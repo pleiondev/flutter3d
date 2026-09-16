@@ -492,6 +492,14 @@ class _ModelerScreenState extends State<ModelerScreen>
   bool _foldedPanel = false;
   bool _foldedRail = false;
 
+  /// What the pointer is resting on inside the mesh — `ux-28`.
+  ///
+  /// Never in the document: where a pointer happens to be is not a fact
+  /// about the model, it does not survive a save and undoing it would mean
+  /// nothing. Null whenever the pointer is over nothing, has left the
+  /// picture, or there is no mesh to be over.
+  Selection? _hoveredElements;
+
   /// Whether the agent panel is showing — `ux-05`.
   ///
   /// Starts closed and opens from the badge. **A person's own choice, not a

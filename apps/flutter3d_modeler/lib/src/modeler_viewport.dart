@@ -37,6 +37,7 @@ import 'mesh_overlay_builder.dart';
 import 'object_picking.dart';
 import 'orbit_gestures.dart';
 import 'selection_box.dart';
+import 'selection_rules.dart' show ElementPickIntent;
 import 'settings.dart' show NavigationScheme;
 import 'shape_points_overlay.dart';
 import 'staging.dart';
@@ -99,9 +100,12 @@ class ModelerViewport extends StatefulWidget {
     this.onViewportMetrics,
     this.onPick,
     this.onElementPick,
+    this.onElementHover,
+    this.hovered,
     this.onDragTool,
     this.onDragDone,
     this.onBox,
+    this.lassoSelect = false,
     this.strokeTool,
     this.onStroke,
     this.editMesh,
@@ -271,13 +275,31 @@ class ModelerViewport extends StatefulWidget {
   /// Present is what puts the viewport in element mode: a caller in object mode
   /// leaves it null and gets [onPick] instead, which is one decision in one
   /// place rather than a mode flag both sides have to agree about.
+  /// `extend` became an [ElementPickIntent] with `ux-28`: alt asks for the
+  /// loop through the edge under the pointer and control on top of it for the
+  /// ring across, so the answer a click wants is no longer a yes-or-no.
   final void Function(
     PickingView view,
     Offset at,
     PointerDeviceKind pointer, {
-    required bool extend,
+    required ElementPickIntent intent,
   })?
   onElementPick;
+
+  /// Where the pointer is resting, for the caller to say what is under it —
+  /// `ux-28`'s own highlight.
+  ///
+  /// **Reported rather than answered here, the same bargain [onElementPick]
+  /// strikes.** The mesh and its picker belong to the screen; this widget
+  /// knows the camera and the size, which is what a [PickingView] is. Null
+  /// when the pointer has left the picture, so the highlight goes out rather
+  /// than sticking where it was last seen.
+  final void Function(PickingView view, Offset? at, PointerDeviceKind pointer)?
+  onElementHover;
+
+  /// What to draw as under the pointer, in the same colours the selection is
+  /// drawn in but dimmer — `ux-28`. Null, or empty, draws nothing.
+  final Selection? hovered;
 
   /// A left-button drag with a tool armed, in logical pixels, with the height
   /// the picture was laid out at so a caller can turn it into world units, and
@@ -309,6 +331,15 @@ class ModelerViewport extends StatefulWidget {
   /// caller's — `applyBox` holds the rules and they have to agree with the ones
   /// a click follows.
   final void Function(SelectionBox box, PickingView view)? onBox;
+
+  /// Whether a drag draws a freehand loop rather than a rectangle — `ux-28`.
+  ///
+  /// The tool decides, not a modifier: the two modifiers a drag has are
+  /// already spent on add and subtract, and the third is the camera's under
+  /// the scheme half the field uses. So the lasso is a button beside Select
+  /// on the rail, which also gives it a key and a place in the palette, and
+  /// makes it reachable on a tablet with no modifiers at all.
+  final bool lassoSelect;
 
   /// Which continuous-stroke tool [onStroke] answers for, or null for none.
   ///
@@ -748,6 +779,7 @@ class _ModelerViewportState extends State<ModelerViewport> {
       mesh,
       mesh: edit,
       selection: widget.elements ?? _nothingSelected,
+      hovered: widget.hovered,
       meshVersion: widget.meshVersion,
       selectionVersion: widget.elementsVersion,
       view: look,
@@ -762,7 +794,14 @@ class _ModelerViewportState extends State<ModelerViewport> {
       // only ever swallows the walk keys while one is held — see [_lookKey].
       focusNode: _lookFocus,
       onKeyEvent: _lookKey,
-      child: Listener(
+      // `ux-28`: a `Listener` is never told that a pointer left, so the exit
+      // that puts the hover highlight out comes from a region round the same
+      // area. Not opaque: the `Listener` below is what answers for hits, and
+      // a second opaque layer over the picture would be a second answer.
+      child: MouseRegion(
+        opaque: false,
+        onExit: _hoverLeft,
+        child: Listener(
         // On the picture and nothing else. A `Listener` up at the scaffold would
         // orbit the camera when somebody drags a value in the properties panel,
         // which is the first bug every viewport in every tool has had.
@@ -887,6 +926,7 @@ class _ModelerViewportState extends State<ModelerViewport> {
               ],
             );
           },
+        ),
         ),
       ),
     );
@@ -1037,9 +1077,10 @@ class _ModelerViewportState extends State<ModelerViewport> {
       final SelectionBox box = _box ??= SelectionBox(
         from: start.at,
         pointer: event.kind,
+        lasso: widget.lassoSelect,
       );
       box
-        ..to = event.localPosition
+        ..dragTo(event.localPosition)
         ..mode = _boxMode();
       setState(() {});
       return;
@@ -1087,10 +1128,38 @@ class _ModelerViewportState extends State<ModelerViewport> {
       );
       return;
     }
+    // `ux-28`: what is under the pointer, for the caller to light up. After
+    // the gizmo, because a viewport with a gizmo in it has both and the
+    // element under an arm is not the thing a hand is reaching for.
+    if (widget.onElementHover case final void Function(
+      PickingView,
+      Offset?,
+      PointerDeviceKind,
+    ) told when !_viewport.isEmpty) {
+      told(
+        PickingView(camera: widget.stage.camera, size: _viewport),
+        event.localPosition,
+        event.kind,
+      );
+    }
     if (widget.gizmoPivot == null) return;
     final GizmoAxis? axis = _gizmoUnder(event.localPosition);
     if (axis == _hotAxis) return;
     setState(() => _hotAxis = axis);
+  }
+
+  /// The pointer left the picture: nothing is under it any more — `ux-28`.
+  ///
+  /// Without this the highlight stays on whatever the pointer passed over on
+  /// its way out, which reads as a selection that is not one for as long as
+  /// the person is looking somewhere else.
+  void _hoverLeft(PointerExitEvent event) {
+    if (_viewport.isEmpty) return;
+    widget.onElementHover?.call(
+      PickingView(camera: widget.stage.camera, size: _viewport),
+      null,
+      event.kind,
+    );
   }
 
   /// The gizmo arm a click at [at] is on, or null.
@@ -1302,7 +1371,16 @@ class _ModelerViewportState extends State<ModelerViewport> {
         PickingView(camera: widget.stage.camera, size: _viewport),
         at,
         kind,
-        extend: extend,
+        // `ux-28`: the command key stands in for control on a Mac, where
+        // control-click is the system's own secondary click and never
+        // reaches this at all.
+        intent: ElementPickIntent.forModifiers(
+          extend: extend,
+          alternate: HardwareKeyboard.instance.isAltPressed,
+          control:
+              HardwareKeyboard.instance.isControlPressed ||
+              HardwareKeyboard.instance.isMetaPressed,
+        ),
       );
       return;
     }
@@ -1389,20 +1467,31 @@ class _BoxPainter extends CustomPainter {
       SelectionBoxMode.subtract => const Color(0xFFFF9926),
       _ => const Color(0xFF62D4E3),
     };
+    final Paint wash = Paint()..color = colour.withValues(alpha: 0.12);
+    final Paint line = Paint()
+      ..color = colour
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1;
+    // `ux-28`: the loop as it was drawn, closed back to where it started —
+    // which is the shape `SelectionBox.encloses` will be asked about, so
+    // what is on the glass is what letting go will mean.
+    if (box.trail case final List<Offset> path when path.length > 1) {
+      final Path drawn = Path()..addPolygon(path, true);
+      canvas
+        ..drawPath(drawn, wash)
+        ..drawPath(drawn, line);
+      return;
+    }
     canvas
-      ..drawRect(box.rect, Paint()..color = colour.withValues(alpha: 0.12))
-      ..drawRect(
-        box.rect,
-        Paint()
-          ..color = colour
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = 1,
-      );
+      ..drawRect(box.rect, wash)
+      ..drawRect(box.rect, line);
   }
 
   @override
   bool shouldRepaint(_BoxPainter old) =>
-      old.box.rect != box.rect || old.box.mode != box.mode;
+      old.box.rect != box.rect ||
+      old.box.mode != box.mode ||
+      old.box.trail?.length != box.trail?.length;
 }
 
 /// The ring `view-26n` draws round whatever a snapped drag is about to land

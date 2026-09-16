@@ -140,9 +140,13 @@ Set<String> unavailableTools({
 /// Whether [id] is one of the tools that acts on what is selected.
 ///
 /// The ones that are not: adding a shape, which is where a selection comes
-/// from, and the select tools themselves.
+/// from, and the tools that make a selection rather than reading one —
+/// Select, `ux-28`'s lasso, and the lathe's own dialog.
 bool _needsSelection(String id) =>
-    !id.endsWith('.select') && !id.endsWith('.add') && !id.endsWith('.lathe');
+    !id.endsWith('.select') &&
+    !id.endsWith('.add') &&
+    !id.endsWith('.lathe') &&
+    !id.endsWith('.lasso');
 
 /// `ux-27`'s own two folds, as palette entries — the ids are this file's
 /// own rather than any rail's, since nothing on a rail folds a panel.
