@@ -183,6 +183,13 @@ extension _FileHandling on _ModelerScreenState {
       // `opened` is also the door a *re*-open comes through and the
       // workspace is a property of the session rather than of the document.
       _cubit.workspace(_settings.workspace);
+      // `ux-42`: Quick Setup once, Home after that. Scheduled rather than
+      // awaited here, because everything below this line — the agent port,
+      // the recovery offer — belongs to opening the document and none of it
+      // should wait on somebody reading five questions.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) unawaited(_showLaunchScreen());
+      });
       final int mcpPort = widget.mcpPort ?? kMcpPort;
       if (mcpPort >= 0) {
         unawaited(
@@ -996,18 +1003,12 @@ extension _FileHandling on _ModelerScreenState {
       onClearLocalData: _clearLocalData,
     );
     if (chosen == null || !mounted) return;
-    setState(() {
-      _settings = chosen;
-      // `ux-11`: the steps a held snap rounds to are the person's own, and a
-      // transform started after this reads the new ones.
-      _transformSession.snapSteps = _snapStepsOf(chosen);
-    });
-    // `ux-37`: the switcher grows or shrinks with no restart, and a person
-    // standing in a mode the new workspace does not have is moved off it.
-    _cubit.workspace(chosen.workspace);
-    if (!_settingsStore.write(chosen)) {
-      _cubit.say('Settings could not be saved', important: true);
-    }
+    // `ux-11`: the steps a held snap rounds to are the person's own, and a
+    // transform started after this reads the new ones. `ux-37`: the switcher
+    // grows or shrinks with no restart, and a person standing in a mode the
+    // new workspace does not have is moved off it. Both live in
+    // `_keepSettings` now, which `ux-42`'s own Quick Setup shares.
+    _keepSettings(chosen);
   }
 
   /// `ux-44`'s own `ui.screenshot`: the window as PNG bytes, or null when
@@ -1076,12 +1077,20 @@ extension _FileHandling on _ModelerScreenState {
 
   /// `ui-15`'s own start screen: "Open file", "New project" with a profile,
   /// and the recent-models list `RecentModels` already keeps.
-  Future<void> _showStartScreen() async {
+  Future<void> _showStartScreen({bool atLaunch = false}) async {
     final device = _device;
     if (device == null || _state is! ModelerReady) return;
     final recent = RecentModels().read(exists: pathExists);
     if (!mounted) return;
-    final choice = await showStartScreen(context, recentPaths: recent);
+    final choice = await showStartScreen(
+      context,
+      recentPaths: recent,
+      showAtLaunch: _settings.showHomeAtLaunch,
+      // `ux-42`: only the launch showing offers the setting. Asking "show
+      // this at launch?" on a screen somebody opened by pressing Home is
+      // asking about a moment that has already passed.
+      offerLaunchChoice: atLaunch,
+    );
     if (!mounted || choice == null) return;
     switch (choice) {
       case OpenFileChoice():
@@ -1090,6 +1099,80 @@ extension _FileHandling on _ModelerScreenState {
         await _openRecent(path, device);
       case NewProjectChoice(:final ProjectProfile profile):
         _newProjectWith(profile);
+      case ScenarioChoice(:final StartScenario scenario):
+        await _startScenario(scenario, device);
+      case ShowAtLaunchChoice(:final bool show):
+        _keepSettings(_settings.copyWith(showHomeAtLaunch: show));
+        // The checkbox closed the screen to answer; put it back, because
+        // ticking a box is not choosing what to do next.
+        await _showStartScreen(atLaunch: atLaunch);
+    }
+  }
+
+  /// `ux-42`: what the first launch shows — Quick Setup on an empty settings
+  /// store, Home on a filled one, and nothing at all when a person has turned
+  /// Home off.
+  ///
+  /// **Quick Setup is not optional and Home is.** The five questions are ones
+  /// somebody knows the answer to before they have used the editor, and
+  /// asking them later means asking after the defaults have already annoyed
+  /// somebody; Home is a convenience, and a person who wants to land straight
+  /// in the document should get to say so.
+  Future<void> _showLaunchScreen() async {
+    if (!_settings.quickSetupDone) {
+      final ModelerSettings chosen = await showQuickSetup(context, _settings);
+      if (!mounted) return;
+      _keepSettings(chosen);
+      return;
+    }
+    if (_settings.showHomeAtLaunch) await _showStartScreen(atLaunch: true);
+  }
+
+  /// Keeps [chosen] — in this session, in the store, and wherever the rest of
+  /// the screen reads a setting from.
+  ///
+  /// The same three things `_showSettings` does with what its dialog answers,
+  /// named once so `ux-42`'s own two callers do not each re-derive them.
+  void _keepSettings(ModelerSettings chosen) {
+    setState(() {
+      _settings = chosen;
+      _transformSession.snapSteps = _snapStepsOf(chosen);
+    });
+    _cubit.workspace(chosen.workspace);
+    if (!_settingsStore.write(chosen)) {
+      _cubit.say('Settings could not be saved', important: true);
+    }
+  }
+
+  /// `ux-42`: each card lands in the state its tutorial case starts from.
+  ///
+  /// **Landing somewhere, rather than explaining where to go.** A person
+  /// following the tutorial's own "a character" case needs the Full
+  /// workspace, Animation mode and a document; telling them that in three
+  /// sentences and leaving them in Object mode is how a tutorial loses
+  /// somebody in its first paragraph.
+  Future<void> _startScenario(
+    StartScenario scenario,
+    GraphicsDevice device,
+  ) async {
+    switch (scenario) {
+      // A scan arrives through the same door every file does — the import
+      // screen, where the unit and the welding are chosen (`ux-06`).
+      case StartScenario.scan:
+        await _openFileAndRemember(device);
+      case StartScenario.primitives:
+        _newProjectWith(const ProjectProfile());
+        _cubit.mode(ModelerMode.object);
+      case StartScenario.character:
+        _newProjectWith(const ProjectProfile());
+        // Animation mode is in the Full workspace only, so asking for it
+        // without this would be refused by `ux-37`'s own gate — correctly,
+        // and uselessly for somebody who just asked for a character.
+        _keepSettings(_settings.copyWith(workspace: Workspace.full));
+        _cubit.mode(ModelerMode.animation);
+      case StartScenario.scene:
+        _newProjectWith(const ProjectProfile());
+        _cubit.mode(ModelerMode.scene);
     }
   }
 

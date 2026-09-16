@@ -38,6 +38,16 @@ enum ShortcutSection {
 
   /// What the rail arms.
   tools,
+
+  /// What a finger and a pen do — `ux-42`.
+  ///
+  /// **Its own section because none of it is a key.** A person on a tablet
+  /// has no keyboard to read the rest of this screen against, and until this
+  /// row the help screen had nothing at all to say to them; what a finger
+  /// does, what a long press opens and what the inverted end of a stylus
+  /// means are all decided by `InputPolicy` and were written down nowhere a
+  /// person could read.
+  touch,
 }
 
 /// One row of the shortcut table: the key, and what it does.
@@ -68,6 +78,7 @@ List<ShortcutEntry> shortcutTable(
   ..._cameraRows(navigation),
   ..._actionRows(keymap),
   ..._pointerRows,
+  ..._touchRows,
   ..._toolRows(keymap),
 ];
 
@@ -88,6 +99,37 @@ const List<ShortcutEntry> _pointerRows = <ShortcutEntry>[
     label: 'Select the edge ring',
     keys: 'Ctrl or ⌘, with Alt and a click',
     section: ShortcutSection.selection,
+  ),
+];
+
+/// `ux-42`: what a finger and a pen do, from `InputPolicy.classify`'s own
+/// answers rather than from a second account of them.
+///
+/// **Written as sentences, not read off the policy at runtime.** `classify`
+/// answers per pointer, per armed tool, and turning the cross product of that
+/// into rows would be a table nobody reads; these four are what the policy
+/// actually decides, said the way a person would ask about it. The test holds
+/// them to it.
+const List<ShortcutEntry> _touchRows = <ShortcutEntry>[
+  ShortcutEntry(
+    label: 'A finger',
+    keys: 'Moves the camera, whatever tool is armed',
+    section: ShortcutSection.touch,
+  ),
+  ShortcutEntry(
+    label: 'A finger held still',
+    keys: 'Opens the menu, without nudging the camera first',
+    section: ShortcutSection.touch,
+  ),
+  ShortcutEntry(
+    label: 'A pen',
+    keys: 'Draws on the model, harder for a stronger stroke',
+    section: ShortcutSection.touch,
+  ),
+  ShortcutEntry(
+    label: 'The other end of the pen',
+    keys: 'The same stroke, erasing',
+    section: ShortcutSection.touch,
   ),
 ];
 
