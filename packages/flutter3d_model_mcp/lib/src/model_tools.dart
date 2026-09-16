@@ -7,6 +7,7 @@ import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 // package's unrelated modifier-parameter `EnumHint`, which nothing here reads.
 import 'package:flutter3d_model_core/flutter3d_model_core.dart' hide EnumHint;
 
+import 'describe_type.dart';
 import 'model_session.dart';
 
 /// One tool: what an agent is offered, and what calling it does — see
@@ -2596,6 +2597,40 @@ List<ModelTool> get modelTools => <ModelTool>[
         ),
       );
     }),
+  ),
+  ModelTool(
+    Tool(
+      name: 'describe_type',
+      description:
+          'What a kind of thing takes: the fields of a modifier kind, a '
+          'parametric shape or a texture node, with their shapes, ranges and '
+          'units. Ask with a "family" alone to list its kinds, then again '
+          'with a "kind" for that one\'s own fields. This is the answer to '
+          '"what does addModifier want for a mirror" without reading a '
+          'paragraph covering five kinds.',
+      inputSchema: ObjectSchema(
+        properties: <String, Schema>{
+          'family': UntitledSingleSelectEnumSchema(
+            description: 'which family of kinds to describe',
+            values: describableFamilies,
+          ),
+          'kind': StringSchema(
+            description:
+                'one kind of that family, e.g. "mirror"; omit to list them',
+          ),
+        },
+        required: <String>['family'],
+      ),
+    ),
+    _sync(
+      (ModelSession session, Map<String, Object?> arguments) => (
+        did: true,
+        says: describeType(
+          family: arguments['family']! as String,
+          kind: arguments['kind'] as String?,
+        ),
+      ),
+    ),
   ),
   ModelTool(
     Tool(

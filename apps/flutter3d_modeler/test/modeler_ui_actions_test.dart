@@ -12,6 +12,7 @@ import 'package:flutter3d/flutter3d.dart' hide Material;
 import 'package:flutter3d_cpu/testing.dart';
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
+import 'package:flutter3d_modeler/src/mcp_ui_actions.dart';
 import 'package:flutter3d_modeler/src/modeler_cubit.dart';
 import 'package:flutter3d_modeler/src/modeler_ui_actions.dart';
 import 'package:flutter3d_modeler/src/staging.dart';
@@ -191,6 +192,50 @@ void main() {
       expect(answer.did, isTrue);
       expect(_ready(cubit).selection.mode, SelectionMode.mesh);
       expect(_ready(cubit).selection.level, ElementLevel.vertex);
+    });
+  });
+
+  group('screenshot', () {
+    // `ux-44`. The picture itself is a `RepaintBoundary` at the root of the
+    // screen — `ready_parts.dart`'s own `_screen` — and what this file can
+    // ask about is the seam: a server with no window says so rather than
+    // answering with an empty picture, and one with a window hands the bytes
+    // through.
+    test('with no window it refuses rather than answering with nothing',
+        () async {
+      final UiPicture shot = await _actions(
+        _opened(),
+        _Counters(),
+      ).screenshot();
+      expect(shot.did, isFalse);
+      expect(shot.png, isNull);
+      expect(shot.says, contains('no window'));
+    });
+
+    test('a capture that finds nothing laid out says that instead', () async {
+      final ModelerUiActions actions = ModelerUiActions(
+        cubit: _opened(),
+        openExportDialog: () async {},
+        openLatheDialog: () async {},
+        runTool: (_) {},
+        captureWindow: () async => null,
+      );
+      final UiPicture shot = await actions.screenshot();
+      expect(shot.did, isFalse);
+      expect(shot.says, contains('laid out'));
+    });
+
+    test('and bytes come back as bytes', () async {
+      final ModelerUiActions actions = ModelerUiActions(
+        cubit: _opened(),
+        openExportDialog: () async {},
+        openLatheDialog: () async {},
+        runTool: (_) {},
+        captureWindow: () async => <int>[1, 2, 3, 4],
+      );
+      final UiPicture shot = await actions.screenshot();
+      expect(shot.did, isTrue);
+      expect(shot.png, <int>[1, 2, 3, 4]);
     });
   });
 

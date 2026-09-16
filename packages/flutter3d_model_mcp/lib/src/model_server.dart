@@ -1,6 +1,7 @@
 import 'package:dart_mcp/server.dart' show CallToolResult;
 import 'package:flutter3d_mcp_kit/flutter3d_mcp_kit.dart';
 
+import 'model_prompts.dart';
 import 'model_session.dart';
 import 'model_tools.dart';
 import 'render_tool.dart';
@@ -131,6 +132,7 @@ base class ModelMcpServer extends ToolTableServer<ModelSession, PictureAnswer> {
          // rather than ignored, and the refusal travels back the same way an
          // edit's own does — structured, marked as an error, readable.
          refusal: (String says) => (did: false, says: says, png: null),
+         prompts: modelPrompts,
        );
 }
 
@@ -154,6 +156,15 @@ round a point. Every answer also carries `structuredContent`: what the call
 did, the ids of any objects it created, and what is selected now — so the id
 of something you just duplicated or imported is in the reply rather than
 something to go looking for.
+
+`render` draws the project from one of seven views and `renderSheet` draws four
+at once — the cheap way to see whether a shape is right before editing it
+again. `amend` replaces the step on top of the undo stack rather than adding a
+second one, which is how you try an extrude at 0.3 after trying it at 0.5.
+`cleanup`, `makeGameReady` and `buildFrom` are recipes: a run of edits that is
+the same every time, as one step. `describe_type` says what fields a modifier
+kind, a shape or a texture node takes. The `modelling_strategy` prompt is the
+order to do all of it in.
 
 `check` says what is wrong with the project as an export would see it, and is
 worth calling before `export`. `save` writes the project's own format;

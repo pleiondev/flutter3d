@@ -25,6 +25,7 @@ final class ModelerUiActions implements UiActions {
     required this.openExportDialog,
     required this.openLatheDialog,
     required this.runTool,
+    this.captureWindow,
   });
 
   final ModelerCubit cubit;
@@ -37,6 +38,12 @@ final class ModelerUiActions implements UiActions {
 
   /// `_ModelerScreenState._openLatheDialog`, the same deal.
   final Future<void> Function() openLatheDialog;
+
+  /// `ux-44`: the window as PNG bytes, or null when there is no laid-out
+  /// window to capture. Handed in for the same reason the two dialogs above
+  /// are — it needs a live `RenderRepaintBoundary`, which is exactly the
+  /// thing a test of the rest of this file does not want to pump.
+  final Future<List<int>?> Function()? captureWindow;
 
   /// `_ModelerScreenState._ranTool` — the one door a rail button, the
   /// command palette and `ux-25`'s own `run_command` all go through, so a
@@ -210,6 +217,27 @@ final class ModelerUiActions implements UiActions {
     if (_ready == null) return (did: false, says: 'no document open');
     cubit.say(text, important: true);
     return (did: true, says: text);
+  }
+
+  @override
+  Future<UiPicture> screenshot() async {
+    final Future<List<int>?> Function()? capture = captureWindow;
+    if (capture == null) {
+      return (
+        did: false,
+        says: 'this server has no window to capture',
+        png: null,
+      );
+    }
+    final List<int>? png = await capture();
+    if (png == null) {
+      return (
+        did: false,
+        says: 'the window has not been laid out yet',
+        png: null,
+      );
+    }
+    return (did: true, says: 'the window, ${png.length} bytes', png: png);
   }
 }
 

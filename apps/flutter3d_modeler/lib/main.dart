@@ -18,11 +18,13 @@ library;
 
 import 'dart:async';
 import 'dart:math' as math;
-import 'dart:ui' as ui show AppExitResponse, PlatformDispatcher;
+import 'dart:ui' as ui
+    show AppExitResponse, Image, ImageByteFormat, PlatformDispatcher;
 
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart' hide Material;
+import 'package:flutter/rendering.dart' show RenderRepaintBoundary;
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter3d/flutter3d.dart' hide Material;
@@ -500,6 +502,11 @@ class _ModelerScreenState extends State<ModelerScreen>
   /// somebody has to know a key to get back.
   bool _foldedPanel = false;
   bool _foldedRail = false;
+
+  /// The `RepaintBoundary` `ux-44`'s own `ui.screenshot` captures — one, at
+  /// the root of the screen, so the picture is the window rather than the
+  /// viewport. See `ready_parts.dart`'s own `_screen`.
+  final GlobalKey _windowKey = GlobalKey();
 
   /// The last object picked in the outliner, which a shift-click reaches
   /// back to — `ux-14`. Null until one has been.

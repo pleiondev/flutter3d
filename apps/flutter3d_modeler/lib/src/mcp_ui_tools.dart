@@ -1,4 +1,4 @@
-/// Turns a [UiActions] into the seven `ui.*` tools `mcp-16d` offers a
+/// Turns a [UiActions] into the `ui.*` tools `mcp-16d` offers a
 /// GUI-mode agent beside the ordinary document ones — `ModelHttpServer.
 /// start`'s own `extraTools`.
 ///
@@ -8,6 +8,8 @@
 /// for why that keeps this file, and not the interface it builds tools
 /// from, out of anything the web build compiles.
 library;
+
+import 'dart:typed_data';
 
 import 'package:dart_mcp/server.dart';
 import 'package:flutter3d_model_mcp/flutter3d_model_mcp.dart';
@@ -149,6 +151,29 @@ List<ModelPictureTool> uiToolsFor(UiActions actions) => <ModelPictureTool>[
     ),
     (Map<String, Object?> arguments) =>
         actions.say(arguments['text']! as String),
+  ),
+  // `ux-44`: the window, not the model. `render` draws the project through a
+  // software rasteriser — framed, with no panels, no rail and no dialog —
+  // which answers "is the shape right" and cannot answer "did the export
+  // screen open" or "is the modifier I added showing in the stack".
+  ModelPictureTool(
+    Tool(
+      name: 'ui.screenshot',
+      description:
+          'The application window as a picture — panels, rail, dialogs, '
+          'selection highlight and all. This is what the person is looking '
+          'at; use render when you want the model on its own. Refuses when '
+          'there is no window, which is every headless server.',
+      inputSchema: ObjectSchema(),
+    ),
+    (ModelSession session, Map<String, Object?> arguments) async {
+      final UiPicture shot = await actions.screenshot();
+      return (
+        did: shot.did,
+        says: shot.says,
+        png: shot.png == null ? null : Uint8List.fromList(shot.png!),
+      );
+    },
   ),
   // `ux-25`: the command palette's own list, and the same door it presses.
   _ui(

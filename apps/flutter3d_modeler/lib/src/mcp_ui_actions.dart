@@ -88,4 +88,22 @@ abstract interface class UiActions {
   /// routine clear — for a screenshot script to caption the step it is
   /// about to catch.
   UiAnswer say(String text);
+
+  /// The window as a picture — `ux-44`.
+  ///
+  /// **What the person sees, which `render` cannot show.** `render` draws
+  /// the project through a software rasteriser: the model, framed, with no
+  /// panels, no rail, no selection highlight and no dialog. That is the
+  /// right picture for "is the shape right" and the wrong one for "did the
+  /// export dialog open", "is the modifier stack showing what I added", or
+  /// anything an agent writing a tutorial has to catch. This is the window
+  /// itself.
+  ///
+  /// Refuses cleanly when there is no window to capture — the headless
+  /// document server has none, and neither does a screen that has not laid
+  /// out yet.
+  Future<UiPicture> screenshot();
 }
+
+/// [UiAnswer] with the picture beside it, for the one action that draws.
+typedef UiPicture = ({bool did, String says, List<int>? png});

@@ -29,6 +29,30 @@ final class OfferedTool<S, A> {
   String get name => tool.name;
 }
 
+/// One prompt: what `prompts/list` offers, and the text `prompts/get` hands
+/// back — `ux-44`.
+///
+/// **A prompt here is advice, not a template with holes in it.** The thing an
+/// agent that has never driven this editor needs is the order to do things in
+/// — look before you edit, render before and after, check before you export —
+/// and that is one paragraph that takes no arguments. A prompt with arguments
+/// would be a tool, and there are a hundred and fifty of those already.
+final class OfferedPrompt {
+  const OfferedPrompt({
+    required this.name,
+    required this.description,
+    required this.text,
+  });
+
+  final String name;
+  final String description;
+
+  /// What the host puts in front of the model, as one user message.
+  final String text;
+
+  Prompt get prompt => Prompt(name: name, description: description);
+}
+
 /// A server offering [tools] over one [session], every answer turned into a
 /// result by [toResult].
 ///
@@ -36,12 +60,14 @@ final class OfferedTool<S, A> {
 /// settled on: two writers on one undo stack, or on one run, is a different
 /// and much harder program, and this is the half a suite can drive over a pair
 /// of streams with nothing running for real behind them.
-base class ToolTableServer<S, A> extends MCPServer with ToolsSupport {
+base class ToolTableServer<S, A> extends MCPServer
+    with ToolsSupport, PromptsSupport {
   ToolTableServer(
     super.channel, {
     required this.session,
     required this.tools,
     required this.toResult,
+    this.prompts = const <OfferedPrompt>[],
     required String name,
     required String version,
     required String instructions,
@@ -58,6 +84,10 @@ base class ToolTableServer<S, A> extends MCPServer with ToolsSupport {
 
   /// What an agent is offered, in the order `tools/list` gives them.
   final List<OfferedTool<S, A>> tools;
+
+  /// The advice this server offers under `prompts/list` — `ux-44`. Empty
+  /// for a server with nothing to say beyond its own tools.
+  final List<OfferedPrompt> prompts;
 
   /// How an answer travels back — see `resultOf` and `pictureResultOf`.
   final CallToolResult Function(A answer) toResult;
@@ -113,6 +143,20 @@ base class ToolTableServer<S, A> extends MCPServer with ToolsSupport {
     try {
       onInitialize?.call(request.clientInfo.name);
     } catch (_) {}
+    for (final OfferedPrompt offered in prompts) {
+      addPrompt(
+        offered.prompt,
+        (GetPromptRequest request) => GetPromptResult(
+          description: offered.description,
+          messages: <PromptMessage>[
+            PromptMessage(
+              role: Role.user,
+              content: Content.text(text: offered.text),
+            ),
+          ],
+        ),
+      );
+    }
     for (final OfferedTool<S, A> offered in tools) {
       registerTool(offered.tool, (CallToolRequest call) async {
         final Map<String, Object?> arguments =
