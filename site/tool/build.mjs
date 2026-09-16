@@ -187,7 +187,30 @@ const NAV = [
       { file: 'reference/packages.md', url: '/reference/packages/', title: 'Package index' },
     ],
   },
+  {
+    section: 'Legal',
+    slug: 'legal',
+    pages: [
+      { file: 'legal/eula.md', url: '/legal/eula/', title: 'Licence agreement', outside: true },
+      { file: 'legal/privacy.md', url: '/legal/privacy/', title: 'Privacy policy', outside: true },
+      { file: 'legal/cookies.md', url: '/legal/cookies/', title: 'Cookies & local storage', outside: true },
+      { file: 'legal/terms.md', url: '/legal/terms/', title: 'Website terms', outside: true },
+      { file: 'legal/content-policy.md', url: '/legal/content-policy/', title: 'Content & copyright', outside: true },
+      { file: 'legal/export-compliance.md', url: '/legal/export-compliance/', title: 'Export compliance', outside: true },
+    ],
+  },
 ];
+
+// Where a page's Markdown actually is. Almost every page lives under
+// `content/`; the legal documents do not, and deliberately — they are the
+// source of truth for the application as well as for the site, they live in
+// `legal/` at the root of the repository beside `LICENSE`, and a copy of them
+// under `content/` would be a second version of the same promise, free to
+// drift from the one the application ships. Their `file` is written relative
+// to the repository root rather than to `content/`, which is also what the
+// footer's "Source:" line should say about them.
+const sourceOf = (page) =>
+  page.outside ? join(root, '..', page.file) : join(contentDir, page.file);
 
 const flat = NAV.flatMap((group) =>
   group.pages.map((page) => ({ ...page, section: group.section, sectionSlug: group.slug })));
@@ -371,11 +394,19 @@ gtag('config', 'G-6F6VZ4H7CF');
         <a href="/docs/">API reference</a> ·
         <a href="${GITHUB}/blob/main/ARCHITECTURE.md" rel="noopener">Architecture</a>
       </p>
+      <p class="foot-links">
+        <a href="/legal/privacy/">Privacy</a> ·
+        <a href="/legal/cookies/">Cookies</a> ·
+        <a href="/legal/terms/">Terms</a> ·
+        <a href="/legal/eula/">Licence agreement</a>
+      </p>
       <p class="foot-legal">
         An independent implementation of a 3D engine for Flutter, not affiliated
         with the Flutter team.<br>
         © 2026 Dmitrii Zolotov. Released under the
         <a href="${GITHUB}/blob/main/LICENSE" rel="noopener">MIT licence</a>.
+        This site sets no cookies and runs no analytics —
+        <a href="/legal/cookies/">why there is no banner</a>.
       </p>
     </footer>
   </main>
@@ -402,7 +433,7 @@ let built = 0;
 // the two lists drift apart.
 const catalog = [];
 flat.forEach((page, index) => {
-  const source = readFileSync(join(contentDir, page.file), 'utf8');
+  const source = readFileSync(sourceOf(page), 'utf8');
   const { data, body } = frontMatter(source);
   catalog.push({
     url: page.url,
