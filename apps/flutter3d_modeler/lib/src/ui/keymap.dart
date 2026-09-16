@@ -67,6 +67,16 @@ enum ModelerAction {
   /// `ux-27`: fold the properties panel away, and the tool rail.
   foldPanel,
   foldRail,
+
+  /// `ux-28`: one ring of neighbours more, and one less.
+  ///
+  /// Application actions rather than rail tools because they carry a
+  /// modifier, and a rail tool's key is a bare letter — `ModelerTool` holds
+  /// a [LogicalKeyboardKey] and the presets decide at most whether to put
+  /// shift in front of it. Select-linked, which is a bare `L`, *is* a rail
+  /// tool for exactly that reason.
+  growSelection,
+  shrinkSelection,
 }
 
 /// What a key means in one preset.
@@ -276,6 +286,20 @@ Map<ModelerAction, List<ShortcutActivator>> _actions(
     ModelerAction.commandPalette: <ShortcutActivator>[
       SingleActivator(LogicalKeyboardKey.keyP, meta: apple, control: !apple),
       const SingleActivator(LogicalKeyboardKey.f3),
+    ],
+    // `ux-28`: the command key with plus and minus, for one ring of
+    // neighbours more or less. Both spellings of each sign are bound — the
+    // digit row's own key reports `equal` and `minus`, the numeric keypad
+    // reports `numpadAdd` and `numpadSubtract`, and a person pressing the
+    // one under their hand does not know or care which of the two their
+    // keyboard sent.
+    ModelerAction.growSelection: <ShortcutActivator>[
+      command(LogicalKeyboardKey.equal),
+      command(LogicalKeyboardKey.numpadAdd),
+    ],
+    ModelerAction.shrinkSelection: <ShortcutActivator>[
+      command(LogicalKeyboardKey.minus),
+      command(LogicalKeyboardKey.numpadSubtract),
     ],
   };
 }

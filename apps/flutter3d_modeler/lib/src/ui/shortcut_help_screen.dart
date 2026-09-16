@@ -50,20 +50,30 @@ class _ShortcutHelpScreen extends StatelessWidget {
     final entries = shortcutTable(keymap, navigation: navigation);
     return AlertDialog(
       title: Text(l10n.keyboardShortcuts),
-      content: SizedBox(
-        width: 360,
-        height: 420,
-        child: ListView(
-          shrinkWrap: true,
-          children: <Widget>[
-            // Sectioned since `ux-10`: the review found this screen
-            // teaching the tools and nothing else — not the camera, not
-            // saving, not selecting, which are the three things somebody in
-            // their first hour actually comes here for.
-            for (final ShortcutSection section in ShortcutSection.values)
-              if (entries.any((ShortcutEntry it) => it.section == section))
-                ..._section(theme, section, entries),
-          ],
+      // **As tall as the list needs, up to what the window can give** —
+      // `ux-28`, which added enough rows to push a section heading off the
+      // bottom of the 420 this used to be fixed at. A scrolling list cut off
+      // mid-row is how a person concludes there is nothing below it; three
+      // fifths of the window leaves room for the title and the two buttons
+      // and still shrinks on a laptop turned on its side.
+      content: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.sizeOf(context).height * 0.6,
+        ),
+        child: SizedBox(
+          width: 360,
+          child: ListView(
+            shrinkWrap: true,
+            children: <Widget>[
+              // Sectioned since `ux-10`: the review found this screen
+              // teaching the tools and nothing else — not the camera, not
+              // saving, not selecting, which are the three things somebody in
+              // their first hour actually comes here for.
+              for (final ShortcutSection section in ShortcutSection.values)
+                if (entries.any((ShortcutEntry it) => it.section == section))
+                  ..._section(theme, section, entries),
+            ],
+          ),
         ),
       ),
       actions: <Widget>[

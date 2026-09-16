@@ -87,10 +87,12 @@ final class MeshOverlayColours {
     Vector4? vertex,
     Vector4? selected,
     Vector4? seam,
+    Vector4? hovered,
   }) : wire = wire ?? Vector4(0.55, 0.58, 0.60, 1.0),
        vertex = vertex ?? Vector4(0.72, 0.76, 0.78, 1.0),
        selected = selected ?? Vector4(1.0, 0.60, 0.15, 1.0),
-       seam = seam ?? Vector4(0.35, 0.75, 1.0, 1.0);
+       seam = seam ?? Vector4(0.35, 0.75, 1.0, 1.0),
+       hovered = hovered ?? Vector4(1.0, 0.82, 0.55, 0.55);
 
   /// Every edge of the mesh, drawn as a line.
   final Vector4 wire;
@@ -106,6 +108,16 @@ final class MeshOverlayColours {
   /// while something is also selected can tell the two apart at a glance
   /// instead of reading a seam as a stray selection.
   final Vector4 seam;
+
+  /// What the pointer is resting on — `ux-28`.
+  ///
+  /// **[selected]'s own hue, paler and half transparent, rather than a colour
+  /// of its own.** The highlight is a promise about what a click is about to
+  /// select, so saying it in the colour that selection is said in is the
+  /// whole point; a fourth colour would make it a fourth kind of thing, and a
+  /// person would have to learn what it means. Being visibly weaker is what
+  /// keeps "about to" apart from "is".
+  final Vector4 hovered;
 }
 
 /// Which of the three batches a call to [MeshOverlayBuilder.build] refilled.
@@ -262,6 +274,16 @@ final class MeshOverlayBuilder {
   /// numbers that differ when the thing they name differs. The mesh's version
   /// has to change for an edit *and* for an undo or a redo, which is the case a
   /// counter that only counts edits gets wrong.
+  /// What the pointer was resting on when the last build ran — `ux-28`.
+  ///
+  /// **Compared by its ids rather than driven by a version the caller keeps.**
+  /// A hover holds one element or none, so comparing it outright is two
+  /// numbers; asking the caller for a counter would be asking it to notice
+  /// the change this can see for itself. The level travels with it: hovering
+  /// a face and then a vertex is a different highlight even when the number
+  /// happens to be the same.
+  Selection? _hovered;
+
   MeshOverlayRebuild build(
     MeshOverlay overlay, {
     required EditMesh mesh,
@@ -269,6 +291,7 @@ final class MeshOverlayBuilder {
     required int meshVersion,
     required int selectionVersion,
     required MeshOverlayView view,
+    Selection? hovered,
   }) {
     // Set before anything is measured: the drift below asks the overlay what a
     // nudge would be *now*, and the answer is the camera it is holding.
@@ -290,10 +313,11 @@ final class MeshOverlayBuilder {
     final turned = first || !view.facesAs(last);
     final moved = first || !view.sitsAt(last);
     final biasStale = first || _biasDrifted(overlay, view.eye);
+    final hoverChanged = first || !_sameHover(hovered, _hovered);
 
     final rebuildLines = meshChanged || biasStale;
     final rebuildFill = meshChanged || selectionChanged || biasStale;
-    final rebuildHandles = rebuildFill || turned || moved;
+    final rebuildHandles = rebuildFill || turned || moved || hoverChanged;
 
     if (rebuildLines) {
       overlay.lines.clear();
@@ -304,6 +328,7 @@ final class MeshOverlayBuilder {
     if (rebuildHandles) {
       overlay.handles.clear();
       _emitHandles(overlay, mesh, selection);
+      if (hovered != null) _emitHover(overlay, mesh, hovered, selection);
     }
     if (rebuildFill) {
       overlay.fill.clear();
@@ -313,8 +338,16 @@ final class MeshOverlayBuilder {
     _meshVersion = meshVersion;
     _selectionVersion = selectionVersion;
     _level = selection.level;
+    _hovered = hovered;
     _view = view;
     return (lines: rebuildLines, handles: rebuildHandles, fill: rebuildFill);
+  }
+
+  /// Whether two hovers name the same thing.
+  static bool _sameHover(Selection? now, Selection? was) {
+    if (now == null || now.ids.isEmpty) return was == null || was.ids.isEmpty;
+    if (was == null || was.level != now.level) return false;
+    return now.ids.length == was.ids.length && now.ids.every(was.contains);
   }
 
   /// Whether the depth bias baked into the lines has gone further wrong than
@@ -454,6 +487,52 @@ final class MeshOverlayBuilder {
             overlay.ribbon(_from, _to, colours.selected);
           });
         }
+    }
+  }
+
+  /// What the pointer is resting on, in [MeshOverlayColours.hovered] —
+  /// `ux-28`.
+  ///
+  /// **In the handles batch and never in the fill, which is a decision about
+  /// cost rather than about looks.** A wash is the mesh's own triangulator
+  /// run over the face, and the fill batch is refilled whole: putting the
+  /// hover in it would re-triangulate every selected face each time the
+  /// pointer crossed from one face to the next, which on the selection
+  /// somebody is about to extrude is thousands of triangles per pointer
+  /// event. An outline says "this one" just as plainly and costs one ribbon
+  /// per edge of one face.
+  ///
+  /// **Nothing is drawn for an element that is already selected.** The two
+  /// would sit at exactly the same depth, so which of them a pixel showed
+  /// would be whatever the rasteriser decided — and the answer people would
+  /// see is the selection flickering paler as the pointer passed over it.
+  void _emitHover(
+    MeshOverlay overlay,
+    EditMesh mesh,
+    Selection hovered,
+    Selection selection,
+  ) {
+    final bool sameLevel = selection.level == hovered.level;
+    for (final int id in hovered.ids) {
+      if (sameLevel && selection.contains(id)) continue;
+      switch (hovered.level) {
+        case ElementLevel.vertex:
+          if (!mesh.isVertexAlive(id)) continue;
+          mesh.positionOf(id, _from);
+          overlay.point(_from, colours.hovered);
+        case ElementLevel.edge:
+          if (!_edgeIsAlive(mesh, id)) continue;
+          mesh.positionOf(mesh.originOf(id), _from);
+          mesh.positionOf(mesh.originOf(mesh.nextOf(id)), _to);
+          overlay.ribbon(_from, _to, colours.hovered);
+        case ElementLevel.face:
+          if (!_faceIsAlive(mesh, id)) continue;
+          mesh.forEachHalfEdge(id, (int half) {
+            mesh.positionOf(mesh.originOf(half), _from);
+            mesh.positionOf(mesh.originOf(mesh.nextOf(half)), _to);
+            overlay.ribbon(_from, _to, colours.hovered);
+          });
+      }
     }
   }
 

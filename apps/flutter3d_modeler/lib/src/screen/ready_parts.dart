@@ -64,6 +64,9 @@ extension _ReadyParts on _ModelerScreenState {
           // `ux-27`: `N` and `T`, and the same two from the palette.
           onFoldPanel: () => setState(() => _foldedPanel = !_foldedPanel),
           onFoldRail: () => setState(() => _foldedRail = !_foldedRail),
+          // `ux-28`: one ring of neighbours more, and one less.
+          onGrowSelection: () => _runSelection(const GrowSelection()),
+          onShrinkSelection: () => _runSelection(const ShrinkSelection()),
           // `ux-10`: whichever preset Settings holds, on this platform's own
           // command key.
           keymap: keymapFor(
@@ -427,6 +430,16 @@ extension _ReadyParts on _ModelerScreenState {
                                 _mode == ModelerMode.mesh && _editMesh != null
                                 ? _pickedElement
                                 : null,
+                            // `ux-28`: the same question a click asks, asked
+                            // while nothing is pressed, so the answer can be
+                            // shown before the click rather than after it.
+                            onElementHover:
+                                _mode == ModelerMode.mesh && _editMesh != null
+                                ? _hoveredElement
+                                : null,
+                            hovered: _mode == ModelerMode.mesh
+                                ? _hoveredElements
+                                : null,
                             // One or the other: with a transform tool armed a left drag is
                             // the transform, and with none it is a rectangle. A viewport
                             // that offered both would have to guess, and the guess would be
@@ -452,6 +465,9 @@ extension _ReadyParts on _ModelerScreenState {
                             onContextMenu: (Offset at) =>
                                 unawaited(_showViewportMenu(at)),
                             onBox: _boxed,
+                            // `ux-28`: the same drag, catching what a loop
+                            // encloses rather than what a rectangle does.
+                            lassoSelect: _tool == 'mesh.lasso',
                             // Earlier and more specific than the box/drag branch
                             // above: only set while `weights.paint`/`weights.assign`
                             // is actually armed, so `InputPolicy` never even asks

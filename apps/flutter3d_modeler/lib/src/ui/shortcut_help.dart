@@ -67,7 +67,28 @@ List<ShortcutEntry> shortcutTable(
 }) => <ShortcutEntry>[
   ..._cameraRows(navigation),
   ..._actionRows(keymap),
+  ..._pointerRows,
   ..._toolRows(keymap),
+];
+
+/// `ux-28`: what a click inside a mesh means with a modifier held.
+///
+/// **Written out rather than built from the keymap, because none of these is
+/// a keyboard shortcut.** They are modifiers on a pointer, the same kind of
+/// thing the camera rows already describe in words — and the help screen is
+/// the one place a person goes to find out that alt-click does anything at
+/// all, since a modifier leaves no mark on the interface until it is held.
+const List<ShortcutEntry> _pointerRows = <ShortcutEntry>[
+  ShortcutEntry(
+    label: 'Select the edge loop',
+    keys: 'Alt and a click, in mesh mode',
+    section: ShortcutSection.selection,
+  ),
+  ShortcutEntry(
+    label: 'Select the edge ring',
+    keys: 'Ctrl or ⌘, with Alt and a click',
+    section: ShortcutSection.selection,
+  ),
 ];
 
 List<ShortcutEntry> _cameraRows(NavigationScheme navigation) => <ShortcutEntry>[
@@ -113,6 +134,14 @@ const Map<ModelerAction, (String, ShortcutSection)> _actionLabels =
       ),
       ModelerAction.foldRail: (
         'Fold the tool rail',
+        ShortcutSection.application,
+      ),
+      ModelerAction.growSelection: (
+        'Grow the selection',
+        ShortcutSection.application,
+      ),
+      ModelerAction.shrinkSelection: (
+        'Shrink the selection',
         ShortcutSection.application,
       ),
       ModelerAction.frameSelection: (
@@ -197,6 +226,11 @@ String _keyName(LogicalKeyboardKey key) => switch (key) {
   LogicalKeyboardKey.home => 'Home',
   LogicalKeyboardKey.period => '.',
   LogicalKeyboardKey.numpadDecimal => 'Numpad .',
+  // `ux-28`. Without these two the fallback below reads them as their own
+  // `keyLabel`, which is the shouted "NUMPAD ADD" — a key nobody has ever
+  // seen written on a keyboard.
+  LogicalKeyboardKey.numpadAdd => 'Numpad +',
+  LogicalKeyboardKey.numpadSubtract => 'Numpad −',
   LogicalKeyboardKey.numpad1 => 'Numpad 1',
   LogicalKeyboardKey.numpad3 => 'Numpad 3',
   LogicalKeyboardKey.numpad7 => 'Numpad 7',

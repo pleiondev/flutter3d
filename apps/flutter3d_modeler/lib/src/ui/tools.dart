@@ -285,6 +285,28 @@ List<ModelerTool> toolsFor(
       shortcut: LogicalKeyboardKey.keyQ,
       group: 'transform',
     ),
+    // `ux-28`. The same drag as Select, catching what a freehand loop
+    // encloses rather than what a rectangle does — a button rather than a
+    // modifier because a drag's two modifiers are already add and subtract
+    // and the third is the camera's under half the navigation schemes.
+    ModelerTool(
+      id: 'mesh.lasso',
+      label: 'Lasso select',
+      icon: Icons.gesture_outlined,
+      shortcut: LogicalKeyboardKey.keyK,
+      group: 'transform',
+    ),
+    // `ux-28`. On the rail rather than on the keyboard alone, so that it is
+    // reachable on a tablet and findable in the palette — and in the
+    // `transform` group beside Select, because it is the other half of
+    // choosing what to work on rather than an edit.
+    ModelerTool(
+      id: 'mesh.linked',
+      label: 'Select linked',
+      icon: Icons.hub_outlined,
+      shortcut: LogicalKeyboardKey.keyL,
+      group: 'transform',
+    ),
     ModelerTool(
       id: 'mesh.move',
       label: 'Move',

@@ -22,10 +22,33 @@ extension _Interactions on _ModelerScreenState {
     PickingView view,
     Offset at,
     PointerDeviceKind pointer, {
-    required bool extend,
+    required ElementPickIntent intent,
   }) {
     final MeshPicker? picker = _elementPicker;
     if (picker == null) return;
+    // `ux-28`: a loop and a ring are walks from an edge, so they ask the
+    // picker for an edge whatever level the sub-mode is in — aiming at the
+    // edge is the gesture, and being in face mode does not make it a
+    // different one. `SelectEdgeLoop` answers at edge level and the
+    // selection follows it there, which is what `selection_commands.dart`
+    // already documents as "the level travels with the elements".
+    if (intent.isWalk) {
+      final Selection edge = pickElementAt(
+        picker,
+        view,
+        at: at,
+        pointer: pointer,
+        level: ElementLevel.edge,
+      );
+      final int? half = edge.ids.isEmpty ? null : edge.ids.first;
+      if (half == null) return;
+      _runSelection(
+        intent == ElementPickIntent.ring
+            ? SelectEdgeRing(half)
+            : SelectEdgeLoop(half),
+      );
+      return;
+    }
     final picked = pickElementAt(
       picker,
       view,
@@ -37,7 +60,8 @@ extension _Interactions on _ModelerScreenState {
       final was = _history.selection;
       // Shift takes an element back out rather than only ever adding: dropping
       // one face from a selection of forty is otherwise thirty-nine clicks.
-      final Selection next = extend && was.level == picked.level
+      final Selection next =
+          intent == ElementPickIntent.toggle && was.level == picked.level
           ? was.asMeshSelection.toggle(picked)
           : picked;
       _history.selection = was.copyWith(
@@ -49,9 +73,49 @@ extension _Interactions on _ModelerScreenState {
     });
   }
 
+  /// What the pointer is resting on inside the mesh — `ux-28`'s own
+  /// highlight, which is the half of "click here" that happens before the
+  /// click.
+  ///
+  /// **The same `pickElementAt` a click runs, and that is affordable on
+  /// purpose.** Its own doc comment says it: face mode, which is where a
+  /// modeller spends most of the session, is one raycast against the tree
+  /// and nothing else, and the function was written knowing it would be
+  /// called on every hover as well as on every click.
+  ///
+  /// `setState` only when the answer changed. A hover fires on every pixel
+  /// of travel and most of those pixels are over the face the one before
+  /// was, so rebuilding for each of them is sixty frames a second spent
+  /// redrawing the same highlight.
+  void _hoveredElement(PickingView view, Offset? at, PointerDeviceKind pointer) {
+    final MeshPicker? picker = _elementPicker;
+    final Selection? found = picker == null || at == null
+        ? null
+        : pickElementAt(
+            picker,
+            view,
+            at: at,
+            pointer: pointer,
+            level: levelOf(_submode),
+          );
+    final Selection? next = found == null || found.ids.isEmpty ? null : found;
+    if (_sameHover(next, _hoveredElements)) return;
+    setState(() => _hoveredElements = next);
+  }
+
+  /// Whether two hovers name the same element.
+  static bool _sameHover(Selection? now, Selection? was) {
+    if (now == null) return was == null;
+    if (was == null || was.level != now.level) return false;
+    return now.ids.length == was.ids.length && now.ids.every(was.contains);
+  }
+
   /// Presses a rail button.
   void _ranTool(String id) {
-    if (kDragTools.contains(id) || id.endsWith('.select')) {
+    // `ux-28`: the lasso arms and waits for a drag, exactly as Select does.
+    if (kDragTools.contains(id) ||
+        id.endsWith('.select') ||
+        id == 'mesh.lasso') {
       // Arming rather than acting: these wait for a pointer.
       _cubit.tool(id);
       // `ux-11`: under the modal preset the key does not arm and wait for a
@@ -62,6 +126,31 @@ extension _Interactions on _ModelerScreenState {
       if (_settings.transformStart == TransformStart.modalOnPress) {
         _transformSession.startOnPress(id);
       }
+      return;
+    }
+    if (id == 'mesh.linked') {
+      // `ux-28`: "what is linked to what is under the cursor". `SelectLinked`
+      // follows the selection, so the element under the pointer becomes the
+      // selection first — which is also exactly what clicking it would have
+      // done, so the two-step is the gesture written out rather than a
+      // second meaning for the key.
+      //
+      // With the pointer somewhere else — the rail, the palette, a tablet
+      // where there is no hover at all — it follows whatever is selected.
+      // That is the same command answering a slightly smaller question
+      // rather than a refusal, and a refusal is what a button pressed from
+      // the rail would otherwise always get.
+      if (_hoveredElements case final Selection under
+          when under.ids.isNotEmpty) {
+        setState(() {
+          _history.selection = _history.selection.copyWith(
+            mode: SelectionMode.mesh,
+            level: under.level,
+            elements: under.ids.toList(),
+          );
+        });
+      }
+      _runSelection(const SelectLinked());
       return;
     }
     if (id == 'object.lathe') {
@@ -126,12 +215,22 @@ extension _Interactions on _ModelerScreenState {
     if (was.mode == SelectionMode.mesh) {
       final MeshPicker? picker = _elementPicker;
       if (picker == null) return;
-      final Selection caught = pickElementsIn(
-        picker,
-        view,
-        rect: box.rect,
-        level: levelOf(_submode),
-      );
+      // `ux-28`: the same three modes and the same ids, decided by the loop
+      // rather than by the rectangle when the person drew one.
+      final Selection caught = box.isLasso
+          ? pickElementsInLoop(
+              picker,
+              view,
+              bounds: box.rect,
+              encloses: box.encloses,
+              level: levelOf(_submode),
+            )
+          : pickElementsIn(
+              picker,
+              view,
+              rect: box.rect,
+              level: levelOf(_submode),
+            );
       final Set<int> next = applyBox<int>(
         was.elements.toSet(),
         caught.ids.toSet(),

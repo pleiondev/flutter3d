@@ -417,4 +417,110 @@ void main() {
       });
     });
   });
+
+  group('ux-28: a lasso is the same drag with a different shape', () {
+    SelectionBox drawn(List<Offset> path) {
+      final SelectionBox box = SelectionBox(
+        from: path.first,
+        pointer: PointerDeviceKind.mouse,
+        lasso: true,
+      );
+      for (final Offset at in path.skip(1)) {
+        box.dragTo(at);
+      }
+      return box;
+    }
+
+    test('a rectangle has no loop and a lasso does', () {
+      expect(
+        SelectionBox(
+          from: Offset.zero,
+          pointer: PointerDeviceKind.mouse,
+        ).isLasso,
+        isFalse,
+      );
+      expect(drawn(<Offset>[Offset.zero, const Offset(10, 10)]).isLasso, isTrue);
+    });
+
+    test('a point inside the loop is inside and one outside is not', () {
+      // A triangle with a wide base, so that a point above the apex and a
+      // point below the base are both outside while the middle is in.
+      final SelectionBox box = drawn(<Offset>[
+        const Offset(100, 0),
+        const Offset(200, 200),
+        const Offset(0, 200),
+      ]);
+
+      expect(box.encloses(const Offset(100, 150)), isTrue);
+      expect(box.encloses(const Offset(10, 20)), isFalse);
+      expect(box.encloses(const Offset(100, 300)), isFalse);
+    });
+
+    test('a concave loop does not claim the bite out of it', () {
+      // A `C`: the gap between the arms is inside the bounding box and
+      // outside the shape.
+      //
+      // Mutation: answer with `rect.contains`. Every test above still
+      // passes — a convex loop and its bounds agree everywhere that matters —
+      // and the one gesture a lasso exists for, reaching round something to
+      // leave it out, silently becomes a rectangle.
+      final SelectionBox box = drawn(<Offset>[
+        const Offset(0, 0),
+        const Offset(100, 0),
+        const Offset(100, 20),
+        const Offset(20, 20),
+        const Offset(20, 80),
+        const Offset(100, 80),
+        const Offset(100, 100),
+        const Offset(0, 100),
+      ]);
+
+      expect(box.encloses(const Offset(10, 50)), isTrue);
+      expect(box.encloses(const Offset(60, 50)), isFalse);
+      expect(box.rect.contains(const Offset(60, 50)), isTrue);
+    });
+
+    test('the loop closes itself back to where it started', () {
+      // Three sides of a square, never drawn back to the start. The point in
+      // the middle is inside all the same, because a hand lets go where it
+      // lets go.
+      final SelectionBox box = drawn(<Offset>[
+        const Offset(0, 0),
+        const Offset(100, 0),
+        const Offset(100, 100),
+        const Offset(0, 100),
+      ]);
+      expect(box.encloses(const Offset(50, 50)), isTrue);
+    });
+
+    test('a hand resting mid-drag does not grow the loop', () {
+      final SelectionBox box = drawn(<Offset>[
+        const Offset(0, 0),
+        const Offset(50, 0),
+      ]);
+      final int was = box.trail!.length;
+      for (var again = 0; again < 100; again++) {
+        box.dragTo(const Offset(50, 0));
+      }
+
+      // Mutation: record every sample. Every one of them is a segment the
+      // crossing test walks for every candidate, so a drag that paused for a
+      // second costs sixty of them for nothing.
+      expect(box.trail, hasLength(was));
+    });
+
+    test('and the bounds are the loop\'s, not the two ends', () {
+      // The pointer came back near where it started, so `from` and `to`
+      // enclose almost nothing while the loop enclosed a whole square.
+      final SelectionBox box = drawn(<Offset>[
+        const Offset(0, 0),
+        const Offset(100, 0),
+        const Offset(100, 100),
+        const Offset(1, 1),
+      ]);
+
+      expect(box.rect, const Rect.fromLTRB(0, 0, 100, 100));
+      expect(box.isBox, isTrue);
+    });
+  });
 }

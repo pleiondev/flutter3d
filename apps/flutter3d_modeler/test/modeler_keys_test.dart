@@ -37,6 +37,8 @@ Future<void> show(
   ModelerMode mode = ModelerMode.object,
   ValueChanged<MeshSubmode>? onLevel,
   ValueChanged<AnimationSubmode>? onAnimationLevel,
+  VoidCallback? onGrowSelection,
+  VoidCallback? onShrinkSelection,
 }) => tester.pumpWidget(
   MaterialApp(
     // Forced rather than left to the host: `apple` inside `ModelerKeys`
@@ -57,6 +59,8 @@ Future<void> show(
       onSelectNone: () {},
       onInvertSelection: () {},
       onShortcutHelp: () {},
+      onGrowSelection: onGrowSelection,
+      onShrinkSelection: onShrinkSelection,
       // The default preset, on a platform whose command key is control —
       // the same `TargetPlatform.linux` the theme above pins for the same
       // reason.
@@ -199,6 +203,50 @@ void main() {
 
       expect(levels, isEmpty);
       expect(animationLevels, isEmpty);
+    });
+  });
+
+  group('ux-28: one ring of neighbours more, and one less', () {
+    Future<int> pressed(WidgetTester tester, LogicalKeyboardKey key) async {
+      var grown = 0;
+      var shrunk = 0;
+      final contentFocus = FocusNode();
+      addTearDown(contentFocus.dispose);
+      await show(
+        tester,
+        contentFocus: contentFocus,
+        onUndo: () {},
+        onExport: () {},
+        onGrowSelection: () => grown++,
+        onShrinkSelection: () => shrunk++,
+      );
+      contentFocus.requestFocus();
+      await tester.pump();
+
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+      await tester.sendKeyEvent(key);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+      await tester.pump();
+
+      return grown - shrunk;
+    }
+
+    testWidgets('Ctrl and the plus key grows it', (WidgetTester tester) async {
+      expect(await pressed(tester, LogicalKeyboardKey.equal), 1);
+    });
+
+    testWidgets('and the numeric keypad says the same thing', (
+      WidgetTester tester,
+    ) async {
+      // Mutation: bind the digit row alone. A person working with one hand
+      // on the keypad presses the key marked `+` and nothing happens, with
+      // nothing on screen to say why.
+      expect(await pressed(tester, LogicalKeyboardKey.numpadAdd), 1);
+    });
+
+    testWidgets('Ctrl and minus shrinks it', (WidgetTester tester) async {
+      expect(await pressed(tester, LogicalKeyboardKey.minus), -1);
+      expect(await pressed(tester, LogicalKeyboardKey.numpadSubtract), -1);
     });
   });
 }
