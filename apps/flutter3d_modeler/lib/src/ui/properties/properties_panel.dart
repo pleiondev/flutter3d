@@ -12,7 +12,8 @@ library;
 import 'package:flutter/material.dart' hide Material;
 import 'package:flutter3d/flutter3d.dart' hide Material;
 import 'package:flutter3d_editor_widgets/flutter3d_editor_widgets.dart';
-import 'package:flutter3d_mesh/flutter3d_mesh.dart' show EditMesh, Modifier;
+import 'package:flutter3d_mesh/flutter3d_mesh.dart'
+    show EditMesh, ElementLevel, MeshChecks, Modifier;
 import 'package:flutter3d_model_core/flutter3d_model_core.dart' hide Outcome;
 
 import '../../display_modes.dart';
@@ -23,6 +24,7 @@ import '../../texture_slot.dart';
 import '../../transform_fields.dart';
 import '../animation_panel.dart';
 import '../material_panel.dart';
+import '../mesh_health_panel.dart';
 import '../modifier_stack_panel.dart';
 import '../morphs_panel.dart';
 import '../operation_card.dart';
@@ -132,6 +134,9 @@ class PropertiesPanel extends StatelessWidget {
     required this.onAmbientChanged,
     required this.onBloomChanged,
     required this.onExposureChanged,
+    this.onSelectElements,
+    this.onFixMesh,
+    this.onBuildTopology,
     this.onPickObject,
     this.onObjectVisible,
     this.onObjectLocked,
@@ -382,6 +387,13 @@ class PropertiesPanel extends StatelessWidget {
   final ValueChanged<double> onExposureChanged;
 
   /// What the operation card is showing, and where an adjustment goes.
+  /// `ux-16`'s own three: select what an issue names, press the tool that
+  /// fixes it, and build topology for an imported object. Null in a caller
+  /// with no document behind it.
+  final void Function(ElementLevel level, List<int> ids)? onSelectElements;
+  final ValueChanged<String>? onFixMesh;
+  final ValueChanged<int>? onBuildTopology;
+
   /// `ux-14`'s own four. Null falls back to what the flat list did — a
   /// click selects one object and the toggles do nothing — which is what a
   /// caller with no document behind it (a test, a preview) wants rather
@@ -775,6 +787,17 @@ class PropertiesPanel extends StatelessWidget {
           SectionLabel('Mesh'),
           LabelValueRow('Vertices', '${mesh.vertexCount}'),
           LabelValueRow('Faces', '${mesh.faceCount}'),
+          // `ux-16`: what is wrong with it, and the press that fixes each.
+          // **Computed here rather than carried on the state**, because it
+          // is a walk of a mesh a person is looking at rather than of every
+          // mesh in the project, and it is wanted only in the one mode that
+          // shows this section.
+          SectionLabel('Health'),
+          MeshHealthPanel(
+            issues: MeshChecks(mesh).all(),
+            onSelect: onSelectElements ?? (_, _) {},
+            onFix: onFixMesh ?? (_) {},
+          ),
         ],
         SectionLabel('Budget'),
         LabelValueRow('Triangles', '${project.triangleCount}'),

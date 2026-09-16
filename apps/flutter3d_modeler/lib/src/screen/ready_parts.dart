@@ -340,6 +340,18 @@ extension _ReadyParts on _ModelerScreenState {
                 onAmbientChanged: _setAmbient,
                 onBloomChanged: _setBloom,
                 onExposureChanged: _setExposure,
+                // `ux-16`'s own three.
+                onSelectElements: (ElementLevel level, List<int> ids) =>
+                    setState(() {
+                      _history.selection = _history.selection.copyWith(
+                        mode: SelectionMode.mesh,
+                        level: level,
+                        elements: ids,
+                      );
+                      _cubit.say(null);
+                    }),
+                onFixMesh: _ranTool,
+                onBuildTopology: (int id) => _cubit.ran(BuildTopology(id: id)),
                 // `ux-14`'s own four.
                 onPickObject: _pickedInOutliner,
                 onObjectVisible: (int id, bool to) =>
@@ -601,6 +613,27 @@ extension _ReadyParts on _ModelerScreenState {
                                 : settingsFor(_shading, viewportRenderSettings),
                           ),
                         ),
+                        // `ux-16`: mesh mode on something that has no mesh.
+                        // **A banner over the picture rather than a refusal
+                        // in the status line**: the viewport is otherwise
+                        // empty of everything mesh mode draws — no
+                        // wireframe, no handles — and the review found
+                        // people taking that for a broken window rather
+                        // than for a shape that has not been converted.
+                        if (_mode == ModelerMode.mesh && _editMesh == null)
+                          Positioned(
+                            left: 12,
+                            top: 12,
+                            child: NoMeshBanner(
+                              object: state.project[state
+                                  .selection
+                                  .activeObject ??
+                                  -1],
+                              onConvert: _ranTool,
+                              onBuildTopology: (int id) =>
+                                  _cubit.ran(BuildTopology(id: id)),
+                            ),
+                          ),
                         Positioned(
                           right: 12,
                           bottom: 12,

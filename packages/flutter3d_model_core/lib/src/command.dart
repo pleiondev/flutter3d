@@ -646,6 +646,18 @@ _modelCommandReaders =
         final int id => BakeToMesh(id),
         _ => null,
       },
+      // `ux-16`'s own: the import screen's weld, offered again on an object
+      // already open.
+      'buildTopology': (json) => switch (json['id']) {
+        final int id => BuildTopology(
+          id: id,
+          weld: switch (json['weld']) {
+            final num it => it.toDouble(),
+            _ => null,
+          },
+        ),
+        _ => null,
+      },
       'deleteObjects': (json) => const DeleteObjects(),
       'duplicateObjects': (json) => const DuplicateObjects(),
       'extrude': (json) => switch (json['distance']) {

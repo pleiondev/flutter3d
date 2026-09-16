@@ -370,6 +370,16 @@ List<ModelerTool> toolsFor(
       shortcut: LogicalKeyboardKey.keyV,
       group: 'cleanup',
     ),
+    // `ux-16`. `mesh_repair.dart`'s own `fillHoles` and `FillHoles` have both
+    // existed since `mesh-81n` and nothing in the interface pressed either:
+    // the one way to close a hole was to ask an agent.
+    ModelerTool(
+      id: 'mesh.fillHoles',
+      label: 'Fill holes',
+      icon: Icons.format_color_fill_outlined,
+      shortcut: LogicalKeyboardKey.keyH,
+      group: 'cleanup',
+    ),
     ModelerTool(
       id: 'mesh.merge',
       label: 'Merge by distance',
