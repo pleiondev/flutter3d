@@ -20,6 +20,7 @@ import '../settings.dart' show Workspace;
 import 'keymap.dart';
 import 'shortcut_help.dart' show describeShortcut;
 import 'theme.dart';
+import 'tool_strings.dart';
 import 'tools.dart';
 
 /// The desktop layout. The tablet and phone ones are `ui-05`; they show the
@@ -623,10 +624,11 @@ class _Rail extends StatelessWidget {
   /// were, and a tooltip that repeats the word on the button is a tooltip that
   /// answers nothing. `ModelerTool.about` is where the sentence lives, so the
   /// rail, the tablet palette and the command palette all read the same one.
-  String _tooltipFor(ModelerTool tool) {
+  String _tooltipFor(BuildContext context, ModelerTool tool) {
     final ShortcutActivator key =
         keymap?.forTool(tool.id) ?? SingleActivator(tool.shortcut);
-    return '${tool.label}  ·  ${describeShortcut(key)}\n${tool.about}';
+    return '${toolLabelIn(context, tool)}  ·  ${describeShortcut(key)}'
+        '\n${toolAboutIn(context, tool)}';
   }
 
   @override
@@ -638,7 +640,7 @@ class _Rail extends StatelessWidget {
     final List<RailEntry> rows = <RailEntry>[
       for (final ModelerTool tool in tools)
         (
-          label: tool.label,
+          label: toolLabelIn(context, tool),
           icon: tool.icon,
           armed: tool.id == active,
           onPressed: () => onTool(tool.id),
@@ -679,7 +681,9 @@ class _Rail extends StatelessWidget {
                     label: row.label,
                     button: true,
                     child: Tooltip(
-                      message: isTool ? _tooltipFor(tools[index]) : row.label,
+                      message: isTool
+                          ? _tooltipFor(context, tools[index])
+                          : row.label,
                       child: IconButton(
                         onPressed: row.onPressed,
                         icon: Icon(row.icon, size: 18),

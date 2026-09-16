@@ -7,6 +7,7 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart'
     show AddPrimitive;
+import 'package:flutter3d_modeler/l10n/app_localizations.dart';
 import 'package:flutter3d_modeler/src/exporting.dart';
 import 'package:flutter3d_modeler/src/play/play_template.dart';
 import 'package:flutter3d_modeler/src/ui/top_bar_actions.dart';
@@ -34,6 +35,9 @@ Future<void> show(
   addTearDown(tester.view.resetDevicePixelRatio);
   return tester.pumpWidget(
     MaterialApp(
+      locale: const Locale('en'),
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      supportedLocales: AppLocalizations.supportedLocales,
       home: Scaffold(
         body: TopBarActions(
           canUndo: false,

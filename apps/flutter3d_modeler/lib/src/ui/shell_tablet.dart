@@ -17,6 +17,7 @@ import 'package:flutter/material.dart';
 import '../settings.dart' show Workspace;
 import 'shell.dart';
 import 'theme.dart';
+import 'tool_strings.dart';
 import 'tools.dart';
 
 /// The tablet shell: a palette instead of a rail, a sheet instead of a panel.
@@ -219,15 +220,15 @@ class _TabletPalette extends StatelessWidget {
                 // node rather than leaving it on a separate sibling node.
                 MergeSemantics(
                   child: Semantics(
-                    label: tool.label,
+                    label: toolLabelIn(context, tool),
                     button: true,
                     child: Tooltip(
                       // `ux-18`: the same second line the desktop rail shows
                       // — `ModelerTool.about`, written once in `tools.dart`.
                       message:
-                          '${tool.label}  ·  '
+                          '${toolLabelIn(context, tool)}  ·  '
                           '${tool.shortcut.keyLabel.toUpperCase()}\n'
-                          '${tool.about}',
+                          '${toolAboutIn(context, tool)}',
                       child: IconButton(
                         onPressed: () => onTool(tool.id),
                         icon: Icon(tool.icon, size: 16),

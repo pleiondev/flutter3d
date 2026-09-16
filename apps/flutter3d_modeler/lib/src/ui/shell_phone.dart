@@ -14,10 +14,12 @@ library;
 
 import 'package:flutter/material.dart';
 
+import '../../l10n/app_localizations.dart';
 import '../settings.dart' show Workspace;
 import 'shell.dart';
 import 'shell_tablet.dart';
 import 'theme.dart';
+import 'tool_strings.dart';
 import 'tools.dart';
 
 /// The phone shell: a bottom `NavigationBar` for modes, a FAB for tools.
@@ -105,10 +107,10 @@ class ModelerPhoneShell extends StatelessWidget {
                 // tappable node.
                 MergeSemantics(
                   child: Semantics(
-                    label: 'More',
+                    label: AppLocalizations.of(context).more,
                     button: true,
                     child: IconButton(
-                      tooltip: 'More',
+                      tooltip: AppLocalizations.of(context).more,
                       icon: const Icon(Icons.more_vert),
                       onPressed: () => _openActionsSheet(context),
                     ),
@@ -280,9 +282,9 @@ class ModelerPhoneShell extends StatelessWidget {
               ListTile(
                 dense: true,
                 leading: Icon(tool.icon),
-                title: Text(tool.label),
+                title: Text(toolLabelIn(context, tool)),
                 subtitle: Text(
-                  tool.about,
+                  toolAboutIn(context, tool),
                   style: about,
                   maxLines: 3,
                   overflow: TextOverflow.ellipsis,

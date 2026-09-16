@@ -1035,6 +1035,7 @@ extension _FileHandling on _ModelerScreenState {
     final String? chosen = await showCommandPalette(
       context,
       entries: paletteEntries(
+        l10n: AppLocalizations.of(context),
         mode: state.mode,
         animation: state.animationSubmode,
         keymap: keymap,
@@ -1043,8 +1044,12 @@ extension _FileHandling on _ModelerScreenState {
           selection: state.history.selection,
         ),
         extra: <PaletteEntry>[
-          ...foldEntries(keymap, mode: state.mode),
-          ...helpEntries(mode: state.mode),
+          ...foldEntries(
+            keymap,
+            mode: state.mode,
+            l10n: AppLocalizations.of(context),
+          ),
+          ...helpEntries(mode: state.mode, l10n: AppLocalizations.of(context)),
         ],
       ),
     );
@@ -1078,6 +1083,7 @@ extension _FileHandling on _ModelerScreenState {
     if (overlay == null) return;
     final List<PaletteEntry> entries = <PaletteEntry>[
       for (final PaletteEntry entry in paletteEntries(
+        l10n: AppLocalizations.of(context),
         mode: state.mode,
         animation: state.animationSubmode,
         keymap: keymapFor(
