@@ -232,5 +232,7 @@
   "foldPropertiesPanel": "Fold the properties panel",
   "foldToolRail": "Fold the tool rail",
   "legalEntry": "Legal: licence, privacy and third-party licences",
-  "runACommand": "Run a command"
+  "runACommand": "Run a command",
+  "gallery": "Gallery",
+  "galleryTooltip": "Gallery — insert a ready model beside what is open"
 }

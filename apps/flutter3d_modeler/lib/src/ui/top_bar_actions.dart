@@ -75,6 +75,7 @@ class TopBarActions extends StatelessWidget {
     required this.onPreview,
     required this.onPlay,
     this.playBlocked,
+    this.onGallery,
     this.splitViewport = false,
     this.onSplitViewport,
     required this.onShortcutHelp,
@@ -129,6 +130,10 @@ class TopBarActions extends StatelessWidget {
   /// game" route — a route, not a mode, which is why it sits beside Export
   /// rather than on the mode switcher.
   final VoidCallback onPreview;
+
+  /// `gal-03`: opens the gallery. Null leaves the button out, which is
+  /// what a shell with no catalogue behind it gets.
+  final VoidCallback? onGallery;
 
   /// `ux-51`: Play on one of `PlayTemplate`'s three.
   final ValueChanged<PlayTemplate> onPlay;
@@ -218,6 +223,14 @@ class TopBarActions extends StatelessWidget {
             child: Text(l.add, style: const TextStyle(fontSize: 13)),
           ),
         ),
+        // `gal-03`: beside Add, because both of them are "put something in
+        // the scene" — one makes a shape and the other brings one in.
+        if (onGallery case final VoidCallback open)
+          Tooltip(
+            message: l.galleryTooltip,
+            child: TextButton(onPressed: open, child: Text(l.gallery)),
+          ),
+        const SizedBox(width: 4),
         // **Two buttons a word apart that do opposite things** — `ux-30`. The
         // review watched somebody press Open meaning Import and lose the scene
         // they had been building; the words themselves cannot be made to say

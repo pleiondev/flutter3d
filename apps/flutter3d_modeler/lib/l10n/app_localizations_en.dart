@@ -648,4 +648,11 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get runACommand => 'Run a command';
+
+  @override
+  String get gallery => 'Gallery';
+
+  @override
+  String get galleryTooltip =>
+      'Gallery — insert a ready model beside what is open';
 }
