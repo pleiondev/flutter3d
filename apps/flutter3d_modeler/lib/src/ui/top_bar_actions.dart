@@ -59,6 +59,8 @@ class TopBarActions extends StatelessWidget {
     required this.onPreview,
     required this.onPlay,
     this.playBlocked,
+    this.splitViewport = false,
+    this.onSplitViewport,
     required this.onShortcutHelp,
     this.onSettings,
     this.agentClient,
@@ -124,6 +126,14 @@ class TopBarActions extends StatelessWidget {
   /// rather than a second one written for this button means a person fixes
   /// one problem rather than learning two names for it.
   final String? playBlocked;
+
+  /// `ux-38`: whether the viewport is drawn as two views of the document.
+  final bool splitViewport;
+
+  /// Turns the second view on and off. Null leaves the button out, which is
+  /// what a shell with no layout to remember — a test pumping this widget on
+  /// its own — gets.
+  final ValueChanged<bool>? onSplitViewport;
 
   final VoidCallback onShortcutHelp;
   final VoidCallback onStartScreen;
@@ -274,6 +284,26 @@ class TopBarActions extends StatelessWidget {
           ),
         ),
       ),
+      // `ux-38`: one document, two cameras. Beside the two preview buttons
+      // because it answers the same family of question — what does this look
+      // like from somewhere that is not here — and because it is a thing
+      // about the window rather than about the document.
+      if (onSplitViewport case final ValueChanged<bool> toggle)
+        MergeSemantics(
+          child: Semantics(
+            label: 'Split the viewport',
+            button: true,
+            toggled: splitViewport,
+            child: IconButton(
+              tooltip: splitViewport
+                  ? 'One viewport again'
+                  : 'Split the viewport — the same document from two cameras',
+              isSelected: splitViewport,
+              onPressed: () => toggle(!splitViewport),
+              icon: const Icon(Icons.splitscreen_outlined, size: 20),
+            ),
+          ),
+        ),
       // `ux-51`: Play, beside Preview because the two are the same question
       // asked differently — Preview looks at the document the way a game
       // would draw it, Play walks around inside it. A menu rather than a

@@ -205,6 +205,39 @@ final class ModelerStage {
     );
   }
 
+  /// A second view of the same stage — `ux-38`.
+  ///
+  /// **One scene, two cameras.** Everything a stage holds besides the camera
+  /// belongs to the document: the scene graph, the [SceneSync] keeping it in
+  /// step, the material pool, the lighting. A second view that rebuilt any
+  /// of those would be a second document, drifting from the first the moment
+  /// anybody edited either — so this adds exactly the two things a view
+  /// needs of its own, a [CameraNode] and the orbit that drives it, and
+  /// shares the rest by reference.
+  ///
+  /// It starts a quarter turn round from [of], because two views of one
+  /// model from the same angle are one view drawn twice.
+  factory ModelerStage.secondViewOf(ModelerStage of) {
+    final camera = CameraNode(name: 'viewport-2');
+    of.scene.add(camera);
+    final orbit = OrbitController(
+      camera,
+      distance: of.orbit.distance,
+      yaw: of.orbit.yaw + math.pi / 2,
+      pitch: of.orbit.pitch,
+    );
+    return ModelerStage._(
+      of.scene,
+      camera,
+      orbit,
+      of.subject,
+      of.editMesh,
+      of.sync,
+      of.materials,
+      of.lighting,
+    );
+  }
+
   /// **Two lights and no shadow.** A single light leaves half of every object
   /// black, and an object half black is an object whose silhouette cannot be
   /// read — which is the one thing a modeller is for. The key is above and to

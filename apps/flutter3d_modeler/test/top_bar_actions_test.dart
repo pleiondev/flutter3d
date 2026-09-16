@@ -22,6 +22,8 @@ Future<void> show(
   bool isDirty = false,
   ValueChanged<PlayTemplate>? onPlay,
   String? playBlocked,
+  bool splitViewport = false,
+  ValueChanged<bool>? onSplitViewport,
 }) {
   // Wide enough to lay out every button this row now holds — `tut-08`'s own
   // "Import" tipped the default 800-pixel test window into an overflow that
@@ -50,6 +52,8 @@ Future<void> show(
           onPreview: onPreview ?? () {},
           onPlay: onPlay ?? (_) {},
           playBlocked: playBlocked,
+          splitViewport: splitViewport,
+          onSplitViewport: onSplitViewport,
           onShortcutHelp: () {},
           onStartScreen: () {},
           onReportProblem: () {},
@@ -103,6 +107,35 @@ void main() {
         find.byTooltip('Play — will not export: 1 problem'),
         findsOneWidget,
       );
+    });
+  });
+
+  group('ux-38: the split toggle', () {
+    testWidgets('is not there for a shell with no layout to remember', (
+      WidgetTester tester,
+    ) async {
+      await show(tester);
+
+      // Null means nowhere to save the answer. **Mutation: draw it anyway.**
+      // The button then flips a value nothing keeps, so a person turns the
+      // second view on and finds it off again on the next rebuild.
+      expect(find.bySemanticsLabel('Split the viewport'), findsNothing);
+    });
+
+    testWidgets('and reports the other state when it is', (
+      WidgetTester tester,
+    ) async {
+      final asked = <bool>[];
+      await show(tester, onSplitViewport: asked.add);
+
+      await tester.tap(find.bySemanticsLabel('Split the viewport'));
+      await tester.pump();
+      expect(asked, <bool>[true]);
+
+      await show(tester, splitViewport: true, onSplitViewport: asked.add);
+      await tester.tap(find.bySemanticsLabel('Split the viewport'));
+      await tester.pump();
+      expect(asked, <bool>[true, false]);
     });
   });
 
