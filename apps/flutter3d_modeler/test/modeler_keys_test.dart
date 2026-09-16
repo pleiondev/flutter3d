@@ -15,6 +15,8 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter3d_modeler/src/settings.dart';
+import 'package:flutter3d_modeler/src/ui/keymap.dart';
 import 'package:flutter3d_modeler/src/ui/modeler_keys.dart';
 import 'package:flutter3d_modeler/src/ui/tools.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -55,6 +57,10 @@ Future<void> show(
       onSelectNone: () {},
       onInvertSelection: () {},
       onShortcutHelp: () {},
+      // The default preset, on a platform whose command key is control —
+      // the same `TargetPlatform.linux` the theme above pins for the same
+      // reason.
+      keymap: keymapFor(KeymapPreset.standard, apple: false),
       tools: toolsFor(mode),
       child: Scaffold(
         body: Focus(focusNode: contentFocus, child: const SizedBox.shrink()),

@@ -837,7 +837,20 @@ extension _FileHandling on _ModelerScreenState {
   /// `ui-32n`'s own shortcut-help screen, opened by `?` or the Help button.
   void _showShortcutHelp() {
     if (_state is! ModelerReady) return;
-    unawaited(showShortcutHelp(context));
+    unawaited(
+      showShortcutHelp(
+        context,
+        // `ux-10`: the screen lists the preset that is actually live, and
+        // the camera section follows the navigation scheme beside it.
+        keymap: keymapFor(
+          _settings.keymap,
+          apple:
+              Theme.of(context).platform == TargetPlatform.macOS ||
+              Theme.of(context).platform == TargetPlatform.iOS,
+        ),
+        navigation: _settings.navigation,
+      ),
+    );
   }
 
   /// `ux-09`'s own settings screen.

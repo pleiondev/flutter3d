@@ -91,6 +91,7 @@ import 'src/ui/export_anyway_dialog.dart';
 import 'src/ui/export_screen.dart';
 import 'src/ui/game_preview_screen.dart';
 import 'src/ui/import_screen.dart';
+import 'src/ui/keymap.dart';
 import 'src/ui/lathe_dialog.dart';
 import 'src/ui/material_studio_dialog.dart';
 import 'src/ui/measurement_report_overlay.dart';

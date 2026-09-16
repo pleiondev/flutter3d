@@ -5,6 +5,8 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter3d_modeler/src/settings.dart';
+import 'package:flutter3d_modeler/src/ui/keymap.dart';
 import 'package:flutter3d_modeler/src/ui/screen_parts.dart';
 import 'package:flutter3d_modeler/src/ui/shell_for_width.dart';
 import 'package:flutter3d_modeler/src/ui/theme.dart';
@@ -22,6 +24,8 @@ Future<void> _pump(
   WidgetTester tester, {
   Widget? bottom,
   double? bottomHeight,
+  ModelerMode mode = ModelerMode.object,
+  Keymap? keymap,
 }) {
   tester.view
     ..physicalSize = const Size(1440, 900)
@@ -33,7 +37,7 @@ Future<void> _pump(
       home: Scaffold(
         body: ShellForWidth(
           parts: _parts,
-          mode: ModelerMode.object,
+          mode: mode,
           onMode: (_) {},
           submode: MeshSubmode.vertex,
           onSubmode: (_) {},
@@ -45,6 +49,7 @@ Future<void> _pump(
           isDirty: false,
           bottom: bottom,
           bottomHeight: bottomHeight,
+          keymap: keymap,
         ),
       ),
     ),
@@ -76,5 +81,36 @@ void main() {
       matching: find.byType(SizedBox),
     );
     expect(tester.widget<SizedBox>(sizedBox.first).height, 270);
+  });
+
+  /// Every tooltip the shell draws, as text — the rail's own are the only
+  /// ones in this harness, since `_parts` hands it plain `Text` everywhere
+  /// else.
+  Set<String> tooltips(WidgetTester tester) => tester
+      .widgetList<Tooltip>(find.byType(Tooltip))
+      .map((Tooltip it) => it.message ?? '')
+      .toSet();
+
+  group('ux-10: the rail names the key the live preset binds', () {
+    testWidgets('with no keymap, the tool table\'s own letter', (tester) async {
+      await _pump(tester, mode: ModelerMode.mesh);
+
+      expect(tooltips(tester), contains('Extrude  ·  E'));
+    });
+
+    testWidgets('with the tool-keys preset, the letter that preset moved it '
+        'to', (tester) async {
+      // That preset spends `E` on rotate, so extrude moves up a row to
+      // `Shift+E` — and a tooltip that still said `E` would be teaching the
+      // wrong key, which is the whole reason this is threaded.
+      await _pump(
+        tester,
+        mode: ModelerMode.mesh,
+        keymap: keymapFor(KeymapPreset.toolKeys, apple: false),
+      );
+
+      expect(tooltips(tester), contains('Extrude  ·  Shift+E'));
+      expect(tooltips(tester), isNot(contains('Extrude  ·  E')));
+    });
   });
 }

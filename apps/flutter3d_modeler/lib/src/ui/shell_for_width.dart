@@ -11,6 +11,7 @@ library;
 
 import 'package:flutter/material.dart';
 
+import 'keymap.dart';
 import 'layout_class.dart';
 import 'screen_parts.dart';
 import 'shell.dart';
@@ -37,7 +38,12 @@ class ShellForWidth extends StatelessWidget {
     this.bottom,
     this.bottomHeight,
     this.agentPanel,
+    this.keymap,
   });
+
+  /// Which keys the desktop rail's own tooltips name — `ux-10`. The touch
+  /// shells have no tooltips of their own to carry it into.
+  final Keymap? keymap;
 
   final ScreenParts parts;
 
@@ -97,6 +103,7 @@ class ShellForWidth extends StatelessWidget {
             bottom: bottom,
             bottomHeight: bottomHeight,
             agentPanel: agentPanel,
+            keymap: keymap,
           ),
           LayoutClass.tablet => ModelerTabletShell(
             mode: mode,

@@ -314,6 +314,32 @@ final class ModelerStage {
     orbit.frameBounds(bounds);
   }
 
+  /// Frames just the objects [ids] names — `ux-10`'s own "frame selected",
+  /// the thing `.` does in every package in the field and nothing did here.
+  ///
+  /// Falls back to [frameSubject] when nothing is selected or nothing
+  /// selected has a mesh: a key that does nothing at all reads as broken,
+  /// and "put the camera on everything" is the nearest true answer to "put
+  /// the camera on what I mean".
+  void frameObjects(Iterable<int> ids) {
+    Aabb3? total;
+    for (final int id in ids) {
+      final MeshNode? node = sync?.nodeOf(id);
+      if (node == null) continue;
+      final Aabb3 box = node.worldBounds;
+      if (total == null) {
+        total = Aabb3.copy(box);
+      } else {
+        total.hull(box);
+      }
+    }
+    if (total == null) {
+      frameSubject();
+      return;
+    }
+    orbit.frameBounds(total);
+  }
+
   /// The box every mesh under [subject] fits in, or null when none has one.
   Aabb3? subjectBounds() {
     Aabb3? total;

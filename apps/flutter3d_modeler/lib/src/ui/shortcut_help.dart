@@ -1,7 +1,5 @@
 /// The in-app shortcut table — `ui-32n`'s own "без второго источника правды
-/// для клавиш": read from `toolsFor(ModelerMode)`, the one table `ui-07`
-/// already built, rather than a second list of keys kept beside it that
-/// could drift.
+/// для клавиш", now read through whichever preset is live (`ux-10`).
 ///
 /// **One row per key, not per tool.** Several modes arm the same family of
 /// operation on the same letter — `G`/`R`/`S` move, rotate and scale in both
@@ -10,31 +8,186 @@
 /// complete one. The first mode to use a key names the row; every later
 /// mode that reaches for the same key is folded into it rather than
 /// appended beside it.
+///
+/// **Sections, since `ux-10`.** The review found the help screen teaching
+/// the tools and nothing else: not how to move the camera, not how to save,
+/// not how to select everything — the three things somebody in their first
+/// hour is actually looking for. The camera section is the one that is not
+/// a keyboard binding at all, and is written down here because a help screen
+/// that answers "how do I turn the model" is worth more than one that is
+/// only about keys.
 library;
 
 import 'package:flutter/services.dart' show LogicalKeyboardKey;
+import 'package:flutter/widgets.dart' show ShortcutActivator, SingleActivator;
 
+import '../settings.dart' show NavigationScheme;
+import 'keymap.dart';
 import 'tools.dart';
+
+/// Which part of the application a row belongs to.
+enum ShortcutSection {
+  /// Moving the camera — gestures rather than keys, mostly.
+  camera,
+
+  /// Save, undo, export, help: the things that are true in every mode.
+  application,
+
+  /// Selecting, and moving between modes.
+  selection,
+
+  /// What the rail arms.
+  tools,
+}
 
 /// One row of the shortcut table: the key, and what it does.
 final class ShortcutEntry {
-  const ShortcutEntry({required this.label, required this.shortcut});
+  const ShortcutEntry({
+    required this.label,
+    required this.keys,
+    required this.section,
+  });
 
-  /// The first tool this key was found on, across every mode in
-  /// [ModelerMode.values] order.
+  /// What it does, in the words the rail or the design already uses.
   final String label;
 
-  final LogicalKeyboardKey shortcut;
+  /// How it is reached, already written out — "⌘S", "Delete or Backspace",
+  /// "two fingers on a trackpad". A string rather than an activator because
+  /// a camera row has no activator at all and a help screen that could not
+  /// mention the camera would be missing the first question people ask.
+  final String keys;
+
+  final ShortcutSection section;
 }
 
-/// Every shortcut [toolsFor] hands out across every mode, each key exactly
-/// once — `ui-32n`'s own worked example.
-List<ShortcutEntry> shortcutTable() {
-  final seen = <LogicalKeyboardKey>{};
+/// Every shortcut [keymap] hands out, each key once, in sections.
+List<ShortcutEntry> shortcutTable(
+  Keymap keymap, {
+  NavigationScheme navigation = NavigationScheme.middleMouseOrbit,
+}) => <ShortcutEntry>[
+  ..._cameraRows(navigation),
+  ..._actionRows(keymap),
+  ..._toolRows(keymap),
+];
+
+List<ShortcutEntry> _cameraRows(NavigationScheme navigation) => <ShortcutEntry>[
+  ShortcutEntry(
+    label: 'Orbit',
+    keys: switch (navigation) {
+      NavigationScheme.middleMouseOrbit =>
+        'Middle button, Alt and the left button, or two fingers on a '
+            'trackpad',
+      NavigationScheme.leftDragOrbit =>
+        'Left button on empty space, the middle button, or two fingers on a '
+            'trackpad',
+    },
+    section: ShortcutSection.camera,
+  ),
+  const ShortcutEntry(
+    label: 'Pan',
+    keys: 'Shift and whatever orbits',
+    section: ShortcutSection.camera,
+  ),
+  const ShortcutEntry(
+    label: 'Zoom',
+    keys: 'The wheel, or Ctrl with two fingers',
+    section: ShortcutSection.camera,
+  ),
+];
+
+/// The rows in the order a person meets them, one per action.
+const Map<ModelerAction, (String, ShortcutSection)> _actionLabels =
+    <ModelerAction, (String, ShortcutSection)>{
+      ModelerAction.save: ('Save', ShortcutSection.application),
+      ModelerAction.export: ('Export', ShortcutSection.application),
+      ModelerAction.undo: ('Undo', ShortcutSection.application),
+      ModelerAction.redo: ('Redo', ShortcutSection.application),
+      ModelerAction.shortcutHelp: ('This screen', ShortcutSection.application),
+      ModelerAction.frameSelection: (
+        'Frame what is selected',
+        ShortcutSection.application,
+      ),
+      ModelerAction.frameAll: ('Frame everything', ShortcutSection.application),
+      ModelerAction.viewFront: ('Front view', ShortcutSection.application),
+      ModelerAction.viewSide: ('Side view', ShortcutSection.application),
+      ModelerAction.viewTop: ('Top view', ShortcutSection.application),
+      ModelerAction.playPause: ('Play and pause', ShortcutSection.application),
+      ModelerAction.selectAll: ('Select everything', ShortcutSection.selection),
+      ModelerAction.selectNone: ('Select nothing', ShortcutSection.selection),
+      ModelerAction.invertSelection: (
+        'Invert the selection',
+        ShortcutSection.selection,
+      ),
+      ModelerAction.toggleObjectMesh: (
+        'Object and mesh',
+        ShortcutSection.selection,
+      ),
+      ModelerAction.delete: ('Delete', ShortcutSection.selection),
+    };
+
+List<ShortcutEntry> _actionRows(Keymap keymap) => <ShortcutEntry>[
+  for (final MapEntry<ModelerAction, (String, ShortcutSection)> each
+      in _actionLabels.entries)
+    if (keymap.forAction(each.key) case final List<ShortcutActivator> keys)
+      if (keys.isNotEmpty)
+        ShortcutEntry(
+          label: each.value.$1,
+          keys: keys.map(describeShortcut).join(' or '),
+          section: each.value.$2,
+        ),
+];
+
+/// One row per thing a key does, not one per key.
+///
+/// **The difference matters and used to be got wrong.** `G` moves in both
+/// object and mesh mode, which is one answer given twice and belongs on one
+/// row; `B` is "bake to mesh" in object mode and "bevel" in mesh mode, which
+/// is two answers and was being folded into whichever came first — so the
+/// help screen simply did not mention bevel at all. Keying the fold on the
+/// pair rather than the key alone is what tells those two cases apart.
+List<ShortcutEntry> _toolRows(Keymap keymap) {
+  final seen = <String>{};
   return <ShortcutEntry>[
     for (final ModelerMode mode in ModelerMode.values)
-      for (final ModelerTool tool in toolsFor(mode))
-        if (seen.add(tool.shortcut))
-          ShortcutEntry(label: tool.label, shortcut: tool.shortcut),
+      for (final AnimationSubmode? animation in <AnimationSubmode?>[
+        null,
+        ...AnimationSubmode.values,
+      ])
+        for (final ModelerTool tool in toolsFor(mode, animation: animation))
+          if (keymap.forTool(tool.id) case final ShortcutActivator key)
+            if (seen.add('${describeShortcut(key)}|${tool.label}'))
+              ShortcutEntry(
+                label: tool.label,
+                keys: describeShortcut(key),
+                section: ShortcutSection.tools,
+              ),
   ];
 }
+
+/// A key as a person reads it — "⌘S", "Alt+N", "Delete".
+String describeShortcut(ShortcutActivator key) {
+  if (key is! SingleActivator) return key.toString();
+  final String name = _keyName(key.trigger);
+  return <String>[
+    if (key.control) 'Ctrl',
+    if (key.meta) '⌘',
+    if (key.alt) 'Alt',
+    if (key.shift) 'Shift',
+    name,
+  ].join(key.meta && !key.control && !key.alt && !key.shift ? '' : '+');
+}
+
+String _keyName(LogicalKeyboardKey key) => switch (key) {
+  LogicalKeyboardKey.delete => 'Delete',
+  LogicalKeyboardKey.backspace => 'Backspace',
+  LogicalKeyboardKey.tab => 'Tab',
+  LogicalKeyboardKey.space => 'Space',
+  LogicalKeyboardKey.home => 'Home',
+  LogicalKeyboardKey.period => '.',
+  LogicalKeyboardKey.numpadDecimal => 'Numpad .',
+  LogicalKeyboardKey.numpad1 => 'Numpad 1',
+  LogicalKeyboardKey.numpad3 => 'Numpad 3',
+  LogicalKeyboardKey.numpad7 => 'Numpad 7',
+  LogicalKeyboardKey.slash => '/',
+  _ => key.keyLabel.toUpperCase(),
+};

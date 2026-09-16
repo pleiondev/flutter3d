@@ -10,6 +10,7 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import 'keymap.dart';
 import 'selection_key_bindings.dart';
 import 'tools.dart';
 
@@ -31,7 +32,34 @@ class ModelerKeys extends StatelessWidget {
     required this.onShortcutHelp,
     required this.tools,
     required this.child,
+    required this.keymap,
+    this.onSave,
+    this.onDelete,
+    this.onToggleObjectMesh,
+    this.onFrameSelection,
+    this.onFrameAll,
+    this.onPlayPause,
+    this.onStandardView,
   });
+
+  /// Which keys are live — `ux-10`'s own preset, read off the settings.
+  ///
+  /// **Every binding below comes from here, including the ones that used to
+  /// be written into this widget.** Undo, redo and export were built from
+  /// `Theme.of(context).platform` a few lines down and the tools from their
+  /// own `ModelerTool.shortcut`; a preset that could change one and not the
+  /// other would be a preset that half works.
+  final Keymap keymap;
+
+  /// The application's own actions, each null where the caller has none to
+  /// give — a preview viewport with no document to save, a test.
+  final VoidCallback? onSave;
+  final VoidCallback? onDelete;
+  final VoidCallback? onToggleObjectMesh;
+  final VoidCallback? onFrameSelection;
+  final VoidCallback? onFrameAll;
+  final VoidCallback? onPlayPause;
+  final ValueChanged<ModelerAction>? onStandardView;
 
   /// A key that a transform in progress may want. Answers whether it took it,
   /// so the shortcuts below only see the ones it did not.
@@ -66,29 +94,6 @@ class ModelerKeys extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Meta on a Mac and control everywhere else, which is what people's hands
-    // already know. `Platform` is not reachable on the web, so this asks the
-    // framework rather than the operating system.
-    final bool apple =
-        Theme.of(context).platform == TargetPlatform.macOS ||
-        Theme.of(context).platform == TargetPlatform.iOS;
-    final undo = apple
-        ? const SingleActivator(LogicalKeyboardKey.keyZ, meta: true)
-        : const SingleActivator(LogicalKeyboardKey.keyZ, control: true);
-    final redo = apple
-        ? const SingleActivator(
-            LogicalKeyboardKey.keyZ,
-            meta: true,
-            shift: true,
-          )
-        : const SingleActivator(
-            LogicalKeyboardKey.keyZ,
-            control: true,
-            shift: true,
-          );
-    final export = apple
-        ? const SingleActivator(LogicalKeyboardKey.keyE, meta: true)
-        : const SingleActivator(LogicalKeyboardKey.keyE, control: true);
     // **A `Focus` with an `onKeyEvent` outside the shortcuts, because a
     // transform in progress has to see keys before they mean what they usually
     // mean.** `X` arms nothing while a move is going on — it constrains the
@@ -105,9 +110,32 @@ class ModelerKeys extends StatelessWidget {
       },
       child: CallbackShortcuts(
         bindings: <ShortcutActivator, VoidCallback>{
-          undo: onUndo,
-          redo: onRedo,
-          export: onExport,
+          // Every application-wide action the live preset binds, and only
+          // the ones this caller has something to do about.
+          for (final MapEntry<ModelerAction, VoidCallback?> each
+              in <ModelerAction, VoidCallback?>{
+                ModelerAction.undo: onUndo,
+                ModelerAction.redo: onRedo,
+                ModelerAction.export: onExport,
+                ModelerAction.save: onSave,
+                ModelerAction.delete: onDelete,
+                ModelerAction.toggleObjectMesh: onToggleObjectMesh,
+                ModelerAction.frameSelection: onFrameSelection,
+                ModelerAction.frameAll: onFrameAll,
+                ModelerAction.playPause: onPlayPause,
+                ModelerAction.shortcutHelp: onShortcutHelp,
+              }.entries)
+            if (each.value case final VoidCallback run)
+              for (final ShortcutActivator key in keymap.forAction(each.key))
+                key: _typingSafe(run),
+          if (onStandardView case final ValueChanged<ModelerAction> look)
+            for (final ModelerAction view in const <ModelerAction>[
+              ModelerAction.viewFront,
+              ModelerAction.viewSide,
+              ModelerAction.viewTop,
+            ])
+              for (final ShortcutActivator key in keymap.forAction(view))
+                key: _typingSafe(() => look(view)),
           if (mode == ModelerMode.mesh)
             for (final MeshSubmode level in MeshSubmode.values)
               SingleActivator(level.shortcut): _typingSafe(
@@ -118,8 +146,12 @@ class ModelerKeys extends StatelessWidget {
               SingleActivator(level.shortcut): _typingSafe(
                 () => onAnimationLevel(level),
               ),
+          // The rail's own keys, from the preset rather than from
+          // `ModelerTool.shortcut` — which is what makes a preset reach the
+          // rail at all.
           for (final ModelerTool tool in tools)
-            SingleActivator(tool.shortcut): _typingSafe(() => onTool(tool.id)),
+            if (keymap.forTool(tool.id) case final ShortcutActivator key)
+              key: _typingSafe(() => onTool(tool.id)),
           for (final MapEntry<ShortcutActivator, VoidCallback> entry
               in selectionKeyBindings(
                 tools: tools,
@@ -128,8 +160,6 @@ class ModelerKeys extends StatelessWidget {
                 onInvertSelection: onInvertSelection,
               ).entries)
             entry.key: _typingSafe(entry.value),
-          const SingleActivator(LogicalKeyboardKey.slash, shift: true):
-              _typingSafe(onShortcutHelp),
         },
         child: child,
       ),
