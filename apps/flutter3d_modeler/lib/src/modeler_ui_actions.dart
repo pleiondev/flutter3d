@@ -13,10 +13,15 @@ library;
 
 import 'dart:async';
 
+import 'package:flutter3d_model_core/flutter3d_model_core.dart'
+    show ReplaceDocument;
 import 'package:vector_math/vector_math.dart' show Vector3;
 
 import 'console_log.dart';
 import 'display_modes.dart';
+import 'gallery/gallery_insert.dart';
+import 'gallery/gallery_item.dart';
+import 'gallery/recipe_source.dart';
 import 'mcp_ui_actions.dart';
 import 'modeler_cubit.dart';
 import 'play/play_control.dart';
@@ -32,6 +37,7 @@ final class ModelerUiActions implements UiActions {
     required this.openGamePreview,
     required this.openPlay,
     required this.play,
+    this.gallerySources = const <GallerySource>[RecipeSource()],
     required this.runTool,
     this.captureWindow,
   });
@@ -67,6 +73,11 @@ final class ModelerUiActions implements UiActions {
   /// `ux-52`: whether Play is running, and how to press its buttons. Filled
   /// in by `PlayScreen` itself while the route is up — see `PlayControl`.
   final PlayControl play;
+
+  /// `gal-06`: where the gallery's own items come from. The built-in
+  /// recipes by default, which is the one source that needs no network and
+  /// cannot be unreachable.
+  final List<GallerySource> gallerySources;
 
   /// `ux-44`: the window as PNG bytes, or null when there is no laid-out
   /// window to capture. Handed in for the same reason the two dialogs above
@@ -346,6 +357,83 @@ final class ModelerUiActions implements UiActions {
           '${at.x.toStringAsFixed(2)}, ${at.y.toStringAsFixed(2)}, '
           '${at.z.toStringAsFixed(2)}',
     );
+  }
+
+  /// Every source an agent can reach — the built-in recipes, and whatever
+  /// the screen was given. Handed in rather than built here so a test can
+  /// offer a catalogue of its own without a network.
+  Future<List<GalleryItem>> _catalogue() async {
+    final found = <GalleryItem>[];
+    for (final GallerySource source in gallerySources) {
+      try {
+        for (final GalleryItem item in await source.list()) {
+          if (refuseItem(item) == null) found.add(item);
+        }
+      } on Object {
+        // A source that is down costs its own items and nothing else —
+        // `gal-01`'s own rule, and the reason an agent still gets the
+        // built-in models on a machine with no network.
+        continue;
+      }
+    }
+    return freeFirst(found);
+  }
+
+  @override
+  Future<UiAnswer> galleryList({String? category, String? licence}) async {
+    final List<GalleryItem> items = await _catalogue();
+    final List<GalleryItem> shown = <GalleryItem>[
+      for (final GalleryItem item in items)
+        if ((category == null || item.category.name == category) &&
+            (licence == null || item.licence.id == licence))
+          item,
+    ];
+    if (shown.isEmpty) {
+      return (did: true, says: 'nothing in the gallery matches that');
+    }
+    return (
+      did: true,
+      says: shown
+          .map(
+            (GalleryItem it) =>
+                '${it.id} (${it.name}, ${it.category.name}, '
+                '${it.licence.id}${it.author == null ? '' : ', by ${it.author}'})',
+          )
+          .join('\n'),
+    );
+  }
+
+  @override
+  Future<UiAnswer> galleryInsert(String id) async {
+    final ModelerReady? ready = _ready;
+    if (ready == null) return (did: false, says: 'no document open');
+    final List<GalleryItem> items = await _catalogue();
+    final GalleryItem? item = items
+        .where((GalleryItem it) => it.id == id)
+        .firstOrNull;
+    if (item == null) {
+      return (
+        did: false,
+        says: 'no gallery item called $id — call gallery.list for the ids',
+      );
+    }
+    final GalleryModel model = await item.open();
+    final GalleryInsert inserted = insertIntoProject(
+      ready.history.project,
+      item,
+      model,
+    );
+    if (inserted.ids.isEmpty) {
+      return (
+        did: false,
+        says: '${item.name} brought nothing this reader could place',
+      );
+    }
+    cubit.ran(
+      ReplaceDocument(inserted.project, 'insert ${item.name}'),
+      said: insertSaid(item, inserted.ids.length),
+    );
+    return (did: true, says: insertSaid(item, inserted.ids.length));
   }
 
   @override

@@ -71,6 +71,13 @@ final class _NoopUiActions implements UiActions {
       (did: false, says: 'no window here', png: null);
 
   @override
+  Future<UiAnswer> galleryList({String? category, String? licence}) async =>
+      (did: true, says: 'built-in/mug (Mug, tableware, cc0)');
+
+  @override
+  Future<UiAnswer> galleryInsert(String id) async => (did: true, says: 'ok');
+
+  @override
   List<({String id, String label, String mode})> commands() =>
       const <({String id, String label, String mode})>[
         (id: 'object.duplicate', label: 'Duplicate', mode: 'object'),
@@ -99,6 +106,9 @@ const List<String> _uiToolNames = <String>[
   'play.stop',
   'play.console',
   'play.screenshot',
+  // `gal-06`: the gallery, under the names the row gives it.
+  'gallery.list',
+  'gallery.insert',
   // `ux-26`: the same reasoning — it reads the session rather than moving
   // anything, and the row names it.
   'get_console',
@@ -145,6 +155,7 @@ void main() {
             (String name) =>
                 name.startsWith('ui.') ||
                 name.startsWith('play.') ||
+                name.startsWith('gallery.') ||
                 name == 'run_command' ||
                 name == 'get_console',
           )

@@ -129,6 +129,20 @@ abstract interface class UiActions {
   /// agent that expected a game and got the modeller finds out from the
   /// refusal rather than from the picture.
   Future<UiPicture> playScreenshot();
+
+  /// `gal-06`: what the gallery offers, as one line per item — the id an
+  /// insert takes, the name, the category and the licence.
+  ///
+  /// [category] and [licence] narrow it the same way the screen's own
+  /// chips do; both left out lists everything, including the items that
+  /// ask for a credit. An agent that wants only the free ones asks for
+  /// `cc0`, and the answer says which is which regardless.
+  Future<UiAnswer> galleryList({String? category, String? licence});
+
+  /// Inserts the gallery item [id] beside what is already open, and
+  /// answers with the ids it made — the same one-step, one-undo insert the
+  /// screen does.
+  Future<UiAnswer> galleryInsert(String id);
 }
 
 /// [UiAnswer] with the picture beside it, for the one action that draws.
