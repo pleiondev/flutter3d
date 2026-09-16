@@ -111,6 +111,20 @@ class TransformRows extends StatelessWidget {
                     label: _axisLabels[axis],
                     showLabel: false,
                     semanticLabel: '${_rowLabels[row]} ${_axisLabels[axis]}',
+                    // `ux-15`: what this row's own numbers mean, so `10cm`
+                    // in a position and `90deg` in a rotation both land, and
+                    // an arrow key or a scrub moves by something the size of
+                    // what the row measures.
+                    unit: switch (row) {
+                      0 => NumberUnit.metres,
+                      1 => NumberUnit.degrees,
+                      _ => NumberUnit.plain,
+                    },
+                    step: switch (row) {
+                      0 => 0.01,
+                      1 => 1,
+                      _ => 0.01,
+                    },
                     value: _rowValues(row)[axis],
                     onChanged: (double to) =>
                         onChanged(_withAxis(row, axis, to)),
